@@ -1,10 +1,9 @@
-
 import { useMemo } from 'react';
 
 const isDev = import.meta.env.DEV;
 
 export const useMemoizedCalculation = (factory, deps) => {
-  
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   return useMemo(() => {
     const start = performance.now();
     const result = factory();

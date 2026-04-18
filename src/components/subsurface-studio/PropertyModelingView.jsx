@@ -1,10 +1,6 @@
-
-/* eslint-disable react/no-unknown-property */
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment, Center, Box } from '@react-three/drei';
 import { useToast } from '@/components/ui/use-toast';
 
 // Components
@@ -16,36 +12,45 @@ import UncertaintyAnalysisPanel from './property-modeling/UncertaintyAnalysisPan
 import PropertyAnalysisPanel from './property-modeling/PropertyAnalysisPanel';
 import PropertyExportPanel from './property-modeling/PropertyExportPanel';
 
-// Mock property grid visualization
-const PropertyGridViz = ({ property, opacity }) => {
-    // Create a simple 3D grid of cubes representing cells
-    // In reality this would be InstancedMesh with thousands of cells
-    const cells = [];
-    for(let x=0; x<5; x++) {
-        for(let y=0; y<5; y++) {
-            for(let z=0; z<3; z++) {
-                // Mock property value determining color
-                const val = Math.random(); 
-                let color = 'blue';
-                if (property === 'porosity') {
-                    color = val > 0.8 ? '#10b981' : val > 0.5 ? '#f59e0b' : '#3b82f6';
-                } else if (property === 'permeability') {
-                    color = val > 0.7 ? '#ef4444' : '#a855f7';
-                }
+// 2D Canvas Grid Viz
+const PropertyGridVizCanvas = ({ property, opacity, isVisible }) => {
+    const canvasRef = useRef(null);
 
-                cells.push(
-                    <Box 
-                        key={`${x}-${y}-${z}`} 
-                        position={[x*12 - 30, z*12, y*12 - 30]} 
-                        args={[10, 10, 10]}
-                    >
-                         <meshStandardMaterial color={color} transparent opacity={opacity} />
-                    </Box>
-                );
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || !isVisible) return;
+        const ctx = canvas.getContext('2d');
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        canvas.width = w;
+        canvas.height = h;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.globalAlpha = opacity;
+
+        const cellSize = 20;
+        const cols = Math.floor(w / cellSize);
+        const rows = Math.floor(h / cellSize);
+
+        for (let x = 0; x < cols; x++) {
+            for (let y = 0; y < rows; y++) {
+                const val = Math.sin(x/5) * Math.cos(y/5) * 0.5 + 0.5;
+                let color = '#3b82f6'; // default blue
+                if (property === 'porosity') {
+                    color = val > 0.7 ? '#10b981' : val > 0.4 ? '#f59e0b' : '#3b82f6';
+                } else if (property === 'permeability') {
+                    color = val > 0.6 ? '#ef4444' : '#a855f7';
+                }
+                ctx.fillStyle = color;
+                ctx.fillRect(x * cellSize, y * cellSize, cellSize - 1, cellSize - 1);
             }
         }
-    }
-    return <group>{cells}</group>;
+        ctx.globalAlpha = 1.0;
+    }, [property, opacity, isVisible]);
+
+    return (
+        <canvas ref={canvasRef} className="w-full h-full absolute inset-0 touch-none" />
+    );
 };
 
 const PropertyModelingView = () => {
@@ -85,61 +90,19 @@ const PropertyModelingView = () => {
                 {/* LEFT PANEL: Controls */}
                 <Panel defaultSize={25} minSize={20} maxSize={35} className="bg-slate-900 border-r border-slate-800 flex flex-col">
                     <ScrollArea className="h-full p-4 space-y-4">
-                        <VolumetricCalculationPanel 
-                            onCalculate={(val) => console.log("STOIP:", val)}
-                        />
-                        
-                        <PropertyDistributionPanel 
-                            onRunModel={handleRunModel}
-                        />
-
+                        <VolumetricCalculationPanel onCalculate={(val) => console.log("STOIP:", val)} />
+                        <PropertyDistributionPanel onRunModel={handleRunModel} />
                         <UncertaintyAnalysisPanel />
-
                         <PropertyAnalysisPanel property={activeProperty} />
-
                         <PropertyExportPanel />
                     </ScrollArea>
                 </Panel>
 
                 <PanelResizeHandle className="w-1 bg-slate-800 hover:bg-cyan-500 transition-colors" />
 
-                {/* CENTER PANEL: 3D Visualization */}
+                {/* CENTER PANEL: 2D Visualization */}
                 <Panel className="relative bg-black">
-                    <Canvas camera={{ position: [100, 80, 100], fov: 50 }}>
-                        <color attach="background" args={['#020617']} />
-                        <Suspense fallback={null}>
-                            <Center>
-                                {layers.grid.visible && (
-                                    <PropertyGridViz 
-                                        property={activeProperty} 
-                                        opacity={layers.grid.opacity} 
-                                    />
-                                )}
-                                
-                                {/* Mock Well */}
-                                {layers.wells.visible && (
-                                    <mesh position={[0, 20, 0]}>
-                                        <cylinderGeometry args={[0.5, 0.5, 100, 8]} />
-                                        <meshStandardMaterial color="white" />
-                                    </mesh>
-                                )}
-
-                                {/* Mock Contact Plane */}
-                                {layers.contacts.visible && (
-                                    <mesh position={[0, -10, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                                        <planeGeometry args={[100, 100]} />
-                                        <meshStandardMaterial color="blue" transparent opacity={0.3} side={2} />
-                                    </mesh>
-                                )}
-                            </Center>
-                            
-                            <Grid args={[200, 200]} cellSize={10} cellThickness={0.5} sectionSize={50} sectionThickness={1} fadeDistance={400} sectionColor="#334155" cellColor="#1e293b" />
-                            <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI/2} />
-                            <Environment preset="city" />
-                            <ambientLight intensity={0.5} />
-                            <directionalLight position={[10, 20, 5]} intensity={1} />
-                        </Suspense>
-                    </Canvas>
+                    <PropertyGridVizCanvas property={activeProperty} opacity={layers.grid.opacity} isVisible={layers.grid.visible} />
 
                     {/* Layer Manager Overlay */}
                     {showLayerManager && (
@@ -149,8 +112,8 @@ const PropertyModelingView = () => {
                     )}
 
                     {/* Legend Overlay */}
-                    <div className="absolute bottom-4 right-4 bg-slate-900/80 backdrop-blur p-3 rounded border border-slate-800 text-xs">
-                        <div className="font-bold mb-2 text-slate-200 capitalize">{activeProperty}</div>
+                    <div className="absolute bottom-4 right-4 bg-slate-900/80 backdrop-blur p-3 rounded border border-slate-800 text-xs shadow-lg">
+                        <div className="font-bold mb-2 text-slate-200 capitalize">{activeProperty} Map</div>
                         <div className="space-y-1">
                             <div className="flex items-center gap-2"><div className="w-3 h-3 bg-emerald-500 rounded-sm"></div> <span>High</span></div>
                             <div className="flex items-center gap-2"><div className="w-3 h-3 bg-amber-500 rounded-sm"></div> <span>Medium</span></div>

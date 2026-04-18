@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useMasterApps } from '@/hooks/useMasterApps';
 import { logAppBuild } from '@/lib/appBuildLogger'; // Import new utility

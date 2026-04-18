@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { usePurchasedModules } from '@/hooks/usePurchasedModules';
@@ -17,50 +17,7 @@ const AppRoute = ({ children, appName }) => {
   const { apps, loading: appsLoading } = useAppsFromDatabase();
   const location = useLocation();
 
-  // Task 3: Check database status first
-  // We assume appName passed to AppRoute corresponds to either a module ID (slug) or an App ID (slug)
-  
-  // Helper to find app definition from DB or Static fallback
-  const getAppDefinition = (id) => {
-      if (!id) return undefined;
-      // Try DB first
-      if (apps && apps.length > 0) {
-          const dbApp = apps.find(a => a.id === id || a.slug === id);
-          if (dbApp) return dbApp;
-      }
-      // Fallback to static
-      return getStaticAppById(id);
-  };
-
-  const appDefinition = getAppDefinition(appName);
-  
-  // Is this a Module Hub (e.g. 'geoscience') or a specific App?
-  // We infer it's a module hub if appDefinition matches a module category or if it's found but is_built check is irrelevant for Hubs usually?
-  // Actually, usually Hubs are containers. If 'appName' is 'geoscience', it might not be in master_apps if master_apps is strictly leaf nodes.
-  // However, the prompt implies "AppRoute" logic should apply coming soon check.
-  
-  const isAppDefinitionLoaded = !appsLoading;
-  const isBuilt = appDefinition ? appDefinition.is_built : true; // Default true if not found (might be a Hub not in apps table)
-  const isComingSoon = appDefinition ? (appDefinition.status === 'coming_soon' || appDefinition.status === 'Coming Soon') : false;
-
-  console.log('📦 [AppRoute] App Definition:', { 
-      appName, 
-      found: !!appDefinition, 
-      isBuilt, 
-      isComingSoon 
-  });
-
-  // Task 4: SUPER ADMIN BYPASS CHECK
-  if (isSuperAdmin) {
-      console.log('🛡️ [AppRoute] SUPER ADMIN BYPASS ACTIVE.');
-      console.groupEnd();
-      // Even Super Admins might want to see the Coming Soon page if they are testing?
-      // Usually Super Admin wants to see the work in progress.
-      // So we ALLOW access even if is_built=false for Super Admin.
-      return children;
-  }
-
-  if (authLoading || entitlementsLoading || appsLoading) {
+  if (authLoading) {
       console.log('⏳ [AppRoute] Loading dependencies...');
       console.groupEnd();
       return (
@@ -76,8 +33,48 @@ const AppRoute = ({ children, appName }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Task 3 Implementation: Check Build Status
-  // If we found the app definition and it says it's not ready
+  // Task 4: SUPER ADMIN BYPASS CHECK - Unconditional bypass
+  if (isSuperAdmin || user?.role === 'super_admin') {
+      console.log('🛡️ [AppRoute] SUPER ADMIN BYPASS ACTIVE.');
+      console.groupEnd();
+      return children;
+  }
+
+  if (entitlementsLoading || appsLoading) {
+      console.log('⏳ [AppRoute] Loading app data...');
+      console.groupEnd();
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-slate-950">
+            <Loader2 className="w-8 h-8 animate-spin text-lime-500" />
+        </div>
+      );
+  }
+
+  // Helper to find app definition from DB or Static fallback
+  const getAppDefinition = (id) => {
+      if (!id) return undefined;
+      // Try DB first
+      if (apps && apps.length > 0) {
+          const dbApp = apps.find(a => a.id === id || a.slug === id);
+          if (dbApp) return dbApp;
+      }
+      // Fallback to static
+      return getStaticAppById(id);
+  };
+
+  const appDefinition = getAppDefinition(appName);
+  
+  const isBuilt = appDefinition ? appDefinition.is_built : true; // Default true if not found
+  const isComingSoon = appDefinition ? (appDefinition.status === 'coming_soon' || appDefinition.status === 'Coming Soon') : false;
+
+  console.log('📦 [AppRoute] App Definition:', { 
+      appName, 
+      found: !!appDefinition, 
+      isBuilt, 
+      isComingSoon 
+  });
+
+  // Check Build Status
   if (appDefinition && (!isBuilt || isComingSoon)) {
       console.warn('🚧 [AppRoute] App is not built or Coming Soon.');
       console.groupEnd();

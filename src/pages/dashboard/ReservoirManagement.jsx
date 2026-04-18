@@ -1,52 +1,40 @@
-
 import React, { useState } from 'react';
-import { Share2, Search, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Helmet } from 'react-helmet';
+import { Droplets, Search } from 'lucide-react';
 import ApplicationsGrid from '@/components/ApplicationsGrid';
+import { Input } from '@/components/ui/input';
 
-const ReservoirManagementHub = () => {
-  console.log('[ReservoirManagement] Loading Reservoir Apps');
-  
-  const [searchTerm, setSearchTerm] = useState('');
+export default function ReservoirManagement() {
+  const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <div className="p-6 space-y-6 min-h-screen bg-slate-950 text-white">
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <Helmet>
+        <title>Reservoir Management | PetroLord Suite</title>
+        <meta name="description" content="Reservoir engineering and management applications." />
+      </Helmet>
       
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Reservoir Management Hub</h1>
-          <p className="text-slate-400 mt-2">Comprehensive suite of tools for reservoir engineering, simulation, and optimization.</p>
+          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+            <Droplets className="w-8 h-8 text-blue-500" />
+            Reservoir Management
+          </h1>
+          <p className="text-slate-400 mt-2">Manage reservoir engineering, simulation, and analysis workflows.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800">
-            <Share2 className="w-4 h-4 mr-2" /> Share Workspace
-          </Button>
-          <Button className="bg-blue-600 hover:bg-blue-500 text-white">
-            <Plus className="w-4 h-4 mr-2" /> Add Custom App
-          </Button>
-        </div>
-      </div>
-
-      {/* Search Bar */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
-        <div className="w-full md:w-96 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-500 w-4 h-4" />
+        
+        <div className="relative w-full md:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <Input 
             placeholder="Search applications..." 
-            className="pl-10 bg-slate-950 border-slate-800 text-white focus:ring-blue-500/50"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-slate-900 border-slate-800 text-white"
           />
         </div>
       </div>
 
-      {/* DB Driven Grid */}
-      <ApplicationsGrid moduleFilter="reservoir" searchQuery={searchTerm} />
-
+      <ApplicationsGrid moduleFilter="reservoir" searchQuery={searchQuery} />
     </div>
   );
-};
-
-export default ReservoirManagementHub;
+}

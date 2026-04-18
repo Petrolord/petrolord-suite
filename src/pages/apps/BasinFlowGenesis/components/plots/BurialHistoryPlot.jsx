@@ -1,84 +1,67 @@
-import React from 'react';
-import Plot from 'react-plotly.js';
-import { useTheme } from 'next-themes';
+
+import React, { useMemo } from 'react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const BurialHistoryPlot = ({ results }) => {
     const { data, meta } = results;
     const { timeSteps, burial } = data;
 
-    // Prepare Traces
-    const traces = meta.layers.map((layer, index) => {
-        const layerHistory = burial[index];
-        
-        // We need to map age to x, and depth to y
-        // Since burial history is stored chronologically (High Age -> 0), Plotly handles numeric X fine.
-        // We want Age on X (reversed?), Depth on Y (reversed).
-        
-        // Construct polygon for filled area
-        // Top curve: (age, top)
-        // Bottom curve: (age, bottom) -> reversed for closing the loop
-        
-        const ages = layerHistory.map(h => h.age);
-        const tops = layerHistory.map(h => h.top);
-        const bottoms = layerHistory.map(h => h.bottom);
-        
-        // Polygon path: Top -> Right Edge -> Bottom (reversed) -> Left Edge -> Close
-        const x = [...ages, ...ages.slice().reverse()];
-        const y = [...tops, ...bottoms.slice().reverse()];
-        
-        const colorMap = {
-            sandstone: 'rgba(244, 162, 97, 0.8)',
-            shale: 'rgba(38, 70, 83, 0.8)',
-            limestone: 'rgba(42, 157, 143, 0.8)',
-            salt: 'rgba(233, 196, 106, 0.8)',
-            coal: 'rgba(29, 29, 29, 0.8)'
-        };
+    const chartData = useMemo(() => {
+        if (!timeSteps || timeSteps.length === 0 || !burial || burial.length === 0) return [];
+        return timeSteps.map((age, i) => {
+            const point = { age };
+            meta.layers.forEach((layer, li) => {
+                if (burial[li] && burial[li][i]) {
+                    point[`${layer.name}_bot`] = burial[li][i].bottom;
+                    point[`${layer.name}_top`] = burial[li][i].top;
+                }
+            });
+            return point;
+        });
+    }, [timeSteps, burial, meta]);
 
-        return {
-            x: x,
-            y: y,
-            fill: 'toself',
-            type: 'scatter',
-            mode: 'lines',
-            line: { width: 0.5, color: '#333' },
-            fillcolor: colorMap[layer.lithology] || '#888',
-            name: layer.name,
-            hoverinfo: 'name'
-        };
-    });
-
-    // Add Isotherms or Iso-Ro lines if available (Optional polish)
+    const colorMap = {
+        sandstone: '#f4a261',
+        shale: '#264653',
+        limestone: '#2a9d8f',
+        salt: '#e9c46a',
+        coal: '#1d1d1d'
+    };
 
     return (
-        <div className="w-full h-full min-h-[400px] bg-slate-900/50 rounded-lg border border-slate-800 overflow-hidden">
-            <Plot
-                data={traces}
-                layout={{
-                    title: { text: 'Burial History', font: { color: '#e2e8f0' } },
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    plot_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#94a3b8' },
-                    xaxis: { 
-                        title: 'Age (Ma)', 
-                        autorange: 'reversed',
-                        gridcolor: '#334155',
-                        zerolinecolor: '#475569'
-                    },
-                    yaxis: { 
-                        title: 'Depth (m)', 
-                        autorange: 'reversed',
-                        gridcolor: '#334155',
-                        zerolinecolor: '#475569'
-                    },
-                    showlegend: true,
-                    legend: { orientation: 'h', y: -0.2 },
-                    margin: { l: 60, r: 20, t: 40, b: 60 },
-                    autosize: true
-                }}
-                useResizeHandler={true}
-                style={{ width: '100%', height: '100%' }}
-                config={{ displayModeBar: true, displaylogo: false }}
-            />
+        <div className="w-full h-full min-h-[400px] bg-slate-900/50 rounded-lg border border-slate-800 flex flex-col p-4">
+            <h3 className="text-center text-sm font-medium text-slate-200 mb-4">Burial History</h3>
+            <div className="flex-1 min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                        <XAxis 
+                            dataKey="age" 
+                            reversed 
+                            stroke="#94a3b8" 
+                            label={{ value: 'Age (Ma)', position: 'bottom', fill: '#94a3b8', fontSize: 12 }} 
+                        />
+                        <YAxis 
+                            reversed 
+                            stroke="#94a3b8" 
+                            label={{ value: 'Depth (m)', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} 
+                        />
+                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }} />
+                        <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
+                        {meta.layers.map((layer) => (
+                            <Area
+                                key={layer.name}
+                                type="monotone"
+                                dataKey={(d) => [d[`${layer.name}_top`] || 0, d[`${layer.name}_bot`] || 0]}
+                                name={layer.name}
+                                stroke={colorMap[layer.lithology] || '#888'}
+                                fill={colorMap[layer.lithology] || '#888'}
+                                fillOpacity={0.8}
+                            />
+                        ))}
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
         </div>
     );
 };

@@ -22,16 +22,14 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 const ExpertInputPanel = () => {
     const { 
         state, updateInputs, setUnitSystem, setCalcMethod, 
-        setInputMethod
+        setInputMethod, calculate
     } = useReservoirCalc();
     
     const [isCalcOpen, setCalcOpen] = useState(false);
     const [calcParams, setCalcParams] = useState({ api: 35, gasGrav: 0.7, rs: 500, temp: 160 });
     const [isSettingsOpen, setSettingsOpen] = useState(true);
 
-    // Initialize Defaults for Simple Input Method
     useEffect(() => {
-        // If critical fields are missing, apply test defaults
         if (!state.inputs.area && !state.inputs.thickness && state.inputMethod === 'simple') {
             console.log("Applying Default Test Values...");
             updateInputs({
@@ -54,7 +52,17 @@ const ExpertInputPanel = () => {
                 goc: -7000
             });
         }
-    }, [state.inputMethod]); // Run when input method changes or on mount
+    }, [state.inputMethod]); 
+
+    // Auto-calculate deterministic baseline when inputs change in deterministic mode
+    useEffect(() => {
+        if (state.calcMethod === 'deterministic') {
+            const timeout = setTimeout(() => {
+                calculate();
+            }, 500); // debounce deterministic base case calculation
+            return () => clearTimeout(timeout);
+        }
+    }, [state.inputs, state.calcMethod, state.unitSystem, state.inputMethod]);
 
     const handleDetChange = (field, val) => updateInputs({ [field]: parseFloat(val) || 0 });
     const handleFluidChange = (val) => updateInputs({ fluidType: val });
@@ -78,7 +86,6 @@ const ExpertInputPanel = () => {
     const fluidType = state.inputs.fluidType || 'oil';
     const depthUnit = state.unitSystem === 'field' ? 'ft' : 'm';
 
-    // Render Probabilistic Panel if mode is active
     if (state.calcMethod === 'probabilistic') {
         return (
             <div className="h-full flex flex-col space-y-2 p-2 overflow-hidden">
@@ -131,7 +138,6 @@ const ExpertInputPanel = () => {
                     </div>
                     
                     <CollapsibleContent className="p-3 pt-0 space-y-3">
-                        {/* Unit & Method */}
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <Label className="text-[10px] text-slate-500">System</Label>

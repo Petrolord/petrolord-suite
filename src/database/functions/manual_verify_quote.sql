@@ -1,4 +1,3 @@
-
 CREATE OR REPLACE FUNCTION public.manual_verify_quote(p_quote_id text, p_organization_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql

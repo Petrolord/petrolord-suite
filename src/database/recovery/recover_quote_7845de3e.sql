@@ -1,4 +1,3 @@
-
 -- Recovery script for quote 7845de3e
 -- This script attempts to restore a quote if it was accidentally deleted or corrupted
 -- It checks for existing columns before attempting to insert/update

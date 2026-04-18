@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/customSupabaseClient';
 
 export const startOrgImpersonation = async (orgId, superAdminId) => {

@@ -48,3 +48,14 @@ The Well Test Analyzer is engineered to empower you with precision, speed, and c
 ### 5. Export & Integrate
 - **Generate PDF Report**: Click "Generate PDF Report" to create a professional, shareable summary of your analysis, including all inputs, results, and plots.
 - **Integrate**: Use the integration buttons to send key results (like permeability and skin) to other Petrolord applications, such as Nodal Analysis or Material Balance, for a seamless integrated workflow.
+
+## 📝 Changelog & Fixes (Audit Trail)
+
+### Project Management Pro Updates
+* **Task 1: RLS Policy Fix**: Investigated the `tasks` table Supabase RLS policy which blocked UPDATE operations (like re-ordering). Replaced the implicitly-checked policy with explicit `USING` and `WITH CHECK` clauses to ensure authorized project members can re-order and modify milestones securely without hitting RLS errors.
+* **Task 2: Add Task Button**: Replaced the fragile inline task addition fields with a robust `TaskFormDialog` modal. The "Add Task" and "Add Milestone" buttons are now always interactive. Clicking without an active project displays a helpful warning, whereas previously it was silently disabled. Added full validation for required fields (Name, Dates) and conflict prevention.
+* **Task 3: Comprehensive Milestone Actions**: 
+  * Introduced a new Context Menu (right-click) and an Action Dropdown (`...` button) for all tasks and milestones in the WBS view.
+  * **Actions Added**: Edit (via comprehensive modal), View Details (opens read-only info panel), Duplicate (clones context safely), Archive/Unarchive (with visibility toggle), Priority settings (Low, Medium, High, Critical), Export (JSON download), and inline Sub-task creation.
+  * Migrated database schema to support `is_archived` and `priority` flags.
+  * Implemented optimistic UI updates and extensive error handling/toasts for all operations.

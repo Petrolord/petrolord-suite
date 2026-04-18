@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAnalytics } from '../../../contexts/AnalyticsContext';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { LayoutDashboard, BarChart3, ListOrdered, GitCompare, ShieldCheck, TrendingUp, ArrowDownUp, ShieldAlert, FileOutput, Settings, HelpCircle, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },

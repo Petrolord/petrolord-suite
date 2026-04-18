@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { usePetroleumEconomics } from '../contexts/PetroleumEconomicsContext';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';

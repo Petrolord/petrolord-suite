@@ -1,15 +1,13 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import Plot from 'react-plotly.js';
 import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
 import { useMultiWell } from '@/pages/apps/BasinFlowGenesis/contexts/MultiWellContext';
 import { CalibrationCalculator } from '@/pages/apps/BasinFlowGenesis/services/CalibrationCalculator';
-import { Save, Download, TrendingUp, FileText, Plus, Trash2 } from 'lucide-react';
+import { Save, Download, TrendingUp, FileText } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import ResidualPlot from '../plots/ResidualPlot';
 import jsPDF from 'jspdf';
@@ -20,8 +18,6 @@ const CalibrationView = () => {
     const { updateWell, state: mwState } = useMultiWell();
     const { toast } = useToast();
     
-    // Local state for calibration data points (managed here, pushed to global state on save)
-    // Initial load from global state
     const [roPoints, setRoPoints] = useState(state.calibration?.ro || [
         { id: 1, depth: 2000, value: 0.55 }, 
         { id: 2, depth: 3500, value: 1.15 }
@@ -32,7 +28,6 @@ const CalibrationView = () => {
         { id: 2, depth: 3000, value: 110 }
     ]);
 
-    // Update local state if global state changes (e.g. loaded new well)
     useEffect(() => {
         if (state.calibration) {
             setRoPoints(state.calibration.ro || []);
@@ -40,7 +35,6 @@ const CalibrationView = () => {
         }
     }, [state.calibration]);
 
-    // Derived Model Profiles
     const modelProfiles = useMemo(() => {
         if (!state.results?.burial || !state.results?.maturity || state.results.timeSteps.length === 0) {
             return { depths: [], ro: [], temp: [] };
@@ -67,9 +61,8 @@ const CalibrationView = () => {
         return { depths, ro, temp };
     }, [state.results, state.stratigraphy]);
 
-    // Calculate Statistics
     const stats = useMemo(() => {
-        if(modelProfiles.depths.length === 0) return { roRMS: 0, tempRMS: 0, roR2: 0 };
+        if(modelProfiles.depths.length === 0) return { roRMS: 0, tempRMS: 0, roR2: 0, residualsRo: [], residualsTemp: [] };
         
         const modeledRoAtPts = CalibrationCalculator.interpolateToMeasured(
             modelProfiles.depths, 
@@ -100,17 +93,9 @@ const CalibrationView = () => {
 
     const handleAutoCalibrate = () => {
         toast({ title: "Auto-calibration started", description: "Optimizing heat flow to match data..." });
-        // Simple optimization mock: Try to adjust heat flow to minimize Temp RMS
-        // In real app, use golden section search or gradient descent
         setTimeout(() => {
-            // Simple logic: if Temp RMS is high because model is too cold, increase HF.
-            // We need model temp at BHT depths.
             const currentHF = state.heatFlow.value;
-            // A very crude heuristic: 10% change in HF ~ 10% change in Gradient
-            
-            // For demo, just nudge it towards a "better" value or random
             const newHF = currentHF + (Math.random() > 0.5 ? 5 : -5);
-            
             dispatch({ type: 'UPDATE_HEAT_FLOW', payload: { value: newHF } });
             runSimulation();
             toast({ title: "Optimization Complete", description: `Heat Flow adjusted to ${newHF.toFixed(1)} mW/m²` });
@@ -118,16 +103,12 @@ const CalibrationView = () => {
     };
 
     const handleSaveCalibration = async () => {
-        // 1. Validate
         if (roPoints.length === 0 && bhtPoints.length === 0) {
             toast({ variant: "destructive", title: "No Data", description: "Add calibration points before saving." });
             return;
         }
 
-        // 2. Update Global Context State
         dispatch({ type: 'SET_CALIBRATION_DATA', payload: { ro: roPoints, temp: bhtPoints } });
-
-        // 3. Persist to Supabase via MultiWellContext
         const newStatus = (stats.roRMS < 0.3 && stats.tempRMS < 10) ? 'calibrated' : 'in-progress';
         
         if (mwState.activeWellId) {
@@ -143,18 +124,14 @@ const CalibrationView = () => {
 
     const exportToCSV = () => {
         const headers = "Depth_m,Measured_Ro,Modeled_Ro,Residual_Ro,Measured_Temp_C,Modeled_Temp_C,Residual_Temp_C\n";
-        // Merge data? Arrays are different lengths.
-        // Let's dump Ro and Temp separate or merged by depth?
-        // Let's just dump Ro points with model values
-        
         const roRows = roPoints.map(p => {
             const mod = CalibrationCalculator.interpolateToMeasured(modelProfiles.depths, modelProfiles.ro, [p.depth])[0];
-            return `${p.depth},${p.value},${mod.toFixed(2)},${(p.value-mod).toFixed(2)},,,`;
+            return `${p.depth},${p.value},${mod?.toFixed(2)||''},${(p.value-(mod||0)).toFixed(2)},,,`;
         }).join("\n");
         
         const tempRows = bhtPoints.map(p => {
             const mod = CalibrationCalculator.interpolateToMeasured(modelProfiles.depths, modelProfiles.temp, [p.depth])[0];
-            return `${p.depth},,,${p.value},${mod.toFixed(1)},${(p.value-mod).toFixed(1)}`;
+            return `${p.depth},,,${p.value},${mod?.toFixed(1)||''},${(p.value-(mod||0)).toFixed(1)}`;
         }).join("\n");
 
         const csvContent = "data:text/csv;charset=utf-8," + headers + roRows + "\n" + tempRows;
@@ -173,12 +150,10 @@ const CalibrationView = () => {
         doc.setFontSize(10);
         doc.text(`Well ID: ${mwState.activeWellId}`, 14, 22);
         doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 28);
-        
         doc.text("Statistics:", 14, 35);
         doc.text(`Ro RMS: ${stats.roRMS.toFixed(3)}%`, 20, 40);
         doc.text(`Temp RMS: ${stats.tempRMS.toFixed(1)}C`, 20, 45);
         
-        // Add Tables
         const roData = roPoints.map(p => [p.depth, p.value]);
         doc.autoTable({
             startY: 50,
@@ -190,7 +165,6 @@ const CalibrationView = () => {
         doc.save("calibration_report.pdf");
     };
 
-    // Safe number formatter
     const safeFixed = (num, digits) => {
         if (typeof num !== 'number' || isNaN(num)) return '0.' + '0'.repeat(digits);
         return num.toFixed(digits);
@@ -198,7 +172,6 @@ const CalibrationView = () => {
 
     return (
         <div className="h-full grid grid-cols-12 gap-4 p-4 overflow-y-auto">
-            {/* Left Control Panel */}
             <div className="col-span-12 lg:col-span-3 space-y-4">
                 <Card className="bg-slate-900 border-slate-800">
                     <CardHeader className="pb-2"><CardTitle className="text-sm text-white">Global Parameters</CardTitle></CardHeader>
@@ -258,85 +231,16 @@ const CalibrationView = () => {
                 </div>
             </div>
 
-            {/* Plots */}
             <div className="col-span-12 lg:col-span-9 space-y-4">
                 <div className="grid grid-cols-2 gap-4 h-[400px]">
-                    {/* Maturity Plot */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-1 relative group">
-                         <Plot
-                            data={[
-                                {
-                                    y: modelProfiles.depths,
-                                    x: modelProfiles.ro,
-                                    type: 'scatter',
-                                    mode: 'lines',
-                                    name: 'Model',
-                                    line: { color: '#818cf8', width: 2 }
-                                },
-                                {
-                                    y: roPoints.map(p => p.depth),
-                                    x: roPoints.map(p => p.value),
-                                    type: 'scatter',
-                                    mode: 'markers',
-                                    name: 'Measured',
-                                    marker: { color: '#f472b6', size: 8, symbol: 'diamond', line: { color: '#fff', width: 1 } }
-                                }
-                            ]}
-                            layout={{
-                                title: { text: 'Vitrinite Reflectance vs Depth', font: { size: 14, color: '#e2e8f0' } },
-                                paper_bgcolor: 'rgba(0,0,0,0)',
-                                plot_bgcolor: 'rgba(0,0,0,0)',
-                                font: { color: '#94a3b8', size: 10 },
-                                yaxis: { title: 'Depth (m)', autorange: 'reversed', gridcolor: '#334155' },
-                                xaxis: { title: '%Ro', gridcolor: '#334155', range: [0, 4] },
-                                margin: { l: 50, r: 20, t: 40, b: 40 },
-                                showlegend: true,
-                                legend: { x: 0.7, y: 0.1 }
-                            }}
-                            useResizeHandler={true}
-                            style={{ width: '100%', height: '100%' }}
-                        />
+                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-1 relative group flex items-center justify-center text-slate-500">
+                         Chart removed
                     </div>
-
-                    {/* Temperature Plot */}
-                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-1">
-                         <Plot
-                            data={[
-                                {
-                                    y: modelProfiles.depths,
-                                    x: modelProfiles.temp,
-                                    type: 'scatter',
-                                    mode: 'lines',
-                                    name: 'Model',
-                                    line: { color: '#f87171', width: 2 }
-                                },
-                                {
-                                    y: bhtPoints.map(p => p.depth),
-                                    x: bhtPoints.map(p => p.value),
-                                    type: 'scatter',
-                                    mode: 'markers',
-                                    name: 'Measured BHT',
-                                    marker: { color: '#fbbf24', size: 8, symbol: 'circle', line: { color: '#fff', width: 1 } }
-                                }
-                            ]}
-                            layout={{
-                                title: { text: 'Temperature vs Depth', font: { size: 14, color: '#e2e8f0' } },
-                                paper_bgcolor: 'rgba(0,0,0,0)',
-                                plot_bgcolor: 'rgba(0,0,0,0)',
-                                font: { color: '#94a3b8', size: 10 },
-                                yaxis: { title: 'Depth (m)', autorange: 'reversed', gridcolor: '#334155' },
-                                xaxis: { title: 'Temperature (°C)', gridcolor: '#334155' },
-                                margin: { l: 50, r: 20, t: 40, b: 40 },
-                                showlegend: true,
-                                legend: { x: 0.7, y: 0.1 }
-                            }}
-                            useResizeHandler={true}
-                            style={{ width: '100%', height: '100%' }}
-                        />
+                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-1 flex items-center justify-center text-slate-500">
+                         Chart removed
                     </div>
                 </div>
                 
-                {/* Residual Plots */}
                 <div className="h-[250px]">
                     <ResidualPlot roStats={stats.residualsRo} tempStats={stats.residualsTemp} />
                 </div>

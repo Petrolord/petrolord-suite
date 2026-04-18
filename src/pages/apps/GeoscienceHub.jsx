@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Layers, Box, TrendingUp, Globe, ArrowRight, Database, Cuboid, Activity } from 'lucide-react';
+import { Layers, Box, TrendingUp, ArrowRight, Database, Cuboid, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const AppCard = ({ title, description, icon: Icon, path, status = "Available" }) => {
@@ -21,7 +21,7 @@ const AppCard = ({ title, description, icon: Icon, path, status = "Available" })
         <CardDescription className="text-slate-400">{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <Button variant="ghost" className="w-full justify-between group-hover:bg-slate-800">
+        <Button variant="ghost" className="w-full justify-between group-hover:bg-slate-800 text-slate-300 hover:text-white">
           Launch App <ArrowRight className="h-4 w-4" />
         </Button>
       </CardContent>
@@ -46,10 +46,10 @@ const GeoscienceHub = () => {
             path="/dashboard/apps/geoscience/earth-model-pro"
           />
           <AppCard 
-            title="Well Correlation Pro"
+            title="Well Correlation Tool"
             description="Interactively correlate well logs, create cross-sections, and visualize subsurface data."
             icon={Activity}
-            path="/dashboard/apps/geoscience/well-correlation-panel"
+            path="/dashboard/apps/geoscience/well-correlation-tool"
           />
           <AppCard 
             title="Log Facies Analysis"
@@ -62,6 +62,12 @@ const GeoscienceHub = () => {
             description="Advanced petrophysical property estimation and saturation modeling."
             icon={Database}
             path="/dashboard/apps/geoscience/petrophysics-estimator"
+          />
+          <AppCard 
+            title="Petrophysical Integration Suite"
+            description="Advanced petrophysical data integration, well log conditioning, and cross-domain workflows."
+            icon={Database}
+            path="/dashboard/apps/geoscience/petrophysical-integration-suite"
           />
           <AppCard 
             title="Contour Map Digitizer"
@@ -86,9 +92,9 @@ const GeoscienceHub = () => {
         <div className="mt-12 p-6 bg-slate-900/50 rounded-xl border border-slate-800">
           <h2 className="text-xl font-semibold text-white mb-4">Documentation & Resources</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button variant="outline" className="border-slate-700 text-slate-300">View API Documentation</Button>
-            <Button variant="outline" className="border-slate-700 text-slate-300">Watch Video Tutorials</Button>
-            <Button variant="outline" className="border-slate-700 text-slate-300">Contact Support</Button>
+            <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">View API Documentation</Button>
+            <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">Watch Video Tutorials</Button>
+            <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">Contact Support</Button>
           </div>
         </div>
       </div>

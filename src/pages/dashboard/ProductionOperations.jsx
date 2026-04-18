@@ -1,4 +1,3 @@
-
 /* 
  * KEY FINDINGS & DEBUGGING:
  * 1. This component uses useAppsFromDatabase('production') to fetch apps.

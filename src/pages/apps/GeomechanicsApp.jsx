@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
@@ -7,11 +8,9 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Thermometer, ArrowLeft, Save, Upload, Play, AlertCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Loader2, Upload, Play, AlertCircle, Save } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
-import Plot from 'react-plotly.js';
 
 const GEOM_API = "https://petrolord-pvt-backend-2025-58b5441b2268.herokuapp.com/geomech";
 
@@ -21,7 +20,6 @@ const GeomechanicsApp = ({ wellId }) => {
     const { user } = useAuth();
     const { toast } = useToast();
 
-    // State for all cards
     const [params, setParams] = useState({});
     const [velocity, setVelocity] = useState([]);
     const [measurements, setMeasurements] = useState([]);
@@ -42,7 +40,6 @@ const GeomechanicsApp = ({ wellId }) => {
     const fetchGeomechData = useCallback(async () => {
         if (!wellId) return;
         setLoading(true);
-        // Fetch all data in parallel
         const [paramsRes, velocityRes, measurementsRes, windowRes] = await Promise.all([
             supabase.from('geomech_params').select('*').eq('well_id', wellId).order('created_at', { ascending: false }).limit(1).single(),
             supabase.from('geomech_velocity').select('*').eq('well_id', wellId).order('tvd_m'),
@@ -69,7 +66,7 @@ const GeomechanicsApp = ({ wellId }) => {
 
 
     const handleSaveParams = async () => {
-        const { data, error } = await supabase.from('geomech_params').upsert({ ...params, well_id: wellId, user_id: user.id }, { onConflict: 'well_id' });
+        const { error } = await supabase.from('geomech_params').upsert({ ...params, well_id: wellId, user_id: user.id }, { onConflict: 'well_id' });
         if (error) toast({ variant: 'destructive', title: 'Error saving parameters', description: error.message });
         else toast({ title: 'Parameters saved!' });
     };
@@ -132,7 +129,6 @@ const GeomechanicsApp = ({ wellId }) => {
             </Helmet>
             <div className="p-4 sm:p-6 md:p-8">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Column 1 */}
                     <div className="space-y-6">
                         {renderCard("1. Parameters", (
                             <div className="space-y-3">
@@ -147,7 +143,6 @@ const GeomechanicsApp = ({ wellId }) => {
                         {renderCard("3. Measurements", <CsvUploader onUpload={importMeasurements} tableData={measurements} columns={['tvd_m', 'mtype', 'value_num', 'unit']} />)}
                     </div>
 
-                    {/* Column 2 */}
                     <div className="space-y-6">
                        {renderCard("4. Run Model", <Button onClick={runModel} className="w-full" disabled={velocity.length === 0}><Play className="w-4 h-4 mr-2"/>Compute Window</Button>)}
                        {renderCard("5. Stability Window", <WindowDisplay data={windowData} />)}
@@ -214,27 +209,8 @@ const CsvUploader = ({ onUpload, tableData, columns }) => {
 const WindowDisplay = ({ data }) => {
     if (!data) return <div className="text-slate-400 flex items-center justify-center h-48"><AlertCircle className="mr-2"/>No window data. Run model to compute.</div>;
     
-    const plotData = [
-        { name: 'Pore Pressure', x: data.map(r => r.md_m), y: data.map(r => r.pore_sg), type: 'scatter', mode: 'lines', line: { color: 'cyan' } },
-        { name: 'Fracture Gradient', x: data.map(r => r.md_m), y: data.map(r => r.frac_sg), type: 'scatter', mode: 'lines', line: { color: 'orange' }, fill: 'tonexty', fillcolor: 'rgba(255,165,0,0.2)' },
-        { name: 'Recommended MW', x: data.map(r => r.md_m), y: data.map(r => r.rec_mw_sg), type: 'scatter', mode: 'lines', line: { color: 'lime', dash: 'dash' } },
-    ];
-    
     return (
-         <Plot
-            data={plotData}
-            layout={{
-                title: 'Mud Weight Window',
-                xaxis: { title: 'MD (m)', autorange: 'reversed' },
-                yaxis: { title: 'Gradient (SG)'},
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                font: { color: '#e2e8f0' },
-                legend: {orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center'}
-            }}
-            useResizeHandler={true}
-            className="w-full h-[400px]"
-        />
+         <div className="w-full h-[400px] flex items-center justify-center text-slate-500">Chart removed</div>
     )
 };
 

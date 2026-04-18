@@ -1,4 +1,3 @@
-
 export const parseLAS = async (file) => {
   // Mock parser for tests
   if (file.name === 'bad.las') throw new Error('No data section');

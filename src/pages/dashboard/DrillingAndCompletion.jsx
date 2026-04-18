@@ -1,4 +1,4 @@
-
+// [2026-03-22] TARGETED FIX: Cementing Simulation App card now links correctly via route '/dashboard/apps/drilling/cementing-simulation', matches registry and routing. Other Drilling apps and appearance unchanged.
 import React, { useState, useEffect } from 'react';
 import { Share2, Search, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';

@@ -1,0 +1,62 @@
+export const qaPlans = [
+  {
+    id: "QAP-2026-001",
+    title: "Field Development Phase 2",
+    status: "Active",
+    owner: "Sarah Jenkins",
+    department: "Projects",
+    progress: 45,
+    lastUpdated: "2026-03-28",
+    description: "Quality assurance requirements for the subsea tie-back and topside modifications for Field Dev Phase 2."
+  },
+  {
+    id: "QAP-2026-002",
+    title: "Well Delivery Program - Q2",
+    status: "Draft",
+    owner: "Mike Robertson",
+    department: "Drilling",
+    progress: 10,
+    lastUpdated: "2026-03-25",
+    description: "QA/QC plan for the upcoming 3-well drilling campaign."
+  },
+  {
+    id: "QAP-2026-003",
+    title: "Pipeline Integrity Assessment",
+    status: "Active",
+    owner: "David Chen",
+    department: "Maintenance",
+    progress: 78,
+    lastUpdated: "2026-03-29",
+    description: "Inspection and quality verification plan for the export pipeline intelligent pigging operation."
+  },
+  {
+    id: "QAP-2026-004",
+    title: "Compressor C-101 Upgrade",
+    status: "Under Review",
+    owner: "Lisa Wang",
+    department: "Engineering",
+    progress: 90,
+    lastUpdated: "2026-03-20",
+    description: "QA requirements for the procurement, installation, and commissioning of the new compressor controls."
+  },
+  {
+    id: "QAP-2026-005",
+    title: "Production Optimization Project",
+    status: "Active",
+    owner: "James Miller",
+    department: "Production",
+    progress: 30,
+    lastUpdated: "2026-03-27",
+    description: "Quality plan ensuring new choke valves meet specifications and performance criteria."
+  },
+  {
+    id: "QAP-2026-006",
+    title: "Regulatory Submission - ISO 14001",
+    status: "Closed",
+    owner: "Emma Thompson",
+    department: "HSE",
+    progress: 100,
+    lastUpdated: "2026-02-15",
+    description: "Documentation quality review plan prior to external environmental audit."
+  }
+];

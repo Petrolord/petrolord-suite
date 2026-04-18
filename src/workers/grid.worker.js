@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 function processGrid(gridData) {
         // Placeholder for a more complex grid processing logic
         // For now, it just validates and passes the data through

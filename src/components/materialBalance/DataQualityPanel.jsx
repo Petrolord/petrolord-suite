@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, CheckCircle, AlertCircle, CircleSlash } from 'lucide-react';
 import { useMaterialBalance } from '@/hooks/useMaterialBalance';
+import MBHealingReportPanel from './MBHealingReportPanel';
+import { healMaterialBalanceData } from '@/utils/materialBalance/healMaterialBalanceData';
 
 const StatusIndicator = ({ label, status, count }) => {
   let Icon = CircleSlash;
@@ -42,46 +44,58 @@ const StatusIndicator = ({ label, status, count }) => {
 
 const DataQualityPanel = () => {
   const { dataStatus, productionHistory, pressureData, pvtData, contactObservations } = useMaterialBalance();
+  const [healingReport, setHealingReport] = useState(null);
 
-  // Force refresh on data change handled by context reactivity
-  
+  // Run healing logic purely to get the report for display here
+  useEffect(() => {
+    if (productionHistory?.dates?.length > 0 || pressureData?.dates?.length > 0) {
+        const { healingReport: hr } = healMaterialBalanceData(productionHistory, pressureData);
+        setHealingReport(hr);
+    }
+  }, [productionHistory, pressureData]);
+
   return (
-    <Card className="bg-slate-900 border-slate-800">
-      <CardHeader className="p-3 border-b border-slate-800 bg-slate-900/50">
-        <CardTitle className="text-xs font-bold text-slate-300 uppercase flex items-center gap-2">
-          Data Quality Check
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-3 space-y-2.5">
-        <StatusIndicator 
-          label="Production" 
-          status={dataStatus.production} 
-          count={productionHistory.dates.length} 
-        />
-        <StatusIndicator 
-          label="Pressure" 
-          status={dataStatus.pressure} 
-          count={pressureData.dates.length} 
-        />
-        <StatusIndicator 
-          label="PVT" 
-          status={dataStatus.pvt} 
-          count={pvtData.pressure.length} 
-        />
-        <StatusIndicator 
-          label="Contacts" 
-          status={dataStatus.contacts} 
-          count={contactObservations.dates.length} 
-        />
-        
-        {dataStatus.pvt === 'Missing' && (
-          <div className="mt-4 p-2 bg-blue-900/20 border border-blue-500/30 rounded text-[10px] text-blue-300 flex items-start gap-2">
-            <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
-            <span>Tip: Import PVT data to enable advanced material balance calculations (F, Eo, Eg).</span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      {/* Healing Report Prominently Displayed above quality checks */}
+      <MBHealingReportPanel report={healingReport} />
+
+      <Card className="bg-slate-900 border-slate-800">
+        <CardHeader className="p-3 border-b border-slate-800 bg-slate-900/50">
+          <CardTitle className="text-xs font-bold text-slate-300 uppercase flex items-center gap-2">
+            Raw Data Inventory Status
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-3 space-y-2.5">
+          <StatusIndicator 
+            label="Production" 
+            status={dataStatus.production} 
+            count={productionHistory?.dates?.length || 0} 
+          />
+          <StatusIndicator 
+            label="Pressure" 
+            status={dataStatus.pressure} 
+            count={pressureData?.dates?.length || 0} 
+          />
+          <StatusIndicator 
+            label="PVT" 
+            status={dataStatus.pvt} 
+            count={pvtData?.pressure?.length || 0} 
+          />
+          <StatusIndicator 
+            label="Contacts" 
+            status={dataStatus.contacts} 
+            count={contactObservations?.dates?.length || 0} 
+          />
+          
+          {dataStatus.pvt === 'Missing' && (
+            <div className="mt-4 p-2 bg-blue-900/20 border border-blue-500/30 rounded text-[10px] text-blue-300 flex items-start gap-2">
+              <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+              <span>Tip: Import PVT data to enable advanced material balance calculations (F, Eo, Eg). Data Healing is actively managing gaps in your current datasets.</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

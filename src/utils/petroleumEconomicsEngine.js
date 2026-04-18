@@ -1,4 +1,3 @@
-
 export const calculateEconomics = (inputs) => {
   const { 
     modelSettings, 

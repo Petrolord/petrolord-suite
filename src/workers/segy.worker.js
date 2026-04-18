@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 
 // A simplified SEG-Y parser for in-browser processing of 'lite' seismic data.
 // This code is designed to run in a Web Worker to avoid blocking the main UI thread.

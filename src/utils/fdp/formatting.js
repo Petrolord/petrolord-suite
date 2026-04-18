@@ -1,4 +1,3 @@
-
 /**
  * FDP Formatting Utilities
  * standardized formatting for currency, units, dates, and large numbers

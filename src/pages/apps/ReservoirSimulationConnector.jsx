@@ -1,18 +1,13 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { ArrowLeft, AlertTriangle, Layers, UploadCloud, FileText, Play, Settings, BarChart2, History, Download, Copy, Plus, Library, Loader2, Trash2, Edit, Save } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
+import { ArrowLeft, AlertTriangle, Layers, UploadCloud, FileText, Settings, BarChart2, History, Edit, Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerTrigger } from "@/components/ui/drawer";
-import Plot from 'react-plotly.js';
 import { useReservoir } from '@/contexts/ReservoirContext';
 import { supabase } from '@/lib/customSupabaseClient';
 
@@ -170,7 +165,6 @@ const ReservoirSimulationConnector = () => {
   
   const handleScoreHistory = async () => {
     if (!activeCase) return;
-    // In a real app, you'd get this from another source
     const sampleHistory = "date,oil_rate\n2025-01-01,980\n2025-02-01,950\n2025-03-01,920";
     setLoading(true);
     try {
@@ -243,7 +237,14 @@ const ReservoirSimulationConnector = () => {
                 <FileText className="w-10 h-10 mx-auto mb-2 text-gray-400" />
                 <p>Drag & drop results CSV here for the selected case</p>
               </div>
-              {activeCase?.results && (<div className="mt-4"><h4 className="font-bold text-lg mb-2 text-emerald-300">Results for Case {activeCase.case_name}</h4><Plot data={[{ x: activeCase.results.charts.dates, y: activeCase.results.charts.oil_rate, name: 'Oil Rate', type: 'scatter', mode: 'lines', line: { color: '#22c55e' } }, { x: activeCase.results.charts.dates, y: activeCase.results.charts.gas_rate, name: 'Gas Rate', type: 'scatter', mode: 'lines', line: { color: '#f97316' } }, { x: activeCase.results.charts.dates, y: activeCase.results.charts.water_rate, name: 'Water Rate', type: 'scatter', mode: 'lines', line: { color: '#3b82f6' } }]} layout={{ title: 'Production Rates', paper_bgcolor: 'transparent', plot_bgcolor: '#1f2937', font: { color: '#e5e7eb' } }} style={{ width: '100%', height: '300px' }} config={{ responsive: true }} /></div>)}
+              {activeCase?.results && (
+                  <div className="mt-4">
+                      <h4 className="font-bold text-lg mb-2 text-emerald-300">Results for Case {activeCase.case_name}</h4>
+                      <div className="w-full h-[300px] flex items-center justify-center text-slate-500 bg-slate-800 rounded">
+                          Chart removed
+                      </div>
+                  </div>
+              )}
             </CollapsibleSection>
 
             <CollapsibleSection title="4. History Matching" icon={<History />} defaultOpen>

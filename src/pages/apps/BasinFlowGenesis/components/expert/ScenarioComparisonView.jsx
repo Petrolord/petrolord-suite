@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import Plot from 'react-plotly.js';
 import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
 import { useMultiWell } from '@/pages/apps/BasinFlowGenesis/contexts/MultiWellContext';
 import { GitBranch, Check, Trash2, Download, Save } from 'lucide-react';
@@ -15,24 +15,20 @@ const ScenarioComparisonView = () => {
     const { scenarios, activeScenarioId } = state;
     const { toast } = useToast();
 
-    // Compare burial history of bottom-most layer across scenarios
     const comparisonData = useMemo(() => {
         if (scenarios.length === 0) return [];
 
         return scenarios.map((s) => {
             if (!s.results?.burial || s.results.burial.length === 0) return null;
-            // Bottom layer
             const layerIdx = s.results.burial.length - 1;
             const history = s.results.burial[layerIdx];
-            
-            // Also get max maturity
             const maxRo = Math.max(...(s.results.maturity?.[layerIdx]?.map(m => m.value) || [0]));
             
             return {
                 id: s.id,
                 name: s.name,
                 history,
-                maxRo: maxRo || 0, // Ensure number
+                maxRo: maxRo || 0,
                 heatFlow: s.heatFlow?.value || 0
             };
         }).filter(Boolean);
@@ -40,7 +36,6 @@ const ScenarioComparisonView = () => {
 
     const handleSaveScenariosToDB = async () => {
         if (mwState.activeWellId) {
-            // We save all scenarios to the well's `scenarios` column
             await updateWell(mwState.activeWellId, { scenarios });
             toast({ title: "Scenarios Saved", description: "All scenarios persisted to database." });
         } else {
@@ -52,7 +47,6 @@ const ScenarioComparisonView = () => {
         dispatch({ type: 'DELETE_SCENARIO', id });
     };
 
-    // Safe formatter helper
     const safeFixed = (num, digits) => {
         if (typeof num !== 'number' || isNaN(num)) return '-';
         return num.toFixed(digits);
@@ -131,34 +125,10 @@ const ScenarioComparisonView = () => {
             </div>
             
             <div className="col-span-12 lg:col-span-9 grid grid-cols-1 gap-4">
-                {/* Comparison Plot */}
-                <div className="bg-slate-900 border border-slate-800 rounded-lg p-1 h-[400px]">
-                    <Plot
-                        data={comparisonData.map((d, i) => ({
-                            x: d.history.map(h => h.age),
-                            y: d.history.map(h => h.bottom),
-                            type: 'scatter',
-                            mode: 'lines',
-                            name: d.name,
-                            line: { width: 2 }
-                        }))}
-                        layout={{
-                            title: { text: 'Basement Subsidence Comparison', font: { size: 14, color: '#e2e8f0' } },
-                            paper_bgcolor: 'rgba(0,0,0,0)',
-                            plot_bgcolor: 'rgba(0,0,0,0)',
-                            font: { color: '#94a3b8', size: 10 },
-                            xaxis: { title: 'Age (Ma)', autorange: 'reversed', gridcolor: '#334155' },
-                            yaxis: { title: 'Depth (m)', autorange: 'reversed', gridcolor: '#334155' },
-                            margin: { l: 50, r: 20, t: 40, b: 40 },
-                            showlegend: true,
-                            legend: { x: 0.02, y: 0.98 }
-                        }}
-                        useResizeHandler={true}
-                        style={{ width: '100%', height: '100%' }}
-                    />
+                <div className="bg-slate-900 border border-slate-800 rounded-lg p-1 h-[400px] flex items-center justify-center text-slate-500">
+                    Chart removed
                 </div>
                 
-                {/* Difference Highlight */}
                 <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
                     <h4 className="text-sm font-semibold text-white mb-2">Sensitivity Analysis</h4>
                     <p className="text-xs text-slate-400 mb-4">Relative difference from baseline (first scenario)</p>

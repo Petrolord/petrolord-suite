@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
@@ -10,7 +11,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Plot from 'react-plotly.js';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerTrigger } from "@/components/ui/drawer";
 import { supabase } from '@/lib/customSupabaseClient';
 import { useReservoir } from '@/contexts/ReservoirContext';
@@ -126,29 +126,19 @@ const UncertaintyAnalysis = () => {
 
   const TornadoChart = ({ data }) => {
     if (!data) return null;
-    const sortedData = [...data].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
     return (
-      <Plot
-        data={[{ y: sortedData.map(d => d.param), x: sortedData.map(d => d.delta), type: 'bar', orientation: 'h', marker: { color: sortedData.map(d => d.delta > 0 ? '#22c55e' : '#ef4444') } }]}
-        layout={{ title: 'Tornado Plot (Sensitivity)', yaxis: { autorange: 'reversed' }, paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { color: '#e5e7eb' }, margin: { l: 150, r: 40, t: 80, b: 40 } }}
-        style={{ width: '100%', height: '400px' }}
-        config={{ responsive: true }}
-      />
+      <div className="w-full h-[400px] flex items-center justify-center text-slate-500">
+        Chart removed
+      </div>
     );
   };
   
   const ExceedancePlot = ({ data, title, unit }) => {
     if (!data || data.length === 0) return null;
-    const sorted = [...data].sort((a, b) => a - b);
-    const N = sorted.length;
-    const y = Array.from({length: N}, (_, i) => 100 * (1 - i / N));
     return (
-        <Plot
-            data={[{ x: sorted, y: y, type: 'scatter', mode: 'lines', line: {color: '#22d3ee'} }]}
-            layout={{ title, xaxis: {title: unit}, yaxis: {title: 'Probability of Exceedance (%)'}, paper_bgcolor: 'transparent', plot_bgcolor: '#1f2937', font: { color: '#e5e7eb' } }}
-            style={{ width: '100%', height: '300px' }}
-            config={{ responsive: true }}
-        />
+        <div className="w-full h-[300px] flex items-center justify-center text-slate-500 bg-slate-800 rounded">
+            Chart removed
+        </div>
     );
   };
 
@@ -262,19 +252,13 @@ const UncertaintyAnalysis = () => {
                     <TabsContent value="charts" className="bg-gray-800/50 p-4 rounded-b-lg">
                        <h3 className="font-bold text-lg mb-2 text-cyan-300">Distributions</h3>
                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Plot
-                              data={[{ x: results.npv_samples_usd, type: 'histogram', marker: {color: '#22d3ee'} }]}
-                              layout={{ title: `Histogram of NPV`, paper_bgcolor: 'transparent', plot_bgcolor: '#1f2937', font: { color: '#e5e7eb' } }}
-                              style={{ width: '100%', height: '300px' }}
-                              config={{ responsive: true }}
-                          />
+                          <div className="w-full h-[300px] flex items-center justify-center text-slate-500 bg-slate-800 rounded">
+                              Chart removed
+                          </div>
                           <ExceedancePlot data={results.npv_samples_usd} title="NPV Exceedance" unit="NPV (USD)" />
-                          <Plot
-                              data={[{ x: results.oil_samples_bbl, type: 'histogram', marker: {color: '#67e8f9'} }]}
-                              layout={{ title: `Histogram of Total Oil`, paper_bgcolor: 'transparent', plot_bgcolor: '#1f2937', font: { color: '#e5e7eb' } }}
-                              style={{ width: '100%', height: '300px' }}
-                              config={{ responsive: true }}
-                          />
+                          <div className="w-full h-[300px] flex items-center justify-center text-slate-500 bg-slate-800 rounded">
+                              Chart removed
+                          </div>
                           <ExceedancePlot data={results.oil_samples_bbl} title="Total Oil Exceedance" unit="Oil (bbl)" />
                        </div>
                     </TabsContent>

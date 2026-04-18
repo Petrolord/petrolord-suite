@@ -1,10 +1,11 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import Plot from 'react-plotly.js';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Play, RefreshCw } from 'lucide-react';
 import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
 import { JobScheduler } from '@/pages/apps/BasinFlowGenesis/services/JobScheduler';
@@ -28,18 +29,12 @@ const SensitivityAnalysisView = () => {
         const values = Array.from({length: range.steps}, (_, i) => range.min + (i * stepSize));
         
         try {
-            // Define processor for the job
             const processor = async (payload, updateProgress) => {
                 const runResults = [];
                 for (let i = 0; i < payload.values.length; i++) {
                     const val = payload.values[i];
-                    // NOTE: In a real app, we'd clone the state and run simulation headlessly
-                    // Here we mock the result for UI demonstration purposes as running full sim 5x in browser might freeze without web workers
-                    
-                    // Simulate delay
                     await new Promise(r => setTimeout(r, 500));
                     
-                    // Mock result relation (linear response with noise)
                     const mockRo = 0.5 + (val / 100) * 2.5 + (Math.random() * 0.05);
                     runResults.push({ parameter: val, result: mockRo });
                     
@@ -50,7 +45,6 @@ const SensitivityAnalysisView = () => {
 
             const jobId = await JobScheduler.addJob('sensitivity', { values, parameter }, processor);
             
-            // Poll for completion (simplified for this view)
             const checkJob = setInterval(() => {
                 const job = JobScheduler.getJob(jobId);
                 if (job.status === 'completed') {
@@ -119,34 +113,22 @@ const SensitivityAnalysisView = () => {
 
             <div className="col-span-12 lg:col-span-9">
                  <Card className="bg-slate-900 border-slate-800 h-full min-h-[400px]">
-                    <CardContent className="p-4 h-full">
+                    <CardContent className="p-4 h-full flex flex-col">
+                        <h3 className="text-center text-sm font-medium text-slate-200 mb-4">Parameter Sensitivity: Max Maturity</h3>
                         {results ? (
-                            <Plot
-                                data={[
-                                    {
-                                        x: results.map(r => r.parameter),
-                                        y: results.map(r => r.result),
-                                        type: 'scatter',
-                                        mode: 'lines+markers',
-                                        marker: { color: '#818cf8' },
-                                        line: { shape: 'spline' },
-                                        name: 'Max Ro'
-                                    }
-                                ]}
-                                layout={{
-                                    title: { text: 'Parameter Sensitivity: Max Maturity', font: { color: '#e2e8f0' } },
-                                    paper_bgcolor: 'rgba(0,0,0,0)',
-                                    plot_bgcolor: 'rgba(0,0,0,0)',
-                                    font: { color: '#94a3b8' },
-                                    xaxis: { title: parameter, gridcolor: '#334155' },
-                                    yaxis: { title: 'Max %Ro', gridcolor: '#334155' },
-                                    margin: { l: 50, r: 20, t: 50, b: 50 }
-                                }}
-                                useResizeHandler={true}
-                                style={{ width: '100%', height: '100%' }}
-                            />
+                            <div className="flex-1 min-h-0">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={results} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                        <XAxis dataKey="parameter" stroke="#94a3b8" label={{ value: parameter, position: 'bottom', fill: '#94a3b8', fontSize: 12 }} />
+                                        <YAxis stroke="#94a3b8" label={{ value: 'Max %Ro', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
+                                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }} />
+                                        <Line type="monotone" dataKey="result" stroke="#818cf8" strokeWidth={2} dot={{ r: 4 }} name="Max Ro" />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
                         ) : (
-                            <div className="h-full flex items-center justify-center text-slate-500">
+                            <div className="flex-1 flex items-center justify-center text-slate-500">
                                 <p>Run analysis to see sensitivity plot.</p>
                             </div>
                         )}

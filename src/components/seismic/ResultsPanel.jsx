@@ -1,12 +1,12 @@
+
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { Download, BarChart2, Activity, Info } from 'lucide-react';
-import Plot from 'react-plotly.js';
 import { Textarea } from '@/components/ui/textarea';
 
 const ResultsPanel = ({ results }) => {
-  const { inputs, seismicPlot, spectrumPlot, attributePlot } = results;
+  const { inputs } = results;
 
   return (
     <div className="space-y-4 h-full flex flex-col">
@@ -26,32 +26,17 @@ const ResultsPanel = ({ results }) => {
               {inputs.computeSpectrum && <TabsTrigger value="spectrum"><BarChart2 className="w-4 h-4 mr-2"/>Spectrum</TabsTrigger>}
               {inputs.computeAmplitude && <TabsTrigger value="attributes"><Info className="w-4 h-4 mr-2"/>Attributes</TabsTrigger>}
             </TabsList>
-            <TabsContent value="seismic-view" className="flex-grow bg-white/5 rounded-b-lg p-2 mt-0">
-               <Plot
-                  data={seismicPlot.data}
-                  layout={{ ...seismicPlot.layout, paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { color: '#fff' } }}
-                  useResizeHandler={true}
-                  className="w-full h-full"
-                />
+            <TabsContent value="seismic-view" className="flex-grow bg-white/5 rounded-b-lg p-2 mt-0 flex items-center justify-center text-slate-500">
+               Chart removed
             </TabsContent>
             {inputs.computeSpectrum && (
-              <TabsContent value="spectrum" className="flex-grow bg-white/5 rounded-b-lg p-2 mt-0">
-                 <Plot
-                    data={spectrumPlot.data}
-                    layout={{ ...spectrumPlot.layout, paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { color: '#fff' } }}
-                    useResizeHandler={true}
-                    className="w-full h-full"
-                  />
+              <TabsContent value="spectrum" className="flex-grow bg-white/5 rounded-b-lg p-2 mt-0 flex items-center justify-center text-slate-500">
+                 Chart removed
               </TabsContent>
             )}
             {inputs.computeAmplitude && (
-               <TabsContent value="attributes" className="flex-grow bg-white/5 rounded-b-lg p-2 mt-0">
-                 <Plot
-                    data={attributePlot.data}
-                    layout={{ ...attributePlot.layout, paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { color: '#fff' } }}
-                    useResizeHandler={true}
-                    className="w-full h-full"
-                  />
+               <TabsContent value="attributes" className="flex-grow bg-white/5 rounded-b-lg p-2 mt-0 flex items-center justify-center text-slate-500">
+                 Chart removed
               </TabsContent>
             )}
           </Tabs>

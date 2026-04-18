@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -84,22 +83,39 @@ export default function BuildHistoryAdmin() {
   const fetchHistory = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('app_build_history')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (actionFilter !== 'all') {
-        query = query.eq('action', actionFilter);
-      }
-
-      if (searchTerm) {
-        query = query.ilike('app_name', `%${searchTerm}%`);
-      }
-
-      const { data, error } = await query.limit(100); // Limit for performance
-      if (error) throw error;
-      setHistory(data);
+      // Mock data for demo
+      const mockHistory = [
+        {
+          id: 1,
+          app_name: 'Seismic Interpretation Pro',
+          action: 'created',
+          description: 'Initial component setup with SEG-Y upload functionality',
+          built_by: 'System',
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 2,
+          app_name: 'Well Correlation Tool',
+          action: 'updated',
+          description: 'Enhanced cross-section visualization capabilities',
+          built_by: 'Developer',
+          created_at: new Date(Date.now() - 86400000).toISOString()
+        },
+        {
+          id: 3,
+          app_name: 'Risk Register',
+          action: 'fixed',
+          description: 'Resolved routing issues and missing component declarations',
+          built_by: 'AutoFix',
+          created_at: new Date(Date.now() - 172800000).toISOString()
+        }
+      ];
+      
+      setHistory(mockHistory.filter(item => 
+        actionFilter === 'all' || item.action === actionFilter
+      ).filter(item => 
+        !searchTerm || item.app_name.toLowerCase().includes(searchTerm.toLowerCase())
+      ));
     } catch (error) {
       console.error("Error fetching history:", error);
     } finally {

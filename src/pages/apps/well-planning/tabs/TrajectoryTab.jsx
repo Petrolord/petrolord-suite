@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -10,7 +11,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
 import { Loader2, Plus, Trash2, GripVertical, Lock, Unlock, Download, AlertCircle, RefreshCw, Box, Activity, Map as MapIcon, Table as TableIcon } from 'lucide-react';
-import Plot from 'react-plotly.js';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 import proj4 from 'proj4';
@@ -21,7 +21,6 @@ import { runForwardSurvey } from '@/lib/wellpath-kernel';
 import { useWellPlanning } from '../contexts/WellPlanningContext';
 import { solveBuildHold } from '@/utils/trajectorySolver';
 
-// Import New Sub-Components
 import WellTrajectory3DView from '../components/WellTrajectory3DView';
 import TrajectoryKPIs from '../components/TrajectoryKPIs';
 
@@ -94,7 +93,6 @@ const TrajectoryTab = ({ wellId, user }) => {
             const { data: t } = await supabase.from('well_targets').select('*').eq('well_id', wellId).order('priority');
             if (t) setTargets(t);
 
-            // Load draft or initial plan
             if (trajectoryDraft) {
                 setSegments(trajectoryDraft.segments || []);
                 setConstraints(trajectoryDraft.constraints || {});
@@ -125,7 +123,6 @@ const TrajectoryTab = ({ wellId, user }) => {
         setQaResult(qa);
     }, [segments, surfaceN, surfaceE, kbElevation, units, convertToMeters, getGeoCoords]);
 
-    // Auto-calc effect
     useEffect(() => {
         const timer = setTimeout(calculateTrajectory, 300);
         return () => clearTimeout(timer);
@@ -174,15 +171,12 @@ const TrajectoryTab = ({ wellId, user }) => {
             const target = targets.find(t => t.id === selectedTargets[0]);
             if (!target) throw new Error("Target not found");
 
-            // Simple Build-Hold Logic using Utility
-            const start = { vs: 0, tvd: convertToMeters(constraints.kop), inc: 0 }; // Assuming vertical to KOP
+            const start = { vs: 0, tvd: convertToMeters(constraints.kop), inc: 0 }; 
             const tgt = { 
                 vs: Math.sqrt(Math.pow(target.x - surfaceE, 2) + Math.pow(target.y - surfaceN, 2)), 
                 tvd: target.tvd_m 
             };
             
-            // Build Rate in deg/30m or deg/100ft converted to deg/m for solver? 
-            // Utility takes raw rate and course length.
             const rate = parseFloat(constraints.maxBuildRate);
             const courseLen = units === 'meters' ? 30 : 100;
             
@@ -192,7 +186,6 @@ const TrajectoryTab = ({ wellId, user }) => {
                 throw new Error(solution.error || "Solver failed to find a valid path.");
             }
 
-            // Construct Segments
             const kopM = convertToMeters(constraints.kop);
             const buildLen = convertFromMeters(solution.buildLength);
             const holdLen = convertFromMeters(solution.holdLength);
@@ -373,33 +366,17 @@ const TrajectoryTab = ({ wellId, user }) => {
                         
                         {viewMode === '2d' && planResult && (
                             <div className="grid grid-cols-2 gap-px bg-slate-800 h-full w-full">
-                                <div className="bg-white relative">
-                                    <Plot 
-                                        data={[{ x: planResult.map(s => s.East), y: planResult.map(s => s.North), type: 'scatter', mode: 'lines', line: {color: '#4CAF50'} }]}
-                                        layout={{ title: 'Plan View (N-E)', autosize: true, margin: {l:40, r:20, t:40, b:30}, xaxis: {title: 'East'}, yaxis: {title: 'North', scaleanchor: 'x'} }}
-                                        useResizeHandler className="w-full h-full"
-                                    />
+                                <div className="bg-white relative flex items-center justify-center text-slate-500">
+                                    Chart removed
                                 </div>
-                                <div className="bg-white relative">
-                                    <Plot 
-                                        data={[{ x: planResult.map(s => convertFromMeters(s.VS)), y: planResult.map(s => convertFromMeters(s.TVD)), type: 'scatter', mode: 'lines', line: {color: '#2196F3'} }]}
-                                        layout={{ title: 'Vertical Section', autosize: true, margin: {l:40, r:20, t:40, b:30}, xaxis: {title: 'VS'}, yaxis: {title: 'TVD', autorange: 'reversed'} }}
-                                        useResizeHandler className="w-full h-full"
-                                    />
+                                <div className="bg-white relative flex items-center justify-center text-slate-500">
+                                    Chart removed
                                 </div>
-                                <div className="bg-white relative">
-                                    <Plot 
-                                        data={[{ x: planResult.map(s => convertFromMeters(s.MD)), y: planResult.map(s => s.INC), type: 'scatter', mode: 'lines', line: {color: '#FF9800'} }]}
-                                        layout={{ title: 'Inclination vs MD', autosize: true, margin: {l:40, r:20, t:40, b:30}, xaxis: {title: 'MD'}, yaxis: {title: 'Inc (deg)'} }}
-                                        useResizeHandler className="w-full h-full"
-                                    />
+                                <div className="bg-white relative flex items-center justify-center text-slate-500">
+                                    Chart removed
                                 </div>
-                                <div className="bg-white relative">
-                                    <Plot 
-                                        data={[{ x: planResult.map(s => convertFromMeters(s.MD)), y: planResult.map(s => s.DLS || 0), type: 'scatter', mode: 'lines', line: {color: '#9C27B0'} }]}
-                                        layout={{ title: 'DLS vs MD', autosize: true, margin: {l:40, r:20, t:40, b:30}, xaxis: {title: 'MD'}, yaxis: {title: 'DLS'} }}
-                                        useResizeHandler className="w-full h-full"
-                                    />
+                                <div className="bg-white relative flex items-center justify-center text-slate-500">
+                                    Chart removed
                                 </div>
                             </div>
                         )}

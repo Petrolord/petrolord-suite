@@ -1,4 +1,3 @@
-
 /**
  * DOCUMENTATION FOR EDGE FUNCTION LOGIC (Task 3)
  * 

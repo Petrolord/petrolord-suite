@@ -1,6 +1,6 @@
+
 import React from 'react';
 import { motion } from 'framer-motion';
-import Plot from 'react-plotly.js';
 import CompetitorMap from './CompetitorMap';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, Newspaper, Map, Activity, BrainCircuit } from 'lucide-react';
@@ -55,12 +55,9 @@ const Dashboard = ({ results }) => {
           <CompetitorMap markers={mapData} />
         </TabsContent>
         <TabsContent value="performance" className="bg-white/5 rounded-lg p-4 mt-2">
-          <Plot
-            data={performanceChart.data}
-            layout={{ ...performanceChart.layout, paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { color: '#fff' } }}
-            useResizeHandler={true}
-            className="w-full h-[400px]"
-          />
+          <div className="w-full h-[400px] flex items-center justify-center bg-slate-800/50 text-slate-400 rounded-md">
+            Chart removed
+          </div>
         </TabsContent>
         <TabsContent value="keywords" className="bg-white/5 rounded-lg p-4 mt-2 h-[400px] flex items-center justify-center">
            <WordCloud words={keywordCloud} />

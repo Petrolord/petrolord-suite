@@ -1,4 +1,3 @@
-
 export const parseLas = async (content) => {
   if (!content) throw new Error("No content provided to parser");
   

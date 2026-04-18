@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Share2, Search, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,12 +7,9 @@ import { useAppsFromDatabase } from '@/hooks/useAppsFromDatabase';
 
 const GeoscienceAnalytics = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const { apps } = useAppsFromDatabase(); // Use the hook to fetch apps
+  const { apps } = useAppsFromDatabase();
 
   const moduleFilter = "geoscience";
-
-  // Task 2: Add a console.log at the top of the functional component
-  console.log(`[GeoscienceAnalytics] Loading Geoscience Apps. Module: "${moduleFilter}", Search: "${searchTerm}", Total Apps Loaded: ${apps?.length || 0}`);
 
   return (
     <div className="p-6 space-y-6 min-h-screen bg-slate-950 text-white">
@@ -47,7 +43,7 @@ const GeoscienceAnalytics = () => {
         </div>
       </div>
 
-      {/* DB Driven Grid */}
+      {/* DB Driven Grid handles routing (EarthModel Pro route handled in App.jsx via alias) */}
       <ApplicationsGrid moduleFilter={moduleFilter} searchQuery={searchTerm} />
 
     </div>

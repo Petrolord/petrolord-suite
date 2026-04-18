@@ -1,6 +1,6 @@
+
 import React from 'react';
 import { motion } from 'framer-motion';
-import Plot from 'react-plotly.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Eye, FileClock, ShieldCheck } from 'lucide-react';
@@ -24,12 +24,9 @@ const DashboardPanel = ({ dataRoom }) => {
 
       <div className="bg-white/5 p-4 rounded-lg">
         <h2 className="text-xl font-bold text-white mb-2 flex items-center"><BarChart className="w-5 h-5 mr-2 text-lime-300"/>Document Engagement</h2>
-        <Plot
-            data={engagementPlot.data}
-            layout={{ ...engagementPlot.layout, paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', font: { color: '#fff' } }}
-            useResizeHandler={true}
-            className="w-full h-[300px]"
-          />
+        <div className="w-full h-[300px] flex items-center justify-center text-slate-400 border border-white/10 rounded-md">
+            Chart removed
+        </div>
       </div>
 
       <Tabs defaultValue="activity" className="w-full">

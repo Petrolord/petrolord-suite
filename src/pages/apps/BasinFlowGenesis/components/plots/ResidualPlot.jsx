@@ -1,53 +1,44 @@
+
 import React from 'react';
-import Plot from 'react-plotly.js';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const ResidualPlot = ({ roStats, tempStats }) => {
     if (!roStats || !tempStats) return null;
 
-    // Prepare data for plotting
-    // Bar chart of residuals vs depth
-    
-    const roTrace = {
-        x: roStats.map(r => r.residual),
-        y: roStats.map(r => r.depth),
-        type: 'bar',
-        orientation: 'h',
-        name: 'Ro Residuals',
-        marker: { color: '#f472b6' }
-    };
-
-    const tempTrace = {
-        x: tempStats.map(r => r.residual),
-        y: tempStats.map(r => r.depth),
-        type: 'bar',
-        orientation: 'h',
-        name: 'Temp Residuals',
-        xaxis: 'x2',
-        yaxis: 'y2',
-        marker: { color: '#fbbf24' }
-    };
-
     return (
-        <div className="w-full h-full bg-slate-900 border border-slate-800 rounded-lg p-1 overflow-hidden">
-            <Plot
-                data={[roTrace, tempTrace]}
-                layout={{
-                    grid: { rows: 1, columns: 2, pattern: 'independent' },
-                    title: { text: 'Residual Analysis (Measured - Modeled)', font: { size: 12, color: '#e2e8f0' } },
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    plot_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#94a3b8', size: 10 },
-                    showlegend: false,
-                    margin: { l: 50, r: 20, t: 40, b: 40 },
-                    xaxis: { title: 'Ro Residual (%)', gridcolor: '#334155' },
-                    yaxis: { title: 'Depth (m)', autorange: 'reversed', gridcolor: '#334155' },
-                    xaxis2: { title: 'Temp Residual (°C)', gridcolor: '#334155' },
-                    yaxis2: { showticklabels: false, autorange: 'reversed', gridcolor: '#334155' }
-                }}
-                useResizeHandler={true}
-                style={{ width: '100%', height: '100%' }}
-                config={{ displayModeBar: false }}
-            />
+        <div className="w-full h-full bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col overflow-hidden">
+            <h3 className="text-center text-sm font-medium text-slate-200 mb-4">Residual Analysis (Measured - Modeled)</h3>
+            <div className="flex-1 grid grid-cols-2 gap-4 min-h-0">
+                <div className="flex flex-col h-full">
+                    <h4 className="text-xs text-center text-slate-400 mb-2">Ro Residuals (%)</h4>
+                    <div className="flex-1 min-h-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart layout="vertical" data={roStats} margin={{ top: 5, right: 10, left: 10, bottom: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={true} vertical={true} />
+                                <XAxis type="number" stroke="#94a3b8" label={{ value: 'Residual', position: 'bottom', fill: '#94a3b8', fontSize: 10 }} />
+                                <YAxis type="number" dataKey="depth" reversed stroke="#94a3b8" label={{ value: 'Depth (m)', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 10 }} />
+                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }} />
+                                <Bar dataKey="residual" fill="#f472b6" name="Ro Residual" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+                
+                <div className="flex flex-col h-full">
+                    <h4 className="text-xs text-center text-slate-400 mb-2">Temperature Residuals (°C)</h4>
+                    <div className="flex-1 min-h-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart layout="vertical" data={tempStats} margin={{ top: 5, right: 10, left: 10, bottom: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={true} vertical={true} />
+                                <XAxis type="number" stroke="#94a3b8" label={{ value: 'Residual', position: 'bottom', fill: '#94a3b8', fontSize: 10 }} />
+                                <YAxis type="number" dataKey="depth" reversed stroke="#94a3b8" />
+                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }} />
+                                <Bar dataKey="residual" fill="#fbbf24" name="Temp Residual" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };

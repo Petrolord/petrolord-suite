@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -27,13 +26,15 @@ export const usePurchasedModules = () => {
   const [error, setError] = useState(null);
   
   const fetchedRef = useRef({ orgId: null, userId: null });
+  
+  const hasSuperAdminPrivileges = isSuperAdmin || user?.role === 'super_admin';
 
   const fetchPurchasedModules = useCallback(async () => {
     // ---------------------------------------------------------
     // SUPER ADMIN BYPASS:
     // Super Admins have implicit full access to everything.
     // ---------------------------------------------------------
-    if (isSuperAdmin) {
+    if (hasSuperAdminPrivileges) {
       setLoading(false);
       return;
     }
@@ -132,7 +133,7 @@ export const usePurchasedModules = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, organization, isSuperAdmin]);
+  }, [user, organization, hasSuperAdminPrivileges]);
 
   useEffect(() => {
     fetchPurchasedModules();
@@ -143,7 +144,7 @@ export const usePurchasedModules = () => {
    */
   const isAllowed = useCallback((identifier, parentModuleId = null) => {
     // Super Admin Bypass
-    if (isSuperAdmin) {
+    if (hasSuperAdminPrivileges) {
         return true; 
     }
 
@@ -153,15 +154,11 @@ export const usePurchasedModules = () => {
     const id = identifier.toLowerCase();
     
     // 1. Check Explicit App Seat (Strict App Check)
-    // If the user has a seat for this app ID (UUID or Slug), allow.
     if (purchasedItems.apps.has(id)) {
         return true;
     }
 
     // 2. Check Module Entitlement (Hub Access)
-    // If checking a Hub/Module route (e.g., 'geoscience'), check org entitlements.
-    // We assume if it's in the modules set, it's allowed as a Hub.
-    // NOTE: This does NOT grant implicit access to apps anymore. Apps must pass check #1.
     if (purchasedItems.modules.has(id)) {
         return true;
     }
@@ -170,10 +167,10 @@ export const usePurchasedModules = () => {
     if (id === 'hse') return true; 
 
     return false;
-  }, [purchasedItems, isSuperAdmin, loading]);
+  }, [purchasedItems, hasSuperAdminPrivileges, loading]);
 
   const isModuleActive = useCallback((moduleId) => {
-    if (isSuperAdmin) return true;
+    if (hasSuperAdminPrivileges) return true;
     if (loading) return false;
     if (!moduleId) return false;
     
@@ -181,17 +178,17 @@ export const usePurchasedModules = () => {
     if (id === 'hse') return true;
 
     return purchasedItems.modules.has(id);
-  }, [purchasedItems, isSuperAdmin, loading]);
+  }, [purchasedItems, hasSuperAdminPrivileges, loading]);
 
   return {
     isAllowed,
     isModuleActive,
-    loading: isSuperAdmin ? false : loading,
+    loading: hasSuperAdminPrivileges ? false : loading,
     error,
     refresh: fetchPurchasedModules,
     purchasedApps: Array.from(purchasedItems.apps),
     purchasedModules: Array.from(purchasedItems.modules),
-    accessible_app_ids: Array.from(purchasedItems.apps), // Exposed for Task 2
+    accessible_app_ids: Array.from(purchasedItems.apps),
     debugData: { purchasedItems, appToModuleMap }
   };
 };

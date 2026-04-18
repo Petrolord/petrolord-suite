@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useMemo } from 'react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { HSE_PERMISSIONS, canAccess, ROLES } from '@/constants/permissions';

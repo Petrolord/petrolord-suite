@@ -9,7 +9,7 @@ import { useCallback } from 'react';
  * @returns {Function} The memoized callback
  */
 export const useMemoizedCallback = (callback, deps) => {
-  
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   return useCallback((...args) => {
     try {
       return callback(...args);

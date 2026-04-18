@@ -1,4 +1,3 @@
-
 export const fitArpsModel = (data, modelType, window, constraints) => {
   // Placeholder for fitting logic
   // Returns a mock result object

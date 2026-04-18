@@ -3,66 +3,59 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+  :root, .dark {
+    /* Petrolord Dark Premium Theme */
+    --background: 210 25% 8%;
+    --foreground: 214 32% 91%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --secondary-background: 225 28% 14%;
+    
+    --card: 219 25% 18%;
+    --card-foreground: 214 32% 91%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 219 25% 18%;
+    --popover-foreground: 214 32% 91%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --border: 218 23% 23%;
+    
+    --input: 225 28% 14%;
+    --input-foreground: 214 32% 91%;
+    
+    --ring: 217 91% 60%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 221 83% 53%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --secondary: 225 28% 14%;
+    --secondary-foreground: 214 32% 91%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --muted: 214 20% 69%;
+    --muted-foreground: 214 20% 69%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    --info: 189 94% 43%;
+    --info-foreground: 0 0% 100%;
 
     --radius: 0.5rem;
-  }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    /* Chart specific colors */
+    --chart-1: 217 91% 60%; /* Blue */
+    --chart-2: 160 84% 39%; /* Emerald */
+    --chart-3: 38 92% 50%;  /* Amber */
+    --chart-4: 0 84% 60%;   /* Red */
+    --chart-5: 270 60% 60%; /* Purple */
   }
 }
 
@@ -72,60 +65,51 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: 'DM Sans', system-ui, sans-serif;
   }
 }
 
-/* Custom styles for Facility Layout Mapper */
-.map-label {
-  background-color: rgba(17, 24, 39, 0.8);
-  border: 1px solid #0d9488;
-  color: #f0fdfa;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: bold;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-  white-space: nowrap;
+@layer components {
+  .panel-elevation {
+    @apply bg-[hsl(var(--card))] border border-[hsl(var(--border))] shadow-sm rounded-xl overflow-hidden;
+  }
+  
+  .btn-primary {
+    @apply bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:bg-[hsl(var(--primary-hover))] transition-colors px-4 py-2 rounded-md font-medium inline-flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] focus:ring-offset-2 focus:ring-offset-[hsl(var(--background))];
+  }
+
+  .data-grid-container {
+    @apply w-full overflow-x-auto rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))];
+  }
+  
+  .data-grid-table {
+    @apply w-full text-sm text-left border-collapse;
+  }
+  
+  .data-grid-th {
+    @apply bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))] font-semibold px-4 py-3 border-b border-[hsl(var(--border))] whitespace-nowrap;
+  }
+  
+  .data-grid-td {
+    @apply px-4 py-3 border-b border-[hsl(var(--border))] text-[hsl(var(--foreground))] whitespace-nowrap;
+  }
+  
+  .data-grid-tr {
+    @apply hover:bg-[hsl(var(--secondary))/50] transition-colors;
+  }
 }
 
-.map-label-pipeline {
-  background-color: transparent;
-  border: none;
-  color: #ccfbf1;
-  font-size: 11px;
-  font-weight: 600;
-  text-shadow: 0 0 3px #000, 0 0 3px #000, 0 0 3px #000;
-  box-shadow: none;
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
-
-/* Leaflet Draw UI customization */
-.leaflet-draw-toolbar a {
-  background-image: none !important;
-  background-color: #1e293b !important;
-  border-radius: 4px !important;
-  color: #94a3b8 !important;
-  border: 1px solid #334155 !important;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
-
-.leaflet-draw-toolbar a:hover {
-  background-color: #334155 !important;
-  color: #e2e8f0 !important;
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
 }
-
-.leaflet-draw-toolbar a.leaflet-draw-draw-polyline {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='lucide lucide-git-branch'%3E%3Cline x1='6' x2='6' y1='3' y2='15'/%3E%3Ccircle cx='18' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cpath d='M18 9a9 9 0 0 1-9 9'/%3E%3C/svg%3E") !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
-}
-
-.leaflet-draw-actions a {
-  color: #e2e8f0 !important;
-}
-
-.leaflet-draw-actions li:first-child a {
-  background-color: #16a34a !important;
-}
-
-.leaflet-draw-actions li:last-child a {
-  background-color: #dc2626 !important;
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted));
 }

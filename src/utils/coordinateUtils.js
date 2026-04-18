@@ -1,4 +1,3 @@
-
 export const formatCoordinates = (lat, lon) => {
   if (lat === null || lon === null || lat === undefined || lon === undefined) return 'N/A';
   return `${Number(lat).toFixed(6)}, ${Number(lon).toFixed(6)}`;

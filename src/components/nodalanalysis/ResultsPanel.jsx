@@ -7,7 +7,9 @@ import NodalPlot from './NodalPlot';
 import ArtificialLiftDesign from './ArtificialLiftDesign';
 import ProblemDiagnosis from './ProblemDiagnosis';
 import ForecastingPanel from './ForecastingPanel';
-import { exportToExcel, exportToPdf } from '@/utils/exportUtils';
+import { exportToExcel, exportToPDF } from '@/utils/exportUtils';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const ResultsPanel = ({ results, inputs }) => {
   const { kpis, plotsData, recommendations, liftDesign, diagnosis, forecast } = results;
@@ -23,7 +25,10 @@ const ResultsPanel = ({ results, inputs }) => {
   };
 
   const handleExportReport = () => {
-    const doc = exportToPdf([], [], `${inputs.projectName}_report`, `${inputs.projectName} - Nodal Analysis Report`);
+    // Using manual jsPDF generation since exportToPDF expects generic data array
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text(`${inputs.projectName} - Nodal Analysis Report`, 14, 20);
     
     doc.autoTable({
       startY: 25,

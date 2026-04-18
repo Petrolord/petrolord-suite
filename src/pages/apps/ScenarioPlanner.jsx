@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
@@ -5,7 +6,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { ArrowLeft, GitBranch, AlertTriangle, Play, HelpCircle, Save, FolderKanban, Plus, Library, Trash2, PlusCircle, Copy, Contrast as Compare } from 'lucide-react';
-import Plot from 'react-plotly.js';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -356,16 +356,12 @@ const ScenarioPlanner = () => {
         ))}
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <Plot 
-          data={comparisonCases.map(c => ({ x: c.results?.charts.dates, y: c.results?.charts.oil_rate_bpd, type: 'scatter', name: c.name }))} 
-          layout={{ title: 'Oil Production Rate Comparison', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937', font: { color: 'white' } }} 
-          useResizeHandler style={{ width: '100%', height: '300px' }} 
-        />
-        <Plot 
-          data={comparisonCases.map(c => ({ x: c.results?.charts.dates, y: c.results?.charts.cumulative_cashflow_disc_usd, type: 'scatter', name: c.name }))} 
-          layout={{ title: 'Cumulative Discounted Cash Flow', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937', font: { color: 'white' } }} 
-          useResizeHandler style={{ width: '100%', height: '300px' }} 
-        />
+        <div className="w-full h-[300px] bg-slate-800 flex items-center justify-center text-slate-500 rounded">
+            Chart removed
+        </div>
+        <div className="w-full h-[300px] bg-slate-800 flex items-center justify-center text-slate-500 rounded">
+            Chart removed
+        </div>
       </div>
       <Button onClick={() => setIsComparing(false)}>Back to Editor</Button>
     </div>
@@ -486,8 +482,12 @@ const ScenarioPlanner = () => {
                     <div className="bg-gray-800 p-3 rounded-lg"><p className="text-sm text-gray-400">Total CAPEX</p><p className="text-xl font-bold font-mono">${(results.kpis.total_capex_usd / 1e6).toFixed(1)} MM</p></div>
                   </div>
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                    <Plot data={[{ x: results.charts.dates, y: results.charts.oil_rate_bpd, type: 'scatter', name: 'Oil' }, { x: results.charts.dates, y: results.charts.water_rate_bpd, type: 'scatter', name: 'Water' }]} layout={{ title: 'Production Rates', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937', font: { color: 'white' } }} useResizeHandler style={{ width: '100%', height: '300px' }} />
-                    <Plot data={[{ x: results.charts.dates, y: results.charts.cashflow_usd, type: 'bar', name: 'Cashflow' }, { x: results.charts.dates, y: results.charts.cumulative_cashflow_disc_usd, type: 'scatter', name: 'Cum. Discounted', yaxis: 'y2' }]} layout={{ title: 'Cash Flow', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937', font: { color: 'white' }, yaxis2: { overlaying: 'y', side: 'right', showgrid: false } }} useResizeHandler style={{ width: '100%', height: '300px' }} />
+                    <div className="w-full h-[300px] bg-slate-800 flex items-center justify-center text-slate-500 rounded">
+                        Chart removed
+                    </div>
+                    <div className="w-full h-[300px] bg-slate-800 flex items-center justify-center text-slate-500 rounded">
+                        Chart removed
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -504,7 +504,9 @@ const ScenarioPlanner = () => {
                       <div className="bg-gray-700 p-2 rounded"><p className="text-xs">NPV P50</p><p className="font-mono">${(mcResults.npv_p50_usd / 1e6).toFixed(1)}MM</p></div>
                       <div className="bg-gray-700 p-2 rounded"><p className="text-xs">NPV P90</p><p className="font-mono">${(mcResults.npv_p90_usd / 1e6).toFixed(1)}MM</p></div>
                     </div>
-                    <Plot data={[{ x: mcResults.npv_samples_usd, type: 'histogram' }]} layout={{ title: 'NPV Distribution', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937', font: { color: 'white' } }} useResizeHandler style={{ width: '100%', height: '250px' }} />
+                    <div className="mt-4 w-full h-[250px] bg-slate-800 flex items-center justify-center text-slate-500 rounded">
+                        Chart removed
+                    </div>
                   </motion.div>
                 )}
               </CollapsibleSection>
