@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { Route, Routes, Navigate } from 'react-router-dom';
 import { AuthProvider as SupabaseAuthProvider } from './contexts/SupabaseAuthContext';
 import { Toaster } from './components/ui/toaster';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -94,7 +94,7 @@ const WellTestAnalyzer = lazy(() => import('./pages/apps/WellTestDataAnalyzer'))
 function App() {
   return (
     <SupabaseAuthProvider>
-      <Router>
+      
         <div className="App">
           <Suspense fallback={<LoadingSpinner />}>
             <Routes>
@@ -207,7 +207,7 @@ function App() {
           </Suspense>
           <Toaster />
         </div>
-      </Router>
+      
     </SupabaseAuthProvider>
   );
 }
