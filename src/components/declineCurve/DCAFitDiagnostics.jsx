@@ -23,7 +23,7 @@ const DCAFitDiagnostics = () => {
     } else {
       setDetectedBreakpoints([]);
     }
-  }, [currentWellId, selectedStream, productionData]);
+  }, [currentWellId, selectedStream]);
   
   if (!fitResults || !productionData.length) {
     return (
