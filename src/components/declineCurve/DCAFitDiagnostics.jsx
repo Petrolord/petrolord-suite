@@ -1,16 +1,29 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { AlertCircle, CheckCircle, TrendingUp, Target } from 'lucide-react';
+import { AlertCircle, CheckCircle, TrendingUp, Target, BarChart3 } from 'lucide-react';
 import { calculateR2, calculateRMSE, calculateResiduals, getVerdictInfo, calculateArpsConfidenceIntervals } from '@/utils/dcaDiagnostics';
+import { detectSegmentBreakpoints } from '@/utils/dcaSegmentDetection';
 
 const DCAFitDiagnostics = () => {
   const { wells, currentWellId, currentWell, selectedStream, streamState } = useDeclineCurve();
+  const [detectedBreakpoints, setDetectedBreakpoints] = useState([]);
   
   const fitResults = streamState[selectedStream]?.fitResults;
-  const productionData = currentWell?.productionData || wells?.[currentWellId]?.productionData || [];
+  const wellData = wells?.[currentWellId];
+  const productionData = wellData?.productionData?.[selectedStream] || [];
+  
+  // Detect segments when well or stream changes
+  useEffect(() => {
+    if (productionData && productionData.length > 0) {
+      const breakpoints = detectSegmentBreakpoints(productionData);
+      setDetectedBreakpoints(breakpoints);
+    } else {
+      setDetectedBreakpoints([]);
+    }
+  }, [currentWellId, selectedStream, productionData]);
   
   if (!fitResults || !productionData.length) {
     return (
@@ -66,6 +79,13 @@ const DCAFitDiagnostics = () => {
     ...point,
     isOutlier: Math.abs(point.residual) > outlierThreshold
   }));
+  
+  // Determine segment pattern color
+  const getSegmentStatusColor = () => {
+    if (detectedBreakpoints.length === 0) return 'text-green-400';
+    const maxSlopeChange = Math.max(...detectedBreakpoints.map(bp => bp.slopeChange));
+    return maxSlopeChange >= 30 ? 'text-yellow-400' : 'text-green-400';
+  };
 
   return (
     <div className="space-y-4 h-full flex flex-col">
@@ -151,6 +171,37 @@ const DCAFitDiagnostics = () => {
           </div>
           {confidenceIntervals.hasIntervals && (
             <div className="text-[10px] text-slate-500 mt-2 text-center">95% Confidence Intervals</div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Detected Segments */}
+      <Card className="bg-slate-900 border-slate-800 shrink-0">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <BarChart3 size={16} className="text-purple-400" />
+            Detected Segments
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {detectedBreakpoints.length === 0 ? (
+            <div className={`text-sm ${getSegmentStatusColor()}`}>
+              Single-segment decline pattern detected
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className={`text-sm mb-3 ${getSegmentStatusColor()}`}>
+                {detectedBreakpoints.length + 1}-segment decline pattern detected
+              </div>
+              {detectedBreakpoints.map((breakpoint, index) => (
+                <div key={index} className="text-xs text-slate-300">
+                  <span className="font-mono">
+                    Breakpoint {index + 1}: {breakpoint.date.toLocaleDateString()} @ {breakpoint.rate.toFixed(1)} {getUnits().split('/')[0]} 
+                    (slope change: {breakpoint.slopeChange.toFixed(1)}%)
+                  </span>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
