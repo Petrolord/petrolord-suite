@@ -1,0 +1,1 @@
+import{s as e}from"./index-a625e919.js";const r=e("PanelLeft",[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",ry:"2",key:"1m3agn"}],["line",{x1:"9",x2:"9",y1:"3",y2:"21",key:"13tij5"}]]);export{r as P};

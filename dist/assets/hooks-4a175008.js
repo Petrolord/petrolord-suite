@@ -1,0 +1,1 @@
+import{r as n}from"./index-a625e919.js";import{u as o}from"./MapContainer-395a4bfa.js";function r(){return o().map}function p(e){const t=r();return n.useEffect(function(){return t.on(e),function(){t.off(e)}},[t,e]),t}export{r as a,p as u};
