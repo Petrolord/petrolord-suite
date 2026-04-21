@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Petrolord - Energy Intelligence Platform</title>
-    <script type="module" crossorigin src="/assets/index-fa0f7fc0.js"></script>
-    <link rel="stylesheet" href="/assets/index-65247c31.css">
+    <script type="module" crossorigin src="/assets/index-2bdff070.js"></script>
+    <link rel="stylesheet" href="/assets/index-f2f5650a.css">
     <script type="module">
 window.onerror = (message, source, lineno, colno, errorObj) => {
 	const errorDetails = errorObj ? JSON.stringify({
@@ -72,9 +72,9 @@ function handleViteOverlay(node) {
 </script>
     <script type="module">
 const originalConsoleError = console.error;
-const MATCH_LINE_COL_REGEX = /(d+):(d+))?s*$/; // regex to match the :lineNum:colNum
-const MATCH_AT_REGEX = /^s*ats+(?:asyncs+)?(?:.*?s+)?(?/; // regex to remove the 'at' keyword and any 'async' or function name
-const MATCH_PATH_REGEX = /^//; // regex to remove the leading slash
+const MATCH_LINE_COL_REGEX = /:(\d+):(\d+)\)?\s*$/; // regex to match the :lineNum:colNum
+const MATCH_AT_REGEX = /^\s*at\s+(?:async\s+)?(?:.*?\s+)?\(?/; // regex to remove the 'at' keyword and any 'async' or function name
+const MATCH_PATH_REGEX = /^\//; // regex to remove the leading slash
 
 function parseStackFrameLine(line) {
 	const lineColMatch = line.match(MATCH_LINE_COL_REGEX);
@@ -99,10 +99,9 @@ function parseStackFrameLine(line) {
 
 function getFilePathFromStack(stack, skipFrames = 0) {
 	if (!stack || typeof stack !== 'string') return null;
-	const lines = stack.split('
-').slice(1);
+	const lines = stack.split('\n').slice(1);
 
-	const frames = lines.map(line => parseStackFrameLine(line.replace(/$/, ''))).filter(Boolean);
+	const frames = lines.map(line => parseStackFrameLine(line.replace(/\r$/, ''))).filter(Boolean);
 
 	return frames[skipFrames] ?? null;
 }

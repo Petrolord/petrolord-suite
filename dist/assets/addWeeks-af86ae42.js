@@ -1,1 +1,0 @@
-import{t as c,c as f}from"./normalizeDates-b4e5216b.js";function u(a,e,r){const t=c(a,r==null?void 0:r.in);return isNaN(e)?f((r==null?void 0:r.in)||a,NaN):(e&&t.setDate(t.getDate()+e),t)}function D(a,e,r){return u(a,e*7,r)}export{u as a,D as b};

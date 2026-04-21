@@ -76,9 +76,9 @@ window.onerror = (message, source, lineno, colno, errorObj) => {
 
 const configHorizonsConsoleErrorHandler = `
 const originalConsoleError = console.error;
-const MATCH_LINE_COL_REGEX = /(\d+):(\d+)\)?\s*$/; // regex to match the :lineNum:colNum
-const MATCH_AT_REGEX = /^\s*at\s+(?:async\s+)?(?:.*?\s+)?\(?/; // regex to remove the 'at' keyword and any 'async' or function name
-const MATCH_PATH_REGEX = /^\//; // regex to remove the leading slash
+const MATCH_LINE_COL_REGEX = /:(\\d+):(\\d+)\\)?\\s*$/; // regex to match the :lineNum:colNum
+const MATCH_AT_REGEX = /^\\s*at\\s+(?:async\\s+)?(?:.*?\\s+)?\\(?/; // regex to remove the 'at' keyword and any 'async' or function name
+const MATCH_PATH_REGEX = /^\\//; // regex to remove the leading slash
 
 function parseStackFrameLine(line) {
 	const lineColMatch = line.match(MATCH_LINE_COL_REGEX);
@@ -103,9 +103,9 @@ function parseStackFrameLine(line) {
 
 function getFilePathFromStack(stack, skipFrames = 0) {
 	if (!stack || typeof stack !== 'string') return null;
-	const lines = stack.split('\n').slice(1);
+	const lines = stack.split('\\n').slice(1);
 
-	const frames = lines.map(line => parseStackFrameLine(line.replace(/\r$/, ''))).filter(Boolean);
+	const frames = lines.map(line => parseStackFrameLine(line.replace(/\\r$/, ''))).filter(Boolean);
 
 	return frames[skipFrames] ?? null;
 }

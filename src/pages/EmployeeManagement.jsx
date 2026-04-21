@@ -17,16 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
-
-// Mock component for InviteEmployee - replace with actual component
-const InviteEmployee = ({ orgId, onSuccess }) => {
-  return (
-    <div className="p-4">
-      <p className="text-slate-400 mb-4">Employee invitation form would be here.</p>
-      <Button onClick={() => onSuccess()}>Mock Invite</Button>
-    </div>
-  );
-};
+import InviteEmployee from '@/components/InviteEmployee';
 
 export default function EmployeeManagement() {
   const navigate = useNavigate();
@@ -46,27 +37,29 @@ export default function EmployeeManagement() {
 
   const fetchOrgAndMembers = async () => {
     try {
-      // Mock data for now
-      setOrgId('mock-org-id');
-      setMembers([
-        {
-          id: '1',
-          full_name: 'John Doe',
-          email: 'john@example.com',
-          role: 'admin',
-          status: 'active',
-          joined_at: '2024-01-15T00:00:00.000Z'
-        },
-        {
-          id: '2',
-          full_name: 'Jane Smith',
-          email: 'jane@example.com',
-          role: 'user',
-          status: 'invited',
-          joined_at: null
-        }
-      ]);
-      setSeatStats({ used: 2, limit: 5 });
+      const { data: orgUser } = await supabase.from('organization_users').select('organization_id').eq('user_id', user.id).single();
+      
+      if (orgUser) {
+        setOrgId(orgUser.organization_id);
+        
+        // Fetch Members
+        const { data: membersData, error } = await supabase
+          .from('organization_members')
+          .select('*')
+          .eq('organization_id', orgUser.organization_id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setMembers(membersData);
+
+        // Fetch Seat Limit (Mock logic or real if subscription table ready)
+        // Ideally we fetch from purchased_modules or subscriptions
+        const { data: sub } = await supabase.from('subscriptions').select('user_limit').eq('organization_id', orgUser.organization_id).eq('status', 'active').single();
+        const limit = sub?.user_limit || 5; // Default free tier
+        
+        const activeCount = membersData.filter(m => m.status !== 'inactive').length;
+        setSeatStats({ used: activeCount, limit });
+      }
     } catch (error) {
       console.error('Error fetching employees:', error);
       toast({ title: 'Error', description: 'Could not load employee list.', variant: 'destructive' });
@@ -78,7 +71,8 @@ export default function EmployeeManagement() {
   const handleDeactivate = async (memberId) => {
       if(!confirm("Are you sure you want to deactivate this member? They will lose access.")) return;
       try {
-          // Mock deactivation
+          const { error } = await supabase.from('organization_members').update({ status: 'inactive' }).eq('id', memberId);
+          if (error) throw error;
           toast({ title: "Member Deactivated" });
           fetchOrgAndMembers();
       } catch (e) {
@@ -189,7 +183,16 @@ export default function EmployeeManagement() {
                                                 <DropdownMenuItem className="focus:bg-slate-800 cursor-pointer">
                                                     <Shield className="w-4 h-4 mr-2"/> Edit Role
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem className="focus:bg-slate-800 cursor-pointer text-red-400" onClick={() => handleDeactivate(member.id)}>
+                                                <DropdownMenuItem className="focus:bg-slate-800 cursor-pointer" onClick={() => alert("Manage apps modal coming soon")}>
+                                                    <Users className="w-4 h-4 mr-2"/> Assign Apps
+                                                </DropdownMenuItem>
+                                                {member.status === 'invited' && (
+                                                    <DropdownMenuItem className="focus:bg-slate-800 cursor-pointer text-blue-400">
+                                                        <Mail className="w-4 h-4 mr-2"/> Resend Invite
+                                                    </DropdownMenuItem>
+                                                )}
+                                                <DropdownMenuSeparator className="bg-slate-800"/>
+                                                <DropdownMenuItem className="focus:bg-red-900/20 text-red-400 cursor-pointer" onClick={() => handleDeactivate(member.id)}>
                                                     <Trash2 className="w-4 h-4 mr-2"/> Deactivate
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
@@ -202,6 +205,7 @@ export default function EmployeeManagement() {
                 </Table>
             </CardContent>
         </Card>
+
       </div>
     </div>
   );
