@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
 import { Camera } from 'lucide-react';
 import { ResponsiveContainer, ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label } from 'recharts';
+import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
 
 const DCABasePlots = () => {
   const [logScale, setLogScale] = useState(true);
@@ -17,12 +18,22 @@ const DCABasePlots = () => {
     
     const merged = [];
     
-    // Add historical points
+    // Add historical points with fitted values
     currentData.forEach(point => {
+      let fitted = null;
+      
+      // Calculate fitted value if fit results exist
+      const fit = streamState[selectedStream]?.fitResults;
+      if (fit && fit.qi && fit.Di !== undefined && fit.b !== undefined && fit.t0) {
+        const tDays = (new Date(point.date) - new Date(fit.t0)) / 86400000;
+        fitted = calculateArpsHyperbolic(fit.qi, fit.Di, fit.b, tDays);
+      }
+      
       merged.push({
         date: point.date,
         history: point.rate,
-        forecast: null
+        forecast: null,
+        fitted: fitted
       });
     });
     
@@ -32,13 +43,14 @@ const DCABasePlots = () => {
         merged.push({
           date: point.date,
           history: null,
-          forecast: point.rate
+          forecast: point.rate,
+          fitted: null
         });
       });
     }
     
     return merged.sort((a, b) => new Date(a.date) - new Date(b.date));
-  }, [currentData, forecastResults]);
+  }, [currentData, forecastResults, streamState, selectedStream]);
   
   // Get stream-specific colors
   const getStreamColor = (stream, variant = 'primary') => {
@@ -135,6 +147,18 @@ const DCABasePlots = () => {
                   fill={getStreamColor(selectedStream)}
                   name="Historical"
                   shape="circle"
+                />
+                
+                {/* Fitted Model Line */}
+                <Line 
+                  type="monotone"
+                  dataKey="fitted"
+                  stroke={`${getStreamColor(selectedStream, 'light')}99`}
+                  strokeWidth={1.5}
+                  strokeDasharray="none"
+                  dot={false}
+                  name="Fitted Model"
+                  connectNulls={false}
                 />
                 
                 {/* Forecast Data as Line */}

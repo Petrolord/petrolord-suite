@@ -1,1 +1,0 @@
-import{s as c}from"./index-6fb0aad0.js";const e=c("ArrowRightCircle",[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"M8 12h8",key:"1wcyev"}],["path",{d:"m12 16 4-4-4-4",key:"1i9zcv"}]]);export{e as A};
