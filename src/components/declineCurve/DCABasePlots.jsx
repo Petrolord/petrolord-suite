@@ -1,13 +1,64 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
 import { Button } from '@/components/ui/button';
 import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
 import { Camera } from 'lucide-react';
+import { ResponsiveContainer, ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
 const DCABasePlots = () => {
   const [logScale, setLogScale] = useState(true);
-
+  const { currentData, selectedStream, streamState } = useDeclineCurve();
+  
+  const forecastResults = streamState[selectedStream]?.forecastResults;
+  
+  // Merge historical and forecast data
+  const chartData = useMemo(() => {
+    if (!currentData || currentData.length === 0) return [];
+    
+    const merged = [];
+    
+    // Add historical points
+    currentData.forEach(point => {
+      merged.push({
+        date: point.date,
+        history: point.rate,
+        forecast: null
+      });
+    });
+    
+    // Add forecast points if available
+    if (forecastResults?.rates) {
+      forecastResults.rates.forEach(point => {
+        merged.push({
+          date: point.date,
+          history: null,
+          forecast: point.rate
+        });
+      });
+    }
+    
+    return merged.sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [currentData, forecastResults]);
+  
+  // Get stream-specific colors
+  const getStreamColor = (stream, variant = 'primary') => {
+    const colors = {
+      oil: { primary: '#10b981', light: '#34d399' }, // emerald-500, emerald-400
+      gas: { primary: '#f59e0b', light: '#fbbf24' },   // amber-500, amber-400  
+      water: { primary: '#3b82f6', light: '#60a5fa' }  // blue-500, blue-400
+    };
+    return colors[stream]?.[variant] || colors.oil[variant];
+  };
+  
+  // Get Y-axis label based on stream
+  const getYAxisLabel = () => {
+    switch(selectedStream) {
+      case 'gas': return 'Rate (Mscf/d)';
+      case 'water': return 'Rate (bbl/d)';
+      default: return 'Rate (bbl/d)';
+    }
+  };
+  
   return (
     <div id="dca-main-plot" className="h-full flex flex-col bg-slate-900 rounded-lg border border-slate-800 overflow-hidden shadow-inner">
         <div className="p-2 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
@@ -25,8 +76,77 @@ const DCABasePlots = () => {
                 <Camera size={14} className="text-slate-400" />
             </Button>
         </div>
-        <div className="flex-1 relative min-h-[400px] w-full flex items-center justify-center text-slate-600">
-            Chart removed
+        
+        <div className="flex-1 relative min-h-[400px] w-full">
+          {!currentData || currentData.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-slate-500 text-center">
+              Upload production data to begin
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                <XAxis 
+                  dataKey="date" 
+                  type="category"
+                  tick={{ fill: '#9ca3af', fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis 
+                  scale={logScale ? 'log' : 'auto'}
+                  domain={logScale ? ['auto', 'auto'] : ['auto', 'auto']}
+                  tick={{ fill: '#9ca3af', fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                  label={{ 
+                    value: getYAxisLabel(), 
+                    angle: -90, 
+                    position: 'insideLeft',
+                    style: { textAnchor: 'middle', fill: '#9ca3af', fontSize: 12 }
+                  }}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#0f172a', 
+                    borderColor: '#334155',
+                    borderRadius: '6px',
+                    fontSize: '12px'
+                  }}
+                  labelStyle={{ color: '#e2e8f0' }}
+                  itemStyle={{ color: '#e2e8f0' }}
+                  formatter={(value, name) => [
+                    value ? value.toFixed(1) : 'N/A',
+                    name
+                  ]}
+                />
+                <Legend 
+                  verticalAlign="bottom" 
+                  height={36}
+                  wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                />
+                
+                {/* Historical Data as Scatter */}
+                <Scatter 
+                  dataKey="history"
+                  fill={getStreamColor(selectedStream)}
+                  name="Historical"
+                  shape="circle"
+                />
+                
+                {/* Forecast Data as Line */}
+                <Line 
+                  type="monotone"
+                  dataKey="forecast"
+                  stroke={getStreamColor(selectedStream, 'light')}
+                  strokeWidth={2}
+                  dot={false}
+                  name="Forecast"
+                  connectNulls={false}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
         </div>
     </div>
   );
