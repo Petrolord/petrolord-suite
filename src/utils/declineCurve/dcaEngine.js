@@ -259,15 +259,17 @@ export const fitArpsModel = (data, modelType, window = null, constraints = null)
  */
 export const generateForecast = (params, config, t0) => {
   const { qi, Di, b, modelType } = params;
-  const { forecastDurationDays, economicLimit, stopAtLimit } = config;
+  const { forecastDurationDays, durationDays, economicLimit, stopAtLimit, facilityLimit } = config;
+  const totalDays = forecastDurationDays || durationDays || 3650;
   
-  if (!qi || !Di || !forecastDurationDays) return [];
+  if (!qi || !Di || !totalDays) return { rates: [], eur: 0, timeToLimit: null, chartData: [] };
   
   const startDate = new Date(t0);
   const forecast = [];
   let cumulativeProduction = 0;
   
-  for (let day = 1; day <= forecastDurationDays; day++) {
+  let timeToLimitDays = null;
+  for (let day = 1; day <= totalDays; day++) {
     let rate;
     
     if (modelType === 'Exponential' || b === 0) {
@@ -279,9 +281,7 @@ export const generateForecast = (params, config, t0) => {
     }
     
     // Check economic limit
-    if (stopAtLimit && economicLimit && rate < economicLimit) {
-      break;
-    }
+    if (stopAtLimit && economicLimit && rate < economicLimit) { timeToLimitDays = day; break; }
     
     cumulativeProduction += rate;
     
@@ -295,7 +295,12 @@ export const generateForecast = (params, config, t0) => {
     });
   }
   
-  return forecast;
+  return {
+    rates: forecast,
+    eur: cumulativeProduction,
+    timeToLimit: timeToLimitDays !== null ? timeToLimitDays : totalDays,
+    chartData: forecast
+  };
 };
 
 /**

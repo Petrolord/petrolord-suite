@@ -320,7 +320,8 @@ export const DeclineCurveProvider = ({ children }) => {
       
       const forecast = generateForecast(
         streamState[selectedStream].fitResults,
-        streamState[selectedStream].forecastConfig
+        streamState[selectedStream].forecastConfig,
+        streamState[selectedStream].fitResults.t0 || new Date().toISOString()
       );
       
       if (forecast) {
