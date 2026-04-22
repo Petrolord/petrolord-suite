@@ -11,6 +11,7 @@ const DCABasePlots = () => {
   const { currentData, selectedStream, streamState } = useDeclineCurve();
   
   const forecastResults = streamState[selectedStream]?.forecastResults;
+  const fit = streamState[selectedStream]?.fitResults;
   
   // Merge historical and forecast data
   const chartData = useMemo(() => {
@@ -95,85 +96,100 @@ const DCABasePlots = () => {
               Upload production data to begin
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis 
-                  dataKey="date" 
-                  type="category"
-                  tick={{ fill: '#9ca3af', fontSize: 12 }}
-                  axisLine={false}
-                  tickLine={false}
-                >
-                  <Label value="Date" position="insideBottom" offset={-5} style={{ fill: '#94a3b8', fontSize: 11 }} />
-                </XAxis>
-                <YAxis 
-                  scale={logScale ? 'log' : 'auto'}
-                  domain={logScale ? ['auto', 'auto'] : ['auto', 'auto']}
-                  tick={{ fill: '#9ca3af', fontSize: 12 }}
-                  axisLine={false}
-                  tickLine={false}
-                >
-                  <Label 
-                    value={getYAxisLabel()} 
-                    angle={-90} 
-                    position="insideLeft"
-                    style={{ fill: '#94a3b8', fontSize: 11 }}
+            <>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                  <XAxis 
+                    dataKey="date" 
+                    type="category"
+                    tick={{ fill: '#9ca3af', fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  >
+                    <Label value="Date" position="insideBottom" offset={-5} style={{ fill: '#94a3b8', fontSize: 11 }} />
+                  </XAxis>
+                  <YAxis 
+                    scale={logScale ? 'log' : 'auto'}
+                    domain={logScale ? ['auto', 'auto'] : ['auto', 'auto']}
+                    tick={{ fill: '#9ca3af', fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  >
+                    <Label 
+                      value={getYAxisLabel()} 
+                      angle={-90} 
+                      position="insideLeft"
+                      style={{ fill: '#94a3b8', fontSize: 11 }}
+                    />
+                  </YAxis>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#0f172a', 
+                      borderColor: '#334155',
+                      borderRadius: '6px',
+                      fontSize: '12px'
+                    }}
+                    labelStyle={{ color: '#e2e8f0' }}
+                    itemStyle={{ color: '#e2e8f0' }}
+                    formatter={(value, name) => [
+                      value ? value.toFixed(1) : 'N/A',
+                      name
+                    ]}
                   />
-                </YAxis>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#0f172a', 
-                    borderColor: '#334155',
-                    borderRadius: '6px',
-                    fontSize: '12px'
-                  }}
-                  labelStyle={{ color: '#e2e8f0' }}
-                  itemStyle={{ color: '#e2e8f0' }}
-                  formatter={(value, name) => [
-                    value ? value.toFixed(1) : 'N/A',
-                    name
-                  ]}
-                />
-                <Legend 
-                  verticalAlign="bottom" 
-                  height={36}
-                  wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
-                />
-                
-                {/* Historical Data as Scatter */}
-                <Scatter 
-                  dataKey="history"
-                  fill={getStreamColor(selectedStream)}
-                  name="Historical"
-                  shape="circle"
-                />
-                
-                {/* Fitted Model Line */}
-                <Line 
-                  type="monotone"
-                  dataKey="fitted"
-                  stroke={`${getStreamColor(selectedStream, 'light')}99`}
-                  strokeWidth={1.5}
-                  strokeDasharray="none"
-                  dot={false}
-                  name="Fitted Model"
-                  connectNulls={false}
-                />
-                
-                {/* Forecast Data as Line */}
-                <Line 
-                  type="monotone"
-                  dataKey="forecast"
-                  stroke={getStreamColor(selectedStream, 'light')}
-                  strokeWidth={2}
-                  strokeDasharray="6 4"
-                  dot={false}
-                  name="Forecast"
-                  connectNulls={false}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                  />
+                  
+                  {/* Historical Data as Scatter */}
+                  <Scatter 
+                    dataKey="history"
+                    fill={getStreamColor(selectedStream)}
+                    name="Historical"
+                    shape="circle"
+                  />
+                  
+                  {/* Fitted Model Line */}
+                  <Line 
+                    type="monotone"
+                    dataKey="fitted"
+                    stroke={`${getStreamColor(selectedStream, 'light')}99`}
+                    strokeWidth={1.5}
+                    strokeDasharray="none"
+                    dot={false}
+                    name="Fitted Model"
+                    connectNulls={false}
+                  />
+                  
+                  {/* Forecast Data as Line */}
+                  <Line 
+                    type="monotone"
+                    dataKey="forecast"
+                    stroke={getStreamColor(selectedStream, 'light')}
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    dot={false}
+                    name="Forecast"
+                    connectNulls={false}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+              
+              {/* Parameter Annotation Box */}
+              {fit && (
+                <div className="absolute top-2 right-2 bg-slate-900/80 border border-slate-700 rounded px-2 py-1.5 text-[10px] text-slate-300 font-mono backdrop-blur pointer-events-none">
+                  <div className="flex flex-col gap-0.5">
+                    <div>Model: {fit.modelType}</div>
+                    <div>qi: {fit.qi.toFixed(0)} {selectedStream === 'gas' ? 'Mscf/d' : 'bbl/d'}</div>
+                    <div>Di: {(fit.Di * 365 * 100).toFixed(1)}%/yr</div>
+                    <div>b: {fit.b.toFixed(2)}</div>
+                    <div>R²: {fit.R2.toFixed(3)}</div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
     </div>
