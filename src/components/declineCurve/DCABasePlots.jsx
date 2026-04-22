@@ -143,6 +143,7 @@ const DCABasePlots = () => {
                   dataKey="forecast"
                   stroke={getStreamColor(selectedStream, 'light')}
                   strokeWidth={2}
+                  strokeDasharray="6 4"
                   dot={false}
                   name="Forecast"
                   connectNulls={false}
