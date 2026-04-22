@@ -3,7 +3,7 @@ import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
 import { Button } from '@/components/ui/button';
 import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
 import { Camera } from 'lucide-react';
-import { ResponsiveContainer, ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { ResponsiveContainer, ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label } from 'recharts';
 
 const DCABasePlots = () => {
   const [logScale, setLogScale] = useState(true);
@@ -92,20 +92,23 @@ const DCABasePlots = () => {
                   tick={{ fill: '#9ca3af', fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
-                />
+                >
+                  <Label value="Date" position="insideBottom" offset={-5} style={{ fill: '#94a3b8', fontSize: 11 }} />
+                </XAxis>
                 <YAxis 
                   scale={logScale ? 'log' : 'auto'}
                   domain={logScale ? ['auto', 'auto'] : ['auto', 'auto']}
                   tick={{ fill: '#9ca3af', fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
-                  label={{ 
-                    value: getYAxisLabel(), 
-                    angle: -90, 
-                    position: 'insideLeft',
-                    style: { textAnchor: 'middle', fill: '#9ca3af', fontSize: 12 }
-                  }}
-                />
+                >
+                  <Label 
+                    value={getYAxisLabel()} 
+                    angle={-90} 
+                    position="insideLeft"
+                    style={{ fill: '#94a3b8', fontSize: 11 }}
+                  />
+                </YAxis>
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: '#0f172a', 
