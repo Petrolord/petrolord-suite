@@ -1,140 +1,184 @@
 // Multi-segment detection for Decline Curve Analysis
-// Phase 3a: Detection and read-only display only
+// Phase 3a (v2): Piecewise regression approach
+//
+// Algorithm: Test candidate split points across the data. At each split,
+// fit two separate exponential decline models (one per side). Compare the
+// weighted combined R² of two fits vs the R² of a single fit over the whole
+// range. Declare a breakpoint only if the improvement exceeds a threshold.
+// Recurse on each side to find up to 3 breakpoints total.
+//
+// This method asks the right question — "does splitting actually help?" —
+// rather than looking for noisy slope changes in log-log derivatives.
 
 /**
- * Local smoothing function - moving average
- * @param {Array} values - Array of numeric values
- * @param {number} windowSize - Size of moving average window
- * @returns {Array} Smoothed values
+ * Simple linear regression. Returns {slope, intercept, r2}.
  */
-function smoothData(values, windowSize = 10) {
-  const smoothed = [];
-  const halfWindow = Math.floor(windowSize / 2);
-  
-  for (let i = 0; i < values.length; i++) {
-    const start = Math.max(0, i - halfWindow);
-    const end = Math.min(values.length, i + halfWindow + 1);
-    const window = values.slice(start, end);
-    const avg = window.reduce((sum, val) => sum + val, 0) / window.length;
-    smoothed.push(avg);
+function linearRegression(xs, ys) {
+  const n = xs.length;
+  if (n < 2) return { slope: 0, intercept: 0, r2: 0 };
+  const sumX = xs.reduce((a, b) => a + b, 0);
+  const sumY = ys.reduce((a, b) => a + b, 0);
+  const sumXY = xs.reduce((sum, x, i) => sum + x * ys[i], 0);
+  const sumXX = xs.reduce((sum, x) => sum + x * x, 0);
+  const meanX = sumX / n;
+  const meanY = sumY / n;
+  const denom = n * sumXX - sumX * sumX;
+  if (denom === 0) return { slope: 0, intercept: meanY, r2: 0 };
+  const slope = (n * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slope * sumX) / n;
+  let ssRes = 0, ssTot = 0;
+  for (let i = 0; i < n; i++) {
+    const predicted = intercept + slope * xs[i];
+    ssRes += Math.pow(ys[i] - predicted, 2);
+    ssTot += Math.pow(ys[i] - meanY, 2);
   }
-  
-  return smoothed;
+  const r2 = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : 0;
+  return { slope, intercept, r2 };
 }
 
 /**
- * Local slope computation function
- * @param {Array} xValues - X coordinates
- * @param {Array} yValues - Y coordinates
- * @param {number} windowSize - Window for slope calculation
- * @returns {Array} Slopes at each point
+ * Fit an exponential decline q = qi * exp(-D*t) to a slice.
+ * Uses log-linear regression. Returns {qi, D, r2, rmse}.
+ * Linear in log space → fast, no iteration needed.
  */
-function computeSlopes(xValues, yValues, windowSize = 5) {
-  const slopes = [];
-  const halfWindow = Math.floor(windowSize / 2);
-  
-  for (let i = 0; i < xValues.length; i++) {
-    if (i < halfWindow || i >= xValues.length - halfWindow) {
-      slopes.push(0);
-      continue;
+function fitExponentialSlice(slice) {
+  const xs = slice.map(d => d.time);
+  const ys = slice.map(d => Math.log(d.rate));
+  const { slope, intercept, r2: logR2 } = linearRegression(xs, ys);
+  const qi = Math.exp(intercept);
+  const D = -slope;
+
+  // Recompute R² on original scale for fair comparison across slices
+  const meanRate = slice.reduce((a, b) => a + b.rate, 0) / slice.length;
+  let ssRes = 0, ssTot = 0;
+  for (const d of slice) {
+    const predicted = qi * Math.exp(-D * d.time);
+    ssRes += Math.pow(d.rate - predicted, 2);
+    ssTot += Math.pow(d.rate - meanRate, 2);
+  }
+  const r2 = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : 0;
+  const rmse = Math.sqrt(ssRes / slice.length);
+  return { qi, D, r2, rmse };
+}
+
+/**
+ * Find the single best split point in [minIdx, maxIdx] that maximizes
+ * the weighted combined R² of two exponential fits (left + right).
+ * Returns {splitIdx, improvement} or null if no split helps.
+ */
+function findBestSplit(data, minSegmentSize, improvementThreshold) {
+  if (data.length < 2 * minSegmentSize) return null;
+
+  // Baseline: single exponential over entire range
+  const baseline = fitExponentialSlice(data);
+  const baselineR2 = baseline.r2;
+
+  let bestSplit = -1;
+  let bestCombinedR2 = baselineR2;
+
+  // Scan candidate split points. Step in 2% increments for performance.
+  const step = Math.max(1, Math.floor(data.length / 50));
+  for (let i = minSegmentSize; i < data.length - minSegmentSize; i += step) {
+    const left = data.slice(0, i);
+    const right = data.slice(i);
+
+    const leftFit = fitExponentialSlice(left);
+    const rightFit = fitExponentialSlice(right);
+
+    // Weighted combined R² (sample-size weighted)
+    const combined = (left.length * leftFit.r2 + right.length * rightFit.r2) / data.length;
+
+    if (combined > bestCombinedR2) {
+      bestCombinedR2 = combined;
+      bestSplit = i;
     }
-    
-    const x1 = xValues[i - halfWindow];
-    const x2 = xValues[i + halfWindow];
-    const y1 = yValues[i - halfWindow];
-    const y2 = yValues[i + halfWindow];
-    
-    const slope = (y2 - y1) / (x2 - x1);
-    slopes.push(slope);
   }
-  
-  return slopes;
+
+  const improvement = bestCombinedR2 - baselineR2;
+  if (bestSplit === -1 || improvement < improvementThreshold) {
+    return null;
+  }
+  return { splitIdx: bestSplit, improvement };
 }
 
 /**
- * Local breakpoint detection function
- * @param {Array} slopes - Slope values
- * @param {number} threshold - Minimum change threshold (0.20 = 20%)
- * @returns {Array} Breakpoint indices
+ * Recursively find up to maxBreakpoints by splitting the worst-fitting segment.
  */
-function findBreakpoints(slopes, threshold = 0.20, minIndexSpacing = 20, skipStartIndex = 15) {
+function recursiveSegment(data, minSegmentSize, improvementThreshold, maxBreakpoints) {
   const breakpoints = [];
-  let lastBpIndex = -Infinity;
 
-  for (let i = skipStartIndex; i < slopes.length - skipStartIndex; i++) {
-    if (i - lastBpIndex < minIndexSpacing) continue;
+  // Keep a working list of segments as [startIdx, endIdx] in original data
+  const segments = [{ start: 0, end: data.length, slice: data }];
 
-    const prevSlope = slopes[i - 1];
-    const currSlope = slopes[i];
-
-    if (Math.abs(prevSlope) > 0.001) {
-      const slopeChange = Math.abs((currSlope - prevSlope) / prevSlope);
-      if (slopeChange > threshold) {
-        breakpoints.push({
-          index: i,
-          slopeChange: slopeChange
-        });
-        lastBpIndex = i;
+  while (breakpoints.length < maxBreakpoints) {
+    // Find the segment whose best split gives the biggest improvement
+    let bestIdx = -1;
+    let bestSplit = null;
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      const result = findBestSplit(seg.slice, minSegmentSize, improvementThreshold);
+      if (result && (!bestSplit || result.improvement > bestSplit.improvement)) {
+        bestIdx = i;
+        bestSplit = result;
       }
     }
+
+    if (bestIdx === -1) break; // no further improvement available anywhere
+
+    // Commit this split
+    const target = segments[bestIdx];
+    const globalSplitIdx = target.start + bestSplit.splitIdx;
+    breakpoints.push({
+      index: globalSplitIdx,
+      improvement: bestSplit.improvement
+    });
+
+    // Replace target segment with its two halves
+    const leftSlice = target.slice.slice(0, bestSplit.splitIdx);
+    const rightSlice = target.slice.slice(bestSplit.splitIdx);
+    segments.splice(bestIdx, 1,
+      { start: target.start, end: globalSplitIdx, slice: leftSlice },
+      { start: globalSplitIdx, end: target.end, slice: rightSlice }
+    );
   }
 
+  // Sort by time index for display
+  breakpoints.sort((a, b) => a.index - b.index);
   return breakpoints;
 }
 
 /**
- * Main segment detection function
- * @param {Array} productionData - Array of {date, rate, time} objects
- * @param {Object} options - Detection parameters
- * @returns {Array} Array of breakpoint objects
+ * Main export. Detects up to 3 breakpoints in production data using
+ * piecewise exponential regression. Returns breakpoints with {date, rate, slopeChange}
+ * fields for backward compatibility with the existing UI.
  */
 export function detectSegmentBreakpoints(productionData, options = {}) {
   const {
-    smoothingWindow = 20,
-    slopeChangeThreshold = 0.50,
+    minSegmentSize = 30,          // minimum points per segment
+    improvementThreshold = 0.03,  // R² must improve by at least 3% to accept a split
     maxBreakpoints = 3
   } = options;
-  
-  // Return empty array if insufficient data
-  if (!productionData || productionData.length < 90) {
-    return [];
-  }
-  
-  // Filter to positive rates and convert to log-log space
-  const validData = productionData
-    .filter(d => d.rate > 0 && d.time > 0)
-    .sort((a, b) => a.time - b.time);
-    
-  if (validData.length < 60) {
-    return [];
-  }
-  
-  const logTimes = validData.map(d => Math.log10(d.time));
-  const logRates = validData.map(d => Math.log10(d.rate));
-  
-  // Smooth the log-rate series
-  const smoothedRates = smoothData(logRates, smoothingWindow);
-  
-  // Compute slopes across the smoothed data
-  const slopes = computeSlopes(logTimes, smoothedRates);
-  
-  // Find breakpoints where slope changes exceed threshold
-  const rawBreakpoints = findBreakpoints(slopes, slopeChangeThreshold);
-  
-  // Limit to maxBreakpoints and convert to output format
-  const limitedBreakpoints = rawBreakpoints
-    .slice(0, maxBreakpoints)
-    .map(bp => {
-      const dataPoint = validData[bp.index];
-      return {
-        index: bp.index,
-        date: dataPoint.date,
-        rate: dataPoint.rate,
-        slopeChange: bp.slopeChange * 100 // Convert to percentage
-      };
-    });
-  
-  return limitedBreakpoints;
-}
 
-export default detectSegmentBreakpoints;
+  if (!productionData || productionData.length < 90) return [];
+
+  // Filter to positive rates, require numeric time field
+  const validData = productionData
+    .filter(d => d.rate > 0 && typeof d.time === 'number' && d.time >= 0)
+    .sort((a, b) => a.time - b.time);
+
+  if (validData.length < 60) return [];
+
+  // Run recursive piecewise regression
+  const bps = recursiveSegment(validData, minSegmentSize, improvementThreshold, maxBreakpoints);
+
+  // Format for UI: each breakpoint needs date, rate, slopeChange
+  return bps.map(bp => {
+    const point = validData[bp.index];
+    return {
+      index: bp.index,
+      date: point.date instanceof Date ? point.date : new Date(point.date),
+      rate: point.rate,
+      slopeChange: bp.improvement * 100  // repurpose slopeChange as R² improvement %
+    };
+  });
+}
