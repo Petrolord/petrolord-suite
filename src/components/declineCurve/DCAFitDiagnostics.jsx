@@ -13,12 +13,18 @@ const DCAFitDiagnostics = () => {
   
   const fitResults = streamState[selectedStream]?.fitResults;
   const wellData = wells?.[currentWellId];
-  const productionData = wellData?.productionData?.[selectedStream] || [];
+  const productionData = wellData?.data || [];
   
   // Detect segments when well or stream changes
   useEffect(() => {
     if (productionData && productionData.length > 0) {
-      const breakpoints = detectSegmentBreakpoints(productionData);
+      const t0 = productionData[0]?.date ? new Date(productionData[0].date).getTime() : 0;
+      const dataWithTime = productionData.map(d => ({
+        date: new Date(d.date),
+        rate: d.rate,
+        time: (new Date(d.date).getTime() - t0) / 86400000  // days from first
+      }));
+      const breakpoints = detectSegmentBreakpoints(dataWithTime);
       setDetectedBreakpoints(breakpoints);
     } else {
       setDetectedBreakpoints([]);
