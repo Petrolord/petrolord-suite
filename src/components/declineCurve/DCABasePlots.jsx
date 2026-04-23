@@ -104,8 +104,8 @@ const DCABasePlots = () => {
                     dataKey="date" 
                     type="category"
                     tick={{ fill: '#9ca3af', fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
+                    axisLine={{ stroke: '#475569', strokeWidth: 1 }}
+                    tickLine={{ stroke: '#475569', strokeWidth: 1 }}
                   >
                     <Label value="Date" position="insideBottom" offset={-5} style={{ fill: '#94a3b8', fontSize: 11 }} />
                   </XAxis>
