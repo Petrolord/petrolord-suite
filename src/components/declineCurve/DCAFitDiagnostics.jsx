@@ -45,12 +45,16 @@ const DCAFitDiagnostics = () => {
 
   // Extract fit data for calculations
   const { actualData, predictedData, parameters } = fitResults;
-  const { qi, Di, b } = parameters || {};
-  
-  // Calculate diagnostics
-  const r2 = calculateR2(actualData, predictedData);
-  const rmse = calculateRMSE(actualData, predictedData);
-  const residuals = calculateResiduals(actualData, predictedData);
+  // Prefer fit engine's own metrics; fall back to recomputation only if needed
+  const qi = fitResults.qi ?? parameters?.qi;
+  const Di = fitResults.Di ?? parameters?.Di;
+  const b  = fitResults.b  ?? parameters?.b;
+  const r2   = (typeof fitResults.R2 === 'number') ? fitResults.R2
+              : calculateR2(actualData, predictedData);
+  const rmse = (typeof fitResults.RMSE === 'number') ? fitResults.RMSE
+              : calculateRMSE(actualData, predictedData);
+  const residuals = (actualData && predictedData)
+              ? calculateResiduals(actualData, predictedData) : [];
   const verdictInfo = getVerdictInfo(r2);
   const confidenceIntervals = calculateArpsConfidenceIntervals(parameters, actualData, predictedData);
   

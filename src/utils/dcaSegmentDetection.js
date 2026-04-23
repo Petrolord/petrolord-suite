@@ -57,13 +57,16 @@ function computeSlopes(xValues, yValues, windowSize = 5) {
  * @param {number} threshold - Minimum change threshold (0.20 = 20%)
  * @returns {Array} Breakpoint indices
  */
-function findBreakpoints(slopes, threshold = 0.20) {
+function findBreakpoints(slopes, threshold = 0.20, minIndexSpacing = 20, skipStartIndex = 15) {
   const breakpoints = [];
-  
-  for (let i = 1; i < slopes.length - 1; i++) {
+  let lastBpIndex = -Infinity;
+
+  for (let i = skipStartIndex; i < slopes.length - skipStartIndex; i++) {
+    if (i - lastBpIndex < minIndexSpacing) continue;
+
     const prevSlope = slopes[i - 1];
     const currSlope = slopes[i];
-    
+
     if (Math.abs(prevSlope) > 0.001) {
       const slopeChange = Math.abs((currSlope - prevSlope) / prevSlope);
       if (slopeChange > threshold) {
@@ -71,10 +74,11 @@ function findBreakpoints(slopes, threshold = 0.20) {
           index: i,
           slopeChange: slopeChange
         });
+        lastBpIndex = i;
       }
     }
   }
-  
+
   return breakpoints;
 }
 
@@ -86,8 +90,8 @@ function findBreakpoints(slopes, threshold = 0.20) {
  */
 export function detectSegmentBreakpoints(productionData, options = {}) {
   const {
-    smoothingWindow = 10,
-    slopeChangeThreshold = 0.20,
+    smoothingWindow = 20,
+    slopeChangeThreshold = 0.50,
     maxBreakpoints = 3
   } = options;
   
