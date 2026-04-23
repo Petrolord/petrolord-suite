@@ -5,6 +5,15 @@ import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
 import { Camera } from 'lucide-react';
 import { ResponsiveContainer, ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label } from 'recharts';
 import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
+import {
+  CHART_COLORS,
+  CHART_TYPOGRAPHY,
+  CHART_MARGINS,
+  GRID_STYLE,
+  TOOLTIP_STYLE,
+  ANNOTATION_BOX_CLASSNAME,
+  getStreamPalette
+} from '@/utils/chartTheme';
 
 const DCABasePlots = () => {
   const [logScale, setLogScale] = useState(true);
@@ -53,16 +62,6 @@ const DCABasePlots = () => {
     return merged.sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [currentData, forecastResults, streamState, selectedStream]);
   
-  // Get stream-specific colors
-  const getStreamColor = (stream, variant = 'primary') => {
-    const colors = {
-      oil: { primary: '#10b981', light: '#34d399' }, // emerald-500, emerald-400
-      gas: { primary: '#f59e0b', light: '#fbbf24' },   // amber-500, amber-400  
-      water: { primary: '#3b82f6', light: '#60a5fa' }  // blue-500, blue-400
-    };
-    return colors[stream]?.[variant] || colors.oil[variant];
-  };
-  
   // Get Y-axis label based on stream
   const getYAxisLabel = () => {
     switch(selectedStream) {
@@ -72,66 +71,75 @@ const DCABasePlots = () => {
     }
   };
   
+  // Get stream palette
+  const palette = getStreamPalette(selectedStream);
+  
   return (
-    <div id="dca-main-plot" className="h-full flex flex-col bg-slate-900 rounded-lg border border-slate-800 overflow-hidden shadow-inner">
-        <div className="p-2 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+    <div id="dca-main-plot" className="h-full flex flex-col bg-white rounded-lg border border-slate-200 overflow-hidden shadow-inner">
+        <div className="p-2 border-b border-slate-200 flex justify-between items-center bg-slate-50">
             <div className="flex gap-2">
               <Button 
                   variant="ghost" 
                   size="sm" 
-                  className={`text-xs h-7 ${logScale ? 'bg-blue-900/30 text-blue-400 border border-blue-900' : 'text-slate-400'}`}
+                  className={`text-xs h-7 ${
+                    logScale 
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                      : 'text-slate-600'
+                  }`}
                   onClick={() => setLogScale(!logScale)}
               >
                   {logScale ? 'Log Scale' : 'Linear Scale'}
               </Button>
             </div>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportChartAsImage('dca-main-plot', 'dca_plot')}>
-                <Camera size={14} className="text-slate-400" />
+                <Camera size={14} className="text-slate-600" />
             </Button>
         </div>
         
         <div className="flex-1 relative min-h-[400px] w-full">
           {!currentData || currentData.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-slate-500 text-center">
+            <div className="flex items-center justify-center h-full text-slate-400 text-center">
               Upload production data to begin
             </div>
           ) : (
             <>
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                <ComposedChart data={chartData} margin={CHART_MARGINS.standard}>
+                  <CartesianGrid {...GRID_STYLE} />
                   <XAxis 
                     dataKey="date" 
                     type="category"
-                    tick={{ fill: '#9ca3af', fontSize: 12 }}
-                    axisLine={{ stroke: '#475569', strokeWidth: 1 }}
-                    tickLine={{ stroke: '#475569', strokeWidth: 1 }}
+                    tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+                    axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
+                    tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
+                    interval="preserveStartEnd"
+                    minTickGap={60}
                   >
-                    <Label value="Date" position="insideBottom" offset={-5} style={{ fill: '#94a3b8', fontSize: 11 }} />
+                    <Label 
+                      value="Date" 
+                      position="insideBottom" 
+                      offset={-5} 
+                      style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }} 
+                    />
                   </XAxis>
                   <YAxis 
                     scale={logScale ? 'log' : 'auto'}
                     domain={logScale ? ['auto', 'auto'] : ['auto', 'auto']}
-                    tick={{ fill: '#9ca3af', fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
+                    tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+                    axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
+                    tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
                   >
                     <Label 
                       value={getYAxisLabel()} 
                       angle={-90} 
                       position="insideLeft"
-                      style={{ fill: '#94a3b8', fontSize: 11 }}
+                      style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
                     />
                   </YAxis>
                   <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#0f172a', 
-                      borderColor: '#334155',
-                      borderRadius: '6px',
-                      fontSize: '12px'
-                    }}
-                    labelStyle={{ color: '#e2e8f0' }}
-                    itemStyle={{ color: '#e2e8f0' }}
+                    contentStyle={TOOLTIP_STYLE}
+                    labelStyle={{ color: CHART_COLORS.tooltipText }}
+                    itemStyle={{ color: CHART_COLORS.tooltipText }}
                     formatter={(value, name) => [
                       value ? value.toFixed(1) : 'N/A',
                       name
@@ -140,13 +148,17 @@ const DCABasePlots = () => {
                   <Legend 
                     verticalAlign="bottom" 
                     height={36}
-                    wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                    wrapperStyle={{ 
+                      fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`, 
+                      paddingTop: '10px',
+                      color: CHART_COLORS.legendText
+                    }}
                   />
                   
                   {/* Historical Data as Scatter */}
                   <Scatter 
                     dataKey="history"
-                    fill={getStreamColor(selectedStream)}
+                    fill={palette.primary}
                     name="Historical"
                     shape="circle"
                   />
@@ -155,7 +167,7 @@ const DCABasePlots = () => {
                   <Line 
                     type="monotone"
                     dataKey="fitted"
-                    stroke={`${getStreamColor(selectedStream, 'light')}99`}
+                    stroke={palette.fitted}
                     strokeWidth={1.5}
                     strokeDasharray="none"
                     dot={false}
@@ -167,7 +179,7 @@ const DCABasePlots = () => {
                   <Line 
                     type="monotone"
                     dataKey="forecast"
-                    stroke={getStreamColor(selectedStream, 'light')}
+                    stroke={palette.forecast}
                     strokeWidth={2}
                     strokeDasharray="6 4"
                     dot={false}
@@ -179,7 +191,7 @@ const DCABasePlots = () => {
               
               {/* Parameter Annotation Box */}
               {fit && (
-                <div className="absolute top-2 right-2 bg-slate-900/80 border border-slate-700 rounded px-2 py-1.5 text-[10px] text-slate-300 font-mono backdrop-blur pointer-events-none">
+                <div className={ANNOTATION_BOX_CLASSNAME}>
                   <div className="flex flex-col gap-0.5">
                     <div>Model: {fit.modelType}</div>
                     <div>qi: {fit.qi.toFixed(0)} {selectedStream === 'gas' ? 'Mscf/d' : 'bbl/d'}</div>
