@@ -1,107 +1,129 @@
-
-/* eslint-disable react/no-unknown-property */
-import React, { useRef, useState, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewport } from '@react-three/drei';
-import * as THREE from 'three';
-
-// Dummy data generators for visualization
-const generatePoints = (count, bounds) => {
-  const points = [];
-  for (let i = 0; i < count; i++) {
-    points.push(
-      (Math.random() - 0.5) * bounds,
-      (Math.random() - 0.5) * bounds,
-      (Math.random() - 0.5) * bounds
-    );
-  }
-  return new Float32Array(points);
-};
-
-const SeismicPlane = ({ position, rotation, color }) => (
-  <mesh position={position} rotation={rotation}>
-    <planeGeometry args={[20, 20]} />
-    <meshStandardMaterial color={color} opacity={0.5} transparent side={THREE.DoubleSide} />
-  </mesh>
-);
-
-const FaultSurface = ({ points }) => (
-  <mesh>
-    <bufferGeometry>
-      <bufferAttribute
-        attach="attributes-position"
-        count={points.length / 3}
-        array={points}
-        itemSize={3}
-      />
-    </bufferGeometry>
-    <pointsMaterial size={0.2} color="red" />
-  </mesh>
-);
-
-const FaciesGrid = ({ count }) => {
-  const mesh = useRef();
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  const colors = useMemo(() => [new THREE.Color('#F4A460'), new THREE.Color('#708090'), new THREE.Color('#BDB76B')], []);
-
-  useFrame(() => {
-    if (mesh.current) {
-      let i = 0;
-      for (let x = 0; x < 10; x++) {
-        for (let y = 0; y < 5; y++) {
-          for (let z = 0; z < 10; z++) {
-            dummy.position.set(x - 5, y - 2.5, z - 5);
-            dummy.updateMatrix();
-            mesh.current.setMatrixAt(i, dummy.matrix);
-            mesh.current.setColorAt(i, colors[Math.floor(Math.random() * 3)]);
-            i++;
-          }
-        }
-      }
-      mesh.current.instanceMatrix.needsUpdate = true;
-      mesh.current.instanceColor.needsUpdate = true;
-    }
-  });
-
-  return (
-    <instancedMesh ref={mesh} args={[null, null, 500]}>
-      <boxGeometry args={[0.8, 0.8, 0.8]} />
-      <meshStandardMaterial />
-    </instancedMesh>
-  );
-};
+import React, { useRef, useEffect } from 'react';
 
 const AdvancedCanvas3D = ({ layers = { grid: true, faults: true, seismic: true } }) => {
-  const faultPoints = useMemo(() => generatePoints(1000, 15), []);
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    
+    // Handle high DPI displays
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    ctx.scale(dpr, dpr);
+
+    // Clear background
+    ctx.clearRect(0, 0, width, height);
+    
+    // Draw pseudo-3D perspective
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    // 1. Draw Grid
+    if (layers.grid) {
+      ctx.strokeStyle = '#1e293b'; // slate-800
+      ctx.lineWidth = 1;
+      
+      const gridSpacing = 40;
+      const gridCols = Math.ceil(width / gridSpacing);
+      const gridRows = Math.ceil(height / gridSpacing);
+
+      // Draw perspective grid (simplified)
+      for (let i = -gridCols; i <= gridCols; i++) {
+        ctx.beginPath();
+        ctx.moveTo(centerX + i * gridSpacing, 0);
+        ctx.lineTo(centerX + i * gridSpacing, height);
+        ctx.stroke();
+      }
+      for (let i = -gridRows; i <= gridRows; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, centerY + i * gridSpacing);
+        ctx.lineTo(width, centerY + i * gridSpacing);
+        ctx.stroke();
+      }
+    }
+
+    // 2. Draw Seismic Layer (Pseudo Plane)
+    if (layers.seismic) {
+      // Horizontal slice
+      ctx.fillStyle = 'rgba(74, 222, 128, 0.15)'; // Greenish tint
+      ctx.strokeStyle = '#4ade80';
+      ctx.lineWidth = 2;
+      
+      ctx.beginPath();
+      ctx.moveTo(width * 0.1, height * 0.3);
+      ctx.lineTo(width * 0.8, height * 0.3);
+      ctx.lineTo(width * 0.9, height * 0.7);
+      ctx.lineTo(width * 0.2, height * 0.7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Vertical slice
+      ctx.fillStyle = 'rgba(96, 165, 250, 0.15)'; // Blueish tint
+      ctx.strokeStyle = '#60a5fa';
+      
+      ctx.beginPath();
+      ctx.moveTo(width * 0.4, height * 0.1);
+      ctx.lineTo(width * 0.6, height * 0.1);
+      ctx.lineTo(width * 0.6, height * 0.9);
+      ctx.lineTo(width * 0.4, height * 0.9);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // 3. Draw Faults (Scatter points / lines)
+    if (layers.faults) {
+      ctx.strokeStyle = '#ef4444'; // Red
+      ctx.lineWidth = 3;
+      
+      // Main fault plane line
+      ctx.beginPath();
+      ctx.moveTo(width * 0.3, height * 0.2);
+      ctx.bezierCurveTo(
+        width * 0.4, height * 0.4, 
+        width * 0.5, height * 0.6, 
+        width * 0.7, height * 0.8
+      );
+      ctx.stroke();
+
+      // Secondary fault
+      ctx.strokeStyle = '#f87171';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(width * 0.6, height * 0.3);
+      ctx.lineTo(width * 0.5, height * 0.7);
+      ctx.stroke();
+      
+      // Fault throw indicators
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath(); ctx.arc(width * 0.4, height * 0.4, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(width * 0.6, height * 0.6, 4, 0, Math.PI * 2); ctx.fill();
+    }
+
+  }, [layers]);
 
   return (
-    <div className="w-full h-full bg-slate-950 relative">
-      <Canvas camera={{ position: [15, 15, 15], fov: 50 }}>
-        <color attach="background" args={['#0f172a']} />
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} />
-        
-        <group>
-          {layers.grid && <FaciesGrid />}
-          {layers.faults && <FaultSurface points={faultPoints} />}
-          {layers.seismic && (
-            <>
-              <SeismicPlane position={[0, 0, 0]} rotation={[0, 0, 0]} color="#4ade80" />
-              <SeismicPlane position={[0, 0, 0]} rotation={[0, Math.PI / 2, 0]} color="#60a5fa" />
-            </>
-          )}
-        </group>
-
-        <Grid infiniteGrid sectionColor="#475569" cellColor="#1e293b" fadeDistance={50} />
-        <OrbitControls makeDefault />
-        <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
-          <GizmoViewport axisColors={['#ef4444', '#22c55e', '#3b82f6']} labelColor="white" />
-        </GizmoHelper>
-        <Environment preset="city" />
-      </Canvas>
+    <div className="w-full h-full bg-[#0f172a] relative overflow-hidden">
+      <canvas 
+        ref={canvasRef} 
+        className="w-full h-full absolute inset-0 cursor-crosshair" 
+        style={{ width: '100%', height: '100%' }}
+      />
       
-      <div className="absolute bottom-4 left-4 text-xs text-slate-500 pointer-events-none">
-        WebGL Rendering • {layers.grid ? 'Grid: ON' : 'Grid: OFF'} • {layers.faults ? 'Faults: ON' : 'Faults: OFF'}
+      <div className="absolute bottom-4 left-4 bg-slate-900/80 backdrop-blur px-3 py-2 rounded border border-slate-800 shadow-lg">
+        <p className="text-xs font-mono text-slate-400">
+          <span className="text-purple-400 font-bold">Canvas 2D Engine</span> • 
+          Grid: <span className={layers.grid ? "text-white" : "text-slate-600"}>{layers.grid ? 'ON' : 'OFF'}</span> • 
+          Faults: <span className={layers.faults ? "text-white" : "text-slate-600"}>{layers.faults ? 'ON' : 'OFF'}</span> • 
+          Seismic: <span className={layers.seismic ? "text-white" : "text-slate-600"}>{layers.seismic ? 'ON' : 'OFF'}</span>
+        </p>
       </div>
     </div>
   );

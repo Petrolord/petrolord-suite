@@ -1,5 +1,5 @@
+
 import React from 'react';
-import Plot from 'react-plotly.js';
 import { Button } from '@/components/ui/button';
 import { Download, BarChartHorizontal, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -14,106 +14,6 @@ const Section = ({ title, icon, children }) => (
 );
 
 const ResultsPanel = ({ plotData, zoneSummary, onDownload, sessionId }) => {
-
-  const renderTracks = () => {
-    if (!plotData || !plotData.MD) {
-      return (
-        <div className="bg-gray-900/50 rounded-md flex-grow flex items-center justify-center text-gray-500 h-[450px]">
-          Log plots will appear here after computation...
-        </div>
-      );
-    }
-    const d = plotData;
-    const md = d.MD;
-    const traces = [
-      {x:d.GR, y:md, name:'GR', xaxis:'x', mode:'lines', line:{color: '#1f77b4'}},
-      {x:d.VSH, y:md, name:'Vsh', xaxis:'x2', mode:'lines', line:{color: '#ff7f0e'}},
-      {x:d.PHIT, y:md, name:'Phit', xaxis:'x3', mode:'lines', line:{color: '#2ca02c'}},
-      {x:d.PHIE, y:md, name:'Phie', xaxis:'x4', mode:'lines', line:{color: '#d62728'}},
-      {x:d.SW, y:md, name:'Sw', xaxis:'x5', mode:'lines', line:{color: '#9467bd'}},
-      {x:d.PERM_MD,y:md, name:'Perm(mD)', xaxis:'x6', mode:'lines', line:{color: '#8c564b'}}
-    ];
-    const layout = {
-      height: 450,
-      grid: {rows:1, columns:6, pattern:'independent'},
-      yaxis:{autorange:'reversed', title:{text:'MD', font:{color:'#9ca3af'}}, tickfont:{color:'#9ca3af'}, gridcolor:'#4b5563'},
-      xaxis:{title:'GR', titlefont:{color:'#9ca3af'}, tickfont:{color:'#9ca3af'}, gridcolor:'#4b5563'}, 
-      xaxis2:{title:'Vsh', titlefont:{color:'#9ca3af'}, tickfont:{color:'#9ca3af'}, gridcolor:'#4b5563'}, 
-      xaxis3:{title:'Phit', titlefont:{color:'#9ca3af'}, tickfont:{color:'#9ca3af'}, gridcolor:'#4b5563'},
-      xaxis4:{title:'Phie', titlefont:{color:'#9ca3af'}, tickfont:{color:'#9ca3af'}, gridcolor:'#4b5563'}, 
-      xaxis5:{title:'Sw', titlefont:{color:'#9ca3af'}, tickfont:{color:'#9ca3af'}, gridcolor:'#4b5563'}, 
-      xaxis6:{title:'Perm(mD)', type:'log', titlefont:{color:'#9ca3af'}, tickfont:{color:'#9ca3af'}, gridcolor:'#4b5563'},
-      plot_bgcolor: '#1f2937',
-      paper_bgcolor: 'transparent',
-      showlegend: false,
-      margin: { l: 60, r: 20, t: 20, b: 60 },
-    };
-
-    return <Plot data={traces} layout={layout} config={{displaylogo:false, responsive: true}} className="w-full h-full" />;
-  };
-
-  const renderPickettPlot = () => {
-    if (!plotData || !plotData.PHIE || !plotData.RT) {
-      return <div className="bg-gray-900/50 rounded-md flex-grow flex items-center justify-center text-gray-500 h-[450px]">Pickett Plot requires PHIE and RT.</div>;
-    }
-    const trace = {
-      x: plotData.PHIE,
-      y: plotData.RT,
-      mode: 'markers',
-      type: 'scatter',
-      marker: { 
-        color: plotData.VSH,
-        colorscale: 'Viridis',
-        showscale: true,
-        colorbar: { title: 'Vshale' },
-        size: 5,
-      },
-      text: plotData.MD.map(md => `MD: ${md.toFixed(2)}`),
-      hoverinfo: 'x+y+text'
-    };
-    const layout = {
-      title: { text: 'Pickett Plot (PHIE vs RT)', font: { color: '#e5e7eb'}},
-      xaxis: { title: 'Effective Porosity (PHIE)', type: 'log', autorange: true, titlefont:{color:'#9ca3af'}, tickfont:{color:'#9ca3af'}, gridcolor:'#4b5563' },
-      yaxis: { title: 'Resistivity (RT)', type: 'log', autorange: true, titlefont:{color:'#9ca3af'}, tickfont:{color:'#9ca3af'}, gridcolor:'#4b5563' },
-      plot_bgcolor: '#1f2937',
-      paper_bgcolor: 'transparent',
-      height: 450,
-      margin: { l: 60, r: 20, t: 60, b: 60 },
-    };
-    return <Plot data={[trace]} layout={layout} config={{displaylogo:false, responsive: true}} className="w-full h-full" />;
-  };
-
-  const renderBucklesPlot = () => {
-    if (!plotData || !plotData.PHIE || !plotData.SW) {
-      return <div className="bg-gray-900/50 rounded-md flex-grow flex items-center justify-center text-gray-500 h-[450px]">Buckles Plot requires PHIE and SW.</div>;
-    }
-    const trace = {
-      x: plotData.PHIE,
-      y: plotData.SW,
-      mode: 'markers',
-      type: 'scatter',
-      marker: { 
-        color: plotData.VSH,
-        colorscale: 'Viridis',
-        showscale: true,
-        colorbar: { title: 'Vshale' },
-        size: 5,
-      },
-      text: plotData.MD.map(md => `MD: ${md.toFixed(2)}`),
-      hoverinfo: 'x+y+text'
-    };
-    const layout = {
-      title: { text: 'Buckles Plot (PHIE vs SW)', font: { color: '#e5e7eb'}},
-      xaxis: { title: 'Effective Porosity (PHIE)', autorange: true, titlefont:{color:'#9ca3af'}, tickfont:{color:'#9ca3af'}, gridcolor:'#4b5563' },
-      yaxis: { title: 'Water Saturation (SW)', autorange: true, titlefont:{color:'#9ca3af'}, tickfont:{color:'#9ca3af'}, gridcolor:'#4b5563' },
-      plot_bgcolor: '#1f2937',
-      paper_bgcolor: 'transparent',
-      height: 450,
-      margin: { l: 60, r: 20, t: 60, b: 60 },
-    };
-    return <Plot data={[trace]} layout={layout} config={{displaylogo:false, responsive: true}} className="w-full h-full" />;
-  };
-
   const renderZones = () => {
     if (!zoneSummary || zoneSummary.length === 0) {
       return (
@@ -149,8 +49,8 @@ const ResultsPanel = ({ plotData, zoneSummary, onDownload, sessionId }) => {
             <TabsTrigger value="advanced">Advanced Plots</TabsTrigger>
           </TabsList>
           <TabsContent value="tracks" className="flex-grow">
-            <div id="petro-tracks" className="h-full">
-              {renderTracks()}
+            <div id="petro-tracks" className="h-full flex items-center justify-center text-slate-500 bg-[#1f2937]">
+              Chart removed
             </div>
           </TabsContent>
           <TabsContent value="advanced" className="flex-grow">
@@ -159,11 +59,11 @@ const ResultsPanel = ({ plotData, zoneSummary, onDownload, sessionId }) => {
                 <TabsTrigger value="pickett">Pickett Plot</TabsTrigger>
                 <TabsTrigger value="buckles">Buckles Plot</TabsTrigger>
               </TabsList>
-              <TabsContent value="pickett" className="flex-grow">
-                {renderPickettPlot()}
+              <TabsContent value="pickett" className="flex-grow flex items-center justify-center text-slate-500 bg-[#1f2937]">
+                 Chart removed
               </TabsContent>
-              <TabsContent value="buckles" className="flex-grow">
-                {renderBucklesPlot()}
+              <TabsContent value="buckles" className="flex-grow flex items-center justify-center text-slate-500 bg-[#1f2937]">
+                 Chart removed
               </TabsContent>
             </Tabs>
           </TabsContent>

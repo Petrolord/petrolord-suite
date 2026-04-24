@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Code, Puzzle, Settings } from 'lucide-react';
 

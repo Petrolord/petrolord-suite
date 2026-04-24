@@ -1,20 +1,18 @@
-import React, { useState, useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+
+import React, { useState } from 'react';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ShieldCheck, AlertTriangle, AlertCircle, Info, BarChart2, Play, CheckCircle2 } from 'lucide-react';
-import Plot from 'react-plotly.js';
+import { ShieldCheck, AlertTriangle, AlertCircle, Info, Play, CheckCircle2 } from 'lucide-react';
 import { runQCAnalysis } from '@/utils/petrophysicsQC';
-import { useResizeDetector } from 'react-resize-detector';
 
 const QCPanel = ({ petroState, onSaveReport }) => {
     const { activeWellId, wells } = petroState;
     const activeWell = wells.find(w => w.id === activeWellId);
     const [report, setReport] = useState(null);
-    const { width, height, ref } = useResizeDetector();
 
     const handleRunQC = () => {
         if (!activeWell) return;
@@ -31,40 +29,8 @@ const QCPanel = ({ petroState, onSaveReport }) => {
         return 'text-red-400';
     };
 
-    const renderDistribution = (curve) => {
-        if (!activeWell || !report || !report.stats[curve]) return null;
-        const curveName = activeWell.curveMap[curve];
-        const values = activeWell.data.map(d => d[curveName]).filter(v => v !== null && !isNaN(v));
-        
-        return (
-            <div className="h-64 w-full border border-slate-800 rounded-lg p-2 bg-slate-900/50">
-                <Plot
-                    data={[{
-                        x: values,
-                        type: 'histogram',
-                        marker: { color: '#6366f1' },
-                        name: curve
-                    }]}
-                    layout={{
-                        title: { text: `${curve} Distribution`, font: { color: '#e2e8f0', size: 12 } },
-                        paper_bgcolor: 'transparent',
-                        plot_bgcolor: 'transparent',
-                        margin: { l: 40, r: 20, t: 30, b: 30 },
-                        xaxis: { title: { text: activeWell.curves.find(c => c.mnemonic === curveName)?.unit || '', font: { color: '#94a3b8', size: 10 } }, tickfont: { color: '#94a3b8' } },
-                        yaxis: { title: { text: 'Count', font: { color: '#94a3b8', size: 10 } }, tickfont: { color: '#94a3b8' } },
-                        showlegend: false
-                    }}
-                    config={{ displayModeBar: false, responsive: true }}
-                    useResizeHandler={true}
-                    style={{ width: '100%', height: '100%' }}
-                />
-            </div>
-        );
-    };
-
     return (
         <div className="h-full flex flex-col gap-4 p-4">
-            {/* Header Section */}
             <div className="flex items-center justify-between bg-slate-900 p-4 rounded-lg border border-slate-800">
                 <div className="flex items-center gap-4">
                     <div className="p-3 bg-blue-500/10 rounded-full">
@@ -89,11 +55,9 @@ const QCPanel = ({ petroState, onSaveReport }) => {
                 </div>
             </div>
 
-            {/* Content */}
             <div className="flex-1 flex gap-4 min-h-0">
                 {report ? (
                     <>
-                        {/* Issues List */}
                         <Card className="w-1/3 bg-slate-950 border-slate-800 flex flex-col">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm font-medium text-slate-300">Identified Issues</CardTitle>
@@ -128,9 +92,7 @@ const QCPanel = ({ petroState, onSaveReport }) => {
                             </ScrollArea>
                         </Card>
 
-                        {/* Visualization & Stats */}
                         <div className="flex-1 flex flex-col gap-4">
-                            {/* Stats Grid */}
                             <div className="grid grid-cols-4 gap-4">
                                 {Object.entries(report.stats).slice(0, 4).map(([key, stats]) => (
                                     <Card key={key} className="bg-slate-900 border-slate-800 p-3">
@@ -148,7 +110,6 @@ const QCPanel = ({ petroState, onSaveReport }) => {
                                 ))}
                             </div>
 
-                            {/* Charts Tab */}
                             <Card className="flex-1 bg-slate-950 border-slate-800 flex flex-col min-h-0">
                                 <Tabs defaultValue="histograms" className="flex-1 flex flex-col">
                                     <div className="px-4 pt-4">
@@ -158,9 +119,7 @@ const QCPanel = ({ petroState, onSaveReport }) => {
                                         </TabsList>
                                     </div>
                                     <TabsContent value="histograms" className="flex-1 p-4 overflow-y-auto">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            {Object.keys(report.stats).map(curve => renderDistribution(curve))}
-                                        </div>
+                                        <div className="w-full h-full flex items-center justify-center text-slate-500">Chart removed</div>
                                     </TabsContent>
                                     <TabsContent value="gaps" className="flex-1 p-4">
                                         {report.gaps.length > 0 ? (

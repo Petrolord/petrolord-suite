@@ -1,36 +1,18 @@
+
 import React from 'react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import Plot from 'react-plotly.js';
 import { Info } from 'lucide-react';
 
 const ComparisonAnalyzer = () => {
     const { state } = useReservoirCalc();
     const scenarios = state.comparisonScenarios || [];
 
-    // Default mock scenarios if none exist
     const displayScenarios = scenarios.length > 0 ? scenarios : [
         { id: 1, name: 'Base Case', stooip: 15000000, recoverable: 4500000, porosity: 0.20 },
         { id: 2, name: 'Upside Case', stooip: 22000000, recoverable: 7000000, porosity: 0.25 },
         { id: 3, name: 'Downside Case', stooip: 9000000, recoverable: 2000000, porosity: 0.15 }
-    ];
-
-    const chartData = [
-        {
-            x: displayScenarios.map(s => s.name),
-            y: displayScenarios.map(s => s.stooip),
-            type: 'bar',
-            name: 'STOOIP',
-            marker: { color: '#3b82f6' }
-        },
-        {
-            x: displayScenarios.map(s => s.name),
-            y: displayScenarios.map(s => s.recoverable),
-            type: 'bar',
-            name: 'Recoverable',
-            marker: { color: '#10b981' }
-        }
     ];
 
     return (
@@ -38,23 +20,8 @@ const ComparisonAnalyzer = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
                 <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col">
                     <h3 className="text-lg font-bold text-white mb-4">Scenario Comparison Chart</h3>
-                    <div className="flex-1 relative">
-                        <Plot
-                            data={chartData}
-                            layout={{
-                                autosize: true,
-                                paper_bgcolor: 'rgba(0,0,0,0)',
-                                plot_bgcolor: 'rgba(0,0,0,0)',
-                                font: { color: '#94a3b8' },
-                                showlegend: true,
-                                legend: { orientation: 'h', y: 1.1 },
-                                margin: { t: 40, r: 20, l: 60, b: 40 },
-                                xaxis: { gridcolor: '#1e293b' },
-                                yaxis: { gridcolor: '#1e293b', title: 'Volume' }
-                            }}
-                            useResizeHandler={true}
-                            className="w-full h-full absolute inset-0"
-                        />
+                    <div className="flex-1 relative flex items-center justify-center text-slate-500">
+                        Chart removed
                     </div>
                 </div>
 

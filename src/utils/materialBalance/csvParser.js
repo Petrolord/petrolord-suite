@@ -5,7 +5,6 @@ import Papa from 'papaparse';
  * Robust detection and parsing of engineering data files.
  */
 
-// Standardized column headers mapping with flexible aliases
 const HEADER_ALIASES = {
   production: {
     date: ['date', 'time', 'timestamp', 'dt', 'period'],
@@ -39,80 +38,52 @@ const HEADER_ALIASES = {
   }
 };
 
-/**
- * Finds the best matching column header from a list of available headers.
- * @param {string[]} headers - The headers from the CSV file.
- * @param {string[]} possibleNames - Array of possible aliases for the column.
- * @returns {string|null} The matching header name or null.
- */
 const findColumn = (headers, possibleNames) => {
   if (!headers || !possibleNames) return null;
   const normalizedHeaders = headers.map(h => h.toLowerCase().trim().replace(/\s+/g, ' '));
   
-  // 1. Exact match (case-insensitive)
   for (const name of possibleNames) {
     const n = name.toLowerCase().trim().replace(/\s+/g, ' ');
     const idx = normalizedHeaders.indexOf(n);
     if (idx !== -1) return headers[idx];
   }
 
-  // 2. Contains match (header includes alias, e.g. "Np (STB)" includes "Np")
-  // We prioritize longer aliases to avoid false positives (e.g. matching "P" in "Np")
   const sortedAliases = [...possibleNames].sort((a, b) => b.length - a.length);
-  
   for (const name of sortedAliases) {
     const n = name.toLowerCase().trim();
-    // Skip very short aliases for partial matching to avoid noise
     if (n.length < 2) continue; 
-    
     const idx = normalizedHeaders.findIndex(h => h.includes(n));
     if (idx !== -1) return headers[idx];
   }
-
   return null;
 };
 
-/**
- * Detects the file type based on column headers.
- * Returns the type with the highest confidence score.
- */
 export const detectFileType = (csvData) => {
   if (!csvData || csvData.length === 0) return 'unknown';
   const headers = Object.keys(csvData[0]);
   
-  const scores = {
-    production: 0,
-    pressure: 0,
-    pvt: 0,
-    contacts: 0
-  };
+  const scores = { production: 0, pressure: 0, pvt: 0, contacts: 0 };
 
-  // Production scoring
   if (findColumn(headers, HEADER_ALIASES.production.date)) scores.production += 2;
-  if (findColumn(headers, HEADER_ALIASES.production.np)) scores.production += 3; // Critical
+  if (findColumn(headers, HEADER_ALIASES.production.np)) scores.production += 3;
   if (findColumn(headers, HEADER_ALIASES.production.gp)) scores.production += 2;
   if (findColumn(headers, HEADER_ALIASES.production.wp)) scores.production += 1;
 
-  // Pressure scoring
   if (findColumn(headers, HEADER_ALIASES.pressure.date)) scores.pressure += 2;
-  if (findColumn(headers, HEADER_ALIASES.pressure.pr)) scores.pressure += 3; // Critical
+  if (findColumn(headers, HEADER_ALIASES.pressure.pr)) scores.pressure += 3;
   if (findColumn(headers, HEADER_ALIASES.pressure.pwf)) scores.pressure += 2;
 
-  // PVT scoring
-  if (findColumn(headers, HEADER_ALIASES.pvt.pressure)) scores.pvt += 3; // Critical
+  if (findColumn(headers, HEADER_ALIASES.pvt.pressure)) scores.pvt += 3;
   if (findColumn(headers, HEADER_ALIASES.pvt.bo)) scores.pvt += 2;
   if (findColumn(headers, HEADER_ALIASES.pvt.rs)) scores.pvt += 2;
-  // Negative score if Date exists (PVT usually doesn't have dates, unlike others)
   if (findColumn(headers, ['date', 'time'])) scores.pvt -= 5; 
 
-  // Contacts scoring
   if (findColumn(headers, HEADER_ALIASES.contacts.date)) scores.contacts += 2;
-  if (findColumn(headers, HEADER_ALIASES.contacts.goc)) scores.contacts += 3; // Critical
-  if (findColumn(headers, HEADER_ALIASES.contacts.owc)) scores.contacts += 3; // Critical
+  if (findColumn(headers, HEADER_ALIASES.contacts.goc)) scores.contacts += 3;
+  if (findColumn(headers, HEADER_ALIASES.contacts.owc)) scores.contacts += 3;
 
-  // Find winner
   let bestType = 'unknown';
-  let maxScore = 3; // Minimum threshold
+  let maxScore = 3;
 
   for (const [type, score] of Object.entries(scores)) {
     if (score > maxScore) {
@@ -120,38 +91,39 @@ export const detectFileType = (csvData) => {
       bestType = type;
     }
   }
-
   return bestType;
 };
 
-const cleanNumber = (val) => {
-  if (typeof val === 'number') return val;
-  if (!val) return 0;
-  // Remove commas, handle scientific notation if needed
+const cleanNumber = (val, fieldName = 'unknown') => {
+  if (typeof val === 'number' && isFinite(val)) return val;
+  if (val === null || val === undefined) return 0;
+  
   const cleaned = String(val).replace(/,/g, '').trim();
   if (cleaned === '') return 0;
-  const num = parseFloat(cleaned);
-  return isNaN(num) ? 0 : num;
+  
+  const num = Number(cleaned);
+  if (isNaN(num) || !isFinite(num)) {
+    console.warn(`[CSV Parser] Invalid numeric value "${val}" in field "${fieldName}". Coerced to 0.`);
+    return 0;
+  }
+  return num;
 };
 
 const parseDate = (val) => {
   if (!val) return null;
   const d = new Date(val);
-  return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0]; // YYYY-MM-DD
+  return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0];
 };
 
-// --- Parsing Functions ---
-
 export const parseProductionHistory = async (file) => {
+  console.log("[CSV Parser] Starting Production History parsing...");
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
-      skipEmptyLines: 'greedy', // Skip empty lines robustly
+      skipEmptyLines: 'greedy',
       complete: (results) => {
         const raw = results.data;
-        if (!raw || raw.length === 0) {
-          return reject(new Error("File is empty or could not be parsed."));
-        }
+        if (!raw || raw.length === 0) return reject(new Error("File is empty or could not be parsed."));
 
         const headers = Object.keys(raw[0]);
         const cols = {
@@ -160,131 +132,124 @@ export const parseProductionHistory = async (file) => {
           gp: findColumn(headers, HEADER_ALIASES.production.gp),
           wp: findColumn(headers, HEADER_ALIASES.production.wp),
           wc: findColumn(headers, HEADER_ALIASES.production.wc),
-          rp: findColumn(headers, HEADER_ALIASES.production.rp),
-          comments: findColumn(headers, HEADER_ALIASES.production.comments)
+          rp: findColumn(headers, HEADER_ALIASES.production.rp)
         };
 
-        // Validation
         if (!cols.date) return reject(new Error("Missing required column: Date"));
-        if (!cols.np && !cols.gp) return reject(new Error("Missing required columns: Np (Cumulative Oil) or Gp (Cumulative Gas)"));
+        if (!cols.np && !cols.gp) return reject(new Error("Missing required columns: Np or Gp"));
 
-        const parsed = { dates: [], Np: [], Gp: [], Wp: [], Wc: [], Rp: [], comments: [] };
+        const parsed = { dates: [], Np: [], Gp: [], Wp: [], Wc: [], Rp: [] };
         
-        raw.forEach(row => {
+        raw.forEach((row, idx) => {
           const d = parseDate(row[cols.date]);
-          if (d) { // Skip rows with invalid dates
+          if (d) {
             parsed.dates.push(d);
-            parsed.Np.push(cleanNumber(row[cols.np]));
-            parsed.Gp.push(cleanNumber(row[cols.gp]));
-            parsed.Wp.push(cleanNumber(row[cols.wp]));
-            parsed.Wc.push(cleanNumber(row[cols.wc]));
-            parsed.Rp.push(cleanNumber(row[cols.rp]));
-            parsed.comments.push(row[cols.comments] || '');
+            parsed.Np.push(cleanNumber(row[cols.np], 'Np'));
+            parsed.Gp.push(cleanNumber(row[cols.gp], 'Gp'));
+            parsed.Wp.push(cleanNumber(row[cols.wp], 'Wp'));
+            parsed.Wc.push(cleanNumber(row[cols.wc], 'Wc'));
+            parsed.Rp.push(cleanNumber(row[cols.rp], 'Rp'));
+          } else {
+            console.warn(`[CSV Parser] Skipped row ${idx} due to invalid date: ${row[cols.date]}`);
           }
         });
         
+        console.log(`[CSV Parser] Production parsed successfully. Rows: ${parsed.dates.length}`);
         resolve(parsed);
       },
-      error: (err) => reject(err)
+      error: reject
     });
   });
 };
 
 export const parsePressureData = async (file) => {
+  console.log("[CSV Parser] Starting Pressure Data parsing...");
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: 'greedy',
       complete: (results) => {
         const raw = results.data;
-        if (!raw || raw.length === 0) {
-          return reject(new Error("File is empty."));
-        }
+        if (!raw || raw.length === 0) return reject(new Error("File is empty."));
 
         const headers = Object.keys(raw[0]);
         const cols = {
           date: findColumn(headers, HEADER_ALIASES.pressure.date),
           pr: findColumn(headers, HEADER_ALIASES.pressure.pr),
-          pwf: findColumn(headers, HEADER_ALIASES.pressure.pwf),
-          testType: findColumn(headers, HEADER_ALIASES.pressure.testType)
+          pwf: findColumn(headers, HEADER_ALIASES.pressure.pwf)
         };
 
         if (!cols.date) return reject(new Error("Missing required column: Date"));
         if (!cols.pr) return reject(new Error("Missing required column: Reservoir Pressure (Pr)"));
 
-        const parsed = { dates: [], Pr: [], Pwf: [], testType: [] };
-        raw.forEach(row => {
+        const parsed = { dates: [], Pr: [], Pwf: [] };
+        raw.forEach((row, idx) => {
           const d = parseDate(row[cols.date]);
           if (d) {
             parsed.dates.push(d);
-            parsed.Pr.push(cleanNumber(row[cols.pr]));
-            parsed.Pwf.push(cleanNumber(row[cols.pwf]));
-            parsed.testType.push(row[cols.testType] || 'Unknown');
+            parsed.Pr.push(cleanNumber(row[cols.pr], 'Pr'));
+            parsed.Pwf.push(cleanNumber(row[cols.pwf], 'Pwf'));
+          } else {
+            console.warn(`[CSV Parser] Skipped pressure row ${idx} due to invalid date.`);
           }
         });
+        console.log(`[CSV Parser] Pressure parsed successfully. Rows: ${parsed.dates.length}`);
         resolve(parsed);
       },
-      error: (err) => reject(err)
+      error: reject
     });
   });
 };
 
 export const parsePVTData = async (file) => {
+  console.log("[CSV Parser] Starting PVT Data parsing...");
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: 'greedy',
       complete: (results) => {
         const raw = results.data;
-        if (!raw || raw.length === 0) {
-          return reject(new Error("File is empty."));
-        }
+        if (!raw || raw.length === 0) return reject(new Error("File is empty."));
 
         const headers = Object.keys(raw[0]);
         const cols = {
           pressure: findColumn(headers, HEADER_ALIASES.pvt.pressure),
           bo: findColumn(headers, HEADER_ALIASES.pvt.bo),
           bg: findColumn(headers, HEADER_ALIASES.pvt.bg),
-          rs: findColumn(headers, HEADER_ALIASES.pvt.rs),
-          rv: findColumn(headers, HEADER_ALIASES.pvt.rv),
-          mu_o: findColumn(headers, HEADER_ALIASES.pvt.mu_o),
-          mu_g: findColumn(headers, HEADER_ALIASES.pvt.mu_g)
+          rs: findColumn(headers, HEADER_ALIASES.pvt.rs)
         };
 
         if (!cols.pressure) return reject(new Error("Missing required column: Pressure"));
-        if (!cols.bo && !cols.bg) return reject(new Error("Missing required columns: Bo (Oil FVF) or Bg (Gas FVF)"));
 
-        const parsed = { pressure: [], Bo: [], Bg: [], Rs: [], Rv: [], mu_o: [], mu_g: [] };
-        raw.forEach(row => {
-          const p = cleanNumber(row[cols.pressure]);
-          // PVT tables might have 0 pressure row, allow it if needed, but usually > 0
-          if (row[cols.pressure] !== undefined && row[cols.pressure] !== '') {
+        const parsed = { pressure: [], Bo: [], Bg: [], Rs: [] };
+        raw.forEach((row, idx) => {
+          const p = cleanNumber(row[cols.pressure], 'PVT Pressure');
+          if (isFinite(p) && row[cols.pressure] !== undefined && row[cols.pressure] !== '') {
             parsed.pressure.push(p);
-            parsed.Bo.push(cleanNumber(row[cols.bo]));
-            parsed.Bg.push(cleanNumber(row[cols.bg]));
-            parsed.Rs.push(cleanNumber(row[cols.rs]));
-            parsed.Rv.push(cleanNumber(row[cols.rv]));
-            parsed.mu_o.push(cleanNumber(row[cols.mu_o]));
-            parsed.mu_g.push(cleanNumber(row[cols.mu_g]));
+            parsed.Bo.push(cleanNumber(row[cols.bo], 'Bo'));
+            parsed.Bg.push(cleanNumber(row[cols.bg], 'Bg'));
+            parsed.Rs.push(cleanNumber(row[cols.rs], 'Rs'));
+          } else {
+            console.warn(`[CSV Parser] Skipped PVT row ${idx} due to invalid pressure.`);
           }
         });
+        console.log(`[CSV Parser] PVT parsed successfully. Rows: ${parsed.pressure.length}`);
         resolve(parsed);
       },
-      error: (err) => reject(err)
+      error: reject
     });
   });
 };
 
 export const parseContactObservations = async (file) => {
+  console.log("[CSV Parser] Starting Contact Observations parsing...");
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: 'greedy',
       complete: (results) => {
         const raw = results.data;
-        if (!raw || raw.length === 0) {
-          return reject(new Error("File is empty."));
-        }
+        if (!raw || raw.length === 0) return reject(new Error("File is empty."));
 
         const headers = Object.keys(raw[0]);
         const cols = {
@@ -295,21 +260,23 @@ export const parseContactObservations = async (file) => {
         };
 
         if (!cols.date) return reject(new Error("Missing required column: Date"));
-        if (!cols.goc && !cols.owc) return reject(new Error("Missing required columns: GOC or OWC"));
 
         const parsed = { dates: [], measuredGOC: [], measuredOWC: [], method: [] };
-        raw.forEach(row => {
+        raw.forEach((row, idx) => {
           const d = parseDate(row[cols.date]);
           if (d) {
             parsed.dates.push(d);
-            parsed.measuredGOC.push(cleanNumber(row[cols.goc]));
-            parsed.measuredOWC.push(cleanNumber(row[cols.owc]));
-            parsed.method.push(row[cols.method] || 'Observation');
+            parsed.measuredGOC.push(cleanNumber(row[cols.goc], 'GOC'));
+            parsed.measuredOWC.push(cleanNumber(row[cols.owc], 'OWC'));
+            parsed.method.push(row[cols.method] || 'Unknown');
+          } else {
+            console.warn(`[CSV Parser] Skipped contacts row ${idx} due to invalid date.`);
           }
         });
+        console.log(`[CSV Parser] Contacts parsed successfully. Rows: ${parsed.dates.length}`);
         resolve(parsed);
       },
-      error: (err) => reject(err)
+      error: reject
     });
   });
 };

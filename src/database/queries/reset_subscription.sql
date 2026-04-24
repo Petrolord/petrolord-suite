@@ -1,4 +1,3 @@
-
 -- SQL to remove a subscription for a specific organization
 -- Replace 'YOUR_ORG_ID_HERE' with the actual UUID of the organization
 -- This does NOT delete the organization or users, only the subscription record.

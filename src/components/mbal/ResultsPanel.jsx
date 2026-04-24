@@ -1,6 +1,6 @@
+
 import React from 'react';
 import { motion } from 'framer-motion';
-import Plot from 'react-plotly.js';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement } from 'chart.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,21 +13,6 @@ import { saveAs } from 'file-saver';
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend);
 
 const ResultsPanel = ({ results, settings }) => {
-  const plotConfig = {
-    responsive: true,
-    displaylogo: false,
-  };
-  
-  const plotLayout = (title, xaxis, yaxis) => ({
-    title: { text: title, font: { color: '#E5E7EB' } },
-    xaxis: { title: { text: xaxis, font: { color: '#D1D5DB' } }, tickfont: { color: '#9CA3AF' }, gridcolor: 'rgba(255, 255, 255, 0.1)' },
-    yaxis: { title: { text: yaxis, font: { color: '#D1D5DB' } }, tickfont: { color: '#9CA3AF' }, gridcolor: 'rgba(255, 255, 255, 0.1)' },
-    paper_bgcolor: 'transparent',
-    plot_bgcolor: 'rgba(17, 24, 39, 0.5)',
-    autosize: true,
-    legend: { font: { color: '#E5E7EB' } }
-  });
-
   const driveIndicesLayout = {
     responsive: true,
     maintainAspectRatio: false,
@@ -123,10 +108,10 @@ const ResultsPanel = ({ results, settings }) => {
           <TabsTrigger value="drive-indices">Drive Indices</TabsTrigger>
         </TabsList>
         <TabsContent value="havlena-odeh" className="mt-4 rounded-lg p-4 bg-gray-900/30 border border-white/10">
-          <Plot data={results.plots.havlenaOdeh} layout={plotLayout('Havlena-Odeh Plot (F vs Et)', 'Total Expansion (Et)', 'Underground Withdrawal (F)')} useResizeHandler={true} style={{ width: '100%', height: '400px' }} config={plotConfig}/>
+          <div className="w-full h-[400px] flex items-center justify-center text-slate-500">Chart removed</div>
         </TabsContent>
         <TabsContent value="pressure-prod" className="mt-4 rounded-lg p-4 bg-gray-900/30 border border-white/10">
-          <Plot data={results.plots.pressureVsNp} layout={plotLayout('Pressure vs Cumulative Oil Production', 'Cumulative Oil (MMSTB)', 'Reservoir Pressure (psi)')} useResizeHandler={true} style={{ width: '100%', height: '400px' }} config={plotConfig}/>
+          <div className="w-full h-[400px] flex items-center justify-center text-slate-500">Chart removed</div>
         </TabsContent>
         <TabsContent value="drive-indices" className="mt-4 rounded-lg p-4 bg-gray-900/30 border border-white/10" style={{ height: '450px' }}>
           <Bar data={results.plots.driveIndices} options={driveIndicesLayout} />

@@ -1,103 +1,73 @@
-import React from 'react';
-import Plot from 'react-plotly.js';
+
+import React, { useMemo } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceArea } from 'recharts';
 
 const MaturityPlot = ({ results }) => {
     const { data, meta } = results;
     const { maturity } = data;
 
-    // Plot 1: Ro vs Age for all layers
-    const traces = meta.layers.map((layer, index) => {
-        const hist = maturity[index];
-        if (!hist || hist.length === 0) return null;
-        
-        // Only show relevant layers (e.g. reach > 0.5 Ro) to avoid clutter?
-        // For now show all.
-        return {
-            x: hist.map(h => h.age),
-            y: hist.map(h => h.value),
-            type: 'scatter',
-            mode: 'lines',
-            name: layer.name
-        };
-    }).filter(t => t !== null);
-
-    // Add Oil Window Shading (Ro 0.5 - 1.3)
-    // Use shapes or a filled trace
-    // Plotly shapes are easier for background windows
-    const shapes = [
-        {
-            type: 'rect',
-            xref: 'paper',
-            x0: 0,
-            x1: 1,
-            y0: 0.5,
-            y1: 1.0,
-            fillcolor: 'rgba(0, 255, 0, 0.1)',
-            line: { width: 0 },
-            layer: 'below'
-        },
-        {
-            type: 'rect',
-            xref: 'paper',
-            x0: 0,
-            x1: 1,
-            y0: 1.0,
-            y1: 1.3,
-            fillcolor: 'rgba(255, 165, 0, 0.1)', // Condensate
-            line: { width: 0 },
-            layer: 'below'
-        },
-         {
-            type: 'rect',
-            xref: 'paper',
-            x0: 0,
-            x1: 1,
-            y0: 1.3,
-            y1: 2.6,
-            fillcolor: 'rgba(255, 0, 0, 0.1)', // Gas
-            line: { width: 0 },
-            layer: 'below'
+    const chartData = useMemo(() => {
+        if (!maturity || maturity.length === 0) return [];
+        let validHist = null;
+        for (let hist of maturity) {
+            if (hist && hist.length > 0) {
+                validHist = hist;
+                break;
+            }
         }
-    ];
-    
-    const annotations = [
-        { x: 0.05, y: 0.75, xref: 'paper', text: 'Oil Window', showarrow: false, font: {color: '#4ade80', size: 10}, xanchor: 'left' },
-        { x: 0.05, y: 1.15, xref: 'paper', text: 'Condensate', showarrow: false, font: {color: '#fbbf24', size: 10}, xanchor: 'left' },
-        { x: 0.05, y: 2.0, xref: 'paper', text: 'Dry Gas', showarrow: false, font: {color: '#f87171', size: 10}, xanchor: 'left' }
-    ];
+        if (!validHist) return [];
+
+        return validHist.map((h, i) => {
+            const point = { age: h.age };
+            meta.layers.forEach((layer, li) => {
+                if (maturity[li] && maturity[li][i]) {
+                    point[layer.name] = maturity[li][i].value;
+                }
+            });
+            return point;
+        });
+    }, [maturity, meta]);
+
+    const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4'];
 
     return (
-        <div className="w-full h-full min-h-[400px] bg-slate-900/50 rounded-lg border border-slate-800 overflow-hidden">
-            <Plot
-                data={traces}
-                layout={{
-                    title: { text: 'Maturity Evolution (%Ro)', font: { color: '#e2e8f0' } },
-                    paper_bgcolor: 'rgba(0,0,0,0)',
-                    plot_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#94a3b8' },
-                    xaxis: { 
-                        title: 'Age (Ma)', 
-                        autorange: 'reversed',
-                        gridcolor: '#334155',
-                        zerolinecolor: '#475569'
-                    },
-                    yaxis: { 
-                        title: 'Vitrinite Reflectance (%Ro)', 
-                        gridcolor: '#334155',
-                        zerolinecolor: '#475569',
-                        range: [0, 3]
-                    },
-                    shapes: shapes,
-                    annotations: annotations,
-                    showlegend: true,
-                    legend: { orientation: 'h', y: -0.2 },
-                    margin: { l: 60, r: 20, t: 40, b: 60 },
-                    autosize: true
-                }}
-                useResizeHandler={true}
-                style={{ width: '100%', height: '100%' }}
-                config={{ displayModeBar: true, displaylogo: false }}
-            />
+        <div className="w-full h-full min-h-[400px] bg-slate-900/50 rounded-lg border border-slate-800 flex flex-col p-4">
+            <h3 className="text-center text-sm font-medium text-slate-200 mb-4">Maturity Evolution (%Ro)</h3>
+            <div className="flex-1 min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                        <XAxis 
+                            dataKey="age" 
+                            reversed 
+                            stroke="#94a3b8" 
+                            label={{ value: 'Age (Ma)', position: 'bottom', fill: '#94a3b8', fontSize: 12 }} 
+                        />
+                        <YAxis 
+                            stroke="#94a3b8" 
+                            domain={[0, 3]}
+                            label={{ value: 'Vitrinite Reflectance (%Ro)', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} 
+                        />
+                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }} />
+                        <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
+                        
+                        <ReferenceArea y1={0.5} y2={1.0} fill="#4ade80" fillOpacity={0.1} />
+                        <ReferenceArea y1={1.0} y2={1.3} fill="#fbbf24" fillOpacity={0.1} />
+                        <ReferenceArea y1={1.3} y2={2.6} fill="#f87171" fillOpacity={0.1} />
+
+                        {meta.layers.map((layer, idx) => (
+                            <Line
+                                key={layer.name}
+                                type="monotone"
+                                dataKey={layer.name}
+                                stroke={colors[idx % colors.length]}
+                                strokeWidth={2}
+                                dot={false}
+                            />
+                        ))}
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
         </div>
     );
 };

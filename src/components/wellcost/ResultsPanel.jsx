@@ -1,6 +1,6 @@
+
 import React from 'react';
 import { motion } from 'framer-motion';
-import Plot from 'react-plotly.js';
 
 const formatCurrency = (value, short = true) => {
     if (!value && value !== 0) return 'N/A';
@@ -11,7 +11,6 @@ const formatCurrency = (value, short = true) => {
     }
     return `$${value.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}`;
 };
-
 
 const KPICard = ({ title, value, color, id }) => (
     <div className={`bg-white/5 p-4 rounded-lg border-l-4 ${color}`}>
@@ -36,25 +35,6 @@ const ResultsPanel = ({ results }) => {
     const hasBreakdownData = results.costBreakdown && results.costBreakdown.length > 0;
     const hasCurveData = results.dayByDayCurve && results.dayByDayCurve.length > 0;
 
-    const chartLayout = {
-        margin: { l: 60, r: 20, t: 40, b: 50 },
-        paper_bgcolor: 'rgba(255,255,255,1)',
-        plot_bgcolor: 'rgba(255,255,255,1)',
-        font: { color: '#334155' }, // slate-700
-        xaxis: { gridcolor: '#e2e8f0' }, // slate-200
-        yaxis: { gridcolor: '#e2e8f0' }, // slate-200
-    };
-    
-    const pieLayout = {
-        margin: { l: 20, r: 20, t: 20, b: 20 },
-        paper_bgcolor: 'rgba(255,255,255,1)',
-        font: { color: '#334155' }, // slate-700
-        legend: {
-            orientation: 'h',
-            y: -0.1
-        }
-    };
-
     return (
         <div className="space-y-6">
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }}>
@@ -68,46 +48,13 @@ const ResultsPanel = ({ results }) => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {hasBreakdownData ? (
                     <ChartCard title="Cost Breakdown">
-                        <Plot
-                            data={[{
-                                labels: results.costBreakdown.map(d => d.category),
-                                values: results.costBreakdown.map(d => d.cost),
-                                type: 'pie',
-                                hole: .4,
-                                textinfo: 'percent',
-                                hoverinfo: 'label+value',
-                                automargin: true,
-                                marker: {
-                                    colors: ['#06b6d4', '#22d3ee', '#67e8f9', '#a5f3fc', '#cffafe']
-                                }
-                            }]}
-                            layout={pieLayout}
-                            useResizeHandler={true}
-                            style={{ width: '100%', height: '300px' }}
-                            config={{ displayModeBar: false }}
-                        />
+                        <div className="w-full h-[300px] flex items-center justify-center text-slate-500">Chart removed</div>
                     </ChartCard>
                 ) : null}
 
                 {hasCurveData ? (
                      <ChartCard title="Day-by-Day Cumulative Cost Curve">
-                        <Plot
-                            data={[{
-                                x: results.dayByDayCurve.map(d => d.day),
-                                y: results.dayByDayCurve.map(d => d.cumulative_cost_usd),
-                                type: 'scatter',
-                                mode: 'lines',
-                                line: { color: '#0891b2' } // cyan-600
-                            }]}
-                            layout={{
-                                ...chartLayout,
-                                xaxis: { ...chartLayout.xaxis, title: 'Days' },
-                                yaxis: { ...chartLayout.yaxis, title: 'Cumulative Cost (USD)' }
-                            }}
-                            useResizeHandler={true}
-                            style={{ width: '100%', height: '300px' }}
-                            config={{ displayModeBar: false }}
-                        />
+                        <div className="w-full h-[300px] flex items-center justify-center text-slate-500">Chart removed</div>
                     </ChartCard>
                 ) : null}
             </div>

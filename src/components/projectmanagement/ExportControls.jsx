@@ -1,39 +1,42 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Download } from 'lucide-react';
-import { exportToExcel, exportToPdf } from '@/utils/exportUtils';
+import { Download, FileText, Table } from 'lucide-react';
+import { exportToPDF, exportDataAsCSV } from '@/utils/exportUtils';
 
 const ExportControls = ({ data, columns, fileName, title }) => {
-  if (!data || data.length === 0) return null;
+  if (!data || !data.length) return null;
 
-  const handleExportExcel = () => {
-    const exportData = data.map(row => {
-        const newRow = {};
-        columns.forEach(col => {
-            newRow[col.header] = row[col.accessor];
-        });
-        return newRow;
-    });
-    exportToExcel(exportData, fileName);
+  const handlePdfExport = () => {
+    exportToPDF(title || 'Project Report', data, fileName || 'Project_Export');
   };
 
-  const handleExportPdf = () => {
-    exportToPdf(columns, data, fileName, title);
+  const handleCsvExport = () => {
+    const exportData = data.map(row => {
+      const simplified = {};
+      columns.forEach(col => {
+        simplified[col.header] = row[col.accessor];
+      });
+      return simplified;
+    });
+    exportDataAsCSV(exportData, fileName || 'Project_Export');
   };
 
   return (
-    <div className="flex justify-end mb-2">
+    <div className="flex items-center gap-2">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
-            <Download className="w-4 h-4 mr-2" />
-            Export
+          <Button variant="outline" size="sm" className="bg-slate-900 border-slate-800 text-slate-300">
+            <Download className="w-4 h-4 mr-2" /> Export
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="bg-slate-800 border-slate-700 text-white">
-          <DropdownMenuItem onSelect={handleExportExcel} className="hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">Export as Excel (.xlsx)</DropdownMenuItem>
-          <DropdownMenuItem onSelect={handleExportPdf} className="hover:bg-slate-700 focus:bg-slate-700 cursor-pointer">Export as PDF</DropdownMenuItem>
+        <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-300">
+          <DropdownMenuItem onClick={handlePdfExport} className="cursor-pointer hover:bg-slate-800">
+            <FileText className="w-4 h-4 mr-2" /> Export as PDF
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleCsvExport} className="cursor-pointer hover:bg-slate-800">
+            <Table className="w-4 h-4 mr-2" /> Export as CSV
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

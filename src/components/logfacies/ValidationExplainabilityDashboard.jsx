@@ -1,22 +1,7 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import Plot from 'react-plotly.js';
-
-const confusionMatrixData = {
-    z: [
-        [85, 5, 2, 0, 8], // Sand
-        [4, 90, 1, 1, 4], // Shale
-        [1, 2, 88, 5, 4], // Lime
-        [0, 1, 8, 82, 9], // Dolo
-        [2, 3, 1, 4, 90]  // Coal
-    ],
-    x: ['Sand', 'Shale', 'Lime', 'Dolo', 'Coal'],
-    y: ['Sand', 'Shale', 'Lime', 'Dolo', 'Coal'],
-    type: 'heatmap',
-    colorscale: 'Blues'
-};
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
 const classMetrics = [
     { facies: 'Sandstone', precision: 0.88, recall: 0.85, f1: 0.86 },
@@ -33,21 +18,8 @@ const ValidationExplainabilityDashboard = () => {
                 <CardHeader className="py-3 border-b border-slate-800">
                     <CardTitle className="text-sm font-medium">Confusion Matrix</CardTitle>
                 </CardHeader>
-                <CardContent className="flex-1 min-h-[300px] p-2">
-                    <Plot
-                        data={[confusionMatrixData]}
-                        layout={{
-                            margin: { t: 20, b: 40, l: 50, r: 20 },
-                            paper_bgcolor: 'transparent',
-                            plot_bgcolor: 'transparent',
-                            xaxis: { title: 'Predicted', tickfont: { color: '#94a3b8' }, titlefont: { color: '#cbd5e1' } },
-                            yaxis: { title: 'Actual', tickfont: { color: '#94a3b8' }, titlefont: { color: '#cbd5e1' } },
-                            font: { color: '#94a3b8' }
-                        }}
-                        useResizeHandler
-                        style={{ width: '100%', height: '100%' }}
-                        config={{ displayModeBar: false }}
-                    />
+                <CardContent className="flex-1 min-h-[300px] p-2 flex items-center justify-center text-slate-500">
+                    Chart removed
                 </CardContent>
             </Card>
 

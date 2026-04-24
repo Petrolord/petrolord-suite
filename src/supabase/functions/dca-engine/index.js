@@ -1,4 +1,3 @@
-
 /* global Deno */
 import { corsHeaders } from '../_shared/cors.ts'
 

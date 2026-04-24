@@ -1,14 +1,13 @@
+
 import React, { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BrainCircuit, LineChart, Activity, AlertTriangle, Layers, Play, Save } from 'lucide-react';
+import { BrainCircuit, LineChart, Activity, Layers, Play } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import Plot from 'react-plotly.js';
 import { prepareDataForML, trainModel, evaluateModel, predict, calculateCorrelationMatrix } from '@/utils/petrophysicsML';
 
 const AnalyticsPanel = ({ petroState }) => {
@@ -25,8 +24,6 @@ const AnalyticsPanel = ({ petroState }) => {
     });
 
     const [results, setResults] = useState(null);
-    const [trainedModel, setTrainedModel] = useState(null);
-    const [correlationData, setCorrelationData] = useState(null);
     const [isTraining, setIsTraining] = useState(false);
 
     // -- Handlers --
@@ -59,7 +56,6 @@ const AnalyticsPanel = ({ petroState }) => {
 
             // 3. Train Model
             const model = await trainModel(X_train, y_train, modelConfig.modelType, { lambda: modelConfig.regularization });
-            setTrainedModel(model);
 
             // 4. Predict
             const y_pred_train = predict(model, X_train);
@@ -71,7 +67,6 @@ const AnalyticsPanel = ({ petroState }) => {
 
             // 6. Correlation Matrix (on all data)
             const corr = calculateCorrelationMatrix(X, modelConfig.features);
-            setCorrelationData(corr);
 
             setResults({
                 trainMetrics,
@@ -79,7 +74,8 @@ const AnalyticsPanel = ({ petroState }) => {
                 predictions: y_pred_test,
                 actuals: y_test,
                 meta: meta_test,
-                featureImportance: model.coefficients.slice(1) // Ignore bias
+                featureImportance: model.coefficients.slice(1), // Ignore bias
+                correlationData: corr
             });
 
             toast({ title: "Analysis Complete", description: `R² Score: ${testMetrics.r2.toFixed(3)}` });
@@ -201,36 +197,7 @@ const AnalyticsPanel = ({ petroState }) => {
                             <Card className="flex-1 bg-slate-900 border-slate-800 min-h-0">
                                 <CardHeader className="py-2"><CardTitle className="text-sm text-slate-300">Actual vs Predicted</CardTitle></CardHeader>
                                 <CardContent className="h-[400px]">
-                                    <Plot
-                                        data={[
-                                            {
-                                                x: results.actuals,
-                                                y: results.predictions,
-                                                mode: 'markers',
-                                                type: 'scatter',
-                                                marker: { color: '#a855f7', size: 6, opacity: 0.6 },
-                                                name: 'Data Points'
-                                            },
-                                            {
-                                                x: [Math.min(...results.actuals), Math.max(...results.actuals)],
-                                                y: [Math.min(...results.actuals), Math.max(...results.actuals)],
-                                                mode: 'lines',
-                                                line: { color: '#475569', dash: 'dash' },
-                                                name: 'Perfect Fit'
-                                            }
-                                        ]}
-                                        layout={{
-                                            autosize: true,
-                                            paper_bgcolor: 'transparent',
-                                            plot_bgcolor: 'transparent',
-                                            font: { color: '#cbd5e1' },
-                                            xaxis: { title: 'Actual Value', gridcolor: '#334155' },
-                                            yaxis: { title: 'Predicted Value', gridcolor: '#334155' },
-                                            margin: { t: 20, l: 50, r: 20, b: 40 }
-                                        }}
-                                        useResizeHandler={true}
-                                        style={{ width: '100%', height: '100%' }}
-                                    />
+                                    <div className="flex items-center justify-center w-full h-full text-slate-500">Chart removed</div>
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -239,36 +206,7 @@ const AnalyticsPanel = ({ petroState }) => {
                             <Card className="h-full bg-slate-900 border-slate-800 flex flex-col">
                                 <CardHeader className="py-2"><CardTitle className="text-sm text-slate-300">Prediction Log Plot</CardTitle></CardHeader>
                                 <CardContent className="flex-1 min-h-0">
-                                    <Plot
-                                        data={[
-                                            {
-                                                y: results.meta.map(m => m.depth),
-                                                x: results.actuals,
-                                                mode: 'lines',
-                                                name: 'Actual',
-                                                line: { color: '#94a3b8', width: 1 }
-                                            },
-                                            {
-                                                y: results.meta.map(m => m.depth),
-                                                x: results.predictions,
-                                                mode: 'lines',
-                                                name: 'Predicted',
-                                                line: { color: '#a855f7', width: 1.5 }
-                                            }
-                                        ]}
-                                        layout={{
-                                            autosize: true,
-                                            paper_bgcolor: 'transparent',
-                                            plot_bgcolor: 'transparent',
-                                            font: { color: '#cbd5e1' },
-                                            yaxis: { title: 'Depth (m)', autorange: 'reversed', gridcolor: '#334155' },
-                                            xaxis: { title: modelConfig.target, side: 'top', gridcolor: '#334155' },
-                                            margin: { t: 60, l: 60, r: 20, b: 20 },
-                                            legend: { orientation: 'h', y: 1.05 }
-                                        }}
-                                        useResizeHandler={true}
-                                        style={{ width: '100%', height: '100%' }}
-                                    />
+                                    <div className="flex items-center justify-center w-full h-full text-slate-500">Chart removed</div>
                                 </CardContent>
                             </Card>
                         </TabsContent>
@@ -278,50 +216,15 @@ const AnalyticsPanel = ({ petroState }) => {
                                 <Card className="bg-slate-900 border-slate-800">
                                     <CardHeader className="py-2"><CardTitle className="text-sm text-slate-300">Feature Importance</CardTitle></CardHeader>
                                     <CardContent className="h-[300px]">
-                                        <Plot
-                                            data={[{
-                                                x: modelConfig.features,
-                                                y: results.featureImportance.map(Math.abs),
-                                                type: 'bar',
-                                                marker: { color: '#3b82f6' }
-                                            }]}
-                                            layout={{
-                                                autosize: true,
-                                                paper_bgcolor: 'transparent',
-                                                plot_bgcolor: 'transparent',
-                                                font: { color: '#cbd5e1' },
-                                                yaxis: { title: 'Absolute Coefficient' },
-                                                margin: { t: 20, l: 50, r: 20, b: 40 }
-                                            }}
-                                            useResizeHandler={true}
-                                            style={{ width: '100%', height: '100%' }}
-                                        />
+                                        <div className="flex items-center justify-center w-full h-full text-slate-500">Chart removed</div>
                                     </CardContent>
                                 </Card>
 
-                                {correlationData && (
+                                {results.correlationData && (
                                     <Card className="bg-slate-900 border-slate-800">
                                         <CardHeader className="py-2"><CardTitle className="text-sm text-slate-300">Correlation Matrix</CardTitle></CardHeader>
                                         <CardContent className="h-[300px]">
-                                            <Plot
-                                                data={[{
-                                                    z: correlationData.matrix,
-                                                    x: correlationData.features,
-                                                    y: correlationData.features,
-                                                    type: 'heatmap',
-                                                    colorscale: 'RdBu',
-                                                    zmin: -1, zmax: 1
-                                                }]}
-                                                layout={{
-                                                    autosize: true,
-                                                    paper_bgcolor: 'transparent',
-                                                    plot_bgcolor: 'transparent',
-                                                    font: { color: '#cbd5e1' },
-                                                    margin: { t: 20, l: 50, r: 20, b: 40 }
-                                                }}
-                                                useResizeHandler={true}
-                                                style={{ width: '100%', height: '100%' }}
-                                            />
+                                            <div className="flex items-center justify-center w-full h-full text-slate-500">Chart removed</div>
                                         </CardContent>
                                     </Card>
                                 )}

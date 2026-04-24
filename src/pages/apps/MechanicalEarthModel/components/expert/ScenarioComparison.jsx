@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useExpertMode } from '../../contexts/ExpertModeContext';
 import { Card } from '@/components/ui/card';
@@ -6,14 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Play, Download, Copy, Trash2, BarChart2 } from 'lucide-react';
-import Plot from 'react-plotly.js';
+import { Plus, Download, Copy, Trash2, BarChart2 } from 'lucide-react';
 
 const ScenarioComparison = () => {
     const { state, addScenario } = useExpertMode();
     const [newScenarioName, setNewScenarioName] = useState('');
     
-    // Mock Data for scenarios if context is empty for visualization purposes
     const scenarios = state.scenarios.length > 0 ? state.scenarios : [
         { id: 1, name: 'Base Case', heatFlow: 60, erosion: 500, maturity: 1.2, status: 'Completed' },
         { id: 2, name: 'High Heat Flow', heatFlow: 75, erosion: 500, maturity: 1.5, status: 'Completed' }
@@ -31,19 +30,8 @@ const ScenarioComparison = () => {
         setNewScenarioName('');
     };
 
-    const comparisonData = [
-        {
-            x: scenarios.map(s => s.name),
-            y: scenarios.map(s => s.maturity),
-            type: 'bar',
-            name: 'Max Maturity (Ro%)',
-            marker: { color: '#4f46e5' }
-        }
-    ];
-
     return (
         <div className="h-full flex flex-col bg-slate-950">
-            {/* Header & Controls */}
             <div className="p-4 border-b border-slate-800 bg-slate-900/50 space-y-4">
                 <div className="flex justify-between items-center">
                     <h3 className="text-sm font-bold text-slate-200">Scenario Manager</h3>
@@ -71,7 +59,6 @@ const ScenarioComparison = () => {
                 </div>
             </div>
 
-            {/* Scenario List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
                 <div className="space-y-2">
                     <Label className="text-xs text-slate-400 uppercase tracking-wider">Active Scenarios</Label>
@@ -101,30 +88,15 @@ const ScenarioComparison = () => {
                     ))}
                 </div>
 
-                {/* Comparison Chart */}
                 <div className="space-y-2">
                     <Label className="text-xs text-slate-400 uppercase tracking-wider flex items-center gap-2">
                         <BarChart2 className="w-3 h-3" /> Comparative Analysis
                     </Label>
-                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 h-[250px] relative overflow-hidden">
-                         <Plot
-                            data={comparisonData}
-                            layout={{
-                                autosize: true,
-                                margin: { l: 40, r: 20, t: 20, b: 30 },
-                                paper_bgcolor: 'rgba(0,0,0,0)',
-                                plot_bgcolor: 'rgba(0,0,0,0)',
-                                font: { color: '#94a3b8', size: 10 },
-                                yaxis: { title: 'Ro (%)', gridcolor: '#1e293b' },
-                                xaxis: { gridcolor: '#1e293b' }
-                            }}
-                            useResizeHandler={true}
-                            className="w-full h-full"
-                        />
+                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 h-[250px] relative overflow-hidden flex items-center justify-center text-slate-500">
+                         Chart removed
                     </div>
                 </div>
 
-                {/* Statistics Table */}
                 <div className="border border-slate-800 rounded-lg overflow-hidden bg-slate-900">
                     <Table>
                         <TableHeader className="bg-slate-950/50">

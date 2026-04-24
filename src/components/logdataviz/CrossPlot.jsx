@@ -1,5 +1,5 @@
+
 import React, { useState } from 'react';
-import Plot from 'react-plotly.js';
 import { Label } from '@/components/ui/label';
 
 const CrossPlot = ({ logData }) => {
@@ -8,40 +8,10 @@ const CrossPlot = ({ logData }) => {
 
   const availableCurves = Object.keys(logData);
 
-  const plotData = [{
-    x: logData[xAxis],
-    y: logData[yAxis],
-    mode: 'markers',
-    type: 'scattergl',
-    marker: { 
-      color: logData['GR'],
-      colorscale: 'Viridis',
-      showscale: true,
-      colorbar: {
-        title: 'Gamma Ray',
-        font: { color: '#333' }
-      }
-    }
-  }];
-
-  const layout = {
-    title: { text: `${yAxis} vs ${xAxis}`, font: { color: '#333' } },
-    xaxis: { title: xAxis, autorange: 'reversed', color: '#555', gridcolor: '#eee' },
-    yaxis: { title: yAxis, autorange: 'reversed', color: '#555', gridcolor: '#eee' },
-    paper_bgcolor: '#fff',
-    plot_bgcolor: '#fff',
-    font: { color: '#333' },
-  };
-
   return (
     <div className="h-full flex flex-col">
-      <div className="flex-grow">
-        <Plot
-          data={plotData}
-          layout={layout}
-          useResizeHandler={true}
-          className="w-full h-full"
-        />
+      <div className="flex-grow flex items-center justify-center text-slate-500 bg-white rounded">
+        Chart removed
       </div>
       <div className="flex-shrink-0 p-2 flex items-center justify-center space-x-4">
         <div>

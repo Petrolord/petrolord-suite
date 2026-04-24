@@ -1,4 +1,3 @@
-
 // Base pricing constants
 export const BASE_PLATFORM_FEE = 299; // Monthly base fee for accessing the platform
 export const USER_SEAT_PRICE = 49; // Price per user per month

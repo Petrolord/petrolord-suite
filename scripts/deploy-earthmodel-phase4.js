@@ -1,6 +1,5 @@
 
-/* eslint-env node */
-/* global process */
+/* global console, process, setTimeout */
 /**
  * Deployment Script for EarthModel Pro Phase 4
  * 

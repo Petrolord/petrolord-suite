@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useLocation } from 'react-router-dom';

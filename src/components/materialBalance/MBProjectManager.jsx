@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useMaterialBalance } from '@/contexts/MaterialBalanceContext';
-import { FolderOpen, Trash2, Search, Plus } from 'lucide-react';
+import { Trash2, Search, Plus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const MBProjectManager = ({ isOpen, onClose }) => {
@@ -13,18 +13,22 @@ const MBProjectManager = ({ isOpen, onClose }) => {
   const [newProjectName, setNewProjectName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
-  const filteredProjects = projectList.filter(p => 
+  const filteredProjects = projectList?.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ) || [];
 
   const handleLoad = async (id) => {
-    await loadProjectAction(id);
+    if (loadProjectAction) {
+      await loadProjectAction(id);
+    }
     onClose();
   };
 
   const handleCreate = async () => {
     if (!newProjectName) return;
-    await createProject(newProjectName);
+    if (createProject) {
+      await createProject(newProjectName);
+    }
     setNewProjectName('');
     setIsCreating(false);
     onClose();
@@ -44,12 +48,12 @@ const MBProjectManager = ({ isOpen, onClose }) => {
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
                 <Input 
                   placeholder="Search projects..." 
-                  className="pl-8 bg-slate-900 border-slate-800"
+                  className="pl-8 bg-slate-900 border-slate-800 text-slate-100 placeholder:text-slate-500"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button onClick={() => setIsCreating(true)} className="bg-blue-600 hover:bg-blue-500">
+              <Button onClick={() => setIsCreating(true)} className="bg-blue-600 hover:bg-blue-500 text-white">
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
@@ -65,7 +69,10 @@ const MBProjectManager = ({ isOpen, onClose }) => {
                         <div className="font-medium text-sm text-slate-200">{p.name}</div>
                         <div className="text-xs text-slate-500">Last modified: {new Date(p.lastModifiedDate).toLocaleDateString()}</div>
                       </div>
-                      <Button variant="ghost" size="icon" className="text-slate-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); deleteProject(p.id); }}>
+                      <Button variant="ghost" size="icon" className="text-slate-500 hover:text-red-400" onClick={(e) => { 
+                        e.stopPropagation(); 
+                        if (deleteProject) deleteProject(p.id); 
+                      }}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
@@ -77,17 +84,17 @@ const MBProjectManager = ({ isOpen, onClose }) => {
         ) : (
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Project Name</Label>
+              <Label className="text-slate-300">Project Name</Label>
               <Input 
                 value={newProjectName} 
                 onChange={(e) => setNewProjectName(e.target.value)}
                 placeholder="Enter project name"
-                className="bg-slate-900 border-slate-800"
+                className="bg-slate-900 border-slate-800 text-slate-100 placeholder:text-slate-500"
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setIsCreating(false)}>Cancel</Button>
-              <Button onClick={handleCreate} disabled={!newProjectName} className="bg-green-600 hover:bg-green-500">Create Project</Button>
+              <Button variant="ghost" onClick={() => setIsCreating(false)} className="text-slate-300 hover:text-white hover:bg-slate-800">Cancel</Button>
+              <Button onClick={handleCreate} disabled={!newProjectName} className="bg-green-600 hover:bg-green-500 text-white">Create Project</Button>
             </div>
           </div>
         )}

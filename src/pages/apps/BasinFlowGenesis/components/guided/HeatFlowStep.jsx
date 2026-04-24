@@ -1,5 +1,5 @@
+
 import React from 'react';
-import Plot from 'react-plotly.js';
 import { useGuidedMode } from '../../contexts/GuidedModeContext';
 import { HeatFlowPresets } from '../../data/HeatFlowPresets';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -8,26 +8,6 @@ import { Thermometer, Activity } from 'lucide-react';
 
 const HeatFlowStep = () => {
     const { wizardData, setWizardData } = useGuidedMode();
-
-    // Prepare Plot Data
-    const activePreset = HeatFlowPresets.find(p => p.id === wizardData.heatFlowId);
-    
-    let plotData = [];
-    if (activePreset) {
-        if (activePreset.type === 'constant') {
-            plotData = [
-                { x: [200, 0], y: [activePreset.value, activePreset.value], type: 'scatter', mode: 'lines', name: activePreset.name, line: { color: '#10b981', width: 3 } }
-            ];
-        } else {
-            plotData = [
-                { 
-                    x: activePreset.history.map(h => h.age), 
-                    y: activePreset.history.map(h => h.value), 
-                    type: 'scatter', mode: 'lines+markers', name: activePreset.name, line: { color: '#f59e0b', width: 3, shape: 'spline' } 
-                }
-            ];
-        }
-    }
 
     return (
         <div className="h-full flex gap-6">
@@ -65,43 +45,13 @@ const HeatFlowStep = () => {
                 </RadioGroup>
             </div>
 
-            {/* Plot Preview */}
             <div className="w-96 shrink-0 border-l border-slate-800 pl-6 flex flex-col">
                 <h3 className="text-xs font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
                     <Activity className="w-4 h-4" /> Thermal History Preview
                 </h3>
                 
-                <div className="flex-1 bg-slate-900/50 rounded-lg border border-slate-800 p-2">
-                    <Plot
-                        data={plotData}
-                        layout={{
-                            title: { text: 'Basal Heat Flow', font: { color: '#94a3b8', size: 14 } },
-                            paper_bgcolor: 'rgba(0,0,0,0)',
-                            plot_bgcolor: 'rgba(0,0,0,0)',
-                            xaxis: { 
-                                title: 'Age (Ma)', 
-                                autorange: 'reversed', 
-                                gridcolor: '#334155',
-                                zerolinecolor: '#475569',
-                                titlefont: { color: '#64748b', size: 10 },
-                                tickfont: { color: '#64748b', size: 10 }
-                            },
-                            yaxis: { 
-                                title: 'Heat Flow (mW/m²)', 
-                                gridcolor: '#334155',
-                                zerolinecolor: '#475569',
-                                range: [30, 160],
-                                titlefont: { color: '#64748b', size: 10 },
-                                tickfont: { color: '#64748b', size: 10 }
-                            },
-                            margin: { l: 40, r: 20, t: 40, b: 40 },
-                            showlegend: false,
-                            autosize: true
-                        }}
-                        useResizeHandler={true}
-                        style={{ width: '100%', height: '100%' }}
-                        config={{ displayModeBar: false }}
-                    />
+                <div className="flex-1 bg-slate-900/50 rounded-lg border border-slate-800 p-2 flex items-center justify-center text-slate-500">
+                    Chart removed
                 </div>
             </div>
         </div>

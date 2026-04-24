@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -13,7 +12,7 @@ import { Lock, AlertCircle, ShoppingCart } from 'lucide-react';
  * @param {string} appName - Display name for the error message.
  */
 const ProtectedAppRoute = ({ children, appId, appName }) => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, isSuperAdmin, loading: authLoading } = useAuth();
   const { 
     loading: entLoading, 
     hasAccessToApp, 
@@ -22,10 +21,12 @@ const ProtectedAppRoute = ({ children, appId, appName }) => {
 
   // Ensure fresh data on mount
   useEffect(() => {
-    refetch();
-  }, []);
+    if (!isSuperAdmin) {
+      refetch();
+    }
+  }, [isSuperAdmin, refetch]);
 
-  if (authLoading || entLoading) {
+  if (authLoading || (entLoading && !isSuperAdmin)) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-950">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-lime-400"></div>
@@ -37,13 +38,14 @@ const ProtectedAppRoute = ({ children, appId, appName }) => {
     return <Navigate to="/login" replace />;
   }
 
+  // Task 3: Unconditional superadmin bypass
+  if (isSuperAdmin || user?.role === 'super_admin') {
+    return children;
+  }
+
   const hasAccess = hasAccessToApp(appId);
 
   if (!hasAccess) {
-    // Determine if we should show a specific "Expired" message vs "Not Purchased"
-    // Since hasAccessToApp checks for ACTIVE status, false means either not bought OR expired.
-    // For now, we show a generic restricted access message.
-    
     return (
       <div className="flex items-center justify-center h-full bg-slate-950 p-6 min-h-screen">
         <Card className="w-full max-w-md bg-slate-900 border-slate-800 shadow-2xl">

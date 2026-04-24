@@ -1,6 +1,5 @@
 
-/* eslint-env node */
-/* global process */
+/* global console, process, setTimeout */
 import { exec } from 'child_process';
 import util from 'util';
 

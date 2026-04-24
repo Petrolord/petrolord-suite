@@ -1,6 +1,6 @@
+
 import React from 'react';
 import { motion } from 'framer-motion';
-import Plot from 'react-plotly.js';
 import { Thermometer, Beaker, Zap, Droplets, Gem } from 'lucide-react';
 
 const KPICard = ({ title, value, unit, icon }) => {
@@ -18,36 +18,8 @@ const KPICard = ({ title, value, unit, icon }) => {
 };
 
 const RheologyPlot = ({ data }) => {
-  const shearRates = [100, 200, 300, 400, 500, 600];
-  const chartData = [{
-    x: shearRates,
-    y: data,
-    type: 'scatter',
-    mode: 'lines+markers',
-    marker: { color: '#22d3ee' },
-    line: { color: '#22d3ee' }
-  }];
-
-  const layout = {
-    title: { text: 'Rheology Curve', font: { color: 'white' } },
-    paper_bgcolor: 'rgba(0,0,0,0)',
-    plot_bgcolor: 'rgba(255,255,255,0.1)',
-    xaxis: { 
-        title: 'Shear Rate (rpm)', 
-        color: 'white',
-        gridcolor: 'rgba(255,255,255,0.2)'
-    },
-    yaxis: { 
-        title: 'Shear Stress (lb/100ft²)', 
-        color: 'white',
-        gridcolor: 'rgba(255,255,255,0.2)'
-    },
-    margin: { l: 60, r: 20, b: 50, t: 50, pad: 4 }
-  };
-  
-  return <Plot data={chartData} layout={layout} useResizeHandler={true} className="w-full h-full" />;
+  return <div className="w-full h-full flex items-center justify-center text-slate-400">Chart removed</div>;
 };
-
 
 const ResultsPanel = ({ results }) => {
   const {

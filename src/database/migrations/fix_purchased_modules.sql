@@ -1,4 +1,3 @@
-
 /* 
  * Fix for purchased_modules inserts - Robust Version
  * Uses DELETE + INSERT pattern to avoid 'unique constraint' ambiguity or missing index issues.

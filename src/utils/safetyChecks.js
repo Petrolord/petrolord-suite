@@ -1,4 +1,3 @@
-
 /**
  * Safety checks to ensure the UI remains stable during mode transitions
  */

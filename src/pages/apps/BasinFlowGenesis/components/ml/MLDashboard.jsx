@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { BrainCircuit, Target, AlertTriangle, Play } from 'lucide-react';
-import Plot from 'react-plotly.js';
+import { ScatterChart, Scatter, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
 import { useMultiWell } from '@/pages/apps/BasinFlowGenesis/contexts/MultiWellContext';
 import { AnomalyDetector } from '@/pages/apps/BasinFlowGenesis/services/ml/AnomalyDetector';
@@ -78,6 +79,8 @@ const MLDashboard = () => {
         return DataClusterer.cluster(clusteringData, 3);
     }, [clusteringData]);
 
+    const clusterColors = ['#f87171', '#4ade80', '#60a5fa'];
+
     return (
         <div className="h-full flex flex-col bg-slate-950 p-4 overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
@@ -125,37 +128,17 @@ const MLDashboard = () => {
                         <Card className="bg-slate-900 border-slate-800">
                             <CardHeader><CardTitle className="text-sm">Visualization</CardTitle></CardHeader>
                             <CardContent className="h-[300px] p-0">
-                                <Plot
-                                    data={[
-                                        {
-                                            x: state.calibration?.ro?.map(p => p.value) || [],
-                                            y: state.calibration?.ro?.map(p => p.depth) || [],
-                                            mode: 'markers',
-                                            type: 'scatter',
-                                            name: 'Data',
-                                            marker: { color: '#94a3b8' }
-                                        },
-                                        {
-                                            x: anomalies.map(a => a.value),
-                                            y: anomalies.map(a => a.depth),
-                                            mode: 'markers',
-                                            type: 'scatter',
-                                            name: 'Anomalies',
-                                            marker: { color: 'red', size: 10, symbol: 'x' }
-                                        }
-                                    ]}
-                                    layout={{
-                                        paper_bgcolor: 'rgba(0,0,0,0)',
-                                        plot_bgcolor: 'rgba(0,0,0,0)',
-                                        yaxis: { title: 'Depth (m)', autorange: 'reversed', gridcolor: '#334155' },
-                                        xaxis: { title: 'Ro %', gridcolor: '#334155' },
-                                        margin: { l: 40, r: 20, t: 20, b: 40 },
-                                        font: { color: '#94a3b8', size: 10 },
-                                        showlegend: true
-                                    }}
-                                    useResizeHandler={true}
-                                    style={{ width: '100%', height: '100%' }}
-                                />
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <ScatterChart layout="vertical" margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                        <XAxis type="number" dataKey="value" name="Ro %" stroke="#94a3b8" label={{ value: 'Ro %', position: 'bottom', fill: '#94a3b8', fontSize: 12 }} />
+                                        <YAxis type="number" dataKey="depth" name="Depth" reversed stroke="#94a3b8" label={{ value: 'Depth (m)', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
+                                        <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }} />
+                                        <Legend />
+                                        <Scatter name="Data" data={state.calibration?.ro || []} fill="#94a3b8" />
+                                        <Scatter name="Anomalies" data={anomalies} fill="#ef4444" shape="cross" />
+                                    </ScatterChart>
+                                </ResponsiveContainer>
                             </CardContent>
                         </Card>
                     </div>
@@ -173,30 +156,17 @@ const MLDashboard = () => {
                             {optimizing && <Progress value={optProgress} className="mb-4 h-2" />}
                             
                             {optHistory.length > 0 && (
-                                <div className="h-[300px]">
-                                    <Plot
-                                        data={[
-                                            {
-                                                x: optHistory.map(h => h.gen),
-                                                y: optHistory.map(h => h.bestScore),
-                                                type: 'scatter',
-                                                mode: 'lines+markers',
-                                                name: 'Misfit Score',
-                                                line: { color: '#a855f7' }
-                                            }
-                                        ]}
-                                        layout={{
-                                            title: { text: 'Convergence Plot', font: { size: 12, color: '#e2e8f0' } },
-                                            paper_bgcolor: 'rgba(0,0,0,0)',
-                                            plot_bgcolor: 'rgba(0,0,0,0)',
-                                            xaxis: { title: 'Generation', gridcolor: '#334155' },
-                                            yaxis: { title: 'Misfit Score', gridcolor: '#334155' },
-                                            margin: { l: 40, r: 20, t: 40, b: 40 },
-                                            font: { color: '#94a3b8', size: 10 }
-                                        }}
-                                        useResizeHandler={true}
-                                        style={{ width: '100%', height: '100%' }}
-                                    />
+                                <div className="h-[300px] flex flex-col">
+                                    <h3 className="text-center text-sm text-slate-300 mt-2 mb-4">Convergence Plot</h3>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={optHistory} margin={{ top: 5, right: 30, left: 20, bottom: 20 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                            <XAxis dataKey="gen" stroke="#94a3b8" label={{ value: 'Generation', position: 'bottom', fill: '#94a3b8', fontSize: 12 }} />
+                                            <YAxis stroke="#94a3b8" label={{ value: 'Misfit Score', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
+                                            <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }} />
+                                            <Line type="monotone" dataKey="bestScore" stroke="#a855f7" strokeWidth={2} dot={{ r: 4 }} name="Misfit Score" />
+                                        </LineChart>
+                                    </ResponsiveContainer>
                                 </div>
                             )}
                             {!optimizing && optHistory.length === 0 && (
@@ -212,33 +182,24 @@ const MLDashboard = () => {
                     <div className="grid grid-cols-1 gap-4">
                         <Card className="bg-slate-900 border-slate-800">
                             <CardHeader><CardTitle className="text-sm">Well Clustering (K-Means)</CardTitle></CardHeader>
-                            <CardContent className="h-[400px]">
+                            <CardContent className="h-[400px] flex flex-col">
                                 {clusters.length > 0 ? (
-                                    <Plot
-                                        data={clusters.map(pt => ({
-                                            x: [pt.metric1],
-                                            y: [pt.metric2],
-                                            mode: 'markers',
-                                            type: 'scatter',
-                                            name: pt.name,
-                                            marker: { 
-                                                color: ['#f87171', '#4ade80', '#60a5fa'][pt.cluster % 3],
-                                                size: 12
-                                            },
-                                            text: pt.name
-                                        }))}
-                                        layout={{
-                                            title: { text: 'Multi-Well Cluster Analysis', font: { size: 14, color: '#e2e8f0' } },
-                                            paper_bgcolor: 'rgba(0,0,0,0)',
-                                            plot_bgcolor: 'rgba(0,0,0,0)',
-                                            xaxis: { title: 'Simulated Ro Index', gridcolor: '#334155' },
-                                            yaxis: { title: 'Simulated Temp Index', gridcolor: '#334155' },
-                                            font: { color: '#94a3b8', size: 10 },
-                                            showlegend: false
-                                        }}
-                                        useResizeHandler={true}
-                                        style={{ width: '100%', height: '100%' }}
-                                    />
+                                    <>
+                                        <h3 className="text-center text-sm text-slate-300 mt-2 mb-4">Multi-Well Cluster Analysis</h3>
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
+                                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                                <XAxis type="number" dataKey="metric1" name="Ro" stroke="#94a3b8" label={{ value: 'Simulated Ro Index', position: 'bottom', fill: '#94a3b8', fontSize: 12 }} />
+                                                <YAxis type="number" dataKey="metric2" name="Temp" stroke="#94a3b8" label={{ value: 'Simulated Temp Index', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
+                                                <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }} />
+                                                <Scatter name="Wells" data={clusters}>
+                                                    {clusters.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={clusterColors[entry.cluster % clusterColors.length]} />
+                                                    ))}
+                                                </Scatter>
+                                            </ScatterChart>
+                                        </ResponsiveContainer>
+                                    </>
                                 ) : (
                                     <div className="flex items-center justify-center h-full text-slate-500">
                                         Need more wells to perform clustering.

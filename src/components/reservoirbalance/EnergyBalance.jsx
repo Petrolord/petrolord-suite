@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
@@ -5,7 +6,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Info, Cpu, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import Plot from 'react-plotly.js';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, PointElement, LineElement } from 'chart.js';
 import { mbalCalculations } from '@/utils/mbalCalculations';
@@ -95,16 +95,6 @@ const EnergyBalance = ({ productionData, pressureData, pvtData, aquiferResults, 
 };
 
 const ResultsDisplay = ({ results }) => {
-    const plotConfig = { responsive: true, displaylogo: false };
-    const plotLayout = (title, xaxis, yaxis) => ({
-        title: { text: title, font: { color: '#E5E7EB' } },
-        xaxis: { title: { text: xaxis, font: { color: '#D1D5DB' } }, tickfont: { color: '#9CA3AF' }, gridcolor: 'rgba(255, 255, 255, 0.1)' },
-        yaxis: { title: { text: yaxis, font: { color: '#D1D5DB' } }, tickfont: { color: '#9CA3AF' }, gridcolor: 'rgba(255, 255, 255, 0.1)' },
-        paper_bgcolor: 'transparent',
-        plot_bgcolor: 'rgba(17, 24, 39, 0.5)',
-        autosize: true,
-        legend: { font: { color: '#E5E7EB' }, orientation: 'h', y: -0.2 }
-    });
 
     const driveIndicesLayout = {
         responsive: true,
@@ -172,25 +162,6 @@ const ResultsDisplay = ({ results }) => {
         saveAs(blob, `mbal_results.csv`);
     };
 
-    const havelnaOdehPlotData = [
-        {
-            x: results.plotData.map(p => p.Et),
-            y: results.plotData.map(p => p.F),
-            mode: 'markers',
-            type: 'scatter',
-            name: 'Data Points',
-            marker: { color: '#a3e635', size: 8 },
-        },
-        {
-            x: results.regressionLine.x,
-            y: results.regressionLine.y,
-            mode: 'lines',
-            type: 'scatter',
-            name: `Regression (OOIP = ${(results.ooip / 1e6).toFixed(2)} MMSTB)`,
-            line: { color: '#f59e0b', width: 2, dash: 'dash' },
-        }
-    ];
-
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <Card className="bg-slate-800/50 border-slate-700">
@@ -209,9 +180,8 @@ const ResultsDisplay = ({ results }) => {
                             <TabsTrigger value="havlena-odeh">Havlena-Odeh Plot</TabsTrigger>
                             <TabsTrigger value="drive-indices">Drive Indices</TabsTrigger>
                         </TabsList>
-                        <TabsContent value="havlena-odeh" className="mt-4 rounded-lg p-4 bg-gray-900/30 border border-white/10">
-                            <p className="text-sm text-slate-400 mb-2">Underground Withdrawal (F) vs. Total Expansion (Et). The slope of the regression line gives the Original Oil-In-Place (OOIP).</p>
-                            <Plot data={havelnaOdehPlotData} layout={plotLayout('', 'Total Expansion (Et)', 'Underground Withdrawal (F)')} useResizeHandler={true} style={{ width: '100%', height: '400px' }} config={plotConfig}/>
+                        <TabsContent value="havlena-odeh" className="mt-4 rounded-lg p-4 bg-gray-900/30 border border-white/10 flex items-center justify-center text-slate-500 h-[400px]">
+                            Chart removed
                         </TabsContent>
                         <TabsContent value="drive-indices" className="mt-4 rounded-lg p-4 bg-gray-900/30 border border-white/10" style={{ height: '450px' }}>
                             <div className="grid grid-cols-3 gap-4 mb-4 text-center">

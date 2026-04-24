@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -8,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import Select from 'react-select';
-import Plot from 'react-plotly.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -28,48 +28,10 @@ const getBadgeColor = (level) => {
 
 const TravelingCylinderPlot = ({ plotData, currentDepth, depthUnit }) => {
     if (!plotData || !plotData.series) return null;
-    
-    const seriesAtDepth = plotData.series.map(s => {
-        const point = s.data.find(p => p.ref_md >= currentDepth);
-        return point ? { ...point, name: s.name } : null;
-    }).filter(Boolean);
-
-    const plotTraces = seriesAtDepth.map(p => ({
-        r: [p.center_to_center],
-        theta: [p.azimuth],
-        mode: 'markers+text',
-        name: p.name,
-        text: [p.name],
-        textposition: 'top center',
-        marker: { size: 12 },
-        type: 'scatterpolar'
-    }));
-
     return (
-        <Plot
-            data={plotTraces}
-            layout={{
-                title: `Relative Positions @ ${currentDepth.toFixed(0)} ${depthUnit}`,
-                polar: {
-                    radialaxis: {
-                        visible: true,
-                        range: [0, Math.max(200, ...seriesAtDepth.map(p => p.center_to_center), 50)]
-                    },
-                    angularaxis: {
-                        rotation: 90,
-                        direction: 'clockwise'
-                    }
-                },
-                showlegend: true,
-                legend: { orientation: 'h', y: -0.1 },
-                paper_bgcolor: 'white',
-                plot_bgcolor: 'white',
-                font: { color: 'black' },
-                margin: { l: 40, r: 40, b: 40, t: 60 },
-            }}
-            className="w-full h-full"
-            useResizeHandler
-        />
+        <div className="w-full h-full flex items-center justify-center text-slate-500 bg-white rounded">
+            Chart removed
+        </div>
     );
 };
 
@@ -172,35 +134,30 @@ const AntiCollisionTab = ({ wellId, user }) => {
 
         if (offsetPlansError) throw offsetPlansError;
         
-        // Prepare data for 3D View (and logic simulation)
-        // Note: Real logic would use the edge function fully. We use it for SF but prep visualization here.
         const latestOffsetPlans = offsetWellIds.map(id => {
             const plan = offsetPlans.find(p => p.well_id === id);
             const wellInfo = wellDetails[id];
             return { id, name: wellInfo?.name || `Offset ${id}`, stations: plan?.stations || [] };
         });
         
-        // Run Calculation
         const { data, error } = await supabase.functions.invoke('anti-collision-guardian', {
             body: JSON.stringify({
                 reference_plan_id: refPlan.id,
                 offset_well_ids: offsetWellIds,
                 ref_well_radius_m: 5,
                 offset_well_radius_m: 5,
-                rules // Pass settings
+                rules
             }),
         });
 
         if (error) throw error;
         if (data.error) throw new Error(data.error);
 
-        // Process Results for Visualization (add Colors)
         const processedResults = data.summary.map(res => {
             const risk = getRiskLevel(res.min_sf, rules);
             return { ...res, riskLevel: risk };
         });
 
-        // Add colors to offset wells data for 3D view
         const coloredOffsetWells = latestOffsetPlans.map(well => {
             const res = processedResults.find(r => r.offset_well_id === well.id);
             const risk = res ? res.riskLevel : 'Safe';
@@ -249,44 +206,6 @@ const AntiCollisionTab = ({ wellId, user }) => {
   const depthUnit = referenceWell?.depth_unit === 'feet' ? 'ft' : 'm';
   const METERS_TO_FEET = 3.28084;
   const convertDepth = (val) => (depthUnit === 'ft' ? val * METERS_TO_FEET : val);
-
-  // Plot Data Prep
-  const sfPlotTraces = useMemo(() => {
-    if (!plotData || !plotData.series) return [];
-    const traces = plotData.series.map(s => ({
-        x: s.data.map(p => convertDepth(p.ref_md)),
-        y: s.data.map(p => p.sf),
-        mode: 'lines',
-        name: s.name,
-        type: 'scatter'
-    }));
-    traces.push({ x: [0, convertDepth(maxDepth)], y: [rules.criticalSf, rules.criticalSf], mode: 'lines', name: 'Critical', line: { color: 'red', dash: 'dash' } });
-    traces.push({ x: [0, convertDepth(maxDepth)], y: [rules.warningSf, rules.warningSf], mode: 'lines', name: 'Warning', line: { color: 'orange', dash: 'dash' } });
-    return traces;
-  }, [plotData, depthUnit, maxDepth, convertDepth, rules]);
-
-  const ladderPlotTraces = useMemo(() => {
-    if (!plotData || !plotData.series) return [];
-    return plotData.series.map(s => ({
-        x: s.data.map(p => convertDepth(p.ref_md)),
-        y: s.data.map(p => convertDepth(p.center_to_center)),
-        mode: 'lines',
-        name: s.name,
-        type: 'scatter'
-    }));
-  }, [plotData, depthUnit, convertDepth]);
-
-  const plotLayout = (title, yTitle) => ({
-    title,
-    xaxis: { title: `Reference Well MD (${depthUnit})` },
-    yaxis: { title: yTitle, autorange: true, type: 'linear' },
-    showlegend: true,
-    paper_bgcolor: 'white',
-    plot_bgcolor: 'white',
-    font: { color: 'black' },
-    legend: { orientation: 'h', y: -0.2 },
-    margin: { l: 50, r: 20, b: 50, t: 50 }
-  });
 
   const criticalCount = results?.filter(r => r.riskLevel === 'Critical').length || 0;
 
@@ -404,11 +323,11 @@ const AntiCollisionTab = ({ wellId, user }) => {
 
                     <TabsContent value="plots" className="h-full overflow-auto m-0 p-4 space-y-4">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[500px]">
-                            <div className="bg-white rounded-lg p-2 shadow-sm border border-slate-200">
-                                <Plot data={sfPlotTraces} layout={plotLayout('Separation Factor vs MD', 'SF')} className="w-full h-full" useResizeHandler />
+                            <div className="bg-white rounded-lg p-2 shadow-sm border border-slate-200 flex items-center justify-center text-slate-500">
+                                Chart removed
                             </div>
-                            <div className="bg-white rounded-lg p-2 shadow-sm border border-slate-200">
-                                <Plot data={ladderPlotTraces} layout={plotLayout('Center-to-Center Distance', `Distance (${depthUnit})`)} className="w-full h-full" useResizeHandler />
+                            <div className="bg-white rounded-lg p-2 shadow-sm border border-slate-200 flex items-center justify-center text-slate-500">
+                                Chart removed
                             </div>
                         </div>
                         <div className="bg-white rounded-lg p-4 shadow-sm border border-slate-200 h-[600px] flex flex-col">

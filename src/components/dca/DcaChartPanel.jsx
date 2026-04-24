@@ -1,6 +1,6 @@
+
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import Plot from 'react-plotly.js';
 import { Button } from '@/components/ui/button';
 import { Download, ZoomIn } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -8,53 +8,7 @@ import Papa from 'papaparse';
 
 const DcaChartPanel = ({ results }) => {
   const { toast } = useToast();
-  const [chartData, setChartData] = useState([]);
-  const [layout, setLayout] = useState({});
   const [isLogScale, setIsLogScale] = useState(true);
-
-  useEffect(() => {
-    if (!results?.forecast) {
-      setChartData([]);
-      return;
-    }
-
-    const { history_dates, history_rates, forecast_dates, forecast_rates } = results.forecast;
-
-    const historicalTrace = {
-      x: history_dates,
-      y: history_rates,
-      mode: 'markers',
-      type: 'scatter',
-      name: 'History',
-      marker: { color: '#a78bfa', size: 6 },
-    };
-    
-    // The fitted trace is simply the forecast that overlaps the history
-    const fitTrace = {
-      x: forecast_dates,
-      y: forecast_rates,
-      mode: 'lines',
-      type: 'scatter',
-      name: 'Fitted / Forecast',
-      line: { color: '#f472b6', width: 3 },
-    };
-
-    setChartData([historicalTrace, fitTrace]);
-
-  }, [results]);
-
-  useEffect(() => {
-    setLayout({
-      title: 'Decline Curve Analysis',
-      paper_bgcolor: 'rgba(0,0,0,0)',
-      plot_bgcolor: 'rgba(0,0,0,0)',
-      font: { color: '#e2e8f0' },
-      xaxis: { title: 'Date', gridcolor: 'rgba(255, 255, 255, 0.1)' },
-      yaxis: { title: 'Rate', type: isLogScale ? 'log' : 'linear', gridcolor: 'rgba(255, 255, 255, 0.1)', autorange: true },
-      legend: { x: 0.01, y: 1.1, orientation: 'h' },
-      hovermode: 'x unified'
-    });
-  }, [isLogScale]);
 
   const handleDownload = () => {
     if (!results?.forecast) return;
@@ -100,20 +54,8 @@ const DcaChartPanel = ({ results }) => {
           CSV
         </Button>
       </div>
-      <div id="dca-chart-container" className="w-full flex-grow">
-        {chartData.length > 0 ? (
-          <Plot
-            data={chartData}
-            layout={layout}
-            useResizeHandler={true}
-            style={{ width: '100%', height: '100%' }}
-            config={{ responsive: true, displaylogo: false }}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full text-slate-400">
-            <p>Generating chart...</p>
-          </div>
-        )}
+      <div id="dca-chart-container" className="w-full flex-grow flex items-center justify-center text-slate-400 border border-white/10 rounded">
+        Chart removed
       </div>
     </motion.div>
   );

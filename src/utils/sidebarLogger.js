@@ -1,4 +1,3 @@
-
 const LOG_PREFIX = '[SidebarSystem]';
 const isDev = import.meta.env.DEV;
 

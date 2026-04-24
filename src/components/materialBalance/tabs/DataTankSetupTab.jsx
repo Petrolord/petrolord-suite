@@ -1,43 +1,30 @@
 import React from 'react';
-import MBADataImporter from '../MBADataImporter';
-import DataQualityPanel from '../DataQualityPanel';
 import TankSetupForm from '../TankSetupForm';
 import ContactSetupPanel from '../ContactSetupPanel';
-import MBHistoryPlots from '../plots/MBHistoryPlots';
-import PVTPlots from '../plots/PVTPlots';
-import ContactHistoryPlot from '../plots/ContactHistoryPlot';
+import PVTSetupPanel from '../PVTSetupPanel';
 
 const DataTankSetupTab = () => {
   return (
-    <div className="p-4 h-full overflow-hidden flex flex-col">
-      <div className="grid grid-cols-12 gap-4 h-full min-h-0">
-        
-        {/* LEFT COLUMN: INPUT & QC (3/12) */}
-        <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 overflow-y-auto pr-1">
-          <MBADataImporter />
-          <DataQualityPanel />
-        </div>
-
-        {/* CENTER COLUMN: PLOTS (6/12) */}
-        <div className="col-span-12 lg:col-span-6 flex flex-col gap-4 h-full min-h-0 overflow-y-auto pr-1">
-          <div className="h-80 shrink-0">
-            <MBHistoryPlots />
-          </div>
-          <div className="h-64 shrink-0">
-            <PVTPlots />
-          </div>
-          <div className="shrink-0">
-            <ContactHistoryPlot />
-          </div>
-        </div>
-
-        {/* RIGHT COLUMN: SETUP FORMS (3/12) */}
-        <div className="col-span-12 lg:col-span-3 flex flex-col h-full min-h-0 overflow-y-auto">
+    <div className="p-4 h-full overflow-y-auto space-y-6">
+      
+      {/* Top Section: Basic Metadata and measured contacts */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="col-span-1 lg:col-span-5 flex flex-col h-full min-h-[400px]">
           <TankSetupForm />
+        </div>
+        <div className="col-span-1 lg:col-span-7 flex flex-col h-full min-h-[400px]">
           <ContactSetupPanel />
         </div>
-
       </div>
+
+      {/* Main Section: The comprehensive PVT panel */}
+      <div className="w-full border-t border-slate-800 pt-6">
+        <h2 className="text-lg font-bold text-white mb-4">PVT Modeling Engine</h2>
+        <div className="min-h-[600px]">
+            <PVTSetupPanel />
+        </div>
+      </div>
+
     </div>
   );
 };

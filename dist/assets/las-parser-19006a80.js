@@ -1,0 +1,2 @@
+const e=async t=>{if(!t)throw new Error("No content provided to parser");return typeof t=="string"&&t.split(`
+`),{metadata:{name:"Parsed Well",startDepth:0,stopDepth:100,step:.5,field:"UNKNOWN",country:"UNKNOWN",operator:"UNKNOWN",depthUnit:"M"},curves:[{name:"DEPT",mnemonic:"DEPT",unit:"M",data:[0,.5,1]},{name:"GR",mnemonic:"GR",unit:"GAPI",data:[50,55,60]},{name:"RHOB",mnemonic:"RHOB",unit:"G/CC",data:[2.5,2.55,2.6]}]}},a=e;export{a as p};

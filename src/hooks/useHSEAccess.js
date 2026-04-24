@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { useHSEContext } from '@/contexts/HSEContext';
 import { HSE_PERMISSIONS } from '@/constants/permissions';

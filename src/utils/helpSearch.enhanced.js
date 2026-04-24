@@ -1,4 +1,3 @@
-
 import { helpArticles } from '@/data/helpCenter/helpArticles';
 import { helpFAQ } from '@/data/helpCenter/helpFAQ'; // Fixed import path
 import { videosDetailed } from '@/data/helpCenter/videosDetailed';

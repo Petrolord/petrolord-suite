@@ -1,10 +1,6 @@
-
-/* eslint-disable react/no-unknown-property */
-import React, { useState, useRef, Suspense, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment, Center } from '@react-three/drei';
 import { useToast } from '@/components/ui/use-toast';
 
 // Components
@@ -20,43 +16,57 @@ import StructuralFrameworkExportPanel from './structural/StructuralFrameworkExpo
 // Utils
 import { generateStructuralGrid, distributeProperty } from '@/utils/structuralModelingUtils';
 
-// --- 3D Visualization Components (Mini) ---
-const FaultSurface = ({ fault }) => {
-    // Simple plane representation for a fault
-    // Dip and Strike would control rotation
-    const rotationX = (fault.dip * Math.PI) / 180;
-    return (
-        <mesh position={[0, -10, 0]} rotation={[rotationX, 0, 0]}>
-            <planeGeometry args={[200, 200]} />
-            <meshStandardMaterial color="red" side={2} transparent opacity={0.5} />
-        </mesh>
-    );
-};
+const StructuralCanvasViz = ({ faults, horizons, layers }) => {
+    const canvasRef = useRef(null);
 
-const HorizonSurface = ({ horizon }) => {
-    // Simple wavy surface
-    return (
-        <mesh position={[0, -horizon.depth / 100, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[300, 300, 32, 32]} />
-            <meshStandardMaterial color="yellow" wireframe={false} side={2} transparent opacity={0.6} />
-        </mesh>
-    );
-};
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        canvas.width = w;
+        canvas.height = h;
 
-const StructuralGridViz = ({ grid, property }) => {
-    if (!grid) return null;
-    // Visualize grid points as simple points or instanced mesh
-    // Simplified: render a few blocks
-    return (
-        <group>
-            {grid.points.filter((_, i) => i % 50 === 0).map((pt, i) => (
-                <mesh key={i} position={[pt.x - grid.params.originX - 100, (pt.z / 10), pt.y - grid.params.originY - 100]}>
-                     <boxGeometry args={[2, 2, 2]} />
-                     <meshStandardMaterial color={property === 'porosity' ? 'blue' : 'green'} />
-                </mesh>
-            ))}
-        </group>
-    );
+        ctx.clearRect(0, 0, w, h);
+        const cx = w / 2;
+        const cy = h / 2;
+
+        // Draw Grid
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        for(let i=0; i<w; i+=50) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, h); ctx.stroke(); }
+        for(let j=0; j<h; j+=50) { ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(w, j); ctx.stroke(); }
+
+        // Draw Faults
+        if (layers.faults.visible) {
+            faults.forEach((f, idx) => {
+                ctx.strokeStyle = `rgba(239, 68, 68, ${layers.faults.opacity})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(cx - 100, cy - 100 + idx * 50);
+                ctx.lineTo(cx + 100, cy + 100 + idx * 50);
+                ctx.stroke();
+            });
+        }
+
+        // Draw Horizons
+        if (layers.horizons.visible) {
+            horizons.forEach((hz, idx) => {
+                ctx.strokeStyle = `rgba(234, 179, 8, ${layers.horizons.opacity})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                for (let x = -200; x < 200; x += 10) {
+                    const y = Math.sin(x / 50) * 20 + idx * 40;
+                    if (x === -200) ctx.moveTo(cx + x, cy + y);
+                    else ctx.lineTo(cx + x, cy + y);
+                }
+                ctx.stroke();
+            });
+        }
+    }, [faults, horizons, layers]);
+
+    return <canvas ref={canvasRef} className="w-full h-full absolute inset-0 touch-none" />;
 };
 
 const StructuralFrameworkView = () => {
@@ -97,7 +107,6 @@ const StructuralFrameworkView = () => {
     const handleRunPropertyModel = (prop, method) => {
         setActiveProperty(prop);
         if(grid) {
-            // In real app, store values in grid
             distributeProperty(grid, prop, method); 
             toast({ title: "Property Modeled", description: `${prop} distributed using ${method}.` });
         }
@@ -166,32 +175,16 @@ const StructuralFrameworkView = () => {
                         )}
                         
                         <PropertyModelingPanel onRunModel={handleRunPropertyModel} />
-                        
                         <StructuralAnalysisPanel />
-                        
                         <StructuralFrameworkExportPanel />
                     </ScrollArea>
                 </Panel>
 
                 <PanelResizeHandle className="w-1 bg-slate-800 hover:bg-cyan-500 transition-colors" />
 
-                {/* CENTER PANEL: 3D Visualization */}
-                <Panel className="relative bg-black">
-                    <Canvas camera={{ position: [200, 200, 200], fov: 45 }}>
-                        <color attach="background" args={['#0f172a']} />
-                        <Suspense fallback={null}>
-                            <Center>
-                                {layers.faults.visible && faults.map(f => <FaultSurface key={f.id} fault={f} />)}
-                                {layers.horizons.visible && horizons.map(h => <HorizonSurface key={h.id} horizon={h} />)}
-                                {layers.grids.visible && grid && <StructuralGridViz grid={grid} property={activeProperty} />}
-                            </Center>
-                            <Grid args={[500, 500]} cellSize={50} cellThickness={1} sectionSize={100} sectionThickness={1.5} fadeDistance={800} sectionColor="#334155" cellColor="#1e293b" />
-                            <OrbitControls makeDefault />
-                            <Environment preset="city" />
-                            <ambientLight intensity={0.5} />
-                            <directionalLight position={[10, 10, 5]} intensity={1} />
-                        </Suspense>
-                    </Canvas>
+                {/* CENTER PANEL: Canvas Visualization */}
+                <Panel className="relative bg-slate-950">
+                    <StructuralCanvasViz faults={faults} horizons={horizons} layers={layers} />
 
                     {/* Layer Manager Overlay */}
                     {showLayerManager && (

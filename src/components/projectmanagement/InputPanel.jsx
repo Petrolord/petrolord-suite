@@ -11,17 +11,27 @@ import { FolderPlus, ListTodo, PlusCircle, AlertTriangle, UserPlus, DollarSign, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
 import TaskTemplateDialog from './TaskTemplateDialog';
 import ProgressUpdateForm from './ProgressUpdateForm';
 import RiskForm from './RiskForm';
 import IntegrationHub from './integrations/IntegrationHub';
 import HelpGuide from './help/HelpGuide';
+import TaskFormDialog from './TaskFormDialog';
+
 import ExplorationProjectWizard from './exploration/ExplorationProjectWizard';
 import AppraisalProjectWizard from './appraisal/AppraisalProjectWizard';
 import FieldDevelopmentProjectWizard from './field_development/FieldDevelopmentProjectWizard';
 import BrownfieldProjectWizard from './brownfield/BrownfieldProjectWizard';
 import DecommissioningProjectWizard from './decommissioning/DecommissioningProjectWizard';
 import { WellInterventionProjectWizard, FacilityUpgradeProjectWizard, OptimizationProjectWizard, WorkoverProjectWizard, RandDProjectWizard } from './smallprojects/SmallProjectWizards';
+
+/*
+ * LOG: InputPanel.jsx Updated
+ * - Removed inline inputs for tasks/milestones.
+ * - Replaced with TaskFormDialog to ensure robust validation and error handling.
+ * - Add Task button is always clickable; if no active project, it displays a friendly error.
+ */
 
 const InputPanel = ({ projects, activeProject, tasks, onSelectProject, onProjectCreated, onDataChange, setLoading, evmKpis }) => {
   const { user } = useAuth();
@@ -48,9 +58,10 @@ const InputPanel = ({ projects, activeProject, tasks, onSelectProject, onProject
   const [isIntegrationOpen, setIntegrationOpen] = useState(false);
   const [isHelpOpen, setHelpOpen] = useState(false);
   
+  const [isTaskDialogOpen, setTaskDialogOpen] = useState(false);
+  const [newTaskType, setNewTaskType] = useState('task');
+  
   const [projectType, setProjectType] = useState('Other');
-  const [workstream, setWorkstream] = useState('Subsurface');
-  const [taskCategory, setTaskCategory] = useState('Technical work');
 
   const handleCreateProject = async (event) => {
     event.preventDefault();
@@ -88,83 +99,17 @@ const InputPanel = ({ projects, activeProject, tasks, onSelectProject, onProject
     }
   };
 
-  const handleAddTask = async () => {
-    if (!activeProject) {
-      toast({ variant: 'destructive', title: 'No active project selected.' });
-      return;
-    }
-    const name = document.getElementById('task-name-input').value;
-    const owner = document.getElementById('task-owner-input').value;
-    const startDate = document.getElementById('task-start-date-input').value;
-    const endDate = document.getElementById('task-end-date-input').value;
-    const parentTaskId = document.getElementById('parent-task-select').value;
-
-    if (!name || !startDate || !endDate) {
-      toast({ variant: 'destructive', title: 'Task Name, Start Date, and End Date are required.' });
-      return;
-    }
-
-    const { count } = await supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('project_id', activeProject.id);
-    
-    const newTask = {
-      project_id: activeProject.id,
-      name,
-      owner,
-      planned_start_date: startDate,
-      planned_end_date: endDate,
-      parent_task_id: parentTaskId || null,
-      type: 'task',
-      workstream: workstream,
-      task_category: taskCategory,
-      status: 'To Do',
-      display_order: (count || 0) + 1,
-    };
-    const { error } = await supabase.from('tasks').insert([newTask]);
-    if (error) {
-      toast({ variant: 'destructive', title: 'Failed to add task', description: error.message });
-    } else {
-      toast({ title: 'Task Added!' });
-      document.getElementById('task-name-input').value = '';
-      document.getElementById('task-owner-input').value = '';
-      onDataChange();
-    }
-  };
-
-  const handleAddMilestone = async () => {
-    if (!activeProject) {
-      toast({ variant: 'destructive', title: 'No active project selected.' });
-      return;
-    }
-    const name = document.getElementById('milestone-name-input').value;
-    const date = document.getElementById('milestone-date-input').value;
-
-    if (!name || !date) {
-      toast({ variant: 'destructive', title: 'Milestone Name and Date are required.' });
-      return;
-    }
-
-    const { count } = await supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('project_id', activeProject.id);
-
-    const newMilestone = {
-      project_id: activeProject.id,
-      name,
-      planned_start_date: date,
-      planned_end_date: date,
-      type: 'milestone',
-      percent_complete: 0,
-      status: 'To Do',
-      display_order: (count || 0) + 1,
-      milestone_details: { readiness_score: 0, approvers: [], criteria: [] }
-    };
-    const { error } = await supabase.from('tasks').insert([newMilestone]);
-    if (error) {
-      toast({ variant: 'destructive', title: 'Failed to add milestone', description: error.message });
-    } else {
-      toast({ title: 'Milestone Added!' });
-      document.getElementById('milestone-name-input').value = '';
-      document.getElementById('milestone-date-input').value = '';
-      onDataChange();
-    }
+  const handleOpenTaskDialog = (type) => {
+      if (!activeProject) {
+          toast({ 
+              variant: 'destructive', 
+              title: 'No Project Selected', 
+              description: 'Please select or create a project first before adding items.' 
+          });
+          return;
+      }
+      setNewTaskType(type);
+      setTaskDialogOpen(true);
   };
 
   return (
@@ -251,23 +196,26 @@ const InputPanel = ({ projects, activeProject, tasks, onSelectProject, onProject
 
       <CollapsibleSection title="Tasks & Milestones" icon={<ListTodo />} defaultOpen>
         <div className="space-y-3">
-          <Input id="milestone-name-input" placeholder="Milestone Name" className="bg-white/5 border-white/20 text-white h-8" disabled={!activeProject} />
-          <Input id="milestone-date-input" type="date" className="bg-white/5 border-white/20 text-white h-8" disabled={!activeProject} />
-          <Button onClick={handleAddMilestone} className="w-full h-8 bg-purple-600 hover:bg-purple-700" disabled={!activeProject}><PlusCircle className="w-4 h-4 mr-2" /> Add Milestone</Button>
-          <div className="h-px bg-slate-700 my-2"></div>
-          <Input id="task-name-input" placeholder="Task Name" className="bg-white/5 border-white/20 text-white h-8" disabled={!activeProject} />
-          <div className="grid grid-cols-2 gap-2">
-            <Input id="task-start-date-input" type="date" className="bg-white/5 border-white/20 text-white h-8 text-xs" disabled={!activeProject} />
-            <Input id="task-end-date-input" type="date" className="bg-white/5 border-white/20 text-white h-8 text-xs" disabled={!activeProject} />
-          </div>
-          <select id="parent-task-select" className="w-full bg-white/5 border border-white/20 rounded-md p-1 text-white text-xs h-8" disabled={!activeProject || tasks.length === 0}>
-                <option value="">No Dependency</option>
-                {tasks.filter(t => t.type === 'task').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
-          <Button onClick={handleAddTask} className="w-full h-8 bg-blue-600 hover:bg-blue-700" disabled={!activeProject}><PlusCircle className="w-4 h-4 mr-2" /> Add Task</Button>
+            <Button onClick={() => handleOpenTaskDialog('milestone')} className="w-full h-9 bg-purple-600 hover:bg-purple-700 text-white">
+                <Flag className="w-4 h-4 mr-2" /> Add Milestone
+            </Button>
+            <Button onClick={() => handleOpenTaskDialog('task')} className="w-full h-9 bg-blue-600 hover:bg-blue-700 text-white">
+                <PlusCircle className="w-4 h-4 mr-2" /> Add Task
+            </Button>
         </div>
       </CollapsibleSection>
       
+      {/* Dialogs */}
+      <TaskFormDialog 
+        open={isTaskDialogOpen} 
+        onOpenChange={setTaskDialogOpen} 
+        project={activeProject} 
+        tasks={tasks} 
+        onSaved={onDataChange} 
+        initialType={newTaskType}
+        existingTask={null} // explicitly pass null to ensure insertion logic triggers for new tasks
+      />
+
       <TaskTemplateDialog open={isTemplateOpen} onOpenChange={setTemplateOpen} projectId={activeProject?.id} onTasksAdded={onDataChange} />
       <ProgressUpdateForm open={isUpdateOpen} onOpenChange={setUpdateOpen} project={activeProject} kpis={evmKpis} onUpdateSaved={onDataChange} />
       <RiskForm open={isRiskOpen} onOpenChange={setRiskOpen} project={activeProject} onSaved={onDataChange} />

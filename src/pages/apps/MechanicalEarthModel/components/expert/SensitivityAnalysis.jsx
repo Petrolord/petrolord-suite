@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useExpertMode } from '../../contexts/ExpertModeContext';
 import { Button } from '@/components/ui/button';
@@ -5,10 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Play, Loader2, BarChart2 } from 'lucide-react';
-import Plot from 'react-plotly.js';
 
 const SensitivityAnalysis = () => {
-    const { state, runSensitivityAnalysis } = useExpertMode();
+    const { runSensitivityAnalysis } = useExpertMode();
     const [isRunning, setIsRunning] = useState(false);
     const [results, setResults] = useState(null);
 
@@ -65,56 +65,14 @@ const SensitivityAnalysis = () => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-6">
-                        {/* Tornado Chart */}
-                        <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 h-[300px] relative overflow-hidden">
+                        <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 h-[300px] relative overflow-hidden flex items-center justify-center text-slate-500">
                             <div className="absolute top-2 left-2 z-10 bg-slate-950/80 px-2 py-1 rounded text-xs font-bold text-slate-400">Parameter Impact (Tornado)</div>
-                            <Plot
-                                data={[{
-                                    type: 'bar',
-                                    x: results.tornado.map(i => i.impact),
-                                    y: results.tornado.map(i => i.parameter),
-                                    orientation: 'h',
-                                    marker: {
-                                        color: results.tornado.map(i => i.impact > 0.5 ? '#ef4444' : '#3b82f6')
-                                    }
-                                }]}
-                                layout={{
-                                    autosize: true,
-                                    margin: { l: 100, r: 20, t: 40, b: 40 },
-                                    paper_bgcolor: 'rgba(0,0,0,0)',
-                                    plot_bgcolor: 'rgba(0,0,0,0)',
-                                    font: { color: '#94a3b8', size: 10 },
-                                    xaxis: { title: 'Impact on Ro (%)', gridcolor: '#1e293b' },
-                                    yaxis: { gridcolor: '#1e293b' }
-                                }}
-                                useResizeHandler={true}
-                                className="w-full h-full"
-                            />
+                            Chart removed
                         </div>
                         
-                        {/* Variation Plot */}
-                        <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 h-[300px] relative overflow-hidden">
+                        <div className="bg-slate-900 border border-slate-800 rounded-lg p-2 h-[300px] relative overflow-hidden flex items-center justify-center text-slate-500">
                             <div className="absolute top-2 left-2 z-10 bg-slate-950/80 px-2 py-1 rounded text-xs font-bold text-slate-400">Sensitivity Results</div>
-                             <Plot
-                                data={[{
-                                    x: [40, 50, 60, 70, 80],
-                                    y: [0.5, 0.65, 0.85, 1.05, 1.2],
-                                    type: 'scatter',
-                                    mode: 'lines+markers',
-                                    line: { color: '#10b981', width: 3 }
-                                }]}
-                                layout={{
-                                    autosize: true,
-                                    margin: { l: 50, r: 20, t: 40, b: 40 },
-                                    paper_bgcolor: 'rgba(0,0,0,0)',
-                                    plot_bgcolor: 'rgba(0,0,0,0)',
-                                    font: { color: '#94a3b8', size: 10 },
-                                    xaxis: { title: 'Heat Flow (mW/m²)', gridcolor: '#1e293b' },
-                                    yaxis: { title: 'Vitrinite Reflectance (%)', gridcolor: '#1e293b' }
-                                }}
-                                useResizeHandler={true}
-                                className="w-full h-full"
-                            />
+                            Chart removed
                         </div>
                     </div>
                 )}

@@ -1,4 +1,3 @@
-
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -62,7 +61,7 @@ export default defineConfig({
               return 'vendor-ui';
             }
             // Data Processing Vendor
-            if (id.includes('lodash') || id.includes('date-fns') || id.includes('papaparse')) {
+            if (id.includes('lodash') || id.includes('date-fns') || id.includes('papaparse') || id.includes('xlsx')) {
               return 'vendor-utils';
             }
             

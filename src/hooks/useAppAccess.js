@@ -1,4 +1,3 @@
-
 import { usePurchasedModules } from '@/hooks/usePurchasedModules';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useEffect, useState } from 'react';
@@ -39,7 +38,7 @@ export const useAppAccess = () => {
           .single();
 
         const dbRole = orgUser?.user_role || orgUser?.role || 'viewer';
-        const isAdmin = isSuperAdmin || dbRole === 'admin' || dbRole === 'owner' || dbRole === 'org_admin';
+        const isAdmin = isSuperAdmin || user?.role === 'super_admin' || dbRole === 'admin' || dbRole === 'owner' || dbRole === 'org_admin';
 
         // Fetch seat assignments (legacy/seat specific check)
         const { data: assignments } = await supabase
@@ -52,7 +51,7 @@ export const useAppAccess = () => {
           assignments: assignments || [],
           orgId: (organization?.id && isValidUUID(organization.id)) ? organization.id : null,
           isAdmin,
-          isSuperAdmin,
+          isSuperAdmin: isSuperAdmin || user?.role === 'super_admin',
           // Sync these with the purchased modules hook
           modules: purchasedModules,
           apps: purchasedApps
@@ -70,6 +69,9 @@ export const useAppAccess = () => {
 
   // Backward compatible 'hasAccess'
   const hasAccess = (appId) => {
+    if (isSuperAdmin || user?.role === 'super_admin') {
+      return true;
+    }
     return isAllowed(appId);
   };
 
@@ -78,7 +80,7 @@ export const useAppAccess = () => {
     hasAccess, // Primary check
     isAllowed, // Alias
     isModuleActive,
-    loading: pmLoading || assignmentsLoading,
+    loading: (isSuperAdmin || user?.role === 'super_admin') ? false : (pmLoading || assignmentsLoading),
     refreshAccess: refresh
   };
 };

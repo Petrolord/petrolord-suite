@@ -1,4 +1,3 @@
-
 export const validateTrackConfig = (config) => {
   if (!config || !config.type) return { valid: false, error: 'Missing type' };
   const validTypes = ['LOG', 'DEPTH', 'IMAGE'];

@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { SUITE_PERMISSIONS, canAccess, ROLES } from '@/constants/permissions';

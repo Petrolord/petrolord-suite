@@ -1,5 +1,4 @@
 import { getDistance } from 'geolib';
-import * as THREE from 'three';
 import * as d3 from 'd3';
 
 // Calculate total length of the section line (polyline support)
@@ -57,13 +56,21 @@ export const projectPointToSection = (point, sectionLine) => {
 // Get interpolation curve points (Spline) for horizons
 export const getCatmullRomPoints = (points, tension = 0.5, numPoints = 50) => {
     if (points.length < 2) return points;
-    
-    // Prepare simple array for THREE
-    const vectorPoints = points.map(p => new THREE.Vector2(p.x, p.y));
-    const curve = new THREE.SplineCurve(vectorPoints);
-    const spacedPoints = curve.getPoints(numPoints * (points.length - 1));
-    
-    return spacedPoints.map(v => ({ x: v.x, y: v.y }));
+    // Vanilla JS fallback for SplineCurve (Linear interpolation for simplicity)
+    const result = [];
+    for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[i];
+        const p1 = points[i + 1];
+        for (let j = 0; j < numPoints; j++) {
+            const t = j / numPoints;
+            result.push({
+                x: p0.x + (p1.x - p0.x) * t,
+                y: p0.y + (p1.y - p0.y) * t
+            });
+        }
+    }
+    result.push(points[points.length - 1]);
+    return result;
 };
 
 // Generate ticks for axes
@@ -100,4 +107,15 @@ export const getPropertyColor = (value, min, max, scaleType = 'rainbow') => {
         return `rgb(${v},${v},${v})`;
     }
     return 'gray';
+};
+
+// Shoelace formula for polygon area
+export const calculatePolygonArea = (points) => {
+    let area = 0;
+    for (let i = 0; i < points.length; i++) {
+        const j = (i + 1) % points.length;
+        area += points[i].x * points[j].y;
+        area -= points[j].x * points[i].y;
+    }
+    return Math.abs(area / 2);
 };

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useUserEntitlements } from '@/hooks/useUserEntitlements';

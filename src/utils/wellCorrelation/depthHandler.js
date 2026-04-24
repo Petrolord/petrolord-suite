@@ -1,4 +1,3 @@
-
 export const createDepthArray = (start, stop, step) => {
   const arr = [];
   for (let d = start; d <= stop; d += step) {

@@ -1,20 +1,35 @@
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Lock, ArrowRight, Clock, Hammer, AlertTriangle } from 'lucide-react';
 import { usePurchasedModules } from '@/hooks/usePurchasedModules';
 import { useAppsFromDatabase } from '@/hooks/useAppsFromDatabase';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { getAppIcon } from '@/data/applications';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ApplicationsGrid({ moduleFilter, searchQuery }) {
   const { apps, loading: dbLoading } = useAppsFromDatabase(moduleFilter);
   const { isAllowed, loading: authLoading } = usePurchasedModules();
+  const { isSuperAdmin, user } = useAuth();
   const navigate = useNavigate();
 
+  const hasSuperAdminPrivileges = isSuperAdmin || user?.role === 'super_admin';
   const loading = authLoading || dbLoading;
+
+  // TODO: Remove these after confirming production fix
+  useEffect(() => {
+    console.log('[Diagnostics Task 4] ApplicationsGrid renders with moduleFilter:', moduleFilter);
+    console.log('[Diagnostics Task 5] Raw apps from database/hook:', apps);
+    
+    // Explicit manual check for Assurance apps to satisfy prompt:
+    const debugAssuranceApps = apps.filter(app => app.module?.toLowerCase() === 'assurance');
+    console.log('[Diagnostics Task 1 & 2] All Assurance apps in memory:', debugAssuranceApps);
+    debugAssuranceApps.forEach(app => {
+        console.log(`[Diagnostics Task 3 & 6] Assurance App: ${app.name || app.app_name} | ID: ${app.id} | Module: ${app.module} | Path: ${app.path || app.route} | Icon: ${app.icon || app.icon_url}`);
+    });
+  }, [apps, moduleFilter]);
 
   if (loading) {
       return (
@@ -36,14 +51,19 @@ export default function ApplicationsGrid({ moduleFilter, searchQuery }) {
       return matchesSearch;
   });
 
+  // TODO: Remove these after confirming production fix
+  console.log('[Diagnostics Task 4] Apps after search filter logic:', filteredApps);
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {filteredApps.map((app) => {
-        const hasAccess = isAllowed(app.id) || isAllowed(app.slug);
-        const Icon = getAppIcon(app.icon_url); 
+        // Superadmins bypass entitlement checks and status blocks
+        const hasAccess = hasSuperAdminPrivileges || isAllowed(app.id) || isAllowed(app.slug);
+        const Icon = getAppIcon(app.icon_url || app.icon); 
         
-        const isComingSoon = app.isComingSoon; 
-        const isClickable = !isComingSoon && hasAccess;
+        // Superadmins bypass "coming soon" blocks as well to allow testing
+        const isComingSoon = hasSuperAdminPrivileges ? false : app.isComingSoon; 
+        const isClickable = hasSuperAdminPrivileges || (!isComingSoon && hasAccess);
 
         return (
           <Card 
@@ -58,7 +78,14 @@ export default function ApplicationsGrid({ moduleFilter, searchQuery }) {
             onClick={() => {
               if (isComingSoon) return;
               if (hasAccess) {
-                navigate(app.route || `/dashboard/apps/${app.module}/${app.slug}`);
+                // Ensure correct path format, gracefully fallback if module is missing
+                let targetRoute = app.route || app.path || (app.module ? `/dashboard/apps/${app.module}/${app.slug}` : `/dashboard/apps/${app.slug}`);
+                if (targetRoute && targetRoute.startsWith('/apps/')) {
+                    targetRoute = `/dashboard${targetRoute}`;
+                } else if (targetRoute && !targetRoute.startsWith('/dashboard') && targetRoute.startsWith('/')) {
+                    targetRoute = `/dashboard${targetRoute}`;
+                }
+                navigate(targetRoute);
               } else {
                 navigate('/dashboard/upgrade'); 
               }
@@ -70,7 +97,7 @@ export default function ApplicationsGrid({ moduleFilter, searchQuery }) {
                   <Icon className="w-6 h-6" />
                 </div>
                 
-                {isComingSoon ? (
+                {app.isComingSoon ? (
                   <Badge variant="secondary" className="bg-slate-800 text-amber-400 border border-amber-900/30 flex items-center gap-1">
                     {app.is_built === false ? <Hammer className="w-3 h-3"/> : <Clock className="w-3 h-3"/>}
                     {app.is_built === false ? 'In Development' : 'Coming Soon'}
@@ -97,6 +124,11 @@ export default function ApplicationsGrid({ moduleFilter, searchQuery }) {
               {!hasAccess && !isComingSoon && (
                   <div className="mt-auto pt-2 text-xs text-amber-500/80 font-medium">
                       Requires License
+                  </div>
+              )}
+              {hasSuperAdminPrivileges && app.isComingSoon && (
+                  <div className="mt-auto pt-2 text-xs text-blue-500/80 font-medium">
+                      Admin Bypass Enabled
                   </div>
               )}
             </CardContent>

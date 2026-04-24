@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { useTrackConfigurationContext } from '@/contexts/TrackConfigurationContext';
 import { exportAsImage, exportAsPDF } from '@/utils/exportUtils';
 import { createAnnotation } from '@/utils/annotationUtils';
@@ -25,9 +25,12 @@ export const useAdvancedVisualization = () => {
     viewSettings
   } = context;
 
-  const handleExport = useCallback((type, elementId) => {
-    if (type === 'png') exportAsImage(elementId, 'well-correlation.png');
-    if (type === 'pdf') exportAsPDF(elementId, 'well-correlation.pdf');
+  const handleExport = useCallback(async (type, elementId) => {
+    if (type === 'png') {
+      await exportAsImage(elementId, 'well-correlation-export');
+    } else if (type === 'pdf') {
+      await exportAsPDF(elementId, 'well-correlation-document');
+    }
   }, []);
 
   const handleAddTextAnnotation = useCallback((position, text) => {

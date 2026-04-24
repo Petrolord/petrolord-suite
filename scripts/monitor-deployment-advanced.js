@@ -1,7 +1,6 @@
 
-/* eslint-env node */
+/* global console, process, setInterval, clearInterval */
 import { exec } from 'child_process';
-import process from 'process';
 
 // This script simulates a monitoring daemon that watches a deployment
 console.log('📡 Deployment Monitor Active');

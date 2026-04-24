@@ -1,0 +1,18 @@
+## Pages
+- [Admin - Create User - Petrolord Suite](/admincreateuser): Administrator page to create new user accounts.
+- [Create Organization Account - Petrolord](/signup): Register as an Organization Admin for Petrolord Suite.
+- [Direct Login - Petrolord](/directlogin): Direct login access for administrators.
+- [Forgot Password - Petrolord](/forgotpassword): Reset your Petrolord account password.
+- [Login - Petrolord](/login): Login to your Petrolord account.
+- [My Contour Projects - Petrolord Suite](/mycontourprojects): Manage your saved contour map digitization projects.
+- [My EarthModel Studio Projects](/myprojects): Manage your EarthModel Studio projects.
+- [My PVT Projects - Petrolord Suite](/mypvtprojects): View and manage your saved PVT analysis projects.
+- [Payment - Petrolord Suite](/payment): Complete your Petrolord Suite subscription payment.
+- [Petrolord NextGen - Empowering the Future of Energy](/nextgen): Join Petrolord NextGen to empower young minds with the knowledge, skills, and digital tools to transform the energy industry.
+- [Petrolord Suite - The Digital OS for the Energy Enterprise](/home): The Digital Operating System for the Modern Energy Enterprise. Connecting subsurface intelligence, operational efficiency, and commercial strategy on a unified platform.
+- [Pricing - Petrolord Suite](/pricing): Choose the perfect plan for your oil & gas operations. Flexible pricing for teams of all sizes.
+- [Profile Complete - Petrolord Suite](/profile): No description available
+- [Resources - Petrolord](/resources): Explore case studies, white papers, webinars, and blog posts from the experts at Petrolord. Gain insights into the future of the energy industry.
+- [Solutions - Petrolord](/solutions): Explore the integrated suite of solutions offered by Petrolord, covering the entire energy lifecycle from subsurface to strategy.
+- [Super Admin Console](/superadminconsole): No description available
+- [Validating Invitation - Petrolord](/setpassword): Validating your invitation link...

@@ -1,10 +1,10 @@
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Download, FileText, Save, Activity, BrainCircuit, Link as LinkIcon, AlertCircle } from 'lucide-react';
-import Plot from 'react-plotly.js';
+import { Download, FileText, Save, BrainCircuit, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const renderCard = (title, children, icon) => (
@@ -64,19 +64,8 @@ const ResultsPanel = ({ results, inputs }) => {
             ))}
         </div>
         
-        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-4">
-            <Plot
-                data={liveData.history.map(series => ({...series, type: 'scatter', mode: 'lines'}))}
-                layout={{
-                    height: 300,
-                    plot_bgcolor: 'rgba(0,0,0,0)', paper_bgcolor: 'rgba(0,0,0,0)',
-                    font: { color: '#e2e8f0' }, legend: {orientation: 'h', y: -0.3},
-                    margin: { l: 40, r: 20, b: 60, t: 20 },
-                    xaxis: { title: 'Time', gridcolor: 'rgba(255,255,255,0.1)' }, yaxis: { title: 'Value', gridcolor: 'rgba(255,255,255,0.1)' }
-                }}
-                useResizeHandler={true}
-                className="w-full"
-            />
+        <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-4 h-[300px] flex items-center justify-center text-slate-500">
+            Chart removed
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

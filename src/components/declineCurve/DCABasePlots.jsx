@@ -1,139 +1,208 @@
-import React, { useMemo, useState } from 'react';
-import Plot from 'react-plotly.js';
+import React, { useState, useMemo } from 'react';
 import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
 import { Button } from '@/components/ui/button';
 import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
 import { Camera } from 'lucide-react';
+import { ResponsiveContainer, ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label } from 'recharts';
+import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
+import {
+  CHART_COLORS,
+  CHART_TYPOGRAPHY,
+  CHART_MARGINS,
+  GRID_STYLE,
+  TOOLTIP_STYLE,
+  ANNOTATION_BOX_CLASSNAME,
+  getStreamPalette
+} from '@/utils/chartTheme';
 
 const DCABasePlots = () => {
-  const { currentData, selectedStream, streamState, scenarios, selectedScenarios } = useDeclineCurve();
   const [logScale, setLogScale] = useState(true);
+  const { currentData, selectedStream, streamState } = useDeclineCurve();
   
-  const fitResults = streamState[selectedStream].fitResults;
-  const forecastResults = streamState[selectedStream].forecastResults;
-  const econLimit = streamState[selectedStream].forecastConfig.economicLimit;
-
-  const plotData = useMemo(() => {
-    const traces = [];
-
-    // 1. History Data
-    if (currentData && currentData.length > 0) {
-      const historyX = currentData.map(d => new Date(d.date));
-      const historyY = currentData.map(d => {
-         if (selectedStream === 'oil') return d.rate;
-         if (selectedStream === 'gas') return d.gasRate || d.rate;
-         return d.waterRate || d.rate;
+  const forecastResults = streamState[selectedStream]?.forecastResults;
+  const fit = streamState[selectedStream]?.fitResults;
+  
+  // Merge historical and forecast data
+  const chartData = useMemo(() => {
+    if (!currentData || currentData.length === 0) return [];
+    
+    const merged = [];
+    
+    // Add historical points with fitted values
+    currentData.forEach(point => {
+      let fitted = null;
+      
+      // Calculate fitted value if fit results exist
+      const fit = streamState[selectedStream]?.fitResults;
+      if (fit && fit.qi && fit.Di !== undefined && fit.b !== undefined && fit.t0) {
+        const tDays = (new Date(point.date) - new Date(fit.t0)) / 86400000;
+        fitted = calculateArpsHyperbolic(fit.qi, fit.Di, fit.b, tDays);
+      }
+      
+      merged.push({
+        date: point.date,
+        history: point.rate,
+        forecast: null,
+        fitted: fitted
       });
-
-      traces.push({
-        x: historyX,
-        y: historyY,
-        type: 'scatter',
-        mode: 'markers',
-        name: 'History',
-        marker: { color: '#64748b', size: 3, opacity: 0.6 }
-      });
-    }
-
-    // 2. Active Forecast (includes fit usually)
-    if (forecastResults) {
-      traces.push({
-        x: forecastResults.data.map(d => d.date),
-        y: forecastResults.data.map(d => d.rate),
-        type: 'scatter',
-        mode: 'lines',
-        name: `Active Forecast`,
-        line: { color: '#10b981', width: 2, dash: 'solid' }
-      });
-    }
-
-    // 3. Scenarios
-    const activeScenarios = scenarios.filter(s => selectedScenarios.includes(s.id) && s.stream === selectedStream);
-    activeScenarios.forEach((scenario, idx) => {
-        const color = idx === 0 ? '#f59e0b' : (idx === 1 ? '#ec4899' : '#6366f1');
-        traces.push({
-            x: scenario.forecastResults.data.map(d => d.date),
-            y: scenario.forecastResults.data.map(d => d.rate),
-            type: 'scatter',
-            mode: 'lines',
-            name: scenario.name,
-            line: { color, width: 1.5, dash: 'dot' }
-        });
     });
-
-    // 4. Econ Limit Line
-    if (currentData.length > 0 && econLimit > 0) {
-        const start = new Date(currentData[0].date);
-        const end = forecastResults 
-            ? new Date(forecastResults.data[forecastResults.data.length-1].date) 
-            : new Date(currentData[currentData.length-1].date);
-        
-        traces.push({
-            x: [start, end],
-            y: [econLimit, econLimit],
-            type: 'scatter',
-            mode: 'lines',
-            name: 'Econ Limit',
-            line: { color: '#ef4444', width: 1, dash: 'dash' },
-            hoverinfo: 'skip'
+    
+    // Add forecast points if available
+    if (forecastResults?.rates) {
+      forecastResults.rates.forEach(point => {
+        merged.push({
+          date: point.date,
+          history: null,
+          forecast: point.rate,
+          fitted: null
         });
+      });
     }
-
-    return traces;
-  }, [currentData, forecastResults, selectedStream, scenarios, selectedScenarios, econLimit]);
-
+    
+    return merged.sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [currentData, forecastResults, streamState, selectedStream]);
+  
+  // Get Y-axis label based on stream
+  const getYAxisLabel = () => {
+    switch(selectedStream) {
+      case 'gas': return 'Rate (Mscf/d)';
+      case 'water': return 'Rate (bbl/d)';
+      default: return 'Rate (bbl/d)';
+    }
+  };
+  
+  // Get stream palette
+  const palette = getStreamPalette(selectedStream);
+  
   return (
-    <div id="dca-main-plot" className="h-full flex flex-col bg-slate-900 rounded-lg border border-slate-800 overflow-hidden shadow-inner">
-        <div className="p-2 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+    <div id="dca-main-plot" className="h-full flex flex-col bg-white rounded-lg border border-slate-200 overflow-hidden shadow-inner">
+        <div className="p-2 border-b border-slate-200 flex justify-between items-center bg-slate-50">
             <div className="flex gap-2">
               <Button 
                   variant="ghost" 
                   size="sm" 
-                  className={`text-xs h-7 ${logScale ? 'bg-blue-900/30 text-blue-400 border border-blue-900' : 'text-slate-400'}`}
+                  className={`text-xs h-7 ${
+                    logScale 
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                      : 'text-slate-600'
+                  }`}
                   onClick={() => setLogScale(!logScale)}
               >
                   {logScale ? 'Log Scale' : 'Linear Scale'}
               </Button>
             </div>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => exportChartAsImage('dca-main-plot', 'dca_plot')}>
-                <Camera size={14} className="text-slate-400" />
+                <Camera size={14} className="text-slate-600" />
             </Button>
         </div>
+        
         <div className="flex-1 relative min-h-[400px] w-full">
-            {currentData.length > 0 ? (
-                <Plot
-                    data={plotData}
-                    layout={{
-                        autosize: true,
-                        margin: { l: 50, r: 20, t: 30, b: 40 },
-                        paper_bgcolor: 'rgba(0,0,0,0)',
-                        plot_bgcolor: 'rgba(0,0,0,0)',
-                        font: { color: '#94a3b8', family: 'Inter, sans-serif' },
-                        xaxis: { 
-                            title: 'Date', 
-                            gridcolor: '#1e293b',
-                            zerolinecolor: '#334155',
-                            type: 'date'
-                        },
-                        yaxis: { 
-                            title: 'Rate', 
-                            type: logScale ? 'log' : 'linear',
-                            gridcolor: '#1e293b',
-                            zerolinecolor: '#334155'
-                        },
-                        showlegend: true,
-                        legend: { x: 1, xanchor: 'right', y: 1, bgcolor: 'rgba(15,23,42,0.8)', bordercolor: '#334155', borderwidth: 1 }
+          {!currentData || currentData.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-slate-400 text-center">
+              Upload production data to begin
+            </div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={CHART_MARGINS.standard}>
+                  <CartesianGrid {...GRID_STYLE} />
+                  <XAxis 
+                    dataKey="date" 
+                    type="category"
+                    tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+                    axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
+                    tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
+                    interval="preserveStartEnd"
+                    minTickGap={60}
+                  >
+                    <Label 
+                      value="Date" 
+                      position="insideBottom" 
+                      offset={-5} 
+                      style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }} 
+                    />
+                  </XAxis>
+                  <YAxis 
+                    scale={logScale ? 'log' : 'auto'}
+                    domain={logScale ? ['auto', 'auto'] : ['auto', 'auto']}
+                    tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+                    axisLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
+                    tickLine={{ stroke: CHART_COLORS.axisLine, strokeWidth: 1 }}
+                  >
+                    <Label 
+                      value={getYAxisLabel()} 
+                      angle={-90} 
+                      position="insideLeft"
+                      style={{ fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
+                    />
+                  </YAxis>
+                  <Tooltip 
+                    contentStyle={TOOLTIP_STYLE}
+                    labelStyle={{ color: CHART_COLORS.tooltipText }}
+                    itemStyle={{ color: CHART_COLORS.tooltipText }}
+                    formatter={(value, name) => [
+                      value ? value.toFixed(1) : 'N/A',
+                      name
+                    ]}
+                  />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36}
+                    wrapperStyle={{ 
+                      fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`, 
+                      paddingTop: '10px',
+                      color: CHART_COLORS.legendText
                     }}
-                    useResizeHandler={true}
-                    style={{ width: '100%', height: '100%', position: 'absolute' }}
-                    config={{ responsive: true, displayModeBar: false }}
-                />
-            ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-slate-600 flex-col gap-2">
-                    <div className="w-12 h-1 bg-slate-800 rounded-full"></div>
-                    No data loaded
+                  />
+                  
+                  {/* Historical Data as Scatter */}
+                  <Scatter 
+                    dataKey="history"
+                    fill={palette.primary}
+                    name="Historical"
+                    shape="circle"
+                  />
+                  
+                  {/* Fitted Model Line */}
+                  <Line 
+                    type="monotone"
+                    dataKey="fitted"
+                    stroke={palette.fitted}
+                    strokeWidth={1.5}
+                    strokeDasharray="none"
+                    dot={false}
+                    name="Fitted Model"
+                    connectNulls={false}
+                  />
+                  
+                  {/* Forecast Data as Line */}
+                  <Line 
+                    type="monotone"
+                    dataKey="forecast"
+                    stroke={palette.forecast}
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    dot={false}
+                    name="Forecast"
+                    connectNulls={false}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+              
+              {/* Parameter Annotation Box */}
+              {fit && (
+                <div className={ANNOTATION_BOX_CLASSNAME}>
+                  <div className="flex flex-col gap-0.5">
+                    <div>Model: {fit.modelType}</div>
+                    <div>qi: {fit.qi.toFixed(0)} {selectedStream === 'gas' ? 'Mscf/d' : 'bbl/d'}</div>
+                    <div>Di: {(fit.Di * 365 * 100).toFixed(1)}%/yr</div>
+                    <div>b: {fit.b.toFixed(2)}</div>
+                    <div>R²: {fit.R2.toFixed(3)}</div>
+                  </div>
                 </div>
-            )}
+              )}
+            </>
+          )}
         </div>
     </div>
   );

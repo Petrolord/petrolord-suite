@@ -1,9 +1,9 @@
+
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, BarChart2, ListChecks, Edit } from 'lucide-react';
-import Plot from 'react-plotly.js';
 
 const ResultsPanel = ({ results }) => {
   const { inputs, logPlot, qcSummary, stats, crossPlot } = results;
@@ -26,13 +26,8 @@ const ResultsPanel = ({ results }) => {
               <TabsTrigger value="qc-summary"><ListChecks className="w-4 h-4 mr-2"/>QC Summary</TabsTrigger>
               <TabsTrigger value="cross-plot"><BarChart2 className="w-4 h-4 mr-2"/>Cross Plot</TabsTrigger>
             </TabsList>
-            <TabsContent value="log-plot" className="flex-grow bg-white rounded-b-lg p-2 mt-0">
-               <Plot
-                  data={logPlot.data}
-                  layout={{ ...logPlot.layout, paper_bgcolor: 'white', plot_bgcolor: 'white', font: { color: '#333' } }}
-                  useResizeHandler={true}
-                  className="w-full h-full"
-                />
+            <TabsContent value="log-plot" className="flex-grow bg-white rounded-b-lg p-2 mt-0 flex items-center justify-center text-slate-500">
+               Chart removed
             </TabsContent>
             <TabsContent value="qc-summary" className="flex-grow bg-white rounded-b-lg p-4 mt-0 overflow-y-auto text-slate-800">
                 <h3 className="text-lg font-bold text-slate-900 mb-2">QC Summary</h3>
@@ -78,13 +73,8 @@ const ResultsPanel = ({ results }) => {
                     </TableBody>
                   </Table>
             </TabsContent>
-             <TabsContent value="cross-plot" className="flex-grow bg-white rounded-b-lg p-2 mt-0">
-               <Plot
-                  data={crossPlot.data}
-                  layout={{ ...crossPlot.layout, paper_bgcolor: 'white', plot_bgcolor: 'white', font: { color: '#333' } }}
-                  useResizeHandler={true}
-                  className="w-full h-full"
-                />
+             <TabsContent value="cross-plot" className="flex-grow bg-white rounded-b-lg p-2 mt-0 flex items-center justify-center text-slate-500">
+               Chart removed
             </TabsContent>
           </Tabs>
         </div>

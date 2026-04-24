@@ -1,22 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
-import Plot from 'react-plotly.js';
+
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { v4 as uuidv4 } from 'uuid';
 
-const ViewerPanel = ({ seismicData, onSaveInterpretation, interpretations, highlightedInterpretation }) => {
-    const [plotRevision, setPlotRevision] = useState(0);
-    const [pickingMode, setPickingMode] = useState(null); // 'horizon', 'fault'
+const ViewerPanel = ({ seismicData, onSaveInterpretation }) => {
+    const [pickingMode, setPickingMode] = useState(null); 
     const [currentPick, setCurrentPick] = useState([]);
     const [pickName, setPickName] = useState('');
-    const plotRef = useRef(null);
-
-    const handlePickClick = (data) => {
-        if (!pickingMode) return;
-        const point = data.points[0];
-        setCurrentPick(prev => [...prev, [point.x, point.y]]);
-    };
 
     const startPicking = (mode) => {
         const name = prompt(`Enter name for new ${mode}:`);
@@ -50,54 +40,8 @@ const ViewerPanel = ({ seismicData, onSaveInterpretation, interpretations, highl
         setPickName('');
     };
 
-    useEffect(() => {
-        setPlotRevision(p => p + 1);
-    }, [seismicData, interpretations, highlightedInterpretation, currentPick]);
-
     if (!seismicData) {
         return <div className="flex items-center justify-center h-full bg-gray-800 text-gray-400">No seismic data loaded.</div>;
-    }
-
-    const traces = [
-        {
-            z: seismicData.traces,
-            x: seismicData.headers.map(h => h.inline),
-            y: seismicData.samples,
-            type: 'heatmap',
-            colorscale: 'Greys',
-            reversescale: true,
-            zmin: seismicData.percentiles.p1,
-            zmax: seismicData.percentiles.p99,
-            name: 'Seismic',
-            colorbar: {
-                title: 'Amplitude',
-                titleside: 'right'
-            }
-        }
-    ];
-
-    const shapes = [];
-
-    interpretations.forEach(interp => {
-        if (interp.geojson?.geometry?.type === 'LineString') {
-            shapes.push({
-                type: 'path',
-                path: interp.geojson.geometry.coordinates.map(p => `M ${p[0]},${p[1]}`).join(' L ').replace('M', 'M'),
-                line: {
-                    color: highlightedInterpretation?.id === interp.id ? 'cyan' : (interp.kind === 'fault' ? 'red' : 'yellow'),
-                    width: highlightedInterpretation?.id === interp.id ? 4 : 2,
-                    dash: interp.kind === 'fault' ? 'dash' : 'solid',
-                }
-            });
-        }
-    });
-
-    if (currentPick.length > 0) {
-        shapes.push({
-            type: 'path',
-            path: currentPick.map(p => `M ${p[0]},${p[1]}`).join(' L ').replace('M', 'M'),
-            line: { color: 'lime', width: 3, dash: 'dot' }
-        });
     }
 
     return (
@@ -113,23 +57,8 @@ const ViewerPanel = ({ seismicData, onSaveInterpretation, interpretations, highl
                     </>
                 )}
             </div>
-            <div className="flex-grow">
-                <Plot
-                    ref={plotRef}
-                    data={traces}
-                    layout={{
-                        title: 'Seismic Section',
-                        autosize: true,
-                        yaxis: { autorange: 'reversed', title: 'Time (ms)' },
-                        xaxis: { title: 'Inline' },
-                        template: 'plotly_dark',
-                        shapes: shapes,
-                        datarevision: plotRevision,
-                    }}
-                    useResizeHandler={true}
-                    style={{ width: '100%', height: '100%' }}
-                    onClick={handlePickClick}
-                />
+            <div className="flex-grow flex items-center justify-center bg-gray-900 text-slate-500">
+                Chart removed
             </div>
         </div>
     );

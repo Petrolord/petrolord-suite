@@ -1,4 +1,3 @@
-
 # App Navigation Audit Report
 
 ## Executive Summary

@@ -1,4 +1,3 @@
-
 /**
  * Utility for normalizing Module and App IDs to ensure consistency across the platform.
  * This handles cases where IDs might be stored as "Module: X" or "X" or different casing.

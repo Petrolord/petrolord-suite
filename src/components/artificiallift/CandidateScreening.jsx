@@ -1,29 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Zap, Wind, Wrench, ArrowRight, Check, X, Minus } from 'lucide-react';
 import { screenLiftSystems } from '@/utils/liftSystemScreening';
 import CollapsibleSection from '@/components/nodalanalysis/CollapsibleSection';
 
-const initialInputs = {
-  targetRate: 3000,
-  depth: 8000,
-  gor: 800,
-  waterCut: 20,
-  apiGravity: 35,
-  isOffshore: false,
-  hasSand: false,
-  isDeviated: true,
-  powerAvailable: true,
-  gasAvailable: true,
-};
-
-const CandidateScreening = ({ onProceed }) => {
-  const [inputs, setInputs] = useState(initialInputs);
+const CandidateScreening = ({ inputs, setInputs, onProceed }) => {
   const [results, setResults] = useState([]);
 
   useEffect(() => {
@@ -69,28 +54,28 @@ const CandidateScreening = ({ onProceed }) => {
           <CollapsibleSection title="Production & Reservoir" defaultOpen>
             <div className="space-y-3 p-1">
               <div>
-                <Label htmlFor="targetRate">Target Liquid Rate (bbl/d)</Label>
-                <Input id="targetRate" type="number" value={inputs.targetRate} onChange={(e) => handleInputChange('targetRate', parseFloat(e.target.value))} />
+                <Label htmlFor="targetRate" className="text-slate-200">Target Liquid Rate (bbl/d)</Label>
+                <Input id="targetRate" type="number" value={inputs.targetRate} onChange={(e) => handleInputChange('targetRate', parseFloat(e.target.value) || 0)} className="text-slate-900 bg-white" />
               </div>
               <div>
-                <Label htmlFor="depth">Well Depth (ft)</Label>
-                <Input id="depth" type="number" value={inputs.depth} onChange={(e) => handleInputChange('depth', parseFloat(e.target.value))} />
+                <Label htmlFor="depth" className="text-slate-200">Well Depth (ft)</Label>
+                <Input id="depth" type="number" value={inputs.depth} onChange={(e) => handleInputChange('depth', parseFloat(e.target.value) || 0)} className="text-slate-900 bg-white" />
               </div>
             </div>
           </CollapsibleSection>
           <CollapsibleSection title="Fluid Properties">
             <div className="space-y-3 p-1">
               <div>
-                <Label htmlFor="gor">Gas-Oil Ratio (scf/stb)</Label>
-                <Input id="gor" type="number" value={inputs.gor} onChange={(e) => handleInputChange('gor', parseFloat(e.target.value))} />
+                <Label htmlFor="gor" className="text-slate-200">Gas-Oil Ratio (scf/stb)</Label>
+                <Input id="gor" type="number" value={inputs.gor} onChange={(e) => handleInputChange('gor', parseFloat(e.target.value) || 0)} className="text-slate-900 bg-white" />
               </div>
               <div>
-                <Label htmlFor="waterCut">Water Cut (%)</Label>
-                <Input id="waterCut" type="number" value={inputs.waterCut} onChange={(e) => handleInputChange('waterCut', parseFloat(e.target.value))} />
+                <Label htmlFor="waterCut" className="text-slate-200">Water Cut (%)</Label>
+                <Input id="waterCut" type="number" value={inputs.waterCut} onChange={(e) => handleInputChange('waterCut', parseFloat(e.target.value) || 0)} className="text-slate-900 bg-white" />
               </div>
               <div>
-                <Label htmlFor="apiGravity">API Gravity</Label>
-                <Input id="apiGravity" type="number" value={inputs.apiGravity} onChange={(e) => handleInputChange('apiGravity', parseFloat(e.target.value))} />
+                <Label htmlFor="apiGravity" className="text-slate-200">API Gravity</Label>
+                <Input id="apiGravity" type="number" value={inputs.apiGravity} onChange={(e) => handleInputChange('apiGravity', parseFloat(e.target.value) || 0)} className="text-slate-900 bg-white" />
               </div>
             </div>
           </CollapsibleSection>
@@ -98,23 +83,23 @@ const CandidateScreening = ({ onProceed }) => {
             <div className="space-y-3 p-1">
               <div className="flex items-center space-x-2">
                 <Checkbox id="isOffshore" checked={inputs.isOffshore} onCheckedChange={(c) => handleCheckboxChange('isOffshore', c)} />
-                <Label htmlFor="isOffshore" className="mb-0">Offshore Location</Label>
+                <Label htmlFor="isOffshore" className="mb-0 text-slate-200">Offshore Location</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="hasSand" checked={inputs.hasSand} onCheckedChange={(c) => handleCheckboxChange('hasSand', c)} />
-                <Label htmlFor="hasSand" className="mb-0">Sand/Solids Production</Label>
+                <Label htmlFor="hasSand" className="mb-0 text-slate-200">Sand/Solids Production</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="isDeviated" checked={inputs.isDeviated} onCheckedChange={(c) => handleCheckboxChange('isDeviated', c)} />
-                <Label htmlFor="isDeviated" className="mb-0">Deviated Wellbore</Label>
+                <Label htmlFor="isDeviated" className="mb-0 text-slate-200">Deviated Wellbore</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="powerAvailable" checked={inputs.powerAvailable} onCheckedChange={(c) => handleCheckboxChange('powerAvailable', c)} />
-                <Label htmlFor="powerAvailable" className="mb-0">Electric Power Available</Label>
+                <Label htmlFor="powerAvailable" className="mb-0 text-slate-200">Electric Power Available</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="gasAvailable" checked={inputs.gasAvailable} onCheckedChange={(c) => handleCheckboxChange('gasAvailable', c)} />
-                <Label htmlFor="gasAvailable" className="mb-0">Lift Gas Source Available</Label>
+                <Label htmlFor="gasAvailable" className="mb-0 text-slate-200">Lift Gas Source Available</Label>
               </div>
             </div>
           </CollapsibleSection>
@@ -149,7 +134,7 @@ const CandidateScreening = ({ onProceed }) => {
                   </p>
                   <Button
                     size="sm"
-                    className="mt-2"
+                    className="mt-2 bg-blue-600 hover:bg-blue-500 text-white"
                     onClick={() => onProceed(result.type.toLowerCase().replace(' ', '_'))}
                     disabled={result.score < 50}
                   >

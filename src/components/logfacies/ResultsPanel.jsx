@@ -1,29 +1,15 @@
+
 import React from 'react';
-import Plot from 'react-plotly.js';
 import { Button } from '@/components/ui/button';
 import { Download, BarChart, Table as TableIcon, Columns, Lightbulb, CheckSquare } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-const commonLayout = {
-  autosize: true,
-  paper_bgcolor: 'rgba(0,0,0,0)',
-  plot_bgcolor: 'rgba(0,0,0,0)',
-  font: { color: '#fff' },
-  legend: { font: { color: '#fff' } },
-};
-
-const commonAxisLayout = (axis) => ({
-  ...axis,
-  color: '#fff',
-  gridcolor: 'rgba(255,255,255,0.1)'
-});
-
 const ResultsPanel = ({ results, onDownload }) => {
   if (!results) return null;
 
-  const { type, plot3d, logPlot, faciesSummary, elbowPlot, confusionMatrix } = results;
+  const { type, faciesSummary, confusionMatrix } = results;
 
   const renderTabs = () => {
     switch (type) {
@@ -77,34 +63,13 @@ const ResultsPanel = ({ results, onDownload }) => {
         {type === 'unsupervised' && (
           <>
             <TabsContent value="3d_plot" className="flex-grow mt-4">
-              <div className="bg-gray-800/50 rounded-lg p-4 h-full">
-                <Plot
-                  data={plot3d.data}
-                  layout={{
-                    ...commonLayout, ...plot3d.layout,
-                    scene: { ...plot3d.layout.scene, bgcolor: 'rgba(0,0,0,0)', 
-                        xaxis: commonAxisLayout(plot3d.layout.scene.xaxis),
-                        yaxis: commonAxisLayout(plot3d.layout.scene.yaxis),
-                        zaxis: commonAxisLayout(plot3d.layout.scene.zaxis),
-                    }
-                  }}
-                  useResizeHandler={true} style={{ width: '100%', height: '100%' }} config={{ responsive: true }}
-                />
+              <div className="bg-gray-800/50 rounded-lg p-4 h-full min-h-[400px] flex items-center justify-center text-slate-500">
+                Chart removed
               </div>
             </TabsContent>
             <TabsContent value="log_plot" className="flex-grow mt-4">
-              <div className="bg-gray-800/50 rounded-lg p-4 h-full">
-                <Plot
-                  data={logPlot.data}
-                  layout={{
-                    ...commonLayout, ...logPlot.layout,
-                    yaxis: commonAxisLayout(logPlot.layout.yaxis),
-                    xaxis: commonAxisLayout(logPlot.layout.xaxis),
-                    xaxis2: commonAxisLayout(logPlot.layout.xaxis2),
-                    xaxis3: commonAxisLayout(logPlot.layout.xaxis3),
-                  }}
-                  useResizeHandler={true} style={{ width: '100%', height: '100%' }} config={{ responsive: true }}
-                />
+              <div className="bg-gray-800/50 rounded-lg p-4 h-full min-h-[400px] flex items-center justify-center text-slate-500">
+                Chart removed
               </div>
             </TabsContent>
           </>
@@ -112,18 +77,8 @@ const ResultsPanel = ({ results, onDownload }) => {
         
         {type === 'supervised' && (
            <TabsContent value="log_plot" className="flex-grow mt-4">
-              <div className="bg-gray-800/50 rounded-lg p-4 h-full">
-                <Plot
-                  data={logPlot.data}
-                  layout={{
-                    ...commonLayout, ...logPlot.layout,
-                    yaxis: commonAxisLayout(logPlot.layout.yaxis),
-                    xaxis: commonAxisLayout(logPlot.layout.xaxis),
-                    xaxis2: commonAxisLayout(logPlot.layout.xaxis2),
-                    xaxis3: commonAxisLayout(logPlot.layout.xaxis3),
-                  }}
-                  useResizeHandler={true} style={{ width: '100%', height: '100%' }} config={{ responsive: true }}
-                />
+              <div className="bg-gray-800/50 rounded-lg p-4 h-full min-h-[400px] flex items-center justify-center text-slate-500">
+                Chart removed
               </div>
             </TabsContent>
         )}
@@ -166,14 +121,10 @@ const ResultsPanel = ({ results, onDownload }) => {
           </TabsContent>
         )}
 
-        {type === 'optimal-k' && elbowPlot && (
+        {type === 'optimal-k' && (
           <TabsContent value="elbow_plot" className="flex-grow mt-4">
-            <div className="bg-gray-800/50 rounded-lg p-4 h-full">
-              <Plot
-                data={elbowPlot.data}
-                layout={{ ...commonLayout, ...elbowPlot.layout, xaxis: commonAxisLayout(elbowPlot.layout.xaxis), yaxis: commonAxisLayout(elbowPlot.layout.yaxis) }}
-                useResizeHandler={true} style={{ width: '100%', height: '100%' }} config={{ responsive: true }}
-              />
+            <div className="bg-gray-800/50 rounded-lg p-4 h-full min-h-[400px] flex items-center justify-center text-slate-500">
+              Chart removed
             </div>
           </TabsContent>
         )}
@@ -183,11 +134,9 @@ const ResultsPanel = ({ results, onDownload }) => {
                 <div className="bg-gray-800/50 rounded-lg p-4 h-full">
                     <h3 className="text-xl font-bold text-white mb-2">Model Validation</h3>
                      <p className="text-lg text-lime-300 mb-4">Overall Accuracy: <span className="font-bold text-white">{(confusionMatrix.accuracy * 100).toFixed(2)}%</span></p>
-                    <Plot
-                        data={confusionMatrix.data}
-                        layout={{ ...commonLayout, ...confusionMatrix.layout, xaxis: commonAxisLayout(confusionMatrix.layout.xaxis), yaxis: commonAxisLayout(confusionMatrix.layout.yaxis) }}
-                        useResizeHandler={true} style={{ width: '100%', height: 'calc(100% - 60px)' }} config={{ responsive: true }}
-                    />
+                    <div className="w-full h-[calc(100%-60px)] min-h-[400px] flex items-center justify-center text-slate-500">
+                        Chart removed
+                    </div>
                 </div>
             </TabsContent>
         )}

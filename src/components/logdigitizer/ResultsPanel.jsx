@@ -1,7 +1,7 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
-import Plot from 'react-plotly.js';
 
 const ResultsPanel = ({ results }) => {
   const { inputs, logPlot } = results;
@@ -16,13 +16,8 @@ const ResultsPanel = ({ results }) => {
         </Button>
       </div>
       
-      <div className="flex-grow bg-white rounded-lg p-2">
-         <Plot
-            data={logPlot.data}
-            layout={{ ...logPlot.layout, paper_bgcolor: 'white', plot_bgcolor: '#f8f9fa', font: { color: '#333' } }}
-            useResizeHandler={true}
-            className="w-full h-full"
-          />
+      <div className="flex-grow bg-white rounded-lg p-2 flex items-center justify-center text-slate-500">
+         Chart removed
       </div>
     </div>
   );

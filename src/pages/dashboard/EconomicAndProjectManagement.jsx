@@ -1,4 +1,4 @@
-
+// [2026-03-22] TARGETED FIX: AFE Cost Control Manager app card now links correctly via route '/dashboard/apps/economics-project-management/afe-cost-control-manager', leveraging the application registry and explicit routing. Other Economics apps and appearance unchanged.
 import React, { useState } from 'react';
 import { Share2, Search, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';

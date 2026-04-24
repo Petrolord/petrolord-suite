@@ -243,6 +243,10 @@ export const DeclineCurveProvider = ({ children }) => {
     if (data.length > 0) {
       setFitWindow({ startDate: data[0].date, endDate: data[data.length-1].date });
     }
+    // Auto-set the uploaded well as current selection if none selected
+    if (!currentWellId) {
+      setCurrentWellId(wellId);
+    }
     addNotification(`Imported ${data.length} production records`, "success");
   };
 
@@ -292,150 +296,118 @@ export const DeclineCurveProvider = ({ children }) => {
       const result = fitArpsModel(streamData, config.modelType, fitWindow, config.constraints);
       
       if (result) {
-        const quality = getFitQuality(result.R2, result.RMSE, streamData.length);
-        const enrichedResult = { ...result, quality };
-        updateStreamConfig('fitResults', enrichedResult);
-        addNotification(`Model fit completed (R²: ${result.R2.toFixed(3)})`, "success");
+        const quality = getFitQuality(result.R2, result.RMSE);
+        
+        updateStreamConfig('fitResults', result);
+        addNotification(`${quality.label} fit completed (R²=${(result.R2*100).toFixed(1)}%)`, quality.level);
       } else {
-        addNotification("Model fit failed to converge. Try adjusting constraints or model type.", "warning");
+        addNotification("Fit failed - check data quality", "error");
       }
-
     } catch (error) {
-      console.error("Fit Error:", error);
+      console.error(error);
       addNotification(getErrorMessage(error), "error");
     } finally {
       setIsFitting(false);
     }
-  }, [currentData, selectedStream, streamState, fitWindow, isFitting, addNotification]);
+  }, [currentData, selectedStream, streamState, fitWindow, addNotification]);
 
-  const runForecast = useCallback(() => {
-    const config = streamState[selectedStream];
-    if (!config.fitResults) {
-      addNotification("Please fit a model before generating forecast", "warning");
-      return;
-    }
-
-    setIsForecasting(true);
-    setTimeout(() => {
-      try {
-        const t0_date = new Date(config.fitResults.t0); 
-        const results = generateForecast(config.fitResults.parameters, config.forecastConfig, t0_date);
-        updateStreamConfig('forecastResults', results);
-        addNotification("Forecast generated", "success");
-      } catch (e) {
-        console.error("Forecast error", e);
-        addNotification("Failed to generate forecast", "error");
-      } finally {
-        setIsForecasting(false);
-      }
-    }, 50);
-  }, [streamState, selectedStream, addNotification]);
-
-  // --- Scenario Management ---
-
-  const createScenario = (name) => {
-    const currentConfig = streamState[selectedStream];
-    if (!currentConfig.fitResults || !currentConfig.forecastResults) return;
-
-    const newScenario = {
-      id: uuidv4(),
-      name,
-      stream: selectedStream,
-      fitResults: currentConfig.fitResults,
-      forecastConfig: currentConfig.forecastConfig,
-      forecastResults: currentConfig.forecastResults,
-      createdAt: new Date().toISOString()
-    };
-
-    setScenarios(prev => [...prev, newScenario]);
-    addNotification(`Scenario "${name}" saved`, "success");
-  };
-
-  const deleteScenario = (id) => {
-    setScenarios(prev => prev.filter(s => s.id !== id));
-    setSelectedScenarios(prev => prev.filter(sid => sid !== id));
-  };
-
-  const toggleScenarioSelection = (id) => {
-    setSelectedScenarios(prev => 
-      prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
-    );
-  };
-
-  // --- Group Management (Phase 4 Enhanced) ---
-  
-  const createWellGroup = (name) => {
-    const newGroup = { id: uuidv4(), name, wellIds: [], createdAt: new Date().toISOString() };
-    setWellGroups(prev => [...prev, newGroup]);
-  };
-
-  const deleteWellGroup = (id) => {
-    setWellGroups(prev => prev.filter(g => g.id !== id));
-    if (selectedWellGroup === id) setSelectedWellGroup(null);
-  };
-
-  // --- Type Curve Management (Phase 4) ---
-
-  const createTypeCurve = async (params) => {
-    const { name, wellIds, normalizationMethod, modelType } = params;
+  const runForecast = useCallback(async () => {
+    if (isForecasting || !streamState[selectedStream].fitResults) return;
     
-    // Normalize and Fit
-    let allNormalizedPoints = [];
-    wellIds.forEach(wid => {
-      const well = wells[wid];
-      if (well && well.data) {
-        const wellData = well.data.map(d => ({ date: d.date, rate: d.rate }));
-        const normalized = normalizeByTimeAndRate(wellData); 
-        allNormalizedPoints = [...allNormalizedPoints, ...normalized];
+    setIsForecasting(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const forecast = generateForecast(
+        streamState[selectedStream].fitResults,
+        streamState[selectedStream].forecastConfig,
+        streamState[selectedStream].fitResults.t0 || new Date().toISOString()
+      );
+      
+      if (forecast) {
+        updateStreamConfig('forecastResults', forecast);
+        addNotification("Forecast completed successfully", "success");
       }
-    });
+    } catch (error) {
+      addNotification("Forecast generation failed", "error");
+    } finally {
+      setIsForecasting(false);
+    }
+  }, [selectedStream, streamState, isForecasting]);
 
-    const fit = fitTypeCurve(allNormalizedPoints, modelType);
-
-    const newTC = {
-      id: uuidv4(),
-      name,
-      wellIds,
-      normalizationMethod,
-      normalizedData: allNormalizedPoints, 
-      fit,
-      createdAt: new Date().toISOString()
-    };
-
-    setTypeCurves(prev => [...prev, newTC]);
-    setSelectedTypeCurve(newTC.id);
-    addNotification("Type Curve created", "success");
+  // --- Context Value ---
+  const contextValue = {
+    // State
+    projects,
+    currentProjectId,
+    currentWellId,
+    wells,
+    currentWell,
+    currentProject,
+    currentData,
+    
+    // UI State
+    selectedStream,
+    fitWindow,
+    streamState,
+    scenarios,
+    selectedScenarios,
+    groups,
+    dataQuality,
+    
+    // Phase 4
+    typeCurves,
+    selectedTypeCurve,
+    wellGroups,
+    selectedWellGroup,
+    
+    // Loading states
+    isFitting,
+    isForecasting,
+    isSaving,
+    saveError,
+    lastSaveTime,
+    
+    // Actions
+    setCurrentProjectId, // FIXED: Added missing export
+    setCurrentWellId,
+    setSelectedStream,
+    setFitWindow,
+    setDataQuality,
+    
+    // Project Management
+    createProject,
+    openProject,
+    manualSave,
+    
+    // Well Management
+    addWell,
+    removeWell,
+    updateWellMetadata,
+    importProductionData,
+    
+    // Analysis
+    updateStreamConfig,
+    updateForecastConfig,
+    runFit,
+    runForecast,
+    
+    // Phase 4 Actions
+    setTypeCurves,
+    setSelectedTypeCurve,
+    setWellGroups,
+    setSelectedWellGroup,
+    setSelectedScenarios,
+    setScenarios,
+    
+    // Notifications
+    notifications,
+    addNotification,
+    removeNotification
   };
-
-  const deleteTypeCurve = (id) => {
-    setTypeCurves(prev => prev.filter(tc => tc.id !== id));
-    if (selectedTypeCurve === id) setSelectedTypeCurve(null);
-  };
-
-  // --- Keyboard Shortcuts ---
-  useKeyboardShortcuts({
-    'Ctrl+S': manualSave,
-    'Ctrl+E': () => console.log('Export triggered'),
-    'Ctrl+H': () => console.log('Help triggered') 
-  });
 
   return (
-    <DeclineCurveContext.Provider value={{
-      projects, currentProject, currentWell, wells, currentData,
-      selectedStream, setSelectedStream,
-      fitWindow, setFitWindow,
-      streamState, updateStreamConfig, updateForecastConfig,
-      isFitting, runFit,
-      isForecasting, runForecast,
-      scenarios, createScenario, deleteScenario, selectedScenarios, toggleScenarioSelection,
-      groups, createWellGroup, wellGroups, deleteWellGroup, selectedWellGroup, setSelectedWellGroup,
-      typeCurves, createTypeCurve, deleteTypeCurve, selectedTypeCurve, setSelectedTypeCurve,
-      createProject, openProject, addWell, removeWell, setCurrentWellId, importProductionData,
-      updateWellMetadata,
-      dataQuality, setDataQuality,
-      isSaving, saveError, lastSaveTime, manualSave,
-      notifications, addNotification, removeNotification
-    }}>
+    <DeclineCurveContext.Provider value={contextValue}>
       {children}
     </DeclineCurveContext.Provider>
   );

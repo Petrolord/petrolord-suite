@@ -1,7 +1,7 @@
+
 import React from 'react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import { Card } from '@/components/ui/card';
-import Plot from 'react-plotly.js';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -19,7 +19,6 @@ const ProbabilisticResultsPanel = () => {
 
     const { stats } = probResults;
     const stooipStats = stats.stooip || {};
-    const hist = stooipStats.histogram || [];
 
     return (
         <ScrollArea className="h-full p-4">
@@ -41,48 +40,12 @@ const ProbabilisticResultsPanel = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <Card className="bg-slate-900 border-slate-800 p-4 h-[400px]">
                     <h4 className="text-sm font-bold text-white mb-2">STOOIP Distribution</h4>
-                    <Plot
-                        data={[{
-                            x: hist.map(h => (h.x0 + h.x1) / 2),
-                            y: hist.map(h => h.count),
-                            type: 'bar',
-                            marker: { color: '#3b82f6' }
-                        }]}
-                        layout={{
-                            autosize: true,
-                            paper_bgcolor: 'rgba(0,0,0,0)',
-                            plot_bgcolor: 'rgba(0,0,0,0)',
-                            margin: { t: 10, r: 10, l: 40, b: 40 },
-                            xaxis: { title: 'STOOIP (STB)', color: '#94a3b8' },
-                            yaxis: { title: 'Frequency', color: '#94a3b8' },
-                            font: { color: '#94a3b8' }
-                        }}
-                        useResizeHandler
-                        style={{ width: '100%', height: '90%' }}
-                    />
+                    <div className="flex items-center justify-center w-full h-full text-slate-500">Chart removed</div>
                 </Card>
 
                 <Card className="bg-slate-900 border-slate-800 p-4 h-[400px]">
                     <h4 className="text-sm font-bold text-white mb-2">Sensitivity (Tornado)</h4>
-                    <Plot
-                        data={[{
-                            y: stats.sensitivity.map(s => s.parameter.toUpperCase()),
-                            x: stats.sensitivity.map(s => s.correlation),
-                            type: 'bar',
-                            orientation: 'h',
-                            marker: { color: stats.sensitivity.map(s => s.correlation > 0 ? '#10b981' : '#ef4444') }
-                        }]}
-                        layout={{
-                            autosize: true,
-                            paper_bgcolor: 'rgba(0,0,0,0)',
-                            plot_bgcolor: 'rgba(0,0,0,0)',
-                            margin: { t: 10, r: 10, l: 100, b: 40 },
-                            xaxis: { title: 'Correlation Coefficient', color: '#94a3b8' },
-                            font: { color: '#94a3b8' }
-                        }}
-                        useResizeHandler
-                        style={{ width: '100%', height: '90%' }}
-                    />
+                    <div className="flex items-center justify-center w-full h-full text-slate-500">Chart removed</div>
                 </Card>
             </div>
 

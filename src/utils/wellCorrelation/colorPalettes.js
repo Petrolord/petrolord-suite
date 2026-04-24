@@ -1,4 +1,3 @@
-
 export const getLogColor = (mnemonic) => {
   const colors = {
     'GR': '#4CAF50',

@@ -1,0 +1,39 @@
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+coverage/
+
+# Test files - CRITICAL: Exclude all test files from ESLint
+src/__tests__/
+**/__tests__/
+**/*.test.js
+**/*.test.jsx
+**/*.spec.js
+**/*.spec.jsx
+src/components/**/__tests__/
+src/utils/**/__tests__/
+src/pages/**/__tests__/
+src/__tests__/**
+
+# Config files that don't need linting
+vite.config.js
+tailwind.config.js
+postcss.config.js
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+*~

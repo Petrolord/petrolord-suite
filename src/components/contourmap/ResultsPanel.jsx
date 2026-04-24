@@ -1,5 +1,5 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import Plot from 'react-plotly.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Map, Grid as GridIcon } from 'lucide-react';
 
@@ -21,11 +21,11 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
 
     let newWidth, newHeight, offsetX = 0, offsetY = 0;
 
-    if (containerAR > imageAR) { // Container is wider than image
+    if (containerAR > imageAR) {
       newHeight = container.clientHeight;
       newWidth = newHeight * imageAR;
       offsetX = (container.clientWidth - newWidth) / 2;
-    } else { // Container is taller than or equal to image
+    } else {
       newWidth = container.clientWidth;
       newHeight = newWidth / imageAR;
       offsetY = (container.clientHeight - newHeight) / 2;
@@ -48,7 +48,6 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
     ctx.save();
     ctx.translate(offsetX, offsetY);
 
-    // Draw layers
     Object.entries(layers).forEach(([layerName, lines]) => {
       ctx.lineWidth = 2;
       ctx.strokeStyle = layerName === 'faults' ? 'yellow' : 'cyan';
@@ -64,7 +63,6 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
       });
     });
 
-    // Draw control points
     ctx.font = '12px Arial';
     controlPoints.forEach((pt, i) => {
       if (pt.pixel[0] !== null) {
@@ -77,7 +75,6 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
       }
     });
     
-    // Draw current manual line
     if (isDrawing && currentLine.length > 1 && drawMode === 'manual') {
         ctx.strokeStyle = 'lime';
         ctx.lineWidth = 1.5;
@@ -87,7 +84,6 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
         ctx.stroke();
     }
 
-    // Draw AI box
     if (aiBox) {
         ctx.strokeStyle = 'magenta';
         ctx.lineWidth = 2;
@@ -150,11 +146,6 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
   };
 
   const handleStart = (e) => {
-    // Prevent scrolling when drawing on touch
-    if (drawMode !== 'none') {
-        // e.preventDefault(); // Sometimes problematic with React synthetic events
-    }
-    
     const { x, y } = getPointerPos(e);
     if (x < 0 || y < 0 || x > imageDimensions.width || y > imageDimensions.height) return;
 
@@ -202,26 +193,10 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
 
   const renderGridPlot = () => {
     if (!results?.grid) return <div className="text-center p-8 text-gray-400">3D Grid will be displayed here after generation.</div>;
-    const { x, y, z } = results.grid;
     return (
-      <Plot
-        data={[{ x, y, z, type: 'surface', colorscale: 'Viridis', contours: { z: { show: true, usecolormap: true, highlightcolor: "#42f462", project: { z: true } } } }]}
-        layout={{
-          title: '3D Surface Grid',
-          autosize: true,
-          scene: {
-            xaxis: { title: 'X' },
-            yaxis: { title: 'Y' },
-            zaxis: { title: 'Z (Depth)', autorange: 'reversed' },
-          },
-          margin: { l: 0, r: 0, b: 0, t: 40 },
-          paper_bgcolor: 'transparent',
-          plot_bgcolor: 'transparent',
-          font: { color: 'white' }
-        }}
-        useResizeHandler={true}
-        className="w-full h-full"
-      />
+      <div className="w-full h-full flex items-center justify-center text-slate-400">
+        Chart removed
+      </div>
     );
   };
 

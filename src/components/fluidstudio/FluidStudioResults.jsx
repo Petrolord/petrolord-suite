@@ -1,3 +1,4 @@
+
 import React from 'react';
     import { useNavigate } from 'react-router-dom';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -6,9 +7,6 @@ import React from 'react';
     import { ScrollArea } from "@/components/ui/scroll-area";
     import { Button } from '@/components/ui/button';
     import { Droplets, Thermometer, Wind, Beaker, BarChart, AlertTriangle, Snowflake, Route, Combine as Blend, CheckCircle, XCircle, SlidersHorizontal, Share2, Zap } from 'lucide-react';
-    import Plotly from 'plotly.js-dist-min';
-    import createPlotlyComponent from 'react-plotly.js/factory';
-    const Plot = createPlotlyComponent(Plotly);
 
     const KPICard = ({ title, value, unit, icon: Icon }) => (
       <Card className="bg-slate-800/50 border-slate-700 text-white">
@@ -24,108 +22,25 @@ import React from 'react';
     );
 
     const PvtPlot = ({ data, yKey, yAxisTitle, bubblePoint }) => {
-      const plotData = [{
-        x: data.pressure,
-        y: data[yKey],
-        type: 'scatter',
-        mode: 'lines',
-        line: { color: '#22d3ee', width: 2.5 },
-        name: yAxisTitle,
-      }];
-
-      const layout = {
-        title: { text: yAxisTitle, font: { color: '#e2e8f0', size: 16 }, x: 0.05, xanchor: 'left' },
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: 'rgba(0,0,0,0)',
-        font: { color: '#94a3b8' },
-        xaxis: { title: 'Pressure (psi)', gridcolor: 'rgba(255, 255, 255, 0.1)' },
-        yaxis: { title: yAxisTitle, gridcolor: 'rgba(255, 255, 255, 0.1)' },
-        shapes: bubblePoint ? [{ type: 'line', x0: bubblePoint, x1: bubblePoint, y0: 0, y1: 1, yref: 'paper', line: { color: '#f59e0b', width: 2, dash: 'dash' } }] : [],
-        annotations: bubblePoint ? [{ x: bubblePoint, y: 1.05, yref: 'paper', text: `Pb: ${bubblePoint.toFixed(0)} psi`, showarrow: false, font: { color: '#f59e0b' } }] : [],
-        margin: { l: 65, r: 20, b: 50, t: 50, pad: 4 },
-        autosize: true,
-        showlegend: false,
-      };
-
       return (
-        <div className="bg-white/5 p-2 rounded-lg h-80 border border-white/10">
-          <Plot data={plotData} layout={layout} useResizeHandler={true} style={{ width: '100%', height: '100%' }} config={{ responsive: true, displaylogo: false }} />
+        <div className="bg-white/5 p-2 rounded-lg h-80 border border-white/10 flex items-center justify-center text-slate-500">
+          Chart removed
         </div>
       );
     };
     
     const FlowAssurancePlot = ({ hydrateCurve, ptProfile }) => {
-      const plotData = [
-        {
-          x: hydrateCurve.temperature,
-          y: hydrateCurve.pressure,
-          type: 'scatter',
-          mode: 'lines',
-          line: { color: '#38bdf8', width: 2.5 },
-          name: 'Hydrate Envelope'
-        },
-      ];
-
-      if (ptProfile && ptProfile.pressure.length > 0) {
-        plotData.push({
-          x: ptProfile.temperature,
-          y: ptProfile.pressure,
-          type: 'scatter',
-          mode: 'lines+markers',
-          line: { color: '#fbbf24', width: 2.5 },
-          marker: { size: 6 },
-          name: 'P-T Profile'
-        });
-      }
-
-      const layout = {
-        title: { text: 'Hydrate Formation Envelope', font: { color: '#e2e8f0', size: 16 }, x: 0.05, xanchor: 'left' },
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: 'rgba(0,0,0,0)',
-        font: { color: '#94a3b8' },
-        xaxis: { title: 'Temperature (°F)', gridcolor: 'rgba(255, 255, 255, 0.1)' },
-        yaxis: { title: 'Pressure (psi)', gridcolor: 'rgba(255, 255, 255, 0.1)' },
-        margin: { l: 65, r: 20, b: 50, t: 50, pad: 4 },
-        autosize: true,
-        legend: { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' }
-      };
-
       return (
-        <div className="bg-white/5 p-2 rounded-lg h-96 border border-white/10">
-          <Plot data={plotData} layout={layout} useResizeHandler={true} style={{ width: '100%', height: '100%' }} config={{ responsive: true, displaylogo: false }} />
+        <div className="bg-white/5 p-2 rounded-lg h-96 border border-white/10 flex items-center justify-center text-slate-500">
+          Chart removed
         </div>
       );
     };
 
     const BatchRunPlot = ({ summary, variable }) => {
-        const variableMap = {
-            api: 'API Gravity',
-            gor: 'Gas-Oil Ratio (scf/stb)',
-            gasSg: 'Gas Specific Gravity',
-            temp: 'Reservoir Temperature (°F)',
-        };
-
-        const plotData = [
-            { x: summary.map(r => r.input), y: summary.map(r => r.pb), name: 'Bubble Point (psi)', type: 'scatter', mode: 'lines+markers', yaxis: 'y1' },
-            { x: summary.map(r => r.input), y: summary.map(r => r.bo_at_pb), name: 'Oil FVF @ Pb (rb/stb)', type: 'scatter', mode: 'lines+markers', yaxis: 'y2' },
-        ];
-
-        const layout = {
-            title: { text: `Sensitivity to ${variableMap[variable]}`, font: { color: '#e2e8f0', size: 16 } },
-            paper_bgcolor: 'rgba(0,0,0,0)',
-            plot_bgcolor: 'rgba(0,0,0,0)',
-            font: { color: '#94a3b8' },
-            xaxis: { title: variableMap[variable], gridcolor: 'rgba(255, 255, 255, 0.1)' },
-            yaxis: { title: 'Bubble Point (psi)', titlefont: { color: '#38bdf8' }, tickfont: { color: '#38bdf8' }, gridcolor: 'rgba(255, 255, 255, 0.1)' },
-            yaxis2: { title: 'Oil FVF @ Pb (rb/stb)', titlefont: { color: '#fbbf24' }, tickfont: { color: '#fbbf24' }, overlaying: 'y', side: 'right' },
-            margin: { l: 65, r: 80, b: 50, t: 50, pad: 4 },
-            autosize: true,
-            legend: { orientation: 'h', y: -0.2, x: 0.5, xanchor: 'center' }
-        };
-
         return (
-            <div className="bg-white/5 p-2 rounded-lg h-96 border border-white/10">
-                <Plot data={plotData} layout={layout} useResizeHandler={true} style={{ width: '100%', height: '100%' }} config={{ responsive: true, displaylogo: false }} />
+            <div className="bg-white/5 p-2 rounded-lg h-96 border border-white/10 flex items-center justify-center text-slate-500">
+                Chart removed
             </div>
         );
     };

@@ -1,8 +1,9 @@
+
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import Plot from 'react-plotly.js';
-import { BarChart2, PieChart, TrendingUp, Maximize2, ChevronDown, ChevronUp, Grid } from 'lucide-react';
+import { BarChart2, PieChart as PieChartIcon, TrendingUp, Maximize2, ChevronDown, ChevronUp, Grid } from 'lucide-react';
+import { ScatterChart, Scatter, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useBasinFlow } from '../../contexts/BasinFlowContext';
 import { useMultiWell } from '../../contexts/MultiWellContext';
 import { useCollaboration } from '../../contexts/CollaborationContext';
@@ -40,18 +41,13 @@ const AnalyticsDashboard = () => {
 
     // 2. Maturity Trends (Derived from Thermal History of active project if exists)
     const maturityData = useMemo(() => {
-        // Use real calculated Ro data if available, else fallback to calibration data points
         if (bfState.calibration?.ro?.length > 0) {
-            return {
-                x: bfState.calibration.ro.map(p => p.value),
-                y: bfState.calibration.ro.map(p => p.depth),
-                type: 'scatter',
-                mode: 'markers',
-                name: 'Measured Ro',
-                marker: { color: '#f472b6', size: 8 }
-            };
+            return bfState.calibration.ro.map(p => ({
+                x: p.value,
+                y: p.depth
+            }));
         }
-        return null;
+        return [];
     }, [bfState.calibration]);
 
     // 3. Activity/Productivity (Real from Collaboration Context)
@@ -65,8 +61,14 @@ const AnalyticsDashboard = () => {
             counts[dayIndex]++;
         });
         
-        return { x: days, y: counts };
+        return days.map((day, i) => ({ day, count: counts[i] }));
     }, [activityLog]);
+
+    const pieData = [
+        { name: 'Calibrated', value: wellStats.withCalibration },
+        { name: 'Uncalibrated', value: wellStats.total - wellStats.withCalibration }
+    ];
+    const COLORS = ['#10b981', '#334155'];
 
     return (
         <div className="h-full p-6 bg-slate-950 overflow-y-auto scroll-smooth">
@@ -125,25 +127,21 @@ const AnalyticsDashboard = () => {
 
             <CollapsibleSection title="Simulation Data Analysis" icon={TrendingUp}>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="bg-slate-950 border border-slate-800 rounded-lg p-2 h-[400px] relative group">
+                    <div className="bg-slate-950 border border-slate-800 rounded-lg p-2 h-[400px] relative group flex flex-col">
+                        <h3 className="text-center text-sm text-slate-300 mt-2 mb-4">Measured Maturity vs Depth</h3>
                         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                             <Button variant="ghost" size="icon" className="h-6 w-6 bg-slate-800/80"><Maximize2 className="w-3 h-3 text-white" /></Button>
                         </div>
-                        {maturityData ? (
-                            <Plot
-                                data={[maturityData]}
-                                layout={{
-                                    title: { text: 'Measured Maturity vs Depth', font: { size: 14, color: '#e2e8f0' } },
-                                    paper_bgcolor: 'rgba(0,0,0,0)',
-                                    plot_bgcolor: 'rgba(0,0,0,0)',
-                                    font: { color: '#94a3b8' },
-                                    yaxis: { title: 'Depth (m)', autorange: 'reversed', gridcolor: '#334155' },
-                                    xaxis: { title: 'Vitrinite Reflectance (%)', gridcolor: '#334155' },
-                                    margin: { t: 40, l: 50, r: 20, b: 40 }
-                                }}
-                                useResizeHandler={true}
-                                style={{ width: '100%', height: '100%' }}
-                            />
+                        {maturityData.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <ScatterChart layout="vertical" margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                    <XAxis type="number" dataKey="x" stroke="#94a3b8" label={{ value: 'Vitrinite Reflectance (%)', position: 'bottom', fill: '#94a3b8', fontSize: 12 }} />
+                                    <YAxis type="number" dataKey="y" reversed stroke="#94a3b8" label={{ value: 'Depth (m)', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} />
+                                    <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }} />
+                                    <Scatter name="Measured Ro" data={maturityData} fill="#f472b6" />
+                                </ScatterChart>
+                            </ResponsiveContainer>
                         ) : (
                             <div className="h-full flex items-center justify-center text-slate-500 text-sm">
                                 No maturity calibration data loaded.
@@ -151,50 +149,44 @@ const AnalyticsDashboard = () => {
                         )}
                     </div>
 
-                    <div className="bg-slate-950 border border-slate-800 rounded-lg p-2 h-[400px]">
-                         <Plot
-                            data={[{
-                                values: [wellStats.withCalibration, wellStats.total - wellStats.withCalibration],
-                                labels: ['Calibrated', 'Uncalibrated'],
-                                type: 'pie',
-                                hole: 0.4,
-                                marker: { colors: ['#10b981', '#334155'] }
-                            }]}
-                            layout={{
-                                title: { text: 'Well Calibration Status', font: { size: 14, color: '#e2e8f0' } },
-                                paper_bgcolor: 'rgba(0,0,0,0)',
-                                font: { color: '#e2e8f0' },
-                                margin: { t: 40, l: 20, r: 20, b: 20 },
-                                showlegend: true
-                            }}
-                            useResizeHandler={true}
-                            style={{ width: '100%', height: '100%' }}
-                        />
+                    <div className="bg-slate-950 border border-slate-800 rounded-lg p-2 h-[400px] flex flex-col">
+                         <h3 className="text-center text-sm text-slate-300 mt-2 mb-4">Well Calibration Status</h3>
+                         <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={pieData}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius="40%"
+                                    outerRadius="70%"
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                >
+                                    {pieData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }} />
+                                <Legend />
+                            </PieChart>
+                         </ResponsiveContainer>
                     </div>
                 </div>
             </CollapsibleSection>
 
             <CollapsibleSection title="Team Performance" icon={BarChart2}>
-                <div className="h-[300px] bg-slate-950 border border-slate-800 rounded-lg p-2 w-full">
-                    <Plot
-                        data={[{
-                            x: activityStats.x,
-                            y: activityStats.y,
-                            type: 'bar',
-                            marker: { color: '#6366f1', opacity: 0.8 }
-                        }]}
-                        layout={{
-                            title: { text: 'Activity Volume (Last 7 Days)', font: { size: 14, color: '#e2e8f0' } },
-                            paper_bgcolor: 'rgba(0,0,0,0)',
-                            plot_bgcolor: 'rgba(0,0,0,0)',
-                            font: { color: '#94a3b8' },
-                            margin: { t: 40, l: 40, r: 20, b: 40 },
-                            yaxis: { gridcolor: '#334155', title: 'Actions' },
-                            xaxis: { gridcolor: '#334155' }
-                        }}
-                        useResizeHandler={true}
-                        style={{ width: '100%', height: '100%' }}
-                    />
+                <div className="h-[300px] bg-slate-950 border border-slate-800 rounded-lg p-2 w-full flex flex-col">
+                    <h3 className="text-center text-sm text-slate-300 mt-2 mb-4">Activity Volume (Last 7 Days)</h3>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={activityStats} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                            <XAxis dataKey="day" stroke="#94a3b8" />
+                            <YAxis stroke="#94a3b8" label={{ value: 'Actions', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
+                            <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }} cursor={{fill: '#334155', opacity: 0.4}} />
+                            <Bar dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
                 </div>
             </CollapsibleSection>
         </div>

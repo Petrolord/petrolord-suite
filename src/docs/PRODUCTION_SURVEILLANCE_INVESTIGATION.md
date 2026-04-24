@@ -1,0 +1,2 @@
+# Redirect Notice
+The contents of this investigation have been consolidated and fully documented inside `src/docs/PRODUCTION_SURVEILLANCE_PHASE1_REPORT.md` as per the latest analysis phase. Please refer to that document for the comprehensive breakdown.

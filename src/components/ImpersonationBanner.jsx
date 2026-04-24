@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
