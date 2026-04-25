@@ -6,6 +6,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { AlertCircle, CheckCircle, TrendingUp, Target, BarChart3 } from 'lucide-react';
 import { calculateR2, calculateRMSE, calculateResiduals, getVerdictInfo, calculateArpsConfidenceIntervals } from '@/utils/dcaDiagnostics';
 import { detectSegmentBreakpoints } from '@/utils/dcaSegmentDetection';
+import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
+import { CHART_COLORS, TOOLTIP_STYLE, GRID_STYLE, CHART_TYPOGRAPHY } from '@/utils/chartTheme';
 
 const DCAFitDiagnostics = () => {
   const { wells, currentWellId, currentWell, selectedStream, streamState } = useDeclineCurve();
@@ -53,8 +55,26 @@ const DCAFitDiagnostics = () => {
               : calculateR2(actualData, predictedData);
   const rmse = (typeof fitResults.RMSE === 'number') ? fitResults.RMSE
               : calculateRMSE(actualData, predictedData);
-  const residuals = (actualData && predictedData)
-              ? calculateResiduals(actualData, predictedData) : [];
+  let residuals = [];
+  if (fitResults && fitResults.qi && fitResults.t0 && productionData.length > 0) {
+    const t0ms = new Date(fitResults.t0).getTime();
+    residuals = productionData
+      .filter(p => p.rate > 0)
+      .map(p => {
+        const tDays = (new Date(p.date).getTime() - t0ms) / 86400000;
+        const predicted = calculateArpsHyperbolic(fitResults.qi, fitResults.Di, fitResults.b, tDays);
+        const rawResidual = p.rate - predicted;
+        // Normalize residual by observed rate for comparability across magnitudes
+        const normalizedResidual = predicted > 0 ? rawResidual / predicted : 0;
+        return {
+          time: tDays,
+          date: p.date,
+          observed: p.rate,
+          predicted,
+          residual: normalizedResidual
+        };
+      });
+  }
   const verdictInfo = getVerdictInfo(r2);
   const confidenceIntervals = calculateArpsConfidenceIntervals(parameters, actualData, predictedData);
   
@@ -80,10 +100,12 @@ const DCAFitDiagnostics = () => {
     }
   };
   
-  // Detect outliers (beyond ±2σ)
-  const residualMean = residuals.reduce((sum, r) => sum + r.residual, 0) / residuals.length;
-  const residualStd = Math.sqrt(residuals.reduce((sum, r) => sum + Math.pow(r.residual - residualMean, 2), 0) / residuals.length);
-  const outlierThreshold = 2 * residualStd;
+  // Detect outliers (beyond ±2σ). Guard against empty residuals.
+  const residualMean = residuals.length > 0
+    ? residuals.reduce((sum, r) => sum + r.residual, 0) / residuals.length : 0;
+  const residualStd = residuals.length > 0
+    ? Math.sqrt(residuals.reduce((sum, r) => sum + Math.pow(r.residual - residualMean, 2), 0) / residuals.length) : 0;
+  const outlierThreshold = residuals.length > 0 ? 2 * residualStd : 1;
   
   const residualsWithOutliers = residuals.map(point => ({
     ...point,
@@ -217,10 +239,10 @@ const DCAFitDiagnostics = () => {
       </Card>
       
       {/* Residuals Plot */}
-      <Card className="bg-slate-900 border-slate-800 flex-1 min-h-0">
+      <Card className="bg-white border-slate-200 flex-1 min-h-0">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <TrendingUp size={16} className="text-purple-400" />
+          <CardTitle className="text-sm flex items-center gap-2 text-slate-900">
+            <TrendingUp size={16} className="text-indigo-600" />
             Normalized Residuals
           </CardTitle>
         </CardHeader>
@@ -228,48 +250,53 @@ const DCAFitDiagnostics = () => {
           <div className="flex-1 min-h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={residualsWithOutliers}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
                 <XAxis 
                   dataKey="time" 
-                  stroke="#9CA3AF" 
-                  fontSize={10}
-                  axisLine={false}
-                  tickLine={false}
+                  type="number"
+                  domain={['dataMin', 'dataMax']}
+                  stroke={CHART_COLORS.axisLine}
+                  tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+                  axisLine={{ stroke: CHART_COLORS.axisLine }}
+                  tickLine={{ stroke: CHART_COLORS.axisLine }}
+                  label={{ value: 'Time (days)', position: 'insideBottom', offset: -5, fill: CHART_COLORS.axisLabel, fontSize: 11 }}
                 />
                 <YAxis 
-                  stroke="#9CA3AF" 
-                  fontSize={10}
-                  axisLine={false}
-                  tickLine={false}
+                  stroke={CHART_COLORS.axisLine}
+                  tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+                  axisLine={{ stroke: CHART_COLORS.axisLine }}
+                  tickLine={{ stroke: CHART_COLORS.axisLine }}
+                  label={{ value: 'Normalized Residual', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 11 }}
                 />
                 <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1F2937', 
-                    border: '1px solid #374151',
-                    borderRadius: '6px',
-                    fontSize: '12px'
-                  }}
+                  contentStyle={TOOLTIP_STYLE}
                   labelFormatter={(value) => `Time: ${value}`}
                   formatter={(value, name) => [
                     `${value.toFixed(3)}`, 
                     name === 'residual' ? 'Residual' : name
                   ]}
                 />
-                <ReferenceLine y={0} stroke="#6B7280" strokeDasharray="2 2" />
+                <ReferenceLine y={0} stroke={CHART_COLORS.axisLine} strokeDasharray="2 2" />
                 <ReferenceLine y={outlierThreshold} stroke="#EF4444" strokeDasharray="1 1" strokeOpacity={0.5} />
                 <ReferenceLine y={-outlierThreshold} stroke="#EF4444" strokeDasharray="1 1" strokeOpacity={0.5} />
                 <Line 
                   type="monotone" 
                   dataKey="residual" 
-                  stroke={(entry) => entry?.isOutlier ? '#EF4444' : '#8B5CF6'}
-                  strokeWidth={1}
+                  stroke="#8B5CF6"
+                  strokeWidth={1.5}
+                  isAnimationActive={false}
                   dot={(props) => {
-                    const { payload } = props;
+                    const { cx, cy, payload, key } = props;
+                    if (cx == null || cy == null) return null;
+                    const isOutlier = payload?.isOutlier;
                     return (
                       <circle 
-                        {...props} 
-                        fill={payload?.isOutlier ? '#EF4444' : '#8B5CF6'}
-                        r={payload?.isOutlier ? 3 : 1.5}
+                        key={key}
+                        cx={cx}
+                        cy={cy}
+                        r={isOutlier ? 3 : 1.5}
+                        fill={isOutlier ? '#EF4444' : '#8B5CF6'}
+                        stroke="none"
                       />
                     );
                   }}
