@@ -3,7 +3,7 @@ import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
 import { Button } from '@/components/ui/button';
 import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
 import { Camera } from 'lucide-react';
-import { ResponsiveContainer, ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label } from 'recharts';
+import { ResponsiveContainer, ComposedChart, Scatter, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label } from 'recharts';
 import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
 import {
   CHART_COLORS,
@@ -49,13 +49,36 @@ const DCABasePlots = () => {
     
     // Add forecast points if available
     if (forecastResults?.rates) {
+      // Compute P10/P90 analytic envelope from fit + CIs (industry-standard)
+      const ci = fit?.confidenceIntervals;
+      const showProb = !!forecastResults?.probabilistic && ci?.hasIntervals;
+      // 1.28σ ≈ 80% range (P10–P90 in petroleum convention).
+      // Optimistic: higher qi, lower Di → upper envelope
+      // Pessimistic: lower qi, higher Di → lower envelope
+      const z = 1.28;
+      const qiOpt  = showProb ? fit.qi + z * (ci.qi || 0) : null;
+      const qiPess = showProb ? Math.max(fit.qi - z * (ci.qi || 0), 0.001) : null;
+      const DiOpt  = showProb ? Math.max(fit.Di - z * (ci.Di || 0), 0.0001) : null;
+      const DiPess = showProb ? fit.Di + z * (ci.Di || 0) : null;
+
       forecastResults.rates.forEach(point => {
-        merged.push({
+        const row = {
           date: point.date,
           history: null,
           forecast: point.rate,
-          fitted: null
-        });
+          fitted: null,
+          p10: null,
+          p90: null
+        };
+        if (showProb) {
+          const tDays = (new Date(point.date) - new Date(fit.t0)) / 86400000;
+          const r10 = calculateArpsHyperbolic(qiOpt, DiOpt, fit.b, tDays);
+          const r90 = calculateArpsHyperbolic(qiPess, DiPess, fit.b, tDays);
+          // Defensive: ensure p10 >= p90 (high >= low) for the band
+          row.p10 = Math.max(r10, r90);
+          row.p90 = Math.min(r10, r90);
+        }
+        merged.push(row);
       });
     }
     
@@ -140,10 +163,19 @@ const DCABasePlots = () => {
                     contentStyle={TOOLTIP_STYLE}
                     labelStyle={{ color: CHART_COLORS.tooltipText }}
                     itemStyle={{ color: CHART_COLORS.tooltipText }}
-                    formatter={(value, name) => [
-                      value ? value.toFixed(1) : 'N/A',
-                      name
-                    ]}
+                    formatter={(value, name) => {
+                      // Skip range values (P10-P90 band) - they come as arrays
+                      if (Array.isArray(value)) {
+                        return [`${value[0].toFixed(1)} – ${value[1].toFixed(1)}`, name];
+                      }
+                      // Skip null/undefined
+                      if (value == null) return ['N/A', name];
+                      // Standard numeric value
+                      if (typeof value === 'number') {
+                        return [value.toFixed(1), name];
+                      }
+                      return ['N/A', name];
+                    }}
                   />
                   <Legend 
                     verticalAlign="bottom" 
@@ -175,7 +207,50 @@ const DCABasePlots = () => {
                     connectNulls={false}
                   />
                   
-                  {/* Forecast Data as Line */}
+                  {/* P10–P90 Envelope Band (filled area) */}
+                  <Area
+                    type="monotone"
+                    dataKey={(d) => (d.p10 != null && d.p90 != null) ? [d.p90, d.p10] : null}
+                    stroke="none"
+                    fill={palette.forecast}
+                    fillOpacity={0.18}
+                    name="P10–P90 Range"
+                    connectNulls={false}
+                    isAnimationActive={false}
+                    activeDot={false}
+                  />
+
+                  {/* P10 (optimistic) boundary */}
+                  <Line
+                    type="monotone"
+                    dataKey="p10"
+                    stroke={palette.forecast}
+                    strokeWidth={1}
+                    strokeDasharray="2 4"
+                    strokeOpacity={0.7}
+                    dot={false}
+                    activeDot={false}
+                    name="P10"
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+
+                  {/* P90 (pessimistic) boundary */}
+                  <Line
+                    type="monotone"
+                    dataKey="p90"
+                    stroke={palette.forecast}
+                    strokeWidth={1}
+                    strokeDasharray="2 4"
+                    strokeOpacity={0.7}
+                    dot={false}
+                    activeDot={false}
+                    name="P90"
+                    connectNulls={false}
+                    isAnimationActive={false}
+                  />
+
+                  {/* Forecast Data as Line (P50 / deterministic central) */}
                   <Line 
                     type="monotone"
                     dataKey="forecast"
@@ -183,7 +258,7 @@ const DCABasePlots = () => {
                     strokeWidth={2}
                     strokeDasharray="6 4"
                     dot={false}
-                    name="Forecast"
+                    name="Forecast (P50)"
                     connectNulls={false}
                   />
                 </ComposedChart>
