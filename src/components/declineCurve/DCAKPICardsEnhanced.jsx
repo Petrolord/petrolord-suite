@@ -26,6 +26,8 @@ const DCAKPICardsEnhanced = () => {
   // Use forecast results if available, otherwise N/A
   const eur = forecastResults ? forecastResults.eur : 0;
   const timeLeft = forecastResults ? (forecastResults.timeToLimit / 365).toFixed(1) : '-';
+  const probabilistic = forecastResults?.probabilistic;
+  const isProbabilistic = !!probabilistic && probabilistic.iterations > 0;
 
   const formatNum = (n) => typeof n === 'number' ? n.toLocaleString(undefined, {maximumFractionDigits: 2}) : '-';
 
@@ -60,13 +62,39 @@ const DCAKPICardsEnhanced = () => {
         value={formatNum(R2)} 
         color="text-blue-400"
       />
-      <MetricCard 
-        label="Rem. Reserves" 
-        value={formatNum(eur)} 
-        unit="bbl"
-        color="text-emerald-400"
-        subtext="Forecasted Volume"
-      />
+      {isProbabilistic ? (
+        <>
+          <MetricCard 
+            label="P10 Reserves" 
+            value={formatNum(probabilistic.p10)} 
+            unit="bbl"
+            color="text-emerald-300"
+            subtext="Optimistic (10% chance ≥)"
+          />
+          <MetricCard 
+            label="P50 Reserves" 
+            value={formatNum(probabilistic.p50)} 
+            unit="bbl"
+            color="text-emerald-400"
+            subtext={`Median (${probabilistic.iterations} sims)`}
+          />
+          <MetricCard 
+            label="P90 Reserves" 
+            value={formatNum(probabilistic.p90)} 
+            unit="bbl"
+            color="text-amber-400"
+            subtext="Conservative (90% chance ≥)"
+          />
+        </>
+      ) : (
+        <MetricCard 
+          label="Rem. Reserves" 
+          value={formatNum(eur)} 
+          unit="bbl"
+          color="text-emerald-400"
+          subtext="Forecasted Volume"
+        />
+      )}
       <MetricCard 
         label="Life of Well" 
         value={timeLeft} 
