@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { fitArpsModel, getFitQuality, generateForecast } from '@/utils/declineCurve/dcaEngine';
+import { runMonteCarloSimulation } from '@/utils/dcaMonteCarlo';
 import { normalizeByTimeAndRate, fitTypeCurve } from '@/utils/declineCurve/typeCurveEngine';
 import { saveProjectToIndexedDB, loadProjectFromIndexedDB } from '@/utils/declineCurve/dcaDataPersistence';
 import { useKeyboardShortcuts } from '@/utils/declineCurve/dcaKeyboardShortcuts';
@@ -317,19 +318,50 @@ export const DeclineCurveProvider = ({ children }) => {
     setIsForecasting(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 300));
-      
-      const forecast = generateForecast(
-        streamState[selectedStream].fitResults,
-        streamState[selectedStream].forecastConfig,
-        streamState[selectedStream].fitResults.t0 || new Date().toISOString()
+      const fit = streamState[selectedStream].fitResults;
+      const config = streamState[selectedStream].forecastConfig;
+
+      // Always run the deterministic forecast — gives us the central curve
+      const deterministic = generateForecast(
+        fit, config,
+        fit.t0 || new Date().toISOString()
       );
-      
-      if (forecast) {
-        updateStreamConfig('forecastResults', forecast);
+
+      let combined = deterministic;
+
+      // If probabilistic mode is on AND we have confidence intervals, also run Monte Carlo
+      if (config.probabilisticMode && fit.confidenceIntervals && fit.confidenceIntervals.hasIntervals) {
+        const baseParams = { qi: fit.qi, Di: fit.Di, b: fit.b };
+        const mcResult = await runMonteCarloSimulation(
+          baseParams,
+          fit.confidenceIntervals,
+          config,
+          1000  // iterations
+        );
+        // Attach probabilistic results next to the deterministic forecast
+        combined = {
+          ...deterministic,
+          probabilistic: {
+            p10: mcResult.p10,
+            p50: mcResult.p50,
+            p90: mcResult.p90,
+            mean: mcResult.mean,
+            distribution: mcResult.distribution,
+            sampleCurves: mcResult.sampleCurves,
+            iterations: mcResult.iterations
+          }
+        };
+        addNotification(`Monte Carlo complete — P10/P50/P90 EUR computed (${mcResult.iterations} sims)`, "success");
+      } else {
         addNotification("Forecast completed successfully", "success");
       }
+
+      if (combined) {
+        updateStreamConfig('forecastResults', combined);
+      }
     } catch (error) {
-      addNotification("Forecast generation failed", "error");
+      console.error('Forecast error:', error);
+      addNotification("Forecast generation failed: " + (error.message || 'unknown'), "error");
     } finally {
       setIsForecasting(false);
     }
