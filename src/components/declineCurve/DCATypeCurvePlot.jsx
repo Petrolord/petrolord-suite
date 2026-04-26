@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label } from 'recharts';
 import { Button } from '@/components/ui/button';
+import ChartLogo from './ChartLogo';
 import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
 import {
   CHART_COLORS,
@@ -139,6 +140,7 @@ const DCATypeCurvePlot = ({ typeCurve }) => {
           </ComposedChart>
         </ResponsiveContainer>
 
+        <ChartLogo />
         {/* Parameter annotation box */}
         <div className={ANNOTATION_BOX_CLASSNAME}>
           <div className="flex flex-col gap-0.5">

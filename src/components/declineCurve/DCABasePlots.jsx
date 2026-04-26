@@ -5,6 +5,7 @@ import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
 import { Camera } from 'lucide-react';
 import { ResponsiveContainer, ComposedChart, Scatter, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label } from 'recharts';
 import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
+import ChartLogo from './ChartLogo';
 import {
   CHART_COLORS,
   CHART_TYPOGRAPHY,
@@ -264,6 +265,7 @@ const DCABasePlots = () => {
                 </ComposedChart>
               </ResponsiveContainer>
               
+              <ChartLogo />
               {/* Parameter Annotation Box */}
               {fit && (
                 <div className={ANNOTATION_BOX_CLASSNAME}>
