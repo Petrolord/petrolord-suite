@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { v4 as uuidv4 } from 'uuid';
 import { fitArpsModel, getFitQuality, generateForecast } from '@/utils/declineCurve/dcaEngine';
 import { runMonteCarloSimulation } from '@/utils/dcaMonteCarlo';
-import { normalizeByTimeAndRate, fitTypeCurve } from '@/utils/declineCurve/typeCurveEngine';
+import { normalizeByTime, normalizeByRate, normalizeByTimeAndRate } from '@/utils/declineCurve/typeCurveEngine';
 import { saveProjectToIndexedDB, loadProjectFromIndexedDB } from '@/utils/declineCurve/dcaDataPersistence';
 import { useKeyboardShortcuts } from '@/utils/declineCurve/dcaKeyboardShortcuts';
 import { createUndoRedoManager } from '@/utils/declineCurve/dcaUndoRedo';
@@ -367,6 +367,122 @@ export const DeclineCurveProvider = ({ children }) => {
     }
   }, [selectedStream, streamState, isForecasting]);
 
+  // ===== Type Curve Actions =====
+  const createTypeCurve = useCallback(async ({ name, wellIds, normalizationMethod, modelType }) => {
+    try {
+      // Step 1: Gather all selected wells' production data
+      const wellData = wellIds
+        .map(id => wells[id])
+        .filter(w => w && w.data && w.data.length > 0);
+      
+      if (wellData.length < 2) {
+        addNotification("Type curve requires at least 2 wells with data", "warning");
+        return;
+      }
+      
+      // Step 2: Normalize each well individually, then aggregate
+      const normalizeFn = normalizationMethod === 'TimeOnly' 
+        ? normalizeByTime
+        : normalizationMethod === 'RateOnly'
+          ? normalizeByRate
+          : normalizeByTimeAndRate;
+      
+      const cloud = [];
+      wellData.forEach(well => {
+        const normalized = normalizeFn(well.data);
+        normalized.forEach(point => {
+          // Build a synthetic date from t_normalized (days from first prod) for fitArpsModel
+          // This lets us reuse the existing engine without changes.
+          const syntheticDate = new Date('2000-01-01');
+          syntheticDate.setDate(syntheticDate.getDate() + Math.round(point.t_normalized || 0));
+          cloud.push({
+            date: syntheticDate.toISOString(),
+            rate: point.rate_normalized
+          });
+        });
+      });
+      
+      if (cloud.length < 30) {
+        addNotification("Insufficient data points for type curve fit", "warning");
+        return;
+      }
+      
+      // Step 3: Sort by synthetic date so the engine sees an ordered series
+      cloud.sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      // Step 4: Fit using our proven Arps engine (same one DCA uses)
+      const fit = fitArpsModel(cloud, modelType || 'Hyperbolic', null, null);
+      
+      if (!fit || !fit.qi) {
+        addNotification("Type curve fit failed to converge", "error");
+        return;
+      }
+      
+      // Step 5: Determine fit quality
+      const quality = fit.R2 >= 0.85 ? 'Good' : fit.R2 >= 0.6 ? 'Fair' : 'Poor';
+      
+      // Step 6: Build the type curve record
+      const newCurve = {
+        id: `tc_${Date.now()}`,
+        name,
+        wellIds,
+        normalizationMethod,
+        modelType: fit.modelType,
+        createdAt: new Date().toISOString(),
+        fit: {
+          qi: fit.qi,
+          Di: fit.Di,
+          b: fit.b,
+          R2: fit.R2,
+          RMSE: fit.RMSE,
+          quality,
+          n: cloud.length,
+          wellCount: wellData.length
+        },
+        cloud: cloud  // Keep the normalized data cloud for plotting
+      };
+      
+      // Step 7: Push and select
+      setTypeCurves(prev => [...prev, newCurve]);
+      setSelectedTypeCurve(newCurve.id);
+      addNotification(`Type curve "${name}" fitted (R²: ${fit.R2.toFixed(3)}, ${quality})`, "success");
+    } catch (error) {
+      console.error('createTypeCurve error:', error);
+      addNotification(`Type curve creation failed: ${error.message || 'unknown'}`, "error");
+    }
+  }, [wells, addNotification]);
+
+  const deleteTypeCurve = useCallback((id) => {
+    setTypeCurves(prev => prev.filter(tc => tc.id !== id));
+    setSelectedTypeCurve(prev => prev === id ? null : prev);
+    addNotification("Type curve deleted", "info");
+  }, [addNotification]);
+
+  // ===== Well Group Actions =====
+  const createWellGroup = useCallback(({ name, wellIds }) => {
+    if (!name || !wellIds || wellIds.length === 0) {
+      addNotification("Well group requires a name and at least one well", "warning");
+      return;
+    }
+    const newGroup = {
+      id: `wg_${Date.now()}`,
+      name,
+      wellIds,
+      createdAt: new Date().toISOString()
+    };
+    setWellGroups(prev => [...prev, newGroup]);
+    setSelectedWellGroup(newGroup.id);
+    addNotification(`Well group "${name}" created`, "success");
+  }, [addNotification]);
+
+  const deleteWellGroup = useCallback((id) => {
+    setWellGroups(prev => prev.filter(g => g.id !== id));
+    setSelectedWellGroup(prev => prev === id ? null : prev);
+    addNotification("Well group deleted", "info");
+  }, [addNotification]);
+
+
+
   // --- Context Value ---
   const contextValue = {
     // State
@@ -427,8 +543,12 @@ export const DeclineCurveProvider = ({ children }) => {
     // Phase 4 Actions
     setTypeCurves,
     setSelectedTypeCurve,
+    createTypeCurve,
+    deleteTypeCurve,
     setWellGroups,
     setSelectedWellGroup,
+    createWellGroup,
+    deleteWellGroup,
     setSelectedScenarios,
     setScenarios,
     
