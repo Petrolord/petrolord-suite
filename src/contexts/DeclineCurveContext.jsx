@@ -526,6 +526,68 @@ export const DeclineCurveProvider = ({ children }) => {
     addNotification("Well group deleted", "info");
   }, [addNotification]);
 
+  // ===== Scenario Actions =====
+  const createScenario = useCallback((name) => {
+    if (!name) {
+      addNotification("Scenario needs a name", "warning");
+      return;
+    }
+    const stream = selectedStream;
+    const fit = streamState[stream]?.fitResults;
+    const fcResults = streamState[stream]?.forecastResults;
+    const fcConfig = streamState[stream]?.forecastConfig;
+
+    if (!fit || !fcResults) {
+      addNotification("Run a fit and forecast before saving a scenario", "warning");
+      return;
+    }
+
+    const wellId = currentWellId;
+    const wellName = wells[wellId]?.name || 'Unknown';
+
+    const newScenario = {
+      id: `sc_${Date.now()}`,
+      name,
+      stream,
+      wellId,
+      wellName,
+      createdAt: new Date().toISOString(),
+      fitResults: {
+        qi: fit.qi,
+        Di: fit.Di,
+        b: fit.b,
+        modelType: fit.modelType,
+        R2: fit.R2,
+        RMSE: fit.RMSE,
+        t0: fit.t0,
+        confidenceIntervals: fit.confidenceIntervals
+      },
+      forecastConfig: { ...fcConfig },
+      forecastResults: {
+        eur: fcResults.eur,
+        timeToLimit: fcResults.timeToLimit,
+        rates: fcResults.rates,
+        probabilistic: fcResults.probabilistic
+      }
+    };
+
+    setScenarios(prev => [...prev, newScenario]);
+    addNotification(`Scenario "${name}" saved (${stream}, EUR: ${Math.round(fcResults.eur).toLocaleString()})`, "success");
+  }, [selectedStream, streamState, currentWellId, wells, addNotification]);
+
+  const deleteScenario = useCallback((id) => {
+    setScenarios(prev => prev.filter(s => s.id !== id));
+    setSelectedScenarios(prev => prev.filter(sId => sId !== id));
+    addNotification("Scenario deleted", "info");
+  }, [addNotification]);
+
+  const toggleScenarioSelection = useCallback((id) => {
+    setSelectedScenarios(prev =>
+      prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
+    );
+  }, []);
+
+
 
 
   // --- Context Value ---
@@ -595,6 +657,9 @@ export const DeclineCurveProvider = ({ children }) => {
     setSelectedWellGroup,
     createWellGroup,
     deleteWellGroup,
+    createScenario,
+    deleteScenario,
+    toggleScenarioSelection,
     setSelectedScenarios,
     setScenarios,
     
