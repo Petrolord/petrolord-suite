@@ -239,8 +239,8 @@ export const DeclineCurveProvider = ({ children }) => {
     }));
   };
 
-  const importProductionData = (wellId, data) => {
-    setWells(prev => ({ ...prev, [wellId]: { ...prev[wellId], data } }));
+  const importProductionData = (wellId, data, dataMeta = null) => {
+    setWells(prev => ({ ...prev, [wellId]: { ...prev[wellId], data, dataMeta } }));
     if (data.length > 0) {
       setFitWindow({ startDate: data[0].date, endDate: data[data.length-1].date });
     }
@@ -249,6 +249,17 @@ export const DeclineCurveProvider = ({ children }) => {
       setCurrentWellId(wellId);
     }
     addNotification(`Imported ${data.length} production records`, "success");
+  };
+
+  const clearWellData = (wellId) => {
+    setWells(prev => {
+      const updated = { ...prev };
+      if (updated[wellId]) {
+        updated[wellId] = { ...updated[wellId], data: [], dataMeta: null };
+      }
+      return updated;
+    });
+    setDataQuality({ issues: {}, score: 100, summary: null });
   };
 
   // --- Analysis Logic ---
@@ -640,6 +651,7 @@ export const DeclineCurveProvider = ({ children }) => {
     removeWell,
     updateWellMetadata,
     importProductionData,
+    clearWellData,
     
     // Analysis
     updateStreamConfig,
