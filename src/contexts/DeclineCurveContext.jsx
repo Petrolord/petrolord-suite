@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { v4 as uuidv4 } from 'uuid';
 import { fitArpsModel, getFitQuality, generateForecast } from '@/utils/declineCurve/dcaEngine';
 import { runMonteCarloSimulation } from '@/utils/dcaMonteCarlo';
-import { normalizeByTime, normalizeByRate, normalizeByTimeAndRate } from '@/utils/declineCurve/typeCurveEngine';
+import { normalizeByTime, normalizeByRate, normalizeByTimeAndRate, applyTypeCurve } from '@/utils/declineCurve/typeCurveEngine';
 import { saveProjectToIndexedDB, loadProjectFromIndexedDB } from '@/utils/declineCurve/dcaDataPersistence';
 import { useKeyboardShortcuts } from '@/utils/declineCurve/dcaKeyboardShortcuts';
 import { createUndoRedoManager } from '@/utils/declineCurve/dcaUndoRedo';
@@ -458,6 +458,51 @@ export const DeclineCurveProvider = ({ children }) => {
     addNotification("Type curve deleted", "info");
   }, [addNotification]);
 
+  const applyTypeCurveToWell = useCallback(({ typeCurveId, targetWellId }) => {
+    try {
+      const tc = typeCurves.find(t => t.id === typeCurveId);
+      if (!tc || !tc.fit) {
+        addNotification("Type curve not found", "error");
+        return null;
+      }
+      const targetWell = wells[targetWellId];
+      if (!targetWell || !targetWell.data || targetWell.data.length === 0) {
+        addNotification("Target well has no production data", "error");
+        return null;
+      }
+
+      const result = applyTypeCurve(tc.fit, targetWell.data);
+
+      if (!result) {
+        addNotification("Type curve application failed (insufficient data or non-hyperbolic shape)", "error");
+        return null;
+      }
+
+      // Attach the application result to the type curve so a single TC can have many applications
+      setTypeCurves(prev => prev.map(t => {
+        if (t.id !== typeCurveId) return t;
+        const applications = { ...(t.applications || {}) };
+        applications[targetWellId] = {
+          appliedAt: new Date().toISOString(),
+          targetWellName: targetWell.name,
+          result
+        };
+        return { ...t, applications };
+      }));
+
+      addNotification(
+        `Applied "${tc.name}" to ${targetWell.name}: qi=${result.qi.toFixed(0)}, Di=${(result.Di*365*100).toFixed(1)}%/yr, R²=${result.R2.toFixed(3)} (${result.quality})`,
+        "success"
+      );
+
+      return result;
+    } catch (error) {
+      console.error('applyTypeCurveToWell error:', error);
+      addNotification(`Application failed: ${error.message || 'unknown'}`, "error");
+      return null;
+    }
+  }, [typeCurves, wells, addNotification]);
+
   // ===== Well Group Actions =====
   const createWellGroup = useCallback(({ name, wellIds }) => {
     if (!name || !wellIds || wellIds.length === 0) {
@@ -545,6 +590,7 @@ export const DeclineCurveProvider = ({ children }) => {
     setSelectedTypeCurve,
     createTypeCurve,
     deleteTypeCurve,
+    applyTypeCurveToWell,
     setWellGroups,
     setSelectedWellGroup,
     createWellGroup,
