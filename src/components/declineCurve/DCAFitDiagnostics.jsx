@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { AlertCircle, CheckCircle, TrendingUp, Target, BarChart3 } from 'lucide-react';
+import ChartLogo from './ChartLogo';
 import { calculateR2, calculateRMSE, calculateResiduals, getVerdictInfo, calculateArpsConfidenceIntervals } from '@/utils/dcaDiagnostics';
 import { detectSegmentBreakpoints } from '@/utils/dcaSegmentDetection';
 import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
@@ -304,6 +305,7 @@ const DCAFitDiagnostics = () => {
                 />
               </LineChart>
             </ResponsiveContainer>
+            <ChartLogo />
           </div>
           <div className="text-[10px] text-slate-500 text-center mt-2">
             Red points: outliers beyond ±2σ ({residualsWithOutliers.filter(r => r.isOutlier).length} detected)
