@@ -1,6 +1,40 @@
 import { saveAs } from 'file-saver';
 
 // --- Helpers ---
+function linearRegressionWithSE(xs, ys) {
+  // Linear regression that ALSO returns standard errors of slope and intercept.
+  // These are needed for confidence interval propagation.
+  if (xs.length !== ys.length || xs.length < 3) {
+    return { slope: 0, intercept: 0, r2: 0, seSlope: 0, seIntercept: 0, n: xs.length };
+  }
+  const n = xs.length;
+  const sumX = xs.reduce((a, b) => a + b, 0);
+  const sumY = ys.reduce((a, b) => a + b, 0);
+  const meanX = sumX / n;
+  const meanY = sumY / n;
+  let sxx = 0, sxy = 0;
+  for (let i = 0; i < n; i++) {
+    sxx += (xs[i] - meanX) ** 2;
+    sxy += (xs[i] - meanX) * (ys[i] - meanY);
+  }
+  if (sxx === 0) return { slope: 0, intercept: meanY, r2: 0, seSlope: Infinity, seIntercept: Infinity, n };
+  const slope = sxy / sxx;
+  const intercept = meanY - slope * meanX;
+  // Residual variance (MSE), with n-2 denominator
+  let sse = 0;
+  for (let i = 0; i < n; i++) {
+    sse += (ys[i] - (intercept + slope * xs[i])) ** 2;
+  }
+  const mse = n > 2 ? sse / (n - 2) : sse;
+  const seSlope = Math.sqrt(mse / sxx);
+  const seIntercept = Math.sqrt(mse * (1/n + (meanX ** 2) / sxx));
+  // R² on the regression scale
+  let sst = 0;
+  for (let i = 0; i < n; i++) sst += (ys[i] - meanY) ** 2;
+  const r2 = sst > 0 ? Math.max(0, 1 - sse / sst) : 0;
+  return { slope, intercept, r2, seSlope, seIntercept, n, mse };
+}
+
 function linearRegression(xs, ys) {
   if (xs.length !== ys.length || xs.length < 2) {
     return { slope: 0, intercept: 0, r2: 0 };
@@ -87,6 +121,60 @@ export const calculateEUR = (qi, Di, b, qLimit, modelType = 'hyperbolic') => {
   }
 };
 
+// --- Confidence Interval Computation ---
+
+/**
+ * Compute 95% confidence intervals for Arps parameters.
+ * Uses regression standard errors propagated through the parameter transforms (delta method).
+ * Returns object with hasIntervals flag and per-parameter half-widths in same units as the param.
+ */
+function computeConfidenceIntervals(modelType, regResult, qi, Di, b) {
+  const { seSlope, seIntercept, n } = regResult;
+  if (!isFinite(seSlope) || !isFinite(seIntercept) || n < 5) {
+    return { hasIntervals: false };
+  }
+  const tValue = 1.96; // 95% normal approximation; n is typically large enough
+
+  let qiHalfWidth = 0, DiHalfWidth = 0, bHalfWidth = 0;
+
+  if (modelType === 'Exponential') {
+    // log(q) = log(qi) - Di*t  →  intercept = log(qi), slope = -Di
+    // qi = exp(intercept) → SE(qi) = qi * SE(intercept) (delta method)
+    qiHalfWidth = qi * seIntercept * tValue;
+    DiHalfWidth = seSlope * tValue;
+    bHalfWidth = 0; // b fixed at 0 in exponential model
+  } else if (modelType === 'Harmonic') {
+    // 1/q = 1/qi + (Di/qi)*t → intercept = 1/qi, slope = Di/qi
+    // qi = 1/intercept → SE(qi) = qi^2 * SE(intercept)
+    // Di = slope*qi → SE(Di) ≈ |slope|*SE(qi) + qi*SE(slope)
+    qiHalfWidth = qi * qi * seIntercept * tValue;
+    DiHalfWidth = (Math.abs(regResult.slope) * qi * qi * seIntercept + qi * seSlope) * tValue;
+    bHalfWidth = 0; // b fixed at 1 in harmonic model
+  } else if (modelType === 'Hyperbolic') {
+    // q^(-b) = qi^(-b) + b*Di*qi^(-b)*t → intercept = qi^(-b), slope = b*Di*qi^(-b)
+    // Approximations under the assumption b is determined by grid search and treated as known
+    // qi = intercept^(-1/b) → SE(qi) = (1/b) * qi^(b+1) * SE(intercept)
+    qiHalfWidth = (qi ** (b + 1)) / b * seIntercept * tValue;
+    // Di = slope / (b * qi^(-b)) → propagate through both slope and qi
+    const qPowMinusB = Math.pow(qi, -b);
+    DiHalfWidth = (seSlope / (b * qPowMinusB) + Math.abs(regResult.slope) / (b * qPowMinusB) * (b * qiHalfWidth / qi)) * tValue;
+    // b is from grid search; we cannot give a CI from regression directly. Use a conservative estimate.
+    bHalfWidth = b * 0.10; // ±10% of b as a placeholder for grid-search uncertainty
+  }
+
+  // Reasonableness check: if a half-width exceeds the parameter, the fit is bad — flag no intervals
+  const reasonable = qiHalfWidth < qi * 2 && DiHalfWidth < Di * 5;
+  if (!reasonable) return { hasIntervals: false };
+
+  return {
+    hasIntervals: true,
+    qi: qiHalfWidth,
+    Di: DiHalfWidth,
+    b: bHalfWidth,
+    confidenceLevel: 0.95
+  };
+}
+
 // --- Curve Fitting Functions (NEWLY IMPLEMENTED) ---
 
 /**
@@ -141,8 +229,8 @@ export const fitArpsModel = (data, modelType, window = null, constraints = null)
     try {
       const logRates = timeSeries.map(p => Math.log(p.rate));
       const times = timeSeries.map(p => p.t);
-      const { slope, intercept, r2: logR2 } = linearRegression(times, logRates);
-      
+      const regResult = linearRegressionWithSE(times, logRates);
+      const { slope, intercept } = regResult;
       const qi = Math.exp(intercept);
       const Di = -slope;
       
@@ -158,7 +246,12 @@ export const fitArpsModel = (data, modelType, window = null, constraints = null)
         const ssRes = predicted.reduce((sum, pred, i) => sum + Math.pow(actual[i] - pred, 2), 0);
         const r2 = ssTot > 0 ? Math.max(0, 1 - (ssRes / ssTot)) : 0;
         
-        candidates.push({ R2: r2, RMSE: rmse, qi, Di, b: 0, modelType: 'Exponential', parameters: { qi, Di, b: 0, modelType: 'Exponential' }, t0: t0Date });
+        candidates.push({
+          R2: r2, RMSE: rmse, qi, Di, b: 0, modelType: 'Exponential',
+          parameters: { qi, Di, b: 0, modelType: 'Exponential' },
+          confidenceIntervals: computeConfidenceIntervals('Exponential', regResult, qi, Di, 0),
+          t0: t0Date
+        });
       }
     } catch (e) {
       console.warn('Exponential fit failed:', e);
@@ -170,8 +263,8 @@ export const fitArpsModel = (data, modelType, window = null, constraints = null)
     try {
       const invRates = timeSeries.map(p => 1 / p.rate);
       const times = timeSeries.map(p => p.t);
-      const { slope, intercept } = linearRegression(times, invRates);
-      
+      const regResult = linearRegressionWithSE(times, invRates);
+      const { slope, intercept } = regResult;
       const qi = 1 / intercept;
       const Di = slope * qi;
       
@@ -185,7 +278,12 @@ export const fitArpsModel = (data, modelType, window = null, constraints = null)
         const ssRes = predicted.reduce((sum, pred, i) => sum + Math.pow(actual[i] - pred, 2), 0);
         const r2 = ssTot > 0 ? Math.max(0, 1 - (ssRes / ssTot)) : 0;
         
-        candidates.push({ R2: r2, RMSE: rmse, qi, Di, b: 1, modelType: 'Harmonic', parameters: { qi, Di, b: 1, modelType: 'Harmonic' }, t0: t0Date });
+        candidates.push({
+          R2: r2, RMSE: rmse, qi, Di, b: 1, modelType: 'Harmonic',
+          parameters: { qi, Di, b: 1, modelType: 'Harmonic' },
+          confidenceIntervals: computeConfidenceIntervals('Harmonic', regResult, qi, Di, 1),
+          t0: t0Date
+        });
       }
     } catch (e) {
       console.warn('Harmonic fit failed:', e);
@@ -204,8 +302,8 @@ export const fitArpsModel = (data, modelType, window = null, constraints = null)
         // Linearization: q^(-b) = qi^(-b) + b*Di*qi^(-b)*t
         const transformedRates = timeSeries.map(p => Math.pow(p.rate, -b));
         const times = timeSeries.map(p => p.t);
-        const { slope, intercept } = linearRegression(times, transformedRates);
-        
+        const regResult = linearRegressionWithSE(times, transformedRates);
+        const { slope, intercept } = regResult;
         const qi = Math.pow(intercept, -1/b);
         const Di = slope / (b * Math.pow(qi, -b));
         
@@ -220,7 +318,12 @@ export const fitArpsModel = (data, modelType, window = null, constraints = null)
             const ssRes = predicted.reduce((sum, pred, i) => sum + Math.pow(actual[i] - pred, 2), 0);
             const r2 = ssTot > 0 ? Math.max(0, 1 - (ssRes / ssTot)) : 0;
             
-            bestHyperbolic = { R2: r2, RMSE: rmse, qi, Di, b, modelType: 'Hyperbolic', parameters: { qi, Di, b, modelType: 'Hyperbolic' }, t0: t0Date };
+            bestHyperbolic = {
+              R2: r2, RMSE: rmse, qi, Di, b, modelType: 'Hyperbolic',
+              parameters: { qi, Di, b, modelType: 'Hyperbolic' },
+              confidenceIntervals: computeConfidenceIntervals('Hyperbolic', regResult, qi, Di, b),
+              t0: t0Date
+            };
           }
         }
       } catch (e) {

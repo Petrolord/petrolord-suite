@@ -73,32 +73,93 @@ export const fitTypeCurve = (normalizedData, modelType = 'Hyperbolic') => {
 };
 
 /**
- * Applies a type curve to a target well
- * Scales the normalized type curve back to the well's magnitude
+ * Apply a type curve to a target well using fixed-b hyperbolic regression.
+ *
+ * Industry-standard: hold b from the type curve (more reliable than single-well b),
+ * solve for qi and Di by linearizing q^(-b) = qi^(-b) + b*Di*qi^(-b)*t.
+ *
+ * @param {Object} typeCurveParams - {qi, Di, b, modelType} from a fitted type curve
+ * @param {Array} targetWellData - [{date, rate}, ...] history of the target well
+ * @returns {Object|null} - applied fit + forecast or null on failure
  */
 export const applyTypeCurve = (typeCurveParams, targetWellData) => {
-  if (!targetWellData || targetWellData.length === 0) return null;
+  if (!targetWellData || targetWellData.length < 5) return null;
+  if (!typeCurveParams || !typeCurveParams.b) return null;
 
-  // Simple application: Match peak rate of target well to scale the curve
-  // A better approach fits the type curve (fixed b) to the history (solving for qi, Di)
-  // For now, we'll just scale qi based on the target's peak or last rate.
-  
-  const peakRate = Math.max(...targetWellData.map(d => d.rate));
-  
-  // Scaled parameters
-  const qi_real = typeCurveParams.qi * peakRate; 
-  const Di_real = typeCurveParams.Di; // Di stays same if time is consistent
-  const b_real = typeCurveParams.b;
+  const validData = targetWellData
+    .filter(d => d.rate > 0 && d.date)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (validData.length < 5) return null;
 
-  // Calculate forecast based on these parameters
-  // This logic duplicates some of generateForecast, but specific for TC application result
-  
+  const t0 = new Date(validData[0].date);
+  const t0ms = t0.getTime();
+  const b = typeCurveParams.b;
+
+  const xs = [];
+  const ys = [];
+  validData.forEach(d => {
+    const tDays = (new Date(d.date).getTime() - t0ms) / 86400000;
+    xs.push(tDays);
+    ys.push(Math.pow(d.rate, -b));
+  });
+
+  const n = xs.length;
+  const sumX = xs.reduce((a, x) => a + x, 0);
+  const sumY = ys.reduce((a, y) => a + y, 0);
+  const meanX = sumX / n;
+  const meanY = sumY / n;
+  let sxx = 0, sxy = 0;
+  for (let i = 0; i < n; i++) {
+    sxx += (xs[i] - meanX) ** 2;
+    sxy += (xs[i] - meanX) * (ys[i] - meanY);
+  }
+  if (sxx === 0) return null;
+  const slope = sxy / sxx;
+  const intercept = meanY - slope * meanX;
+  if (intercept <= 0 || slope <= 0) return null;
+
+  const qi = Math.pow(intercept, -1/b);
+  const Di = slope / (b * Math.pow(qi, -b));
+
+  let ssRes = 0, ssTot = 0;
+  const meanRate = validData.reduce((s, d) => s + d.rate, 0) / n;
+  validData.forEach((d, i) => {
+    const tDays = xs[i];
+    const predicted = qi / Math.pow(1 + b * Di * tDays, 1/b);
+    ssRes += (d.rate - predicted) ** 2;
+    ssTot += (d.rate - meanRate) ** 2;
+  });
+  const R2 = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : 0;
+  const RMSE = Math.sqrt(ssRes / n);
+
+  const forecast = [];
+  const lastTDays = xs[xs.length - 1];
+  for (let dt = 30; dt <= 3650; dt += 30) {
+    const tDays = lastTDays + dt;
+    const rate = qi / Math.pow(1 + b * Di * tDays, 1/b);
+    const date = new Date(t0ms + tDays * 86400000);
+    forecast.push({ date: date.toISOString(), rate, time: tDays });
+  }
+
+  const history = validData.map((d, i) => {
+    const tDays = xs[i];
+    const fitted = qi / Math.pow(1 + b * Di * tDays, 1/b);
+    return { date: d.date, rate: d.rate, fitted, time: tDays };
+  });
+
   return {
-    qi: qi_real,
-    Di: Di_real,
-    b: b_real,
-    matchMethod: 'Peak Rate Scaling',
-    quality: 'Estimated'
+    qi,
+    Di,
+    b,
+    modelType: 'Hyperbolic',
+    R2,
+    RMSE,
+    n,
+    t0: t0.toISOString(),
+    history,
+    forecast,
+    matchMethod: 'Fixed-b Hyperbolic Fit',
+    quality: R2 >= 0.85 ? 'Good' : R2 >= 0.6 ? 'Fair' : 'Poor'
   };
 };
 

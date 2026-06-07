@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { AlertCircle, CheckCircle, TrendingUp, Target, BarChart3 } from 'lucide-react';
+import ChartLogo from './ChartLogo';
 import { calculateR2, calculateRMSE, calculateResiduals, getVerdictInfo, calculateArpsConfidenceIntervals } from '@/utils/dcaDiagnostics';
 import { detectSegmentBreakpoints } from '@/utils/dcaSegmentDetection';
 import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
@@ -100,10 +101,12 @@ const DCAFitDiagnostics = () => {
     }
   };
   
-  // Detect outliers (beyond ±2σ)
-  const residualMean = residuals.reduce((sum, r) => sum + r.residual, 0) / residuals.length;
-  const residualStd = Math.sqrt(residuals.reduce((sum, r) => sum + Math.pow(r.residual - residualMean, 2), 0) / residuals.length);
-  const outlierThreshold = 2 * residualStd;
+  // Detect outliers (beyond ±2σ). Guard against empty residuals.
+  const residualMean = residuals.length > 0
+    ? residuals.reduce((sum, r) => sum + r.residual, 0) / residuals.length : 0;
+  const residualStd = residuals.length > 0
+    ? Math.sqrt(residuals.reduce((sum, r) => sum + Math.pow(r.residual - residualMean, 2), 0) / residuals.length) : 0;
+  const outlierThreshold = residuals.length > 0 ? 2 * residualStd : 1;
   
   const residualsWithOutliers = residuals.map(point => ({
     ...point,
@@ -237,10 +240,10 @@ const DCAFitDiagnostics = () => {
       </Card>
       
       {/* Residuals Plot */}
-      <Card className="bg-slate-900 border-slate-800 flex-1 min-h-0">
+      <Card className="bg-white border-slate-200 flex-1 min-h-0">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <TrendingUp size={16} className="text-purple-400" />
+          <CardTitle className="text-sm flex items-center gap-2 text-slate-900">
+            <TrendingUp size={16} className="text-indigo-600" />
             Normalized Residuals
           </CardTitle>
         </CardHeader>
@@ -280,15 +283,21 @@ const DCAFitDiagnostics = () => {
                 <Line 
                   type="monotone" 
                   dataKey="residual" 
-                  stroke={(entry) => entry?.isOutlier ? '#EF4444' : '#8B5CF6'}
-                  strokeWidth={1}
+                  stroke="#8B5CF6"
+                  strokeWidth={1.5}
+                  isAnimationActive={false}
                   dot={(props) => {
-                    const { payload } = props;
+                    const { cx, cy, payload, key } = props;
+                    if (cx == null || cy == null) return null;
+                    const isOutlier = payload?.isOutlier;
                     return (
                       <circle 
-                        {...props} 
-                        fill={payload?.isOutlier ? '#EF4444' : '#8B5CF6'}
-                        r={payload?.isOutlier ? 3 : 1.5}
+                        key={key}
+                        cx={cx}
+                        cy={cy}
+                        r={isOutlier ? 3 : 1.5}
+                        fill={isOutlier ? '#EF4444' : '#8B5CF6'}
+                        stroke="none"
                       />
                     );
                   }}
@@ -296,6 +305,7 @@ const DCAFitDiagnostics = () => {
                 />
               </LineChart>
             </ResponsiveContainer>
+            <ChartLogo />
           </div>
           <div className="text-[10px] text-slate-500 text-center mt-2">
             Red points: outliers beyond ±2σ ({residualsWithOutliers.filter(r => r.isOutlier).length} detected)

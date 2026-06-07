@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { fitArpsModel, getFitQuality, generateForecast } from '@/utils/declineCurve/dcaEngine';
-import { normalizeByTimeAndRate, fitTypeCurve } from '@/utils/declineCurve/typeCurveEngine';
+import { runMonteCarloSimulation } from '@/utils/dcaMonteCarlo';
+import { normalizeByTime, normalizeByRate, normalizeByTimeAndRate, applyTypeCurve } from '@/utils/declineCurve/typeCurveEngine';
 import { saveProjectToIndexedDB, loadProjectFromIndexedDB } from '@/utils/declineCurve/dcaDataPersistence';
 import { useKeyboardShortcuts } from '@/utils/declineCurve/dcaKeyboardShortcuts';
 import { createUndoRedoManager } from '@/utils/declineCurve/dcaUndoRedo';
@@ -238,8 +239,8 @@ export const DeclineCurveProvider = ({ children }) => {
     }));
   };
 
-  const importProductionData = (wellId, data) => {
-    setWells(prev => ({ ...prev, [wellId]: { ...prev[wellId], data } }));
+  const importProductionData = (wellId, data, dataMeta = null) => {
+    setWells(prev => ({ ...prev, [wellId]: { ...prev[wellId], data, dataMeta } }));
     if (data.length > 0) {
       setFitWindow({ startDate: data[0].date, endDate: data[data.length-1].date });
     }
@@ -248,6 +249,17 @@ export const DeclineCurveProvider = ({ children }) => {
       setCurrentWellId(wellId);
     }
     addNotification(`Imported ${data.length} production records`, "success");
+  };
+
+  const clearWellData = (wellId) => {
+    setWells(prev => {
+      const updated = { ...prev };
+      if (updated[wellId]) {
+        updated[wellId] = { ...updated[wellId], data: [], dataMeta: null };
+      }
+      return updated;
+    });
+    setDataQuality({ issues: {}, score: 100, summary: null });
   };
 
   // --- Analysis Logic ---
@@ -317,23 +329,277 @@ export const DeclineCurveProvider = ({ children }) => {
     setIsForecasting(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 300));
-      
-      const forecast = generateForecast(
-        streamState[selectedStream].fitResults,
-        streamState[selectedStream].forecastConfig,
-        streamState[selectedStream].fitResults.t0 || new Date().toISOString()
+      const fit = streamState[selectedStream].fitResults;
+      const config = streamState[selectedStream].forecastConfig;
+
+      // Always run the deterministic forecast — gives us the central curve
+      const deterministic = generateForecast(
+        fit, config,
+        fit.t0 || new Date().toISOString()
       );
-      
-      if (forecast) {
-        updateStreamConfig('forecastResults', forecast);
+
+      let combined = deterministic;
+
+      // If probabilistic mode is on AND we have confidence intervals, also run Monte Carlo
+      if (config.probabilisticMode && fit.confidenceIntervals && fit.confidenceIntervals.hasIntervals) {
+        const baseParams = { qi: fit.qi, Di: fit.Di, b: fit.b };
+        const mcResult = await runMonteCarloSimulation(
+          baseParams,
+          fit.confidenceIntervals,
+          config,
+          1000  // iterations
+        );
+        // Attach probabilistic results next to the deterministic forecast
+        combined = {
+          ...deterministic,
+          probabilistic: {
+            p10: mcResult.p10,
+            p50: mcResult.p50,
+            p90: mcResult.p90,
+            mean: mcResult.mean,
+            distribution: mcResult.distribution,
+            sampleCurves: mcResult.sampleCurves,
+            iterations: mcResult.iterations
+          }
+        };
+        addNotification(`Monte Carlo complete — P10/P50/P90 EUR computed (${mcResult.iterations} sims)`, "success");
+      } else {
         addNotification("Forecast completed successfully", "success");
       }
+
+      if (combined) {
+        updateStreamConfig('forecastResults', combined);
+      }
     } catch (error) {
-      addNotification("Forecast generation failed", "error");
+      console.error('Forecast error:', error);
+      addNotification("Forecast generation failed: " + (error.message || 'unknown'), "error");
     } finally {
       setIsForecasting(false);
     }
   }, [selectedStream, streamState, isForecasting]);
+
+  // ===== Type Curve Actions =====
+  const createTypeCurve = useCallback(async ({ name, wellIds, normalizationMethod, modelType }) => {
+    try {
+      // Step 1: Gather all selected wells' production data
+      const wellData = wellIds
+        .map(id => wells[id])
+        .filter(w => w && w.data && w.data.length > 0);
+      
+      if (wellData.length < 2) {
+        addNotification("Type curve requires at least 2 wells with data", "warning");
+        return;
+      }
+      
+      // Step 2: Normalize each well individually, then aggregate
+      const normalizeFn = normalizationMethod === 'TimeOnly' 
+        ? normalizeByTime
+        : normalizationMethod === 'RateOnly'
+          ? normalizeByRate
+          : normalizeByTimeAndRate;
+      
+      const cloud = [];
+      wellData.forEach(well => {
+        const normalized = normalizeFn(well.data);
+        normalized.forEach(point => {
+          // Build a synthetic date from t_normalized (days from first prod) for fitArpsModel
+          // This lets us reuse the existing engine without changes.
+          const syntheticDate = new Date('2000-01-01');
+          syntheticDate.setDate(syntheticDate.getDate() + Math.round(point.t_normalized || 0));
+          cloud.push({
+            date: syntheticDate.toISOString(),
+            rate: point.rate_normalized
+          });
+        });
+      });
+      
+      if (cloud.length < 30) {
+        addNotification("Insufficient data points for type curve fit", "warning");
+        return;
+      }
+      
+      // Step 3: Sort by synthetic date so the engine sees an ordered series
+      cloud.sort((a, b) => new Date(a.date) - new Date(b.date));
+      
+      // Step 4: Fit using our proven Arps engine (same one DCA uses)
+      const fit = fitArpsModel(cloud, modelType || 'Hyperbolic', null, null);
+      
+      if (!fit || !fit.qi) {
+        addNotification("Type curve fit failed to converge", "error");
+        return;
+      }
+      
+      // Step 5: Determine fit quality
+      const quality = fit.R2 >= 0.85 ? 'Good' : fit.R2 >= 0.6 ? 'Fair' : 'Poor';
+      
+      // Step 6: Build the type curve record
+      const newCurve = {
+        id: `tc_${Date.now()}`,
+        name,
+        wellIds,
+        normalizationMethod,
+        modelType: fit.modelType,
+        createdAt: new Date().toISOString(),
+        fit: {
+          qi: fit.qi,
+          Di: fit.Di,
+          b: fit.b,
+          R2: fit.R2,
+          RMSE: fit.RMSE,
+          quality,
+          n: cloud.length,
+          wellCount: wellData.length
+        },
+        cloud: cloud  // Keep the normalized data cloud for plotting
+      };
+      
+      // Step 7: Push and select
+      setTypeCurves(prev => [...prev, newCurve]);
+      setSelectedTypeCurve(newCurve.id);
+      addNotification(`Type curve "${name}" fitted (R²: ${fit.R2.toFixed(3)}, ${quality})`, "success");
+    } catch (error) {
+      console.error('createTypeCurve error:', error);
+      addNotification(`Type curve creation failed: ${error.message || 'unknown'}`, "error");
+    }
+  }, [wells, addNotification]);
+
+  const deleteTypeCurve = useCallback((id) => {
+    setTypeCurves(prev => prev.filter(tc => tc.id !== id));
+    setSelectedTypeCurve(prev => prev === id ? null : prev);
+    addNotification("Type curve deleted", "info");
+  }, [addNotification]);
+
+  const applyTypeCurveToWell = useCallback(({ typeCurveId, targetWellId }) => {
+    try {
+      const tc = typeCurves.find(t => t.id === typeCurveId);
+      if (!tc || !tc.fit) {
+        addNotification("Type curve not found", "error");
+        return null;
+      }
+      const targetWell = wells[targetWellId];
+      if (!targetWell || !targetWell.data || targetWell.data.length === 0) {
+        addNotification("Target well has no production data", "error");
+        return null;
+      }
+
+      const result = applyTypeCurve(tc.fit, targetWell.data);
+
+      if (!result) {
+        addNotification("Type curve application failed (insufficient data or non-hyperbolic shape)", "error");
+        return null;
+      }
+
+      // Attach the application result to the type curve so a single TC can have many applications
+      setTypeCurves(prev => prev.map(t => {
+        if (t.id !== typeCurveId) return t;
+        const applications = { ...(t.applications || {}) };
+        applications[targetWellId] = {
+          appliedAt: new Date().toISOString(),
+          targetWellName: targetWell.name,
+          result
+        };
+        return { ...t, applications };
+      }));
+
+      addNotification(
+        `Applied "${tc.name}" to ${targetWell.name}: qi=${result.qi.toFixed(0)}, Di=${(result.Di*365*100).toFixed(1)}%/yr, R²=${result.R2.toFixed(3)} (${result.quality})`,
+        "success"
+      );
+
+      return result;
+    } catch (error) {
+      console.error('applyTypeCurveToWell error:', error);
+      addNotification(`Application failed: ${error.message || 'unknown'}`, "error");
+      return null;
+    }
+  }, [typeCurves, wells, addNotification]);
+
+  // ===== Well Group Actions =====
+  const createWellGroup = useCallback(({ name, wellIds }) => {
+    if (!name || !wellIds || wellIds.length === 0) {
+      addNotification("Well group requires a name and at least one well", "warning");
+      return;
+    }
+    const newGroup = {
+      id: `wg_${Date.now()}`,
+      name,
+      wellIds,
+      createdAt: new Date().toISOString()
+    };
+    setWellGroups(prev => [...prev, newGroup]);
+    setSelectedWellGroup(newGroup.id);
+    addNotification(`Well group "${name}" created`, "success");
+  }, [addNotification]);
+
+  const deleteWellGroup = useCallback((id) => {
+    setWellGroups(prev => prev.filter(g => g.id !== id));
+    setSelectedWellGroup(prev => prev === id ? null : prev);
+    addNotification("Well group deleted", "info");
+  }, [addNotification]);
+
+  // ===== Scenario Actions =====
+  const createScenario = useCallback((name) => {
+    if (!name) {
+      addNotification("Scenario needs a name", "warning");
+      return;
+    }
+    const stream = selectedStream;
+    const fit = streamState[stream]?.fitResults;
+    const fcResults = streamState[stream]?.forecastResults;
+    const fcConfig = streamState[stream]?.forecastConfig;
+
+    if (!fit || !fcResults) {
+      addNotification("Run a fit and forecast before saving a scenario", "warning");
+      return;
+    }
+
+    const wellId = currentWellId;
+    const wellName = wells[wellId]?.name || 'Unknown';
+
+    const newScenario = {
+      id: `sc_${Date.now()}`,
+      name,
+      stream,
+      wellId,
+      wellName,
+      createdAt: new Date().toISOString(),
+      fitResults: {
+        qi: fit.qi,
+        Di: fit.Di,
+        b: fit.b,
+        modelType: fit.modelType,
+        R2: fit.R2,
+        RMSE: fit.RMSE,
+        t0: fit.t0,
+        confidenceIntervals: fit.confidenceIntervals
+      },
+      forecastConfig: { ...fcConfig },
+      forecastResults: {
+        eur: fcResults.eur,
+        timeToLimit: fcResults.timeToLimit,
+        rates: fcResults.rates,
+        probabilistic: fcResults.probabilistic
+      }
+    };
+
+    setScenarios(prev => [...prev, newScenario]);
+    addNotification(`Scenario "${name}" saved (${stream}, EUR: ${Math.round(fcResults.eur).toLocaleString()})`, "success");
+  }, [selectedStream, streamState, currentWellId, wells, addNotification]);
+
+  const deleteScenario = useCallback((id) => {
+    setScenarios(prev => prev.filter(s => s.id !== id));
+    setSelectedScenarios(prev => prev.filter(sId => sId !== id));
+    addNotification("Scenario deleted", "info");
+  }, [addNotification]);
+
+  const toggleScenarioSelection = useCallback((id) => {
+    setSelectedScenarios(prev =>
+      prev.includes(id) ? prev.filter(sId => sId !== id) : [...prev, id]
+    );
+  }, []);
+
+
+
 
   // --- Context Value ---
   const contextValue = {
@@ -385,6 +651,7 @@ export const DeclineCurveProvider = ({ children }) => {
     removeWell,
     updateWellMetadata,
     importProductionData,
+    clearWellData,
     
     // Analysis
     updateStreamConfig,
@@ -395,8 +662,16 @@ export const DeclineCurveProvider = ({ children }) => {
     // Phase 4 Actions
     setTypeCurves,
     setSelectedTypeCurve,
+    createTypeCurve,
+    deleteTypeCurve,
+    applyTypeCurveToWell,
     setWellGroups,
     setSelectedWellGroup,
+    createWellGroup,
+    deleteWellGroup,
+    createScenario,
+    deleteScenario,
+    toggleScenarioSelection,
     setSelectedScenarios,
     setScenarios,
     

@@ -87,3 +87,21 @@ export const TOOLTIP_STYLE = {
 export const ANNOTATION_BOX_CLASSNAME =
   'absolute top-2 right-2 bg-white/95 border border-slate-300 rounded px-2 py-1.5 ' +
   'text-[10px] text-slate-700 font-mono shadow-sm pointer-events-none';
+
+// === Petrolord Chart Branding ===
+// Path to the watermark logo. Vite serves /public assets at the root.
+export const CHART_LOGO_PATH = '/petrolord-chart-watermark.png';
+
+// Standard logo styling — used by ChartLogo component.
+// Tuned for white-background charts. The logo is positioned absolutely
+// so it must sit inside a relative-positioned container.
+export const CHART_LOGO_STYLE = {
+  position: 'absolute',
+  bottom: '8px',
+  right: '8px',
+  height: '72px',
+  width: 'auto',
+  opacity: 0.50,
+  pointerEvents: 'none',
+  userSelect: 'none',
+};

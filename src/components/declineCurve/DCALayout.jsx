@@ -93,7 +93,7 @@ const DCALayout = ({
           <div 
             className={cn(
               "flex-shrink-0 border-l border-slate-800 bg-slate-900/50 transition-all duration-300 ease-in-out flex flex-col z-20",
-              rightOpen ? "w-80 translate-x-0" : "w-0 translate-x-full opacity-0 border-none"
+              rightOpen ? "w-96 translate-x-0" : "w-0 translate-x-full opacity-0 border-none"
             )}
           >
             <ScrollArea className="flex-1 h-full">
