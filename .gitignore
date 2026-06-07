@@ -1,3 +1,7 @@
+dist/
+docs/scope/*.bak
+.env.production
+.env.development
 # Dependencies
 node_modules/
 .pnp
