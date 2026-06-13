@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CheckCircle, ChevronDown, ChevronRight, Save, FileText, ArrowLeft, Loader2, DollarSign, Mail,
-  AlertTriangle, Database, Terminal, Wrench, RefreshCw, Check, Stethoscope, ArrowRightLeft, SearchCheck, PlusCircle
+  AlertTriangle, Database, Terminal, Wrench, RefreshCw, Check, Stethoscope, ArrowRightLeft, SearchCheck, PlusCircle, Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -25,9 +25,10 @@ import {
 
 // Data & Helpers
 import { appCategories } from '@/data/applications'; 
-import { 
-  BASE_PLATFORM_FEE, USER_SEAT_PRICE, STORAGE_GB_PRICE, 
-  TIERS, BILLING_PERIODS, VAT_RATE, getAppPrice 
+import {
+  BASE_PLATFORM_FEE, USER_SEAT_PRICE, STORAGE_GB_PRICE,
+  TIERS, BILLING_PERIODS, VAT_RATE, getAppPrice,
+  SEAT_TIERS, computeSeatCost, seatTierRate
 } from '@/data/pricingModels';
 import { formatCurrency } from '@/utils/adminHelpers';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -48,7 +49,7 @@ const QuoteBuilder = () => {
   const [quoteId] = useState(`Q-${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`);
   const [billingPeriod, setBillingPeriod] = useState('annual');
   const [serviceTier, setServiceTier] = useState('starter');
-  const [userSeats, setUserSeats] = useState(50);
+  const [appSeats, setAppSeats] = useState({}); // { [appId]: seatCount } — per-app seats
   const [storageGB, setStorageGB] = useState(100);
   const [manualDiscount, setManualDiscount] = useState(0); 
   
@@ -340,6 +341,20 @@ const QuoteBuilder = () => {
     );
   };
 
+  // Per-app seat helpers.
+  const setSeatsFor = (appId, n) => setAppSeats(s => ({ ...s, [appId]: Math.max(1, n) }));
+  const getTotalSeats = () => selectedApps.reduce((acc, id) => acc + (appSeats[id] || 1), 0);
+  const ensureSeats = (ids) => setAppSeats(s => {
+    const next = { ...s };
+    ids.forEach(id => { if (!next[id]) next[id] = 1; });
+    return next;
+  });
+  const dropSeats = (ids) => setAppSeats(s => {
+    const next = { ...s };
+    ids.forEach(id => { delete next[id]; });
+    return next;
+  });
+
   const handleModuleCheck = (modId, isChecked) => {
     const moduleGroup = appsGroupedByModule[modId];
     if (!moduleGroup) return;
@@ -348,10 +363,12 @@ const QuoteBuilder = () => {
       setSelectedModules(prev => [...new Set([...prev, modId])]);
       const appIds = moduleGroup.apps.map(a => a.id);
       setSelectedApps(prev => [...new Set([...prev, ...appIds])]);
+      ensureSeats(appIds);
     } else {
       setSelectedModules(prev => prev.filter(id => id !== modId));
       const appIdsToRemove = moduleGroup.apps.map(a => a.id);
       setSelectedApps(prev => prev.filter(id => !appIdsToRemove.includes(id)));
+      dropSeats(appIdsToRemove);
     }
   };
 
@@ -359,18 +376,20 @@ const QuoteBuilder = () => {
     // Defensive check
     const app = masterApps.find(a => a.id === appId);
     const isComingSoon = app && (app.status === 'Coming Soon' || app.status === 'coming soon');
-    
+
     if (isComingSoon) {
         return; // Prevent selection
     }
 
     if (isChecked) {
       setSelectedApps(prev => [...new Set([...prev, appId])]); // appId is UUID
+      ensureSeats([appId]);
       if (!selectedModules.includes(modId)) {
           setSelectedModules(prev => [...prev, modId]);
       }
     } else {
       setSelectedApps(prev => prev.filter(id => id !== appId));
+      dropSeats([appId]);
     }
   };
 
@@ -383,20 +402,23 @@ const QuoteBuilder = () => {
     
     const baseFee = BASE_PLATFORM_FEE * tier.multiplier;
     let softwareCost = 0;
+    let seatsCost = 0;
     const breakdown = [];
 
-    // App Costs
-    // selectedApps is an array of UUIDs
+    // App + per-app seat costs. selectedApps is an array of UUIDs.
     selectedApps.forEach(appId => {
         const app = masterApps.find(a => a.id === appId);
         if (app) {
+            const nSeats = appSeats[appId] || 1;
+            const appSeatCost = computeSeatCost(nSeats); // graduated per-app tiers
             softwareCost += app.price;
-            // Map UUID to Name for breakdown display
-            breakdown.push({ item: app.name, price: app.price, cost: app.price, type: 'app', id: appId });
+            seatsCost += appSeatCost;
+            breakdown.push({ item: app.name, price: app.price, cost: app.price, type: 'app', id: appId, seats: nSeats });
+            breakdown.push({ item: `   ${nSeats} seat${nSeats === 1 ? '' : 's'} — ${app.name}`, cost: appSeatCost, type: 'seats', id: appId });
         }
     });
 
-    const seatsCost = userSeats * USER_SEAT_PRICE;
+    const totalSeats = getTotalSeats();
     const storageCost = Math.max(0, storageGB - 10) * STORAGE_GB_PRICE;
     const monthlySubtotal = baseFee + softwareCost + seatsCost + storageCost;
     
@@ -430,11 +452,12 @@ const QuoteBuilder = () => {
       breakdown,
       tier,
       period,
+      totalSeats,
       totalContractValue: billingCycleTotal,
       vatAmount: vat,
       totalWithVat: grandTotal
     };
-  }, [serviceTier, billingPeriod, selectedModules, selectedApps, userSeats, storageGB, manualDiscount, appsGroupedByModule, masterApps]);
+  }, [serviceTier, billingPeriod, selectedModules, selectedApps, appSeats, storageGB, manualDiscount, appsGroupedByModule, masterApps]);
 
   const handleSaveQuote = async () => {
     if(!backendConfig) {
@@ -460,65 +483,33 @@ const QuoteBuilder = () => {
 
     setGenerating(true);
     try {
-      const validityDays = 30;
-      const quoteDate = new Date();
-      const expiryDate = new Date(quoteDate.getTime() + validityDays * 24 * 60 * 60 * 1000);
+      // generate-quote is authoritative: it re-derives pricing (per-app tiered
+      // seats, tier multiplier, term/manual discounts, VAT), renders the PDF,
+      // emails it, and inserts the quote. We send the configuration, not a price.
+      const { data, error } = await supabase.functions.invoke('generate-quote', {
+        body: {
+          modules: selectedModules,
+          // Per-app seats: generate-quote stores these as per-app seats_allocated.
+          apps: selectedApps.map(id => ({ id, seats: appSeats[id] || 1 })),
+          seats: calculation.totalSeats,
+          billing_term: billingPeriod,
+          service_tier: serviceTier,
+          storage_gb: storageGB,
+          manual_discount: manualDiscount,
+          add_ons: [],
+          user_id: user.id,
+          user_email: user.email,
+          organization_id: orgId,
+          user_name: user?.user_metadata?.full_name || user.email.split('@')[0]
+        }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      const quoteData = {
-        id: quoteId,
-        date: quoteDate.toISOString(),
-        expiryDate: expiryDate.toISOString(),
-        name: `Quote for ${user?.user_metadata?.organization_name || 'Organization'}`,
-        config: { calculated: calculation, userSeats, storageGB },
-        organization_id: orgId,
-        status: 'PENDING',
-        total_amount: calculation.grandTotal,
-        billing_term: billingPeriod
-      };
-
-      const doc = await generateQuotePDF(quoteData, { 
-          name: user?.user_metadata?.organization_name || 'My Organization', 
-          contact_email: user.email, 
-          address: user?.user_metadata?.address || '' 
-      }, backendConfig);
-      
-      const pdfBlob = doc.output('blob');
-      const reader = new FileReader();
-      reader.readAsDataURL(pdfBlob);
-      reader.onloadend = async () => {
-          const base64data = reader.result.split(',')[1];
-          // Schema Comment: 'apps' in payload must be an array of UUIDs (strings)
-          const payload = {
-              quote_id: quoteId,
-              organization_id: orgId,
-              user_email: user.email,
-              items: calculation.breakdown,
-              breakdown: calculation, 
-              total_amount: calculation.grandTotal,
-              billing_period: billingPeriod,
-              seats: userSeats,
-              pdf_base64: base64data,
-              validity_period: validityDays,
-              quote_date: quoteDate.toISOString(),
-              expiry_date: expiryDate.toISOString(),
-              org_admin_email: user.email,
-              selected_items: calculation.breakdown,
-              pricing_breakdown: calculation,
-              status: 'PENDING',
-              quote_number: quoteId,
-              modules: selectedModules,
-              apps: selectedApps // Strictly UUIDs from state
-          };
-
-          const { data, error } = await supabase.functions.invoke('process-quote', { body: payload });
-          if (error) throw error;
-          if (data?.error) throw new Error(data.error);
-          
-          setGenerating(false);
-          toast({ title: "Success", description: "Quote generated successfully!", className: "bg-green-600 text-white" });
-          navigate(`/dashboard/quote/${quoteId}`); 
-      };
-
+      setGenerating(false);
+      toast({ title: "Success", description: "Quote generated successfully!", className: "bg-green-600 text-white" });
+      const newId = data?.quote_id || quoteId;
+      navigate(`/dashboard/quote/${newId}`);
     } catch (error) {
       console.error(error);
       toast({ title: "Error", description: error.message || "Failed to generate quote.", variant: "destructive" });
@@ -779,6 +770,24 @@ const QuoteBuilder = () => {
                                             <span className={`text-xs ${isComingSoon ? 'text-slate-600' : 'text-slate-500'}`}>{formatCurrency(app.price)}</span>
                                           </div>
                                           <p className={`text-[10px] line-clamp-1 mt-0.5 ${isComingSoon ? 'text-slate-600' : 'text-slate-500'}`}>{app.description || 'No description available'}</p>
+                                          {isAppSelected && !isComingSoon && (() => {
+                                            const n = appSeats[app.id] || 1;
+                                            return (
+                                              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/60" onClick={(e) => e.stopPropagation()}>
+                                                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                                  <Users className="w-3 h-3"/> Seats · {formatCurrency(computeSeatCost(n))}/mo
+                                                </span>
+                                                <div className="flex items-center gap-1.5">
+                                                  <button type="button" onClick={(e) => { e.stopPropagation(); setSeatsFor(app.id, n - 1); }}
+                                                    disabled={n <= 1}
+                                                    className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-40 flex items-center justify-center text-white">−</button>
+                                                  <span className="w-6 text-center text-xs font-bold text-[#D4AF37]">{n}</span>
+                                                  <button type="button" onClick={(e) => { e.stopPropagation(); setSeatsFor(app.id, n + 1); }}
+                                                    className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-white">+</button>
+                                                </div>
+                                              </div>
+                                            );
+                                          })()}
                                         </div>
                                       </div>
                                   );
@@ -815,16 +824,27 @@ const QuoteBuilder = () => {
                 <h3 className="text-lg font-semibold text-white mb-6">Infrastructure & Users</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                   <div>
-                    <div className="flex justify-between mb-4">
+                    <div className="flex justify-between mb-2">
                       <Label className="text-slate-300">User Seats</Label>
-                      <span className="text-[#D4AF37] font-bold text-xl">{userSeats}</span>
+                      <span className="text-[#D4AF37] font-bold text-xl">{calculation.totalSeats}</span>
                     </div>
-                    <Slider 
-                      value={[userSeats]} 
-                      onValueChange={(val) => setUserSeats(val[0])} 
-                      min={1} max={200} step={1}
-                      className="my-6"
-                    />
+                    <p className="text-xs text-slate-500 mb-3">
+                      Seats are set per app above. Volume tiers: 1–5 ${SEAT_TIERS[0].price}, 6–15 ${SEAT_TIERS[1].price}, 16–40 ${SEAT_TIERS[2].price}, 41+ ${SEAT_TIERS[3].price} /seat·mo.
+                    </p>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                      {selectedApps.length === 0 ? (
+                        <p className="text-xs text-slate-600">Select apps to allocate seats.</p>
+                      ) : selectedApps.map(id => {
+                        const app = masterApps.find(a => a.id === id);
+                        const n = appSeats[id] || 1;
+                        return (
+                          <div key={id} className="flex justify-between text-xs text-slate-400">
+                            <span className="truncate mr-2">{app?.name || 'App'} · {n} seat{n === 1 ? '' : 's'}</span>
+                            <span className="text-slate-300 shrink-0">{formatCurrency(computeSeatCost(n))}/mo</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div>

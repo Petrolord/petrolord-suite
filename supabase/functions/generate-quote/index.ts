@@ -10,7 +10,7 @@ Deno.serve(async (req)=>{
   });
   try {
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    const { modules = [], apps = [], seats = 1, billing_term = 'monthly', add_ons = [], user_id, organization_id, user_email, user_name } = await req.json();
+    const { modules = [], apps = [], seats = 1, billing_term = 'monthly', add_ons = [], user_id, organization_id, user_email, user_name, service_tier = 'starter', storage_gb = 0, manual_discount = 0 } = await req.json();
     if (!user_id && !user_email) throw new Error('User ID or Email is required');
     let orgId = organization_id;
     let orgName = '';
@@ -67,9 +67,45 @@ Deno.serve(async (req)=>{
     const configMap = {};
     pricingConfig?.forEach((item)=>configMap[item.key] = item.value);
     const VAT_RATE = parseFloat(configMap['vat_rate'] || '0.075');
-    const BASE_PLATFORM_FEE = parseFloat(configMap['base_platform_fee'] || '299');
-    const USER_SEAT_PRICE = parseFloat(configMap['user_seat_price'] || '49');
+    const BASE_PLATFORM_FEE_RAW = parseFloat(configMap['base_platform_fee'] || '299');
+    const STORAGE_GB_PRICE = parseFloat(configMap['storage_gb_price'] || '0.5');
+    // Graduated PER-APP seat tiers. Keep in sync with src/data/pricingModels.js
+    // SEAT_TIERS. Optional override via pricing_config.seat_tiers (JSON array).
+    let SEAT_TIERS = [
+      { upTo: 5, price: 49 },
+      { upTo: 15, price: 39 },
+      { upTo: 40, price: 29 },
+      { upTo: Infinity, price: 19 }
+    ];
+    try {
+      if (configMap['seat_tiers']) {
+        SEAT_TIERS = JSON.parse(configMap['seat_tiers']).map((t)=>({ upTo: t.upTo === null ? Infinity : t.upTo, price: t.price }));
+      }
+    } catch (_e) { /* keep defaults */ }
+    const computeSeatCost = (n)=>{
+      let remaining = Math.max(0, parseInt(n) || 0), prevCap = 0, cost = 0;
+      for (const t of SEAT_TIERS) {
+        if (remaining <= 0) break;
+        const band = Math.min(remaining, t.upTo - prevCap);
+        cost += band * t.price;
+        remaining -= band;
+        prevCap = t.upTo;
+      }
+      return cost;
+    };
+    // Service tiers (multiplier on the platform base fee) and billing periods.
+    const TIER_MULTIPLIERS = { starter: 1.0, growth: 1.25, enterprise: 1.5 };
+    const PERIODS = {
+      monthly:   { months: 1,  discount: 0 },
+      quarterly: { months: 3,  discount: 0.10 },
+      annual:    { months: 12, discount: 0.15 },
+      '2year':   { months: 24, discount: 0.20 },
+      '3year':   { months: 36, discount: 0.25 }
+    };
+    const tierMultiplier = TIER_MULTIPLIERS[service_tier] ?? 1.0;
+    const BASE_PLATFORM_FEE = BASE_PLATFORM_FEE_RAW * tierMultiplier;
     let appsCost = 0;
+    let seatsCost = 0; // accumulated per-app via tiers
     const lineItems = [];
     const validatedApps = []; // Track app IDs (UUIDs)
     const appNameMap = {}; // Map app ID to name for PDF
@@ -98,7 +134,9 @@ Deno.serve(async (req)=>{
           const price = parseFloat(app.price || 0);
           // Per-app seat count (the cap manual_verify_quote writes to seats_allocated).
           const appSeats = perAppSeatMode ? (seatsByApp[app.id] != null ? seatsByApp[app.id] : 1) : (Number(seats) || 1);
+          const appSeatCost = computeSeatCost(appSeats); // graduated per-app tiers
           appsCost += price;
+          seatsCost += appSeatCost;
           // Store an OBJECT (incl. per-app seats) so manual_verify_quote can match on
           // ->>'id'/'name'/'module' and set per-app seats_allocated.
           validatedApps.push({
@@ -112,7 +150,11 @@ Deno.serve(async (req)=>{
             description: `App: ${app.app_name}`,
             amount: price
           });
-          console.log(`[Generate Quote] Added app: ${app.app_name} (${app.id}) - $${price} - seats ${appSeats}`);
+          lineItems.push({
+            description: `   ${appSeats} seat${appSeats === 1 ? '' : 's'} — ${app.app_name}`,
+            amount: appSeatCost
+          });
+          console.log(`[Generate Quote] Added app: ${app.app_name} (${app.id}) - $${price} - ${appSeats} seats - seatCost $${appSeatCost}`);
         });
         // Log any apps that were requested but not found/inactive
         const foundAppIds = activeApps.map((a)=>a.id);
@@ -136,13 +178,15 @@ Deno.serve(async (req)=>{
         });
       });
     }
-    // Total seats = sum of per-app seats (per-app mode) or the single global count.
-    const totalSeats = perAppSeatMode ? validatedApps.reduce((acc, a)=> acc + (a.seats || 0), 0) : (Number(seats) || 0);
-    const seatsCost = totalSeats * USER_SEAT_PRICE;
-    lineItems.push({
-      description: `${totalSeats} User Seats @ $${USER_SEAT_PRICE}/mo`,
-      amount: seatsCost
-    });
+    // seatsCost was accumulated per-app (graduated tiers) in the loop above.
+    // totalSeats is the sum for display/storage.
+    let totalSeats = validatedApps.reduce((acc, a)=> acc + (a.seats || 0), 0);
+    // Module-only fallback (no apps selected): charge the global seats once.
+    if (validatedApps.length === 0 && (Number(seats) || 0) > 0) {
+      totalSeats = Number(seats) || 0;
+      seatsCost = computeSeatCost(totalSeats);
+      lineItems.push({ description: `${totalSeats} User Seats`, amount: seatsCost });
+    }
     let addonsCost = 0;
     add_ons.forEach((addon)=>{
       const price = parseFloat(addon.price || 0);
@@ -152,26 +196,27 @@ Deno.serve(async (req)=>{
         amount: price
       });
     });
-    const monthlySubtotal = BASE_PLATFORM_FEE + appsCost + seatsCost + addonsCost;
-    let termMultiplier = 1;
-    let months = 1;
-    let discountRate = 0;
-    if (billing_term === 'annual') {
-      months = 12;
-      discountRate = 0.15;
-    } else if (billing_term === 'quarterly') {
-      months = 3;
-      discountRate = 0.10;
+    // Storage (first 10 GB free).
+    const storageCost = Math.max(0, (Number(storage_gb) || 0) - 10) * STORAGE_GB_PRICE;
+    if (storageCost > 0) {
+      lineItems.push({ description: `Storage (${storage_gb} GB)`, amount: storageCost });
     }
-    const grossTotal = monthlySubtotal * months;
-    const discountAmount = grossTotal * discountRate;
-    const netTotal = grossTotal - discountAmount;
-    if (discountRate > 0) {
-      lineItems.push({
-        description: `${billing_term.charAt(0).toUpperCase() + billing_term.slice(1)} Discount (${discountRate * 100}%)`,
-        amount: -discountAmount
-      });
+    const monthlySubtotal = BASE_PLATFORM_FEE + appsCost + seatsCost + addonsCost + storageCost;
+    // Term discount (per billing period) then optional manual discount, then ×months.
+    const period = PERIODS[billing_term] || PERIODS.monthly;
+    const months = period.months;
+    const periodDiscountVal = monthlySubtotal * period.discount;
+    const afterPeriod = monthlySubtotal - periodDiscountVal;
+    const manualPct = Math.max(0, Math.min(100, Number(manual_discount) || 0)) / 100;
+    const manualDiscountVal = afterPeriod * manualPct;
+    const monthlyNet = afterPeriod - manualDiscountVal;
+    if (period.discount > 0) {
+      lineItems.push({ description: `Term Discount (${Math.round(period.discount * 100)}%)`, amount: -periodDiscountVal });
     }
+    if (manualPct > 0) {
+      lineItems.push({ description: `Special Discount (${Math.round(manualPct * 100)}%)`, amount: -manualDiscountVal });
+    }
+    const netTotal = monthlyNet * months;
     const vatAmount = netTotal * VAT_RATE;
     const totalAmount = netTotal + vatAmount;
     // 3. Generate Quote ID

@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency } from '@/utils/adminHelpers';
 import { appCategories } from '@/data/applications';
+import { computeSeatCost } from '@/data/pricingModels';
 
 const STEPS = [
   { id: 1, title: 'Modules', icon: Layers },
@@ -68,6 +69,8 @@ export default function GetQuote() {
 
   const setSeatsFor = (appId, n) => setAppSeats(s => ({ ...s, [appId]: Math.max(1, n) }));
   const getTotalSeats = () => selectedApps.reduce((acc, id) => acc + (appSeats[id] || 1), 0);
+  // Graduated per-app seat cost (matches generate-quote / SEAT_TIERS).
+  const getSeatsCost = () => selectedApps.reduce((acc, id) => acc + computeSeatCost(appSeats[id] || 1), 0);
   const [addOns, setAddOns] = useState([]);
   // Use the explicit ?org_id, the upgrade-button state, or fall back to the
   // logged-in admin's own org (in-app upgrade). Null only for brand-new signups.
@@ -140,8 +143,8 @@ export default function GetQuote() {
       if (app) subtotal += (parseFloat(app.price) || 0);
     });
 
-    // Seats (per app)
-    subtotal += (getTotalSeats() * BASE_SEAT_PRICE);
+    // Seats (per app, graduated tiers)
+    subtotal += getSeatsCost();
 
     // Term discount
     const multiplier = billingTerm === 'annual' ? 12 : (billingTerm === 'quarterly' ? 3 : 1);
@@ -337,7 +340,7 @@ export default function GetQuote() {
                       <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700">
                         <div className="flex justify-between mb-4">
                           <label className="font-semibold flex items-center gap-2"><Users className="w-4 h-4 text-lime-400"/> Seats per App</label>
-                          <span className="text-sm text-slate-400">{getTotalSeats()} total @ ${BASE_SEAT_PRICE}/seat</span>
+                          <span className="text-sm text-slate-400">{getTotalSeats()} total · {formatCurrency(getSeatsCost())}/mo</span>
                         </div>
                         {selectedApps.length === 0 ? (
                           <p className="text-sm text-slate-500">Select apps in the previous step to allocate seats.</p>
@@ -399,8 +402,8 @@ export default function GetQuote() {
                           <span>{formatCurrency(selectedApps.reduce((acc, id) => acc + (availableApps.find(a=>a.id===id)?.price||0), 0))}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Seats ({getTotalSeats()} @ ${BASE_SEAT_PRICE})</span>
-                          <span>{formatCurrency(getTotalSeats() * BASE_SEAT_PRICE)}</span>
+                          <span className="text-slate-400">Seats ({getTotalSeats()}, tiered)</span>
+                          <span>{formatCurrency(getSeatsCost())}</span>
                         </div>
                         <div className="flex justify-between font-semibold text-white pt-2 border-t border-slate-800">
                           <span>Monthly Subtotal</span>
