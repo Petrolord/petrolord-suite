@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import EpeDataUploader from '@/components/epe/EpeDataUploader';
+import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
     import { Helmet } from 'react-helmet';
     import { useParams, Link, useNavigate } from 'react-router-dom';
     import { useToast } from '@/components/ui/use-toast';
@@ -10,107 +12,6 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useDropzone } from 'react-dropzone';
     import Papa from 'papaparse';
-
-    const DataFileCard = ({ file, onProcess, onDelete, processing }) => {
-      const getFileIcon = () => {
-        if (file.file_name.endsWith('.csv')) return <FileSpreadsheet className="w-10 h-10 text-green-400" />;
-        if (file.file_name.endsWith('.json')) return <FileJson className="w-10 h-10 text-yellow-400" />;
-        return <FileText className="w-10 h-10 text-slate-400" />;
-      };
-
-      return (
-        <Card className="bg-slate-800 border-slate-700">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {getFileIcon()}
-              <div>
-                <p className="font-semibold text-white truncate w-48">{file.file_name}</p>
-                <p className="text-xs text-slate-400">Uploaded: {new Date(file.created_at).toLocaleDateString()}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => onProcess(file)} disabled={processing}>
-                {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Process
-              </Button>
-              <Button size="sm" variant="destructive" onClick={() => onDelete(file.id)} disabled={processing}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      );
-    };
-
-    const DataUploader = ({ caseId, onUploadSuccess, dataType, acceptedTypes }) => {
-      const { toast } = useToast();
-      const { user } = useAuth();
-      const [isUploading, setIsUploading] = useState(false);
-
-      const onDrop = useCallback(async (acceptedFiles) => {
-        const file = acceptedFiles[0];
-        if (!file) return;
-
-        setIsUploading(true);
-        try {
-          const fileExt = file.name.split('.').pop();
-          const filePath = `${user.id}/${caseId}/${dataType}-${Date.now()}.${fileExt}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('epe-uploads')
-            .upload(filePath, file);
-
-          if (uploadError) throw uploadError;
-
-          const { data: dbRecord, error: dbError } = await supabase
-            .from(`epe_${dataType}`)
-            .insert({
-              case_id: caseId,
-              user_id: user.id,
-              file_name: file.name,
-              data: { storagePath: filePath } // Store path, process later
-            })
-            .select()
-            .single();
-          
-          if (dbError) throw dbError;
-
-          toast({ title: 'Upload successful', description: `${file.name} has been uploaded.` });
-          onUploadSuccess(dbRecord);
-
-        } catch (error) {
-          toast({ variant: 'destructive', title: 'Upload failed', description: error.message });
-        } finally {
-          setIsUploading(false);
-        }
-      }, [caseId, user, dataType, onUploadSuccess, toast]);
-
-      const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        onDrop,
-        multiple: false,
-        accept: acceptedTypes,
-      });
-
-      return (
-        <div {...getRootProps()} className={`p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${isDragActive ? 'border-cyan-400 bg-slate-800' : 'border-slate-600 hover:border-cyan-500'}`}>
-          <input {...getInputProps()} />
-          <div className="flex flex-col items-center justify-center text-center text-slate-400">
-            {isUploading ? (
-              <>
-                <Loader2 className="w-8 h-8 mb-4 animate-spin" />
-                <p className="text-lg font-semibold text-white">Uploading...</p>
-              </>
-            ) : (
-              <>
-                <Upload className="w-8 h-8 mb-4" />
-                <p className="text-lg font-semibold text-white">Drag 'n' drop file here, or click to select</p>
-                <p className="text-sm mt-1">Accepted formats: {Object.values(acceptedTypes).flat().join(', ')}</p>
-              </>
-            )}
-          </div>
-        </div>
-      );
-    };
 
     const EpeCaseDetail = () => {
       const { caseId } = useParams();
@@ -154,7 +55,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
         } catch (error) {
           toast({ variant: 'destructive', title: 'Failed to fetch case details', description: error.message });
-          navigate('/dashboard/economic-project-management/epe/cases');
+          navigate('/dashboard/apps/economics/epe/cases');
         } finally {
           setLoading(false);
         }
@@ -180,7 +81,7 @@ import React, { useState, useEffect, useCallback } from 'react';
           // For now, we just update the record to show it's "processed"
           // by replacing the storage path with the actual data.
           const { error: updateError } = await supabase
-            .from(`epe_${file.file_name.includes('prod') ? 'production_volumes' : file.file_name.includes('capex') ? 'capex' : 'opex'}`)
+            .from(`epe_${file.dataType || (file.file_name.toLowerCase().includes('prod') ? 'production_volumes' : file.file_name.toLowerCase().includes('capex') ? 'capex' : 'opex')}`)
             .update({ data: parsedData.data })
             .eq('id', file.id);
 
@@ -218,7 +119,7 @@ import React, { useState, useEffect, useCallback } from 'react';
           <div className="p-4 sm:p-6 md:p-8">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
-                <Link to="/dashboard/economic-project-management/epe/cases">
+                <Link to="/dashboard/apps/economics/epe/cases">
                   <Button variant="outline"><ArrowLeft className="w-4 h-4 mr-2" />Back to Cases</Button>
                 </Link>
                 <div>
@@ -227,10 +128,10 @@ import React, { useState, useEffect, useCallback } from 'react';
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Link to={`/dashboard/economic-project-management/epe/cases/${caseId}/compare`}>
+                <Link to={`/dashboard/apps/economics/epe/cases/${caseId}/compare`}>
                   <Button variant="outline"><Compare className="w-4 h-4 mr-2" />Compare Runs</Button>
                 </Link>
-                <Link to={`/dashboard/economic-project-management/epe/console/${caseId}`}>
+                <Link to={`/dashboard/apps/economics/epe/cases/${caseId}/run`}>
                   <Button><Play className="w-4 h-4 mr-2" />New Run</Button>
                 </Link>
               </div>
@@ -249,8 +150,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                       <CardDescription>Upload production forecast files.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {productionVolumes.map(f => <DataFileCard key={f.id} file={f} onProcess={handleProcessFile} onDelete={() => handleDeleteFile(f.id, 'epe_production_volumes')} processing={processingFileId === f.id} />)}
-                      <DataUploader caseId={caseId} onUploadSuccess={fetchData} dataType="production_volumes" acceptedTypes={{'text/csv': ['.csv']}} />
+                      {productionVolumes.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'production_volumes'})} onDelete={() => handleDeleteFile(f.id, 'epe_production_volumes')} processing={processingFileId === f.id} />)}
+                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="production_volumes" />
                     </CardContent>
                   </Card>
                   <Card className="bg-slate-800/50 border-slate-700">
@@ -259,8 +160,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                       <CardDescription>Upload capital expenditure files.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {capex.map(f => <DataFileCard key={f.id} file={f} onProcess={handleProcessFile} onDelete={() => handleDeleteFile(f.id, 'epe_capex')} processing={processingFileId === f.id} />)}
-                      <DataUploader caseId={caseId} onUploadSuccess={fetchData} dataType="capex" acceptedTypes={{'text/csv': ['.csv']}} />
+                      {capex.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'capex'})} onDelete={() => handleDeleteFile(f.id, 'epe_capex')} processing={processingFileId === f.id} />)}
+                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="capex" />
                     </CardContent>
                   </Card>
                   <Card className="bg-slate-800/50 border-slate-700">
@@ -269,8 +170,8 @@ import React, { useState, useEffect, useCallback } from 'react';
                       <CardDescription>Upload operational expenditure files.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {opex.map(f => <DataFileCard key={f.id} file={f} onProcess={handleProcessFile} onDelete={() => handleDeleteFile(f.id, 'epe_opex')} processing={processingFileId === f.id} />)}
-                      <DataUploader caseId={caseId} onUploadSuccess={fetchData} dataType="opex" acceptedTypes={{'text/csv': ['.csv']}} />
+                      {opex.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'opex'})} onDelete={() => handleDeleteFile(f.id, 'epe_opex')} processing={processingFileId === f.id} />)}
+                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="opex" />
                     </CardContent>
                   </Card>
                 </div>
@@ -289,7 +190,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                               <p className="font-semibold text-cyan-400">{run.run_name}</p>
                               <p className="text-xs text-slate-400">Run on: {new Date(run.created_at).toLocaleString()}</p>
                             </div>
-                            <Link to={`/dashboard/economic-project-management/epe/cases/${caseId}/runs/${run.id}`}>
+                            <Link to={`/dashboard/apps/economics/epe/runs/${run.id}`}>
                               <Button variant="secondary">View Results</Button>
                             </Link>
                           </li>
@@ -300,7 +201,7 @@ import React, { useState, useEffect, useCallback } from 'react';
                         <BarChart className="mx-auto h-12 w-12 text-slate-500" />
                         <h3 className="mt-2 text-lg font-medium text-white">No runs yet</h3>
                         <p className="mt-1 text-sm text-slate-400">Create a new run to see results here.</p>
-                        <Link to={`/dashboard/economic-project-management/epe/console/${caseId}`} className="mt-4 inline-block">
+                        <Link to={`/dashboard/apps/economics/epe/cases/${caseId}/run`} className="mt-4 inline-block">
                           <Button><Plus className="mr-2 h-4 w-4" />Start a New Run</Button>
                         </Link>
                       </div>

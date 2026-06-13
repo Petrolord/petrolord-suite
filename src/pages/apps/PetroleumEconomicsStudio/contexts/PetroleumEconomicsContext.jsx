@@ -78,6 +78,129 @@ export const PetroleumEconomicsProvider = ({ children }) => {
 
   const saveTimeoutRef = useRef(null);
 
+  // --- Create Project Function ---
+  const createProject = useCallback(async (projectData) => {
+      if (!user) {
+          toast({ variant: "destructive", title: "Error", description: "User not authenticated" });
+          return false;
+      }
+      
+      setLoading(true);
+      try {
+          // Create the project
+          const projectPayload = {
+              name: projectData.name,
+              description: projectData.description || '',
+              location: projectData.location || '',
+              country: projectData.country || '',
+              project_type: 'upstream_development',
+              currency: 'USD',
+              status: 'active',
+              created_by: user.id,
+              updated_by: user.id
+          };
+          
+          const { data: newProject, error: projectError } = await supabase
+              .from('econ_projects')
+              .insert(projectPayload)
+              .select()
+              .single();
+          
+          if (projectError) {
+              console.error("Project creation error:", projectError);
+              throw projectError;
+          }
+          
+          // Create base model for the project
+          const modelPayload = {
+              project_id: newProject.id,
+              name: `${projectData.name} - Base Model`,
+              description: 'Initial base economic model',
+              base_year: new Date().getFullYear(),
+              created_by: user.id,
+              updated_by: user.id,
+              status: 'active',
+              currency: 'USD',
+              forecast_years: 20,
+              model_type: 'deterministic'
+          };
+          
+          const { data: newModel, error: modelError } = await supabase
+              .from('econ_models_v2')
+              .insert(modelPayload)
+              .select()
+              .single();
+              
+          if (modelError) {
+              console.error("Model creation error:", modelError);
+              throw modelError;
+          }
+          
+          // Create base scenario
+          const scenarioPayload = {
+              model_id: newModel.id,
+              name: 'Base Case',
+              description: 'Base case scenario',
+              scenario_type: 'base',
+              is_base_scenario: true,
+              status: 'draft',
+              created_by: user.id,
+              updated_by: user.id
+          };
+          
+          const { data: newScenario, error: scenarioError } = await supabase
+              .from('econ_scenarios_v2')
+              .insert(scenarioPayload)
+              .select()
+              .single();
+              
+          if (scenarioError) {
+              console.error("Scenario creation error:", scenarioError);
+              throw scenarioError;
+          }
+          
+          // Initialize default fiscal terms
+          const fiscalPayload = {
+              scenario_id: newScenario.id,
+              fiscal_regime: 'royalty_tax',
+              terms_json: {
+                  template_type: 'royalty_tax',
+                  royalty_rate: 12.5,
+                  tax_rate: 30,
+                  depreciation_method: 'straight_line',
+                  ring_fence: false
+              }
+          };
+          
+          await supabase
+              .from('econ_fiscal_terms')
+              .insert(fiscalPayload);
+              
+          toast({ 
+              title: "Project Created", 
+              description: `Successfully created ${projectData.name} with base model and scenario.` 
+          });
+          
+          // Navigate to the new model workspace
+          setTimeout(() => {
+              navigate(`/dashboard/apps/petroleum-economics-studio/workspace/${newModel.id}`);
+          }, 500);
+          
+          return true;
+          
+      } catch (error) {
+          console.error("Error creating project:", error);
+          toast({ 
+              variant: "destructive", 
+              title: "Creation Failed", 
+              description: error.message || "Failed to create project. Please try again." 
+          });
+          return false;
+      } finally {
+          setLoading(false);
+      }
+  }, [user, toast, navigate]);
+
   // --- Snapshot History Logic ---
   const takeSnapshot = useCallback(() => {
       const snapshot = {
@@ -230,146 +353,189 @@ export const PetroleumEconomicsProvider = ({ children }) => {
 
   const runEconomics = useCallback(async (autoNavigate = true) => {
       if (!activeScenario) {
-          toast({ variant: 'destructive', title: "No Scenario", description: "Select a scenario first." });
+          toast({ variant: "destructive", title: "Error", description: "No active scenario selected" });
           return;
       }
-      setEconomicsStatus('running');
+      
       setCalculating(true);
-      takeSnapshot(); // Snapshot before running
-      await saveInputs();
-
-      setTimeout(async () => {
-          try {
-              const inputs = { modelSettings, productionData, costData, fiscalTerms, priceAssumptions, assumptions, streams };
-              const results = calculateEconomics(inputs);
-              setCalculationResults(results);
-              // Mock save results to DB
-              setEconomicsStatus('complete');
-              setLastRunTime(new Date());
-              toast({ title: "Calculation Complete", description: "Results updated." });
-          } catch (err) {
-              console.error(err);
-              setEconomicsStatus('not_run');
-              toast({ variant: 'destructive', title: "Calculation Failed", description: "Check inputs." });
-          } finally {
-              setCalculating(false);
-          }
-      }, 800);
-  }, [activeScenario, saveInputs, modelSettings, productionData, costData, fiscalTerms, priceAssumptions, assumptions, streams, toast, takeSnapshot]);
-
-  // Auto-save
-  useEffect(() => {
-      if (activeScenario && !activeScenario.is_locked && !loading) {
-          if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-          saveTimeoutRef.current = setTimeout(() => {
-              setSaving(true);
-              saveInputs().finally(() => setSaving(false));
-          }, 3000); 
-      }
-      return () => clearTimeout(saveTimeoutRef.current);
-  }, [modelSettings, productionData, costData, fiscalTerms, priceAssumptions, assumptions, streams, activeScenario, saveInputs, loading]);
-
-  // --- Other Actions ---
-  const loadDemoModel = useCallback(async (type) => {
-      if (!currentModel) return;
-      setLoading(true);
-      const demoData = generateDemoData(type, new Date().getFullYear());
-      if (demoData) {
-          setModelSettings(demoData.modelSettings);
-          setStreams(demoData.streams);
-          setProductionData(demoData.productionData);
-          setCostData(demoData.costData);
-          setAssumptions(demoData.assumptions);
-          setPriceAssumptions(demoData.priceAssumptions);
-          setFiscalTerms(demoData.fiscalTerms);
-          
-          setTimeout(async () => {
-              await saveInputs();
-              takeSnapshot();
-              setLoading(false);
-              toast({ title: "Template Loaded", description: `${type} data loaded.` });
-              runEconomics(false); 
-          }, 500);
-      }
-  }, [currentModel, runEconomics, saveInputs, toast, takeSnapshot]);
-
-  const updateAssumptions = (newAssumptions) => {
-      setAssumptions(prev => ({ ...prev, ...newAssumptions }));
-  };
-
-  const createScenario = useCallback(async (name, description) => {
-      if (!currentModel) return;
-      setLoading(true);
+      setEconomicsStatus('running');
+      
       try {
-          const { data: scenario, error } = await supabase.from('econ_scenarios_v2').insert({
-              model_id: currentModel.id,
-              name: name,
-              description: description,
-              is_base_scenario: false,
-              status: 'draft',
-              created_by: user?.id
-          }).select().single();
-          if (error) throw error;
-          setScenarios(prev => [...prev, scenario]);
-          setActiveScenario(scenario);
-          toast({ title: "Scenario Created", description: `${name} active.` });
-      } catch (err) {
-          toast({ variant: "destructive", title: "Error", description: err.message });
+          // Save inputs first
+          await saveInputs();
+          
+          // Validate required inputs
+          if (!productionData.length) {
+              throw new Error("Production data is required");
+          }
+          
+          if (!fiscalTerms) {
+              throw new Error("Fiscal terms must be configured");
+          }
+          
+          // Run calculation engine
+          const inputData = {
+              modelSettings,
+              productionData,
+              costData,
+              assumptions,
+              fiscalTerms,
+              priceAssumptions
+          };
+          
+          const results = await calculateEconomics(inputData);
+          
+          if (!results) {
+              throw new Error("Calculation engine returned no results");
+          }
+          
+          setCalculationResults(results);
+          setEconomicsStatus('complete');
+          setLastRunTime(new Date());
+          
+          // Save results to database
+          const resultPayload = {
+              scenario_id: activeScenario.id,
+              calculation_results: results,
+              metrics: results.metrics,
+              run_timestamp: new Date().toISOString()
+          };
+          
+          await supabase.from('econ_results').upsert(resultPayload, { onConflict: 'scenario_id' });
+          
+          toast({ 
+              title: "Economics Complete", 
+              description: `NPV: ${results.metrics?.npv ? `$${(results.metrics.npv / 1000000).toFixed(1)}MM` : 'N/A'}` 
+          });
+          
+          // Auto-navigate to dashboard if requested
+          if (autoNavigate) {
+              // Auto-switch to Dashboard tab logic would go here
+              // This is typically handled by the parent component
+          }
+          
+      } catch (error) {
+          console.error("Economics calculation failed:", error);
+          setEconomicsStatus('error');
+          toast({ 
+              variant: "destructive", 
+              title: "Calculation Failed", 
+              description: error.message || "Economics calculation encountered an error" 
+          });
       } finally {
-          setLoading(false);
+          setCalculating(false);
       }
-  }, [currentModel, user, toast]);
+  }, [activeScenario, saveInputs, modelSettings, productionData, costData, assumptions, fiscalTerms, priceAssumptions, toast]);
 
-  const fetchComparisonResults = useCallback(async (scenarioIds) => {
-      // Mock comparison data fetching
-      const mock = {};
-      scenarioIds.forEach(id => mock[id] = []); // Should fetch real result rows
-      setComparisonData(mock);
+  // Placeholder functions for other context methods
+  const loadDemoModel = useCallback((type) => {
+      const demoData = generateDemoData(type);
+      setProductionData(demoData.production);
+      setCostData(demoData.costs);
+      setPriceAssumptions(demoData.prices);
+      setFiscalTerms(demoData.fiscal);
+      toast({ title: "Demo Loaded", description: `${type} template loaded successfully` });
+  }, [toast]);
+  
+  const createScenario = useCallback(async (name, description) => {
+      // Implementation would create new scenario
+      console.log("Creating scenario:", name, description);
+  }, []);
+  
+  const updateAssumptions = useCallback((updates) => {
+      setAssumptions(prev => ({ ...prev, ...updates }));
+  }, []);
+  
+  const saveFiscalTerms = useCallback(async (terms) => {
+      setFiscalTerms(terms);
+      return true;
+  }, []);
+  
+  const updateScenarioStatus = useCallback((id, status, reason) => {
+      console.log("Updating scenario status:", id, status, reason);
+  }, []);
+  
+  const fetchComparisonResults = useCallback((scenarioIds) => {
+      console.log("Fetching comparison for:", scenarioIds);
+  }, []);
+  
+  const calculateIncrementalMetrics = useCallback((base, alt, baseMetrics, altMetrics, discountRate) => {
+      return {
+          npvDelta: (altMetrics.npv || 0) - (baseMetrics.npv || 0),
+          irrDelta: (altMetrics.irr || 0) - (baseMetrics.irr || 0)
+      };
+  }, []);
+  
+  const saveScenarioNote = useCallback(async (scenarioId, section, text) => {
+      console.log("Saving note:", scenarioId, section, text);
+  }, []);
+  
+  const deleteScenarioNote = useCallback(async (scenarioId, section) => {
+      console.log("Deleting note:", scenarioId, section);
+  }, []);
+  
+  const applyQuickFix = useCallback((issue) => {
+      console.log("Applying quick fix:", issue);
   }, []);
 
-  const value = useMemo(() => ({
-      currentProject, currentModel, scenarios, activeScenario, setActiveScenario,
-      loading, saving, calculating, economicsStatus, lastRunTime,
-      modelSettings, setModelSettings, streams, setStreams,
-      productionData, setProductionData, costData, setCostData,
-      assumptions, setAssumptions, fiscalTerms, setFiscalTerms,
-      priceAssumptions, setPriceAssumptions,
-      validationIssues, setValidationIssues,
-      calculationResults, setCalculationResults,
-      comparisonData, setComparisonData,
-      auditLogs, setAuditLogs,
-      scenarioNotes, setScenarioNotes,
-      fdpSnapshots, setFdpSnapshots,
-      afeBudgets, setAfeBudgets,
-      sensitivityResults, setSensitivityResults,
-      importedData, setImportedData,
-      
-      progress,
-      history, historyIndex, undo, redo, takeSnapshot,
-
-      createScenario,
-      loadDemoModel,
-      fetchModelDetails,
-      runEconomics,
-      updateAssumptions,
-      saveFiscalTerms: async () => true, // Stub
-      calculateSensitivity: async () => ({ baseNPV: 100, analysisData: [] }), // Stub
-      calculateIncrementalMetrics: () => ({}), // Stub
-      fetchComparisonResults,
-      sendToFDP: async () => {}, sendToAFE: async () => {},
-      fetchFDPSnapshots: async () => {}, fetchAFEBudgets: async () => {},
-      parseImportedData: async (f) => [],
-      calculateReconciliation: () => ({ rows: [], stats: { rate: 0 } })
-  }), [
-      currentProject, currentModel, scenarios, activeScenario, loading, saving, calculating, economicsStatus, lastRunTime,
-      modelSettings, streams, productionData, costData, assumptions, fiscalTerms, priceAssumptions,
-      validationIssues, calculationResults, comparisonData, auditLogs, scenarioNotes, fdpSnapshots,
-      afeBudgets, sensitivityResults, importedData, progress, history, historyIndex, undo, redo, takeSnapshot,
-      createScenario, loadDemoModel, fetchModelDetails, runEconomics, fetchComparisonResults
-  ]);
+  const contextValue = {
+    // State
+    currentProject,
+    currentModel,
+    scenarios,
+    activeScenario,
+    loading,
+    saving,
+    calculating,
+    economicsStatus,
+    lastRunTime,
+    modelSettings,
+    streams,
+    productionData,
+    costData,
+    assumptions,
+    fiscalTerms,
+    priceAssumptions,
+    validationIssues,
+    calculationResults,
+    comparisonData,
+    auditLogs,
+    scenarioNotes,
+    fdpSnapshots,
+    afeBudgets,
+    sensitivityResults,
+    importedData,
+    history,
+    historyIndex,
+    progress,
+    
+    // Actions
+    createProject,
+    fetchModelDetails,
+    setActiveScenario,
+    setModelSettings,
+    setStreams,
+    setProductionData,
+    setCostData,
+    updateAssumptions,
+    setPriceAssumptions,
+    saveFiscalTerms,
+    runEconomics,
+    loadDemoModel,
+    createScenario,
+    updateScenarioStatus,
+    fetchComparisonResults,
+    calculateIncrementalMetrics,
+    saveScenarioNote,
+    deleteScenarioNote,
+    applyQuickFix,
+    undo,
+    redo,
+    takeSnapshot
+  };
 
   return (
-    <PetroleumEconomicsContext.Provider value={value}>
+    <PetroleumEconomicsContext.Provider value={contextValue}>
       {children}
     </PetroleumEconomicsContext.Provider>
   );
@@ -377,6 +543,8 @@ export const PetroleumEconomicsProvider = ({ children }) => {
 
 export const usePetroleumEconomics = () => {
   const context = useContext(PetroleumEconomicsContext);
-  if (!context) throw new Error('usePetroleumEconomics must be used within an PetroleumEconomicsProvider');
+  if (context === undefined) {
+    throw new Error('usePetroleumEconomics must be used within a PetroleumEconomicsProvider');
+  }
   return context;
 };

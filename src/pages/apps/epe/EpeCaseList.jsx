@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Plus, ChevronRight } from 'lucide-react';
+import { Briefcase, Plus, ChevronRight, ArrowLeft, HelpCircle } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
   Dialog,
@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const EpeCaseList = () => {
   const { toast } = useToast();
@@ -77,7 +77,7 @@ const EpeCaseList = () => {
       setIsNewCaseDialogOpen(false);
       setNewCaseName('');
       setNewCaseDescription('');
-      navigate(`/dashboard/economic-project-management/epe/cases/${data.id}`);
+      navigate(`/dashboard/apps/economics/epe/cases/${data.id}`);
     }
     setIsSubmitting(false);
   };
@@ -90,6 +90,20 @@ const EpeCaseList = () => {
       </Helmet>
       <div className="p-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-8">
+          <div className="mb-4 flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/dashboard/economics')}
+              className="text-white border-white/20 hover:bg-white/10"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Economics
+            </Button>
+            <Link to="/dashboard/apps/economics/epe/help">
+              <Button variant="outline" className="text-white border-white/20 hover:bg-white/10">
+                <HelpCircle className="mr-2 h-4 w-4" /> Help & Guide
+              </Button>
+            </Link>
+          </div>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-4">
               <div className="bg-gradient-to-r from-indigo-500 to-purple-500 p-3 rounded-xl">
@@ -123,7 +137,7 @@ const EpeCaseList = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.5 }}
                   className="bg-white/5 p-4 rounded-lg flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer"
-                  onClick={() => navigate(`/dashboard/economic-project-management/epe/cases/${c.id}`)}
+                  onClick={() => navigate(`/dashboard/apps/economics/epe/cases/${c.id}`)}
                 >
                   <div>
                     <h4 className="font-semibold text-white">{c.case_name}</h4>
