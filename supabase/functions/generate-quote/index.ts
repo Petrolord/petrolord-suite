@@ -18,14 +18,19 @@ Deno.serve(async (req)=>{
     if (orgId) {
       const { data: org, error: orgError } = await supabase.from('organizations').select('*').eq('id', orgId).single();
       if (orgError) throw new Error('Organization not found');
-      // Verify admin status if user_id is present
+      // Verify admin status if user_id is present.
+      // Membership lives across three tables (org signup writes organization_members,
+      // legacy code uses organization_users, some flows use org_members) — accept an
+      // admin-ish role in ANY of them.
       if (user_id) {
-        const { data: membership } = await supabase.from('organization_users').select('role').eq('organization_id', orgId).eq('user_id', user_id).single();
-        if (!membership || ![
-          'owner',
-          'admin',
-          'super_admin'
-        ].includes(membership.role)) {
+        const ADMIN_ROLES = ['owner', 'admin', 'super_admin', 'org_admin'];
+        const [ou, om, ogm] = await Promise.all([
+          supabase.from('organization_users').select('role, user_role').eq('organization_id', orgId).eq('user_id', user_id).maybeSingle(),
+          supabase.from('organization_members').select('role').eq('organization_id', orgId).eq('user_id', user_id).maybeSingle(),
+          supabase.from('org_members').select('role').eq('org_id', orgId).eq('user_id', user_id).maybeSingle()
+        ]);
+        const roles = [ou.data?.role, ou.data?.user_role, om.data?.role, ogm.data?.role].filter(Boolean);
+        if (!roles.some((r)=>ADMIN_ROLES.includes(r))) {
           throw new Error('Unauthorized: Must be an organization admin to generate a quote.');
         }
       }
@@ -76,7 +81,7 @@ Deno.serve(async (req)=>{
     // Apps array contains app IDs (UUIDs) from frontend
     if (apps && apps.length > 0) {
       console.log(`[Generate Quote] Requested apps: ${JSON.stringify(apps)}`);
-      const { data: activeApps, error: appsError } = await supabase.from('master_apps').select('id, name, price, status').in('id', apps).eq('status', 'ACTIVE');
+      const { data: activeApps, error: appsError } = await supabase.from('master_apps').select('id, app_name, price, status, slug, module, module_id').in('id', apps).ilike('status', 'active');
       if (appsError) {
         console.error('[Generate Quote] Error fetching apps:', appsError);
         throw appsError;
@@ -86,13 +91,19 @@ Deno.serve(async (req)=>{
         activeApps.forEach((app)=>{
           const price = parseFloat(app.price || 0);
           appsCost += price;
-          validatedApps.push(app.id); // Store UUID
-          appNameMap[app.id] = app.name; // Map for PDF
+          // Store an OBJECT (not just the UUID) so manual_verify_quote can match
+          // on ->>'id' / ->>'name' / ->>'module' and provision entitlements.
+          validatedApps.push({
+            id: app.id,
+            name: app.app_name,
+            module: app.module
+          });
+          appNameMap[app.id] = app.app_name; // Map for PDF
           lineItems.push({
-            description: `App: ${app.name}`,
+            description: `App: ${app.app_name}`,
             amount: price
           });
-          console.log(`[Generate Quote] Added app: ${app.name} (${app.id}) - $${price}`);
+          console.log(`[Generate Quote] Added app: ${app.app_name} (${app.id}) - $${price}`);
         });
         // Log any apps that were requested but not found/inactive
         const foundAppIds = activeApps.map((a)=>a.id);
