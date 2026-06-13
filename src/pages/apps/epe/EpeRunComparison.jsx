@@ -105,7 +105,7 @@ const EpeRunComparison = () => {
       <div className="p-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <Link to={`/dashboard/economic-project-management/epe/cases/${caseId}`}>
+            <Link to={`/dashboard/apps/economics/epe/cases/${caseId}`}>
               <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Case Details</Button>
             </Link>
           </div>

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label } from 'recharts';
 import { Button } from '@/components/ui/button';
-import ChartLogo from './ChartLogo';
+import ChartLogo from '@/components/charts/ChartLogo';
 import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
 import {
   CHART_COLORS,
