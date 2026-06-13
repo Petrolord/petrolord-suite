@@ -101,20 +101,37 @@ serve(async (req) => {
       }, 400);
     }
 
-    // -- 3. Run the purge RPC (dry-run unless willDelete) -------------------
-    const { data: report, error: rpcErr } = await admin.rpc("admin_purge_test_orgs", {
+    // -- 3. Run the purge RPCs (dry-run unless willDelete) ------------------
+    // Two complementary passes: inactive test ORGS (+ their members), and inactive
+    // ORG-LESS users the org pass can't reach. Both are dry-run by default.
+    const { data: orgReport, error: orgErr } = await admin.rpc("admin_purge_test_orgs", {
       p_dry_run: !willDelete,
       p_inactivity_days: inactivityDays,
     });
-
-    if (rpcErr) {
-      return json({ error: "Purge RPC failed (rolled back).", detail: rpcErr.message }, 500);
+    if (orgErr) {
+      return json({ error: "Org purge RPC failed (rolled back).", detail: orgErr.message }, 500);
     }
 
-    // -- 4. On execution, delete orphaned auth users via the Admin API ------
+    const { data: orphanReport, error: orphanErr } = await admin.rpc("admin_purge_orphan_users", {
+      p_dry_run: !willDelete,
+      p_inactivity_days: inactivityDays,
+    });
+    if (orphanErr) {
+      return json({ error: "Orphan-user purge RPC failed (rolled back).", detail: orphanErr.message }, 500);
+    }
+
+    const report = { orgs: orgReport, orphan_users: orphanReport };
+
+    // -- 4. On execution, delete the freed auth users via the Admin API -----
     const authResults: Array<{ id: string; email: string | null; deleted: boolean; error?: string }> = [];
     if (willDelete) {
-      const toDelete = (report?.auth_users_to_delete ?? []) as Array<{ id: string; email: string | null }>;
+      // Merge both passes' delete lists, de-duped by id (a user can't be in both,
+      // but stay defensive).
+      const merged = [
+        ...((orgReport?.auth_users_to_delete ?? []) as Array<{ id: string; email: string | null }>),
+        ...((orphanReport?.auth_users_to_delete ?? []) as Array<{ id: string; email: string | null }>),
+      ];
+      const toDelete = Array.from(new Map(merged.map((u) => [u.id, u])).values());
       for (const u of toDelete) {
         // Never delete a protected email, even if it somehow surfaced here.
         if (u.email && SUPER_ADMIN_EMAILS.includes(u.email.toLowerCase())) {
