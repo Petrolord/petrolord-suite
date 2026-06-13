@@ -222,10 +222,10 @@ export default function ModuleAccess() {
                                                     <Users className="w-3 h-3"/> Seats Used
                                                 </p>
                                             </div>
-                                            <Button 
-                                                variant="outline" 
+                                            <Button
+                                                variant="outline"
                                                 className="border-slate-700 hover:bg-slate-800"
-                                                onClick={() => navigate('/dashboard/employees')}
+                                                onClick={() => navigate('/dashboard/seats')}
                                             >
                                                 Manage Seats
                                             </Button>

@@ -183,7 +183,7 @@ export default function EmployeeManagement() {
                                                 <DropdownMenuItem className="focus:bg-slate-800 cursor-pointer">
                                                     <Shield className="w-4 h-4 mr-2"/> Edit Role
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem className="focus:bg-slate-800 cursor-pointer" onClick={() => alert("Manage apps modal coming soon")}>
+                                                <DropdownMenuItem className="focus:bg-slate-800 cursor-pointer" onClick={() => navigate('/dashboard/seats')}>
                                                     <Users className="w-4 h-4 mr-2"/> Assign Apps
                                                 </DropdownMenuItem>
                                                 {member.status === 'invited' && (

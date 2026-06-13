@@ -46,24 +46,37 @@ export default function ReassignSeatModal({ app, orgId, currentAdminId, onSucces
   const handleReassign = async () => {
       if (!selectedMember) return;
       setLoading(true);
+      const appId = app.app_id || app.module_id; // flexible ID (app UUID as text)
       try {
-          const { error } = await supabase.functions.invoke('reassign-admin-seat-to-member', {
-              body: {
-                  app_id: app.app_id || app.module_id, // flexible ID
-                  organization_id: orgId,
-                  new_user_id: selectedMember,
-                  admin_id: currentAdminId
-              }
+          // Transfer = give the seat to the member, then release the admin's own seat,
+          // via the guarded RPCs (enforce membership + per-app cap).
+          const { data: assignRes, error: assignErr } = await supabase.rpc('assign_app_seat', {
+              p_organization_id: orgId,
+              p_app_id: appId,
+              p_user_id: selectedMember,
           });
+          if (assignErr) throw assignErr;
+          if (assignRes?.status !== 'success') {
+              const msg = assignRes?.reason === 'seat_limit_reached'
+                ? 'No free seat for this app. Remove an assignment or buy more seats.'
+                : (assignRes?.reason || 'Could not assign the seat.');
+              toast({ title: "Couldn't transfer", description: msg, variant: "destructive" });
+              return;
+          }
+          // Release the admin's seat (no-op if the admin held none).
+          const { error: unErr } = await supabase.rpc('unassign_app_seat', {
+              p_organization_id: orgId,
+              p_app_id: appId,
+              p_user_id: currentAdminId,
+          });
+          if (unErr) throw unErr;
 
-          if (error) throw error;
-
-          toast({ title: "Seat Reassigned", description: "You have transferred your admin seat." });
+          toast({ title: "Seat Reassigned", description: "You have transferred your seat." });
           setOpen(false);
           if (onSuccess) onSuccess();
       } catch (err) {
           console.error(err);
-          toast({ title: "Error", description: "Failed to reassign seat.", variant: "destructive" });
+          toast({ title: "Error", description: err.message || "Failed to reassign seat.", variant: "destructive" });
       } finally {
           setLoading(false);
       }
