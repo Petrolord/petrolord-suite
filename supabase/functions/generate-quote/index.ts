@@ -77,37 +77,46 @@ Deno.serve(async (req)=>{
       description: 'Platform Base Fee',
       amount: BASE_PLATFORM_FEE
     });
-    // FIXED: Query master_apps table for ACTIVE apps only
-    // Apps array contains app IDs (UUIDs) from frontend
-    if (apps && apps.length > 0) {
-      console.log(`[Generate Quote] Requested apps: ${JSON.stringify(apps)}`);
-      const { data: activeApps, error: appsError } = await supabase.from('master_apps').select('id, app_name, price, status, slug, module, module_id').in('id', apps).ilike('status', 'active');
+    // Normalize apps: accept ["uuid", ...] (legacy) OR [{ id, seats }, ...] (per-app seats).
+    const appEntries = (apps || [])
+      .map((a)=> typeof a === 'string' ? { id: a, seats: null } : { id: a?.id, seats: (a?.seats != null ? parseInt(a.seats) : null) })
+      .filter((a)=> a.id);
+    const appIds = appEntries.map((a)=> a.id);
+    const seatsByApp = Object.fromEntries(appEntries.map((a)=> [a.id, a.seats]));
+    const perAppSeatMode = appEntries.some((a)=> a.seats != null);
+    // Query master_apps for ACTIVE apps only
+    if (appIds.length > 0) {
+      console.log(`[Generate Quote] Requested apps: ${JSON.stringify(appEntries)}`);
+      const { data: activeApps, error: appsError } = await supabase.from('master_apps').select('id, app_name, price, status, slug, module, module_id').in('id', appIds).ilike('status', 'active');
       if (appsError) {
         console.error('[Generate Quote] Error fetching apps:', appsError);
         throw appsError;
       }
       if (activeApps && activeApps.length > 0) {
-        console.log(`[Generate Quote] Found ${activeApps.length} active apps from ${apps.length} requested`);
+        console.log(`[Generate Quote] Found ${activeApps.length} active apps from ${appIds.length} requested`);
         activeApps.forEach((app)=>{
           const price = parseFloat(app.price || 0);
+          // Per-app seat count (the cap manual_verify_quote writes to seats_allocated).
+          const appSeats = perAppSeatMode ? (seatsByApp[app.id] != null ? seatsByApp[app.id] : 1) : (Number(seats) || 1);
           appsCost += price;
-          // Store an OBJECT (not just the UUID) so manual_verify_quote can match
-          // on ->>'id' / ->>'name' / ->>'module' and provision entitlements.
+          // Store an OBJECT (incl. per-app seats) so manual_verify_quote can match on
+          // ->>'id'/'name'/'module' and set per-app seats_allocated.
           validatedApps.push({
             id: app.id,
             name: app.app_name,
-            module: app.module
+            module: app.module,
+            seats: appSeats
           });
           appNameMap[app.id] = app.app_name; // Map for PDF
           lineItems.push({
             description: `App: ${app.app_name}`,
             amount: price
           });
-          console.log(`[Generate Quote] Added app: ${app.app_name} (${app.id}) - $${price}`);
+          console.log(`[Generate Quote] Added app: ${app.app_name} (${app.id}) - $${price} - seats ${appSeats}`);
         });
         // Log any apps that were requested but not found/inactive
         const foundAppIds = activeApps.map((a)=>a.id);
-        const missingApps = apps.filter((id)=>!foundAppIds.includes(id));
+        const missingApps = appIds.filter((id)=>!foundAppIds.includes(id));
         if (missingApps.length > 0) {
           console.warn(`[Generate Quote] ${missingApps.length} requested apps not found or inactive: ${JSON.stringify(missingApps)}`);
         }
@@ -127,9 +136,11 @@ Deno.serve(async (req)=>{
         });
       });
     }
-    const seatsCost = seats * USER_SEAT_PRICE;
+    // Total seats = sum of per-app seats (per-app mode) or the single global count.
+    const totalSeats = perAppSeatMode ? validatedApps.reduce((acc, a)=> acc + (a.seats || 0), 0) : (Number(seats) || 0);
+    const seatsCost = totalSeats * USER_SEAT_PRICE;
     lineItems.push({
-      description: `${seats} User Seats @ $${USER_SEAT_PRICE}/mo`,
+      description: `${totalSeats} User Seats @ $${USER_SEAT_PRICE}/mo`,
       amount: seatsCost
     });
     let addonsCost = 0;
@@ -174,11 +185,15 @@ Deno.serve(async (req)=>{
     const { error: quoteInsertError } = await supabase.from('quotes').insert({
       quote_id: quoteId,
       organization_id: orgId,
-      modules: JSON.stringify(modules),
-      apps: JSON.stringify(validatedApps),
-      seats: seats,
+      // modules/apps/add_ons are jsonb columns — pass arrays directly. Stringifying
+      // would store a JSON *string scalar*, which breaks manual_verify_quote's
+      // jsonb_array_elements(apps) provisioning loop.
+      modules: modules,
+      apps: validatedApps,
+      seats: totalSeats,
+      user_seats: totalSeats,
       billing_term: billing_term,
-      add_ons: JSON.stringify(add_ons),
+      add_ons: add_ons,
       total_amount: totalAmount,
       currency: 'USD',
       validity_period: validityPeriod.toISOString(),
@@ -394,8 +409,8 @@ Deno.serve(async (req)=>{
         template: 'quote_created',
         details: {
           orgName: orgName,
-          orgSize: `${seats} Seats`,
-          numUsers: seats,
+          orgSize: `${totalSeats} Seats`,
+          numUsers: totalSeats,
           term: billing_term,
           calculation: {
             final: totalAmount
