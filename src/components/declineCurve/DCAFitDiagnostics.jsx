@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { AlertCircle, CheckCircle, TrendingUp, Target, BarChart3 } from 'lucide-react';
-import ChartLogo from './ChartLogo';
+import ChartLogo from '@/components/charts/ChartLogo';
 import { calculateR2, calculateRMSE, calculateResiduals, getVerdictInfo, calculateArpsConfidenceIntervals } from '@/utils/dcaDiagnostics';
 import { detectSegmentBreakpoints } from '@/utils/dcaSegmentDetection';
 import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
