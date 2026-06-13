@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle, ChevronRight, ChevronLeft, CreditCard,
-  Building, Layers, AppWindow, Users, Shield, Loader2
+  Building, Layers, AppWindow, Users, Shield, Loader2, Minus, Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -38,7 +38,8 @@ const BASE_SEAT_PRICE = 49;
 export default function GetQuote() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const location = useLocation();
+  const { user, organization } = useAuth();
   const { toast } = useToast();
   
   const [currentStep, setCurrentStep] = useState(1);
@@ -49,10 +50,34 @@ export default function GetQuote() {
   const [selectedModules, setSelectedModules] = useState([]);
   const [availableApps, setAvailableApps] = useState([]);
   const [selectedApps, setSelectedApps] = useState([]);
-  const [seats, setSeats] = useState(5);
+  const [appSeats, setAppSeats] = useState({}); // { [appId]: seatCount } — per-app seats
   const [billingTerm, setBillingTerm] = useState('monthly');
+
+  // Select/deselect an app, keeping its per-app seat count in sync (default 1).
+  const toggleApp = (appId) => {
+    setSelectedApps(prev => {
+      const has = prev.includes(appId);
+      setAppSeats(s => {
+        const next = { ...s };
+        if (has) delete next[appId]; else next[appId] = next[appId] || 1;
+        return next;
+      });
+      return has ? prev.filter(id => id !== appId) : [...prev, appId];
+    });
+  };
+
+  const setSeatsFor = (appId, n) => setAppSeats(s => ({ ...s, [appId]: Math.max(1, n) }));
+  const getTotalSeats = () => selectedApps.reduce((acc, id) => acc + (appSeats[id] || 1), 0);
   const [addOns, setAddOns] = useState([]);
-  const [orgId, setOrgId] = useState(searchParams.get('org_id') || null);
+  // Use the explicit ?org_id, the upgrade-button state, or fall back to the
+  // logged-in admin's own org (in-app upgrade). Null only for brand-new signups.
+  const [orgId, setOrgId] = useState(
+    searchParams.get('org_id') || location.state?.targetOrgId || null
+  );
+  // Once auth resolves, adopt the user's org if we still don't have one.
+  useEffect(() => {
+    if (!orgId && organization?.id) setOrgId(organization.id);
+  }, [organization?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load apps when modules change
   useEffect(() => {
@@ -115,8 +140,8 @@ export default function GetQuote() {
       if (app) subtotal += (parseFloat(app.price) || 0);
     });
 
-    // Seats
-    subtotal += (seats * BASE_SEAT_PRICE);
+    // Seats (per app)
+    subtotal += (getTotalSeats() * BASE_SEAT_PRICE);
 
     // Term discount
     const multiplier = billingTerm === 'annual' ? 12 : (billingTerm === 'quarterly' ? 3 : 1);
@@ -149,8 +174,9 @@ export default function GetQuote() {
       const { data, error } = await supabase.functions.invoke('generate-quote', {
         body: {
           modules: selectedModules,
-          apps: selectedApps,
-          seats,
+          // Per-app seats: generate-quote stores these as the per-app seats_allocated.
+          apps: selectedApps.map(id => ({ id, seats: appSeats[id] || 1 })),
+          seats: getTotalSeats(),
           billing_term: billingTerm,
           add_ons: addOns,
           user_id: user.id,
@@ -281,7 +307,7 @@ export default function GetQuote() {
                                 <div key={app.id} 
                                      className={`flex items-start gap-4 p-4 rounded-lg border transition-all cursor-pointer
                                        ${selectedApps.includes(app.id) ? 'border-lime-500 bg-lime-900/20' : 'border-slate-800 hover:border-slate-700'}`}
-                                     onClick={() => setSelectedApps(prev => prev.includes(app.id) ? prev.filter(id => id !== app.id) : [...prev, app.id])}>
+                                     onClick={() => toggleApp(app.id)}>
                                   <Checkbox checked={selectedApps.includes(app.id)} />
                                   <div>
                                     <div className="font-medium">{app.name}</div>
@@ -307,22 +333,38 @@ export default function GetQuote() {
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                     <div className="space-y-8">
-                      {/* Seats */}
+                      {/* Seats — per app */}
                       <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700">
                         <div className="flex justify-between mb-4">
-                          <label className="font-semibold flex items-center gap-2"><Users className="w-4 h-4 text-lime-400"/> User Seats</label>
-                          <span className="text-2xl font-bold text-lime-400">{seats}</span>
+                          <label className="font-semibold flex items-center gap-2"><Users className="w-4 h-4 text-lime-400"/> Seats per App</label>
+                          <span className="text-sm text-slate-400">{getTotalSeats()} total @ ${BASE_SEAT_PRICE}/seat</span>
                         </div>
-                        <Slider 
-                          value={[seats]} 
-                          onValueChange={(val) => setSeats(val[0])} 
-                          min={1} max={100} step={1} 
-                          className="mb-2"
-                        />
-                        <div className="text-xs text-slate-400 flex justify-between">
-                          <span>1 User</span>
-                          <span>100 Users</span>
-                        </div>
+                        {selectedApps.length === 0 ? (
+                          <p className="text-sm text-slate-500">Select apps in the previous step to allocate seats.</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {selectedApps.map(id => {
+                              const app = availableApps.find(a => a.id === id);
+                              const n = appSeats[id] || 1;
+                              return (
+                                <div key={id} className="flex items-center justify-between gap-3">
+                                  <span className="text-sm truncate">{app?.name || 'App'}</span>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <Button type="button" variant="outline" size="icon" className="h-8 w-8 border-slate-600"
+                                      onClick={() => setSeatsFor(id, n - 1)} disabled={n <= 1}>
+                                      <Minus className="w-3 h-3" />
+                                    </Button>
+                                    <span className="w-8 text-center font-bold text-lime-400">{n}</span>
+                                    <Button type="button" variant="outline" size="icon" className="h-8 w-8 border-slate-600"
+                                      onClick={() => setSeatsFor(id, n + 1)}>
+                                      <Plus className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
                       {/* Billing Term */}
@@ -357,8 +399,8 @@ export default function GetQuote() {
                           <span>{formatCurrency(selectedApps.reduce((acc, id) => acc + (availableApps.find(a=>a.id===id)?.price||0), 0))}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-slate-400">Seats ({seats} @ ${BASE_SEAT_PRICE})</span>
-                          <span>{formatCurrency(seats * BASE_SEAT_PRICE)}</span>
+                          <span className="text-slate-400">Seats ({getTotalSeats()} @ ${BASE_SEAT_PRICE})</span>
+                          <span>{formatCurrency(getTotalSeats() * BASE_SEAT_PRICE)}</span>
                         </div>
                         <div className="flex justify-between font-semibold text-white pt-2 border-t border-slate-800">
                           <span>Monthly Subtotal</span>
@@ -412,7 +454,7 @@ export default function GetQuote() {
                       </div>
                       <div>
                         <div className="text-slate-500 mb-1">User Limit</div>
-                        <div className="font-medium">{seats} Seats</div>
+                        <div className="font-medium">{getTotalSeats()} Seats</div>
                       </div>
                       <div className="col-span-2 pt-4 border-t border-slate-700">
                         <div className="flex justify-between items-center">

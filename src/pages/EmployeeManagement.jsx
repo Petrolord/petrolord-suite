@@ -95,11 +95,9 @@ export default function EmployeeManagement() {
                 <p className="text-slate-400">Manage your organization's members and their access.</p>
             </div>
             <div className="text-right">
-                <div className="text-sm text-slate-400">Seat Usage</div>
-                <div className="text-xl font-bold text-white">
-                    {seatStats.used} <span className="text-slate-500 text-sm font-normal">/ {seatStats.limit}</span>
-                </div>
-                {seatStats.used >= seatStats.limit && <div className="text-xs text-amber-500">Limit Reached</div>}
+                <div className="text-sm text-slate-400">Members</div>
+                <div className="text-xl font-bold text-white">{seatStats.used}</div>
+                <a href="/dashboard/seats" className="text-xs text-lime-400 hover:underline">Manage app seats →</a>
             </div>
         </div>
 
@@ -116,7 +114,7 @@ export default function EmployeeManagement() {
                 </div>
                 <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
                     <DialogTrigger asChild>
-                        <Button className="bg-lime-600 hover:bg-lime-700 text-white" disabled={seatStats.used >= seatStats.limit}>
+                        <Button className="bg-lime-600 hover:bg-lime-700 text-white">
                             <UserPlus className="w-4 h-4 mr-2"/> Invite Member
                         </Button>
                     </DialogTrigger>

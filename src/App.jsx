@@ -344,7 +344,10 @@ function App() {
                                 </OnboardingRoute>
                               }>
                                 <Route index element={<Dashboard />} />
-                                <Route path="upgrade" element={<QuoteBuilder />} />
+                                {/* QuoteBuilder called the non-existent process-quote fn and used a
+                                    single global seat count. Route the in-app upgrade to the working,
+                                    per-app GetQuote (it adopts the logged-in admin's org). */}
+                                <Route path="upgrade" element={<GetQuote />} />
                                 <Route path="modules" element={<ModuleAccess />} />
                                 <Route path="seats" element={<SeatManagement />} />
                                 <Route path="employees" element={<EmployeeManagement />} />
