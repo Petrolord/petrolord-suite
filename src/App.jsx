@@ -85,7 +85,8 @@ const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'))
 const LogFaciesAnalysis = lazy(() => import('@/pages/apps/LogFaciesAnalysis'));
 const AutomatedLogDigitizer = lazy(() => import('@/pages/apps/AutomatedLogDigitizer'));
 const NetworkDiagramPro = lazy(() => import('@/pages/apps/NetworkDiagramPro'));
-const ReservoirBalanceSurveillance = lazy(() => import('@/pages/apps/ReservoirBalanceSurveillance'));
+const ReservoirBalance = lazy(() => import('@/pages/apps/reservoir-balance/ReservoirBalance'));
+const RbCaseDetail = lazy(() => import('@/pages/apps/reservoir-balance/RbCaseDetail'));
 const ArtificialLiftDesigner = lazy(() => import('@/pages/apps/ArtificialLiftDesigner'));
 const WellboreFlowSimulator = lazy(() => import('@/pages/apps/WellboreFlowSimulator'));
 const TorqueDragPredictor = lazy(() => import('@/pages/apps/TorqueDragPredictor'));
@@ -174,6 +175,7 @@ const PetroleumEconomicsStudioWorkspace = lazy(() => import('@/pages/apps/Petrol
 const PetroleumEconomicsStudioTemplates = lazy(() => import('@/pages/apps/PetroleumEconomicsStudio/TemplatesLibrary'));
 
 const EpeCaseList = lazy(() => import('@/pages/apps/epe/EpeCaseList'));
+const EpeHelpGuide = lazy(() => import('@/pages/apps/epe/EpeHelpGuide'));
 const EpeCaseDetail = lazy(() => import('@/pages/apps/epe/EpeCaseDetail'));
 const EpeRunConsole = lazy(() => import('@/pages/apps/epe/EpeRunConsole'));
 const EpeResultsViewer = lazy(() => import('@/pages/apps/epe/EpeResultsViewer'));
@@ -449,11 +451,15 @@ function App() {
                                 <Route path="apps/reservoir/fluid-systems-studio" element={<FluidSystemsStudio />} />
                                 <Route path="apps/reservoir/waterflood-dashboard" element={<WaterfloodDashboard />} />
                                 <Route path="apps/reservoir/decline-curve-analysis" element={<DeclineCurveAnalysis />} />
-                                <Route path="apps/reservoir/reservoir-balance" element={<ReservoirBalanceSurveillance />} />
+                                <Route path="apps/reservoir/reservoir-balance" element={<ReservoirBalance />} />
+                                <Route path="apps/reservoir/reservoir-balance/cases/:caseId" element={<RbCaseDetail />} />
                                 {/* Added multiple aliases to prevent 404 routing mismatches with various database slugs */}
-                                <Route path="apps/reservoir/reservoir-balance-pro" element={<ReservoirBalanceSurveillance />} />
-                                <Route path="apps/reservoir/reservoir-balance-surveillance" element={<ReservoirBalanceSurveillance />} />
-                                <Route path="apps/reservoir/material-balance-studio" element={<ReservoirBalanceSurveillance />} />
+                                <Route path="apps/reservoir/reservoir-balance-pro" element={<ReservoirBalance />} />
+                                <Route path="apps/reservoir/reservoir-balance-pro/cases/:caseId" element={<RbCaseDetail />} />
+                                <Route path="apps/reservoir/reservoir-balance-surveillance" element={<ReservoirBalance />} />
+                                <Route path="apps/reservoir/reservoir-balance-surveillance/cases/:caseId" element={<RbCaseDetail />} />
+                                <Route path="apps/reservoir/material-balance-studio" element={<ReservoirBalance />} />
+                                <Route path="apps/reservoir/material-balance-studio/cases/:caseId" element={<RbCaseDetail />} />
                                 <Route path="apps/reservoir/scenario-planner" element={<ScenarioPlanner />} />
                                 <Route path="apps/reservoir/eor-designer" element={<EorDesigner />} />
                                 <Route path="apps/reservoir/uncertainty-analysis" element={<UncertaintyAnalysis />} />
@@ -461,6 +467,7 @@ function App() {
                                 <Route path="apps/reservoir/material-balance-pro" element={<MaterialBalancePro />} />
 
                                 <Route path="apps/drilling/well-planning" element={<WellPlanning />} />
+				<Route path="apps/drilling/well-planning/:wellId" element={<WellPlanning />} />
                                 <Route path="apps/drilling/casing-tubing-design-pro" element={<ProtectedAppRoute appId="casing-tubing-design-pro" appName="Casing & Tubing Design Pro"><CasingTubingDesignPro /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/casing-wear-analyzer" element={<CasingWearAnalyzer />} />
                                 <Route path="apps/drilling/drilling-fluids-hydraulics" element={<DrillingFluidsHydraulics />} />
@@ -532,7 +539,11 @@ function App() {
                                 <Route path="apps/economic/epe-suite" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
                                 
                                 <Route path="apps/economics/epe/cases" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeCaseList /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/help" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/economics/epe/cases/:caseId" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeCaseDetail /></ProtectedAppRoute>} />
+				<Route path="apps/economics/epe/cases/:caseId/run" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeRunConsole /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/cases/:caseId/compare" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeRunComparison /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/runs/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeResultsViewer /></ProtectedAppRoute>} />
                                 <Route path="apps/economics/epe/run/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeRunConsole /></ProtectedAppRoute>} />
                                 <Route path="apps/economics/epe/results/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeResultsViewer /></ProtectedAppRoute>} />
                                 <Route path="apps/economics/epe/compare" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeRunComparison /></ProtectedAppRoute>} />
