@@ -11,7 +11,7 @@ serve(async (req)=>{
   }
   try {
     const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
-    const { reference, quote_id } = await req.json();
+    const { reference, quote_id, user_email } = await req.json();
     if (!reference) {
       throw new Error("No transaction reference provided");
     }
@@ -200,27 +200,52 @@ serve(async (req)=>{
           });
         }
       }
-      // --- Task 7: Trigger Notification ---
-      // Check if notification already sent
-      const { data: currentPayment } = await supabase.from('payments').select('notification_sent, email').eq('id', paymentId).single();
+      // Mark the quote PAID so the dashboard reflects it. manual_verify_quote only
+      // flips status to ENTITLEMENTS_CREATED; the UI keys off payment_verified.
+      // Mirrors the proven activate-bank-transfer path. Matched on the text
+      // quote_id (e.g. "QT-...") since that's what the Paystack reference carries.
+      if (quote_id) {
+        await supabase.from('quotes').update({
+          payment_verified: true,
+          payment_verified_at: paymentDate,
+          status: 'ACCEPTED',
+          paystack_reference: reference,
+          updated_at: new Date().toISOString()
+        }).eq('quote_id', quote_id);
+      }
+      if (orgId) {
+        await supabase.from('organizations').update({ suite_status: 'ACTIVE' }).eq('id', orgId);
+      }
+
+      // --- Task 7: Trigger Notification (best-effort, idempotent) ---
+      // The dedicated send-payment-notification function does not exist; use the
+      // generic send-email-via-smtp path the rest of the app relies on so the
+      // payer actually receives a confirmation.
+      const { data: currentPayment } = await supabase.from('payments').select('notification_sent').eq('id', paymentId).maybeSingle();
       if (!currentPayment?.notification_sent) {
-        // Get user email to notify
-        // Try to get from paystack customer
-        const customerEmail = paystackData.customer?.email;
+        const customerEmail = paystackData.customer?.email || user_email;
         if (customerEmail) {
-          await supabase.functions.invoke('send-payment-notification', {
-            body: {
-              payment_id: paymentId,
-              type: 'success',
-              recipient_email: customerEmail,
-              payment_details: {
-                amount: amountPaid,
-                currency: paystackData.currency,
-                reference: reference,
-                quote_number: quote_id
-              }
-            }
-          });
+          const appOrigin = req.headers.get('origin') || Deno.env.get('APP_URL') || '';
+          const quoteUrl = appOrigin ? `${appOrigin}/dashboard/quote/${quote_id}` : '';
+          const prettyAmount = `${paystackData.currency || ''} ${amountPaid.toLocaleString()}`.trim();
+          try {
+            await supabase.functions.invoke('send-email-via-smtp', {
+              body: JSON.stringify({
+                to: customerEmail,
+                subject: `Payment received — ${quote_id}`,
+                html:
+                  `<p>Thank you! We've received your payment and your Petrolord subscription is now active.</p>` +
+                  `<p><strong>Quote:</strong> ${quote_id}<br/>` +
+                  `<strong>Amount paid:</strong> ${prettyAmount}<br/>` +
+                  `<strong>Reference:</strong> ${reference}</p>` +
+                  (quoteUrl ? `<p><a href="${quoteUrl}">View your subscription &amp; what you paid for</a></p>` : '') +
+                  `<p>A receipt for this transaction is also available from Paystack.</p>`
+              })
+            });
+            await supabase.from('payments').update({ notification_sent: true }).eq('id', paymentId);
+          } catch (mailErr) {
+            console.error("Payment confirmation email failed (non-fatal):", mailErr);
+          }
         }
       }
     }

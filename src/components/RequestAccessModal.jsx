@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { resolveUserOrgId } from '@/lib/orgContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { 
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter 
@@ -29,8 +30,7 @@ export default function RequestAccessModal({ appId, appName, moduleId, trigger, 
         // Fetch org ID if not passed
         let targetOrgId = orgId;
         if (!targetOrgId) {
-            const { data } = await supabase.from('organization_users').select('organization_id').eq('user_id', user.id).single();
-            targetOrgId = data?.organization_id;
+            targetOrgId = await resolveUserOrgId(user.id);
         }
 
         const { data, error } = await supabase.functions.invoke('request-app-access', {

@@ -225,6 +225,54 @@ Deno.serve(async (req)=>{
     const quoteId = `QT-${dateStr}-${randomStr}`;
     const validityPeriod = new Date();
     validityPeriod.setDate(validityPeriod.getDate() + 14);
+    // 3b. Initialize a real Paystack transaction so the quote has a working
+    // hosted-checkout link. NO currency conversion: the amount is sent in the
+    // minor unit of the Paystack account's default currency, so a $X bill is
+    // charged as X in that currency (e.g. $1000 -> ₦1000). We deliberately omit
+    // the `currency` field so Paystack uses the account default. reference is set
+    // to quoteId so the existing verify-by-quote-id flow keeps working.
+    let paystackLink = null;
+    let paystackReference = null;
+    const PAYSTACK_SECRET_KEY = Deno.env.get('PAYSTACK_SECRET_KEY');
+    if (PAYSTACK_SECRET_KEY && user_email) {
+      try {
+        const appOrigin = req.headers.get('origin') || Deno.env.get('APP_URL') || '';
+        const initRes = await fetch('https://api.paystack.co/transaction/initialize', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: user_email,
+            amount: Math.round(totalAmount * 100), // minor unit, no FX conversion
+            reference: quoteId,
+            metadata: {
+              quote_id: quoteId,
+              organization_id: orgId
+            },
+            // Only set callback_url when we know the calling app's origin; otherwise
+            // Paystack falls back to the callback configured in its dashboard.
+            ...(appOrigin ? { callback_url: `${appOrigin}/dashboard/quote/${quoteId}` } : {})
+          })
+        });
+        const initJson = await initRes.json();
+        if (initJson?.status && initJson?.data?.authorization_url) {
+          paystackLink = initJson.data.authorization_url;
+          paystackReference = initJson.data.reference || quoteId;
+          console.log(`[Generate Quote] Paystack initialized: ref=${paystackReference}`);
+        } else {
+          console.error(`[Generate Quote] Paystack initialize failed: ${JSON.stringify(initJson)}`);
+        }
+      } catch (e) {
+        // Don't lose the quote if Paystack is unreachable — store it without a link;
+        // the dashboard shows a "contact sales" fallback in that case.
+        console.error(`[Generate Quote] Paystack initialize error: ${e.message}`);
+      }
+    } else {
+      console.warn('[Generate Quote] PAYSTACK_SECRET_KEY or user_email missing — no payment link generated.');
+    }
+
     // 4. Insert Quote Record - Store app IDs (UUIDs), not names
     console.log(`[Generate Quote] Storing validated apps: ${JSON.stringify(validatedApps)}`);
     const { error: quoteInsertError } = await supabase.from('quotes').insert({
@@ -241,6 +289,8 @@ Deno.serve(async (req)=>{
       add_ons: add_ons,
       total_amount: totalAmount,
       currency: 'USD',
+      paystack_link: paystackLink,
+      paystack_reference: paystackReference,
       validity_period: validityPeriod.toISOString(),
       status: 'PENDING',
       created_at: new Date().toISOString()
@@ -478,10 +528,7 @@ Deno.serve(async (req)=>{
       total_amount: totalAmount,
       validated_apps: validatedApps,
       payment_links: {
-        paystack: `https://checkout.paystack.com/pay/generic?amount=${Math.round(totalAmount * 100)}&email=${user_email}&metadata=${JSON.stringify({
-          quote_id: quoteId,
-          organization_id: orgId
-        })}`
+        paystack: paystackLink
       }
     }), {
       headers: {

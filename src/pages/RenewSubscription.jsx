@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getUserOrgRow } from '@/lib/orgContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,7 @@ export default function RenewSubscription() {
   }, [user, moduleId]);
 
   const fetchModule = async () => {
-      const { data: orgUser } = await supabase.from('organization_users').select('organization_id').eq('user_id', user.id).single();
+      const orgUser = await getUserOrgRow(user.id);
       if(orgUser) {
           const { data } = await supabase.from('purchased_modules')
             .select('*')
@@ -44,7 +45,7 @@ export default function RenewSubscription() {
           // In real app, this would open Paystack modal
           await new Promise(r => setTimeout(r, 1500)); 
           
-          const { data: orgUser } = await supabase.from('organization_users').select('organization_id').eq('user_id', user.id).single();
+          const orgUser = await getUserOrgRow(user.id);
 
           const { error } = await supabase.functions.invoke('renew-subscription', {
               body: {

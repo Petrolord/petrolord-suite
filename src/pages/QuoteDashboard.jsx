@@ -45,6 +45,7 @@ export default function QuoteDashboard() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [proofFile, setProofFile] = useState(null);
   const [unlockedModules, setUnlockedModules] = useState([]);
   
@@ -54,6 +55,42 @@ export default function QuoteDashboard() {
   useEffect(() => {
     if (quoteId) fetchQuote();
   }, [quoteId]);
+
+  // When Paystack redirects back to this page after checkout it appends
+  // ?reference=...&trxref=... to the callback URL. Auto-verify so the user lands
+  // on an acknowledged "paid" view instead of being asked to pay again. We only
+  // run this when those params are present (not on a normal page visit), so an
+  // unpaid quote never triggers the slow verify-with-retry loop.
+  useEffect(() => {
+    if (!quoteId) return;
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('reference') || params.get('trxref');
+    if (ref) autoVerifyFromCallback(ref);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quoteId]);
+
+  const autoVerifyFromCallback = async (reference) => {
+    setVerifyingPayment(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
+        body: { reference, quote_id: quoteId, user_id: user?.id, user_email: user?.email }
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast({ title: 'Payment Confirmed', description: 'Thank you! Your payment is verified and your subscription is now active.', className: 'bg-green-600 text-white' });
+      } else {
+        toast({ title: 'Payment Not Yet Confirmed', description: data?.message || "If you were debited, use 'I Have Paid (Verify)' to retry, or contact support.", variant: 'destructive' });
+      }
+    } catch (err) {
+      console.error('Auto-verify error:', err);
+      toast({ title: 'Verification Issue', description: err.message || 'Could not verify payment automatically. Please use the Verify button.', variant: 'destructive' });
+    } finally {
+      // Strip the Paystack query params so a refresh doesn't re-trigger verification.
+      navigate(`/dashboard/quote/${quoteId}`, { replace: true });
+      await fetchQuote();
+      setVerifyingPayment(false);
+    }
+  };
 
   // Fetch App Names
   useEffect(() => {
@@ -140,7 +177,7 @@ export default function QuoteDashboard() {
       setVerifying(true);
       try {
           const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
-              body: { reference: quote.quote_id, user_id: user.id }
+              body: { reference: quote.paystack_reference || quote.quote_id, quote_id: quote.quote_id, user_id: user.id, user_email: user.email }
           });
           
           if(error) throw error;
@@ -158,6 +195,15 @@ export default function QuoteDashboard() {
       }
   };
 
+  if (verifyingPayment) return (
+    <div className="h-screen flex items-center justify-center bg-slate-950 text-white">
+      <div className="text-center max-w-sm px-6">
+        <Loader2 className="w-10 h-10 animate-spin text-lime-400 mx-auto mb-4" />
+        <h2 className="text-xl font-bold mb-1">Confirming your payment…</h2>
+        <p className="text-slate-400 text-sm">Please wait while we verify your transaction with Paystack. Don't close this tab.</p>
+      </div>
+    </div>
+  );
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-950 text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>;
   if (!quote) return <div className="h-screen flex items-center justify-center bg-slate-950 text-white">Quote Not Found</div>;
 
@@ -240,12 +286,21 @@ export default function QuoteDashboard() {
                             : 
                             <>
                                 {Array.isArray(quote.modules) && quote.modules.map(m => <Badge key={m} variant="outline" className="border-slate-600 text-white bg-slate-800 hover:bg-slate-700">{m}</Badge>)}
-                                {Array.isArray(quote.apps) && quote.apps.map(a => {
-                                    // Use mapped name if available, else show raw ID (truncated)
-                                    const displayName = appNames[a] || (a.length > 8 ? a.substring(0,8)+'...' : a);
+                                {Array.isArray(quote.apps) && quote.apps.map((a, idx) => {
+                                    // `a` is either a UUID string (legacy quotes) or an object
+                                    // { id, name, seats, module } (current generate-quote shape).
+                                    const isObj = a && typeof a === 'object';
+                                    const id = isObj ? a.id : a;
+                                    const seats = isObj ? a.seats : undefined;
+                                    // Prefer the stored name, then the master_apps lookup, then a truncated id.
+                                    const displayName = (isObj && a.name)
+                                        || appNames[id]
+                                        || (typeof id === 'string' && id.length > 8 ? id.substring(0, 8) + '...' : id)
+                                        || 'App';
+                                    const seatLabel = seats ? ` · ${seats} seat${seats === 1 ? '' : 's'}` : '';
                                     return (
-                                        <Badge key={a} variant="outline" className="border-slate-600 text-white bg-slate-800 hover:bg-slate-700" title={a}>
-                                            {displayName}
+                                        <Badge key={id || idx} variant="outline" className="border-slate-600 text-white bg-slate-800 hover:bg-slate-700" title={typeof id === 'string' ? id : ''}>
+                                            {displayName}{seatLabel}
                                         </Badge>
                                     );
                                 })}

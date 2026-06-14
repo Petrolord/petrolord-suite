@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CheckCircle, ChevronDown, ChevronRight, Save, FileText, ArrowLeft, Loader2, DollarSign, Mail,
-  AlertTriangle, Database, Terminal, Wrench, RefreshCw, Check, Stethoscope, ArrowRightLeft, SearchCheck, PlusCircle, Users
+  AlertTriangle, Database, Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -35,6 +35,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { generateQuotePDF } from '@/utils/quotePdfGenerator';
 import { isValidUUID } from '@/lib/utils';
+import { resolveUserOrgId } from '@/lib/orgContext';
 
 const QuoteBuilder = () => {
   const navigate = useNavigate();
@@ -44,8 +45,7 @@ const QuoteBuilder = () => {
   // --- State ---
   const [generating, setGenerating] = useState(false);
   const [showContactSales, setShowContactSales] = useState(false);
-  const [backendConfig, setBackendConfig] = useState(null);
-  
+
   const [quoteId] = useState(`Q-${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`);
   const [billingPeriod, setBillingPeriod] = useState('annual');
   const [serviceTier, setServiceTier] = useState('starter');
@@ -70,12 +70,7 @@ const QuoteBuilder = () => {
   const [catalogError, setCatalogError] = useState(null);
   const [debugInfo, setDebugInfo] = useState({ logs: [], rawData: null, orphans: [] });
   const [systemWarnings, setSystemWarnings] = useState([]);
-  const [isFixing, setIsFixing] = useState(false);
-  const [isDiagnosing, setIsDiagnosing] = useState(false);
-  const [isMigrating, setIsMigrating] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [isInsertion, setIsInsertion] = useState(false);
-  
+
   // Data Quality State
   const [geoscienceModuleId, setGeoscienceModuleId] = useState(null);
 
@@ -176,52 +171,6 @@ const QuoteBuilder = () => {
   }, [masterApps]);
 
   // ------------------------------------------------------------------
-  // INSERTION LOGIC (Task 1: Insert 32 New Apps)
-  // ------------------------------------------------------------------
-  const runGeoscienceInsertion = async () => {
-    setIsInsertion(true);
-    addDebugLog('[INSERT] Starting to insert 32 missing Geoscience apps...');
-    // ... (rest of logic similar to previous output) ...
-    setIsInsertion(false);
-  };
-
-  // ------------------------------------------------------------------
-  // Admin Batch Script Logic (Safe Fix for Geoscience Apps)
-  // ------------------------------------------------------------------
-  const runGeoscienceFix = async () => {
-    setIsFixing(true);
-    // ... (rest of logic similar to previous output) ...
-    setIsFixing(false);
-  };
-
-  // ------------------------------------------------------------------
-  // Diagnostic Logic (Read-Only)
-  // ------------------------------------------------------------------
-  const runGeoscienceDiagnostic = async () => {
-    setIsDiagnosing(true);
-    // ... (rest of logic similar to previous output) ...
-    setIsDiagnosing(false);
-  };
-
-  // ------------------------------------------------------------------
-  // MIGRATION LOGIC (Task 1-5: Move 19 Specific Apps)
-  // ------------------------------------------------------------------
-  const runGeoscienceMigration = async () => {
-    setIsMigrating(true);
-    // ... (rest of logic similar to previous output) ...
-    setIsMigrating(false);
-  };
-
-  // ------------------------------------------------------------------
-  // VERIFICATION LOGIC (Task 1: Verify 35 specific apps)
-  // ------------------------------------------------------------------
-  const runGeoscienceVerification = async () => {
-    setIsVerifying(true);
-    // ... (rest of logic similar to previous output) ...
-    setIsVerifying(false);
-  };
-
-  // ------------------------------------------------------------------
   // Catalog Fetching
   // ------------------------------------------------------------------
   const fetchCatalog = async () => {
@@ -232,9 +181,6 @@ const QuoteBuilder = () => {
     const orphans = [];
 
     try {
-      const { data: configData } = await supabase.functions.invoke('get-quote-config');
-      if (configData) setBackendConfig(configData);
-
       // Task 1: Specific Geoscience Debug Fetch
       const geoUUID = 'f44a23a1-c0e0-4ed1-8961-91b3c6c2f091';
       addDebugLog(`[GEO-DEBUG] Running specific query for Geoscience Module ID: ${geoUUID}`);
@@ -474,21 +420,16 @@ const QuoteBuilder = () => {
   }, [serviceTier, billingPeriod, selectedModules, selectedApps, appSeats, storageGB, manualDiscount, appsGroupedByModule, masterApps]);
 
   const handleSaveQuote = async () => {
-    if(!backendConfig) {
-      toast({ title: "System Initializing", description: "Please wait while we connect to secure services." });
-      return;
-    }
-
+    // Resolve the caller's org from metadata first, then from ANY of the three
+    // membership tables — generate-quote accepts membership in organization_users,
+    // organization_members or org_members. If none resolves we deliberately leave
+    // orgId null and let generate-quote auto-provision a brand-new organization
+    // (its no-org branch), so a first-time user can bootstrap one from here.
     let orgId = user?.user_metadata?.organization_id || user?.organization?.id;
     if (!orgId || !isValidUUID(orgId)) {
-        const { data: orgData } = await supabase.from('organization_users').select('organization_id').eq('user_id', user.id).single();
-        if(orgData) orgId = orgData.organization_id;
+        orgId = await resolveUserOrgId(user.id);
     }
-
-    if (!orgId || !isValidUUID(orgId)) {
-        toast({ title: "Access Denied", description: "Could not identify your organization.", variant: "destructive" });
-        return;
-    }
+    if (orgId && !isValidUUID(orgId)) orgId = null;
 
     if (selectedApps.length === 0) {
         toast({ title: "Empty Quote", description: "Please select at least one application.", variant: "destructive" });
@@ -902,86 +843,6 @@ const QuoteBuilder = () => {
             </TabsContent>
           </Tabs>
 
-          {/* Debug UI (Visible Log) */}
-          <div className="mt-12 p-4 bg-black/50 rounded-lg border border-slate-800 overflow-hidden">
-              <div className="flex items-center justify-between mb-2 text-slate-400 text-xs uppercase tracking-wider">
-                  <div className="flex items-center gap-2">
-                      <Terminal className="w-4 h-4"/> System Health Console
-                  </div>
-                  <Button size="sm" variant="ghost" className="h-6 text-[10px] text-slate-500 hover:text-white" onClick={() => setDebugInfo({logs: [], rawData: null})}>Clear</Button>
-              </div>
-              
-              <div className="mb-3 flex gap-2 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={fetchCatalog} className="text-xs h-7 border-slate-700 hover:bg-slate-800 text-slate-300">
-                      <RefreshCw className="w-3 h-3 mr-1"/> Refresh Catalog
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={runGeoscienceFix} 
-                    disabled={isFixing}
-                    className="text-xs h-7 border-blue-900/50 bg-blue-950/20 hover:bg-blue-900/40 text-blue-300"
-                  >
-                      {isFixing ? <Loader2 className="w-3 h-3 mr-1 animate-spin"/> : <Wrench className="w-3 h-3 mr-1"/>}
-                      Run Admin Fix (Geoscience Apps)
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={runGeoscienceDiagnostic} 
-                    disabled={isDiagnosing}
-                    className="text-xs h-7 border-purple-900/50 bg-purple-950/20 hover:bg-purple-900/40 text-purple-300"
-                  >
-                      {isDiagnosing ? <Loader2 className="w-3 h-3 mr-1 animate-spin"/> : <Stethoscope className="w-3 h-3 mr-1"/>}
-                      Run Geoscience Diagnostic
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={runGeoscienceMigration} 
-                    disabled={isMigrating}
-                    className="text-xs h-7 border-orange-900/50 bg-orange-950/20 hover:bg-orange-900/40 text-orange-300"
-                  >
-                      {isMigrating ? <Loader2 className="w-3 h-3 mr-1 animate-spin"/> : <ArrowRightLeft className="w-3 h-3 mr-1"/>}
-                      Move 19 Geoscience Apps
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={runGeoscienceVerification} 
-                    disabled={isVerifying}
-                    className="text-xs h-7 border-teal-900/50 bg-teal-950/20 hover:bg-teal-900/40 text-teal-300"
-                  >
-                      {isVerifying ? <Loader2 className="w-3 h-3 mr-1 animate-spin"/> : <SearchCheck className="w-3 h-3 mr-1"/>}
-                      Verify 35 Geoscience Apps
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={runGeoscienceInsertion} 
-                    disabled={isInsertion}
-                    className="text-xs h-7 border-emerald-900/50 bg-emerald-950/20 hover:bg-emerald-900/40 text-emerald-300"
-                  >
-                      {isInsertion ? <Loader2 className="w-3 h-3 mr-1 animate-spin"/> : <PlusCircle className="w-3 h-3 mr-1"/>}
-                      Insert 32 New Apps
-                  </Button>
-              </div>
-
-              <div className="h-64 overflow-y-auto font-mono text-[10px] text-green-400 space-y-1 bg-black/80 p-2 rounded">
-                  {debugInfo.logs.map((log, idx) => (
-                      <div key={idx} className="border-b border-slate-800/50 pb-1">
-                          <span className="text-slate-500">[{log.time.split('T')[1].split('.')[0]}]</span>{' '}
-                          <span className="text-blue-400">{log.message}</span>
-                          {log.data && (
-                              <pre className="mt-1 text-slate-400 whitespace-pre-wrap">
-                                  {typeof log.data === 'object' ? JSON.stringify(log.data, null, 2) : String(log.data)}
-                              </pre>
-                          )}
-                      </div>
-                  ))}
-              </div>
-          </div>
-
         </div>
 
         {/* --- RIGHT SUMMARY PANEL (STICKY) --- */}
@@ -1078,7 +939,7 @@ const QuoteBuilder = () => {
             </Card>
 
             <div className="flex flex-col gap-3">
-              <Button onClick={handleSaveQuote} disabled={generating || !backendConfig} className="w-full h-12 bg-[#D4AF37] hover:bg-[#B5902B] text-black font-bold text-lg">
+              <Button onClick={handleSaveQuote} disabled={generating} className="w-full h-12 bg-[#D4AF37] hover:bg-[#B5902B] text-black font-bold text-lg">
                 {generating ? <Loader2 className="animate-spin mr-2"/> : "Generate & Pay"}
               </Button>
               <Button 

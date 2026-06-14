@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getUserOrgRow } from '@/lib/orgContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,7 @@ export default function BulkImportEmployees() {
       
       try {
           const text = await file.text();
-          const { data: orgUser } = await supabase.from('organization_users').select('organization_id').eq('user_id', user.id).single();
+          const orgUser = await getUserOrgRow(user.id);
           
           // Create Job Record first
           const { data: job, error: jobError } = await supabase.from('bulk_import_jobs').insert({

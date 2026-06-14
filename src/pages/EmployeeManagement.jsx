@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getUserOrgRow } from '@/lib/orgContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { 
   Users, UserPlus, Mail, Shield, Trash2, Edit, MoreHorizontal, CheckCircle, Clock, Search 
@@ -37,7 +38,7 @@ export default function EmployeeManagement() {
 
   const fetchOrgAndMembers = async () => {
     try {
-      const { data: orgUser } = await supabase.from('organization_users').select('organization_id').eq('user_id', user.id).single();
+      const orgUser = await getUserOrgRow(user.id);
       
       if (orgUser) {
         setOrgId(orgUser.organization_id);

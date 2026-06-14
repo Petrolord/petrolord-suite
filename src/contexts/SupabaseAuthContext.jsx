@@ -57,7 +57,7 @@ const AuthProviderContent = ({ children }) => {
       if (error) throw error;
       
       if (data && data.length > 0) {
-        let selectedRecord = data[0]; 
+        let selectedRecord = data[0];
         if (data.length > 1) {
             const suiteOrg = data.find(record => {
                 const orgData = record.organizations;
@@ -65,13 +65,30 @@ const AuthProviderContent = ({ children }) => {
             });
             if (suiteOrg) selectedRecord = suiteOrg;
         }
-        return { 
-            modules: selectedRecord.modules || [], 
-            apps: selectedRecord.apps || [], 
-            org: selectedRecord.organizations, 
-            isProfileSetup: true 
+        return {
+            modules: selectedRecord.modules || [],
+            apps: selectedRecord.apps || [],
+            org: selectedRecord.organizations,
+            isProfileSetup: true
         };
       }
+
+      // Fallback: the user may have been provisioned into organization_members or
+      // org_members (e.g. by the signup flow) rather than organization_users.
+      // Recognize that membership so they aren't treated as org-less. Per-user
+      // module/app grants don't live in those tables, so default to empty —
+      // super admins get everything elsewhere, and org-level app access is
+      // resolved per app.
+      const [om, ogm] = await Promise.all([
+        supabase.from('organization_members').select('organization_id').eq('user_id', userId).maybeSingle(),
+        supabase.from('org_members').select('org_id').eq('user_id', userId).maybeSingle(),
+      ]);
+      const fallbackOrgId = om.data?.organization_id || ogm.data?.org_id || null;
+      if (fallbackOrgId) {
+        const { data: org } = await supabase.from('organizations').select('*').eq('id', fallbackOrgId).maybeSingle();
+        return { modules: [], apps: [], org: org || { id: fallbackOrgId }, isProfileSetup: true };
+      }
+
       return { modules: [], apps: [], org: null, isProfileSetup: false };
     } catch (error) {
       console.error("Error fetching user organization and permissions:", error);
