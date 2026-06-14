@@ -9,7 +9,7 @@ import { isValidUUID } from '@/lib/utils';
  * and seat-specific logic if needed.
  */
 export const useAppAccess = () => {
-  const { user, isSuperAdmin, organization } = useAuth();
+  const { user, isSuperAdmin, organization, role } = useAuth();
   const { isAllowed, isModuleActive, loading: pmLoading, refresh, purchasedApps, purchasedModules } = usePurchasedModules();
   
   const [accessData, setAccessData] = useState({
@@ -30,15 +30,18 @@ export const useAppAccess = () => {
       }
 
       try {
-        // Fetch User Role in Org
+        // Fetch User Role in Org. Use maybeSingle (a user may have no
+        // organization_users row — their membership/role can live in
+        // organization_members/org_members, surfaced as `role` from useAuth).
         const { data: orgUser } = await supabase
           .from('organization_users')
           .select('role, user_role')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
-        const dbRole = orgUser?.user_role || orgUser?.role || 'viewer';
-        const isAdmin = isSuperAdmin || user?.role === 'super_admin' || dbRole === 'admin' || dbRole === 'owner' || dbRole === 'org_admin';
+        const dbRole = orgUser?.user_role || orgUser?.role || role || 'viewer';
+        const adminRoles = ['admin', 'owner', 'org_admin', 'super_admin'];
+        const isAdmin = isSuperAdmin || user?.role === 'super_admin' || adminRoles.includes(dbRole);
 
         // Fetch seat assignments (legacy/seat specific check)
         const { data: assignments } = await supabase
@@ -65,7 +68,7 @@ export const useAppAccess = () => {
     };
 
     fetchSeatAssignments();
-  }, [user, isSuperAdmin, organization, purchasedApps, purchasedModules]);
+  }, [user, isSuperAdmin, organization, role, purchasedApps, purchasedModules]);
 
   // Backward compatible 'hasAccess'
   const hasAccess = (appId) => {

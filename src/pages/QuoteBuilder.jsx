@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CheckCircle, ChevronDown, ChevronRight, Save, FileText, ArrowLeft, Loader2, DollarSign, Mail,
-  AlertTriangle, Database, Terminal, Wrench, RefreshCw, Check, Stethoscope, ArrowRightLeft, SearchCheck, PlusCircle
+  AlertTriangle, Database, Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -25,15 +25,17 @@ import {
 
 // Data & Helpers
 import { appCategories } from '@/data/applications'; 
-import { 
-  BASE_PLATFORM_FEE, USER_SEAT_PRICE, STORAGE_GB_PRICE, 
-  TIERS, BILLING_PERIODS, VAT_RATE, getAppPrice 
+import {
+  BASE_PLATFORM_FEE, USER_SEAT_PRICE, STORAGE_GB_PRICE,
+  TIERS, BILLING_PERIODS, VAT_RATE, getAppPrice,
+  SEAT_TIERS, computeSeatCost, seatTierRate
 } from '@/data/pricingModels';
 import { formatCurrency } from '@/utils/adminHelpers';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { generateQuotePDF } from '@/utils/quotePdfGenerator';
 import { isValidUUID } from '@/lib/utils';
+import { resolveUserOrgId } from '@/lib/orgContext';
 
 const QuoteBuilder = () => {
   const navigate = useNavigate();
@@ -43,13 +45,12 @@ const QuoteBuilder = () => {
   // --- State ---
   const [generating, setGenerating] = useState(false);
   const [showContactSales, setShowContactSales] = useState(false);
-  const [backendConfig, setBackendConfig] = useState(null);
-  
+
   const [quoteId] = useState(`Q-${new Date().getFullYear()}${String(new Date().getMonth()+1).padStart(2, '0')}-${Math.floor(Math.random() * 10000)}`);
   const [billingPeriod, setBillingPeriod] = useState('annual');
   const [serviceTier, setServiceTier] = useState('starter');
-  const [userSeats, setUserSeats] = useState(50);
-  const [storageGB, setStorageGB] = useState(100);
+  const [appSeats, setAppSeats] = useState({}); // { [appId]: seatCount } — per-app seats
+  const [storageGB, setStorageGB] = useState(10); // default to the free allowance; no storage charge until the user opts in
   const [manualDiscount, setManualDiscount] = useState(0); 
   
   // Selection State
@@ -69,12 +70,7 @@ const QuoteBuilder = () => {
   const [catalogError, setCatalogError] = useState(null);
   const [debugInfo, setDebugInfo] = useState({ logs: [], rawData: null, orphans: [] });
   const [systemWarnings, setSystemWarnings] = useState([]);
-  const [isFixing, setIsFixing] = useState(false);
-  const [isDiagnosing, setIsDiagnosing] = useState(false);
-  const [isMigrating, setIsMigrating] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [isInsertion, setIsInsertion] = useState(false);
-  
+
   // Data Quality State
   const [geoscienceModuleId, setGeoscienceModuleId] = useState(null);
 
@@ -175,52 +171,6 @@ const QuoteBuilder = () => {
   }, [masterApps]);
 
   // ------------------------------------------------------------------
-  // INSERTION LOGIC (Task 1: Insert 32 New Apps)
-  // ------------------------------------------------------------------
-  const runGeoscienceInsertion = async () => {
-    setIsInsertion(true);
-    addDebugLog('[INSERT] Starting to insert 32 missing Geoscience apps...');
-    // ... (rest of logic similar to previous output) ...
-    setIsInsertion(false);
-  };
-
-  // ------------------------------------------------------------------
-  // Admin Batch Script Logic (Safe Fix for Geoscience Apps)
-  // ------------------------------------------------------------------
-  const runGeoscienceFix = async () => {
-    setIsFixing(true);
-    // ... (rest of logic similar to previous output) ...
-    setIsFixing(false);
-  };
-
-  // ------------------------------------------------------------------
-  // Diagnostic Logic (Read-Only)
-  // ------------------------------------------------------------------
-  const runGeoscienceDiagnostic = async () => {
-    setIsDiagnosing(true);
-    // ... (rest of logic similar to previous output) ...
-    setIsDiagnosing(false);
-  };
-
-  // ------------------------------------------------------------------
-  // MIGRATION LOGIC (Task 1-5: Move 19 Specific Apps)
-  // ------------------------------------------------------------------
-  const runGeoscienceMigration = async () => {
-    setIsMigrating(true);
-    // ... (rest of logic similar to previous output) ...
-    setIsMigrating(false);
-  };
-
-  // ------------------------------------------------------------------
-  // VERIFICATION LOGIC (Task 1: Verify 35 specific apps)
-  // ------------------------------------------------------------------
-  const runGeoscienceVerification = async () => {
-    setIsVerifying(true);
-    // ... (rest of logic similar to previous output) ...
-    setIsVerifying(false);
-  };
-
-  // ------------------------------------------------------------------
   // Catalog Fetching
   // ------------------------------------------------------------------
   const fetchCatalog = async () => {
@@ -231,9 +181,6 @@ const QuoteBuilder = () => {
     const orphans = [];
 
     try {
-      const { data: configData } = await supabase.functions.invoke('get-quote-config');
-      if (configData) setBackendConfig(configData);
-
       // Task 1: Specific Geoscience Debug Fetch
       const geoUUID = 'f44a23a1-c0e0-4ed1-8961-91b3c6c2f091';
       addDebugLog(`[GEO-DEBUG] Running specific query for Geoscience Module ID: ${geoUUID}`);
@@ -340,6 +287,20 @@ const QuoteBuilder = () => {
     );
   };
 
+  // Per-app seat helpers.
+  const setSeatsFor = (appId, n) => setAppSeats(s => ({ ...s, [appId]: Math.max(1, n) }));
+  const getTotalSeats = () => selectedApps.reduce((acc, id) => acc + (appSeats[id] || 1), 0);
+  const ensureSeats = (ids) => setAppSeats(s => {
+    const next = { ...s };
+    ids.forEach(id => { if (!next[id]) next[id] = 1; });
+    return next;
+  });
+  const dropSeats = (ids) => setAppSeats(s => {
+    const next = { ...s };
+    ids.forEach(id => { delete next[id]; });
+    return next;
+  });
+
   const handleModuleCheck = (modId, isChecked) => {
     const moduleGroup = appsGroupedByModule[modId];
     if (!moduleGroup) return;
@@ -348,10 +309,12 @@ const QuoteBuilder = () => {
       setSelectedModules(prev => [...new Set([...prev, modId])]);
       const appIds = moduleGroup.apps.map(a => a.id);
       setSelectedApps(prev => [...new Set([...prev, ...appIds])]);
+      ensureSeats(appIds);
     } else {
       setSelectedModules(prev => prev.filter(id => id !== modId));
       const appIdsToRemove = moduleGroup.apps.map(a => a.id);
       setSelectedApps(prev => prev.filter(id => !appIdsToRemove.includes(id)));
+      dropSeats(appIdsToRemove);
     }
   };
 
@@ -359,18 +322,20 @@ const QuoteBuilder = () => {
     // Defensive check
     const app = masterApps.find(a => a.id === appId);
     const isComingSoon = app && (app.status === 'Coming Soon' || app.status === 'coming soon');
-    
+
     if (isComingSoon) {
         return; // Prevent selection
     }
 
     if (isChecked) {
       setSelectedApps(prev => [...new Set([...prev, appId])]); // appId is UUID
+      ensureSeats([appId]);
       if (!selectedModules.includes(modId)) {
           setSelectedModules(prev => [...prev, modId]);
       }
     } else {
       setSelectedApps(prev => prev.filter(id => id !== appId));
+      dropSeats([appId]);
     }
   };
 
@@ -383,21 +348,42 @@ const QuoteBuilder = () => {
     
     const baseFee = BASE_PLATFORM_FEE * tier.multiplier;
     let softwareCost = 0;
+    let seatsCost = 0;
     const breakdown = [];
 
-    // App Costs
-    // selectedApps is an array of UUIDs
+    // Every recurring charge is pushed to breakdown as an explicit, labelled line
+    // item so the summary panel can reconcile to the total — no hidden fees.
+    // 1) Base platform fee (always present, even with no apps selected).
+    breakdown.push({
+      item: `Base Platform Fee — ${tier.name}`,
+      cost: baseFee,
+      type: 'base',
+      note: tier.multiplier !== 1 ? `${BASE_PLATFORM_FEE} × ${tier.multiplier} tier` : 'Platform access & support'
+    });
+
+    // 2) App + per-app seat costs. selectedApps is an array of UUIDs.
     selectedApps.forEach(appId => {
         const app = masterApps.find(a => a.id === appId);
         if (app) {
+            const nSeats = appSeats[appId] || 1;
+            const appSeatCost = computeSeatCost(nSeats); // graduated per-app tiers
             softwareCost += app.price;
-            // Map UUID to Name for breakdown display
-            breakdown.push({ item: app.name, price: app.price, cost: app.price, type: 'app', id: appId });
+            seatsCost += appSeatCost;
+            breakdown.push({ item: `${app.name} — license`, price: app.price, cost: app.price, type: 'app', id: appId, seats: nSeats });
+            breakdown.push({ item: `${app.name} — ${nSeats} seat${nSeats === 1 ? '' : 's'}`, cost: appSeatCost, type: 'seats', id: appId, indent: true });
         }
     });
 
-    const seatsCost = userSeats * USER_SEAT_PRICE;
+    const totalSeats = getTotalSeats();
     const storageCost = Math.max(0, storageGB - 10) * STORAGE_GB_PRICE;
+    // 3) Cloud storage (always shown; first 10 GB free).
+    breakdown.push({
+      item: `Cloud Storage — ${storageGB} GB`,
+      cost: storageCost,
+      type: 'storage',
+      note: storageGB > 10 ? `${storageGB - 10} GB billable × $${STORAGE_GB_PRICE} (first 10 GB free)` : 'Within free allowance'
+    });
+
     const monthlySubtotal = baseFee + softwareCost + seatsCost + storageCost;
     
     const periodDiscountVal = monthlySubtotal * period.discount;
@@ -408,12 +394,8 @@ const QuoteBuilder = () => {
     const vat = billingCycleTotal * VAT_RATE;
     const grandTotal = billingCycleTotal + vat;
 
-    if (period.discount > 0) {
-        breakdown.push({ item: `Term Discount (${period.name})`, cost: -periodDiscountVal, type: 'discount' });
-    }
-    if (manualDiscount > 0) {
-        breakdown.push({ item: `Special Discount (${manualDiscount}%)`, cost: -manualDiscountVal, type: 'discount' });
-    }
+    // Discounts are rendered directly from periodDiscountVal / manualDiscountVal
+    // in the summary panel, so they are not pushed as breakdown line items.
 
     return {
       baseFee,
@@ -430,28 +412,24 @@ const QuoteBuilder = () => {
       breakdown,
       tier,
       period,
+      totalSeats,
       totalContractValue: billingCycleTotal,
       vatAmount: vat,
       totalWithVat: grandTotal
     };
-  }, [serviceTier, billingPeriod, selectedModules, selectedApps, userSeats, storageGB, manualDiscount, appsGroupedByModule, masterApps]);
+  }, [serviceTier, billingPeriod, selectedModules, selectedApps, appSeats, storageGB, manualDiscount, appsGroupedByModule, masterApps]);
 
   const handleSaveQuote = async () => {
-    if(!backendConfig) {
-      toast({ title: "System Initializing", description: "Please wait while we connect to secure services." });
-      return;
-    }
-
+    // Resolve the caller's org from metadata first, then from ANY of the three
+    // membership tables — generate-quote accepts membership in organization_users,
+    // organization_members or org_members. If none resolves we deliberately leave
+    // orgId null and let generate-quote auto-provision a brand-new organization
+    // (its no-org branch), so a first-time user can bootstrap one from here.
     let orgId = user?.user_metadata?.organization_id || user?.organization?.id;
     if (!orgId || !isValidUUID(orgId)) {
-        const { data: orgData } = await supabase.from('organization_users').select('organization_id').eq('user_id', user.id).single();
-        if(orgData) orgId = orgData.organization_id;
+        orgId = await resolveUserOrgId(user.id);
     }
-
-    if (!orgId || !isValidUUID(orgId)) {
-        toast({ title: "Access Denied", description: "Could not identify your organization.", variant: "destructive" });
-        return;
-    }
+    if (orgId && !isValidUUID(orgId)) orgId = null;
 
     if (selectedApps.length === 0) {
         toast({ title: "Empty Quote", description: "Please select at least one application.", variant: "destructive" });
@@ -460,65 +438,33 @@ const QuoteBuilder = () => {
 
     setGenerating(true);
     try {
-      const validityDays = 30;
-      const quoteDate = new Date();
-      const expiryDate = new Date(quoteDate.getTime() + validityDays * 24 * 60 * 60 * 1000);
+      // generate-quote is authoritative: it re-derives pricing (per-app tiered
+      // seats, tier multiplier, term/manual discounts, VAT), renders the PDF,
+      // emails it, and inserts the quote. We send the configuration, not a price.
+      const { data, error } = await supabase.functions.invoke('generate-quote', {
+        body: {
+          modules: selectedModules,
+          // Per-app seats: generate-quote stores these as per-app seats_allocated.
+          apps: selectedApps.map(id => ({ id, seats: appSeats[id] || 1 })),
+          seats: calculation.totalSeats,
+          billing_term: billingPeriod,
+          service_tier: serviceTier,
+          storage_gb: storageGB,
+          manual_discount: manualDiscount,
+          add_ons: [],
+          user_id: user.id,
+          user_email: user.email,
+          organization_id: orgId,
+          user_name: user?.user_metadata?.full_name || user.email.split('@')[0]
+        }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      const quoteData = {
-        id: quoteId,
-        date: quoteDate.toISOString(),
-        expiryDate: expiryDate.toISOString(),
-        name: `Quote for ${user?.user_metadata?.organization_name || 'Organization'}`,
-        config: { calculated: calculation, userSeats, storageGB },
-        organization_id: orgId,
-        status: 'PENDING',
-        total_amount: calculation.grandTotal,
-        billing_term: billingPeriod
-      };
-
-      const doc = await generateQuotePDF(quoteData, { 
-          name: user?.user_metadata?.organization_name || 'My Organization', 
-          contact_email: user.email, 
-          address: user?.user_metadata?.address || '' 
-      }, backendConfig);
-      
-      const pdfBlob = doc.output('blob');
-      const reader = new FileReader();
-      reader.readAsDataURL(pdfBlob);
-      reader.onloadend = async () => {
-          const base64data = reader.result.split(',')[1];
-          // Schema Comment: 'apps' in payload must be an array of UUIDs (strings)
-          const payload = {
-              quote_id: quoteId,
-              organization_id: orgId,
-              user_email: user.email,
-              items: calculation.breakdown,
-              breakdown: calculation, 
-              total_amount: calculation.grandTotal,
-              billing_period: billingPeriod,
-              seats: userSeats,
-              pdf_base64: base64data,
-              validity_period: validityDays,
-              quote_date: quoteDate.toISOString(),
-              expiry_date: expiryDate.toISOString(),
-              org_admin_email: user.email,
-              selected_items: calculation.breakdown,
-              pricing_breakdown: calculation,
-              status: 'PENDING',
-              quote_number: quoteId,
-              modules: selectedModules,
-              apps: selectedApps // Strictly UUIDs from state
-          };
-
-          const { data, error } = await supabase.functions.invoke('process-quote', { body: payload });
-          if (error) throw error;
-          if (data?.error) throw new Error(data.error);
-          
-          setGenerating(false);
-          toast({ title: "Success", description: "Quote generated successfully!", className: "bg-green-600 text-white" });
-          navigate(`/dashboard/quote/${quoteId}`); 
-      };
-
+      setGenerating(false);
+      toast({ title: "Success", description: "Quote generated successfully!", className: "bg-green-600 text-white" });
+      const newId = data?.quote_id || quoteId;
+      navigate(`/dashboard/quote/${newId}`);
     } catch (error) {
       console.error(error);
       toast({ title: "Error", description: error.message || "Failed to generate quote.", variant: "destructive" });
@@ -776,9 +722,27 @@ const QuoteBuilder = () => {
                                                   </Badge>
                                               ))}
                                             </span>
-                                            <span className={`text-xs ${isComingSoon ? 'text-slate-600' : 'text-slate-500'}`}>{formatCurrency(app.price)}</span>
+                                            <span className={`text-xs whitespace-nowrap ${isComingSoon ? 'text-slate-600' : 'text-slate-500'}`}>{formatCurrency(app.price)}/mo license</span>
                                           </div>
                                           <p className={`text-[10px] line-clamp-1 mt-0.5 ${isComingSoon ? 'text-slate-600' : 'text-slate-500'}`}>{app.description || 'No description available'}</p>
+                                          {isAppSelected && !isComingSoon && (() => {
+                                            const n = appSeats[app.id] || 1;
+                                            return (
+                                              <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/60" onClick={(e) => e.stopPropagation()}>
+                                                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                                  <Users className="w-3 h-3"/> + Seats · {formatCurrency(computeSeatCost(n))}/mo
+                                                </span>
+                                                <div className="flex items-center gap-1.5">
+                                                  <button type="button" onClick={(e) => { e.stopPropagation(); setSeatsFor(app.id, n - 1); }}
+                                                    disabled={n <= 1}
+                                                    className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-40 flex items-center justify-center text-white">−</button>
+                                                  <span className="w-6 text-center text-xs font-bold text-[#D4AF37]">{n}</span>
+                                                  <button type="button" onClick={(e) => { e.stopPropagation(); setSeatsFor(app.id, n + 1); }}
+                                                    className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-white">+</button>
+                                                </div>
+                                              </div>
+                                            );
+                                          })()}
                                         </div>
                                       </div>
                                   );
@@ -815,16 +779,27 @@ const QuoteBuilder = () => {
                 <h3 className="text-lg font-semibold text-white mb-6">Infrastructure & Users</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
                   <div>
-                    <div className="flex justify-between mb-4">
+                    <div className="flex justify-between mb-2">
                       <Label className="text-slate-300">User Seats</Label>
-                      <span className="text-[#D4AF37] font-bold text-xl">{userSeats}</span>
+                      <span className="text-[#D4AF37] font-bold text-xl">{calculation.totalSeats}</span>
                     </div>
-                    <Slider 
-                      value={[userSeats]} 
-                      onValueChange={(val) => setUserSeats(val[0])} 
-                      min={1} max={200} step={1}
-                      className="my-6"
-                    />
+                    <p className="text-xs text-slate-500 mb-3">
+                      Seats are set per app above. Volume tiers: 1–5 ${SEAT_TIERS[0].price}, 6–15 ${SEAT_TIERS[1].price}, 16–40 ${SEAT_TIERS[2].price}, 41+ ${SEAT_TIERS[3].price} /seat·mo.
+                    </p>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                      {selectedApps.length === 0 ? (
+                        <p className="text-xs text-slate-600">Select apps to allocate seats.</p>
+                      ) : selectedApps.map(id => {
+                        const app = masterApps.find(a => a.id === id);
+                        const n = appSeats[id] || 1;
+                        return (
+                          <div key={id} className="flex justify-between text-xs text-slate-400">
+                            <span className="truncate mr-2">{app?.name || 'App'} · {n} seat{n === 1 ? '' : 's'}</span>
+                            <span className="text-slate-300 shrink-0">{formatCurrency(computeSeatCost(n))}/mo</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div>
@@ -832,12 +807,20 @@ const QuoteBuilder = () => {
                       <Label className="text-slate-300">Cloud Storage</Label>
                       <span className="text-[#D4AF37] font-bold text-xl">{storageGB} GB</span>
                     </div>
-                    <Slider 
-                      value={[storageGB]} 
-                      onValueChange={(val) => setStorageGB(val[0])} 
+                    <Slider
+                      value={[storageGB]}
+                      onValueChange={(val) => setStorageGB(val[0])}
                       min={10} max={5000} step={10}
                       className="my-6"
                     />
+                    <p className="text-xs text-slate-500">
+                      First 10 GB free, then ${STORAGE_GB_PRICE}/GB·mo.
+                      {storageGB > 10 ? (
+                        <> {storageGB - 10} GB billable = <span className="text-slate-300">{formatCurrency(calculation.storageCost)}/mo</span>.</>
+                      ) : (
+                        <> Currently within free allowance.</>
+                      )}
+                    </p>
                   </div>
                 </div>
               </section>
@@ -859,86 +842,6 @@ const QuoteBuilder = () => {
               </Card>
             </TabsContent>
           </Tabs>
-
-          {/* Debug UI (Visible Log) */}
-          <div className="mt-12 p-4 bg-black/50 rounded-lg border border-slate-800 overflow-hidden">
-              <div className="flex items-center justify-between mb-2 text-slate-400 text-xs uppercase tracking-wider">
-                  <div className="flex items-center gap-2">
-                      <Terminal className="w-4 h-4"/> System Health Console
-                  </div>
-                  <Button size="sm" variant="ghost" className="h-6 text-[10px] text-slate-500 hover:text-white" onClick={() => setDebugInfo({logs: [], rawData: null})}>Clear</Button>
-              </div>
-              
-              <div className="mb-3 flex gap-2 flex-wrap">
-                  <Button size="sm" variant="outline" onClick={fetchCatalog} className="text-xs h-7 border-slate-700 hover:bg-slate-800 text-slate-300">
-                      <RefreshCw className="w-3 h-3 mr-1"/> Refresh Catalog
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={runGeoscienceFix} 
-                    disabled={isFixing}
-                    className="text-xs h-7 border-blue-900/50 bg-blue-950/20 hover:bg-blue-900/40 text-blue-300"
-                  >
-                      {isFixing ? <Loader2 className="w-3 h-3 mr-1 animate-spin"/> : <Wrench className="w-3 h-3 mr-1"/>}
-                      Run Admin Fix (Geoscience Apps)
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={runGeoscienceDiagnostic} 
-                    disabled={isDiagnosing}
-                    className="text-xs h-7 border-purple-900/50 bg-purple-950/20 hover:bg-purple-900/40 text-purple-300"
-                  >
-                      {isDiagnosing ? <Loader2 className="w-3 h-3 mr-1 animate-spin"/> : <Stethoscope className="w-3 h-3 mr-1"/>}
-                      Run Geoscience Diagnostic
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={runGeoscienceMigration} 
-                    disabled={isMigrating}
-                    className="text-xs h-7 border-orange-900/50 bg-orange-950/20 hover:bg-orange-900/40 text-orange-300"
-                  >
-                      {isMigrating ? <Loader2 className="w-3 h-3 mr-1 animate-spin"/> : <ArrowRightLeft className="w-3 h-3 mr-1"/>}
-                      Move 19 Geoscience Apps
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={runGeoscienceVerification} 
-                    disabled={isVerifying}
-                    className="text-xs h-7 border-teal-900/50 bg-teal-950/20 hover:bg-teal-900/40 text-teal-300"
-                  >
-                      {isVerifying ? <Loader2 className="w-3 h-3 mr-1 animate-spin"/> : <SearchCheck className="w-3 h-3 mr-1"/>}
-                      Verify 35 Geoscience Apps
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={runGeoscienceInsertion} 
-                    disabled={isInsertion}
-                    className="text-xs h-7 border-emerald-900/50 bg-emerald-950/20 hover:bg-emerald-900/40 text-emerald-300"
-                  >
-                      {isInsertion ? <Loader2 className="w-3 h-3 mr-1 animate-spin"/> : <PlusCircle className="w-3 h-3 mr-1"/>}
-                      Insert 32 New Apps
-                  </Button>
-              </div>
-
-              <div className="h-64 overflow-y-auto font-mono text-[10px] text-green-400 space-y-1 bg-black/80 p-2 rounded">
-                  {debugInfo.logs.map((log, idx) => (
-                      <div key={idx} className="border-b border-slate-800/50 pb-1">
-                          <span className="text-slate-500">[{log.time.split('T')[1].split('.')[0]}]</span>{' '}
-                          <span className="text-blue-400">{log.message}</span>
-                          {log.data && (
-                              <pre className="mt-1 text-slate-400 whitespace-pre-wrap">
-                                  {typeof log.data === 'object' ? JSON.stringify(log.data, null, 2) : String(log.data)}
-                              </pre>
-                          )}
-                      </div>
-                  ))}
-              </div>
-          </div>
 
         </div>
 
@@ -969,38 +872,74 @@ const QuoteBuilder = () => {
                   )}
                 </div>
 
-                {/* Line Items Preview */}
-                <div className="space-y-3 text-sm border-t border-slate-800 pt-4">
-                  {calculation.breakdown.slice(0, 5).map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-slate-300">
-                      <span className="truncate max-w-[200px]">{item.item}</span>
-                      <span className={item.cost < 0 ? 'text-green-400' : ''}>{formatCurrency(item.cost)}</span>
+                {/* Recurring (monthly) charges — every line item, fully itemized */}
+                <div className="space-y-2.5 text-sm border-t border-slate-800 pt-4">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Recurring charges (per month)</div>
+                  {calculation.breakdown.filter(i => i.type !== 'discount').map((item, idx) => (
+                    <div key={idx} className={item.indent ? 'pl-3' : ''}>
+                      <div className="flex justify-between text-slate-300">
+                        <span className="truncate max-w-[210px]">{item.item}</span>
+                        <span className="shrink-0 tabular-nums">{formatCurrency(item.cost)}/mo</span>
+                      </div>
+                      {item.note && (
+                        <div className="text-[10px] text-slate-500">{item.note}</div>
+                      )}
                     </div>
                   ))}
-                  {calculation.breakdown.length > 5 && (
-                    <div className="text-center text-xs text-slate-500 pt-2 italic">
-                      + {calculation.breakdown.length - 5} more items
-                    </div>
-                  )}
+                  <div className="flex justify-between text-slate-200 font-semibold pt-2 border-t border-slate-800/60">
+                    <span>Monthly Subtotal</span>
+                    <span className="tabular-nums">{formatCurrency(calculation.monthlySubtotal)}/mo</span>
+                  </div>
                 </div>
 
-                {/* Final Totals */}
+                {/* Discounts (applied to the monthly subtotal) */}
+                {(calculation.periodDiscountVal > 0 || calculation.manualDiscountVal > 0) && (
+                  <div className="space-y-2 text-sm border-t border-slate-800 pt-4">
+                    {calculation.periodDiscountVal > 0 && (
+                      <div className="flex justify-between text-green-400">
+                        <span>Term Discount ({calculation.period.name})</span>
+                        <span className="tabular-nums">−{formatCurrency(calculation.periodDiscountVal)}/mo</span>
+                      </div>
+                    )}
+                    {calculation.manualDiscountVal > 0 && (
+                      <div className="flex justify-between text-green-400">
+                        <span>Special Discount ({manualDiscount}%)</span>
+                        <span className="tabular-nums">−{formatCurrency(calculation.manualDiscountVal)}/mo</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-slate-200 font-semibold pt-2 border-t border-slate-800/60">
+                      <span>Net Monthly</span>
+                      <span className="tabular-nums">{formatCurrency(calculation.monthlyNet)}/mo</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Billing term → VAT → Total chain */}
                 <div className="space-y-2 border-t border-slate-800 pt-4">
-                  <div className="flex justify-between text-slate-500 text-xs">
+                  {calculation.period.months > 1 && (
+                    <div className="flex justify-between text-slate-400 text-sm">
+                      <span>Billing Term ({calculation.monthlyNet > 0 ? `${formatCurrency(calculation.monthlyNet)} × ${calculation.period.months} mo` : `${calculation.period.months} mo`})</span>
+                      <span className="tabular-nums">{formatCurrency(calculation.billingCycleTotal)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-slate-400 text-sm">
                     <span>VAT ({VAT_RATE * 100}%)</span>
-                    <span>{formatCurrency(calculation.vat)}</span>
+                    <span className="tabular-nums">{formatCurrency(calculation.vat)}</span>
                   </div>
                   <div className="flex justify-between text-[#D4AF37] font-bold text-xl pt-2 border-t border-slate-800/50">
                     <span>Total Due</span>
-                    <span>{formatCurrency(calculation.grandTotal)}</span>
+                    <span className="tabular-nums">{formatCurrency(calculation.grandTotal)}</span>
                   </div>
+                  <p className="text-[10px] text-slate-500 pt-1">
+                    Total billed once for the full {calculation.period.name.toLowerCase()} term, VAT included.
+                  </p>
                 </div>
 
               </div>
             </Card>
 
             <div className="flex flex-col gap-3">
-              <Button onClick={handleSaveQuote} disabled={generating || !backendConfig} className="w-full h-12 bg-[#D4AF37] hover:bg-[#B5902B] text-black font-bold text-lg">
+              <Button onClick={handleSaveQuote} disabled={generating} className="w-full h-12 bg-[#D4AF37] hover:bg-[#B5902B] text-black font-bold text-lg">
                 {generating ? <Loader2 className="animate-spin mr-2"/> : "Generate & Pay"}
               </Button>
               <Button 

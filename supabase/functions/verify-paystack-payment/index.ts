@@ -2,6 +2,21 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
+
+// Coerce the quote's jsonb `modules` (strings or objects) into a plain text[]
+// for subscriptions.modules (a Postgres text[] / NOT NULL column). Mirrors
+// verify-bank-transfer so both payment paths produce identical subscription rows.
+function toModuleSlugs(modules) {
+  if (!Array.isArray(modules)) return [];
+  return modules
+    .map((m) => {
+      if (typeof m === "string") return m;
+      if (m && typeof m === "object") return String(m.id ?? m.key ?? m.slug ?? m.name ?? "").trim();
+      return String(m ?? "").trim();
+    })
+    .filter((s) => s.length > 0);
+}
+
 serve(async (req)=>{
   // 1. Handle CORS
   if (req.method === "OPTIONS") {
@@ -11,7 +26,7 @@ serve(async (req)=>{
   }
   try {
     const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
-    const { reference, quote_id } = await req.json();
+    const { reference, quote_id, user_email } = await req.json();
     if (!reference) {
       throw new Error("No transaction reference provided");
     }
@@ -117,19 +132,29 @@ serve(async (req)=>{
     const isSuccess = paystackStatus === "success";
     const amountPaid = paystackData.amount / 100; // Paystack is in kobo
     const paymentDate = paystackData.paid_at || new Date().toISOString();
-    // Find organization from quote if not in payment
+    // Find organization + the quote's uuid id from the text quote_id. The Paystack
+    // reference is the TEXT quote_id (e.g. "QT-..."), but payments.quote_id is a
+    // uuid FK to quotes.id — so we must resolve and store the uuid, not the text.
     let orgId = existingPayment?.organization_id;
     let paymentId = existingPayment?.id;
-    if (!orgId && quote_id) {
-      const { data: quote } = await supabase.from('quotes').select('organization_id').eq('quote_id', quote_id).single();
-      orgId = quote?.organization_id;
+    let quoteUuid = null;
+    let quoteRow = null;
+    if (quote_id) {
+      const { data: quote } = await supabase.from('quotes')
+        .select('id, organization_id, total_amount, currency, billing_term, billing_period, modules, apps, seats, user_seats')
+        .eq('quote_id', quote_id).maybeSingle();
+      if (quote) {
+        quoteRow = quote;
+        quoteUuid = quote.id;
+        if (!orgId) orgId = quote.organization_id;
+      }
     }
     // Insert or Update Payment Record
     if (!existingPayment) {
       // Create new record if missing (Recovery scenario)
       const { data: newPayment, error: insertError } = await supabase.from('payments').insert({
         paystack_reference: reference,
-        quote_id: quote_id,
+        quote_id: quoteUuid,
         amount: amountPaid,
         currency: paystackData.currency,
         status: paystackStatus,
@@ -200,27 +225,115 @@ serve(async (req)=>{
           });
         }
       }
-      // --- Task 7: Trigger Notification ---
-      // Check if notification already sent
-      const { data: currentPayment } = await supabase.from('payments').select('notification_sent, email').eq('id', paymentId).single();
+      // Mark the quote PAID so the dashboard reflects it. manual_verify_quote only
+      // flips status to ENTITLEMENTS_CREATED; the UI keys off payment_verified.
+      // Mirrors the proven activate-bank-transfer path. Matched on the text
+      // quote_id (e.g. "QT-...") since that's what the Paystack reference carries.
+      if (quote_id) {
+        await supabase.from('quotes').update({
+          payment_verified: true,
+          payment_verified_at: paymentDate,
+          status: 'ACCEPTED',
+          paystack_reference: reference,
+          updated_at: new Date().toISOString()
+        }).eq('quote_id', quote_id);
+      }
+      if (orgId) {
+        await supabase.from('organizations').update({ suite_status: 'ACTIVE' }).eq('id', orgId);
+      }
+
+      // Create/refresh an ACTIVE subscription row + a real expiry. The Paystack
+      // flow previously created no subscription (so Subscription Management read
+      // empty) and manual_verify_quote left purchased_modules.expiry_date NULL.
+      // Best-effort: a failure here must not undo the payment acknowledgement.
+      if (orgId && quoteRow) {
+        try {
+          const term = quoteRow.billing_term || 'annual';
+          const billingPeriod = quoteRow.billing_period || (/month/i.test(term) ? 'monthly' : 'annual');
+          const userLimit = quoteRow.user_seats || quoteRow.seats || 1;
+          const start = new Date(paymentDate);
+          const end = new Date(start);
+          if (billingPeriod === 'monthly') end.setMonth(end.getMonth() + 1);
+          else end.setFullYear(end.getFullYear() + 1);
+          const startDate = start.toISOString().slice(0, 10);
+          const endDate = end.toISOString().slice(0, 10);
+
+          const subRow = {
+            organization_id: orgId,
+            quote_id: quoteRow.id, // subscriptions.quote_id is uuid -> quotes.id
+            modules: toModuleSlugs(quoteRow.modules),
+            user_limit: userLimit,
+            term,
+            billing_period: billingPeriod,
+            start_date: startDate,
+            end_date: endDate,
+            next_renewal_date: endDate,
+            renewal_status: 'pending',
+            status: 'active',
+            payment_status: 'COMPLETED',
+            quote_details: {
+              quote_id: quote_id,
+              quote_uuid: quoteRow.id,
+              total_amount: quoteRow.total_amount,
+              currency: quoteRow.currency || 'USD',
+              billing_term: term,
+              apps: quoteRow.apps ?? [],
+              modules: quoteRow.modules ?? [],
+              seats: userLimit,
+              payment_method: 'paystack',
+              paystack_reference: reference
+            },
+            updated_at: new Date().toISOString()
+          };
+
+          const { data: existingSub } = await supabase.from('subscriptions')
+            .select('id').eq('organization_id', orgId).eq('quote_id', quoteRow.id).limit(1).maybeSingle();
+          if (existingSub?.id) {
+            await supabase.from('subscriptions').update(subRow).eq('id', existingSub.id);
+          } else {
+            await supabase.from('subscriptions').insert(subRow);
+          }
+
+          // Give the freshly provisioned entitlements a real end date (they were
+          // provisioned with a NULL expiry by manual_verify_quote).
+          await supabase.from('purchased_modules')
+            .update({ expiry_date: end.toISOString() })
+            .eq('organization_id', orgId)
+            .eq('quote_id', quoteRow.id);
+        } catch (subErr) {
+          console.error('Subscription/expiry sync failed (non-fatal):', subErr.message);
+        }
+      }
+
+      // --- Task 7: Trigger Notification (best-effort, idempotent) ---
+      // The dedicated send-payment-notification function does not exist; use the
+      // generic send-email-via-smtp path the rest of the app relies on so the
+      // payer actually receives a confirmation.
+      const { data: currentPayment } = await supabase.from('payments').select('notification_sent').eq('id', paymentId).maybeSingle();
       if (!currentPayment?.notification_sent) {
-        // Get user email to notify
-        // Try to get from paystack customer
-        const customerEmail = paystackData.customer?.email;
+        const customerEmail = paystackData.customer?.email || user_email;
         if (customerEmail) {
-          await supabase.functions.invoke('send-payment-notification', {
-            body: {
-              payment_id: paymentId,
-              type: 'success',
-              recipient_email: customerEmail,
-              payment_details: {
-                amount: amountPaid,
-                currency: paystackData.currency,
-                reference: reference,
-                quote_number: quote_id
-              }
-            }
-          });
+          const appOrigin = req.headers.get('origin') || Deno.env.get('APP_URL') || '';
+          const quoteUrl = appOrigin ? `${appOrigin}/dashboard/quote/${quote_id}` : '';
+          const prettyAmount = `${paystackData.currency || ''} ${amountPaid.toLocaleString()}`.trim();
+          try {
+            await supabase.functions.invoke('send-email-via-smtp', {
+              body: JSON.stringify({
+                to: customerEmail,
+                subject: `Payment received — ${quote_id}`,
+                html:
+                  `<p>Thank you! We've received your payment and your Petrolord subscription is now active.</p>` +
+                  `<p><strong>Quote:</strong> ${quote_id}<br/>` +
+                  `<strong>Amount paid:</strong> ${prettyAmount}<br/>` +
+                  `<strong>Reference:</strong> ${reference}</p>` +
+                  (quoteUrl ? `<p><a href="${quoteUrl}">View your subscription &amp; what you paid for</a></p>` : '') +
+                  `<p>A receipt for this transaction is also available from Paystack.</p>`
+              })
+            });
+            await supabase.from('payments').update({ notification_sent: true }).eq('id', paymentId);
+          } catch (mailErr) {
+            console.error("Payment confirmation email failed (non-fatal):", mailErr);
+          }
         }
       }
     }

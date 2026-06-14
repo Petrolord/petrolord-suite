@@ -45,6 +45,8 @@ export default function QuoteDashboard() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const [checkingPayment, setCheckingPayment] = useState(false);
   const [proofFile, setProofFile] = useState(null);
   const [unlockedModules, setUnlockedModules] = useState([]);
   
@@ -52,8 +54,57 @@ export default function QuoteDashboard() {
   const [appNames, setAppNames] = useState({});
 
   useEffect(() => {
-    if (quoteId) fetchQuote();
+    if (quoteId) initQuote();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quoteId]);
+
+  // Load the quote, then reconcile its payment status with Paystack:
+  //  - If Paystack redirected here after checkout it appends ?reference/&trxref —
+  //    show a blocking "Confirming payment" screen and verify (the redirect case).
+  //  - Otherwise, if the quote is still unpaid but already has a Paystack
+  //    reference, silently re-check once. This catches the case where the user
+  //    paid but the tab closed before the redirect, and — crucially — lets us
+  //    hide the "Pay Now" link the moment we detect the payment, so it can never
+  //    reopen an already-completed transaction.
+  const initQuote = async () => {
+    const q = await fetchQuote();
+    if (!q || q.payment_verified) return;
+    const params = new URLSearchParams(window.location.search);
+    const redirectRef = params.get('reference') || params.get('trxref');
+    const reference = redirectRef || q.paystack_reference;
+    if (!reference) return;
+    await runVerification(reference, { fromRedirect: !!redirectRef });
+  };
+
+  const runVerification = async (reference, { fromRedirect }) => {
+    if (fromRedirect) setVerifyingPayment(true);
+    else setCheckingPayment(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
+        body: { reference, quote_id: quoteId, user_id: user?.id, user_email: user?.email }
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast({ title: 'Payment Confirmed', description: 'Thank you! Your payment is verified and your subscription is now active.', className: 'bg-green-600 text-white' });
+        await fetchQuote();
+      } else if (fromRedirect) {
+        toast({ title: 'Payment Not Yet Confirmed', description: data?.message || "If you were debited, use 'I Have Paid (Verify)' to retry, or contact support.", variant: 'destructive' });
+      }
+      // Silent check that comes back unpaid: stay quiet and leave Pay Now visible.
+    } catch (err) {
+      console.error('Payment verification error:', err);
+      if (fromRedirect) {
+        toast({ title: 'Verification Issue', description: err.message || 'Could not verify payment automatically. Please use the Verify button.', variant: 'destructive' });
+      }
+    } finally {
+      if (fromRedirect) {
+        // Strip the Paystack query params so a refresh doesn't re-trigger verification.
+        navigate(`/dashboard/quote/${quoteId}`, { replace: true });
+      }
+      setVerifyingPayment(false);
+      setCheckingPayment(false);
+    }
+  };
 
   // Fetch App Names
   useEffect(() => {
@@ -88,10 +139,11 @@ export default function QuoteDashboard() {
             .eq('organization_id', data.organization_id);
           setUnlockedModules(modules || []);
       }
-
+      return data;
     } catch (error) {
       console.error('Error fetching quote:', error);
       toast({ title: 'Error', description: 'Could not load quote details.', variant: 'destructive' });
+      return null;
     } finally {
       setLoading(false);
     }
@@ -140,7 +192,7 @@ export default function QuoteDashboard() {
       setVerifying(true);
       try {
           const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
-              body: { reference: quote.quote_id, user_id: user.id }
+              body: { reference: quote.paystack_reference || quote.quote_id, quote_id: quote.quote_id, user_id: user.id, user_email: user.email }
           });
           
           if(error) throw error;
@@ -158,6 +210,15 @@ export default function QuoteDashboard() {
       }
   };
 
+  if (verifyingPayment) return (
+    <div className="h-screen flex items-center justify-center bg-slate-950 text-white">
+      <div className="text-center max-w-sm px-6">
+        <Loader2 className="w-10 h-10 animate-spin text-lime-400 mx-auto mb-4" />
+        <h2 className="text-xl font-bold mb-1">Confirming your payment…</h2>
+        <p className="text-slate-400 text-sm">Please wait while we verify your transaction with Paystack. Don't close this tab.</p>
+      </div>
+    </div>
+  );
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-950 text-white"><Loader2 className="w-8 h-8 animate-spin" /></div>;
   if (!quote) return <div className="h-screen flex items-center justify-center bg-slate-950 text-white">Quote Not Found</div>;
 
@@ -240,12 +301,21 @@ export default function QuoteDashboard() {
                             : 
                             <>
                                 {Array.isArray(quote.modules) && quote.modules.map(m => <Badge key={m} variant="outline" className="border-slate-600 text-white bg-slate-800 hover:bg-slate-700">{m}</Badge>)}
-                                {Array.isArray(quote.apps) && quote.apps.map(a => {
-                                    // Use mapped name if available, else show raw ID (truncated)
-                                    const displayName = appNames[a] || (a.length > 8 ? a.substring(0,8)+'...' : a);
+                                {Array.isArray(quote.apps) && quote.apps.map((a, idx) => {
+                                    // `a` is either a UUID string (legacy quotes) or an object
+                                    // { id, name, seats, module } (current generate-quote shape).
+                                    const isObj = a && typeof a === 'object';
+                                    const id = isObj ? a.id : a;
+                                    const seats = isObj ? a.seats : undefined;
+                                    // Prefer the stored name, then the master_apps lookup, then a truncated id.
+                                    const displayName = (isObj && a.name)
+                                        || appNames[id]
+                                        || (typeof id === 'string' && id.length > 8 ? id.substring(0, 8) + '...' : id)
+                                        || 'App';
+                                    const seatLabel = seats ? ` · ${seats} seat${seats === 1 ? '' : 's'}` : '';
                                     return (
-                                        <Badge key={a} variant="outline" className="border-slate-600 text-white bg-slate-800 hover:bg-slate-700" title={a}>
-                                            {displayName}
+                                        <Badge key={id || idx} variant="outline" className="border-slate-600 text-white bg-slate-800 hover:bg-slate-700" title={typeof id === 'string' ? id : ''}>
+                                            {displayName}{seatLabel}
                                         </Badge>
                                     );
                                 })}
@@ -304,14 +374,20 @@ export default function QuoteDashboard() {
                     <div className="space-y-3">
                       {quote.paystack_link ? (
                           <div className="space-y-2">
-                              <a href={quote.paystack_link} target="_blank" rel="noreferrer" className="w-full block">
-                                <Button className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-lg text-white">
-                                    <CreditCard className="w-5 h-5 mr-2"/> Pay Now with Paystack
+                              {checkingPayment ? (
+                                <Button disabled className="w-full bg-blue-600/60 h-12 text-lg text-white cursor-not-allowed">
+                                    <Loader2 className="w-5 h-5 animate-spin mr-2"/> Checking payment status…
                                 </Button>
-                              </a>
-                              <Button 
-                                onClick={handleVerifyPayment} 
-                                disabled={verifying}
+                              ) : (
+                                <a href={quote.paystack_link} target="_blank" rel="noreferrer" className="w-full block">
+                                  <Button className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-lg text-white">
+                                      <CreditCard className="w-5 h-5 mr-2"/> Pay Now with Paystack
+                                  </Button>
+                                </a>
+                              )}
+                              <Button
+                                onClick={handleVerifyPayment}
+                                disabled={verifying || checkingPayment}
                                 variant="outline"
                                 className="w-full border-blue-500 text-blue-400 hover:bg-blue-950"
                               >

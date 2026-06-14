@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getUserOrgRow } from '@/lib/orgContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,7 @@ export default function AdminModuleAccessDiagnostics() {
         if (!user) return;
         
         // 1. Get Org
-        const { data: orgUser } = await supabase.from('organization_users').select('*').eq('user_id', user.id).single();
+        const orgUser = await getUserOrgRow(user.id);
         if (!orgUser) throw new Error("No org found");
 
         const orgId = orgUser.organization_id;

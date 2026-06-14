@@ -51,12 +51,16 @@ export const usePurchasedModules = () => {
       setError(null);
 
       // 1. Fetch purchased entitlements for this org (Access to Hubs/Modules)
+      // A NULL expiry_date means "no expiry" (manual_verify_quote can leave it
+      // null when the quote carries no expiry). Treat null as still-active rather
+      // than filtering it out — otherwise freshly provisioned entitlements look
+      // locked. ModuleAccess.jsx already renders a null expiry as "Never".
       const { data: purchases, error: dbError } = await supabase
         .from('purchased_modules')
         .select('*')
         .eq('organization_id', organization.id)
         .eq('status', 'active')
-        .gt('expiry_date', new Date().toISOString());
+        .or(`expiry_date.is.null,expiry_date.gt.${new Date().toISOString()}`);
 
       if (dbError) throw dbError;
 

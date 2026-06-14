@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getUserOrgRow } from '@/lib/orgContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,7 +17,7 @@ export default function SubscriptionHistory() {
   }, [user]);
 
   const fetchHistory = async () => {
-      const { data: orgUser } = await supabase.from('organization_users').select('organization_id').eq('user_id', user.id).single();
+      const orgUser = await getUserOrgRow(user.id);
       if(orgUser) {
           const { data } = await supabase.from('subscription_events')
             .select('*')

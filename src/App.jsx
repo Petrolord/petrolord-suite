@@ -210,6 +210,7 @@ const Resources = lazy(() => import('@/pages/Resources'));
 const NextGen = lazy(() => import('@/pages/NextGen'));
 const QuoteBuilder = lazy(() => import('@/pages/QuoteBuilder'));
 const ModuleAccess = lazy(() => import('@/pages/ModuleAccess'));
+const SeatManagement = lazy(() => import('@/pages/SeatManagement'));
 const EmployeeManagement = lazy(() => import('@/pages/EmployeeManagement'));
 const AccessRequests = lazy(() => import('@/pages/admin/AccessRequests'));
 const SubscriptionManagement = lazy(() => import('@/pages/SubscriptionManagement'));
@@ -345,6 +346,7 @@ function App() {
                                 <Route index element={<Dashboard />} />
                                 <Route path="upgrade" element={<QuoteBuilder />} />
                                 <Route path="modules" element={<ModuleAccess />} />
+                                <Route path="seats" element={<SeatManagement />} />
                                 <Route path="employees" element={<EmployeeManagement />} />
                                 <Route path="access-requests" element={<AccessRequests />} />
                                 
