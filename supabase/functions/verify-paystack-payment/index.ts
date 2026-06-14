@@ -117,19 +117,25 @@ serve(async (req)=>{
     const isSuccess = paystackStatus === "success";
     const amountPaid = paystackData.amount / 100; // Paystack is in kobo
     const paymentDate = paystackData.paid_at || new Date().toISOString();
-    // Find organization from quote if not in payment
+    // Find organization + the quote's uuid id from the text quote_id. The Paystack
+    // reference is the TEXT quote_id (e.g. "QT-..."), but payments.quote_id is a
+    // uuid FK to quotes.id — so we must resolve and store the uuid, not the text.
     let orgId = existingPayment?.organization_id;
     let paymentId = existingPayment?.id;
-    if (!orgId && quote_id) {
-      const { data: quote } = await supabase.from('quotes').select('organization_id').eq('quote_id', quote_id).single();
-      orgId = quote?.organization_id;
+    let quoteUuid = null;
+    if (quote_id) {
+      const { data: quote } = await supabase.from('quotes').select('id, organization_id').eq('quote_id', quote_id).maybeSingle();
+      if (quote) {
+        quoteUuid = quote.id;
+        if (!orgId) orgId = quote.organization_id;
+      }
     }
     // Insert or Update Payment Record
     if (!existingPayment) {
       // Create new record if missing (Recovery scenario)
       const { data: newPayment, error: insertError } = await supabase.from('payments').insert({
         paystack_reference: reference,
-        quote_id: quote_id,
+        quote_id: quoteUuid,
         amount: amountPaid,
         currency: paystackData.currency,
         status: paystackStatus,
