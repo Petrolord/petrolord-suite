@@ -50,7 +50,7 @@ const QuoteBuilder = () => {
   const [billingPeriod, setBillingPeriod] = useState('annual');
   const [serviceTier, setServiceTier] = useState('starter');
   const [appSeats, setAppSeats] = useState({}); // { [appId]: seatCount } — per-app seats
-  const [storageGB, setStorageGB] = useState(100);
+  const [storageGB, setStorageGB] = useState(10); // default to the free allowance; no storage charge until the user opts in
   const [manualDiscount, setManualDiscount] = useState(0); 
   
   // Selection State
@@ -405,7 +405,17 @@ const QuoteBuilder = () => {
     let seatsCost = 0;
     const breakdown = [];
 
-    // App + per-app seat costs. selectedApps is an array of UUIDs.
+    // Every recurring charge is pushed to breakdown as an explicit, labelled line
+    // item so the summary panel can reconcile to the total — no hidden fees.
+    // 1) Base platform fee (always present, even with no apps selected).
+    breakdown.push({
+      item: `Base Platform Fee — ${tier.name}`,
+      cost: baseFee,
+      type: 'base',
+      note: tier.multiplier !== 1 ? `${BASE_PLATFORM_FEE} × ${tier.multiplier} tier` : 'Platform access & support'
+    });
+
+    // 2) App + per-app seat costs. selectedApps is an array of UUIDs.
     selectedApps.forEach(appId => {
         const app = masterApps.find(a => a.id === appId);
         if (app) {
@@ -413,13 +423,21 @@ const QuoteBuilder = () => {
             const appSeatCost = computeSeatCost(nSeats); // graduated per-app tiers
             softwareCost += app.price;
             seatsCost += appSeatCost;
-            breakdown.push({ item: app.name, price: app.price, cost: app.price, type: 'app', id: appId, seats: nSeats });
-            breakdown.push({ item: `   ${nSeats} seat${nSeats === 1 ? '' : 's'} — ${app.name}`, cost: appSeatCost, type: 'seats', id: appId });
+            breakdown.push({ item: `${app.name} — license`, price: app.price, cost: app.price, type: 'app', id: appId, seats: nSeats });
+            breakdown.push({ item: `${app.name} — ${nSeats} seat${nSeats === 1 ? '' : 's'}`, cost: appSeatCost, type: 'seats', id: appId, indent: true });
         }
     });
 
     const totalSeats = getTotalSeats();
     const storageCost = Math.max(0, storageGB - 10) * STORAGE_GB_PRICE;
+    // 3) Cloud storage (always shown; first 10 GB free).
+    breakdown.push({
+      item: `Cloud Storage — ${storageGB} GB`,
+      cost: storageCost,
+      type: 'storage',
+      note: storageGB > 10 ? `${storageGB - 10} GB billable × $${STORAGE_GB_PRICE} (first 10 GB free)` : 'Within free allowance'
+    });
+
     const monthlySubtotal = baseFee + softwareCost + seatsCost + storageCost;
     
     const periodDiscountVal = monthlySubtotal * period.discount;
@@ -430,12 +448,8 @@ const QuoteBuilder = () => {
     const vat = billingCycleTotal * VAT_RATE;
     const grandTotal = billingCycleTotal + vat;
 
-    if (period.discount > 0) {
-        breakdown.push({ item: `Term Discount (${period.name})`, cost: -periodDiscountVal, type: 'discount' });
-    }
-    if (manualDiscount > 0) {
-        breakdown.push({ item: `Special Discount (${manualDiscount}%)`, cost: -manualDiscountVal, type: 'discount' });
-    }
+    // Discounts are rendered directly from periodDiscountVal / manualDiscountVal
+    // in the summary panel, so they are not pushed as breakdown line items.
 
     return {
       baseFee,
@@ -767,7 +781,7 @@ const QuoteBuilder = () => {
                                                   </Badge>
                                               ))}
                                             </span>
-                                            <span className={`text-xs ${isComingSoon ? 'text-slate-600' : 'text-slate-500'}`}>{formatCurrency(app.price)}</span>
+                                            <span className={`text-xs whitespace-nowrap ${isComingSoon ? 'text-slate-600' : 'text-slate-500'}`}>{formatCurrency(app.price)}/mo license</span>
                                           </div>
                                           <p className={`text-[10px] line-clamp-1 mt-0.5 ${isComingSoon ? 'text-slate-600' : 'text-slate-500'}`}>{app.description || 'No description available'}</p>
                                           {isAppSelected && !isComingSoon && (() => {
@@ -775,7 +789,7 @@ const QuoteBuilder = () => {
                                             return (
                                               <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-700/60" onClick={(e) => e.stopPropagation()}>
                                                 <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                                                  <Users className="w-3 h-3"/> Seats · {formatCurrency(computeSeatCost(n))}/mo
+                                                  <Users className="w-3 h-3"/> + Seats · {formatCurrency(computeSeatCost(n))}/mo
                                                 </span>
                                                 <div className="flex items-center gap-1.5">
                                                   <button type="button" onClick={(e) => { e.stopPropagation(); setSeatsFor(app.id, n - 1); }}
@@ -852,12 +866,20 @@ const QuoteBuilder = () => {
                       <Label className="text-slate-300">Cloud Storage</Label>
                       <span className="text-[#D4AF37] font-bold text-xl">{storageGB} GB</span>
                     </div>
-                    <Slider 
-                      value={[storageGB]} 
-                      onValueChange={(val) => setStorageGB(val[0])} 
+                    <Slider
+                      value={[storageGB]}
+                      onValueChange={(val) => setStorageGB(val[0])}
                       min={10} max={5000} step={10}
                       className="my-6"
                     />
+                    <p className="text-xs text-slate-500">
+                      First 10 GB free, then ${STORAGE_GB_PRICE}/GB·mo.
+                      {storageGB > 10 ? (
+                        <> {storageGB - 10} GB billable = <span className="text-slate-300">{formatCurrency(calculation.storageCost)}/mo</span>.</>
+                      ) : (
+                        <> Currently within free allowance.</>
+                      )}
+                    </p>
                   </div>
                 </div>
               </section>
@@ -989,31 +1011,67 @@ const QuoteBuilder = () => {
                   )}
                 </div>
 
-                {/* Line Items Preview */}
-                <div className="space-y-3 text-sm border-t border-slate-800 pt-4">
-                  {calculation.breakdown.slice(0, 5).map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-slate-300">
-                      <span className="truncate max-w-[200px]">{item.item}</span>
-                      <span className={item.cost < 0 ? 'text-green-400' : ''}>{formatCurrency(item.cost)}</span>
+                {/* Recurring (monthly) charges — every line item, fully itemized */}
+                <div className="space-y-2.5 text-sm border-t border-slate-800 pt-4">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Recurring charges (per month)</div>
+                  {calculation.breakdown.filter(i => i.type !== 'discount').map((item, idx) => (
+                    <div key={idx} className={item.indent ? 'pl-3' : ''}>
+                      <div className="flex justify-between text-slate-300">
+                        <span className="truncate max-w-[210px]">{item.item}</span>
+                        <span className="shrink-0 tabular-nums">{formatCurrency(item.cost)}/mo</span>
+                      </div>
+                      {item.note && (
+                        <div className="text-[10px] text-slate-500">{item.note}</div>
+                      )}
                     </div>
                   ))}
-                  {calculation.breakdown.length > 5 && (
-                    <div className="text-center text-xs text-slate-500 pt-2 italic">
-                      + {calculation.breakdown.length - 5} more items
-                    </div>
-                  )}
+                  <div className="flex justify-between text-slate-200 font-semibold pt-2 border-t border-slate-800/60">
+                    <span>Monthly Subtotal</span>
+                    <span className="tabular-nums">{formatCurrency(calculation.monthlySubtotal)}/mo</span>
+                  </div>
                 </div>
 
-                {/* Final Totals */}
+                {/* Discounts (applied to the monthly subtotal) */}
+                {(calculation.periodDiscountVal > 0 || calculation.manualDiscountVal > 0) && (
+                  <div className="space-y-2 text-sm border-t border-slate-800 pt-4">
+                    {calculation.periodDiscountVal > 0 && (
+                      <div className="flex justify-between text-green-400">
+                        <span>Term Discount ({calculation.period.name})</span>
+                        <span className="tabular-nums">−{formatCurrency(calculation.periodDiscountVal)}/mo</span>
+                      </div>
+                    )}
+                    {calculation.manualDiscountVal > 0 && (
+                      <div className="flex justify-between text-green-400">
+                        <span>Special Discount ({manualDiscount}%)</span>
+                        <span className="tabular-nums">−{formatCurrency(calculation.manualDiscountVal)}/mo</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-slate-200 font-semibold pt-2 border-t border-slate-800/60">
+                      <span>Net Monthly</span>
+                      <span className="tabular-nums">{formatCurrency(calculation.monthlyNet)}/mo</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Billing term → VAT → Total chain */}
                 <div className="space-y-2 border-t border-slate-800 pt-4">
-                  <div className="flex justify-between text-slate-500 text-xs">
+                  {calculation.period.months > 1 && (
+                    <div className="flex justify-between text-slate-400 text-sm">
+                      <span>Billing Term ({calculation.monthlyNet > 0 ? `${formatCurrency(calculation.monthlyNet)} × ${calculation.period.months} mo` : `${calculation.period.months} mo`})</span>
+                      <span className="tabular-nums">{formatCurrency(calculation.billingCycleTotal)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-slate-400 text-sm">
                     <span>VAT ({VAT_RATE * 100}%)</span>
-                    <span>{formatCurrency(calculation.vat)}</span>
+                    <span className="tabular-nums">{formatCurrency(calculation.vat)}</span>
                   </div>
                   <div className="flex justify-between text-[#D4AF37] font-bold text-xl pt-2 border-t border-slate-800/50">
                     <span>Total Due</span>
-                    <span>{formatCurrency(calculation.grandTotal)}</span>
+                    <span className="tabular-nums">{formatCurrency(calculation.grandTotal)}</span>
                   </div>
+                  <p className="text-[10px] text-slate-500 pt-1">
+                    Total billed once for the full {calculation.period.name.toLowerCase()} term, VAT included.
+                  </p>
                 </div>
 
               </div>
