@@ -2,6 +2,21 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
+
+// Coerce the quote's jsonb `modules` (strings or objects) into a plain text[]
+// for subscriptions.modules (a Postgres text[] / NOT NULL column). Mirrors
+// verify-bank-transfer so both payment paths produce identical subscription rows.
+function toModuleSlugs(modules) {
+  if (!Array.isArray(modules)) return [];
+  return modules
+    .map((m) => {
+      if (typeof m === "string") return m;
+      if (m && typeof m === "object") return String(m.id ?? m.key ?? m.slug ?? m.name ?? "").trim();
+      return String(m ?? "").trim();
+    })
+    .filter((s) => s.length > 0);
+}
+
 serve(async (req)=>{
   // 1. Handle CORS
   if (req.method === "OPTIONS") {
@@ -123,9 +138,13 @@ serve(async (req)=>{
     let orgId = existingPayment?.organization_id;
     let paymentId = existingPayment?.id;
     let quoteUuid = null;
+    let quoteRow = null;
     if (quote_id) {
-      const { data: quote } = await supabase.from('quotes').select('id, organization_id').eq('quote_id', quote_id).maybeSingle();
+      const { data: quote } = await supabase.from('quotes')
+        .select('id, organization_id, total_amount, currency, billing_term, billing_period, modules, apps, seats, user_seats')
+        .eq('quote_id', quote_id).maybeSingle();
       if (quote) {
+        quoteRow = quote;
         quoteUuid = quote.id;
         if (!orgId) orgId = quote.organization_id;
       }
@@ -221,6 +240,69 @@ serve(async (req)=>{
       }
       if (orgId) {
         await supabase.from('organizations').update({ suite_status: 'ACTIVE' }).eq('id', orgId);
+      }
+
+      // Create/refresh an ACTIVE subscription row + a real expiry. The Paystack
+      // flow previously created no subscription (so Subscription Management read
+      // empty) and manual_verify_quote left purchased_modules.expiry_date NULL.
+      // Best-effort: a failure here must not undo the payment acknowledgement.
+      if (orgId && quoteRow) {
+        try {
+          const term = quoteRow.billing_term || 'annual';
+          const billingPeriod = quoteRow.billing_period || (/month/i.test(term) ? 'monthly' : 'annual');
+          const userLimit = quoteRow.user_seats || quoteRow.seats || 1;
+          const start = new Date(paymentDate);
+          const end = new Date(start);
+          if (billingPeriod === 'monthly') end.setMonth(end.getMonth() + 1);
+          else end.setFullYear(end.getFullYear() + 1);
+          const startDate = start.toISOString().slice(0, 10);
+          const endDate = end.toISOString().slice(0, 10);
+
+          const subRow = {
+            organization_id: orgId,
+            quote_id: quoteRow.id, // subscriptions.quote_id is uuid -> quotes.id
+            modules: toModuleSlugs(quoteRow.modules),
+            user_limit: userLimit,
+            term,
+            billing_period: billingPeriod,
+            start_date: startDate,
+            end_date: endDate,
+            next_renewal_date: endDate,
+            renewal_status: 'pending',
+            status: 'active',
+            payment_status: 'COMPLETED',
+            quote_details: {
+              quote_id: quote_id,
+              quote_uuid: quoteRow.id,
+              total_amount: quoteRow.total_amount,
+              currency: quoteRow.currency || 'USD',
+              billing_term: term,
+              apps: quoteRow.apps ?? [],
+              modules: quoteRow.modules ?? [],
+              seats: userLimit,
+              payment_method: 'paystack',
+              paystack_reference: reference
+            },
+            updated_at: new Date().toISOString()
+          };
+
+          const { data: existingSub } = await supabase.from('subscriptions')
+            .select('id').eq('organization_id', orgId).eq('quote_id', quoteRow.id).limit(1).maybeSingle();
+          if (existingSub?.id) {
+            await supabase.from('subscriptions').update(subRow).eq('id', existingSub.id);
+          } else {
+            await supabase.from('subscriptions').insert(subRow);
+          }
+
+          // Give the freshly provisioned entitlements a real end date (they were
+          // provisioned with a NULL expiry by manual_verify_quote).
+          await supabase.from('purchased_modules')
+            .update({ expiry_date: end.toISOString() })
+            .eq('organization_id', orgId)
+            .eq('quote_id', quoteRow.id);
+        } catch (subErr) {
+          console.error('Subscription/expiry sync failed (non-fatal):', subErr.message);
+        }
       }
 
       // --- Task 7: Trigger Notification (best-effort, idempotent) ---
