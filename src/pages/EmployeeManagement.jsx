@@ -55,7 +55,9 @@ export default function EmployeeManagement() {
 
         // Fetch Seat Limit (Mock logic or real if subscription table ready)
         // Ideally we fetch from purchased_modules or subscriptions
-        const { data: sub } = await supabase.from('subscriptions').select('user_limit').eq('organization_id', orgUser.organization_id).eq('status', 'active').single();
+        // maybeSingle: an org with no active subscription must not throw (PGRST116)
+        // and take the whole page down with it.
+        const { data: sub } = await supabase.from('subscriptions').select('user_limit').eq('organization_id', orgUser.organization_id).eq('status', 'active').limit(1).maybeSingle();
         const limit = sub?.user_limit || 5; // Default free tier
         
         const activeCount = membersData.filter(m => m.status !== 'inactive').length;
