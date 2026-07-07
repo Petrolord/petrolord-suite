@@ -16,12 +16,6 @@ export const sendForecastToFDPAccelerator = async (wellId, forecastData) => {
   return { success: true, timestamp: new Date().toISOString() };
 };
 
-export const sendProfileToMaterialBalance = async (wellId, profileData) => {
-  console.log(`Sending profile for well ${wellId} to Material Balance...`);
-  await new Promise(resolve => setTimeout(resolve, 500));
-  return { success: true, timestamp: new Date().toISOString() };
-};
-
 export const receiveDataFromReservoirSimulation = async (wellId) => {
   console.log(`Fetching simulation data for well ${wellId}...`);
   await new Promise(resolve => setTimeout(resolve, 1500));

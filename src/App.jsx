@@ -16,7 +16,6 @@ import { Toaster } from '@/components/ui/sonner';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { WellCorrelationProvider } from '@/contexts/WellCorrelationContext';
 import { AdminOrgProvider } from '@/contexts/AdminOrganizationContext';
-import { MaterialBalanceProvider } from '@/contexts/MaterialBalanceContext';
 import ProtectedAppRoute from '@/components/ProtectedAppRoute';
 import { runAccessDiagnostics } from '@/utils/debugAccess';
 import { SUITE_PERMISSIONS, HSE_PERMISSIONS } from '@/constants/permissions';
@@ -80,6 +79,8 @@ const AfeCostControlManager = lazy(() => import('@/pages/apps/AfeCostControlMana
 const CapitalPortfolioStudio = lazy(() => import('@/pages/apps/CapitalPortfolioStudio'));
 const FiscalRegimeDesigner = lazy(() => import('@/pages/apps/FiscalRegimeDesigner'));
 const WaterfloodDashboard = lazy(() => import('@/pages/apps/WaterfloodDashboard'));
+const VoidageReplacementMonitor = lazy(() => import('@/pages/apps/VoidageReplacementMonitor'));
+const FractionalFlowAnalyzer = lazy(() => import('@/pages/apps/FractionalFlowAnalyzer'));
 const DeclineCurveAnalysis = lazy(() => import('@/pages/apps/DeclineCurveAnalysis'));
 const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'));
 const LogFaciesAnalysis = lazy(() => import('@/pages/apps/LogFaciesAnalysis'));
@@ -107,14 +108,12 @@ const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/Producti
 const WellTestDataAnalyzer = lazy(() => import('@/pages/apps/WellTestDataAnalyzer'));
 const FlowAssuranceMonitor = lazy(() => import('@/pages/apps/FlowAssuranceMonitor'));
 const IntegratedAssetModeler = lazy(() => import('@/pages/apps/IntegratedAssetModeler'));
-const MaterialBalanceAnalysis = lazy(() => import('@/pages/apps/MaterialBalanceAnalysis'));
 const WellToSeismicTie = lazy(() => import('@/pages/apps/WellToSeismicTie'));
 const MechanicalEarthModel = lazy(() => import('@/pages/apps/MechanicalEarthModel/MechanicalEarthModel'));
 const ExpertMode = lazy(() => import('@/pages/apps/MechanicalEarthModel/ExpertMode'));
 const Analytics = lazy(() => import('@/pages/apps/MechanicalEarthModel/Analytics'));
 const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
 const WellCorrelationTool = lazy(() => import('@/pages/apps/WellCorrelationTool'));
-const MaterialBalancePro = lazy(() => import('@/pages/apps/MaterialBalancePro'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 const CasingWearAnalyzer = lazy(() => import('@/pages/apps/CasingWearAnalyzer/CasingWearAnalyzer'));
 const StructuralMappingSuite = lazy(() => import('@/pages/apps/StructuralMappingSuite'));
@@ -256,8 +255,7 @@ function App() {
                 <ReservoirProvider>
                   <WellCorrelationProvider>
                     <AdminOrgProvider>
-                      <MaterialBalanceProvider>
-                        <div className={`${isDashboard ? "h-screen overflow-hidden" : "min-h-screen overflow-y-auto"} w-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))]`}>
+                      <div className={`${isDashboard ? "h-screen overflow-hidden" : "min-h-screen overflow-y-auto"} w-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))]`}>
                           <Suspense fallback={<PageLoader />}>
                             <Routes>
                               <Route path="/" element={<Home />} />
@@ -452,6 +450,9 @@ function App() {
                                 
                                 <Route path="apps/reservoir/fluid-systems-studio" element={<FluidSystemsStudio />} />
                                 <Route path="apps/reservoir/waterflood-dashboard" element={<WaterfloodDashboard />} />
+                                <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
+                                <Route path="apps/reservoir/fractional-flow-calculator" element={<FractionalFlowAnalyzer />} />
+                                <Route path="apps/reservoir/relative-permeability-designer" element={<FractionalFlowAnalyzer />} />
                                 <Route path="apps/reservoir/decline-curve-analysis" element={<DeclineCurveAnalysis />} />
                                 <Route path="apps/reservoir/reservoir-balance" element={<ReservoirBalance />} />
                                 <Route path="apps/reservoir/reservoir-balance/cases/:caseId" element={<RbCaseDetail />} />
@@ -466,7 +467,6 @@ function App() {
                                 <Route path="apps/reservoir/eor-designer" element={<EorDesigner />} />
                                 <Route path="apps/reservoir/uncertainty-analysis" element={<UncertaintyAnalysis />} />
                                 <Route path="apps/reservoir/reservoir-simulation-connector" element={<ReservoirSimulationConnector />} />
-                                <Route path="apps/reservoir/material-balance-pro" element={<MaterialBalancePro />} />
 
                                 <Route path="apps/drilling/well-planning" element={<WellPlanning />} />
 				<Route path="apps/drilling/well-planning/:wellId" element={<WellPlanning />} />
@@ -628,7 +628,6 @@ function App() {
                             </Routes>
                           </Suspense>
                         </div>
-                      </MaterialBalanceProvider>
                     </AdminOrgProvider>
                   </WellCorrelationProvider>
                 </ReservoirProvider>
