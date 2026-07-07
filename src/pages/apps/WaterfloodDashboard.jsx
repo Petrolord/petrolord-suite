@@ -11,9 +11,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import InsightsPanel from '@/components/waterflood/InsightsPanel';
     import EmptyState from '@/components/waterflood/EmptyState';
     import DataQualityPanel from '@/components/waterflood/DataQualityPanel';
-    import PatternResponsePanel from '@/components/waterflood/PatternResponsePanel';
-    import RecommendationsPanel from '@/components/waterflood/RecommendationsPanel';
-    import HallPlotPanel from '@/components/waterflood/HallPlotPanel';
+    import GatedFeatureNotice from '@/components/waterflood/GatedFeatureNotice';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
     import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerTrigger } from "@/components/ui/drawer";
     import { Input } from "@/components/ui/input";
@@ -293,10 +291,19 @@ import React, { useState, useEffect, useCallback } from 'react';
                         <DataQualityPanel data={dashboardData.data_quality} />
                         <KPIPanel kpis={dashboardData.kpis} lastUpdated={dashboardData.lastUpdated} />
                         <ChartsPanel dailySeries={dashboardData.daily_series} vrrSeries={dashboardData.vrr_series} />
-                        <InsightsPanel alerts={dashboardData.alerts} />
-                        <PatternResponsePanel data={dashboardData.pattern_lags} />
-                        <RecommendationsPanel data={dashboardData.recommendations} />
-                        {dashboardData.hall_plots && dashboardData.hall_plots.length > 0 ? (<HallPlotPanel data={dashboardData.hall_plots} alerts={dashboardData.alerts} />) : (<div className="bg-white/10 p-6 text-center text-gray-400">No Hall Plot data available.</div>)}
+                        <InsightsPanel alerts={{ ...dashboardData.alerts, injectivity_issue: [] }} />
+                        <GatedFeatureNotice
+                          title="Pattern Response"
+                          message="Injector–producer lag and correlation require a time-shifted cross-correlation of injection and offset-producer rate histories, which is not yet available in this release. Results are withheld rather than shown as unverified estimates."
+                        />
+                        <GatedFeatureNotice
+                          title="Injector Recommendations"
+                          message="Injection-rate optimization is not yet available. A defensible suggested rate requires VRR-balanced pattern allocation; until that is implemented, no recommendation is shown."
+                        />
+                        <GatedFeatureNotice
+                          title="Hall Plot Analysis"
+                          message="Hall plot injectivity diagnostics require measured injection pressure (wellhead or bottomhole), which is not part of the current data schema. This analysis is disabled until pressure ingestion is added."
+                        />
                       </>
                     ) : (<EmptyState apiHealthy={healthOk} />)}
                   </div>
