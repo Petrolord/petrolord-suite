@@ -50,6 +50,12 @@ export const useAppsFromDatabase = (moduleFilter = null) => {
         try {
             setLoading(true);
             const fetchPromise = (async () => {
+                // master_apps is only readable by the `authenticated` role (RLS). On a
+                // cold page load this hook can fire BEFORE the Supabase session is
+                // restored from storage, which would run the query as `anon` and return
+                // []. Awaiting getSession() ensures the restored token is attached first.
+                await supabase.auth.getSession();
+
                 const { data, error } = await supabase
                     .from('master_apps')
                     .select('*')
@@ -70,8 +76,14 @@ export const useAppsFromDatabase = (moduleFilter = null) => {
             globalCache.promise = fetchPromise;
             const result = await fetchPromise;
 
-            globalCache.data = result;
-            globalCache.timestamp = Date.now();
+            // Never cache an empty result — an empty array almost always means the
+            // query ran before auth was ready (see getSession above). Caching it would
+            // pin "No Applications Found" for the whole 5-minute TTL. Leaving the cache
+            // empty lets the next mount / auth change refetch.
+            if (result.length > 0) {
+                globalCache.data = result;
+                globalCache.timestamp = Date.now();
+            }
             globalCache.promise = null;
 
             if (mounted.current) {
@@ -90,7 +102,19 @@ export const useAppsFromDatabase = (moduleFilter = null) => {
     useEffect(() => {
         mounted.current = true;
         fetchApps();
-        return () => { mounted.current = false; };
+
+        // If the session arrives/refreshes after the first (possibly anon) fetch,
+        // force a refresh so the catalog appears without needing a manual reload.
+        const { data: authSub } = supabase.auth.onAuthStateChange((event) => {
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                if (!globalCache.data) fetchApps(true);
+            }
+        });
+
+        return () => {
+            mounted.current = false;
+            authSub?.subscription?.unsubscribe?.();
+        };
     }, [fetchApps]);
 
     return {

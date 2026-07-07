@@ -68,9 +68,11 @@ const DashboardSidebar = () => {
     <div className="w-64 bg-slate-950 border-r border-slate-800 h-full flex flex-col">
       <div className="p-6">
         <div className="flex items-center gap-2 mb-8">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center">
-            <span className="text-white font-bold text-lg">P</span>
-          </div>
+          <img
+            src="/petrolord-icon.png"
+            alt="Petrolord"
+            className="h-9 w-9 rounded-lg object-cover shrink-0"
+          />
           <div>
             <h1 className="text-white font-bold text-sm tracking-tight">Petrolord Suite</h1>
             <span className="text-slate-500 text-xs">Enterprise Edition</span>
