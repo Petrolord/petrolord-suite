@@ -12,15 +12,21 @@ const PaymentVerification = () => {
   const { toast } = useToast();
   
   const reference = searchParams.get('reference') || searchParams.get('trxref');
-  const quoteIdParam = searchParams.get('quote_id'); 
-  
+  const quoteIdParam = searchParams.get('quote_id');
+  // Stripe redirects back with ?provider=stripe&session_id=...; Paystack uses ?reference=.
+  const provider = searchParams.get('provider');
+  const sessionId = searchParams.get('session_id');
+  const isStripe = provider === 'stripe' && !!sessionId;
+  const txnKey = reference || sessionId; // unified transaction identity
+  const providerLabel = isStripe ? 'Stripe' : 'Paystack';
+
   // Task 9: Browser state persistence
   const getInitialState = () => {
       const saved = localStorage.getItem('payment_verification_state');
       if (saved) {
           const parsed = JSON.parse(saved);
-          // Only restore if reference matches
-          if (parsed.reference === reference) {
+          // Only restore if the transaction matches
+          if (parsed.reference === txnKey) {
               return parsed.status;
           }
       }
@@ -28,7 +34,7 @@ const PaymentVerification = () => {
   };
 
   const [status, setStatus] = useState(getInitialState()); // verifying, success, error, pending
-  const [message, setMessage] = useState('Verifying your payment with Paystack...');
+  const [message, setMessage] = useState(`Verifying your payment with ${providerLabel}...`);
   const [errorDetails, setErrorDetails] = useState('');
   const [retryCount, setRetryCount] = useState(0);
   
@@ -39,13 +45,13 @@ const PaymentVerification = () => {
 
   useEffect(() => {
     // Save state on change
-    if (reference) {
-        localStorage.setItem('payment_verification_state', JSON.stringify({ reference, status }));
+    if (txnKey) {
+        localStorage.setItem('payment_verification_state', JSON.stringify({ reference: txnKey, status }));
     }
-  }, [status, reference]);
+  }, [status, txnKey]);
 
   useEffect(() => {
-    if (!reference) {
+    if (!txnKey) {
       setStatus('error');
       setMessage('No transaction reference found in the URL. Please check your payment confirmation email.');
       return;
@@ -75,18 +81,19 @@ const PaymentVerification = () => {
     return () => {
         if (pollingRef.current) clearInterval(pollingRef.current);
     };
-  }, [reference, retryCount]); // Dependency on retryCount allows manual retry to restart flow
+  }, [txnKey, retryCount]); // Dependency on retryCount allows manual retry to restart flow
 
   const verifyPayment = async () => {
     try {
-      console.log("Verifying payment:", { reference, quoteIdParam });
-      
-      const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
-        body: { 
-            reference, 
-            quote_id: quoteIdParam
-        }
-      });
+      console.log("Verifying payment:", { provider, reference, sessionId, quoteIdParam });
+
+      const { data, error } = isStripe
+        ? await supabase.functions.invoke('verify-stripe-payment', {
+            body: { session_id: sessionId, quote_id: quoteIdParam }
+          })
+        : await supabase.functions.invoke('verify-paystack-payment', {
+            body: { reference, quote_id: quoteIdParam }
+          });
 
       if (error) {
           console.warn("Network error during verification:", error);
@@ -102,10 +109,12 @@ const PaymentVerification = () => {
             toast({ title: "Payment Verified", description: "Welcome to Petrolord Suite!", className: "bg-green-600 text-white" });
             if (pollingRef.current) clearInterval(pollingRef.current);
             localStorage.removeItem('payment_verification_state'); // Clear state on success
-          } else if (data.status === 'failed' || data.status === 'abandoned') {
+          } else if (data.status === 'failed' || data.status === 'abandoned' || data.status === 'amount_mismatch') {
             setStatus('error');
             setMessage(data.message || 'Payment verification failed.');
-            setErrorDetails('The transaction was not successful.');
+            setErrorDetails(data.status === 'amount_mismatch'
+              ? 'The amount paid did not match the quote. Our team will reconcile this.'
+              : 'The transaction was not successful.');
             if (pollingRef.current) clearInterval(pollingRef.current);
           } else {
              // Pending or other status
@@ -135,7 +144,7 @@ const PaymentVerification = () => {
 
         <CardHeader className="text-center pb-2">
           <CardTitle className="text-white text-2xl">Payment Verification</CardTitle>
-          <CardDescription className="text-slate-400">Reference: <span className="font-mono text-xs bg-slate-800 px-1 rounded">{reference}</span></CardDescription>
+          <CardDescription className="text-slate-400">Reference: <span className="font-mono text-xs bg-slate-800 px-1 rounded">{txnKey}</span></CardDescription>
         </CardHeader>
         
         <CardContent className="flex flex-col items-center text-center space-y-8 pt-6">

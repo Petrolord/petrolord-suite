@@ -47,6 +47,7 @@ export default function QuoteDashboard() {
   const [verifying, setVerifying] = useState(false);
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(false);
+  const [stripeLoading, setStripeLoading] = useState(false);
   const [proofFile, setProofFile] = useState(null);
   const [unlockedModules, setUnlockedModules] = useState([]);
   
@@ -207,6 +208,26 @@ export default function QuoteDashboard() {
           toast({ title: "Verification Failed", description: err.message, variant: "destructive" });
       } finally {
           setVerifying(false);
+      }
+  };
+
+  // Stripe (international, USD): create a Checkout Session on demand and redirect.
+  const handleStripeCheckout = async () => {
+      setStripeLoading(true);
+      try {
+          const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
+              body: { quote_id: quote.quote_id, origin: window.location.origin }
+          });
+          if (error) throw error;
+          if (data?.url) {
+              window.location.href = data.url;
+          } else {
+              throw new Error(data?.error || "Could not start Stripe checkout");
+          }
+      } catch (err) {
+          console.error(err);
+          toast({ title: "Stripe checkout failed", description: err.message, variant: "destructive" });
+          setStripeLoading(false);
       }
   };
 
@@ -372,6 +393,25 @@ export default function QuoteDashboard() {
                 ) : (
                   <>
                     <div className="space-y-3">
+                      {/* International card payment — Stripe, real USD */}
+                      <div className="space-y-1">
+                        <Button
+                          onClick={handleStripeCheckout}
+                          disabled={stripeLoading || checkingPayment}
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 text-lg text-white"
+                        >
+                          {stripeLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2"/> : <CreditCard className="w-5 h-5 mr-2"/>}
+                          Pay with Card (USD)
+                        </Button>
+                        <p className="text-xs text-center text-slate-500">International cards · Secured by Stripe</p>
+                      </div>
+
+                      <div className="relative py-1">
+                        <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-800"></span></div>
+                        <div className="relative flex justify-center text-xs uppercase"><span className="bg-slate-900 px-2 text-slate-600">or pay in NGN</span></div>
+                      </div>
+
+                      {/* Local card payment — Paystack, NGN */}
                       {quote.paystack_link ? (
                           <div className="space-y-2">
                               {checkingPayment ? (
@@ -381,7 +421,7 @@ export default function QuoteDashboard() {
                               ) : (
                                 <a href={quote.paystack_link} target="_blank" rel="noreferrer" className="w-full block">
                                   <Button className="w-full bg-blue-600 hover:bg-blue-700 h-12 text-lg text-white">
-                                      <CreditCard className="w-5 h-5 mr-2"/> Pay Now with Paystack
+                                      <CreditCard className="w-5 h-5 mr-2"/> Pay with Paystack (NGN)
                                   </Button>
                                 </a>
                               )}
@@ -396,10 +436,8 @@ export default function QuoteDashboard() {
                               </Button>
                           </div>
                       ) : (
-                          <p className="text-xs text-center text-slate-500">Payment link unavailable. Please contact sales.</p>
+                          <p className="text-xs text-center text-slate-500">NGN payment link unavailable. Please contact sales.</p>
                       )}
-                      
-                      <p className="text-xs text-center text-slate-500">Secured by Paystack</p>
                     </div>
 
                     <div className="relative py-2">
