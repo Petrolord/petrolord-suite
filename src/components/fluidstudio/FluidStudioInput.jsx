@@ -20,14 +20,6 @@ const InputField = ({ label, id, value, onChange, unit, type = 'number', step = 
   </div>
 );
 
-// A disabled tab trigger with a "Phase 3" badge for capabilities not yet wired.
-const DisabledTrigger = ({ value, badge, children }) => (
-  <TabsTrigger value={value} disabled className="opacity-50">
-    {children}
-    <span className="ml-1.5 text-[9px] uppercase tracking-wide bg-slate-700 text-slate-300 rounded px-1 py-0.5">{badge}</span>
-  </TabsTrigger>
-);
-
 const FluidStudioInput = ({ inputs, setInputs }) => {
   const streamA = inputs.streamA.blackOil;
   const streamB = inputs.streamB?.blackOil ?? {};
@@ -86,7 +78,6 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
           <TabsTrigger value="blending">Blending</TabsTrigger>
           <TabsTrigger value="batch-run">Batch</TabsTrigger>
           <TabsTrigger value="flow-assurance">Flow Assurance</TabsTrigger>
-          <DisabledTrigger value="composition" badge="Phase 3">Composition</DisabledTrigger>
         </TabsList>
         <div className="flex-grow mt-4 overflow-y-auto">
           <TabsContent value="stream-a">
