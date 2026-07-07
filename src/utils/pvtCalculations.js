@@ -93,8 +93,6 @@ export const pvtCalcs = {
      * @returns {array} An array of PVT data points.
      */
     generatePvtTable: function(inputs) {
-        console.log("PVT Engine: Starting generation with inputs:", inputs);
-        
         const { api, gasGravity, temp, pb, correlations } = inputs;
         const pvtTable = [];
         
@@ -161,7 +159,6 @@ export const pvtCalcs = {
         }
 
         const sortedTable = pvtTable.sort((a,b) => b.pressure - a.pressure);
-        console.log(`PVT Engine: Successfully generated ${sortedTable.length} points.`);
         return sortedTable;
     },
 };
