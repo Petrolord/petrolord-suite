@@ -15,6 +15,28 @@ import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+// Renders a bank-transfer payment proof. Proof URLs are stored as
+// proofs/<quote>-<ts>.<ext> (see verify-bank-transfer), so the extension tells
+// us how to display it: PDFs in an inline viewer, everything else as an image.
+function ProofViewer({ url }) {
+  if (!url) return <span className="text-slate-500">No proof uploaded</span>;
+
+  const isPdf = url.split('?')[0].toLowerCase().endsWith('.pdf');
+
+  return (
+    <div className="w-full flex flex-col items-center gap-2">
+      {isPdf ? (
+        <iframe src={url} title="Payment proof (PDF)" className="w-full h-[400px] rounded bg-white" />
+      ) : (
+        <img src={url} alt="Payment proof" className="max-h-[400px] object-contain" />
+      )}
+      <a href={url} target="_blank" rel="noreferrer" className="text-xs text-[#84CC16] hover:underline">
+        Open in new tab
+      </a>
+    </div>
+  );
+}
+
 export default function AdminOrganizations() {
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +81,24 @@ export default function AdminOrganizations() {
         });
         if (error) throw error;
         toast({ title: "Success", description: "Organization activated successfully." });
+        fetchOrganizations();
+    } catch (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+        setVerifying(false);
+    }
+  };
+
+  const handleRejectPayment = async (subId) => {
+    if (!confirm("Reject this payment proof? The buyer will be returned to the payment step.")) return;
+
+    setVerifying(true);
+    try {
+        const { error } = await supabase.functions.invoke('reject-bank-transfer', {
+            body: { subscription_id: subId }
+        });
+        if (error) throw error;
+        toast({ title: "Rejected", description: "Payment proof rejected. Buyer can retry." });
         fetchOrganizations();
     } catch (error) {
         toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -193,12 +233,10 @@ export default function AdminOrganizations() {
                         <DialogHeader><DialogTitle>Verify Payment Proof</DialogTitle></DialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="bg-black p-2 rounded-lg border border-slate-800 flex justify-center">
-                                {pendingSub.bank_transfer_proof_url ? (
-                                    <img src={pendingSub.bank_transfer_proof_url} alt="Proof" className="max-h-[400px] object-contain"/>
-                                ) : <span className="text-slate-500">No image URL found</span>}
+                                <ProofViewer url={pendingSub.bank_transfer_proof_url} />
                             </div>
                             <div className="flex justify-end gap-2 mt-4">
-                                <Button variant="destructive" onClick={() => alert("Rejection flow to be implemented")}>Reject</Button>
+                                <Button variant="destructive" onClick={() => handleRejectPayment(pendingSub.id)} disabled={verifying}>Reject</Button>
                                 <Button className="bg-[#84CC16] hover:bg-[#65a30d] text-slate-900 font-bold" 
                                     onClick={() => handleVerifyPayment(org.id, pendingSub.id)}
                                     disabled={verifying}>

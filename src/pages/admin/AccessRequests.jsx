@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getUserOrgRow } from '@/lib/orgContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { 
   ShieldCheck, CheckCircle, XCircle, Clock, Search, Filter 
@@ -31,7 +32,7 @@ export default function AccessRequests() {
     try {
         setLoading(true);
         // Get user's org id
-        const { data: orgUser } = await supabase.from('organization_users').select('organization_id').eq('user_id', user.id).single();
+        const orgUser = await getUserOrgRow(user.id);
         
         if (orgUser) {
             const { data, error } = await supabase
