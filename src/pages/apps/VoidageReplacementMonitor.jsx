@@ -3,10 +3,10 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
-  Droplets, ArrowLeft, Plus, Trash2, Upload, Download, RotateCcw, Beaker, Info,
+  Droplets, ArrowLeft, Plus, Trash2, Upload, Download, RotateCcw, Beaker, Info, HelpCircle,
 } from 'lucide-react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Legend,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
-import ChartLogo from '@/components/charts/ChartLogo';
+import ChartFrame from '@/components/charts/ChartFrame';
+import VrrHelpGuide from '@/components/reservoir/VrrHelpGuide';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
@@ -50,6 +51,7 @@ export default function VoidageReplacementMonitor() {
 
   const [fvf, setFvf] = useState({ Bo: '1.25', Bw: '1.02', Bg: '0.9', Rs: '550' });
   const [periods, setPeriods] = useState([emptyRow()]);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const series = useMemo(() => computeVRRSeries(periods, fvf), [periods, fvf]);
   const summary = useMemo(() => summarizeVRR(series), [series]);
@@ -144,6 +146,7 @@ export default function VoidageReplacementMonitor() {
             <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload className="w-4 h-4 mr-1" /> Import</Button>
             <Button variant="outline" size="sm" onClick={exportCsv}><Download className="w-4 h-4 mr-1" /> Export</Button>
             <Button variant="outline" size="sm" onClick={clearAll}><RotateCcw className="w-4 h-4 mr-1" /> Clear</Button>
+            <Button variant="outline" size="sm" onClick={() => setHelpOpen(true)}><HelpCircle className="w-4 h-4 mr-1" /> Help</Button>
             <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={importCsv} />
           </div>
         </div>
@@ -181,21 +184,18 @@ export default function VoidageReplacementMonitor() {
           <CardHeader className="pb-2"><CardTitle className="text-base">VRR trend</CardTitle></CardHeader>
           <CardContent className="p-0">
             {chartData.length ? (
-              <div className="relative h-72 bg-white rounded-b-lg">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
-                    <CartesianGrid {...GRID_STYLE} />
-                    <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
-                    <YAxis stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} domain={[0, 'auto']} />
-                    <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }} itemStyle={{ color: CHART_COLORS.tooltipText }} />
-                    <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
-                    <ReferenceLine y={1} stroke={LINE.ref} strokeDasharray="5 5" label={{ value: 'VRR = 1', fill: LINE.ref, fontSize: 11, position: 'right' }} />
-                    <Line type="monotone" dataKey="instantaneous" name="Instantaneous" stroke={LINE.inst} strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                    <Line type="monotone" dataKey="cumulative" name="Cumulative" stroke={LINE.cum} strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                  </LineChart>
-                </ResponsiveContainer>
-                <ChartLogo />
-              </div>
+              <ChartFrame height={264}>
+                <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+                  <CartesianGrid {...GRID_STYLE} />
+                  <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+                  <YAxis stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} domain={[0, 'auto']} />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }} itemStyle={{ color: CHART_COLORS.tooltipText }} />
+                  <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+                  <ReferenceLine y={1} stroke={LINE.ref} strokeDasharray="5 5" label={{ value: 'VRR = 1', fill: LINE.ref, fontSize: 11, position: 'right' }} />
+                  <Line type="monotone" dataKey="instantaneous" name="Instantaneous" stroke={LINE.inst} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                  <Line type="monotone" dataKey="cumulative" name="Cumulative" stroke={LINE.cum} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                </LineChart>
+              </ChartFrame>
             ) : (
               <div className="h-72 flex items-center justify-center text-slate-500 text-sm">Enter production &amp; injection volumes to see the VRR trend.</div>
             )}
@@ -255,6 +255,8 @@ export default function VoidageReplacementMonitor() {
           </CardContent>
         </Card>
       </div>
+
+      <VrrHelpGuide isOpen={helpOpen} onOpenChange={setHelpOpen} />
     </div>
   );
 }

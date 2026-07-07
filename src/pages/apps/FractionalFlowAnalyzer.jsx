@@ -2,15 +2,16 @@ import React, { useState, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { GitMerge, ArrowLeft, Beaker, RotateCcw, Info } from 'lucide-react';
+import { GitMerge, ArrowLeft, Beaker, RotateCcw, Info, HelpCircle } from 'lucide-react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Legend,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import ChartLogo from '@/components/charts/ChartLogo';
+import ChartFrame from '@/components/charts/ChartFrame';
+import FractionalFlowHelpGuide from '@/components/reservoir/FractionalFlowHelpGuide';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
@@ -45,6 +46,7 @@ const f3 = (v) => (v == null || !Number.isFinite(v) ? '—' : Number(v).toFixed(
 
 export default function FractionalFlowAnalyzer() {
   const [inputs, setInputs] = useState(DEFAULTS);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const p = useMemo(
     () => ({ Swc: num(inputs.Swc), Sor: num(inputs.Sor), krwMax: num(inputs.krwMax), kroMax: num(inputs.kroMax), nw: num(inputs.nw), no: num(inputs.no) }),
@@ -109,6 +111,7 @@ export default function FractionalFlowAnalyzer() {
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={loadSample}><Beaker className="w-4 h-4 mr-1" /> Sample</Button>
             <Button variant="outline" size="sm" onClick={() => setInputs(DEFAULTS)}><RotateCcw className="w-4 h-4 mr-1" /> Reset</Button>
+            <Button variant="outline" size="sm" onClick={() => setHelpOpen(true)}><HelpCircle className="w-4 h-4 mr-1" /> Help</Button>
           </div>
         </div>
 
@@ -193,6 +196,8 @@ export default function FractionalFlowAnalyzer() {
           Classic 1-D Buckley-Leverett: horizontal, immiscible, no capillary/gravity term. Front saturation from the Welge tangent to the fw curve from (Swc, 0); PV injected at breakthrough = 1 / fw′(Swf). Ultimate displacement efficiency E<sub>D</sub> = (1 − Sor − Swc)/(1 − Swc).
         </p>
       </div>
+
+      <FractionalFlowHelpGuide isOpen={helpOpen} onOpenChange={setHelpOpen} />
     </div>
   );
 }
@@ -219,10 +224,7 @@ const ChartCard = ({ title, children }) => (
   <Card className="bg-slate-900 border-slate-800">
     <CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader>
     <CardContent className="p-0">
-      <div className="relative h-72 bg-white rounded-b-lg">
-        <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
-        <ChartLogo />
-      </div>
+      <ChartFrame height={264}>{children}</ChartFrame>
     </CardContent>
   </Card>
 );
