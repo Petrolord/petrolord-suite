@@ -14,7 +14,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
+import ChartLogo from '@/components/charts/ChartLogo';
+import {
+  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
+} from '@/utils/chartTheme';
 import { computeVRRSeries, summarizeVRR, classifyVRR, sampleVRRData } from '@/utils/vrrCalculations';
+
+// Line colors tuned for the white Petrolord chart background.
+const LINE = { inst: '#2563eb', cum: '#059669', ref: '#dc2626' };
 
 const COLS = [
   { key: 'label', label: 'Period', unit: '', width: 'w-28' },
@@ -172,22 +179,25 @@ export default function VoidageReplacementMonitor() {
         {/* Chart */}
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader className="pb-2"><CardTitle className="text-base">VRR trend</CardTitle></CardHeader>
-          <CardContent className="h-72">
+          <CardContent className="p-0">
             {chartData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} />
-                  <YAxis stroke="#94a3b8" fontSize={12} domain={[0, 'auto']} />
-                  <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0' }} />
-                  <Legend />
-                  <ReferenceLine y={1} stroke="#eab308" strokeDasharray="5 5" label={{ value: 'VRR = 1', fill: '#eab308', fontSize: 11, position: 'right' }} />
-                  <Line type="monotone" dataKey="instantaneous" name="Instantaneous" stroke="#38bdf8" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                  <Line type="monotone" dataKey="cumulative" name="Cumulative" stroke="#34d399" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                </LineChart>
-              </ResponsiveContainer>
+              <div className="relative h-72 bg-white rounded-b-lg">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+                    <CartesianGrid {...GRID_STYLE} />
+                    <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+                    <YAxis stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} domain={[0, 'auto']} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }} itemStyle={{ color: CHART_COLORS.tooltipText }} />
+                    <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+                    <ReferenceLine y={1} stroke={LINE.ref} strokeDasharray="5 5" label={{ value: 'VRR = 1', fill: LINE.ref, fontSize: 11, position: 'right' }} />
+                    <Line type="monotone" dataKey="instantaneous" name="Instantaneous" stroke={LINE.inst} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                    <Line type="monotone" dataKey="cumulative" name="Cumulative" stroke={LINE.cum} strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+                <ChartLogo />
+              </div>
             ) : (
-              <div className="h-full flex items-center justify-center text-slate-500 text-sm">Enter production &amp; injection volumes to see the VRR trend.</div>
+              <div className="h-72 flex items-center justify-center text-slate-500 text-sm">Enter production &amp; injection volumes to see the VRR trend.</div>
             )}
           </CardContent>
         </Card>

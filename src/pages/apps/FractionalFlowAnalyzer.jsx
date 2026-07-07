@@ -10,7 +10,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import ChartLogo from '@/components/charts/ChartLogo';
+import {
+  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
+} from '@/utils/chartTheme';
 import { analyzeFractionalFlow, sampleFractionalFlowData } from '@/utils/fractionalFlowCalculations';
+
+// Line colors tuned for the white Petrolord chart background (dark enough to
+// read on white, distinct in B&W). Kept local; palette lives in chartTheme.
+const LINE = { water: '#2563eb', oil: '#059669', fw: '#7c3aed', tangent: '#d97706', ref: '#dc2626' };
 
 const DEFAULTS = { Swc: '0.2', Sor: '0.2', krwMax: '0.4', kroMax: '1.0', nw: '2', no: '2', muW: '0.5', muO: '5.0' };
 
@@ -146,38 +154,38 @@ export default function FractionalFlowAnalyzer() {
         <div className="grid lg:grid-cols-2 gap-6">
           <ChartCard title="Relative permeability">
             <LineChart data={krData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="Sw" stroke="#94a3b8" fontSize={12} type="number" domain={['dataMin', 'dataMax']} tickFormatter={(v) => v.toFixed(1)} />
-              <YAxis stroke="#94a3b8" fontSize={12} domain={[0, 'auto']} />
-              <Tooltip contentStyle={TT} />
-              <Legend />
-              <Line type="monotone" dataKey="krw" name="krw" stroke="#38bdf8" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="kro" name="kro" stroke="#34d399" strokeWidth={2} dot={false} />
+              <CartesianGrid {...GRID_STYLE} />
+              <XAxis dataKey="Sw" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} type="number" domain={['dataMin', 'dataMax']} tickFormatter={(v) => v.toFixed(1)} />
+              <YAxis stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} domain={[0, 'auto']} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }} itemStyle={{ color: CHART_COLORS.tooltipText }} />
+              <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+              <Line type="monotone" dataKey="krw" name="krw" stroke={LINE.water} strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="kro" name="kro" stroke={LINE.oil} strokeWidth={2} dot={false} />
             </LineChart>
           </ChartCard>
 
           <ChartCard title="Fractional flow fw with Welge tangent">
             <LineChart data={fwData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="Sw" stroke="#94a3b8" fontSize={12} type="number" domain={['dataMin', 'dataMax']} tickFormatter={(v) => v.toFixed(1)} />
-              <YAxis stroke="#94a3b8" fontSize={12} domain={[0, 1]} />
-              <Tooltip contentStyle={TT} />
-              <Legend />
-              {bl?.Swf != null && <ReferenceLine x={Number(bl.Swf.toFixed(3))} stroke="#a78bfa" strokeDasharray="4 4" label={{ value: 'Swf', fill: '#a78bfa', fontSize: 11, position: 'top' }} />}
-              <Line type="monotone" dataKey="fw" name="fw" stroke="#c084fc" strokeWidth={2} dot={false} />
-              <Line type="linear" dataKey="tangent" name="Welge tangent" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="5 4" dot={false} connectNulls />
+              <CartesianGrid {...GRID_STYLE} />
+              <XAxis dataKey="Sw" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} type="number" domain={['dataMin', 'dataMax']} tickFormatter={(v) => v.toFixed(1)} />
+              <YAxis stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} domain={[0, 1]} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }} itemStyle={{ color: CHART_COLORS.tooltipText }} />
+              <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+              {bl?.Swf != null && <ReferenceLine x={Number(bl.Swf.toFixed(3))} stroke={LINE.fw} strokeDasharray="4 4" label={{ value: 'Swf', fill: LINE.fw, fontSize: 11, position: 'top' }} />}
+              <Line type="monotone" dataKey="fw" name="fw" stroke={LINE.fw} strokeWidth={2} dot={false} />
+              <Line type="linear" dataKey="tangent" name="Welge tangent" stroke={LINE.tangent} strokeWidth={1.5} strokeDasharray="5 4" dot={false} connectNulls />
             </LineChart>
           </ChartCard>
         </div>
 
         <ChartCard title="Oil recovery vs pore volumes injected">
           <LineChart data={recData} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis dataKey="Qi" stroke="#94a3b8" fontSize={12} type="number" domain={[0, 'dataMax']} tickFormatter={(v) => v.toFixed(1)} label={{ value: 'PV injected', fill: '#64748b', fontSize: 11, position: 'insideBottom', dy: 12 }} />
-            <YAxis stroke="#94a3b8" fontSize={12} domain={[0, 'auto']} label={{ value: 'ED (%)', angle: -90, fill: '#64748b', fontSize: 11, position: 'insideLeft', dy: 20 }} />
-            <Tooltip contentStyle={TT} />
-            {bl?.EDmax != null && <ReferenceLine y={Number((bl.EDmax * 100).toFixed(1))} stroke="#eab308" strokeDasharray="5 5" label={{ value: 'ED max', fill: '#eab308', fontSize: 11, position: 'right' }} />}
-            <Line type="monotone" dataKey="ED" name="Recovery ED" stroke="#34d399" strokeWidth={2} dot={false} />
+            <CartesianGrid {...GRID_STYLE} />
+            <XAxis dataKey="Qi" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} type="number" domain={[0, 'dataMax']} tickFormatter={(v) => v.toFixed(1)} label={{ value: 'PV injected', fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideBottom', dy: 12 }} />
+            <YAxis stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} domain={[0, 'auto']} label={{ value: 'ED (%)', angle: -90, fill: CHART_COLORS.axisLabel, fontSize: 11, position: 'insideLeft', dy: 20 }} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }} itemStyle={{ color: CHART_COLORS.tooltipText }} />
+            {bl?.EDmax != null && <ReferenceLine y={Number((bl.EDmax * 100).toFixed(1))} stroke={LINE.ref} strokeDasharray="5 5" label={{ value: 'ED max', fill: LINE.ref, fontSize: 11, position: 'right' }} />}
+            <Line type="monotone" dataKey="ED" name="Recovery ED" stroke={LINE.oil} strokeWidth={2} dot={false} />
           </LineChart>
         </ChartCard>
 
@@ -188,8 +196,6 @@ export default function FractionalFlowAnalyzer() {
     </div>
   );
 }
-
-const TT = { background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#e2e8f0' };
 
 const Kpi = ({ title, value, unit, accent }) => (
   <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
@@ -212,8 +218,11 @@ const Field = ({ fld, inputs, setField }) => (
 const ChartCard = ({ title, children }) => (
   <Card className="bg-slate-900 border-slate-800">
     <CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle></CardHeader>
-    <CardContent className="h-72">
-      <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
+    <CardContent className="p-0">
+      <div className="relative h-72 bg-white rounded-b-lg">
+        <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
+        <ChartLogo />
+      </div>
     </CardContent>
   </Card>
 );
