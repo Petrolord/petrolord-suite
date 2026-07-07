@@ -31,7 +31,26 @@ export const num = (v, fallback = 0) => {
   return Number.isFinite(n) ? n : fallback;
 };
 
+const clamp = (x, lo, hi) => Math.min(Math.max(x, lo), hi);
+
 const STOCK_TANK = { pressure: 14.7, temperature: 60 }; // psia, °F
+
+// Batch-sweep variables (Stream A black-oil keys) with display metadata.
+const BATCH_VARS = {
+  api: { label: 'API Gravity', unit: '°API' },
+  gor: { label: 'Solution GOR', unit: 'scf/STB' },
+  gasSg: { label: 'Gas SG', unit: 'air=1' },
+  temp: { label: 'Temperature', unit: '°F' },
+};
+
+// Honest labels for the flow-assurance screening approximations.
+const FA_WARNINGS = {
+  hydrate: 'Hydrate curve uses the Motiee (1991) gas-gravity screening correlation (valid ~0.55–1.0 SG, ±5–8 °F; sweet-gas basis — no H2S/CO2/inhibitor correction). Not a rigorous hydrate flash.',
+  aop: 'Asphaltene onset pressure is not computable from black-oil inputs (needs SARA/compositional data and reservoir pressure); AOP is reported as N/A.',
+  watNull: 'Wax Appearance Temperature is not computable from black-oil PVT alone (set by wax/n-paraffin content, not API). Provide a measured WAT or wax content to populate it.',
+  watWax: 'WAT is a screening estimate from wax content (empirical, ±10 °F); confirm against a measured cloud point / CPM WAT.',
+  sgBand: 'Gas gravity is outside the Motiee 0.55–1.0 validity band; the hydrate curve is extrapolated — treat as indicative only.',
+};
 
 // Correlations flagged as non-standard / suspect in the pvtCalculations audit.
 // They remain selectable but the engine surfaces a warning so results are honest.
@@ -66,6 +85,101 @@ export const normalizeFluid = (inputs) => {
       viscosity: corr.viscosity || 'beggs_robinson',
     },
     feed: { oilRate: num(inputs?.feed?.oilRate, 1000) },
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Stream blending (Phase 2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Volume-fraction blend of two black-oil streams. `fractionB` is the volume % of
+ * stream B (0-100). API is blended on a specific-gravity (density) basis, NOT as
+ * a linear API average — crude blends obey ideal volume additivity of density.
+ * Returns the same raw keys as the input streams. Pb is intentionally omitted
+ * (the blend's bubble point is re-solved downstream, never blended).
+ */
+export const blendBlackOil = (a, b, fractionB) => {
+  const fB = clamp(num(fractionB, 0) / 100, 0, 1);
+  const fA = 1 - fB;
+
+  const apiA = num(a.api);
+  const apiB = num(b.api);
+  const gA = 141.5 / (apiA + 131.5);
+  const gB = 141.5 / (apiB + 131.5);
+  const gMix = fA * gA + fB * gB; // volume-weighted specific gravity
+  const api = 141.5 / gMix - 131.5;
+
+  const gorA = num(a.gor);
+  const gorB = num(b.gor);
+  const gor = fA * gorA + fB * gorB; // per unit oil volume
+
+  // Gas SG weighted by produced gas volume (scf), which tracks each stream's GOR.
+  const scfA = fA * gorA;
+  const scfB = fB * gorB;
+  const scfTot = scfA + scfB;
+  const gasSg = scfTot > 0 ? (scfA * num(a.gasSg) + scfB * num(b.gasSg)) / scfTot : num(a.gasSg);
+
+  // Temperature: mass-flow (mixing-cup, equal-cp) estimate — a labeled proxy.
+  const mA = fA * gA;
+  const mB = fB * gB;
+  const temp = mA + mB > 0 ? (mA * num(a.temp) + mB * num(b.temp)) / (mA + mB) : num(a.temp);
+
+  // Salinity: volume-weighted (equal-water-cut proxy). Does not enter any PVT primitive.
+  const salinity = fA * num(a.salinity) + fB * num(b.salinity);
+
+  return { api, gor, gasSg, temp, salinity };
+};
+
+/**
+ * Asphaltene compatibility SCREENING index (0..1) — an API-contrast heuristic,
+ * NOT a SARA-based CII / Wiehe-Kennedy calculation. Flags the classic risk of
+ * blending a heavy asphaltenic crude with a light paraffinic diluent.
+ */
+export const screenAsphalteneCompatibility = (apiA, apiB, fractionB) => {
+  const fB = clamp(num(fractionB, 0) / 100, 0, 1);
+  const contrast = clamp(Math.abs(num(apiA) - num(apiB)) / 25, 0, 1); // 0 same, 1 at >=25° contrast
+  const light = clamp((Math.max(num(apiA), num(apiB)) - 30) / 25, 0, 1); // paraffinic diluent presence
+  const mixExposure = 4 * fB * (1 - fB); // 0 at endpoints, 1 at 50/50
+  const asi = contrast * (0.4 + 0.6 * light) * mixExposure;
+  const stable = asi < 0.35;
+  let message;
+  if (asi < 0.35) message = 'Screens compatible — low asphaltene-destabilization risk. Confirm with an ASTM D7112/D7157 spot test before commingling.';
+  else if (asi < 0.6) message = 'Marginal — possible asphaltene destabilization on blending. Bench-test (ASTM D7112) before commingling.';
+  else message = 'High risk — strong heavy/light contrast likely to destabilize asphaltenes. Do not commingle without lab confirmation.';
+  return { stable, message, asi: Number(asi.toFixed(3)) };
+};
+
+/**
+ * Single blend splice point used before PVT. Returns the effective engine Fluid
+ * to run through the identical PVT/separator path, plus the blending result (or
+ * null when blending is off). Re-normalizes through normalizeFluid so the blend
+ * inherits the chosen correlations and feed and gets pb=null => auto-solve.
+ */
+export const resolveEffectiveFluid = (inputs) => {
+  const blend = inputs?.blending;
+  if (!blend?.enabled || !inputs?.streamB?.blackOil) {
+    return { fluid: normalizeFluid(inputs), blending: null };
+  }
+  const boA = inputs.streamA?.blackOil ?? {};
+  const boB = inputs.streamB.blackOil;
+  const fraction = clamp(num(blend.streamB_fraction, 0), 0, 100);
+  const mixed = blendBlackOil(boA, boB, fraction);
+  const fluid = normalizeFluid({
+    ...inputs,
+    streamA: { ...inputs.streamA, blackOil: { ...mixed, pb: null } },
+  });
+  return {
+    fluid,
+    blending: {
+      compatibility: screenAsphalteneCompatibility(num(boA.api), num(boB.api), fraction),
+      properties: {
+        api: Number(mixed.api.toFixed(2)),
+        gor: Number(mixed.gor.toFixed(1)),
+        gasSg: Number(mixed.gasSg.toFixed(3)),
+        salinity: Number(mixed.salinity.toFixed(0)),
+      },
+    },
   };
 };
 
@@ -190,6 +304,129 @@ export const coAt = (fluid, p) => {
 export const undersaturatedMuO = (muob, p, pb) => {
   const m = 2.6 * Math.pow(p, 1.187) * Math.exp(-11.513 - 8.98e-5 * p);
   return muob * Math.pow(p / pb, m);
+};
+
+// ---------------------------------------------------------------------------
+// Flow assurance (Phase 2) — hydrate screening + WAT resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Gas-hydrate formation temperature (°F) at pressure p (psia) via Motiee (1991),
+ * a gas-gravity screening correlation in native field units. Returns null for
+ * non-positive pressure. Gas gravity is clamped to the 0.55-1.0 validity band.
+ */
+export const hydrateTempMotiee = (p, gasGravity) => {
+  if (!(p > 0)) return null;
+  const g = clamp(num(gasGravity), 0.55, 1.0);
+  const logP = Math.log10(p);
+  return (
+    -238.24469 +
+    78.99667 * logP -
+    5.352544 * logP * logP +
+    349.473877 * g -
+    150.854675 * g * g -
+    27.604065 * logP * g
+  );
+};
+
+/** Hydrate formation curve [{pressure, temp}] over a pressure range (ascending). */
+export const hydrateCurve = (gasGravity, pMin = 100, pMax = 3500, nPoints = 30) => {
+  const n = Math.max(2, Math.round(nPoints));
+  const step = (pMax - pMin) / (n - 1);
+  const out = [];
+  for (let i = 0; i < n; i += 1) {
+    const p = pMin + i * step;
+    const t = hydrateTempMotiee(p, gasGravity);
+    if (t != null && Number.isFinite(t)) out.push({ pressure: Math.round(p), temp: Number(t.toFixed(1)) });
+  }
+  return out;
+};
+
+/** Parse a "P_psia, T_F" per-line profile into [{pressure, temp}] (descending P). */
+export const parsePtProfile = (raw) => {
+  if (!raw || typeof raw !== 'string') return [];
+  return raw
+    .split(/\r?\n/)
+    .map((line) => line.split(','))
+    .filter((parts) => parts.length >= 2)
+    .map((parts) => ({ pressure: Number(parts[0]), temp: Number(parts[1]) }))
+    .filter((pt) => Number.isFinite(pt.pressure) && Number.isFinite(pt.temp) && pt.pressure > 0)
+    .sort((a, b) => b.pressure - a.pressure);
+};
+
+/** Opt-in screening WAT (°F) from wax content (wt%). Labeled, not a cited correlation. */
+const watFromWax = (waxWtPct) => {
+  const w = num(waxWtPct);
+  if (!(w > 0)) return null;
+  return Math.min(40 + 4.0 * w, 160);
+};
+
+/**
+ * Flow-assurance screening. Always draws the hydrate envelope from gas gravity;
+ * detects whether the P-T profile crosses into the hydrate region. WAT is
+ * resolved measured > wax-screening > null (never fabricated from API). AOP is
+ * structurally null. Returns null only when the fluid itself is invalid.
+ */
+export const computeFlowAssurance = (fluid, fa, ptRaw) => {
+  if (!fluid || !(fluid.gasGravity > 0)) return null;
+  // Engaged only when the user gives it something to analyze: a P-T profile,
+  // a measured WAT, or a wax content. Otherwise stay out of the results.
+  const profileRaw = typeof ptRaw === 'string' ? ptRaw.trim() : '';
+  const engaged = profileRaw.length > 0 || num(fa?.measuredWat) > 0 || num(fa?.waxContent) > 0;
+  if (!engaged) return null;
+
+  const warnings = [FA_WARNINGS.hydrate, FA_WARNINGS.aop];
+  if (num(fluid.gasGravity) < 0.55 || num(fluid.gasGravity) > 1.0) warnings.push(FA_WARNINGS.sgBand);
+
+  // WAT resolution order.
+  const measured = num(fa?.measuredWat);
+  let wat = null;
+  let watBasis = null;
+  if (measured > 0) {
+    wat = measured;
+    watBasis = 'measured';
+  } else {
+    const waxWat = watFromWax(fa?.waxContent);
+    if (waxWat != null) {
+      wat = Number(waxWat.toFixed(1));
+      watBasis = 'wax_content_screening';
+      warnings.push(FA_WARNINGS.watWax);
+    } else {
+      warnings.push(FA_WARNINGS.watNull);
+    }
+  }
+
+  const curve = hydrateCurve(fluid.gasGravity);
+  const profile = parsePtProfile(ptRaw).map((pt) => {
+    const tHyd = hydrateTempMotiee(pt.pressure, fluid.gasGravity);
+    const subcooling = tHyd != null ? tHyd - pt.temp : null;
+    return {
+      pressure: pt.pressure,
+      temp: pt.temp,
+      t_hyd: tHyd != null ? Number(tHyd.toFixed(1)) : null,
+      subcooling: subcooling != null ? Number(subcooling.toFixed(1)) : null,
+      at_risk: subcooling != null && subcooling > 0,
+    };
+  });
+
+  const crossers = profile.filter((pt) => pt.at_risk);
+  const minTemp = profile.length ? Math.min(...profile.map((pt) => pt.temp)) : null;
+  const maxSubcooling = profile.reduce((mx, pt) => Math.max(mx, pt.subcooling ?? 0), 0);
+
+  return {
+    wat,
+    wat_basis: watBasis,
+    aop: null, // structurally null — not computable from black-oil
+    hydrate_risk: {
+      min_temp: minTemp,
+      profile_crosses: crossers.length > 0,
+      first_crossing: crossers.length ? { pressure: crossers[0].pressure, temp: crossers[0].temp } : null,
+      max_subcooling: Number(maxSubcooling.toFixed(1)),
+    },
+    hydrate_curve: curve,
+    pt_profile: profile,
+    meta: { hydrate_correlation: 'Motiee (1991)', wat_correlation: watBasis, warnings },
+  };
 };
 
 // ---------------------------------------------------------------------------
@@ -378,20 +615,65 @@ const emptyResult = (message) => ({
   pvt: { table: [], kpis: null, pb: null },
   separator: null,
   backbone: null,
-  meta: { phase: 1, correlations: null, warnings: [message] },
+  meta: { phase: 2, correlations: null, warnings: [message], batch: null },
   blending: null,
   flowAssurance: null,
   batchSummary: null,
 });
 
 /**
+ * Batch sensitivity sweep: vary one Stream-A black-oil variable from min to max
+ * over N steps and re-evaluate the engine at each. The per-run clone forces
+ * batchRun.enabled=false so the inner analyzeFluidSystem never recurses.
+ */
+export const runBatch = (inputs) => {
+  const cfg = inputs?.batchRun ?? {};
+  const variable = BATCH_VARS[cfg.variable] ? cfg.variable : 'api';
+  const unit = BATCH_VARS[variable].unit;
+  let min = num(cfg.min);
+  let max = num(cfg.max);
+  if (max < min) {
+    const t = min;
+    min = max;
+    max = t;
+  }
+  const steps = Math.max(2, Math.round(num(cfg.steps, 2)));
+
+  const rows = [];
+  for (let i = 0; i < steps; i += 1) {
+    const value = min + (i / (steps - 1)) * (max - min); // endpoints exact
+    const clone = {
+      ...inputs,
+      streamA: { ...inputs.streamA, blackOil: { ...inputs.streamA.blackOil, [variable]: value } },
+      batchRun: { ...cfg, enabled: false }, // recursion guard
+      // Sweep the un-blended Stream A fluid so the X-axis value is exactly the
+      // swept property (blending would re-dilute it and mislabel the axis).
+      blending: { ...(inputs.blending ?? {}), enabled: false },
+    };
+    const run = analyzeFluidSystem(clone);
+    const k = run.pvt?.kpis;
+    rows.push({
+      input: Number(value.toFixed(4)),
+      pb: k ? k.pb : null,
+      bo_at_pb: k ? k.bo_at_pb : null,
+      mu_o_at_pb: k ? k.mu_o_at_pb : null,
+      wat: run.flowAssurance?.wat ?? null,
+    });
+  }
+  return { rows, variable, unit, label: BATCH_VARS[variable].label };
+};
+
+/**
  * Analyze the full UI inputs into a Results object. Pure function of `inputs`
  * (so Load = setInputs and persistence never stores results). Short-circuits to
  * an empty result when required fluid properties are missing, so the page can
  * render its empty state instead of throwing.
+ *
+ * Order: blend splice -> guard -> Pb -> PVT -> separator -> backbone -> flow
+ * assurance (fills backbone.wat) -> batch (recursion-guarded).
  */
 export const analyzeFluidSystem = (inputs) => {
-  const fluid = normalizeFluid(inputs);
+  const { fluid, blending } = resolveEffectiveFluid(inputs);
 
   const missing = !(fluid.api > 0) || !(fluid.rsb > 0) || !(fluid.gasGravity > 0) || !(fluid.temp > 0);
   if (missing) return emptyResult('Enter API, GOR, gas SG and temperature to run the analysis.');
@@ -403,6 +685,13 @@ export const analyzeFluidSystem = (inputs) => {
   const separator = flashSeparatorTrain(withPb, inputs?.separatorTrain?.stages, pb);
   const backbone = buildBackbone(withPb, pvt, separator);
 
+  // Flow assurance: engaged only when the user supplies a P-T profile or WAT/wax
+  // data. Fills backbone.wat when a WAT is known. FA-specific caveats live on the
+  // FA card, not the global banner.
+  const flowAssurance = computeFlowAssurance(withPb, inputs?.flowAssurance, inputs?.ptProfile?.raw);
+  if (flowAssurance?.wat != null) backbone.wat = flowAssurance.wat;
+
+  // Global warnings: cross-cutting caveats only.
   const warnings = [
     'Separator results use a black-oil staged-liberation approximation (GOR partition), not a compositional flash.',
   ];
@@ -410,18 +699,35 @@ export const analyzeFluidSystem = (inputs) => {
   if (suspect) warnings.push(suspect);
   const suspectVisc = SUSPECT_CORRELATIONS[fluid.correlations.viscosity];
   if (suspectVisc) warnings.push(suspectVisc);
-  if (inputs?.streamA?.blackOil?.pb) {
+  if (inputs?.streamA?.blackOil?.pb && !inputs?.blending?.enabled) {
     warnings.push('Bubble point is user-specified; leave it blank to solve it from the GOR.');
+  }
+  if (blending) {
+    warnings.push('Blended fluid: API is blended on a specific-gravity (volume) basis; salinity/temperature blends are labeled proxies. See the Blending tab for compatibility.');
+  }
+
+  // Batch sensitivity (recursion-guarded inside runBatch).
+  let batchSummary = null;
+  let batchMeta = null;
+  if (inputs?.batchRun?.enabled) {
+    const batch = runBatch(inputs);
+    batchSummary = batch.rows;
+    batchMeta = { variable: batch.variable, unit: batch.unit, label: batch.label };
   }
 
   return {
     pvt,
     separator,
     backbone,
-    meta: { phase: 1, correlations: fluid.correlations, warnings },
-    blending: null, // Phase 2 seam
-    flowAssurance: null, // Phase 2 seam
-    batchSummary: null, // Phase 2 seam
+    blending,
+    flowAssurance,
+    batchSummary,
+    meta: {
+      phase: 2,
+      correlations: fluid.correlations,
+      warnings: [...new Set(warnings)],
+      batch: batchMeta,
+    },
   };
 };
 

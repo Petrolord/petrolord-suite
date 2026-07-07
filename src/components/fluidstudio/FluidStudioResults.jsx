@@ -8,6 +8,9 @@ import {
 } from 'lucide-react';
 import PvtChartsCard from '@/components/fluidstudio/PvtChartsCard';
 import SeparatorResultsCard from '@/components/fluidstudio/SeparatorResultsCard';
+import BlendingResultsCard from '@/components/fluidstudio/BlendingResultsCard';
+import FlowAssuranceCard from '@/components/fluidstudio/FlowAssuranceCard';
+import BatchSweepCard from '@/components/fluidstudio/BatchSweepCard';
 
 const KPICard = ({ title, value, unit, icon: Icon }) => (
   <Card className="bg-slate-800/50 border-slate-700 text-white">
@@ -75,7 +78,7 @@ const IntegrationSuite = ({ backbone }) => {
  * Single-run only (blending / flow-assurance / batch are deferred seams).
  */
 const FluidStudioResults = ({ results }) => {
-  const { pvt, separator, backbone, meta } = results;
+  const { pvt, separator, backbone, meta, blending, flowAssurance, batchSummary } = results;
   const kpis = pvt?.kpis;
   if (!kpis) return null;
 
@@ -103,9 +106,12 @@ const FluidStudioResults = ({ results }) => {
 
       <Tabs defaultValue="pvt" className="w-full">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <TabsList className="bg-slate-800">
+          <TabsList className="bg-slate-800 flex-wrap h-auto">
             <TabsTrigger value="pvt">PVT Analysis</TabsTrigger>
             <TabsTrigger value="separators">Separator Train</TabsTrigger>
+            {blending && <TabsTrigger value="blending">Blending</TabsTrigger>}
+            {flowAssurance && <TabsTrigger value="flow-assurance">Flow Assurance</TabsTrigger>}
+            {batchSummary && <TabsTrigger value="batch">Batch Sweep</TabsTrigger>}
           </TabsList>
           <Button variant="outline" size="sm" onClick={() => exportPvtCsv(pvt.table)} className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
             <Download className="w-4 h-4 mr-2" /> Export PVT CSV
@@ -119,6 +125,24 @@ const FluidStudioResults = ({ results }) => {
         <TabsContent value="separators" className="mt-4">
           <SeparatorResultsCard separator={separator} />
         </TabsContent>
+
+        {blending && (
+          <TabsContent value="blending" className="mt-4">
+            <BlendingResultsCard blending={blending} />
+          </TabsContent>
+        )}
+
+        {flowAssurance && (
+          <TabsContent value="flow-assurance" className="mt-4">
+            <FlowAssuranceCard fa={flowAssurance} />
+          </TabsContent>
+        )}
+
+        {batchSummary && (
+          <TabsContent value="batch" className="mt-4">
+            <BatchSweepCard rows={batchSummary} variable={meta?.batch?.variable} unit={meta?.batch?.unit} label={meta?.batch?.label} blendingActive={!!blending} />
+          </TabsContent>
+        )}
       </Tabs>
 
       <IntegrationSuite backbone={backbone} />

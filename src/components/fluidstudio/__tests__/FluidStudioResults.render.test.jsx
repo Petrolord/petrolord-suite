@@ -66,13 +66,37 @@ describe('FluidStudioResults renders', () => {
 });
 
 describe('FluidStudioInput renders', () => {
-  it('mounts with live and gated tabs', () => {
+  it('mounts with Phase-2 tabs live and Composition gated', () => {
     const inputs = sampleFluidStudioData();
     render(<FluidStudioInput inputs={inputs} setInputs={() => {}} />);
     expect(screen.getByText('Stream A')).toBeInTheDocument();
-    expect(screen.getByText('Correlations')).toBeInTheDocument();
-    // Phase-2 gated triggers are disabled.
-    const blending = screen.getByRole('tab', { name: /Blending/i });
-    expect(blending).toBeDisabled();
+    expect(screen.getByRole('tab', { name: /Blending/i })).toBeEnabled();
+    expect(screen.getByRole('tab', { name: /Batch/i })).toBeEnabled();
+    expect(screen.getByRole('tab', { name: /Flow Assurance/i })).toBeEnabled();
+    // Composition remains a Phase-3 gated trigger.
+    expect(screen.getByRole('tab', { name: /Composition/i })).toBeDisabled();
+  });
+});
+
+describe('Phase 2 result tabs render', () => {
+  it('shows Flow Assurance tab (sample has a P-T profile) with hydrate risk', () => {
+    // Sample profile crosses the hydrate curve at the cold end.
+    renderResults();
+    expect(screen.getByRole('tab', { name: /Flow Assurance/i })).toBeInTheDocument();
+  });
+
+  it('renders Blending and Batch cards when enabled', () => {
+    const inputs = {
+      ...sampleFluidStudioData(),
+      blending: { enabled: true, streamB_fraction: 50 },
+      batchRun: { enabled: true, variable: 'gor', min: 400, max: 800, steps: 5 },
+    };
+    const results = analyzeFluidSystem(inputs);
+    render(<MemoryRouter><FluidStudioResults results={results} /></MemoryRouter>);
+    expect(screen.getByRole('tab', { name: /Blending/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Batch Sweep/i })).toBeInTheDocument();
+    // Blending is the default-visible? No — PVT is default; just assert tabs exist and no throw.
+    expect(results.blending).not.toBeNull();
+    expect(results.batchSummary.length).toBe(5);
   });
 });

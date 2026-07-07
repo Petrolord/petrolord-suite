@@ -3,8 +3,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { MinusCircle, PlusCircle, Atom, SlidersHorizontal, Beaker } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import { MinusCircle, PlusCircle, Atom, SlidersHorizontal, Beaker, Combine, Route, Snowflake } from 'lucide-react';
 
 const InputField = ({ label, id, value, onChange, unit, type = 'number', step = 'any', placeholder, hint }) => (
   <div>
@@ -17,23 +20,33 @@ const InputField = ({ label, id, value, onChange, unit, type = 'number', step = 
   </div>
 );
 
-// A disabled tab trigger with a "Phase 2" badge, for deferred capabilities whose
-// input seams are preserved in state but not yet wired to the engine.
-const Phase2Trigger = ({ value, children }) => (
+// A disabled tab trigger with a "Phase 3" badge for capabilities not yet wired.
+const DisabledTrigger = ({ value, badge, children }) => (
   <TabsTrigger value={value} disabled className="opacity-50">
     {children}
-    <span className="ml-1.5 text-[9px] uppercase tracking-wide bg-slate-700 text-slate-300 rounded px-1 py-0.5">Phase 2</span>
+    <span className="ml-1.5 text-[9px] uppercase tracking-wide bg-slate-700 text-slate-300 rounded px-1 py-0.5">{badge}</span>
   </TabsTrigger>
 );
 
 const FluidStudioInput = ({ inputs, setInputs }) => {
   const streamA = inputs.streamA.blackOil;
+  const streamB = inputs.streamB?.blackOil ?? {};
   const correlations = inputs.correlations ?? { pb_rs_bo: 'standing', viscosity: 'beggs_robinson' };
+  const blending = inputs.blending ?? { enabled: false, streamB_fraction: 50 };
+  const batch = inputs.batchRun ?? { enabled: false, variable: 'api', min: 20, max: 40, steps: 5 };
+  const fa = inputs.flowAssurance ?? { flowline: {}, inhibitors: [] };
 
   const handleStreamChange = (field, value) => {
     setInputs((prev) => ({
       ...prev,
       streamA: { ...prev.streamA, blackOil: { ...prev.streamA.blackOil, [field]: value === '' ? null : Number(value) } },
+    }));
+  };
+
+  const handleStreamBChange = (field, value) => {
+    setInputs((prev) => ({
+      ...prev,
+      streamB: { ...(prev.streamB ?? {}), blackOil: { ...(prev.streamB?.blackOil ?? {}), [field]: value === '' ? null : Number(value) } },
     }));
   };
 
@@ -55,6 +68,12 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
     setInputs((prev) => ({ ...prev, separatorTrain: { ...prev.separatorTrain, stages: newStages } }));
   };
 
+  const setBlending = (patch) => setInputs((prev) => ({ ...prev, blending: { ...(prev.blending ?? {}), ...patch } }));
+  const setBatch = (patch) => setInputs((prev) => ({ ...prev, batchRun: { ...(prev.batchRun ?? {}), ...patch } }));
+  const handleFlowlineChange = (field, value) => setInputs((prev) => ({ ...prev, flowAssurance: { ...(prev.flowAssurance ?? {}), flowline: { ...(prev.flowAssurance?.flowline ?? {}), [field]: value === '' ? null : Number(value) } } }));
+  const handleFaScalar = (field, value) => setInputs((prev) => ({ ...prev, flowAssurance: { ...(prev.flowAssurance ?? {}), [field]: value === '' ? null : Number(value) } }));
+  const handlePtRaw = (value) => setInputs((prev) => ({ ...prev, ptProfile: { ...(prev.ptProfile ?? {}), raw: value } }));
+
   return (
     <div className="space-y-4 h-full flex flex-col">
       <h2 className="text-2xl font-bold text-white mb-2">Analysis Setup</h2>
@@ -64,10 +83,10 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
           <TabsTrigger value="stream-a">Stream A</TabsTrigger>
           <TabsTrigger value="correlations">Correlations</TabsTrigger>
           <TabsTrigger value="separators">Separators</TabsTrigger>
-          <Phase2Trigger value="composition">Composition</Phase2Trigger>
-          <Phase2Trigger value="blending">Blending</Phase2Trigger>
-          <Phase2Trigger value="batch-run">Batch</Phase2Trigger>
-          <Phase2Trigger value="flow-assurance">Flow Assurance</Phase2Trigger>
+          <TabsTrigger value="blending">Blending</TabsTrigger>
+          <TabsTrigger value="batch-run">Batch</TabsTrigger>
+          <TabsTrigger value="flow-assurance">Flow Assurance</TabsTrigger>
+          <DisabledTrigger value="composition" badge="Phase 3">Composition</DisabledTrigger>
         </TabsList>
         <div className="flex-grow mt-4 overflow-y-auto">
           <TabsContent value="stream-a">
@@ -106,9 +125,7 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
                   </SelectContent>
                 </Select>
               </div>
-              <p className="text-xs text-slate-500">
-                Standing + Beggs-Robinson are the audited defaults. Other options are selectable but flagged in the results if non-standard.
-              </p>
+              <p className="text-xs text-slate-500">Standing + Beggs-Robinson are the audited defaults. Other options are selectable but flagged in the results if non-standard.</p>
             </div>
           </TabsContent>
 
@@ -133,6 +150,92 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
                 </div>
               ))}
               <p className="text-xs text-slate-500">An implicit stock-tank stage (14.7 psia, 60 °F) is always added.</p>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="blending">
+            <div className="space-y-4 p-1">
+              <div className="flex items-center gap-2">
+                <Switch id="blending-enabled" checked={!!blending.enabled} onCheckedChange={(c) => setBlending({ enabled: c })} />
+                <Label htmlFor="blending-enabled" className="text-lg font-semibold text-lime-300 flex items-center"><Combine className="w-5 h-5 mr-2" />Blend Stream B into A</Label>
+              </div>
+              {blending.enabled && (
+                <>
+                  <div>
+                    <Label className="text-sm text-slate-300">Blend ratio — A {100 - (blending.streamB_fraction ?? 0)}% / B {blending.streamB_fraction ?? 0}%</Label>
+                    <Slider className="mt-3" value={[blending.streamB_fraction ?? 0]} onValueChange={([v]) => setBlending({ streamB_fraction: v })} max={100} step={1} />
+                  </div>
+                  <h4 className="text-sm font-semibold text-lime-300 pt-2">Stream B — black-oil properties</h4>
+                  <InputField label="API Gravity" id="b-api" value={streamB.api} onChange={(e) => handleStreamBChange('api', e.target.value)} unit="°API" />
+                  <InputField label="Solution GOR (Rsb)" id="b-gor" value={streamB.gor} onChange={(e) => handleStreamBChange('gor', e.target.value)} unit="scf/STB" />
+                  <InputField label="Gas Specific Gravity" id="b-gasSg" value={streamB.gasSg} onChange={(e) => handleStreamBChange('gasSg', e.target.value)} unit="air=1" />
+                  <InputField label="Reservoir Temperature" id="b-temp" value={streamB.temp} onChange={(e) => handleStreamBChange('temp', e.target.value)} unit="°F" />
+                  <InputField label="Water Salinity" id="b-salinity" value={streamB.salinity} onChange={(e) => handleStreamBChange('salinity', e.target.value)} unit="ppm" />
+                  <p className="text-xs text-slate-500">No Pb field — the blend&apos;s bubble point is re-solved and drives the PVT &amp; Separator tabs.</p>
+                </>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="batch-run">
+            <div className="space-y-4 p-1">
+              <div className="flex items-center gap-2">
+                <Switch id="batch-enabled" checked={!!batch.enabled} onCheckedChange={(c) => setBatch({ enabled: c })} />
+                <Label htmlFor="batch-enabled" className="text-lg font-semibold text-lime-300 flex items-center"><SlidersHorizontal className="w-5 h-5 mr-2" />Batch sensitivity sweep</Label>
+              </div>
+              {batch.enabled && (
+                <>
+                  <div>
+                    <Label className="text-sm font-medium text-slate-300">Sweep variable (Stream A)</Label>
+                    <Select value={batch.variable} onValueChange={(v) => setBatch({ variable: v })}>
+                      <SelectTrigger className="bg-slate-800 border-slate-600 text-white mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="api">API Gravity</SelectItem>
+                        <SelectItem value="gor">Solution GOR</SelectItem>
+                        <SelectItem value="gasSg">Gas SG</SelectItem>
+                        <SelectItem value="temp">Temperature</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <InputField label="Min" id="batch-min" value={batch.min} onChange={(e) => setBatch({ min: e.target.value === '' ? null : Number(e.target.value) })} />
+                    <InputField label="Max" id="batch-max" value={batch.max} onChange={(e) => setBatch({ max: e.target.value === '' ? null : Number(e.target.value) })} />
+                    <InputField label="Steps" id="batch-steps" value={batch.steps} onChange={(e) => setBatch({ steps: e.target.value === '' ? null : Number(e.target.value) })} step="1" hint="≥2" />
+                  </div>
+                  <p className="text-xs text-slate-500">Endpoints always included. Other inputs stay fixed at Stream A; WAT populates only when Flow Assurance supplies one.</p>
+                </>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="flow-assurance">
+            <div className="space-y-4 p-1">
+              <h3 className="text-lg font-semibold text-lime-300 flex items-center"><Snowflake className="w-5 h-5 mr-2" />Flow assurance</h3>
+              <h4 className="text-sm font-semibold text-lime-300 flex items-center"><Route className="w-4 h-4 mr-2" />Flowline</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <InputField label="Length" id="fl-length" value={fa.flowline?.length} onChange={(e) => handleFlowlineChange('length', e.target.value)} unit="ft" />
+                <InputField label="Diameter" id="fl-diameter" value={fa.flowline?.diameter} onChange={(e) => handleFlowlineChange('diameter', e.target.value)} unit="in" />
+                <InputField label="Outlet pressure" id="fl-outletP" value={fa.flowline?.outletPressure} onChange={(e) => handleFlowlineChange('outletPressure', e.target.value)} unit="psia" />
+                <InputField label="Ambient temp" id="fl-ambient" value={fa.flowline?.ambientTemp} onChange={(e) => handleFlowlineChange('ambientTemp', e.target.value)} unit="°F" />
+              </div>
+              <p className="text-xs text-slate-500">Flowline geometry is carried for Phase-3 heat-loss/Nodal; hydrate screening consumes only gas SG + the P-T profile.</p>
+
+              <h4 className="text-sm font-semibold text-lime-300 pt-1">Wax / asphaltene</h4>
+              <InputField label="Measured WAT (optional)" id="fa-wat" value={fa.measuredWat} onChange={(e) => handleFaScalar('measuredWat', e.target.value)} unit="°F" hint="Authoritative — overrides screening." />
+              <InputField label="Wax content (optional)" id="fa-wax" value={fa.waxContent} onChange={(e) => handleFaScalar('waxContent', e.target.value)} unit="wt%" hint="Enables a labeled screening WAT." />
+              <p className="text-xs text-slate-500">AOP is not computable from black-oil inputs — reported as N/A in results.</p>
+
+              <div>
+                <Label htmlFor="pt-profile" className="text-sm font-medium text-slate-300">P-T profile</Label>
+                <Textarea
+                  id="pt-profile"
+                  value={inputs.ptProfile?.raw ?? ''}
+                  onChange={(e) => handlePtRaw(e.target.value)}
+                  placeholder={'P_psia, T_F  (one per line)\n3000, 180\n2500, 165\n2000, 140'}
+                  className="bg-slate-800 border-slate-600 text-white h-28 mt-1 font-mono text-sm"
+                />
+                <p className="text-xs text-slate-500 mt-1">Paste the flowline pressure/temperature profile; crossings into the hydrate region are flagged in results.</p>
+              </div>
             </div>
           </TabsContent>
         </div>
