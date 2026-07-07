@@ -63,10 +63,6 @@ const IntegrationSuite = ({ backbone }) => {
           <Button onClick={sendToPipelineSizer} disabled={!pipelineReady} className="flex-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-40">
             <Zap className="w-4 h-4 mr-2" /> Send to Pipeline Sizer
           </Button>
-          {/* Nodal Analysis Engine has no route yet — disabled until it ships (Phase 2). */}
-          <Button disabled title="Nodal Analysis Engine — coming soon" className="flex-1 bg-sky-600/40 cursor-not-allowed">
-            <Zap className="w-4 h-4 mr-2" /> Send to Nodal (coming soon)
-          </Button>
         </div>
       </CardContent>
     </Card>

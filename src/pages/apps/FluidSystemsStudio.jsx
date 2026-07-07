@@ -3,14 +3,19 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 import { ArrowLeft, FlaskConical, Save, FolderKanban, Beaker } from 'lucide-react';
 import FluidStudioInput from '@/components/fluidstudio/FluidStudioInput';
 import FluidStudioResults from '@/components/fluidstudio/FluidStudioResults';
 import FluidStudioEmptyState from '@/components/fluidstudio/FluidStudioEmptyState';
+import { SaveProjectDialog, LoadProjectsDrawer } from '@/components/fluidstudio/FluidStudioPersistence';
 import { analyzeFluidSystem, sampleFluidStudioData } from '@/utils/fluidStudioCalculations';
 
 const FluidSystemsStudio = () => {
   const [inputs, setInputs] = useState(sampleFluidStudioData);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [loadOpen, setLoadOpen] = useState(false);
+  const { toast } = useToast();
 
   // Pure, synchronous recompute on every keystroke — no backend, no spinner.
   const results = useMemo(() => analyzeFluidSystem(inputs), [inputs]);
@@ -18,11 +23,17 @@ const FluidSystemsStudio = () => {
 
   const loadSample = () => setInputs(sampleFluidStudioData());
 
+  // Load restores inputs only; results recompute via useMemo.
+  const handleLoadProject = (project) => {
+    if (project?.inputs_data) setInputs(project.inputs_data);
+    toast({ title: 'Project loaded', description: `"${project.project_name}" restored.` });
+  };
+
   return (
     <>
       <Helmet>
         <title>Fluid Systems & Flow Behavior Studio - Petrolord Suite</title>
-        <meta name="description" content="Client-side black-oil PVT and separator-train analysis from reservoir to stock tank." />
+        <meta name="description" content="Client-side black-oil PVT, blending, separator and flow-assurance analysis from reservoir to stock tank." />
       </Helmet>
       <div className="flex flex-col h-screen bg-gray-900 text-white">
         <motion.div
@@ -41,11 +52,10 @@ const FluidSystemsStudio = () => {
               <Button onClick={loadSample} variant="outline" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
                 <Beaker className="w-4 h-4 mr-2" />Sample
               </Button>
-              {/* Persistence is Phase 2 (needs a migration + edge function). */}
-              <Button disabled title="Saving projects — coming soon" variant="outline" className="border-slate-600 text-slate-500 cursor-not-allowed">
+              <Button onClick={() => setLoadOpen(true)} variant="outline" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
                 <FolderKanban className="w-4 h-4 mr-2" />Load
               </Button>
-              <Button disabled title="Saving projects — coming soon" variant="outline" className="border-slate-600 text-slate-500 cursor-not-allowed">
+              <Button onClick={() => setSaveOpen(true)} disabled={!hasResults} variant="outline" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
                 <Save className="w-4 h-4 mr-2" />Save
               </Button>
             </div>
@@ -54,7 +64,7 @@ const FluidSystemsStudio = () => {
             <div className="bg-gradient-to-r from-teal-500 to-cyan-500 p-3 rounded-xl mt-1"><FlaskConical className="w-6 h-6 text-white" /></div>
             <div>
               <h1 className="text-xl md:text-3xl font-bold text-white">Fluid Systems &amp; Flow Behavior Studio</h1>
-              <p className="text-cyan-200 text-sm md:text-md">Black-oil PVT &amp; separator-train analysis · reservoir to stock tank</p>
+              <p className="text-cyan-200 text-sm md:text-md">Black-oil PVT, blending, separator &amp; flow assurance · reservoir to stock tank</p>
             </div>
           </div>
         </motion.div>
@@ -73,6 +83,9 @@ const FluidSystemsStudio = () => {
             )}
           </div>
         </div>
+
+        <SaveProjectDialog open={saveOpen} onOpenChange={setSaveOpen} inputs={inputs} results={results} />
+        <LoadProjectsDrawer open={loadOpen} onOpenChange={setLoadOpen} onSelect={handleLoadProject} />
       </div>
     </>
   );

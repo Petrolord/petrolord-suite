@@ -46,12 +46,12 @@ describe('FluidStudioResults renders', () => {
     expect(screen.getByText(/black-oil staged-liberation approximation/i)).toBeInTheDocument();
   });
 
-  it('exposes an enabled Pipeline Sizer handoff and a disabled Nodal button', () => {
+  it('exposes an enabled Pipeline Sizer handoff and no dead Nodal button', () => {
     renderResults();
     const pipelineBtn = screen.getByRole('button', { name: /Send to Pipeline Sizer/i });
     expect(pipelineBtn).toBeEnabled();
-    const nodalBtn = screen.getByRole('button', { name: /coming soon/i });
-    expect(nodalBtn).toBeDisabled();
+    // The dead Nodal handoff was removed (Nodal Analysis is a separate unbuilt app).
+    expect(screen.queryByRole('button', { name: /Nodal/i })).not.toBeInTheDocument();
   });
 
   it('CSV export click does not throw', () => {
