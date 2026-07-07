@@ -23,7 +23,6 @@ export const SPECIAL_APP_PRICING = {
   'earth-model-pro': 499,
   'subsurface-studio': 399,
   'well-planning': 299,
-  'material-balance-pro': 299,
   'project-management-pro': 199,
   'basinflow-genesis': 349,
   'network-diagram-pro': 199,
