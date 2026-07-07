@@ -35,6 +35,8 @@
         SELECT id, project_name, created_at, 'nodal_analysis' as app_type, results_data as project_data, inputs_data, results_data from public.saved_nodal_analysis_projects where user_id = auth.uid()
         UNION ALL
         SELECT id, name as project_name, created_at, 'well_test_analyzer' as app_type, null::jsonb as project_data, inputs_data, results_data from public.pta_projects where user_id = auth.uid()
+        UNION ALL
+        SELECT id, project_name, created_at, 'fluid_studio' as app_type, results_data as project_data, inputs_data, results_data from public.saved_fluid_studio_projects where user_id = auth.uid()
     )
     SELECT *
     FROM all_projects
