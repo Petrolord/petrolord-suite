@@ -80,6 +80,7 @@ const AfeCostControlManager = lazy(() => import('@/pages/apps/AfeCostControlMana
 const CapitalPortfolioStudio = lazy(() => import('@/pages/apps/CapitalPortfolioStudio'));
 const FiscalRegimeDesigner = lazy(() => import('@/pages/apps/FiscalRegimeDesigner'));
 const WaterfloodDashboard = lazy(() => import('@/pages/apps/WaterfloodDashboard'));
+const VoidageReplacementMonitor = lazy(() => import('@/pages/apps/VoidageReplacementMonitor'));
 const DeclineCurveAnalysis = lazy(() => import('@/pages/apps/DeclineCurveAnalysis'));
 const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'));
 const LogFaciesAnalysis = lazy(() => import('@/pages/apps/LogFaciesAnalysis'));
@@ -450,6 +451,7 @@ function App() {
                                 
                                 <Route path="apps/reservoir/fluid-systems-studio" element={<FluidSystemsStudio />} />
                                 <Route path="apps/reservoir/waterflood-dashboard" element={<WaterfloodDashboard />} />
+                                <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
                                 <Route path="apps/reservoir/decline-curve-analysis" element={<DeclineCurveAnalysis />} />
                                 <Route path="apps/reservoir/reservoir-balance" element={<ReservoirBalance />} />
                                 <Route path="apps/reservoir/reservoir-balance/cases/:caseId" element={<RbCaseDetail />} />
