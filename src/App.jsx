@@ -82,6 +82,7 @@ const WaterfloodDashboard = lazy(() => import('@/pages/apps/WaterfloodDashboard'
 const VoidageReplacementMonitor = lazy(() => import('@/pages/apps/VoidageReplacementMonitor'));
 const FractionalFlowAnalyzer = lazy(() => import('@/pages/apps/FractionalFlowAnalyzer'));
 const RecoveryFactorEstimator = lazy(() => import('@/pages/apps/RecoveryFactorEstimator'));
+const AquiferInfluxCalculator = lazy(() => import('@/pages/apps/AquiferInfluxCalculator'));
 const DeclineCurveAnalysis = lazy(() => import('@/pages/apps/DeclineCurveAnalysis'));
 const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'));
 const LogFaciesAnalysis = lazy(() => import('@/pages/apps/LogFaciesAnalysis'));
@@ -455,6 +456,7 @@ function App() {
                                 <Route path="apps/reservoir/fractional-flow-calculator" element={<FractionalFlowAnalyzer />} />
                                 <Route path="apps/reservoir/relative-permeability-designer" element={<FractionalFlowAnalyzer />} />
                                 <Route path="apps/reservoir/recovery-factor-estimator" element={<RecoveryFactorEstimator />} />
+                                <Route path="apps/reservoir/aquifer-influx-calculator" element={<AquiferInfluxCalculator />} />
                                 <Route path="apps/reservoir/decline-curve-analysis" element={<DeclineCurveAnalysis />} />
                                 <Route path="apps/reservoir/reservoir-balance" element={<ReservoirBalance />} />
                                 <Route path="apps/reservoir/reservoir-balance/cases/:caseId" element={<RbCaseDetail />} />
