@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Download, Expand, ZoomIn, AlertCircle, CheckCircle2, Activity, TrendingUp } from 'lucide-react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import ProbabilisticSummaryTable from './ProbabilisticSummaryTable';
-import { ReportGenerator } from '../tools/ReportGenerator';
+import { ReportGenerator, REPORT_TEMPLATES } from '../tools/ReportGenerator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import html2canvas from 'html2canvas';
 import ResultsModal from './ResultsModal';
@@ -74,7 +75,8 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
     const { toast } = useToast();
     
     const [isFullViewOpen, setIsFullViewOpen] = useState(false);
-    
+    const [reportTemplate, setReportTemplate] = useState('technical');
+
     const histogramRef = useRef(null);
     const cdfRef = useRef(null);
     const tornadoRef = useRef(null);
@@ -123,12 +125,13 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
             const chartImages = { histogram: histImg, cdf: cdfImg, tornado: tornadoImg };
 
             await ReportGenerator.generateProbabilisticReport(
-                state.reservoirName || 'Project', 
-                probResults, 
+                state.currentProjectMeta?.name || state.reservoirName || 'Project',
+                probResults,
                 state.unitSystem,
-                chartImages
+                chartImages,
+                { template: reportTemplate, fluidType: ft },
             );
-            
+
             toast({ title: "Success", description: "Report downloaded successfully.", className: "bg-emerald-900 text-white border-emerald-800" });
         } catch (e) {
             console.error(e);
@@ -158,7 +161,13 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                             )}
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
+                        <Select value={reportTemplate} onValueChange={setReportTemplate}>
+                            <SelectTrigger className="h-9 w-[170px] text-xs bg-slate-900 border-slate-700 text-slate-200"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {REPORT_TEMPLATES.map((t) => <SelectItem key={t.value} value={t.value} className="text-xs">{t.label}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
                         <Button variant="default" size="sm" className="h-9 bg-blue-600 hover:bg-blue-700 text-white gap-2" onClick={handleExportPDF} disabled={isExporting}>
                             {isExporting ? <span className="animate-pulse">Exporting...</span> : <><Download className="w-4 h-4" /> Export PDF</>}
                         </Button>
