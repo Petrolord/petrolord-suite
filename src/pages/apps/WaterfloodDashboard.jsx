@@ -15,13 +15,13 @@ import React, { useState, useEffect, useCallback } from 'react';
     import PatternResponsePanel from '@/components/waterflood/PatternResponsePanel';
     import RecommendationsPanel from '@/components/waterflood/RecommendationsPanel';
     import HallPlotPanel from '@/components/waterflood/HallPlotPanel';
+    import { SaveProjectDialog, LoadProjectsDrawer } from '@/components/waterflood/WaterfloodPersistence';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
     import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerTrigger } from "@/components/ui/drawer";
     import { Input } from "@/components/ui/input";
     import { Label } from "@/components/ui/label";
     import { useReservoir } from '@/contexts/ReservoirContext';
     import { supabase } from '@/lib/customSupabaseClient';
-    import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { analyzeWaterflood, parseWaterfloodCSV, sampleWaterfloodRows } from '@/utils/waterfloodCalculations';
 
     // Default surveillance configuration (also the sample-on-load config).
@@ -111,91 +111,6 @@ import React, { useState, useEffect, useCallback } from 'react';
         );
     };
 
-    const SaveProjectModal = ({ open, onOpenChange, inputs, results, reservoirId }) => {
-        const [projectName, setProjectName] = useState('');
-        const { toast } = useToast();
-        const { user } = useAuth();
-
-        const handleSave = async () => {
-            if (!projectName) {
-                toast({ variant: "destructive", title: "Project name is required." });
-                return;
-            }
-            try {
-                const { error } = await supabase.functions.invoke('waterflood-engine', {
-                    body: { action: 'save_project', payload: { userId: user.id, reservoirId, projectName, inputs, results } }
-                });
-                if (error) throw error;
-                toast({ title: "Project Saved!", description: `"${projectName}" has been saved.` });
-                onOpenChange(false);
-                setProjectName('');
-            } catch (error) {
-                toast({ variant: "destructive", title: "Save Failed", description: error.message });
-            }
-        };
-
-        return (
-            <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="sm:max-w-[425px] bg-slate-900 text-white border-slate-700">
-                    <DialogHeader><DialogTitle>Save Project</DialogTitle><DialogDescription>Enter a name for your project.</DialogDescription></DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <Label htmlFor="name" className="text-right">Project Name</Label>
-                        <Input id="name" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="col-span-3 bg-slate-700 border-slate-600" />
-                    </div>
-                    <DialogFooter><Button onClick={handleSave} className="bg-lime-600 hover:bg-lime-700">Save Project</Button></DialogFooter>
-                </DialogContent>
-            </Dialog>
-        );
-    };
-
-    const LoadProjectsDrawer = ({ open, onOpenChange, onSelectProject }) => {
-        const [projects, setProjects] = useState([]);
-        const [loading, setLoading] = useState(false);
-        const { toast } = useToast();
-        const { user } = useAuth();
-
-        useEffect(() => {
-            if (open && user) {
-                const fetchProjects = async () => {
-                    setLoading(true);
-                    try {
-                        const { data, error } = await supabase.functions.invoke('waterflood-engine', { body: { action: 'load_projects', payload: { userId: user.id } } });
-                        if (error) throw error;
-                        setProjects(data);
-                    } catch (error) {
-                        toast({ variant: "destructive", title: "Failed to load projects", description: error.message });
-                    } finally {
-                        setLoading(false);
-                    }
-                };
-                fetchProjects();
-            }
-        }, [open, user, toast]);
-
-        return (
-            <Drawer open={open} onOpenChange={onOpenChange}>
-                <DrawerContent className="bg-slate-900 text-white border-slate-700">
-                    <DrawerHeader><DrawerTitle>Load Project</DrawerTitle><DrawerDescription>Select a saved project to load its data.</DrawerDescription></DrawerHeader>
-                    <div className="p-4">
-                        {loading ? <p>Loading...</p> : projects.length > 0 ? (
-                            <div className="space-y-2">
-                                {projects.map((p) => (
-                                    <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-slate-800 hover:bg-slate-700">
-                                        <div>
-                                            <p className="font-semibold">{p.project_name}</p>
-                                            <p className="text-sm text-lime-300">Saved: {new Date(p.created_at).toLocaleString()}</p>
-                                        </div>
-                                        <Button size="sm" onClick={() => { onSelectProject(p); onOpenChange(false); }}>Load</Button>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : <p className="text-center">No saved projects found.</p>}
-                    </div>
-                </DrawerContent>
-            </Drawer>
-        );
-    };
-
     const WaterfloodDashboard = () => {
       const { toast } = useToast();
       const { reservoir, setReservoir, isReady } = useReservoir();
@@ -245,10 +160,16 @@ import React, { useState, useEffect, useCallback } from 'react';
         setIsSaveModalOpen(true);
       };
 
+      // Load restores inputs (rows + config) and recomputes results with the pure
+      // engine — the stored results snapshot is only for the My Projects preview.
       const handleLoadProject = (project) => {
-        setInputData(project.inputs_data);
-        setDashboardData(project.results_data);
-        toast({ title: "Project Loaded", description: `"${project.project_name}" has been loaded.` });
+        const saved = project?.inputs_data;
+        if (saved?.rows && saved?.config) {
+          runAnalysis(saved.rows, saved.config);
+          toast({ title: "Project Loaded", description: `"${project.project_name}" loaded and recomputed.` });
+        } else {
+          toast({ variant: "destructive", title: "Could not load project", description: "Saved project is missing its input data." });
+        }
       };
 
       return (
@@ -327,8 +248,8 @@ import React, { useState, useEffect, useCallback } from 'react';
               </>
             )}
           </div>
-          <SaveProjectModal open={isSaveModalOpen} onOpenChange={setIsSaveModalOpen} inputs={inputData} results={dashboardData} reservoirId={reservoir?.id} />
-          <LoadProjectsDrawer open={isLoadDrawerOpen} onOpenChange={setIsLoadDrawerOpen} onSelectProject={handleLoadProject} />
+          <SaveProjectDialog open={isSaveModalOpen} onOpenChange={setIsSaveModalOpen} inputs={inputData} results={dashboardData} />
+          <LoadProjectsDrawer open={isLoadDrawerOpen} onOpenChange={setIsLoadDrawerOpen} onSelect={handleLoadProject} />
         </>
       );
     };

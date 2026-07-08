@@ -1,64 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Line } from 'react-chartjs-2';
+import {
+  ComposedChart, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
+} from 'recharts';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import ChartFrame from '@/components/charts/ChartFrame';
 import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
+  CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE,
+} from '@/utils/chartTheme';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
-
-const chartOptionsBase = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { position: 'top', labels: { color: '#fff' } },
-  },
-  scales: {
-    x: { ticks: { color: '#a3e635' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-    y: { ticks: { color: '#a3e635' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-  }
-};
+// Shared Petrolord white-chart styling (see petrolord-chart-template-standard).
+const axisTick = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
+const axisLabel = { fontSize: CHART_TYPOGRAPHY.labelFontSize, fill: CHART_COLORS.axisLabel };
+const legendStyle = { fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText };
+// Dark-on-white series colors (the old dark-bg strokes are illegible on white).
+const C = { inj: '#2563eb', oil: '#059669', water: '#7c3aed', wc: '#d97706', daily: '#94a3b8', rolling: '#2563eb', cum: '#059669', ref: '#dc2626' };
+const mmdd = (d) => (typeof d === 'string' && d.length >= 10 ? d.slice(5) : d);
+const fmt = (v) => (typeof v === 'number' ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : v);
 
 const ChartsPanel = ({ dailySeries, vrrSeries }) => {
   const [showSmoothed, setShowSmoothed] = useState(true);
 
-  const timeSeriesData = {
-    labels: dailySeries.date,
-    datasets: [
-      { label: 'Injection (bpd)', data: showSmoothed ? dailySeries.inj_bpd_s : dailySeries.inj_bpd, borderColor: 'rgb(6, 182, 212)', backgroundColor: 'rgba(6, 182, 212, 0.1)', yAxisID: 'y', tension: 0.1, pointRadius: 0 },
-      { label: 'Oil (bpd)', data: showSmoothed ? dailySeries.oil_bpd_s : dailySeries.oil_bpd, borderColor: 'rgb(34, 197, 94)', backgroundColor: 'rgba(34, 197, 94, 0.1)', yAxisID: 'y', tension: 0.1, pointRadius: 0 },
-      { label: 'Water (bpd)', data: showSmoothed ? dailySeries.water_bpd_s : dailySeries.water_bpd, borderColor: 'rgb(59, 130, 246)', backgroundColor: 'rgba(59, 130, 246, 0.1)', yAxisID: 'y', tension: 0.1, pointRadius: 0 },
-      { label: 'Water Cut (%)', data: showSmoothed ? dailySeries.wc_pct_s : dailySeries.wc_pct, borderColor: 'rgb(249, 115, 22)', backgroundColor: 'rgba(249, 115, 22, 0.1)', yAxisID: 'y1', tension: 0.1, pointRadius: 0 },
-    ]
-  };
+  const timeData = useMemo(() => (dailySeries?.date || []).map((date, i) => ({
+    date,
+    inj: (showSmoothed ? dailySeries.inj_bpd_s : dailySeries.inj_bpd)[i],
+    oil: (showSmoothed ? dailySeries.oil_bpd_s : dailySeries.oil_bpd)[i],
+    water: (showSmoothed ? dailySeries.water_bpd_s : dailySeries.water_bpd)[i],
+    wc: (showSmoothed ? dailySeries.wc_pct_s : dailySeries.wc_pct)[i],
+  })), [dailySeries, showSmoothed]);
 
-  const vrrData = {
-    labels: vrrSeries.date,
-    datasets: [
-      { label: 'Daily VRR', data: vrrSeries.vrr_daily, borderColor: 'rgb(168, 85, 247)', backgroundColor: 'rgba(168, 85, 247, 0.1)', yAxisID: 'y', tension: 0.1, pointRadius: 0 },
-      { label: 'Rolling VRR', data: vrrSeries.vrr_rolling, borderColor: 'rgb(239, 68, 68)', backgroundColor: 'rgba(239, 68, 68, 0.1)', yAxisID: 'y', tension: 0.1, pointRadius: 0 },
-    ]
-  };
-
-  const timeSeriesOptions = { ...chartOptionsBase, scales: { ...chartOptionsBase.scales, y: { ...chartOptionsBase.scales.y, title: { display: true, text: 'Rate (bpd)', color: '#fff' } }, y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Water Cut (%)', color: '#fff' }, ticks: { color: '#a3e635' }, grid: { drawOnChartArea: false } } } };
-  const vrrOptions = { ...chartOptionsBase, scales: { ...chartOptionsBase.scales, y: { ...chartOptionsBase.scales.y, title: { display: true, text: 'VRR', color: '#fff' } } } };
+  const vrrData = useMemo(() => (vrrSeries?.date || []).map((date, i) => ({
+    date,
+    daily: vrrSeries.vrr_daily[i],
+    rolling: vrrSeries.vrr_rolling[i],
+    cum: vrrSeries.vrr_cum ? vrrSeries.vrr_cum[i] : undefined,
+  })), [vrrSeries]);
 
   return (
     <motion.div
@@ -68,22 +45,51 @@ const ChartsPanel = ({ dailySeries, vrrSeries }) => {
       className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6"
     >
       <h2 className="text-2xl font-bold text-white mb-6">Performance Trends</h2>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-white">Time Series Analysis</h3>
+        <div className="bg-white rounded-lg p-4">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-base font-semibold text-slate-800">Rates &amp; Water Cut</h3>
             <div className="flex items-center space-x-2">
               <Checkbox id="smooth-toggle" checked={showSmoothed} onCheckedChange={setShowSmoothed} />
-              <Label htmlFor="smooth-toggle" className="text-sm">Show Smoothed Data</Label>
+              <Label htmlFor="smooth-toggle" className="text-sm text-slate-600">Smoothed</Label>
             </div>
           </div>
-          <div className="h-80"><Line data={timeSeriesData} options={timeSeriesOptions} /></div>
+          <ChartFrame height={320}>
+            <ComposedChart data={timeData} margin={CHART_MARGINS.withLegend}>
+              <CartesianGrid {...GRID_STYLE} />
+              <XAxis dataKey="date" tick={axisTick} tickFormatter={mmdd} minTickGap={36} stroke={CHART_COLORS.axisLine} />
+              <YAxis yAxisId="left" tick={axisTick} stroke={CHART_COLORS.axisLine}
+                label={{ value: 'Rate (bpd)', angle: -90, position: 'insideLeft', style: axisLabel }} />
+              <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={axisTick} stroke={CHART_COLORS.axisLine}
+                label={{ value: 'Water Cut (%)', angle: 90, position: 'insideRight', style: axisLabel }} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={fmt} />
+              <Legend wrapperStyle={legendStyle} />
+              <Line yAxisId="left" type="monotone" dataKey="inj" name="Injection (bpd)" stroke={C.inj} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line yAxisId="left" type="monotone" dataKey="oil" name="Oil (bpd)" stroke={C.oil} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line yAxisId="left" type="monotone" dataKey="water" name="Water (bpd)" stroke={C.water} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line yAxisId="right" type="monotone" dataKey="wc" name="Water Cut (%)" stroke={C.wc} dot={false} strokeWidth={2} strokeDasharray="5 3" isAnimationActive={false} />
+            </ComposedChart>
+          </ChartFrame>
         </div>
 
-        <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
-          <h3 className="text-lg font-semibold text-white mb-4">Voidage Replacement Ratio (VRR)</h3>
-          <div className="h-80"><Line data={vrrData} options={vrrOptions} /></div>
+        <div className="bg-white rounded-lg p-4">
+          <h3 className="text-base font-semibold text-slate-800 mb-2">Voidage Replacement Ratio (VRR)</h3>
+          <ChartFrame height={320}>
+            <LineChart data={vrrData} margin={CHART_MARGINS.withLegend}>
+              <CartesianGrid {...GRID_STYLE} />
+              <XAxis dataKey="date" tick={axisTick} tickFormatter={mmdd} minTickGap={36} stroke={CHART_COLORS.axisLine} />
+              <YAxis tick={axisTick} stroke={CHART_COLORS.axisLine}
+                label={{ value: 'VRR (reservoir bbl)', angle: -90, position: 'insideLeft', style: axisLabel }} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} formatter={fmt} />
+              <Legend wrapperStyle={legendStyle} />
+              <ReferenceLine y={1} stroke={C.ref} strokeDasharray="5 3"
+                label={{ value: 'Balance', fill: C.ref, fontSize: 10, position: 'insideTopRight' }} />
+              <Line type="monotone" dataKey="daily" name="Daily VRR" stroke={C.daily} dot={false} strokeWidth={1} isAnimationActive={false} />
+              <Line type="monotone" dataKey="rolling" name="Rolling VRR" stroke={C.rolling} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line type="monotone" dataKey="cum" name="Cumulative VRR" stroke={C.cum} dot={false} strokeWidth={2} isAnimationActive={false} />
+            </LineChart>
+          </ChartFrame>
         </div>
       </div>
     </motion.div>
