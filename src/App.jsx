@@ -44,7 +44,9 @@ const Assurance = lazy(() => import('@/pages/dashboard/Assurance'));
 const SuperAdminConsole = lazy(() => import('@/pages/SuperAdminConsole'));
 
 // Apps - Lazy Loaded
-const QuickVol = lazy(() => import('@/pages/apps/QuickVol'));
+// NOTE: the legacy `apps/geoscience/quickvol` slug is intentionally kept as an
+// alias that renders ReservoirCalcPro (the QuickVol page was retired — it was an
+// unrendered, mostly-mocked duplicate). Existing links/bookmarks keep working.
 const ReservoirCalcPro = lazy(() => import('@/pages/apps/ReservoirCalcPro/ReservoirCalcPro'));
 const WellSpacingOptimizer = lazy(() => import('@/pages/apps/WellSpacingOptimizer'));
 const WellboreStabilityAnalyzer = lazy(() => import('@/pages/apps/WellboreStabilityAnalyzer'));

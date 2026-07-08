@@ -29,7 +29,7 @@ const WellCorrelationPanel = () => {
 
   // === 1. Unified Data Fabric Integration ===
   const handleImportData = (data) => {
-    // Handle incoming data from other apps (e.g., Petrophysics Estimator or QuickVol)
+    // Handle incoming data from other apps (e.g., Petrophysics Estimator or ReservoirCalc Pro)
     if (data.wells && Array.isArray(data.wells)) {
        // Merge new wells, avoiding duplicates
        setWells(prev => {
