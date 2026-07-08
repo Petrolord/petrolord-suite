@@ -3,48 +3,87 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronRight, ChevronLeft, PlayCircle, Loader2, RotateCcw, AlertTriangle, FileText } from 'lucide-react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import { useToast } from '@/components/ui/use-toast';
 
-const DistInput = ({ label, paramKey, value, baseValue, onChange, consistencyMode }) => {
-    const diffPercent = baseValue ? Math.abs((value.p50 - baseValue) / baseValue) * 100 : 0;
+const DIST_TYPES = [
+    { value: 'triangular', label: 'Triangular' },
+    { value: 'normal', label: 'Normal' },
+    { value: 'lognormal', label: 'Lognormal' },
+    { value: 'uniform', label: 'Uniform' },
+];
+
+// The distribution's central value, used for base-case consistency checks.
+const centralValue = (v) => {
+    if (v.type === 'uniform') return (Number(v.min) + Number(v.max)) / 2;
+    if (v.type === 'normal' || v.type === 'lognormal') return Number(v.mean);
+    return Number(v.p50);
+};
+
+const Num = ({ labelText, value, onChange, invalid }) => (
+    <div className="flex-1">
+        <span className="text-[9px] text-slate-500 block text-center mb-0.5">{labelText}</span>
+        <Input type="number" className={`h-7 text-xs bg-slate-900 text-center ${invalid ? 'border-red-500 text-red-400' : 'border-slate-700'}`}
+            value={value} onChange={(e) => onChange(parseFloat(e.target.value) || 0)} />
+    </div>
+);
+
+const DistInput = ({ label, value, baseValue, onChange, consistencyMode }) => {
+    const type = value.type || 'triangular';
+    const central = centralValue(value);
+    const diffPercent = baseValue ? Math.abs((central - baseValue) / baseValue) * 100 : 0;
     const isDeviation = consistencyMode && diffPercent > 5;
 
+    const set = (patch) => onChange({ ...value, ...patch });
+
     return (
-        <div className="space-y-1 p-2 bg-slate-950 rounded border border-slate-800">
-            <div className="flex justify-between items-center mb-1">
+        <div className="space-y-1.5 p-2 bg-slate-950 rounded border border-slate-800">
+            <div className="flex justify-between items-center">
                 <Label className="text-[11px] font-bold text-slate-300">{label}</Label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                     <span className="text-[9px] text-slate-500">Base: {Number(baseValue).toFixed(4)}</span>
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-5 w-5 text-slate-400 hover:text-blue-400"
-                        title="Revert P50 to deterministic base case"
-                        onClick={() => onChange({ ...value, p50: baseValue })}
-                    >
+                    <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-blue-400"
+                        title="Revert central value to deterministic base case"
+                        onClick={() => set(type === 'uniform'
+                            ? { min: baseValue * 0.8, max: baseValue * 1.2 }
+                            : (type === 'triangular' ? { p50: baseValue } : { mean: baseValue }))}>
                         <RotateCcw className="w-3 h-3" />
                     </Button>
                 </div>
             </div>
-            <div className="flex gap-2">
-                <div className="flex-1">
-                    <span className="text-[9px] text-slate-500 block text-center mb-0.5">P90 (Min)</span>
-                    <Input type="number" className="h-7 text-xs bg-slate-900 border-slate-700 text-center" value={value.p90} onChange={e => onChange({...value, p90: parseFloat(e.target.value) || 0})} />
+
+            <Select value={type} onValueChange={(t) => set({ type: t })}>
+                <SelectTrigger className="h-6 text-[10px] bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                    {DIST_TYPES.map((d) => <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>)}
+                </SelectContent>
+            </Select>
+
+            {type === 'triangular' && (
+                <div className="flex gap-2">
+                    <Num labelText="P90 (Min)" value={value.p90} onChange={(v) => set({ p90: v })} />
+                    <Num labelText="P50 (Mode)" value={value.p50} onChange={(v) => set({ p50: v })} invalid={isDeviation} />
+                    <Num labelText="P10 (Max)" value={value.p10} onChange={(v) => set({ p10: v })} />
                 </div>
-                <div className="flex-1">
-                    <span className="text-[9px] text-slate-500 block text-center mb-0.5">P50 (Mode)</span>
-                    <Input type="number" className={`h-7 text-xs bg-slate-900 text-center ${isDeviation ? 'border-red-500 text-red-400' : 'border-slate-700'}`} value={value.p50} onChange={e => onChange({...value, p50: parseFloat(e.target.value) || 0})} />
+            )}
+            {(type === 'normal' || type === 'lognormal') && (
+                <div className="flex gap-2">
+                    <Num labelText="Mean" value={value.mean} onChange={(v) => set({ mean: v })} invalid={isDeviation} />
+                    <Num labelText="Std Dev" value={value.stdDev} onChange={(v) => set({ stdDev: v })} />
                 </div>
-                <div className="flex-1">
-                    <span className="text-[9px] text-slate-500 block text-center mb-0.5">P10 (Max)</span>
-                    <Input type="number" className="h-7 text-xs bg-slate-900 border-slate-700 text-center" value={value.p10} onChange={e => onChange({...value, p10: parseFloat(e.target.value) || 0})} />
+            )}
+            {type === 'uniform' && (
+                <div className="flex gap-2">
+                    <Num labelText="Min" value={value.min} onChange={(v) => set({ min: v })} />
+                    <Num labelText="Max" value={value.max} onChange={(v) => set({ max: v })} />
                 </div>
-            </div>
+            )}
+
             {isDeviation && (
-                <div className="text-[9px] text-red-400 mt-1 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> P50 deviates &gt;5% from base case.
+                <div className="text-[9px] text-red-400 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Central value deviates &gt;5% from base case.
                 </div>
             )}
         </div>
@@ -66,9 +105,10 @@ const ProbabilisticPanel = () => {
     const base = state.baseCase?.inputs || state.inputs;
 
     const generateDefaultDist = (val) => ({
-        p90: val * 0.8,
-        p50: val,
-        p10: val * 1.2
+        type: 'triangular',
+        p90: val * 0.8, p50: val, p10: val * 1.2,     // triangular
+        mean: val, stdDev: val * 0.1,                 // normal / lognormal
+        min: val * 0.8, max: val * 1.2               // uniform
     });
 
     const [distParams, setDistParams] = useState({
@@ -86,8 +126,10 @@ const ProbabilisticPanel = () => {
             setDistParams(prev => {
                 const next = { ...prev };
                 for (let key in next) {
-                    if (state.baseCase.inputs[key] !== undefined) {
-                        next[key].p50 = state.baseCase.inputs[key];
+                    const base = state.baseCase.inputs[key];
+                    if (base !== undefined) {
+                        // Recentre whichever fields drive the active distribution's centre.
+                        next[key] = { ...next[key], p50: base, mean: base };
                     }
                 }
                 return next;
@@ -113,14 +155,22 @@ const ProbabilisticPanel = () => {
             let hasDeviation = false;
 
             for (const [key, val] of Object.entries(distParams)) {
+                const central = val.type === 'uniform' ? (val.min + val.max) / 2
+                    : (val.type === 'triangular' ? val.p50 : val.mean);
                 if (consistencyMode && base[key]) {
-                    const diff = Math.abs((val.p50 - base[key]) / base[key]) * 100;
+                    const diff = Math.abs((central - base[key]) / base[key]) * 100;
                     if (diff > 5) hasDeviation = true;
                 }
-                
-                const min = Math.min(val.p90, val.p10);
-                const max = Math.max(val.p90, val.p10);
-                formatted[key] = { type: 'triangular', min, mode: val.p50, max };
+
+                if (val.type === 'uniform') {
+                    formatted[key] = { type: 'uniform', min: Math.min(val.min, val.max), max: Math.max(val.min, val.max) };
+                } else if (val.type === 'normal' || val.type === 'lognormal') {
+                    formatted[key] = { type: val.type, mean: val.mean, stdDev: val.stdDev };
+                } else {
+                    const min = Math.min(val.p90, val.p10);
+                    const max = Math.max(val.p90, val.p10);
+                    formatted[key] = { type: 'triangular', min, mode: val.p50, max };
+                }
             }
 
             if (consistencyMode && hasDeviation) {

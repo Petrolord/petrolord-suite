@@ -1,14 +1,54 @@
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
+import {
+    BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
+} from 'recharts';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, Expand, ZoomIn, AlertCircle, CheckCircle2, Activity } from 'lucide-react';
+import { Download, Expand, ZoomIn, AlertCircle, CheckCircle2, Activity, TrendingUp } from 'lucide-react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import ProbabilisticSummaryTable from './ProbabilisticSummaryTable';
 import { ReportGenerator } from '../tools/ReportGenerator';
 import { useToast } from '@/components/ui/use-toast';
 import html2canvas from 'html2canvas';
 import ResultsModal from './ResultsModal';
+import ChartFrame from '@/components/charts/ChartFrame';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+
+const PARAM_LABELS = { area: 'Area', thickness: 'Thickness', ntg: 'NTG', phi: 'Porosity', sw: 'Water Sat.', fvf: 'Bo', bg: 'Bg' };
+const AXIS_TICK = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
+
+// Bin raw realizations + shape CDF / tornado series for the charts. Computed
+// before any early return so hook order stays stable.
+function buildChartData(probResults, fluidType) {
+    if (!probResults || !probResults.stats) return { histogram: [], cdf: [], tornado: [] };
+    const gas = fluidType === 'gas';
+    const st = gas ? probResults.stats.giip : probResults.stats.stooip;
+    const raw = (gas ? probResults.raw.giip : probResults.raw.stooip) || [];
+    const d = gas ? 1e9 : 1e6;
+    if (!st || raw.length === 0) return { histogram: [], cdf: [], tornado: [] };
+
+    const vals = raw.map((v) => v / d);
+    let mn = Infinity, mx = -Infinity;
+    for (const v of vals) { if (v < mn) mn = v; if (v > mx) mx = v; }
+    const bins = 30;
+    const w = (mx - mn) / bins || 1;
+    const counts = Array(bins).fill(0);
+    for (const v of vals) {
+        let i = Math.floor((v - mn) / w);
+        if (i >= bins) i = bins - 1;
+        if (i < 0) i = 0;
+        counts[i] += 1;
+    }
+    const histogram = counts.map((c, i) => ({ x: +(mn + (i + 0.5) * w).toFixed(3), count: c }));
+    const cdf = (st.cdf || []).map((p) => ({ x: +(p.x / d).toFixed(3), y: +p.y.toFixed(2) }));
+    const tornado = (probResults.stats.sensitivity || []).map((s) => ({
+        parameter: PARAM_LABELS[s.parameter] || s.parameter,
+        contribution: +s.contribution.toFixed(1),
+        dir: s.impactDirection,
+    }));
+    return { histogram, cdf, tornado, p10: st.p10 / d, p50: st.p50 / d, p90: st.p90 / d };
+}
 
 const RealizationCard = ({ title, realization, unit }) => {
     if (!realization) return null;
@@ -41,6 +81,11 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
 
     const [isExporting, setIsExporting] = useState(false);
 
+    const chartData = useMemo(
+        () => buildChartData(probResults, inputs.fluidType || 'oil'),
+        [probResults, inputs.fluidType],
+    );
+
     if (!probResults || !probResults.stats) {
         return <div className="flex items-center justify-center h-full text-slate-500">Run a simulation to see results.</div>;
     }
@@ -60,7 +105,7 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
 
     const captureChart = async (ref) => {
         if (ref.current) {
-            const canvas = await html2canvas(ref.current, { scale: 2, backgroundColor: '#0f172a' }); 
+            const canvas = await html2canvas(ref.current, { scale: 2, backgroundColor: '#ffffff' });
             return canvas.toDataURL('image/png');
         }
         return null;
@@ -183,25 +228,83 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                     <Card className={`${cardClass} flex flex-col`}>
                         <div className="flex justify-between items-center mb-2 border-b border-slate-800 pb-2">
                             <h3 className="text-xs font-bold text-slate-200 flex items-center gap-2">
-                                <ZoomIn className="w-3 h-3 text-blue-400" /> Volume Distribution
+                                <ZoomIn className="w-3 h-3 text-blue-400" /> Volume Distribution ({unitLabel})
                             </h3>
                         </div>
-                        <div className="flex-1 relative min-h-0 flex items-center justify-center text-slate-500" ref={histogramRef}>
-                             Chart removed
+                        <div ref={histogramRef}>
+                            <ChartFrame height={isCompact ? 200 : 280}>
+                                <BarChart data={chartData.histogram} margin={{ top: 12, right: 16, bottom: 8, left: 4 }}>
+                                    <CartesianGrid {...GRID_STYLE} vertical={false} />
+                                    <XAxis dataKey="x" stroke={CHART_COLORS.axisLine} tick={AXIS_TICK}
+                                        tickFormatter={(v) => v.toFixed(0)} />
+                                    <YAxis stroke={CHART_COLORS.axisLine} tick={AXIS_TICK} allowDecimals={false} />
+                                    <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }}
+                                        formatter={(v) => [v, 'Count']}
+                                        labelFormatter={(x) => `${Number(x).toFixed(2)} ${unitLabel}`} />
+                                    <Bar dataKey="count" fill="#2563eb" radius={[2, 2, 0, 0]} />
+                                    {Number.isFinite(chartData.p90) && <ReferenceLine x={chartData.p90} stroke="#64748b" strokeDasharray="4 3" label={{ value: 'P90', position: 'top', fontSize: 9, fill: '#475569' }} />}
+                                    {Number.isFinite(chartData.p50) && <ReferenceLine x={chartData.p50} stroke="#059669" strokeDasharray="4 3" label={{ value: 'P50', position: 'top', fontSize: 9, fill: '#059669' }} />}
+                                    {Number.isFinite(chartData.p10) && <ReferenceLine x={chartData.p10} stroke="#64748b" strokeDasharray="4 3" label={{ value: 'P10', position: 'top', fontSize: 9, fill: '#475569' }} />}
+                                </BarChart>
+                            </ChartFrame>
                         </div>
                     </Card>
-                    
+
                     <Card className={`${cardClass} flex flex-col`}>
                         <div className="flex justify-between items-center mb-2 border-b border-slate-800 pb-2">
                             <h3 className="text-xs font-bold text-slate-200 flex items-center gap-2">
-                                <Activity className="w-3 h-3 text-purple-400" /> Variance Decomposition (Tornado)
+                                <TrendingUp className="w-3 h-3 text-emerald-400" /> Cumulative Probability (Expectation Curve)
                             </h3>
                         </div>
-                        <div className="flex-1 relative min-h-0 flex items-center justify-center text-slate-500" ref={tornadoRef}>
-                             Chart removed
+                        <div ref={cdfRef}>
+                            <ChartFrame height={isCompact ? 200 : 280}>
+                                <LineChart data={chartData.cdf} margin={{ top: 12, right: 16, bottom: 8, left: 4 }}>
+                                    <CartesianGrid {...GRID_STYLE} />
+                                    <XAxis dataKey="x" type="number" domain={['dataMin', 'dataMax']} stroke={CHART_COLORS.axisLine} tick={AXIS_TICK}
+                                        tickFormatter={(v) => v.toFixed(0)} />
+                                    <YAxis domain={[0, 100]} stroke={CHART_COLORS.axisLine} tick={AXIS_TICK}
+                                        tickFormatter={(v) => `${v}%`} />
+                                    <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }}
+                                        formatter={(v) => [`${v}%`, 'Cumulative']}
+                                        labelFormatter={(x) => `${Number(x).toFixed(2)} ${unitLabel}`} />
+                                    <ReferenceLine y={90} stroke="#94a3b8" strokeDasharray="2 2" />
+                                    <ReferenceLine y={50} stroke="#94a3b8" strokeDasharray="2 2" />
+                                    <ReferenceLine y={10} stroke="#94a3b8" strokeDasharray="2 2" />
+                                    <Line type="monotone" dataKey="y" stroke="#059669" strokeWidth={2} dot={false} />
+                                </LineChart>
+                            </ChartFrame>
                         </div>
                     </Card>
                 </div>
+
+                <Card className={`${isCompact ? 'p-3' : 'p-4'} bg-slate-900 border-slate-800 flex flex-col`}>
+                    <div className="flex justify-between items-center mb-2 border-b border-slate-800 pb-2">
+                        <h3 className="text-xs font-bold text-slate-200 flex items-center gap-2">
+                            <Activity className="w-3 h-3 text-purple-400" /> Variance Decomposition (Tornado)
+                        </h3>
+                    </div>
+                    <div ref={tornadoRef}>
+                        {chartData.tornado.length > 0 ? (
+                            <ChartFrame height={Math.max(140, chartData.tornado.length * 34)}>
+                                <BarChart data={chartData.tornado} layout="vertical" margin={{ top: 8, right: 40, bottom: 8, left: 24 }}>
+                                    <CartesianGrid {...GRID_STYLE} horizontal={false} />
+                                    <XAxis type="number" domain={[0, 100]} stroke={CHART_COLORS.axisLine} tick={AXIS_TICK}
+                                        tickFormatter={(v) => `${v}%`} />
+                                    <YAxis type="category" dataKey="parameter" width={80} stroke={CHART_COLORS.axisLine} tick={AXIS_TICK} />
+                                    <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={{ color: CHART_COLORS.tooltipText }}
+                                        formatter={(v, _n, p) => [`${v}%  (${p.payload.dir > 0 ? 'increases' : 'decreases'} volume)`, 'Contribution']} />
+                                    <Bar dataKey="contribution" radius={[0, 3, 3, 0]}>
+                                        {chartData.tornado.map((e, i) => (
+                                            <Cell key={i} fill={e.dir > 0 ? '#059669' : '#dc2626'} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ChartFrame>
+                        ) : (
+                            <div className="h-24 flex items-center justify-center text-slate-500 text-xs">Add at least one uncertainty variable to see sensitivity.</div>
+                        )}
+                    </div>
+                </Card>
 
                 {!isCompact && (
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

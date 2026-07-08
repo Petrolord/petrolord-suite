@@ -39,6 +39,53 @@ describe('VolumeCalculationEngine (deterministic)', () => {
       { ...baseOil, topSurfaceId: 'a', baseSurfaceId: null }, 'field', 'surfaces', {});
     expect(r.error).toBeTruthy();
   });
+
+  it('exposes GIIP, pore volume and recoverable split for the results UI', () => {
+    const gas = VolumeCalculationEngine.calculateDeterministic(
+      { ...baseOil, fluidType: 'gas', bg: 0.005, recoveryGas: 70 }, 'field', 'simple');
+    expect(gas.giip).toBeGreaterThan(0);
+    expect(gas.giip).toBe(gas.stooip);
+    expect(gas.recoverableGas).toBeGreaterThan(0);
+    expect(gas.recoverableOil).toBe(0);
+
+    const oil = VolumeCalculationEngine.calculateDeterministic(baseOil, 'field', 'simple');
+    expect(oil.poreVolume).toBeCloseTo(10000, 5); // GRV·NTG·φ = 50000·1·0.2
+    expect(oil.hcPoreVolume).toBeCloseTo(7000, 5);
+    expect(oil.recoverableOil).toBeCloseTo(oil.recoverable, 5);
+  });
+});
+
+describe('VolumeCalculationEngine.validateInputs', () => {
+  const good = { area: 1000, thickness: 50, ntg: 1, porosity: 0.2, sw: 0.3, fvf: 1.2, fluidType: 'oil' };
+
+  it('passes clean inputs with a full score', () => {
+    const v = VolumeCalculationEngine.validateInputs(good);
+    expect(v.warnings).toHaveLength(0);
+    expect(v.qualityScore).toBe(100);
+  });
+
+  it('flags Sw >= 1 (no hydrocarbon) and lowers the score', () => {
+    const v = VolumeCalculationEngine.validateInputs({ ...good, sw: 1.1 });
+    expect(v.warnings.length).toBeGreaterThan(0);
+    expect(v.qualityScore).toBeLessThan(100);
+  });
+
+  it('flags non-physical Bo below 1.0', () => {
+    const v = VolumeCalculationEngine.validateInputs({ ...good, fvf: 0.8 });
+    expect(v.warnings.join(' ')).toMatch(/Bo/i);
+  });
+
+  it('flags a missing/zero Bg for gas', () => {
+    const v = VolumeCalculationEngine.validateInputs({ ...good, fluidType: 'gas', bg: 0 });
+    expect(v.warnings.join(' ')).toMatch(/Bg/i);
+  });
+
+  it('deterministic result carries warnings + qualityScore', () => {
+    const r = VolumeCalculationEngine.calculateDeterministic({ ...good, porosity: 0.6 }, 'field', 'simple');
+    expect(Array.isArray(r.warnings)).toBe(true);
+    expect(r.warnings.length).toBeGreaterThan(0);
+    expect(r.qualityScore).toBeLessThan(100);
+  });
 });
 
 // ===========================================================================
