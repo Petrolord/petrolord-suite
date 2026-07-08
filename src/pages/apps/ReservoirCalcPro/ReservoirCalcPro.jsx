@@ -14,14 +14,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOpen }) => {
     const { state, saveCurrentProject } = useReservoirCalc();
     const { user } = useAuth();
+    const { toast } = useToast();
     const navigate = useNavigate();
     const [saveOpen, setSaveOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [meta, setMeta] = useState({ name: '', description: '' });
 
     const handleSaveClick = () => {
@@ -33,8 +36,24 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
     };
 
     const performSave = async () => {
-        await saveCurrentProject(user?.id || 'local-user', meta);
-        setSaveOpen(false);
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Not signed in', description: 'Sign in to save projects.' });
+            return;
+        }
+        if (!meta.name.trim()) {
+            toast({ variant: 'destructive', title: 'Project name is required.' });
+            return;
+        }
+        setSaving(true);
+        try {
+            await saveCurrentProject(user.id, meta);
+            toast({ title: 'Project saved', description: `"${meta.name.trim()}" is saved.` });
+            setSaveOpen(false);
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Save failed', description: e.message, duration: 8000 });
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -124,8 +143,8 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                                 <Textarea value={meta.description} onChange={e => setMeta({...meta, description: e.target.value})} className="bg-slate-950 border-slate-700" />
                             </div>
                             <div className="flex justify-end gap-2 mt-4">
-                                <Button variant="ghost" onClick={() => setSaveOpen(false)}>Cancel</Button>
-                                <Button onClick={performSave} className="bg-emerald-600 hover:bg-emerald-700">Save</Button>
+                                <Button variant="ghost" onClick={() => setSaveOpen(false)} disabled={saving}>Cancel</Button>
+                                <Button onClick={performSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">{saving ? 'Saving…' : 'Save'}</Button>
                             </div>
                         </div>
                     </DialogContent>

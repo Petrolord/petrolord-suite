@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useMemo } from 'react';
 import { VolumeCalculationEngine } from '../services/VolumeCalculationEngine';
 import { MonteCarloEngine } from '../services/MonteCarloEngine';
+import { ProjectService } from '../services/ProjectService';
 
 const initialState = {
     project: {
@@ -39,10 +40,11 @@ const initialState = {
         goc: -7000
     },
     
-    surfaces: {}, 
-    results: null, 
+    surfaces: {},
+    results: null,
     baseCase: null, // Shared deterministic parameters & results for MC integration
     probResults: null,
+    projects: [], // Saved projects for the current user (Project Manager)
     isCalculating: false,
     isDirty: false,
     error: null
@@ -63,7 +65,10 @@ const ACTIONS = {
     SET_MODE: 'SET_MODE',
     SET_UNIT_SYSTEM: 'SET_UNIT_SYSTEM',
     SET_INPUT_METHOD: 'SET_INPUT_METHOD',
-    MARK_DIRTY: 'MARK_DIRTY'
+    MARK_DIRTY: 'MARK_DIRTY',
+    SET_PROJECTS: 'SET_PROJECTS',
+    LOAD_PROJECT: 'LOAD_PROJECT',
+    NEW_PROJECT: 'NEW_PROJECT'
 };
 
 const reducer = (state, action) => {
@@ -131,6 +136,32 @@ const reducer = (state, action) => {
             return { ...state, error: action.payload, isCalculating: false };
         case ACTIONS.MARK_DIRTY:
             return { ...state, isDirty: true };
+        case ACTIONS.SET_PROJECTS:
+            return { ...state, projects: action.payload };
+        case ACTIONS.LOAD_PROJECT: {
+            const p = action.payload;
+            const det = { ...initialState.inputs, ...(p.inputs?.deterministic || {}) };
+            const surfaces = (p.inputs?.surfaces || []).reduce((m, s) => {
+                if (s && s.id) m[s.id] = s;
+                return m;
+            }, {});
+            return {
+                ...state,
+                inputs: det,
+                surfaces,
+                unitSystem: p.unitSystem || 'field',
+                calcMethod: p.calcMethod || 'deterministic',
+                inputMethod: p.inputMethod || 'simple',
+                results: p.results || null,
+                baseCase: p.results ? { inputs: det, results: p.results } : null,
+                project: { name: p.name, id: p.id, created_at: p.created_at, version: p.version },
+                currentProjectMeta: { name: p.name, description: p.description || '' },
+                isDirty: false,
+                error: null
+            };
+        }
+        case ACTIONS.NEW_PROJECT:
+            return { ...initialState, projects: state.projects };
         case ACTIONS.RESET:
             return initialState;
         default:
@@ -152,9 +183,52 @@ export const ReservoirCalcProvider = ({ children }) => {
     const setUnitSystem = (system) => dispatch({ type: ACTIONS.SET_UNIT_SYSTEM, payload: system });
     const setInputMethod = (method) => dispatch({ type: ACTIONS.SET_INPUT_METHOD, payload: method });
     const setResults = (results) => dispatch({ type: ACTIONS.SET_RESULTS, payload: results });
+    const buildProjectData = (userId, meta) => ({
+        id: state.project.id || null,
+        user_id: userId,
+        name: meta?.name || state.currentProjectMeta?.name || state.reservoirName || 'Untitled Project',
+        description: meta?.description ?? state.currentProjectMeta?.description ?? '',
+        version: state.project.version || 1,
+        unitSystem: state.unitSystem,
+        calcMethod: state.calcMethod,
+        inputMethod: state.inputMethod,
+        inputs: {
+            deterministic: state.inputs,
+            surfaces: Object.values(state.surfaces || {}),
+            polygons: []
+        },
+        results: state.results
+    });
+
+    // Persist the current workspace as a project (create or update), then refresh
+    // the project list. Throws on failure so the caller can surface a message.
     const saveCurrentProject = async (userId, meta) => {
-        dispatch({ type: ACTIONS.SET_PROJECT, payload: { meta } });
+        if (!userId) throw new Error('Sign in to save projects.');
+        const projectData = buildProjectData(userId, meta);
+        const saved = await ProjectService.saveProject(projectData, !projectData.id);
+        dispatch({
+            type: ACTIONS.SET_PROJECT,
+            payload: { id: saved.id, version: saved.version, meta: { name: saved.name, description: saved.description } }
+        });
+        const projects = await ProjectService.getProjects();
+        dispatch({ type: ACTIONS.SET_PROJECTS, payload: projects });
+        return saved;
     };
+
+    const loadProjects = async () => {
+        try {
+            const projects = await ProjectService.getProjects();
+            dispatch({ type: ACTIONS.SET_PROJECTS, payload: projects });
+            return { ok: true };
+        } catch (e) {
+            dispatch({ type: ACTIONS.SET_PROJECTS, payload: [] });
+            return { error: e.message };
+        }
+    };
+
+    const loadProject = (project) => dispatch({ type: ACTIONS.LOAD_PROJECT, payload: project });
+
+    const createNewProject = () => dispatch({ type: ACTIONS.NEW_PROJECT });
 
     const getActiveSurface = () => {
         const id = state.inputs.topSurfaceId;
@@ -217,7 +291,10 @@ export const ReservoirCalcProvider = ({ children }) => {
         setResults,
         getActiveSurface,
         saveCurrentProject,
-        calculate 
+        loadProjects,
+        loadProject,
+        createNewProject,
+        calculate
     }), [state]);
 
     return (

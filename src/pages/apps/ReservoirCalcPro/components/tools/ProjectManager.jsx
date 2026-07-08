@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import { ProjectService } from '../../services/ProjectService';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,17 +20,23 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const ProjectManager = ({ onClose }) => {
     const { state, loadProjects, loadProject, createNewProject } = useReservoirCalc();
+    const { user } = useAuth();
     const { toast } = useToast();
-    
+
     // UI State
     const [searchTerm, setSearchTerm] = useState('');
     const [sortOrder, setSortOrder] = useState('updated_desc');
     const [selectedProject, setSelectedProject] = useState(null);
     const [view, setView] = useState('list'); // 'list' or 'details'
-    
+
     // Initial Load
     useEffect(() => {
-        loadProjects();
+        loadProjects().then((r) => {
+            if (r?.error) {
+                toast({ variant: 'destructive', title: 'Could not load projects', description: r.error, duration: 8000 });
+            }
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Filtering & Sorting
@@ -84,7 +91,7 @@ const ProjectManager = ({ onClose }) => {
         const file = e.target.files[0];
         if (!file) return;
         try {
-            await ProjectService.importFromJSON(file);
+            await ProjectService.importFromJSON(file, user?.id);
             await loadProjects();
             toast({ title: "Import Successful", description: "Project added to your list." });
         } catch (err) {
