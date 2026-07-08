@@ -555,6 +555,95 @@ function idxDayGap(dates, i, j) {
   return Number.isFinite(days) && days > 0 ? days : 1;
 }
 
+// ---------------------------------------------------------------------------
+// Chan water-control diagnostics (Chan, SPE 30775, 1995). Log–log plots of the
+// water–oil ratio WOR(t) and its time derivative WOR'(t) reveal the dominant
+// excess-water mechanism from the SHAPE of the derivative:
+//   * channeling (multilayer / fracture / behind-pipe): WOR and WOR' both rise,
+//     roughly parallel — WOR' has a positive log–log slope;
+//   * coning / normal displacement: WOR climbs then flattens and WOR' is flat-
+//     to-declining (negative log–log slope, often dipping negative).
+// The plot is exact math; the mechanism label is an INDICATIVE heuristic on the
+// late-time WOR' slope and must be confirmed with engineering judgment — so the
+// panel always shows the computed slope alongside the label.
+export function classifyChan(lateSlope) {
+  if (lateSlope == null || !Number.isFinite(lateSlope)) {
+    return { code: 'indeterminate', label: 'Indeterminate — not enough late-time water history to read the WOR′ trend.' };
+  }
+  if (lateSlope >= 0.4) {
+    return { code: 'channeling', label: 'Channeling-like — WOR′ rising on log–log (multilayer channeling, fracture or behind-pipe communication).' };
+  }
+  if (lateSlope <= 0.0) {
+    return { code: 'coning', label: 'Coning / normal-displacement-like — WOR′ flat-to-declining on log–log.' };
+  }
+  return { code: 'transitional', label: 'Transitional — WOR′ slope sits between the coning and channeling regimes.' };
+}
+
+// Build a Chan series {t, wor, worDeriv} from aligned oil/water arrays.
+// t = days since first water-bearing production (+1 so log(t) is defined at
+// onset). WOR' = d(WOR)/dt via a smoothed centered difference.
+function buildChanSeries(oilArr, waterArr, dates, config) {
+  const minPoints = Math.max(8, Math.floor(num(config.chan_min_points, 10)));
+  const pts = [];
+  let t0 = null;
+  for (let i = 0; i < dates.length; i++) {
+    const oil = oilArr[i];
+    const water = waterArr[i];
+    if (oil == null || oil <= 0 || water == null || water < 0) continue;
+    const wor = water / oil;
+    if (!(wor > 0)) continue;
+    const ms = new Date(dates[i]).getTime();
+    if (t0 == null) t0 = ms;
+    const t = (ms - t0) / (24 * 3600 * 1000) + 1;
+    pts.push({ t, wor });
+  }
+  if (pts.length < minPoints) return null;
+
+  const worS = movingAverage(pts.map((p) => p.wor), num(config.chan_smooth, 3));
+  const points = pts.map((p, i) => {
+    const lo = Math.max(0, i - 1);
+    const hi = Math.min(pts.length - 1, i + 1);
+    const dt = pts[hi].t - pts[lo].t;
+    const worDeriv = dt > 0 ? (worS[hi] - worS[lo]) / dt : 0;
+    return { t: p.t, wor: worS[i], worDeriv };
+  });
+
+  // Late-time (last 40%) log–log slope of WOR' over positive-derivative points.
+  const start = Math.floor(points.length * 0.6);
+  const logT = [];
+  const logD = [];
+  for (let i = start; i < points.length; i++) {
+    if (points[i].worDeriv > 0 && points[i].t > 0) {
+      logT.push(Math.log(points[i].t));
+      logD.push(Math.log(points[i].worDeriv));
+    }
+  }
+  const lateSlope = logT.length >= 3 ? olsSlope(logT, logD, 0, logT.length) : null;
+  return { points, lateSlope, classification: classifyChan(lateSlope) };
+}
+
+// Field-level and per-producer Chan diagnostics.
+export function computeChanDiagnostics(dailyField, wellSeries, producers, config = {}) {
+  const field = buildChanSeries(
+    dailyField.map((d) => d.oil_bpd),
+    dailyField.map((d) => d.water_bpd),
+    dailyField.map((d) => d.date),
+    config
+  );
+
+  const perProducer = [];
+  producers.forEach((name) => {
+    const s = wellSeries.series.get(name);
+    if (!s) return;
+    const water = s.liquid.map((l, i) => (l == null || s.oil[i] == null ? null : l - s.oil[i]));
+    const chan = buildChanSeries(s.oil, water, s.dates, config);
+    if (chan) perProducer.push({ producer: name, ...chan });
+  });
+
+  const available = Boolean(field) || perProducer.length > 0;
+  return { field: field ? { producer: 'Field (all wells)', ...field } : null, producers: perProducer, available };
+}
+
 // Full analysis orchestrator. Returns the exact shape the dashboard panels read:
 // { data_quality, daily_series, vrr_series, kpis, alerts, wells }.
 export function analyzeWaterflood(rawRows, config = {}) {
@@ -584,6 +673,8 @@ export function analyzeWaterflood(rawRows, config = {}) {
   const hall_plots = hall.hall_plots;
   alerts.injectivity_issue = hall.injectivity_alerts;
 
+  const chan = computeChanDiagnostics(dailySeries._daily, wellSeries, producers, config);
+
   const capabilities = {
     pattern_lags: {
       available: injectors.length > 0 && producers.length > 0,
@@ -609,6 +700,13 @@ export function analyzeWaterflood(rawRows, config = {}) {
         ? 'Hall plot requires measured injection pressure (whp_psi) on injector rows; none was provided.'
         : null,
     },
+    chan: {
+      available: chan.available,
+      hasResults: chan.available,
+      reason: chan.available
+        ? null
+        : 'Chan diagnostics need a producing history with both oil and water rates over enough time.',
+    },
   };
 
   // Strip the internal _daily helper before returning to the UI.
@@ -629,6 +727,7 @@ export function analyzeWaterflood(rawRows, config = {}) {
     pattern_lags,
     recommendations,
     hall_plots,
+    chan,
     capabilities,
   };
 }

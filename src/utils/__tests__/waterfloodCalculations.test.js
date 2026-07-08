@@ -13,6 +13,8 @@ import {
   recommendInjection,
   computeHallPlots,
   buildWellSeries,
+  computeChanDiagnostics,
+  classifyChan,
   analyzeWaterflood,
   sampleWaterfloodRows,
   sampleWaterfloodCSV,
@@ -241,5 +243,62 @@ describe('P2 — Hall plot from measured pressure', () => {
     expect(r.capabilities.pattern_lags.available).toBe(true);
     expect(r.capabilities.recommendations.available).toBe(true);
     expect(r.capabilities.hall.available).toBe(true);
+  });
+});
+
+describe('P4 — Chan water-control diagnostics', () => {
+  const EMPTY_WS = { series: new Map() };
+  const day = (i) => new Date(Date.UTC(2024, 0, 1) + i * 24 * 3600 * 1000).toISOString().split('T')[0];
+
+  // Build a field daily series where WOR follows a prescribed function of day.
+  const fieldFromWor = (n, worOfT) => Array.from({ length: n }, (_, i) => {
+    const oil = 1000;
+    const wor = worOfT(i);
+    return { date: day(i), oil_bpd: oil, water_bpd: Math.max(0, oil * wor) };
+  });
+
+  test('classifyChan thresholds', () => {
+    expect(classifyChan(1.0).code).toBe('channeling');
+    expect(classifyChan(0.2).code).toBe('transitional');
+    expect(classifyChan(-0.5).code).toBe('coning');
+    expect(classifyChan(null).code).toBe('indeterminate');
+  });
+
+  test('power-law WOR ~ t^2 (rising WOR′) reads as channeling', () => {
+    const field = fieldFromWor(60, (t) => 0.001 * (t + 1) * (t + 1));
+    const chan = computeChanDiagnostics(field, EMPTY_WS, [], CONFIG);
+    expect(chan.available).toBe(true);
+    expect(chan.field.lateSlope).toBeGreaterThan(0.4);
+    expect(chan.field.classification.code).toBe('channeling');
+  });
+
+  test('plateauing WOR (declining WOR′) reads as coning/normal', () => {
+    const field = fieldFromWor(60, (t) => 2 * (1 - Math.exp(-(t + 1) / 12)));
+    const chan = computeChanDiagnostics(field, EMPTY_WS, [], CONFIG);
+    expect(chan.field.lateSlope).toBeLessThanOrEqual(0.0);
+    expect(chan.field.classification.code).toBe('coning');
+  });
+
+  test('WOR and its derivative are computed correctly on a known ramp', () => {
+    const field = fieldFromWor(40, (t) => 0.05 * (t + 1)); // WOR linear -> WOR' ~ 0.05/day
+    const chan = computeChanDiagnostics(field, EMPTY_WS, [], { ...CONFIG, chan_smooth: 1 });
+    const mid = chan.field.points[20];
+    expect(mid.wor).toBeCloseTo(0.05 * (20 + 1), 4); // no smoothing -> raw WOR
+    expect(mid.worDeriv).toBeCloseTo(0.05, 3);
+  });
+
+  test('on the sample, Chan is available with a rising WOR and finite slope', () => {
+    const r = analyzeWaterflood(sampleWaterfloodRows(), CONFIG);
+    expect(r.capabilities.chan.available).toBe(true);
+    const pts = r.chan.field.points;
+    expect(pts[pts.length - 1].wor).toBeGreaterThan(pts[0].wor);
+    expect(Number.isFinite(r.chan.field.lateSlope)).toBe(true);
+    expect(r.chan.producers.map((p) => p.producer).sort()).toEqual(['PROD-1', 'PROD-2']);
+  });
+
+  test('withheld when there is no dual oil+water producing history', () => {
+    const field = fieldFromWor(30, () => 0).map((d) => ({ ...d, water_bpd: 0 }));
+    const chan = computeChanDiagnostics(field, EMPTY_WS, [], CONFIG);
+    expect(chan.available).toBe(false);
   });
 });

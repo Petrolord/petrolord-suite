@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Link } from 'react-router-dom';
     import { Button } from '@/components/ui/button';
     import { useToast } from '@/components/ui/use-toast';
-    import { Droplets, ArrowLeft, AlertTriangle, Plus, Library, Save, FolderKanban } from 'lucide-react';
+    import { Droplets, ArrowLeft, AlertTriangle, Plus, Library, Save, FolderKanban, HelpCircle } from 'lucide-react';
     import DataSelectionPanel from '@/components/waterflood/DataSelectionPanel';
     import KPIPanel from '@/components/waterflood/KPIPanel';
     import ChartsPanel from '@/components/waterflood/ChartsPanel';
@@ -15,6 +15,8 @@ import React, { useState, useEffect, useCallback } from 'react';
     import PatternResponsePanel from '@/components/waterflood/PatternResponsePanel';
     import RecommendationsPanel from '@/components/waterflood/RecommendationsPanel';
     import HallPlotPanel from '@/components/waterflood/HallPlotPanel';
+    import ChanDiagnosticsPanel from '@/components/waterflood/ChanDiagnosticsPanel';
+    import WaterfloodHelpGuide from '@/components/waterflood/WaterfloodHelpGuide';
     import { SaveProjectDialog, LoadProjectsDrawer } from '@/components/waterflood/WaterfloodPersistence';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
     import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerTrigger } from "@/components/ui/drawer";
@@ -121,6 +123,7 @@ import React, { useState, useEffect, useCallback } from 'react';
       const [isNewReservoirModalOpen, setIsNewReservoirModalOpen] = useState(false);
       const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
       const [isLoadDrawerOpen, setIsLoadDrawerOpen] = useState(false);
+      const [isHelpOpen, setIsHelpOpen] = useState(false);
 
       // Compute the analysis entirely client-side (pure, tested engine). The former
       // edge-function compute fabricated pattern lags / recommendations and used a
@@ -180,6 +183,7 @@ import React, { useState, useEffect, useCallback } from 'react';
               <div className="flex justify-between items-center mb-4">
                 <Link to="/dashboard/reservoir"><Button variant="outline" size="sm"><ArrowLeft className="w-4 h-4 mr-2" />Back</Button></Link>
                 <div className="flex items-center space-x-2">
+                  <Button onClick={() => setIsHelpOpen(true)} variant="outline" size="sm"><HelpCircle className="w-4 h-4 mr-2" />Help</Button>
                   <Button onClick={() => setIsLoadDrawerOpen(true)} variant="outline" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20"><FolderKanban className="w-4 h-4 mr-2" />Load</Button>
                   <Button onClick={handleSaveProject} variant="outline" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20"><Save className="w-4 h-4 mr-2" />Save</Button>
                 </div>
@@ -241,6 +245,16 @@ import React, { useState, useEffect, useCallback } from 'react';
                               "Hall plot injectivity diagnostics require measured injection pressure (whp_psi) on injector rows."}
                           />
                         )}
+
+                        {dashboardData.capabilities?.chan?.available && dashboardData.chan ? (
+                          <ChanDiagnosticsPanel chan={dashboardData.chan} />
+                        ) : (
+                          <GatedFeatureNotice
+                            title="Chan Water-Control Diagnostics"
+                            message={dashboardData.capabilities?.chan?.reason ||
+                              "Chan diagnostics need a producing history with both oil and water rates over enough time."}
+                          />
+                        )}
                       </>
                     ) : (<EmptyState apiHealthy={healthOk} />)}
                   </div>
@@ -250,6 +264,7 @@ import React, { useState, useEffect, useCallback } from 'react';
           </div>
           <SaveProjectDialog open={isSaveModalOpen} onOpenChange={setIsSaveModalOpen} inputs={inputData} results={dashboardData} />
           <LoadProjectsDrawer open={isLoadDrawerOpen} onOpenChange={setIsLoadDrawerOpen} onSelect={handleLoadProject} />
+          <WaterfloodHelpGuide isOpen={isHelpOpen} onOpenChange={setIsHelpOpen} />
         </>
       );
     };
