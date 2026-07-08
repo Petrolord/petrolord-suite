@@ -12,6 +12,9 @@ import React, { useState, useEffect, useCallback } from 'react';
     import EmptyState from '@/components/waterflood/EmptyState';
     import DataQualityPanel from '@/components/waterflood/DataQualityPanel';
     import GatedFeatureNotice from '@/components/waterflood/GatedFeatureNotice';
+    import PatternResponsePanel from '@/components/waterflood/PatternResponsePanel';
+    import RecommendationsPanel from '@/components/waterflood/RecommendationsPanel';
+    import HallPlotPanel from '@/components/waterflood/HallPlotPanel';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
     import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerTrigger } from "@/components/ui/drawer";
     import { Input } from "@/components/ui/input";
@@ -286,19 +289,37 @@ import React, { useState, useEffect, useCallback } from 'react';
                         <DataQualityPanel data={dashboardData.data_quality} />
                         <KPIPanel kpis={dashboardData.kpis} lastUpdated={dashboardData.lastUpdated} />
                         <ChartsPanel dailySeries={dashboardData.daily_series} vrrSeries={dashboardData.vrr_series} />
-                        <InsightsPanel alerts={{ ...dashboardData.alerts, injectivity_issue: [] }} />
-                        <GatedFeatureNotice
-                          title="Pattern Response"
-                          message="Injector–producer lag and correlation require a time-shifted cross-correlation of injection and offset-producer rate histories, which is not yet available in this release. Results are withheld rather than shown as unverified estimates."
-                        />
-                        <GatedFeatureNotice
-                          title="Injector Recommendations"
-                          message="Injection-rate optimization is not yet available. A defensible suggested rate requires VRR-balanced pattern allocation; until that is implemented, no recommendation is shown."
-                        />
-                        <GatedFeatureNotice
-                          title="Hall Plot Analysis"
-                          message="Hall plot injectivity diagnostics require measured injection pressure (wellhead or bottomhole), which is not part of the current data schema. This analysis is disabled until pressure ingestion is added."
-                        />
+                        <InsightsPanel alerts={dashboardData.alerts} />
+
+                        {dashboardData.capabilities?.pattern_lags?.available && dashboardData.pattern_lags?.length ? (
+                          <PatternResponsePanel data={dashboardData.pattern_lags} />
+                        ) : (
+                          <GatedFeatureNotice
+                            title="Pattern Response"
+                            message={dashboardData.capabilities?.pattern_lags?.reason ||
+                              "Injector–producer response requires injection and offset-producer rate histories in the dataset."}
+                          />
+                        )}
+
+                        {dashboardData.capabilities?.recommendations?.available && dashboardData.recommendations?.length ? (
+                          <RecommendationsPanel data={dashboardData.recommendations} note={dashboardData.capabilities?.recommendations?.note} />
+                        ) : (
+                          <GatedFeatureNotice
+                            title="Injector Recommendations"
+                            message={dashboardData.capabilities?.recommendations?.reason ||
+                              "Suggested rates need at least one injector well in the dataset."}
+                          />
+                        )}
+
+                        {dashboardData.capabilities?.hall?.available && dashboardData.hall_plots?.length ? (
+                          <HallPlotPanel data={dashboardData.hall_plots} alerts={dashboardData.alerts} />
+                        ) : (
+                          <GatedFeatureNotice
+                            title="Hall Plot Analysis"
+                            message={dashboardData.capabilities?.hall?.reason ||
+                              "Hall plot injectivity diagnostics require measured injection pressure (whp_psi) on injector rows."}
+                          />
+                        )}
                       </>
                     ) : (<EmptyState apiHealthy={healthOk} />)}
                   </div>

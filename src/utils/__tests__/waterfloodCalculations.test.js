@@ -9,6 +9,10 @@ import {
   aggregateDaily,
   computeFieldVRR,
   computeKPIs,
+  crossCorrelatePair,
+  recommendInjection,
+  computeHallPlots,
+  buildWellSeries,
   analyzeWaterflood,
   sampleWaterfloodRows,
   sampleWaterfloodCSV,
@@ -142,17 +146,100 @@ describe('end-to-end analysis on the sample', () => {
     expect(inj[inj.length - 1]).toBeGreaterThan(inj[0]);
   });
 
-  test('no fabricated analytics leak into the result', () => {
-    // The engine must not emit pattern_lags / recommendations / hall_plots — these
-    // were the Math.random()/placeholder-pressure outputs, now gated in the UI.
-    expect(result).not.toHaveProperty('pattern_lags');
-    expect(result).not.toHaveProperty('recommendations');
-    expect(result).not.toHaveProperty('hall_plots');
+  test('analytics are deterministic (no Math.random fabrication)', () => {
+    // The former engine used Math.random() for pattern lags & recommendations.
+    // Re-running must give byte-identical results.
+    const again = analyzeWaterflood(sampleWaterfloodRows(), CONFIG);
+    expect(again.pattern_lags).toEqual(result.pattern_lags);
+    expect(again.recommendations).toEqual(result.recommendations);
+    expect(again.hall_plots.map((h) => h.slope_ratio)).toEqual(result.hall_plots.map((h) => h.slope_ratio));
   });
 
   test('sample CSV round-trips through the parser back into the same analysis', () => {
     const fromCsv = analyzeWaterflood(parseWaterfloodCSV(sampleWaterfloodCSV()), CONFIG);
     expect(fromCsv.kpis.total_oil_bbl).toBeCloseTo(result.kpis.total_oil_bbl, 6);
     expect(fromCsv.vrr_series.vrr_cum[89]).toBeCloseTo(result.vrr_series.vrr_cum[89], 6);
+  });
+});
+
+describe('P2 — pattern-response cross-correlation', () => {
+  test('recovers a known injected lag from a detrended signal', () => {
+    // Injector = ramp + ripple; producer = decline + the same ripple shifted +7 days.
+    const N = 80;
+    const period = 20;
+    const inj = [];
+    const prod = [];
+    for (let t = 0; t < N; t++) {
+      inj.push(500 + 4 * t + 40 * Math.sin((2 * Math.PI * t) / period));
+      prod.push(900 - 3 * t + 25 * Math.sin((2 * Math.PI * (t - 7)) / period));
+    }
+    const r = crossCorrelatePair(inj, prod, { maxLagDays: 15, minOverlap: 20, minCorr: 0.3 });
+    expect(r).not.toBeNull();
+    expect(r.lag_days).toBeGreaterThanOrEqual(6);
+    expect(r.lag_days).toBeLessThanOrEqual(8);
+    expect(r.corr).toBeGreaterThan(0.8);
+  });
+
+  test('returns null when the producer signal is unrelated noise-free constant', () => {
+    const inj = Array.from({ length: 60 }, (_, t) => 500 + 3 * t + 30 * Math.sin(t / 3));
+    const prod = Array.from({ length: 60 }, () => 400); // constant -> no variance
+    expect(crossCorrelatePair(inj, prod, { minOverlap: 20 })).toBeNull();
+  });
+
+  test('on the sample, the strongest pairs are the truly connected ones with correct lags', () => {
+    const r = analyzeWaterflood(sampleWaterfloodRows(), CONFIG);
+    const top = r.pattern_lags[0];
+    expect(['INJ-1', 'INJ-2']).toContain(top.injector);
+    const byPair = Object.fromEntries(r.pattern_lags.map((p) => [`${p.injector}|${p.producer}`, p]));
+    expect(byPair['INJ-1|PROD-1'].lag_days).toBeGreaterThanOrEqual(9);
+    expect(byPair['INJ-1|PROD-1'].lag_days).toBeLessThanOrEqual(11);
+    expect(byPair['INJ-2|PROD-2'].lag_days).toBeGreaterThanOrEqual(5);
+    expect(byPair['INJ-2|PROD-2'].lag_days).toBeLessThanOrEqual(7);
+  });
+});
+
+describe('P2 — VRR-balanced injection recommendations', () => {
+  test('scales injection toward the target VRR (no wall-clock dependence)', () => {
+    const { rows } = cleanRows(sampleWaterfloodRows());
+    const { wells, injectors } = classifyWells(rows);
+    const wellIndex = Array.from(wells.values());
+    // Recent field VRR on the sample is slightly above 1.0, so a target of 0.8
+    // must recommend LOWER injection, and a target of 1.3 must recommend HIGHER.
+    const down = recommendInjection(rows, wellIndex, injectors, { ...CONFIG, target_vrr: 0.8 });
+    const up = recommendInjection(rows, wellIndex, injectors, { ...CONFIG, target_vrr: 1.3 });
+    expect(down.recommendations.every((x) => x.delta_bpd < 0)).toBe(true);
+    expect(up.recommendations.every((x) => x.delta_bpd > 0)).toBe(true);
+    // Applying the suggested rates should move recent VRR onto target.
+    expect(down.scale).toBeCloseTo(0.8 / down.currentVRR, 6);
+  });
+});
+
+describe('P2 — Hall plot from measured pressure', () => {
+  const { rows } = cleanRows(sampleWaterfloodRows());
+  const { wells, injectors } = classifyWells(rows);
+  const wellSeries = buildWellSeries(rows, Array.from(wells.values()));
+
+  test('flags declining injectivity where p/q rises (INJ-1), not where steady (INJ-2)', () => {
+    const hall = computeHallPlots(wellSeries, injectors, CONFIG);
+    const flagged = hall.injectivity_alerts.map((a) => a.injector);
+    expect(flagged).toContain('INJ-1');
+    expect(flagged).not.toContain('INJ-2');
+    const inj1 = hall.hall_plots.find((h) => h.injector === 'INJ-1');
+    expect(inj1.slope_ratio).toBeGreaterThan(1.2);
+  });
+
+  test('Hall is withheld (capability off) when no pressure column is present', () => {
+    const noPressure = sampleWaterfloodRows().map(({ whp_psi, ...rest }) => rest);
+    const r = analyzeWaterflood(noPressure, CONFIG);
+    expect(r.hall_plots).toHaveLength(0);
+    expect(r.capabilities.hall.available).toBe(false);
+    expect(r.capabilities.hall.reason).toMatch(/whp_psi/);
+  });
+
+  test('capabilities report pattern/recommendation availability', () => {
+    const r = analyzeWaterflood(sampleWaterfloodRows(), CONFIG);
+    expect(r.capabilities.pattern_lags.available).toBe(true);
+    expect(r.capabilities.recommendations.available).toBe(true);
+    expect(r.capabilities.hall.available).toBe(true);
   });
 });
