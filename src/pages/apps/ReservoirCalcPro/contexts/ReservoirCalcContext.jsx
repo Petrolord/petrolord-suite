@@ -161,7 +161,9 @@ export const ReservoirCalcProvider = ({ children }) => {
         return (state.surfaces && id) ? state.surfaces[id] : null;
     };
 
-    const calculate = async (customProbInputs = null, consistencyMode = false) => {
+    const calculate = async (customProbInputs = null, options = {}) => {
+        // Back-compat: older callers passed a boolean `consistencyMode` here.
+        const opts = typeof options === 'boolean' ? { consistencyMode: options } : (options || {});
         dispatch({ type: ACTIONS.SET_CALCULATING, payload: true });
         dispatch({ type: ACTIONS.SET_ERROR, payload: null });
 
@@ -173,32 +175,30 @@ export const ReservoirCalcProvider = ({ children }) => {
                 const config = {
                     fluidType: state.inputs.fluidType,
                     unitSystem: state.unitSystem,
-                    iterations: 10000,
-                    consistencyMode,
+                    iterations: opts.iterations || 10000,
+                    correlations: opts.correlations,
+                    consistencyMode: opts.consistencyMode,
                     baseCase: state.baseCase
                 };
-                
+
                 const probRes = await MonteCarloEngine.runSimulation(config, customProbInputs);
                 dispatch({ type: ACTIONS.SET_PROB_RESULTS, payload: probRes });
-                console.log("[MC] Simulation complete", probRes.diagnostics);
             } else {
                 await new Promise(resolve => setTimeout(resolve, 300));
                 const results = VolumeCalculationEngine.calculateDeterministic(
-                    state.inputs, 
-                    state.unitSystem, 
-                    state.inputMethod, 
+                    state.inputs,
+                    state.unitSystem,
+                    state.inputMethod,
                     state.surfaces
                 );
-                
+
                 if (results.error) {
                     throw new Error(results.error);
                 }
-                
-                console.log("[Deterministic] Dispatched to shared baseCase store:", state.inputs, results);
+
                 dispatch({ type: ACTIONS.SET_RESULTS, payload: results });
             }
         } catch (error) {
-            console.error("Calculation Failed:", error);
             dispatch({ type: ACTIONS.SET_ERROR, payload: error.message });
         }
     };

@@ -2,8 +2,6 @@ import { SurfaceCalculationEngine } from './SurfaceCalculationEngine';
 
 export class VolumeCalculationEngine {
     static calculateDeterministic(inputs, unitSystem = 'field', inputMethod = 'simple', surfaces = {}) {
-        console.log("Calculating Deterministic Volumes...", { inputs, unitSystem, inputMethod });
-
         try {
             // 1. Calculate GRV (Gross Rock Volume)
             let grv = 0; 

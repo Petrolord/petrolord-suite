@@ -56,6 +56,8 @@ const ProbabilisticPanel = () => {
     const { toast } = useToast();
     const [currentStep, setCurrentStep] = useState(0);
     const [consistencyMode, setConsistencyMode] = useState(true);
+    const [iterations, setIterations] = useState(10000);
+    const ITERATION_OPTIONS = [1000, 5000, 10000, 50000];
 
     const fluidType = state.inputs.fluidType || 'oil';
     const isGas = fluidType === 'gas' || fluidType === 'oil_gas';
@@ -128,9 +130,9 @@ const ProbabilisticPanel = () => {
 
             formatted.ntg = { type: 'constant', value: base.ntg || 1.0 };
             
-            await calculate(formatted, consistencyMode);
-            
-            toast({ title: "Simulation Complete", description: "Diagnostics logged to console." });
+            await calculate(formatted, { consistencyMode, iterations });
+
+            toast({ title: "Simulation Complete", description: `${iterations.toLocaleString()} iterations run.` });
         } catch (err) {
             toast({ variant: "destructive", title: "Simulation Failed", description: err.message });
         }
@@ -186,6 +188,21 @@ const ProbabilisticPanel = () => {
                             <Switch checked={consistencyMode} onCheckedChange={setConsistencyMode} />
                         </div>
                         <div className="p-3 bg-slate-950 rounded border border-slate-800 space-y-2">
+                            <Label className="text-xs font-bold text-white">Monte Carlo Iterations</Label>
+                            <div className="flex gap-1.5">
+                                {ITERATION_OPTIONS.map((n) => (
+                                    <button
+                                        key={n}
+                                        onClick={() => setIterations(n)}
+                                        className={`flex-1 py-1.5 rounded text-[11px] border transition-colors ${iterations === n ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'}`}
+                                    >
+                                        {n >= 1000 ? `${n / 1000}k` : n}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-[10px] text-slate-500">More iterations = smoother tails (P90/P10) at the cost of runtime.</p>
+                        </div>
+                        <div className="p-3 bg-slate-950 rounded border border-slate-800 space-y-2">
                             <Label className="text-xs font-bold text-white flex items-center gap-1"><FileText className="w-3 h-3"/> Active Engine Features</Label>
                             <ul className="text-[10px] text-slate-400 list-disc pl-4 space-y-1">
                                 <li>Cholesky Decomposition for correlated sampling</li>
@@ -205,7 +222,7 @@ const ProbabilisticPanel = () => {
                         </div>
                         <div className="text-center">
                             <h5 className="text-sm font-medium text-white">{state.isCalculating ? 'Simulating...' : 'Ready to Simulate'}</h5>
-                            <p className="text-[10px] text-slate-500 mt-1">10,000 Iterations • Correlated Variables • Rejection Handled</p>
+                            <p className="text-[10px] text-slate-500 mt-1">{iterations.toLocaleString()} Iterations • Correlated Variables • Rejection Handled</p>
                         </div>
                         <Button className="bg-emerald-600 hover:bg-emerald-700 text-white w-full" onClick={runSimulation} disabled={state.isCalculating}>
                             {state.isCalculating ? "Processing..." : "Run Monte Carlo"}
