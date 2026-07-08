@@ -16,7 +16,7 @@ import React, { useState, useEffect } from 'react';
       DialogTrigger,
     } from "@/components/ui/dialog"
     import Papa from 'papaparse';
-    import { supabase } from '@/lib/customSupabaseClient';
+    import { WATERFLOOD_SCHEMA, sampleWaterfloodCSV } from '@/utils/waterfloodCalculations';
 
     const DataSelectionPanel = ({ onAnalyze, loading }) => {
       const { toast } = useToast();
@@ -24,8 +24,10 @@ import React, { useState, useEffect } from 'react';
         start_date: '2024-01-01',
         end_date: '2024-12-31',
         unit_system: 'field',
-        bw: 1.0,
-        bo: 1.2,
+        bw: 1.02,
+        bo: 1.25,
+        bg: 0.9,
+        rs: 500,
         smooth_window_days: 5,
         vrr_window_days: 30,
         target_vrr: 1.0,
@@ -71,28 +73,16 @@ import React, { useState, useEffect } from 'react';
         }
       };
 
-      const fetchSchemaAndSample = async () => {
-        try {
-          const { data, error } = await supabase.functions.invoke('waterflood-engine', { body: { action: 'get_schema_and_sample' } });
-          if (error) throw error;
-          if (data.error) throw new Error(data.error);
-          
-          setSchemaInfo(data.schema);
-          setSampleCsv(data.sample_csv);
-          Papa.parse(data.sample_csv, {
-            header: true,
-            preview: 5,
-            complete: (results) => {
-              setSamplePreview(results.data);
-            }
-          });
-        } catch (error) {
-          toast({ title: "Failed to fetch schema/sample", description: error.message, variant: "destructive" });
-        }
-      };
-
       useEffect(() => {
-        fetchSchemaAndSample();
+        // Schema + sample are produced by the local engine — no backend round-trip.
+        const csv = sampleWaterfloodCSV();
+        setSchemaInfo(WATERFLOOD_SCHEMA);
+        setSampleCsv(csv);
+        Papa.parse(csv, {
+          header: true,
+          preview: 5,
+          complete: (results) => setSamplePreview(results.data),
+        });
       }, []);
 
       const downloadSampleCsv = () => {
@@ -120,8 +110,10 @@ import React, { useState, useEffect } from 'react';
               <div><Label>Start Date</Label><Input type="date" name="start_date" value={config.start_date} onChange={handleConfigChange} className="bg-gray-700 border-gray-600 text-white"/></div>
               <div><Label>End Date</Label><Input type="date" name="end_date" value={config.end_date} onChange={handleConfigChange} className="bg-gray-700 border-gray-600 text-white"/></div>
               <div><Label>Unit System</Label><Input type="text" name="unit_system" value={config.unit_system} onChange={handleConfigChange} className="bg-gray-700 border-gray-600 text-white"/></div>
-              <div><Label>Bw</Label><Input type="number" name="bw" value={config.bw} onChange={handleConfigChange} className="bg-gray-700 border-gray-600 text-white"/></div>
-              <div><Label>Bo</Label><Input type="number" name="bo" value={config.bo} onChange={handleConfigChange} className="bg-gray-700 border-gray-600 text-white"/></div>
+              <div><Label>Bo (RB/STB)</Label><Input type="number" name="bo" value={config.bo} onChange={handleConfigChange} className="bg-gray-700 border-gray-600 text-white"/></div>
+              <div><Label>Bw (RB/bbl)</Label><Input type="number" name="bw" value={config.bw} onChange={handleConfigChange} className="bg-gray-700 border-gray-600 text-white"/></div>
+              <div><Label>Bg (RB/Mscf)</Label><Input type="number" name="bg" value={config.bg} onChange={handleConfigChange} className="bg-gray-700 border-gray-600 text-white"/></div>
+              <div><Label>Rs (scf/STB)</Label><Input type="number" name="rs" value={config.rs} onChange={handleConfigChange} className="bg-gray-700 border-gray-600 text-white"/></div>
               <div><Label>Smooth Window (days)</Label><Input type="number" name="smooth_window_days" value={config.smooth_window_days} onChange={handleConfigChange} className="bg-gray-700 border-gray-600 text-white"/></div>
               <div><Label>VRR Window (days)</Label><Input type="number" name="vrr_window_days" value={config.vrr_window_days} onChange={handleConfigChange} className="bg-gray-700 border-gray-600 text-white"/></div>
               <div><Label>Target VRR</Label><Input type="number" name="target_vrr" value={config.target_vrr} onChange={handleConfigChange} className="bg-gray-700 border-gray-600 text-white"/></div>

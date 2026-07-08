@@ -19,6 +19,21 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { useReservoir } from '@/contexts/ReservoirContext';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
+    import { analyzeWaterflood, parseWaterfloodCSV, sampleWaterfloodRows } from '@/utils/waterfloodCalculations';
+
+    // Default surveillance configuration (also the sample-on-load config).
+    const DEFAULT_CONFIG = {
+      start_date: '2024-01-01',
+      end_date: '2024-12-31',
+      unit_system: 'field',
+      bw: 1.02,
+      bo: 1.25,
+      bg: 0.9,
+      rs: 500,
+      smooth_window_days: 5,
+      vrr_window_days: 30,
+      target_vrr: 1.0,
+    };
 
     const NewReservoirModal = ({ onReservoirCreated, onOpenChange, open, triggerButton }) => {
       const [formData, setFormData] = useState({ name: '', basin: '', field: '', country: '', operator: '', fluid: 'oil', drive: 'solution_gas', unit_system: 'FIELD' });
@@ -189,17 +204,18 @@ import React, { useState, useEffect, useCallback } from 'react';
       const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
       const [isLoadDrawerOpen, setIsLoadDrawerOpen] = useState(false);
 
-      const runAnalysis = useCallback(async (body) => {
+      // Compute the analysis entirely client-side (pure, tested engine). The former
+      // edge-function compute fabricated pattern lags / recommendations and used a
+      // placeholder injection pressure; those are gone here and gated in the UI.
+      const runAnalysis = useCallback((rows, config) => {
         setLoading(true);
         setDashboardData(null);
-        setInputData(body);
-         try {
-            const { data, error } = await supabase.functions.invoke('waterflood-engine', { body });
-            if (error) throw new Error(`Edge Function Error: ${error.message}`);
-            if (data.error) throw new Error(data.error);
-
+        setInputData({ rows, config });
+        try {
+            const data = analyzeWaterflood(rows, config);
             setDashboardData({ ...data, lastUpdated: new Date().toISOString() });
-            toast({ title: "Analysis Complete! 🎉", description: `Dashboard is updated.` });
+            setHealthOk(true);
+            toast({ title: "Analysis Complete", description: "Dashboard updated." });
         } catch (error) {
             toast({ title: "Analysis Failed", description: error.message, variant: "destructive" });
             setHealthOk(false);
@@ -207,35 +223,14 @@ import React, { useState, useEffect, useCallback } from 'react';
             setLoading(false);
         }
       }, [toast]);
-      
+
       const handleAnalysis = (payload, isFile = false) => {
-        const body = {
-            action: 'run_analysis',
-            is_file: isFile,
-            payload: isFile ? payload.file_content : payload.rows,
-            config: payload.config,
-        };
-        runAnalysis(body);
+        const rows = isFile ? parseWaterfloodCSV(payload.file_content) : payload.rows;
+        runAnalysis(rows, payload.config);
       };
 
       useEffect(() => {
-        const runSampleOnLoad = () => {
-          const body = {
-            action: 'run_sample_analysis',
-            config: {
-                start_date: '2024-01-01',
-                end_date: '2024-12-31',
-                unit_system: 'field',
-                bw: 1.0,
-                bo: 1.2,
-                smooth_window_days: 5,
-                vrr_window_days: 30,
-                target_vrr: 1.0,
-            }
-          };
-          runAnalysis(body);
-        };
-        runSampleOnLoad();
+        runAnalysis(sampleWaterfloodRows(), DEFAULT_CONFIG);
       }, [runAnalysis]);
 
 
