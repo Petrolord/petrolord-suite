@@ -17,6 +17,7 @@ export const SLIDE_H = 720;
  */
 const SlideFrame = ({ fileName = 'reservoircalc-slide', extraActions = null, children }) => {
     const wrapRef = useRef(null);
+    const scaleRef = useRef(null);
     const slideRef = useRef(null);
     const [scale, setScale] = useState(0.6);
     const [busy, setBusy] = useState(false);
@@ -40,16 +41,26 @@ const SlideFrame = ({ fileName = 'reservoircalc-slide', extraActions = null, chi
 
     const renderCanvas = useCallback(async () => {
         const node = slideRef.current;
-        return html2canvas(node, {
-            scale: 2,
-            backgroundColor: '#ffffff',
-            width: SLIDE_W,
-            height: SLIDE_H,
-            windowWidth: SLIDE_W,
-            windowHeight: SLIDE_H,
-            useCORS: true,
-            logging: false,
-        });
+        const wrap = scaleRef.current;
+        // html2canvas mis-positions text when an ancestor is CSS-scaled (it reads
+        // scaled bounding rects but paints onto an unscaled canvas). Capture the
+        // slide at its true 1:1 size, then restore the fit-to-screen preview.
+        const prevTransform = wrap ? wrap.style.transform : null;
+        if (wrap) wrap.style.transform = 'none';
+        try {
+            return await html2canvas(node, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                width: SLIDE_W,
+                height: SLIDE_H,
+                windowWidth: SLIDE_W,
+                windowHeight: SLIDE_H,
+                useCORS: true,
+                logging: false,
+            });
+        } finally {
+            if (wrap) wrap.style.transform = prevTransform;
+        }
     }, []);
 
     const handleDownload = async () => {
@@ -117,7 +128,7 @@ const SlideFrame = ({ fileName = 'reservoircalc-slide', extraActions = null, chi
             <div ref={wrapRef} className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-6">
                 <div style={{ width: SLIDE_W * scale, height: SLIDE_H * scale }} className="shrink-0 overflow-hidden rounded-xl shadow-2xl ring-1 ring-black/10">
                     {/* Transform on the wrapper keeps the captured node itself at 1:1 */}
-                    <div style={{ width: SLIDE_W, height: SLIDE_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+                    <div ref={scaleRef} style={{ width: SLIDE_W, height: SLIDE_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
                         <div ref={slideRef} style={{ width: SLIDE_W, height: SLIDE_H }} className="relative bg-white text-slate-900">
                             {children}
                         </div>

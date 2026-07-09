@@ -1,7 +1,6 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Download, Layers, AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Layers, AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import DeterministicSummaryTable from './DeterministicSummaryTable';
 import { Badge } from '@/components/ui/badge';
@@ -21,26 +20,6 @@ const DeterministicResultsDisplay = () => {
     const warnings = results.warnings || [];
     const quality = results.qualityScore;
     const qualityColor = quality >= 85 ? 'text-emerald-400' : quality >= 60 ? 'text-amber-400' : 'text-red-400';
-
-    const exportCSV = () => {
-        const rows = [
-            ['Field', 'Value', 'Unit'],
-            ['Gross Rock Volume', results.bulkVolume ?? 0, results.volUnit || ''],
-            ['Net Volume', results.netVolume ?? 0, results.volUnit || ''],
-            ['Pore Volume', results.poreVolume ?? 0, results.volUnit || ''],
-            ['HC Pore Volume', results.hcPoreVolume ?? 0, results.volUnit || ''],
-            [showGas ? 'GIIP' : 'STOOIP', showGas ? (results.giip ?? 0) : (results.stooip ?? 0), unit],
-            ['Recoverable', results.recoverable ?? 0, unit],
-            ['Input Quality Score', quality ?? '', '/100'],
-        ];
-        const csv = rows.map((r) => r.join(',')).join('\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `${(state.currentProjectMeta?.name || 'volumetrics').replace(/\s+/g, '_')}.csv`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-    };
 
     return (
         <div className="h-full flex flex-col gap-6 p-4 overflow-y-auto">
@@ -126,12 +105,6 @@ const DeterministicResultsDisplay = () => {
             <div className="flex-1 min-h-0">
                 <h3 className="text-lg font-bold text-white mb-4">Comprehensive Report</h3>
                 <DeterministicSummaryTable />
-            </div>
-
-            <div className="flex justify-end gap-4 mt-auto pt-4 border-t border-slate-800">
-                <Button variant="outline" className="gap-2" onClick={exportCSV} disabled={!state.results}>
-                    <Download className="w-4 h-4"/> Export CSV
-                </Button>
             </div>
         </div>
     );

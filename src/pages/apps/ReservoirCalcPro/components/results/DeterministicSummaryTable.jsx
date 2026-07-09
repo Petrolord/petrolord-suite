@@ -129,6 +129,19 @@ const DeterministicSummaryTable = () => {
                     </TableBody>
                 </Table>
             </div>
+
+            {/* Branded footer — Petrolord mark below the last row of the report */}
+            <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-3 py-2.5">
+                <span className="text-[10px] text-slate-400">
+                    Screening estimate — confirm against reservoir simulation before reserves booking.
+                </span>
+                <div className="flex items-center gap-1.5">
+                    <img src="/petrolord-icon.png" alt="Petrolord" className="h-5 w-5 rounded object-contain" />
+                    <span className="text-[11px] font-bold tracking-tight text-slate-500">
+                        Petrolord <span className="text-emerald-600">Suite</span>
+                    </span>
+                </div>
+            </div>
         </div>
     );
 };
