@@ -77,6 +77,26 @@ describe('ProjectService round-trip', () => {
         expect(row.results_data.stooip).toBe(45_000_000);
     });
 
+    it('round-trips Monte Carlo results, reservoir name and audit trail (no data loss on save/load)', async () => {
+        const probResults = { stats: { stooip: { p50: 42_000_000 } }, raw: { stooip: [1, 2, 3] } };
+        const auditTrail = [{ id: 'e1', timestamp: '2026-07-09T00:00:00Z', action: 'Deterministic run', details: 'simple' }];
+        await ProjectService.saveProject(sampleProject({ reservoirName: 'Zone A', probResults, auditTrail }), true);
+        const [p] = await ProjectService.getProjects();
+        expect(p.reservoirName).toBe('Zone A');
+        expect(p.probResults.stats.stooip.p50).toBe(42_000_000);
+        expect(p.auditTrail).toHaveLength(1);
+        expect(p.auditTrail[0].action).toBe('Deterministic run');
+        // stored inside the blob, not as loose columns
+        expect(store.rows[0].inputs_data.probResults.stats.stooip.p50).toBe(42_000_000);
+        expect(store.rows[0].inputs_data.auditTrail[0].id).toBe('e1');
+    });
+
+    it('defaults probResults to null when a project has none', async () => {
+        await ProjectService.saveProject(sampleProject(), true);
+        const [p] = await ProjectService.getProjects();
+        expect(p.probResults).toBeNull();
+    });
+
     it('bumps version on update', async () => {
         const saved = await ProjectService.saveProject(sampleProject(), true);
         const updated = await ProjectService.saveProject({ ...sampleProject({ id: saved.id, version: saved.version }), name: 'North Field v2' }, false);

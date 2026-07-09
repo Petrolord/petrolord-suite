@@ -115,10 +115,19 @@ export class MonteCarloEngine {
                     const results = { stooip: [], giip: [], grv: [], samples: [] };
                     const diagnostics = { rejectedCount: 0, outOfBounds: [], warnings: [], tracking: {} };
 
+                    // Structural mode: GRV comes from integrating the top surface against
+                    // sampled fluid contacts (via a precomputed hypsometric curve), so the
+                    // geometric uncertainty lives in the CONTACTS + an optional GRV factor —
+                    // area and thickness are consequences of the structure, not free inputs.
+                    const structural = config.grvMode === 'structural' && !!config.hypsometry;
+
                     // Identify the active uncertainty variables (any spread distribution).
-                    const params = ['area', 'thickness', 'porosity', 'sw', 'fvf', 'bg', 'ntg'];
+                    const params = structural
+                        ? ['owc', 'goc', 'grvFactor', 'porosity', 'sw', 'fvf', 'bg', 'ntg']
+                        : ['area', 'thickness', 'porosity', 'sw', 'fvf', 'bg', 'ntg'];
                     const varKeys = params.filter((p) => this.isVariable(inputs[p]));
                     const nVars = varKeys.length;
+                    const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
                     if (inputs.pore_volume && inputs.porosity) {
                         diagnostics.warnings.push('Double Counting Warning: Both Porosity and Pore Volume are active uncertainties.');
@@ -179,11 +188,9 @@ export class MonteCarloEngine {
                             const v = sampleVals[key] ?? this.representativeValue(inputs[key]);
                             return Number.isFinite(v) ? v : dflt;
                         };
-                        const area = resolve1('area', 1000);
-                        const thickness = resolve1('thickness', 50);
-                        const ntg = resolve1('ntg', 1.0);
-                        const phi = resolve1('porosity', 0.20);
-                        const sw = resolve1('sw', 0.30);
+                        const ntg = clamp01(resolve1('ntg', 1.0));
+                        const phi = clamp01(resolve1('porosity', 0.20));   // physical [0,1] clamp
+                        const sw = clamp01(resolve1('sw', 0.30));          // prevents negative HCPV
                         const fvf = resolve1('fvf', 1.2);
                         const bg = resolve1('bg', 0.005);
 
@@ -192,28 +199,41 @@ export class MonteCarloEngine {
                             continue;
                         }
 
-                        const grv = area * thickness;
-                        const poreVol = grv * ntg * phi;
-                        const hcpv = poreVol * (1 - sw);
-
-                        let stooip = 0;
-                        let giip = 0;
-                        if (config.fluidType === 'oil' || config.fluidType === 'oil_gas') {
-                            stooip = (hcpv * oilFactor) / (fvf > 0 ? fvf : 1);
-                        }
-                        if (config.fluidType === 'gas' || config.fluidType === 'oil_gas') {
-                            giip = (hcpv * gasFactor) / (bg > 0 ? bg : 0.001);
+                        let grv, stooip = 0, giip = 0, sampleInputs;
+                        if (structural) {
+                            // GRV per zone from the hypsometric curve, using sampled contacts.
+                            const owc = resolve1('owc', config.deterministicContacts?.owc);
+                            const goc = resolve1('goc', config.deterministicContacts?.goc);
+                            const grvFactor = Math.max(0, resolve1('grvFactor', 1));
+                            const { grvOil, grvGas } = config.hypsometry.zoneVolumes(config.fluidType, owc, goc);
+                            const gOil = grvOil * grvFactor;
+                            const gGas = grvGas * grvFactor;
+                            grv = gOil + gGas;
+                            const hcpvOil = gOil * ntg * phi * (1 - sw);
+                            const hcpvGas = gGas * ntg * phi * (1 - sw);
+                            // Hypsometric volumes are already acre-ft (field) / m³ (metric).
+                            stooip = isField ? (hcpvOil * 7758) / (fvf > 0 ? fvf : 1) : hcpvOil / (fvf > 0 ? fvf : 1);
+                            giip = isField ? (hcpvGas * 43560) / (bg > 0 ? bg : 0.001) : hcpvGas / (bg > 0 ? bg : 0.001);
+                            sampleInputs = { owc, goc, grvFactor, ntg, phi, sw, fvf, bg };
+                        } else {
+                            const area = resolve1('area', 1000);
+                            const thickness = resolve1('thickness', 50);
+                            grv = area * thickness;
+                            const hcpv = grv * ntg * phi * (1 - sw);
+                            if (config.fluidType === 'oil' || config.fluidType === 'oil_gas') {
+                                stooip = (hcpv * oilFactor) / (fvf > 0 ? fvf : 1);
+                            }
+                            if (config.fluidType === 'gas' || config.fluidType === 'oil_gas') {
+                                giip = (hcpv * gasFactor) / (bg > 0 ? bg : 0.001);
+                            }
+                            sampleInputs = { area, thickness, ntg, phi, sw, fvf, bg };
                         }
                         const targetVol = config.fluidType === 'gas' ? giip : stooip;
 
                         results.stooip.push(stooip);
                         results.giip.push(giip);
                         results.grv.push(grv);
-                        results.samples.push({
-                            index: i,
-                            targetVol,
-                            inputs: { area, thickness, ntg, phi, sw, fvf, bg },
-                        });
+                        results.samples.push({ index: i, targetVol, inputs: sampleInputs });
                     }
 
                     if (results.samples.length === 0) {
@@ -283,7 +303,9 @@ export class MonteCarloEngine {
 
     static calculateVarianceDecomposition(samples) {
         if (!samples || samples.length === 0) return [];
-        const parameters = ['area', 'thickness', 'ntg', 'phi', 'sw', 'fvf', 'bg'];
+        // Derive the parameter set from what was actually sampled, so structural runs
+        // (owc/goc/grvFactor) and analytic runs (area/thickness) both decompose correctly.
+        const parameters = Object.keys(samples[0].inputs || {});
         const results = [];
 
         const outputs = samples.map((s) => s.targetVol);

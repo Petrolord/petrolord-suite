@@ -65,7 +65,28 @@ export const CHART_MARGINS = {
   standard:    { top: 20, right: 30, left: 20, bottom: 50 },
   compact:     { top: 10, right: 20, left: 10, bottom: 40 },
   withLegend:  { top: 20, right: 30, left: 20, bottom: 60 },
+  // Pair with LEGEND_PROPS (and, for bottom-titled X-axes, XAXIS_LABEL_HEIGHT).
+  // The legend reserves its own band via `height`, and the X-axis reserves its
+  // ticks/title via `height`, so a small bottom margin is enough — the two never
+  // collide. Prefer this over `withLegend` for any chart that shows a legend.
+  legend:      { top: 20, right: 30, left: 20, bottom: 8 },
 };
+
+// Standard Legend props — reserve an explicit band at the bottom so the legend
+// never overlaps the X-axis tick labels or axis title. Spread onto <Legend />.
+export const LEGEND_PROPS = {
+  verticalAlign: 'bottom',
+  height: 36,
+  wrapperStyle: {
+    fontSize: `${CHART_TYPOGRAPHY.legendFontSize}px`,
+    color: CHART_COLORS.legendText,
+    paddingTop: 8,
+  },
+};
+
+// X-axis `height` to use when the axis carries a title below its ticks, so the
+// ticks and the title get dedicated room instead of colliding with the legend.
+export const XAXIS_LABEL_HEIGHT = 46;
 
 // Convenience: the full style bundle for Recharts CartesianGrid
 export const GRID_STYLE = {

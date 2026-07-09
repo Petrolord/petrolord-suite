@@ -1,118 +1,88 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React, { useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { UserPlus, MessageSquare, Share2, Clock, FileCheck, Search } from 'lucide-react';
+import { Share2, Download, FolderOpen, Info, Users } from 'lucide-react';
+import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { ProjectService } from '../../services/ProjectService';
+import { useToast } from '@/components/ui/use-toast';
 
+// Honest collaboration surface. Live multi-user editing needs a project-sharing
+// backend that isn't deployed, so instead of fabricating team members this offers
+// the collaboration that genuinely works today: exporting/importing the full
+// project (inputs, surfaces, results, and audit history) as a handoff file.
 const TeamCollaboration = () => {
-    const teamMembers = [
-        { id: 1, name: 'Sarah Chen', role: 'Senior Reservoir Engineer', status: 'online', initials: 'SC' },
-        { id: 2, name: 'Mike Ross', role: 'Geologist', status: 'offline', initials: 'MR' },
-        { id: 3, name: 'David Kim', role: 'Petrophysicist', status: 'busy', initials: 'DK' },
-    ];
+    const { state, exportWorkspace, loadProjects } = useReservoirCalc();
+    const { user } = useAuth();
+    const { toast } = useToast();
 
-    const activities = [
-        { id: 1, user: 'Sarah Chen', action: 'updated', target: 'Alpha-1 Sands Model', time: '10 mins ago' },
-        { id: 2, user: 'Mike Ross', action: 'commented on', target: 'Porosity Distribution', time: '1 hour ago' },
-        { id: 3, user: 'You', action: 'created', target: 'New Project: Beta Field', time: '2 hours ago' },
-    ];
+    useEffect(() => { if (user && (state.projects || []).length === 0) loadProjects(); }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const email = user?.email || 'Not signed in';
+    const initials = (user?.email || '?').slice(0, 2).toUpperCase();
+    const projects = state.projects || [];
+
+    const shareWorkspace = () => {
+        exportWorkspace();
+        toast({ title: 'Workspace exported', description: 'Send the .json file to a colleague — they open it via Projects → Import.' });
+    };
 
     return (
-        <div className="h-full flex flex-col gap-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h2 className="text-2xl font-bold text-white mb-1">Team Collaboration</h2>
-                    <p className="text-slate-400">Manage your team, share projects, and track activity.</p>
-                </div>
-                <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
-                    <UserPlus className="w-4 h-4" /> Invite Member
-                </Button>
-            </div>
+        <div className="h-full flex flex-col gap-4 overflow-y-auto">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2"><Users className="w-5 h-5 text-blue-400" /> Collaboration &amp; Handoff</h2>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
-                {/* Team Members List */}
-                <Card className="bg-slate-900 border-slate-800 flex flex-col">
-                    <CardHeader>
-                        <CardTitle className="text-white text-base">Team Members</CardTitle>
-                        <div className="relative mt-2">
-                            <Search className="absolute left-2 top-2.5 w-4 h-4 text-slate-500" />
-                            <Input placeholder="Search team..." className="pl-8 bg-slate-950 border-slate-700" />
-                        </div>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-y-auto">
-                        <div className="space-y-4">
-                            {teamMembers.map((member) => (
-                                <div key={member.id} className="flex items-center gap-3 p-2 rounded hover:bg-slate-800/50 transition-colors cursor-pointer">
-                                    <div className="relative">
-                                        <Avatar>
-                                            <AvatarFallback className="bg-blue-900 text-blue-200">{member.initials}</AvatarFallback>
-                                        </Avatar>
-                                        <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-slate-900 ${
-                                            member.status === 'online' ? 'bg-green-500' : 
-                                            member.status === 'busy' ? 'bg-red-500' : 'bg-slate-500'
-                                        }`}></span>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="text-sm font-medium text-white truncate">{member.name}</h4>
-                                        <p className="text-xs text-slate-400 truncate">{member.role}</p>
-                                    </div>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-white">
-                                        <MessageSquare className="w-4 h-4" />
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
+            {/* Identity */}
+            <Card className="bg-slate-900 border-slate-800">
+                <CardContent className="p-4 flex items-center gap-3">
+                    <Avatar><AvatarFallback className="bg-blue-900 text-blue-200">{initials}</AvatarFallback></Avatar>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-white truncate">{email}</div>
+                        <div className="text-xs text-slate-500">{user ? 'Signed in' : 'Sign in to save & share projects'}</div>
+                    </div>
+                    {user && <Badge variant="outline" className="text-[10px] border-emerald-800 text-emerald-400">Active</Badge>}
+                </CardContent>
+            </Card>
 
-                {/* Main Content Area */}
-                <div className="lg:col-span-2 flex flex-col gap-6">
-                    <Card className="bg-slate-900 border-slate-800 flex-1">
-                        <Tabs defaultValue="activity" className="h-full flex flex-col">
-                            <div className="px-6 pt-6">
-                                <TabsList className="bg-slate-950 border border-slate-800">
-                                    <TabsTrigger value="activity">Activity Feed</TabsTrigger>
-                                    <TabsTrigger value="projects">Shared Projects</TabsTrigger>
-                                    <TabsTrigger value="settings">Settings</TabsTrigger>
-                                </TabsList>
+            {/* Share current workspace */}
+            <Card className="bg-slate-900 border-slate-800">
+                <CardHeader className="pb-2"><CardTitle className="text-white text-sm flex items-center gap-2"><Share2 className="w-4 h-4 text-purple-400" /> Share this workspace</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                    <p className="text-xs text-slate-400">
+                        Export the current model as a self-contained file — it carries the inputs, imported surfaces, AOIs,
+                        deterministic &amp; Monte Carlo results, and the full audit trail. A colleague imports it from the
+                        <span className="text-slate-300"> Projects</span> panel to continue exactly where you left off.
+                    </p>
+                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 gap-2" onClick={shareWorkspace}>
+                        <Download className="w-4 h-4" /> Export workspace file
+                    </Button>
+                </CardContent>
+            </Card>
+
+            {/* Saved projects */}
+            <Card className="bg-slate-900 border-slate-800 flex-1">
+                <CardHeader className="pb-2"><CardTitle className="text-white text-sm flex items-center gap-2"><FolderOpen className="w-4 h-4 text-amber-400" /> Your projects ({projects.length})</CardTitle></CardHeader>
+                <CardContent className="p-0">
+                    {projects.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-slate-500 italic">No saved projects yet — save one to share it.</div>
+                    ) : projects.map((p) => (
+                        <div key={p.id} className="flex items-center gap-2 px-4 py-2 border-t border-slate-800 text-xs">
+                            <div className="flex-1 min-w-0">
+                                <div className="text-slate-200 truncate">{p.name}</div>
+                                <div className="text-slate-500 font-mono">v{p.version} · {new Date(p.updated_at || p.created_at).toLocaleDateString()}</div>
                             </div>
-                            
-                            <div className="flex-1 p-6 overflow-y-auto">
-                                <TabsContent value="activity" className="mt-0 space-y-6">
-                                    {activities.map((activity) => (
-                                        <div key={activity.id} className="flex gap-4">
-                                            <div className="mt-1 bg-slate-800 p-2 rounded-full h-fit">
-                                                {activity.action === 'updated' ? <FileCheck className="w-4 h-4 text-blue-400"/> : 
-                                                 activity.action === 'commented on' ? <MessageSquare className="w-4 h-4 text-green-400"/> :
-                                                 <Share2 className="w-4 h-4 text-purple-400"/>}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm text-slate-300">
-                                                    <span className="font-bold text-white">{activity.user}</span> {activity.action} <span className="text-blue-400">{activity.target}</span>
-                                                </p>
-                                                <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
-                                                    <Clock className="w-3 h-3" /> {activity.time}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </TabsContent>
-                                
-                                <TabsContent value="projects" className="mt-0">
-                                    <div className="text-center text-slate-500 py-12">
-                                        <Share2 className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                                        <h3 className="text-lg font-medium text-slate-400">No Shared Projects Yet</h3>
-                                        <p className="text-sm mt-2">Share your first project to start collaborating.</p>
-                                        <Button variant="outline" className="mt-4 border-slate-700">Share Project</Button>
-                                    </div>
-                                </TabsContent>
-                            </div>
-                        </Tabs>
-                    </Card>
-                </div>
+                            <Button variant="ghost" size="sm" className="h-7 text-[11px] text-blue-400 hover:text-blue-300 gap-1" onClick={() => ProjectService.exportToJSON(p)}>
+                                <Download className="w-3.5 h-3.5" /> Export
+                            </Button>
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+
+            <div className="flex items-start gap-2 text-[11px] text-slate-400 bg-slate-900/40 border border-slate-800 rounded-lg px-3 py-2">
+                <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-slate-500" />
+                <span>Live multi-user editing and in-app sharing aren&apos;t enabled yet — they require a project-sharing service. Until then, exporting/importing project files is the supported way to collaborate, and it transfers the complete model.</span>
             </div>
         </div>
     );

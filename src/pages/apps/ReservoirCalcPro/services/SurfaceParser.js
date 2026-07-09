@@ -54,12 +54,14 @@ export class SurfaceParser {
                     }
 
                     const stats = this.calculateStats(cleanPoints);
-                    
+                    const crs = this.detectCrs(content, extension);
+
                     resolve({
                         name: file.name,
                         format: formatDetected,
                         importedAt: new Date().toISOString(),
                         points: cleanPoints,
+                        ...(crs ? { crs } : {}),
                         ...stats
                     });
 
@@ -252,6 +254,27 @@ export class SurfaceParser {
         }
 
         return points;
+    }
+
+    // Best-effort coordinate reference system sniff. Only some formats carry it:
+    // GeoJSON via the legacy `crs` member (OGC still emits it) and ESRI/ZMap grids
+    // that reference an EPSG code in a comment/header. Returns a display string
+    // (e.g. "EPSG:32631") or null so the user can confirm/override on import.
+    static detectCrs(content, extension) {
+        try {
+            if (extension === 'json' || extension === 'geojson') {
+                const json = JSON.parse(content);
+                const name = json?.crs?.properties?.name; // e.g. "urn:ogc:def:crs:EPSG::32631"
+                if (typeof name === 'string') {
+                    const m = name.match(/EPSG:*:?(\d{4,6})/i);
+                    if (m) return `EPSG:${m[1]}`;
+                    return name;
+                }
+            }
+            const epsg = content.slice(0, 4000).match(/EPSG[:\s]*(\d{4,6})/i);
+            if (epsg) return `EPSG:${epsg[1]}`;
+        } catch { /* unparseable — no CRS */ }
+        return null;
     }
 
     static parseJson(content) {

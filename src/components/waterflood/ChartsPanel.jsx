@@ -7,13 +7,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
-  CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE,
+  CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
 } from '@/utils/chartTheme';
 
 // Shared Petrolord white-chart styling (see petrolord-chart-template-standard).
 const axisTick = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
 const axisLabel = { fontSize: CHART_TYPOGRAPHY.labelFontSize, fill: CHART_COLORS.axisLabel };
-const legendStyle = { fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText };
 // Dark-on-white series colors (the old dark-bg strokes are illegible on white).
 const C = { inj: '#2563eb', oil: '#059669', water: '#7c3aed', wc: '#d97706', daily: '#94a3b8', rolling: '#2563eb', cum: '#059669', ref: '#dc2626' };
 const mmdd = (d) => (typeof d === 'string' && d.length >= 10 ? d.slice(5) : d);
@@ -56,7 +55,7 @@ const ChartsPanel = ({ dailySeries, vrrSeries }) => {
             </div>
           </div>
           <ChartFrame height={320}>
-            <ComposedChart data={timeData} margin={CHART_MARGINS.withLegend}>
+            <ComposedChart data={timeData} margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
               <XAxis dataKey="date" tick={axisTick} tickFormatter={mmdd} minTickGap={36} stroke={CHART_COLORS.axisLine} />
               <YAxis yAxisId="left" tick={axisTick} stroke={CHART_COLORS.axisLine}
@@ -64,7 +63,7 @@ const ChartsPanel = ({ dailySeries, vrrSeries }) => {
               <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={axisTick} stroke={CHART_COLORS.axisLine}
                 label={{ value: 'Water Cut (%)', angle: 90, position: 'insideRight', style: axisLabel }} />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={fmt} />
-              <Legend wrapperStyle={legendStyle} />
+              <Legend {...LEGEND_PROPS} />
               <Line yAxisId="left" type="monotone" dataKey="inj" name="Injection (bpd)" stroke={C.inj} dot={false} strokeWidth={2} isAnimationActive={false} />
               <Line yAxisId="left" type="monotone" dataKey="oil" name="Oil (bpd)" stroke={C.oil} dot={false} strokeWidth={2} isAnimationActive={false} />
               <Line yAxisId="left" type="monotone" dataKey="water" name="Water (bpd)" stroke={C.water} dot={false} strokeWidth={2} isAnimationActive={false} />
@@ -76,13 +75,13 @@ const ChartsPanel = ({ dailySeries, vrrSeries }) => {
         <div className="bg-white rounded-lg p-4">
           <h3 className="text-base font-semibold text-slate-800 mb-2">Voidage Replacement Ratio (VRR)</h3>
           <ChartFrame height={320}>
-            <LineChart data={vrrData} margin={CHART_MARGINS.withLegend}>
+            <LineChart data={vrrData} margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
               <XAxis dataKey="date" tick={axisTick} tickFormatter={mmdd} minTickGap={36} stroke={CHART_COLORS.axisLine} />
               <YAxis tick={axisTick} stroke={CHART_COLORS.axisLine}
                 label={{ value: 'VRR (reservoir bbl)', angle: -90, position: 'insideLeft', style: axisLabel }} />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={fmt} />
-              <Legend wrapperStyle={legendStyle} />
+              <Legend {...LEGEND_PROPS} />
               <ReferenceLine y={1} stroke={C.ref} strokeDasharray="5 3"
                 label={{ value: 'Balance', fill: C.ref, fontSize: 10, position: 'insideTopRight' }} />
               <Line type="monotone" dataKey="daily" name="Daily VRR" stroke={C.daily} dot={false} strokeWidth={1} isAnimationActive={false} />

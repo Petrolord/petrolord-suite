@@ -16,7 +16,16 @@ import ResultsModal from './ResultsModal';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 
-const PARAM_LABELS = { area: 'Area', thickness: 'Thickness', ntg: 'NTG', phi: 'Porosity', sw: 'Water Sat.', fvf: 'Bo', bg: 'Bg' };
+const PARAM_LABELS = { area: 'Area', thickness: 'Thickness', ntg: 'NTG', phi: 'Porosity', sw: 'Water Sat.', fvf: 'Bo', bg: 'Bg', owc: 'OWC', goc: 'GOC', grvFactor: 'GRV Factor' };
+// Per-variable formatting + short labels for the realization tracker (handles both
+// analytic area/thickness samples and structural contact/GRV-factor samples).
+const REALIZATION_FIELDS = {
+    phi: { label: 'Phi', digits: 3 }, sw: { label: 'Sw', digits: 3 },
+    area: { label: 'Area', digits: 0 }, thickness: { label: 'Thick', digits: 1 },
+    owc: { label: 'OWC', digits: 0 }, goc: { label: 'GOC', digits: 0 },
+    grvFactor: { label: 'GRV×', digits: 2 }, ntg: { label: 'NTG', digits: 2 },
+    fvf: { label: 'Bo', digits: 3 }, bg: { label: 'Bg', digits: 5 },
+};
 const AXIS_TICK = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
 
 // Bin raw realizations + shape CDF / tornado series for the charts. Computed
@@ -52,15 +61,19 @@ function buildChartData(probResults, fluidType) {
 }
 
 const RealizationCard = ({ title, realization, unit }) => {
-    if (!realization) return null;
+    if (!realization || !realization.inputs) return null;
+    // Show whichever variables this run actually sampled, in a stable order.
+    const order = ['phi', 'sw', 'area', 'thickness', 'owc', 'goc', 'grvFactor', 'fvf', 'bg', 'ntg'];
+    const rows = order
+        .filter((k) => Number.isFinite(realization.inputs[k]) && REALIZATION_FIELDS[k])
+        .map((k) => ({ k, label: REALIZATION_FIELDS[k].label, val: realization.inputs[k].toFixed(REALIZATION_FIELDS[k].digits) }));
     return (
         <div className="bg-slate-950 p-2 rounded border border-slate-800 space-y-1">
             <div className="text-[10px] font-bold text-slate-400 border-b border-slate-800 pb-1 mb-1">{title} Variables</div>
             <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[9px] text-slate-300">
-                <div className="flex justify-between"><span>Phi:</span> <span className="font-mono">{(realization.inputs.phi).toFixed(3)}</span></div>
-                <div className="flex justify-between"><span>Sw:</span> <span className="font-mono">{(realization.inputs.sw).toFixed(3)}</span></div>
-                <div className="flex justify-between"><span>Area:</span> <span className="font-mono">{(realization.inputs.area).toFixed(0)}</span></div>
-                <div className="flex justify-between"><span>Thick:</span> <span className="font-mono">{(realization.inputs.thickness).toFixed(1)}</span></div>
+                {rows.map((r) => (
+                    <div key={r.k} className="flex justify-between"><span>{r.label}:</span> <span className="font-mono">{r.val}</span></div>
+                ))}
             </div>
             <div className="pt-1 mt-1 border-t border-slate-800 flex justify-between text-[10px] font-bold text-emerald-400">
                 <span>Vol:</span> <span>{(realization.targetVol / 1e6).toFixed(2)} {unit}</span>
@@ -103,7 +116,6 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
     const denom = isGas ? 1e9 : 1e6; 
     
     const diffBaseP50 = baseVal ? Math.abs(stats.p50 - baseVal) / baseVal * 100 : 0;
-    const baseColor = diffBaseP50 < 1 ? '#10b981' : diffBaseP50 < 5 ? '#f59e0b' : '#ef4444';
 
     const captureChart = async (ref) => {
         if (ref.current) {
@@ -185,9 +197,14 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                 </div>
             )}
             
-            {!isCompact && baseVal && diffBaseP50 > 5 && (
-                <div className="mx-4 mt-4 mb-diagnostic-error flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" /> P50 Volume deviates {diffBaseP50.toFixed(1)}% from Deterministic Base Case! Investigate inputs.
+            {!isCompact && baseVal > 0 && (
+                <div className={`mx-4 mt-4 flex items-start gap-2 text-xs rounded-lg border px-3 py-2 ${diffBaseP50 > 40 ? 'border-amber-800/50 bg-amber-950/20 text-amber-300' : 'border-slate-800 bg-slate-900/40 text-slate-400'}`}>
+                    <Activity className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                    <span>
+                        Monte Carlo P50 is {diffBaseP50.toFixed(0)}% {stats.p50 >= baseVal ? 'above' : 'below'} the deterministic base case ({(baseVal / denom).toFixed(2)} {unitLabel}).
+                        A gap is expected — the P50 of a product of distributions rarely equals the product of the base-case inputs.
+                        {diffBaseP50 > 40 && ' A large gap can indicate off-centre input distributions worth reviewing.'}
+                    </span>
                 </div>
             )}
 

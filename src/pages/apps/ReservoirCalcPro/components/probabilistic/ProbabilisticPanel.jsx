@@ -104,18 +104,45 @@ const ProbabilisticPanel = () => {
 
     const base = state.baseCase?.inputs || state.inputs;
 
+    // Structural input methods integrate GRV from the surface against sampled contacts,
+    // so the geometric uncertainty is the CONTACT depths (+ a GRV factor) rather than
+    // free area/thickness marginals.
+    const structural = state.inputMethod === 'hybrid' || state.inputMethod === 'surfaces';
+    const contactSpread = state.unitSystem === 'field' ? 50 : 15; // ft or m
+
     const generateDefaultDist = (val) => ({
         type: 'triangular',
         p90: val * 0.8, p50: val, p10: val * 1.2,     // triangular
         mean: val, stdDev: val * 0.1,                 // normal / lognormal
         min: val * 0.8, max: val * 1.2               // uniform
     });
+    // Contacts: additive spread (a ±% of a large depth is nonsensical).
+    const generateContactDist = (val) => ({
+        type: 'triangular',
+        p90: val - contactSpread, p50: val, p10: val + contactSpread,
+        mean: val, stdDev: contactSpread / 2,
+        min: val - contactSpread, max: val + contactSpread
+    });
+    const generateFactorDist = () => ({
+        type: 'triangular',
+        p90: 0.85, p50: 1.0, p10: 1.15,
+        mean: 1.0, stdDev: 0.1,
+        min: 0.85, max: 1.15
+    });
 
     const [distParams, setDistParams] = useState({
         porosity: generateDefaultDist(base.porosity || 0.20),
         sw: generateDefaultDist(base.sw || 0.30),
-        thickness: generateDefaultDist(base.thickness || 50),
-        area: generateDefaultDist(base.area || 1000),
+        ...(structural
+            ? {
+                ...(fluidType === 'oil_gas' ? { goc: generateContactDist(base.goc ?? -7000) } : {}),
+                owc: generateContactDist(base.owc ?? -8000),
+                grvFactor: generateFactorDist(),
+              }
+            : {
+                thickness: generateDefaultDist(base.thickness || 50),
+                area: generateDefaultDist(base.area || 1000),
+              }),
         ...(isOil ? { fvf: generateDefaultDist(base.fvf || 1.2) } : {}),
         ...(isGas ? { bg: generateDefaultDist(base.bg || 0.005) } : {})
     });
@@ -174,8 +201,9 @@ const ProbabilisticPanel = () => {
             }
 
             if (consistencyMode && hasDeviation) {
-                toast({ variant: "destructive", title: "Consistency Error", description: "One or more P50 values deviate >5% from the deterministic base case. Turn off Consistency Mode to proceed." });
-                return;
+                // Advisory only: a deliberately shifted distribution is legitimate, and the
+                // MC output P50 need not match the deterministic base — so we proceed.
+                toast({ title: "Heads up", description: "Some input central values differ >5% from the deterministic base case — running anyway." });
             }
 
             formatted.ntg = { type: 'constant', value: base.ntg || 1.0 };
@@ -221,8 +249,23 @@ const ProbabilisticPanel = () => {
                     <div className="space-y-3">
                         <DistInput label="Porosity (fraction)" paramKey="porosity" value={distParams.porosity} baseValue={base.porosity} onChange={v => handleParamChange('porosity', v)} consistencyMode={consistencyMode} />
                         <DistInput label="Water Saturation (fraction)" paramKey="sw" value={distParams.sw} baseValue={base.sw} onChange={v => handleParamChange('sw', v)} consistencyMode={consistencyMode} />
-                        <DistInput label={`Gross Thickness (${state.unitSystem === 'field' ? 'ft' : 'm'})`} paramKey="thickness" value={distParams.thickness} baseValue={base.thickness} onChange={v => handleParamChange('thickness', v)} consistencyMode={consistencyMode} />
-                        <DistInput label={`Area (${state.unitSystem === 'field' ? 'acres' : 'km²'})`} paramKey="area" value={distParams.area} baseValue={base.area} onChange={v => handleParamChange('area', v)} consistencyMode={consistencyMode} />
+                        {structural ? (
+                            <>
+                                <div className="text-[10px] text-blue-300 bg-blue-950/20 border border-blue-900/40 rounded px-2 py-1">
+                                    GRV is integrated from the top surface against the sampled contacts below ({state.unitSystem === 'field' ? 'ft' : 'm'}, same convention as the surface).
+                                </div>
+                                {fluidType === 'oil_gas' && (
+                                    <DistInput label="Gas-Oil Contact (GOC)" paramKey="goc" value={distParams.goc} baseValue={base.goc} onChange={v => handleParamChange('goc', v)} consistencyMode={consistencyMode} />
+                                )}
+                                <DistInput label={fluidType === 'gas' ? 'Gas-Water Contact (GWC)' : 'Oil-Water Contact (OWC)'} paramKey="owc" value={distParams.owc} baseValue={base.owc} onChange={v => handleParamChange('owc', v)} consistencyMode={consistencyMode} />
+                                <DistInput label="GRV Factor (structural uncertainty)" paramKey="grvFactor" value={distParams.grvFactor} baseValue={1} onChange={v => handleParamChange('grvFactor', v)} consistencyMode={false} />
+                            </>
+                        ) : (
+                            <>
+                                <DistInput label={`Gross Thickness (${state.unitSystem === 'field' ? 'ft' : 'm'})`} paramKey="thickness" value={distParams.thickness} baseValue={base.thickness} onChange={v => handleParamChange('thickness', v)} consistencyMode={consistencyMode} />
+                                <DistInput label={`Area (${state.unitSystem === 'field' ? 'acres' : 'km²'})`} paramKey="area" value={distParams.area} baseValue={base.area} onChange={v => handleParamChange('area', v)} consistencyMode={consistencyMode} />
+                            </>
+                        )}
                         {isOil && <DistInput label="Oil FVF (rb/stb)" paramKey="fvf" value={distParams.fvf} baseValue={base.fvf} onChange={v => handleParamChange('fvf', v)} consistencyMode={consistencyMode} />}
                         {isGas && <DistInput label="Gas FVF (Bg)" paramKey="bg" value={distParams.bg} baseValue={base.bg} onChange={v => handleParamChange('bg', v)} consistencyMode={consistencyMode} />}
                     </div>
@@ -233,7 +276,7 @@ const ProbabilisticPanel = () => {
                         <div className="flex items-center justify-between p-3 bg-slate-950 rounded border border-slate-800">
                             <div className="space-y-0.5">
                                 <Label className="text-xs font-bold text-white">Base-Case Consistency Mode</Label>
-                                <p className="text-[10px] text-slate-400">Strictly enforce P50 within 5% of deterministic base parameters.</p>
+                                <p className="text-[10px] text-slate-400">Recenter distribution P50s on the deterministic base case and flag large drift (advisory — never blocks a run).</p>
                             </div>
                             <Switch checked={consistencyMode} onCheckedChange={setConsistencyMode} />
                         </div>

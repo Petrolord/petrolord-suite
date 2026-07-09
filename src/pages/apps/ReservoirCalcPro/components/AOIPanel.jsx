@@ -20,6 +20,8 @@ const AOIPanel = () => {
     const [saveDialogOpen, setSaveDialogOpen] = useState(false);
     const [newAOIName, setNewAOIName] = useState('New AOI');
 
+    const hasSurface = Object.keys(state.surfaces || {}).length > 0 && state.inputs?.topSurfaceId;
+
     const handleStartDraw = () => {
         startDrawing();
     };
@@ -60,14 +62,25 @@ const AOIPanel = () => {
                 </div>
                 
                 {!state.drawing.isActive ? (
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs" onClick={handleStartDraw}>
-                        <PenTool className="w-3 h-3 mr-2" /> Draw New Polygon
-                    </Button>
+                    <>
+                        <Button
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs disabled:opacity-50"
+                            onClick={handleStartDraw}
+                            disabled={!hasSurface}
+                        >
+                            <PenTool className="w-3 h-3 mr-2" /> Draw New Polygon
+                        </Button>
+                        {!hasSurface && (
+                            <p className="text-[10px] text-amber-400/80 mt-2 leading-tight">
+                                Select a top surface in the Surfaces tab first — AOIs are drawn on the 2D structure map.
+                            </p>
+                        )}
+                    </>
                 ) : (
                     <div className="space-y-2">
                         <div className="text-xs text-slate-300 text-center bg-slate-950 p-2 rounded border border-slate-800">
                             <MousePointerClick className="w-3 h-3 inline mr-1" />
-                            Click on map to add points ({state.drawing.currentPoints.length})
+                            Click the 2D map to add points ({state.drawing.currentPoints.length})
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             <Button variant="outline" size="sm" className="h-8 text-xs border-red-900/50 text-red-400 hover:bg-red-900/20" onClick={cancelDrawing}>

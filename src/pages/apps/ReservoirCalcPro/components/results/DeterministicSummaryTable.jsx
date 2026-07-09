@@ -8,7 +8,10 @@ const DeterministicSummaryTable = () => {
     if (!r) return null;
 
     const reservoirName = state.reservoirName || 'Zone 1';
-    const isField = r.unitSystem === 'field';
+    // Fall back to live inputs/unitSystem for results saved before the engine
+    // began echoing them back, so legacy projects render instead of crashing.
+    const inputs = r.inputs || state.inputs || {};
+    const isField = (r.unitSystem || state.unitSystem) === 'field';
     const ft = r.fluidType; // 'oil', 'gas', 'oil_gas'
 
     // Formatting helper
@@ -28,7 +31,7 @@ const DeterministicSummaryTable = () => {
                 </div>
                 <div>
                     <div className="flex justify-between"><span className="text-slate-500">Fluid System:</span> <span className="uppercase">{ft?.replace('_', '+')}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Unit System:</span> <span className="capitalize">{r.unitSystem}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Unit System:</span> <span className="capitalize">{r.unitSystem || state.unitSystem}</span></div>
                 </div>
             </div>
 
@@ -49,12 +52,12 @@ const DeterministicSummaryTable = () => {
                             <TableCell className="py-1">{reservoirName}</TableCell>
                             <TableCell className="py-1">Input_Top</TableCell>
                             <TableCell className="py-1">Input_Base</TableCell>
-                            <TableCell className="py-1">{fmt(r.inputs.ntg, 3)}</TableCell>
-                            <TableCell className="py-1">{fmt(r.inputs.porosity, 3)}</TableCell>
+                            <TableCell className="py-1">{fmt(inputs.ntg, 3)}</TableCell>
+                            <TableCell className="py-1">{fmt(inputs.porosity, 3)}</TableCell>
                             <TableCell className="py-1">
-                                {showOil && `OWC: ${r.inputs.owc || '-'}`}
+                                {showOil && `OWC: ${inputs.owc || '-'}`}
                                 {showOil && showGas && ' | '}
-                                {showGas && `GOC: ${r.inputs.goc || '-'}`}
+                                {showGas && `GOC: ${inputs.goc || '-'}`}
                             </TableCell>
                         </TableRow>
 
@@ -70,11 +73,11 @@ const DeterministicSummaryTable = () => {
                         </TableRow>
                         <TableRow>
                             <TableCell className="py-1 capitalize">{ft?.replace('_',' ')}</TableCell>
-                            <TableCell className="py-1">{fmt(r.inputs.sw, 3)}</TableCell>
-                            {showOil && <TableCell className="py-1">{fmt(r.inputs.fvf, 3)}</TableCell>}
-                            {showOil && <TableCell className="py-1">{fmt(r.inputs.recovery, 2)}</TableCell>}
-                            {showGas && <TableCell className="py-1">{fmt(r.inputs.bg, 5)}</TableCell>}
-                            {showGas && <TableCell className="py-1">{fmt(r.inputs.recoveryGas, 2)}</TableCell>}
+                            <TableCell className="py-1">{fmt(inputs.sw, 3)}</TableCell>
+                            {showOil && <TableCell className="py-1">{fmt(inputs.fvf, 3)}</TableCell>}
+                            {showOil && <TableCell className="py-1">{fmt(inputs.recovery, 2)}</TableCell>}
+                            {showGas && <TableCell className="py-1">{fmt(inputs.bg, 5)}</TableCell>}
+                            {showGas && <TableCell className="py-1">{fmt(inputs.recoveryGas, 2)}</TableCell>}
                         </TableRow>
 
                         {/* Case Results */}
@@ -93,8 +96,8 @@ const DeterministicSummaryTable = () => {
                             <TableRow>
                                 <TableCell className="py-1 font-medium text-emerald-600">Oil Zone</TableCell>
                                 <TableCell className="py-1">{fmt(r.grvOil, 0)}</TableCell>
-                                <TableCell className="py-1">{fmt(r.grvOil * r.inputs.ntg, 0)}</TableCell>
-                                <TableCell className="py-1">{fmt(r.grvOil * r.inputs.ntg * r.inputs.porosity * (isField ? 7758 : 1e6), 0)}</TableCell>
+                                <TableCell className="py-1">{fmt(r.grvOil * inputs.ntg, 0)}</TableCell>
+                                <TableCell className="py-1">{fmt(r.grvOil * inputs.ntg * inputs.porosity * (isField ? 7758 : 1e6), 0)}</TableCell>
                                 <TableCell className="py-1 font-bold bg-emerald-50">{fmt(r.stooip, 0)}</TableCell>
                                 {showGas && <TableCell className="py-1">-</TableCell>}
                             </TableRow>
@@ -105,8 +108,8 @@ const DeterministicSummaryTable = () => {
                             <TableRow>
                                 <TableCell className="py-1 font-medium text-amber-600">Gas Zone</TableCell>
                                 <TableCell className="py-1">{fmt(r.grvGas, 0)}</TableCell>
-                                <TableCell className="py-1">{fmt(r.grvGas * r.inputs.ntg, 0)}</TableCell>
-                                <TableCell className="py-1">{fmt(r.grvGas * r.inputs.ntg * r.inputs.porosity * (isField ? 7758 : 1e6), 0)}</TableCell>
+                                <TableCell className="py-1">{fmt(r.grvGas * inputs.ntg, 0)}</TableCell>
+                                <TableCell className="py-1">{fmt(r.grvGas * inputs.ntg * inputs.porosity * (isField ? 7758 : 1e6), 0)}</TableCell>
                                 {showOil && <TableCell className="py-1">-</TableCell>}
                                 <TableCell className="py-1 font-bold bg-amber-50">{fmt(r.giip / 1e9, 3)} B</TableCell>
                             </TableRow>

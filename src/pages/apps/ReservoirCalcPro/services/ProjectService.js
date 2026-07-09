@@ -35,7 +35,10 @@ const fromRow = (row) => {
         unitSystem: blob.unitSystem || 'field',
         calcMethod: blob.calcMethod || 'deterministic',
         inputMethod: blob.inputMethod || 'simple',
+        reservoirName: blob.reservoirName || '',
+        auditTrail: blob.auditTrail || [],
         results: row.results_data || null,
+        probResults: blob.probResults || null,
         created_at: row.created_at,
         updated_at: blob.updated_at || row.created_at,
     };
@@ -49,6 +52,9 @@ const toBlob = (project, version) => ({
     unitSystem: project.unitSystem || 'field',
     calcMethod: project.calcMethod || 'deterministic',
     inputMethod: project.inputMethod || 'simple',
+    reservoirName: project.reservoirName || '',
+    probResults: project.probResults || null,
+    auditTrail: project.auditTrail || [],
     updated_at: new Date().toISOString(),
 });
 

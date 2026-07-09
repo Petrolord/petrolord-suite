@@ -7,11 +7,11 @@ import { Button } from '@/components/ui/button';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE,
+  LEGEND_PROPS, XAXIS_LABEL_HEIGHT,
 } from '@/utils/chartTheme';
 
 const axisTick = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
 const axisLabel = { fontSize: CHART_TYPOGRAPHY.labelFontSize, fill: CHART_COLORS.axisLabel };
-const legendStyle = { fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText };
 const fmt = (v) => (typeof v === 'number' ? v.toLocaleString(undefined, { maximumFractionDigits: 3 }) : v);
 
 // Tone per Chan mechanism classification.
@@ -72,12 +72,13 @@ const ChanDiagnosticsPanel = ({ chan }) => {
 
       <div className="bg-white rounded-lg p-4">
         <ChartFrame height={340}>
-          <LineChart data={data} margin={CHART_MARGINS.withLegend}>
+          <LineChart data={data} margin={CHART_MARGINS.legend}>
             <CartesianGrid {...GRID_STYLE} />
             <XAxis
               type="number" dataKey="t" scale="log" domain={['auto', 'auto']} allowDataOverflow
+              height={XAXIS_LABEL_HEIGHT}
               tick={axisTick} stroke={CHART_COLORS.axisLine} tickFormatter={fmt}
-              label={{ value: 'Time since water onset (days)', position: 'insideBottom', offset: -10, style: axisLabel }}
+              label={{ value: 'Time since water onset (days)', position: 'insideBottom', offset: -6, style: axisLabel }}
             />
             <YAxis
               scale="log" domain={['auto', 'auto']} allowDataOverflow
@@ -85,7 +86,7 @@ const ChanDiagnosticsPanel = ({ chan }) => {
               label={{ value: 'WOR  &  WOR′', angle: -90, position: 'insideLeft', style: axisLabel }}
             />
             <Tooltip contentStyle={TOOLTIP_STYLE} formatter={fmt} labelFormatter={(l) => `t = ${fmt(l)} d`} />
-            <Legend wrapperStyle={legendStyle} />
+            <Legend {...LEGEND_PROPS} />
             <Line type="monotone" dataKey="wor" name="WOR" stroke="#2563eb" dot={false} strokeWidth={2} connectNulls isAnimationActive={false} />
             <Line type="monotone" dataKey="worDeriv" name="WOR′ (d WOR/dt)" stroke="#d97706" dot={false} strokeWidth={2} connectNulls isAnimationActive={false} />
           </LineChart>

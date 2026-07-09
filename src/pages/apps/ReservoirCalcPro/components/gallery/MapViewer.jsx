@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { MapStorageService } from '../../services/MapStorageService';
 import ContourMapViewer from '../tools/ContourMapViewer';
-import PaintedSurfaceViewer from '../tools/PaintedSurfaceViewer';
+import Surface3DViewer from '../tools/Surface3DViewer';
 import { Loader2, ArrowLeft, Download } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -75,10 +75,17 @@ const MapViewer = ({ mapData, onClose, isOpen }) => {
                         </div>
                     ) : fullData ? (
                         fullData.type === '3d' ? (
-                            <PaintedSurfaceViewer 
-                                gridData={fullData.data} 
-                                inputs={fullData.inputs || {}} 
-                                unitSystem={fullData.unitSystem || 'field'} 
+                            <Surface3DViewer
+                                gridData={fullData.data}
+                                unitSystem={fullData.unitSystem || 'field'}
+                                colorscale={fullData.colorscale || 'Earth'}
+                                zConvention={fullData.inputs?.zConvention || 'elevation'}
+                                contacts={{
+                                    owc: fullData.inputs?.owc,
+                                    goc: fullData.inputs?.goc,
+                                    fluidType: fullData.inputs?.fluidType || 'oil',
+                                }}
+                                title={fullData.surfaceName || fullData.name}
                             />
                         ) : (
                             <ContourMapViewer 

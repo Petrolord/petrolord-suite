@@ -9,11 +9,11 @@ import { Label } from '@/components/ui/label';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE,
+  LEGEND_PROPS, XAXIS_LABEL_HEIGHT,
 } from '@/utils/chartTheme';
 
 const axisTick = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
 const axisLabel = { fontSize: CHART_TYPOGRAPHY.labelFontSize, fill: CHART_COLORS.axisLabel };
-const legendStyle = { fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText };
 // Dark-on-white, print-distinguishable series colors.
 const COLORS = ['#2563eb', '#059669', '#7c3aed', '#d97706', '#dc2626', '#0891b2'];
 const fmt = (v) => (typeof v === 'number' ? v.toLocaleString(undefined, { maximumFractionDigits: 1 }) : v);
@@ -62,17 +62,17 @@ const HallPlotPanel = ({ data, alerts }) => {
         </div>
         <div className="md:col-span-3 bg-white rounded-lg p-4">
           <ChartFrame height={360}>
-            <ScatterChart margin={CHART_MARGINS.withLegend}>
+            <ScatterChart margin={CHART_MARGINS.legend}>
               <CartesianGrid {...GRID_STYLE} />
-              <XAxis type="number" dataKey="x" name="Hall Integral" tick={axisTick} stroke={CHART_COLORS.axisLine}
+              <XAxis type="number" dataKey="x" name="Hall Integral" height={XAXIS_LABEL_HEIGHT} tick={axisTick} stroke={CHART_COLORS.axisLine}
                 tickFormatter={fmt}
-                label={{ value: 'Hall Integral (psi·day)', position: 'insideBottom', offset: -10, style: axisLabel }} />
+                label={{ value: 'Hall Integral (psi·day)', position: 'insideBottom', offset: -6, style: axisLabel }} />
               <YAxis type="number" dataKey="y" name="Cumulative Injection" tick={axisTick} stroke={CHART_COLORS.axisLine}
                 tickFormatter={fmt}
                 label={{ value: 'Cumulative Injection (bbl)', angle: -90, position: 'insideLeft', style: axisLabel }} />
               <ZAxis range={[12, 12]} />
               <Tooltip contentStyle={TOOLTIP_STYLE} formatter={fmt} cursor={{ strokeDasharray: '3 3' }} />
-              <Legend wrapperStyle={legendStyle} />
+              <Legend {...LEGEND_PROPS} />
               {selected.map((d, index) => (
                 <Scatter
                   key={d.injector}

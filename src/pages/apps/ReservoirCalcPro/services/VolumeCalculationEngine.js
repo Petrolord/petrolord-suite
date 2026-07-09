@@ -1,4 +1,4 @@
-import { SurfaceCalculationEngine } from './SurfaceCalculationEngine';
+import { ContactVolumetricsEngine } from './ContactVolumetricsEngine';
 
 export class VolumeCalculationEngine {
     // Physical-consistency check on the deterministic inputs. Returns human
@@ -26,50 +26,49 @@ export class VolumeCalculationEngine {
         return { warnings, qualityScore: Math.max(0, Math.round(score)) };
     }
 
-    static calculateDeterministic(inputs, unitSystem = 'field', inputMethod = 'simple', surfaces = {}) {
+    static calculateDeterministic(inputs, unitSystem = 'field', inputMethod = 'simple', surfaces = {}, opts = {}) {
         const validation = this.validateInputs(inputs);
+
+        // Structural methods (top + constant thickness, or top + base) delegate to the
+        // rigorous grid-integration engine: GRV is integrated cell-by-cell against the
+        // fluid contacts, in the surface's true coordinate units. This is what makes
+        // OWC/GOC actually move the volume (the old path ignored contacts entirely and
+        // multiplied a bounding box by a mean thickness).
+        if (inputMethod === 'hybrid' || inputMethod === 'surfaces') {
+            const topSurface = surfaces[inputs.topSurfaceId];
+            if (!topSurface) return { error: 'Select a Top structural surface for this input method.' };
+            const baseSurface = inputMethod === 'surfaces' ? surfaces[inputs.baseSurfaceId] : null;
+            if (inputMethod === 'surfaces' && !baseSurface) {
+                return { error: 'Please select both Top and Base surfaces for calculation.' };
+            }
+
+            const res = ContactVolumetricsEngine.calculate({
+                topSurface,
+                baseSurface,
+                constantThickness: inputMethod === 'hybrid' ? parseFloat(inputs.thickness) : null,
+                inputs,
+                unitSystem,
+                aoiPolygon: opts.aoiPolygon || null,
+                options: opts.contactOptions || {}
+            });
+            if (res.error) return res;
+            return {
+                ...res,
+                inputMethod,
+                warnings: [...(res.warnings || []), ...validation.warnings],
+                qualityScore: validation.qualityScore
+            };
+        }
+
         try {
-            // 1. Calculate GRV (Gross Rock Volume)
-            let grv = 0; 
+            // Simple (analytic) method: Area × Thickness with no structural geometry.
+            // Contacts cannot apply here — there is no depth reference — so the whole
+            // column is treated as hydrocarbon. Use a structural method for contacts.
+            let grv = 0;
             let area = parseFloat(inputs.area) || 0;
             let thickness = parseFloat(inputs.thickness) || 0;
             let calculatedArea = area;
-
-            if (inputMethod === 'simple') {
-                // Simple: Area * Thickness
-                grv = area * thickness;
-            } else if (inputMethod === 'hybrid') {
-                // Hybrid: Top Surface Area * Constant Thickness
-                const topSurface = surfaces[inputs.topSurfaceId];
-                if (topSurface) {
-                    // Use estimated area from surface if available
-                    calculatedArea = topSurface.estimatedArea || area;
-                    // GRV
-                    grv = calculatedArea * thickness;
-                } else {
-                    // Fallback if surface missing
-                    console.warn("Hybrid method selected but Top Surface missing. Using manual area.");
-                    grv = area * thickness;
-                }
-            } else if (inputMethod === 'surfaces') {
-                // Surfaces: Top vs Base
-                const topSurface = surfaces[inputs.topSurfaceId];
-                const baseSurface = surfaces[inputs.baseSurfaceId];
-                
-                if (topSurface && baseSurface) {
-                    // Use Surface Engine if simplified, or just diff of averages for MVP
-                    // Assuming robust SurfaceCalculationEngine handles interpolation or grid diff
-                    // Here we use a simplified approach for robustness:
-                    const avgTop = topSurface.avgZ || 0;
-                    const avgBase = baseSurface.avgZ || 0;
-                    const avgThick = Math.abs(avgBase - avgTop); // Absolute diff
-                    
-                    calculatedArea = topSurface.estimatedArea || area;
-                    grv = calculatedArea * avgThick;
-                } else {
-                     return { error: "Please select both Top and Base surfaces for calculation." };
-                }
-            }
+            grv = area * thickness;
 
             // 2. Petrophysics
             const ntg = parseFloat(inputs.ntg) || 1.0;
@@ -82,14 +81,10 @@ export class VolumeCalculationEngine {
             const fvf = parseFloat(inputs.fvf) || 1.2; // Bo
             const bg = parseFloat(inputs.bg) || 0.005; // Bg
             
-            // Recovery Factor (handle oil vs gas)
-            let recovery = parseFloat(inputs.recovery) || 0;
-            if ((fluidType === 'gas' || fluidType === 'oil_gas') && inputs.recoveryGas) {
-                // If purely gas, use gas recovery. If both, this simplistic model might split, 
-                // but usually we calc oil in place for oil fields.
-                // Let's stick to primary fluid type logic.
-                if (fluidType === 'gas') recovery = parseFloat(inputs.recoveryGas) || 0;
-            }
+            // Recovery factors — oil and gas are recovered independently (below),
+            // so both are read here rather than collapsing to a single figure.
+            const oilRecovery = parseFloat(inputs.recovery) || 0;
+            const gasRecovery = parseFloat(inputs.recoveryGas) || 0;
 
             // 4. Volumetrics Calculation
             
@@ -118,22 +113,23 @@ export class VolumeCalculationEngine {
                 poreVolume = poreVol;
                 hcPoreVolume = hcPoreVol;
 
-                if (fluidType === 'gas') {
-                    // Gas: HCPV * 43560 / Bg
-                    // Bg usually rcf/scf -> so divide. 
-                    // If Bg is scf/rcf (Expansion factor), then multiply. 
-                    // Standard input says "Gas FVF (Bg) ... rcf/scf" e.g. 0.005. So Divide.
-                    const validBg = bg <= 0 ? 0.001 : bg; // Prevent div by zero
-                    stooip = (hcPoreVol * GAS_CONST) / validBg; // scf
-                    giip = stooip;
-                    volumeUnit = "scf";
-                } else {
-                    // Oil: HCPV * 7758 / Bo
-                    const validBo = fvf <= 0 ? 1 : fvf;
+                // Bg is rcf/scf (e.g. 0.005) so we divide. Oil and gas draw on the
+                // same HCPV for oil_gas — a saturated single-cell simplification that
+                // matches MonteCarloEngine, not a contact-split gas-cap model.
+                const validBo = fvf <= 0 ? 1 : fvf;
+                const validBg = bg <= 0 ? 0.001 : bg; // guard div-by-zero
+                if (fluidType === 'oil' || fluidType === 'oil_gas') {
                     stooip = (hcPoreVol * OIL_CONST) / validBo; // STB
                     volumeUnit = "STB";
                 }
-                
+                if (fluidType === 'gas' || fluidType === 'oil_gas') {
+                    giip = (hcPoreVol * GAS_CONST) / validBg; // scf
+                    if (fluidType === 'gas') {
+                        stooip = giip; // pure gas: primary target mirrors GIIP
+                        volumeUnit = "scf";
+                    }
+                }
+
                 volUnit = "Ac-ft";
                 areaUnit = "Acres";
             } else {
@@ -154,17 +150,20 @@ export class VolumeCalculationEngine {
                 poreVolume = poreVol;
                 hcPoreVolume = hcPoreVol;
 
-                if (fluidType === 'gas') {
-                     const validBg = bg <= 0 ? 0.001 : bg; // rm3/sm3
-                     stooip = hcPoreVol / validBg; // sm³
-                     giip = stooip;
-                     volumeUnit = "sm³";
-                } else {
-                     const validBo = fvf <= 0 ? 1 : fvf;
+                const validBo = fvf <= 0 ? 1 : fvf;
+                const validBg = bg <= 0 ? 0.001 : bg; // rm³/sm³, guard div-by-zero
+                if (fluidType === 'oil' || fluidType === 'oil_gas') {
                      stooip = hcPoreVol / validBo; // sm³
                      volumeUnit = "sm³";
                 }
-                
+                if (fluidType === 'gas' || fluidType === 'oil_gas') {
+                     giip = hcPoreVol / validBg; // sm³
+                     if (fluidType === 'gas') {
+                         stooip = giip; // pure gas: primary target mirrors GIIP
+                         volumeUnit = "sm³";
+                     }
+                }
+
                 volUnit = "m³";
                 areaUnit = "km²";
                 
@@ -172,17 +171,30 @@ export class VolumeCalculationEngine {
                 grv = grvM3; 
             }
 
-            recoverable = stooip * (recovery / 100);
             const isGasFluid = fluidType === 'gas';
+            const hasOil = fluidType === 'oil' || fluidType === 'oil_gas';
+            const hasGas = fluidType === 'gas' || fluidType === 'oil_gas';
 
-            // Return results object
+            // Pure gas carries its volume in `stooip` (the primary target); oil and
+            // oil+gas recover oil from STOOIP and gas from GIIP independently.
+            const recoverableOil = hasOil ? stooip * (oilRecovery / 100) : 0;
+            const recoverableGas = isGasFluid
+                ? stooip * (gasRecovery / 100)
+                : (hasGas ? giip * (gasRecovery / 100) : 0);
+            recoverable = isGasFluid ? recoverableGas : recoverableOil;
+
+            // Return results object. `inputs`/`unitSystem` are echoed back so the
+            // results tables can render the case parameters without reaching into
+            // live context state (which may have drifted since calculation).
             return {
                 stooip,
                 giip,
                 recoverable,
-                recoverableOil: isGasFluid ? 0 : recoverable,
-                recoverableGas: isGasFluid ? recoverable : 0,
+                recoverableOil,
+                recoverableGas,
                 grv,
+                grvOil: hasOil ? grv : 0,
+                grvGas: hasGas ? grv : 0,
                 bulkVolume: grv,
                 netVolume: grv * ntg,
                 poreVolume,
@@ -195,6 +207,19 @@ export class VolumeCalculationEngine {
                 areaUnit,
                 inputMethod,
                 fluidType,
+                unitSystem,
+                inputs: {
+                    ntg,
+                    porosity: phi,
+                    sw,
+                    fvf,
+                    bg,
+                    recovery: parseFloat(inputs.recovery) || 0,
+                    recoveryGas: parseFloat(inputs.recoveryGas) || 0,
+                    owc: inputs.owc,
+                    goc: inputs.goc,
+                    fluidType
+                },
                 warnings: validation.warnings,
                 qualityScore: validation.qualityScore
             };
