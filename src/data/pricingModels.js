@@ -58,7 +58,6 @@ export const SPECIAL_APP_PRICING = {
   'basinflow-genesis': 349,
   'network-diagram-pro': 199,
   'petroleum-economics-studio': 399,
-  'velocity-model-builder': 249,
   'fracture-prediction': 249
 };
 

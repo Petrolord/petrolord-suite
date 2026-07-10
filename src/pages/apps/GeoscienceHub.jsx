@@ -76,12 +76,6 @@ const GeoscienceHub = () => {
             path="/dashboard/apps/geoscience/contour-map-digitizer"
           />
           <AppCard 
-            title="Velocity Model Builder"
-            description="Create and calibration velocity models for depth conversion."
-            icon={TrendingUp}
-            path="/dashboard/apps/geoscience/velocity-model-builder"
-          />
-          <AppCard 
             title="Mechanical Earth Model"
             description="Geomechanical modeling and wellbore stability analysis."
             icon={Layers}

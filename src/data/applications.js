@@ -41,15 +41,6 @@ export const appCategories = [];
 
 export const applications = [
     {
-        id: 'seismic-interpretation-pro',
-        slug: 'seismic-interpretation-pro',
-        name: 'Seismic Interpretation Pro',
-        description: 'SEG-Y upload, job monitoring, QC reports, volume registry, and preview viewer for seismic interpretation workflows',
-        module: 'geoscience',
-        path: '/dashboard/apps/geoscience/seismic-interpretation-pro',
-        icon: 'Waves'
-    },
-    {
         id: 'petrophysical-integration-suite',
         slug: 'petrophysical-integration-suite',
         name: 'Petrophysical Integration Suite',
