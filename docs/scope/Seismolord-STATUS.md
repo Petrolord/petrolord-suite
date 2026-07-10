@@ -1,6 +1,30 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-10 (Phase 6 complete — Seismolord phased build DONE)
+Last updated: 2026-07-10 (Phase 6 complete + auto header detection)
+
+## Post-build: automatic SEG-Y header detection
+
+Real-world driver: a user loaded a valid IBM-float 3D volume whose
+inline/crossline lived at non-default bytes, so the rev1 defaults read all
+zeros and import stalled at "fix the header mapping first". Non-experts
+shouldn't have to know byte positions.
+
+- **`engine/headerDetect.js`**: samples a contiguous run of trace headers
+  and scores every int32 slot to find inline/crossline (and X/Y coords +
+  scalar) on its own. Line numbers are small and mostly step by 1 (a
+  magnitude cap keeps large coordinate fields out of the axis race);
+  crossline is a sawtooth whose resets must align with the inline's change
+  points. Recovers the 189/193 and 9/21 fixtures, an unusual 25/29 layout,
+  non-unit steps, and rejects the eastings-as-crossline collision; on
+  empty headers returns `detected:false` with guidance (6 jest tests).
+- **Import UX**: detection runs automatically on file open and applies the
+  mapping; a plain banner says what it found and "just click Start
+  import." The byte-mapping controls moved behind an **Advanced**
+  disclosure, auto-opened only when detection fails.
+- Follow-up (unchanged): if headers are genuinely empty (geometry implicit
+  in trace order), an "implicit geometry" mode — user supplies nIL/nXL —
+  is still the next robustness step; auto-detect handles the common
+  non-default-bytes case that was actually reported.
 
 ## Phase 6 — Hardening: DONE
 
