@@ -35,12 +35,12 @@ export function ibm32ToNumber(word) {
  *
  * @param {DataView} view DataView over (at least) the sample bytes
  * @param {number} byteOffset offset of the first sample within the view
- * @param {number} ns samples per trace
+ * @param {number} ns number of samples to decode
  * @param {number} formatCode SEG-Y binary-header format (1=IBM, 5=IEEE)
+ * @param {Float32Array} [out] destination (first ns slots); allocated if omitted
  * @returns {Float32Array}
  */
-export function decodeSamples(view, byteOffset, ns, formatCode) {
-  const out = new Float32Array(ns);
+export function decodeSamples(view, byteOffset, ns, formatCode, out = new Float32Array(ns)) {
   if (formatCode === 1) {
     for (let i = 0; i < ns; i++) {
       const v = ibm32ToNumber(view.getUint32(byteOffset + i * 4, false));
