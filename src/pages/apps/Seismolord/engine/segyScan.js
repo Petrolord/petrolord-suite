@@ -58,7 +58,16 @@ const EBCDIC_MAP = (() => {
  * @param {import('./reader').ByteReader} reader
  * @returns {Promise<string[]>}
  */
+const assertSegySized = (reader) => {
+  if (reader.size < TEXT_HEADER_BYTES + BIN_HEADER_BYTES) {
+    throw new Error(
+      `File is too small to be a SEG-Y (${reader.size} bytes; the textual + binary `
+      + 'headers alone are 3600 bytes).');
+  }
+};
+
 export async function readTextualHeader(reader) {
+  assertSegySized(reader);
   const bytes = new Uint8Array(await reader.read(0, TEXT_HEADER_BYTES));
   // EBCDIC headers are padded with 0x40 (EBCDIC space); ASCII headers with
   // 0x20. The dominant pad byte is the most reliable dialect signal.
@@ -88,6 +97,7 @@ const BYTES_PER_SAMPLE = { 1: 4, 5: 4 };
  * @param {import('./reader').ByteReader} reader
  */
 export async function readFileHeaders(reader) {
+  assertSegySized(reader);
   const view = new DataView(await reader.read(TEXT_HEADER_BYTES, BIN_HEADER_BYTES));
   const bin = readBinaryHeader(view);
   const bytesPerSample = BYTES_PER_SAMPLE[bin.formatCode];
