@@ -44,7 +44,9 @@ const Assurance = lazy(() => import('@/pages/dashboard/Assurance'));
 const SuperAdminConsole = lazy(() => import('@/pages/SuperAdminConsole'));
 
 // Apps - Lazy Loaded
-const QuickVol = lazy(() => import('@/pages/apps/QuickVol'));
+// NOTE: the legacy `apps/geoscience/quickvol` slug is intentionally kept as an
+// alias that renders ReservoirCalcPro (the QuickVol page was retired — it was an
+// unrendered, mostly-mocked duplicate). Existing links/bookmarks keep working.
 const ReservoirCalcPro = lazy(() => import('@/pages/apps/ReservoirCalcPro/ReservoirCalcPro'));
 const WellSpacingOptimizer = lazy(() => import('@/pages/apps/WellSpacingOptimizer'));
 const WellboreStabilityAnalyzer = lazy(() => import('@/pages/apps/WellboreStabilityAnalyzer'));
@@ -81,6 +83,8 @@ const FiscalRegimeDesigner = lazy(() => import('@/pages/apps/FiscalRegimeDesigne
 const WaterfloodDashboard = lazy(() => import('@/pages/apps/WaterfloodDashboard'));
 const VoidageReplacementMonitor = lazy(() => import('@/pages/apps/VoidageReplacementMonitor'));
 const FractionalFlowAnalyzer = lazy(() => import('@/pages/apps/FractionalFlowAnalyzer'));
+const RecoveryFactorEstimator = lazy(() => import('@/pages/apps/RecoveryFactorEstimator'));
+const AquiferInfluxCalculator = lazy(() => import('@/pages/apps/AquiferInfluxCalculator'));
 const DeclineCurveAnalysis = lazy(() => import('@/pages/apps/DeclineCurveAnalysis'));
 const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'));
 const LogFaciesAnalysis = lazy(() => import('@/pages/apps/LogFaciesAnalysis'));
@@ -453,6 +457,8 @@ function App() {
                                 <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
                                 <Route path="apps/reservoir/fractional-flow-calculator" element={<FractionalFlowAnalyzer />} />
                                 <Route path="apps/reservoir/relative-permeability-designer" element={<FractionalFlowAnalyzer />} />
+                                <Route path="apps/reservoir/recovery-factor-estimator" element={<RecoveryFactorEstimator />} />
+                                <Route path="apps/reservoir/aquifer-influx-calculator" element={<AquiferInfluxCalculator />} />
                                 <Route path="apps/reservoir/decline-curve-analysis" element={<DeclineCurveAnalysis />} />
                                 <Route path="apps/reservoir/reservoir-balance" element={<ReservoirBalance />} />
                                 <Route path="apps/reservoir/reservoir-balance/cases/:caseId" element={<RbCaseDetail />} />

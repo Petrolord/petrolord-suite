@@ -18,7 +18,7 @@ import ChartLogo from '@/components/charts/ChartLogo';
  * because the parent's height is content-driven). The logo sits in a ~48px band
  * below that, clear of the axis labels.
  */
-const LOGO_BAND = 48; // px reserved below the plot for the watermark
+const LOGO_BAND = 56; // px reserved below the plot for the watermark
 
 const ChartFrame = ({ height = 260, className = '', children }) => (
   <div
@@ -28,7 +28,7 @@ const ChartFrame = ({ height = 260, className = '', children }) => (
     <ResponsiveContainer width="100%" height={height}>
       {children}
     </ResponsiveContainer>
-    <ChartLogo style={{ height: '39px', bottom: '6px', opacity: 0.55 }} />
+    <ChartLogo style={{ height: '36px', bottom: '14px', opacity: 0.55 }} />
   </div>
 );
 

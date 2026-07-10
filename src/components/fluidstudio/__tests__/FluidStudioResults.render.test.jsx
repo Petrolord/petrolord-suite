@@ -66,15 +66,15 @@ describe('FluidStudioResults renders', () => {
 });
 
 describe('FluidStudioInput renders', () => {
-  it('mounts with Phase-2 tabs live and Composition gated', () => {
+  it('mounts with all capability tabs live and no gated Composition tab', () => {
     const inputs = sampleFluidStudioData();
     render(<FluidStudioInput inputs={inputs} setInputs={() => {}} />);
     expect(screen.getByText('Stream A')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Blending/i })).toBeEnabled();
     expect(screen.getByRole('tab', { name: /Batch/i })).toBeEnabled();
     expect(screen.getByRole('tab', { name: /Flow Assurance/i })).toBeEnabled();
-    // Composition remains a Phase-3 gated trigger.
-    expect(screen.getByRole('tab', { name: /Composition/i })).toBeDisabled();
+    // The dangling disabled Composition tab was removed.
+    expect(screen.queryByRole('tab', { name: /Composition/i })).not.toBeInTheDocument();
   });
 });
 

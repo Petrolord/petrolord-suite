@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ReservoirCalcProvider, useReservoirCalc } from './contexts/ReservoirCalcContext';
+import { useReservoirSettings } from './hooks/useReservoirSettings';
 import ExpertInputPanel from './components/ExpertInputPanel';
 import ExpertVisPanel from './components/ExpertVisPanel';
 import ExpertResultsPanel from './components/ExpertResultsPanel';
 import DocumentationHub from './components/docs/DocumentationHub';
 import ProjectManager from './components/tools/ProjectManager';
-import { HelpCircle, Folder, ChevronLeft, ChevronRight, Sidebar, ArrowLeft, Home } from 'lucide-react';
+import WorkspaceToolsHub from './components/tools/WorkspaceToolsHub';
+import PanelErrorBoundary from './components/common/PanelErrorBoundary';
+import { HelpCircle, Folder, ChevronLeft, ChevronRight, Sidebar, ArrowLeft, Home, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
@@ -14,15 +17,30 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useToast } from '@/components/ui/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOpen }) => {
     const { state, saveCurrentProject } = useReservoirCalc();
     const { user } = useAuth();
+    const { toast } = useToast();
     const navigate = useNavigate();
     const [saveOpen, setSaveOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [meta, setMeta] = useState({ name: '', description: '' });
+    const [settings] = useReservoirSettings();
+
+    // Auto-save: after a run, re-persist an already-saved project (never silently
+    // creates a new one). Deduped on the results object identity.
+    const lastAutoSave = useRef(null);
+    useEffect(() => {
+        if (!settings.autoSave || !user?.id || !state.project.id) return;
+        const sig = state.results || state.probResults;
+        if (!sig || lastAutoSave.current === sig) return;
+        lastAutoSave.current = sig;
+        saveCurrentProject(user.id).catch(() => {});
+    }, [state.results, state.probResults, settings.autoSave, user, state.project.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleSaveClick = () => {
         setMeta({
@@ -33,8 +51,24 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
     };
 
     const performSave = async () => {
-        await saveCurrentProject(user?.id || 'local-user', meta);
-        setSaveOpen(false);
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Not signed in', description: 'Sign in to save projects.' });
+            return;
+        }
+        if (!meta.name.trim()) {
+            toast({ variant: 'destructive', title: 'Project name is required.' });
+            return;
+        }
+        setSaving(true);
+        try {
+            await saveCurrentProject(user.id, meta);
+            toast({ title: 'Project saved', description: `"${meta.name.trim()}" is saved.` });
+            setSaveOpen(false);
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Save failed', description: e.message, duration: 8000 });
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -106,6 +140,18 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                     </SheetContent>
                 </Sheet>
 
+                <Sheet>
+                    <SheetTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-2 h-8 text-xs border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200">
+                            <Wrench className="w-3 h-3" />
+                            <span className="hidden md:inline">Tools</span>
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="right" className="p-0 w-full sm:max-w-[720px] bg-slate-950 border-l border-slate-800">
+                        <WorkspaceToolsHub />
+                    </SheetContent>
+                </Sheet>
+
                 <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
                     <DialogTrigger asChild>
                         <Button size="sm" onClick={handleSaveClick} className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/10">
@@ -124,8 +170,8 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                                 <Textarea value={meta.description} onChange={e => setMeta({...meta, description: e.target.value})} className="bg-slate-950 border-slate-700" />
                             </div>
                             <div className="flex justify-end gap-2 mt-4">
-                                <Button variant="ghost" onClick={() => setSaveOpen(false)}>Cancel</Button>
-                                <Button onClick={performSave} className="bg-emerald-600 hover:bg-emerald-700">Save</Button>
+                                <Button variant="ghost" onClick={() => setSaveOpen(false)} disabled={saving}>Cancel</Button>
+                                <Button onClick={performSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">{saving ? 'Saving…' : 'Save'}</Button>
                             </div>
                         </div>
                     </DialogContent>
@@ -187,22 +233,22 @@ const ReservoirCalcProContent = () => {
 
             <div className="flex-1 overflow-hidden flex p-2 gap-2">
                 {/* Left Panel: Inputs */}
-                <div 
+                <div
                     className={`flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden flex flex-col rounded-lg border border-slate-800 bg-slate-900/30 backdrop-blur-sm ${showLeft ? 'w-80 opacity-100 ml-0' : 'w-0 opacity-0 -ml-2 border-0'}`}
                 >
-                    <ExpertInputPanel />
+                    <PanelErrorBoundary label="Inputs"><ExpertInputPanel /></PanelErrorBoundary>
                 </div>
 
                 {/* Center Panel: Visualization */}
                 <div className="flex-1 h-full overflow-hidden rounded-lg border border-slate-800 bg-black relative shadow-2xl flex flex-col">
-                    <ExpertVisPanel />
+                    <PanelErrorBoundary label="Visualization"><ExpertVisPanel /></PanelErrorBoundary>
                 </div>
 
                 {/* Right Panel: Results & Analytics */}
-                <div 
+                <div
                     className={`flex-shrink-0 transition-all duration-300 ease-in-out overflow-hidden flex flex-col rounded-lg border border-slate-800 bg-slate-900/30 backdrop-blur-sm ${showRight ? 'w-96 opacity-100 mr-0' : 'w-0 opacity-0 -mr-2 border-0'}`}
                 >
-                    <ExpertResultsPanel />
+                    <PanelErrorBoundary label="Results"><ExpertResultsPanel /></PanelErrorBoundary>
                 </div>
             </div>
             

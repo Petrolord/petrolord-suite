@@ -4,10 +4,11 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { ArrowLeft, FlaskConical, Save, FolderKanban, Beaker } from 'lucide-react';
+import { ArrowLeft, FlaskConical, Save, FolderKanban, Beaker, HelpCircle } from 'lucide-react';
 import FluidStudioInput from '@/components/fluidstudio/FluidStudioInput';
 import FluidStudioResults from '@/components/fluidstudio/FluidStudioResults';
 import FluidStudioEmptyState from '@/components/fluidstudio/FluidStudioEmptyState';
+import FluidStudioHelpGuide from '@/components/fluidstudio/FluidStudioHelpGuide';
 import { SaveProjectDialog, LoadProjectsDrawer } from '@/components/fluidstudio/FluidStudioPersistence';
 import { analyzeFluidSystem, sampleFluidStudioData } from '@/utils/fluidStudioCalculations';
 
@@ -15,6 +16,7 @@ const FluidSystemsStudio = () => {
   const [inputs, setInputs] = useState(sampleFluidStudioData);
   const [saveOpen, setSaveOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const { toast } = useToast();
 
   // Pure, synchronous recompute on every keystroke — no backend, no spinner.
@@ -52,6 +54,9 @@ const FluidSystemsStudio = () => {
               <Button onClick={loadSample} variant="outline" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
                 <Beaker className="w-4 h-4 mr-2" />Sample
               </Button>
+              <Button onClick={() => setHelpOpen(true)} variant="outline" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
+                <HelpCircle className="w-4 h-4 mr-2" />Help
+              </Button>
               <Button onClick={() => setLoadOpen(true)} variant="outline" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
                 <FolderKanban className="w-4 h-4 mr-2" />Load
               </Button>
@@ -86,6 +91,7 @@ const FluidSystemsStudio = () => {
 
         <SaveProjectDialog open={saveOpen} onOpenChange={setSaveOpen} inputs={inputs} results={results} />
         <LoadProjectsDrawer open={loadOpen} onOpenChange={setLoadOpen} onSelect={handleLoadProject} />
+        <FluidStudioHelpGuide isOpen={helpOpen} onOpenChange={setHelpOpen} />
       </div>
     </>
   );

@@ -3,48 +3,87 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronRight, ChevronLeft, PlayCircle, Loader2, RotateCcw, AlertTriangle, FileText } from 'lucide-react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import { useToast } from '@/components/ui/use-toast';
 
-const DistInput = ({ label, paramKey, value, baseValue, onChange, consistencyMode }) => {
-    const diffPercent = baseValue ? Math.abs((value.p50 - baseValue) / baseValue) * 100 : 0;
+const DIST_TYPES = [
+    { value: 'triangular', label: 'Triangular' },
+    { value: 'normal', label: 'Normal' },
+    { value: 'lognormal', label: 'Lognormal' },
+    { value: 'uniform', label: 'Uniform' },
+];
+
+// The distribution's central value, used for base-case consistency checks.
+const centralValue = (v) => {
+    if (v.type === 'uniform') return (Number(v.min) + Number(v.max)) / 2;
+    if (v.type === 'normal' || v.type === 'lognormal') return Number(v.mean);
+    return Number(v.p50);
+};
+
+const Num = ({ labelText, value, onChange, invalid }) => (
+    <div className="flex-1">
+        <span className="text-[9px] text-slate-500 block text-center mb-0.5">{labelText}</span>
+        <Input type="number" className={`h-7 text-xs bg-slate-900 text-center ${invalid ? 'border-red-500 text-red-400' : 'border-slate-700'}`}
+            value={value} onChange={(e) => onChange(parseFloat(e.target.value) || 0)} />
+    </div>
+);
+
+const DistInput = ({ label, value, baseValue, onChange, consistencyMode }) => {
+    const type = value.type || 'triangular';
+    const central = centralValue(value);
+    const diffPercent = baseValue ? Math.abs((central - baseValue) / baseValue) * 100 : 0;
     const isDeviation = consistencyMode && diffPercent > 5;
 
+    const set = (patch) => onChange({ ...value, ...patch });
+
     return (
-        <div className="space-y-1 p-2 bg-slate-950 rounded border border-slate-800">
-            <div className="flex justify-between items-center mb-1">
+        <div className="space-y-1.5 p-2 bg-slate-950 rounded border border-slate-800">
+            <div className="flex justify-between items-center">
                 <Label className="text-[11px] font-bold text-slate-300">{label}</Label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                     <span className="text-[9px] text-slate-500">Base: {Number(baseValue).toFixed(4)}</span>
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-5 w-5 text-slate-400 hover:text-blue-400"
-                        title="Revert P50 to deterministic base case"
-                        onClick={() => onChange({ ...value, p50: baseValue })}
-                    >
+                    <Button variant="ghost" size="icon" className="h-5 w-5 text-slate-400 hover:text-blue-400"
+                        title="Revert central value to deterministic base case"
+                        onClick={() => set(type === 'uniform'
+                            ? { min: baseValue * 0.8, max: baseValue * 1.2 }
+                            : (type === 'triangular' ? { p50: baseValue } : { mean: baseValue }))}>
                         <RotateCcw className="w-3 h-3" />
                     </Button>
                 </div>
             </div>
-            <div className="flex gap-2">
-                <div className="flex-1">
-                    <span className="text-[9px] text-slate-500 block text-center mb-0.5">P90 (Min)</span>
-                    <Input type="number" className="h-7 text-xs bg-slate-900 border-slate-700 text-center" value={value.p90} onChange={e => onChange({...value, p90: parseFloat(e.target.value) || 0})} />
+
+            <Select value={type} onValueChange={(t) => set({ type: t })}>
+                <SelectTrigger className="h-6 text-[10px] bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                    {DIST_TYPES.map((d) => <SelectItem key={d.value} value={d.value} className="text-xs">{d.label}</SelectItem>)}
+                </SelectContent>
+            </Select>
+
+            {type === 'triangular' && (
+                <div className="flex gap-2">
+                    <Num labelText="P90 (Min)" value={value.p90} onChange={(v) => set({ p90: v })} />
+                    <Num labelText="P50 (Mode)" value={value.p50} onChange={(v) => set({ p50: v })} invalid={isDeviation} />
+                    <Num labelText="P10 (Max)" value={value.p10} onChange={(v) => set({ p10: v })} />
                 </div>
-                <div className="flex-1">
-                    <span className="text-[9px] text-slate-500 block text-center mb-0.5">P50 (Mode)</span>
-                    <Input type="number" className={`h-7 text-xs bg-slate-900 text-center ${isDeviation ? 'border-red-500 text-red-400' : 'border-slate-700'}`} value={value.p50} onChange={e => onChange({...value, p50: parseFloat(e.target.value) || 0})} />
+            )}
+            {(type === 'normal' || type === 'lognormal') && (
+                <div className="flex gap-2">
+                    <Num labelText="Mean" value={value.mean} onChange={(v) => set({ mean: v })} invalid={isDeviation} />
+                    <Num labelText="Std Dev" value={value.stdDev} onChange={(v) => set({ stdDev: v })} />
                 </div>
-                <div className="flex-1">
-                    <span className="text-[9px] text-slate-500 block text-center mb-0.5">P10 (Max)</span>
-                    <Input type="number" className="h-7 text-xs bg-slate-900 border-slate-700 text-center" value={value.p10} onChange={e => onChange({...value, p10: parseFloat(e.target.value) || 0})} />
+            )}
+            {type === 'uniform' && (
+                <div className="flex gap-2">
+                    <Num labelText="Min" value={value.min} onChange={(v) => set({ min: v })} />
+                    <Num labelText="Max" value={value.max} onChange={(v) => set({ max: v })} />
                 </div>
-            </div>
+            )}
+
             {isDeviation && (
-                <div className="text-[9px] text-red-400 mt-1 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> P50 deviates &gt;5% from base case.
+                <div className="text-[9px] text-red-400 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Central value deviates &gt;5% from base case.
                 </div>
             )}
         </div>
@@ -56,6 +95,8 @@ const ProbabilisticPanel = () => {
     const { toast } = useToast();
     const [currentStep, setCurrentStep] = useState(0);
     const [consistencyMode, setConsistencyMode] = useState(true);
+    const [iterations, setIterations] = useState(10000);
+    const ITERATION_OPTIONS = [1000, 5000, 10000, 50000];
 
     const fluidType = state.inputs.fluidType || 'oil';
     const isGas = fluidType === 'gas' || fluidType === 'oil_gas';
@@ -63,17 +104,45 @@ const ProbabilisticPanel = () => {
 
     const base = state.baseCase?.inputs || state.inputs;
 
+    // Structural input methods integrate GRV from the surface against sampled contacts,
+    // so the geometric uncertainty is the CONTACT depths (+ a GRV factor) rather than
+    // free area/thickness marginals.
+    const structural = state.inputMethod === 'hybrid' || state.inputMethod === 'surfaces';
+    const contactSpread = state.unitSystem === 'field' ? 50 : 15; // ft or m
+
     const generateDefaultDist = (val) => ({
-        p90: val * 0.8,
-        p50: val,
-        p10: val * 1.2
+        type: 'triangular',
+        p90: val * 0.8, p50: val, p10: val * 1.2,     // triangular
+        mean: val, stdDev: val * 0.1,                 // normal / lognormal
+        min: val * 0.8, max: val * 1.2               // uniform
+    });
+    // Contacts: additive spread (a ±% of a large depth is nonsensical).
+    const generateContactDist = (val) => ({
+        type: 'triangular',
+        p90: val - contactSpread, p50: val, p10: val + contactSpread,
+        mean: val, stdDev: contactSpread / 2,
+        min: val - contactSpread, max: val + contactSpread
+    });
+    const generateFactorDist = () => ({
+        type: 'triangular',
+        p90: 0.85, p50: 1.0, p10: 1.15,
+        mean: 1.0, stdDev: 0.1,
+        min: 0.85, max: 1.15
     });
 
     const [distParams, setDistParams] = useState({
         porosity: generateDefaultDist(base.porosity || 0.20),
         sw: generateDefaultDist(base.sw || 0.30),
-        thickness: generateDefaultDist(base.thickness || 50),
-        area: generateDefaultDist(base.area || 1000),
+        ...(structural
+            ? {
+                ...(fluidType === 'oil_gas' ? { goc: generateContactDist(base.goc ?? -7000) } : {}),
+                owc: generateContactDist(base.owc ?? -8000),
+                grvFactor: generateFactorDist(),
+              }
+            : {
+                thickness: generateDefaultDist(base.thickness || 50),
+                area: generateDefaultDist(base.area || 1000),
+              }),
         ...(isOil ? { fvf: generateDefaultDist(base.fvf || 1.2) } : {}),
         ...(isGas ? { bg: generateDefaultDist(base.bg || 0.005) } : {})
     });
@@ -84,8 +153,10 @@ const ProbabilisticPanel = () => {
             setDistParams(prev => {
                 const next = { ...prev };
                 for (let key in next) {
-                    if (state.baseCase.inputs[key] !== undefined) {
-                        next[key].p50 = state.baseCase.inputs[key];
+                    const base = state.baseCase.inputs[key];
+                    if (base !== undefined) {
+                        // Recentre whichever fields drive the active distribution's centre.
+                        next[key] = { ...next[key], p50: base, mean: base };
                     }
                 }
                 return next;
@@ -111,26 +182,35 @@ const ProbabilisticPanel = () => {
             let hasDeviation = false;
 
             for (const [key, val] of Object.entries(distParams)) {
+                const central = val.type === 'uniform' ? (val.min + val.max) / 2
+                    : (val.type === 'triangular' ? val.p50 : val.mean);
                 if (consistencyMode && base[key]) {
-                    const diff = Math.abs((val.p50 - base[key]) / base[key]) * 100;
+                    const diff = Math.abs((central - base[key]) / base[key]) * 100;
                     if (diff > 5) hasDeviation = true;
                 }
-                
-                const min = Math.min(val.p90, val.p10);
-                const max = Math.max(val.p90, val.p10);
-                formatted[key] = { type: 'triangular', min, mode: val.p50, max };
+
+                if (val.type === 'uniform') {
+                    formatted[key] = { type: 'uniform', min: Math.min(val.min, val.max), max: Math.max(val.min, val.max) };
+                } else if (val.type === 'normal' || val.type === 'lognormal') {
+                    formatted[key] = { type: val.type, mean: val.mean, stdDev: val.stdDev };
+                } else {
+                    const min = Math.min(val.p90, val.p10);
+                    const max = Math.max(val.p90, val.p10);
+                    formatted[key] = { type: 'triangular', min, mode: val.p50, max };
+                }
             }
 
             if (consistencyMode && hasDeviation) {
-                toast({ variant: "destructive", title: "Consistency Error", description: "One or more P50 values deviate >5% from the deterministic base case. Turn off Consistency Mode to proceed." });
-                return;
+                // Advisory only: a deliberately shifted distribution is legitimate, and the
+                // MC output P50 need not match the deterministic base — so we proceed.
+                toast({ title: "Heads up", description: "Some input central values differ >5% from the deterministic base case — running anyway." });
             }
 
             formatted.ntg = { type: 'constant', value: base.ntg || 1.0 };
             
-            await calculate(formatted, consistencyMode);
-            
-            toast({ title: "Simulation Complete", description: "Diagnostics logged to console." });
+            await calculate(formatted, { consistencyMode, iterations });
+
+            toast({ title: "Simulation Complete", description: `${iterations.toLocaleString()} iterations run.` });
         } catch (err) {
             toast({ variant: "destructive", title: "Simulation Failed", description: err.message });
         }
@@ -169,8 +249,23 @@ const ProbabilisticPanel = () => {
                     <div className="space-y-3">
                         <DistInput label="Porosity (fraction)" paramKey="porosity" value={distParams.porosity} baseValue={base.porosity} onChange={v => handleParamChange('porosity', v)} consistencyMode={consistencyMode} />
                         <DistInput label="Water Saturation (fraction)" paramKey="sw" value={distParams.sw} baseValue={base.sw} onChange={v => handleParamChange('sw', v)} consistencyMode={consistencyMode} />
-                        <DistInput label={`Gross Thickness (${state.unitSystem === 'field' ? 'ft' : 'm'})`} paramKey="thickness" value={distParams.thickness} baseValue={base.thickness} onChange={v => handleParamChange('thickness', v)} consistencyMode={consistencyMode} />
-                        <DistInput label={`Area (${state.unitSystem === 'field' ? 'acres' : 'km²'})`} paramKey="area" value={distParams.area} baseValue={base.area} onChange={v => handleParamChange('area', v)} consistencyMode={consistencyMode} />
+                        {structural ? (
+                            <>
+                                <div className="text-[10px] text-blue-300 bg-blue-950/20 border border-blue-900/40 rounded px-2 py-1">
+                                    GRV is integrated from the top surface against the sampled contacts below ({state.unitSystem === 'field' ? 'ft' : 'm'}, same convention as the surface).
+                                </div>
+                                {fluidType === 'oil_gas' && (
+                                    <DistInput label="Gas-Oil Contact (GOC)" paramKey="goc" value={distParams.goc} baseValue={base.goc} onChange={v => handleParamChange('goc', v)} consistencyMode={consistencyMode} />
+                                )}
+                                <DistInput label={fluidType === 'gas' ? 'Gas-Water Contact (GWC)' : 'Oil-Water Contact (OWC)'} paramKey="owc" value={distParams.owc} baseValue={base.owc} onChange={v => handleParamChange('owc', v)} consistencyMode={consistencyMode} />
+                                <DistInput label="GRV Factor (structural uncertainty)" paramKey="grvFactor" value={distParams.grvFactor} baseValue={1} onChange={v => handleParamChange('grvFactor', v)} consistencyMode={false} />
+                            </>
+                        ) : (
+                            <>
+                                <DistInput label={`Gross Thickness (${state.unitSystem === 'field' ? 'ft' : 'm'})`} paramKey="thickness" value={distParams.thickness} baseValue={base.thickness} onChange={v => handleParamChange('thickness', v)} consistencyMode={consistencyMode} />
+                                <DistInput label={`Area (${state.unitSystem === 'field' ? 'acres' : 'km²'})`} paramKey="area" value={distParams.area} baseValue={base.area} onChange={v => handleParamChange('area', v)} consistencyMode={consistencyMode} />
+                            </>
+                        )}
                         {isOil && <DistInput label="Oil FVF (rb/stb)" paramKey="fvf" value={distParams.fvf} baseValue={base.fvf} onChange={v => handleParamChange('fvf', v)} consistencyMode={consistencyMode} />}
                         {isGas && <DistInput label="Gas FVF (Bg)" paramKey="bg" value={distParams.bg} baseValue={base.bg} onChange={v => handleParamChange('bg', v)} consistencyMode={consistencyMode} />}
                     </div>
@@ -181,9 +276,24 @@ const ProbabilisticPanel = () => {
                         <div className="flex items-center justify-between p-3 bg-slate-950 rounded border border-slate-800">
                             <div className="space-y-0.5">
                                 <Label className="text-xs font-bold text-white">Base-Case Consistency Mode</Label>
-                                <p className="text-[10px] text-slate-400">Strictly enforce P50 within 5% of deterministic base parameters.</p>
+                                <p className="text-[10px] text-slate-400">Recenter distribution P50s on the deterministic base case and flag large drift (advisory — never blocks a run).</p>
                             </div>
                             <Switch checked={consistencyMode} onCheckedChange={setConsistencyMode} />
+                        </div>
+                        <div className="p-3 bg-slate-950 rounded border border-slate-800 space-y-2">
+                            <Label className="text-xs font-bold text-white">Monte Carlo Iterations</Label>
+                            <div className="flex gap-1.5">
+                                {ITERATION_OPTIONS.map((n) => (
+                                    <button
+                                        key={n}
+                                        onClick={() => setIterations(n)}
+                                        className={`flex-1 py-1.5 rounded text-[11px] border transition-colors ${iterations === n ? 'bg-blue-600 border-blue-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'}`}
+                                    >
+                                        {n >= 1000 ? `${n / 1000}k` : n}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-[10px] text-slate-500">More iterations = smoother tails (P90/P10) at the cost of runtime.</p>
                         </div>
                         <div className="p-3 bg-slate-950 rounded border border-slate-800 space-y-2">
                             <Label className="text-xs font-bold text-white flex items-center gap-1"><FileText className="w-3 h-3"/> Active Engine Features</Label>
@@ -205,7 +315,7 @@ const ProbabilisticPanel = () => {
                         </div>
                         <div className="text-center">
                             <h5 className="text-sm font-medium text-white">{state.isCalculating ? 'Simulating...' : 'Ready to Simulate'}</h5>
-                            <p className="text-[10px] text-slate-500 mt-1">10,000 Iterations • Correlated Variables • Rejection Handled</p>
+                            <p className="text-[10px] text-slate-500 mt-1">{iterations.toLocaleString()} Iterations • Correlated Variables • Rejection Handled</p>
                         </div>
                         <Button className="bg-emerald-600 hover:bg-emerald-700 text-white w-full" onClick={runSimulation} disabled={state.isCalculating}>
                             {state.isCalculating ? "Processing..." : "Run Monte Carlo"}

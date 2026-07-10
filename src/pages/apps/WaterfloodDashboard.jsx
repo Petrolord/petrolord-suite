@@ -4,23 +4,41 @@ import React, { useState, useEffect, useCallback } from 'react';
     import { Link } from 'react-router-dom';
     import { Button } from '@/components/ui/button';
     import { useToast } from '@/components/ui/use-toast';
-    import { Droplets, ArrowLeft, AlertTriangle, Plus, Library, Save, FolderKanban } from 'lucide-react';
+    import { Droplets, ArrowLeft, AlertTriangle, Plus, Library, Save, FolderKanban, HelpCircle } from 'lucide-react';
     import DataSelectionPanel from '@/components/waterflood/DataSelectionPanel';
     import KPIPanel from '@/components/waterflood/KPIPanel';
     import ChartsPanel from '@/components/waterflood/ChartsPanel';
     import InsightsPanel from '@/components/waterflood/InsightsPanel';
     import EmptyState from '@/components/waterflood/EmptyState';
     import DataQualityPanel from '@/components/waterflood/DataQualityPanel';
+    import GatedFeatureNotice from '@/components/waterflood/GatedFeatureNotice';
     import PatternResponsePanel from '@/components/waterflood/PatternResponsePanel';
     import RecommendationsPanel from '@/components/waterflood/RecommendationsPanel';
     import HallPlotPanel from '@/components/waterflood/HallPlotPanel';
+    import ChanDiagnosticsPanel from '@/components/waterflood/ChanDiagnosticsPanel';
+    import WaterfloodHelpGuide from '@/components/waterflood/WaterfloodHelpGuide';
+    import { SaveProjectDialog, LoadProjectsDrawer } from '@/components/waterflood/WaterfloodPersistence';
     import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
     import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerTrigger } from "@/components/ui/drawer";
     import { Input } from "@/components/ui/input";
     import { Label } from "@/components/ui/label";
     import { useReservoir } from '@/contexts/ReservoirContext';
     import { supabase } from '@/lib/customSupabaseClient';
-    import { useAuth } from '@/contexts/SupabaseAuthContext';
+    import { analyzeWaterflood, parseWaterfloodCSV, sampleWaterfloodRows } from '@/utils/waterfloodCalculations';
+
+    // Default surveillance configuration (also the sample-on-load config).
+    const DEFAULT_CONFIG = {
+      start_date: '2024-01-01',
+      end_date: '2024-12-31',
+      unit_system: 'field',
+      bw: 1.02,
+      bo: 1.25,
+      bg: 0.9,
+      rs: 500,
+      smooth_window_days: 5,
+      vrr_window_days: 30,
+      target_vrr: 1.0,
+    };
 
     const NewReservoirModal = ({ onReservoirCreated, onOpenChange, open, triggerButton }) => {
       const [formData, setFormData] = useState({ name: '', basin: '', field: '', country: '', operator: '', fluid: 'oil', drive: 'solution_gas', unit_system: 'FIELD' });
@@ -95,91 +113,6 @@ import React, { useState, useEffect, useCallback } from 'react';
         );
     };
 
-    const SaveProjectModal = ({ open, onOpenChange, inputs, results, reservoirId }) => {
-        const [projectName, setProjectName] = useState('');
-        const { toast } = useToast();
-        const { user } = useAuth();
-
-        const handleSave = async () => {
-            if (!projectName) {
-                toast({ variant: "destructive", title: "Project name is required." });
-                return;
-            }
-            try {
-                const { error } = await supabase.functions.invoke('waterflood-engine', {
-                    body: { action: 'save_project', payload: { userId: user.id, reservoirId, projectName, inputs, results } }
-                });
-                if (error) throw error;
-                toast({ title: "Project Saved!", description: `"${projectName}" has been saved.` });
-                onOpenChange(false);
-                setProjectName('');
-            } catch (error) {
-                toast({ variant: "destructive", title: "Save Failed", description: error.message });
-            }
-        };
-
-        return (
-            <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="sm:max-w-[425px] bg-slate-900 text-white border-slate-700">
-                    <DialogHeader><DialogTitle>Save Project</DialogTitle><DialogDescription>Enter a name for your project.</DialogDescription></DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <Label htmlFor="name" className="text-right">Project Name</Label>
-                        <Input id="name" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="col-span-3 bg-slate-700 border-slate-600" />
-                    </div>
-                    <DialogFooter><Button onClick={handleSave} className="bg-lime-600 hover:bg-lime-700">Save Project</Button></DialogFooter>
-                </DialogContent>
-            </Dialog>
-        );
-    };
-
-    const LoadProjectsDrawer = ({ open, onOpenChange, onSelectProject }) => {
-        const [projects, setProjects] = useState([]);
-        const [loading, setLoading] = useState(false);
-        const { toast } = useToast();
-        const { user } = useAuth();
-
-        useEffect(() => {
-            if (open && user) {
-                const fetchProjects = async () => {
-                    setLoading(true);
-                    try {
-                        const { data, error } = await supabase.functions.invoke('waterflood-engine', { body: { action: 'load_projects', payload: { userId: user.id } } });
-                        if (error) throw error;
-                        setProjects(data);
-                    } catch (error) {
-                        toast({ variant: "destructive", title: "Failed to load projects", description: error.message });
-                    } finally {
-                        setLoading(false);
-                    }
-                };
-                fetchProjects();
-            }
-        }, [open, user, toast]);
-
-        return (
-            <Drawer open={open} onOpenChange={onOpenChange}>
-                <DrawerContent className="bg-slate-900 text-white border-slate-700">
-                    <DrawerHeader><DrawerTitle>Load Project</DrawerTitle><DrawerDescription>Select a saved project to load its data.</DrawerDescription></DrawerHeader>
-                    <div className="p-4">
-                        {loading ? <p>Loading...</p> : projects.length > 0 ? (
-                            <div className="space-y-2">
-                                {projects.map((p) => (
-                                    <div key={p.id} className="flex items-center justify-between p-2 rounded-md bg-slate-800 hover:bg-slate-700">
-                                        <div>
-                                            <p className="font-semibold">{p.project_name}</p>
-                                            <p className="text-sm text-lime-300">Saved: {new Date(p.created_at).toLocaleString()}</p>
-                                        </div>
-                                        <Button size="sm" onClick={() => { onSelectProject(p); onOpenChange(false); }}>Load</Button>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : <p className="text-center">No saved projects found.</p>}
-                    </div>
-                </DrawerContent>
-            </Drawer>
-        );
-    };
-
     const WaterfloodDashboard = () => {
       const { toast } = useToast();
       const { reservoir, setReservoir, isReady } = useReservoir();
@@ -190,18 +123,20 @@ import React, { useState, useEffect, useCallback } from 'react';
       const [isNewReservoirModalOpen, setIsNewReservoirModalOpen] = useState(false);
       const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
       const [isLoadDrawerOpen, setIsLoadDrawerOpen] = useState(false);
+      const [isHelpOpen, setIsHelpOpen] = useState(false);
 
-      const runAnalysis = useCallback(async (body) => {
+      // Compute the analysis entirely client-side (pure, tested engine). The former
+      // edge-function compute fabricated pattern lags / recommendations and used a
+      // placeholder injection pressure; those are gone here and gated in the UI.
+      const runAnalysis = useCallback((rows, config) => {
         setLoading(true);
         setDashboardData(null);
-        setInputData(body);
-         try {
-            const { data, error } = await supabase.functions.invoke('waterflood-engine', { body });
-            if (error) throw new Error(`Edge Function Error: ${error.message}`);
-            if (data.error) throw new Error(data.error);
-
+        setInputData({ rows, config });
+        try {
+            const data = analyzeWaterflood(rows, config);
             setDashboardData({ ...data, lastUpdated: new Date().toISOString() });
-            toast({ title: "Analysis Complete! 🎉", description: `Dashboard is updated.` });
+            setHealthOk(true);
+            toast({ title: "Analysis Complete", description: "Dashboard updated." });
         } catch (error) {
             toast({ title: "Analysis Failed", description: error.message, variant: "destructive" });
             setHealthOk(false);
@@ -209,35 +144,14 @@ import React, { useState, useEffect, useCallback } from 'react';
             setLoading(false);
         }
       }, [toast]);
-      
+
       const handleAnalysis = (payload, isFile = false) => {
-        const body = {
-            action: 'run_analysis',
-            is_file: isFile,
-            payload: isFile ? payload.file_content : payload.rows,
-            config: payload.config,
-        };
-        runAnalysis(body);
+        const rows = isFile ? parseWaterfloodCSV(payload.file_content) : payload.rows;
+        runAnalysis(rows, payload.config);
       };
 
       useEffect(() => {
-        const runSampleOnLoad = () => {
-          const body = {
-            action: 'run_sample_analysis',
-            config: {
-                start_date: '2024-01-01',
-                end_date: '2024-12-31',
-                unit_system: 'field',
-                bw: 1.0,
-                bo: 1.2,
-                smooth_window_days: 5,
-                vrr_window_days: 30,
-                target_vrr: 1.0,
-            }
-          };
-          runAnalysis(body);
-        };
-        runSampleOnLoad();
+        runAnalysis(sampleWaterfloodRows(), DEFAULT_CONFIG);
       }, [runAnalysis]);
 
 
@@ -249,10 +163,16 @@ import React, { useState, useEffect, useCallback } from 'react';
         setIsSaveModalOpen(true);
       };
 
+      // Load restores inputs (rows + config) and recomputes results with the pure
+      // engine — the stored results snapshot is only for the My Projects preview.
       const handleLoadProject = (project) => {
-        setInputData(project.inputs_data);
-        setDashboardData(project.results_data);
-        toast({ title: "Project Loaded", description: `"${project.project_name}" has been loaded.` });
+        const saved = project?.inputs_data;
+        if (saved?.rows && saved?.config) {
+          runAnalysis(saved.rows, saved.config);
+          toast({ title: "Project Loaded", description: `"${project.project_name}" loaded and recomputed.` });
+        } else {
+          toast({ variant: "destructive", title: "Could not load project", description: "Saved project is missing its input data." });
+        }
       };
 
       return (
@@ -263,6 +183,7 @@ import React, { useState, useEffect, useCallback } from 'react';
               <div className="flex justify-between items-center mb-4">
                 <Link to="/dashboard/reservoir"><Button variant="outline" size="sm"><ArrowLeft className="w-4 h-4 mr-2" />Back</Button></Link>
                 <div className="flex items-center space-x-2">
+                  <Button onClick={() => setIsHelpOpen(true)} variant="outline" size="sm"><HelpCircle className="w-4 h-4 mr-2" />Help</Button>
                   <Button onClick={() => setIsLoadDrawerOpen(true)} variant="outline" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20"><FolderKanban className="w-4 h-4 mr-2" />Load</Button>
                   <Button onClick={handleSaveProject} variant="outline" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20"><Save className="w-4 h-4 mr-2" />Save</Button>
                 </div>
@@ -294,9 +215,46 @@ import React, { useState, useEffect, useCallback } from 'react';
                         <KPIPanel kpis={dashboardData.kpis} lastUpdated={dashboardData.lastUpdated} />
                         <ChartsPanel dailySeries={dashboardData.daily_series} vrrSeries={dashboardData.vrr_series} />
                         <InsightsPanel alerts={dashboardData.alerts} />
-                        <PatternResponsePanel data={dashboardData.pattern_lags} />
-                        <RecommendationsPanel data={dashboardData.recommendations} />
-                        {dashboardData.hall_plots && dashboardData.hall_plots.length > 0 ? (<HallPlotPanel data={dashboardData.hall_plots} alerts={dashboardData.alerts} />) : (<div className="bg-white/10 p-6 text-center text-gray-400">No Hall Plot data available.</div>)}
+
+                        {dashboardData.capabilities?.pattern_lags?.available && dashboardData.pattern_lags?.length ? (
+                          <PatternResponsePanel data={dashboardData.pattern_lags} />
+                        ) : (
+                          <GatedFeatureNotice
+                            title="Pattern Response"
+                            message={dashboardData.capabilities?.pattern_lags?.reason ||
+                              "Injector–producer response requires injection and offset-producer rate histories in the dataset."}
+                          />
+                        )}
+
+                        {dashboardData.capabilities?.recommendations?.available && dashboardData.recommendations?.length ? (
+                          <RecommendationsPanel data={dashboardData.recommendations} note={dashboardData.capabilities?.recommendations?.note} />
+                        ) : (
+                          <GatedFeatureNotice
+                            title="Injector Recommendations"
+                            message={dashboardData.capabilities?.recommendations?.reason ||
+                              "Suggested rates need at least one injector well in the dataset."}
+                          />
+                        )}
+
+                        {dashboardData.capabilities?.hall?.available && dashboardData.hall_plots?.length ? (
+                          <HallPlotPanel data={dashboardData.hall_plots} alerts={dashboardData.alerts} />
+                        ) : (
+                          <GatedFeatureNotice
+                            title="Hall Plot Analysis"
+                            message={dashboardData.capabilities?.hall?.reason ||
+                              "Hall plot injectivity diagnostics require measured injection pressure (whp_psi) on injector rows."}
+                          />
+                        )}
+
+                        {dashboardData.capabilities?.chan?.available && dashboardData.chan ? (
+                          <ChanDiagnosticsPanel chan={dashboardData.chan} />
+                        ) : (
+                          <GatedFeatureNotice
+                            title="Chan Water-Control Diagnostics"
+                            message={dashboardData.capabilities?.chan?.reason ||
+                              "Chan diagnostics need a producing history with both oil and water rates over enough time."}
+                          />
+                        )}
                       </>
                     ) : (<EmptyState apiHealthy={healthOk} />)}
                   </div>
@@ -304,8 +262,9 @@ import React, { useState, useEffect, useCallback } from 'react';
               </>
             )}
           </div>
-          <SaveProjectModal open={isSaveModalOpen} onOpenChange={setIsSaveModalOpen} inputs={inputData} results={dashboardData} reservoirId={reservoir?.id} />
-          <LoadProjectsDrawer open={isLoadDrawerOpen} onOpenChange={setIsLoadDrawerOpen} onSelectProject={handleLoadProject} />
+          <SaveProjectDialog open={isSaveModalOpen} onOpenChange={setIsSaveModalOpen} inputs={inputData} results={dashboardData} />
+          <LoadProjectsDrawer open={isLoadDrawerOpen} onOpenChange={setIsLoadDrawerOpen} onSelect={handleLoadProject} />
+          <WaterfloodHelpGuide isOpen={isHelpOpen} onOpenChange={setIsHelpOpen} />
         </>
       );
     };

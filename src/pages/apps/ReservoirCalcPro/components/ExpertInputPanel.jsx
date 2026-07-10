@@ -7,11 +7,10 @@ import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Button } from '@/components/ui/button';
-import { Calculator, Network, ScanLine, ChevronDown, ChevronUp, Settings } from 'lucide-react';
+import { Calculator, ScanLine, ChevronDown, ChevronUp, Settings } from 'lucide-react';
 import FluidTypeSelector from './tools/FluidTypeSelector';
 import FluidContactManager from './tools/FluidContactManager';
 import MapGenerationPanel from './tools/MapGenerationPanel';
-import IntegrationHub from './IntegrationHub';
 import SurfaceDataManager from './tools/SurfaceDataManager';
 import AOIPanel from './AOIPanel';
 import ProbabilisticPanel from './probabilistic/ProbabilisticPanel';
@@ -185,13 +184,12 @@ const ExpertInputPanel = () => {
             </Collapsible>
 
             <Tabs defaultValue="geometry" className="flex-1 flex flex-col min-h-0">
-                <TabsList className="w-full bg-slate-900 border border-slate-800 rounded-md p-0.5 h-auto grid grid-cols-6 mb-2">
+                <TabsList className="w-full bg-slate-900 border border-slate-800 rounded-md p-0.5 h-auto grid grid-cols-5 mb-2">
                     <TabsTrigger value="geometry" className="text-[10px] h-7 px-0">Geo</TabsTrigger>
                     <TabsTrigger value="fluid" className="text-[10px] h-7 px-0">Fluid</TabsTrigger>
                     <TabsTrigger value="surfaces" className="text-[10px] h-7 px-0">Surf</TabsTrigger>
                     <TabsTrigger value="aoi" className="text-[10px] h-7 px-0"><ScanLine className="w-3 h-3" /></TabsTrigger>
                     <TabsTrigger value="mapping" className="text-[10px] h-7 px-0">Maps</TabsTrigger>
-                    <TabsTrigger value="integration" className="text-[10px] h-7 px-0 text-indigo-400"><Network className="w-3 h-3" /></TabsTrigger>
                 </TabsList>
 
                 <div className="flex-1 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-700">
@@ -340,10 +338,6 @@ const ExpertInputPanel = () => {
 
                     <TabsContent value="mapping" className="mt-0 h-full">
                         <MapGenerationPanel />
-                    </TabsContent>
-
-                    <TabsContent value="integration" className="mt-0 h-full">
-                        <IntegrationHub />
                     </TabsContent>
                 </div>
             </Tabs>

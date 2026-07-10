@@ -1,5 +1,5 @@
 import { PolygonClippingEngine } from './PolygonClippingEngine';
-import { SurfaceInterpolator } from './SurfaceInterpolator';
+import { makeInterpolator } from './GriddingEngine';
 
 export class MapGenerationEngine {
     /**
@@ -8,7 +8,7 @@ export class MapGenerationEngine {
      * - Top Surface (e.g. -7000) > Base Surface (e.g. -7100).
      * - OWC (e.g. -7500) is deeper than crest (-7000).
      */
-    static generateMaps(topSurface, inputs, mapTypes, unitSystem, polygons = [], activeAoiId = null, baseSurface = null) {
+    static generateMaps(topSurface, inputs, mapTypes, unitSystem, polygons = [], activeAoiId = null, baseSurface = null, method = 'idw') {
         if (!topSurface || !topSurface.points || topSurface.points.length === 0) return [];
 
         console.time("MapGeneration");
@@ -35,11 +35,11 @@ export class MapGenerationEngine {
         const vBg = validNum(bg, 0.005);
         const constThick = validNum(scalarThick, 0); // Positive scalar
 
-        // 1. Initialize Interpolators
-        const topInterp = new SurfaceInterpolator(topSurface.points);
+        // 1. Initialize Interpolators (kriging or IDW per user setting)
+        const topInterp = makeInterpolator(topSurface.points, method);
         let baseInterp = null;
         if (baseSurface && baseSurface.points && baseSurface.points.length > 0) {
-            baseInterp = new SurfaceInterpolator(baseSurface.points);
+            baseInterp = makeInterpolator(baseSurface.points, method);
         }
 
         // 2. Generate Grid Geometry

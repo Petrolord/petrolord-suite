@@ -7,7 +7,9 @@ const InsightsPanel = ({ alerts }) => {
     if (Array.isArray(value) && value.length > 0) {
       return value.map(item => ({
         type: key,
-        message: typeof item === 'string' ? item : `Injector: ${item.injector}, Producer: ${item.producer}`
+        message: typeof item === 'string'
+          ? item
+          : (item.message || `Injector: ${item.injector}, Producer: ${item.producer}`)
       }));
     }
     return [];

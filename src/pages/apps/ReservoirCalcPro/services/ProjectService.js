@@ -1,179 +1,141 @@
 import { saveAs } from 'file-saver';
-import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '@/lib/customSupabaseClient';
 
-const STORAGE_KEY = 'reservoir_calc_projects';
-const BACKUP_KEY = 'reservoir_calc_projects_backup';
+// ReservoirCalc Pro project persistence.
+//
+// Projects are stored in the shared `saved_quickvol_projects` table (the legacy
+// volumetrics store, already unioned into get_all_my_projects), scoped per user
+// by row-level security. To avoid depending on optional columns, the full
+// project payload — description, version, inputs, surfaces, unit system — lives
+// inside the `inputs_data` JSON blob; only `project_name` and `results_data`
+// are first-class columns.
+const TABLE = 'saved_quickvol_projects';
+
+// A missing table means the migration hasn't been deployed — surface a clear,
+// actionable message instead of a raw Postgres error.
+export const friendlyError = (error) => {
+    const msg = error?.message || '';
+    const missingTable = error?.code === '42P01'
+        || new RegExp(`relation[^\\n]*${TABLE}[^\\n]*does not exist`, 'i').test(msg);
+    if (missingTable) {
+        return "Saving isn't set up yet — run the create_saved_quickvol_projects migration.";
+    }
+    return msg || 'Unexpected error.';
+};
+
+// Map a DB row → the project object the UI/context expect.
+const fromRow = (row) => {
+    const blob = row.inputs_data || {};
+    return {
+        id: row.id,
+        name: row.project_name,
+        description: blob.description || '',
+        version: blob.version || 1,
+        inputs: blob.inputs || { deterministic: {}, surfaces: [], polygons: [] },
+        unitSystem: blob.unitSystem || 'field',
+        calcMethod: blob.calcMethod || 'deterministic',
+        inputMethod: blob.inputMethod || 'simple',
+        reservoirName: blob.reservoirName || '',
+        auditTrail: blob.auditTrail || [],
+        results: row.results_data || null,
+        probResults: blob.probResults || null,
+        created_at: row.created_at,
+        updated_at: blob.updated_at || row.created_at,
+    };
+};
+
+// Build the `inputs_data` blob from a project object.
+const toBlob = (project, version) => ({
+    description: project.description || '',
+    version,
+    inputs: project.inputs || { deterministic: {}, surfaces: [], polygons: [] },
+    unitSystem: project.unitSystem || 'field',
+    calcMethod: project.calcMethod || 'deterministic',
+    inputMethod: project.inputMethod || 'simple',
+    reservoirName: project.reservoirName || '',
+    probResults: project.probResults || null,
+    auditTrail: project.auditTrail || [],
+    updated_at: new Date().toISOString(),
+});
 
 export const ProjectService = {
-    /**
-     * Fetch all projects from LocalStorage
-     */
+    /** Fetch the signed-in user's projects (RLS scopes to auth.uid()). */
     async getProjects() {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (!raw) return [];
-            const projects = JSON.parse(raw);
-            // Sort by updated_at desc
-            return projects.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-        } catch (err) {
-            console.error('ProjectService: Load Error', err);
-            return [];
-        }
+        const { data, error } = await supabase
+            .from(TABLE)
+            .select('*')
+            .order('created_at', { ascending: false });
+        if (error) throw new Error(friendlyError(error));
+        return (data || []).map(fromRow);
     },
 
-    /**
-     * Save a project (Create or Update)
-     */
+    /** Create (isNew or no id) or update a project. Returns the saved object. */
     async saveProject(projectData, isNew = false) {
-        try {
-            const projects = await this.getProjects();
-            
-            // Create Backup before modification
-            localStorage.setItem(BACKUP_KEY, JSON.stringify(projects));
+        if (!projectData.user_id) throw new Error('Sign in to save projects.');
 
-            const timestamp = new Date().toISOString();
-            let savedProject;
-
-            if (isNew || !projectData.id) {
-                // CREATE
-                savedProject = {
-                    ...projectData,
-                    id: uuidv4(),
-                    created_at: timestamp,
-                    updated_at: timestamp,
-                    version: 1,
-                    history: [] // Initialize version history
-                };
-                projects.unshift(savedProject);
-            } else {
-                // UPDATE
-                const index = projects.findIndex(p => p.id === projectData.id);
-                if (index === -1) throw new Error("Project not found to update");
-
-                const oldProject = projects[index];
-                
-                // Create a snapshot for history before updating
-                const historyEntry = {
-                    version: oldProject.version,
-                    timestamp: oldProject.updated_at,
-                    meta: { description: 'Auto-snapshot before save' }
-                    // In a real app, we might store the full diff here, 
-                    // but for localStorage size limits, we'll keep history metadata mostly
-                };
-
-                savedProject = {
-                    ...oldProject,
-                    ...projectData,
-                    updated_at: timestamp,
-                    version: (oldProject.version || 1) + 1,
-                    history: [historyEntry, ...(oldProject.history || [])].slice(0, 10) // Keep last 10
-                };
-                
-                projects[index] = savedProject;
-            }
-
-            // Persist
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
-            } catch (e) {
-                if (e.name === 'QuotaExceededError') {
-                    throw new Error("Storage Quota Exceeded. Delete old projects to save new ones.");
-                }
-                throw e;
-            }
-
-            return savedProject;
-        } catch (err) {
-            console.error('ProjectService: Save Error', err);
-            throw err;
+        if (isNew || !projectData.id) {
+            const { data, error } = await supabase
+                .from(TABLE)
+                .insert([{
+                    user_id: projectData.user_id,
+                    project_name: projectData.name || 'Untitled Project',
+                    inputs_data: toBlob(projectData, 1),
+                    results_data: projectData.results || null,
+                }])
+                .select()
+                .single();
+            if (error) throw new Error(friendlyError(error));
+            return fromRow(data);
         }
+
+        const nextVersion = (projectData.version || 1) + 1;
+        const { data, error } = await supabase
+            .from(TABLE)
+            .update({
+                project_name: projectData.name || 'Untitled Project',
+                inputs_data: toBlob(projectData, nextVersion),
+                results_data: projectData.results || null,
+            })
+            .eq('id', projectData.id)
+            .select()
+            .single();
+        if (error) throw new Error(friendlyError(error));
+        return fromRow(data);
     },
 
-    /**
-     * Delete a project
-     */
+    /** Delete a project by id. */
     async deleteProject(projectId) {
-        try {
-            let projects = await this.getProjects();
-            const initialLength = projects.length;
-            projects = projects.filter(p => p.id !== projectId);
-            
-            if (projects.length === initialLength) return false;
-
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
-            return true;
-        } catch (err) {
-            console.error('ProjectService: Delete Error', err);
-            throw err;
-        }
+        const { error } = await supabase.from(TABLE).delete().eq('id', projectId);
+        if (error) throw new Error(friendlyError(error));
+        return true;
     },
 
-    /**
-     * Export project to JSON file
-     */
+    /** Export a project to a downloadable JSON file (client-side). */
     exportToJSON(project) {
         try {
             const exportData = {
-                meta: {
-                    app: 'ReservoirCalc Pro',
-                    version: '1.0',
-                    exportDate: new Date().toISOString()
-                },
-                project: project
+                meta: { app: 'ReservoirCalc Pro', version: '1.0', exportDate: new Date().toISOString() },
+                project,
             };
-
             const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-            saveAs(blob, `${project.name.replace(/\s+/g, '_')}_v${project.version}.json`);
+            saveAs(blob, `${(project.name || 'project').replace(/\s+/g, '_')}_v${project.version || 1}.json`);
             return true;
-        } catch (err) {
-            console.error('ProjectService: Export Error', err);
+        } catch {
             return false;
         }
     },
 
-    /**
-     * Import project from JSON file
-     */
-    async importFromJSON(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const json = JSON.parse(e.target.result);
-                    if (!json.project) {
-                        throw new Error('Invalid project file format');
-                    }
-                    
-                    // When importing, treat as a NEW project (duplicate) to avoid ID collisions
-                    // unless specifically requested otherwise (omitted for simplicity)
-                    const { id, created_at, updated_at, ...projectData } = json.project;
-                    
-                    const newProject = {
-                        ...projectData,
-                        name: `${projectData.name} (Imported)`,
-                        version: 1
-                    };
-
-                    const saved = await this.saveProject(newProject, true);
-                    resolve(saved);
-                } catch (err) {
-                    reject(err);
-                }
-            };
-            reader.onerror = () => reject(new Error('File reading failed'));
-            reader.readAsText(file);
-        });
+    /** Import a project from a JSON file, saving it as a new project. */
+    async importFromJSON(file, userId) {
+        const text = await file.text();
+        const json = JSON.parse(text);
+        if (!json.project) throw new Error('Invalid project file format.');
+        const { id, created_at, updated_at, ...projectData } = json.project;
+        return this.saveProject({
+            ...projectData,
+            user_id: userId,
+            name: `${projectData.name || 'Project'} (Imported)`,
+            version: 1,
+        }, true);
     },
-
-    /**
-     * Recover from Backup
-     */
-    async restoreBackup() {
-        const backup = localStorage.getItem(BACKUP_KEY);
-        if (backup) {
-            localStorage.setItem(STORAGE_KEY, backup);
-            return true;
-        }
-        return false;
-    }
 };

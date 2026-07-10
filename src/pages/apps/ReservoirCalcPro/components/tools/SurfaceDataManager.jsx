@@ -78,6 +78,7 @@ const SurfaceDataManager = () => {
                                         <div className="font-medium text-sm text-slate-200">{surface.name}</div>
                                         <div className="text-[10px] text-slate-500">
                                             {surface.pointCount?.toLocaleString() || 0} pts • {surface.format || 'Grid'}
+                                            {surface.crs ? ` • ${surface.crs}` : ''}
                                         </div>
                                     </div>
                                     <div className="flex gap-1">
