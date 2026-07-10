@@ -1,6 +1,39 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-10 (Phase 4 complete)
+Last updated: 2026-07-10 (Phase 5 complete)
+
+## Phase 5 — Suite integration + AI: DONE
+
+- **Handoff registry**: `seismic_exported_surfaces` migration applied —
+  user RLS; volume/horizon FKs `set null` on delete with a permanent
+  provenance jsonb copy (app version, volume/horizon names, gridding
+  params, stats); XYZ blob at `{uid}/exports/{id}.xyz`, deliberately
+  OUTSIDE volume dirs so volume deletion never orphans a handoff.
+  Replaces — does not resurrect — the broken data-exchange /
+  shared_data_registry machinery.
+- **Send to ReservoirCalc Pro**: Export panel publishes the TPS-gridded
+  surface as XYZ; RCP's SurfaceImportDialog gained a "From Seismolord"
+  source that downloads the blob and feeds the EXISTING SurfaceParser
+  path (format xyz, metres, elevation convention preset).
+- **RCP deep-z import fix**: SurfaceParser's `z > -9000` null window
+  silently emptied every surface deeper than 9,000 ft (Phase 0 audit
+  finding). Replaced with `isNullZ` — explicit sentinels (−9999 family,
+  ±999.25, 1e30) + implausible-magnitude guard. Deep-water horizons and
+  negated-TWT surfaces now import; jest-covered, RCP suite unregressed.
+  (RCP's fake ZMAP+/CPS-3 grid-body parsing remains a known gap — the
+  handoff deliberately uses XYZ.)
+- **AI copilot (cuttable)**: `supabase/functions/seismolord-ai/` — JWT-
+  verified proxy holding OPENAI_API_KEY + `systemPrompt.ts`
+  (PROMPT_VERSION 1, tool schemas server-authoritative; model default
+  gpt-4o-mini, `OPENAI_MODEL` override). ALL tools execute client-side
+  over the user's own data: `get_volume_manifest`, `get_horizon_stats`,
+  `run_autotrack` (horizon worker + save), `grid_and_export` (TPS worker
+  + download or RCP publish + GRV). Collapsed-by-default panel on the
+  page; the whole feature degrades to a clear 503 message if the key is
+  unset.
+- **Deploy steps pending (operator)**:
+  `supabase secrets set OPENAI_API_KEY=sk-…` then
+  `supabase functions deploy seismolord-ai`.
 
 ## Phase 4 — Faults, gridding, export: DONE
 

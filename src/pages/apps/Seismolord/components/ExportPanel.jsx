@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Download, Grid3X3, Loader2, XCircle } from 'lucide-react';
+import { Download, Grid3X3, Loader2, XCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { listHorizons, loadHorizonGrid } from '../services/horizonsService';
 import { picksToPoints } from '../engine/gridding';
 import { geomFromManifest } from '../engine/sliceAssembly';
 import { writeXYZ, writeCPS3, writeZMAP, grvAcreFt } from '../engine/surfaceExport';
+import { publishSurface } from '../services/exportsService';
 
 const FORMATS = [
   { key: 'xyz', label: 'XYZ points (.xyz)', ext: 'xyz' },
@@ -60,7 +61,8 @@ export default function ExportPanel({ volume, manifest }) {
       : 25;
   }, [manifest]);
 
-  const runExport = async () => {
+  /** @param {'download'|'rcp'} destination */
+  const runExport = async (destination = 'download') => {
     if (!volume || !manifest || !horizonId) return;
     const horizon = horizons.find((h) => h.id === horizonId);
     setRunning(true);
@@ -115,19 +117,39 @@ export default function ExportPanel({ volume, manifest }) {
         y: Array.from({ length: spec.ny }, (_, i) => spec.y0 + i * spec.dy),
       };
       const safeName = horizon.name.replace(/[^\w-]+/g, '_').toLowerCase();
-      const fmt = FORMATS.find((f) => f.key === format);
+      const effectiveFormat = destination === 'rcp' ? 'xyz' : format;
+      const fmt = FORMATS.find((f) => f.key === effectiveFormat);
       let text;
-      if (format === 'xyz') text = writeXYZ(g);
-      else if (format === 'cps3') text = writeCPS3(g);
+      if (effectiveFormat === 'xyz') text = writeXYZ(g);
+      else if (effectiveFormat === 'cps3') text = writeCPS3(g);
       else text = writeZMAP({ ...g, name: safeName });
       const fileName = `${safeName}_${domain}.${fmt.ext}`;
 
-      const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
+      if (destination === 'rcp') {
+        await publishSurface({
+          name: `${horizon.name} (${domain === 'depth' ? 'depth ft' : 'TWT ms'})`,
+          xyzText: text,
+          domain: domain === 'depth' ? 'depth_ft' : 'twt_ms',
+          volume,
+          horizon,
+          params: {
+            cell_m: dxy,
+            velocity_ft_s: domain === 'depth' ? velocity : null,
+            max_extrapolation_m: 2 * dxy,
+            control_points: gridded.controlCount,
+            live_nodes: gridded.live,
+            z_min: gridded.zMin,
+            z_max: gridded.zMax,
+          },
+        });
+      } else {
+        const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
 
       const grv = domain === 'depth' && contact !== ''
         ? grvAcreFt(g, spec.dx, spec.dy, Number(contact))
@@ -138,9 +160,14 @@ export default function ExportPanel({ volume, manifest }) {
         zMin: gridded.zMin,
         zMax: gridded.zMax,
         grv,
-        fileName,
+        fileName: destination === 'rcp' ? 'sent to ReservoirCalc Pro' : fileName,
       });
-      toast({ title: 'Surface exported', description: fileName });
+      toast({
+        title: destination === 'rcp' ? 'Surface sent to ReservoirCalc Pro' : 'Surface exported',
+        description: destination === 'rcp'
+          ? 'Open ReservoirCalc Pro → Import surface → From Seismolord.'
+          : fileName,
+      });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -216,7 +243,7 @@ export default function ExportPanel({ volume, manifest }) {
 
             <div className="flex flex-wrap items-center gap-3">
               <Button
-                onClick={runExport}
+                onClick={() => runExport('download')}
                 disabled={!horizonId || running}
                 className="bg-cyan-600 hover:bg-cyan-500 text-white"
               >
@@ -224,6 +251,15 @@ export default function ExportPanel({ volume, manifest }) {
                   ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   : <Download className="w-4 h-4 mr-2" />}
                 Grid &amp; download
+              </Button>
+              <Button
+                onClick={() => runExport('rcp')}
+                disabled={!horizonId || running}
+                variant="outline"
+                className="border-emerald-600/60 text-emerald-300 hover:bg-emerald-950/40"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Send to ReservoirCalc Pro
               </Button>
               <div className="flex items-center gap-2">
                 <Label className="text-slate-300 text-sm">Contact (ft, optional)</Label>

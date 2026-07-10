@@ -1,13 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { UploadCloud, FileText, Check, AlertCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { UploadCloud, FileText, Check, AlertCircle, AlertTriangle, XCircle, Waves, Loader2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { SurfaceParser, SurfaceParseError } from '../../services/SurfaceParser';
+// Cross-app handoff: surfaces Seismolord published to seismic_exported_surfaces
+// (XYZ text in Storage). Same parse path as a manual upload from here on.
+import { listExportedSurfaces, downloadExportedSurface } from '@/pages/apps/Seismolord/services/exportsService';
 
 const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
     const { toast } = useToast();
@@ -28,8 +31,41 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
     //             non-fatal quality warnings the user should see first.
     const [error, setError] = useState(null);
     const [pending, setPending] = useState(null); // { surface, warnings }
+    // Seismolord handoff source
+    const [seismolordSurfaces, setSeismolordSurfaces] = useState(null);
+    const [fetchingHandoffId, setFetchingHandoffId] = useState(null);
 
     const resetFeedback = () => { setError(null); setPending(null); };
+
+    useEffect(() => {
+        if (!open) return;
+        listExportedSurfaces()
+            .then(setSeismolordSurfaces)
+            .catch(() => setSeismolordSurfaces([]));   // table empty/unreachable: hide the section
+    }, [open]);
+
+    const loadSeismolordSurface = async (row) => {
+        setFetchingHandoffId(row.id);
+        resetFeedback();
+        try {
+            const text = await downloadExportedSurface(row);
+            const file = new File([text], `${row.name.replace(/[^\w-]+/g, '_')}.xyz`, { type: 'text/plain' });
+            setImportData(prev => ({
+                ...prev,
+                file,
+                rawData: text,
+                name: row.name,
+                format: 'xyz',
+                xyUnit: 'm',                 // Seismolord exports XY in metres
+                zConvention: 'elevation',    // z negative downward
+            }));
+            toast({ title: 'Surface loaded from Seismolord', description: row.name });
+        } catch (e) {
+            setError({ title: 'Could not load Seismolord surface', message: e.message, guidance: [] });
+        } finally {
+            setFetchingHandoffId(null);
+        }
+    };
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
@@ -209,6 +245,39 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
                             <FileText className="w-4 h-4 text-blue-400 mr-2" />
                             <span className="text-sm truncate flex-1">{importData.file.name}</span>
                             <Check className="w-4 h-4 text-emerald-500" />
+                        </div>
+                    )}
+
+                    {/* Surfaces published by Seismolord (seismic_exported_surfaces) */}
+                    {seismolordSurfaces && seismolordSurfaces.length > 0 && (
+                        <div className="rounded-lg border border-cyan-900/60 bg-cyan-950/20 p-3">
+                            <div className="flex items-center text-sm text-cyan-300 font-medium mb-2">
+                                <Waves className="w-4 h-4 mr-2" />
+                                From Seismolord
+                            </div>
+                            <ul className="space-y-1 max-h-32 overflow-y-auto">
+                                {seismolordSurfaces.map((s) => (
+                                    <li key={s.id} className="flex items-center justify-between gap-2 text-sm">
+                                        <div className="min-w-0">
+                                            <span className="text-slate-200 truncate block">{s.name}</span>
+                                            <span className="text-[11px] text-slate-500">
+                                                {s.domain === 'depth_ft' ? 'depth ft' : 'TWT ms'} ·{' '}
+                                                {new Date(s.created_at).toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <Button
+                                            size="sm" variant="outline"
+                                            className="shrink-0 border-cyan-700/60 text-cyan-300"
+                                            disabled={fetchingHandoffId === s.id}
+                                            onClick={() => loadSeismolordSurface(s)}
+                                        >
+                                            {fetchingHandoffId === s.id
+                                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                : 'Use'}
+                                        </Button>
+                                    </li>
+                                ))}
+                            </ul>
                         </div>
                     )}
 

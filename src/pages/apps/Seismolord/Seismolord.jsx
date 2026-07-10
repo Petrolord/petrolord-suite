@@ -10,6 +10,7 @@ import ImportPanel from './components/ImportPanel';
 import VolumesPanel from './components/VolumesPanel';
 import ViewerPanel from './components/ViewerPanel';
 import ExportPanel from './components/ExportPanel';
+import AiPanel from './components/AiPanel';
 
 // Phase 1: streaming SEG-Y ingestion to the brick store (import panel with
 // header-mapping preview + volume registry). The interpretation canvas
@@ -90,6 +91,10 @@ export default function Seismolord() {
 
         <div className="mb-6">
           <ExportPanel volume={viewerSelection.volume} manifest={viewerSelection.manifest} />
+        </div>
+
+        <div className="mb-6">
+          <AiPanel volume={viewerSelection.volume} manifest={viewerSelection.manifest} />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
