@@ -647,45 +647,45 @@ export default function SliceView({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
             <DropdownMenuLabel>Annotations</DropdownMenuLabel>
-            <DropdownMenuCheckboxItem checked={prefs.axes}
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()} checked={prefs.axes}
               onCheckedChange={() => togglePref('axes')}
             >
               Axes ({isSection ? 'line / TWT' : 'XL / IL'})
             </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={prefs.grid}
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()} checked={prefs.grid}
               onCheckedChange={() => togglePref('grid')} disabled={!prefs.axes}
             >
               Grid lines
             </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={prefs.scaleBar}
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()} checked={prefs.scaleBar}
               onCheckedChange={() => togglePref('scaleBar')} disabled={!spacing}
             >
               Scale bar{!spacing ? ' (no coordinates)' : ''}
             </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={prefs.northArrow}
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()} checked={prefs.northArrow}
               onCheckedChange={() => togglePref('northArrow')}
               disabled={isSection || !northDir}
             >
               North arrow{isSection ? ' (time slice)' : !northDir ? ' (no coordinates)' : ''}
             </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={prefs.colorbar}
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()} checked={prefs.colorbar}
               onCheckedChange={() => togglePref('colorbar')}
             >
               Amplitude colorbar
             </DropdownMenuCheckboxItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Cursor & rendering</DropdownMenuLabel>
-            <DropdownMenuCheckboxItem checked={prefs.readout}
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()} checked={prefs.readout}
               onCheckedChange={() => togglePref('readout')}
             >
               Position readout
             </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={prefs.crosshair}
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()} checked={prefs.crosshair}
               onCheckedChange={() => togglePref('crosshair')}
             >
               Crosshair
             </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem checked={prefs.interpolate}
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()} checked={prefs.interpolate}
               onCheckedChange={() => togglePref('interpolate')}
               disabled={!canInterpolate}
             >
