@@ -29,9 +29,9 @@ export class FluidPropertyCalculator {
         if (!rs || !gasGravity || !oilApi || !tempF) return 1.2; // Default fallback
         
         const oilSg = 141.5 / (131.5 + oilApi);
-        const f = Math.pow(rs * Math.sqrt(gasGravity / oilSg), 0.5) + 1.25 * tempF;
-        
-        // Standing's correlation
+        // Standing (1947): F = Rs·(γg/γo)^0.5 + 1.25·T ;  Bo = 0.9759 + 0.00012·F^1.2
+        // (previously an extra ^0.5 wrapped the whole Rs·√(γg/γo) term, under-predicting Bo).
+        const f = rs * Math.sqrt(gasGravity / oilSg) + 1.25 * tempF;
         const bo = 0.9759 + 0.00012 * Math.pow(f, 1.2);
         return Math.max(1.0, parseFloat(bo.toFixed(4)));
     }

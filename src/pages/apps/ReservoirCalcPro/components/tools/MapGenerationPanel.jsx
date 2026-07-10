@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
-import { Loader2, Map as MapIcon, Layers } from 'lucide-react';
+import { Loader2, Map as MapIcon, Layers, Trash2, Eye } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { MapGenerationEngine } from '../../services/MapGenerationEngine';
+import { useReservoirSettings } from '../../hooks/useReservoirSettings';
 
 const MapGenerationPanel = () => {
-    const { state, addMaps } = useReservoirCalc();
+    const { state, addMaps, deleteMap } = useReservoirCalc();
     const { toast } = useToast();
+    const [settings] = useReservoirSettings();
     const [isGenerating, setIsGenerating] = useState(false);
     const [selectedMaps, setSelectedMaps] = useState({
         structure: true,
@@ -48,17 +50,19 @@ const MapGenerationPanel = () => {
             try {
                 const typesToGen = Object.keys(selectedMaps).filter(k => selectedMaps[k]);
                 const maps = MapGenerationEngine.generateMaps(
-                    topSurface, 
-                    state.inputs, 
-                    typesToGen, 
+                    topSurface,
+                    state.inputs,
+                    typesToGen,
                     state.unitSystem,
-                    state.polygons || [],
+                    state.aois || [],
                     state.activeAoiId,
-                    baseSurface
+                    baseSurface,
+                    settings.interpolationMethod
                 );
-                
+
                 addMaps(maps);
-                toast({ title: "Maps Generated", description: `${maps.length} property maps created successfully.` });
+                const clip = state.activeAoiId ? ' (clipped to active AOI)' : '';
+                toast({ title: "Maps Generated", description: `${maps.length} property maps created${clip}. View them via the layer selector in the Visualization panel or the Gallery.` });
             } catch (error) {
                 console.error(error);
                 toast({ variant: "destructive", title: "Generation Failed", description: error.message });
@@ -119,7 +123,36 @@ const MapGenerationPanel = () => {
 
             {surfacesCount === 0 && (
                 <div className="p-3 bg-amber-900/20 border border-amber-800 rounded text-amber-200 text-xs">
-                    Import a surface in the Reservoir tab to enable map generation.
+                    Import a surface in the Surfaces tab to enable map generation.
+                </div>
+            )}
+
+            {(state.maps?.length > 0) && (
+                <div className="flex-1 min-h-0 flex flex-col">
+                    <div className="flex items-center justify-between mb-2">
+                        <Label className="text-xs font-bold text-slate-400 uppercase">Generated Maps ({state.maps.length})</Label>
+                    </div>
+                    <div className="space-y-2 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800">
+                        {state.maps.map(m => (
+                            <div key={m.id} className="flex items-center justify-between p-2 rounded border border-slate-800 bg-slate-900">
+                                <div className="min-w-0">
+                                    <div className="text-xs font-medium text-slate-200 truncate">{m.name}</div>
+                                    <div className="text-[10px] text-slate-500">{m.unit || '—'}</div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <Eye className="w-3.5 h-3.5 text-slate-600" />
+                                    <Button
+                                        size="icon" variant="ghost"
+                                        className="h-6 w-6 text-slate-500 hover:text-red-400"
+                                        onClick={() => deleteMap(m.id)}
+                                        title="Delete map"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>

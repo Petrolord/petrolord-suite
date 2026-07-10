@@ -110,14 +110,9 @@ const TeamManagement = () => {
     if (isImpersonating) return;
     if (!inviteEmail) return;
 
-    const isInviteeSuperAdmin = inviteRole === 'super_admin';
-    const allowed = canAddMember(seatsAvailable, isInviteeSuperAdmin);
-    
-    if (!allowed) {
-        toast({ variant: "destructive", title: "No seats available", description: "Please upgrade subscription." });
-        return;
-    }
-
+    // Org membership is not seat-capped — seats are per app (see Seat Assignments).
+    // Inviting a member is free; that member only consumes a seat when an admin
+    // assigns them to a specific app.
     try {
       const { error } = await supabase
         .from('organization_members')
@@ -189,18 +184,13 @@ const TeamManagement = () => {
         
         <Card className="bg-slate-900 border-slate-800 p-4 flex items-center gap-6">
             <div className="flex flex-col">
-                <span className="text-xs text-slate-500 uppercase font-semibold">Seats Used</span>
-                <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold text-white">{seatsUsed}</span>
-                    <span className="text-slate-500">/ {seatsAllocated}</span>
-                </div>
+                <span className="text-xs text-slate-500 uppercase font-semibold">Members</span>
+                <span className="text-2xl font-bold text-white">{members.length}</span>
             </div>
             <div className="h-8 w-px bg-slate-800" />
             <div className="flex flex-col">
-                <span className="text-xs text-slate-500 uppercase font-semibold">Available</span>
-                <span className={`text-2xl font-bold ${seatsAvailable > 0 ? 'text-emerald-500' : 'text-amber-500'}`}>
-                    {seatsAvailable}
-                </span>
+                <span className="text-xs text-slate-500 uppercase font-semibold">App Seats</span>
+                <a href="/dashboard/seats" className="text-sm font-semibold text-lime-400 hover:underline">Manage per app →</a>
             </div>
         </Card>
       </div>

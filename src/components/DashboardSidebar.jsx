@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useSuiteAccess } from '@/hooks/useSuiteAccess';
 import { useHSEAccess } from '@/hooks/useHSEAccess';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -24,6 +24,17 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 const SidebarItem = ({ icon: Icon, label, to, exact = false, disabled = false }) => {
   if (disabled) {
@@ -56,8 +67,14 @@ const SidebarItem = ({ icon: Icon, label, to, exact = false, disabled = false })
 const DashboardSidebar = () => {
   const { can: canSuite } = useSuiteAccess();
   const { can: canHSE } = useHSEAccess();
-  const { isSuperAdmin, actualUser } = useAuth();
+  const { isSuperAdmin, actualUser, signOut } = useAuth();
   const { isImpersonating, exitImpersonation } = useImpersonation();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/login');
+  };
 
   // Log role visibility for debugging
   React.useEffect(() => {
@@ -67,15 +84,17 @@ const DashboardSidebar = () => {
   return (
     <div className="w-64 bg-slate-950 border-r border-slate-800 h-full flex flex-col">
       <div className="p-6">
-        <div className="flex items-center gap-2 mb-8">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center">
-            <span className="text-white font-bold text-lg">P</span>
-          </div>
+        <Link to="/" className="flex items-center gap-2 mb-8 group" title="Go to home page">
+          <img
+            src="/petrolord-icon.png"
+            alt="Petrolord"
+            className="h-8 w-8 rounded-lg object-contain shrink-0"
+          />
           <div>
-            <h1 className="text-white font-bold text-sm tracking-tight">Petrolord Suite</h1>
+            <h1 className="text-white font-bold text-sm tracking-tight group-hover:text-[#D4AF37] transition-colors">Petrolord Suite</h1>
             <span className="text-slate-500 text-xs">Enterprise Edition</span>
           </div>
-        </div>
+        </Link>
 
         {isImpersonating && (
             <div className="mb-4 p-3 bg-amber-900/20 border border-amber-700/50 rounded-lg text-amber-500 text-xs">
@@ -154,8 +173,8 @@ const DashboardSidebar = () => {
         </div>
       </div>
       
-      {/* User Profile Link (always visible) */}
-      <div className="mt-auto p-4 border-t border-slate-800">
+      {/* User Profile Link + Logout (always visible) */}
+      <div className="mt-auto p-4 border-t border-slate-800 space-y-1">
         <NavLink to="/profile" className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors">
           <div className="h-8 w-8 rounded-full bg-slate-800 flex items-center justify-center">
             <Users className="h-4 w-4" />
@@ -165,6 +184,36 @@ const DashboardSidebar = () => {
             <p className="text-slate-500 text-[10px] truncate">View account</p>
           </div>
         </NavLink>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button
+              type="button"
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-red-950/30 transition-colors"
+            >
+              <div className="h-8 w-8 rounded-full bg-slate-800 flex items-center justify-center">
+                <LogOut className="h-4 w-4" />
+              </div>
+              <span className="flex-1 min-w-0 text-left truncate">Log out</span>
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent className="bg-slate-900 border-slate-700 text-white">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Log out of Petrolord Suite?</AlertDialogTitle>
+              <AlertDialogDescription className="text-slate-400">
+                You'll be returned to the login screen and will need to sign in again to continue.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="bg-transparent border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={handleLogout} className="bg-red-600 hover:bg-red-700 text-white">
+                Log out
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
 import ReassignSeatModal from '@/components/ReassignSeatModal';
+import { getUserOrgRow } from '@/lib/orgContext';
 
 export default function SubscriptionManagement() {
   const { user } = useAuth();
@@ -27,7 +28,7 @@ export default function SubscriptionManagement() {
   const fetchSubscriptions = async () => {
     setLoading(true);
     try {
-        const { data: orgUser } = await supabase.from('organization_users').select('organization_id').eq('user_id', user.id).maybeSingle();
+        const orgUser = await getUserOrgRow(user.id);
         if (orgUser) {
             const { data } = await supabase
                 .from('purchased_modules')

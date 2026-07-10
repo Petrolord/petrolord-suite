@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getUserOrgRow } from '@/lib/orgContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { 
   Users, UserPlus, Mail, Shield, Trash2, Edit, MoreHorizontal, CheckCircle, Clock, Search 
@@ -37,7 +38,7 @@ export default function EmployeeManagement() {
 
   const fetchOrgAndMembers = async () => {
     try {
-      const { data: orgUser } = await supabase.from('organization_users').select('organization_id').eq('user_id', user.id).single();
+      const orgUser = await getUserOrgRow(user.id);
       
       if (orgUser) {
         setOrgId(orgUser.organization_id);
@@ -54,7 +55,9 @@ export default function EmployeeManagement() {
 
         // Fetch Seat Limit (Mock logic or real if subscription table ready)
         // Ideally we fetch from purchased_modules or subscriptions
-        const { data: sub } = await supabase.from('subscriptions').select('user_limit').eq('organization_id', orgUser.organization_id).eq('status', 'active').single();
+        // maybeSingle: an org with no active subscription must not throw (PGRST116)
+        // and take the whole page down with it.
+        const { data: sub } = await supabase.from('subscriptions').select('user_limit').eq('organization_id', orgUser.organization_id).eq('status', 'active').limit(1).maybeSingle();
         const limit = sub?.user_limit || 5; // Default free tier
         
         const activeCount = membersData.filter(m => m.status !== 'inactive').length;
@@ -95,11 +98,9 @@ export default function EmployeeManagement() {
                 <p className="text-slate-400">Manage your organization's members and their access.</p>
             </div>
             <div className="text-right">
-                <div className="text-sm text-slate-400">Seat Usage</div>
-                <div className="text-xl font-bold text-white">
-                    {seatStats.used} <span className="text-slate-500 text-sm font-normal">/ {seatStats.limit}</span>
-                </div>
-                {seatStats.used >= seatStats.limit && <div className="text-xs text-amber-500">Limit Reached</div>}
+                <div className="text-sm text-slate-400">Members</div>
+                <div className="text-xl font-bold text-white">{seatStats.used}</div>
+                <a href="/dashboard/seats" className="text-xs text-lime-400 hover:underline">Manage app seats →</a>
             </div>
         </div>
 
@@ -116,7 +117,7 @@ export default function EmployeeManagement() {
                 </div>
                 <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
                     <DialogTrigger asChild>
-                        <Button className="bg-lime-600 hover:bg-lime-700 text-white" disabled={seatStats.used >= seatStats.limit}>
+                        <Button className="bg-lime-600 hover:bg-lime-700 text-white">
                             <UserPlus className="w-4 h-4 mr-2"/> Invite Member
                         </Button>
                     </DialogTrigger>
@@ -183,7 +184,7 @@ export default function EmployeeManagement() {
                                                 <DropdownMenuItem className="focus:bg-slate-800 cursor-pointer">
                                                     <Shield className="w-4 h-4 mr-2"/> Edit Role
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem className="focus:bg-slate-800 cursor-pointer" onClick={() => alert("Manage apps modal coming soon")}>
+                                                <DropdownMenuItem className="focus:bg-slate-800 cursor-pointer" onClick={() => navigate('/dashboard/seats')}>
                                                     <Users className="w-4 h-4 mr-2"/> Assign Apps
                                                 </DropdownMenuItem>
                                                 {member.status === 'invited' && (

@@ -1,8 +1,39 @@
 // Base pricing constants
 export const BASE_PLATFORM_FEE = 299; // Monthly base fee for accessing the platform
-export const USER_SEAT_PRICE = 49; // Price per user per month
+export const USER_SEAT_PRICE = 49; // Price per user per month (1st tier; see SEAT_TIERS)
 export const STORAGE_GB_PRICE = 0.5; // Price per GB per month
 export const VAT_RATE = 0.075; // 7.5% VAT
+
+// Graduated PER-APP seat tiers (volume pricing). Each app's seat count is priced
+// independently through these brackets — consolidating seats into one app is cheaper
+// per seat. MUST stay in sync with SEAT_TIERS in
+// supabase/functions/generate-quote/index.ts (server is authoritative).
+export const SEAT_TIERS = [
+  { upTo: 5, price: 49 },        // seats 1–5
+  { upTo: 15, price: 39 },       // seats 6–15
+  { upTo: 40, price: 29 },       // seats 16–40
+  { upTo: Infinity, price: 19 }, // seats 41+
+];
+
+// Total monthly seat cost for `seats` seats in ONE app (graduated/bracketed).
+export const computeSeatCost = (seats) => {
+  let remaining = Math.max(0, parseInt(seats, 10) || 0);
+  let prevCap = 0, cost = 0;
+  for (const t of SEAT_TIERS) {
+    if (remaining <= 0) break;
+    const band = Math.min(remaining, t.upTo - prevCap);
+    cost += band * t.price;
+    remaining -= band;
+    prevCap = t.upTo;
+  }
+  return cost;
+};
+
+// Marginal price of the Nth seat, for UI hints.
+export const seatTierRate = (nthSeat) => {
+  for (const t of SEAT_TIERS) if (nthSeat <= t.upTo) return t.price;
+  return SEAT_TIERS[SEAT_TIERS.length - 1].price;
+};
 
 // Module Pricing (Bundled Price)
 export const MODULE_PRICING = {
@@ -23,7 +54,6 @@ export const SPECIAL_APP_PRICING = {
   'earth-model-pro': 499,
   'subsurface-studio': 399,
   'well-planning': 299,
-  'material-balance-pro': 299,
   'project-management-pro': 199,
   'basinflow-genesis': 349,
   'network-diagram-pro': 199,

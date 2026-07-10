@@ -49,21 +49,28 @@ Deno.serve(async (req)=>{
     }).eq('paystack_reference', reference);
     const quote_id = metadata?.quote_id;
     if (quote_id) {
-      // Sync quote and org status
+      // The Paystack reference IS the text quote_id (e.g. "QT-..."), so match the
+      // quote on quote_id — NOT on id (a uuid). The previous .eq('id', quote_id)
+      // matched zero rows, so the webhook never actually marked quotes paid.
       await supabase.from('quotes').update({
         status: 'ACCEPTED',
         payment_verified: true,
-        paystack_reference: reference
-      }).eq('id', quote_id);
-      const { data: quote } = await supabase.from('quotes').select('organization_id').eq('id', quote_id).single();
-      if (quote) {
+        payment_verified_at: paid_at || new Date().toISOString(),
+        paystack_reference: reference,
+        updated_at: new Date().toISOString()
+      }).eq('quote_id', quote_id);
+      const { data: quote } = await supabase.from('quotes').select('organization_id').eq('quote_id', quote_id).maybeSingle();
+      if (quote?.organization_id) {
         await supabase.from('organizations').update({
           suite_status: 'ACTIVE'
         }).eq('id', quote.organization_id);
-      // Note: Full subscription creation logic should ideally be triggered here too, 
-      // or via the 'verify-paystack-payment' function which can be called internally or by the client.
-      // For robustness, we rely on the client redirect or manual verification for the subscription row creation
-      // unless we duplicate the logic here.
+        // Provision the purchased modules/apps/seats — same RPC the redirect/manual
+        // verify path uses. Best-effort: a provisioning error must not fail the webhook.
+        const { error: rpcErr } = await supabase.rpc('manual_verify_quote', {
+          p_quote_id: quote_id,
+          p_organization_id: quote.organization_id
+        });
+        if (rpcErr) console.error('Webhook provisioning error:', rpcErr.message);
       }
     }
   }

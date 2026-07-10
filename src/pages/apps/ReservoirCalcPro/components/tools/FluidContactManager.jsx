@@ -69,7 +69,7 @@ const FluidContactManager = () => {
 
                 {(fluidType === 'gas' || fluidType === 'oil_gas') && (
                     <div className="space-y-1">
-                        <Label htmlFor="goc-input" className="text-xs text-red-300">GOC (Gas-Oil)</Label>
+                        <Label htmlFor="goc-input" className="text-xs text-red-300">{fluidType === 'gas' ? 'GWC (Gas-Water)' : 'GOC (Gas-Oil)'}</Label>
                          <div className="relative">
                             <Input 
                                 id="goc-input"

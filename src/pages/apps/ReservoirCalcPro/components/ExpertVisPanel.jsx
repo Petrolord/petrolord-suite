@@ -12,12 +12,16 @@ import {
 } from 'lucide-react';
 import { useReservoirCalc } from '../contexts/ReservoirCalcContext';
 import ContourMapViewer from './tools/ContourMapViewer';
-import PaintedSurfaceViewer from './tools/PaintedSurfaceViewer';
+import Surface3DViewer from './tools/Surface3DViewer';
 import MapGallery from './gallery/MapGallery';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MapStorageService } from '../services/MapStorageService';
 import { useToast } from '@/components/ui/use-toast';
-import { SurfaceInterpolator } from '../services/SurfaceInterpolator';
+import { gridSurface } from '../services/GriddingEngine';
+import { useReservoirSettings } from '../hooks/useReservoirSettings';
+
+const SURFACE_LAYER_ID = '__surface__';
 
 class ErrorBoundary extends React.Component {
     constructor(props) {
@@ -48,50 +52,103 @@ class ErrorBoundary extends React.Component {
 }
 
 const ExpertVisPanel = () => {
-    const { state, getActiveSurface } = useReservoirCalc();
+    const { state, getActiveSurface, addDrawingPoint } = useReservoirCalc();
     const { toast } = useToast();
-    
-    const [viewMode, setViewMode] = useState('split'); 
+    const [settings] = useReservoirSettings();
+
+    const [viewMode, setViewMode] = useState('split');
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [activeLayerId, setActiveLayerId] = useState(SURFACE_LAYER_ID);
 
     // Robust Data Extraction
     const activeSurface = getActiveSurface ? getActiveSurface() : null;
-    
-    const gridData = useMemo(() => {
+    const unitSystem = state.unitSystem || 'field';
+    const depthUnit = unitSystem === 'field' ? 'ft' : 'm';
+
+    const surfaceGrid = useMemo(() => {
         if (!activeSurface) return null;
-        
+
         // Check for valid grid if it already exists
         if (activeSurface.grid && activeSurface.grid.z && activeSurface.grid.z.length > 0) {
             return activeSurface.grid;
         }
-        
-        // If no grid but points exist, generate grid on-the-fly for visualization
+
+        // No stored grid → grid the points with the chosen method (cached per surface).
         if (activeSurface.points && activeSurface.points.length > 0) {
             try {
-                console.log(`Generating visualization grid for ${activeSurface.name} (${activeSurface.points.length} pts)`);
-                const interp = new SurfaceInterpolator(activeSurface.points);
-                // Use 80x80 resolution for quick interactive visualization
-                return interp.generateGrid(80);
+                return gridSurface(activeSurface, settings.interpolationMethod, 80);
             } catch (err) {
                 console.error("On-the-fly grid generation failed:", err);
                 return null;
             }
         }
-        
-        return null;
-    }, [activeSurface]);
 
-    const unitSystem = state.unitSystem || 'field';
+        return null;
+    }, [activeSurface, settings.interpolationMethod]);
+
+    // Selectable display layers: the base structure surface plus any generated
+    // property maps. AOIs are drawn in surface (world) coordinates, so polygon
+    // drawing is only enabled while the surface layer is active.
+    const maps = state.maps || [];
+    const layers = useMemo(() => {
+        const list = [{
+            id: SURFACE_LAYER_ID,
+            name: activeSurface ? activeSurface.name : 'Structure Surface',
+            grid: surfaceGrid,
+            colorscale: settings.defaultColorscale || 'Earth',
+            unit: depthUnit,
+            isSurface: true,
+        }];
+        maps.forEach(m => list.push({
+            id: m.id,
+            name: m.name,
+            grid: m.data,
+            colorscale: m.colorscale || 'Viridis',
+            unit: m.unit || '',
+            isSurface: false,
+        }));
+        return list;
+    }, [activeSurface, surfaceGrid, maps, depthUnit, settings.defaultColorscale]);
+
+    const activeLayer = layers.find(l => l.id === activeLayerId) || layers[0];
+    const gridData = activeLayer.grid;
+    const isSurfaceLayer = activeLayer.isSurface;
+
+    // AOI props threaded to the 2D viewer
+    const aoiProps = {
+        colorscale: activeLayer.colorscale,
+        unit: activeLayer.unit,
+        aois: state.aois || [],
+        activeAoiId: state.activeAoiId,
+        drawing: state.drawing || { isActive: false, currentPoints: [] },
+        enableDrawing: isSurfaceLayer,
+        onAddPoint: addDrawingPoint,
+    };
+
+    // Props for the 3D viewer. Contacts + depth convention are only meaningful for
+    // the structure surface, so property-map layers render as a plain height field.
+    const viewer3dProps = {
+        gridData,
+        unitSystem,
+        colorscale: activeLayer.colorscale,
+        valueUnit: activeLayer.unit,
+        isSurface: isSurfaceLayer,
+        zConvention: activeSurface?.zConvention || 'elevation',
+        contacts: isSurfaceLayer
+            ? { owc: state.inputs.owc, goc: state.inputs.goc, fluidType: state.inputs.fluidType || 'oil' }
+            : null,
+        title: isSurfaceLayer ? `${activeLayer.name} (3D)` : activeLayer.name,
+    };
 
     const handleSaveView = async () => {
-        if (!activeSurface || !gridData) return;
+        if (!gridData) return;
         try {
             await MapStorageService.saveMap({
-                name: `${activeSurface.name} - ${viewMode.toUpperCase()}`,
+                name: `${activeLayer.name} - ${viewMode.toUpperCase()}`,
                 type: viewMode === '3d' ? '3d' : '2d',
-                surfaceId: activeSurface.id,
-                surfaceName: activeSurface.name,
+                surfaceId: activeSurface?.id || activeLayer.id,
+                surfaceName: activeLayer.name,
                 data: gridData,
                 unitSystem,
                 inputs: { ...state.inputs }
@@ -182,8 +239,22 @@ const ExpertVisPanel = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <Button 
-                        variant="ghost" size="sm" 
+                    {layers.length > 1 && (
+                        <Select value={activeLayerId} onValueChange={setActiveLayerId}>
+                            <SelectTrigger className="h-8 w-[170px] text-xs bg-slate-800 border-slate-700 text-slate-200">
+                                <SelectValue placeholder="Layer" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {layers.map(l => (
+                                    <SelectItem key={l.id} value={l.id} className="text-xs">
+                                        {l.isSurface ? '◱ ' : '▦ '}{l.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                    <Button
+                        variant="ghost" size="sm"
                         className="h-8 text-xs text-slate-400 hover:text-white hover:bg-slate-800"
                         onClick={() => setIsGalleryOpen(true)}
                     >
@@ -203,13 +274,13 @@ const ExpertVisPanel = () => {
             {/* Main Canvas */}
             <div className="flex-1 relative w-full h-full bg-slate-950 overflow-hidden">
                 <ErrorBoundary>
-                    {!activeSurface ? (
+                    {!activeSurface && maps.length === 0 ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-600">
                             <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center mb-4 border border-slate-800">
                                 <Box className="w-8 h-8 opacity-50" />
                             </div>
                             <p className="text-sm font-medium">No Surface Selected</p>
-                            <p className="text-xs mt-1 opacity-70">Select a surface from the library to visualize</p>
+                            <p className="text-xs mt-1 opacity-70">Import a surface (Surfaces tab) to visualize & draw AOIs</p>
                         </div>
                     ) : !gridData ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-amber-600/70">
@@ -223,25 +294,24 @@ const ExpertVisPanel = () => {
                         <>
                             {viewMode === '2d' && (
                                 <div className="w-full h-full">
-                                    <ContourMapViewer gridData={gridData} unitSystem={unitSystem} />
+                                    <ContourMapViewer gridData={gridData} {...aoiProps} />
                                 </div>
                             )}
-                            
+
                             {viewMode === '3d' && (
                                 <div className="w-full h-full">
-                                    <PaintedSurfaceViewer gridData={gridData} unitSystem={unitSystem} />
+                                    <Surface3DViewer {...viewer3dProps} />
                                 </div>
                             )}
 
                             {viewMode === 'split' && (
                                 <div className="w-full h-full flex flex-col md:flex-row">
                                     <div className="flex-1 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-slate-800 relative">
-                                        <div className="absolute top-3 left-3 z-10 pointer-events-none bg-slate-950/50 backdrop-blur px-2 py-0.5 rounded text-[10px] text-blue-400 font-medium border border-slate-800">Structure Map</div>
-                                        <ContourMapViewer gridData={gridData} unitSystem={unitSystem} />
+                                        <div className="absolute top-3 left-3 z-10 pointer-events-none bg-slate-950/50 backdrop-blur px-2 py-0.5 rounded text-[10px] text-blue-400 font-medium border border-slate-800">{activeLayer.name}{isSurfaceLayer ? ' (draw AOIs here)' : ''}</div>
+                                        <ContourMapViewer gridData={gridData} {...aoiProps} />
                                     </div>
                                     <div className="flex-1 h-1/2 md:h-full relative">
-                                        <div className="absolute top-3 left-3 z-10 pointer-events-none bg-slate-950/50 backdrop-blur px-2 py-0.5 rounded text-[10px] text-emerald-400 font-medium border border-slate-800">3D Model</div>
-                                        <PaintedSurfaceViewer gridData={gridData} unitSystem={unitSystem} />
+                                        <Surface3DViewer {...viewer3dProps} />
                                     </div>
                                 </div>
                             )}

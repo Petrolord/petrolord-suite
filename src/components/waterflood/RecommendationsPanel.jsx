@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 
-const RecommendationsPanel = ({ data }) => {
+const RecommendationsPanel = ({ data, note }) => {
   if (!data || data.length === 0) return null;
 
   const sortedData = [...data].sort((a, b) => Math.abs(b.delta_bpd) - Math.abs(a.delta_bpd));
@@ -21,7 +21,10 @@ const RecommendationsPanel = ({ data }) => {
       transition={{ duration: 0.6 }}
       className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6"
     >
-      <h2 className="text-2xl font-bold text-white mb-4">Injector Recommendations</h2>
+      <h2 className="text-2xl font-bold text-white mb-1">Injector Recommendations</h2>
+      <p className="text-cyan-200/80 text-sm mb-4">
+        Field-level VRR balance{note ? ` — ${note}` : ''} These target overall voidage replacement, not per-pattern geometry.
+      </p>
       <div className="max-h-96 overflow-y-auto">
         <Table>
           <TableHeader className="sticky top-0 bg-slate-900/80 backdrop-blur-sm">

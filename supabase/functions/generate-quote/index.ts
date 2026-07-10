@@ -10,7 +10,7 @@ Deno.serve(async (req)=>{
   });
   try {
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    const { modules = [], apps = [], seats = 1, billing_term = 'monthly', add_ons = [], user_id, organization_id, user_email, user_name } = await req.json();
+    const { modules = [], apps = [], seats = 1, billing_term = 'monthly', add_ons = [], user_id, organization_id, user_email, user_name, service_tier = 'starter', storage_gb = 0, manual_discount = 0 } = await req.json();
     if (!user_id && !user_email) throw new Error('User ID or Email is required');
     let orgId = organization_id;
     let orgName = '';
@@ -18,14 +18,19 @@ Deno.serve(async (req)=>{
     if (orgId) {
       const { data: org, error: orgError } = await supabase.from('organizations').select('*').eq('id', orgId).single();
       if (orgError) throw new Error('Organization not found');
-      // Verify admin status if user_id is present
+      // Verify admin status if user_id is present.
+      // Membership lives across three tables (org signup writes organization_members,
+      // legacy code uses organization_users, some flows use org_members) — accept an
+      // admin-ish role in ANY of them.
       if (user_id) {
-        const { data: membership } = await supabase.from('organization_users').select('role').eq('organization_id', orgId).eq('user_id', user_id).single();
-        if (!membership || ![
-          'owner',
-          'admin',
-          'super_admin'
-        ].includes(membership.role)) {
+        const ADMIN_ROLES = ['owner', 'admin', 'super_admin', 'org_admin'];
+        const [ou, om, ogm] = await Promise.all([
+          supabase.from('organization_users').select('role, user_role').eq('organization_id', orgId).eq('user_id', user_id).maybeSingle(),
+          supabase.from('organization_members').select('role').eq('organization_id', orgId).eq('user_id', user_id).maybeSingle(),
+          supabase.from('org_members').select('role').eq('org_id', orgId).eq('user_id', user_id).maybeSingle()
+        ]);
+        const roles = [ou.data?.role, ou.data?.user_role, om.data?.role, ogm.data?.role].filter(Boolean);
+        if (!roles.some((r)=>ADMIN_ROLES.includes(r))) {
           throw new Error('Unauthorized: Must be an organization admin to generate a quote.');
         }
       }
@@ -62,9 +67,45 @@ Deno.serve(async (req)=>{
     const configMap = {};
     pricingConfig?.forEach((item)=>configMap[item.key] = item.value);
     const VAT_RATE = parseFloat(configMap['vat_rate'] || '0.075');
-    const BASE_PLATFORM_FEE = parseFloat(configMap['base_platform_fee'] || '299');
-    const USER_SEAT_PRICE = parseFloat(configMap['user_seat_price'] || '49');
+    const BASE_PLATFORM_FEE_RAW = parseFloat(configMap['base_platform_fee'] || '299');
+    const STORAGE_GB_PRICE = parseFloat(configMap['storage_gb_price'] || '0.5');
+    // Graduated PER-APP seat tiers. Keep in sync with src/data/pricingModels.js
+    // SEAT_TIERS. Optional override via pricing_config.seat_tiers (JSON array).
+    let SEAT_TIERS = [
+      { upTo: 5, price: 49 },
+      { upTo: 15, price: 39 },
+      { upTo: 40, price: 29 },
+      { upTo: Infinity, price: 19 }
+    ];
+    try {
+      if (configMap['seat_tiers']) {
+        SEAT_TIERS = JSON.parse(configMap['seat_tiers']).map((t)=>({ upTo: t.upTo === null ? Infinity : t.upTo, price: t.price }));
+      }
+    } catch (_e) { /* keep defaults */ }
+    const computeSeatCost = (n)=>{
+      let remaining = Math.max(0, parseInt(n) || 0), prevCap = 0, cost = 0;
+      for (const t of SEAT_TIERS) {
+        if (remaining <= 0) break;
+        const band = Math.min(remaining, t.upTo - prevCap);
+        cost += band * t.price;
+        remaining -= band;
+        prevCap = t.upTo;
+      }
+      return cost;
+    };
+    // Service tiers (multiplier on the platform base fee) and billing periods.
+    const TIER_MULTIPLIERS = { starter: 1.0, growth: 1.25, enterprise: 1.5 };
+    const PERIODS = {
+      monthly:   { months: 1,  discount: 0 },
+      quarterly: { months: 3,  discount: 0.10 },
+      annual:    { months: 12, discount: 0.15 },
+      '2year':   { months: 24, discount: 0.20 },
+      '3year':   { months: 36, discount: 0.25 }
+    };
+    const tierMultiplier = TIER_MULTIPLIERS[service_tier] ?? 1.0;
+    const BASE_PLATFORM_FEE = BASE_PLATFORM_FEE_RAW * tierMultiplier;
     let appsCost = 0;
+    let seatsCost = 0; // accumulated per-app via tiers
     const lineItems = [];
     const validatedApps = []; // Track app IDs (UUIDs)
     const appNameMap = {}; // Map app ID to name for PDF
@@ -72,31 +113,52 @@ Deno.serve(async (req)=>{
       description: 'Platform Base Fee',
       amount: BASE_PLATFORM_FEE
     });
-    // FIXED: Query master_apps table for ACTIVE apps only
-    // Apps array contains app IDs (UUIDs) from frontend
-    if (apps && apps.length > 0) {
-      console.log(`[Generate Quote] Requested apps: ${JSON.stringify(apps)}`);
-      const { data: activeApps, error: appsError } = await supabase.from('master_apps').select('id, name, price, status').in('id', apps).eq('status', 'ACTIVE');
+    // Normalize apps: accept ["uuid", ...] (legacy) OR [{ id, seats }, ...] (per-app seats).
+    const appEntries = (apps || [])
+      .map((a)=> typeof a === 'string' ? { id: a, seats: null } : { id: a?.id, seats: (a?.seats != null ? parseInt(a.seats) : null) })
+      .filter((a)=> a.id);
+    const appIds = appEntries.map((a)=> a.id);
+    const seatsByApp = Object.fromEntries(appEntries.map((a)=> [a.id, a.seats]));
+    const perAppSeatMode = appEntries.some((a)=> a.seats != null);
+    // Query master_apps for ACTIVE apps only
+    if (appIds.length > 0) {
+      console.log(`[Generate Quote] Requested apps: ${JSON.stringify(appEntries)}`);
+      const { data: activeApps, error: appsError } = await supabase.from('master_apps').select('id, app_name, price, status, slug, module, module_id').in('id', appIds).ilike('status', 'active');
       if (appsError) {
         console.error('[Generate Quote] Error fetching apps:', appsError);
         throw appsError;
       }
       if (activeApps && activeApps.length > 0) {
-        console.log(`[Generate Quote] Found ${activeApps.length} active apps from ${apps.length} requested`);
+        console.log(`[Generate Quote] Found ${activeApps.length} active apps from ${appIds.length} requested`);
         activeApps.forEach((app)=>{
           const price = parseFloat(app.price || 0);
+          // Per-app seat count (the cap manual_verify_quote writes to seats_allocated).
+          const appSeats = perAppSeatMode ? (seatsByApp[app.id] != null ? seatsByApp[app.id] : 1) : (Number(seats) || 1);
+          const appSeatCost = computeSeatCost(appSeats); // graduated per-app tiers
           appsCost += price;
-          validatedApps.push(app.id); // Store UUID
-          appNameMap[app.id] = app.name; // Map for PDF
+          seatsCost += appSeatCost;
+          // Store an OBJECT (incl. per-app seats) so manual_verify_quote can match on
+          // ->>'id'/'name'/'module' and set per-app seats_allocated.
+          validatedApps.push({
+            id: app.id,
+            name: app.app_name,
+            module: app.module,
+            seats: appSeats
+          });
+          appNameMap[app.id] = app.app_name; // Map for PDF
           lineItems.push({
-            description: `App: ${app.name}`,
+            description: `App: ${app.app_name}`,
             amount: price
           });
-          console.log(`[Generate Quote] Added app: ${app.name} (${app.id}) - $${price}`);
+          lineItems.push({
+            description: `   ${appSeats} seat${appSeats === 1 ? '' : 's'} — ${app.app_name}`,
+            amount: appSeatCost
+          });
+          console.log(`[Generate Quote] Added app: ${app.app_name} (${app.id}) - $${price} - ${appSeats} seats - seatCost $${appSeatCost}`);
         });
         // Log any apps that were requested but not found/inactive
         const foundAppIds = activeApps.map((a)=>a.id);
-        const missingApps = apps.filter((id)=>!foundAppIds.includes(id));
+        const missingApps = appIds.filter((id)=>!foundAppIds.includes(id));
         if (missingApps.length > 0) {
           console.warn(`[Generate Quote] ${missingApps.length} requested apps not found or inactive: ${JSON.stringify(missingApps)}`);
         }
@@ -116,11 +178,15 @@ Deno.serve(async (req)=>{
         });
       });
     }
-    const seatsCost = seats * USER_SEAT_PRICE;
-    lineItems.push({
-      description: `${seats} User Seats @ $${USER_SEAT_PRICE}/mo`,
-      amount: seatsCost
-    });
+    // seatsCost was accumulated per-app (graduated tiers) in the loop above.
+    // totalSeats is the sum for display/storage.
+    let totalSeats = validatedApps.reduce((acc, a)=> acc + (a.seats || 0), 0);
+    // Module-only fallback (no apps selected): charge the global seats once.
+    if (validatedApps.length === 0 && (Number(seats) || 0) > 0) {
+      totalSeats = Number(seats) || 0;
+      seatsCost = computeSeatCost(totalSeats);
+      lineItems.push({ description: `${totalSeats} User Seats`, amount: seatsCost });
+    }
     let addonsCost = 0;
     add_ons.forEach((addon)=>{
       const price = parseFloat(addon.price || 0);
@@ -130,26 +196,27 @@ Deno.serve(async (req)=>{
         amount: price
       });
     });
-    const monthlySubtotal = BASE_PLATFORM_FEE + appsCost + seatsCost + addonsCost;
-    let termMultiplier = 1;
-    let months = 1;
-    let discountRate = 0;
-    if (billing_term === 'annual') {
-      months = 12;
-      discountRate = 0.15;
-    } else if (billing_term === 'quarterly') {
-      months = 3;
-      discountRate = 0.10;
+    // Storage (first 10 GB free).
+    const storageCost = Math.max(0, (Number(storage_gb) || 0) - 10) * STORAGE_GB_PRICE;
+    if (storageCost > 0) {
+      lineItems.push({ description: `Storage (${storage_gb} GB)`, amount: storageCost });
     }
-    const grossTotal = monthlySubtotal * months;
-    const discountAmount = grossTotal * discountRate;
-    const netTotal = grossTotal - discountAmount;
-    if (discountRate > 0) {
-      lineItems.push({
-        description: `${billing_term.charAt(0).toUpperCase() + billing_term.slice(1)} Discount (${discountRate * 100}%)`,
-        amount: -discountAmount
-      });
+    const monthlySubtotal = BASE_PLATFORM_FEE + appsCost + seatsCost + addonsCost + storageCost;
+    // Term discount (per billing period) then optional manual discount, then ×months.
+    const period = PERIODS[billing_term] || PERIODS.monthly;
+    const months = period.months;
+    const periodDiscountVal = monthlySubtotal * period.discount;
+    const afterPeriod = monthlySubtotal - periodDiscountVal;
+    const manualPct = Math.max(0, Math.min(100, Number(manual_discount) || 0)) / 100;
+    const manualDiscountVal = afterPeriod * manualPct;
+    const monthlyNet = afterPeriod - manualDiscountVal;
+    if (period.discount > 0) {
+      lineItems.push({ description: `Term Discount (${Math.round(period.discount * 100)}%)`, amount: -periodDiscountVal });
     }
+    if (manualPct > 0) {
+      lineItems.push({ description: `Special Discount (${Math.round(manualPct * 100)}%)`, amount: -manualDiscountVal });
+    }
+    const netTotal = monthlyNet * months;
     const vatAmount = netTotal * VAT_RATE;
     const totalAmount = netTotal + vatAmount;
     // 3. Generate Quote ID
@@ -158,18 +225,72 @@ Deno.serve(async (req)=>{
     const quoteId = `QT-${dateStr}-${randomStr}`;
     const validityPeriod = new Date();
     validityPeriod.setDate(validityPeriod.getDate() + 14);
+    // 3b. Initialize a real Paystack transaction so the quote has a working
+    // hosted-checkout link. NO currency conversion: the amount is sent in the
+    // minor unit of the Paystack account's default currency, so a $X bill is
+    // charged as X in that currency (e.g. $1000 -> ₦1000). We deliberately omit
+    // the `currency` field so Paystack uses the account default. reference is set
+    // to quoteId so the existing verify-by-quote-id flow keeps working.
+    let paystackLink = null;
+    let paystackReference = null;
+    const PAYSTACK_SECRET_KEY = Deno.env.get('PAYSTACK_SECRET_KEY');
+    if (PAYSTACK_SECRET_KEY && user_email) {
+      try {
+        const appOrigin = req.headers.get('origin') || Deno.env.get('APP_URL') || '';
+        const initRes = await fetch('https://api.paystack.co/transaction/initialize', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: user_email,
+            amount: Math.round(totalAmount * 100), // minor unit, no FX conversion
+            reference: quoteId,
+            metadata: {
+              quote_id: quoteId,
+              organization_id: orgId
+            },
+            // Only set callback_url when we know the calling app's origin; otherwise
+            // Paystack falls back to the callback configured in its dashboard.
+            ...(appOrigin ? { callback_url: `${appOrigin}/dashboard/quote/${quoteId}` } : {})
+          })
+        });
+        const initJson = await initRes.json();
+        if (initJson?.status && initJson?.data?.authorization_url) {
+          paystackLink = initJson.data.authorization_url;
+          paystackReference = initJson.data.reference || quoteId;
+          console.log(`[Generate Quote] Paystack initialized: ref=${paystackReference}`);
+        } else {
+          console.error(`[Generate Quote] Paystack initialize failed: ${JSON.stringify(initJson)}`);
+        }
+      } catch (e) {
+        // Don't lose the quote if Paystack is unreachable — store it without a link;
+        // the dashboard shows a "contact sales" fallback in that case.
+        console.error(`[Generate Quote] Paystack initialize error: ${e.message}`);
+      }
+    } else {
+      console.warn('[Generate Quote] PAYSTACK_SECRET_KEY or user_email missing — no payment link generated.');
+    }
+
     // 4. Insert Quote Record - Store app IDs (UUIDs), not names
     console.log(`[Generate Quote] Storing validated apps: ${JSON.stringify(validatedApps)}`);
     const { error: quoteInsertError } = await supabase.from('quotes').insert({
       quote_id: quoteId,
       organization_id: orgId,
-      modules: JSON.stringify(modules),
-      apps: JSON.stringify(validatedApps),
-      seats: seats,
+      // modules/apps/add_ons are jsonb columns — pass arrays directly. Stringifying
+      // would store a JSON *string scalar*, which breaks manual_verify_quote's
+      // jsonb_array_elements(apps) provisioning loop.
+      modules: modules,
+      apps: validatedApps,
+      seats: totalSeats,
+      user_seats: totalSeats,
       billing_term: billing_term,
-      add_ons: JSON.stringify(add_ons),
+      add_ons: add_ons,
       total_amount: totalAmount,
       currency: 'USD',
+      paystack_link: paystackLink,
+      paystack_reference: paystackReference,
       validity_period: validityPeriod.toISOString(),
       status: 'PENDING',
       created_at: new Date().toISOString()
@@ -383,8 +504,8 @@ Deno.serve(async (req)=>{
         template: 'quote_created',
         details: {
           orgName: orgName,
-          orgSize: `${seats} Seats`,
-          numUsers: seats,
+          orgSize: `${totalSeats} Seats`,
+          numUsers: totalSeats,
           term: billing_term,
           calculation: {
             final: totalAmount
@@ -407,10 +528,7 @@ Deno.serve(async (req)=>{
       total_amount: totalAmount,
       validated_apps: validatedApps,
       payment_links: {
-        paystack: `https://checkout.paystack.com/pay/generic?amount=${Math.round(totalAmount * 100)}&email=${user_email}&metadata=${JSON.stringify({
-          quote_id: quoteId,
-          organization_id: orgId
-        })}`
+        paystack: paystackLink
       }
     }), {
       headers: {

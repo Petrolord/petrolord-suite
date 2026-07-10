@@ -11,8 +11,8 @@ import {
     Bell, UserPlus, FileUp, Files, TestTube, Thermometer, Droplets, Droplet as DropletIcon, 
     Component, Lightbulb as LightbulbIcon, Coins as HandCoins, Building, Building2, 
     HelpCircle, Upload, DraftingCompass, Tornado, Waves as WavesIcon, Filter, 
-    FileClock, ShieldHalf, Footprints, Cylinder, Cuboid, ShieldCheck, AlertTriangle, 
-    Grid, Dices, GitBranch, Layers, List, Lock, History, Map, CheckCircle2
+    FileClock, ShieldHalf, Footprints, Cylinder, Cuboid, ShieldCheck, AlertTriangle,
+    Grid, Dices, GitBranch, Layers, List, Lock, History, Map, CheckCircle2, Percent
 } from 'lucide-react';
 
 export const iconRegistry = {
@@ -28,8 +28,8 @@ export const iconRegistry = {
     Bell, UserPlus, FileUp, Files, TestTube, Thermometer, Droplets, DropletIcon, 
     Component, LightbulbIcon, HandCoins, Building, Building2, 
     HelpCircle, Upload, DraftingCompass, Tornado, WavesIcon, Filter, 
-    FileClock, ShieldHalf, Footprints, Cylinder, Cuboid, ShieldCheck, AlertTriangle, 
-    Grid, Dices, GitBranch, Layers, List, Lock, History, Map, CheckCircle2
+    FileClock, ShieldHalf, Footprints, Cylinder, Cuboid, ShieldCheck, AlertTriangle,
+    Grid, Dices, GitBranch, Layers, List, Lock, History, Map, CheckCircle2, Percent
 };
 
 export const getAppIcon = (iconName) => {
