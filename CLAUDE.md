@@ -53,5 +53,5 @@ Functions (`supabase/functions/`, shared math in
   .gitignore lists it — this is why git status shows node_modules noise.
   Do NOT commit node_modules changes; untracking it (git rm -r --cached
   node_modules) is a pending cleanup decision, not yet done.
-- MIGRATIONS.md and docs/scope/Seismolord-PLAYBOOK.md are referenced above
-  but don't exist yet — create them when first needed.
+- MIGRATIONS.md is referenced above but doesn't exist yet — create it when
+  logging the first migration.
