@@ -9,6 +9,7 @@ import { listVolumes, getManifest } from '../services/volumesService';
 import {
   saveHorizon, listHorizons, loadHorizonGrid, deleteHorizon,
 } from '../services/horizonsService';
+import { saveFault, listFaults, deleteFault } from '../services/faultsService';
 import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
 import {
   assembleSlice, assembleTrace, bricksForSlice, geomFromManifest, brickKey,
@@ -17,6 +18,7 @@ import { snapPick } from '../engine/horizonTrack';
 import { NULL_VALUE } from '../engine/manifest';
 import { SliceRenderer, SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import HorizonsList, { horizonColor } from './HorizonsList';
+import FaultsList, { faultColor } from './FaultsList';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
 
@@ -39,7 +41,7 @@ async function accessToken() {
 const newHorizonWorker = () =>
   new Worker(new URL('../workers/horizon.worker.js', import.meta.url), { type: 'module' });
 
-export default function ViewerPanel({ refreshKey }) {
+export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const { toast } = useToast();
   const canvasRef = useRef(null);
   const overlayRef = useRef(null);
@@ -64,14 +66,19 @@ export default function ViewerPanel({ refreshKey }) {
   const [error, setError] = useState(null);
   const [sliceMs, setSliceMs] = useState(null);
 
-  // Phase 3: picking + horizons
-  const [pickMode, setPickMode] = useState(false);
+  // Phase 3: picking + horizons; Phase 4: fault sticks
+  const [pickMode, setPickMode] = useState(null);   // null | 'seed' | 'fault'
   const [seedPick, setSeedPick] = useState(null);   // {ilIdx, xlIdx, sample}
   const [tracking, setTracking] = useState(null);   // {tracked, total}
   const [horizons, setHorizons] = useState([]);
   const [visibleIds, setVisibleIds] = useState(new Set());
   const [horizonBusyId, setHorizonBusyId] = useState(null);
   const [overlayTick, setOverlayTick] = useState(0);
+  const [faults, setFaults] = useState([]);
+  const [visibleFaultIds, setVisibleFaultIds] = useState(new Set());
+  const [faultBusyId, setFaultBusyId] = useState(null);
+  // draft fault: array of sticks; each stick = array of {il, xl, s}
+  const [draftSticks, setDraftSticks] = useState([]);
 
   useEffect(() => {
     listVolumes()
@@ -101,9 +108,12 @@ export default function ViewerPanel({ refreshKey }) {
     setManifest(null);
     setSeedPick(null);
     setVisibleIds(new Set());
+    setVisibleFaultIds(new Set());
+    setDraftSticks([]);
     gridCacheRef.current.clear();
     setError(null);
-    if (!v) { setHorizons([]); return; }
+    if (onVolumeChange) onVolumeChange(null, null);
+    if (!v) { setHorizons([]); setFaults([]); return; }
     setLoading(true);
     try {
       const m = await getManifest(v);
@@ -115,6 +125,8 @@ export default function ViewerPanel({ refreshKey }) {
       setOrientation('inline');
       setSliceIndex(Math.floor(m.geometry.il.count / 2));
       await reloadHorizons(v);
+      setFaults(await listFaults(v.id).catch(() => []));
+      if (onVolumeChange) onVolumeChange(v, m);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -230,6 +242,44 @@ export default function ViewerPanel({ refreshKey }) {
       }
     }
 
+    // fault sticks: saved (per-fault colors) then the dashed draft
+    const drawSticks = (sticks, color, dashed) => {
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = Math.max(1.5, w / 800);
+      ctx.setLineDash(dashed ? [6, 4] : []);
+      for (const stick of sticks) {
+        const pts = stick.points || stick;
+        if (orientation !== 'time') {
+          const near = pts.filter((p) => (orientation === 'inline'
+            ? Math.abs(p.il - sliceIndex) <= 1 : Math.abs(p.xl - sliceIndex) <= 1));
+          if (near.length === 0) continue;
+          const nTraces = orientation === 'inline' ? geom.nXl : geom.nIl;
+          ctx.beginPath();
+          near.forEach((p, i) => {
+            const t = orientation === 'inline' ? p.xl : p.il;
+            const sx = ((t + 0.5) / nTraces) * w;
+            const sy = ((p.s + 0.5) / geom.ns) * h;
+            if (i === 0) ctx.moveTo(sx, sy);
+            else ctx.lineTo(sx, sy);
+            ctx.fillRect(sx - 2, sy - 2, 4, 4);
+          });
+          if (near.length > 1) ctx.stroke();
+        } else {
+          for (const p of pts) {
+            if (Math.abs(p.s - sliceIndex) > 2) continue;
+            ctx.fillRect(((p.xl + 0.5) / geom.nXl) * w - 2,
+              ((p.il + 0.5) / geom.nIl) * h - 2, 4, 4);
+          }
+        }
+      }
+      ctx.setLineDash([]);
+    };
+    faults.forEach((f, idx) => {
+      if (visibleFaultIds.has(f.id)) drawSticks(f.sticks, faultColor(idx), false);
+    });
+    if (draftSticks.length) drawSticks(draftSticks, '#fbbf24', true);
+
     // seed marker on the section that contains it
     if (seedPick && orientation !== 'time') {
       const onSlice = orientation === 'inline'
@@ -248,11 +298,12 @@ export default function ViewerPanel({ refreshKey }) {
         ctx.stroke();
       }
     }
-  }, [geom, orientation, sliceIndex, seedPick, visibleGrids]);
+  }, [geom, orientation, sliceIndex, seedPick, visibleGrids,
+    faults, visibleFaultIds, draftSticks]);
 
   useEffect(() => { drawOverlay(); }, [drawOverlay, overlayTick]);
 
-  // ---- seed picking ----------------------------------------------------
+  // ---- picking (horizon seed / fault sticks) ----------------------------
   const onCanvasClick = async (e) => {
     if (!pickMode || !geom || !volume || orientation === 'time') return;
     const rect = overlayRef.current.getBoundingClientRect();
@@ -263,6 +314,18 @@ export default function ViewerPanel({ refreshKey }) {
     const sample = v * geom.ns;                        // time increases downward
     const ilIdx = orientation === 'inline' ? sliceIndex : trace;
     const xlIdx = orientation === 'inline' ? trace : sliceIndex;
+
+    if (pickMode === 'fault') {
+      // fault points are raw picks on visible discontinuities — no snap
+      setDraftSticks((sticks) => {
+        const next = sticks.map((s) => [...s]);
+        if (next.length === 0) next.push([]);
+        next[next.length - 1].push({ il: ilIdx, xl: xlIdx, s: sample });
+        return next;
+      });
+      return;
+    }
+
     try {
       const traceData = await assembleTrace(getBrick, geom, ilIdx, xlIdx);
       const hit = snapPick(traceData, sample, { mode: 'peak', window: 5 });
@@ -273,6 +336,56 @@ export default function ViewerPanel({ refreshKey }) {
       setSeedPick({ ilIdx, xlIdx, sample: hit.sample });
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  // ---- fault stick editing ----------------------------------------------
+  const endStick = () => setDraftSticks((s) => (s.length && s[s.length - 1].length ? [...s, []] : s));
+
+  const discardDraft = () => setDraftSticks([]);
+
+  const saveDraftFault = async () => {
+    const sticks = draftSticks.filter((s) => s.length >= 2)
+      .map((points) => ({ points }));
+    if (!sticks.length) {
+      toast({ title: 'Nothing to save', description: 'A fault stick needs at least 2 points.' });
+      return;
+    }
+    // eslint-disable-next-line no-alert
+    const name = window.prompt('Fault name:', `Fault ${faults.length + 1}`);
+    if (!name) return;
+    try {
+      const row = await saveFault({ volumeId: volume.id, name, sticks });
+      setDraftSticks([]);
+      setFaults(await listFaults(volume.id));
+      setVisibleFaultIds((s) => new Set([...s, row.id]));
+      toast({ title: 'Fault saved', description: `${name}: ${sticks.length} stick(s).` });
+    } catch (e) {
+      toast({ title: 'Save failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const toggleFault = (f) => {
+    setVisibleFaultIds((s) => {
+      const next = new Set(s);
+      if (next.has(f.id)) next.delete(f.id);
+      else next.add(f.id);
+      return next;
+    });
+  };
+
+  const onDeleteFault = async (f) => {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Delete fault "${f.name}"?`)) return;
+    setFaultBusyId(f.id);
+    try {
+      await deleteFault(f);
+      setVisibleFaultIds((s) => { const n = new Set(s); n.delete(f.id); return n; });
+      setFaults(await listFaults(volume.id));
+    } catch (e) {
+      toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setFaultBusyId(null);
     }
   };
 
@@ -480,13 +593,42 @@ export default function ViewerPanel({ refreshKey }) {
             <div className="flex flex-wrap items-center gap-3">
               <Button
                 variant="outline" size="sm"
-                className={pickMode ? 'border-yellow-500/60 text-yellow-300' : ''}
-                onClick={() => setPickMode((p) => !p)}
+                className={pickMode === 'seed' ? 'border-yellow-500/60 text-yellow-300' : ''}
+                onClick={() => setPickMode((p) => (p === 'seed' ? null : 'seed'))}
                 disabled={orientation === 'time'}
               >
                 <Crosshair className="w-4 h-4 mr-2" />
-                {pickMode ? 'Picking: click an event' : 'Pick seed'}
+                {pickMode === 'seed' ? 'Picking: click an event' : 'Pick seed'}
               </Button>
+              <Button
+                variant="outline" size="sm"
+                className={pickMode === 'fault' ? 'border-orange-500/60 text-orange-300' : ''}
+                onClick={() => setPickMode((p) => (p === 'fault' ? null : 'fault'))}
+                disabled={orientation === 'time'}
+              >
+                <Crosshair className="w-4 h-4 mr-2" />
+                {pickMode === 'fault' ? 'Picking fault points…' : 'Pick fault'}
+              </Button>
+              {pickMode === 'fault' && (
+                <>
+                  <Button variant="outline" size="sm" onClick={endStick}>
+                    End stick
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-orange-600 hover:bg-orange-500 text-white"
+                    onClick={saveDraftFault}
+                    disabled={!draftSticks.some((s) => s.length >= 2)}
+                  >
+                    Save fault
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={discardDraft}
+                    disabled={!draftSticks.length}
+                  >
+                    Discard
+                  </Button>
+                </>
+              )}
               <Button
                 size="sm"
                 className="bg-cyan-600 hover:bg-cyan-500 text-white"
@@ -540,15 +682,27 @@ export default function ViewerPanel({ refreshKey }) {
         </div>
 
         {manifest && (
-          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-            <div className="text-slate-300 text-sm font-medium mb-2">Horizons</div>
-            <HorizonsList
-              horizons={horizons}
-              visibleIds={visibleIds}
-              busyId={horizonBusyId}
-              onToggle={toggleHorizon}
-              onDelete={onDeleteHorizon}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+              <div className="text-slate-300 text-sm font-medium mb-2">Horizons</div>
+              <HorizonsList
+                horizons={horizons}
+                visibleIds={visibleIds}
+                busyId={horizonBusyId}
+                onToggle={toggleHorizon}
+                onDelete={onDeleteHorizon}
+              />
+            </div>
+            <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+              <div className="text-slate-300 text-sm font-medium mb-2">Faults</div>
+              <FaultsList
+                faults={faults}
+                visibleIds={visibleFaultIds}
+                busyId={faultBusyId}
+                onToggle={toggleFault}
+                onDelete={onDeleteFault}
+              />
+            </div>
           </div>
         )}
 
