@@ -1,0 +1,26 @@
+{
+  "convention": "Z negative-down, feet; XY metres; null 1.0E+30; CPS-3/ZMAP+ bodies column-major, north-to-south",
+  "grid": {
+    "nx": 50,
+    "ny": 40,
+    "x0": 500000.0,
+    "y0": 6700000.0,
+    "dx": 20.0,
+    "dy": 20.0
+  },
+  "null_value": 1e+30,
+  "live_nodes": 1376,
+  "null_nodes": 624,
+  "z_min_ft": -7114.4,
+  "z_max_ft": -5002.4,
+  "z_crest_ft": -5000.0,
+  "hull_radius_m": 420.0,
+  "grv": {
+    "contact_ft": -6200.0,
+    "crest_ft": -5000.0,
+    "k_ft_per_m2": 0.012,
+    "contact_radius_m": 316.22776601683796,
+    "grv_acre_ft_analytic": 46578.267064784995,
+    "grv_acre_ft_numeric_1m_grid": 46578.25718467475
+  }
+}
