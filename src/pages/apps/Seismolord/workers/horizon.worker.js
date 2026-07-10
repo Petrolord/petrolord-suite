@@ -17,6 +17,10 @@ import { assembleTrace, brickKey } from '../engine/sliceAssembly';
 import { regionGrow3D } from '../engine/horizonTrack';
 
 const cancelled = new Set();
+// Pending token-refresh requests keyed by nonce, resolved when the main
+// thread replies with a fresh JWT (long grows can outlive the token).
+const tokenWaiters = new Map();
+let tokenNonce = 0;
 
 self.onmessage = async (e) => {
   const msg = e.data;
@@ -24,12 +28,26 @@ self.onmessage = async (e) => {
     cancelled.add(msg.id);
     return;
   }
+  if (msg.type === 'token') {
+    const waiter = tokenWaiters.get(msg.nonce);
+    if (waiter) { tokenWaiters.delete(msg.nonce); waiter(msg.token); }
+    return;
+  }
   if (msg.type !== 'track3d') return;
   const { id, config } = msg;
+  let currentToken = config.token;
+  const getToken = (force) => {
+    if (!force) return Promise.resolve(currentToken);
+    const nonce = ++tokenNonce;
+    return new Promise((resolve) => {
+      tokenWaiters.set(nonce, (t) => { currentToken = t; resolve(t); });
+      self.postMessage({ type: 'need-token', id, nonce });
+    });
+  };
   try {
     const cache = new BrickCache(storageBrickFetcher({
       supabaseUrl: config.supabaseUrl,
-      getToken: async () => config.token,
+      getToken,
       bucket: config.bucket,
     }), { maxBytes: 512 * 1024 * 1024 });
 

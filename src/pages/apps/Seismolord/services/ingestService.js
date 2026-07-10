@@ -7,7 +7,29 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { buildManifest, brickRelPath, volumeDir, manifestPath } from '../engine/manifest';
 
 export const SEISMIC_BUCKET = 'seismic';
-const UPLOAD_CONCURRENCY = 4;
+// Concurrency is governed by the worker's MAX_UNACKED_BRICKS backpressure
+// window (one ack per completed upload), not a separate counter here.
+
+// Phase 6 quota decision: a soft per-user ceiling enforced at ingest,
+// using each volume's recorded storage_bytes. Client-side by design for
+// now (the storage RLS still bounds WHO can write; this bounds HOW MUCH
+// a well-behaved client ingests) — server-side enforcement is the noted
+// escalation path if abuse ever shows up.
+export const STORAGE_QUOTA_BYTES = 20 * 1024 ** 3;   // 20 GiB
+
+async function assertQuota(estimateBytes) {
+  const { data, error } = await supabase.from('seismic_volumes')
+    .select('survey_meta');
+  if (error) return;                                  // quota check must never block on a read hiccup
+  const used = (data || []).reduce(
+    (sum, v) => sum + (Number(v.survey_meta?.storage_bytes) || 0), 0);
+  if (used + estimateBytes > STORAGE_QUOTA_BYTES) {
+    const gib = (n) => (n / 1024 ** 3).toFixed(1);
+    throw new Error(
+      `Storage quota exceeded: ${gib(used)} GiB used + ~${gib(estimateBytes)} GiB new `
+      + `> ${gib(STORAGE_QUOTA_BYTES)} GiB. Delete old volumes first.`);
+  }
+}
 
 const newWorker = () =>
   new Worker(new URL('../workers/ingest.worker.js', import.meta.url), { type: 'module' });
@@ -80,6 +102,8 @@ export async function ingestVolume({
   const dir = volumeDir(userId, volumeId);
   const displayName = name || file.name;
 
+  if (!resumeVolumeId) await assertQuota(file.size);   // brick store ≈ sample bytes
+
   // Register (or find) the row first so a failed ingest is visible and
   // resumable instead of leaving orphan storage objects.
   let row;
@@ -141,14 +165,19 @@ export async function ingestVolume({
             if (onProgress) onProgress({ phase: 'upload', done: uploadedBricks, total: null });
           })();
           inflight.add(task);
-          task.catch(fail).finally(() => inflight.delete(task));
-          if (inflight.size < UPLOAD_CONCURRENCY) {
-            worker.postMessage({ type: 'brick:ack', id });
-          } else {
-            Promise.race([...inflight]).then(
-              () => worker.postMessage({ type: 'brick:ack', id }),
-              () => {});
-          }
+          // Exactly ONE ack per completed upload — this, not a per-message
+          // counter, is what bounds concurrency: the worker parks after
+          // MAX_UNACKED_BRICKS unacked bricks, so at most that many uploads
+          // are ever in flight. (The old Promise.race pattern released every
+          // pending ack on a single completion, so uploads outran the cap.)
+          task.then(
+            () => {
+              if (!failed && !cancelToken.cancelled) {
+                worker.postMessage({ type: 'brick:ack', id });
+              }
+            },
+            fail,
+          ).finally(() => inflight.delete(task));
         } else if (msg.type === 'ingest:done') {
           await Promise.all([...inflight]);
           if (failed) return;
@@ -197,6 +226,8 @@ export async function ingestVolume({
         brick: manifest.brick.grid,
         brick_size: manifest.brick.size,
         stats: manifest.stats,
+        // quota accounting: actual brick-store footprint of this volume
+        storage_bytes: manifest.brick.count * manifest.brick.size ** 3 * 4,
       },
       updated_at: new Date().toISOString(),
     })

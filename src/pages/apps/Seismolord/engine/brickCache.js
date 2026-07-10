@@ -98,21 +98,29 @@ export const ABORTED = 'BRICK_FETCH_ABORTED';
 
 /**
  * Production fetcher: authenticated GET straight to Supabase Storage.
- * @param {{supabaseUrl: string, getToken: () => Promise<string>, bucket?: string}} cfg
+ *
+ * getToken may force a refresh; a 401/403 (expired JWT on a long job)
+ * retries ONCE with getToken(true) so a region-grow that outlives the
+ * access token recovers instead of failing and losing all progress.
+ *
+ * @param {{supabaseUrl: string, getToken: (force?: boolean) => Promise<string>, bucket?: string}} cfg
  * @returns {BrickFetcher}
  */
 export function storageBrickFetcher({ supabaseUrl, getToken, bucket = 'seismic' }) {
-  return async (path, signal) => {
-    const token = await getToken();
-    let res;
+  const url = (path) => `${supabaseUrl}/storage/v1/object/authenticated/${bucket}/${path}`;
+  const attempt = async (path, signal, force) => {
+    const token = await getToken(force);
     try {
-      res = await fetch(
-        `${supabaseUrl}/storage/v1/object/authenticated/${bucket}/${path}`,
-        { headers: { Authorization: `Bearer ${token}` }, signal },
-      );
+      return await fetch(url(path), { headers: { Authorization: `Bearer ${token}` }, signal });
     } catch (err) {
       if (err.name === 'AbortError') throw new Error(ABORTED);
       throw err;
+    }
+  };
+  return async (path, signal) => {
+    let res = await attempt(path, signal, false);
+    if (res.status === 401 || res.status === 403) {
+      res = await attempt(path, signal, true);        // token likely expired; refresh once
     }
     if (!res.ok) throw new Error(`Brick fetch failed (${res.status}) for ${path}`);
     return res.arrayBuffer();
