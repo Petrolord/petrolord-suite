@@ -60,8 +60,6 @@ const WellCorrelationPanel = lazy(() => import('@/pages/apps/WellCorrelationPane
 const CrossplotGenerator = lazy(() => import('@/pages/apps/CrossplotGenerator'));
 const PetrophysicsEstimator = lazy(() => import('@/pages/apps/PetrophysicsEstimator'));
 const PetrophysicalIntegrationSuite = lazy(() => import('@/pages/apps/PetrophysicalIntegrationSuite'));
-const SeismicInterpreter = lazy(() => import('@/pages/apps/SeismicInterpreter'));
-const VelocityModelBuilder = lazy(() => import('@/pages/apps/VelocityModelBuilder'));
 const ContourMapDigitizer = lazy(() => import('@/pages/apps/ContourMapDigitizer'));
 const WellPlanning = lazy(() => import('@/pages/apps/WellPlanning'));
 const ScenarioPlanner = lazy(() => import('@/pages/apps/ScenarioPlanner'));
@@ -108,7 +106,6 @@ const WellTestDataAnalyzer = lazy(() => import('@/pages/apps/WellTestDataAnalyze
 const FlowAssuranceMonitor = lazy(() => import('@/pages/apps/FlowAssuranceMonitor'));
 const IntegratedAssetModeler = lazy(() => import('@/pages/apps/IntegratedAssetModeler'));
 const MaterialBalanceAnalysis = lazy(() => import('@/pages/apps/MaterialBalanceAnalysis'));
-const WellToSeismicTie = lazy(() => import('@/pages/apps/WellToSeismicTie'));
 const MechanicalEarthModel = lazy(() => import('@/pages/apps/MechanicalEarthModel/MechanicalEarthModel'));
 const ExpertMode = lazy(() => import('@/pages/apps/MechanicalEarthModel/ExpertMode'));
 const Analytics = lazy(() => import('@/pages/apps/MechanicalEarthModel/Analytics'));
@@ -117,8 +114,6 @@ const WellCorrelationTool = lazy(() => import('@/pages/apps/WellCorrelationTool'
 const MaterialBalancePro = lazy(() => import('@/pages/apps/MaterialBalancePro'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 const CasingWearAnalyzer = lazy(() => import('@/pages/apps/CasingWearAnalyzer/CasingWearAnalyzer'));
-const StructuralMappingSuite = lazy(() => import('@/pages/apps/StructuralMappingSuite'));
-const SeismicInterpretationPro = lazy(() => import('@/pages/apps/SeismicInterpretationPro.jsx'));
 
 // Facilities newly added ones
 const PipelineDesigner = lazy(() => import('@/pages/apps/PipelineDesigner.jsx'));
@@ -180,7 +175,6 @@ const EpeCaseDetail = lazy(() => import('@/pages/apps/epe/EpeCaseDetail'));
 const EpeRunConsole = lazy(() => import('@/pages/apps/epe/EpeRunConsole'));
 const EpeResultsViewer = lazy(() => import('@/pages/apps/epe/EpeResultsViewer'));
 const EpeRunComparison = lazy(() => import('@/pages/apps/epe/EpeRunComparison'));
-const DepthConversionEngine = lazy(() => import('@/components/geoscience/DepthConversionEngine'));
 
 const MobileLayout = lazy(() => import('@/layouts/MobileLayout'));
 const MobileDashboard = lazy(() => import('@/pages/mobile/MobileDashboard'));
@@ -415,27 +409,21 @@ function App() {
                                 <Route path="apps/geoscience/quickvol" element={<ProtectedAppRoute appId="quickvol" appName="QuickVol"><ReservoirCalcPro /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/reservoircalc-pro" element={<ProtectedAppRoute appId="reservoircalc-pro" appName="ReservoirCalc Pro"><ReservoirCalcPro /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/well-correlation-tool" element={<ProtectedAppRoute appId="well-correlation-tool" appName="Well Correlation Tool"><WellCorrelationTool /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/structural-mapping-suite" element={<ProtectedAppRoute appId="structural-mapping-suite" appName="Structural Mapping Suite"><StructuralMappingSuite /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/seismic-interpretation-pro" element={<ProtectedAppRoute appId="seismic-interpretation-pro" appName="Seismic Interpretation Pro"><SeismicInterpretationPro /></ProtectedAppRoute>} />
                                 
                                 <Route path="apps/geoscience/crossplot-generator" element={<CrossplotGenerator />} />
                                 <Route path="apps/geoscience/petrophysics-estimator" element={<PetrophysicsEstimator />} />
                                 <Route path="apps/geoscience/petrophysical-integration-suite" element={<PetrophysicalIntegrationSuite />} />
                                 <Route path="apps/geoscience/log-facies-analysis" element={<LogFaciesAnalysis />} />
-                                <Route path="apps/geoscience/seismic-interpreter" element={<SeismicInterpreter />} />
                                 <Route path="apps/geoscience/well-log-analyzer" element={<WellLogAnalyzer />} />
                                 <Route path="apps/geoscience/automated-log-digitizer" element={<AutomatedLogDigitizer />} />
                                 <Route path="apps/geoscience/contour-map-digitizer" element={<ContourMapDigitizer />} />
-                                <Route path="apps/geoscience/velocity-model-builder" element={<VelocityModelBuilder />} />
                                 <Route path="apps/geoscience/analog-finder" element={<AnalogFinder />} />
-                                <Route path="apps/geoscience/well-to-seismic-tie" element={<WellToSeismicTie />} />
                                 <Route path="apps/geoscience/earthmodel-studio" element={<ProtectedAppRoute appId="earthmodel-studio" appName="EarthModel Studio"><EarthModelStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/earth-model-studio" element={<ProtectedAppRoute appId="earthmodel-studio" appName="EarthModel Studio"><EarthModelStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/earthmodel-pro" element={<ProtectedAppRoute appId="earthmodel-pro" appName="EarthModel Pro"><EarthModelPro /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/earth-model-pro" element={<ProtectedAppRoute appId="earthmodel-pro" appName="EarthModel Pro"><EarthModelPro /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/earth-model-studio/projects" element={<EarthModelStudioProjects />} />
                                 <Route path="apps/geoscience/basinflow-genesis" element={<BasinFlowGenesis />} />
-                                <Route path="apps/geoscience/depth-conversion-engine" element={<DepthConversionEngine />} />
 
                                 {/* MEM Aliases ensuring all database slugs route properly without hitting catch-all */}
                                 <Route path="apps/geoscience/mechanical-earth-model" element={<ProtectedAppRoute appId="mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
