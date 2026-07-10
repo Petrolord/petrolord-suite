@@ -45,3 +45,5 @@ coverage/
 *.deleted-*
 patch_*.cjs
 tools/validation/seismolord/.venv/
+test-results/
+playwright-report/

@@ -1,6 +1,38 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-10 (Phase 1 complete)
+Last updated: 2026-07-10 (Phase 2 complete)
+
+## Phase 2 — WebGL2 viewer: DONE
+
+- **Data layer**: `engine/brickCache.js` — byte-budgeted LRU with
+  in-flight dedup and AbortController scrub cancellation; production
+  fetcher is a direct authenticated Storage GET (owner-path RLS, no
+  edge-fn hop). `engine/sliceAssembly.js` reproduces segyio inline/
+  xline/time slices bit-identically from brick sets (tested at 64³ and
+  16³), plus per-trace RMS for display balance.
+- **Renderer**: `viewer/SliceRenderer.js` — raw WebGL2 (no three.js),
+  fullscreen-triangle quad, amplitudes in an R32F texture exactly as
+  stored; colormap LUT (reuses `src/utils/colorMaps.js`), gain, polarity
+  (SEG normal default), symmetric clip around zero, per-trace balance and
+  1.0E+30 null masking are ALL fragment-shader-side. NEAREST LUT sampling
+  keeps the self-test deterministic.
+- **UI**: Section viewer panel on the Seismolord page — volume selector
+  (ready volumes), orientation, scrub slider with stale-request guard +
+  cache cancellation, colormap/gain/clip/polarity/balance controls,
+  per-slice timing readout.
+- **Self-test + Playwright** (approved tooling): dev-only
+  `/dev/seismolord-selftest` route renders a synthetic 200³ volume
+  through the REAL pipeline and compares readPixels to a CPU reference
+  of the same math; `e2e/seismolord-viewer.spec.js` asserts correctness
+  and records perf (`npm run test:e2e`). Headless run (SwiftShader
+  software GL): all correctness cases pass; warm slice avg 5.1 ms /
+  p95 6.3 ms / max 8.6 ms — under the 150 ms target even in software.
+  `PERF_STRICT=1` enforces the 60 fps / <150 ms / <16.7 ms targets and
+  should be run on real-GPU hardware against staging.
+- Known Phase 2 limits: slice-texture rendering (bricks assembled on the
+  CPU per slice) rather than GPU brick assembly — revisit if profiling
+  ever demands it; no WebGL context-loss recovery yet (Phase 6); AGC is
+  per-trace RMS balance, windowed AGC later if interpreters need it.
 
 ## Phase 1 — Ingestion + brick store: DONE
 

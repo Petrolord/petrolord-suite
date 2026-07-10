@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/customSupabaseClient';
 import ImportPanel from './components/ImportPanel';
 import VolumesPanel from './components/VolumesPanel';
+import ViewerPanel from './components/ViewerPanel';
 
 // Phase 1: streaming SEG-Y ingestion to the brick store (import panel with
 // header-mapping preview + volume registry). The interpretation canvas
@@ -77,6 +78,10 @@ export default function Seismolord() {
             </div>
           </div>
         </motion.div>
+
+        <div className="mb-6">
+          <ViewerPanel refreshKey={volumesRefresh} />
+        </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
           <VolumesPanel refreshKey={volumesRefresh} />
