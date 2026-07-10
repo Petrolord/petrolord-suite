@@ -5,7 +5,6 @@
 
 export const INTEGRATION_TARGETS = {
   EARTHMODEL_PRO: 'EarthModel Pro',
-  VELOCITY_BUILDER: 'Velocity Model Builder',
   PPFG: 'Pore Pressure & Frac Gradient',
   GEOMECHANICS: '1D Geomechanics'
 };

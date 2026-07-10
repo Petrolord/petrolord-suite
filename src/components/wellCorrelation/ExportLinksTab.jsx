@@ -40,7 +40,6 @@ const ExportLinksTab = () => {
 
   const apps = [
     { name: INTEGRATION_TARGETS.EARTHMODEL_PRO, icon: Globe, color: 'text-emerald-400', desc: 'Export horizons as surfaces/points.' },
-    { name: INTEGRATION_TARGETS.VELOCITY_BUILDER, icon: Zap, color: 'text-yellow-400', desc: 'Use markers for velocity modeling.' },
     { name: INTEGRATION_TARGETS.PPFG, icon: Gauge, color: 'text-blue-400', desc: 'Share formation tops for pressure prediction.' },
     { name: INTEGRATION_TARGETS.GEOMECHANICS, icon: Activity, color: 'text-rose-400', desc: 'Export data for 1D MEM.' },
   ];
