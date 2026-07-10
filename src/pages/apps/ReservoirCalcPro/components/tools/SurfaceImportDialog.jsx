@@ -5,9 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { UploadCloud, FileText, Check, AlertCircle } from 'lucide-react';
+import { UploadCloud, FileText, Check, AlertCircle, AlertTriangle, XCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { SurfaceParser } from '../../services/SurfaceParser';
+import { SurfaceParser, SurfaceParseError } from '../../services/SurfaceParser';
 
 const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
     const { toast } = useToast();
@@ -22,10 +22,19 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
         crs: ''                 // coordinate reference system, e.g. "EPSG:32631"; auto-detected when the file carries it
     });
     const [isParsing, setIsParsing] = useState(false);
+    // Persistent, in-dialog feedback so a bad upload never fails silently.
+    // `error` = a hard, blocking problem ({title, message, guidance}).
+    // `pending` = a parsed surface held back for confirmation because it triggered
+    //             non-fatal quality warnings the user should see first.
+    const [error, setError] = useState(null);
+    const [pending, setPending] = useState(null); // { surface, warnings }
+
+    const resetFeedback = () => { setError(null); setPending(null); };
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
+            resetFeedback();
             setImportData({ ...importData, file, name: file.name.split('.')[0] });
             const ext = file.name.split('.').pop().toLowerCase();
             const reader = new FileReader();
@@ -46,19 +55,79 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
         reader.readAsText(file);
     });
 
+    // Turn a successful parse into the surface object the app consumes.
+    const buildSurface = (points) => {
+        const xs = points.map(p => p.x);
+        const ys = points.map(p => p.y);
+        const zValues = points.map(p => p.z);
+        const minZ = Math.min(...zValues);
+        const maxZ = Math.max(...zValues);
+        const avgZ = zValues.reduce((s, v) => s + v, 0) / zValues.length;
+        // Bounding-box extent as a first-order area estimate; the volume engine
+        // reads estimatedArea/avgZ for its surface + hybrid methods.
+        const estimatedArea = Math.abs(
+            (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys))
+        );
+
+        return {
+            id: crypto.randomUUID(),
+            name: importData.name || 'Imported Surface',
+            format: importData.format,
+            points: points.slice(0, 5000),
+            minZ,
+            maxZ,
+            avgZ,
+            estimatedArea,
+            pointCount: points.length,
+            // Geometry metadata consumed by ContactVolumetricsEngine so areas and
+            // depths convert to physical units correctly.
+            xyUnit: importData.xyUnit,
+            depthUnit: importData.xyUnit,
+            zConvention: importData.zConvention,
+            // Coordinate reference system (optional). Carried for provenance and
+            // cross-app hand-off; a blank value means "unspecified / local grid".
+            crs: (importData.crs || '').trim() || null,
+            createdAt: new Date().toISOString()
+        };
+    };
+
+    const finalizeImport = (surface) => {
+        onImport(surface);
+        onOpenChange(false);
+        setStep(1);
+        resetFeedback();
+        setImportData(prev => ({ name: '', format: 'xyz', rawData: '', file: null, xyUnit: prev.xyUnit, zConvention: prev.zConvention, crs: '' }));
+    };
+
     const parseData = async () => {
         setIsParsing(true);
+        resetFeedback();
         try {
             let points = null;
+            let warnings = [];
 
             // Prefer the multi-format parser (ESRI ASCII grid, ZMap+, GeoJSON, and
-            // robust delimited CSV/DAT/XYZ). Fall back to the inline XYZ reader below
-            // if it can't make sense of the file.
+            // robust delimited CSV/DAT/XYZ). It raises a SurfaceParseError with a
+            // plain-language explanation when the file clearly isn't a surface — we
+            // show that to the user rather than silently limping on with bad data.
             if (importData.file) {
                 try {
                     const parsed = await SurfaceParser.parse(importData.file);
-                    if (parsed?.points?.length >= 3) points = parsed.points;
-                } catch { /* fall through to inline parser */ }
+                    if (parsed?.points?.length >= 3) {
+                        points = parsed.points;
+                        warnings = parsed.warnings || [];
+                    }
+                } catch (err) {
+                    // A definitive "this is the wrong kind of file" verdict: stop and
+                    // explain. Only genuinely unexpected errors fall through to the
+                    // lenient inline reader below.
+                    if (err instanceof SurfaceParseError) {
+                        setError({ title: err.title, message: err.message, guidance: err.guidance || [] });
+                        toast({ variant: 'destructive', title: err.title, description: err.message });
+                        return;
+                    }
+                    console.warn('Primary surface parser failed unexpectedly, trying simple reader:', err);
+                }
             }
 
             if (!points) {
@@ -70,7 +139,6 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
                     raw = await readFileText(importData.file);
                 }
                 const lines = (raw || '').split('\n').filter(l => l.trim().length > 0);
-                if (lines.length < 3) throw new Error("File too short or empty");
                 points = [];
                 for (const line of lines) {
                     const parts = line.trim().split(/[\s,]+/);
@@ -81,49 +149,38 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
                 }
             }
 
-            if (points.length < 3) throw new Error("No valid XYZ rows found. Expected numeric X Y Z columns.");
+            if (!points || points.length < 3) {
+                setError({
+                    title: "We couldn't read a surface from this file",
+                    message: `"${importData.file?.name || 'The file'}" doesn't contain enough valid X Y Z rows to build a surface.`,
+                    guidance: [
+                        'A surface needs at least three rows of: X (easting), Y (northing), Z (depth).',
+                        'Accepted formats: XYZ, CSV, DAT, ESRI ASCII grid (.asc), ZMap+, CPS-3, GeoJSON.',
+                        'Re-export the surface as "XYZ points" or "ASCII grid" from your mapping package.',
+                    ],
+                });
+                return;
+            }
 
-            const xs = points.map(p => p.x);
-            const ys = points.map(p => p.y);
-            const zValues = points.map(p => p.z);
-            const minZ = Math.min(...zValues);
-            const maxZ = Math.max(...zValues);
-            const avgZ = zValues.reduce((s, v) => s + v, 0) / zValues.length;
-            // Bounding-box extent as a first-order area estimate; the volume engine
-            // reads estimatedArea/avgZ for its surface + hybrid methods.
-            const estimatedArea = Math.abs(
-                (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys))
-            );
+            const surface = buildSurface(points);
+            if (warnings.length) {
+                // Soft problems (too few points, collinear, all-flat…). Let the user
+                // see them and decide whether to proceed rather than guessing.
+                surface.warnings = warnings;
+                setPending({ surface, warnings });
+                return;
+            }
 
-            const surface = {
-                id: crypto.randomUUID(),
-                name: importData.name || 'Imported Surface',
-                format: importData.format,
-                points: points.slice(0, 5000),
-                minZ,
-                maxZ,
-                avgZ,
-                estimatedArea,
-                pointCount: points.length,
-                // Geometry metadata consumed by ContactVolumetricsEngine so areas and
-                // depths convert to physical units correctly.
-                xyUnit: importData.xyUnit,
-                depthUnit: importData.xyUnit,
-                zConvention: importData.zConvention,
-                // Coordinate reference system (optional). Carried for provenance and
-                // cross-app hand-off; a blank value means "unspecified / local grid".
-                crs: (importData.crs || '').trim() || null,
-                createdAt: new Date().toISOString()
-            };
+            finalizeImport(surface);
 
-            onImport(surface);
-            onOpenChange(false);
-            setStep(1);
-            setImportData(prev => ({ name: '', format: 'xyz', rawData: '', file: null, xyUnit: prev.xyUnit, zConvention: prev.zConvention, crs: '' }));
-
-        } catch (error) {
-            console.error(error);
-            toast({ variant: "destructive", title: "Parse Error", description: error.message || "Could not parse surface file. Ensure XYZ format." });
+        } catch (err) {
+            console.error(err);
+            setError({
+                title: 'Import failed',
+                message: err?.message || 'Something went wrong while reading the file.',
+                guidance: ['Please check the file and try again, or try a different export format.'],
+            });
+            toast({ variant: 'destructive', title: 'Import failed', description: err?.message || 'Could not read the surface file.' });
         } finally {
             setIsParsing(false);
         }
@@ -152,6 +209,42 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
                             <FileText className="w-4 h-4 text-blue-400 mr-2" />
                             <span className="text-sm truncate flex-1">{importData.file.name}</span>
                             <Check className="w-4 h-4 text-emerald-500" />
+                        </div>
+                    )}
+
+                    {/* Hard error — the upload can't be used. Explains why, in plain terms. */}
+                    {error && (
+                        <div className="rounded-lg border border-red-800/60 bg-red-950/40 p-3">
+                            <div className="flex items-start gap-2">
+                                <XCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-red-300">{error.title}</p>
+                                    <p className="text-xs text-red-200/80 mt-0.5">{error.message}</p>
+                                    {error.guidance?.length > 0 && (
+                                        <ul className="mt-2 space-y-1 text-[11px] text-red-200/70 list-disc pl-4">
+                                            {error.guidance.map((g, i) => <li key={i}>{g}</li>)}
+                                        </ul>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Soft warnings — parsed OK but the surface looks suspect. */}
+                    {pending && (
+                        <div className="rounded-lg border border-amber-700/60 bg-amber-950/30 p-3">
+                            <div className="flex items-start gap-2">
+                                <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-amber-300">Check this surface before importing</p>
+                                    <ul className="mt-1.5 space-y-1 text-[11px] text-amber-200/80 list-disc pl-4">
+                                        {pending.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                                    </ul>
+                                    <p className="text-[11px] text-amber-200/60 mt-2">
+                                        You can import it anyway, or pick a different file.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -227,13 +320,22 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button 
-                        onClick={parseData} 
-                        disabled={!importData.file || !importData.name || isParsing}
-                        className="bg-blue-600 hover:bg-blue-700"
-                    >
-                        {isParsing ? "Importing..." : "Import Surface"}
-                    </Button>
+                    {pending ? (
+                        <Button
+                            onClick={() => finalizeImport(pending.surface)}
+                            className="bg-amber-600 hover:bg-amber-700"
+                        >
+                            Import Anyway
+                        </Button>
+                    ) : (
+                        <Button
+                            onClick={parseData}
+                            disabled={!importData.file || !importData.name || isParsing}
+                            className="bg-blue-600 hover:bg-blue-700"
+                        >
+                            {isParsing ? "Importing..." : "Import Surface"}
+                        </Button>
+                    )}
                 </DialogFooter>
             </DialogContent>
         </Dialog>

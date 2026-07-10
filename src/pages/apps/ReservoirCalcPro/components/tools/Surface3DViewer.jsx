@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { RotateCcw, Mountain } from 'lucide-react';
+import { RotateCcw, Mountain, Waves, Grid3x3, Layers, Droplets } from 'lucide-react';
+import { generateContours } from '../../services/ContourGenerator';
+
+// Colour scales offered in the 3D view (aliased onto the built-in maps below).
+const SCALE_OPTIONS = ['Earth', 'Viridis', 'Turbo', 'RdYlBu', 'YlGnBu', 'Blues', 'Hot'];
 
 // ---------------------------------------------------------------------------
 // Dependency-free 3D reservoir surface viewer.
@@ -19,8 +23,9 @@ const CMAPS = {
     terrain: [[46, 90, 120], [60, 130, 90], [180, 190, 110], [150, 100, 60], [242, 242, 247]],
     hot: [[20, 0, 0], [180, 0, 0], [255, 140, 0], [255, 240, 120], [255, 255, 255]],
     blues: [[247, 251, 255], [158, 202, 225], [66, 146, 198], [8, 81, 156], [8, 48, 107]],
+    rdylbu: [[165, 0, 38], [244, 109, 67], [255, 255, 191], [116, 173, 209], [49, 54, 149]],
 };
-const CMAP_ALIAS = { Earth: 'terrain', Jet: 'turbo', Portland: 'turbo', Hot: 'hot', YlGnBu: 'blues', Blues: 'blues', Viridis: 'viridis' };
+const CMAP_ALIAS = { Earth: 'terrain', Jet: 'turbo', Turbo: 'turbo', Portland: 'turbo', Hot: 'hot', YlGnBu: 'blues', Blues: 'blues', Viridis: 'viridis', RdYlBu: 'rdylbu' };
 
 function makeColormap(name) {
     const key = CMAP_ALIAS[name] || (CMAPS[String(name).toLowerCase()] ? String(name).toLowerCase() : 'viridis');
@@ -48,6 +53,19 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const norm = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const numOrNull = (v) => (v === null || v === undefined || v === '' || isNaN(parseFloat(v)) ? null : parseFloat(v));
 
+// Small toolbar toggle button used by the 3D render-options bar.
+const TB = ({ active, onClick, title, children }) => (
+    <button
+        onClick={onClick}
+        title={title}
+        className={`h-6 w-6 rounded-sm flex items-center justify-center transition-colors ${
+            active ? 'bg-emerald-600/80 text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/60'
+        }`}
+    >
+        {children}
+    </button>
+);
+
 const Surface3DViewer = ({
     gridData,
     unitSystem = 'field',
@@ -63,6 +81,13 @@ const Surface3DViewer = ({
     const veRef = useRef(1);
     const redrawRef = useRef(() => {});
     const depthUnit = unitSystem === 'field' ? 'ft' : 'm';
+
+    // Local display toggles (Petrel/Kingdom-style rendering options).
+    const [scale, setScale] = useState(colorscale);
+    const [wire, setWire] = useState(false);         // wireframe mesh
+    const [drape, setDrape] = useState(true);        // contour lines draped on surface
+    const [showContacts, setShowContacts] = useState(true);
+    useEffect(() => { setScale(colorscale); }, [colorscale]);
 
     // Precompute normalised model geometry (unit cube-ish, centred at origin).
     const geom = useMemo(() => {
@@ -106,6 +131,24 @@ const Surface3DViewer = ({
     useEffect(() => { veRef.current = defaultVE; setVe(defaultVE); }, [defaultVE]);
     useEffect(() => { veRef.current = ve; redrawRef.current(); }, [ve]);
 
+    // Contour polylines draped on the surface. Computed in world coords, then
+    // pre-mapped to the same normalised model space as the mesh (vertical
+    // exaggeration is applied per-frame). A constant-value isoline sits at a
+    // single model height, so zUp is derived from the level, not the mesh.
+    const drapeGeom = useMemo(() => {
+        if (!geom || !gridData?.z) return [];
+        const { xc, yc, H, zc, sign } = geom;
+        const { levels } = generateContours(gridData, { min: geom.zmin, max: geom.zmax, count: 14 });
+        return levels.map((lvl, li) => ({
+            index: li % 5 === 0,
+            zUp: sign * (lvl.level - zc) / H,
+            lines: lvl.segments.map(([a, b]) => [
+                { mx: (a.x - xc) / H, my: (a.y - yc) / H },
+                { mx: (b.x - xc) / H, my: (b.y - yc) / H },
+            ]),
+        }));
+    }, [geom, gridData]);
+
     const contactsKey = contacts ? `${contacts.fluidType}|${contacts.owc}|${contacts.goc}` : '';
 
     useEffect(() => {
@@ -113,7 +156,7 @@ const Surface3DViewer = ({
         if (!canvas || !geom) return;
         const ctx = canvas.getContext('2d');
         const cam = cameraRef.current;
-        const cmap = makeColormap(colorscale);
+        const cmap = makeColormap(scale);
         const light = norm([-0.4, -0.55, 0.9]);
         let W = 0, Hh = 0, raf = 0;
 
@@ -197,7 +240,7 @@ const Surface3DViewer = ({
             }
 
             // fluid-contact planes
-            if (contacts) {
+            if (contacts && showContacts) {
                 const addPlane = (cz, fill, stroke, label) => {
                     if (cz == null) return;
                     const mz = geom.sign * (cz - geom.zc) / geom.H * v;
@@ -220,10 +263,36 @@ const Surface3DViewer = ({
                 ctx.moveTo(q.pts[0].x, q.pts[0].y);
                 for (let k = 1; k < q.pts.length; k++) ctx.lineTo(q.pts[k].x, q.pts[k].y);
                 ctx.closePath();
-                ctx.fillStyle = q.fill; ctx.fill();
-                ctx.strokeStyle = q.stroke; ctx.lineWidth = q.label ? 1.25 : 1; ctx.stroke();
+                if (wire && !q.label) {
+                    // Wireframe: mesh edges only, no fill (contact planes stay solid).
+                    ctx.strokeStyle = 'rgba(148,163,184,0.55)'; ctx.lineWidth = 0.5; ctx.stroke();
+                } else {
+                    ctx.fillStyle = q.fill; ctx.fill();
+                    ctx.strokeStyle = q.stroke; ctx.lineWidth = q.label ? 1.25 : 1; ctx.stroke();
+                }
                 if (q.label) labels.push(q);
             }
+
+            // draped contour lines, projected at the current vertical exaggeration
+            if (drape && drapeGeom.length) {
+                for (const c of drapeGeom) {
+                    const mz = c.zUp * v;
+                    ctx.beginPath();
+                    let drew = false;
+                    for (const [a, b] of c.lines) {
+                        const pa = project(a.mx, a.my, mz);
+                        const pb = project(b.mx, b.my, mz);
+                        if (!pa || !pb) continue;
+                        ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); drew = true;
+                    }
+                    if (drew) {
+                        ctx.strokeStyle = c.index ? 'rgba(15,23,42,0.9)' : 'rgba(15,23,42,0.5)';
+                        ctx.lineWidth = c.index ? 1.3 : 0.7;
+                        ctx.stroke();
+                    }
+                }
+            }
+
             // contact labels on top
             ctx.font = '600 11px ui-sans-serif, system-ui';
             for (const q of labels) {
@@ -277,7 +346,7 @@ const Surface3DViewer = ({
             canvas.removeEventListener('dblclick', onDbl);
             redrawRef.current = () => {};
         };
-    }, [geom, colorscale, contactsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [geom, scale, contactsKey, wire, drape, showContacts, drapeGeom]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!geom) {
         return <div className="w-full h-full flex items-center justify-center text-slate-600 text-sm">No surface data to render in 3D.</div>;
@@ -288,17 +357,37 @@ const Surface3DViewer = ({
         <div className="w-full h-full relative bg-slate-950 overflow-hidden select-none">
             <canvas ref={canvasRef} className="w-full h-full block cursor-grab active:cursor-grabbing touch-none" />
 
-            {/* Title */}
-            {title && (
-                <div className="absolute top-3 left-3 z-10 pointer-events-none bg-slate-950/60 backdrop-blur px-2 py-0.5 rounded text-[10px] text-emerald-400 font-semibold border border-slate-800">
-                    {title}
+            {/* Toolbar: title + render toggles + colour scale */}
+            <div className="absolute top-2 left-2 z-20 flex flex-col gap-1 items-start">
+                {title && (
+                    <div className="pointer-events-none bg-slate-950/60 backdrop-blur px-2 py-0.5 rounded text-[10px] text-emerald-400 font-semibold border border-slate-800">
+                        {title}
+                    </div>
+                )}
+                <div className="flex items-center gap-1 bg-slate-900/85 backdrop-blur border border-slate-700 rounded-md px-1 py-0.5 shadow-lg">
+                    <TB active={!wire} onClick={() => setWire(false)} title="Solid shaded surface"><Layers className="w-3 h-3" /></TB>
+                    <TB active={wire} onClick={() => setWire(true)} title="Wireframe mesh"><Grid3x3 className="w-3 h-3" /></TB>
+                    <div className="w-px h-4 bg-slate-700 mx-0.5" />
+                    <TB active={drape} onClick={() => setDrape((v) => !v)} title="Draped contour lines"><Waves className="w-3 h-3" /></TB>
+                    {contacts && (
+                        <TB active={showContacts} onClick={() => setShowContacts((v) => !v)} title="Fluid-contact planes"><Droplets className="w-3 h-3" /></TB>
+                    )}
+                    <div className="w-px h-4 bg-slate-700 mx-0.5" />
+                    <select
+                        value={scale}
+                        onChange={(e) => setScale(e.target.value)}
+                        title="Colour scale"
+                        className="h-6 bg-slate-800 border border-slate-700 rounded text-[10px] text-slate-200 px-1 focus:outline-none"
+                    >
+                        {SCALE_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
                 </div>
-            )}
+            </div>
 
             {/* Colour legend */}
             <div className="absolute top-3 right-3 z-10 bg-slate-950/60 backdrop-blur rounded border border-slate-800 p-2 w-28 pointer-events-none">
                 <div className="text-[9px] text-slate-400 mb-1 uppercase tracking-wide">{isSurface ? 'Depth' : 'Value'} ({unitLabel})</div>
-                <div className="h-2 rounded" style={{ background: `linear-gradient(to right, ${cmapCss(colorscale)})` }} />
+                <div className="h-2 rounded" style={{ background: `linear-gradient(to right, ${cmapCss(scale)})` }} />
                 <div className="flex justify-between text-[9px] text-slate-400 mt-0.5 font-mono">
                     <span>{Math.round(geom.zmin)}</span>
                     <span>{Math.round(geom.zmax)}</span>
