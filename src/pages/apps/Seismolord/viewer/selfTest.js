@@ -104,7 +104,73 @@ export async function runViewerSelfTest(canvas, opts = {}) {
     const cmp = compareImages(actual, expected);
     checks.push({ ...c, ...cmp, pass: cmp.maxDiff <= 8 && cmp.pctWithin2 >= 99 });
   }
+  // ---- screen convention: time increases DOWNWARD on sections ---------
+  // A pure depth gradient (-1 shallow -> +1 deep) must render red at the
+  // top and blue at the bottom under the default red-white-blue map. This
+  // is the oriented fixture the GPU==CPU comparison cannot provide (the
+  // Phase 2 time-upward bug passed that comparison).
+  {
+    const ns2 = 64;
+    const tr = 64;
+    const grad = {
+      width: ns2, height: tr, data: new Float32Array(ns2 * tr), traceRms: null,
+    };
+    for (let t = 0; t < tr; t++) {
+      for (let s = 0; s < ns2; s++) grad.data[t * ns2 + s] = (s / (ns2 - 1)) * 2 - 1;
+    }
+    canvas.width = 128;
+    canvas.height = 128;
+    renderer.setParams({ gain: 1, polarity: 1, clip: 1, traceBalance: false });
+    renderer.setSlice(grad, true);
+    renderer.render();
+    const px = renderer.readPixels();
+    // readPixels row 0 = BOTTOM of the screen = deepest samples = blue
+    const rowMean = (row, ch) => {
+      let s = 0;
+      for (let x = 0; x < 128; x++) s += px[(row * 128 + x) * 4 + ch];
+      return s / 128;
+    };
+    const pass = rowMean(2, 2) > rowMean(125, 2) + 100      // blue at bottom
+      && rowMean(125, 0) > rowMean(2, 0) + 100;             // red at top
+    checks.push({
+      orientation: 'screen-convention-time-down', index: null,
+      maxDiff: 0, meanDiff: 0, pctWithin2: 100, pass,
+    });
+  }
+
   const correctnessPass = checks.every((c) => c.pass);
+
+  // ---- context-loss recovery (Phase 6) ---------------------------------
+  let contextLoss = { supported: false, pass: null };
+  const loseExt = gl.getExtension('WEBGL_lose_context');
+  if (loseExt) {
+    const slice = await assembleSlice(getBrick, geom, 'inline', 42);
+    canvas.width = slice.height;
+    canvas.height = slice.width;
+    renderer.setParams({ gain: 1, polarity: 1, clip: 1, traceBalance: false });
+    renderer.setSlice(slice, true);
+    renderer.render();
+    const before = renderer.readPixels();
+    const restoredOk = new Promise((resolve) => {
+      renderer.onRestore = () => resolve(true);
+      setTimeout(() => resolve(false), 5000);
+    });
+    loseExt.loseContext();
+    await new Promise((r) => setTimeout(r, 50));
+    const wasMarkedLost = renderer.contextLost;
+    loseExt.restoreContext();
+    const restored = await restoredOk;
+    let bitEqual = false;
+    if (restored) {
+      renderer.render();
+      const after = renderer.readPixels();
+      bitEqual = before.length === after.length && before.every((v, i) => v === after[i]);
+    }
+    contextLoss = {
+      supported: true, wasMarkedLost, restored, pass: wasMarkedLost && restored && bitEqual,
+    };
+    renderer.onRestore = null;
+  }
 
   // ---- perf: warm scrub across inline slices (assemble + upload + draw)
   canvas.width = dim * 2;
@@ -152,6 +218,7 @@ export async function runViewerSelfTest(canvas, opts = {}) {
 
   return {
     correctness: { pass: correctnessPass, checks },
+    contextLoss,
     perf,
     targets: { fpsMin: 60, warmSliceMaxMs: 150, mainThreadBlockMs: 16 },
     env: { glRenderer: String(glRenderer), userAgent: navigator.userAgent },
