@@ -1,0 +1,768 @@
+// SliceView — one seismic viewport: WebGL slice + 2D interpretation
+// overlay + annotation layer (axes / scale bar / north arrow / colorbar)
+// + toolbar + cursor readout, all coordinated by a shared ViewTransform.
+//
+// Architecture note (deliberate seam for future work): SliceView is
+// self-contained per viewport — a Petrel-style tri-panel (inline +
+// crossline + time slice side by side), synced cursors between views, or
+// a well-tie window are all "render more SliceViews and share/observe
+// their transforms". ViewerPanel stays the DATA owner (volume, slice
+// assembly, horizon/fault business logic); SliceView owns only how the
+// slice is LOOKED AT. New overlays must map through the transform —
+// never through canvas proportions.
+
+import React, {
+  useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,
+} from 'react';
+import {
+  ZoomIn, ZoomOut, Expand, Maximize, Minimize, Layers, Loader2,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { SliceRenderer } from '../viewer/SliceRenderer';
+import { ViewTransform, MAX_ZOOM } from '../viewer/viewTransform';
+import {
+  drawAxes, drawScaleBar, drawNorthArrow, drawColorbar,
+  surveySpacing, northScreenDir,
+} from '../viewer/annotations';
+import { NULL_VALUE } from '../engine/manifest';
+
+const NULL_F32 = Math.fround(NULL_VALUE);
+const PREFS_KEY = 'seismolord.viewerPrefs.v1';
+const DEFAULT_PREFS = {
+  axes: true,
+  grid: false,
+  scaleBar: true,
+  northArrow: true,
+  colorbar: true,
+  readout: true,
+  crosshair: false,
+  interpolate: false,
+};
+const VEXAG_OPTIONS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 8, 12, 20];
+
+const loadPrefs = () => {
+  try {
+    return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') };
+  } catch {
+    return { ...DEFAULT_PREFS };
+  }
+};
+
+/** Gutter sizes in CSS px (0 when axes are hidden). */
+const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top: 0 });
+
+/**
+ * @param {Object} p
+ * @param {?Object} p.slice assembleSlice() result for the current view
+ * @param {?Object} p.geom geomFromManifest() result
+ * @param {?Object} p.manifest volume manifest (axis values, corners)
+ * @param {'inline'|'xline'|'time'} p.orientation
+ * @param {number} p.sliceIndex
+ * @param {{colormap:string, gain:number, polarity:number, clip:number,
+ *          traceBalance:boolean}} p.display clip is ABSOLUTE amplitude
+ * @param {{horizons:Array<{grid:Float32Array,color:string}>,
+ *          faults:Array<{sticks:Array,color:string}>,
+ *          draftSticks:Array, seedPick:?Object}} p.overlays
+ * @param {?string} p.pickMode null | 'seed' | 'fault'
+ * @param {boolean} p.loading
+ * @param {(pick:{ilIdx:number,xlIdx:number,sample:number}) => void} p.onPick
+ * @param {(delta:number) => void} p.onStepSlice
+ * @param {number} [p.height] viewport CSS height when not fullscreen
+ */
+export default function SliceView({
+  slice, geom, manifest, orientation, sliceIndex, display, overlays,
+  pickMode, loading, onPick, onStepSlice, height = 520,
+}) {
+  const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
+  const viewportRef = useRef(null);    // the canvas container
+  const glCanvasRef = useRef(null);
+  const overlayRef = useRef(null);     // interpretation overlay (inner)
+  const annoRef = useRef(null);        // annotations (full viewport)
+  const rendererRef = useRef(null);
+  const transformRef = useRef(new ViewTransform());
+  const rafRef = useRef(0);
+  const dragRef = useRef(null);        // {mode:'pan'|'band', ...}
+  const cursorRef = useRef(null);      // {sx, sy} device px in inner area
+  const propsRef = useRef({});         // latest props for ref-driven redraws
+
+  const [prefs, setPrefs] = useState(loadPrefs);
+  const [hud, setHud] = useState({ zoom: 1, vexag: 1 });
+  const [cursorInfo, setCursorInfo] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [glError, setGlError] = useState(null);
+
+  const g = gutters(prefs.axes);
+  const isSection = orientation !== 'time';
+
+  useEffect(() => {
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* private mode */ }
+  }, [prefs]);
+
+  // Latest props snapshot so rAF/pointer handlers never see stale closures.
+  propsRef.current = {
+    slice, geom, manifest, orientation, sliceIndex, display, overlays,
+    pickMode, prefs, gutter: g,
+  };
+
+  // ---- axis metadata per orientation ----------------------------------
+  const axes = useMemo(() => {
+    if (!manifest) return null;
+    const gm = manifest.geometry;
+    const il = { title: 'IL', valueAtZero: gm.il.min, valuePerCell: gm.il.step };
+    const xl = { title: 'XL', valueAtZero: gm.xl.min, valuePerCell: gm.xl.step };
+    const twt = { title: 'ms', valueAtZero: 0, valuePerCell: gm.dt_us / 1000 };
+    if (orientation === 'inline') return { x: xl, y: twt };
+    if (orientation === 'xline') return { x: il, y: twt };
+    return { x: xl, y: il };
+  }, [manifest, orientation]);
+
+  const spacing = useMemo(() => (manifest ? surveySpacing(manifest) : null), [manifest]);
+  const northDir = useMemo(() => (manifest ? northScreenDir(manifest) : null), [manifest]);
+
+  // ---- drawing ---------------------------------------------------------
+
+  const drawOverlay = useCallback(() => {
+    const overlay = overlayRef.current;
+    const p = propsRef.current;
+    if (!overlay || !p.geom) return;
+    const t = transformRef.current;
+    const ctx = overlay.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const W = overlay.width;
+    const H = overlay.height;
+    ctx.clearRect(0, 0, W, H);
+    const lw = Math.max(1.5, 1.5 * dpr);
+    const { geom: gm, orientation: ori, sliceIndex: idx, overlays: ov } = p;
+    const vis = t.visibleRect();
+
+    for (const { grid, color } of ov.horizons) {
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = lw;
+      if (ori !== 'time') {
+        const nTraces = ori === 'inline' ? gm.nXl : gm.nIl;
+        const t0 = Math.max(0, Math.floor(vis.x0) - 1);
+        const t1 = Math.min(nTraces - 1, Math.ceil(vis.x0 + vis.w) + 1);
+        ctx.beginPath();
+        let pen = false;
+        for (let tr = t0; tr <= t1; tr++) {
+          const cell = ori === 'inline' ? idx * gm.nXl + tr : tr * gm.nXl + idx;
+          const z = grid[cell];
+          if (z === NULL_F32) { pen = false; continue; }
+          const s = t.worldToScreen(tr + 0.5, z + 0.5);
+          if (pen) ctx.lineTo(s.x, s.y);
+          else { ctx.moveTo(s.x, s.y); pen = true; }
+        }
+        ctx.stroke();
+      } else {
+        const i0 = Math.max(0, Math.floor(vis.y0));
+        const i1 = Math.min(gm.nIl - 1, Math.ceil(vis.y0 + vis.h));
+        const x0 = Math.max(0, Math.floor(vis.x0));
+        const x1 = Math.min(gm.nXl - 1, Math.ceil(vis.x0 + vis.w));
+        const m = Math.max(3, 1.5 * dpr);
+        for (let i = i0; i <= i1; i++) {
+          for (let x = x0; x <= x1; x++) {
+            const z = grid[i * gm.nXl + x];
+            if (z === NULL_F32 || Math.abs(z - idx) > 0.5) continue;
+            const s = t.worldToScreen(x + 0.5, i + 0.5);
+            ctx.fillRect(s.x - m / 2, s.y - m / 2, m, m);
+          }
+        }
+      }
+    }
+
+    const drawSticks = (sticks, color, dashed) => {
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = lw;
+      ctx.setLineDash(dashed ? [6 * dpr, 4 * dpr] : []);
+      const mk = Math.max(4, 2 * dpr);
+      for (const stick of sticks) {
+        const pts = stick.points || stick;
+        if (ori !== 'time') {
+          const near = pts.filter((q) => (ori === 'inline'
+            ? Math.abs(q.il - idx) <= 1 : Math.abs(q.xl - idx) <= 1));
+          if (near.length === 0) continue;
+          ctx.beginPath();
+          near.forEach((q, i) => {
+            const tr = ori === 'inline' ? q.xl : q.il;
+            const s = t.worldToScreen(tr + 0.5, q.s + 0.5);
+            if (i === 0) ctx.moveTo(s.x, s.y);
+            else ctx.lineTo(s.x, s.y);
+            ctx.fillRect(s.x - mk / 2, s.y - mk / 2, mk, mk);
+          });
+          if (near.length > 1) ctx.stroke();
+        } else {
+          for (const q of pts) {
+            if (Math.abs(q.s - idx) > 2) continue;
+            const s = t.worldToScreen(q.xl + 0.5, q.il + 0.5);
+            ctx.fillRect(s.x - mk / 2, s.y - mk / 2, mk, mk);
+          }
+        }
+      }
+      ctx.setLineDash([]);
+    };
+    for (const f of ov.faults) drawSticks(f.sticks, f.color, false);
+    if (ov.draftSticks.length) drawSticks(ov.draftSticks, '#fbbf24', true);
+
+    if (ov.seedPick && ori !== 'time') {
+      const onSlice = ori === 'inline'
+        ? ov.seedPick.ilIdx === idx : ov.seedPick.xlIdx === idx;
+      if (onSlice) {
+        const tr = ori === 'inline' ? ov.seedPick.xlIdx : ov.seedPick.ilIdx;
+        const s = t.worldToScreen(tr + 0.5, ov.seedPick.sample + 0.5);
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 2 * dpr;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 6 * dpr, 0, Math.PI * 2);
+        ctx.moveTo(s.x - 10 * dpr, s.y); ctx.lineTo(s.x + 10 * dpr, s.y);
+        ctx.moveTo(s.x, s.y - 10 * dpr); ctx.lineTo(s.x, s.y + 10 * dpr);
+        ctx.stroke();
+      }
+    }
+  }, []);
+
+  const drawAnnotations = useCallback(() => {
+    const anno = annoRef.current;
+    const p = propsRef.current;
+    if (!anno) return;
+    const ctx = anno.getContext('2d');
+    ctx.clearRect(0, 0, anno.width, anno.height);
+    if (!p.geom || !axes) return;
+    const t = transformRef.current;
+    const dpr = window.devicePixelRatio || 1;
+    const gl = Math.round(p.gutter.left * dpr);
+    const gt = Math.round(p.gutter.top * dpr);
+    const pr = p.prefs;
+
+    if (pr.axes) {
+      drawAxes(ctx, {
+        transform: t, dpr, gutterLeft: gl, gutterTop: gt,
+        xAxis: axes.x, yAxis: axes.y, grid: pr.grid,
+      });
+    }
+
+    if (pr.scaleBar && spacing) {
+      // horizontal ground distance: crosslines on inline/time views,
+      // inlines on crossline views (sections' vertical axis is time —
+      // no ground scale there).
+      const perCell = p.orientation === 'xline' ? spacing.ilSpacing : spacing.xlSpacing;
+      if (perCell > 0) {
+        drawScaleBar(ctx, {
+          x: gl + 14 * dpr, y: anno.height - 12 * dpr,
+          metersPerPx: perCell / t.ppx, dpr, maxPx: 170 * dpr,
+        });
+      }
+    }
+
+    if (pr.northArrow && p.orientation === 'time' && northDir) {
+      drawNorthArrow(ctx, {
+        x: anno.width - 30 * dpr, y: gt + 30 * dpr, dir: northDir, dpr,
+      });
+    }
+
+    if (pr.colorbar && rendererRef.current) {
+      const h = Math.min(150 * dpr, anno.height * 0.4);
+      drawColorbar(ctx, {
+        x: anno.width - 24 * dpr, y: anno.height - h - 24 * dpr,
+        w: 12 * dpr, h, lut: rendererRef.current.lut,
+        ampAtEnds: p.display.clip / Math.max(p.display.gain, 1e-12), dpr,
+      });
+    }
+
+    if (pr.crosshair && cursorRef.current) {
+      const { sx, sy } = cursorRef.current;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.45)';
+      ctx.lineWidth = dpr;
+      ctx.beginPath();
+      ctx.moveTo(gl, gt + sy); ctx.lineTo(anno.width, gt + sy);
+      ctx.moveTo(gl + sx, gt); ctx.lineTo(gl + sx, anno.height);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    const band = dragRef.current;
+    if (band && band.mode === 'band' && band.x1 !== undefined) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.9)';
+      ctx.fillStyle = 'rgba(34, 211, 238, 0.12)';
+      ctx.lineWidth = dpr;
+      ctx.setLineDash([5 * dpr, 4 * dpr]);
+      const x = gl + Math.min(band.x0, band.x1);
+      const y = gt + Math.min(band.y0, band.y1);
+      const w = Math.abs(band.x1 - band.x0);
+      const h = Math.abs(band.y1 - band.y0);
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeRect(x, y, w, h);
+      ctx.restore();
+    }
+  }, [axes, spacing, northDir]);
+
+  /** Push the camera to the shader and repaint every layer. */
+  const applyView = useCallback(() => {
+    const t = transformRef.current;
+    if (rendererRef.current) {
+      rendererRef.current.setView(t.viewUniform());
+      rendererRef.current.render();
+    }
+    drawOverlay();
+    drawAnnotations();
+    setHud((h) => (h.zoom === t.zoom && h.vexag === t.vexag
+      ? h : { zoom: t.zoom, vexag: t.vexag }));
+  }, [drawOverlay, drawAnnotations]);
+
+  const scheduleView = useCallback(() => {
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = 0;
+      applyView();
+    });
+  }, [applyView]);
+
+  // ---- sizing ----------------------------------------------------------
+  const resizeCanvases = useCallback(() => {
+    const viewport = viewportRef.current;
+    const glCanvas = glCanvasRef.current;
+    const overlay = overlayRef.current;
+    const anno = annoRef.current;
+    if (!viewport || !glCanvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const cw = viewport.clientWidth;
+    const ch = viewport.clientHeight;
+    const { gutter } = propsRef.current;
+    const iw = Math.max(1, cw - gutter.left);
+    const ih = Math.max(1, ch - gutter.top);
+    glCanvas.width = Math.round(iw * dpr);
+    glCanvas.height = Math.round(ih * dpr);
+    overlay.width = glCanvas.width;
+    overlay.height = glCanvas.height;
+    anno.width = Math.round(cw * dpr);
+    anno.height = Math.round(ch * dpr);
+    transformRef.current.setViewport(glCanvas.width, glCanvas.height);
+  }, []);
+
+  useLayoutEffect(() => {
+    resizeCanvases();
+    applyView();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => {
+      resizeCanvases();
+      applyView();
+    });
+    ro.observe(viewportRef.current);
+    return () => ro.disconnect();
+  }, [resizeCanvases, applyView, prefs.axes]);
+
+  // ---- renderer lifecycle ----------------------------------------------
+  useEffect(() => () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (rendererRef.current) {
+      rendererRef.current.destroy();
+      rendererRef.current = null;
+    }
+  }, []);
+
+  // upload the slice + camera world when the slice changes
+  useEffect(() => {
+    if (!slice || !geom || !glCanvasRef.current) return;
+    try {
+      if (!rendererRef.current) {
+        rendererRef.current = new SliceRenderer(glCanvasRef.current);
+        rendererRef.current.onRestore = () => scheduleView();
+      }
+      setGlError(null);
+    } catch (e) {
+      setGlError(e.message);
+      return;
+    }
+    const t = transformRef.current;
+    if (isSection) t.setWorld(slice.height, slice.width);   // traces x samples
+    else t.setWorld(slice.width, slice.height);             // crosslines x inlines
+    rendererRef.current.setSlice(slice, isSection);
+    applyView();
+  }, [slice, geom, isSection, applyView, scheduleView]);
+
+  // display params (shader-only, no re-upload)
+  useEffect(() => {
+    const r = rendererRef.current;
+    if (!r) return;
+    r.setColormap(display.colormap);
+    r.setParams({
+      gain: display.gain,
+      polarity: display.polarity,
+      clip: display.clip,
+      traceBalance: display.traceBalance,
+      interpolate: prefs.interpolate,
+    });
+    scheduleView();
+  }, [display, prefs.interpolate, scheduleView]);
+
+  // overlays / prefs changed -> repaint 2D layers
+  useEffect(() => { scheduleView(); }, [overlays, prefs, scheduleView]);
+
+  // ---- interactions ------------------------------------------------------
+  const toDevice = useCallback((e) => {
+    const rect = overlayRef.current.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    return { sx: (e.clientX - rect.left) * dpr, sy: (e.clientY - rect.top) * dpr };
+  }, []);
+
+  /** Device screen point -> {ilIdx, xlIdx, sample|null, inData} */
+  const pickAt = useCallback((sx, sy) => {
+    const p = propsRef.current;
+    if (!p.geom) return null;
+    const w = transformRef.current.screenToWorld(sx, sy);
+    const gm = p.geom;
+    if (p.orientation !== 'time') {
+      const nTraces = p.orientation === 'inline' ? gm.nXl : gm.nIl;
+      const trace = Math.floor(w.x);
+      const sample = w.y;
+      const inData = trace >= 0 && trace < nTraces && sample >= 0 && sample < gm.ns;
+      return {
+        ilIdx: p.orientation === 'inline' ? p.sliceIndex : Math.min(Math.max(trace, 0), gm.nIl - 1),
+        xlIdx: p.orientation === 'inline' ? Math.min(Math.max(trace, 0), gm.nXl - 1) : p.sliceIndex,
+        sample: Math.min(Math.max(sample, 0), gm.ns - 1e-3),
+        inData,
+      };
+    }
+    const xlIdx = Math.floor(w.x);
+    const ilIdx = Math.floor(w.y);
+    const inData = xlIdx >= 0 && xlIdx < gm.nXl && ilIdx >= 0 && ilIdx < gm.nIl;
+    return {
+      ilIdx: Math.min(Math.max(ilIdx, 0), gm.nIl - 1),
+      xlIdx: Math.min(Math.max(xlIdx, 0), gm.nXl - 1),
+      sample: p.sliceIndex,
+      inData,
+    };
+  }, []);
+
+  const updateCursorInfo = useCallback((sx, sy) => {
+    const p = propsRef.current;
+    const hit = pickAt(sx, sy);
+    if (!hit || !hit.inData || !p.slice || !p.manifest) {
+      setCursorInfo(null);
+      return;
+    }
+    const gm = p.geom;
+    const geo = p.manifest.geometry;
+    const sampleIdx = Math.floor(hit.sample);
+    let amp;
+    if (p.orientation === 'inline') amp = p.slice.data[hit.xlIdx * gm.ns + sampleIdx];
+    else if (p.orientation === 'xline') amp = p.slice.data[hit.ilIdx * gm.ns + sampleIdx];
+    else amp = p.slice.data[hit.ilIdx * gm.nXl + hit.xlIdx];
+    setCursorInfo({
+      il: geo.il.min + hit.ilIdx * geo.il.step,
+      xl: geo.xl.min + hit.xlIdx * geo.xl.step,
+      ms: (p.orientation === 'time' ? p.sliceIndex : hit.sample) * (geo.dt_us / 1000),
+      amp: amp === NULL_F32 ? null : amp,
+    });
+  }, [pickAt]);
+
+  const onPointerDown = useCallback((e) => {
+    if (e.button !== 0 && e.button !== 1) return;
+    e.preventDefault();                       // middle-drag: no autoscroll
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const { sx, sy } = toDevice(e);
+    if (e.shiftKey && e.button === 0) {
+      dragRef.current = { mode: 'band', x0: sx, y0: sy };
+    } else {
+      dragRef.current = {
+        mode: 'pan', lastX: sx, lastY: sy, moved: false, button: e.button,
+      };
+    }
+  }, [toDevice]);
+
+  const onPointerMove = useCallback((e) => {
+    const { sx, sy } = toDevice(e);
+    cursorRef.current = { sx, sy };
+    const d = dragRef.current;
+    if (d && d.mode === 'pan') {
+      const dx = sx - d.lastX;
+      const dy = sy - d.lastY;
+      if (Math.abs(dx) + Math.abs(dy) > 0) {
+        if (!d.moved && Math.hypot(dx, dy) > 3) d.moved = true;
+        if (d.moved) {
+          transformRef.current.panBy(dx, dy);
+          d.lastX = sx;
+          d.lastY = sy;
+          scheduleView();
+        }
+      }
+    } else if (d && d.mode === 'band') {
+      d.x1 = sx;
+      d.y1 = sy;
+      scheduleView();
+    } else {
+      updateCursorInfo(sx, sy);
+      if (propsRef.current.prefs.crosshair) scheduleView();
+    }
+  }, [toDevice, scheduleView, updateCursorInfo]);
+
+  const onPointerUp = useCallback((e) => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (!d) return;
+    const { sx, sy } = toDevice(e);
+    if (d.mode === 'band') {
+      if (d.x1 !== undefined && Math.abs(d.x1 - d.x0) > 8 && Math.abs(d.y1 - d.y0) > 8) {
+        transformRef.current.zoomToRect(d.x0, d.y0, d.x1, d.y1);
+      }
+      scheduleView();
+      return;
+    }
+    if (!d.moved && d.button === 0 && propsRef.current.pickMode) {
+      const hit = pickAt(sx, sy);
+      if (hit && hit.inData && onPick) onPick(hit);
+    }
+    scheduleView();   // clears any band remnants, syncs HUD
+  }, [toDevice, pickAt, onPick, scheduleView]);
+
+  const onPointerLeave = useCallback(() => {
+    cursorRef.current = null;
+    setCursorInfo(null);
+    if (propsRef.current.prefs.crosshair) scheduleView();
+  }, [scheduleView]);
+
+  const onDoubleClick = useCallback((e) => {
+    const { sx, sy } = toDevice(e);
+    transformRef.current.zoomAt(2, sx, sy);
+    scheduleView();
+  }, [toDevice, scheduleView]);
+
+  // non-passive wheel: zoom at cursor; Shift+wheel steps slices
+  useEffect(() => {
+    const el = overlayRef.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      e.preventDefault();
+      if (e.shiftKey) {
+        if (onStepSlice) onStepSlice(e.deltaY > 0 ? 1 : -1);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const sx = (e.clientX - rect.left) * dpr;
+      const sy = (e.clientY - rect.top) * dpr;
+      transformRef.current.zoomAt(e.deltaY > 0 ? 1 / 1.25 : 1.25, sx, sy);
+      scheduleView();
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [scheduleView, onStepSlice]);
+
+  const onKeyDown = useCallback((e) => {
+    const t = transformRef.current;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      if (onStepSlice) { onStepSlice(-1); e.preventDefault(); }
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      if (onStepSlice) { onStepSlice(1); e.preventDefault(); }
+    } else if (e.key === '+' || e.key === '=') {
+      t.zoomAt(1.25, t.vw / 2, t.vh / 2);
+      scheduleView();
+    } else if (e.key === '-') {
+      t.zoomAt(1 / 1.25, t.vw / 2, t.vh / 2);
+      scheduleView();
+    } else if (e.key === '0') {
+      t.fit();
+      scheduleView();
+    }
+  }, [onStepSlice, scheduleView]);
+
+  // ---- toolbar actions ---------------------------------------------------
+  const zoomCenter = (f) => {
+    const t = transformRef.current;
+    t.zoomAt(f, t.vw / 2, t.vh / 2);
+    scheduleView();
+  };
+  const fitView = () => { transformRef.current.fit(); scheduleView(); };
+  const setVexag = (v) => { transformRef.current.setVexag(v); scheduleView(); };
+
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await wrapRef.current.requestFullscreen();
+    } catch { /* unsupported */ }
+  };
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+
+  const togglePref = (key) => setPrefs((p0) => ({ ...p0, [key]: !p0[key] }));
+
+  const canInterpolate = rendererRef.current?.linearFloat !== false;
+
+  // ---- render ------------------------------------------------------------
+  return (
+    <div
+      ref={wrapRef}
+      className={`flex flex-col ${isFullscreen ? 'h-screen bg-slate-950 p-2' : ''}`}
+    >
+      <div className="flex flex-wrap items-center gap-1 mb-1">
+        <Button variant="outline" size="sm" title="Zoom in (+ / wheel)"
+          onClick={() => zoomCenter(1.25)} disabled={!slice}
+        >
+          <ZoomIn className="w-4 h-4" />
+        </Button>
+        <Button variant="outline" size="sm" title="Zoom out (-)"
+          onClick={() => zoomCenter(1 / 1.25)} disabled={!slice || hud.zoom <= 1}
+        >
+          <ZoomOut className="w-4 h-4" />
+        </Button>
+        <Button variant="outline" size="sm" title="Fit to window (0)"
+          onClick={fitView} disabled={!slice}
+        >
+          <Expand className="w-4 h-4" />
+        </Button>
+        <span className="text-xs text-slate-400 w-14 text-center tabular-nums">
+          {Math.round(hud.zoom * 100)}%
+        </span>
+
+        <span className="text-xs text-slate-400 ml-1">V.exag</span>
+        <select
+          className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+          value={String(hud.vexag)}
+          onChange={(e) => setVexag(Number(e.target.value))}
+          disabled={!slice}
+          title="Vertical exaggeration (relative to fit)"
+        >
+          {(VEXAG_OPTIONS.includes(hud.vexag) ? VEXAG_OPTIONS
+            : [...VEXAG_OPTIONS, hud.vexag].sort((a, b) => a - b)).map((v) => (
+              <option key={v} value={String(v)}>{`x${v}`}</option>
+          ))}
+        </select>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" title="Display layers">
+              <Layers className="w-4 h-4 mr-1" />
+              <span className="text-xs">Layers</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <DropdownMenuLabel>Annotations</DropdownMenuLabel>
+            <DropdownMenuCheckboxItem checked={prefs.axes}
+              onCheckedChange={() => togglePref('axes')}
+            >
+              Axes ({isSection ? 'line / TWT' : 'XL / IL'})
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={prefs.grid}
+              onCheckedChange={() => togglePref('grid')} disabled={!prefs.axes}
+            >
+              Grid lines
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={prefs.scaleBar}
+              onCheckedChange={() => togglePref('scaleBar')} disabled={!spacing}
+            >
+              Scale bar{!spacing ? ' (no coordinates)' : ''}
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={prefs.northArrow}
+              onCheckedChange={() => togglePref('northArrow')}
+              disabled={isSection || !northDir}
+            >
+              North arrow{isSection ? ' (time slice)' : !northDir ? ' (no coordinates)' : ''}
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={prefs.colorbar}
+              onCheckedChange={() => togglePref('colorbar')}
+            >
+              Amplitude colorbar
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Cursor & rendering</DropdownMenuLabel>
+            <DropdownMenuCheckboxItem checked={prefs.readout}
+              onCheckedChange={() => togglePref('readout')}
+            >
+              Position readout
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={prefs.crosshair}
+              onCheckedChange={() => togglePref('crosshair')}
+            >
+              Crosshair
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={prefs.interpolate}
+              onCheckedChange={() => togglePref('interpolate')}
+              disabled={!canInterpolate}
+            >
+              Smooth interpolation{!canInterpolate ? ' (unsupported GPU)' : ''}
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Button variant="outline" size="sm" onClick={toggleFullscreen}
+          title="Fullscreen" className="ml-auto"
+        >
+          {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+        </Button>
+      </div>
+
+      <div
+        ref={viewportRef}
+        tabIndex={0}
+        onKeyDown={onKeyDown}
+        className={`relative rounded-lg border border-slate-800 bg-slate-950 overflow-hidden
+          outline-none focus:border-slate-600 ${isFullscreen ? 'flex-1' : ''}`}
+        style={isFullscreen ? undefined : { height }}
+      >
+        <div
+          className="absolute"
+          style={{ left: g.left, top: g.top, right: 0, bottom: 0 }}
+        >
+          <canvas ref={glCanvasRef} className="w-full h-full block" />
+          <canvas
+            ref={overlayRef}
+            className={`absolute inset-0 w-full h-full touch-none ${pickMode
+              ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'}`}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerLeave={onPointerLeave}
+            onDoubleClick={onDoubleClick}
+          />
+        </div>
+        <canvas ref={annoRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+        {!slice && (
+          <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
+            Select an ingested volume to view sections.
+          </div>
+        )}
+        {loading && (
+          <div className="absolute top-2 right-2 text-cyan-300">
+            <Loader2 className="w-5 h-5 animate-spin" />
+          </div>
+        )}
+        {glError && (
+          <div className="absolute inset-x-0 bottom-0 bg-red-950/80 text-red-300 text-xs p-2">
+            {glError}
+          </div>
+        )}
+      </div>
+
+      {prefs.readout && (
+        <div className="flex items-center gap-4 text-xs text-slate-400 font-mono mt-1 h-5">
+          {cursorInfo ? (
+            <>
+              <span>IL {cursorInfo.il}</span>
+              <span>XL {cursorInfo.xl}</span>
+              <span>{cursorInfo.ms.toFixed(1)} ms</span>
+              <span>
+                amp {cursorInfo.amp === null ? 'null' : cursorInfo.amp.toExponential(3)}
+              </span>
+            </>
+          ) : (
+            <span className="text-slate-600">
+              drag: pan · wheel: zoom · Shift+drag: zoom box · Shift+wheel / arrows: step slice
+              · dbl-click: zoom in
+            </span>
+          )}
+          {hud.zoom >= MAX_ZOOM && <span className="text-amber-500">max zoom</span>}
+        </div>
+      )}
+    </div>
+  );
+}

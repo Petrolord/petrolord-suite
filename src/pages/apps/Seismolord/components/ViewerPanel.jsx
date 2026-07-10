@@ -15,12 +15,10 @@ import {
   assembleSlice, assembleTrace, bricksForSlice, geomFromManifest, brickKey,
 } from '../engine/sliceAssembly';
 import { snapPick } from '../engine/horizonTrack';
-import { NULL_VALUE } from '../engine/manifest';
-import { SliceRenderer, SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
+import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
+import SliceView from './SliceView';
 import HorizonsList, { horizonColor } from './HorizonsList';
 import FaultsList, { faultColor } from './FaultsList';
-
-const NULL_F32 = Math.fround(NULL_VALUE);
 
 const ORIENTATIONS = [
   { key: 'inline', label: 'Inline' },
@@ -43,9 +41,6 @@ const newHorizonWorker = () =>
 
 export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const { toast } = useToast();
-  const canvasRef = useRef(null);
-  const overlayRef = useRef(null);
-  const rendererRef = useRef(null);
   const cacheRef = useRef(null);
   const requestRef = useRef(0);
   const workerRef = useRef(null);
@@ -66,6 +61,8 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [sliceMs, setSliceMs] = useState(null);
+  const [slice, setSlice] = useState(null);              // assembled slice for SliceView
+  const [resolvedHorizons, setResolvedHorizons] = useState([]);
 
   // Phase 3: picking + horizons; Phase 4: fault sticks
   const [pickMode, setPickMode] = useState(null);   // null | 'seed' | 'fault'
@@ -74,7 +71,6 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const [horizons, setHorizons] = useState([]);
   const [visibleIds, setVisibleIds] = useState(new Set());
   const [horizonBusyId, setHorizonBusyId] = useState(null);
-  const [overlayTick, setOverlayTick] = useState(0);
   const [faults, setFaults] = useState([]);
   const [visibleFaultIds, setVisibleFaultIds] = useState(new Set());
   const [faultBusyId, setFaultBusyId] = useState(null);
@@ -108,6 +104,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     const v = volumes.find((x) => x.id === id) || null;
     setVolume(v);
     setManifest(null);
+    setSlice(null);
     setSeedPick(null);
     setVisibleIds(new Set());
     setVisibleFaultIds(new Set());
@@ -144,183 +141,63 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const getBrick = useCallback((i, j, k) => cacheRef.current
     .get(brickKey(volume.storage_path, i, j, k)), [volume]);
 
-  const drawSlice = useCallback(async () => {
-    if (!manifest || !geom || !volume || !canvasRef.current) return;
+  // Assemble the slice for the current position. Display params (gain,
+  // colormap, clip…) are NOT dependencies — they are shader-side in
+  // SliceView and never trigger a re-assembly or brick fetch.
+  const loadSlice = useCallback(async () => {
+    if (!manifest || !geom || !volume) return;
     const req = ++requestRef.current;
     setLoading(true);
     setError(null);
     try {
-      if (!rendererRef.current) rendererRef.current = new SliceRenderer(canvasRef.current);
-      const renderer = rendererRef.current;
-      const cache = cacheRef.current;
-
       // scrub cancellation: keep only the bricks this slice needs
       const needed = new Set(bricksForSlice(geom, orientation, sliceIndex)
         .map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
-      cache.cancelPendingExcept(needed);
+      cacheRef.current.cancelPendingExcept(needed);
 
       const t0 = performance.now();
-      const slice = await assembleSlice(getBrick, geom, orientation, sliceIndex);
+      const assembled = await assembleSlice(getBrick, geom, orientation, sliceIndex);
       if (req !== requestRef.current) return;          // stale scrub
-
-      const canvas = canvasRef.current;
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.round(canvas.clientWidth * dpr);
-      canvas.height = Math.round(canvas.clientHeight * dpr);
-
-      renderer.setColormap(colormap);
-      renderer.setParams({
-        gain,
-        polarity,
-        clip: Math.max((manifest.stats?.rms || 1) * clipRms, 1e-12),
-        traceBalance,
-      });
-      renderer.setSlice(slice, orientation !== 'time');
-      renderer.render();
+      setSlice({ ...assembled, orientation });         // tag: see SliceView prop
       setSliceMs(performance.now() - t0);
-      setOverlayTick((t) => t + 1);
     } catch (e) {
       if (e.message !== ABORTED && req === requestRef.current) setError(e.message);
     } finally {
       if (req === requestRef.current) setLoading(false);
     }
-  }, [manifest, geom, volume, orientation, sliceIndex, colormap, gain, clipRms,
-    polarity, traceBalance, getBrick]);
+  }, [manifest, geom, volume, orientation, sliceIndex, getBrick]);
 
-  useEffect(() => { drawSlice(); }, [drawSlice]);
+  useEffect(() => { loadSlice(); }, [loadSlice]);
 
-  // ---- horizon overlay ------------------------------------------------
-  const visibleGrids = useCallback(async () => {
-    const out = [];
-    for (let idx = 0; idx < horizons.length; idx++) {
-      const h = horizons[idx];
-      if (!visibleIds.has(h.id)) continue;
-      let grid = gridCacheRef.current.get(h.id);
-      if (!grid) {
-        grid = await loadHorizonGrid(h);
-        gridCacheRef.current.set(h.id, grid);
-      }
-      out.push({ horizon: h, grid, color: horizonColor(idx) });
-    }
-    return out;
-  }, [horizons, visibleIds]);
-
-  const drawOverlay = useCallback(async () => {
-    const overlay = overlayRef.current;
-    const canvas = canvasRef.current;
-    if (!overlay || !canvas || !geom) return;
-    overlay.width = canvas.width;
-    overlay.height = canvas.height;
-    const ctx = overlay.getContext('2d');
-    ctx.clearRect(0, 0, overlay.width, overlay.height);
-    const w = overlay.width;
-    const h = overlay.height;
-
-    const grids = await visibleGrids();
-    for (const { grid, color } of grids) {
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
-      ctx.lineWidth = Math.max(1.5, w / 800);
-      if (orientation !== 'time') {
-        const nTraces = orientation === 'inline' ? geom.nXl : geom.nIl;
-        ctx.beginPath();
-        let pen = false;
-        for (let t = 0; t < nTraces; t++) {
-          const cell = orientation === 'inline'
-            ? sliceIndex * geom.nXl + t
-            : t * geom.nXl + sliceIndex;
-          const z = grid[cell];
-          if (z === NULL_F32) { pen = false; continue; }
-          const sx = ((t + 0.5) / nTraces) * w;
-          const sy = ((z + 0.5) / geom.ns) * h;
-          if (pen) ctx.lineTo(sx, sy);
-          else { ctx.moveTo(sx, sy); pen = true; }
-        }
-        ctx.stroke();
-      } else {
-        // time slice: mark cells the horizon crosses at this sample
-        for (let i = 0; i < geom.nIl; i++) {
-          for (let x = 0; x < geom.nXl; x++) {
-            const z = grid[i * geom.nXl + x];
-            if (z === NULL_F32 || Math.abs(z - sliceIndex) > 0.5) continue;
-            ctx.fillRect(((x + 0.5) / geom.nXl) * w - 1, ((i + 0.5) / geom.nIl) * h - 1, 3, 3);
+  // resolve the visible horizons to grids + colors for the overlay
+  useEffect(() => {
+    let stale = false;
+    (async () => {
+      const out = [];
+      for (let idx = 0; idx < horizons.length; idx++) {
+        const h = horizons[idx];
+        if (!visibleIds.has(h.id)) continue;
+        let grid = gridCacheRef.current.get(h.id);
+        if (!grid) {
+          try {
+            grid = await loadHorizonGrid(h);
+          } catch (e) {
+            toast({ title: `Horizon "${h.name}" failed to load`, description: e.message, variant: 'destructive' });
+            continue;
           }
+          gridCacheRef.current.set(h.id, grid);
         }
+        out.push({ grid, color: horizonColor(idx) });
       }
-    }
-
-    // fault sticks: saved (per-fault colors) then the dashed draft
-    const drawSticks = (sticks, color, dashed) => {
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
-      ctx.lineWidth = Math.max(1.5, w / 800);
-      ctx.setLineDash(dashed ? [6, 4] : []);
-      for (const stick of sticks) {
-        const pts = stick.points || stick;
-        if (orientation !== 'time') {
-          const near = pts.filter((p) => (orientation === 'inline'
-            ? Math.abs(p.il - sliceIndex) <= 1 : Math.abs(p.xl - sliceIndex) <= 1));
-          if (near.length === 0) continue;
-          const nTraces = orientation === 'inline' ? geom.nXl : geom.nIl;
-          ctx.beginPath();
-          near.forEach((p, i) => {
-            const t = orientation === 'inline' ? p.xl : p.il;
-            const sx = ((t + 0.5) / nTraces) * w;
-            const sy = ((p.s + 0.5) / geom.ns) * h;
-            if (i === 0) ctx.moveTo(sx, sy);
-            else ctx.lineTo(sx, sy);
-            ctx.fillRect(sx - 2, sy - 2, 4, 4);
-          });
-          if (near.length > 1) ctx.stroke();
-        } else {
-          for (const p of pts) {
-            if (Math.abs(p.s - sliceIndex) > 2) continue;
-            ctx.fillRect(((p.xl + 0.5) / geom.nXl) * w - 2,
-              ((p.il + 0.5) / geom.nIl) * h - 2, 4, 4);
-          }
-        }
-      }
-      ctx.setLineDash([]);
-    };
-    faults.forEach((f, idx) => {
-      if (visibleFaultIds.has(f.id)) drawSticks(f.sticks, faultColor(idx), false);
-    });
-    if (draftSticks.length) drawSticks(draftSticks, '#fbbf24', true);
-
-    // seed marker on the section that contains it
-    if (seedPick && orientation !== 'time') {
-      const onSlice = orientation === 'inline'
-        ? seedPick.ilIdx === sliceIndex : seedPick.xlIdx === sliceIndex;
-      if (onSlice) {
-        const nTraces = orientation === 'inline' ? geom.nXl : geom.nIl;
-        const t = orientation === 'inline' ? seedPick.xlIdx : seedPick.ilIdx;
-        const sx = ((t + 0.5) / nTraces) * w;
-        const sy = ((seedPick.sample + 0.5) / geom.ns) * h;
-        ctx.strokeStyle = '#facc15';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(sx, sy, 6, 0, Math.PI * 2);
-        ctx.moveTo(sx - 10, sy); ctx.lineTo(sx + 10, sy);
-        ctx.moveTo(sx, sy - 10); ctx.lineTo(sx, sy + 10);
-        ctx.stroke();
-      }
-    }
-  }, [geom, orientation, sliceIndex, seedPick, visibleGrids,
-    faults, visibleFaultIds, draftSticks]);
-
-  useEffect(() => { drawOverlay(); }, [drawOverlay, overlayTick]);
+      if (!stale) setResolvedHorizons(out);
+    })();
+    return () => { stale = true; };
+  }, [horizons, visibleIds, toast]);
 
   // ---- picking (horizon seed / fault sticks) ----------------------------
-  const onCanvasClick = async (e) => {
+  // SliceView already mapped the click through its view transform.
+  const handlePick = async ({ ilIdx, xlIdx, sample }) => {
     if (!pickMode || !geom || !volume || orientation === 'time') return;
-    const rect = overlayRef.current.getBoundingClientRect();
-    const u = (e.clientX - rect.left) / rect.width;
-    const v = (e.clientY - rect.top) / rect.height;
-    const nTraces = orientation === 'inline' ? geom.nXl : geom.nIl;
-    const trace = Math.min(nTraces - 1, Math.max(0, Math.floor(u * nTraces)));
-    const sample = v * geom.ns;                        // time increases downward
-    const ilIdx = orientation === 'inline' ? sliceIndex : trace;
-    const xlIdx = orientation === 'inline' ? trace : sliceIndex;
 
     if (pickMode === 'fault') {
       // fault points are raw picks on visible discontinuities — no snap
@@ -493,10 +370,31 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   };
 
   useEffect(() => () => {
-    if (rendererRef.current) rendererRef.current.destroy();
     if (cacheRef.current) cacheRef.current.clear();
     if (workerRef.current) workerRef.current.terminate();
   }, []);
+
+  // ---- SliceView inputs --------------------------------------------------
+  const display = useMemo(() => ({
+    colormap,
+    gain,
+    polarity,
+    clip: Math.max((manifest?.stats?.rms || 1) * clipRms, 1e-12),
+    traceBalance,
+  }), [colormap, gain, polarity, clipRms, traceBalance, manifest]);
+
+  const overlays = useMemo(() => ({
+    horizons: resolvedHorizons,
+    faults: faults
+      .map((f, idx) => ({ sticks: f.sticks, color: faultColor(idx), id: f.id }))
+      .filter((f) => visibleFaultIds.has(f.id)),
+    draftSticks,
+    seedPick,
+  }), [resolvedHorizons, faults, visibleFaultIds, draftSticks, seedPick]);
+
+  const stepSlice = useCallback((delta) => {
+    setSliceIndex((i) => Math.min(maxIndex, Math.max(0, i + delta)));
+  }, [maxIndex]);
 
   const lineLabel = useMemo(() => {
     if (!manifest) return '';
@@ -668,27 +566,23 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
           </>
         )}
 
-        <div
-          className="relative rounded-lg border border-slate-800 bg-slate-950 overflow-hidden"
-          style={{ height: 480 }}
-        >
-          <canvas ref={canvasRef} className="w-full h-full block" />
-          <canvas
-            ref={overlayRef}
-            className={`absolute inset-0 w-full h-full ${pickMode ? 'cursor-crosshair' : 'pointer-events-none'}`}
-            onClick={onCanvasClick}
-          />
-          {!manifest && (
-            <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
-              Select an ingested volume to view sections.
-            </div>
-          )}
-          {loading && (
-            <div className="absolute top-2 right-2 text-cyan-300">
-              <Loader2 className="w-5 h-5 animate-spin" />
-            </div>
-          )}
-        </div>
+        <SliceView
+          // only hand over a slice that matches the current orientation —
+          // an orientation switch must not render the old slice under the
+          // new axes while the new one assembles
+          slice={manifest && slice && slice.orientation === orientation ? slice : null}
+          geom={geom}
+          manifest={manifest}
+          orientation={orientation}
+          sliceIndex={sliceIndex}
+          display={display}
+          overlays={overlays}
+          pickMode={pickMode}
+          loading={loading}
+          onPick={handlePick}
+          onStepSlice={stepSlice}
+          height={560}
+        />
 
         {manifest && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
