@@ -1,6 +1,37 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-10 (Phase 3 complete)
+Last updated: 2026-07-10 (Phase 4 complete)
+
+## Phase 4 — Faults, gridding, export: DONE
+
+- **Gridding** (`engine/gridding.js`): thin-plate spline fit (dense
+  Gaussian-elimination solve; control sets decimated to ≤~800 points per
+  coarse-cell thinning) with convex-hull + max-extrapolation-distance
+  masking → 1.0E+30 nulls. Runs in `workers/gridding.worker.js`.
+- **Writers** (`engine/surfaceExport.js`): XYZ / CPS-3 / ZMAP+ in exactly
+  the committed reference dialect (Python-format-compatible float
+  helpers). **Byte-identical** to the Phase 0 reference files when fed
+  the JS-recomputed analytic dome — the strongest possible writer test,
+  proving float64 arithmetic and formatting line up with the oracle.
+- **GRV acceptance held**: analytic-grid GRV within 1.5% and TPS-surface
+  GRV within 2% of the 46,578.3 acre-ft analytic truth; null cells
+  contribute nothing (asserted by nulling below-contact cells).
+- **RCP round-trip held**: our XYZ export imports through ReservoirCalc
+  Pro's SurfaceParser and reproduces live-node count and z range,
+  negative-down.
+- **Faults**: `seismic_faults` migration applied (user RLS, FK cascade;
+  sticks as compact jsonb — documented deviation from the horizon blob
+  pattern since sticks are a few KB of polylines). Pick mode on sections
+  (raw clicks, End stick / Save / Discard), colored overlays with
+  time-slice intersection markers, list with visibility + delete.
+- **Export UI**: Grid & Export panel — horizon select, depth (constant
+  velocity ft/s) or TWT domain (both exported z negative-down per the
+  playbook), cell size, format choice, TPS in the worker, file download,
+  optional contact GRV readout.
+- Recorded limits: unrotated-survey assumption in picksToPoints/export
+  (X along crosslines — rotation support is a follow-up); TPS is not
+  fault-aware (sticks don't segment the gridding yet); CPS-3/ZMAP+
+  grid-body import on the RCP side is still the known Phase 5 gap.
 
 ## Phase 3 — Horizon interpretation: DONE
 

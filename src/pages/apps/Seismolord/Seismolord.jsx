@@ -9,6 +9,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import ImportPanel from './components/ImportPanel';
 import VolumesPanel from './components/VolumesPanel';
 import ViewerPanel from './components/ViewerPanel';
+import ExportPanel from './components/ExportPanel';
 
 // Phase 1: streaming SEG-Y ingestion to the brick store (import panel with
 // header-mapping preview + volume registry). The interpretation canvas
@@ -18,6 +19,7 @@ export default function Seismolord() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [volumesRefresh, setVolumesRefresh] = useState(0);
+  const [viewerSelection, setViewerSelection] = useState({ volume: null, manifest: null });
 
   const checkBackend = useCallback(async () => {
     setChecking(true);
@@ -80,7 +82,14 @@ export default function Seismolord() {
         </motion.div>
 
         <div className="mb-6">
-          <ViewerPanel refreshKey={volumesRefresh} />
+          <ViewerPanel
+            refreshKey={volumesRefresh}
+            onVolumeChange={(volume, manifest) => setViewerSelection({ volume, manifest })}
+          />
+        </div>
+
+        <div className="mb-6">
+          <ExportPanel volume={viewerSelection.volume} manifest={viewerSelection.manifest} />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
