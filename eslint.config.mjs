@@ -50,4 +50,5 @@ export default [
 		},
 	},
 	{ files: ['tools/**/*.js', 'tailwind.config.js'], languageOptions: { globals: globals.node } },
+	{ files: ['**/__tests__/**/*.js', '**/*.test.js'], languageOptions: { globals: { ...globals.jest, ...globals.node } } },
 ];

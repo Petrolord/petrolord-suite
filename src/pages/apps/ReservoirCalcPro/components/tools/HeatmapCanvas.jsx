@@ -13,7 +13,7 @@ import { getInterpolator, gridExtent } from '../../services/colorUtils';
  * can draw world-space geometry (AOI polygons) and translate clicks back to
  * world coordinates.
  */
-const HeatmapCanvas = ({ gridData, colorscale = 'Viridis', overlay, onCanvasClick, className = '' }) => {
+const HeatmapCanvas = ({ gridData, colorscale = 'Viridis', overlay, onCanvasClick, onCanvasHover, onCanvasLeave, showFill = true, className = '' }) => {
     const canvasRef = useRef(null);
     const dimsRef = useRef(null);
     const { width, height, ref } = useResizeDetector({ refreshMode: 'debounce', refreshRate: 50 });
@@ -58,27 +58,33 @@ const HeatmapCanvas = ({ gridData, colorscale = 'Viridis', overlay, onCanvasClic
         const [minZ, maxZ] = gridExtent(z);
         const spanZ = maxZ - minZ || 1;
 
-        const cellW = w / nx;
-        const cellH = h / ny;
-        for (let j = 0; j < ny; j++) {
-            const row = z[j];
-            if (!row) continue;
-            for (let i = 0; i < nx; i++) {
-                const v = row[i];
-                if (v === null || v === undefined || isNaN(v)) continue;
-                const t = (v - minZ) / spanZ;
-                ctx.fillStyle = interp(t);
-                ctx.fillRect(
-                    i * cellW,
-                    h - (j + 1) * cellH,
-                    Math.ceil(cellW),
-                    Math.ceil(cellH),
-                );
+        // Colour-grade fill (skippable so callers can show a contour-only map).
+        if (showFill) {
+            const cellW = w / nx;
+            const cellH = h / ny;
+            for (let j = 0; j < ny; j++) {
+                const row = z[j];
+                if (!row) continue;
+                for (let i = 0; i < nx; i++) {
+                    const v = row[i];
+                    if (v === null || v === undefined || isNaN(v)) continue;
+                    const t = (v - minZ) / spanZ;
+                    ctx.fillStyle = interp(t);
+                    ctx.fillRect(
+                        i * cellW,
+                        h - (j + 1) * cellH,
+                        Math.ceil(cellW),
+                        Math.ceil(cellH),
+                    );
+                }
             }
         }
 
         if (typeof overlay === 'function') overlay(ctx, dims);
-    }, [gridData, colorscale, overlay, width, height]);
+        // width/height aren't read here (the canvas is remeasured via clientWidth),
+        // but they must stay in the deps so a container resize triggers a redraw.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gridData, colorscale, overlay, showFill, width, height]);
 
     useEffect(() => { draw(); }, [draw]);
 
@@ -90,11 +96,32 @@ const HeatmapCanvas = ({ gridData, colorscale = 'Viridis', overlay, onCanvasClic
         onCanvasClick(dimsRef.current.toWorld(px, py), { px, py }, dimsRef.current);
     };
 
+    // Sample the grid value under the cursor (nearest node) for a live inspector.
+    const handleMove = (e) => {
+        if (typeof onCanvasHover !== 'function' || !dimsRef.current) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        const world = dimsRef.current.toWorld(px, py);
+        let value = null;
+        const { x, y, z } = gridData || {};
+        if (x && y && z) {
+            let bi = 0, bj = 0, bdx = Infinity, bdy = Infinity;
+            for (let i = 0; i < x.length; i++) { const d = Math.abs(x[i] - world.x); if (d < bdx) { bdx = d; bi = i; } }
+            for (let j = 0; j < y.length; j++) { const d = Math.abs(y[j] - world.y); if (d < bdy) { bdy = d; bj = j; } }
+            const v = z[bj] ? z[bj][bi] : null;
+            value = (v == null || isNaN(v)) ? null : v;
+        }
+        onCanvasHover({ x: world.x, y: world.y, value }, { px, py });
+    };
+
     return (
         <div ref={ref} className={`w-full h-full relative ${className}`}>
             <canvas
                 ref={canvasRef}
                 onClick={handleClick}
+                onMouseMove={onCanvasHover ? handleMove : undefined}
+                onMouseLeave={onCanvasLeave}
                 className="w-full h-full block"
             />
         </div>

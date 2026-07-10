@@ -1,18 +1,46 @@
 import Papa from 'papaparse';
 
+/**
+ * A parse failure that carries a plain-language explanation and, where possible,
+ * concrete next steps for the (non-programmer) user. `title` is a short label,
+ * `message` explains what went wrong, `guidance` is an array of what-to-do-next
+ * bullets. Thrown by SurfaceParser and rendered by the import dialog.
+ */
+export class SurfaceParseError extends Error {
+    constructor(title, message, guidance = []) {
+        super(message);
+        this.name = 'SurfaceParseError';
+        this.title = title;
+        this.guidance = guidance;
+    }
+}
+
+// Generic guidance shown for most "this isn't a surface" failures.
+const GENERIC_GUIDANCE = [
+    'A depth/structure surface is a text file with three numeric columns: X (easting), Y (northing) and Z (depth or elevation).',
+    'Accepted formats: XYZ, CSV, DAT, ESRI ASCII grid (.asc), ZMap+ (.dat), CPS-3, or GeoJSON.',
+    'Export the surface from your mapping package as "XYZ points" or "ASCII grid" and try again.',
+];
+
 export class SurfaceParser {
     static async parse(file) {
         const extension = file.name.split('.').pop().toLowerCase();
-        
+
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            
+
             reader.onload = async (e) => {
                 try {
                     const content = e.target.result;
+
+                    // 0. Reject obviously-wrong files up front with a clear reason,
+                    //    rather than letting the lenient parser fail cryptically (or,
+                    //    worse, "succeed" on a handful of stray numbers).
+                    this.assertLooksLikeSurface(content, file, extension);
+
                     let points = [];
                     let formatDetected = 'Unknown';
-                    
+
                     // 1. Attempt to detect format from content
                     if (this.isEsriAsciiGrid(content)) {
                         formatDetected = 'ESRI ASCII Grid';
@@ -21,7 +49,7 @@ export class SurfaceParser {
                         formatDetected = 'ZMap+ Grid';
                         // Fallback to delimited parsing for ZMap for now if complex structure
                         // Typically ZMap has headers starting with '!' or similar.
-                        points = this.parseDelimited(content); 
+                        points = this.parseDelimited(content);
                     } else if (extension === 'json' || extension === 'geojson') {
                         formatDetected = 'JSON/GeoJSON';
                         points = this.parseJson(content);
@@ -32,7 +60,11 @@ export class SurfaceParser {
                     }
 
                     if (!points || points.length === 0) {
-                        throw new Error("No valid data points found. Please check file format.");
+                        throw new SurfaceParseError(
+                            'No data points found',
+                            `We opened "${file.name}" but couldn't find any rows of X Y Z numbers in it.`,
+                            GENERIC_GUIDANCE,
+                        );
                     }
 
                     console.log(`Surface Parsed: ${file.name} [${formatDetected}], ${points.length} points.`);
@@ -50,10 +82,22 @@ export class SurfaceParser {
                     });
 
                     if (cleanPoints.length === 0) {
-                         throw new Error("All points were invalid or null values.");
+                        throw new SurfaceParseError(
+                            'No usable depth values',
+                            `Every row in "${file.name}" was empty or a null/undefined marker (e.g. -9999), so there is nothing to map.`,
+                            [
+                                'Check that the third column really contains depth/elevation values.',
+                                'If your file uses a special "no-data" value, make sure real data is also present.',
+                            ],
+                        );
                     }
 
+                    // 3. Geometry sanity — a surface must be a genuine 2D field, not a
+                    //    single point, a straight line (e.g. a well path or a fault
+                    //    polyline), or an all-flat constant.
                     const stats = this.calculateStats(cleanPoints);
+                    const warnings = this.validateGeometry(cleanPoints, stats, file);
+
                     const crs = this.detectCrs(content, extension);
 
                     resolve({
@@ -61,6 +105,7 @@ export class SurfaceParser {
                         format: formatDetected,
                         importedAt: new Date().toISOString(),
                         points: cleanPoints,
+                        ...(warnings.length ? { warnings } : {}),
                         ...(crs ? { crs } : {}),
                         ...stats
                     });
@@ -71,9 +116,107 @@ export class SurfaceParser {
                 }
             };
 
-            reader.onerror = () => reject(new Error("File reading failed"));
+            reader.onerror = () => reject(new SurfaceParseError(
+                'File could not be read',
+                `The browser was unable to read "${file.name}". The file may be corrupt or still downloading.`,
+                ['Re-download or re-export the file, then try importing it again.'],
+            ));
             reader.readAsText(file);
         });
+    }
+
+    // --- Pre-flight validation -------------------------------------------------
+
+    // Throw a friendly SurfaceParseError when the uploaded file clearly isn't a
+    // depth/property surface (a binary, a well log, a spreadsheet of production
+    // data, etc.). Kept deliberately loose so real surfaces are never blocked.
+    static assertLooksLikeSurface(content, file, extension) {
+        if (content == null || content.length === 0) {
+            throw new SurfaceParseError(
+                'The file is empty',
+                `"${file.name}" contains no data.`,
+                ['Check you selected the right file, then export it again from your mapping software.'],
+            );
+        }
+
+        const head = content.slice(0, 4000);
+
+        // Binary / non-text: image, PDF, Petrel/Kingdom native, SEG-Y, DLIS, Excel…
+        // A run of NUL bytes or a high proportion of control characters is the tell.
+        const controlChars = (head.match(/[\x00-\x08\x0e-\x1f]/g) || []).length;
+        if (head.includes('\x00') || controlChars > head.length * 0.05) {
+            throw new SurfaceParseError(
+                'This is not a text surface file',
+                `"${file.name}" looks like a binary file (an image, PDF, spreadsheet, or a program's native project file) rather than a text grid of X Y Z values.`,
+                [
+                    'Surfaces must be exported as a plain-text format before import.',
+                    ...GENERIC_GUIDANCE.slice(1),
+                ],
+            );
+        }
+
+        // Well-log ASCII (LAS) — a common mistake, since it is text and full of numbers.
+        const upperHead = head.toUpperCase();
+        if (/~VERSION|~WELL|~CURVE|~ASCII/.test(upperHead) || extension === 'las') {
+            throw new SurfaceParseError(
+                'This looks like a well log, not a surface',
+                `"${file.name}" appears to be an LAS well-log file. Those hold measurements down a single borehole, not a mapped surface.`,
+                [
+                    'Import a mapped depth/structure surface instead (top or base of the reservoir).',
+                    ...GENERIC_GUIDANCE.slice(0, 2),
+                ],
+            );
+        }
+
+        // PDF / rich documents mis-saved with a text extension.
+        if (head.startsWith('%PDF') || upperHead.includes('<!DOCTYPE HTML') || upperHead.includes('<HTML')) {
+            throw new SurfaceParseError(
+                'This is a document, not surface data',
+                `"${file.name}" is a PDF or web page, which can't be used as a reservoir surface.`,
+                GENERIC_GUIDANCE,
+            );
+        }
+
+        // Does the body contain at least one line with 3+ numbers? If not, it may be
+        // a header-only file, a well deviation survey with the wrong columns, etc.
+        const lines = content.split('\n');
+        let numericRows = 0;
+        for (let i = 0; i < Math.min(lines.length, 400); i++) {
+            const parts = lines[i].replace(/[,\t]/g, ' ').trim().split(/\s+/);
+            const nums = parts.filter(p => p !== '' && !isNaN(parseFloat(p)) && isFinite(p));
+            if (nums.length >= 3) { numericRows++; if (numericRows >= 2) break; }
+        }
+        if (numericRows < 2) {
+            throw new SurfaceParseError(
+                "We couldn't find X Y Z columns",
+                `"${file.name}" doesn't contain rows of at least three numbers (easting, northing, depth), so it can't be read as a surface.`,
+                GENERIC_GUIDANCE,
+            );
+        }
+    }
+
+    // Non-fatal quality checks — returned as warnings so the user is told when an
+    // import succeeds but the surface looks degenerate (likely the wrong file).
+    static validateGeometry(points, stats, file) {
+        const warnings = [];
+        const width = stats.maxX - stats.minX;
+        const height = stats.maxY - stats.minY;
+
+        if (points.length < 10) {
+            warnings.push(`Only ${points.length} data point${points.length === 1 ? '' : 's'} were found — too few to build a reliable map. Contours and volumes may be unstable.`);
+        }
+        if (width === 0 || height === 0) {
+            warnings.push('All points fall on a single line (zero width or height). This looks like a well path or a polyline, not a 2D surface — the map cannot be gridded properly.');
+        } else {
+            const aspect = Math.max(width, height) / Math.min(width, height);
+            if (aspect > 500) {
+                warnings.push('The points are almost collinear (extremely long and thin). Check this is a mapped surface and not a well trajectory or a cross-section.');
+            }
+        }
+        if (stats.maxZ - stats.minZ === 0) {
+            warnings.push(`Every depth value is identical (${stats.minZ}). A perfectly flat surface produces no structural relief and no contours — check the depth column.`);
+        }
+        return warnings;
     }
 
     // --- Format Detectors ---
