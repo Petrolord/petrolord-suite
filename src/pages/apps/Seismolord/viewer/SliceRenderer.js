@@ -37,11 +37,21 @@ uniform float u_clip;          // symmetric clip amplitude (maps to LUT ends)
 uniform int   u_traceBalance;  // 1 = divide by per-trace rms
 uniform int   u_transpose;     // 1 = sections (screen x = trace, y = sample)
 uniform vec4  u_nullColor;
+uniform vec4  u_view;          // visible rect (x0, y0, w, h) in normalized
+                               // screen-oriented data space; (0,0,1,1) = all
+uniform vec4  u_bgColor;       // outside-the-data background
 
 void main() {
+  // screen-oriented coords: x left->right, y top->down, then the camera
+  // rect maps screen onto the visible part of the data (zoom/pan/vexag).
+  vec2 suv = vec2(v_uv.x, 1.0 - v_uv.y);
+  vec2 wuv = u_view.xy + suv * u_view.zw;
+  if (wuv.x < 0.0 || wuv.x > 1.0 || wuv.y < 0.0 || wuv.y > 1.0) {
+    outColor = u_bgColor;
+    return;
+  }
   // sections: horizontal = trace, vertical = time increasing DOWNWARD
-  // (v_uv.y is 1 at screen top, so the sample coordinate is 1 - v_uv.y)
-  vec2 t = u_transpose == 1 ? vec2(1.0 - v_uv.y, v_uv.x) : vec2(v_uv.x, 1.0 - v_uv.y);
+  vec2 t = u_transpose == 1 ? vec2(wuv.y, wuv.x) : wuv;
   float amp = texture(u_data, t).r;
   if (abs(amp) > 1.0e29) { outColor = u_nullColor; return; }
   float scale = 1.0;
@@ -72,7 +82,11 @@ export class SliceRenderer {
     if (!gl) throw new Error('WebGL2 is not available in this browser.');
     this.gl = gl;
     this.canvas = canvas;
-    this.params = { gain: 1, polarity: 1, clip: 1, traceBalance: false, transpose: true };
+    this.params = {
+      gain: 1, polarity: 1, clip: 1, traceBalance: false, transpose: true,
+      interpolate: false,
+    };
+    this.view = [0, 0, 1, 1];   // normalized visible rect (ViewTransform)
     this.colormapKey = SEISMIC_COLORMAPS[0].key;
     this.lastSlice = null;
     this.lastIsSection = true;
@@ -130,13 +144,16 @@ export class SliceRenderer {
 
     this.u = {};
     for (const name of ['u_data', 'u_lut', 'u_traceRms', 'u_gain', 'u_polarity',
-      'u_clip', 'u_traceBalance', 'u_transpose', 'u_nullColor']) {
+      'u_clip', 'u_traceBalance', 'u_transpose', 'u_nullColor', 'u_view',
+      'u_bgColor']) {
       this.u[name] = gl.getUniformLocation(prog, name);
     }
     gl.uniform1i(this.u.u_data, 0);
     gl.uniform1i(this.u.u_lut, 1);
     gl.uniform1i(this.u.u_traceRms, 2);
     gl.uniform4f(this.u.u_nullColor, 0.25, 0.25, 0.28, 1.0);
+    // matches BG_RGBA below and the panel's slate background
+    gl.uniform4f(this.u.u_bgColor, 2 / 255, 6 / 255, 23 / 255, 1.0);
 
     this.dataTex = this.#makeTex(gl.NEAREST);
     this.lutTex = this.#makeTex(gl.NEAREST);      // NEAREST: deterministic self-test
@@ -204,9 +221,24 @@ export class SliceRenderer {
     this.#applyParams();
   }
 
-  /** @param {Partial<{gain:number, polarity:1|-1, clip:number, traceBalance:boolean}>} p */
+  /**
+   * @param {Partial<{gain:number, polarity:1|-1, clip:number,
+   *   traceBalance:boolean, interpolate:boolean}>} p
+   * interpolate uses LINEAR R32F filtering when the GPU supports it
+   * (this.linearFloat) and silently stays NEAREST otherwise.
+   */
   setParams(p) {
     Object.assign(this.params, p);
+    this.#applyParams();
+  }
+
+  /**
+   * Camera: normalized visible rect [x0, y0, w, h] from
+   * ViewTransform.viewUniform(). [0,0,1,1] (the default) renders the
+   * whole slice exactly as before the camera existed.
+   */
+  setView(rect) {
+    this.view = [rect[0], rect[1], rect[2], rect[3]];
     this.#applyParams();
   }
 
@@ -219,6 +251,12 @@ export class SliceRenderer {
     gl.uniform1f(u.u_clip, Math.max(params.clip, 1e-30));
     gl.uniform1i(u.u_traceBalance, params.traceBalance ? 1 : 0);
     gl.uniform1i(u.u_transpose, params.transpose ? 1 : 0);
+    gl.uniform4f(u.u_view, this.view[0], this.view[1], this.view[2], this.view[3]);
+    const filt = params.interpolate && this.linearFloat ? gl.LINEAR : gl.NEAREST;
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.dataTex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
   }
 
   render() {
@@ -238,26 +276,35 @@ export class SliceRenderer {
 
   /**
    * CPU reference of the full shader path for the self-test: same LUT,
-   * same NEAREST sampling, same clip/gain math.
+   * same NEAREST sampling, same camera rect, same clip/gain math.
+   * (interpolate mode has no CPU reference — the self-test runs NEAREST.)
    * @param {{data: Float32Array, width: number, height: number,
    *          traceRms: Float32Array|null}} slice
    * @param {number} px canvas width @param {number} py canvas height
    */
   referenceRender(slice, px, py) {
-    const { params, lut } = this;
+    const { params, lut, view } = this;
     const out = new Uint8Array(px * py * 4);
     const nullC = [64, 64, 71, 255];
+    const bgC = [2, 6, 23, 255];               // matches u_bgColor
     for (let y = 0; y < py; y++) {
       for (let x = 0; x < px; x++) {
         // match gl_FragCoord centres and readPixels' bottom-up rows
         const u0 = (x + 0.5) / px;
         const v0 = (y + 0.5) / py;
-        const tu = params.transpose ? 1 - v0 : u0;
-        const tv = params.transpose ? u0 : 1 - v0;
+        // screen-oriented (y top-down) then through the camera rect
+        const wu = view[0] + u0 * view[2];
+        const wv = view[1] + (1 - v0) * view[3];
+        const o = (y * px + x) * 4;
+        if (wu < 0 || wu > 1 || wv < 0 || wv > 1) {
+          out.set(bgC, o);
+          continue;
+        }
+        const tu = params.transpose ? wv : wu;
+        const tv = params.transpose ? wu : wv;
         const sx = Math.min(slice.width - 1, Math.floor(tu * slice.width));
         const sy = Math.min(slice.height - 1, Math.floor(tv * slice.height));
         const amp = slice.data[sy * slice.width + sx];
-        const o = (y * px + x) * 4;
         if (Math.abs(amp) > 1.0e29) {
           out.set(nullC, o);
           continue;
