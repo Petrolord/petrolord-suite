@@ -6,17 +6,20 @@ loading, inline/crossline/time-slice viewing, horizon and fault
 interpretation, surface gridding, and export to XYZ / CPS-3 / ZMAP+ for
 downstream apps (ReservoirCalc Pro and some other apps which you will determine consume our exports).
 
-## Stack
+## Stack (revised 2026-07-10 — see Seismolord-PLAN.md, the plan of record)
 - Frontend: React 18 + Vite, WebGL2 renderer (raw WebGL, no three.js for the
   seismic canvas), Zustand for state, Web Workers for decoding.
-- Backend: Node.js 20 / Express, registered behind the Petrolord gateway
-  (auth middleware pattern: same as other suite apps — every new route MUST
-  be added to the gateway permission map or it 403s).
-- Numerics sidecar: Python 3.11 FastAPI container using segyio + numpy for
-  SEG-Y indexing/transcoding and gridding. Node orchestrates; Python crunches.
-- Storage: volumes as pre-computed brick files (see Data Model) on disk /
-  object storage; project metadata in PostgreSQL. [ADJUST IF DIFFERENT]
-- Docker Compose for local dev; each service has its own container.
+- ALL runtime numerics (SEG-Y decode/transcode, autotrack, gridding, export)
+  run client-side in Web Workers. There is no Node/Express backend, no
+  gateway, no Python sidecar, no Docker: production is a static SPA +
+  Supabase only, so no host exists for server-side services.
+- Backend: Supabase — Postgres with user-scoped RLS (seismic_* tables),
+  private `seismic` Storage bucket (64³ float32 brick objects under
+  `{user_id}/{volume_id}/…`, read directly by the client under Storage
+  RLS), Edge Functions only where the service role or secrets are required.
+- Python 3.11 + segyio + numpy survive as a development-time oracle only:
+  `tools/validation/seismolord/` generates committed golden files in
+  `test-data/seismolord/` that jest tests consume.
 
 ## Domain rules (violating these = bug, even if code "works")
 - Z convention: depth/time increases downward; exported surfaces use
@@ -33,19 +36,24 @@ downstream apps (ReservoirCalc Pro and some other apps which you will determine 
 - Seismic display defaults: SEG normal polarity, symmetric colorbar around
   zero, red-white-blue and seismic-rainbow colormaps.
 
-## Conventions
-- TypeScript strict everywhere in JS code; Python type hints + mypy.
-- Tests: vitest (frontend/node), pytest (python). Every parser and every
-  export writer has a golden-file test in test-data/.
+## Conventions (revised 2026-07-10 to match the repo)
+- Engine code: plain JS with JSDoc types (repo idiom; no TS toolchain in
+  jest). Python oracle scripts: type hints.
+- Tests: jest (the repo's only unit runner) + Playwright for e2e pixel
+  tests (approved devDependency). Every parser and every export writer
+  has a golden-file test against test-data/seismolord/.
 - Commit per completed sub-task; conventional commit messages.
-- API errors: RFC 7807 problem+json, same shape as other Petrolord apps.
+- Errors surface through the suite's toast/result patterns; Edge Function
+  errors return { error } JSON like the other Petrolord functions.
 
 ## Never
 - Never use three.js/canvas-2D for the main seismic panel (perf).
 - Never write a "simplified" SEG-Y parser that assumes IEEE + fixed headers.
 - Never silently swap row/column order in grid exports — CPS-3 and ZMAP+ are
   column-major, north-to-south (see test-data/README_test_surfaces.md).
-- Never bypass the gateway auth pattern with ad-hoc middleware.
+- Never bypass RLS: no service-role reads of user data in Edge Functions
+  beyond what a policy could express, no public buckets for volume data.
 
 ## Verify yourself
-- `make test` runs all suites. A phase is complete only when green.
+- `npm test` (jest) runs all suites. A phase is complete only when its
+  acceptance tests are green (see Seismolord-PLAN.md per-phase acceptance).
