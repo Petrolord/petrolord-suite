@@ -1,6 +1,48 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-10 (Phase 6 complete — Seismolord phased build DONE)
+Last updated: 2026-07-10 (viewer pro upgrade — camera, annotations, legends)
+
+## Viewer pro upgrade (post-P6): DONE
+
+Petrel/Kingdom-class navigation and legends for the inline / crossline /
+time-slice windows.
+
+- **ViewTransform camera** (`viewer/viewTransform.js`, jest-covered): the
+  single coordinate authority for zoom (wheel-at-cursor, buttons, dbl-click,
+  Shift+drag rubber-band), pan (drag, incl. while picking), vertical
+  exaggeration (×0.2–×20 relative to fit), fit/reset, edge clamping.
+  EVERYTHING that maps screen↔data (shader, overlays, annotations, picking)
+  goes through it — that is the invariant future overlays must keep.
+- **Shader camera** — `u_view` rect in `SliceRenderer`: navigation is
+  GPU-only (no slice re-assembly, no brick refetch); out-of-data pixels get
+  the panel background; optional LINEAR R32F "smooth interpolation" when the
+  GPU supports it. CPU reference render mirrors the camera; the self-test
+  gained zoomed + beyond-data GPU==CPU parity cases (dyadic rects so
+  fp32/fp64 make identical texel-floor decisions).
+- **Annotations** (`viewer/annotations.js`, math jest-covered): IL/XL/TWT
+  axis gutters with 1-2-5 nice ticks, optional grid lines, ground-distance
+  scale bar and grid-north arrow derived from manifest corners under the
+  same axis-aligned assumption as gridding's `picksToPoints` (hidden — never
+  guessed — when corners are unusable), amplitude colorbar (±clip/gain),
+  crosshair cursor. All toggleable via the Layers menu; prefs persist in
+  localStorage (`seismolord.viewerPrefs.v1`).
+- **SliceView component** (`components/SliceView.jsx`): owns one viewport
+  end-to-end — WebGL canvas + transform-aware interpretation overlay +
+  annotation layer + toolbar + IL/XL/ms/amplitude cursor readout +
+  fullscreen. `ViewerPanel` is now data-orchestration only (volume, slice
+  assembly, horizon/fault business logic); display-param changes are
+  shader-side and no longer re-assemble slices.
+- **Interaction e2e**: dev-only `/dev/seismolord-sliceview` harness mounts
+  the real SliceView on the synthetic volume;
+  `e2e/seismolord-sliceview.spec.js` drives wheel zoom (cursor-invariant
+  picking proof), pan, fit, annotation toggles, readout, keyboard stepping.
+- **Positioned future upgrades** (the seams are deliberate): multi-viewport
+  layouts (tri-panel inline+xline+time = render more SliceViews; sync by
+  sharing/observing their transforms), well overlays / measure tools (draw
+  through ViewTransform like every existing overlay), interpolation modes,
+  arbitrary-line sections (a new orientation feeding the same SliceView),
+  per-viewport colorbars. Adding a control = toolbar button + transform
+  method; adding a legend = annotations.js painter + Layers toggle.
 
 ## Phase 6 — Hardening: DONE
 
