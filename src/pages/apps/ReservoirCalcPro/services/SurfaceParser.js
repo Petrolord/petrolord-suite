@@ -77,7 +77,7 @@ export class SurfaceParser {
                             typeof p.x === 'number' && !isNaN(p.x) &&
                             typeof p.y === 'number' && !isNaN(p.y) &&
                             typeof p.z === 'number' && !isNaN(p.z) &&
-                            p.z > -9000 && p.z < 90000 // Filter out common null values like -9999.25 or 1e30
+                            !SurfaceParser.isNullZ(p.z)
                         );
                     });
 
@@ -130,6 +130,20 @@ export class SurfaceParser {
     // Throw a friendly SurfaceParseError when the uploaded file clearly isn't a
     // depth/property surface (a binary, a well log, a spreadsheet of production
     // data, etc.). Kept deliberately loose so real surfaces are never blocked.
+    // Null/no-data detection for z values. Previously this was a blunt
+    // `z > -9000 && z < 90000` window, which silently discarded every
+    // surface deeper than 9,000 ft (deep-water horizons routinely sit at
+    // -10,000 to -20,000 ft, e.g. Seismolord depth exports). Now: reject
+    // the specific well-known sentinels and physically implausible
+    // magnitudes, keep everything else.
+    static isNullZ(z) {
+        if (!Number.isFinite(z)) return true;
+        if (Math.abs(z) >= 1e29) return true;                 // 1.0E+30 grid nulls
+        const SENTINELS = [-9999, -9999.25, -9999.99, -999.25, 999.25, 9999.25];
+        if (SENTINELS.some(s => Math.abs(z - s) < 1e-6)) return true;
+        return Math.abs(z) > 100000;                          // beyond plausible depth/elevation
+    }
+
     static assertLooksLikeSurface(content, file, extension) {
         if (content == null || content.length === 0) {
             throw new SurfaceParseError(
