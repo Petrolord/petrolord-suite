@@ -40,7 +40,8 @@ uniform vec4  u_nullColor;
 
 void main() {
   // sections: horizontal = trace, vertical = time increasing DOWNWARD
-  vec2 t = u_transpose == 1 ? vec2(v_uv.y, v_uv.x) : vec2(v_uv.x, 1.0 - v_uv.y);
+  // (v_uv.y is 1 at screen top, so the sample coordinate is 1 - v_uv.y)
+  vec2 t = u_transpose == 1 ? vec2(1.0 - v_uv.y, v_uv.x) : vec2(v_uv.x, 1.0 - v_uv.y);
   float amp = texture(u_data, t).r;
   if (abs(amp) > 1.0e29) { outColor = u_nullColor; return; }
   float scale = 1.0;
@@ -210,7 +211,7 @@ export class SliceRenderer {
         // match gl_FragCoord centres and readPixels' bottom-up rows
         const u0 = (x + 0.5) / px;
         const v0 = (y + 0.5) / py;
-        const tu = params.transpose ? v0 : u0;
+        const tu = params.transpose ? 1 - v0 : u0;
         const tv = params.transpose ? u0 : 1 - v0;
         const sx = Math.min(slice.width - 1, Math.floor(tu * slice.width));
         const sy = Math.min(slice.height - 1, Math.floor(tv * slice.height));

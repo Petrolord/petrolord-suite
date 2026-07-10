@@ -1,14 +1,24 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Eye, Loader2, XCircle } from 'lucide-react';
+import { Eye, Loader2, XCircle, Crosshair, Route, Ban } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { listVolumes, getManifest } from '../services/volumesService';
+import {
+  saveHorizon, listHorizons, loadHorizonGrid, deleteHorizon,
+} from '../services/horizonsService';
 import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
 import {
-  assembleSlice, bricksForSlice, geomFromManifest, brickKey,
+  assembleSlice, assembleTrace, bricksForSlice, geomFromManifest, brickKey,
 } from '../engine/sliceAssembly';
+import { snapPick } from '../engine/horizonTrack';
+import { NULL_VALUE } from '../engine/manifest';
 import { SliceRenderer, SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
+import HorizonsList, { horizonColor } from './HorizonsList';
+
+const NULL_F32 = Math.fround(NULL_VALUE);
 
 const ORIENTATIONS = [
   { key: 'inline', label: 'Inline' },
@@ -26,11 +36,19 @@ async function accessToken() {
   return session.access_token;
 }
 
+const newHorizonWorker = () =>
+  new Worker(new URL('../workers/horizon.worker.js', import.meta.url), { type: 'module' });
+
 export default function ViewerPanel({ refreshKey }) {
+  const { toast } = useToast();
   const canvasRef = useRef(null);
+  const overlayRef = useRef(null);
   const rendererRef = useRef(null);
   const cacheRef = useRef(null);
   const requestRef = useRef(0);
+  const workerRef = useRef(null);
+  const jobIdRef = useRef(0);
+  const gridCacheRef = useRef(new Map());       // horizon id -> Float32Array
 
   const [volumes, setVolumes] = useState([]);
   const [volume, setVolume] = useState(null);
@@ -46,6 +64,15 @@ export default function ViewerPanel({ refreshKey }) {
   const [error, setError] = useState(null);
   const [sliceMs, setSliceMs] = useState(null);
 
+  // Phase 3: picking + horizons
+  const [pickMode, setPickMode] = useState(false);
+  const [seedPick, setSeedPick] = useState(null);   // {ilIdx, xlIdx, sample}
+  const [tracking, setTracking] = useState(null);   // {tracked, total}
+  const [horizons, setHorizons] = useState([]);
+  const [visibleIds, setVisibleIds] = useState(new Set());
+  const [horizonBusyId, setHorizonBusyId] = useState(null);
+  const [overlayTick, setOverlayTick] = useState(0);
+
   useEffect(() => {
     listVolumes()
       .then((vs) => setVolumes(vs.filter((v) => v.status === 'ready')))
@@ -59,12 +86,24 @@ export default function ViewerPanel({ refreshKey }) {
       : orientation === 'xline' ? geom.nXl - 1 : geom.ns - 1;
   }, [geom, orientation]);
 
+  const reloadHorizons = useCallback(async (vol) => {
+    if (!vol) { setHorizons([]); return; }
+    try {
+      setHorizons(await listHorizons(vol.id));
+    } catch (e) {
+      toast({ title: 'Horizons failed to load', description: e.message, variant: 'destructive' });
+    }
+  }, [toast]);
+
   const selectVolume = async (id) => {
     const v = volumes.find((x) => x.id === id) || null;
     setVolume(v);
     setManifest(null);
+    setSeedPick(null);
+    setVisibleIds(new Set());
+    gridCacheRef.current.clear();
     setError(null);
-    if (!v) return;
+    if (!v) { setHorizons([]); return; }
     setLoading(true);
     try {
       const m = await getManifest(v);
@@ -75,12 +114,16 @@ export default function ViewerPanel({ refreshKey }) {
       setManifest(m);
       setOrientation('inline');
       setSliceIndex(Math.floor(m.geometry.il.count / 2));
+      await reloadHorizons(v);
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
   };
+
+  const getBrick = useCallback((i, j, k) => cacheRef.current
+    .get(brickKey(volume.storage_path, i, j, k)), [volume]);
 
   const drawSlice = useCallback(async () => {
     if (!manifest || !geom || !volume || !canvasRef.current) return;
@@ -98,9 +141,7 @@ export default function ViewerPanel({ refreshKey }) {
       cache.cancelPendingExcept(needed);
 
       const t0 = performance.now();
-      const slice = await assembleSlice(
-        (i, j, k) => cache.get(brickKey(volume.storage_path, i, j, k)),
-        geom, orientation, sliceIndex);
+      const slice = await assembleSlice(getBrick, geom, orientation, sliceIndex);
       if (req !== requestRef.current) return;          // stale scrub
 
       const canvas = canvasRef.current;
@@ -118,18 +159,221 @@ export default function ViewerPanel({ refreshKey }) {
       renderer.setSlice(slice, orientation !== 'time');
       renderer.render();
       setSliceMs(performance.now() - t0);
+      setOverlayTick((t) => t + 1);
     } catch (e) {
       if (e.message !== ABORTED && req === requestRef.current) setError(e.message);
     } finally {
       if (req === requestRef.current) setLoading(false);
     }
-  }, [manifest, geom, volume, orientation, sliceIndex, colormap, gain, clipRms, polarity, traceBalance]);
+  }, [manifest, geom, volume, orientation, sliceIndex, colormap, gain, clipRms,
+    polarity, traceBalance, getBrick]);
 
   useEffect(() => { drawSlice(); }, [drawSlice]);
+
+  // ---- horizon overlay ------------------------------------------------
+  const visibleGrids = useCallback(async () => {
+    const out = [];
+    for (let idx = 0; idx < horizons.length; idx++) {
+      const h = horizons[idx];
+      if (!visibleIds.has(h.id)) continue;
+      let grid = gridCacheRef.current.get(h.id);
+      if (!grid) {
+        grid = await loadHorizonGrid(h);
+        gridCacheRef.current.set(h.id, grid);
+      }
+      out.push({ horizon: h, grid, color: horizonColor(idx) });
+    }
+    return out;
+  }, [horizons, visibleIds]);
+
+  const drawOverlay = useCallback(async () => {
+    const overlay = overlayRef.current;
+    const canvas = canvasRef.current;
+    if (!overlay || !canvas || !geom) return;
+    overlay.width = canvas.width;
+    overlay.height = canvas.height;
+    const ctx = overlay.getContext('2d');
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+    const w = overlay.width;
+    const h = overlay.height;
+
+    const grids = await visibleGrids();
+    for (const { grid, color } of grids) {
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = Math.max(1.5, w / 800);
+      if (orientation !== 'time') {
+        const nTraces = orientation === 'inline' ? geom.nXl : geom.nIl;
+        ctx.beginPath();
+        let pen = false;
+        for (let t = 0; t < nTraces; t++) {
+          const cell = orientation === 'inline'
+            ? sliceIndex * geom.nXl + t
+            : t * geom.nXl + sliceIndex;
+          const z = grid[cell];
+          if (z === NULL_F32) { pen = false; continue; }
+          const sx = ((t + 0.5) / nTraces) * w;
+          const sy = ((z + 0.5) / geom.ns) * h;
+          if (pen) ctx.lineTo(sx, sy);
+          else { ctx.moveTo(sx, sy); pen = true; }
+        }
+        ctx.stroke();
+      } else {
+        // time slice: mark cells the horizon crosses at this sample
+        for (let i = 0; i < geom.nIl; i++) {
+          for (let x = 0; x < geom.nXl; x++) {
+            const z = grid[i * geom.nXl + x];
+            if (z === NULL_F32 || Math.abs(z - sliceIndex) > 0.5) continue;
+            ctx.fillRect(((x + 0.5) / geom.nXl) * w - 1, ((i + 0.5) / geom.nIl) * h - 1, 3, 3);
+          }
+        }
+      }
+    }
+
+    // seed marker on the section that contains it
+    if (seedPick && orientation !== 'time') {
+      const onSlice = orientation === 'inline'
+        ? seedPick.ilIdx === sliceIndex : seedPick.xlIdx === sliceIndex;
+      if (onSlice) {
+        const nTraces = orientation === 'inline' ? geom.nXl : geom.nIl;
+        const t = orientation === 'inline' ? seedPick.xlIdx : seedPick.ilIdx;
+        const sx = ((t + 0.5) / nTraces) * w;
+        const sy = ((seedPick.sample + 0.5) / geom.ns) * h;
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+        ctx.moveTo(sx - 10, sy); ctx.lineTo(sx + 10, sy);
+        ctx.moveTo(sx, sy - 10); ctx.lineTo(sx, sy + 10);
+        ctx.stroke();
+      }
+    }
+  }, [geom, orientation, sliceIndex, seedPick, visibleGrids]);
+
+  useEffect(() => { drawOverlay(); }, [drawOverlay, overlayTick]);
+
+  // ---- seed picking ----------------------------------------------------
+  const onCanvasClick = async (e) => {
+    if (!pickMode || !geom || !volume || orientation === 'time') return;
+    const rect = overlayRef.current.getBoundingClientRect();
+    const u = (e.clientX - rect.left) / rect.width;
+    const v = (e.clientY - rect.top) / rect.height;
+    const nTraces = orientation === 'inline' ? geom.nXl : geom.nIl;
+    const trace = Math.min(nTraces - 1, Math.max(0, Math.floor(u * nTraces)));
+    const sample = v * geom.ns;                        // time increases downward
+    const ilIdx = orientation === 'inline' ? sliceIndex : trace;
+    const xlIdx = orientation === 'inline' ? trace : sliceIndex;
+    try {
+      const traceData = await assembleTrace(getBrick, geom, ilIdx, xlIdx);
+      const hit = snapPick(traceData, sample, { mode: 'peak', window: 5 });
+      if (!hit) {
+        toast({ title: 'No event found', description: 'No peak near that click — try closer to a reflector.' });
+        return;
+      }
+      setSeedPick({ ilIdx, xlIdx, sample: hit.sample });
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  // ---- 3D tracking -----------------------------------------------------
+  const trackHorizon = async () => {
+    if (!seedPick || !geom || !volume || !manifest) return;
+    const id = ++jobIdRef.current;
+    setTracking({ tracked: 0, total: geom.nIl * geom.nXl });
+    try {
+      const token = await accessToken();
+      const worker = newHorizonWorker();
+      workerRef.current = worker;
+      const picks = await new Promise((resolve, reject) => {
+        worker.onmessage = (e) => {
+          const msg = e.data;
+          if (msg.id !== id) return;
+          if (msg.type === 'progress') setTracking({ tracked: msg.tracked, total: msg.total });
+          else if (msg.type === 'done') resolve(new Float32Array(msg.picks));
+          else if (msg.type === 'error') reject(new Error(msg.message));
+        };
+        worker.onerror = (ev) => reject(new Error(ev.message));
+        worker.postMessage({
+          type: 'track3d',
+          id,
+          config: {
+            supabaseUrl: storageBase(),
+            token,
+            bucket: 'seismic',
+            storagePath: volume.storage_path,
+            geom,
+            seed: seedPick,
+            opts: {
+              mode: 'peak',
+              window: 3,
+              maxJump: 4,
+              minAbsAmp: (manifest.stats?.rms || 0) * 0.3,
+            },
+          },
+        });
+      }).finally(() => worker.terminate());
+      workerRef.current = null;
+
+      // eslint-disable-next-line no-alert
+      const name = window.prompt('Horizon name:', `Horizon ${horizons.length + 1}`);
+      if (!name) { setTracking(null); return; }
+      const row = await saveHorizon({
+        volume,
+        name,
+        picks,
+        seed: seedPick,
+        params: { mode: 'peak', window: 3, maxJump: 4 },
+        dtUs: manifest.geometry.dt_us,
+      });
+      gridCacheRef.current.set(row.id, picks);
+      setVisibleIds((s) => new Set([...s, row.id]));
+      await reloadHorizons(volume);
+      toast({ title: 'Horizon tracked', description: `${name}: ${row.stats.tracked} traces.` });
+    } catch (e) {
+      if (!/cancelled/i.test(e.message)) {
+        toast({ title: 'Tracking failed', description: e.message, variant: 'destructive' });
+      }
+    } finally {
+      setTracking(null);
+    }
+  };
+
+  const cancelTracking = () => {
+    if (workerRef.current) {
+      workerRef.current.postMessage({ type: 'cancel', id: jobIdRef.current });
+    }
+  };
+
+  const toggleHorizon = (h) => {
+    setVisibleIds((s) => {
+      const next = new Set(s);
+      if (next.has(h.id)) next.delete(h.id);
+      else next.add(h.id);
+      return next;
+    });
+  };
+
+  const onDeleteHorizon = async (h) => {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Delete horizon "${h.name}"?`)) return;
+    setHorizonBusyId(h.id);
+    try {
+      await deleteHorizon(h);
+      gridCacheRef.current.delete(h.id);
+      setVisibleIds((s) => { const n = new Set(s); n.delete(h.id); return n; });
+      await reloadHorizons(volume);
+    } catch (e) {
+      toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setHorizonBusyId(null);
+    }
+  };
 
   useEffect(() => () => {
     if (rendererRef.current) rendererRef.current.destroy();
     if (cacheRef.current) cacheRef.current.clear();
+    if (workerRef.current) workerRef.current.terminate();
   }, []);
 
   const lineLabel = useMemo(() => {
@@ -145,7 +389,7 @@ export default function ViewerPanel({ refreshKey }) {
       <CardHeader>
         <CardTitle className="text-white flex items-center">
           <Eye className="w-5 h-5 mr-2 text-cyan-400" />
-          Section viewer
+          Section viewer &amp; horizon picking
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -213,10 +457,7 @@ export default function ViewerPanel({ refreshKey }) {
             <div className="flex items-center gap-4">
               <Label className="text-slate-300 whitespace-nowrap w-24">{lineLabel}</Label>
               <input
-                type="range"
-                min="0"
-                max={maxIndex}
-                value={sliceIndex}
+                type="range" min="0" max={maxIndex} value={sliceIndex}
                 onChange={(e) => setSliceIndex(Number(e.target.value))}
                 className="w-full accent-cyan-500"
               />
@@ -235,13 +476,57 @@ export default function ViewerPanel({ refreshKey }) {
                 className="w-full accent-cyan-500"
               />
             </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline" size="sm"
+                className={pickMode ? 'border-yellow-500/60 text-yellow-300' : ''}
+                onClick={() => setPickMode((p) => !p)}
+                disabled={orientation === 'time'}
+              >
+                <Crosshair className="w-4 h-4 mr-2" />
+                {pickMode ? 'Picking: click an event' : 'Pick seed'}
+              </Button>
+              <Button
+                size="sm"
+                className="bg-cyan-600 hover:bg-cyan-500 text-white"
+                onClick={trackHorizon}
+                disabled={!seedPick || tracking !== null}
+              >
+                <Route className="w-4 h-4 mr-2" />
+                Track 3D
+              </Button>
+              {tracking && (
+                <>
+                  <span className="text-sm text-slate-300 flex items-center">
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Tracking… {tracking.tracked.toLocaleString()} / {tracking.total.toLocaleString()}
+                  </span>
+                  <Button variant="outline" size="sm" onClick={cancelTracking}>
+                    <Ban className="w-4 h-4 mr-1" />Cancel
+                  </Button>
+                </>
+              )}
+              {seedPick && !tracking && (
+                <span className="text-xs text-slate-400">
+                  Seed: IL idx {seedPick.ilIdx}, XL idx {seedPick.xlIdx},
+                  sample {seedPick.sample.toFixed(2)}
+                </span>
+              )}
+            </div>
           </>
         )}
 
-        <div className="relative rounded-lg border border-slate-800 bg-slate-950 overflow-hidden"
+        <div
+          className="relative rounded-lg border border-slate-800 bg-slate-950 overflow-hidden"
           style={{ height: 480 }}
         >
           <canvas ref={canvasRef} className="w-full h-full block" />
+          <canvas
+            ref={overlayRef}
+            className={`absolute inset-0 w-full h-full ${pickMode ? 'cursor-crosshair' : 'pointer-events-none'}`}
+            onClick={onCanvasClick}
+          />
           {!manifest && (
             <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
               Select an ingested volume to view sections.
@@ -254,10 +539,23 @@ export default function ViewerPanel({ refreshKey }) {
           )}
         </div>
 
+        {manifest && (
+          <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+            <div className="text-slate-300 text-sm font-medium mb-2">Horizons</div>
+            <HorizonsList
+              horizons={horizons}
+              visibleIds={visibleIds}
+              busyId={horizonBusyId}
+              onToggle={toggleHorizon}
+              onDelete={onDeleteHorizon}
+            />
+          </div>
+        )}
+
         <div className="flex items-center justify-between text-xs text-slate-500">
           <span>
             Amplitudes rendered from stored float32 — colormap, gain, polarity and
-            balance are shader-only. Nulls (1.0E+30) draw as gray.
+            balance are shader-only. Time increases downward; nulls (1.0E+30) draw as gray.
           </span>
           {sliceMs != null && <span>slice {sliceMs.toFixed(0)} ms</span>}
         </div>

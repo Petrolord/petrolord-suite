@@ -1,6 +1,35 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-10 (Phase 2 complete)
+Last updated: 2026-07-10 (Phase 3 complete)
+
+## Phase 3 — Horizon interpretation: DONE
+
+- **Engine** (`engine/horizonTrack.js`): snap picking (peak/trough) with
+  3-point parabolic sub-sample refinement; guided 2D autotrack along a
+  section; 3D seeded region-grow (BFS) over an async brick-backed trace
+  accessor (`assembleTrace` added to sliceAssembly), with progress
+  callbacks and cancellation. All z values are sub-sample indices, time
+  increases downward, nulls are 1.0E+30 and never enter statistics.
+- **Acceptance held** (9 jest tests): ≥95% of tracked z within 2 samples
+  of the analytic dome for BOTH 3D region-grow and 2D autotrack, on IBM
+  and IEEE fixtures, at ≥95% coverage; null propagation and cancellation
+  asserted; sub-sample snap accurate to <0.05 sample on a synthetic peak.
+- **Persistence**: `seismic_horizons` migration applied (user RLS, FK
+  cascade to seismic_volumes). Row = identity/provenance/stats; pick grid
+  = float32 blob at `{uid}/{vol}/horizons/{id}.f32` (plan decision #8 —
+  no multi-MB jsonb). `horizonsService` uploads blob before row and
+  removes it if the insert fails; volume deletion sweeps horizons too.
+- **Worker + UI**: `workers/horizon.worker.js` runs the 3D grow with its
+  own brick cache (token passed in; progress + cancel via postMessage).
+  Viewer panel gained: Pick-seed mode (click → snap on the real trace),
+  seed marker, Track 3D with live progress/cancel, horizon save (named),
+  horizon list with visibility toggles/colors/delete, and overlays —
+  polylines on sections, intersection dots on time slices.
+- **Fix found during Phase 3**: the Phase 2 shader displayed sections
+  with time increasing UPWARD (transposed sample coord used v_uv.y
+  directly). Fixed in shader + CPU reference together; the self-test
+  passed before because it only proves GPU==CPU — screen-convention
+  checks need eyes or an oriented fixture (note for Phase 6 review).
 
 ## Phase 2 — WebGL2 viewer: DONE
 

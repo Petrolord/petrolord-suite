@@ -27,14 +27,16 @@ export async function deleteVolume(volume) {
   // batches (remove() caps around 1000 keys per call), then drop the row.
   const dir = volume.storage_path;
   const paths = [`${dir}/manifest.json`];
-  let offset = 0;
-  for (;;) {
-    const { data, error } = await supabase.storage.from(SEISMIC_BUCKET)
-      .list(`${dir}/bricks`, { limit: 1000, offset });
-    if (error) break;                       // dir may simply not exist yet
-    (data || []).forEach((o) => paths.push(`${dir}/bricks/${o.name}`));
-    if (!data || data.length < 1000) break;
-    offset += data.length;
+  for (const sub of ['bricks', 'horizons']) {
+    let offset = 0;
+    for (;;) {
+      const { data, error } = await supabase.storage.from(SEISMIC_BUCKET)
+        .list(`${dir}/${sub}`, { limit: 1000, offset });
+      if (error) break;                     // dir may simply not exist yet
+      (data || []).forEach((o) => paths.push(`${dir}/${sub}/${o.name}`));
+      if (!data || data.length < 1000) break;
+      offset += data.length;
+    }
   }
   for (let i = 0; i < paths.length; i += 1000) {
     const { error } = await supabase.storage.from(SEISMIC_BUCKET)
