@@ -1,0 +1,120 @@
+// Byte-budgeted LRU cache of brick payloads with in-flight request
+// de-duplication and scrub cancellation (plan of record: LRU cache and
+// fetch-cancellation-on-scrub are correctness features from day 1, not
+// hardening).
+//
+// The fetch layer is injected so jest can drive the cache without a
+// network; the production fetcher does a direct authenticated GET against
+// Supabase Storage — the owner-path RLS policies authorise the user's own
+// bricks, and no Edge Function sits in the hot path.
+
+/**
+ * @typedef {(path: string, signal: AbortSignal) => Promise<ArrayBuffer>} BrickFetcher
+ */
+
+export class BrickCache {
+  /**
+   * @param {BrickFetcher} fetcher
+   * @param {{maxBytes?: number}} [opts]
+   */
+  constructor(fetcher, { maxBytes = 256 * 1024 * 1024 } = {}) {
+    this.fetcher = fetcher;
+    this.maxBytes = maxBytes;
+    this.bytes = 0;
+    /** @type {Map<string, Float32Array>} insertion order = LRU order */
+    this.cache = new Map();
+    /** @type {Map<string, {promise: Promise<Float32Array>, controller: AbortController}>} */
+    this.inflight = new Map();
+    this.stats = { hits: 0, misses: 0, evictions: 0, aborts: 0 };
+  }
+
+  has(path) {
+    return this.cache.has(path);
+  }
+
+  /** Fetch (or reuse) one brick; concurrent calls for a path share a request. */
+  get(path) {
+    const hit = this.cache.get(path);
+    if (hit) {
+      this.stats.hits += 1;
+      this.cache.delete(path);          // refresh LRU position
+      this.cache.set(path, hit);
+      return Promise.resolve(hit);
+    }
+    const pending = this.inflight.get(path);
+    if (pending) return pending.promise;
+
+    this.stats.misses += 1;
+    const controller = new AbortController();
+    const promise = this.fetcher(path, controller.signal)
+      .then((buffer) => {
+        const data = new Float32Array(buffer);
+        this.inflight.delete(path);
+        this.#insert(path, data);
+        return data;
+      })
+      .catch((err) => {
+        this.inflight.delete(path);
+        throw err;
+      });
+    this.inflight.set(path, { promise, controller });
+    return promise;
+  }
+
+  /**
+   * Abort every in-flight fetch whose path is not in `keep` — called when
+   * the user scrubs away before the old slice finished loading.
+   * @param {Set<string>} [keep]
+   */
+  cancelPendingExcept(keep = new Set()) {
+    for (const [path, entry] of this.inflight) {
+      if (!keep.has(path)) {
+        entry.controller.abort();
+        this.stats.aborts += 1;
+      }
+    }
+  }
+
+  clear() {
+    this.cancelPendingExcept();
+    this.cache.clear();
+    this.bytes = 0;
+  }
+
+  #insert(path, data) {
+    this.bytes += data.byteLength;
+    this.cache.set(path, data);
+    for (const [oldPath, oldData] of this.cache) {
+      if (this.bytes <= this.maxBytes || oldPath === path) break;
+      this.cache.delete(oldPath);
+      this.bytes -= oldData.byteLength;
+      this.stats.evictions += 1;
+    }
+  }
+}
+
+/** Error message marker for aborted brick fetches. */
+export const ABORTED = 'BRICK_FETCH_ABORTED';
+
+/**
+ * Production fetcher: authenticated GET straight to Supabase Storage.
+ * @param {{supabaseUrl: string, getToken: () => Promise<string>, bucket?: string}} cfg
+ * @returns {BrickFetcher}
+ */
+export function storageBrickFetcher({ supabaseUrl, getToken, bucket = 'seismic' }) {
+  return async (path, signal) => {
+    const token = await getToken();
+    let res;
+    try {
+      res = await fetch(
+        `${supabaseUrl}/storage/v1/object/authenticated/${bucket}/${path}`,
+        { headers: { Authorization: `Bearer ${token}` }, signal },
+      );
+    } catch (err) {
+      if (err.name === 'AbortError') throw new Error(ABORTED);
+      throw err;
+    }
+    if (!res.ok) throw new Error(`Brick fetch failed (${res.status}) for ${path}`);
+    return res.arrayBuffer();
+  };
+}
