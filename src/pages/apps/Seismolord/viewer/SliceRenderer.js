@@ -72,6 +72,42 @@ export class SliceRenderer {
     if (!gl) throw new Error('WebGL2 is not available in this browser.');
     this.gl = gl;
     this.canvas = canvas;
+    this.params = { gain: 1, polarity: 1, clip: 1, traceBalance: false, transpose: true };
+    this.colormapKey = SEISMIC_COLORMAPS[0].key;
+    this.lastSlice = null;
+    this.lastIsSection = true;
+    this.contextLost = false;
+    /** Optional hook fired after automatic context-loss recovery. */
+    this.onRestore = null;
+
+    // Context-loss recovery (Phase 6 hardening): preventDefault marks the
+    // context restorable; on restore every GL object is recreated and the
+    // last slice re-rendered, so GPU resets / tab eviction don't leave a
+    // dead black panel.
+    this.handleContextLost = (e) => {
+      e.preventDefault();
+      this.contextLost = true;
+    };
+    this.handleContextRestored = () => {
+      this.contextLost = false;
+      this.#initGL();
+      if (this.lastSlice) {
+        this.setSlice(this.lastSlice, this.lastIsSection);
+        this.render();
+      }
+      if (this.onRestore) this.onRestore();
+    };
+    if (canvas.addEventListener) {
+      canvas.addEventListener('webglcontextlost', this.handleContextLost);
+      canvas.addEventListener('webglcontextrestored', this.handleContextRestored);
+    }
+
+    this.#initGL();
+  }
+
+  /** (Re)create every GL resource — at construction and after restore. */
+  #initGL() {
+    const { gl } = this;
     this.linearFloat = Boolean(gl.getExtension('OES_texture_float_linear'));
 
     const prog = gl.createProgram();
@@ -107,8 +143,7 @@ export class SliceRenderer {
     this.rmsTex = this.#makeTex(gl.NEAREST);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 
-    this.params = { gain: 1, polarity: 1, clip: 1, traceBalance: false, transpose: true };
-    this.setColormap(SEISMIC_COLORMAPS[0].key);
+    this.setColormap(this.colormapKey);
     this.#applyParams();
   }
 
@@ -136,6 +171,7 @@ export class SliceRenderer {
       this.lut[i * 4 + 2] = b;
       this.lut[i * 4 + 3] = 255;
     }
+    if (this.contextLost) return;               // re-uploaded on restore
     const { gl } = this;
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.lutTex);
@@ -150,6 +186,9 @@ export class SliceRenderer {
    * @param {boolean} isSection true for inline/xline (transposed display)
    */
   setSlice(slice, isSection = true) {
+    this.lastSlice = slice;
+    this.lastIsSection = isSection;
+    if (this.contextLost) return;                 // re-uploaded on restore
     const { gl } = this;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.dataTex);
@@ -172,6 +211,7 @@ export class SliceRenderer {
   }
 
   #applyParams() {
+    if (this.contextLost) return;               // re-applied on restore
     const { gl, u, params } = this;
     gl.useProgram(this.prog);
     gl.uniform1f(u.u_gain, params.gain);
@@ -182,6 +222,7 @@ export class SliceRenderer {
   }
 
   render() {
+    if (this.contextLost) return;
     const { gl } = this;
     gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -239,6 +280,10 @@ export class SliceRenderer {
   }
 
   destroy() {
+    if (this.canvas.removeEventListener) {
+      this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);
+      this.canvas.removeEventListener('webglcontextrestored', this.handleContextRestored);
+    }
     const { gl } = this;
     gl.deleteTexture(this.dataTex);
     gl.deleteTexture(this.lutTex);

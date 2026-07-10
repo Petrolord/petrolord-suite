@@ -44,11 +44,35 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
             .catch(() => setSeismolordSurfaces([]));   // table empty/unreachable: hide the section
     }, [open]);
 
+    // Seismolord writes XY in metres but Z in feet (depth_ft exports); RCP's
+    // import model carries ONE unit for XY and Z. Reconcile by converting XY
+    // metres -> feet so the whole surface is self-consistently in feet with
+    // the interpreter's depth values preserved (no silent ft-labelled-as-m,
+    // which was off by ~3.28x). TWT-ms exports are not a length surface — flag
+    // that and leave the values untouched.
+    const FT_PER_M = 3.280839895013123;
+    const normalizeHandoff = (text, domain) => {
+        if (domain !== 'depth_ft') return { text, xyUnit: 'm', warning: domain === 'twt_ms'
+            ? 'This is a two-way-time (ms) surface, not depth — volumetric results will not be meaningful.'
+            : null };
+        const out = text.split('\n').map((line) => {
+            const t = line.trim();
+            if (!t) return line;
+            const parts = t.split(/\s+/);
+            if (parts.length < 3) return line;
+            const x = Number(parts[0]) * FT_PER_M;
+            const y = Number(parts[1]) * FT_PER_M;
+            return `${x.toFixed(2)} ${y.toFixed(2)} ${parts[2]}`;   // z (ft) unchanged
+        }).join('\n');
+        return { text: out, xyUnit: 'ft', warning: null };
+    };
+
     const loadSeismolordSurface = async (row) => {
         setFetchingHandoffId(row.id);
         resetFeedback();
         try {
-            const text = await downloadExportedSurface(row);
+            const raw = await downloadExportedSurface(row);
+            const { text, xyUnit, warning } = normalizeHandoff(raw, row.domain);
             const file = new File([text], `${row.name.replace(/[^\w-]+/g, '_')}.xyz`, { type: 'text/plain' });
             setImportData(prev => ({
                 ...prev,
@@ -56,10 +80,14 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
                 rawData: text,
                 name: row.name,
                 format: 'xyz',
-                xyUnit: 'm',                 // Seismolord exports XY in metres
+                xyUnit,                      // 'ft' for depth exports, 'm' for TWT
                 zConvention: 'elevation',    // z negative downward
             }));
-            toast({ title: 'Surface loaded from Seismolord', description: row.name });
+            toast({
+                title: 'Surface loaded from Seismolord',
+                description: warning ? `${row.name} — ${warning}` : row.name,
+                ...(warning ? { variant: 'destructive' } : {}),
+            });
         } catch (e) {
             setError({ title: 'Could not load Seismolord surface', message: e.message, guidance: [] });
         } finally {
@@ -93,23 +121,37 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
 
     // Turn a successful parse into the surface object the app consumes.
     const buildSurface = (points) => {
-        const xs = points.map(p => p.x);
-        const ys = points.map(p => p.y);
-        const zValues = points.map(p => p.z);
-        const minZ = Math.min(...zValues);
-        const maxZ = Math.max(...zValues);
-        const avgZ = zValues.reduce((s, v) => s + v, 0) / zValues.length;
+        // Single-pass min/max/sum + bbox. Never spread (Math.min(...arr)) over
+        // the point array: a full-survey grid (100k+ nodes) blows the argument
+        // limit and throws RangeError, surfaced only as a generic "Import failed".
+        let minZ = Infinity; let maxZ = -Infinity; let sumZ = 0;
+        let minX = Infinity; let maxX = -Infinity; let minY = Infinity; let maxY = -Infinity;
+        for (const p of points) {
+            if (p.z < minZ) minZ = p.z;
+            if (p.z > maxZ) maxZ = p.z;
+            sumZ += p.z;
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+        }
+        const avgZ = sumZ / points.length;
         // Bounding-box extent as a first-order area estimate; the volume engine
         // reads estimatedArea/avgZ for its surface + hybrid methods.
-        const estimatedArea = Math.abs(
-            (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys))
-        );
+        const estimatedArea = Math.abs((maxX - minX) * (maxY - minY));
+
+        // Downsample by an even STRIDE, not slice(0,N): Seismolord XYZ is
+        // row-major south-first, so slice() kept only the southernmost strip
+        // while stats claimed the whole surface. Stride preserves full extent.
+        const MAX_POINTS = 5000;
+        const stride = Math.max(1, Math.ceil(points.length / MAX_POINTS));
+        const sampled = stride === 1 ? points : points.filter((_, i) => i % stride === 0);
 
         return {
             id: crypto.randomUUID(),
             name: importData.name || 'Imported Surface',
             format: importData.format,
-            points: points.slice(0, 5000),
+            points: sampled,
             minZ,
             maxZ,
             avgZ,

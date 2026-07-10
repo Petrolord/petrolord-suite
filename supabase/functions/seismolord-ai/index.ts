@@ -59,7 +59,18 @@ Deno.serve(async (req) => {
         { status: 400, headers: jsonHeaders });
     }
 
-    const trimmed = messages.slice(-MAX_MESSAGES);
+    // The system prompt is authoritative and added below — never accept a
+    // client-supplied `system` role (prompt-injection / policy override).
+    // Cap total payload so this can't be used as a bulk-completion proxy.
+    const ALLOWED_ROLES = new Set(['user', 'assistant', 'tool']);
+    const filtered = messages.filter((m) => m && ALLOWED_ROLES.has(m.role));
+    const totalChars = filtered.reduce(
+      (n, m) => n + (typeof m.content === 'string' ? m.content.length : 0), 0);
+    if (totalChars > 200000) {
+      return new Response(JSON.stringify({ error: 'Conversation is too large.' }),
+        { status: 413, headers: jsonHeaders });
+    }
+    const trimmed = filtered.slice(-MAX_MESSAGES);
     const model = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o-mini';
 
     const res = await fetch('https://api.openai.com/v1/chat/completions', {

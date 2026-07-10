@@ -65,6 +65,15 @@ export default function AiPanel({ volume, manifest }) {
     },
     run_autotrack: async ({ inline, crossline, twt_ms: twtMs, name }) => {
       requireVolume();
+      // Validate LLM-supplied args explicitly: NaN passes BOTH `< min` and
+      // `>= max`, so a non-numeric arg would otherwise slip the range guard
+      // and persist an empty 0-coverage horizon.
+      for (const [label, val] of [['inline', inline], ['crossline', crossline], ['twt_ms', twtMs]]) {
+        if (!Number.isFinite(val)) throw new Error(`run_autotrack: ${label} must be a number.`);
+      }
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        throw new Error('run_autotrack: a non-empty horizon name is required.');
+      }
       const g = manifest.geometry;
       const geom = geomFromManifest(manifest);
       const ilIdx = Math.round((inline - g.il.min) / g.il.step);
@@ -81,11 +90,13 @@ export default function AiPanel({ volume, manifest }) {
       const token = await accessToken();
       const worker = newHorizonWorker();
       const picks = await new Promise((resolve, reject) => {
-        worker.onmessage = (e) => {
+        worker.onmessage = async (e) => {
           const msg = e.data;
           if (msg.id !== id) return;
           if (msg.type === 'progress') setStatus(`Autotracking "${name}"… ${msg.tracked.toLocaleString()} traces`);
-          else if (msg.type === 'done') resolve(new Float32Array(msg.picks));
+          else if (msg.type === 'need-token') {
+            worker.postMessage({ type: 'token', nonce: msg.nonce, token: await accessToken() });
+          } else if (msg.type === 'done') resolve(new Float32Array(msg.picks));
           else if (msg.type === 'error') reject(new Error(msg.message));
         };
         worker.onerror = (ev) => reject(new Error(ev.message));

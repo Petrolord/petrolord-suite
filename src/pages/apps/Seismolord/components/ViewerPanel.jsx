@@ -50,6 +50,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const requestRef = useRef(0);
   const workerRef = useRef(null);
   const jobIdRef = useRef(0);
+  const selectSeqRef = useRef(0);               // stale volume-switch guard
   const gridCacheRef = useRef(new Map());       // horizon id -> Float32Array
 
   const [volumes, setVolumes] = useState([]);
@@ -103,6 +104,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   }, [toast]);
 
   const selectVolume = async (id) => {
+    const seq = ++selectSeqRef.current;           // supersedes any in-flight select
     const v = volumes.find((x) => x.id === id) || null;
     setVolume(v);
     setManifest(null);
@@ -117,20 +119,25 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     setLoading(true);
     try {
       const m = await getManifest(v);
+      const [hz, flt] = await Promise.all([
+        listHorizons(v.id).catch(() => []),
+        listFaults(v.id).catch(() => []),
+      ]);
+      if (seq !== selectSeqRef.current) return;   // a newer selection won; drop this one
       cacheRef.current = new BrickCache(
         storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
         { maxBytes: 256 * 1024 * 1024 },
       );
       setManifest(m);
+      setHorizons(hz);
+      setFaults(flt);
       setOrientation('inline');
       setSliceIndex(Math.floor(m.geometry.il.count / 2));
-      await reloadHorizons(v);
-      setFaults(await listFaults(v.id).catch(() => []));
       if (onVolumeChange) onVolumeChange(v, m);
     } catch (e) {
-      setError(e.message);
+      if (seq === selectSeqRef.current) setError(e.message);
     } finally {
-      setLoading(false);
+      if (seq === selectSeqRef.current) setLoading(false);
     }
   };
 
@@ -399,11 +406,13 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
       const worker = newHorizonWorker();
       workerRef.current = worker;
       const picks = await new Promise((resolve, reject) => {
-        worker.onmessage = (e) => {
+        worker.onmessage = async (e) => {
           const msg = e.data;
           if (msg.id !== id) return;
           if (msg.type === 'progress') setTracking({ tracked: msg.tracked, total: msg.total });
-          else if (msg.type === 'done') resolve(new Float32Array(msg.picks));
+          else if (msg.type === 'need-token') {
+            worker.postMessage({ type: 'token', nonce: msg.nonce, token: await accessToken() });
+          } else if (msg.type === 'done') resolve(new Float32Array(msg.picks));
           else if (msg.type === 'error') reject(new Error(msg.message));
         };
         worker.onerror = (ev) => reject(new Error(ev.message));
