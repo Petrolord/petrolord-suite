@@ -106,6 +106,7 @@ const BasinFlowAnalysis = lazy(() => import('@/pages/apps/BasinFlowAnalysis'));
 const BasinFlowGenesis = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowGenesis'));
 const Seismolord = lazy(() => import('@/pages/apps/Seismolord/Seismolord'));
 const SeismolordSelfTest = lazy(() => import('@/pages/apps/Seismolord/SeismolordSelfTest'));
+const SeismolordSliceViewHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordSliceViewHarness'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
 const WellLogAnalyzer = lazy(() => import('@/pages/apps/WellLogAnalyzer'));
 const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/ProductionSurveillanceDashboard'));
@@ -621,9 +622,12 @@ function App() {
                               <Route path="/legal/support" element={<Support />} />
                               <Route path="/legal/documentation" element={<Documentation />} />
 
-                              {/* Dev-only harness for the Playwright viewer suite; absent from prod builds */}
+                              {/* Dev-only harnesses for the Playwright viewer suite; absent from prod builds */}
                               {import.meta.env.DEV && (
-                                <Route path="/dev/seismolord-selftest" element={<SeismolordSelfTest />} />
+                                <>
+                                  <Route path="/dev/seismolord-selftest" element={<SeismolordSelfTest />} />
+                                  <Route path="/dev/seismolord-sliceview" element={<SeismolordSliceViewHarness />} />
+                                </>
                               )}
                               <Route path="*" element={<Navigate to="/" replace />} />
                             </Routes>

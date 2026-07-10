@@ -91,11 +91,23 @@ export async function runViewerSelfTest(canvas, opts = {}) {
     { orientation: 'xline', index: 137, params: { gain: 2.5, polarity: -1, clip: 0.8, traceBalance: false } },
     { orientation: 'time', index: 60, params: { gain: 1, polarity: 1, clip: 1, traceBalance: false } },
     { orientation: 'inline', index: 42, params: { gain: 1, polarity: 1, clip: 3, traceBalance: true } },
+    // camera: zoomed-in rect. Dyadic values are exact in fp32 AND fp64, so
+    // GPU and CPU reference make identical texel-floor decisions.
+    {
+      orientation: 'inline', index: 42, view: [0.25, 0.375, 0.5, 0.5],
+      params: { gain: 1, polarity: 1, clip: 1, traceBalance: false },
+    },
+    // camera: view extends beyond the data (vexag < 1) -> background pixels
+    {
+      orientation: 'time', index: 60, view: [-0.125, -0.25, 1.25, 1.5],
+      params: { gain: 1, polarity: 1, clip: 1, traceBalance: false },
+    },
   ];
   for (const c of cases) {
     const slice = await assembleSlice(getBrick, geom, c.orientation, c.index);
     canvas.width = slice.height * 2;      // 2x avoids texel-boundary sampling
     canvas.height = slice.width * 2;
+    renderer.setView(c.view || [0, 0, 1, 1]);
     renderer.setParams(c.params);
     renderer.setSlice(slice, c.orientation !== 'time');
     renderer.render();
@@ -104,6 +116,7 @@ export async function runViewerSelfTest(canvas, opts = {}) {
     const cmp = compareImages(actual, expected);
     checks.push({ ...c, ...cmp, pass: cmp.maxDiff <= 8 && cmp.pctWithin2 >= 99 });
   }
+  renderer.setView([0, 0, 1, 1]);       // camera back to identity
   // ---- screen convention: time increases DOWNWARD on sections ---------
   // A pure depth gradient (-1 shallow -> +1 deep) must render red at the
   // top and blue at the bottom under the default red-white-blue map. This
