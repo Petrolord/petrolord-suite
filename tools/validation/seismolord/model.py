@@ -111,6 +111,10 @@ def synth_traces(spec: VolumeSpec) -> np.ndarray:
     ripple = 0.05 * np.sin(dome / 7.0)[:, :, None]                # deterministic
     amp = ricker(dt_dome) * (1.0 + ripple) + FLAT_POLARITY * ricker(dt_flat)
     amp[:, :, 0] = 0.0                                            # exact IBM zero case
+    # Kill the Ricker tail's ~1e-40 residues: float32-denormal-magnitude
+    # IBM samples are physically meaningless and decode ambiguously
+    # (segyio flushes them to +0, IEEE-correct conversion keeps denormals).
+    amp[np.abs(amp) < 1e-30] = 0.0
     return amp.astype(np.float32)
 
 
