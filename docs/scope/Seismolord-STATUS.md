@@ -1,6 +1,33 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-10 (Phase 5 complete)
+Last updated: 2026-07-10 (Phase 6 complete — Seismolord phased build DONE)
+
+## Phase 6 — Hardening: DONE
+
+Full results in `docs/scope/Seismolord-HARDENING.md`.
+
+- **Hostile-senior review** of the whole app + RCP handoff points:
+  numerics core confirmed solid; 2 HIGH + 5 MEDIUM findings fixed
+  (RCP handoff feet-as-metres unit bug; ingest ack backpressure;
+  volume-switch stale guard; RCP big-surface crash/truncation; long-job
+  token refresh; AI arg validation; AI edge-fn role filtering). Lower
+  findings logged as tracked follow-ups.
+- **Malformed-SEG-Y fuzz** (11 cases): all fail with clear domain errors,
+  never a raw RangeError; truncation scans whole traces and warns.
+- **WebGL context-loss recovery**: rebuilds GL state and re-renders the
+  last slice; verified bit-identical via WEBGL_lose_context. Self-test
+  also gained an oriented time-down screen-convention fixture.
+- **4 GB ingestion soak** (SEISMOLORD_SOAK=1): a 4.24 GB virtual volume
+  streamed through a 256 MiB budget — measured peak 244 MiB, 4096 bricks,
+  2 passes/band. A 139 MB / 32 MiB tier runs in every CI.
+- **RLS penetration test** (live DB, rollback-wrapped): user B sees 0
+  rows across all four seismic_* tables and 0 storage objects, cannot
+  update/delete A's rows, and INSERT forgery raises 42501.
+- **Per-user storage quota**: 20 GiB soft ceiling enforced at ingest via
+  recorded per-volume storage_bytes.
+- **Egress/object-count analysis**: keep per-brick objects through
+  ~2000³; packed-brick + Range reads is the escalation (manifest already
+  versioned for a clean v2 layout).
 
 ## Phase 5 — Suite integration + AI: DONE
 
