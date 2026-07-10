@@ -152,5 +152,28 @@ export async function assembleSlice(getBrick, geom, orientation, index) {
   return { data, width, height, traceRms, nullValue: NULL_F32 };
 }
 
+/**
+ * Assemble one full trace from bricks (horizon trackers walk traces).
+ * @param {(i:number,j:number,k:number) => Promise<Float32Array>} getBrick
+ * @param {VolumeGeom} geom
+ * @param {number} ilIdx @param {number} xlIdx
+ * @returns {Promise<Float32Array>} ns samples
+ */
+export async function assembleTrace(getBrick, geom, ilIdx, xlIdx) {
+  const b = geom.brickSize;
+  const bi = Math.floor(ilIdx / b);
+  const bj = Math.floor(xlIdx / b);
+  const li = ilIdx % b;
+  const lj = xlIdx % b;
+  const out = new Float32Array(geom.ns);
+  for (let bk = 0; bk * b < geom.ns; bk++) {
+    const brick = await getBrick(bi, bj, bk);
+    const s0 = bk * b;
+    const n = Math.min(b, geom.ns - s0);
+    out.set(brick.subarray((li * b + lj) * b, (li * b + lj) * b + n), s0);
+  }
+  return out;
+}
+
 /** Cache-key helper shared by the viewer and the cache layer. */
 export const brickKey = (storagePath, i, j, k) => `${storagePath}/bricks/${i}-${j}-${k}.f32`;
