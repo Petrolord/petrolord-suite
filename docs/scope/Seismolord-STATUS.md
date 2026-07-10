@@ -1,6 +1,38 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-10 (Phase 0 complete)
+Last updated: 2026-07-10 (Phase 1 complete)
+
+## Phase 1 — Ingestion + brick store: DONE
+
+Streaming client-side SEG-Y ingestion, per the plan of record (no server
+runtime; all numerics in workers).
+
+- **Engine** (`src/pages/apps/Seismolord/engine/`): `reader.js` windowed
+  ByteReader (structurally no whole-file reads), `segyScan.js` (EBCDIC
+  textual header — display only, "it lies"; measured geometry under
+  mappable il/xl bytes; sampled preview mode), `brickTranscode.js`
+  (64³ float32 bricks; inline bands k-windowed to hold a FIXED memory
+  budget; 1e30 padding excluded from stats), `manifest.js`
+  (manifest_version 1, layout/paths/null documented).
+- **Acceptance held** (42 jest tests): brick-reassembled inline/time
+  slices bit-identical to segyio for IBM, IEEE and odd-bytes fixtures;
+  non-default byte positions work end-to-end (poisoned defaults detected
+  and warned); 128 KiB budget held while ingesting a 511 KB file with
+  multi-pass output still bit-identical.
+- **Pipeline**: `workers/ingest.worker.js` (postMessage progress, ack
+  backpressure, cancel), `services/ingestService.js` (bounded-concurrency
+  brick uploads to `seismic/{uid}/{volume_id}/bricks/i-j-k.f32`, volume
+  row registered first as 'ingesting' → 'ready', skip-existing resume
+  primitive, manifest.json last), `services/volumesService.js`
+  (list/manifest/delete incl. storage cleanup).
+- **UI**: Import panel (mapping presets + custom bytes, live rescan,
+  measured-geometry card, preview table, textual-header viewer, progress
+  + cancel) and My Volumes panel on the Seismolord page.
+- Not in Phase 1 (per plan): unsorted-trace input (clear error instead),
+  full resume UX (Phase 6), formats other than IBM/IEEE float.
+- Manual staging check pending a signed-in session: import a fixture
+  from `test-data/seismolord/segy/` and confirm bricks + manifest land
+  under the owner path and the volume row flips to 'ready'.
 
 ## Phase 0 — Oracles, golden files, foundations: DONE
 

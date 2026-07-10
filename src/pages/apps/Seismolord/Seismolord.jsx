@@ -6,14 +6,17 @@ import { ArrowLeft, Waves, RefreshCw, CheckCircle2, XCircle, Loader2 } from 'luc
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/customSupabaseClient';
+import ImportPanel from './components/ImportPanel';
+import VolumesPanel from './components/VolumesPanel';
 
-// Walking-skeleton shell: proves page → seismolord-engine edge function →
-// Storage manifest round-trip. The interpretation canvas (WebGL2), Zustand
-// store and workers come in later phases (see docs/scope/Seismolord-PLAYBOOK.md).
+// Phase 1: streaming SEG-Y ingestion to the brick store (import panel with
+// header-mapping preview + volume registry). The interpretation canvas
+// (WebGL2) arrives in Phase 2 — see docs/scope/Seismolord-PLAN.md.
 export default function Seismolord() {
   const [checking, setChecking] = useState(true);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [volumesRefresh, setVolumesRefresh] = useState(0);
 
   const checkBackend = useCallback(async () => {
     setChecking(true);
@@ -74,6 +77,11 @@ export default function Seismolord() {
             </div>
           </div>
         </motion.div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
+          <VolumesPanel refreshKey={volumesRefresh} />
+          <ImportPanel onIngested={() => setVolumesRefresh((k) => k + 1)} />
+        </div>
 
         <Card className="bg-slate-900/60 border-slate-700 max-w-2xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
