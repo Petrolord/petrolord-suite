@@ -18,6 +18,7 @@
 import { fileReader } from '../engine/reader';
 import { readTextualHeader, scanGeometry, previewTraceHeaders } from '../engine/segyScan';
 import { transcodeToBricks } from '../engine/brickTranscode';
+import { detectHeaderMapping } from '../engine/headerDetect';
 
 const MAX_UNACKED_BRICKS = 4;   // backpressure: don't outrun the uploads
 
@@ -28,17 +29,26 @@ const state = (id) => {
   return jobs.get(id);
 };
 
-async function handleScan({ id, file, mapping, maxTraces }) {
+async function handleScan({ id, file, mapping, maxTraces, autodetect }) {
   const reader = fileReader(file);
+  // Auto-detect first when asked: pick the byte layout for the user, then
+  // scan/preview with it so file-open "just works". Falls back to the
+  // supplied mapping (the rev1 defaults) if nothing is detected.
+  let detection = null;
+  let effectiveMapping = mapping;
+  if (autodetect) {
+    detection = await detectHeaderMapping(reader);
+    if (detection.detected) effectiveMapping = detection.mapping;
+  }
   const [textLines, preview, scan] = [
     await readTextualHeader(reader),
-    await previewTraceHeaders(reader, mapping),
-    await scanGeometry(reader, mapping, {
+    await previewTraceHeaders(reader, effectiveMapping),
+    await scanGeometry(reader, effectiveMapping, {
       maxTraces: maxTraces ?? 20000,
       onProgress: (done, total) => self.postMessage({ type: 'progress', id, phase: 'scan', done, total }),
     }),
   ];
-  self.postMessage({ type: 'scan:done', id, scan, textLines, preview });
+  self.postMessage({ type: 'scan:done', id, scan, textLines, preview, detection, mapping: effectiveMapping });
 }
 
 async function handleIngest({ id, file, mapping, memoryBudgetBytes }) {

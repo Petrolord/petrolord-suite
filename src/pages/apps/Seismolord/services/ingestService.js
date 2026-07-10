@@ -48,7 +48,7 @@ async function currentUserId() {
  * @param {{ilByte?: number, xlByte?: number}} mapping
  * @param {(p:{phase:string,done:number,total:number})=>void} [onProgress]
  */
-export function scanFile(file, mapping, onProgress) {
+export function scanFile(file, mapping, onProgress, autodetect = false) {
   const worker = newWorker();
   const id = nextJobId++;
   return new Promise((resolve, reject) => {
@@ -58,14 +58,20 @@ export function scanFile(file, mapping, onProgress) {
       if (msg.type === 'progress' && onProgress) onProgress(msg);
       else if (msg.type === 'scan:done') {
         worker.terminate();
-        resolve({ scan: msg.scan, textLines: msg.textLines, preview: msg.preview });
+        resolve({
+          scan: msg.scan,
+          textLines: msg.textLines,
+          preview: msg.preview,
+          detection: msg.detection,
+          mapping: msg.mapping,           // the mapping actually used (detected or supplied)
+        });
       } else if (msg.type === 'error') {
         worker.terminate();
         reject(new Error(msg.message));
       }
     };
     worker.onerror = (e) => { worker.terminate(); reject(new Error(e.message)); };
-    worker.postMessage({ type: 'scan', id, file, mapping });
+    worker.postMessage({ type: 'scan', id, file, mapping, autodetect });
   });
 }
 

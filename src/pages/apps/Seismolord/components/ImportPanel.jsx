@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   Upload, FileText, AlertTriangle, CheckCircle2, Loader2, XCircle, Play, Ban,
+  Wand2, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,21 +28,35 @@ export default function ImportPanel({ onIngested }) {
   const [mapping, setMapping] = useState({ ilByte: DEFAULT_MAPPING.ilByte, xlByte: DEFAULT_MAPPING.xlByte });
   const [phase, setPhase] = useState('idle'); // idle|scanning|scanned|ingesting|done|error
   const [scanData, setScanData] = useState(null);
+  const [detection, setDetection] = useState(null);
   const [showHeader, setShowHeader] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [progress, setProgress] = useState(null);
   const [error, setError] = useState(null);
+  const scanSeqRef = useRef(0);
 
-  const runScan = async (f, m) => {
+  // autodetect=true lets Seismolord pick the inline/crossline byte layout
+  // itself so a non-expert never touches a byte field; manual edits from
+  // the Advanced panel re-scan with autodetect off.
+  const runScan = async (f, m, autodetect) => {
+    const seq = ++scanSeqRef.current;
     setPhase('scanning');
     setError(null);
     setScanData(null);
     try {
-      const data = await scanFile(f, m);
+      const data = await scanFile(f, m, undefined, autodetect);
+      if (seq !== scanSeqRef.current) return;   // a newer scan superseded this one
       setScanData(data);
+      if (autodetect && data.detection) {
+        setDetection(data.detection);
+        if (data.mapping) {
+          setMapping({ ilByte: data.mapping.ilByte, xlByte: data.mapping.xlByte });
+        }
+        if (!data.detection.detected) setShowAdvanced(true);   // reveal manual controls
+      }
       setPhase('scanned');
     } catch (e) {
-      setError(e.message);
-      setPhase('error');
+      if (seq === scanSeqRef.current) { setError(e.message); setPhase('error'); }
     }
   };
 
@@ -49,13 +64,20 @@ export default function ImportPanel({ onIngested }) {
     const f = e.target.files?.[0];
     if (!f) return;
     setFile(f);
-    runScan(f, mapping);
+    setDetection(null);
+    setShowAdvanced(false);
+    runScan(f, mapping, true);                  // auto-detect on open
   };
 
   const onMappingChange = (next) => {
     const m = { ...mapping, ...next };
     setMapping(m);
-    if (file) runScan(file, m);
+    setDetection(null);                         // user is overriding detection
+    if (file) runScan(file, m, false);
+  };
+
+  const reDetect = () => {
+    if (file) { setShowAdvanced(false); runScan(file, mapping, true); }
   };
 
   const startIngest = async () => {
@@ -125,48 +147,101 @@ export default function ImportPanel({ onIngested }) {
 
         {scan && (
           <>
-            {/* Header mapping — the textual header lies; geometry is measured */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <Label className="text-slate-300">Header layout preset</Label>
-                <select
-                  className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
-                  value={`${mapping.ilByte}/${mapping.xlByte}`}
-                  onChange={(e) => {
-                    const preset = MAPPING_PRESETS.find(
-                      (p) => `${p.ilByte}/${p.xlByte}` === e.target.value);
-                    if (preset) onMappingChange({ ilByte: preset.ilByte, xlByte: preset.xlByte });
-                  }}
-                  disabled={phase === 'ingesting'}
-                >
-                  {MAPPING_PRESETS.map((p) => (
-                    <option key={p.label} value={`${p.ilByte}/${p.xlByte}`}>{p.label}</option>
-                  ))}
-                  {!MAPPING_PRESETS.some((p) => p.ilByte === mapping.ilByte && p.xlByte === mapping.xlByte) && (
-                    <option value={`${mapping.ilByte}/${mapping.xlByte}`}>
-                      Custom ({mapping.ilByte}/{mapping.xlByte})
-                    </option>
-                  )}
-                </select>
+            {/* Auto-detection outcome — the user normally acts only on this */}
+            {detection && detection.detected && (
+              <div className="rounded-lg border border-emerald-700/50 bg-emerald-950/25 p-3 text-sm text-emerald-200 flex items-start">
+                <Wand2 className="w-4 h-4 mr-2 mt-0.5 shrink-0" />
+                <span>
+                  Header layout detected automatically — inline at byte {detection.mapping.ilByte},
+                  crossline at byte {detection.mapping.xlByte}
+                  {detection.coords
+                    ? `, coordinates at ${detection.coords.xByte}/${detection.coords.yByte}`
+                    : ' (no world coordinates found — export will lack real X/Y)'}.
+                  {detection.confidence === 'low' && ' Confidence is low — check the geometry below.'}
+                  {' '}You can just click Start import.
+                </span>
               </div>
-              <div>
-                <Label className="text-slate-300">Inline byte</Label>
-                <Input
-                  type="number" min="1" max="237" value={mapping.ilByte}
-                  className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
-                  onChange={(e) => onMappingChange({ ilByte: Number(e.target.value) })}
-                  disabled={phase === 'ingesting'}
-                />
+            )}
+            {detection && !detection.detected && (
+              <div className="rounded-lg border border-amber-700/50 bg-amber-950/30 p-3 text-sm text-amber-200 flex items-start">
+                <AlertTriangle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />
+                <span>{detection.note}</span>
               </div>
-              <div>
-                <Label className="text-slate-300">Crossline byte</Label>
-                <Input
-                  type="number" min="1" max="237" value={mapping.xlByte}
-                  className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
-                  onChange={(e) => onMappingChange({ xlByte: Number(e.target.value) })}
-                  disabled={phase === 'ingesting'}
-                />
-              </div>
+            )}
+
+            {/* Advanced: manual byte mapping — hidden by default so
+                non-experts never see it; auto-opened if detection fails. */}
+            <div className="rounded-lg border border-slate-800">
+              <button
+                type="button"
+                className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-300"
+                onClick={() => setShowAdvanced((s) => !s)}
+              >
+                <span className="flex items-center">
+                  {showAdvanced ? <ChevronDown className="w-4 h-4 mr-1" /> : <ChevronRight className="w-4 h-4 mr-1" />}
+                  Advanced — header byte mapping
+                </span>
+                {!showAdvanced && (
+                  <span className="text-xs text-slate-500">
+                    IL {mapping.ilByte} · XL {mapping.xlByte}
+                  </span>
+                )}
+              </button>
+              {showAdvanced && (
+                <div className="p-3 pt-0 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-slate-500">
+                      Only needed if auto-detection got it wrong. The textual header can lie —
+                      geometry below is measured from the bytes you choose.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={reDetect} disabled={phase === 'ingesting'}>
+                      <Wand2 className="w-3.5 h-3.5 mr-1" /> Re-detect
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-slate-300">Header layout preset</Label>
+                      <select
+                        className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                        value={`${mapping.ilByte}/${mapping.xlByte}`}
+                        onChange={(e) => {
+                          const preset = MAPPING_PRESETS.find(
+                            (p) => `${p.ilByte}/${p.xlByte}` === e.target.value);
+                          if (preset) onMappingChange({ ilByte: preset.ilByte, xlByte: preset.xlByte });
+                        }}
+                        disabled={phase === 'ingesting'}
+                      >
+                        {MAPPING_PRESETS.map((p) => (
+                          <option key={p.label} value={`${p.ilByte}/${p.xlByte}`}>{p.label}</option>
+                        ))}
+                        {!MAPPING_PRESETS.some((p) => p.ilByte === mapping.ilByte && p.xlByte === mapping.xlByte) && (
+                          <option value={`${mapping.ilByte}/${mapping.xlByte}`}>
+                            Custom ({mapping.ilByte}/{mapping.xlByte})
+                          </option>
+                        )}
+                      </select>
+                    </div>
+                    <div>
+                      <Label className="text-slate-300">Inline byte</Label>
+                      <Input
+                        type="number" min="1" max="237" value={mapping.ilByte}
+                        className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                        onChange={(e) => onMappingChange({ ilByte: Number(e.target.value) })}
+                        disabled={phase === 'ingesting'}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-slate-300">Crossline byte</Label>
+                      <Input
+                        type="number" min="1" max="237" value={mapping.xlByte}
+                        className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                        onChange={(e) => onMappingChange({ xlByte: Number(e.target.value) })}
+                        disabled={phase === 'ingesting'}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Measured geometry */}
