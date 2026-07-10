@@ -58,9 +58,11 @@ Full results in `docs/scope/Seismolord-HARDENING.md`.
   + download or RCP publish + GRV). Collapsed-by-default panel on the
   page; the whole feature degrades to a clear 503 message if the key is
   unset.
-- **Deploy steps pending (operator)**:
-  `supabase secrets set OPENAI_API_KEY=sk-…` then
-  `supabase functions deploy seismolord-ai`.
+- **Deployed 2026-07-10**: `seismolord-ai` is live on project
+  ssyckywijlrkgcwvkwlr; the shared `OPENAI_API_KEY` project secret was
+  already set, so no key change was needed. Auth gate verified
+  (no-auth → 401, anon-without-session → 401). The AI copilot is now
+  functional for signed-in users.
 
 ## Phase 4 — Faults, gridding, export: DONE
 
