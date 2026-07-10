@@ -12,6 +12,7 @@ never hand-type DDL against production.
 | 2026-07-10 | `20260710153000_remove_depth_conversion_engine_row.sql` | Remove `depth-conversion-engine` row (also deleted in PR #21) | 2026-07-10 | 2026-07-10 (shared project) |
 | 2026-07-10 | `20260710170000_seismic_bucket_storage_policies.sql` | Seismolord Phase 0: owner-path RLS policies on `seismic` bucket (storage.objects) | 2026-07-10 | 2026-07-10 (shared project) |
 | 2026-07-10 | `20260710171500_drop_legacy_seismic_storage_policies.sql` | Drop legacy project-scheme storage policies on `seismic` bucket (uuid-cast errors, dead scheme) | 2026-07-10 | 2026-07-10 (shared project) |
+| 2026-07-10 | `20260710200000_create_seismic_horizons.sql` | Seismolord Phase 3: `seismic_horizons` registry (user RLS, FK cascade to volumes; pick grids in Storage) | 2026-07-10 | 2026-07-10 (shared project) |
 
 Staging and production frontends currently share one Supabase project
 (`ssyckywijlrkgcwvkwlr`), so an applied migration is live in both. The
