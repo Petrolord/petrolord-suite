@@ -103,7 +103,8 @@ const EarthModelStudio = lazy(() => import('@/components/geoscience/EarthModelSt
 const EarthModelStudioProjects = lazy(() => import('@/pages/apps/EarthModelStudioProjects'));
 const EarthModelPro = lazy(() => import('@/components/geoscience/EarthModelPro.jsx'));
 const BasinFlowAnalysis = lazy(() => import('@/pages/apps/BasinFlowAnalysis')); 
-const BasinFlowGenesis = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowGenesis')); 
+const BasinFlowGenesis = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowGenesis'));
+const Seismolord = lazy(() => import('@/pages/apps/Seismolord/Seismolord'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
 const WellLogAnalyzer = lazy(() => import('@/pages/apps/WellLogAnalyzer'));
 const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/ProductionSurveillanceDashboard'));
@@ -428,6 +429,7 @@ function App() {
                                 <Route path="apps/geoscience/earth-model-pro" element={<ProtectedAppRoute appId="earthmodel-pro" appName="EarthModel Pro"><EarthModelPro /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/earth-model-studio/projects" element={<EarthModelStudioProjects />} />
                                 <Route path="apps/geoscience/basinflow-genesis" element={<BasinFlowGenesis />} />
+                                <Route path="apps/geoscience/seismolord" element={<ProtectedAppRoute appId="seismolord" appName="Seismolord"><Seismolord /></ProtectedAppRoute>} />
 
                                 {/* MEM Aliases ensuring all database slugs route properly without hitting catch-all */}
                                 <Route path="apps/geoscience/mechanical-earth-model" element={<ProtectedAppRoute appId="mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
