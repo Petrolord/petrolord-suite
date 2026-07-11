@@ -12,18 +12,56 @@ import { NULL_VALUE } from './manifest';
 const NULL_F32 = Math.fround(NULL_VALUE);
 const isNull = (v) => !Number.isFinite(v) || Math.abs(v) > 1.0e29;
 
-export const SNAP_MODES = ['peak', 'trough'];
+export const SNAP_MODES = ['peak', 'trough', 'zero_pos', 'zero_neg'];
 
 /**
- * Snap to the nearest extremum of the requested polarity within a sample
- * window, then refine with a 3-point parabolic fit.
+ * Zero-crossing snap: the crossing of the requested direction NEAREST to
+ * the requested sample (extrema snap to the strongest, crossings to the
+ * closest — a crossing has no amplitude to rank by). Position is the
+ * linear zero between the bracketing samples; the returned amp is the
+ * strongest flanking amplitude (±3 samples) so autotrack's minAbsAmp /
+ * dead-trace gates keep working where the value at the pick is ~0.
+ */
+function snapZero(trace, sample, mode, window) {
+  const ns = trace.length;
+  const c = Math.round(sample);
+  const lo = Math.max(0, c - window);
+  const hi = Math.min(ns - 2, c + window);
+  let best = null;
+  let bestDist = Infinity;
+  for (let i = lo; i <= hi; i++) {
+    const v0 = trace[i];
+    const v1 = trace[i + 1];
+    if (isNull(v0) || isNull(v1)) continue;
+    const crosses = mode === 'zero_pos' ? (v0 < 0 && v1 >= 0) : (v0 > 0 && v1 <= 0);
+    if (!crosses) continue;
+    const x = i + v0 / (v0 - v1);
+    const dist = Math.abs(x - sample);
+    if (dist < bestDist) { bestDist = dist; best = { i, x }; }
+  }
+  if (!best) return null;
+  let amp = 0;
+  for (let j = Math.max(0, best.i - 2); j <= Math.min(ns - 1, best.i + 3); j++) {
+    if (!isNull(trace[j])) amp = Math.max(amp, Math.abs(trace[j]));
+  }
+  return { sample: best.x, amp };
+}
+
+/**
+ * Snap to the nearest event of the requested kind within a sample
+ * window: extrema ('peak'/'trough', parabolic sub-sample refinement) or
+ * zero crossings ('zero_pos' = − to +, 'zero_neg' = + to −, linear
+ * sub-sample position).
  *
  * @param {Float32Array} trace
  * @param {number} sample centre of the search window (float ok)
- * @param {{mode?: 'peak'|'trough', window?: number}} [opts]
- * @returns {{sample: number, amp: number}|null} null if no extremum found
+ * @param {{mode?: 'peak'|'trough'|'zero_pos'|'zero_neg', window?: number}} [opts]
+ * @returns {{sample: number, amp: number}|null} null if no event found
  */
 export function snapPick(trace, sample, { mode = 'peak', window = 3 } = {}) {
+  if (mode === 'zero_pos' || mode === 'zero_neg') {
+    return snapZero(trace, sample, mode, window);
+  }
   const ns = trace.length;
   const c = Math.round(sample);
   const lo = Math.max(1, c - window);

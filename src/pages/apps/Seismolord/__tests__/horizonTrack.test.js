@@ -81,6 +81,42 @@ describe('snapPick', () => {
     const trace = new Float32Array(32).fill(NULL_F32);
     expect(snapPick(trace, 16, { window: 5 })).toBeNull();
   });
+
+  test('zero-crossing modes find the nearest crossing of the right direction', () => {
+    // sine, period 20: rising (- to +) crossings at 0/20/40, falling at 10/30
+    const trace = new Float32Array(64);
+    for (let i = 0; i < 64; i++) trace[i] = Math.sin((2 * Math.PI * i) / 20);
+    const neg = snapPick(trace, 9, { mode: 'zero_neg', window: 3 });
+    expect(neg.sample).toBeCloseTo(10, 1);
+    expect(neg.amp).toBeGreaterThan(0.5);        // flank amplitude, not ~0
+    // no rising crossing within +-3 of sample 9
+    expect(snapPick(trace, 9, { mode: 'zero_pos', window: 3 })).toBeNull();
+    const pos = snapPick(trace, 19, { mode: 'zero_pos', window: 3 });
+    expect(pos.sample).toBeCloseTo(20, 1);
+  });
+
+  test('zero crossing interpolates the sub-sample position linearly', () => {
+    // straight ramp crossing zero at exactly 10.25
+    const trace = Float32Array.from({ length: 32 }, (_, i) => (i - 10.25) * 2);
+    const hit = snapPick(trace, 10, { mode: 'zero_pos', window: 3 });
+    expect(hit.sample).toBeCloseTo(10.25, 5);
+  });
+
+  test('autotrack2D follows a dipping zero crossing across traces', () => {
+    // 8 traces; trace t crosses (- to +) at sample 10 + 0.5 t
+    const ns = 32;
+    const nTraces = 8;
+    const data = new Float32Array(nTraces * ns);
+    for (let t = 0; t < nTraces; t++) {
+      for (let s = 0; s < ns; s++) data[t * ns + s] = s - (10 + 0.5 * t);
+    }
+    const { picks, tracked } = autotrack2D(
+      { data, width: ns, height: nTraces }, 0, 10,
+      { mode: 'zero_pos', window: 3, maxJump: 2 },
+    );
+    expect(tracked).toBe(nTraces);
+    for (let t = 0; t < nTraces; t++) expect(picks[t]).toBeCloseTo(10 + 0.5 * t, 3);
+  });
 });
 
 describe.each(['dome_ibm', 'dome_ieee'])('dome tracking acceptance on %s', (name) => {
