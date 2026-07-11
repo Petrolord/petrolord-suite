@@ -90,6 +90,8 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  * @param {boolean} p.loading
  * @param {(pick:{ilIdx:number,xlIdx:number,sample:number}) => void} p.onPick
  * @param {(delta:number) => void} p.onStepSlice
+ * @param {string} [p.emptyHint] placeholder text when there is no slice
+ *   (the Traverse window explains its draw-on-map flow here)
  * @param {number} [p.height] viewport CSS height when not fullscreen
  * @param {number} [p.vexag] controlled vertical exaggeration (shared with
  *   the 3D window); omit for the legacy uncontrolled behavior
@@ -98,7 +100,7 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
 function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
   pickMode, ghost, loading, onPick, onPickEnd, onStepSlice, height = 520,
-  vexag: vexagProp, onVexagChange,
+  vexag: vexagProp, onVexagChange, emptyHint,
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
   const viewportRef = useRef(null);    // the canvas container
@@ -953,8 +955,8 @@ function SliceView({
         </div>
         <canvas ref={annoRef} className="absolute inset-0 w-full h-full pointer-events-none" />
         {!slice && (
-          <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
-            Select an ingested volume to view sections.
+          <div className="absolute inset-0 flex items-center justify-center text-center px-8 text-slate-500 text-sm">
+            {emptyHint || 'Select an ingested volume to view sections.'}
           </div>
         )}
         {loading && (
