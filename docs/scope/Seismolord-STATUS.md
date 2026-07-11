@@ -1,6 +1,30 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (horizon editing toolkit, contour labels, draggable planes)
+Last updated: 2026-07-11 (eraser sizes, polygon region erase, horizon smoothing)
+
+## Eraser size + polygon erase + smoothing: DONE
+
+- **Eraser size**: brush-width select next to the section Erase tool —
+  1 / 3 / 5 / 11 / 21 traces per pass (radius into the erase branch of
+  handlePick).
+- **Polygon region erase** (map window): the erase tool now accepts a
+  hand-drawn outline — click vertices, double-click closes (stacked
+  dbl-click vertices deduped), Esc cancels; a drag still rectangles.
+  Both shapes resolve through `cellsInPolygon` (even-odd
+  `pointInPolygon`, concave OK, cell-centre test, bbox-bounded;
+  jest-tested with an L-shape). `onEraseRegion` payload is now
+  `{horizonId, cells}`. Draft outlines are stored in WORLD coords so
+  panning/zooming mid-draw keeps them glued to the map.
+- **Horizon smoothing** (`engine/smoothHorizon` + Smooth button): one
+  3×3 null-aware mean pass per click over the edit session's grid, as a
+  single undoable op — repeat clicks strengthen. Live cells average
+  live neighbours only; nulls stay null, so coverage is preserved
+  exactly (holes neither grow nor shrink). Undo ops now store typed
+  arrays so a whole-grid smooth op stays a few MB.
+- Verified: 15 jest suites / 172 tests, 13 Playwright e2e green on
+  staging.
+- Follow-up candidates: median (spike-killing) smoothing variant,
+  hole-fill interpolation, ghost-curve preview while manual picking.
 
 ## Horizon editing toolkit + contour labels + draggable planes: DONE
 
