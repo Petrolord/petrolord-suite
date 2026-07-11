@@ -13,6 +13,7 @@ import { transcodeToBricks } from '@/pages/apps/Seismolord/engine/brickTranscode
 import { assembleSlice, assembleTrace } from '@/pages/apps/Seismolord/engine/sliceAssembly';
 import {
   snapPick, autotrack2D, regionGrow3D, horizonStats, smoothHorizon,
+  fillHorizonHoles,
 } from '@/pages/apps/Seismolord/engine/horizonTrack';
 import { NULL_VALUE } from '@/pages/apps/Seismolord/engine/manifest';
 
@@ -216,6 +217,69 @@ describe('smoothHorizon', () => {
       if (k === 5 || k === 10) continue;
       expect(sm[k]).toBeCloseTo(10, 5);             // nulls never enter means
     }
+  });
+});
+
+describe('smoothHorizon median', () => {
+  test('median kills a single spike exactly; mean only dampens it', () => {
+    const g = new Float32Array(5 * 5).fill(10);
+    g[2 * 5 + 2] = 40;                                 // one bad autotrack pick
+    const med = smoothHorizon(g, 5, 5, { method: 'median' });
+    expect(med[2 * 5 + 2]).toBe(10);                   // spike gone
+    const mean = smoothHorizon(g, 5, 5, { method: 'mean' });
+    expect(mean[2 * 5 + 2]).toBeGreaterThan(10);       // only dampened
+  });
+
+  test('median preserves coverage and ignores nulls', () => {
+    const g = new Float32Array(4 * 4).fill(7);
+    g[5] = NULL_F32;
+    const med = smoothHorizon(g, 4, 4, { method: 'median' });
+    expect(med[5]).toBe(NULL_F32);
+    expect(med[0]).toBe(7);
+  });
+});
+
+describe('fillHorizonHoles', () => {
+  test('fills an interior hole in a flat horizon with the flat value', () => {
+    const n = 7;
+    const g = new Float32Array(n * n).fill(20);
+    for (const [i, x] of [[2, 2], [2, 3], [3, 2], [3, 3], [3, 4]]) g[i * n + x] = NULL_F32;
+    const { grid, filled } = fillHorizonHoles(g, n, n);
+    expect(filled).toBe(5);
+    for (let c = 0; c < n * n; c++) expect(grid[c]).toBeCloseTo(20, 3);
+  });
+
+  test('reconstructs a planar dip through the hole', () => {
+    const n = 9;
+    const g = Float32Array.from({ length: n * n }, (_, c) => 10 + (c % n) * 2);
+    g[4 * n + 4] = NULL_F32;
+    g[4 * n + 5] = NULL_F32;
+    const { grid } = fillHorizonHoles(g, n, n);
+    expect(grid[4 * n + 4]).toBeCloseTo(10 + 4 * 2, 2);   // membrane = the plane
+    expect(grid[4 * n + 5]).toBeCloseTo(10 + 5 * 2, 2);
+  });
+
+  test('never grows the exterior: border-connected nulls stay null', () => {
+    const n = 6;
+    const g = new Float32Array(n * n).fill(15);
+    // notch open to the border + one true interior hole
+    g[0] = NULL_F32;
+    g[1] = NULL_F32;
+    g[n + 1] = NULL_F32;                                 // connected via g[1]
+    g[3 * n + 3] = NULL_F32;                             // interior
+    const { grid, filled } = fillHorizonHoles(g, n, n);
+    expect(filled).toBe(1);
+    expect(grid[0]).toBe(NULL_F32);
+    expect(grid[1]).toBe(NULL_F32);
+    expect(grid[n + 1]).toBe(NULL_F32);
+    expect(grid[3 * n + 3]).toBeCloseTo(15, 3);
+  });
+
+  test('a grid with no interior holes is returned unchanged', () => {
+    const g = new Float32Array(4 * 4).fill(3);
+    const { grid, filled } = fillHorizonHoles(g, 4, 4);
+    expect(filled).toBe(0);
+    expect(Array.from(grid)).toEqual(Array.from(g));
   });
 });
 

@@ -190,39 +190,152 @@ export async function regionGrow3D(getTrace, geom, seed, opts = {}) {
 }
 
 /**
- * Null-aware horizon smoothing: each LIVE cell becomes the mean of the
- * live cells in its (2·radius+1)² neighbourhood (self included). Nulls
- * stay null and never enter the mean, so coverage is preserved exactly —
- * smoothing neither grows nor shrinks the interpreted area.
+ * Null-aware horizon smoothing: each LIVE cell becomes the mean (or
+ * median — the spike killer) of the live cells in its (2·radius+1)²
+ * neighbourhood, self included. Nulls stay null and never enter the
+ * statistic, so coverage is preserved exactly — smoothing neither grows
+ * nor shrinks the interpreted area.
  *
  * @param {Float32Array} picks nIl x nXl sample indices, 1e30 nulls
- * @param {{radius?: number}} [opts]
+ * @param {{radius?: number, method?: 'mean'|'median'}} [opts]
  * @returns {Float32Array} new grid (input untouched)
  */
-export function smoothHorizon(picks, nIl, nXl, { radius = 1 } = {}) {
+export function smoothHorizon(picks, nIl, nXl, { radius = 1, method = 'mean' } = {}) {
   const out = new Float32Array(picks.length);
+  const vals = [];
   for (let i = 0; i < nIl; i++) {
     for (let x = 0; x < nXl; x++) {
       const c = i * nXl + x;
       if (picks[c] === NULL_F32) { out[c] = NULL_F32; continue; }
-      let sum = 0;
-      let n = 0;
       const i0 = Math.max(0, i - radius);
       const i1 = Math.min(nIl - 1, i + radius);
       const x0 = Math.max(0, x - radius);
       const x1 = Math.min(nXl - 1, x + radius);
-      for (let ii = i0; ii <= i1; ii++) {
-        for (let xx = x0; xx <= x1; xx++) {
-          const v = picks[ii * nXl + xx];
-          if (v === NULL_F32) continue;
-          sum += v;
-          n += 1;
+      if (method === 'median') {
+        vals.length = 0;
+        for (let ii = i0; ii <= i1; ii++) {
+          for (let xx = x0; xx <= x1; xx++) {
+            const v = picks[ii * nXl + xx];
+            if (v !== NULL_F32) vals.push(v);
+          }
         }
+        vals.sort((a, b) => a - b);
+        const m = vals.length >> 1;
+        out[c] = vals.length % 2 ? vals[m] : (vals[m - 1] + vals[m]) / 2;
+      } else {
+        let sum = 0;
+        let n = 0;
+        for (let ii = i0; ii <= i1; ii++) {
+          for (let xx = x0; xx <= x1; xx++) {
+            const v = picks[ii * nXl + xx];
+            if (v === NULL_F32) continue;
+            sum += v;
+            n += 1;
+          }
+        }
+        out[c] = sum / n;               // n >= 1: the cell itself is live
       }
-      out[c] = sum / n;                 // n >= 1: the cell itself is live
     }
   }
   return out;
+}
+
+/**
+ * Fill INTERIOR holes of a horizon by membrane interpolation. A hole is
+ * a null region NOT connected (4-neighbour) to the grid border — the
+ * uninterpreted exterior stays exactly as it was, so the interpreted
+ * outline never grows outward.
+ *
+ * Hole cells are seeded onion-peel inward (mean of already-valued
+ * 8-neighbours) then relaxed with Gauss–Seidel Laplace iterations
+ * against the live picks as fixed boundary values — a planar horizon
+ * fills back exactly planar.
+ *
+ * @param {Float32Array} picks nIl x nXl sample indices, 1e30 nulls
+ * @param {{maxIterations?: number, tolerance?: number}} [opts]
+ * @returns {{grid: Float32Array, filled: number}} new grid + cells filled
+ */
+export function fillHorizonHoles(picks, nIl, nXl, {
+  maxIterations = 200, tolerance = 1e-4,
+} = {}) {
+  const n = nIl * nXl;
+  const out = new Float32Array(picks);
+
+  // flood the exterior null region from the border (4-connectivity)
+  const exterior = new Uint8Array(n);
+  const stack = [];
+  const pushIfNull = (c) => {
+    if (picks[c] === NULL_F32 && !exterior[c]) { exterior[c] = 1; stack.push(c); }
+  };
+  for (let x = 0; x < nXl; x++) { pushIfNull(x); pushIfNull((nIl - 1) * nXl + x); }
+  for (let i = 0; i < nIl; i++) { pushIfNull(i * nXl); pushIfNull(i * nXl + nXl - 1); }
+  while (stack.length) {
+    const c = stack.pop();
+    const i = (c / nXl) | 0;
+    const x = c % nXl;
+    if (i > 0) pushIfNull(c - nXl);
+    if (i < nIl - 1) pushIfNull(c + nXl);
+    if (x > 0) pushIfNull(c - 1);
+    if (x < nXl - 1) pushIfNull(c + 1);
+  }
+
+  const holes = [];
+  for (let c = 0; c < n; c++) {
+    if (picks[c] === NULL_F32 && !exterior[c]) holes.push(c);
+  }
+  if (!holes.length) return { grid: out, filled: 0 };
+
+  // onion-peel seed: repeatedly value hole cells that touch valued cells
+  let remaining = holes;
+  while (remaining.length) {
+    const next = [];
+    const assigned = [];
+    for (const c of remaining) {
+      const i = (c / nXl) | 0;
+      const x = c % nXl;
+      let sum = 0;
+      let cnt = 0;
+      for (let di = -1; di <= 1; di++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!di && !dx) continue;
+          const ii = i + di;
+          const xx = x + dx;
+          if (ii < 0 || ii >= nIl || xx < 0 || xx >= nXl) continue;
+          const v = out[ii * nXl + xx];
+          if (v === NULL_F32) continue;
+          sum += v;
+          cnt += 1;
+        }
+      }
+      if (cnt > 0) assigned.push(c, sum / cnt);
+      else next.push(c);
+    }
+    if (!assigned.length) break;              // defensive; holes are bounded
+    for (let k = 0; k < assigned.length; k += 2) out[assigned[k]] = assigned[k + 1];
+    remaining = next;
+  }
+
+  // Gauss–Seidel relaxation over hole cells only (live picks are BCs)
+  for (let it = 0; it < maxIterations; it++) {
+    let maxDelta = 0;
+    for (const c of holes) {
+      const i = (c / nXl) | 0;
+      const x = c % nXl;
+      let sum = 0;
+      let cnt = 0;
+      if (i > 0 && out[c - nXl] !== NULL_F32) { sum += out[c - nXl]; cnt++; }
+      if (i < nIl - 1 && out[c + nXl] !== NULL_F32) { sum += out[c + nXl]; cnt++; }
+      if (x > 0 && out[c - 1] !== NULL_F32) { sum += out[c - 1]; cnt++; }
+      if (x < nXl - 1 && out[c + 1] !== NULL_F32) { sum += out[c + 1]; cnt++; }
+      if (!cnt) continue;
+      const v = sum / cnt;
+      const d = Math.abs(v - out[c]);
+      if (d > maxDelta) maxDelta = d;
+      out[c] = v;
+    }
+    if (maxDelta < tolerance) break;
+  }
+  return { grid: out, filled: holes.length };
 }
 
 /**
