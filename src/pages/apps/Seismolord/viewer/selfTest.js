@@ -151,6 +151,42 @@ export async function runViewerSelfTest(canvas, opts = {}) {
     });
   }
 
+  // ---- smooth interpolation smoke check (bicubic has no CPU reference):
+  // under deep magnification the smooth path must fill cell interiors with
+  // intermediate colors (strictly more distinct colors than NEAREST) and
+  // finish with no GL error.
+  {
+    const slice = await assembleSlice(getBrick, geom, 'inline', 42);
+    canvas.width = 256;
+    canvas.height = 256;
+    renderer.setView([0.4, 0.4, 0.05, 0.05]);   // ~10 cells across 256 px
+    renderer.setParams({
+      gain: 1, polarity: 1, clip: 1, traceBalance: false, interpolate: false,
+    });
+    renderer.setSlice(slice, true);
+    renderer.render();
+    const nearestPx = renderer.readPixels();
+    gl.getError();                              // clear any stale flag
+    renderer.setParams({ interpolate: true });
+    renderer.render();
+    const glErr = gl.getError();
+    const smoothPx = renderer.readPixels();
+    renderer.setParams({ interpolate: false });
+    renderer.setView([0, 0, 1, 1]);
+    const distinct = (px) => {
+      const s = new Set();
+      for (let i = 0; i < px.length; i += 4) {
+        s.add((px[i] << 16) | (px[i + 1] << 8) | px[i + 2]);
+      }
+      return s.size;
+    };
+    const pass = glErr === 0 && distinct(smoothPx) > distinct(nearestPx);
+    checks.push({
+      orientation: 'smooth-interpolation', index: null,
+      maxDiff: 0, meanDiff: 0, pctWithin2: 100, pass,
+    });
+  }
+
   const correctnessPass = checks.every((c) => c.pass);
 
   // ---- context-loss recovery (Phase 6) ---------------------------------

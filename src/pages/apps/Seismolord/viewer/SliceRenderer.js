@@ -36,10 +36,27 @@ uniform float u_polarity;      // +1 SEG normal, -1 reversed
 uniform float u_clip;          // symmetric clip amplitude (maps to LUT ends)
 uniform int   u_traceBalance;  // 1 = divide by per-trace rms
 uniform int   u_transpose;     // 1 = sections (screen x = trace, y = sample)
+uniform int   u_interp;        // 1 = smooth (bicubic Catmull-Rom), 0 = nearest
 uniform vec4  u_nullColor;
 uniform vec4  u_view;          // visible rect (x0, y0, w, h) in normalized
                                // screen-oriented data space; (0,0,1,1) = all
 uniform vec4  u_bgColor;       // outside-the-data background
+
+// Catmull-Rom weights for taps at offsets -1, 0, +1, +2 around the cell.
+vec4 cubicWeights(float f) {
+  float f2 = f * f;
+  float f3 = f2 * f;
+  return vec4(
+    0.5 * (-f3 + 2.0 * f2 - f),
+    0.5 * (3.0 * f3 - 5.0 * f2 + 2.0),
+    0.5 * (-3.0 * f3 + 4.0 * f2 + f),
+    0.5 * (f3 - f2));
+}
+
+float rmsScaleAt(int trace) {
+  float r = texelFetch(u_traceRms, ivec2(trace, 0), 0).r;
+  return r > 0.0 ? 1.0 / r : 0.0;
+}
 
 void main() {
   // screen-oriented coords: x left->right, y top->down, then the camera
@@ -52,14 +69,47 @@ void main() {
   }
   // sections: horizontal = trace, vertical = time increasing DOWNWARD
   vec2 t = u_transpose == 1 ? vec2(wuv.y, wuv.x) : wuv;
-  float amp = texture(u_data, t).r;
-  if (abs(amp) > 1.0e29) { outColor = u_nullColor; return; }
-  float scale = 1.0;
-  if (u_traceBalance == 1) {
-    float rms = texture(u_traceRms, vec2(t.y, 0.5)).r;
-    scale = rms > 0.0 ? 1.0 / rms : 0.0;
+  float balanced;   // amplitude with per-trace rms already applied
+  if (u_interp == 1) {
+    // Null-aware bicubic Catmull-Rom on AMPLITUDES (never on colors) via
+    // texelFetch — works on every WebGL2 device, no float-linear
+    // extension. The pixel is null iff its NEAREST texel is null, and
+    // null neighbours contribute the centre value instead, so null
+    // regions keep hard edges and never smear into live data.
+    ivec2 sz = textureSize(u_data, 0);
+    vec2 pos = t * vec2(sz) - 0.5;
+    ivec2 base = ivec2(floor(pos));
+    vec2 f = pos - vec2(base);
+    ivec2 nearestT = clamp(ivec2(t * vec2(sz)), ivec2(0), sz - 1);
+    float centre = texelFetch(u_data, nearestT, 0).r;
+    if (abs(centre) > 1.0e29) { outColor = u_nullColor; return; }
+    float bC = centre * (u_traceBalance == 1 ? rmsScaleAt(nearestT.y) : 1.0);
+    vec4 wx = cubicWeights(f.x);
+    vec4 wy = cubicWeights(f.y);
+    float acc = 0.0;
+    for (int j = 0; j < 4; j++) {
+      int py = clamp(base.y - 1 + j, 0, sz.y - 1);
+      float rScale = u_traceBalance == 1 ? rmsScaleAt(py) : 1.0;
+      float row = 0.0;
+      for (int i = 0; i < 4; i++) {
+        int px = clamp(base.x - 1 + i, 0, sz.x - 1);
+        float raw = texelFetch(u_data, ivec2(px, py), 0).r;
+        row += wx[i] * (abs(raw) > 1.0e29 ? bC : raw * rScale);
+      }
+      acc += wy[j] * row;
+    }
+    balanced = acc;
+  } else {
+    float amp = texture(u_data, t).r;
+    if (abs(amp) > 1.0e29) { outColor = u_nullColor; return; }
+    float scale = 1.0;
+    if (u_traceBalance == 1) {
+      float rms = texture(u_traceRms, vec2(t.y, 0.5)).r;
+      scale = rms > 0.0 ? 1.0 / rms : 0.0;
+    }
+    balanced = amp * scale;
   }
-  float a = amp * scale * u_gain * u_polarity;
+  float a = balanced * u_gain * u_polarity;
   // symmetric colorbar around zero (playbook display default)
   float x = clamp(0.5 + 0.5 * a / u_clip, 0.0, 1.0);
   outColor = texture(u_lut, vec2(x, 0.5));
@@ -122,7 +172,6 @@ export class SliceRenderer {
   /** (Re)create every GL resource — at construction and after restore. */
   #initGL() {
     const { gl } = this;
-    this.linearFloat = Boolean(gl.getExtension('OES_texture_float_linear'));
 
     const prog = gl.createProgram();
     gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT));
@@ -144,8 +193,8 @@ export class SliceRenderer {
 
     this.u = {};
     for (const name of ['u_data', 'u_lut', 'u_traceRms', 'u_gain', 'u_polarity',
-      'u_clip', 'u_traceBalance', 'u_transpose', 'u_nullColor', 'u_view',
-      'u_bgColor']) {
+      'u_clip', 'u_traceBalance', 'u_transpose', 'u_interp', 'u_nullColor',
+      'u_view', 'u_bgColor']) {
       this.u[name] = gl.getUniformLocation(prog, name);
     }
     gl.uniform1i(this.u.u_data, 0);
@@ -229,8 +278,9 @@ export class SliceRenderer {
   /**
    * @param {Partial<{gain:number, polarity:1|-1, clip:number,
    *   traceBalance:boolean, interpolate:boolean}>} p
-   * interpolate uses LINEAR R32F filtering when the GPU supports it
-   * (this.linearFloat) and silently stays NEAREST otherwise.
+   * interpolate runs null-aware bicubic resampling in the shader
+   * (texelFetch-based — no float-linear extension needed). Off = exact
+   * NEAREST texels, which is what referenceRender() models.
    */
   setParams(p) {
     Object.assign(this.params, p);
@@ -260,12 +310,8 @@ export class SliceRenderer {
     gl.uniform1f(u.u_clip, Math.max(params.clip, 1e-30));
     gl.uniform1i(u.u_traceBalance, params.traceBalance ? 1 : 0);
     gl.uniform1i(u.u_transpose, params.transpose ? 1 : 0);
+    gl.uniform1i(u.u_interp, params.interpolate ? 1 : 0);
     gl.uniform4f(u.u_view, this.view[0], this.view[1], this.view[2], this.view[3]);
-    const filt = params.interpolate && this.linearFloat ? gl.LINEAR : gl.NEAREST;
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.dataTex);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
   }
 
   render() {
