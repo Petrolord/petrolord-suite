@@ -85,9 +85,18 @@ export default function SeismolordSliceViewHarness() {
         grid[i * DIM + x] = DIM / 2 + 12 * Math.sin(0.15 * x) + 6 * Math.cos(0.09 * i);
       }
     }
+    // one fault stick ON the traverse dog-leg's first segment (fractions
+    // f of the A→B leg) so the stick-to-path projection is exercised;
+    // its il (~0.33·DIM) is far from the default inline slice, so it
+    // stays invisible to the untouched inline/xline specs
+    const stick = [0.45, 0.5, 0.55].map((f, i) => ({
+      il: Math.round(DIM * (0.15 + 0.35 * f)),
+      xl: Math.round(DIM * (0.1 + 0.6 * f)),
+      s: Math.round(DIM * (0.25 + 0.25 * i)),
+    }));
     return {
       horizons: WITH_HORIZON ? [{ grid, color: '#4ade80' }] : [],
-      faults: [],
+      faults: [{ sticks: [{ points: stick }], color: '#f97316' }],
       draftSticks: [],
       seedPick: null,
     };
