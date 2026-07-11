@@ -661,8 +661,8 @@ function CubeView({
     const p = propsRef.current;
     if (!hit || !p.manifest) {
       el.textContent = 'drag: rotate · Shift/middle-drag: pan · wheel: zoom '
-        + '· Shift+wheel over a plane: step it · click a plane: open in 2D '
-        + '· gizmo axis: snap view · dbl-click: fit';
+        + '· Ctrl/Alt+drag a plane: move it · Shift+wheel over a plane: step it '
+        + '· click a plane: open in 2D · gizmo axis: snap view · dbl-click: fit';
       return;
     }
     const geo = p.manifest.geometry;
@@ -688,9 +688,60 @@ function CubeView({
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     const { sx, sy } = toDevice(e);
+    // Ctrl/Alt + left-drag over a main plane: move THAT plane along its
+    // axis instead of orbiting (boundary faces are fixed by definition)
+    if ((e.ctrlKey || e.altKey) && e.button === 0 && onChangeIndex) {
+      const id = hoverPlaneRef.current;
+      const meta = id && ORIENTATIONS.includes(id) ? planesMetaRef.current.get(id) : null;
+      if (meta) {
+        dragRef.current = {
+          mode: 'plane', id, orientation: meta.orientation,
+          frac: meta.index, x: sx, y: sy, moved: false,
+        };
+        return;
+      }
+    }
     const pan = e.shiftKey || e.button === 1 || e.button === 2;
     dragRef.current = { mode: pan ? 'pan' : 'orbit', x: sx, y: sy, moved: false };
-  }, [toDevice]);
+  }, [toDevice, onChangeIndex]);
+
+  /** Screen drag -> plane index delta, via the axis' projected direction. */
+  const dragPlane = useCallback((d, dx, dy) => {
+    const p = propsRef.current;
+    const glCanvas = glCanvasRef.current;
+    if (!p.ext || !p.geom || !glCanvas) return;
+    const { X, D, Z } = p.ext;
+    const gm = p.geom;
+    const o = d.orientation;
+    const centre = o === 'inline' ? [X / 2, -D / 2, ((d.frac + 0.5) / gm.nIl) * Z]
+      : o === 'xline' ? [((d.frac + 0.5) / gm.nXl) * X, -D / 2, Z / 2]
+        : [X / 2, -((d.frac + 0.5) / gm.ns) * D, Z / 2];
+    const axis = o === 'inline' ? [0, 0, Z / gm.nIl]
+      : o === 'xline' ? [X / gm.nXl, 0, 0] : [0, -D / gm.ns, 0];
+    const cam = cameraRef.current;
+    const mvp = cam.viewProj(glCanvas.width, glCanvas.height);
+    const s0 = cam.project(mvp, centre, glCanvas.width, glCanvas.height);
+    const s1 = cam.project(mvp, [
+      centre[0] + axis[0], centre[1] + axis[1], centre[2] + axis[2],
+    ], glCanvas.width, glCanvas.height);
+    if (!s0 || !s1) return;
+    const vx = s1.x - s0.x;
+    const vy = s1.y - s0.y;
+    const len2 = vx * vx + vy * vy;
+    if (len2 < 1e-6) return;
+    d.frac = Math.min(maxFor(o), Math.max(0, d.frac + (dx * vx + dy * vy) / len2));
+    const next = Math.round(d.frac);
+    const meta = planesMetaRef.current.get(d.id);
+    if (meta && next !== meta.index) {
+      // move the quad NOW (old texture stretches for a frame) so the drag
+      // tracks the pointer; the reconcile effect streams the real slice in
+      meta.index = next;
+      const r = rendererRef.current;
+      if (r) r.setPlaneQuad(d.id, planeQuad(o, next, p.geom, p.ext));
+      scheduleRender();
+      onChangeIndex(o, next);
+    }
+  }, [maxFor, onChangeIndex, scheduleRender]);
 
   const onPointerMove = useCallback((e) => {
     const { sx, sy } = toDevice(e);
@@ -701,21 +752,24 @@ function CubeView({
       if (!d.moved && Math.hypot(dx, dy) > 4) d.moved = true;
       if (d.moved) {
         const glCanvas = glCanvasRef.current;
-        if (d.mode === 'orbit') {
+        if (d.mode === 'plane') {
+          dragPlane(d, dx, dy);
+        } else if (d.mode === 'orbit') {
           cameraRef.current.orbit(-dx * 0.005, dy * 0.005);
+          scheduleRender();
         } else {
           cameraRef.current.pan(dx, dy, glCanvas ? glCanvas.height : 1);
+          scheduleRender();
         }
         d.x = sx;
         d.y = sy;
-        scheduleRender();
       }
       return;
     }
     const hit = pickAt(sx, sy);
     hoverPlaneRef.current = hit ? hit.id : null;
     setReadout(hit);
-  }, [toDevice, pickAt, setReadout, scheduleRender]);
+  }, [toDevice, pickAt, setReadout, scheduleRender, dragPlane]);
 
   /** Snap the camera to a standard view for a gizmo axis (dist/target kept). */
   const snapView = useCallback((key) => {
@@ -957,9 +1011,9 @@ function CubeView({
         ref={readoutRef}
         className="text-xs text-slate-500 font-mono mt-1 h-5 whitespace-pre overflow-hidden"
       >
-        drag: rotate · Shift/middle-drag: pan · wheel: zoom · Shift+wheel over a
-        plane: step it · click a plane: open in 2D · gizmo axis: snap view
-        · dbl-click: fit
+        drag: rotate · Shift/middle-drag: pan · wheel: zoom · Ctrl/Alt+drag a
+        plane: move it · Shift+wheel over a plane: step it · click a plane:
+        open in 2D · gizmo axis: snap view · dbl-click: fit
       </div>
     </div>
   );
