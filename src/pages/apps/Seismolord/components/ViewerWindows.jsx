@@ -44,8 +44,11 @@ const loadState = (windowKeys, fallbackOpen) => {
  * @param {Array<{key: string, title: string, icon: React.ComponentType,
  *   content: React.ReactNode}>} p.windows window registry, stable keys
  * @param {string[]} [p.defaultOpen] keys open on first ever visit
+ * @param {?{key: string, seq: number}} [p.focus] focus request: each time
+ *   `seq` bumps, the window `key` is opened and made the active tab (e.g.
+ *   "a traverse was drawn — show its window")
  */
-export default function ViewerWindows({ windows, defaultOpen }) {
+export default function ViewerWindows({ windows, defaultOpen, focus }) {
   const keys = useMemo(() => windows.map((w) => w.key), [windows]);
   const [state, setState] = useState(
     () => loadState(keys, defaultOpen || [windows[0]?.key].filter(Boolean)),
@@ -54,6 +57,15 @@ export default function ViewerWindows({ windows, defaultOpen }) {
   useEffect(() => {
     try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch { /* private mode */ }
   }, [state]);
+
+  useEffect(() => {
+    if (!focus || !keys.includes(focus.key)) return;
+    setState((s) => ({
+      ...s,
+      open: s.open.includes(focus.key) ? s.open : [...s.open, focus.key],
+      active: focus.key,
+    }));
+  }, [focus, keys]);
 
   const { layout, open, active } = state;
   const openWindows = windows.filter((w) => open.includes(w.key));

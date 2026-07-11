@@ -121,6 +121,32 @@ test('annotation layers render and toggle off', async ({ page }) => {
   expect(withNone).toBeLessThan(withAll / 10);
 });
 
+test('traverse orientation sections along a path, view-only, readout via positions', async ({ page }) => {
+  await ready(page);
+  await page.getByTestId('harness-orientation').selectOption('traverse');
+  await expect(page.getByTestId('harness-status'))
+    .toHaveAttribute('data-harness-status', 'ready');
+
+  // the dog-leg path resampled to a real number of section columns
+  const cols = Number(await page.getByTestId('harness-traverse-cols').textContent());
+  expect(cols).toBeGreaterThan(10);
+
+  // cursor readout resolves the hovered column to its IL/XL through
+  // slice.positions and reads the amplitude from the traverse layout
+  const box = await overlay(page).boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const readout = page.locator('div.font-mono');
+  await expect(readout).toContainText('IL ');
+  await expect(readout).toContainText('XL ');
+  await expect(readout).toContainText('ms');
+  await expect(readout).toContainText('amp');
+
+  // view-only: arming the harness pick tool must not produce picks here
+  await page.getByTestId('harness-pickmode').click();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(page.getByTestId('harness-last-pick')).toHaveText('-');
+});
+
 test('north arrow appears on time slices, arrow keys step slices', async ({ page }) => {
   await ready(page);
   await page.getByTestId('harness-orientation').selectOption('time');

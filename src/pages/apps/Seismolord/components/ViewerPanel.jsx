@@ -17,6 +17,7 @@ import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
 import {
   assembleSlice, assembleTrace, bricksForSlice, geomFromManifest, brickKey,
 } from '../engine/sliceAssembly';
+import { resampleTraverse, assembleTraverse } from '../engine/traverse';
 import {
   snapPick, autotrack2D, smoothHorizon, fillHorizonHoles,
 } from '../engine/horizonTrack';
@@ -101,6 +102,16 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const [sliceMs, setSliceMs] = useState(null);
   const [slice, setSlice] = useState(null);              // assembled slice for SliceView
   const [resolvedHorizons, setResolvedHorizons] = useState([]);
+
+  // traverse: a map-drawn polyline shown as a section in its own window.
+  // Assembled ONCE on draw (independent of orientation/sliceIndex); a
+  // volume switch clears it.
+  const traverseReqRef = useRef(0);
+  const traverseBricksRef = useRef(null);       // Set<brickKey> while assembling
+  const [traverse, setTraverse] = useState(null);        // {vertices, positions, stepM, lengthM}
+  const [traverseSlice, setTraverseSlice] = useState(null);
+  const [traverseLoading, setTraverseLoading] = useState(false);
+  const [winFocus, setWinFocus] = useState(null);        // {key, seq} -> ViewerWindows
 
   // Phase 3: picking + horizons; Phase 4: fault sticks; editing tools:
   // 'manual' (paint picks) and 'erase' (paint nulls) run against the
@@ -388,6 +399,11 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     setVisibleIds(new Set());
     setVisibleFaultIds(new Set());
     setDraftSticks([]);
+    traverseReqRef.current += 1;                  // supersede in-flight assembly
+    traverseBricksRef.current = null;
+    setTraverse(null);
+    setTraverseSlice(null);
+    setTraverseLoading(false);
     editRef.current = null;
     setEdit({ version: 0, undo: 0, active: false });
     setEditTarget('new');
@@ -437,9 +453,14 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     setLoading(true);
     setError(null);
     try {
-      // scrub cancellation: keep only the bricks this slice needs
+      // scrub cancellation: keep only the bricks this slice needs — plus
+      // the bricks of an in-flight traverse assembly, which a scrub must
+      // never abort
       const needed = new Set(bricksForSlice(geom, orientation, sliceIndex)
         .map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
+      if (traverseBricksRef.current) {
+        for (const key of traverseBricksRef.current) needed.add(key);
+      }
       cacheRef.current.cancelPendingExcept(needed);
 
       const t0 = performance.now();
@@ -917,6 +938,65 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
       ? prev : { ...prev, inline: ilIdx, xline: xlIdx }));
   }, []);
 
+  /** Map-drawn traverse: resample the polyline to trace positions,
+   *  assemble the section, and focus the Traverse window. null removes. */
+  const handleTraverse = useCallback(async (vertices) => {
+    const req = ++traverseReqRef.current;
+    if (!vertices) {
+      traverseBricksRef.current = null;
+      setTraverse(null);
+      setTraverseSlice(null);
+      setTraverseLoading(false);
+      return;
+    }
+    if (!geom || !manifest || !volume) return;
+    const path = resampleTraverse(vertices, geom, manifest.geometry);
+    if (!path) {
+      toast({
+        title: 'Traverse too short',
+        description: 'The line covers fewer than two traces — draw a longer path across the survey.',
+      });
+      return;
+    }
+    setTraverse({ vertices, ...path });
+    setTraverseSlice(null);
+    setTraverseLoading(true);
+    setWinFocus((f) => ({ key: 'traverse', seq: (f?.seq || 0) + 1 }));
+    // shield this assembly's bricks from the slice scrub cancellation
+    const bs = geom.brickSize;
+    const nK = Math.ceil(geom.ns / bs);
+    const keys = new Set();
+    for (const pos of path.positions) {
+      const bi = Math.floor(pos.il / bs);
+      const bj = Math.floor(pos.xl / bs);
+      for (let bk = 0; bk < nK; bk++) {
+        keys.add(brickKey(volume.storage_path, bi, bj, bk));
+      }
+    }
+    traverseBricksRef.current = keys;
+    try {
+      const assembled = await assembleTraverse(getBrick, geom, path.positions);
+      if (req !== traverseReqRef.current) return;       // replaced or cleared
+      setTraverseSlice({
+        ...assembled,
+        orientation: 'traverse',
+        positions: path.positions,
+        stepM: path.stepM,
+        lengthM: path.lengthM,
+      });
+    } catch (e) {
+      if (e.message !== ABORTED && req === traverseReqRef.current) {
+        toast({ title: 'Traverse failed', description: e.message, variant: 'destructive' });
+        setTraverse(null);
+      }
+    } finally {
+      if (req === traverseReqRef.current) {
+        traverseBricksRef.current = null;
+        setTraverseLoading(false);
+      }
+    }
+  }, [geom, manifest, volume, getBrick, toast]);
+
   const lineLabel = useMemo(() => {
     if (!manifest) return '';
     const g = manifest.geometry;
@@ -1360,6 +1440,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
 
         <ViewerWindows
           defaultOpen={['section']}
+          focus={winFocus}
           windows={[
             {
               key: 'section',
@@ -1410,6 +1491,41 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
               ),
             },
             {
+              key: 'traverse',
+              title: 'Traverse',
+              icon: Route,
+              content: (
+                <div>
+                  {traverse && (
+                    <div className="text-xs text-slate-500 mb-1">
+                      {`A → A′: ${traverse.positions.length} traces`}
+                      {traverse.lengthM != null
+                        && ` · ${(traverse.lengthM / 1000).toFixed(2)} km`}
+                      {' · view-only (pick on inlines / crosslines)'}
+                    </div>
+                  )}
+                  <SliceView
+                    slice={traverseSlice}
+                    geom={geom}
+                    manifest={manifest}
+                    orientation="traverse"
+                    sliceIndex={0}
+                    display={display}
+                    overlays={overlays}
+                    pickMode={null}
+                    ghost={null}
+                    loading={traverseLoading}
+                    height={560}
+                    vexag={vexag}
+                    onVexagChange={setVexag}
+                    emptyHint={manifest
+                      ? 'Draw a traverse in the Map window: pick the traverse tool, click vertices along the path, double-click to finish.'
+                      : undefined}
+                  />
+                </div>
+              ),
+            },
+            {
               key: 'map',
               title: 'Map',
               icon: MapIcon,
@@ -1423,6 +1539,8 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                   velocityBoundaries={velBoundaries}
                   onNavigate={navigateTo}
                   onEraseRegion={eraseRegion}
+                  traverse={traverse ? traverse.vertices : null}
+                  onTraverse={handleTraverse}
                   height={560}
                 />
               ),

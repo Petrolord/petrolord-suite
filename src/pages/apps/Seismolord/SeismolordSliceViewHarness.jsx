@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { buildTestBricks } from './viewer/selfTest';
 import { assembleSlice } from './engine/sliceAssembly';
+import { resampleTraverse, assembleTraverse } from './engine/traverse';
 import SliceView from './components/SliceView';
 
 // Dev-only harness route (/dev/seismolord-sliceview, DEV builds only):
@@ -52,11 +53,29 @@ export default function SeismolordSliceViewHarness() {
   useEffect(() => {
     let stale = false;
     (async () => {
+      if (orientation === 'traverse') {
+        // fixed dog-leg path across the synthetic survey — exercises the
+        // view-only traverse rendering/readout path end-to-end
+        const vertices = [
+          { il: DIM * 0.15, xl: DIM * 0.1 },
+          { il: DIM * 0.5, xl: DIM * 0.7 },
+          { il: DIM * 0.85, xl: DIM * 0.35 },
+        ];
+        const path = resampleTraverse(vertices, geom, manifest.geometry);
+        const s = await assembleTraverse(getBrick, geom, path.positions);
+        if (!stale) {
+          setSlice({
+            ...s, orientation, positions: path.positions,
+            stepM: path.stepM, lengthM: path.lengthM,
+          });
+        }
+        return;
+      }
       const s = await assembleSlice(getBrick, geom, orientation, sliceIndex);
       if (!stale) setSlice({ ...s, orientation });
     })();
     return () => { stale = true; };
-  }, [getBrick, geom, orientation, sliceIndex]);
+  }, [getBrick, geom, orientation, sliceIndex, manifest]);
 
   // one synthetic horizon so the overlay path is exercised too
   const overlays = useMemo(() => {
@@ -93,6 +112,7 @@ export default function SeismolordSliceViewHarness() {
           <option value="inline">inline</option>
           <option value="xline">xline</option>
           <option value="time">time</option>
+          <option value="traverse">traverse</option>
         </select>
         <button
           type="button"
@@ -113,9 +133,12 @@ export default function SeismolordSliceViewHarness() {
         <span data-testid="harness-slice-index">{sliceIndex}</span>
         <span
           data-testid="harness-status"
-          data-harness-status={slice ? 'ready' : 'loading'}
+          data-harness-status={slice && slice.orientation === orientation ? 'ready' : 'loading'}
         >
-          {slice ? 'ready' : 'loading'}
+          {slice && slice.orientation === orientation ? 'ready' : 'loading'}
+        </span>
+        <span data-testid="harness-traverse-cols">
+          {slice?.positions ? slice.positions.length : '-'}
         </span>
         <span data-testid="harness-last-pick">
           {lastPick ? `${lastPick.ilIdx},${lastPick.xlIdx},${lastPick.sample.toFixed(1)}` : '-'}
@@ -130,10 +153,10 @@ export default function SeismolordSliceViewHarness() {
           sliceIndex={sliceIndex}
           display={display}
           overlays={overlays}
-          pickMode={pickMode}
+          pickMode={orientation === 'traverse' ? null : pickMode}
           loading={false}
           onPick={setLastPick}
-          onStepSlice={stepSlice}
+          onStepSlice={orientation === 'traverse' ? undefined : stepSlice}
           height={VIEW_H}
         />
       </div>

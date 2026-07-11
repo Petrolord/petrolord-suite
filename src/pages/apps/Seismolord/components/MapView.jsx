@@ -18,7 +18,7 @@ import React, {
 } from 'react';
 import {
   ZoomIn, ZoomOut, Expand, Maximize, Minimize, Layers, Camera, Eraser,
-  Map as MapIcon,
+  Map as MapIcon, Route, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -96,11 +96,16 @@ const INK_DIM = 'rgba(148, 163, 184, 0.6)';
  * @param {({horizonId, cells: Int32Array}) => void} [p.onEraseRegion]
  *   region-erase tool (drag = rectangle, clicks = polygon vertices closed
  *   by double-click): delete the mapped horizon's picks in those cells
+ * @param {?Array<{il:number, xl:number}>} [p.traverse] the committed
+ *   traverse polyline (continuous lattice coords) to draw on the map
+ * @param {(vertices: ?Array<{il, xl}>) => void} [p.onTraverse] traverse
+ *   tool (click = vertex, double-click = finish, Esc = cancel): the drawn
+ *   polyline becomes the Traverse window's section; null removes it
  * @param {number} [p.height]
  */
 function MapView({
   manifest, geom, horizons, faults, velocity, velocityBoundaries,
-  onNavigate, onEraseRegion,
+  onNavigate, onEraseRegion, traverse, onTraverse,
   height = 560,
 }) {
   const wrapRef = useRef(null);
@@ -116,6 +121,7 @@ function MapView({
 
   const rectRef = useRef(null);         // erase rectangle, inner device px
   const polyRef = useRef([]);           // erase polygon draft, WORLD coords
+  const travRef = useRef([]);           // traverse draft, WORLD coords
 
   const [prefs, setPrefs] = useState(loadPrefs);
   const [colormap, setColormap] = useState('spectrum');
@@ -123,6 +129,7 @@ function MapView({
   const [vsId, setVsId] = useState('');       // isochron second horizon ('' = structure)
   const [domain, setDomain] = useState('twt'); // 'twt' | 'depth_m' | 'depth_ft'
   const [eraseTool, setEraseTool] = useState(false);
+  const [travTool, setTravTool] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -222,7 +229,7 @@ function MapView({
 
   propsRef.current = {
     manifest, geom, horizons, faults, prefs, gutter: g, active, vs, spacing,
-    northDir, velocity, depthConv, effDomain,
+    northDir, velocity, depthConv, effDomain, traverse,
   };
 
   // ---- drawing -----------------------------------------------------------
@@ -378,6 +385,61 @@ function MapView({
         ctx.fillRect(s.x - 2.5 * dpr, s.y - 2.5 * dpr, 5 * dpr, 5 * dpr);
       }
     }
+
+    // committed traverse line — the path the Traverse window sections
+    if (p.traverse && p.traverse.length > 1) {
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.95)';
+      ctx.fillStyle = 'rgba(34, 211, 238, 0.95)';
+      ctx.lineWidth = 1.8 * dpr;
+      ctx.beginPath();
+      p.traverse.forEach((v, i) => {
+        const s = t.worldToScreen(v.xl, v.il);
+        if (i === 0) ctx.moveTo(s.x, s.y);
+        else ctx.lineTo(s.x, s.y);
+      });
+      ctx.stroke();
+      for (const v of p.traverse) {
+        const s = t.worldToScreen(v.xl, v.il);
+        ctx.fillRect(s.x - 2 * dpr, s.y - 2 * dpr, 4 * dpr, 4 * dpr);
+      }
+      // A / A′ end labels: the section reads left→right as A→A′
+      ctx.font = `${Math.round(11 * dpr)}px ui-monospace, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 3 * dpr;
+      ctx.strokeStyle = 'rgba(2, 6, 23, 0.9)';
+      const ends = [
+        [p.traverse[0], 'A'],
+        [p.traverse[p.traverse.length - 1], 'A′'],
+      ];
+      for (const [v, label] of ends) {
+        const s = t.worldToScreen(v.xl, v.il);
+        ctx.strokeText(label, s.x, s.y - 4 * dpr);
+        ctx.fillText(label, s.x, s.y - 4 * dpr);
+      }
+    }
+
+    // traverse draft — world-anchored like the erase polygon
+    const trav = travRef.current;
+    if (trav.length) {
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.9)';
+      ctx.fillStyle = 'rgba(34, 211, 238, 0.9)';
+      ctx.lineWidth = dpr;
+      ctx.setLineDash([5 * dpr, 4 * dpr]);
+      ctx.beginPath();
+      trav.forEach((v, i) => {
+        const s = t.worldToScreen(v.x, v.y);
+        if (i === 0) ctx.moveTo(s.x, s.y);
+        else ctx.lineTo(s.x, s.y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+      for (const v of trav) {
+        const s = t.worldToScreen(v.x, v.y);
+        ctx.fillRect(s.x - 2.5 * dpr, s.y - 2.5 * dpr, 5 * dpr, 5 * dpr);
+      }
+    }
     ctx.restore();
 
     // annotations over the gutters
@@ -502,7 +564,7 @@ function MapView({
   useEffect(() => { cacheRef.current.clear(); }, [geom]);
 
   useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, vs,
-    effDomain, velocity, scheduleDraw]);
+    effDomain, velocity, traverse, scheduleDraw]);
 
   // model removed -> fall back to TWT so the select never lies
   useEffect(() => {
@@ -574,6 +636,7 @@ function MapView({
 
   // erasing edits ONE horizon — ambiguous on a two-surface isochron map
   const eraseArmed = eraseTool && Boolean(onEraseRegion && active && !vs);
+  const travArmed = travTool && Boolean(onTraverse);
 
   /** Finish an erase gesture: send the outline's cells and disarm. */
   const finishErase = useCallback((flatPoly) => {
@@ -597,8 +660,14 @@ function MapView({
       dragRef.current = { mode: 'erasePick', x0: sx, y0: sy, moved: false };
       return;
     }
+    if (travArmed && e.button === 0) {
+      // click = traverse vertex; a drag pans, so long lines can be drawn
+      // across several pans without leaving the tool
+      dragRef.current = { mode: 'travPick', x0: sx, y0: sy, moved: false };
+      return;
+    }
     dragRef.current = { mode: 'pan', lastX: sx, lastY: sy, moved: false };
-  }, [toDevice, eraseArmed]);
+  }, [toDevice, eraseArmed, travArmed]);
 
   const onPointerMove = useCallback((e) => {
     const { sx, sy } = toDevice(e);
@@ -613,6 +682,16 @@ function MapView({
         }
       }
       if (d.mode !== 'rect') return;
+    }
+    if (d && d.mode === 'travPick') {
+      if (!d.moved && Math.hypot(sx - d.x0, sy - d.y0) > 4) {
+        // hand the gesture to the pan branch for the rest of the drag
+        d.mode = 'pan';
+        d.lastX = sx;
+        d.lastY = sy;
+        d.moved = true;
+      }
+      if (d.mode === 'travPick') return;
     }
     if (d && d.mode === 'rect') {
       rectRef.current.x1 = sx;
@@ -647,6 +726,13 @@ function MapView({
       scheduleDraw();
       return;
     }
+    if (d.mode === 'travPick') {
+      const t = transformRef.current;
+      const w = t.screenToWorld(d.x0, d.y0);
+      travRef.current.push({ x: w.x, y: w.y });
+      scheduleDraw();
+      return;
+    }
     if (d.mode === 'rect') {
       const rect = rectRef.current;
       if (!rect || rect.x1 === undefined) { finishErase(null); return; }
@@ -675,19 +761,37 @@ function MapView({
     return true;
   }, [finishErase]);
 
-  // Esc cancels an in-progress erase gesture without erasing anything
+  /** Double-click finishes the traverse (dedupe the dbl-click's stacked
+   *  vertices first); at least 2 distinct vertices make a line. */
+  const closeTraverse = useCallback(() => {
+    const pts = [];
+    for (const v of travRef.current) {
+      const last = pts[pts.length - 1];
+      if (!last || Math.hypot(v.x - last.x, v.y - last.y) > 0.25) pts.push(v);
+    }
+    if (pts.length < 2) return false;
+    travRef.current = [];
+    setTravTool(false);
+    scheduleDraw();
+    onTraverse(pts.map((v) => ({ il: v.y, xl: v.x })));
+    return true;
+  }, [onTraverse, scheduleDraw]);
+
+  // Esc cancels an in-progress erase / traverse gesture without applying it
   useEffect(() => {
-    if (!eraseTool) return undefined;
+    if (!eraseTool && !travTool) return undefined;
     const onKey = (e) => {
       if (e.key !== 'Escape') return;
       polyRef.current = [];
       rectRef.current = null;
+      travRef.current = [];
       setEraseTool(false);
+      setTravTool(false);
       scheduleDraw();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [eraseTool, scheduleDraw]);
+  }, [eraseTool, travTool, scheduleDraw]);
 
   const onPointerLeave = useCallback(() => setReadout(null), [setReadout]);
 
@@ -706,10 +810,11 @@ function MapView({
 
   const onDoubleClick = useCallback((e) => {
     if (eraseArmed && closePolygon()) return;
+    if (travArmed && closeTraverse()) return;
     const { sx, sy } = toDevice(e);
     transformRef.current.zoomAt(2, sx, sy);
     scheduleDraw();
-  }, [toDevice, scheduleDraw, eraseArmed, closePolygon]);
+  }, [toDevice, scheduleDraw, eraseArmed, closePolygon, travArmed, closeTraverse]);
 
   // ---- toolbar -------------------------------------------------------------
 
@@ -894,6 +999,35 @@ function MapView({
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {onTraverse && (
+          <Button
+            variant="outline" size="sm"
+            className={travTool ? 'border-cyan-500/60 text-cyan-300' : ''}
+            onClick={() => {
+              travRef.current = [];
+              polyRef.current = [];
+              rectRef.current = null;
+              setEraseTool(false);
+              setTravTool((v) => !v);
+              scheduleDraw();
+            }}
+            disabled={!hasData}
+            title="Draw a traverse line: click vertices along the path, double-click to finish — the section along it opens in the Traverse window (drawing again replaces it)"
+          >
+            <Route className="w-4 h-4" />
+          </Button>
+        )}
+        {onTraverse && traverse && (
+          <Button
+            variant="outline" size="sm"
+            className="text-slate-400 hover:text-red-400"
+            onClick={() => onTraverse(null)}
+            title="Remove the traverse line (clears the Traverse window)"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        )}
+
         {onEraseRegion && (
           <Button
             variant="outline" size="sm"
@@ -901,6 +1035,8 @@ function MapView({
             onClick={() => {
               polyRef.current = [];
               rectRef.current = null;
+              travRef.current = [];
+              setTravTool(false);
               setEraseTool((v) => !v);
               scheduleDraw();
             }}
@@ -934,7 +1070,7 @@ function MapView({
       >
         <canvas
           ref={canvasRef}
-          className={`w-full h-full block touch-none ${eraseArmed
+          className={`w-full h-full block touch-none ${eraseArmed || travArmed
             ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'}`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -962,7 +1098,9 @@ function MapView({
         <span ref={readoutHintRef} className="text-slate-600">
           {eraseArmed
             ? 'erase: drag a rectangle · or click polygon vertices, dbl-click to close · Esc: cancel'
-            : 'drag: pan · wheel: zoom · dbl-click: zoom in · click: move IL/XL there'}
+            : travArmed
+              ? 'traverse: click vertices along the path · dbl-click to finish · drag: pan · Esc: cancel'
+              : 'drag: pan · wheel: zoom · dbl-click: zoom in · click: move IL/XL there'}
         </span>
       </div>
     </div>

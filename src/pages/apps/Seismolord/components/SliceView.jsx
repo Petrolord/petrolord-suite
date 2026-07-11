@@ -66,10 +66,14 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
 
 /**
  * @param {Object} p
- * @param {?Object} p.slice assembleSlice() result for the current view
+ * @param {?Object} p.slice assembleSlice() result for the current view;
+ *   traverse slices additionally carry `positions` ({il,xl} per column)
+ *   and `stepM` (ground metres per column, null without coordinates)
  * @param {?Object} p.geom geomFromManifest() result
  * @param {?Object} p.manifest volume manifest (axis values, corners)
- * @param {'inline'|'xline'|'time'} p.orientation
+ * @param {'inline'|'xline'|'time'|'traverse'} p.orientation traverse is
+ *   VIEW-ONLY: picking, seed markers, ghost preview and fault sticks are
+ *   disabled/skipped on it (callers pass no pickMode/onStepSlice)
  * @param {number} p.sliceIndex
  * @param {{colormap:string, gain:number, polarity:number, clip:number,
  *          traceBalance:boolean}} p.display clip is ABSOLUTE amplitude
@@ -86,6 +90,8 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  * @param {boolean} p.loading
  * @param {(pick:{ilIdx:number,xlIdx:number,sample:number}) => void} p.onPick
  * @param {(delta:number) => void} p.onStepSlice
+ * @param {string} [p.emptyHint] placeholder text when there is no slice
+ *   (the Traverse window explains its draw-on-map flow here)
  * @param {number} [p.height] viewport CSS height when not fullscreen
  * @param {number} [p.vexag] controlled vertical exaggeration (shared with
  *   the 3D window); omit for the legacy uncontrolled behavior
@@ -94,7 +100,7 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
 function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
   pickMode, ghost, loading, onPick, onPickEnd, onStepSlice, height = 520,
-  vexag: vexagProp, onVexagChange,
+  vexag: vexagProp, onVexagChange, emptyHint,
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
   const viewportRef = useRef(null);    // the canvas container
@@ -154,8 +160,16 @@ function SliceView({
     const twt = { title: 'ms', valueAtZero: 0, valuePerCell: gm.dt_us / 1000 };
     if (orientation === 'inline') return { x: xl, y: twt };
     if (orientation === 'xline') return { x: il, y: twt };
+    if (orientation === 'traverse') {
+      // columns are equal ground steps along the drawn line; without
+      // coordinates the axis falls back to plain trace numbering
+      const x = slice?.stepM
+        ? { title: 'm', valueAtZero: 0, valuePerCell: slice.stepM }
+        : { title: 'trace', valueAtZero: 0, valuePerCell: 1 };
+      return { x, y: twt };
+    }
     return { x: xl, y: il };
-  }, [manifest, orientation]);
+  }, [manifest, orientation, slice]);
 
   const spacing = useMemo(() => (manifest ? surveySpacing(manifest) : null), [manifest]);
   const northDir = useMemo(() => (manifest ? northScreenDir(manifest) : null), [manifest]);
@@ -181,13 +195,18 @@ function SliceView({
       ctx.fillStyle = color;
       ctx.lineWidth = lw;
       if (ori !== 'time') {
-        const nTraces = ori === 'inline' ? gm.nXl : gm.nIl;
+        const posn = ori === 'traverse' ? p.slice?.positions : null;
+        if (ori === 'traverse' && !posn) continue;
+        const nTraces = ori === 'inline' ? gm.nXl
+          : ori === 'xline' ? gm.nIl : posn.length;
         const t0 = Math.max(0, Math.floor(vis.x0) - 1);
         const t1 = Math.min(nTraces - 1, Math.ceil(vis.x0 + vis.w) + 1);
         ctx.beginPath();
         let pen = false;
         for (let tr = t0; tr <= t1; tr++) {
-          const cell = ori === 'inline' ? idx * gm.nXl + tr : tr * gm.nXl + idx;
+          const cell = ori === 'inline' ? idx * gm.nXl + tr
+            : ori === 'xline' ? tr * gm.nXl + idx
+              : posn[tr].il * gm.nXl + posn[tr].xl;
           const z = grid[cell];
           if (z === NULL_F32) { pen = false; continue; }
           const s = t.worldToScreen(tr + 0.5, z + 0.5);
@@ -226,7 +245,10 @@ function SliceView({
       }
     }
 
+    // fault sticks project onto inline/xline/time views only — the
+    // stick-to-traverse-path distance test is a recorded follow-up
     const drawSticks = (sticks, color, dashed) => {
+      if (ori === 'traverse') return;
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
       ctx.lineWidth = lw;
@@ -260,7 +282,7 @@ function SliceView({
     for (const f of ov.faults) drawSticks(f.sticks, f.color, false);
     if (ov.draftSticks.length) drawSticks(ov.draftSticks, '#fbbf24', true);
 
-    if (ov.seedPick && ori !== 'time') {
+    if (ov.seedPick && ori !== 'time' && ori !== 'traverse') {
       const onSlice = ori === 'inline'
         ? ov.seedPick.ilIdx === idx : ov.seedPick.xlIdx === idx;
       if (onSlice) {
@@ -279,7 +301,7 @@ function SliceView({
     // ghost pick preview (manual mode): where the click WOULD land —
     // computed from the on-hand slice trace, no fetches
     const cur = cursorRef.current;
-    if (p.ghost && cur && ori !== 'time' && p.slice) {
+    if (p.ghost && cur && ori !== 'time' && ori !== 'traverse' && p.slice) {
       const w = t.screenToWorld(cur.sx, cur.sy);
       const nTraces = ori === 'inline' ? gm.nXl : gm.nIl;
       const trace = Math.floor(w.x);
@@ -332,9 +354,10 @@ function SliceView({
 
     if (pr.scaleBar && spacing) {
       // horizontal ground distance: crosslines on inline/time views,
-      // inlines on crossline views (sections' vertical axis is time —
-      // no ground scale there).
-      const perCell = p.orientation === 'xline' ? spacing.ilSpacing : spacing.xlSpacing;
+      // inlines on crossline views, the resample step along traverses
+      // (sections' vertical axis is time — no ground scale there).
+      const perCell = p.orientation === 'traverse' ? (p.slice?.stepM || 0)
+        : p.orientation === 'xline' ? spacing.ilSpacing : spacing.xlSpacing;
       if (perCell > 0) {
         drawScaleBar(ctx, {
           x: gl + 14 * dpr, y: anno.height - 12 * dpr,
@@ -573,6 +596,21 @@ function SliceView({
     if (!p.geom) return null;
     const w = transformRef.current.screenToWorld(sx, sy);
     const gm = p.geom;
+    if (p.orientation === 'traverse') {
+      const posn = p.slice?.positions;
+      if (!posn) return null;
+      const trace = Math.floor(w.x);
+      const sample = w.y;
+      const inData = trace >= 0 && trace < posn.length && sample >= 0 && sample < gm.ns;
+      const cl = Math.min(Math.max(trace, 0), posn.length - 1);
+      return {
+        ilIdx: posn[cl].il,
+        xlIdx: posn[cl].xl,
+        sample: Math.min(Math.max(sample, 0), gm.ns - 1e-3),
+        inData,
+        trace: cl,
+      };
+    }
     if (p.orientation !== 'time') {
       const nTraces = p.orientation === 'inline' ? gm.nXl : gm.nIl;
       const trace = Math.floor(w.x);
@@ -625,6 +663,7 @@ function SliceView({
     let amp;
     if (p.orientation === 'inline') amp = p.slice.data[hit.xlIdx * gm.ns + sampleIdx];
     else if (p.orientation === 'xline') amp = p.slice.data[hit.ilIdx * gm.ns + sampleIdx];
+    else if (p.orientation === 'traverse') amp = p.slice.data[hit.trace * gm.ns + sampleIdx];
     else amp = p.slice.data[hit.ilIdx * gm.nXl + hit.xlIdx];
     setCursorReadout({
       il: geo.il.min + hit.ilIdx * geo.il.step,
@@ -916,8 +955,8 @@ function SliceView({
         </div>
         <canvas ref={annoRef} className="absolute inset-0 w-full h-full pointer-events-none" />
         {!slice && (
-          <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
-            Select an ingested volume to view sections.
+          <div className="absolute inset-0 flex items-center justify-center text-center px-8 text-slate-500 text-sm">
+            {emptyHint || 'Select an ingested volume to view sections.'}
           </div>
         )}
         {loading && (
