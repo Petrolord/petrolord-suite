@@ -44,6 +44,7 @@ const DEFAULT_PREFS = {
   contours: true,
   contourLabels: true,
   faults: true,
+  traverses: true,
   outline: true,
   axes: true,
   grid: false,
@@ -101,11 +102,14 @@ const INK_DIM = 'rgba(148, 163, 184, 0.6)';
  * @param {(vertices: ?Array<{il, xl}>) => void} [p.onTraverse] traverse
  *   tool (click = vertex, double-click = finish, Esc = cancel): the drawn
  *   polyline becomes the Traverse window's section; null removes it
+ * @param {Array<{id, name, vertices: Array<{il, xl}>}>} [p.savedTraverses]
+ *   the volume's saved traverse lines — drawn dimmed with name labels
+ *   (the active line draws on top in full ink); Layers-toggleable
  * @param {number} [p.height]
  */
 function MapView({
   manifest, geom, horizons, faults, velocity, velocityBoundaries,
-  onNavigate, onEraseRegion, traverse, onTraverse,
+  onNavigate, onEraseRegion, traverse, onTraverse, savedTraverses,
   height = 560,
 }) {
   const wrapRef = useRef(null);
@@ -229,7 +233,7 @@ function MapView({
 
   propsRef.current = {
     manifest, geom, horizons, faults, prefs, gutter: g, active, vs, spacing,
-    northDir, velocity, depthConv, effDomain, traverse,
+    northDir, velocity, depthConv, effDomain, traverse, savedTraverses,
   };
 
   // ---- drawing -----------------------------------------------------------
@@ -383,6 +387,35 @@ function MapView({
       for (const v of poly) {
         const s = t.worldToScreen(v.x, v.y);
         ctx.fillRect(s.x - 2.5 * dpr, s.y - 2.5 * dpr, 5 * dpr, 5 * dpr);
+      }
+    }
+
+    // saved traverse lines — dimmed, name-labeled at the midpoint vertex;
+    // the ACTIVE line (below) draws over its saved copy in full ink
+    if (p.prefs.traverses && p.savedTraverses && p.savedTraverses.length) {
+      ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.lineJoin = 'round';
+      for (const line of p.savedTraverses) {
+        ctx.strokeStyle = 'rgba(34, 211, 238, 0.45)';
+        ctx.lineWidth = 1.2 * dpr;
+        ctx.setLineDash([7 * dpr, 5 * dpr]);
+        ctx.beginPath();
+        line.vertices.forEach((v, i) => {
+          const s = t.worldToScreen(v.xl, v.il);
+          if (i === 0) ctx.moveTo(s.x, s.y);
+          else ctx.lineTo(s.x, s.y);
+        });
+        ctx.stroke();
+        ctx.setLineDash([]);
+        const mid = line.vertices[Math.floor((line.vertices.length - 1) / 2)];
+        const sm = t.worldToScreen(mid.xl, mid.il);
+        ctx.lineWidth = 3 * dpr;
+        ctx.strokeStyle = 'rgba(2, 6, 23, 0.9)';
+        ctx.fillStyle = 'rgba(34, 211, 238, 0.8)';
+        ctx.strokeText(line.name, sm.x, sm.y - 4 * dpr);
+        ctx.fillText(line.name, sm.x, sm.y - 4 * dpr);
       }
     }
 
@@ -564,7 +597,7 @@ function MapView({
   useEffect(() => { cacheRef.current.clear(); }, [geom]);
 
   useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, vs,
-    effDomain, velocity, traverse, scheduleDraw]);
+    effDomain, velocity, traverse, savedTraverses, scheduleDraw]);
 
   // model removed -> fall back to TWT so the select never lies
   useEffect(() => {
@@ -960,6 +993,11 @@ function MapView({
               checked={prefs.faults} onCheckedChange={() => togglePref('faults')}
             >
               Fault traces
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
+              checked={prefs.traverses} onCheckedChange={() => togglePref('traverses')}
+            >
+              Saved traverse lines
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
               checked={prefs.outline} onCheckedChange={() => togglePref('outline')}
