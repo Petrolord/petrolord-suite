@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Eye, Loader2, XCircle, Crosshair, Route, Ban, Box, ScanLine,
-  Pencil, Eraser, Undo2, Save, Spline, Wand2, PaintBucket, Map as MapIcon,
+  Pencil, Eraser, Undo2, Save, Spline, Wand2, PaintBucket, Map as MapIcon, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,7 +20,9 @@ import {
 import {
   snapPick, autotrack2D, smoothHorizon, fillHorizonHoles,
 } from '../engine/horizonTrack';
-import { normalizeVelocity, describeVelocity } from '../engine/velocityModel';
+import {
+  normalizeVelocity, describeVelocity, velocityToManifest,
+} from '../engine/velocityModel';
 import { NULL_VALUE } from '../engine/manifest';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
@@ -122,8 +124,13 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const [snapWindow, setSnapWindow] = useState(3);
   // velocity model draft (strings while typing; saved model lives in the
   // manifest and is the ONLY thing depth displays / exports consume)
+  const [velMode, setVelMode] = useState('linear');   // 'linear' | 'layercake'
   const [velDraft, setVelDraft] = useState({ v0: '', k: '' });
+  // layer-cake rows top-down: all but the last need a base horizon
+  const [velLayers, setVelLayers] = useState([]);
   const [velBusy, setVelBusy] = useState(false);
+  // boundary pick grids aligned with the saved layer cake's layer bases
+  const [velBoundaries, setVelBoundaries] = useState(null);
   const [tracking, setTracking] = useState(null);   // {tracked, total}
   const [horizons, setHorizons] = useState([]);
   const [visibleIds, setVisibleIds] = useState(new Set());
@@ -143,30 +150,81 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const geom = useMemo(() => (manifest ? geomFromManifest(manifest) : null), [manifest]);
   const velocityModel = useMemo(() => normalizeVelocity(manifest?.velocity), [manifest]);
 
-  // draft follows the saved model (volume switch or a successful save)
+  // drafts follow the saved model (volume switch or a successful save)
   useEffect(() => {
-    const v = manifest?.velocity;
-    setVelDraft({
-      v0: v?.v0 != null ? String(v.v0) : '',
-      k: v?.k != null ? String(v.k) : '',
-    });
+    const m = normalizeVelocity(manifest?.velocity);
+    if (m?.kind === 'layercake') {
+      setVelMode('layercake');
+      setVelLayers(m.layers.map((l) => ({
+        baseHorizonId: l.baseHorizonId ?? '', v0: String(l.v0), k: String(l.k),
+      })));
+      setVelDraft({ v0: '', k: '' });
+    } else {
+      setVelMode('linear');
+      setVelLayers([]);
+      setVelDraft({
+        v0: m ? String(m.v0) : '',
+        k: m ? String(m.k) : '',
+      });
+    }
   }, [manifest]);
+
+  /** Build the manifest-form model from the current draft, or throw a
+   *  user-facing message. null = remove the model. */
+  const draftToModel = () => {
+    if (velMode === 'linear') {
+      if (velDraft.v0.trim() === '') return null;
+      const m = normalizeVelocity({
+        v0: Number(velDraft.v0),
+        k: velDraft.k.trim() === '' ? 0 : Number(velDraft.k),
+      });
+      if (!m) throw new Error('V0 must be a positive number (m/s) and k a finite number (1/s).');
+      return velocityToManifest(m);
+    }
+    if (velLayers.length === 0) return null;
+    if (velLayers.length < 2) {
+      throw new Error('A layer cake needs at least two layers — use the single-function model instead.');
+    }
+    const bounded = velLayers.slice(0, -1);
+    if (bounded.some((l) => !l.baseHorizonId)) {
+      throw new Error('Every layer except the last needs a base horizon.');
+    }
+    const ids = bounded.map((l) => l.baseHorizonId);
+    if (new Set(ids).size !== ids.length) {
+      throw new Error('Each horizon can bound only one layer.');
+    }
+    // keep the stack geologically ordered: sort bounded layers by their
+    // horizon's mid TWT when stats allow (the last, unbounded layer stays
+    // last); rows without stats keep their drafted position
+    const midTwt = (id) => {
+      const s = horizons.find((h) => h.id === id)?.stats;
+      return s?.min_twt_ms != null && s?.max_twt_ms != null
+        ? (s.min_twt_ms + s.max_twt_ms) / 2 : null;
+    };
+    const sorted = bounded
+      .map((l, idx) => ({ l, idx, t: midTwt(l.baseHorizonId) }))
+      .sort((a, b) => ((a.t ?? a.idx) - (b.t ?? b.idx)) || (a.idx - b.idx))
+      .map((e) => e.l);
+    const rows = [...sorted, velLayers[velLayers.length - 1]];
+    const m = normalizeVelocity({
+      type: 'layercake',
+      layers: rows.map((l, i) => ({
+        base_horizon_id: i < rows.length - 1 ? l.baseHorizonId : null,
+        v0: Number(l.v0),
+        k: l.k.trim() === '' ? 0 : Number(l.k),
+      })),
+    });
+    if (!m) throw new Error('Every layer needs a positive V0 (m/s) and a finite k (1/s).');
+    return velocityToManifest(m);
+  };
 
   const saveVelocity = async () => {
     if (!volume || !manifest) return;
-    const wantsModel = velDraft.v0.trim() !== '';
-    const model = wantsModel
-      ? normalizeVelocity({
-        v0: Number(velDraft.v0),
-        k: velDraft.k.trim() === '' ? 0 : Number(velDraft.k),
-      })
-      : null;
-    if (wantsModel && !model) {
-      toast({
-        title: 'Invalid velocity model',
-        description: 'V0 must be a positive number (m/s) and k a finite number (1/s).',
-        variant: 'destructive',
-      });
+    let model;
+    try {
+      model = draftToModel();
+    } catch (e) {
+      toast({ title: 'Invalid velocity model', description: e.message, variant: 'destructive' });
       return;
     }
     setVelBusy(true);
@@ -184,6 +242,42 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
       setVelBusy(false);
     }
   };
+
+  // load the layer cake's boundary pick grids (deleted horizons yield a
+  // null entry — the layer above then extends, per the engine convention);
+  // depth displays stay gated until the grids are in
+  useEffect(() => {
+    const m = velocityModel;
+    if (!m || m.kind !== 'layercake') { setVelBoundaries(null); return undefined; }
+    let cancelled = false;
+    (async () => {
+      const grids = [];
+      for (const l of m.layers.slice(0, -1)) {
+        const row = horizons.find((h) => h.id === l.baseHorizonId);
+        if (!row) { grids.push(null); continue; }
+        let g = gridCacheRef.current.get(row.id);
+        if (!g) {
+          try {
+            g = await loadHorizonGrid(row);
+            gridCacheRef.current.set(row.id, g);
+          } catch {
+            g = null;
+          }
+        }
+        grids.push(g || null);
+      }
+      if (!cancelled) setVelBoundaries(grids);
+    })();
+    return () => { cancelled = true; };
+  }, [velocityModel, horizons]);
+
+  // what depth displays consume: a layer cake is only usable once its
+  // boundary grids are loaded — never convert with half a model
+  const velocityForDisplay = useMemo(() => {
+    if (!velocityModel) return null;
+    if (velocityModel.kind === 'layercake' && !velBoundaries) return null;
+    return velocityModel;
+  }, [velocityModel, velBoundaries]);
   const maxIndex = useMemo(() => {
     if (!geom) return 0;
     return orientation === 'inline' ? geom.nIl - 1
@@ -1124,44 +1218,142 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Label className="text-slate-400 text-xs">Velocity model</Label>
-              <span className="text-xs text-slate-500">V0</span>
-              <input
-                type="number"
-                className="w-24 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
-                value={velDraft.v0}
-                onChange={(e) => setVelDraft((d) => ({ ...d, v0: e.target.value }))}
-                placeholder="e.g. 2000"
-                min="1"
-                step="50"
-              />
-              <span className="text-xs text-slate-500">m/s · k</span>
-              <input
-                type="number"
-                className="w-20 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
-                value={velDraft.k}
-                onChange={(e) => setVelDraft((d) => ({ ...d, k: e.target.value }))}
-                placeholder="0"
-                step="0.05"
-              />
-              <span className="text-xs text-slate-500">1/s</span>
-              <Button
-                variant="outline" size="sm"
-                onClick={saveVelocity}
-                disabled={velBusy}
-                title="Persist V(z) = V0 + k·z on this volume (clear V0 to remove)"
-              >
-                {velBusy
-                  ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  : <Save className="w-4 h-4 mr-2" />}
-                Save to volume
-              </Button>
-              <span className="text-xs text-slate-500">
-                {velocityModel
-                  ? `${describeVelocity(velocityModel)} — drives depth maps and depth exports`
-                  : 'not set — depth maps and model-based exports unavailable'}
-              </span>
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <Label className="text-slate-400 text-xs">Velocity model</Label>
+                <select
+                  className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                  value={velMode}
+                  onChange={(e) => {
+                    const mode = e.target.value;
+                    setVelMode(mode);
+                    if (mode === 'layercake' && velLayers.length === 0) {
+                      setVelLayers([
+                        { baseHorizonId: '', v0: '', k: '' },
+                        { baseHorizonId: '', v0: '', k: '' },
+                      ]);
+                    }
+                  }}
+                >
+                  <option value="linear">Single V(z)</option>
+                  <option value="layercake">Layer cake</option>
+                </select>
+                {velMode === 'linear' && (
+                  <>
+                    <span className="text-xs text-slate-500">V0</span>
+                    <input
+                      type="number"
+                      className="w-24 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                      value={velDraft.v0}
+                      onChange={(e) => setVelDraft((d) => ({ ...d, v0: e.target.value }))}
+                      placeholder="e.g. 2000"
+                      min="1"
+                      step="50"
+                    />
+                    <span className="text-xs text-slate-500">m/s · k</span>
+                    <input
+                      type="number"
+                      className="w-20 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                      value={velDraft.k}
+                      onChange={(e) => setVelDraft((d) => ({ ...d, k: e.target.value }))}
+                      placeholder="0"
+                      step="0.05"
+                    />
+                    <span className="text-xs text-slate-500">1/s</span>
+                  </>
+                )}
+                <Button
+                  variant="outline" size="sm"
+                  onClick={saveVelocity}
+                  disabled={velBusy}
+                  title={velMode === 'linear'
+                    ? 'Persist V(z) = V0 + k·z on this volume (clear V0 to remove)'
+                    : 'Persist the layer cake on this volume (remove all layers to clear)'}
+                >
+                  {velBusy
+                    ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    : <Save className="w-4 h-4 mr-2" />}
+                  Save to volume
+                </Button>
+                <span className="text-xs text-slate-500">
+                  {velocityModel
+                    ? `${describeVelocity(velocityModel)} — drives depth maps and depth exports`
+                    : 'not set — depth maps and model-based exports unavailable'}
+                </span>
+              </div>
+              {velMode === 'layercake' && (
+                <div className="space-y-1 pl-2 border-l border-slate-800">
+                  {velLayers.map((l, i) => {
+                    const last = i === velLayers.length - 1;
+                    const set = (patch) => setVelLayers((rows) =>
+                      rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+                    return (
+                      // draft rows have no stable identity — index keys are
+                      // fine while the list is small and editable in place
+                      // eslint-disable-next-line react/no-array-index-key
+                      <div key={i} className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-slate-500 w-16">Layer {i + 1}</span>
+                        {last ? (
+                          <span className="text-xs text-slate-500 w-44">below the last horizon</span>
+                        ) : (
+                          <select
+                            className="w-44 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                            value={l.baseHorizonId}
+                            onChange={(e) => set({ baseHorizonId: e.target.value })}
+                          >
+                            <option value="">down to horizon…</option>
+                            {horizons.map((h) => (
+                              <option key={h.id} value={h.id}>{h.name}</option>
+                            ))}
+                          </select>
+                        )}
+                        <span className="text-xs text-slate-500">V0</span>
+                        <input
+                          type="number"
+                          className="w-24 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                          value={l.v0}
+                          onChange={(e) => set({ v0: e.target.value })}
+                          placeholder="m/s at layer top"
+                          min="1"
+                          step="50"
+                        />
+                        <span className="text-xs text-slate-500">m/s · k</span>
+                        <input
+                          type="number"
+                          className="w-20 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                          value={l.k}
+                          onChange={(e) => set({ k: e.target.value })}
+                          placeholder="0"
+                          step="0.05"
+                        />
+                        <span className="text-xs text-slate-500">1/s</span>
+                        <Button
+                          variant="ghost" size="sm"
+                          className="h-6 px-1.5 text-slate-500 hover:text-red-400"
+                          onClick={() => setVelLayers((rows) => rows.filter((_, j) => j !== i))}
+                          title="Remove this layer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                  <Button
+                    variant="outline" size="sm"
+                    onClick={() => setVelLayers((rows) => [
+                      ...rows.slice(0, Math.max(rows.length - 1, 0)),
+                      { baseHorizonId: '', v0: '', k: '' },
+                      ...rows.slice(Math.max(rows.length - 1, 0)),
+                    ])}
+                  >
+                    Add layer
+                  </Button>
+                  <span className="text-xs text-slate-500 ml-2">
+                    layers save sorted by horizon time; where a boundary horizon has no
+                    pick, the layer above extends to the next one
+                  </span>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -1227,7 +1419,8 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                   geom={geom}
                   horizons={resolvedHorizons}
                   faults={overlays.faults}
-                  velocity={velocityModel}
+                  velocity={velocityForDisplay}
+                  velocityBoundaries={velBoundaries}
                   onNavigate={navigateTo}
                   onEraseRegion={eraseRegion}
                   height={560}

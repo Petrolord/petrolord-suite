@@ -3,7 +3,7 @@
 // (fault-blocked when the caller passes faults that cut the horizon),
 // return the grid + XYZ text.
 
-import { loadHorizonGrid } from './horizonsService';
+import { loadHorizonGrid, listHorizons } from './horizonsService';
 import { picksToPoints } from '../engine/gridding';
 import { buildFaultBlocks } from '../engine/faultBarriers';
 import { surveyAffine, cellSpacing, surveyBounds, worldToIlxl } from '../engine/surveyGeometry';
@@ -41,9 +41,23 @@ export async function gridHorizonSurface({
   const picks = await loadHorizonGrid(horizon);
   const dtMs = manifest.geometry.dt_us / 1000;
   const model = normalizeVelocity(manifest.velocity);
+
+  // layer-cake conversion is column-dependent: load the boundary
+  // horizons' pick grids (a deleted/missing boundary loads as null —
+  // the layer above then extends, per the engine convention)
+  let velocityBoundaries = null;
+  if (domain === 'depth' && model?.kind === 'layercake') {
+    const rows = await listHorizons(horizon.volume_id);
+    velocityBoundaries = await Promise.all(model.layers.slice(0, -1).map(async (l) => {
+      const row = rows.find((r) => r.id === l.baseHorizonId);
+      if (!row) return null;
+      return loadHorizonGrid(row).catch(() => null);
+    }));
+  }
+
   const sampleToZ = domain === 'depth'
     ? (model
-      ? sampleToExportZ(model, manifest.geometry.dt_us)
+      ? sampleToExportZ(model, manifest.geometry.dt_us, { boundaries: velocityBoundaries })
       : (s) => -((s * dtMs) / 1000) * (velocityFtS / 2))
     : (s) => -(s * dtMs);
   const affine = surveyAffine(manifest.geometry);
