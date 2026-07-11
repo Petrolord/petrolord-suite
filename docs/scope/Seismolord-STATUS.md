@@ -39,7 +39,9 @@ seismic section along that path, in its own viewer window.
   scrub's `cancelPendingExcept` cannot abort it; session-local (not
   persisted), cleared on volume switch.
 - Verified: 20 Seismolord jest suites / 248 tests (7 traverse cases incl.
-  golden bit-identity), 13 Playwright e2e green on live staging.
+  golden bit-identity), 14 Playwright e2e green on live staging — the
+  SliceView harness gained a traverse mode (dog-leg path) with a spec
+  covering readout-via-positions and view-only behavior.
 - Follow-up candidates: fault-stick projection onto traverse paths
   (distance-to-path test, recorded in SliceView), named/persisted
   traverse lines per volume, multi-traverse display on the map, picking
