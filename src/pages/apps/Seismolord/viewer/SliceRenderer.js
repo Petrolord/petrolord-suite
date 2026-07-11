@@ -6,12 +6,27 @@
 
 import { COLOR_MAPS } from '@/utils/colorMaps';
 
-/** Colormaps offered by Seismolord (playbook defaults first). */
+/**
+ * Colormaps offered by Seismolord (playbook defaults first). Keys resolve
+ * in the shared suite COLOR_MAPS registry; every entry feeds the same
+ * 256-entry LUT, colorbar and 2D/3D shaders. Diverging maps (white/gray
+ * at centre) suit amplitudes with the symmetric clip; sequential maps
+ * (viridis…) suit attributes.
+ */
 export const SEISMIC_COLORMAPS = [
   { key: 'seismic_rwb', label: 'Red-White-Blue' },
-  { key: 'jet', label: 'Seismic rainbow' },
   { key: 'seismic', label: 'Blue-White-Red' },
+  { key: 'red_white_black', label: 'Red-White-Black' },
+  { key: 'cool_warm', label: 'Cool-Warm (diverging)' },
+  { key: 'jet', label: 'Seismic rainbow' },
+  { key: 'spectrum', label: 'Spectrum' },
   { key: 'grayscale', label: 'Grayscale' },
+  { key: 'gray_wb', label: 'Grayscale (reversed)' },
+  { key: 'viridis', label: 'Viridis' },
+  { key: 'plasma', label: 'Plasma' },
+  { key: 'magma', label: 'Magma' },
+  { key: 'hot_iron', label: 'Hot iron' },
+  { key: 'hsv_cycle', label: 'Phase (cyclic)' },
 ];
 
 const VERT = `#version 300 es
