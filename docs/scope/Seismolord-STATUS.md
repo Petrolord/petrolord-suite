@@ -1,6 +1,46 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-10 (viewer pro upgrade — camera, annotations, legends)
+Last updated: 2026-07-11 (viewer responsiveness — camera controls no longer hang)
+
+## Viewer responsiveness (post-pro-upgrade): DONE
+
+Operator report: zoom / colorbar / vertical-exaggeration controls "hanging".
+Root-caused by CPU-profiling the harness under Playwright/CDP at realistic
+viewer sizes (1820×560 CSS): at devicePixelRatio 2 every wheel tick produced
+a >50 ms main-thread task (p95 frame 200 ms); the identical scene at dpr 1
+held a flat 60 fps — frame cost is dominated by canvas backing-store AREA,
+so hi-dpi displays (Windows 125–200 % scaling) on weak or software-rendered
+GPUs were exactly where controls hung. Fixes, worst case now 60 fps median
+even on software GL (SwiftShader):
+
+- **Adaptive render resolution** (`SliceView`): backing store starts at
+  devicePixelRatio and steps down ×0.75 (floor 1× CSS px) whenever a
+  continuous interaction sustains a slow-frame EMA >32 ms. Downgrade-only —
+  stable, slightly softer image instead of oscillating quality. All drawing
+  and pointer math shares one render-scale ref, so picking/overlays stay
+  exact at any scale.
+- **Zero React renders per frame**: zoom % HUD and IL/XL/ms/amp cursor
+  readout write straight to the DOM via refs; `hud` state now carries only
+  boundary flags (at-min/at-max zoom, vexag). Previously every camera frame
+  and pointer move re-rendered the whole component (10–40 ms in dev mode).
+- **SliceView is React.memo'd** and ViewerPanel's `handlePick` is
+  useCallback'd, so gain/clip slider ticks and list refreshes no longer
+  re-render the viewport (all other viewer props were already memoized).
+- **Colorbar bitmap cache** (`annotations.js`): LUT gradient rasterized once
+  per LUT into a 1×256 offscreen canvas, stretched with one drawImage —
+  replaces ~300 fillRect+fillStyle per frame (top profiled JS hot spot).
+- **`SliceRenderer.setColormap` no-ops when the key is unchanged** (the
+  display effect fires it on every gain/clip tweak); context-restore forces
+  the rebuild. **`setView` sets only its own uniform** instead of rebinding
+  textures/params every camera frame.
+- **Time-slice horizon overlay**: the per-frame full-grid scan
+  (nIl × nXl cells) is cached per (grid, slice index); frames only project
+  the cached matching cells.
+- **Harness upgrades** (`/dev/seismolord-sliceview`): `?dim=` (≤320),
+  `?w=/?h=` viewport, `?horizon=0`, and a display-cycle button so perf work
+  can drive colormap/gain/polarity changes through props like ViewerPanel.
+  Existing e2e + jest suites unchanged and green; renderer pixel parity
+  (GPU==CPU self-test) re-verified.
 
 ## Viewer pro upgrade (post-P6): DONE
 
