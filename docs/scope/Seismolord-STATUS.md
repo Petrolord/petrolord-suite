@@ -1,6 +1,42 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (display smoothing — zoomed sections no longer pixelated)
+Last updated: 2026-07-11 (3D cube window + colormap catalogue)
+
+## 3D cube window + colormaps: DONE
+
+Operator requests: more colormaps; a 3D window showing the whole cube or
+any combination of inline / crossline / time planes, synced with the 2D
+view, with dark/white background and pro features.
+
+- **Colormaps**: 4 → 13 (`SEISMIC_COLORMAPS`). New in the shared registry
+  (additive): red-white-black, cool-warm (Moreland diverging), spectrum,
+  magma; also exposed: reverse gray, viridis, plasma, hot iron, phase
+  cyclic. Jest guard: every offered key resolves and yields a valid LUT.
+- **3D window** (`components/CubeView.jsx` + `viewer/CubeRenderer.js` +
+  `viewer/cube3d.js`): raw WebGL2 (playbook — no three.js). Survey
+  wireframe with IL/XL/TWT tick annotations and north arrow; planes as
+  textured quads; "entire cube" = six boundary-face slices (full volume
+  can never be memory-resident, so the solid look is the standard box
+  view). Amplitude shading imports the SAME shader chunks as 2D
+  (`viewer/shaderChunks.js`, extracted refactor — GPU==CPU self-test
+  re-verified), so 2D and 3D can never disagree. Orbit/pan/dolly camera
+  (true ground aspect from manifest corners), dark/light background,
+  hover readout with amplitude, click-a-plane→2D-orientation, Shift+wheel
+  steps a plane, PNG snapshot, fullscreen, adaptive render resolution
+  with idle full-res restore.
+- **Sync model (deliberate)**: DATA + DISPLAY shared between 2D and 3D —
+  per-orientation slice indices (ViewerPanel now keeps one index per
+  orientation; volume load centres all three; orientation switch keeps
+  its position), colormap/gain/clip/polarity/balance, vertical
+  exaggeration (SliceView V.exag is now controllable + reports changes).
+  CAMERAS independent by design: a 2D zoom rect has no meaningful
+  counterpart in an orbiting perspective camera.
+- Verified: 13 jest suites (145 tests, incl. new cube3d math suite) and
+  13 Playwright tests green (new `/dev/seismolord-cubeview` harness +
+  6-test spec); eyeballed dark/light/entire-cube screenshots at
+  dim=160.
+- Follow-up candidates: horizons/faults rendered in the 3D scene,
+  draggable planes, arbitrary traverse lines.
 
 ## Display smoothing (post-responsiveness): DONE
 
