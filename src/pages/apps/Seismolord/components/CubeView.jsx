@@ -31,6 +31,7 @@ import {
 } from '../viewer/cube3d';
 import {
   horizonMesh, faultPolylines, faultRibbonMesh, hexToRgb,
+  wellPolylines, wellTopMarkers,
 } from '../viewer/interpMesh';
 import { surveySpacing, northLocalDir } from '../viewer/annotations';
 import { assembleSlice } from '../engine/sliceAssembly';
@@ -48,6 +49,7 @@ const DEFAULT_PREFS = {
   smooth: true,
   horizons: true,
   faults: true,
+  wells: true,
   gizmo: true,
   bg: 'dark',
 };
@@ -91,13 +93,16 @@ const INK = {
  * @param {Array<{id, name, grid: Float32Array, color: string}>} [p.horizons]
  *   VISIBLE horizons (shared visibility state with the 2D window)
  * @param {Array<{id, sticks, color: string}>} [p.faults] visible faults
+ * @param {Array<{id, name, color, points: Array, tops: Array}>} [p.wells]
+ *   visible wells' lattice paths (wellSection.buildWellLatticePath) —
+ *   drawn as cube-space polylines with 3D-cross top markers
  * @param {(orientation:string) => void} [p.onSelectPlane]
  * @param {() => void} [p.onRendered] fired after each GL frame (harness)
  * @param {number} [p.height]
  */
 function CubeView({
   geom, manifest, getBrick, indices, onChangeIndex, display, vexag,
-  horizons, faults, onSelectPlane, onRendered, height = 520,
+  horizons, faults, wells, onSelectPlane, onRendered, height = 520,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -119,8 +124,10 @@ function CubeView({
   const propsRef = useRef({});
   const hzCacheRef = useRef(new Map());    // horizon id -> {grid, mesh}
   const fltCacheRef = useRef(new Map());   // fault id -> {sticks, lines, ribbon}
+  const wellCacheRef = useRef(new Map());  // well id -> {points, lines, tops}
   const activeHzRef = useRef(new Set());   // mesh ids currently in the renderer
   const activeFltRef = useRef(new Set());
+  const activeWellRef = useRef(new Set());
   const gizmoRef = useRef(null);           // {cx, cy, r, tips:[{x,y,axis}]} device px
 
   const [prefs, setPrefs] = useState(loadPrefs);
@@ -417,6 +424,7 @@ function CubeView({
     facesCacheRef.current.clear();
     hzCacheRef.current.clear();
     fltCacheRef.current.clear();
+    wellCacheRef.current.clear();
     fittedRef.current = false;
     desiredRef.current = { inline: null, xline: null, time: null };
     for (const o of ORIENTATIONS) seqRef.current[o] += 1;
@@ -614,6 +622,39 @@ function CubeView({
     activeFltRef.current = wanted;
     scheduleRender();
   }, [faults, geom, prefs.faults, scheduleRender]);
+
+  useEffect(() => {
+    const r = rendererRef.current;
+    if (!r || !geom) return;
+    const wanted = new Set();
+    if (prefs.wells) {
+      for (const w of wells || []) {
+        let c = wellCacheRef.current.get(w.id);
+        if (!c || c.points !== w.points) {
+          c = {
+            points: w.points,
+            lines: wellPolylines(w.points, geom),
+            tops: wellTopMarkers(w.tops, geom),
+          };
+          wellCacheRef.current.set(w.id, c);
+        }
+        const rgb = hexToRgb(w.color);
+        if (c.lines.length) {
+          wanted.add(`well-${w.id}`);
+          r.setLineSet(`well-${w.id}`, { positions: c.lines, color: rgb });
+        }
+        if (c.tops.length) {
+          wanted.add(`welltop-${w.id}`);
+          r.setLineSet(`welltop-${w.id}`, { positions: c.tops, color: rgb });
+        }
+      }
+    }
+    for (const id of activeWellRef.current) {
+      if (!wanted.has(id)) r.setLineSet(id, null);
+    }
+    activeWellRef.current = wanted;
+    scheduleRender();
+  }, [wells, geom, prefs.wells, scheduleRender]);
 
   // ---- picking / readout -------------------------------------------------
 
@@ -938,6 +979,11 @@ function CubeView({
               checked={prefs.faults} onCheckedChange={() => togglePref('faults')}
             >
               Fault sticks &amp; surfaces
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
+              checked={prefs.wells} onCheckedChange={() => togglePref('wells')}
+            >
+              Well paths &amp; tops
             </DropdownMenuCheckboxItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Rendering</DropdownMenuLabel>

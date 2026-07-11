@@ -25,6 +25,8 @@ import {
 import {
   extractHorizonAmplitude, bricksForHorizonAmplitude,
 } from '../engine/horizonAmplitude';
+import { makeTvdssToTwt, buildWellLatticePath } from '../engine/wellSection';
+import { surveyAffine } from '../engine/surveyGeometry';
 import {
   snapPick, autotrack2D, smoothHorizon, fillHorizonHoles,
 } from '../engine/horizonTrack';
@@ -304,6 +306,34 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
     if (velocityModel.kind === 'layercake' && !velBoundaries) return null;
     return velocityModel;
   }, [velocityModel, velBoundaries]);
+
+  // wells in TWT: per-well T(z) (its own checkshots first, else the
+  // volume model inverted — plan decision #4, never mixed) + the dense
+  // lattice path with tops; wells without either stay map-only
+  const wellSections = useMemo(() => {
+    if (!wells || !wells.length || !manifest || !geom) return [];
+    const affine = surveyAffine(manifest.geometry);
+    if (!affine) return [];
+    const dtUs = manifest.geometry.dt_us;
+    const maxTwtMs = ((geom.ns - 1) * dtUs) / 1000;
+    const out = [];
+    for (const w of wells) {
+      const timeConv = makeTvdssToTwt({
+        checkshots: w.checkshots,
+        velocity: velocityForDisplay,
+        boundaries: velBoundaries,
+        dtUs,
+        maxTwtMs,
+      });
+      if (!timeConv) continue;
+      const built = buildWellLatticePath(w, { affine, timeConv, geom, dtUs });
+      if (!built) continue;
+      out.push({
+        id: w.id, name: w.name, color: w.color, source: timeConv.source, ...built,
+      });
+    }
+    return out;
+  }, [wells, manifest, geom, velocityForDisplay, velBoundaries]);
   const maxIndex = useMemo(() => {
     if (!geom) return 0;
     return orientation === 'inline' ? geom.nIl - 1
@@ -932,7 +962,8 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
       .filter((f) => visibleFaultIds.has(f.id)),
     draftSticks,
     seedPick,
-  }), [resolvedHorizons, faults, visibleFaultIds, draftSticks, seedPick]);
+    wells: wellSections,
+  }), [resolvedHorizons, faults, visibleFaultIds, draftSticks, seedPick, wellSections]);
 
   const stepSlice = useCallback((delta) => {
     setIndices((prev) => ({
@@ -1594,6 +1625,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                   vexag={vexag}
                   horizons={resolvedHorizons}
                   faults={overlays.faults}
+                  wells={wellSections}
                   onSelectPlane={selectPlane}
                   height={560}
                 />
