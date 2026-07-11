@@ -72,7 +72,7 @@ export default function SeismolordWellTieHarness() {
           geom={GEOM}
           affine={AFFINE}
           loadGrid={async (id) => GRIDS[id]}
-          onApply={async (model) => setApplied(JSON.stringify(model))}
+          onApply={async (model, calibration) => setApplied(JSON.stringify({ model, calibration }))}
         />
       </div>
     </div>

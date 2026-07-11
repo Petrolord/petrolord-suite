@@ -150,6 +150,23 @@ const rms = (xs) => (xs.length
   ? Math.sqrt(xs.reduce((s, x) => s + x * x, 0) / xs.length) : 0);
 
 /**
+ * Provenance record for an applied calibration — persisted next to the
+ * model (manifest.velocity_calibration) so depth exports can carry
+ * `wells_used` honestly in the RCP handoff. Callers may add a
+ * timestamp; the engine stays clock-free.
+ * @param {ReturnType<typeof fitWellTie>} result
+ */
+export function calibrationProvenance(result) {
+  return {
+    source: 'well_tie',
+    wells: [...new Set(result.residuals.map((r) => r.wellName))].sort(),
+    ties: result.residuals.length,
+    rms_before_m: Math.round(result.rmsBeforeM * 100) / 100,
+    rms_after_m: Math.round(result.rmsAfterM * 100) / 100,
+  };
+}
+
+/**
  * Fit the velocity model to the tie points.
  *
  * Layer cake: per-layer V0 in least squares, k's fixed; layers the ties

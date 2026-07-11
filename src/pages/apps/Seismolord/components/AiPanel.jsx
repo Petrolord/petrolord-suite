@@ -158,6 +158,10 @@ export default function AiPanel({ volume, manifest }) {
             via: 'ai',
             velocity_model: domain === 'depth' ? (manifest.velocity || null) : null,
             velocity_ft_s: domain === 'depth' && !manifest.velocity ? velocity : null,
+            velocity_calibration: domain === 'depth' && manifest.velocity
+              ? (manifest.velocity_calibration || null) : null,
+            wells_used: domain === 'depth' && manifest.velocity
+              ? (manifest.velocity_calibration?.wells ?? null) : null,
             survey_geometry: manifest.geometry?.affine ? 'measured_affine' : 'corners_axis_aligned',
             fault_aware: Boolean(faultInfo),
             fault_blocks: faultInfo?.blocks ?? null,

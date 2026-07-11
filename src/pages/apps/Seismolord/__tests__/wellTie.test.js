@@ -10,7 +10,7 @@ import fs from 'fs';
 import path from 'path';
 
 import {
-  segGain, sampleGridAt, buildTiePoints, fitWellTie,
+  segGain, sampleGridAt, buildTiePoints, fitWellTie, calibrationProvenance,
 } from '@/pages/apps/Seismolord/engine/wellTie';
 import {
   normalizeVelocity, layerTimesMs, layercakeDepthM, makeDepthConverter,
@@ -132,6 +132,20 @@ describe('layer-cake calibration (W3 acceptance)', () => {
       .filter((r) => r.topName !== 'bad').map((r) => Math.abs(r.afterM)));
     expect(Math.abs(bad.afterM)).toBeGreaterThan(30);  // not absorbed
     expect(Math.abs(bad.afterM)).toBeGreaterThan(worstGood * 2);
+  });
+
+  test('calibrationProvenance summarizes wells/ties/RMS for the manifest (W4)', () => {
+    const ties = [
+      { ...tieAt(60), wellName: 'B-2' }, { ...tieAt(140), wellName: 'A-1' },
+      { ...tieAt(240), wellName: 'A-1' },
+    ];
+    const res = fitWellTie(ties, PERTURBED_CAKE, { boundaries: BOUNDARIES, dtUs: DT_US });
+    const prov = calibrationProvenance(res);
+    expect(prov.source).toBe('well_tie');
+    expect(prov.wells).toEqual(['A-1', 'B-2']);        // deduped + sorted
+    expect(prov.ties).toBe(3);
+    expect(prov.rms_before_m).toBeGreaterThan(1);
+    expect(prov.rms_after_m).toBeLessThan(0.1);
   });
 
   test('domain errors: no ties, missing boundaries, non-positive fit', () => {
