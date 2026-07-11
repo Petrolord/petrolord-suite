@@ -332,19 +332,22 @@ export function gridSurfaceBlocked(rawPoints, spec, opts = {}) {
  * @param {{nIl:number,nXl:number}} geom
  * @param {Object} affine resolved survey affine —
  *   surveyAffine(manifest.geometry)
- * @param {(sample: number) => number} sampleToZ e.g. TWT ms or depth ft
+ * @param {(sample: number, cell?: number) => number} sampleToZ e.g. TWT
+ *   ms or depth ft; receives the lattice cell index so column-dependent
+ *   conversions (layer-cake velocity models) work
  */
 export function picksToPoints(picks, geom, affine, sampleToZ) {
   if (!affine?.origin) throw new Error('Volume has no usable survey coordinates.');
   const out = [];
   for (let i = 0; i < geom.nIl; i++) {
     for (let x = 0; x < geom.nXl; x++) {
-      const s = picks[i * geom.nXl + x];
+      const cell = i * geom.nXl + x;
+      const s = picks[cell];
       if (s === NULL_F32) continue;
       out.push({
         x: affine.origin.x + i * affine.ilVec.x + x * affine.xlVec.x,
         y: affine.origin.y + i * affine.ilVec.y + x * affine.xlVec.y,
-        z: sampleToZ(s),
+        z: sampleToZ(s, cell),
       });
     }
   }

@@ -33,7 +33,7 @@ import { buildLut } from '../viewer/shaderChunks';
 import {
   contourLevels, contourPolylines, buildMapPixels, gridRange, cellsInPolygon,
 } from '../viewer/mapContours';
-import { twtMsToDepthM, M_PER_FT } from '../engine/velocityModel';
+import { makeDepthConverter, velocityKey, M_PER_FT } from '../engine/velocityModel';
 import { ilxlToWorld } from '../engine/surveyGeometry';
 import { NULL_VALUE } from '../engine/manifest';
 
@@ -84,10 +84,13 @@ const INK_DIM = 'rgba(148, 163, 184, 0.6)';
  * @param {Array<{id, name, grid: Float32Array, color: string}>} p.horizons
  *   VISIBLE horizons (pick grids in sample indices — converted to ms here)
  * @param {Array<{id, sticks, color: string}>} p.faults visible faults
- * @param {?{v0: number, k: number}} [p.velocity] volume velocity model —
- *   enables the depth (m / ft) display domains; conversion happens PER
- *   SURFACE before differencing, so isochron thickness stays correct
- *   under a depth-varying velocity
+ * @param {?Object} [p.velocity] volume velocity model (single-function
+ *   or layer-cake) — enables the depth (m / ft) display domains;
+ *   conversion happens PER SURFACE before differencing, so isochron
+ *   thickness stays correct under a depth-varying velocity
+ * @param {?(Float32Array|null)[]} [p.velocityBoundaries] layer-cake
+ *   boundary pick grids aligned with the model's layer bases (layer
+ *   cakes convert per column)
  * @param {({ilIdx, xlIdx}) => void} [p.onNavigate] map click -> move the
  *   shared inline/crossline positions
  * @param {({horizonId, cells: Int32Array}) => void} [p.onEraseRegion]
@@ -96,7 +99,8 @@ const INK_DIM = 'rgba(148, 163, 184, 0.6)';
  * @param {number} [p.height]
  */
 function MapView({
-  manifest, geom, horizons, faults, velocity, onNavigate, onEraseRegion,
+  manifest, geom, horizons, faults, velocity, velocityBoundaries,
+  onNavigate, onEraseRegion,
   height = 560,
 }) {
   const wrapRef = useRef(null);
@@ -147,37 +151,49 @@ function MapView({
   const effDomain = velocity ? domain : 'twt';
   const unit = effDomain === 'twt' ? 'ms' : effDomain === 'depth_ft' ? 'ft' : 'm';
 
+  // cell-aware TWT->depth converter (layer cakes read the boundary
+  // grids per column; the single-function model ignores the cell)
+  const depthConv = useMemo(
+    () => (manifest && velocity
+      ? makeDepthConverter(velocity, {
+        dtUs: manifest.geometry.dt_us, boundaries: velocityBoundaries,
+      })
+      : null),
+    [manifest, velocity, velocityBoundaries],
+  );
+
   /** Layer cache (per horizon/pair × domain × model): value grid —
    *  structure TWT or depth, or the isochron Δ(vs − h) with conversion
    *  PER SURFACE before differencing — range, contours, fill bitmap. */
   const layerFor = useCallback((h, second) => {
     if (!h || !geom || !manifest) return null;
     const dtMs = manifest.geometry.dt_us / 1000;
-    const modelKey = velocity ? `${velocity.v0}:${velocity.k}` : '';
-    const key = `${h.id}~${second ? second.id : ''}~${effDomain}~${modelKey}`;
+    const key = `${h.id}~${second ? second.id : ''}~${effDomain}~${velocityKey(velocity)}`;
     let c = cacheRef.current.get(key);
-    if (!c || c.gridA !== h.grid || c.gridB !== (second ? second.grid : null)) {
+    if (!c || c.gridA !== h.grid || c.gridB !== (second ? second.grid : null)
+      || c.boundaries !== velocityBoundaries) {
+      const scale = effDomain === 'depth_ft' ? 1 / M_PER_FT : 1;
       const conv = effDomain === 'twt' ? null
-        : (ms) => twtMsToDepthM(ms, velocity)
-          * (effDomain === 'depth_ft' ? 1 / M_PER_FT : 1);
+        : (ms, cell) => depthConv.toDepthM(ms, cell) * scale;
       const n = h.grid.length;
       const values = new Float32Array(n);
       for (let i = 0; i < n; i++) {
         const a = h.grid[i];
         if (a === NULL_F32) { values[i] = NULL_F32; continue; }
         if (!second) {
-          values[i] = conv ? conv(a * dtMs) : a * dtMs;
+          values[i] = conv ? conv(a * dtMs, i) : a * dtMs;
           continue;
         }
         const b = second.grid[i];
         values[i] = b === NULL_F32 ? NULL_F32
-          : conv ? conv(b * dtMs) - conv(a * dtMs) : (b - a) * dtMs;
+          : conv ? conv(b * dtMs, i) - conv(a * dtMs, i) : (b - a) * dtMs;
       }
       const { zMin, zMax } = gridRange(values);
       const { levels, step } = contourLevels(zMin ?? 0, zMax ?? 0, 12);
       c = {
         gridA: h.grid,
         gridB: second ? second.grid : null,
+        boundaries: velocityBoundaries,
         values,
         unit,
         zMin,
@@ -202,11 +218,11 @@ function MapView({
       c.lutKey = colormap;
     }
     return c;
-  }, [geom, manifest, colormap, lut, effDomain, unit, velocity]);
+  }, [geom, manifest, colormap, lut, effDomain, unit, velocity, velocityBoundaries, depthConv]);
 
   propsRef.current = {
     manifest, geom, horizons, faults, prefs, gutter: g, active, vs, spacing,
-    northDir, velocity, effDomain,
+    northDir, velocity, depthConv, effDomain,
   };
 
   // ---- drawing -----------------------------------------------------------
@@ -538,7 +554,7 @@ function MapView({
       const zUnit = p.effDomain === 'twt' ? 'ms' : p.effDomain === 'depth_ft' ? 'ft' : 'm';
       const conv = p.effDomain === 'twt'
         ? (ms) => ms
-        : (ms) => twtMsToDepthM(ms, p.velocity)
+        : (ms) => p.depthConv.toDepthM(ms, c)
           * (p.effDomain === 'depth_ft' ? 1 / M_PER_FT : 1);
       if (p.vs) {
         const a = p.active.grid[c];
