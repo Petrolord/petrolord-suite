@@ -78,6 +78,46 @@ export function resampleTraverse(vertices, geom, geometry = null) {
 }
 
 /**
+ * Project fault-stick points onto a traverse path.
+ *
+ * The inline/xline analog draws stick points within one LINE of the
+ * section plane; here a point is kept when its nearest path column is
+ * within `maxDist` lattice cells. The default 1.5 matches that
+ * generosity: an adjacent trace measures 1.0 and a diagonal neighbor
+ * 1.41 — both count as "on this section" like |il − idx| <= 1 does —
+ * while anything a full bin off the corridor is dropped. Nearest-column
+ * distance ≈ true point-to-path distance because path columns are about
+ * one bin apart (the along-path error is at most half a step).
+ *
+ * @param {{il:number, xl:number, s:number}[]} points one stick, in pick
+ *   order (top-down along the discontinuity)
+ * @param {{il:number, xl:number}[]} positions traverse trace positions
+ * @param {number} [maxDist] tolerance in lattice cells
+ * @returns {?({trace:number, s:number, dist:number}|null)[]} aligned
+ *   with `points` (null = beyond tolerance, so drawing pen-breaks where
+ *   the stick leaves the corridor); null when nothing projects
+ */
+export function projectStickToTraverse(points, positions, maxDist = 1.5) {
+  if (!points || !points.length || !positions || !positions.length) return null;
+  const out = new Array(points.length).fill(null);
+  let any = false;
+  for (let i = 0; i < points.length; i++) {
+    const q = points[i];
+    let best = -1;
+    let bestD = Infinity;
+    for (let c = 0; c < positions.length; c++) {
+      const d = Math.hypot(positions[c].il - q.il, positions[c].xl - q.xl);
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    if (bestD <= maxDist) {
+      out[i] = { trace: best, s: q.s, dist: bestD };
+      any = true;
+    }
+  }
+  return any ? out : null;
+}
+
+/**
  * Assemble a traverse section from bricks: one column per position,
  * laid out exactly like the inline/crossline sections —
  * data[column * ns + sample], width = ns, height = positions.length —

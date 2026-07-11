@@ -145,6 +145,22 @@ test('traverse orientation sections along a path, view-only, readout via positio
   await page.getByTestId('harness-pickmode').click();
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await expect(page.getByTestId('harness-last-pick')).toHaveText('-');
+
+  // the harness fault stick sits ON the path, so its projection must
+  // put orange ink on the interpretation overlay (a plain 2D canvas)
+  const faultInk = await page.evaluate(() => {
+    const overlayCanvas = Array.from(document.querySelectorAll('canvas'))
+      .find((c) => c.className.includes('touch-none'));
+    const ctx = overlayCanvas.getContext('2d');
+    const d = ctx.getImageData(0, 0, overlayCanvas.width, overlayCanvas.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      // #f97316-ish: strong red, mid green, low blue
+      if (d[i + 3] > 0 && d[i] > 180 && d[i + 1] > 60 && d[i + 1] < 190 && d[i + 2] < 90) n += 1;
+    }
+    return n;
+  });
+  expect(faultInk).toBeGreaterThan(20);
 });
 
 test('north arrow appears on time slices, arrow keys step slices', async ({ page }) => {

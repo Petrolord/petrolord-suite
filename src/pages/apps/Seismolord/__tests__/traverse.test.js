@@ -11,7 +11,9 @@ import { scanGeometry } from '@/pages/apps/Seismolord/engine/segyScan';
 import { transcodeToBricks } from '@/pages/apps/Seismolord/engine/brickTranscode';
 import { buildManifest } from '@/pages/apps/Seismolord/engine/manifest';
 import { geomFromManifest } from '@/pages/apps/Seismolord/engine/sliceAssembly';
-import { resampleTraverse, assembleTraverse } from '@/pages/apps/Seismolord/engine/traverse';
+import {
+  resampleTraverse, assembleTraverse, projectStickToTraverse,
+} from '@/pages/apps/Seismolord/engine/traverse';
 
 const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'seismolord');
 
@@ -101,6 +103,72 @@ describe('resampleTraverse', () => {
     expect(r.positions).toHaveLength(9);
     expect(r.stepM).toBeNull();
     expect(r.lengthM).toBeNull();
+  });
+});
+
+describe('projectStickToTraverse', () => {
+  // straight path along inline 5, crosslines 0..15
+  const positions = Array.from({ length: 16 }, (_, xl) => ({ il: 5, xl }));
+
+  test('points on the path project to their columns at distance 0', () => {
+    const proj = projectStickToTraverse(
+      [{ il: 5, xl: 2, s: 10 }, { il: 5, xl: 3, s: 30 }, { il: 5, xl: 4, s: 55 }],
+      positions,
+    );
+    expect(proj).toEqual([
+      { trace: 2, s: 10, dist: 0 },
+      { trace: 3, s: 30, dist: 0 },
+      { trace: 4, s: 55, dist: 0 },
+    ]);
+  });
+
+  test('adjacent and diagonal neighbors stay within the default corridor', () => {
+    const proj = projectStickToTraverse(
+      [{ il: 6, xl: 7, s: 12 }, { il: 6, xl: 8, s: 40 }],   // one line off; diag ~1.41 never arises here
+      positions,
+    );
+    expect(proj[0].trace).toBe(7);
+    expect(proj[0].dist).toBeCloseTo(1, 5);
+    expect(proj[1].trace).toBe(8);
+    // a true diagonal offset (1, between columns) also passes 1.5
+    const diag = projectStickToTraverse([{ il: 6, xl: 7.5, s: 5 }], positions);
+    expect(diag[0].dist).toBeCloseTo(Math.hypot(1, 0.5), 5);
+  });
+
+  test('points beyond the corridor are null, pen-breaking the polyline', () => {
+    const proj = projectStickToTraverse(
+      [
+        { il: 5, xl: 1, s: 8 },
+        { il: 9, xl: 1, s: 20 },        // 4 lines away — dropped
+        { il: 5, xl: 2, s: 32 },
+      ],
+      positions,
+    );
+    expect(proj[0]).not.toBeNull();
+    expect(proj[1]).toBeNull();
+    expect(proj[2]).not.toBeNull();
+  });
+
+  test('a stick entirely off the corridor returns null', () => {
+    expect(projectStickToTraverse(
+      [{ il: 12, xl: 0, s: 1 }, { il: 12, xl: 5, s: 9 }], positions,
+    )).toBeNull();
+    expect(projectStickToTraverse([], positions)).toBeNull();
+    expect(projectStickToTraverse([{ il: 5, xl: 1, s: 1 }], [])).toBeNull();
+  });
+
+  test('projection order follows pick order, not path order', () => {
+    const proj = projectStickToTraverse(
+      [{ il: 5, xl: 9, s: 5 }, { il: 5, xl: 4, s: 25 }, { il: 5, xl: 11, s: 50 }],
+      positions,
+    );
+    expect(proj.map((p) => p.trace)).toEqual([9, 4, 11]);
+  });
+
+  test('custom tolerance widens or narrows the corridor', () => {
+    const pt = [{ il: 7, xl: 3, s: 10 }];                    // 2 cells off
+    expect(projectStickToTraverse(pt, positions)).toBeNull();
+    expect(projectStickToTraverse(pt, positions, 2.5)[0].trace).toBe(3);
   });
 });
 

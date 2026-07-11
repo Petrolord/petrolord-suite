@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SliceRenderer } from '../viewer/SliceRenderer';
 import { snapPick } from '../engine/horizonTrack';
+import { projectStickToTraverse } from '../engine/traverse';
 import { ViewTransform, MIN_ZOOM, MAX_ZOOM } from '../viewer/viewTransform';
 import {
   drawAxes, drawScaleBar, drawNorthArrow, drawColorbar,
@@ -72,8 +73,9 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  * @param {?Object} p.geom geomFromManifest() result
  * @param {?Object} p.manifest volume manifest (axis values, corners)
  * @param {'inline'|'xline'|'time'|'traverse'} p.orientation traverse is
- *   VIEW-ONLY: picking, seed markers, ghost preview and fault sticks are
- *   disabled/skipped on it (callers pass no pickMode/onStepSlice)
+ *   VIEW-ONLY: picking, seed markers and ghost preview are disabled on it
+ *   (callers pass no pickMode/onStepSlice); fault sticks render where
+ *   they fall within the path corridor (projectStickToTraverse)
  * @param {number} p.sliceIndex
  * @param {{colormap:string, gain:number, polarity:number, clip:number,
  *          traceBalance:boolean}} p.display clip is ABSOLUTE amplitude
@@ -120,6 +122,7 @@ function SliceView({
   const readoutValsRef = useRef(null); // cursor readout values span
   const readoutHintRef = useRef(null); // cursor readout hint span
   const timeMatchesRef = useRef(new WeakMap()); // horizon grid -> time-slice cells
+  const stickProjRef = useRef(new WeakMap());   // stick -> traverse projection
   // Adaptive render resolution: backing-store px per CSS px, starting at
   // devicePixelRatio and stepped down (never below 1) when sustained
   // interaction frames run slow. Frame cost is dominated by backing-store
@@ -245,10 +248,9 @@ function SliceView({
       }
     }
 
-    // fault sticks project onto inline/xline/time views only — the
-    // stick-to-traverse-path distance test is a recorded follow-up
     const drawSticks = (sticks, color, dashed) => {
-      if (ori === 'traverse') return;
+      const posn = ori === 'traverse' ? p.slice?.positions : null;
+      if (ori === 'traverse' && !posn) return;
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
       ctx.lineWidth = lw;
@@ -256,6 +258,31 @@ function SliceView({
       const mk = Math.max(4, 2 * dpr);
       for (const stick of sticks) {
         const pts = stick.points || stick;
+        if (ori === 'traverse') {
+          // stick points within the path corridor draw at their nearest
+          // column, pen-breaking where the stick leaves it. The
+          // O(points × columns) projection is cached per (stick, path) —
+          // never per camera frame.
+          let c = stickProjRef.current.get(stick);
+          if (!c || c.positions !== posn) {
+            c = { positions: posn, proj: projectStickToTraverse(pts, posn) };
+            stickProjRef.current.set(stick, c);
+          }
+          if (!c.proj) continue;
+          ctx.beginPath();
+          let pen = false;
+          let drawn = 0;
+          for (const q of c.proj) {
+            if (!q) { pen = false; continue; }
+            const s = t.worldToScreen(q.trace + 0.5, q.s + 0.5);
+            if (pen) ctx.lineTo(s.x, s.y);
+            else { ctx.moveTo(s.x, s.y); pen = true; }
+            ctx.fillRect(s.x - mk / 2, s.y - mk / 2, mk, mk);
+            drawn += 1;
+          }
+          if (drawn > 1) ctx.stroke();
+          continue;
+        }
         if (ori !== 'time') {
           const near = pts.filter((q) => (ori === 'inline'
             ? Math.abs(q.il - idx) <= 1 : Math.abs(q.xl - idx) <= 1));
