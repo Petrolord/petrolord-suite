@@ -34,6 +34,7 @@ import {
   contourLevels, contourPolylines, buildMapPixels, gridRange, cellsInPolygon,
 } from '../viewer/mapContours';
 import { makeDepthConverter, velocityKey, M_PER_FT } from '../engine/velocityModel';
+import { AMP_MODES } from '../engine/horizonAmplitude';
 import { ilxlToWorld } from '../engine/surveyGeometry';
 import { NULL_VALUE } from '../engine/manifest';
 
@@ -78,6 +79,13 @@ const gutters = (showAxes) => (showAxes ? { left: 56, top: 24 } : { left: 0, top
 const INK = 'rgba(203, 213, 225, 0.92)';
 const INK_DIM = 'rgba(148, 163, 184, 0.6)';
 
+/** Level/legend value on the layer's contour step: whole-number steps
+ *  (TWT, depth) keep the integer look; sub-unit steps (amplitude,
+ *  thin isochrons) show 3 significant digits instead of rounding to 0. */
+const fmtZ = (v, step) => (step >= 1
+  ? String(Math.round(v))
+  : Number(v.toPrecision(3)).toString());
+
 /**
  * @param {Object} p
  * @param {?Object} p.manifest volume manifest
@@ -105,12 +113,16 @@ const INK_DIM = 'rgba(148, 163, 184, 0.6)';
  * @param {Array<{id, name, vertices: Array<{il, xl}>}>} [p.savedTraverses]
  *   the volume's saved traverse lines — drawn dimmed with name labels
  *   (the active line draws on top in full ink); Layers-toggleable
+ * @param {(grid: Float32Array, opts: {mode, window}) => Promise<Float32Array>}
+ *   [p.onAmplitude] amplitude-attribute extraction along the active
+ *   horizon (modes per engine AMP_MODES) — enables the map's attribute
+ *   select; the returned lattice grid becomes the mapped layer
  * @param {number} [p.height]
  */
 function MapView({
   manifest, geom, horizons, faults, velocity, velocityBoundaries,
   onNavigate, onEraseRegion, traverse, onTraverse, savedTraverses,
-  height = 560,
+  onAmplitude, height = 560,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -132,6 +144,11 @@ function MapView({
   const [activeId, setActiveId] = useState(null);
   const [vsId, setVsId] = useState('');       // isochron second horizon ('' = structure)
   const [domain, setDomain] = useState('twt'); // 'twt' | 'depth_m' | 'depth_ft'
+  // attribute layer: 'structure' maps the horizon surface (TWT/depth);
+  // an AMP_MODES key maps the extracted seismic amplitude along it
+  const [attr, setAttr] = useState('structure');
+  const [attrWindow, setAttrWindow] = useState(5);   // ± samples (windowed modes)
+  const [ampLayer, setAmpLayer] = useState(null);    // {grid, mode, window, values}
   const [eraseTool, setEraseTool] = useState(false);
   const [travTool, setTravTool] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -173,40 +190,77 @@ function MapView({
     [manifest, velocity, velocityBoundaries],
   );
 
-  /** Layer cache (per horizon/pair × domain × model): value grid —
-   *  structure TWT or depth, or the isochron Δ(vs − h) with conversion
-   *  PER SURFACE before differencing — range, contours, fill bitmap. */
+  // amplitude attribute needs the extraction callback and a single
+  // mapped horizon — isochron (vs) and amplitude are mutually exclusive
+  const effAttr = onAmplitude && active && !vs ? attr : 'structure';
+  const ampMode = effAttr !== 'structure'
+    ? AMP_MODES.find((m) => m.key === effAttr) || null : null;
+  const [ampBusy, setAmpBusy] = useState(false);
+
+  // extract (or re-extract) when the attribute, its window, or the
+  // active horizon's GRID changes — an edit-session stroke commit swaps
+  // the grid ref, so the attribute map follows edits; while extraction
+  // runs (or fails) the map falls back to the structure layer
+  const activeGrid = active ? active.grid : null;
+  useEffect(() => {
+    if (!ampMode || !activeGrid) { setAmpLayer(null); return undefined; }
+    const w = ampMode.windowed ? attrWindow : 0;
+    let stale = false;
+    setAmpBusy(true);
+    onAmplitude(activeGrid, { mode: ampMode.key, window: w })
+      .then((values) => {
+        if (!stale) setAmpLayer({ grid: activeGrid, mode: ampMode.key, window: w, values });
+      })
+      .catch(() => { if (!stale) setAmpLayer(null); })
+      .finally(() => { if (!stale) setAmpBusy(false); });
+    return () => { stale = true; };
+  }, [ampMode, activeGrid, attrWindow, onAmplitude]);
+
+  /** Layer cache (per horizon/pair × domain × model, or per amplitude
+   *  extraction): value grid — structure TWT or depth, the isochron
+   *  Δ(vs − h) with conversion PER SURFACE before differencing, or the
+   *  extracted amplitude attribute — range, contours, fill bitmap. */
   const layerFor = useCallback((h, second) => {
     if (!h || !geom || !manifest) return null;
     const dtMs = manifest.geometry.dt_us / 1000;
-    const key = `${h.id}~${second ? second.id : ''}~${effDomain}~${velocityKey(velocity)}`;
+    const amp = ampMode && !second && ampLayer
+      && ampLayer.grid === h.grid && ampLayer.mode === ampMode.key ? ampLayer : null;
+    const key = amp
+      ? `${h.id}~amp~${amp.mode}~${amp.window}`
+      : `${h.id}~${second ? second.id : ''}~${effDomain}~${velocityKey(velocity)}`;
     let c = cacheRef.current.get(key);
-    if (!c || c.gridA !== h.grid || c.gridB !== (second ? second.grid : null)
+    const srcA = amp ? amp.values : h.grid;
+    if (!c || c.gridA !== srcA || c.gridB !== (second ? second.grid : null)
       || c.boundaries !== velocityBoundaries) {
-      const scale = effDomain === 'depth_ft' ? 1 / M_PER_FT : 1;
-      const conv = effDomain === 'twt' ? null
-        : (ms, cell) => depthConv.toDepthM(ms, cell) * scale;
-      const n = h.grid.length;
-      const values = new Float32Array(n);
-      for (let i = 0; i < n; i++) {
-        const a = h.grid[i];
-        if (a === NULL_F32) { values[i] = NULL_F32; continue; }
-        if (!second) {
-          values[i] = conv ? conv(a * dtMs, i) : a * dtMs;
-          continue;
+      let values;
+      if (amp) {
+        values = amp.values;
+      } else {
+        const scale = effDomain === 'depth_ft' ? 1 / M_PER_FT : 1;
+        const conv = effDomain === 'twt' ? null
+          : (ms, cell) => depthConv.toDepthM(ms, cell) * scale;
+        const n = h.grid.length;
+        values = new Float32Array(n);
+        for (let i = 0; i < n; i++) {
+          const a = h.grid[i];
+          if (a === NULL_F32) { values[i] = NULL_F32; continue; }
+          if (!second) {
+            values[i] = conv ? conv(a * dtMs, i) : a * dtMs;
+            continue;
+          }
+          const b = second.grid[i];
+          values[i] = b === NULL_F32 ? NULL_F32
+            : conv ? conv(b * dtMs, i) - conv(a * dtMs, i) : (b - a) * dtMs;
         }
-        const b = second.grid[i];
-        values[i] = b === NULL_F32 ? NULL_F32
-          : conv ? conv(b * dtMs, i) - conv(a * dtMs, i) : (b - a) * dtMs;
       }
       const { zMin, zMax } = gridRange(values);
       const { levels, step } = contourLevels(zMin ?? 0, zMax ?? 0, 12);
       c = {
-        gridA: h.grid,
+        gridA: srcA,
         gridB: second ? second.grid : null,
         boundaries: velocityBoundaries,
         values,
-        unit,
+        unit: amp ? 'amp' : unit,
         zMin,
         zMax,
         levels,
@@ -229,11 +283,13 @@ function MapView({
       c.lutKey = colormap;
     }
     return c;
-  }, [geom, manifest, colormap, lut, effDomain, unit, velocity, velocityBoundaries, depthConv]);
+  }, [geom, manifest, colormap, lut, effDomain, unit, velocity, velocityBoundaries,
+    depthConv, ampMode, ampLayer]);
 
   propsRef.current = {
     manifest, geom, horizons, faults, prefs, gutter: g, active, vs, spacing,
     northDir, velocity, depthConv, effDomain, traverse, savedTraverses,
+    effAttr, ampLayer,
   };
 
   // ---- drawing -----------------------------------------------------------
@@ -297,7 +353,7 @@ function MapView({
         for (let k = 0; k < layer.levels.length; k++) {
           if (Math.round(layer.levels[k] / layer.step) % 5 !== 0) continue;
           ctx.fillStyle = inkFor(true);
-          const text = String(Math.round(layer.levels[k]));
+          const text = fmtZ(layer.levels[k], layer.step);
           for (const path of layer.paths[k]) {
             let acc = 0;
             let next = 90 * dpr;                 // first label ~90px in
@@ -523,9 +579,9 @@ function MapView({
       ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
       ctx.textAlign = 'right';
       ctx.textBaseline = 'top';
-      ctx.fillText(`${Math.round(layer.zMin)} ${layer.unit}`, x - 4 * dpr, y);
+      ctx.fillText(`${fmtZ(layer.zMin, layer.step)} ${layer.unit}`, x - 4 * dpr, y);
       ctx.textBaseline = 'bottom';
-      ctx.fillText(`${Math.round(layer.zMax)} ${layer.unit}`, x - 4 * dpr, y + h);
+      ctx.fillText(`${fmtZ(layer.zMax, layer.step)} ${layer.unit}`, x - 4 * dpr, y + h);
       if (layer.step) {
         ctx.textAlign = 'right';
         ctx.fillStyle = INK_DIM;
@@ -538,9 +594,14 @@ function MapView({
       ctx.font = `${Math.round(11 * dpr)}px ui-monospace, monospace`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
-      const label = p.vs
-        ? `${p.vs.name} − ${p.active.name} (isochron)`
-        : p.active.name || 'Horizon';
+      const ampL = p.effAttr !== 'structure' && p.ampLayer
+        && p.ampLayer.grid === p.active.grid ? p.ampLayer : null;
+      const ampM = ampL ? AMP_MODES.find((m) => m.key === ampL.mode) : null;
+      const label = ampM
+        ? `${p.active.name} — ${ampM.label}${ampM.windowed ? ` ±${ampL.window}` : ''}`
+        : p.vs
+          ? `${p.vs.name} − ${p.active.name} (isochron)`
+          : p.active.name || 'Horizon';
       ctx.fillText(label, gl + 8 * dpr, canvas.height - 26 * dpr);
     }
   }, [layerFor, lut]);
@@ -597,7 +658,7 @@ function MapView({
   useEffect(() => { cacheRef.current.clear(); }, [geom]);
 
   useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, vs,
-    effDomain, velocity, traverse, savedTraverses, scheduleDraw]);
+    effDomain, velocity, traverse, savedTraverses, effAttr, ampLayer, scheduleDraw]);
 
   // model removed -> fall back to TWT so the select never lies
   useEffect(() => {
@@ -643,7 +704,12 @@ function MapView({
       world = `X ${w.x.toFixed(0)}   Y ${w.y.toFixed(0)}   `;
     }
     let z = '';
-    if (p.active) {
+    const ampL = p.active && p.effAttr !== 'structure' && p.ampLayer
+      && p.ampLayer.grid === p.active.grid ? p.ampLayer : null;
+    if (ampL) {
+      const v = ampL.values[hit.ilIdx * p.geom.nXl + hit.xlIdx];
+      z = `   A ${v === NULL_F32 ? 'null' : v.toExponential(3)}`;
+    } else if (p.active) {
       const c = hit.ilIdx * p.geom.nXl + hit.xlIdx;
       const dtMs = geo.dt_us / 1000;
       const zUnit = p.effDomain === 'twt' ? 'ms' : p.effDomain === 'depth_ft' ? 'ft' : 'm';
@@ -929,7 +995,10 @@ function MapView({
         <select
           className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs max-w-[150px]"
           value={vs?.id || ''}
-          onChange={(e) => setVsId(e.target.value)}
+          onChange={(e) => {
+            setVsId(e.target.value);
+            if (e.target.value) setAttr('structure');   // isochron ⊕ amplitude
+          }}
           disabled={(horizons || []).length < 2}
           title="Isochron mode: map the TWT interval Δ = vs − horizon (needs two visible horizons)"
         >
@@ -938,6 +1007,34 @@ function MapView({
             <option key={h.id} value={h.id}>{h.name}</option>
           ))}
         </select>
+
+        {onAmplitude && (
+          <select
+            className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+            value={effAttr}
+            onChange={(e) => {
+              setAttr(e.target.value);
+              if (e.target.value !== 'structure') setVsId('');  // amplitude ⊕ isochron
+            }}
+            disabled={!active}
+            title="Mapped attribute: the horizon surface, or seismic amplitude extracted along it"
+          >
+            <option value="structure">Structure</option>
+            {AMP_MODES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+          </select>
+        )}
+        {ampMode?.windowed && (
+          <select
+            className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+            value={String(attrWindow)}
+            onChange={(e) => setAttrWindow(Number(e.target.value))}
+            title="Extraction half-window (samples around the pick)"
+          >
+            {[2, 5, 10, 20].map((w) => (
+              <option key={w} value={String(w)}>{`±${w}`}</option>
+            ))}
+          </select>
+        )}
 
         <select
           className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
@@ -953,10 +1050,12 @@ function MapView({
           className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
           value={effDomain}
           onChange={(e) => setDomain(e.target.value)}
-          disabled={!hasData || !velocity}
-          title={velocity
-            ? 'Display domain (depth via the volume velocity model)'
-            : 'Depth display needs a velocity model — set one in the viewer controls'}
+          disabled={!hasData || !velocity || effAttr !== 'structure'}
+          title={effAttr !== 'structure'
+            ? 'Amplitude maps have no display domain — switch the attribute back to Structure'
+            : velocity
+              ? 'Display domain (depth via the volume velocity model)'
+              : 'Depth display needs a velocity model — set one in the viewer controls'}
         >
           <option value="twt">TWT ms</option>
           <option value="depth_m">Depth m</option>
@@ -1132,6 +1231,7 @@ function MapView({
       </div>
 
       <div className="flex items-center gap-4 text-xs text-slate-400 font-mono mt-1 h-5">
+        {ampBusy && <span className="text-cyan-400">extracting amplitude…</span>}
         <span ref={readoutValsRef} className="whitespace-pre" style={{ display: 'none' }} />
         <span ref={readoutHintRef} className="text-slate-600">
           {eraseArmed

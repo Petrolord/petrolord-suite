@@ -23,6 +23,9 @@ import {
   resampleTraverse, assembleTraverse, traverseEraseCells, sanitizeTraverses,
 } from '../engine/traverse';
 import {
+  extractHorizonAmplitude, bricksForHorizonAmplitude,
+} from '../engine/horizonAmplitude';
+import {
   snapPick, autotrack2D, smoothHorizon, fillHorizonHoles,
 } from '../engine/horizonTrack';
 import {
@@ -120,6 +123,9 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const [traverseSavedId, setTraverseSavedId] = useState(null);
   const [traverseBusy, setTraverseBusy] = useState(false);
   const [winFocus, setWinFocus] = useState(null);        // {key, seq} -> ViewerWindows
+  // bricks of an in-flight map amplitude extraction — shielded from the
+  // slice scrub's cancellation exactly like an in-flight traverse
+  const ampBricksRef = useRef(null);
 
   // Phase 3: picking + horizons; Phase 4: fault sticks; editing tools:
   // 'manual' (paint picks) and 'erase' (paint nulls) run against the
@@ -410,6 +416,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     setDraftSticks([]);
     traverseReqRef.current += 1;                  // supersede in-flight assembly
     traverseBricksRef.current = null;
+    ampBricksRef.current = null;
     setTraverse(null);
     setTraverseSlice(null);
     setTraverseLoading(false);
@@ -464,12 +471,12 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     setError(null);
     try {
       // scrub cancellation: keep only the bricks this slice needs — plus
-      // the bricks of an in-flight traverse assembly, which a scrub must
-      // never abort
+      // the bricks of an in-flight traverse assembly or map amplitude
+      // extraction, which a scrub must never abort
       const needed = new Set(bricksForSlice(geom, orientation, sliceIndex)
         .map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
-      if (traverseBricksRef.current) {
-        for (const key of traverseBricksRef.current) needed.add(key);
+      for (const shield of [traverseBricksRef.current, ampBricksRef.current]) {
+        if (shield) for (const key of shield) needed.add(key);
       }
       cacheRef.current.cancelPendingExcept(needed);
 
@@ -1033,6 +1040,21 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
       applyOp([cell], [sample]);
     }
   }, [geom, traverse, traverseSlice, pickMode, eraseSize, snapMode, snapWindow, applyOp]);
+
+  /** Map amplitude-attribute extraction along a horizon grid. The
+   *  needed brick keys are registered up front so a concurrent slice
+   *  scrub cannot abort the extraction's fetches (traverse pattern). */
+  const extractAmplitude = useCallback(async (grid, opts) => {
+    if (!geom || !volume) throw new Error('No volume selected');
+    const keys = new Set(bricksForHorizonAmplitude(geom, grid, opts.window || 0)
+      .map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
+    ampBricksRef.current = keys;
+    try {
+      return await extractHorizonAmplitude(getBrick, geom, grid, opts);
+    } finally {
+      if (ampBricksRef.current === keys) ampBricksRef.current = null;
+    }
+  }, [geom, volume, getBrick]);
 
   /** Persist the drawn line under a name (manifest.traverses — the same
    *  owner-path manifest upsert as the velocity model). */
@@ -1665,6 +1687,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                   traverse={traverse ? traverse.vertices : null}
                   onTraverse={handleTraverse}
                   savedTraverses={savedTraverses}
+                  onAmplitude={extractAmplitude}
                   height={560}
                 />
               ),

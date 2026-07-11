@@ -1,6 +1,44 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (traverse picking + named traverse lines)
+Last updated: 2026-07-11 (horizon amplitude maps)
+
+## Horizon amplitude-extraction maps: DONE
+
+The map window can now display seismic amplitude extracted along the
+active horizon instead of its structure — the first attribute map.
+
+- **Engine** (`engine/horizonAmplitude.js`): "value at horizon"
+  evaluates the parabola through the three samples around the
+  sub-sample pick (the snapPick refinement family — a peak picked at
+  its parabolic apex reads its true apex amplitude; EXACT on quadratic
+  traces, jest-proven analytically), with nearest-sample fallback on
+  incomplete stencils; windowed RMS / mean / max-|amp| statistics over
+  ±N samples, nulls excluded, all-null → null. This is a COMPUTED
+  ATTRIBUTE of stored amplitudes — the never-interpolate-display rule
+  is untouched. `extractHorizonAmplitude` visits bricks grouped per
+  (bi, bj) column with only the k-range that column's picks need —
+  each brick downloads exactly once (asserted), an all-null horizon
+  fetches nothing. `bricksForHorizonAmplitude` preflights the key set
+  so ViewerPanel shields the fetches from slice-scrub cancellation
+  (the traverse-assembly pattern).
+- **MapView**: an Attribute select (Structure / Amplitude / RMS /
+  Mean / Max |amp| + ±2/5/10/20 window) next to the isochron "vs"
+  select — the two are mutually exclusive (choosing one resets the
+  other); the depth-domain select disables on amplitude maps (they
+  have no display domain). Fill / contours / colorbar / labels /
+  cursor readout (`A 1.234e-1`) all ride the extracted grid through
+  the existing layer cache; sub-unit contour steps now print 3
+  significant digits instead of rounding to 0 (also fixes thin
+  isochron labels). Extraction runs async with an "extracting
+  amplitude…" note; until it lands the map shows structure. Editing
+  the mapped horizon re-extracts per committed stroke (grid-ref keyed;
+  brick cache warm, so it's compute-bound — acceptable, noted).
+- Verified: 21 jest suites / 269 tests (new horizonAmplitude suite,
+  10 cases incl. analytic-apex exactness and fetch-once assertions),
+  14 Playwright e2e green on staging, esbuild bundle check clean.
+- Follow-up candidates: attribute extraction between two horizons
+  (interval attributes), export attribute grids alongside structure,
+  amplitude histograms per horizon (suite chart standard applies).
 
 ## Traverse picking + named/persisted lines: DONE
 
