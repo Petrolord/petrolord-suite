@@ -6,6 +6,7 @@ import { loadHorizonGrid } from './horizonsService';
 import { picksToPoints } from '../engine/gridding';
 import { geomFromManifest } from '../engine/sliceAssembly';
 import { writeXYZ } from '../engine/surfaceExport';
+import { normalizeVelocity, sampleToExportZ } from '../engine/velocityModel';
 
 const newGriddingWorker = () =>
   new Worker(new URL('../workers/gridding.worker.js', import.meta.url), { type: 'module' });
@@ -17,7 +18,8 @@ let jobSeq = 0;
  * @param {Object} p.manifest volume manifest (v1)
  * @param {Object} p.horizon seismic_horizons row
  * @param {'depth'|'twt'} p.domain
- * @param {number} [p.velocityFtS] constant velocity for depth conversion
+ * @param {number} [p.velocityFtS] constant-velocity FALLBACK for depth
+ *   conversion — the manifest's persisted velocity model wins when set
  * @param {number} [p.cellM] grid cell (default: survey bin)
  * @returns {Promise<{g: Object, spec: Object, gridded: Object, xyzText: string}>}
  */
@@ -25,8 +27,11 @@ export async function gridHorizonSurface({ manifest, horizon, domain, velocityFt
   const geom = geomFromManifest(manifest);
   const picks = await loadHorizonGrid(horizon);
   const dtMs = manifest.geometry.dt_us / 1000;
+  const model = normalizeVelocity(manifest.velocity);
   const sampleToZ = domain === 'depth'
-    ? (s) => -((s * dtMs) / 1000) * (velocityFtS / 2)
+    ? (model
+      ? sampleToExportZ(model, manifest.geometry.dt_us)
+      : (s) => -((s * dtMs) / 1000) * (velocityFtS / 2))
     : (s) => -(s * dtMs);
   const points = picksToPoints(picks, geom, manifest.geometry.corners, sampleToZ);
   if (points.length < 3) throw new Error('Horizon has too few live picks to grid.');

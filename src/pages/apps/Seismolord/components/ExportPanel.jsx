@@ -9,6 +9,9 @@ import { listHorizons, loadHorizonGrid } from '../services/horizonsService';
 import { picksToPoints } from '../engine/gridding';
 import { geomFromManifest } from '../engine/sliceAssembly';
 import { writeXYZ, writeCPS3, writeZMAP, grvAcreFt } from '../engine/surfaceExport';
+import {
+  normalizeVelocity, describeVelocity, sampleToExportZ,
+} from '../engine/velocityModel';
 import { publishSurface } from '../services/exportsService';
 
 const FORMATS = [
@@ -52,6 +55,9 @@ export default function ExportPanel({ volume, manifest }) {
     }
   }, [volume]);
 
+  // the volume's persisted velocity model beats the constant fallback
+  const model = useMemo(() => normalizeVelocity(manifest?.velocity), [manifest]);
+
   const binM = useMemo(() => {
     if (!manifest) return 25;
     const g = manifest.geometry;
@@ -73,9 +79,12 @@ export default function ExportPanel({ volume, manifest }) {
       const picks = await loadHorizonGrid(horizon);
       const dtMs = manifest.geometry.dt_us / 1000;
 
-      // z NEGATIVE downward (playbook export convention)
+      // z NEGATIVE downward (playbook export convention); the volume's
+      // velocity model wins over the constant-velocity fallback
       const sampleToZ = domain === 'depth'
-        ? (s) => -((s * dtMs) / 1000) * (velocity / 2)
+        ? (model
+          ? sampleToExportZ(model, manifest.geometry.dt_us)
+          : (s) => -((s * dtMs) / 1000) * (velocity / 2))
         : (s) => -(s * dtMs);
       const points = picksToPoints(picks, geom, manifest.geometry.corners, sampleToZ);
       if (points.length < 3) throw new Error('Horizon has too few live picks to grid.');
@@ -134,7 +143,8 @@ export default function ExportPanel({ volume, manifest }) {
           horizon,
           params: {
             cell_m: dxy,
-            velocity_ft_s: domain === 'depth' ? velocity : null,
+            velocity_model: domain === 'depth' && model ? model : null,
+            velocity_ft_s: domain === 'depth' && !model ? velocity : null,
             max_extrapolation_m: 2 * dxy,
             control_points: gridded.controlCount,
             live_nodes: gridded.live,
@@ -213,13 +223,25 @@ export default function ExportPanel({ volume, manifest }) {
                 </select>
               </div>
               <div>
-                <Label className="text-slate-300">Velocity ft/s</Label>
-                <Input
-                  type="number" value={velocity} min="1000" step="100"
-                  className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
-                  onChange={(e) => setVelocity(Number(e.target.value))}
-                  disabled={domain !== 'depth'}
-                />
+                <Label className="text-slate-300">
+                  {model ? 'Velocity (volume model)' : 'Velocity ft/s'}
+                </Label>
+                {model ? (
+                  <div
+                    className="mt-1 rounded-md bg-slate-950 border border-slate-700
+                      text-slate-400 p-2 text-sm truncate"
+                    title="Set in the viewer's velocity model controls; clear it there to use a constant"
+                  >
+                    {describeVelocity(model)}
+                  </div>
+                ) : (
+                  <Input
+                    type="number" value={velocity} min="1000" step="100"
+                    className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                    onChange={(e) => setVelocity(Number(e.target.value))}
+                    disabled={domain !== 'depth'}
+                  />
+                )}
               </div>
               <div>
                 <Label className="text-slate-300">Cell (m, 0=bin)</Label>
@@ -297,7 +319,8 @@ export default function ExportPanel({ volume, manifest }) {
             )}
             <p className="text-xs text-slate-500">
               Exports use the suite convention: Z negative downward (depth in feet via
-              constant-velocity conversion, or negated TWT ms); nulls are 1.0E+30;
+              the volume velocity model when set, else constant velocity; or negated
+              TWT ms); nulls are 1.0E+30;
               CPS-3/ZMAP+ bodies are column-major, north to south. Assumes an
               unrotated survey (X along crosslines) — rotated geometry is a recorded
               follow-up.

@@ -63,6 +63,47 @@ export async function saveHorizon({ volume, name, picks, seed, params, dtUs }) {
   return data;
 }
 
+/**
+ * Persist an edited pick grid over an existing horizon: overwrite the
+ * blob in place (same path — RLS owner path is already established),
+ * then refresh the row's stats/params.
+ *
+ * @param {Object} p
+ * @param {Object} p.horizon seismic_horizons row
+ * @param {Float32Array} p.picks edited grid (1e30 nulls)
+ * @param {number} p.dtUs volume sample interval, for TWT stats
+ * @param {Object} [p.params] merged into the stored params (e.g. edit
+ *   provenance: snap mode, tools used)
+ */
+export async function updateHorizon({ horizon, picks, dtUs, params }) {
+  const { error: uploadError } = await supabase.storage.from(SEISMIC_BUCKET)
+    .upload(horizon.storage_path,
+      new Blob([picks.buffer], { type: 'application/octet-stream' }),
+      { contentType: 'application/octet-stream', upsert: true });
+  if (uploadError) throw new Error(`Could not store edited picks: ${uploadError.message}`);
+
+  const s = horizonStats(picks);
+  const dtMs = dtUs / 1000;
+  const stats = {
+    tracked: s.tracked,
+    coverage: s.coverage,
+    min_twt_ms: s.minSample != null ? s.minSample * dtMs : null,
+    max_twt_ms: s.maxSample != null ? s.maxSample * dtMs : null,
+    grid: { n_il_by_n_xl: picks.length },
+  };
+  const nextParams = { ...(horizon.params || {}), ...(params || {}) };
+  const { data, error } = await supabase.from('seismic_horizons')
+    .update({
+      stats,
+      params: nextParams,
+      snap_mode: nextParams.mode || horizon.snap_mode,
+    })
+    .eq('id', horizon.id)
+    .select().single();
+  if (error) throw new Error(`Could not update horizon: ${error.message}`);
+  return data;
+}
+
 export async function listHorizons(volumeId) {
   const { data, error } = await supabase.from('seismic_horizons')
     .select('*')

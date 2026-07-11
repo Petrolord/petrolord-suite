@@ -22,6 +22,23 @@ export async function getManifest(volume) {
   return JSON.parse(await data.text());
 }
 
+/**
+ * Persist the volume's velocity model inside its manifest.json (owner
+ * path, storage RLS — no schema change). Pass null to remove the model.
+ * @returns {Promise<Object>} the merged manifest
+ */
+export async function saveManifestVelocity(volume, manifest, velocity) {
+  const next = { ...manifest };
+  if (velocity) next.velocity = velocity;
+  else delete next.velocity;
+  const { error } = await supabase.storage.from(SEISMIC_BUCKET)
+    .upload(`${volume.storage_path}/manifest.json`,
+      new Blob([JSON.stringify(next)], { type: 'application/json' }),
+      { contentType: 'application/json', upsert: true });
+  if (error) throw new Error(`Could not save velocity model: ${error.message}`);
+  return next;
+}
+
 export async function deleteVolume(volume) {
   // Storage first: list bricks + manifest under the owner path, remove in
   // batches (remove() caps around 1000 keys per call), then drop the row.

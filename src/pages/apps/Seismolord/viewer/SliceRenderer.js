@@ -4,14 +4,31 @@
 // masking, symmetric clip around zero — happens in the fragment shader
 // and never touches the data (domain rule: gain/AGC in shader only).
 
-import { COLOR_MAPS } from '@/utils/colorMaps';
+import {
+  SAMPLING_GLSL, DISPLAY_GLSL, buildLut, linkProgram,
+} from './shaderChunks';
 
-/** Colormaps offered by Seismolord (playbook defaults first). */
+/**
+ * Colormaps offered by Seismolord (playbook defaults first). Keys resolve
+ * in the shared suite COLOR_MAPS registry; every entry feeds the same
+ * 256-entry LUT, colorbar and 2D/3D shaders. Diverging maps (white/gray
+ * at centre) suit amplitudes with the symmetric clip; sequential maps
+ * (viridis…) suit attributes.
+ */
 export const SEISMIC_COLORMAPS = [
   { key: 'seismic_rwb', label: 'Red-White-Blue' },
-  { key: 'jet', label: 'Seismic rainbow' },
   { key: 'seismic', label: 'Blue-White-Red' },
+  { key: 'red_white_black', label: 'Red-White-Black' },
+  { key: 'cool_warm', label: 'Cool-Warm (diverging)' },
+  { key: 'jet', label: 'Seismic rainbow' },
+  { key: 'spectrum', label: 'Spectrum' },
   { key: 'grayscale', label: 'Grayscale' },
+  { key: 'gray_wb', label: 'Grayscale (reversed)' },
+  { key: 'viridis', label: 'Viridis' },
+  { key: 'plasma', label: 'Plasma' },
+  { key: 'magma', label: 'Magma' },
+  { key: 'hot_iron', label: 'Hot iron' },
+  { key: 'hsv_cycle', label: 'Phase (cyclic)' },
 ];
 
 const VERT = `#version 300 es
@@ -28,19 +45,12 @@ precision highp sampler2D;
 in vec2 v_uv;
 out vec4 outColor;
 
-uniform sampler2D u_data;      // R32F amplitudes, x = sample, y = trace
-uniform sampler2D u_lut;       // 256x1 RGBA colormap
-uniform sampler2D u_traceRms;  // R32F per-trace rms, x = trace
-uniform float u_gain;          // display gain multiplier
-uniform float u_polarity;      // +1 SEG normal, -1 reversed
-uniform float u_clip;          // symmetric clip amplitude (maps to LUT ends)
-uniform int   u_traceBalance;  // 1 = divide by per-trace rms
 uniform int   u_transpose;     // 1 = sections (screen x = trace, y = sample)
-uniform vec4  u_nullColor;
 uniform vec4  u_view;          // visible rect (x0, y0, w, h) in normalized
                                // screen-oriented data space; (0,0,1,1) = all
 uniform vec4  u_bgColor;       // outside-the-data background
-
+${SAMPLING_GLSL}
+${DISPLAY_GLSL}
 void main() {
   // screen-oriented coords: x left->right, y top->down, then the camera
   // rect maps screen onto the visible part of the data (zoom/pan/vexag).
@@ -52,28 +62,8 @@ void main() {
   }
   // sections: horizontal = trace, vertical = time increasing DOWNWARD
   vec2 t = u_transpose == 1 ? vec2(wuv.y, wuv.x) : wuv;
-  float amp = texture(u_data, t).r;
-  if (abs(amp) > 1.0e29) { outColor = u_nullColor; return; }
-  float scale = 1.0;
-  if (u_traceBalance == 1) {
-    float rms = texture(u_traceRms, vec2(t.y, 0.5)).r;
-    scale = rms > 0.0 ? 1.0 / rms : 0.0;
-  }
-  float a = amp * scale * u_gain * u_polarity;
-  // symmetric colorbar around zero (playbook display default)
-  float x = clamp(0.5 + 0.5 * a / u_clip, 0.0, 1.0);
-  outColor = texture(u_lut, vec2(x, 0.5));
+  outColor = shadeAmp(t);
 }`;
-
-function compile(gl, type, src) {
-  const s = gl.createShader(type);
-  gl.shaderSource(s, src);
-  gl.compileShader(s);
-  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-    throw new Error(`Shader compile failed: ${gl.getShaderInfoLog(s)}`);
-  }
-  return s;
-}
 
 export class SliceRenderer {
   /** @param {HTMLCanvasElement|OffscreenCanvas} canvas */
@@ -122,15 +112,8 @@ export class SliceRenderer {
   /** (Re)create every GL resource — at construction and after restore. */
   #initGL() {
     const { gl } = this;
-    this.linearFloat = Boolean(gl.getExtension('OES_texture_float_linear'));
 
-    const prog = gl.createProgram();
-    gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT));
-    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FRAG));
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      throw new Error(`Program link failed: ${gl.getProgramInfoLog(prog)}`);
-    }
+    const prog = linkProgram(gl, VERT, FRAG);
     this.prog = prog;
     gl.useProgram(prog);
 
@@ -144,8 +127,8 @@ export class SliceRenderer {
 
     this.u = {};
     for (const name of ['u_data', 'u_lut', 'u_traceRms', 'u_gain', 'u_polarity',
-      'u_clip', 'u_traceBalance', 'u_transpose', 'u_nullColor', 'u_view',
-      'u_bgColor']) {
+      'u_clip', 'u_traceBalance', 'u_transpose', 'u_interp', 'u_nullColor',
+      'u_view', 'u_bgColor']) {
       this.u[name] = gl.getUniformLocation(prog, name);
     }
     gl.uniform1i(this.u.u_data, 0);
@@ -160,7 +143,7 @@ export class SliceRenderer {
     this.rmsTex = this.#makeTex(gl.NEAREST);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 
-    this.setColormap(this.colormapKey);
+    this.setColormap(this.colormapKey, true);   // force: lutTex is brand new
     this.#applyParams();
   }
 
@@ -175,19 +158,15 @@ export class SliceRenderer {
     return t;
   }
 
-  /** Build the 256x1 RGBA LUT from the shared suite colormaps. */
-  setColormap(key) {
-    const map = COLOR_MAPS[key];
-    if (!map) throw new Error(`Unknown colormap: ${key}`);
+  /**
+   * Build the 256x1 RGBA LUT from the shared suite colormaps. No-op when
+   * the key is unchanged (the display effect calls this on every gain /
+   * clip tweak) — `force` re-uploads after #initGL recreated lutTex.
+   */
+  setColormap(key, force = false) {
+    if (!force && key === this.colormapKey && this.lut) return;
+    this.lut = buildLut(key);                   // throws on unknown key
     this.colormapKey = key;
-    this.lut = new Uint8Array(256 * 4);
-    for (let i = 0; i < 256; i++) {
-      const [r, g, b] = map.fn(i / 255);
-      this.lut[i * 4] = r;
-      this.lut[i * 4 + 1] = g;
-      this.lut[i * 4 + 2] = b;
-      this.lut[i * 4 + 3] = 255;
-    }
     if (this.contextLost) return;               // re-uploaded on restore
     const { gl } = this;
     gl.activeTexture(gl.TEXTURE1);
@@ -224,8 +203,9 @@ export class SliceRenderer {
   /**
    * @param {Partial<{gain:number, polarity:1|-1, clip:number,
    *   traceBalance:boolean, interpolate:boolean}>} p
-   * interpolate uses LINEAR R32F filtering when the GPU supports it
-   * (this.linearFloat) and silently stays NEAREST otherwise.
+   * interpolate runs null-aware bicubic resampling in the shader
+   * (texelFetch-based — no float-linear extension needed). Off = exact
+   * NEAREST texels, which is what referenceRender() models.
    */
   setParams(p) {
     Object.assign(this.params, p);
@@ -235,11 +215,15 @@ export class SliceRenderer {
   /**
    * Camera: normalized visible rect [x0, y0, w, h] from
    * ViewTransform.viewUniform(). [0,0,1,1] (the default) renders the
-   * whole slice exactly as before the camera existed.
+   * whole slice exactly as before the camera existed. Runs every camera
+   * frame, so it touches only its own uniform (not the full param set).
    */
   setView(rect) {
     this.view = [rect[0], rect[1], rect[2], rect[3]];
-    this.#applyParams();
+    if (this.contextLost) return;               // re-applied on restore
+    const { gl } = this;
+    gl.useProgram(this.prog);
+    gl.uniform4f(this.u.u_view, this.view[0], this.view[1], this.view[2], this.view[3]);
   }
 
   #applyParams() {
@@ -251,12 +235,8 @@ export class SliceRenderer {
     gl.uniform1f(u.u_clip, Math.max(params.clip, 1e-30));
     gl.uniform1i(u.u_traceBalance, params.traceBalance ? 1 : 0);
     gl.uniform1i(u.u_transpose, params.transpose ? 1 : 0);
+    gl.uniform1i(u.u_interp, params.interpolate ? 1 : 0);
     gl.uniform4f(u.u_view, this.view[0], this.view[1], this.view[2], this.view[3]);
-    const filt = params.interpolate && this.linearFloat ? gl.LINEAR : gl.NEAREST;
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.dataTex);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filt);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filt);
   }
 
   render() {

@@ -1,6 +1,305 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-10 (viewer pro upgrade — camera, annotations, legends)
+Last updated: 2026-07-11 (velocity model + depth conversion)
+
+## Velocity model + depth conversion: DONE
+
+- **Model** (`engine/velocityModel.js`, pure + jest): V(z) = V0 + k·z,
+  analytic z(t) = (v0/k)·expm1(k·t) with the k = 0 constant-velocity
+  limit — validated against RK4 integration of dz/dt = v0 + k·z
+  (validation-first rule). Null-aware depth grids (m/ft) and
+  `sampleToExportZ` for the NEGATIVE-feet export convention.
+- **Persistence**: the model lives INSIDE the volume's manifest.json
+  (`manifest.velocity = {v0, k}`) via
+  `volumesService.saveManifestVelocity` — owner-path storage upsert
+  under existing RLS, deliberately NO database schema change. Editor
+  row in the viewer (V0 m/s, k 1/s, Save to volume; clear V0 removes);
+  saving propagates the merged manifest through onVolumeChange so the
+  export panel sees it immediately.
+- **Depth maps** (MapView domain select: TWT ms / Depth m / Depth ft,
+  gated on the model): structure AND isochron layers convert PER
+  SURFACE before differencing — Δdepth ≠ depth(Δtwt) when k ≠ 0.
+  Colorbar, contour-interval note, contour value labels and the cursor
+  readout are all unit-aware; layer cache keys per pair × domain ×
+  model params. Removing the model falls the domain back to TWT.
+- **Depth exports**: Export panel and the AI `grid_and_export` path now
+  prefer the saved model (`sampleToExportZ`) over the legacy constant
+  ft/s input, which remains only as a fallback when no model is set
+  (the panel shows the model description read-only instead of the
+  input). Export convention unchanged: Z negative, feet. RCP handoff
+  params record `velocity_model` vs `velocity_ft_s` honestly.
+- Verified: 16 jest suites / 185 tests (velocityModel suite incl.
+  RK4 cross-check), 13 Playwright e2e green on staging.
+- Follow-up candidates: per-horizon interval velocities (layer-cake
+  model), depth display in the 3D window / sections, well-tie
+  calibration of V0/k.
+
+## Isochron maps + smoothing radius + snap window: DONE
+
+- **Isochron maps** (`engine/horizonDifference` + MapView "vs" select):
+  pick a second visible horizon and the map layer becomes the TWT
+  interval Δ = vs − horizon — SIGNED (crossing surfaces show negative),
+  null wherever either surface is missing (an interval needs both
+  bounding picks). Fill, contours, value labels, colorbar and the
+  cursor readout (Δ … ms) all ride the difference grid; the layer
+  cache keys per horizon pair and invalidates on either grid ref.
+  Region erase is disabled on isochron maps — erasing edits ONE
+  horizon and the target would be ambiguous.
+- **Smoothing radius**: 3×3 / 5×5 / 9×9 select feeding
+  `smoothHorizon`'s radius (mean and median both).
+- **Snap window**: ±2/3/5/8/12-sample select driving seed snapping,
+  manual picking, the ghost preview and BOTH trackers. Default ±3
+  keeps the validated 3D-autotrack behavior byte-identical; the old
+  hardcoded ±5 picking window is now just one of the choices.
+- Verified: 15 jest suites / 179 tests, 13 Playwright e2e green on
+  staging.
+- Follow-up candidates: isochron in metres once a velocity model
+  exists, per-horizon smoothing presets, snap-window persistence.
+
+## Median smoothing + hole-fill + ghost preview: DONE
+
+- **Median smoothing**: `smoothHorizon` gains `method: 'mean'|'median'`;
+  the Smooth button gets a mean/median select. Median kills single-pick
+  autotrack spikes exactly (jest-proven vs mean's dampening); coverage
+  preservation unchanged.
+- **Hole-fill interpolation** (`engine/fillHorizonHoles` + Fill holes
+  button): interior holes only — the exterior null region is
+  flood-detected from the survey border (4-conn) and never touched, so
+  the interpreted outline cannot grow. Fill = onion-peel seeding
+  (8-conn means) then Gauss–Seidel Laplace relaxation with live picks
+  as fixed boundary values; a planar horizon fills back exactly planar
+  (jest). One undoable op; toast reports cells filled.
+- **Ghost pick preview** (SliceView `ghost` prop): in manual mode a
+  marker under the cursor previews where the pick would land — circle
+  snapped to the selected event kind with a dashed raw→snap connector,
+  square when no event is within the window (raw position would be
+  used). Computed from the already-assembled slice trace via the shared
+  engine `snapPick` — zero fetches, redraws on pointer move only while
+  the mode is active.
+- Verified: 15 jest suites / 178 tests, 13 Playwright e2e green on
+  staging.
+- Follow-up candidates: fill-hole size cap option, smoothing radius
+  select, snap-window control, horizon difference / isochron maps.
+
+## Eraser size + polygon erase + smoothing: DONE
+
+- **Eraser size**: brush-width select next to the section Erase tool —
+  1 / 3 / 5 / 11 / 21 traces per pass (radius into the erase branch of
+  handlePick).
+- **Polygon region erase** (map window): the erase tool now accepts a
+  hand-drawn outline — click vertices, double-click closes (stacked
+  dbl-click vertices deduped), Esc cancels; a drag still rectangles.
+  Both shapes resolve through `cellsInPolygon` (even-odd
+  `pointInPolygon`, concave OK, cell-centre test, bbox-bounded;
+  jest-tested with an L-shape). `onEraseRegion` payload is now
+  `{horizonId, cells}`. Draft outlines are stored in WORLD coords so
+  panning/zooming mid-draw keeps them glued to the map.
+- **Horizon smoothing** (`engine/smoothHorizon` + Smooth button): one
+  3×3 null-aware mean pass per click over the edit session's grid, as a
+  single undoable op — repeat clicks strengthen. Live cells average
+  live neighbours only; nulls stay null, so coverage is preserved
+  exactly (holes neither grow nor shrink). Undo ops now store typed
+  arrays so a whole-grid smooth op stays a few MB.
+- Verified: 15 jest suites / 172 tests, 13 Playwright e2e green on
+  staging.
+- Follow-up candidates: median (spike-killing) smoothing variant,
+  hole-fill interpolation, ghost-curve preview while manual picking.
+
+## Horizon editing toolkit + contour labels + draggable planes: DONE
+
+Operator requests: contour value labels; draggable 3D planes; manual +
+2D autotracking alongside 3D; peak/trough/zero-crossing selection;
+deleting wrong picks on a line or a region of a 3D-tracked horizon.
+
+- **Snap modes** (`engine/horizonTrack.js`): SNAP_MODES now peak /
+  trough / zero_pos (−→+) / zero_neg (+→−). Zero modes take the NEAREST
+  crossing (not strongest), linear sub-sample position, and report the
+  strongest flanking amplitude (±3 samples) so autotrack's minAbsAmp and
+  dead-trace gates still work at ~0 amplitude — the UI additionally
+  drops the RMS amplitude floor for zero modes. The snap select drives
+  seed snapping, Track 2D and Track 3D (mode persisted in params).
+- **Edit sessions** (ViewerPanel `editRef` + `openSession`/`applyOp`/
+  `commitStroke`/`undoEdit`): target = "New horizon…" (fresh grid,
+  yellow draft overlay) or an existing horizon (WORKING COPY — storage
+  untouched until Save). Tools: **manual paint picking** (click/drag on
+  sections; snaps to the selected event, falls back to the raw click),
+  **Track 2D** (engine autotrack2D along the displayed line, one undoable
+  op), **erase brush** (drag on sections, trace ±1), **rectangle
+  region-erase in the map window** (targets the mapped horizon,
+  switching the session to it), bounded 40-op **undo**. Save →
+  `saveHorizon` (new) or `updateHorizon` (blob upsert + stats refresh).
+  Paint strokes mutate the working grid in place (live 2D overlay via a
+  version counter) and clone it on release so the 3D-mesh / map-layer
+  caches (keyed by grid ref) rebuild once per operation, not per move.
+- **SliceView paint modes**: pickMode 'manual'/'erase' stream onPick
+  during a drag and fire onPickEnd on release.
+- **Contour value labels** (`contourPolylines` + MapView): segment soups
+  chain into open/closed polylines (shared-edge endpoints are bitwise
+  identical, so exact matching suffices); labels ride MAJOR contours,
+  screen-spaced (~280 px), kept upright, haloed for fill/dark ground.
+  Layers ▸ "Contour value labels".
+- **Draggable 3D planes** (CubeView): Ctrl/Alt+drag over a main plane
+  moves it along its axis — pointer delta is projected through the
+  axis' screen direction into an index delta; the quad moves immediately
+  (old texture stretches a frame) while the reconcile effect streams the
+  new slice; the shared index updates through onChangeIndex so 2D stays
+  in sync. Boundary faces are not draggable by definition.
+- Verified: 15 jest suites / 167 tests (new zero-crossing +
+  contour-polyline cases) and all 13 Playwright e2e green on staging.
+- Follow-up candidates: eraser size control, polygon (not just
+  rectangle) region erase, horizon smoothing/interpolation fill,
+  multi-Z picking per trace, ghost-curve preview while manual picking.
+
+## 3D interpretation + Map window + window manager: DONE
+
+Operator requests: horizons/faults in the 3D window; an axis gizmo; a
+Petrel-style 2D map window; windows arranged as tabs with optional
+visibility and horizontal/vertical tiling.
+
+- **Horizons & faults in 3D** (`viewer/interpMesh.js` + CubeRenderer mesh
+  API + CubeView wiring): visible horizons render as shaded surfaces
+  (null-aware triangulation, decimated ≤512² lattice, holes keep hard
+  edges), faults as sticks + translucent lofted ribbons (arc-length
+  resampled rails, auto-orientation so hand-picked sticks never bowtie).
+  Geometry lives in normalized cube space scaled by a `u_scale` uniform —
+  vexag changes are uniform updates, zero re-uploads. Shading is
+  screen-space-derivative faceted lambert (no normal attributes, so
+  non-uniform scale needs no normal matrix). Visibility is the SAME state
+  as the 2D lists (ViewerPanel `visibleIds`/`visibleFaultIds`).
+- **Axis gizmo** (CubeView overlay): camera-locked IL/XL/Z arrows with
+  foreshortening + depth ordering, bottom-left disc; clicking an axis tip
+  snaps to the standard view (XL→end-on, IL→front, Z→map view). Gizmo
+  clicks never fall through to plane picking. Toggle under Planes ▸
+  Rendering.
+- **Map window** (`components/MapView.jsx` + `viewer/mapContours.js`):
+  structure map of the active visible horizon — cached color-fill bitmap
+  (per horizon × colormap, 8 sequential palettes), null-aware
+  marching-squares contours on nice levels (majors every 5th, CI note),
+  Z colorbar (shallow at top), fault traces, survey outline, IL/XL axes,
+  north arrow, scale bar, world-X/Y + IL/XL + Z readout. Pan/zoom via the
+  shared ViewTransform with ground aspect on the vexag channel; click
+  moves the shared inline+crossline positions (map → sections/3D nav).
+- **Window manager** (`components/ViewerWindows.jsx`): Section / 3D / Map
+  as tabs with per-window close, a Windows menu to open/close each, and
+  three layouts — tabs, tile horizontally (columns), tile vertically
+  (rows). Open windows stay MOUNTED when hidden (display:none) so
+  cameras, GL state and caches survive tab switches; ResizeObservers
+  re-size canvases on reveal. Layout/open-set persisted
+  (`seismolord.windows.v1`). Replaces the old inline "3D window" toggle.
+- Verified: 15 jest suites (162 tests; new `interpMesh` + `mapContours`
+  math suites) and all 13 Playwright e2e tests green against live
+  staging; esbuild bundle check of the ViewerPanel subtree clean.
+- Follow-up candidates: contour value labels along lines, map polygon /
+  fault-polygon editing, draggable 3D planes, arbitrary traverse lines,
+  depth-converted maps once a velocity model exists.
+
+## 3D cube window + colormaps: DONE
+
+Operator requests: more colormaps; a 3D window showing the whole cube or
+any combination of inline / crossline / time planes, synced with the 2D
+view, with dark/white background and pro features.
+
+- **Colormaps**: 4 → 13 (`SEISMIC_COLORMAPS`). New in the shared registry
+  (additive): red-white-black, cool-warm (Moreland diverging), spectrum,
+  magma; also exposed: reverse gray, viridis, plasma, hot iron, phase
+  cyclic. Jest guard: every offered key resolves and yields a valid LUT.
+- **3D window** (`components/CubeView.jsx` + `viewer/CubeRenderer.js` +
+  `viewer/cube3d.js`): raw WebGL2 (playbook — no three.js). Survey
+  wireframe with IL/XL/TWT tick annotations and north arrow; planes as
+  textured quads; "entire cube" = six boundary-face slices (full volume
+  can never be memory-resident, so the solid look is the standard box
+  view). Amplitude shading imports the SAME shader chunks as 2D
+  (`viewer/shaderChunks.js`, extracted refactor — GPU==CPU self-test
+  re-verified), so 2D and 3D can never disagree. Orbit/pan/dolly camera
+  (true ground aspect from manifest corners), dark/light background,
+  hover readout with amplitude, click-a-plane→2D-orientation, Shift+wheel
+  steps a plane, PNG snapshot, fullscreen, adaptive render resolution
+  with idle full-res restore.
+- **Sync model (deliberate)**: DATA + DISPLAY shared between 2D and 3D —
+  per-orientation slice indices (ViewerPanel now keeps one index per
+  orientation; volume load centres all three; orientation switch keeps
+  its position), colormap/gain/clip/polarity/balance, vertical
+  exaggeration (SliceView V.exag is now controllable + reports changes).
+  CAMERAS independent by design: a 2D zoom rect has no meaningful
+  counterpart in an orbiting perspective camera.
+- Verified: 13 jest suites (145 tests, incl. new cube3d math suite) and
+  13 Playwright tests green (new `/dev/seismolord-cubeview` harness +
+  6-test spec); eyeballed dark/light/entire-cube screenshots at
+  dim=160.
+- Follow-up candidates: horizons/faults rendered in the 3D scene,
+  draggable planes, arbitrary traverse lines.
+
+## Display smoothing (post-responsiveness): DONE
+
+Operator report: seismic view pixelated, obvious when zoomed in. Two causes:
+NEAREST texture sampling (the "Smooth interpolation" pref defaulted OFF and
+its LINEAR path needed the optional OES_texture_float_linear extension), and
+the adaptive render resolution never recovering — one slow drag left the
+canvas below devicePixelRatio forever.
+
+- **Shader-side bicubic resampling** (`SliceRenderer`): null-aware
+  Catmull-Rom on AMPLITUDES via `texelFetch` (16 taps) — no extension
+  needed, works on every WebGL2 device incl. SwiftShader. A pixel is null
+  iff its NEAREST texel is null and null neighbours contribute the centre
+  value, so null regions keep hard edges and never smear into live data
+  (domain rule). Trace balance applied per-tap; colormap still samples the
+  interpolated amplitude, never blended colors. NEAREST path unchanged
+  (still what the CPU-reference self-test models); self-test gained a
+  smooth-mode smoke check.
+- **Smooth interpolation defaults ON** — viewer prefs migrated to v2
+  (v1 persisted the old `interpolate:false` default; other prefs carry
+  over). Layers-menu toggle retained. Fixed a latent bug: display params
+  set before the first slice landed were dropped because the renderer
+  didn't exist yet (effect now re-runs on slice arrival).
+- **Idle full-res restore** (`SliceView`): adaptive scale still downgrades
+  during continuous interaction, but ~250 ms after the last frame the
+  canvas repaints once at full devicePixelRatio; the next drag re-enters
+  the learned scale after ONE full-res frame (with a ×1.25 upward probe
+  per idle so faster machines shed the downgrade). Resting image is
+  always crisp; interaction keeps the responsiveness fixes below.
+- Verified: jest (11 suites) + Playwright e2e (7 tests, incl. GPU==CPU
+  parity + new smooth check on SwiftShader) green; harness screenshots at
+  ~7× zoom show continuous gradients vs. the old flat cells, nulls hard.
+
+## Viewer responsiveness (post-pro-upgrade): DONE
+
+Operator report: zoom / colorbar / vertical-exaggeration controls "hanging".
+Root-caused by CPU-profiling the harness under Playwright/CDP at realistic
+viewer sizes (1820×560 CSS): at devicePixelRatio 2 every wheel tick produced
+a >50 ms main-thread task (p95 frame 200 ms); the identical scene at dpr 1
+held a flat 60 fps — frame cost is dominated by canvas backing-store AREA,
+so hi-dpi displays (Windows 125–200 % scaling) on weak or software-rendered
+GPUs were exactly where controls hung. Fixes, worst case now 60 fps median
+even on software GL (SwiftShader):
+
+- **Adaptive render resolution** (`SliceView`): backing store starts at
+  devicePixelRatio and steps down ×0.75 (floor 1× CSS px) whenever a
+  continuous interaction sustains a slow-frame EMA >32 ms. Downgrade-only —
+  stable, slightly softer image instead of oscillating quality. All drawing
+  and pointer math shares one render-scale ref, so picking/overlays stay
+  exact at any scale.
+- **Zero React renders per frame**: zoom % HUD and IL/XL/ms/amp cursor
+  readout write straight to the DOM via refs; `hud` state now carries only
+  boundary flags (at-min/at-max zoom, vexag). Previously every camera frame
+  and pointer move re-rendered the whole component (10–40 ms in dev mode).
+- **SliceView is React.memo'd** and ViewerPanel's `handlePick` is
+  useCallback'd, so gain/clip slider ticks and list refreshes no longer
+  re-render the viewport (all other viewer props were already memoized).
+- **Colorbar bitmap cache** (`annotations.js`): LUT gradient rasterized once
+  per LUT into a 1×256 offscreen canvas, stretched with one drawImage —
+  replaces ~300 fillRect+fillStyle per frame (top profiled JS hot spot).
+- **`SliceRenderer.setColormap` no-ops when the key is unchanged** (the
+  display effect fires it on every gain/clip tweak); context-restore forces
+  the rebuild. **`setView` sets only its own uniform** instead of rebinding
+  textures/params every camera frame.
+- **Time-slice horizon overlay**: the per-frame full-grid scan
+  (nIl × nXl cells) is cached per (grid, slice index); frames only project
+  the cached matching cells.
+- **Harness upgrades** (`/dev/seismolord-sliceview`): `?dim=` (≤320),
+  `?w=/?h=` viewport, `?horizon=0`, and a display-cycle button so perf work
+  can drive colormap/gain/polarity changes through props like ViewerPanel.
+  Existing e2e + jest suites unchanged and green; renderer pixel parity
+  (GPU==CPU self-test) re-verified.
 
 ## Viewer pro upgrade (post-P6): DONE
 

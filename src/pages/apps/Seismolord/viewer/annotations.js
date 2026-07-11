@@ -270,6 +270,32 @@ export function drawNorthArrow(ctx, { x, y, dir, dpr }) {
   ctx.restore();
 }
 
+// The colorbar repaints every camera frame (pan/zoom/vexag), so the LUT
+// gradient is rasterized ONCE per LUT into a 1x256 offscreen canvas and
+// stretched with a single drawImage instead of ~300 fillRect calls per
+// frame (measured hot spot under CPU profiling).
+const lutBitmaps = new WeakMap();
+function lutBitmap(lut) {
+  let c = lutBitmaps.get(lut);
+  if (!c) {
+    c = document.createElement('canvas');
+    c.width = 1;
+    c.height = 256;
+    const g = c.getContext('2d');
+    const img = g.createImageData(1, 256);
+    for (let r = 0; r < 256; r++) {
+      const li = 255 - r;                    // top = +amplitude (LUT end)
+      img.data[r * 4] = lut[li * 4];
+      img.data[r * 4 + 1] = lut[li * 4 + 1];
+      img.data[r * 4 + 2] = lut[li * 4 + 2];
+      img.data[r * 4 + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    lutBitmaps.set(lut, c);
+  }
+  return c;
+}
+
 /**
  * Vertical colorbar with the effective amplitude range at its ends
  * (amplitude that maps to the LUT extremes: +/- clip / gain).
@@ -277,12 +303,7 @@ export function drawNorthArrow(ctx, { x, y, dir, dpr }) {
  */
 export function drawColorbar(ctx, { x, y, w, h, lut, ampAtEnds, dpr }) {
   ctx.save();
-  for (let i = 0; i < h; i++) {
-    // top = +amplitude (LUT end), bottom = -amplitude
-    const li = Math.min(255, Math.max(0, Math.round(255 * (1 - i / (h - 1)))));
-    ctx.fillStyle = `rgb(${lut[li * 4]}, ${lut[li * 4 + 1]}, ${lut[li * 4 + 2]})`;
-    ctx.fillRect(x, y + i, w, 1.5);
-  }
+  ctx.drawImage(lutBitmap(lut), x, y, w, h);
   ctx.strokeStyle = INK_DIM;
   ctx.lineWidth = dpr;
   ctx.strokeRect(x - 0.5, y - 0.5, w + 1, h + 1);

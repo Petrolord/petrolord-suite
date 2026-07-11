@@ -23,7 +23,8 @@ import {
   DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { SliceRenderer } from '../viewer/SliceRenderer';
-import { ViewTransform, MAX_ZOOM } from '../viewer/viewTransform';
+import { snapPick } from '../engine/horizonTrack';
+import { ViewTransform, MIN_ZOOM, MAX_ZOOM } from '../viewer/viewTransform';
 import {
   drawAxes, drawScaleBar, drawNorthArrow, drawColorbar,
   surveySpacing, northScreenDir,
@@ -31,7 +32,11 @@ import {
 import { NULL_VALUE } from '../engine/manifest';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
-const PREFS_KEY = 'seismolord.viewerPrefs.v1';
+// v2: interpolate now defaults ON (shader bicubic, no GPU extension
+// needed). v1 sessions all persisted interpolate:false (the old default),
+// so that key is dropped when migrating — every other pref carries over.
+const PREFS_KEY = 'seismolord.viewerPrefs.v2';
+const LEGACY_PREFS_KEY = 'seismolord.viewerPrefs.v1';
 const DEFAULT_PREFS = {
   axes: true,
   grid: false,
@@ -40,13 +45,17 @@ const DEFAULT_PREFS = {
   colorbar: true,
   readout: true,
   crosshair: false,
-  interpolate: false,
+  interpolate: true,
 };
 const VEXAG_OPTIONS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 8, 12, 20];
 
 const loadPrefs = () => {
   try {
-    return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') };
+    const v2 = localStorage.getItem(PREFS_KEY);
+    if (v2) return { ...DEFAULT_PREFS, ...JSON.parse(v2) };
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_PREFS_KEY) || '{}');
+    delete legacy.interpolate;
+    return { ...DEFAULT_PREFS, ...legacy };
   } catch {
     return { ...DEFAULT_PREFS };
   }
@@ -67,15 +76,25 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  * @param {{horizons:Array<{grid:Float32Array,color:string}>,
  *          faults:Array<{sticks:Array,color:string}>,
  *          draftSticks:Array, seedPick:?Object}} p.overlays
- * @param {?string} p.pickMode null | 'seed' | 'fault'
+ * @param {?string} p.pickMode null | 'seed' | 'fault' | 'manual' | 'erase'
+ *   ('manual'/'erase' are PAINT modes: onPick streams during a drag and
+ *   onPickEnd fires when the stroke lifts, so editors can commit an op)
+ * @param {?{mode: string, window: number}} p.ghost when set (manual
+ *   picking), a ghost marker previews the snapped pick position under
+ *   the cursor before any click — circle = snapped to an event, square
+ *   = no event nearby (the raw click position would be used)
  * @param {boolean} p.loading
  * @param {(pick:{ilIdx:number,xlIdx:number,sample:number}) => void} p.onPick
  * @param {(delta:number) => void} p.onStepSlice
  * @param {number} [p.height] viewport CSS height when not fullscreen
+ * @param {number} [p.vexag] controlled vertical exaggeration (shared with
+ *   the 3D window); omit for the legacy uncontrolled behavior
+ * @param {(v:number) => void} [p.onVexagChange]
  */
-export default function SliceView({
+function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
-  pickMode, loading, onPick, onStepSlice, height = 520,
+  pickMode, ghost, loading, onPick, onPickEnd, onStepSlice, height = 520,
+  vexag: vexagProp, onVexagChange,
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
   const viewportRef = useRef(null);    // the canvas container
@@ -88,10 +107,28 @@ export default function SliceView({
   const dragRef = useRef(null);        // {mode:'pan'|'band', ...}
   const cursorRef = useRef(null);      // {sx, sy} device px in inner area
   const propsRef = useRef({});         // latest props for ref-driven redraws
+  // Per-frame HUD text goes STRAIGHT to the DOM: a React state update per
+  // camera frame / pointer move re-renders the whole component and is what
+  // made the controls stutter (dev-mode React renders are 10-40ms each).
+  const zoomPctRef = useRef(null);     // toolbar "123%" span
+  const readoutValsRef = useRef(null); // cursor readout values span
+  const readoutHintRef = useRef(null); // cursor readout hint span
+  const timeMatchesRef = useRef(new WeakMap()); // horizon grid -> time-slice cells
+  // Adaptive render resolution: backing-store px per CSS px, starting at
+  // devicePixelRatio and stepped down (never below 1) when sustained
+  // interaction frames run slow. Frame cost is dominated by backing-store
+  // area — hi-dpi displays on weak / software-rendered GPUs are exactly
+  // where the camera controls "hang" (measured: identical scene at dpr 1
+  // holds 60fps where dpr 2 drops to 10fps on software GL).
+  const scaleRef = useRef(null);       // null until first resize (needs dpr)
+  const steadyScaleRef = useRef(null); // learned interaction scale (≤ dpr)
+  const idleTimerRef = useRef(0);      // pending full-res restore
+  const perfRef = useRef({ lastT: 0, ema: 16.7 });
 
   const [prefs, setPrefs] = useState(loadPrefs);
-  const [hud, setHud] = useState({ zoom: 1, vexag: 1 });
-  const [cursorInfo, setCursorInfo] = useState(null);
+  // Rare, boundary-only state (button disabling, select value) — changes a
+  // handful of times per interaction instead of every frame.
+  const [hud, setHud] = useState({ atMinZoom: true, atMaxZoom: false, vexag: 1 });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [glError, setGlError] = useState(null);
 
@@ -105,7 +142,7 @@ export default function SliceView({
   // Latest props snapshot so rAF/pointer handlers never see stale closures.
   propsRef.current = {
     slice, geom, manifest, orientation, sliceIndex, display, overlays,
-    pickMode, prefs, gutter: g,
+    pickMode, ghost, prefs, gutter: g,
   };
 
   // ---- axis metadata per orientation ----------------------------------
@@ -131,7 +168,7 @@ export default function SliceView({
     if (!overlay || !p.geom) return;
     const t = transformRef.current;
     const ctx = overlay.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = scaleRef.current || window.devicePixelRatio || 1;  // render scale
     const W = overlay.width;
     const H = overlay.height;
     ctx.clearRect(0, 0, W, H);
@@ -159,18 +196,32 @@ export default function SliceView({
         }
         ctx.stroke();
       } else {
+        // The full-grid scan (nIl x nXl cells) is far too slow to run per
+        // camera frame on real surveys — cache the matching cells per
+        // (grid, slice index) and only project the matches each frame.
+        let mt = timeMatchesRef.current.get(grid);
+        if (!mt || mt.idx !== idx || mt.nXl !== gm.nXl || mt.nIl !== gm.nIl) {
+          const pts = [];
+          for (let i = 0; i < gm.nIl; i++) {
+            for (let x = 0; x < gm.nXl; x++) {
+              const z = grid[i * gm.nXl + x];
+              if (z !== NULL_F32 && Math.abs(z - idx) <= 0.5) pts.push(x, i);
+            }
+          }
+          mt = { idx, nIl: gm.nIl, nXl: gm.nXl, pts: Int32Array.from(pts) };
+          timeMatchesRef.current.set(grid, mt);
+        }
         const i0 = Math.max(0, Math.floor(vis.y0));
         const i1 = Math.min(gm.nIl - 1, Math.ceil(vis.y0 + vis.h));
         const x0 = Math.max(0, Math.floor(vis.x0));
         const x1 = Math.min(gm.nXl - 1, Math.ceil(vis.x0 + vis.w));
         const m = Math.max(3, 1.5 * dpr);
-        for (let i = i0; i <= i1; i++) {
-          for (let x = x0; x <= x1; x++) {
-            const z = grid[i * gm.nXl + x];
-            if (z === NULL_F32 || Math.abs(z - idx) > 0.5) continue;
-            const s = t.worldToScreen(x + 0.5, i + 0.5);
-            ctx.fillRect(s.x - m / 2, s.y - m / 2, m, m);
-          }
+        for (let q = 0; q < mt.pts.length; q += 2) {
+          const x = mt.pts[q];
+          const i = mt.pts[q + 1];
+          if (x < x0 || x > x1 || i < i0 || i > i1) continue;
+          const s = t.worldToScreen(x + 0.5, i + 0.5);
+          ctx.fillRect(s.x - m / 2, s.y - m / 2, m, m);
         }
       }
     }
@@ -224,6 +275,39 @@ export default function SliceView({
         ctx.stroke();
       }
     }
+
+    // ghost pick preview (manual mode): where the click WOULD land —
+    // computed from the on-hand slice trace, no fetches
+    const cur = cursorRef.current;
+    if (p.ghost && cur && ori !== 'time' && p.slice) {
+      const w = t.screenToWorld(cur.sx, cur.sy);
+      const nTraces = ori === 'inline' ? gm.nXl : gm.nIl;
+      const trace = Math.floor(w.x);
+      if (trace >= 0 && trace < nTraces && w.y >= 0 && w.y < gm.ns) {
+        const trData = p.slice.data.subarray(trace * gm.ns, (trace + 1) * gm.ns);
+        const hit = snapPick(trData, w.y, p.ghost);
+        const sSnap = t.worldToScreen(trace + 0.5, (hit ? hit.sample : w.y) + 0.5);
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.9)';
+        ctx.lineWidth = 1.5 * dpr;
+        if (hit && Math.abs(hit.sample - w.y) > 0.05) {
+          const sRaw = t.worldToScreen(trace + 0.5, w.y + 0.5);
+          ctx.setLineDash([3 * dpr, 3 * dpr]);
+          ctx.beginPath();
+          ctx.moveTo(sRaw.x, sRaw.y);
+          ctx.lineTo(sSnap.x, sSnap.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        ctx.beginPath();
+        if (hit) ctx.arc(sSnap.x, sSnap.y, 4.5 * dpr, 0, Math.PI * 2);
+        else ctx.rect(sSnap.x - 4 * dpr, sSnap.y - 4 * dpr, 8 * dpr, 8 * dpr);
+        ctx.moveTo(sSnap.x - 10 * dpr, sSnap.y);
+        ctx.lineTo(sSnap.x - 5.5 * dpr, sSnap.y);
+        ctx.moveTo(sSnap.x + 5.5 * dpr, sSnap.y);
+        ctx.lineTo(sSnap.x + 10 * dpr, sSnap.y);
+        ctx.stroke();
+      }
+    }
   }, []);
 
   const drawAnnotations = useCallback(() => {
@@ -234,7 +318,7 @@ export default function SliceView({
     ctx.clearRect(0, 0, anno.width, anno.height);
     if (!p.geom || !axes) return;
     const t = transformRef.current;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = scaleRef.current || window.devicePixelRatio || 1;  // render scale
     const gl = Math.round(p.gutter.left * dpr);
     const gt = Math.round(p.gutter.top * dpr);
     const pr = p.prefs;
@@ -312,17 +396,15 @@ export default function SliceView({
     }
     drawOverlay();
     drawAnnotations();
-    setHud((h) => (h.zoom === t.zoom && h.vexag === t.vexag
-      ? h : { zoom: t.zoom, vexag: t.vexag }));
+    if (zoomPctRef.current) {
+      zoomPctRef.current.textContent = `${Math.round(t.zoom * 100)}%`;
+    }
+    const atMinZoom = t.zoom <= MIN_ZOOM;
+    const atMaxZoom = t.zoom >= MAX_ZOOM;
+    setHud((h) => (h.atMinZoom === atMinZoom && h.atMaxZoom === atMaxZoom
+      && h.vexag === t.vexag
+      ? h : { atMinZoom, atMaxZoom, vexag: t.vexag }));
   }, [drawOverlay, drawAnnotations]);
-
-  const scheduleView = useCallback(() => {
-    if (rafRef.current) return;
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = 0;
-      applyView();
-    });
-  }, [applyView]);
 
   // ---- sizing ----------------------------------------------------------
   const resizeCanvases = useCallback(() => {
@@ -332,19 +414,78 @@ export default function SliceView({
     const anno = annoRef.current;
     if (!viewport || !glCanvas) return;
     const dpr = window.devicePixelRatio || 1;
+    if (scaleRef.current == null) scaleRef.current = dpr;
+    const scale = Math.min(scaleRef.current, dpr);
     const cw = viewport.clientWidth;
     const ch = viewport.clientHeight;
     const { gutter } = propsRef.current;
     const iw = Math.max(1, cw - gutter.left);
     const ih = Math.max(1, ch - gutter.top);
-    glCanvas.width = Math.round(iw * dpr);
-    glCanvas.height = Math.round(ih * dpr);
+    glCanvas.width = Math.round(iw * scale);
+    glCanvas.height = Math.round(ih * scale);
     overlay.width = glCanvas.width;
     overlay.height = glCanvas.height;
-    anno.width = Math.round(cw * dpr);
-    anno.height = Math.round(ch * dpr);
+    anno.width = Math.round(cw * scale);
+    anno.height = Math.round(ch * scale);
     transformRef.current.setViewport(glCanvas.width, glCanvas.height);
   }, []);
+
+  /**
+   * Called once per interactive frame with the rAF timestamp: when a
+   * CONTINUOUS interaction (gap < 200ms between redraws) sustains a slow
+   * frame EMA, drop the render scale one notch and repaint. The learned
+   * scale sticks for the interaction (steadyScaleRef) so the next drag
+   * re-enters it after ONE full-res frame instead of re-paying the slow
+   * ramp; scheduleIdleRestore() brings the RESTING image back to full
+   * devicePixelRatio, so downgrades cost interactive sharpness only.
+   */
+  const adaptQuality = useCallback((t) => {
+    const q = perfRef.current;
+    const dt = q.lastT ? t - q.lastT : 0;
+    q.lastT = t;
+    if (dt <= 0 || dt > 200) return;
+    const steady = steadyScaleRef.current;
+    if (steady != null && steady < (scaleRef.current || 1)) {
+      scaleRef.current = steady;      // re-enter the learned scale at once
+      q.ema = 16.7;
+      resizeCanvases();
+      applyView();
+      return;
+    }
+    q.ema = 0.8 * q.ema + 0.2 * dt;
+    if (q.ema > 32 && (scaleRef.current || 1) > 1) {
+      scaleRef.current = Math.max(1, scaleRef.current * 0.75);
+      steadyScaleRef.current = scaleRef.current;
+      q.ema = 16.7;
+      resizeCanvases();
+      applyView();          // resize clears the canvases — repaint now
+    }
+  }, [resizeCanvases, applyView]);
+
+  /** ~250ms after the last interactive frame: one repaint at full dpr. */
+  const scheduleIdleRestore = useCallback(() => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      idleTimerRef.current = 0;
+      const dpr = window.devicePixelRatio || 1;
+      if ((scaleRef.current || dpr) >= dpr) return;
+      // probe upward so a machine that got faster sheds the downgrade
+      steadyScaleRef.current = Math.min(dpr, (steadyScaleRef.current || dpr) * 1.25);
+      scaleRef.current = dpr;
+      resizeCanvases();
+      applyView();
+    }, 250);
+  }, [resizeCanvases, applyView]);
+
+  const scheduleView = useCallback(() => {
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame((t) => {
+      rafRef.current = 0;
+      applyView();
+      adaptQuality(t);
+      scheduleIdleRestore();
+    });
+  }, [applyView, adaptQuality, scheduleIdleRestore]);
 
   useLayoutEffect(() => {
     resizeCanvases();
@@ -361,6 +502,7 @@ export default function SliceView({
   // ---- renderer lifecycle ----------------------------------------------
   useEffect(() => () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     if (rendererRef.current) {
       rendererRef.current.destroy();
       rendererRef.current = null;
@@ -387,7 +529,10 @@ export default function SliceView({
     applyView();
   }, [slice, geom, isSection, applyView, scheduleView]);
 
-  // display params (shader-only, no re-upload)
+  // display params (shader-only, no re-upload). `slice` is a dep because
+  // the renderer is CREATED by the slice effect above: without it, params
+  // set before the first slice (renderer still null) would never be
+  // applied and the renderer would keep its constructor defaults.
   useEffect(() => {
     const r = rendererRef.current;
     if (!r) return;
@@ -400,15 +545,25 @@ export default function SliceView({
       interpolate: prefs.interpolate,
     });
     scheduleView();
-  }, [display, prefs.interpolate, scheduleView]);
+  }, [slice, display, prefs.interpolate, scheduleView]);
 
-  // overlays / prefs changed -> repaint 2D layers
-  useEffect(() => { scheduleView(); }, [overlays, prefs, scheduleView]);
+  // overlays / prefs / ghost mode changed -> repaint 2D layers
+  useEffect(() => { scheduleView(); }, [overlays, prefs, ghost, scheduleView]);
+
+  // controlled exaggeration (shared with the 3D window)
+  useEffect(() => {
+    if (vexagProp == null) return;
+    const t = transformRef.current;
+    if (t.vexag !== vexagProp) {
+      t.setVexag(vexagProp);
+      scheduleView();
+    }
+  }, [vexagProp, scheduleView]);
 
   // ---- interactions ------------------------------------------------------
   const toDevice = useCallback((e) => {
     const rect = overlayRef.current.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = scaleRef.current || window.devicePixelRatio || 1;  // render scale
     return { sx: (e.clientX - rect.left) * dpr, sy: (e.clientY - rect.top) * dpr };
   }, []);
 
@@ -441,11 +596,27 @@ export default function SliceView({
     };
   }, []);
 
+  /** Ref-driven readout: no React re-render per pointer move. */
+  const setCursorReadout = useCallback((info) => {
+    const vals = readoutValsRef.current;
+    const hint = readoutHintRef.current;
+    if (!vals || !hint) return;
+    if (info) {
+      vals.textContent = `IL ${info.il}   XL ${info.xl}   ${info.ms.toFixed(1)} ms   `
+        + `amp ${info.amp === null ? 'null' : info.amp.toExponential(3)}`;
+      vals.style.display = '';
+      hint.style.display = 'none';
+    } else {
+      vals.style.display = 'none';
+      hint.style.display = '';
+    }
+  }, []);
+
   const updateCursorInfo = useCallback((sx, sy) => {
     const p = propsRef.current;
     const hit = pickAt(sx, sy);
     if (!hit || !hit.inData || !p.slice || !p.manifest) {
-      setCursorInfo(null);
+      setCursorReadout(null);
       return;
     }
     const gm = p.geom;
@@ -455,13 +626,15 @@ export default function SliceView({
     if (p.orientation === 'inline') amp = p.slice.data[hit.xlIdx * gm.ns + sampleIdx];
     else if (p.orientation === 'xline') amp = p.slice.data[hit.ilIdx * gm.ns + sampleIdx];
     else amp = p.slice.data[hit.ilIdx * gm.nXl + hit.xlIdx];
-    setCursorInfo({
+    setCursorReadout({
       il: geo.il.min + hit.ilIdx * geo.il.step,
       xl: geo.xl.min + hit.xlIdx * geo.xl.step,
       ms: (p.orientation === 'time' ? p.sliceIndex : hit.sample) * (geo.dt_us / 1000),
       amp: amp === NULL_F32 ? null : amp,
     });
-  }, [pickAt]);
+  }, [pickAt, setCursorReadout]);
+
+  const isPaintMode = pickMode === 'manual' || pickMode === 'erase';
 
   const onPointerDown = useCallback((e) => {
     if (e.button !== 0 && e.button !== 1) return;
@@ -470,12 +643,17 @@ export default function SliceView({
     const { sx, sy } = toDevice(e);
     if (e.shiftKey && e.button === 0) {
       dragRef.current = { mode: 'band', x0: sx, y0: sy };
+    } else if (isPaintMode && e.button === 0) {
+      // paint stroke: stream picks from the very first point
+      dragRef.current = { mode: 'paint' };
+      const hit = pickAt(sx, sy);
+      if (hit && hit.inData && onPick) onPick(hit);
     } else {
       dragRef.current = {
         mode: 'pan', lastX: sx, lastY: sy, moved: false, button: e.button,
       };
     }
-  }, [toDevice]);
+  }, [toDevice, isPaintMode, pickAt, onPick]);
 
   const onPointerMove = useCallback((e) => {
     const { sx, sy } = toDevice(e);
@@ -497,16 +675,23 @@ export default function SliceView({
       d.x1 = sx;
       d.y1 = sy;
       scheduleView();
+    } else if (d && d.mode === 'paint') {
+      const hit = pickAt(sx, sy);
+      if (hit && hit.inData && onPick) onPick(hit);
     } else {
       updateCursorInfo(sx, sy);
-      if (propsRef.current.prefs.crosshair) scheduleView();
+      if (propsRef.current.prefs.crosshair || propsRef.current.ghost) scheduleView();
     }
-  }, [toDevice, scheduleView, updateCursorInfo]);
+  }, [toDevice, scheduleView, updateCursorInfo, pickAt, onPick]);
 
   const onPointerUp = useCallback((e) => {
     const d = dragRef.current;
     dragRef.current = null;
     if (!d) return;
+    if (d.mode === 'paint') {
+      if (onPickEnd) onPickEnd();
+      return;
+    }
     const { sx, sy } = toDevice(e);
     if (d.mode === 'band') {
       if (d.x1 !== undefined && Math.abs(d.x1 - d.x0) > 8 && Math.abs(d.y1 - d.y0) > 8) {
@@ -520,13 +705,13 @@ export default function SliceView({
       if (hit && hit.inData && onPick) onPick(hit);
     }
     scheduleView();   // clears any band remnants, syncs HUD
-  }, [toDevice, pickAt, onPick, scheduleView]);
+  }, [toDevice, pickAt, onPick, onPickEnd, scheduleView]);
 
   const onPointerLeave = useCallback(() => {
     cursorRef.current = null;
-    setCursorInfo(null);
-    if (propsRef.current.prefs.crosshair) scheduleView();
-  }, [scheduleView]);
+    setCursorReadout(null);
+    if (propsRef.current.prefs.crosshair || propsRef.current.ghost) scheduleView();
+  }, [scheduleView, setCursorReadout]);
 
   const onDoubleClick = useCallback((e) => {
     const { sx, sy } = toDevice(e);
@@ -545,7 +730,7 @@ export default function SliceView({
         return;
       }
       const rect = el.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = scaleRef.current || window.devicePixelRatio || 1;  // render scale
       const sx = (e.clientX - rect.left) * dpr;
       const sy = (e.clientY - rect.top) * dpr;
       transformRef.current.zoomAt(e.deltaY > 0 ? 1 / 1.25 : 1.25, sx, sy);
@@ -580,7 +765,11 @@ export default function SliceView({
     scheduleView();
   };
   const fitView = () => { transformRef.current.fit(); scheduleView(); };
-  const setVexag = (v) => { transformRef.current.setVexag(v); scheduleView(); };
+  const setVexag = (v) => {
+    transformRef.current.setVexag(v);
+    scheduleView();
+    if (onVexagChange) onVexagChange(v);
+  };
 
   const toggleFullscreen = async () => {
     try {
@@ -596,8 +785,6 @@ export default function SliceView({
 
   const togglePref = (key) => setPrefs((p0) => ({ ...p0, [key]: !p0[key] }));
 
-  const canInterpolate = rendererRef.current?.linearFloat !== false;
-
   // ---- render ------------------------------------------------------------
   return (
     <div
@@ -611,7 +798,7 @@ export default function SliceView({
           <ZoomIn className="w-4 h-4" />
         </Button>
         <Button variant="outline" size="sm" title="Zoom out (-)"
-          onClick={() => zoomCenter(1 / 1.25)} disabled={!slice || hud.zoom <= 1}
+          onClick={() => zoomCenter(1 / 1.25)} disabled={!slice || hud.atMinZoom}
         >
           <ZoomOut className="w-4 h-4" />
         </Button>
@@ -620,8 +807,11 @@ export default function SliceView({
         >
           <Expand className="w-4 h-4" />
         </Button>
-        <span className="text-xs text-slate-400 w-14 text-center tabular-nums">
-          {Math.round(hud.zoom * 100)}%
+        <span
+          ref={zoomPctRef}
+          className="text-xs text-slate-400 w-14 text-center tabular-nums"
+        >
+          100%
         </span>
 
         <span className="text-xs text-slate-400 ml-1">V.exag</span>
@@ -687,9 +877,8 @@ export default function SliceView({
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()} checked={prefs.interpolate}
               onCheckedChange={() => togglePref('interpolate')}
-              disabled={!canInterpolate}
             >
-              Smooth interpolation{!canInterpolate ? ' (unsupported GPU)' : ''}
+              Smooth interpolation
             </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -745,24 +934,21 @@ export default function SliceView({
 
       {prefs.readout && (
         <div className="flex items-center gap-4 text-xs text-slate-400 font-mono mt-1 h-5">
-          {cursorInfo ? (
-            <>
-              <span>IL {cursorInfo.il}</span>
-              <span>XL {cursorInfo.xl}</span>
-              <span>{cursorInfo.ms.toFixed(1)} ms</span>
-              <span>
-                amp {cursorInfo.amp === null ? 'null' : cursorInfo.amp.toExponential(3)}
-              </span>
-            </>
-          ) : (
-            <span className="text-slate-600">
-              drag: pan · wheel: zoom · Shift+drag: zoom box · Shift+wheel / arrows: step slice
-              · dbl-click: zoom in
-            </span>
-          )}
-          {hud.zoom >= MAX_ZOOM && <span className="text-amber-500">max zoom</span>}
+          {/* both spans are ref-driven (setCursorReadout) so pointer moves
+              never re-render the component */}
+          <span ref={readoutValsRef} className="whitespace-pre" style={{ display: 'none' }} />
+          <span ref={readoutHintRef} className="text-slate-600">
+            drag: pan · wheel: zoom · Shift+drag: zoom box · Shift+wheel / arrows: step slice
+            · dbl-click: zoom in
+          </span>
+          {hud.atMaxZoom && <span className="text-amber-500">max zoom</span>}
         </div>
       )}
     </div>
   );
 }
+
+// Memoized: ViewerPanel re-renders on every gain/clip slider tick, loading
+// flip and list update — none of that should re-render the viewport when
+// the actual viewer props (all memoized upstream) are unchanged.
+export default React.memo(SliceView);

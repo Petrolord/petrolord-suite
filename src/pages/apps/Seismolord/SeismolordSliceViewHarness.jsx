@@ -10,7 +10,21 @@ import SliceView from './components/SliceView';
 // authenticated session or storage data. The renderer's pixel parity is
 // covered separately by /dev/seismolord-selftest.
 
-const DIM = 128;                       // small: harness cares about UX, not perf
+// Default stays small (UX-focused specs); perf investigations can scale
+// the synthetic volume with ?dim=256 (clamped) and drop the horizon
+// overlay with ?horizon=0 to isolate layers.
+const q = new URLSearchParams(window.location.search);
+const DIM = Math.min(320, Math.max(32, Number(q.get('dim')) || 128));
+const WITH_HORIZON = q.get('horizon') !== '0';
+const VIEW_W = Math.min(3000, Math.max(300, Number(q.get('w')) || 760));
+const VIEW_H = Math.min(2000, Math.max(200, Number(q.get('h')) || 420));
+
+const DISPLAY_CYCLE = [
+  { colormap: 'seismic_rwb', gain: 1, polarity: 1, clip: 1.5, traceBalance: false },
+  { colormap: 'jet', gain: 2, polarity: 1, clip: 1.5, traceBalance: false },
+  { colormap: 'grayscale', gain: 0.5, polarity: -1, clip: 1.5, traceBalance: true },
+  { colormap: 'seismic', gain: 4, polarity: 1, clip: 3, traceBalance: false },
+];
 
 export default function SeismolordSliceViewHarness() {
   const { geom, getBrick } = useMemo(() => buildTestBricks(DIM), []);
@@ -19,6 +33,7 @@ export default function SeismolordSliceViewHarness() {
   const [slice, setSlice] = useState(null);
   const [lastPick, setLastPick] = useState(null);
   const [pickMode, setPickMode] = useState(null);
+  const [displayIdx, setDisplayIdx] = useState(0);
 
   const manifest = useMemo(() => ({
     geometry: {
@@ -52,16 +67,14 @@ export default function SeismolordSliceViewHarness() {
       }
     }
     return {
-      horizons: [{ grid, color: '#4ade80' }],
+      horizons: WITH_HORIZON ? [{ grid, color: '#4ade80' }] : [],
       faults: [],
       draftSticks: [],
       seedPick: null,
     };
   }, []);
 
-  const display = useMemo(() => ({
-    colormap: 'seismic_rwb', gain: 1, polarity: 1, clip: 1.5, traceBalance: false,
-  }), []);
+  const display = DISPLAY_CYCLE[displayIdx % DISPLAY_CYCLE.length];
 
   const stepSlice = useCallback((d) => {
     setSliceIndex((i) => Math.min(DIM - 1, Math.max(0, i + d)));
@@ -89,6 +102,14 @@ export default function SeismolordSliceViewHarness() {
         >
           pick: {pickMode || 'off'}
         </button>
+        <button
+          type="button"
+          data-testid="harness-cycle-display"
+          onClick={() => setDisplayIdx((i) => i + 1)}
+          style={{ border: '1px solid #334155', padding: '0 8px' }}
+        >
+          display: {display.colormap} g{display.gain}
+        </button>
         <span data-testid="harness-slice-index">{sliceIndex}</span>
         <span
           data-testid="harness-status"
@@ -100,7 +121,7 @@ export default function SeismolordSliceViewHarness() {
           {lastPick ? `${lastPick.ilIdx},${lastPick.xlIdx},${lastPick.sample.toFixed(1)}` : '-'}
         </span>
       </div>
-      <div style={{ width: 760 }}>
+      <div style={{ width: VIEW_W }}>
         <SliceView
           slice={slice && slice.orientation === orientation ? slice : null}
           geom={geom}
@@ -113,7 +134,7 @@ export default function SeismolordSliceViewHarness() {
           loading={false}
           onPick={setLastPick}
           onStepSlice={stepSlice}
-          height={420}
+          height={VIEW_H}
         />
       </div>
     </div>
