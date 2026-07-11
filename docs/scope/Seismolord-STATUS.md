@@ -1,6 +1,28 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (median smoothing, hole-fill, ghost pick preview)
+Last updated: 2026-07-11 (isochron maps, smoothing radius, snap window)
+
+## Isochron maps + smoothing radius + snap window: DONE
+
+- **Isochron maps** (`engine/horizonDifference` + MapView "vs" select):
+  pick a second visible horizon and the map layer becomes the TWT
+  interval Δ = vs − horizon — SIGNED (crossing surfaces show negative),
+  null wherever either surface is missing (an interval needs both
+  bounding picks). Fill, contours, value labels, colorbar and the
+  cursor readout (Δ … ms) all ride the difference grid; the layer
+  cache keys per horizon pair and invalidates on either grid ref.
+  Region erase is disabled on isochron maps — erasing edits ONE
+  horizon and the target would be ambiguous.
+- **Smoothing radius**: 3×3 / 5×5 / 9×9 select feeding
+  `smoothHorizon`'s radius (mean and median both).
+- **Snap window**: ±2/3/5/8/12-sample select driving seed snapping,
+  manual picking, the ghost preview and BOTH trackers. Default ±3
+  keeps the validated 3D-autotrack behavior byte-identical; the old
+  hardcoded ±5 picking window is now just one of the choices.
+- Verified: 15 jest suites / 179 tests, 13 Playwright e2e green on
+  staging.
+- Follow-up candidates: isochron in metres once a velocity model
+  exists, per-horizon smoothing presets, snap-window persistence.
 
 ## Median smoothing + hole-fill + ghost preview: DONE
 
