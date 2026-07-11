@@ -1,6 +1,38 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (viewer responsiveness — camera controls no longer hang)
+Last updated: 2026-07-11 (display smoothing — zoomed sections no longer pixelated)
+
+## Display smoothing (post-responsiveness): DONE
+
+Operator report: seismic view pixelated, obvious when zoomed in. Two causes:
+NEAREST texture sampling (the "Smooth interpolation" pref defaulted OFF and
+its LINEAR path needed the optional OES_texture_float_linear extension), and
+the adaptive render resolution never recovering — one slow drag left the
+canvas below devicePixelRatio forever.
+
+- **Shader-side bicubic resampling** (`SliceRenderer`): null-aware
+  Catmull-Rom on AMPLITUDES via `texelFetch` (16 taps) — no extension
+  needed, works on every WebGL2 device incl. SwiftShader. A pixel is null
+  iff its NEAREST texel is null and null neighbours contribute the centre
+  value, so null regions keep hard edges and never smear into live data
+  (domain rule). Trace balance applied per-tap; colormap still samples the
+  interpolated amplitude, never blended colors. NEAREST path unchanged
+  (still what the CPU-reference self-test models); self-test gained a
+  smooth-mode smoke check.
+- **Smooth interpolation defaults ON** — viewer prefs migrated to v2
+  (v1 persisted the old `interpolate:false` default; other prefs carry
+  over). Layers-menu toggle retained. Fixed a latent bug: display params
+  set before the first slice landed were dropped because the renderer
+  didn't exist yet (effect now re-runs on slice arrival).
+- **Idle full-res restore** (`SliceView`): adaptive scale still downgrades
+  during continuous interaction, but ~250 ms after the last frame the
+  canvas repaints once at full devicePixelRatio; the next drag re-enters
+  the learned scale after ONE full-res frame (with a ×1.25 upward probe
+  per idle so faster machines shed the downgrade). Resting image is
+  always crisp; interaction keeps the responsiveness fixes below.
+- Verified: jest (11 suites) + Playwright e2e (7 tests, incl. GPU==CPU
+  parity + new smooth check on SwiftShader) green; harness screenshots at
+  ~7× zoom show continuous gradients vs. the old flat cells, nulls hard.
 
 ## Viewer responsiveness (post-pro-upgrade): DONE
 
