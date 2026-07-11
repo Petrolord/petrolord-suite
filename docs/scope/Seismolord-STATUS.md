@@ -1,6 +1,46 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (velocity model + depth conversion)
+Last updated: 2026-07-11 (rotated-survey geometry)
+
+## Rotated-survey geometry (measured affine): DONE
+
+Closes the recorded Phase 4 limit: `picksToPoints`/export assumed an
+unrotated survey (X along crosslines), so rotated surveys exported
+wrong world coordinates.
+
+- **Oracle first** (validation-first rule): new `dome_rot` fixture —
+  30° azimuth, rectangular bins (xl 25 m / il 37.5 m) so axis-aligned
+  or square-bin assumptions fail loudly. Goldens now carry segyio-read
+  full coordinate grids (float64) + the exact affine truth for all four
+  volumes; the three existing fixtures regenerate byte-identical.
+- **surveyGeometry engine** (`engine/surveyGeometry.js`): world =
+  origin + i·ilVec + j·xlVec, MEASURED by a least-squares affine fit
+  over trace-header coordinates (centered sums for UTM-scale float64
+  precision, (0,0) coords excluded, residual RMS recorded). Fit
+  recovers the rotated truth to sub-cm. `ilxlToWorld`/`worldToIlxl`,
+  cell spacing, world bounds, grid azimuth, north-in-grid. Legacy
+  two-corner axis-aligned fallback is bit-compatible with the old
+  arithmetic for pre-affine manifests.
+- **Scan + manifest**: `scanGeometry` accumulates the fit on every
+  inspected trace and warns when coordinates deviate from the il/xl
+  lattice (bad X/Y byte mapping); `manifest.geometry.affine` is an
+  ADDITIVE field — old volumes keep the corner fallback; re-ingest
+  upgrades them.
+- **Gridding/export**: `picksToPoints` places picks through the affine
+  (golden-proven: rotated picks land on true header coordinates, max
+  err < 6 mm; the legacy derivation is >100 m wrong on the same data).
+  Export panel + AI `grid_and_export` grid over the rotated survey's
+  world bbox; RCP handoff params record `survey_geometry`
+  measured_affine vs corners_axis_aligned.
+- **Viewers**: `surveySpacing`/`northScreenDir` ride the affine (true
+  rectangular-bin scale bars everywhere), new `northLocalDir`; MapView
+  cursor X/Y readout via `ilxlToWorld`; CubeView north arrow points the
+  measured bearing instead of ±inline-axis.
+- Verified: 28 jest suites / 412 tests repo-wide (new surveyGeometry
+  suite, 28 cases), 13 Playwright e2e green on staging.
+- Follow-up candidates: overlay the rotated survey outline in world
+  coordinates on the map, display grid convergence/azimuth in volume
+  info, fault-aware gridding (next major item).
 
 ## Velocity model + depth conversion: DONE
 
