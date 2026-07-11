@@ -1,6 +1,8 @@
 // Versioned brick-store manifest (plan of record: manifest schema is
 // versioned from day 1 — brick stores outlive code).
 
+import { affineToManifest } from './surveyGeometry';
+
 export const MANIFEST_VERSION = 1;
 
 /** Playbook null: propagates everywhere, never enters statistics. */
@@ -46,6 +48,9 @@ export function buildManifest({ volumeId, name, scan, transcode, sourceFileName,
       dt_us: scan.dtUs,
       coord_scalar: scan.coordScalar,
       corners: scan.corners,
+      // measured survey affine (rotation + rectangular bins); additive
+      // field — pre-affine manifests fall back to the corner assumption
+      affine: affineToManifest(scan.affine),
     },
     brick: {
       size: transcode.brickGrid.brickSize,

@@ -10,6 +10,9 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 
+import { bufferReader } from '@/pages/apps/Seismolord/engine/reader';
+import { scanGeometry } from '@/pages/apps/Seismolord/engine/segyScan';
+import { buildManifest } from '@/pages/apps/Seismolord/engine/manifest';
 import {
   makeAffineFit,
   affineFitAdd,
@@ -148,6 +151,53 @@ describe('rotated-survey specifics (dome_rot)', () => {
       expect(c.y).toBeGreaterThanOrEqual(b.y0 - 0.02);
       expect(c.y).toBeLessThanOrEqual(b.y1 + 0.02);
     }
+  });
+});
+
+describe('scanGeometry -> manifest affine (end-to-end on real SEG-Y bytes)', () => {
+  const readerFor = (name) => {
+    const buf = fs.readFileSync(path.join(DATA_DIR, 'segy', `${name}.sgy`));
+    return bufferReader(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+  };
+
+  test('scanning the rotated fixture measures the true affine', async () => {
+    const golden = loadGolden('dome_rot');
+    const scan = await scanGeometry(readerFor('dome_rot'));
+    expect(scan.affine).not.toBeNull();
+    const t = golden.affine_truth;
+    expect(Math.abs(scan.affine.origin.x - t.origin.x)).toBeLessThan(0.01);
+    expect(Math.abs(scan.affine.origin.y - t.origin.y)).toBeLessThan(0.01);
+    expect(Math.abs(scan.affine.ilVec.x - t.il_vec.x)).toBeLessThan(0.002);
+    expect(Math.abs(scan.affine.ilVec.y - t.il_vec.y)).toBeLessThan(0.002);
+    expect(Math.abs(scan.affine.xlVec.x - t.xl_vec.x)).toBeLessThan(0.002);
+    expect(Math.abs(scan.affine.xlVec.y - t.xl_vec.y)).toBeLessThan(0.002);
+    // clean synthetic coordinates: no grid-deviation warning
+    expect(scan.warnings.filter((w) => w.includes('deviate'))).toEqual([]);
+
+    const manifest = buildManifest({
+      volumeId: 'v-test', name: 'dome_rot', scan,
+      transcode: {
+        brickGrid: { brickSize: 64, ni: 1, nj: 1, nk: 1 },
+        stats: {}, traceCount: 256,
+      },
+      sourceFileName: 'dome_rot.sgy', sourceFileSize: 97808,
+    });
+    // JSON round-trip like storage does, then resolve
+    const geo = JSON.parse(JSON.stringify(manifest)).geometry;
+    const aff = surveyAffine(geo);
+    expect(aff.fit.n).toBe(256);
+    expect(cellSpacing(aff).xl).toBeCloseTo(25, 2);
+    expect(cellSpacing(aff).il).toBeCloseTo(37.5, 2);
+    expect(aff.legacyAxisAligned).toBeUndefined();
+  });
+
+  test('unrotated fixture still scans and yields an axis-aligned affine', async () => {
+    const scan = await scanGeometry(readerFor('dome_ieee'));
+    expect(scan.affine).not.toBeNull();
+    expect(Math.abs(scan.affine.ilVec.x)).toBeLessThan(1e-6);
+    expect(Math.abs(scan.affine.xlVec.y)).toBeLessThan(1e-6);
+    expect(cellSpacing(scan.affine).xl).toBeCloseTo(25, 3);
+    expect(cellSpacing(scan.affine).il).toBeCloseTo(25, 3);
   });
 });
 
