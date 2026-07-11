@@ -118,6 +118,53 @@ export function projectStickToTraverse(points, positions, maxDist = 1.5) {
 }
 
 /**
+ * Cells (il·nXl + xl grid indices) covered by an erase brush of
+ * `radius` path columns centered on `trace` — the traverse analog of
+ * the section eraser's trace ± radius. The brush follows the PATH:
+ * at a bend it erases around the corner, never across it, and it
+ * clamps at the path ends instead of wrapping.
+ *
+ * @param {{il:number, xl:number}[]} positions traverse trace positions
+ * @param {number} trace path column under the pointer
+ * @param {number} radius brush half-width in path columns
+ * @param {number} nXl horizon grid row stride
+ * @returns {number[]} horizon grid cell indices (positions are deduped,
+ *   so cells are distinct)
+ */
+export function traverseEraseCells(positions, trace, radius, nXl) {
+  const cells = [];
+  for (let d = -radius; d <= radius; d++) {
+    const c = trace + d;
+    if (c < 0 || c >= positions.length) continue;
+    cells.push(positions[c].il * nXl + positions[c].xl);
+  }
+  return cells;
+}
+
+/**
+ * Validate a manifest's saved traverse list (manifest.json is plain
+ * storage — treat it as hand-editable input): keep entries with a
+ * string id and name and at least 2 finite vertices, dropping invalid
+ * vertices and everything unknown. Never throws.
+ *
+ * @param {*} list manifest.traverses
+ * @returns {{id:string, name:string, vertices:{il:number, xl:number}[]}[]}
+ */
+export function sanitizeTraverses(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const t of list) {
+    if (!t || typeof t.id !== 'string' || typeof t.name !== 'string') continue;
+    const vertices = (Array.isArray(t.vertices) ? t.vertices : [])
+      .filter((v) => v && Number.isFinite(v.il) && Number.isFinite(v.xl))
+      .map((v) => ({ il: v.il, xl: v.xl }));
+    if (vertices.length < 2) continue;
+    out.push({ id: t.id, name: t.name, vertices });
+  }
+  return out;
+}
+
+/**
  * Assemble a traverse section from bricks: one column per position,
  * laid out exactly like the inline/crossline sections —
  * data[column * ns + sample], width = ns, height = positions.length —
