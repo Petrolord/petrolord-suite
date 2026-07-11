@@ -49,6 +49,17 @@ def array_blob(a: np.ndarray) -> dict:
     }
 
 
+def array_blob64(a: np.ndarray) -> dict:
+    """float64 blob — world coordinates lose cm precision in float32."""
+    raw = np.ascontiguousarray(a, dtype='<f8').tobytes()
+    return {
+        'dtype': 'float64le',
+        'shape': list(a.shape),
+        'sha256': sha256_bytes(raw),
+        'base64': base64.b64encode(raw).decode('ascii'),
+    }
+
+
 def extract_volume(spec: model.VolumeSpec) -> dict:
     path = SEGY_DIR / f'{spec.name}.sgy'
     file_sha = sha256_bytes(path.read_bytes())
@@ -84,6 +95,16 @@ def extract_volume(spec: model.VolumeSpec) -> dict:
             'last': n_traces - 1,
         }
         corners = {k: coords_at(v) for k, v in corner_indices.items()}
+
+        # full header-coordinate grids: every trace's scaled CDP X/Y as
+        # segyio reads them (independent of the generator's write path)
+        sc = f.attributes(segyio.TraceField.SourceGroupScalar)[:].astype(np.float64)
+        cx = f.attributes(segyio.TraceField.CDP_X)[:].astype(np.float64)
+        cy = f.attributes(segyio.TraceField.CDP_Y)[:].astype(np.float64)
+        div = np.where(sc < 0, np.abs(sc), 1.0)
+        mul = np.where(sc > 0, sc, 1.0)
+        coord_x = (cx * mul / div).reshape(spec.n_il, spec.n_xl)
+        coord_y = (cy * mul / div).reshape(spec.n_il, spec.n_xl)
 
     # golden traces: 4 corners of the survey + centre + 3 fixed interior picks
     picks = [
@@ -123,8 +144,15 @@ def extract_volume(spec: model.VolumeSpec) -> dict:
             'il_byte': spec.il_byte, 'xl_byte': spec.xl_byte,
             'coord_scalar': spec.coord_scalar,
             'bin_m': spec.bin_m,
+            'il_bin_m': spec.bin_m if spec.il_bin_m is None else spec.il_bin_m,
+            'azimuth_deg': spec.azimuth_deg,
             'lying_textual_header': spec.lying_header,
             'poison_at_189_193': model.POISON_ILXL if spec.lying_header else None,
+        },
+        'affine_truth': model.affine_truth(spec),
+        'coord_grids': {
+            'x': array_blob64(coord_x),
+            'y': array_blob64(coord_y),
         },
         'corner_coords': corners,
         'traces': traces,
