@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Eye, Loader2, XCircle, Crosshair, Route, Ban, Box, ScanLine,
-  Pencil, Eraser, Undo2, Save, Spline, Map as MapIcon,
+  Pencil, Eraser, Undo2, Save, Spline, Wand2, Map as MapIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +17,7 @@ import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
 import {
   assembleSlice, assembleTrace, bricksForSlice, geomFromManifest, brickKey,
 } from '../engine/sliceAssembly';
-import { snapPick, autotrack2D } from '../engine/horizonTrack';
+import { snapPick, autotrack2D, smoothHorizon } from '../engine/horizonTrack';
 import { NULL_VALUE } from '../engine/manifest';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
@@ -44,6 +44,15 @@ const SNAP_OPTIONS = [
 ];
 
 const DRAFT_COLOR = '#facc15';
+
+/** Section eraser widths (traces): radius r erases 2r+1 traces per pass. */
+const BRUSH_OPTIONS = [
+  { radius: 0, label: '1' },
+  { radius: 1, label: '3' },
+  { radius: 2, label: '5' },
+  { radius: 5, label: '11' },
+  { radius: 10, label: '21' },
+];
 
 // storage base URL without touching the shared client module
 const storageBase = () => supabase.storage.from('seismic')
@@ -102,6 +111,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const [editTarget, setEditTarget] = useState('new');
   const [edit, setEdit] = useState({ version: 0, undo: 0, active: false });
   const [editBusy, setEditBusy] = useState(false);
+  const [eraseSize, setEraseSize] = useState(1);    // BRUSH_OPTIONS radius
   const [tracking, setTracking] = useState(null);   // {tracked, total}
   const [horizons, setHorizons] = useState([]);
   const [visibleIds, setVisibleIds] = useState(new Set());
@@ -194,7 +204,8 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
       s.grid[c] = next;
     }
     if (!changed.length) return;
-    s.undo.push({ cells: changed, old });
+    // typed arrays: a whole-grid op (smoothing) stays a few MB, not tens
+    s.undo.push({ cells: Int32Array.from(changed), old: Float32Array.from(old) });
     if (s.undo.length > 40) s.undo.shift();
     setEdit((e) => ({ version: e.version + 1, undo: s.undo.length, active: true }));
   }, []);
@@ -359,9 +370,9 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     }
 
     if (pickMode === 'erase') {
-      // brush: the pointed trace ±1 along the line, picks -> null
+      // brush: the pointed trace ± the brush radius along the line
       const cells = [];
-      for (let d = -1; d <= 1; d++) {
+      for (let d = -eraseSize; d <= eraseSize; d++) {
         if (orientation === 'inline') {
           const xl = xlIdx + d;
           if (xl >= 0 && xl < geom.nXl) cells.push(ilIdx * geom.nXl + xl);
@@ -399,7 +410,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     } catch (err) {
       setError(err.message);
     }
-  }, [pickMode, geom, volume, orientation, getBrick, toast, snapMode, applyOp]);
+  }, [pickMode, geom, volume, orientation, getBrick, toast, snapMode, applyOp, eraseSize]);
 
   // ---- fault stick editing ----------------------------------------------
   const endStick = () => setDraftSticks((s) => (s.length && s[s.length - 1].length ? [...s, []] : s));
@@ -507,9 +518,10 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     toast({ title: '2D autotrack', description: `${tracked} traces tracked along this line.` });
   };
 
-  /** Map window rectangle erase — targets the horizon the map displays,
+  /** Map window region erase (rectangle or polygon outline, already
+   *  resolved to cells) — targets the horizon the map displays,
    *  switching the edit session to it if needed. */
-  const eraseRegion = useCallback(async ({ horizonId, il0, il1, xl0, xl1 }) => {
+  const eraseRegion = useCallback(async ({ horizonId, cells }) => {
     if (!geom) return;
     let s = editRef.current;
     if (horizonId === '__draft') {
@@ -520,17 +532,33 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
       setEditTarget(horizonId);
       s = opened;
     }
-    const cells = [];
-    for (let i = il0; i <= il1; i++) {
-      for (let x = xl0; x <= xl1; x++) {
-        const c = i * geom.nXl + x;
-        if (s.grid[c] !== NULL_F32) cells.push(c);
-      }
-    }
-    if (!cells.length) return;
-    applyOp(cells, cells.map(() => NULL_VALUE));
+    const live = [];
+    for (const c of cells) if (s.grid[c] !== NULL_F32) live.push(c);
+    if (!live.length) return;
+    applyOp(live, live.map(() => NULL_VALUE));
     commitStroke();
   }, [geom, openSession, applyOp, commitStroke]);
+
+  /** One null-aware 3x3 smoothing pass over the whole working grid, as a
+   *  single undoable op — click again for a stronger result. */
+  const smoothEdits = async () => {
+    if (!geom) return;
+    const s = editRef.current || await openSession(editTarget);
+    if (!s) return;
+    const sm = smoothHorizon(s.grid, geom.nIl, geom.nXl, { radius: 1 });
+    const cells = [];
+    const vals = [];
+    for (let c = 0; c < sm.length; c++) {
+      if (sm[c] !== s.grid[c]) { cells.push(c); vals.push(sm[c]); }
+    }
+    if (!cells.length) {
+      toast({ title: 'Nothing to smooth', description: 'The horizon is already smooth (or has no picks).' });
+      return;
+    }
+    applyOp(cells, vals);
+    commitStroke();
+    toast({ title: 'Horizon smoothed', description: `${cells.length.toLocaleString()} picks adjusted (3×3 mean, holes preserved).` });
+  };
 
   const saveEdits = async () => {
     const s = editRef.current;
@@ -919,11 +947,21 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                 className={pickMode === 'erase' ? 'border-red-500/60 text-red-300' : ''}
                 onClick={() => toggleEditTool('erase')}
                 disabled={orientation === 'time'}
-                title="Drag on the section to delete picks (map window has rectangle erase)"
+                title="Drag on the section to delete picks (map window has rectangle / polygon erase)"
               >
                 <Eraser className="w-4 h-4 mr-2" />
                 {pickMode === 'erase' ? 'Erasing…' : 'Erase'}
               </Button>
+              <select
+                className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                value={String(eraseSize)}
+                onChange={(e) => setEraseSize(Number(e.target.value))}
+                title="Eraser width (traces per pass)"
+              >
+                {BRUSH_OPTIONS.map((b) => (
+                  <option key={b.radius} value={String(b.radius)}>{`brush ${b.label}`}</option>
+                ))}
+              </select>
               <Button
                 variant="outline" size="sm"
                 onClick={track2D}
@@ -932,6 +970,15 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
               >
                 <Spline className="w-4 h-4 mr-2" />
                 Track 2D
+              </Button>
+              <Button
+                variant="outline" size="sm"
+                onClick={smoothEdits}
+                disabled={editBusy}
+                title="One 3×3 null-aware smoothing pass over the edited horizon (undoable; click again for more)"
+              >
+                <Wand2 className="w-4 h-4 mr-2" />
+                Smooth
               </Button>
 
               {edit.active && (

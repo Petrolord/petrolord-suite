@@ -31,7 +31,7 @@ import {
 } from '../viewer/annotations';
 import { buildLut } from '../viewer/shaderChunks';
 import {
-  contourLevels, contourPolylines, buildMapPixels, gridRange,
+  contourLevels, contourPolylines, buildMapPixels, gridRange, cellsInPolygon,
 } from '../viewer/mapContours';
 import { NULL_VALUE } from '../engine/manifest';
 
@@ -84,8 +84,9 @@ const INK_DIM = 'rgba(148, 163, 184, 0.6)';
  * @param {Array<{id, sticks, color: string}>} p.faults visible faults
  * @param {({ilIdx, xlIdx}) => void} [p.onNavigate] map click -> move the
  *   shared inline/crossline positions
- * @param {({horizonId, il0, il1, xl0, xl1}) => void} [p.onEraseRegion]
- *   rectangle-erase tool: delete the mapped horizon's picks in a region
+ * @param {({horizonId, cells: Int32Array}) => void} [p.onEraseRegion]
+ *   region-erase tool (drag = rectangle, clicks = polygon vertices closed
+ *   by double-click): delete the mapped horizon's picks in those cells
  * @param {number} [p.height]
  */
 function MapView({
@@ -103,6 +104,7 @@ function MapView({
   const readoutHintRef = useRef(null);
 
   const rectRef = useRef(null);         // erase rectangle, inner device px
+  const polyRef = useRef([]);           // erase polygon draft, WORLD coords
 
   const [prefs, setPrefs] = useState(loadPrefs);
   const [colormap, setColormap] = useState('spectrum');
@@ -300,6 +302,28 @@ function MapView({
       ctx.strokeRect(x, y, Math.abs(rect.x1 - rect.x0), Math.abs(rect.y1 - rect.y0));
       ctx.setLineDash([]);
     }
+
+    // erase polygon draft — world-anchored, so pan/zoom while drawing
+    // keeps the outline glued to the map
+    const poly = polyRef.current;
+    if (poly.length) {
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.9)';
+      ctx.fillStyle = 'rgba(250, 204, 21, 0.9)';
+      ctx.lineWidth = dpr;
+      ctx.setLineDash([5 * dpr, 4 * dpr]);
+      ctx.beginPath();
+      poly.forEach((v, i) => {
+        const s = t.worldToScreen(v.x, v.y);
+        if (i === 0) ctx.moveTo(s.x, s.y);
+        else ctx.lineTo(s.x, s.y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+      for (const v of poly) {
+        const s = t.worldToScreen(v.x, v.y);
+        ctx.fillRect(s.x - 2.5 * dpr, s.y - 2.5 * dpr, 5 * dpr, 5 * dpr);
+      }
+    }
     ctx.restore();
 
     // annotations over the gutters
@@ -475,14 +499,26 @@ function MapView({
 
   const eraseArmed = eraseTool && Boolean(onEraseRegion && active);
 
+  /** Finish an erase gesture: send the outline's cells and disarm. */
+  const finishErase = useCallback((flatPoly) => {
+    polyRef.current = [];
+    rectRef.current = null;
+    setEraseTool(false);
+    scheduleDraw();
+    const p = propsRef.current;
+    if (!flatPoly || !p.geom || !p.active || !onEraseRegion) return;
+    const cells = cellsInPolygon(flatPoly, p.geom.nIl, p.geom.nXl);
+    if (cells.length) onEraseRegion({ horizonId: p.active.id, cells });
+  }, [onEraseRegion, scheduleDraw]);
+
   const onPointerDown = useCallback((e) => {
     if (e.button !== 0 && e.button !== 1) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     const { sx, sy } = toDevice(e);
     if (eraseArmed && e.button === 0) {
-      dragRef.current = { mode: 'rect' };
-      rectRef.current = { x0: sx, y0: sy };
+      // click = polygon vertex, drag = rectangle — decided on first move
+      dragRef.current = { mode: 'erasePick', x0: sx, y0: sy, moved: false };
       return;
     }
     dragRef.current = { mode: 'pan', lastX: sx, lastY: sy, moved: false };
@@ -491,6 +527,17 @@ function MapView({
   const onPointerMove = useCallback((e) => {
     const { sx, sy } = toDevice(e);
     const d = dragRef.current;
+    if (d && d.mode === 'erasePick') {
+      if (!d.moved && Math.hypot(sx - d.x0, sy - d.y0) > 4) {
+        d.moved = true;
+        // a drag only means "rectangle" before any vertex is placed
+        if (polyRef.current.length === 0) {
+          d.mode = 'rect';
+          rectRef.current = { x0: d.x0, y0: d.y0 };
+        }
+      }
+      if (d.mode !== 'rect') return;
+    }
     if (d && d.mode === 'rect') {
       rectRef.current.x1 = sx;
       rectRef.current.y1 = sy;
@@ -516,30 +563,55 @@ function MapView({
     const d = dragRef.current;
     dragRef.current = null;
     if (!d) return;
+    if (d.mode === 'erasePick') {
+      // stationary click: add a polygon vertex (world coords, pan-proof)
+      const t = transformRef.current;
+      const w = t.screenToWorld(d.x0, d.y0);
+      polyRef.current.push({ x: w.x, y: w.y });
+      scheduleDraw();
+      return;
+    }
     if (d.mode === 'rect') {
       const rect = rectRef.current;
-      rectRef.current = null;
-      setEraseTool(false);
-      scheduleDraw();
-      const p = propsRef.current;
-      if (!rect || rect.x1 === undefined || !p.geom || !p.active || !onEraseRegion) return;
+      if (!rect || rect.x1 === undefined) { finishErase(null); return; }
       const t = transformRef.current;
       const a = t.screenToWorld(Math.min(rect.x0, rect.x1), Math.min(rect.y0, rect.y1));
       const b = t.screenToWorld(Math.max(rect.x0, rect.x1), Math.max(rect.y0, rect.y1));
-      const xl0 = Math.max(0, Math.floor(a.x));
-      const xl1 = Math.min(p.geom.nXl - 1, Math.floor(b.x));
-      const il0 = Math.max(0, Math.floor(a.y));
-      const il1 = Math.min(p.geom.nIl - 1, Math.floor(b.y));
-      if (xl1 >= xl0 && il1 >= il0) {
-        onEraseRegion({ horizonId: p.active.id, il0, il1, xl0, xl1 });
-      }
+      finishErase([a.x, a.y, b.x, a.y, b.x, b.y, a.x, b.y]);
       return;
     }
     if (d.moved || e.button !== 0 || !onNavigate) return;
     const { sx, sy } = toDevice(e);
     const hit = pickAt(sx, sy);
     if (hit && hit.inData) onNavigate({ ilIdx: hit.ilIdx, xlIdx: hit.xlIdx });
-  }, [toDevice, pickAt, onNavigate, onEraseRegion, scheduleDraw]);
+  }, [toDevice, pickAt, onNavigate, finishErase, scheduleDraw]);
+
+  /** Double-click closes the polygon (a dbl-click first lands 2 stacked
+   *  vertices via pointerup — dedupe before validating). */
+  const closePolygon = useCallback(() => {
+    const pts = [];
+    for (const v of polyRef.current) {
+      const last = pts[pts.length - 1];
+      if (!last || Math.hypot(v.x - last.x, v.y - last.y) > 0.25) pts.push(v);
+    }
+    if (pts.length < 3) return false;
+    finishErase(pts.flatMap((v) => [v.x, v.y]));
+    return true;
+  }, [finishErase]);
+
+  // Esc cancels an in-progress erase gesture without erasing anything
+  useEffect(() => {
+    if (!eraseTool) return undefined;
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      polyRef.current = [];
+      rectRef.current = null;
+      setEraseTool(false);
+      scheduleDraw();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [eraseTool, scheduleDraw]);
 
   const onPointerLeave = useCallback(() => setReadout(null), [setReadout]);
 
@@ -557,10 +629,11 @@ function MapView({
   }, [toDevice, scheduleDraw]);
 
   const onDoubleClick = useCallback((e) => {
+    if (eraseArmed && closePolygon()) return;
     const { sx, sy } = toDevice(e);
     transformRef.current.zoomAt(2, sx, sy);
     scheduleDraw();
-  }, [toDevice, scheduleDraw]);
+  }, [toDevice, scheduleDraw, eraseArmed, closePolygon]);
 
   // ---- toolbar -------------------------------------------------------------
 
@@ -721,9 +794,14 @@ function MapView({
           <Button
             variant="outline" size="sm"
             className={eraseTool ? 'border-red-500/60 text-red-300' : ''}
-            onClick={() => setEraseTool((v) => !v)}
+            onClick={() => {
+              polyRef.current = [];
+              rectRef.current = null;
+              setEraseTool((v) => !v);
+              scheduleDraw();
+            }}
             disabled={!active}
-            title="Erase the mapped horizon's picks inside a dragged rectangle"
+            title="Erase the mapped horizon's picks in a region: drag a rectangle, or click polygon vertices and double-click to close"
           >
             <Eraser className="w-4 h-4" />
           </Button>
@@ -777,7 +855,7 @@ function MapView({
         <span ref={readoutValsRef} className="whitespace-pre" style={{ display: 'none' }} />
         <span ref={readoutHintRef} className="text-slate-600">
           {eraseArmed
-            ? 'drag a rectangle to erase the mapped horizon’s picks in it'
+            ? 'erase: drag a rectangle · or click polygon vertices, dbl-click to close · Esc: cancel'
             : 'drag: pan · wheel: zoom · dbl-click: zoom in · click: move IL/XL there'}
         </span>
       </div>
