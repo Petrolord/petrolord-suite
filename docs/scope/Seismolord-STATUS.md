@@ -1,6 +1,42 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (wells Phase W3)
+Last updated: 2026-07-11 (wells Phase W4 — WELLS PLAN COMPLETE)
+
+## Wells Phase W4 — hardening: DONE (wells plan complete, W0–W4)
+
+- **Malformed-file fuzz** (`wellImportFuzz.test.js`, the malformedSegy
+  philosophy — 26 cases): empty/comment/header-only files, ragged rows,
+  duplicate and decreasing MDs, thousands separators, Infinity/NaN
+  literals, text-for-numbers, out-of-range inclination, azimuth
+  unit/typo blowups (new ±360° check), binary-ish garbage, checkshot
+  reversals — every one fails with a PLAIN row-numbered domain Error
+  (constructor asserted — never a raw TypeError), and weird-but-valid
+  inputs (scientific notation, trailing text columns, 10k stations)
+  parse sanely.
+- **Header detection hardened** en route: the first row is a header
+  only when non-numeric AND its per-column numeric pattern differs
+  from the second row's — so single-row tops files and data rows with
+  trailing comment columns are no longer eaten as headers (a lone
+  header line without data now fails as an unparseable row, honestly).
+- **Calibration provenance → RCP handoff**: applying a well-tie fit
+  persists `manifest.velocity_calibration` ({source:'well_tie', wells,
+  ties, rms_before/after_m, fitted_at}) via
+  `wellTie.calibrationProvenance`; a MANUAL editor save clears it —
+  a hand-typed model must not claim wells it didn't use. Both depth
+  export paths (Export panel + AI grid_and_export) now record
+  `wells_used` + `velocity_calibration` in the handoff params (null on
+  TWT/uncalibrated exports).
+- **RLS pentest re-run** (live, rollback-wrapped, management-API): user
+  B sees 0 rows across all five seismic_* tables, cannot update/delete
+  A's wells, forged insert raises 42501 — unchanged since W1.
+- Verified: 26 jest suites / 353 tests (30 new), 19 Playwright e2e
+  green on staging (well-tie spec extended to assert the provenance
+  handed over on Apply), esbuild bundle clean.
+- The wells plan (docs/scope/Seismolord-WELLS-PLAN.md) is COMPLETE:
+  W0 oracle+goldens (#44), W1 registry/import/map (#45), W2
+  sections/traverses/3D (#46), W3 well-tie calibration (#47), W4
+  hardening (#48). Future scope recorded there: LAS logs, synthetics,
+  org sharing, wells as gridding constraints.
 
 ## Wells Phase W3 — well-tie velocity calibration: DONE
 
