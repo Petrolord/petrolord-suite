@@ -75,7 +75,9 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  * @param {{horizons:Array<{grid:Float32Array,color:string}>,
  *          faults:Array<{sticks:Array,color:string}>,
  *          draftSticks:Array, seedPick:?Object}} p.overlays
- * @param {?string} p.pickMode null | 'seed' | 'fault'
+ * @param {?string} p.pickMode null | 'seed' | 'fault' | 'manual' | 'erase'
+ *   ('manual'/'erase' are PAINT modes: onPick streams during a drag and
+ *   onPickEnd fires when the stroke lifts, so editors can commit an op)
  * @param {boolean} p.loading
  * @param {(pick:{ilIdx:number,xlIdx:number,sample:number}) => void} p.onPick
  * @param {(delta:number) => void} p.onStepSlice
@@ -86,7 +88,7 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  */
 function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
-  pickMode, loading, onPick, onStepSlice, height = 520,
+  pickMode, loading, onPick, onPickEnd, onStepSlice, height = 520,
   vexag: vexagProp, onVexagChange,
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
@@ -594,6 +596,8 @@ function SliceView({
     });
   }, [pickAt, setCursorReadout]);
 
+  const isPaintMode = pickMode === 'manual' || pickMode === 'erase';
+
   const onPointerDown = useCallback((e) => {
     if (e.button !== 0 && e.button !== 1) return;
     e.preventDefault();                       // middle-drag: no autoscroll
@@ -601,12 +605,17 @@ function SliceView({
     const { sx, sy } = toDevice(e);
     if (e.shiftKey && e.button === 0) {
       dragRef.current = { mode: 'band', x0: sx, y0: sy };
+    } else if (isPaintMode && e.button === 0) {
+      // paint stroke: stream picks from the very first point
+      dragRef.current = { mode: 'paint' };
+      const hit = pickAt(sx, sy);
+      if (hit && hit.inData && onPick) onPick(hit);
     } else {
       dragRef.current = {
         mode: 'pan', lastX: sx, lastY: sy, moved: false, button: e.button,
       };
     }
-  }, [toDevice]);
+  }, [toDevice, isPaintMode, pickAt, onPick]);
 
   const onPointerMove = useCallback((e) => {
     const { sx, sy } = toDevice(e);
@@ -628,16 +637,23 @@ function SliceView({
       d.x1 = sx;
       d.y1 = sy;
       scheduleView();
+    } else if (d && d.mode === 'paint') {
+      const hit = pickAt(sx, sy);
+      if (hit && hit.inData && onPick) onPick(hit);
     } else {
       updateCursorInfo(sx, sy);
       if (propsRef.current.prefs.crosshair) scheduleView();
     }
-  }, [toDevice, scheduleView, updateCursorInfo]);
+  }, [toDevice, scheduleView, updateCursorInfo, pickAt, onPick]);
 
   const onPointerUp = useCallback((e) => {
     const d = dragRef.current;
     dragRef.current = null;
     if (!d) return;
+    if (d.mode === 'paint') {
+      if (onPickEnd) onPickEnd();
+      return;
+    }
     const { sx, sy } = toDevice(e);
     if (d.mode === 'band') {
       if (d.x1 !== undefined && Math.abs(d.x1 - d.x0) > 8 && Math.abs(d.y1 - d.y0) > 8) {
@@ -651,7 +667,7 @@ function SliceView({
       if (hit && hit.inData && onPick) onPick(hit);
     }
     scheduleView();   // clears any band remnants, syncs HUD
-  }, [toDevice, pickAt, onPick, scheduleView]);
+  }, [toDevice, pickAt, onPick, onPickEnd, scheduleView]);
 
   const onPointerLeave = useCallback(() => {
     cursorRef.current = null;

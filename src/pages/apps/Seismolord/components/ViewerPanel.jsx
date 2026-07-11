@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Eye, Loader2, XCircle, Crosshair, Route, Ban, Box, ScanLine, Map as MapIcon,
+  Eye, Loader2, XCircle, Crosshair, Route, Ban, Box, ScanLine,
+  Pencil, Eraser, Undo2, Save, Spline, Map as MapIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,14 +10,15 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { listVolumes, getManifest } from '../services/volumesService';
 import {
-  saveHorizon, listHorizons, loadHorizonGrid, deleteHorizon,
+  saveHorizon, listHorizons, loadHorizonGrid, deleteHorizon, updateHorizon,
 } from '../services/horizonsService';
 import { saveFault, listFaults, deleteFault } from '../services/faultsService';
 import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
 import {
   assembleSlice, assembleTrace, bricksForSlice, geomFromManifest, brickKey,
 } from '../engine/sliceAssembly';
-import { snapPick } from '../engine/horizonTrack';
+import { snapPick, autotrack2D } from '../engine/horizonTrack';
+import { NULL_VALUE } from '../engine/manifest';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
 import CubeView from './CubeView';
@@ -30,6 +32,18 @@ const ORIENTATIONS = [
   { key: 'xline', label: 'Crossline' },
   { key: 'time', label: 'Time slice' },
 ];
+
+const NULL_F32 = Math.fround(NULL_VALUE);
+
+/** Event kinds a horizon can snap/track to (engine SNAP_MODES + labels). */
+const SNAP_OPTIONS = [
+  { key: 'peak', label: 'Peak (+)' },
+  { key: 'trough', label: 'Trough (−)' },
+  { key: 'zero_pos', label: 'Zero cross − → +' },
+  { key: 'zero_neg', label: 'Zero cross + → −' },
+];
+
+const DRAFT_COLOR = '#facc15';
 
 // storage base URL without touching the shared client module
 const storageBase = () => supabase.storage.from('seismic')
@@ -74,9 +88,20 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const [slice, setSlice] = useState(null);              // assembled slice for SliceView
   const [resolvedHorizons, setResolvedHorizons] = useState([]);
 
-  // Phase 3: picking + horizons; Phase 4: fault sticks
-  const [pickMode, setPickMode] = useState(null);   // null | 'seed' | 'fault'
+  // Phase 3: picking + horizons; Phase 4: fault sticks; editing tools:
+  // 'manual' (paint picks) and 'erase' (paint nulls) run against the
+  // edit session in editRef.
+  const [pickMode, setPickMode] = useState(null);   // null|'seed'|'fault'|'manual'|'erase'
   const [seedPick, setSeedPick] = useState(null);   // {ilIdx, xlIdx, sample}
+  const [snapMode, setSnapMode] = useState('peak'); // SNAP_OPTIONS key
+  // ---- horizon edit session ---------------------------------------------
+  // editRef holds the WORKING grid (mutated in place during a paint
+  // stroke, cloned on commit so the 3D/map caches rebuild once per op)
+  // plus the undo stack; `edit` mirrors the bits the UI renders.
+  const editRef = useRef(null);            // {targetId:'new'|id, grid, undo:[]}
+  const [editTarget, setEditTarget] = useState('new');
+  const [edit, setEdit] = useState({ version: 0, undo: 0, active: false });
+  const [editBusy, setEditBusy] = useState(false);
   const [tracking, setTracking] = useState(null);   // {tracked, total}
   const [horizons, setHorizons] = useState([]);
   const [visibleIds, setVisibleIds] = useState(new Set());
@@ -109,6 +134,90 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     }
   }, [toast]);
 
+  // ---- edit session lifecycle -------------------------------------------
+
+  const closeSession = useCallback(() => {
+    editRef.current = null;
+    setEdit({ version: 0, undo: 0, active: false });
+    setPickMode((p) => (p === 'manual' || p === 'erase' ? null : p));
+  }, []);
+
+  /**
+   * Open (or switch to) the edit session for `targetId` ('new' = a fresh
+   * empty grid; otherwise a WORKING COPY of that horizon's picks —
+   * nothing touches storage until Save). Unsaved edits ask before being
+   * discarded; returns null if the user declines or the target is gone.
+   */
+  const openSession = useCallback(async (targetId) => {
+    const cur = editRef.current;
+    if (cur && cur.targetId === targetId) return cur;
+    if (cur && cur.undo.length && !window.confirm('Discard unsaved horizon edits?')) {
+      return null;
+    }
+    if (!geom) return null;
+    let grid;
+    if (targetId === 'new') {
+      grid = new Float32Array(geom.nIl * geom.nXl).fill(NULL_F32);
+    } else {
+      const h = horizons.find((x) => x.id === targetId);
+      if (!h) return null;
+      let base = gridCacheRef.current.get(h.id);
+      if (!base) {
+        try {
+          base = await loadHorizonGrid(h);
+        } catch (e) {
+          toast({ title: 'Horizon failed to load', description: e.message, variant: 'destructive' });
+          return null;
+        }
+        gridCacheRef.current.set(h.id, base);
+      }
+      grid = new Float32Array(base);
+      setVisibleIds((s) => (s.has(h.id) ? s : new Set([...s, h.id])));
+    }
+    editRef.current = { targetId, grid, undo: [] };
+    setEdit({ version: 1, undo: 0, active: true });
+    return editRef.current;
+  }, [geom, horizons, toast]);
+
+  /** Record old values, apply new ones, push an undo op. */
+  const applyOp = useCallback((cells, values) => {
+    const s = editRef.current;
+    if (!s || !cells.length) return;
+    const changed = [];
+    const old = [];
+    for (let i = 0; i < cells.length; i++) {
+      const c = cells[i];
+      const next = Math.fround(values[i]);
+      if (s.grid[c] === next) continue;
+      changed.push(c);
+      old.push(s.grid[c]);
+      s.grid[c] = next;
+    }
+    if (!changed.length) return;
+    s.undo.push({ cells: changed, old });
+    if (s.undo.length > 40) s.undo.shift();
+    setEdit((e) => ({ version: e.version + 1, undo: s.undo.length, active: true }));
+  }, []);
+
+  /** End of a paint stroke / one-shot op: clone the grid so the 3D and
+   *  map caches (keyed by grid reference) rebuild exactly once. */
+  const commitStroke = useCallback(() => {
+    const s = editRef.current;
+    if (!s) return;
+    s.grid = new Float32Array(s.grid);
+    setEdit((e) => ({ ...e, version: e.version + 1 }));
+  }, []);
+
+  const undoEdit = useCallback(() => {
+    const s = editRef.current;
+    if (!s || !s.undo.length) return;
+    const op = s.undo.pop();
+    const g = new Float32Array(s.grid);
+    for (let i = 0; i < op.cells.length; i++) g[op.cells[i]] = op.old[i];
+    s.grid = g;
+    setEdit((e) => ({ version: e.version + 1, undo: s.undo.length, active: true }));
+  }, []);
+
   const selectVolume = async (id) => {
     const seq = ++selectSeqRef.current;           // supersedes any in-flight select
     const v = volumes.find((x) => x.id === id) || null;
@@ -119,6 +228,10 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     setVisibleIds(new Set());
     setVisibleFaultIds(new Set());
     setDraftSticks([]);
+    editRef.current = null;
+    setEdit({ version: 0, undo: 0, active: false });
+    setEditTarget('new');
+    setPickMode(null);
     gridCacheRef.current.clear();
     setError(null);
     if (onVolumeChange) onVolumeChange(null, null);
@@ -183,30 +296,49 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
 
   useEffect(() => { loadSlice(); }, [loadSlice]);
 
-  // resolve the visible horizons to grids + colors for the overlay
+  // resolve the visible horizons to grids + colors for the overlays; a
+  // horizon being edited shows its WORKING grid (and is forced visible),
+  // and a from-scratch session appears as a yellow draft layer
   useEffect(() => {
     let stale = false;
     (async () => {
+      const session = editRef.current;
       const out = [];
       for (let idx = 0; idx < horizons.length; idx++) {
         const h = horizons[idx];
-        if (!visibleIds.has(h.id)) continue;
-        let grid = gridCacheRef.current.get(h.id);
-        if (!grid) {
-          try {
-            grid = await loadHorizonGrid(h);
-          } catch (e) {
-            toast({ title: `Horizon "${h.name}" failed to load`, description: e.message, variant: 'destructive' });
-            continue;
+        const isEditing = session && session.targetId === h.id;
+        if (!visibleIds.has(h.id) && !isEditing) continue;
+        let grid;
+        if (isEditing) {
+          grid = session.grid;
+        } else {
+          grid = gridCacheRef.current.get(h.id);
+          if (!grid) {
+            try {
+              grid = await loadHorizonGrid(h);
+            } catch (e) {
+              toast({ title: `Horizon "${h.name}" failed to load`, description: e.message, variant: 'destructive' });
+              continue;
+            }
+            gridCacheRef.current.set(h.id, grid);
           }
-          gridCacheRef.current.set(h.id, grid);
         }
-        out.push({ id: h.id, name: h.name, grid, color: horizonColor(idx) });
+        out.push({
+          id: h.id,
+          name: isEditing ? `${h.name} (editing)` : h.name,
+          grid,
+          color: horizonColor(idx),
+        });
+      }
+      if (session && session.targetId === 'new') {
+        out.push({
+          id: '__draft', name: 'New horizon (editing)', grid: session.grid, color: DRAFT_COLOR,
+        });
       }
       if (!stale) setResolvedHorizons(out);
     })();
     return () => { stale = true; };
-  }, [horizons, visibleIds, toast]);
+  }, [horizons, visibleIds, toast, edit.version]);
 
   // ---- picking (horizon seed / fault sticks) ----------------------------
   // SliceView already mapped the click through its view transform.
@@ -226,18 +358,48 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
       return;
     }
 
+    if (pickMode === 'erase') {
+      // brush: the pointed trace ±1 along the line, picks -> null
+      const cells = [];
+      for (let d = -1; d <= 1; d++) {
+        if (orientation === 'inline') {
+          const xl = xlIdx + d;
+          if (xl >= 0 && xl < geom.nXl) cells.push(ilIdx * geom.nXl + xl);
+        } else {
+          const il = ilIdx + d;
+          if (il >= 0 && il < geom.nIl) cells.push(il * geom.nXl + xlIdx);
+        }
+      }
+      applyOp(cells, cells.map(() => NULL_VALUE));
+      return;
+    }
+
+    if (pickMode === 'manual') {
+      // snap to the chosen event kind when one is near, else take the
+      // click as-is (free manual picking away from clean events)
+      const cell = ilIdx * geom.nXl + xlIdx;
+      try {
+        const traceData = await assembleTrace(getBrick, geom, ilIdx, xlIdx);
+        const hit = snapPick(traceData, sample, { mode: snapMode, window: 5 });
+        applyOp([cell], [hit ? hit.sample : sample]);
+      } catch {
+        applyOp([cell], [sample]);
+      }
+      return;
+    }
+
     try {
       const traceData = await assembleTrace(getBrick, geom, ilIdx, xlIdx);
-      const hit = snapPick(traceData, sample, { mode: 'peak', window: 5 });
+      const hit = snapPick(traceData, sample, { mode: snapMode, window: 5 });
       if (!hit) {
-        toast({ title: 'No event found', description: 'No peak near that click — try closer to a reflector.' });
+        toast({ title: 'No event found', description: 'No event of the selected snap kind near that click — try closer to one.' });
         return;
       }
       setSeedPick({ ilIdx, xlIdx, sample: hit.sample });
     } catch (err) {
       setError(err.message);
     }
-  }, [pickMode, geom, volume, orientation, getBrick, toast]);
+  }, [pickMode, geom, volume, orientation, getBrick, toast, snapMode, applyOp]);
 
   // ---- fault stick editing ----------------------------------------------
   const endStick = () => setDraftSticks((s) => (s.length && s[s.length - 1].length ? [...s, []] : s));
@@ -289,6 +451,132 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     }
   };
 
+  // ---- horizon editing actions ------------------------------------------
+
+  /** Tracker gates: zero crossings sit at ~0 amplitude, so the RMS-based
+   *  amplitude floor only applies to extrema modes. */
+  const trackerOpts = useCallback((windowSize) => ({
+    mode: snapMode,
+    window: windowSize,
+    maxJump: 4,
+    minAbsAmp: snapMode.startsWith('zero') ? 0 : (manifest?.stats?.rms || 0) * 0.3,
+  }), [snapMode, manifest]);
+
+  const toggleEditTool = async (tool) => {
+    if (pickMode === tool) { setPickMode(null); return; }
+    const s = editRef.current || await openSession(editTarget);
+    if (s) setPickMode(tool);
+  };
+
+  const changeEditTarget = async (value) => {
+    const prev = editRef.current?.targetId;
+    setEditTarget(value);
+    if (editRef.current && prev !== value) {
+      const s = await openSession(value);
+      if (!s && prev) setEditTarget(prev);        // user kept unsaved edits
+    }
+  };
+
+  /** Autotrack along the DISPLAYED section from the seed, into the edit
+   *  session (one undoable op). */
+  const track2D = async () => {
+    if (!seedPick || !slice || !geom || orientation === 'time') return;
+    const onLine = orientation === 'inline'
+      ? seedPick.ilIdx === sliceIndex : seedPick.xlIdx === sliceIndex;
+    if (!onLine) {
+      toast({ title: 'Seed is not on this line', description: 'Pick a seed on the displayed section first.' });
+      return;
+    }
+    const s = editRef.current || await openSession(editTarget);
+    if (!s) return;
+    const startTrace = orientation === 'inline' ? seedPick.xlIdx : seedPick.ilIdx;
+    const { picks, tracked } = autotrack2D(slice, startTrace, seedPick.sample, trackerOpts(3));
+    if (!tracked) {
+      toast({ title: 'Nothing tracked', description: 'No consistent event from that seed along this line.' });
+      return;
+    }
+    const cells = [];
+    const vals = [];
+    for (let tr = 0; tr < picks.length; tr++) {
+      if (picks[tr] === NULL_F32) continue;
+      cells.push(orientation === 'inline' ? sliceIndex * geom.nXl + tr : tr * geom.nXl + sliceIndex);
+      vals.push(picks[tr]);
+    }
+    applyOp(cells, vals);
+    commitStroke();
+    toast({ title: '2D autotrack', description: `${tracked} traces tracked along this line.` });
+  };
+
+  /** Map window rectangle erase — targets the horizon the map displays,
+   *  switching the edit session to it if needed. */
+  const eraseRegion = useCallback(async ({ horizonId, il0, il1, xl0, xl1 }) => {
+    if (!geom) return;
+    let s = editRef.current;
+    if (horizonId === '__draft') {
+      if (!s || s.targetId !== 'new') return;
+    } else if (!s || s.targetId !== horizonId) {
+      const opened = await openSession(horizonId);
+      if (!opened) return;
+      setEditTarget(horizonId);
+      s = opened;
+    }
+    const cells = [];
+    for (let i = il0; i <= il1; i++) {
+      for (let x = xl0; x <= xl1; x++) {
+        const c = i * geom.nXl + x;
+        if (s.grid[c] !== NULL_F32) cells.push(c);
+      }
+    }
+    if (!cells.length) return;
+    applyOp(cells, cells.map(() => NULL_VALUE));
+    commitStroke();
+  }, [geom, openSession, applyOp, commitStroke]);
+
+  const saveEdits = async () => {
+    const s = editRef.current;
+    if (!s || !volume || !manifest) return;
+    setEditBusy(true);
+    try {
+      if (s.targetId === 'new') {
+        const name = window.prompt('Horizon name:', `Horizon ${horizons.length + 1}`);
+        if (!name) return;
+        const row = await saveHorizon({
+          volume,
+          name,
+          picks: s.grid,
+          seed: seedPick || null,
+          params: { mode: snapMode, window: 5, source: 'manual/2d' },
+          dtUs: manifest.geometry.dt_us,
+        });
+        gridCacheRef.current.set(row.id, s.grid);
+        setVisibleIds((v) => new Set([...v, row.id]));
+        toast({ title: 'Horizon saved', description: `${name}: ${row.stats.tracked} picks.` });
+      } else {
+        const h = horizons.find((x) => x.id === s.targetId);
+        if (!h) throw new Error('The edited horizon no longer exists.');
+        const row = await updateHorizon({
+          horizon: h,
+          picks: s.grid,
+          dtUs: manifest.geometry.dt_us,
+          params: { mode: snapMode, edited: true },
+        });
+        gridCacheRef.current.set(h.id, s.grid);
+        toast({ title: 'Horizon updated', description: `${h.name}: ${row.stats.tracked} picks.` });
+      }
+      await reloadHorizons(volume);
+      closeSession();
+    } catch (e) {
+      toast({ title: 'Save failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  const discardEdits = () => {
+    if (editRef.current?.undo.length && !window.confirm('Discard horizon edits?')) return;
+    closeSession();
+  };
+
   // ---- 3D tracking -----------------------------------------------------
   const trackHorizon = async () => {
     if (!seedPick || !geom || !volume || !manifest) return;
@@ -319,12 +607,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
             storagePath: volume.storage_path,
             geom,
             seed: seedPick,
-            opts: {
-              mode: 'peak',
-              window: 3,
-              maxJump: 4,
-              minAbsAmp: (manifest.stats?.rms || 0) * 0.3,
-            },
+            opts: trackerOpts(3),
           },
         });
       }).finally(() => worker.terminate());
@@ -338,7 +621,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
         name,
         picks,
         seed: seedPick,
-        params: { mode: 'peak', window: 3, maxJump: 4 },
+        params: { ...trackerOpts(3), source: 'track3d' },
         dtUs: manifest.geometry.dt_us,
       });
       gridCacheRef.current.set(row.id, picks);
@@ -375,6 +658,8 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     setHorizonBusyId(h.id);
     try {
       await deleteHorizon(h);
+      if (editRef.current?.targetId === h.id) closeSession();
+      if (editTarget === h.id) setEditTarget('new');
       gridCacheRef.current.delete(h.id);
       setVisibleIds((s) => { const n = new Set(s); n.delete(h.id); return n; });
       await reloadHorizons(volume);
@@ -596,6 +881,82 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                 </span>
               )}
             </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Label className="text-slate-400 text-xs">Snap</Label>
+              <select
+                className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                value={snapMode}
+                onChange={(e) => setSnapMode(e.target.value)}
+                title="Event kind for seed snapping and 2D/3D autotracking"
+              >
+                {SNAP_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+              </select>
+
+              <Label className="text-slate-400 text-xs ml-2">Edit</Label>
+              <select
+                className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs max-w-[170px]"
+                value={editTarget}
+                onChange={(e) => changeEditTarget(e.target.value)}
+                title="Horizon that manual picking / erasing / 2D tracking edits"
+              >
+                <option value="new">New horizon…</option>
+                {horizons.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+              </select>
+
+              <Button
+                variant="outline" size="sm"
+                className={pickMode === 'manual' ? 'border-yellow-500/60 text-yellow-300' : ''}
+                onClick={() => toggleEditTool('manual')}
+                disabled={orientation === 'time'}
+                title="Click or drag on the section to pick (snaps to the selected event)"
+              >
+                <Pencil className="w-4 h-4 mr-2" />
+                {pickMode === 'manual' ? 'Manual: picking…' : 'Manual pick'}
+              </Button>
+              <Button
+                variant="outline" size="sm"
+                className={pickMode === 'erase' ? 'border-red-500/60 text-red-300' : ''}
+                onClick={() => toggleEditTool('erase')}
+                disabled={orientation === 'time'}
+                title="Drag on the section to delete picks (map window has rectangle erase)"
+              >
+                <Eraser className="w-4 h-4 mr-2" />
+                {pickMode === 'erase' ? 'Erasing…' : 'Erase'}
+              </Button>
+              <Button
+                variant="outline" size="sm"
+                onClick={track2D}
+                disabled={!seedPick || !slice || orientation === 'time'}
+                title="Autotrack the seed along the displayed line only"
+              >
+                <Spline className="w-4 h-4 mr-2" />
+                Track 2D
+              </Button>
+
+              {edit.active && (
+                <>
+                  <Button variant="outline" size="sm" onClick={undoEdit} disabled={!edit.undo}>
+                    <Undo2 className="w-4 h-4 mr-1" />
+                    Undo{edit.undo ? ` (${edit.undo})` : ''}
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white"
+                    onClick={saveEdits}
+                    disabled={!edit.undo || editBusy}
+                  >
+                    {editBusy
+                      ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      : <Save className="w-4 h-4 mr-2" />}
+                    {editTarget === 'new' ? 'Save as horizon' : 'Save edits'}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={discardEdits} disabled={editBusy}>
+                    Discard
+                  </Button>
+                </>
+              )}
+            </div>
           </>
         )}
 
@@ -621,6 +982,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                   pickMode={pickMode}
                   loading={loading}
                   onPick={handlePick}
+                  onPickEnd={commitStroke}
                   onStepSlice={stepSlice}
                   height={560}
                   vexag={vexag}
@@ -659,6 +1021,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                   horizons={resolvedHorizons}
                   faults={overlays.faults}
                   onNavigate={navigateTo}
+                  onEraseRegion={eraseRegion}
                   height={560}
                 />
               ),

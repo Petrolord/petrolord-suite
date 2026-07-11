@@ -17,7 +17,8 @@ import React, {
   useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,
 } from 'react';
 import {
-  ZoomIn, ZoomOut, Expand, Maximize, Minimize, Layers, Camera, Map as MapIcon,
+  ZoomIn, ZoomOut, Expand, Maximize, Minimize, Layers, Camera, Eraser,
+  Map as MapIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -83,10 +84,12 @@ const INK_DIM = 'rgba(148, 163, 184, 0.6)';
  * @param {Array<{id, sticks, color: string}>} p.faults visible faults
  * @param {({ilIdx, xlIdx}) => void} [p.onNavigate] map click -> move the
  *   shared inline/crossline positions
+ * @param {({horizonId, il0, il1, xl0, xl1}) => void} [p.onEraseRegion]
+ *   rectangle-erase tool: delete the mapped horizon's picks in a region
  * @param {number} [p.height]
  */
 function MapView({
-  manifest, geom, horizons, faults, onNavigate, height = 560,
+  manifest, geom, horizons, faults, onNavigate, onEraseRegion, height = 560,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -99,9 +102,12 @@ function MapView({
   const readoutValsRef = useRef(null);
   const readoutHintRef = useRef(null);
 
+  const rectRef = useRef(null);         // erase rectangle, inner device px
+
   const [prefs, setPrefs] = useState(loadPrefs);
   const [colormap, setColormap] = useState('spectrum');
   const [activeId, setActiveId] = useState(null);
+  const [eraseTool, setEraseTool] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -281,6 +287,19 @@ function MapView({
       ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
       ctx.setLineDash([]);
     }
+
+    const rect = rectRef.current;
+    if (rect && rect.x1 !== undefined) {
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.9)';
+      ctx.fillStyle = 'rgba(250, 204, 21, 0.12)';
+      ctx.lineWidth = dpr;
+      ctx.setLineDash([5 * dpr, 4 * dpr]);
+      const x = Math.min(rect.x0, rect.x1);
+      const y = Math.min(rect.y0, rect.y1);
+      ctx.fillRect(x, y, Math.abs(rect.x1 - rect.x0), Math.abs(rect.y1 - rect.y0));
+      ctx.strokeRect(x, y, Math.abs(rect.x1 - rect.x0), Math.abs(rect.y1 - rect.y0));
+      ctx.setLineDash([]);
+    }
     ctx.restore();
 
     // annotations over the gutters
@@ -454,17 +473,30 @@ function MapView({
     hint.style.display = 'none';
   }, []);
 
+  const eraseArmed = eraseTool && Boolean(onEraseRegion && active);
+
   const onPointerDown = useCallback((e) => {
     if (e.button !== 0 && e.button !== 1) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     const { sx, sy } = toDevice(e);
-    dragRef.current = { lastX: sx, lastY: sy, moved: false };
-  }, [toDevice]);
+    if (eraseArmed && e.button === 0) {
+      dragRef.current = { mode: 'rect' };
+      rectRef.current = { x0: sx, y0: sy };
+      return;
+    }
+    dragRef.current = { mode: 'pan', lastX: sx, lastY: sy, moved: false };
+  }, [toDevice, eraseArmed]);
 
   const onPointerMove = useCallback((e) => {
     const { sx, sy } = toDevice(e);
     const d = dragRef.current;
+    if (d && d.mode === 'rect') {
+      rectRef.current.x1 = sx;
+      rectRef.current.y1 = sy;
+      scheduleDraw();
+      return;
+    }
     if (d) {
       const dx = sx - d.lastX;
       const dy = sy - d.lastY;
@@ -483,11 +515,31 @@ function MapView({
   const onPointerUp = useCallback((e) => {
     const d = dragRef.current;
     dragRef.current = null;
-    if (!d || d.moved || e.button !== 0 || !onNavigate) return;
+    if (!d) return;
+    if (d.mode === 'rect') {
+      const rect = rectRef.current;
+      rectRef.current = null;
+      setEraseTool(false);
+      scheduleDraw();
+      const p = propsRef.current;
+      if (!rect || rect.x1 === undefined || !p.geom || !p.active || !onEraseRegion) return;
+      const t = transformRef.current;
+      const a = t.screenToWorld(Math.min(rect.x0, rect.x1), Math.min(rect.y0, rect.y1));
+      const b = t.screenToWorld(Math.max(rect.x0, rect.x1), Math.max(rect.y0, rect.y1));
+      const xl0 = Math.max(0, Math.floor(a.x));
+      const xl1 = Math.min(p.geom.nXl - 1, Math.floor(b.x));
+      const il0 = Math.max(0, Math.floor(a.y));
+      const il1 = Math.min(p.geom.nIl - 1, Math.floor(b.y));
+      if (xl1 >= xl0 && il1 >= il0) {
+        onEraseRegion({ horizonId: p.active.id, il0, il1, xl0, xl1 });
+      }
+      return;
+    }
+    if (d.moved || e.button !== 0 || !onNavigate) return;
     const { sx, sy } = toDevice(e);
     const hit = pickAt(sx, sy);
     if (hit && hit.inData) onNavigate({ ilIdx: hit.ilIdx, xlIdx: hit.xlIdx });
-  }, [toDevice, pickAt, onNavigate]);
+  }, [toDevice, pickAt, onNavigate, onEraseRegion, scheduleDraw]);
 
   const onPointerLeave = useCallback(() => setReadout(null), [setReadout]);
 
@@ -665,6 +717,18 @@ function MapView({
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {onEraseRegion && (
+          <Button
+            variant="outline" size="sm"
+            className={eraseTool ? 'border-red-500/60 text-red-300' : ''}
+            onClick={() => setEraseTool((v) => !v)}
+            disabled={!active}
+            title="Erase the mapped horizon's picks inside a dragged rectangle"
+          >
+            <Eraser className="w-4 h-4" />
+          </Button>
+        )}
+
         <Button variant="outline" size="sm" onClick={screenshot}
           title="Save PNG snapshot" disabled={!hasData}
         >
@@ -686,7 +750,8 @@ function MapView({
       >
         <canvas
           ref={canvasRef}
-          className="w-full h-full block touch-none cursor-grab active:cursor-grabbing"
+          className={`w-full h-full block touch-none ${eraseArmed
+            ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'}`}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -711,7 +776,9 @@ function MapView({
       <div className="flex items-center gap-4 text-xs text-slate-400 font-mono mt-1 h-5">
         <span ref={readoutValsRef} className="whitespace-pre" style={{ display: 'none' }} />
         <span ref={readoutHintRef} className="text-slate-600">
-          drag: pan · wheel: zoom · dbl-click: zoom in · click: move IL/XL there
+          {eraseArmed
+            ? 'drag a rectangle to erase the mapped horizon’s picks in it'
+            : 'drag: pan · wheel: zoom · dbl-click: zoom in · click: move IL/XL there'}
         </span>
       </div>
     </div>
