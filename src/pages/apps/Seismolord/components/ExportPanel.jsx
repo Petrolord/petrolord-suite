@@ -5,15 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { listHorizons, loadHorizonGrid } from '../services/horizonsService';
-import { picksToPoints } from '../engine/gridding';
-import { surveyAffine, cellSpacing, surveyBounds } from '../engine/surveyGeometry';
-import { geomFromManifest } from '../engine/sliceAssembly';
-import { writeXYZ, writeCPS3, writeZMAP, grvAcreFt } from '../engine/surfaceExport';
-import {
-  normalizeVelocity, describeVelocity, sampleToExportZ,
-} from '../engine/velocityModel';
+import { listHorizons } from '../services/horizonsService';
+import { listFaults } from '../services/faultsService';
+import { surveyAffine } from '../engine/surveyGeometry';
+import { writeCPS3, writeZMAP, grvAcreFt } from '../engine/surfaceExport';
+import { normalizeVelocity, describeVelocity } from '../engine/velocityModel';
 import { publishSurface } from '../services/exportsService';
+import { gridHorizonSurface } from '../services/surfaceWorkflow';
 
 const FORMATS = [
   { key: 'xyz', label: 'XYZ points (.xyz)', ext: 'xyz' },
@@ -21,15 +19,12 @@ const FORMATS = [
   { key: 'zmap', label: 'ZMAP+ grid (.dat)', ext: 'zmap.dat' },
 ];
 
-const newGriddingWorker = () =>
-  new Worker(new URL('../workers/gridding.worker.js', import.meta.url), { type: 'module' });
-
-let jobSeq = 0;
-
 /**
  * Grid a horizon and export it. Exports follow the playbook convention:
  * z is NEGATIVE downward — depth in feet (constant-velocity conversion)
- * or negated TWT milliseconds.
+ * or negated TWT milliseconds. When the volume has faults that cut the
+ * horizon, gridding is fault-blocked by default (interpolation never
+ * crosses a fault).
  */
 export default function ExportPanel({ volume, manifest }) {
   const { toast } = useToast();
@@ -43,16 +38,22 @@ export default function ExportPanel({ volume, manifest }) {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);         // {live, zMin, zMax, grv, fileName}
   const [error, setError] = useState(null);
+  const [faults, setFaults] = useState([]);
+  const [faultAware, setFaultAware] = useState(true);
 
   useEffect(() => {
     setHorizons([]);
     setHorizonId('');
+    setFaults([]);
     setResult(null);
     setError(null);
     if (volume) {
       listHorizons(volume.id)
         .then(setHorizons)
         .catch((e) => setError(e.message));
+      listFaults(volume.id)
+        .then(setFaults)
+        .catch(() => setFaults([])); // faults are optional for export
     }
   }, [volume]);
 
@@ -62,9 +63,6 @@ export default function ExportPanel({ volume, manifest }) {
   const affine = useMemo(
     () => (manifest ? surveyAffine(manifest.geometry) : null), [manifest]);
 
-  const binM = useMemo(
-    () => (affine ? cellSpacing(affine).xl || 25 : 25), [affine]);
-
   /** @param {'download'|'rcp'} destination */
   const runExport = async (destination = 'download') => {
     if (!volume || !manifest || !horizonId) return;
@@ -73,59 +71,24 @@ export default function ExportPanel({ volume, manifest }) {
     setResult(null);
     setError(null);
     try {
-      const geom = geomFromManifest(manifest);
-      const picks = await loadHorizonGrid(horizon);
-      const dtMs = manifest.geometry.dt_us / 1000;
-
-      // z NEGATIVE downward (playbook export convention); the volume's
-      // velocity model wins over the constant-velocity fallback
-      const sampleToZ = domain === 'depth'
-        ? (model
-          ? sampleToExportZ(model, manifest.geometry.dt_us)
-          : (s) => -((s * dtMs) / 1000) * (velocity / 2))
-        : (s) => -(s * dtMs);
       if (!affine) throw new Error('Volume has no usable survey coordinates for gridding.');
-      const points = picksToPoints(picks, geom, affine, sampleToZ);
-      if (points.length < 3) throw new Error('Horizon has too few live picks to grid.');
-
-      // axis-aligned world bbox of the (possibly rotated) survey
-      const dxy = cell > 0 ? cell : binM;
-      const b = surveyBounds(affine, manifest.geometry.il.count, manifest.geometry.xl.count);
-      const spec = {
-        x0: b.x0, y0: b.y0, dx: dxy, dy: dxy,
-        nx: Math.floor((b.x1 - b.x0) / dxy) + 1,
-        ny: Math.floor((b.y1 - b.y0) / dxy) + 1,
-      };
-
-      const id = ++jobSeq;
-      const worker = newGriddingWorker();
-      const gridded = await new Promise((resolve, reject) => {
-        worker.onmessage = (e) => {
-          const msg = e.data;
-          if (msg.id !== id) return;
-          if (msg.type === 'done') resolve(msg);
-          else if (msg.type === 'error') reject(new Error(msg.message));
-        };
-        worker.onerror = (ev) => reject(new Error(ev.message));
-        worker.postMessage({
-          type: 'grid', id, points, spec, opts: { maxExtrapolation: 2 * dxy },
-        });
-      }).finally(() => worker.terminate());
-
-      const g = {
-        z: new Float32Array(gridded.z),
-        nx: spec.nx,
-        ny: spec.ny,
-        dx: spec.dx,
-        dy: spec.dy,
-        x: Array.from({ length: spec.nx }, (_, i) => spec.x0 + i * spec.dx),
-        y: Array.from({ length: spec.ny }, (_, i) => spec.y0 + i * spec.dy),
-      };
+      // z NEGATIVE downward (playbook export convention); the volume's
+      // velocity model wins over the constant-velocity fallback; faults
+      // that cut the horizon block interpolation across them
+      const { g, spec, gridded, xyzText, faultInfo } = await gridHorizonSurface({
+        manifest,
+        horizon,
+        domain,
+        velocityFtS: velocity,
+        cellM: cell,
+        faults: faultAware && faults.length ? faults : null,
+      });
+      const dxy = spec.dx;
       const safeName = horizon.name.replace(/[^\w-]+/g, '_').toLowerCase();
       const effectiveFormat = destination === 'rcp' ? 'xyz' : format;
       const fmt = FORMATS.find((f) => f.key === effectiveFormat);
       let text;
-      if (effectiveFormat === 'xyz') text = writeXYZ(g);
+      if (effectiveFormat === 'xyz') text = xyzText;
       else if (effectiveFormat === 'cps3') text = writeCPS3(g);
       else text = writeZMAP({ ...g, name: safeName });
       const fileName = `${safeName}_${domain}.${fmt.ext}`;
@@ -144,6 +107,11 @@ export default function ExportPanel({ volume, manifest }) {
             // provenance: measured survey orientation vs the legacy
             // axis-aligned corner assumption
             survey_geometry: affine.legacyAxisAligned ? 'corners_axis_aligned' : 'measured_affine',
+            // fault blocking: null when gridding ran unblocked (no
+            // faults, toggle off, or no fault cuts this horizon)
+            fault_aware: Boolean(faultInfo),
+            fault_blocks: faultInfo?.blocks ?? null,
+            faults_used: faultInfo?.traces ?? null,
             max_extrapolation_m: 2 * dxy,
             control_points: gridded.controlCount,
             live_nodes: gridded.live,
@@ -169,6 +137,7 @@ export default function ExportPanel({ volume, manifest }) {
         zMin: gridded.zMin,
         zMax: gridded.zMax,
         grv,
+        faultInfo,
         fileName: destination === 'rcp' ? 'sent to ReservoirCalc Pro' : fileName,
       });
       toast({
@@ -282,6 +251,20 @@ export default function ExportPanel({ volume, manifest }) {
                 <Send className="w-4 h-4 mr-2" />
                 Send to ReservoirCalc Pro
               </Button>
+              {faults.length > 0 && (
+                <label
+                  className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer select-none"
+                  title="Interpolation will not cross faults that cut this horizon; nodes on the fault trace stay null"
+                >
+                  <input
+                    type="checkbox"
+                    checked={faultAware}
+                    onChange={(e) => setFaultAware(e.target.checked)}
+                    className="accent-cyan-500"
+                  />
+                  Fault-aware ({faults.length} fault{faults.length > 1 ? 's' : ''})
+                </label>
+              )}
               <div className="flex items-center gap-2">
                 <Label className="text-slate-300 text-sm">Contact (ft, optional)</Label>
                 <Input
@@ -309,6 +292,12 @@ export default function ExportPanel({ volume, manifest }) {
                   </span>
                   </div>
                 )}
+                {result.faultInfo && (
+                  <div>Fault blocks: <span className="text-white">
+                    {result.faultInfo.blocks}
+                  </span> ({result.faultInfo.traces} fault trace{result.faultInfo.traces > 1 ? 's' : ''})
+                  </div>
+                )}
               </div>
             )}
             {error && (
@@ -320,9 +309,10 @@ export default function ExportPanel({ volume, manifest }) {
               Exports use the suite convention: Z negative downward (depth in feet via
               the volume velocity model when set, else constant velocity; or negated
               TWT ms); nulls are 1.0E+30;
-              CPS-3/ZMAP+ bodies are column-major, north to south. Assumes an
-              unrotated survey (X along crosslines) — rotated geometry is a recorded
-              follow-up.
+              CPS-3/ZMAP+ bodies are column-major, north to south. World positions
+              come from the measured survey geometry (rotated surveys supported).
+              With fault-aware gridding on, interpolation never crosses a fault that
+              cuts the horizon and nodes on the fault trace stay null.
             </p>
           </>
         )}

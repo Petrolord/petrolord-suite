@@ -214,6 +214,113 @@ export function gridSurface(rawPoints, spec, opts = {}) {
 }
 
 /**
+ * Fault-blocked TPS gridding: control points carry a fault-block id and
+ * every output node is evaluated ONLY against its own block's surface,
+ * so interpolation never crosses a fault — throw is preserved right up
+ * to the barrier instead of smearing into a ramp (TPS extends each
+ * block's trend across pick gaps; a planar block stays exactly planar).
+ *
+ * @param {{x:number,y:number,z:number,block:number}[]} rawPoints
+ *   block < 0 (barrier cells) is dropped — picks within half a bin of a
+ *   fault are unreliable
+ * @param {{x0:number,y0:number,dx:number,dy:number,nx:number,ny:number}} spec
+ * @param {{nodeBlocks: Int32Array, maxControl?: number,
+ *          maxExtrapolation?: number,
+ *          onProgress?: (done:number,total:number)=>void}} opts
+ *   nodeBlocks: block id per output node (r * nx + c), -1 = on a
+ *   barrier -> null (the standard fault-gap look)
+ * @returns {{z: Float32Array, live: number, controlCount: number,
+ *            dropped: number, zMin: number|null, zMax: number|null,
+ *            blockCount: number, skippedBlocks: number}}
+ */
+export function gridSurfaceBlocked(rawPoints, spec, opts = {}) {
+  const {
+    maxControl = 700,
+    maxExtrapolation = 2 * Math.max(spec.dx, spec.dy),
+    nodeBlocks,
+    onProgress,
+  } = opts;
+  const { nx, ny } = spec;
+  if (!nodeBlocks || nodeBlocks.length !== nx * ny) {
+    throw new Error('Blocked gridding needs a block id per output node.');
+  }
+  const clean = rawPoints.filter((p) =>
+    Number.isFinite(p.z) && Math.abs(p.z) < 1.0e29 && p.block >= 0);
+  if (clean.length < 3) throw new Error('Gridding needs at least 3 control points.');
+
+  const byBlock = new Map();
+  for (const p of clean) {
+    const arr = byBlock.get(p.block);
+    if (arr) arr.push(p); else byBlock.set(p.block, [p]);
+  }
+
+  // one TPS + hull per block; the decimation budget is split by point
+  // share so the total solve cost stays at or below the unblocked cost
+  const models = new Map();
+  let controlCount = 0;
+  let dropped = 0;
+  let skippedBlocks = 0;
+  for (const [block, pts] of byBlock) {
+    if (pts.length < 3) { skippedBlocks += 1; continue; }
+    const budget = Math.min(maxControl,
+      Math.max(16, Math.floor((maxControl * pts.length) / clean.length)));
+    const dec = decimateControls(pts, budget);
+    try {
+      models.set(block, {
+        tps: fitTps(dec.points),
+        points: dec.points,
+      });
+      controlCount += dec.points.length;
+      dropped += dec.dropped;
+    } catch {
+      skippedBlocks += 1; // collinear/degenerate block — null its nodes
+    }
+  }
+
+  const maxExtrap2 = maxExtrapolation * maxExtrapolation;
+  const z = new Float32Array(nx * ny).fill(NULL_F32);
+  let live = 0;
+  let zMin = Infinity;
+  let zMax = -Infinity;
+  const total = nx * ny;
+  for (let r = 0; r < ny; r++) {
+    const y = spec.y0 + r * spec.dy;
+    for (let c = 0; c < nx; c++) {
+      const m = models.get(nodeBlocks[r * nx + c]);
+      if (!m) continue;                       // barrier or skipped block
+      const x = spec.x0 + c * spec.dx;
+      // no hull mask here (unlike gridSurface): a block must extrapolate
+      // its trend across the pick gap up to the fault — the barrier
+      // labels and the distance gate below are the boundary authority
+      let near = false;
+      for (let i = 0; i < m.points.length; i++) {
+        const dx = x - m.points[i].x;
+        const dy = y - m.points[i].y;
+        if (dx * dx + dy * dy <= maxExtrap2) { near = true; break; }
+      }
+      if (!near) continue;
+      z[r * nx + c] = m.tps(x, y);
+      const vf = z[r * nx + c];
+      if (vf < zMin) zMin = vf;
+      if (vf > zMax) zMax = vf;
+      live += 1;
+    }
+    if (onProgress && r % 8 === 0) onProgress(r * nx, total);
+  }
+  if (onProgress) onProgress(total, total);
+  return {
+    z,
+    live,
+    controlCount,
+    dropped,
+    zMin: live ? zMin : null,
+    zMax: live ? zMax : null,
+    blockCount: models.size,
+    skippedBlocks,
+  };
+}
+
+/**
  * Convert a horizon pick grid to world-coordinate control points.
  *
  * Positions come from the survey affine (world = origin + i*ilVec +

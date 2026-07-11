@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/customSupabaseClient';
 import { listHorizons, saveHorizon } from '../services/horizonsService';
+import { listFaults } from '../services/faultsService';
 import { publishSurface } from '../services/exportsService';
 import { gridHorizonSurface } from '../services/surfaceWorkflow';
 import { grvAcreFt } from '../engine/surfaceExport';
@@ -137,8 +138,11 @@ export default function AiPanel({ volume, manifest }) {
         throw new Error(`No horizon named "${horizonName}". Available: ${rows.map((h) => h.name).join(', ') || 'none'}.`);
       }
       setStatus(`Gridding "${horizon.name}"…`);
-      const { g, spec, gridded, xyzText } = await gridHorizonSurface({
-        manifest, horizon, domain, velocityFtS: velocity,
+      // fault-aware by default: faults that cut the horizon block
+      // interpolation (no schema change — the volume's own faults)
+      const volFaults = await listFaults(volume.id).catch(() => []);
+      const { g, spec, gridded, xyzText, faultInfo } = await gridHorizonSurface({
+        manifest, horizon, domain, velocityFtS: velocity, faults: volFaults,
       });
       const grv = domain === 'depth' && contactFt != null
         ? grvAcreFt(g, spec.dx, spec.dy, contactFt)
@@ -155,6 +159,9 @@ export default function AiPanel({ volume, manifest }) {
             velocity_model: domain === 'depth' ? (manifest.velocity || null) : null,
             velocity_ft_s: domain === 'depth' && !manifest.velocity ? velocity : null,
             survey_geometry: manifest.geometry?.affine ? 'measured_affine' : 'corners_axis_aligned',
+            fault_aware: Boolean(faultInfo),
+            fault_blocks: faultInfo?.blocks ?? null,
+            faults_used: faultInfo?.traces ?? null,
             cell_m: spec.dx, live_nodes: gridded.live,
             z_min: gridded.zMin, z_max: gridded.zMax,
           },
@@ -176,6 +183,8 @@ export default function AiPanel({ volume, manifest }) {
         z_min: gridded.zMin,
         z_max: gridded.zMax,
         grv_acre_ft: grv,
+        fault_aware: Boolean(faultInfo),
+        fault_blocks: faultInfo?.blocks ?? null,
       };
     },
   };

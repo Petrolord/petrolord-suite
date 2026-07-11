@@ -1,6 +1,44 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (rotated-survey geometry)
+Last updated: 2026-07-11 (fault-aware gridding)
+
+## Fault-aware gridding (blocked TPS): DONE
+
+Closes the recorded Phase 4 limit: TPS was not fault-aware — it
+interpolated straight across fault sticks, smearing throw into a ramp.
+
+- **Fault barriers** (`engine/faultBarriers.js`): each stick is
+  intersected with the horizon (null-aware bilinear sampling along the
+  stick polyline; hole segments skipped, first sign change wins);
+  crossings in STORED stick order form the fault's horizon-level trace
+  (the same order the 3D ribbon lofts); traces rasterize onto the
+  horizon lattice as 4-CONNECTED barrier chains (diagonal-leak
+  regression test); flood fill labels the fault blocks.
+  `buildFaultBlocks` returns null when no fault cuts the horizon —
+  gridding then runs exactly as before.
+- **Blocked TPS** (`gridding.gridSurfaceBlocked`): one TPS per block
+  (decimation budget split by point share), barrier-cell picks dropped,
+  every output node evaluated only against its own block; barrier nodes
+  stay null (the standard fault-gap look). NO hull mask in blocked mode
+  — blocks extrapolate their trend across the pick gap up to the fault,
+  bounded by the distance gate. Analytic proof: two planar blocks with
+  300 ft throw reproduce < 0.01 ft right up to the fault; the unblocked
+  path smears > 50 ft on the same inputs (the documented bug).
+- **Wiring**: worker gains the blocked path (nodeBlocks presence
+  selects it); `gridHorizonSurface({faults})` builds labels and assigns
+  export nodes their lattice block through the inverse survey affine;
+  the Export panel now DELEGATES to the shared workflow (its inline
+  duplicate of the gridding code was removed) and gets a fault-aware
+  toggle (default on when the volume has faults) + fault-block readout;
+  the AI `grid_and_export` is fault-aware by default using the volume's
+  own faults (deliberately no tool-schema change, so no edge redeploy).
+  Handoff provenance records fault_aware / fault_blocks / faults_used.
+- Verified: 30 jest suites / 429 tests repo-wide (new faultBarriers +
+  faultGridding suites, 17 cases), 13 Playwright e2e green on staging.
+- Follow-up candidates: draw the horizon-level fault traces (not just
+  stick footprints) in MapView, per-fault include/exclude in the export
+  panel, extrapolation-distance-to-fault control, fault polygons
+  (heave) instead of line barriers.
 
 ## Rotated-survey geometry (measured affine): DONE
 
