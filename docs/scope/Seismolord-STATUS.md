@@ -1,6 +1,40 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (fault-aware gridding)
+Last updated: 2026-07-11 (layer-cake velocity model)
+
+## Layer-cake velocity model: DONE
+
+Successor to the single V(z) = V0 + kZ model (kept, now tagged
+kind:'linear'): ordered layers bounded by picked horizons, each with
+its own V = v0 + k·(z − layer top); the last layer is unbounded.
+
+- **Engine** (`engine/velocityModel.js`): layer boundaries are horizon
+  TIMES, so conversion is COLUMN-DEPENDENT — `makeDepthConverter` gives
+  a (twtMs, cell) API over boundary pick grids; `layercakeDepthM` is
+  the piecewise analytic accumulation. Conventions (tested): a null
+  boundary extends the layer above to the next defined boundary (the
+  layer below vanishes there); crossing/noisy boundaries clamp to zero
+  thickness so depth stays monotonic in time. Validated against
+  segment-wise RK4 integration + hand-computed constant-velocity
+  stacks. Manifest form: `{type:'layercake', layers:[{base_horizon_id,
+  v0, k}]}` — existing `{v0,k}` manifests unchanged.
+- **Editor** (ViewerPanel): Single V(z) / Layer cake mode select; layer
+  rows pick a base horizon + V0/k with add/remove and validation (>= 2
+  layers, distinct horizons); rows save sorted by horizon mid-TWT.
+  Boundary grids load through the horizon grid cache and GATE depth
+  displays (a layer cake is unusable until its grids are in — never
+  convert with half a model).
+- **Consumers**: `picksToPoints` passes the lattice cell to sampleToZ;
+  the export workflow loads boundary grids and exports per column
+  (Export panel, AI and fault-aware paths inherit); MapView depth
+  domains + cursor readout convert per surface AND per column (isochron
+  thickness right under laterally-varying velocity); layer cache keyed
+  by `velocityKey`, invalidated on boundary-grid changes.
+- Verified: 30 jest suites / 437 tests repo-wide (9 new layer-cake
+  cases incl. RK4 cross-check), 13 Playwright e2e green on staging.
+- Follow-up candidates: well-tie calibration of layer velocities, depth
+  display in sections/3D, interval-velocity QC map (thickness ×
+  velocity per layer).
 
 ## Fault-aware gridding (blocked TPS): DONE
 
