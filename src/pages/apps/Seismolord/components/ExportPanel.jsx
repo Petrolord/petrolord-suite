@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { listHorizons, loadHorizonGrid } from '../services/horizonsService';
 import { picksToPoints } from '../engine/gridding';
+import { surveyAffine, cellSpacing, surveyBounds } from '../engine/surveyGeometry';
 import { geomFromManifest } from '../engine/sliceAssembly';
 import { writeXYZ, writeCPS3, writeZMAP, grvAcreFt } from '../engine/surfaceExport';
 import {
@@ -58,14 +59,11 @@ export default function ExportPanel({ volume, manifest }) {
   // the volume's persisted velocity model beats the constant fallback
   const model = useMemo(() => normalizeVelocity(manifest?.velocity), [manifest]);
 
-  const binM = useMemo(() => {
-    if (!manifest) return 25;
-    const g = manifest.geometry;
-    const nXl = g.xl.count;
-    return nXl > 1
-      ? Math.abs((g.corners.last.x - g.corners.first.x) / (nXl - 1)) || 25
-      : 25;
-  }, [manifest]);
+  const affine = useMemo(
+    () => (manifest ? surveyAffine(manifest.geometry) : null), [manifest]);
+
+  const binM = useMemo(
+    () => (affine ? cellSpacing(affine).xl || 25 : 25), [affine]);
 
   /** @param {'download'|'rcp'} destination */
   const runExport = async (destination = 'download') => {
@@ -86,19 +84,17 @@ export default function ExportPanel({ volume, manifest }) {
           ? sampleToExportZ(model, manifest.geometry.dt_us)
           : (s) => -((s * dtMs) / 1000) * (velocity / 2))
         : (s) => -(s * dtMs);
-      const points = picksToPoints(picks, geom, manifest.geometry.corners, sampleToZ);
+      if (!affine) throw new Error('Volume has no usable survey coordinates for gridding.');
+      const points = picksToPoints(picks, geom, affine, sampleToZ);
       if (points.length < 3) throw new Error('Horizon has too few live picks to grid.');
 
-      const c = manifest.geometry.corners;
+      // axis-aligned world bbox of the (possibly rotated) survey
       const dxy = cell > 0 ? cell : binM;
-      const x0 = Math.min(c.first.x, c.last.x);
-      const x1 = Math.max(c.first.x, c.last.x);
-      const y0 = Math.min(c.first.y, c.last.y);
-      const y1 = Math.max(c.first.y, c.last.y);
+      const b = surveyBounds(affine, manifest.geometry.il.count, manifest.geometry.xl.count);
       const spec = {
-        x0, y0, dx: dxy, dy: dxy,
-        nx: Math.floor((x1 - x0) / dxy) + 1,
-        ny: Math.floor((y1 - y0) / dxy) + 1,
+        x0: b.x0, y0: b.y0, dx: dxy, dy: dxy,
+        nx: Math.floor((b.x1 - b.x0) / dxy) + 1,
+        ny: Math.floor((b.y1 - b.y0) / dxy) + 1,
       };
 
       const id = ++jobSeq;
@@ -145,6 +141,9 @@ export default function ExportPanel({ volume, manifest }) {
             cell_m: dxy,
             velocity_model: domain === 'depth' && model ? model : null,
             velocity_ft_s: domain === 'depth' && !model ? velocity : null,
+            // provenance: measured survey orientation vs the legacy
+            // axis-aligned corner assumption
+            survey_geometry: affine.legacyAxisAligned ? 'corners_axis_aligned' : 'measured_affine',
             max_extrapolation_m: 2 * dxy,
             control_points: gridded.controlCount,
             live_nodes: gridded.live,

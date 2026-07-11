@@ -19,10 +19,12 @@ import {
   writeXYZ, writeCPS3, writeZMAP, grvAcreFt, pyExp,
 } from '@/pages/apps/Seismolord/engine/surfaceExport';
 import { NULL_VALUE } from '@/pages/apps/Seismolord/engine/manifest';
+import { affineFromCorners } from '@/pages/apps/Seismolord/engine/surveyGeometry';
 import { SurfaceParser } from '@/pages/apps/ReservoirCalcPro/services/SurfaceParser';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
-const SURF_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'seismolord', 'surfaces');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'seismolord');
+const SURF_DIR = path.join(DATA_DIR, 'surfaces');
 
 const meta = JSON.parse(fs.readFileSync(path.join(SURF_DIR, 'dome_surface_meta.json'), 'utf8'));
 
@@ -184,11 +186,50 @@ describe('TPS gridding', () => {
     const picks = new Float32Array(12).fill(NULL_F32);
     picks[0] = 10;                                     // il 0, xl 0
     picks[1 * 4 + 2] = 20;                             // il 1, xl 2
-    const corners = { first: { x: 1000, y: 5000 }, last: { x: 1075, y: 5050 } };
-    const pts = picksToPoints(picks, geom, corners, (s) => s * 4); // dt 4ms
+    // legacy corner fallback: identical output to the old axis-aligned path
+    const affine = affineFromCorners({
+      corners: { first: { x: 1000, y: 5000 }, last: { x: 1075, y: 5050 } },
+      il: { count: 3 }, xl: { count: 4 },
+    });
+    const pts = picksToPoints(picks, geom, affine, (s) => s * 4); // dt 4ms
     expect(pts).toHaveLength(2);
     expect(pts[0]).toEqual({ x: 1000, y: 5000, z: 40 });
     expect(pts[1]).toEqual({ x: 1050, y: 5025, z: 80 });
+  });
+
+  test('picksToPoints places rotated-survey picks at the true header coordinates', () => {
+    const golden = JSON.parse(fs.readFileSync(
+      path.join(DATA_DIR, 'goldens', 'dome_rot.json'), 'utf8'));
+    const t = golden.affine_truth;
+    const affine = {
+      origin: t.origin,
+      ilVec: t.il_vec,
+      xlVec: t.xl_vec,
+    };
+    const { n_il: nIl, n_xl: nXl } = golden.geometry;
+    const picks = new Float32Array(nIl * nXl);
+    for (let k = 0; k < picks.length; k++) picks[k] = 25; // any live sample
+    const pts = picksToPoints(picks, { nIl, nXl }, affine, (s) => -s);
+    expect(pts).toHaveLength(nIl * nXl);
+    // header coordinates round to cm (scalar -100); the affine is exact
+    const cxBytes = Buffer.from(golden.coord_grids.x.base64, 'base64');
+    const cyBytes = Buffer.from(golden.coord_grids.y.base64, 'base64');
+    const cx = new Float64Array(cxBytes.buffer, cxBytes.byteOffset, nIl * nXl);
+    const cy = new Float64Array(cyBytes.buffer, cyBytes.byteOffset, nIl * nXl);
+    let maxErr = 0;
+    for (let k = 0; k < pts.length; k++) {
+      maxErr = Math.max(maxErr, Math.abs(pts[k].x - cx[k]), Math.abs(pts[k].y - cy[k]));
+    }
+    expect(maxErr).toBeLessThan(0.006);
+    // and the old axis-aligned assumption would have been >100 m wrong here
+    const legacy = affineFromCorners({
+      corners: { first: golden.corner_coords.first, last: golden.corner_coords.last },
+      il: { count: nIl }, xl: { count: nXl },
+    });
+    const wrong = picksToPoints(picks, { nIl, nXl }, legacy, (s) => -s);
+    const worst = Math.max(...wrong.map((p, k) =>
+      Math.hypot(p.x - cx[k], p.y - cy[k])));
+    expect(worst).toBeGreaterThan(100);
   });
 });
 

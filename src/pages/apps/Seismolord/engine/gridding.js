@@ -216,26 +216,27 @@ export function gridSurface(rawPoints, spec, opts = {}) {
 /**
  * Convert a horizon pick grid to world-coordinate control points.
  *
- * Assumes the survey's X axis runs along crosslines and Y along inlines
- * (the corner coordinates in the manifest define the spacing) — true for
- * unrotated surveys; rotated-geometry support is a recorded follow-up.
+ * Positions come from the survey affine (world = origin + i*ilVec +
+ * j*xlVec), so rotated surveys and rectangular bins map correctly; a
+ * legacy corner-fallback affine reproduces the old axis-aligned
+ * arithmetic exactly.
  *
  * @param {Float32Array} picks sample indices, nIl x nXl, 1e30 nulls
  * @param {{nIl:number,nXl:number}} geom
- * @param {{first:{x:number,y:number}, last:{x:number,y:number}}} corners
+ * @param {Object} affine resolved survey affine —
+ *   surveyAffine(manifest.geometry)
  * @param {(sample: number) => number} sampleToZ e.g. TWT ms or depth ft
  */
-export function picksToPoints(picks, geom, corners, sampleToZ) {
-  const dxl = geom.nXl > 1 ? (corners.last.x - corners.first.x) / (geom.nXl - 1) : 0;
-  const dil = geom.nIl > 1 ? (corners.last.y - corners.first.y) / (geom.nIl - 1) : 0;
+export function picksToPoints(picks, geom, affine, sampleToZ) {
+  if (!affine?.origin) throw new Error('Volume has no usable survey coordinates.');
   const out = [];
   for (let i = 0; i < geom.nIl; i++) {
     for (let x = 0; x < geom.nXl; x++) {
       const s = picks[i * geom.nXl + x];
       if (s === NULL_F32) continue;
       out.push({
-        x: corners.first.x + x * dxl,
-        y: corners.first.y + i * dil,
+        x: affine.origin.x + i * affine.ilVec.x + x * affine.xlVec.x,
+        y: affine.origin.y + i * affine.ilVec.y + x * affine.xlVec.y,
         z: sampleToZ(s),
       });
     }
