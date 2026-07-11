@@ -1,6 +1,49 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (3D cube window + colormap catalogue)
+Last updated: 2026-07-11 (interpretation in 3D, map window, window manager)
+
+## 3D interpretation + Map window + window manager: DONE
+
+Operator requests: horizons/faults in the 3D window; an axis gizmo; a
+Petrel-style 2D map window; windows arranged as tabs with optional
+visibility and horizontal/vertical tiling.
+
+- **Horizons & faults in 3D** (`viewer/interpMesh.js` + CubeRenderer mesh
+  API + CubeView wiring): visible horizons render as shaded surfaces
+  (null-aware triangulation, decimated ≤512² lattice, holes keep hard
+  edges), faults as sticks + translucent lofted ribbons (arc-length
+  resampled rails, auto-orientation so hand-picked sticks never bowtie).
+  Geometry lives in normalized cube space scaled by a `u_scale` uniform —
+  vexag changes are uniform updates, zero re-uploads. Shading is
+  screen-space-derivative faceted lambert (no normal attributes, so
+  non-uniform scale needs no normal matrix). Visibility is the SAME state
+  as the 2D lists (ViewerPanel `visibleIds`/`visibleFaultIds`).
+- **Axis gizmo** (CubeView overlay): camera-locked IL/XL/Z arrows with
+  foreshortening + depth ordering, bottom-left disc; clicking an axis tip
+  snaps to the standard view (XL→end-on, IL→front, Z→map view). Gizmo
+  clicks never fall through to plane picking. Toggle under Planes ▸
+  Rendering.
+- **Map window** (`components/MapView.jsx` + `viewer/mapContours.js`):
+  structure map of the active visible horizon — cached color-fill bitmap
+  (per horizon × colormap, 8 sequential palettes), null-aware
+  marching-squares contours on nice levels (majors every 5th, CI note),
+  Z colorbar (shallow at top), fault traces, survey outline, IL/XL axes,
+  north arrow, scale bar, world-X/Y + IL/XL + Z readout. Pan/zoom via the
+  shared ViewTransform with ground aspect on the vexag channel; click
+  moves the shared inline+crossline positions (map → sections/3D nav).
+- **Window manager** (`components/ViewerWindows.jsx`): Section / 3D / Map
+  as tabs with per-window close, a Windows menu to open/close each, and
+  three layouts — tabs, tile horizontally (columns), tile vertically
+  (rows). Open windows stay MOUNTED when hidden (display:none) so
+  cameras, GL state and caches survive tab switches; ResizeObservers
+  re-size canvases on reveal. Layout/open-set persisted
+  (`seismolord.windows.v1`). Replaces the old inline "3D window" toggle.
+- Verified: 15 jest suites (162 tests; new `interpMesh` + `mapContours`
+  math suites) and all 13 Playwright e2e tests green against live
+  staging; esbuild bundle check of the ViewerPanel subtree clean.
+- Follow-up candidates: contour value labels along lines, map polygon /
+  fault-polygon editing, draggable 3D planes, arbitrary traverse lines,
+  depth-converted maps once a velocity model exists.
 
 ## 3D cube window + colormaps: DONE
 
