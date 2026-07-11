@@ -1,6 +1,50 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (wells Phase W0)
+Last updated: 2026-07-11 (wells Phase W1)
+
+## Wells Phase W1 — registry, import, map display: DONE
+
+- **`seismic_wells` migration** (`20260711220000_create_seismic_wells.sql`,
+  applied + logged in MIGRATIONS.md): per-user, VOLUME-INDEPENDENT
+  (world coordinates; deliberately no volume FK — plan decision #1);
+  deviation/tops/checkshots as compact jsonb (fault-sticks precedent).
+  **RLS pentest extended and EXECUTED live** (rollback-wrapped, via the
+  management-API query endpoint): user B sees 0 rows across all FIVE
+  seismic_* tables, cannot update/delete A's wells, forged insert
+  raises 42501; user A control reads succeed.
+- **Import engine** (`engine/wellImport.js`, pure + jest): delimited
+  parse (comma/semicolon/tab/whitespace detection, comment/blank
+  skipping, header detection), name-based mapping guesses, and the
+  domain-rule builders — deviation MD must strictly increase and
+  inclination stay 0–180°; checkshots must STRICTLY increase in both
+  depth and time (rejected with row numbers, never sorted silently).
+  Golden station/checkshot tables round-trip exactly.
+- **UI**: `WellImport` (header fields + Deviation/Tops/Checkshots tabs,
+  paste or file, mapping selects with live preview; a well without a
+  deviation survey is vertical and needs TD) inside a new `WellsPanel`
+  (per-user list, visibility/colors/delete) on the Seismolord page.
+  Visible wells flow to the viewer with their minimum-curvature world
+  paths precomputed (wellPath engine), ready for W2's sections/3D.
+- **Map display** (MapView `wells` prop + Layers toggle): surface spot
+  (circle + centre dot) with haloed name label, deviated path polyline
+  and TD marker — everything through the survey affine
+  (`worldToIlxl`); hidden with a "(no coordinates)" note when the
+  volume has no usable affine.
+- **Acceptance held**: oracle-truth lattice placement — gen_wells.py
+  now emits each well's fractional il/xl (surface AND TD) on dome_ieee
+  and dome_rot via an INDEPENDENT Python inversion; jest holds the
+  app's `worldToIlxl` to < 0.1 cell (measured < 1e-9). New Playwright
+  harness `/dev/seismolord-wells` mounts the REAL WellImport + MapView
+  on the rotated fixture's affine truth: the spec imports the golden
+  S-shape well through the mapping UI (headerless, shuffled columns —
+  the selects must be driven), asserts surface/TD land at the oracle
+  IL/XL (< 0.1 cell gate, < 1e-6 measured), well ink on the map
+  canvas, and the checkshot rejection message in the UI path.
+- Verified: 23 jest suites / 297 tests (12 new), 16 Playwright e2e
+  green on staging (2 new), esbuild bundle of the page subtree clean.
+- Next: Phase W2 — T(z) resolution (checkshots → inverted velocity
+  model), corridor projection onto sections/traverses, tops as markers,
+  wells in the 3D window.
 
 ## Wells Phase W0 — oracle, goldens, wellPath engine: DONE
 

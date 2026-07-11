@@ -27,7 +27,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import mincurve  # noqa: E402  (wells/)
-from model import DOME_IEEE, T_CREST_MS, T_RELIEF_MS  # noqa: E402
+from model import DOME_IEEE, DOME_ROT, T_CREST_MS, T_RELIEF_MS, affine_truth  # noqa: E402
 
 OUT = Path(__file__).resolve().parents[4] / 'test-data' / 'seismolord' / 'wells'
 
@@ -224,6 +224,24 @@ def find_dome_top(stations, pos, surface, kb):
     }
 
 
+LATTICE_SPECS = {s.name: affine_truth(s) for s in (DOME_IEEE, DOME_ROT)}
+
+
+def world_to_ilxl(aff, x, y):
+    """Independent 2x2 inversion of the affine truth (the acceptance
+    reference the app's worldToIlxl is held to, < 0.1 cell)."""
+    ilv, xlv, org = aff['il_vec'], aff['xl_vec'], aff['origin']
+    det = ilv['x'] * xlv['y'] - ilv['y'] * xlv['x']
+    dx, dy = x - org['x'], y - org['y']
+    return {'il': (dx * xlv['y'] - dy * xlv['x']) / det,
+            'xl': (dy * ilv['x'] - dx * ilv['y']) / det}
+
+
+def lattice_truth(x, y):
+    """Fractional il/xl of a world point on each fixture survey."""
+    return {name: world_to_ilxl(aff, x, y) for name, aff in LATTICE_SPECS.items()}
+
+
 def checkshots(max_tvdss, step=25.0):
     out = []
     z = 0.0
@@ -254,6 +272,12 @@ def build_well(w):
         'fine_path': fine,
         'checkshots': checkshots(max_tvdss),
         'tops': [find_dome_top(w['stations'], pos, w['surface'], kb)],
+        # fractional il/xl of the surface AND the TD point on each
+        # fixture (incl. the rotated one) — the W1 map-placement truth
+        'lattice': {
+            'surface': lattice_truth(w['surface']['x'], w['surface']['y']),
+            'td': lattice_truth(path[-1]['x'], path[-1]['y']),
+        },
     }
 
 
@@ -291,6 +315,7 @@ def main():
                  't_relief_ms': T_RELIEF_MS, 'xc': DOME_XC, 'yc': DOME_YC,
                  'rmax2': DOME_RMAX2},
         'published_example': mincurve.PUBLISHED_EXAMPLE,
+        'lattice_affines': LATTICE_SPECS,
         'wells': [build_well(w) for w in WELLS],
     }
     OUT.mkdir(parents=True, exist_ok=True)

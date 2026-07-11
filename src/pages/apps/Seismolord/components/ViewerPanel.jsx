@@ -80,7 +80,7 @@ async function accessToken() {
 const newHorizonWorker = () =>
   new Worker(new URL('../workers/horizon.worker.js', import.meta.url), { type: 'module' });
 
-export default function ViewerPanel({ refreshKey, onVolumeChange }) {
+export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
   const { toast } = useToast();
   const cacheRef = useRef(null);
   const requestRef = useRef(0);
@@ -1688,6 +1688,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                   onTraverse={handleTraverse}
                   savedTraverses={savedTraverses}
                   onAmplitude={extractAmplitude}
+                  wells={wells}
                   height={560}
                 />
               ),

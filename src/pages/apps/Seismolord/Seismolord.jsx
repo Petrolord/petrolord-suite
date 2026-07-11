@@ -11,6 +11,7 @@ import VolumesPanel from './components/VolumesPanel';
 import ViewerPanel from './components/ViewerPanel';
 import ExportPanel from './components/ExportPanel';
 import AiPanel from './components/AiPanel';
+import WellsPanel from './components/WellsPanel';
 
 // Phase 1: streaming SEG-Y ingestion to the brick store (import panel with
 // header-mapping preview + volume registry). The interpretation canvas
@@ -21,6 +22,9 @@ export default function Seismolord() {
   const [error, setError] = useState(null);
   const [volumesRefresh, setVolumesRefresh] = useState(0);
   const [viewerSelection, setViewerSelection] = useState({ volume: null, manifest: null });
+  // visible wells (with computed world paths) from the wells panel —
+  // wells are per-user/volume-independent, so they live at page level
+  const [wells, setWells] = useState([]);
 
   const checkBackend = useCallback(async () => {
     setChecking(true);
@@ -86,6 +90,7 @@ export default function Seismolord() {
           <ViewerPanel
             refreshKey={volumesRefresh}
             onVolumeChange={(volume, manifest) => setViewerSelection({ volume, manifest })}
+            wells={wells}
           />
         </div>
 
@@ -100,6 +105,10 @@ export default function Seismolord() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
           <VolumesPanel refreshKey={volumesRefresh} />
           <ImportPanel onIngested={() => setVolumesRefresh((k) => k + 1)} />
+        </div>
+
+        <div className="mb-6">
+          <WellsPanel onWellsChange={setWells} />
         </div>
 
         <Card className="bg-slate-900/60 border-slate-700 max-w-2xl">
