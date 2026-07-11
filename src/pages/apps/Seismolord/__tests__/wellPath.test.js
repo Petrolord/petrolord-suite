@@ -13,6 +13,7 @@ import {
   computeWellPath, verticalWellPath, positionAtMd, doglegRad, ratioFactor,
 } from '@/pages/apps/Seismolord/engine/wellPath';
 import { twtMsToDepthM } from '@/pages/apps/Seismolord/engine/velocityModel';
+import { surveyAffine, worldToIlxl } from '@/pages/apps/Seismolord/engine/surveyGeometry';
 
 const GOLDEN = JSON.parse(fs.readFileSync(path.join(
   __dirname, '..', '..', '..', '..', '..',
@@ -85,6 +86,32 @@ describe.each(GOLDEN.wells.map((w) => [w.name, w]))('%s', (_name, w) => {
     expect(Math.abs(p.x - top.x)).toBeLessThan(TOL_M);
     expect(Math.abs(p.y - top.y)).toBeLessThan(TOL_M);
   });
+});
+
+describe('map placement (W1 acceptance): wells land at the correct IL/XL', () => {
+  // the app resolves manifests through surveyAffine; the goldens carry
+  // each fixture's exact affine truth plus an INDEPENDENT Python
+  // inversion of every well's surface and TD point
+  test.each(Object.keys(GOLDEN.lattice_affines))(
+    '%s: surface and TD within 0.1 cell of the oracle inversion',
+    (specName) => {
+      const aff = surveyAffine({ affine: GOLDEN.lattice_affines[specName] });
+      for (const w of GOLDEN.wells) {
+        const surf = worldToIlxl(aff, w.surface.x, w.surface.y);
+        const truthS = w.lattice.surface[specName];
+        expect(Math.abs(surf.i - truthS.il)).toBeLessThan(0.1);
+        expect(Math.abs(surf.j - truthS.xl)).toBeLessThan(0.1);
+        const end = w.path[w.path.length - 1];
+        const td = worldToIlxl(aff, end.x, end.y);
+        const truthT = w.lattice.td[specName];
+        expect(Math.abs(td.i - truthT.il)).toBeLessThan(0.1);
+        expect(Math.abs(td.j - truthT.xl)).toBeLessThan(0.1);
+        // measured agreement is float64-tight, not just inside the gate
+        expect(Math.abs(surf.i - truthS.il)).toBeLessThan(1e-9);
+        expect(Math.abs(surf.j - truthS.xl)).toBeLessThan(1e-9);
+      }
+    },
+  );
 });
 
 describe('vertical shortcut and degenerate handling', () => {
