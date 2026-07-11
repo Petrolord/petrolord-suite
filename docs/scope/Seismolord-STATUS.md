@@ -1,6 +1,51 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (interpretation in 3D, map window, window manager)
+Last updated: 2026-07-11 (horizon editing toolkit, contour labels, draggable planes)
+
+## Horizon editing toolkit + contour labels + draggable planes: DONE
+
+Operator requests: contour value labels; draggable 3D planes; manual +
+2D autotracking alongside 3D; peak/trough/zero-crossing selection;
+deleting wrong picks on a line or a region of a 3D-tracked horizon.
+
+- **Snap modes** (`engine/horizonTrack.js`): SNAP_MODES now peak /
+  trough / zero_pos (−→+) / zero_neg (+→−). Zero modes take the NEAREST
+  crossing (not strongest), linear sub-sample position, and report the
+  strongest flanking amplitude (±3 samples) so autotrack's minAbsAmp and
+  dead-trace gates still work at ~0 amplitude — the UI additionally
+  drops the RMS amplitude floor for zero modes. The snap select drives
+  seed snapping, Track 2D and Track 3D (mode persisted in params).
+- **Edit sessions** (ViewerPanel `editRef` + `openSession`/`applyOp`/
+  `commitStroke`/`undoEdit`): target = "New horizon…" (fresh grid,
+  yellow draft overlay) or an existing horizon (WORKING COPY — storage
+  untouched until Save). Tools: **manual paint picking** (click/drag on
+  sections; snaps to the selected event, falls back to the raw click),
+  **Track 2D** (engine autotrack2D along the displayed line, one undoable
+  op), **erase brush** (drag on sections, trace ±1), **rectangle
+  region-erase in the map window** (targets the mapped horizon,
+  switching the session to it), bounded 40-op **undo**. Save →
+  `saveHorizon` (new) or `updateHorizon` (blob upsert + stats refresh).
+  Paint strokes mutate the working grid in place (live 2D overlay via a
+  version counter) and clone it on release so the 3D-mesh / map-layer
+  caches (keyed by grid ref) rebuild once per operation, not per move.
+- **SliceView paint modes**: pickMode 'manual'/'erase' stream onPick
+  during a drag and fire onPickEnd on release.
+- **Contour value labels** (`contourPolylines` + MapView): segment soups
+  chain into open/closed polylines (shared-edge endpoints are bitwise
+  identical, so exact matching suffices); labels ride MAJOR contours,
+  screen-spaced (~280 px), kept upright, haloed for fill/dark ground.
+  Layers ▸ "Contour value labels".
+- **Draggable 3D planes** (CubeView): Ctrl/Alt+drag over a main plane
+  moves it along its axis — pointer delta is projected through the
+  axis' screen direction into an index delta; the quad moves immediately
+  (old texture stretches a frame) while the reconcile effect streams the
+  new slice; the shared index updates through onChangeIndex so 2D stays
+  in sync. Boundary faces are not draggable by definition.
+- Verified: 15 jest suites / 167 tests (new zero-crossing +
+  contour-polyline cases) and all 13 Playwright e2e green on staging.
+- Follow-up candidates: eraser size control, polygon (not just
+  rectangle) region erase, horizon smoothing/interpolation fill,
+  multi-Z picking per trace, ghost-curve preview while manual picking.
 
 ## 3D interpretation + Map window + window manager: DONE
 
