@@ -1,6 +1,38 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (isochron maps, smoothing radius, snap window)
+Last updated: 2026-07-11 (velocity model + depth conversion)
+
+## Velocity model + depth conversion: DONE
+
+- **Model** (`engine/velocityModel.js`, pure + jest): V(z) = V0 + k·z,
+  analytic z(t) = (v0/k)·expm1(k·t) with the k = 0 constant-velocity
+  limit — validated against RK4 integration of dz/dt = v0 + k·z
+  (validation-first rule). Null-aware depth grids (m/ft) and
+  `sampleToExportZ` for the NEGATIVE-feet export convention.
+- **Persistence**: the model lives INSIDE the volume's manifest.json
+  (`manifest.velocity = {v0, k}`) via
+  `volumesService.saveManifestVelocity` — owner-path storage upsert
+  under existing RLS, deliberately NO database schema change. Editor
+  row in the viewer (V0 m/s, k 1/s, Save to volume; clear V0 removes);
+  saving propagates the merged manifest through onVolumeChange so the
+  export panel sees it immediately.
+- **Depth maps** (MapView domain select: TWT ms / Depth m / Depth ft,
+  gated on the model): structure AND isochron layers convert PER
+  SURFACE before differencing — Δdepth ≠ depth(Δtwt) when k ≠ 0.
+  Colorbar, contour-interval note, contour value labels and the cursor
+  readout are all unit-aware; layer cache keys per pair × domain ×
+  model params. Removing the model falls the domain back to TWT.
+- **Depth exports**: Export panel and the AI `grid_and_export` path now
+  prefer the saved model (`sampleToExportZ`) over the legacy constant
+  ft/s input, which remains only as a fallback when no model is set
+  (the panel shows the model description read-only instead of the
+  input). Export convention unchanged: Z negative, feet. RCP handoff
+  params record `velocity_model` vs `velocity_ft_s` honestly.
+- Verified: 16 jest suites / 185 tests (velocityModel suite incl.
+  RK4 cross-check), 13 Playwright e2e green on staging.
+- Follow-up candidates: per-horizon interval velocities (layer-cake
+  model), depth display in the 3D window / sections, well-tie
+  calibration of V0/k.
 
 ## Isochron maps + smoothing radius + snap window: DONE
 
