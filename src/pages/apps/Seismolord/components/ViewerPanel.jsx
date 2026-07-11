@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Eye, Loader2, XCircle, Crosshair, Route, Ban, Box, ScanLine,
-  Pencil, Eraser, Undo2, Save, Spline, Wand2, Map as MapIcon,
+  Pencil, Eraser, Undo2, Save, Spline, Wand2, PaintBucket, Map as MapIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +17,9 @@ import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
 import {
   assembleSlice, assembleTrace, bricksForSlice, geomFromManifest, brickKey,
 } from '../engine/sliceAssembly';
-import { snapPick, autotrack2D, smoothHorizon } from '../engine/horizonTrack';
+import {
+  snapPick, autotrack2D, smoothHorizon, fillHorizonHoles,
+} from '../engine/horizonTrack';
 import { NULL_VALUE } from '../engine/manifest';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
@@ -112,6 +114,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const [edit, setEdit] = useState({ version: 0, undo: 0, active: false });
   const [editBusy, setEditBusy] = useState(false);
   const [eraseSize, setEraseSize] = useState(1);    // BRUSH_OPTIONS radius
+  const [smoothMethod, setSmoothMethod] = useState('mean');   // 'mean'|'median'
   const [tracking, setTracking] = useState(null);   // {tracked, total}
   const [horizons, setHorizons] = useState([]);
   const [visibleIds, setVisibleIds] = useState(new Set());
@@ -545,7 +548,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     if (!geom) return;
     const s = editRef.current || await openSession(editTarget);
     if (!s) return;
-    const sm = smoothHorizon(s.grid, geom.nIl, geom.nXl, { radius: 1 });
+    const sm = smoothHorizon(s.grid, geom.nIl, geom.nXl, { radius: 1, method: smoothMethod });
     const cells = [];
     const vals = [];
     for (let c = 0; c < sm.length; c++) {
@@ -557,7 +560,30 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     }
     applyOp(cells, vals);
     commitStroke();
-    toast({ title: 'Horizon smoothed', description: `${cells.length.toLocaleString()} picks adjusted (3×3 mean, holes preserved).` });
+    toast({
+      title: 'Horizon smoothed',
+      description: `${cells.length.toLocaleString()} picks adjusted (3×3 ${smoothMethod}, holes preserved).`,
+    });
+  };
+
+  /** Membrane-fill INTERIOR holes (exterior never grows), one undoable op. */
+  const fillHoles = async () => {
+    if (!geom) return;
+    const s = editRef.current || await openSession(editTarget);
+    if (!s) return;
+    const { grid, filled } = fillHorizonHoles(s.grid, geom.nIl, geom.nXl);
+    if (!filled) {
+      toast({ title: 'No interior holes', description: 'Every null region touches the survey edge — nothing to fill.' });
+      return;
+    }
+    const cells = [];
+    const vals = [];
+    for (let c = 0; c < grid.length; c++) {
+      if (grid[c] !== s.grid[c]) { cells.push(c); vals.push(grid[c]); }
+    }
+    applyOp(cells, vals);
+    commitStroke();
+    toast({ title: 'Holes filled', description: `${filled.toLocaleString()} cells interpolated (interior holes only).` });
   };
 
   const saveEdits = async () => {
@@ -980,6 +1006,24 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                 <Wand2 className="w-4 h-4 mr-2" />
                 Smooth
               </Button>
+              <select
+                className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                value={smoothMethod}
+                onChange={(e) => setSmoothMethod(e.target.value)}
+                title="Mean smooths gently; median kills single-pick spikes"
+              >
+                <option value="mean">mean</option>
+                <option value="median">median</option>
+              </select>
+              <Button
+                variant="outline" size="sm"
+                onClick={fillHoles}
+                disabled={editBusy}
+                title="Interpolate across interior holes of the edited horizon (the uninterpreted exterior never grows; undoable)"
+              >
+                <PaintBucket className="w-4 h-4 mr-2" />
+                Fill holes
+              </Button>
 
               {edit.active && (
                 <>
@@ -1027,6 +1071,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                   display={display}
                   overlays={overlays}
                   pickMode={pickMode}
+                  ghost={pickMode === 'manual' ? { mode: snapMode, window: 5 } : null}
                   loading={loading}
                   onPick={handlePick}
                   onPickEnd={commitStroke}

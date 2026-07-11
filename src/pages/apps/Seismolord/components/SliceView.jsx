@@ -23,6 +23,7 @@ import {
   DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { SliceRenderer } from '../viewer/SliceRenderer';
+import { snapPick } from '../engine/horizonTrack';
 import { ViewTransform, MIN_ZOOM, MAX_ZOOM } from '../viewer/viewTransform';
 import {
   drawAxes, drawScaleBar, drawNorthArrow, drawColorbar,
@@ -78,6 +79,10 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  * @param {?string} p.pickMode null | 'seed' | 'fault' | 'manual' | 'erase'
  *   ('manual'/'erase' are PAINT modes: onPick streams during a drag and
  *   onPickEnd fires when the stroke lifts, so editors can commit an op)
+ * @param {?{mode: string, window: number}} p.ghost when set (manual
+ *   picking), a ghost marker previews the snapped pick position under
+ *   the cursor before any click — circle = snapped to an event, square
+ *   = no event nearby (the raw click position would be used)
  * @param {boolean} p.loading
  * @param {(pick:{ilIdx:number,xlIdx:number,sample:number}) => void} p.onPick
  * @param {(delta:number) => void} p.onStepSlice
@@ -88,7 +93,7 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  */
 function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
-  pickMode, loading, onPick, onPickEnd, onStepSlice, height = 520,
+  pickMode, ghost, loading, onPick, onPickEnd, onStepSlice, height = 520,
   vexag: vexagProp, onVexagChange,
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
@@ -137,7 +142,7 @@ function SliceView({
   // Latest props snapshot so rAF/pointer handlers never see stale closures.
   propsRef.current = {
     slice, geom, manifest, orientation, sliceIndex, display, overlays,
-    pickMode, prefs, gutter: g,
+    pickMode, ghost, prefs, gutter: g,
   };
 
   // ---- axis metadata per orientation ----------------------------------
@@ -267,6 +272,39 @@ function SliceView({
         ctx.arc(s.x, s.y, 6 * dpr, 0, Math.PI * 2);
         ctx.moveTo(s.x - 10 * dpr, s.y); ctx.lineTo(s.x + 10 * dpr, s.y);
         ctx.moveTo(s.x, s.y - 10 * dpr); ctx.lineTo(s.x, s.y + 10 * dpr);
+        ctx.stroke();
+      }
+    }
+
+    // ghost pick preview (manual mode): where the click WOULD land —
+    // computed from the on-hand slice trace, no fetches
+    const cur = cursorRef.current;
+    if (p.ghost && cur && ori !== 'time' && p.slice) {
+      const w = t.screenToWorld(cur.sx, cur.sy);
+      const nTraces = ori === 'inline' ? gm.nXl : gm.nIl;
+      const trace = Math.floor(w.x);
+      if (trace >= 0 && trace < nTraces && w.y >= 0 && w.y < gm.ns) {
+        const trData = p.slice.data.subarray(trace * gm.ns, (trace + 1) * gm.ns);
+        const hit = snapPick(trData, w.y, p.ghost);
+        const sSnap = t.worldToScreen(trace + 0.5, (hit ? hit.sample : w.y) + 0.5);
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.9)';
+        ctx.lineWidth = 1.5 * dpr;
+        if (hit && Math.abs(hit.sample - w.y) > 0.05) {
+          const sRaw = t.worldToScreen(trace + 0.5, w.y + 0.5);
+          ctx.setLineDash([3 * dpr, 3 * dpr]);
+          ctx.beginPath();
+          ctx.moveTo(sRaw.x, sRaw.y);
+          ctx.lineTo(sSnap.x, sSnap.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        ctx.beginPath();
+        if (hit) ctx.arc(sSnap.x, sSnap.y, 4.5 * dpr, 0, Math.PI * 2);
+        else ctx.rect(sSnap.x - 4 * dpr, sSnap.y - 4 * dpr, 8 * dpr, 8 * dpr);
+        ctx.moveTo(sSnap.x - 10 * dpr, sSnap.y);
+        ctx.lineTo(sSnap.x - 5.5 * dpr, sSnap.y);
+        ctx.moveTo(sSnap.x + 5.5 * dpr, sSnap.y);
+        ctx.lineTo(sSnap.x + 10 * dpr, sSnap.y);
         ctx.stroke();
       }
     }
@@ -509,8 +547,8 @@ function SliceView({
     scheduleView();
   }, [slice, display, prefs.interpolate, scheduleView]);
 
-  // overlays / prefs changed -> repaint 2D layers
-  useEffect(() => { scheduleView(); }, [overlays, prefs, scheduleView]);
+  // overlays / prefs / ghost mode changed -> repaint 2D layers
+  useEffect(() => { scheduleView(); }, [overlays, prefs, ghost, scheduleView]);
 
   // controlled exaggeration (shared with the 3D window)
   useEffect(() => {
@@ -642,7 +680,7 @@ function SliceView({
       if (hit && hit.inData && onPick) onPick(hit);
     } else {
       updateCursorInfo(sx, sy);
-      if (propsRef.current.prefs.crosshair) scheduleView();
+      if (propsRef.current.prefs.crosshair || propsRef.current.ghost) scheduleView();
     }
   }, [toDevice, scheduleView, updateCursorInfo, pickAt, onPick]);
 
@@ -672,7 +710,7 @@ function SliceView({
   const onPointerLeave = useCallback(() => {
     cursorRef.current = null;
     setCursorReadout(null);
-    if (propsRef.current.prefs.crosshair) scheduleView();
+    if (propsRef.current.prefs.crosshair || propsRef.current.ghost) scheduleView();
   }, [scheduleView, setCursorReadout]);
 
   const onDoubleClick = useCallback((e) => {
