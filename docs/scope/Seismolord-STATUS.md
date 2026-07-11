@@ -1,6 +1,52 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (wells Phase W2)
+Last updated: 2026-07-11 (wells Phase W3)
+
+## Wells Phase W3 — well-tie velocity calibration: DONE
+
+The velocity model can now be calibrated against well tops — the
+recorded follow-up that turns typed velocities into defensible ones.
+
+- **The linear structure** (`engine/wellTie.js`): with each layer's k
+  FIXED, layer-cake depth is LINEAR in the V0 vector —
+  z = Σ V0ℓ·g(kℓ, τℓ) — where τℓ comes from the new
+  `velocityModel.layerTimesMs` (the layercakeDepthM walk with
+  identical null-boundary and crossing-clamp conventions; the identity
+  is asserted across those cases). So calibration is a small masked
+  normal-equations solve: EXACT on consistent ties. The single-function
+  model is the L = 1 case; `fitK` optionally fits k too (1-D
+  variable-projection scan, V0 solved analytically per candidate).
+- **Tie points** (`buildTiePoints`): for each top ↔ horizon pairing,
+  the horizon's picked TWT (null-aware bilinear sample at the top's
+  fractional lattice position, nearest-live fallback) vs the top's
+  measured TVDss from the exact-arc path. Geometry only — no model
+  involved, so the same ties fit any model.
+- **Honesty rules** (plan W3): per-tie residuals BEFORE and AFTER +
+  RMS; an inconsistent top surfaces as a large residual (asserted: an
+  80 m-biased top keeps > 30 m residual and > 2× the worst good tie);
+  layers no tie samples keep their current V0 and are reported;
+  non-positive fitted velocities are an ERROR, never a clamp; singular
+  systems get a "add ties that bottom in different layers" message.
+- **UI** (`WellTiePanel` + "Calibrate from wells" next to the velocity
+  editor): pair top names with horizons, Fit, inspect the proposed
+  model + residual table (|after| > 10 m highlighted), Apply ONLY on
+  the explicit button — the model is never silently rewritten. Uses
+  visible wells; horizons load on demand through the shared grid cache.
+- **Acceptance held** (13 new jest cases): on ties from a KNOWN cake,
+  every sampled layer's V0 recovered to < 1% from a heavily perturbed
+  start (RMS drops from > 5 m to < 0.1 m); the golden wells' Dome
+  ties recover the truth v0 = 1800 exactly with k fixed, and fitK
+  recovers BOTH v0 and k = 0.5 from a v0 = 3000 / k = 0 start.
+- e2e: `/dev/seismolord-welltie` harness mounts the REAL panel on a
+  known cake — the spec drives pair → Fit → Apply and asserts exact
+  recovery ("1600 / 2600"), 4 honest residual rows, apply-only-on-Save,
+  and the unsampled-layer report when only one top is paired.
+- Verified: 25 jest suites / 323 tests, 19 Playwright e2e green on
+  staging, esbuild bundle clean.
+- Next: Phase W4 (small) — malformed-CSV fuzz, `wells_used` provenance
+  in the RCP handoff when a calibrated model drove a depth export,
+  RLS pentest re-run, STATUS/memory sweep — then the wells plan is
+  complete.
 
 ## Wells Phase W2 — sections, traverses, 3D display: DONE
 
