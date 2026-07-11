@@ -1,6 +1,52 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (wells Phase W1)
+Last updated: 2026-07-11 (wells Phase W2)
+
+## Wells Phase W2 — sections, traverses, 3D display: DONE
+
+Wells now draw in TWT everywhere interpretation happens.
+
+- **T(z) resolution** (`engine/wellSection.js`, plan decision #4 —
+  sources never silently mixed): the well's own checkshots first
+  (piecewise linear over the import-validated strictly monotonic
+  table, linear extrapolation at the ends) → the volume's velocity
+  model INVERTED — by bisection against the app's own
+  `makeDepthConverter`, so a well plots exactly where the depth
+  conversion says, for the layer cake too (per-column via the boundary
+  grids) → null, well stays map-only. Above-datum and below-window
+  depths are null (pen-breaks), never extrapolated onto the section.
+- **Lattice paths** (`buildWellLatticePath`): the exact minimum-
+  curvature arc sampled every ~half-bin of MD through the survey
+  affine; off-survey samples (KETA-H1's lateral leaves the fixture)
+  keep a null `s` so drawing pen-breaks — asserted. Tops ride the same
+  path (positionAtMd at the top's MD).
+- **Corridor projection**: `projectWellToSection` keeps points within
+  ~1.5 lattice cells of the inline/xline plane (FRACTIONAL distance —
+  wells are continuous positions), aligned-null pen-breaks like the
+  fault-stick rule; traverses REUSE `projectStickToTraverse` on the
+  same points (cached per (points, path), never per camera frame).
+- **SliceView**: well polylines + labeled top ticks on inline / xline
+  / traverse; intersection markers on time slices. **CubeView**: path
+  polylines + 3D-cross top markers in normalized cube space
+  (`wellPolylines` / `wellTopMarkers` in interpMesh, same texel-centre
+  convention as fault sticks), cached per points ref, "Well paths &
+  tops" toggle under Interpretation.
+- **Acceptance held** (13 new jest cases): projected TWT matches the
+  golden T(z) < 1 sample at every shared-MD fine-path point on all
+  three wells (measured < 1e-6 samples — the bisection is tight);
+  checkshots take priority and reproduce their table exactly;
+  layer-cake inversion round-trips the app converter; the Dome top
+  plots on the horizon-overlay value within 1 sample on sections AND
+  traverses; corridor pen-breaking covered like projectStickToTraverse.
+- e2e: the SliceView harness gained a synthetic well ON the traverse
+  dog-leg (and the default inline); the new spec asserts amber well
+  ink on the inline AND the traverse overlays and NO ink on a far
+  crossline (corridor negative control).
+- Verified: 24 jest suites / 310 tests, 17 Playwright e2e green on
+  staging, esbuild bundle of the page subtree clean.
+- Next: Phase W3 — well-tie calibration of the layer-cake velocity
+  model from top↔horizon pairings (residuals reported, applied only on
+  explicit Save).
 
 ## Wells Phase W1 — registry, import, map display: DONE
 
