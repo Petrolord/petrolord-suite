@@ -160,7 +160,7 @@ export class SliceRenderer {
     this.rmsTex = this.#makeTex(gl.NEAREST);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 
-    this.setColormap(this.colormapKey);
+    this.setColormap(this.colormapKey, true);   // force: lutTex is brand new
     this.#applyParams();
   }
 
@@ -175,10 +175,15 @@ export class SliceRenderer {
     return t;
   }
 
-  /** Build the 256x1 RGBA LUT from the shared suite colormaps. */
-  setColormap(key) {
+  /**
+   * Build the 256x1 RGBA LUT from the shared suite colormaps. No-op when
+   * the key is unchanged (the display effect calls this on every gain /
+   * clip tweak) — `force` re-uploads after #initGL recreated lutTex.
+   */
+  setColormap(key, force = false) {
     const map = COLOR_MAPS[key];
     if (!map) throw new Error(`Unknown colormap: ${key}`);
+    if (!force && key === this.colormapKey && this.lut) return;
     this.colormapKey = key;
     this.lut = new Uint8Array(256 * 4);
     for (let i = 0; i < 256; i++) {
@@ -235,11 +240,15 @@ export class SliceRenderer {
   /**
    * Camera: normalized visible rect [x0, y0, w, h] from
    * ViewTransform.viewUniform(). [0,0,1,1] (the default) renders the
-   * whole slice exactly as before the camera existed.
+   * whole slice exactly as before the camera existed. Runs every camera
+   * frame, so it touches only its own uniform (not the full param set).
    */
   setView(rect) {
     this.view = [rect[0], rect[1], rect[2], rect[3]];
-    this.#applyParams();
+    if (this.contextLost) return;               // re-applied on restore
+    const { gl } = this;
+    gl.useProgram(this.prog);
+    gl.uniform4f(this.u.u_view, this.view[0], this.view[1], this.view[2], this.view[3]);
   }
 
   #applyParams() {
