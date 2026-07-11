@@ -28,6 +28,26 @@ directory ships or runs in production. The committed outputs in
 Crosslines number 101+ while inlines number 1+ so an il/xl swap fails
 loudly. Sample 0 of every trace is exactly 0.0 (IBM zero case).
 
+## Wells oracle (`wells/`, Phase W0 of Seismolord-WELLS-PLAN.md)
+
+- `wells/mincurve.py` — minimum-curvature reference, self-validated on
+  the published drillingformulas.com worked example ((3500 ft, 15°,
+  20°) → (3600 ft, 25°, 45°) ⇒ ΔN 27.22 / ΔE 19.45 / ΔTVD 94.01 ft)
+  and on analytic circular arcs (planar build/drop and horizontal turn
+  are exact by construction, asserted to ~1e-9 m at uneven spacings).
+- `wells/gen_wells.py` — three synthetic wells through the dome_ieee
+  area (vertical at the crest; planar S-shape; horizontal landing with
+  a genuine 3D build-and-turn segment), checkshots from the declared
+  truth V(z) = 1800 + 0.5·z, and each well's "Dome" top root-found
+  where the exact-arc path crosses the analytic dome surface →
+  `test-data/seismolord/wells/wells.json`. Self-checks (published
+  example, S-shape closed form, vertical exactness, checkshot round
+  trip) run before anything is written.
+
+```sh
+.venv/bin/python wells/gen_wells.py
+```
+
 ## Running
 
 ```sh
