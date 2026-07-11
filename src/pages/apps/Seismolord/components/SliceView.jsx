@@ -23,7 +23,7 @@ import {
   DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { SliceRenderer } from '../viewer/SliceRenderer';
-import { ViewTransform, MAX_ZOOM } from '../viewer/viewTransform';
+import { ViewTransform, MIN_ZOOM, MAX_ZOOM } from '../viewer/viewTransform';
 import {
   drawAxes, drawScaleBar, drawNorthArrow, drawColorbar,
   surveySpacing, northScreenDir,
@@ -73,7 +73,7 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  * @param {(delta:number) => void} p.onStepSlice
  * @param {number} [p.height] viewport CSS height when not fullscreen
  */
-export default function SliceView({
+function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
   pickMode, loading, onPick, onStepSlice, height = 520,
 }) {
@@ -88,10 +88,26 @@ export default function SliceView({
   const dragRef = useRef(null);        // {mode:'pan'|'band', ...}
   const cursorRef = useRef(null);      // {sx, sy} device px in inner area
   const propsRef = useRef({});         // latest props for ref-driven redraws
+  // Per-frame HUD text goes STRAIGHT to the DOM: a React state update per
+  // camera frame / pointer move re-renders the whole component and is what
+  // made the controls stutter (dev-mode React renders are 10-40ms each).
+  const zoomPctRef = useRef(null);     // toolbar "123%" span
+  const readoutValsRef = useRef(null); // cursor readout values span
+  const readoutHintRef = useRef(null); // cursor readout hint span
+  const timeMatchesRef = useRef(new WeakMap()); // horizon grid -> time-slice cells
+  // Adaptive render resolution: backing-store px per CSS px, starting at
+  // devicePixelRatio and stepped down (never below 1) when sustained
+  // interaction frames run slow. Frame cost is dominated by backing-store
+  // area — hi-dpi displays on weak / software-rendered GPUs are exactly
+  // where the camera controls "hang" (measured: identical scene at dpr 1
+  // holds 60fps where dpr 2 drops to 10fps on software GL).
+  const scaleRef = useRef(null);       // null until first resize (needs dpr)
+  const perfRef = useRef({ lastT: 0, ema: 16.7 });
 
   const [prefs, setPrefs] = useState(loadPrefs);
-  const [hud, setHud] = useState({ zoom: 1, vexag: 1 });
-  const [cursorInfo, setCursorInfo] = useState(null);
+  // Rare, boundary-only state (button disabling, select value) — changes a
+  // handful of times per interaction instead of every frame.
+  const [hud, setHud] = useState({ atMinZoom: true, atMaxZoom: false, vexag: 1 });
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [glError, setGlError] = useState(null);
 
@@ -131,7 +147,7 @@ export default function SliceView({
     if (!overlay || !p.geom) return;
     const t = transformRef.current;
     const ctx = overlay.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = scaleRef.current || window.devicePixelRatio || 1;  // render scale
     const W = overlay.width;
     const H = overlay.height;
     ctx.clearRect(0, 0, W, H);
@@ -159,18 +175,32 @@ export default function SliceView({
         }
         ctx.stroke();
       } else {
+        // The full-grid scan (nIl x nXl cells) is far too slow to run per
+        // camera frame on real surveys — cache the matching cells per
+        // (grid, slice index) and only project the matches each frame.
+        let mt = timeMatchesRef.current.get(grid);
+        if (!mt || mt.idx !== idx || mt.nXl !== gm.nXl || mt.nIl !== gm.nIl) {
+          const pts = [];
+          for (let i = 0; i < gm.nIl; i++) {
+            for (let x = 0; x < gm.nXl; x++) {
+              const z = grid[i * gm.nXl + x];
+              if (z !== NULL_F32 && Math.abs(z - idx) <= 0.5) pts.push(x, i);
+            }
+          }
+          mt = { idx, nIl: gm.nIl, nXl: gm.nXl, pts: Int32Array.from(pts) };
+          timeMatchesRef.current.set(grid, mt);
+        }
         const i0 = Math.max(0, Math.floor(vis.y0));
         const i1 = Math.min(gm.nIl - 1, Math.ceil(vis.y0 + vis.h));
         const x0 = Math.max(0, Math.floor(vis.x0));
         const x1 = Math.min(gm.nXl - 1, Math.ceil(vis.x0 + vis.w));
         const m = Math.max(3, 1.5 * dpr);
-        for (let i = i0; i <= i1; i++) {
-          for (let x = x0; x <= x1; x++) {
-            const z = grid[i * gm.nXl + x];
-            if (z === NULL_F32 || Math.abs(z - idx) > 0.5) continue;
-            const s = t.worldToScreen(x + 0.5, i + 0.5);
-            ctx.fillRect(s.x - m / 2, s.y - m / 2, m, m);
-          }
+        for (let q = 0; q < mt.pts.length; q += 2) {
+          const x = mt.pts[q];
+          const i = mt.pts[q + 1];
+          if (x < x0 || x > x1 || i < i0 || i > i1) continue;
+          const s = t.worldToScreen(x + 0.5, i + 0.5);
+          ctx.fillRect(s.x - m / 2, s.y - m / 2, m, m);
         }
       }
     }
@@ -234,7 +264,7 @@ export default function SliceView({
     ctx.clearRect(0, 0, anno.width, anno.height);
     if (!p.geom || !axes) return;
     const t = transformRef.current;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = scaleRef.current || window.devicePixelRatio || 1;  // render scale
     const gl = Math.round(p.gutter.left * dpr);
     const gt = Math.round(p.gutter.top * dpr);
     const pr = p.prefs;
@@ -312,17 +342,15 @@ export default function SliceView({
     }
     drawOverlay();
     drawAnnotations();
-    setHud((h) => (h.zoom === t.zoom && h.vexag === t.vexag
-      ? h : { zoom: t.zoom, vexag: t.vexag }));
+    if (zoomPctRef.current) {
+      zoomPctRef.current.textContent = `${Math.round(t.zoom * 100)}%`;
+    }
+    const atMinZoom = t.zoom <= MIN_ZOOM;
+    const atMaxZoom = t.zoom >= MAX_ZOOM;
+    setHud((h) => (h.atMinZoom === atMinZoom && h.atMaxZoom === atMaxZoom
+      && h.vexag === t.vexag
+      ? h : { atMinZoom, atMaxZoom, vexag: t.vexag }));
   }, [drawOverlay, drawAnnotations]);
-
-  const scheduleView = useCallback(() => {
-    if (rafRef.current) return;
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = 0;
-      applyView();
-    });
-  }, [applyView]);
 
   // ---- sizing ----------------------------------------------------------
   const resizeCanvases = useCallback(() => {
@@ -332,19 +360,50 @@ export default function SliceView({
     const anno = annoRef.current;
     if (!viewport || !glCanvas) return;
     const dpr = window.devicePixelRatio || 1;
+    if (scaleRef.current == null) scaleRef.current = dpr;
+    const scale = Math.min(scaleRef.current, dpr);
     const cw = viewport.clientWidth;
     const ch = viewport.clientHeight;
     const { gutter } = propsRef.current;
     const iw = Math.max(1, cw - gutter.left);
     const ih = Math.max(1, ch - gutter.top);
-    glCanvas.width = Math.round(iw * dpr);
-    glCanvas.height = Math.round(ih * dpr);
+    glCanvas.width = Math.round(iw * scale);
+    glCanvas.height = Math.round(ih * scale);
     overlay.width = glCanvas.width;
     overlay.height = glCanvas.height;
-    anno.width = Math.round(cw * dpr);
-    anno.height = Math.round(ch * dpr);
+    anno.width = Math.round(cw * scale);
+    anno.height = Math.round(ch * scale);
     transformRef.current.setViewport(glCanvas.width, glCanvas.height);
   }, []);
+
+  /**
+   * Called once per interactive frame with the rAF timestamp: when a
+   * CONTINUOUS interaction (gap < 200ms between redraws) sustains a slow
+   * frame EMA, drop the render scale one notch and repaint. Downgrades
+   * only — a stable, slightly softer image beats oscillating quality.
+   */
+  const adaptQuality = useCallback((t) => {
+    const q = perfRef.current;
+    const dt = q.lastT ? t - q.lastT : 0;
+    q.lastT = t;
+    if (dt <= 0 || dt > 200) return;
+    q.ema = 0.8 * q.ema + 0.2 * dt;
+    if (q.ema > 32 && (scaleRef.current || 1) > 1) {
+      scaleRef.current = Math.max(1, scaleRef.current * 0.75);
+      q.ema = 16.7;
+      resizeCanvases();
+      applyView();          // resize clears the canvases — repaint now
+    }
+  }, [resizeCanvases, applyView]);
+
+  const scheduleView = useCallback(() => {
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame((t) => {
+      rafRef.current = 0;
+      applyView();
+      adaptQuality(t);
+    });
+  }, [applyView, adaptQuality]);
 
   useLayoutEffect(() => {
     resizeCanvases();
@@ -408,7 +467,7 @@ export default function SliceView({
   // ---- interactions ------------------------------------------------------
   const toDevice = useCallback((e) => {
     const rect = overlayRef.current.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = scaleRef.current || window.devicePixelRatio || 1;  // render scale
     return { sx: (e.clientX - rect.left) * dpr, sy: (e.clientY - rect.top) * dpr };
   }, []);
 
@@ -441,11 +500,27 @@ export default function SliceView({
     };
   }, []);
 
+  /** Ref-driven readout: no React re-render per pointer move. */
+  const setCursorReadout = useCallback((info) => {
+    const vals = readoutValsRef.current;
+    const hint = readoutHintRef.current;
+    if (!vals || !hint) return;
+    if (info) {
+      vals.textContent = `IL ${info.il}   XL ${info.xl}   ${info.ms.toFixed(1)} ms   `
+        + `amp ${info.amp === null ? 'null' : info.amp.toExponential(3)}`;
+      vals.style.display = '';
+      hint.style.display = 'none';
+    } else {
+      vals.style.display = 'none';
+      hint.style.display = '';
+    }
+  }, []);
+
   const updateCursorInfo = useCallback((sx, sy) => {
     const p = propsRef.current;
     const hit = pickAt(sx, sy);
     if (!hit || !hit.inData || !p.slice || !p.manifest) {
-      setCursorInfo(null);
+      setCursorReadout(null);
       return;
     }
     const gm = p.geom;
@@ -455,13 +530,13 @@ export default function SliceView({
     if (p.orientation === 'inline') amp = p.slice.data[hit.xlIdx * gm.ns + sampleIdx];
     else if (p.orientation === 'xline') amp = p.slice.data[hit.ilIdx * gm.ns + sampleIdx];
     else amp = p.slice.data[hit.ilIdx * gm.nXl + hit.xlIdx];
-    setCursorInfo({
+    setCursorReadout({
       il: geo.il.min + hit.ilIdx * geo.il.step,
       xl: geo.xl.min + hit.xlIdx * geo.xl.step,
       ms: (p.orientation === 'time' ? p.sliceIndex : hit.sample) * (geo.dt_us / 1000),
       amp: amp === NULL_F32 ? null : amp,
     });
-  }, [pickAt]);
+  }, [pickAt, setCursorReadout]);
 
   const onPointerDown = useCallback((e) => {
     if (e.button !== 0 && e.button !== 1) return;
@@ -524,9 +599,9 @@ export default function SliceView({
 
   const onPointerLeave = useCallback(() => {
     cursorRef.current = null;
-    setCursorInfo(null);
+    setCursorReadout(null);
     if (propsRef.current.prefs.crosshair) scheduleView();
-  }, [scheduleView]);
+  }, [scheduleView, setCursorReadout]);
 
   const onDoubleClick = useCallback((e) => {
     const { sx, sy } = toDevice(e);
@@ -545,7 +620,7 @@ export default function SliceView({
         return;
       }
       const rect = el.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = scaleRef.current || window.devicePixelRatio || 1;  // render scale
       const sx = (e.clientX - rect.left) * dpr;
       const sy = (e.clientY - rect.top) * dpr;
       transformRef.current.zoomAt(e.deltaY > 0 ? 1 / 1.25 : 1.25, sx, sy);
@@ -611,7 +686,7 @@ export default function SliceView({
           <ZoomIn className="w-4 h-4" />
         </Button>
         <Button variant="outline" size="sm" title="Zoom out (-)"
-          onClick={() => zoomCenter(1 / 1.25)} disabled={!slice || hud.zoom <= 1}
+          onClick={() => zoomCenter(1 / 1.25)} disabled={!slice || hud.atMinZoom}
         >
           <ZoomOut className="w-4 h-4" />
         </Button>
@@ -620,8 +695,11 @@ export default function SliceView({
         >
           <Expand className="w-4 h-4" />
         </Button>
-        <span className="text-xs text-slate-400 w-14 text-center tabular-nums">
-          {Math.round(hud.zoom * 100)}%
+        <span
+          ref={zoomPctRef}
+          className="text-xs text-slate-400 w-14 text-center tabular-nums"
+        >
+          100%
         </span>
 
         <span className="text-xs text-slate-400 ml-1">V.exag</span>
@@ -745,24 +823,21 @@ export default function SliceView({
 
       {prefs.readout && (
         <div className="flex items-center gap-4 text-xs text-slate-400 font-mono mt-1 h-5">
-          {cursorInfo ? (
-            <>
-              <span>IL {cursorInfo.il}</span>
-              <span>XL {cursorInfo.xl}</span>
-              <span>{cursorInfo.ms.toFixed(1)} ms</span>
-              <span>
-                amp {cursorInfo.amp === null ? 'null' : cursorInfo.amp.toExponential(3)}
-              </span>
-            </>
-          ) : (
-            <span className="text-slate-600">
-              drag: pan · wheel: zoom · Shift+drag: zoom box · Shift+wheel / arrows: step slice
-              · dbl-click: zoom in
-            </span>
-          )}
-          {hud.zoom >= MAX_ZOOM && <span className="text-amber-500">max zoom</span>}
+          {/* both spans are ref-driven (setCursorReadout) so pointer moves
+              never re-render the component */}
+          <span ref={readoutValsRef} className="whitespace-pre" style={{ display: 'none' }} />
+          <span ref={readoutHintRef} className="text-slate-600">
+            drag: pan · wheel: zoom · Shift+drag: zoom box · Shift+wheel / arrows: step slice
+            · dbl-click: zoom in
+          </span>
+          {hud.atMaxZoom && <span className="text-amber-500">max zoom</span>}
         </div>
       )}
     </div>
   );
 }
+
+// Memoized: ViewerPanel re-renders on every gain/clip slider tick, loading
+// flip and list update — none of that should re-render the viewport when
+// the actual viewer props (all memoized upstream) are unchanged.
+export default React.memo(SliceView);

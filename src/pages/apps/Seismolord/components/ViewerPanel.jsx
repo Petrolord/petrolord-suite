@@ -196,7 +196,9 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
 
   // ---- picking (horizon seed / fault sticks) ----------------------------
   // SliceView already mapped the click through its view transform.
-  const handlePick = async ({ ilIdx, xlIdx, sample }) => {
+  // useCallback keeps the memoized SliceView from re-rendering on every
+  // ViewerPanel state change (gain/clip slider ticks, list refreshes).
+  const handlePick = useCallback(async ({ ilIdx, xlIdx, sample }) => {
     if (!pickMode || !geom || !volume || orientation === 'time') return;
 
     if (pickMode === 'fault') {
@@ -221,7 +223,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     } catch (err) {
       setError(err.message);
     }
-  };
+  }, [pickMode, geom, volume, orientation, getBrick, toast]);
 
   // ---- fault stick editing ----------------------------------------------
   const endStick = () => setDraftSticks((s) => (s.length && s[s.length - 1].length ? [...s, []] : s));
