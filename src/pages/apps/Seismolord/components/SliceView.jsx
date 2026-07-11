@@ -31,7 +31,11 @@ import {
 import { NULL_VALUE } from '../engine/manifest';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
-const PREFS_KEY = 'seismolord.viewerPrefs.v1';
+// v2: interpolate now defaults ON (shader bicubic, no GPU extension
+// needed). v1 sessions all persisted interpolate:false (the old default),
+// so that key is dropped when migrating — every other pref carries over.
+const PREFS_KEY = 'seismolord.viewerPrefs.v2';
+const LEGACY_PREFS_KEY = 'seismolord.viewerPrefs.v1';
 const DEFAULT_PREFS = {
   axes: true,
   grid: false,
@@ -40,13 +44,17 @@ const DEFAULT_PREFS = {
   colorbar: true,
   readout: true,
   crosshair: false,
-  interpolate: false,
+  interpolate: true,
 };
 const VEXAG_OPTIONS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 8, 12, 20];
 
 const loadPrefs = () => {
   try {
-    return { ...DEFAULT_PREFS, ...JSON.parse(localStorage.getItem(PREFS_KEY) || '{}') };
+    const v2 = localStorage.getItem(PREFS_KEY);
+    if (v2) return { ...DEFAULT_PREFS, ...JSON.parse(v2) };
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_PREFS_KEY) || '{}');
+    delete legacy.interpolate;
+    return { ...DEFAULT_PREFS, ...legacy };
   } catch {
     return { ...DEFAULT_PREFS };
   }
@@ -102,6 +110,8 @@ function SliceView({
   // where the camera controls "hang" (measured: identical scene at dpr 1
   // holds 60fps where dpr 2 drops to 10fps on software GL).
   const scaleRef = useRef(null);       // null until first resize (needs dpr)
+  const steadyScaleRef = useRef(null); // learned interaction scale (≤ dpr)
+  const idleTimerRef = useRef(0);      // pending full-res restore
   const perfRef = useRef({ lastT: 0, ema: 16.7 });
 
   const [prefs, setPrefs] = useState(loadPrefs);
@@ -379,21 +389,48 @@ function SliceView({
   /**
    * Called once per interactive frame with the rAF timestamp: when a
    * CONTINUOUS interaction (gap < 200ms between redraws) sustains a slow
-   * frame EMA, drop the render scale one notch and repaint. Downgrades
-   * only — a stable, slightly softer image beats oscillating quality.
+   * frame EMA, drop the render scale one notch and repaint. The learned
+   * scale sticks for the interaction (steadyScaleRef) so the next drag
+   * re-enters it after ONE full-res frame instead of re-paying the slow
+   * ramp; scheduleIdleRestore() brings the RESTING image back to full
+   * devicePixelRatio, so downgrades cost interactive sharpness only.
    */
   const adaptQuality = useCallback((t) => {
     const q = perfRef.current;
     const dt = q.lastT ? t - q.lastT : 0;
     q.lastT = t;
     if (dt <= 0 || dt > 200) return;
+    const steady = steadyScaleRef.current;
+    if (steady != null && steady < (scaleRef.current || 1)) {
+      scaleRef.current = steady;      // re-enter the learned scale at once
+      q.ema = 16.7;
+      resizeCanvases();
+      applyView();
+      return;
+    }
     q.ema = 0.8 * q.ema + 0.2 * dt;
     if (q.ema > 32 && (scaleRef.current || 1) > 1) {
       scaleRef.current = Math.max(1, scaleRef.current * 0.75);
+      steadyScaleRef.current = scaleRef.current;
       q.ema = 16.7;
       resizeCanvases();
       applyView();          // resize clears the canvases — repaint now
     }
+  }, [resizeCanvases, applyView]);
+
+  /** ~250ms after the last interactive frame: one repaint at full dpr. */
+  const scheduleIdleRestore = useCallback(() => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      idleTimerRef.current = 0;
+      const dpr = window.devicePixelRatio || 1;
+      if ((scaleRef.current || dpr) >= dpr) return;
+      // probe upward so a machine that got faster sheds the downgrade
+      steadyScaleRef.current = Math.min(dpr, (steadyScaleRef.current || dpr) * 1.25);
+      scaleRef.current = dpr;
+      resizeCanvases();
+      applyView();
+    }, 250);
   }, [resizeCanvases, applyView]);
 
   const scheduleView = useCallback(() => {
@@ -402,8 +439,9 @@ function SliceView({
       rafRef.current = 0;
       applyView();
       adaptQuality(t);
+      scheduleIdleRestore();
     });
-  }, [applyView, adaptQuality]);
+  }, [applyView, adaptQuality, scheduleIdleRestore]);
 
   useLayoutEffect(() => {
     resizeCanvases();
@@ -420,6 +458,7 @@ function SliceView({
   // ---- renderer lifecycle ----------------------------------------------
   useEffect(() => () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     if (rendererRef.current) {
       rendererRef.current.destroy();
       rendererRef.current = null;
@@ -446,7 +485,10 @@ function SliceView({
     applyView();
   }, [slice, geom, isSection, applyView, scheduleView]);
 
-  // display params (shader-only, no re-upload)
+  // display params (shader-only, no re-upload). `slice` is a dep because
+  // the renderer is CREATED by the slice effect above: without it, params
+  // set before the first slice (renderer still null) would never be
+  // applied and the renderer would keep its constructor defaults.
   useEffect(() => {
     const r = rendererRef.current;
     if (!r) return;
@@ -459,7 +501,7 @@ function SliceView({
       interpolate: prefs.interpolate,
     });
     scheduleView();
-  }, [display, prefs.interpolate, scheduleView]);
+  }, [slice, display, prefs.interpolate, scheduleView]);
 
   // overlays / prefs changed -> repaint 2D layers
   useEffect(() => { scheduleView(); }, [overlays, prefs, scheduleView]);
@@ -671,8 +713,6 @@ function SliceView({
 
   const togglePref = (key) => setPrefs((p0) => ({ ...p0, [key]: !p0[key] }));
 
-  const canInterpolate = rendererRef.current?.linearFloat !== false;
-
   // ---- render ------------------------------------------------------------
   return (
     <div
@@ -765,9 +805,8 @@ function SliceView({
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()} checked={prefs.interpolate}
               onCheckedChange={() => togglePref('interpolate')}
-              disabled={!canInterpolate}
             >
-              Smooth interpolation{!canInterpolate ? ' (unsupported GPU)' : ''}
+              Smooth interpolation
             </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
