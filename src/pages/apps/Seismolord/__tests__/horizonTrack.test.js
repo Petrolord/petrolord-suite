@@ -13,7 +13,7 @@ import { transcodeToBricks } from '@/pages/apps/Seismolord/engine/brickTranscode
 import { assembleSlice, assembleTrace } from '@/pages/apps/Seismolord/engine/sliceAssembly';
 import {
   snapPick, autotrack2D, regionGrow3D, horizonStats, smoothHorizon,
-  fillHorizonHoles,
+  fillHorizonHoles, horizonDifference,
 } from '@/pages/apps/Seismolord/engine/horizonTrack';
 import { NULL_VALUE } from '@/pages/apps/Seismolord/engine/manifest';
 
@@ -280,6 +280,18 @@ describe('fillHorizonHoles', () => {
     const { grid, filled } = fillHorizonHoles(g, 4, 4);
     expect(filled).toBe(0);
     expect(Array.from(grid)).toEqual(Array.from(g));
+  });
+});
+
+describe('horizonDifference', () => {
+  test('b − a per cell, null when either surface is missing', () => {
+    const a = Float32Array.from([10, 20, NULL_F32, 30]);
+    const b = Float32Array.from([16, NULL_F32, 25, 27.5]);
+    const d = horizonDifference(a, b);
+    expect(d[0]).toBeCloseTo(6, 5);
+    expect(d[1]).toBe(NULL_F32);
+    expect(d[2]).toBe(NULL_F32);
+    expect(d[3]).toBeCloseTo(-2.5, 5);   // crossing surfaces stay signed
   });
 });
 

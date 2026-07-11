@@ -241,6 +241,23 @@ export function smoothHorizon(picks, nIl, nXl, { radius = 1, method = 'mean' } =
 }
 
 /**
+ * Cell-wise horizon difference b − a (isochron when a is the shallower
+ * event: positive = b deeper). Null wherever EITHER pick is null — an
+ * interval needs both bounding surfaces (playbook null rule).
+ *
+ * @param {Float32Array} a picks (sample indices, 1e30 nulls)
+ * @param {Float32Array} b picks, same grid shape
+ * @returns {Float32Array} b − a in SAMPLE units (callers scale to ms)
+ */
+export function horizonDifference(a, b) {
+  const out = new Float32Array(a.length);
+  for (let c = 0; c < a.length; c++) {
+    out[c] = a[c] === NULL_F32 || b[c] === NULL_F32 ? NULL_F32 : b[c] - a[c];
+  }
+  return out;
+}
+
+/**
  * Fill INTERIOR holes of a horizon by membrane interpolation. A hole is
  * a null region NOT connected (4-neighbour) to the grid border — the
  * uninterpreted exterior stays exactly as it was, so the interpreted

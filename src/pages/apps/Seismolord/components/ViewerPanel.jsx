@@ -115,6 +115,10 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const [editBusy, setEditBusy] = useState(false);
   const [eraseSize, setEraseSize] = useState(1);    // BRUSH_OPTIONS radius
   const [smoothMethod, setSmoothMethod] = useState('mean');   // 'mean'|'median'
+  const [smoothRadius, setSmoothRadius] = useState(1);        // 1=3×3, 2=5×5, 4=9×9
+  // search half-window (samples) for seed snap, manual picking, ghost
+  // preview and BOTH trackers; ±3 preserves the validated tracker default
+  const [snapWindow, setSnapWindow] = useState(3);
   const [tracking, setTracking] = useState(null);   // {tracked, total}
   const [horizons, setHorizons] = useState([]);
   const [visibleIds, setVisibleIds] = useState(new Set());
@@ -394,7 +398,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
       const cell = ilIdx * geom.nXl + xlIdx;
       try {
         const traceData = await assembleTrace(getBrick, geom, ilIdx, xlIdx);
-        const hit = snapPick(traceData, sample, { mode: snapMode, window: 5 });
+        const hit = snapPick(traceData, sample, { mode: snapMode, window: snapWindow });
         applyOp([cell], [hit ? hit.sample : sample]);
       } catch {
         applyOp([cell], [sample]);
@@ -404,7 +408,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
 
     try {
       const traceData = await assembleTrace(getBrick, geom, ilIdx, xlIdx);
-      const hit = snapPick(traceData, sample, { mode: snapMode, window: 5 });
+      const hit = snapPick(traceData, sample, { mode: snapMode, window: snapWindow });
       if (!hit) {
         toast({ title: 'No event found', description: 'No event of the selected snap kind near that click — try closer to one.' });
         return;
@@ -413,7 +417,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     } catch (err) {
       setError(err.message);
     }
-  }, [pickMode, geom, volume, orientation, getBrick, toast, snapMode, applyOp, eraseSize]);
+  }, [pickMode, geom, volume, orientation, getBrick, toast, snapMode, snapWindow, applyOp, eraseSize]);
 
   // ---- fault stick editing ----------------------------------------------
   const endStick = () => setDraftSticks((s) => (s.length && s[s.length - 1].length ? [...s, []] : s));
@@ -469,12 +473,12 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
 
   /** Tracker gates: zero crossings sit at ~0 amplitude, so the RMS-based
    *  amplitude floor only applies to extrema modes. */
-  const trackerOpts = useCallback((windowSize) => ({
+  const trackerOpts = useCallback(() => ({
     mode: snapMode,
-    window: windowSize,
+    window: snapWindow,
     maxJump: 4,
     minAbsAmp: snapMode.startsWith('zero') ? 0 : (manifest?.stats?.rms || 0) * 0.3,
-  }), [snapMode, manifest]);
+  }), [snapMode, snapWindow, manifest]);
 
   const toggleEditTool = async (tool) => {
     if (pickMode === tool) { setPickMode(null); return; }
@@ -504,7 +508,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     const s = editRef.current || await openSession(editTarget);
     if (!s) return;
     const startTrace = orientation === 'inline' ? seedPick.xlIdx : seedPick.ilIdx;
-    const { picks, tracked } = autotrack2D(slice, startTrace, seedPick.sample, trackerOpts(3));
+    const { picks, tracked } = autotrack2D(slice, startTrace, seedPick.sample, trackerOpts());
     if (!tracked) {
       toast({ title: 'Nothing tracked', description: 'No consistent event from that seed along this line.' });
       return;
@@ -548,7 +552,9 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     if (!geom) return;
     const s = editRef.current || await openSession(editTarget);
     if (!s) return;
-    const sm = smoothHorizon(s.grid, geom.nIl, geom.nXl, { radius: 1, method: smoothMethod });
+    const sm = smoothHorizon(s.grid, geom.nIl, geom.nXl, {
+      radius: smoothRadius, method: smoothMethod,
+    });
     const cells = [];
     const vals = [];
     for (let c = 0; c < sm.length; c++) {
@@ -560,9 +566,10 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     }
     applyOp(cells, vals);
     commitStroke();
+    const size = 2 * smoothRadius + 1;
     toast({
       title: 'Horizon smoothed',
-      description: `${cells.length.toLocaleString()} picks adjusted (3×3 ${smoothMethod}, holes preserved).`,
+      description: `${cells.length.toLocaleString()} picks adjusted (${size}×${size} ${smoothMethod}, holes preserved).`,
     });
   };
 
@@ -661,7 +668,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
             storagePath: volume.storage_path,
             geom,
             seed: seedPick,
-            opts: trackerOpts(3),
+            opts: trackerOpts(),
           },
         });
       }).finally(() => worker.terminate());
@@ -675,7 +682,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
         name,
         picks,
         seed: seedPick,
-        params: { ...trackerOpts(3), source: 'track3d' },
+        params: { ...trackerOpts(), source: 'track3d' },
         dtUs: manifest.geometry.dt_us,
       });
       gridCacheRef.current.set(row.id, picks);
@@ -946,6 +953,16 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
               >
                 {SNAP_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
               </select>
+              <select
+                className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                value={String(snapWindow)}
+                onChange={(e) => setSnapWindow(Number(e.target.value))}
+                title="Search half-window (samples) for snapping and tracking — wider follows rougher events but can jump reflectors"
+              >
+                {[2, 3, 5, 8, 12].map((w) => (
+                  <option key={w} value={String(w)}>{`±${w}`}</option>
+                ))}
+              </select>
 
               <Label className="text-slate-400 text-xs ml-2">Edit</Label>
               <select
@@ -1001,7 +1018,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                 variant="outline" size="sm"
                 onClick={smoothEdits}
                 disabled={editBusy}
-                title="One 3×3 null-aware smoothing pass over the edited horizon (undoable; click again for more)"
+                title="One null-aware smoothing pass over the edited horizon (undoable; click again for more)"
               >
                 <Wand2 className="w-4 h-4 mr-2" />
                 Smooth
@@ -1014,6 +1031,16 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
               >
                 <option value="mean">mean</option>
                 <option value="median">median</option>
+              </select>
+              <select
+                className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                value={String(smoothRadius)}
+                onChange={(e) => setSmoothRadius(Number(e.target.value))}
+                title="Smoothing filter size"
+              >
+                {[1, 2, 4].map((r) => (
+                  <option key={r} value={String(r)}>{`${2 * r + 1}×${2 * r + 1}`}</option>
+                ))}
               </select>
               <Button
                 variant="outline" size="sm"
@@ -1071,7 +1098,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                   display={display}
                   overlays={overlays}
                   pickMode={pickMode}
-                  ghost={pickMode === 'manual' ? { mode: snapMode, window: 5 } : null}
+                  ghost={pickMode === 'manual' ? { mode: snapMode, window: snapWindow } : null}
                   loading={loading}
                   onPick={handlePick}
                   onPickEnd={commitStroke}

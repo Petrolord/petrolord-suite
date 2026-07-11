@@ -33,6 +33,7 @@ import { buildLut } from '../viewer/shaderChunks';
 import {
   contourLevels, contourPolylines, buildMapPixels, gridRange, cellsInPolygon,
 } from '../viewer/mapContours';
+import { horizonDifference } from '../engine/horizonTrack';
 import { NULL_VALUE } from '../engine/manifest';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
@@ -109,6 +110,7 @@ function MapView({
   const [prefs, setPrefs] = useState(loadPrefs);
   const [colormap, setColormap] = useState('spectrum');
   const [activeId, setActiveId] = useState(null);
+  const [vsId, setVsId] = useState('');       // isochron second horizon ('' = structure)
   const [eraseTool, setEraseTool] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -128,20 +130,30 @@ function MapView({
     [horizons, activeId],
   );
 
-  /** Layer cache: ms grid, range, contour segments, color-fill bitmap. */
-  const layerFor = useCallback((h) => {
+  // isochron second surface (Δ = vs − horizon); never the primary itself
+  const vs = useMemo(
+    () => (horizons || []).find((h) => h.id === vsId && h.id !== active?.id) || null,
+    [horizons, vsId, active],
+  );
+
+  /** Layer cache (per horizon or horizon pair): ms grid — structure TWT
+   *  or the isochron Δ(vs − h) — range, contour polylines, fill bitmap. */
+  const layerFor = useCallback((h, second) => {
     if (!h || !geom || !manifest) return null;
     const dtMs = manifest.geometry.dt_us / 1000;
-    let c = cacheRef.current.get(h.id);
-    if (!c || c.grid !== h.grid) {
-      const ms = new Float32Array(h.grid.length);
-      for (let k = 0; k < h.grid.length; k++) {
-        ms[k] = h.grid[k] === NULL_F32 ? NULL_F32 : h.grid[k] * dtMs;
+    const key = second ? `${h.id}~${second.id}` : h.id;
+    let c = cacheRef.current.get(key);
+    if (!c || c.gridA !== h.grid || c.gridB !== (second ? second.grid : null)) {
+      const src = second ? horizonDifference(h.grid, second.grid) : h.grid;
+      const ms = new Float32Array(src.length);
+      for (let k = 0; k < src.length; k++) {
+        ms[k] = src[k] === NULL_F32 ? NULL_F32 : src[k] * dtMs;
       }
       const { zMin, zMax } = gridRange(ms);
       const { levels, step } = contourLevels(zMin ?? 0, zMax ?? 0, 12);
       c = {
-        grid: h.grid,
+        gridA: h.grid,
+        gridB: second ? second.grid : null,
         ms,
         zMin,
         zMax,
@@ -151,7 +163,7 @@ function MapView({
         lutKey: null,
         bitmap: null,
       };
-      cacheRef.current.set(h.id, c);
+      cacheRef.current.set(key, c);
     }
     if (c.lutKey !== colormap && c.zMin != null) {
       const px = buildMapPixels(c.ms, geom.nIl, geom.nXl, lut, c.zMin, c.zMax);
@@ -168,7 +180,7 @@ function MapView({
   }, [geom, manifest, colormap, lut]);
 
   propsRef.current = {
-    manifest, geom, horizons, faults, prefs, gutter: g, active, spacing, northDir,
+    manifest, geom, horizons, faults, prefs, gutter: g, active, vs, spacing, northDir,
   };
 
   // ---- drawing -----------------------------------------------------------
@@ -185,7 +197,7 @@ function MapView({
     const gl = Math.round(p.gutter.left * dpr);
     const gt = Math.round(p.gutter.top * dpr);
     const layer = p.prefs.fill || p.prefs.contours || p.prefs.colorbar
-      ? layerFor(p.active) : null;
+      ? layerFor(p.active, p.vs) : null;
 
     // data area (clipped, gutter-offset)
     ctx.save();
@@ -389,7 +401,10 @@ function MapView({
       ctx.font = `${Math.round(11 * dpr)}px ui-monospace, monospace`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
-      ctx.fillText(p.active.name || 'Horizon', gl + 8 * dpr, canvas.height - 26 * dpr);
+      const label = p.vs
+        ? `${p.vs.name} − ${p.active.name} (isochron)`
+        : p.active.name || 'Horizon';
+      ctx.fillText(label, gl + 8 * dpr, canvas.height - 26 * dpr);
     }
   }, [layerFor, lut]);
 
@@ -444,7 +459,7 @@ function MapView({
   // volume switch: drop stale layer caches
   useEffect(() => { cacheRef.current.clear(); }, [geom]);
 
-  useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, scheduleDraw]);
+  useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, vs, scheduleDraw]);
 
   // ---- cursor readout / interactions --------------------------------------
 
@@ -488,8 +503,17 @@ function MapView({
     }
     let z = '';
     if (p.active) {
-      const s = p.active.grid[hit.ilIdx * p.geom.nXl + hit.xlIdx];
-      z = `   Z ${s === NULL_F32 ? 'null' : `${((s * geo.dt_us) / 1000).toFixed(1)} ms`}`;
+      const c = hit.ilIdx * p.geom.nXl + hit.xlIdx;
+      const dtMs = geo.dt_us / 1000;
+      if (p.vs) {
+        const a = p.active.grid[c];
+        const b = p.vs.grid[c];
+        z = `   Δ ${a === NULL_F32 || b === NULL_F32
+          ? 'null' : `${((b - a) * dtMs).toFixed(1)} ms`}`;
+      } else {
+        const s = p.active.grid[c];
+        z = `   Z ${s === NULL_F32 ? 'null' : `${(s * dtMs).toFixed(1)} ms`}`;
+      }
     }
     vals.textContent = `${world}IL ${geo.il.min + hit.ilIdx * geo.il.step}   `
       + `XL ${geo.xl.min + hit.xlIdx * geo.xl.step}${z}`;
@@ -497,7 +521,8 @@ function MapView({
     hint.style.display = 'none';
   }, []);
 
-  const eraseArmed = eraseTool && Boolean(onEraseRegion && active);
+  // erasing edits ONE horizon — ambiguous on a two-surface isochron map
+  const eraseArmed = eraseTool && Boolean(onEraseRegion && active && !vs);
 
   /** Finish an erase gesture: send the outline's cells and disarm. */
   const finishErase = useCallback((flatPoly) => {
@@ -711,6 +736,20 @@ function MapView({
           ))}
         </select>
 
+        <span className="text-xs text-slate-400">vs</span>
+        <select
+          className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs max-w-[150px]"
+          value={vs?.id || ''}
+          onChange={(e) => setVsId(e.target.value)}
+          disabled={(horizons || []).length < 2}
+          title="Isochron mode: map the TWT interval Δ = vs − horizon (needs two visible horizons)"
+        >
+          <option value="">— (structure)</option>
+          {(horizons || []).filter((h) => h.id !== active?.id).map((h) => (
+            <option key={h.id} value={h.id}>{h.name}</option>
+          ))}
+        </select>
+
         <select
           className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
           value={colormap}
@@ -800,8 +839,10 @@ function MapView({
               setEraseTool((v) => !v);
               scheduleDraw();
             }}
-            disabled={!active}
-            title="Erase the mapped horizon's picks in a region: drag a rectangle, or click polygon vertices and double-click to close"
+            disabled={!active || Boolean(vs)}
+            title={vs
+              ? 'Erase is unavailable on an isochron map — switch vs back to structure first'
+              : 'Erase the mapped horizon’s picks in a region: drag a rectangle, or click polygon vertices and double-click to close'}
           >
             <Eraser className="w-4 h-4" />
           </Button>
