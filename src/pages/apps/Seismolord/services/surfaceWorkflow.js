@@ -1,13 +1,18 @@
-// Shared grid-a-horizon workflow used by the AI tools (and reusable by
-// the Export panel): load picks, convert to world points, TPS-grid in
-// the worker, return the grid + XYZ text.
+// Shared grid-a-horizon workflow used by the AI tools and the Export
+// panel: load picks, convert to world points, TPS-grid in the worker
+// (fault-blocked when the caller passes faults that cut the horizon),
+// return the grid + XYZ text.
 
 import { loadHorizonGrid } from './horizonsService';
 import { picksToPoints } from '../engine/gridding';
-import { surveyAffine, cellSpacing, surveyBounds } from '../engine/surveyGeometry';
+import { buildFaultBlocks } from '../engine/faultBarriers';
+import { surveyAffine, cellSpacing, surveyBounds, worldToIlxl } from '../engine/surveyGeometry';
 import { geomFromManifest } from '../engine/sliceAssembly';
 import { writeXYZ } from '../engine/surfaceExport';
 import { normalizeVelocity, sampleToExportZ } from '../engine/velocityModel';
+import { NULL_VALUE } from '../engine/manifest';
+
+const NULL_F32 = Math.fround(NULL_VALUE);
 
 const newGriddingWorker = () =>
   new Worker(new URL('../workers/gridding.worker.js', import.meta.url), { type: 'module' });
@@ -22,9 +27,16 @@ let jobSeq = 0;
  * @param {number} [p.velocityFtS] constant-velocity FALLBACK for depth
  *   conversion — the manifest's persisted velocity model wins when set
  * @param {number} [p.cellM] grid cell (default: survey bin)
- * @returns {Promise<{g: Object, spec: Object, gridded: Object, xyzText: string}>}
+ * @param {Array<{sticks: Array}>} [p.faults] fault stick sets; when any
+ *   cuts the horizon, gridding is fault-blocked (interpolation never
+ *   crosses a fault, nodes on the fault trace stay null)
+ * @returns {Promise<{g: Object, spec: Object, gridded: Object,
+ *   xyzText: string, faultInfo: {faults: number, traces: number,
+ *   blocks: number}|null}>} faultInfo is null when gridding ran unblocked
  */
-export async function gridHorizonSurface({ manifest, horizon, domain, velocityFtS = 10000, cellM = 0 }) {
+export async function gridHorizonSurface({
+  manifest, horizon, domain, velocityFtS = 10000, cellM = 0, faults = null,
+}) {
   const geom = geomFromManifest(manifest);
   const picks = await loadHorizonGrid(horizon);
   const dtMs = manifest.geometry.dt_us / 1000;
@@ -49,6 +61,33 @@ export async function gridHorizonSurface({ manifest, horizon, domain, velocityFt
     ny: Math.floor((b.y1 - b.y0) / dxy) + 1,
   };
 
+  // fault blocks: label the horizon lattice, tag each control point
+  // (same iteration order as picksToPoints), and assign every output
+  // node its lattice cell's block through the inverse affine
+  let nodeBlocks = null;
+  let faultInfo = null;
+  const invertible = Boolean(worldToIlxl(affine, spec.x0, spec.y0));
+  const blocks = faults?.length && invertible ? buildFaultBlocks(faults, picks, geom) : null;
+  if (blocks) {
+    let k = 0;
+    for (let i = 0; i < geom.nIl; i++) {
+      for (let j = 0; j < geom.nXl; j++) {
+        if (picks[i * geom.nXl + j] === NULL_F32) continue;
+        points[k++].block = blocks.labels[i * geom.nXl + j];
+      }
+    }
+    nodeBlocks = new Int32Array(spec.nx * spec.ny);
+    for (let r = 0; r < spec.ny; r++) {
+      for (let c = 0; c < spec.nx; c++) {
+        const g = worldToIlxl(affine, spec.x0 + c * spec.dx, spec.y0 + r * spec.dy);
+        const ci = Math.max(0, Math.min(geom.nIl - 1, Math.round(g.i)));
+        const cj = Math.max(0, Math.min(geom.nXl - 1, Math.round(g.j)));
+        nodeBlocks[r * spec.nx + c] = blocks.labels[ci * geom.nXl + cj];
+      }
+    }
+    faultInfo = { faults: faults.length, traces: blocks.traces.length, blocks: blocks.count };
+  }
+
   const id = ++jobSeq;
   const worker = newGriddingWorker();
   const gridded = await new Promise((resolve, reject) => {
@@ -59,7 +98,13 @@ export async function gridHorizonSurface({ manifest, horizon, domain, velocityFt
       else if (msg.type === 'error') reject(new Error(msg.message));
     };
     worker.onerror = (ev) => reject(new Error(ev.message));
-    worker.postMessage({ type: 'grid', id, points, spec, opts: { maxExtrapolation: 2 * dxy } });
+    worker.postMessage(
+      {
+        type: 'grid', id, points, spec, opts: { maxExtrapolation: 2 * dxy },
+        nodeBlocks: nodeBlocks ? nodeBlocks.buffer : undefined,
+      },
+      nodeBlocks ? [nodeBlocks.buffer] : [],
+    );
   }).finally(() => worker.terminate());
 
   const g = {
@@ -71,5 +116,5 @@ export async function gridHorizonSurface({ manifest, horizon, domain, velocityFt
     x: Array.from({ length: spec.nx }, (_, i) => spec.x0 + i * spec.dx),
     y: Array.from({ length: spec.ny }, (_, i) => spec.y0 + i * spec.dy),
   };
-  return { g, spec, gridded, xyzText: writeXYZ(g) };
+  return { g, spec, gridded, xyzText: writeXYZ(g), faultInfo };
 }

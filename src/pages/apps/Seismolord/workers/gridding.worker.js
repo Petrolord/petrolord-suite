@@ -1,22 +1,27 @@
 // Gridding worker: TPS surface fit off the main thread (the dense solve
 // is CPU-heavy). Pure compute — points come in, the masked grid goes out.
 //
-// (main -> worker): {type:'grid', id, points, spec, opts}
+// (main -> worker): {type:'grid', id, points, spec, opts, nodeBlocks?}
+//   nodeBlocks (Int32Array buffer, optional): fault-block id per output
+//   node — presence selects the fault-blocked path (points then carry a
+//   `block` id; see engine/faultBarriers.js for how blocks are built).
 // (worker -> main): {type:'progress', id, done, total}
 //                   {type:'done', id, z (transferred), live, controlCount,
-//                    dropped, zMin, zMax}
+//                    dropped, zMin, zMax, blockCount?, skippedBlocks?}
 //                   {type:'error', id, message}
 
-import { gridSurface } from '../engine/gridding';
+import { gridSurface, gridSurfaceBlocked } from '../engine/gridding';
 
 self.onmessage = (e) => {
-  const { type, id, points, spec, opts } = e.data;
+  const { type, id, points, spec, opts, nodeBlocks } = e.data;
   if (type !== 'grid') return;
   try {
-    const result = gridSurface(points, spec, {
-      ...opts,
-      onProgress: (done, total) => self.postMessage({ type: 'progress', id, done, total }),
-    });
+    const onProgress = (done, total) => self.postMessage({ type: 'progress', id, done, total });
+    const result = nodeBlocks
+      ? gridSurfaceBlocked(points, spec, {
+        ...opts, nodeBlocks: new Int32Array(nodeBlocks), onProgress,
+      })
+      : gridSurface(points, spec, { ...opts, onProgress });
     self.postMessage({
       type: 'done',
       id,
@@ -26,6 +31,8 @@ self.onmessage = (e) => {
       dropped: result.dropped,
       zMin: result.zMin,
       zMax: result.zMax,
+      blockCount: result.blockCount ?? null,
+      skippedBlocks: result.skippedBlocks ?? null,
     }, [result.z.buffer]);
   } catch (err) {
     self.postMessage({ type: 'error', id, message: err.message });
