@@ -35,7 +35,7 @@ import {
 } from '../viewer/mapContours';
 import { makeDepthConverter, velocityKey, M_PER_FT } from '../engine/velocityModel';
 import { AMP_MODES } from '../engine/horizonAmplitude';
-import { ilxlToWorld } from '../engine/surveyGeometry';
+import { ilxlToWorld, worldToIlxl } from '../engine/surveyGeometry';
 import { NULL_VALUE } from '../engine/manifest';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
@@ -46,6 +46,7 @@ const DEFAULT_PREFS = {
   contourLabels: true,
   faults: true,
   traverses: true,
+  wells: true,
   outline: true,
   axes: true,
   grid: false,
@@ -117,12 +118,17 @@ const fmtZ = (v, step) => (step >= 1
  *   [p.onAmplitude] amplitude-attribute extraction along the active
  *   horizon (modes per engine AMP_MODES) — enables the map's attribute
  *   select; the returned lattice grid becomes the mapped layer
+ * @param {Array<{id, name, color, surfaceX, surfaceY,
+ *   path: ?Array<{x, y}>}>} [p.wells] visible wells (world metres,
+ *   volume-independent) — drawn through the survey affine: surface
+ *   spot + name label, deviated path polyline + TD marker; hidden when
+ *   the volume has no usable coordinates
  * @param {number} [p.height]
  */
 function MapView({
   manifest, geom, horizons, faults, velocity, velocityBoundaries,
   onNavigate, onEraseRegion, traverse, onTraverse, savedTraverses,
-  onAmplitude, height = 560,
+  onAmplitude, wells, height = 560,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -289,7 +295,7 @@ function MapView({
   propsRef.current = {
     manifest, geom, horizons, faults, prefs, gutter: g, active, vs, spacing,
     northDir, velocity, depthConv, effDomain, traverse, savedTraverses,
-    effAttr, ampLayer,
+    effAttr, ampLayer, wells,
   };
 
   // ---- drawing -----------------------------------------------------------
@@ -509,6 +515,52 @@ function MapView({
       }
     }
 
+    // wells — world coordinates through the survey affine (fractional
+    // lattice indices; +0.5 puts a well ON its trace like every other
+    // grid-anchored overlay). Surface spot + name label; deviated wells
+    // additionally show the projected path with a TD marker.
+    const aff = p.spacing?.affine;
+    if (p.prefs.wells && aff && p.wells && p.wells.length) {
+      ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      for (const w of p.wells) {
+        const surf = worldToIlxl(aff, w.surfaceX, w.surfaceY);
+        if (!surf) continue;
+        ctx.strokeStyle = w.color;
+        ctx.fillStyle = w.color;
+        if (w.path && w.path.length > 1) {
+          ctx.lineWidth = 1.6 * dpr;
+          ctx.beginPath();
+          let pen = false;
+          let last = null;
+          for (const q of w.path) {
+            const ij = worldToIlxl(aff, q.x, q.y);
+            if (!ij) { pen = false; continue; }
+            const s = t.worldToScreen(ij.j + 0.5, ij.i + 0.5);
+            if (pen) ctx.lineTo(s.x, s.y);
+            else { ctx.moveTo(s.x, s.y); pen = true; }
+            last = s;
+          }
+          ctx.stroke();
+          if (last) ctx.fillRect(last.x - 2.5 * dpr, last.y - 2.5 * dpr, 5 * dpr, 5 * dpr);
+        }
+        const s0 = t.worldToScreen(surf.j + 0.5, surf.i + 0.5);
+        ctx.lineWidth = 1.8 * dpr;
+        ctx.beginPath();
+        ctx.arc(s0.x, s0.y, 4.5 * dpr, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(s0.x, s0.y, 1.5 * dpr, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 3 * dpr;
+        ctx.strokeStyle = 'rgba(2, 6, 23, 0.9)';
+        ctx.strokeText(w.name, s0.x + 7 * dpr, s0.y);
+        ctx.fillText(w.name, s0.x + 7 * dpr, s0.y);
+      }
+    }
+
     // traverse draft — world-anchored like the erase polygon
     const trav = travRef.current;
     if (trav.length) {
@@ -658,7 +710,8 @@ function MapView({
   useEffect(() => { cacheRef.current.clear(); }, [geom]);
 
   useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, vs,
-    effDomain, velocity, traverse, savedTraverses, effAttr, ampLayer, scheduleDraw]);
+    effDomain, velocity, traverse, savedTraverses, effAttr, ampLayer, wells,
+    scheduleDraw]);
 
   // model removed -> fall back to TWT so the select never lies
   useEffect(() => {
@@ -1097,6 +1150,12 @@ function MapView({
               checked={prefs.traverses} onCheckedChange={() => togglePref('traverses')}
             >
               Saved traverse lines
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
+              checked={prefs.wells} onCheckedChange={() => togglePref('wells')}
+              disabled={!spacing?.affine}
+            >
+              Wells{!spacing?.affine ? ' (no coordinates)' : ''}
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
               checked={prefs.outline} onCheckedChange={() => togglePref('outline')}
