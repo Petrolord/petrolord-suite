@@ -80,10 +80,14 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  * @param {(pick:{ilIdx:number,xlIdx:number,sample:number}) => void} p.onPick
  * @param {(delta:number) => void} p.onStepSlice
  * @param {number} [p.height] viewport CSS height when not fullscreen
+ * @param {number} [p.vexag] controlled vertical exaggeration (shared with
+ *   the 3D window); omit for the legacy uncontrolled behavior
+ * @param {(v:number) => void} [p.onVexagChange]
  */
 function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
   pickMode, loading, onPick, onStepSlice, height = 520,
+  vexag: vexagProp, onVexagChange,
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
   const viewportRef = useRef(null);    // the canvas container
@@ -506,6 +510,16 @@ function SliceView({
   // overlays / prefs changed -> repaint 2D layers
   useEffect(() => { scheduleView(); }, [overlays, prefs, scheduleView]);
 
+  // controlled exaggeration (shared with the 3D window)
+  useEffect(() => {
+    if (vexagProp == null) return;
+    const t = transformRef.current;
+    if (t.vexag !== vexagProp) {
+      t.setVexag(vexagProp);
+      scheduleView();
+    }
+  }, [vexagProp, scheduleView]);
+
   // ---- interactions ------------------------------------------------------
   const toDevice = useCallback((e) => {
     const rect = overlayRef.current.getBoundingClientRect();
@@ -697,7 +711,11 @@ function SliceView({
     scheduleView();
   };
   const fitView = () => { transformRef.current.fit(); scheduleView(); };
-  const setVexag = (v) => { transformRef.current.setVexag(v); scheduleView(); };
+  const setVexag = (v) => {
+    transformRef.current.setVexag(v);
+    scheduleView();
+    if (onVexagChange) onVexagChange(v);
+  };
 
   const toggleFullscreen = async () => {
     try {

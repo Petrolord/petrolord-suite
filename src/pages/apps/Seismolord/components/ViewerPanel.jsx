@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Eye, Loader2, XCircle, Crosshair, Route, Ban } from 'lucide-react';
+import { Eye, Loader2, XCircle, Crosshair, Route, Ban, Box } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,7 @@ import {
 import { snapPick } from '../engine/horizonTrack';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
+import CubeView from './CubeView';
 import HorizonsList, { horizonColor } from './HorizonsList';
 import FaultsList, { faultColor } from './FaultsList';
 
@@ -52,7 +53,13 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const [volume, setVolume] = useState(null);
   const [manifest, setManifest] = useState(null);
   const [orientation, setOrientation] = useState('inline');
-  const [sliceIndex, setSliceIndex] = useState(0);
+  // one slice position PER orientation — the 2D view shows the current
+  // orientation's; the 3D window shows all three, so a 2D slider move
+  // updates the matching 3D plane and vice versa (Shift+wheel in 3D).
+  const [indices, setIndices] = useState({ inline: 0, xline: 0, time: 0 });
+  const sliceIndex = indices[orientation];
+  const [vexag, setVexag] = useState(1);       // shared 2D/3D exaggeration
+  const [show3D, setShow3D] = useState(false);
   const [colormap, setColormap] = useState(SEISMIC_COLORMAPS[0].key);
   const [gain, setGain] = useState(1);
   const [clipRms, setClipRms] = useState(3);
@@ -129,7 +136,11 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
       setHorizons(hz);
       setFaults(flt);
       setOrientation('inline');
-      setSliceIndex(Math.floor(m.geometry.il.count / 2));
+      setIndices({
+        inline: Math.floor(m.geometry.il.count / 2),
+        xline: Math.floor(m.geometry.xl.count / 2),
+        time: Math.floor(m.geometry.ns / 2),
+      });
       if (onVolumeChange) onVolumeChange(v, m);
     } catch (e) {
       if (seq === selectSeqRef.current) setError(e.message);
@@ -395,8 +406,19 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   }), [resolvedHorizons, faults, visibleFaultIds, draftSticks, seedPick]);
 
   const stepSlice = useCallback((delta) => {
-    setSliceIndex((i) => Math.min(maxIndex, Math.max(0, i + delta)));
-  }, [maxIndex]);
+    setIndices((prev) => ({
+      ...prev,
+      [orientation]: Math.min(maxIndex, Math.max(0, prev[orientation] + delta)),
+    }));
+  }, [orientation, maxIndex]);
+
+  /** 3D window edits any orientation's position (Shift+wheel over a plane). */
+  const changeIndex = useCallback((o, idx) => {
+    setIndices((prev) => (prev[o] === idx ? prev : { ...prev, [o]: idx }));
+  }, []);
+
+  /** Clicking a plane in 3D opens that orientation in the 2D viewer. */
+  const selectPlane = useCallback((o) => setOrientation(o), []);
 
   const lineLabel = useMemo(() => {
     if (!manifest) return '';
@@ -432,7 +454,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
             <select
               className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
               value={orientation}
-              onChange={(e) => { setOrientation(e.target.value); setSliceIndex(0); }}
+              onChange={(e) => setOrientation(e.target.value)}
               disabled={!manifest}
             >
               {ORIENTATIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
@@ -480,7 +502,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
               <Label className="text-slate-300 whitespace-nowrap w-24">{lineLabel}</Label>
               <input
                 type="range" min="0" max={maxIndex} value={sliceIndex}
-                onChange={(e) => setSliceIndex(Number(e.target.value))}
+                onChange={(e) => changeIndex(orientation, Number(e.target.value))}
                 className="w-full accent-cyan-500"
               />
             </div>
@@ -584,7 +606,42 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
           onPick={handlePick}
           onStepSlice={stepSlice}
           height={560}
+          vexag={vexag}
+          onVexagChange={setVexag}
         />
+
+        {manifest && (
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline" size="sm"
+              className={show3D ? 'border-cyan-500/60 text-cyan-300' : ''}
+              onClick={() => setShow3D((s) => !s)}
+            >
+              <Box className="w-4 h-4 mr-2" />
+              {show3D ? 'Close 3D window' : '3D window'}
+            </Button>
+            {show3D && (
+              <span className="text-xs text-slate-500">
+                Shares slice positions, colormap, gain/clip and V.exag with the
+                2D view — cameras stay independent.
+              </span>
+            )}
+          </div>
+        )}
+
+        {manifest && show3D && (
+          <CubeView
+            geom={geom}
+            manifest={manifest}
+            getBrick={getBrick}
+            indices={indices}
+            onChangeIndex={changeIndex}
+            display={display}
+            vexag={vexag}
+            onSelectPlane={selectPlane}
+            height={560}
+          />
+        )}
 
         {manifest && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
