@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Eye, Loader2, XCircle, Crosshair, Route, Ban, Box } from 'lucide-react';
+import {
+  Eye, Loader2, XCircle, Crosshair, Route, Ban, Box, ScanLine, Map as MapIcon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -18,6 +20,8 @@ import { snapPick } from '../engine/horizonTrack';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
 import CubeView from './CubeView';
+import MapView from './MapView';
+import ViewerWindows from './ViewerWindows';
 import HorizonsList, { horizonColor } from './HorizonsList';
 import FaultsList, { faultColor } from './FaultsList';
 
@@ -59,7 +63,6 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const [indices, setIndices] = useState({ inline: 0, xline: 0, time: 0 });
   const sliceIndex = indices[orientation];
   const [vexag, setVexag] = useState(1);       // shared 2D/3D exaggeration
-  const [show3D, setShow3D] = useState(false);
   const [colormap, setColormap] = useState(SEISMIC_COLORMAPS[0].key);
   const [gain, setGain] = useState(1);
   const [clipRms, setClipRms] = useState(3);
@@ -420,6 +423,12 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   /** Clicking a plane in 3D opens that orientation in the 2D viewer. */
   const selectPlane = useCallback((o) => setOrientation(o), []);
 
+  /** Map click: move the shared inline AND crossline positions there. */
+  const navigateTo = useCallback(({ ilIdx, xlIdx }) => {
+    setIndices((prev) => (prev.inline === ilIdx && prev.xline === xlIdx
+      ? prev : { ...prev, inline: ilIdx, xline: xlIdx }));
+  }, []);
+
   const lineLabel = useMemo(() => {
     if (!manifest) return '';
     const g = manifest.geometry;
@@ -590,60 +599,72 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
           </>
         )}
 
-        <SliceView
-          // only hand over a slice that matches the current orientation —
-          // an orientation switch must not render the old slice under the
-          // new axes while the new one assembles
-          slice={manifest && slice && slice.orientation === orientation ? slice : null}
-          geom={geom}
-          manifest={manifest}
-          orientation={orientation}
-          sliceIndex={sliceIndex}
-          display={display}
-          overlays={overlays}
-          pickMode={pickMode}
-          loading={loading}
-          onPick={handlePick}
-          onStepSlice={stepSlice}
-          height={560}
-          vexag={vexag}
-          onVexagChange={setVexag}
+        <ViewerWindows
+          defaultOpen={['section']}
+          windows={[
+            {
+              key: 'section',
+              title: 'Section',
+              icon: ScanLine,
+              content: (
+                <SliceView
+                  // only hand over a slice that matches the current
+                  // orientation — an orientation switch must not render the
+                  // old slice under the new axes while the new one assembles
+                  slice={manifest && slice && slice.orientation === orientation ? slice : null}
+                  geom={geom}
+                  manifest={manifest}
+                  orientation={orientation}
+                  sliceIndex={sliceIndex}
+                  display={display}
+                  overlays={overlays}
+                  pickMode={pickMode}
+                  loading={loading}
+                  onPick={handlePick}
+                  onStepSlice={stepSlice}
+                  height={560}
+                  vexag={vexag}
+                  onVexagChange={setVexag}
+                />
+              ),
+            },
+            {
+              key: '3d',
+              title: '3D',
+              icon: Box,
+              content: (
+                <CubeView
+                  geom={geom}
+                  manifest={manifest}
+                  getBrick={getBrick}
+                  indices={indices}
+                  onChangeIndex={changeIndex}
+                  display={display}
+                  vexag={vexag}
+                  horizons={resolvedHorizons}
+                  faults={overlays.faults}
+                  onSelectPlane={selectPlane}
+                  height={560}
+                />
+              ),
+            },
+            {
+              key: 'map',
+              title: 'Map',
+              icon: MapIcon,
+              content: (
+                <MapView
+                  manifest={manifest}
+                  geom={geom}
+                  horizons={resolvedHorizons}
+                  faults={overlays.faults}
+                  onNavigate={navigateTo}
+                  height={560}
+                />
+              ),
+            },
+          ]}
         />
-
-        {manifest && (
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline" size="sm"
-              className={show3D ? 'border-cyan-500/60 text-cyan-300' : ''}
-              onClick={() => setShow3D((s) => !s)}
-            >
-              <Box className="w-4 h-4 mr-2" />
-              {show3D ? 'Close 3D window' : '3D window'}
-            </Button>
-            {show3D && (
-              <span className="text-xs text-slate-500">
-                Shares slice positions, colormap, gain/clip and V.exag with the
-                2D view — cameras stay independent.
-              </span>
-            )}
-          </div>
-        )}
-
-        {manifest && show3D && (
-          <CubeView
-            geom={geom}
-            manifest={manifest}
-            getBrick={getBrick}
-            indices={indices}
-            onChangeIndex={changeIndex}
-            display={display}
-            vexag={vexag}
-            horizons={resolvedHorizons}
-            faults={overlays.faults}
-            onSelectPlane={selectPlane}
-            height={560}
-          />
-        )}
 
         {manifest && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
