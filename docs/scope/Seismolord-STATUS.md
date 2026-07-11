@@ -1,6 +1,31 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (eraser sizes, polygon region erase, horizon smoothing)
+Last updated: 2026-07-11 (median smoothing, hole-fill, ghost pick preview)
+
+## Median smoothing + hole-fill + ghost preview: DONE
+
+- **Median smoothing**: `smoothHorizon` gains `method: 'mean'|'median'`;
+  the Smooth button gets a mean/median select. Median kills single-pick
+  autotrack spikes exactly (jest-proven vs mean's dampening); coverage
+  preservation unchanged.
+- **Hole-fill interpolation** (`engine/fillHorizonHoles` + Fill holes
+  button): interior holes only — the exterior null region is
+  flood-detected from the survey border (4-conn) and never touched, so
+  the interpreted outline cannot grow. Fill = onion-peel seeding
+  (8-conn means) then Gauss–Seidel Laplace relaxation with live picks
+  as fixed boundary values; a planar horizon fills back exactly planar
+  (jest). One undoable op; toast reports cells filled.
+- **Ghost pick preview** (SliceView `ghost` prop): in manual mode a
+  marker under the cursor previews where the pick would land — circle
+  snapped to the selected event kind with a dashed raw→snap connector,
+  square when no event is within the window (raw position would be
+  used). Computed from the already-assembled slice trace via the shared
+  engine `snapPick` — zero fetches, redraws on pointer move only while
+  the mode is active.
+- Verified: 15 jest suites / 178 tests, 13 Playwright e2e green on
+  staging.
+- Follow-up candidates: fill-hole size cap option, smoothing radius
+  select, snap-window control, horizon difference / isochron maps.
 
 ## Eraser size + polygon erase + smoothing: DONE
 
