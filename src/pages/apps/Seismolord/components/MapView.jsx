@@ -30,7 +30,7 @@ import {
 } from '../viewer/annotations';
 import { buildLut } from '../viewer/shaderChunks';
 import {
-  contourLevels, contourSegments, buildMapPixels, gridRange,
+  contourLevels, contourPolylines, buildMapPixels, gridRange,
 } from '../viewer/mapContours';
 import { NULL_VALUE } from '../engine/manifest';
 
@@ -39,6 +39,7 @@ const PREFS_KEY = 'seismolord.mapPrefs.v1';
 const DEFAULT_PREFS = {
   fill: true,
   contours: true,
+  contourLabels: true,
   faults: true,
   outline: true,
   axes: true,
@@ -138,7 +139,7 @@ function MapView({
         zMax,
         levels,
         step,
-        segs: levels.map((l) => contourSegments(ms, geom.nIl, geom.nXl, l)),
+        paths: levels.map((l) => contourPolylines(ms, geom.nIl, geom.nXl, l)),
         lutKey: null,
         bitmap: null,
       };
@@ -192,21 +193,62 @@ function MapView({
     }
 
     if (p.prefs.contours && layer && layer.levels.length) {
+      const inkFor = (major) => (p.prefs.fill
+        ? `rgba(15, 23, 42, ${major ? 0.85 : 0.5})`
+        : `rgba(148, 163, 184, ${major ? 0.95 : 0.55})`);
       for (let k = 0; k < layer.levels.length; k++) {
         const major = Math.round(layer.levels[k] / layer.step) % 5 === 0;
-        ctx.strokeStyle = p.prefs.fill
-          ? `rgba(15, 23, 42, ${major ? 0.85 : 0.5})`
-          : `rgba(148, 163, 184, ${major ? 0.95 : 0.55})`;
+        ctx.strokeStyle = inkFor(major);
         ctx.lineWidth = (major ? 1.6 : 1) * dpr;
-        const segs = layer.segs[k];
         ctx.beginPath();
-        for (let s = 0; s < segs.length; s += 4) {
-          const a = t.worldToScreen(segs[s] + 0.5, segs[s + 1] + 0.5);
-          const b = t.worldToScreen(segs[s + 2] + 0.5, segs[s + 3] + 0.5);
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
+        for (const path of layer.paths[k]) {
+          for (let i = 0; i < path.length; i += 2) {
+            const s = t.worldToScreen(path[i] + 0.5, path[i + 1] + 0.5);
+            if (i === 0) ctx.moveTo(s.x, s.y);
+            else ctx.lineTo(s.x, s.y);
+          }
         }
         ctx.stroke();
+      }
+
+      // value labels riding the MAJOR contours, spaced in screen pixels,
+      // kept upright, with a halo so they read over fill or dark ground
+      if (p.prefs.contourLabels) {
+        ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 3 * dpr;
+        ctx.strokeStyle = p.prefs.fill
+          ? 'rgba(255, 255, 255, 0.75)' : 'rgba(2, 6, 23, 0.9)';
+        for (let k = 0; k < layer.levels.length; k++) {
+          if (Math.round(layer.levels[k] / layer.step) % 5 !== 0) continue;
+          ctx.fillStyle = inkFor(true);
+          const text = String(Math.round(layer.levels[k]));
+          for (const path of layer.paths[k]) {
+            let acc = 0;
+            let next = 90 * dpr;                 // first label ~90px in
+            for (let i = 2; i < path.length; i += 2) {
+              const a = t.worldToScreen(path[i - 2] + 0.5, path[i - 1] + 0.5);
+              const b = t.worldToScreen(path[i] + 0.5, path[i + 1] + 0.5);
+              const d = Math.hypot(b.x - a.x, b.y - a.y);
+              while (d > 0 && acc + d >= next) {
+                const f = (next - acc) / d;
+                let ang = Math.atan2(b.y - a.y, b.x - a.x);
+                if (ang > Math.PI / 2) ang -= Math.PI;
+                if (ang < -Math.PI / 2) ang += Math.PI;
+                ctx.save();
+                ctx.translate(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f);
+                ctx.rotate(ang);
+                ctx.strokeText(text, 0, 0);
+                ctx.fillText(text, 0, 0);
+                ctx.restore();
+                next += 280 * dpr;               // then every ~280px
+              }
+              acc += d;
+            }
+          }
+        }
       }
     }
 
@@ -572,6 +614,13 @@ function MapView({
               checked={prefs.contours} onCheckedChange={() => togglePref('contours')}
             >
               Contours
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
+              checked={prefs.contourLabels}
+              onCheckedChange={() => togglePref('contourLabels')}
+              disabled={!prefs.contours}
+            >
+              Contour value labels
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
               checked={prefs.faults} onCheckedChange={() => togglePref('faults')}

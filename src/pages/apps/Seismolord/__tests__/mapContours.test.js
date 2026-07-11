@@ -2,7 +2,7 @@
 // marching squares (crossings, holes, saddles), color-fill pixels.
 
 import {
-  contourLevels, contourSegments, buildMapPixels, gridRange,
+  contourLevels, contourSegments, contourPolylines, buildMapPixels, gridRange,
 } from '../viewer/mapContours';
 import { NULL_VALUE } from '../engine/manifest';
 
@@ -55,6 +55,31 @@ describe('contourSegments', () => {
     ]);
     const segs = contourSegments(grid, 3, 3, 5);
     expect(segs.length).toBe(4 * 4);                // a diamond: 4 segments
+  });
+});
+
+describe('contourPolylines', () => {
+  it('chains a linear ramp into one open polyline spanning the grid', () => {
+    const grid = Float32Array.from([0, 10, 20, 0, 10, 20, 0, 10, 20]);
+    const lines = contourPolylines(grid, 3, 3, 15);
+    expect(lines.length).toBe(1);
+    expect(lines[0].length).toBe(3 * 2);            // 2 segments -> 3 points
+    const ys = [lines[0][1], lines[0][lines[0].length - 1]].sort((a, b) => a - b);
+    expect(ys).toEqual([0, 2]);                     // spans top to bottom edge
+  });
+
+  it('closes an interior high into a loop', () => {
+    const grid = Float32Array.from([
+      0, 0, 0,
+      0, 10, 0,
+      0, 0, 0,
+    ]);
+    const lines = contourPolylines(grid, 3, 3, 5);
+    expect(lines.length).toBe(1);
+    const l = lines[0];
+    expect(l.length).toBe(5 * 2);                   // 4 segments, closed
+    expect(l[0]).toBeCloseTo(l[l.length - 2]);      // first point == last
+    expect(l[1]).toBeCloseTo(l[l.length - 1]);
   });
 });
 

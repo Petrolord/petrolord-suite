@@ -90,6 +90,58 @@ export function contourSegments(grid, nIl, nXl, level) {
 }
 
 /**
+ * Chain a level's segment soup into polylines (for stroking and for
+ * placing value labels along the line). Adjacent cells produce bitwise-
+ * identical endpoints on their shared edge, so exact-key matching chains
+ * everything; open lines end at nulls / the survey edge, closed loops
+ * come back to their first point.
+ *
+ * @returns {Float32Array[]} polylines as [x0, y0, x1, y1, ...] node units
+ */
+export function contourPolylines(grid, nIl, nXl, level) {
+  const soup = contourSegments(grid, nIl, nXl, level);
+  const nSeg = soup.length / 4;
+  const key = (x, y) => `${Math.round(x * 4096)}:${Math.round(y * 4096)}`;
+  const adj = new Map();   // endpoint key -> [segIndex, whichEnd][]
+  for (let s = 0; s < nSeg; s++) {
+    for (const e of [0, 1]) {
+      const k = key(soup[s * 4 + e * 2], soup[s * 4 + e * 2 + 1]);
+      let l = adj.get(k);
+      if (!l) { l = []; adj.set(k, l); }
+      l.push([s, e]);
+    }
+  }
+  const used = new Uint8Array(nSeg);
+  const out = [];
+  for (let s0 = 0; s0 < nSeg; s0++) {
+    if (used[s0]) continue;
+    used[s0] = 1;
+    const pts = [
+      [soup[s0 * 4], soup[s0 * 4 + 1]],
+      [soup[s0 * 4 + 2], soup[s0 * 4 + 3]],
+    ];
+    for (const atTail of [true, false]) {
+      let guard = nSeg;
+      while (guard-- > 0) {
+        const tip = atTail ? pts[pts.length - 1] : pts[0];
+        const cands = adj.get(key(tip[0], tip[1])) || [];
+        const next = cands.find(([s]) => !used[s]);
+        if (!next) break;
+        const [s, e] = next;
+        used[s] = 1;
+        const p = [soup[s * 4 + (e === 0 ? 2 : 0)], soup[s * 4 + (e === 0 ? 3 : 1)]];
+        if (atTail) pts.push(p);
+        else pts.unshift(p);
+      }
+    }
+    const flat = new Float32Array(pts.length * 2);
+    pts.forEach((p, i) => { flat[i * 2] = p[0]; flat[i * 2 + 1] = p[1]; });
+    out.push(flat);
+  }
+  return out;
+}
+
+/**
  * RGBA pixel buffer (nXl wide, nIl tall, row = inline) for the map's
  * color fill: linear zMin..zMax through the LUT, nulls transparent.
  * @param {Uint8Array} lut 256x4 RGBA (shaderChunks buildLut)
