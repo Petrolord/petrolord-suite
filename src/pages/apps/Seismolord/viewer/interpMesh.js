@@ -14,6 +14,14 @@ import { NULL_VALUE } from '../engine/manifest';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
 
+/** '#rrggbb' -> [r, g, b] in 0..1 (renderer color uniforms). */
+export function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return [1, 1, 1];
+  const v = parseInt(m[1], 16);
+  return [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255];
+}
+
 /**
  * Triangulate a horizon pick grid into a surface mesh. Null picks make
  * holes: a triangle is emitted only when all three corners are live, and

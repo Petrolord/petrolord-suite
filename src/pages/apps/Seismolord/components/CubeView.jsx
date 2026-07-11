@@ -29,6 +29,9 @@ import { CubeRenderer } from '../viewer/CubeRenderer';
 import {
   OrbitCamera, cubeExtents, planeQuad, cubeEdges, intersectQuad, niceTicks,
 } from '../viewer/cube3d';
+import {
+  horizonMesh, faultPolylines, faultRibbonMesh, hexToRgb,
+} from '../viewer/interpMesh';
 import { surveySpacing } from '../viewer/annotations';
 import { assembleSlice } from '../engine/sliceAssembly';
 import { ABORTED } from '../engine/brickCache';
@@ -43,8 +46,18 @@ const DEFAULT_PREFS = {
   faces: false,
   labels: true,
   smooth: true,
+  horizons: true,
+  faults: true,
+  gizmo: true,
   bg: 'dark',
 };
+
+// axis gizmo colors: XL (model +x), IL (model +z), Z/time (model -y, down)
+const GIZMO_AXES = [
+  { key: 'xl', label: 'XL', dir: [1, 0, 0], color: '#f87171' },
+  { key: 'il', label: 'IL', dir: [0, 0, 1], color: '#4ade80' },
+  { key: 'z', label: 'Z', dir: [0, -1, 0], color: '#60a5fa' },
+];
 const ORIENTATIONS = ['inline', 'xline', 'time'];
 // boundary faces for the "entire cube" look: [plane id, orientation, which end]
 const FACES = [
@@ -75,13 +88,16 @@ const INK = {
  * @param {(orientation:string, index:number) => void} [p.onChangeIndex]
  * @param {{colormap, gain, polarity, clip, traceBalance}} p.display
  * @param {number} p.vexag shared vertical exaggeration
+ * @param {Array<{id, name, grid: Float32Array, color: string}>} [p.horizons]
+ *   VISIBLE horizons (shared visibility state with the 2D window)
+ * @param {Array<{id, sticks, color: string}>} [p.faults] visible faults
  * @param {(orientation:string) => void} [p.onSelectPlane]
  * @param {() => void} [p.onRendered] fired after each GL frame (harness)
  * @param {number} [p.height]
  */
 function CubeView({
   geom, manifest, getBrick, indices, onChangeIndex, display, vexag,
-  onSelectPlane, onRendered, height = 520,
+  horizons, faults, onSelectPlane, onRendered, height = 520,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -101,6 +117,11 @@ function CubeView({
   const idleTimerRef = useRef(0);
   const readoutRef = useRef(null);
   const propsRef = useRef({});
+  const hzCacheRef = useRef(new Map());    // horizon id -> {grid, mesh}
+  const fltCacheRef = useRef(new Map());   // fault id -> {sticks, lines, ribbon}
+  const activeHzRef = useRef(new Set());   // mesh ids currently in the renderer
+  const activeFltRef = useRef(new Set());
+  const gizmoRef = useRef(null);           // {cx, cy, r, tips:[{x,y,axis}]} device px
 
   const [prefs, setPrefs] = useState(loadPrefs);
   const [busy, setBusy] = useState(0);
@@ -129,7 +150,8 @@ function CubeView({
     if (!overlay) return;
     const ctx = overlay.getContext('2d');
     ctx.clearRect(0, 0, overlay.width, overlay.height);
-    if (!p.geom || !p.ext || !p.prefs.labels || !p.manifest) return;
+    gizmoRef.current = null;
+    if (!p.geom || !p.ext || !p.manifest) return;
     const cam = cameraRef.current;
     const W = overlay.width;
     const H = overlay.height;
@@ -142,6 +164,66 @@ function CubeView({
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
+    // ---- axis orientation gizmo (bottom-left, camera-locked) ----------
+    if (p.prefs.gizmo) {
+      const t = [p.ext.X / 2, -p.ext.D / 2, p.ext.Z / 2];
+      const c0 = cam.project(mvp, t, W, H);
+      if (c0) {
+        const R = 26 * dpr;
+        const cx = 44 * dpr;
+        const cy = H - 44 * dpr;
+        const eps = 0.25;
+        const axes = GIZMO_AXES.map((a) => {
+          const s = cam.project(mvp, [
+            t[0] + a.dir[0] * eps, t[1] + a.dir[1] * eps, t[2] + a.dir[2] * eps,
+          ], W, H);
+          if (!s) return null;
+          const dx = s.x - c0.x;
+          const dy = s.y - c0.y;
+          const len = Math.hypot(dx, dy);
+          return {
+            ...a,
+            ux: len > 1e-6 ? dx / len : 0,
+            uy: len > 1e-6 ? dy / len : 0,
+            depth: s.depth - c0.depth,
+            fore: len,               // projected length: foreshortening cue
+          };
+        }).filter(Boolean);
+        const maxFore = Math.max(...axes.map((a) => a.fore), 1e-9);
+        axes.sort((a, b) => b.depth - a.depth);   // far first, near on top
+        ctx.save();
+        ctx.beginPath();
+        ctx.fillStyle = p.prefs.bg === 'light'
+          ? 'rgba(241, 245, 249, 0.78)' : 'rgba(15, 23, 42, 0.68)';
+        ctx.arc(cx, cy, R + 11 * dpr, 0, Math.PI * 2);
+        ctx.fill();
+        const tips = [];
+        for (const a of axes) {
+          const L = R * Math.max(0.18, a.fore / maxFore);
+          const tx = cx + a.ux * L;
+          const ty = cy + a.uy * L;
+          ctx.strokeStyle = a.color;
+          ctx.fillStyle = a.color;
+          ctx.lineWidth = 1.6 * dpr;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(tx, ty);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(tx, ty, 3 * dpr, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillText(a.label,
+            cx + a.ux * (L + 9 * dpr), cy + a.uy * (L + 9 * dpr));
+          tips.push({ x: tx, y: ty, key: a.key });
+        }
+        ctx.restore();
+        ctx.fillStyle = ink;
+        ctx.strokeStyle = ink;
+        gizmoRef.current = { cx, cy, r: R + 11 * dpr, tips };
+      }
+    }
+
+    if (!p.prefs.labels) return;
     const { X, D, Z } = p.ext;
     const centre = cam.project(mvp, [X / 2, -D / 2, Z / 2], W, H);
     if (!centre) return;
@@ -331,6 +413,8 @@ function CubeView({
   useEffect(() => {
     planesMetaRef.current.clear();
     facesCacheRef.current.clear();
+    hzCacheRef.current.clear();
+    fltCacheRef.current.clear();
     fittedRef.current = false;
     desiredRef.current = { inline: null, xline: null, time: null };
     for (const o of ORIENTATIONS) seqRef.current[o] += 1;
@@ -346,6 +430,7 @@ function CubeView({
       r.setPlaneQuad(id, planeQuad(meta.orientation, meta.index, geom, ext));
     }
     r.setEdges(cubeEdges(ext));
+    r.setScale(ext.X, ext.D, ext.Z);
     if (!fittedRef.current) {
       cameraRef.current.fitTo(ext);
       fittedRef.current = true;
@@ -455,6 +540,79 @@ function CubeView({
     })();
   }, [geom, getBrick, prefs.faces, putPlane, dropPlane, maxFor]);
 
+  // ---- interpretation objects (horizons / faults) ------------------------
+  // Mesh geometry is cached per object (rebuilt only when the underlying
+  // grid / sticks reference changes); visibility diffs against the last
+  // pushed set so a toggle never re-triangulates anything.
+
+  useEffect(() => {
+    const r = rendererRef.current;
+    if (!r || !geom) return;
+    const wanted = new Set();
+    if (prefs.horizons) {
+      for (const h of horizons || []) {
+        const id = `hz-${h.id}`;
+        wanted.add(id);
+        let c = hzCacheRef.current.get(h.id);
+        if (!c || c.grid !== h.grid) {
+          c = { grid: h.grid, mesh: horizonMesh(h.grid, geom) };
+          hzCacheRef.current.set(h.id, c);
+        }
+        r.setMesh(id, {
+          positions: c.mesh.positions,
+          indices: c.mesh.indices,
+          color: hexToRgb(h.color),
+        });
+      }
+    }
+    for (const id of activeHzRef.current) {
+      if (!wanted.has(id)) r.setMesh(id, null);
+    }
+    activeHzRef.current = wanted;
+    scheduleRender();
+  }, [horizons, geom, prefs.horizons, scheduleRender]);
+
+  useEffect(() => {
+    const r = rendererRef.current;
+    if (!r || !geom) return;
+    const wanted = new Set();
+    if (prefs.faults) {
+      for (const f of faults || []) {
+        let c = fltCacheRef.current.get(f.id);
+        if (!c || c.sticks !== f.sticks) {
+          c = {
+            sticks: f.sticks,
+            lines: faultPolylines(f.sticks, geom),
+            ribbon: faultRibbonMesh(f.sticks, geom),
+          };
+          fltCacheRef.current.set(f.id, c);
+        }
+        const rgb = hexToRgb(f.color);
+        if (c.lines.length) {
+          wanted.add(`flt-${f.id}`);
+          r.setLineSet(`flt-${f.id}`, { positions: c.lines, color: rgb });
+        }
+        if (c.ribbon.indices.length) {
+          wanted.add(`fltrib-${f.id}`);
+          r.setMesh(`fltrib-${f.id}`, {
+            positions: c.ribbon.positions,
+            indices: c.ribbon.indices,
+            color: rgb,
+            opacity: 0.45,
+          });
+        }
+      }
+    }
+    for (const id of activeFltRef.current) {
+      if (!wanted.has(id)) {
+        if (id.startsWith('fltrib-')) r.setMesh(id, null);
+        else r.setLineSet(id, null);
+      }
+    }
+    activeFltRef.current = wanted;
+    scheduleRender();
+  }, [faults, geom, prefs.faults, scheduleRender]);
+
   // ---- picking / readout -------------------------------------------------
 
   const toDevice = useCallback((e) => {
@@ -503,7 +661,8 @@ function CubeView({
     const p = propsRef.current;
     if (!hit || !p.manifest) {
       el.textContent = 'drag: rotate · Shift/middle-drag: pan · wheel: zoom '
-        + '· Shift+wheel over a plane: step it · click a plane: open in 2D · dbl-click: fit';
+        + '· Shift+wheel over a plane: step it · click a plane: open in 2D '
+        + '· gizmo axis: snap view · dbl-click: fit';
       return;
     }
     const geo = p.manifest.geometry;
@@ -558,14 +717,35 @@ function CubeView({
     setReadout(hit);
   }, [toDevice, pickAt, setReadout, scheduleRender]);
 
+  /** Snap the camera to a standard view for a gizmo axis (dist/target kept). */
+  const snapView = useCallback((key) => {
+    const cam = cameraRef.current;
+    if (key === 'xl') { cam.yaw = Math.PI / 2; cam.pitch = 0; }
+    else if (key === 'il') { cam.yaw = 0; cam.pitch = 0; }
+    else cam.pitch = 1.5;                     // top-down (map) view
+    scheduleRender();
+  }, [scheduleRender]);
+
   const onPointerUp = useCallback((e) => {
     const d = dragRef.current;
     dragRef.current = null;
     if (!d || d.moved || e.button !== 0) return;
     const { sx, sy } = toDevice(e);
+    const gz = gizmoRef.current;
+    if (gz) {
+      const dpr = scaleRef.current || 1;
+      for (const tip of gz.tips) {
+        if (Math.hypot(sx - tip.x, sy - tip.y) <= 10 * dpr) {
+          snapView(tip.key);
+          return;
+        }
+      }
+      // clicks inside the gizmo disc never fall through to plane picking
+      if (Math.hypot(sx - gz.cx, sy - gz.cy) <= gz.r) return;
+    }
     const hit = pickAt(sx, sy);
     if (hit && onSelectPlane) onSelectPlane(hit.meta.orientation);
-  }, [toDevice, pickAt, onSelectPlane]);
+  }, [toDevice, pickAt, onSelectPlane, snapView]);
 
   const onDoubleClick = useCallback(() => {
     if (propsRef.current.ext) {
@@ -692,7 +872,24 @@ function CubeView({
               Entire cube (boundary faces)
             </DropdownMenuCheckboxItem>
             <DropdownMenuSeparator />
+            <DropdownMenuLabel>Interpretation</DropdownMenuLabel>
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
+              checked={prefs.horizons} onCheckedChange={() => togglePref('horizons')}
+            >
+              Horizon surfaces
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
+              checked={prefs.faults} onCheckedChange={() => togglePref('faults')}
+            >
+              Fault sticks &amp; surfaces
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuSeparator />
             <DropdownMenuLabel>Rendering</DropdownMenuLabel>
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
+              checked={prefs.gizmo} onCheckedChange={() => togglePref('gizmo')}
+            >
+              Axis gizmo
+            </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
               checked={prefs.labels} onCheckedChange={() => togglePref('labels')}
             >
@@ -761,7 +958,8 @@ function CubeView({
         className="text-xs text-slate-500 font-mono mt-1 h-5 whitespace-pre overflow-hidden"
       >
         drag: rotate · Shift/middle-drag: pan · wheel: zoom · Shift+wheel over a
-        plane: step it · click a plane: open in 2D · dbl-click: fit
+        plane: step it · click a plane: open in 2D · gizmo axis: snap view
+        · dbl-click: fit
       </div>
     </div>
   );

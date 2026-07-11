@@ -198,7 +198,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
           }
           gridCacheRef.current.set(h.id, grid);
         }
-        out.push({ grid, color: horizonColor(idx) });
+        out.push({ id: h.id, name: h.name, grid, color: horizonColor(idx) });
       }
       if (!stale) setResolvedHorizons(out);
     })();
@@ -638,6 +638,8 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
             onChangeIndex={changeIndex}
             display={display}
             vexag={vexag}
+            horizons={resolvedHorizons}
+            faults={overlays.faults}
             onSelectPlane={selectPlane}
             height={560}
           />
