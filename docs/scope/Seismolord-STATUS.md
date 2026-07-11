@@ -1,6 +1,45 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (arbitrary traverse lines)
+Last updated: 2026-07-11 (traverse picking + named traverse lines)
+
+## Traverse picking + named/persisted lines: DONE
+
+Closes all three traverse follow-ups recorded below: traverses are no
+longer view-only or session-local.
+
+- **Picking along traverses**: the Traverse window now honors the PAINT
+  modes ('manual'/'erase' — armed from the section toolbar as before,
+  same edit session). SliceView's traverse pickAt already resolved the
+  hovered column to IL/XL through `slice.positions`; the new
+  `handleTraversePick` writes those grid cells directly. Manual picks
+  snap on the ALREADY-ASSEMBLED traverse column (zero fetches — the
+  same trace the ghost preview reads, which is now enabled on traverses
+  too); the eraser brushes ALONG THE PATH via
+  `traverseEraseCells(positions, trace, radius)` — at a bend it erases
+  around the corner, never across it, clamped at path ends. Seed/fault
+  picking and Track 2D/3D stay section-only (recorded follow-up).
+- **Named/persisted traverses**: `manifest.traverses = [{id, name,
+  vertices}]` via `saveManifestTraverses` — the same owner-path
+  manifest upsert as the velocity model, deliberately NO schema change
+  (a traverse is a few dozen bytes of polyline). Loaded defensively
+  through `sanitizeTraverses` (manifest.json is hand-editable storage:
+  bad entries drop, never throw). Traverse window header gained a
+  saved-lines select + Save line + Delete; loading a saved line
+  re-resamples against the CURRENT affine, so a re-ingested (upgraded
+  geometry) volume sections the same map path, not stale positions.
+- **Multi-traverse map display**: MapView draws every saved line
+  dimmed/dashed with its name label at the midpoint vertex; the active
+  line still draws on top in full ink with A/A′ ends. "Saved traverse
+  lines" toggle in the map Layers menu.
+- Verified: 20 Seismolord jest suites / 259 tests (6 new:
+  traverseEraseCells path-following/clamping, sanitizeTraverses
+  robustness), 14 Playwright e2e green on live staging — the traverse
+  spec now also proves seed stays disabled while manual paint picking
+  resolves through positions.
+- Follow-up candidates: Track 2D along a traverse (autotrack2D already
+  takes the assembled slice — needs a seed-on-path affordance),
+  multi-traverse SECTIONS (several traverse windows), traverse export
+  (positions + picks as a 2D line).
 
 ## Arbitrary traverse lines: DONE
 
