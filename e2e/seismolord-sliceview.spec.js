@@ -121,7 +121,7 @@ test('annotation layers render and toggle off', async ({ page }) => {
   expect(withNone).toBeLessThan(withAll / 10);
 });
 
-test('traverse orientation sections along a path, view-only, readout via positions', async ({ page }) => {
+test('traverse orientation sections along a path; readout and manual picks via positions', async ({ page }) => {
   await ready(page);
   await page.getByTestId('harness-orientation').selectOption('traverse');
   await expect(page.getByTestId('harness-status'))
@@ -141,10 +141,21 @@ test('traverse orientation sections along a path, view-only, readout via positio
   await expect(readout).toContainText('ms');
   await expect(readout).toContainText('amp');
 
-  // view-only: arming the harness pick tool must not produce picks here
-  await page.getByTestId('harness-pickmode').click();
+  // seed picking stays section-only: arming it must not produce picks here…
+  await page.getByTestId('harness-pickmode').click();   // pick: seed
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await expect(page.getByTestId('harness-last-pick')).toHaveText('-');
+
+  // …but manual PAINT picking works: the pick resolves to a real IL/XL
+  // through slice.positions (both inside the synthetic survey)
+  await page.getByTestId('harness-pickmode').click();   // pick: manual
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  const pick = await page.getByTestId('harness-last-pick').textContent();
+  expect(pick).not.toBe('-');
+  const [il, xl] = pick.split(',').map(Number);
+  expect(il).toBeGreaterThanOrEqual(0);
+  expect(xl).toBeGreaterThanOrEqual(0);
+  await page.getByTestId('harness-pickmode').click();   // pick: off
 
   // the harness fault stick sits ON the path, so its projection must
   // put orange ink on the interpretation overlay (a plain 2D canvas)
