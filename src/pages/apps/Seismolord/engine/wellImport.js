@@ -29,8 +29,26 @@ export function parseDelimited(text) {
   const split = (l) => (delimiter === 'whitespace'
     ? l.split(/\s+/) : l.split(delimiter).map((c) => c.trim()));
   const rows = lines.map(split);
-  const isNumericRow = (r) => r.every((c) => c === '' || Number.isFinite(Number(c)));
-  const header = rows.length && !isNumericRow(rows[0]) ? rows[0] : null;
+  // Header detection: the first row is a header only when it is
+  // non-numeric AND its per-column numeric pattern differs from the
+  // second row's. The pattern comparison keeps text-bearing DATA rows
+  // (tops have a name column in every row; some files carry trailing
+  // comment columns) from being eaten as headers — a single-row tops
+  // file is data, and 'NAME,MD' over 'TopA,100' is a header.
+  const isNum = (c) => c === '' || Number.isFinite(Number(c));
+  const isNumericRow = (r) => r.every(isNum);
+  let header = null;
+  if (rows.length && !isNumericRow(rows[0])) {
+    if (rows.length > 1) {
+      const n = Math.max(rows[0].length, rows[1].length);
+      for (let c = 0; c < n; c++) {
+        if (isNum(rows[0][c] ?? '') !== isNum(rows[1][c] ?? '')) {
+          header = rows[0];
+          break;
+        }
+      }
+    }
+  }
   return { header, rows: header ? rows.slice(1) : rows, delimiter };
 }
 
@@ -86,6 +104,9 @@ export function buildDeviation(rows, map) {
     const azi = num(rows, r, map.azi, 'azimuth');
     if (inc < 0 || inc > 180) {
       throw new Error(`Row ${r + 1}: inclination ${inc}° is outside 0–180°.`);
+    }
+    if (azi < -360 || azi > 360) {
+      throw new Error(`Row ${r + 1}: azimuth ${azi}° is outside ±360° — check the column mapping and units.`);
     }
     if (out.length && !(md > out[out.length - 1].md)) {
       throw new Error(`Row ${r + 1}: MD ${md} does not increase `
