@@ -1,6 +1,49 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (layer-cake velocity model)
+Last updated: 2026-07-11 (arbitrary traverse lines)
+
+## Arbitrary traverse lines: DONE
+
+Closes the long-recorded follow-up: a user-drawn map polyline becomes a
+seismic section along that path, in its own viewer window.
+
+- **Engine** (`engine/traverse.js`): `resampleTraverse` walks the
+  polyline at EQUAL GROUND-DISTANCE steps through the survey affine
+  (rotated surveys and rectangular bins measure true metres; lattice-unit
+  fallback without coordinates), each sample taking its NEAREST trace —
+  amplitudes are never interpolated laterally — with consecutive
+  duplicates collapsed. `assembleTraverse` prefetches each needed brick
+  once and lays columns out exactly like inline/crossline sections
+  (`data[col*ns+s]` + per-column RMS) so the renderer path reuses
+  untouched. Golden-proven: every traverse column bit-identical to the
+  segyio golden traces on the IEEE and rotated fixtures.
+- **SliceView 'traverse' orientation**: axes in ground metres along the
+  line (`slice.stepM`; trace-number fallback), horizon overlays and the
+  IL/XL/ms/amp readout look up each column's trace via
+  `slice.positions`, scale bar rides the resample step. VIEW-ONLY:
+  picking, seed marker, ghost preview and fault sticks are
+  disabled/skipped on traverses.
+- **Map tool** (MapView): Route-icon tool — click vertices along the
+  path, double-click to finish, Esc cancels, drag still pans (so long
+  lines can be drawn across pans); drawing again replaces the line, an X
+  button removes it. The committed line renders with vertex markers and
+  A/A′ end labels (the section reads left→right as A→A′); the draft is
+  world-anchored like the erase polygon. Traverse and erase tools disarm
+  each other.
+- **Wiring** (ViewerPanel + ViewerWindows): a fourth always-registered
+  'Traverse' window (empty state explains the draw-on-map flow, header
+  line shows trace count + length). The section is assembled ONCE per
+  draw (orientation/index scrubs never re-assemble it); a finished draw
+  focuses the window via the new ViewerWindows `focus` request prop.
+  An in-flight traverse assembly registers its brick keys so the slice
+  scrub's `cancelPendingExcept` cannot abort it; session-local (not
+  persisted), cleared on volume switch.
+- Verified: 20 Seismolord jest suites / 248 tests (7 traverse cases incl.
+  golden bit-identity), 13 Playwright e2e green on live staging.
+- Follow-up candidates: fault-stick projection onto traverse paths
+  (distance-to-path test, recorded in SliceView), named/persisted
+  traverse lines per volume, multi-traverse display on the map, picking
+  along traverses (writes through `positions` to the horizon grid).
 
 ## Layer-cake velocity model: DONE
 
