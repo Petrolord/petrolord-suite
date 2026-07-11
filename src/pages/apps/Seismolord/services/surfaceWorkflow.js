@@ -4,6 +4,7 @@
 
 import { loadHorizonGrid } from './horizonsService';
 import { picksToPoints } from '../engine/gridding';
+import { surveyAffine, cellSpacing, surveyBounds } from '../engine/surveyGeometry';
 import { geomFromManifest } from '../engine/sliceAssembly';
 import { writeXYZ } from '../engine/surfaceExport';
 import { normalizeVelocity, sampleToExportZ } from '../engine/velocityModel';
@@ -33,21 +34,19 @@ export async function gridHorizonSurface({ manifest, horizon, domain, velocityFt
       ? sampleToExportZ(model, manifest.geometry.dt_us)
       : (s) => -((s * dtMs) / 1000) * (velocityFtS / 2))
     : (s) => -(s * dtMs);
-  const points = picksToPoints(picks, geom, manifest.geometry.corners, sampleToZ);
+  const affine = surveyAffine(manifest.geometry);
+  if (!affine) throw new Error('Volume has no usable survey coordinates for gridding.');
+  const points = picksToPoints(picks, geom, affine, sampleToZ);
   if (points.length < 3) throw new Error('Horizon has too few live picks to grid.');
 
-  const c = manifest.geometry.corners;
-  const nXl = manifest.geometry.xl.count;
-  const bin = nXl > 1 ? Math.abs((c.last.x - c.first.x) / (nXl - 1)) || 25 : 25;
+  // export grid: axis-aligned world bbox of the (possibly rotated) survey
+  const bin = cellSpacing(affine).xl || 25;
   const dxy = cellM > 0 ? cellM : bin;
-  const x0 = Math.min(c.first.x, c.last.x);
-  const x1 = Math.max(c.first.x, c.last.x);
-  const y0 = Math.min(c.first.y, c.last.y);
-  const y1 = Math.max(c.first.y, c.last.y);
+  const b = surveyBounds(affine, manifest.geometry.il.count, manifest.geometry.xl.count);
   const spec = {
-    x0, y0, dx: dxy, dy: dxy,
-    nx: Math.floor((x1 - x0) / dxy) + 1,
-    ny: Math.floor((y1 - y0) / dxy) + 1,
+    x0: b.x0, y0: b.y0, dx: dxy, dy: dxy,
+    nx: Math.floor((b.x1 - b.x0) / dxy) + 1,
+    ny: Math.floor((b.y1 - b.y0) / dxy) + 1,
   };
 
   const id = ++jobSeq;

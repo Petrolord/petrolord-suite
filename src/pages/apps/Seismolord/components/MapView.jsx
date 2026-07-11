@@ -34,6 +34,7 @@ import {
   contourLevels, contourPolylines, buildMapPixels, gridRange, cellsInPolygon,
 } from '../viewer/mapContours';
 import { twtMsToDepthM, M_PER_FT } from '../engine/velocityModel';
+import { ilxlToWorld } from '../engine/surveyGeometry';
 import { NULL_VALUE } from '../engine/manifest';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
@@ -525,12 +526,10 @@ function MapView({
       return;
     }
     const geo = p.manifest.geometry;
-    const c = geo.corners;
     let world = '';
-    if (c?.first && p.spacing) {
-      const wx = c.first.x + hit.xlIdx * p.spacing.dxPerXl;
-      const wy = c.first.y + hit.ilIdx * p.spacing.dyPerIl;
-      world = `X ${wx.toFixed(0)}   Y ${wy.toFixed(0)}   `;
+    if (p.spacing?.affine) {
+      const w = ilxlToWorld(p.spacing.affine, hit.ilIdx, hit.xlIdx);
+      world = `X ${w.x.toFixed(0)}   Y ${w.y.toFixed(0)}   `;
     }
     let z = '';
     if (p.active) {

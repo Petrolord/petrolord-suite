@@ -12,6 +12,7 @@ import {
   readHeaderInt16,
   applyCoordScalar,
 } from './segyDecode';
+import { makeAffineFit, affineFitAdd, solveAffineFit, cellSpacing } from './surveyGeometry';
 
 export const DEFAULT_MAPPING = Object.freeze({
   ilByte: 189,
@@ -163,6 +164,7 @@ export async function scanGeometry(reader, mapping = {}, opts = {}) {
   let prevIl = null; let prevXl = null;
   let ilChanges = 0;
   let firstCoords = null; let lastCoords = null; let scalar = null;
+  const coordFit = makeAffineFit();
 
   const readHeaderAt = async (traceIndex) => {
     const off = TEXT_HEADER_BYTES + BIN_HEADER_BYTES + traceIndex * traceBytes;
@@ -187,15 +189,12 @@ export async function scanGeometry(reader, mapping = {}, opts = {}) {
     }
     prevIl = il;
     prevXl = xl;
-    if (isFirst || isLast) {
-      const s = readHeaderInt16(th, map.scalarByte);
-      const coords = {
-        x: applyCoordScalar(readHeaderInt32(th, map.xByte), s),
-        y: applyCoordScalar(readHeaderInt32(th, map.yByte), s),
-      };
-      if (isFirst) { firstCoords = coords; scalar = s; }
-      if (isLast) lastCoords = coords;
-    }
+    const s = readHeaderInt16(th, map.scalarByte);
+    const cx = applyCoordScalar(readHeaderInt32(th, map.xByte), s);
+    const cy = applyCoordScalar(readHeaderInt32(th, map.yByte), s);
+    affineFitAdd(coordFit, il, xl, cx, cy);
+    if (isFirst) { firstCoords = { x: cx, y: cy }; scalar = s; }
+    if (isLast) lastCoords = { x: cx, y: cy };
   };
 
   if (!sampled) {
@@ -238,6 +237,24 @@ export async function scanGeometry(reader, mapping = {}, opts = {}) {
       + 'these byte positions are almost certainly wrong.');
   }
 
+  // Measured survey affine (world = f(il, xl)); supports rotated surveys
+  // and rectangular bins. Null when coordinates are missing or the il/xl
+  // coverage is degenerate — consumers then fall back to the corner
+  // assumption exactly as before.
+  const affine = solveAffineFit(coordFit, { ilMin, ilStep, xlMin, xlStep });
+  if (affine) {
+    const spacing = cellSpacing(affine);
+    const minSpacing = Math.min(spacing.il, spacing.xl);
+    if (minSpacing > 0 && affine.fit.rmsM > 0.25 * minSpacing) {
+      warnings.push(
+        `Trace coordinates deviate from a regular grid (RMS ${affine.fit.rmsM.toFixed(1)} m `
+        + `vs ~${minSpacing.toFixed(1)} m bins) — check the X/Y byte positions and scalar.`);
+    }
+  } else if (coordFit.n >= 3) {
+    warnings.push('Trace coordinates do not determine the survey orientation; '
+      + 'maps and exports will assume an unrotated survey.');
+  }
+
   return {
     ...header,
     mapping: map,
@@ -248,6 +265,7 @@ export async function scanGeometry(reader, mapping = {}, opts = {}) {
     inlineSorted,
     coordScalar: scalar,
     corners: { first: firstCoords, last: lastCoords },
+    affine,
     warnings,
   };
 }

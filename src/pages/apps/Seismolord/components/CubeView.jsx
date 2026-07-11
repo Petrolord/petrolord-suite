@@ -32,7 +32,7 @@ import {
 import {
   horizonMesh, faultPolylines, faultRibbonMesh, hexToRgb,
 } from '../viewer/interpMesh';
-import { surveySpacing } from '../viewer/annotations';
+import { surveySpacing, northLocalDir } from '../viewer/annotations';
 import { assembleSlice } from '../engine/sliceAssembly';
 import { ABORTED } from '../engine/brickCache';
 import { NULL_VALUE } from '../engine/manifest';
@@ -137,9 +137,10 @@ function CubeView({
     [manifest, geom, vexag],
   );
   const spacing = useMemo(() => (manifest ? surveySpacing(manifest) : null), [manifest]);
+  const northLocal = useMemo(() => (manifest ? northLocalDir(manifest) : null), [manifest]);
 
   propsRef.current = {
-    geom, manifest, ext, prefs, display, indices, spacing,
+    geom, manifest, ext, prefs, display, indices, spacing, northLocal,
   };
 
   // ---- rendering --------------------------------------------------------
@@ -284,10 +285,11 @@ function CubeView({
       label([best[0], -D / 2, best[1]], 'TWT ms', 40);
     }
 
-    // north arrow (grid north = inline direction sign, playbook's
-    // axis-aligned survey assumption)
-    if (p.spacing && p.spacing.dyPerIl !== 0) {
-      const n = [0, 0, p.spacing.dyPerIl > 0 ? 1 : -1];
+    // north arrow: world +Y in the survey's local frame (cube X = xl
+    // axis, cube Z = il axis, both proportional to ground metres) —
+    // rotated surveys get the true bearing
+    if (p.northLocal) {
+      const n = [p.northLocal.xl, 0, p.northLocal.il];
       const a = cam.project(mvp, [X / 2, 0, Z / 2], W, H);
       const b = cam.project(mvp, [X / 2 + n[0] * 0.2, 0, Z / 2 + n[2] * 0.2], W, H);
       if (a && b) {

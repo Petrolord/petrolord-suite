@@ -31,6 +31,8 @@ class VolumeSpec:
     il_byte: int        # trace-header byte position of inline number
     xl_byte: int        # trace-header byte position of crossline number
     lying_header: bool  # textual header states wrong byte positions on purpose
+    azimuth_deg: float = 0.0        # survey rotation: xl-axis bearing CCW from +X
+    il_bin_m: float | None = None   # inline-step spacing; None = bin_m (square bins)
 
 
 # Crossline numbering deliberately differs from inline numbering (101.. vs 1..)
@@ -59,7 +61,41 @@ DOME_ODDBYTES = VolumeSpec(
     lying_header=True,
 )
 
-ALL_VOLUMES = (DOME_IBM, DOME_IEEE, DOME_ODDBYTES)
+# Rotated survey: xl axis bearing 30 deg CCW from +X, rectangular bins
+# (xl 25 m, il 37.5 m) so square-bin or axis-aligned assumptions fail
+# loudly. Same dome family, defined in the survey's LOCAL frame.
+DOME_ROT = VolumeSpec(
+    name='dome_rot', n_il=16, n_xl=16, ns=32, dt_us=4000,
+    il0=1, xl0=101, x0=500000.0, y0=6700000.0, bin_m=25.0,
+    coord_scalar=-100, sample_format=5, il_byte=189, xl_byte=193,
+    lying_header=False, azimuth_deg=30.0, il_bin_m=37.5,
+)
+
+ALL_VOLUMES = (DOME_IBM, DOME_IEEE, DOME_ODDBYTES, DOME_ROT)
+
+
+def is_rotated(spec: VolumeSpec) -> bool:
+    return spec.azimuth_deg != 0.0 or spec.il_bin_m is not None
+
+
+def local_coords(spec: VolumeSpec):
+    """(lx, ly) metre grids in the survey frame, shape (n_il, n_xl).
+    lx along crosslines, ly along inlines, origin at trace (il0, xl0)."""
+    bil = spec.bin_m if spec.il_bin_m is None else spec.il_bin_m
+    return np.meshgrid(np.arange(spec.n_xl) * spec.bin_m,
+                       np.arange(spec.n_il) * bil)
+
+
+def affine_truth(spec: VolumeSpec) -> dict:
+    """Exact world = origin + i*il_vec + j*xl_vec (i, j grid indices)."""
+    th = np.deg2rad(spec.azimuth_deg)
+    bil = spec.bin_m if spec.il_bin_m is None else spec.il_bin_m
+    return {
+        'origin': {'x': spec.x0, 'y': spec.y0},
+        'il_vec': {'x': float(-bil * np.sin(th)), 'y': float(bil * np.cos(th))},
+        'xl_vec': {'x': float(spec.bin_m * np.cos(th)),
+                   'y': float(spec.bin_m * np.sin(th))},
+    }
 
 POISON_ILXL = 9999      # written at bytes 189/193 in the odd-bytes volume
 
@@ -72,21 +108,45 @@ FLAT_POLARITY = -0.6    # flat event amplitude relative to dome's +1.0
 
 
 def world_coords(spec: VolumeSpec):
-    """(X, Y) metre grids, shape (n_il, n_xl). X varies with crossline."""
-    xl_idx = np.arange(spec.n_xl)
-    il_idx = np.arange(spec.n_il)
-    x = spec.x0 + xl_idx * spec.bin_m
-    y = spec.y0 + il_idx * spec.bin_m
-    return np.meshgrid(x, y)[0], np.meshgrid(x, y)[1]
+    """(X, Y) metre grids, shape (n_il, n_xl). X varies with crossline.
+
+    The unrotated branch is kept byte-for-byte as originally written so
+    the committed dome_ibm/dome_ieee/dome_oddbytes fixtures regenerate
+    identically (their float ops must not change).
+    """
+    if not is_rotated(spec):
+        xl_idx = np.arange(spec.n_xl)
+        il_idx = np.arange(spec.n_il)
+        x = spec.x0 + xl_idx * spec.bin_m
+        y = spec.y0 + il_idx * spec.bin_m
+        return np.meshgrid(x, y)[0], np.meshgrid(x, y)[1]
+    th = np.deg2rad(spec.azimuth_deg)
+    lx, ly = local_coords(spec)
+    x = spec.x0 + lx * np.cos(th) - ly * np.sin(th)
+    y = spec.y0 + lx * np.sin(th) + ly * np.cos(th)
+    return x, y
 
 
 def dome_twt_ms(spec: VolumeSpec):
-    """Analytic dome TWT (ms) per (il, xl); crest at survey centre."""
-    xg, yg = world_coords(spec)
-    xc = spec.x0 + (spec.n_xl - 1) * spec.bin_m / 2.0
-    yc = spec.y0 + (spec.n_il - 1) * spec.bin_m / 2.0
-    r2 = (xg - xc) ** 2 + (yg - yc) ** 2
-    rmax2 = (spec.x0 - xc) ** 2 + (spec.y0 - yc) ** 2
+    """Analytic dome TWT (ms) per (il, xl); crest at survey centre.
+
+    Defined in the survey's LOCAL frame so rotation moves the survey,
+    not the geology relative to it. Unrotated branch unchanged (see
+    world_coords note).
+    """
+    if not is_rotated(spec):
+        xg, yg = world_coords(spec)
+        xc = spec.x0 + (spec.n_xl - 1) * spec.bin_m / 2.0
+        yc = spec.y0 + (spec.n_il - 1) * spec.bin_m / 2.0
+        r2 = (xg - xc) ** 2 + (yg - yc) ** 2
+        rmax2 = (spec.x0 - xc) ** 2 + (spec.y0 - yc) ** 2
+        return T_CREST_MS + T_RELIEF_MS * (r2 / rmax2)
+    bil = spec.bin_m if spec.il_bin_m is None else spec.il_bin_m
+    lx, ly = local_coords(spec)
+    lxc = (spec.n_xl - 1) * spec.bin_m / 2.0
+    lyc = (spec.n_il - 1) * bil / 2.0
+    r2 = (lx - lxc) ** 2 + (ly - lyc) ** 2
+    rmax2 = lxc ** 2 + lyc ** 2
     return T_CREST_MS + T_RELIEF_MS * (r2 / rmax2)
 
 

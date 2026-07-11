@@ -1,6 +1,6 @@
 import {
   niceStepDown, niceStepUp, fmtTick, axisTicks, scaleBarSpec,
-  surveySpacing, northScreenDir,
+  surveySpacing, northScreenDir, northLocalDir,
 } from '../viewer/annotations';
 
 describe('nice steps', () => {
@@ -131,5 +131,33 @@ describe('surveySpacing / northScreenDir', () => {
     expect(surveySpacing({ geometry: {} })).toBeNull();
     expect(surveySpacing(manifest({ x: 0, y: 0 }, { x: 0, y: 0 }))).toBeNull();
     expect(northScreenDir(manifest({ x: 0, y: 7 }, { x: 5000, y: 7 }))).toBeNull();
+  });
+
+  test('measured affine wins: rotated survey reports true bins + bearing', () => {
+    // 30 deg rotation, xl bin 25 m / il bin 37.5 m (the dome_rot layout);
+    // the corner diagonal would report nonsense — the affine must win
+    const cos = Math.cos(Math.PI / 6);
+    const sin = Math.sin(Math.PI / 6);
+    const m = {
+      geometry: {
+        il: { count: 16 }, xl: { count: 16 },
+        corners: { first: { x: 500000, y: 6700000 }, last: { x: 500043.51, y: 6700674.64 } },
+        affine: {
+          origin: { x: 500000, y: 6700000 },
+          il_vec: { x: -37.5 * sin, y: 37.5 * cos },
+          xl_vec: { x: 25 * cos, y: 25 * sin },
+        },
+      },
+    };
+    const s = surveySpacing(m);
+    expect(s.xlSpacing).toBeCloseTo(25, 6);
+    expect(s.ilSpacing).toBeCloseTo(37.5, 6);
+    // world north in the local frame: (sin 30, cos 30) over xl/il axes
+    const n = northLocalDir(m);
+    expect(n.xl).toBeCloseTo(sin, 6);
+    expect(n.il).toBeCloseTo(cos, 6);
+    const sc = northScreenDir(m);
+    expect(sc.x).toBeCloseTo(sin, 6);
+    expect(sc.y).toBeCloseTo(cos, 6);
   });
 });

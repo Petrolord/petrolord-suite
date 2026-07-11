@@ -1,4 +1,6 @@
 // Viewer annotations: axis ticks/labels, scale bar, north arrow, colorbar.
+
+import { surveyAffine, cellSpacing } from '../engine/surveyGeometry';
 // The tick/spacing/azimuth MATH is pure and jest-tested; the draw*
 // functions are thin canvas-2D painters over that math. Everything maps
 // through the shared ViewTransform, so annotations stay glued to the data
@@ -84,41 +86,61 @@ export function scaleBarSpec(metersPerPx, maxPx = 180) {
 }
 
 /**
- * Ground spacing per inline/crossline step from the manifest's corner
- * coordinates. Uses the same axis-aligned survey assumption as gridding
- * (picksToPoints): x varies along crosslines, y along inlines. Returns
- * null when the manifest has no usable corners (spacing then unknown —
- * callers must hide ground-distance UI rather than guess).
+ * Ground spacing per inline/crossline step, resolved through the survey
+ * affine (measured fit for post-affine manifests, the legacy axis-aligned
+ * corner derivation otherwise) — so rotated surveys report true bin
+ * sizes. Returns null when the manifest has no usable coordinates
+ * (spacing then unknown — callers must hide ground-distance UI rather
+ * than guess).
  * @returns {{xlSpacing:number, ilSpacing:number, dxPerXl:number,
- *   dyPerIl:number}|null}
+ *   dyPerIl:number, affine:Object}|null}
  */
 export function surveySpacing(manifest) {
-  const g = manifest?.geometry;
-  const c = g?.corners;
-  if (!c?.first || !c?.last) return null;
-  const nIl = g.il?.count || 0;
-  const nXl = g.xl?.count || 0;
-  if (nIl < 2 || nXl < 2) return null;
-  const dxPerXl = (c.last.x - c.first.x) / (nXl - 1);
-  const dyPerIl = (c.last.y - c.first.y) / (nIl - 1);
-  if (!Number.isFinite(dxPerXl) || !Number.isFinite(dyPerIl)) return null;
-  if (dxPerXl === 0 && dyPerIl === 0) return null;
+  const affine = surveyAffine(manifest?.geometry);
+  if (!affine) return null;
+  const s = cellSpacing(affine);
+  if (!Number.isFinite(s.il) || !Number.isFinite(s.xl)) return null;
+  if (s.il === 0 && s.xl === 0) return null;
   return {
-    xlSpacing: Math.abs(dxPerXl), ilSpacing: Math.abs(dyPerIl), dxPerXl, dyPerIl,
+    xlSpacing: s.xl,
+    ilSpacing: s.il,
+    // world-axis components per step (legacy consumers); equal to the
+    // old corner arithmetic for axis-aligned surveys
+    dxPerXl: affine.xlVec.x,
+    dyPerIl: affine.ilVec.y,
+    affine,
   };
 }
 
 /**
- * Screen direction of grid north (+y world) on the time slice, under the
- * axis-aligned assumption above. Screen y is DOWN and inline index grows
- * downward, so north points down when world y grows with inline number.
+ * World-north (+y) direction expressed in the survey's LOCAL frame:
+ * unit components along the crossline axis (xl) and inline axis (il).
+ * The 2D lattice views and the 3D cube are both drawn proportional to
+ * local ground metres, so this is the north direction in any of them.
+ * @returns {{xl:number, il:number}|null}
+ */
+export function northLocalDir(manifest) {
+  const s = surveySpacing(manifest);
+  if (!s) return null;
+  const a = s.affine;
+  const xl = s.xlSpacing > 0 ? a.xlVec.y / s.xlSpacing : 0;
+  const il = s.ilSpacing > 0 ? a.ilVec.y / s.ilSpacing : 0;
+  const len = Math.hypot(xl, il);
+  if (!len) return null;
+  return { xl: xl / len, il: il / len };
+}
+
+/**
+ * Screen direction of world north on the time slice / map lattice
+ * (screen x = crossline axis, screen y = inline axis, y DOWN — inline
+ * index grows downward). Axis-aligned surveys keep the old straight
+ * up/down arrow; rotated surveys get the true bearing.
  * @returns {{x:number, y:number}|null} unit screen vector, or null when
  *   the survey orientation is unknown.
  */
 export function northScreenDir(manifest) {
-  const s = surveySpacing(manifest);
-  if (!s || s.dyPerIl === 0) return null;
-  return { x: 0, y: s.dyPerIl > 0 ? 1 : -1 };
+  const n = northLocalDir(manifest);
+  return n ? { x: n.xl, y: n.il } : null;
 }
 
 // ---------------------------------------------------------------------
