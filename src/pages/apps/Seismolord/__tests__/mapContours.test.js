@@ -3,6 +3,7 @@
 
 import {
   contourLevels, contourSegments, contourPolylines, buildMapPixels, gridRange,
+  pointInPolygon, cellsInPolygon,
 } from '../viewer/mapContours';
 import { NULL_VALUE } from '../engine/manifest';
 
@@ -97,6 +98,30 @@ describe('buildMapPixels', () => {
     expect(px[4]).toBe(255);        // zMax -> LUT[255].r
     expect(px[11]).toBe(0);         // null -> alpha 0
     expect(px[12]).toBe(128);       // midpoint
+  });
+});
+
+describe('polygon cell selection', () => {
+  it('point-in-polygon handles concave outlines', () => {
+    // L-shape: the notch (3, 3) is OUTSIDE
+    const L = [0, 0, 4, 0, 4, 2, 2, 2, 2, 4, 0, 4];
+    expect(pointInPolygon(L, 1, 1)).toBe(true);
+    expect(pointInPolygon(L, 3, 1)).toBe(true);
+    expect(pointInPolygon(L, 1, 3)).toBe(true);
+    expect(pointInPolygon(L, 3, 3)).toBe(false);
+    expect(pointInPolygon(L, 5, 1)).toBe(false);
+  });
+
+  it('cellsInPolygon selects cell centres, clamped to the grid', () => {
+    // rectangle covering cells xl 1..2, il 1..2 exactly (centres inside)
+    const rect = [1, 1, 3, 1, 3, 3, 1, 3];
+    const cells = Array.from(cellsInPolygon(rect, 5, 5));
+    expect(cells.sort((a, b) => a - b)).toEqual([6, 7, 11, 12]);
+    // polygon hanging off the grid clamps instead of exploding
+    const off = [-10, -10, 1, -10, 1, 1, -10, 1];
+    expect(Array.from(cellsInPolygon(off, 5, 5))).toEqual([0]);
+    // degenerate (< 3 vertices) selects nothing
+    expect(cellsInPolygon([0, 0, 2, 2], 5, 5).length).toBe(0);
   });
 });
 

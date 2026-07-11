@@ -12,7 +12,7 @@ import { scanGeometry } from '@/pages/apps/Seismolord/engine/segyScan';
 import { transcodeToBricks } from '@/pages/apps/Seismolord/engine/brickTranscode';
 import { assembleSlice, assembleTrace } from '@/pages/apps/Seismolord/engine/sliceAssembly';
 import {
-  snapPick, autotrack2D, regionGrow3D, horizonStats,
+  snapPick, autotrack2D, regionGrow3D, horizonStats, smoothHorizon,
 } from '@/pages/apps/Seismolord/engine/horizonTrack';
 import { NULL_VALUE } from '@/pages/apps/Seismolord/engine/manifest';
 
@@ -178,6 +178,44 @@ describe.each(['dome_ibm', 'dome_ieee'])('dome tracking acceptance on %s', (name
       if (Math.abs(picks[x] - toSamples(truth[ilIdx * geom.nXl + x])) <= 2) within2 += 1;
     }
     expect(within2 / live).toBeGreaterThanOrEqual(0.95);
+  });
+});
+
+describe('smoothHorizon', () => {
+  test('a constant grid is a fixed point and a planar ramp stays planar inside', () => {
+    const flat = new Float32Array(5 * 5).fill(20);
+    expect(Array.from(smoothHorizon(flat, 5, 5))).toEqual(Array.from(flat));
+    // ramp along xl: interior cells average to themselves
+    const ramp = Float32Array.from({ length: 25 }, (_, k) => k % 5);
+    const sm = smoothHorizon(ramp, 5, 5);
+    expect(sm[2 * 5 + 2]).toBeCloseTo(2, 5);        // interior unchanged
+  });
+
+  test('reduces noise around a plane', () => {
+    const n = 9;
+    const noisy = new Float32Array(n * n);
+    for (let k = 0; k < n * n; k++) noisy[k] = 30 + (k % 2 === 0 ? 1 : -1);
+    const sm = smoothHorizon(noisy, n, n);
+    let devIn = 0;
+    let devOut = 0;
+    for (let k = 0; k < n * n; k++) {
+      devIn += Math.abs(noisy[k] - 30);
+      devOut += Math.abs(sm[k] - 30);
+    }
+    expect(devOut).toBeLessThan(devIn * 0.5);
+  });
+
+  test('preserves coverage exactly: nulls stay null, live cells stay live', () => {
+    const g = new Float32Array(4 * 4).fill(10);
+    g[5] = NULL_F32;
+    g[10] = NULL_F32;
+    const sm = smoothHorizon(g, 4, 4);
+    expect(sm[5]).toBe(NULL_F32);
+    expect(sm[10]).toBe(NULL_F32);
+    for (let k = 0; k < 16; k++) {
+      if (k === 5 || k === 10) continue;
+      expect(sm[k]).toBeCloseTo(10, 5);             // nulls never enter means
+    }
   });
 });
 

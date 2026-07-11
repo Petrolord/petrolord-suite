@@ -167,6 +167,57 @@ export function buildMapPixels(grid, nIl, nXl, lut, zMin, zMax) {
 }
 
 /**
+ * Even-odd (ray-cast) point-in-polygon — handles concave polygons, which
+ * the convex-hull test in gridding.js deliberately does not.
+ * @param {ArrayLike<number>} poly flat vertices [x0, y0, x1, y1, ...]
+ */
+export function pointInPolygon(poly, x, y) {
+  const n = poly.length / 2;
+  let inside = false;
+  for (let i = 0, j = n - 1; i < n; j = i, i++) {
+    const xi = poly[i * 2];
+    const yi = poly[i * 2 + 1];
+    const xj = poly[j * 2];
+    const yj = poly[j * 2 + 1];
+    if ((yi > y) !== (yj > y)
+      && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * Grid cells whose CENTRES (xl + 0.5, il + 0.5) fall inside a polygon in
+ * map world coordinates (x = crossline index, y = inline index).
+ * Bbox-bounded scan; the erase tools feed this for both rectangles
+ * (4-vertex polygon) and hand-drawn outlines.
+ * @returns {Int32Array} cell indices (il * nXl + xl)
+ */
+export function cellsInPolygon(poly, nIl, nXl) {
+  if (poly.length < 6) return new Int32Array(0);
+  let xMin = Infinity;
+  let xMax = -Infinity;
+  let yMin = Infinity;
+  let yMax = -Infinity;
+  for (let i = 0; i < poly.length; i += 2) {
+    xMin = Math.min(xMin, poly[i]);
+    xMax = Math.max(xMax, poly[i]);
+    yMin = Math.min(yMin, poly[i + 1]);
+    yMax = Math.max(yMax, poly[i + 1]);
+  }
+  const x0 = Math.max(0, Math.floor(xMin));
+  const x1 = Math.min(nXl - 1, Math.ceil(xMax));
+  const i0 = Math.max(0, Math.floor(yMin));
+  const i1 = Math.min(nIl - 1, Math.ceil(yMax));
+  const out = [];
+  for (let i = i0; i <= i1; i++) {
+    for (let x = x0; x <= x1; x++) {
+      if (pointInPolygon(poly, x + 0.5, i + 0.5)) out.push(i * nXl + x);
+    }
+  }
+  return Int32Array.from(out);
+}
+
+/**
  * Min/max of a grid ignoring nulls.
  * @returns {{zMin: number|null, zMax: number|null}}
  */

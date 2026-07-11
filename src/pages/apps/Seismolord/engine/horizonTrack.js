@@ -190,6 +190,42 @@ export async function regionGrow3D(getTrace, geom, seed, opts = {}) {
 }
 
 /**
+ * Null-aware horizon smoothing: each LIVE cell becomes the mean of the
+ * live cells in its (2·radius+1)² neighbourhood (self included). Nulls
+ * stay null and never enter the mean, so coverage is preserved exactly —
+ * smoothing neither grows nor shrinks the interpreted area.
+ *
+ * @param {Float32Array} picks nIl x nXl sample indices, 1e30 nulls
+ * @param {{radius?: number}} [opts]
+ * @returns {Float32Array} new grid (input untouched)
+ */
+export function smoothHorizon(picks, nIl, nXl, { radius = 1 } = {}) {
+  const out = new Float32Array(picks.length);
+  for (let i = 0; i < nIl; i++) {
+    for (let x = 0; x < nXl; x++) {
+      const c = i * nXl + x;
+      if (picks[c] === NULL_F32) { out[c] = NULL_F32; continue; }
+      let sum = 0;
+      let n = 0;
+      const i0 = Math.max(0, i - radius);
+      const i1 = Math.min(nIl - 1, i + radius);
+      const x0 = Math.max(0, x - radius);
+      const x1 = Math.min(nXl - 1, x + radius);
+      for (let ii = i0; ii <= i1; ii++) {
+        for (let xx = x0; xx <= x1; xx++) {
+          const v = picks[ii * nXl + xx];
+          if (v === NULL_F32) continue;
+          sum += v;
+          n += 1;
+        }
+      }
+      out[c] = sum / n;                 // n >= 1: the cell itself is live
+    }
+  }
+  return out;
+}
+
+/**
  * Horizon grid statistics with nulls excluded (they never enter sums).
  * @param {Float32Array} picks
  */
