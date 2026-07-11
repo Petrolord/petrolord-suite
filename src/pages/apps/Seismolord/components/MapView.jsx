@@ -33,7 +33,7 @@ import { buildLut } from '../viewer/shaderChunks';
 import {
   contourLevels, contourPolylines, buildMapPixels, gridRange, cellsInPolygon,
 } from '../viewer/mapContours';
-import { horizonDifference } from '../engine/horizonTrack';
+import { twtMsToDepthM, M_PER_FT } from '../engine/velocityModel';
 import { NULL_VALUE } from '../engine/manifest';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
@@ -83,6 +83,10 @@ const INK_DIM = 'rgba(148, 163, 184, 0.6)';
  * @param {Array<{id, name, grid: Float32Array, color: string}>} p.horizons
  *   VISIBLE horizons (pick grids in sample indices — converted to ms here)
  * @param {Array<{id, sticks, color: string}>} p.faults visible faults
+ * @param {?{v0: number, k: number}} [p.velocity] volume velocity model —
+ *   enables the depth (m / ft) display domains; conversion happens PER
+ *   SURFACE before differencing, so isochron thickness stays correct
+ *   under a depth-varying velocity
  * @param {({ilIdx, xlIdx}) => void} [p.onNavigate] map click -> move the
  *   shared inline/crossline positions
  * @param {({horizonId, cells: Int32Array}) => void} [p.onEraseRegion]
@@ -91,7 +95,8 @@ const INK_DIM = 'rgba(148, 163, 184, 0.6)';
  * @param {number} [p.height]
  */
 function MapView({
-  manifest, geom, horizons, faults, onNavigate, onEraseRegion, height = 560,
+  manifest, geom, horizons, faults, velocity, onNavigate, onEraseRegion,
+  height = 560,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -111,6 +116,7 @@ function MapView({
   const [colormap, setColormap] = useState('spectrum');
   const [activeId, setActiveId] = useState(null);
   const [vsId, setVsId] = useState('');       // isochron second horizon ('' = structure)
+  const [domain, setDomain] = useState('twt'); // 'twt' | 'depth_m' | 'depth_ft'
   const [eraseTool, setEraseTool] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -136,37 +142,55 @@ function MapView({
     [horizons, vsId, active],
   );
 
-  /** Layer cache (per horizon or horizon pair): ms grid — structure TWT
-   *  or the isochron Δ(vs − h) — range, contour polylines, fill bitmap. */
+  // display domain: depth needs a model; unit rides with the domain
+  const effDomain = velocity ? domain : 'twt';
+  const unit = effDomain === 'twt' ? 'ms' : effDomain === 'depth_ft' ? 'ft' : 'm';
+
+  /** Layer cache (per horizon/pair × domain × model): value grid —
+   *  structure TWT or depth, or the isochron Δ(vs − h) with conversion
+   *  PER SURFACE before differencing — range, contours, fill bitmap. */
   const layerFor = useCallback((h, second) => {
     if (!h || !geom || !manifest) return null;
     const dtMs = manifest.geometry.dt_us / 1000;
-    const key = second ? `${h.id}~${second.id}` : h.id;
+    const modelKey = velocity ? `${velocity.v0}:${velocity.k}` : '';
+    const key = `${h.id}~${second ? second.id : ''}~${effDomain}~${modelKey}`;
     let c = cacheRef.current.get(key);
     if (!c || c.gridA !== h.grid || c.gridB !== (second ? second.grid : null)) {
-      const src = second ? horizonDifference(h.grid, second.grid) : h.grid;
-      const ms = new Float32Array(src.length);
-      for (let k = 0; k < src.length; k++) {
-        ms[k] = src[k] === NULL_F32 ? NULL_F32 : src[k] * dtMs;
+      const conv = effDomain === 'twt' ? null
+        : (ms) => twtMsToDepthM(ms, velocity)
+          * (effDomain === 'depth_ft' ? 1 / M_PER_FT : 1);
+      const n = h.grid.length;
+      const values = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const a = h.grid[i];
+        if (a === NULL_F32) { values[i] = NULL_F32; continue; }
+        if (!second) {
+          values[i] = conv ? conv(a * dtMs) : a * dtMs;
+          continue;
+        }
+        const b = second.grid[i];
+        values[i] = b === NULL_F32 ? NULL_F32
+          : conv ? conv(b * dtMs) - conv(a * dtMs) : (b - a) * dtMs;
       }
-      const { zMin, zMax } = gridRange(ms);
+      const { zMin, zMax } = gridRange(values);
       const { levels, step } = contourLevels(zMin ?? 0, zMax ?? 0, 12);
       c = {
         gridA: h.grid,
         gridB: second ? second.grid : null,
-        ms,
+        values,
+        unit,
         zMin,
         zMax,
         levels,
         step,
-        paths: levels.map((l) => contourPolylines(ms, geom.nIl, geom.nXl, l)),
+        paths: levels.map((l) => contourPolylines(values, geom.nIl, geom.nXl, l)),
         lutKey: null,
         bitmap: null,
       };
       cacheRef.current.set(key, c);
     }
     if (c.lutKey !== colormap && c.zMin != null) {
-      const px = buildMapPixels(c.ms, geom.nIl, geom.nXl, lut, c.zMin, c.zMax);
+      const px = buildMapPixels(c.values, geom.nIl, geom.nXl, lut, c.zMin, c.zMax);
       const bmp = document.createElement('canvas');
       bmp.width = geom.nXl;
       bmp.height = geom.nIl;
@@ -177,10 +201,11 @@ function MapView({
       c.lutKey = colormap;
     }
     return c;
-  }, [geom, manifest, colormap, lut]);
+  }, [geom, manifest, colormap, lut, effDomain, unit, velocity]);
 
   propsRef.current = {
-    manifest, geom, horizons, faults, prefs, gutter: g, active, vs, spacing, northDir,
+    manifest, geom, horizons, faults, prefs, gutter: g, active, vs, spacing,
+    northDir, velocity, effDomain,
   };
 
   // ---- drawing -----------------------------------------------------------
@@ -386,13 +411,13 @@ function MapView({
       ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
       ctx.textAlign = 'right';
       ctx.textBaseline = 'top';
-      ctx.fillText(`${Math.round(layer.zMin)} ms`, x - 4 * dpr, y);
+      ctx.fillText(`${Math.round(layer.zMin)} ${layer.unit}`, x - 4 * dpr, y);
       ctx.textBaseline = 'bottom';
-      ctx.fillText(`${Math.round(layer.zMax)} ms`, x - 4 * dpr, y + h);
+      ctx.fillText(`${Math.round(layer.zMax)} ${layer.unit}`, x - 4 * dpr, y + h);
       if (layer.step) {
         ctx.textAlign = 'right';
         ctx.fillStyle = INK_DIM;
-        ctx.fillText(`CI ${layer.step} ms`, x + w, y + h + 14 * dpr);
+        ctx.fillText(`CI ${layer.step} ${layer.unit}`, x + w, y + h + 14 * dpr);
       }
     }
 
@@ -459,7 +484,13 @@ function MapView({
   // volume switch: drop stale layer caches
   useEffect(() => { cacheRef.current.clear(); }, [geom]);
 
-  useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, vs, scheduleDraw]);
+  useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, vs,
+    effDomain, velocity, scheduleDraw]);
+
+  // model removed -> fall back to TWT so the select never lies
+  useEffect(() => {
+    if (!velocity && domain !== 'twt') setDomain('twt');
+  }, [velocity, domain]);
 
   // ---- cursor readout / interactions --------------------------------------
 
@@ -505,14 +536,19 @@ function MapView({
     if (p.active) {
       const c = hit.ilIdx * p.geom.nXl + hit.xlIdx;
       const dtMs = geo.dt_us / 1000;
+      const zUnit = p.effDomain === 'twt' ? 'ms' : p.effDomain === 'depth_ft' ? 'ft' : 'm';
+      const conv = p.effDomain === 'twt'
+        ? (ms) => ms
+        : (ms) => twtMsToDepthM(ms, p.velocity)
+          * (p.effDomain === 'depth_ft' ? 1 / M_PER_FT : 1);
       if (p.vs) {
         const a = p.active.grid[c];
         const b = p.vs.grid[c];
         z = `   Δ ${a === NULL_F32 || b === NULL_F32
-          ? 'null' : `${((b - a) * dtMs).toFixed(1)} ms`}`;
+          ? 'null' : `${(conv(b * dtMs) - conv(a * dtMs)).toFixed(1)} ${zUnit}`}`;
       } else {
         const s = p.active.grid[c];
-        z = `   Z ${s === NULL_F32 ? 'null' : `${(s * dtMs).toFixed(1)} ms`}`;
+        z = `   Z ${s === NULL_F32 ? 'null' : `${conv(s * dtMs).toFixed(1)} ${zUnit}`}`;
       }
     }
     vals.textContent = `${world}IL ${geo.il.min + hit.ilIdx * geo.il.step}   `
@@ -758,6 +794,20 @@ function MapView({
           title="Map colormap"
         >
           {MAP_COLORMAPS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+        </select>
+
+        <select
+          className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+          value={effDomain}
+          onChange={(e) => setDomain(e.target.value)}
+          disabled={!hasData || !velocity}
+          title={velocity
+            ? 'Display domain (depth via the volume velocity model)'
+            : 'Depth display needs a velocity model — set one in the viewer controls'}
+        >
+          <option value="twt">TWT ms</option>
+          <option value="depth_m">Depth m</option>
+          <option value="depth_ft">Depth ft</option>
         </select>
 
         <DropdownMenu>

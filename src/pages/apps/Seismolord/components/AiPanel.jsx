@@ -151,7 +151,9 @@ export default function AiPanel({ volume, manifest }) {
           domain: domain === 'depth' ? 'depth_ft' : 'twt_ms',
           volume, horizon,
           params: {
-            via: 'ai', velocity_ft_s: domain === 'depth' ? velocity : null,
+            via: 'ai',
+            velocity_model: domain === 'depth' ? (manifest.velocity || null) : null,
+            velocity_ft_s: domain === 'depth' && !manifest.velocity ? velocity : null,
             cell_m: spec.dx, live_nodes: gridded.live,
             z_min: gridded.zMin, z_max: gridded.zMax,
           },

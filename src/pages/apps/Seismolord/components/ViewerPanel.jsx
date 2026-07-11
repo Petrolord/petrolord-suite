@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
-import { listVolumes, getManifest } from '../services/volumesService';
+import { listVolumes, getManifest, saveManifestVelocity } from '../services/volumesService';
 import {
   saveHorizon, listHorizons, loadHorizonGrid, deleteHorizon, updateHorizon,
 } from '../services/horizonsService';
@@ -20,6 +20,7 @@ import {
 import {
   snapPick, autotrack2D, smoothHorizon, fillHorizonHoles,
 } from '../engine/horizonTrack';
+import { normalizeVelocity, describeVelocity } from '../engine/velocityModel';
 import { NULL_VALUE } from '../engine/manifest';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
@@ -119,6 +120,10 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   // search half-window (samples) for seed snap, manual picking, ghost
   // preview and BOTH trackers; ±3 preserves the validated tracker default
   const [snapWindow, setSnapWindow] = useState(3);
+  // velocity model draft (strings while typing; saved model lives in the
+  // manifest and is the ONLY thing depth displays / exports consume)
+  const [velDraft, setVelDraft] = useState({ v0: '', k: '' });
+  const [velBusy, setVelBusy] = useState(false);
   const [tracking, setTracking] = useState(null);   // {tracked, total}
   const [horizons, setHorizons] = useState([]);
   const [visibleIds, setVisibleIds] = useState(new Set());
@@ -136,6 +141,49 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   }, [refreshKey]);
 
   const geom = useMemo(() => (manifest ? geomFromManifest(manifest) : null), [manifest]);
+  const velocityModel = useMemo(() => normalizeVelocity(manifest?.velocity), [manifest]);
+
+  // draft follows the saved model (volume switch or a successful save)
+  useEffect(() => {
+    const v = manifest?.velocity;
+    setVelDraft({
+      v0: v?.v0 != null ? String(v.v0) : '',
+      k: v?.k != null ? String(v.k) : '',
+    });
+  }, [manifest]);
+
+  const saveVelocity = async () => {
+    if (!volume || !manifest) return;
+    const wantsModel = velDraft.v0.trim() !== '';
+    const model = wantsModel
+      ? normalizeVelocity({
+        v0: Number(velDraft.v0),
+        k: velDraft.k.trim() === '' ? 0 : Number(velDraft.k),
+      })
+      : null;
+    if (wantsModel && !model) {
+      toast({
+        title: 'Invalid velocity model',
+        description: 'V0 must be a positive number (m/s) and k a finite number (1/s).',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setVelBusy(true);
+    try {
+      const next = await saveManifestVelocity(volume, manifest, model);
+      setManifest(next);
+      if (onVolumeChange) onVolumeChange(volume, next);
+      toast({
+        title: model ? 'Velocity model saved' : 'Velocity model removed',
+        description: describeVelocity(model),
+      });
+    } catch (e) {
+      toast({ title: 'Save failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setVelBusy(false);
+    }
+  };
   const maxIndex = useMemo(() => {
     if (!geom) return 0;
     return orientation === 'inline' ? geom.nIl - 1
@@ -1075,6 +1123,46 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                 </>
               )}
             </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Label className="text-slate-400 text-xs">Velocity model</Label>
+              <span className="text-xs text-slate-500">V0</span>
+              <input
+                type="number"
+                className="w-24 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                value={velDraft.v0}
+                onChange={(e) => setVelDraft((d) => ({ ...d, v0: e.target.value }))}
+                placeholder="e.g. 2000"
+                min="1"
+                step="50"
+              />
+              <span className="text-xs text-slate-500">m/s · k</span>
+              <input
+                type="number"
+                className="w-20 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
+                value={velDraft.k}
+                onChange={(e) => setVelDraft((d) => ({ ...d, k: e.target.value }))}
+                placeholder="0"
+                step="0.05"
+              />
+              <span className="text-xs text-slate-500">1/s</span>
+              <Button
+                variant="outline" size="sm"
+                onClick={saveVelocity}
+                disabled={velBusy}
+                title="Persist V(z) = V0 + k·z on this volume (clear V0 to remove)"
+              >
+                {velBusy
+                  ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  : <Save className="w-4 h-4 mr-2" />}
+                Save to volume
+              </Button>
+              <span className="text-xs text-slate-500">
+                {velocityModel
+                  ? `${describeVelocity(velocityModel)} — drives depth maps and depth exports`
+                  : 'not set — depth maps and model-based exports unavailable'}
+              </span>
+            </div>
           </>
         )}
 
@@ -1139,6 +1227,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                   geom={geom}
                   horizons={resolvedHorizons}
                   faults={overlays.faults}
+                  velocity={velocityModel}
                   onNavigate={navigateTo}
                   onEraseRegion={eraseRegion}
                   height={560}
