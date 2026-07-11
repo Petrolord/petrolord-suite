@@ -13,6 +13,7 @@ import { buildManifest } from '@/pages/apps/Seismolord/engine/manifest';
 import { geomFromManifest } from '@/pages/apps/Seismolord/engine/sliceAssembly';
 import {
   resampleTraverse, assembleTraverse, projectStickToTraverse,
+  traverseEraseCells, sanitizeTraverses,
 } from '@/pages/apps/Seismolord/engine/traverse';
 
 const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'seismolord');
@@ -169,6 +170,63 @@ describe('projectStickToTraverse', () => {
     const pt = [{ il: 7, xl: 3, s: 10 }];                    // 2 cells off
     expect(projectStickToTraverse(pt, positions)).toBeNull();
     expect(projectStickToTraverse(pt, positions, 2.5)[0].trace).toBe(3);
+  });
+});
+
+describe('traverseEraseCells', () => {
+  const nXl = 100;
+  // dog-leg: along inline 5 then turning up inline at xl 3
+  const positions = [
+    { il: 5, xl: 0 }, { il: 5, xl: 1 }, { il: 5, xl: 2 }, { il: 5, xl: 3 },
+    { il: 6, xl: 3 }, { il: 7, xl: 3 },
+  ];
+
+  test('brush follows the path around a bend, not across it', () => {
+    const cells = traverseEraseCells(positions, 3, 1, nXl);
+    expect(cells).toEqual([5 * nXl + 2, 5 * nXl + 3, 6 * nXl + 3]);
+  });
+
+  test('clamps at the path ends instead of wrapping', () => {
+    expect(traverseEraseCells(positions, 0, 2, nXl))
+      .toEqual([5 * nXl + 0, 5 * nXl + 1, 5 * nXl + 2]);
+    expect(traverseEraseCells(positions, 5, 1, nXl))
+      .toEqual([6 * nXl + 3, 7 * nXl + 3]);
+  });
+
+  test('radius 0 erases exactly the pointed column', () => {
+    expect(traverseEraseCells(positions, 2, 0, nXl)).toEqual([5 * nXl + 2]);
+  });
+});
+
+describe('sanitizeTraverses', () => {
+  const good = {
+    id: 'a', name: 'Line A', vertices: [{ il: 1, xl: 2 }, { il: 3, xl: 4 }],
+  };
+
+  test('keeps valid entries and strips unknown fields', () => {
+    const out = sanitizeTraverses([{ ...good, junk: 7 }]);
+    expect(out).toEqual([good]);
+  });
+
+  test('drops invalid vertices; entries left with < 2 vertices vanish', () => {
+    const out = sanitizeTraverses([
+      {
+        id: 'b',
+        name: 'B',
+        vertices: [{ il: 1, xl: 1 }, { il: NaN, xl: 2 }, null, { il: 5, xl: 'x' }, { il: 2, xl: 2 }],
+      },
+      { id: 'c', name: 'C', vertices: [{ il: 1, xl: 1 }, { il: Infinity, xl: 2 }] },
+    ]);
+    expect(out).toEqual([
+      { id: 'b', name: 'B', vertices: [{ il: 1, xl: 1 }, { il: 2, xl: 2 }] },
+    ]);
+  });
+
+  test('non-arrays and malformed entries never throw', () => {
+    expect(sanitizeTraverses(undefined)).toEqual([]);
+    expect(sanitizeTraverses('garbage')).toEqual([]);
+    expect(sanitizeTraverses([null, 42, {}, { id: 1, name: 'x', vertices: [] }, good]))
+      .toEqual([good]);
   });
 });
 

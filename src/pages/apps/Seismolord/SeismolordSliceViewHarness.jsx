@@ -126,7 +126,7 @@ export default function SeismolordSliceViewHarness() {
         <button
           type="button"
           data-testid="harness-pickmode"
-          onClick={() => setPickMode((p) => (p ? null : 'seed'))}
+          onClick={() => setPickMode((p) => (p === null ? 'seed' : p === 'seed' ? 'manual' : null))}
           style={{ border: '1px solid #334155', padding: '0 8px' }}
         >
           pick: {pickMode || 'off'}
@@ -162,7 +162,10 @@ export default function SeismolordSliceViewHarness() {
           sliceIndex={sliceIndex}
           display={display}
           overlays={overlays}
-          pickMode={orientation === 'traverse' ? null : pickMode}
+          // traverses take PAINT modes only (like ViewerPanel): manual
+          // picks resolve through slice.positions; seed stays section-only
+          pickMode={orientation === 'traverse'
+            ? (pickMode === 'manual' ? 'manual' : null) : pickMode}
           loading={false}
           onPick={setLastPick}
           onStepSlice={orientation === 'traverse' ? undefined : stepSlice}

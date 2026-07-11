@@ -72,10 +72,13 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  *   and `stepM` (ground metres per column, null without coordinates)
  * @param {?Object} p.geom geomFromManifest() result
  * @param {?Object} p.manifest volume manifest (axis values, corners)
- * @param {'inline'|'xline'|'time'|'traverse'} p.orientation traverse is
- *   VIEW-ONLY: picking, seed markers and ghost preview are disabled on it
- *   (callers pass no pickMode/onStepSlice); fault sticks render where
- *   they fall within the path corridor (projectStickToTraverse)
+ * @param {'inline'|'xline'|'time'|'traverse'} p.orientation traverse
+ *   supports the PAINT modes ('manual'/'erase' — picks resolve to IL/XL
+ *   through slice.positions, and onPick additionally carries the path
+ *   `trace` so erasers can brush along the path); seed/fault picking and
+ *   slice stepping stay section-only (callers pass no seed pickMode /
+ *   onStepSlice); fault sticks render where they fall within the path
+ *   corridor (projectStickToTraverse)
  * @param {number} p.sliceIndex
  * @param {{colormap:string, gain:number, polarity:number, clip:number,
  *          traceBalance:boolean}} p.display clip is ABSOLUTE amplitude
@@ -326,11 +329,15 @@ function SliceView({
     }
 
     // ghost pick preview (manual mode): where the click WOULD land —
-    // computed from the on-hand slice trace, no fetches
+    // computed from the on-hand slice trace, no fetches. Traverse
+    // columns share the section layout (data[col*ns+s]), so the same
+    // subarray works there.
     const cur = cursorRef.current;
-    if (p.ghost && cur && ori !== 'time' && ori !== 'traverse' && p.slice) {
+    if (p.ghost && cur && ori !== 'time' && p.slice
+      && (ori !== 'traverse' || p.slice.positions)) {
       const w = t.screenToWorld(cur.sx, cur.sy);
-      const nTraces = ori === 'inline' ? gm.nXl : gm.nIl;
+      const nTraces = ori === 'inline' ? gm.nXl
+        : ori === 'xline' ? gm.nIl : p.slice.positions.length;
       const trace = Math.floor(w.x);
       if (trace >= 0 && trace < nTraces && w.y >= 0 && w.y < gm.ns) {
         const trData = p.slice.data.subarray(trace * gm.ns, (trace + 1) * gm.ns);

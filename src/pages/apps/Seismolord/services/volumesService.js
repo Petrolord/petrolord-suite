@@ -39,6 +39,25 @@ export async function saveManifestVelocity(volume, manifest, velocity) {
   return next;
 }
 
+/**
+ * Persist the volume's named traverse lines inside its manifest.json —
+ * the same owner-path upsert as the velocity model (storage RLS, no
+ * schema change; a traverse is a few dozen bytes of polyline). Pass an
+ * empty array to remove them all.
+ * @returns {Promise<Object>} the merged manifest
+ */
+export async function saveManifestTraverses(volume, manifest, traverses) {
+  const next = { ...manifest };
+  if (traverses && traverses.length) next.traverses = traverses;
+  else delete next.traverses;
+  const { error } = await supabase.storage.from(SEISMIC_BUCKET)
+    .upload(`${volume.storage_path}/manifest.json`,
+      new Blob([JSON.stringify(next)], { type: 'application/json' }),
+      { contentType: 'application/json', upsert: true });
+  if (error) throw new Error(`Could not save traverse lines: ${error.message}`);
+  return next;
+}
+
 export async function deleteVolume(volume) {
   // Storage first: list bricks + manifest under the owner path, remove in
   // batches (remove() caps around 1000 keys per call), then drop the row.

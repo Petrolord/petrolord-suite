@@ -8,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
-import { listVolumes, getManifest, saveManifestVelocity } from '../services/volumesService';
+import {
+  listVolumes, getManifest, saveManifestVelocity, saveManifestTraverses,
+} from '../services/volumesService';
 import {
   saveHorizon, listHorizons, loadHorizonGrid, deleteHorizon, updateHorizon,
 } from '../services/horizonsService';
@@ -17,7 +19,9 @@ import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
 import {
   assembleSlice, assembleTrace, bricksForSlice, geomFromManifest, brickKey,
 } from '../engine/sliceAssembly';
-import { resampleTraverse, assembleTraverse } from '../engine/traverse';
+import {
+  resampleTraverse, assembleTraverse, traverseEraseCells, sanitizeTraverses,
+} from '../engine/traverse';
 import {
   snapPick, autotrack2D, smoothHorizon, fillHorizonHoles,
 } from '../engine/horizonTrack';
@@ -111,6 +115,10 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
   const [traverse, setTraverse] = useState(null);        // {vertices, positions, stepM, lengthM}
   const [traverseSlice, setTraverseSlice] = useState(null);
   const [traverseLoading, setTraverseLoading] = useState(false);
+  // which saved line (manifest.traverses) the displayed traverse came
+  // from — null for a freshly drawn, unsaved line
+  const [traverseSavedId, setTraverseSavedId] = useState(null);
+  const [traverseBusy, setTraverseBusy] = useState(false);
   const [winFocus, setWinFocus] = useState(null);        // {key, seq} -> ViewerWindows
 
   // Phase 3: picking + horizons; Phase 4: fault sticks; editing tools:
@@ -160,6 +168,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
 
   const geom = useMemo(() => (manifest ? geomFromManifest(manifest) : null), [manifest]);
   const velocityModel = useMemo(() => normalizeVelocity(manifest?.velocity), [manifest]);
+  const savedTraverses = useMemo(() => sanitizeTraverses(manifest?.traverses), [manifest]);
 
   // drafts follow the saved model (volume switch or a successful save)
   useEffect(() => {
@@ -404,6 +413,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
     setTraverse(null);
     setTraverseSlice(null);
     setTraverseLoading(false);
+    setTraverseSavedId(null);
     editRef.current = null;
     setEdit({ version: 0, undo: 0, active: false });
     setEditTarget('new');
@@ -938,10 +948,13 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
       ? prev : { ...prev, inline: ilIdx, xline: xlIdx }));
   }, []);
 
-  /** Map-drawn traverse: resample the polyline to trace positions,
-   *  assemble the section, and focus the Traverse window. null removes. */
-  const handleTraverse = useCallback(async (vertices) => {
+  /** Map-drawn or saved traverse: resample the polyline to trace
+   *  positions, assemble the section, and focus the Traverse window.
+   *  null removes; savedId marks which manifest entry the line came
+   *  from (null = freshly drawn). */
+  const handleTraverse = useCallback(async (vertices, savedId = null) => {
     const req = ++traverseReqRef.current;
+    setTraverseSavedId(savedId);
     if (!vertices) {
       traverseBricksRef.current = null;
       setTraverse(null);
@@ -996,6 +1009,80 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
       }
     }
   }, [geom, manifest, volume, getBrick, toast]);
+
+  /** Paint picking on the Traverse window: the hit already carries the
+   *  IL/XL resolved through slice.positions plus the path column, so
+   *  manual picks write the horizon grid cell directly (snapping on the
+   *  already-assembled traverse column — zero fetches, same math as the
+   *  ghost preview) and the eraser brushes ALONG THE PATH. */
+  const handleTraversePick = useCallback(({ ilIdx, xlIdx, sample, trace }) => {
+    if (!geom || !traverse) return;
+    if (pickMode === 'erase') {
+      const cells = traverseEraseCells(traverse.positions, trace, eraseSize, geom.nXl);
+      applyOp(cells, cells.map(() => NULL_VALUE));
+      return;
+    }
+    if (pickMode !== 'manual') return;
+    const cell = ilIdx * geom.nXl + xlIdx;
+    const ts = traverseSlice;
+    if (ts) {
+      const trData = ts.data.subarray(trace * ts.width, (trace + 1) * ts.width);
+      const hit = snapPick(trData, sample, { mode: snapMode, window: snapWindow });
+      applyOp([cell], [hit ? hit.sample : sample]);
+    } else {
+      applyOp([cell], [sample]);
+    }
+  }, [geom, traverse, traverseSlice, pickMode, eraseSize, snapMode, snapWindow, applyOp]);
+
+  /** Persist the drawn line under a name (manifest.traverses — the same
+   *  owner-path manifest upsert as the velocity model). */
+  const saveTraverseAs = async () => {
+    if (!traverse || !volume || !manifest) return;
+    // eslint-disable-next-line no-alert
+    const name = window.prompt('Traverse name:', `Traverse ${savedTraverses.length + 1}`);
+    if (!name) return;
+    setTraverseBusy(true);
+    try {
+      const entry = { id: crypto.randomUUID(), name, vertices: traverse.vertices };
+      const next = await saveManifestTraverses(volume, manifest, [...savedTraverses, entry]);
+      setManifest(next);
+      setTraverseSavedId(entry.id);
+      if (onVolumeChange) onVolumeChange(volume, next);
+      toast({ title: 'Traverse saved', description: `${name}: ${traverse.positions.length} traces.` });
+    } catch (e) {
+      toast({ title: 'Save failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setTraverseBusy(false);
+    }
+  };
+
+  /** Load a saved line into the Traverse window ('' keeps the current
+   *  drawn line and just clears the selection). */
+  const selectSavedTraverse = (id) => {
+    if (!id) { setTraverseSavedId(null); return; }
+    const entry = savedTraverses.find((s) => s.id === id);
+    if (entry) handleTraverse(entry.vertices, entry.id);
+  };
+
+  const deleteSavedTraverse = async () => {
+    const entry = savedTraverses.find((s) => s.id === traverseSavedId);
+    if (!entry || !volume || !manifest) return;
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Delete saved traverse "${entry.name}"?`)) return;
+    setTraverseBusy(true);
+    try {
+      const next = await saveManifestTraverses(
+        volume, manifest, savedTraverses.filter((s) => s.id !== entry.id),
+      );
+      setManifest(next);
+      setTraverseSavedId(null);              // the drawn line stays on screen
+      if (onVolumeChange) onVolumeChange(volume, next);
+    } catch (e) {
+      toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setTraverseBusy(false);
+    }
+  };
 
   const lineLabel = useMemo(() => {
     if (!manifest) return '';
@@ -1496,14 +1583,48 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
               icon: Route,
               content: (
                 <div>
-                  {traverse && (
-                    <div className="text-xs text-slate-500 mb-1">
-                      {`A → A′: ${traverse.positions.length} traces`}
-                      {traverse.lengthM != null
-                        && ` · ${(traverse.lengthM / 1000).toFixed(2)} km`}
-                      {' · view-only (pick on inlines / crosslines)'}
-                    </div>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <select
+                      className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs max-w-[180px]"
+                      value={traverseSavedId || ''}
+                      onChange={(e) => selectSavedTraverse(e.target.value)}
+                      disabled={!manifest || (!savedTraverses.length && !traverse)}
+                      title="Saved traverse lines on this volume"
+                    >
+                      <option value="">— drawn line —</option>
+                      {savedTraverses.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                    <Button
+                      variant="outline" size="sm"
+                      onClick={saveTraverseAs}
+                      disabled={!traverse || traverseBusy}
+                      title="Save the current line on this volume (survives reloads and volume switches)"
+                    >
+                      {traverseBusy
+                        ? <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        : <Save className="w-4 h-4 mr-1" />}
+                      Save line
+                    </Button>
+                    <Button
+                      variant="outline" size="sm"
+                      className="text-slate-400 hover:text-red-400"
+                      onClick={deleteSavedTraverse}
+                      disabled={!traverseSavedId || traverseBusy}
+                      title="Delete the selected saved traverse (the section stays until replaced)"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                    {traverse && (
+                      <span className="text-xs text-slate-500">
+                        {`A → A′: ${traverse.positions.length} traces`}
+                        {traverse.lengthM != null
+                          && ` · ${(traverse.lengthM / 1000).toFixed(2)} km`}
+                        {' · pick with Manual / Erase'}
+                      </span>
+                    )}
+                  </div>
                   <SliceView
                     slice={traverseSlice}
                     geom={geom}
@@ -1512,14 +1633,16 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                     sliceIndex={0}
                     display={display}
                     overlays={overlays}
-                    pickMode={null}
-                    ghost={null}
+                    pickMode={pickMode === 'manual' || pickMode === 'erase' ? pickMode : null}
+                    ghost={pickMode === 'manual' ? { mode: snapMode, window: snapWindow } : null}
                     loading={traverseLoading}
+                    onPick={handleTraversePick}
+                    onPickEnd={commitStroke}
                     height={560}
                     vexag={vexag}
                     onVexagChange={setVexag}
                     emptyHint={manifest
-                      ? 'Draw a traverse in the Map window: pick the traverse tool, click vertices along the path, double-click to finish.'
+                      ? 'Draw a traverse in the Map window (traverse tool: click vertices, double-click to finish) or load a saved line above.'
                       : undefined}
                   />
                 </div>
@@ -1541,6 +1664,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange }) {
                   onEraseRegion={eraseRegion}
                   traverse={traverse ? traverse.vertices : null}
                   onTraverse={handleTraverse}
+                  savedTraverses={savedTraverses}
                   height={560}
                 />
               ),
