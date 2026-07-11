@@ -1,6 +1,52 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (horizon amplitude maps)
+Last updated: 2026-07-11 (wells Phase W0)
+
+## Wells Phase W0 — oracle, goldens, wellPath engine: DONE
+
+First phase of the approved wells plan
+(`docs/scope/Seismolord-WELLS-PLAN.md`, owner sign-off 2026-07-11).
+
+- **Oracle** (`tools/validation/seismolord/wells/`, validation-first):
+  `mincurve.py` minimum-curvature reference, proven on the published
+  drillingformulas.com worked example ((3500 ft, 15°, 20°) →
+  (3600 ft, 25°, 45°) ⇒ ΔN 27.22 / ΔE 19.45 / ΔTVD 94.01 ft — hand-
+  verified against the standard formulas) AND on analytic circular
+  arcs (planar build/drop and horizontal turns are exact by
+  construction; asserted ~1e-9 m at deliberately uneven spacings).
+  Where inclination and azimuth change together there is no closed
+  form — there the minimum-curvature path IS the industry-standard
+  trajectory definition, and JS-vs-Python (independent
+  implementations) is the cross-check.
+- **Goldens** (`test-data/seismolord/wells/wells.json`): three
+  synthetic wells through the dome_ieee area — KETA-V1 vertical at
+  the crest, KETA-S1 planar S-shape (build 3°/30m to 30°, hold,
+  drop; every station matches the closed-form arc), KETA-H1
+  horizontal landing with a genuine 3D build-and-turn segment and a
+  3.9 km lateral (5 km MD total, the accuracy-acceptance path).
+  Per well: stations, station path, 10 m exact-arc fine path,
+  checkshots from the declared truth V(z) = 1800 + 0.5·z (the app's
+  `expm1(k·twt/2000)` convention), and a "Dome" top root-found where
+  the exact-arc path crosses the analytic dome surface. Datum
+  convention: TVD positive down below KB, TVDss = TVD − KB below the
+  (seismic) datum.
+- **Engine** (`engine/wellPath.js`, pure/worker-safe):
+  `computeWellPath` (tangent/dogleg/ratio-factor with the exact
+  RF → 1 zero-dogleg limit — no 0/0), `verticalWellPath` header
+  shortcut (bit-matches the general method, asserted), `positionAtMd`
+  exact circular-arc interpolation (what W2's section/traverse/3D
+  overlays will sample), clear domain errors for non-monotonic MD /
+  non-numeric / out-of-range inclination.
+- **Acceptance held** (16 jest cases): station positions and fine-path
+  interpolation within 1 cm of the oracle on all three wells (actual
+  agreement < 1e-6 m over the 5 km path); the published example
+  reproduced; checkshots round-trip through the app's OWN
+  `velocityModel.twtMsToDepthM`; each Dome top lies simultaneously on
+  the dome surface (through the velocity model) and on the
+  interpolated path — tying W0's truths to the W2/W3 math ahead.
+- Next: Phase W1 — `seismic_wells` migration (+ create MIGRATIONS.md
+  with its first entry), wellsService, CSV import UI with column
+  mapping, map display, RLS pentest extension.
 
 ## Horizon amplitude-extraction maps: DONE
 
