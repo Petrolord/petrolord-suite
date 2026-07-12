@@ -103,7 +103,7 @@ export default function Seismolord() {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
-          <VolumesPanel refreshKey={volumesRefresh} />
+          <VolumesPanel refreshKey={volumesRefresh} onDeleted={() => setVolumesRefresh((k) => k + 1)} />
           <ImportPanel onIngested={() => setVolumesRefresh((k) => k + 1)} />
         </div>
 

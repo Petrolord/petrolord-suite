@@ -17,7 +17,7 @@ function geometrySummary(meta) {
     + `${meta.ns} samples @ ${meta.dt_us / 1000} ms`;
 }
 
-export default function VolumesPanel({ refreshKey }) {
+export default function VolumesPanel({ refreshKey, onDeleted }) {
   const { toast } = useToast();
   const [volumes, setVolumes] = useState(null);
   const [busyId, setBusyId] = useState(null);
@@ -43,6 +43,9 @@ export default function VolumesPanel({ refreshKey }) {
       await deleteVolume(v);
       toast({ title: 'Volume deleted', description: v.name });
       await reload();
+      // let the page bump the shared refresh key so the viewer drops the
+      // volume if it was the selected one (L7 — endless brick 404s)
+      if (onDeleted) onDeleted(v);
     } catch (e) {
       toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
     } finally {
