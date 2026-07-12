@@ -1,11 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Loader2, Crosshair, Route, Ban, Box, ScanLine, Ruler, Upload, Bot, Grid2x2,
-  Pencil, Eraser, Undo2, Save, Spline, Wand2, PaintBucket, Map as MapIcon, X,
+  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
@@ -41,6 +39,12 @@ import MapView from './MapView';
 import ViewerWindows from './ViewerWindows';
 import AiPanel from './AiPanel';
 import WorkspaceShell from './workspace/WorkspaceShell';
+import Ribbon from './workspace/Ribbon';
+import HomeTab from './workspace/ribbonTabs/HomeTab';
+import InterpretationTab from './workspace/ribbonTabs/InterpretationTab';
+import WellsTab from './workspace/ribbonTabs/WellsTab';
+import ExportTab from './workspace/ribbonTabs/ExportTab';
+import AiTab from './workspace/ribbonTabs/AiTab';
 import VelocityModelEditor from './workspace/VelocityModelEditor';
 import ImportSegyDialog from './workspace/dialogs/ImportSegyDialog';
 import ExportDialog from './workspace/dialogs/ExportDialog';
@@ -52,32 +56,9 @@ import { horizonColor, faultColor } from './workspace/interpretationColors';
 import useWells from '../hooks/useWells';
 import useBackendStatus from '../hooks/useBackendStatus';
 
-const ORIENTATIONS = [
-  { key: 'inline', label: 'Inline' },
-  { key: 'xline', label: 'Crossline' },
-  { key: 'time', label: 'Time slice' },
-];
-
 const NULL_F32 = Math.fround(NULL_VALUE);
 
-/** Event kinds a horizon can snap/track to (engine SNAP_MODES + labels). */
-const SNAP_OPTIONS = [
-  { key: 'peak', label: 'Peak (+)' },
-  { key: 'trough', label: 'Trough (−)' },
-  { key: 'zero_pos', label: 'Zero cross − → +' },
-  { key: 'zero_neg', label: 'Zero cross + → −' },
-];
-
 const DRAFT_COLOR = '#facc15';
-
-/** Section eraser widths (traces): radius r erases 2r+1 traces per pass. */
-const BRUSH_OPTIONS = [
-  { radius: 0, label: '1' },
-  { radius: 1, label: '3' },
-  { radius: 2, label: '5' },
-  { radius: 5, label: '11' },
-  { radius: 10, label: '21' },
-];
 
 // storage base URL without touching the shared client module
 const storageBase = () => supabase.storage.from('seismic')
@@ -1288,341 +1269,126 @@ export default function ViewerPanel() {
     deleteTraverse: (t) => deleteSavedTraverse(t),
   };
 
-  // Interim tool strip: the pre-workspace control rows, unchanged, in a
-  // fixed top strip — replaced by the tabbed ribbon in the ribbon phase.
-  const toolStrip = (
-    <div
-      className="border-b border-slate-800 bg-slate-900/80 px-3 py-2 space-y-3
-        max-h-[42vh] overflow-y-auto"
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-bold text-white mr-2">Seismolord</span>
-        <Button variant="outline" size="sm" onClick={() => setOpenDialog('import')}>
-          <Upload className="w-4 h-4 mr-2" />
-          Import SEG-Y…
-        </Button>
-        <Button
-          variant="outline" size="sm"
-          disabled={!volume}
-          onClick={() => setOpenDialog('export')}
-        >
-          <Grid2x2 className="w-4 h-4 mr-2" />
-          Gridding &amp; export…
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setOpenDialog('ai')}>
-          <Bot className="w-4 h-4 mr-2" />
-          AI copilot…
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div>
-            <Label className="text-slate-300">Volume</Label>
-            <select
-              className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
-              value={volume?.id || ''}
-              onChange={(e) => selectVolume(e.target.value)}
-            >
-              <option value="">Select a volume…</option>
-              {volumes.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <Label className="text-slate-300">Orientation</Label>
-            <select
-              className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
-              value={orientation}
-              onChange={(e) => setOrientation(e.target.value)}
-              disabled={!manifest}
-            >
-              {ORIENTATIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <Label className="text-slate-300">Colormap</Label>
-            <select
-              className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
-              value={colormap}
-              onChange={(e) => setColormap(e.target.value)}
-              disabled={!manifest}
-            >
-              {SEISMIC_COLORMAPS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <Label className="text-slate-300">Polarity / balance</Label>
-            <div className="flex gap-2 mt-1">
-              <button
-                type="button"
-                className={`px-2 py-1.5 text-xs rounded border ${polarity === 1
-                  ? 'border-cyan-500 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
-                onClick={() => setPolarity((p) => -p)}
-                disabled={!manifest}
-              >
-                {polarity === 1 ? 'SEG normal' : 'Reversed'}
-              </button>
-              <button
-                type="button"
-                className={`px-2 py-1.5 text-xs rounded border ${traceBalance
-                  ? 'border-cyan-500 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
-                onClick={() => setTraceBalance((t) => !t)}
-                disabled={!manifest}
-              >
-                Trace balance
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {manifest && (
-          <>
-            <div className="flex items-center gap-4">
-              <Label className="text-slate-300 whitespace-nowrap w-24">{lineLabel}</Label>
-              <input
-                type="range" min="0" max={maxIndex} value={sliceIndex}
-                onChange={(e) => changeIndex(orientation, Number(e.target.value))}
-                className="w-full accent-cyan-500"
-              />
-            </div>
-            <div className="flex items-center gap-4">
-              <Label className="text-slate-300 whitespace-nowrap w-24">Gain ×{gain.toFixed(1)}</Label>
-              <input
-                type="range" min="0.1" max="10" step="0.1" value={gain}
-                onChange={(e) => setGain(Number(e.target.value))}
-                className="w-full accent-cyan-500"
-              />
-              <Label className="text-slate-300 whitespace-nowrap">Clip ×{clipRms.toFixed(1)} RMS</Label>
-              <input
-                type="range" min="0.5" max="10" step="0.5" value={clipRms}
-                onChange={(e) => setClipRms(Number(e.target.value))}
-                className="w-full accent-cyan-500"
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="outline" size="sm"
-                className={pickMode === 'seed' ? 'border-yellow-500/60 text-yellow-300' : ''}
-                onClick={() => setPickMode((p) => (p === 'seed' ? null : 'seed'))}
-                disabled={orientation === 'time'}
-              >
-                <Crosshair className="w-4 h-4 mr-2" />
-                {pickMode === 'seed' ? 'Picking: click an event' : 'Pick seed'}
-              </Button>
-              <Button
-                variant="outline" size="sm"
-                className={pickMode === 'fault' ? 'border-orange-500/60 text-orange-300' : ''}
-                onClick={() => setPickMode((p) => (p === 'fault' ? null : 'fault'))}
-                disabled={orientation === 'time'}
-              >
-                <Crosshair className="w-4 h-4 mr-2" />
-                {pickMode === 'fault' ? 'Picking fault points…' : 'Pick fault'}
-              </Button>
-              {pickMode === 'fault' && (
-                <>
-                  <Button variant="outline" size="sm" onClick={endStick}>
-                    End stick
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="bg-orange-600 hover:bg-orange-500 text-white"
-                    onClick={saveDraftFault}
-                    disabled={!draftSticks.some((s) => s.length >= 2)}
-                  >
-                    Save fault
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={discardDraft}
-                    disabled={!draftSticks.length}
-                  >
-                    Discard
-                  </Button>
-                </>
-              )}
-              <Button
-                size="sm"
-                className="bg-cyan-600 hover:bg-cyan-500 text-white"
-                onClick={trackHorizon}
-                disabled={!seedPick || tracking !== null}
-              >
-                <Route className="w-4 h-4 mr-2" />
-                Track 3D
-              </Button>
-              {tracking && (
-                <>
-                  <span className="text-sm text-slate-300 flex items-center">
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Tracking… {tracking.tracked.toLocaleString()} / {tracking.total.toLocaleString()}
-                  </span>
-                  <Button variant="outline" size="sm" onClick={cancelTracking}>
-                    <Ban className="w-4 h-4 mr-1" />Cancel
-                  </Button>
-                </>
-              )}
-              {seedPick && !tracking && (
-                <span className="text-xs text-slate-400">
-                  Seed: IL idx {seedPick.ilIdx}, XL idx {seedPick.xlIdx},
-                  sample {seedPick.sample.toFixed(2)}
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Label className="text-slate-400 text-xs">Snap</Label>
-              <select
-                className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
-                value={snapMode}
-                onChange={(e) => setSnapMode(e.target.value)}
-                title="Event kind for seed snapping and 2D/3D autotracking"
-              >
-                {SNAP_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-              </select>
-              <select
-                className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
-                value={String(snapWindow)}
-                onChange={(e) => setSnapWindow(Number(e.target.value))}
-                title="Search half-window (samples) for snapping and tracking — wider follows rougher events but can jump reflectors"
-              >
-                {[2, 3, 5, 8, 12].map((w) => (
-                  <option key={w} value={String(w)}>{`±${w}`}</option>
-                ))}
-              </select>
-
-              <Label className="text-slate-400 text-xs ml-2">Edit</Label>
-              <select
-                className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs max-w-[170px]"
-                value={editTarget}
-                onChange={(e) => changeEditTarget(e.target.value)}
-                title="Horizon that manual picking / erasing / 2D tracking edits"
-              >
-                <option value="new">New horizon…</option>
-                {horizons.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-              </select>
-
-              <Button
-                variant="outline" size="sm"
-                className={pickMode === 'manual' ? 'border-yellow-500/60 text-yellow-300' : ''}
-                onClick={() => toggleEditTool('manual')}
-                disabled={orientation === 'time'}
-                title="Click or drag on the section to pick (snaps to the selected event)"
-              >
-                <Pencil className="w-4 h-4 mr-2" />
-                {pickMode === 'manual' ? 'Manual: picking…' : 'Manual pick'}
-              </Button>
-              <Button
-                variant="outline" size="sm"
-                className={pickMode === 'erase' ? 'border-red-500/60 text-red-300' : ''}
-                onClick={() => toggleEditTool('erase')}
-                disabled={orientation === 'time'}
-                title="Drag on the section to delete picks (map window has rectangle / polygon erase)"
-              >
-                <Eraser className="w-4 h-4 mr-2" />
-                {pickMode === 'erase' ? 'Erasing…' : 'Erase'}
-              </Button>
-              <select
-                className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
-                value={String(eraseSize)}
-                onChange={(e) => setEraseSize(Number(e.target.value))}
-                title="Eraser width (traces per pass)"
-              >
-                {BRUSH_OPTIONS.map((b) => (
-                  <option key={b.radius} value={String(b.radius)}>{`brush ${b.label}`}</option>
-                ))}
-              </select>
-              <Button
-                variant="outline" size="sm"
-                onClick={track2D}
-                disabled={!seedPick || !slice || orientation === 'time'}
-                title="Autotrack the seed along the displayed line only"
-              >
-                <Spline className="w-4 h-4 mr-2" />
-                Track 2D
-              </Button>
-              <Button
-                variant="outline" size="sm"
-                onClick={smoothEdits}
-                disabled={editBusy}
-                title="One null-aware smoothing pass over the edited horizon (undoable; click again for more)"
-              >
-                <Wand2 className="w-4 h-4 mr-2" />
-                Smooth
-              </Button>
-              <select
-                className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
-                value={smoothMethod}
-                onChange={(e) => setSmoothMethod(e.target.value)}
-                title="Mean smooths gently; median kills single-pick spikes"
-              >
-                <option value="mean">mean</option>
-                <option value="median">median</option>
-              </select>
-              <select
-                className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
-                value={String(smoothRadius)}
-                onChange={(e) => setSmoothRadius(Number(e.target.value))}
-                title="Smoothing filter size"
-              >
-                {[1, 2, 4].map((r) => (
-                  <option key={r} value={String(r)}>{`${2 * r + 1}×${2 * r + 1}`}</option>
-                ))}
-              </select>
-              <Button
-                variant="outline" size="sm"
-                onClick={fillHoles}
-                disabled={editBusy}
-                title="Interpolate across interior holes of the edited horizon (the uninterpreted exterior never grows; undoable)"
-              >
-                <PaintBucket className="w-4 h-4 mr-2" />
-                Fill holes
-              </Button>
-
-              {edit.active && (
-                <>
-                  <Button variant="outline" size="sm" onClick={undoEdit} disabled={!edit.undo}>
-                    <Undo2 className="w-4 h-4 mr-1" />
-                    Undo{edit.undo ? ` (${edit.undo})` : ''}
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white"
-                    onClick={saveEdits}
-                    disabled={!edit.undo || editBusy}
-                  >
-                    {editBusy
-                      ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      : <Save className="w-4 h-4 mr-2" />}
-                    {editTarget === 'new' ? 'Save as horizon' : 'Save edits'}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={discardEdits} disabled={editBusy}>
-                    Discard
-                  </Button>
-                </>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline" size="sm"
-                onClick={() => setOpenDialog('velocity')}
-                title="Edit the volume's velocity model (V(z) or layer cake) and calibrate it from wells"
-              >
-                <Ruler className="w-4 h-4 mr-2" />
-                Velocity model…
-              </Button>
-              <span className="text-xs text-slate-500">
-                {velocityModel
-                  ? `${describeVelocity(velocityModel)} — drives depth maps and depth exports`
-                  : 'not set — depth maps and model-based exports unavailable'}
-              </span>
-            </div>
-          </>
-        )}
-    </div>
+  // ---- ribbon (Petrel-style tabbed top chrome) ----------------------------
+  const ribbon = (
+    <Ribbon
+      corner={(
+        <span className="text-sm font-bold text-white mr-3 pb-0.5">Seismolord</span>
+      )}
+      tabs={[
+        {
+          key: 'home',
+          label: 'Home',
+          content: (
+            <HomeTab
+              volumes={volumes}
+              volume={volume}
+              selectVolume={selectVolume}
+              manifest={manifest}
+              orientation={orientation}
+              setOrientation={setOrientation}
+              lineLabel={lineLabel}
+              sliceIndex={sliceIndex}
+              maxIndex={maxIndex}
+              changeIndex={changeIndex}
+              colormap={colormap}
+              setColormap={setColormap}
+              gain={gain}
+              setGain={setGain}
+              clipRms={clipRms}
+              setClipRms={setClipRms}
+              polarity={polarity}
+              setPolarity={setPolarity}
+              traceBalance={traceBalance}
+              setTraceBalance={setTraceBalance}
+            />
+          ),
+        },
+        {
+          key: 'interpretation',
+          label: 'Interpretation',
+          content: (
+            <InterpretationTab
+              manifest={manifest}
+              orientation={orientation}
+              slice={slice}
+              pickMode={pickMode}
+              setPickMode={setPickMode}
+              seedPick={seedPick}
+              snapMode={snapMode}
+              setSnapMode={setSnapMode}
+              snapWindow={snapWindow}
+              setSnapWindow={setSnapWindow}
+              tracking={tracking}
+              trackHorizon={trackHorizon}
+              cancelTracking={cancelTracking}
+              track2D={track2D}
+              editTarget={editTarget}
+              changeEditTarget={changeEditTarget}
+              horizons={horizons}
+              toggleEditTool={toggleEditTool}
+              eraseSize={eraseSize}
+              setEraseSize={setEraseSize}
+              edit={edit}
+              editBusy={editBusy}
+              undoEdit={undoEdit}
+              saveEdits={saveEdits}
+              discardEdits={discardEdits}
+              smoothEdits={smoothEdits}
+              smoothMethod={smoothMethod}
+              setSmoothMethod={setSmoothMethod}
+              smoothRadius={smoothRadius}
+              setSmoothRadius={setSmoothRadius}
+              fillHoles={fillHoles}
+              draftSticks={draftSticks}
+              endStick={endStick}
+              saveDraftFault={saveDraftFault}
+              discardDraft={discardDraft}
+              openVelocity={() => setOpenDialog('velocity')}
+              velocityModel={velocityModel}
+            />
+          ),
+        },
+        {
+          key: 'wells',
+          label: 'Wells',
+          content: (
+            <WellsTab
+              openWellImport={() => setOpenDialog('wellImport')}
+              setAllWellsVisible={wellsApi.setAllVisible}
+              wellsCount={wellsApi.wells.length}
+              openCalibrate={() => { setCalOpen(true); setOpenDialog('velocity'); }}
+              velocityForDisplay={velocityForDisplay}
+              visibleWells={wells}
+              horizons={horizons}
+            />
+          ),
+        },
+        {
+          key: 'export',
+          label: 'Export',
+          content: (
+            <ExportTab volume={volume} openExport={() => setOpenDialog('export')} />
+          ),
+        },
+        {
+          key: 'ai',
+          label: 'AI',
+          content: (
+            <AiTab
+              copilotOpen={openDialog === 'ai'}
+              toggleCopilot={() => setOpenDialog((d) => (d === 'ai' ? null : 'ai'))}
+            />
+          ),
+        },
+      ]}
+    />
   );
 
   return (
     <>
       <WorkspaceShell
-        ribbon={toolStrip}
+        ribbon={ribbon}
         explorer={<SeismicExplorer tree={tree} actions={treeActions} />}
         dockOpen={false}
         statusBar={(
