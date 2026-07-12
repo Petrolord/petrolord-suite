@@ -107,24 +107,33 @@ UUIDs only, XSS via React JSX + sanitized download names).
   southern-strip truncation; M3 long-job token refresh on 401; M4 AI
   NaN/blank-arg validation; M5 AI edge-fn role filtering + size cap.
 
-**Deferred follow-ups** (lower severity, tracked; not fixed this phase):
-- ML1 aborted brick promise can be reused by a new slice request → the
-  new slice silently doesn't render (narrow scrub timing window).
-- ML2 ImportPanel mapping-edit scans have no last-wins guard (preview
-  only; ingest re-scans correctly).
-- ML3 AiPanel autotrack/grid workers not terminated on unmount.
-- ML4 drawOverlay has no stale guard (first-toggle-while-scrubbing only).
-- ML5 ExportPanel cell size unclamped → tiny cell = huge alloc, no cancel.
-- L1 horizon/export delete ignores storage-remove result (orphan blobs
-  on transient failure). L2 all-null stats NaN / CPS-3 Infinity limits.
-  L3 sampled-preview step overestimate. L4 unbounded chat/gridCache in
-  principle. L5 isNullZ exact-sentinel measure-zero drop. L6 no step>1 /
-  descending-xl golden fixture. L7 no canvas resize handling; deleted
-  volume keeps 404ing until reselection.
+**Deferred follow-ups — ALL FIXED 2026-07-12** (hardening-backlog pass):
+- ML1 aborted brick fetches now leave `inflight` synchronously; a racing
+  get() starts a fresh fetch instead of reusing the doomed promise
+  (jest-covered in viewerData).
+- ML2 ImportPanel scans carry a last-wins sequence guard.
+- ML3 AiPanel terminates its autotrack/grid workers on unmount
+  (panel-level AbortController; gridHorizonSurface takes a signal).
+- ML4 slices are tagged with their index; SliceView draws overlays at
+  the DISPLAYED slice's position and none at all without a slice.
+- ML5 exportGridSpec clamps bad cells to the bin and refuses > 4M nodes
+  with the minimum usable cell named; Export panel gained Cancel.
+- L1 horizon/export deletes check the storage-remove result (row kept on
+  failure — retryable, no stranded blobs). L2 writeCPS3 refuses all-null
+  grids (no Infinity FSLIMI). L3 sampled previews inspect adjacent trace
+  pairs so step gcds cannot overestimate. L4 AiPanel chat/history and
+  the viewer grid cache are bounded. L5 RCP isNullZ matches sentinels
+  exactly (no 1e-6 window). L6 dome_step golden fixture (il/xl steps
+  2/3, azimuth-180 descending coordinates) covered end-to-end. L7
+  viewers already resize via ResizeObserver (post-P6 viewer rework);
+  deleting a volume now clears the viewer selection instead of 404-ing.
 
-## Recorded follow-ups (predate Phase 6, still open)
+## Recorded follow-ups (predate Phase 6)
 
-Rotated-survey geometry in export/picksToPoints; fault-aware gridding;
-RCP's ZMAP+/CPS-3 grid-body import; server-side quota enforcement;
-packed-brick storage layout when volumes outgrow per-brick objects;
-ingest resume UI (with a file-identity check before reusing a volume id).
+DONE since: rotated-survey geometry (measured affine), fault-aware
+gridding (blocked TPS), server-side quota enforcement
+(20260712120000_seismic_storage_quota.sql).
+
+Still open: RCP's ZMAP+/CPS-3 grid-body import; packed-brick storage
+layout when volumes outgrow per-brick objects; ingest resume UI (with a
+file-identity check before reusing a volume id).

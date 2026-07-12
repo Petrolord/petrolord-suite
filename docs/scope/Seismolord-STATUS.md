@@ -1,6 +1,101 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-11 (wells Phase W4 — WELLS PLAN COMPLETE)
+Last updated: 2026-07-12 (hardening backlog + fault polish + depth
+display + server-side quota + pricing review)
+
+## Hardening backlog ML1–ML5 / L1–L7 + follow-ups: DONE
+
+All twelve deferred Phase 6 findings are fixed (details updated in
+docs/scope/Seismolord-HARDENING.md):
+
+- **ML1** aborted brick fetches leave the inflight map synchronously —
+  a racing slice request gets a fresh fetch, never the doomed promise.
+  **ML2** ImportPanel scan race (last-wins guard). **ML3** AiPanel
+  workers terminate on unmount (AbortController; `gridHorizonSurface`
+  takes a `signal`). **ML4** slices carry their index; overlays draw at
+  the DISPLAYED slice's position, and not at all without a slice.
+  **ML5** `exportGridSpec` (engine, jest-covered): bad cells fall back
+  to the bin, > 4M nodes is a domain error naming the minimum usable
+  cell; the Export panel gained a Cancel button (worker terminated).
+- **L1** horizon/export deletes check the storage-remove result (row
+  kept on failure — retry beats a stranded blob). **L2** `writeCPS3`
+  refuses all-null grids. **L3** sampled scans inspect adjacent trace
+  pairs (step gcd cannot overestimate; jest fixture with steps 2/5).
+  **L4** AiPanel chat/history bounded (tool exchanges never split);
+  viewer grid cache bounded (32 entries). **L5** RCP `isNullZ` matches
+  sentinels exactly. **L6** NEW `dome_step` golden fixture — il/xl
+  steps 2/3 + azimuth-180 (world coordinates DESCEND as numbers
+  ascend), bit-identical through scan/transcode/reassembly and the
+  affine fit; old SEG-Ys regenerate byte-identical. **L7** deleting a
+  volume clears the viewer selection (no more 404 loop); canvas resize
+  was already handled by the post-P6 ResizeObservers.
+
+## Fault workflow polish: DONE
+
+- **Horizon-level fault traces in MapView**: the exact stick-crossing
+  polylines gridding rasterizes into barriers draw as heavy lines over
+  the mapped horizon (cached per (faults, grid) ref); stick footprints
+  stay as a separate, renamed Layers toggle.
+- **Per-fault include/exclude in the Export panel** (visible when > 1
+  fault, under the fault-aware master toggle); exclusions are recorded
+  as `faults_excluded` names in the handoff provenance.
+- **Extrapolation-distance control**: "Max extrap. (m, 0=2×cell)"
+  threads through `gridHorizonSurface({maxExtrapolationM})` to the
+  worker's distance gate — with blocking on, this bounds how far a
+  block extrapolates toward the fault; `max_extrapolation_m` provenance
+  now records the EFFECTIVE value.
+
+## Depth display in sections + 3D: DONE
+
+- The saved velocity model drives a **TVD readout** in the
+  section/traverse cursor line and the 3D hover readout — layer cakes
+  convert per column through the hovered lattice cell (same
+  `makeDepthConverter` family as the map's depth domains; gated on
+  boundary grids being loaded, nulls hide the readout honestly).
+- Sections get a **right-edge depth axis** (emerald) for
+  column-independent models: nice metre values inverted to TWT by
+  bisection, drawn through the shared ViewTransform. Layers toggle
+  explains unavailability (no model / layer cake readout-only / time
+  slice). Harness `?vel=v0,k`; e2e proves axis ink, TVD readout, the
+  toggle and the disabled state.
+
+## Server-side storage quota: DONE (migration applied + pentested)
+
+- `20260712120000_seismic_storage_quota.sql` (applied 2026-07-12,
+  logged in MIGRATIONS.md): the `seismic` bucket INSERT policy now
+  gates on `seismic_storage_usage_bytes() < seismic_storage_quota_bytes()`
+  (20 GiB, = the client constant). Usage sums live from
+  `storage.objects` metadata under the caller's own folder — no counter
+  table to drift, no cross-user byte leak (SECURITY DEFINER, own-uid
+  only). UPDATE/DELETE stay quota-free so an over-quota user can still
+  save work and free space (mirrors the client's resume rule).
+- Verified live, rollback-wrapped: under-quota insert allowed and
+  counted; after a fake 20 GiB object the next insert fails 42501.
+  **Full RLS pentest re-run**: B sees 0 rows across all five seismic_*
+  tables, cannot update/delete A's rows, forged table AND storage
+  inserts raise 42501; A control reads succeed.
+
+## master_apps pricing review: DONE (keep 899)
+
+- Seismolord's `price` = **899**, inherited from the geoscience
+  template at seeding. Review of the live catalog: suite prices span
+  499–899 (median 699, five 100-step tiers); 899 is the TOP tier.
+  Seismolord is the deepest app in the suite (SEG-Y ingestion, WebGL
+  2D/3D viewers, interpretation, velocity models + well ties, wells,
+  exports/handoff, AI copilot) — top-tier pricing is deliberate and
+  stays. No migration needed.
+- Observation for the catalog owner (out of Seismolord scope): EVERY
+  geoscience app is 899, including unbuilt "Coming Soon" rows — the
+  module looks bulk-seeded at the max tier rather than deliberately
+  tiered, unlike other modules which use the full 499–899 spread.
+
+## Verified (this pass)
+
+- 26 jest suites / 367 tests green (13 new: brick-abort race, sampled
+  step>1 preview, export guards, dome_step end-to-end); RCP suites
+  unregressed (isNullZ change covered by existing parser tests).
+- 20 Playwright e2e green on staging (new depth-axis spec).
+- esbuild bundle of the Seismolord subtree clean.
 
 ## Wells Phase W4 — hardening: DONE (wells plan complete, W0–W4)
 
