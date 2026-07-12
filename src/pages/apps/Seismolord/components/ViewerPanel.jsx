@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Eye, Loader2, XCircle, Crosshair, Route, Ban, Box, ScanLine,
+  Eye, Loader2, XCircle, Crosshair, Route, Ban, Box, ScanLine, Ruler,
   Pencil, Eraser, Undo2, Save, Spline, Wand2, PaintBucket, Map as MapIcon, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,7 @@ import MapView from './MapView';
 import ViewerWindows from './ViewerWindows';
 import HorizonsList, { horizonColor } from './HorizonsList';
 import FaultsList, { faultColor } from './FaultsList';
+import WellTiePanel from './WellTiePanel';
 
 const ORIENTATIONS = [
   { key: 'inline', label: 'Inline' },
@@ -156,6 +157,8 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
   // layer-cake rows top-down: all but the last need a base horizon
   const [velLayers, setVelLayers] = useState([]);
   const [velBusy, setVelBusy] = useState(false);
+  // well-tie calibration panel (Phase W3) under the velocity editor
+  const [calOpen, setCalOpen] = useState(false);
   // boundary pick grids aligned with the saved layer cake's layer bases
   const [velBoundaries, setVelBoundaries] = useState(null);
   const [tracking, setTracking] = useState(null);   // {tracked, total}
@@ -269,6 +272,27 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
     } finally {
       setVelBusy(false);
     }
+  };
+
+  /** Load a horizon's pick grid by id through the shared cache (well-tie
+   *  calibration pairs against ANY saved horizon, visible or not). */
+  const loadGridById = useCallback(async (horizonId) => {
+    let g = gridCacheRef.current.get(horizonId);
+    if (g) return g;
+    const row = horizons.find((h) => h.id === horizonId);
+    if (!row) throw new Error('That horizon no longer exists.');
+    g = await loadHorizonGrid(row);
+    gridCacheRef.current.set(horizonId, g);
+    return g;
+  }, [horizons]);
+
+  /** Apply a calibrated model (WellTiePanel's explicit Save — the only
+   *  path that rewrites the model outside the editor). */
+  const applyCalibratedModel = async (model) => {
+    const next = await saveManifestVelocity(volume, manifest, model);
+    setManifest(next);
+    if (onVolumeChange) onVolumeChange(volume, next);
+    toast({ title: 'Velocity model calibrated', description: describeVelocity(model) });
   };
 
   // load the layer cake's boundary pick grids (deleted horizons yield a
@@ -451,6 +475,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
     setTraverseSlice(null);
     setTraverseLoading(false);
     setTraverseSavedId(null);
+    setCalOpen(false);
     editRef.current = null;
     setEdit({ version: 0, undo: 0, active: false });
     setEditTarget('new');
@@ -1572,6 +1597,37 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                     layers save sorted by horizon time; where a boundary horizon has no
                     pick, the layer above extends to the next one
                   </span>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline" size="sm"
+                  className={calOpen ? 'border-cyan-500/60 text-cyan-300' : ''}
+                  onClick={() => setCalOpen((v) => !v)}
+                  disabled={!velocityForDisplay || !(wells || []).length || !horizons.length}
+                  title={!velocityForDisplay
+                    ? 'Save a velocity model first — calibration adjusts the current model'
+                    : !(wells || []).length
+                      ? 'Toggle wells with tops visible in the Wells panel first'
+                      : 'Fit the velocity model so converted horizon depths match the well tops'}
+                >
+                  <Ruler className="w-4 h-4 mr-2" />
+                  Calibrate from wells
+                </Button>
+              </div>
+              {calOpen && velocityForDisplay && (
+                <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                  <WellTiePanel
+                    wells={wells || []}
+                    horizons={horizons}
+                    velocityModel={velocityForDisplay}
+                    boundaries={velBoundaries}
+                    dtUs={manifest.geometry.dt_us}
+                    geom={geom}
+                    affine={surveyAffine(manifest.geometry)}
+                    loadGrid={loadGridById}
+                    onApply={applyCalibratedModel}
+                  />
                 </div>
               )}
             </div>

@@ -135,6 +135,46 @@ export function layercakeDepthM(layers, boundaryTwtMs, twtMs) {
 }
 
 /**
+ * TWT spent in each layer above `twtMs` for ONE column — the same walk
+ * as layercakeDepthM (identical null-boundary and crossing-clamp
+ * conventions; the identity
+ *   layercakeDepthM(...) === Σ segDepth(v0ℓ, kℓ, layerTimesMs[ℓ]/2000)
+ * is asserted in tests). Depth is LINEAR in the v0 vector through these
+ * times, which is what makes well-tie calibration a linear fit.
+ *
+ * @param {{v0:number,k:number}[]} layers top-down
+ * @param {(number|null)[]} boundaryTwtMs per layercakeDepthM
+ * @param {number} twtMs
+ * @returns {number[]} TWT ms per layer (zeros for merged/unreached layers)
+ */
+export function layerTimesMs(layers, boundaryTwtMs, twtMs) {
+  const n = layers.length;
+  const out = new Array(n).fill(0);
+  let tTop = 0;
+  for (let i = 0; i < n;) {
+    let tBase = Infinity;
+    let next = n;
+    for (let b = i; b < n - 1; b++) {
+      const v = boundaryTwtMs ? boundaryTwtMs[b] : null;
+      if (v != null && Number.isFinite(v) && Math.abs(v) < 1e29) {
+        tBase = v;
+        next = b + 1;
+        break;
+      }
+    }
+    const base = Math.max(tBase, tTop);
+    if (twtMs <= base) {
+      out[i] = Math.max(0, twtMs - tTop);
+      return out;
+    }
+    out[i] = base - tTop;
+    tTop = base;
+    i = next;
+  }
+  return out;
+}
+
+/**
  * Build a cell-aware TWT->depth converter for either model kind.
  *
  * @param {Object} model manifest.velocity (any accepted shape)
