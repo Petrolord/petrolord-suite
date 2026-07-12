@@ -48,3 +48,4 @@ tools/validation/seismolord/.venv/
 test-results/
 playwright-report/
 tools/validation/seismolord/__pycache__/
+tools/validation/wells/.venv/
