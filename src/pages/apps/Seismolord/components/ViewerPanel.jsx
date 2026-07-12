@@ -31,7 +31,7 @@ import {
   snapPick, autotrack2D, smoothHorizon, fillHorizonHoles,
 } from '../engine/horizonTrack';
 import {
-  normalizeVelocity, describeVelocity, velocityToManifest,
+  normalizeVelocity, describeVelocity, velocityToManifest, makeDepthConverter,
 } from '../engine/velocityModel';
 import { NULL_VALUE } from '../engine/manifest';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
@@ -356,6 +356,15 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
     if (velocityModel.kind === 'layercake' && !velBoundaries) return null;
     return velocityModel;
   }, [velocityModel, velBoundaries]);
+
+  // depth-conversion for section/3D cursor readouts and the section depth
+  // axis — the same converter family the map's depth domains use (layer
+  // cakes convert per column via the loaded boundary grids)
+  const depthConv = useMemo(() => (velocityForDisplay && manifest
+    ? makeDepthConverter(velocityForDisplay, {
+      dtUs: manifest.geometry.dt_us, boundaries: velBoundaries,
+    })
+    : null), [velocityForDisplay, manifest, velBoundaries]);
 
   // wells in TWT: per-well T(z) (its own checkshots first, else the
   // volume model inverted — plan decision #4, never mixed) + the dense
@@ -1690,6 +1699,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                   pickMode={pickMode}
                   ghost={pickMode === 'manual' ? { mode: snapMode, window: snapWindow } : null}
                   loading={loading}
+                  depthConv={depthConv}
                   onPick={handlePick}
                   onPickEnd={commitStroke}
                   onStepSlice={stepSlice}
@@ -1715,6 +1725,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                   horizons={resolvedHorizons}
                   faults={overlays.faults}
                   wells={wellSections}
+                  depthConv={depthConv}
                   onSelectPlane={selectPlane}
                   height={560}
                 />
@@ -1779,6 +1790,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                     pickMode={pickMode === 'manual' || pickMode === 'erase' ? pickMode : null}
                     ghost={pickMode === 'manual' ? { mode: snapMode, window: snapWindow } : null}
                     loading={traverseLoading}
+                    depthConv={depthConv}
                     onPick={handleTraversePick}
                     onPickEnd={commitStroke}
                     height={560}

@@ -103,6 +103,7 @@ const INK = {
 function CubeView({
   geom, manifest, getBrick, indices, onChangeIndex, display, vexag,
   horizons, faults, wells, onSelectPlane, onRendered, height = 520,
+  depthConv = null,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -148,6 +149,7 @@ function CubeView({
 
   propsRef.current = {
     geom, manifest, ext, prefs, display, indices, spacing, northLocal,
+    depthConv,
   };
 
   // ---- rendering --------------------------------------------------------
@@ -718,9 +720,17 @@ function CubeView({
       else amp = meta.slice.data[hit.ilIdx * gm.nXl + hit.xlIdx];
     }
     const ms = (hit.sample * geo.dt_us) / 1000;
+    // depth via the volume's velocity model — same converter as the 2D
+    // readout; layer cakes convert per column (the hovered lattice cell)
+    let z = null;
+    if (p.depthConv) {
+      const d = p.depthConv.toDepthM(ms, hit.ilIdx * p.geom.nXl + hit.xlIdx);
+      if (d != null && Number.isFinite(d)) z = d;
+    }
     el.textContent = `${meta.orientation === 'time' ? 'Z' : meta.orientation} plane   `
       + `IL ${geo.il.min + hit.ilIdx * geo.il.step}   `
       + `XL ${geo.xl.min + hit.xlIdx * geo.xl.step}   ${ms.toFixed(1)} ms   `
+      + (z != null ? `TVD ${z.toFixed(1)} m   ` : '')
       + `amp ${amp === null || amp === NULL_F32 ? 'null' : amp.toExponential(3)}`;
   }, []);
 

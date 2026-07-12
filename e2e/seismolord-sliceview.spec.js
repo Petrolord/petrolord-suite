@@ -228,3 +228,50 @@ test('north arrow appears on time slices, arrow keys step slices', async ({ page
   await page.keyboard.press('ArrowLeft');
   await expect(page.getByTestId('harness-slice-index')).toHaveText(String(idx0));
 });
+
+test('depth axis + TVD readout appear with a velocity model and toggle off', async ({ page }) => {
+  // linear V(z) = 2000 + 0.5·z — the depth axis draws emerald ticks on
+  // the annotation canvas right edge, and the readout gains a TVD value
+  await page.goto('/dev/seismolord-sliceview?vel=2000,0.5');
+  await expect(page.getByTestId('harness-status'))
+    .toHaveAttribute('data-harness-status', 'ready', { timeout: 60000 });
+
+  const emeraldRightEdgeInk = () => page.evaluate(() => {
+    const canvases = Array.from(document.querySelectorAll('canvas'));
+    const anno = canvases.find((c) => c.className.includes('pointer-events-none'));
+    const ctx = anno.getContext('2d');
+    const x0 = Math.max(0, anno.width - 60);
+    const d = ctx.getImageData(x0, 0, anno.width - x0, anno.height).data;
+    let ink = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      // emerald (52, 211, 153): green dominant over red and blue
+      if (d[i + 3] > 0 && d[i + 1] > d[i] + 40 && d[i + 1] > d[i + 2] + 20) ink++;
+    }
+    return ink;
+  });
+  expect(await emeraldRightEdgeInk()).toBeGreaterThan(30);
+
+  // hover the data: readout shows a TVD depth alongside ms
+  const box = await page.locator('canvas.touch-none').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const readout = page.locator('div.font-mono');
+  await expect(readout).toContainText('TVD');
+  await expect(readout).toContainText('m');
+
+  // Layers menu: toggling "Depth axis" removes the emerald ticks
+  await page.getByTitle('Display layers').click();
+  const item = page.getByRole('menuitemcheckbox', { name: /Depth axis/ });
+  await expect(item).not.toBeDisabled();
+  await item.click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  expect(await emeraldRightEdgeInk()).toBeLessThan(5);
+
+  // and without a model the toggle is disabled (readout-only hint)
+  await page.goto('/dev/seismolord-sliceview');
+  await expect(page.getByTestId('harness-status'))
+    .toHaveAttribute('data-harness-status', 'ready', { timeout: 60000 });
+  await page.getByTitle('Display layers').click();
+  await expect(page.getByRole('menuitemcheckbox', { name: /Depth axis/ }))
+    .toBeDisabled();
+});

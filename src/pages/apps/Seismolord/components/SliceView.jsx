@@ -29,7 +29,7 @@ import { projectWellToSection } from '../engine/wellSection';
 import { ViewTransform, MIN_ZOOM, MAX_ZOOM } from '../viewer/viewTransform';
 import {
   drawAxes, drawScaleBar, drawNorthArrow, drawColorbar,
-  surveySpacing, northScreenDir,
+  surveySpacing, northScreenDir, niceStepUp,
 } from '../viewer/annotations';
 import { NULL_VALUE } from '../engine/manifest';
 
@@ -48,6 +48,7 @@ const DEFAULT_PREFS = {
   readout: true,
   crosshair: false,
   interpolate: true,
+  depthAxis: true,
 };
 const VEXAG_OPTIONS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 8, 12, 20];
 
@@ -110,7 +111,7 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
 function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
   pickMode, ghost, loading, onPick, onPickEnd, onStepSlice, height = 520,
-  vexag: vexagProp, onVexagChange, emptyHint,
+  vexag: vexagProp, onVexagChange, emptyHint, depthConv = null,
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
   const viewportRef = useRef(null);    // the canvas container
@@ -160,7 +161,7 @@ function SliceView({
   // Latest props snapshot so rAF/pointer handlers never see stale closures.
   propsRef.current = {
     slice, geom, manifest, orientation, sliceIndex, display, overlays,
-    pickMode, ghost, prefs, gutter: g,
+    pickMode, ghost, prefs, gutter: g, depthConv,
   };
 
   // ---- axis metadata per orientation ----------------------------------
@@ -464,6 +465,51 @@ function SliceView({
       });
     }
 
+    // Depth axis (sections, single-function velocity models only — a
+    // layer cake has no column-independent z(t), the cursor readout
+    // covers it): nice depth values inverted to TWT by bisection (z is
+    // monotonic in t), ticked along the RIGHT edge. Drawn from the same
+    // ViewTransform as everything else.
+    if (pr.axes && pr.depthAxis && p.depthConv && !p.depthConv.columnDependent
+      && p.orientation !== 'time' && p.slice && p.manifest) {
+      const t2 = transformRef.current;
+      const dtMs = p.manifest.geometry.dt_us / 1000;
+      const vis = t2.visibleRect();
+      const conv = p.depthConv.toDepthM;
+      const ms0 = Math.max(0, vis.y0) * dtMs;
+      const ms1 = Math.max(ms0, (vis.y0 + vis.h) * dtMs);
+      const z0 = conv(ms0);
+      const z1 = conv(ms1);
+      const innerH = anno.height - gt;
+      if (z1 > z0 && innerH > 40 * dpr) {
+        const step = niceStepUp(((z1 - z0) / innerH) * 64 * dpr);
+        ctx.save();
+        ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.7)';
+        ctx.fillStyle = 'rgba(52, 211, 153, 0.9)';
+        ctx.lineWidth = dpr;
+        for (let z = Math.ceil(z0 / step) * step; z <= z1; z += step) {
+          let lo = ms0;
+          let hi = ms1;
+          for (let it = 0; it < 32; it++) {
+            const mid = (lo + hi) / 2;
+            if (conv(mid) < z) lo = mid; else hi = mid;
+          }
+          const sy = gt + t2.worldToScreen(0, ((lo + hi) / 2) / dtMs).y;
+          if (sy < gt + 6 * dpr || sy > anno.height - 4 * dpr) continue;
+          ctx.beginPath();
+          ctx.moveTo(anno.width - 7 * dpr, sy);
+          ctx.lineTo(anno.width, sy);
+          ctx.stroke();
+          ctx.fillText(String(Math.round(z)), anno.width - 10 * dpr, sy);
+        }
+        ctx.fillText('m TVD', anno.width - 6 * dpr, gt + 8 * dpr);
+        ctx.restore();
+      }
+    }
+
     if (pr.scaleBar && spacing) {
       // horizontal ground distance: crosslines on inline/time views,
       // inlines on crossline views, the resample step along traverses
@@ -682,8 +728,8 @@ function SliceView({
     scheduleView();
   }, [slice, display, prefs.interpolate, scheduleView]);
 
-  // overlays / prefs / ghost mode changed -> repaint 2D layers
-  useEffect(() => { scheduleView(); }, [overlays, prefs, ghost, scheduleView]);
+  // overlays / prefs / ghost mode / depth conversion changed -> repaint 2D layers
+  useEffect(() => { scheduleView(); }, [overlays, prefs, ghost, depthConv, scheduleView]);
 
   // controlled exaggeration (shared with the 3D window)
   useEffect(() => {
@@ -753,6 +799,7 @@ function SliceView({
     if (!vals || !hint) return;
     if (info) {
       vals.textContent = `IL ${info.il}   XL ${info.xl}   ${info.ms.toFixed(1)} ms   `
+        + (info.z != null ? `TVD ${info.z.toFixed(1)} m   ` : '')
         + `amp ${info.amp === null ? 'null' : info.amp.toExponential(3)}`;
       vals.style.display = '';
       hint.style.display = 'none';
@@ -777,10 +824,20 @@ function SliceView({
     else if (p.orientation === 'xline') amp = p.slice.data[hit.ilIdx * gm.ns + sampleIdx];
     else if (p.orientation === 'traverse') amp = p.slice.data[hit.trace * gm.ns + sampleIdx];
     else amp = p.slice.data[hit.ilIdx * gm.nXl + hit.xlIdx];
+    const ms = (p.orientation === 'time' ? p.sliceIndex : hit.sample) * (geo.dt_us / 1000);
+    // depth via the volume's velocity model (layer cakes convert per
+    // column, so the cursor's lattice cell rides along); null-safe —
+    // a hole in a boundary grid just hides the depth readout there
+    let z = null;
+    if (p.depthConv) {
+      const d = p.depthConv.toDepthM(ms, hit.ilIdx * gm.nXl + hit.xlIdx);
+      if (d != null && Number.isFinite(d)) z = d;
+    }
     setCursorReadout({
       il: geo.il.min + hit.ilIdx * geo.il.step,
       xl: geo.xl.min + hit.xlIdx * geo.xl.step,
-      ms: (p.orientation === 'time' ? p.sliceIndex : hit.sample) * (geo.dt_us / 1000),
+      ms,
+      z,
       amp: amp === NULL_F32 ? null : amp,
     });
   }, [pickAt, setCursorReadout]);
@@ -1013,6 +1070,15 @@ function SliceView({
               onCheckedChange={() => togglePref('colorbar')}
             >
               Amplitude colorbar
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()} checked={prefs.depthAxis}
+              onCheckedChange={() => togglePref('depthAxis')}
+              disabled={!depthConv || depthConv.columnDependent || !isSection}
+            >
+              Depth axis
+              {!depthConv ? ' (no velocity model)'
+                : depthConv.columnDependent ? ' (layer cake: readout only)'
+                  : !isSection ? ' (sections only)' : ''}
             </DropdownMenuCheckboxItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel>Cursor & rendering</DropdownMenuLabel>
