@@ -1,15 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Eye, Loader2, XCircle, Crosshair, Route, Ban, Box, ScanLine, Ruler,
+  Loader2, Crosshair, Route, Ban, Box, ScanLine, Ruler, Upload, Bot, Grid2x2,
   Pencil, Eraser, Undo2, Save, Spline, Wand2, PaintBucket, Map as MapIcon, X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
-  listVolumes, getManifest, saveManifestVelocity, saveManifestTraverses,
+  listVolumes, deleteVolume, getManifest, saveManifestVelocity, saveManifestTraverses,
 } from '../services/volumesService';
 import {
   saveHorizon, listHorizons, loadHorizonGrid, deleteHorizon, updateHorizon,
@@ -39,9 +39,17 @@ import SliceView from './SliceView';
 import CubeView from './CubeView';
 import MapView from './MapView';
 import ViewerWindows from './ViewerWindows';
-import HorizonsList, { horizonColor } from './HorizonsList';
-import FaultsList, { faultColor } from './FaultsList';
 import WellTiePanel from './WellTiePanel';
+import ImportPanel from './ImportPanel';
+import ExportPanel from './ExportPanel';
+import AiPanel from './AiPanel';
+import WellImport from './WellImport';
+import WorkspaceShell from './workspace/WorkspaceShell';
+import SeismicExplorer from './workspace/SeismicExplorer';
+import StatusBar from './workspace/StatusBar';
+import { horizonColor, faultColor } from './workspace/interpretationColors';
+import useWells from '../hooks/useWells';
+import useBackendStatus from '../hooks/useBackendStatus';
 
 const ORIENTATIONS = [
   { key: 'inline', label: 'Inline' },
@@ -93,7 +101,11 @@ const cacheGrid = (map, id, grid) => {
   while (map.size > GRID_CACHE_MAX) map.delete(map.keys().next().value);
 };
 
-export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
+// ViewerPanel is the seismic WORKSPACE CONTROLLER: it owns all viewer,
+// interpretation and registry state and renders the workstation layout
+// (WorkspaceShell: ribbon strip / explorer tree / viewport windows /
+// status bar). Presentational pieces receive grouped props from here.
+export default function ViewerPanel() {
   const { toast } = useToast();
   const cacheRef = useRef(null);
   const requestRef = useRef(0);
@@ -101,6 +113,18 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
   const jobIdRef = useRef(0);
   const selectSeqRef = useRef(0);               // stale volume-switch guard
   const gridCacheRef = useRef(new Map());       // horizon id -> Float32Array
+
+  // wells are per-user and volume-independent; visible wells carry
+  // computed world paths so the viewer windows just draw
+  const wellsApi = useWells();
+  const wells = wellsApi.visible;
+  const backend = useBackendStatus();
+
+  const [volumesRefresh, setVolumesRefresh] = useState(0);
+  const [allVolumes, setAllVolumes] = useState([]);  // explorer list (any status)
+  const [volumeBusyId, setVolumeBusyId] = useState(null);
+  // heavyweight workflows open as modal dialogs over the workspace
+  const [openDialog, setOpenDialog] = useState(null); // null|'import'|'wellImport'|'export'|'ai'
 
   const [volumes, setVolumes] = useState([]);
   const [volume, setVolume] = useState(null);
@@ -186,11 +210,12 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
   useEffect(() => {
     listVolumes()
       .then((vs) => {
+        setAllVolumes(vs);
         const ready = vs.filter((v) => v.status === 'ready');
         setVolumes(ready);
-        // the selected volume was deleted elsewhere (VolumesPanel): clear
-        // the whole viewer instead of letting every brick fetch 404 until
-        // the user happens to reselect (L7)
+        // the selected volume was deleted elsewhere: clear the whole
+        // viewer instead of letting every brick fetch 404 until the
+        // user happens to reselect (L7)
         if (volumeIdRef.current && !ready.some((v) => v.id === volumeIdRef.current)) {
           selectVolume('');
         }
@@ -198,7 +223,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
       .catch((e) => setError(e.message));
     // selectVolume intentionally omitted: the '' path only clears state
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshKey]);
+  }, [volumesRefresh]);
 
   const geom = useMemo(() => (manifest ? geomFromManifest(manifest) : null), [manifest]);
   const velocityModel = useMemo(() => normalizeVelocity(manifest?.velocity), [manifest]);
@@ -285,7 +310,6 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
     try {
       const next = await saveManifestVelocity(volume, manifest, model);
       setManifest(next);
-      if (onVolumeChange) onVolumeChange(volume, next);
       toast({
         title: model ? 'Velocity model saved' : 'Velocity model removed',
         description: describeVelocity(model),
@@ -317,7 +341,6 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
   const applyCalibratedModel = async (model, calibration) => {
     const next = await saveManifestVelocity(volume, manifest, model, calibration);
     setManifest(next);
-    if (onVolumeChange) onVolumeChange(volume, next);
     toast({ title: 'Velocity model calibrated', description: describeVelocity(model) });
   };
 
@@ -518,7 +541,6 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
     setPickMode(null);
     gridCacheRef.current.clear();
     setError(null);
-    if (onVolumeChange) onVolumeChange(null, null);
     if (!v) { setHorizons([]); setFaults([]); return; }
     setLoading(true);
     try {
@@ -541,11 +563,28 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
         xline: Math.floor(m.geometry.xl.count / 2),
         time: Math.floor(m.geometry.ns / 2),
       });
-      if (onVolumeChange) onVolumeChange(v, m);
     } catch (e) {
       if (seq === selectSeqRef.current) setError(e.message);
     } finally {
       if (seq === selectSeqRef.current) setLoading(false);
+    }
+  };
+
+  /** Explorer context-menu delete (from the retired VolumesPanel). The
+   *  refresh bump makes the L7 effect clear the viewer if the deleted
+   *  volume was the active one. */
+  const deleteVolumeAction = async (v) => {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Delete "${v.name}" and all of its brick data? This cannot be undone.`)) return;
+    setVolumeBusyId(v.id);
+    try {
+      await deleteVolume(v);
+      toast({ title: 'Volume deleted', description: v.name });
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setVolumeBusyId(null);
     }
   };
 
@@ -1164,7 +1203,6 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
       const next = await saveManifestTraverses(volume, manifest, [...savedTraverses, entry]);
       setManifest(next);
       setTraverseSavedId(entry.id);
-      if (onVolumeChange) onVolumeChange(volume, next);
       toast({ title: 'Traverse saved', description: `${name}: ${traverse.positions.length} traces.` });
     } catch (e) {
       toast({ title: 'Save failed', description: e.message, variant: 'destructive' });
@@ -1181,8 +1219,10 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
     if (entry) handleTraverse(entry.vertices, entry.id);
   };
 
-  const deleteSavedTraverse = async () => {
-    const entry = savedTraverses.find((s) => s.id === traverseSavedId);
+  /** Delete a saved line (defaults to the selected one — the traverse
+   *  window's X button; the explorer passes an explicit entry). */
+  const deleteSavedTraverse = async (target = null) => {
+    const entry = target || savedTraverses.find((s) => s.id === traverseSavedId);
     if (!entry || !volume || !manifest) return;
     // eslint-disable-next-line no-alert
     if (!window.confirm(`Delete saved traverse "${entry.name}"?`)) return;
@@ -1192,8 +1232,8 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
         volume, manifest, savedTraverses.filter((s) => s.id !== entry.id),
       );
       setManifest(next);
-      setTraverseSavedId(null);              // the drawn line stays on screen
-      if (onVolumeChange) onVolumeChange(volume, next);
+      // the drawn line stays on screen
+      setTraverseSavedId((id) => (id === entry.id ? null : id));
     } catch (e) {
       toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
     } finally {
@@ -1209,16 +1249,72 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
     return `${(sliceIndex * g.dt_us) / 1000} ms`;
   }, [manifest, orientation, sliceIndex]);
 
-  return (
-    <Card className="bg-slate-900/60 border-slate-700">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center">
-          <Eye className="w-5 h-5 mr-2 text-cyan-400" />
-          Section viewer &amp; horizon picking
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+  // ---- workspace tree model + actions (explorer props) -------------------
+  const tree = {
+    volumes: allVolumes,
+    activeVolumeId: volume?.id || null,
+    volumeBusyId,
+    horizons,
+    visibleIds,
+    horizonBusyId,
+    editTargetId: editTarget !== 'new' ? editTarget : null,
+    faults,
+    visibleFaultIds,
+    faultBusyId,
+    wells: wellsApi.wells,
+    visibleWellIds: wellsApi.visibleIds,
+    wellBusyId: wellsApi.busyId,
+    wellsError: wellsApi.error,
+    savedTraverses,
+    traverseSavedId,
+  };
+
+  const treeActions = {
+    selectVolume,
+    deleteVolume: deleteVolumeAction,
+    openImport: () => setOpenDialog('import'),
+    openWellImport: () => setOpenDialog('wellImport'),
+    openExport: () => setOpenDialog('export'),
+    refresh: () => { setVolumesRefresh((k) => k + 1); wellsApi.reload(); },
+    toggleHorizon,
+    deleteHorizon: onDeleteHorizon,
+    setEditTarget: changeEditTarget,
+    toggleFault,
+    deleteFault: onDeleteFault,
+    toggleWell: wellsApi.toggle,
+    deleteWell: wellsApi.remove,
+    openTraverse: (t) => handleTraverse(t.vertices, t.id),
+    deleteTraverse: (t) => deleteSavedTraverse(t),
+  };
+
+  // Interim tool strip: the pre-workspace control rows, unchanged, in a
+  // fixed top strip — replaced by the tabbed ribbon in the ribbon phase.
+  const toolStrip = (
+    <div
+      className="border-b border-slate-800 bg-slate-900/80 px-3 py-2 space-y-3
+        max-h-[42vh] overflow-y-auto"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-bold text-white mr-2">Seismolord</span>
+        <Button variant="outline" size="sm" onClick={() => setOpenDialog('import')}>
+          <Upload className="w-4 h-4 mr-2" />
+          Import SEG-Y…
+        </Button>
+        <Button
+          variant="outline" size="sm"
+          disabled={!volume}
+          onClick={() => setOpenDialog('export')}
+        >
+          <Grid2x2 className="w-4 h-4 mr-2" />
+          Gridding &amp; export…
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setOpenDialog('ai')}>
+          <Bot className="w-4 h-4 mr-2" />
+          AI copilot…
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
             <Label className="text-slate-300">Volume</Label>
             <select
@@ -1672,8 +1768,29 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
             </div>
           </>
         )}
+    </div>
+  );
 
+  return (
+    <>
+      <WorkspaceShell
+        ribbon={toolStrip}
+        explorer={<SeismicExplorer tree={tree} actions={treeActions} />}
+        dockOpen={false}
+        statusBar={(
+          <StatusBar
+            volumeName={volume?.name || null}
+            lineLabel={manifest ? lineLabel : ''}
+            sliceMs={sliceMs}
+            tracking={tracking}
+            error={error}
+            backend={backend}
+          />
+        )}
+        center={(
+          <div className="h-full min-h-0 p-2">
         <ViewerWindows
+          fill
           defaultOpen={['section']}
           focus={winFocus}
           windows={[
@@ -1703,7 +1820,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                   onPick={handlePick}
                   onPickEnd={commitStroke}
                   onStepSlice={stepSlice}
-                  height={560}
+                  height="fill"
                   vexag={vexag}
                   onVexagChange={setVexag}
                 />
@@ -1727,7 +1844,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                   wells={wellSections}
                   depthConv={depthConv}
                   onSelectPlane={selectPlane}
-                  height={560}
+                  height="fill"
                 />
               ),
             },
@@ -1736,8 +1853,8 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
               title: 'Traverse',
               icon: Route,
               content: (
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                <div className="h-full min-h-0 flex flex-col">
+                  <div className="shrink-0 flex flex-wrap items-center gap-2 mb-1">
                     <select
                       className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs max-w-[180px]"
                       value={traverseSavedId || ''}
@@ -1764,7 +1881,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                     <Button
                       variant="outline" size="sm"
                       className="text-slate-400 hover:text-red-400"
-                      onClick={deleteSavedTraverse}
+                      onClick={() => deleteSavedTraverse()}
                       disabled={!traverseSavedId || traverseBusy}
                       title="Delete the selected saved traverse (the section stays until replaced)"
                     >
@@ -1779,6 +1896,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                       </span>
                     )}
                   </div>
+                  <div className="flex-1 min-h-0">
                   <SliceView
                     slice={traverseSlice}
                     geom={geom}
@@ -1793,13 +1911,14 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                     depthConv={depthConv}
                     onPick={handleTraversePick}
                     onPickEnd={commitStroke}
-                    height={560}
+                    height="fill"
                     vexag={vexag}
                     onVexagChange={setVexag}
                     emptyHint={manifest
                       ? 'Draw a traverse in the Map window (traverse tool: click vertices, double-click to finish) or load a saved line above.'
                       : undefined}
                   />
+                  </div>
                 </div>
               ),
             },
@@ -1822,52 +1941,68 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                   savedTraverses={savedTraverses}
                   onAmplitude={extractAmplitude}
                   wells={wells}
-                  height={560}
+                  height="fill"
                 />
               ),
             },
           ]}
         />
-
-        {manifest && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-              <div className="text-slate-300 text-sm font-medium mb-2">Horizons</div>
-              <HorizonsList
-                horizons={horizons}
-                visibleIds={visibleIds}
-                busyId={horizonBusyId}
-                onToggle={toggleHorizon}
-                onDelete={onDeleteHorizon}
-              />
-            </div>
-            <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-              <div className="text-slate-300 text-sm font-medium mb-2">Faults</div>
-              <FaultsList
-                faults={faults}
-                visibleIds={visibleFaultIds}
-                busyId={faultBusyId}
-                onToggle={toggleFault}
-                onDelete={onDeleteFault}
-              />
-            </div>
           </div>
         )}
+      />
 
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <span>
-            Amplitudes rendered from stored float32 — colormap, gain, polarity and
-            balance are shader-only. Time increases downward; nulls (1.0E+30) draw as gray.
-          </span>
-          {sliceMs != null && <span>slice {sliceMs.toFixed(0)} ms</span>}
-        </div>
+      {/* Heavyweight workflows live in modal dialogs over the workspace
+          (interim wrappers — the dialogs phase makes the panels frameless). */}
+      <Dialog
+        open={openDialog === 'import'}
+        onOpenChange={(o) => setOpenDialog(o ? 'import' : null)}
+      >
+        <DialogContent
+          className="max-w-3xl max-h-[85vh] overflow-y-auto p-0 border-none bg-transparent shadow-none"
+        >
+          <DialogTitle className="sr-only">Import SEG-Y volume</DialogTitle>
+          <ImportPanel onIngested={() => setVolumesRefresh((k) => k + 1)} />
+        </DialogContent>
+      </Dialog>
 
-        {error && (
-          <div className="flex items-start text-red-400 text-sm">
-            <XCircle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />{error}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      <Dialog
+        open={openDialog === 'export'}
+        onOpenChange={(o) => setOpenDialog(o ? 'export' : null)}
+      >
+        <DialogContent
+          className="max-w-3xl max-h-[85vh] overflow-y-auto p-0 border-none bg-transparent shadow-none"
+        >
+          <DialogTitle className="sr-only">Grid &amp; export surface</DialogTitle>
+          <ExportPanel volume={volume} manifest={manifest} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={openDialog === 'ai'}
+        onOpenChange={(o) => setOpenDialog(o ? 'ai' : null)}
+      >
+        <DialogContent
+          className="max-w-2xl max-h-[85vh] overflow-y-auto p-0 border-none bg-transparent shadow-none"
+        >
+          <DialogTitle className="sr-only">Interpretation copilot</DialogTitle>
+          <AiPanel volume={volume} manifest={manifest} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={openDialog === 'wellImport'}
+        onOpenChange={(o) => setOpenDialog(o ? 'wellImport' : null)}
+      >
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogTitle className="text-white">Import well</DialogTitle>
+          <WellImport
+            onSave={async (draft) => {
+              await wellsApi.save(draft);
+              setOpenDialog(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

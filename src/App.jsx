@@ -110,6 +110,7 @@ const SeismolordSliceViewHarness = lazy(() => import('@/pages/apps/Seismolord/Se
 const SeismolordWellsHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordWellsHarness'));
 const SeismolordWellTieHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordWellTieHarness'));
 const SeismolordCubeViewHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordCubeViewHarness'));
+const SeismolordWorkspaceHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordWorkspaceHarness'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
 const WellLogAnalyzer = lazy(() => import('@/pages/apps/WellLogAnalyzer'));
 const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/ProductionSurveillanceDashboard'));
@@ -633,6 +634,7 @@ function App() {
                                   <Route path="/dev/seismolord-cubeview" element={<SeismolordCubeViewHarness />} />
                                   <Route path="/dev/seismolord-wells" element={<SeismolordWellsHarness />} />
                                   <Route path="/dev/seismolord-welltie" element={<SeismolordWellTieHarness />} />
+                                  <Route path="/dev/seismolord-workspace" element={<SeismolordWorkspaceHarness />} />
                                 </>
                               )}
                               <Route path="*" element={<Navigate to="/" replace />} />
