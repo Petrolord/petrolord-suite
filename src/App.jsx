@@ -98,7 +98,6 @@ const FracCompletionApp = lazy(() => import('@/pages/apps/FracCompletionApp'));
 const RtoDashboard = lazy(() => import('@/pages/apps/RtoDashboard'));
 const PorePressureFracGradient = lazy(() => import('@/pages/apps/PorePressureFracGradient')); 
 const DrillingFluidsHydraulics = lazy(() => import('@/pages/apps/DrillingFluidsHydraulics'));
-const SubsurfaceStudio = lazy(() => import('@/pages/apps/SubsurfaceStudio'));
 const EarthModelStudio = lazy(() => import('@/components/geoscience/EarthModelStudio.jsx'));
 const EarthModelStudioProjects = lazy(() => import('@/pages/apps/EarthModelStudioProjects'));
 const EarthModelPro = lazy(() => import('@/components/geoscience/EarthModelPro.jsx'));

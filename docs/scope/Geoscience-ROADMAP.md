@@ -109,8 +109,13 @@ time depends on review cadence.
   EarthModelStudio/Pro duplicates, AnalogFinder, both digitizers
   (idempotent migration, QuickVol archive pattern). Routes stay as
   aliases where a successor exists.
-- Delete `src/components/subsurface-studio/` + `SubsurfaceStudio.jsx`
-  (unrouted; reference value already extracted).
+- Delete the unrouted `SubsurfaceStudio.jsx` page + its stale
+  registrations (lazy import, route metadata, allApps, pricing).
+  *Correction found during execution:* `src/components/subsurface-studio/`
+  is NOT dead — it is the component tree behind the routed
+  EarthModelStudio, and MEM imports two of its chart files; the tree is
+  deleted when its consumers go (G8 consolidation / MEM decision), not
+  in G0.
 - **Audit reports** (each a short doc in docs/scope/): BasinFlowGenesis
   and MechanicalEarthModel — what's real, what's mock, upgrade-vs-rebuild
   recommendation, and (MEM) module placement recommendation.
