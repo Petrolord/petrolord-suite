@@ -34,8 +34,8 @@ trees + mock-density spot checks, 2026-07-12):
 | AutomatedLogDigitizer | 148 loc utility | **FOLD** into Petrophysics Studio import wizard |
 | ContourMapDigitizer | 121 loc utility | **FOLD** into Mapping Studio import wizard |
 | AnalogFinder | 206 loc, no analog database behind it | **PARK** (archive tile) |
-| BasinFlowGenesis | ~10k loc — real mass, unaudited | **AUDIT** (Phase G0) then upgrade or rebuild |
-| MechanicalEarthModel | 108 files — real mass, unaudited | **AUDIT** (Phase G0); decide module placement (Geoscience vs Drilling) |
+| BasinFlowGenesis | ~10k loc; audited — real burial/thermal solvers, placeholder Ro | **UPGRADE** (see BasinFlowGenesis-AUDIT.md; Phase G7) |
+| MechanicalEarthModel | 108 files; audited — routed page runs no math, engine orphaned | **REBUILD under Drilling** (locked 2026-07-12; tile archived; see MEM-AUDIT.md) |
 
 **Catalog note:** the whole Geoscience module is bulk-seeded in
 `master_apps` at flat 899, including hollow tiles. Tiles that don't fly
@@ -57,7 +57,10 @@ rows and entitlement FKs), not deleted.
 
 7. **Rock Physics / QI** — AVO, Gassmann, wedge models *(new — Phase G6)*
 8. **Basin & Charge Modeling** — BasinFlowGenesis upgraded or rebuilt *(G7)*
-9. **Geomechanics / 1D MEM** — audited; possibly re-homed to Drilling *(G7)*
+9. **Geomechanics / 1D MEM** — DECIDED 2026-07-12 (MEM-AUDIT.md):
+   rebuilds under the **Drilling module** on the salvaged engine core;
+   tile archived until then. Geoscience keeps seismic-velocity-driven
+   pore-pressure prediction as a later capability *(G7)*
 
 **Eventual one:**
 
@@ -214,10 +217,14 @@ time depends on review cadence.
   well logs, wedge modeling, synthetic gathers (reuses G5 synthetics).
   Oracle-validated against published rock-physics worked examples.
 
-### Phase G7 — Basin & Geomechanics decisions *(sized by G0 audits)*
-- Execute the G0 audit recommendations: upgrade or rebuild
-  BasinFlowGenesis; upgrade MEM and place it (Geoscience keeps
-  pore-pressure prediction at minimum, even if MEM moves to Drilling).
+### Phase G7 — Basin upgrade + geoscience pore-pressure *(sized by G0 audits)*
+- Execute the audit verdicts: **BasinFlowGenesis UPGRADE** per
+  BasinFlowGenesis-AUDIT.md (Sweeney-Burnham Ro, TOC-mass generation,
+  erosion/heat-flow-history wiring, engine-backed analysis tabs, drop
+  TFJS, validation goldens). The **MEM rebuild happens in the Drilling
+  module** (decision locked 2026-07-12; not geoscience scope); Geoscience
+  adds seismic-velocity-driven pore-pressure prediction here or later,
+  fed by Seismolord velocity models.
 
 ### Phase G8 — Earth Modeling v1 *(large; last, and only after G1–G5 are live)*
 - One tile. Scope v1 HARD: structural framework from G4 surfaces +
@@ -272,8 +279,10 @@ and is the biggest build risk in the domain.
    Surface Studio** (`mapping-surface-studio`), **Rock Physics Studio**
    (`rock-physics-studio`). Existing app names (Seismolord,
    ReservoirCalc Pro, BasinFlow Genesis) are unchanged.
-3. **MEM module placement** — deferred to the G0 audit report, which
-   must end with a concrete recommendation for the owner to accept.
+3. **MEM module placement** — LOCKED 2026-07-12 after the G0 audit:
+   rebuild under **Drilling** on the salvaged ~440-loc engine core;
+   `1d-mechanical-earth-model` tile archived until the rebuild ships
+   (migration `20260712220000_archive_mem_tile.sql`).
 4. **Pricing** — unchanged (flat 899) for now; revisit tiering once ≥3
    core apps fly.
 5. **Archive list** — confirmed in full; nothing on the §4 G0 list stays
