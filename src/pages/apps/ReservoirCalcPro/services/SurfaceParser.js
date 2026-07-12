@@ -139,8 +139,11 @@ export class SurfaceParser {
     static isNullZ(z) {
         if (!Number.isFinite(z)) return true;
         if (Math.abs(z) >= 1e29) return true;                 // 1.0E+30 grid nulls
+        // exact match only: sentinels are written as these literals, so
+        // parseFloat reproduces them bit-exactly; a tolerance window would
+        // also swallow genuine computed depths that merely land nearby
         const SENTINELS = [-9999, -9999.25, -9999.99, -999.25, 999.25, 9999.25];
-        if (SENTINELS.some(s => Math.abs(z - s) < 1e-6)) return true;
+        if (SENTINELS.some(s => z === s)) return true;
         return Math.abs(z) > 100000;                          // beyond plausible depth/elevation
     }
 

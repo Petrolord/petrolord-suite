@@ -122,7 +122,16 @@ export async function loadHorizonGrid(horizon) {
 }
 
 export async function deleteHorizon(horizon) {
-  await supabase.storage.from(SEISMIC_BUCKET).remove([horizon.storage_path]);
+  // blob first, and NOT fire-and-forget: a transient storage failure that
+  // was silently ignored while the row still deleted would strand an
+  // unreachable orphan blob forever (L1). Failing here keeps the row, so
+  // the user just retries the delete.
+  const { error: removeError } = await supabase.storage.from(SEISMIC_BUCKET)
+    .remove([horizon.storage_path]);
+  if (removeError) {
+    throw new Error(
+      `Could not delete stored picks (${removeError.message}) — nothing was deleted; try again.`);
+  }
   const { error } = await supabase.from('seismic_horizons')
     .delete().eq('id', horizon.id);
   if (error) throw new Error(`Could not delete horizon: ${error.message}`);
