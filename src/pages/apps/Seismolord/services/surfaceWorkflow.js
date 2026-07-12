@@ -4,7 +4,7 @@
 // return the grid + XYZ text.
 
 import { loadHorizonGrid, listHorizons } from './horizonsService';
-import { picksToPoints } from '../engine/gridding';
+import { picksToPoints, exportGridSpec } from '../engine/gridding';
 import { buildFaultBlocks } from '../engine/faultBarriers';
 import { surveyAffine, cellSpacing, surveyBounds, worldToIlxl } from '../engine/surveyGeometry';
 import { geomFromManifest } from '../engine/sliceAssembly';
@@ -30,13 +30,17 @@ let jobSeq = 0;
  * @param {Array<{sticks: Array}>} [p.faults] fault stick sets; when any
  *   cuts the horizon, gridding is fault-blocked (interpolation never
  *   crosses a fault, nodes on the fault trace stay null)
+ * @param {AbortSignal} [p.signal] cancels the job: the gridding worker is
+ *   terminated and the promise rejects with 'Export cancelled'
  * @returns {Promise<{g: Object, spec: Object, gridded: Object,
  *   xyzText: string, faultInfo: {faults: number, traces: number,
  *   blocks: number}|null}>} faultInfo is null when gridding ran unblocked
  */
 export async function gridHorizonSurface({
   manifest, horizon, domain, velocityFtS = 10000, cellM = 0, faults = null,
+  signal = null,
 }) {
+  if (signal?.aborted) throw new Error('Export cancelled');
   const geom = geomFromManifest(manifest);
   const picks = await loadHorizonGrid(horizon);
   const dtMs = manifest.geometry.dt_us / 1000;
@@ -65,15 +69,14 @@ export async function gridHorizonSurface({
   const points = picksToPoints(picks, geom, affine, sampleToZ);
   if (points.length < 3) throw new Error('Horizon has too few live picks to grid.');
 
-  // export grid: axis-aligned world bbox of the (possibly rotated) survey
+  // export grid: axis-aligned world bbox of the (possibly rotated) survey.
+  // exportGridSpec clamps a bad cell to the bin and throws a clear domain
+  // error (with the minimum usable cell) instead of allocating a runaway
+  // node count (ML5).
   const bin = cellSpacing(affine).xl || 25;
-  const dxy = cellM > 0 ? cellM : bin;
   const b = surveyBounds(affine, manifest.geometry.il.count, manifest.geometry.xl.count);
-  const spec = {
-    x0: b.x0, y0: b.y0, dx: dxy, dy: dxy,
-    nx: Math.floor((b.x1 - b.x0) / dxy) + 1,
-    ny: Math.floor((b.y1 - b.y0) / dxy) + 1,
-  };
+  const spec = exportGridSpec(b, cellM, bin);
+  const dxy = spec.dx;
 
   // fault blocks: label the horizon lattice, tag each control point
   // (same iteration order as picksToPoints), and assign every output
@@ -102,9 +105,17 @@ export async function gridHorizonSurface({
     faultInfo = { faults: faults.length, traces: blocks.traces.length, blocks: blocks.count };
   }
 
+  if (signal?.aborted) throw new Error('Export cancelled');
   const id = ++jobSeq;
   const worker = newGriddingWorker();
+  const onAbort = () => worker.terminate();   // reject below; terminate now
   const gridded = await new Promise((resolve, reject) => {
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        onAbort();
+        reject(new Error('Export cancelled'));
+      }, { once: true });
+    }
     worker.onmessage = (e) => {
       const msg = e.data;
       if (msg.id !== id) return;

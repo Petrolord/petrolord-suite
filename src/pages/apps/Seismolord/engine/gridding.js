@@ -353,3 +353,34 @@ export function picksToPoints(picks, geom, affine, sampleToZ) {
   }
   return out;
 }
+
+/** Output-grid node ceiling: a mistyped tiny cell must fail with a clear
+ *  domain error, not a huge allocation that freezes the tab. */
+export const MAX_GRID_NODES = 4_000_000;
+
+/**
+ * Build the export grid spec over a survey's world bbox. A non-finite or
+ * non-positive cell falls back to the survey bin; a cell that would blow
+ * the node ceiling throws with the minimum usable cell in the message.
+ *
+ * @param {{x0:number,y0:number,x1:number,y1:number}} b world bounds
+ * @param {number} cellM requested cell (0 / NaN / negative -> bin)
+ * @param {number} bin survey bin size fallback (m)
+ * @param {number} [maxNodes]
+ */
+export function exportGridSpec(b, cellM, bin, maxNodes = MAX_GRID_NODES) {
+  const dxy = Number.isFinite(cellM) && cellM > 0 ? cellM : bin;
+  const spec = {
+    x0: b.x0, y0: b.y0, dx: dxy, dy: dxy,
+    nx: Math.floor((b.x1 - b.x0) / dxy) + 1,
+    ny: Math.floor((b.y1 - b.y0) / dxy) + 1,
+  };
+  if (spec.nx * spec.ny > maxNodes) {
+    const minCell = Math.sqrt(((b.x1 - b.x0) * (b.y1 - b.y0)) / maxNodes);
+    throw new Error(
+      `A ${dxy} m cell gives ${spec.nx.toLocaleString()} × ${spec.ny.toLocaleString()} grid nodes `
+      + `(over the ${maxNodes.toLocaleString()} ceiling) — use a cell of `
+      + `~${Math.ceil(minCell)} m or larger for this survey.`);
+  }
+  return spec;
+}

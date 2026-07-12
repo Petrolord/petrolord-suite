@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Download, Grid3X3, Loader2, XCircle, Send } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Ban, Download, Grid3X3, Loader2, XCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,10 @@ export default function ExportPanel({ volume, manifest }) {
   const [error, setError] = useState(null);
   const [faults, setFaults] = useState([]);
   const [faultAware, setFaultAware] = useState(true);
+  const abortRef = useRef(null);               // in-flight grid job
+
+  // never leave a gridding worker running behind an unmounted panel
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   useEffect(() => {
     setHorizons([]);
@@ -70,6 +74,8 @@ export default function ExportPanel({ volume, manifest }) {
     setRunning(true);
     setResult(null);
     setError(null);
+    const ctl = new AbortController();
+    abortRef.current = ctl;
     try {
       if (!affine) throw new Error('Volume has no usable survey coordinates for gridding.');
       // z NEGATIVE downward (playbook export convention); the volume's
@@ -82,6 +88,7 @@ export default function ExportPanel({ volume, manifest }) {
         velocityFtS: velocity,
         cellM: cell,
         faults: faultAware && faults.length ? faults : null,
+        signal: ctl.signal,
       });
       const dxy = spec.dx;
       const safeName = horizon.name.replace(/[^\w-]+/g, '_').toLowerCase();
@@ -153,8 +160,9 @@ export default function ExportPanel({ volume, manifest }) {
           : fileName,
       });
     } catch (e) {
-      setError(e.message);
+      if (e.message !== 'Export cancelled') setError(e.message);
     } finally {
+      if (abortRef.current === ctl) abortRef.current = null;
       setRunning(false);
     }
   };
@@ -257,6 +265,16 @@ export default function ExportPanel({ volume, manifest }) {
                 <Send className="w-4 h-4 mr-2" />
                 Send to ReservoirCalc Pro
               </Button>
+              {running && (
+                <Button
+                  variant="outline" size="sm"
+                  onClick={() => abortRef.current?.abort()}
+                  title="Stop the gridding job"
+                >
+                  <Ban className="w-4 h-4 mr-2" />
+                  Cancel
+                </Button>
+              )}
               {faults.length > 0 && (
                 <label
                   className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer select-none"

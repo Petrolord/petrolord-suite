@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Sparkles, Send, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,20 @@ import { grvAcreFt } from '../engine/surfaceExport';
 import { geomFromManifest } from '../engine/sliceAssembly';
 
 const MAX_TOOL_ROUNDS = 6;
+const MAX_CHAT_MESSAGES = 200;       // display list cap (L4)
+const MAX_API_MESSAGES = 60;         // history sent to the edge fn (L4)
+
+/**
+ * Trim the OpenAI-format history from the FRONT without splitting a
+ * tool-call exchange: a 'tool' message must always follow the assistant
+ * message that requested it, so leading tool messages are dropped too.
+ */
+const trimHistory = (msgs, max = MAX_API_MESSAGES) => {
+  if (msgs.length <= max) return msgs;
+  const out = msgs.slice(msgs.length - max);
+  while (out.length && out[0].role === 'tool') out.shift();
+  return out;
+};
 
 const storageBase = () => supabase.storage.from('seismic')
   .getPublicUrl('x').data.publicUrl.split('/storage/v1/')[0];
@@ -39,6 +53,14 @@ export default function AiPanel({ volume, manifest }) {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null);
+  // unmount abort: tool workers (autotrack, gridding) must not keep
+  // running behind a closed panel (ML3)
+  const abortRef = useRef(null);
+  if (!abortRef.current) abortRef.current = new AbortController();
+  useEffect(() => () => abortRef.current.abort(), []);
+
+  const pushChat = (entry) => setChat((c) => (typeof entry === 'function' ? entry(c) : [...c, entry])
+    .slice(-MAX_CHAT_MESSAGES));
 
   const requireVolume = () => {
     if (!volume || !manifest) throw new Error('No volume is open in the viewer.');
@@ -91,6 +113,10 @@ export default function AiPanel({ volume, manifest }) {
       const token = await accessToken();
       const worker = newHorizonWorker();
       const picks = await new Promise((resolve, reject) => {
+        abortRef.current.signal.addEventListener('abort', () => {
+          worker.terminate();                  // panel unmounted mid-track
+          reject(new Error('Cancelled'));
+        }, { once: true });
         worker.onmessage = async (e) => {
           const msg = e.data;
           if (msg.id !== id) return;
@@ -143,6 +169,7 @@ export default function AiPanel({ volume, manifest }) {
       const volFaults = await listFaults(volume.id).catch(() => []);
       const { g, spec, gridded, xyzText, faultInfo } = await gridHorizonSurface({
         manifest, horizon, domain, velocityFtS: velocity, faults: volFaults,
+        signal: abortRef.current.signal,
       });
       const grv = domain === 'depth' && contactFt != null
         ? grvAcreFt(g, spec.dx, spec.dy, contactFt)
@@ -212,8 +239,8 @@ export default function AiPanel({ volume, manifest }) {
     if (!text || busy) return;
     setInput('');
     setBusy(true);
-    setChat((c) => [...c, { who: 'user', text }]);
-    apiMessagesRef.current.push({ role: 'user', content: text });
+    pushChat({ who: 'user', text });
+    apiMessagesRef.current = trimHistory([...apiMessagesRef.current, { role: 'user', content: text }]);
     try {
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
         const { data, error } = await supabase.functions.invoke('seismolord-ai', {
@@ -224,20 +251,21 @@ export default function AiPanel({ volume, manifest }) {
         const msg = data.message;
         apiMessagesRef.current.push(msg);
         if (msg.tool_calls?.length) {
-          setChat((c) => [...c, {
+          pushChat({
             who: 'tool',
             text: `Running: ${msg.tool_calls.map((t) => t.function.name).join(', ')}…`,
-          }]);
+          });
           // eslint-disable-next-line no-await-in-loop
           const results = await Promise.all(msg.tool_calls.map(executeToolCall));
           apiMessagesRef.current.push(...results);
           continue;
         }
-        setChat((c) => [...c, { who: 'ai', text: msg.content || '(no reply)' }]);
+        apiMessagesRef.current = trimHistory(apiMessagesRef.current);
+        pushChat({ who: 'ai', text: msg.content || '(no reply)' });
         break;
       }
     } catch (e) {
-      setChat((c) => [...c, { who: 'error', text: e.message }]);
+      pushChat({ who: 'error', text: e.message });
     } finally {
       setBusy(false);
       setStatus(null);
