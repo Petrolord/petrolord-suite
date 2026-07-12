@@ -159,4 +159,25 @@ describe('BrickCache', () => {
       .resolves.toBeUndefined();
     expect(resolved).toBe(false);
   });
+
+  test('a get() racing an abort starts a fresh fetch instead of reusing the doomed promise', async () => {
+    // ML1: abort() rejects the old promise on a LATER microtask; a new
+    // slice request for the same brick arriving in that window must not
+    // be handed the aborted promise (callers drop ABORTED silently — the
+    // new slice would never render).
+    let calls = 0;
+    const cache = new BrickCache((p, signal) => new Promise((resolve, reject) => {
+      calls += 1;
+      const mine = calls;
+      signal.addEventListener('abort', () => reject(new Error('BRICK_FETCH_ABORTED')));
+      setTimeout(() => resolve(makeBrick(mine)), 5);
+    }));
+    const stale = cache.get('b').catch((e) => e.message);
+    cache.cancelPendingExcept();               // aborts, removes from inflight
+    const fresh = cache.get('b');              // same tick — before the rejection lands
+    expect(calls).toBe(2);                     // a genuinely new fetch
+    expect(await stale).toBe('BRICK_FETCH_ABORTED');
+    expect((await fresh)[0]).toBe(2);          // resolves with the fresh data
+    expect(cache.has('b')).toBe(true);
+  });
 });

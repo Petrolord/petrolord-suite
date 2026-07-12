@@ -46,29 +46,41 @@ export class BrickCache {
 
     this.stats.misses += 1;
     const controller = new AbortController();
-    const promise = this.fetcher(path, controller.signal)
+    // settle handlers only clear THIS entry: an aborted fetch is removed
+    // from `inflight` synchronously in cancelPendingExcept, and a newer
+    // fetch for the same path may already occupy the slot by the time the
+    // old promise settles.
+    const entry = { promise: null, controller };
+    entry.promise = this.fetcher(path, controller.signal)
       .then((buffer) => {
         const data = new Float32Array(buffer);
-        this.inflight.delete(path);
+        if (this.inflight.get(path) === entry) this.inflight.delete(path);
         this.#insert(path, data);
         return data;
       })
       .catch((err) => {
-        this.inflight.delete(path);
+        if (this.inflight.get(path) === entry) this.inflight.delete(path);
         throw err;
       });
-    this.inflight.set(path, { promise, controller });
-    return promise;
+    this.inflight.set(path, entry);
+    return entry.promise;
   }
 
   /**
    * Abort every in-flight fetch whose path is not in `keep` — called when
    * the user scrubs away before the old slice finished loading.
+   *
+   * Aborted entries leave `inflight` IMMEDIATELY: abort() rejects the old
+   * promise on a later microtask, and a new slice request arriving in
+   * that window must start a fresh fetch, not reuse a promise that is
+   * doomed to reject with ABORTED (which callers treat as "user scrubbed
+   * away" and silently drop — the new slice would never render).
    * @param {Set<string>} [keep]
    */
   cancelPendingExcept(keep = new Set()) {
     for (const [path, entry] of this.inflight) {
       if (!keep.has(path)) {
+        this.inflight.delete(path);
         entry.controller.abort();
         this.stats.aborts += 1;
       }
