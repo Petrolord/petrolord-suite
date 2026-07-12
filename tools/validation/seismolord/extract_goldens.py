@@ -67,8 +67,10 @@ def extract_volume(spec: model.VolumeSpec) -> dict:
     with segyio.open(str(path), iline=spec.il_byte, xline=spec.xl_byte) as f:
         ilines = [int(v) for v in f.ilines]
         xlines = [int(v) for v in f.xlines]
-        assert ilines == list(range(spec.il0, spec.il0 + spec.n_il)), ilines
-        assert xlines == list(range(spec.xl0, spec.xl0 + spec.n_xl)), xlines
+        assert ilines == list(range(
+            spec.il0, spec.il0 + spec.n_il * spec.il_step, spec.il_step)), ilines
+        assert xlines == list(range(
+            spec.xl0, spec.xl0 + spec.n_xl * spec.xl_step, spec.xl_step)), xlines
         assert len(f.samples) == spec.ns
         dt_us = int(segyio.tools.dt(f))
         assert dt_us == spec.dt_us, dt_us
@@ -114,8 +116,8 @@ def extract_volume(spec: model.VolumeSpec) -> dict:
         (3, 7), (spec.n_il // 4, spec.n_xl - 2), (spec.n_il - 2, 5),
     ]
     traces = [{
-        'il': spec.il0 + i,
-        'xl': spec.xl0 + j,
+        'il': spec.il0 + i * spec.il_step,
+        'xl': spec.xl0 + j * spec.xl_step,
         'samples': [f32(v) for v in cube[i, j]],
     } for i, j in picks]
 
@@ -139,8 +141,9 @@ def extract_volume(spec: model.VolumeSpec) -> dict:
         'geometry': {
             'n_il': spec.n_il, 'n_xl': spec.n_xl, 'ns': spec.ns,
             'dt_us': spec.dt_us,
-            'ilines': [spec.il0, spec.il0 + spec.n_il - 1],
-            'xlines': [spec.xl0, spec.xl0 + spec.n_xl - 1],
+            'ilines': [spec.il0, spec.il0 + (spec.n_il - 1) * spec.il_step],
+            'xlines': [spec.xl0, spec.xl0 + (spec.n_xl - 1) * spec.xl_step],
+            'il_step': spec.il_step, 'xl_step': spec.xl_step,
             'il_byte': spec.il_byte, 'xl_byte': spec.xl_byte,
             'coord_scalar': spec.coord_scalar,
             'bin_m': spec.bin_m,
@@ -157,8 +160,10 @@ def extract_volume(spec: model.VolumeSpec) -> dict:
         'corner_coords': corners,
         'traces': traces,
         'slices': {
-            'inline': {'il': spec.il0 + mid_il, **array_blob(cube[mid_il])},
-            'xline': {'xl': spec.xl0 + mid_xl, **array_blob(cube[:, mid_xl])},
+            'inline': {'il': spec.il0 + mid_il * spec.il_step,
+                       **array_blob(cube[mid_il])},
+            'xline': {'xl': spec.xl0 + mid_xl * spec.xl_step,
+                      **array_blob(cube[:, mid_xl])},
             'time': {'sample_index': mid_t, **array_blob(cube[:, :, mid_t])},
         },
         'stats': stats,

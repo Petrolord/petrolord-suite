@@ -40,21 +40,26 @@ const blobToFloat64 = (blob) => {
   return new Float64Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 8);
 };
 
-const VOLUMES = ['dome_ibm', 'dome_ieee', 'dome_oddbytes', 'dome_rot'];
+// dome_step: il/xl steps 2/3 + azimuth 180 (world coordinates DESCEND as
+// line numbers ascend) — the L6 golden fixture
+const VOLUMES = ['dome_ibm', 'dome_ieee', 'dome_oddbytes', 'dome_rot', 'dome_step'];
 
 /** Fit an affine from a golden's full coordinate grids. */
 function fitFromGolden(golden) {
   const g = golden.geometry;
+  const ilStep = g.il_step || 1;
+  const xlStep = g.xl_step || 1;
   const cx = blobToFloat64(golden.coord_grids.x);
   const cy = blobToFloat64(golden.coord_grids.y);
   const fit = makeAffineFit();
   for (let i = 0; i < g.n_il; i++) {
     for (let j = 0; j < g.n_xl; j++) {
-      affineFitAdd(fit, g.ilines[0] + i, g.xlines[0] + j, cx[i * g.n_xl + j], cy[i * g.n_xl + j]);
+      affineFitAdd(fit, g.ilines[0] + i * ilStep, g.xlines[0] + j * xlStep,
+        cx[i * g.n_xl + j], cy[i * g.n_xl + j]);
     }
   }
   return solveAffineFit(fit, {
-    ilMin: g.ilines[0], ilStep: 1, xlMin: g.xlines[0], xlStep: 1,
+    ilMin: g.ilines[0], ilStep, xlMin: g.xlines[0], xlStep,
   });
 }
 

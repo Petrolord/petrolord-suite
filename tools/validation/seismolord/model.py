@@ -33,6 +33,8 @@ class VolumeSpec:
     lying_header: bool  # textual header states wrong byte positions on purpose
     azimuth_deg: float = 0.0        # survey rotation: xl-axis bearing CCW from +X
     il_bin_m: float | None = None   # inline-step spacing; None = bin_m (square bins)
+    il_step: int = 1                # inline NUMBER increment between rows
+    xl_step: int = 1                # crossline NUMBER increment between traces
 
 
 # Crossline numbering deliberately differs from inline numbering (101.. vs 1..)
@@ -71,7 +73,18 @@ DOME_ROT = VolumeSpec(
     lying_header=False, azimuth_deg=30.0, il_bin_m=37.5,
 )
 
-ALL_VOLUMES = (DOME_IBM, DOME_IEEE, DOME_ODDBYTES, DOME_ROT)
+# Steps > 1 (il 2, xl 3) and DESCENDING world coordinates (azimuth 180:
+# both world axes decrease as il/xl numbers increase) — the two survey
+# shapes the hostile-senior review probed in code but no committed golden
+# fixture exercised end-to-end (hardening follow-up L6).
+DOME_STEP = VolumeSpec(
+    name='dome_step', n_il=16, n_xl=16, ns=32, dt_us=4000,
+    il0=10, xl0=200, x0=500000.0, y0=6700000.0, bin_m=25.0,
+    coord_scalar=-100, sample_format=5, il_byte=189, xl_byte=193,
+    lying_header=False, azimuth_deg=180.0, il_step=2, xl_step=3,
+)
+
+ALL_VOLUMES = (DOME_IBM, DOME_IEEE, DOME_ODDBYTES, DOME_ROT, DOME_STEP)
 
 
 def is_rotated(spec: VolumeSpec) -> bool:
