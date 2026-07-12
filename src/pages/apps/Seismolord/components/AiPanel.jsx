@@ -46,7 +46,7 @@ let trackJobSeq = 1000;
  * the LLM key and versioned prompt; every tool executes HERE, in the
  * browser, over the user's own data and credentials.
  */
-export default function AiPanel({ volume, manifest }) {
+export default function AiPanel({ volume, manifest, docked }) {
   const [openPanel, setOpenPanel] = useState(false);
   const [chat, setChat] = useState([]);        // display messages
   const apiMessagesRef = useRef([]);           // OpenAI-format history
@@ -272,24 +272,13 @@ export default function AiPanel({ volume, manifest }) {
     }
   };
 
-  return (
-    <Card className="bg-slate-900/60 border-slate-700">
-      <CardHeader
-        className="flex flex-row items-center justify-between space-y-0 cursor-pointer"
-        onClick={() => setOpenPanel((o) => !o)}
-      >
-        <CardTitle className="text-white flex items-center">
-          <Sparkles className="w-5 h-5 mr-2 text-cyan-400" />
-          Interpretation copilot
-          <span className="ml-3 text-xs font-normal text-slate-500">
-            asks before it acts on your data · tools run in your browser
-          </span>
-        </CardTitle>
-        {openPanel ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-      </CardHeader>
-      {openPanel && (
-        <CardContent className="space-y-3">
-          <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+  // docked mode fills the workspace right dock: the chat takes the free
+  // height and the dock supplies its own header, so no Card/collapse.
+  const chatList = (
+    <div
+      className={`overflow-y-auto space-y-2 pr-1 ${docked
+        ? 'flex-1 min-h-0' : 'max-h-72'}`}
+    >
             {chat.length === 0 && (
               <p className="text-sm text-slate-500">
                 Try: “Summarise the open volume”, “List my horizons”,
@@ -318,19 +307,55 @@ export default function AiPanel({ volume, manifest }) {
               </div>
             )}
           </div>
-          <div className="flex gap-2">
-            <Input
-              value={input}
-              placeholder={volume ? `Ask about ${volume.name}…` : 'Open a volume in the viewer first…'}
-              className="bg-slate-950 border-slate-700 text-slate-200"
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
-              disabled={busy}
-            />
-            <Button onClick={send} disabled={busy || !input.trim()} className="bg-cyan-600 hover:bg-cyan-500 text-white">
-              <Send className="w-4 h-4" />
-            </Button>
-          </div>
+  );
+
+  const inputRow = (
+    <div className="flex gap-2">
+      <Input
+        value={input}
+        placeholder={volume ? `Ask about ${volume.name}…` : 'Open a volume in the viewer first…'}
+        className="bg-slate-950 border-slate-700 text-slate-200"
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+        disabled={busy}
+      />
+      <Button onClick={send} disabled={busy || !input.trim()} className="bg-cyan-600 hover:bg-cyan-500 text-white">
+        <Send className="w-4 h-4" />
+      </Button>
+    </div>
+  );
+
+  if (docked) {
+    return (
+      <div className="h-full min-h-0 flex flex-col gap-3 p-3">
+        <p className="text-[11px] text-slate-500 shrink-0">
+          asks before it acts on your data · tools run in your browser
+        </p>
+        {chatList}
+        {inputRow}
+      </div>
+    );
+  }
+
+  return (
+    <Card className="bg-slate-900/60 border-slate-700">
+      <CardHeader
+        className="flex flex-row items-center justify-between space-y-0 cursor-pointer"
+        onClick={() => setOpenPanel((o) => !o)}
+      >
+        <CardTitle className="text-white flex items-center">
+          <Sparkles className="w-5 h-5 mr-2 text-cyan-400" />
+          Interpretation copilot
+          <span className="ml-3 text-xs font-normal text-slate-500">
+            asks before it acts on your data · tools run in your browser
+          </span>
+        </CardTitle>
+        {openPanel ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+      </CardHeader>
+      {openPanel && (
+        <CardContent className="space-y-3">
+          {chatList}
+          {inputRow}
         </CardContent>
       )}
     </Card>

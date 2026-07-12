@@ -26,7 +26,7 @@ const FORMATS = [
  * horizon, gridding is fault-blocked by default (interpolation never
  * crosses a fault).
  */
-export default function ExportPanel({ volume, manifest }) {
+export default function ExportPanel({ volume, manifest, frameless }) {
   const { toast } = useToast();
   const [horizons, setHorizons] = useState([]);
   const [horizonId, setHorizonId] = useState('');
@@ -178,15 +178,8 @@ export default function ExportPanel({ volume, manifest }) {
     }
   };
 
-  return (
-    <Card className="bg-slate-900/60 border-slate-700">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center">
-          <Grid3X3 className="w-5 h-5 mr-2 text-cyan-400" />
-          Grid &amp; export surface
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  const inner = (
+    <div className="space-y-4">
         {!volume && (
           <p className="text-sm text-slate-400">Select a volume in the viewer first.</p>
         )}
@@ -386,7 +379,19 @@ export default function ExportPanel({ volume, manifest }) {
             </p>
           </>
         )}
-      </CardContent>
+    </div>
+  );
+
+  if (frameless) return inner;
+  return (
+    <Card className="bg-slate-900/60 border-slate-700">
+      <CardHeader>
+        <CardTitle className="text-white flex items-center">
+          <Grid3X3 className="w-5 h-5 mr-2 text-cyan-400" />
+          Grid &amp; export surface
+        </CardTitle>
+      </CardHeader>
+      <CardContent>{inner}</CardContent>
     </Card>
   );
 }

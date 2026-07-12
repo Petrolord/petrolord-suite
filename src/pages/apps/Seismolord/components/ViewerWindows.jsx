@@ -47,8 +47,11 @@ const loadState = (windowKeys, fallbackOpen) => {
  * @param {?{key: string, seq: number}} [p.focus] focus request: each time
  *   `seq` bumps, the window `key` is opened and made the active tab (e.g.
  *   "a traverse was drawn — show its window")
+ * @param {boolean} [p.fill] stretch to the parent's height and give open
+ *   windows the remaining space (workspace center pane); window contents
+ *   should then use height="fill" themselves
  */
-export default function ViewerWindows({ windows, defaultOpen, focus }) {
+export default function ViewerWindows({ windows, defaultOpen, focus, fill }) {
   const keys = useMemo(() => windows.map((w) => w.key), [windows]);
   const [state, setState] = useState(
     () => loadState(keys, defaultOpen || [windows[0]?.key].filter(Boolean)),
@@ -89,9 +92,16 @@ export default function ViewerWindows({ windows, defaultOpen, focus }) {
   const tileClass = layout === 'columns'
     ? 'flex flex-col lg:flex-row gap-4 items-stretch'
     : 'flex flex-col gap-4';
+  const contentClass = layout === 'tabs' ? '' : tileClass;
+  // per-window wrapper when filling: share the space in tiled layouts,
+  // take it all as the active tab
+  const fillItemClass = layout === 'tabs' ? 'h-full min-h-0' : 'flex-1 min-h-0';
 
   return (
-    <div data-testid="viewer-windows">
+    <div
+      data-testid="viewer-windows"
+      className={fill ? 'h-full min-h-0 flex flex-col' : undefined}
+    >
       <div className="flex flex-wrap items-center gap-1 mb-2">
         {openWindows.map((w) => {
           const Icon = w.icon;
@@ -171,7 +181,7 @@ export default function ViewerWindows({ windows, defaultOpen, focus }) {
         </div>
       )}
 
-      <div className={layout === 'tabs' ? '' : tileClass}>
+      <div className={`${contentClass} ${fill ? 'flex-1 min-h-0' : ''}`.trim()}>
         {openWindows.map((w) => {
           const hidden = layout === 'tabs' && active !== w.key;
           return (
@@ -179,7 +189,8 @@ export default function ViewerWindows({ windows, defaultOpen, focus }) {
               key={w.key}
               data-testid={`window-${w.key}`}
               className={hidden ? 'hidden'
-                : layout === 'columns' ? 'flex-1 min-w-0' : ''}
+                : `${layout === 'columns' ? 'flex-1 min-w-0' : ''}
+                   ${fill ? fillItemClass : ''}`.trim()}
             >
               {w.content}
             </div>

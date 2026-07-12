@@ -1,7 +1,50 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-12 (hardening backlog + fault polish + depth
-display + server-side quota + pricing review)
+Last updated: 2026-07-12 (Petrel-style workspace UI)
+
+## Petrel-style workspace UI: DONE
+
+The app is no longer a scrolling page of stacked cards — it renders as a
+full-viewport workstation (familiar to Petrel / DecisionSpace / Kingdom
+users), on branch `feat/seismolord-workspace`:
+
+- **Layout** (`components/workspace/WorkspaceShell.jsx`): tabbed ribbon
+  on top, resizable **Seismic Explorer** tree left (Volumes / Horizons /
+  Faults / Wells / Traverses; eye visibility toggles, context menus:
+  set-active / set-edit-target / export / delete), viewport windows
+  filling the center, collapsible **AI copilot right dock**, status bar
+  bottom (live IL/XL/ms/TVD/amp cursor readout, active volume + line,
+  slice ms, tracking progress, errors, engine connectivity dot). Panel
+  sizes persist (`seismolord.workspace.v1`); dock and explorer collapse
+  through the react-resizable-panels API so the center WebGL subtree is
+  never remounted (verified by e2e: canvas survives dock toggling).
+- **Ribbon** (`workspace/Ribbon.jsx` + `workspace/ribbonTabs/`): Home
+  (volume / line / display), Interpretation (seed & track, snap, edit
+  horizon, surface ops, faults, velocity), Wells (import, show/hide all,
+  calibrate-from-wells), Export, AI. Every pre-workspace control exists
+  in exactly one ribbon group with identical enable/disable logic;
+  active tab persists (`seismolord.ribbon.v1`).
+- **Dialogs** (`workspace/dialogs/`): SEG-Y import (close blocked while
+  an ingest streams), gridding & export, well import, velocity model +
+  well-tie calibration (`VelocityModelEditor`). ImportPanel/ExportPanel
+  gained a `frameless` prop; their Card render is unchanged elsewhere.
+- **Architecture**: ViewerPanel remains the single stateful workspace
+  controller (all hooks/refs untouched — no store migration); the new
+  workspace components are presentational. Wells state moved into
+  `hooks/useWells.js` (WellsPanel page-lift removed); backend ping into
+  `hooks/useBackendStatus.js` (connectivity card → status-bar dot).
+  Overlay colors live in `workspace/interpretationColors.js`.
+- **Viewports**: SliceView/CubeView/MapView `height` accepts `'fill'`
+  (reuses the fullscreen flex branch; numeric default and `/dev/*`
+  harnesses untouched); ViewerWindows gained a `fill` mode. SliceView/
+  MapView gained optional `onCursor` (ref-driven, no re-render/move).
+- **Retired**: VolumesPanel, WellsPanel, HorizonsList, FaultsList (all
+  absorbed by the explorer tree); the page hero header and backend card.
+- **Tests**: all 26 jest suites + 20 Playwright e2e green throughout;
+  new `/dev/seismolord-workspace` harness + `e2e/seismolord-workspace.spec.js`
+  smoke (ribbon/explorer/status bar render, no page scroll, dock toggles
+  without canvas remount). Desktop-targeted: below `min-w-[1100px]` the
+  workspace scrolls rather than reflowing.
 
 ## Hardening backlog ML1–ML5 / L1–L7 + follow-ups: DONE
 

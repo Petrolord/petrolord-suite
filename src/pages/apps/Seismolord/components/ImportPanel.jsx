@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Upload, FileText, AlertTriangle, CheckCircle2, Loader2, XCircle, Play, Ban,
 } from 'lucide-react';
@@ -18,7 +18,14 @@ const PHASE_LABEL = {
   upload: 'Uploading bricks',
 };
 
-export default function ImportPanel({ onIngested }) {
+/**
+ * @param {Object} p
+ * @param {(row: Object) => void} [p.onIngested] fired when a volume lands
+ * @param {(busy: boolean) => void} [p.onBusyChange] true while an ingest
+ *   is running — a hosting dialog uses it to block closing mid-import
+ * @param {boolean} [p.frameless] render without the Card chrome (dialogs)
+ */
+export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
   const { toast } = useToast();
   const fileRef = useRef(null);
   const cancelRef = useRef(null);
@@ -91,15 +98,12 @@ export default function ImportPanel({ onIngested }) {
 
   const scan = scanData?.scan;
 
-  return (
-    <Card className="bg-slate-900/60 border-slate-700">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center">
-          <Upload className="w-5 h-5 mr-2 text-cyan-400" />
-          Import SEG-Y volume
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  useEffect(() => {
+    if (onBusyChange) onBusyChange(phase === 'ingesting');
+  }, [phase, onBusyChange]);
+
+  const inner = (
+    <div className="space-y-4">
         <div>
           <input
             ref={fileRef}
@@ -299,7 +303,19 @@ export default function ImportPanel({ onIngested }) {
             </Button>
           )}
         </div>
-      </CardContent>
+    </div>
+  );
+
+  if (frameless) return inner;
+  return (
+    <Card className="bg-slate-900/60 border-slate-700">
+      <CardHeader>
+        <CardTitle className="text-white flex items-center">
+          <Upload className="w-5 h-5 mr-2 text-cyan-400" />
+          Import SEG-Y volume
+        </CardTitle>
+      </CardHeader>
+      <CardContent>{inner}</CardContent>
     </Card>
   );
 }
