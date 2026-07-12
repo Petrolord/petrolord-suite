@@ -4,7 +4,7 @@
 // layout, always preview). A well without a deviation survey is a
 // vertical well and needs TD instead.
 //
-// Presentation-only: the parent supplies onSave (WellsPanel persists
+// Presentation-only: the parent supplies onSave (useWells persists
 // through wellsService; the dev harness captures the draft locally),
 // so the whole import path is drivable by Playwright without auth.
 

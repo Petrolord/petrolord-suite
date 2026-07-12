@@ -14,7 +14,7 @@ const inputCls = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200
 
 /**
  * @param {Object} p
- * @param {Array} p.wells visible wells (WellsPanel shape: tops, stations…)
+ * @param {Array} p.wells visible wells (useWells `visible` shape: tops, stations…)
  * @param {Array<{id, name}>} p.horizons saved horizon rows
  * @param {?Object} p.velocityModel normalized current model (layer cakes
  *   only once their boundary grids are loaded — velocityForDisplay)
