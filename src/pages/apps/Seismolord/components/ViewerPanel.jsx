@@ -39,12 +39,13 @@ import SliceView from './SliceView';
 import CubeView from './CubeView';
 import MapView from './MapView';
 import ViewerWindows from './ViewerWindows';
-import WellTiePanel from './WellTiePanel';
-import ImportPanel from './ImportPanel';
-import ExportPanel from './ExportPanel';
 import AiPanel from './AiPanel';
-import WellImport from './WellImport';
 import WorkspaceShell from './workspace/WorkspaceShell';
+import VelocityModelEditor from './workspace/VelocityModelEditor';
+import ImportSegyDialog from './workspace/dialogs/ImportSegyDialog';
+import ExportDialog from './workspace/dialogs/ExportDialog';
+import WellImportDialog from './workspace/dialogs/WellImportDialog';
+import VelocityModelDialog from './workspace/dialogs/VelocityModelDialog';
 import SeismicExplorer from './workspace/SeismicExplorer';
 import StatusBar from './workspace/StatusBar';
 import { horizonColor, faultColor } from './workspace/interpretationColors';
@@ -1598,173 +1599,20 @@ export default function ViewerPanel() {
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <Label className="text-slate-400 text-xs">Velocity model</Label>
-                <select
-                  className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
-                  value={velMode}
-                  onChange={(e) => {
-                    const mode = e.target.value;
-                    setVelMode(mode);
-                    if (mode === 'layercake' && velLayers.length === 0) {
-                      setVelLayers([
-                        { baseHorizonId: '', v0: '', k: '' },
-                        { baseHorizonId: '', v0: '', k: '' },
-                      ]);
-                    }
-                  }}
-                >
-                  <option value="linear">Single V(z)</option>
-                  <option value="layercake">Layer cake</option>
-                </select>
-                {velMode === 'linear' && (
-                  <>
-                    <span className="text-xs text-slate-500">V0</span>
-                    <input
-                      type="number"
-                      className="w-24 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
-                      value={velDraft.v0}
-                      onChange={(e) => setVelDraft((d) => ({ ...d, v0: e.target.value }))}
-                      placeholder="e.g. 2000"
-                      min="1"
-                      step="50"
-                    />
-                    <span className="text-xs text-slate-500">m/s · k</span>
-                    <input
-                      type="number"
-                      className="w-20 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
-                      value={velDraft.k}
-                      onChange={(e) => setVelDraft((d) => ({ ...d, k: e.target.value }))}
-                      placeholder="0"
-                      step="0.05"
-                    />
-                    <span className="text-xs text-slate-500">1/s</span>
-                  </>
-                )}
-                <Button
-                  variant="outline" size="sm"
-                  onClick={saveVelocity}
-                  disabled={velBusy}
-                  title={velMode === 'linear'
-                    ? 'Persist V(z) = V0 + k·z on this volume (clear V0 to remove)'
-                    : 'Persist the layer cake on this volume (remove all layers to clear)'}
-                >
-                  {velBusy
-                    ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    : <Save className="w-4 h-4 mr-2" />}
-                  Save to volume
-                </Button>
-                <span className="text-xs text-slate-500">
-                  {velocityModel
-                    ? `${describeVelocity(velocityModel)} — drives depth maps and depth exports`
-                    : 'not set — depth maps and model-based exports unavailable'}
-                </span>
-              </div>
-              {velMode === 'layercake' && (
-                <div className="space-y-1 pl-2 border-l border-slate-800">
-                  {velLayers.map((l, i) => {
-                    const last = i === velLayers.length - 1;
-                    const set = (patch) => setVelLayers((rows) =>
-                      rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-                    return (
-                      // draft rows have no stable identity — index keys are
-                      // fine while the list is small and editable in place
-                      // eslint-disable-next-line react/no-array-index-key
-                      <div key={i} className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-slate-500 w-16">Layer {i + 1}</span>
-                        {last ? (
-                          <span className="text-xs text-slate-500 w-44">below the last horizon</span>
-                        ) : (
-                          <select
-                            className="w-44 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
-                            value={l.baseHorizonId}
-                            onChange={(e) => set({ baseHorizonId: e.target.value })}
-                          >
-                            <option value="">down to horizon…</option>
-                            {horizons.map((h) => (
-                              <option key={h.id} value={h.id}>{h.name}</option>
-                            ))}
-                          </select>
-                        )}
-                        <span className="text-xs text-slate-500">V0</span>
-                        <input
-                          type="number"
-                          className="w-24 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
-                          value={l.v0}
-                          onChange={(e) => set({ v0: e.target.value })}
-                          placeholder="m/s at layer top"
-                          min="1"
-                          step="50"
-                        />
-                        <span className="text-xs text-slate-500">m/s · k</span>
-                        <input
-                          type="number"
-                          className="w-20 rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
-                          value={l.k}
-                          onChange={(e) => set({ k: e.target.value })}
-                          placeholder="0"
-                          step="0.05"
-                        />
-                        <span className="text-xs text-slate-500">1/s</span>
-                        <Button
-                          variant="ghost" size="sm"
-                          className="h-6 px-1.5 text-slate-500 hover:text-red-400"
-                          onClick={() => setVelLayers((rows) => rows.filter((_, j) => j !== i))}
-                          title="Remove this layer"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    );
-                  })}
-                  <Button
-                    variant="outline" size="sm"
-                    onClick={() => setVelLayers((rows) => [
-                      ...rows.slice(0, Math.max(rows.length - 1, 0)),
-                      { baseHorizonId: '', v0: '', k: '' },
-                      ...rows.slice(Math.max(rows.length - 1, 0)),
-                    ])}
-                  >
-                    Add layer
-                  </Button>
-                  <span className="text-xs text-slate-500 ml-2">
-                    layers save sorted by horizon time; where a boundary horizon has no
-                    pick, the layer above extends to the next one
-                  </span>
-                </div>
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline" size="sm"
-                  className={calOpen ? 'border-cyan-500/60 text-cyan-300' : ''}
-                  onClick={() => setCalOpen((v) => !v)}
-                  disabled={!velocityForDisplay || !(wells || []).length || !horizons.length}
-                  title={!velocityForDisplay
-                    ? 'Save a velocity model first — calibration adjusts the current model'
-                    : !(wells || []).length
-                      ? 'Toggle wells with tops visible in the Wells panel first'
-                      : 'Fit the velocity model so converted horizon depths match the well tops'}
-                >
-                  <Ruler className="w-4 h-4 mr-2" />
-                  Calibrate from wells
-                </Button>
-              </div>
-              {calOpen && velocityForDisplay && (
-                <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3">
-                  <WellTiePanel
-                    wells={wells || []}
-                    horizons={horizons}
-                    velocityModel={velocityForDisplay}
-                    boundaries={velBoundaries}
-                    dtUs={manifest.geometry.dt_us}
-                    geom={geom}
-                    affine={surveyAffine(manifest.geometry)}
-                    loadGrid={loadGridById}
-                    onApply={applyCalibratedModel}
-                  />
-                </div>
-              )}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline" size="sm"
+                onClick={() => setOpenDialog('velocity')}
+                title="Edit the volume's velocity model (V(z) or layer cake) and calibrate it from wells"
+              >
+                <Ruler className="w-4 h-4 mr-2" />
+                Velocity model…
+              </Button>
+              <span className="text-xs text-slate-500">
+                {velocityModel
+                  ? `${describeVelocity(velocityModel)} — drives depth maps and depth exports`
+                  : 'not set — depth maps and model-based exports unavailable'}
+              </span>
             </div>
           </>
         )}
@@ -1951,32 +1799,59 @@ export default function ViewerPanel() {
         )}
       />
 
-      {/* Heavyweight workflows live in modal dialogs over the workspace
-          (interim wrappers — the dialogs phase makes the panels frameless). */}
-      <Dialog
+      {/* Heavyweight workflows live in modal dialogs over the workspace. */}
+      <ImportSegyDialog
         open={openDialog === 'import'}
         onOpenChange={(o) => setOpenDialog(o ? 'import' : null)}
-      >
-        <DialogContent
-          className="max-w-3xl max-h-[85vh] overflow-y-auto p-0 border-none bg-transparent shadow-none"
-        >
-          <DialogTitle className="sr-only">Import SEG-Y volume</DialogTitle>
-          <ImportPanel onIngested={() => setVolumesRefresh((k) => k + 1)} />
-        </DialogContent>
-      </Dialog>
+        onIngested={() => setVolumesRefresh((k) => k + 1)}
+      />
 
-      <Dialog
+      <ExportDialog
         open={openDialog === 'export'}
         onOpenChange={(o) => setOpenDialog(o ? 'export' : null)}
-      >
-        <DialogContent
-          className="max-w-3xl max-h-[85vh] overflow-y-auto p-0 border-none bg-transparent shadow-none"
-        >
-          <DialogTitle className="sr-only">Grid &amp; export surface</DialogTitle>
-          <ExportPanel volume={volume} manifest={manifest} />
-        </DialogContent>
-      </Dialog>
+        volume={volume}
+        manifest={manifest}
+      />
 
+      <WellImportDialog
+        open={openDialog === 'wellImport'}
+        onOpenChange={(o) => setOpenDialog(o ? 'wellImport' : null)}
+        onSave={async (draft) => {
+          await wellsApi.save(draft);
+          setOpenDialog(null);
+        }}
+      />
+
+      <VelocityModelDialog
+        open={openDialog === 'velocity'}
+        onOpenChange={(o) => setOpenDialog(o ? 'velocity' : null)}
+      >
+        {manifest && (
+          <VelocityModelEditor
+            velMode={velMode}
+            setVelMode={setVelMode}
+            velDraft={velDraft}
+            setVelDraft={setVelDraft}
+            velLayers={velLayers}
+            setVelLayers={setVelLayers}
+            velBusy={velBusy}
+            saveVelocity={saveVelocity}
+            velocityModel={velocityModel}
+            velocityForDisplay={velocityForDisplay}
+            velBoundaries={velBoundaries}
+            calOpen={calOpen}
+            setCalOpen={setCalOpen}
+            horizons={horizons}
+            wells={wells}
+            manifest={manifest}
+            geom={geom}
+            loadGridById={loadGridById}
+            applyCalibratedModel={applyCalibratedModel}
+          />
+        )}
+      </VelocityModelDialog>
+
+      {/* interim AI dialog — becomes the right dock in the dock phase */}
       <Dialog
         open={openDialog === 'ai'}
         onOpenChange={(o) => setOpenDialog(o ? 'ai' : null)}
@@ -1986,21 +1861,6 @@ export default function ViewerPanel() {
         >
           <DialogTitle className="sr-only">Interpretation copilot</DialogTitle>
           <AiPanel volume={volume} manifest={manifest} />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={openDialog === 'wellImport'}
-        onOpenChange={(o) => setOpenDialog(o ? 'wellImport' : null)}
-      >
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogTitle className="text-white">Import well</DialogTitle>
-          <WellImport
-            onSave={async (draft) => {
-              await wellsApi.save(draft);
-              setOpenDialog(null);
-            }}
-          />
         </DialogContent>
       </Dialog>
     </>
