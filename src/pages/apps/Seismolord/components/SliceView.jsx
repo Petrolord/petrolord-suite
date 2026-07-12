@@ -198,6 +198,9 @@ function SliceView({
     const W = overlay.width;
     const H = overlay.height;
     ctx.clearRect(0, 0, W, H);
+    // no slice = nothing to annotate: overlays drawn over a stale (or
+    // empty) image would place interpretation on the wrong data (ML4)
+    if (!p.slice) return;
     const lw = Math.max(1.5, 1.5 * dpr);
     const { geom: gm, orientation: ori, sliceIndex: idx, overlays: ov } = p;
     const vis = t.visibleRect();
