@@ -10,11 +10,14 @@ export const SEISMIC_BUCKET = 'seismic';
 // Concurrency is governed by the worker's MAX_UNACKED_BRICKS backpressure
 // window (one ack per completed upload), not a separate counter here.
 
-// Phase 6 quota decision: a soft per-user ceiling enforced at ingest,
-// using each volume's recorded storage_bytes. Client-side by design for
-// now (the storage RLS still bounds WHO can write; this bounds HOW MUCH
-// a well-behaved client ingests) — server-side enforcement is the noted
-// escalation path if abuse ever shows up.
+// Per-user storage quota. This client check is the FRIENDLY layer: it
+// fails an ingest up-front with a clear message before any upload work.
+// The AUTHORITATIVE layer is server-side since migration
+// 20260712120000_seismic_storage_quota.sql: the 'seismic' bucket's
+// INSERT policy refuses new objects once the user's bucket footprint
+// reaches the same 20 GiB (updates/deletes stay quota-free so an
+// over-quota user can still save work and free space). Keep the two
+// constants in lockstep.
 export const STORAGE_QUOTA_BYTES = 20 * 1024 ** 3;   // 20 GiB
 
 async function assertQuota(estimateBytes) {

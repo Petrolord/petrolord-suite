@@ -51,15 +51,23 @@ HTTP Range reads (manifest already versioned, so a v2 layout is a clean
 additive change). Signed-URL batching is NOT needed — the owner-path RLS
 lets the client GET bricks directly with its JWT.
 
-## Per-user storage quota (soft, client-enforced at ingest)
+## Per-user storage quota (server-enforced since 2026-07-12)
 
-`STORAGE_QUOTA_BYTES = 20 GiB` in `ingestService.js`. Each volume records
-`survey_meta.storage_bytes` (actual brick-store footprint); a new ingest
-sums existing volumes and refuses if it would exceed the ceiling.
-Resumed ingests skip the check. The storage RLS already bounds WHO can
-write; this bounds HOW MUCH a cooperating client ingests. Server-side
-enforcement (a trigger or an Edge Function on a usage table) is the noted
-escalation if abuse appears.
+`STORAGE_QUOTA_BYTES = 20 GiB` in `ingestService.js` remains the friendly
+client layer: a new ingest sums recorded `survey_meta.storage_bytes` and
+refuses up-front with a clear message; resumed ingests skip the check.
+
+The AUTHORITATIVE layer is migration
+`20260712120000_seismic_storage_quota.sql` (the recorded escalation, now
+done): the `seismic` bucket's INSERT policy gates on
+`seismic_storage_usage_bytes() < seismic_storage_quota_bytes()` — usage
+summed live from `storage.objects` metadata under the caller's own
+folder, no counter table to drift. UPDATE/DELETE stay quota-free so an
+over-quota user can still save manifests/horizons and delete volumes.
+Verified live (rollback-wrapped): under-quota insert allowed and counted;
+after a fake 20 GiB object the next insert fails 42501; nothing persisted.
+If the per-insert sum ever profiles hot, the next escalation is a
+usage-counter table maintained by storage triggers.
 
 ## WebGL context-loss recovery
 

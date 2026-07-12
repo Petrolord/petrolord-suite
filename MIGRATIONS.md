@@ -16,6 +16,7 @@ never hand-type DDL against production.
 | 2026-07-10 | `20260710220000_create_seismic_faults.sql` | Seismolord Phase 4: `seismic_faults` (user RLS, FK cascade; sticks as compact jsonb) | 2026-07-10 | 2026-07-10 (shared project) |
 | 2026-07-10 | `20260710233000_create_seismic_exported_surfaces.sql` | Seismolord Phase 5: cross-app surface handoff registry (user RLS; FKs set-null; provenance jsonb) | 2026-07-10 | 2026-07-10 (shared project) |
 | 2026-07-11 | `20260711220000_create_seismic_wells.sql` | Seismolord wells W1: `seismic_wells` (user RLS; per-user, volume-independent — no volume FK by design; jsonb deviation/tops/checkshots) | 2026-07-11 | 2026-07-11 (shared project) |
+| 2026-07-12 | `20260712120000_seismic_storage_quota.sql` | Seismolord: server-side 20 GiB per-user quota on the `seismic` bucket (INSERT policy gate + usage/quota functions; updates/deletes quota-free) | 2026-07-12 | 2026-07-12 (shared project) |
 
 Staging and production frontends currently share one Supabase project
 (`ssyckywijlrkgcwvkwlr`), so an applied migration is live in both. The
