@@ -35,6 +35,7 @@ import {
 } from '../viewer/mapContours';
 import { makeDepthConverter, velocityKey, M_PER_FT } from '../engine/velocityModel';
 import { AMP_MODES } from '../engine/horizonAmplitude';
+import { faultTraces } from '../engine/faultBarriers';
 import { ilxlToWorld, worldToIlxl } from '../engine/surveyGeometry';
 import { NULL_VALUE } from '../engine/manifest';
 
@@ -45,6 +46,7 @@ const DEFAULT_PREFS = {
   contours: true,
   contourLabels: true,
   faults: true,
+  faultTraces: true,
   traverses: true,
   wells: true,
   outline: true,
@@ -292,10 +294,23 @@ function MapView({
   }, [geom, manifest, colormap, lut, effDomain, unit, velocity, velocityBoundaries,
     depthConv, ampMode, ampLayer]);
 
+  // horizon-level fault traces: where each fault's sticks actually cross
+  // the MAPPED horizon (the same crossings gridding rasterizes into
+  // barriers) — not just the sticks' map footprints. Cached per
+  // (faults, active grid) reference; an edit-stroke commit swaps the
+  // grid ref and recomputes once.
+  const faultTraceLayer = useMemo(() => {
+    if (!geom || !active?.grid || !(faults || []).length) return null;
+    const out = faults
+      .map((f) => ({ color: f.color, traces: faultTraces([f], active.grid, geom) }))
+      .filter((e) => e.traces.length);
+    return out.length ? out : null;
+  }, [geom, faults, active]);
+
   propsRef.current = {
     manifest, geom, horizons, faults, prefs, gutter: g, active, vs, spacing,
     northDir, velocity, depthConv, effDomain, traverse, savedTraverses,
-    effAttr, ampLayer, wells,
+    effAttr, ampLayer, wells, faultTraceLayer,
   };
 
   // ---- drawing -----------------------------------------------------------
@@ -405,6 +420,26 @@ function MapView({
           if (pts.length > 1) ctx.stroke();
         }
       }
+    }
+
+    // horizon-level fault traces: heavy solid polylines where the faults
+    // cut the mapped horizon (exactly what gridding treats as barriers)
+    if (p.prefs.faultTraces && p.faultTraceLayer) {
+      for (const f of p.faultTraceLayer) {
+        ctx.strokeStyle = f.color;
+        ctx.lineWidth = 3 * dpr;
+        ctx.lineCap = 'round';
+        for (const trace of f.traces) {
+          ctx.beginPath();
+          trace.forEach((q, i) => {
+            const s = t.worldToScreen(q.j + 0.5, q.i + 0.5);
+            if (i === 0) ctx.moveTo(s.x, s.y);
+            else ctx.lineTo(s.x, s.y);
+          });
+          ctx.stroke();
+        }
+      }
+      ctx.lineCap = 'butt';
     }
 
     if (p.prefs.outline) {
@@ -1144,7 +1179,12 @@ function MapView({
             <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
               checked={prefs.faults} onCheckedChange={() => togglePref('faults')}
             >
-              Fault traces
+              Fault sticks (footprints)
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
+              checked={prefs.faultTraces} onCheckedChange={() => togglePref('faultTraces')}
+            >
+              Fault traces on horizon
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
               checked={prefs.traverses} onCheckedChange={() => togglePref('traverses')}

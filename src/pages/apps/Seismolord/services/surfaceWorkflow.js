@@ -32,13 +32,18 @@ let jobSeq = 0;
  *   crosses a fault, nodes on the fault trace stay null)
  * @param {AbortSignal} [p.signal] cancels the job: the gridding worker is
  *   terminated and the promise rejects with 'Export cancelled'
+ * @param {number} [p.maxExtrapolationM] distance gate: nodes farther than
+ *   this from any control point stay null (in blocked mode this is the
+ *   extrapolation-toward-the-fault bound). 0 / unset = 2 x cell, the
+ *   long-standing default
  * @returns {Promise<{g: Object, spec: Object, gridded: Object,
- *   xyzText: string, faultInfo: {faults: number, traces: number,
+ *   xyzText: string, maxExtrapolationM: number,
+ *   faultInfo: {faults: number, traces: number,
  *   blocks: number}|null}>} faultInfo is null when gridding ran unblocked
  */
 export async function gridHorizonSurface({
   manifest, horizon, domain, velocityFtS = 10000, cellM = 0, faults = null,
-  signal = null,
+  signal = null, maxExtrapolationM = 0,
 }) {
   if (signal?.aborted) throw new Error('Export cancelled');
   const geom = geomFromManifest(manifest);
@@ -106,6 +111,8 @@ export async function gridHorizonSurface({
   }
 
   if (signal?.aborted) throw new Error('Export cancelled');
+  const maxExtra = Number.isFinite(maxExtrapolationM) && maxExtrapolationM > 0
+    ? maxExtrapolationM : 2 * dxy;
   const id = ++jobSeq;
   const worker = newGriddingWorker();
   const onAbort = () => worker.terminate();   // reject below; terminate now
@@ -125,7 +132,7 @@ export async function gridHorizonSurface({
     worker.onerror = (ev) => reject(new Error(ev.message));
     worker.postMessage(
       {
-        type: 'grid', id, points, spec, opts: { maxExtrapolation: 2 * dxy },
+        type: 'grid', id, points, spec, opts: { maxExtrapolation: maxExtra },
         nodeBlocks: nodeBlocks ? nodeBlocks.buffer : undefined,
       },
       nodeBlocks ? [nodeBlocks.buffer] : [],
@@ -141,5 +148,5 @@ export async function gridHorizonSurface({
     x: Array.from({ length: spec.nx }, (_, i) => spec.x0 + i * spec.dx),
     y: Array.from({ length: spec.ny }, (_, i) => spec.y0 + i * spec.dy),
   };
-  return { g, spec, gridded, xyzText: writeXYZ(g), faultInfo };
+  return { g, spec, gridded, xyzText: writeXYZ(g), faultInfo, maxExtrapolationM: maxExtra };
 }
