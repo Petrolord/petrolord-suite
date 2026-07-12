@@ -75,7 +75,14 @@ export async function downloadExportedSurface(row) {
 }
 
 export async function deleteExportedSurface(row) {
-  await supabase.storage.from(SEISMIC_BUCKET).remove([row.storage_path]);
+  // blob first, checked: an ignored storage failure would strand an
+  // unreachable orphan blob once the row is gone (L1)
+  const { error: removeError } = await supabase.storage.from(SEISMIC_BUCKET)
+    .remove([row.storage_path]);
+  if (removeError) {
+    throw new Error(
+      `Could not delete stored surface (${removeError.message}) — nothing was deleted; try again.`);
+  }
   const { error } = await supabase.from('seismic_exported_surfaces')
     .delete().eq('id', row.id);
   if (error) throw new Error(`Could not delete surface: ${error.message}`);

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { buildTestBricks } from './viewer/selfTest';
 import { assembleSlice } from './engine/sliceAssembly';
 import { resampleTraverse, assembleTraverse } from './engine/traverse';
+import { makeDepthConverter } from './engine/velocityModel';
 import SliceView from './components/SliceView';
 
 // Dev-only harness route (/dev/seismolord-sliceview, DEV builds only):
@@ -19,6 +20,9 @@ const DIM = Math.min(320, Math.max(32, Number(q.get('dim')) || 128));
 const WITH_HORIZON = q.get('horizon') !== '0';
 const VIEW_W = Math.min(3000, Math.max(300, Number(q.get('w')) || 760));
 const VIEW_H = Math.min(2000, Math.max(200, Number(q.get('h')) || 420));
+// ?vel=v0[,k] mounts a linear velocity model so the depth-axis /
+// depth-readout path can be driven (e.g. ?vel=2000,0.5)
+const VEL = q.get('vel');
 
 const DISPLAY_CYCLE = [
   { colormap: 'seismic_rwb', gain: 1, polarity: 1, clip: 1.5, traceBalance: false },
@@ -119,6 +123,12 @@ export default function SeismolordSliceViewHarness() {
 
   const display = DISPLAY_CYCLE[displayIdx % DISPLAY_CYCLE.length];
 
+  const depthConv = useMemo(() => {
+    if (!VEL) return null;
+    const [v0, k] = VEL.split(',').map(Number);
+    return makeDepthConverter({ v0, k: k || 0 });
+  }, []);
+
   const stepSlice = useCallback((d) => {
     setSliceIndex((i) => Math.min(DIM - 1, Math.max(0, i + d)));
   }, []);
@@ -185,6 +195,7 @@ export default function SeismolordSliceViewHarness() {
           onPick={setLastPick}
           onStepSlice={orientation === 'traverse' ? undefined : stepSlice}
           height={VIEW_H}
+          depthConv={depthConv}
         />
       </div>
     </div>

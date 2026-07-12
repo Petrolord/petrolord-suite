@@ -79,10 +79,9 @@ function reassembleSlices(golden, bricks, brickSize) {
   const g = golden.geometry;
   const sample = makeSampler(bricks, brickSize);
   const [il0] = g.ilines;
-  const [xl0] = g.xlines;
 
   const inline = new Float32Array(g.n_xl * g.ns);
-  const inlineIdx = golden.slices.inline.il - il0;
+  const inlineIdx = (golden.slices.inline.il - il0) / (g.il_step || 1);
   for (let x = 0; x < g.n_xl; x++) {
     for (let k = 0; k < g.ns; k++) inline[x * g.ns + k] = sample(inlineIdx, x, k);
   }
@@ -92,7 +91,7 @@ function reassembleSlices(golden, bricks, brickSize) {
   for (let i = 0; i < g.n_il; i++) {
     for (let x = 0; x < g.n_xl; x++) time[i * g.n_xl + x] = sample(i, x, kIdx);
   }
-  return { inline, time, xl0, il0 };
+  return { inline, time, il0 };
 }
 
 describe('textual header (display-only, may lie)', () => {
@@ -110,7 +109,7 @@ describe('textual header (display-only, may lie)', () => {
   });
 });
 
-describe.each(['dome_ibm', 'dome_ieee', 'dome_oddbytes'])('scanGeometry %s', (name) => {
+describe.each(['dome_ibm', 'dome_ieee', 'dome_oddbytes', 'dome_step'])('scanGeometry %s', (name) => {
   const golden = loadGolden(name);
 
   test('measured geometry matches segyio', async () => {
@@ -123,8 +122,12 @@ describe.each(['dome_ibm', 'dome_ieee', 'dome_oddbytes'])('scanGeometry %s', (na
     expect(scan.ns).toBe(g.ns);
     expect(scan.dtUs).toBe(g.dt_us);
     expect(scan.totalTraces).toBe(g.n_il * g.n_xl);
-    expect(scan.il).toEqual({ min: g.ilines[0], max: g.ilines[1], step: 1, count: g.n_il });
-    expect(scan.xl).toEqual({ min: g.xlines[0], max: g.xlines[1], step: 1, count: g.n_xl });
+    expect(scan.il).toEqual({
+      min: g.ilines[0], max: g.ilines[1], step: g.il_step || 1, count: g.n_il,
+    });
+    expect(scan.xl).toEqual({
+      min: g.xlines[0], max: g.xlines[1], step: g.xl_step || 1, count: g.n_xl,
+    });
     expect(scan.coordScalar).toBe(g.coord_scalar);
     expect(scan.corners.first).toEqual({
       x: golden.corner_coords.first.x, y: golden.corner_coords.first.y,
@@ -147,6 +150,36 @@ describe('scanGeometry edge behaviour', () => {
     expect(scan.xl.max).toBe(golden.geometry.xlines[1]);
   });
 
+  test('sampled preview measures il/xl steps > 1 exactly (adjacent-pair sampling)', async () => {
+    // L3: strided samples alone feed the step gcd only multiples of the
+    // stride — the preview could overestimate the step. Each strided stop
+    // now also inspects its immediate neighbour, pinning the gcd to the
+    // true step. Steps 2 (il) and 5 (xl); first inline longer than the
+    // contiguous head so il changes only in the strided tail.
+    const nIl = 40;
+    const nXl = 100;
+    const ns = 4;
+    const traceBytes = 240 + ns * 4;
+    const buf = new ArrayBuffer(3600 + nIl * nXl * traceBytes);
+    const view = new DataView(buf);
+    view.setInt16(3200 + 16, 4000, false);
+    view.setInt16(3200 + 20, ns, false);
+    view.setInt16(3200 + 24, 5, false);
+    let t = 0;
+    for (let i = 0; i < nIl; i++) {
+      for (let x = 0; x < nXl; x++) {
+        const off = 3600 + t * traceBytes;
+        view.setInt32(off + 188, 10 + i * 2, false);      // il step 2
+        view.setInt32(off + 192, 100 + x * 5, false);     // xl step 5
+        t += 1;
+      }
+    }
+    const scan = await scanGeometry(bufferReader(buf), {}, { maxTraces: 64 });
+    expect(scan.sampled).toBe(true);
+    expect(scan.il).toEqual({ min: 10, max: 10 + (nIl - 1) * 2, step: 2, count: nIl });
+    expect(scan.xl).toEqual({ min: 100, max: 100 + (nXl - 1) * 5, step: 5, count: nXl });
+  });
+
   test('wrong (default) mapping on the odd-bytes volume warns loudly', async () => {
     const scan = await scanGeometry(readerFor('dome_oddbytes'));
     expect(scan.il.min).toBe(9999);                 // the poison value
@@ -165,7 +198,9 @@ describe('scanGeometry edge behaviour', () => {
   });
 });
 
-describe.each(['dome_ibm', 'dome_ieee', 'dome_oddbytes'])('transcode %s (64^3 bricks)', (name) => {
+// dome_step: il step 2 / xl step 3 with DESCENDING world coordinates —
+// the step>1 golden fixture recorded as hardening follow-up L6
+describe.each(['dome_ibm', 'dome_ieee', 'dome_oddbytes', 'dome_step'])('transcode %s (64^3 bricks)', (name) => {
   const golden = loadGolden(name);
 
   test('brick-reassembled slices are bit-identical to segyio slices', async () => {

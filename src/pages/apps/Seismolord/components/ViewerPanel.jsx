@@ -31,7 +31,7 @@ import {
   snapPick, autotrack2D, smoothHorizon, fillHorizonHoles,
 } from '../engine/horizonTrack';
 import {
-  normalizeVelocity, describeVelocity, velocityToManifest,
+  normalizeVelocity, describeVelocity, velocityToManifest, makeDepthConverter,
 } from '../engine/velocityModel';
 import { NULL_VALUE } from '../engine/manifest';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
@@ -82,6 +82,16 @@ async function accessToken() {
 
 const newHorizonWorker = () =>
   new Worker(new URL('../workers/horizon.worker.js', import.meta.url), { type: 'module' });
+
+/** Horizon grid cache bound (L4): grids are nIl x nXl float32 each — on a
+ *  big survey with many horizons an unbounded map could hold hundreds of
+ *  MB. Insertion-order eviction; an evicted grid just reloads on demand. */
+const GRID_CACHE_MAX = 32;
+const cacheGrid = (map, id, grid) => {
+  map.delete(id);
+  map.set(id, grid);
+  while (map.size > GRID_CACHE_MAX) map.delete(map.keys().next().value);
+};
 
 export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
   const { toast } = useToast();
@@ -171,10 +181,23 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
   // draft fault: array of sticks; each stick = array of {il, xl, s}
   const [draftSticks, setDraftSticks] = useState([]);
 
+  const volumeIdRef = useRef(null);             // selected id for list-refresh checks
+
   useEffect(() => {
     listVolumes()
-      .then((vs) => setVolumes(vs.filter((v) => v.status === 'ready')))
+      .then((vs) => {
+        const ready = vs.filter((v) => v.status === 'ready');
+        setVolumes(ready);
+        // the selected volume was deleted elsewhere (VolumesPanel): clear
+        // the whole viewer instead of letting every brick fetch 404 until
+        // the user happens to reselect (L7)
+        if (volumeIdRef.current && !ready.some((v) => v.id === volumeIdRef.current)) {
+          selectVolume('');
+        }
+      })
       .catch((e) => setError(e.message));
+    // selectVolume intentionally omitted: the '' path only clears state
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
 
   const geom = useMemo(() => (manifest ? geomFromManifest(manifest) : null), [manifest]);
@@ -282,7 +305,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
     const row = horizons.find((h) => h.id === horizonId);
     if (!row) throw new Error('That horizon no longer exists.');
     g = await loadHorizonGrid(row);
-    gridCacheRef.current.set(horizonId, g);
+    cacheGrid(gridCacheRef.current, horizonId, g);
     return g;
   }, [horizons]);
 
@@ -314,7 +337,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
         if (!g) {
           try {
             g = await loadHorizonGrid(row);
-            gridCacheRef.current.set(row.id, g);
+            cacheGrid(gridCacheRef.current, row.id, g);
           } catch {
             g = null;
           }
@@ -333,6 +356,15 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
     if (velocityModel.kind === 'layercake' && !velBoundaries) return null;
     return velocityModel;
   }, [velocityModel, velBoundaries]);
+
+  // depth-conversion for section/3D cursor readouts and the section depth
+  // axis — the same converter family the map's depth domains use (layer
+  // cakes convert per column via the loaded boundary grids)
+  const depthConv = useMemo(() => (velocityForDisplay && manifest
+    ? makeDepthConverter(velocityForDisplay, {
+      dtUs: manifest.geometry.dt_us, boundaries: velBoundaries,
+    })
+    : null), [velocityForDisplay, manifest, velBoundaries]);
 
   // wells in TWT: per-well T(z) (its own checkshots first, else the
   // volume model inverted — plan decision #4, never mixed) + the dense
@@ -411,7 +443,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
           toast({ title: 'Horizon failed to load', description: e.message, variant: 'destructive' });
           return null;
         }
-        gridCacheRef.current.set(h.id, base);
+        cacheGrid(gridCacheRef.current, h.id, base);
       }
       grid = new Float32Array(base);
       setVisibleIds((s) => (s.has(h.id) ? s : new Set([...s, h.id])));
@@ -464,6 +496,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
   const selectVolume = async (id) => {
     const seq = ++selectSeqRef.current;           // supersedes any in-flight select
     const v = volumes.find((x) => x.id === id) || null;
+    volumeIdRef.current = v?.id || null;
     setVolume(v);
     setManifest(null);
     setSlice(null);
@@ -541,7 +574,10 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
       const t0 = performance.now();
       const assembled = await assembleSlice(getBrick, geom, orientation, sliceIndex);
       if (req !== requestRef.current) return;          // stale scrub
-      setSlice({ ...assembled, orientation });         // tag: see SliceView prop
+      // tag orientation AND index: SliceView draws overlays at the
+      // DISPLAYED slice's position, so a scrub can never paint horizon
+      // lines for index N+1 over the image of index N (ML4)
+      setSlice({ ...assembled, orientation, index: sliceIndex });
       setSliceMs(performance.now() - t0);
     } catch (e) {
       if (e.message !== ABORTED && req === requestRef.current) setError(e.message);
@@ -576,7 +612,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
               toast({ title: `Horizon "${h.name}" failed to load`, description: e.message, variant: 'destructive' });
               continue;
             }
-            gridCacheRef.current.set(h.id, grid);
+            cacheGrid(gridCacheRef.current, h.id, grid);
           }
         }
         out.push({
@@ -847,7 +883,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
           params: { mode: snapMode, window: 5, source: 'manual/2d' },
           dtUs: manifest.geometry.dt_us,
         });
-        gridCacheRef.current.set(row.id, s.grid);
+        cacheGrid(gridCacheRef.current, row.id, s.grid);
         setVisibleIds((v) => new Set([...v, row.id]));
         toast({ title: 'Horizon saved', description: `${name}: ${row.stats.tracked} picks.` });
       } else {
@@ -859,7 +895,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
           dtUs: manifest.geometry.dt_us,
           params: { mode: snapMode, edited: true },
         });
-        gridCacheRef.current.set(h.id, s.grid);
+        cacheGrid(gridCacheRef.current, h.id, s.grid);
         toast({ title: 'Horizon updated', description: `${h.name}: ${row.stats.tracked} picks.` });
       }
       await reloadHorizons(volume);
@@ -923,7 +959,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
         params: { ...trackerOpts(), source: 'track3d' },
         dtUs: manifest.geometry.dt_us,
       });
-      gridCacheRef.current.set(row.id, picks);
+      cacheGrid(gridCacheRef.current, row.id, picks);
       setVisibleIds((s) => new Set([...s, row.id]));
       await reloadHorizons(volume);
       toast({ title: 'Horizon tracked', description: `${name}: ${row.stats.tracked} traces.` });
@@ -1649,17 +1685,21 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                 <SliceView
                   // only hand over a slice that matches the current
                   // orientation — an orientation switch must not render the
-                  // old slice under the new axes while the new one assembles
+                  // old slice under the new axes while the new one assembles.
+                  // sliceIndex follows the DISPLAYED slice while a scrub's
+                  // assembly is in flight so overlays and image agree (ML4)
                   slice={manifest && slice && slice.orientation === orientation ? slice : null}
                   geom={geom}
                   manifest={manifest}
                   orientation={orientation}
-                  sliceIndex={sliceIndex}
+                  sliceIndex={manifest && slice && slice.orientation === orientation
+                    ? slice.index : sliceIndex}
                   display={display}
                   overlays={overlays}
                   pickMode={pickMode}
                   ghost={pickMode === 'manual' ? { mode: snapMode, window: snapWindow } : null}
                   loading={loading}
+                  depthConv={depthConv}
                   onPick={handlePick}
                   onPickEnd={commitStroke}
                   onStepSlice={stepSlice}
@@ -1685,6 +1725,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                   horizons={resolvedHorizons}
                   faults={overlays.faults}
                   wells={wellSections}
+                  depthConv={depthConv}
                   onSelectPlane={selectPlane}
                   height={560}
                 />
@@ -1749,6 +1790,7 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
                     pickMode={pickMode === 'manual' || pickMode === 'erase' ? pickMode : null}
                     ghost={pickMode === 'manual' ? { mode: snapMode, window: snapWindow } : null}
                     loading={traverseLoading}
+                    depthConv={depthConv}
                     onPick={handleTraversePick}
                     onPickEnd={commitStroke}
                     height={560}

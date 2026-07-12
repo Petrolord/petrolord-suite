@@ -65,6 +65,11 @@ export function writeXYZ(g) {
  */
 export function writeCPS3(g) {
   const { min, max } = liveMinMax(g.z);
+  if (min > max) {
+    // all-null grid: FSLIMI would print Infinity/-Infinity — an invalid
+    // file no consumer could parse. Fail with a domain message instead.
+    throw new Error('Surface grid has no live nodes — nothing to export as CPS-3.');
+  }
   const header = [
     `FSASCI 0 1 "Computed" 0 ${EXPORT_NULL_STRING}`,
     'FSATTR 0 0',

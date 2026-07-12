@@ -13,7 +13,7 @@ import fs from 'fs';
 import path from 'path';
 
 import {
-  fitTps, gridSurface, convexHull, picksToPoints,
+  fitTps, gridSurface, convexHull, picksToPoints, exportGridSpec,
 } from '@/pages/apps/Seismolord/engine/gridding';
 import {
   writeXYZ, writeCPS3, writeZMAP, grvAcreFt, pyExp,
@@ -244,5 +244,44 @@ describe('ReservoirCalc Pro round-trip', () => {
     expect(Math.min(...zs)).toBeCloseTo(meta.z_min_ft, 3);
     expect(Math.max(...zs)).toBeCloseTo(meta.z_max_ft, 3);
     expect(Math.max(...zs)).toBeLessThan(0);           // negative-down held
+  });
+});
+
+describe('export guards (ML5 / L2 hardening)', () => {
+  const bounds = { x0: 0, y0: 0, x1: 5000, y1: 4000 };
+
+  test('exportGridSpec falls back to the bin on bad cells and honours good ones', () => {
+    expect(exportGridSpec(bounds, 0, 25).dx).toBe(25);
+    expect(exportGridSpec(bounds, NaN, 25).dx).toBe(25);
+    expect(exportGridSpec(bounds, -10, 25).dx).toBe(25);
+    const s = exportGridSpec(bounds, 50, 25);
+    expect(s.dx).toBe(50);
+    expect(s.nx).toBe(101);
+    expect(s.ny).toBe(81);
+  });
+
+  test('exportGridSpec refuses a cell that blows the node ceiling, naming the minimum', () => {
+    // 0.05 m over 5 km x 4 km = 8e9 nodes
+    expect(() => exportGridSpec(bounds, 0.05, 25))
+      .toThrow(/ceiling.*use a cell of ~\d+ m or larger/s);
+    // custom ceiling to keep the test cheap: 100x80 nodes ok, 1000x800 not
+    expect(() => exportGridSpec(bounds, 5, 25, 10000)).toThrow(/ceiling/);
+    expect(exportGridSpec(bounds, 51, 25, 10000).nx).toBe(99);
+  });
+
+  test('writeCPS3 refuses an all-null grid instead of writing Infinity limits', () => {
+    const g = {
+      z: new Float32Array(9).fill(NULL_F32),
+      nx: 3,
+      ny: 3,
+      dx: 25,
+      dy: 25,
+      x: [0, 25, 50],
+      y: [0, 25, 50],
+    };
+    expect(() => writeCPS3(g)).toThrow(/no live nodes/);
+    // one live node makes it valid again
+    g.z[4] = -6000;
+    expect(writeCPS3(g)).toContain('FSLIMI');
   });
 });

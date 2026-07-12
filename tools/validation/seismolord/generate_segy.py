@@ -46,8 +46,8 @@ def textual_header(spec: model.VolumeSpec) -> bytes:
     lines = [
         f'C01 PETROLORD SEISMOLORD VALIDATION VOLUME: {spec.name.upper()}',
         'C02 SYNTHETIC ANALYTIC DOME - DETERMINISTIC, NO NOISE SEED',
-        f'C03 INLINES {spec.il0}-{spec.il0 + spec.n_il - 1} '
-        f'XLINES {spec.xl0}-{spec.xl0 + spec.n_xl - 1} '
+        f'C03 INLINES {spec.il0}-{spec.il0 + (spec.n_il - 1) * spec.il_step} '
+        f'XLINES {spec.xl0}-{spec.xl0 + (spec.n_xl - 1) * spec.xl_step} '
         f'NS {spec.ns} DT {spec.dt_us}US',
         f'C04 SAMPLE FORMAT CODE {spec.sample_format} '
         f'({"IBM FLOAT" if spec.sample_format == 1 else "IEEE FLOAT"})',
@@ -126,8 +126,8 @@ def write_volume(spec: model.VolumeSpec):
         for i in range(spec.n_il):                   # inline-sorted,
             for j in range(spec.n_xl):               # crossline fastest
                 seq += 1
-                il = spec.il0 + i
-                xl = spec.xl0 + j
+                il = spec.il0 + i * spec.il_step
+                xl = spec.xl0 + j * spec.xl_step
                 f.write(trace_header(spec, seq, il, xl, xg[i, j], yg[i, j]))
                 if spec.sample_format == 1:
                     f.write(ieee_to_ibm32(amp[i, j]).tobytes())

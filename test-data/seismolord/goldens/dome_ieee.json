@@ -15,6 +15,8 @@
    101,
    132
   ],
+  "il_step": 1,
+  "xl_step": 1,
   "il_byte": 189,
   "xl_byte": 193,
   "coord_scalar": -100,

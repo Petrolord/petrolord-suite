@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Download, Grid3X3, Loader2, XCircle, Send } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Ban, Download, Grid3X3, Loader2, XCircle, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -40,11 +40,18 @@ export default function ExportPanel({ volume, manifest }) {
   const [error, setError] = useState(null);
   const [faults, setFaults] = useState([]);
   const [faultAware, setFaultAware] = useState(true);
+  const [excludedFaultIds, setExcludedFaultIds] = useState(new Set());
+  const [maxExtra, setMaxExtra] = useState(0);  // m, 0 = 2 x cell (default)
+  const abortRef = useRef(null);               // in-flight grid job
+
+  // never leave a gridding worker running behind an unmounted panel
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   useEffect(() => {
     setHorizons([]);
     setHorizonId('');
     setFaults([]);
+    setExcludedFaultIds(new Set());
     setResult(null);
     setError(null);
     if (volume) {
@@ -70,18 +77,26 @@ export default function ExportPanel({ volume, manifest }) {
     setRunning(true);
     setResult(null);
     setError(null);
+    const ctl = new AbortController();
+    abortRef.current = ctl;
     try {
       if (!affine) throw new Error('Volume has no usable survey coordinates for gridding.');
       // z NEGATIVE downward (playbook export convention); the volume's
-      // velocity model wins over the constant-velocity fallback; faults
-      // that cut the horizon block interpolation across them
-      const { g, spec, gridded, xyzText, faultInfo } = await gridHorizonSurface({
+      // velocity model wins over the constant-velocity fallback; the
+      // INCLUDED faults that cut the horizon block interpolation
+      const usedFaults = faultAware
+        ? faults.filter((f) => !excludedFaultIds.has(f.id)) : [];
+      const {
+        g, spec, gridded, xyzText, faultInfo, maxExtrapolationM,
+      } = await gridHorizonSurface({
         manifest,
         horizon,
         domain,
         velocityFtS: velocity,
         cellM: cell,
-        faults: faultAware && faults.length ? faults : null,
+        faults: usedFaults.length ? usedFaults : null,
+        maxExtrapolationM: maxExtra,
+        signal: ctl.signal,
       });
       const dxy = spec.dx;
       const safeName = horizon.name.replace(/[^\w-]+/g, '_').toLowerCase();
@@ -118,7 +133,10 @@ export default function ExportPanel({ volume, manifest }) {
             fault_aware: Boolean(faultInfo),
             fault_blocks: faultInfo?.blocks ?? null,
             faults_used: faultInfo?.traces ?? null,
-            max_extrapolation_m: 2 * dxy,
+            faults_excluded: faultAware && excludedFaultIds.size
+              ? faults.filter((f) => excludedFaultIds.has(f.id)).map((f) => f.name)
+              : null,
+            max_extrapolation_m: maxExtrapolationM,
             control_points: gridded.controlCount,
             live_nodes: gridded.live,
             z_min: gridded.zMin,
@@ -153,8 +171,9 @@ export default function ExportPanel({ volume, manifest }) {
           : fileName,
       });
     } catch (e) {
-      setError(e.message);
+      if (e.message !== 'Export cancelled') setError(e.message);
     } finally {
+      if (abortRef.current === ctl) abortRef.current = null;
       setRunning(false);
     }
   };
@@ -257,6 +276,16 @@ export default function ExportPanel({ volume, manifest }) {
                 <Send className="w-4 h-4 mr-2" />
                 Send to ReservoirCalc Pro
               </Button>
+              {running && (
+                <Button
+                  variant="outline" size="sm"
+                  onClick={() => abortRef.current?.abort()}
+                  title="Stop the gridding job"
+                >
+                  <Ban className="w-4 h-4 mr-2" />
+                  Cancel
+                </Button>
+              )}
               {faults.length > 0 && (
                 <label
                   className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer select-none"
@@ -272,6 +301,19 @@ export default function ExportPanel({ volume, manifest }) {
                 </label>
               )}
               <div className="flex items-center gap-2">
+                <Label
+                  className="text-slate-300 text-sm"
+                  title="Nodes farther than this from any pick stay null — with fault blocking on, this bounds how far a block extrapolates toward the fault"
+                >
+                  Max extrap. (m, 0=2×cell)
+                </Label>
+                <Input
+                  type="number" value={maxExtra} min="0" step="10"
+                  className="w-24 bg-slate-950 border-slate-700 text-slate-200"
+                  onChange={(e) => setMaxExtra(Number(e.target.value))}
+                />
+              </div>
+              <div className="flex items-center gap-2">
                 <Label className="text-slate-300 text-sm">Contact (ft, optional)</Label>
                 <Input
                   type="number" value={contact} placeholder="-6200" step="10"
@@ -282,6 +324,28 @@ export default function ExportPanel({ volume, manifest }) {
                 <span className="text-xs text-slate-500">for GRV readout</span>
               </div>
             </div>
+
+            {faultAware && faults.length > 1 && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-1 text-sm text-slate-400">
+                <span className="text-xs text-slate-500">Faults included:</span>
+                {faults.map((f) => (
+                  <label key={f.id} className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={!excludedFaultIds.has(f.id)}
+                      onChange={(e) => setExcludedFaultIds((s) => {
+                        const next = new Set(s);
+                        if (e.target.checked) next.delete(f.id);
+                        else next.add(f.id);
+                        return next;
+                      })}
+                      className="accent-cyan-500"
+                    />
+                    {f.name}
+                  </label>
+                ))}
+              </div>
+            )}
 
             {result && (
               <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300 grid grid-cols-2 md:grid-cols-4 gap-y-1">

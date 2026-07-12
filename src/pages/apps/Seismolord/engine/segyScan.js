@@ -152,7 +152,15 @@ export async function scanGeometry(reader, mapping = {}, opts = {}) {
     const stride = (totalTraces - head) / strided;
     const set = new Set();
     for (let i = 0; i < head; i++) set.add(i);
-    for (let i = 0; i < strided; i++) set.add(Math.min(totalTraces - 1, Math.floor(head + i * stride)));
+    for (let i = 0; i < strided; i++) {
+      const idx = Math.min(totalTraces - 1, Math.floor(head + i * stride));
+      // sample ADJACENT PAIRS: diffs between strided samples are all
+      // multiples of the stride, so the gcd could stabilize on a multiple
+      // of the true il/xl step (L3 — sampled-preview step overestimate);
+      // a true neighbour diff at each stop pins the gcd to the real step
+      set.add(idx);
+      set.add(Math.min(totalTraces - 1, idx + 1));
+    }
     set.add(totalTraces - 1);
     indices = [...set].sort((a, b) => a - b);
   }
