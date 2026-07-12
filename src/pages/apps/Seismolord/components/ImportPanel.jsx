@@ -22,6 +22,7 @@ export default function ImportPanel({ onIngested }) {
   const { toast } = useToast();
   const fileRef = useRef(null);
   const cancelRef = useRef(null);
+  const scanSeqRef = useRef(0);      // last-wins guard for mapping-edit scans
 
   const [file, setFile] = useState(null);
   const [mapping, setMapping] = useState({ ilByte: DEFAULT_MAPPING.ilByte, xlByte: DEFAULT_MAPPING.xlByte });
@@ -32,14 +33,20 @@ export default function ImportPanel({ onIngested }) {
   const [error, setError] = useState(null);
 
   const runScan = async (f, m) => {
+    // rapid mapping edits fire overlapping scans; only the LATEST result
+    // may land — a slower earlier scan finishing last must not overwrite
+    // the preview with geometry measured under stale byte positions (ML2)
+    const seq = ++scanSeqRef.current;
     setPhase('scanning');
     setError(null);
     setScanData(null);
     try {
       const data = await scanFile(f, m);
+      if (seq !== scanSeqRef.current) return;
       setScanData(data);
       setPhase('scanned');
     } catch (e) {
+      if (seq !== scanSeqRef.current) return;
       setError(e.message);
       setPhase('error');
     }
