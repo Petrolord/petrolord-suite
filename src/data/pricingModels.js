@@ -52,7 +52,6 @@ export const APP_BASE_PRICE = 99;
 // Special app pricing overrides (A la carte)
 export const SPECIAL_APP_PRICING = {
   'earth-model-pro': 499,
-  'subsurface-studio': 399,
   'well-planning': 299,
   'project-management-pro': 199,
   'basinflow-genesis': 349,

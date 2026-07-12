@@ -14,13 +14,6 @@ export const applicationRoutes = [
     fullscreen: true
   },
   {
-    id: 'subsurface-studio',
-    path: '/dashboard/apps/geoscience/subsurface-studio',
-    name: 'Subsurface Studio',
-    hideSidebar: true,
-    fullscreen: true
-  },
-  {
     id: 'mechanical-earth-model',
     path: '/dashboard/apps/geoscience/mechanical-earth-model',
     name: 'Mechanical Earth Model',

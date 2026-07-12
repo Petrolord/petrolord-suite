@@ -31,7 +31,7 @@ const AuthProviderContent = ({ children }) => {
   ], []);
 
   const allApps = useMemo(() => [
-    'subsurface-studio', 'earth-model-studio', 'basinflow-genesis', 'quickvol', 'well-correlation-panel', 
+    'earth-model-studio', 'basinflow-genesis', 'quickvol', 'well-correlation-panel', 
     'crossplot-generator', 'petrophysics-estimator', 'seismic-interpreter', 'automated-log-digitizer',
     'contour-map-digitizer', 'log-facies-analysis', 'velocity-model-builder', 'fluid-systems-studio',
     'waterflood-dashboard', 'voidage-replacement-monitor', 'fractional-flow-calculator', 'relative-permeability-designer', 'recovery-factor-estimator', 'aquifer-influx-calculator', 'decline-curve-analysis', 'reservoir-balance', 'scenario-planner',
