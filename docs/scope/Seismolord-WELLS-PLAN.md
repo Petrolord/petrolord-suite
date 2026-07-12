@@ -1,4 +1,9 @@
-# Seismolord — Wells Phased Plan (draft for owner review)
+# Seismolord — Wells Phased Plan
+
+STATUS 2026-07-11: **COMPLETE** — approved by the owner and delivered
+the same day as W0 (#44), W1 (#45), W2 (#46), W3 (#47) and W4 (#48);
+per-phase results in `Seismolord-STATUS.md`. The "future scope" section
+at the end remains future scope.
 
 Drafted 2026-07-11. Follows the conventions of `Seismolord-PLAN.md`
 (the plan of record) — its locked architecture decisions apply

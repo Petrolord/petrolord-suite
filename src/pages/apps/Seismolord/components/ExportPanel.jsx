@@ -104,6 +104,12 @@ export default function ExportPanel({ volume, manifest }) {
             cell_m: dxy,
             velocity_model: domain === 'depth' && model ? model : null,
             velocity_ft_s: domain === 'depth' && !model ? velocity : null,
+            // well-tie provenance: which wells calibrated the model that
+            // drove this depth conversion (null = uncalibrated / TWT)
+            velocity_calibration: domain === 'depth' && model
+              ? (manifest.velocity_calibration || null) : null,
+            wells_used: domain === 'depth' && model
+              ? (manifest.velocity_calibration?.wells ?? null) : null,
             // provenance: measured survey orientation vs the legacy
             // axis-aligned corner assumption
             survey_geometry: affine.legacyAxisAligned ? 'corners_axis_aligned' : 'measured_affine',

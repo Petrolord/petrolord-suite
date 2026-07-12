@@ -29,6 +29,10 @@ test('pair → Fit recovers the known cake; Apply hands over the fitted model', 
   await page.getByTestId('welltie-apply').click();
   await expect(page.getByTestId('harness-applied')).toContainText('"v0":1600');
   await expect(page.getByTestId('harness-applied')).toContainText('"v0":2600');
+  // W4: the calibration provenance rides along for wells_used in exports
+  await expect(page.getByTestId('harness-applied'))
+    .toContainText('"wells":["W-A","W-B"]');
+  await expect(page.getByTestId('harness-applied')).toContainText('"source":"well_tie"');
 });
 
 test('pairing only one top fits the sampled layer and reports the unsampled one', async ({ page }) => {

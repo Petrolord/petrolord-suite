@@ -287,9 +287,12 @@ export default function ViewerPanel({ refreshKey, onVolumeChange, wells }) {
   }, [horizons]);
 
   /** Apply a calibrated model (WellTiePanel's explicit Save — the only
-   *  path that rewrites the model outside the editor). */
-  const applyCalibratedModel = async (model) => {
-    const next = await saveManifestVelocity(volume, manifest, model);
+   *  path that rewrites the model outside the editor). The calibration
+   *  provenance persists alongside (manifest.velocity_calibration) so
+   *  depth exports can record wells_used; a manual editor save clears
+   *  it again (saveManifestVelocity's default). */
+  const applyCalibratedModel = async (model, calibration) => {
+    const next = await saveManifestVelocity(volume, manifest, model, calibration);
     setManifest(next);
     if (onVolumeChange) onVolumeChange(volume, next);
     toast({ title: 'Velocity model calibrated', description: describeVelocity(model) });

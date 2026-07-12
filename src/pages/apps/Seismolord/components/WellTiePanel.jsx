@@ -7,7 +7,7 @@
 import React, { useMemo, useState } from 'react';
 import { Loader2, Ruler, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { buildTiePoints, fitWellTie } from '../engine/wellTie';
+import { buildTiePoints, fitWellTie, calibrationProvenance } from '../engine/wellTie';
 import { describeVelocity } from '../engine/velocityModel';
 
 const inputCls = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
@@ -71,7 +71,10 @@ export default function WellTiePanel({
     setApplying(true);
     setError(null);
     try {
-      await onApply(result.manifestModel);
+      await onApply(result.manifestModel, {
+        ...calibrationProvenance(result),
+        fitted_at: new Date().toISOString(),
+      });
       setResult(null);
     } catch (e) {
       setError(e.message);

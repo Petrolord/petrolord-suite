@@ -25,12 +25,19 @@ export async function getManifest(volume) {
 /**
  * Persist the volume's velocity model inside its manifest.json (owner
  * path, storage RLS — no schema change). Pass null to remove the model.
+ *
+ * `calibration` is the well-tie provenance stored alongside as
+ * manifest.velocity_calibration; a manual editor save passes nothing,
+ * which CLEARS it — a hand-typed model is no longer the calibrated one,
+ * and depth exports must not claim wells they didn't use.
  * @returns {Promise<Object>} the merged manifest
  */
-export async function saveManifestVelocity(volume, manifest, velocity) {
+export async function saveManifestVelocity(volume, manifest, velocity, calibration = null) {
   const next = { ...manifest };
   if (velocity) next.velocity = velocity;
   else delete next.velocity;
+  if (velocity && calibration) next.velocity_calibration = calibration;
+  else delete next.velocity_calibration;
   const { error } = await supabase.storage.from(SEISMIC_BUCKET)
     .upload(`${volume.storage_path}/manifest.json`,
       new Blob([JSON.stringify(next)], { type: 'application/json' }),
