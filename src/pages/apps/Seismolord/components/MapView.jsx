@@ -131,7 +131,7 @@ const fmtZ = (v, step) => (step >= 1
 function MapView({
   manifest, geom, horizons, faults, velocity, velocityBoundaries,
   onNavigate, onEraseRegion, traverse, onTraverse, savedTraverses,
-  onAmplitude, wells, height = 560,
+  onAmplitude, wells, height = 560, onCursor = null,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -311,7 +311,7 @@ function MapView({
   propsRef.current = {
     manifest, geom, horizons, faults, prefs, gutter: g, active, vs, spacing,
     northDir, velocity, depthConv, effDomain, traverse, savedTraverses,
-    effAttr, ampLayer, wells, faultTraceLayer,
+    effAttr, ampLayer, wells, faultTraceLayer, onCursor,
   };
 
   // ---- drawing -----------------------------------------------------------
@@ -782,11 +782,19 @@ function MapView({
     if (!vals || !hint) return;
     const p = propsRef.current;
     if (!hit || !hit.inData || !p.manifest) {
+      if (p.onCursor) p.onCursor(null);
       vals.style.display = 'none';
       hint.style.display = '';
       return;
     }
     const geo = p.manifest.geometry;
+    // mirror to the workspace status bar (ref-driven there too)
+    if (p.onCursor) {
+      p.onCursor({
+        il: geo.il.min + hit.ilIdx * geo.il.step,
+        xl: geo.xl.min + hit.xlIdx * geo.xl.step,
+      });
+    }
     let world = '';
     if (p.spacing?.affine) {
       const w = ilxlToWorld(p.spacing.affine, hit.ilIdx, hit.xlIdx);

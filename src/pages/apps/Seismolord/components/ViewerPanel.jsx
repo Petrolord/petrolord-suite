@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X,
+  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
@@ -52,6 +51,7 @@ import WellImportDialog from './workspace/dialogs/WellImportDialog';
 import VelocityModelDialog from './workspace/dialogs/VelocityModelDialog';
 import SeismicExplorer from './workspace/SeismicExplorer';
 import StatusBar from './workspace/StatusBar';
+import RightDock from './workspace/RightDock';
 import { horizonColor, faultColor } from './workspace/interpretationColors';
 import useWells from '../hooks/useWells';
 import useBackendStatus from '../hooks/useBackendStatus';
@@ -106,7 +106,21 @@ export default function ViewerPanel() {
   const [allVolumes, setAllVolumes] = useState([]);  // explorer list (any status)
   const [volumeBusyId, setVolumeBusyId] = useState(null);
   // heavyweight workflows open as modal dialogs over the workspace
-  const [openDialog, setOpenDialog] = useState(null); // null|'import'|'wellImport'|'export'|'ai'
+  const [openDialog, setOpenDialog] = useState(null); // null|'import'|'wellImport'|'export'|'velocity'
+  // AI copilot right dock — the dock panel stays mounted while collapsed
+  // so the chat survives open/close
+  const [dockOpen, setDockOpen] = useState(false);
+
+  // cursor readout → status bar, entirely ref-driven (no re-renders):
+  // the views call handleCursor per pointer move and StatusBar registers
+  // a sink that writes straight into the DOM
+  const statusSinkRef = useRef(null);
+  const handleCursor = useCallback((info) => {
+    if (statusSinkRef.current) statusSinkRef.current(info);
+  }, []);
+  const registerCursorSink = useCallback((sink) => {
+    statusSinkRef.current = sink;
+  }, []);
 
   const [volumes, setVolumes] = useState([]);
   const [volume, setVolume] = useState(null);
@@ -1275,6 +1289,17 @@ export default function ViewerPanel() {
       corner={(
         <span className="text-sm font-bold text-white mr-3 pb-0.5">Seismolord</span>
       )}
+      trailing={(
+        <button
+          type="button"
+          title="Toggle the interpretation copilot dock"
+          onClick={() => setDockOpen((o) => !o)}
+          className={`p-1 rounded ${dockOpen
+            ? 'text-cyan-300 bg-cyan-500/10' : 'text-slate-400 hover:text-slate-200'}`}
+        >
+          <Bot className="w-4 h-4" />
+        </button>
+      )}
       tabs={[
         {
           key: 'home',
@@ -1376,8 +1401,8 @@ export default function ViewerPanel() {
           label: 'AI',
           content: (
             <AiTab
-              copilotOpen={openDialog === 'ai'}
-              toggleCopilot={() => setOpenDialog((d) => (d === 'ai' ? null : 'ai'))}
+              copilotOpen={dockOpen}
+              toggleCopilot={() => setDockOpen((o) => !o)}
             />
           ),
         },
@@ -1390,7 +1415,16 @@ export default function ViewerPanel() {
       <WorkspaceShell
         ribbon={ribbon}
         explorer={<SeismicExplorer tree={tree} actions={treeActions} />}
-        dockOpen={false}
+        dockOpen={dockOpen}
+        onDockOpenChange={setDockOpen}
+        dock={(
+          <RightDock
+            title="Interpretation copilot"
+            onClose={() => setDockOpen(false)}
+          >
+            <AiPanel docked volume={volume} manifest={manifest} />
+          </RightDock>
+        )}
         statusBar={(
           <StatusBar
             volumeName={volume?.name || null}
@@ -1399,6 +1433,7 @@ export default function ViewerPanel() {
             tracking={tracking}
             error={error}
             backend={backend}
+            registerCursorSink={registerCursorSink}
           />
         )}
         center={(
@@ -1434,6 +1469,7 @@ export default function ViewerPanel() {
                   onPick={handlePick}
                   onPickEnd={commitStroke}
                   onStepSlice={stepSlice}
+                  onCursor={handleCursor}
                   height="fill"
                   vexag={vexag}
                   onVexagChange={setVexag}
@@ -1525,6 +1561,7 @@ export default function ViewerPanel() {
                     depthConv={depthConv}
                     onPick={handleTraversePick}
                     onPickEnd={commitStroke}
+                    onCursor={handleCursor}
                     height="fill"
                     vexag={vexag}
                     onVexagChange={setVexag}
@@ -1555,6 +1592,7 @@ export default function ViewerPanel() {
                   savedTraverses={savedTraverses}
                   onAmplitude={extractAmplitude}
                   wells={wells}
+                  onCursor={handleCursor}
                   height="fill"
                 />
               ),
@@ -1617,18 +1655,6 @@ export default function ViewerPanel() {
         )}
       </VelocityModelDialog>
 
-      {/* interim AI dialog — becomes the right dock in the dock phase */}
-      <Dialog
-        open={openDialog === 'ai'}
-        onOpenChange={(o) => setOpenDialog(o ? 'ai' : null)}
-      >
-        <DialogContent
-          className="max-w-2xl max-h-[85vh] overflow-y-auto p-0 border-none bg-transparent shadow-none"
-        >
-          <DialogTitle className="sr-only">Interpretation copilot</DialogTitle>
-          <AiPanel volume={volume} manifest={manifest} />
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

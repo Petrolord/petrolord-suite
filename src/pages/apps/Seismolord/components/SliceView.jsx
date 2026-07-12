@@ -112,7 +112,7 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
 function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
   pickMode, ghost, loading, onPick, onPickEnd, onStepSlice, height = 520,
-  vexag: vexagProp, onVexagChange, emptyHint, depthConv = null,
+  vexag: vexagProp, onVexagChange, emptyHint, depthConv = null, onCursor = null,
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
   const viewportRef = useRef(null);    // the canvas container
@@ -162,7 +162,7 @@ function SliceView({
   // Latest props snapshot so rAF/pointer handlers never see stale closures.
   propsRef.current = {
     slice, geom, manifest, orientation, sliceIndex, display, overlays,
-    pickMode, ghost, prefs, gutter: g, depthConv,
+    pickMode, ghost, prefs, gutter: g, depthConv, onCursor,
   };
 
   // ---- axis metadata per orientation ----------------------------------
@@ -793,8 +793,11 @@ function SliceView({
     };
   }, []);
 
-  /** Ref-driven readout: no React re-render per pointer move. */
+  /** Ref-driven readout: no React re-render per pointer move. The
+   *  optional onCursor prop mirrors the same info to the workspace
+   *  status bar (null on leave), equally without re-rendering. */
   const setCursorReadout = useCallback((info) => {
+    if (propsRef.current.onCursor) propsRef.current.onCursor(info);
     const vals = readoutValsRef.current;
     const hint = readoutHintRef.current;
     if (!vals || !hint) return;
