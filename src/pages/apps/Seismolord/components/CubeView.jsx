@@ -98,7 +98,8 @@ const INK = {
  *   drawn as cube-space polylines with 3D-cross top markers
  * @param {(orientation:string) => void} [p.onSelectPlane]
  * @param {() => void} [p.onRendered] fired after each GL frame (harness)
- * @param {number} [p.height]
+ * @param {number|'fill'} [p.height] viewport CSS height, or 'fill' to
+ *   stretch to the parent container's height
  */
 function CubeView({
   geom, manifest, getBrick, indices, onChangeIndex, display, vexag,
@@ -926,11 +927,15 @@ function CubeView({
 
   const lightBg = prefs.bg === 'light';
 
+  // height === 'fill' stretches the viewport to the parent's height (the
+  // workspace center pane) exactly like the fullscreen branch does.
+  const fillHeight = isFullscreen || height === 'fill';
   return (
     <div
       ref={wrapRef}
       data-testid="cube-view"
-      className={`flex flex-col ${isFullscreen ? 'h-screen bg-slate-950 p-2' : ''}`}
+      className={`flex flex-col ${isFullscreen ? 'h-screen bg-slate-950 p-2'
+        : fillHeight ? 'h-full min-h-0' : ''}`}
     >
       <div className="flex flex-wrap items-center gap-1 mb-1">
         <Button variant="outline" size="sm" title="Zoom in (wheel)"
@@ -1040,8 +1045,8 @@ function CubeView({
         ref={viewportRef}
         className={`relative rounded-lg border overflow-hidden ${lightBg
           ? 'border-slate-300 bg-white' : 'border-slate-800 bg-slate-950'}
-          ${isFullscreen ? 'flex-1' : ''}`}
-        style={isFullscreen ? undefined : { height }}
+          ${fillHeight ? 'flex-1 min-h-0' : ''}`}
+        style={fillHeight ? undefined : { height }}
         onContextMenu={(e) => e.preventDefault()}
       >
         <canvas ref={glCanvasRef} className="w-full h-full block" />

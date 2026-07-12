@@ -103,7 +103,8 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  * @param {(delta:number) => void} p.onStepSlice
  * @param {string} [p.emptyHint] placeholder text when there is no slice
  *   (the Traverse window explains its draw-on-map flow here)
- * @param {number} [p.height] viewport CSS height when not fullscreen
+ * @param {number|'fill'} [p.height] viewport CSS height when not fullscreen,
+ *   or 'fill' to stretch to the parent container's height
  * @param {number} [p.vexag] controlled vertical exaggeration (shared with
  *   the 3D window); omit for the legacy uncontrolled behavior
  * @param {(v:number) => void} [p.onVexagChange]
@@ -994,10 +995,14 @@ function SliceView({
   const togglePref = (key) => setPrefs((p0) => ({ ...p0, [key]: !p0[key] }));
 
   // ---- render ------------------------------------------------------------
+  // height === 'fill' stretches the viewport to the parent's height (the
+  // workspace center pane) exactly like the fullscreen branch does.
+  const fillHeight = isFullscreen || height === 'fill';
   return (
     <div
       ref={wrapRef}
-      className={`flex flex-col ${isFullscreen ? 'h-screen bg-slate-950 p-2' : ''}`}
+      className={`flex flex-col ${isFullscreen ? 'h-screen bg-slate-950 p-2'
+        : fillHeight ? 'h-full min-h-0' : ''}`}
     >
       <div className="flex flex-wrap items-center gap-1 mb-1">
         <Button variant="outline" size="sm" title="Zoom in (+ / wheel)"
@@ -1112,8 +1117,8 @@ function SliceView({
         tabIndex={0}
         onKeyDown={onKeyDown}
         className={`relative rounded-lg border border-slate-800 bg-slate-950 overflow-hidden
-          outline-none focus:border-slate-600 ${isFullscreen ? 'flex-1' : ''}`}
-        style={isFullscreen ? undefined : { height }}
+          outline-none focus:border-slate-600 ${fillHeight ? 'flex-1 min-h-0' : ''}`}
+        style={fillHeight ? undefined : { height }}
       >
         <div
           className="absolute"

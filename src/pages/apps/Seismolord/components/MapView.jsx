@@ -125,7 +125,8 @@ const fmtZ = (v, step) => (step >= 1
  *   volume-independent) — drawn through the survey affine: surface
  *   spot + name label, deviated path polyline + TD marker; hidden when
  *   the volume has no usable coordinates
- * @param {number} [p.height]
+ * @param {number|'fill'} [p.height] viewport CSS height, or 'fill' to
+ *   stretch to the parent container's height
  */
 function MapView({
   manifest, geom, horizons, faults, velocity, velocityBoundaries,
@@ -1042,11 +1043,15 @@ function MapView({
   const hasData = Boolean(geom && manifest);
   const hasLayers = (horizons || []).length > 0 || (faults || []).length > 0;
 
+  // height === 'fill' stretches the viewport to the parent's height (the
+  // workspace center pane) exactly like the fullscreen branch does.
+  const fillHeight = isFullscreen || height === 'fill';
   return (
     <div
       ref={wrapRef}
       data-testid="map-view"
-      className={`flex flex-col ${isFullscreen ? 'h-screen bg-slate-950 p-2' : ''}`}
+      className={`flex flex-col ${isFullscreen ? 'h-screen bg-slate-950 p-2'
+        : fillHeight ? 'h-full min-h-0' : ''}`}
     >
       <div className="flex flex-wrap items-center gap-1 mb-1">
         <Button variant="outline" size="sm" title="Zoom in (wheel)"
@@ -1301,8 +1306,8 @@ function MapView({
       <div
         ref={viewportRef}
         className={`relative rounded-lg border border-slate-800 bg-slate-950 overflow-hidden
-          ${isFullscreen ? 'flex-1' : ''}`}
-        style={isFullscreen ? undefined : { height }}
+          ${fillHeight ? 'flex-1 min-h-0' : ''}`}
+        style={fillHeight ? undefined : { height }}
       >
         <canvas
           ref={canvasRef}
