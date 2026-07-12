@@ -18,6 +18,7 @@ never hand-type DDL against production.
 | 2026-07-11 | `20260711220000_create_seismic_wells.sql` | Seismolord wells W1: `seismic_wells` (user RLS; per-user, volume-independent — no volume FK by design; jsonb deviation/tops/checkshots) | 2026-07-11 | 2026-07-11 (shared project) |
 | 2026-07-12 | `20260712120000_seismic_storage_quota.sql` | Seismolord: server-side 20 GiB per-user quota on the `seismic` bucket (INSERT policy gate + usage/quota functions; updates/deletes quota-free) | 2026-07-12 | 2026-07-12 (shared project) |
 | 2026-07-12 | `20260712200000_archive_geoscience_shell_tiles.sql` | Geoscience G0 (Geoscience-ROADMAP.md): archive 6 shell `master_apps` tiles (well-correlation-tool, log-facies-analysis, petrophysical-integration-suite, earthmodel-studio, earthmodel-pro, routeless material-balance-volumetrics); rows preserved | 2026-07-12 | 2026-07-12 (shared project) |
+| 2026-07-12 | `20260712220000_archive_mem_tile.sql` | MEM decision (MEM-AUDIT.md): archive `1d-mechanical-earth-model` tile until the Drilling-module rebuild ships; row preserved | 2026-07-12 | 2026-07-12 (shared project) |
 
 Staging and production frontends currently share one Supabase project
 (`ssyckywijlrkgcwvkwlr`), so an applied migration is live in both. The

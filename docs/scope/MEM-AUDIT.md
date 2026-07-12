@@ -1,7 +1,10 @@
 # MechanicalEarthModel (1D MEM) — G0 Audit (Geoscience-ROADMAP.md Phase G0)
 
-Audited 2026-07-12. Verdict: **REBUILD on a salvaged core** — and
-**recommended module placement: DRILLING** (owner decision pending).
+Audited 2026-07-12. Verdict: **REBUILD on a salvaged core** under
+**DRILLING** — **owner decision LOCKED 2026-07-12**: rebuild under the
+Drilling module and archive the `1d-mechanical-earth-model` tile until
+the rebuild ships (migration `20260712220000_archive_mem_tile.sql`,
+applied same day).
 
 ## What it is
 
@@ -70,12 +73,10 @@ on the Geoscience roadmap as a later, seismic-velocity-driven capability
 (natural fit: a Seismolord velocity-volume consumer), rather than
 retrofitting this drilling-shaped app into Geoscience.
 
-Pending the owner's decision, note that the Active
-`1d-mechanical-earth-model` tile currently advertises an app whose live
-route computes nothing — consistent with G0's "hub shows only apps that
-work", it should be **archived until the rebuild ships** (in whichever
-module). This archive was NOT executed in G0 because the owner explicitly
-reserved the MEM decision until this audit.
+Executed per the locked decision: the `1d-mechanical-earth-model` tile is
+**Archived** (row preserved) until the Drilling rebuild ships with its
+own tile. The Geoscience hub's built tiles are now exactly Seismolord and
+ReservoirCalc Pro.
 
 ## Rebuild scope sketch (for the eventual per-app plan)
 
