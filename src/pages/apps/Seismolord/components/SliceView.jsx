@@ -25,6 +25,7 @@ import {
 import { SliceRenderer } from '../viewer/SliceRenderer';
 import { snapPick } from '../engine/horizonTrack';
 import { projectStickToTraverse } from '../engine/traverse';
+import { projectWellToSection } from '../engine/wellSection';
 import { ViewTransform, MIN_ZOOM, MAX_ZOOM } from '../viewer/viewTransform';
 import {
   drawAxes, drawScaleBar, drawNorthArrow, drawColorbar,
@@ -84,7 +85,11 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  *          traceBalance:boolean}} p.display clip is ABSOLUTE amplitude
  * @param {{horizons:Array<{grid:Float32Array,color:string}>,
  *          faults:Array<{sticks:Array,color:string}>,
- *          draftSticks:Array, seedPick:?Object}} p.overlays
+ *          draftSticks:Array, seedPick:?Object,
+ *          wells?:Array<{name, color, points:Array, tops:Array}>}}
+ *   p.overlays wells carry wellSection lattice paths: corridor-projected
+ *   polylines + labeled top ticks on sections/traverses, intersection
+ *   markers on time slices
  * @param {?string} p.pickMode null | 'seed' | 'fault' | 'manual' | 'erase'
  *   ('manual'/'erase' are PAINT modes: onPick streams during a drag and
  *   onPickEnd fires when the stroke lifts, so editors can commit an op)
@@ -126,6 +131,7 @@ function SliceView({
   const readoutHintRef = useRef(null); // cursor readout hint span
   const timeMatchesRef = useRef(new WeakMap()); // horizon grid -> time-slice cells
   const stickProjRef = useRef(new WeakMap());   // stick -> traverse projection
+  const wellProjRef = useRef(new WeakMap());    // well points -> traverse projection
   // Adaptive render resolution: backing-store px per CSS px, starting at
   // devicePixelRatio and stepped down (never below 1) when sustained
   // interaction frames run slow. Frame cost is dominated by backing-store
@@ -311,6 +317,75 @@ function SliceView({
     };
     for (const f of ov.faults) drawSticks(f.sticks, f.color, false);
     if (ov.draftSticks.length) drawSticks(ov.draftSticks, '#fbbf24', true);
+
+    // wells: corridor-projected paths (pen-breaking outside ~1.5 cells,
+    // off-survey and out-of-window samples) + labeled top ticks. On
+    // traverses the O(points x columns) projection is cached per
+    // (points, path) like fault sticks; on sections the filter is a
+    // linear pass, same as the sticks' near filter.
+    if (ov.wells && ov.wells.length) {
+      const posn = ori === 'traverse' ? p.slice?.positions : null;
+      ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      for (const w of ov.wells) {
+        if (ori === 'traverse' && !posn) break;
+        ctx.strokeStyle = w.color;
+        ctx.fillStyle = w.color;
+        ctx.lineWidth = Math.max(2, 1.8 * dpr);
+        if (ori === 'time') {
+          const m = Math.max(3, 1.5 * dpr);
+          for (const q of w.points) {
+            if (q.s == null || Math.abs(q.s - idx) > 2) continue;
+            const s = t.worldToScreen(q.xl + 0.5, q.il + 0.5);
+            ctx.fillRect(s.x - m / 2, s.y - m / 2, m, m);
+          }
+          continue;
+        }
+        let proj;
+        if (ori === 'traverse') {
+          let c = wellProjRef.current.get(w.points);
+          if (!c || c.positions !== posn) {
+            c = { positions: posn, proj: projectStickToTraverse(w.points, posn) };
+            wellProjRef.current.set(w.points, c);
+          }
+          proj = c.proj;
+        } else {
+          proj = projectWellToSection(w.points, ori, idx);
+        }
+        if (proj) {
+          ctx.beginPath();
+          let pen = false;
+          for (const q of proj) {
+            if (!q || q.s == null) { pen = false; continue; }
+            const s = t.worldToScreen(q.trace + 0.5, q.s + 0.5);
+            if (pen) ctx.lineTo(s.x, s.y);
+            else { ctx.moveTo(s.x, s.y); pen = true; }
+          }
+          ctx.stroke();
+        }
+        for (const tp of w.tops || []) {
+          const tv = ori === 'traverse'
+            ? projectStickToTraverse([tp], posn)
+            : projectWellToSection([tp], ori, idx);
+          const at = tv && tv[0];
+          if (!at || at.s == null) continue;
+          const s = t.worldToScreen(at.trace + 0.5, at.s + 0.5);
+          const h = 5 * dpr;
+          ctx.beginPath();
+          ctx.moveTo(s.x - h, s.y);
+          ctx.lineTo(s.x + h, s.y);
+          ctx.stroke();
+          ctx.lineWidth = 3 * dpr;
+          ctx.strokeStyle = 'rgba(2, 6, 23, 0.9)';
+          ctx.strokeText(tp.name, s.x + h + 2 * dpr, s.y);
+          ctx.fillText(tp.name, s.x + h + 2 * dpr, s.y);
+          ctx.strokeStyle = w.color;
+          ctx.lineWidth = Math.max(2, 1.8 * dpr);
+        }
+      }
+    }
 
     if (ov.seedPick && ori !== 'time' && ori !== 'traverse') {
       const onSlice = ori === 'inline'

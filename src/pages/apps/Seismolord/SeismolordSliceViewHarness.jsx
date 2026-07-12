@@ -94,11 +94,26 @@ export default function SeismolordSliceViewHarness() {
       xl: Math.round(DIM * (0.1 + 0.6 * f)),
       s: Math.round(DIM * (0.25 + 0.25 * i)),
     }));
+    // one synthetic vertical well ON the traverse dog-leg's middle
+    // vertex (which is also on the default inline slice), with a
+    // labeled top — exercises the W2 well overlay on sections AND
+    // traverses; amber is distinct from the green horizon / orange stick
+    const wellPts = [];
+    for (let s = 4; s <= DIM - 4; s += 2) {
+      wellPts.push({ il: DIM * 0.5, xl: DIM * 0.7, s });
+    }
     return {
       horizons: WITH_HORIZON ? [{ grid, color: '#4ade80' }] : [],
       faults: [{ sticks: [{ points: stick }], color: '#f97316' }],
       draftSticks: [],
       seedPick: null,
+      wells: [{
+        id: 'w1',
+        name: 'W-1',
+        color: '#fbbf24',
+        points: wellPts,
+        tops: [{ name: 'Top A', il: DIM * 0.5, xl: DIM * 0.7, s: DIM * 0.5 }],
+      }],
     };
   }, []);
 

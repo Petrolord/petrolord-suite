@@ -119,6 +119,45 @@ export function faultPolylines(sticks, geom) {
 }
 
 /**
+ * Well lattice path -> line-segment soup (GL_LINES, xyz pairs) in
+ * normalized cube space, same texel-centre convention as stickPoint.
+ * Points without a time (s == null: above datum, off-survey, below the
+ * window) break the polyline — consistent with the 2D pen-break rule.
+ *
+ * @param {{il:number, xl:number, s:?number}[]} points
+ * @returns {Float32Array}
+ */
+export function wellPolylines(points, geom) {
+  const out = [];
+  let prev = null;
+  for (const q of points || []) {
+    if (q.s == null) { prev = null; continue; }
+    const p = stickPoint(q, geom);
+    if (prev) out.push(...prev, ...p);
+    prev = p;
+  }
+  return Float32Array.from(out);
+}
+
+/**
+ * Well top markers -> small axis-aligned 3D crosses (GL_LINES soup) at
+ * each top's cube-space position.
+ * @param {{il:number, xl:number, s:number}[]} tops
+ * @returns {Float32Array}
+ */
+export function wellTopMarkers(tops, geom, half = 0.015) {
+  const out = [];
+  for (const t of tops || []) {
+    if (t.s == null) continue;
+    const [x, y, z] = stickPoint(t, geom);
+    out.push(x - half, y, z, x + half, y, z);
+    out.push(x, y - half, z, x, y + half, z);
+    out.push(x, y, z - half, x, y, z + half);
+  }
+  return Float32Array.from(out);
+}
+
+/**
  * Resample a polyline to exactly k points, uniform in arc length.
  * @param {number[][]} pts xyz points (>= 1)
  * @returns {number[][]} k xyz points

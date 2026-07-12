@@ -174,6 +174,40 @@ test('traverse orientation sections along a path; readout and manual picks via p
   expect(faultInk).toBeGreaterThan(20);
 });
 
+test('well overlays draw on sections AND traverses (W2)', async ({ page }) => {
+  const amberInk = () => page.evaluate(() => {
+    const overlayCanvas = Array.from(document.querySelectorAll('canvas'))
+      .find((c) => c.className.includes('touch-none'));
+    const ctx = overlayCanvas.getContext('2d');
+    const d = ctx.getImageData(0, 0, overlayCanvas.width, overlayCanvas.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      // #fbbf24 amber: strong red, high-mid green, low blue — distinct
+      // from the orange stick (g ~115) and the green horizon (r ~74)
+      if (d[i + 3] > 0 && d[i] > 200 && d[i + 1] > 140 && d[i + 1] < 220 && d[i + 2] < 90) n += 1;
+    }
+    return n;
+  });
+
+  await ready(page);
+  // the synthetic well sits exactly on the default inline slice: its
+  // projected path + labeled top tick must put amber ink on the overlay
+  expect(await amberInk()).toBeGreaterThan(50);
+
+  // ...and the traverse dog-leg passes through the well, so the same
+  // corridor rule draws it there too
+  await page.getByTestId('harness-orientation').selectOption('traverse');
+  await expect(page.getByTestId('harness-status'))
+    .toHaveAttribute('data-harness-status', 'ready');
+  expect(await amberInk()).toBeGreaterThan(50);
+
+  // an xline far from the well shows no amber (corridor pen-break)
+  await page.getByTestId('harness-orientation').selectOption('xline');
+  await expect(page.getByTestId('harness-status'))
+    .toHaveAttribute('data-harness-status', 'ready');
+  expect(await amberInk()).toBeLessThan(10);
+});
+
 test('north arrow appears on time slices, arrow keys step slices', async ({ page }) => {
   await ready(page);
   await page.getByTestId('harness-orientation').selectOption('time');
