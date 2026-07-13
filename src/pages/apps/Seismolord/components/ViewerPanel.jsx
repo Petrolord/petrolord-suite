@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot,
+  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot, Waves,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -12,6 +12,7 @@ import {
   saveHorizon, listHorizons, loadHorizonGrid, deleteHorizon, updateHorizon,
 } from '../services/horizonsService';
 import { saveFault, listFaults, deleteFault } from '../services/faultsService';
+import { listLogs, downloadCurve } from '../services/wellsService';
 import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
 import {
   assembleSlice, assembleTrace, bricksForSlice, geomFromManifest, brickKey,
@@ -33,6 +34,7 @@ import {
 import { NULL_VALUE } from '../engine/manifest';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
+import SyntheticsPanel from './SyntheticsPanel';
 import CubeView from './CubeView';
 import MapView from './MapView';
 import ViewerWindows from './ViewerWindows';
@@ -385,12 +387,17 @@ export default function ViewerPanel() {
     })
     : null), [velocityForDisplay, manifest, velBoundaries]);
 
+  // resolved survey affine (well overlays + the synthetics window)
+  const affine = useMemo(
+    () => (manifest ? surveyAffine(manifest.geometry) : null),
+    [manifest],
+  );
+
   // wells in TWT: per-well T(z) (its own checkshots first, else the
   // volume model inverted — plan decision #4, never mixed) + the dense
   // lattice path with tops; wells without either stay map-only
   const wellSections = useMemo(() => {
     if (!wells || !wells.length || !manifest || !geom) return [];
-    const affine = surveyAffine(manifest.geometry);
     if (!affine) return [];
     const dtUs = manifest.geometry.dt_us;
     const maxTwtMs = ((geom.ns - 1) * dtUs) / 1000;
@@ -411,7 +418,46 @@ export default function ViewerPanel() {
       });
     }
     return out;
-  }, [wells, manifest, geom, velocityForDisplay, velBoundaries]);
+  }, [wells, manifest, geom, affine, velocityForDisplay, velBoundaries]);
+
+  // ---- synthetics window (G5) -------------------------------------------
+  // pipeline runs in a dedicated worker (big sonic logs never block the
+  // UI); one persistent worker, job-id-matched replies
+  const synthWorkerRef = useRef(null);
+  const synthJobRef = useRef(0);
+  const synthesize = useCallback((params) => new Promise((resolve, reject) => {
+    if (!synthWorkerRef.current) {
+      synthWorkerRef.current = new Worker(
+        new URL('../workers/synthetics.worker.js', import.meta.url), { type: 'module' },
+      );
+    }
+    const worker = synthWorkerRef.current;
+    const id = ++synthJobRef.current;
+    const onMessage = (e) => {
+      if (!e.data || e.data.id !== id) return;
+      worker.removeEventListener('message', onMessage);
+      if (e.data.type === 'error') reject(new Error(e.data.message));
+      else resolve(e.data.result);
+    };
+    worker.addEventListener('message', onMessage);
+    worker.postMessage({ type: 'synthesize', id, params });
+  }), []);
+  useEffect(() => () => {
+    if (synthWorkerRef.current) synthWorkerRef.current.terminate();
+  }, []);
+
+  // seismic corridor at the well: centre trace ± half crosslines
+  const getSyntheticTraces = useCallback(async (ilIdx, xlIdx, half = 2) => {
+    if (!geom || !volume) throw new Error('Load a seismic volume first.');
+    const traces = [];
+    for (let d = -half; d <= half; d++) {
+      const xl = Math.min(geom.nXl - 1, Math.max(0, xlIdx + d));
+      // eslint-disable-next-line no-await-in-loop
+      traces.push(await assembleTrace(getBrick, geom, ilIdx, xl));
+    }
+    return traces;
+  }, [geom, volume, getBrick]);
+
   const maxIndex = useMemo(() => {
     if (!geom) return 0;
     return orientation === 'inline' ? geom.nIl - 1
@@ -1386,6 +1432,8 @@ export default function ViewerPanel() {
               velocityForDisplay={velocityForDisplay}
               visibleWells={wells}
               horizons={horizons}
+              openSynthetics={() => setWinFocus((f) => ({ key: 'synthetic', seq: (f?.seq || 0) + 1 }))}
+              hasVolume={!!manifest}
             />
           ),
         },
@@ -1571,6 +1619,27 @@ export default function ViewerPanel() {
                   />
                   </div>
                 </div>
+              ),
+            },
+            {
+              key: 'synthetic',
+              title: 'Synthetics',
+              icon: Waves,
+              content: (
+                <SyntheticsPanel
+                  wells={wellsApi.wells}
+                  listLogs={listLogs}
+                  downloadCurve={downloadCurve}
+                  synthesize={synthesize}
+                  getTraces={volume ? getSyntheticTraces : null}
+                  horizons={horizons}
+                  loadGrid={loadGridById}
+                  affine={affine}
+                  geom={geom}
+                  dtUs={manifest ? manifest.geometry.dt_us : null}
+                  velocity={velocityForDisplay}
+                  boundaries={velBoundaries}
+                />
               ),
             },
             {

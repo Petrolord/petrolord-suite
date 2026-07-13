@@ -3,12 +3,13 @@
 // same gating as the old editor's Calibrate button).
 
 import React from 'react';
-import { PlusCircle, Eye, EyeOff, Ruler } from 'lucide-react';
+import { PlusCircle, Eye, EyeOff, Ruler, Waves } from 'lucide-react';
 import { RibbonGroup, RibbonButton } from '../Ribbon';
 
 export default function WellsTab({
   openWellImport, setAllWellsVisible, wellsCount,
   openCalibrate, velocityForDisplay, visibleWells, horizons,
+  openSynthetics, hasVolume,
 }) {
   return (
     <>
@@ -44,6 +45,15 @@ export default function WellsTab({
             : !(visibleWells || []).length
               ? 'Toggle wells with tops visible in the explorer first'
               : 'Fit the velocity model so converted horizon depths match the well tops'}
+        />
+        <RibbonButton
+          icon={Waves}
+          label="Synthetics"
+          onClick={openSynthetics}
+          disabled={!hasVolume}
+          title={hasVolume
+            ? 'Synthetic seismogram from LAS sonic/density logs — the seismic-to-well tie (display-only)'
+            : 'Load a seismic volume first — the synthetic samples onto its time grid'}
         />
       </RibbonGroup>
     </>

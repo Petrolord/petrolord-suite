@@ -145,10 +145,13 @@ ReservoirCalc Pro.
 
 ## Explicitly future scope (not this plan)
 
-LAS log import/display (log tracks beside sections), synthetic
-seismograms / wavelet extraction (true seismic-to-well tie), org-level
-well sharing (blocked on the suite membership-table decision), well
-markers as gridding constraints.
+LAS log import/display (log tracks beside sections), ~~synthetic
+seismograms / wavelet extraction (true seismic-to-well tie)~~ — **DONE
+2026-07-13** (G5 deferred item, `feat/seismolord-synthetics`: Synthetics
+window, `engine/synthetics.js` + oracle goldens; see
+Seismolord-STATUS.md "Synthetics"), org-level well sharing (blocked on
+the suite membership-table decision), well markers as gridding
+constraints.
 
 ## Working conventions
 
