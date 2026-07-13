@@ -33,18 +33,7 @@ const EmergencyAccessModal = ({ isOpen, onClose, organization, superAdminId, onS
       if (!email || !organization?.id) return;
       setSearchLoading(true);
       try {
-          // We search specifically within the organization's users first to verify membership
-          // Or search auth.users/public users table? Assuming public.users linked to org via organization_users
-          // Let's use organization_members view or join
-          const { data, error } = await supabase
-            .from('organization_users')
-            .select('user_id, users(email)')
-            .eq('organization_id', organization.id)
-            .ilike('users.email', email) // Note: filtering on joined column syntax depends on supabase-js version, mostly filtering post-fetch or using inner join filter
-            // Easier: just search user by email, verify membership later or assume input is correct for now
-            // Let's verify user exists at least.
-          
-          // Better approach: Search profiles/users table
+          // Search the users table directly (membership is verified downstream)
           const { data: users, error: userError } = await supabase
             .from('users')
             .select('id, email')

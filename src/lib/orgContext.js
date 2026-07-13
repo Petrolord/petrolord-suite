@@ -1,35 +1,44 @@
 import { supabase } from '@/lib/customSupabaseClient';
 
-// Organization membership is spread across three historical tables:
-//   - organization_users   (legacy table + per-user module/app grants)
-//   - organization_members  (written by the signup flow)
-//   - org_members           (used by some older flows; PK column is org_id)
-// The whole frontend must resolve a user's org through here so that a row in ANY
-// of them counts. Reading a single table makes users provisioned into a
-// different one look org-less (the bug behind "Could not identify your
-// organization"). This mirrors the membership check already done server-side in
-// the generate-quote edge function.
+// Membership consolidation (migration 20260713300000): organization_members
+// is the single canonical membership table. The legacy organization_users /
+// org_members tables were backfilled into it and replaced by read-only
+// compatibility views scheduled for removal, so new code must never query
+// them. All frontend org resolution goes through here; entitlements live in
+// organization_apps / purchased_modules, not on the membership row.
 
 /**
- * Resolve the organization id for a user from any of the three membership
- * tables. Returns the id string, or null if the user belongs to no org.
+ * Resolve the organization id for a user. Returns the id string, or null if
+ * the user belongs to no org.
  */
 export async function resolveUserOrgId(userId) {
   if (!userId) return null;
-  const [ou, om, ogm] = await Promise.all([
-    supabase.from('organization_users').select('organization_id').eq('user_id', userId).maybeSingle(),
-    supabase.from('organization_members').select('organization_id').eq('user_id', userId).maybeSingle(),
-    supabase.from('org_members').select('org_id').eq('user_id', userId).maybeSingle(),
-  ]);
-  return ou.data?.organization_id || om.data?.organization_id || ogm.data?.org_id || null;
+  const { data } = await supabase
+    .from('organization_members')
+    .select('organization_id')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('joined_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return data?.organization_id || null;
 }
 
 /**
- * Convenience wrapper for call sites that previously destructured a single-row
- * `organization_users` query as `orgUser` and read `orgUser.organization_id`.
- * Returns `{ organization_id }` or null so those call sites keep working.
+ * Full membership row for a user: `{ organization_id, role, status }` or null.
+ * Call sites that previously destructured a single-row `organization_users`
+ * query keep working (`organization_id` is present); `role` is the single
+ * canonical role column (legacy user_role no longer exists).
  */
 export async function getUserOrgRow(userId) {
-  const organization_id = await resolveUserOrgId(userId);
-  return organization_id ? { organization_id } : null;
+  if (!userId) return null;
+  const { data } = await supabase
+    .from('organization_members')
+    .select('organization_id, role, status')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('joined_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return data || null;
 }

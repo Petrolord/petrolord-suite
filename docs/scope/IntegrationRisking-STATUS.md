@@ -33,10 +33,12 @@ drafted 2026-07-13**). Roadmap slot: Geoscience-ROADMAP.md Phase G5.
 
 ## Deferred (owner-approved, §7 Q3/Q4)
 
-- **Suite-wide membership consolidation** (pick canonical membership
-  table, backfill, re-grant, drop stragglers, shrink `is_org_member()`):
-  high-risk, touches ~55 EPE/econ RLS policies — its OWN dedicated
-  effort with second-engineer review + full EPE/econ pentest.
+- **Suite-wide membership consolidation** — **DONE 2026-07-13** as its
+  own effort (migration `20260713300000`, see MIGRATIONS.md): canonical
+  table `organization_members`; the live blast radius turned out to be
+  162 policies (public/hse/storage) + ~15 functions, all rewritten onto
+  SECURITY DEFINER helpers; legacy tables dropped behind read-only
+  compat views; 5-probe live pentest green.
 - **Seismolord LAS-driven synthetics** (synthetic seismogram + wavelet
   extraction from G1 sonic/density): a separable Seismolord feature — a
   G5 follow-on.

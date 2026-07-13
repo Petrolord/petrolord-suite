@@ -94,7 +94,7 @@ const SuperAdminConsoleContent = () => {
         const { data } = await supabase.from('organizations').select('*, organization_apps(*)');
         setOrganizations(data || []);
       } else if (activeTab === 'members') {
-        const { data } = await supabase.from('organization_users').select('*, organizations(name), users(email)');
+        const { data } = await supabase.from('organization_members').select('*, organizations(name)');
         setMembers(data || []);
       } else if (activeTab === 'audit') {
         const { data } = await supabase.from('user_activity_logs')

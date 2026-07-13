@@ -42,9 +42,11 @@ const RenewalDashboard = () => {
       // Here we implement Org Admin view primarily.
       
       const { data: orgUser } = await supabase
-        .from('organization_users')
+        .from('organization_members')
         .select('organization_id, role')
         .eq('user_id', user.user.id)
+        .eq('status', 'active')
+        .limit(1)
         .single();
 
       if (!orgUser) return;
