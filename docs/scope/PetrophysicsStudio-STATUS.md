@@ -13,7 +13,7 @@ deploy lesson).
 | G2.0 oracle + goldens | **DONE** | PR #59 — independent stdlib Python oracle, analytic 201-sample type well (exact Archie round-trip anchors), byte-identical goldens, README numeric contract |
 | G2.1 engines | **DONE** | PR #59 — engine/{vsh,porosity,rw,sw,netpay}.js ported from the proven legacy core + hardened; 32 jest tests vs goldens at 1e-12 |
 | G2.2 schema + pentest | **DONE** | migration 20260713220000 **applied live 2026-07-13**; pentest blocks 8–9 executed, 6/6 green |
-| G2.3 workstation core | pending | shell, explorer, parameter panel, multi-track viewer, zone manager, single-well compute pipeline, /dev harness + e2e |
+| G2.3 workstation core | **DONE** | this branch — workstation on the shared shell, canvas TrackViewer (zoom/pan/crosshair, zone bands, tops), draft-and-apply ParameterPanel, ZoneManager w/ live oracle-verified summaries, engine/pipeline.js, /dev/petrophysics-studio harness seeded with the analytic type well; e2e asserts the ORACLE numbers off the UI (SAND A net 18.0 m, SAND B 2.5 m) |
 | G2.4 crossplots + facies + Pickett | pending | white-chartTheme windows, polygon tagging, Pickett fit → params |
 | G2.5 write-back + batch | pending | publish curves (provenance contract) + zones; multi-well batch |
 | G2.6 digitizer + close-out | pending | raster import wizard; delete 5 superseded apps + routes; tile Active + route in one PR |

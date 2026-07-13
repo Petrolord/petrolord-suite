@@ -27,10 +27,14 @@ import {
  * @param {string} [p.autoSaveId] panel-size persistence key — give each
  *   app its own (the default keeps Seismolord's pre-extraction key)
  * @param {number} [p.minWidth] px below which the workspace scrolls
+ * @param {number} [p.dockDefaultSize] initial dock size in % — pass a
+ *   nonzero value when the app wants the dock OPEN on first mount
+ *   (mount-time expand() of a 0-size panel is not reliable; the
+ *   default keeps Seismolord's closed-at-start behaviour)
  */
 export default function WorkspaceShell({
   ribbon, explorer, center, dock, dockOpen, onDockOpenChange, statusBar,
-  autoSaveId = 'seismolord.workspace.v1', minWidth = 1100,
+  autoSaveId = 'seismolord.workspace.v1', minWidth = 1100, dockDefaultSize = 0,
 }) {
   const dockRef = useRef(null);
 
@@ -61,7 +65,7 @@ export default function WorkspaceShell({
             {explorer}
           </ResizablePanel>
           <ResizableHandle className="w-1 bg-slate-800/80 hover:bg-cyan-700/60 transition-colors" />
-          <ResizablePanel id="center" order={2} defaultSize={82} minSize={30} className="min-w-0">
+          <ResizablePanel id="center" order={2} defaultSize={82 - dockDefaultSize} minSize={30} className="min-w-0">
             {center}
           </ResizablePanel>
           <ResizableHandle
@@ -72,7 +76,7 @@ export default function WorkspaceShell({
           <ResizablePanel
             ref={dockRef}
             id="dock" order={3}
-            defaultSize={0} minSize={14} maxSize={40}
+            defaultSize={dockDefaultSize} minSize={14} maxSize={40}
             collapsible collapsedSize={0}
             onCollapse={() => onDockOpenChange && onDockOpenChange(false)}
             onExpand={() => onDockOpenChange && onDockOpenChange(true)}
