@@ -2,8 +2,14 @@
 
 Plan of record: docs/scope/WellCorrelation-PLAN.md (**approved as
 drafted 2026-07-13**, all four §7 questions confirmed). Roadmap slot:
-Geoscience-ROADMAP.md Phase G3. Slug `well-correlation` (tile ships at
-G3.3 with the route; legacy `well-correlation-tool` redirects to it).
+Geoscience-ROADMAP.md Phase G3. Slug `well-correlation` — **SHIPPED 2026-07-13, tile Active**. Phase G3
+complete (G3.0–G3.3). Live at
+`/dashboard/apps/geoscience/well-correlation`; the legacy
+`well-correlation-tool` route redirects to it.
+
+Production note: petrolord.com needs a fresh `npm run build` upload —
+until then the new tile home-redirects on prod and the legacy route
+404s there. Staging has everything via HMR.
 
 ## Phase status
 
@@ -12,7 +18,7 @@ G3.3 with the route; legacy `well-correlation-tool` redirects to it).
 | G3.0 section engine + goldens | **DONE** | PR #60 — engine/section.js (datum flattening, correlation lines, zone spans), deterministic 3-well sampleSection, 13 analytic tests, no-oracle rationale documented |
 | G3.1 tops CRUD + section table + pentest | **DONE** | this branch — saveTop/updateTop/deleteTop/propagateTop in wellsRegistry; migration 20260713240000 **applied live**; pentest blocks 10–11 green |
 | G3.2 cross-section workstation | **DONE** | this branch — CrossSection canvas (per-well GR tracks, correlation lines, zone fills, datum flattening, draggable top handles), map + list section-path picker, datum/tops/zone/propagate controls, /dev/well-correlation harness on the 3-well section; 20 jest + e2e (order 3, drag Top Dome, flatten, propagate) |
-| G3.3 cross-app + close-out | pending | Seismolord cross-visibility smoke; delete ~65-file orphaned cluster + provider; app page + route + Active tile; redirect alias |
+| G3.3 cross-app + close-out | **DONE** | this branch — cross-app smoke (a correlation top is returned by Seismolord's exact embed); 76-file orphaned cluster + WellCorrelationProvider deleted; app page + route; tile Active (migration 20260713250000, **applied live**); legacy slug redirects |
 
 ## Key facts
 

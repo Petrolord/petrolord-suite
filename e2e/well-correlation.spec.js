@@ -57,3 +57,12 @@ test('order 3 wells, flatten on Top Dome, drag + propagate tops', async ({ page 
   await page.getByTestId('corr-remove-KETA-3').click();
   await expect(page.getByTestId('corr-order-count')).toHaveText('2');
 });
+
+test('well-correlation app route loads its chunk and gates on auth', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/dashboard/apps/geoscience/well-correlation');
+  await page.waitForLoadState('networkidle');
+  expect(errors).toEqual([]);
+  expect(page.url()).not.toContain('well-correlation'); // redirected by the auth gate
+});

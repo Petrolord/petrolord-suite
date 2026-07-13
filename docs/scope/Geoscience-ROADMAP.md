@@ -49,7 +49,7 @@ rows and entitlement FKs), not deleted.
 1. **Seismolord** — geophysics workstation *(exists)*
 2. **Well Data Manager** — shared subsurface well registry *(SHIPPED 2026-07-13 — Phase G1 complete, tile Active)*
 3. **Petrophysics Studio** — one deep log-analysis app *(SHIPPED 2026-07-13 — Phase G2 complete, tile Active; supersedes 5 shallow tiles)*
-4. **Well Correlation** — cross-sections + tops *(rebuild — Phase G3)*
+4. **Well Correlation** — cross-sections + tops *(SHIPPED 2026-07-13 — Phase G3 complete, tile Active)*
 5. **Mapping & Surface Studio** — gridding/contouring/basemaps *(new — Phase G4)*
 6. **ReservoirCalc Pro** — volumetrics + uncertainty + prospect risking *(exists; risking module added in Phase G5)*
 
@@ -167,7 +167,7 @@ time depends on review cadence.
   → Sw/net pay out) within reference tolerance; every engine has jest
   goldens; e2e harness drives the track viewer.
 
-### Phase G3 — Well Correlation *(medium)*
+### Phase G3 — Well Correlation *(medium)* — **COMPLETE 2026-07-13 (G3.0–G3.3; see docs/scope/WellCorrelation-STATUS.md)**
 - Replaces the 98-line shell. Multi-well cross-section along a
   user-picked well path (map picker), tracks per well, datum flattening
   (structural / on a top), tops picking + drag-editing + propagation,
