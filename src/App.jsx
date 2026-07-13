@@ -14,7 +14,6 @@ import AppRoute from '@/components/AppRoute';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import { Toaster } from '@/components/ui/sonner';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { WellCorrelationProvider } from '@/contexts/WellCorrelationContext';
 import { AdminOrgProvider } from '@/contexts/AdminOrganizationContext';
 import ProtectedAppRoute from '@/components/ProtectedAppRoute';
 import { runAccessDiagnostics } from '@/utils/debugAccess';
@@ -57,7 +56,7 @@ const ProbabilisticBreakevenAnalyzer = lazy(() => import('@/pages/apps/Probabili
 const FdpAccelerator = lazy(() => import('@/pages/apps/FDPAccelerator'));
 const ProjectManagementPro = lazy(() => import('@/pages/apps/ProjectManagementPro'));
 const TechnicalReportAutopilot = lazy(() => import('@/pages/apps/TechnicalReportAutopilot'));
-const WellCorrelationPanel = lazy(() => import('@/pages/apps/WellCorrelationPanel'));
+const WellCorrelation = lazy(() => import('@/pages/apps/WellCorrelation/WellCorrelation'));
 const PetrophysicsStudio = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudio'));
 const ContourMapDigitizer = lazy(() => import('@/pages/apps/ContourMapDigitizer'));
 const WellPlanning = lazy(() => import('@/pages/apps/WellPlanning'));
@@ -108,6 +107,7 @@ const SeismolordCubeViewHarness = lazy(() => import('@/pages/apps/Seismolord/Sei
 const SeismolordWorkspaceHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordWorkspaceHarness'));
 const WellDataManagerHarness = lazy(() => import('@/pages/apps/WellDataManager/WellDataManagerHarness'));
 const PetrophysicsStudioHarness = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudioHarness'));
+const WellCorrelationHarness = lazy(() => import('@/pages/apps/WellCorrelation/WellCorrelationHarness'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
 const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/ProductionSurveillanceDashboard'));
@@ -118,7 +118,6 @@ const MechanicalEarthModel = lazy(() => import('@/pages/apps/MechanicalEarthMode
 const ExpertMode = lazy(() => import('@/pages/apps/MechanicalEarthModel/ExpertMode'));
 const Analytics = lazy(() => import('@/pages/apps/MechanicalEarthModel/Analytics'));
 const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
-const WellCorrelationTool = lazy(() => import('@/pages/apps/WellCorrelationTool'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 const CasingWearAnalyzer = lazy(() => import('@/pages/apps/CasingWearAnalyzer/CasingWearAnalyzer'));
 
@@ -255,7 +254,6 @@ function App() {
             <ErrorBoundary>
               <StudioProvider>
                 <ReservoirProvider>
-                  <WellCorrelationProvider>
                     <AdminOrgProvider>
                       <div className={`${isDashboard ? "h-screen overflow-hidden" : "min-h-screen overflow-y-auto"} w-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))]`}>
                           <Suspense fallback={<PageLoader />}>
@@ -416,7 +414,10 @@ function App() {
                                 <Route path="apps/geoscience/hub" element={<ProtectedAppRoute appId="geoscience-hub" appName="Geoscience Hub"><GeoscienceHub /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/quickvol" element={<ProtectedAppRoute appId="quickvol" appName="QuickVol"><ReservoirCalcPro /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/reservoircalc-pro" element={<ProtectedAppRoute appId="reservoircalc-pro" appName="ReservoirCalc Pro"><ReservoirCalcPro /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/well-correlation-tool" element={<ProtectedAppRoute appId="well-correlation-tool" appName="Well Correlation Tool"><WellCorrelationTool /></ProtectedAppRoute>} />
+                                {/* Well Correlation (G3) replaces the mock Well Correlation Tool;
+                                    the legacy slug redirects to the successor (roadmap G0 alias rule). */}
+                                <Route path="apps/geoscience/well-correlation" element={<ProtectedAppRoute appId="well-correlation" appName="Well Correlation"><WellCorrelation /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/well-correlation-tool" element={<Navigate to="/dashboard/apps/geoscience/well-correlation" replace />} />
                                 
                                 {/* Petrophysics Studio (G2) supersedes five shallow tiles;
                                     the old geoscience routes redirect to it so bookmarks
@@ -640,6 +641,7 @@ function App() {
                                   <Route path="/dev/seismolord-workspace" element={<SeismolordWorkspaceHarness />} />
                                   <Route path="/dev/well-data-manager" element={<WellDataManagerHarness />} />
                                   <Route path="/dev/petrophysics-studio" element={<PetrophysicsStudioHarness />} />
+                                  <Route path="/dev/well-correlation" element={<WellCorrelationHarness />} />
                                 </>
                               )}
                               <Route path="*" element={<Navigate to="/" replace />} />
@@ -647,7 +649,6 @@ function App() {
                           </Suspense>
                         </div>
                     </AdminOrgProvider>
-                  </WellCorrelationProvider>
                 </ReservoirProvider>
               </StudioProvider>
             </ErrorBoundary>
