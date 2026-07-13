@@ -194,7 +194,7 @@ time depends on review cadence.
   GRV without touching the filesystem; grid writers stay byte-identical
   to the existing goldens.
 
-### Phase G5 — Integration pass + prospect risking *(small-medium)* — **CORE COMPLETE 2026-07-13 (G5.0–G5.4; membership consolidation + Seismolord synthetics deferred to own efforts; see docs/scope/IntegrationRisking-STATUS.md)**
+### Phase G5 — Integration pass + prospect risking *(small-medium)* — **CORE COMPLETE 2026-07-13 (G5.0–G5.4; membership consolidation deferred to its own effort; see docs/scope/IntegrationRisking-STATUS.md). Seismolord synthetics: DONE 2026-07-13 (no longer deferred — `feat/seismolord-synthetics`)**
 - ReservoirCalc Pro reads surfaces from the G4 registry and wells/net
   pay from G1/G2 directly (file import remains as fallback).
 - Prospect risking module inside ReservoirCalc Pro: Pg decomposition
@@ -203,7 +203,10 @@ time depends on review cadence.
 - Seismolord "future scope" items that now have homes: org sharing of
   interpretations (rides the G1 org model), LAS-driven synthetics
   (needs G1 sonic/density curves → build full synthetic seismogram +
-  wavelet extraction in Seismolord here).
+  wavelet extraction in Seismolord here). **Synthetics DONE 2026-07-13**:
+  oracle goldens + `engine/synthetics.js` + Synthetics window with
+  wavelet extraction and display-only bulk shift — see
+  Seismolord-STATUS.md "Synthetics".
 - **Membership consolidation** (suite-level, §6.1 convergence path) runs
   alongside this phase: pick the canonical membership table, backfill,
   separate grants, drop the stragglers, shrink `is_org_member()` to one

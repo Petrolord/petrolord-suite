@@ -1,6 +1,57 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-12 (Petrel-style workspace UI)
+Last updated: 2026-07-13 (LAS-driven synthetics)
+
+## Synthetics — LAS-driven synthetic seismograms (G5 deferred item): DONE
+
+The "true seismic-to-well tie" from the wells-plan future scope, on
+branch `feat/seismolord-synthetics`:
+
+- **Oracle + goldens** (`tools/validation/seismolord/synthetics/
+  gen_synthetics.py` → `test-data/seismolord/synthetics/`, 5 files +
+  README): (a) analytic Ricker (peak/zero crossings asserted
+  analytically); (b) 3-layer wedge with HAND-CHECKED RCs
+  (1500/9500, 1700/12700) placed in TWT through a known checkshot
+  function; (c) full pipeline — synthetic DT (US/M, with a -999.25 gap
+  AND a 1.0E+30 gap) + RHOB down a deviated path (reuses the validated
+  wells `mincurve.py`), piecewise-linear checkshots mirroring
+  `makeTvdssToTwt` exactly, resample → RC → convolve → validity;
+  (d) statistical wavelet extraction reference (autocorrelation →
+  Hann-tapered/boxcar-smoothed amplitude spectrum → zero-phase wavelet,
+  every step pinned); (e) cross-correlation bulk shift (+8 ms recovered
+  through noise + a null gap). The oracle self-asserts all of its own
+  math before writing goldens.
+- **Engine** (`engine/synthetics.js`, plain JS + JSDoc, no deps):
+  `slownessToVelocity`, `computeImpedance` (gap-aware, median-3 despike
+  option, constant-density fallback), `mdSeriesToTwt` (caller-provided
+  converters — the engine never picks a T(z) source), `resampleToDt`
+  (gap-preserving linear resample onto the seismic grid),
+  `reflectivity`, `rickerWavelet`, `convolveSame` (zero-fill gaps +
+  validity mask, the documented policy), `extractStatisticalWavelet`
+  (own radix-2 FFT), `suggestBulkShift`, `buildSynthetic` orchestrator.
+  Amplitudes float32 end-to-end; gaps are NaN internally (LAS parser
+  convention) with 1.0E+30 / raw LAS sentinels recognized on input.
+- **Worker** (`workers/synthetics.worker.js`): full pipeline off-thread
+  (lasParse.worker protocol); resolves T(z) via `makeTvdssToTwt` and
+  returns its provenance (`timeSource`).
+- **Service**: `services/wellsService.js` now surfaces registry
+  `listLogs`/`downloadCurve` (UI never imports wellsRegistry directly).
+- **UI**: `components/SyntheticsPanel.jsx` (presentation-only,
+  data-testid'd) — sonic-well selector with `guessCurveKind` pre-fill,
+  Ricker 10–60 Hz slider (default 25) / SEG-normal polarity toggle /
+  "Extract from seismic at well", T(z) provenance badge, canvas tracks
+  DT | RHOB | Z | RC | synthetic wiggle+VA | seismic corridor (±2
+  traces via `assembleTrace`) with tops + horizon markers, and a
+  DISPLAY-ONLY bulk shift with cross-correlation "Suggest" (velocity
+  calibration remains W3 `wellTie.js`). New `synthetic` ViewerWindows
+  window + Wells-ribbon "Synthetics" launcher; dev harness
+  `/dev/seismolord-synthetics` (known wedge, seismic delayed +8 ms).
+- **Tests**: `__tests__/synthetics.test.js` (27: all five goldens at
+  ≤1e-5 relative + malformed-input fuzz in the wellImportFuzz style) and
+  `__tests__/syntheticsPanel.test.jsx` (3: RTL drive-through of the
+  harness — pre-fill, provenance, suggest recovers +8 ms). Full
+  Seismolord + WellDataManager run: 32 suites, 492 passed / 1
+  pre-existing skip; `vite build` clean.
 
 ## Petrel-style workspace UI: DONE
 
