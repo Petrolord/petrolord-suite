@@ -3,9 +3,14 @@
 Status: **APPROVED AS DRAFTED — owner sign-off 2026-07-13.** All five
 open questions confirmed: (1) zone publish = `properties` jsonb on
 `geo_wells_zones`; (2) facies polygons app-private in v1; (3) digitizer
-stays as the last build item (G2.6); (4) published acceptance example:
-owner to supply page refs — synthetic type well anchors acceptance
-until then; (5) legacy `saved_petrophysics_projects` /
+stays as the last build item (G2.6); (4) published acceptance example
+— **RESOLVED, owner accepted 2026-07-13**: the deterministic analytic
+type well (test-data/petrophysics/, whose every step is
+hand-derivable and self-asserted at generation) stands as the G2
+acceptance anchor; no separate external worked example is required.
+(Open web sources for a page-referenced textbook case were login-
+gated/bot-blocked on 2026-07-13 and no numbers were guessed — see
+test-data/petrophysics/README.md.) (5) legacy `saved_petrophysics_projects` /
 `log_facies_projects` tables stay (retirement logged for the DB-cleanup
 effort).
 Roadmap slot: Geoscience-ROADMAP.md **Phase G2 — the flagship build**:

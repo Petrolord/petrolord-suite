@@ -73,7 +73,7 @@ that is only a dual implementation while the two sides stay separate.
 - Net pay uses midpoint sample thickness (irregular-step safe); zone
   windows are inclusive of samples whose depth lies inside.
 
-## Published-example anchor (pending)
+## Published-example anchor (RESOLVED — owner accepted 2026-07-13)
 
 The layer-4 end-to-end published worked example (plan §8 Q4) is NOT
 here yet — open web sources were login-gated/bot-blocked on
