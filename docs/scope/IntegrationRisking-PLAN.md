@@ -1,7 +1,13 @@
 # Integration Pass + Prospect Risking — Phase G5 Plan
 
-Status: **DRAFT — awaiting owner sign-off** (open questions in §7,
-including two scope calls only you should make).
+Status: **APPROVED AS DRAFTED — owner sign-off 2026-07-13.** All four
+§7 answers taken as recommended: (1) prospect inventory in a new
+app-private `rcp_prospects` table; (2) report risked-mean + success-
+case P90/P50/P10 separately; (3) the suite-wide membership consolidation
+is DEFERRED to its own dedicated effort (second-engineer review + full
+EPE/econ pentest); (4) the Seismolord LAS-driven synthetics are DEFERRED
+to a G5 follow-on. This build = the prospect-risking + registry-read
+core (the acceptance loop).
 Roadmap slot: Geoscience-ROADMAP.md **Phase G5 — Integration pass +
 prospect risking** *(small-medium)*. This phase closes the core loop:
 after G1–G4 the shared registries exist and are populated; G5 makes
