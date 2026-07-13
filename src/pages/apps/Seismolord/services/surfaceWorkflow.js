@@ -4,11 +4,11 @@
 // return the grid + XYZ text.
 
 import { loadHorizonGrid, listHorizons } from './horizonsService';
-import { picksToPoints, exportGridSpec } from '../engine/gridding';
+import { picksToPoints, exportGridSpec } from '@/lib/gridding/gridding';
 import { buildFaultBlocks } from '../engine/faultBarriers';
 import { surveyAffine, cellSpacing, surveyBounds, worldToIlxl } from '../engine/surveyGeometry';
 import { geomFromManifest } from '../engine/sliceAssembly';
-import { writeXYZ } from '../engine/surfaceExport';
+import { writeXYZ } from '@/lib/gridding/surfaceExport';
 import { normalizeVelocity, sampleToExportZ } from '../engine/velocityModel';
 import { NULL_VALUE } from '../engine/manifest';
 

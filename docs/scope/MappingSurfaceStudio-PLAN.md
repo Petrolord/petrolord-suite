@@ -1,6 +1,12 @@
 # Mapping & Surface Studio — Phase G4 Plan
 
-Status: **DRAFT — awaiting owner sign-off** (open questions in §8).
+Status: **APPROVED AS DRAFTED — owner sign-off 2026-07-13.** All four
+§8 questions confirmed: (1) `geo_surfaces` grids = float32 blobs in a
+private `surfaces` bucket + metadata row; (2) extract the gridding
+engine to `src/lib/gridding/` and re-point Seismolord; (3) delete the
+dead DataExchangeHub / IntegrationContext and drop the live-but-unused
+`shared_data_registry`; (4) surfaces use the org-read / owner-write
+sharing model.
 Roadmap slot: Geoscience-ROADMAP.md **Phase G4 — Mapping & Surface
 Studio** *(medium-large)*. App name **Mapping & Surface Studio**, slug
 `mapping-surface-studio` (locked, roadmap §6.2). Builds on the whole

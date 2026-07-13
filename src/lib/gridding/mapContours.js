@@ -7,8 +7,7 @@
 // index, y = il index; painters add the +0.5 cell-centre offset when
 // projecting, exactly like the slice overlays.
 
-import { NULL_VALUE } from '../engine/manifest';
-import { niceStepUp } from './annotations';
+import { NULL_VALUE, niceStepUp } from './numeric';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
 

@@ -4,7 +4,7 @@
 import {
   contourLevels, contourSegments, contourPolylines, buildMapPixels, gridRange,
   pointInPolygon, cellsInPolygon,
-} from '../viewer/mapContours';
+} from '@/lib/gridding/mapContours';
 import { NULL_VALUE } from '../engine/manifest';
 
 const NULL_F32 = Math.fround(NULL_VALUE);

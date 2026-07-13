@@ -8,7 +8,7 @@
 // surfaceExport.js, not here: this module's grid is z[row * nx + col]
 // with row 0 at the minimum Y (south) — matching the oracle's model.
 
-import { NULL_VALUE } from './manifest';
+import { NULL_VALUE } from './numeric';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
 

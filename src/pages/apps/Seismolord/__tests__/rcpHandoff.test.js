@@ -5,7 +5,7 @@
  * SurfaceParser is what makes it honest — before it, every surface
  * deeper than 9,000 ft silently vanished on import.
  */
-import { writeXYZ } from '@/pages/apps/Seismolord/engine/surfaceExport';
+import { writeXYZ } from '@/lib/gridding/surfaceExport';
 import { NULL_VALUE } from '@/pages/apps/Seismolord/engine/manifest';
 import { SurfaceParser } from '@/pages/apps/ReservoirCalcPro/services/SurfaceParser';
 

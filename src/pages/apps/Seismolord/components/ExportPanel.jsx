@@ -8,7 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { listHorizons } from '../services/horizonsService';
 import { listFaults } from '../services/faultsService';
 import { surveyAffine } from '../engine/surveyGeometry';
-import { writeCPS3, writeZMAP, grvAcreFt } from '../engine/surfaceExport';
+import { writeCPS3, writeZMAP, grvAcreFt } from '@/lib/gridding/surfaceExport';
 import { normalizeVelocity, describeVelocity } from '../engine/velocityModel';
 import { publishSurface } from '../services/exportsService';
 import { gridHorizonSurface } from '../services/surfaceWorkflow';

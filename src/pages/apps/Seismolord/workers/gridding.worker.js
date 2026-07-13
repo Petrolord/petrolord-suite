@@ -10,7 +10,7 @@
 //                    dropped, zMin, zMax, blockCount?, skippedBlocks?}
 //                   {type:'error', id, message}
 
-import { gridSurface, gridSurfaceBlocked } from '../engine/gridding';
+import { gridSurface, gridSurfaceBlocked } from '@/lib/gridding/gridding';
 
 self.onmessage = (e) => {
   const { type, id, points, spec, opts, nodeBlocks } = e.data;

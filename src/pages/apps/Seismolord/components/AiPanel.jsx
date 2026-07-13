@@ -8,7 +8,7 @@ import { listHorizons, saveHorizon } from '../services/horizonsService';
 import { listFaults } from '../services/faultsService';
 import { publishSurface } from '../services/exportsService';
 import { gridHorizonSurface } from '../services/surfaceWorkflow';
-import { grvAcreFt } from '../engine/surfaceExport';
+import { grvAcreFt } from '@/lib/gridding/surfaceExport';
 import { geomFromManifest } from '../engine/sliceAssembly';
 
 const MAX_TOOL_ROUNDS = 6;

@@ -10,7 +10,7 @@
  */
 import {
   gridSurface, gridSurfaceBlocked,
-} from '@/pages/apps/Seismolord/engine/gridding';
+} from '@/lib/gridding/gridding';
 import { NULL_VALUE } from '@/pages/apps/Seismolord/engine/manifest';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
