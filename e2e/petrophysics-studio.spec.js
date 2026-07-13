@@ -145,6 +145,36 @@ test('publish curves + zone, batch run, and project persistence across reload', 
   await expect(page.getByTestId('petro-batch-result-KETA TYPE-1')).toContainText('curves published');
 });
 
+test('digitizer wizard traces a curve from a scanned image and saves it', async ({ page }) => {
+  const IMG = path.join(here, '..', 'test-data', 'petrophysics', 'log_scan.png');
+  // calibration prompts answered in order: 2 depths then 2 values
+  const answers = ['2000', '2100', '0', '100'];
+  page.on('dialog', (d) => d.accept(answers.shift()));
+
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  await page.getByTestId('petro-digitize').click();
+  await page.getByTestId('petro-digitizer-file').setInputFiles(IMG);
+  const canvas = page.getByTestId('petro-digitizer-canvas');
+  await expect(canvas).toBeVisible();
+  const box = await canvas.boundingBox();
+  const at = (fx, fy) => page.mouse.click(box.x + fx * box.width, box.y + fy * box.height);
+
+  // depth axis: two horizontal reference lines
+  await at(0.5, 0.15); await at(0.5, 0.85);
+  // value axis: two vertical reference lines
+  await at(0.2, 0.5); await at(0.8, 0.5);
+  // trace: distinct depths (different y) so the curve has >=2 samples
+  await page.getByTestId('petro-digitizer-mnemonic').fill('PORB');
+  await page.getByTestId('petro-digitizer-step').fill('1');
+  await at(0.4, 0.2); await at(0.5, 0.4); await at(0.45, 0.6); await at(0.6, 0.8);
+
+  await page.getByTestId('petro-digitizer-save').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Digitized PORB added');
+});
+
 test('org-shared well is read-only for zones; invalid zone input errors', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
 

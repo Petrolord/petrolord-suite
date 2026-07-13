@@ -200,6 +200,29 @@ export function makeInMemoryBackend() {
       });
     },
 
+    async saveDigitizedCurve(wellId, log) {
+      ownWell(wellId, 'add digitized curves to this well');
+      const id = nextId('log');
+      curveStore.set(id, log.data);
+      const row = {
+        id,
+        well_id: wellId,
+        mnemonic: log.mnemonic,
+        description: log.description || null,
+        unit: log.unit || null,
+        start_md_m: log.startMdM,
+        stop_md_m: log.stopMdM,
+        step_m: log.stepM,
+        n_samples: log.nSamples,
+        null_count: log.nullCount,
+        source_file: log.provenance?.source_image || null,
+        provenance: log.provenance || {},
+        storage_path: `dev/${wellId}/${id}.f32`,
+      };
+      logsByWell.get(wellId).push(row);
+      return row;
+    },
+
     async publishZone(zone, properties) {
       ownZoneWell(zone.well_id);
       const z = (zonesByWell.get(zone.well_id) || []).find((x) => x.id === zone.id);

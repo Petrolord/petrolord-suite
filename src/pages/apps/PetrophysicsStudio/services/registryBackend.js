@@ -34,6 +34,14 @@ async function publishZone(zone, properties) {
   return updateZone(zone.id, { properties });
 }
 
+/** Persist one digitized curve (engine/digitizer.js payload) as a
+ *  registry log — utility-grade, flagged {digitized:true}. Uses the
+ *  same owner-only saveLogs path as any other curve. */
+async function saveDigitizedCurve(wellId, log) {
+  const [saved] = await saveLogs(wellId, [log]);
+  return saved;
+}
+
 // ---- petro_projects (app-private workspace state) --------------------------
 // v1: one implicit project per user, created on first save.
 
@@ -74,6 +82,7 @@ export function makeRegistryBackend() {
     deleteZone,
     publishCurves,
     publishZone,
+    saveDigitizedCurve,
     loadProject,
     saveProject,
   };

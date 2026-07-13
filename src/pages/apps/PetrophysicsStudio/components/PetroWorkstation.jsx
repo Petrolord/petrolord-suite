@@ -10,7 +10,7 @@
 // ms). Publishing results to the registry is G2.5.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlaskConical, Loader2, UploadCloud, Save, Layers } from 'lucide-react';
+import { FlaskConical, Loader2, UploadCloud, Save, Layers, PenLine } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import WellExplorer from './WellExplorer';
@@ -19,6 +19,7 @@ import ZoneManager from './ZoneManager';
 import TrackViewer from './TrackViewer';
 import CrossplotPanel from './CrossplotPanel';
 import BatchRunDialog from './BatchRunDialog';
+import DigitizerDialog from './DigitizerDialog';
 import {
   computeWell, zoneSummary, DEFAULT_PARAMS,
   preparePublishLogs, zonePropertiesSnapshot,
@@ -66,6 +67,7 @@ export default function PetroWorkstation({ backend }) {
   const [projectId, setProjectId] = useState('project-dev');
   const [publishing, setPublishing] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
+  const [digitizerOpen, setDigitizerOpen] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -235,6 +237,14 @@ export default function PetroWorkstation({ backend }) {
     }
   };
 
+  const saveDigitized = async (log) => {
+    const wellId = wellData.wellId;
+    const name = selected.name;
+    const saved = await backend.saveDigitizedCurve(wellId, log);
+    await select(wellId); // refresh inventory (resets status), then report
+    setStatus(`Digitized ${saved.mnemonic} added to ${name}.`);
+  };
+
   const saveProject = async () => {
     try {
       const project = await backend.saveProject({ params, facies: faciesByWell });
@@ -303,6 +313,17 @@ export default function PetroWorkstation({ backend }) {
         >
           {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
           Publish
+        </button>
+        <button
+          type="button"
+          data-testid="petro-digitize"
+          disabled={!wellData || !selected?.is_own}
+          title={selected && !selected.is_own ? 'Org-shared wells are read-only' : 'Digitize a curve from a scanned log image'}
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          onClick={() => setDigitizerOpen(true)}
+        >
+          <PenLine className="w-3.5 h-3.5" /> Digitize…
         </button>
         <button
           type="button"
@@ -419,6 +440,14 @@ export default function PetroWorkstation({ backend }) {
       wells={wells || []}
       runBatch={runBatchWell}
     />
+    {wellData && (
+      <DigitizerDialog
+        open={digitizerOpen}
+        onOpenChange={setDigitizerOpen}
+        wellName={selected?.name}
+        onSave={saveDigitized}
+      />
+    )}
     </>
   );
 }
