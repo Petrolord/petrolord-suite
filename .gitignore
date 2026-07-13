@@ -47,5 +47,5 @@ patch_*.cjs
 tools/validation/seismolord/.venv/
 test-results/
 playwright-report/
-tools/validation/seismolord/__pycache__/
+__pycache__/
 tools/validation/wells/.venv/
