@@ -19,6 +19,8 @@ import {
   listWellsWithTops,
   replaceTops,
   deleteWell as registryDeleteWell,
+  listLogs as registryListLogs,
+  downloadCurve as registryDownloadCurve,
 } from '@/lib/wellsRegistry';
 
 const legacyTops = (tops) => (tops || []).map((t) => ({ name: t.name, md: t.md_m }));
@@ -50,4 +52,20 @@ export async function listWells() {
 
 export async function deleteWell(well) {
   return registryDeleteWell(well);
+}
+
+// LAS log access for the synthetics window (G5): metadata rows
+// ({mnemonic, unit, start_md_m, stop_md_m, step_m — null = irregular,
+// n_samples, storage_path, …}) and float32 curve samples. Registry
+// shapes pass straight through; the UI never imports wellsRegistry
+// directly (adapter rule).
+
+/** @param {string} wellId @returns {Promise<Array>} geo_wells_logs rows */
+export async function listLogs(wellId) {
+  return registryListLogs(wellId);
+}
+
+/** @param {Object} log a listLogs row @returns {Promise<Float32Array>} */
+export async function downloadCurve(log) {
+  return registryDownloadCurve(log);
 }
