@@ -101,10 +101,10 @@ function bilinear(z, nx, ny, fx, fy) {
   if (fx < 0 || fy < 0 || fx > nx - 1 || fy > ny - 1) return NULL_VALUE;
   const c0 = Math.floor(fx);
   const r0 = Math.floor(fy);
-  const c1 = Math.min(nx - 1, c0 + 1);
-  const r1 = Math.min(ny - 1, r0 + 1);
   const tx = fx - c0;
   const ty = fy - r0;
+  const c1 = tx > 0 ? c0 + 1 : c0;   // only reach the next node when actually weighted
+  const r1 = ty > 0 ? r0 + 1 : r0;   // so an exact node hit needs only that node
   const v00 = z[r0 * nx + c0];
   const v01 = z[r0 * nx + c1];
   const v10 = z[r1 * nx + c0];
