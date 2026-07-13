@@ -140,12 +140,39 @@ export default function TrackViewer({ depth, tracks, zones = [], tops = [] }) {
       ctx.textAlign = 'center';
       ctx.fillStyle = '#cbd5e1';
       ctx.fillText(track.title, x0 + trackW / 2, 12);
-      ctx.font = '9px sans-serif';
-      ctx.fillStyle = '#64748b';
-      ctx.textAlign = 'left';
-      ctx.fillText(`${track.min}`, x0 + 4, 24);
-      ctx.textAlign = 'right';
-      ctx.fillText(`${track.max}${track.scale === 'log' ? ' log' : ''}`, x0 + trackW - 4, 24);
+      if (track.type !== 'strip') {
+        ctx.font = '9px sans-serif';
+        ctx.fillStyle = '#64748b';
+        ctx.textAlign = 'left';
+        ctx.fillText(`${track.min}`, x0 + 4, 24);
+        ctx.textAlign = 'right';
+        ctx.fillText(`${track.max}${track.scale === 'log' ? ' log' : ''}`, x0 + trackW - 4, 24);
+      }
+
+      // categorical strip track (facies): per-sample colored bands
+      if (track.type === 'strip') {
+        const data = track.curves[0].data;
+        for (let i = i0; i < i1; i++) {
+          const v = data[i];
+          if (!Number.isFinite(v)) continue;
+          const color = track.colors[Math.round(v) % track.colors.length];
+          ctx.fillStyle = `${color}cc`;
+          const y = yOf(depth[i]);
+          const y2 = yOf(depth[i + 1]);
+          ctx.fillRect(x0 + 2, y, trackW - 4, Math.max(1, y2 - y));
+        }
+        if (cursor) {
+          const v = data[cursor.idx];
+          ctx.font = '10px sans-serif';
+          ctx.fillStyle = '#cbd5e1';
+          ctx.textAlign = 'center';
+          ctx.fillText(
+            Number.isFinite(v) ? track.labels?.[Math.round(v)] ?? String(v) : '—',
+            x0 + trackW / 2, 36,
+          );
+        }
+        return;
+      }
 
       // curves
       for (const curve of track.curves) {

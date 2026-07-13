@@ -8,12 +8,21 @@ Writes to test-data/petrophysics/:
 
 The type well is built ANALYTICALLY so every value is explainable:
 a shale-fraction profile s(z) with cosine ramps drives GR; true
-porosity phi = PHI_SAND*(1-s); RHOB is constructed by INVERTING the
-density-porosity equation from a defined apparent-porosity profile,
-so the oracle's phi_density round-trips it exactly; DT likewise via
-Wyllie; RT is the exact Archie inversion of a target Sw profile in
-clean rock (s < 0.01), a conductivity-style blend elsewhere. Fixed
-null indices exercise the None paths.
+porosity follows a compaction trend phi = (PHI_SAND - PHI_GRAD*(z -
+2000))*(1-s) — the trend exists so the water leg spans a porosity
+RANGE and a Pickett water-line fit is well-posed (fixture v2; v1 had
+constant per-zone porosity and non-zero sand baselines, which made
+the clean-rock checks vacuous and the water line a single point).
+RHOB is constructed by INVERTING the density-porosity equation from a
+defined apparent-porosity profile, so the oracle's phi_density
+round-trips it exactly; DT likewise via Wyllie; RT is the exact
+Archie inversion of a target Sw profile in clean rock (s < 0.01 —
+sands are genuinely clean, baseline s = 0), a conductivity-style
+blend in the ramps/shales. Fixed null indices exercise None paths.
+
+main() ASSERTS the anchors before writing: clean samples exist, the
+clean-zone Archie round trip holds to f64 noise (< 1e-12), and the water-leg Pickett fit
+recovers (m, a*Rw) — a regeneration that breaks them refuses to land.
 """
 
 import json
@@ -31,7 +40,8 @@ PARAMS = {
     "dt_ma": 182.0, "dt_fl": 656.0,          # us/m (sandstone, water)
     "a": 1.0, "m": 2.0, "n": 2.0,
     "rw": 0.05, "rsh": 2.0,
-    "phi_sand": 0.25,
+    "phi_sand": 0.25, "phi_grad_per_m": 0.002,   # compaction trend from z=2000
+    "water_leg": [2075.0, 2078.0],               # clean Sw=1 window (Pickett anchor)
     "cut_phi": 0.08, "cut_vsh": 0.5, "cut_sw": 0.6,
     "zones": {"SAND_A": [2010.0, 2030.0], "SAND_B": [2050.0, 2080.0]},
 }
@@ -52,18 +62,20 @@ def shale_fraction(z):
         t = (z - (z0 - RAMP)) / (2.0 * RAMP)
         return lo + (hi - lo) * (1.0 - math.cos(math.pi * t)) / 2.0
 
+    # sands are genuinely CLEAN (baseline 0) so s < 0.01 holds through
+    # their interiors — the exact-Archie anchors depend on it
     if z < 2010.0:
-        return ramp(z, 2010.0, 1.0, 0.10)
+        return ramp(z, 2010.0, 1.0, 0.0)
     if z < 2030.0:
-        s = ramp(z, 2010.0, 1.0, 0.10)
-        return max(s, ramp(z, 2030.0, 0.10, 1.0)) if z > 2030.0 - RAMP else s
+        s = ramp(z, 2010.0, 1.0, 0.0)
+        return max(s, ramp(z, 2030.0, 0.0, 1.0)) if z > 2030.0 - RAMP else s
     if z < 2050.0:
-        s = ramp(z, 2030.0, 0.10, 1.0)
-        return min(s, ramp(z, 2050.0, 1.0, 0.15)) if z > 2050.0 - RAMP else s
+        s = ramp(z, 2030.0, 0.0, 1.0)
+        return min(s, ramp(z, 2050.0, 1.0, 0.0)) if z > 2050.0 - RAMP else s
     if z < 2080.0:
-        s = ramp(z, 2050.0, 1.0, 0.15)
-        return max(s, ramp(z, 2080.0, 0.15, 1.0)) if z > 2080.0 - RAMP else s
-    return ramp(z, 2080.0, 0.15, 1.0)
+        s = ramp(z, 2050.0, 1.0, 0.0)
+        return max(s, ramp(z, 2080.0, 0.0, 1.0)) if z > 2080.0 - RAMP else s
+    return ramp(z, 2080.0, 0.0, 1.0)
 
 
 def sw_target(z, s):
@@ -88,7 +100,7 @@ def build_typewell():
     for i in range(201):
         z = 2000.0 + 0.5 * i
         s = shale_fraction(z)
-        phi = p["phi_sand"] * (1.0 - s)
+        phi = (p["phi_sand"] - p["phi_grad_per_m"] * (z - 2000.0)) * (1.0 - s)
         swt = sw_target(z, s)
         gas = 1.0 if (2010.0 + RAMP) <= z <= (2030.0 - RAMP) else 0.0
 
@@ -193,10 +205,32 @@ def analytic_cases():
     }
 
 
+def assert_anchors(tw, goldens):
+    """Refuse to write fixtures whose analytic anchors don't hold."""
+    p = PARAMS
+    con = tw["construction"]
+    c = tw["curves"]
+    clean = [i for i, s in enumerate(con["shale_fraction"]) if s < 0.01]
+    assert len(clean) > 40, f"too few clean (s<0.01) samples: {len(clean)}"
+    worst = max(abs(goldens["SW_ARCHIE"][i] - con["sw_target"][i])
+                for i in clean if goldens["SW_ARCHIE"][i] is not None)
+    assert worst < 1e-12, f"clean-zone Archie round-trip error {worst}"
+    lo, hi = p["water_leg"]
+    pts = [(goldens["PHID"][i], c["RT"][i]) for i, z in enumerate(c["DEPT"])
+           if lo <= z <= hi and goldens["PHID"][i] is not None and c["RT"][i] is not None]
+    assert len(pts) >= 5, f"water leg has only {len(pts)} valid points"
+    m_fit, arw_fit = oracle.pickett_fit(pts)
+    assert abs(m_fit - p["m"]) < 1e-9, f"water-leg fit m = {m_fit}"
+    assert abs(arw_fit - p["a"] * p["rw"]) < 1e-9, f"water-leg fit a*Rw = {arw_fit}"
+    print(f"anchors: {len(clean)} clean samples, round-trip exact, "
+          f"water-leg fit m={m_fit:.12f} aRw={arw_fit:.12f}")
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     tw = build_typewell()
     goldens = run_oracle(tw)
+    assert_anchors(tw, goldens)
     for name, obj in (("typewell.json", tw), ("goldens.json", goldens),
                       ("analytic_cases.json", analytic_cases())):
         path = os.path.join(OUT, name)

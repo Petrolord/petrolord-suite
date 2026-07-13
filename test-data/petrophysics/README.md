@@ -18,9 +18,17 @@ that is only a dual implementation while the two sides stay separate.
   step): DEPT/GR/RHOB/NPHI/DT/RT plus the construction profiles
   (`shale_fraction`, `phi_true`, `sw_target`) that make every sample
   explainable. `null` at the documented `null_indices` exercises the
-  missing-sample paths. Construction (see genfixtures.py):
-  - shale-fraction profile s(z) with 2 m cosine ramps; two sands
-    (A gas 2010–2030, B oil→water 2050–2080) between shales;
+  missing-sample paths. Construction (fixture v2 — see genfixtures.py):
+  - shale-fraction profile s(z) with 2 m cosine ramps; two GENUINELY
+    CLEAN sands (baseline s = 0: A gas 2010–2030, B oil→water
+    2050–2080) between shales. v1 had non-zero sand baselines and
+    constant per-zone porosity, which made the clean-rock (s < 0.01)
+    anchors VACUOUS and left no fittable Pickett water line — caught
+    when the G2.4 depth-window fit threw "degenerate";
+  - porosity carries a compaction trend φ = (0.25 − 0.002·(z−2000))·(1−s)
+    so the water leg (2075–2078 m, Sw = 1) spans a porosity range and
+    the Pickett fit is well-posed; genfixtures.py ASSERTS the anchors
+    before writing — a regeneration that breaks them refuses to land;
   - GR = 20 + 100·s; RHOB inverted from a DEFINED apparent density
     porosity (so the oracle's `phi_density` round-trips it to f64
     noise); DT inverted through Wyllie the same way; NPHI = φ + 0.30·s
@@ -56,10 +64,12 @@ that is only a dual implementation while the two sides stay separate.
   are information. Engine display clamping is applied AFTER the golden
   comparison; the cutoff/net-pay goldens use Sw clamped to [0,1]
   exactly as recorded in genfixtures.py.
-- The clean-zone Archie round trip (`SW_ARCHIE` == `sw_target` where
-  `shale_fraction` < 0.01) is EXACT (0.0 measured) because RT was
-  built by inverting the same closed form — a self-consistency anchor,
-  not an accuracy claim.
+- The clean-zone Archie round trip (`SW_ARCHIE` vs `sw_target` where
+  `shale_fraction` < 0.01; 86 samples) holds to f64 round-trip noise
+  (< 1e-12, asserted at generation) because RT was built by inverting
+  the same closed form — a self-consistency anchor, not an accuracy
+  claim. The water-leg Pickett fit recovering m = 2 and a·Rw = 0.05
+  is asserted the same way.
 - Net pay uses midpoint sample thickness (irregular-step safe); zone
   windows are inclusive of samples whose depth lies inside.
 

@@ -17,7 +17,9 @@ import WellExplorer from './WellExplorer';
 import ParameterPanel from './ParameterPanel';
 import ZoneManager from './ZoneManager';
 import TrackViewer from './TrackViewer';
+import CrossplotPanel from './CrossplotPanel';
 import { computeWell, zoneSummary, DEFAULT_PARAMS } from '../engine/pipeline';
+import { faciesCurve } from '../engine/crossplot';
 
 // standard pipeline inputs <- registry mnemonics (base name, ':n'
 // duplicate suffixes ignored; first match wins)
@@ -54,6 +56,8 @@ export default function PetroWorkstation({ backend }) {
   const [params, setParams] = useState(DEFAULT_PARAMS);
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
+  const [view, setView] = useState('tracks');     // 'tracks' | 'crossplot'
+  const [facies, setFacies] = useState([]);       // ND-space polygons (per-well workspace state; persists in G2.5)
 
   useEffect(() => {
     backend.listWells()
@@ -80,6 +84,7 @@ export default function PetroWorkstation({ backend }) {
     setLoadingId(wellId);
     setWellData(null);
     setZones([]);
+    setFacies([]);
     try {
       const [logs, tops] = await Promise.all([backend.listLogs(wellId), backend.listTops(wellId)]);
       const mapped = mapLogs(logs);
@@ -123,6 +128,12 @@ export default function PetroWorkstation({ backend }) {
     return out;
   }, [wellData, computed, params, zones]);
 
+  const faciesData = useMemo(() => (
+    wellData?.curves.NPHI && wellData?.curves.RHOB && facies.length
+      ? faciesCurve(wellData.curves.NPHI, wellData.curves.RHOB, facies)
+      : null
+  ), [wellData, facies]);
+
   const tracks = useMemo(() => {
     if (!wellData || !computed) return [];
     const c = wellData.curves;
@@ -137,8 +148,18 @@ export default function PetroWorkstation({ backend }) {
     if (o.VSH) t.push({ key: 'vsh', title: 'Vsh (v/v)', min: 0, max: 1, curves: [{ name: 'Vsh', data: o.VSH, color: '#a3a065', fillTo: 'right' }] });
     if (o.SW) t.push({ key: 'sw', title: 'Sw (v/v)', min: 0, max: 1, curves: [{ name: 'Sw', data: o.SW, color: '#60a5fa' }] });
     if (o.PAY) t.push({ key: 'pay', title: 'Pay', min: 0, max: 1, curves: [{ name: 'pay', data: o.PAY, color: '#4ade80', fillTo: 'left' }] });
+    if (faciesData) {
+      t.push({
+        key: 'facies',
+        title: 'Facies',
+        type: 'strip',
+        colors: facies.map((f) => f.color),
+        labels: facies.map((f) => f.name),
+        curves: [{ name: 'facies', data: faciesData }],
+      });
+    }
     return t;
-  }, [wellData, computed]);
+  }, [wellData, computed, faciesData, facies]);
 
   const addZone = async (z) => {
     const zone = await backend.saveZone(wellData.wellId, z);
@@ -161,6 +182,27 @@ export default function PetroWorkstation({ backend }) {
       <FlaskConical className="w-4 h-4 text-cyan-400" />
       <span className="text-sm font-semibold text-slate-100">Petrophysics Studio</span>
       <span className="text-[11px] text-slate-500">log analysis on the shared well registry</span>
+      <div className="ml-4 flex items-center gap-1">
+        <button
+          type="button"
+          data-testid="petro-view-tracks"
+          className={`px-2 py-1 text-xs rounded border
+            ${view === 'tracks' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+          onClick={() => setView('tracks')}
+        >
+          Tracks
+        </button>
+        <button
+          type="button"
+          data-testid="petro-view-crossplot"
+          disabled={!wellData}
+          className={`px-2 py-1 text-xs rounded border disabled:opacity-40
+            ${view === 'crossplot' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+          onClick={() => setView('crossplot')}
+        >
+          Crossplots
+        </button>
+      </div>
       <button
         type="button"
         data-testid="petro-toggle-dock"
@@ -200,6 +242,16 @@ export default function PetroWorkstation({ backend }) {
     <div className="h-full flex items-center justify-center text-slate-500 text-sm">
       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading curves…
     </div>
+  ) : view === 'crossplot' ? (
+    <CrossplotPanel
+      curves={wellData.curves}
+      outputs={computed?.outputs}
+      params={params}
+      facies={facies}
+      onFaciesChange={setFacies}
+      onApplyParams={(patch) => setParams((p) => ({ ...p, ...patch }))}
+      onStatus={setStatus}
+    />
   ) : (
     <TrackViewer depth={wellData.curves.DEPT} tracks={tracks} zones={zones} tops={wellData.tops} />
   );
