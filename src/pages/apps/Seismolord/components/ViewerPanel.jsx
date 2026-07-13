@@ -37,7 +37,7 @@ import CubeView from './CubeView';
 import MapView from './MapView';
 import ViewerWindows from './ViewerWindows';
 import AiPanel from './AiPanel';
-import WorkspaceShell from './workspace/WorkspaceShell';
+import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import Ribbon from './workspace/Ribbon';
 import HomeTab from './workspace/ribbonTabs/HomeTab';
 import InterpretationTab from './workspace/ribbonTabs/InterpretationTab';

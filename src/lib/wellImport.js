@@ -1,4 +1,4 @@
-// Well data import: delimited-text parsing (CSV / tab / whitespace)
+// Well data import (SHARED wells engine — moved out of Seismolord at the second consumer, Well Data Manager G1.3): delimited-text parsing (CSV / tab / whitespace)
 // with user column mapping — the SEG-Y header-mapping philosophy
 // applied to well files: never assume a layout, always preview.
 //

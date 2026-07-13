@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import WellImport from './components/WellImport';
+import WellImport from '@/components/wells/WellImport';
 import MapView from './components/MapView';
 import { WELL_COLORS } from './components/workspace/interpretationColors';
 import { computeWellPath, verticalWellPath } from './engine/wellPath';

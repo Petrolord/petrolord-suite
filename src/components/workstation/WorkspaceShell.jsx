@@ -2,6 +2,9 @@
 // resizable explorer tree on the left, the viewport windows in the
 // center, a collapsible right dock and a status bar at the bottom.
 //
+// SHARED workstation primitive (Geoscience-ROADMAP.md §3: extract shell
+// primitives at the second consumer — moved out of Seismolord when Well
+// Data Manager became that consumer, G1.3).
 // Pure layout — every region is a slot. The three panels have stable
 // ids/orders and the dock collapses through the panel API instead of
 // conditional rendering, so the center subtree (WebGL canvases) is
@@ -21,9 +24,13 @@ import {
  * @param {boolean} [p.dockOpen] whether the right dock is expanded
  * @param {(open: boolean) => void} [p.onDockOpenChange] drag-collapse sync
  * @param {React.ReactNode} p.statusBar bottom readout row
+ * @param {string} [p.autoSaveId] panel-size persistence key — give each
+ *   app its own (the default keeps Seismolord's pre-extraction key)
+ * @param {number} [p.minWidth] px below which the workspace scrolls
  */
 export default function WorkspaceShell({
   ribbon, explorer, center, dock, dockOpen, onDockOpenChange, statusBar,
+  autoSaveId = 'seismolord.workspace.v1', minWidth = 1100,
 }) {
   const dockRef = useRef(null);
 
@@ -38,12 +45,12 @@ export default function WorkspaceShell({
     // desktop-targeted: below the minimum width the workspace scrolls
     // instead of squeezing the viewports into unusable slivers
     <div className="h-full min-h-0 overflow-auto bg-slate-950">
-      <div className="h-full min-h-0 min-w-[1100px] flex flex-col">
+      <div className="h-full min-h-0 flex flex-col" style={{ minWidth }}>
         <div className="shrink-0">{ribbon}</div>
 
         <ResizablePanelGroup
           direction="horizontal"
-          autoSaveId="seismolord.workspace.v1"
+          autoSaveId={autoSaveId}
           className="flex-1 min-h-0"
         >
           <ResizablePanel

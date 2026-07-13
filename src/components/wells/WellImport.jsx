@@ -4,16 +4,20 @@
 // layout, always preview). A well without a deviation survey is a
 // vertical well and needs TD instead.
 //
-// Presentation-only: the parent supplies onSave (useWells persists
-// through wellsService; the dev harness captures the draft locally),
-// so the whole import path is drivable by Playwright without auth.
+// SHARED wells primitive (Geoscience-ROADMAP.md §3: extract at the
+// second consumer — moved out of Seismolord when Well Data Manager
+// reused it for manual well entry, G1.3).
+// Presentation-only: the parent supplies onSave (Seismolord's useWells
+// persists through its wellsService; Well Data Manager persists to the
+// geo_wells registry; dev harnesses capture the draft locally), so the
+// whole import path is drivable by Playwright without auth.
 
 import React, { useMemo, useState } from 'react';
 import { Loader2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   parseDelimited, guessMapping, buildDeviation, buildTops, buildCheckshots,
-} from '../engine/wellImport';
+} from '@/lib/wellImport';
 
 const TABS = [
   { key: 'deviation', label: 'Deviation', fields: ['md', 'inc', 'azi'], build: buildDeviation },

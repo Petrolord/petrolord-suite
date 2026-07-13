@@ -9,7 +9,7 @@ import path from 'path';
 
 import {
   parseDelimited, guessMapping, buildDeviation, buildTops, buildCheckshots,
-} from '@/pages/apps/Seismolord/engine/wellImport';
+} from '@/lib/wellImport';
 
 const GOLDEN = JSON.parse(fs.readFileSync(path.join(
   __dirname, '..', '..', '..', '..', '..',
