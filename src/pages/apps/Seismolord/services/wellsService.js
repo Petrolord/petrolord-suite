@@ -1,12 +1,27 @@
-// seismic_wells persistence — direct RLS calls (house pattern). Wells
-// are PER-USER and volume-independent (world coordinates; they appear
-// on any survey that contains them via the measured affine), so no
-// volume id anywhere here. Payload shapes match the migration comment:
+// Seismolord's well persistence — since G1.4 an ADAPTER over the
+// shared geo_wells registry (src/lib/wellsRegistry.js, Well Data
+// Manager's tables): same three exports, same row shapes the viewers
+// consume, zero viewer changes. Wells imported in Well Data Manager
+// appear here with no re-import, and org-shared wells arrive read-only
+// (deletes on them surface the registry's owner-only error).
+//
+// Shape bridging: the registry normalizes tops into geo_wells_tops
+// rows ({name, md_m}); Seismolord's engines (wellSection, wellTie)
+// consume the legacy jsonb shape ({name, md}) attached to the well
+// row, so the adapter converts on both directions. deviation and
+// checkshots are byte-compatible and pass straight through.
 //   deviation:  [{md, inc, azi}]   md ascending (validated at import)
 //   tops:       [{name, md}]
 //   checkshots: [{tvdss_m, twt_ms}] strictly monotonic (validated)
 
-import { supabase } from '@/lib/customSupabaseClient';
+import {
+  saveWell as registrySaveWell,
+  listWellsWithTops,
+  replaceTops,
+  deleteWell as registryDeleteWell,
+} from '@/lib/wellsRegistry';
+
+const legacyTops = (tops) => (tops || []).map((t) => ({ name: t.name, md: t.md_m }));
 
 /**
  * @param {{name: string, uwi?: ?string, surfaceX: number, surfaceY: number,
@@ -14,36 +29,25 @@ import { supabase } from '@/lib/customSupabaseClient';
  *   checkshots?: Array}} w
  */
 export async function saveWell(w) {
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) throw new Error('You must be signed in to save wells.');
-  const { data, error } = await supabase.from('seismic_wells')
-    .insert({
-      user_id: user.id,
-      name: w.name,
-      uwi: w.uwi || null,
-      surface_x: w.surfaceX,
-      surface_y: w.surfaceY,
-      kb_m: w.kbM ?? 0,
-      td_md_m: w.tdMdM ?? null,
-      deviation: w.deviation || [],
-      tops: w.tops || [],
-      checkshots: w.checkshots || [],
-    })
-    .select().single();
-  if (error) throw new Error(`Could not save well: ${error.message}`);
-  return data;
+  const well = await registrySaveWell({
+    name: w.name,
+    uwi: w.uwi,
+    surfaceX: w.surfaceX,
+    surfaceY: w.surfaceY,
+    kbM: w.kbM,
+    tdMdM: w.tdMdM,
+    deviation: w.deviation || [],
+    checkshots: w.checkshots || [],
+  });
+  const tops = w.tops?.length ? await replaceTops(well.id, w.tops) : [];
+  return { ...well, tops: legacyTops(tops) };
 }
 
 export async function listWells() {
-  const { data, error } = await supabase.from('seismic_wells')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (error) throw new Error(`Could not load wells: ${error.message}`);
-  return data || [];
+  const wells = await listWellsWithTops();
+  return wells.map((w) => ({ ...w, tops: legacyTops(w.tops) }));
 }
 
 export async function deleteWell(well) {
-  const { error } = await supabase.from('seismic_wells')
-    .delete().eq('id', well.id);
-  if (error) throw new Error(`Could not delete well: ${error.message}`);
+  return registryDeleteWell(well);
 }

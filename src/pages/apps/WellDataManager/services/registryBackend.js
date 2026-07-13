@@ -3,10 +3,11 @@
 // inMemoryBackend and the WHOLE app runs without auth or DB (the
 // harness philosophy — presentation drivable by Playwright).
 //
-// This is the real one: geo_wells via wellsService (RLS), LAS parsing
-// via the worker facade, org resolution via the shared three-table
-// resolver (src/lib/orgContext.js — never query a membership table
-// directly).
+// This is the real one: geo_wells via the shared registry service
+// (src/lib/wellsRegistry.js — Seismolord reads the same registry since
+// G1.4), LAS parsing via the worker facade, org resolution via the
+// shared three-table resolver (src/lib/orgContext.js — never query a
+// membership table directly).
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { resolveUserOrgId } from '@/lib/orgContext';
@@ -15,7 +16,7 @@ import {
   shareWell, unshareWell,
   listTops, replaceTops,
   listLogs, saveLogs, deleteLog, downloadCurve,
-} from './wellsService';
+} from '@/lib/wellsRegistry';
 import { parseLasFile } from './lasImportService';
 
 export function makeRegistryBackend() {
