@@ -1,0 +1,21 @@
+-- Mapping & Surface Studio G4.4 close-out: retire the dead generic
+-- data-exchange hub (docs/scope/MappingSurfaceStudio-PLAN.md decision 3,
+-- approved 2026-07-13).
+--
+-- `shared_data_registry` was a generic cross-app jsonb payload table
+-- that existed LIVE with NO repo migration (created out-of-band) and 0
+-- rows its whole life. Its only consumers — DataExchangeHub.jsx +
+-- IntegrationContext.jsx — invoked a `data-exchange` edge function that
+-- was never deployed (every call 404'd), so the hub was non-functional.
+-- Those files are deleted in this same PR. The suite's cross-app
+-- exchange is now the TYPED registries: geo_wells / geo_wells_tops /
+-- geo_wells_zones / geo_surfaces (+ the older seismic_exported_surfaces).
+--
+-- Recorded for the archive (the out-of-band DDL had these columns):
+--   id uuid, created_at, updated_at, user_id, project_id, well_id,
+--   reservoir_id, source_app_id text, source_record_id uuid,
+--   data_category text, data_name text, description text,
+--   payload jsonb, version int, is_public_to_org bool, tags text[].
+-- 0 rows verified at drop time; nothing to preserve.
+
+drop table if exists public.shared_data_registry;

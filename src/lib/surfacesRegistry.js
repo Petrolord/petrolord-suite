@@ -10,8 +10,24 @@
 // writes, enforced by RLS server-side.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { writeXYZ } from '@/lib/gridding/surfaceExport';
 
 const BUCKET = 'surfaces';
+
+/**
+ * Bridge a geo_surfaces grid to XYZ text — the format ReservoirCalc
+ * Pro's SurfaceParser reads reliably. Reuses the byte-golden writeXYZ.
+ * This is the in-DB handoff: Mapping Studio publishes a surface, RCP
+ * imports it for GRV without any filesystem round-trip. z is passed
+ * through in the surface's own unit (structure maps are metres; the
+ * dialog records the convention).
+ * @param {{origin_x,origin_y,nx,ny,dx,dy}} surface @param {Float32Array} grid
+ */
+export function surfaceToXyzText(surface, grid) {
+  const x = Array.from({ length: surface.nx }, (_, c) => surface.origin_x + c * surface.dx);
+  const y = Array.from({ length: surface.ny }, (_, r) => surface.origin_y + r * surface.dy);
+  return writeXYZ({ x, y, z: grid, nx: surface.nx, ny: surface.ny, dx: surface.dx, dy: surface.dy });
+}
 
 async function requireUser() {
   const { data: { user }, error } = await supabase.auth.getUser();

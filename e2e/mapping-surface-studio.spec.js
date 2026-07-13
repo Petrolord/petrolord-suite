@@ -47,3 +47,12 @@ test('grid a top, render the map, publish, isochore, delete', async ({ page }) =
   await page.getByTestId('map-delete-Top Dome structure').click();
   await expect(page.getByTestId('map-surface-count')).toHaveText('3');
 });
+
+test('mapping app route loads its chunk and gates on auth', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/dashboard/apps/geoscience/mapping-surface-studio');
+  await page.waitForLoadState('networkidle');
+  expect(errors).toEqual([]);
+  expect(page.url()).not.toContain('mapping-surface-studio');
+});

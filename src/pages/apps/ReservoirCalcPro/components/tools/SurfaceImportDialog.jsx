@@ -5,12 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { UploadCloud, FileText, Check, AlertCircle, AlertTriangle, XCircle, Waves, Loader2 } from 'lucide-react';
+import { UploadCloud, FileText, Check, AlertCircle, AlertTriangle, XCircle, Waves, Loader2, Layers } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { SurfaceParser, SurfaceParseError } from '../../services/SurfaceParser';
 // Cross-app handoff: surfaces Seismolord published to seismic_exported_surfaces
 // (XYZ text in Storage). Same parse path as a manual upload from here on.
 import { listExportedSurfaces, downloadExportedSurface } from '@/pages/apps/Seismolord/services/exportsService';
+// Cross-app handoff (G4): surfaces Mapping & Surface Studio published to
+// geo_surfaces (f32 grids). Bridged to XYZ via the byte-golden writeXYZ,
+// then parsed on the same path — no filesystem round-trip.
+import { listSurfaces, downloadSurfaceGrid, surfaceToXyzText } from '@/lib/surfacesRegistry';
 
 const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
     const { toast } = useToast();
@@ -34,6 +38,8 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
     // Seismolord handoff source
     const [seismolordSurfaces, setSeismolordSurfaces] = useState(null);
     const [fetchingHandoffId, setFetchingHandoffId] = useState(null);
+    // Mapping & Surface Studio handoff source (geo_surfaces)
+    const [mappingSurfaces, setMappingSurfaces] = useState(null);
 
     const resetFeedback = () => { setError(null); setPending(null); };
 
@@ -42,7 +48,37 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
         listExportedSurfaces()
             .then(setSeismolordSurfaces)
             .catch(() => setSeismolordSurfaces([]));   // table empty/unreachable: hide the section
+        listSurfaces()
+            .then(setMappingSurfaces)
+            .catch(() => setMappingSurfaces([]));
     }, [open]);
+
+    // geo_surfaces grid -> XYZ (byte-golden writeXYZ) -> the same parse
+    // path as a manual XYZ upload. Structure maps carry z in metres,
+    // positive-down (depth); attribute maps are unitless.
+    const loadMappingSurface = async (row) => {
+        setFetchingHandoffId(row.id);
+        resetFeedback();
+        try {
+            const grid = await downloadSurfaceGrid(row);
+            const text = surfaceToXyzText(row, grid);
+            const file = new File([text], `${row.name.replace(/[^\w-]+/g, '_')}.xyz`, { type: 'text/plain' });
+            setImportData(prev => ({
+                ...prev,
+                file,
+                rawData: text,
+                name: row.name,
+                format: 'xyz',
+                xyUnit: 'm',
+                zConvention: 'depth',   // geo_surfaces structure z is metres positive-down
+            }));
+            toast({ title: 'Surface loaded from Mapping Studio', description: row.name });
+        } catch (e) {
+            setError({ title: 'Could not load mapped surface', message: e.message, guidance: [] });
+        } finally {
+            setFetchingHandoffId(null);
+        }
+    };
 
     // Seismolord writes XY in metres but Z in feet (depth_ft exports); RCP's
     // import model carries ONE unit for XY and Z. Reconcile by converting XY
@@ -312,6 +348,38 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
                                             className="shrink-0 border-cyan-700/60 text-cyan-300"
                                             disabled={fetchingHandoffId === s.id}
                                             onClick={() => loadSeismolordSurface(s)}
+                                        >
+                                            {fetchingHandoffId === s.id
+                                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                : 'Use'}
+                                        </Button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {/* Surfaces published by Mapping & Surface Studio (geo_surfaces) */}
+                    {mappingSurfaces && mappingSurfaces.length > 0 && (
+                        <div className="rounded-lg border border-amber-900/60 bg-amber-950/20 p-3">
+                            <div className="flex items-center text-sm text-amber-300 font-medium mb-2">
+                                <Layers className="w-4 h-4 mr-2" />
+                                From Mapping &amp; Surface Studio
+                            </div>
+                            <ul className="space-y-1 max-h-32 overflow-y-auto">
+                                {mappingSurfaces.map((s) => (
+                                    <li key={s.id} className="flex items-center justify-between gap-2 text-sm">
+                                        <div className="min-w-0">
+                                            <span className="text-slate-200 truncate block">{s.name}</span>
+                                            <span className="text-[11px] text-slate-500">
+                                                {s.kind} · {s.nx}×{s.ny} · {new Date(s.created_at).toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <Button
+                                            size="sm" variant="outline"
+                                            className="shrink-0 border-amber-700/60 text-amber-300"
+                                            disabled={fetchingHandoffId === s.id}
+                                            onClick={() => loadMappingSurface(s)}
                                         >
                                             {fetchingHandoffId === s.id
                                                 ? <Loader2 className="w-3.5 h-3.5 animate-spin" />

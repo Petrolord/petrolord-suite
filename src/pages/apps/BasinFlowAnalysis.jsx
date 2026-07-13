@@ -13,7 +13,6 @@ import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import DataExchangeHub from '@/components/DataExchangeHub';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 const BasinFlowAnalysis = () => {
@@ -128,20 +127,6 @@ const BasinFlowAnalysis = () => {
           <p className="text-slate-400 mt-1">Basin Modeling & Petroleum System Analysis</p>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
-          <DataExchangeHub 
-            mode="import" 
-            onImport={(data) => {
-              if (data.stratigraphy) setProject(prev => ({ ...prev, stratigraphy: data.stratigraphy }));
-              toast({ title: "Data Imported", description: "Stratigraphy updated from shared data." });
-            }} 
-          />
-          <DataExchangeHub 
-            mode="export" 
-            currentData={results} 
-            currentAppName="BasinFlow Genesis" 
-            exportName={project.name}
-            categoryFilter="BASIN_MODEL"
-          />
           <Button onClick={handleSave} variant="outline" className="flex-1 md:flex-none border-slate-700 hover:bg-slate-800">
             <Save className="w-4 h-4 mr-2" /> Save
           </Button>

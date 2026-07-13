@@ -50,7 +50,7 @@ rows and entitlement FKs), not deleted.
 2. **Well Data Manager** — shared subsurface well registry *(SHIPPED 2026-07-13 — Phase G1 complete, tile Active)*
 3. **Petrophysics Studio** — one deep log-analysis app *(SHIPPED 2026-07-13 — Phase G2 complete, tile Active; supersedes 5 shallow tiles)*
 4. **Well Correlation** — cross-sections + tops *(SHIPPED 2026-07-13 — Phase G3 complete, tile Active)*
-5. **Mapping & Surface Studio** — gridding/contouring/basemaps *(new — Phase G4)*
+5. **Mapping & Surface Studio** — gridding/contouring/basemaps *(SHIPPED 2026-07-13 — Phase G4 complete, tile Active)*
 6. **ReservoirCalc Pro** — volumetrics + uncertainty + prospect risking *(exists; risking module added in Phase G5)*
 
 **Advanced three** (differentiators, after the core loop closes):
@@ -178,7 +178,7 @@ time depends on review cadence.
   in Seismolord section overlays without re-import; e2e harness with
   synthetic logs.
 
-### Phase G4 — Mapping & Surface Studio *(medium-large)*
+### Phase G4 — Mapping & Surface Studio *(medium-large)* — **COMPLETE 2026-07-13 (G4.0–G4.4; see docs/scope/MappingSurfaceStudio-STATUS.md)**
 - Gridding/contouring of well tops and attributes (reuse Seismolord's
   validated TPS/fault-aware gridding engine — move it to a shared
   engine location rather than duplicating); import of Seismolord
