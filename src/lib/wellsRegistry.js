@@ -215,6 +215,66 @@ export async function replaceTops(wellId, tops) {
   return data;
 }
 
+// Per-top CRUD (Well Correlation G3) — the correlation UI picks and
+// drag-edits individual tops rather than replacing the whole set. All
+// owner-only via the existing geo_wells_tops RLS (no policy change); a
+// 0-row write surfaces as an owner-only error instead of a silent
+// no-op, exactly like deleteWell.
+
+/** @param {{name: string, mdM: number, interpreter?: ?string}} top */
+export async function saveTop(wellId, top) {
+  const { data, error } = await supabase.from('geo_wells_tops')
+    .insert({ well_id: wellId, name: top.name, md_m: top.mdM, interpreter: top.interpreter || null })
+    .select().single();
+  if (error) throw new Error(`Could not add top: ${error.message}`);
+  return data;
+}
+
+export async function updateTop(topId, patch) {
+  const row = { ...patch, updated_at: new Date().toISOString() };
+  if (patch.mdM !== undefined) { row.md_m = patch.mdM; delete row.mdM; }
+  const { data, error } = await supabase.from('geo_wells_tops')
+    .update(row).eq('id', topId).select();
+  if (error) throw new Error(`Could not update top: ${error.message}`);
+  if (!data || !data.length) {
+    throw new Error('Only the owner can edit tops (org sharing is read-only).');
+  }
+  return data[0];
+}
+
+export async function deleteTop(top) {
+  const { data, error } = await supabase.from('geo_wells_tops')
+    .delete().eq('id', top.id).select('id');
+  if (error) throw new Error(`Could not delete top: ${error.message}`);
+  if (!data || !data.length) {
+    throw new Error('Only the owner can delete tops (org sharing is read-only).');
+  }
+}
+
+/**
+ * Propagate a named top to several owned wells at a given MD (v1
+ * correlation: seed the same top across the section, user drags to
+ * correct — no auto-correlation). Skips a well that already has the
+ * top (idempotent re-propagate); RLS drops silently-unowned wells, and
+ * the caller learns which succeeded from the returned rows.
+ * @param {string} name @param {Array<{wellId: string, mdM: number}>} targets
+ */
+export async function propagateTop(name, targets) {
+  if (!targets.length) return [];
+  const created = [];
+  for (const t of targets) {
+    const existing = await listTops(t.wellId);
+    if (existing.some((x) => x.name === name)) continue;
+    // per-well so one RLS-blocked well doesn't fail the whole batch
+    const { data, error } = await supabase.from('geo_wells_tops')
+      .insert({ well_id: t.wellId, name, md_m: t.mdM })
+      .select();
+    if (error) throw new Error(`Could not propagate "${name}": ${error.message}`);
+    if (data && data.length) created.push(data[0]);
+  }
+  return created;
+}
+
 // ---- logs (metadata rows + f32 curve objects) ------------------------------
 
 export async function listLogs(wellId) {

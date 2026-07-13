@@ -1,6 +1,12 @@
 # Well Correlation — Phase G3 Plan
 
-Status: **DRAFT — awaiting owner sign-off** (open questions in §7).
+Status: **APPROVED AS DRAFTED — owner sign-off 2026-07-13.** All four
+§7 questions confirmed: (1) top propagation v1 = manual (same-MD seed +
+drag, no auto-correlation); (2) section state persists in the new
+app-private `geo_correlation_sections` table; (3) the orphaned legacy
+`wellCorrelation/` cluster + context + hooks are deleted this phase;
+(4) the Panel's `well_correlation_projects` / `well_correlation_wells`
+tables stay (retirement logged for the DB-cleanup effort).
 Roadmap slot: Geoscience-ROADMAP.md **Phase G3 — Well Correlation**
 *(medium)*. App name **Well Correlation**, slug `well-correlation`
 (locked, roadmap §6.2); the legacy `well-correlation-tool` slug becomes
