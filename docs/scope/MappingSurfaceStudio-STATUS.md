@@ -11,7 +11,7 @@ ships at G4.4 with the route).
 |---|---|---|
 | G4.0 extract gridding engine | **DONE** | this branch — gridding.js/surfaceExport.js/mapContours.js → src/lib/gridding/; Seismolord re-pointed; byte-goldens (griddingExport/faultGridding/rcpHandoff/mapContours) green |
 | G4.1 surface engine + goldens | **DONE** | this branch — engine/surface.js (registry tops/zones → control points, spec derivation, bilinear resample, isochore/scalar/stats); 10 analytic tests; reuses the byte-golden gridSurface + grvAcreFt |
-| G4.2 geo_surfaces + bucket + pentest | pending | shared surface registry, org-read RLS |
+| G4.2 geo_surfaces + bucket + pentest | **DONE** | this branch — migration 20260713260000 **applied live**; geo_surfaces (org-read RLS) + private surfaces bucket + path policies; pentest block 12 (4 probes) green |
 | G4.3 mapping workstation | pending | map canvas (raster+contours+wells), gridding, surface math, publish |
 | G4.4 RCP reader + close-out | pending | RCP reads geo_surfaces; delete dead hub; digitizer; tile Active |
 
