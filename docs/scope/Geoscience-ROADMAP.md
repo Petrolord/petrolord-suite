@@ -262,12 +262,15 @@ and is the biggest build risk in the domain.
      calls it.
    - **Convergence path**: a suite-level "membership consolidation" work
      item (shared-table change → second-engineer review) is scheduled
-     alongside Phase G5: inventory writers + live row counts, pick the
-     canonical table (signup writes `organization_members`; verify
-     before committing), backfill from the other two, carve the per-user
-     app/module grants out of `organization_users` into a grants-only
-     table, drop `org_members`, then shrink `is_org_member()` to one
-     query — zero geoscience policies or app code change.
+     alongside Phase G5. *G1.1 finding:* the consolidation has already
+     STARTED — `organization_users` and `org_members` are frozen by
+     deprecation triggers ("use organization_members +
+     organization_apps"), so the canonical table is decided; what
+     remains is backfilling/retiring the legacy rows, after which
+     `is_org_member()` shrinks to one query with zero policy changes.
+     G1.1 also upgraded the pre-existing single-table `is_org_member`
+     (EPE/econ policies, ~55 of them) to the consistent three-table
+     read in one step.
    - **Never again**: no new per-app member tables (the
      `petrophysics_team_members` / `bf_team_members` pattern is banned
      for new work); app code resolves org context through

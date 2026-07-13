@@ -19,6 +19,7 @@ never hand-type DDL against production.
 | 2026-07-12 | `20260712120000_seismic_storage_quota.sql` | Seismolord: server-side 20 GiB per-user quota on the `seismic` bucket (INSERT policy gate + usage/quota functions; updates/deletes quota-free) | 2026-07-12 | 2026-07-12 (shared project) |
 | 2026-07-12 | `20260712200000_archive_geoscience_shell_tiles.sql` | Geoscience G0 (Geoscience-ROADMAP.md): archive 6 shell `master_apps` tiles (well-correlation-tool, log-facies-analysis, petrophysical-integration-suite, earthmodel-studio, earthmodel-pro, routeless material-balance-volumetrics); rows preserved | 2026-07-12 | 2026-07-12 (shared project) |
 | 2026-07-12 | `20260712220000_archive_mem_tile.sql` | MEM decision (MEM-AUDIT.md): archive `1d-mechanical-earth-model` tile until the Drilling-module rebuild ships; row preserved | 2026-07-12 | 2026-07-12 (shared project) |
+| 2026-07-13 | `20260713100000_create_wells_registry.sql` | Well Data Manager G1.1: shared `geo_wells`/`geo_wells_tops`/`geo_wells_logs` registry (owner + org read-only RLS), private `wells` bucket + path policies, and the `is_org_member()` body upgrade to the three-table membership view (also serves epe/econ policies) | 2026-07-13 | 2026-07-13 (shared project; 14/14 live RLS pentest green) |
 
 Staging and production frontends currently share one Supabase project
 (`ssyckywijlrkgcwvkwlr`), so an applied migration is live in both. The
