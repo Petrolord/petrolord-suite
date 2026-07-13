@@ -420,44 +420,6 @@ export default function ViewerPanel() {
     return out;
   }, [wells, manifest, geom, affine, velocityForDisplay, velBoundaries]);
 
-  // ---- synthetics window (G5) -------------------------------------------
-  // pipeline runs in a dedicated worker (big sonic logs never block the
-  // UI); one persistent worker, job-id-matched replies
-  const synthWorkerRef = useRef(null);
-  const synthJobRef = useRef(0);
-  const synthesize = useCallback((params) => new Promise((resolve, reject) => {
-    if (!synthWorkerRef.current) {
-      synthWorkerRef.current = new Worker(
-        new URL('../workers/synthetics.worker.js', import.meta.url), { type: 'module' },
-      );
-    }
-    const worker = synthWorkerRef.current;
-    const id = ++synthJobRef.current;
-    const onMessage = (e) => {
-      if (!e.data || e.data.id !== id) return;
-      worker.removeEventListener('message', onMessage);
-      if (e.data.type === 'error') reject(new Error(e.data.message));
-      else resolve(e.data.result);
-    };
-    worker.addEventListener('message', onMessage);
-    worker.postMessage({ type: 'synthesize', id, params });
-  }), []);
-  useEffect(() => () => {
-    if (synthWorkerRef.current) synthWorkerRef.current.terminate();
-  }, []);
-
-  // seismic corridor at the well: centre trace ± half crosslines
-  const getSyntheticTraces = useCallback(async (ilIdx, xlIdx, half = 2) => {
-    if (!geom || !volume) throw new Error('Load a seismic volume first.');
-    const traces = [];
-    for (let d = -half; d <= half; d++) {
-      const xl = Math.min(geom.nXl - 1, Math.max(0, xlIdx + d));
-      // eslint-disable-next-line no-await-in-loop
-      traces.push(await assembleTrace(getBrick, geom, ilIdx, xl));
-    }
-    return traces;
-  }, [geom, volume, getBrick]);
-
   const maxIndex = useMemo(() => {
     if (!geom) return 0;
     return orientation === 'inline' ? geom.nIl - 1
@@ -632,6 +594,44 @@ export default function ViewerPanel() {
 
   const getBrick = useCallback((i, j, k) => cacheRef.current
     .get(brickKey(volume.storage_path, i, j, k)), [volume]);
+
+  // ---- synthetics window (G5) -------------------------------------------
+  // pipeline runs in a dedicated worker (big sonic logs never block the
+  // UI); one persistent worker, job-id-matched replies
+  const synthWorkerRef = useRef(null);
+  const synthJobRef = useRef(0);
+  const synthesize = useCallback((params) => new Promise((resolve, reject) => {
+    if (!synthWorkerRef.current) {
+      synthWorkerRef.current = new Worker(
+        new URL('../workers/synthetics.worker.js', import.meta.url), { type: 'module' },
+      );
+    }
+    const worker = synthWorkerRef.current;
+    const id = ++synthJobRef.current;
+    const onMessage = (e) => {
+      if (!e.data || e.data.id !== id) return;
+      worker.removeEventListener('message', onMessage);
+      if (e.data.type === 'error') reject(new Error(e.data.message));
+      else resolve(e.data.result);
+    };
+    worker.addEventListener('message', onMessage);
+    worker.postMessage({ type: 'synthesize', id, params });
+  }), []);
+  useEffect(() => () => {
+    if (synthWorkerRef.current) synthWorkerRef.current.terminate();
+  }, []);
+
+  // seismic corridor at the well: centre trace ± half crosslines
+  const getSyntheticTraces = useCallback(async (ilIdx, xlIdx, half = 2) => {
+    if (!geom || !volume) throw new Error('Load a seismic volume first.');
+    const traces = [];
+    for (let d = -half; d <= half; d++) {
+      const xl = Math.min(geom.nXl - 1, Math.max(0, xlIdx + d));
+      // eslint-disable-next-line no-await-in-loop
+      traces.push(await assembleTrace(getBrick, geom, ilIdx, xl));
+    }
+    return traces;
+  }, [geom, volume, getBrick]);
 
   // Assemble the slice for the current position. Display params (gain,
   // colormap, clip…) are NOT dependencies — they are shader-side in
