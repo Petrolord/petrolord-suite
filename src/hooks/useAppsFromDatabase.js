@@ -59,6 +59,10 @@ export const useAppsFromDatabase = (moduleFilter = null) => {
                 const { data, error } = await supabase
                     .from('master_apps')
                     .select('*')
+                    // Archived tiles (retired/superseded apps — see e.g.
+                    // 20260712200000_archive_geoscience_shell_tiles.sql) must not
+                    // render as cards; useMasterApps applies the same rule.
+                    .neq('status', 'Archived')
                     .order('display_order', { ascending: true });
 
                 if (error) throw error;

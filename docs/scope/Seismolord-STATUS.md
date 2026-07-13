@@ -52,6 +52,14 @@ branch `feat/seismolord-synthetics`:
   harness — pre-fill, provenance, suggest recovers +8 ms). Full
   Seismolord + WellDataManager run: 32 suites, 492 passed / 1
   pre-existing skip; `vite build` clean.
+- **Hotfix 2026-07-13**: the ViewerPanel wiring shipped in PR #64
+  declared `getSyntheticTraces` ~180 lines above `getBrick` while
+  listing it in the deps array — a TDZ ReferenceError ("Cannot access
+  'getBrick' before initialization") that crashed ViewerPanel on mount
+  everywhere (surfaced on petrolord.com as the minified `he`). The
+  synthetics block now lives below `getBrick`. The synthetics harness
+  never caught it because it mounts SyntheticsPanel directly, not
+  ViewerPanel — workspace-level e2e is the gap.
 
 ## Petrel-style workspace UI: DONE
 
