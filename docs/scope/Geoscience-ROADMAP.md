@@ -263,9 +263,16 @@ and is the biggest build risk in the domain.
      same trio `src/lib/orgContext.js` already resolves with fallbacks).
      The debt lives in exactly one function; every geoscience policy
      calls it.
-   - **Convergence path**: a suite-level "membership consolidation" work
-     item (shared-table change → second-engineer review) is scheduled
-     alongside Phase G5. *G1.1 finding:* the consolidation has already
+   - **Convergence path**: **EXECUTED 2026-07-13** (migration
+     `20260713300000`, own PR, second-engineer review): backfill done,
+     `is_org_member()` is single-query, legacy tables dropped behind
+     read-only compat views (drop them after the next prod upload). The
+     audited blast radius was far larger than this note assumed — 162
+     live policies and ~15 functions referenced the legacy tables
+     directly and were rewritten onto SECURITY DEFINER helpers
+     (`has_org_role`/`has_any_org_role`/`my_org_id`). Original note:
+     a suite-level "membership consolidation" work item (shared-table
+     change → second-engineer review) scheduled alongside Phase G5. *G1.1 finding:* the consolidation has already
      STARTED — `organization_users` and `org_members` are frozen by
      deprecation triggers ("use organization_members +
      organization_apps"), so the canonical table is decided; what

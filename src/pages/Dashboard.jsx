@@ -78,7 +78,7 @@ export default function Dashboard() {
       try {
           if (organization?.id && isValidUUID(organization.id)) {
               const { count } = await supabase
-                .from('organization_users') 
+                .from('organization_members')
                 .select('*', { count: 'exact', head: true })
                 .eq('organization_id', organization.id);
               setMemberCount(count || 1); 

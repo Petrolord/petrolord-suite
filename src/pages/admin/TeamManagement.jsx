@@ -41,9 +41,12 @@ const TeamManagement = () => {
         // Get user role in org
         if (user?.id) {
             const { data, error } = await supabase
-                .from('organization_users')
+                .from('organization_members')
                 .select('role, organization_id')
                 .eq('user_id', user.id)
+                .eq('status', 'active')
+                .order('joined_at', { ascending: true, nullsFirst: false })
+                .limit(1)
                 .single();
             
             if (error || !data) {

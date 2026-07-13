@@ -27,7 +27,7 @@ export default function ReassignSeatModal({ app, orgId, currentAdminId, onSucces
       setLoading(true);
       // Fetch potential assignees (excluding current admin)
       const { data } = await supabase
-        .from('organization_users')
+        .from('organization_members')
         .select('user_id')
         .eq('organization_id', orgId);
         

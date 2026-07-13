@@ -50,49 +50,44 @@ const AuthProviderContent = ({ children }) => {
   const fetchUserOrgAndPermissions = useCallback(async (userId) => {
     if (!userId) return { modules: [], apps: [], org: null, role: null, isProfileSetup: false };
     try {
+      // Membership consolidation (20260713300000): organization_members is the
+      // single membership table; per-user module/app arrays no longer exist —
+      // org-level entitlements live in organization_apps (and purchased_modules
+      // for gating, via usePurchasedModules).
       const { data, error } = await supabase
-        .from('organization_users')
-        .select('modules, apps, role, user_role, organization_id, organizations ( * )')
-        .eq('user_id', userId);
+        .from('organization_members')
+        .select('organization_id, role, status, organizations ( * )')
+        .eq('user_id', userId)
+        .eq('status', 'active');
 
       if (error) throw error;
 
-      if (data && data.length > 0) {
-        let selectedRecord = data[0];
-        if (data.length > 1) {
-            const suiteOrg = data.find(record => {
-                const orgData = record.organizations;
-                return orgData && orgData.is_hse_only !== true;
-            });
-            if (suiteOrg) selectedRecord = suiteOrg;
-        }
-        return {
-            modules: selectedRecord.modules || [],
-            apps: selectedRecord.apps || [],
-            org: selectedRecord.organizations,
-            role: selectedRecord.user_role || selectedRecord.role || null,
-            isProfileSetup: true
-        };
+      if (!data || data.length === 0) {
+        return { modules: [], apps: [], org: null, role: null, isProfileSetup: false };
       }
 
-      // Fallback: the user may have been provisioned into organization_members or
-      // org_members (e.g. by the signup flow, or by generate-quote which writes
-      // organization_users only on auto-create) rather than organization_users.
-      // Recognize that membership AND its role so they aren't treated as org-less
-      // or stripped of admin rights. Per-user module/app grants don't live in
-      // those tables, so default to empty — super admins get everything
-      // elsewhere, and org-level app access is resolved per app.
-      const [om, ogm] = await Promise.all([
-        supabase.from('organization_members').select('organization_id, role').eq('user_id', userId).maybeSingle(),
-        supabase.from('org_members').select('org_id, role').eq('user_id', userId).maybeSingle(),
-      ]);
-      const fallbackOrgId = om.data?.organization_id || ogm.data?.org_id || null;
-      if (fallbackOrgId) {
-        const { data: org } = await supabase.from('organizations').select('*').eq('id', fallbackOrgId).maybeSingle();
-        return { modules: [], apps: [], org: org || { id: fallbackOrgId }, role: om.data?.role || ogm.data?.role || null, isProfileSetup: true };
+      let selectedRecord = data[0];
+      if (data.length > 1) {
+        const suiteOrg = data.find(record => {
+          const orgData = record.organizations;
+          return orgData && orgData.is_hse_only_legacy !== true;
+        });
+        if (suiteOrg) selectedRecord = suiteOrg;
       }
 
-      return { modules: [], apps: [], org: null, role: null, isProfileSetup: false };
+      const { data: orgApps } = await supabase
+        .from('organization_apps')
+        .select('app_id, module_id, status')
+        .eq('organization_id', selectedRecord.organization_id);
+      const activeApps = (orgApps || []).filter(a => (a.status || '').toLowerCase() === 'active');
+
+      return {
+        modules: [...new Set(activeApps.map(a => a.module_id).filter(Boolean))],
+        apps: [...new Set(activeApps.map(a => a.app_id).filter(Boolean))],
+        org: selectedRecord.organizations || { id: selectedRecord.organization_id },
+        role: selectedRecord.role || null,
+        isProfileSetup: true
+      };
     } catch (error) {
       console.error("Error fetching user organization and permissions:", error);
       return { modules: [], apps: [], org: null, role: null, isProfileSetup: false };

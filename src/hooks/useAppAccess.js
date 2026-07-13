@@ -30,16 +30,18 @@ export const useAppAccess = () => {
       }
 
       try {
-        // Fetch User Role in Org. Use maybeSingle (a user may have no
-        // organization_users row — their membership/role can live in
-        // organization_members/org_members, surfaced as `role` from useAuth).
+        // Fetch user role from the canonical membership table (consolidation
+        // 20260713300000); useAuth's `role` is the fallback.
         const { data: orgUser } = await supabase
-          .from('organization_users')
-          .select('role, user_role')
+          .from('organization_members')
+          .select('role')
           .eq('user_id', user.id)
+          .eq('status', 'active')
+          .order('joined_at', { ascending: true, nullsFirst: false })
+          .limit(1)
           .maybeSingle();
 
-        const dbRole = orgUser?.user_role || orgUser?.role || role || 'viewer';
+        const dbRole = orgUser?.role || role || 'viewer';
         const adminRoles = ['admin', 'owner', 'org_admin', 'super_admin'];
         const isAdmin = isSuperAdmin || user?.role === 'super_admin' || adminRoles.includes(dbRole);
 

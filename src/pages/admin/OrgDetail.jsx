@@ -49,17 +49,17 @@ const OrgDetail = () => {
       setOrg(orgData);
 
       const { data: membersData, error: membersError } = await supabase
-        .from('organization_users')
-        .select('*, users:user_id(email, id)')
+        .from('organization_members')
+        .select('*')
         .eq('organization_id', orgId);
 
       if (membersError) throw membersError;
       
       // Flatten members structure for easier usage
+      // organization_members carries email/full_name directly
       const formattedMembers = membersData.map(m => ({
         ...m,
-        email: m.users?.email,
-        user_created_at: m.created_at 
+        user_created_at: m.created_at
       }));
       
       setMembers(formattedMembers);

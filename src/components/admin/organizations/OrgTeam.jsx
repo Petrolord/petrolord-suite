@@ -35,7 +35,7 @@ const OrgTeam = ({ users, onUpdate }) => {
 
   const handleDeleteUser = async (userId) => {
     if (!window.confirm("Are you sure? This will remove the user's access.")) return;
-    const { error } = await supabase.from('organization_users').delete().eq('user_id', userId).eq('organization_id', selectedOrg.id);
+    const { error } = await supabase.from('organization_members').delete().eq('user_id', userId).eq('organization_id', selectedOrg.id);
     if (error) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });
     } else {
@@ -279,9 +279,12 @@ const EditPermissionsDialog = ({ isOpen, setIsOpen, user, organization, onSucces
     
     setIsSaving(true);
     try {
+        // Per-user module arrays were retired with organization_users
+        // (membership consolidation 20260713300000): role lives on
+        // organization_members; app access is managed via seat assignment.
         const { error } = await supabase
-        .from('organization_users')
-        .update({ role, modules })
+        .from('organization_members')
+        .update({ role })
         .eq('user_id', user.user_id)
         .eq('organization_id', organization.id);
 
@@ -321,20 +324,11 @@ const EditPermissionsDialog = ({ isOpen, setIsOpen, user, organization, onSucces
           
           <div className="space-y-2">
             <Label>Module Access</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {allModules.map(mod => (
-                <div key={mod.id} className="flex items-center space-x-2 border border-slate-800 p-3 rounded bg-slate-950/50">
-                  <Checkbox 
-                    id={`mod-${mod.id}`} 
-                    checked={Array.isArray(modules) && modules.includes(mod.id)}
-                    onCheckedChange={() => toggleModule(mod.id)}
-                  />
-                  <label htmlFor={`mod-${mod.id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-slate-200">
-                    {mod.name}
-                  </label>
-                </div>
-              ))}
-            </div>
+            <p className="text-sm text-slate-400 border border-slate-800 p-3 rounded bg-slate-950/50">
+              Per-user module grants have been retired. App and module access is
+              organization-level (subscriptions) with per-user seats — manage it
+              from Seat Management.
+            </p>
           </div>
         </div>
         <DialogFooter>

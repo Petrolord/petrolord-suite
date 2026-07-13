@@ -40,7 +40,7 @@ export default function AdminModuleAccessDiagnostics() {
         const { data: modules } = await supabase.from('purchased_modules').select('*').eq('organization_id', orgId);
 
         // 5. Get Org Users Count (for seat usage)
-        const { count: userCount } = await supabase.from('organization_users').select('*', { count: 'exact', head: true }).eq('organization_id', orgId);
+        const { count: userCount } = await supabase.from('organization_members').select('*', { count: 'exact', head: true }).eq('organization_id', orgId);
 
         setData({
             org,

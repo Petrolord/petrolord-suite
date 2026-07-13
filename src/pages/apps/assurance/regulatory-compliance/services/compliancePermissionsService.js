@@ -7,9 +7,11 @@ export const compliancePermissionsService = {
       if (!user) return { hasAccess: false, role: null };
 
       const { data, error } = await supabase
-        .from('organization_users')
-        .select('role, user_role, organization_id')
+        .from('organization_members')
+        .select('role, organization_id')
         .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('joined_at', { ascending: true, nullsFirst: false })
         .limit(1)
         .single();
 
@@ -18,7 +20,7 @@ export const compliancePermissionsService = {
       // Allow if they are in the org. You can refine this based on specific compliance roles.
       return { 
         hasAccess: true, 
-        role: data.role || data.user_role,
+        role: data.role,
         orgId: data.organization_id
       };
     } catch (err) {

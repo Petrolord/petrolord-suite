@@ -78,19 +78,14 @@ const OrgAccess = ({ users }) => {
   };
 
   const savePermissions = async () => {
-    setIsSaving(true);
-    const { error } = await supabase
-      .from('organization_users')
-      .update({ apps: permissions.apps })
-      .eq('user_id', selectedUser)
-      .eq('organization_id', selectedOrg.id);
-
-    setIsSaving(false);
-    if (error) {
-      toast({ variant: 'destructive', title: 'Save Failed', description: error.message });
-    } else {
-      toast({ title: 'Permissions Saved' });
-    }
+    // Per-user app arrays were retired with organization_users (membership
+    // consolidation 20260713300000). Per-user app access is seat assignment
+    // (assign_app_seat / app_seat_assignments), managed from Seat Management.
+    toast({
+      variant: 'destructive',
+      title: 'Superseded',
+      description: 'Per-user app grants moved to seat assignment — use Seat Management.',
+    });
   };
 
   const isAppAvailableInSub = (moduleId, appId) => {

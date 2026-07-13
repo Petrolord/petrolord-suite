@@ -18,19 +18,19 @@ Deno.serve(async (req)=>{
     if (orgId) {
       const { data: org, error: orgError } = await supabase.from('organizations').select('*').eq('id', orgId).single();
       if (orgError) throw new Error('Organization not found');
-      // Verify admin status if user_id is present.
-      // Membership lives across three tables (org signup writes organization_members,
-      // legacy code uses organization_users, some flows use org_members) — accept an
-      // admin-ish role in ANY of them.
+      // Verify admin status if user_id is present. organization_members is the
+      // single canonical membership table (consolidation 20260713300000).
       if (user_id) {
         const ADMIN_ROLES = ['owner', 'admin', 'super_admin', 'org_admin'];
-        const [ou, om, ogm] = await Promise.all([
-          supabase.from('organization_users').select('role, user_role').eq('organization_id', orgId).eq('user_id', user_id).maybeSingle(),
-          supabase.from('organization_members').select('role').eq('organization_id', orgId).eq('user_id', user_id).maybeSingle(),
-          supabase.from('org_members').select('role').eq('org_id', orgId).eq('user_id', user_id).maybeSingle()
-        ]);
-        const roles = [ou.data?.role, ou.data?.user_role, om.data?.role, ogm.data?.role].filter(Boolean);
-        if (!roles.some((r)=>ADMIN_ROLES.includes(r))) {
+        // (org_id, user_id) is not unique — only (org_id, email) is — so a
+        // user can legitimately hold two rows (e.g. placeholder + invite).
+        // Admin if ANY active row carries an admin role.
+        const { data: omRows } = await supabase.from('organization_members')
+          .select('role, status')
+          .eq('organization_id', orgId).eq('user_id', user_id);
+        const isAdmin = (omRows ?? []).some((om)=>
+          (om.status ?? 'active').toLowerCase() === 'active' && ADMIN_ROLES.includes(om.role));
+        if (!isAdmin) {
           throw new Error('Unauthorized: Must be an organization admin to generate a quote.');
         }
       }
@@ -53,13 +53,18 @@ Deno.serve(async (req)=>{
         }).select().single();
         if (createError) throw createError;
         orgId = newOrg.id;
-        await supabase.from('organization_users').insert({
+        // Canonical membership row (organization_users is retired; requested
+        // modules/apps live on the quote and are provisioned on payment).
+        const { error: memberError } = await supabase.from('organization_members').insert({
           organization_id: orgId,
           user_id: user_id,
+          full_name: user_name || user_email || 'Unknown',
+          email: user_email || `unknown+${user_id}@petrolord.invalid`,
           role: 'owner',
-          modules: modules,
-          apps: apps
+          status: 'active',
+          joined_at: new Date().toISOString()
         });
+        if (memberError) throw new Error(`Failed to create owner membership: ${memberError.message}`);
       }
     }
     // 2. Dynamic Pricing Engine
