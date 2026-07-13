@@ -58,9 +58,7 @@ const FdpAccelerator = lazy(() => import('@/pages/apps/FDPAccelerator'));
 const ProjectManagementPro = lazy(() => import('@/pages/apps/ProjectManagementPro'));
 const TechnicalReportAutopilot = lazy(() => import('@/pages/apps/TechnicalReportAutopilot'));
 const WellCorrelationPanel = lazy(() => import('@/pages/apps/WellCorrelationPanel'));
-const CrossplotGenerator = lazy(() => import('@/pages/apps/CrossplotGenerator'));
-const PetrophysicsEstimator = lazy(() => import('@/pages/apps/PetrophysicsEstimator'));
-const PetrophysicalIntegrationSuite = lazy(() => import('@/pages/apps/PetrophysicalIntegrationSuite'));
+const PetrophysicsStudio = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudio'));
 const ContourMapDigitizer = lazy(() => import('@/pages/apps/ContourMapDigitizer'));
 const WellPlanning = lazy(() => import('@/pages/apps/WellPlanning'));
 const ScenarioPlanner = lazy(() => import('@/pages/apps/ScenarioPlanner'));
@@ -85,8 +83,6 @@ const RecoveryFactorEstimator = lazy(() => import('@/pages/apps/RecoveryFactorEs
 const AquiferInfluxCalculator = lazy(() => import('@/pages/apps/AquiferInfluxCalculator'));
 const DeclineCurveAnalysis = lazy(() => import('@/pages/apps/DeclineCurveAnalysis'));
 const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'));
-const LogFaciesAnalysis = lazy(() => import('@/pages/apps/LogFaciesAnalysis'));
-const AutomatedLogDigitizer = lazy(() => import('@/pages/apps/AutomatedLogDigitizer'));
 const NetworkDiagramPro = lazy(() => import('@/pages/apps/NetworkDiagramPro'));
 const ReservoirBalance = lazy(() => import('@/pages/apps/reservoir-balance/ReservoirBalance'));
 const RbCaseDetail = lazy(() => import('@/pages/apps/reservoir-balance/RbCaseDetail'));
@@ -111,9 +107,9 @@ const SeismolordWellTieHarness = lazy(() => import('@/pages/apps/Seismolord/Seis
 const SeismolordCubeViewHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordCubeViewHarness'));
 const SeismolordWorkspaceHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordWorkspaceHarness'));
 const WellDataManagerHarness = lazy(() => import('@/pages/apps/WellDataManager/WellDataManagerHarness'));
+const PetrophysicsStudioHarness = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudioHarness'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
-const WellLogAnalyzer = lazy(() => import('@/pages/apps/WellLogAnalyzer'));
 const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/ProductionSurveillanceDashboard'));
 const WellTestDataAnalyzer = lazy(() => import('@/pages/apps/WellTestDataAnalyzer'));
 const FlowAssuranceMonitor = lazy(() => import('@/pages/apps/FlowAssuranceMonitor'));
@@ -422,12 +418,17 @@ function App() {
                                 <Route path="apps/geoscience/reservoircalc-pro" element={<ProtectedAppRoute appId="reservoircalc-pro" appName="ReservoirCalc Pro"><ReservoirCalcPro /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/well-correlation-tool" element={<ProtectedAppRoute appId="well-correlation-tool" appName="Well Correlation Tool"><WellCorrelationTool /></ProtectedAppRoute>} />
                                 
-                                <Route path="apps/geoscience/crossplot-generator" element={<CrossplotGenerator />} />
-                                <Route path="apps/geoscience/petrophysics-estimator" element={<PetrophysicsEstimator />} />
-                                <Route path="apps/geoscience/petrophysical-integration-suite" element={<PetrophysicalIntegrationSuite />} />
-                                <Route path="apps/geoscience/log-facies-analysis" element={<LogFaciesAnalysis />} />
-                                <Route path="apps/geoscience/well-log-analyzer" element={<WellLogAnalyzer />} />
-                                <Route path="apps/geoscience/automated-log-digitizer" element={<AutomatedLogDigitizer />} />
+                                {/* Petrophysics Studio (G2) supersedes five shallow tiles;
+                                    the old geoscience routes redirect to it so bookmarks
+                                    and any in-flight entitlements land on the successor
+                                    (roadmap G0: routes stay as aliases where a successor exists). */}
+                                <Route path="apps/geoscience/petrophysics-studio" element={<ProtectedAppRoute appId="petrophysics-studio" appName="Petrophysics Studio"><PetrophysicsStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/crossplot-generator" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
+                                <Route path="apps/geoscience/petrophysics-estimator" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
+                                <Route path="apps/geoscience/petrophysical-integration-suite" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
+                                <Route path="apps/geoscience/log-facies-analysis" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
+                                <Route path="apps/geoscience/well-log-analyzer" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
+                                <Route path="apps/geoscience/automated-log-digitizer" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
                                 <Route path="apps/geoscience/contour-map-digitizer" element={<ContourMapDigitizer />} />
                                 <Route path="apps/geoscience/analog-finder" element={<AnalogFinder />} />
                                 <Route path="apps/geoscience/earthmodel-studio" element={<ProtectedAppRoute appId="earthmodel-studio" appName="EarthModel Studio"><EarthModelStudio /></ProtectedAppRoute>} />
@@ -638,6 +639,7 @@ function App() {
                                   <Route path="/dev/seismolord-welltie" element={<SeismolordWellTieHarness />} />
                                   <Route path="/dev/seismolord-workspace" element={<SeismolordWorkspaceHarness />} />
                                   <Route path="/dev/well-data-manager" element={<WellDataManagerHarness />} />
+                                  <Route path="/dev/petrophysics-studio" element={<PetrophysicsStudioHarness />} />
                                 </>
                               )}
                               <Route path="*" element={<Navigate to="/" replace />} />

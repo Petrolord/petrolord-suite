@@ -146,6 +146,47 @@ export async function unshareWell(wellId) {
   return updateWell(wellId, { organization_id: null });
 }
 
+// ---- zones (normalized, Petrophysics Studio G2.2) -------------------------
+// geo_wells_zones: visibility inherits the well row; writes owner-only
+// (RLS). `properties` is the PUBLISHED petrophysical summary jsonb —
+// written only by an explicit publish action, never by recompute.
+
+export async function listZones(wellId) {
+  const { data, error } = await supabase.from('geo_wells_zones')
+    .select('*').eq('well_id', wellId).order('top_md_m', { ascending: true });
+  if (error) throw new Error(`Could not load zones: ${error.message}`);
+  return data || [];
+}
+
+/** @param {{name: string, topMdM: number, baseMdM: number}} z */
+export async function saveZone(wellId, z) {
+  const { data, error } = await supabase.from('geo_wells_zones')
+    .insert({ well_id: wellId, name: z.name, top_md_m: z.topMdM, base_md_m: z.baseMdM })
+    .select().single();
+  if (error) throw new Error(`Could not save zone: ${error.message}`);
+  return data;
+}
+
+export async function updateZone(zoneId, patch) {
+  const { data, error } = await supabase.from('geo_wells_zones')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', zoneId).select();
+  if (error) throw new Error(`Could not update zone: ${error.message}`);
+  if (!data || !data.length) {
+    throw new Error('Only the owner can edit zones (org sharing is read-only).');
+  }
+  return data[0];
+}
+
+export async function deleteZone(zone) {
+  const { data, error } = await supabase.from('geo_wells_zones')
+    .delete().eq('id', zone.id).select('id');
+  if (error) throw new Error(`Could not delete zone: ${error.message}`);
+  if (!data || !data.length) {
+    throw new Error('Only the owner can delete zones (org sharing is read-only).');
+  }
+}
+
 // ---- tops (normalized) ---------------------------------------------------
 
 export async function listTops(wellId) {

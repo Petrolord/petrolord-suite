@@ -48,7 +48,7 @@ rows and entitlement FKs), not deleted.
 
 1. **Seismolord** — geophysics workstation *(exists)*
 2. **Well Data Manager** — shared subsurface well registry *(SHIPPED 2026-07-13 — Phase G1 complete, tile Active)*
-3. **Petrophysics Studio** — one deep log-analysis app *(new — Phase G2)*
+3. **Petrophysics Studio** — one deep log-analysis app *(SHIPPED 2026-07-13 — Phase G2 complete, tile Active; supersedes 5 shallow tiles)*
 4. **Well Correlation** — cross-sections + tops *(rebuild — Phase G3)*
 5. **Mapping & Surface Studio** — gridding/contouring/basemaps *(new — Phase G4)*
 6. **ReservoirCalc Pro** — volumetrics + uncertainty + prospect risking *(exists; risking module added in Phase G5)*
@@ -147,7 +147,7 @@ time depends on review cadence.
   3D/well-tie) and in every later app with zero re-import; RLS pentest
   green; LAS goldens bit-accurate.
 
-### Phase G2 — Petrophysics Studio *(large — the flagship build of this roadmap)*
+### Phase G2 — Petrophysics Studio *(large — the flagship build of this roadmap)* — **COMPLETE 2026-07-13 (G2.0–G2.6; see docs/scope/PetrophysicsStudio-STATUS.md)**
 - Replaces five tiles. Workstation shell: ribbon, well/curve explorer,
   multi-track log viewer (canvas; fill-height), crossplot windows
   (white chartTheme), status bar.
