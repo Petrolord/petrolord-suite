@@ -5,7 +5,6 @@ import MainViewport from '@/components/earthmodel/MainViewport';
 import { Toaster } from '@/components/ui/toaster';
 import '@/styles/earthmodel-phase2.css';
 import '@/styles/earthmodel-help.css';
-import { IntegrationProvider } from '@/contexts/IntegrationContext';
 import { HelpProvider } from '@/context/HelpContext';
 import { TrainingProvider } from '@/context/TrainingContext';
 import { SettingsProvider } from '@/context/SettingsContext';
@@ -49,7 +48,6 @@ const EarthModelPro = () => {
         <TrainingProvider>
           <SettingsProvider>
             <NotificationProvider>
-              <IntegrationProvider>
                 <div className="flex h-screen w-full overflow-hidden bg-slate-950 earthmodel-pro-container text-slate-100 flex-col">
                   
                   <EarthModelProHeader 
@@ -75,7 +73,6 @@ const EarthModelPro = () => {
                   <TrainingHub />
                   <SettingsPanel />
                 </div>
-              </IntegrationProvider>
             </NotificationProvider>
           </SettingsProvider>
         </TrainingProvider>

@@ -14,10 +14,10 @@ import path from 'path';
 
 import {
   fitTps, gridSurface, convexHull, picksToPoints, exportGridSpec,
-} from '@/pages/apps/Seismolord/engine/gridding';
+} from '@/lib/gridding/gridding';
 import {
   writeXYZ, writeCPS3, writeZMAP, grvAcreFt, pyExp,
-} from '@/pages/apps/Seismolord/engine/surfaceExport';
+} from '@/lib/gridding/surfaceExport';
 import { NULL_VALUE } from '@/pages/apps/Seismolord/engine/manifest';
 import { affineFromCorners } from '@/pages/apps/Seismolord/engine/surveyGeometry';
 import { SurfaceParser } from '@/pages/apps/ReservoirCalcPro/services/SurfaceParser';

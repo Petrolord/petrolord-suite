@@ -15,11 +15,9 @@ import {
   generateCSV,
   generateJSON
 } from '@/utils/analogfinderCalculations';
-import { useIntegration } from '@/contexts/IntegrationContext';
 
 const AnalogFinder = () => {
   const { toast } = useToast();
-  const { dispatch } = useIntegration();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   
@@ -81,22 +79,6 @@ const AnalogFinder = () => {
       };
 
       setResults(searchResults);
-
-      // Broadcast event to Unified Data Fabric
-      if (dispatch) {
-        dispatch({
-          type: 'BROADCAST_EVENT',
-          payload: {
-            event: 'ANALOG_SEARCH_COMPLETED',
-            app: 'analog-finder',
-            data: {
-              fieldName: formData.fieldName,
-              matchCount: analogResults.length,
-              topMatch: analogResults[0]?.fieldName || 'None'
-            }
-          }
-        });
-      }
       
       toast({
         title: "AnalogFinder Search Complete! 🎉",

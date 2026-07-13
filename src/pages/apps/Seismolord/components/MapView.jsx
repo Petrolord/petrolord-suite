@@ -32,7 +32,7 @@ import {
 import { buildLut } from '../viewer/shaderChunks';
 import {
   contourLevels, contourPolylines, buildMapPixels, gridRange, cellsInPolygon,
-} from '../viewer/mapContours';
+} from '@/lib/gridding/mapContours';
 import { makeDepthConverter, velocityKey, M_PER_FT } from '../engine/velocityModel';
 import { AMP_MODES } from '../engine/horizonAmplitude';
 import { faultTraces } from '../engine/faultBarriers';

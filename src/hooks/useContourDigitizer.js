@@ -5,10 +5,8 @@ import { exportToGeoJSON, exportToDXF, exportToCSV } from '@/utils/exportUtils';
 import { generateGrid } from '@/utils/gridding';
 import { useOpenCv } from '@/hooks/useOpenCv';
 import { processImageWithOpenCv, dp } from '@/utils/digitizerOpenCv';
-import { useIntegration } from '@/contexts/IntegrationContext';
 
 const useContourDigitizer = (toast) => {
-  const { dispatch } = useIntegration();
   const [state, setState] = useState({
     id: null,
     imageFile: null,

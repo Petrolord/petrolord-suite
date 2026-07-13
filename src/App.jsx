@@ -3,7 +3,6 @@ import React, { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/SupabaseAuthContext';
 import { ReservoirProvider } from '@/contexts/ReservoirContext';
-import { IntegrationProvider } from '@/contexts/IntegrationContext';
 import { StudioProvider } from '@/contexts/StudioContext';
 import { HSEProvider } from '@/contexts/HSEContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -108,6 +107,8 @@ const SeismolordWorkspaceHarness = lazy(() => import('@/pages/apps/Seismolord/Se
 const WellDataManagerHarness = lazy(() => import('@/pages/apps/WellDataManager/WellDataManagerHarness'));
 const PetrophysicsStudioHarness = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudioHarness'));
 const WellCorrelationHarness = lazy(() => import('@/pages/apps/WellCorrelation/WellCorrelationHarness'));
+const MappingSurfaceStudioHarness = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingSurfaceStudioHarness'));
+const MappingSurfaceStudio = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingSurfaceStudio'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
 const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/ProductionSurveillanceDashboard'));
@@ -249,7 +250,6 @@ function App() {
   return (
     <AuthProvider>
       <HSEProvider> 
-        <IntegrationProvider>
           <AuthGuard>
             <ErrorBoundary>
               <StudioProvider>
@@ -417,6 +417,7 @@ function App() {
                                 {/* Well Correlation (G3) replaces the mock Well Correlation Tool;
                                     the legacy slug redirects to the successor (roadmap G0 alias rule). */}
                                 <Route path="apps/geoscience/well-correlation" element={<ProtectedAppRoute appId="well-correlation" appName="Well Correlation"><WellCorrelation /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/mapping-surface-studio" element={<ProtectedAppRoute appId="mapping-surface-studio" appName="Mapping & Surface Studio"><MappingSurfaceStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/well-correlation-tool" element={<Navigate to="/dashboard/apps/geoscience/well-correlation" replace />} />
                                 
                                 {/* Petrophysics Studio (G2) supersedes five shallow tiles;
@@ -642,6 +643,7 @@ function App() {
                                   <Route path="/dev/well-data-manager" element={<WellDataManagerHarness />} />
                                   <Route path="/dev/petrophysics-studio" element={<PetrophysicsStudioHarness />} />
                                   <Route path="/dev/well-correlation" element={<WellCorrelationHarness />} />
+                                  <Route path="/dev/mapping-surface-studio" element={<MappingSurfaceStudioHarness />} />
                                 </>
                               )}
                               <Route path="*" element={<Navigate to="/" replace />} />
@@ -654,7 +656,6 @@ function App() {
             </ErrorBoundary>
           </AuthGuard>
           <Toaster />
-        </IntegrationProvider>
       </HSEProvider>
     </AuthProvider>
   );
