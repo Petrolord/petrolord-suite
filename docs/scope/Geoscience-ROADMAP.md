@@ -51,7 +51,7 @@ rows and entitlement FKs), not deleted.
 3. **Petrophysics Studio** — one deep log-analysis app *(SHIPPED 2026-07-13 — Phase G2 complete, tile Active; supersedes 5 shallow tiles)*
 4. **Well Correlation** — cross-sections + tops *(SHIPPED 2026-07-13 — Phase G3 complete, tile Active)*
 5. **Mapping & Surface Studio** — gridding/contouring/basemaps *(SHIPPED 2026-07-13 — Phase G4 complete, tile Active)*
-6. **ReservoirCalc Pro** — volumetrics + uncertainty + prospect risking *(exists; risking module added in Phase G5)*
+6. **ReservoirCalc Pro** — volumetrics + uncertainty + prospect risking *(exists; prospect-risking module SHIPPED 2026-07-13, Phase G5)*
 
 **Advanced three** (differentiators, after the core loop closes):
 
@@ -194,7 +194,7 @@ time depends on review cadence.
   GRV without touching the filesystem; grid writers stay byte-identical
   to the existing goldens.
 
-### Phase G5 — Integration pass + prospect risking *(small-medium)*
+### Phase G5 — Integration pass + prospect risking *(small-medium)* — **CORE COMPLETE 2026-07-13 (G5.0–G5.4; membership consolidation + Seismolord synthetics deferred to own efforts; see docs/scope/IntegrationRisking-STATUS.md)**
 - ReservoirCalc Pro reads surfaces from the G4 registry and wells/net
   pay from G1/G2 directly (file import remains as fallback).
 - Prospect risking module inside ReservoirCalc Pro: Pg decomposition

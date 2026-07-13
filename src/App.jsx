@@ -108,6 +108,7 @@ const WellDataManagerHarness = lazy(() => import('@/pages/apps/WellDataManager/W
 const PetrophysicsStudioHarness = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudioHarness'));
 const WellCorrelationHarness = lazy(() => import('@/pages/apps/WellCorrelation/WellCorrelationHarness'));
 const MappingSurfaceStudioHarness = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingSurfaceStudioHarness'));
+const ProspectRiskingHarness = lazy(() => import('@/pages/apps/ReservoirCalcPro/ProspectRiskingHarness'));
 const MappingSurfaceStudio = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingSurfaceStudio'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
@@ -644,6 +645,7 @@ function App() {
                                   <Route path="/dev/petrophysics-studio" element={<PetrophysicsStudioHarness />} />
                                   <Route path="/dev/well-correlation" element={<WellCorrelationHarness />} />
                                   <Route path="/dev/mapping-surface-studio" element={<MappingSurfaceStudioHarness />} />
+                                  <Route path="/dev/prospect-risking" element={<ProspectRiskingHarness />} />
                                 </>
                               )}
                               <Route path="*" element={<Navigate to="/" replace />} />

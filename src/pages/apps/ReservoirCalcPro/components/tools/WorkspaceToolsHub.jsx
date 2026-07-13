@@ -1,12 +1,35 @@
-import React, { useState } from 'react';
-import { SlidersHorizontal, History, Database, Users } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { SlidersHorizontal, History, Database, Users, Layers } from 'lucide-react';
 import Settings from './Settings';
 import AuditTrail from './AuditTrail';
 import DataManager from './DataManager';
 import TeamCollaboration from './TeamCollaboration';
+import ProspectRiskingPanel from './ProspectRiskingPanel';
+import { makeRegistryProspectsBackend } from '../../services/prospectsService';
+import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
+
+// Pull a {mean,p90,p50,p10} unrisked distribution out of RCP's Monte
+// Carlo result, whatever its wrapping (stooip/giip/oil/gas or flat).
+function pickUnrisked(pr) {
+    if (!pr) return null;
+    for (const cand of [pr.stooip, pr.giip, pr.oil, pr.gas, pr.result, pr]) {
+        if (cand && Number.isFinite(cand.mean) && Number.isFinite(cand.p50)) return cand;
+    }
+    return null;
+}
+
+// Prospect Risking wraps the shared panel with the real rcp_prospects
+// backend and the latest MC result (unrisked volume) from RCP context.
+const ProspectRiskingTool = () => {
+    const backend = useMemo(() => makeRegistryProspectsBackend(), []);
+    const { state } = useReservoirCalc();
+    const unrisked = pickUnrisked(state?.probResults);
+    return <ProspectRiskingPanel backend={backend} unrisked={unrisked} />;
+};
 
 const TABS = [
     { id: 'settings', label: 'Settings', icon: SlidersHorizontal, Comp: Settings },
+    { id: 'risking', label: 'Prospect Risking', icon: Layers, Comp: ProspectRiskingTool },
     { id: 'audit', label: 'Audit Trail', icon: History, Comp: AuditTrail },
     { id: 'data', label: 'Data Manager', icon: Database, Comp: DataManager },
     { id: 'team', label: 'Collaboration', icon: Users, Comp: TeamCollaboration },
