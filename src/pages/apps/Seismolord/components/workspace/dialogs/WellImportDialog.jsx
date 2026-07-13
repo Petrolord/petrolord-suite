@@ -7,7 +7,7 @@ import { CircleDot } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import WellImport from '../../WellImport';
+import WellImport from '@/components/wells/WellImport';
 
 export default function WellImportDialog({ open, onOpenChange, onSave }) {
   return (

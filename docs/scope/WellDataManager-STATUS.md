@@ -11,8 +11,8 @@ Seismolord migration, per the deploy lesson).
 |---|---|---|
 | G1.0 oracle + goldens | **DONE** | PR #54 — lasio oracle, 6 deterministic LAS fixtures + committed goldens (test-data/wells/) |
 | G1.1 schema + helper + pentest | **DONE** | PR #55 — migration 20260713100000 (geo_wells / geo_wells_tops / geo_wells_logs + `wells` bucket), is_org_member three-table upgrade, live RLS pentest 14/14; **applied live 2026-07-13** |
-| G1.2 LAS engine + services | **DONE** | this branch — see below |
-| G1.3 app UI | pending | workstation-lite shell, wells tree, map, detail tabs, import dialogs, /dev harness |
+| G1.2 LAS engine + services | **DONE** | landed dd9b251 — see below |
+| G1.3 app UI | **DONE** | this branch — see below |
 | G1.4 Seismolord migration | pending | seismic_wells → registry + compat view, useWells re-point |
 | G1.5 close-out | pending | drop seismic_wells, tile Active |
 
@@ -48,6 +48,49 @@ Seismolord migration, per the deploy lesson).
   (`npx jest src/pages/apps/WellDataManager`); full repo suite 653 green.
 - 50 MB LAS (713k rows × 8 curves): parseLas ≈ 2.3 s + prepareLogs
   ≈ 0.7 s, in the worker — main thread untouched.
+
+## G1.3 delivered
+
+- **Shared workstation primitives extracted at the second consumer**
+  (roadmap §3 rule): Seismolord's `WorkspaceShell` →
+  `src/components/workstation/WorkspaceShell.jsx` (new `autoSaveId` /
+  `minWidth` props; Seismolord keeps its pre-extraction persistence
+  key) and the `WellImport` form + its delimited-text engine →
+  `src/components/wells/WellImport.jsx` + `src/lib/wellImport.js`.
+  Seismolord imports re-pointed, all its jest + e2e untouched-green.
+- `components/WellWorkstation.jsx` — workstation-lite controller on the
+  shared shell: wells tree / map / detail views, slim ribbon, status
+  bar. Every data touch goes through an injected backend object.
+- Backends: `services/registryBackend.js` (geo_wells via wellsService,
+  org resolution via `src/lib/orgContext.js`) and
+  `services/inMemoryBackend.js` (same interface, no auth/DB, real LAS
+  engine, seeded read-only org well) — the harness runs the identical
+  app.
+- `components/WellsTree.jsx` (search, org/private badges, owner-only
+  context menu), `WellsMap.jsx` (canvas surface map, click-select),
+  `WellDetail.jsx` (header/logs/tops/deviation/checkshots tabs, curve
+  cache), `LogTracks.jsx` (canvas quick-view; irregular logs plot by
+  sample index and say so), `LasImportDialog.jsx` (worker parse, curve
+  keep/mapping + unit preview — converted units show source→SI,
+  unknown units marked "as-is"; header suggested from ~Well, surface
+  X/Y manual; add-to-existing-well path), `AddWellDialog.jsx` (shared
+  WellImport form → registry + normalized tops), `DeleteWellDialog.jsx`
+  (dependent-data counts in the warning).
+- `/dev/well-data-manager` harness route (DEV builds only, App.jsx).
+  The app page + tile deliberately do NOT ship yet — G1.5, tile and
+  route together (the deploy lesson).
+
+## Validation (G1.3 acceptance)
+
+- e2e (`e2e/well-data-manager.spec.js`): full LAS import → detail →
+  plot → share → read-only check → delete-with-warning flow, plus
+  manual add-well with pasted tops and map view — green on the live
+  harness. Seismolord wells + workspace e2e re-run green after the
+  extractions.
+- jest: `__tests__/inMemoryBackend.test.js` pins the harness contract
+  (seeded shared well, full flow, SI conversion provenance, owner-only
+  writes mirroring RLS, tops normalize + sort, domain-error surfacing).
+  Full repo suite 659 green.
 
 ## Gotchas encoded
 
