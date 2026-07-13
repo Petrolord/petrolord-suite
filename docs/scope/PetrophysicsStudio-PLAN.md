@@ -1,6 +1,13 @@
 # Petrophysics Studio — Phase G2 Plan
 
-Status: **DRAFT — awaiting owner sign-off** (open questions in §8).
+Status: **APPROVED AS DRAFTED — owner sign-off 2026-07-13.** All five
+open questions confirmed: (1) zone publish = `properties` jsonb on
+`geo_wells_zones`; (2) facies polygons app-private in v1; (3) digitizer
+stays as the last build item (G2.6); (4) published acceptance example:
+owner to supply page refs — synthetic type well anchors acceptance
+until then; (5) legacy `saved_petrophysics_projects` /
+`log_facies_projects` tables stay (retirement logged for the DB-cleanup
+effort).
 Roadmap slot: Geoscience-ROADMAP.md **Phase G2 — the flagship build**:
 one deep log-analysis workstation replacing five shallow tiles. App
 name **Petrophysics Studio**, slug `petrophysics-studio` (locked,
