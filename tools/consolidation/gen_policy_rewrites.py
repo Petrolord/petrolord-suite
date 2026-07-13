@@ -117,6 +117,9 @@ def parse_sub(body):
             roles = [rm.group(1)]
 
     sm = re.search(rf"{re.escape(ref)}\.status\s*=\s*'([^']*)'::text", body)
+    if sm and sm.group(1).lower() != 'active':
+        # helpers hardwire active-status; any other literal must be hand-handled
+        return None
 
     binding = None
     bm = re.search(
@@ -143,7 +146,7 @@ def parse_sub(body):
         rf"SELECT\s+(?:1|{re.escape(ref)}\.{orgcol}|{re.escape(table)}\.{orgcol})",
         rf"FROM\s+(?:public\.)?{re.escape(table)}(?:\s+\w+)?",
         r"LIMIT\s+1",
-        r"\bWHERE\b|\bAND\b|\bOR\b|[()\s]",
+        r"\bWHERE\b|\bAND\b|[()\s]",  # NOT \bOR\b: an OR inside a legacy subquery must fail loudly
     ):
         residue = re.sub(pat, " ", residue)
     if residue.strip():
@@ -254,7 +257,8 @@ def main():
         tbl = f'{p["schema"]}."{p["tbl"]}"' if p["schema"] != "public" else f'public."{p["tbl"]}"'
         cmd = CMD[p["cmd"]]
         stmt = [f'drop policy if exists "{p["name"]}" on {tbl};']
-        create = f'create policy "{p["name"]}" on {tbl}\n  as permissive for {cmd}\n  to {p["roles"]}'
+        perm = "permissive" if p["permissive"] else "restrictive"
+        create = f'create policy "{p["name"]}" on {tbl}\n  as {perm} for {cmd}\n  to {p["roles"]}'
         if new["qual"] and cmd != "insert":
             create += f'\n  using ({new["qual"]})'
         if new["withcheck"]:

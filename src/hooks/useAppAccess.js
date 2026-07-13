@@ -37,6 +37,7 @@ export const useAppAccess = () => {
           .select('role')
           .eq('user_id', user.id)
           .eq('status', 'active')
+          .order('joined_at', { ascending: true, nullsFirst: false })
           .limit(1)
           .maybeSingle();
 

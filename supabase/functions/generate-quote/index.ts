@@ -22,11 +22,15 @@ Deno.serve(async (req)=>{
       // single canonical membership table (consolidation 20260713300000).
       if (user_id) {
         const ADMIN_ROLES = ['owner', 'admin', 'super_admin', 'org_admin'];
-        const { data: om } = await supabase.from('organization_members')
+        // (org_id, user_id) is not unique — only (org_id, email) is — so a
+        // user can legitimately hold two rows (e.g. placeholder + invite).
+        // Admin if ANY active row carries an admin role.
+        const { data: omRows } = await supabase.from('organization_members')
           .select('role, status')
-          .eq('organization_id', orgId).eq('user_id', user_id).maybeSingle();
-        const active = om && (om.status ?? 'active').toLowerCase() === 'active';
-        if (!active || !ADMIN_ROLES.includes(om.role)) {
+          .eq('organization_id', orgId).eq('user_id', user_id);
+        const isAdmin = (omRows ?? []).some((om)=>
+          (om.status ?? 'active').toLowerCase() === 'active' && ADMIN_ROLES.includes(om.role));
+        if (!isAdmin) {
           throw new Error('Unauthorized: Must be an organization admin to generate a quote.');
         }
       }
@@ -51,7 +55,7 @@ Deno.serve(async (req)=>{
         orgId = newOrg.id;
         // Canonical membership row (organization_users is retired; requested
         // modules/apps live on the quote and are provisioned on payment).
-        await supabase.from('organization_members').insert({
+        const { error: memberError } = await supabase.from('organization_members').insert({
           organization_id: orgId,
           user_id: user_id,
           full_name: user_name || user_email || 'Unknown',
@@ -60,6 +64,7 @@ Deno.serve(async (req)=>{
           status: 'active',
           joined_at: new Date().toISOString()
         });
+        if (memberError) throw new Error(`Failed to create owner membership: ${memberError.message}`);
       }
     }
     // 2. Dynamic Pricing Engine

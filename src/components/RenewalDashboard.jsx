@@ -46,6 +46,7 @@ const RenewalDashboard = () => {
         .select('organization_id, role')
         .eq('user_id', user.user.id)
         .eq('status', 'active')
+        .order('joined_at', { ascending: true, nullsFirst: false })
         .limit(1)
         .single();
 

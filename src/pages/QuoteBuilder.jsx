@@ -420,11 +420,11 @@ const QuoteBuilder = () => {
   }, [serviceTier, billingPeriod, selectedModules, selectedApps, appSeats, storageGB, manualDiscount, appsGroupedByModule, masterApps]);
 
   const handleSaveQuote = async () => {
-    // Resolve the caller's org from metadata first, then from ANY of the three
-    // membership tables — generate-quote accepts membership in organization_users,
-    // organization_members or org_members. If none resolves we deliberately leave
-    // orgId null and let generate-quote auto-provision a brand-new organization
-    // (its no-org branch), so a first-time user can bootstrap one from here.
+    // Resolve the caller's org from metadata first, then from the canonical
+    // organization_members table (membership consolidation 20260713300000).
+    // If none resolves we deliberately leave orgId null and let generate-quote
+    // auto-provision a brand-new organization (its no-org branch), so a
+    // first-time user can bootstrap one from here.
     let orgId = user?.user_metadata?.organization_id || user?.organization?.id;
     if (!orgId || !isValidUUID(orgId)) {
         orgId = await resolveUserOrgId(user.id);
