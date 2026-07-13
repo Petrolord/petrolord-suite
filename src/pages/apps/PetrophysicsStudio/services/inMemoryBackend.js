@@ -111,6 +111,17 @@ export function makeInMemoryBackend() {
     return w;
   };
 
+  const ownWell = (wellId, what) => {
+    const w = wells.find((x) => x.id === wellId);
+    if (!w) throw new Error('Well not found.');
+    if (!w.is_own) throw new Error(`Only the owner can ${what} (org sharing is read-only).`);
+    return w;
+  };
+
+  // project persistence survives page reloads via sessionStorage so
+  // the e2e can prove restore; each Playwright context starts clean
+  const PROJECT_KEY = 'petro.dev.project.v1';
+
   return {
     async listWells() { return [...wells]; },
     async listLogs(wellId) { return [...(logsByWell.get(wellId) || [])]; },
@@ -150,6 +161,69 @@ export function makeInMemoryBackend() {
       const zones = zonesByWell.get(zone.well_id);
       const i = zones.findIndex((x) => x.id === zone.id);
       if (i >= 0) zones.splice(i, 1);
+    },
+
+    /** Mirrors registryBackend.publishCurves incl. the
+     *  overwrite-own-output rule and the owner-only RLS guard. */
+    async publishCurves(wellId, preparedLogs, projectId) {
+      ownWell(wellId, 'publish curves to this well');
+      const logs = logsByWell.get(wellId);
+      const mnemonics = new Set(preparedLogs.map((l) => l.mnemonic));
+      for (let i = logs.length - 1; i >= 0; i--) {
+        const l = logs[i];
+        if (l.provenance?.computed && l.provenance?.engine === 'petrophysics-studio'
+          && l.provenance?.project_id === projectId && mnemonics.has(l.mnemonic)) {
+          curveStore.delete(l.id);
+          logs.splice(i, 1);
+        }
+      }
+      return preparedLogs.map((log) => {
+        const id = nextId('log');
+        curveStore.set(id, log.data);
+        const row = {
+          id,
+          well_id: wellId,
+          mnemonic: log.mnemonic,
+          description: log.description || null,
+          unit: log.unit || null,
+          start_md_m: log.startMdM,
+          stop_md_m: log.stopMdM,
+          step_m: log.stepM,
+          n_samples: log.nSamples,
+          null_count: log.nullCount,
+          source_file: null,
+          provenance: log.provenance || {},
+          storage_path: `dev/${wellId}/${id}.f32`,
+        };
+        logs.push(row);
+        return row;
+      });
+    },
+
+    async publishZone(zone, properties) {
+      ownZoneWell(zone.well_id);
+      const z = (zonesByWell.get(zone.well_id) || []).find((x) => x.id === zone.id);
+      if (!z) throw new Error('Zone not found.');
+      z.properties = properties;
+      return z;
+    },
+
+    async loadProject() {
+      try {
+        const raw = window.sessionStorage.getItem(PROJECT_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    },
+
+    async saveProject(patch) {
+      const prev = (await this.loadProject()) || { id: 'project-dev', name: 'Default project' };
+      const next = { ...prev, ...patch, updated_at: new Date().toISOString() };
+      try {
+        window.sessionStorage.setItem(PROJECT_KEY, JSON.stringify(next));
+      } catch { /* jsdom without storage — keep in-memory only */ }
+      return next;
     },
   };
 }

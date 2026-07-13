@@ -111,14 +111,49 @@ test('crossplots: ND facies polygon tagging and Pickett fit writes parameters ba
   await expect(page.getByTestId('petro-facies-chip-Sand cluster')).toHaveCount(0);
 });
 
+test('publish curves + zone, batch run, and project persistence across reload', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  // publish computed curves -> the 4 outputs appear as mapped inputs
+  await page.getByTestId('petro-publish').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Published 4 curves');
+
+  // publish the seeded SAND A zone summary -> "on record" marker
+  await page.getByTestId('petro-zone-publish-SAND A').click();
+  await expect(page.getByTestId('petro-zone-summary-SAND A')).toBeVisible();
+  await expect(page.getByTestId('petro-zones')).toContainText('published summary on record');
+
+  // change a parameter and save the project
+  await page.getByTestId('petro-param-cutSw').fill('0.55');
+  await page.getByTestId('petro-params-apply').click();
+  await page.getByTestId('petro-save-project').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Project saved');
+
+  // reload: the saved project restores the parameter (sessionStorage)
+  await page.reload();
+  await expect(page.getByTestId('petro-status')).toContainText('Restored saved project');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await page.getByTestId('petro-toggle-dock');
+  await expect(page.getByTestId('petro-param-cutSw')).toHaveValue('0.55');
+
+  // batch run across owned wells
+  await page.getByTestId('petro-batch').click();
+  await page.getByTestId('petro-batch-pick-KETA TYPE-1').check();
+  await page.getByTestId('petro-batch-run').click();
+  await expect(page.getByTestId('petro-batch-result-KETA TYPE-1')).toContainText('curves published');
+});
+
 test('org-shared well is read-only for zones; invalid zone input errors', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
 
-  // read-only path: published zone visible, no editing affordances
+  // read-only path: published zone visible, no editing/publish affordances
   await page.locator('[data-well-name="AKOMA-2 (org shared)"]').click();
   await expect(page.locator('[data-zone-name="MAIN"]')).toBeVisible();
   await expect(page.getByTestId('petro-zone-add')).toHaveCount(0);
   await expect(page.getByTestId('petro-zones')).toContainText('read-only');
+  await expect(page.getByTestId('petro-publish')).toBeDisabled();
 
   // owner path: a zone with base above top is rejected with a message
   await page.locator('[data-well-name="KETA TYPE-1"]').click();

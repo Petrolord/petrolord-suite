@@ -5,13 +5,13 @@
 // show summaries without the editing affordances, mirroring RLS.
 
 import React, { useState } from 'react';
-import { Trash2, Plus, Loader2 } from 'lucide-react';
+import { Trash2, Plus, Loader2, UploadCloud } from 'lucide-react';
 
 const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
 const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toFixed(d));
 
 export default function ZoneManager({
-  zones, summaries, isOwn, busy, onAdd, onDelete,
+  zones, summaries, isOwn, busy, onAdd, onDelete, onPublish,
 }) {
   const [draft, setDraft] = useState({ name: '', top: '', base: '' });
   const [error, setError] = useState(null);
@@ -47,15 +47,27 @@ export default function ZoneManager({
               <span className="text-slate-200 font-medium">{z.name}</span>
               <span className="text-slate-500">{fmt(z.top_md_m, 1)}–{fmt(z.base_md_m, 1)} m</span>
               {isOwn && (
-                <button
-                  type="button"
-                  title={`Delete zone ${z.name}`}
-                  className="ml-auto text-slate-500 hover:text-red-400"
-                  data-testid={`petro-zone-delete-${z.name}`}
-                  onClick={() => onDelete(z)}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <div className="ml-auto flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    title={s ? `Publish ${z.name} summary to the registry` : 'Compute curves first'}
+                    disabled={!s}
+                    className="text-slate-500 hover:text-emerald-400 disabled:opacity-30"
+                    data-testid={`petro-zone-publish-${z.name}`}
+                    onClick={() => onPublish(z)}
+                  >
+                    <UploadCloud className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    title={`Delete zone ${z.name}`}
+                    className="text-slate-500 hover:text-red-400"
+                    data-testid={`petro-zone-delete-${z.name}`}
+                    onClick={() => onDelete(z)}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               )}
             </div>
             {s ? (

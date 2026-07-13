@@ -10,7 +10,7 @@
 // ms). Publishing results to the registry is G2.5.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlaskConical, Loader2 } from 'lucide-react';
+import { FlaskConical, Loader2, UploadCloud, Save, Layers } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import WellExplorer from './WellExplorer';
@@ -18,7 +18,11 @@ import ParameterPanel from './ParameterPanel';
 import ZoneManager from './ZoneManager';
 import TrackViewer from './TrackViewer';
 import CrossplotPanel from './CrossplotPanel';
-import { computeWell, zoneSummary, DEFAULT_PARAMS } from '../engine/pipeline';
+import BatchRunDialog from './BatchRunDialog';
+import {
+  computeWell, zoneSummary, DEFAULT_PARAMS,
+  preparePublishLogs, zonePropertiesSnapshot,
+} from '../engine/pipeline';
 import { faciesCurve } from '../engine/crossplot';
 
 // standard pipeline inputs <- registry mnemonics (base name, ':n'
@@ -57,12 +61,30 @@ export default function PetroWorkstation({ backend }) {
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
   const [view, setView] = useState('tracks');     // 'tracks' | 'crossplot'
-  const [facies, setFacies] = useState([]);       // ND-space polygons (per-well workspace state; persists in G2.5)
+  const [facies, setFacies] = useState([]);       // ND-space polygons for the selected well
+  const [faciesByWell, setFaciesByWell] = useState({}); // persisted per-well workspace state
+  const [projectId, setProjectId] = useState('project-dev');
+  const [publishing, setPublishing] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
 
   useEffect(() => {
-    backend.listWells()
-      .then(setWells)
-      .catch((e) => { setStatus(e.message); setWells([]); });
+    let live = true;
+    (async () => {
+      try {
+        const list = await backend.listWells();
+        if (!live) return;
+        setWells(list);
+        const project = await backend.loadProject();
+        if (!live || !project) return;
+        setProjectId(project.id || 'project-dev');
+        if (project.params) setParams((p) => ({ ...p, ...project.params }));
+        if (project.facies) setFaciesByWell(project.facies);
+        setStatus('Restored saved project.');
+      } catch (e) {
+        if (live) { setStatus(e.message); setWells((w) => w || []); }
+      }
+    })();
+    return () => { live = false; };
   }, [backend]);
 
   const selected = (wells || []).find((w) => w.id === selectedId) || null;
@@ -84,7 +106,7 @@ export default function PetroWorkstation({ backend }) {
     setLoadingId(wellId);
     setWellData(null);
     setZones([]);
-    setFacies([]);
+    setFacies(faciesByWell[wellId] || []);
     try {
       const [logs, tops] = await Promise.all([backend.listLogs(wellId), backend.listTops(wellId)]);
       const mapped = mapLogs(logs);
@@ -107,7 +129,13 @@ export default function PetroWorkstation({ backend }) {
     } finally {
       setLoadingId(null);
     }
-  }, [backend, refreshZones]);
+  }, [backend, refreshZones, faciesByWell]);
+
+  // keep the per-well facies map in sync with the live editor
+  const setFaciesForWell = useCallback((next) => {
+    setFacies(next);
+    if (selectedId) setFaciesByWell((m) => ({ ...m, [selectedId]: next }));
+  }, [selectedId]);
 
   const computed = useMemo(() => {
     if (!wellData) return null;
@@ -177,6 +205,66 @@ export default function PetroWorkstation({ backend }) {
     }
   };
 
+  // publish the current computed curves to the registry (overwrite-own
+  // rule enforced in the backend) + refresh the inventory so the new
+  // VSH/PHIE/SW/PAY rows show as mapped inputs going forward
+  const publish = async () => {
+    if (!wellData || !computed) return;
+    setPublishing(true);
+    try {
+      const prepared = preparePublishLogs(wellData, computed.outputs, params, { projectId });
+      const saved = await backend.publishCurves(wellData.wellId, prepared, projectId);
+      setStatus(`Published ${saved.length} curves to ${selected.name}.`);
+    } catch (e) {
+      setStatus(e.message);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const publishZone = async (zone) => {
+    try {
+      const summary = zoneSummary(wellData.curves, computed.outputs, params, zone);
+      if (!summary) { setStatus('Compute curves before publishing a zone summary.'); return; }
+      const props = zonePropertiesSnapshot(summary, params, { projectId, publishedAt: new Date().toISOString() });
+      await backend.publishZone(zone, props);
+      setStatus(`Published ${zone.name} summary.`);
+      await refreshZones(zone.well_id);
+    } catch (e) {
+      setStatus(e.message);
+    }
+  };
+
+  const saveProject = async () => {
+    try {
+      const project = await backend.saveProject({ params, facies: faciesByWell });
+      if (project?.id) setProjectId(project.id);
+      setStatus('Project saved.');
+    } catch (e) {
+      setStatus(e.message);
+    }
+  };
+
+  // one well's full recipe->publish, used by the batch dialog; loads
+  // its own curves so it never disturbs the on-screen selection
+  const runBatchWell = async (well) => {
+    const logs = await backend.listLogs(well.id);
+    const mapped = mapLogs(logs);
+    if (!mapped.DEPT) throw new Error('no depth curve');
+    const curves = {};
+    const inventory = [];
+    for (const [key, log] of Object.entries(mapped)) {
+      if (log) curves[key] = await backend.downloadCurve(log);
+      inventory.push({ key, log });
+    }
+    const { outputs } = computeWell(curves, params);
+    const prepared = preparePublishLogs({ curves, inventory }, outputs, params, { projectId });
+    if (!prepared.length) throw new Error('nothing to publish (missing inputs)');
+    const saved = await backend.publishCurves(well.id, prepared, projectId);
+    if (well.id === selectedId) await select(well.id);
+    return saved.length;
+  };
+
   const ribbon = (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
       <FlaskConical className="w-4 h-4 text-cyan-400" />
@@ -201,6 +289,38 @@ export default function PetroWorkstation({ backend }) {
           onClick={() => setView('crossplot')}
         >
           Crossplots
+        </button>
+      </div>
+      <div className="ml-4 flex items-center gap-1">
+        <button
+          type="button"
+          data-testid="petro-publish"
+          disabled={!wellData || !selected?.is_own || publishing}
+          title={selected && !selected.is_own ? 'Org-shared wells are read-only' : 'Publish computed curves to the registry'}
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-40"
+          onClick={publish}
+        >
+          {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
+          Publish
+        </button>
+        <button
+          type="button"
+          data-testid="petro-batch"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-slate-700 text-slate-300 hover:bg-slate-800"
+          onClick={() => setBatchOpen(true)}
+        >
+          <Layers className="w-3.5 h-3.5" /> Batch…
+        </button>
+        <button
+          type="button"
+          data-testid="petro-save-project"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-slate-700 text-slate-300 hover:bg-slate-800"
+          onClick={saveProject}
+        >
+          <Save className="w-3.5 h-3.5" /> Save
         </button>
       </div>
       <button
@@ -248,7 +368,7 @@ export default function PetroWorkstation({ backend }) {
       outputs={computed?.outputs}
       params={params}
       facies={facies}
-      onFaciesChange={setFacies}
+      onFaciesChange={setFaciesForWell}
       onApplyParams={(patch) => setParams((p) => ({ ...p, ...patch }))}
       onStatus={setStatus}
     />
@@ -257,6 +377,7 @@ export default function PetroWorkstation({ backend }) {
   );
 
   return (
+    <>
     <WorkspaceShell
       autoSaveId="petrophysicsstudio.workspace.v1"
       minWidth={1000}
@@ -283,6 +404,7 @@ export default function PetroWorkstation({ backend }) {
               busy={zonesBusy}
               onAdd={addZone}
               onDelete={deleteZone}
+              onPublish={publishZone}
             />
           )}
         </ScrollArea>
@@ -291,5 +413,12 @@ export default function PetroWorkstation({ backend }) {
       onDockOpenChange={setDockOpen}
       statusBar={statusBar}
     />
+    <BatchRunDialog
+      open={batchOpen}
+      onOpenChange={setBatchOpen}
+      wells={wells || []}
+      runBatch={runBatchWell}
+    />
+    </>
   );
 }

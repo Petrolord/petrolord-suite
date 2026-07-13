@@ -79,6 +79,82 @@ export function computeWell(curves, params) {
   return { outputs, missing };
 }
 
+/** Bumped whenever a formula or the publish payload shape changes —
+ *  recorded in every published curve's provenance so consumers can
+ *  tell recipe generations apart. */
+export const PIPELINE_VERSION = 1;
+
+const PUBLISH_SPECS = {
+  VSH: { unit: 'V/V', description: (p) => `Shale volume (${p.vshMethod})` },
+  PHIE: { unit: 'V/V', description: (p) => `Effective porosity (${p.phiSource})` },
+  SW: { unit: 'V/V', description: (p) => `Water saturation (${p.swMethod})` },
+  PAY: { unit: 'FLAG', description: () => 'Net-pay flag (1 = pay)' },
+};
+
+/**
+ * Registry payloads for the publishable outputs (the wellsRegistry
+ * saveLog shape): float32 samples, full parameter + input provenance.
+ * The publish CONTRACT (plan decision 1): re-running a recipe
+ * overwrites its own previous output — same well + mnemonic +
+ * project_id — never anything else; backends enforce it in
+ * publishCurves.
+ *
+ * @param {{curves: Object, inventory: Array<{key, log}>}} wellData
+ * @param {Object<string, Float64Array>} outputs computeWell outputs
+ * @param {typeof DEFAULT_PARAMS} params
+ * @param {{projectId: string, sourceFile?: string}} meta
+ */
+export function preparePublishLogs(wellData, outputs, params, meta) {
+  const depth = wellData.curves.DEPT;
+  const depthLog = wellData.inventory.find((e) => e.key === 'DEPT')?.log;
+  const inputLogIds = wellData.inventory.filter((e) => e.log).map((e) => e.log.id);
+  const logs = [];
+  for (const [mnemonic, spec] of Object.entries(PUBLISH_SPECS)) {
+    const src = outputs[mnemonic];
+    if (!src) continue;
+    let nullCount = 0;
+    const data = new Float32Array(src.length);
+    for (let i = 0; i < src.length; i++) {
+      data[i] = src[i];
+      if (!Number.isFinite(src[i])) nullCount += 1;
+    }
+    logs.push({
+      mnemonic,
+      description: spec.description(params),
+      unit: spec.unit,
+      data,
+      startMdM: depth[0],
+      stopMdM: depth[depth.length - 1],
+      stepM: depthLog?.step_m ?? null,
+      nSamples: data.length,
+      nullCount,
+      provenance: {
+        computed: true,
+        engine: 'petrophysics-studio',
+        pipeline_version: PIPELINE_VERSION,
+        project_id: meta.projectId,
+        params: { ...params },
+        input_log_ids: inputLogIds,
+      },
+    });
+  }
+  return logs;
+}
+
+/** The PUBLISHED zone summary jsonb (plan decision 1: written only by
+ *  an explicit publish action). Snapshot of the current numbers plus
+ *  everything needed to reproduce them. */
+export function zonePropertiesSnapshot(summary, params, meta) {
+  return {
+    ...summary,
+    cutoffs: { phi_min: params.cutPhi, vsh_max: params.cutVsh, sw_max: params.cutSw },
+    methods: { vsh: params.vshMethod, phi: params.phiSource, sw: params.swMethod },
+    pipeline_version: PIPELINE_VERSION,
+    project_id: meta.projectId,
+    published_at: meta.publishedAt,
+  };
+}
+
 /** Zone summary on the CURRENT preview curves (display path; the G2.5
  *  publish action snapshots the same numbers into zone.properties). */
 export function zoneSummary(curves, outputs, params, zone) {
