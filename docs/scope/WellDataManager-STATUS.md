@@ -1,9 +1,15 @@
 # Well Data Manager — STATUS
 
-Plan of record: docs/scope/WellDataManager-PLAN.md (approved 2026-07-12).
-Roadmap slot: Geoscience-ROADMAP.md Phase G1 — the keystone shared well
-registry. Slug `well-data-manager` (tile ships at G1.5 with the
-Seismolord migration, per the deploy lesson).
+**PHASE G1 COMPLETE (G1.0–G1.5, 2026-07-13).** Plan of record:
+docs/scope/WellDataManager-PLAN.md (approved 2026-07-12). Roadmap slot:
+Geoscience-ROADMAP.md Phase G1 — the keystone shared well registry.
+Live at `/dashboard/apps/geoscience/well-data-manager` (tile Active).
+
+Production note: petrolord.com needs a fresh `npm run build` upload —
+until then the new tile's route falls through to the home redirect
+there, and stale bundles' Seismolord wells panel errors (seismic_wells
+is gone; it was empty its whole life, so no user data was ever at
+risk). Staging has everything via HMR.
 
 ## Phase status
 
@@ -14,7 +20,7 @@ Seismolord migration, per the deploy lesson).
 | G1.2 LAS engine + services | **DONE** | landed dd9b251 — see below |
 | G1.3 app UI | **DONE** | this branch — see below |
 | G1.4 Seismolord migration | **DONE** | this branch — see below; migration 20260713160000 **applied live 2026-07-13** |
-| G1.5 close-out | pending | drop the seismic_wells compat view, app page + route + tile Active |
+| G1.5 close-out | **DONE** | this branch — see below; migrations 20260713200000 + 20260713210000 **applied live 2026-07-13** |
 
 ## G1.2 delivered (src/pages/apps/WellDataManager/)
 
@@ -102,6 +108,21 @@ Seismolord migration, per the deploy lesson).
   `md_m`→`md`), zero changes in useWells or any viewer. Wells imported
   in Well Data Manager appear in Seismolord with no re-import;
   org-shared wells arrive read-only.
+
+## G1.5 delivered
+
+- `WellDataManager.jsx` page (WellWorkstation on makeRegistryBackend)
+  + protected route `apps/geoscience/well-data-manager` in App.jsx —
+  shipped in the same PR as the tile flip (the deploy lesson).
+- Migration `20260713200000_seed_well_data_manager_app.sql` (**applied
+  live**): master_apps row via the %ROWTYPE template-copy pattern
+  (Seismolord sibling), Geoscience module, flat 899 inherited, icon
+  `Database`, status Active.
+- Migration `20260713210000_drop_seismic_wells_compat_view.sql`
+  (**applied live**): the G1.4 compat view, its three INSTEAD OF
+  triggers and functions dropped — `seismic_wells` is retired.
+  Verified: 0 pg_class objects, 0 compat functions, PostgREST returns
+  PGRST205 for it, geo_wells untouched.
 
 ## Validation (G1.4 acceptance)
 

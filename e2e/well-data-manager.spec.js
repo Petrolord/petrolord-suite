@@ -62,6 +62,19 @@ test('full LAS import → view → share → delete flow in the harness', async 
   await expect(rows).toHaveCount(1);
 });
 
+// G1.5: the real app route must resolve its lazy chunk (registry
+// backend + wellsRegistry imports, none of which the harness touches)
+// and hand off to the auth gate — not crash, and not fall through to
+// the home-redirect catch-all as an unregistered route would.
+test('well-data-manager app route loads its chunk and gates on auth', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/dashboard/apps/geoscience/well-data-manager');
+  await page.waitForLoadState('networkidle');
+  expect(errors).toEqual([]);
+  expect(page.url()).not.toContain('well-data-manager'); // redirected by the auth gate
+});
+
 test('map shows wells and click-selects; manual add-well flow', async ({ page }) => {
   await page.goto('/dev/well-data-manager');
   await expect(page.getByTestId('wdm-map')).toBeVisible();
