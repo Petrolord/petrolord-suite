@@ -30,6 +30,7 @@ never hand-type DDL against production.
 | 2026-07-13 | `20260713260000_create_geo_surfaces.sql` | Mapping & Surface Studio G4.2: shared `geo_surfaces` registry (row-major f32 grids in a private `surfaces` bucket; org-read RLS, geo_wells model) generalizing `seismic_exported_surfaces`; owner-path bucket policies with shared-org path-join read | 2026-07-13 | 2026-07-13 (shared project; pentest block 12, 4 probes, executed live green) |
 | 2026-07-13 | `20260713270000_drop_shared_data_registry.sql` | Mapping G4.4 close-out: DROP the live-but-unused (0-row) generic `shared_data_registry` hub (no repo migration; consumers DataExchangeHub/IntegrationContext deleted same PR; the data-exchange edge fn never existed). Superseded by the typed geo_* registries | 2026-07-13 | 2026-07-13 (shared project; 0 rows verified at drop) |
 | 2026-07-13 | `20260713280000_seed_mapping_surface_studio_app.sql` | Mapping & Surface Studio G4.4: `master_apps` tile (Geoscience, slug `mapping-surface-studio`, Active, flat 899 via %ROWTYPE template copy); route ships in the same PR | 2026-07-13 | 2026-07-13 (shared project) |
+| 2026-07-13 | `20260713290000_create_rcp_prospects.sql` | Integration & Risking G5.2: app-private `rcp_prospects` (prospect inventory — Pg factors, input snapshot, risked outputs jsonb; owner-only RLS, petro_projects pattern) | 2026-07-13 | 2026-07-13 (shared project; pentest block 13 live green) |
 
 Staging and production frontends currently share one Supabase project
 (`ssyckywijlrkgcwvkwlr`), so an applied migration is live in both. The
