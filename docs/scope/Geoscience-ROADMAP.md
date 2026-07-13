@@ -47,7 +47,7 @@ rows and entitlement FKs), not deleted.
 **Core six** (a geoscientist can run a full prospect-to-volumes study):
 
 1. **Seismolord** — geophysics workstation *(exists)*
-2. **Well Data Manager** — shared subsurface well registry *(new — Phase G1)*
+2. **Well Data Manager** — shared subsurface well registry *(SHIPPED 2026-07-13 — Phase G1 complete, tile Active)*
 3. **Petrophysics Studio** — one deep log-analysis app *(new — Phase G2)*
 4. **Well Correlation** — cross-sections + tops *(rebuild — Phase G3)*
 5. **Mapping & Surface Studio** — gridding/contouring/basemaps *(new — Phase G4)*
@@ -125,7 +125,7 @@ time depends on review cadence.
 - Acceptance: hub shows only apps that work; two audit docs delivered;
   no deleted route referenced anywhere.
 
-### Phase G1 — Well Data Manager (shared subsurface registry) *(medium — the keystone)*
+### Phase G1 — Well Data Manager (shared subsurface registry) *(medium — the keystone)* — **COMPLETE 2026-07-13 (G1.0–G1.5; see docs/scope/WellDataManager-STATUS.md)**
 - Tables (staging-first): `wells` (header, surface X/Y, KB, CRS note,
   `user_id` owner + nullable `organization_id` per §6.1),
   `wells_deviations`, `wells_logs` (LAS metadata; curves as float32

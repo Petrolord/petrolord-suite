@@ -111,6 +111,7 @@ const SeismolordWellTieHarness = lazy(() => import('@/pages/apps/Seismolord/Seis
 const SeismolordCubeViewHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordCubeViewHarness'));
 const SeismolordWorkspaceHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordWorkspaceHarness'));
 const WellDataManagerHarness = lazy(() => import('@/pages/apps/WellDataManager/WellDataManagerHarness'));
+const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
 const WellLogAnalyzer = lazy(() => import('@/pages/apps/WellLogAnalyzer'));
 const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/ProductionSurveillanceDashboard'));
@@ -436,6 +437,7 @@ function App() {
                                 <Route path="apps/geoscience/earth-model-studio/projects" element={<EarthModelStudioProjects />} />
                                 <Route path="apps/geoscience/basinflow-genesis" element={<BasinFlowGenesis />} />
                                 <Route path="apps/geoscience/seismolord" element={<ProtectedAppRoute appId="seismolord" appName="Seismolord"><Seismolord /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/well-data-manager" element={<ProtectedAppRoute appId="well-data-manager" appName="Well Data Manager"><WellDataManager /></ProtectedAppRoute>} />
 
                                 {/* MEM Aliases ensuring all database slugs route properly without hitting catch-all */}
                                 <Route path="apps/geoscience/mechanical-earth-model" element={<ProtectedAppRoute appId="mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
