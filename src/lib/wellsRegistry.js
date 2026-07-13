@@ -1,6 +1,11 @@
 // geo_wells registry persistence (Well Data Manager G1.2) — direct RLS
-// calls (house pattern; the Seismolord wellsService idiom). Tables +
-// policies: supabase/migrations/20260713100000_create_wells_registry.sql.
+// calls (house pattern). Tables + policies:
+// supabase/migrations/20260713100000_create_wells_registry.sql.
+//
+// SHARED service (moved out of the Well Data Manager app at the second
+// consumer, G1.4): Seismolord's wellsService adapts these functions to
+// its legacy shapes; every future geoscience app (G2 petrophysics, G3
+// correlation, G4 mapping) reads the registry through here too.
 //
 // Sharing model (locked in WellDataManager-PLAN.md): rows are private
 // by default; shareWell stamps the owner's organization_id on the WELL
@@ -70,6 +75,24 @@ export async function listWells() {
   return (data || []).map((w) => ({ ...w, is_own: !!user && w.user_id === user.id }));
 }
 
+/** listWells + each well's tops embedded in one query (Seismolord's
+ *  viewers consume wells with tops attached). Tops come back in the
+ *  registry row shape ({name, md_m, ...}), MD-ascending. */
+export async function listWellsWithTops() {
+  const [{ data, error }, { data: { user } }] = await Promise.all([
+    supabase.from('geo_wells')
+      .select('*, geo_wells_tops(id, name, md_m, interpreter)')
+      .order('created_at', { ascending: false }),
+    supabase.auth.getUser(),
+  ]);
+  if (error) throw new Error(`Could not load wells: ${error.message}`);
+  return (data || []).map(({ geo_wells_tops: tops, ...w }) => ({
+    ...w,
+    is_own: !!user && w.user_id === user.id,
+    tops: (tops || []).slice().sort((a, b) => a.md_m - b.md_m),
+  }));
+}
+
 export async function getWell(wellId) {
   const { data, error } = await supabase.from('geo_wells')
     .select('*').eq('id', wellId).single();
@@ -99,8 +122,14 @@ export async function deleteWell(well) {
       .remove(objects.map((o) => `${prefix}/${o.name}`));
     if (rmError) throw new Error(`Could not delete the well's log data: ${rmError.message}`);
   }
-  const { error } = await supabase.from('geo_wells').delete().eq('id', well.id);
+  // .select() so an RLS-filtered delete (not the owner: org-shared
+  // read-only rows) surfaces as an error instead of a silent no-op
+  const { data, error } = await supabase.from('geo_wells')
+    .delete().eq('id', well.id).select('id');
   if (error) throw new Error(`Could not delete well: ${error.message}`);
+  if (!data || !data.length) {
+    throw new Error('Only the owner can delete this well (org sharing is read-only).');
+  }
 }
 
 // ---- org sharing ---------------------------------------------------------

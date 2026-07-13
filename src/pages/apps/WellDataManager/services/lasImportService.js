@@ -4,7 +4,7 @@
 //   importParsedLas(...)    -> well + logs persisted via wellsService
 // UI (G1.3) confirms the header/mnemonic mapping between the two calls.
 
-import { saveWell, saveLogs } from './wellsService';
+import { saveWell, saveLogs } from '@/lib/wellsRegistry';
 
 const makeWorker = () =>
   new Worker(new URL('../workers/lasParse.worker.js', import.meta.url), { type: 'module' });

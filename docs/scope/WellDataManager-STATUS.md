@@ -13,8 +13,8 @@ Seismolord migration, per the deploy lesson).
 | G1.1 schema + helper + pentest | **DONE** | PR #55 — migration 20260713100000 (geo_wells / geo_wells_tops / geo_wells_logs + `wells` bucket), is_org_member three-table upgrade, live RLS pentest 14/14; **applied live 2026-07-13** |
 | G1.2 LAS engine + services | **DONE** | landed dd9b251 — see below |
 | G1.3 app UI | **DONE** | this branch — see below |
-| G1.4 Seismolord migration | pending | seismic_wells → registry + compat view, useWells re-point |
-| G1.5 close-out | pending | drop seismic_wells, tile Active |
+| G1.4 Seismolord migration | **DONE** | this branch — see below; migration 20260713160000 **applied live 2026-07-13** |
+| G1.5 close-out | pending | drop the seismic_wells compat view, app page + route + tile Active |
 
 ## G1.2 delivered (src/pages/apps/WellDataManager/)
 
@@ -79,6 +79,45 @@ Seismolord migration, per the deploy lesson).
 - `/dev/well-data-manager` harness route (DEV builds only, App.jsx).
   The app page + tile deliberately do NOT ship yet — G1.5, tile and
   route together (the deploy lesson).
+
+## G1.4 delivered
+
+- Migration `20260713160000_migrate_seismic_wells_to_registry.sql`
+  (**applied live 2026-07-13**; both tables were empty at apply time,
+  so the copy was a no-op by luck, not design — the SQL handles data):
+  seismic_wells rows → geo_wells (ids preserved, idempotent), jsonb
+  tops normalized into geo_wells_tops, then the table becomes a
+  **security_invoker compatibility view** re-aggregating tops to the
+  legacy `[{name, md}]` jsonb shape. INSTEAD OF insert/update/delete
+  triggers keep already-deployed production clients working (prod is a
+  manually-uploaded static SPA) — their writes route into the registry
+  under the caller's own RLS. Hard drop at G1.5.
+- Registry service extracted at the second consumer:
+  `src/pages/apps/WellDataManager/services/wellsService.js` →
+  `src/lib/wellsRegistry.js` (+ new `listWellsWithTops()` embedded
+  query; `deleteWell` now surfaces RLS-filtered 0-row deletes as an
+  owner-only error instead of a silent no-op).
+- Seismolord `services/wellsService.js` is now a thin ADAPTER over the
+  registry: same three exports and row shapes (tops bridged
+  `md_m`→`md`), zero changes in useWells or any viewer. Wells imported
+  in Well Data Manager appear in Seismolord with no re-import;
+  org-shared wells arrive read-only.
+
+## Validation (G1.4 acceptance)
+
+- Live, rollback-wrapped first: dry run of the full migration, then
+  6/6 compat-view RLS probes green (insert normalizes tops + stamps
+  units_note; owner update replaces tops; owner delete cascades;
+  non-owner sees nothing and deletes 0 rows through the view; org
+  member reads the shared well + tops; forged-user_id insert raises
+  42501). Probes recorded as blocks 6–7 of
+  tools/validation/wells/rls-pentest.sql.
+- All Seismolord jest suites green untouched; Seismolord wells +
+  workspace e2e green; full repo suite green.
+- Owner follow-up: one signed-in staging smoke (import a well in the
+  WDM harness flow → see it in Seismolord's explorer/map) — the DB
+  probes prove the path, but a human click-through with a real session
+  hasn't happened yet.
 
 ## Validation (G1.3 acceptance)
 
