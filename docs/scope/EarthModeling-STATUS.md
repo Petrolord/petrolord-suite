@@ -52,8 +52,16 @@ slugs 301 to `apps/geoscience/earth-modeling`.
   pattern): 15 `em_*` tables (all empty — 4 accidental policies + 1
   index added then reverted during G8.3) and 11 `ss_*` tables
   (`ss_projects` 7 / `ss_assets` 21 / `ss_jobs` 2 stale demo rows)
-  exist in the live DB with no repo migrations. Drop together with
-  `bf_*` when the owner signs off.
+  exist in the live DB with no repo migrations.
+  **Ready to drop** (`chore/orphan-table-drops`, 2026-07-14): SPA
+  consumers purged (last `ss_*` readers — StudioContext/MyProjects,
+  `useJobMonitor`/`useSeismicSession` — deleted; `/my-projects` now
+  redirects to `/dashboard`) and the drop migration is drafted at
+  `supabase/migrations/20260714150000_drop_orphan_legacy_tables.sql`
+  (also covers legacy `bf_*` + `calibration_results`/
+  `expert_mode_settings`; keeps `em_models` and `bf_wells`, dropping
+  the latter's never-used `project_id` FK column). **Awaiting owner
+  approval to apply** — logged in MIGRATIONS.md.
 - Help-centre/training content still references "EarthModel Pro"
   (`src/data/helpArticles.js`, `trainingCourses.js`,
   `src/data/helpCenter/**`) — content refresh, not code.
