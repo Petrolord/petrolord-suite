@@ -181,39 +181,46 @@ describe('property population vs goldens', () => {
 });
 
 describe('per-block population + zone volumes vs goldens', () => {
-  const propGrids = {};
-  const provenanceByProp = {};
+  const zoneGrids = {}; // zone key -> { prop -> grid }
 
-  beforeAll(() => {
+  const buildProps = (controlPoints) => {
+    const grids = {};
     for (const prop of ['ntg', 'phi', 'sw']) {
-      const all = G.control_points_a.map((p) => ({ x: p.x, y: p.y, v: p[prop], w: p.w }));
+      const all = controlPoints.map((p) => ({ x: p.x, y: p.y, v: p[prop], w: p.w }));
       const byBlock = { 0: [], 1: [] };
       all.forEach((p) => {
         byBlock[pointInPolygon(p.x, p.y, G.fault_polygon) ? 1 : 0].push(p);
       });
       const { z, provenance } = populateZoneProperty(SPEC, LABELS, byBlock, all, 'constant');
-      propGrids[prop] = z;
-      provenanceByProp[prop] = provenance;
-    }
-  });
-
-  test('constant-per-block values match the fixture', () => {
-    for (const prop of ['ntg', 'phi', 'sw']) {
-      const z = propGrids[prop];
-      const gold = G.block_prop_values[prop];
-      for (let j = 0; j < z.length; j++) {
-        const want = LABELS[j] === 1 ? gold.block1 : gold.block0;
-        expectClose(z[j], want, `${prop}[${j}]`);
-      }
-      for (const p of provenanceByProp[prop]) {
+      grids[prop] = z;
+      for (const p of provenance) {
         expect(p.methodUsed).toBe('constant');
         expect(p.fellBack).toBe(false);
+      }
+    }
+    return grids;
+  };
+
+  beforeAll(() => {
+    zoneGrids.zone_a = buildProps(G.control_points_a);
+    zoneGrids.zone_b = buildProps(G.control_points_b);
+  });
+
+  test('constant-per-block values match the fixture (both zones)', () => {
+    for (const key of ['zone_a', 'zone_b']) {
+      for (const prop of ['ntg', 'phi', 'sw']) {
+        const z = zoneGrids[key][prop];
+        const gold = G.block_prop_values[key][prop];
+        for (let j = 0; j < z.length; j++) {
+          const want = LABELS[j] === 1 ? gold.block1 : gold.block0;
+          expectClose(z[j], want, `${key}.${prop}[${j}]`);
+        }
       }
     }
   });
 
   test.each([['zone_a', 0], ['zone_b', 1]])('%s volume table', (key, zoneIdx) => {
-    const vols = zoneVolumes(SPEC, FRAME.thickness[zoneIdx], LABELS, propGrids);
+    const vols = zoneVolumes(SPEC, FRAME.thickness[zoneIdx], LABELS, zoneGrids[key]);
     const gold = G.volumes[key];
     expect(Object.keys(vols).sort()).toEqual(Object.keys(gold).sort());
     for (const [block, table] of Object.entries(gold)) {

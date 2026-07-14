@@ -248,10 +248,12 @@ def main():
         census[lab] = census.get(lab, 0) + 1
     ties = well_ties(clamped, trajs)
     cps_a = control_points(trajs, "A")
+    cps_b = control_points(trajs, "B")
     pop = population_fixtures(cps_a, labels)
-    props = block_constant_props(cps_a, labels)
-    vol_a = oracle.zone_volumes(MODEL_SPEC, thick_a, labels, props)
-    vol_b = oracle.zone_volumes(MODEL_SPEC, thick_b, labels, props)
+    props_a = block_constant_props(cps_a, labels)
+    props_b = block_constant_props(cps_b, labels)
+    vol_a = oracle.zone_volumes(MODEL_SPEC, thick_a, labels, props_a)
+    vol_b = oracle.zone_volumes(MODEL_SPEC, thick_b, labels, props_b)
 
     # ---- anchors ----------------------------------------------------
     # A1 resampling reproduces the analytic planes
@@ -346,12 +348,16 @@ def main():
         },
         "well_ties": ties,
         "control_points_a": cps_a,
+        "control_points_b": cps_b,
         "population": pop,
         "block_prop_values": {
-            prop: {"block0": props[prop][0 if labels[0] == 0 else
-                                         labels.index(0)],
-                   "block1": props[prop][labels.index(1)]}
-            for prop in sorted(PROP_PLANES)
+            zone_key: {
+                prop: {"block0": props[prop][labels.index(0)],
+                       "block1": props[prop][labels.index(1)]}
+                for prop in sorted(PROP_PLANES)
+            }
+            for zone_key, props in (("zone_a", props_a),
+                                    ("zone_b", props_b))
         },
         "volumes": {
             "zone_a": {str(k): v for k, v in vol_a.items()},
