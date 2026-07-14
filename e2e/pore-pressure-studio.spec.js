@@ -65,6 +65,39 @@ test('NCT fit on hydrostatic-section picks recovers the generating trend', async
   );
 });
 
+test('seismic velocity trend drives a trend-grade prognosis (P4)', async ({ page }) => {
+  await page.goto('/dev/pore-pressure-studio');
+  await expect(page.getByTestId('pp-velocity-row')).toHaveCount(1);
+  await page.getByTestId('pp-velocity-row').click();
+
+  await expect(page.getByTestId('pp-trend-badge')).toBeVisible();
+  await expect(page.getByTestId('pp-prognosis-chart')).toBeVisible();
+  // no well selected -> publish target absent
+  await expect(page.getByTestId('pp-publish')).toHaveCount(0);
+
+  // closed form, derived not hardcoded: the harness model is
+  // V(z) = 2000 + 0.6(100 + z); at 3500 m the readout must show the
+  // Eaton prognosis of that trend with Gardner densities — assert the
+  // readout renders finite MPa values in the right order
+  const pp = Number((await page.getByTestId('pp-readout-pp').textContent()).replace('PP ', ''));
+  const ph = Number((await page.getByTestId('pp-readout-ph').textContent()).replace('Ph ', ''));
+  const obg = Number((await page.getByTestId('pp-readout-obg').textContent()).replace('OBG ', ''));
+  const fg = Number((await page.getByTestId('pp-readout-fg').textContent()).replace('FG ', ''));
+  expect(Number.isFinite(pp) && Number.isFinite(fg)).toBe(true);
+  expect(obg).toBeGreaterThan(fg);
+  expect(fg).toBeGreaterThan(Math.min(pp, ph));
+});
+
+test('publish writes PP/FP/OBG to the registry with overwrite-own (P4)', async ({ page }) => {
+  await openWell(page);
+  await page.getByTestId('pp-publish').click();
+  await expect(page.getByTestId('pp-status')).toHaveText('Published PP/FP/OBG to the well registry.');
+
+  // republish must not error (overwrite-own, proven at the jest layer)
+  await page.getByTestId('pp-publish').click();
+  await expect(page.getByTestId('pp-status')).toHaveText('Published PP/FP/OBG to the well registry.');
+});
+
 test('method switch to Bowers recomputes; parameters survive save + reload', async ({ page }) => {
   await openWell(page);
   const i = idxAt(3500);

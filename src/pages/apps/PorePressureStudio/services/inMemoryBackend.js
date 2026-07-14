@@ -96,6 +96,15 @@ export function makeInMemoryBackend() {
     source: { kind: 'well' },
   };
 
+  // one v1-samplable single-function model: v0 2000 m/s at sea level,
+  // k 0.6 1/s — closed-form checkable (V at z bml = 2000 + 0.6(100+z))
+  const VELOCITY_MODELS = [{
+    id: 'vol-dev',
+    name: 'DEMO 3D (calibrated)',
+    velocity: { v0: 2000, k: 0.6 },
+    calibration: { wells: 1, rms_ms: 2.1 },
+  }];
+
   return {
     async listWells() { return [...wells]; },
     async listLogs(id) { return id === wellId ? [...logs] : []; },
@@ -103,6 +112,41 @@ export function makeInMemoryBackend() {
       const data = curveStore.get(log.id);
       if (!data) throw new Error(`No curve data for ${log.mnemonic}.`);
       return data;
+    },
+    async listVelocityModels() { return [...VELOCITY_MODELS]; },
+
+    // overwrite-own publish against the in-memory log list, so the
+    // e2e can drive publish + republish without a DB
+    async publishCurves(id, preparedLogs, projectId) {
+      if (id !== wellId) throw new Error('Unknown well.');
+      const { staleOwnCurves } = await import('./publish');
+      for (const stale of staleOwnCurves(logs, preparedLogs, projectId)) {
+        const at = logs.findIndex((l) => l.id === stale.id);
+        if (at >= 0) { curveStore.delete(stale.id); logs.splice(at, 1); }
+      }
+      const saved = [];
+      for (const log of preparedLogs) {
+        const logId = nextId('log');
+        curveStore.set(logId, Float64Array.from(log.data));
+        const row = {
+          id: logId,
+          well_id: wellId,
+          mnemonic: log.mnemonic,
+          description: log.description,
+          unit: log.unit,
+          start_md_m: log.startMdM,
+          stop_md_m: log.stopMdM,
+          step_m: log.stepM,
+          n_samples: log.nSamples,
+          null_count: log.nullCount,
+          source_file: null,
+          provenance: log.provenance,
+          storage_path: `dev/${wellId}/${logId}.f32`,
+        };
+        logs.push(row);
+        saved.push(row);
+      }
+      return saved;
     },
 
     async loadProject() {

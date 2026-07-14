@@ -11,7 +11,7 @@
 // generating (dt_ml, c) — the e2e suite asserts both off the screen.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Gauge, Loader2, Save } from 'lucide-react';
+import { Gauge, Loader2, Save, Upload } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import WellExplorer from './WellExplorer';
@@ -20,6 +20,8 @@ import PrognosisChart from './PrognosisChart';
 import NctPanel from './NctPanel';
 import { mapLogs, buildProfileInput } from '../services/prep';
 import { computeProfile } from '../engine/profile';
+import { pseudoSonicFromLinearVelocity } from '../engine/velocitySource';
+import { preparePublishLogs } from '../services/publish';
 
 const MPA = 1e6;
 
@@ -37,9 +39,13 @@ export const DEFAULT_PARAMS = {
 
 export default function PPWorkstation({ backend }) {
   const [wells, setWells] = useState(null);
+  const [velocityModels, setVelocityModels] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
-  const [curves, setCurves] = useState(null); // {depth, dt, rho, units}
+  const [curves, setCurves] = useState(null); // {depth, dt, rho, units, logIds}
+  const [seismicModel, setSeismicModel] = useState(null); // exclusive with curves
+  const [projectId, setProjectId] = useState(null);
+  const [publishing, setPublishing] = useState(false);
   const [params, setParams] = useState(DEFAULT_PARAMS);
   const [picks, setPicks] = useState([]);
   const [calibration, setCalibration] = useState([]);
@@ -53,11 +59,16 @@ export default function PPWorkstation({ backend }) {
     let live = true;
     (async () => {
       try {
-        const list = await backend.listWells();
+        const [list, models] = await Promise.all([
+          backend.listWells(),
+          backend.listVelocityModels ? backend.listVelocityModels() : [],
+        ]);
         if (!live) return;
         setWells(list);
+        setVelocityModels(models);
         const project = await backend.loadProject();
         if (!live || !project) return;
+        setProjectId(project.id || null);
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.picks) setPicks(project.picks);
         if (project.calibration) setCalibration(project.calibration);
@@ -73,6 +84,7 @@ export default function PPWorkstation({ backend }) {
 
   const select = useCallback(async (wellId) => {
     setSelectedId(wellId);
+    setSeismicModel(null);
     setLoadingId(wellId);
     setCurves(null);
     setPicks([]);
@@ -91,6 +103,7 @@ export default function PPWorkstation({ backend }) {
         dt: Array.from(dt),
         rho: rho ? Array.from(rho) : null,
         units: { DT: mapped.DT.unit, RHOB: mapped.RHOB?.unit },
+        logIds: Object.values(mapped).filter(Boolean).map((l) => l.id),
       });
       setStatus(`Loaded ${depth.length} samples${rho ? '' : ' — no density log, Gardner overburden'}.`);
     } catch (e) {
@@ -101,14 +114,30 @@ export default function PPWorkstation({ backend }) {
     }
   }, [backend]);
 
+  const selectVelocityModel = useCallback((model) => {
+    setSeismicModel(model);
+    setSelectedId(null);
+    setCurves(null);
+    setPicks([]);
+    setStatus(`Velocity trend from ${model.name} — trend-grade prognosis (no local anomaly).`);
+  }, []);
+
   const input = useMemo(() => {
-    if (!curves) return null;
     try {
+      if (seismicModel) {
+        // model datum = sea level; the water column is the offset
+        return pseudoSonicFromLinearVelocity(seismicModel.velocity, {
+          datumToMudlineM: params.waterDepthM,
+          zMaxM: 4000,
+          stepM: 10,
+        });
+      }
+      if (!curves) return null;
       return buildProfileInput(curves, curves.units, { mudlineMdM: params.mudlineMdM });
     } catch (e) {
       return { error: e.message };
     }
-  }, [curves, params.mudlineMdM]);
+  }, [curves, seismicModel, params.mudlineMdM, params.waterDepthM]);
 
   const profile = useMemo(() => {
     if (!input || input.error) return null;
@@ -156,14 +185,37 @@ export default function PPWorkstation({ backend }) {
   const saveProject = async () => {
     setSaving(true);
     try {
-      await backend.saveProject({
-        params, picks, calibration, source: { kind: 'well', wellId: selectedId },
+      const saved = await backend.saveProject({
+        params,
+        picks,
+        calibration,
+        source: seismicModel
+          ? { kind: 'seismic', volumeId: seismicModel.id }
+          : { kind: 'well', wellId: selectedId },
       });
+      if (saved?.id) setProjectId(saved.id);
       setStatus('Project saved.');
     } catch (e) {
       setStatus(e.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const publish = async () => {
+    if (!result || !input || !selectedId) return;
+    setPublishing(true);
+    try {
+      const prepared = preparePublishLogs(input, result, params, {
+        projectId,
+        inputLogIds: curves?.logIds || [],
+      });
+      const saved = await backend.publishCurves(selectedId, prepared, projectId);
+      setStatus(`Published ${saved.map((l) => l.mnemonic).join('/')} to the well registry.`);
+    } catch (e) {
+      setStatus(e.message);
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -210,7 +262,29 @@ export default function PPWorkstation({ backend }) {
           )}
         </div>
       )}
+      {seismicModel && (
+        <span
+          data-testid="pp-trend-badge"
+          title="Analytic v0+k velocity model — constrains the regional trend only; it carries no local overpressure anomaly"
+          className="rounded px-1.5 py-0.5 bg-amber-500/15 border border-amber-600/50 text-amber-300 text-[11px]"
+        >
+          Trend-grade (seismic velocity)
+        </span>
+      )}
       <div className="ml-auto flex items-center gap-1">
+        {result && selectedId && backend.publishCurves && (
+          <button
+            type="button"
+            data-testid="pp-publish"
+            title="Publish PP / FP / OBG curves to the well registry (overwrites this project's previous publish only)"
+            className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+              border-emerald-700 text-emerald-300 hover:bg-emerald-500/10"
+            onClick={publish}
+          >
+            {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+            Publish
+          </button>
+        )}
         <button
           type="button"
           data-testid="pp-save-project"
@@ -238,7 +312,11 @@ export default function PPWorkstation({ backend }) {
     <div className="flex items-center gap-3 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">
       <span data-testid="pp-status" className="truncate">{computeError || status}</span>
       <span className="ml-auto whitespace-nowrap">
-        {selected ? `${selected.name} · ${input && !input.error ? `${input.zBmlM.length} samples` : '…'}` : `${wells?.length ?? '…'} wells`}
+        {seismicModel
+          ? `${seismicModel.name} · V(z) = ${seismicModel.velocity.v0} + ${seismicModel.velocity.k}·z`
+          : selected
+            ? `${selected.name} · ${input && !input.error ? `${input.zBmlM.length} samples` : '…'}`
+            : `${wells?.length ?? '…'} wells`}
       </span>
       <span className="whitespace-nowrap text-slate-600">SI internal (Pa · m · m/s) · display MPa</span>
     </div>
@@ -280,10 +358,13 @@ export default function PPWorkstation({ backend }) {
       explorer={(
         <WellExplorer
           wells={wells || []}
+          velocityModels={velocityModels}
           selectedId={selectedId}
+          selectedModelId={seismicModel?.id || null}
           loadingId={loadingId}
           curveStatus={curves ? `DT ${curves.units.DT || '—'} · RHOB ${curves.units.RHOB || 'absent'}` : null}
           onSelect={select}
+          onSelectModel={selectVelocityModel}
         />
       )}
       center={center}

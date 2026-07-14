@@ -89,7 +89,7 @@ const TorqueDragPredictor = lazy(() => import('@/pages/apps/TorqueDragPredictor'
 const CementingSimulationApp = lazy(() => import('@/pages/apps/CementingSimulationApp'));
 const FracCompletionApp = lazy(() => import('@/pages/apps/FracCompletionApp'));
 const RtoDashboard = lazy(() => import('@/pages/apps/RtoDashboard'));
-const PorePressureFracGradient = lazy(() => import('@/pages/apps/PorePressureFracGradient')); 
+const PorePressureStudio = lazy(() => import('@/pages/apps/PorePressureStudio/PorePressureStudio'));
 const DrillingFluidsHydraulics = lazy(() => import('@/pages/apps/DrillingFluidsHydraulics'));
 const BasinFlowGenesis = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowGenesis'));
 const Seismolord = lazy(() => import('@/pages/apps/Seismolord/Seismolord'));
@@ -427,6 +427,7 @@ function App() {
                                 <Route path="apps/geoscience/petrophysics-studio" element={<ProtectedAppRoute appId="petrophysics-studio" appName="Petrophysics Studio"><PetrophysicsStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/rock-physics-studio" element={<ProtectedAppRoute appId="rock-physics-studio" appName="Rock Physics Studio"><RockPhysicsStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/earth-modeling" element={<ProtectedAppRoute appId="earth-modeling" appName="Earth Modeling"><EarthModeling /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/pore-pressure-studio" element={<ProtectedAppRoute appId="pore-pressure-studio" appName="Pore Pressure Studio"><PorePressureStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/crossplot-generator" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
                                 <Route path="apps/geoscience/petrophysics-estimator" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
                                 <Route path="apps/geoscience/petrophysical-integration-suite" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
@@ -487,7 +488,8 @@ function App() {
                                 <Route path="apps/drilling/torque-drag-predictor" element={<TorqueDragPredictor />} />
                                 <Route path="apps/drilling/cementing-simulation" element={<ProtectedAppRoute appId="cementing-simulation" appName="Cementing Simulation App"><CementingSimulationApp /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/frac-completion" element={<FracCompletionApp />} />
-                                <Route path="apps/drilling/pore-pressure-fracture-gradient" element={<PorePressureFracGradient />} />
+                                {/* legacy PPFG shell — retired for Pore Pressure Studio (plan Q2) */}
+                                <Route path="apps/drilling/pore-pressure-fracture-gradient" element={<Navigate to="/dashboard/apps/geoscience/pore-pressure-studio" replace />} />
                                 <Route path="apps/drilling/rto-dashboard" element={<RtoDashboard />} />
                                 <Route path="apps/drilling/incident-finder" element={<OffsetWellIncidentFinder />} />
                                 <Route path="apps/drilling/wellbore-stability-analyzer" element={<WellboreStabilityAnalyzer />} />
