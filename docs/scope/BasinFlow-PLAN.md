@@ -41,6 +41,14 @@ than the audit recorded — the audit's "usable start-to-finish" was wrong:
 8. **TFJS blast radius confirmed**: `@tensorflow/tfjs` is imported only
    by `services/ml/{MLEngine,CalibrationPredictor}.js` — dropping the
    ml tab lets the package leave `package.json` entirely.
+9. **The Arrhenius gas constant is off by 1000×.** `MaturityEngine` uses
+   `R = 1.987` commented as kcal/(mol·K) — that is the *cal* value
+   (kcal is 0.0019872). With E = 34–72 kcal/mol the exponent
+   −E/(R·T) is ~1000× too small, so every kinetic bin fully reacts in
+   the first time step at any temperature. Currently masked by the NaN
+   temperatures from finding 1; would surface the moment that is fixed.
+   The G7 spec pins E×4184 J/mol with R = 8.314 J/(mol·K)
+   (PyBasin-aligned).
 
 ## 1. Scope
 
