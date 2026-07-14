@@ -110,6 +110,7 @@ const MappingSurfaceStudio = lazy(() => import('@/pages/apps/MappingSurfaceStudi
 const RockPhysicsStudio = lazy(() => import('@/pages/apps/RockPhysicsStudio/RockPhysicsStudio'));
 const EarthModeling = lazy(() => import('@/pages/apps/EarthModeling/EarthModeling'));
 const EarthModelingHarness = lazy(() => import('@/pages/apps/EarthModeling/EarthModelingHarness'));
+const PorePressureStudioHarness = lazy(() => import('@/pages/apps/PorePressureStudio/PorePressureStudioHarness'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
 const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/ProductionSurveillanceDashboard'));
@@ -652,6 +653,7 @@ function App() {
                                   <Route path="/dev/prospect-risking" element={<ProspectRiskingHarness />} />
                                   <Route path="/dev/rock-physics-studio" element={<RockPhysicsStudioHarness />} />
                                   <Route path="/dev/earth-modeling" element={<EarthModelingHarness />} />
+                                  <Route path="/dev/pore-pressure-studio" element={<PorePressureStudioHarness />} />
                                 </>
                               )}
                               <Route path="*" element={<Navigate to="/" replace />} />
