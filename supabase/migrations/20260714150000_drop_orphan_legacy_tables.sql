@@ -15,6 +15,14 @@
 -- bf_wells is live; detach it from bf_projects before the drop below.
 alter table public.bf_wells drop column if exists project_id;
 
+-- Legacy Seismic Studio RPC functions — depend on ss_* rowtypes/enums,
+-- zero callers in SPA or edge functions (verified 2026-07-14).
+drop function if exists public.save_interpretation(uuid,uuid,uuid,uuid,interp_type,jsonb,text,jsonb,text,uuid,jsonb);
+drop function if exists public.lock_interpretation(uuid,boolean);
+drop function if exists public.create_ss_section(uuid,section_type,integer,jsonb,text);
+drop function if exists public.upsert_ss_volume(uuid,uuid,text,text,text,text,integer,integer,integer,integer,integer,numeric,text,text,jsonb);
+drop function if exists public.enqueue_job(uuid,job_kind,jsonb);
+
 -- ss_* — legacy Seismic Studio (children before parents)
 drop table if exists public.ss_interpretations;
 drop table if exists public.ss_sections;
@@ -55,3 +63,12 @@ drop table if exists public.bf_team_members;
 drop table if exists public.bf_versions;
 drop table if exists public.bf_jobs;
 drop table if exists public.bf_projects;
+
+-- Enums now orphaned — each was used only by the tables/functions above
+-- (verified: zero column or signature uses elsewhere).
+drop type if exists public.interp_type;
+drop type if exists public.interpretation_kind;
+drop type if exists public.asset_domain;
+drop type if exists public.job_kind;
+drop type if exists public.job_status;
+drop type if exists public.section_type;
