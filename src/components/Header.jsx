@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut, User, LayoutDashboard, FolderKanban, Settings } from 'lucide-react';
+import { LogOut, User, LayoutDashboard, Settings } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 const Header = () => {
   const {
@@ -40,10 +40,6 @@ const Header = () => {
                   <DropdownMenuItem onSelect={() => navigate('/dashboard')} className="cursor-pointer hover:!bg-slate-700">
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     <span>Dashboard</span>
-                  </DropdownMenuItem>
-                   <DropdownMenuItem onSelect={() => navigate('/my-projects')} className="cursor-pointer hover:!bg-slate-700">
-                    <FolderKanban className="mr-2 h-4 w-4" />
-                    <span>My Projects</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => navigate('/profile')} className="cursor-pointer hover:!bg-slate-700">
                     <Settings className="mr-2 h-4 w-4" />

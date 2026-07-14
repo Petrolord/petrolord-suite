@@ -48,12 +48,17 @@ slugs 301 to `apps/geoscience/earth-modeling`.
 
 ## Open items
 
-- **Legacy DB orphan families** (owner-gated drops, the `bf_*`
-  pattern): 15 `em_*` tables (all empty — 4 accidental policies + 1
-  index added then reverted during G8.3) and 11 `ss_*` tables
-  (`ss_projects` 7 / `ss_assets` 21 / `ss_jobs` 2 stale demo rows)
-  exist in the live DB with no repo migrations. Drop together with
-  `bf_*` when the owner signs off.
+- ~~Legacy DB orphan families~~ **DONE 2026-07-14** (owner-approved,
+  `chore/orphan-table-drops` / PR #70): SPA consumers purged (last
+  `ss_*` readers — StudioContext/MyProjects,
+  `useJobMonitor`/`useSeismicSession` — deleted; `/my-projects` now
+  redirects to `/dashboard`) and migration
+  `20260714150000_drop_orphan_legacy_tables.sql` **applied live**
+  (rollback-wrapped dry run first): 11 `ss_*` + 15 legacy `em_*` +
+  6 legacy `bf_*` tables, `calibration_results`/`expert_mode_settings`,
+  5 legacy Seismic Studio RPC functions, 6 orphaned enums. Kept:
+  `em_models`, `bf_wells` (its never-used `project_id` FK column
+  dropped). Post-apply probe green; details in MIGRATIONS.md.
 - Help-centre/training content still references "EarthModel Pro"
   (`src/data/helpArticles.js`, `trainingCourses.js`,
   `src/data/helpCenter/**`) — content refresh, not code.

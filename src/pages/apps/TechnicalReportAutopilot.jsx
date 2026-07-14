@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import InputPanel from '@/components/reportautopilot/InputPanel';
 import PreviewPanel from '@/components/reportautopilot/PreviewPanel';
 import EmptyState from '@/components/reportautopilot/EmptyState';
-import { Bot, Loader2, ArrowLeft, FolderKanban, Save } from 'lucide-react';
+import { Bot, Loader2, ArrowLeft, Save } from 'lucide-react';
 
 window.addEventListener("error", e => console.error("GlobalError:", e.error || e.message));
 window.addEventListener("unhandledrejection", e => {
@@ -226,9 +226,6 @@ function TechnicalReportAutopilotPageInner() {
             <h1 className="text-lg font-semibold text-white">Technical Report Autopilot</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/my-projects')}>
-              <FolderKanban className="w-4 h-4 mr-2" /> My Projects
-            </Button>
             <Button size="sm" onClick={handleSaveProject}>
               <Save className="w-4 h-4 mr-2" /> Save Project
             </Button>
