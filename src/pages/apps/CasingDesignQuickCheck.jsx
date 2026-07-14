@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Layers, ArrowLeft, Save, FolderKanban } from 'lucide-react';
+import { Layers, ArrowLeft, Save } from 'lucide-react';
 import InputPanel from '@/components/casingdesign/InputPanel';
 import ResultsPanel from '@/components/casingdesign/ResultsPanel';
 import EmptyState from '@/components/casingdesign/EmptyState';
@@ -106,12 +106,6 @@ const CasingAndTubingDesign = () => {
               <Button variant="outline" size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Drilling
-              </Button>
-            </Link>
-             <Link to="/dashboard/my-projects?app=casing-design">
-              <Button variant="outline" size="sm" className="border-purple-400/50 text-purple-300 hover:bg-purple-500/20">
-                <FolderKanban className="w-4 h-4 mr-2" />
-                My Projects
               </Button>
             </Link>
           </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, FileText, FolderKanban, Save } from 'lucide-react';
+import { ArrowLeft, FileText, Save } from 'lucide-react';
 
 const FdpHeader = ({ navigate, handleSaveProject, saving, projectId }) => {
   return (
@@ -15,9 +15,6 @@ const FdpHeader = ({ navigate, handleSaveProject, saving, projectId }) => {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
             <ArrowLeft className="w-4 h-4 mr-2" /> Back
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/my-projects')} className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
-            <FolderKanban className="w-4 h-4 mr-2" /> My Projects
           </Button>
           <Button variant="outline" size="sm" onClick={handleSaveProject} disabled={saving} className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
             {saving ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div> : <Save className="w-4 h-4 mr-2" />}

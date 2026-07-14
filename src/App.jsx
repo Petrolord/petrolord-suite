@@ -3,7 +3,6 @@ import React, { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/SupabaseAuthContext';
 import { ReservoirProvider } from '@/contexts/ReservoirContext';
-import { StudioProvider } from '@/contexts/StudioContext';
 import { HSEProvider } from '@/contexts/HSEContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import OnboardingRoute from '@/components/OnboardingRoute';
@@ -193,7 +192,6 @@ const MobileNotifications = lazy(() => import('@/pages/mobile/MobileNotification
 const MobileProfile = lazy(() => import('@/pages/mobile/MobileProfile'));
 const QuoteDashboard = lazy(() => import('@/pages/QuoteDashboard'));
 const GetQuote = lazy(() => import('@/pages/GetQuote'));
-const MyProjects = lazy(() => import('@/pages/MyProjects'));
 const Profile = lazy(() => import('@/pages/Profile'));
 const AdminCreateUser = lazy(() => import('@/pages/AdminCreateUser'));
 const AdminOrganizations = lazy(() => import('@/pages/admin/AdminOrganizations'));
@@ -254,8 +252,7 @@ function App() {
       <HSEProvider> 
           <AuthGuard>
             <ErrorBoundary>
-              <StudioProvider>
-                <ReservoirProvider>
+              <ReservoirProvider>
                     <AdminOrgProvider>
                       <div className={`${isDashboard ? "h-screen overflow-hidden" : "min-h-screen overflow-y-auto"} w-full bg-[hsl(var(--background))] text-[hsl(var(--foreground))]`}>
                           <Suspense fallback={<PageLoader />}>
@@ -618,7 +615,8 @@ function App() {
                                 {/* Lessons Learned Routes */}
                                 <Route path="apps/assurance/lessons-learned/*" element={<ProtectedAppRoute appId="lessons-learned" appName="Lessons Learned"><LessonsLearnedPageShell /></ProtectedAppRoute>} />
 
-                                <Route path="my-projects" element={<MyProjects />} />
+                                {/* legacy EarthModel Studio project list — retired with the ss_* drop */}
+                                <Route path="my-projects" element={<Navigate to="/dashboard" replace />} />
                               </Route>
 
                               <Route path="/profile" element={
@@ -661,8 +659,7 @@ function App() {
                           </Suspense>
                         </div>
                     </AdminOrgProvider>
-                </ReservoirProvider>
-              </StudioProvider>
+              </ReservoirProvider>
             </ErrorBoundary>
           </AuthGuard>
           <Toaster />

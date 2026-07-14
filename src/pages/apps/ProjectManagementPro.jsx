@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { ArrowLeft, Save, FolderKanban, Milestone, LayoutDashboard } from 'lucide-react';
+import { ArrowLeft, Save, Milestone, LayoutDashboard } from 'lucide-react';
 
 import InputPanel from '@/components/projectmanagement/InputPanel';
 import ProjectDashboard from '@/components/projectmanagement/ProjectDashboard';
@@ -167,7 +167,6 @@ const ProjectManagementPro = () => {
             </div>
             <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={handleShowPortfolio} className={`text-slate-300 hover:text-white ${isPortfolioView ? 'bg-slate-800' : ''}`}><LayoutDashboard className="w-4 h-4 mr-2" /> Portfolio</Button>
-               <Link to="/dashboard/my-projects"><Button variant="outline" size="sm" className="border-purple-400/50 text-purple-300 hover:bg-purple-500/20"><FolderKanban className="w-4 h-4 mr-2" /> My Projects</Button></Link>
               {!isPortfolioView && <Button onClick={handleSaveProject} disabled={!activeProject} size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20" variant="outline"><Save className="w-4 h-4 mr-2" /> Save Project</Button>}
             </div>
           </div>
