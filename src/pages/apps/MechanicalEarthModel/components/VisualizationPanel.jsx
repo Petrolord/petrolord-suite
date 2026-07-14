@@ -1,6 +1,6 @@
 import React from 'react';
-import { PlotlyStressProfileChart } from '@/components/subsurface-studio/analytics/charts/StressCharts';
-import { PlotlyMudWeightWindowChart } from '@/components/subsurface-studio/analytics/charts/PressureCharts';
+import { PlotlyStressProfileChart } from './charts/StressCharts';
+import { PlotlyMudWeightWindowChart } from './charts/PressureCharts';
 
 const VisualizationPanel = () => {
     return (

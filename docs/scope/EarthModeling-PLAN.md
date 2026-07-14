@@ -1,9 +1,10 @@
 # Earth Modeling — Phase G8 Plan
 
-Status: **DRAFT — proposed decisions marked; execution started 2026-07-14**
-(the roadmap slot itself is approved — Geoscience-ROADMAP.md §4 G8 and
-§2 tile 10; the scope contract below is the roadmap's, hardened against
-the 2026-07-14 audits).
+Status: **EXECUTED — G8 complete 2026-07-14** (see
+EarthModeling-STATUS.md). The roadmap slot was approved
+(Geoscience-ROADMAP.md §4 G8 / §2 tile 10); the "proposed decisions"
+below were taken as v1 defaults during the autonomous build — owner
+may still override any of them post-hoc (each is cheap to revisit).
 
 Roadmap slot: **Phase G8 — Earth Modeling v1** — the last of the 10
 tiles. ONE consolidated slot: structural framework + layer-cake zones +

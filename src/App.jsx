@@ -92,9 +92,6 @@ const FracCompletionApp = lazy(() => import('@/pages/apps/FracCompletionApp'));
 const RtoDashboard = lazy(() => import('@/pages/apps/RtoDashboard'));
 const PorePressureFracGradient = lazy(() => import('@/pages/apps/PorePressureFracGradient')); 
 const DrillingFluidsHydraulics = lazy(() => import('@/pages/apps/DrillingFluidsHydraulics'));
-const EarthModelStudio = lazy(() => import('@/components/geoscience/EarthModelStudio.jsx'));
-const EarthModelStudioProjects = lazy(() => import('@/pages/apps/EarthModelStudioProjects'));
-const EarthModelPro = lazy(() => import('@/components/geoscience/EarthModelPro.jsx'));
 const BasinFlowGenesis = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowGenesis'));
 const Seismolord = lazy(() => import('@/pages/apps/Seismolord/Seismolord'));
 const SeismolordSelfTest = lazy(() => import('@/pages/apps/Seismolord/SeismolordSelfTest'));
@@ -440,11 +437,13 @@ function App() {
                                 <Route path="apps/geoscience/automated-log-digitizer" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
                                 <Route path="apps/geoscience/contour-map-digitizer" element={<ContourMapDigitizer />} />
                                 <Route path="apps/geoscience/analog-finder" element={<AnalogFinder />} />
-                                <Route path="apps/geoscience/earthmodel-studio" element={<ProtectedAppRoute appId="earthmodel-studio" appName="EarthModel Studio"><EarthModelStudio /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/earth-model-studio" element={<ProtectedAppRoute appId="earthmodel-studio" appName="EarthModel Studio"><EarthModelStudio /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/earthmodel-pro" element={<ProtectedAppRoute appId="earthmodel-pro" appName="EarthModel Pro"><EarthModelPro /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/earth-model-pro" element={<ProtectedAppRoute appId="earthmodel-pro" appName="EarthModel Pro"><EarthModelPro /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/earth-model-studio/projects" element={<EarthModelStudioProjects />} />
+                                {/* Legacy earth-model slugs redirect to the G8 successor
+                                    (roadmap G0: routes stay as aliases where a successor exists). */}
+                                <Route path="apps/geoscience/earthmodel-studio" element={<Navigate to="/dashboard/apps/geoscience/earth-modeling" replace />} />
+                                <Route path="apps/geoscience/earth-model-studio" element={<Navigate to="/dashboard/apps/geoscience/earth-modeling" replace />} />
+                                <Route path="apps/geoscience/earthmodel-pro" element={<Navigate to="/dashboard/apps/geoscience/earth-modeling" replace />} />
+                                <Route path="apps/geoscience/earth-model-pro" element={<Navigate to="/dashboard/apps/geoscience/earth-modeling" replace />} />
+                                <Route path="apps/geoscience/earth-model-studio/projects" element={<Navigate to="/dashboard/apps/geoscience/earth-modeling" replace />} />
                                 <Route path="apps/geoscience/basinflow-genesis" element={<BasinFlowGenesis />} />
                                 <Route path="apps/geoscience/seismolord" element={<ProtectedAppRoute appId="seismolord" appName="Seismolord"><Seismolord /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/well-data-manager" element={<ProtectedAppRoute appId="well-data-manager" appName="Well Data Manager"><WellDataManager /></ProtectedAppRoute>} />

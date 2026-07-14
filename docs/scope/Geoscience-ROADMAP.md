@@ -73,8 +73,9 @@ row.
 
 10. **Earth Modeling** — ONE consolidated slot, scoped v1 (structural
     framework + layer-cake zones + simple property population), built
-    **last** *(Phase G8)*. Full 3D geostatistics is explicitly out of
-    scope until everything above ships.
+    **last** *(SHIPPED 2026-07-14 — Phase G8 complete, tile Active;
+    consolidates/deletes both EarthModel shells + the subsurface-studio
+    tree)*. Full 3D geostatistics stays out of scope.
 
 ## 3. Architecture principles (carried from Seismolord — locked unless owner overrides)
 
@@ -249,12 +250,22 @@ time depends on review cadence.
   **Pore-pressure prediction deferred** to a follow-on fed by
   Seismolord velocity models (plan Q4).
 
-### Phase G8 — Earth Modeling v1 *(large; last, and only after G1–G5 are live)*
+### Phase G8 — Earth Modeling v1 *(large; last, and only after G1–G5 are live)* — **DONE 2026-07-14 — MODULE COMPLETE (10/10 tiles)**
 - One tile. Scope v1 HARD: structural framework from G4 surfaces +
   fault polygons, layer-cake zonation from correlated tops, per-zone
   property population from G2 petrophysics (constant/trend/simple
   kriging — no full geostatistics), export to volumetrics and (future)
   simulation. Delete the leftover EarthModel shell it replaces.
+- **Shipped as Earth Modeling** (`earth-modeling`, tile Active):
+  oracle-validated engine (framework clamp / fault blocks / min-curve
+  well ties / constant-trend-kriging population / zone volumes),
+  WorkspaceShell workstation (map + section + QC views, click-drawn
+  fault polygons), `em_models` persistence (a legacy pre-G8 `em_*`/
+  `ss_*` orphan-table family was found live — owner-gated drop, the
+  bf_* pattern), publish-to-`geo_surfaces` closing the loop into
+  ReservoirCalc Pro. The 284-file subsurface-studio mock tree and both
+  EarthModel shells are deleted; legacy slugs redirect. Plan + status:
+  docs/scope/EarthModeling-{PLAN,STATUS}.md.
 
 ## 5. Sequencing logic (why this order)
 
