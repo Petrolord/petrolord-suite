@@ -215,10 +215,15 @@ time depends on review cadence.
   tie → surface → risked volumes — runs on one shared dataset with zero
   file exports.
 
-### Phase G6 — Rock Physics / QI *(medium; after core)*
+### Phase G6 — Rock Physics / QI *(medium; after core)* — **DONE 2026-07-14**
 - Gassmann fluid substitution, AVO classes + intercept/gradient from
   well logs, wedge modeling, synthetic gathers (reuses G5 synthetics).
   Oracle-validated against published rock-physics worked examples.
+- **Shipped as Rock Physics Studio** (`rock-physics-studio`, tile
+  Active): Batzle-Wang fluids, per-sample Gassmann on log intervals,
+  exact-Zoeppritz AVO + I-G crossplot with Rutherford-Williams bands,
+  wedge/tuning on the shared `src/lib/waveform.js` primitives.
+  Plan + status: docs/scope/RockPhysicsStudio-{PLAN,STATUS}.md.
 
 ### Phase G7 — Basin upgrade + geoscience pore-pressure *(sized by G0 audits)*
 - Execute the audit verdicts: **BasinFlowGenesis UPGRADE** per
