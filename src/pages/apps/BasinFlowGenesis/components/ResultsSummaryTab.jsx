@@ -3,6 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, AlertTriangle, Droplet, Flame } from 'lucide-react';
 
 const ResultsSummaryTab = ({ results }) => {
+    if (!results?.data || !results?.meta) {
+        return <div className="h-full flex items-center justify-center text-slate-500">Run a simulation to see the summary.</div>;
+    }
     const { data, meta } = results;
     
     // Calculate simple stats

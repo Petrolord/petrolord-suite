@@ -232,7 +232,7 @@ time depends on review cadence.
   wedge/tuning on the shared `src/lib/waveform.js` primitives.
   Plan + status: docs/scope/RockPhysicsStudio-{PLAN,STATUS}.md.
 
-### Phase G7 — Basin upgrade + geoscience pore-pressure *(sized by G0 audits)*
+### Phase G7 — Basin upgrade + geoscience pore-pressure *(sized by G0 audits)* — **BASIN UPGRADE DONE 2026-07-14**
 - Execute the audit verdicts: **BasinFlowGenesis UPGRADE** per
   BasinFlowGenesis-AUDIT.md (Sweeney-Burnham Ro, TOC-mass generation,
   erosion/heat-flow-history wiring, engine-backed analysis tabs, drop
@@ -240,6 +240,14 @@ time depends on review cadence.
   module** (decision locked 2026-07-12; not geoscience scope); Geoscience
   adds seismic-velocity-driven pore-pressure prediction here or later,
   fed by Seismolord velocity models.
+- **Shipped as Basin & Charge Modeling** (`basinflow-genesis`, tile
+  Active): the full audit fix set plus three fatal wiring bugs the
+  audit under-reported (the shipped sim was all-NaN; kerogen potentials
+  used as vitrinite weights; Arrhenius R off 1000×). Oracle-validated
+  (tools/validation/basinflow/), TFJS gone (1.9 MB → 260 KB chunk).
+  Plan + status: docs/scope/BasinFlow-{PLAN,STATUS}.md.
+  **Pore-pressure prediction deferred** to a follow-on fed by
+  Seismolord velocity models (plan Q4).
 
 ### Phase G8 — Earth Modeling v1 *(large; last, and only after G1–G5 are live)*
 - One tile. Scope v1 HARD: structural framework from G4 surfaces +

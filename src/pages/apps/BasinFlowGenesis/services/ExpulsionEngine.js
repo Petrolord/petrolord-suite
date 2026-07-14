@@ -1,44 +1,22 @@
+import { Spec } from './PhysicsUtils';
+
 /**
- * Expulsion Engine
- * Calculates primary migration from source rock
+ * Expulsion Engine — saturation-bucket primary migration.
+ *
+ * The source layer retains hydrocarbons up to a pore-volume cap
+ * (per unit column area): cap = thickness * phiAvg * S_threshold *
+ * rho_HC. Cumulative expelled mass is a MONOTONE state —
+ * expelled_t = max(expelled_{t-1}, generated_t - cap_t) — because
+ * expelled hydrocarbons never return even when unroofing rebound
+ * grows the cap.
  */
 export class ExpulsionEngine {
-    
-    /**
-     * Calculate expelled mass
-     * @param {number} generatedMass - Mass generated in this step
-     * @param {number} existingSaturation - Current HC saturation in pores
-     * @param {number} porosity - Current porosity
-     * @param {number} thresholdSat - Critical saturation for expulsion (e.g., 0.2)
-     * @returns {Object} { expelled, retained, newSaturation }
-     */
-    static calculateExpulsion(generatedMass, existingMass, porosity, volume, densityHC, thresholdSat = 0.1) {
-        const totalMass = existingMass + generatedMass;
-        
-        // Convert mass to volume to check saturation
-        // Vol_HC = Mass / Density
-        const volHC = totalMass / densityHC;
-        const poreVolume = volume * porosity;
-        const saturation = volHC / poreVolume;
-        
-        let expelledMass = 0;
-        let retainedMass = totalMass;
-        let newSaturation = saturation;
-        
-        if (saturation > thresholdSat) {
-            // Expel excess
-            // Keep saturation at threshold (simplified 'bucket' model)
-            // In reality, permeability limits flow, but for Genesis V1 bucket is fine.
-            const retainedVol = poreVolume * thresholdSat;
-            retainedMass = retainedVol * densityHC;
-            expelledMass = totalMass - retainedMass;
-            newSaturation = thresholdSat;
-        }
-        
-        return {
-            expelledMass,
-            retainedMass,
-            newSaturation
-        };
+
+    static retentionCap(thickness, phiAvg) {
+        return thickness * phiAvg * Spec.S_EXPULSION_THRESHOLD * Spec.RHO_HC;
+    }
+
+    static expelledCumulative(prevExpelled, generatedCumulative, cap) {
+        return Math.max(prevExpelled, generatedCumulative - cap);
     }
 }
