@@ -7,9 +7,9 @@ complete (G3.0–G3.3). Live at
 `/dashboard/apps/geoscience/well-correlation`; the legacy
 `well-correlation-tool` route redirects to it.
 
-Production note: petrolord.com needs a fresh `npm run build` upload —
-until then the new tile home-redirects on prod and the legacy route
-404s there. Staging has everything via HMR.
+Production note: **RESOLVED 2026-07-14** — prod is current (source zip
+from main `e84f8a181` uploaded to Hostinger); tile route and legacy
+redirect are live on petrolord.com.
 
 ## Phase status
 

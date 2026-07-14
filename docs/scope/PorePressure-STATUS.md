@@ -74,5 +74,6 @@ App: `apps/geoscience/pore-pressure-studio` (tile Active, migration
   of the published PP/FP/OBG curves.
 - WellboreStabilityAnalyzer still hardcodes a 0.45 psi/ft gradient —
   future consumer of published curves, out of this scope.
-- Prod upload: tile + route reach petrolord.com at the next build
-  upload (staging is live already).
+- ~~Prod upload: tile + route reach petrolord.com at the next build
+  upload.~~ **DONE 2026-07-14** — prod is current (source zip from
+  main `e84f8a181`, uploaded same day the PR merged).

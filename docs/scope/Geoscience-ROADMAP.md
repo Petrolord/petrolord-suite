@@ -297,7 +297,8 @@ and is the biggest build risk in the domain.
    - **Convergence path**: **EXECUTED 2026-07-13** (migration
      `20260713300000`, own PR, second-engineer review): backfill done,
      `is_org_member()` is single-query, legacy tables dropped behind
-     read-only compat views (drop them after the next prod upload). The
+     read-only compat views (views dropped 2026-07-14 after the prod
+     upload — migration `20260714160000`, PR #71). The
      audited blast radius was far larger than this note assumed — 162
      live policies and ~15 functions referenced the legacy tables
      directly and were rewritten onto SECURITY DEFINER helpers

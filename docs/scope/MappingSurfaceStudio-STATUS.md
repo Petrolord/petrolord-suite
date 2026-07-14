@@ -8,8 +8,8 @@ Phase G4 complete (G4.0–G4.4). Live at
 
 Deferred (cuttable per plan §7): the ContourMapDigitizer fold-in as a
 raster import wizard — the standalone digitizer stays as-is (it works;
-its dead `useIntegration` import was stripped). Prod build upload to
-petrolord.com still pending across G1–G4.
+its dead `useIntegration` import was stripped). Prod build upload:
+**DONE 2026-07-14** — prod is current (main `e84f8a181`).
 
 ## Phase status
 

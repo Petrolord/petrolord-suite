@@ -8,8 +8,8 @@ advanced-tier app after the core loop closed at G5. Slug
 Phase G6 complete (G6.0–G6.5). Live at
 `/dashboard/apps/geoscience/rock-physics-studio`.
 
-Prod build upload to petrolord.com still pending (accumulated across
-G1–G6; staging is HMR-live).
+Prod build upload: **DONE 2026-07-14** — prod is current (main
+`e84f8a181`).
 
 ## Phase status
 
