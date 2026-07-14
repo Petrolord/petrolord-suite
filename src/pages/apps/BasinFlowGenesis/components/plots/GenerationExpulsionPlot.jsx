@@ -1,86 +1,73 @@
-
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import ChartLogo from '@/components/charts/ChartLogo';
+import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS } from '@/utils/chartTheme';
+import { alignSeriesByAge, seriesColor } from '../../services/resultsView';
 
+/**
+ * Cumulative generated vs expelled hydrocarbon mass (kg HC per m²
+ * column area) for source-rock layers — solid = generated,
+ * dashed = expelled.
+ */
 const GenerationExpulsionPlot = ({ results }) => {
     const { data, meta } = results;
-    const { transformation } = data;
 
-    const chartData = useMemo(() => {
-        if (!transformation || transformation.length === 0) return [];
-        // Assuming consistent ages across histories, get ages from the first valid layer
-        let validHist = null;
-        for (let hist of transformation) {
-            if (hist && hist.length > 0) {
-                validHist = hist;
-                break;
-            }
-        }
-        if (!validHist) return [];
-
-        return validHist.map((h, i) => {
-            const point = { age: h.age };
-            meta.layers.forEach((layer, li) => {
-                if (transformation[li] && transformation[li][i]) {
-                    point[layer.name] = transformation[li][i].value;
-                }
+    const { chartData, sourceLayers } = useMemo(() => {
+        if (!data?.timeSteps?.length) return { chartData: [], sourceLayers: [] };
+        const sources = meta.layers.filter((_, li) =>
+            (data.generation[li] || []).some(e => e.value > 0));
+        const gen = alignSeriesByAge(data.timeSteps, data.generation, meta.layers);
+        const exp = alignSeriesByAge(data.timeSteps, data.expulsion, meta.layers);
+        const rows = gen.map((g, i) => {
+            const point = { age: g.age };
+            sources.forEach(layer => {
+                point[`${layer.name} generated`] = g[layer.name];
+                point[`${layer.name} expelled`] = exp[i][layer.name];
             });
             return point;
         });
-    }, [transformation, meta]);
+        return { chartData: rows, sourceLayers: sources };
+    }, [data, meta]);
 
-    // Check if there is any significant TR
-    const hasSignificantTR = useMemo(() => {
-        for (let i = 0; i < meta.layers.length; i++) {
-            const hist = transformation[i];
-            if (hist && Math.max(...hist.map(h => h.value)) >= 0.01) return true;
-        }
-        return false;
-    }, [transformation, meta]);
-
-    if (!hasSignificantTR) {
+    if (sourceLayers.length === 0) {
         return (
-             <div className="w-full h-full min-h-[400px] flex items-center justify-center bg-slate-900/50 rounded-lg border border-slate-800">
-                <p className="text-slate-400">No significant hydrocarbon generation detected.</p>
+            <div className="w-full h-full min-h-[400px] flex items-center justify-center bg-white rounded-lg border border-slate-300">
+                <p className="text-slate-500">No hydrocarbon generation — no source rock reached transformation.</p>
             </div>
         );
     }
 
-    const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4'];
-
     return (
-        <div className="w-full h-full min-h-[400px] bg-slate-900/50 rounded-lg border border-slate-800 flex flex-col p-4">
-            <h3 className="text-center text-sm font-medium text-slate-200 mb-4">Transformation Ratio</h3>
+        <div className="w-full h-full min-h-[400px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative">
+            <h3 className="text-center text-sm font-semibold" style={{ color: CHART_COLORS.axisLabel }}>Generation & Expulsion (cumulative)</h3>
             <div className="flex-1 min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                        <XAxis 
-                            dataKey="age" 
-                            reversed 
-                            stroke="#94a3b8" 
-                            label={{ value: 'Age (Ma)', position: 'bottom', fill: '#94a3b8', fontSize: 12 }} 
+                    <LineChart data={chartData} margin={CHART_MARGINS.standard}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} />
+                        <XAxis
+                            dataKey="age"
+                            reversed
+                            stroke={CHART_COLORS.axisLine}
+                            tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+                            label={{ value: 'Age (Ma)', position: 'bottom', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
                         />
-                        <YAxis 
-                            stroke="#94a3b8" 
-                            domain={[0, 1.05]}
-                            label={{ value: 'TR (Fraction)', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 12 }} 
+                        <YAxis
+                            stroke={CHART_COLORS.axisLine}
+                            tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+                            label={{ value: 'Mass (kg HC/m²)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
                         />
-                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }} />
-                        <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
-                        {meta.layers.map((layer, idx) => (
-                            <Line
-                                key={layer.name}
-                                type="monotone"
-                                dataKey={layer.name}
-                                stroke={colors[idx % colors.length]}
-                                strokeWidth={2}
-                                dot={false}
-                            />
+                        <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
+                        <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+                        {sourceLayers.map((layer, idx) => (
+                            <React.Fragment key={layer.id || layer.name}>
+                                <Line type="monotone" dataKey={`${layer.name} generated`} stroke={seriesColor(idx)} strokeWidth={2} dot={false} connectNulls={false} />
+                                <Line type="monotone" dataKey={`${layer.name} expelled`} stroke={seriesColor(idx)} strokeWidth={2} strokeDasharray="6 3" dot={false} connectNulls={false} />
+                            </React.Fragment>
                         ))}
                     </LineChart>
                 </ResponsiveContainer>
             </div>
+            <ChartLogo />
         </div>
     );
 };

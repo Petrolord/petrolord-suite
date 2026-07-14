@@ -111,12 +111,18 @@ export class ExportEngine {
         const headers = ['Age_Ma', 'Layer_ID', 'Layer_Name', 'Depth_Top_m', 'Depth_Bottom_m', 'Temp_C', 'Ro_Percent'];
         const rows = [];
 
-        results.data.timeSteps.forEach((age, timeIdx) => {
+        // Layer series start at deposition (shorter than timeSteps) —
+        // align rows by each entry's own age, never by global index.
+        const byAge = (arr) => new Map((arr || []).map(e => [e.age, e]));
+        const burialMaps = results.data.burial.map(byAge);
+        const tempMaps = results.data.temperature.map(byAge);
+        const matMaps = results.data.maturity.map(byAge);
+
+        results.data.timeSteps.forEach((age) => {
             results.meta.layers.forEach((layer, layerIdx) => {
-                // Safety access
-                const burial = results.data.burial[layerIdx]?.[timeIdx];
-                const temp = results.data.temperature[layerIdx]?.[timeIdx];
-                const mat = results.data.maturity[layerIdx]?.[timeIdx];
+                const burial = burialMaps[layerIdx].get(age);
+                const temp = tempMaps[layerIdx].get(age);
+                const mat = matMaps[layerIdx].get(age);
 
                 if (burial && temp && mat) {
                     rows.push([

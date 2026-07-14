@@ -7,9 +7,13 @@ import { Slider } from '@/components/ui/slider';
 import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
 import { useMultiWell } from '@/pages/apps/BasinFlowGenesis/contexts/MultiWellContext';
 import { CalibrationCalculator } from '@/pages/apps/BasinFlowGenesis/services/CalibrationCalculator';
-import { Save, Download, TrendingUp, FileText } from 'lucide-react';
+import { HeatFlowFitter } from '@/pages/apps/BasinFlowGenesis/services/HeatFlowFitter';
+import { SimulationEngine } from '@/pages/apps/BasinFlowGenesis/services/SimulationEngine';
+import { finalDepthProfile } from '@/pages/apps/BasinFlowGenesis/services/resultsView';
+import { Save, Download, TrendingUp, FileText, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import ResidualPlot from '../plots/ResidualPlot';
+import CalibrationProfilePlot from '../plots/CalibrationProfilePlot';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -17,16 +21,18 @@ const CalibrationView = () => {
     const { state, dispatch, runSimulation } = useBasinFlow();
     const { updateWell, state: mwState } = useMultiWell();
     const { toast } = useToast();
-    
+
     const [roPoints, setRoPoints] = useState(state.calibration?.ro || [
-        { id: 1, depth: 2000, value: 0.55 }, 
+        { id: 1, depth: 2000, value: 0.55 },
         { id: 2, depth: 3500, value: 1.15 }
     ]);
-    
+
     const [bhtPoints, setBhtPoints] = useState(state.calibration?.temp || [
         { id: 1, depth: 1500, value: 65 },
         { id: 2, depth: 3000, value: 110 }
     ]);
+
+    const [isFitting, setIsFitting] = useState(false);
 
     useEffect(() => {
         if (state.calibration) {
@@ -35,47 +41,33 @@ const CalibrationView = () => {
         }
     }, [state.calibration]);
 
+    // Final-state modeled profile in meta.layers order (the pre-G7 view
+    // indexed results by state.stratigraphy order AND missed the .data
+    // nesting — both wrong).
     const modelProfiles = useMemo(() => {
-        if (!state.results?.burial || !state.results?.maturity || state.results.timeSteps.length === 0) {
-            return { depths: [], ro: [], temp: [] };
-        }
-        
-        const lastIdx = state.results.timeSteps.length - 1;
-        const depths = [];
-        const ro = [];
-        const temp = [];
-        
-        state.stratigraphy.forEach((layer, i) => {
-            const burial = state.results.burial[i];
-            const maturity = state.results.maturity[i];
-            const temperature = state.results.temperature[i];
-            
-            if(burial && maturity && temperature) {
-                const depth = (burial[lastIdx].top + burial[lastIdx].bottom) / 2;
-                depths.push(depth);
-                ro.push(maturity[lastIdx].value);
-                temp.push(temperature[lastIdx].value);
-            }
-        });
-        
-        return { depths, ro, temp };
-    }, [state.results, state.stratigraphy]);
+        const prof = finalDepthProfile(state.results);
+        return {
+            depths: prof.map(p => p.depth),
+            ro: prof.map(p => p.ro),
+            temp: prof.map(p => p.temp),
+        };
+    }, [state.results]);
 
     const stats = useMemo(() => {
         if(modelProfiles.depths.length === 0) return { roRMS: 0, tempRMS: 0, roR2: 0, residualsRo: [], residualsTemp: [] };
-        
+
         const modeledRoAtPts = CalibrationCalculator.interpolateToMeasured(
-            modelProfiles.depths, 
-            modelProfiles.ro, 
+            modelProfiles.depths,
+            modelProfiles.ro,
             roPoints.map(p => p.depth)
         );
-        
+
         const modeledTempAtPts = CalibrationCalculator.interpolateToMeasured(
             modelProfiles.depths,
             modelProfiles.temp,
             bhtPoints.map(p => p.depth)
         );
-        
+
         return {
             roRMS: CalibrationCalculator.calculateRMS(roPoints.map(p => p.value), modeledRoAtPts) || 0,
             tempRMS: CalibrationCalculator.calculateRMS(bhtPoints.map(p => p.value), modeledTempAtPts) || 0,
@@ -91,15 +83,35 @@ const CalibrationView = () => {
         }
     };
 
-    const handleAutoCalibrate = () => {
-        toast({ title: "Auto-calibration started", description: "Optimizing heat flow to match data..." });
-        setTimeout(() => {
-            const currentHF = state.heatFlow.value;
-            const newHF = currentHF + (Math.random() > 0.5 ? 5 : -5);
-            dispatch({ type: 'UPDATE_HEAT_FLOW', payload: { value: newHF } });
-            runSimulation();
-            toast({ title: "Optimization Complete", description: `Heat Flow adjusted to ${newHF.toFixed(1)} mW/m²` });
-        }, 1500);
+    const handleAutoCalibrate = async () => {
+        if (roPoints.length === 0 && bhtPoints.length === 0) {
+            toast({ variant: "destructive", title: "No Data", description: "Add calibration points before auto-fitting." });
+            return;
+        }
+        setIsFitting(true);
+        toast({ title: "Auto-calibration started", description: "Optimizing heat flow against the calibration data..." });
+        try {
+            const fitted = await HeatFlowFitter.fit(state, roPoints, bhtPoints);
+            dispatch({ type: 'UPDATE_HEAT_FLOW', payload: fitted.heatFlow });
+            await runSimulationWith(fitted.heatFlow);
+            toast({
+                title: "Optimization Complete",
+                description: state.heatFlow?.type === 'variable'
+                    ? `Heat-flow history scaled; present-day ${fitted.heatFlow.value.toFixed(1)} mW/m²`
+                    : `Heat flow fitted to ${fitted.heatFlow.value.toFixed(1)} mW/m²`,
+            });
+        } catch (e) {
+            toast({ variant: "destructive", title: "Auto-fit failed", description: e.message });
+        } finally {
+            setIsFitting(false);
+        }
+    };
+
+    // runSimulation() reads context state, which won't include the
+    // fitted heat flow until the next render — run explicitly.
+    const runSimulationWith = async (heatFlow) => {
+        const results = await SimulationEngine.run({ ...state, heatFlow });
+        dispatch({ type: 'SET_RESULTS', payload: results });
     };
 
     const handleSaveCalibration = async () => {
@@ -110,9 +122,9 @@ const CalibrationView = () => {
 
         dispatch({ type: 'SET_CALIBRATION_DATA', payload: { ro: roPoints, temp: bhtPoints } });
         const newStatus = (stats.roRMS < 0.3 && stats.tempRMS < 10) ? 'calibrated' : 'in-progress';
-        
+
         if (mwState.activeWellId) {
-            await updateWell(mwState.activeWellId, { 
+            await updateWell(mwState.activeWellId, {
                 calibration: { ro: roPoints, temp: bhtPoints },
                 status: newStatus
             });
@@ -128,7 +140,7 @@ const CalibrationView = () => {
             const mod = CalibrationCalculator.interpolateToMeasured(modelProfiles.depths, modelProfiles.ro, [p.depth])[0];
             return `${p.depth},${p.value},${mod?.toFixed(2)||''},${(p.value-(mod||0)).toFixed(2)},,,`;
         }).join("\n");
-        
+
         const tempRows = bhtPoints.map(p => {
             const mod = CalibrationCalculator.interpolateToMeasured(modelProfiles.depths, modelProfiles.temp, [p.depth])[0];
             return `${p.depth},,,${p.value},${mod?.toFixed(1)||''},${(p.value-(mod||0)).toFixed(1)}`;
@@ -153,7 +165,7 @@ const CalibrationView = () => {
         doc.text("Statistics:", 14, 35);
         doc.text(`Ro RMS: ${stats.roRMS.toFixed(3)}%`, 20, 40);
         doc.text(`Temp RMS: ${stats.tempRMS.toFixed(1)}C`, 20, 45);
-        
+
         const roData = roPoints.map(p => [p.depth, p.value]);
         doc.autoTable({
             startY: 50,
@@ -161,7 +173,7 @@ const CalibrationView = () => {
             body: roData,
             theme: 'striped'
         });
-        
+
         doc.save("calibration_report.pdf");
     };
 
@@ -169,6 +181,9 @@ const CalibrationView = () => {
         if (typeof num !== 'number' || isNaN(num)) return '0.' + '0'.repeat(digits);
         return num.toFixed(digits);
     };
+
+    const modeledRoProfile = modelProfiles.depths.map((d, i) => ({ depth: d, value: modelProfiles.ro[i] }));
+    const modeledTempProfile = modelProfiles.depths.map((d, i) => ({ depth: d, value: modelProfiles.temp[i] }));
 
     return (
         <div className="h-full grid grid-cols-12 gap-4 p-4 overflow-y-auto">
@@ -181,16 +196,19 @@ const CalibrationView = () => {
                                 <Label className="text-xs text-slate-400">Basal Heat Flow (mW/m²)</Label>
                                 <span className="text-xs font-mono text-indigo-400">{state.heatFlow?.value || 0}</span>
                             </div>
-                            <Slider 
-                                value={[state.heatFlow?.value || 60]} 
+                            <Slider
+                                value={[state.heatFlow?.value || 60]}
                                 min={30} max={150} step={1}
                                 onValueChange={(v) => handleParameterChange('heatFlow', v[0])}
-                                onValueCommit={() => runSimulation()} 
+                                onValueCommit={() => runSimulation()}
                             />
                         </div>
                         <div className="pt-2">
-                            <Button size="sm" variant="outline" className="w-full text-xs" onClick={handleAutoCalibrate}>
-                                <TrendingUp className="w-3 h-3 mr-2" /> Auto-Fit Heat Flow
+                            <Button size="sm" variant="outline" className="w-full text-xs" onClick={handleAutoCalibrate} disabled={isFitting}>
+                                {isFitting
+                                    ? <RefreshCw className="w-3 h-3 mr-2 animate-spin" />
+                                    : <TrendingUp className="w-3 h-3 mr-2" />}
+                                {isFitting ? 'Fitting…' : 'Auto-Fit Heat Flow'}
                             </Button>
                         </div>
                     </CardContent>
@@ -233,14 +251,22 @@ const CalibrationView = () => {
 
             <div className="col-span-12 lg:col-span-9 space-y-4">
                 <div className="grid grid-cols-2 gap-4 h-[400px]">
-                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-1 relative group flex items-center justify-center text-slate-500">
-                         Chart removed
-                    </div>
-                    <div className="bg-slate-900 border border-slate-800 rounded-lg p-1 flex items-center justify-center text-slate-500">
-                         Chart removed
-                    </div>
+                    <CalibrationProfilePlot
+                        title="Vitrinite Reflectance vs Depth"
+                        xLabel="%Ro"
+                        modeled={modeledRoProfile}
+                        measured={roPoints}
+                        color="#db2777"
+                    />
+                    <CalibrationProfilePlot
+                        title="Temperature vs Depth"
+                        xLabel="Temperature (°C)"
+                        modeled={modeledTempProfile}
+                        measured={bhtPoints}
+                        color="#d97706"
+                    />
                 </div>
-                
+
                 <div className="h-[250px]">
                     <ResidualPlot roStats={stats.residualsRo} tempStats={stats.residualsTemp} />
                 </div>
