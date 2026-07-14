@@ -42,6 +42,13 @@ trees + mock-density spot checks, 2026-07-12):
 get **Archived** (the QuickVol pattern — status='Archived' preserves
 rows and entitlement FKs), not deleted.
 
+**Catalog closed 2026-07-13** (owner request, migration
+`20260713320000`): the 18 aspirational 'Coming Soon' geoscience rows are
+Archived too — the module's catalog now shows exactly the 6 real Active
+tiles. Future apps (G6 Rock Physics Studio, the G7/G8 outcomes) seed
+their own tile when they ship, as G1–G4 did; nothing revives an archived
+row.
+
 ## 2. Target portfolio — 10 tiles
 
 **Core six** (a geoscientist can run a full prospect-to-volumes study):
