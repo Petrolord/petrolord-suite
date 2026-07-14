@@ -110,7 +110,9 @@ const PetrophysicsStudioHarness = lazy(() => import('@/pages/apps/PetrophysicsSt
 const WellCorrelationHarness = lazy(() => import('@/pages/apps/WellCorrelation/WellCorrelationHarness'));
 const MappingSurfaceStudioHarness = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingSurfaceStudioHarness'));
 const ProspectRiskingHarness = lazy(() => import('@/pages/apps/ReservoirCalcPro/ProspectRiskingHarness'));
+const RockPhysicsStudioHarness = lazy(() => import('@/pages/apps/RockPhysicsStudio/RockPhysicsStudioHarness'));
 const MappingSurfaceStudio = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingSurfaceStudio'));
+const RockPhysicsStudio = lazy(() => import('@/pages/apps/RockPhysicsStudio/RockPhysicsStudio'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
 const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/ProductionSurveillanceDashboard'));
@@ -427,6 +429,7 @@ function App() {
                                     and any in-flight entitlements land on the successor
                                     (roadmap G0: routes stay as aliases where a successor exists). */}
                                 <Route path="apps/geoscience/petrophysics-studio" element={<ProtectedAppRoute appId="petrophysics-studio" appName="Petrophysics Studio"><PetrophysicsStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/rock-physics-studio" element={<ProtectedAppRoute appId="rock-physics-studio" appName="Rock Physics Studio"><RockPhysicsStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/crossplot-generator" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
                                 <Route path="apps/geoscience/petrophysics-estimator" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
                                 <Route path="apps/geoscience/petrophysical-integration-suite" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
@@ -648,6 +651,7 @@ function App() {
                                   <Route path="/dev/well-correlation" element={<WellCorrelationHarness />} />
                                   <Route path="/dev/mapping-surface-studio" element={<MappingSurfaceStudioHarness />} />
                                   <Route path="/dev/prospect-risking" element={<ProspectRiskingHarness />} />
+                                  <Route path="/dev/rock-physics-studio" element={<RockPhysicsStudioHarness />} />
                                 </>
                               )}
                               <Route path="*" element={<Navigate to="/" replace />} />
