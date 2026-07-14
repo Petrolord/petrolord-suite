@@ -5,11 +5,11 @@
 
 export const applicationRoutes = [
   {
-    id: 'earth-model-pro',
-    path: '/dashboard/apps/geoscience/earth-model-pro',
-    name: 'EarthModel Pro',
-    icon: 'Globe',
-    description: 'Advanced 3D Geological Modeling',
+    id: 'earth-modeling',
+    path: '/dashboard/apps/geoscience/earth-modeling',
+    name: 'Earth Modeling',
+    icon: 'Mountain',
+    description: 'Layer-cake earth modeling on the shared registry',
     hideSidebar: true,
     fullscreen: true
   },

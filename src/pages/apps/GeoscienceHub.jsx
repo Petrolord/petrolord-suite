@@ -39,11 +39,11 @@ const GeoscienceHub = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AppCard 
-            title="EarthModel Pro"
-            description="Comprehensive 3D geological modeling platform. Build surfaces, grids, and calculate volumes."
+          <AppCard
+            title="Earth Modeling"
+            description="Layer-cake earth modeling: structural frameworks from mapped surfaces, fault-block property population, and zone volumes."
             icon={Cuboid}
-            path="/dashboard/apps/geoscience/earth-model-pro"
+            path="/dashboard/apps/geoscience/earth-modeling"
           />
           <AppCard 
             title="Well Correlation Tool"
