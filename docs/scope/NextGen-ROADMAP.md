@@ -1,6 +1,14 @@
 # Petrolord NextGen — Audit & Roadmap (plan of record on approval)
 
-Status: DRAFT 2026-07-14 — awaiting owner sign-off on §5.
+Status: **APPROVED AS DRAFTED 2026-07-14** (§5 recommendations locked:
+Q1 git-subtree vendoring; Q2 N3 audit decides; Q3 drop orphans at N2;
+Q4 Petrolord/petrolord-nextgen canonical; Q5 own Supabase project
+stays; Q6 Petrophysics first course).
+**N1 DONE 2026-07-14**: `Petrolord/petrolord-engines` created (8 engine
+sets + lib/{waveform,gridding} + goldens + Python oracles + 58-test
+smoke CI); Suite vendors it at `packages/engines` via subtree, original
+paths are re-export shims, goldens references repointed — gate met:
+Suite jest 993/69, build, e2e 51/51 green from the central position.
 Owner directives already given: NextGen reuses the Suite's validated
 engines from a central position (a shared engines repo both products
 consume), and **all current NextGen applications are removed** — none

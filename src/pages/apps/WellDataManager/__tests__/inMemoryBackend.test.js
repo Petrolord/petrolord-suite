@@ -11,7 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { makeInMemoryBackend } from '../services/inMemoryBackend';
 
-const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'wells');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'wells');
 const lasFile = (name) => ({
   name: `${name}.las`,
   // only .text() and .name are touched on the inline (non-worker) path

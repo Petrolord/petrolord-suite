@@ -1,7 +1,7 @@
 // Earth Modeling G8.2 acceptance: the workstation drives on the /dev
 // harness without auth, and the UI reproduces the ORACLE'S numbers —
 // the harness's seeded surfaces/wells ARE the goldens' analytic
-// fixture (test-data/earthmodel/). Stack the three surfaces, build,
+// fixture (packages/engines/test-data/earthmodel/). Stack the three surfaces, build,
 // draw nothing (fixture polygon is added via the dock draw flow in a
 // dedicated test) and the clamp report / census / volume tables are
 // asserted from the committed goldens, never hardcoded literals.
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const goldens = JSON.parse(fs.readFileSync(
-  path.join(here, '..', 'test-data', 'earthmodel', 'goldens.json'), 'utf8',
+  path.join(here, '..', 'packages', 'engines', 'test-data', 'earthmodel', 'goldens.json'), 'utf8',
 ));
 
 const fmtM = (v) => (v / 1e6).toFixed(3);

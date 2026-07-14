@@ -12,7 +12,7 @@ import { rwArps, spK, rweFromSsp, pickettFit } from '../engine/rw';
 import { swArchie, swSimandoux, swIndonesia, swCurve } from '../engine/sw';
 import { netPay, sampleThickness } from '../engine/netpay';
 
-const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'petrophysics');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'petrophysics');
 const AC = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'analytic_cases.json'), 'utf8'));
 
 const close = (a, b, tol = 1e-12) => Math.abs(a - b) <= tol * Math.max(1, Math.abs(a), Math.abs(b));

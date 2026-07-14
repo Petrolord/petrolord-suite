@@ -13,7 +13,7 @@ import {
 } from '../engine/crossplot';
 import { computeWell, DEFAULT_PARAMS } from '../engine/pipeline';
 
-const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'petrophysics');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'petrophysics');
 const typewell = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'typewell.json'), 'utf8'));
 const curve = (name) => Float64Array.from(typewell.curves[name], (v) => (v === null ? NaN : v));
 

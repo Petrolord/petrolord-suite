@@ -15,7 +15,7 @@ import {
   DEFAULT_SCENARIO, DEFAULT_ROCK, sideFluid, kminFromRock, substituteInterval,
 } from '../services/scenario';
 
-const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'rockphysics');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'rockphysics');
 const GOLDENS = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'goldens.json'), 'utf8'));
 
 const close = (a, b, tol = 1e-9) => Math.abs(a - b) <= tol * Math.max(1, Math.abs(a), Math.abs(b));

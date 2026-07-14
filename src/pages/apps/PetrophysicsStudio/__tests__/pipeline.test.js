@@ -10,7 +10,7 @@ import path from 'path';
 import { computeWell, zoneSummary, DEFAULT_PARAMS } from '../engine/pipeline';
 import { makeInMemoryBackend } from '../services/inMemoryBackend';
 
-const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'petrophysics');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'petrophysics');
 const typewell = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'typewell.json'), 'utf8'));
 const goldens = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'goldens.json'), 'utf8'));
 

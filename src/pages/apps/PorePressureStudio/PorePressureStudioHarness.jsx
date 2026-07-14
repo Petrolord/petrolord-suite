@@ -1,7 +1,7 @@
 // Dev-only harness route (/dev/pore-pressure-studio, DEV builds only):
 // the FULL Pore Pressure Studio on the in-memory backend — no auth or
 // DB. The seeded well IS the oracle goldens' synthetic well
-// (test-data/porepressure/goldens.json) and the seeded project carries
+// (packages/engines/test-data/porepressure/goldens.json) and the seeded project carries
 // the goldens' own parameters, so the Playwright suite asserts the
 // ORACLE'S numbers off the rendered UI: the depth readout reproduces
 // goldens.well pressures and an NCT fit on hydrostatic-section picks

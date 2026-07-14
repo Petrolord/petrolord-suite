@@ -13,7 +13,7 @@ import { makeInMemoryBackend } from '../services/inMemoryBackend';
 import { buildModel, emptyDefinition } from '../services/modelBuild';
 import { FAULT_POLYGON } from '../services/fixture';
 
-const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'earthmodel');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'earthmodel');
 const G = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'goldens.json'), 'utf8'));
 
 const close = (a, b, tol) => Math.abs(a - b) <= tol * Math.max(1, Math.abs(a), Math.abs(b));

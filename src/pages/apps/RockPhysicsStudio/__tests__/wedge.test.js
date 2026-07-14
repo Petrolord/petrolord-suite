@@ -10,7 +10,7 @@ import path from 'path';
 import { rickerWavelet } from '@/lib/waveform';
 import { tuningCurve, tuningThicknessMs, wedgeTrace } from '../engine/wedge';
 
-const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'rockphysics');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'rockphysics');
 const W = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'goldens.json'), 'utf8')).wedge;
 
 const close = (a, b, tol) => Math.abs(a - b) <= tol * Math.max(1, Math.abs(a), Math.abs(b));

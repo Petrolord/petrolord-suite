@@ -3,13 +3,13 @@
 // philosophy). Same interface as registryBackend.
 //
 // The seeded well IS the analytic type well from
-// test-data/petrophysics/typewell.json — the same fixture the oracle
+// packages/engines/test-data/petrophysics/typewell.json — the same fixture the oracle
 // goldens are generated from — so the e2e suite asserts the ORACLE'S
 // zone numbers straight off the screen (net 18.0 m in SAND A with the
 // default parameter set). A second, org-shared read-only well
 // exercises the owner-only zone guards.
 
-import typewell from '../../../../../test-data/petrophysics/typewell.json';
+import typewell from '../../../../../packages/engines/test-data/petrophysics/typewell.json';
 
 const CURVE_UNITS = { DEPT: 'M', GR: 'GAPI', RHOB: 'G/C3', NPHI: 'V/V', DT: 'US/M', RT: 'OHMM' };
 

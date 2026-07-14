@@ -1,7 +1,7 @@
 // Pore Pressure Studio P3 acceptance: the workstation drives on the
 // /dev harness without auth, and the UI reproduces the ORACLE'S
 // numbers — the harness's seeded well IS the goldens' synthetic well
-// (test-data/porepressure/goldens.json) and the seeded project carries
+// (packages/engines/test-data/porepressure/goldens.json) and the seeded project carries
 // the goldens' parameters. The depth readout, the hydrostatic
 // upper-section identity, the NCT fit recovery and the Eaton/Bowers
 // method switch are all asserted from the committed goldens, never
@@ -15,7 +15,7 @@ import { fileURLToPath } from 'url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const goldens = JSON.parse(fs.readFileSync(
-  path.join(here, '..', 'test-data', 'porepressure', 'goldens.json'), 'utf8',
+  path.join(here, '..', 'packages', 'engines', 'test-data', 'porepressure', 'goldens.json'), 'utf8',
 ));
 const W = goldens.well;
 const P = W.params;
