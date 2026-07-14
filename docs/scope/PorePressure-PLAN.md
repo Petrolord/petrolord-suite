@@ -1,7 +1,9 @@
 # Pore Pressure Prediction — Plan (G7 follow-on)
 
-Status: DRAFT 2026-07-14 — P0 (oracle) started; P1+ gated on the open
-questions in §5. Roadmap anchor: Phase G7 "Geoscience adds
+Status: **APPROVED AS DRAFTED 2026-07-14** (all §5 recommendations
+locked: Q1 new Geoscience tile "Pore Pressure Studio"; Q2 purge legacy
+PPFG surfaces; Q3 Eaton + Bowers in v1; Q4 publish to geo_wells_logs).
+P0 oracle + P1 engine DONE (PR #72). Roadmap anchor: Phase G7 "Geoscience adds
 seismic-velocity-driven pore-pressure prediction … fed by Seismolord
 velocity models" (deferred at BasinFlow-PLAN Q4).
 
