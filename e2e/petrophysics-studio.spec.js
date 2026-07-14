@@ -14,7 +14,7 @@ import { fileURLToPath } from 'url';
 // literals — fixture regeneration cannot silently drift past this spec
 const here = path.dirname(fileURLToPath(import.meta.url));
 const goldens = JSON.parse(fs.readFileSync(
-  path.join(here, '..', 'test-data', 'petrophysics', 'goldens.json'), 'utf8',
+  path.join(here, '..', 'packages', 'engines', 'test-data', 'petrophysics', 'goldens.json'), 'utf8',
 ));
 const goldenNet = (zone) => goldens.ZONES[zone].summary.net_m.toFixed(1);
 
@@ -146,7 +146,7 @@ test('publish curves + zone, batch run, and project persistence across reload', 
 });
 
 test('digitizer wizard traces a curve from a scanned image and saves it', async ({ page }) => {
-  const IMG = path.join(here, '..', 'test-data', 'petrophysics', 'log_scan.png');
+  const IMG = path.join(here, '..', 'packages', 'engines', 'test-data', 'petrophysics', 'log_scan.png');
   // calibration prompts answered in order: 2 depths then 2 values
   const answers = ['2000', '2100', '0', '100'];
   page.on('dialog', (d) => d.accept(answers.shift()));

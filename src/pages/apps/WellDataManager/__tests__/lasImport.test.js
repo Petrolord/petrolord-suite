@@ -11,7 +11,7 @@ import {
   FT_PER_M, prepareLogs, suggestWellHeader, depthUnitToMetres, uniformStepM, guessCurveKind,
 } from '@/pages/apps/WellDataManager/engine/lasImport';
 
-const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'wells');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'wells');
 const loadLas = (name) => fs.readFileSync(path.join(DATA_DIR, 'las', `${name}.las`), 'utf8');
 const loadF32 = (name, mnemonic) => {
   const buf = fs.readFileSync(path.join(DATA_DIR, 'goldens', `${name}.${mnemonic}.f32`));

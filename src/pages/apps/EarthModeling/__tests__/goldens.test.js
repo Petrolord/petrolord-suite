@@ -1,6 +1,6 @@
 /**
  * G8.1 acceptance — the earth-modeling engine matches the INDEPENDENT
- * oracle goldens (test-data/earthmodel/, anchors A1–A9 asserted at
+ * oracle goldens (packages/engines/test-data/earthmodel/, anchors A1–A9 asserted at
  * generation; see the goldens README). Engine computes in float64 on
  * the float64 fixture grids, so structural/trajectory/population
  * comparisons run at 1e-12 relative (1e-9 where normal-equation
@@ -15,7 +15,7 @@ import { minCurvature, positionAtMd, wellTies, zoneControlPoints } from '../engi
 import { weightedMean, planeFit, simpleKrige, populateZoneProperty } from '../engine/properties';
 import { zoneVolumes } from '../engine/volumes';
 
-const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'earthmodel');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'earthmodel');
 const G = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'goldens.json'), 'utf8'));
 
 const close = (a, b, tol = 1e-12) =>

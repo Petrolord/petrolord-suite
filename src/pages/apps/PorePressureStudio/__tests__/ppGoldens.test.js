@@ -1,6 +1,6 @@
 /**
  * P1 acceptance — every engine matches the INDEPENDENT oracle goldens
- * (test-data/porepressure/, tools/validation/porepressure/).
+ * (packages/engines/test-data/porepressure/, tools/validation/porepressure/).
  * Comparator: 1e-12 relative with an absolute floor (Math.pow vs
  * Python ** may differ in the last ULPs — never assert bit equality);
  * the synthetic-well recovery uses the oracle's own 1e-9 anchor
@@ -20,7 +20,7 @@ import {
 import { fracPressure, eatonK } from '../engine/fracgrad';
 import { computeProfile } from '../engine/profile';
 
-const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'porepressure');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'porepressure');
 const G = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'goldens.json'), 'utf8'));
 
 const close = (a, b, tol = 1e-12) =>

@@ -1,7 +1,7 @@
 // Rock Physics Studio G6.4 acceptance: the workstation drives on the
 // /dev harness without auth, and the UI reproduces the ORACLE'S
 // numbers — the harness's seeded wells ARE the goldens' anchor cases
-// (test-data/rockphysics/). Brine-sand Gassmann substitution, the
+// (packages/engines/test-data/rockphysics/). Brine-sand Gassmann substitution, the
 // shale/gas-sand AVO interface and the default wedge tuning are all
 // asserted from the committed goldens, never hardcoded literals, so
 // fixture regeneration cannot silently drift past this spec.
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const goldens = JSON.parse(fs.readFileSync(
-  path.join(here, '..', 'test-data', 'rockphysics', 'goldens.json'), 'utf8',
+  path.join(here, '..', 'packages', 'engines', 'test-data', 'rockphysics', 'goldens.json'), 'utf8',
 ));
 const LOG = goldens.gassmann.log_domain;
 const CLASS3 = goldens.avo.find((c) => c.name === 'class3_gas_sand');

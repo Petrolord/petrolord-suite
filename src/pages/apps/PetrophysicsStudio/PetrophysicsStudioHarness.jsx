@@ -1,7 +1,7 @@
 // Dev-only harness route (/dev/petrophysics-studio, DEV builds only):
 // the FULL Petrophysics Studio on the in-memory backend — no auth or
 // DB. The seeded well IS the analytic type well the oracle goldens are
-// generated from (test-data/petrophysics/), so the Playwright suite
+// generated from (packages/engines/test-data/petrophysics/), so the Playwright suite
 // asserts the ORACLE'S zone numbers off the rendered UI (net 18.0 m in
 // SAND A with the default parameters). A second org-shared well
 // exercises the read-only zone path. The registry-backed app (G2.6

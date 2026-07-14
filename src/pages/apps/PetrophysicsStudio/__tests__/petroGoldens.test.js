@@ -1,6 +1,6 @@
 /**
  * G2.1 acceptance — every engine matches the INDEPENDENT oracle
- * goldens (test-data/petrophysics/, generated from primary-literature
+ * goldens (packages/engines/test-data/petrophysics/, generated from primary-literature
  * implementations) on the analytic type well. Comparator contract
  * (README): 1e-12 relative with a 1e-12 absolute floor near zero
  * (Math.pow vs Python ** may differ in the last ULPs — never assert
@@ -15,7 +15,7 @@ import { pickettFit } from '../engine/rw';
 import { swCurve } from '../engine/sw';
 import { netPay } from '../engine/netpay';
 
-const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'petrophysics');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'petrophysics');
 const typewell = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'typewell.json'), 'utf8'));
 const goldens = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'goldens.json'), 'utf8'));
 

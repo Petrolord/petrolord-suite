@@ -10,7 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const LAS = path.join(here, '..', 'test-data', 'wells', 'las', 'basic_20.las');
+const LAS = path.join(here, '..', 'packages', 'engines', 'test-data', 'wells', 'las', 'basic_20.las');
 
 test('full LAS import → view → share → delete flow in the harness', async ({ page }) => {
   await page.goto('/dev/well-data-manager');

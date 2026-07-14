@@ -1,6 +1,6 @@
 /**
  * G6.1 acceptance — every engine matches the INDEPENDENT oracle
- * goldens (test-data/rockphysics/, constants cross-checked against
+ * goldens (packages/engines/test-data/rockphysics/, constants cross-checked against
  * bruges / open_petro_elastic / rockphypy / auralib; see the goldens
  * README). Comparator: 1e-12 relative with a 1e-12 absolute floor
  * (Math.pow vs Python ** may differ in the last ULPs — never assert
@@ -15,7 +15,7 @@ import { voigtReussHill, mixMinerals, MINERALS } from '../engine/minerals';
 import { mudrockVs, gcLithVs, greenbergCastagnaVs, shearForWell } from '../engine/vsEstimate';
 import { zoeppritzRpp, akiRichards, shuey, avoClass } from '../engine/avo';
 
-const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'rockphysics');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'rockphysics');
 const G = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'goldens.json'), 'utf8'));
 
 const close = (a, b, tol = 1e-12) =>

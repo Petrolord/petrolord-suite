@@ -14,7 +14,7 @@ import { mapLogs, buildProfileInput, slownessToUsPerM, densityToKgM3 } from '../
 import { computeProfile } from '../engine/profile';
 import { fitNct } from '../engine/nct';
 
-const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'porepressure');
+const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'porepressure');
 const G = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'goldens.json'), 'utf8'));
 const W = G.well;
 const P = W.params;
