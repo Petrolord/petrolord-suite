@@ -1264,6 +1264,8 @@ skeleton uses the Suite's standard Supabase Edge Function path.
   production share the Supabase project, so the tile is visible on
   petrolord.com before the SPA route ships there — until the next manual
   production build upload, clicking it hits the catch-all redirect home.
+  (Caveat retired: prod has carried the route since the 2026-07-13
+  upload and is current as of 2026-07-14 at main `e84f8a181`.)
 
 ## Not built yet (per playbook)
 

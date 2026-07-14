@@ -5,11 +5,10 @@ docs/scope/WellDataManager-PLAN.md (approved 2026-07-12). Roadmap slot:
 Geoscience-ROADMAP.md Phase G1 — the keystone shared well registry.
 Live at `/dashboard/apps/geoscience/well-data-manager` (tile Active).
 
-Production note: petrolord.com needs a fresh `npm run build` upload —
-until then the new tile's route falls through to the home redirect
-there, and stale bundles' Seismolord wells panel errors (seismic_wells
-is gone; it was empty its whole life, so no user data was ever at
-risk). Staging has everything via HMR.
+Production note: **RESOLVED 2026-07-14** — prod is current (source zip
+from main `e84f8a181` uploaded to Hostinger); the tile route is live
+and the stale-bundle Seismolord wells-panel error (seismic_wells view
+retirement) is gone with the old bundle.
 
 ## Phase status
 

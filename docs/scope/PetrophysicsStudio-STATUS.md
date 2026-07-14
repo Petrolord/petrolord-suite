@@ -6,10 +6,9 @@ Geoscience-ROADMAP.md Phase G2 — the flagship. Slug `petrophysics-studio` — 
 Phase G2 complete (G2.0–G2.6). Live at
 `/dashboard/apps/geoscience/petrophysics-studio`.
 
-Production note: petrolord.com needs a fresh `npm run build` upload —
-until then the new tile home-redirects on prod and the five old
-geoscience routes 404 there (they redirect to the successor only in
-the rebuilt bundle). Staging has everything via HMR.
+Production note: **RESOLVED 2026-07-14** — prod is current (source zip
+from main `e84f8a181` uploaded to Hostinger); the tile, route and the
+five legacy-route redirects are all live on petrolord.com.
 
 ## Phase status
 

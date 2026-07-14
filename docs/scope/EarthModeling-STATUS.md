@@ -7,8 +7,9 @@ the 10th and final tile). Branch `feat/earth-modeling-g8`, stacked on
 `feat/basinflow-g7` (PR #68).
 
 **PHASE G8 COMPLETE 2026-07-14 — the Geoscience roadmap's 10-tile
-target is fully built.** (Prod upload still pending for G1–G8; the
-deferred pore-pressure follow-on from G7 remains open.)
+target is fully built.** (Prod upload for G1–G8: **DONE 2026-07-14**,
+prod current at main `e84f8a181`; the deferred pore-pressure follow-on
+from G7 also shipped 2026-07-14 — see PorePressure-STATUS.md.)
 
 | Sub-phase | State | Notes |
 |---|---|---|
@@ -68,4 +69,5 @@ slugs 301 to `apps/geoscience/earth-modeling`.
 - G8.5 stretch: 3D framework view via lifting Seismolord's pure-math
   viewer core (`cube3d.js`, `interpMesh.js`, `shaderChunks.js`) to a
   shared location.
-- Prod build upload (Hostinger) covering G1–G8.
+- ~~Prod build upload (Hostinger) covering G1–G8.~~ **DONE
+  2026-07-14** — prod is current (main `e84f8a181`, owner-confirmed).

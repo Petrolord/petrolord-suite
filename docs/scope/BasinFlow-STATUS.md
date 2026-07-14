@@ -63,4 +63,6 @@ Active (migration `20260714120000`, applied live).
 - MEM `/expert` route still imports BasinFlowContext /
   StratigraphyPanel / VisualizationPanel — resolved at the Drilling MEM
   rebuild, not G7.
-- Prod build upload to petrolord.com pending (covers G1–G7).
+- ~~Prod build upload to petrolord.com pending (covers G1–G7).~~
+  **DONE 2026-07-14** — prod is current (source zip from main
+  `e84f8a181`, Hostinger upload confirmed by owner).
