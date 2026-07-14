@@ -95,7 +95,6 @@ const DrillingFluidsHydraulics = lazy(() => import('@/pages/apps/DrillingFluidsH
 const EarthModelStudio = lazy(() => import('@/components/geoscience/EarthModelStudio.jsx'));
 const EarthModelStudioProjects = lazy(() => import('@/pages/apps/EarthModelStudioProjects'));
 const EarthModelPro = lazy(() => import('@/components/geoscience/EarthModelPro.jsx'));
-const BasinFlowAnalysis = lazy(() => import('@/pages/apps/BasinFlowAnalysis')); 
 const BasinFlowGenesis = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowGenesis'));
 const Seismolord = lazy(() => import('@/pages/apps/Seismolord/Seismolord'));
 const SeismolordSelfTest = lazy(() => import('@/pages/apps/Seismolord/SeismolordSelfTest'));

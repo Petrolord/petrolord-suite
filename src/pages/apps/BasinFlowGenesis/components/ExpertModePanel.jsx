@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Layers, Database, GitBranch, Play, Activity, Upload, History, ChevronLeft, ChevronRight, BrainCircuit, Users, Shield, PieChart, BarChart2, AlertTriangle, BookOpen, Layout, Download, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Layers, Database, GitBranch, Play, Activity, Upload, ChevronLeft, ChevronRight, BarChart2, BookOpen, Layout, Download, HelpCircle } from 'lucide-react';
 import { DragDropContext } from 'react-beautiful-dnd';
 import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
-import { CollaborationProvider } from '@/pages/apps/BasinFlowGenesis/contexts/CollaborationContext';
 import { ValidationEngine } from '../services/ValidationEngine';
 import SimulationRunDialog from './common/SimulationRunDialog';
 import ExportDialog from './common/ExportDialog'; 
@@ -13,29 +12,13 @@ import { useToast } from '@/components/ui/use-toast';
 
 import LayerPropertyEditor from './expert/LayerPropertyEditor';
 import CalibrationView from './expert/CalibrationView';
-import ScenarioComparisonView from './expert/ScenarioComparisonView'; 
-import ScenarioManager from './expert/ScenarioManager'; 
-import TemplateLibrary from './expert/TemplateLibrary'; 
-import BatchProcessor from './expert/BatchProcessor'; 
+import ScenarioManager from './expert/ScenarioManager';
+import TemplateLibrary from './expert/TemplateLibrary';
+import BatchProcessor from './expert/BatchProcessor';
 import ResultsPanel from './ResultsPanel';
 import MultiWellManager from './multiwell/MultiWellManager';
 import SensitivityAnalysisView from './sensitivity/SensitivityAnalysisView';
 import AdvancedDataImport from './import/AdvancedDataImport';
-import VersionControlPanel from './versioning/VersionControlPanel';
-import MLDashboard from './ml/MLDashboard';
-
-// Collaboration Components
-import CollaborationPanel from './collaboration/CollaborationPanel';
-import TeamManager from './collaboration/TeamManager';
-import ActivityFeed from './collaboration/ActivityFeed';
-import CommentThread from './collaboration/CommentThread';
-import NotificationCenter from './collaboration/NotificationCenter';
-import NotificationHistory from './collaboration/NotificationHistory';
-
-// Enterprise & Analytics
-import EnterpriseDashboard from './enterprise/EnterpriseDashboard';
-import AnalyticsDashboard from './analytics/AnalyticsDashboard';
-import ReportBuilder from './reporting/ReportBuilder';
 
 const ExpertModePanel = () => {
     const { dispatch, runSimulation, state } = useBasinFlow();
@@ -117,7 +100,7 @@ const ExpertModePanel = () => {
     };
 
     return (
-        <CollaborationProvider>
+        <>
             <div className="h-full flex flex-col bg-slate-950 overflow-hidden">
                 {/* Header */}
                 <div className="h-14 border-b border-slate-800 flex items-center justify-between px-4 bg-slate-900 shadow-sm shrink-0 z-20">
@@ -129,8 +112,6 @@ const ExpertModePanel = () => {
                         <h1 className="font-semibold text-white truncate hidden md:block">Expert Mode Workspace</h1>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                        <NotificationCenter />
-                        
                         {/* Help Button */}
                         <Button variant="ghost" size="icon" onClick={() => setIsHelpOpen(true)} className="text-slate-400 hover:text-white mr-1" title="Help Center (F1)">
                             <HelpCircle className="w-5 h-5" />
@@ -198,23 +179,8 @@ const ExpertModePanel = () => {
                                         <TabsTrigger value="batch" className="data-[state=active]:border-b-2 data-[state=active]:border-pink-500 rounded-none px-3 md:px-4 flex-shrink-0 text-pink-400">
                                             <Layout className="w-4 h-4 mr-2" /> Batch
                                         </TabsTrigger>
-                                        <TabsTrigger value="ml" className="data-[state=active]:border-b-2 data-[state=active]:border-purple-500 rounded-none px-3 md:px-4 flex-shrink-0 text-purple-400">
-                                            <BrainCircuit className="w-4 h-4 mr-2" /> AI / ML
-                                        </TabsTrigger>
-                                        <TabsTrigger value="team" className="data-[state=active]:border-b-2 data-[state=active]:border-orange-500 rounded-none px-3 md:px-4 flex-shrink-0 text-orange-400">
-                                            <Users className="w-4 h-4 mr-2" /> Team
-                                        </TabsTrigger>
-                                        <TabsTrigger value="analytics" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
-                                            <PieChart className="w-4 h-4 mr-2" /> Analytics
-                                        </TabsTrigger>
-                                        <TabsTrigger value="enterprise" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
-                                            <Shield className="w-4 h-4 mr-2" /> Enterprise
-                                        </TabsTrigger>
                                         <TabsTrigger value="import" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
                                             <Upload className="w-4 h-4 mr-2" /> Import
-                                        </TabsTrigger>
-                                        <TabsTrigger value="versioning" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
-                                            <History className="w-4 h-4 mr-2" /> History
                                         </TabsTrigger>
                                     </TabsList>
                                 </div>
@@ -248,53 +214,8 @@ const ExpertModePanel = () => {
                                         <BatchProcessor />
                                     </TabsContent>
                                     
-                                    <TabsContent value="ml" className="h-full m-0 p-0 data-[state=inactive]:hidden">
-                                        <MLDashboard />
-                                    </TabsContent>
-
-                                    <TabsContent value="team" className="h-full m-0 p-4 data-[state=inactive]:hidden">
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 h-full min-h-[600px]">
-                                            <div className="space-y-6 flex flex-col h-full min-h-[300px]">
-                                                <div className="flex-shrink-0 h-[250px]">
-                                                <CollaborationPanel />
-                                                </div>
-                                                <div className="flex-1 min-h-0">
-                                                    <TeamManager />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-6 flex flex-col h-full min-h-[300px]">
-                                                <div className="flex-1 min-h-0">
-                                                    <ActivityFeed />
-                                                </div>
-                                                <div className="flex-1 min-h-0">
-                                                    <NotificationHistory />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-6 flex flex-col h-full lg:col-span-2 xl:col-span-1 min-h-[400px]">
-                                                <div className="flex-1 min-h-0">
-                                                    <CommentThread />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </TabsContent>
-
-                                    <TabsContent value="analytics" className="h-full m-0 p-0 data-[state=inactive]:hidden">
-                                        <div className="grid grid-cols-1 gap-4 h-full p-4">
-                                            <AnalyticsDashboard />
-                                            <ReportBuilder />
-                                        </div>
-                                    </TabsContent>
-
-                                    <TabsContent value="enterprise" className="h-full m-0 p-0 data-[state=inactive]:hidden">
-                                        <EnterpriseDashboard />
-                                    </TabsContent>
-                                    
                                     <TabsContent value="import" className="h-full m-0 p-0 data-[state=inactive]:hidden">
                                         <AdvancedDataImport />
-                                    </TabsContent>
-                                    
-                                    <TabsContent value="versioning" className="h-full m-0 p-0 data-[state=inactive]:hidden">
-                                        <VersionControlPanel />
                                     </TabsContent>
                                 </div>
                             </Tabs>
@@ -318,11 +239,11 @@ const ExpertModePanel = () => {
             />
 
             {/* Help System Integration */}
-            <HelpCenter 
-                isOpen={isHelpOpen} 
-                onClose={() => setIsHelpOpen(false)} 
+            <HelpCenter
+                isOpen={isHelpOpen}
+                onClose={() => setIsHelpOpen(false)}
             />
-        </CollaborationProvider>
+        </>
     );
 };
 
