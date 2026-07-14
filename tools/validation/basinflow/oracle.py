@@ -422,6 +422,10 @@ def run_basin_model(project):
             depth += h
 
         # Thermal grid: surface node + cell-centred nodes.
+        # Cell count uses ceil(h/MAX_CELL - 1e-9): layer thicknesses can
+        # land exactly on a cell boundary (e.g. 1600.0 m), where the
+        # oracle's bisection and the JS engine's Newton-Raphson would
+        # otherwise resolve to opposite sides of the ceil step.
         nodes = [{'z': 0.0,
                   'k': effective_conductivity(
                       geo[0]['lith']['k'],
@@ -429,7 +433,7 @@ def run_basin_model(project):
                                geo[0]['lith']['c'])) if geo else 1.0,
                   'rho_cp': 1.0, 'a_vol': 0.0}]
         for g in geo:
-            m = max(1, int(math.ceil(g['h'] / MAX_CELL_M)))
+            m = max(1, int(math.ceil(g['h'] / MAX_CELL_M - 1e-9)))
             dz = g['h'] / m
             for j in range(m):
                 zc = g['top'] + (j + 0.5) * dz

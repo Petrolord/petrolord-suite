@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { SimulationEngine } from '@/pages/apps/BasinFlowGenesis/services/SimulationEngine';
+import { getThermalProps } from '@/pages/apps/BasinFlowGenesis/services/ThermalPropertiesLibrary';
+import { getCompactionParams } from '@/pages/apps/BasinFlowGenesis/services/CompactionModelLibrary';
 import { useMultiWell } from './MultiWellContext';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -47,13 +49,9 @@ const initialState = {
       ro: [], // { depth, value, well }
       temp: [] // { depth, value, well }
   },
-  // Results of current active run
-  results: {
-    burialHistory: [],
-    temperatureHistory: [],
-    maturity: [],
-    timeSteps: []
-  },
+  // Results of current active run: { meta, data } from
+  // SimulationEngine.run, or null before the first run.
+  results: null,
   ui: {
       leftPanelOpen: true,
       rightPanelOpen: true,
@@ -90,9 +88,22 @@ function reducer(state, action) {
     case 'UPDATE_LAYER':
         return {
             ...state,
-            stratigraphy: state.stratigraphy.map(layer => 
-                layer.id === action.id ? { ...layer, ...action.payload } : layer
-            )
+            stratigraphy: state.stratigraphy.map(layer => {
+                if (layer.id !== action.id) return layer;
+                const updated = { ...layer, ...action.payload };
+                // Changing lithology re-syncs the per-layer property
+                // overrides to the new lithology's library defaults —
+                // otherwise the engine would keep applying the old
+                // lithology's phi0/c/conductivity as explicit overrides.
+                if (action.payload.lithology && action.payload.lithology !== layer.lithology
+                    && !action.payload.thermal && !action.payload.compaction) {
+                    const t = getThermalProps(action.payload.lithology);
+                    const c = getCompactionParams(action.payload.lithology);
+                    updated.thermal = { conductivity: t.conductivity, radiogenic: t.radiogenic, heatCapacity: t.heatCapacity };
+                    updated.compaction = { model: 'exponential', phi0: c.phi0, c: c.c };
+                }
+                return updated;
+            })
         };
     case 'DELETE_LAYER':
         return {
@@ -104,7 +115,7 @@ function reducer(state, action) {
     case 'UPDATE_HEAT_FLOW':
         return { ...state, heatFlow: { ...state.heatFlow, ...action.payload } };
     case 'SET_RESULTS':
-        return { ...state, results: { ...state.results, ...action.payload } };
+        return { ...state, results: action.payload };
     case 'SAVE_SCENARIO':
         const scenario = {
             id: uuidv4(),

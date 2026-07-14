@@ -1,104 +1,71 @@
-import { KerogenKinetics, FrequencyFactor } from './KerogenLibrary';
-import { Units } from './PhysicsUtils';
+import { ActivationEnergies, EasyRoFrequencyFactor, EasyRoWeights, getKerogenParams } from './KerogenLibrary';
+import { Spec } from './PhysicsUtils';
 
 /**
- * Maturity Engine
- * Calculates Thermal Maturity (Easy%Ro) and TTI
+ * Maturity Engine — Easy%Ro (Sweeney & Burnham 1990) + generation TR.
+ *
+ * Carries TWO parallel first-order Arrhenius integrations per layer:
+ *  - a VITRINITE state (fixed published Easy%Ro weights) -> F -> %Ro,
+ *  - the KEROGEN-TYPE state (library potentials) -> transformation
+ *    ratio, which drives mass generation (never %Ro).
+ *
+ * Arrhenius exponent uses E in J/mol (kcal * 4184) with R = 8.314
+ * J/(mol*K) — the pre-G7 engine used R = 1.987 with E in kcal, an
+ * exponent 1000x too small (every bin reacted instantly).
  */
 export class MaturityEngine {
 
+    static arrheniusRate(aFactor, eKcal, tempK) {
+        return aFactor * Math.exp(-(eKcal * Spec.KCAL_TO_J) / (Spec.R_GAS * tempK));
+    }
+
     /**
-     * Initialize reaction state for a new layer
+     * Advance a set of unreacted fractions one step at constant T.
+     */
+    static kineticStep(fractions, aFactor, tempK, dtMa) {
+        const dtSec = dtMa * Spec.SECONDS_PER_MA;
+        return fractions.map((x, i) =>
+            x * Math.exp(-MaturityEngine.arrheniusRate(aFactor, ActivationEnergies[i], tempK) * dtSec)
+        );
+    }
+
+    static roFromF(fReacted) {
+        return Math.exp(-1.6 + 3.7 * fReacted);
+    }
+
+    /**
+     * Initialize reaction state for a newly deposited layer.
      */
     static initializeState(kerogenType) {
-        const params = KerogenKinetics[kerogenType] || KerogenKinetics.default;
-        // Fraction of kerogen remaining for each activation energy bin
-        // Initial state is the stoichiometric factors (potentials)
+        const params = getKerogenParams(kerogenType);
         return {
-            fractions: [...params.potentials],
+            vitrinite: [...EasyRoWeights],
+            kerogen: [...params.potentials],
+            aFactor: params.aFactor || 1.0e13,
+            potentials: params.potentials,
+            Ro: MaturityEngine.roFromF(0),
             totalTransformation: 0,
-            Ro: 0.2, // Initial vitrinite reflectance
-            TTI: 0
         };
     }
 
     /**
-     * Calculate maturity increment for a time step
-     * @param {Object} state - Current maturity state { fractions, Ro }
-     * @param {number} tempK - Temperature in Kelvin
-     * @param {number} dtMa - Time step in Million Years
-     * @param {string} kerogenType - 'type1', 'type2', etc.
+     * One simulation step at constant T (K) for dtMa million years.
      */
-    static step(state, tempK, dtMa, kerogenType) {
-        const dtSec = Units.ma_to_sec(dtMa);
-        const R = 1.987; // Gas constant kcal/(mol*K)
-        const A = FrequencyFactor;
-        
-        // 1. Calculate Arrhenius reaction rates for each bin
-        // k = A * exp(-E / RT)
-        const E = [34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72]; // Activation energies
-        
-        const newFractions = [...state.fractions];
-        
-        E.forEach((energy, i) => {
-            const k = A * Math.exp(-energy / (R * tempK));
-            // First order kinetic equation integration
-            // x(t) = x0 * exp(-k*t)
-            // x_new = x_old * exp(-k*dt)
-            newFractions[i] = state.fractions[i] * Math.exp(-k * dtSec);
-        });
+    static step(state, tempK, dtMa) {
+        const vitrinite = MaturityEngine.kineticStep(state.vitrinite, EasyRoFrequencyFactor, tempK, dtMa);
+        const f = EasyRoWeights.reduce((acc, w, i) => acc + (w - vitrinite[i]), 0);
+        const ro = MaturityEngine.roFromF(f);
 
-        // 2. Calculate Transformation Ratio (TR)
-        // TR = 1 - (Sum(x_current) / Sum(x_initial))
-        // Assuming state.fractions was initialized with the potentials
-        const initialPotentials = (KerogenKinetics[kerogenType] || KerogenKinetics.default).potentials;
-        const initialSum = initialPotentials.reduce((a,b) => a+b, 0);
-        const currentSum = newFractions.reduce((a,b) => a+b, 0);
-        
-        const TR = initialSum > 0 ? 1 - (currentSum / initialSum) : 0;
-        
-        // 3. Calculate Easy%Ro from TR (Sweeney & Burnham 1990 correlation)
-        // This is a simplified lookup/regression approximation for Genesis
-        // Equation: exp(Ro) = 1.2 + f(TR) ... actually usually calculated from TTI or integrated.
-        // Better approach: Standard Easy%Ro sums the contribution of each bin to Ro.
-        // For simplicity in Genesis V1, we use a TTI-Ro correlation or a TR-Ro map if needed, 
-        // BUT the rigorous way is complex. Let's use the TTI correlation for simplicity in V1.
-        
-        // TTI Calc
-        // TTI_new = TTI_old + (dt_Ma) * 2 ^ ((T_c - 100) / 10)
-        const tempC = Units.k_to_c(tempK);
-        const TTI_inc = dtMa * Math.pow(2, (tempC - 100) / 10);
-        const newTTI = state.TTI + TTI_inc;
-        
-        // Ro from TTI correlation (Wood, 1988 or similar)
-        // Common approx: Ro = 1.3 * (TTI/160)^0.5 ?? No, check standard.
-        // Morrow & Issler: Ro = (TTI/15)^(1/6) ??
-        // Let's use a robust one:
-        // log(Ro) = -0.4769 + 0.2801 * log(TTI) - 0.007472 * log(TTI)^2 ... (Points for specific range)
-        
-        // Let's use the simple one for V1: Ro = (TTI / 10) ^ 0.5 * 0.5 (just distinct place holder)
-        // Actually, let's implement the standard breakdown:
-        // If TTI < 15: Ro = ...
-        
-        // BETTER: Use the Transformation Ratio (F) to Ro conversion from Sweeney & Burnham
-        // This is safer than TTI.
-        // F = TR.
-        // Ro = exp( -1.6 + 3.7*F ) for Type II?
-        // This varies by kerogen.
-        
-        // FALLBACK: Use TTI for Ro as it's generic
-        let newRo = 0.2;
-        if (newTTI > 0.1) {
-             // Very approximate correlation
-             newRo = 0.4 + 0.6 * Math.log10(newTTI / 10 + 1) * 0.3;
-             if(newRo > 4) newRo = 4;
-        }
+        const kerogen = MaturityEngine.kineticStep(state.kerogen, state.aFactor, tempK, dtMa);
+        const initialSum = state.potentials.reduce((a, b) => a + b, 0);
+        const tr = initialSum > 0 ? 1 - kerogen.reduce((a, b) => a + b, 0) / initialSum : 0;
 
         return {
-            fractions: newFractions,
-            totalTransformation: Math.max(0, Math.min(1, TR)),
-            Ro: Math.max(state.Ro, newRo), // Ro never decreases
-            TTI: newTTI
+            ...state,
+            vitrinite,
+            kerogen,
+            Ro: Math.max(state.Ro, ro), // Ro never decreases
+            totalTransformation: Math.max(0, Math.min(1, tr)),
         };
     }
 }
