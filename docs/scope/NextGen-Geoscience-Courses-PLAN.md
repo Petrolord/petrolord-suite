@@ -1,11 +1,16 @@
 # NextGen Geoscience Courses — Phased Build Plan (NG series)
 
-Status: PLAN OF RECORD 2026-07-15. Owner directive: build the Geoscience
-module courses now, since the Suite's Geoscience module is complete
-(G0–G8) and its engines are already central. Paystack keys are set on
-the NextGen project (verified 2026-07-15: `academy-checkout` returns
-401 auth-required, not the pre-key 503) — the self-enroll and campus
-doors are commercially live.
+Status: PLAN OF RECORD 2026-07-15 — **NG1–NG5 ALL COMPLETE 2026-07-15**
+(nextgen PRs #16–#20 merged; migrations applied live dry-run-first;
+live pentests 12/12, 10/10, 10/10, 10/10, 10/10 — see
+migrations/docs/ng*-pentest.md in the nextgen repo). All six geoscience
+courses are `available` in the live catalog; the Beginner path and the
+NG1 prerequisite gate are live. NEXT: NG6 Intermediate tiers. Owner
+directive: build the Geoscience module courses now, since the Suite's
+Geoscience module is complete (G0–G8) and its engines are already
+central. Paystack keys are set on the NextGen project (verified
+2026-07-15: `academy-checkout` returns 401 auth-required, not the
+pre-key 503) — the self-enroll and campus doors are commercially live.
 
 ## 1. Starting position (all verified)
 
