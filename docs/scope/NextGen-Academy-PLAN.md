@@ -181,9 +181,26 @@ no big-bang cutover).
   (`migrations/docs/academy-activation-pentest.md`). **Owner follow-up**:
   decide Q4 policy; replace placeholder assessment questions with
   curriculum content.
-- **N3.4 — Certificates v2**: verifiable ID scheme, public
-  verification page (no-auth read of a minimal verification view),
-  validity window per §6 decision, re-certification path.
+- **N3.4 — Certificates v2** — **DONE 2026-07-15** (nextgen
+  `feat/n3-4-certificates`, PR #8 stacked on #7). The verifiable-ID
+  scheme + anon verify function shipped at N3.1; N3.4 adds the missing
+  halves. Migration `20260715_n34_certificates_v2.sql` (applied live,
+  dry-run first): `academy_issue_certification` (instructor/admin or the
+  trusted server for N4 auto-issue; **re-certification = clean supersede**
+  — re-issuing the same user/app/tier revokes the prior live cert,
+  expires its entitlement via the N3.1 trigger, and the fresh insert
+  grants a new 12-month window) + `academy_revoke_certification`
+  (instructor/admin, idempotent). Frontend: public no-auth
+  `/verify` + `/verify/:code` (mining-resistant — keyed on the
+  unguessable `verify_code`, not the sequential number; table has no
+  anon SELECT), learner certificates v2 page (verifiable IDs + validity
+  window + shareable link + print; repoints `/dashboard/certificates`
+  off the legacy `certificates` table), instructor/admin issuance
+  console. Q1 (12-month validity) is the N3.1 table default; **Q2**
+  (renewal pricing shape) still an owner call — sits above this layer,
+  spine stores validity either way. Auto-issue on capstone pass lands at
+  N4 via the service-role path this exposes. Live pentest 20/20
+  (`migrations/docs/academy-certificates-pentest.md`).
 - **N4 — First course on the spine** (unchanged from the roadmap, now
   entitlement-native): Petrophysics Beginner tier — lessons, in-app
   guided exercises on the golden teaching datasets, quiz, auto-graded
