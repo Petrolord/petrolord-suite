@@ -135,12 +135,27 @@ no big-bang cutover).
   live-computed pattern). Migration files + MIGRATIONS.md, dry-run
   first, RLS pentest per commercial-records discipline. Naming
   prefixed `academy_*` (product-prefix convention).
-- **N3.2 — One identity, four doors**: personal-email account spine;
-  university email as Campus verification attribute; door flows in
-  order of leverage — self-enroll + Paystack first (Suite pattern),
-  cohort codes, sponsorship codes, residency application queue. Role
-  model rework: `learner` replaces `student` as the base identity;
-  campus/residency/sponsored are enrollment attributes, not roles.
+- **N3.2 — One identity, four doors** — **DONE 2026-07-15**
+  (nextgen `feat/n3-2-four-doors`): personal-email account spine
+  (`/register`, base role `learner`); university email as Campus
+  verification attribute (`profiles.university_email`); all four door
+  flows live — self-enroll + Paystack, cohort codes, sponsorship codes,
+  residency application queue — plus a learner Enroll page and an admin
+  Academy-Doors page (issue codes, decide residency). Migration
+  `20260715_n32_four_doors.sql` (applied live, dry-run first): 4 tables
+  + 6 SECURITY DEFINER door functions + server-side fee lookup;
+  `academy_apply_successful_payment` validates amount **and** currency
+  (hardening over the Suite verify) and is idempotent + service-role
+  only. Edge functions `academy-checkout` / `academy-verify` /
+  `academy-paystack-webhook` deployed (mirror the Suite Paystack pattern:
+  server-side amount, HMAC webhook, server-verify trust anchor). Role
+  model reworked to `learner` base; doors are enrollment attributes, not
+  roles. **Two pre-existing live escalation holes found + fixed**:
+  signup metadata role forgery and self role-change via the
+  update-own-profile RLS policy. Live pentest 37/37
+  (`migrations/docs/academy-doors-pentest.md`). **Blocked on owner**:
+  `PAYSTACK_SECRET_KEY` secret + real published fee amounts (seeded
+  placeholders) before the self/campus doors can take live money.
 - **N3.3 — Activation gate + integrity controls**: orientation step +
   short entry assessment per account; two-device limit and session
   monitoring (login_activity exists as the raw feed); provided-
