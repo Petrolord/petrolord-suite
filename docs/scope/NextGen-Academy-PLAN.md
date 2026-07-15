@@ -201,10 +201,28 @@ no big-bang cutover).
   spine stores validity either way. Auto-issue on capstone pass lands at
   N4 via the service-role path this exposes. Live pentest 20/20
   (`migrations/docs/academy-certificates-pentest.md`).
-- **N4 — First course on the spine** (unchanged from the roadmap, now
-  entitlement-native): Petrophysics Beginner tier — lessons, in-app
-  guided exercises on the golden teaching datasets, quiz, auto-graded
-  capstone vs oracle truth. Proves Learning Mode end to end.
+- **N4 — First course on the spine** — **DONE 2026-07-15** (nextgen
+  `feat/n4-petrophysics`, PR #9 stacked on #8). Petrophysics Beginner,
+  entitlement-native, **proves Learning Mode end to end**: enrol →
+  activate → Learning scope → drive the real engine over the teaching
+  dataset → pass an auto-graded capstone → Associate certificate
+  auto-issued → ladder advances to working mode. Central engines
+  consumed unchanged via **git-subtree** at `packages/engines`
+  (`@petrolord/engines`; no fork — the roadmap's second-consumer rule).
+  Migration `20260715_n4_petrophysics_capstone.sql` (applied live,
+  dry-run first): `academy_capstones` (oracle answer key = the
+  validation goldens' net-pay summaries, **no client SELECT** — the
+  auto-graded-practical moat) + `academy_capstone_attempts`;
+  `academy_get_capstone` (labels only) + `academy_submit_capstone`
+  (server-side tolerance grading, requires `academy_has_scope(app,
+  'learning')`, auto-issues the mapped cert idempotently on a full pass).
+  Frontend: a Petrophysics Learning Mode workspace (scope-gated, Training
+  watermark, editable interpretation params driving VSH/φ/Sw/net-pay,
+  live chart, capstone → cert). Expected values independently reproduced
+  from the engine so an honest learner reaches them exactly; the teaching
+  dataset IS the validation goldens, so grader and data cannot drift.
+  Live pentest 16/16 (`migrations/docs/petrophysics-capstone-pentest.md`).
+  The remaining 23 courses follow this template.
 - **Retirement pass** (after doors are live): drop the legacy
   licenses/duration tables and university-gatekeeper onboarding.
 
