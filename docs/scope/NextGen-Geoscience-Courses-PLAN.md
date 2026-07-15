@@ -1,16 +1,29 @@
 # NextGen Geoscience Courses — Phased Build Plan (NG series)
 
-Status: PLAN OF RECORD 2026-07-15 — **NG1–NG6 ALL COMPLETE 2026-07-15**
-(nextgen PRs #16–#20 merged; migrations applied live dry-run-first;
-live pentests 12/12, 10/10, 10/10, 10/10, 10/10 — see
-migrations/docs/ng*-pentest.md in the nextgen repo). All six geoscience
-courses are `available` in the live catalog; the Beginner path and the
-NG1 prerequisite gate are live; NG6 Intermediate (Professional) tiers live on ALL SIX courses (nextgen PR #21, pentest 11/11 — incl. the tier-fee-integrity and ladder-progression spine fixes). NEXT: NG7 Advanced (Expert) tiers, which needs the owner's Q3 Suite-bridge decision first. Owner
-directive: build the Geoscience module courses now, since the Suite's
-Geoscience module is complete (G0–G8) and its engines are already
-central. Paystack keys are set on the NextGen project (verified
-2026-07-15: `academy-checkout` returns 401 auth-required, not the
-pre-key 503) — the self-enroll and campus doors are commercially live.
+Status: **NG1–NG7 ALL COMPLETE 2026-07-15 — THE NG SERIES IS DONE**
+(nextgen PRs #16–#21 and #26 merged; migrations applied live
+dry-run-first; live pentests 12/12, 10/10, 10/10, 10/10, 10/10, 11/11,
+17/17 — see migrations/docs/ng*-pentest.md in the nextgen repo). All
+six geoscience courses are `available` in the live catalog with all
+THREE tiers (Associate/Professional/Expert) live and the full ladder
+walkable honestly end to end at the published fees. The NG1
+prerequisite gate, the NG6 tier-fee-integrity and ladder-progression
+spine fixes, and the NG7 Suite bridge are all live.
+
+**Owner Q3 LOCKED 2026-07-15** (Suite-bridge mechanics, decided before
+the first Expert cert as required): an Expert certification
+AUTO-ISSUES a personal, single-use **50% discount code for the
+certified Suite module**, valid for the certificate's 12-month window.
+The code lives in NextGen (`academy_suite_bridge_codes`; issue/void
+triggers; anon verify fn; service-role-only redeem fn); the learner
+sees it on their certificates page. FOLLOW-ON: the Suite-side checkout
+integration (validate via `academy_verify_bridge_code`, apply the
+discount, redeem server-to-server via `academy_redeem_bridge_code`) is
+not yet built — until then redemption is honored manually against the
+code's anon verification page result.
+
+Paystack keys are set on the NextGen project — the self-enroll and
+campus doors are commercially live.
 
 ## 1. Starting position (all verified)
 
@@ -76,6 +89,16 @@ each independently shippable.
   advances the scope ladder per N3.1.
 - **NG7 — Advanced tiers (Expert) + the Suite bridge** (owner Q3
   discount mechanics — decided before the first Expert cert).
+  SHIPPED 2026-07-15 (nextgen PR #26, pentest 17/17): six
+  advanced/expert capstones — petrophysics Rw triangulation (Arps +
+  SP quicklook + Pickett converge on the typewell's 0.05, then pay
+  booked with corrected vs raw Rw), welldata six-file import campaign,
+  wellcorrelation missing-pick prediction (two interval methods;
+  spread = growth uncertainty), seismolord wedge tuning at 25/40 Hz
+  (rockphysics engine, Kallweit-Wood check), mapping leave-one-out +
+  blind-test validation (hull-mask honesty), reservoircalc trend-φ
+  property grid (population engine; STOIIP delta vs the constant
+  booking) — plus the bridge spine per the locked Q3 terms.
 
 ## 3. Per-course definition of done
 
