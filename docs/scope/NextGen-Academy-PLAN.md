@@ -156,10 +156,31 @@ no big-bang cutover).
   (`migrations/docs/academy-doors-pentest.md`). **Blocked on owner**:
   `PAYSTACK_SECRET_KEY` secret + real published fee amounts (seeded
   placeholders) before the self/campus doors can take live money.
-- **N3.3 — Activation gate + integrity controls**: orientation step +
-  short entry assessment per account; two-device limit and session
-  monitoring (login_activity exists as the raw feed); provided-
-  datasets rule enforced by Learning-Mode scope itself.
+- **N3.3 — Activation gate + integrity controls** — **DONE 2026-07-15**
+  (nextgen `feat/n3-3-activation-gate`, PR #7 stacked on #6): per-account
+  orientation step + short entry assessment as the activation gate;
+  two-device limit; session monitoring. Migration
+  `20260715_n33_activation_gate.sql` (applied live, dry-run first):
+  `academy_account_state`, `academy_assessment_questions` (answer key
+  server-side only — no client SELECT policy; placeholder placement
+  bank), `academy_devices`, `academy_sessions`. The gate is **folded
+  into `academy_has_scope`** — an unactivated learner holds entitlements
+  but resolves NO effective scope, so the gate is RLS-real via the same
+  predicate every ported app reads. Server-graded entry assessment →
+  placement tier; **Q4** shipped as a `system_settings` toggle
+  (`academy_entry_assessment_policy`) defaulting to `advisory`
+  (owner flips to `hard_gate` with a retake cooldown). Two-device limit
+  enforced in the definer function (a Supabase JWT carries no device id,
+  so it cannot be a per-request RLS predicate — the definer gate +
+  `academy_sessions` feed is the honest ceiling, documented as such).
+  Provided-datasets rule = the existing learning-scope quota
+  (`own_data_upload=false`), no new mechanism. Frontend: Get Started
+  wizard, activation banner, DeviceGuard + Devices page, admin session
+  monitoring. Legacy `login_activity`/`student_login_logs` NOT reused
+  (writer-less / legacy-only). Live pentest 21/21
+  (`migrations/docs/academy-activation-pentest.md`). **Owner follow-up**:
+  decide Q4 policy; replace placeholder assessment questions with
+  curriculum content.
 - **N3.4 — Certificates v2**: verifiable ID scheme, public
   verification page (no-auth read of a minimal verification view),
   validity window per §6 decision, re-certification path.
