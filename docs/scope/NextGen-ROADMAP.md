@@ -144,16 +144,20 @@ marketplace, pricing tiers) sequences behind it.
   the golden suites); Suite consumes via the chosen mechanism (§5 Q1)
   and swaps imports; **gate: Suite jest 935+/build/e2e 51+ green from
   the central position**; MIGRATIONS.md-style log of what moved.
-- **N2 — NextGen purge**: delete all ~15 engineering tools + their
-  component trees (importer-closure discipline, G2.6 style); inventory
-  the NextGen DB's 150 tables into LMS-core vs tool-orphan families;
-  drop the orphans (owner-gated, dry-run-first — the Suite cleanup
-  playbook, including the pentest-driver gotchas already learned).
-- **N3 — LMS chassis audit**: G0-style honest audit of the surviving
-  LMS (auth flows, the 326 policies, role model, course/quiz engine)
-  ending in a REPAIR vs REBUILD recommendation with evidence — not
-  assumed either way. Includes wiring the Suite-side
-  `nextgen_registrations` funnel into NextGen onboarding.
+- **N2 — NextGen purge**: **DONE 2026-07-14/15** (petrolord-nextgen
+  PR #4, squash-merged `baa44fe4`): all tools purged (~97k loc, build
+  + CI green; repo hygiene: dist/ + node_modules untracked); 57 tool
+  tables + 4 helper functions dropped live (150→93 tables, dry-run
+  first, LMS core intact; CASCADE justified by verified closure —
+  in-set policy cross-deps break plain child-first ordering).
+- **N3 — REDEFINED by owner doctrine 2026-07-15**: see
+  **NextGen-Academy-PLAN.md** (one identity / four doors; catalog =
+  app catalog with the Associate→Professional→Expert tier ladder;
+  unlock as capability scopes; entitlements spine built FIRST). The
+  registration-funnel wiring is dropped — the 24 sign-ups were
+  test-only and the funnel changes with the four-door model. The
+  chassis audit is done (hybrid verdict: keep course/quiz core,
+  rebuild identity/enrollment/access).
 - **N4 — Geoscience teaching module v1**: lesson framework that
   mounts engine-backed exercises (in-memory backends + teaching
   fixtures derived from the oracle goldens); auto-graded exercises
