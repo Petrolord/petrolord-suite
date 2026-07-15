@@ -153,9 +153,14 @@ no big-bang cutover).
   roles. **Two pre-existing live escalation holes found + fixed**:
   signup metadata role forgery and self role-change via the
   update-own-profile RLS policy. Live pentest 37/37
-  (`migrations/docs/academy-doors-pentest.md`). **Blocked on owner**:
-  `PAYSTACK_SECRET_KEY` secret + real published fee amounts (seeded
-  placeholders) before the self/campus doors can take live money.
+  (`migrations/docs/academy-doors-pentest.md`). **Published fees SET
+  2026-07-15** (owner schedule, `20260715_published_fees.sql`, PR #10):
+  per school × tier — Subsurface & Engineering ₦60k/₦120k/₦200k, Energy
+  Business & Society ₦40k/₦75k/₦120k (Associate/Professional/Expert);
+  NGN charge, USD secondary display; `academy_apps.school` drives the
+  lookup. Registration fee still a ₦10k placeholder (schedule doesn't
+  set it). **Still blocked on owner**: `PAYSTACK_SECRET_KEY` secret
+  before the self/campus doors can take live money.
 - **N3.3 — Activation gate + integrity controls** — **DONE 2026-07-15**
   (nextgen `feat/n3-3-activation-gate`, PR #7 stacked on #6): per-account
   orientation step + short entry assessment as the activation gate;
