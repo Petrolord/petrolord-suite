@@ -1,11 +1,11 @@
 # NextGen Geoscience Courses — Phased Build Plan (NG series)
 
-Status: PLAN OF RECORD 2026-07-15 — **NG1–NG5 ALL COMPLETE 2026-07-15**
+Status: PLAN OF RECORD 2026-07-15 — **NG1–NG6 ALL COMPLETE 2026-07-15**
 (nextgen PRs #16–#20 merged; migrations applied live dry-run-first;
 live pentests 12/12, 10/10, 10/10, 10/10, 10/10 — see
 migrations/docs/ng*-pentest.md in the nextgen repo). All six geoscience
 courses are `available` in the live catalog; the Beginner path and the
-NG1 prerequisite gate are live. NEXT: NG6 Intermediate tiers. Owner
+NG1 prerequisite gate are live; NG6 Intermediate (Professional) tiers live on ALL SIX courses (nextgen PR #21, pentest 11/11 — incl. the tier-fee-integrity and ladder-progression spine fixes). NEXT: NG7 Advanced (Expert) tiers, which needs the owner's Q3 Suite-bridge decision first. Owner
 directive: build the Geoscience module courses now, since the Suite's
 Geoscience module is complete (G0–G8) and its engines are already
 central. Paystack keys are set on the NextGen project (verified
