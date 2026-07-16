@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 import { corsHeaders } from './cors.ts';
+import { bridgeVerifyConfigured, verifyBridgeCode } from '../_shared/nextgen-bridge.ts';
 // Logo URLs
 const LORDSWAY_LOGO_URL = 'https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/b55e5cb03a1912f6a06152592ab58d1c.png';
 const PETROLORD_LOGO_URL = 'https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/b7bb1181c53d21d5cae68a1a79fddaa7.png';
@@ -10,7 +11,7 @@ Deno.serve(async (req)=>{
   });
   try {
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    const { modules = [], apps = [], seats = 1, billing_term = 'monthly', add_ons = [], user_id, organization_id, user_email, user_name, service_tier = 'starter', storage_gb = 0, manual_discount = 0 } = await req.json();
+    const { modules = [], apps = [], seats = 1, billing_term = 'monthly', add_ons = [], user_id, organization_id, user_email, user_name, service_tier = 'starter', storage_gb = 0, manual_discount = 0, bridge_code = null } = await req.json();
     if (!user_id && !user_email) throw new Error('User ID or Email is required');
     let orgId = organization_id;
     let orgName = '';
@@ -125,6 +126,27 @@ Deno.serve(async (req)=>{
     const appIds = appEntries.map((a)=> a.id);
     const seatsByApp = Object.fromEntries(appEntries.map((a)=> [a.id, a.seats]));
     const perAppSeatMode = appEntries.some((a)=> a.seats != null);
+    // NextGen Expert bridge code (owner Q3, locked 2026-07-15): verify
+    // against the Academy BEFORE pricing so the module-scoped discount can
+    // accumulate in the apps loop. Invalid codes fail the quote loudly
+    // instead of silently charging full price. Scope: the certified module
+    // only (bridge.suite_module vs master_apps.module, case-insensitive —
+    // the Academy stores 'geoscience', master_apps stores 'Geoscience').
+    let bridge = null;
+    if (bridge_code && String(bridge_code).trim()) {
+      if (!bridgeVerifyConfigured()) {
+        throw new Error('Discount code validation is unavailable right now. Remove the code or try again shortly.');
+      }
+      bridge = await verifyBridgeCode(String(bridge_code));
+      if (!bridge) {
+        throw new Error('Discount code not recognized. Check the code on your NextGen certificates page.');
+      }
+      if (bridge.status !== 'valid') {
+        const why = { redeemed: 'has already been used', expired: 'has expired', voided: 'is no longer valid' }[bridge.status] || 'is not valid';
+        throw new Error(`Discount code ${bridge.code} ${why}.`);
+      }
+    }
+    let bridgeableCost = 0; // monthly cost attributable to the certified module
     // Query master_apps for ACTIVE apps only
     if (appIds.length > 0) {
       console.log(`[Generate Quote] Requested apps: ${JSON.stringify(appEntries)}`);
@@ -159,6 +181,9 @@ Deno.serve(async (req)=>{
             description: `   ${appSeats} seat${appSeats === 1 ? '' : 's'} — ${app.app_name}`,
             amount: appSeatCost
           });
+          if (bridge && String(app.module || '').toLowerCase() === String(bridge.suite_module).toLowerCase()) {
+            bridgeableCost += price + appSeatCost;
+          }
           console.log(`[Generate Quote] Added app: ${app.app_name} (${app.id}) - $${price} - ${appSeats} seats - seatCost $${appSeatCost}`);
         });
         // Log any apps that were requested but not found/inactive
@@ -177,6 +202,9 @@ Deno.serve(async (req)=>{
       modules.forEach((m)=>{
         const modPrice = 500;
         appsCost += modPrice;
+        if (bridge && String(m).toLowerCase() === String(bridge.suite_module).toLowerCase()) {
+          bridgeableCost += modPrice;
+        }
         lineItems.push({
           description: `Module Access: ${m}`,
           amount: modPrice
@@ -206,7 +234,23 @@ Deno.serve(async (req)=>{
     if (storageCost > 0) {
       lineItems.push({ description: `Storage (${storage_gb} GB)`, amount: storageCost });
     }
-    const monthlySubtotal = BASE_PLATFORM_FEE + appsCost + seatsCost + addonsCost + storageCost;
+    // Bridge discount: percentage of the certified module's monthly cost
+    // (app prices + their seat costs). Platform fee, storage, add-ons and
+    // other modules stay full price. Reduces the subtotal, so term and
+    // manual discounts then apply to the already-bridged amount.
+    let bridgeDiscountVal = 0;
+    if (bridge) {
+      if (bridgeableCost <= 0) {
+        throw new Error(`Discount code ${bridge.code} applies to the ${bridge.suite_module} module. Add a ${bridge.suite_module} app to the quote to use it.`);
+      }
+      bridgeDiscountVal = bridgeableCost * (Number(bridge.discount_pct) / 100);
+      lineItems.push({
+        description: `NextGen Expert Bridge ${bridge.code} (${bridge.discount_pct}% off ${bridge.suite_module})`,
+        amount: -bridgeDiscountVal
+      });
+      console.log(`[Generate Quote] Bridge ${bridge.code}: ${bridge.discount_pct}% off ${bridge.suite_module} monthly ${bridgeableCost} -> -${bridgeDiscountVal}`);
+    }
+    const monthlySubtotal = BASE_PLATFORM_FEE + appsCost + seatsCost + addonsCost + storageCost - bridgeDiscountVal;
     // Term discount (per billing period) then optional manual discount, then ×months.
     const period = PERIODS[billing_term] || PERIODS.monthly;
     const months = period.months;
@@ -298,7 +342,13 @@ Deno.serve(async (req)=>{
       paystack_reference: paystackReference,
       validity_period: validityPeriod.toISOString(),
       status: 'PENDING',
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
+      // NextGen bridge snapshot (null when no code): the finalizers redeem
+      // bridge_code server-to-server after payment and record the outcome.
+      bridge_code: bridge ? bridge.code : null,
+      bridge_module: bridge ? bridge.suite_module : null,
+      bridge_discount_pct: bridge ? bridge.discount_pct : null,
+      bridge_discount_amount: bridge ? bridgeDiscountVal : null
     });
     if (quoteInsertError) throw quoteInsertError;
     // 5. Generate PDF
@@ -532,6 +582,12 @@ Deno.serve(async (req)=>{
       pdf_url: publicUrl,
       total_amount: totalAmount,
       validated_apps: validatedApps,
+      bridge: bridge ? {
+        code: bridge.code,
+        module: bridge.suite_module,
+        discount_pct: bridge.discount_pct,
+        monthly_discount: bridgeDiscountVal
+      } : null,
       payment_links: {
         paystack: paystackLink
       }

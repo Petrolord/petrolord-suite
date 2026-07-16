@@ -1,5 +1,6 @@
 import { corsHeaders } from "./cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
 import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 Deno.serve(async (req)=>{
@@ -72,6 +73,9 @@ Deno.serve(async (req)=>{
         });
         if (rpcErr) console.error('Webhook provisioning error:', rpcErr.message);
       }
+      // Burn the NextGen bridge code, if the quote carried one. Self-guarding
+      // no-op otherwise (and idempotent against the verify path racing us).
+      await redeemBridgeForQuote(supabase, quote_id, 'paystack-webhook');
     }
   }
   return new Response("Webhook received", {

@@ -51,7 +51,14 @@ const QuoteBuilder = () => {
   const [serviceTier, setServiceTier] = useState('starter');
   const [appSeats, setAppSeats] = useState({}); // { [appId]: seatCount } — per-app seats
   const [storageGB, setStorageGB] = useState(10); // default to the free allowance; no storage charge until the user opts in
-  const [manualDiscount, setManualDiscount] = useState(0); 
+  const [manualDiscount, setManualDiscount] = useState(0);
+  // NextGen Expert bridge code (Academy Expert certificates issue a
+  // single-use module discount code). Verified live via the
+  // verify-bridge-code edge fn; generate-quote re-verifies server-side.
+  const [bridgeCode, setBridgeCode] = useState('');
+  const [bridgeInfo, setBridgeInfo] = useState(null); // verify payload when status === 'valid'
+  const [bridgeChecking, setBridgeChecking] = useState(false);
+  const [bridgeError, setBridgeError] = useState(null);
   
   // Selection State
   // SCHEMA: selectedApps is an array of UUID strings matching master_apps.id.
@@ -240,6 +247,7 @@ const QuoteBuilder = () => {
               price: derivedPrice,
               status: app.status,
               moduleId: app.module_id,
+              moduleSlug: app.modules?.slug || null, // matches NextGen bridge suite_module
               description: app.description
           };
           flatApps.push(processedApp);
@@ -384,8 +392,23 @@ const QuoteBuilder = () => {
       note: storageGB > 10 ? `${storageGB - 10} GB billable × $${STORAGE_GB_PRICE} (first 10 GB free)` : 'Within free allowance'
     });
 
-    const monthlySubtotal = baseFee + softwareCost + seatsCost + storageCost;
-    
+    // NextGen Expert bridge: percentage off the certified module's monthly
+    // cost (app licenses + their seats). Mirrors generate-quote, which is
+    // authoritative and re-verifies the code server-side.
+    let bridgeDiscountVal = 0;
+    if (bridgeInfo) {
+      let bridgeableCost = 0;
+      selectedApps.forEach(appId => {
+        const app = masterApps.find(a => a.id === appId);
+        if (app && String(app.moduleSlug || '').toLowerCase() === String(bridgeInfo.suite_module).toLowerCase()) {
+          bridgeableCost += app.price + computeSeatCost(appSeats[appId] || 1);
+        }
+      });
+      bridgeDiscountVal = bridgeableCost * (Number(bridgeInfo.discount_pct) / 100);
+    }
+
+    const monthlySubtotal = baseFee + softwareCost + seatsCost + storageCost - bridgeDiscountVal;
+
     const periodDiscountVal = monthlySubtotal * period.discount;
     const manualDiscountVal = (monthlySubtotal - periodDiscountVal) * (manualDiscount / 100);
     const monthlyNet = monthlySubtotal - periodDiscountVal - manualDiscountVal;
@@ -403,6 +426,7 @@ const QuoteBuilder = () => {
       seatsCost,
       storageCost,
       monthlySubtotal,
+      bridgeDiscountVal,
       periodDiscountVal,
       manualDiscountVal,
       monthlyNet,
@@ -417,7 +441,38 @@ const QuoteBuilder = () => {
       vatAmount: vat,
       totalWithVat: grandTotal
     };
-  }, [serviceTier, billingPeriod, selectedModules, selectedApps, appSeats, storageGB, manualDiscount, appsGroupedByModule, masterApps]);
+  }, [serviceTier, billingPeriod, selectedModules, selectedApps, appSeats, storageGB, manualDiscount, appsGroupedByModule, masterApps, bridgeInfo]);
+
+  const handleCheckBridgeCode = async () => {
+    const code = bridgeCode.trim();
+    if (!code) return;
+    setBridgeChecking(true);
+    setBridgeError(null);
+    setBridgeInfo(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-bridge-code', { body: { code } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.found) {
+        setBridgeError('Code not recognized. Check it on your NextGen certificates page.');
+      } else if (data.status !== 'valid') {
+        const why = { redeemed: 'has already been used', expired: 'has expired', voided: 'is no longer valid' }[data.status] || 'is not valid';
+        setBridgeError(`This code ${why}.`);
+      } else {
+        setBridgeInfo(data);
+      }
+    } catch (e) {
+      setBridgeError(e.message || 'Could not verify the code. Please try again.');
+    } finally {
+      setBridgeChecking(false);
+    }
+  };
+
+  const handleClearBridgeCode = () => {
+    setBridgeCode('');
+    setBridgeInfo(null);
+    setBridgeError(null);
+  };
 
   const handleSaveQuote = async () => {
     // Resolve the caller's org from metadata first, then from the canonical
@@ -451,6 +506,7 @@ const QuoteBuilder = () => {
           service_tier: serviceTier,
           storage_gb: storageGB,
           manual_discount: manualDiscount,
+          bridge_code: bridgeInfo ? bridgeInfo.code : null,
           add_ons: [],
           user_id: user.id,
           user_email: user.email,
@@ -886,10 +942,63 @@ const QuoteBuilder = () => {
                       )}
                     </div>
                   ))}
+                  {calculation.bridgeDiscountVal > 0 && bridgeInfo && (
+                    <div className="flex justify-between text-green-400">
+                      <span className="truncate max-w-[210px]">NextGen Expert Bridge ({bridgeInfo.discount_pct}% off {bridgeInfo.suite_module})</span>
+                      <span className="shrink-0 tabular-nums">−{formatCurrency(calculation.bridgeDiscountVal)}/mo</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-slate-200 font-semibold pt-2 border-t border-slate-800/60">
                     <span>Monthly Subtotal</span>
                     <span className="tabular-nums">{formatCurrency(calculation.monthlySubtotal)}/mo</span>
                   </div>
+                </div>
+
+                {/* NextGen Expert bridge code */}
+                <div className="space-y-2 border-t border-slate-800 pt-4">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">NextGen Expert code</div>
+                  {bridgeInfo ? (
+                    <div className="bg-green-500/10 border border-green-700/40 rounded-lg p-3 text-sm">
+                      <div className="flex items-center gap-2 text-green-400 font-medium">
+                        <CheckCircle className="w-4 h-4 shrink-0"/>
+                        <span className="truncate">{bridgeInfo.code}</span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">
+                        {bridgeInfo.discount_pct}% off the {bridgeInfo.suite_module} module for {bridgeInfo.holder} (cert {bridgeInfo.certificate_number}).
+                      </p>
+                      {calculation.bridgeDiscountVal <= 0 && (
+                        <p className="text-xs text-amber-400 mt-1">
+                          Add a {bridgeInfo.suite_module} app to the quote to use this code.
+                        </p>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={handleClearBridgeCode} className="text-slate-500 hover:text-white h-7 px-2 mt-1 text-xs">
+                        Remove code
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex gap-2">
+                        <Input
+                          value={bridgeCode}
+                          onChange={(e) => { setBridgeCode(e.target.value); setBridgeError(null); }}
+                          placeholder="PLB-XXXXXXXXXX"
+                          className="bg-slate-950 border-slate-700 h-9 text-sm font-mono"
+                        />
+                        <Button
+                          onClick={handleCheckBridgeCode}
+                          disabled={bridgeChecking || !bridgeCode.trim()}
+                          variant="outline"
+                          className="h-9 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 shrink-0"
+                        >
+                          {bridgeChecking ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Apply'}
+                        </Button>
+                      </div>
+                      {bridgeError && <p className="text-xs text-red-400">{bridgeError}</p>}
+                      <p className="text-[10px] text-slate-500">
+                        Earned an Expert certificate at NextGen Academy? Your discount code is on your certificates page.
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 {/* Discounts (applied to the monthly subtotal) */}
