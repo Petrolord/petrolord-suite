@@ -79,6 +79,7 @@ const FractionalFlowAnalyzer = lazy(() => import('@/pages/apps/FractionalFlowAna
 const RecoveryFactorEstimator = lazy(() => import('@/pages/apps/RecoveryFactorEstimator'));
 const RiskedReservesValuation = lazy(() => import('@/pages/apps/RiskedReservesValuation'));
 const EorScreeningTool = lazy(() => import('@/pages/apps/EorScreeningTool'));
+const ForecastScenarioHub = lazy(() => import('@/pages/apps/ForecastScenarioHub'));
 const AquiferInfluxCalculator = lazy(() => import('@/pages/apps/AquiferInfluxCalculator'));
 const DeclineCurveAnalysis = lazy(() => import('@/pages/apps/DeclineCurveAnalysis'));
 const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'));
@@ -468,6 +469,7 @@ function App() {
                                 <Route path="apps/reservoir/recovery-factor-estimator" element={<RecoveryFactorEstimator />} />
                                 <Route path="apps/reservoir/risked-reserves-valuation" element={<RiskedReservesValuation />} />
                                 <Route path="apps/reservoir/eor-screening" element={<EorScreeningTool />} />
+                                <Route path="apps/reservoir/forecast-scenario-hub" element={<ForecastScenarioHub />} />
                                 <Route path="apps/reservoir/aquifer-influx-calculator" element={<AquiferInfluxCalculator />} />
                                 <Route path="apps/reservoir/decline-curve-analysis" element={<DeclineCurveAnalysis />} />
                                 <Route path="apps/reservoir/reservoir-balance" element={<ReservoirBalance />} />
