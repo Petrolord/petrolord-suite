@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
+import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
 
 // activate-bank-transfer
 // --------------------------------------------------------------------------
@@ -116,6 +117,12 @@ serve(async (req) => {
     } else {
       provisioningWarning =
         "Subscription has no linked quote; modules were not auto-provisioned.";
+    }
+
+    // 7. Burn the NextGen bridge code, if the quote carried one. Self-guarding
+    //    no-op otherwise; never blocks the activation.
+    if (textQuoteId) {
+      await redeemBridgeForQuote(supabase, textQuoteId, 'bank_transfer');
     }
 
     return json({

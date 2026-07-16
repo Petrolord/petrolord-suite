@@ -9,6 +9,8 @@
 // verify-paystack-payment inlines this (kept as-is so the live Paystack flow is
 // untouched). New rails (Stripe) call this helper so the two never drift.
 
+import { redeemBridgeForQuote } from "./nextgen-bridge.ts";
+
 // Coerce the quote's jsonb `modules` (strings or objects) into text[] for
 // subscriptions.modules (a NOT NULL text[] column). Mirrors verify-paystack-payment.
 function toModuleSlugs(modules: unknown): string[] {
@@ -78,6 +80,10 @@ export async function provisionPaidQuote(supabase: any, opts: ProvisionOpts): Pr
 
   // 3. Flip the org active.
   await supabase.from("organizations").update({ suite_status: "ACTIVE" }).eq("id", orgId);
+
+  // 3b. Burn the NextGen bridge code, if the quote carried one. Self-guarding
+  // no-op otherwise; never blocks provisioning.
+  await redeemBridgeForQuote(supabase, opts.quoteTextId, opts.provider);
 
   // 4. Active subscription row + real expiry. Best-effort: never undo the payment.
   try {

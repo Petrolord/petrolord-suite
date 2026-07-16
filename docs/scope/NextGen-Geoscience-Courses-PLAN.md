@@ -16,11 +16,24 @@ AUTO-ISSUES a personal, single-use **50% discount code for the
 certified Suite module**, valid for the certificate's 12-month window.
 The code lives in NextGen (`academy_suite_bridge_codes`; issue/void
 triggers; anon verify fn; service-role-only redeem fn); the learner
-sees it on their certificates page. FOLLOW-ON: the Suite-side checkout
-integration (validate via `academy_verify_bridge_code`, apply the
-discount, redeem server-to-server via `academy_redeem_bridge_code`) is
-not yet built — until then redemption is honored manually against the
-code's anon verification page result.
+sees it on their certificates page. **Suite-side checkout redemption
+SHIPPED 2026-07-16** (Suite repo, branch feat/nextgen-bridge-checkout):
+QuoteBuilder takes the code (verify-bridge-code proxy fn gives live
+feedback), generate-quote re-verifies server-side and applies the
+module-scoped discount (50% off the certified module's app licenses +
+their seats; platform fee/storage/other modules full price; matched
+case-insensitively — master_apps.module is 'Geoscience', the code
+carries 'geoscience'), and ALL four payment finalizers
+(verify-paystack-payment, paystack-webhook, activate-bank-transfer,
+_shared/provision-quote for the Stripe rails) redeem server-to-server
+via `academy_redeem_bridge_code` (idempotent; abnormal outcomes land
+in payment_audit_log as bridge_redemption_flagged for the human
+commercial follow-up). Quote-side snapshot lives in quotes.bridge_*
+(migration 20260716090000, applied live). Live E2E 2026-07-16 with a
+disposable test cert: verify valid/unknown, discounted quote to the
+kobo, redeem + idempotent retry, used-code and wrong-module rejections
+all green; test rows deleted on both projects. Manual honoring is no
+longer needed.
 
 Paystack keys are set on the NextGen project — the self-enroll and
 campus doors are commercially live.

@@ -309,6 +309,15 @@ export default function QuoteDashboard() {
                     <span className="text-slate-400">Seats</span>
                     <span className="font-medium text-white">{quote.seats}</span>
                   </div>
+                  {quote.bridge_code && (
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                      <span className="text-slate-400">NextGen Expert Bridge</span>
+                      <span className="font-medium text-green-400">
+                        {quote.bridge_code} ({quote.bridge_discount_pct}% off {quote.bridge_module})
+                        {quote.bridge_redeemed_at ? ' · redeemed' : ''}
+                      </span>
+                    </div>
+                  )}
                   <div>
                     <span className="text-slate-400 block mb-2">Modules & Apps</span>
                     <div className="flex flex-wrap gap-2">
