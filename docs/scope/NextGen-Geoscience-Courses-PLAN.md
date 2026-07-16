@@ -165,10 +165,18 @@ trigger issues no code. Fees inherit the subsurface school defaults.
   per-block bulk volume with the kriging-exactness lesson
   (Advanced). Division of labour held: bulk container only, STOIIP
   stays with reservoircalc. 9th live course.
-- **NG11 — Basin & Charge Modeling** (largest; last): NG11a extracts
-  the BasinFlow Genesis math into a `basin` domain in
-  `@petrolord/engines` with validated goldens (doctrine:
-  validation-first, engines central), then NG11b the course.
+- **NG11 — Basin & Charge Modeling. SHIPPED 2026-07-16 — COMPLETES
+  10/10 GEOSCIENCE COURSE COVERAGE.** NG11a (petrolord-engines PR #1,
+  merged): BasinFlow Genesis math extracted verbatim into the central
+  `basin` domain with its independent Python oracle + byte-identical
+  goldens (the Suite's dead wrong-units VectorizedSolver left
+  behind); Suite-side subtree sync + app refactor onto the domain is
+  the recorded follow-up. NG11b (nextgen PR #30 stacked on #29,
+  migration applied live, pentest 15/15): decompaction + the
+  hand-checkable steady heat column (Beginner), Easy%Ro ramps with
+  the time-is-a-reagent lesson + kerogen TR (Intermediate), and the
+  full 150 Ma forward model run twice for charge + the erosion
+  signature ΔRo 0.0567 (Advanced). 10th live course.
 
 ## 5. Non-goals / notes
 
