@@ -149,9 +149,13 @@ trigger issues no code. Fees inherit the subsurface school defaults.
   screening (class I brine flips to class III gas) + Zoeppritz check +
   wedge tuning (Advanced). Engine + goldens existed since Suite G6;
   every graded value golden-anchored. 7th live course.
-- **NG9 — Pore Pressure** (engine + goldens ready): NCT/overburden
-  (Beginner), Eaton/Bowers calibration (Intermediate), full PP/FG
-  campaign (Advanced).
+- **NG9 — Pore Pressure. SHIPPED 2026-07-16** (nextgen PR #28
+  stacked on #27, migration applied live, pentest 15/15): the golden
+  synthetic well itself as the teaching dataset (forward-inverse
+  consistent; graded overpressure at TD is exactly the imposed 6
+  MPa). Hydrostatic/overburden/NCT-fit frame (Beginner), full Eaton
+  prognosis (Intermediate), EMW mud-weight window + Bowers
+  cross-check + Eaton-n lever (Advanced). 8th live course.
 - **NG10 — Earth Modeling** (engine ready): structural side only —
   surface stacks, zone geometry, property population; STOIIP booking
   stays with the reservoircalc course.
