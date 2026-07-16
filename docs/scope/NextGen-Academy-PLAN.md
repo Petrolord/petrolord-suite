@@ -248,16 +248,26 @@ proposal rewrite are owner/commercial workstreams; the spine only
 needs their SHAPES (a fee is a Paystack charge on door 1; a
 scholarship is a code-granted enrollment at published fee).
 
-## 6. Open decisions (owner — needed before the first certificate)
+## 6. Open decisions — ALL LOCKED
 
-- **Q1 — Certification validity window**: recommend 12 months,
-  renewable by re-certification or a modest subscription; must be
-  locked before the first certificate is issued.
-- **Q2 — Renewal mechanism**: re-certification exam vs subscription vs
-  either — pricing shape only, the spine stores validity either way.
-- **Q3 — Expert→Suite bridge**: discount mechanics (code into Suite's
-  Paystack flow?) — can land after N4.
-- **Q4 — Entry-assessment failure policy**: gate hard (retake after
-  cooldown) vs advisory placement.
-- **Q5 — Learning-Mode quota numbers** per app (defaults proposed at
-  N3.1 from Suite quota policy, owner tunes).
+- **Q1 — LOCKED (2026-07-15)**: 12-month validity, live since N3.1.
+- **Q2 — LOCKED (2026-07-16, owner-delegated)**: renewal =
+  RE-CERTIFICATION at a 50% renewal fee (subsurface ₦30k/60k/100k,
+  energy_business ₦20k/37.5k/60k), window = last 60 days of validity
+  or after expiry; passing the capstone supersedes the old cert with
+  a fresh 12-month one (entitlement + Expert bridge code roll via the
+  existing triggers). Shipped: nextgen PR #31, migration
+  20260716_owner_decisions.sql live, pentest 7/7.
+- **Q3 — LOCKED (2026-07-15)**: Expert cert auto-issues the 50%
+  module code; Suite checkout redemption live (Suite PR #82).
+- **Q4 — LOCKED (2026-07-16, owner-delegated)**: ADVISORY placement
+  stands (hard_gate machinery kept, owner can flip the setting).
+  Entry-assessment content is real now: 15-question v1 bank spanning
+  the ten courses (nextgen PR #31).
+- **Q5 — LOCKED (2026-07-16, owner-delegated)**: the N3.1 default
+  quota matrix stands.
+- **Registration fee — LOCKED (2026-07-16, owner-delegated)** at the
+  live ₦10,000.
+- **Curriculum prose — LOCKED as v1 (2026-07-16, owner-delegated)**:
+  the shipped lesson sets (9-11 engine-grounded lessons per original
+  course, 6 per NG8-NG11 course).
