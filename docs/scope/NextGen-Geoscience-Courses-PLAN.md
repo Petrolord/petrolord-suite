@@ -131,7 +131,54 @@ each independently shippable.
    pass issues the certificate exactly once, public verification works.
 6. Build + CI green; EnrollPage/catalog/homepage stay consistent.
 
-## 4. Non-goals / notes
+## 4. Follow-on phases (NG8-NG11): the four remaining geoscience apps
+
+The NG series covered 6 of the Suite's 10 Geoscience apps. Full
+coverage adds courses for the other four, in engine-readiness order.
+Each new course is now ONE phase for ALL THREE tiers: the spine (NG1
+prereq gate, NG6 tier-fee integrity + ladder, N3.1 entitlements, NG7
+bridge) is generic, so a course is one catalog row + three capstones +
+a learning page. Standing rule per the NG7 gotcha: the catalog row
+maps `academy_apps.module` BEFORE the Expert tier sells, or the bridge
+trigger issues no code. Fees inherit the subsurface school defaults.
+
+- **NG8 — Rock Physics. SHIPPED 2026-07-16** (nextgen PR #27,
+  migration applied live, pentest 15/15): Batzle-Wang fluids + VRH
+  frame + Wood mix (Beginner), inverse Gassmann + substitution +
+  Greenberg-Castagna (Intermediate), substitution chained into AVO
+  screening (class I brine flips to class III gas) + Zoeppritz check +
+  wedge tuning (Advanced). Engine + goldens existed since Suite G6;
+  every graded value golden-anchored. 7th live course.
+- **NG9 — Pore Pressure. SHIPPED 2026-07-16** (nextgen PR #28
+  stacked on #27, migration applied live, pentest 15/15): the golden
+  synthetic well itself as the teaching dataset (forward-inverse
+  consistent; graded overpressure at TD is exactly the imposed 6
+  MPa). Hydrostatic/overburden/NCT-fit frame (Beginner), full Eaton
+  prognosis (Intermediate), EMW mud-weight window + Bowers
+  cross-check + Eaton-n lever (Advanced). 8th live course.
+- **NG10 — Earth Modeling. SHIPPED 2026-07-16** (nextgen PR #29
+  stacked on #28, migration applied live, pentest 15/15): the golden
+  three-surface fixture as the teaching dataset. Framework +
+  180-node pinch-out clamp + the closed-form 45.0e6 m3 bulk anchor
+  (Beginner), minimum-curvature well ties with the deviated-well
+  lesson (Intermediate), fault blocks + trend/kriging population +
+  per-block bulk volume with the kriging-exactness lesson
+  (Advanced). Division of labour held: bulk container only, STOIIP
+  stays with reservoircalc. 9th live course.
+- **NG11 — Basin & Charge Modeling. SHIPPED 2026-07-16 — COMPLETES
+  10/10 GEOSCIENCE COURSE COVERAGE.** NG11a (petrolord-engines PR #1,
+  merged): BasinFlow Genesis math extracted verbatim into the central
+  `basin` domain with its independent Python oracle + byte-identical
+  goldens (the Suite's dead wrong-units VectorizedSolver left
+  behind); Suite-side subtree sync + app refactor onto the domain is
+  the recorded follow-up. NG11b (nextgen PR #30 stacked on #29,
+  migration applied live, pentest 15/15): decompaction + the
+  hand-checkable steady heat column (Beginner), Easy%Ro ramps with
+  the time-is-a-reagent lesson + kerogen TR (Intermediate), and the
+  full 150 Ma forward model run twice for charge + the erosion
+  signature ΔRo 0.0567 (Advanced). 10th live course.
+
+## 5. Non-goals / notes
 
 - No cohort features in NG1–NG5 (Campus/Residency dashboards come with
   the first cohort intake).
