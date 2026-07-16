@@ -101,10 +101,24 @@ staging-first, logged in MIGRATIONS.md; validation-first engine work.
 - **R0 — Honest catalog (THIS PHASE, done).** Audit; archive the 5
   broken Active tiles + 28 zero-code Coming Soon rows; fix the three
   `is_functional` flags. 42 rows → 9 Active / 33 Archived.
-- **R1 — Decline Curve Analysis fix.** `saved_dca_projects` table +
-  RLS + live pentest (the saved_waterflood pattern), ChartFrame
-  adoption across the DCA chart set, finish or honestly gate
-  `DCAWellFilters` and `DCAGroupRollup`.
+- **R1 — Decline Curve Analysis fix. DONE 2026-07-16.** Audit
+  refinements: three of the four DCA charts were already
+  theme-compliant (white surface + chartTheme + watermark, the
+  pre-ChartFrame pattern) — only the EUR histogram was dark ad-hoc,
+  now converted. Persistence: the live DB already carried an
+  out-of-band `saved_dca_projects` table (0 rows, owner RLS, even
+  referenced by get_all_my_projects) that the app never wrote to —
+  migration 20260716210000 canonicalizes it in the repo (+updated_at,
+  results_data nullable) and the app now saves/loads/deletes through
+  it, with a one-time automatic lift of any pre-R1
+  localStorage/IndexedDB projects. Stubs: DCAWellFilters is now a
+  real filter set (search/fluid/has-data feeding filteredWellIds);
+  DCAWellGrouping gained the missing well multi-select (the old UI
+  called createWellGroup with a bare string — groups could NEVER be
+  created); DCAGroupRollup is a real scenario-based roll-up (sums
+  each member's latest scenario EUR + combines monthly rates,
+  honestly lists members without scenarios; jest-tested) and is now
+  actually mounted (it was imported but never rendered).
 - **R2 — Hygiene sweep.** Delete the dead `waterflood-engine` edge
   function (repo + deployed function), delete the orphaned
   `aquiferCalculations.js`, add the missing unit tests for

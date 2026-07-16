@@ -135,9 +135,9 @@ const DeclineCurveContent = () => {
           </div>
         ) : (
           <div className="space-y-6">
-             <div className="text-slate-500 text-xs text-center pt-10">
-                Diagnostics for Type Curves will appear here
-             </div>
+            <section>
+              <DCAGroupRollup />
+            </section>
           </div>
         )
       }
