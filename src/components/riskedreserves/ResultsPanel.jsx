@@ -4,6 +4,7 @@ import { Line, Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, BarChart2, Zap } from 'lucide-react';
+import ChartLogo from '@/components/charts/ChartLogo';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler);
 
@@ -120,10 +121,11 @@ const ResultsPanel = ({ results }) => {
           <TabsTrigger value="histogram"><BarChart2 className="w-4 h-4 mr-2"/>Histogram</TabsTrigger>
           <TabsTrigger value="sensitivity"><Zap className="w-4 h-4 mr-2"/>Sensitivity</TabsTrigger>
         </TabsList>
-        <div className="bg-white rounded-xl p-4 mt-4 h-[500px]">
+        <div className="relative bg-white rounded-xl p-4 mt-4 h-[500px]">
           <TabsContent value="cdf" className="h-full"><Line options={cdfChartOptions} data={cdfChartData} /></TabsContent>
           <TabsContent value="histogram" className="h-full"><Bar options={histogramChartOptions} data={histogramChartData} /></TabsContent>
           <TabsContent value="sensitivity" className="h-full"><Bar options={tornadoChartOptions} data={tornadoChartData} /></TabsContent>
+          <ChartLogo />
         </div>
       </Tabs>
     </motion.div>

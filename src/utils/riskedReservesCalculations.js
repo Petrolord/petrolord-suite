@@ -1,6 +1,20 @@
-const triangularRandom = (p10, p50, p90) => {
+// Risked Reserves Valuation engine (wired up in R3, Reservoir-ROADMAP.md).
+//
+// Probabilistic project NPV: triangular sampling of the input variables
+// (P10/P50/P90 treated as low/mode/high of a triangular distribution),
+// a simple fiscal cash-flow model (royalty, opex, tax, exponential
+// production allocated so cumulative production equals the reserves
+// exactly over the project life), Monte Carlo percentiles in the
+// petroleum convention (P90 = low outcome exceeded with 90%
+// probability), and a one-factor-at-a-time P10/P90 tornado.
+//
+// The RNG is injectable for deterministic tests; production code uses
+// Math.random.
+
+// Inverse-CDF triangular sample with low = p10, mode = p50, high = p90.
+export const triangularRandom = (p10, p50, p90, rng = Math.random) => {
   const F_p50 = (p90 - p10) > 0 ? (p50 - p10) / (p90 - p10) : 0.5;
-  const rand = Math.random();
+  const rand = rng();
 
   if (rand < F_p50) {
     return p10 + Math.sqrt(rand * (p90 - p10) * (p50 - p10));
@@ -8,7 +22,7 @@ const triangularRandom = (p10, p50, p90) => {
   return p90 - Math.sqrt((1 - rand) * (p90 - p10) * (p90 - p50));
 };
 
-const calculateSingleNPV = (params, settings) => {
+export const calculateSingleNPV = (params, settings) => {
   const { discountRate, taxRate, royaltyRate, projectLife } = settings;
   const dr = discountRate / 100;
   const tr = taxRate / 100;
@@ -21,33 +35,32 @@ const calculateSingleNPV = (params, settings) => {
   const declineRate = params['Decline Rate (%/yr)'] / 100;
 
   let npv = -capex;
-  let remainingReserves = reserves;
-  
-  const initialProduction = reserves * (declineRate / (1 - Math.pow(1 - declineRate, projectLife)));
+
+  // Geometric-decline first-year rate chosen so that cumulative
+  // production over the project life equals the reserves exactly.
+  // D -> 0 limit: uniform production of reserves / projectLife.
+  const initialProduction = declineRate > 0
+    ? reserves * (declineRate / (1 - Math.pow(1 - declineRate, projectLife)))
+    : reserves / projectLife;
 
   for (let year = 1; year <= projectLife; year++) {
     const production = initialProduction * Math.pow(1 - declineRate, year - 1);
-    if (remainingReserves - production < 0) {
-        // production = remainingReserves; // This logic can be improved
-    }
-    remainingReserves -= production;
 
     const revenue = production * price;
     const royalty = revenue * rr;
     const opex = production * opexPerBoe;
-    
+
     const profitBeforeTax = revenue - royalty - opex;
     const tax = profitBeforeTax > 0 ? profitBeforeTax * tr : 0;
     const cashFlow = profitBeforeTax - tax;
-    
+
     npv += cashFlow / Math.pow(1 + dr, year);
   }
 
   return npv / 1e6; // Return in $MM
 };
 
-const runSensitivityAnalysis = (baseParams, variables, settings) => {
-    const baseNpv = calculateSingleNPV(baseParams, settings);
+export const runSensitivityAnalysis = (baseParams, variables, settings) => {
     const sensitivityData = [];
 
     variables.forEach(variable => {
@@ -56,7 +69,7 @@ const runSensitivityAnalysis = (baseParams, variables, settings) => {
 
         const lowNpv = calculateSingleNPV(lowParams, settings);
         const highNpv = calculateSingleNPV(highParams, settings);
-        
+
         const swing = Math.abs(highNpv - lowNpv);
         sensitivityData.push({
             variable: variable.name.replace(/\s\(.*\)/, ''), // Clean up name for display
@@ -68,9 +81,7 @@ const runSensitivityAnalysis = (baseParams, variables, settings) => {
 };
 
 
-export const runMonteCarloSimulation = async (inputs) => {
-  await new Promise(resolve => setTimeout(resolve, 2000));
-
+export const runMonteCarloSimulation = async (inputs, rng = Math.random) => {
   const { variables, simulationSettings, economicSettings } = inputs;
   const iterations = simulationSettings.iterations;
   const npvResults = [];
@@ -78,9 +89,9 @@ export const runMonteCarloSimulation = async (inputs) => {
   for (let i = 0; i < iterations; i++) {
     const iterationParams = {};
     variables.forEach(v => {
-      iterationParams[v.name] = triangularRandom(v.p10, v.p50, v.p90);
+      iterationParams[v.name] = triangularRandom(v.p10, v.p50, v.p90, rng);
     });
-    
+
     const npv = calculateSingleNPV(iterationParams, economicSettings);
     npvResults.push(npv);
   }
@@ -91,6 +102,8 @@ export const runMonteCarloSimulation = async (inputs) => {
   const p50Index = Math.floor(iterations * 0.5);
   const p90Index = Math.floor(iterations * 0.9);
 
+  // Petroleum convention: P90 is the LOW outcome (exceeded with 90%
+  // probability), P10 the high one.
   const summary = {
     p90: npvResults[p10Index],
     p50: npvResults[p50Index],
@@ -106,15 +119,17 @@ export const runMonteCarloSimulation = async (inputs) => {
   const minNpv = Math.min(...npvResults);
   const maxNpv = Math.max(...npvResults);
   const binCount = 20;
-  const binSize = (maxNpv - minNpv) / binCount;
+  const binSize = (maxNpv - minNpv) / binCount || 1;
   const histogramData = [];
   for (let i = 0; i < binCount; i++) {
     const binStart = minNpv + i * binSize;
     const binEnd = binStart + binSize;
+    const last = i === binCount - 1;
     histogramData.push({
       binStart: binStart.toFixed(0),
       binEnd: binEnd.toFixed(0),
-      count: npvResults.filter(n => n >= binStart && n < binEnd).length,
+      // The last bin is closed on the right so the maximum lands in it.
+      count: npvResults.filter(n => n >= binStart && (last ? n <= binEnd : n < binEnd)).length,
     });
   }
 

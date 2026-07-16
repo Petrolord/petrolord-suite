@@ -131,11 +131,22 @@ staging-first, logged in MIGRATIONS.md; validation-first engine work.
   monotonicity, Welge tangency and breakthrough identities, ED
   ordering, recovery monotonicity). All six live client engines in
   the module are now unit-tested.
-- **R3 — Risked Reserves Valuation wire-up.** Audit the orphaned
-  engine's math, add tests, route it, seed its tile (%ROWTYPE
-  template copy). Decision point: Reservoir vs Economics module
-  placement (recommend Reservoir; it consumes volumetric + RF
-  inputs).
+- **R3 — Risked Reserves Valuation wire-up. DONE 2026-07-16.** The
+  engine's math audited sound (correct triangular inverse-CDF
+  sampler, production allocation that conserves reserves exactly,
+  petroleum P90/P50/P10 convention) and hardened: the fake 2-second
+  setTimeout removed, RNG made injectable, zero-decline-rate
+  division guard, histogram's max value no longer dropped. 9-test
+  jest suite (hand-checked one-year NPV, reserves conservation,
+  no-negative-tax, deterministic MC under a seeded RNG). Routed at
+  apps/reservoir/risked-reserves-valuation + allApps; module
+  placement LOCKED: Reservoir (back-link corrected from Economics);
+  charts kept on chart.js (the 10-sibling-app pattern) with white
+  surfaces + the ChartLogo watermark added. Tile migration
+  20260716220000 ships in the PR and is applied WITH the next prod
+  upload (the 2026-07-07 deploy lesson: a tile must never go Active
+  before its route is deployed — exactly how material-balance-pro
+  404'd).
 - **R4 (owner-optional) — EOR Screening, rebuilt real.** A small
   client-side screening tool on the published Taber-Martin-Seright
   criteria tables would honestly replace the archived EOR Designer
