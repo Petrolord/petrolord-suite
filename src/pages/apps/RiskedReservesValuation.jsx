@@ -51,10 +51,10 @@ const RiskedReservesValuation = () => {
       <div className="p-4 md:p-8 h-full flex flex-col">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-8">
           <div className="flex items-center space-x-4 mb-4">
-            <Link to="/dashboard/economics">
+            <Link to="/dashboard/reservoir">
               <Button variant="outline" size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Economics
+                Back to Reservoir Management
               </Button>
             </Link>
           </div>
