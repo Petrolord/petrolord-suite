@@ -3,11 +3,11 @@ import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, FolderOpen } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 
 const DCAProjectManager = () => {
-  const { projects, currentProjectId, createProject, openProject } = useDeclineCurve();
+  const { projects, currentProjectId, createProject, openProject, deleteProject } = useDeclineCurve();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
 
@@ -61,6 +61,21 @@ const DCAProjectManager = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {currentProjectId && (
+          <Button
+            variant="outline" size="icon"
+            className="bg-slate-800 border-slate-700 text-slate-500 hover:text-red-400"
+            title="Delete current project"
+            onClick={() => {
+              if (window.confirm('Delete this project and its saved data? This cannot be undone.')) {
+                deleteProject(currentProjectId);
+              }
+            }}
+          >
+            <Trash2 size={14} />
+          </Button>
+        )}
       </div>
     </div>
   );

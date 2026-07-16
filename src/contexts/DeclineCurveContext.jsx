@@ -3,7 +3,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { fitArpsModel, getFitQuality, generateForecast } from '@/utils/declineCurve/dcaEngine';
 import { runMonteCarloSimulation } from '@/utils/dcaMonteCarlo';
 import { normalizeByTime, normalizeByRate, normalizeByTimeAndRate, applyTypeCurve } from '@/utils/declineCurve/typeCurveEngine';
-import { saveProjectToIndexedDB, loadProjectFromIndexedDB } from '@/utils/declineCurve/dcaDataPersistence';
+import {
+  saveProject, loadProject, listProjects, deleteProject as deleteProjectRow,
+  migrateLegacyLocalProjects,
+} from '@/utils/declineCurve/dcaDataPersistence';
 import { useKeyboardShortcuts } from '@/utils/declineCurve/dcaKeyboardShortcuts';
 import { createUndoRedoManager } from '@/utils/declineCurve/dcaUndoRedo';
 import { validateFitInput, getErrorMessage } from '@/utils/declineCurve/dcaErrorHandling';
@@ -63,6 +66,24 @@ export const DeclineCurveProvider = ({ children }) => {
   const [wellGroups, setWellGroups] = useState([]);
   const [selectedWellGroup, setSelectedWellGroup] = useState(null);
 
+  // Well filters (R1: real filters over what wells actually carry —
+  // name/tag search, fluid type, has-data), applied wherever a well
+  // list is offered (grouping, type curves).
+  const [wellFilters, setWellFilters] = useState({ search: '', fluidType: 'all', onlyWithData: false });
+  const filteredWellIds = Object.values(wells)
+    .filter(w => {
+      if (wellFilters.fluidType !== 'all' && w.type !== wellFilters.fluidType) return false;
+      if (wellFilters.onlyWithData && !(w.data && w.data.length > 0)) return false;
+      if (wellFilters.search) {
+        const q = wellFilters.search.toLowerCase();
+        const inName = (w.name || '').toLowerCase().includes(q);
+        const inTags = (Array.isArray(w.tags) ? w.tags.join(' ') : String(w.tags || '')).toLowerCase().includes(q);
+        if (!inName && !inTags) return false;
+      }
+      return true;
+    })
+    .map(w => w.id);
+
   const [isFitting, setIsFitting] = useState(false);
   const [isForecasting, setIsForecasting] = useState(false);
 
@@ -90,18 +111,23 @@ export const DeclineCurveProvider = ({ children }) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  // Persistence
+  // Persistence (R1): projects live in saved_dca_projects. Any pre-R1
+  // localStorage/IndexedDB projects are lifted into Supabase once first.
   useEffect(() => {
     const init = async () => {
-      const saved = localStorage.getItem('dca_projects');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setProjects(parsed);
-          if (parsed.length > 0 && !currentProjectId) {
-             openProject(parsed[0].id);
-          }
-        } catch(e) { console.error(e); }
+      try {
+        const migrated = await migrateLegacyLocalProjects().catch(() => 0);
+        const list = await listProjects();
+        setProjects(list);
+        if (migrated > 0) {
+          addNotification(`Moved ${migrated} local project${migrated === 1 ? '' : 's'} to your account`, 'success');
+        }
+        if (list.length > 0 && !currentProjectId) {
+          openProject(list[0].id);
+        }
+      } catch (e) {
+        console.error(e);
+        addNotification('Could not load saved projects', 'error');
       }
     };
     init();
@@ -127,7 +153,7 @@ export const DeclineCurveProvider = ({ children }) => {
           modified: new Date().toISOString()
         };
         
-        await saveProjectToIndexedDB(currentProjectId, projectData);
+        await saveProject(currentProjectId, projectData);
         setLastSaveTime(new Date());
         setSaveError(null);
       } catch (err) {
@@ -136,7 +162,7 @@ export const DeclineCurveProvider = ({ children }) => {
       } finally {
         setIsSaving(false);
       }
-    }, 10000); 
+    }, 10000);
 
     return () => clearTimeout(saveTimer);
   }, [wells, streamState, scenarios, typeCurves, wellGroups, dataQuality, fitWindow, currentProjectId]);
@@ -157,7 +183,7 @@ export const DeclineCurveProvider = ({ children }) => {
           fitWindow,
           modified: new Date().toISOString()
         };
-        await saveProjectToIndexedDB(currentProjectId, projectData);
+        await saveProject(currentProjectId, projectData);
         setLastSaveTime(new Date());
         addNotification("Project saved successfully", "success");
     } catch (err) {
@@ -168,14 +194,16 @@ export const DeclineCurveProvider = ({ children }) => {
     }
   };
 
-  const savePersistence = (updatedProjects) => {
-    setProjects(updatedProjects);
-    localStorage.setItem('dca_projects', JSON.stringify(updatedProjects));
-  };
-
-  const createProject = (name) => {
+  const createProject = async (name) => {
     const newProject = { id: uuidv4(), name, createdAt: new Date().toISOString(), wellIds: [] };
-    savePersistence([...projects, newProject]);
+    try {
+      await saveProject(newProject.id, { id: newProject.id, name, wells: {}, scenarios: [], typeCurves: [], wellGroups: [] });
+    } catch (e) {
+      console.error(e);
+      addNotification(`Could not create project: ${e.message}`, 'error');
+      return;
+    }
+    setProjects(prev => [newProject, ...prev]);
     setCurrentProjectId(newProject.id);
     setWells({});
     setScenarios([]);
@@ -185,10 +213,30 @@ export const DeclineCurveProvider = ({ children }) => {
     addNotification(`Project "${name}" created`, "success");
   };
 
+  const deleteProject = async (id) => {
+    try {
+      await deleteProjectRow(id);
+    } catch (e) {
+      console.error(e);
+      addNotification(`Could not delete project: ${e.message}`, 'error');
+      return;
+    }
+    setProjects(prev => prev.filter(p => p.id !== id));
+    if (currentProjectId === id) {
+      setCurrentProjectId(null);
+      setCurrentWellId(null);
+      setWells({});
+      setScenarios([]);
+      setTypeCurves([]);
+      setWellGroups([]);
+    }
+    addNotification('Project deleted', 'info');
+  };
+
   const openProject = async (id) => {
     setIsSaving(true);
     try {
-      const data = await loadProjectFromIndexedDB(id);
+      const data = await loadProject(id);
       if (data) {
         setCurrentProjectId(id);
         setWells(data.wells || {});
@@ -215,20 +263,18 @@ export const DeclineCurveProvider = ({ children }) => {
     }
   };
 
+  // Wells live inside the project payload; the auto-save effect
+  // persists them (the pre-R1 localStorage index is gone).
   const addWell = (name, type='oil') => {
     if (!currentProjectId) return;
     const newWell = { id: uuidv4(), name, type, data: [], projectId: currentProjectId, notes: '', tags: [] };
     setWells(prev => ({ ...prev, [newWell.id]: newWell }));
-    const updated = projects.map(p => p.id === currentProjectId ? { ...p, wellIds: [...(p.wellIds||[]), newWell.id] } : p);
-    savePersistence(updated);
     setCurrentWellId(newWell.id);
   };
 
   const removeWell = (id) => {
     const newWells = {...wells}; delete newWells[id];
     setWells(newWells);
-    const updated = projects.map(p => ({ ...p, wellIds: p.wellIds.filter(wid => wid !== id) }));
-    savePersistence(updated);
     if (currentWellId === id) setCurrentWellId(null);
   };
 
@@ -626,6 +672,9 @@ export const DeclineCurveProvider = ({ children }) => {
     selectedTypeCurve,
     wellGroups,
     selectedWellGroup,
+    wellFilters,
+    setWellFilters,
+    filteredWellIds,
     
     // Loading states
     isFitting,
@@ -644,6 +693,7 @@ export const DeclineCurveProvider = ({ children }) => {
     // Project Management
     createProject,
     openProject,
+    deleteProject,
     manualSave,
     
     // Well Management
