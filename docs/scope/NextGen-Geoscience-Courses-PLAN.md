@@ -131,7 +131,36 @@ each independently shippable.
    pass issues the certificate exactly once, public verification works.
 6. Build + CI green; EnrollPage/catalog/homepage stay consistent.
 
-## 4. Non-goals / notes
+## 4. Follow-on phases (NG8-NG11): the four remaining geoscience apps
+
+The NG series covered 6 of the Suite's 10 Geoscience apps. Full
+coverage adds courses for the other four, in engine-readiness order.
+Each new course is now ONE phase for ALL THREE tiers: the spine (NG1
+prereq gate, NG6 tier-fee integrity + ladder, N3.1 entitlements, NG7
+bridge) is generic, so a course is one catalog row + three capstones +
+a learning page. Standing rule per the NG7 gotcha: the catalog row
+maps `academy_apps.module` BEFORE the Expert tier sells, or the bridge
+trigger issues no code. Fees inherit the subsurface school defaults.
+
+- **NG8 — Rock Physics. SHIPPED 2026-07-16** (nextgen PR #27,
+  migration applied live, pentest 15/15): Batzle-Wang fluids + VRH
+  frame + Wood mix (Beginner), inverse Gassmann + substitution +
+  Greenberg-Castagna (Intermediate), substitution chained into AVO
+  screening (class I brine flips to class III gas) + Zoeppritz check +
+  wedge tuning (Advanced). Engine + goldens existed since Suite G6;
+  every graded value golden-anchored. 7th live course.
+- **NG9 — Pore Pressure** (engine + goldens ready): NCT/overburden
+  (Beginner), Eaton/Bowers calibration (Intermediate), full PP/FG
+  campaign (Advanced).
+- **NG10 — Earth Modeling** (engine ready): structural side only —
+  surface stacks, zone geometry, property population; STOIIP booking
+  stays with the reservoircalc course.
+- **NG11 — Basin & Charge Modeling** (largest; last): NG11a extracts
+  the BasinFlow Genesis math into a `basin` domain in
+  `@petrolord/engines` with validated goldens (doctrine:
+  validation-first, engines central), then NG11b the course.
+
+## 5. Non-goals / notes
 
 - No cohort features in NG1–NG5 (Campus/Residency dashboards come with
   the first cohort intake).
