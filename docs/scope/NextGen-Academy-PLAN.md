@@ -135,23 +135,99 @@ no big-bang cutover).
   live-computed pattern). Migration files + MIGRATIONS.md, dry-run
   first, RLS pentest per commercial-records discipline. Naming
   prefixed `academy_*` (product-prefix convention).
-- **N3.2 — One identity, four doors**: personal-email account spine;
-  university email as Campus verification attribute; door flows in
-  order of leverage — self-enroll + Paystack first (Suite pattern),
-  cohort codes, sponsorship codes, residency application queue. Role
-  model rework: `learner` replaces `student` as the base identity;
-  campus/residency/sponsored are enrollment attributes, not roles.
-- **N3.3 — Activation gate + integrity controls**: orientation step +
-  short entry assessment per account; two-device limit and session
-  monitoring (login_activity exists as the raw feed); provided-
-  datasets rule enforced by Learning-Mode scope itself.
-- **N3.4 — Certificates v2**: verifiable ID scheme, public
-  verification page (no-auth read of a minimal verification view),
-  validity window per §6 decision, re-certification path.
-- **N4 — First course on the spine** (unchanged from the roadmap, now
-  entitlement-native): Petrophysics Beginner tier — lessons, in-app
-  guided exercises on the golden teaching datasets, quiz, auto-graded
-  capstone vs oracle truth. Proves Learning Mode end to end.
+- **N3.2 — One identity, four doors** — **DONE 2026-07-15**
+  (nextgen `feat/n3-2-four-doors`): personal-email account spine
+  (`/register`, base role `learner`); university email as Campus
+  verification attribute (`profiles.university_email`); all four door
+  flows live — self-enroll + Paystack, cohort codes, sponsorship codes,
+  residency application queue — plus a learner Enroll page and an admin
+  Academy-Doors page (issue codes, decide residency). Migration
+  `20260715_n32_four_doors.sql` (applied live, dry-run first): 4 tables
+  + 6 SECURITY DEFINER door functions + server-side fee lookup;
+  `academy_apply_successful_payment` validates amount **and** currency
+  (hardening over the Suite verify) and is idempotent + service-role
+  only. Edge functions `academy-checkout` / `academy-verify` /
+  `academy-paystack-webhook` deployed (mirror the Suite Paystack pattern:
+  server-side amount, HMAC webhook, server-verify trust anchor). Role
+  model reworked to `learner` base; doors are enrollment attributes, not
+  roles. **Two pre-existing live escalation holes found + fixed**:
+  signup metadata role forgery and self role-change via the
+  update-own-profile RLS policy. Live pentest 37/37
+  (`migrations/docs/academy-doors-pentest.md`). **Published fees SET
+  2026-07-15** (owner schedule, `20260715_published_fees.sql`, PR #10):
+  per school × tier — Subsurface & Engineering ₦60k/₦120k/₦200k, Energy
+  Business & Society ₦40k/₦75k/₦120k (Associate/Professional/Expert);
+  NGN charge, USD secondary display; `academy_apps.school` drives the
+  lookup. Registration fee still a ₦10k placeholder (schedule doesn't
+  set it). **Still blocked on owner**: `PAYSTACK_SECRET_KEY` secret
+  before the self/campus doors can take live money.
+- **N3.3 — Activation gate + integrity controls** — **DONE 2026-07-15**
+  (nextgen `feat/n3-3-activation-gate`, PR #7 stacked on #6): per-account
+  orientation step + short entry assessment as the activation gate;
+  two-device limit; session monitoring. Migration
+  `20260715_n33_activation_gate.sql` (applied live, dry-run first):
+  `academy_account_state`, `academy_assessment_questions` (answer key
+  server-side only — no client SELECT policy; placeholder placement
+  bank), `academy_devices`, `academy_sessions`. The gate is **folded
+  into `academy_has_scope`** — an unactivated learner holds entitlements
+  but resolves NO effective scope, so the gate is RLS-real via the same
+  predicate every ported app reads. Server-graded entry assessment →
+  placement tier; **Q4** shipped as a `system_settings` toggle
+  (`academy_entry_assessment_policy`) defaulting to `advisory`
+  (owner flips to `hard_gate` with a retake cooldown). Two-device limit
+  enforced in the definer function (a Supabase JWT carries no device id,
+  so it cannot be a per-request RLS predicate — the definer gate +
+  `academy_sessions` feed is the honest ceiling, documented as such).
+  Provided-datasets rule = the existing learning-scope quota
+  (`own_data_upload=false`), no new mechanism. Frontend: Get Started
+  wizard, activation banner, DeviceGuard + Devices page, admin session
+  monitoring. Legacy `login_activity`/`student_login_logs` NOT reused
+  (writer-less / legacy-only). Live pentest 21/21
+  (`migrations/docs/academy-activation-pentest.md`). **Owner follow-up**:
+  decide Q4 policy; replace placeholder assessment questions with
+  curriculum content.
+- **N3.4 — Certificates v2** — **DONE 2026-07-15** (nextgen
+  `feat/n3-4-certificates`, PR #8 stacked on #7). The verifiable-ID
+  scheme + anon verify function shipped at N3.1; N3.4 adds the missing
+  halves. Migration `20260715_n34_certificates_v2.sql` (applied live,
+  dry-run first): `academy_issue_certification` (instructor/admin or the
+  trusted server for N4 auto-issue; **re-certification = clean supersede**
+  — re-issuing the same user/app/tier revokes the prior live cert,
+  expires its entitlement via the N3.1 trigger, and the fresh insert
+  grants a new 12-month window) + `academy_revoke_certification`
+  (instructor/admin, idempotent). Frontend: public no-auth
+  `/verify` + `/verify/:code` (mining-resistant — keyed on the
+  unguessable `verify_code`, not the sequential number; table has no
+  anon SELECT), learner certificates v2 page (verifiable IDs + validity
+  window + shareable link + print; repoints `/dashboard/certificates`
+  off the legacy `certificates` table), instructor/admin issuance
+  console. Q1 (12-month validity) is the N3.1 table default; **Q2**
+  (renewal pricing shape) still an owner call — sits above this layer,
+  spine stores validity either way. Auto-issue on capstone pass lands at
+  N4 via the service-role path this exposes. Live pentest 20/20
+  (`migrations/docs/academy-certificates-pentest.md`).
+- **N4 — First course on the spine** — **DONE 2026-07-15** (nextgen
+  `feat/n4-petrophysics`, PR #9 stacked on #8). Petrophysics Beginner,
+  entitlement-native, **proves Learning Mode end to end**: enrol →
+  activate → Learning scope → drive the real engine over the teaching
+  dataset → pass an auto-graded capstone → Associate certificate
+  auto-issued → ladder advances to working mode. Central engines
+  consumed unchanged via **git-subtree** at `packages/engines`
+  (`@petrolord/engines`; no fork — the roadmap's second-consumer rule).
+  Migration `20260715_n4_petrophysics_capstone.sql` (applied live,
+  dry-run first): `academy_capstones` (oracle answer key = the
+  validation goldens' net-pay summaries, **no client SELECT** — the
+  auto-graded-practical moat) + `academy_capstone_attempts`;
+  `academy_get_capstone` (labels only) + `academy_submit_capstone`
+  (server-side tolerance grading, requires `academy_has_scope(app,
+  'learning')`, auto-issues the mapped cert idempotently on a full pass).
+  Frontend: a Petrophysics Learning Mode workspace (scope-gated, Training
+  watermark, editable interpretation params driving VSH/φ/Sw/net-pay,
+  live chart, capstone → cert). Expected values independently reproduced
+  from the engine so an honest learner reaches them exactly; the teaching
+  dataset IS the validation goldens, so grader and data cannot drift.
+  Live pentest 16/16 (`migrations/docs/petrophysics-capstone-pentest.md`).
+  The remaining 23 courses follow this template.
 - **Retirement pass** (after doors are live): drop the legacy
   licenses/duration tables and university-gatekeeper onboarding.
 
