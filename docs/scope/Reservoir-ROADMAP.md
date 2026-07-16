@@ -119,10 +119,18 @@ staging-first, logged in MIGRATIONS.md; validation-first engine work.
   each member's latest scenario EUR + combines monthly rates,
   honestly lists members without scenarios; jest-tested) and is now
   actually mounted (it was imported but never rendered).
-- **R2 — Hygiene sweep.** Delete the dead `waterflood-engine` edge
-  function (repo + deployed function), delete the orphaned
-  `aquiferCalculations.js`, add the missing unit tests for
-  `vrrCalculations.js` and `fractionalFlowCalculations.js`.
+- **R2 — Hygiene sweep. DONE 2026-07-16.** The dead
+  `waterflood-engine` edge function is deleted from the repo AND from
+  the deployed project (the fabricated Math.random internals can no
+  longer regress or be re-wired); the orphaned
+  `aquiferCalculations.js` (zero consumers, self-labeled simplified
+  stub) is deleted; `vrrCalculations.js` and
+  `fractionalFlowCalculations.js` gained hand-checkable jest suites
+  (21 tests: voidage hand-calcs, free-gas floor, FVF overrides,
+  classification bands; Corey endpoints/closed forms, fw
+  monotonicity, Welge tangency and breakthrough identities, ED
+  ordering, recovery monotonicity). All six live client engines in
+  the module are now unit-tested.
 - **R3 — Risked Reserves Valuation wire-up.** Audit the orphaned
   engine's math, add tests, route it, seed its tile (%ROWTYPE
   template copy). Decision point: Reservoir vs Economics module
