@@ -162,10 +162,26 @@ staging-first, logged in MIGRATIONS.md; validation-first engine work.
   ChartFrame + per-method verdict tables citing the source. Tile
   migration 20260716230000 defers its live apply to the next prod
   upload, same rule as R3.
-- **R5 (owner-optional) — Forecast & Scenario hub.** If wanted,
-  rebuild Scenario Planner client-side (Arps forecast + simple NPV
-  per case) on a real table; overlaps NpvScenarioBuilder (Economics)
-  — reconcile scope first.
+- **R5 — Forecast Scenario Hub. DONE 2026-07-16.** Scope
+  reconciliation first: NpvScenarioBuilder (Economics) audited REAL
+  and substantial (full cash-flow NPV/IRR economics, MC, portfolio;
+  its production input side is a thin exponential-only generator, and
+  its IntegrationHub is a MOCK — fake sync timers — recorded as an
+  Economics-module finding, out of scope here). Split locked:
+  RESERVOIR owns production forecasting, ECONOMICS owns valuation.
+  The new `forecast-scenario-hub` app (fresh tile; archived
+  scenario-planner stays archived): multi-case Arps comparator
+  driving the SHARED, TESTED DCA engine (no fork — exponential /
+  hyperbolic / harmonic, economic-limit cutoff), side-by-side EUR /
+  time-to-limit / cumulative milestones, deliberately-labeled
+  INDICATIVE case economics (flat price minus opex, single discount
+  rate, for ranking only), annual-profile CSV export as the honest
+  handoff to NPV Scenario Builder, and Supabase-persisted scenario
+  sets (`saved_scenario_hub_projects`, owner RLS, applied live).
+  9-test jest suite (closed-form Arps checks through the shared
+  engine, economic-limit timing, profile-sums-to-EUR, hand-checked
+  indicative NPV, sample ordering). Tile migration 20260716250000
+  defers its live apply to the next prod upload.
 - **Engine extraction runway** (mirrors the Geoscience → NextGen
   path): as each domain stabilizes, its math moves to
   `@petrolord/engines` with a Python oracle + goldens — candidates in
