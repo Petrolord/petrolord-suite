@@ -147,10 +147,21 @@ staging-first, logged in MIGRATIONS.md; validation-first engine work.
   upload (the 2026-07-07 deploy lesson: a tile must never go Active
   before its route is deployed — exactly how material-balance-pro
   404'd).
-- **R4 (owner-optional) — EOR Screening, rebuilt real.** A small
-  client-side screening tool on the published Taber-Martin-Seright
-  criteria tables would honestly replace the archived EOR Designer
-  shell; seeds a fresh tile when real.
+- **R4 — EOR Screening, rebuilt real. DONE 2026-07-16.** New
+  `eor-screening` app (fresh tile; the archived eor-designer shell
+  stays archived per the no-revival rule): a pure client-side
+  screening engine encoding the Taber, Martin & Seright (1997)
+  criteria tables — eight methods across gas injection / chemical /
+  thermal, per-criterion pass / fail / not-scored verdicts (missing
+  inputs are never assumed), qualification requires every screened
+  criterion, geometry notes stay advisory, the paper's
+  current-project "typical" values shown for context only. 10-test
+  jest suite (textbook candidates qualify for their textbook methods,
+  the polymer 10-150 cp window both sides, sandstone-preferred
+  enforcement, NA handling, ranking). White-standard ranking chart on
+  ChartFrame + per-method verdict tables citing the source. Tile
+  migration 20260716230000 defers its live apply to the next prod
+  upload, same rule as R3.
 - **R5 (owner-optional) — Forecast & Scenario hub.** If wanted,
   rebuild Scenario Planner client-side (Arps forecast + simple NPV
   per case) on a real table; overlaps NpvScenarioBuilder (Economics)
