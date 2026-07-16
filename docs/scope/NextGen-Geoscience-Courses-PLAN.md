@@ -156,9 +156,15 @@ trigger issues no code. Fees inherit the subsurface school defaults.
   MPa). Hydrostatic/overburden/NCT-fit frame (Beginner), full Eaton
   prognosis (Intermediate), EMW mud-weight window + Bowers
   cross-check + Eaton-n lever (Advanced). 8th live course.
-- **NG10 — Earth Modeling** (engine ready): structural side only —
-  surface stacks, zone geometry, property population; STOIIP booking
-  stays with the reservoircalc course.
+- **NG10 — Earth Modeling. SHIPPED 2026-07-16** (nextgen PR #29
+  stacked on #28, migration applied live, pentest 15/15): the golden
+  three-surface fixture as the teaching dataset. Framework +
+  180-node pinch-out clamp + the closed-form 45.0e6 m3 bulk anchor
+  (Beginner), minimum-curvature well ties with the deviated-well
+  lesson (Intermediate), fault blocks + trend/kriging population +
+  per-block bulk volume with the kriging-exactness lesson
+  (Advanced). Division of labour held: bulk container only, STOIIP
+  stays with reservoircalc. 9th live course.
 - **NG11 — Basin & Charge Modeling** (largest; last): NG11a extracts
   the BasinFlow Genesis math into a `basin` domain in
   `@petrolord/engines` with validated goldens (doctrine:
