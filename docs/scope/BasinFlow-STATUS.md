@@ -1,6 +1,18 @@
 # Basin & Charge Modeling (BasinFlow Genesis) — STATUS
 
-Updated 2026-07-14 — **PHASE G7 COMPLETE** (branch `feat/basinflow-g7`).
+Updated 2026-07-16 — **ENGINES CENTRALIZED** (petrolord-engines PR #1
++ Suite branch `feat/basin-central-engines`): the eleven live G7 math
+modules now live in the central `@petrolord/engines` `basin` domain
+(vendored at `packages/engines`, synced), with the Python oracle and
+byte-identical goldens alongside. The app's `services/` files are
+re-export shims (the WellDataManager/Petrophysics pattern); the app's
+jest suites validate the vendored central copy against the Suite's
+committed goldens unchanged. The dead `VectorizedSolver` (wrong-units
+Arrhenius — the exact bug G7.1 fixed) and placeholder
+`PhaseBehaviorEngine` were DELETED, zero references. The NextGen
+Basin & Charge course (nextgen PR #30) teaches from this same domain.
+
+Previously: **PHASE G7 COMPLETE** (branch `feat/basinflow-g7`).
 Plan: BasinFlow-PLAN.md (drafted against BasinFlowGenesis-AUDIT.md).
 Tile: `basinflow-genesis` → **Basin & Charge Modeling**, Geoscience,
 Active (migration `20260714120000`, applied live).
