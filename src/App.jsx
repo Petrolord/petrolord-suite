@@ -58,10 +58,6 @@ const WellCorrelation = lazy(() => import('@/pages/apps/WellCorrelation/WellCorr
 const PetrophysicsStudio = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudio'));
 const ContourMapDigitizer = lazy(() => import('@/pages/apps/ContourMapDigitizer'));
 const WellPlanning = lazy(() => import('@/pages/apps/WellPlanning'));
-const ScenarioPlanner = lazy(() => import('@/pages/apps/ScenarioPlanner'));
-const EorDesigner = lazy(() => import('@/pages/apps/EorDesigner'));
-const UncertaintyAnalysis = lazy(() => import('@/pages/apps/UncertaintyAnalysis'));
-const ReservoirSimulationConnector = lazy(() => import('@/pages/apps/ReservoirSimulationConnector'));
 const ReliefBlowdownSizer = lazy(() => import('@/pages/apps/ReliefBlowdownSizer'));
 const FacilityLayoutMapper = lazy(() => import('@/pages/apps/FacilityLayoutMapper'));
 const SeparatorSlugCatcherDesigner = lazy(() => import('@/pages/apps/SeparatorSlugCatcherDesigner'));
@@ -481,10 +477,11 @@ function App() {
                                 <Route path="apps/reservoir/reservoir-balance-surveillance/cases/:caseId" element={<RbCaseDetail />} />
                                 <Route path="apps/reservoir/material-balance-studio" element={<ReservoirBalance />} />
                                 <Route path="apps/reservoir/material-balance-studio/cases/:caseId" element={<RbCaseDetail />} />
-                                <Route path="apps/reservoir/scenario-planner" element={<ScenarioPlanner />} />
-                                <Route path="apps/reservoir/eor-designer" element={<EorDesigner />} />
-                                <Route path="apps/reservoir/uncertainty-analysis" element={<UncertaintyAnalysis />} />
-                                <Route path="apps/reservoir/reservoir-simulation-connector" element={<ReservoirSimulationConnector />} />
+                                {/* R0-archived shells (nonexistent scenario-planner-engine) — redirect to their real successors */}
+                                <Route path="apps/reservoir/scenario-planner" element={<Navigate to="/dashboard/apps/reservoir/forecast-scenario-hub" replace />} />
+                                <Route path="apps/reservoir/eor-designer" element={<Navigate to="/dashboard/apps/reservoir/eor-screening" replace />} />
+                                <Route path="apps/reservoir/uncertainty-analysis" element={<Navigate to="/dashboard/apps/geoscience/reservoircalc-pro" replace />} />
+                                <Route path="apps/reservoir/reservoir-simulation-connector" element={<Navigate to="/dashboard/reservoir" replace />} />
 
                                 <Route path="apps/drilling/well-planning" element={<WellPlanning />} />
 				<Route path="apps/drilling/well-planning/:wellId" element={<WellPlanning />} />

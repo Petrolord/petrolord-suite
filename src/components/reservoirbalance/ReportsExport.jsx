@@ -171,47 +171,6 @@ import React from 'react';
         }
       };
 
-      const handlePushToScenarioPlanner = async () => {
-        if (!forecastResults) {
-            toast({ title: 'No Forecast Data', description: 'Please run a forecast first.', variant: 'destructive' });
-            return;
-        }
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            toast({ title: 'Not Authenticated', description: 'Please log in.', variant: 'destructive' });
-            return;
-        }
-
-        const scenarioName = `${projectName} - MBAL Forecast`;
-        const scenarioData = {
-            inputs: { productionData, pressureData, pvtData },
-            results: { mbalResults, aquiferResults, forecastResults }
-        };
-
-        const { data, error } = await supabase.functions.invoke('scenario-planner-engine', {
-            body: {
-                action: 'create-scenario',
-                payload: {
-                    user_id: user.id,
-                    scenario_name: scenarioName,
-                    base_case_id: null,
-                    description: 'Generated from Material Balance Studio',
-                    scenario_data: scenarioData,
-                }
-            }
-        });
-
-        if (error || data.error) {
-            toast({ title: 'Failed to create scenario', description: error?.message || data.error, variant: 'destructive' });
-        } else {
-            toast({
-                title: 'Pushed to Scenario Planner!',
-                description: `Scenario '${scenarioName}' created.`,
-                action: <Button onClick={() => navigate(`/dashboard/apps/reservoir/scenario-planner`)}>Open Planner</Button>,
-            });
-        }
-      };
-
       return (
         <div className="space-y-6">
           <Card className="bg-slate-800/50 border-slate-700">
@@ -233,10 +192,6 @@ import React from 'react';
                 <Button onClick={handlePushToEPE} className="bg-gradient-to-r from-purple-500 to-indigo-500">
                   <Send className="w-4 h-4 mr-2" />
                   Push to EPE Cloud
-                </Button>
-                <Button onClick={handlePushToScenarioPlanner} className="bg-gradient-to-r from-green-500 to-lime-500">
-                  <Send className="w-4 h-4 mr-2" />
-                  Push to Scenario Planner
                 </Button>
               </div>
             </CardContent>
