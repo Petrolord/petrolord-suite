@@ -9,65 +9,29 @@
 // ('dca_projects') and payloads in IndexedDB. migrateLegacyLocalProjects()
 // lifts any such projects into Supabase once, then clears the local
 // copies, so nobody loses work they saved before the fix.
-import { supabase } from '@/lib/customSupabaseClient';
+import { createSavedProjectsService, exportProjectAsJSON, importProjectFromJSON } from '@/utils/savedProjects';
 import { get as idbGet, del as idbDel } from 'idb-keyval';
 
-const TABLE = 'saved_dca_projects';
 const LEGACY_INDEX_KEY = 'dca_projects';
 const LEGACY_PREFIX = 'dca_project_';
 
-const currentUserId = async () => {
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data?.user?.id) throw new Error('Sign in to save DCA projects.');
-  return data.user.id;
-};
+// The shared saved_<app>_projects service (src/utils/savedProjects.js) is the
+// single implementation of this convention; DCA delegates to it.
+const service = createSavedProjectsService('saved_dca_projects', {
+  signInMessage: 'Sign in to save DCA projects.',
+});
 
 /** List the caller's projects, most recently touched first. */
-export const listProjects = async () => {
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select('id, project_name, created_at, updated_at')
-    .order('updated_at', { ascending: false });
-  if (error) throw error;
-  return (data || []).map((r) => ({
-    id: r.id,
-    name: r.project_name,
-    createdAt: r.created_at,
-    updatedAt: r.updated_at,
-  }));
-};
+export const listProjects = () => service.list();
 
 /** Upsert the full project payload under its stable project id. */
-export const saveProject = async (projectId, projectData) => {
-  const userId = await currentUserId();
-  const { error } = await supabase.from(TABLE).upsert({
-    id: projectId,
-    user_id: userId,
-    project_name: projectData?.name || 'Untitled project',
-    inputs_data: projectData,
-    updated_at: new Date().toISOString(),
-  });
-  if (error) throw error;
-  return { success: true };
-};
+export const saveProject = (projectId, projectData) => service.save(projectId, projectData);
 
 /** Load one project's payload (null when it does not exist). */
-export const loadProject = async (projectId) => {
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select('inputs_data')
-    .eq('id', projectId)
-    .maybeSingle();
-  if (error) throw error;
-  return data?.inputs_data ?? null;
-};
+export const loadProject = (projectId) => service.load(projectId);
 
 /** Delete one project. */
-export const deleteProject = async (projectId) => {
-  const { error } = await supabase.from(TABLE).delete().eq('id', projectId);
-  if (error) throw error;
-  return { success: true };
-};
+export const deleteProject = (projectId) => service.remove(projectId);
 
 /**
  * One-time lift of pre-R1 local projects (localStorage index +
@@ -112,36 +76,6 @@ export const migrateLegacyLocalProjects = async () => {
   return migrated;
 };
 
-export const exportProjectAsJSON = (projectData) => {
-  try {
-    const json = JSON.stringify(projectData, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${projectData.name || 'project'}_${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    return { success: true };
-  } catch (error) {
-    return { success: false, error };
-  }
-};
-
-export const importProjectFromJSON = async (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target.result);
-        if (!data.id || !data.name) throw new Error('Invalid project structure');
-        resolve(data);
-      } catch (err) {
-        reject(err);
-      }
-    };
-    reader.onerror = reject;
-    reader.readAsText(file);
-  });
-};
+// JSON import/export moved to the shared module; re-exported so existing
+// DCA import sites keep working unchanged.
+export { exportProjectAsJSON, importProjectFromJSON };
