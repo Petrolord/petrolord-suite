@@ -71,7 +71,7 @@ const CapitalPortfolioStudio = lazy(() => import('@/pages/apps/CapitalPortfolioS
 const FiscalRegimeDesigner = lazy(() => import('@/pages/apps/FiscalRegimeDesigner'));
 const WaterfloodDashboard = lazy(() => import('@/pages/apps/WaterfloodDashboard'));
 const VoidageReplacementMonitor = lazy(() => import('@/pages/apps/VoidageReplacementMonitor'));
-const FractionalFlowAnalyzer = lazy(() => import('@/pages/apps/FractionalFlowAnalyzer'));
+const WaterfloodDesignStudio = lazy(() => import('@/pages/apps/WaterfloodDesignStudio'));
 const RecoveryFactorEstimator = lazy(() => import('@/pages/apps/RecoveryFactorEstimator'));
 const RiskedReservesValuation = lazy(() => import('@/pages/apps/RiskedReservesValuation'));
 const EorScreeningTool = lazy(() => import('@/pages/apps/EorScreeningTool'));
@@ -460,8 +460,10 @@ function App() {
                                 <Route path="apps/reservoir/fluid-systems-studio" element={<FluidSystemsStudio />} />
                                 <Route path="apps/reservoir/waterflood-dashboard" element={<WaterfloodDashboard />} />
                                 <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
-                                <Route path="apps/reservoir/fractional-flow-calculator" element={<FractionalFlowAnalyzer />} />
-                                <Route path="apps/reservoir/relative-permeability-designer" element={<FractionalFlowAnalyzer />} />
+                                <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
+                                {/* legacy slugs (incl. the tile slug) — aliases into the studio */}
+                                <Route path="apps/reservoir/fractional-flow-calculator" element={<WaterfloodDesignStudio />} />
+                                <Route path="apps/reservoir/relative-permeability-designer" element={<WaterfloodDesignStudio />} />
                                 <Route path="apps/reservoir/recovery-factor-estimator" element={<RecoveryFactorEstimator />} />
                                 <Route path="apps/reservoir/risked-reserves-valuation" element={<RiskedReservesValuation />} />
                                 <Route path="apps/reservoir/eor-screening" element={<EorScreeningTool />} />
