@@ -34,6 +34,10 @@ Functions (`supabase/functions/`, shared math in
   relevant STATUS.md at the end of any significant work.
 - Use the repo's existing test runner (check jest.config.js) — do not
   introduce a new one.
+- No new Monte Carlo or NPV implementations; import canonical modules
+  (docs/scope/ReservoirEngineering-Module.md §5: ReservoirCalc Pro's
+  MonteCarloEngine.js for MC; npvCalculations.js calculateEconomics /
+  epe-cash-flow-engine for NPV).
 - Commit per completed sub-task; conventional commit messages; never
   commit on main directly — branch + PR (origin: Petrolord org on GitHub).
 

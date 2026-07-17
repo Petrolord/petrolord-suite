@@ -2,6 +2,8 @@
 
 Status: **R0 COMPLETE 2026-07-16** — full runnability audit of all 42
 catalog rows, honest-catalog migration applied live, this roadmap.
+Post-R5 plan of record (engine gates, SCAL Studio, dcaEngine oracle
+tests, MC/NPV canonicalization): `ReservoirEngineering-Module.md`.
 Owner directive: audit the module and produce a realistic list that
 covers the Reservoir Engineering field, the way the Geoscience
 roadmap (Geoscience-ROADMAP.md, G0-G8) did for its module.
