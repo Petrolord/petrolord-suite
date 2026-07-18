@@ -1,7 +1,7 @@
 // Well Test Analysis Studio — pressure transient analysis workstation on the
 // shared Studio shell. Replaces the retired mock Well Test Analyzer (slug
 // well-test-analyzer; the old production route redirects here). Tabs:
-// Data | Diagnostics | Match | Specialized | Report. Engines:
+// Data | Diagnostics | Match | Specialized | RTA | Report. Engines:
 // src/utils/welltest (Stehfest-inverted Laplace models, Bourdet derivative,
 // superposition, straight-line analyses, Levenberg-Marquardt auto-fit), all
 // oracle- and literature-validated (tools/validation/welltest).
@@ -23,6 +23,8 @@ import MatchPanel from '@/components/welltest/MatchPanel';
 import MatchResults from '@/components/welltest/MatchResults';
 import SpecializedPanel from '@/components/welltest/SpecializedPanel';
 import SpecializedResults from '@/components/welltest/SpecializedResults';
+import RtaPanel from '@/components/welltest/RtaPanel';
+import RtaResults from '@/components/welltest/RtaResults';
 import ReportPanel from '@/components/welltest/ReportPanel';
 import ReportResults from '@/components/welltest/ReportResults';
 import DiagnosticsRail from '@/components/welltest/DiagnosticsRail';
@@ -34,6 +36,7 @@ const TABS = [
   { value: 'diagnostics', label: 'Diagnostics' },
   { value: 'match', label: 'Match' },
   { value: 'specialized', label: 'Specialized' },
+  { value: 'rta', label: 'RTA' },
   { value: 'report', label: 'Report' },
 ];
 
@@ -89,6 +92,7 @@ const WellTestStudioContent = () => {
       {activeTab === 'diagnostics' && <DiagnosticsPanel />}
       {activeTab === 'match' && <MatchPanel />}
       {activeTab === 'specialized' && <SpecializedPanel />}
+      {activeTab === 'rta' && <RtaPanel />}
       {activeTab === 'report' && <ReportPanel />}
     </div>
   );
@@ -99,6 +103,7 @@ const WellTestStudioContent = () => {
       {activeTab === 'diagnostics' && <DiagnosticsResults />}
       {activeTab === 'match' && <MatchResults />}
       {activeTab === 'specialized' && <SpecializedResults />}
+      {activeTab === 'rta' && <RtaResults />}
       {activeTab === 'report' && <ReportResults />}
     </>
   );

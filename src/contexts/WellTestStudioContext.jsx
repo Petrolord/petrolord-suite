@@ -15,6 +15,10 @@ import { mdhAnalysis, hornerAnalysis, cartesianPssAnalysis, sqrtTimeAnalysis, ra
 import { autoFitModel } from '@/utils/welltest/autoFit';
 import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS } from '@/utils/welltest/gas';
 import { UNIT_SYSTEMS } from '@/utils/welltest/units';
+import {
+  prepareProductionRows, materialBalanceTime, rateNormalizedSeries,
+  flowingMaterialBalanceOil, flowingMaterialBalanceGas, transientLinearAnalysis,
+} from '@/utils/welltest/rta';
 
 const WellTestStudioContext = createContext(null);
 
@@ -129,6 +133,9 @@ export function buildReservoirInputs(r) {
         // overrides the initial value (the ratio is what matters).
         muCtOf: (p) => pvt.muOf(p) * pvt.cgOf(p),
         muCtInitial: muI * ctI,
+        // WT9 RTA: the gas dynamic material balance needs the full PVT
+        // accessor set (p/z inversion and property variation along pbar)
+        pvt,
       },
       error: null,
     };
@@ -326,6 +333,11 @@ export const WellTestStudioProvider = ({ children }) => {
     (v) => setUnitSystemRaw(UNIT_SYSTEMS.includes(v) ? v : 'oilfield'),
     [],
   );
+  // WT9 RTA: production history [{t (days), q, pwf}] strings + the
+  // transient-linear window bounds (days); persisted with the project
+  const [rtaRows, setRtaRows] = useState([]);
+  const [rtaWindows, setRtaWindows] = useState({ linMin: '', linMax: '' });
+  const setRtaWindowField = useCallback((k, v) => setRtaWindows((prev) => ({ ...prev, [k]: v })), []);
 
   // Transient auto-fit state (regression on demand, never persisted)
   const [fitResult, setFitResult] = useState(null);
@@ -530,6 +542,34 @@ export const WellTestStudioProvider = ({ children }) => {
     return sqrtTimeAnalysis({ points: pts.map((p) => ({ t: p.time, dp: p.dp })) });
   }, [windowedPoints]);
 
+  // WT9 RTA: everything derives from the production rows and the reservoir
+  // spec. The Bourdet derivative runs on the rate-normalized series against
+  // material-balance time; the FMB is oil or gas by fluid.
+  const rtaResult = useMemo(() => {
+    const r = reservoirSpec.reservoir;
+    const rows = prepareProductionRows(rtaRows);
+    if (!r || rows.length < 3) return null;
+    const rowsTe = materialBalanceTime(rows);
+    const isGas = r.fluid === 'gas';
+    const paOf = isGas ? r.mOfP : (v) => v;
+    const series = rateNormalizedSeries(rowsTe, { pi: r.pi, paOf });
+    const deriv = bourdetDerivative(series.map((p) => ({ x: p.x, y: p.y })), { L: 0.15 });
+    const loglogRta = deriv.map((d, i) => ({ x: d.x, y: d.y, derivative: d.derivative, t: series[i]?.t }));
+    const fmb = isGas
+      ? flowingMaterialBalanceGas({ rowsTe, pi: r.pi, pvt: r.pvt, ctI: r.ct })
+      : flowingMaterialBalanceOil({ rowsTe, pi: r.pi, ct: r.ct });
+    const lo = num(rtaWindows.linMin);
+    const hi = num(rtaWindows.linMax);
+    const linRows = rows.filter((p) =>
+      (Number.isFinite(lo) ? p.t >= lo : true) && (Number.isFinite(hi) ? p.t <= hi : true));
+    const linear = linRows.length >= 3
+      ? transientLinearAnalysis({
+        rows: linRows, pi: r.pi, B: r.B, mu: r.mu, phi: r.phi, ct: r.ct, h: r.h, paOf,
+      })
+      : null;
+    return { rows, rowsTe, series, loglogRta, fmb, linear, isGas };
+  }, [reservoirSpec, rtaRows, rtaWindows]);
+
   // Headline quantities derived from the working match (falls back to the
   // semilog answer when no match parameters are set).
   const derivedKpis = useMemo(() => {
@@ -663,8 +703,10 @@ export const WellTestStudioProvider = ({ children }) => {
     deliverabilityInputs,
     notes,
     unitSystem,
+    rtaRows,
+    rtaWindows,
     modified: new Date().toISOString(),
-  }), [currentProjectId, projectName, wellName, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem]);
+  }), [currentProjectId, projectName, wellName, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows]);
 
   const hydrate = useCallback((payload) => {
     setWellName(payload?.wellName || '');
@@ -677,6 +719,8 @@ export const WellTestStudioProvider = ({ children }) => {
     setDeliverabilityInputs({ ...DEFAULT_DELIVERABILITY, ...(payload?.deliverabilityInputs || {}) });
     setNotes(payload?.notes || '');
     setUnitSystem(payload?.unitSystem || 'oilfield');
+    setRtaRows(Array.isArray(payload?.rtaRows) ? payload.rtaRows : []);
+    setRtaWindows({ linMin: '', linMax: '', ...(payload?.rtaWindows || {}) });
     setFitResult(null);
     hasFitResult.current = false;
     setFitStale(false);
@@ -780,7 +824,7 @@ export const WellTestStudioProvider = ({ children }) => {
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [wellName, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, currentProjectId, hydrated]);
+  }, [wellName, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, rtaRows, rtaWindows, currentProjectId, hydrated]);
 
   const value = {
     // shell plumbing
@@ -800,9 +844,11 @@ export const WellTestStudioProvider = ({ children }) => {
     notes, setNotes,
     deliverabilityInputs, setDeliverabilityField, setDeliverabilityRows,
     unitSystem, setUnitSystem,
+    rtaRows, setRtaRows,
+    rtaWindows, setRtaWindowField,
     // derived
     reservoirSpec, configSpec, model,
-    prepared, loglog, regimes, flowPeriods, pseudoTime,
+    prepared, loglog, regimes, flowPeriods, pseudoTime, rtaResult,
     matchParams, modelSeries,
     semilogResult, pssResult, sqrtResult, derivedKpis,
     multiRateResult, deliverabilityResult,

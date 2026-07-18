@@ -351,6 +351,54 @@ def build():
         "reservoir": reservoir, "truth": hw_truth, "points": hw_points,
     }
 
+    # ---------------------------------------------------------------------
+    # WT9: RTA fixtures. The oil decline and linear-flow rows are exact
+    # closed forms (the FMB identity dp/q = te/(N ct) + 1/J is exact for an
+    # exponential decline); the gas decline is a forward p/z + PSS model
+    # built on the oracle's own PVT routes (papay_z / lge_viscosity /
+    # integral pseudo_pressure), independent of the JS table implementation.
+    oil_truth = {"N": 2.0e6, "J": 1.5, "pi": 4800.0, "pwf": 2800.0,
+                 "ct": 1.2e-5}
+    tau = oil_truth["N"] * oil_truth["ct"] / oil_truth["J"]
+    goldens["fixtures"]["rtaOilDecline"] = {
+        "truth": oil_truth,
+        "rows": [
+            {"t": float(t),
+             "q": oil_truth["J"] * (oil_truth["pi"] - oil_truth["pwf"])
+                  * math.exp(-t / tau),
+             "pwf": oil_truth["pwf"]}
+            for t in range(1, 81)
+        ],
+    }
+
+    # Jm sized for a physical decline (q0 ~ 22 MMscf/D against 20 Bcf, ~half
+    # depleted over the record); a violent decline would put the whole record
+    # into the discretization error of the daily trapezoids
+    gas_truth = {"G": 2.0e7, "Jm": 2.0e-5, "pi": 4800.0, "pwf": 1500.0,
+                 "tempF": 180.0, "gasGravity": 0.65}
+    goldens["fixtures"]["rtaGasDecline"] = {
+        "truth": gas_truth,
+        "rows": oracle.gas_decline_fixture(
+            gas_truth["G"], gas_truth["Jm"], gas_truth["pi"],
+            gas_truth["pwf"], gas_truth["tempF"], gas_truth["gasGravity"],
+            days=900, step=3.0,
+        ),
+    }
+
+    lin_truth = {"xfSqrtK": 500.0, "q": 800.0, "pi": 5000.0, "B": 1.25,
+                 "mu": 0.9, "phi": 0.18, "ct": 1.2e-5, "h": 45.0}
+    m_l_hr = (4.064 * lin_truth["B"]
+              * math.sqrt(lin_truth["mu"] / (lin_truth["phi"] * lin_truth["ct"]))
+              / (lin_truth["h"] * lin_truth["xfSqrtK"]))
+    goldens["fixtures"]["rtaLinearFlow"] = {
+        "truth": lin_truth,
+        "rows": [
+            {"t": float(t), "q": lin_truth["q"],
+             "pwf": lin_truth["pi"] - lin_truth["q"] * m_l_hr * math.sqrt(t * 24.0)}
+            for t in range(1, 41)
+        ],
+    }
+
     return goldens
 
 
@@ -363,7 +411,7 @@ def main():
     n_values = (
         len(goldens["bessel"]) + len(goldens["e1"]) + len(goldens["pwd"])
         + len(goldens["lineSource"])
-        + sum(len(f["points"]) for f in goldens["fixtures"].values())
+        + sum(len(f.get("points", f.get("rows", []))) for f in goldens["fixtures"].values())
     )
     print(f"wrote {path} ({n_values} golden values)")
 

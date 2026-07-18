@@ -551,3 +551,49 @@ def hw_pd_time(t_dl: float, h_d: float, zw_d: float, zobs_d: float,
         w = 1 if i in (0, n) else (4 if i % 2 else 2)
         total += w * gxy * gz * tau
     return 2.0 * math.pi * h_d * total * h / 3.0
+
+
+# ---------------------------------------------------------------------------
+# WT9: RTA fixtures - forward models generated with the oracle's own PVT
+# routes (papay_z / lge_viscosity / integral pseudo_pressure), independent of
+# the JS trapezoid-table implementation the engine inverts with.
+
+
+def _gas_cg(p: float, temp_f: float, gg: float) -> float:
+    dp = max(p * 0.01, 1.0)
+    z0 = papay_z(p, temp_f, gg)
+    dzdp = (papay_z(p + dp, temp_f, gg) - papay_z(max(p - dp, 1.0), temp_f, gg)) / (
+        dp + min(dp, p - 1.0)
+    )
+    return 1.0 / p - dzdp / z0
+
+
+def gas_decline_fixture(g_truth: float, j_m: float, pi: float, pwf: float,
+                        temp_f: float, gg: float, days: int, step: float):
+    """Constant-pwf boundary-dominated gas decline from exact p/z material
+    balance + PSS deliverability in m(p) space. Returns production rows."""
+    p_over_zi = pi / papay_z(pi, temp_f, gg)
+    m_pwf = pseudo_pressure(pwf, temp_f, gg)
+    rows = []
+    gp = 0.0
+    q_prev = None
+    t = step
+    while t <= days:
+        target = p_over_zi * max(1.0 - gp / g_truth, 1e-6)
+        lo, hi = 1.0, pi
+        for _ in range(60):
+            mid = (lo + hi) / 2.0
+            if mid / papay_z(mid, temp_f, gg) < target:
+                lo = mid
+            else:
+                hi = mid
+        pbar = (lo + hi) / 2.0
+        q = j_m * (pseudo_pressure(pbar, temp_f, gg) - m_pwf)
+        if q <= 0:
+            break
+        rows.append({"t": t, "q": q, "pwf": pwf})
+        # trapezoid accumulation, matching the analysis-side convention
+        gp += ((q_prev if q_prev is not None else q) + q) / 2.0 * step
+        q_prev = q
+        t += step
+    return rows
