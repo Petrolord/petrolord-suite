@@ -44,6 +44,21 @@ const ScalHelpContent = () => (
       capillary pressure curve through Pc = J sigma cos theta divided by 0.21645 root k over phi.
     </P>
 
+    <H>4. Height and Saturation</H>
+    <P>
+      Converts the reservoir Pc curve into a saturation-height profile with h equal to Pc over 0.4335 times the
+      water minus hydrocarbon specific gravity difference. Enter a free water level to read TVDSS alongside height
+      above FWL; the KPI row summarizes the transition zone.
+    </P>
+
+    <H>5. Export</H>
+    <P>
+      Sends the working oil-water Corey set straight into the Waterflood Design Studio displacement inputs (the
+      same handoff contract the Well Test Studio uses), downloads the kr, reservoir Pc and saturation-height
+      tables as CSV, and moves whole projects as JSON. Gas-oil sets stay in SCAL because the Waterflood
+      displacement is an oil-water calculation.
+    </P>
+
     <H>Projects</H>
     <P>
       Projects save to your account (inputs only; every curve and fit is recomputed from inputs on load). Autosave

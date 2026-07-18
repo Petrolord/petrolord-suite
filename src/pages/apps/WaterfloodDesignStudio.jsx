@@ -32,6 +32,7 @@ import ScenarioCompare from '@/components/waterflooddesign/ScenarioCompare';
 import DiagnosticsRail from '@/components/waterflooddesign/DiagnosticsRail';
 import WDSHelpContent from '@/components/waterflooddesign/WDSHelpContent';
 import { SectionLabel } from '@/components/waterflooddesign/primitives';
+import { mapScalKrIntake } from '@/components/waterflooddesign/scalKrIntake';
 
 const TABS = [
   { value: 'displacement', label: 'Displacement' },
@@ -54,7 +55,7 @@ const WaterfloodDesignContent = () => {
     projects, currentProjectId, createProject, openProject, deleteProject,
     manualSave, isSaving, saveError, lastSaveTime,
     notifications, addNotification, removeNotification,
-    setDisplacementField,
+    setDisplacementField, setDisplacementInputs,
   } = useWaterfloodDesign();
 
   // Tested permeability from the Well Test Analysis Studio (navigate-state
@@ -73,6 +74,22 @@ const WaterfloodDesignContent = () => {
       );
     }
   }, [location.state, setDisplacementField, addNotification]);
+
+  // Rel-perm set from SCAL Studio (SC5; same navigate-state contract).
+  // Mapping is the jest-guarded pure function in scalKrIntake.js.
+  const scalIntakeDone = useRef(false);
+  useEffect(() => {
+    const scalKr = location.state?.scalKr;
+    if (!scalKr || scalIntakeDone.current) return;
+    scalIntakeDone.current = true;
+    const mapped = mapScalKrIntake(scalKr);
+    if (!mapped) {
+      addNotification('A SCAL handoff arrived but its rel-perm payload was not usable.', 'error');
+      return;
+    }
+    setDisplacementInputs((prev) => ({ ...prev, ...mapped.patch }));
+    addNotification(mapped.note, 'success');
+  }, [location.state, setDisplacementInputs, addNotification]);
 
   const leftPanel = (
     <div className="space-y-6">
