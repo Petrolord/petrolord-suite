@@ -106,7 +106,7 @@ cross-validation.
 | MB1 | Server validation completion: oil+Fetkovich CASE 8, m>0 combined CASE 9, McCain defaults CASE 10 | **DONE 2026-07-18** |
 | MB2 | Client finite-reD pD + Dake 9.2 hard gate | **DONE 2026-07-18** |
 | MB3 | Studio shell adoption + tile rename migration | **DONE 2026-07-18** |
-| MB4 | Aquifer screening tab + calculator absorption | pending |
+| MB4 | Aquifer screening tab + calculator absorption | **DONE 2026-07-18** |
 | MB5 | Pressure history match (inverse MBE, server LM) | pending |
 | MB6 | Forecast/Contacts/Report wiring + DCA reconciliation | pending |
 | MB7 | PVT prefill via Fluid Studio correlations + polish + close-out | pending |
@@ -220,6 +220,35 @@ Studio shell (the DCA/Waterflood/Well Test workstation frame):
   authored and logged, **deploy-gated** on the prod upload that carries
   the studio (live-catalog check: only the `reservoir-balance` slug has
   a master_apps row; the other slugs are SPA route aliases).
+
+### MB4 deliverables (2026-07-18) — Aquifer Influx Calculator absorbed
+
+The Aquifer tab is now segmented **Model | Screening**:
+
+- `AquiferScreening.jsx` is the ported standalone calculator on the
+  studio: same client engine (the MB2 Dake-gated one), three methods,
+  KPI row, We + pressure ChartFrame chart, influx table and CSV export.
+  Absorption additions: the pressure history seeds from the case's
+  dated production rows (`historyFromProductionData`, jest-tested,
+  leap-year exact); Carter-Tracy exposes the finite-aquifer radius
+  ratio reD; a dashed server-comparison overlay shows the last run's We
+  (rb_results plot_data.We) with copy explaining the exact-pD vs
+  blended-pD difference; **Use in model** writes the screened
+  parameters into the case default config via the jest-guarded
+  `lib/aquiferScreeningMapping.js` (vEH maps to Carter-Tracy with an
+  explanatory note since the server has no vEH model; the case's
+  has_aquifer flips on).
+- Standalone app deleted (`src/pages/apps/AquiferInfluxCalculator.jsx`
+  + its help guide); the route redirects to the studio's Aquifer tab
+  (`?tab=aquifer` deep link); the screening guidance folded into
+  `MbsHelpContent`. The slug stays in the auth entitlement list
+  (archived-tile precedent).
+- Migration `20260718234500_archive_aquifer_influx_tile.sql` authored
+  and logged, **deploy-gated** with the prod upload carrying the
+  redirect. This closes the last item of the W5 kit-adoption queue
+  (VRR and Recovery Factor remain small standalone adoptions).
+- Staging smoke: `?tab=aquifer` deep link selects the tab; jest 1403,
+  build clean.
 
 ## Next priorities (pre-program list, superseded by the MB table above)
 
