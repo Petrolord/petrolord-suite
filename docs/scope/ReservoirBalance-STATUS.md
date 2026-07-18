@@ -105,7 +105,7 @@ cross-validation.
 |---|---|---|
 | MB1 | Server validation completion: oil+Fetkovich CASE 8, m>0 combined CASE 9, McCain defaults CASE 10 | **DONE 2026-07-18** |
 | MB2 | Client finite-reD pD + Dake 9.2 hard gate | **DONE 2026-07-18** |
-| MB3 | Studio shell adoption + tile rename migration | pending |
+| MB3 | Studio shell adoption + tile rename migration | **DONE 2026-07-18** |
 | MB4 | Aquifer screening tab + calculator absorption | pending |
 | MB5 | Pressure history match (inverse MBE, server LM) | pending |
 | MB6 | Forecast/Contacts/Report wiring + DCA reconciliation | pending |
@@ -182,6 +182,44 @@ supports finite aquifers and reproduces the Dake Exercise 9.2 benchmark:
 - Dake 9.2 fixture extracted to the shared
   `tools/validation/fixtures/dake-9-2.ts` (CASE 2C values unchanged),
   consumed by both the server harness and the golden generator.
+
+### MB3 deliverables (2026-07-18)
+
+Reservoir Balance is now the **Material Balance Studio** on the shared
+Studio shell (the DCA/Waterflood/Well Test workstation frame):
+
+- `src/contexts/MaterialBalanceStudioContext.jsx`: case list, current
+  case + production data, last completed result and the run action
+  (moved verbatim from the retired `RbCaseDetail.jsx`, including the
+  engine-detail error extraction). Persistence deliberately stays
+  rb_cases + rb_* through `lib/api.js` with explicit immediate writes;
+  NO debounced autosave (replaceProductionData is a non-atomic
+  delete+insert) and no StudioAutoSave header widget (nothing is
+  deferred, so the widget would misreport; the left rail states the
+  save model instead). Components keep their toast notifications.
+- `ReservoirBalance.jsx` rewritten as the studio page: StudioLayout/
+  StudioHeader (tabs `Data | PVT | Aquifer | Run | Plots`, `?tab=` deep
+  link), left rail = case manager + case summary, main mounts the
+  existing `DataHub`/`PvtRock`/`AquiferModel`/`RbDiagnosticPlots` with
+  unchanged props. `RbCaseDetail.jsx` deleted; its `cases/:caseId`
+  routes now mount the studio (all four slug aliases). The Advanced
+  placeholder tab and PreviewCards are gone (honest catalog).
+- `StudioProjectManager` gained an optional `onRequestCreate` prop
+  (kit-level, backward compatible) because rb case creation needs fluid
+  system + initial conditions: the + button delegates to the extracted
+  `NewCaseDialog.jsx`. Delete stays the guarded hard delete.
+- WTA intake preserved through the restructure: mapping extracted to
+  the pure `lib/wellTestIntake.js` with the app's first React-layer
+  jest coverage (5 tests on the WT5 contract); the old inline handler
+  and `HelpGuideDialog.jsx` (which described tabs that never existed)
+  deleted; new honest `MbsHelpContent.jsx` in the help drawer.
+- Dev harness route `/dev/material-balance-studio`; staging smoke
+  green (shell, all five tabs, empty state; unauthenticated data call
+  degrades gracefully).
+- Tile rename migration `20260718230000_material_balance_studio_tile.sql`
+  authored and logged, **deploy-gated** on the prod upload that carries
+  the studio (live-catalog check: only the `reservoir-balance` slug has
+  a master_apps row; the other slugs are SPA route aliases).
 
 ## Next priorities (pre-program list, superseded by the MB table above)
 
