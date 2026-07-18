@@ -519,3 +519,35 @@ def rect_pd_time(t_d: float, xe: float, ye: float, xw: float, yw: float,
         w = 1 if i in (0, n) else (4 if i % 2 else 2)
         total += w * f
     return 2.0 * math.pi * total * h / 3.0
+
+
+# ---------------------------------------------------------------------------
+# WT7: horizontal well, REAL-TIME route (erf finite-line kernel x no-flow
+# slab Green's function in z, integrated over time) - fully independent of
+# the JS Laplace/Stehfest mode-plus-image implementation.
+
+
+def hw_pd_time(t_dl: float, h_d: float, zw_d: float, zobs_d: float,
+               n: int = 6000) -> float:
+    """Uniform-flux horizontal well pD at the well midpoint (xD = 0),
+    observation at (yD = 0, zobs_d), in Lh-based dimensionless time.
+
+    pD(tDL) = 2 pi hD * integral_0^tDL Gxy(tau) Gz(tau) dtau
+    Gxy(tau) = erf(1/(2 sqrt(tau))) / (4 sqrt(pi tau))
+    Gz = 1D no-flow slab Green's function (theta duality, slab_green_1d).
+    """
+    rw_eff = abs(zobs_d - zw_d)
+    tau_min = min(rw_eff * rw_eff / 400.0, t_dl * 1e-8)
+    a = math.log(tau_min)
+    b = math.log(t_dl)
+    if n % 2:
+        n += 1
+    h = (b - a) / n
+    total = 0.0
+    for i in range(n + 1):
+        tau = math.exp(a + i * h)
+        gxy = math.erf(1.0 / (2.0 * math.sqrt(tau))) / (4.0 * math.sqrt(math.pi * tau))
+        gz = slab_green_1d(zobs_d, zw_d, h_d, tau)
+        w = 1 if i in (0, n) else (4 if i % 2 else 2)
+        total += w * gxy * gz * tau
+    return 2.0 * math.pi * h_d * total * h / 3.0

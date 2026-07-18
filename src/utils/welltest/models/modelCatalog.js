@@ -21,6 +21,7 @@ import { pwdLaplaceHomogeneous } from './homogeneous.js';
 import { makeRadialPwdLaplace } from './radial.js';
 import { makeFracturePwdLaplace } from './fracture.js';
 import { makeRectanglePwdLaplace } from './rectangle.js';
+import { makeHorizontalPwdLaplace } from './horizontal.js';
 
 export const OILFIELD = {
   TD_FACTOR: 0.0002637,
@@ -42,6 +43,7 @@ export const toDimensionlessGroups = ({ k, phi, mu, ct, rw, h, B, q }) => ({
   // CD = cdPerBblPsi * C[bbl/psi]
   cdPerBblPsi: OILFIELD.CD_FACTOR / (phi * ct * h * rw * rw),
   rw,
+  h,
 });
 
 // Shared parameter metadata. Skin is bounded at zero for every WT3 model:
@@ -64,6 +66,9 @@ const P_RECT_L1 = rectDistance('L1', 'Distance to west boundary', 'L1');
 const P_RECT_L2 = rectDistance('L2', 'Distance to east boundary', 'L2');
 const P_RECT_W1 = rectDistance('W1', 'Distance to south boundary', 'W1');
 const P_RECT_W2 = rectDistance('W2', 'Distance to north boundary', 'W2');
+const P_KVKH = { key: 'kvkh', label: 'Vertical anisotropy', symbol: 'kv/kh', unit: 'dimensionless', default: 0.1, min: 1e-4, max: 1, logScale: true };
+const P_LW = { key: 'Lw', label: 'Well length', symbol: 'Lw', unit: 'ft', default: 2000, min: 100, max: 20000, logScale: true };
+const P_ZWFRAC = { key: 'zwFrac', label: 'Standoff fraction', symbol: 'zw/h', unit: 'fraction', default: 0.5, min: 0.05, max: 0.95, logScale: false };
 const P_FCD = { key: 'fcd', label: 'Fracture conductivity', symbol: 'FcD', unit: 'dimensionless', default: 10, min: 0.1, max: 10000, logScale: true };
 const P_SKIN_CHOKE = { ...P_SKIN, label: 'Choked-fracture skin', max: 20 };
 
@@ -190,6 +195,28 @@ export const MODEL_CATALOG = [
       ...dualPorosityDimless('pss')(params, groups),
       ld: (params.L ?? P_LDIST.default) / groups.rw,
     }),
+  },
+  {
+    id: 'horizontal-well',
+    label: 'Horizontal well',
+    wellbore: 'Constant wellbore storage and skin (skin referenced to kh h)',
+    boundary: 'Laterally infinite slab, no-flow top and bottom; vertical radial, then linear, then pseudoradial flow',
+    parameters: [P_K, P_KVKH, P_LW, P_ZWFRAC, P_SKIN, P_C],
+    pwdLaplace: makeHorizontalPwdLaplace(),
+    toDimless: (params, groups) => {
+      const beta = Math.sqrt(1 / Math.max(params.kvkh ?? P_KVKH.default, 1e-9));
+      const lh = (params.Lw ?? P_LW.default) / 2;
+      const hD = (groups.h * beta) / lh;
+      const zwD = (params.zwFrac ?? P_ZWFRAC.default) * hD;
+      const rwPrimeD = (groups.rw * (1 + beta)) / (2 * lh);
+      return {
+        ...baseDimless(params, groups),
+        lhOverRw: lh / groups.rw,
+        hD,
+        zwD,
+        zobsD: Math.min(zwD + rwPrimeD, hD * (1 - 1e-6)),
+      };
+    },
   },
   {
     id: 'fracture-infinite-conductivity',
