@@ -18,7 +18,7 @@
 // Pattern: mirrors EpeCaseList.jsx structure in this Suite.
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Card,
@@ -119,7 +119,7 @@ function formatDate(iso) {
 // NEW CASE DIALOG
 // =============================================================================
 
-const NewCaseDialog = ({ open, onOpenChange, onCreated }) => {
+const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill }) => {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -132,6 +132,12 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated }) => {
     initial_water_saturation: '0.20',
     bubble_point_psia: '',
   });
+
+  // Prefill from a well-test handoff (WT5): applied each time the dialog
+  // opens with a prefill payload; the user edits freely afterwards.
+  useEffect(() => {
+    if (open && prefill) setForm((f) => ({ ...f, ...prefill }));
+  }, [open, prefill]);
 
   const update = (key) => (e) => {
     setForm((f) => ({ ...f, [key]: e?.target?.value ?? e }));
@@ -331,13 +337,46 @@ const NewCaseDialog = ({ open, onOpenChange, onCreated }) => {
 
 const ReservoirBalance = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [newCaseOpen, setNewCaseOpen] = useState(false);
+  const [newCasePrefill, setNewCasePrefill] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Average pressure / k / skin from the Well Test Analysis Studio
+  // (navigate-state handoff, WT5): opens the new-case dialog with the
+  // tested p-bar as initial pressure; k and skin are context for the
+  // engineer (material balance has no direct field for them).
+  const wtIntakeDone = React.useRef(false);
+  useEffect(() => {
+    const wt = location.state?.wellTestData;
+    if (!wt || wtIntakeDone.current) return;
+    wtIntakeDone.current = true;
+    const prefill = {};
+    if (Number.isFinite(wt.pAvg_psia) && wt.pAvg_psia > 0) {
+      prefill.initial_pressure_psia = wt.pAvg_psia.toFixed(1);
+    }
+    if (Number.isFinite(wt.tempF) && wt.tempF > 0) {
+      prefill.reservoir_temperature_f = wt.tempF.toFixed(0);
+    }
+    if (wt.fluid === 'gas') prefill.fluid_system = 'gas';
+    if (wt.wellName) prefill.name = `${wt.wellName} material balance`;
+    if (!Object.keys(prefill).length) return;
+    setNewCasePrefill(prefill);
+    setNewCaseOpen(true);
+    const extras = [
+      Number.isFinite(wt.k_md) ? `k = ${Number(wt.k_md).toPrecision(3)} md` : null,
+      Number.isFinite(wt.skin) ? `skin = ${Number(wt.skin).toFixed(1)}` : null,
+    ].filter(Boolean).join(', ');
+    toast({
+      title: 'Well test results received',
+      description: `Average pressure from ${wt.source || 'the Well Test Analysis Studio'} prefilled as initial pressure${extras ? ` (${extras} for reference)` : ''}.`,
+    });
+  }, [location.state, toast]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -512,6 +551,7 @@ const ReservoirBalance = () => {
         open={newCaseOpen}
         onOpenChange={setNewCaseOpen}
         onCreated={handleCaseCreated}
+        prefill={newCasePrefill}
       />
 
       <AlertDialog

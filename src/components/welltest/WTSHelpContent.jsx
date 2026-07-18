@@ -78,7 +78,9 @@ const WTSHelpContent = () => (
     <P>
       The report tab consolidates the match, straight-line answers, derived quantities (kh, skin pressure drop, flow
       efficiency, radius of investigation) and your interpretation notes. Projects save automatically to your account;
-      export a JSON snapshot for sharing. PDF export and result handoffs to Reservoir Balance arrive in a later phase.
+      export a PDF report or a JSON snapshot for sharing, and send results onward: the average pressure, permeability
+      and skin prefill a new Reservoir Balance material balance case, and the tested permeability lands in the
+      Waterflood Design Studio displacement inputs.
     </P>
 
     <H>Gas wells, injection tests and multi-rate</H>

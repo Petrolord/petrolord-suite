@@ -11,8 +11,8 @@ tile archived by migration `20260717090000`; the mock code is deleted in WT2).
 | WT1 | Validated PTA core engine (no UI) | **DONE 2026-07-18** (PR #101) |
 | WT2 | Studio app: data/QC, diagnostics, match, specialized, report tabs; persistence; mock deletion | **DONE 2026-07-18** (PR #102) |
 | WT3 | Model library (fractures, dual porosity, boundaries) + tile activation | **DONE 2026-07-18** (PR #103; tile migration staged, deploy-gated) |
-| WT4 | Gas (pseudo-pressure), multi-rate, deliverability | **DONE 2026-07-18** (this PR) |
-| WT5 | PDF reporting, cross-app handoffs, e2e | not started |
+| WT4 | Gas (pseudo-pressure), multi-rate, deliverability | **DONE 2026-07-18** (PR #104) |
+| WT5 | PDF reporting, cross-app handoffs, e2e | **DONE 2026-07-18** (this PR) — **PROGRAM COMPLETE** |
 
 ## WT1 deliverables
 
@@ -159,6 +159,38 @@ exposure; harness total 81/81):
 - Out of WT4 scope, documented: pseudo-time is engine-level only (not yet
   wired as a diagnostics abscissa option); PSS pore volume stays a liquid
   drawdown analysis.
+
+## WT5 deliverables (2026-07-18)
+
+- PDF report export (`src/utils/wellTestReportExport.js`, jsPDF +
+  autotable like the other Suite exports): headline results, model match
+  with 95% CIs, straight-line analyses, deliverability, flow regimes and
+  interpretation notes; pure formatting, nothing recomputed.
+- Result handoffs on the Report tab (navigate-state contract): average
+  pressure (p* when available, else pi) + k + skin to Reservoir Balance,
+  which opens its new-case dialog prefilled (initial pressure, fluid
+  system, case name; k and skin surfaced in the toast since material
+  balance has no direct field for them); tested k to the Waterflood
+  Design Studio displacement inputs. Both receivers gained intake
+  effects.
+- Playwright e2e `e2e/well-test-analysis-studio.spec.js` on the new
+  `/dev/well-test-analysis-studio` harness route (dev-only, absent from
+  prod builds): five-tab walk with the Horner window recovering the
+  sample's generating truth (k within 6% of 85 md, skin within 1.0 of
+  6.5), a real PDF download, and the gas-mode deliverability surface.
+  3/3 green against the staging dev server 2026-07-18. The handoff
+  navigations land on auth-gated dashboard routes, so e2e asserts the
+  senders' enablement; the shared wellTestData contract ships in one PR.
+
+## Program wrap-up
+
+All five phases are done. Remaining operational step (outside the PR
+stack): merge #101 through #105 in order, upload the production build,
+then apply the deploy-gated tile activation migration `20260718200000`
+(honest-catalog rule). Named future scope stays as recorded: horizontal
+wells, limited entry, variable wellbore storage, multiphase Perrine, RTA,
+SI units, closed-rectangle boundary, pseudo-time as a diagnostics
+abscissa.
 
 ## Locked owner decisions (2026-07-18)
 
