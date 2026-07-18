@@ -17,7 +17,8 @@ const ReportPanel = () => {
     gaugeRows, rateRows, matchInputs, windows, addNotification,
     configSpec, reservoirSpec, prepared, model, matchParams, fitResult,
     derivedKpis, semilogResult, sqrtResult, pssResult, multiRateResult,
-    deliverabilityResult, regimes,
+    deliverabilityResult, regimes, rtaResult, rtaRows, rtaWindows,
+    deliverabilityInputs, unitSystem,
   } = useWellTestStudio();
   const navigate = useNavigate();
 
@@ -26,6 +27,7 @@ const ReportPanel = () => {
       id: 'export',
       name: projectName || wellName || 'well-test',
       wellName, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, notes,
+      deliverabilityInputs, rtaRows, rtaWindows, unitSystem,
     });
     if (result.success) addNotification('Project exported as JSON.', 'success');
     else addNotification('Export failed', 'error');
@@ -38,7 +40,7 @@ const ReportPanel = () => {
       reservoir: reservoirSpec.reservoir,
       prepared, model, matchParams, fitResult, derivedKpis,
       semilogResult, sqrtResult, pssResult, multiRateResult, deliverabilityResult,
-      regimes, notes,
+      rtaResult, regimes, notes, unitSystem,
     });
     addNotification(ok ? 'PDF report saved.' : 'PDF export failed', ok ? 'success' : 'error');
   };
