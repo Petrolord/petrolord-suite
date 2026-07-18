@@ -305,11 +305,17 @@ decline CSV through the real UI and recovers N ≈ 2 MMSTB. 5/5 green
 against the staging dev server 2026-07-18. Harness total **115/115
 exit 0** (CASEs 1–12); jest 164 welltest tests / 16 suites; build clean.
 
-## Program 2 wrap-up
+## Program 2 wrap-up — SHIPPED TO PRODUCTION 2026-07-18
 
-All five phases done. Remaining operational step: merge #107 through
-#111 in order, then prod upload (no migration: the tile is already
-Active and all new persistence rides in the jsonb payload).
-Named future scope stays: limited entry, variable wellbore storage,
-multiphase Perrine, closed-rectangle × dual-porosity crossing,
-Blasingame type-curve matching on the RTA tab.
+All five phases done and every operational step is closed:
+- PRs #107 through #111 squash-merged to main in order; program tip is
+  `744151c72` (post-merge jest 1377/103 suites, harness 115/115 exit 0,
+  build and e2e 5/5 all green on main).
+- Owner confirmed the Hostinger production upload of main @ `744151c72`
+  live 2026-07-18. No migration gated this upload: the tile was already
+  Active and all new persistence rides in the inputs_data jsonb payload.
+
+Nothing remains open on either program. Named future scope stays:
+limited entry, variable wellbore storage, multiphase Perrine,
+closed-rectangle × dual-porosity crossing, Blasingame type-curve
+matching on the RTA tab.
