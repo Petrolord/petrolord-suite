@@ -1,0 +1,90 @@
+# SCAL Studio — Status
+
+> Program ledger for the fourth Reservoir studio-class build (after
+> Waterflood W1-W6, Well Test WT1-WT10, Material Balance MB1-MB7).
+> Governing decisions: `ReservoirEngineering-Module.md` §3 (dcaEngine
+> oracle gate, elevated near-term) and §4.2 (SCAL Studio locked 2026-07-17
+> as THIN-REAL: Corey relative permeability + capillary pressure via the
+> Leverett J-function, golden reference Leverett 1941 — no LET, no
+> hysteresis, no network models until the thin core is validated and
+> used). Owner re-confirmed 2026-07-18: thin-real scope honored, executed
+> at studio-class quality (lab-data import, fitting to core data,
+> multi-sample averaging, saturation-height, handoffs).
+> Last updated: 2026-07-18 · SC1 done.
+
+## Phase ledger
+
+| Phase | Scope | Status |
+|---|---|---|
+| SC1 | dcaEngine oracle gate (§3) + EUR sign fix | **DONE 2026-07-18** |
+| SC2 | `scalCalculations.js` engine + Leverett 1941 golden | pending |
+| SC3 | Studio app skeleton + `saved_scal_projects` persistence | pending |
+| SC4 | Lab Data tab: import, Corey fit, multi-sample averaging | pending |
+| SC5 | Height & Saturation tab + Waterflood handoff + exports | pending |
+| SC6 | Tile migrations (deploy-gated pair) + close-out | pending |
+
+## SC1 deliverables (2026-07-18) — dcaEngine oracle gate
+
+The §3 gate: `src/utils/declineCurve/dcaEngine.js` had NO direct tests
+(exercised only indirectly). Two suites now pin it:
+
+- **Layer 0** (`__tests__/dcaEngine.oracle.test.js`, 25 tests, closed-form
+  self-consistency, no book required): exact synthetic Arps recovery for
+  all three models (qi/Di to 1e-6 relative; b exact on the engine's 0.05
+  grid, ±0.05 off-grid, both documented); Auto-Select picks the
+  generating model; `calculateEUR` against the closed forms AND an
+  independent Simpson quadrature for b in {0, 0.3, 0.5, 0.9, 1.0, 1.3}
+  plus a hand-arithmetic pin; `generateForecast` round-trips (refit
+  recovery, timeToLimit vs the analytic inversion within 1 day, and the
+  daily right-rectangle cumulative bias pinned as UNDERSHOOT within 1%,
+  deliberately not changed — DeclineCurveContext and Forecast Scenario
+  Hub consume the sum as-is); fit window and b-constraint contracts;
+  the <3-points empty-fit contract.
+- **BUG FOUND AND FIXED under oracle cover**: `calculateEUR`'s hyperbolic
+  branch divided by `Di * (b - 1)` instead of `(1 - b)`, returning a
+  NEGATIVE EUR for every b != 1 (e.g. -1.8 MM bbl where +1.8 MM is
+  correct). Verified zero consumers outside dcaEngine.js before fixing
+  (the DCA app derives EUR from generateForecast's cumulative sum), so no
+  stored results were poisoned — but the NextGen course and the
+  @petrolord/engines extraction would have inherited it. This is exactly
+  the failure mode §3 predicted for an engine whose fits were only
+  property-tested.
+- **Layer 1** (`__tests__/dcaEngine.literature.test.js` +
+  `fixtures/dca-literature-fixtures.json`, armed-fixture doctrine:
+  missing/unarmed fixture is a hard failure, values typed from the source
+  with citations and access dates, never recalled): four cases from
+  Weaver, "Forecasting Oil and Gas Using Decline Curves" (CED Engineering
+  course P03-004, publicly served PDF, fetched and read page-by-page
+  2026-07-18) — exponential oil (printed q and Np at 3 years), shale-gas
+  hyperbolic b = 1.2 (the sign-bug branch; both printed cumulative forms),
+  the full 11-row printed harmonic rate-cumulative table, and the b = 1.15
+  monthly-form cumulative. All pass with tolerances that name each printed
+  rounding quirk. **Still pending (jest todo entries, visible in every
+  run): SPEE Recommended Evaluation Practice #6 and Poston & Poe (SPE
+  2008) are paid documents — the owner supplies the PDFs and their example
+  tables are typed as additional cases.** The §3 gate is cleared for the
+  course/extraction on the strength of Layer 0 + the armed cases; the two
+  named references complete the set when sourced.
+- **Sibling modules**: `dcaDiagnostics.js` got a hand-computed smoke suite
+  (5 tests: R2/RMSE identities, normalized-residual contract, verdict
+  bands). `dcaMonteCarlo.js` and `dcaSegmentDetection.js` are explicitly
+  DEFERRED per Module §5 (grandfathered; consolidation happens at engine
+  extraction, not before).
+
+## Scope discipline (standing)
+
+Thin-real lock: Corey + Leverett J only. LET, hysteresis, Thomeer,
+three-phase models, and any displacement calculation inside SCAL
+(Buckley-Leverett stays in the Waterflood Design Studio) are scope creep
+against the owner lock and get rejected in review.
+
+## Where things live
+
+- Engine (SC2): `src/utils/scalCalculations.js` — imports Corey primitives
+  from `src/utils/fractionalFlowCalculations.js` (dependency direction is
+  locked one-way), fitting via `src/utils/welltest/lmFit.js`.
+- App (SC3): `src/pages/apps/ScalStudio.jsx`,
+  `src/contexts/ScalStudioContext.jsx`, `src/components/scalstudio/`.
+- Persistence: `saved_scal_projects` (migration 20260719100000, SC3).
+- Tiles (SC6, deploy-gated pair): seed `scal-studio`, archive the
+  `relative-permeability-designer` alias.
