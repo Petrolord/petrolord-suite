@@ -10,9 +10,9 @@ tile archived by migration `20260717090000`; the mock code is deleted in WT2).
 |---|---|---|
 | WT1 | Validated PTA core engine (no UI) | **DONE 2026-07-18** (PR #101) |
 | WT2 | Studio app: data/QC, diagnostics, match, specialized, report tabs; persistence; mock deletion | **DONE 2026-07-18** (PR #102) |
-| WT3 | Model library (fractures, dual porosity, boundaries) + tile activation | **DONE 2026-07-18** (PR #103; tile migration staged, deploy-gated) |
+| WT3 | Model library (fractures, dual porosity, boundaries) + tile activation | **DONE 2026-07-18** (PR #103; tile migration applied live 2026-07-18 after the prod upload) |
 | WT4 | Gas (pseudo-pressure), multi-rate, deliverability | **DONE 2026-07-18** (PR #104) |
-| WT5 | PDF reporting, cross-app handoffs, e2e | **DONE 2026-07-18** (this PR) — **PROGRAM COMPLETE** |
+| WT5 | PDF reporting, cross-app handoffs, e2e | **DONE 2026-07-18** (PR #105) — **PROGRAM COMPLETE, shipped to prod** |
 
 ## WT1 deliverables
 
@@ -122,8 +122,9 @@ Model library (all validated before UI exposure, CASE 8 of the harness):
   doubling, channel half slope, closed-circle exact PSS line,
   constant-pressure ln(2LD) stabilization). **Harness total: 65/65.**
 - Tile activation migration `20260718200000` staged and dry-run
-  verified, NOT applied (deploy-gated: ships with the prod upload that
-  carries the studio). SPA alias route `apps/reservoir/well-test-analyzer`
+  verified at WT3 time, deploy-gated on the prod upload that carries the
+  studio. **Gate cleared 2026-07-18: applied live after the upload, see
+  Program wrap-up.** SPA alias route `apps/reservoir/well-test-analyzer`
   added.
 - Documented deviation from the plan text: the closed system ships as a
   closed circle (exact van Everdingen-Hurst solution) rather than a
@@ -182,15 +183,22 @@ exposure; harness total 81/81):
   navigations land on auth-gated dashboard routes, so e2e asserts the
   senders' enablement; the shared wellTestData contract ships in one PR.
 
-## Program wrap-up
+## Program wrap-up — SHIPPED TO PRODUCTION 2026-07-18
 
-All five phases are done. Remaining operational step (outside the PR
-stack): merge #101 through #105 in order, upload the production build,
-then apply the deploy-gated tile activation migration `20260718200000`
-(honest-catalog rule). Named future scope stays as recorded: horizontal
-wells, limited entry, variable wellbore storage, multiphase Perrine, RTA,
-SI units, closed-rectangle boundary, pseudo-time as a diagnostics
-abscissa.
+All five phases are done and every operational step is closed:
+- PRs #101 through #105 merged to main in order; program tip is
+  `1b6417fea` (post-merge jest, build and e2e green on main).
+- Owner confirmed the Hostinger production upload of main @ `1b6417fea`
+  live 2026-07-18.
+- Deploy-gated tile activation migration `20260718200000` then applied
+  live (honest-catalog rule honored). Post-apply probe: tile
+  Active/Reservoir/built/functional as "Well Test Analysis Studio";
+  Reservoir catalog now 12 Active / 34 Archived (see MIGRATIONS.md).
+
+Nothing remains open on this program. Named future scope stays as
+recorded: horizontal wells, limited entry, variable wellbore storage,
+multiphase Perrine, RTA, SI units, closed-rectangle boundary, pseudo-time
+as a diagnostics abscissa.
 
 ## Locked owner decisions (2026-07-18)
 
