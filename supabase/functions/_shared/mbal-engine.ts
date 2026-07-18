@@ -39,6 +39,12 @@
  * Internal computation volumes: reservoir barrels (res bbl) for all phase volumes.
  */
 
+// MB5 (2026-07-18): the pressure history match minimizes observed-vs-simulated
+// pressure residuals with the shared Levenberg-Marquardt kernel. lm.ts is
+// pure compute (a jest-pinned port of the client WTA kernel), so the
+// no-I/O/no-Supabase contract above still holds.
+import { levenbergMarquardt } from './lm.ts';
+
 // ============================================================================
 // TYPE DEFINITIONS — public interface
 // ============================================================================
@@ -77,6 +83,7 @@ export interface ProductionDataPoint {
   bo_rb_stb?: number;
   rs_scf_stb?: number;
   bg_rb_mscf?: number;
+  bg_rb_scf?: number;   // MB1: RB/scf alternative, honored since 2026-07-18
   bw_rb_stb?: number;
   z_factor?: number;
   // Optional observed water influx (for validation against simulator data; null in real cases)
@@ -115,6 +122,11 @@ export interface MBALInputs {
     aquifer_porosity?: number;                    // Carter-Tracy (Phase 3+)
     aquifer_permeability_md?: number;             // Carter-Tracy (Phase 3+)
     theta_degrees?: number;                       // Angle of aquifer (Phase 3+)
+    aquifer_radius_ft?: number;                   // r_R at the OWC (Phase 5)
+    aquifer_water_viscosity_cp?: number;          // mu_w override (Phase 5)
+    // MB1 (2026-07-18): optional inputs the McCain-default chain derives from.
+    reservoir_area_acres?: number;                // A; default r_R = sqrt(A/(pi*f))
+    water_salinity_ppm?: number;                  // TDS for McCain mu_w default
   };
 
   // Gas cap (if has_gas_cap)
@@ -638,6 +650,31 @@ function mccainBw(p: number, temp_f: number): number {
 }
 
 /**
+ * McCain (1991) water viscosity correlation.
+ *
+ * mu_w1 = A * T^B at atmospheric pressure, with A and B polynomial in
+ * salinity S (weight percent solids), then a pressure correction:
+ *   mu_w = mu_w1 * (0.9994 + 4.0295e-5 p + 3.1062e-9 p^2)
+ *
+ * Validity (McCain, The Properties of Petroleum Fluids, 2nd ed.):
+ * 100-400 F, S up to ~26 wt%, p up to ~10,000 psia.
+ *
+ * Inputs: p (psia), temp_f (F), salinity_ppm (TDS; 0 for fresh water).
+ * Returns: mu_w (cp).
+ *
+ * MB1 (2026-07-18): used as the Carter-Tracy mu_w default when
+ * aquifer_params.aquifer_water_viscosity_cp is not supplied.
+ */
+function mccainMuW(p: number, temp_f: number, salinity_ppm = 0): number {
+  const S = salinity_ppm / 10_000; // ppm -> weight percent
+  const A = 109.574 - 8.40564 * S + 0.313314 * S * S + 8.72213e-3 * S * S * S;
+  const B = -1.12166 + 2.63951e-2 * S - 6.79461e-4 * S * S
+    - 5.47119e-5 * S * S * S + 1.55586e-6 * S * S * S * S;
+  const muw1 = A * Math.pow(temp_f, B);
+  return muw1 * (0.9994 + 4.0295e-5 * p + 3.1062e-9 * p * p);
+}
+
+/**
  * Validity-range warning helper.
  *
  * For each PVT correlation selected by the user, check the reservoir
@@ -1153,7 +1190,11 @@ function extractTimedeltasDays(production_data: ProductionDataPoint[]): number[]
  * Returns an array of length production_data.length with We[i] in res bbl.
  * We[0] is always 0 (initial conditions).
  */
-function computeFetkovichWe(
+// Exported for the validation harness (tools/validation/mbal-validation.ts
+// CASE 8 checks the marching scheme directly against the printed We table of
+// Ahmed REH 4th ed. Example 10-10) and for the MB2 client cross-validation
+// golden generator. Not part of the edge-function request surface.
+export function computeFetkovichWe(
   inputs: MBALInputs,
   deltas_days: number[],
 ): number[] {
@@ -1228,9 +1269,15 @@ function computeFetkovichWe(
  * Returns an array of length production_data.length with We[i] in res bbl.
  * We[0] is always 0 (initial conditions).
  */
-function computeCarterTracyWe(
+// Exported for the validation harness and the MB2 Dake 9.2 client
+// cross-validation golden generator (the client engine's finite-reD
+// Carter-Tracy must match this We history within a committed tolerance).
+// The optional `notes` array collects default-usage messages (McCain mu_w,
+// area-derived r_R) that callers append to result warnings.
+export function computeCarterTracyWe(
   inputs: MBALInputs,
   deltas_days: number[],
+  notes?: string[],
 ): number[] {
   const params = inputs.aquifer_params ?? {};
   const k_aq = params.aquifer_permeability_md;
@@ -1280,12 +1327,32 @@ function computeCarterTracyWe(
   // require the user to set radius_ratio + permeability + thickness + porosity
   // and we compute r_R from the assumed cell area.
 
-  // Reservoir radius. Defaults to 2980 ft (640 acres single-cell, Pletcher
-  // convention) for backward compatibility with cases authored before the
-  // aquifer_radius_ft input was added. Validated 2026-05-17 against Dake
-  // Exercise 9.2 (Phase 5 chunk 3): user-supplied r_R = 9200 ft reproduces
-  // Dake's aquifer constant U = 6446 rb/psi exactly.
-  const r_R_ft = params.aquifer_radius_ft ?? 2980;  // ft
+  // Reservoir radius precedence (MB1, 2026-07-18):
+  //   1. aquifer_params.aquifer_radius_ft (explicit; Dake 9.2 uses 9200 ft and
+  //      reproduces Dake's aquifer constant U = 6446 rb/psi exactly).
+  //   2. Derived from aquifer_params.reservoir_area_acres via the wedge
+  //      identity A = pi * r_R^2 * (theta/360):
+  //        r_R = sqrt(A * 43560 / (pi * theta/360))
+  //      For a full circle this reduces to the McCain default r_R = sqrt(A/pi)
+  //      named in ReservoirBalance-STATUS "Next priorities".
+  //   3. Legacy fallback 2980 ft (640 acres single-cell, Pletcher convention)
+  //      for backward compatibility with cases authored before the
+  //      aquifer_radius_ft input was added.
+  let r_R_ft: number;
+  if (params.aquifer_radius_ft != null && params.aquifer_radius_ft > 0) {
+    r_R_ft = params.aquifer_radius_ft;
+  } else if (params.reservoir_area_acres != null && params.reservoir_area_acres > 0) {
+    const f_wedge = theta / 360;
+    r_R_ft = Math.sqrt((params.reservoir_area_acres * 43_560) / (Math.PI * f_wedge));
+    notes?.push(
+      `Carter-Tracy reservoir radius defaulted to r_R = ${r_R_ft.toFixed(0)} ft, derived from the reservoir area (${params.reservoir_area_acres.toFixed(0)} acres, encroachment ${theta.toFixed(0)} deg). Set aquifer_radius_ft to override.`,
+    );
+  } else {
+    r_R_ft = 2980;
+    notes?.push(
+      'Carter-Tracy reservoir radius defaulted to the legacy 2980 ft (640-acre cell). Provide aquifer_radius_ft or reservoir_area_acres for a case-specific radius.',
+    );
+  }
 
   // Aquifer constant U (rb/psi)
   // Conversion factor 1.119 comes from converting 1 bbl/(psi·ft) to consistent units
@@ -1293,10 +1360,25 @@ function computeCarterTracyWe(
 
   // Dimensionless time conversion factor — Lee field units
   // tD = (6.328e-3 · k · t_days) / (φ · μ · ct · r_R²)
-  // Water viscosity defaults to 0.5 cP (typical mid-range value for fresh-
-  // to-moderately-saline water at typical reservoir temperatures). Users
-  // can override via aquifer_params.aquifer_water_viscosity_cp.
-  const mu_w_cp = params.aquifer_water_viscosity_cp ?? 0.5;
+  // Water viscosity precedence (MB1, 2026-07-18): explicit
+  // aquifer_params.aquifer_water_viscosity_cp, else the McCain (1991)
+  // correlation at initial pressure and reservoir temperature with
+  // aquifer_params.water_salinity_ppm (0 = fresh water). This replaces the
+  // old flat 0.5 cP default; the McCain value is reported as a note so the
+  // user can see (and pin) what was used.
+  let mu_w_cp: number;
+  if (params.aquifer_water_viscosity_cp != null && params.aquifer_water_viscosity_cp > 0) {
+    mu_w_cp = params.aquifer_water_viscosity_cp;
+  } else {
+    // Salinity precedence: aquifer-specific value, else the case's PVT
+    // salinity (PvtRock water_salinity_ppm flows in at the top level), else
+    // fresh water.
+    const salinity_ppm = params.water_salinity_ppm ?? inputs.water_salinity_ppm ?? 0;
+    mu_w_cp = mccainMuW(pi_psia, inputs.reservoir_temperature_f, salinity_ppm);
+    notes?.push(
+      `Carter-Tracy water viscosity defaulted to ${mu_w_cp.toFixed(3)} cp via McCain (1991) at ${inputs.reservoir_temperature_f.toFixed(0)} F, salinity ${salinity_ppm.toFixed(0)} ppm. Set aquifer_water_viscosity_cp to override.`,
+    );
+  }
   const tD_factor = (6.328e-3 * k_aq) / (phi_aq * mu_w_cp * ct * r_R_ft * r_R_ft);
 
   // Build cumulative time (days from start)
@@ -1414,7 +1496,12 @@ function computeCarterTracyWe(
  * consumer reads `result.validation_tier` and uses the optional `reference`
  * and `tolerance_pct` to render constructive language.
  */
-function resolveValidationTier(
+// MB7: exported so tools/validation/gen-tier-matrix-golden.ts can dump the
+// full mapping into src/pages/apps/reservoir-balance/lib/tierMatrix.json —
+// the UI's pre-run tier badge reads THAT file instead of hand-mirroring this
+// function (the Capsule 4B mirror had already drifted: it still showed
+// Carter-Tracy as published_method after the Phase 5 benchmark promotion).
+export function resolveValidationTier(
   fluid_system: 'oil' | 'gas',
   aquifer_model: AquiferModel,
   has_gas_cap: boolean,
@@ -1463,14 +1550,16 @@ function resolveValidationTier(
   }
   if (aquifer_model === 'pot' && has_gas_cap) {
     return {
-      tier: 'published_method',
-      reference: 'Generalized pot aquifer formulation for oil systems with gas-cap contribution (Havlena-Odeh 1963). Documented assumptions and internal checks.',
+      tier: 'benchmark_verified',
+      reference: 'Validated 2026-07-18 (MB1) against Ahmed, Reservoir Engineering Handbook 4th ed., Chapter 11, Example 11-1: combination-drive reservoir (gas cap m=0.25 plus water influx, N=10 MMSTB given). Engine per-timestep terms reproduce the printed back-calculated We = 411,281 bbl and the printed driving indexes DDI/SDI/WDI/EDI = 0.4385/0.3465/0.2112/0.0038 (book index convention, denominator F - Wp*Bw). Scope note: the published truth is a single pressure step with N given, so it anchors the combined-MBE term math and drive indexes; the m>0 pot-plot regression (F/(Eo+m*Eg) vs dp/(Eo+m*Eg), generalized in MB1) is additionally gated by an exact synthetic multi-step round trip recovering N and W to numerical precision (harness CASE 9).',
+      tolerance_pct: 1.5,
     };
   }
   if (aquifer_model === 'fetkovich') {
     return {
-      tier: 'published_method',
-      reference: 'Standard Fetkovich aquifer formulation (Fetkovich SPE 2603, 1971) applied to oil material balance. Calculation traceability and internal checks.',
+      tier: 'benchmark_verified',
+      reference: 'Validated 2026-07-18 (MB1) against Ahmed, Reservoir Engineering Handbook 4th ed., Chapter 10, Example 10-10 (data credited to Dake 1978; the Dake Exercise 9.2 wedge aquifer worked with Fetkovich): the marching scheme reproduces the printed step-by-step We table (final We 37.971 MM bbl at 4 years) within 1%, confirming the published midpoint p_r-bar convention, Wei = ct*Wi*pi*f = 211.9 MM bbl and J = 116.5 bbl/day/psi (no-flow-boundary form ln(reD) - 3/4). Full oil path additionally benchmarked on Dake Exercise 9.2 production data with this aquifer: OOIP within 10% of Dake N = 312 MMSTB (Fetkovich vs Hurst-van Everdingen method spread, same reasoning as the Carter-Tracy case). Harness CASE 8.',
+      tolerance_pct: 10,
     };
   }
   if (aquifer_model === 'carter_tracy') {
@@ -1592,7 +1681,21 @@ function validateInputs(inputs: MBALInputs): void {
  *   Or pot aquifer plot with W=0 (which falls out from Eq. 13 when no aquifer).
  *   For Phase 1 we use the pot aquifer plot in both cases for unified math.
  */
-function computeGasMBE(inputs: MBALInputs): MBALResult {
+// MB5 (2026-07-18): the per-timestep F/Et computation was extracted from
+// computeGasMBE so the pressure history match can evaluate F and Et at
+// candidate (simulated) pressures through the exact same PVT precedence
+// chain the regression path uses. Mirrors the MB1 computeOilPerTimestep
+// extraction on the oil side. computeGasMBE behavior is unchanged.
+export function computeGasPerTimestep(inputs: MBALInputs): {
+  per_timestep: PerTimestepResult[];
+  meta: {
+    pi: number; T_f: number; Swi: number; cf: number; cw: number;
+    gas_sg: number; ppc: number; tpc: number; T_r: number;
+    zi: number; Bgi_rb_scf: number; Bgi_rb_mscf: number; Bwi: number;
+    zCorr: 'hall_yarborough' | 'dranchuk_abou_kassem';
+    waterCorr: 'mccain';
+  };
+} {
   const pi = inputs.initial_pressure_psia;
   const T_f = inputs.reservoir_temperature_f;
   const Swi = inputs.initial_water_saturation;
@@ -1719,6 +1822,22 @@ function computeGasMBE(inputs: MBALInputs): MBALResult {
     });
   }
 
+  return {
+    per_timestep,
+    meta: {
+      pi, T_f, Swi, cf, cw, gas_sg, ppc, tpc, T_r,
+      zi, Bgi_rb_scf, Bgi_rb_mscf, Bwi, zCorr, waterCorr,
+    },
+  };
+}
+
+function computeGasMBE(inputs: MBALInputs): MBALResult {
+  const { per_timestep, meta } = computeGasPerTimestep(inputs);
+  const {
+    pi, T_f, Swi, cf, cw, gas_sg, ppc, tpc, T_r,
+    Bgi_rb_scf, Bgi_rb_mscf, zCorr,
+  } = meta;
+
   // ==========================================================================
   // SOLVE: branch on aquifer model
   //
@@ -1730,6 +1849,7 @@ function computeGasMBE(inputs: MBALInputs): MBALResult {
   const aquiferModel: AquiferModel = inputs.aquifer_model ?? 'none';
   const excluded = new Set(inputs.excluded_timesteps ?? []);
 
+  const aquifer_default_notes: string[] = [];
   let G_scf: number;
   let W_rb: number = 0;
   let reg: { slope: number; intercept: number; r_squared: number; n: number };
@@ -1768,7 +1888,7 @@ function computeGasMBE(inputs: MBALInputs): MBALResult {
     const deltas = extractTimedeltasDays(inputs.production_data);
     const We_array = aquiferModel === 'fetkovich'
       ? computeFetkovichWe(inputs, deltas)
-      : computeCarterTracyWe(inputs, deltas);
+      : computeCarterTracyWe(inputs, deltas, aquifer_default_notes);
     // Assign We per timestep
     for (let i = 0; i < per_timestep.length; i++) {
       per_timestep[i].We_rb = We_array[i];
@@ -1856,6 +1976,7 @@ function computeGasMBE(inputs: MBALInputs): MBALResult {
   // Warnings
   // ==========================================================================
   const warnings: string[] = [];
+  warnings.push(...aquifer_default_notes);
   if (last.drive_index_sum != null && Math.abs(last.drive_index_sum - 1.0) > 0.05) {
     warnings.push(
       `Drive index sum at final timestep is ${last.drive_index_sum.toFixed(3)} ` +
@@ -1939,7 +2060,25 @@ function computeGasMBE(inputs: MBALInputs): MBALResult {
  *   - No aquifer: F vs Et is a straight line through origin, slope = N (OOIP)
  *   - With aquifer: F/Et vs We/Et linear with intercept N and slope=1
  */
-function computeOilMBE(inputs: MBALInputs): MBALResult {
+/**
+ * Per-timestep oil MBE terms (F, Eo, Eg, Efw, Et) plus the initial-PVT meta
+ * the solver needs. Split out of computeOilMBE in MB1 (2026-07-18) and
+ * exported so the validation harness can anchor the term math against a
+ * single-step published truth (Ahmed REH 4th ed. Example 11-1 combined-drive
+ * reservoir) that has too few rows for the regression solver. Pure function;
+ * behavior is identical to the pre-split loop.
+ */
+export function computeOilPerTimestep(inputs: MBALInputs): {
+  per_timestep: PerTimestepResult[];
+  meta: {
+    pi: number; T_f: number; Swi: number; cf: number; cw: number; m: number;
+    api: number; gas_sg: number; Pb: number; Rsi: number; Boi: number;
+    Bti: number; Bwi: number; Bgi_rb_scf: number;
+    pbRsBoCorr: 'standing' | 'vasquez_beggs' | 'glaso';
+    zCorr: 'hall_yarborough' | 'dranchuk_abou_kassem';
+    waterCorr: 'mccain';
+  };
+} {
   const pi = inputs.initial_pressure_psia;
   const T_f = inputs.reservoir_temperature_f;
   const Swi = inputs.initial_water_saturation;
@@ -2010,6 +2149,9 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
     if (t0.bg_rb_mscf != null) {
       // Honor lab Bgi if supplied
       Bgi_rb_scf = t0.bg_rb_mscf / SCF_PER_MSCF;
+    } else if (t0.bg_rb_scf != null) {
+      // MB1: RB/scf form honored too (see per-row Bg precedence note below)
+      Bgi_rb_scf = t0.bg_rb_scf;
     } else {
       const zi = t0.z_factor ?? zForGasCap(pi);
       Bgi_rb_scf = bgRbPerScf(pi, T_f, zi);
@@ -2044,9 +2186,15 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
     let Bg_rb_scf = 0;
     let z = 1.0;
     if (m > 0 || p < Pb) {
-      // Bg precedence: per-row → lab-table → z-derived.
+      // Bg precedence: per-row (RB/Mscf, then RB/scf) → lab-table → z-derived.
+      // MB1 (2026-07-18): honor bg_rb_scf on input points too. It was silently
+      // ignored before (only the result type used it), so per-row Bg supplied
+      // in RB/scf fell through to the correlation.
       if (point.bg_rb_mscf != null) {
         Bg_rb_scf = point.bg_rb_mscf / SCF_PER_MSCF;
+        z = point.z_factor ?? 1.0;
+      } else if (point.bg_rb_scf != null) {
+        Bg_rb_scf = point.bg_rb_scf;
         z = point.z_factor ?? 1.0;
       } else {
         const labBg_mscf = interpolateLabTable(inputs.pvt_lab_table, p, 'bg_rb_mscf');
@@ -2108,6 +2256,22 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
     });
   }
 
+  return {
+    per_timestep,
+    meta: {
+      pi, T_f, Swi, cf, cw, m, api, gas_sg, Pb, Rsi, Boi, Bti, Bwi,
+      Bgi_rb_scf, pbRsBoCorr, zCorr, waterCorr,
+    },
+  };
+}
+
+function computeOilMBE(inputs: MBALInputs): MBALResult {
+  const { per_timestep, meta } = computeOilPerTimestep(inputs);
+  const {
+    pi, T_f, Swi, cf, cw, m, api, gas_sg, Pb, Rsi, Bti,
+    pbRsBoCorr, zCorr, waterCorr,
+  } = meta;
+
   // ==========================================================================
   // Solve for OOIP: regression depends on aquifer_model.
   //
@@ -2123,22 +2287,25 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
   const aquiferModel = inputs.aquifer_model ?? 'none';
 
   const excluded = new Set(inputs.excluded_timesteps ?? []);
+  const aquifer_default_notes: string[] = [];
   let N_stb: number;
   let W_rb: number | null = null;
   let reg: { slope: number; intercept: number; r_squared: number; n: number };
 
   if (aquiferModel === 'pot') {
-    // ─── Pot aquifer plot (Pletcher Eq. 13 oil version) ───
-    // Derivation: F = N·Eo + N·m·Eg + N·(1+m)·Efw + (cw+cf)·W·(pi-p)
-    // For undersaturated/saturated oil with no gas cap (m=0):
-    //   F = N·Eo + N·Efw + (cw+cf)·W·(pi-p)
-    //   F/Eo = N + N·Efw/Eo + (cw+cf)·W·(pi-p)/Eo
-    // Because Efw = Bti·(Swi·cw+cf)/(1-Swi)·(pi-p), the Efw/Eo term is also
-    // linear in (pi-p)/Eo (with coefficient Bti·(Swi·cw+cf)/(1-Swi)). So:
-    //   F/Eo = N + [N·Bti·(Swi·cw+cf)/(1-Swi) + (cw+cf)·W]·(pi-p)/Eo
-    // Plot F/Eo vs (pi-p)/Eo → intercept = N, slope = bracketed term.
-    // Solve for W (Pletcher Eq. 14 oil-form):
-    //   W = [slope - N·Bti·(Swi·cw+cf)/(1-Swi)] / (cw+cf)
+    // ─── Pot aquifer plot (Pletcher Eq. 13 oil version, generalized m ≥ 0) ───
+    // Derivation: F = N·Eo + N·m·Eg + N·(1+m)·Efw' + (cw+cf)·W·(pi-p)
+    // Group the pressure-proportional terms. With Em = Eo + m·Eg (the fluid
+    // expansion excluding rock/water) and Efw = Bti·(1+m)·(Swi·cw+cf)/(1-Swi)·(pi-p):
+    //   F/Em = N + [N·Bti·(1+m)·(Swi·cw+cf)/(1-Swi) + (cw+cf)·W]·(pi-p)/Em
+    // Plot F/Em vs (pi-p)/Em → intercept = N, slope = bracketed term.
+    // Solve for W (Pletcher Eq. 14 oil-form, generalized):
+    //   W = [slope - N·Bti·(1+m)·(Swi·cw+cf)/(1-Swi)] / (cw+cf)
+    //
+    // For m = 0 this is EXACTLY the pre-MB1 formulation (Em = Eo, factor 1),
+    // so the Pletcher Tables 10-13 benchmark (CASE 2) is unchanged. The m > 0
+    // generalization is validated by CASE 9 (Ahmed REH 4th ed. Example 11-1
+    // combined-drive terms) plus the synthetic round-trip identity.
     //
     // The Et-based regression we used earlier doesn't match Pletcher because
     // Et already absorbs Efw into the denominator, distorting the line.
@@ -2147,10 +2314,10 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
     for (const r of per_timestep) {
       if (r.timestep_index === 0) continue;
       if (excluded.has(r.timestep_index)) continue;
-      const Eo_val = r.Eo_rb_stb ?? 0;
-      if (Eo_val <= 0) continue;
-      regression_x.push(r.delta_p_psi / Eo_val);
-      regression_y.push(r.F_rb / Eo_val);
+      const Em_val = (r.Eo_rb_stb ?? 0) + m * (r.Eg_rb_stb ?? 0);
+      if (Em_val <= 0) continue;
+      regression_x.push(r.delta_p_psi / Em_val);
+      regression_y.push(r.F_rb / Em_val);
     }
     if (regression_x.length < 2) {
       throw new Error(
@@ -2159,9 +2326,9 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
     }
     reg = linearRegression(regression_x, regression_y);
     N_stb = reg.intercept;
-    // slope = N·Bti·(Swi·cw+cf)/(1-Swi) + (cw+cf)·W
-    // → W = [slope - N·Bti·(Swi·cw+cf)/(1-Swi)] / (cw+cf)
-    const expansion_term = N_stb * Bti * (Swi * cw + cf) / (1 - Swi);
+    // slope = N·Bti·(1+m)·(Swi·cw+cf)/(1-Swi) + (cw+cf)·W
+    // → W = [slope - N·Bti·(1+m)·(Swi·cw+cf)/(1-Swi)] / (cw+cf)
+    const expansion_term = N_stb * Bti * (1 + m) * (Swi * cw + cf) / (1 - Swi);
     W_rb = (reg.slope - expansion_term) / (cw + cf);
 
     // Compute We at each timestep (Pletcher Eq. 12)
@@ -2174,7 +2341,7 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
     const deltas = extractTimedeltasDays(inputs.production_data);
     const We_array = aquiferModel === 'fetkovich'
       ? computeFetkovichWe(inputs, deltas)
-      : computeCarterTracyWe(inputs, deltas);
+      : computeCarterTracyWe(inputs, deltas, aquifer_default_notes);
     // Assign We per timestep
     for (let i = 0; i < per_timestep.length; i++) {
       per_timestep[i].We_rb = We_array[i];
@@ -2257,8 +2424,7 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
   // ──────────────────────────────────────────────────────────────────────────
   // Warnings
   //
-  // The "oil math unvalidated" warning was added in Phase 1. As of Phase 3
-  // Validated oil paths:
+  // Validated oil paths (harness tools/validation/mbal-validation.ts):
   //   • oil + pot aquifer + no gas cap (m=0): Pletcher SPE 75354 Tables
   //     10-13 (Capsule 3A, 1.79% OOIP error vs paper).
   //   • oil + no aquifer + no gas cap (m=0): Tarek Ahmed (2010) Example
@@ -2266,26 +2432,15 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
   //   • oil + no aquifer + gas cap (m>0): Dake (1978) Exercise 3.4
   //     'GASCAP DRIVE' (Phase 5 chunk 2, 2026-05-17). Engine LSQ 115.5 MM
   //     STB vs Dake 114 MM STB (1.33%); m=0.5 input.
-  //
-  // Still unvalidated (warning emitted):
-  //   • oil + pot aquifer + gas cap (m>0): future Phase 5 chunk.
-  //
-  // The oil + fetkovich and oil + carter_tracy paths use validated aquifer
-  // models but no oil-side worked-example validation; tier remains
-  // 'published_method' for those.
+  //   • oil + fetkovich (MB1, 2026-07-18): Ahmed REH 4th ed. Example 10-10
+  //     printed We table (CASE 8) + Dake 9.2 full-path OOIP.
+  //   • oil + pot aquifer + gas cap (m>0) (MB1, 2026-07-18): Ahmed REH
+  //     4th ed. Example 11-1 combined-drive terms and printed drive
+  //     indexes (CASE 9); the generalized m>0 pot regression is gated by
+  //     an exact synthetic round trip.
   // ──────────────────────────────────────────────────────────────────────────
   const warnings: string[] = [];
-  if (aquiferModel === 'pot' && m > 0) {
-    warnings.push(
-      'Oil reservoir with pot aquifer and gas cap (m > 0) is implemented but not yet validated against a published worked example. Validated cases: oil + no aquifer + no gas cap (Tarek Ahmed Example 11-3), oil + no aquifer + gas cap (Dake Exercise 3.4), and oil + pot aquifer + no gas cap (Pletcher SPE 75354 Tables 10-13).',
-    );
-  }
-  // Validated paths (no warning emitted):
-  //   aquiferModel === 'none' && m === 0  (Tarek Ahmed Example 11-3)
-  //   aquiferModel === 'none' && m > 0   (Dake Exercise 3.4)
-  //   aquiferModel === 'pot'  && m === 0  (Pletcher Tables 10-13)
-  // Still unvalidated (warning emitted):
-  //   aquiferModel === 'pot'  && m > 0   (oil + pot aquifer + gas cap)
+  warnings.push(...aquifer_default_notes);
 
   if (last.drive_index_sum != null && Math.abs(last.drive_index_sum - 1.0) > 0.05) {
     warnings.push(
@@ -2674,6 +2829,702 @@ export function generatePvtTable(inputs: PvtPreviewInputs): PvtPreviewResult {
       pressure_range_psia: [p_min, p_max],
     },
     warnings,
+  };
+}
+
+// ============================================================================
+// MB5 — PRESSURE HISTORY MATCH (inverse MBE + Levenberg-Marquardt)
+// ============================================================================
+//
+// The regression paths above answer "given the observed pressures, what N (or
+// G) best explains the voidage?". The history match inverts the tank model
+// the other way: "given candidate parameters, what pressure history would the
+// tank have produced?" and then adjusts the parameters until the simulated
+// pressures reproduce the observed ones.
+//
+// Forward simulation: at each timestep k the cumulative withdrawals are
+// known, so the material balance F(p) = N·Et(p) + We is a scalar equation in
+// the unknown pressure p. F and Et are evaluated through the SAME per-timestep
+// code the regression uses (computeOilPerTimestep / computeGasPerTimestep on
+// a two-point [t0, candidate] series), so PVT precedence (per-row → lab table
+// → correlation) is identical by construction. The scalar root is found by a
+// safeguarded false-position (Illinois) search on p.
+//
+// Aquifer coupling: pot We is a pointwise function of p and is solved inside
+// the root search. Fetkovich and Carter-Tracy We depend on the whole pressure
+// history (marching schemes — and Carter-Tracy's van Everdingen Δp convention
+// even references the NEXT observation), so the simulator iterates a fixed
+// point: solve all steps with We frozen, recompute We from the full simulated
+// series via the engine's own computeFetkovichWe/computeCarterTracyWe, repeat
+// until the series stops moving. This keeps the simulated history exactly
+// consistent with the We conventions of the forward (regression) path.
+//
+// Parameter estimation: Levenberg-Marquardt (shared kernel lm.ts, the
+// jest-pinned port of the Well Test Analysis Studio auto-match) on
+// ln-transformed parameters (all are strictly positive; the log transform is
+// the same positivity mechanism the WTA model catalog uses), minimizing
+// (p_observed − p_simulated) over the non-excluded timesteps. 95% confidence
+// intervals come from the LM covariance at the optimum, exp-mapped back to
+// value space.
+
+export type HistoryMatchParameterKey =
+  | 'stoiip_stb'              // N — oil and oil-with-gas-cap cases
+  | 'ogip_scf'                // G — gas cases
+  | 'gas_cap_m'               // m — oil with gas cap
+  | 'aquifer_w_rb'            // W — pot and Fetkovich water in place
+  | 'aquifer_j_rb_d_psi'      // J — Fetkovich productivity index
+  | 'aquifer_radius_ft'       // r_R — Carter-Tracy reservoir radius
+  | 'aquifer_permeability_md'; // k_aq — Carter-Tracy aquifer permeability
+
+export interface HistoryMatchOptions {
+  // Which parameters LM adjusts. Default: the fluid-in-place scale plus the
+  // case's aquifer shape parameters (pot: W; Fetkovich: W and J;
+  // Carter-Tracy: r_R). Keys not applicable to the case throw.
+  fit_parameters?: HistoryMatchParameterKey[];
+  // Value-space starting points. Default: the preliminary regression estimate
+  // for N/G, the case's configured aquifer parameters otherwise.
+  initial_guesses?: Partial<Record<HistoryMatchParameterKey, number>>;
+  // Value-space box bounds. Defaults are wide multiples of the initial guess.
+  bounds?: Partial<Record<HistoryMatchParameterKey, [number, number]>>;
+  max_iterations?: number;    // LM iterations, default 30
+}
+
+export interface HistoryMatchedParameter {
+  key: HistoryMatchParameterKey;
+  label: string;
+  unit: string;
+  initial_value: number;
+  matched_value: number;
+  // Relative standard error in percent (exp-mapped from ln space); null when
+  // the covariance is singular.
+  std_error_pct: number | null;
+  ci95_low: number | null;
+  ci95_high: number | null;
+  at_bound: boolean;
+}
+
+export interface HistoryMatchResult {
+  matched_parameters: HistoryMatchedParameter[];
+  // Full series aligned with production_data (index 0 = initial state).
+  observed_pressure_psia: number[];
+  simulated_pressure_psia: number[];
+  residual_psi: number[];            // observed - simulated
+  point_in_fit: boolean[];
+  rms_error_psi: number;             // over fit points
+  max_abs_error_psi: number;         // over fit points
+  ssr_psi2: number;
+  iterations: number;
+  converged: boolean;
+  matched_ooip_stb?: number;
+  matched_ogip_scf?: number;
+  // Full forward MBAL run at the matched parameters (drive indices, We
+  // series, diagnostics). Note the regression inside it re-estimates N/G from
+  // the OBSERVED pressures; the headline history-match numbers are
+  // matched_ooip_stb / matched_ogip_scf above.
+  forward: MBALResult;
+  validation_tier: MBALResult['validation_tier'];
+  validation_reference?: string;
+  warnings: string[];
+  engine_version: string;
+}
+
+interface HmParamSpec {
+  label: string;
+  unit: string;
+  applies: (inputs: MBALInputs) => boolean;
+  notApplicableHint: string;
+  initial: (inputs: MBALInputs, prelim: MBALResult | null) => number | null;
+  missingInitialHint: string;
+  // Default value-space bounds as multiples of the initial guess, or absolute.
+  defaultBounds: (initial: number) => [number, number];
+}
+
+const HM_PARAM_SPECS: Record<HistoryMatchParameterKey, HmParamSpec> = {
+  stoiip_stb: {
+    label: 'STOIIP N',
+    unit: 'STB',
+    applies: (i) => i.fluid_system !== 'gas',
+    notApplicableHint: 'stoiip_stb applies to oil cases; use ogip_scf for gas cases.',
+    initial: (_i, prelim) =>
+      prelim?.estimated_ooip_stb != null && prelim.estimated_ooip_stb > 0
+        ? prelim.estimated_ooip_stb
+        : null,
+    missingInitialHint:
+      'The preliminary regression did not produce a positive OOIP to start from. Supply initial_guesses.stoiip_stb.',
+    defaultBounds: (v) => [v / 100, v * 100],
+  },
+  ogip_scf: {
+    label: 'OGIP G',
+    unit: 'scf',
+    applies: (i) => i.fluid_system === 'gas',
+    notApplicableHint: 'ogip_scf applies to gas cases; use stoiip_stb for oil cases.',
+    initial: (_i, prelim) =>
+      prelim?.estimated_ogip_scf != null && prelim.estimated_ogip_scf > 0
+        ? prelim.estimated_ogip_scf
+        : null,
+    missingInitialHint:
+      'The preliminary regression did not produce a positive OGIP to start from. Supply initial_guesses.ogip_scf.',
+    defaultBounds: (v) => [v / 100, v * 100],
+  },
+  gas_cap_m: {
+    label: 'Gas cap ratio m',
+    unit: 'fraction',
+    applies: (i) =>
+      i.fluid_system !== 'gas' && (i.has_gas_cap || (i.gas_cap_ratio_m ?? 0) > 0),
+    notApplicableHint: 'gas_cap_m requires an oil case with a gas cap (has_gas_cap).',
+    initial: (i) =>
+      i.gas_cap_ratio_m != null && i.gas_cap_ratio_m > 0 ? i.gas_cap_ratio_m : 0.2,
+    missingInitialHint: 'Supply initial_guesses.gas_cap_m.',
+    defaultBounds: () => [1e-3, 10],
+  },
+  aquifer_w_rb: {
+    label: 'Aquifer water in place W',
+    unit: 'res bbl',
+    applies: (i) =>
+      i.has_aquifer && (i.aquifer_model === 'pot' || i.aquifer_model === 'fetkovich'),
+    notApplicableHint:
+      'aquifer_w_rb applies to pot and Fetkovich aquifers. Carter-Tracy is parameterized by geometry (aquifer_radius_ft, aquifer_permeability_md).',
+    initial: (i, prelim) => {
+      const configured = i.aquifer_params?.initial_aquifer_water_in_place_rb;
+      if (configured != null && configured > 0) return configured;
+      const regressed = prelim?.aquifer_owip_rb;
+      return regressed != null && regressed > 0 ? regressed : null;
+    },
+    missingInitialHint:
+      'Set the aquifer water in place in the Aquifer tab or supply initial_guesses.aquifer_w_rb.',
+    defaultBounds: (v) => [v / 1000, v * 1000],
+  },
+  aquifer_j_rb_d_psi: {
+    label: 'Aquifer productivity index J',
+    unit: 'rb/d/psi',
+    applies: (i) => i.has_aquifer && i.aquifer_model === 'fetkovich',
+    notApplicableHint: 'aquifer_j_rb_d_psi applies to Fetkovich aquifers only.',
+    initial: (i) => {
+      const j = i.aquifer_params?.aquifer_pi_rb_d_psi;
+      return j != null && j > 0 ? j : null;
+    },
+    missingInitialHint:
+      'Set the aquifer productivity index in the Aquifer tab or supply initial_guesses.aquifer_j_rb_d_psi.',
+    defaultBounds: (v) => [v / 1000, v * 1000],
+  },
+  aquifer_radius_ft: {
+    label: 'Reservoir radius at the OWC r_R',
+    unit: 'ft',
+    applies: (i) => i.has_aquifer && i.aquifer_model === 'carter_tracy',
+    notApplicableHint: 'aquifer_radius_ft applies to Carter-Tracy aquifers only.',
+    initial: (i) => {
+      const params = i.aquifer_params ?? {};
+      if (params.aquifer_radius_ft != null && params.aquifer_radius_ft > 0) {
+        return params.aquifer_radius_ft;
+      }
+      // Mirror the computeCarterTracyWe default chain (MB1): area-derived
+      // wedge radius, else the legacy 2980 ft single-cell radius.
+      if (params.reservoir_area_acres != null && params.reservoir_area_acres > 0) {
+        const f_wedge = (params.theta_degrees ?? 360) / 360;
+        return Math.sqrt((params.reservoir_area_acres * 43_560) / (Math.PI * f_wedge));
+      }
+      return 2980;
+    },
+    missingInitialHint: 'Supply initial_guesses.aquifer_radius_ft.',
+    defaultBounds: (v) => [v / 30, v * 30],
+  },
+  aquifer_permeability_md: {
+    label: 'Aquifer permeability',
+    unit: 'md',
+    applies: (i) => i.has_aquifer && i.aquifer_model === 'carter_tracy',
+    notApplicableHint: 'aquifer_permeability_md applies to Carter-Tracy aquifers only.',
+    initial: (i) => {
+      const k = i.aquifer_params?.aquifer_permeability_md;
+      return k != null && k > 0 ? k : null;
+    },
+    missingInitialHint:
+      'Set aquifer permeability in the Aquifer tab or supply initial_guesses.aquifer_permeability_md.',
+    defaultBounds: (v) => [v / 100, v * 100],
+  },
+};
+
+/** Default fit set: the in-place scale plus the case's aquifer shape knobs. */
+export function defaultHistoryMatchParameters(
+  inputs: MBALInputs,
+): HistoryMatchParameterKey[] {
+  const keys: HistoryMatchParameterKey[] = [
+    inputs.fluid_system === 'gas' ? 'ogip_scf' : 'stoiip_stb',
+  ];
+  if (inputs.has_aquifer) {
+    if (inputs.aquifer_model === 'pot') keys.push('aquifer_w_rb');
+    if (inputs.aquifer_model === 'fetkovich') {
+      keys.push('aquifer_w_rb', 'aquifer_j_rb_d_psi');
+    }
+    if (inputs.aquifer_model === 'carter_tracy') keys.push('aquifer_radius_ft');
+  }
+  return keys;
+}
+
+/** Copy inputs with the fitted values written into their engine slots. */
+function applyHmParams(
+  inputs: MBALInputs,
+  values: Partial<Record<HistoryMatchParameterKey, number>>,
+): MBALInputs {
+  const out: MBALInputs = {
+    ...inputs,
+    aquifer_params: { ...(inputs.aquifer_params ?? {}) },
+  };
+  if (values.gas_cap_m != null) out.gas_cap_ratio_m = values.gas_cap_m;
+  if (values.aquifer_w_rb != null) {
+    out.aquifer_params!.initial_aquifer_water_in_place_rb = values.aquifer_w_rb;
+  }
+  if (values.aquifer_j_rb_d_psi != null) {
+    out.aquifer_params!.aquifer_pi_rb_d_psi = values.aquifer_j_rb_d_psi;
+  }
+  if (values.aquifer_radius_ft != null) {
+    out.aquifer_params!.aquifer_radius_ft = values.aquifer_radius_ft;
+  }
+  if (values.aquifer_permeability_md != null) {
+    out.aquifer_params!.aquifer_permeability_md = values.aquifer_permeability_md;
+  }
+  // stoiip_stb / ogip_scf are not engine inputs — they scale Et directly in
+  // the simulator and are threaded through as `scale`.
+  return out;
+}
+
+/**
+ * Build an interpolation table from per-row lab PVT so the simulator can
+ * evaluate PVT at pressures BETWEEN the observed rows. Per-row values are
+ * keyed to the observed pressures, so they cannot be used directly at a
+ * simulated pressure; interpolating through them preserves the lab data
+ * (and reproduces the row values exactly when the simulated pressure lands
+ * on an observed one). Returns undefined when no row carries lab PVT.
+ */
+function labTableFromRows(
+  production_data: ProductionDataPoint[],
+): PvtLabTableRow[] | undefined {
+  const rows: PvtLabTableRow[] = [];
+  for (const p of production_data) {
+    const row: PvtLabTableRow = { pressure_psia: p.pressure_psia };
+    let any = false;
+    if (p.bo_rb_stb != null) { row.bo_rb_stb = p.bo_rb_stb; any = true; }
+    if (p.rs_scf_stb != null) { row.rs_scf_stb = p.rs_scf_stb; any = true; }
+    if (p.bg_rb_mscf != null) { row.bg_rb_mscf = p.bg_rb_mscf; any = true; }
+    else if (p.bg_rb_scf != null) { row.bg_rb_mscf = p.bg_rb_scf * SCF_PER_MSCF; any = true; }
+    if (p.bw_rb_stb != null) { row.bw_rb_stb = p.bw_rb_stb; any = true; }
+    if (p.z_factor != null) { row.z_factor = p.z_factor; any = true; }
+    if (any) rows.push(row);
+  }
+  if (rows.length < 2) return undefined;
+  rows.sort((a, b) => a.pressure_psia - b.pressure_psia);
+  // interpolateLabTable requires strictly ascending pressures — drop dupes.
+  const deduped: PvtLabTableRow[] = [rows[0]];
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].pressure_psia > deduped[deduped.length - 1].pressure_psia + 1e-9) {
+      deduped.push(rows[i]);
+    }
+  }
+  return deduped.length >= 2 ? deduped : undefined;
+}
+
+/** Strip pressure-keyed per-row PVT from a candidate row (see labTableFromRows). */
+function stripRowPvt(point: ProductionDataPoint): ProductionDataPoint {
+  const {
+    bo_rb_stb: _bo,
+    rs_scf_stb: _rs,
+    bg_rb_mscf: _bgm,
+    bg_rb_scf: _bgs,
+    bw_rb_stb: _bw,
+    z_factor: _z,
+    ...rest
+  } = point;
+  return rest;
+}
+
+/**
+ * Rewrite inputs for pressure simulation: per-row lab PVT is keyed to the
+ * OBSERVED pressures, so at a simulated pressure it would freeze Et and
+ * derail the root search (verified experimentally: keeping per-row PVT
+ * floors the whole simulated series). Candidate rows are stripped of
+ * per-row PVT and, when no explicit lab table exists, the per-row values
+ * become an interpolation table so the lab data still governs PVT.
+ */
+function prepareSimulationInputs(
+  inputs: MBALInputs,
+  notes?: Set<string>,
+): MBALInputs {
+  const rows = inputs.production_data;
+  const hasRowPvt = rows.some(
+    (r) =>
+      r.bo_rb_stb != null || r.rs_scf_stb != null || r.bg_rb_mscf != null ||
+      r.bg_rb_scf != null || r.bw_rb_stb != null || r.z_factor != null,
+  );
+  if (!hasRowPvt) return inputs;
+  let labTable = inputs.pvt_lab_table;
+  if (!labTable) {
+    labTable = labTableFromRows(rows);
+    if (labTable) {
+      notes?.add(
+        'Per-row lab PVT was converted to an interpolation table for the pressure simulation. Simulated pressures fall between observed rows, so PVT is interpolated through the lab points there.',
+      );
+    }
+  }
+  return {
+    ...inputs,
+    pvt_lab_table: labTable,
+    production_data: [rows[0], ...rows.slice(1).map(stripRowPvt)],
+  };
+}
+
+/**
+ * Simulate the reservoir pressure history for a given in-place scale
+ * (N in STB for oil, G in scf for gas) and the aquifer parameters carried on
+ * `inputs`. Returns the full pressure series aligned with production_data
+ * (index 0 pinned at initial pressure). Collects simulator notes (clamps,
+ * fixed-point convergence, PVT-table derivation) into `notes`.
+ */
+export function simulatePressureHistory(
+  rawInputs: MBALInputs,
+  scale: number,
+  notes?: Set<string>,
+): number[] {
+  const inputs = prepareSimulationInputs(rawInputs, notes);
+  const rows = inputs.production_data;
+  const n = rows.length;
+  const pi = inputs.initial_pressure_psia;
+  const cw = inputs.water_compressibility_psi;
+  const cf = inputs.formation_compressibility_psi;
+  const isGas = inputs.fluid_system === 'gas';
+  const model: AquiferModel = inputs.has_aquifer ? inputs.aquifer_model : 'none';
+
+  const fEtAt = (k: number, p: number): { F: number; Et: number } => {
+    const candidate = { ...rows[k], pressure_psia: p };
+    const twoPoint: MBALInputs = {
+      ...inputs,
+      production_data: [rows[0], candidate],
+    };
+    const { per_timestep } = isGas
+      ? computeGasPerTimestep(twoPoint)
+      : computeOilPerTimestep(twoPoint);
+    return { F: per_timestep[1].F_rb, Et: per_timestep[1].Et_rb };
+  };
+
+  const potW = inputs.aquifer_params?.initial_aquifer_water_in_place_rb ?? 0;
+  if (model === 'pot' && potW <= 0) {
+    throw new Error(
+      'Pot-aquifer pressure simulation requires aquifer_params.initial_aquifer_water_in_place_rb (W). Set it in the Aquifer tab or fit it (aquifer_w_rb).',
+    );
+  }
+
+  // Scalar solve at step k: find p with scale·Et(p) + We(p) = F(p).
+  // g decreases as p rises toward pi (expansion vanishes faster than voidage).
+  const pLo = Math.max(50, 0.02 * pi);
+  const solveStep = (k: number, weOf: (p: number) => number): number => {
+    const g = (p: number): number => {
+      const { F, Et } = fEtAt(k, p);
+      return scale * Et + weOf(p) - F;
+    };
+    let a = pLo;
+    let b = pi;
+    let fa = g(a);
+    let fb = g(b);
+    if (fb >= 0) {
+      // Influx + expansion cover the voidage with no depletion: pressure is
+      // fully maintained (or the trial aquifer is unphysically strong).
+      notes?.add(
+        'At one or more timesteps the trial parameters sustain reservoir pressure at the initial value (influx covers voidage); simulated pressure was capped at initial pressure there.',
+      );
+      return b;
+    }
+    if (fa <= 0) {
+      notes?.add(
+        `At one or more timesteps the trial parameters cannot supply the observed voidage even at ${pLo.toFixed(0)} psia; simulated pressure was floored there.`,
+      );
+      return a;
+    }
+    // Illinois false position: bracketing with superlinear convergence.
+    for (let i = 0; i < 80 && b - a > 1e-3; i++) {
+      let c = (a * fb - b * fa) / (fb - fa);
+      if (!(c > a && c < b)) c = 0.5 * (a + b);
+      const fc = g(c);
+      if (fc === 0) return c;
+      if (fc > 0) {
+        a = c;
+        fa = fc;
+        fb *= 0.5;
+      } else {
+        b = c;
+        fb = fc;
+        fa *= 0.5;
+      }
+    }
+    return 0.5 * (a + b);
+  };
+
+  const timeDependent = model === 'fetkovich' || model === 'carter_tracy';
+  const deltas = timeDependent ? extractTimedeltasDays(rows) : null;
+
+  const simP = rows.map((r) => r.pressure_psia);
+  simP[0] = pi;
+
+  // Settle tolerance 0.2 psi: the Carter-Tracy Δp convention references the
+  // NEXT observation, so the fixed point can dither by ~0.1 psi without any
+  // physical meaning; 0.2 psi is far below survey gauge resolution.
+  const MAX_OUTER = timeDependent ? 25 : 1;
+  let settled = !timeDependent;
+  for (let outer = 0; outer < MAX_OUTER; outer++) {
+    let weArr: number[] | null = null;
+    if (timeDependent) {
+      const simRows = rows.map((r, i) => ({ ...r, pressure_psia: simP[i] }));
+      const simSeries: MBALInputs = { ...inputs, production_data: simRows };
+      weArr =
+        model === 'fetkovich'
+          ? computeFetkovichWe(simSeries, deltas as number[])
+          : computeCarterTracyWe(simSeries, deltas as number[]);
+    }
+    let maxShift = 0;
+    for (let k = 1; k < n; k++) {
+      const weOf =
+        model === 'pot'
+          ? (p: number) => (cw + cf) * potW * (pi - p)
+          : () => (weArr ? weArr[k] : 0);
+      const pNew = solveStep(k, weOf);
+      maxShift = Math.max(maxShift, Math.abs(pNew - simP[k]));
+      simP[k] = pNew;
+    }
+    if (!timeDependent) break;
+    if (maxShift < 0.2) {
+      settled = true;
+      break;
+    }
+  }
+  if (!settled) {
+    notes?.add(
+      'The aquifer pressure coupling loop did not fully settle within 25 sweeps; simulated pressures may carry a small aquifer-lag error.',
+    );
+  }
+  return simP;
+}
+
+/**
+ * Pressure history match: fit tank parameters by minimizing observed-minus-
+ * simulated pressure residuals with Levenberg-Marquardt. See the section
+ * comment above for the method; see HistoryMatchOptions for the knobs.
+ */
+export function runHistoryMatch(
+  inputs: MBALInputs,
+  options: HistoryMatchOptions = {},
+): HistoryMatchResult {
+  validateInputs(inputs);
+  const warnings: string[] = [];
+
+  if (inputs.production_data.length > 400) {
+    throw new Error(
+      `History match supports up to 400 timesteps (got ${inputs.production_data.length}). Decimate the pressure survey to representative points in the Data tab.`,
+    );
+  }
+
+  // Preliminary forward run: initial guesses for N/G (and pot W) come from
+  // the regression the user already trusts.
+  let prelim: MBALResult | null = null;
+  let prelimError: string | null = null;
+  try {
+    prelim = computeMaterialBalance(inputs);
+  } catch (err) {
+    prelimError = err instanceof Error ? err.message : String(err);
+  }
+
+  // Resolve the fit set and check applicability.
+  const keys =
+    options.fit_parameters && options.fit_parameters.length > 0
+      ? options.fit_parameters
+      : defaultHistoryMatchParameters(inputs);
+  const seen = new Set<string>();
+  for (const key of keys) {
+    const spec = HM_PARAM_SPECS[key];
+    if (!spec) throw new Error(`Unknown history-match parameter "${key}".`);
+    if (seen.has(key)) throw new Error(`Duplicate history-match parameter "${key}".`);
+    seen.add(key);
+    if (!spec.applies(inputs)) {
+      throw new Error(`Parameter "${key}" does not apply to this case. ${spec.notApplicableHint}`);
+    }
+  }
+
+  // Initial values (value space).
+  const initials: number[] = keys.map((key) => {
+    const spec = HM_PARAM_SPECS[key];
+    const fromUser = options.initial_guesses?.[key];
+    if (fromUser != null && fromUser > 0) return fromUser;
+    const derived = spec.initial(inputs, prelim);
+    if (derived != null && derived > 0) return derived;
+    const prelimNote = prelimError
+      ? ` (the preliminary regression failed: ${prelimError})`
+      : '';
+    throw new Error(
+      `No starting value for history-match parameter "${key}"${prelimNote}. ${spec.missingInitialHint}`,
+    );
+  });
+
+  // The in-place scale is either fitted or held at its starting estimate.
+  const scaleKey: HistoryMatchParameterKey =
+    inputs.fluid_system === 'gas' ? 'ogip_scf' : 'stoiip_stb';
+  const scaleFitIdx = keys.indexOf(scaleKey);
+  let fixedScale: number | null = null;
+  if (scaleFitIdx < 0) {
+    const fromUser = options.initial_guesses?.[scaleKey];
+    const derived = HM_PARAM_SPECS[scaleKey].initial(inputs, prelim);
+    fixedScale = fromUser != null && fromUser > 0 ? fromUser : derived;
+    if (fixedScale == null || fixedScale <= 0) {
+      throw new Error(
+        `The history match needs a value for ${scaleKey} even when it is not being fitted. ${HM_PARAM_SPECS[scaleKey].missingInitialHint}`,
+      );
+    }
+  }
+
+  // Fit points: every non-initial, non-excluded timestep.
+  const excluded = new Set<number>(inputs.excluded_timesteps ?? []);
+  const rows = inputs.production_data;
+  const fitRowIdx: number[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (!excluded.has(rows[i].timestep_index)) fitRowIdx.push(i);
+  }
+  if (fitRowIdx.length < keys.length + 1) {
+    throw new Error(
+      `History match needs at least ${keys.length + 1} non-excluded observations to fit ${keys.length} parameter(s); only ${fitRowIdx.length} available. Add production rows or fit fewer parameters.`,
+    );
+  }
+
+  // ln-space encoding and bounds. (Per-row PVT handling happens inside
+  // simulatePressureHistory — see prepareSimulationInputs.)
+  const theta0 = initials.map((v) => Math.log(v));
+  const lnBounds: Array<[number, number]> = keys.map((key, j) => {
+    const user = options.bounds?.[key];
+    const [lo, hi] = user ?? HM_PARAM_SPECS[key].defaultBounds(initials[j]);
+    if (!(lo > 0) || !(hi > lo)) {
+      throw new Error(
+        `Bounds for "${key}" must satisfy 0 < low < high (got [${lo}, ${hi}]).`,
+      );
+    }
+    return [Math.log(lo), Math.log(hi)];
+  });
+
+  const decode = (theta: number[]): Partial<Record<HistoryMatchParameterKey, number>> => {
+    const values: Partial<Record<HistoryMatchParameterKey, number>> = {};
+    keys.forEach((key, j) => {
+      values[key] = Math.exp(theta[j]);
+    });
+    return values;
+  };
+
+  const residualsFn = (theta: number[]): number[] => {
+    const values = decode(theta);
+    const simInputs = applyHmParams(inputs, values);
+    const scale = scaleFitIdx >= 0 ? (values[scaleKey] as number) : (fixedScale as number);
+    try {
+      const simP = simulatePressureHistory(simInputs, scale);
+      return fitRowIdx.map((i) => rows[i].pressure_psia - simP[i]);
+    } catch {
+      // LM requires finite residuals; a large flat penalty steers the step
+      // search away from regions where the simulation cannot run.
+      return fitRowIdx.map(() => 1e6);
+    }
+  };
+
+  const lm = levenbergMarquardt(residualsFn, theta0, {
+    maxIterations: options.max_iterations ?? 30,
+    tolerance: 1e-8,
+    bounds: lnBounds,
+  });
+
+  // Final simulation at the matched parameters, collecting simulator notes.
+  const matchedValues = decode(lm.theta);
+  const matchedScale =
+    scaleFitIdx >= 0 ? (matchedValues[scaleKey] as number) : (fixedScale as number);
+  const notes = new Set<string>();
+  const simP = simulatePressureHistory(
+    applyHmParams(inputs, matchedValues),
+    matchedScale,
+    notes,
+  );
+  notes.forEach((n) => warnings.push(n));
+
+  const observed = rows.map((r) => r.pressure_psia);
+  const residual = observed.map((p, i) => p - simP[i]);
+  const point_in_fit = rows.map((r, i) => i > 0 && !excluded.has(r.timestep_index));
+  const fitResiduals = fitRowIdx.map((i) => residual[i]);
+  const ssr = fitResiduals.reduce((acc, v) => acc + v * v, 0);
+  const rms = Math.sqrt(ssr / fitResiduals.length);
+  const maxAbs = fitResiduals.reduce((acc, v) => Math.max(acc, Math.abs(v)), 0);
+
+  if (!lm.converged) {
+    warnings.push(
+      `The parameter search stopped at the iteration cap (${options.max_iterations ?? 30}) before fully converging. Results are usable but re-running with more iterations or tighter starting values may improve the match.`,
+    );
+  }
+  if (rms > 0.02 * inputs.initial_pressure_psia) {
+    warnings.push(
+      `Match quality is poor: RMS pressure error ${rms.toFixed(1)} psi exceeds 2% of initial pressure. Check drive-mechanism assumptions (aquifer model, gas cap) and data quality before trusting the fitted values.`,
+    );
+  }
+
+  const matched_parameters: HistoryMatchedParameter[] = keys.map((key, j) => {
+    const spec = HM_PARAM_SPECS[key];
+    const value = matchedValues[key] as number;
+    const se = lm.standardErrors[j];
+    const [ciLo, ciHi] = lm.confidence95[j];
+    const atBound =
+      Math.abs(lm.theta[j] - lnBounds[j][0]) < 1e-9 ||
+      Math.abs(lm.theta[j] - lnBounds[j][1]) < 1e-9;
+    if (atBound) {
+      warnings.push(
+        `${spec.label} finished at its search bound; the bound is constraining the fit. Widen bounds or revisit the starting value.`,
+      );
+    }
+    return {
+      key,
+      label: spec.label,
+      unit: spec.unit,
+      initial_value: initials[j],
+      matched_value: value,
+      std_error_pct: Number.isFinite(se) ? (Math.exp(se) - 1) * 100 : null,
+      ci95_low: Number.isFinite(ciLo) ? Math.exp(ciLo) : null,
+      ci95_high: Number.isFinite(ciHi) ? Math.exp(ciHi) : null,
+      at_bound: atBound,
+    };
+  });
+
+  // Full forward diagnostics at the matched parameters (original rows, so
+  // per-row lab PVT stays in effect for the regression-side numbers).
+  let forward: MBALResult;
+  try {
+    forward = computeMaterialBalance(applyHmParams(inputs, matchedValues));
+  } catch (err) {
+    if (!prelim) {
+      throw new Error(
+        `Forward run at the matched parameters failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+    warnings.push(
+      'The forward diagnostics run at the matched parameters failed; drive indices and diagnostics reflect the pre-match configuration.',
+    );
+    forward = prelim;
+  }
+
+  return {
+    matched_parameters,
+    observed_pressure_psia: observed,
+    simulated_pressure_psia: simP,
+    residual_psi: residual,
+    point_in_fit,
+    rms_error_psi: rms,
+    max_abs_error_psi: maxAbs,
+    ssr_psi2: ssr,
+    iterations: lm.iterations,
+    converged: lm.converged,
+    matched_ooip_stb: inputs.fluid_system === 'gas' ? undefined : matchedScale,
+    matched_ogip_scf: inputs.fluid_system === 'gas' ? matchedScale : undefined,
+    forward,
+    validation_tier: forward.validation_tier,
+    validation_reference: forward.validation_reference
+      ? `${forward.validation_reference}; history-match parameters from Levenberg-Marquardt minimization of pressure residuals (inverse MBE)`
+      : 'History-match parameters from Levenberg-Marquardt minimization of pressure residuals (inverse MBE)',
+    warnings,
+    engine_version: ENGINE_VERSION,
   };
 }
 

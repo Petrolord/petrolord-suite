@@ -75,12 +75,10 @@ const RecoveryFactorEstimator = lazy(() => import('@/pages/apps/RecoveryFactorEs
 const RiskedReservesValuation = lazy(() => import('@/pages/apps/RiskedReservesValuation'));
 const EorScreeningTool = lazy(() => import('@/pages/apps/EorScreeningTool'));
 const ForecastScenarioHub = lazy(() => import('@/pages/apps/ForecastScenarioHub'));
-const AquiferInfluxCalculator = lazy(() => import('@/pages/apps/AquiferInfluxCalculator'));
 const DeclineCurveAnalysis = lazy(() => import('@/pages/apps/DeclineCurveAnalysis'));
 const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'));
 const NetworkDiagramPro = lazy(() => import('@/pages/apps/NetworkDiagramPro'));
 const ReservoirBalance = lazy(() => import('@/pages/apps/reservoir-balance/ReservoirBalance'));
-const RbCaseDetail = lazy(() => import('@/pages/apps/reservoir-balance/RbCaseDetail'));
 const ArtificialLiftDesigner = lazy(() => import('@/pages/apps/ArtificialLiftDesigner'));
 const WellboreFlowSimulator = lazy(() => import('@/pages/apps/WellboreFlowSimulator'));
 const TorqueDragPredictor = lazy(() => import('@/pages/apps/TorqueDragPredictor'));
@@ -471,17 +469,17 @@ function App() {
                                 <Route path="apps/reservoir/risked-reserves-valuation" element={<RiskedReservesValuation />} />
                                 <Route path="apps/reservoir/eor-screening" element={<EorScreeningTool />} />
                                 <Route path="apps/reservoir/forecast-scenario-hub" element={<ForecastScenarioHub />} />
-                                <Route path="apps/reservoir/aquifer-influx-calculator" element={<AquiferInfluxCalculator />} />
+                                <Route path="apps/reservoir/aquifer-influx-calculator" element={<Navigate to="/dashboard/apps/reservoir/reservoir-balance?tab=aquifer" replace />} />
                                 <Route path="apps/reservoir/decline-curve-analysis" element={<DeclineCurveAnalysis />} />
                                 <Route path="apps/reservoir/reservoir-balance" element={<ReservoirBalance />} />
-                                <Route path="apps/reservoir/reservoir-balance/cases/:caseId" element={<RbCaseDetail />} />
+                                <Route path="apps/reservoir/reservoir-balance/cases/:caseId" element={<ReservoirBalance />} />
                                 {/* Added multiple aliases to prevent 404 routing mismatches with various database slugs */}
                                 <Route path="apps/reservoir/reservoir-balance-pro" element={<ReservoirBalance />} />
-                                <Route path="apps/reservoir/reservoir-balance-pro/cases/:caseId" element={<RbCaseDetail />} />
+                                <Route path="apps/reservoir/reservoir-balance-pro/cases/:caseId" element={<ReservoirBalance />} />
                                 <Route path="apps/reservoir/reservoir-balance-surveillance" element={<ReservoirBalance />} />
-                                <Route path="apps/reservoir/reservoir-balance-surveillance/cases/:caseId" element={<RbCaseDetail />} />
+                                <Route path="apps/reservoir/reservoir-balance-surveillance/cases/:caseId" element={<ReservoirBalance />} />
                                 <Route path="apps/reservoir/material-balance-studio" element={<ReservoirBalance />} />
-                                <Route path="apps/reservoir/material-balance-studio/cases/:caseId" element={<RbCaseDetail />} />
+                                <Route path="apps/reservoir/material-balance-studio/cases/:caseId" element={<ReservoirBalance />} />
                                 {/* R0-archived shells (nonexistent scenario-planner-engine) — redirect to their real successors */}
                                 <Route path="apps/reservoir/scenario-planner" element={<Navigate to="/dashboard/apps/reservoir/forecast-scenario-hub" replace />} />
                                 <Route path="apps/reservoir/eor-designer" element={<Navigate to="/dashboard/apps/reservoir/eor-screening" replace />} />
@@ -666,6 +664,8 @@ function App() {
                                   <Route path="/dev/pore-pressure-studio" element={<PorePressureStudioHarness />} />
                                   <Route path="/dev/dca" element={<DeclineCurveAnalysis />} />
                                   <Route path="/dev/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
+                                  <Route path="/dev/material-balance-studio" element={<ReservoirBalance />} />
+                                  <Route path="/dev/material-balance-studio/cases/:caseId" element={<ReservoirBalance />} />
                                 </>
                               )}
                               <Route path="*" element={<Navigate to="/" replace />} />

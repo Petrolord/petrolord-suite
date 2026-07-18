@@ -1,603 +1,464 @@
-// src/pages/apps/reservoir-balance/ReservoirBalance.jsx
+// Material Balance Studio (MB3) — Reservoir Balance on the shared Studio
+// shell. Replaces the pre-MB3 two-page layout (case-list page + RbCaseDetail
+// tabs page, both retired) with the studio-class workstation used by the DCA,
+// Waterflood Design and Well Test Analysis studios.
 //
-// Reservoir Balance — Case List Page
-// ===================================
+// Routes (App.jsx): apps/reservoir/reservoir-balance and .../cases/:caseId
+// (plus the -pro / -surveillance / material-balance-studio slug aliases) all
+// mount this page; :caseId selects the open case. ?tab= deep-links a tab.
 //
-// Phase 2 deliverable. Entry point for the Reservoir Balance app.
-// Lists the current user's MBAL cases, allows creating new cases,
-// navigating to case detail, and archive/delete actions.
+// Tabs (only what is real ships): Data | PVT | Aquifer | Run | Plots |
+// Forecast | Contacts | Report. The Aquifer tab is segmented
+// Model | Screening (MB4); the Run tab is segmented
+// Regression | History match (MB5); Forecast/Contacts/Report are MB6.
 //
-// Routes that hit this page (via App.jsx):
-//   /dashboard/apps/reservoir/reservoir-balance
-//   /dashboard/apps/reservoir/reservoir-balance-pro
-//   /dashboard/apps/reservoir/reservoir-balance-surveillance
-//   /dashboard/apps/reservoir/material-balance-studio
-//
-// Clicking a row navigates to: ./cases/:caseId  (RbCaseDetail.jsx, Artifact 4)
-//
-// Pattern: mirrors EpeCaseList.jsx structure in this Suite.
-
-import React, { useCallback, useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+// Persistence: rb_cases + rb_* tables via lib/api.js. Every write is explicit
+// and immediate (no debounced autosave here by design: production-data saves
+// are non-atomic delete+insert). Results are computed by the calculate-mbal
+// edge function and recomputed on demand, never trusted from stale state.
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet';
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import {
-  Plus,
-  Droplet,
-  Wind,
-  Layers,
-  ChevronRight,
-  Trash2,
-  Loader2,
-  AlertCircle,
-  Database,
-  Calendar,
+  Scale, Play, Loader2, Database, Info, CheckCircle2,
 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
+import StudioLayout from '@/components/studio/StudioLayout';
+import StudioHeader from '@/components/studio/StudioHeader';
+import StudioHelp from '@/components/studio/StudioHelp';
+import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import {
-  listCases,
-  createCase,
-  deleteCase,
-} from './lib/api';
+  MaterialBalanceStudioProvider,
+  useMaterialBalanceStudio,
+} from '@/contexts/MaterialBalanceStudioContext';
+import DataHub from '@/components/reservoirbalance/DataHub';
+import PvtRock from '@/components/reservoirbalance/PvtRock';
+import AquiferModel from '@/components/reservoirbalance/AquiferModel';
+import AquiferScreening from '@/components/reservoirbalance/AquiferScreening';
+import HistoryMatch from '@/components/reservoirbalance/HistoryMatch';
+import ForecastTab from '@/components/reservoirbalance/ForecastTab';
+import ContactsTab from '@/components/reservoirbalance/ContactsTab';
+import ReportTab from '@/components/reservoirbalance/ReportTab';
+import RbDiagnosticPlots from '@/components/reservoirbalance/RbDiagnosticPlots';
+import ValidationTierBadge from '@/components/reservoirbalance/ValidationTierBadge';
+import NewCaseDialog, { fluidSystemDisplay } from '@/components/reservoirbalance/NewCaseDialog';
+import MbsHelpContent from '@/components/reservoirbalance/MbsHelpContent';
+import { mapWellTestIntake } from './lib/wellTestIntake';
 
-// =============================================================================
-// DISPLAY HELPERS
-// =============================================================================
-
-const FLUID_SYSTEM_OPTIONS = [
-  { value: 'oil', label: 'Oil reservoir', icon: Droplet, color: 'text-green-500' },
-  { value: 'gas', label: 'Gas reservoir', icon: Wind, color: 'text-blue-500' },
-  { value: 'oil_with_gas_cap', label: 'Oil with gas cap', icon: Layers, color: 'text-purple-500' },
+const TABS = [
+  { value: 'data', label: 'Data' },
+  { value: 'pvt', label: 'PVT' },
+  { value: 'aquifer', label: 'Aquifer' },
+  { value: 'run', label: 'Run' },
+  { value: 'plots', label: 'Plots' },
+  { value: 'forecast', label: 'Forecast' },
+  { value: 'contacts', label: 'Contacts' },
+  { value: 'report', label: 'Report' },
 ];
 
-function fluidSystemDisplay(value) {
-  return FLUID_SYSTEM_OPTIONS.find((o) => o.value === value) ?? {
-    value,
-    label: value,
-    icon: Droplet,
-    color: 'text-gray-500',
-  };
+function formatNumber(n, opts = {}) {
+  if (n === null || n === undefined || Number.isNaN(n)) return '—';
+  const { decimals = 2 } = opts;
+  return Number(n).toLocaleString(undefined, { maximumFractionDigits: decimals });
 }
 
-function formatDate(iso) {
-  if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return iso;
-  }
-}
+const Stat = ({ label, value, hint }) => (
+  <div>
+    <p className="text-xs text-muted-foreground">{label}</p>
+    <p className="text-xl font-semibold">{value}</p>
+    {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
+  </div>
+);
 
-// =============================================================================
-// NEW CASE DIALOG
-// =============================================================================
+const DriveIndex = ({ label, value }) => (
+  <div className="border rounded-md p-3">
+    <p className="text-xs text-muted-foreground">{label}</p>
+    <p className="text-base font-semibold mt-1">
+      {value === null || value === undefined ? '—' : value.toFixed(3)}
+    </p>
+  </div>
+);
 
-const NewCaseDialog = ({ open, onOpenChange, onCreated, prefill }) => {
-  const { toast } = useToast();
-  const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({
-    name: '',
-    field_name: '',
-    reservoir_name: '',
-    fluid_system: 'oil',
-    initial_pressure_psia: '',
-    reservoir_temperature_f: '',
-    initial_water_saturation: '0.20',
-    bubble_point_psia: '',
-  });
-
-  // Prefill from a well-test handoff (WT5): applied each time the dialog
-  // opens with a prefill payload; the user edits freely afterwards.
-  useEffect(() => {
-    if (open && prefill) setForm((f) => ({ ...f, ...prefill }));
-  }, [open, prefill]);
-
-  const update = (key) => (e) => {
-    setForm((f) => ({ ...f, [key]: e?.target?.value ?? e }));
-  };
-
-  const isValid =
-    form.name.trim().length > 0 &&
-    form.initial_pressure_psia !== '' &&
-    !isNaN(parseFloat(form.initial_pressure_psia)) &&
-    form.reservoir_temperature_f !== '' &&
-    !isNaN(parseFloat(form.reservoir_temperature_f)) &&
-    form.initial_water_saturation !== '' &&
-    !isNaN(parseFloat(form.initial_water_saturation));
-
-  const handleSubmit = async () => {
-    if (!isValid) return;
-    setSubmitting(true);
-
-    const payload = {
-      name: form.name.trim(),
-      field_name: form.field_name.trim() || null,
-      reservoir_name: form.reservoir_name.trim() || null,
-      fluid_system: form.fluid_system,
-      has_aquifer: false, // default; user toggles on detail page
-      has_gas_cap: form.fluid_system === 'oil_with_gas_cap',
-      initial_pressure_psia: parseFloat(form.initial_pressure_psia),
-      reservoir_temperature_f: parseFloat(form.reservoir_temperature_f),
-      initial_water_saturation: parseFloat(form.initial_water_saturation),
-      bubble_point_psia: form.bubble_point_psia
-        ? parseFloat(form.bubble_point_psia)
-        : null,
-    };
-
-    const { data, error } = await createCase(payload);
-    setSubmitting(false);
-
-    if (error) {
-      toast({
-        title: 'Failed to create case',
-        description: error.message,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    toast({
-      title: 'Case created',
-      description: `"${data.name}" is ready to receive production data.`,
-    });
-    onOpenChange(false);
-    setForm({
-      name: '',
-      field_name: '',
-      reservoir_name: '',
-      fluid_system: 'oil',
-      initial_pressure_psia: '',
-      reservoir_temperature_f: '',
-      initial_water_saturation: '0.20',
-      bubble_point_psia: '',
-    });
-    onCreated?.(data);
-  };
-
+// ─── Left-rail case summary ──────────────────────────────────────────────────
+const CaseSummary = () => {
+  const { caseData } = useMaterialBalanceStudio();
+  if (!caseData) return null;
+  const fluid = fluidSystemDisplay(caseData.fluid_system);
+  const FluidIcon = fluid.icon;
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>New Reservoir Balance Case</DialogTitle>
-          <DialogDescription>
-            Define a new material balance study. You can edit any of these fields later from the case detail page.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <Label htmlFor="name">Case name *</Label>
-              <Input
-                id="name"
-                placeholder="e.g. Egbema-12 C2.0 Sand"
-                value={form.name}
-                onChange={update('name')}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="field">Field</Label>
-              <Input
-                id="field"
-                placeholder="e.g. Egbema West"
-                value={form.field_name}
-                onChange={update('field_name')}
-              />
-            </div>
-            <div>
-              <Label htmlFor="reservoir">Reservoir</Label>
-              <Input
-                id="reservoir"
-                placeholder="e.g. C2.0 Sand"
-                value={form.reservoir_name}
-                onChange={update('reservoir_name')}
-              />
-            </div>
-
-            <div className="col-span-2">
-              <Label>Fluid system *</Label>
-              <Select
-                value={form.fluid_system}
-                onValueChange={(v) => setForm((f) => ({ ...f, fluid_system: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FLUID_SYSTEM_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="pi">Initial pressure (psia) *</Label>
-              <Input
-                id="pi"
-                type="number"
-                placeholder="e.g. 4500"
-                value={form.initial_pressure_psia}
-                onChange={update('initial_pressure_psia')}
-              />
-            </div>
-            <div>
-              <Label htmlFor="temp">Temperature (°F) *</Label>
-              <Input
-                id="temp"
-                type="number"
-                placeholder="e.g. 180"
-                value={form.reservoir_temperature_f}
-                onChange={update('reservoir_temperature_f')}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="swi">Initial water saturation *</Label>
-              <Input
-                id="swi"
-                type="number"
-                step="0.01"
-                min="0"
-                max="1"
-                value={form.initial_water_saturation}
-                onChange={update('initial_water_saturation')}
-              />
-            </div>
-            <div>
-              <Label htmlFor="pb">
-                Bubble point (psia){' '}
-                <span className="text-xs text-muted-foreground">
-                  {form.fluid_system === 'gas' ? '(not applicable)' : '(optional)'}
-                </span>
-              </Label>
-              <Input
-                id="pb"
-                type="number"
-                placeholder="e.g. 3200"
-                value={form.bubble_point_psia}
-                onChange={update('bubble_point_psia')}
-                disabled={form.fluid_system === 'gas'}
-              />
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={submitting}
-          >
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={!isValid || submitting}>
-            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create case
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <section className="rounded-lg border border-slate-800 bg-slate-900 p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <FluidIcon className={`h-4 w-4 ${fluid.color}`} />
+        <span className="text-sm font-medium text-slate-200 truncate">{caseData.name}</span>
+      </div>
+      <p className="text-[11px] text-slate-500">
+        {caseData.field_name || 'No field'}
+        {caseData.reservoir_name && ` / ${caseData.reservoir_name}`}
+      </p>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+        <span className="text-slate-500">Initial P</span>
+        <span className="text-slate-300 text-right">{formatNumber(caseData.initial_pressure_psia)} psia</span>
+        <span className="text-slate-500">Temperature</span>
+        <span className="text-slate-300 text-right">{formatNumber(caseData.reservoir_temperature_f)} °F</span>
+        <span className="text-slate-500">Initial Sw</span>
+        <span className="text-slate-300 text-right">{formatNumber(caseData.initial_water_saturation, { decimals: 3 })}</span>
+        <span className="text-slate-500">Bubble point</span>
+        <span className="text-slate-300 text-right">
+          {caseData.bubble_point_psia ? `${formatNumber(caseData.bubble_point_psia)} psia` : '—'}
+        </span>
+        <span className="text-slate-500">Data rows</span>
+        <span className="text-slate-300 text-right">{caseData.production_data?.length ?? 0}</span>
+      </div>
+    </section>
   );
 };
 
-// =============================================================================
-// MAIN PAGE
-// =============================================================================
-
-const ReservoirBalance = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { toast } = useToast();
-  const [cases, setCases] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [newCaseOpen, setNewCaseOpen] = useState(false);
-  const [newCasePrefill, setNewCasePrefill] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-
-  // Average pressure / k / skin from the Well Test Analysis Studio
-  // (navigate-state handoff, WT5): opens the new-case dialog with the
-  // tested p-bar as initial pressure; k and skin are context for the
-  // engineer (material balance has no direct field for them).
-  const wtIntakeDone = React.useRef(false);
-  useEffect(() => {
-    const wt = location.state?.wellTestData;
-    if (!wt || wtIntakeDone.current) return;
-    wtIntakeDone.current = true;
-    const prefill = {};
-    if (Number.isFinite(wt.pAvg_psia) && wt.pAvg_psia > 0) {
-      prefill.initial_pressure_psia = wt.pAvg_psia.toFixed(1);
-    }
-    if (Number.isFinite(wt.tempF) && wt.tempF > 0) {
-      prefill.reservoir_temperature_f = wt.tempF.toFixed(0);
-    }
-    if (wt.fluid === 'gas') prefill.fluid_system = 'gas';
-    if (wt.wellName) prefill.name = `${wt.wellName} material balance`;
-    if (!Object.keys(prefill).length) return;
-    setNewCasePrefill(prefill);
-    setNewCaseOpen(true);
-    const extras = [
-      Number.isFinite(wt.k_md) ? `k = ${Number(wt.k_md).toPrecision(3)} md` : null,
-      Number.isFinite(wt.skin) ? `skin = ${Number(wt.skin).toFixed(1)}` : null,
-    ].filter(Boolean).join(', ');
-    toast({
-      title: 'Well test results received',
-      description: `Average pressure from ${wt.source || 'the Well Test Analysis Studio'} prefilled as initial pressure${extras ? ` (${extras} for reference)` : ''}.`,
-    });
-  }, [location.state, toast]);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    const { data, error } = await listCases();
-    if (error) {
-      setError(error.message);
-      setCases([]);
-    } else {
-      setCases(data ?? []);
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const handleCaseCreated = (newCase) => {
-    setCases((prev) => [newCase, ...prev]);
-    navigate(`./cases/${newCase.id}`);
-  };
-
-  const handleOpen = (caseId) => {
-    navigate(`./cases/${caseId}`);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    const { error } = await deleteCase(deleteTarget.id);
-    setDeleting(false);
-    if (error) {
-      toast({
-        title: 'Delete failed',
-        description: error.message,
-        variant: 'destructive',
-      });
-      return;
-    }
-    toast({
-      title: 'Case deleted',
-      description: `"${deleteTarget.name}" and all associated runs were removed.`,
-    });
-    setCases((prev) => prev.filter((c) => c.id !== deleteTarget.id));
-    setDeleteTarget(null);
-  };
-
+// ─── Run tab main area (moved from the retired RbCaseDetail.jsx) ─────────────
+const RunPanel = () => {
+  const { caseData, lastResult, running, handleRun } = useMaterialBalanceStudio();
+  const rowCount = caseData?.production_data?.length ?? 0;
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="container mx-auto py-6 px-4 max-w-7xl"
-    >
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reservoir Balance</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Material balance analysis. Estimate OOIP, drive mechanism, and aquifer support from production history.
-          </p>
-        </div>
-        <Button onClick={() => setNewCaseOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New case
-        </Button>
-      </div>
-
-      {error && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Failed to load cases</AlertTitle>
-          <AlertDescription>
-            {error}{' '}
-            <Button variant="link" size="sm" onClick={refresh} className="px-1">
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
+    <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Your cases</CardTitle>
+          <CardTitle>Run material balance</CardTitle>
           <CardDescription>
-            {loading
-              ? 'Loading…'
-              : `${cases.length} case${cases.length === 1 ? '' : 's'}`}
+            Invokes the validated engine. PVT correlations and aquifer model are inherited from the PVT and Aquifer tabs. Each computed result carries a validation tier badge indicating the evidence supporting that specific engine path.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : cases.length === 0 ? (
-            <EmptyState onCreate={() => setNewCaseOpen(true)} />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Field / Reservoir</TableHead>
-                  <TableHead>Fluid</TableHead>
-                  <TableHead>Initial P (psia)</TableHead>
-                  <TableHead>Updated</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cases.map((c) => {
-                  const fluid = fluidSystemDisplay(c.fluid_system);
-                  const FluidIcon = fluid.icon;
-                  return (
-                    <TableRow
-                      key={c.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleOpen(c.id)}
-                    >
-                      <TableCell className="font-medium">{c.name}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {c.field_name || '—'}
-                        {c.reservoir_name && ` / ${c.reservoir_name}`}
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center gap-1.5">
-                          <FluidIcon className={`h-4 w-4 ${fluid.color}`} />
-                          <span className="text-sm">{fluid.label}</span>
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {c.initial_pressure_psia
-                          ? c.initial_pressure_psia.toLocaleString()
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Calendar className="h-3 w-3" />
-                          {formatDate(c.updated_at)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpen(c.id)}
-                          >
-                            Open
-                            <ChevronRight className="ml-1 h-3 w-3" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleteTarget(c)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
+          <div className="flex items-center gap-3">
+            <Button size="lg" onClick={handleRun} disabled={running || rowCount < 2}>
+              {running ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="mr-2 h-4 w-4" />
+              )}
+              Run MBAL
+            </Button>
+            {rowCount < 2 && (
+              <p className="text-sm text-muted-foreground">
+                Upload production data via the Data tab first (need at least 2 timesteps).
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
 
+      {lastResult && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Latest result</CardTitle>
+                <CardDescription>
+                  Drive mechanism:{' '}
+                  <span className="font-medium">
+                    {lastResult.drive_mechanism?.replace(/_/g, ' ')}
+                  </span>
+                  {' • '}
+                  Aquifer:{' '}
+                  <span className="font-medium">{lastResult.aquifer_strength}</span>
+                </CardDescription>
+              </div>
+              {lastResult.validation_tier ? (
+                <ValidationTierBadge
+                  tier={lastResult.validation_tier}
+                  reference={lastResult.validation_reference}
+                  tolerancePct={lastResult.validation_tolerance_pct}
+                />
+              ) : (
+                <CheckCircle2 className="h-6 w-6 text-green-500" />
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {caseData.fluid_system === 'gas' ? (
+                <Stat
+                  label="OGIP"
+                  value={`${formatNumber(lastResult.estimated_ogip_scf / 1e9, { decimals: 2 })} Bcf`}
+                />
+              ) : (
+                <Stat
+                  label="OOIP"
+                  value={`${formatNumber(lastResult.estimated_ooip_stb / 1e6, { decimals: 2 })} MMSTB`}
+                />
+              )}
+              <Stat label="R²" value={formatNumber(lastResult.r_squared, { decimals: 4 })} />
+              {lastResult.aquifer_owip_rb && (
+                <Stat
+                  label="Aquifer W"
+                  value={`${formatNumber(lastResult.aquifer_owip_rb / 1e6, { decimals: 1 })} MM rb`}
+                />
+              )}
+              <Stat
+                label="Drive index sum"
+                value={formatNumber(lastResult.final_drive_index_sum, { decimals: 3 })}
+                hint="(should be ≈ 1.00)"
+              />
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              {caseData.fluid_system === 'gas' ? (
+                <>
+                  <DriveIndex label="Gas drive" value={lastResult.final_gdi} />
+                  <DriveIndex label="cf+cw drive" value={lastResult.final_cdi} />
+                  <DriveIndex label="Water drive" value={lastResult.final_wdi} />
+                </>
+              ) : (
+                <>
+                  <DriveIndex label="Depletion (DDI)" value={lastResult.final_ddi} />
+                  <DriveIndex label="Gas cap (GDI)" value={lastResult.final_gdi} />
+                  <DriveIndex label="Water (WDI)" value={lastResult.final_wdi} />
+                  <DriveIndex label="Segregation (SDI)" value={lastResult.final_sdi} />
+                </>
+              )}
+            </div>
+
+            {lastResult.warnings && lastResult.warnings.length > 0 && (
+              <Alert className="mt-6">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Engine warnings</AlertTitle>
+                <AlertDescription>
+                  <ul className="list-disc pl-5 mt-2 space-y-1 text-xs">
+                    {lastResult.warnings.map((w, idx) => (
+                      <li key={idx}>{w}</li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+const NoCaseSelected = ({ onCreate }) => (
+  <div className="flex flex-col items-center justify-center h-full py-24 text-center">
+    <Database className="h-12 w-12 text-slate-700 mb-4" />
+    <h3 className="text-lg font-semibold text-slate-200 mb-1">No case open</h3>
+    <p className="text-sm text-slate-500 max-w-md mb-6">
+      Select a case in the left rail, or create a new material balance study to estimate OOIP, drive mechanism and aquifer support from production history.
+    </p>
+    <Button onClick={onCreate}>Create a case</Button>
+  </div>
+);
+
+// ─── Studio content ──────────────────────────────────────────────────────────
+const MaterialBalanceStudioContent = ({ onOpenCase }) => {
+  const [searchParams] = useSearchParams();
+  const requested = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(
+    TABS.some((t) => t.value === requested) ? requested : 'data',
+  );
+  const {
+    cases, casesError,
+    caseId, caseData, caseLoading, caseError, refreshCase,
+    running, runVersion,
+    handleCaseCreated, handleDeleteCase,
+  } = useMaterialBalanceStudio();
+  const { toast } = useToast();
+
+  const [newCaseOpen, setNewCaseOpen] = useState(false);
+  const [newCasePrefill, setNewCasePrefill] = useState(null);
+  // Aquifer tab segment (MB4): server model config vs client screening.
+  const [aquiferSegment, setAquiferSegment] = useState('model');
+  // Run tab segment (MB5): regression vs pressure history match.
+  const [runSegment, setRunSegment] = useState('regression');
+
+  // Average pressure / k / skin intake from the Well Test Analysis Studio
+  // (WT5 navigate-state handoff; mapping is the jest-guarded pure function
+  // in lib/wellTestIntake.js).
+  const location = useLocation();
+  const wtIntakeDone = useRef(false);
+  useEffect(() => {
+    const mapped = mapWellTestIntake(location.state?.wellTestData);
+    if (!mapped || wtIntakeDone.current) return;
+    wtIntakeDone.current = true;
+    setNewCasePrefill(mapped.prefill);
+    setNewCaseOpen(true);
+    toast({ title: 'Well test results received', description: mapped.note });
+  }, [location.state, toast]);
+
+  const openCreate = () => {
+    setNewCasePrefill(null);
+    setNewCaseOpen(true);
+  };
+
+  const leftPanel = (
+    <div className="space-y-6">
+      <section>
+        <StudioProjectManager
+          label="Case"
+          projects={cases}
+          currentProjectId={caseId || ''}
+          onOpen={(id) => onOpenCase(id)}
+          onDelete={handleDeleteCase}
+          onRequestCreate={openCreate}
+          confirmDeleteMessage="Delete this case? Its production data, run configs, runs and results are removed permanently. This cannot be undone."
+        />
+        {casesError && (
+          <p className="text-[11px] text-red-400 mt-2">{casesError}</p>
+        )}
+      </section>
+      <CaseSummary />
+      {caseData && (
+        <p className="text-[11px] text-slate-500 leading-relaxed">
+          Edits on every tab save straight to the case database when you apply them. Results always come from a fresh engine run, never from stored numbers.
+        </p>
+      )}
+    </div>
+  );
+
+  const main = !caseId ? (
+    <NoCaseSelected onCreate={openCreate} />
+  ) : caseLoading ? (
+    <div className="flex items-center justify-center h-full">
+      <Loader2 className="h-6 w-6 animate-spin text-slate-500" />
+    </div>
+  ) : caseError || !caseData ? (
+    <Alert variant="destructive" className="max-w-xl">
+      <AlertTitle>Could not load case</AlertTitle>
+      <AlertDescription>{caseError ?? 'Unknown error.'}</AlertDescription>
+    </Alert>
+  ) : (
+    <>
+      {activeTab === 'data' && (
+        <DataHub caseId={caseId} caseData={caseData} onDataSaved={refreshCase} />
+      )}
+      {activeTab === 'pvt' && (
+        <PvtRock caseId={caseId} caseData={caseData} onConfigChange={() => {}} />
+      )}
+      {activeTab === 'aquifer' && (
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            {[['model', 'Model'], ['screening', 'Screening']].map(([seg, label]) => (
+              <button
+                key={seg}
+                onClick={() => setAquiferSegment(seg)}
+                className={`px-4 py-1.5 rounded-md text-sm border transition-colors ${
+                  aquiferSegment === seg
+                    ? 'bg-emerald-700 border-emerald-600 text-white'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            <p className="text-[11px] text-slate-500 self-center ml-2">
+              Model drives the engine run; Screening explores influx client-side and can write its parameters into the model.
+            </p>
+          </div>
+          {aquiferSegment === 'model' ? (
+            <AquiferModel caseId={caseId} caseData={caseData} onConfigChange={() => {}} />
+          ) : (
+            <AquiferScreening />
+          )}
+        </div>
+      )}
+      {activeTab === 'run' && (
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            {[['regression', 'Regression'], ['match', 'History match']].map(([seg, label]) => (
+              <button
+                key={seg}
+                onClick={() => setRunSegment(seg)}
+                className={`px-4 py-1.5 rounded-md text-sm border transition-colors ${
+                  runSegment === seg
+                    ? 'bg-emerald-700 border-emerald-600 text-white'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            <p className="text-[11px] text-slate-500 self-center ml-2">
+              Regression solves OOIP or OGIP from the observed pressures; History match simulates pressures from candidate parameters and fits them to the observations.
+            </p>
+          </div>
+          {runSegment === 'regression' ? <RunPanel /> : <HistoryMatch />}
+        </div>
+      )}
+      {activeTab === 'plots' && (
+        <RbDiagnosticPlots caseId={caseId} caseData={caseData} runVersion={runVersion} />
+      )}
+      {activeTab === 'forecast' && <ForecastTab />}
+      {activeTab === 'contacts' && <ContactsTab />}
+      {activeTab === 'report' && <ReportTab />}
+    </>
+  );
+
+  return (
+    <>
+      <Helmet>
+        <title>Material Balance Studio | Petrolord Suite</title>
+        <meta
+          name="description"
+          content="Material balance analysis: OOIP/OGIP by Havlena-Odeh regression, drive indices, aquifer influx models and diagnostic plots on a validated engine."
+        />
+      </Helmet>
+      <StudioLayout
+        header={
+          <StudioHeader
+            backTo="/dashboard/reservoir"
+            backTitle="Back to Reservoir Management"
+            icon={Scale}
+            iconGradientClass="from-emerald-600 to-teal-600"
+            title="Material Balance Studio"
+            tabs={TABS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
+        }
+        headerActions={
+          <StudioHelp
+            title="Material Balance Studio Guide"
+            description="From production history to OOIP, drive mechanism and aquifer support on the validated MBAL engine."
+            triggerTitle="Material Balance documentation"
+          >
+            <MbsHelpContent />
+          </StudioHelp>
+        }
+        sidebarLeft={leftPanel}
+        sidebarRight={null}
+        defaultRightOpen={false}
+        main={<div className="p-4 h-full overflow-y-auto">{main}</div>}
+        busyMessage={running ? 'Running the material balance engine…' : null}
+      />
       <NewCaseDialog
         open={newCaseOpen}
         onOpenChange={setNewCaseOpen}
         onCreated={handleCaseCreated}
         prefill={newCasePrefill}
       />
-
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete case?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently deletes <strong>{deleteTarget?.name}</strong> and all its production data, run configs, runs, and results. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete permanently
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </motion.div>
+    </>
   );
 };
 
-// =============================================================================
-// EMPTY STATE
-// =============================================================================
+// ─── Page (routing wrapper) ──────────────────────────────────────────────────
+export default function ReservoirBalance() {
+  const { caseId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-const EmptyState = ({ onCreate }) => (
-  <div className="flex flex-col items-center justify-center py-16 text-center">
-    <Database className="h-12 w-12 text-muted-foreground/40 mb-4" />
-    <h3 className="text-lg font-semibold mb-1">No cases yet</h3>
-    <p className="text-sm text-muted-foreground max-w-md mb-6">
-      Create your first MBAL case to estimate OOIP, drive mechanism, and aquifer support from production history.
-    </p>
-    <Button onClick={onCreate}>
-      <Plus className="mr-2 h-4 w-4" />
-      Create your first case
-    </Button>
-  </div>
-);
+  // Base path with the /cases/:id suffix stripped, so open/close navigation
+  // works from every slug alias this page is mounted under.
+  const basePath = location.pathname.replace(/\/cases\/[^/]+$/, '');
+  const handleOpenCase = (id) => {
+    if (id) navigate(`${basePath}/cases/${id}`);
+    else navigate(basePath);
+  };
 
-export default ReservoirBalance;
+  return (
+    <MaterialBalanceStudioProvider caseId={caseId ?? null} onOpenCase={handleOpenCase}>
+      <MaterialBalanceStudioContent onOpenCase={handleOpenCase} />
+    </MaterialBalanceStudioProvider>
+  );
+}
