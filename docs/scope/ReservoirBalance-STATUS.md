@@ -104,7 +104,7 @@ cross-validation.
 | Phase | Scope | Status |
 |---|---|---|
 | MB1 | Server validation completion: oil+Fetkovich CASE 8, m>0 combined CASE 9, McCain defaults CASE 10 | **DONE 2026-07-18** |
-| MB2 | Client finite-reD pD + Dake 9.2 hard gate | pending |
+| MB2 | Client finite-reD pD + Dake 9.2 hard gate | **DONE 2026-07-18** |
 | MB3 | Studio shell adoption + tile rename migration | pending |
 | MB4 | Aquifer screening tab + calculator absorption | pending |
 | MB5 | Pressure history match (inverse MBE, server LM) | pending |
@@ -155,6 +155,33 @@ book PDFs, missing fixture = hard failure):
 
 Deploy note: MB1 changes `_shared/mbal-engine.ts`; redeploy
 `calculate-mbal` staging-first (repo merge is not deployment).
+[Deployed to the linked project 2026-07-18 after the MB1 harness pass.]
+
+### MB2 deliverables (2026-07-18) — §4.1 HARD GATE CLOSED
+
+The client Carter-Tracy (`src/utils/aquiferInfluxCalculations.js`) now
+supports finite aquifers and reproduces the Dake Exercise 9.2 benchmark:
+
+- `pDFinite(tD, reD)` / `pDprimeFinite`: the EXACT bounded-circle
+  van Everdingen-Hurst constant-rate solution, Stehfest-inverted from the
+  Well Test engine's scaled-Bessel Laplace form (imports
+  `radialSandfaceLaplace` + `stehfestInvert`; no new math). Verified
+  against the full VvE PSS expansion (slope 2/(reD²-1), intercept incl.
+  the 2(tD+1/4) term), the classic cylindrical-source pD(1) = 0.802, and
+  the line-source limit at large reD/tD. `carterTracy` takes optional
+  `params.reD`; absent keeps the infinite-acting E1 path bit-identical.
+- **Hard gate committed** (`src/utils/__tests__/
+  aquiferInfluxCalculations.dake.test.js`, 12 tests): GATE A final We
+  86.13 MM rb vs Dake HvE 89.2 (3.4% CT-vs-HvE method gap, tolerance 5%
+  + a 1% regression pin); GATE B stepwise vs the committed server golden
+  (`src/utils/__tests__/goldens/dake92-we.json`, generator
+  `tools/validation/gen-dake92-client-golden.ts`): worst step 2.72% of
+  final We (client exact pD vs server tanh-blended pD), tolerance 3.5%.
+  U = 6446 rb/psi matches Dake exactly. Infinite-acting CT on the same
+  history gives 151 MM rb - the overshoot the gate exists to prevent.
+- Dake 9.2 fixture extracted to the shared
+  `tools/validation/fixtures/dake-9-2.ts` (CASE 2C values unchanged),
+  consumed by both the server harness and the golden generator.
 
 ## Next priorities (pre-program list, superseded by the MB table above)
 
