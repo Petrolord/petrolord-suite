@@ -40,7 +40,8 @@ const DiagnosticsResults = () => {
     }
   }
 
-  const xLabel = configSpec.config?.testType === 'buildup' ? 'Agarwal equivalent time (hr)' : 'Elapsed time (hr)';
+  const xLabel = configSpec.config?.family === 'buildup' ? 'Agarwal equivalent time (hr)' : 'Elapsed time (hr)';
+  const isGas = reservoirSpec.reservoir?.fluid === 'gas';
 
   return (
     <div className="space-y-4 overflow-y-auto">
@@ -54,7 +55,7 @@ const DiagnosticsResults = () => {
       </div>
 
       <ChartCard title="Log-log diagnostic plot" height={360}>
-        <LogLogChart loglog={loglog} xLabel={xLabel} />
+        <LogLogChart loglog={loglog} xLabel={xLabel} yLabel={isGas ? 'Δm(p) and derivative (psi²/cp)' : 'Δp and derivative (psi)'} />
       </ChartCard>
 
       <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 space-y-2">

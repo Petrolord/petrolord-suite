@@ -100,6 +100,61 @@ export const hornerAnalysis = ({ points, tp, pwfShutIn, q, B, mu, h, phi, ct, rw
   return { m, k, kh: k * h, pStar, p1hr, skin, r2: fit.r2, n: fit.n };
 };
 
+/**
+ * Multi-rate (Odeh-Jones) superposition semilog analysis. For a step-rate
+ * history the rate-normalized drawdown obeys a straight line in the
+ * superposition time function:
+ *   (pi - pwf(t)) / qn = m' X(t) + b'
+ *   X(t) = sum_j (qj - q(j-1))/qn * log10(t - t(j-1))    over steps before t
+ *   m' = 162.6 B mu / (k h)  (slope per unit rate)
+ *   s  = 1.1513 [ b'/m' - log10( k / (phi mu ct rw^2) ) + 3.2275 ]
+ * qn is the rate of the period containing each point; shut-in points are
+ * excluded (that is Horner's job).
+ *
+ * @param {Array<{t:number, pwf:number}>} points flowing pressures, hours/psi
+ * @param {Array<{start:number, q:number}>} steps from rateStepsFromHistory
+ * @returns { k, kh, skin, mPrime, r2, n } or null
+ */
+export const multiRateSemilogAnalysis = ({ points, steps, pi, B, mu, h, phi, ct, rw }) => {
+  const piv = num(pi, NaN);
+  if (!Number.isFinite(piv) || !Array.isArray(steps) || !steps.length) return null;
+  const xs = [];
+  const ys = [];
+  for (const point of points || []) {
+    const t = num(point.t, NaN);
+    const pwf = num(point.pwf, NaN);
+    if (!(t > 0) || !Number.isFinite(pwf)) continue;
+    let qn = 0;
+    for (const step of steps) {
+      if (step.start < t) qn = step.q;
+      else break;
+    }
+    if (!(qn !== 0)) continue; // shut-in period
+    let x = 0;
+    let prevQ = 0;
+    let valid = true;
+    for (const step of steps) {
+      if (step.start >= t) break;
+      const dq = step.q - prevQ;
+      prevQ = step.q;
+      if (dq === 0) continue;
+      const dt = t - step.start;
+      if (!(dt > 0)) { valid = false; break; }
+      x += (dq / qn) * Math.log10(dt);
+    }
+    if (!valid) continue;
+    xs.push(x);
+    ys.push((piv - pwf) / qn);
+  }
+  const fit = linearFit(xs, ys);
+  if (!fit) return null;
+  const mPrime = fit.slope;
+  if (!(mPrime > 0)) return null;
+  const k = (OILFIELD.SEMILOG_SLOPE * B * mu) / (mPrime * h);
+  const skin = 1.1513 * (fit.intercept / mPrime - Math.log10(k / (phi * mu * ct * rw * rw)) + 3.2275);
+  return { k, kh: k * h, skin, mPrime, r2: fit.r2, n: fit.n };
+};
+
 /** Radius of investigation in ft at elapsed time tHours. */
 export const radiusOfInvestigation = ({ k, tHours, phi, mu, ct }) => {
   const arg = (k * tHours) / (OILFIELD.RINV_948 * phi * mu * ct);

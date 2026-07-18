@@ -25,7 +25,9 @@ const MatchResults = () => {
   } = useWellTestStudio();
 
   // Pressure-history overlay: observed gauge pressure and the model pressure
-  // at the same times.
+  // at the same times. The model works in analysis space (m(p) for gas,
+  // mirrored for injection/falloff), so its dp is converted back to gauge psi
+  // through the prepared-data transform.
   const historyOverlay = useMemo(() => {
     if (!prepared.points.length) return [];
     let modelP = null;
@@ -34,10 +36,10 @@ const MatchResults = () => {
         const cfg = configSpec.config;
         const times = prepared.points.map((p) => p.time);
         const series = evaluateModelTest({
-          testType: cfg.testType, model, params: matchParams,
+          testType: cfg.family, model, params: matchParams,
           reservoir: reservoirSpec.reservoir, tp: cfg.tp, times, dts: times,
         });
-        modelP = series.map((s) => (cfg.testType === 'buildup' ? s.pws : s.pw));
+        modelP = series.map((s) => prepared.dpToGauge(s.dp));
       } catch (e) {
         console.error(e);
       }
@@ -58,7 +60,8 @@ const MatchResults = () => {
     );
   }
 
-  const xLabel = configSpec.config?.testType === 'buildup' ? 'Agarwal equivalent time (hr)' : 'Elapsed time (hr)';
+  const xLabel = configSpec.config?.family === 'buildup' ? 'Agarwal equivalent time (hr)' : 'Elapsed time (hr)';
+  const isGas = reservoirSpec.reservoir?.fluid === 'gas';
 
   return (
     <div className="space-y-4 overflow-y-auto">
@@ -76,7 +79,7 @@ const MatchResults = () => {
       </div>
 
       <ChartCard title="Log-log match" height={360}>
-        <LogLogChart loglog={loglog} modelSeries={modelSeries || undefined} xLabel={xLabel} />
+        <LogLogChart loglog={loglog} modelSeries={modelSeries || undefined} xLabel={xLabel} yLabel={isGas ? 'Δm(p) and derivative (psi²/cp)' : 'Δp and derivative (psi)'} />
       </ChartCard>
 
       <ChartCard title="Pressure history overlay" height={240}>

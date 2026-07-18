@@ -42,7 +42,7 @@ const DataResults = () => {
   }
 
   const errors = [reservoirSpec.error, configSpec.error].filter(Boolean);
-  const timeLabel = configSpec.config?.testType === 'buildup' ? 'Shut-in time (hr)' : 'Elapsed time (hr)';
+  const timeLabel = configSpec.config?.family === 'buildup' ? 'Shut-in time (hr)' : 'Elapsed time (hr)';
 
   return (
     <div className="space-y-4 overflow-y-auto">

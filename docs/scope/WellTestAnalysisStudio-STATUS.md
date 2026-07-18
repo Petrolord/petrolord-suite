@@ -10,8 +10,8 @@ tile archived by migration `20260717090000`; the mock code is deleted in WT2).
 |---|---|---|
 | WT1 | Validated PTA core engine (no UI) | **DONE 2026-07-18** (PR #101) |
 | WT2 | Studio app: data/QC, diagnostics, match, specialized, report tabs; persistence; mock deletion | **DONE 2026-07-18** (PR #102) |
-| WT3 | Model library (fractures, dual porosity, boundaries) + tile activation | **DONE 2026-07-18** (this PR; tile migration staged, deploy-gated) |
-| WT4 | Gas (pseudo-pressure), multi-rate, deliverability | not started |
+| WT3 | Model library (fractures, dual porosity, boundaries) + tile activation | **DONE 2026-07-18** (PR #103; tile migration staged, deploy-gated) |
+| WT4 | Gas (pseudo-pressure), multi-rate, deliverability | **DONE 2026-07-18** (this PR) |
 | WT5 | PDF reporting, cross-app handoffs, e2e | not started |
 
 ## WT1 deliverables
@@ -85,10 +85,10 @@ Specialized | Report), driven only by the WT1 engines:
    `pta_telemetry` empty; `pta_projects` holds 2 identical rows of the
    mock's hardcoded output (kh 123.4 / skin 5.6 / Pi 3510, both from the
    owner's own support/test accounts, March 2026). Rows exist, so per the
-   locked decision the family stays read-only. **OPEN owner decision:**
-   approve dropping the 4-table `pta_*` family (recommended — contents
-   are provably the mock's fabricated demo output; zero repo consumers
-   remain after WT2).
+   locked decision the family stayed read-only pending owner approval.
+   **RESOLVED 2026-07-18: owner approved the drop; the 4-table family was
+   dropped live by migration `20260718210000` (WT4 branch), 2 mock rows
+   discarded.**
 
 ## WT3 deliverables (2026-07-18)
 
@@ -128,6 +128,37 @@ Model library (all validated before UI exposure, CASE 8 of the harness):
 - Documented deviation from the plan text: the closed system ships as a
   closed circle (exact van Everdingen-Hurst solution) rather than a
   closed rectangle (2D image lattice); rectangle stays future scope.
+
+## WT4 deliverables (2026-07-18)
+
+Gas, injection/falloff and multi-rate (validated in CASE 9 before UI
+exposure; harness total 81/81):
+- `gas.js`: pseudo-pressure m(p) by trapezoid on a PVT table (Papay z and
+  Lee-Gonzalez-Eakin viscosity twins of the Fluid Systems Studio
+  correlations, pinned bit-identical by jest, or a laboratory table),
+  inverse transform, gas compressibility from the z table, normalized
+  pseudo-time, gas MDH/Horner through the exact equivalent-FVF identity
+  (141.2 q Beq mu_i = 1422 q T, verified to 3e-4), and deliverability:
+  Rawlins-Schellhardt C-and-n plus Houpeurt LIT with AOF.
+- `analysis.js`: Odeh-Jones multi-rate superposition semilog analysis
+  (harness round trip recovers k and skin to 0.02% from exactly
+  superposed variable-rate data).
+- Studio: fluid selector runs the whole pipeline in m(p) space through an
+  analysis-space transform in prepareTestData; injection and falloff
+  mirror onto the drawdown/buildup machinery; deliverability card and
+  test-point editor on the Specialized tab; multi-rate card when the rate
+  history has more than one flowing rate; deliverability inputs persist
+  with the project payload.
+- Literature gates (typed verbatim from the Ahmed REH 4th ed. PDF):
+  Example 6-7 pseudo-pressure table and printed Qg (book quirks
+  documented), Example 8-2 three-method deliverability with printed
+  coefficients and AOFs (graphical-vs-least-squares tolerances
+  documented). Jest: 137 welltest tests across 12 suites.
+- Cleanup: legacy `pta_*` 4-table family dropped live (owner approved;
+  migration `20260718210000`, MIGRATIONS.md).
+- Out of WT4 scope, documented: pseudo-time is engine-level only (not yet
+  wired as a diagnostics abscissa option); PSS pore volume stays a liquid
+  drawdown analysis.
 
 ## Locked owner decisions (2026-07-18)
 

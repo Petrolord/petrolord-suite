@@ -15,7 +15,7 @@ const DiagnosticsRail = ({ activeTab }) => {
     gaugeRows, prepared, configSpec, regimes, matchParams,
     semilogResult, derivedKpis, fitResult, fitStale, flowPeriods,
   } = useWellTestStudio();
-  const isBuildup = configSpec.config?.testType === 'buildup';
+  const isBuildup = configSpec.config?.family === 'buildup';
 
   return (
     <div className="space-y-6">

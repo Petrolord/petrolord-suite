@@ -19,7 +19,7 @@ const ReportResults = () => {
   const {
     wellName, projectName, configSpec, reservoirSpec, prepared,
     matchParams, semilogResult, sqrtResult, pssResult, derivedKpis,
-    fitResult, fitStale, regimes, notes, model,
+    multiRateResult, deliverabilityResult, fitResult, fitStale, regimes, notes, model,
   } = useWellTestStudio();
 
   if (!prepared.points.length) {
@@ -32,7 +32,14 @@ const ReportResults = () => {
   }
 
   const cfg = configSpec.config;
-  const isBuildup = cfg?.testType === 'buildup';
+  const isBuildup = cfg?.family === 'buildup';
+  const isGas = reservoirSpec.reservoir?.fluid === 'gas';
+  const TEST_LABELS = {
+    buildup: 'Pressure buildup',
+    drawdown: 'Pressure drawdown',
+    injection: 'Injection test',
+    falloff: 'Injection falloff',
+  };
 
   return (
     <div className="space-y-4 overflow-y-auto">
@@ -41,7 +48,9 @@ const ReportResults = () => {
           <div>
             <p className="text-lg font-semibold text-slate-100">{projectName || 'Untitled interpretation'}</p>
             <p className="text-xs text-slate-500">
-              {wellName ? `Well ${wellName}. ` : ''}{isBuildup ? `Pressure buildup, tp = ${fmt.f1(cfg.tp)} hr.` : 'Pressure drawdown.'} {prepared.points.length} analysis points.
+              {wellName ? `Well ${wellName}. ` : ''}
+              {TEST_LABELS[cfg?.testType] || 'Well test'}{isBuildup ? `, tp = ${fmt.f1(cfg.tp)} hr` : ''}
+              {isGas ? ', gas analysis in pseudo-pressure m(p)' : ''}. {prepared.points.length} analysis points.
             </p>
           </div>
           <p className="text-xs text-slate-500">Model: {model?.label}</p>
@@ -87,12 +96,40 @@ const ReportResults = () => {
               <Row label="Semilog skin" value={fmt.f2(semilogResult?.skin)} />
               {isBuildup && <Row label="Extrapolated p*" value={fmt.f1(semilogResult?.pStar)} unit="psi" />}
               <Row label="Semilog fit r²" value={fmt.f3(semilogResult?.r2)} />
-              <Row label="sqrt(t) slope" value={fmt.f2(sqrtResult?.slope)} unit="psi/hr^0.5" />
+              <Row label="sqrt(t) slope" value={fmt.f2(sqrtResult?.slope)} unit={isGas ? 'psi²/cp/hr^0.5' : 'psi/hr^0.5'} />
               {!isBuildup && pssResult && <Row label="Connected pore volume" value={fmt.f2(pssResult.poreVolumeMMbbl)} unit="MMbbl" />}
+              {multiRateResult && <Row label="Multi-rate k (Odeh-Jones)" value={fmt.sig3(multiRateResult.k)} unit="md" />}
+              {multiRateResult && <Row label="Multi-rate skin" value={fmt.f2(multiRateResult.skin)} />}
             </tbody>
           </table>
         </div>
       </div>
+
+      {deliverabilityResult && (
+        <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            Gas deliverability ({deliverabilityResult.method === 'pseudo-pressure' ? 'pseudo-pressure' : 'pressure-squared'})
+          </p>
+          <table className="w-full text-xs">
+            <tbody>
+              {deliverabilityResult.backPressure && (
+                <>
+                  <Row label="AOF, back-pressure (Rawlins-Schellhardt)" value={fmt.sig3(deliverabilityResult.backPressure.aof)} unit="Mscf/D" />
+                  <Row label="Exponent n" value={fmt.f2(deliverabilityResult.backPressure.n)} />
+                  <Row label="Coefficient C" value={fmt.sci(deliverabilityResult.backPressure.C)} />
+                </>
+              )}
+              {deliverabilityResult.lit && (
+                <>
+                  <Row label="AOF, LIT (Houpeurt)" value={fmt.sig3(deliverabilityResult.lit.aof)} unit="Mscf/D" />
+                  <Row label="Laminar coefficient a" value={fmt.sci(deliverabilityResult.lit.a)} />
+                  <Row label="Turbulent coefficient b" value={fmt.sci(deliverabilityResult.lit.b)} />
+                </>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Flow regimes observed</p>

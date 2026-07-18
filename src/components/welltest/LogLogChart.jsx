@@ -16,7 +16,7 @@ const legendProps = { wrapperStyle: { fontSize: CHART_TYPOGRAPHY.legendFontSize,
  * @param {Array} [modelSeries] model overlay [{x, modelDp, modelDerivative}]
  * @param {string} [xLabel]
  */
-const LogLogChart = ({ loglog, modelSeries, xLabel = 'Equivalent time (hr)' }) => {
+const LogLogChart = ({ loglog, modelSeries, xLabel = 'Equivalent time (hr)', yLabel = 'Δp and derivative (psi)' }) => {
   const data = useMemo(() => {
     const byX = new Map();
     for (const p of loglog || []) {
@@ -51,7 +51,7 @@ const LogLogChart = ({ loglog, modelSeries, xLabel = 'Equivalent time (hr)' }) =
       <YAxis
         type="number" scale="log" domain={['auto', 'auto']}
         ticks={logTicks(yValues)} tickFormatter={logTickFormatter} {...axisProps}
-        label={{ value: 'Δp and derivative (psi)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+        label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
       />
       <Tooltip {...tooltipProps} formatter={(v) => (Number.isFinite(v) ? v.toPrecision(4) : v)} labelFormatter={(v) => `t = ${Number(v).toPrecision(3)} hr`} />
       <Legend {...legendProps} />
