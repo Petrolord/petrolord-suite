@@ -10,6 +10,7 @@ import { useStudioNotifications } from '@/components/studio/useStudioNotificatio
 import { analyzeDisplacement, validateKrTable } from '@/utils/fractionalFlowCalculations';
 import { analyzeLayeredSweep } from '@/utils/layeredSweepCalculations';
 import { forecastPattern } from '@/utils/patternForecastCalculations';
+import { parseUncertaintyConfig, runWaterfloodUncertaintyAsync } from '@/utils/waterfloodUncertainty';
 
 const WaterfloodDesignContext = createContext(null);
 
@@ -58,6 +59,26 @@ export const DEFAULT_PATTERN = {
   Bo: '1.25', Bw: '1.02', iw_bpd: '800',
   Sgi: '0', EV: '1', worLimit: '25', maxYears: '30',
 };
+
+// Uncertainty tab config (persisted with the project; results never are).
+// params: { key: { enabled, type, min, mode, max, mean, stdDev } } as strings.
+export const DEFAULT_UNCERTAINTY = {
+  iterations: '1000',
+  params: {},
+};
+
+// Numeric pattern inputs from form state; null when invalid. Shared by the
+// deterministic Pattern tab memo and the uncertainty run.
+export function buildPatternInputs(p) {
+  const pattern = {
+    area_acres: num(p.area_acres), h_ft: num(p.h_ft), phi: num(p.phi),
+    Bo: num(p.Bo), Bw: num(p.Bw), iw_bpd: num(p.iw_bpd),
+    Sgi: num(p.Sgi) || 0, EV: num(p.EV) || 1,
+    worLimit: num(p.worLimit) || 25, maxYears: num(p.maxYears) || 30,
+  };
+  if (![pattern.area_acres, pattern.h_ft, pattern.phi, pattern.Bo, pattern.Bw, pattern.iw_bpd].every((v) => v > 0)) return null;
+  return pattern;
+}
 
 // Build the engine displacement spec from form inputs; null when invalid.
 export function buildDisplacementSpec(d) {
@@ -110,10 +131,24 @@ export const WaterfloodDesignProvider = ({ children }) => {
   const [layeredConfig, setLayeredConfig] = useState(DEFAULT_LAYERED_CONFIG);
   const [patternInputs, setPatternInputs] = useState(DEFAULT_PATTERN);
   const [scenarios, setScenarios] = useState([]);
+  const [uncertaintyConfig, setUncertaintyConfig] = useState(DEFAULT_UNCERTAINTY);
+
+  // Transient Monte Carlo state: expensive and stochastic, so it is run on
+  // demand (never a useMemo) and never persisted.
+  const [uncertaintyResult, setUncertaintyResult] = useState(null);
+  const [isRunningUncertainty, setIsRunningUncertainty] = useState(false);
+  const [uncertaintyProgress, setUncertaintyProgress] = useState(0);
+  const [uncertaintyStale, setUncertaintyStale] = useState(false);
+  const hasUncertaintyResult = useRef(false);
 
   const setDisplacementField = useCallback((k, v) => setDisplacementInputs((prev) => ({ ...prev, [k]: v })), []);
   const setLayeredField = useCallback((k, v) => setLayeredConfig((prev) => ({ ...prev, [k]: v })), []);
   const setPatternField = useCallback((k, v) => setPatternInputs((prev) => ({ ...prev, [k]: v })), []);
+  const setUncertaintyIterations = useCallback((v) => setUncertaintyConfig((prev) => ({ ...prev, iterations: v })), []);
+  const setUncertaintyParam = useCallback((key, patch) => setUncertaintyConfig((prev) => ({
+    ...prev,
+    params: { ...prev.params, [key]: { ...(prev.params[key] || {}), ...patch } },
+  })), []);
 
   // ---- Derived engine results (never persisted) ----
   const displacementSpec = useMemo(() => buildDisplacementSpec(displacementInputs), [displacementInputs]);
@@ -133,15 +168,61 @@ export const WaterfloodDesignProvider = ({ children }) => {
 
   const patternResult = useMemo(() => {
     if (!displacementSpec.spec) return null;
-    const pattern = {
-      area_acres: num(patternInputs.area_acres), h_ft: num(patternInputs.h_ft), phi: num(patternInputs.phi),
-      Bo: num(patternInputs.Bo), Bw: num(patternInputs.Bw), iw_bpd: num(patternInputs.iw_bpd),
-      Sgi: num(patternInputs.Sgi) || 0, EV: num(patternInputs.EV) || 1,
-      worLimit: num(patternInputs.worLimit) || 25, maxYears: num(patternInputs.maxYears) || 30,
-    };
-    if (![pattern.area_acres, pattern.h_ft, pattern.phi, pattern.Bo, pattern.Bw, pattern.iw_bpd].every((v) => v > 0)) return null;
+    const pattern = buildPatternInputs(patternInputs);
+    if (!pattern) return null;
     return forecastPattern({ displacementSpec: displacementSpec.spec, pattern });
   }, [displacementSpec, patternInputs]);
+
+  // ---- Uncertainty (Monte Carlo) run: on demand, results transient ----
+  const runUncertainty = useCallback(async () => {
+    if (isRunningUncertainty) return;
+    const { distributions, iterations, errors } = parseUncertaintyConfig(uncertaintyConfig);
+    if (errors.length) {
+      addNotification(errors[0], 'error');
+      return;
+    }
+    if (Object.keys(distributions).length === 0) {
+      addNotification('Enable at least one uncertain parameter first.', 'info');
+      return;
+    }
+    if (!displacementSpec.spec) {
+      addNotification(displacementSpec.error || 'Fix the Displacement tab inputs first.', 'error');
+      return;
+    }
+    const pattern = buildPatternInputs(patternInputs);
+    if (!pattern) {
+      addNotification('Fix the Pattern tab inputs first. Geometry, FVFs and injection rate must all be positive.', 'error');
+      return;
+    }
+    setIsRunningUncertainty(true);
+    setUncertaintyProgress(0);
+    try {
+      const result = await runWaterfloodUncertaintyAsync(
+        { displacementSpec: displacementSpec.spec, pattern, distributions, iterations },
+        setUncertaintyProgress,
+      );
+      setUncertaintyResult({ ...result, ranAt: new Date().toISOString() });
+      hasUncertaintyResult.current = true;
+      setUncertaintyStale(false);
+      if (result.validCount > 0) {
+        addNotification(`Uncertainty run complete: ${result.validCount.toLocaleString()} valid realizations.`, 'success');
+      } else {
+        addNotification('Uncertainty run produced no valid realizations. Check the distribution ranges.', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      addNotification(e.message || 'Uncertainty run failed', 'error');
+    } finally {
+      setIsRunningUncertainty(false);
+    }
+  }, [isRunningUncertainty, uncertaintyConfig, displacementSpec, patternInputs, addNotification]);
+
+  // Any working-case or config edit makes an existing MC result stale (it
+  // was computed from the old inputs). The result stays visible with a
+  // banner instead of being discarded on every keystroke.
+  useEffect(() => {
+    if (hasUncertaintyResult.current) setUncertaintyStale(true);
+  }, [displacementInputs, patternInputs, uncertaintyConfig]);
 
   // ---- Project persistence ----
   const serializeInputs = useCallback(() => ({
@@ -152,8 +233,9 @@ export const WaterfloodDesignProvider = ({ children }) => {
     layeredConfig,
     patternInputs,
     scenarios,
+    uncertaintyConfig,
     modified: new Date().toISOString(),
-  }), [currentProjectId, projectName, displacementInputs, layers, layeredConfig, patternInputs, scenarios]);
+  }), [currentProjectId, projectName, displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig]);
 
   const hydrate = useCallback((payload) => {
     setDisplacementInputs({ ...DEFAULT_DISPLACEMENT, ...(payload?.displacementInputs || {}) });
@@ -161,6 +243,15 @@ export const WaterfloodDesignProvider = ({ children }) => {
     setLayeredConfig({ ...DEFAULT_LAYERED_CONFIG, ...(payload?.layeredConfig || {}) });
     setPatternInputs({ ...DEFAULT_PATTERN, ...(payload?.patternInputs || {}) });
     setScenarios(Array.isArray(payload?.scenarios) ? payload.scenarios : []);
+    setUncertaintyConfig({
+      ...DEFAULT_UNCERTAINTY,
+      ...(payload?.uncertaintyConfig || {}),
+      params: payload?.uncertaintyConfig?.params || {},
+    });
+    // MC results belong to the previous working case.
+    setUncertaintyResult(null);
+    hasUncertaintyResult.current = false;
+    setUncertaintyStale(false);
   }, []);
 
   useEffect(() => {
@@ -198,7 +289,7 @@ export const WaterfloodDesignProvider = ({ children }) => {
     try {
       await service.save(id, {
         id, name,
-        displacementInputs, layers, layeredConfig, patternInputs, scenarios,
+        displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig,
         modified: new Date().toISOString(),
       });
       setCurrentProjectId(id);
@@ -211,7 +302,7 @@ export const WaterfloodDesignProvider = ({ children }) => {
       console.error(e);
       addNotification(e.message || 'Could not create project', 'error');
     }
-  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, addNotification]);
+  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, addNotification]);
 
   const deleteProject = useCallback(async (id) => {
     try {
@@ -266,7 +357,7 @@ export const WaterfloodDesignProvider = ({ children }) => {
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, currentProjectId, hydrated]);
+  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, currentProjectId, hydrated]);
 
   // ---- Scenarios: named snapshots of all input groups ----
   const saveScenario = useCallback((name) => {
@@ -311,6 +402,10 @@ export const WaterfloodDesignProvider = ({ children }) => {
     patternInputs, setPatternField,
     // derived
     displacementSpec, displacement, layeredResult, patternResult,
+    // uncertainty
+    uncertaintyConfig, setUncertaintyIterations, setUncertaintyParam,
+    uncertaintyResult, isRunningUncertainty, uncertaintyProgress, uncertaintyStale,
+    runUncertainty,
     // scenarios
     scenarios, saveScenario, deleteScenario, applyScenario,
   };

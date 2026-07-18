@@ -2,7 +2,7 @@
 // StudioHelp). Sections carried over from the retired Fractional Flow help
 // guide plus the new tabs, with the method citations.
 import React from 'react';
-import { GitMerge, Layers, TrendingUp, Camera, BookOpen, AlertTriangle } from 'lucide-react';
+import { GitMerge, Layers, TrendingUp, Dices, Camera, BookOpen, AlertTriangle } from 'lucide-react';
 
 const Section = ({ icon: Icon, title, children }) => (
   <section className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
@@ -51,6 +51,21 @@ const WDSHelpContent = () => (
       <p>
         Export the annual oil profile as CSV and load it in NPV Scenario Builder for fiscal economics; this studio
         deliberately carries no valuation.
+      </p>
+    </Section>
+
+    <Section icon={Dices} title="Uncertainty (Monte Carlo)">
+      <p>
+        Pick which inputs are uncertain, give each a distribution (triangular, uniform, normal or lognormal), and run.
+        Every iteration samples the enabled parameters, substitutes them into the working case and reruns the full
+        five-spot forecast. Results report the cumulative-oil distribution in the petroleum percentile convention
+        (P90 is the low case), an exceedance curve, and a Spearman rank-correlation tornado showing which inputs
+        drive Np.
+      </p>
+      <p>
+        Physically invalid samples (for example a sampled Swc and Sor that leave no mobile saturation window) are
+        rejected and counted rather than silently clamped; a high rejection rate means the distributions are too wide.
+        Results are not saved with the project and go stale when any input changes.
       </p>
     </Section>
 

@@ -11,7 +11,7 @@ jest.mock('@/lib/customSupabaseClient', () => ({
   },
 }));
 
-import { buildDisplacementSpec, DEFAULT_DISPLACEMENT } from '@/contexts/WaterfloodDesignContext';
+import { buildDisplacementSpec, buildPatternInputs, DEFAULT_DISPLACEMENT, DEFAULT_PATTERN } from '@/contexts/WaterfloodDesignContext';
 import { annualProfileFromSeries } from '@/components/waterflooddesign/PatternResults';
 
 describe('buildDisplacementSpec', () => {
@@ -74,6 +74,26 @@ describe('buildDisplacementSpec', () => {
     const bad = buildDisplacementSpec({ ...DEFAULT_DISPLACEMENT, polymerOn: true, polymerMuMult: '0' });
     expect(bad.spec).toBeNull();
     expect(bad.error).toMatch(/Polymer viscosity multiplier/);
+  });
+});
+
+describe('buildPatternInputs', () => {
+  // W4 shares this builder between the deterministic Pattern tab memo and
+  // the Monte Carlo base case, so its gates are load-bearing twice.
+  it('parses the default pattern form into numbers with defaults applied', () => {
+    const p = buildPatternInputs(DEFAULT_PATTERN);
+    expect(p).not.toBeNull();
+    expect(p.area_acres).toBeGreaterThan(0);
+    expect(p.Sgi).toBe(0);
+    expect(p.EV).toBe(1);
+    expect(p.worLimit).toBe(25);
+    expect(p.maxYears).toBe(30);
+  });
+
+  it('returns null when any required positive input is missing or non-positive', () => {
+    expect(buildPatternInputs({ ...DEFAULT_PATTERN, h_ft: '0' })).toBeNull();
+    expect(buildPatternInputs({ ...DEFAULT_PATTERN, Bo: 'abc' })).toBeNull();
+    expect(buildPatternInputs({ ...DEFAULT_PATTERN, iw_bpd: '-100' })).toBeNull();
   });
 });
 
