@@ -8,8 +8,8 @@ tile archived by migration `20260717090000`; the mock code is deleted in WT2).
 
 | Phase | Scope | Status |
 |---|---|---|
-| WT1 | Validated PTA core engine (no UI) | **DONE 2026-07-18** (this PR) |
-| WT2 | Studio app: data/QC, diagnostics, match, specialized, report tabs; persistence; mock deletion | not started |
+| WT1 | Validated PTA core engine (no UI) | **DONE 2026-07-18** (PR #101) |
+| WT2 | Studio app: data/QC, diagnostics, match, specialized, report tabs; persistence; mock deletion | **DONE 2026-07-18** (this PR) |
 | WT3 | Model library (fractures, dual porosity, boundaries) + tile activation | not started |
 | WT4 | Gas (pseudo-pressure), multi-rate, deliverability | not started |
 | WT5 | PDF reporting, cross-app handoffs, e2e | not started |
@@ -49,14 +49,46 @@ Validation (`tools/validation/welltest/`, see its README):
   round trips (MDH, Horner and auto-fit recover generating k, skin, C from
   clean and noisy data; auto-fit hits truth to ~1e-7 on clean fixtures).
 
-## Gates before WT2 merges
+## WT2 deliverables (2026-07-18)
 
-1. Second literature fixture with a full published data table typed from
-   the book (Dake Fundamentals Ch. 7 Horner example preferred, or the
-   Earlougher/Ahmed 4900 STB/D, tp=310 hr buildup) added to
-   `tools/validation/welltest/literature-fixtures.json` and green.
-2. Live-DB check of legacy `pta_projects` (drop if empty, else decide with
-   owner).
+Studio app (`src/pages/apps/WellTestAnalysisStudio.jsx` +
+`src/contexts/WellTestStudioContext.jsx` + `src/components/welltest/`) on
+the shared Studio shell kit, five tabs (Data | Diagnostics | Match |
+Specialized | Report), driven only by the WT1 engines:
+- Data: gauge CSV import (papaparse), MAD spike trim, log-cycle
+  decimation, rate-history flow periods, analysis-period selection.
+- Diagnostics: Bourdet log-log with smoothing control, regime flags,
+  plateau kh readout. White chartTheme + ChartFrame watermark throughout.
+- Match: catalog-metadata sliders, LM auto-fit with 95% CIs, tri-plot.
+- Specialized: Horner / MDH / sqrt-t / Cartesian PSS straight lines.
+- Report: consolidated results with CIs, notes, JSON export.
+- Fluid Systems Studio PVT intake via the navigate-state contract (Bo, mu).
+- Persistence: `createSavedProjectsService('saved_well_test_projects')`,
+  inputs only, results recomputed on load. Migration `20260718160000`
+  applied live 2026-07-18 (dry run + anon RLS probes green, MIGRATIONS.md).
+- Mock deleted: `WellTestDataAnalyzer.jsx`, `WellTestAnalyzerGuide.jsx`,
+  `src/components/welltestanalyzer/`, `wellTestCalculations.js`; old
+  production route redirects to the studio.
+- Jest: 13 new tests (wiring + five-tab smoke on the sample buildup).
+
+## WT2 gates (both closed 2026-07-18)
+
+1. Second literature fixture: **armed and green.** Ahmed, Reservoir
+   Engineering Handbook 4th ed., Example 6-26 / Table 6-5 (Earlougher
+   1977, SPE Monograph 5): full 31-row published table typed verbatim
+   from the book PDF; harness recovers k=13.0 md (book 12.8), skin=8.79
+   (book 8.6), m=39.4 psi/cycle (book 40), p1hr=3265.7 psig (book 3266)
+   regressing over the book's straight-line window (dt >= 1.05 hr).
+   Harness total now 42 checks, exit 0. (Book typo documented in the
+   fixture: Step 3 arithmetic prints 0.22 cp against the given mu_o=0.20.)
+2. Legacy `pta_*` live check: **done.** `pta_files`/`pta_runs`/
+   `pta_telemetry` empty; `pta_projects` holds 2 identical rows of the
+   mock's hardcoded output (kh 123.4 / skin 5.6 / Pi 3510, both from the
+   owner's own support/test accounts, March 2026). Rows exist, so per the
+   locked decision the family stays read-only. **OPEN owner decision:**
+   approve dropping the 4-table `pta_*` family (recommended — contents
+   are provably the mock's fabricated demo output; zero repo consumers
+   remain after WT2).
 
 ## Locked owner decisions (2026-07-18)
 
