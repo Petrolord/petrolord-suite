@@ -40,10 +40,20 @@ const MbsHelpContent = () => (
 
     <H>4. Aquifer</H>
     <P>
-      Pick none, pot, Fetkovich or Carter-Tracy. Pot solves aquifer size from the regression itself; Fetkovich and
-      Carter-Tracy march water influx from your aquifer geometry and properties. Carter-Tracy supports a finite
-      aquifer through the radius ratio, and defaults water viscosity from the McCain correlation and the reservoir
-      radius from area when you leave them blank; every defaulted value is named in the run warnings.
+      The tab has two segments. Model configures the aquifer the engine runs with: none, pot, Fetkovich or
+      Carter-Tracy. Pot solves aquifer size from the regression itself; Fetkovich and Carter-Tracy march water influx
+      from your aquifer geometry and properties. Carter-Tracy supports a finite aquifer through the radius ratio, and
+      defaults water viscosity from the McCain correlation and the reservoir radius from area when you leave them
+      blank; every defaulted value is named in the run warnings.
+    </P>
+    <P>
+      Screening is the absorbed Aquifer Influx Calculator: it computes a We history entirely in the browser by
+      van Everdingen-Hurst (the reference constant-terminal-pressure superposition), Carter-Tracy (with the exact
+      bounded-circle pD when you set the radius ratio) or Fetkovich (aquifer volume and productivity index, derivable
+      from geometry). Load the case's dated pressures, explore aquifer sizes until the influx looks right, compare
+      against the dashed We from the last engine run, then press Use in model to write the screened parameters into
+      the case. First-row time zero sets the initial pressure. The screen is an estimate; the engine run and its
+      validation tier remain the authority.
     </P>
 
     <H>5. Run</H>

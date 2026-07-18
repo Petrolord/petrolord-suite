@@ -37,6 +37,7 @@ import {
 import DataHub from '@/components/reservoirbalance/DataHub';
 import PvtRock from '@/components/reservoirbalance/PvtRock';
 import AquiferModel from '@/components/reservoirbalance/AquiferModel';
+import AquiferScreening from '@/components/reservoirbalance/AquiferScreening';
 import RbDiagnosticPlots from '@/components/reservoirbalance/RbDiagnosticPlots';
 import ValidationTierBadge from '@/components/reservoirbalance/ValidationTierBadge';
 import NewCaseDialog, { fluidSystemDisplay } from '@/components/reservoirbalance/NewCaseDialog';
@@ -259,6 +260,8 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
 
   const [newCaseOpen, setNewCaseOpen] = useState(false);
   const [newCasePrefill, setNewCasePrefill] = useState(null);
+  // Aquifer tab segment (MB4): server model config vs client screening.
+  const [aquiferSegment, setAquiferSegment] = useState('model');
 
   // Average pressure / k / skin intake from the Well Test Analysis Studio
   // (WT5 navigate-state handoff; mapping is the jest-guarded pure function
@@ -324,7 +327,31 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
         <PvtRock caseId={caseId} caseData={caseData} onConfigChange={() => {}} />
       )}
       {activeTab === 'aquifer' && (
-        <AquiferModel caseId={caseId} caseData={caseData} onConfigChange={() => {}} />
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            {[['model', 'Model'], ['screening', 'Screening']].map(([seg, label]) => (
+              <button
+                key={seg}
+                onClick={() => setAquiferSegment(seg)}
+                className={`px-4 py-1.5 rounded-md text-sm border transition-colors ${
+                  aquiferSegment === seg
+                    ? 'bg-emerald-700 border-emerald-600 text-white'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            <p className="text-[11px] text-slate-500 self-center ml-2">
+              Model drives the engine run; Screening explores influx client-side and can write its parameters into the model.
+            </p>
+          </div>
+          {aquiferSegment === 'model' ? (
+            <AquiferModel caseId={caseId} caseData={caseData} onConfigChange={() => {}} />
+          ) : (
+            <AquiferScreening />
+          )}
+        </div>
       )}
       {activeTab === 'run' && <RunPanel />}
       {activeTab === 'plots' && (
