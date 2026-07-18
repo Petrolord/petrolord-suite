@@ -10,6 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { Input } from '@/components/ui/input';
 import { MODEL_CATALOG } from '@/utils/welltest/models/modelCatalog';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
+import { unitLabel, kindForCatalogUnit, displayInputString, storeInputString } from '@/utils/welltest/units';
 import { SectionLabel, fmt } from './primitives';
 
 // Slider position <-> value mapping honoring the catalog's log-scale flag.
@@ -34,7 +35,13 @@ const fromSlider = (meta, frac) => {
 };
 
 const MatchPanel = () => {
-  const { matchInputs, setMatchField, model, runAutoFit, isFitting, prepared } = useWellTestStudio();
+  const { matchInputs, setMatchField, model, runAutoFit, isFitting, prepared, unitSystem } = useWellTestStudio();
+  // Display unit for a catalog parameter in the active system; state stays
+  // oilfield, the slider maps the oilfield value, the text input converts.
+  const displayUnit = (meta) => {
+    const converted = unitLabel(kindForCatalogUnit(meta.unit), unitSystem);
+    return converted || meta.unit;
+  };
 
   return (
     <div className="space-y-6">
@@ -59,10 +66,10 @@ const MatchPanel = () => {
           {model.parameters.map((meta) => (
             <div key={meta.key} className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs text-slate-400">{meta.label} ({meta.unit})</Label>
+                <Label className="text-xs text-slate-400">{meta.label} ({displayUnit(meta)})</Label>
                 <Input
-                  value={matchInputs[meta.key] ?? ''}
-                  onChange={(e) => setMatchField(meta.key, e.target.value)}
+                  value={displayInputString(kindForCatalogUnit(meta.unit), matchInputs[meta.key] ?? '', unitSystem)}
+                  onChange={(e) => setMatchField(meta.key, storeInputString(kindForCatalogUnit(meta.unit), e.target.value, unitSystem))}
                   className="h-7 w-24 text-right bg-slate-800 border-slate-700"
                 />
               </div>

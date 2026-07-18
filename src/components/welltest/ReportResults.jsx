@@ -1,7 +1,8 @@
 // Main area for the Report tab: the consolidated interpretation summary.
 import React from 'react';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import { Kpi, fmt } from './primitives';
+import { unitLabel, fromOilfield, kindForCatalogUnit } from '@/utils/welltest/units';
+import { Kpi, fmt, fmtU } from './primitives';
 
 const Row = ({ label, value, unit }) => (
   <tr className="border-t border-slate-800">
@@ -20,7 +21,9 @@ const ReportResults = () => {
     wellName, projectName, configSpec, reservoirSpec, prepared,
     matchParams, semilogResult, sqrtResult, pssResult, derivedKpis,
     multiRateResult, deliverabilityResult, fitResult, fitStale, regimes, notes, model,
+    unitSystem,
   } = useWellTestStudio();
+  const uL = (kind) => unitLabel(kind, unitSystem);
 
   if (!prepared.points.length) {
     return (
@@ -61,8 +64,8 @@ const ReportResults = () => {
         <Kpi title="Permeability k" value={fmt.sig3(derivedKpis?.k)} unit="md" accent />
         <Kpi title="kh" value={fmt.sig3(derivedKpis?.kh)} unit="md·ft" />
         <Kpi title="Skin" value={fmt.f2(derivedKpis?.skin)} />
-        <Kpi title="Δp across skin" value={fmt.f1(derivedKpis?.dpSkin)} unit="psi" />
-        <Kpi title="Radius of investigation" value={fmt.int(derivedKpis?.ri)} unit="ft" />
+        <Kpi title="Δp across skin" value={fmtU('pressure', derivedKpis?.dpSkin, unitSystem, fmt.f1)} unit={uL('pressure')} />
+        <Kpi title="Radius of investigation" value={fmtU('length', derivedKpis?.ri, unitSystem, fmt.int)} unit={uL('length')} />
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
@@ -70,14 +73,19 @@ const ReportResults = () => {
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Model match</p>
           <table className="w-full text-xs">
             <tbody>
-              {(model?.parameters || []).map((meta) => (
-                <Row
-                  key={meta.key}
-                  label={meta.label}
-                  value={meta.logScale ? fmt.sig3(matchParams?.[meta.key]) : fmt.f2(matchParams?.[meta.key])}
-                  unit={meta.unit === 'dimensionless' || meta.unit === 'fraction' ? undefined : meta.unit}
-                />
-              ))}
+              {(model?.parameters || []).map((meta) => {
+                const kind = kindForCatalogUnit(meta.unit);
+                const v = fromOilfield(kind, matchParams?.[meta.key], unitSystem);
+                const label = unitLabel(kind, unitSystem) || meta.unit;
+                return (
+                  <Row
+                    key={meta.key}
+                    label={meta.label}
+                    value={meta.logScale ? fmt.sig3(v) : fmt.f2(v)}
+                    unit={meta.unit === 'dimensionless' || meta.unit === 'fraction' ? undefined : label}
+                  />
+                );
+              })}
               <Row label="Dimensionless storage CD" value={fmt.sig3(derivedKpis?.cd)} />
               <Row label="Flow efficiency" value={fmt.pct(derivedKpis?.flowEfficiency)} />
               {fitResult && <Row label="Regression" value={`${fitResult.converged ? 'converged' : 'stopped early'}${fitStale ? ', stale' : ''}`} />}
@@ -91,13 +99,13 @@ const ReportResults = () => {
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Straight-line analyses</p>
           <table className="w-full text-xs">
             <tbody>
-              <Row label={isBuildup ? 'Horner slope m' : 'MDH slope m'} value={fmt.f1(semilogResult?.m)} unit="psi/cycle" />
+              <Row label={isBuildup ? 'Horner slope m' : 'MDH slope m'} value={fmtU(isGas ? 'pseudoSlope' : 'semilogSlope', semilogResult?.m, unitSystem, isGas ? fmt.sci : fmt.f1)} unit={uL(isGas ? 'pseudoSlope' : 'semilogSlope')} />
               <Row label="Semilog k" value={fmt.sig3(semilogResult?.k)} unit="md" />
               <Row label="Semilog skin" value={fmt.f2(semilogResult?.skin)} />
-              {isBuildup && <Row label="Extrapolated p*" value={fmt.f1(semilogResult?.pStar)} unit="psi" />}
+              {isBuildup && <Row label="Extrapolated p*" value={fmtU('pressure', semilogResult?.pStar, unitSystem, fmt.f1)} unit={uL('pressure')} />}
               <Row label="Semilog fit r²" value={fmt.f3(semilogResult?.r2)} />
-              <Row label="sqrt(t) slope" value={fmt.f2(sqrtResult?.slope)} unit={isGas ? 'psi²/cp/hr^0.5' : 'psi/hr^0.5'} />
-              {!isBuildup && pssResult && <Row label="Connected pore volume" value={fmt.f2(pssResult.poreVolumeMMbbl)} unit="MMbbl" />}
+              <Row label="sqrt(t) slope" value={fmt.f2(fromOilfield(isGas ? 'pseudoPressure' : 'pressure', sqrtResult?.slope, unitSystem))} unit={`${uL(isGas ? 'pseudoPressure' : 'pressure')}/hr^0.5`} />
+              {!isBuildup && pssResult && <Row label="Connected pore volume" value={unitSystem === 'si' ? fmt.f3(fromOilfield('poreVolume', pssResult.poreVolumeMMbbl, unitSystem)) : fmt.f2(pssResult.poreVolumeMMbbl)} unit={unitSystem === 'si' ? 'MM m³' : 'MMbbl'} />}
               {multiRateResult && <Row label="Multi-rate k (Odeh-Jones)" value={fmt.sig3(multiRateResult.k)} unit="md" />}
               {multiRateResult && <Row label="Multi-rate skin" value={fmt.f2(multiRateResult.skin)} />}
             </tbody>
@@ -114,14 +122,14 @@ const ReportResults = () => {
             <tbody>
               {deliverabilityResult.backPressure && (
                 <>
-                  <Row label="AOF, back-pressure (Rawlins-Schellhardt)" value={fmt.sig3(deliverabilityResult.backPressure.aof)} unit="Mscf/D" />
+                  <Row label="AOF, back-pressure (Rawlins-Schellhardt)" value={fmtU('gasRate', deliverabilityResult.backPressure.aof, unitSystem, fmt.sig3)} unit={uL('gasRate')} />
                   <Row label="Exponent n" value={fmt.f2(deliverabilityResult.backPressure.n)} />
                   <Row label="Coefficient C" value={fmt.sci(deliverabilityResult.backPressure.C)} />
                 </>
               )}
               {deliverabilityResult.lit && (
                 <>
-                  <Row label="AOF, LIT (Houpeurt)" value={fmt.sig3(deliverabilityResult.lit.aof)} unit="Mscf/D" />
+                  <Row label="AOF, LIT (Houpeurt)" value={fmtU('gasRate', deliverabilityResult.lit.aof, unitSystem, fmt.sig3)} unit={uL('gasRate')} />
                   <Row label="Laminar coefficient a" value={fmt.sci(deliverabilityResult.lit.a)} />
                   <Row label="Turbulent coefficient b" value={fmt.sci(deliverabilityResult.lit.b)} />
                 </>

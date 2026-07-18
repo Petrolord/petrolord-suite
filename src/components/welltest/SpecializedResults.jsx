@@ -6,7 +6,8 @@ import { ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Leg
 import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { hornerTime } from '@/utils/welltest/superposition';
-import { ChartCard, Kpi, LINE, WarningBanner, fmt, logTicks, logTickFormatter } from './primitives';
+import { unitLabel, fromOilfield } from '@/utils/welltest/units';
+import { ChartCard, Kpi, LINE, WarningBanner, fmt, fmtU, logTicks, logTickFormatter } from './primitives';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
 const tooltipProps = { contentStyle: TOOLTIP_STYLE, labelStyle: { color: CHART_COLORS.tooltipText }, itemStyle: { color: CHART_COLORS.tooltipText } };
@@ -17,9 +18,12 @@ const SpecializedResults = () => {
     prepared, configSpec, reservoirSpec, semilogResult, sqrtResult, pssResult,
     multiRateResult, deliverabilityResult, deliverabilityInputs,
   } = useWellTestStudio();
+  const { unitSystem } = useWellTestStudio();
   const isBuildup = configSpec.config?.family === 'buildup';
   const isGas = reservoirSpec.reservoir?.fluid === 'gas';
-  const dpUnit = isGas ? 'psi²/cp' : 'psi';
+  const dpKind = isGas ? 'pseudoPressure' : 'pressure';
+  const slopeKind = isGas ? 'pseudoSlope' : 'semilogSlope';
+  const dpUnit = unitLabel(dpKind, unitSystem);
   const tp = configSpec.config?.tp;
 
   const semilogData = useMemo(() => {
@@ -36,19 +40,25 @@ const SpecializedResults = () => {
               : semilogResult.p1hrA - semilogResult.m * Math.log10(x))
           : null;
         const fitted = fittedA != null ? prepared.fromAnalysis(fittedA) : null;
-        return { x, pressure: Number(p.p.toFixed(2)), fitted: fitted != null ? Number(fitted.toFixed(2)) : null };
+        return {
+          x,
+          pressure: Number(fromOilfield('pressure', p.p, unitSystem).toFixed(2)),
+          fitted: fitted != null ? Number(fromOilfield('pressure', fitted, unitSystem).toFixed(2)) : null,
+        };
       })
       .filter(Boolean)
       .sort((a, b) => a.x - b.x);
-  }, [prepared, isBuildup, tp, semilogResult]);
+  }, [prepared, isBuildup, tp, semilogResult, unitSystem]);
 
   const sqrtData = useMemo(
     () => prepared.points.map((p) => ({
       x: Number(Math.sqrt(p.time).toPrecision(4)),
-      dp: Number(p.dp.toFixed(2)),
-      fitted: sqrtResult ? Number((sqrtResult.intercept + sqrtResult.slope * Math.sqrt(p.time)).toFixed(2)) : null,
+      dp: Number(fromOilfield(dpKind, p.dp, unitSystem).toFixed(2)),
+      fitted: sqrtResult
+        ? Number(fromOilfield(dpKind, sqrtResult.intercept + sqrtResult.slope * Math.sqrt(p.time), unitSystem).toFixed(2))
+        : null,
     })),
-    [prepared, sqrtResult],
+    [prepared, sqrtResult, dpKind, unitSystem],
   );
 
   if (!prepared.points.length) {
@@ -65,10 +75,10 @@ const SpecializedResults = () => {
       {!semilogResult && <WarningBanner warnings={['The semilog line needs valid reservoir inputs and at least 4 points in the window.']} />}
 
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
-        <Kpi title="Slope m" value={isGas ? fmt.sci(semilogResult?.m) : fmt.f1(semilogResult?.m)} unit={`${dpUnit}/cycle`} />
+        <Kpi title="Slope m" value={isGas ? fmt.sci(fromOilfield(slopeKind, semilogResult?.m, unitSystem)) : fmtU(slopeKind, semilogResult?.m, unitSystem, fmt.f1)} unit={unitLabel(slopeKind, unitSystem)} />
         <Kpi title="Permeability k" value={fmt.sig3(semilogResult?.k)} unit="md" accent />
         <Kpi title={isGas ? 'Apparent skin s\'' : 'Skin'} value={fmt.f2(semilogResult?.skin)} />
-        <Kpi title={isBuildup ? 'p*' : 'p at 1 hr'} value={fmt.f1(isBuildup ? semilogResult?.pStar : semilogResult?.p1hr)} unit="psi" />
+        <Kpi title={isBuildup ? 'p*' : 'p at 1 hr'} value={fmtU('pressure', isBuildup ? semilogResult?.pStar : semilogResult?.p1hr, unitSystem, fmt.f1)} unit={unitLabel('pressure', unitSystem)} />
         <Kpi title="Fit r²" value={fmt.f3(semilogResult?.r2)} />
       </div>
 
@@ -81,7 +91,7 @@ const SpecializedResults = () => {
             label={{ value: isBuildup ? 'Horner time ratio (tp + Δt)/Δt' : 'Elapsed time (hr)', position: 'insideBottom', offset: -10, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
           />
           <YAxis domain={['auto', 'auto']} {...axisProps}
-            label={{ value: 'Pressure (psi)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            label={{ value: `Pressure (${unitLabel('pressure', unitSystem)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
           <Tooltip {...tooltipProps} />
           <Legend {...legendProps} />
           <Scatter dataKey="pressure" name={isBuildup ? 'pws' : 'pwf'} fill={LINE.dp} isAnimationActive={false} />
@@ -99,7 +109,7 @@ const SpecializedResults = () => {
           <Tooltip {...tooltipProps} />
           <Legend {...legendProps} />
           <Scatter dataKey="dp" name={isGas ? 'Δm(p)' : 'Δp'} fill={LINE.dp} isAnimationActive={false} />
-          {sqrtResult && <Line type="monotone" dataKey="fitted" name={`Fit (slope ${fmt.f2(sqrtResult.slope)} ${dpUnit}/hr^0.5)`} stroke={LINE.fit} dot={false} strokeWidth={2} isAnimationActive={false} />}
+          {sqrtResult && <Line type="monotone" dataKey="fitted" name={`Fit (slope ${fmt.f2(fromOilfield(dpKind, sqrtResult.slope, unitSystem))} ${dpUnit}/hr^0.5)`} stroke={LINE.fit} dot={false} strokeWidth={2} isAnimationActive={false} />}
         </ComposedChart>
       </ChartCard>
 
@@ -109,7 +119,7 @@ const SpecializedResults = () => {
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
             <Kpi title="Permeability k" value={fmt.sig3(multiRateResult.k)} unit="md" accent />
             <Kpi title="Skin" value={fmt.f2(multiRateResult.skin)} />
-            <Kpi title="Slope m'" value={fmt.sig3(multiRateResult.mPrime)} unit={`${dpUnit}/cycle per rate`} />
+            <Kpi title="Slope m'" value={fmt.sig3(fromOilfield(slopeKind, multiRateResult.mPrime, unitSystem))} unit={`${unitLabel(slopeKind, unitSystem)} per rate`} />
             <Kpi title="Fit r²" value={fmt.f3(multiRateResult.r2)} />
           </div>
           <p className="text-[11px] text-slate-500 mt-2">
@@ -126,13 +136,13 @@ const SpecializedResults = () => {
           {deliverabilityResult ? (
             <div className="space-y-3">
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-                <Kpi title="AOF (back-pressure)" value={fmt.sig3(deliverabilityResult.backPressure?.aof)} unit="Mscf/D" accent />
+                <Kpi title="AOF (back-pressure)" value={fmtU('gasRate', deliverabilityResult.backPressure?.aof, unitSystem, fmt.sig3)} unit={unitLabel('gasRate', unitSystem)} accent />
                 <Kpi title="Exponent n" value={fmt.f2(deliverabilityResult.backPressure?.n)} />
                 <Kpi title="Coefficient C" value={fmt.sci(deliverabilityResult.backPressure?.C)} />
                 <Kpi title="Fit r²" value={fmt.f3(deliverabilityResult.backPressure?.r2)} />
               </div>
               <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-                <Kpi title="AOF (LIT)" value={fmt.sig3(deliverabilityResult.lit?.aof)} unit="Mscf/D" accent />
+                <Kpi title="AOF (LIT)" value={fmtU('gasRate', deliverabilityResult.lit?.aof, unitSystem, fmt.sig3)} unit={unitLabel('gasRate', unitSystem)} accent />
                 <Kpi title="Laminar a" value={fmt.sci(deliverabilityResult.lit?.a)} />
                 <Kpi title="Turbulent b" value={fmt.sci(deliverabilityResult.lit?.b)} />
                 <Kpi title="Fit r²" value={fmt.f3(deliverabilityResult.lit?.r2)} />
@@ -154,8 +164,8 @@ const SpecializedResults = () => {
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Pseudo-steady state (Cartesian)</p>
           {pssResult ? (
             <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
-              <Kpi title="Slope m*" value={fmt.f3(pssResult.mStar)} unit="psi/hr" />
-              <Kpi title="Connected pore volume" value={fmt.f2(pssResult.poreVolumeMMbbl)} unit="MMbbl" accent />
+              <Kpi title="Slope m*" value={fmtU('pssSlope', pssResult.mStar, unitSystem, fmt.f3)} unit={unitLabel('pssSlope', unitSystem)} />
+              <Kpi title="Connected pore volume" value={unitSystem === 'si' ? fmt.f3(fromOilfield('poreVolume', pssResult.poreVolumeMMbbl, unitSystem)) : fmt.f2(pssResult.poreVolumeMMbbl)} unit={unitSystem === 'si' ? 'MM m³' : 'MMbbl'} accent />
               <Kpi title="Fit r²" value={fmt.f3(pssResult.r2)} />
             </div>
           ) : (

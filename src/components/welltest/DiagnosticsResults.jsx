@@ -1,8 +1,9 @@
 // Main area for the Diagnostics tab: the log-log Bourdet plot and the
 // detected flow regimes.
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { OILFIELD } from '@/utils/welltest/models/modelCatalog';
+import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { ChartCard, Kpi, WarningBanner, fmt } from './primitives';
 import LogLogChart from './LogLogChart';
 
@@ -16,7 +17,16 @@ const REGIME_TONE = {
 };
 
 const DiagnosticsResults = () => {
-  const { loglog, regimes, reservoirSpec, configSpec } = useWellTestStudio();
+  const { loglog, regimes, reservoirSpec, configSpec, unitSystem, pseudoTime } = useWellTestStudio();
+  const dpKind = reservoirSpec.reservoir?.fluid === 'gas' ? 'pseudoPressure' : 'pressure';
+  const displayLoglog = useMemo(
+    () => loglog.map((p) => ({
+      ...p,
+      dp: fromOilfield(dpKind, p.dp, unitSystem),
+      derivative: fromOilfield(dpKind, p.derivative, unitSystem),
+    })),
+    [loglog, dpKind, unitSystem],
+  );
 
   if (!loglog.length) {
     return (
@@ -40,7 +50,10 @@ const DiagnosticsResults = () => {
     }
   }
 
-  const xLabel = configSpec.config?.family === 'buildup' ? 'Agarwal equivalent time (hr)' : 'Elapsed time (hr)';
+  const timeName = pseudoTime.active ? 'pseudo-time' : 'time';
+  const xLabel = configSpec.config?.family === 'buildup'
+    ? `Agarwal equivalent ${timeName} (hr)`
+    : `Elapsed ${timeName} (hr)`;
   const isGas = reservoirSpec.reservoir?.fluid === 'gas';
 
   return (
@@ -55,7 +68,7 @@ const DiagnosticsResults = () => {
       </div>
 
       <ChartCard title="Log-log diagnostic plot" height={360}>
-        <LogLogChart loglog={loglog} xLabel={xLabel} yLabel={isGas ? 'Δm(p) and derivative (psi²/cp)' : 'Δp and derivative (psi)'} />
+        <LogLogChart loglog={displayLoglog} xLabel={xLabel} yLabel={`${isGas ? 'Δm(p)' : 'Δp'} and derivative (${unitLabel(dpKind, unitSystem)})`} />
       </ChartCard>
 
       <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 space-y-2">

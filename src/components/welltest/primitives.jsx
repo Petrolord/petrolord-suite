@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ChartFrame from '@/components/charts/ChartFrame';
+import { unitLabel, fromOilfield, displayInputString, storeInputString } from '@/utils/welltest/units';
 
 export const fmt = {
   num: (v) => {
@@ -41,6 +42,28 @@ export const Field = ({ label, value, onChange, placeholder, suffix }) => (
     <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="h-9 bg-slate-800 border-slate-700" />
   </div>
 );
+
+// WT8: unit-aware input. State stays oilfield; the field renders and accepts
+// values in the active display system.
+export const UnitField = ({ kind, system = 'oilfield', label, value, onChange, placeholder, suffixNote }) => (
+  <Field
+    label={label}
+    suffix={`${unitLabel(kind, system)}${suffixNote ? `, ${suffixNote}` : ''}`}
+    value={displayInputString(kind, value, system)}
+    onChange={(v) => onChange(storeInputString(kind, v, system))}
+    placeholder={placeholder}
+  />
+);
+
+// WT8: format an oilfield value in the active display system.
+export const fmtU = (kind, v, system, digits = fmt.f2) =>
+  digits(fromOilfield(kind, v, system));
+
+// WT8: "value unit" string in the active display system.
+export const valueWithUnit = (kind, v, system, digits = fmt.f2) => {
+  const label = unitLabel(kind, system);
+  return `${fmtU(kind, v, system, digits)}${label ? ` ${label}` : ''}`;
+};
 
 export const Kpi = ({ title, value, unit, accent }) => (
   <Card className={`bg-slate-900 border-slate-800 ${accent ? 'ring-1 ring-cyan-500/30' : ''}`}>
