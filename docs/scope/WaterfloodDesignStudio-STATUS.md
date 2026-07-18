@@ -74,6 +74,25 @@ its displacement physics and charts live on in the Displacement tab).
   a single shell implementation across DCA and this studio. Next:
   VRR Monitor → Recovery Factor Estimator → Aquifer Influx
   Calculator get the same one-app-at-a-time upgrade treatment.
+- **W6 — Surveillance tab (Waterflood Dashboard absorbed). DONE
+  2026-07-18 (branch feat/waterflood-surveillance-tab; owner decision:
+  one waterflood app in Reservoir).** The dashboard's real, jest-tested
+  analytics (reservoir-barrel VRR via computePeriodVoidage, Hall plot
+  from measured whp_psi, Chan SPE 30775 diagnostics, injector-producer
+  cross-correlation, VRR-balanced recommendations; 27 engine tests)
+  now run in a sixth studio tab: SurveillancePanel (CSV import,
+  template download, engine config) + SurveillanceResults (the
+  existing capability-gated components/waterflood panels).
+  Surveillance rows + config persist in the studio project payload.
+  Retired: WaterfloodDashboard page + its shell-only panels; route
+  redirects to the studio with ?tab=surveillance (tab deep-link
+  support added). Deploy-gated migration 20260718120000 archives the
+  waterflood-dashboard tile, drops saved_waterflood_projects (0 rows
+  live, checked 2026-07-18) and recreates get_all_my_projects without
+  the arm; apply WITH the prod upload carrying this tab. The dead
+  waterflood-engine edge function was already deleted from the
+  Supabase project (verified: comment-only references in prod build
+  and source).
 
 ## Deliberate scope choices
 

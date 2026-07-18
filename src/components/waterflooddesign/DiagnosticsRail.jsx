@@ -13,7 +13,7 @@ const Row = ({ label, value }) => (
 );
 
 const DiagnosticsRail = ({ activeTab }) => {
-  const { displacement, layeredResult, patternResult, uncertaintyResult, uncertaintyStale } = useWaterfloodDesign();
+  const { displacement, layeredResult, patternResult, uncertaintyResult, uncertaintyStale, surveillanceResult } = useWaterfloodDesign();
   const bl = displacement?.bl;
   const mc = uncertaintyResult;
 
@@ -61,6 +61,17 @@ const DiagnosticsRail = ({ activeTab }) => {
           <Row label="Rejected" value={mc ? mc.rejectedCount.toLocaleString() : '—'} />
           <Row label="Np P50 (Mstb)" value={fmt.f1(mc?.stats?.np?.p50 / 1000)} />
           <Row label="Np spread P10/P90" value={mc?.stats?.np?.p90 > 0 ? fmt.f2(mc.stats.np.p10 / mc.stats.np.p90) : '—'} />
+        </section>
+      )}
+
+      {activeTab === 'surveillance' && !surveillanceResult?.error && (
+        <section>
+          <SectionLabel>Field summary</SectionLabel>
+          <Row label="Cumulative VRR" value={fmt.f2(surveillanceResult?.kpis?.vrr_avg)} />
+          <Row label="Rolling VRR" value={fmt.f2(surveillanceResult?.kpis?.vrr_rolling)} />
+          <Row label="Avg water cut" value={surveillanceResult?.kpis ? `${fmt.f1(surveillanceResult.kpis.avg_water_cut_pct)}%` : '—'} />
+          <Row label="Injectors / producers" value={surveillanceResult?.wells ? `${surveillanceResult.wells.injectors?.length ?? 0} / ${surveillanceResult.wells.producers?.length ?? 0}` : '—'} />
+          <Row label="Alerts" value={surveillanceResult ? (surveillanceResult.alerts?.length ?? 0) : '—'} />
         </section>
       )}
 

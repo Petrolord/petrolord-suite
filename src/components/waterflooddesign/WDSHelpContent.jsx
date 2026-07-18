@@ -2,7 +2,7 @@
 // StudioHelp). Sections carried over from the retired Fractional Flow help
 // guide plus the new tabs, with the method citations.
 import React from 'react';
-import { GitMerge, Layers, TrendingUp, Dices, Camera, BookOpen, AlertTriangle } from 'lucide-react';
+import { GitMerge, Layers, TrendingUp, Dices, Activity, Camera, BookOpen, AlertTriangle } from 'lucide-react';
 
 const Section = ({ icon: Icon, title, children }) => (
   <section className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
@@ -66,6 +66,21 @@ const WDSHelpContent = () => (
         Physically invalid samples (for example a sampled Swc and Sor that leave no mobile saturation window) are
         rejected and counted rather than silently clamped; a high rejection rate means the distributions are too wide.
         Results are not saved with the project and go stale when any input changes.
+      </p>
+    </Section>
+
+    <Section icon={Activity} title="Surveillance (operating floods)">
+      <p>
+        Import a field injection/production history CSV (date, well, oil_bbl, water_bbl, gas_mcf, inj_bbl, optional
+        whp_psi). The engine cleans and classifies the data, then reports reservoir-barrel voidage replacement
+        (daily, rolling and cumulative VRR with free-gas voidage from Bg and Rs), water cut and KPI trends, and
+        capability-gated diagnostics: Hall plot injectivity (needs measured injection pressure), Chan water-control
+        log-log WOR diagnostics, injector-producer response from time-lagged cross-correlation, and VRR-balanced
+        injection recommendations.
+      </p>
+      <p>
+        Diagnostics that need data your file does not carry state exactly what is missing instead of showing empty
+        charts. Uploaded history saves with the project.
       </p>
     </Section>
 
