@@ -39,6 +39,9 @@
 //   Dimensionless time       tD = 6.33e-3 · k · t / (φ · μw · ct · rR²)
 //   where f = θ/360.
 
+import { stehfestInvert } from './welltest/numerics.js';
+import { radialSandfaceLaplace } from './welltest/models/radial.js';
+
 const num = (v) => {
   const n = typeof v === 'number' ? v : parseFloat(v);
   return Number.isFinite(n) ? n : NaN;
@@ -127,6 +130,44 @@ export function pDprime(tD) {
   const t = num(tD);
   if (!Number.isFinite(t) || t <= 0) return 0;
   return Math.exp(-1 / (4 * t)) / (2 * t);
+}
+
+// ---------------------------------------------------------------------------
+// Finite-aquifer pD(tD, reD) — bounded circle, no-flow outer boundary (MB2)
+// ---------------------------------------------------------------------------
+// The exact van Everdingen-Hurst constant-terminal-RATE solution for a
+// bounded radial aquifer, evaluated by Stehfest inversion of the Well Test
+// engine's scaled-Bessel Laplace form (src/utils/welltest/models/radial.js,
+// closed-circle boundary — the same solution family validated in WT3 harness
+// CASE 8 against the exact PSS line). This is what Carter-Tracy needs for a
+// finite aquifer: at late time pD approaches the pseudo-steady state
+// 2·tD/(reD² - 1) + ln(reD) - 3/4 exactly, with the true transient
+// transition rather than an empirical blend.
+//
+// Cost: one Stehfest inversion = 12 Laplace evaluations of 4 scaled Bessel
+// functions; the Carter-Tracy march does 2 inversions per timestep, which is
+// negligible for screening-size tables (hundreds of rows).
+export function pDFinite(tD, reD) {
+  const t = num(tD);
+  const r = num(reD);
+  if (!Number.isFinite(t) || t <= 0) return 0;
+  if (!Number.isFinite(r) || r <= 1) return pD(t);
+  return stehfestInvert(
+    (u) => radialSandfaceLaplace(u, { boundary: { type: 'closed-circle', reD: r } }),
+    t,
+  );
+}
+
+// dpD/dtD for the bounded circle: L{pD'} = u·L{pD} since pD(0) = 0.
+export function pDprimeFinite(tD, reD) {
+  const t = num(tD);
+  const r = num(reD);
+  if (!Number.isFinite(t) || t <= 0) return 0;
+  if (!Number.isFinite(r) || r <= 1) return pDprime(t);
+  return stehfestInvert(
+    (u) => u * radialSandfaceLaplace(u, { boundary: { type: 'closed-circle', reD: r } }),
+    t,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -276,6 +317,11 @@ export function fetkovich(history, params) {
 // ---------------------------------------------------------------------------
 // We_n = We_{n-1} + (tD_n − tD_{n-1})·[ (U·Δp_n − We_{n-1}·pD'_n) / (pD_n − tD_{n-1}·pD'_n) ]
 // Δp_n = pi − p_n  (total drawdown to date, NOT incremental).
+//
+// Finite aquifer (MB2): pass params.reD = ra/rR (> 1) to march with the exact
+// bounded-circle pD(tD, reD) instead of the infinite-acting line source.
+// Required to reproduce finite-aquifer benchmarks (Dake Exercise 9.2 is
+// reD = 5); leave unset for an effectively infinite aquifer.
 export function carterTracy(history, params) {
   const rows = normalizeHistory(history);
   if (rows.length < 2) return { series: [], cumulativeWe: 0, method: 'carter-tracy' };
@@ -286,6 +332,9 @@ export function carterTracy(history, params) {
     return { series: [], cumulativeWe: 0, method: 'carter-tracy', error: 'Invalid aquifer parameters.' };
   }
 
+  const reD = num(params.reD);
+  const finite = Number.isFinite(reD) && reD > 1;
+
   const pi = rows[0].p;
   const t0 = rows[0].t;
   const series = [{ t: rows[0].t, p: pi, tD: 0, We: 0 }];
@@ -295,8 +344,8 @@ export function carterTracy(history, params) {
   for (let n = 1; n < rows.length; n++) {
     const tDn = C * (rows[n].t - t0);
     const dpTotal = pi - rows[n].p;
-    const pDn = pD(tDn);
-    const pDpn = pDprime(tDn);
+    const pDn = finite ? pDFinite(tDn, reD) : pD(tDn);
+    const pDpn = finite ? pDprimeFinite(tDn, reD) : pDprime(tDn);
     const denom = pDn - tDprev * pDpn;
     if (Math.abs(denom) > 1e-12) {
       We += (tDn - tDprev) * ((U * dpTotal - We * pDpn) / denom);
@@ -306,7 +355,7 @@ export function carterTracy(history, params) {
     tDprev = tDn;
   }
 
-  return { method: 'carter-tracy', series, cumulativeWe: We, U, tDCoefficient: C };
+  return { method: 'carter-tracy', series, cumulativeWe: We, U, tDCoefficient: C, reD: finite ? reD : undefined };
 }
 
 // ---------------------------------------------------------------------------
