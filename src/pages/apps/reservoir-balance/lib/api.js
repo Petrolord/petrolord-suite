@@ -308,7 +308,7 @@ export async function getResultByRunId(runId) {
  * details ("Initial timestep must have zero cumulative production", etc.)
  * to the UI.
  */
-export async function runMBAL(runConfigId) {
+export async function runMBAL(runConfigId, options = {}) {
   if (!runConfigId) {
     return {
       data: null,
@@ -316,9 +316,18 @@ export async function runMBAL(runConfigId) {
     };
   }
 
+  // MB5: options.mode 'history_match' plus options.historyMatch
+  // ({ fit_parameters, initial_guesses, bounds, max_iterations }) run the
+  // inverse-MBE Levenberg-Marquardt fit instead of the plain regression.
+  const body = { run_config_id: runConfigId };
+  if (options.mode === 'history_match') {
+    body.mode = 'history_match';
+    if (options.historyMatch) body.history_match = options.historyMatch;
+  }
+
   try {
     const { data, error } = await supabase.functions.invoke('calculate-mbal', {
-      body: { run_config_id: runConfigId },
+      body,
     });
 
     if (error) {

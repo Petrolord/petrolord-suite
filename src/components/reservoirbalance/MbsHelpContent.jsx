@@ -1,7 +1,7 @@
 // Help drawer content for the Material Balance Studio (MB3). Replaces the
 // retired HelpGuideDialog, whose step list described tabs that did not exist
-// yet; this guide covers only what ships. Later phases extend it (screening
-// in MB4, history match in MB5, contacts/forecast/report in MB6).
+// yet; this guide covers only what ships (screening added in MB4, history
+// match in MB5; MB6 adds contacts/forecast/report).
 import React from 'react';
 
 const H = ({ children }) => <h4 className="text-sm font-semibold text-slate-200 mt-5 mb-1.5">{children}</h4>;
@@ -58,10 +58,20 @@ const MbsHelpContent = () => (
 
     <H>5. Run</H>
     <P>
-      Runs the Havlena-Odeh regression (or the p over z pot-aquifer plot for gas) on the server engine and reports
-      OOIP or OGIP, aquifer size where applicable, the regression quality, and the drive index decomposition
-      (depletion, gas cap, water and compressibility drives, which should sum to about one). Engine warnings surface
-      anything the run had to assume or found suspicious.
+      The tab has two segments. Regression runs the Havlena-Odeh straight line (or the p over z pot-aquifer plot for
+      gas) on the server engine and reports OOIP or OGIP, aquifer size where applicable, the regression quality, and
+      the drive index decomposition (depletion, gas cap, water and compressibility drives, which should sum to about
+      one). Engine warnings surface anything the run had to assume or found suspicious.
+    </P>
+    <P>
+      History match works the other way round: the engine simulates the pressure history your production would have
+      produced for a candidate set of tank parameters, then a Levenberg-Marquardt search adjusts the parameters you
+      tick until the simulated pressures reproduce the observed ones. Each matched parameter comes back with a 95
+      percent confidence interval; a parameter that finishes at its search bound or with a very wide interval is not
+      really constrained by your data, and the warnings will say so. The pressure-match plot shows observed points,
+      the simulated line, and the residual at every timestep. Starting values seed from the last run and the Aquifer
+      tab; leave them blank to let the engine derive them. On short histories fit few parameters: OOIP or OGIP plus
+      one aquifer size knob is usually all the data can support.
     </P>
 
     <H>6. Plots</H>

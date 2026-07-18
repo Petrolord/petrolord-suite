@@ -128,7 +128,10 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
   }, [cases, caseId, onOpenCase, toast]);
 
   // Run MBAL — moved verbatim from RbCaseDetail.jsx handleRun (Phase 2/3).
-  const handleRun = useCallback(async () => {
+  // MB5: the same config-inherit + invoke path also drives the history match
+  // (mode 'history_match' with LM options); both run modes share executeRun.
+  const executeRun = useCallback(async (runOptions = {}) => {
+    const isHistoryMatch = runOptions.mode === 'history_match';
     const rowCount = caseData?.production_data?.length ?? 0;
     if (rowCount < 2) {
       toast({
@@ -147,7 +150,7 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     const { data: defaultCfg } = await getCaseDefaultConfig(caseId);
 
     const { data: runConfig, error: configErr } = await createRunConfig(caseId, {
-      name: `Run ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`,
+      name: `${isHistoryMatch ? 'History match' : 'Run'} ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`,
       is_scenario: true, // mark this row as an executed run, not a default
       // PVT — inherit from saved default config
       oil_gravity_api: defaultCfg?.oil_gravity_api ?? null,
@@ -181,7 +184,12 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
       return;
     }
 
-    const { data: runResp, error: runErr } = await runMBAL(runConfig.id);
+    const { data: runResp, error: runErr } = await runMBAL(
+      runConfig.id,
+      isHistoryMatch
+        ? { mode: 'history_match', historyMatch: runOptions.historyMatch }
+        : {},
+    );
 
     if (runErr) {
       // Engine-level errors (e.g. "Initial timestep must have zero cumulative
@@ -191,7 +199,7 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
         ? `${runErr.message}: ${runErr.detail}`
         : runErr.message;
       toast({
-        title: 'Run failed',
+        title: isHistoryMatch ? 'History match failed' : 'Run failed',
         description,
         variant: 'destructive',
         duration: 12000,
@@ -206,7 +214,7 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     setRunVersion((v) => v + 1);
 
     toast({
-      title: 'MBAL completed',
+      title: isHistoryMatch ? 'History match completed' : 'MBAL completed',
       description: `Engine returned in ${runResp.duration_ms}ms.`,
     });
 
@@ -217,13 +225,22 @@ export const MaterialBalanceStudioProvider = ({ caseId, onOpenCase, children }) 
     }
   }, [caseData, caseId, toast]);
 
+  const handleRun = useCallback(() => executeRun(), [executeRun]);
+
+  // MB5: history match. historyMatch = { fit_parameters, initial_guesses,
+  // bounds, max_iterations } as the edge function expects them.
+  const handleHistoryMatch = useCallback(
+    (historyMatch) => executeRun({ mode: 'history_match', historyMatch }),
+    [executeRun],
+  );
+
   const value = {
     // case list
     cases, casesLoading, casesError, refreshCases,
     // current case
     caseId, caseData, caseLoading, caseError, refreshCase,
     // run
-    lastResult, running, runVersion, handleRun,
+    lastResult, running, runVersion, handleRun, handleHistoryMatch,
     // project-manager actions
     handleCaseCreated, handleDeleteCase,
   };

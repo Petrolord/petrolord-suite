@@ -8,8 +8,9 @@
 // mount this page; :caseId selects the open case. ?tab= deep-links a tab.
 //
 // Tabs (only what is real ships): Data | PVT | Aquifer | Run | Plots.
-// Later phases add: Aquifer screening segment (MB4), History Match (MB5),
-// Contacts | Forecast | Report (MB6).
+// The Aquifer tab is segmented Model | Screening (MB4); the Run tab is
+// segmented Regression | History match (MB5). MB6 adds Contacts | Forecast |
+// Report.
 //
 // Persistence: rb_cases + rb_* tables via lib/api.js. Every write is explicit
 // and immediate (no debounced autosave here by design: production-data saves
@@ -38,6 +39,7 @@ import DataHub from '@/components/reservoirbalance/DataHub';
 import PvtRock from '@/components/reservoirbalance/PvtRock';
 import AquiferModel from '@/components/reservoirbalance/AquiferModel';
 import AquiferScreening from '@/components/reservoirbalance/AquiferScreening';
+import HistoryMatch from '@/components/reservoirbalance/HistoryMatch';
 import RbDiagnosticPlots from '@/components/reservoirbalance/RbDiagnosticPlots';
 import ValidationTierBadge from '@/components/reservoirbalance/ValidationTierBadge';
 import NewCaseDialog, { fluidSystemDisplay } from '@/components/reservoirbalance/NewCaseDialog';
@@ -262,6 +264,8 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
   const [newCasePrefill, setNewCasePrefill] = useState(null);
   // Aquifer tab segment (MB4): server model config vs client screening.
   const [aquiferSegment, setAquiferSegment] = useState('model');
+  // Run tab segment (MB5): regression vs pressure history match.
+  const [runSegment, setRunSegment] = useState('regression');
 
   // Average pressure / k / skin intake from the Well Test Analysis Studio
   // (WT5 navigate-state handoff; mapping is the jest-guarded pure function
@@ -353,7 +357,29 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
           )}
         </div>
       )}
-      {activeTab === 'run' && <RunPanel />}
+      {activeTab === 'run' && (
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            {[['regression', 'Regression'], ['match', 'History match']].map(([seg, label]) => (
+              <button
+                key={seg}
+                onClick={() => setRunSegment(seg)}
+                className={`px-4 py-1.5 rounded-md text-sm border transition-colors ${
+                  runSegment === seg
+                    ? 'bg-emerald-700 border-emerald-600 text-white'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            <p className="text-[11px] text-slate-500 self-center ml-2">
+              Regression solves OOIP or OGIP from the observed pressures; History match simulates pressures from candidate parameters and fits them to the observations.
+            </p>
+          </div>
+          {runSegment === 'regression' ? <RunPanel /> : <HistoryMatch />}
+        </div>
+      )}
       {activeTab === 'plots' && (
         <RbDiagnosticPlots caseId={caseId} caseData={caseData} runVersion={runVersion} />
       )}
