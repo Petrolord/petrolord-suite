@@ -10,7 +10,7 @@
 > used). Owner re-confirmed 2026-07-18: thin-real scope honored, executed
 > at studio-class quality (lab-data import, fitting to core data,
 > multi-sample averaging, saturation-height, handoffs).
-> Last updated: 2026-07-18 · SC1-SC3 done.
+> Last updated: 2026-07-18 · SC1-SC4 done.
 
 ## Phase ledger
 
@@ -19,7 +19,7 @@
 | SC1 | dcaEngine oracle gate (§3) + EUR sign fix | **DONE 2026-07-18** |
 | SC2 | `scalCalculations.js` engine + Leverett 1941 golden | **DONE 2026-07-18** |
 | SC3 | Studio app skeleton + `saved_scal_projects` persistence | **DONE 2026-07-18** |
-| SC4 | Lab Data tab: import, Corey fit, multi-sample averaging | pending |
+| SC4 | Lab Data tab: import, Corey fit, multi-sample averaging | **DONE 2026-07-18** |
 | SC5 | Height & Saturation tab + Waterflood handoff + exports | pending |
 | SC6 | Tile migrations (deploy-gated pair) + close-out | pending |
 
@@ -137,6 +137,28 @@ The §3 gate: `src/utils/declineCurve/dcaEngine.js` had NO direct tests
 - Tests: full-page smoke walking both tabs + 6 wiring tests on the pure
   builders (the samples-mode averaging tolerance documents the
   resample-then-refit bias). Staging vite transforms green.
+
+### SC4 deliverables (2026-07-18) — Lab Data tab
+
+- Sample CRUD in the left rail: rock/fluid properties with lab-system
+  sigma-cos-theta presets (air-brine 72/0, air-mercury 480/40, oil-brine
+  30/30, all editable), per-sample kr and Pc CSV import through the
+  engine parsers with per-row skip messages, downloadable templates that
+  themselves parse and validate through the real engine path (jest-pinned).
+- Per-sample Corey fit card: exponents with 95% CIs, log-space RMS and
+  r2, iteration-cap warning, one-click "Use fit on the Curves tab"
+  (context action, values land as studio form strings). Lab points +
+  fitted curves chart; endpoint-normalized overlay across samples for
+  exponent-consistency judgment. Averaging stays a human decision: the
+  studio shows the spread and never silently blends (said in copy).
+- Synthetic demo pair (inline deterministic seed, clearly labeled): two
+  rocks generated from ONE true J curve, so the Capillary tab
+  demonstrates the Leverett collapse live; jest pins that the demo data
+  validates, collapses within Pc-rounding, and fits back near its
+  generating exponents.
+- Capillary samples mode now has real data to average; the Curves,
+  Lab Data and Capillary tabs form the full lab-to-model loop.
+- Smoke test extended (demo pair loads, fit KPIs render); jest 1523.
 
 ## Scope discipline (standing)
 

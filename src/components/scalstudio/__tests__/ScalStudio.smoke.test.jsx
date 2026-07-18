@@ -46,6 +46,16 @@ describe('ScalStudio page', () => {
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Gas-oil' }));
     expect(screen.getAllByText(/Sorg/i).length).toBeGreaterThan(0);
 
+    // Lab Data tab (SC4): load the demo pair, fit KPIs appear.
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Lab Data' }));
+    expect(screen.getAllByText(/Core samples/i).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: /Demo pair/i }));
+    expect(await screen.findByText(/Demo core A/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Demo core A/i));
+    expect(await screen.findByText(/nw \(fit\)/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Use fit on the Curves tab/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Normalized curves across samples/i).length).toBeGreaterThan(0);
+
     // Capillary tab: default manual J spec computes J and reservoir Pc.
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Capillary' }));
     expect(screen.getAllByText(/J-function source/i).length).toBeGreaterThan(0);
