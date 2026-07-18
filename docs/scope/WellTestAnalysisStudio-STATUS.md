@@ -85,10 +85,10 @@ Specialized | Report), driven only by the WT1 engines:
    `pta_telemetry` empty; `pta_projects` holds 2 identical rows of the
    mock's hardcoded output (kh 123.4 / skin 5.6 / Pi 3510, both from the
    owner's own support/test accounts, March 2026). Rows exist, so per the
-   locked decision the family stays read-only. **OPEN owner decision:**
-   approve dropping the 4-table `pta_*` family (recommended — contents
-   are provably the mock's fabricated demo output; zero repo consumers
-   remain after WT2).
+   locked decision the family stayed read-only pending owner approval.
+   **RESOLVED 2026-07-18: owner approved the drop; the 4-table family was
+   dropped live by migration `20260718210000` (WT4 branch), 2 mock rows
+   discarded.**
 
 ## WT3 deliverables (2026-07-18)
 
