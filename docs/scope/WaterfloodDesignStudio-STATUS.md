@@ -42,9 +42,26 @@ its displacement physics and charts live on in the Displacement tab).
   production years) plus a full-page four-tab render smoke test.
   Tile rename migration 20260717110500 authored but **deploy-gated**
   (apply with the prod upload that carries the studio).
-- **W4 — Uncertainty tab. PENDING.** P90/P50/P10 via the canonical
-  ReservoirCalc Pro Monte Carlo engine (sanctioned extraction to
-  `src/lib/`), honest rank-correlation sensitivity.
+- **W4 — Uncertainty tab. DONE 2026-07-18 (branch
+  feat/waterflood-uncertainty).** Canonical MC extraction first:
+  `src/lib/monteCarlo.js` (Gaussian-copula correlated sampler,
+  distributions, basicStats, tie-averaged Spearman
+  rankCorrelationSensitivity) extracted from ReservoirCalc Pro per the
+  CLAUDE.md canon rule, ReservoirCalc delegates to it. Engine:
+  `src/utils/waterfloodUncertainty.js` samples enabled displacement/
+  pattern inputs and reruns `forecastPattern` per realization; config
+  parsing with user-facing errors, deterministic-tab validity gates
+  with rejection accounting (no silent clamping), petroleum percentile
+  convention (P90 low), Spearman tornado vs Np, chunked async runner.
+  UI: fifth tab (UncertaintyPanel with per-parameter distributions
+  seeded plus/minus 20% from the working case, coreyOnly params gated
+  off under tabular kr; UncertaintyResults with P90/P50/P10 KPIs,
+  exceedance curve, tornado, rejection accounting; DiagnosticsRail MC
+  section). Config persists with the project; results are transient
+  and flagged stale on any input edit. Suite locks convergence to the
+  deterministic forecast as spreads collapse and physics-known
+  sensitivity signs (Sor/muO/Bo negative, h_ft positive) with a seeded
+  rng.
 - **W5 — DCA adopts the Studio kit. PENDING.** Then VRR Monitor →
   Recovery Factor Estimator → Aquifer Influx Calculator get the same
   one-app-at-a-time upgrade treatment.
