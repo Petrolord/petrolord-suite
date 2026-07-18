@@ -38,6 +38,13 @@
  *           equivalent-FVF gas identity (141.2 q Beq mu = 1422 q T),
  *           pseudo-time identity for constant properties, and an
  *           Odeh-Jones multi-rate round trip on superposed model data.
+ * CASE 10 WT6 closed rectangle: image-lattice Laplace route vs an
+ *           independent real-time theta-duality oracle, early-time identity
+ *           with the homogeneous model, exact PSS slope 2 pi tDA, Dietz
+ *           shape factors recovered from the extracted PSS intercept
+ *           (square 30.8828, 2:1 21.8369, 4:1 5.379), thin-rectangle =
+ *           channel degeneracy, composition identity, and an off-center
+ *           auto-fit round trip (k, skin, drainage area).
  */
 
 import fs from 'fs';
@@ -376,6 +383,116 @@ banner('CASE 9: WT4 gas (Ahmed Ex. 6-7 / Ex. 8-2) and multi-rate');
     const result = multiRateSemilogAnalysis({ points, steps, ...reservoir });
     check('multi-rate round trip: permeability', result.k, truth.k, 0.01, 'md');
     checkAbs('multi-rate round trip: skin', result.skin, truth.skin, 0.05);
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 10: WT6 closed rectangle (image lattice vs independent real-time oracle)');
+{
+  const { rectangleSandfaceLaplace, rectanglePssIntercept } =
+    await import('../../../src/utils/welltest/models/rectangle.js');
+  const { pwdLaplaceHomogeneous } = await import('../../../src/utils/welltest/models/homogeneous.js');
+  const { radialSandfaceLaplace } = await import('../../../src/utils/welltest/models/radial.js');
+
+  // --- JS Laplace/Stehfest lattice vs the Python real-time theta route
+  {
+    let worst = { err: 0, at: '' };
+    for (const row of goldens.closedRectangle) {
+      const geom = { xeD: row.xeD, yeD: row.yeD, xwD: row.xwD, ywD: row.ywD };
+      const js = stehfestInvert((u) => rectangleSandfaceLaplace(u, geom), row.tD);
+      const err = Math.abs(js - row.pwd) / row.pwd;
+      if (err > worst.err) worst = { err, at: `${row.id} tD=${row.tD}` };
+    }
+    console.log(`        (${goldens.closedRectangle.length} points, 3 geometries incl. off-center; worst ${worst.at} rel err ${worst.err.toExponential(2)}; gate 2e-3)`);
+    if (worst.err <= 2e-3) { passed += 1; console.log('  PASS  rectangle vs real-time oracle gate 2e-3'); }
+    else { failed += 1; console.log('  FAIL  rectangle vs real-time oracle gate 2e-3 exceeded'); }
+  }
+
+  const square = { xeD: 4000, yeD: 4000, xwD: 2000, ywD: 2000 };
+
+  // --- boundary-invisible early time collapses exactly onto homogeneous
+  for (const tD of [1e3, 1e5]) {
+    check(
+      `early-time identity with homogeneous (tD=${tD})`,
+      stehfestInvert((u) => rectangleSandfaceLaplace(u, square), tD),
+      stehfestInvert((u) => pwdLaplaceHomogeneous(u, {}), tD),
+      1e-6
+    );
+  }
+
+  // --- exact PSS line: slope 2 pi tDA, intercept = extracted b
+  {
+    const AD = square.xeD * square.yeD;
+    const p1 = stehfestInvert((u) => rectangleSandfaceLaplace(u, square), 1 * AD);
+    const p3 = stehfestInvert((u) => rectangleSandfaceLaplace(u, square), 3 * AD);
+    check('PSS slope (dimensionless) = 2 pi / AD', ((p3 - p1) / (2 * AD)) * AD, 2 * Math.PI, 2e-3);
+    checkAbs('PSS intercept from curve = extracted b', p1 - 2 * Math.PI * 1, rectanglePssIntercept(square), 0.01);
+  }
+
+  // --- Dietz shape factors (literature truths: Dietz 1965 / Earlougher
+  //     Table C.1): CA back-calculated from the extracted PSS intercept
+  //     via b = 0.5 ln(2.2458 AD / CA)
+  {
+    const dietz = [
+      ['centered square', { xeD: 4000, yeD: 4000, xwD: 2000, ywD: 2000 }, 30.8828],
+      ['centered 2:1 rectangle', { xeD: 5656.854, yeD: 2828.427, xwD: 2828.427, ywD: 1414.2135 }, 21.8369],
+      ['centered 4:1 rectangle', { xeD: 8000, yeD: 2000, xwD: 4000, ywD: 1000 }, 5.379],
+    ];
+    for (const [name, geom, CA] of dietz) {
+      const AD = geom.xeD * geom.yeD;
+      const recovered = (2.2458 * AD) / Math.exp(2 * rectanglePssIntercept(geom));
+      check(`Dietz shape factor, ${name}`, recovered, CA, 1e-3);
+    }
+  }
+
+  // --- long thin rectangle degenerates to the channel model mid-time
+  {
+    const thin = { xeD: 200000, yeD: 2000, xwD: 100000, ywD: 1000 };
+    for (const tD of [1e6, 1e8]) {
+      check(
+        `thin rectangle = channel model (tD=${tD})`,
+        stehfestInvert((u) => rectangleSandfaceLaplace(u, thin), tD),
+        stehfestInvert((u) => radialSandfaceLaplace(u, { boundary: { type: 'channel', wd: 2000 } }), tD),
+        1e-6
+      );
+    }
+  }
+
+  // --- storage + skin composition identity with the WT1 formula in the
+  //     boundary-invisible limit
+  {
+    const model = getModel('homogeneous-closed-rectangle');
+    const far = { xeD: 4e6, yeD: 4e6, xwD: 2e6, ywD: 2e6, skin: 4, cd: 500 };
+    let worst = 0;
+    for (const tD of [1e2, 1e4, 1e6]) {
+      const a = stehfestInvert((u) => model.pwdLaplace(u, far), tD);
+      const b = stehfestInvert((u) => pwdLaplaceHomogeneous(u, { skin: 4, cd: 500 }), tD);
+      worst = Math.max(worst, Math.abs(a / b - 1));
+    }
+    if (worst < 1e-8) { passed += 1; console.log(`  PASS  composition identity vs WT1 formula (worst rel ${worst.toExponential(1)})`); }
+    else { failed += 1; console.log(`  FAIL  composition identity broken (worst rel ${worst.toExponential(1)})`); }
+  }
+
+  // --- fixture round trip: auto-fit recovers k, skin and drainage area from
+  //     the oracle-generated off-center drawdown (storage-free fixture; C is
+  //     free and expected to fall to its bound)
+  {
+    const fx = goldens.fixtures.rectangleDrawdown;
+    const model = getModel('homogeneous-closed-rectangle');
+    const data = fx.points.filter((_, i) => i % 2 === 0);
+    const fit = autoFitModel({
+      model,
+      testType: 'drawdown',
+      data,
+      reservoir: fx.reservoir,
+      initialParams: { k: 70, skin: 1, C: 1e-5, L1: 800, L2: 1000, W1: 600, W2: 700 },
+    });
+    const truth = fx.truth;
+    check('rectangle round trip: permeability', fit.params.k, truth.k, 0.02, 'md');
+    checkAbs('rectangle round trip: skin', fit.params.skin, truth.skin, 0.2);
+    const areaTruth = (truth.L1 + truth.L2) * (truth.W1 + truth.W2);
+    const areaFit = (fit.params.L1 + fit.params.L2) * (fit.params.W1 + fit.params.W2);
+    check('rectangle round trip: drainage area', areaFit, areaTruth, 0.05, 'ft^2');
   }
 }
 

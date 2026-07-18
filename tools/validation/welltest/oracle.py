@@ -449,3 +449,73 @@ def dimensionless_groups(k, phi, mu, ct, rw, h, B, q):
         "dpPerPd": PD_FACTOR * q * B * mu / (k * h),
         "cdPerBblPsi": CD_FACTOR / (phi * ct * h * rw * rw),
     }
+
+
+# ---------------------------------------------------------------------------
+# WT6: closed rectangle, REAL-TIME route (product of 1D no-flow slab Green's
+# functions with theta duality, integrated over time) - fully independent of
+# the JS Laplace/Stehfest image-lattice implementation.
+
+
+def slab_green_1d(x_obs: float, xw: float, xe: float, tau: float) -> float:
+    """1D diffusion Green's function on [0, xe] with no-flow ends.
+
+    Image form for small tau (converges as exp(-(2 m xe)^2 / 4 tau)),
+    eigenfunction form for large tau (converges as exp(-n^2 pi^2 tau/xe^2)).
+    Both are exact; the switch at tau = xe^2/4 keeps either series short.
+    """
+    if tau <= xe * xe / 4.0:
+        s = 0.0
+        m = 0
+        while True:
+            hit = False
+            for base in (2 * m * xe, -2 * m * xe) if m else (0.0,):
+                for xi in (base + xw, base - xw):
+                    e = -((x_obs - xi) ** 2) / (4.0 * tau)
+                    if e > -700.0:
+                        term = math.exp(e)
+                        if term > 1e-18:
+                            hit = True
+                        s += term
+            if m > 0 and not hit:
+                break
+            m += 1
+            if m > 10000:
+                break
+        return s / math.sqrt(4.0 * math.pi * tau)
+    s = 1.0
+    n = 1
+    while True:
+        decay = math.exp(-(n * n) * math.pi * math.pi * tau / (xe * xe))
+        if decay < 1e-18:
+            break
+        s += 2.0 * decay * math.cos(n * math.pi * x_obs / xe) * math.cos(n * math.pi * xw / xe)
+        n += 1
+        if n > 100000:
+            break
+    return s / xe
+
+
+def rect_pd_time(t_d: float, xe: float, ye: float, xw: float, yw: float,
+                 r_offset: float = 1.0, n: int = 4000) -> float:
+    """Line-source pD at (xw + r_offset, yw) in a closed no-flow rectangle.
+
+    pD(tD) = 2 pi * integral_0^tD Gx(tau) Gy(tau) dtau, evaluated by
+    composite Simpson on ln(tau). The integrand vanishes like
+    exp(-r_offset^2/(4 tau)) as tau -> 0, so the grid starts at a tau where
+    that factor is < 1e-40.
+    """
+    x_obs = xw + r_offset
+    tau_min = min(r_offset * r_offset / 400.0, t_d * 1e-8)
+    a = math.log(tau_min)
+    b = math.log(t_d)
+    if n % 2:
+        n += 1
+    h = (b - a) / n
+    total = 0.0
+    for i in range(n + 1):
+        tau = math.exp(a + i * h)
+        f = slab_green_1d(x_obs, xw, xe, tau) * slab_green_1d(yw, yw, ye, tau) * tau
+        w = 1 if i in (0, n) else (4 if i % 2 else 2)
+        total += w * f
+    return 2.0 * math.pi * total * h / 3.0

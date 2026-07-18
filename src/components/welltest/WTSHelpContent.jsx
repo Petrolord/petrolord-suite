@@ -53,6 +53,14 @@ const WTSHelpContent = () => (
       volume, and re fixes the drained radius.
     </P>
     <P>
+      Closed rectangle: the general closed shape. The well sits at the four boundary distances L1/L2 (east-west) and
+      W1/W2 (north-south), so an off-center well shows staged derivative doublings before the late unit slope; the
+      product of the side lengths is the drainage area. With clean data the regression recovers the area well, but the
+      individual distances trade off against each other unless the doublings are distinct, so seed any distances you
+      know from geology as starting values before the auto-fit. A very long rectangle behaves as a channel until the
+      far ends are felt.
+    </P>
+    <P>
       Dual porosity (Warren-Root): a dip in the derivative between two parallel radial stabilizations. The storativity
       ratio omega sets the depth of the dip (semilog line separation is half of ln(1/omega)) and lambda sets when the
       matrix wakes up. Choose pseudo-steady interporosity flow for a sharp dip or transient slabs for a shallower,

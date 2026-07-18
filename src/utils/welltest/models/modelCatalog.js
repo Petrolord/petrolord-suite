@@ -20,6 +20,7 @@ import { stehfestInvert } from '../numerics.js';
 import { pwdLaplaceHomogeneous } from './homogeneous.js';
 import { makeRadialPwdLaplace } from './radial.js';
 import { makeFracturePwdLaplace } from './fracture.js';
+import { makeRectanglePwdLaplace } from './rectangle.js';
 
 export const OILFIELD = {
   TD_FACTOR: 0.0002637,
@@ -57,6 +58,12 @@ const P_LDIST = { key: 'L', label: 'Distance to boundary', symbol: 'L', unit: 'f
 const P_WIDTH = { key: 'W', label: 'Channel width', symbol: 'W', unit: 'ft', default: 1000, min: 20, max: 100000, logScale: true };
 const P_RE = { key: 're', label: 'External radius', symbol: 're', unit: 'ft', default: 2000, min: 50, max: 100000, logScale: true };
 const P_XF = { key: 'xf', label: 'Fracture half-length', symbol: 'xf', unit: 'ft', default: 100, min: 1, max: 5000, logScale: true };
+const rectDistance = (key, label, symbol) =>
+  ({ key, label, symbol, unit: 'ft', default: 1000, min: 10, max: 50000, logScale: true });
+const P_RECT_L1 = rectDistance('L1', 'Distance to west boundary', 'L1');
+const P_RECT_L2 = rectDistance('L2', 'Distance to east boundary', 'L2');
+const P_RECT_W1 = rectDistance('W1', 'Distance to south boundary', 'W1');
+const P_RECT_W2 = rectDistance('W2', 'Distance to north boundary', 'W2');
 const P_FCD = { key: 'fcd', label: 'Fracture conductivity', symbol: 'FcD', unit: 'dimensionless', default: 10, min: 0.1, max: 10000, logScale: true };
 const P_SKIN_CHOKE = { ...P_SKIN, label: 'Choked-fracture skin', max: 20 };
 
@@ -132,6 +139,27 @@ export const MODEL_CATALOG = [
       ...baseDimless(params, groups),
       reD: (params.re ?? P_RE.default) / groups.rw,
     }),
+  },
+  {
+    id: 'homogeneous-closed-rectangle',
+    label: 'Homogeneous, closed rectangle',
+    wellbore: 'Constant wellbore storage and skin',
+    boundary: 'No-flow rectangle, well position via four boundary distances; late pseudo-steady state (unit slope)',
+    parameters: [P_K, P_SKIN, P_C, P_RECT_L1, P_RECT_L2, P_RECT_W1, P_RECT_W2],
+    pwdLaplace: makeRectanglePwdLaplace(),
+    toDimless: (params, groups) => {
+      const L1 = params.L1 ?? P_RECT_L1.default;
+      const L2 = params.L2 ?? P_RECT_L2.default;
+      const W1 = params.W1 ?? P_RECT_W1.default;
+      const W2 = params.W2 ?? P_RECT_W2.default;
+      return {
+        ...baseDimless(params, groups),
+        xeD: (L1 + L2) / groups.rw,
+        xwD: L1 / groups.rw,
+        yeD: (W1 + W2) / groups.rw,
+        ywD: W1 / groups.rw,
+      };
+    },
   },
   {
     id: 'dual-porosity-pss',
