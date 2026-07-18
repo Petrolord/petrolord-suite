@@ -2,7 +2,7 @@
 
 > Companion to `docs/scope/ReservoirBalance.md` (full scope, decision log,
 > process patterns). This file is the fast-read snapshot.
-> Last updated: 2026-07-18 · MB program MB1-MB5 done (MB6-MB7 pending); prior state
+> Last updated: 2026-07-18 · MB program MB1-MB6 done (MB7 pending); prior state
 > as of the 2026-05-17 patch series.
 
 ## What MBAL does
@@ -108,7 +108,7 @@ cross-validation.
 | MB3 | Studio shell adoption + tile rename migration | **DONE 2026-07-18** |
 | MB4 | Aquifer screening tab + calculator absorption | **DONE 2026-07-18** |
 | MB5 | Pressure history match (inverse MBE, server LM) | **DONE 2026-07-18** |
-| MB6 | Forecast/Contacts/Report wiring + DCA reconciliation | pending |
+| MB6 | Forecast/Contacts/Report wiring + DCA reconciliation | **DONE 2026-07-18** |
 | MB7 | PVT prefill via Fluid Studio correlations + polish + close-out | pending |
 
 ### MB1 deliverables (2026-07-18)
@@ -304,6 +304,45 @@ observed pressures.
   deployed-function auth smoke green. No SPA-deploy-gated pieces: MB5 is
   live once the edge function is deployed (done) except the UI segment,
   which rides the next prod upload with MB3/MB4.
+
+### MB6 deliverables (2026-07-18) — Forecast, Contacts, Report
+
+Three new studio tabs, all client-side on jest-guarded libs; the
+pre-Horizons shells (ForecastScenarios, ContactsTracker, ReportsExport)
+and their toy math (utils/dcaCalculations with fabricated P10/P90,
+utils/contactsCalculations with an invented 30-day timeline) are deleted.
+
+- **Forecast** (`ForecastTab.jsx`, `lib/mbalForecast.js`, 14 tests): rates
+  derived from the cumulative history (midpoint-dated), Arps fit and
+  forecast through the CANONICAL decline engine
+  (`src/utils/declineCurve/dcaEngine.js`, per the no-new-DCA canon), and
+  `forecastBeyondHistory` re-anchoring so remaining reserves exclude the
+  fitted window (pinned against the analytic exponential integral).
+  Reconciliation vs the material balance: gas compares DCA remaining with
+  the p/z recoverable at a user abandonment pressure interpolated through
+  the run's own p/z curve (water-drive cases flagged as a bound); oil
+  compares the implied ultimate RF with the Arps/API statistical ranges
+  keyed by the engine's drive-mechanism classification (Ahmed REH
+  tabulation), out-of-band shown as an advisory, never an error.
+- **Contacts** (`ContactsTab.jsx`, `lib/contactMovement.js`, 8 tests):
+  piston-front screening estimates on the engine's own series: OWC (GWC
+  for gas) rise = 5.615·(We − Wp·Bw)/(A·φ·(1−Swi−Sor_w)), GOC descent =
+  5.615·m·N·Eg_oil/(A·φ·(1−Swi−Sor_g)) with Eg_oil the engine's Pletcher
+  Eq. 23 term, so the volume is exactly what the MBE attributed. plot_data
+  gained `Eg_oil` and `Bw` (calculate-mbal redeployed); legacy results
+  degrade to a static GOC with a named warning. m resolves history-match
+  value → run config → none. Contact-collision warning; assumptions
+  stated in copy.
+- **Report** (`ReportTab.jsx`, `src/utils/mbalReportExport.js` on the
+  WT5/WT10 jsPDF+autotable pattern): case summary, headline volumes with
+  validation tier + benchmark reference, drive indices, history match
+  with CIs and at-bound flags, pressure/production table (60-row cap,
+  named), engine warnings; plus a CSV of every per-timestep series.
+- Future scope noted: the deleted ReportsExport shell had an unwired
+  "push forecast to EPE" flow (epe_cases + epe_production_volumes);
+  a real EPE handoff would be an MB7+ decision, not a salvage.
+- jest 1439 (from 1417: +14 forecast, +8 contacts), build clean, staging
+  vite transforms green. UI rides the next prod upload with MB3-MB5.
 
 ## Next priorities (pre-program list, superseded by the MB table above)
 
