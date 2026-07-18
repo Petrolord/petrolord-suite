@@ -1,0 +1,42 @@
+{
+  "_notes": [
+    "Published-literature fixtures for run-validation.mjs CASE 7.",
+    "Lee Example 2.1 (ideal pressure buildup): inputs, straight-line anchors and answers are printed in the source; document verified 2026-07-18 (course reproduction of the textbook example, home.czu.cz/storage/575/52485_2010-Ch-9-Chapter-2-Pressure-Buildup-Test.pdf).",
+    "The book presents the buildup data as the Horner straight line (slope 100 psi/cycle, pws = 1764 psig at dt = 1 hr i.e. Horner ratio 73). Points below are reconstructed exactly from that printed line; consistency check: the line gives 1950.3 psig at unit Horner ratio, matching the printed pi = 1950 psig.",
+    "Pressures are psig throughout (the skin and slope arithmetic uses differences, so gauge units are consistent).",
+    "PENDING (hard-gate completion before WT2 merge): a second fixture with a full published data table typed from the book, preferably Dake Fundamentals Ch. 7 Horner example or the Earlougher/Ahmed 4900 STB/D, tp = 310 hr buildup."
+  ],
+  "buildups": [
+    {
+      "citation": "Lee (1982) Well Testing, SPE Textbook Vol. 1, Example 2.1 (ideal buildup)",
+      "reservoir": {
+        "phi": 0.2,
+        "mu": 1.0,
+        "ct": 0.00002,
+        "rw": 0.3,
+        "h": 22,
+        "B": 1.3,
+        "q": 500,
+        "pi": 1950
+      },
+      "tp": 72,
+      "pwfShutIn": 1150,
+      "points": [
+        { "dt": 1, "pws": 1764.0 },
+        { "dt": 2, "pws": 1793.51 },
+        { "dt": 4, "pws": 1822.46 },
+        { "dt": 6, "pws": 1838.94 },
+        { "dt": 8, "pws": 1850.33 },
+        { "dt": 12, "pws": 1865.82 },
+        { "dt": 16, "pws": 1876.3 },
+        { "dt": 24, "pws": 1890.13 },
+        { "dt": 36, "pws": 1902.62 },
+        { "dt": 48, "pws": 1910.54 },
+        { "dt": 60, "pws": 1916.09 },
+        { "dt": 72, "pws": 1920.23 }
+      ],
+      "expected": { "k": 48, "skin": 1.43, "pStar": 1950 },
+      "tolerances": { "k": 0.01, "skin": 0.05, "pStar": 1 }
+    }
+  ]
+}
