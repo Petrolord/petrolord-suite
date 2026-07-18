@@ -50,6 +50,12 @@ Validation-first gate for the PTA engines in `src/utils/welltest/`
     the exact partial-penetration pseudo-skin, the dimensional plateau
     identity 70.6 qBmu/(Lw sqrt(kh kv)), and an auto-fit round trip
     (k, kv/kh, Lw, skin)
+12. WT9 RTA: material-balance-time identity (te = t at constant rate),
+    oil flowing material balance on the exact exponential-decline identity
+    (dp/q = te/(N ct) + 1/J holds pointwise), gas dynamic material balance
+    (G / average-pressure / pseudo-time iteration) recovering OGIP from an
+    oracle-generated p/z decline, BDF unit slope on te, and the exact
+    Wattenbarger xf sqrt(k) round trip
 
 `literature-fixtures.json` shape:
 

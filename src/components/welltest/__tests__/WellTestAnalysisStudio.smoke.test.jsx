@@ -63,6 +63,11 @@ describe('WellTestAnalysisStudio page', () => {
     expect(await screen.findByText(/Horner plot/i)).toBeInTheDocument();
     expect(screen.getAllByText(/psi\/cycle/i).length).toBeGreaterThan(0);
 
+    // RTA (WT9): empty state prompting for production data.
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'RTA' }));
+    expect((await screen.findAllByText(/No production data loaded/i)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Transient linear window/i).length).toBeGreaterThan(0);
+
     // Report: consolidated summary with the derived KPIs.
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Report' }));
     expect(await screen.findByText(/Straight-line analyses/i)).toBeInTheDocument();

@@ -51,6 +51,11 @@
  *           fracture + exact partial-penetration pseudo-skin, dimensional
  *           plateau identity 70.6 qBmu/(Lw sqrt(kh kv)), and an auto-fit
  *           round trip (k, kv/kh, Lw, skin).
+ * CASE 12 WT9 RTA: material-balance-time identity, oil flowing material
+ *           balance on the exact exponential-decline identity (N, J), gas
+ *           dynamic material balance (G, pseudo-time iteration) on an
+ *           oracle-generated p/z decline, BDF unit slope on te, and the
+ *           exact Wattenbarger xf sqrt(k) round trip.
  */
 
 import fs from 'fs';
@@ -584,6 +589,72 @@ banner('CASE 11: WT7 horizontal well (mode + image Laplace vs independent real-t
     check('horizontal round trip: kv/kh', fit.params.kvkh, fx.truth.kvkh, 0.15);
     check('horizontal round trip: well length', fit.params.Lw, fx.truth.Lw, 0.05, 'ft');
     checkAbs('horizontal round trip: skin', fit.params.skin, fx.truth.skin, 0.2);
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 12: WT9 RTA (material-balance time, flowing MB, transient linear)');
+{
+  const {
+    prepareProductionRows, materialBalanceTime, rateNormalizedSeries,
+    flowingMaterialBalanceOil, flowingMaterialBalanceGas, transientLinearAnalysis,
+  } = await import('../../../src/utils/welltest/rta.js');
+  const { buildGasPvtTable, makePseudoPressure } = await import('../../../src/utils/welltest/gas.js');
+
+  // --- material-balance time identity: constant rate => te = t exactly
+  {
+    const rows = materialBalanceTime(prepareProductionRows(
+      Array.from({ length: 20 }, (_, i) => ({ t: i + 1, q: 500, pwf: 3000 }))
+    ));
+    let worst = 0;
+    for (const r of rows) worst = Math.max(worst, Math.abs(r.te - r.t));
+    checkAbs('constant-rate identity te = t', worst, 0, 1e-9, 'days');
+  }
+
+  // --- oil FMB on the exact exponential-decline fixture (identity gate:
+  //     dp/q = te/(N ct) + 1/J holds at every point of a constant-pwf BDF
+  //     decline; residual error is the cumulative-production trapezoid)
+  {
+    const fx = goldens.fixtures.rtaOilDecline;
+    const rowsTe = materialBalanceTime(prepareProductionRows(fx.rows));
+    const fmb = flowingMaterialBalanceOil({ rowsTe, pi: fx.truth.pi, ct: fx.truth.ct });
+    check('oil FMB: OOIP N', fmb.N, fx.truth.N, 5e-3, 'STB');
+    check('oil FMB: productivity index J', fmb.J, fx.truth.J, 5e-3, 'STB/D/psi');
+    check('oil FMB: straight line r2', fmb.r2, 1, 1e-6);
+    // the BDF derivative on material-balance time is unit slope: dp/q ~ te
+    const series = rateNormalizedSeries(rowsTe, { pi: fx.truth.pi });
+    const late = series.slice(-12);
+    const slope = Math.log(late[late.length - 1].y / late[0].y) / Math.log(late[late.length - 1].x / late[0].x);
+    check('BDF unit slope on te log-log', slope, 1, 0.02);
+  }
+
+  // --- gas dynamic material balance on the oracle-generated decline
+  //     (forward model on the oracle's own PVT routes)
+  {
+    const fx = goldens.fixtures.rtaGasDecline;
+    const pvt = makePseudoPressure(buildGasPvtTable({
+      gasGravity: fx.truth.gasGravity, tempF: fx.truth.tempF, pMax: 7000,
+    }));
+    const rowsTe = materialBalanceTime(prepareProductionRows(fx.rows));
+    const fmb = flowingMaterialBalanceGas({
+      rowsTe, pi: fx.truth.pi, pvt, ctI: pvt.cgOf(fx.truth.pi),
+    });
+    if (fmb.converged) { passed += 1; console.log(`  PASS  gas dynamic MB converged (${fmb.iterations} iterations)`); }
+    else { failed += 1; console.log('  FAIL  gas dynamic MB did not converge'); }
+    check('gas dynamic MB: OGIP G', fmb.G, fx.truth.G, 0.02, 'Mscf');
+    check('gas dynamic MB: J in m(p) space', fmb.J, fx.truth.Jm, 0.05);
+  }
+
+  // --- transient linear flow: exact Wattenbarger round trip
+  {
+    const fx = goldens.fixtures.rtaLinearFlow;
+    const lin = transientLinearAnalysis({
+      rows: prepareProductionRows(fx.rows),
+      pi: fx.truth.pi, B: fx.truth.B, mu: fx.truth.mu,
+      phi: fx.truth.phi, ct: fx.truth.ct, h: fx.truth.h,
+    });
+    check('transient linear: xf sqrt(k)', lin.xfSqrtK, fx.truth.xfSqrtK, 1e-6, 'ft sqrt(md)');
+    check('transient linear: r2', lin.r2, 1, 1e-9);
   }
 }
 

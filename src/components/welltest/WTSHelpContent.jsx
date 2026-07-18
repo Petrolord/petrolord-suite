@@ -39,6 +39,18 @@ const WTSHelpContent = () => (
       starting point improves the regression.
     </P>
 
+    <H>RTA (production data)</H>
+    <P>
+      The RTA tab analyzes daily production data (time in days, rate, flowing pressure) instead of a shut-in
+      transient. Material-balance time te = Q/q collapses any rate history onto the constant-rate equivalent during
+      boundary-dominated flow, so the log-log rate-normalized drawdown and its derivative merge on a late unit
+      slope. The flowing material balance regresses the rate-normalized drawdown against te: the slope gives the
+      connected oil in place N (for gas, the dynamic material balance iterates G, average pressure and
+      material-balance pseudo-time and yields G) and the intercept gives the productivity index. The straight line
+      only means something once boundary-dominated flow is established. The transient linear card regresses the
+      early data against the square root of time for xf sqrt(k) (Wattenbarger).
+    </P>
+
     <H>Units and gas pseudo-time</H>
     <P>
       The unit system selector on the Data tab switches every input and result between oilfield (psi, ft, STB/D) and
