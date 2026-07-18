@@ -31,6 +31,13 @@
  *           derivative doubling, channel late half slope, closed-circle
  *           exact PSS line, constant-pressure stabilization at ln(2 LD) + S,
  *           storage/skin composition identity with the WT1 formula.
+ * CASE 9  WT4 gas and multi-rate: pseudo-pressure trapezoid vs the printed
+ *           Ahmed Ex. 6-7 psi(p) table and rate answer, Ahmed Ex. 8-2
+ *           deliverability (C-and-n, LIT pressure-squared and
+ *           pseudo-pressure) vs printed coefficients and AOFs, the
+ *           equivalent-FVF gas identity (141.2 q Beq mu = 1422 q T),
+ *           pseudo-time identity for constant properties, and an
+ *           Odeh-Jones multi-rate round trip on superposed model data.
  */
 
 import fs from 'fs';
@@ -282,6 +289,93 @@ banner('CASE 8: WT3 model library analytic truths (exact literature limits)');
     }
     if (worst < 1e-8) { passed += 1; console.log(`  PASS  composition identity vs WT1 formula (worst rel ${worst.toExponential(1)})`); }
     else { failed += 1; console.log(`  FAIL  composition identity broken (worst rel ${worst.toExponential(1)})`); }
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 9: WT4 gas (Ahmed Ex. 6-7 / Ex. 8-2) and multi-rate');
+{
+  const {
+    buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis,
+    backPressureFit, litFit, gasEquivalentReservoir, normalizedPseudoTime, GAS,
+  } = await import('../../../src/utils/welltest/gas.js');
+  const { multiRateSemilogAnalysis } = await import('../../../src/utils/welltest/analysis.js');
+  const { pwdHomogeneous } = await import('../../../src/utils/welltest/models/homogeneous.js');
+  const { toDimensionlessGroups } = await import('../../../src/utils/welltest/models/modelCatalog.js');
+  const { superposeDeltaP, rateStepsFromHistory } = await import('../../../src/utils/welltest/superposition.js');
+
+  const lit = JSON.parse(fs.readFileSync(path.join(here, 'literature-fixtures.json'), 'utf8'));
+  const gasFx = lit.gas;
+
+  // --- Ahmed Ex. 6-7: pseudo-pressure from the printed Anaconda PVT table
+  {
+    const fx = gasFx.pseudoPressure;
+    const pp = makePseudoPressure(buildGasPvtTable({ table: fx.pvt }));
+    let worst = 0;
+    for (const row of fx.expectedPsi) {
+      worst = Math.max(worst, Math.abs(pp.mOfP(row.p) / row.psi - 1));
+    }
+    if (worst <= fx.psiTolerance) { passed += 1; console.log(`  PASS  ${fx.citation}: psi(p) table (worst rel ${worst.toExponential(2)}, tol ${fx.psiTolerance})`); }
+    else { failed += 1; console.log(`  FAIL  psi(p) table worst rel ${worst.toExponential(2)} > ${fx.psiTolerance}`); }
+    const fr = fx.flowRate;
+    const qg = (fr.k * fr.h * (pp.mOfP(fr.pe) - pp.mOfP(fr.pwf))) / (GAS.PD_FACTOR * fr.tempR * Math.log(fr.reOverRwPrinted));
+    check(`${fx.citation}: printed Qg`, qg, fr.expectedQg, fr.tolerance, 'Mscf/D');
+  }
+
+  // --- Ahmed Ex. 8-2: three-point deliverability, three methods
+  {
+    const fx = gasFx.deliverability;
+    const tol = fx.tolerances;
+    const p2 = deliverabilityAnalysis({ points: fx.points, pr: fx.pr, baseP: 0 });
+    check(`${fx.citation}: exponent n`, p2.backPressure.n, fx.expected.backPressure.n, tol.n);
+    check(`${fx.citation}: coefficient C`, p2.backPressure.C, fx.expected.backPressure.C, tol.C);
+    check(`${fx.citation}: AOF back-pressure`, p2.backPressure.aof, fx.expected.backPressure.aof, tol.aofBp, 'Mscf/D');
+    check(`${fx.citation}: LIT p2 intercept a`, p2.lit.a, fx.expected.litPressureSquared.a, tol.a);
+    check(`${fx.citation}: LIT p2 slope b`, p2.lit.b, fx.expected.litPressureSquared.b, tol.b);
+    check(`${fx.citation}: AOF LIT p2`, p2.lit.aof, fx.expected.litPressureSquared.aof, tol.aofLit, 'Mscf/D');
+    // pseudo-pressure method on the book's printed psi values
+    const psiPoints = fx.points.map((p) => ({ q: p.q, delta: fx.psiR - p.psiWf }));
+    const psiLit = litFit(psiPoints);
+    check(`${fx.citation}: LIT psi intercept a2`, psiLit.a, fx.expected.litPseudoPressure.a, tol.aPsi);
+    check(`${fx.citation}: LIT psi slope b2`, psiLit.b, fx.expected.litPseudoPressure.b, tol.bPsi);
+    check(`${fx.citation}: AOF LIT psi`, psiLit.aof(fx.psiR), fx.expected.litPseudoPressure.aof, tol.aofPsi, 'Mscf/D');
+    // back-pressure on psi deltas should agree with the p2 exponent class
+    const psiBp = backPressureFit(psiPoints);
+    if (psiBp.n > 0.5 && psiBp.n < 1.05) { passed += 1; console.log(`  PASS  psi back-pressure exponent in the physical band (n=${psiBp.n.toFixed(3)})`); }
+    else { failed += 1; console.log(`  FAIL  psi back-pressure exponent out of band: ${psiBp.n}`); }
+  }
+
+  // --- Equivalent-FVF gas identity: 141.2 q Beq mu_i = 1422 q T (published
+  // constants agree through the ln10/2 factor to ~3e-4)
+  {
+    const res = gasEquivalentReservoir({ phi: 0.1, rw: 0.3, h: 50, qg: 5000, tempR: 660, muI: 0.02, ctI: 2e-4 });
+    check('gas equivalent FVF: 141.2 Beq mu_i vs 1422 T', 141.2 * res.B * res.mu, GAS.PD_FACTOR * 660, 5e-4);
+  }
+
+  // --- Pseudo-time identity: constant mu ct gives ta = t exactly
+  {
+    const history = [{ t: 0, p: 3000 }, { t: 5, p: 2500 }, { t: 20, p: 2000 }, { t: 50, p: 1500 }];
+    const ta = normalizedPseudoTime(history, { muCtOf: () => 4e-6, muCtInitial: 4e-6 });
+    const worst = Math.max(...ta.map((r) => Math.abs(r.ta - r.t)));
+    if (worst < 1e-9) { passed += 1; console.log('  PASS  pseudo-time reduces to t for constant properties'); }
+    else { failed += 1; console.log(`  FAIL  pseudo-time identity broken (worst ${worst})`); }
+  }
+
+  // --- Multi-rate (Odeh-Jones) round trip on exactly superposed model data
+  {
+    const reservoir = { phi: 0.18, mu: 0.9, ct: 1.2e-5, rw: 0.354, h: 45, B: 1.25, pi: 4800 };
+    const truth = { k: 60, skin: 4 };
+    const groups = toDimensionlessGroups({ ...reservoir, k: truth.k, q: 1 });
+    const steps = rateStepsFromHistory([{ t: 0, q: 300 }, { t: 24, q: 550 }, { t: 48, q: 800 }]);
+    const pwdOfHours = (h) => pwdHomogeneous(groups.tdPerHour * h, { skin: truth.skin, cd: 0 });
+    const points = [];
+    for (let t = 2; t <= 96; t += 2) {
+      const dp = superposeDeltaP({ pwdOfHours, steps, t, dpPerPdPerUnitRate: groups.dpPerPd });
+      points.push({ t, pwf: reservoir.pi - dp });
+    }
+    const result = multiRateSemilogAnalysis({ points, steps, ...reservoir });
+    check('multi-rate round trip: permeability', result.k, truth.k, 0.01, 'md');
+    checkAbs('multi-rate round trip: skin', result.skin, truth.skin, 0.05);
   }
 }
 

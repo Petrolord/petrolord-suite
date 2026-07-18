@@ -7,8 +7,69 @@
     "Earlougher buildup (second fixture, closes the WT2 hard gate): Ahmed, Reservoir Engineering Handbook, 4th ed. (Elsevier, 2010), Example 6-26 / Table 6-5, itself reproducing Earlougher, Advances in Well Test Analysis, SPE Monograph 5 (1977). Full 31-row published table and given data typed verbatim from the book PDF on 2026-07-18 (irmat-ucan.com library copy, pp. 473-475). Printed answers: m = 40 psi/cycle, k = 12.8 md, p1hr = 3266 psig, s = 8.6, dp_skin = 299 psi.",
     "Known typo in the printed Step 3 arithmetic: it shows 0.22 for viscosity while the given data say mu_o = 0.20 cp; 0.20 reproduces the printed k = 12.8 md exactly (0.22 would give 14.1), so 0.20 is used here.",
     "The book's answers come from a graphically drawn straight line. The harness regresses over the mid-time region instead: mtr.dtMin = 1.05 hr per the book's own storage rule (log-log unit slope ends well before 1 hr; afterflow ceases near dt = 1 hr) with all later points on Earlougher's line. Regression gives m = 39.4, k = 13.0, p1hr = 3265.7, s = 8.79; tolerances below cover that graphical-vs-regression gap.",
-    "p* is not a printed answer in Example 6-26, so pStar is not checked for this fixture."
+    "p* is not a printed answer in Example 6-26, so pStar is not checked for this fixture.",
+    "WT4 gas fixtures (both typed verbatim from the same Ahmed, Reservoir Engineering Handbook 4th ed. PDF on 2026-07-18): Example 6-7 (Anaconda Gas Field PVT, data credited to Donohue & Ertekin 1982) gives the full (p, mu_g, z) table, the printed psi(p) real-gas-potential table (areas integrated graphically in the book) and the printed rate answer Qg = 37,614 Mscf/day. Book quirks documented: the data list gives rw = 0.3 ft but the printed Step 4 arithmetic uses ln(1000/0.25); the harness reproduces the printed arithmetic. Tolerance on psi reflects graphical-vs-trapezoid integration (within ~3%).",
+    "Example 8-2 (three-point conventional deliverability, pr = 1952 psia with printed psi_wf values): printed answers from graphically drawn lines are n = 0.87, C = 0.0169, AOF = 8,980 Mscf/day (back-pressure); a = 318, b = 0.01333, AOF = 8,763 (LIT pressure-squared); a2 = 22.28e3, b2 = 1.727, AOF = 8,342 (LIT pseudo-pressure). Book typos documented: two later tables print the first rate as 262.6 for 2624.6, and the comparison table prints 19,520 for 1952. Least-squares slopes differ from the graphical b values by up to ~8 percent while intercepts and AOFs land within ~2 percent; tolerances are set accordingly."
   ],
+  "gas": {
+    "pseudoPressure": {
+      "citation": "Ahmed, Reservoir Engineering Handbook 4th ed., Example 6-7 (Anaconda Gas Field; Donohue & Ertekin 1982)",
+      "pvt": [
+        { "p": 0, "mu": 0.0127, "z": 1.0 },
+        { "p": 400, "mu": 0.01286, "z": 0.937 },
+        { "p": 800, "mu": 0.0139, "z": 0.882 },
+        { "p": 1200, "mu": 0.0153, "z": 0.832 },
+        { "p": 1600, "mu": 0.0168, "z": 0.794 },
+        { "p": 2000, "mu": 0.0184, "z": 0.77 },
+        { "p": 2400, "mu": 0.0201, "z": 0.763 },
+        { "p": 2800, "mu": 0.0217, "z": 0.775 },
+        { "p": 3200, "mu": 0.0234, "z": 0.797 },
+        { "p": 3600, "mu": 0.025, "z": 0.827 },
+        { "p": 4000, "mu": 0.0266, "z": 0.86 },
+        { "p": 4400, "mu": 0.02831, "z": 0.896 }
+      ],
+      "expectedPsi": [
+        { "p": 400, "psi": 13.2e6 },
+        { "p": 800, "psi": 52.0e6 },
+        { "p": 1200, "psi": 113.1e6 },
+        { "p": 1600, "psi": 198.0e6 },
+        { "p": 2000, "psi": 304.0e6 },
+        { "p": 2400, "psi": 422.0e6 },
+        { "p": 2800, "psi": 542.4e6 },
+        { "p": 3200, "psi": 678.0e6 },
+        { "p": 3600, "psi": 816.0e6 },
+        { "p": 4000, "psi": 950.0e6 },
+        { "p": 4400, "psi": 1089.0e6 }
+      ],
+      "psiTolerance": 0.035,
+      "flowRate": {
+        "k": 65, "h": 15, "tempR": 600, "pe": 4400, "pwf": 3600,
+        "reOverRwPrinted": 4000,
+        "expectedQg": 37614,
+        "tolerance": 0.03
+      }
+    },
+    "deliverability": {
+      "citation": "Ahmed, Reservoir Engineering Handbook 4th ed., Example 8-2 (three-point conventional deliverability)",
+      "pr": 1952,
+      "points": [
+        { "q": 2624.6, "pwf": 1700, "psiWf": 245e6 },
+        { "q": 4154.7, "pwf": 1500, "psiWf": 191e6 },
+        { "q": 5425.1, "pwf": 1300, "psiWf": 141e6 }
+      ],
+      "psiR": 316e6,
+      "expected": {
+        "backPressure": { "n": 0.87, "C": 0.0169, "aof": 8980 },
+        "litPressureSquared": { "a": 318, "b": 0.01333, "aof": 8763 },
+        "litPseudoPressure": { "a": 22.28e3, "b": 1.727, "aof": 8342 }
+      },
+      "tolerances": {
+        "n": 0.01, "C": 0.05, "aofBp": 0.02,
+        "a": 0.03, "b": 0.1, "aofLit": 0.02,
+        "aPsi": 0.02, "bPsi": 0.1, "aofPsi": 0.01
+      }
+    }
+  },
   "buildups": [
     {
       "citation": "Lee (1982) Well Testing, SPE Textbook Vol. 1, Example 2.1 (ideal buildup)",

@@ -233,6 +233,31 @@ def build():
         "reservoir": reservoir, "truth": dp_truth, "points": dp_points,
     }
 
+    # ---------------------------------------------------------------------
+    # WT4: correlation-based pseudo-pressure by fine Simpson (independent of
+    # the JS trapezoid-on-a-grid route) and deliverability least squares
+    gas_gravity, temp_f = 0.65, 180.0
+    goldens["gasPseudoPressure"] = {
+        "gasGravity": gas_gravity,
+        "tempF": temp_f,
+        "values": [
+            {"p": p, "m": oracle.pseudo_pressure(p, temp_f, gas_gravity)}
+            for p in [500.0, 1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0]
+        ],
+    }
+
+    # Ahmed REH 4th ed. Example 8-2 test points (pressure-squared deltas)
+    delivery_points = [
+        (2624.6, 1952.0 ** 2 - 1700.0 ** 2),
+        (4154.7, 1952.0 ** 2 - 1500.0 ** 2),
+        (5425.1, 1952.0 ** 2 - 1300.0 ** 2),
+    ]
+    goldens["deliverabilityFits"] = {
+        "points": [{"q": q, "delta": d} for q, d in delivery_points],
+        "backPressure": oracle.back_pressure_fit(delivery_points),
+        "lit": oracle.lit_fit(delivery_points),
+    }
+
     return goldens
 
 

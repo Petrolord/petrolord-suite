@@ -366,6 +366,76 @@ def pwd_fracture_rw(t_d, xf_over_rw, skin=0.0, cd=0.0, fcd=None, x_d=0.732, n=12
 
 
 # ---------------------------------------------------------------------------
+# WT4: real-gas pseudo-pressure and deliverability
+# Same correlations as the JS engine (Papay z, Lee-Gonzalez-Eakin viscosity,
+# Sutton pseudo-criticals) but the m(p) integral is evaluated by fine
+# composite Simpson on the continuous correlation, cross-validating the JS
+# trapezoid-on-a-grid route.
+
+def sutton_pseudo_criticals(gg: float):
+    return (
+        756.8 - 131.0 * gg - 3.6 * gg * gg,
+        169.2 + 349.5 * gg - 74.0 * gg * gg,
+    )
+
+
+def papay_z(p: float, temp_f: float, gg: float) -> float:
+    ppc, tpc = sutton_pseudo_criticals(gg)
+    ppr = p / ppc
+    tpr = (temp_f + 460.0) / tpc
+    if tpr <= 0:
+        return 0.9
+    z = 1.0 - 3.52 * ppr / (10.0 ** (0.9813 * tpr)) + 0.274 * ppr * ppr / (10.0 ** (0.8157 * tpr))
+    return min(max(z, 0.25), 1.15)
+
+
+def lge_viscosity(p: float, temp_f: float, gg: float, z: float) -> float:
+    t_r = temp_f + 460.0
+    M = 28.97 * gg
+    K = (9.4 + 0.02 * M) * t_r ** 1.5 / (209.0 + 19.0 * M + t_r)
+    X = 3.5 + 986.0 / t_r + 0.01 * M
+    Y = 2.4 - 0.2 * X
+    rho = 1.4935e-3 * p * M / (z * t_r)
+    return 1e-4 * K * math.exp(X * rho ** Y)
+
+
+def pseudo_pressure(p: float, temp_f: float, gg: float, n: int = 4000) -> float:
+    """m(p) = 2 int_0^p p'/(mu z) dp' by composite Simpson on the correlations."""
+    def integrand(pp):
+        if pp <= 0:
+            return 0.0
+        z = papay_z(pp, temp_f, gg)
+        mu = lge_viscosity(pp, temp_f, gg, z)
+        return 2.0 * pp / (mu * z)
+    return _simpson(integrand, 0.0, p, n)
+
+
+def _lsq_line(xs, ys):
+    n = len(xs)
+    sx, sy = sum(xs), sum(ys)
+    sxx = sum(x * x for x in xs)
+    sxy = sum(x * y for x, y in zip(xs, ys))
+    denom = n * sxx - sx * sx
+    slope = (n * sxy - sx * sy) / denom
+    intercept = (sy - slope * sx) / n
+    return slope, intercept
+
+
+def back_pressure_fit(points):
+    """q = C delta^n by least squares on log-log; points [(q, delta)]."""
+    slope, intercept = _lsq_line(
+        [math.log10(d) for _, d in points], [math.log10(q) for q, _ in points]
+    )
+    return {"n": slope, "C": 10.0 ** intercept}
+
+
+def lit_fit(points):
+    """delta = a q + b q^2 by least squares on delta/q vs q; points [(q, delta)]."""
+    slope, intercept = _lsq_line([q for q, _ in points], [d / q for q, d in points])
+    return {"a": intercept, "b": slope}
+
+
+# ---------------------------------------------------------------------------
 # oilfield dimensionless groups (standard SPE factors)
 
 TD_FACTOR = 0.0002637
