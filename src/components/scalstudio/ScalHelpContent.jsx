@@ -24,7 +24,18 @@ const ScalHelpContent = () => (
       (Welge tangents, breakthrough, recovery) stays in the Waterflood Design Studio where it belongs.
     </P>
 
-    <H>2. Capillary</H>
+    <H>2. Lab Data</H>
+    <P>
+      Core samples with their rock properties and lab tables. Import kr and Pc CSVs per sample (templates are a
+      click away; the lab system presets fill sigma and theta for air-brine, air-mercury and oil-brine
+      measurements). Each sample with a kr table gets a Corey fit with confidence intervals; apply a fit to the
+      Curves tab with one click. The normalized overlay compares curve shapes across samples so you can judge
+      whether one exponent set represents the rock. Averaging stays your decision; the studio shows the spread and
+      never silently blends. The synthetic demo pair is generated from one shared J curve, so the Capillary tab
+      shows the Leverett collapse working.
+    </P>
+
+    <H>3. Capillary</H>
     <P>
       The working J-function. In manual mode you type a power law J = a times Sw-star to the minus b, with Sw-star
       the saturation normalized above Swirr. In samples mode the studio averages the J tables computed from your

@@ -169,6 +169,30 @@ export const ScalStudioProvider = ({ children }) => {
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
   const [notes, setNotes] = useState('');
 
+  // ---- Sample CRUD (Lab Data tab, SC4) ----
+  const addSample = useCallback((sample) => {
+    const id = uuidv4();
+    setSamples((prev) => [...prev, {
+      id,
+      name: sample?.name || `Sample ${prev.length + 1}`,
+      depth_ft: '', k_md: '', phi: '',
+      sigma_dyncm: '72', thetaDeg: '0', // air-brine preset default
+      krRows: [], pcRows: [],
+      ...sample,
+    }]);
+    return id;
+  }, []);
+  const updateSample = useCallback((id, patch) => {
+    setSamples((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }, []);
+  const removeSample = useCallback((id) => {
+    setSamples((prev) => prev.filter((s) => s.id !== id));
+    setCapillary((prev) => ({
+      ...prev,
+      includedSampleIds: prev.includedSampleIds.filter((x) => x !== id),
+    }));
+  }, []);
+
   const setCurveField = useCallback((k, v) => setCurves((prev) => ({ ...prev, [k]: v })), []);
   const setOwField = useCallback((k, v) => setCurves((prev) => ({ ...prev, ow: { ...prev.ow, [k]: v } })), []);
   const setGoField = useCallback((k, v) => setCurves((prev) => ({ ...prev, go: { ...prev.go, [k]: v } })), []);
@@ -221,6 +245,30 @@ export const ScalStudioProvider = ({ children }) => {
       krFitError: krFit && !krFit.ok ? krFit.errors[0] : null,
     };
   }), [samples]);
+
+  // Apply a sample's fitted Corey parameters to the Curves tab working set
+  // (values become strings, the studio form convention).
+  const applyKrFitToCurves = useCallback((sampleId) => {
+    const s = samplesDerived.find((x) => x.id === sampleId);
+    if (!s?.krFit?.params) {
+      addNotification('That sample has no successful Corey fit to apply.', 'error');
+      return;
+    }
+    const p = s.krFit.params;
+    setCurves((prev) => ({
+      ...prev,
+      phase: 'oilwater',
+      ow: {
+        Swc: p.Swc.toFixed(3),
+        Sor: p.Sor.toFixed(3),
+        krwMax: p.krwMax.toPrecision(4),
+        kroMax: p.kroMax.toPrecision(4),
+        nw: p.nw.toFixed(2),
+        no: p.no.toFixed(2),
+      },
+    }));
+    addNotification(`Fitted Corey set from "${s.name}" applied to the Curves tab.`, 'success');
+  }, [samplesDerived, addNotification]);
 
   // ---- Derived: working J spec, reservoir Pc, saturation-height ----
   const jResolved = useMemo(
@@ -400,7 +448,8 @@ export const ScalStudioProvider = ({ children }) => {
     isSaving, saveError, lastSaveTime,
     // inputs
     curves, setCurveField, setOwField, setGoField,
-    samples, setSamples,
+    samples, setSamples, addSample, updateSample, removeSample,
+    applyKrFitToCurves,
     capillary, setCapillaryField, setManualJField, setReservoirField,
     height, setHeightField,
     notes, setNotes,
