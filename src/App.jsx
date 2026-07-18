@@ -466,7 +466,8 @@ function App() {
                                 <Route path="apps/reservoir/well-test-analyzer" element={<WellTestAnalysisStudio />} />
                                 {/* legacy slugs (incl. the tile slug) — aliases into the studio */}
                                 <Route path="apps/reservoir/fractional-flow-calculator" element={<WaterfloodDesignStudio />} />
-                                <Route path="apps/reservoir/relative-permeability-designer" element={<WaterfloodDesignStudio />} />
+                                {/* SC6: rel-perm home is SCAL Studio (alias tile archived by 20260719110500) */}
+                                <Route path="apps/reservoir/relative-permeability-designer" element={<Navigate to="/dashboard/apps/reservoir/scal-studio" replace />} />
                                 <Route path="apps/reservoir/recovery-factor-estimator" element={<RecoveryFactorEstimator />} />
                                 <Route path="apps/reservoir/risked-reserves-valuation" element={<RiskedReservesValuation />} />
                                 <Route path="apps/reservoir/eor-screening" element={<EorScreeningTool />} />
