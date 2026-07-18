@@ -7,10 +7,10 @@
 // (plus the -pro / -surveillance / material-balance-studio slug aliases) all
 // mount this page; :caseId selects the open case. ?tab= deep-links a tab.
 //
-// Tabs (only what is real ships): Data | PVT | Aquifer | Run | Plots.
-// The Aquifer tab is segmented Model | Screening (MB4); the Run tab is
-// segmented Regression | History match (MB5). MB6 adds Contacts | Forecast |
-// Report.
+// Tabs (only what is real ships): Data | PVT | Aquifer | Run | Plots |
+// Forecast | Contacts | Report. The Aquifer tab is segmented
+// Model | Screening (MB4); the Run tab is segmented
+// Regression | History match (MB5); Forecast/Contacts/Report are MB6.
 //
 // Persistence: rb_cases + rb_* tables via lib/api.js. Every write is explicit
 // and immediate (no debounced autosave here by design: production-data saves
@@ -40,6 +40,9 @@ import PvtRock from '@/components/reservoirbalance/PvtRock';
 import AquiferModel from '@/components/reservoirbalance/AquiferModel';
 import AquiferScreening from '@/components/reservoirbalance/AquiferScreening';
 import HistoryMatch from '@/components/reservoirbalance/HistoryMatch';
+import ForecastTab from '@/components/reservoirbalance/ForecastTab';
+import ContactsTab from '@/components/reservoirbalance/ContactsTab';
+import ReportTab from '@/components/reservoirbalance/ReportTab';
 import RbDiagnosticPlots from '@/components/reservoirbalance/RbDiagnosticPlots';
 import ValidationTierBadge from '@/components/reservoirbalance/ValidationTierBadge';
 import NewCaseDialog, { fluidSystemDisplay } from '@/components/reservoirbalance/NewCaseDialog';
@@ -52,6 +55,9 @@ const TABS = [
   { value: 'aquifer', label: 'Aquifer' },
   { value: 'run', label: 'Run' },
   { value: 'plots', label: 'Plots' },
+  { value: 'forecast', label: 'Forecast' },
+  { value: 'contacts', label: 'Contacts' },
+  { value: 'report', label: 'Report' },
 ];
 
 function formatNumber(n, opts = {}) {
@@ -383,6 +389,9 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
       {activeTab === 'plots' && (
         <RbDiagnosticPlots caseId={caseId} caseData={caseData} runVersion={runVersion} />
       )}
+      {activeTab === 'forecast' && <ForecastTab />}
+      {activeTab === 'contacts' && <ContactsTab />}
+      {activeTab === 'report' && <ReportTab />}
     </>
   );
 

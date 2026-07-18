@@ -81,6 +81,33 @@ const MbsHelpContent = () => (
       usually means the aquifer model or the gas cap size is wrong.
     </P>
 
+    <H>7. Forecast</H>
+    <P>
+      Fits an Arps decline (exponential, hyperbolic or harmonic, or automatic selection) to rates derived from your
+      cumulative history, using the same decline engine as the DCA Studio, and forecasts to your economic limit.
+      Remaining reserves count only production beyond the last history date. The reconciliation card then compares
+      the decline forecast with the material balance: for gas, against the p over z recoverable at your abandonment
+      pressure, interpolated through the p over z history of the last run; for oil, the implied ultimate recovery
+      factor is checked against the statistical recovery ranges for the drive mechanism the engine diagnosed. A
+      mismatch does not say which number is wrong; it says the two methods disagree and why is worth chasing.
+    </P>
+
+    <H>8. Contacts</H>
+    <P>
+      Screening estimates of fluid-contact movement from the last run: the water contact rises by the net aquifer
+      influx (We minus produced water) and the gas-oil contact descends by the gas-cap expansion the material
+      balance attributed, both spread over the contact areas you provide as piston-like fronts. Assumptions are
+      uniform area with depth, no coning and no gravity smearing; treat the output as a screening view and confirm
+      with surveillance logs.
+    </P>
+
+    <H>9. Report</H>
+    <P>
+      Exports a PDF of the latest run (case summary, headline volumes with validation tier and benchmark reference,
+      drive indices, pressure history, the history match with confidence intervals when one was run, and all engine
+      warnings) plus a CSV with every per-timestep series for spreadsheet work.
+    </P>
+
     <H>Validation</H>
     <P>
       The engine is benchmarked against published worked examples: Pletcher SPE 75354 for gas and oil pot-aquifer
