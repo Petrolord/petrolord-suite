@@ -661,6 +661,7 @@ function App() {
                                   <Route path="/dev/rock-physics-studio" element={<RockPhysicsStudioHarness />} />
                                   <Route path="/dev/earth-modeling" element={<EarthModelingHarness />} />
                                   <Route path="/dev/pore-pressure-studio" element={<PorePressureStudioHarness />} />
+                                  <Route path="/dev/dca" element={<DeclineCurveAnalysis />} />
                                 </>
                               )}
                               <Route path="*" element={<Navigate to="/" replace />} />

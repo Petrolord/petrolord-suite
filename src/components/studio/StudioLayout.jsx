@@ -1,5 +1,5 @@
 // Studio shell layout — the Reservoir-module workstation frame, generalized
-// from the DCA layout (src/components/declineCurve/DCALayout.jsx) so every
+// from the original DCA layout (retired in W5 when DCA adopted this kit) so every
 // upgraded app shares one look: dark full-height frame, collapsible left/right
 // ScrollArea rails, h-14 header bar. Fully props-driven; no app context.
 import React, { useState } from 'react';
