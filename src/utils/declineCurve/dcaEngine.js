@@ -109,9 +109,13 @@ export const calculateEUR = (qi, Di, b, qLimit, modelType = 'hyperbolic') => {
       // EUR = (qi / Di) * ln(qi / qLimit)
       return (qi / Di) * Math.log(qi / qLimit);
     } else {
-      // Hyperbolic: EUR = (qi^b / (Di * (b - 1))) * (qi^(1-b) - qLimit^(1-b))
+      // Hyperbolic: EUR = (qi^b / (Di * (1 - b))) * (qi^(1-b) - qLimit^(1-b))
+      // (Arps 1945 rate-cumulative relation. SC1 oracle fix 2026-07-18: this
+      // divided by (b - 1), returning a NEGATIVE EUR for every b != 1 — pinned
+      // by dcaEngine.oracle.test.js against the closed form, an independent
+      // Simpson quadrature, and a hand-arithmetic case.)
       if (Math.abs(b - 1) < 0.001) return calculateEUR(qi, Di, 1, qLimit, 'harmonic');
-      const term1 = Math.pow(qi, b) / (Di * (b - 1));
+      const term1 = Math.pow(qi, b) / (Di * (1 - b));
       const term2 = Math.pow(qi, 1 - b) - Math.pow(qLimit, 1 - b);
       return term1 * term2;
     }

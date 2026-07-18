@@ -59,6 +59,14 @@ requires a redeploy, and it must not survive to be re-wired.
 
 ## 3. Near-term: dcaEngine.js direct oracle tests
 
+> **GATE CLEARED 2026-07-18 (SCAL program SC1, see SCALStudio-STATUS.md):**
+> 25 closed-form oracle tests + armed literature fixtures (Weaver CED
+> P03-004 worked examples, typed with provenance; SPEE REP #6 and
+> Poston & Poe remain visible jest-todo entries until the owner supplies
+> the PDFs). The suite caught and fixed a real defect: calculateEUR's
+> hyperbolic branch returned NEGATIVE EUR for every b != 1 (sign error in
+> the (1 - b) denominator; zero consumers, nothing stored was poisoned).
+
 **Elevated to near-term. Hard requirement before the NextGen "DCA &
 Forecasting" course ships** (the engine-extraction runway starts with
 `dca`, and a course must never teach against an engine whose fits are
