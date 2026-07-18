@@ -112,7 +112,7 @@ const PorePressureStudioHarness = lazy(() => import('@/pages/apps/PorePressureSt
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
 const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/ProductionSurveillanceDashboard'));
-const WellTestDataAnalyzer = lazy(() => import('@/pages/apps/WellTestDataAnalyzer'));
+const WellTestAnalysisStudio = lazy(() => import('@/pages/apps/WellTestAnalysisStudio'));
 const FlowAssuranceMonitor = lazy(() => import('@/pages/apps/FlowAssuranceMonitor'));
 const IntegratedAssetModeler = lazy(() => import('@/pages/apps/IntegratedAssetModeler'));
 const MechanicalEarthModel = lazy(() => import('@/pages/apps/MechanicalEarthModel/MechanicalEarthModel'));
@@ -461,6 +461,7 @@ function App() {
                                 <Route path="apps/reservoir/waterflood-dashboard" element={<Navigate to="/apps/reservoir/waterflood-design-studio?tab=surveillance" replace />} />
                                 <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
                                 <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
+                                <Route path="apps/reservoir/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
                                 {/* legacy slugs (incl. the tile slug) — aliases into the studio */}
                                 <Route path="apps/reservoir/fractional-flow-calculator" element={<WaterfloodDesignStudio />} />
                                 <Route path="apps/reservoir/relative-permeability-designer" element={<WaterfloodDesignStudio />} />
@@ -503,7 +504,7 @@ function App() {
                                 {/* Production Module routes including targeted explicit slug match for surveillance dashboard */}
                                 <Route path="apps/production/production-surveillance-dashboard" element={<ProtectedAppRoute appId="production-surveillance-dashboard" appName="Production Surveillance Dashboard"><ProductionSurveillanceDashboard /></ProtectedAppRoute>} />
                                 <Route path="apps/production/surveillance-dashboard" element={<ProtectedAppRoute appId="production-surveillance-dashboard" appName="Production Surveillance Dashboard"><ProductionSurveillanceDashboard /></ProtectedAppRoute>} />
-                                <Route path="apps/production/well-test-analyzer" element={<WellTestDataAnalyzer />} />
+                                <Route path="apps/production/well-test-analyzer" element={<Navigate to="/dashboard/apps/reservoir/well-test-analysis-studio" replace />} />
                                 <Route path="apps/production/wellbore-flow-simulator" element={<WellboreFlowSimulator />} />
                                 <Route path="apps/production/artificial-lift-designer" element={<ArtificialLiftDesigner />} />
                                 <Route path="apps/production/flow-assurance-monitor" element={<FlowAssuranceMonitor />} />

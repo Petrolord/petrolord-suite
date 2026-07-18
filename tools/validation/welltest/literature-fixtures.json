@@ -4,7 +4,10 @@
     "Lee Example 2.1 (ideal pressure buildup): inputs, straight-line anchors and answers are printed in the source; document verified 2026-07-18 (course reproduction of the textbook example, home.czu.cz/storage/575/52485_2010-Ch-9-Chapter-2-Pressure-Buildup-Test.pdf).",
     "The book presents the buildup data as the Horner straight line (slope 100 psi/cycle, pws = 1764 psig at dt = 1 hr i.e. Horner ratio 73). Points below are reconstructed exactly from that printed line; consistency check: the line gives 1950.3 psig at unit Horner ratio, matching the printed pi = 1950 psig.",
     "Pressures are psig throughout (the skin and slope arithmetic uses differences, so gauge units are consistent).",
-    "PENDING (hard-gate completion before WT2 merge): a second fixture with a full published data table typed from the book, preferably Dake Fundamentals Ch. 7 Horner example or the Earlougher/Ahmed 4900 STB/D, tp = 310 hr buildup."
+    "Earlougher buildup (second fixture, closes the WT2 hard gate): Ahmed, Reservoir Engineering Handbook, 4th ed. (Elsevier, 2010), Example 6-26 / Table 6-5, itself reproducing Earlougher, Advances in Well Test Analysis, SPE Monograph 5 (1977). Full 31-row published table and given data typed verbatim from the book PDF on 2026-07-18 (irmat-ucan.com library copy, pp. 473-475). Printed answers: m = 40 psi/cycle, k = 12.8 md, p1hr = 3266 psig, s = 8.6, dp_skin = 299 psi.",
+    "Known typo in the printed Step 3 arithmetic: it shows 0.22 for viscosity while the given data say mu_o = 0.20 cp; 0.20 reproduces the printed k = 12.8 md exactly (0.22 would give 14.1), so 0.20 is used here.",
+    "The book's answers come from a graphically drawn straight line. The harness regresses over the mid-time region instead: mtr.dtMin = 1.05 hr per the book's own storage rule (log-log unit slope ends well before 1 hr; afterflow ceases near dt = 1 hr) with all later points on Earlougher's line. Regression gives m = 39.4, k = 13.0, p1hr = 3265.7, s = 8.79; tolerances below cover that graphical-vs-regression gap.",
+    "p* is not a printed answer in Example 6-26, so pStar is not checked for this fixture."
   ],
   "buildups": [
     {
@@ -37,6 +40,61 @@
       ],
       "expected": { "k": 48, "skin": 1.43, "pStar": 1950 },
       "tolerances": { "k": 0.01, "skin": 0.05, "pStar": 1 }
+    },
+    {
+      "citation": "Ahmed, Reservoir Engineering Handbook 4th ed., Ex. 6-26 / Table 6-5 (Earlougher 1977 buildup)",
+      "reservoir": {
+        "phi": 0.09,
+        "mu": 0.2,
+        "ct": 0.0000226,
+        "rw": 0.354,
+        "h": 482,
+        "B": 1.55,
+        "q": 4900
+      },
+      "context": {
+        "re": 2640,
+        "depth": 10476,
+        "casingId": 0.523
+      },
+      "tp": 310,
+      "pwfShutIn": 2761,
+      "mtr": { "dtMin": 1.05 },
+      "points": [
+        { "dt": 0.10, "pws": 3057 },
+        { "dt": 0.21, "pws": 3153 },
+        { "dt": 0.31, "pws": 3234 },
+        { "dt": 0.52, "pws": 3249 },
+        { "dt": 0.63, "pws": 3256 },
+        { "dt": 0.73, "pws": 3260 },
+        { "dt": 0.84, "pws": 3263 },
+        { "dt": 0.94, "pws": 3266 },
+        { "dt": 1.05, "pws": 3267 },
+        { "dt": 1.15, "pws": 3268 },
+        { "dt": 1.36, "pws": 3271 },
+        { "dt": 1.68, "pws": 3274 },
+        { "dt": 1.99, "pws": 3276 },
+        { "dt": 2.51, "pws": 3280 },
+        { "dt": 3.04, "pws": 3283 },
+        { "dt": 3.46, "pws": 3286 },
+        { "dt": 4.08, "pws": 3289 },
+        { "dt": 5.03, "pws": 3293 },
+        { "dt": 5.97, "pws": 3297 },
+        { "dt": 6.07, "pws": 3297 },
+        { "dt": 7.01, "pws": 3300 },
+        { "dt": 8.06, "pws": 3303 },
+        { "dt": 9.00, "pws": 3305 },
+        { "dt": 10.05, "pws": 3306 },
+        { "dt": 13.09, "pws": 3310 },
+        { "dt": 16.02, "pws": 3313 },
+        { "dt": 20.00, "pws": 3317 },
+        { "dt": 26.07, "pws": 3320 },
+        { "dt": 31.03, "pws": 3322 },
+        { "dt": 34.98, "pws": 3323 },
+        { "dt": 37.54, "pws": 3323 }
+      ],
+      "expected": { "k": 12.8, "skin": 8.6, "m": 40, "p1hr": 3266 },
+      "tolerances": { "k": 0.03, "skin": 0.35, "m": 0.03, "p1hr": 2 }
     }
   ]
 }
