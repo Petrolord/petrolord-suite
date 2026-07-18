@@ -10,7 +10,7 @@
 > used). Owner re-confirmed 2026-07-18: thin-real scope honored, executed
 > at studio-class quality (lab-data import, fitting to core data,
 > multi-sample averaging, saturation-height, handoffs).
-> Last updated: 2026-07-18 · SC1-SC5 done.
+> Last updated: 2026-07-18 · **SCAL PROGRAM COMPLETE (SC1-SC6)**.
 
 ## Phase ledger
 
@@ -21,7 +21,7 @@
 | SC3 | Studio app skeleton + `saved_scal_projects` persistence | **DONE 2026-07-18** |
 | SC4 | Lab Data tab: import, Corey fit, multi-sample averaging | **DONE 2026-07-18** |
 | SC5 | Height & Saturation tab + Waterflood handoff + exports | **DONE 2026-07-18** |
-| SC6 | Tile migrations (deploy-gated pair) + close-out | pending |
+| SC6 | Tile migrations (deploy-gated pair) + close-out | **DONE 2026-07-18** — **PROGRAM COMPLETE** |
 
 ## SC1 deliverables (2026-07-18) — dcaEngine oracle gate
 
@@ -177,6 +177,27 @@ The §3 gate: `src/utils/declineCurve/dcaEngine.js` had NO direct tests
   project JSON via the shared savedProjects helpers, sample import from
   JSON. Chart PNGs via the ChartFrame button on every chart.
 - Help drawer covers all five tabs. Smoke walks all five tabs; jest 1533.
+
+### SC6 deliverables (2026-07-18) — tile migrations + PROGRAM CLOSE-OUT
+
+- `20260719110000_seed_scal_studio_app.sql` (Active `scal-studio` tile,
+  %ROWTYPE sibling copy) and
+  `20260719110500_archive_relative_permeability_designer_tile.sql`
+  (alias tile archived per the §4.2 lock) — **both DEPLOY-GATED: apply
+  WITH the production upload carrying the SCAL route and redirect, never
+  before.** Logged in MIGRATIONS.md.
+- `relative-permeability-designer` route now redirects to the SCAL
+  Studio (R0-deroute form); `fractional-flow-calculator` and the
+  Waterflood Design Studio keep Buckley-Leverett.
+- Full jest + build green at close.
+
+**Program ledger closed.** All six SCAL phases shipped 2026-07-18. Still
+open outside the program: the three owner-sourced fixture todos (SPEE
+REP #6 + Poston & Poe for the DCA literature suite; the Leverett 1941
+figure-read golden — all paywalled documents, visible as jest todo
+entries until the owner supplies the PDFs), the deploy-gated tile pair
+above, and the deferred dcaMonteCarlo/dcaSegmentDetection suites
+(grandfathered to the engine-extraction runway per Module §5).
 
 ## Scope discipline (standing)
 

@@ -129,6 +129,12 @@ fixture within a tolerance stated in the test file itself.
 
 ### 4.2 SCAL Studio — DECISION: build thin-real
 
+> **BUILT 2026-07-18 (SCAL program SC1-SC6, see SCALStudio-STATUS.md):**
+> shipped thin-real as locked — Corey + Leverett J only — at
+> studio-class quality (lab import, LM fitting with CIs, multi-sample
+> averaging, saturation-height, Waterflood handoff). Tile seed + alias
+> archive are deploy-gated on the next prod upload.
+
 **Locked 2026-07-17: build SCAL Studio as a thin-real app** — Corey
 relative-permeability curve design plus capillary pressure via the
 Leverett J-function, **golden reference: Leverett (1941)** — nothing
