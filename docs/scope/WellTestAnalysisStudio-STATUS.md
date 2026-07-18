@@ -9,8 +9,8 @@ tile archived by migration `20260717090000`; the mock code is deleted in WT2).
 | Phase | Scope | Status |
 |---|---|---|
 | WT1 | Validated PTA core engine (no UI) | **DONE 2026-07-18** (PR #101) |
-| WT2 | Studio app: data/QC, diagnostics, match, specialized, report tabs; persistence; mock deletion | **DONE 2026-07-18** (this PR) |
-| WT3 | Model library (fractures, dual porosity, boundaries) + tile activation | not started |
+| WT2 | Studio app: data/QC, diagnostics, match, specialized, report tabs; persistence; mock deletion | **DONE 2026-07-18** (PR #102) |
+| WT3 | Model library (fractures, dual porosity, boundaries) + tile activation | **DONE 2026-07-18** (this PR; tile migration staged, deploy-gated) |
 | WT4 | Gas (pseudo-pressure), multi-rate, deliverability | not started |
 | WT5 | PDF reporting, cross-app handoffs, e2e | not started |
 
@@ -89,6 +89,45 @@ Specialized | Report), driven only by the WT1 engines:
    approve dropping the 4-table `pta_*` family (recommended — contents
    are provably the mock's fabricated demo output; zero repo consumers
    remain after WT2).
+
+## WT3 deliverables (2026-07-18)
+
+Model library (all validated before UI exposure, CASE 8 of the harness):
+- `models/radial.js`: generalized radial sandface: homogeneous or
+  Warren-Root dual porosity (PSS and transient-slab f(u), `dualPorosity.js`)
+  crossed with the boundary family: single sealing fault and
+  constant-pressure boundary (image line sources), centered channel
+  (image series), closed circle (van Everdingen-Hurst in scaled Bessel
+  form). Storage + skin applied through the universal Laplace composition
+  (verified identical to the WT1 homogeneous formula to ~1e-10).
+- `models/fracture.js`: Gringarten uniform-flux / infinite-conductivity
+  vertical fracture (plane-source K0-integral Laplace form, 0.732 point)
+  and Cinco-Ley finite-conductivity fracture (discretized fracture-flow /
+  plane-source system, 12 graded segments).
+- `numerics.js` additions: scaled I0e/I1e, K0 integral F(x).
+- Catalog: 10 metadata-driven entries; per-model `toDimless` mappings;
+  skin bounded at zero outside plain homogeneous (additive Laplace skin
+  is only physical for S >= 0; stimulated vertical wells use homogeneous
+  or a fracture model).
+- UI: match/report tables and working-match state fully metadata-driven
+  (model switching seeds defaults; auto-fit writes back every parameter),
+  per-model guidance in the help drawer, constant-pressure regime flag.
+- Validation: oracle extensions incl. a REAL-TIME erf+E1 route for the
+  Gringarten fracture (independent of the JS Laplace/Stehfest route),
+  140 new goldens, jest `wt3Models.test.js` (11 tests incl. auto-fit
+  round trips recovering L, xf, omega/lambda), harness CASE 8 with 23
+  analytic literature truths (Gringarten sqrt(pi t) + 2.80907/2.2
+  constants, Cinco-Ley 2.451 FcD^-1/2 t^1/4 + FcD->inf convergence,
+  Warren-Root lines + dip, fault E1 image identity + derivative
+  doubling, channel half slope, closed-circle exact PSS line,
+  constant-pressure ln(2LD) stabilization). **Harness total: 65/65.**
+- Tile activation migration `20260718200000` staged and dry-run
+  verified, NOT applied (deploy-gated: ships with the prod upload that
+  carries the studio). SPA alias route `apps/reservoir/well-test-analyzer`
+  added.
+- Documented deviation from the plan text: the closed system ships as a
+  closed circle (exact van Everdingen-Hurst solution) rather than a
+  closed rectangle (2D image lattice); rectangle stays future scope.
 
 ## Locked owner decisions (2026-07-18)
 

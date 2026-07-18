@@ -199,7 +199,17 @@ export const WellTestStudioProvider = ({ children }) => {
 
   const setReservoirField = useCallback((k, v) => setReservoirInputs((prev) => ({ ...prev, [k]: v })), []);
   const setTestField = useCallback((k, v) => setTestConfig((prev) => ({ ...prev, [k]: v })), []);
-  const setMatchField = useCallback((k, v) => setMatchInputs((prev) => ({ ...prev, [k]: v })), []);
+  // Switching models seeds catalog defaults for any parameter the working
+  // match does not carry yet (WT3 models add xf, FcD, omega, lambda, L, W, re).
+  const setMatchField = useCallback((k, v) => setMatchInputs((prev) => {
+    if (k !== 'modelId') return { ...prev, [k]: v };
+    const nextModel = getModel(v);
+    const seeded = {};
+    for (const meta of nextModel?.parameters || []) {
+      if (prev[meta.key] == null || prev[meta.key] === '') seeded[meta.key] = String(meta.default);
+    }
+    return { ...prev, ...seeded, modelId: v };
+  }), []);
   const setWindowField = useCallback((k, v) => setWindows((prev) => ({ ...prev, [k]: v })), []);
 
   // ---- Derived analysis (never persisted) ----
@@ -230,11 +240,18 @@ export const WellTestStudioProvider = ({ children }) => {
     };
   }, [rateRows]);
 
-  // Manual-match model overlay evaluated at the observed times.
+  // Manual-match parameters assembled from the catalog metadata, so WT3
+  // models contribute their extra parameters without context changes.
   const matchParams = useMemo(() => {
-    const p = { k: num(matchInputs.k), skin: num(matchInputs.skin), C: num(matchInputs.C) };
-    return p.k > 0 && Number.isFinite(p.skin) && p.C >= 0 ? p : null;
-  }, [matchInputs]);
+    const p = {};
+    for (const meta of model.parameters) {
+      const v = num(matchInputs[meta.key] ?? meta.default, NaN);
+      if (!Number.isFinite(v)) return null;
+      if (meta.logScale && !(v > 0)) return null;
+      p[meta.key] = v;
+    }
+    return p.k > 0 && (p.C ?? 0) >= 0 ? p : null;
+  }, [matchInputs, model]);
 
   const modelSeries = useMemo(() => {
     if (!matchParams || !reservoirSpec.reservoir || !configSpec.config || !prepared.points.length) return null;
@@ -370,9 +387,10 @@ export const WellTestStudioProvider = ({ children }) => {
       setFitStale(false);
       setMatchInputs((prev) => ({
         ...prev,
-        k: fit.params.k.toPrecision(4),
-        skin: fit.params.skin.toFixed(2),
-        C: fit.params.C.toPrecision(3),
+        ...Object.fromEntries(model.parameters.map((meta) => [
+          meta.key,
+          meta.logScale ? fit.params[meta.key].toPrecision(4) : fit.params[meta.key].toFixed(2),
+        ])),
       }));
       addNotification(
         fit.converged

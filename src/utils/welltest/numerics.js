@@ -129,6 +129,89 @@ export const besselK1e = (x) => {
   return poly / Math.sqrt(xv);
 };
 
+/** Exponentially scaled I0e(x) = e^{-|x|} I0(x); finite for all x (WT3). */
+export const besselI0e = (x) => {
+  const ax = Math.abs(num(x));
+  if (ax < 3.75) return besselI0(ax) * Math.exp(-ax);
+  const t = 3.75 / ax;
+  const poly =
+    0.39894228 +
+    t * (0.01328592 +
+      t * (0.00225319 +
+        t * (-0.00157565 +
+          t * (0.00916281 +
+            t * (-0.02057706 +
+              t * (0.02635537 + t * (-0.01647633 + t * 0.00392377)))))));
+  return poly / Math.sqrt(ax);
+};
+
+/** Exponentially scaled I1e(x) = e^{-|x|} I1(x), sign of x preserved (WT3). */
+export const besselI1e = (x) => {
+  const xv = num(x);
+  const ax = Math.abs(xv);
+  let result;
+  if (ax < 3.75) {
+    result = Math.abs(besselI1(ax)) * Math.exp(-ax);
+  } else {
+    const t = 3.75 / ax;
+    const poly =
+      0.39894228 +
+      t * (-0.03988024 +
+        t * (-0.00362018 +
+          t * (0.00163801 +
+            t * (-0.01031555 +
+              t * (0.02282967 +
+                t * (-0.02895312 + t * (0.01787654 + t * -0.00420059)))))));
+    result = poly / Math.sqrt(ax);
+  }
+  return xv < 0 ? -result : result;
+};
+
+/**
+ * Integral of K0: F(x) = int_0^x K0(t) dt, x >= 0 (WT3, fracture models).
+ *
+ * x <= 9: term-by-term integration of the K0 ascending series
+ *   (A&S 9.6.13): K0(t) = -(ln(t/2)+gamma) I0(t) + sum_k H_k (t^2/4)^k/(k!)^2
+ *   giving F(x) = sum_k c_k x^{2k+1} [ (1/(2k+1)^2 + H_k/(2k+1))
+ *                 - (ln(x/2)+gamma)/(2k+1) ],  c_k = 1/(4^k (k!)^2), H_0 = 0.
+ * x > 9: F(x) = pi/2 - int_x^inf K0, with the tail evaluated as
+ *   e^{-x} int_0^inf K0e(x+s) e^{-s} ds by fixed composite Simpson on
+ *   s in [0, 30] (integrand decays like e^{-s}; truncation < 1e-13 rel).
+ * Cross-validated against the integral-based Python oracle.
+ */
+export const besselK0Integral = (x) => {
+  const xv = num(x);
+  if (!(xv > 0)) return 0;
+  if (xv <= 9) {
+    const lnTerm = Math.log(xv / 2) + EULER_GAMMA;
+    let ck = 1; // c_0
+    let hk = 0; // harmonic number H_0
+    let sum = 0;
+    for (let k = 0; k <= 40; k += 1) {
+      if (k > 0) {
+        ck *= (xv * xv) / (4 * k * k); // c_k x^{2k} accumulated
+        hk += 1 / k;
+      }
+      const m = 2 * k + 1;
+      const add = ck * xv * (1 / (m * m) + hk / m - lnTerm / m);
+      sum += add;
+      if (k > 3 && Math.abs(add) < 1e-16 * Math.abs(sum)) break;
+    }
+    return sum;
+  }
+  // tail: e^{-x} int_0^30 K0e(x+s) e^{-s} ds, Simpson with 120 intervals
+  const S = 30;
+  const n = 120;
+  const h = S / n;
+  let total = besselK0e(xv) + besselK0e(xv + S) * Math.exp(-S);
+  for (let i = 1; i < n; i += 1) {
+    const s = i * h;
+    total += besselK0e(xv + s) * Math.exp(-s) * (i % 2 ? 4 : 2);
+  }
+  const tail = Math.exp(-xv) * (total * h) / 3;
+  return Math.PI / 2 - tail;
+};
+
 /** Modified Bessel function K0(x), x > 0. Underflows to 0 past x ~ 700. */
 export const besselK0 = (x) => besselK0e(x) * Math.exp(-num(x));
 

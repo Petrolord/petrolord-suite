@@ -462,6 +462,8 @@ function App() {
                                 <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
                                 <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
                                 <Route path="apps/reservoir/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
+                                {/* tile slug (kept as the entitlement key; WT3 tile migration moves it to Reservoir) */}
+                                <Route path="apps/reservoir/well-test-analyzer" element={<WellTestAnalysisStudio />} />
                                 {/* legacy slugs (incl. the tile slug) — aliases into the studio */}
                                 <Route path="apps/reservoir/fractional-flow-calculator" element={<WaterfloodDesignStudio />} />
                                 <Route path="apps/reservoir/relative-permeability-designer" element={<WaterfloodDesignStudio />} />
