@@ -64,7 +64,9 @@ The §3 gate: `src/utils/declineCurve/dcaEngine.js` had NO direct tests
   2008) are paid documents — the owner supplies the PDFs and their example
   tables are typed as additional cases.** The §3 gate is cleared for the
   course/extraction on the strength of Layer 0 + the armed cases; the two
-  named references complete the set when sourced.
+  named references complete the set when sourced. *(SC7b update: SPEE
+  REP #6 turned out to be openly reproducible and is now armed in full;
+  only Poston & Poe remains pending.)*
 - **Sibling modules**: `dcaDiagnostics.js` got a hand-computed smoke suite
   (5 tests: R2/RMSE identities, normalized-residual contract, verdict
   bands). `dcaMonteCarlo.js` and `dcaSegmentDetection.js` are explicitly
@@ -102,7 +104,8 @@ The §3 gate: `src/utils/declineCurve/dcaEngine.js` had NO direct tests
   refit recovers the generating parameters to 1e-6. The paper's
   figure-read correlation points remain a visible jest todo until the
   owner supplies the paywalled paper (armed-fixture doctrine, same as
-  SPEE / Poston & Poe).
+  SPEE / Poston & Poe). *(SC7a update: golden armed from the faithful
+  Ahmed 4th-ed. reproduction; the original-scan re-read stays a todo.)*
 - CSV parsers for kr and Pc tables with header aliases and per-row error
   messages. 27 tests across the two suites; jest 1511 total.
 
@@ -191,11 +194,41 @@ The §3 gate: `src/utils/declineCurve/dcaEngine.js` had NO direct tests
   Waterflood Design Studio keep Buckley-Leverett.
 - Full jest + build green at close.
 
-**Program ledger closed.** All six SCAL phases shipped 2026-07-18. Still
-open outside the program: the three owner-sourced fixture todos (SPEE
-REP #6 + Poston & Poe for the DCA literature suite; the Leverett 1941
-figure-read golden — all paywalled documents, visible as jest todo
-entries until the owner supplies the PDFs), the deploy-gated tile pair
+### SC7 deliverables (2026-07-18) — owner-sourced fixture close-out
+
+The owner asked for the deferred paper-validation items to be completed
+by sourcing the references. Two of the three closed same-day:
+
+- **Leverett 1941 figure golden (SC7a)**: the original Trans. AIME 142
+  scan is member-gated (AIME digital library) / paywalled (OnePetro), so
+  the golden was typed from the faithful reproduction in Ahmed,
+  Reservoir Engineering Handbook, 4th ed. — the same library copy the
+  well-test Earlougher fixture came from. Armed: Figure 4-18 ("After
+  Leverett, 1941") drainage-curve reads at a stated ±0.05 J tolerance
+  (shape pins, power-law representation, two-legend-rock scaling
+  round trip) plus Example 4-7's fully printed J and reservoir-Pc
+  tables against computeJTable/pcFromJ. A re-read from the original
+  scan stays a visible todo if the owner supplies the OnePetro PDF.
+- **SPEE REP #6 (SC7b)**: not paywalled after all — the REP grants
+  "Reproduction with Attribution" and is publicly served (whitson
+  manual site, v1.0 Spring 2002). Its full 37-row Table 1
+  (tangent/secant effective vs nominal decline, b = 0–2) was
+  mechanically extracted, cross-verified against the REP's closed
+  forms, and pinned against the engine's Arps forms at print precision
+  (1e-13 tangent, 1e-8 secant). The SPEE jest todo is CLOSED.
+- **Ahmed Ch. 16 (SC7b bonus)**: Examples 16-1, 16-2, 16-3 (Ikoku
+  hyperbolic, 25-row forecast table) typed as three further DCA
+  literature cases; two book misprints found and flagged in the
+  fixture (16-2 month-5 cumulative dropped digit; 16-3 cumulative
+  computed with unrounded Di despite the text's rounded 0.001).
+- **Poston & Poe (SPE 2008)**: every located channel is paid (SPE
+  store rental, Perlego); its todo stays visible until the owner
+  supplies the PDF.
+
+**Program ledger closed.** All six SCAL phases shipped 2026-07-18; SC7
+closed the SPEE and Leverett fixture todos the same day. Still open
+outside the program: the Poston & Poe todo and the original-scan
+Leverett re-read (owner-supplied PDFs), the deploy-gated tile pair
 above, and the deferred dcaMonteCarlo/dcaSegmentDetection suites
 (grandfathered to the engine-extraction runway per Module §5).
 
