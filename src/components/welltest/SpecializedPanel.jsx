@@ -9,18 +9,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import { SectionLabel, Field, fmt } from './primitives';
+import { unitLabel, displayInputString, storeInputString } from '@/utils/welltest/units';
+import { SectionLabel, Field, UnitField, fmt } from './primitives';
 
 const SpecializedPanel = () => {
   const {
     windows, setWindowField, configSpec, regimes, reservoirSpec,
     deliverabilityInputs, setDeliverabilityField, setDeliverabilityRows,
   } = useWellTestStudio();
+  const { unitSystem } = useWellTestStudio();
   const isBuildup = configSpec.config?.family === 'buildup';
   const isGas = reservoirSpec.reservoir?.fluid === 'gas';
   const radial = regimes.find((r) => r.regime === 'radial');
   const rows = deliverabilityInputs.rows || [];
-  const setRow = (i, key, v) => setDeliverabilityRows(rows.map((r, idx) => (idx === i ? { ...r, [key]: v } : r)));
+  const rowKind = (key) => (key === 'q' ? 'gasRate' : 'pressure');
+  const setRow = (i, key, v) => setDeliverabilityRows(rows.map((r, idx) => (idx === i
+    ? { ...r, [key]: storeInputString(rowKind(key), v, unitSystem) }
+    : r)));
 
   return (
     <div className="space-y-6">
@@ -70,7 +75,7 @@ const SpecializedPanel = () => {
         <section>
           <SectionLabel>Deliverability test</SectionLabel>
           <div className="space-y-3">
-            <Field label="Average reservoir pressure pr" suffix="psia, blank = pi" value={deliverabilityInputs.pr} onChange={(v) => setDeliverabilityField('pr', v)} />
+            <UnitField kind="pressureAbs" system={unitSystem} label="Average reservoir pressure pr" suffixNote="blank = pi" value={deliverabilityInputs.pr} onChange={(v) => setDeliverabilityField('pr', v)} />
             <div className="space-y-1">
               <Label className="text-xs text-slate-400">Method</Label>
               <Select value={deliverabilityInputs.method} onValueChange={(v) => setDeliverabilityField('method', v)}>
@@ -87,8 +92,8 @@ const SpecializedPanel = () => {
               )}
               {rows.map((r, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <Input value={r.q} onChange={(e) => setRow(i, 'q', e.target.value)} placeholder="Mscf/D" className="h-8 bg-slate-800 border-slate-700" />
-                  <Input value={r.pwf} onChange={(e) => setRow(i, 'pwf', e.target.value)} placeholder="pwf psia" className="h-8 bg-slate-800 border-slate-700" />
+                  <Input value={displayInputString('gasRate', r.q, unitSystem)} onChange={(e) => setRow(i, 'q', e.target.value)} placeholder={unitLabel('gasRate', unitSystem)} className="h-8 bg-slate-800 border-slate-700" />
+                  <Input value={displayInputString('pressure', r.pwf, unitSystem)} onChange={(e) => setRow(i, 'pwf', e.target.value)} placeholder={`pwf ${unitLabel('pressureAbs', unitSystem)}`} className="h-8 bg-slate-800 border-slate-700" />
                   <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-slate-500" onClick={() => setDeliverabilityRows(rows.filter((_, idx) => idx !== i))}>
                     <Trash2 className="w-4 h-4" />
                   </Button>

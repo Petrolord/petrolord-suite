@@ -1,7 +1,8 @@
 // Right-rail diagnostics: tab-aware readouts (waterflood rail pattern).
 import React from 'react';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import { SectionLabel, fmt } from './primitives';
+import { unitLabel, fromOilfield } from '@/utils/welltest/units';
+import { SectionLabel, fmt, fmtU } from './primitives';
 
 const Row = ({ label, value }) => (
   <div className="flex justify-between text-xs py-1 border-b border-slate-800/60 last:border-0">
@@ -14,8 +15,11 @@ const DiagnosticsRail = ({ activeTab }) => {
   const {
     gaugeRows, prepared, configSpec, regimes, matchParams,
     semilogResult, derivedKpis, fitResult, fitStale, flowPeriods,
+    reservoirSpec, unitSystem,
   } = useWellTestStudio();
   const isBuildup = configSpec.config?.family === 'buildup';
+  const isGas = reservoirSpec.reservoir?.fluid === 'gas';
+  const uL = (kind) => unitLabel(kind, unitSystem);
 
   return (
     <div className="space-y-6">
@@ -25,7 +29,7 @@ const DiagnosticsRail = ({ activeTab }) => {
         <Row label="Gauge points" value={gaugeRows.length || '—'} />
         <Row label="Used" value={prepared.points.length || '—'} />
         {isBuildup && <Row label="tp (hr)" value={fmt.f1(configSpec.config?.tp)} />}
-        {isBuildup && <Row label="pwf at shut-in" value={fmt.f1(prepared.pwfShutIn)} />}
+        {isBuildup && <Row label={`pwf at shut-in (${uL('pressure')})`} value={fmtU('pressure', prepared.pwfShutIn, unitSystem, fmt.f1)} />}
         {Number.isFinite(flowPeriods.equivalentTp) && <Row label="Equivalent tp (hr)" value={fmt.f1(flowPeriods.equivalentTp)} />}
       </section>
 
@@ -43,7 +47,7 @@ const DiagnosticsRail = ({ activeTab }) => {
           <SectionLabel>Working match</SectionLabel>
           <Row label="k (md)" value={fmt.sig3(matchParams?.k)} />
           <Row label="Skin" value={fmt.f2(matchParams?.skin)} />
-          <Row label="C (bbl/psi)" value={fmt.sig3(matchParams?.C)} />
+          <Row label={`C (${uL('storage')})`} value={fmtU('storage', matchParams?.C, unitSystem, fmt.sig3)} />
           <Row label="CD" value={fmt.sig3(derivedKpis?.cd)} />
           <Row label="Fit" value={fitResult ? (fitStale ? 'Stale' : (fitResult.converged ? 'Converged' : 'Partial')) : 'Not run'} />
         </section>
@@ -52,10 +56,10 @@ const DiagnosticsRail = ({ activeTab }) => {
       {activeTab === 'specialized' && (
         <section>
           <SectionLabel>Straight line</SectionLabel>
-          <Row label="m (psi/cycle)" value={fmt.f1(semilogResult?.m)} />
+          <Row label={`m (${uL(isGas ? 'pseudoSlope' : 'semilogSlope')})`} value={isGas ? fmt.sci(fromOilfield('pseudoSlope', semilogResult?.m, unitSystem)) : fmtU('semilogSlope', semilogResult?.m, unitSystem, fmt.f1)} />
           <Row label="k (md)" value={fmt.sig3(semilogResult?.k)} />
           <Row label="Skin" value={fmt.f2(semilogResult?.skin)} />
-          {isBuildup && <Row label="p* (psi)" value={fmt.f1(semilogResult?.pStar)} />}
+          {isBuildup && <Row label={`p* (${uL('pressure')})`} value={fmtU('pressure', semilogResult?.pStar, unitSystem, fmt.f1)} />}
           <Row label="r²" value={fmt.f3(semilogResult?.r2)} />
         </section>
       )}
@@ -63,8 +67,8 @@ const DiagnosticsRail = ({ activeTab }) => {
       <section>
         <SectionLabel>Derived</SectionLabel>
         <Row label="kh (md·ft)" value={fmt.sig3(derivedKpis?.kh)} />
-        <Row label="Radius of inv. (ft)" value={fmt.int(derivedKpis?.ri)} />
-        <Row label="Δp skin (psi)" value={fmt.f1(derivedKpis?.dpSkin)} />
+        <Row label={`Radius of inv. (${uL('length')})`} value={fmtU('length', derivedKpis?.ri, unitSystem, fmt.int)} />
+        <Row label={`Δp skin (${uL('pressure')})`} value={fmtU('pressure', derivedKpis?.dpSkin, unitSystem, fmt.f1)} />
         <Row label="Flow efficiency" value={fmt.pct(derivedKpis?.flowEfficiency)} />
       </section>
     </div>

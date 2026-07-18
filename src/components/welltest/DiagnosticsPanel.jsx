@@ -1,16 +1,39 @@
-// Left rail for the Diagnostics tab: derivative smoothing and overlay control.
+// Left rail for the Diagnostics tab: derivative smoothing, the gas
+// pseudo-time abscissa (WT8) and reading guidance.
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { SectionLabel, fmt } from './primitives';
 
 const DiagnosticsPanel = () => {
-  const { testConfig, setTestField } = useWellTestStudio();
+  const { testConfig, setTestField, reservoirSpec } = useWellTestStudio();
   const L = fmt.num(testConfig.smoothingL);
+  const isGas = reservoirSpec.reservoir?.fluid === 'gas';
 
   return (
     <div className="space-y-6">
+      {isGas && (
+        <section>
+          <SectionLabel>Abscissa</SectionLabel>
+          <div className="space-y-2">
+            <Label className="text-xs text-slate-400">Diagnostic time axis</Label>
+            <Select value={testConfig.abscissa || 'time'} onValueChange={(v) => setTestField('abscissa', v)}>
+              <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="time">Elapsed time</SelectItem>
+                <SelectItem value="pseudo-time">Normalized pseudo-time</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-slate-500">
+              Normalized pseudo-time integrates mu(p) ct(p) along the gauge pressures, correcting the late-time
+              derivative of large-drawdown gas tests. The same transform is applied to the model overlay, so the
+              match comparison is unaffected. Straight-line analyses stay on elapsed time.
+            </p>
+          </div>
+        </section>
+      )}
       <section>
         <SectionLabel>Derivative</SectionLabel>
         <div className="space-y-4">

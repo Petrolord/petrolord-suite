@@ -13,7 +13,8 @@ import { bourdetDerivative, logDecimate, trimSpikes, detectFlowRegimes } from '@
 import { agarwalEquivalentTime, rateStepsFromHistory, detectFlowPeriods, equivalentProducingTime } from '@/utils/welltest/superposition';
 import { mdhAnalysis, hornerAnalysis, cartesianPssAnalysis, sqrtTimeAnalysis, radiusOfInvestigation, skinPressureDrop, flowEfficiency, multiRateSemilogAnalysis } from '@/utils/welltest/analysis';
 import { autoFitModel } from '@/utils/welltest/autoFit';
-import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, GAS } from '@/utils/welltest/gas';
+import { buildGasPvtTable, makePseudoPressure, deliverabilityAnalysis, normalizedPseudoTime, GAS } from '@/utils/welltest/gas';
+import { UNIT_SYSTEMS } from '@/utils/welltest/units';
 
 const WellTestStudioContext = createContext(null);
 
@@ -58,6 +59,8 @@ export const DEFAULT_TEST_CONFIG = {
   pointsPerDecade: '15',
   spikeTrimOn: true,
   spikeThreshold: '6',
+  // WT8: diagnostics abscissa, gas tests only ('time' | 'pseudo-time')
+  abscissa: 'time',
 };
 
 export const DEFAULT_MATCH = { modelId: 'homogeneous', k: '50', skin: '0', C: '0.01' };
@@ -121,6 +124,11 @@ export function buildReservoirInputs(r) {
         gasGravity,
         mOfP: pvt.mOfP,
         pOfM: pvt.pOfM,
+        // WT8 pseudo-time abscissa: mu(p) ct(p) along the gauge pressures.
+        // The correlation cg is used for the variation even when a manual ct
+        // overrides the initial value (the ratio is what matters).
+        muCtOf: (p) => pvt.muOf(p) * pvt.cgOf(p),
+        muCtInitial: muI * ctI,
       },
       error: null,
     };
@@ -153,6 +161,7 @@ export function buildTestConfig(t) {
     pointsPerDecade: Math.max(Math.round(num(t.pointsPerDecade) || 15), 4),
     spikeTrimOn: !!t.spikeTrimOn,
     spikeThreshold: Math.max(num(t.spikeThreshold) || 6, 2),
+    abscissa: t.abscissa === 'pseudo-time' ? 'pseudo-time' : 'time',
   };
   if (out.family === 'buildup' && !(out.tp > 0)) {
     return {
@@ -254,12 +263,15 @@ export function prepareTestData({ gaugeRows, reservoir, config }) {
 
 /**
  * Log-log diagnostic series: dp and Bourdet derivative against elapsed time
- * (drawdown) or Agarwal equivalent time (buildup).
+ * (drawdown) or Agarwal equivalent time (buildup). taOf (WT8) maps elapsed
+ * time to normalized pseudo-time before the Agarwal transform when the gas
+ * pseudo-time abscissa is selected; the identical map is applied to the
+ * model overlay so the comparison stays apples-to-apples.
  */
-export function buildLoglog({ points, config }) {
+export function buildLoglog({ points, config, taOf = (t) => t }) {
   if (!points?.length || !config) return [];
   const abscissa = (t) =>
-    config.family === 'buildup' ? agarwalEquivalentTime(config.tp, t) : t;
+    config.family === 'buildup' ? agarwalEquivalentTime(config.tp, taOf(t)) : taOf(t);
   const series = points
     .map((p) => ({ x: abscissa(p.time), y: p.dp, time: p.time }))
     .filter((p) => p.x > 0 && p.y > 0);
@@ -308,6 +320,12 @@ export const WellTestStudioProvider = ({ children }) => {
   const [windows, setWindows] = useState(DEFAULT_WINDOWS);
   const [deliverabilityInputs, setDeliverabilityInputs] = useState(DEFAULT_DELIVERABILITY);
   const [notes, setNotes] = useState('');
+  // WT8: display-layer unit system; state and engines stay oilfield always
+  const [unitSystem, setUnitSystemRaw] = useState('oilfield');
+  const setUnitSystem = useCallback(
+    (v) => setUnitSystemRaw(UNIT_SYSTEMS.includes(v) ? v : 'oilfield'),
+    [],
+  );
 
   // Transient auto-fit state (regression on demand, never persisted)
   const [fitResult, setFitResult] = useState(null);
@@ -342,9 +360,26 @@ export const WellTestStudioProvider = ({ children }) => {
     [gaugeRows, reservoirSpec, configSpec],
   );
 
+  // WT8: normalized pseudo-time map over the gauge pressures (gas only).
+  // Exact at the sample times because both the data series and the model
+  // overlay evaluate on the same time grid.
+  const pseudoTime = useMemo(() => {
+    const r = reservoirSpec.reservoir;
+    const cfg = configSpec.config;
+    const active = r?.fluid === 'gas' && cfg?.abscissa === 'pseudo-time' && prepared.points.length >= 2;
+    if (!active) return { active: false, taOf: (t) => t };
+    const map = normalizedPseudoTime(
+      prepared.points.map((p) => ({ t: p.time, p: p.p })),
+      { muCtOf: r.muCtOf, muCtInitial: r.muCtInitial },
+    );
+    if (!map.length) return { active: false, taOf: (t) => t };
+    const lookup = new Map(map.map((row) => [row.t, row.ta]));
+    return { active: true, taOf: (t) => lookup.get(t) ?? t };
+  }, [reservoirSpec, configSpec, prepared]);
+
   const loglog = useMemo(
-    () => buildLoglog({ points: prepared.points, config: configSpec.config }),
-    [prepared, configSpec],
+    () => buildLoglog({ points: prepared.points, config: configSpec.config, taOf: pseudoTime.taOf }),
+    [prepared, configSpec, pseudoTime],
   );
 
   const regimes = useMemo(() => detectFlowRegimes(loglog), [loglog]);
@@ -387,7 +422,8 @@ export const WellTestStudioProvider = ({ children }) => {
         times,
         dts: times,
       });
-      const abscissa = (t) => (cfg.family === 'buildup' ? agarwalEquivalentTime(cfg.tp, t) : t);
+      const abscissa = (t) =>
+        (cfg.family === 'buildup' ? agarwalEquivalentTime(cfg.tp, pseudoTime.taOf(t)) : pseudoTime.taOf(t));
       const base = series.map((p, i) => ({ x: abscissa(times[i]), y: p.dp })).filter((p) => p.x > 0 && p.y > 0);
       const deriv = bourdetDerivative(base, { L: cfg.smoothingL });
       return deriv.map((d) => ({ x: d.x, modelDp: d.y, modelDerivative: d.derivative }));
@@ -395,7 +431,7 @@ export const WellTestStudioProvider = ({ children }) => {
       console.error(e);
       return null;
     }
-  }, [matchParams, model, reservoirSpec, configSpec, prepared]);
+  }, [matchParams, model, reservoirSpec, configSpec, prepared, pseudoTime]);
 
   const windowedPoints = useCallback((minKey, maxKey) => {
     const lo = num(windows[minKey]);
@@ -626,8 +662,9 @@ export const WellTestStudioProvider = ({ children }) => {
     windows,
     deliverabilityInputs,
     notes,
+    unitSystem,
     modified: new Date().toISOString(),
-  }), [currentProjectId, projectName, wellName, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes]);
+  }), [currentProjectId, projectName, wellName, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem]);
 
   const hydrate = useCallback((payload) => {
     setWellName(payload?.wellName || '');
@@ -639,6 +676,7 @@ export const WellTestStudioProvider = ({ children }) => {
     setWindows({ ...DEFAULT_WINDOWS, ...(payload?.windows || {}) });
     setDeliverabilityInputs({ ...DEFAULT_DELIVERABILITY, ...(payload?.deliverabilityInputs || {}) });
     setNotes(payload?.notes || '');
+    setUnitSystem(payload?.unitSystem || 'oilfield');
     setFitResult(null);
     hasFitResult.current = false;
     setFitStale(false);
@@ -742,7 +780,7 @@ export const WellTestStudioProvider = ({ children }) => {
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [wellName, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, currentProjectId, hydrated]);
+  }, [wellName, reservoirInputs, testConfig, gaugeRows, rateRows, matchInputs, windows, deliverabilityInputs, notes, unitSystem, currentProjectId, hydrated]);
 
   const value = {
     // shell plumbing
@@ -761,9 +799,10 @@ export const WellTestStudioProvider = ({ children }) => {
     windows, setWindowField,
     notes, setNotes,
     deliverabilityInputs, setDeliverabilityField, setDeliverabilityRows,
+    unitSystem, setUnitSystem,
     // derived
     reservoirSpec, configSpec, model,
-    prepared, loglog, regimes, flowPeriods,
+    prepared, loglog, regimes, flowPeriods, pseudoTime,
     matchParams, modelSeries,
     semilogResult, pssResult, sqrtResult, derivedKpis,
     multiRateResult, deliverabilityResult,

@@ -6,7 +6,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'r
 import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { evaluateModelTest } from '@/utils/welltest/models/modelCatalog';
-import { ChartCard, Kpi, LINE, WarningBanner, fmt } from './primitives';
+import { unitLabel, fromOilfield, kindForCatalogUnit } from '@/utils/welltest/units';
+import { ChartCard, Kpi, LINE, WarningBanner, fmt, fmtU } from './primitives';
 import LogLogChart from './LogLogChart';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
@@ -22,7 +23,10 @@ const MatchResults = () => {
   const {
     loglog, modelSeries, prepared, matchParams, model,
     reservoirSpec, configSpec, fitResult, fitStale, derivedKpis,
+    unitSystem, pseudoTime,
   } = useWellTestStudio();
+  const dpKind = reservoirSpec.reservoir?.fluid === 'gas' ? 'pseudoPressure' : 'pressure';
+  const uDp = (v) => fromOilfield(dpKind, v, unitSystem);
 
   // Pressure-history overlay: observed gauge pressure and the model pressure
   // at the same times. The model works in analysis space (m(p) for gas,
@@ -46,10 +50,12 @@ const MatchResults = () => {
     }
     return prepared.points.map((p, i) => ({
       time: Number(p.time.toPrecision(4)),
-      observed: Number(p.p.toFixed(2)),
-      model: modelP && Number.isFinite(modelP[i]) ? Number(modelP[i].toFixed(2)) : null,
+      observed: Number(fromOilfield('pressure', p.p, unitSystem).toFixed(2)),
+      model: modelP && Number.isFinite(modelP[i])
+        ? Number(fromOilfield('pressure', modelP[i], unitSystem).toFixed(2))
+        : null,
     }));
-  }, [prepared, matchParams, model, reservoirSpec, configSpec]);
+  }, [prepared, matchParams, model, reservoirSpec, configSpec, unitSystem]);
 
   if (!loglog.length) {
     return (
@@ -60,8 +66,15 @@ const MatchResults = () => {
     );
   }
 
-  const xLabel = configSpec.config?.family === 'buildup' ? 'Agarwal equivalent time (hr)' : 'Elapsed time (hr)';
+  const timeName = pseudoTime.active ? 'pseudo-time' : 'time';
+  const xLabel = configSpec.config?.family === 'buildup'
+    ? `Agarwal equivalent ${timeName} (hr)`
+    : `Elapsed ${timeName} (hr)`;
   const isGas = reservoirSpec.reservoir?.fluid === 'gas';
+  const displayLoglog = loglog.map((p) => ({ ...p, dp: uDp(p.dp), derivative: uDp(p.derivative) }));
+  const displayModel = modelSeries
+    ? modelSeries.map((m) => ({ ...m, modelDp: uDp(m.modelDp), modelDerivative: uDp(m.modelDerivative) }))
+    : undefined;
 
   return (
     <div className="space-y-4 overflow-y-auto">
@@ -73,13 +86,13 @@ const MatchResults = () => {
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
         <Kpi title="Permeability k" value={fmt.sig3(matchParams?.k)} unit="md" accent />
         <Kpi title="Skin" value={fmt.f2(matchParams?.skin)} />
-        <Kpi title="Storage C" value={fmt.sig3(matchParams?.C)} unit="bbl/psi" />
+        <Kpi title="Storage C" value={fmtU('storage', matchParams?.C, unitSystem, fmt.sig3)} unit={unitLabel('storage', unitSystem)} />
         <Kpi title="kh" value={fmt.sig3(derivedKpis?.kh)} unit="md·ft" />
         <Kpi title="CD" value={fmt.sig3(derivedKpis?.cd)} />
       </div>
 
       <ChartCard title="Log-log match" height={360}>
-        <LogLogChart loglog={loglog} modelSeries={modelSeries || undefined} xLabel={xLabel} yLabel={isGas ? 'Δm(p) and derivative (psi²/cp)' : 'Δp and derivative (psi)'} />
+        <LogLogChart loglog={displayLoglog} modelSeries={displayModel} xLabel={xLabel} yLabel={`${isGas ? 'Δm(p)' : 'Δp'} and derivative (${unitLabel(dpKind, unitSystem)})`} />
       </ChartCard>
 
       <ChartCard title="Pressure history overlay" height={240}>
@@ -88,7 +101,7 @@ const MatchResults = () => {
           <XAxis dataKey="time" type="number" domain={['auto', 'auto']} {...axisProps}
             label={{ value: xLabel.replace('Agarwal equivalent', 'Shut-in'), position: 'insideBottom', offset: -10, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
           <YAxis domain={['auto', 'auto']} {...axisProps}
-            label={{ value: 'Pressure (psi)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            label={{ value: `Pressure (${unitLabel('pressure', unitSystem)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
           <Tooltip {...tooltipProps} />
           <Legend {...legendProps} />
           <Line type="monotone" dataKey="observed" name="Gauge" stroke={LINE.pressure} dot={{ r: 2 }} strokeWidth={1} isAnimationActive={false} />
@@ -110,13 +123,19 @@ const MatchResults = () => {
               </tr>
             </thead>
             <tbody className="text-slate-300">
-              {model.parameters.map((meta) => (
-                <tr key={meta.key} className="border-t border-slate-800">
-                  <td className="py-1">{meta.label} ({meta.unit})</td>
-                  <td className="py-1">{meta.logScale ? fmt.sig3(fitResult.params[meta.key]) : fmt.f2(fitResult.params[meta.key])}</td>
-                  <td className="py-1">{ci(fitResult.confidence95[meta.key])}</td>
-                </tr>
-              ))}
+              {model.parameters.map((meta) => {
+                const kind = kindForCatalogUnit(meta.unit);
+                const uv = (v) => fromOilfield(kind, v, unitSystem);
+                const label = unitLabel(kind, unitSystem) || meta.unit;
+                const pair = fitResult.confidence95[meta.key];
+                return (
+                  <tr key={meta.key} className="border-t border-slate-800">
+                    <td className="py-1">{meta.label} ({label})</td>
+                    <td className="py-1">{meta.logScale ? fmt.sig3(uv(fitResult.params[meta.key])) : fmt.f2(uv(fitResult.params[meta.key]))}</td>
+                    <td className="py-1">{ci(Array.isArray(pair) ? pair.map(uv) : pair)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           <p className="text-[11px] text-slate-500 mt-2">

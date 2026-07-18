@@ -39,6 +39,15 @@ const WTSHelpContent = () => (
       starting point improves the regression.
     </P>
 
+    <H>Units and gas pseudo-time</H>
+    <P>
+      The unit system selector on the Data tab switches every input and result between oilfield (psi, ft, STB/D) and
+      SI (kPa, m, m3/d) display. Projects always store oilfield values internally, so switching is instant and
+      lossless. Permeability stays in millidarcies in both systems. For gas tests the Diagnostics tab also offers a
+      normalized pseudo-time abscissa, which integrates mu(p) ct(p) along the gauge pressures; the same transform is
+      applied to the model overlay, and the straight-line analyses stay on elapsed time.
+    </P>
+
     <H>Model catalog guidance</H>
     <P>
       Homogeneous: the workhorse. Storage hump, then a flat derivative whose level fixes kh. This is the only model

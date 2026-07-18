@@ -3,18 +3,23 @@ import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
-import { ChartCard, Kpi, LINE, WarningBanner, fmt } from './primitives';
+import { unitLabel, fromOilfield } from '@/utils/welltest/units';
+import { ChartCard, Kpi, LINE, WarningBanner, fmt, fmtU } from './primitives';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
 const tooltipProps = { contentStyle: TOOLTIP_STYLE, labelStyle: { color: CHART_COLORS.tooltipText }, itemStyle: { color: CHART_COLORS.tooltipText } };
 const legendProps = { wrapperStyle: { fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText } };
 
 const DataResults = () => {
-  const { gaugeRows, prepared, configSpec, reservoirSpec, flowPeriods } = useWellTestStudio();
+  const { gaugeRows, prepared, configSpec, reservoirSpec, flowPeriods, unitSystem } = useWellTestStudio();
+  const rateKind = reservoirSpec.reservoir?.fluid === 'gas' ? 'gasRate' : 'oilRate';
 
   const historyData = useMemo(
-    () => prepared.points.map((p) => ({ time: Number(p.time.toPrecision(4)), pressure: Number(p.p.toFixed(2)) })),
-    [prepared],
+    () => prepared.points.map((p) => ({
+      time: Number(p.time.toPrecision(4)),
+      pressure: Number(fromOilfield('pressure', p.p, unitSystem).toFixed(2)),
+    })),
+    [prepared, unitSystem],
   );
 
   const rateData = useMemo(() => {
@@ -23,11 +28,12 @@ const DataResults = () => {
     const pts = [];
     flowPeriods.steps.forEach((s, i) => {
       const next = flowPeriods.steps[i + 1];
-      pts.push({ time: s.start, rate: s.q });
-      if (next) pts.push({ time: next.start, rate: s.q });
+      const q = fromOilfield(rateKind, s.q, unitSystem);
+      pts.push({ time: s.start, rate: q });
+      if (next) pts.push({ time: next.start, rate: q });
     });
     return pts;
-  }, [flowPeriods]);
+  }, [flowPeriods, rateKind, unitSystem]);
 
   if (!gaugeRows.length) {
     return (
@@ -52,7 +58,7 @@ const DataResults = () => {
         <Kpi title="Gauge points" value={fmt.int(gaugeRows.length)} />
         <Kpi title="Points used" value={fmt.int(prepared.points.length)} accent />
         <Kpi title="Time span" value={prepared.points.length ? `${fmt.sig3(prepared.points[0].time)} to ${fmt.sig3(prepared.points[prepared.points.length - 1].time)}` : '—'} unit="hr" />
-        <Kpi title="pwf at shut-in" value={fmt.f1(prepared.pwfShutIn)} unit="psi" />
+        <Kpi title="pwf at shut-in" value={fmtU('pressure', prepared.pwfShutIn, unitSystem, fmt.f1)} unit={unitLabel('pressure', unitSystem)} />
       </div>
 
       <ChartCard title="Pressure history">
@@ -61,7 +67,7 @@ const DataResults = () => {
           <XAxis dataKey="time" type="number" domain={['auto', 'auto']} {...axisProps}
             label={{ value: timeLabel, position: 'insideBottom', offset: -10, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
           <YAxis domain={['auto', 'auto']} {...axisProps}
-            label={{ value: 'Pressure (psi)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            label={{ value: `Pressure (${unitLabel('pressure', unitSystem)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
           <Tooltip {...tooltipProps} />
           <Legend {...legendProps} />
           <Line type="monotone" dataKey="pressure" name="Gauge pressure" stroke={LINE.pressure} dot={{ r: 2 }} strokeWidth={1.5} isAnimationActive={false} />
@@ -75,7 +81,7 @@ const DataResults = () => {
             <XAxis dataKey="time" type="number" domain={['auto', 'auto']} {...axisProps}
               label={{ value: 'Time (hr)', position: 'insideBottom', offset: -10, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis domain={[0, 'auto']} {...axisProps}
-              label={{ value: 'Rate (STB/D)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+              label={{ value: `Rate (${unitLabel(rateKind, unitSystem)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <Tooltip {...tooltipProps} />
             <Line type="linear" dataKey="rate" name="Rate" stroke={LINE.rate} dot={false} strokeWidth={2} isAnimationActive={false} />
           </LineChart>
@@ -91,7 +97,7 @@ const DataResults = () => {
                 <th className="py-1 font-medium">Type</th>
                 <th className="py-1 font-medium">Start (hr)</th>
                 <th className="py-1 font-medium">End (hr)</th>
-                <th className="py-1 font-medium">Rate (STB/D)</th>
+                <th className="py-1 font-medium">Rate ({unitLabel(rateKind, unitSystem)})</th>
               </tr>
             </thead>
             <tbody className="text-slate-300">
@@ -100,7 +106,7 @@ const DataResults = () => {
                   <td className="py-1 capitalize">{p.type}</td>
                   <td className="py-1">{fmt.f1(p.start)}</td>
                   <td className="py-1">{p.end == null ? 'open' : fmt.f1(p.end)}</td>
-                  <td className="py-1">{fmt.f1(p.q)}</td>
+                  <td className="py-1">{fmtU(rateKind, p.q, unitSystem, fmt.f1)}</td>
                 </tr>
               ))}
             </tbody>
