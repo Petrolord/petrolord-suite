@@ -38,9 +38,15 @@
  *   - Drive index sum:  1.00 ± 0.05
  */
 
-import { computeMaterialBalance } from '../../supabase/functions/_shared/mbal-engine.ts';
+import {
+  computeMaterialBalance,
+  computeFetkovichWe,
+  computeCarterTracyWe,
+  computeOilPerTimestep,
+} from '../../supabase/functions/_shared/mbal-engine.ts';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import fs from 'node:fs';
 
 // ============================================================================
 // PLETCHER SPE 75354 — TWO-CELL GAS-SIMULATION MODEL
@@ -437,13 +443,31 @@ async function main() {
   console.log('');
   await runOilLabTableCase();
 
+  console.log('═══════════════════════════════════════════════════════════════════');
+  console.log('  CASE 8 — Oil + Fetkovich aquifer (Ahmed REH 4th ed. Ex. 10-10)');
+  console.log('═══════════════════════════════════════════════════════════════════');
+  console.log('');
+  await runFetkovichOilCase();
+
+  console.log('═══════════════════════════════════════════════════════════════════');
+  console.log('  CASE 9 — Oil + gas cap + water influx (Ahmed REH Ex. 11-1)');
+  console.log('═══════════════════════════════════════════════════════════════════');
+  console.log('');
+  await runCombinationDriveCase();
+
+  console.log('═══════════════════════════════════════════════════════════════════');
+  console.log('  CASE 10 — Carter-Tracy McCain default chain (MB1)');
+  console.log('═══════════════════════════════════════════════════════════════════');
+  console.log('');
+  await runMcCainDefaultCase();
+
   // ────────────────────────────────────────────────────────────────────────
   // FINAL VERDICT
   // ────────────────────────────────────────────────────────────────────────
   console.log('═══════════════════════════════════════════════════════════════════');
   if (FAILURES.length === 0) {
-    console.log('  ✓ ALL ASSERTIONS PASSED (across all seven validation cases: 3 benchmark + 4 substitution/lab-table)');
-    console.log('  Phase 1 + Phase 3 + Capsule 4A + Capsule 4C validation gate: PASSED');
+    console.log('  ✓ ALL ASSERTIONS PASSED (across all ten validation cases: 5 benchmark + 4 substitution/lab-table + 1 defaults)');
+    console.log('  Phase 1 + Phase 3 + Capsule 4A + Capsule 4C + MB1 validation gate: PASSED');
     console.log('═══════════════════════════════════════════════════════════════════');
     process.exit(0);
   } else {
@@ -2035,5 +2059,389 @@ async function runCarterTracyOilCase(): Promise<void> {
   console.log(`  Drive mechanism:       ${result.drive_mechanism}`);
   console.log(`  Aquifer strength:      ${result.aquifer_strength}`);
   console.log(`  Validation tier:       ${result.validation_tier ?? 'n/a'}`);
+  console.log('');
+}
+
+// ============================================================================
+// MB1 (2026-07-18) — ARMED LITERATURE FIXTURES (CASES 8 & 9)
+// ============================================================================
+// Fixture JSONs live in tools/validation/mbal-fixtures/ and are typed verbatim
+// from the cited book pages (armed-fixture pattern, welltest CASE 7 precedent).
+// A missing fixture is a HARD FAILURE, not a skip: these cases are the merge
+// gate for MB1 and must not silently disarm.
+
+const FIXTURE_DIR = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  'mbal-fixtures',
+);
+
+function requireArmedFixture(caseLabel: string, filename: string): any | null {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, filename), 'utf8'));
+  } catch {
+    console.log(`  ✗ FAIL  ${caseLabel} is NOT ARMED: fixture ${filename} is missing or unreadable.`);
+    FAILURES.push({ name: `${caseLabel} armed fixture (${filename})`, actual: 0, range: [1, 1] });
+    return null;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CASE 8 — Oil + Fetkovich aquifer (Ahmed REH 4th ed. Example 10-10)
+// ────────────────────────────────────────────────────────────────────────────
+// Reference: Ahmed, Reservoir Engineering Handbook, 4th ed. (2010), Ch. 10,
+// Example 10-10, pp. 726-729 (data credited to Dake 1978 — the same wedge
+// reservoir/aquifer as Dake Exercise 9.2 / CASE 2C, worked with Fetkovich's
+// method and a PRINTED step-by-step We table).
+//
+// What this closes (ReservoirBalance-STATUS "Next priorities" item 1):
+//   • the last `published_method` aquifer path (oil + Fetkovich), and
+//   • the paused Fetkovich Δp̄ midpoint-convention question. The book's
+//     printed solution computes (p̄_r)_n = (p_(n-1) + p_n)/2 explicitly —
+//     the engine's existing midpoint convention IS the published one.
+//
+// Assertions:
+//   F-1..F-4: printed constants recomputed from the given data
+//             (Wi 28.41 MMMbbl, Wei 211.9 MMbbl, J 116.5 bbl/day/psi with the
+//             ln(reD) - 3/4 no-flow-boundary form, decay term 0.4229).
+//   F-5..F-8: computeFetkovichWe reproduces the printed cumulative We at every
+//             step (±1%; the book rounds p̄_a to whole psi and ΔWe to 3-4 sig
+//             figs, the engine keeps full precision).
+//   F-9..F-12: full oil path (computeMaterialBalance, aquifer 'fetkovich') on
+//             Dake Ex. 9.2 production data with this aquifer: OOIP within
+//             ±10% of Dake's N = 312 MMSTB (same method-spread reasoning as
+//             CASE 2C: Fetkovich vs Hurst-van Everdingen differ a few percent
+//             on We, propagating 2-5% into OOIP), drive-index sum, WDI
+//             substantial, R².
+async function runFetkovichOilCase(): Promise<void> {
+  const fx = requireArmedFixture('CASE 8', 'ahmed-ex-10-10-fetkovich.json');
+  if (!fx) return;
+  const g = fx.given;
+  const f_wedge = g.theta_deg / 360;
+
+  console.log('─── Assertions F-1..F-4: printed constants (Steps 4-6) ──────────');
+  const Wi_bbl = (Math.PI * (g.ra_ft ** 2 - g.re_ft ** 2) * g.h_ft * g.phi) / 5.615;
+  check('F-1 Wi initial aquifer water in place', Wi_bbl, fx.printed_derived.Wi_bbl, 0.005, {
+    unit: 'bbl', format: (n) => (n / 1e9).toFixed(2) + 'e9',
+  });
+  const W_eff_rb = Wi_bbl * f_wedge; // engine input W: Wei = ct·W·pi ≡ ct·Wi·f·pi
+  const Wei_bbl = g.ct_psi * W_eff_rb * g.pi_psia;
+  check('F-2 Wei maximum encroachable water', Wei_bbl, fx.printed_derived.Wei_bbl, 0.005, {
+    unit: 'bbl', format: (n) => (n / 1e6).toFixed(1) + 'e6',
+  });
+  const J_bbl_d_psi = (0.00708 * g.k_md * g.h_ft * f_wedge) / (g.muw_cp * (Math.log(g.reD) - 0.75));
+  check('F-3 J radial no-flow boundary (ln reD - 3/4)', J_bbl_d_psi, fx.printed_derived.J_bbl_d_psi, 0.005, {
+    unit: 'bbl/day/psi', format: (n) => n.toFixed(1),
+  });
+  const decay = 1 - Math.exp((-J_bbl_d_psi * g.pi_psia * g.dt_days) / Wei_bbl);
+  check('F-4 decay term 1-exp(-J·pi·Δt/Wei)', decay, fx.printed_derived.decay_term_365d, 0.005, {
+    format: (n) => n.toFixed(4),
+  });
+
+  console.log('─── Assertions F-5..F-8: We marching vs the printed table ───────');
+  const kernelInputs = {
+    initial_pressure_psia: g.pi_psia,
+    water_compressibility_psi: g.ct_psi / 2,
+    formation_compressibility_psi: g.ct_psi / 2,
+    aquifer_model: 'fetkovich',
+    aquifer_params: {
+      initial_aquifer_water_in_place_rb: W_eff_rb,
+      aquifer_pi_rb_d_psi: J_bbl_d_psi,
+      aquifer_total_compressibility_psi: g.ct_psi,
+    },
+    production_data: fx.pressure_history.map((r: any, i: number) => ({
+      timestep_index: i,
+      pressure_psia: r.p_psia,
+    })),
+  } as any;
+  const deltas = fx.pressure_history.map((r: any, i: number) =>
+    i === 0 ? 0 : r.t_days - fx.pressure_history[i - 1].t_days,
+  );
+  const We = computeFetkovichWe(kernelInputs, deltas);
+  for (const row of fx.printed_table) {
+    check(
+      `F-${4 + row.n} cumulative We at t=${fx.pressure_history[row.n].t_days} days`,
+      We[row.n],
+      row.We_MMbbl * 1e6,
+      0.01,
+      { unit: 'bbl', format: (n) => (n / 1e6).toFixed(3) + 'e6' },
+    );
+  }
+
+  console.log('─── Assertions F-9..F-12: full oil path (Dake 9.2 production) ───');
+  const ANCHOR_YEAR = 1980;
+  const production_data = DAKE_CT_PERFORMANCE.map((row, idx) => ({
+    timestep_index: idx,
+    observation_date: `${ANCHOR_YEAR + row.yr}-01-01`,
+    pressure_psia: row.p,
+    cum_oil_stb: row.Np_mmstb * 1e6,
+    cum_gas_scf: row.Np_mmstb * 1e6 * row.Rp,
+    cum_water_stb: 0,
+    bo_rb_stb: row.Bo,
+    rs_scf_stb: row.Rs,
+    bg_rb_scf: row.Bg,
+    bw_rb_stb: 1.0,
+  }));
+  const inputs = {
+    fluid_system: 'oil' as const,
+    initial_pressure_psia: DAKE_CT_RESERVOIR.initial_pressure_psia,
+    bubble_point_psia: DAKE_CT_RESERVOIR.bubble_point_psia,
+    reservoir_temperature_f: DAKE_CT_RESERVOIR.reservoir_temperature_f,
+    initial_water_saturation: DAKE_CT_RESERVOIR.initial_water_saturation,
+    formation_compressibility_psi: DAKE_CT_RESERVOIR.formation_compressibility_psi,
+    water_compressibility_psi: DAKE_CT_RESERVOIR.water_compressibility_psi,
+    oil_gravity_api: DAKE_CT_RESERVOIR.oil_gravity_api,
+    gas_specific_gravity: DAKE_CT_RESERVOIR.gas_specific_gravity,
+    gas_cap_ratio_m: 0,
+    aquifer_model: 'fetkovich' as const,
+    aquifer_params: {
+      initial_aquifer_water_in_place_rb: W_eff_rb,
+      aquifer_pi_rb_d_psi: J_bbl_d_psi,
+      aquifer_total_compressibility_psi: g.ct_psi,
+    },
+    solver_method: 'havlena_odeh' as const,
+    pvt_source: 'lab_table' as const,
+    pvt_correlations: {
+      pb_rs_bo: 'standing' as const,
+      oil_viscosity: 'beggs_robinson' as const,
+      z_factor: 'hall_yarborough' as const,
+      water: 'mccain' as const,
+      gas_viscosity: 'lee_gonzalez_eakin' as const,
+    },
+    excluded_timesteps: [] as number[],
+    production_data,
+  };
+  const result = computeMaterialBalance(inputs as any);
+  const ooip_mmstb = (result.estimated_ooip_stb ?? 0) / 1e6;
+  check('F-9 OOIP, oil + Fetkovich (Dake truth 312)', ooip_mmstb, 312, 0.10, {
+    unit: 'MM STB', format: (n) => n.toFixed(1),
+  });
+  checkRange('F-10 drive index sum', result.final_drive_index_sum ?? 0, 0.95, 1.05);
+  checkRange('F-11 WDI substantial (strong water drive)', result.final_wdi ?? 0, 0.30, 1.0);
+  checkRange('F-12 regression R²', result.r_squared ?? 0, 0.85, 1.0);
+  console.log(`  info: final cumulative We = ${(((result.per_timestep ?? []).at(-1)?.We_rb ?? 0) / 1e6).toFixed(1)} MM rb (Dake HvE reD=5: 89.2 MM rb; Fetkovich is the coarser finite-aquifer model)`);
+  console.log(`  info: validation tier reported = ${result.validation_tier}`);
+  console.log('');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CASE 9 — Oil + gas cap + water influx (Ahmed REH 4th ed. Example 11-1)
+// ────────────────────────────────────────────────────────────────────────────
+// Reference: Ahmed, Reservoir Engineering Handbook, 4th ed. (2010), Ch. 11,
+// Example 11-1, pp. 764-766: combination-drive reservoir, N = 10 MMSTB given,
+// m = 0.25, one pressure step 3000 → 2800 psia, printed We = 411,281 bbl and
+// printed driving indexes DDI/SDI/WDI/EDI = 0.4385/0.3465/0.2112/0.0038.
+//
+// What this closes (STATUS "Next priorities" item 2): the last
+// `published_method` oil path (pot aquifer + gas cap, m > 0). The truth is a
+// single step with N given, so it anchors the combined-MBE TERM math (F, Eo,
+// m·Eg, (1+m)·Efw, back-calculated We, drive indexes) via the exported
+// computeOilPerTimestep. The m > 0 pot REGRESSION (generalized in MB1 from
+// the m = 0 Pletcher form) is gated by the exact synthetic round trip 9-B,
+// documented as such (no multi-step published pot+gas-cap example found in
+// the accessible references; the tier reference states this scope).
+//
+// Convention note (fixture notes have the details): the book's index
+// denominator A = F - Wp·Bw; the engine divides by F at runtime. The printed
+// indices are asserted here in the book's convention, recomputed from engine
+// terms. Book labels map: book SDI (gas cap) = engine gdi; book EDI
+// (rock+water expansion) = engine sdi.
+async function runCombinationDriveCase(): Promise<void> {
+  const fx = requireArmedFixture('CASE 9', 'ahmed-ex-11-1-combination.json');
+  if (!fx) return;
+  const g = fx.given;
+
+  console.log('─── Assertions X-1..X-7: combined-MBE terms vs printed values ───');
+  const termInputs = {
+    fluid_system: 'oil',
+    initial_pressure_psia: g.pi_psia,
+    bubble_point_psia: g.pi_psia,
+    reservoir_temperature_f: g.temp_f,
+    initial_water_saturation: g.Swi,
+    formation_compressibility_psi: g.cf_psi,
+    water_compressibility_psi: g.cw_psi,
+    oil_gravity_api: 35,
+    gas_specific_gravity: g.gas_sg,
+    gas_cap_ratio_m: g.m,
+    aquifer_model: 'pot',
+    production_data: [
+      {
+        timestep_index: 0, pressure_psia: g.pi_psia, cum_oil_stb: 0, cum_gas_scf: 0,
+        cum_water_stb: 0, bo_rb_stb: g.pvt.at_3000.Bo, rs_scf_stb: g.pvt.at_3000.Rs,
+        bg_rb_scf: g.pvt.at_3000.Bg_rb_scf, bw_rb_stb: g.pvt.at_3000.Bw,
+      },
+      {
+        timestep_index: 1, pressure_psia: g.p2_psia, cum_oil_stb: g.Np_stb, cum_gas_scf: g.Gp_scf,
+        cum_water_stb: g.Wp_stb, bo_rb_stb: g.pvt.at_2800.Bo, rs_scf_stb: g.pvt.at_2800.Rs,
+        bg_rb_scf: g.pvt.at_2800.Bg_rb_scf, bw_rb_stb: g.pvt.at_2800.Bw,
+      },
+    ],
+  } as any;
+  const { per_timestep } = computeOilPerTimestep(termInputs);
+  const r = per_timestep[1];
+  const N = g.N_stb;
+  const WpBw = g.Wp_stb * g.pvt.at_2800.Bw;
+  const A_rb = r.F_rb - WpBw; // book's withdrawal denominator
+  check('X-1 F - Wp·Bw (book A)', A_rb, fx.printed.A_rb, 0.003, {
+    unit: 'rb', format: (n) => (n / 1e6).toFixed(4) + 'e6',
+  });
+  const We_backcalc = r.F_rb - N * r.Et_rb;
+  check('X-2 back-calculated We (full Eq. 11-17)', We_backcalc, fx.printed.We_bbl, 0.015, {
+    unit: 'bbl', format: (n) => n.toFixed(0),
+  });
+  const N_Efw = N * r.Efw_rb;
+  check(
+    'X-3 N·(1+m)·Efw isolated (We_no_efw - We)',
+    N_Efw,
+    fx.printed.We_neglecting_efw_bbl - fx.printed.We_bbl,
+    0.02,
+    { unit: 'bbl', format: (n) => n.toFixed(0) },
+  );
+  const DDI = (N * (r.Eo_rb_stb ?? 0)) / A_rb;
+  const SDI_gascap = (N * g.m * (r.Eg_rb_stb ?? 0)) / A_rb;
+  const WDI = (We_backcalc - WpBw) / A_rb;
+  const EDI = N_Efw / A_rb;
+  check('X-4 DDI depletion index', DDI, fx.printed.DDI, 0.01, { format: (n) => n.toFixed(4) });
+  check('X-5 SDI gas-cap index', SDI_gascap, fx.printed.SDI_gascap, 0.01, { format: (n) => n.toFixed(4) });
+  check('X-6 WDI water-drive index', WDI, fx.printed.WDI, 0.02, { format: (n) => n.toFixed(4) });
+  check('X-7 EDI expansion index', EDI, fx.printed.EDI, 0.10, { format: (n) => n.toFixed(4) });
+  // Exact identity of the book convention: indices sum to 1 by construction.
+  check('X-8 index sum identity (book convention)', DDI + SDI_gascap + WDI + EDI, 1.0, 1e-9, {
+    format: (n) => n.toFixed(10),
+  });
+
+  console.log('─── Assertions X-9..X-11: m>0 pot regression exact round trip ───');
+  // Synthetic multi-step truth generated with the engine's own term math on a
+  // smooth PVT trend anchored to the Example 11-1 table. Data are exactly
+  // linear in the generalized pot-plot coordinates, so the regression must
+  // recover N and W to numerical precision. This is the identity gate for the
+  // MB1 generalization of the oil pot branch (Em = Eo + m·Eg denominator,
+  // (1+m) in the W back-out).
+  const N_truth = 1.0e7;
+  const m_truth = 0.25;
+  const W_truth_rb = 5.0e8;
+  const cwcf = g.cw_psi + g.cf_psi;
+  const pressures = [3000, 2950, 2900, 2850, 2800, 2750, 2700, 2650, 2600];
+  const pvtAt = (p: number) => {
+    // Linear in p between (3000, 2800) book rows, extrapolated below 2800.
+    const t = (3000 - p) / 200;
+    return {
+      Bo: g.pvt.at_3000.Bo + t * (g.pvt.at_2800.Bo - g.pvt.at_3000.Bo),
+      Rs: g.pvt.at_3000.Rs + t * (g.pvt.at_2800.Rs - g.pvt.at_3000.Rs),
+      Bg: g.pvt.at_3000.Bg_rb_scf + t * (g.pvt.at_2800.Bg_rb_scf - g.pvt.at_3000.Bg_rb_scf),
+    };
+  };
+  // Pass 1: terms at zero production (F is production-dependent; the
+  // expansions are PVT-only, which is all we need to synthesize F).
+  const skeleton = {
+    ...termInputs,
+    production_data: pressures.map((p, i) => {
+      const pvt = pvtAt(p);
+      return {
+        timestep_index: i, pressure_psia: p, cum_oil_stb: 0, cum_gas_scf: 0, cum_water_stb: 0,
+        bo_rb_stb: pvt.Bo, rs_scf_stb: pvt.Rs, bg_rb_scf: pvt.Bg, bw_rb_stb: 1.0,
+      };
+    }),
+  } as any;
+  const { per_timestep: termRows, meta: termMeta } = computeOilPerTimestep(skeleton);
+  const Rsi_truth = g.pvt.at_3000.Rs;
+  const synthetic_rows = pressures.map((p, i) => {
+    if (i === 0) return skeleton.production_data[0];
+    const tr = termRows[i];
+    const F_target = N_truth * tr.Et_rb + cwcf * W_truth_rb * tr.delta_p_psi;
+    // Choose Rp = Rsi (no free-gas production), Wp = 0:
+    //   F = Np·(Bt + (Rp - Rsi)·Bg) = Np·Bt, with Bt = Bo + Bg·(Rsi - Rs)
+    const pvt = pvtAt(p);
+    const Bt = pvt.Bo + pvt.Bg * (Rsi_truth - pvt.Rs);
+    const Np = F_target / Bt;
+    return {
+      ...skeleton.production_data[i],
+      cum_oil_stb: Np,
+      cum_gas_scf: Np * Rsi_truth,
+    };
+  });
+  const synthetic = { ...skeleton, gas_cap_ratio_m: m_truth, production_data: synthetic_rows };
+  const synResult = computeMaterialBalance(synthetic as any);
+  check('X-9 synthetic N recovery (m>0 pot regression)', synResult.estimated_ooip_stb ?? 0, N_truth, 1e-6, {
+    unit: 'STB', format: (n) => n.toFixed(0),
+  });
+  check('X-10 synthetic aquifer W recovery', synResult.aquifer_owip_rb ?? 0, W_truth_rb, 1e-5, {
+    unit: 'rb', format: (n) => n.toFixed(0),
+  });
+  checkRange('X-11 synthetic regression R²', synResult.r_squared ?? 0, 0.999999, 1.000001);
+  // The unvalidated-path warning for pot + gas cap must be GONE after MB1.
+  const stillWarns = (synResult.warnings ?? []).some((w: string) => w.includes('not yet validated'));
+  checkRange('X-12 pot+gas-cap unvalidated warning removed', stillWarns ? 1 : 0, 0, 0);
+  console.log(`  info: validation tier reported = ${synResult.validation_tier}`);
+  console.log('');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CASE 10 — McCain default chain for Carter-Tracy (MB1)
+// ────────────────────────────────────────────────────────────────────────────
+// STATUS "Next priorities" item 3: r_R = sqrt(A/(π·f)) from reservoir area and
+// μ_w from McCain (1991) as engine DEFAULTS when the explicit parameters are
+// absent, each reported as a warning note. Checks:
+//   M-1: area-derived r_R reproduces the explicit-radius We history exactly
+//        (Dake 9.2 geometry: 9200 ft ⇔ 2374.4 acres at θ=140°).
+//   M-2: a default-usage note names the derived radius.
+//   M-3: McCain μ_w default at 200 °F / fresh water lands in the physical
+//        band 0.25-0.40 cp (parsed from the note) and differs from the old
+//        flat 0.5 cp placeholder.
+async function runMcCainDefaultCase(): Promise<void> {
+  console.log('─── Assertions M-1..M-3: Carter-Tracy default chain ─────────────');
+  const baseParams = {
+    radius_ratio: DAKE_CT_RESERVOIR.aquifer_dim_radius_ratio,
+    aquifer_thickness_ft: DAKE_CT_RESERVOIR.aquifer_thickness_ft,
+    aquifer_permeability_md: DAKE_CT_RESERVOIR.aquifer_permeability_md,
+    aquifer_porosity: DAKE_CT_RESERVOIR.aquifer_porosity,
+    aquifer_water_viscosity_cp: DAKE_CT_RESERVOIR.aquifer_water_viscosity_cp,
+    theta_degrees: DAKE_CT_RESERVOIR.aquifer_encroachment_angle_deg,
+    aquifer_total_compressibility_psi: DAKE_CT_RESERVOIR.aquifer_total_compressibility_psi,
+  };
+  const mkInputs = (params: any) => ({
+    initial_pressure_psia: DAKE_CT_RESERVOIR.initial_pressure_psia,
+    reservoir_temperature_f: DAKE_CT_RESERVOIR.reservoir_temperature_f,
+    water_compressibility_psi: DAKE_CT_RESERVOIR.water_compressibility_psi,
+    formation_compressibility_psi: DAKE_CT_RESERVOIR.formation_compressibility_psi,
+    aquifer_model: 'carter_tracy',
+    aquifer_params: params,
+    production_data: DAKE_CT_PERFORMANCE.map((row, idx) => ({
+      timestep_index: idx,
+      pressure_psia: row.p,
+    })),
+  }) as any;
+  const deltas = DAKE_CT_PERFORMANCE.map((_, i) => (i === 0 ? 0 : 365));
+
+  const WeExplicit = computeCarterTracyWe(
+    mkInputs({ ...baseParams, aquifer_radius_ft: DAKE_CT_RESERVOIR.aquifer_radius_ft }),
+    deltas,
+  );
+  const theta = DAKE_CT_RESERVOIR.aquifer_encroachment_angle_deg;
+  const areaAcres =
+    (Math.PI * DAKE_CT_RESERVOIR.aquifer_radius_ft ** 2 * (theta / 360)) / 43_560;
+  const areaNotes: string[] = [];
+  const WeArea = computeCarterTracyWe(
+    mkInputs({ ...baseParams, reservoir_area_acres: areaAcres }),
+    deltas,
+    areaNotes,
+  );
+  check('M-1 area-derived r_R We(final) ≡ explicit-radius We(final)',
+    WeArea.at(-1) ?? 0, WeExplicit.at(-1) ?? 0, 1e-9, {
+      unit: 'rb', format: (n) => n.toFixed(0),
+    });
+  const radiusNote = areaNotes.find((n) => n.includes('derived from the reservoir area'));
+  checkRange('M-2 default-usage note emitted for derived r_R', radiusNote ? 1 : 0, 1, 1);
+
+  const muNotes: string[] = [];
+  const { aquifer_water_viscosity_cp: _omit, ...noMuParams } = baseParams as any;
+  computeCarterTracyWe(
+    mkInputs({ ...noMuParams, aquifer_radius_ft: DAKE_CT_RESERVOIR.aquifer_radius_ft }),
+    deltas,
+    muNotes,
+  );
+  const muNote = muNotes.find((n) => n.includes('McCain'));
+  const muMatch = muNote?.match(/defaulted to ([0-9.]+) cp/);
+  const muDefault = muMatch ? parseFloat(muMatch[1]) : NaN;
+  checkRange('M-3 McCain μ_w default at 200 °F fresh water (cp)', muDefault, 0.25, 0.40);
   console.log('');
 }

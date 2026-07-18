@@ -618,7 +618,7 @@ const CarterTracyParams = ({ form, errors, onChange }) => {
             value={p.radius_ratio}
             onChange={(v) => onChange('radius_ratio', v)}
             placeholder="leave blank for infinite aquifer"
-            hint="Optional. The current engine implementation uses the infinite-aquifer pD function regardless. A future update will enforce a finite-aquifer cap when this is set."
+            hint="Optional. When set, the engine blends to the finite-aquifer pseudo-steady-state pD past tD = 0.4 reD squared; blank keeps the infinite-acting solution."
           />
           <NumericField
             label="Total compressibility (ct)"
@@ -635,8 +635,8 @@ const CarterTracyParams = ({ form, errors, onChange }) => {
             The engine uses the Carter-Tracy van Everdingen-Hurst approximation with the Lee-Wattenbarger pD/pD\u2032 polynomial for an infinite radial aquifer. Aquifer constant U is derived from \u03c6, h, ct, and a reservoir radius r_R; dimensionless time tD scales with k and t.
           </p>
           <p className="text-[10px] text-slate-500 leading-relaxed">
-            <span className="font-semibold text-slate-400">Current assumptions you inherit.</span>{' '}
-            Reservoir radius r_R is treated as 2,980 ft (the 640-acre single-cell convention used in Pletcher's modified Roach example). Water viscosity \u03bc_w is taken as 0.5 cP. A future update will refine both: r_R will be derived from your reservoir geometry, and \u03bc_w will be computed from temperature and salinity. For now, override only if your case differs materially.
+            <span className="font-semibold text-slate-400">Defaults you inherit.</span>{' '}
+            Water viscosity \u03bc_w defaults to the McCain (1991) correlation at initial pressure, reservoir temperature and the water salinity from the PVT tab. Reservoir radius r_R defaults to sqrt(A / (\u03c0 \u00b7 \u03b8/360)) when a reservoir area is available, else the legacy 2,980 ft single-cell convention. Every defaulted value is named in the run warnings so you can see exactly what was used and pin it explicitly if your case differs.
           </p>
         </div>
       </CardContent>

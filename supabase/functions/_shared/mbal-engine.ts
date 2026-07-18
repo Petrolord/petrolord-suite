@@ -77,6 +77,7 @@ export interface ProductionDataPoint {
   bo_rb_stb?: number;
   rs_scf_stb?: number;
   bg_rb_mscf?: number;
+  bg_rb_scf?: number;   // MB1: RB/scf alternative, honored since 2026-07-18
   bw_rb_stb?: number;
   z_factor?: number;
   // Optional observed water influx (for validation against simulator data; null in real cases)
@@ -115,6 +116,11 @@ export interface MBALInputs {
     aquifer_porosity?: number;                    // Carter-Tracy (Phase 3+)
     aquifer_permeability_md?: number;             // Carter-Tracy (Phase 3+)
     theta_degrees?: number;                       // Angle of aquifer (Phase 3+)
+    aquifer_radius_ft?: number;                   // r_R at the OWC (Phase 5)
+    aquifer_water_viscosity_cp?: number;          // mu_w override (Phase 5)
+    // MB1 (2026-07-18): optional inputs the McCain-default chain derives from.
+    reservoir_area_acres?: number;                // A; default r_R = sqrt(A/(pi*f))
+    water_salinity_ppm?: number;                  // TDS for McCain mu_w default
   };
 
   // Gas cap (if has_gas_cap)
@@ -638,6 +644,31 @@ function mccainBw(p: number, temp_f: number): number {
 }
 
 /**
+ * McCain (1991) water viscosity correlation.
+ *
+ * mu_w1 = A * T^B at atmospheric pressure, with A and B polynomial in
+ * salinity S (weight percent solids), then a pressure correction:
+ *   mu_w = mu_w1 * (0.9994 + 4.0295e-5 p + 3.1062e-9 p^2)
+ *
+ * Validity (McCain, The Properties of Petroleum Fluids, 2nd ed.):
+ * 100-400 F, S up to ~26 wt%, p up to ~10,000 psia.
+ *
+ * Inputs: p (psia), temp_f (F), salinity_ppm (TDS; 0 for fresh water).
+ * Returns: mu_w (cp).
+ *
+ * MB1 (2026-07-18): used as the Carter-Tracy mu_w default when
+ * aquifer_params.aquifer_water_viscosity_cp is not supplied.
+ */
+function mccainMuW(p: number, temp_f: number, salinity_ppm = 0): number {
+  const S = salinity_ppm / 10_000; // ppm -> weight percent
+  const A = 109.574 - 8.40564 * S + 0.313314 * S * S + 8.72213e-3 * S * S * S;
+  const B = -1.12166 + 2.63951e-2 * S - 6.79461e-4 * S * S
+    - 5.47119e-5 * S * S * S + 1.55586e-6 * S * S * S * S;
+  const muw1 = A * Math.pow(temp_f, B);
+  return muw1 * (0.9994 + 4.0295e-5 * p + 3.1062e-9 * p * p);
+}
+
+/**
  * Validity-range warning helper.
  *
  * For each PVT correlation selected by the user, check the reservoir
@@ -1153,7 +1184,11 @@ function extractTimedeltasDays(production_data: ProductionDataPoint[]): number[]
  * Returns an array of length production_data.length with We[i] in res bbl.
  * We[0] is always 0 (initial conditions).
  */
-function computeFetkovichWe(
+// Exported for the validation harness (tools/validation/mbal-validation.ts
+// CASE 8 checks the marching scheme directly against the printed We table of
+// Ahmed REH 4th ed. Example 10-10) and for the MB2 client cross-validation
+// golden generator. Not part of the edge-function request surface.
+export function computeFetkovichWe(
   inputs: MBALInputs,
   deltas_days: number[],
 ): number[] {
@@ -1228,9 +1263,15 @@ function computeFetkovichWe(
  * Returns an array of length production_data.length with We[i] in res bbl.
  * We[0] is always 0 (initial conditions).
  */
-function computeCarterTracyWe(
+// Exported for the validation harness and the MB2 Dake 9.2 client
+// cross-validation golden generator (the client engine's finite-reD
+// Carter-Tracy must match this We history within a committed tolerance).
+// The optional `notes` array collects default-usage messages (McCain mu_w,
+// area-derived r_R) that callers append to result warnings.
+export function computeCarterTracyWe(
   inputs: MBALInputs,
   deltas_days: number[],
+  notes?: string[],
 ): number[] {
   const params = inputs.aquifer_params ?? {};
   const k_aq = params.aquifer_permeability_md;
@@ -1280,12 +1321,32 @@ function computeCarterTracyWe(
   // require the user to set radius_ratio + permeability + thickness + porosity
   // and we compute r_R from the assumed cell area.
 
-  // Reservoir radius. Defaults to 2980 ft (640 acres single-cell, Pletcher
-  // convention) for backward compatibility with cases authored before the
-  // aquifer_radius_ft input was added. Validated 2026-05-17 against Dake
-  // Exercise 9.2 (Phase 5 chunk 3): user-supplied r_R = 9200 ft reproduces
-  // Dake's aquifer constant U = 6446 rb/psi exactly.
-  const r_R_ft = params.aquifer_radius_ft ?? 2980;  // ft
+  // Reservoir radius precedence (MB1, 2026-07-18):
+  //   1. aquifer_params.aquifer_radius_ft (explicit; Dake 9.2 uses 9200 ft and
+  //      reproduces Dake's aquifer constant U = 6446 rb/psi exactly).
+  //   2. Derived from aquifer_params.reservoir_area_acres via the wedge
+  //      identity A = pi * r_R^2 * (theta/360):
+  //        r_R = sqrt(A * 43560 / (pi * theta/360))
+  //      For a full circle this reduces to the McCain default r_R = sqrt(A/pi)
+  //      named in ReservoirBalance-STATUS "Next priorities".
+  //   3. Legacy fallback 2980 ft (640 acres single-cell, Pletcher convention)
+  //      for backward compatibility with cases authored before the
+  //      aquifer_radius_ft input was added.
+  let r_R_ft: number;
+  if (params.aquifer_radius_ft != null && params.aquifer_radius_ft > 0) {
+    r_R_ft = params.aquifer_radius_ft;
+  } else if (params.reservoir_area_acres != null && params.reservoir_area_acres > 0) {
+    const f_wedge = theta / 360;
+    r_R_ft = Math.sqrt((params.reservoir_area_acres * 43_560) / (Math.PI * f_wedge));
+    notes?.push(
+      `Carter-Tracy reservoir radius defaulted to r_R = ${r_R_ft.toFixed(0)} ft, derived from the reservoir area (${params.reservoir_area_acres.toFixed(0)} acres, encroachment ${theta.toFixed(0)} deg). Set aquifer_radius_ft to override.`,
+    );
+  } else {
+    r_R_ft = 2980;
+    notes?.push(
+      'Carter-Tracy reservoir radius defaulted to the legacy 2980 ft (640-acre cell). Provide aquifer_radius_ft or reservoir_area_acres for a case-specific radius.',
+    );
+  }
 
   // Aquifer constant U (rb/psi)
   // Conversion factor 1.119 comes from converting 1 bbl/(psi·ft) to consistent units
@@ -1293,10 +1354,25 @@ function computeCarterTracyWe(
 
   // Dimensionless time conversion factor — Lee field units
   // tD = (6.328e-3 · k · t_days) / (φ · μ · ct · r_R²)
-  // Water viscosity defaults to 0.5 cP (typical mid-range value for fresh-
-  // to-moderately-saline water at typical reservoir temperatures). Users
-  // can override via aquifer_params.aquifer_water_viscosity_cp.
-  const mu_w_cp = params.aquifer_water_viscosity_cp ?? 0.5;
+  // Water viscosity precedence (MB1, 2026-07-18): explicit
+  // aquifer_params.aquifer_water_viscosity_cp, else the McCain (1991)
+  // correlation at initial pressure and reservoir temperature with
+  // aquifer_params.water_salinity_ppm (0 = fresh water). This replaces the
+  // old flat 0.5 cP default; the McCain value is reported as a note so the
+  // user can see (and pin) what was used.
+  let mu_w_cp: number;
+  if (params.aquifer_water_viscosity_cp != null && params.aquifer_water_viscosity_cp > 0) {
+    mu_w_cp = params.aquifer_water_viscosity_cp;
+  } else {
+    // Salinity precedence: aquifer-specific value, else the case's PVT
+    // salinity (PvtRock water_salinity_ppm flows in at the top level), else
+    // fresh water.
+    const salinity_ppm = params.water_salinity_ppm ?? inputs.water_salinity_ppm ?? 0;
+    mu_w_cp = mccainMuW(pi_psia, inputs.reservoir_temperature_f, salinity_ppm);
+    notes?.push(
+      `Carter-Tracy water viscosity defaulted to ${mu_w_cp.toFixed(3)} cp via McCain (1991) at ${inputs.reservoir_temperature_f.toFixed(0)} F, salinity ${salinity_ppm.toFixed(0)} ppm. Set aquifer_water_viscosity_cp to override.`,
+    );
+  }
   const tD_factor = (6.328e-3 * k_aq) / (phi_aq * mu_w_cp * ct * r_R_ft * r_R_ft);
 
   // Build cumulative time (days from start)
@@ -1463,14 +1539,16 @@ function resolveValidationTier(
   }
   if (aquifer_model === 'pot' && has_gas_cap) {
     return {
-      tier: 'published_method',
-      reference: 'Generalized pot aquifer formulation for oil systems with gas-cap contribution (Havlena-Odeh 1963). Documented assumptions and internal checks.',
+      tier: 'benchmark_verified',
+      reference: 'Validated 2026-07-18 (MB1) against Ahmed, Reservoir Engineering Handbook 4th ed., Chapter 11, Example 11-1: combination-drive reservoir (gas cap m=0.25 plus water influx, N=10 MMSTB given). Engine per-timestep terms reproduce the printed back-calculated We = 411,281 bbl and the printed driving indexes DDI/SDI/WDI/EDI = 0.4385/0.3465/0.2112/0.0038 (book index convention, denominator F - Wp*Bw). Scope note: the published truth is a single pressure step with N given, so it anchors the combined-MBE term math and drive indexes; the m>0 pot-plot regression (F/(Eo+m*Eg) vs dp/(Eo+m*Eg), generalized in MB1) is additionally gated by an exact synthetic multi-step round trip recovering N and W to numerical precision (harness CASE 9).',
+      tolerance_pct: 1.5,
     };
   }
   if (aquifer_model === 'fetkovich') {
     return {
-      tier: 'published_method',
-      reference: 'Standard Fetkovich aquifer formulation (Fetkovich SPE 2603, 1971) applied to oil material balance. Calculation traceability and internal checks.',
+      tier: 'benchmark_verified',
+      reference: 'Validated 2026-07-18 (MB1) against Ahmed, Reservoir Engineering Handbook 4th ed., Chapter 10, Example 10-10 (data credited to Dake 1978; the Dake Exercise 9.2 wedge aquifer worked with Fetkovich): the marching scheme reproduces the printed step-by-step We table (final We 37.971 MM bbl at 4 years) within 1%, confirming the published midpoint p_r-bar convention, Wei = ct*Wi*pi*f = 211.9 MM bbl and J = 116.5 bbl/day/psi (no-flow-boundary form ln(reD) - 3/4). Full oil path additionally benchmarked on Dake Exercise 9.2 production data with this aquifer: OOIP within 10% of Dake N = 312 MMSTB (Fetkovich vs Hurst-van Everdingen method spread, same reasoning as the Carter-Tracy case). Harness CASE 8.',
+      tolerance_pct: 10,
     };
   }
   if (aquifer_model === 'carter_tracy') {
@@ -1730,6 +1808,7 @@ function computeGasMBE(inputs: MBALInputs): MBALResult {
   const aquiferModel: AquiferModel = inputs.aquifer_model ?? 'none';
   const excluded = new Set(inputs.excluded_timesteps ?? []);
 
+  const aquifer_default_notes: string[] = [];
   let G_scf: number;
   let W_rb: number = 0;
   let reg: { slope: number; intercept: number; r_squared: number; n: number };
@@ -1768,7 +1847,7 @@ function computeGasMBE(inputs: MBALInputs): MBALResult {
     const deltas = extractTimedeltasDays(inputs.production_data);
     const We_array = aquiferModel === 'fetkovich'
       ? computeFetkovichWe(inputs, deltas)
-      : computeCarterTracyWe(inputs, deltas);
+      : computeCarterTracyWe(inputs, deltas, aquifer_default_notes);
     // Assign We per timestep
     for (let i = 0; i < per_timestep.length; i++) {
       per_timestep[i].We_rb = We_array[i];
@@ -1856,6 +1935,7 @@ function computeGasMBE(inputs: MBALInputs): MBALResult {
   // Warnings
   // ==========================================================================
   const warnings: string[] = [];
+  warnings.push(...aquifer_default_notes);
   if (last.drive_index_sum != null && Math.abs(last.drive_index_sum - 1.0) > 0.05) {
     warnings.push(
       `Drive index sum at final timestep is ${last.drive_index_sum.toFixed(3)} ` +
@@ -1939,7 +2019,25 @@ function computeGasMBE(inputs: MBALInputs): MBALResult {
  *   - No aquifer: F vs Et is a straight line through origin, slope = N (OOIP)
  *   - With aquifer: F/Et vs We/Et linear with intercept N and slope=1
  */
-function computeOilMBE(inputs: MBALInputs): MBALResult {
+/**
+ * Per-timestep oil MBE terms (F, Eo, Eg, Efw, Et) plus the initial-PVT meta
+ * the solver needs. Split out of computeOilMBE in MB1 (2026-07-18) and
+ * exported so the validation harness can anchor the term math against a
+ * single-step published truth (Ahmed REH 4th ed. Example 11-1 combined-drive
+ * reservoir) that has too few rows for the regression solver. Pure function;
+ * behavior is identical to the pre-split loop.
+ */
+export function computeOilPerTimestep(inputs: MBALInputs): {
+  per_timestep: PerTimestepResult[];
+  meta: {
+    pi: number; T_f: number; Swi: number; cf: number; cw: number; m: number;
+    api: number; gas_sg: number; Pb: number; Rsi: number; Boi: number;
+    Bti: number; Bwi: number; Bgi_rb_scf: number;
+    pbRsBoCorr: 'standing' | 'vasquez_beggs' | 'glaso';
+    zCorr: 'hall_yarborough' | 'dranchuk_abou_kassem';
+    waterCorr: 'mccain';
+  };
+} {
   const pi = inputs.initial_pressure_psia;
   const T_f = inputs.reservoir_temperature_f;
   const Swi = inputs.initial_water_saturation;
@@ -2010,6 +2108,9 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
     if (t0.bg_rb_mscf != null) {
       // Honor lab Bgi if supplied
       Bgi_rb_scf = t0.bg_rb_mscf / SCF_PER_MSCF;
+    } else if (t0.bg_rb_scf != null) {
+      // MB1: RB/scf form honored too (see per-row Bg precedence note below)
+      Bgi_rb_scf = t0.bg_rb_scf;
     } else {
       const zi = t0.z_factor ?? zForGasCap(pi);
       Bgi_rb_scf = bgRbPerScf(pi, T_f, zi);
@@ -2044,9 +2145,15 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
     let Bg_rb_scf = 0;
     let z = 1.0;
     if (m > 0 || p < Pb) {
-      // Bg precedence: per-row → lab-table → z-derived.
+      // Bg precedence: per-row (RB/Mscf, then RB/scf) → lab-table → z-derived.
+      // MB1 (2026-07-18): honor bg_rb_scf on input points too. It was silently
+      // ignored before (only the result type used it), so per-row Bg supplied
+      // in RB/scf fell through to the correlation.
       if (point.bg_rb_mscf != null) {
         Bg_rb_scf = point.bg_rb_mscf / SCF_PER_MSCF;
+        z = point.z_factor ?? 1.0;
+      } else if (point.bg_rb_scf != null) {
+        Bg_rb_scf = point.bg_rb_scf;
         z = point.z_factor ?? 1.0;
       } else {
         const labBg_mscf = interpolateLabTable(inputs.pvt_lab_table, p, 'bg_rb_mscf');
@@ -2108,6 +2215,22 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
     });
   }
 
+  return {
+    per_timestep,
+    meta: {
+      pi, T_f, Swi, cf, cw, m, api, gas_sg, Pb, Rsi, Boi, Bti, Bwi,
+      Bgi_rb_scf, pbRsBoCorr, zCorr, waterCorr,
+    },
+  };
+}
+
+function computeOilMBE(inputs: MBALInputs): MBALResult {
+  const { per_timestep, meta } = computeOilPerTimestep(inputs);
+  const {
+    pi, T_f, Swi, cf, cw, m, api, gas_sg, Pb, Rsi, Bti,
+    pbRsBoCorr, zCorr, waterCorr,
+  } = meta;
+
   // ==========================================================================
   // Solve for OOIP: regression depends on aquifer_model.
   //
@@ -2123,22 +2246,25 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
   const aquiferModel = inputs.aquifer_model ?? 'none';
 
   const excluded = new Set(inputs.excluded_timesteps ?? []);
+  const aquifer_default_notes: string[] = [];
   let N_stb: number;
   let W_rb: number | null = null;
   let reg: { slope: number; intercept: number; r_squared: number; n: number };
 
   if (aquiferModel === 'pot') {
-    // ─── Pot aquifer plot (Pletcher Eq. 13 oil version) ───
-    // Derivation: F = N·Eo + N·m·Eg + N·(1+m)·Efw + (cw+cf)·W·(pi-p)
-    // For undersaturated/saturated oil with no gas cap (m=0):
-    //   F = N·Eo + N·Efw + (cw+cf)·W·(pi-p)
-    //   F/Eo = N + N·Efw/Eo + (cw+cf)·W·(pi-p)/Eo
-    // Because Efw = Bti·(Swi·cw+cf)/(1-Swi)·(pi-p), the Efw/Eo term is also
-    // linear in (pi-p)/Eo (with coefficient Bti·(Swi·cw+cf)/(1-Swi)). So:
-    //   F/Eo = N + [N·Bti·(Swi·cw+cf)/(1-Swi) + (cw+cf)·W]·(pi-p)/Eo
-    // Plot F/Eo vs (pi-p)/Eo → intercept = N, slope = bracketed term.
-    // Solve for W (Pletcher Eq. 14 oil-form):
-    //   W = [slope - N·Bti·(Swi·cw+cf)/(1-Swi)] / (cw+cf)
+    // ─── Pot aquifer plot (Pletcher Eq. 13 oil version, generalized m ≥ 0) ───
+    // Derivation: F = N·Eo + N·m·Eg + N·(1+m)·Efw' + (cw+cf)·W·(pi-p)
+    // Group the pressure-proportional terms. With Em = Eo + m·Eg (the fluid
+    // expansion excluding rock/water) and Efw = Bti·(1+m)·(Swi·cw+cf)/(1-Swi)·(pi-p):
+    //   F/Em = N + [N·Bti·(1+m)·(Swi·cw+cf)/(1-Swi) + (cw+cf)·W]·(pi-p)/Em
+    // Plot F/Em vs (pi-p)/Em → intercept = N, slope = bracketed term.
+    // Solve for W (Pletcher Eq. 14 oil-form, generalized):
+    //   W = [slope - N·Bti·(1+m)·(Swi·cw+cf)/(1-Swi)] / (cw+cf)
+    //
+    // For m = 0 this is EXACTLY the pre-MB1 formulation (Em = Eo, factor 1),
+    // so the Pletcher Tables 10-13 benchmark (CASE 2) is unchanged. The m > 0
+    // generalization is validated by CASE 9 (Ahmed REH 4th ed. Example 11-1
+    // combined-drive terms) plus the synthetic round-trip identity.
     //
     // The Et-based regression we used earlier doesn't match Pletcher because
     // Et already absorbs Efw into the denominator, distorting the line.
@@ -2147,10 +2273,10 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
     for (const r of per_timestep) {
       if (r.timestep_index === 0) continue;
       if (excluded.has(r.timestep_index)) continue;
-      const Eo_val = r.Eo_rb_stb ?? 0;
-      if (Eo_val <= 0) continue;
-      regression_x.push(r.delta_p_psi / Eo_val);
-      regression_y.push(r.F_rb / Eo_val);
+      const Em_val = (r.Eo_rb_stb ?? 0) + m * (r.Eg_rb_stb ?? 0);
+      if (Em_val <= 0) continue;
+      regression_x.push(r.delta_p_psi / Em_val);
+      regression_y.push(r.F_rb / Em_val);
     }
     if (regression_x.length < 2) {
       throw new Error(
@@ -2159,9 +2285,9 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
     }
     reg = linearRegression(regression_x, regression_y);
     N_stb = reg.intercept;
-    // slope = N·Bti·(Swi·cw+cf)/(1-Swi) + (cw+cf)·W
-    // → W = [slope - N·Bti·(Swi·cw+cf)/(1-Swi)] / (cw+cf)
-    const expansion_term = N_stb * Bti * (Swi * cw + cf) / (1 - Swi);
+    // slope = N·Bti·(1+m)·(Swi·cw+cf)/(1-Swi) + (cw+cf)·W
+    // → W = [slope - N·Bti·(1+m)·(Swi·cw+cf)/(1-Swi)] / (cw+cf)
+    const expansion_term = N_stb * Bti * (1 + m) * (Swi * cw + cf) / (1 - Swi);
     W_rb = (reg.slope - expansion_term) / (cw + cf);
 
     // Compute We at each timestep (Pletcher Eq. 12)
@@ -2174,7 +2300,7 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
     const deltas = extractTimedeltasDays(inputs.production_data);
     const We_array = aquiferModel === 'fetkovich'
       ? computeFetkovichWe(inputs, deltas)
-      : computeCarterTracyWe(inputs, deltas);
+      : computeCarterTracyWe(inputs, deltas, aquifer_default_notes);
     // Assign We per timestep
     for (let i = 0; i < per_timestep.length; i++) {
       per_timestep[i].We_rb = We_array[i];
@@ -2257,8 +2383,7 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
   // ──────────────────────────────────────────────────────────────────────────
   // Warnings
   //
-  // The "oil math unvalidated" warning was added in Phase 1. As of Phase 3
-  // Validated oil paths:
+  // Validated oil paths (harness tools/validation/mbal-validation.ts):
   //   • oil + pot aquifer + no gas cap (m=0): Pletcher SPE 75354 Tables
   //     10-13 (Capsule 3A, 1.79% OOIP error vs paper).
   //   • oil + no aquifer + no gas cap (m=0): Tarek Ahmed (2010) Example
@@ -2266,26 +2391,15 @@ function computeOilMBE(inputs: MBALInputs): MBALResult {
   //   • oil + no aquifer + gas cap (m>0): Dake (1978) Exercise 3.4
   //     'GASCAP DRIVE' (Phase 5 chunk 2, 2026-05-17). Engine LSQ 115.5 MM
   //     STB vs Dake 114 MM STB (1.33%); m=0.5 input.
-  //
-  // Still unvalidated (warning emitted):
-  //   • oil + pot aquifer + gas cap (m>0): future Phase 5 chunk.
-  //
-  // The oil + fetkovich and oil + carter_tracy paths use validated aquifer
-  // models but no oil-side worked-example validation; tier remains
-  // 'published_method' for those.
+  //   • oil + fetkovich (MB1, 2026-07-18): Ahmed REH 4th ed. Example 10-10
+  //     printed We table (CASE 8) + Dake 9.2 full-path OOIP.
+  //   • oil + pot aquifer + gas cap (m>0) (MB1, 2026-07-18): Ahmed REH
+  //     4th ed. Example 11-1 combined-drive terms and printed drive
+  //     indexes (CASE 9); the generalized m>0 pot regression is gated by
+  //     an exact synthetic round trip.
   // ──────────────────────────────────────────────────────────────────────────
   const warnings: string[] = [];
-  if (aquiferModel === 'pot' && m > 0) {
-    warnings.push(
-      'Oil reservoir with pot aquifer and gas cap (m > 0) is implemented but not yet validated against a published worked example. Validated cases: oil + no aquifer + no gas cap (Tarek Ahmed Example 11-3), oil + no aquifer + gas cap (Dake Exercise 3.4), and oil + pot aquifer + no gas cap (Pletcher SPE 75354 Tables 10-13).',
-    );
-  }
-  // Validated paths (no warning emitted):
-  //   aquiferModel === 'none' && m === 0  (Tarek Ahmed Example 11-3)
-  //   aquiferModel === 'none' && m > 0   (Dake Exercise 3.4)
-  //   aquiferModel === 'pot'  && m === 0  (Pletcher Tables 10-13)
-  // Still unvalidated (warning emitted):
-  //   aquiferModel === 'pot'  && m > 0   (oil + pot aquifer + gas cap)
+  warnings.push(...aquifer_default_notes);
 
   if (last.drive_index_sum != null && Math.abs(last.drive_index_sum - 1.0) > 0.05) {
     warnings.push(
