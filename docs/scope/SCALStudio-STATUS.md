@@ -10,7 +10,7 @@
 > used). Owner re-confirmed 2026-07-18: thin-real scope honored, executed
 > at studio-class quality (lab-data import, fitting to core data,
 > multi-sample averaging, saturation-height, handoffs).
-> Last updated: 2026-07-18 · SC1 done.
+> Last updated: 2026-07-18 · SC1-SC3 done.
 
 ## Phase ledger
 
@@ -18,7 +18,7 @@
 |---|---|---|
 | SC1 | dcaEngine oracle gate (§3) + EUR sign fix | **DONE 2026-07-18** |
 | SC2 | `scalCalculations.js` engine + Leverett 1941 golden | **DONE 2026-07-18** |
-| SC3 | Studio app skeleton + `saved_scal_projects` persistence | pending |
+| SC3 | Studio app skeleton + `saved_scal_projects` persistence | **DONE 2026-07-18** |
 | SC4 | Lab Data tab: import, Corey fit, multi-sample averaging | pending |
 | SC5 | Height & Saturation tab + Waterflood handoff + exports | pending |
 | SC6 | Tile migrations (deploy-gated pair) + close-out | pending |
@@ -105,6 +105,38 @@ The §3 gate: `src/utils/declineCurve/dcaEngine.js` had NO direct tests
   SPEE / Poston & Poe).
 - CSV parsers for kr and Pc tables with header aliases and per-row error
   messages. 27 tests across the two suites; jest 1511 total.
+
+### SC3 deliverables (2026-07-18) — studio app skeleton
+
+- `src/pages/apps/ScalStudio.jsx` on the shared Studio shell
+  (StudioLayout/Header/AutoSave/Help/ProjectManager), tabs
+  Curves | Capillary with ?tab= deep links; the tab list grows per phase
+  (Lab Data in SC4, Height & Saturation and Export in SC5) so every
+  shipped tab is fully functional, never a placeholder.
+- `src/contexts/ScalStudioContext.jsx` (WaterfloodDesignContext pattern):
+  string form state, ALL engine results useMemo-derived and never
+  persisted, `saved_scal_projects` via createSavedProjectsService, 10 s
+  debounced autosave, studio notifications. Exported pure builders
+  (buildOwParams/buildGoParams/buildReservoirProps/buildJSpec) are
+  jest-guarded.
+- Curves tab: Corey oil-water and gas-oil parameter rails with engine
+  validator messages, kr chart (linear/semilog toggle, PNG export via
+  ChartFrame), KPI row, curves-only fw preview (displacement stays in
+  Waterflood, said in copy).
+- Capillary tab: working J spec (manual power law now; averaged samples
+  once SC4 lands), shared-Swirr override with refit-quality hint,
+  reservoir rock inputs, J chart (log axis, per-sample scatter ready) and
+  reservoir Pc chart. The Leverett-collapse diagnostic note ships with
+  the chart copy.
+- Routes: `apps/reservoir/scal-studio` (lazy) + `/dev/scal-studio`
+  harness. The `relative-permeability-designer` alias is untouched until
+  SC6.
+- Migration `20260719100000_create_saved_scal_projects.sql` APPLIED live
+  (RLS verified: relrowsecurity true, policy `scal_owner_all`) and
+  logged; safe pre-deploy (no tile).
+- Tests: full-page smoke walking both tabs + 6 wiring tests on the pure
+  builders (the samples-mode averaging tolerance documents the
+  resample-then-refit bias). Staging vite transforms green.
 
 ## Scope discipline (standing)
 

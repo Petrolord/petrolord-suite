@@ -71,6 +71,7 @@ const CapitalPortfolioStudio = lazy(() => import('@/pages/apps/CapitalPortfolioS
 const FiscalRegimeDesigner = lazy(() => import('@/pages/apps/FiscalRegimeDesigner'));
 const VoidageReplacementMonitor = lazy(() => import('@/pages/apps/VoidageReplacementMonitor'));
 const WaterfloodDesignStudio = lazy(() => import('@/pages/apps/WaterfloodDesignStudio'));
+const ScalStudio = lazy(() => import('@/pages/apps/ScalStudio'));
 const RecoveryFactorEstimator = lazy(() => import('@/pages/apps/RecoveryFactorEstimator'));
 const RiskedReservesValuation = lazy(() => import('@/pages/apps/RiskedReservesValuation'));
 const EorScreeningTool = lazy(() => import('@/pages/apps/EorScreeningTool'));
@@ -459,6 +460,7 @@ function App() {
                                 <Route path="apps/reservoir/waterflood-dashboard" element={<Navigate to="/apps/reservoir/waterflood-design-studio?tab=surveillance" replace />} />
                                 <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
                                 <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
+                                <Route path="apps/reservoir/scal-studio" element={<ScalStudio />} />
                                 <Route path="apps/reservoir/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
                                 {/* tile slug (kept as the entitlement key; WT3 tile migration moves it to Reservoir) */}
                                 <Route path="apps/reservoir/well-test-analyzer" element={<WellTestAnalysisStudio />} />
@@ -647,6 +649,7 @@ function App() {
                               {/* Dev-only harnesses for the Playwright viewer suite; absent from prod builds */}
                               {import.meta.env.DEV && (
                                 <>
+                                  <Route path="/dev/scal-studio" element={<ScalStudio />} />
                                   <Route path="/dev/seismolord-selftest" element={<SeismolordSelfTest />} />
                                   <Route path="/dev/seismolord-sliceview" element={<SeismolordSliceViewHarness />} />
                                   <Route path="/dev/seismolord-cubeview" element={<SeismolordCubeViewHarness />} />
