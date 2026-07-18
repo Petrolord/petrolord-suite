@@ -8,8 +8,8 @@
 // patternForecastCalculations, waterfloodUncertainty (Monte Carlo over the
 // pattern forecast), waterfloodCalculations (surveillance) — all
 // golden-tested.
-import React, { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Waves } from 'lucide-react';
 import StudioLayout from '@/components/studio/StudioLayout';
@@ -53,8 +53,26 @@ const WaterfloodDesignContent = () => {
   const {
     projects, currentProjectId, createProject, openProject, deleteProject,
     manualSave, isSaving, saveError, lastSaveTime,
-    notifications, removeNotification,
+    notifications, addNotification, removeNotification,
+    setDisplacementField,
   } = useWaterfloodDesign();
+
+  // Tested permeability from the Well Test Analysis Studio (navigate-state
+  // handoff, the Pipeline Sizer contract): applied to the displacement k.
+  const location = useLocation();
+  const wtIntakeDone = useRef(false);
+  useEffect(() => {
+    const wt = location.state?.wellTestData;
+    if (!wt || wtIntakeDone.current) return;
+    wtIntakeDone.current = true;
+    if (Number.isFinite(wt.k_md) && wt.k_md > 0) {
+      setDisplacementField('k_md', wt.k_md.toPrecision(3));
+      addNotification(
+        `Permeability ${wt.k_md.toPrecision(3)} md received from ${wt.source || 'the Well Test Analysis Studio'} and applied to the displacement inputs.`,
+        'success',
+      );
+    }
+  }, [location.state, setDisplacementField, addNotification]);
 
   const leftPanel = (
     <div className="space-y-6">
