@@ -4,8 +4,8 @@
 // relative permeability curve design plus capillary pressure via the
 // Leverett J-function; no LET, no hysteresis, no network models, no
 // displacement math (that stays in the Waterflood Design Studio).
-// Tabs grow with the program: Curves | Lab Data | Capillary (SC3-SC4);
-// Height & Saturation and Export join in SC5. Engine:
+// Tabs: Curves | Lab Data | Capillary | Height & Saturation | Export
+// (built across SC3-SC5). Engine:
 // src/utils/scalCalculations.js (golden-tested, Leverett collapse suite).
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -23,6 +23,9 @@ import CapillaryPanel from '@/components/scalstudio/CapillaryPanel';
 import CapillaryResults from '@/components/scalstudio/CapillaryResults';
 import LabDataPanel from '@/components/scalstudio/LabDataPanel';
 import LabDataResults from '@/components/scalstudio/LabDataResults';
+import HeightPanel from '@/components/scalstudio/HeightPanel';
+import HeightResults from '@/components/scalstudio/HeightResults';
+import ExportTab from '@/components/scalstudio/ExportTab';
 import ScalHelpContent from '@/components/scalstudio/ScalHelpContent';
 import { SectionLabel } from '@/components/waterflooddesign/primitives';
 
@@ -30,6 +33,8 @@ const TABS = [
   { value: 'curves', label: 'Curves' },
   { value: 'labdata', label: 'Lab Data' },
   { value: 'capillary', label: 'Capillary' },
+  { value: 'height', label: 'Height & Saturation' },
+  { value: 'export', label: 'Export' },
 ];
 
 const ScalStudioContent = () => {
@@ -63,6 +68,13 @@ const ScalStudioContent = () => {
         <LabDataPanel selectedId={selectedSampleId} onSelect={setSelectedSampleId} />
       )}
       {activeTab === 'capillary' && <CapillaryPanel />}
+      {activeTab === 'height' && <HeightPanel />}
+      {activeTab === 'export' && (
+        <p className="text-xs text-slate-500">
+          Handoffs and downloads live in the main area. Everything exports the WORKING state: the Curves tab's
+          oil-water set, the Capillary tab's scaled Pc and the Height tab's profile.
+        </p>
+      )}
     </div>
   );
 
@@ -71,6 +83,8 @@ const ScalStudioContent = () => {
       {activeTab === 'curves' && <CurvesResults />}
       {activeTab === 'labdata' && <LabDataResults selectedId={selectedSampleId} />}
       {activeTab === 'capillary' && <CapillaryResults />}
+      {activeTab === 'height' && <HeightResults />}
+      {activeTab === 'export' && <ExportTab />}
     </>
   );
 

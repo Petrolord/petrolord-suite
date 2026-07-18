@@ -61,5 +61,16 @@ describe('ScalStudio page', () => {
     expect(screen.getAllByText(/J-function source/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Leverett J-function/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Reservoir capillary pressure/i).length).toBeGreaterThan(0);
+
+    // Height & Saturation (SC5): profile derives from the default manual J.
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Height & Saturation' }));
+    expect(screen.getAllByText(/Saturation vs height/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Chart top height/i).length).toBeGreaterThan(0);
+
+    // Export (SC5): handoff + CSV + JSON cards render.
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Export' }));
+    expect(screen.getByRole('button', { name: /Send curves to Waterflood/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/CSV exports/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Project JSON/i).length).toBeGreaterThan(0);
   });
 });

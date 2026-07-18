@@ -10,7 +10,7 @@
 > used). Owner re-confirmed 2026-07-18: thin-real scope honored, executed
 > at studio-class quality (lab-data import, fitting to core data,
 > multi-sample averaging, saturation-height, handoffs).
-> Last updated: 2026-07-18 · SC1-SC4 done.
+> Last updated: 2026-07-18 · SC1-SC5 done.
 
 ## Phase ledger
 
@@ -20,7 +20,7 @@
 | SC2 | `scalCalculations.js` engine + Leverett 1941 golden | **DONE 2026-07-18** |
 | SC3 | Studio app skeleton + `saved_scal_projects` persistence | **DONE 2026-07-18** |
 | SC4 | Lab Data tab: import, Corey fit, multi-sample averaging | **DONE 2026-07-18** |
-| SC5 | Height & Saturation tab + Waterflood handoff + exports | pending |
+| SC5 | Height & Saturation tab + Waterflood handoff + exports | **DONE 2026-07-18** |
 | SC6 | Tile migrations (deploy-gated pair) + close-out | pending |
 
 ## SC1 deliverables (2026-07-18) — dcaEngine oracle gate
@@ -159,6 +159,24 @@ The §3 gate: `src/utils/declineCurve/dcaEngine.js` had NO direct tests
 - Capillary samples mode now has real data to average; the Curves,
   Lab Data and Capillary tabs form the full lab-to-model loop.
 - Smoke test extended (demo pair loads, fit KPIs render); jest 1523.
+
+### SC5 deliverables (2026-07-18) — Height & Saturation, handoffs, exports
+
+- Height & Saturation tab: saturation-height profile from the working J
+  spec and reservoir rock (h = Pc/(0.4335·Δγ)), optional FWL for TVDSS
+  read-out, transition-zone KPI row.
+- Waterflood handoff on the WT5 navigate-state contract: the Export tab
+  sends the working oil-water Corey set (+ preview viscosities) as
+  `state.scalKr`; the Waterflood studio applies it through the
+  jest-guarded pure mapper `waterflooddesign/scalKrIntake.js`
+  (validateKrTable-gated table path, null on unusable payloads, no
+  partial application) in a one-shot effect. Gas-oil sets are not handed
+  off (displacement is oil-water; said in copy).
+- Exports: kr (25-point), reservoir Pc and saturation-height CSVs
+  (pure builders in `scalstudio/exports.js`, content-pinned by jest),
+  project JSON via the shared savedProjects helpers, sample import from
+  JSON. Chart PNGs via the ChartFrame button on every chart.
+- Help drawer covers all five tabs. Smoke walks all five tabs; jest 1533.
 
 ## Scope discipline (standing)
 
