@@ -209,3 +209,50 @@ with tests, in `derivative.js`). Old route redirects to the studio.
   k/s/C within CI bounds).
 - Update `docs/scope/WellTestAnalysisStudio-STATUS.md` at the end of each
   phase.
+
+## 7. Program 2 (WT6–WT10) — remaining named scope (owner-directed 2026-07-18)
+
+Owner direction: complete horizontal wells, RTA, SI units, the closed
+rectangle and the pseudo-time abscissa. Limited entry, variable wellbore
+storage and multiphase Perrine stay future scope. Same doctrine as WT1–WT5:
+engine + oracle + harness gates before any UI exposure, one PR per phase,
+stacked on main, no new tile (the studio absorbs everything, W6 precedent).
+
+- **WT6 — Closed rectangle**: `models/rectangle.js`, homogeneous-only,
+  well off-center via four boundary distances (L1/L2 in x, W1/W2 in y).
+  Laplace-space image-lattice K0 sum with the WT3 cutoff (arg > 38) for
+  early/mid u; for late u (image count past a cap) the exact PSS asymptote
+  p̄D = 2π/(AD u²) + b/u, with the intercept b extracted once per parameter
+  set at the crossover by Richardson extrapolation of u·p̄D − 2π/(AD u)
+  (self-consistent; no shape-factor lookup at runtime). Gates: early-time
+  identity with the homogeneous model; exact PSS slope 2π/AD; Dietz
+  intercepts b = ½ln(2.2458·AD/CA) for the square (CA 30.8828) and 2:1
+  (21.8369) literature constants plus closed-circle 31.62 consistency;
+  thin-rectangle mid-time vs the channel model; oracle goldens from an
+  independent real-time eigen/theta product-integration route (no Laplace,
+  no Stehfest, no K0); auto-fit round trip.
+- **WT7 — Horizontal well**: uniform-flux horizontal well in a slab,
+  no-flow top/bottom, anisotropy kv/kh, observation at z = zw + rw′
+  (Ozkan–Raghavan form). Mathematically a Gringarten-style F-sum
+  (besselK0Integral) over anisotropy-scaled z-images (image form for
+  large u, eigen form for small u). Gates: early vertical-radial plateau
+  (√(kh·kv)·Lw), intermediate linear half slope, late pseudoradial
+  plateau on kh·h; oracle real-time route; auto-fit round trip
+  recovering Lw and kv/kh.
+- **WT8 — Pseudo-time abscissa + SI units**: normalized pseudo-time
+  (already in gas.js) becomes a selectable diagnostics/analysis abscissa
+  for gas tests; SI unit system as a display-layer conversion registry
+  (kPa, m, m³/d, µm²·mD conventions) with a studio-wide toggle persisted
+  in the project payload — engines stay oilfield internally, conversions
+  round-trip tested. No schema change.
+- **WT9 — RTA**: engines `rta.js` — material-balance time, rate-normalized
+  pressure + Bourdet derivative on te, flowing material balance
+  (q/Δp vs Np/Δp regression → N and J; gas via normalized pseudo-pressure
+  and pseudo-time → G), transient linear-flow analysis. Gates: exact
+  synthetic BDF exponential-decline round trip recovering N and J;
+  closed-system model-data consistency; literature anchor armed if a
+  book-verified example is obtainable, else the exact-synthetic gates are
+  documented as such. UI: RTA surface in the studio (production-data mode).
+- **WT10 — Close-out**: PDF/report coverage for the new models, RTA and
+  SI; e2e additions; STATUS/memory updates; stack merged; prod upload
+  handoff. No migration expected (tile already Active; payload is jsonb).

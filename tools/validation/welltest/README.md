@@ -35,6 +35,15 @@ Validation-first gate for the PTA engines in `src/utils/welltest/`
    Lee Well Testing examples): armed by committing
    `literature-fixtures.json` with data typed from the books and citations.
    HARD GATE: WT2 merges only after this case is armed and green.
+8. WT3 model library analytic truths (Gringarten and Cinco-Ley constants,
+   Warren-Root lines and dip, boundary-family limits, composition identity)
+9. WT4 gas and multi-rate (Ahmed Ex. 6-7 pseudo-pressure table, Ex. 8-2
+   deliverability, equivalent-FVF identity, Odeh-Jones round trip)
+10. WT6 closed rectangle: image-lattice Laplace route vs an independent
+    real-time theta-duality oracle (`rect_pd_time`), Dietz shape factors
+    recovered from the extracted PSS intercept (square 30.8828,
+    2:1 21.8369, 4:1 5.379), thin-rectangle = channel degeneracy, and an
+    off-center auto-fit round trip (k, skin, drainage area)
 
 `literature-fixtures.json` shape:
 

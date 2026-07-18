@@ -258,6 +258,55 @@ def build():
         "lit": oracle.lit_fit(delivery_points),
     }
 
+    # ---------------------------------------------------------------------
+    # WT6: closed rectangle, REAL-TIME theta-duality route (independent of
+    # the JS Laplace/Stehfest image-lattice implementation). Line source
+    # observed at rD = 1; the JS finite-radius well differs by < ~6e-4 over
+    # this tD range, inside the harness gate.
+    rect_cases = [
+        {"id": "square-centered", "xeD": 2000.0, "yeD": 2000.0,
+         "xwD": 1000.0, "ywD": 1000.0},
+        {"id": "2to1-centered", "xeD": 2828.4271, "yeD": 1414.2136,
+         "xwD": 1414.2136, "ywD": 707.1068},
+        {"id": "square-offcenter", "xeD": 2000.0, "yeD": 2000.0,
+         "xwD": 500.0, "ywD": 500.0},
+    ]
+    goldens["closedRectangle"] = []
+    for case in rect_cases:
+        for t_d in [1e3, 1e4, 1e5, 3e5, 1e6, 3e6, 8e6]:
+            goldens["closedRectangle"].append({
+                **case,
+                "tD": t_d,
+                "pwd": oracle.rect_pd_time(
+                    t_d, case["xeD"], case["yeD"], case["xwD"], case["ywD"],
+                ),
+            })
+
+    # WT6: synthetic rectangle drawdown round-trip fixture (off-center well)
+    rect_truth = {"k": 85.0, "skin": 2.0, "C": 0.01,
+                  "L1": 600.0, "L2": 1400.0, "W1": 500.0, "W2": 900.0}
+    rect_groups = oracle.dimensionless_groups(
+        rect_truth["k"], reservoir["phi"], reservoir["mu"], reservoir["ct"],
+        reservoir["rw"], reservoir["h"], reservoir["B"], reservoir["q"],
+    )
+    rw = reservoir["rw"]
+    rect_points = []
+    for t in logspace(-2, 3.5, 50):
+        t_d = rect_groups["tdPerHour"] * t
+        # sandface via the oracle real-time route; storage + skin composed in
+        # time domain is impractical, so the fixture stores the sandface-only
+        # response plus the truth; the harness fits the storage-free window.
+        p_wd = oracle.rect_pd_time(
+            t_d, (rect_truth["L1"] + rect_truth["L2"]) / rw,
+            (rect_truth["W1"] + rect_truth["W2"]) / rw,
+            rect_truth["L1"] / rw, rect_truth["W1"] / rw,
+        ) + rect_truth["skin"]
+        dp = rect_groups["dpPerPd"] * p_wd
+        rect_points.append({"t": t, "dp": dp, "pwf": reservoir["pi"] - dp})
+    goldens["fixtures"]["rectangleDrawdown"] = {
+        "reservoir": reservoir, "truth": rect_truth, "points": rect_points,
+    }
+
     return goldens
 
 
