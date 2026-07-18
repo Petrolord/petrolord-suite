@@ -68,7 +68,10 @@ describe('LoadProjectsDrawer', () => {
     const onSelect = jest.fn();
     render(<LoadProjectsDrawer open onOpenChange={() => {}} onSelect={onSelect} />);
     await screen.findByText('Case A');
-    fireEvent.click(screen.getByRole('button', { name: /Load/i }));
+    // findByRole, not getByRole: under a loaded full-suite run the row's
+    // action button can commit a beat after the row text (flake seen
+    // 2026-07-18); await it instead of racing it.
+    fireEvent.click(await screen.findByRole('button', { name: /^Load$/i }));
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1', inputs_data: { marker: 42 } }));
   });
 });

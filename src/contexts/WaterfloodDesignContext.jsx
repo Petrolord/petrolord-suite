@@ -11,6 +11,7 @@ import { analyzeDisplacement, validateKrTable } from '@/utils/fractionalFlowCalc
 import { analyzeLayeredSweep } from '@/utils/layeredSweepCalculations';
 import { forecastPattern } from '@/utils/patternForecastCalculations';
 import { parseUncertaintyConfig, runWaterfloodUncertaintyAsync } from '@/utils/waterfloodUncertainty';
+import { analyzeWaterflood } from '@/utils/waterfloodCalculations';
 
 const WaterfloodDesignContext = createContext(null);
 
@@ -66,6 +67,33 @@ export const DEFAULT_UNCERTAINTY = {
   iterations: '1000',
   params: {},
 };
+
+// Surveillance tab (W6, absorbed from the retired Waterflood Dashboard):
+// field injection/production history + the analyzeWaterflood engine config.
+// Empty dates mean "analyze the full uploaded range".
+export const DEFAULT_SURVEILLANCE_CONFIG = {
+  start_date: '', end_date: '',
+  bo: '1.25', bw: '1.02', bg: '0.9', rs: '500',
+  smooth_window_days: '5', vrr_window_days: '30', target_vrr: '1.0',
+};
+
+// analyzeWaterflood expects numeric config; the studio keeps strings in form
+// state like every other tab.
+export function buildSurveillanceConfig(c) {
+  const numOr = (v, fallback) => {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : fallback;
+  };
+  return {
+    start_date: c.start_date || undefined,
+    end_date: c.end_date || undefined,
+    bo: numOr(c.bo, 1.25), bw: numOr(c.bw, 1.02),
+    bg: numOr(c.bg, 0), rs: numOr(c.rs, 0),
+    smooth_window_days: numOr(c.smooth_window_days, 5),
+    vrr_window_days: numOr(c.vrr_window_days, 30),
+    target_vrr: numOr(c.target_vrr, 1.0),
+  };
+}
 
 // Numeric pattern inputs from form state; null when invalid. Shared by the
 // deterministic Pattern tab memo and the uncertainty run.
@@ -132,6 +160,8 @@ export const WaterfloodDesignProvider = ({ children }) => {
   const [patternInputs, setPatternInputs] = useState(DEFAULT_PATTERN);
   const [scenarios, setScenarios] = useState([]);
   const [uncertaintyConfig, setUncertaintyConfig] = useState(DEFAULT_UNCERTAINTY);
+  const [surveillanceRows, setSurveillanceRows] = useState([]);
+  const [surveillanceConfig, setSurveillanceConfig] = useState(DEFAULT_SURVEILLANCE_CONFIG);
 
   // Transient Monte Carlo state: expensive and stochastic, so it is run on
   // demand (never a useMemo) and never persisted.
@@ -144,6 +174,7 @@ export const WaterfloodDesignProvider = ({ children }) => {
   const setDisplacementField = useCallback((k, v) => setDisplacementInputs((prev) => ({ ...prev, [k]: v })), []);
   const setLayeredField = useCallback((k, v) => setLayeredConfig((prev) => ({ ...prev, [k]: v })), []);
   const setPatternField = useCallback((k, v) => setPatternInputs((prev) => ({ ...prev, [k]: v })), []);
+  const setSurveillanceField = useCallback((k, v) => setSurveillanceConfig((prev) => ({ ...prev, [k]: v })), []);
   const setUncertaintyIterations = useCallback((v) => setUncertaintyConfig((prev) => ({ ...prev, iterations: v })), []);
   const setUncertaintyParam = useCallback((key, patch) => setUncertaintyConfig((prev) => ({
     ...prev,
@@ -172,6 +203,17 @@ export const WaterfloodDesignProvider = ({ children }) => {
     if (!pattern) return null;
     return forecastPattern({ displacementSpec: displacementSpec.spec, pattern });
   }, [displacementSpec, patternInputs]);
+
+  // Surveillance analysis: pure engine over uploaded history; recomputed on
+  // any data/config change, never persisted (rows + config are the inputs).
+  const surveillanceResult = useMemo(() => {
+    if (!surveillanceRows.length) return null;
+    try {
+      return analyzeWaterflood(surveillanceRows, buildSurveillanceConfig(surveillanceConfig));
+    } catch (e) {
+      return { error: e.message || 'Surveillance analysis failed' };
+    }
+  }, [surveillanceRows, surveillanceConfig]);
 
   // ---- Uncertainty (Monte Carlo) run: on demand, results transient ----
   const runUncertainty = useCallback(async () => {
@@ -234,8 +276,9 @@ export const WaterfloodDesignProvider = ({ children }) => {
     patternInputs,
     scenarios,
     uncertaintyConfig,
+    surveillance: { rows: surveillanceRows, config: surveillanceConfig },
     modified: new Date().toISOString(),
-  }), [currentProjectId, projectName, displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig]);
+  }), [currentProjectId, projectName, displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig]);
 
   const hydrate = useCallback((payload) => {
     setDisplacementInputs({ ...DEFAULT_DISPLACEMENT, ...(payload?.displacementInputs || {}) });
@@ -248,6 +291,8 @@ export const WaterfloodDesignProvider = ({ children }) => {
       ...(payload?.uncertaintyConfig || {}),
       params: payload?.uncertaintyConfig?.params || {},
     });
+    setSurveillanceRows(Array.isArray(payload?.surveillance?.rows) ? payload.surveillance.rows : []);
+    setSurveillanceConfig({ ...DEFAULT_SURVEILLANCE_CONFIG, ...(payload?.surveillance?.config || {}) });
     // MC results belong to the previous working case.
     setUncertaintyResult(null);
     hasUncertaintyResult.current = false;
@@ -290,6 +335,7 @@ export const WaterfloodDesignProvider = ({ children }) => {
       await service.save(id, {
         id, name,
         displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig,
+        surveillance: { rows: surveillanceRows, config: surveillanceConfig },
         modified: new Date().toISOString(),
       });
       setCurrentProjectId(id);
@@ -302,7 +348,7 @@ export const WaterfloodDesignProvider = ({ children }) => {
       console.error(e);
       addNotification(e.message || 'Could not create project', 'error');
     }
-  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, addNotification]);
+  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, addNotification]);
 
   const deleteProject = useCallback(async (id) => {
     try {
@@ -357,7 +403,7 @@ export const WaterfloodDesignProvider = ({ children }) => {
       }
     }, 10000);
     return () => clearTimeout(timer);
-  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, currentProjectId, hydrated]);
+  }, [displacementInputs, layers, layeredConfig, patternInputs, scenarios, uncertaintyConfig, surveillanceRows, surveillanceConfig, currentProjectId, hydrated]);
 
   // ---- Scenarios: named snapshots of all input groups ----
   const saveScenario = useCallback((name) => {
@@ -402,6 +448,10 @@ export const WaterfloodDesignProvider = ({ children }) => {
     patternInputs, setPatternField,
     // derived
     displacementSpec, displacement, layeredResult, patternResult,
+    // surveillance
+    surveillanceRows, setSurveillanceRows,
+    surveillanceConfig, setSurveillanceField,
+    surveillanceResult,
     // uncertainty
     uncertaintyConfig, setUncertaintyIterations, setUncertaintyParam,
     uncertaintyResult, isRunningUncertainty, uncertaintyProgress, uncertaintyStale,

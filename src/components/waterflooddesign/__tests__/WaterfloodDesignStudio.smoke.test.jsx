@@ -1,6 +1,6 @@
 /**
  * Smoke test: mount the whole Waterflood Design Studio page (provider, shell,
- * all five tabs) with Supabase mocked. Catches broken imports/wiring across
+ * all six tabs) with Supabase mocked. Catches broken imports/wiring across
  * the studio kit and the waterflooddesign component tree that unit tests on
  * the pure glue cannot see.
  */
@@ -50,6 +50,13 @@ describe('WaterfloodDesignStudio page', () => {
     fireEvent.mouseDown(screen.getByRole("tab", { name: 'Uncertainty' }));
     expect(screen.getByText(/Enable one or more uncertain parameters/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Monte Carlo run/i).length).toBeGreaterThan(0);
+
+    fireEvent.mouseDown(screen.getByRole("tab", { name: 'Surveillance' }));
+    expect(screen.getByText(/Import CSV/i)).toBeInTheDocument();
+    // Load the deterministic sample and check the engine renders real KPIs.
+    fireEvent.click(screen.getByRole('button', { name: /Sample/i }));
+    expect(await screen.findByText(/Key Performance Indicators/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/VRR/i).length).toBeGreaterThan(0);
 
     fireEvent.mouseDown(screen.getByRole("tab", { name: 'Scenarios' }));
     expect(screen.getByText(/compares them/i)).toBeInTheDocument();

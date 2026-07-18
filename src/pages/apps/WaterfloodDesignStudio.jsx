@@ -1,12 +1,15 @@
 // Waterflood Design Studio — analytical waterflood design and prediction
 // workstation on the shared Studio shell. Replaces the single-page
 // Fractional Flow Analyzer (its displacement physics and charts live on in
-// the Displacement tab). Tabs: Displacement | Layered Sweep | Pattern
-// Forecast | Uncertainty | Scenarios. Engines: fractionalFlowCalculations
-// (generalized), layeredSweepCalculations, patternForecastCalculations,
-// waterfloodUncertainty (Monte Carlo over the pattern forecast) — all
+// the Displacement tab). Also absorbs the retired Waterflood Dashboard as
+// the Surveillance tab (W6). Tabs: Displacement | Layered Sweep | Pattern
+// Forecast | Uncertainty | Surveillance | Scenarios. Engines:
+// fractionalFlowCalculations (generalized), layeredSweepCalculations,
+// patternForecastCalculations, waterfloodUncertainty (Monte Carlo over the
+// pattern forecast), waterfloodCalculations (surveillance) — all
 // golden-tested.
 import React, { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import { Waves } from 'lucide-react';
 import StudioLayout from '@/components/studio/StudioLayout';
@@ -23,6 +26,8 @@ import PatternPanel from '@/components/waterflooddesign/PatternPanel';
 import PatternResults from '@/components/waterflooddesign/PatternResults';
 import UncertaintyPanel from '@/components/waterflooddesign/UncertaintyPanel';
 import UncertaintyResults from '@/components/waterflooddesign/UncertaintyResults';
+import SurveillancePanel from '@/components/waterflooddesign/SurveillancePanel';
+import SurveillanceResults from '@/components/waterflooddesign/SurveillanceResults';
 import ScenarioCompare from '@/components/waterflooddesign/ScenarioCompare';
 import DiagnosticsRail from '@/components/waterflooddesign/DiagnosticsRail';
 import WDSHelpContent from '@/components/waterflooddesign/WDSHelpContent';
@@ -33,11 +38,18 @@ const TABS = [
   { value: 'layered', label: 'Layered Sweep' },
   { value: 'pattern', label: 'Pattern Forecast' },
   { value: 'uncertainty', label: 'Uncertainty' },
+  { value: 'surveillance', label: 'Surveillance' },
   { value: 'scenarios', label: 'Scenarios' },
 ];
 
 const WaterfloodDesignContent = () => {
-  const [activeTab, setActiveTab] = useState('displacement');
+  // ?tab= deep link (the retired Waterflood Dashboard route redirects to
+  // ?tab=surveillance); invalid values fall back to the default tab.
+  const [searchParams] = useSearchParams();
+  const requested = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(
+    TABS.some((t) => t.value === requested) ? requested : 'displacement',
+  );
   const {
     projects, currentProjectId, createProject, openProject, deleteProject,
     manualSave, isSaving, saveError, lastSaveTime,
@@ -60,6 +72,7 @@ const WaterfloodDesignContent = () => {
       {activeTab === 'layered' && <LayeredPanel />}
       {activeTab === 'pattern' && <PatternPanel />}
       {activeTab === 'uncertainty' && <UncertaintyPanel />}
+      {activeTab === 'surveillance' && <SurveillancePanel />}
       {activeTab === 'scenarios' && (
         <p className="text-xs text-slate-500">
           Snapshot scenarios from the right rail on any tab; this tab compares them. Inputs stay editable on the
@@ -75,6 +88,7 @@ const WaterfloodDesignContent = () => {
       {activeTab === 'layered' && <LayeredResults />}
       {activeTab === 'pattern' && <PatternResults />}
       {activeTab === 'uncertainty' && <UncertaintyResults />}
+      {activeTab === 'surveillance' && <SurveillanceResults />}
       {activeTab === 'scenarios' && <ScenarioCompare />}
     </>
   );
@@ -83,7 +97,7 @@ const WaterfloodDesignContent = () => {
     <>
       <Helmet>
         <title>Waterflood Design Studio | Petrolord Suite</title>
-        <meta name="description" content="Buckley-Leverett displacement design, layered sweep, five-spot pattern forecasting and Monte Carlo uncertainty." />
+        <meta name="description" content="Buckley-Leverett displacement design, layered sweep, five-spot pattern forecasting, Monte Carlo uncertainty and flood surveillance." />
       </Helmet>
       <StudioLayout
         header={

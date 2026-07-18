@@ -59,12 +59,14 @@ const KPIPanel = ({ kpis, lastUpdated }) => {
     >
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-white">Key Performance Indicators</h2>
-        <div className="text-right">
-          <p className="text-cyan-300 text-sm">Last Updated</p>
-          <p className="text-white text-sm font-medium">
-            {new Date(lastUpdated).toLocaleString()}
-          </p>
-        </div>
+        {lastUpdated && (
+          <div className="text-right">
+            <p className="text-cyan-300 text-sm">Last Updated</p>
+            <p className="text-white text-sm font-medium">
+              {new Date(lastUpdated).toLocaleString()}
+            </p>
+          </div>
+        )}
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

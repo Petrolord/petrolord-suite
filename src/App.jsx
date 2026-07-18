@@ -69,7 +69,6 @@ const WellSchematicDesigner = lazy(() => import('@/pages/apps/WellSchematicDesig
 const AfeCostControlManager = lazy(() => import('@/pages/apps/AfeCostControlManager'));
 const CapitalPortfolioStudio = lazy(() => import('@/pages/apps/CapitalPortfolioStudio'));
 const FiscalRegimeDesigner = lazy(() => import('@/pages/apps/FiscalRegimeDesigner'));
-const WaterfloodDashboard = lazy(() => import('@/pages/apps/WaterfloodDashboard'));
 const VoidageReplacementMonitor = lazy(() => import('@/pages/apps/VoidageReplacementMonitor'));
 const WaterfloodDesignStudio = lazy(() => import('@/pages/apps/WaterfloodDesignStudio'));
 const RecoveryFactorEstimator = lazy(() => import('@/pages/apps/RecoveryFactorEstimator'));
@@ -458,7 +457,8 @@ function App() {
                                 <Route path="apps/geoscience/mechanical-earth-model/analytics" element={<ProtectedAppRoute appId="mechanical-earth-model" appName="1D Mechanical Earth Model"><Analytics /></ProtectedAppRoute>} />
                                 
                                 <Route path="apps/reservoir/fluid-systems-studio" element={<FluidSystemsStudio />} />
-                                <Route path="apps/reservoir/waterflood-dashboard" element={<WaterfloodDashboard />} />
+                                {/* W6: surveillance absorbed into the Waterflood Design Studio */}
+                                <Route path="apps/reservoir/waterflood-dashboard" element={<Navigate to="/apps/reservoir/waterflood-design-studio?tab=surveillance" replace />} />
                                 <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
                                 <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
                                 {/* legacy slugs (incl. the tile slug) — aliases into the studio */}
