@@ -13,8 +13,9 @@ const Row = ({ label, value }) => (
 );
 
 const DiagnosticsRail = ({ activeTab }) => {
-  const { displacement, layeredResult, patternResult } = useWaterfloodDesign();
+  const { displacement, layeredResult, patternResult, uncertaintyResult, uncertaintyStale } = useWaterfloodDesign();
   const bl = displacement?.bl;
+  const mc = uncertaintyResult;
 
   return (
     <div className="space-y-6">
@@ -49,6 +50,17 @@ const DiagnosticsRail = ({ activeTab }) => {
           <Row label="Wi @ BT (Mbbl)" value={fmt.f1(patternResult?.summary?.WiBT_bbl / 1000)} />
           <Row label="Flooded OOIP (Mstb)" value={fmt.f1(patternResult?.summary?.ooip_flooded_stb / 1000)} />
           <Row label="Elapsed (yr)" value={fmt.f1(patternResult?.summary?.elapsed_days / 365.25)} />
+        </section>
+      )}
+
+      {activeTab === 'uncertainty' && (
+        <section>
+          <SectionLabel>Last MC run</SectionLabel>
+          <Row label="Status" value={mc ? (uncertaintyStale ? 'Stale' : 'Current') : 'Not run'} />
+          <Row label="Valid realizations" value={mc ? mc.validCount.toLocaleString() : '—'} />
+          <Row label="Rejected" value={mc ? mc.rejectedCount.toLocaleString() : '—'} />
+          <Row label="Np P50 (Mstb)" value={fmt.f1(mc?.stats?.np?.p50 / 1000)} />
+          <Row label="Np spread P10/P90" value={mc?.stats?.np?.p90 > 0 ? fmt.f2(mc.stats.np.p10 / mc.stats.np.p90) : '—'} />
         </section>
       )}
 
