@@ -12,7 +12,9 @@ tile archived by migration `20260717090000`; the mock code is deleted in WT2).
 | WT2 | Studio app: data/QC, diagnostics, match, specialized, report tabs; persistence; mock deletion | **DONE 2026-07-18** (PR #102) |
 | WT3 | Model library (fractures, dual porosity, boundaries) + tile activation | **DONE 2026-07-18** (PR #103; tile migration applied live 2026-07-18 after the prod upload) |
 | WT4 | Gas (pseudo-pressure), multi-rate, deliverability | **DONE 2026-07-18** (PR #104) |
-| WT5 | PDF reporting, cross-app handoffs, e2e | **DONE 2026-07-18** (PR #105) — **PROGRAM COMPLETE, shipped to prod** |
+| WT5 | PDF reporting, cross-app handoffs, e2e | **DONE 2026-07-18** (PR #105) — **PROGRAM 1 COMPLETE, shipped to prod** |
+
+Program 2 (WT6–WT10) phase status is tracked in its own section below.
 
 ## WT1 deliverables
 
@@ -198,7 +200,9 @@ All five phases are done and every operational step is closed:
 Nothing remains open on this program. Named future scope stays as
 recorded: horizontal wells, limited entry, variable wellbore storage,
 multiphase Perrine, RTA, SI units, closed-rectangle boundary, pseudo-time
-as a diagnostics abscissa.
+as a diagnostics abscissa. (Program 2 below, owner-directed the same day,
+completed the horizontal well, RTA, SI, closed rectangle and pseudo-time
+items from that list.)
 
 ## Locked owner decisions (2026-07-18)
 
@@ -206,3 +210,106 @@ as a diagnostics abscissa.
 - Tile activation ships after WT3 with the carrying prod upload.
 - Horizontal wells, limited entry, variable wellbore storage, multiphase
   Perrine, RTA, SI units: future scope outside this program.
+
+# Program 2 (WT6–WT10) — owner-directed 2026-07-18
+
+Owner direction: complete the named scope (horizontal wells, RTA, SI
+units, closed rectangle, pseudo-time abscissa). Plan of record:
+WellTestAnalysisStudio-PLAN.md §7. Limited entry, variable wellbore
+storage and multiphase Perrine remain future scope.
+
+## Phase status
+
+| Phase | Scope | Status |
+|---|---|---|
+| WT6 | Closed-rectangle boundary model | **DONE 2026-07-18** (PR #107) |
+| WT7 | Horizontal well (kv/kh anisotropy) | **DONE 2026-07-18** (PR #108) |
+| WT8 | SI unit system + gas pseudo-time abscissa | **DONE 2026-07-18** (PR #109) |
+| WT9 | RTA: MB time, flowing MB, dynamic gas MB, transient linear | **DONE 2026-07-18** (PR #110) |
+| WT10 | Report/PDF/e2e/docs close-out | **DONE 2026-07-18** (PR #111) — **PROGRAM 2 COMPLETE** |
+
+## WT6 deliverables
+
+`models/rectangle.js`: homogeneous reservoir in a closed no-flow
+rectangle, well at four boundary distances (off-center supported).
+Image-lattice K0 sum with the WT3 cutoff; late-time exact PSS asymptote
+2π/(AD·u²) + b/u with the Dietz-type intercept b extracted from the
+lattice itself by Richardson extrapolation (no shape-factor tables at
+runtime). Validation: new independent Python real-time oracle route
+(theta-duality slab Green's-function product integration; no Laplace, no
+Stehfest, no K0), 21 goldens over 3 geometries agreeing to 6.3e-4;
+harness CASE 10 with the published Dietz shape factors recovered from
+pure lattice math (square 30.8828 to 6e-5, 2:1 21.8369 to 2e-5, 4:1
+5.379 to 1e-5), thin-rectangle = channel to machine precision,
+early-time identity with homogeneous to 1e-11, off-center auto-fit round
+trip (k to 1e-5, drainage area to 3e-4).
+
+## WT7 deliverables
+
+`models/horizontal.js`: uniform-flux horizontal well in a no-flow slab,
+kv/kh anisotropy (Ozkan–Raghavan form, z stretched by β, observation at
+zw + rw′ with the Peaceman-type anisotropic effective radius). The
+Laplace solution splits exactly (Poisson dual) into a short K0-integral
+mode sum — the n=0 mode is literally the Gringarten fracture — plus a
+z-mirror K0 image sum whose small-argument branch keeps the log term
+carrying the partial-penetration pseudo-skin. Validation: independent
+real-time erf × theta oracle route (32 goldens, 4 geometries, worst
+9.9e-4); vertical-radial plateau hD/4 (1e-4); pseudoradial 0.5 (5e-6);
+thin slab = Gringarten + the exact pseudo-skin
+(hD/2)[−ln 2sin(πz01/2hD) − ln 2sin(πz02/2hD)] (2e-4); dimensional
+identity 70.6 qBμ/(Lw√(kh·kv)) (8e-4); auto-fit recovers k/kv-kh/Lw/skin
+(9e-4 / 0.8% / 0.08% / 2e-3). Skin referenced to kh·h, documented.
+
+## WT8 deliverables
+
+SI unit system: display-layer registry (`src/utils/welltest/units.js`,
+exact factors, jest-gated round trips). State, persistence and the
+validated engines stay oilfield always; the Data-tab selector converts
+every input field (UnitField), the gauge/production CSV pressure and
+rate columns, and every result surface (KPIs, chart series and axis
+labels, match parameters and CIs, slopes, pore volume, AOF, report and
+PDF). Permeability stays md in both systems; gas pseudo-pressure
+converts psi²/cp → kPa²/mPa·s. unitSystem persists in the payload.
+Pseudo-time abscissa: normalized pseudo-time (WT4 engine) selectable as
+the gas diagnostics abscissa; the identical map applies to data and
+model overlay; straight-line analyses stay on elapsed time. Caught by
+gates: an inverted Mscf/D ↔ 10³m³/d factor and the gas μct sign
+intuition (cg ~ 1/p dominates: μct rises as pressure falls).
+
+## WT9 deliverables
+
+`rta.js` (validated in CASE 12 before UI): material-balance time
+te = Q/q with the rate-normalized Bourdet log-log; oil flowing material
+balance Δp/q = te/(N·ct) + 1/J (exact identity gate on an exponential
+decline: N to 0.16%, J to 0.19%, r² = 1); gas dynamic material balance
+(Mattar–Anderson: iterate G → p̄ via p/z → MB pseudo-time → regression;
+G = 2(p/z)i/(slope·μi·cti) derived from dm/dGp = −2(p/z)i/(G·μ·cg)),
+recovering OGIP to 0.17% from an oracle-generated decline built on the
+oracle's own PVT routes; Wattenbarger transient linear → xf√k exact.
+UI: new RTA tab (production CSV in days/rate/pwf, SI-aware), MB-time
+log-log, FMB Cartesian with regression line, OOIP/OGIP + J KPIs,
+transient-linear card and window. rtaRows/rtaWindows persist in the
+payload. Fixture lesson recorded in the generator: a violent 5-decade
+decline puts the whole record into forward/analysis discretization
+mismatch (9% bias); fixtures sized physical, oracle accumulation
+trapezoidal.
+
+## WT10 deliverables
+
+PDF report extended with the RTA section and full unit-system
+conversion (values and labels); report tab shows the RTA summary;
+project JSON export carries deliverability, RTA and unit inputs.
+Playwright e2e extended to 5 scenarios: new-model catalog presence,
+SI toggle conversion, and an RTA walk that imports an exponential
+decline CSV through the real UI and recovers N ≈ 2 MMSTB. 5/5 green
+against the staging dev server 2026-07-18. Harness total **115/115
+exit 0** (CASEs 1–12); jest 164 welltest tests / 16 suites; build clean.
+
+## Program 2 wrap-up
+
+All five phases done. Remaining operational step: merge #107 through
+#111 in order, then prod upload (no migration: the tile is already
+Active and all new persistence rides in the jsonb payload).
+Named future scope stays: limited entry, variable wellbore storage,
+multiphase Perrine, closed-rectangle × dual-porosity crossing,
+Blasingame type-curve matching on the RTA tab.

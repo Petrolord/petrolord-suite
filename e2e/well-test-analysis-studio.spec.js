@@ -1,5 +1,7 @@
-// Well Test Analysis Studio WT5 acceptance: the five-tab workstation drives
-// on the /dev harness without auth. The deterministic sample buildup is the
+// Well Test Analysis Studio acceptance (WT5, extended WT10 with the RTA
+// tab, the SI toggle and the Program 2 models): the six-tab workstation
+// drives on the /dev harness without auth. The deterministic sample buildup
+// is the
 // WT1 oracle fixture (truth k = 85 md, skin = 6.5, C = 0.015 bbl/psi,
 // tp = 36 hr), so the Horner answer over a radial-flow window is asserted
 // against the generating truth, not a hardcoded UI literal. The gas mode
@@ -7,8 +9,21 @@
 // surface to appear.
 
 import { test, expect } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const TRUTH = { k: 85, skin: 6.5 };
+
+// WT10: the RTA production decline is the committed WT9 fixture (exact
+// exponential BDF decline; truth N = 2.0 MMSTB, J = 1.5 STB/D/psi), so the
+// flowing-material-balance answer is asserted against the generating truth
+// and fixture regeneration cannot silently drift past this spec.
+const here = path.dirname(fileURLToPath(import.meta.url));
+const goldens = JSON.parse(fs.readFileSync(
+  path.join(here, '..', 'src', 'utils', 'welltest', '__tests__', 'goldens.json'), 'utf8',
+));
+const RTA_FX = goldens.fixtures.rtaOilDecline;
 
 async function openWithSample(page) {
   await page.goto('/dev/well-test-analysis-studio');
@@ -74,6 +89,53 @@ test('gas mode exposes pseudo-pressure analysis and deliverability', async ({ pa
   await page.getByRole('tab', { name: 'Specialized' }).click();
   await expect(page.getByText(/Gas deliverability/i).first()).toBeVisible();
   await expect(page.getByRole('button', { name: /Add test point/i })).toBeVisible();
+});
+
+// Program 2 (WT6-WT10) additions --------------------------------------------
+
+test('new models are selectable and the SI toggle converts the studio', async ({ page }) => {
+  await openWithSample(page);
+
+  // WT6/WT7: the closed rectangle and horizontal well are in the catalog
+  await page.getByRole('tab', { name: 'Match' }).click();
+  await page.getByText('Homogeneous reservoir').click();
+  await expect(page.getByRole('option', { name: /Homogeneous, closed rectangle/i })).toBeVisible();
+  await page.getByRole('option', { name: /Horizontal well/i }).click();
+  await expect(page.getByText(/Vertical anisotropy/i)).toBeVisible();
+  await expect(page.getByText(/Well length/i).first()).toBeVisible();
+
+  // WT8: switching to SI converts inputs and results in place
+  await page.getByRole('tab', { name: 'Data' }).click();
+  await page.getByText('Oilfield (psi, ft, STB/D)').click();
+  await page.getByRole('option', { name: /SI \/ metric/i }).click();
+  await expect(page.getByText(/kPa/).first()).toBeVisible();
+  await expect(page.getByText(/Net thickness h/i)).toBeVisible();
+  // 45 ft becomes 13.716 m in the thickness field
+  await expect(page.getByText(/\(m\)/).first()).toBeVisible();
+});
+
+test('RTA tab computes the flowing material balance from a production CSV', async ({ page }) => {
+  await openWithSample(page);
+  await page.getByRole('tab', { name: 'RTA' }).click();
+  await expect(page.getByText(/No production data loaded/i).first()).toBeVisible();
+
+  // the committed WT9 fixture: exact exponential BDF decline against the
+  // sample reservoir (pi = 4800, ct = 1.2e-5); truth N = 2 MMSTB, J = 1.5
+  const lines = ['t,q,pwf', ...RTA_FX.rows.map((r) => `${r.t},${r.q},${r.pwf}`)];
+  await page.locator('input[type="file"]').last().setInputFiles({
+    name: 'decline.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(lines.join('\n')),
+  });
+
+  await expect(page.getByText(/OOIP N \(flowing MB\)/i)).toBeVisible();
+  const nText = await kpiValue(page, 'OOIP N \\(flowing MB\\)').first().innerText();
+  const truthMM = RTA_FX.truth.N / 1e6;
+  const nMM = parseFloat(nText);
+  expect(nMM).toBeGreaterThan(truthMM * 0.98); // MMSTB
+  expect(nMM).toBeLessThan(truthMM * 1.02);
+  await expect(page.getByText(/Flowing material balance/i).first()).toBeVisible();
+  await expect(page.getByText(/Transient linear flow \(Wattenbarger\)/i)).toBeVisible();
 });
 
 // The result handoffs navigate into /dashboard routes, which sit behind auth

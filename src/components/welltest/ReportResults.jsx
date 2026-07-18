@@ -21,7 +21,7 @@ const ReportResults = () => {
     wellName, projectName, configSpec, reservoirSpec, prepared,
     matchParams, semilogResult, sqrtResult, pssResult, derivedKpis,
     multiRateResult, deliverabilityResult, fitResult, fitStale, regimes, notes, model,
-    unitSystem,
+    unitSystem, rtaResult,
   } = useWellTestStudio();
   const uL = (kind) => unitLabel(kind, unitSystem);
 
@@ -138,6 +138,37 @@ const ReportResults = () => {
           </table>
         </div>
       )}
+
+      {(() => {
+        if (!rtaResult?.fmb) return null;
+        const fmbResult = rtaResult.fmb;
+        const inPlace = rtaResult.isGas
+          ? (unitSystem === 'si'
+            ? { label: 'OGIP G', value: fmt.f3((fmbResult.G * 28.3168466) / 1e9), unit: '10⁹ m³' }
+            : { label: 'OGIP G', value: fmt.f2(fmbResult.G / 1e6), unit: 'Bcf' })
+          : (unitSystem === 'si'
+            ? { label: 'OOIP N', value: fmt.f3((fmbResult.N * 0.158987294928) / 1e6), unit: 'MM m³' }
+            : { label: 'OOIP N', value: fmt.f2(fmbResult.N / 1e6), unit: 'MMSTB' });
+        return (
+          <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Rate transient analysis (production data)</p>
+            <table className="w-full text-xs">
+              <tbody>
+                <Row label={`${inPlace.label}, flowing material balance`} value={inPlace.value} unit={inPlace.unit} />
+                <Row label="Productivity index J" value={fmt.sig3(fmbResult.J)} />
+                <Row label="FMB fit r²" value={fmt.f3(fmbResult.r2)} />
+                {rtaResult.linear && (
+                  <Row
+                    label="Transient linear xf √k"
+                    value={fmt.sig3(unitSystem === 'si' ? rtaResult.linear.xfSqrtK * 0.3048 : rtaResult.linear.xfSqrtK)}
+                    unit={unitSystem === 'si' ? 'm·√md' : 'ft·√md'}
+                  />
+                )}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
 
       <div className="rounded-lg border border-slate-800 bg-slate-900 p-4">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Flow regimes observed</p>
