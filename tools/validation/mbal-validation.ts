@@ -43,6 +43,8 @@ import {
   computeFetkovichWe,
   computeCarterTracyWe,
   computeOilPerTimestep,
+  runHistoryMatch,
+  simulatePressureHistory,
 } from '../../supabase/functions/_shared/mbal-engine.ts';
 import { DAKE_CT_RESERVOIR, DAKE_CT_PERFORMANCE } from './fixtures/dake-9-2.ts';
 import { fileURLToPath } from 'node:url';
@@ -462,13 +464,19 @@ async function main() {
   console.log('');
   await runMcCainDefaultCase();
 
+  console.log('═══════════════════════════════════════════════════════════════════');
+  console.log('  CASE 11 — Pressure history match recovery (MB5, inverse MBE + LM)');
+  console.log('═══════════════════════════════════════════════════════════════════');
+  console.log('');
+  await runHistoryMatchCases();
+
   // ────────────────────────────────────────────────────────────────────────
   // FINAL VERDICT
   // ────────────────────────────────────────────────────────────────────────
   console.log('═══════════════════════════════════════════════════════════════════');
   if (FAILURES.length === 0) {
-    console.log('  ✓ ALL ASSERTIONS PASSED (across all ten validation cases: 5 benchmark + 4 substitution/lab-table + 1 defaults)');
-    console.log('  Phase 1 + Phase 3 + Capsule 4A + Capsule 4C + MB1 validation gate: PASSED');
+    console.log('  ✓ ALL ASSERTIONS PASSED (across all eleven validation cases: 5 benchmark + 4 substitution/lab-table + 1 defaults + 1 history-match recovery)');
+    console.log('  Phase 1 + Phase 3 + Capsule 4A + Capsule 4C + MB1 + MB5 validation gate: PASSED');
     console.log('═══════════════════════════════════════════════════════════════════');
     process.exit(0);
   } else {
@@ -2404,4 +2412,201 @@ async function runMcCainDefaultCase(): Promise<void> {
   const muDefault = muMatch ? parseFloat(muMatch[1]) : NaN;
   checkRange('M-3 McCain μ_w default at 200 °F fresh water (cp)', muDefault, 0.25, 0.40);
   console.log('');
+}
+
+// ============================================================================
+// CASE 11 — Pressure history match (MB5): inverse MBE + Levenberg-Marquardt
+// ============================================================================
+// The history match is validated as a RECOVERY problem on the same benchmark
+// datasets the forward paths are pinned to: start Levenberg-Marquardt from
+// deliberately wrong parameters and require it to land back on the published
+// truth. Tolerances reflect two honest gaps measured in pre-flight:
+//   • forward-simulation method gap — the simulator solves the tank MBE
+//     self-consistently, while the benchmark pressures come from reservoir
+//     simulators (Pletcher) or Hurst-van Everdingen convolution (Dake), so
+//     even the TRUE parameters do not reproduce the observed pressures
+//     exactly (pot: 31 psi RMS of 6411 pi; Fetkovich: 80 psi; Dake CT: 5 psi);
+//   • identifiability — Pletcher Case 1 is 94% gas-expansion drive, so the
+//     pot W barely moves the pressures and only its order of magnitude is
+//     recoverable (asserted as a range, with G held tight). The Fetkovich
+//     sub-case fixes J (G+W fit) because the (G, W, J) triple is degenerate
+//     on 10 annual points — J trades against W along a flat valley.
+//
+// Sub-cases:
+//   11A gas + pot        (Pletcher Tables 1-3): G ±5% of 100.8 Bcf
+//   11B gas + Fetkovich  (Pletcher Table 9, J fixed): G ±7%, W ±25% of 633 MM
+//   11C oil + Carter-Tracy (Dake Ex. 9.2): N ±10% of 312 MM, r_R ±15% of 9200 ft
+// Pre-flight measured recoveries: 11A G +4.1%; 11B G +4.7%, W +2.0%;
+// 11C N +5.9%, r_R −5.9% — all inside the CT/HvE method envelopes already
+// documented on the forward cases.
+
+async function runHistoryMatchCases(): Promise<void> {
+  // ── 11A: gas + pot aquifer (Pletcher Tables 1-3) ──────────────────────────
+  console.log('─── CASE 11A: gas + pot recovery (Pletcher Tables 1-3) ─────────');
+  console.log('');
+  {
+    const inputs = buildInputs();
+    const hmA = runHistoryMatch(inputs as any, {
+      initial_guesses: { ogip_scf: 40e9, aquifer_w_rb: 300e6 },
+    });
+    const G = hmA.matched_parameters.find((p) => p.key === 'ogip_scf')!;
+    const W = hmA.matched_parameters.find((p) => p.key === 'aquifer_w_rb')!;
+    check('H-1 recovered OGIP from 0.4x start (Bcf)', G.matched_value / 1e9,
+      PLETCHER_RESERVOIR.true_ogip_bcf, 0.05,
+      { unit: 'Bcf', format: (n: number) => n.toFixed(2) });
+    checkRange('H-2 pot W order of magnitude (weakly identified: 94% gas drive)',
+      W.matched_value / 1e6, 1, 1000, 'MM rb');
+    checkRange('H-3 pot match RMS pressure error', hmA.rms_error_psi, 0, 40, 'psi');
+    checkRange('H-4 LM converged', hmA.converged ? 1 : 0, 1, 1);
+
+    // Forward-simulator regression pin: TRUE parameters must keep reproducing
+    // the observed history within the documented method gap.
+    const truthInputs = {
+      ...(inputs as any),
+      aquifer_params: { initial_aquifer_water_in_place_rb: PLETCHER_RESERVOIR.true_aquifer_w_mmrb * 1e6 },
+    };
+    const simTruth = simulatePressureHistory(truthInputs, PLETCHER_RESERVOIR.true_ogip_bcf * 1e9);
+    const obsA = (inputs as any).production_data.map((r: any) => r.pressure_psia);
+    let ssA = 0;
+    for (let i = 1; i < obsA.length; i++) ssA += (obsA[i] - simTruth[i]) ** 2;
+    checkRange('H-5 simulate-at-truth RMS (method gap regression pin)',
+      Math.sqrt(ssA / (obsA.length - 1)), 0, 40, 'psi');
+  }
+
+  // ── 11B: gas + Fetkovich (Pletcher Table 9), J fixed ─────────────────────
+  console.log('─── CASE 11B: gas + Fetkovich recovery (Pletcher Table 9) ──────');
+  console.log('');
+  {
+    const production_data = PLETCHER_FETKOVICH_PERFORMANCE.map((perf, idx) => ({
+      timestep_index: idx,
+      observation_date: new Date(2014 + perf.year, 0, 1).toISOString().slice(0, 10),
+      pressure_psia: perf.p,
+      cum_gas_scf: perf.Gp_Bcf * 1e9,
+      cum_water_stb: perf.Wp,
+      cum_oil_stb: 0,
+      z_factor: perf.z,
+      bg_rb_mscf: perf.Bg_Mscf,
+      bw_rb_stb: perf.Bw,
+    }));
+    const inputs: any = {
+      fluid_system: 'gas',
+      has_aquifer: true,
+      has_gas_cap: false,
+      initial_pressure_psia: PLETCHER_FETKOVICH_RESERVOIR.initial_pressure_psia,
+      reservoir_temperature_f: PLETCHER_FETKOVICH_RESERVOIR.reservoir_temperature_f,
+      initial_water_saturation: PLETCHER_FETKOVICH_RESERVOIR.initial_water_saturation,
+      gas_specific_gravity: PLETCHER_FETKOVICH_RESERVOIR.gas_specific_gravity,
+      formation_compressibility_psi: PLETCHER_FETKOVICH_RESERVOIR.formation_compressibility_psi,
+      water_compressibility_psi: PLETCHER_FETKOVICH_RESERVOIR.water_compressibility_psi,
+      aquifer_model: 'fetkovich',
+      aquifer_params: {
+        initial_aquifer_water_in_place_rb: PLETCHER_FETKOVICH_RESERVOIR.aquifer_W_rb,
+        aquifer_pi_rb_d_psi: PLETCHER_FETKOVICH_RESERVOIR.aquifer_pi_rb_d_psi,
+        aquifer_total_compressibility_psi: PLETCHER_FETKOVICH_RESERVOIR.aquifer_ct,
+      },
+      solver_method: 'havlena_odeh',
+      pvt_source: 'lab_table',
+      pvt_correlations: {
+        pb_rs_bo: 'standing', oil_viscosity: 'beggs_robinson',
+        z_factor: 'hall_yarborough', water: 'mccain', gas_viscosity: 'lee_gonzalez_eakin',
+      },
+      excluded_timesteps: PLETCHER_FETKOVICH_RESERVOIR.excluded_timesteps,
+      production_data,
+    };
+    const hmB = runHistoryMatch(inputs, {
+      fit_parameters: ['ogip_scf', 'aquifer_w_rb'],
+      initial_guesses: { ogip_scf: 50e9, aquifer_w_rb: 150e6 },
+    });
+    const G = hmB.matched_parameters.find((p) => p.key === 'ogip_scf')!;
+    const W = hmB.matched_parameters.find((p) => p.key === 'aquifer_w_rb')!;
+    check('H-6 recovered OGIP from 0.5x start (Bcf)', G.matched_value / 1e9,
+      PLETCHER_FETKOVICH_RESERVOIR.ogip_truth_bcf, 0.07,
+      { unit: 'Bcf', format: (n: number) => n.toFixed(2) });
+    check('H-7 recovered Fetkovich W from 0.24x start (MM rb)', W.matched_value / 1e6,
+      PLETCHER_FETKOVICH_RESERVOIR.aquifer_W_rb / 1e6, 0.25,
+      { unit: 'MM rb', format: (n: number) => n.toFixed(1) });
+    checkRange('H-8 Fetkovich match RMS pressure error', hmB.rms_error_psi, 0, 60, 'psi');
+    checkRange('H-9 LM converged', hmB.converged ? 1 : 0, 1, 1);
+  }
+
+  // ── 11C: oil + Carter-Tracy (Dake Exercise 9.2) ──────────────────────────
+  console.log('─── CASE 11C: oil + Carter-Tracy recovery (Dake Ex. 9.2) ───────');
+  console.log('');
+  {
+    const ANCHOR_YEAR = 1980;
+    const production_data = DAKE_CT_PERFORMANCE.map((row, idx) => {
+      const Np_stb = row.Np_mmstb * 1e6;
+      return {
+        timestep_index: idx,
+        observation_date: `${ANCHOR_YEAR + row.yr}-01-01`,
+        pressure_psia: row.p,
+        cum_oil_stb: Np_stb,
+        cum_gas_scf: Np_stb * row.Rp,
+        cum_water_stb: 0,
+        bo_rb_stb: row.Bo,
+        rs_scf_stb: row.Rs,
+        bg_rb_scf: row.Bg,
+        bw_rb_stb: 1.0,
+      };
+    });
+    const inputs: any = {
+      fluid_system: 'oil',
+      has_aquifer: true,
+      has_gas_cap: false,
+      initial_pressure_psia: DAKE_CT_RESERVOIR.initial_pressure_psia,
+      bubble_point_psia: DAKE_CT_RESERVOIR.bubble_point_psia,
+      reservoir_temperature_f: DAKE_CT_RESERVOIR.reservoir_temperature_f,
+      initial_water_saturation: DAKE_CT_RESERVOIR.initial_water_saturation,
+      formation_compressibility_psi: DAKE_CT_RESERVOIR.formation_compressibility_psi,
+      water_compressibility_psi: DAKE_CT_RESERVOIR.water_compressibility_psi,
+      oil_gravity_api: DAKE_CT_RESERVOIR.oil_gravity_api,
+      gas_specific_gravity: DAKE_CT_RESERVOIR.gas_specific_gravity,
+      gas_cap_ratio_m: DAKE_CT_RESERVOIR.gas_cap_ratio_m,
+      aquifer_model: 'carter_tracy',
+      aquifer_params: {
+        aquifer_radius_ft: DAKE_CT_RESERVOIR.aquifer_radius_ft,
+        radius_ratio: DAKE_CT_RESERVOIR.aquifer_dim_radius_ratio,
+        aquifer_thickness_ft: DAKE_CT_RESERVOIR.aquifer_thickness_ft,
+        aquifer_permeability_md: DAKE_CT_RESERVOIR.aquifer_permeability_md,
+        aquifer_porosity: DAKE_CT_RESERVOIR.aquifer_porosity,
+        aquifer_water_viscosity_cp: DAKE_CT_RESERVOIR.aquifer_water_viscosity_cp,
+        theta_degrees: DAKE_CT_RESERVOIR.aquifer_encroachment_angle_deg,
+        aquifer_total_compressibility_psi: DAKE_CT_RESERVOIR.aquifer_total_compressibility_psi,
+      },
+      solver_method: 'havlena_odeh',
+      pvt_source: 'lab_table',
+      pvt_correlations: {
+        pb_rs_bo: 'standing', oil_viscosity: 'beggs_robinson',
+        z_factor: 'hall_yarborough', water: 'mccain', gas_viscosity: 'lee_gonzalez_eakin',
+      },
+      excluded_timesteps: [],
+      production_data,
+    };
+    const hmC = runHistoryMatch(inputs, {
+      fit_parameters: ['stoiip_stb', 'aquifer_radius_ft'],
+      initial_guesses: { stoiip_stb: 150e6, aquifer_radius_ft: 5000 },
+    });
+    const N = hmC.matched_parameters.find((p) => p.key === 'stoiip_stb')!;
+    const rR = hmC.matched_parameters.find((p) => p.key === 'aquifer_radius_ft')!;
+    check('H-10 recovered OOIP from 0.48x start (MM STB)', N.matched_value / 1e6,
+      DAKE_CT_RESERVOIR.dake_N_truth_mmstb, 0.10,
+      { unit: 'MM STB', format: (n: number) => n.toFixed(1) });
+    check('H-11 recovered r_R from 0.54x start (ft)', rR.matched_value,
+      DAKE_CT_RESERVOIR.aquifer_radius_ft, 0.15,
+      { unit: 'ft', format: (n: number) => n.toFixed(0) });
+    checkRange('H-12 Carter-Tracy match RMS pressure error', hmC.rms_error_psi, 0, 3, 'psi');
+    checkRange('H-13 LM converged', hmC.converged ? 1 : 0, 1, 1);
+    // Confidence intervals must be finite and bracket the matched value —
+    // the covariance-at-optimum plumbing through the ln transform.
+    const ciOk =
+      N.ci95_low != null && N.ci95_high != null &&
+      N.ci95_low < N.matched_value && N.matched_value < N.ci95_high &&
+      rR.ci95_low != null && rR.ci95_high != null &&
+      rR.ci95_low < rR.matched_value && rR.matched_value < rR.ci95_high;
+    checkRange('H-14 95% CIs finite and bracket the matched values', ciOk ? 1 : 0, 1, 1);
+    console.log(`  info: N ci95 = [${(N.ci95_low! / 1e6).toFixed(1)}, ${(N.ci95_high! / 1e6).toFixed(1)}] MM STB; ` +
+      `r_R ci95 = [${rR.ci95_low!.toFixed(0)}, ${rR.ci95_high!.toFixed(0)}] ft`);
+    console.log(`  info: validation tier passthrough = ${hmC.validation_tier}`);
+    console.log('');
+  }
 }
