@@ -67,6 +67,13 @@ const WTSHelpContent = () => (
       earlier transition. Skin is bounded at zero on these models.
     </P>
     <P>
+      Horizontal well: three regimes in sequence. Early radial flow in the vertical plane (plateau at
+      70.6 qBmu divided by Lw times the square root of kh kv), then linear flow toward the well (half slope) once the
+      top and bottom are felt, then late pseudoradial flow on the full kh h (plateau at 70.6 qBmu/kh h). The well
+      length sets the first plateau level, kv/kh shifts when the boundaries arrive, and the standoff moves the
+      transition shape. Skin here is referenced to kh h like every model in the catalog.
+    </P>
+    <P>
       Vertical fractures: infinite conductivity (Gringarten) shows an early half slope on both pressure and
       derivative; the half-length xf sets its level. Finite conductivity (Cinco-Ley) shows an early quarter slope
       (bilinear flow) controlled by FcD, then linear, then radial flow. Fractured wells usually need little or no

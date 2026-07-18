@@ -307,6 +307,50 @@ def build():
         "reservoir": reservoir, "truth": rect_truth, "points": rect_points,
     }
 
+    # ---------------------------------------------------------------------
+    # WT7: horizontal well, REAL-TIME route (erf finite-line kernel x slab
+    # theta Green's function), independent of the JS mode-plus-image
+    # Laplace implementation. Lh-based dimensionless time.
+    hw_cases = [
+        {"id": "centered", "hD": 0.5, "zwD": 0.25, "zobsD": 0.251},
+        {"id": "off-center", "hD": 0.5, "zwD": 0.1, "zobsD": 0.1005},
+        {"id": "thick-slab", "hD": 2.0, "zwD": 1.0, "zobsD": 1.002},
+        {"id": "thin-slab", "hD": 0.05, "zwD": 0.025, "zobsD": 0.02525},
+    ]
+    goldens["horizontalWell"] = []
+    for case in hw_cases:
+        for t_dl in [1e-5, 1e-4, 1e-3, 1e-2, 0.1, 1.0, 10.0, 1000.0]:
+            goldens["horizontalWell"].append({
+                **case,
+                "tDL": t_dl,
+                "pwd": oracle.hw_pd_time(
+                    t_dl, case["hD"], case["zwD"], case["zobsD"],
+                ),
+            })
+
+    # WT7: synthetic horizontal-well drawdown round-trip fixture
+    hw_truth = {"k": 85.0, "kvkh": 0.1, "Lw": 2000.0, "zwFrac": 0.6,
+                "skin": 1.5, "C": 0.0}
+    hw_groups = oracle.dimensionless_groups(
+        hw_truth["k"], reservoir["phi"], reservoir["mu"], reservoir["ct"],
+        reservoir["rw"], reservoir["h"], reservoir["B"], reservoir["q"],
+    )
+    beta = math.sqrt(1.0 / hw_truth["kvkh"])
+    lh = hw_truth["Lw"] / 2.0
+    h_d = reservoir["h"] * beta / lh
+    zw_d = hw_truth["zwFrac"] * h_d
+    zobs_d = zw_d + reservoir["rw"] * (1.0 + beta) / (2.0 * lh)
+    td_to_tdl = (reservoir["rw"] / lh) ** 2
+    hw_points = []
+    for t in logspace(-2, 3, 50):
+        t_dl = hw_groups["tdPerHour"] * t * td_to_tdl
+        p_wd = oracle.hw_pd_time(t_dl, h_d, zw_d, zobs_d) + hw_truth["skin"]
+        dp = hw_groups["dpPerPd"] * p_wd
+        hw_points.append({"t": t, "dp": dp, "pwf": reservoir["pi"] - dp})
+    goldens["fixtures"]["horizontalDrawdown"] = {
+        "reservoir": reservoir, "truth": hw_truth, "points": hw_points,
+    }
+
     return goldens
 
 

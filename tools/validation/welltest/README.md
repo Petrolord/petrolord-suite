@@ -44,6 +44,12 @@ Validation-first gate for the PTA engines in `src/utils/welltest/`
     recovered from the extracted PSS intercept (square 30.8828,
     2:1 21.8369, 4:1 5.379), thin-rectangle = channel degeneracy, and an
     off-center auto-fit round trip (k, skin, drainage area)
+11. WT7 horizontal well: mode-plus-image Laplace route vs an independent
+    real-time erf x theta oracle (`hw_pd_time`), vertical-radial plateau
+    hD/4, pseudoradial plateau 0.5, thin-slab = Gringarten fracture plus
+    the exact partial-penetration pseudo-skin, the dimensional plateau
+    identity 70.6 qBmu/(Lw sqrt(kh kv)), and an auto-fit round trip
+    (k, kv/kh, Lw, skin)
 
 `literature-fixtures.json` shape:
 

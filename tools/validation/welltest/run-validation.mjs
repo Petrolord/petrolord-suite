@@ -45,6 +45,12 @@
  *           (square 30.8828, 2:1 21.8369, 4:1 5.379), thin-rectangle =
  *           channel degeneracy, composition identity, and an off-center
  *           auto-fit round trip (k, skin, drainage area).
+ * CASE 11 WT7 horizontal well: mode-plus-image Laplace route vs an
+ *           independent real-time erf x theta oracle, vertical-radial
+ *           plateau hD/4, pseudoradial plateau 0.5, thin-slab = Gringarten
+ *           fracture + exact partial-penetration pseudo-skin, dimensional
+ *           plateau identity 70.6 qBmu/(Lw sqrt(kh kv)), and an auto-fit
+ *           round trip (k, kv/kh, Lw, skin).
  */
 
 import fs from 'fs';
@@ -493,6 +499,91 @@ banner('CASE 10: WT6 closed rectangle (image lattice vs independent real-time or
     const areaTruth = (truth.L1 + truth.L2) * (truth.W1 + truth.W2);
     const areaFit = (fit.params.L1 + fit.params.L2) * (fit.params.W1 + fit.params.W2);
     check('rectangle round trip: drainage area', areaFit, areaTruth, 0.05, 'ft^2');
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 11: WT7 horizontal well (mode + image Laplace vs independent real-time oracle)');
+{
+  const { horizontalSandfaceLaplace } = await import('../../../src/utils/welltest/models/horizontal.js');
+  const { ufFracturePwdLaplace } = await import('../../../src/utils/welltest/models/fracture.js');
+
+  // --- JS Laplace route vs the Python erf x theta real-time route
+  {
+    let worst = { err: 0, at: '' };
+    for (const row of goldens.horizontalWell) {
+      const geom = { hD: row.hD, zwD: row.zwD, zobsD: row.zobsD };
+      const js = stehfestInvert((v) => horizontalSandfaceLaplace(v, geom), row.tDL);
+      const err = Math.abs(js - row.pwd) / row.pwd;
+      if (err > worst.err) worst = { err, at: `${row.id} tDL=${row.tDL}` };
+    }
+    console.log(`        (${goldens.horizontalWell.length} points, 4 slab geometries; worst ${worst.at} rel err ${worst.err.toExponential(2)}; gate 2e-3)`);
+    if (worst.err <= 2e-3) { passed += 1; console.log('  PASS  horizontal well vs real-time oracle gate 2e-3'); }
+    else { failed += 1; console.log('  FAIL  horizontal well vs real-time oracle gate 2e-3 exceeded'); }
+  }
+
+  const centered = { hD: 0.5, zwD: 0.25, zobsD: 0.251 };
+  const hwPwd = (geom, tDL) => stehfestInvert((v) => horizontalSandfaceLaplace(v, geom), tDL);
+  const logDeriv = (geom, tDL) => {
+    const e = 1.02;
+    return (hwPwd(geom, tDL * e) - hwPwd(geom, tDL / e)) / (2 * Math.log(e));
+  };
+
+  // --- exact regime limits
+  check('early vertical-radial derivative plateau = hD/4', logDeriv(centered, 3e-3), centered.hD / 4, 5e-3);
+  check('late pseudoradial derivative plateau = 0.5', logDeriv(centered, 1e4), 0.5, 2e-3);
+
+  // --- thin-slab limit: horizontal well = Gringarten uniform-flux fracture
+  //     plus the exact partial-penetration pseudo-skin
+  //     sz = (hD/2)[-ln(2 sin(pi z01/2hD)) - ln(2 sin(pi z02/2hD))]
+  {
+    const thin = { hD: 0.05, zwD: 0.025, zobsD: 0.02525 };
+    const z01 = thin.zobsD - thin.zwD;
+    const z02 = thin.zobsD + thin.zwD;
+    const sz =
+      (thin.hD / 2) *
+      (-Math.log(2 * Math.sin((Math.PI * z01) / (2 * thin.hD))) -
+        Math.log(2 * Math.abs(Math.sin((Math.PI * z02) / (2 * thin.hD)))));
+    for (const tDL of [1, 100]) {
+      const hw = hwPwd(thin, tDL);
+      const fr = stehfestInvert((v) => ufFracturePwdLaplace(v, { xD: 0 }), tDL);
+      check(`thin slab = fracture + pseudo-skin (tDL=${tDL})`, hw - sz, fr, 1e-3);
+    }
+  }
+
+  // --- dimensional early plateau identity:
+  //     dp' = 70.6 q B mu / (Lw sqrt(kh kv))  (literature truth)
+  {
+    const model = getModel('horizontal-well');
+    const reservoir = { phi: 0.18, mu: 0.9, ct: 1.2e-5, rw: 0.354, h: 45, B: 1.25, q: 450, pi: 4800 };
+    const params = { k: 85, kvkh: 0.1, Lw: 2000, zwFrac: 0.5, skin: 0, C: 0 };
+    // vertical-radial window for this geometry: after the near-wellbore
+    // transient (~1e-3 hr) and before the z-boundaries are felt (~0.04 hr)
+    const tMid = 0.015;
+    const e = 1.05;
+    const series = evaluateDrawdown({ model, params, reservoir, times: [tMid / e, tMid * e] });
+    const plateau = (series[1].dp - series[0].dp) / (2 * Math.log(e));
+    const expected = (70.6 * reservoir.q * reservoir.B * reservoir.mu) /
+      (params.Lw * Math.sqrt(params.k * params.k * params.kvkh));
+    check('dimensional vertical-radial plateau 70.6 qBmu/(Lw sqrt(kh kv))', plateau, expected, 0.02, 'psi');
+  }
+
+  // --- fixture round trip: auto-fit recovers k, kv/kh, Lw and skin from the
+  //     oracle-generated drawdown
+  {
+    const fx = goldens.fixtures.horizontalDrawdown;
+    const model = getModel('horizontal-well');
+    const fit = autoFitModel({
+      model,
+      testType: 'drawdown',
+      data: fx.points.filter((_, i) => i % 2 === 0),
+      reservoir: fx.reservoir,
+      initialParams: { k: 60, kvkh: 0.3, Lw: 1500, zwFrac: 0.5, skin: 0.5, C: 1e-5 },
+    });
+    check('horizontal round trip: permeability', fit.params.k, fx.truth.k, 0.02, 'md');
+    check('horizontal round trip: kv/kh', fit.params.kvkh, fx.truth.kvkh, 0.15);
+    check('horizontal round trip: well length', fit.params.Lw, fx.truth.Lw, 0.05, 'ft');
+    checkAbs('horizontal round trip: skin', fit.params.skin, fx.truth.skin, 0.2);
   }
 }
 
