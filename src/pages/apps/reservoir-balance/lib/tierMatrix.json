@@ -1,0 +1,104 @@
+{
+  "generated_by": "tools/validation/gen-tier-matrix-golden.ts",
+  "source": "supabase/functions/_shared/mbal-engine.ts resolveValidationTier()",
+  "matrix": {
+    "gas": {
+      "none": {
+        "no_gas_cap": {
+          "tier": "published_method",
+          "reference": "Standard p/z material balance formulation (Havlena-Odeh 1963). Documented calculation logic and internal checks."
+        },
+        "with_gas_cap": {
+          "tier": "published_method",
+          "reference": "Standard p/z material balance formulation (Havlena-Odeh 1963). Documented calculation logic and internal checks."
+        }
+      },
+      "pot": {
+        "no_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Pletcher SPE 75354 (2002) Tables 1-3, two-cell gas simulation. Matched within stated tolerance.",
+          "tolerance_pct": 0.19
+        },
+        "with_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Pletcher SPE 75354 (2002) Tables 1-3, two-cell gas simulation. Matched within stated tolerance.",
+          "tolerance_pct": 0.19
+        }
+      },
+      "fetkovich": {
+        "no_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Pletcher SPE 75354 (2002) Tables 9 / Fig. 8, single-cell gas with finite-aquifer Fetkovich support. Matched within stated tolerance.",
+          "tolerance_pct": 0.76
+        },
+        "with_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Pletcher SPE 75354 (2002) Tables 9 / Fig. 8, single-cell gas with finite-aquifer Fetkovich support. Matched within stated tolerance.",
+          "tolerance_pct": 0.76
+        }
+      },
+      "carter_tracy": {
+        "no_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Carter-Tracy (1960) with Lee-Wattenbarger pD/pD' polynomial fits. Validated 2026-05-17 against Dake (1978) Exercise 9.2 (oil + Carter-Tracy + reD=5, wedge aquifer 140° encroachment): engine OOIP 301.0 MMSTB vs Dake truth 312 MMSTB (3.53% error), R² = 0.9998, drive indices match expected water-drive-with-depletion signature. The CT math is shared between gas and oil fluid systems; validation on the oil path qualifies the gas path. Implementation corrections in same release: Δp convention now cumulative drop (was van Everdingen averaged, a bug), finite-aquifer pD via tanh-blended pseudo-steady-state transition when radius_ratio is set, r_R and μ_w user-configurable via aquifer_params.",
+          "tolerance_pct": 3.53
+        },
+        "with_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Carter-Tracy (1960) with Lee-Wattenbarger pD/pD' polynomial fits. Validated 2026-05-17 against Dake (1978) Exercise 9.2 (oil + Carter-Tracy + reD=5, wedge aquifer 140° encroachment): engine OOIP 301.0 MMSTB vs Dake truth 312 MMSTB (3.53% error), R² = 0.9998, drive indices match expected water-drive-with-depletion signature. The CT math is shared between gas and oil fluid systems; validation on the oil path qualifies the gas path. Implementation corrections in same release: Δp convention now cumulative drop (was van Everdingen averaged, a bug), finite-aquifer pD via tanh-blended pseudo-steady-state transition when radius_ratio is set, r_R and μ_w user-configurable via aquifer_params.",
+          "tolerance_pct": 3.53
+        }
+      }
+    },
+    "oil": {
+      "none": {
+        "no_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Validated against two worked examples: (a) Tarek Ahmed (2010) Reservoir Engineering Handbook, 4th ed., Chapter 11, Example 11-3 — Virginia Hills Beaverhill Lake field — for the no-gas-cap (m=0) variant. Engine LSQ N = 291.3 MM STB vs Ahmed graphical fit 257 MM STB vs volumetric 270.6 MM STB. (b) Dake (1978) Fundamentals of Reservoir Engineering, Chapter 3, Exercise 3.4 — for the gas-cap (m>0) variant. Engine LSQ N = 115.5 MM STB vs Dake trial-and-error fit 114 MM STB vs volumetric 115 MM STB; m=0.5 input reproduces Dake's preferred solution. Both use Havlena-Odeh (1963) F vs Et or F vs (Eo + m·Eg) formulations.",
+          "notes": "For m=0 the method spread between LSQ (engine) and graphical fit (Ahmed) is the dominant source of disagreement on real-world data. For m>0 the engine matches Dake's LSQ within < 2% (engine 115.5 MM STB vs Dake 114 MM STB)."
+        },
+        "with_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Validated against two worked examples: (a) Tarek Ahmed (2010) Reservoir Engineering Handbook, 4th ed., Chapter 11, Example 11-3 — Virginia Hills Beaverhill Lake field — for the no-gas-cap (m=0) variant. Engine LSQ N = 291.3 MM STB vs Ahmed graphical fit 257 MM STB vs volumetric 270.6 MM STB. (b) Dake (1978) Fundamentals of Reservoir Engineering, Chapter 3, Exercise 3.4 — for the gas-cap (m>0) variant. Engine LSQ N = 115.5 MM STB vs Dake trial-and-error fit 114 MM STB vs volumetric 115 MM STB; m=0.5 input reproduces Dake's preferred solution. Both use Havlena-Odeh (1963) F vs Et or F vs (Eo + m·Eg) formulations.",
+          "notes": "For m=0 the method spread between LSQ (engine) and graphical fit (Ahmed) is the dominant source of disagreement on real-world data. For m>0 the engine matches Dake's LSQ within < 2% (engine 115.5 MM STB vs Dake 114 MM STB)."
+        }
+      },
+      "pot": {
+        "no_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Pletcher SPE 75354 (2002) Tables 10-13, multicell oil with pot aquifer. Matched within stated tolerance.",
+          "tolerance_pct": 0.13
+        },
+        "with_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Validated 2026-07-18 (MB1) against Ahmed, Reservoir Engineering Handbook 4th ed., Chapter 11, Example 11-1: combination-drive reservoir (gas cap m=0.25 plus water influx, N=10 MMSTB given). Engine per-timestep terms reproduce the printed back-calculated We = 411,281 bbl and the printed driving indexes DDI/SDI/WDI/EDI = 0.4385/0.3465/0.2112/0.0038 (book index convention, denominator F - Wp*Bw). Scope note: the published truth is a single pressure step with N given, so it anchors the combined-MBE term math and drive indexes; the m>0 pot-plot regression (F/(Eo+m*Eg) vs dp/(Eo+m*Eg), generalized in MB1) is additionally gated by an exact synthetic multi-step round trip recovering N and W to numerical precision (harness CASE 9).",
+          "tolerance_pct": 1.5
+        }
+      },
+      "fetkovich": {
+        "no_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Validated 2026-07-18 (MB1) against Ahmed, Reservoir Engineering Handbook 4th ed., Chapter 10, Example 10-10 (data credited to Dake 1978; the Dake Exercise 9.2 wedge aquifer worked with Fetkovich): the marching scheme reproduces the printed step-by-step We table (final We 37.971 MM bbl at 4 years) within 1%, confirming the published midpoint p_r-bar convention, Wei = ct*Wi*pi*f = 211.9 MM bbl and J = 116.5 bbl/day/psi (no-flow-boundary form ln(reD) - 3/4). Full oil path additionally benchmarked on Dake Exercise 9.2 production data with this aquifer: OOIP within 10% of Dake N = 312 MMSTB (Fetkovich vs Hurst-van Everdingen method spread, same reasoning as the Carter-Tracy case). Harness CASE 8.",
+          "tolerance_pct": 10
+        },
+        "with_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Validated 2026-07-18 (MB1) against Ahmed, Reservoir Engineering Handbook 4th ed., Chapter 10, Example 10-10 (data credited to Dake 1978; the Dake Exercise 9.2 wedge aquifer worked with Fetkovich): the marching scheme reproduces the printed step-by-step We table (final We 37.971 MM bbl at 4 years) within 1%, confirming the published midpoint p_r-bar convention, Wei = ct*Wi*pi*f = 211.9 MM bbl and J = 116.5 bbl/day/psi (no-flow-boundary form ln(reD) - 3/4). Full oil path additionally benchmarked on Dake Exercise 9.2 production data with this aquifer: OOIP within 10% of Dake N = 312 MMSTB (Fetkovich vs Hurst-van Everdingen method spread, same reasoning as the Carter-Tracy case). Harness CASE 8.",
+          "tolerance_pct": 10
+        }
+      },
+      "carter_tracy": {
+        "no_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Carter-Tracy (1960) with Lee-Wattenbarger pD/pD' polynomial fits applied to oil material balance via Havlena-Odeh F/Eo vs We/Eo regression. Validated 2026-05-17 against Dake (1978) Exercise 9.2 (wedge reservoir, 140° encroachment angle, reD=5, k=200 mD, h=100 ft, φ=0.25, μw=0.55 cP, r_o=9200 ft): engine OOIP = 301.0 MMSTB vs Dake truth 312 MMSTB (3.53% error), R² = 0.9998. Drive indices at year 10: IDD=0.608, IWD=0.392, GDI=0, SDI=0.011, sum=1.010 — matching the water-drive-with-depletion signature Dake describes. Implementation corrections in same release (2026-05-17): Δp convention now cumulative drop from initial pressure (was van Everdingen averaged step, a bug that caused systematic ~80%% under-prediction of We); finite-aquifer pD via tanh-blended pseudo-steady-state transition at tD_pss = 0.4·reD² when radius_ratio is set; r_R and μ_w user-configurable via aquifer_params (defaults: 2980 ft, 0.5 cP for backward compatibility with pre-Phase-5 cases).",
+          "tolerance_pct": 3.53
+        },
+        "with_gas_cap": {
+          "tier": "benchmark_verified",
+          "reference": "Carter-Tracy (1960) with Lee-Wattenbarger pD/pD' polynomial fits applied to oil material balance via Havlena-Odeh F/Eo vs We/Eo regression. Validated 2026-05-17 against Dake (1978) Exercise 9.2 (wedge reservoir, 140° encroachment angle, reD=5, k=200 mD, h=100 ft, φ=0.25, μw=0.55 cP, r_o=9200 ft): engine OOIP = 301.0 MMSTB vs Dake truth 312 MMSTB (3.53% error), R² = 0.9998. Drive indices at year 10: IDD=0.608, IWD=0.392, GDI=0, SDI=0.011, sum=1.010 — matching the water-drive-with-depletion signature Dake describes. Implementation corrections in same release (2026-05-17): Δp convention now cumulative drop from initial pressure (was van Everdingen averaged step, a bug that caused systematic ~80%% under-prediction of We); finite-aquifer pD via tanh-blended pseudo-steady-state transition at tD_pss = 0.4·reD² when radius_ratio is set; r_R and μ_w user-configurable via aquifer_params (defaults: 2980 ft, 0.5 cP for backward compatibility with pre-Phase-5 cases).",
+          "tolerance_pct": 3.53
+        }
+      }
+    }
+  }
+}

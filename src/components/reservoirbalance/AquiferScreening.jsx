@@ -317,7 +317,7 @@ const AquiferScreening = () => {
             <CardHeader className="pb-2"><CardTitle className="text-base">Water influx &amp; pressure history</CardTitle></CardHeader>
             <CardContent className="p-0">
               {chartData.length >= 2 ? (
-                <ChartFrame height={300}>
+                <ChartFrame height={300} exportFilename="aquifer-screening-influx">
                   <ComposedChart data={chartData} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
                     <CartesianGrid {...GRID_STYLE} vertical={false} />
                     <XAxis dataKey="t" type="number" domain={['dataMin', 'dataMax']} stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}

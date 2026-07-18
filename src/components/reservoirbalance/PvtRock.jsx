@@ -81,6 +81,7 @@ import {
   savePvtConfig,
 } from '@/pages/apps/reservoir-balance/lib/api';
 import ChartLogo from '@/components/charts/ChartLogo';
+import { buildPvtPrefillRows } from '@/pages/apps/reservoir-balance/lib/fluidStudioPvtPrefill';
 import {
   CHART_COLORS,
   CHART_TYPOGRAPHY,
@@ -924,6 +925,30 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
         )}
       </Card>
 
+      {/* ─── Lab Table Prefill (MB7) ─── */}
+      {form.pvt_source === 'lab_table' && (
+        <PvtPrefillCard
+          caseData={caseData}
+          form={form}
+          isGas={isGas}
+          onGenerated={(rows, note) => {
+            setForm((prev) => ({
+              ...prev,
+              pvt_lab_table: rows.map((row) => {
+                const out = {};
+                for (const col of LAB_TABLE_COLUMNS) {
+                  const v = row[col.key];
+                  out[col.key] = v == null ? '' : String(v);
+                }
+                return out;
+              }),
+            }));
+            setDirty(true);
+            toast({ title: 'Lab table generated', description: note });
+          }}
+        />
+      )}
+
       {/* ─── Lab Table Editor ─── */}
       {form.pvt_source === 'lab_table' && (
         <LabTableEditor
@@ -1135,6 +1160,85 @@ const CorrelationSelect = ({ label, value, options, onChange }) => {
         </div>
       )}
     </div>
+  );
+};
+
+// Lab table prefill (MB7) — generates the table from the Fluid Systems
+// Studio client black-oil engine at the case conditions (jest-guarded
+// mapping in lib/fluidStudioPvtPrefill.js). A starting grid to review and
+// overwrite with measured data, not a lab report.
+const PvtPrefillCard = ({ caseData, form, isGas, onGenerated }) => {
+  const [gor, setGor] = useState('');
+  const [maxP, setMaxP] = useState(() => {
+    const pi = caseData?.initial_pressure_psia;
+    return Number.isFinite(pi) ? String(Math.round(pi * 1.1)) : '';
+  });
+  const [error, setError] = useState(null);
+
+  const generate = () => {
+    const result = buildPvtPrefillRows({
+      fluidSystem: caseData?.fluid_system,
+      apiGravity: Number(form.oil_gravity_api),
+      gasSg: Number(form.gas_specific_gravity),
+      temperatureF: caseData?.reservoir_temperature_f,
+      bubblePointPsia: caseData?.bubble_point_psia ?? null,
+      gorScfStb: gor === '' ? null : Number(gor),
+      maxPressurePsia: Number(maxP),
+      nPoints: 20,
+    });
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setError(null);
+    const notes = [`${result.rows.length} rows generated from Standing and Beggs-Robinson correlations at case conditions.`];
+    if (result.derivedGor != null) {
+      notes.push(`Solution GOR ${result.derivedGor.toFixed(0)} scf/STB derived from the case bubble point.`);
+    }
+    notes.push('Review the rows and replace them with measured data where you have it, then save.');
+    onGenerated(result.rows, notes.join(' '));
+  };
+
+  return (
+    <Card className="bg-slate-800/50 border-slate-700 shadow-lg">
+      <CardHeader className="p-4 pb-2">
+        <CardTitle className="text-sm font-bold text-slate-200 uppercase tracking-wider">
+          Prefill from correlations
+        </CardTitle>
+        <p className="text-[11px] text-slate-500 mt-0.5">
+          Generates the table with the Fluid Systems Studio black-oil engine at this case&apos;s temperature and
+          gravity, so you start from a consistent grid instead of an empty editor. Generated values are correlation
+          estimates; overwrite them with measured lab data wherever you have it.
+        </p>
+      </CardHeader>
+      <CardContent className="p-4 pt-2">
+        <div className="flex flex-wrap items-end gap-3">
+          {!isGas && (
+            <div className="space-y-1">
+              <Label className="text-[11px] text-slate-400">Solution GOR (scf/STB)</Label>
+              <Input
+                value={gor}
+                onChange={(e) => setGor(e.target.value)}
+                placeholder="derive from Pb"
+                className="h-8 w-40 bg-slate-900 border-slate-600 font-mono text-xs"
+              />
+            </div>
+          )}
+          <div className="space-y-1">
+            <Label className="text-[11px] text-slate-400">Max table pressure (psia)</Label>
+            <Input
+              value={maxP}
+              onChange={(e) => setMaxP(e.target.value)}
+              className="h-8 w-40 bg-slate-900 border-slate-600 font-mono text-xs"
+            />
+          </div>
+          <Button size="sm" onClick={generate} className="bg-sky-600 hover:bg-sky-500 text-white h-8">
+            Generate table
+          </Button>
+        </div>
+        {error && <p className="text-xs text-rose-400 mt-2">{error}</p>}
+      </CardContent>
+    </Card>
   );
 };
 

@@ -270,7 +270,7 @@ const HistoryMatch = () => {
 
             <div>
               <p className="text-sm text-slate-300 mb-2">Pressure history match</p>
-              <ChartFrame height={320}>
+              <ChartFrame height={320} exportFilename="mbal-pressure-history-match">
                 <ComposedChart data={chartData} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
                   <CartesianGrid {...GRID_STYLE} vertical={false} />
                   <XAxis

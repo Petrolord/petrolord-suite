@@ -72,7 +72,9 @@ import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
 import {
   listRuns,
   getResultByRunId,
+  getCaseDefaultConfig,
 } from '@/pages/apps/reservoir-balance/lib/api';
+import { ramagostCorrectedPz } from '@/pages/apps/reservoir-balance/lib/pzRamagost';
 
 // =============================================================================
 // COLOR PALETTE — local to MBAL plots
@@ -507,7 +509,7 @@ const HavlenaOdehPlot = ({ rows, result, isGas, caseName }) => {
 // PLOT 2 — p/z (gas only)
 // =============================================================================
 
-const PZPlot = ({ rows, result, caseName }) => {
+const PZPlot = ({ rows, result, caseName, ramagost }) => {
   const [expandedRow, setExpandedRow] = useState(null);
   const handlePointClick = useCallback(
     makePointClickHandler(rows, setExpandedRow),
@@ -515,20 +517,33 @@ const PZPlot = ({ rows, result, caseName }) => {
   );
 
   // Build data: (Gp_bcf, p/z) for each timestep. Add extrapolation line to p/z = 0.
-  const data = useMemo(
-    () =>
-      rows
-        .filter((r) => r.p_over_z != null && r.cum_gas_scf != null)
-        .map((r) => ({
-          timestep_index: r.timestep_index,
-          Gp_bcf: r.cum_gas_scf / 1e9,
-          p_over_z: r.p_over_z,
-          point_in_fit: r.point_in_fit,
-          pz_included: r.point_in_fit ? r.p_over_z : null,
-          pz_excluded: !r.point_in_fit ? r.p_over_z : null,
-        })),
-    [rows],
-  );
+  const data = useMemo(() => {
+    const base = rows.filter((r) => r.p_over_z != null && r.cum_gas_scf != null);
+    // MB7: Ramagost-Farshad cf-corrected p/z overlay. The corrected points
+    // stay on the depletion straight line when formation compaction bends
+    // the raw curve (abnormally pressured reservoirs).
+    const corrected = ramagost
+      ? ramagostCorrectedPz({
+          pOverZ: base.map((r) => r.p_over_z),
+          pressure: base.map((r) => r.pressure),
+          pi: ramagost.pi,
+          swi: ramagost.swi,
+          cw: ramagost.cw,
+          cf: ramagost.cf,
+        })
+      : null;
+    return base.map((r, i) => ({
+      timestep_index: r.timestep_index,
+      Gp_bcf: r.cum_gas_scf / 1e9,
+      p_over_z: r.p_over_z,
+      point_in_fit: r.point_in_fit,
+      pz_included: r.point_in_fit ? r.p_over_z : null,
+      pz_excluded: !r.point_in_fit ? r.p_over_z : null,
+      pz_ramagost: corrected ? corrected[i] : null,
+    }));
+  }, [rows, ramagost]);
+
+  const hasRamagost = data.some((d) => d.pz_ramagost != null);
 
   // Extrapolation line: linear fit on included points, extend to p/z = 0.
   const extrapData = useMemo(() => {
@@ -566,7 +581,7 @@ const PZPlot = ({ rows, result, caseName }) => {
               p/z plot
             </CardTitle>
             <CardDescription className="text-xs text-slate-500">
-              Classic gas reservoir diagnostic. Linear p/z vs Gp extrapolates to apparent OGIP at p/z=0. With aquifer support the extrapolation overestimates because water influx props up pressure.
+              Classic gas reservoir diagnostic. Linear p/z vs Gp extrapolates to apparent OGIP at p/z=0. With aquifer support the extrapolation overestimates because water influx props up pressure. The dashed purple series is the Ramagost-Farshad correction (p/z scaled by 1 minus the rock and water compressibility term); it matters for abnormally pressured reservoirs where compaction bends the raw curve.
             </CardDescription>
           </div>
           <ExportButton
@@ -658,6 +673,19 @@ const PZPlot = ({ rows, result, caseName }) => {
                 legendType="line"
                 isAnimationActive={false}
               />
+              {hasRamagost && (
+                <Line
+                  dataKey="pz_ramagost"
+                  type="monotone"
+                  stroke="#9333ea"
+                  strokeWidth={1.5}
+                  strokeDasharray="3 3"
+                  dot={{ r: 2, fill: '#9333ea' }}
+                  name="Ramagost-Farshad corrected"
+                  legendType="line"
+                  isAnimationActive={false}
+                />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
           <ChartLogo />
@@ -1222,6 +1250,25 @@ const RbDiagnosticPlots = ({ caseId, caseData, runVersion = 0 }) => {
 
   const rows = useMemo(() => buildBaseRows(result?.plot_data), [result]);
 
+  // MB7: rock and water compressibilities for the Ramagost-Farshad overlay
+  // (same saved config the runs inherit).
+  const [rockCfg, setRockCfg] = useState(null);
+  useEffect(() => {
+    if (!caseId || !isGas) return undefined;
+    let cancelled = false;
+    getCaseDefaultConfig(caseId).then(({ data }) => {
+      if (!cancelled) setRockCfg(data ?? null);
+    });
+    return () => { cancelled = true; };
+  }, [caseId, isGas, runVersion]);
+
+  const ramagost = useMemo(() => ({
+    pi: caseData?.initial_pressure_psia,
+    swi: caseData?.initial_water_saturation,
+    cw: rockCfg?.water_compressibility_psi ?? 3e-6,
+    cf: rockCfg?.formation_compressibility_psi ?? 6e-6,
+  }), [caseData, rockCfg]);
+
   // ── Loading ──
   if (loading) {
     return (
@@ -1318,7 +1365,7 @@ const RbDiagnosticPlots = ({ caseId, caseData, runVersion = 0 }) => {
         <HavlenaOdehPlot rows={rows} result={result} isGas={isGas} caseName={caseName} />
 
         {/* Gas-only plots */}
-        {isGas && <PZPlot rows={rows} result={result} caseName={caseName} />}
+        {isGas && <PZPlot rows={rows} result={result} caseName={caseName} ramagost={ramagost} />}
         {isGas && <ColePlot rows={rows} result={result} caseName={caseName} />}
 
         {/* Oil-only plot */}

@@ -1496,7 +1496,12 @@ export function computeCarterTracyWe(
  * consumer reads `result.validation_tier` and uses the optional `reference`
  * and `tolerance_pct` to render constructive language.
  */
-function resolveValidationTier(
+// MB7: exported so tools/validation/gen-tier-matrix-golden.ts can dump the
+// full mapping into src/pages/apps/reservoir-balance/lib/tierMatrix.json —
+// the UI's pre-run tier badge reads THAT file instead of hand-mirroring this
+// function (the Capsule 4B mirror had already drifted: it still showed
+// Carter-Tracy as published_method after the Phase 5 benchmark promotion).
+export function resolveValidationTier(
   fluid_system: 'oil' | 'gas',
   aquifer_model: AquiferModel,
   has_gas_cap: boolean,

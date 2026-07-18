@@ -193,7 +193,7 @@ const ContactsTab = () => {
                 )}
               </div>
 
-              <ChartFrame height={300}>
+              <ChartFrame height={300} exportFilename="mbal-contact-movement">
                 <LineChart data={chartData} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
                   <CartesianGrid {...GRID_STYLE} vertical={false} />
                   <XAxis

@@ -62,10 +62,16 @@ import {
 // CONFIG
 // =============================================================================
 //
-// Tier mapping mirrors the engine's resolveValidationTier() so the UI can show
-// what tier the user will get *before* running. Keep in sync with
-// supabase/functions/_shared/mbal-engine.ts. Phase 7 polish: consolidate via
-// a /tier-info Edge Function that returns the engine's tier mapping at runtime.
+// Pre-run tier badges read lib/tierMatrix.json, which is GENERATED from the
+// engine's resolveValidationTier() (npx tsx
+// tools/validation/gen-tier-matrix-golden.ts). MB7 closed the Capsule 4B
+// carry-over: the hand-maintained mirror here had drifted (it still showed
+// Carter-Tracy as published_method after the Phase 5 benchmark promotion).
+// Never hand-edit tiers again; regenerate after engine tier changes.
+
+import tierMatrixJson from '@/pages/apps/reservoir-balance/lib/tierMatrix.json';
+
+const TIER_MATRIX = tierMatrixJson.matrix;
 
 const AQUIFER_MODEL_OPTIONS = [
   {
@@ -73,40 +79,24 @@ const AQUIFER_MODEL_OPTIONS = [
     label: 'None (closed system)',
     description:
       'Reservoir treated as a closed tank with no aquifer support. Pressure declines only from production and rock+water expansion.',
-    tier: {
-      gas: { tier: 'published_method', reference: 'Standard p/z material balance formulation (Havlena-Odeh 1963). Documented calculation logic and internal checks.' },
-      oil: { tier: 'published_method', reference: 'Standard oil material balance formulation (Havlena-Odeh 1963). Documented calculation logic and internal checks.' },
-    },
   },
   {
     value: 'pot',
     label: 'Pot aquifer',
     description:
       'Small bounded aquifer with instantaneous pressure communication (Pletcher Eq. 12). Aquifer water-in-place (W) is estimated automatically by regression — no manual entry. Best for high-permeability reservoirs with bounded aquifer (faulting, pinchout).',
-    tier: {
-      gas: { tier: 'benchmark_verified', reference: 'Pletcher SPE 75354 (2002) Tables 1-3, two-cell gas simulation. Matched within stated tolerance.', tolerance_pct: 0.19 },
-      oil: { tier: 'benchmark_verified', reference: 'Pletcher SPE 75354 (2002) Tables 10-13, multicell oil with pot aquifer. Matched within stated tolerance.', tolerance_pct: 0.13 },
-    },
   },
   {
     value: 'fetkovich',
     label: 'Fetkovich',
     description:
       'Time-dependent aquifer with productivity-index marching scheme (Fetkovich 1971). Suitable for finite aquifers where flow is rate-limited rather than instantaneous. Requires W and J as user inputs.',
-    tier: {
-      gas: { tier: 'benchmark_verified', reference: 'Pletcher SPE 75354 (2002) Tables 9 / Fig. 8, single-cell gas with finite-aquifer Fetkovich support. Matched within stated tolerance.', tolerance_pct: 0.76 },
-      oil: { tier: 'published_method', reference: 'Standard Fetkovich aquifer formulation (Fetkovich SPE 2603, 1971) applied to oil material balance. Calculation traceability and internal checks.' },
-    },
   },
   {
     value: 'carter_tracy',
     label: 'Carter-Tracy',
     description:
       'Radial-diffusion aquifer model (Carter-Tracy 1960) with Lee-Wattenbarger pD/pD\u2032 polynomial fit to the infinite-aquifer pressure transient. Best for large/effectively-infinite aquifers where the marching-scheme limit of Fetkovich is unrealistic.',
-    tier: {
-      gas: { tier: 'published_method', reference: 'Carter-Tracy (1960) with Lee-Wattenbarger pD/pD\' polynomial formulation. Implements documented assumptions and calculation traceability.' },
-      oil: { tier: 'published_method', reference: 'Carter-Tracy (1960) aquifer formulation applied to oil material balance with Lee-Wattenbarger pD/pD\' polynomial. Documented assumptions and internal checks.' },
-    },
   },
 ];
 
@@ -308,7 +298,9 @@ const AquiferModel = ({ caseId, caseData, onConfigChange }) => {
     () => AQUIFER_MODEL_OPTIONS.find((o) => o.value === form.aquifer_model),
     [form.aquifer_model],
   );
-  const currentTier = currentOption?.tier?.[fluidSystem];
+  const currentTier = TIER_MATRIX?.[fluidSystem]?.[form.aquifer_model]?.[
+    caseData?.has_gas_cap ? 'with_gas_cap' : 'no_gas_cap'
+  ];
   const errors = useMemo(() => validateForm(form), [form]);
 
   // ── Loading ──

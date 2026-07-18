@@ -212,7 +212,7 @@ const ForecastTab = () => {
                 />
               </div>
 
-              <ChartFrame height={300}>
+              <ChartFrame height={300} exportFilename="mbal-decline-forecast">
                 <ComposedChart data={chartData} margin={{ top: 16, right: 16, bottom: 8, left: 8 }}>
                   <CartesianGrid {...GRID_STYLE} vertical={false} />
                   <XAxis
