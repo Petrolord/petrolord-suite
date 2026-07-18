@@ -69,13 +69,15 @@ const DataPanel = () => {
               <SelectContent>
                 <SelectItem value="buildup">Pressure buildup</SelectItem>
                 <SelectItem value="drawdown">Pressure drawdown</SelectItem>
+                <SelectItem value="injection">Injection test</SelectItem>
+                <SelectItem value="falloff">Injection falloff</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          {testConfig.testType === 'buildup' && (
+          {(testConfig.testType === 'buildup' || testConfig.testType === 'falloff') && (
             <>
-              <Field label="Producing time tp" suffix="hr" value={testConfig.tp} onChange={(v) => setTestField('tp', v)} />
-              <Field label="Flowing pressure at shut-in" suffix="psi, blank = from data" value={testConfig.pwfShutIn} onChange={(v) => setTestField('pwfShutIn', v)} />
+              <Field label={testConfig.testType === 'falloff' ? 'Injection time tp' : 'Producing time tp'} suffix="hr" value={testConfig.tp} onChange={(v) => setTestField('tp', v)} />
+              <Field label={testConfig.testType === 'falloff' ? 'Injection pressure at shut-in' : 'Flowing pressure at shut-in'} suffix="psi, blank = from data" value={testConfig.pwfShutIn} onChange={(v) => setTestField('pwfShutIn', v)} />
             </>
           )}
         </div>
@@ -94,7 +96,7 @@ const DataPanel = () => {
             </Button>
           </div>
           <p className="text-[11px] text-slate-500">
-            Two numeric columns: elapsed time in hours ({testConfig.testType === 'buildup' ? 'shut-in time' : 'flowing time'}) and gauge pressure in psi.
+            Two numeric columns: elapsed time in hours ({testConfig.testType === 'buildup' || testConfig.testType === 'falloff' ? 'shut-in time' : 'flowing time'}) and gauge pressure in psi.
             {gaugeRows.length ? ` Loaded: ${gaugeRows.length} points.` : ' No data loaded yet.'}
           </p>
         </div>
@@ -102,15 +104,43 @@ const DataPanel = () => {
 
       <section>
         <SectionLabel>Reservoir and fluid</SectionLabel>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Net thickness h" suffix="ft" value={reservoirInputs.h} onChange={(v) => setReservoirField('h', v)} />
-          <Field label="Porosity" suffix="frac" value={reservoirInputs.phi} onChange={(v) => setReservoirField('phi', v)} />
-          <Field label="Wellbore radius rw" suffix="ft" value={reservoirInputs.rw} onChange={(v) => setReservoirField('rw', v)} />
-          <Field label="Total ct" suffix="1/psi" value={reservoirInputs.ct} onChange={(v) => setReservoirField('ct', v)} />
-          <Field label="Oil FVF B" suffix="RB/STB" value={reservoirInputs.B} onChange={(v) => setReservoirField('B', v)} />
-          <Field label="Viscosity" suffix="cp" value={reservoirInputs.mu} onChange={(v) => setReservoirField('mu', v)} />
-          <Field label="Rate q" suffix="STB/D" value={reservoirInputs.q} onChange={(v) => setReservoirField('q', v)} />
-          <Field label="Initial pressure pi" suffix="psia" value={reservoirInputs.pi} onChange={(v) => setReservoirField('pi', v)} />
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-400">Fluid</Label>
+            <Select value={reservoirInputs.fluid || 'oil'} onValueChange={(v) => setReservoirField('fluid', v)}>
+              <SelectTrigger className="h-9 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="oil">Oil (slightly compressible)</SelectItem>
+                <SelectItem value="gas">Gas (pseudo-pressure)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Net thickness h" suffix="ft" value={reservoirInputs.h} onChange={(v) => setReservoirField('h', v)} />
+            <Field label="Porosity" suffix="frac" value={reservoirInputs.phi} onChange={(v) => setReservoirField('phi', v)} />
+            <Field label="Wellbore radius rw" suffix="ft" value={reservoirInputs.rw} onChange={(v) => setReservoirField('rw', v)} />
+            {reservoirInputs.fluid === 'gas' ? (
+              <>
+                <Field label="Gas gravity" suffix="air = 1" value={reservoirInputs.gasGravity} onChange={(v) => setReservoirField('gasGravity', v)} />
+                <Field label="Temperature" suffix="degF" value={reservoirInputs.tempF} onChange={(v) => setReservoirField('tempF', v)} />
+                <Field label="Total ct" suffix="1/psi, blank = cg(pi)" value={reservoirInputs.ct} onChange={(v) => setReservoirField('ct', v)} />
+                <Field label="Rate q" suffix="Mscf/D" value={reservoirInputs.q} onChange={(v) => setReservoirField('q', v)} />
+              </>
+            ) : (
+              <>
+                <Field label="Total ct" suffix="1/psi" value={reservoirInputs.ct} onChange={(v) => setReservoirField('ct', v)} />
+                <Field label="Oil FVF B" suffix="RB/STB" value={reservoirInputs.B} onChange={(v) => setReservoirField('B', v)} />
+                <Field label="Viscosity" suffix="cp" value={reservoirInputs.mu} onChange={(v) => setReservoirField('mu', v)} />
+                <Field label="Rate q" suffix="STB/D" value={reservoirInputs.q} onChange={(v) => setReservoirField('q', v)} />
+              </>
+            )}
+            <Field label="Initial pressure pi" suffix="psia" value={reservoirInputs.pi} onChange={(v) => setReservoirField('pi', v)} />
+          </div>
+          {reservoirInputs.fluid === 'gas' && (
+            <p className="text-[11px] text-slate-500">
+              Analyses run in real-gas pseudo-pressure m(p). Gas viscosity and z come from the Lee-Gonzalez-Eakin and Papay correlations at reservoir temperature; leave ct blank to use the computed gas compressibility at pi.
+            </p>
+          )}
         </div>
       </section>
 
@@ -123,7 +153,7 @@ const DataPanel = () => {
           {rateRows.map((r, i) => (
             <div key={i} className="flex items-center gap-2">
               <Input value={r.t} onChange={(e) => setRate(i, 't', e.target.value)} placeholder="Start hr" className="h-8 bg-slate-800 border-slate-700" />
-              <Input value={r.q} onChange={(e) => setRate(i, 'q', e.target.value)} placeholder="STB/D" className="h-8 bg-slate-800 border-slate-700" />
+              <Input value={r.q} onChange={(e) => setRate(i, 'q', e.target.value)} placeholder={reservoirInputs.fluid === 'gas' ? 'Mscf/D' : 'STB/D'} className="h-8 bg-slate-800 border-slate-700" />
               <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-slate-500" onClick={() => setRateRows(rateRows.filter((_, idx) => idx !== i))}>
                 <Trash2 className="w-4 h-4" />
               </Button>

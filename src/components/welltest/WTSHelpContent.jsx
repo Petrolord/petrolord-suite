@@ -81,6 +81,23 @@ const WTSHelpContent = () => (
       export a JSON snapshot for sharing. PDF export and result handoffs to Reservoir Balance arrive in a later phase.
     </P>
 
+    <H>Gas wells, injection tests and multi-rate</H>
+    <P>
+      Setting the fluid to gas runs every analysis in real-gas pseudo-pressure m(p), built from the Papay z-factor and
+      Lee-Gonzalez-Eakin viscosity correlations at reservoir temperature (leave ct blank to use the computed gas
+      compressibility at pi). Permeability and skin come from the 1637 qT/kh semilog slope; the reported skin on a gas
+      well is the apparent skin s' which includes the rate-dependent term. The Specialized tab adds gas deliverability:
+      enter flow-after-flow or isochronal points to get the Rawlins-Schellhardt C and n, the Houpeurt LIT coefficients
+      a and b, and the AOF by both methods.
+    </P>
+    <P>
+      Injection and falloff tests mirror onto the drawdown and buildup machinery with q the injection rate: an
+      injection raises pressure above pi exactly as a drawdown lowers it, and a falloff decays from the shut-in
+      injection pressure like a buildup in reverse. Enter the injection time as tp for a falloff. When the rate history
+      holds more than one flowing rate, the studio also fits the Odeh-Jones multi-rate superposition line and reports
+      its k and skin next to the single-rate answers.
+    </P>
+
     <H>Conventions</H>
     <P>
       Oilfield units throughout: md, ft, cp, psi, STB/D, RB/STB, hours. All results are recomputed from inputs on
