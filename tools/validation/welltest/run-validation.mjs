@@ -19,7 +19,7 @@
  * CASE 4  Homogeneous pwD(tD) vs oracle goldens across storage/skin cases
  * CASE 5  Drawdown fixture round trip (MDH + auto-fit recover k, s, C)
  * CASE 6  Buildup fixture round trip (Horner + auto-fit recover k, s, C, p*)
- * CASE 7  Published literature fixtures (Dake / Lee) - armed only when
+ * CASE 7  Published literature fixtures (Lee / Ahmed-Earlougher) - armed only when
  *           book-verified data is present in literature-fixtures.json;
  *           WT2 merges only after this case is armed and green.
  */
@@ -159,7 +159,7 @@ banner('CASE 6: buildup fixture round trip (tp=36 hr, exact superposition)');
 }
 
 // ---------------------------------------------------------------------------
-banner('CASE 7: published literature fixtures (Dake Ch. 7 / Lee)');
+banner('CASE 7: published literature fixtures (Lee / Ahmed-Earlougher)');
 {
   const litPath = path.join(here, 'literature-fixtures.json');
   if (!fs.existsSync(litPath)) {
@@ -170,12 +170,24 @@ banner('CASE 7: published literature fixtures (Dake Ch. 7 / Lee)');
   } else {
     const lit = JSON.parse(fs.readFileSync(litPath, 'utf8'));
     for (const fixture of lit.buildups || []) {
+      // Restrict to the book's straight-line (mid-time) window when the fixture
+      // declares one; the full published table stays in the file verbatim.
+      const mtr = fixture.mtr || {};
+      const points = fixture.points.filter(
+        (p) => p.dt >= (mtr.dtMin ?? 0) && p.dt <= (mtr.dtMax ?? Infinity)
+      );
       const result = hornerAnalysis({
-        points: fixture.points, tp: fixture.tp, pwfShutIn: fixture.pwfShutIn, ...fixture.reservoir,
+        points, tp: fixture.tp, pwfShutIn: fixture.pwfShutIn, ...fixture.reservoir,
       });
       check(`${fixture.citation}: permeability`, result.k, fixture.expected.k, fixture.tolerances?.k ?? 0.05, 'md');
       if (fixture.expected.skin !== undefined) {
         checkAbs(`${fixture.citation}: skin`, result.skin, fixture.expected.skin, fixture.tolerances?.skin ?? 0.5);
+      }
+      if (fixture.expected.m !== undefined) {
+        check(`${fixture.citation}: semilog slope m`, result.m, fixture.expected.m, fixture.tolerances?.m ?? 0.05, 'psi/cycle');
+      }
+      if (fixture.expected.p1hr !== undefined) {
+        checkAbs(`${fixture.citation}: p1hr`, result.p1hr, fixture.expected.p1hr, fixture.tolerances?.p1hr ?? 5, 'psi');
       }
       if (fixture.expected.pStar !== undefined) {
         checkAbs(`${fixture.citation}: p*`, result.pStar, fixture.expected.pStar, fixture.tolerances?.pStar ?? 10, 'psi');
