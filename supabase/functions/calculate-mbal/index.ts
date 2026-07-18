@@ -374,6 +374,11 @@ serve(async (req: Request) => {
     Et: engineResult.per_timestep.map((p: PerTimestepResult) => p.Et_rb),
     Eo: engineResult.per_timestep.map((p: PerTimestepResult) => p.Eo_rb_stb ?? null),
     Eg_rb_mscf: engineResult.per_timestep.map((p: PerTimestepResult) => p.Eg_rb_mscf ?? null),
+    // MB6: oil-side gas-cap expansion term (RB/STB, Pletcher Eq. 23) and Bw,
+    // consumed by the Contacts tab (GOC descent = m·N·Eg_oil; OWC rise nets
+    // Wp·Bw out of We). Null on results stored before MB6.
+    Eg_oil: engineResult.per_timestep.map((p: PerTimestepResult) => p.Eg_rb_stb ?? null),
+    Bw: engineResult.per_timestep.map((p: PerTimestepResult) => p.bw_rb_stb ?? null),
     Efw: engineResult.per_timestep.map((p: PerTimestepResult) => p.Efw_rb),
     We: engineResult.per_timestep.map((p: PerTimestepResult) => p.We_rb ?? null),
     p_over_z: engineResult.per_timestep.map((p: PerTimestepResult) => p.p_over_z ?? null),
