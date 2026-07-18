@@ -2,7 +2,7 @@
 
 > Companion to `docs/scope/ReservoirBalance.md` (full scope, decision log,
 > process patterns). This file is the fast-read snapshot.
-> Last updated: 2026-07-18 · MB program started (MB1 done); prior state
+> Last updated: 2026-07-18 · MB program MB1-MB5 done (MB6-MB7 pending); prior state
 > as of the 2026-05-17 patch series.
 
 ## What MBAL does
@@ -107,7 +107,7 @@ cross-validation.
 | MB2 | Client finite-reD pD + Dake 9.2 hard gate | **DONE 2026-07-18** |
 | MB3 | Studio shell adoption + tile rename migration | **DONE 2026-07-18** |
 | MB4 | Aquifer screening tab + calculator absorption | **DONE 2026-07-18** |
-| MB5 | Pressure history match (inverse MBE, server LM) | pending |
+| MB5 | Pressure history match (inverse MBE, server LM) | **DONE 2026-07-18** |
 | MB6 | Forecast/Contacts/Report wiring + DCA reconciliation | pending |
 | MB7 | PVT prefill via Fluid Studio correlations + polish + close-out | pending |
 
@@ -249,6 +249,61 @@ The Aquifer tab is now segmented **Model | Screening**:
   (VRR and Recovery Factor remain small standalone adoptions).
 - Staging smoke: `?tab=aquifer` deep link selects the tab; jest 1403,
   build clean.
+
+### MB5 deliverables (2026-07-18) — pressure history match
+
+The Run tab is segmented **Regression | History match**. The match is the
+inverse workflow: simulate the pressure history from candidate tank
+parameters, then Levenberg-Marquardt fits the selected parameters to the
+observed pressures.
+
+- **LM kernel** `supabase/functions/_shared/lm.ts`: line-for-line port of
+  the WTA client kernel (`src/utils/welltest/lmFit.js`), pinned by jest
+  golden (`lmPort.test.js` vs `goldens/lm-port.json`, regenerate via
+  `npx tsx tools/validation/gen-lm-port-golden.ts`) at near machine
+  precision so the two kernels cannot drift apart silently.
+- **Engine** (`mbal-engine.ts`): `simulatePressureHistory` solves the
+  scalar MBE F(p) = N·Et(p) + We per timestep (Illinois false position)
+  through the SAME per-timestep F/Et code the regression uses
+  (`computeGasPerTimestep` extracted from computeGasMBE, mirroring the MB1
+  oil extraction; behavior unchanged). Fetkovich/Carter-Tracy influx is
+  coupled by an outer fixed point over the engine's own We marching
+  functions (settle tol 0.2 psi). Per-row lab PVT is auto-converted to an
+  interpolation table (per-row values are pressure-keyed and freeze Et at
+  simulated pressures — measured before fixing). `runHistoryMatch` does
+  ln-space LM over a per-case parameter catalog (N/G, pot+Fetkovich W,
+  Fetkovich J, Carter-Tracy r_R and k_aq, optional gas-cap m), initial
+  guesses from the preliminary regression, 95% CIs exp-mapped from the LM
+  covariance, at-bound and match-quality warnings, forward diagnostics at
+  the matched parameters, validation-tier passthrough.
+- **Harness CASE 11** (H-1..H-14): recovery of published truth from
+  deliberately wrong starts. 11A Pletcher gas+pot OGIP +4.1% from a 0.4x
+  start (pot W order-of-magnitude only — the case is 94% gas drive);
+  11B Pletcher gas+Fetkovich (J fixed; the G/W/J triple is degenerate on
+  10 annual points) OGIP +4.7%, W +2.0%; 11C Dake 9.2 oil+Carter-Tracy
+  OOIP +5.8%, r_R −5.9%, RMS 0.53 psi, CIs bracket. Simulate-at-truth
+  method-gap pins recorded (pot 31 psi, Fetkovich 80 psi, CT 5 psi RMS —
+  benchmark pressures come from simulators/HvE, not the tank model).
+- **Edge function** `calculate-mbal`: mode `history_match` with sanitized
+  LM options; rb_runs.run_type records `history_match` (constraint widened
+  by migration `20260718235500`, applied live and logged); headline
+  OOIP/OGIP in rb_results are the MATCHED values; plot_data gains a
+  `history_match` block (observed/simulated/residual series, matched
+  parameters with CIs, rms, tier). **Bugfix**: `observation_date` was
+  never mapped from rb_production_data, so every Fetkovich/Carter-Tracy
+  run from the UI threw the missing-date error despite uploaded dates.
+  Redeployed 2026-07-18 after the constraint migration.
+- **Studio UI**: `HistoryMatch.jsx` on the Run tab segment — parameter
+  checklist driven by the jest-guarded `lib/historyMatchParams.js`
+  catalog (client mirror of the engine rules; 9 tests), editable starting
+  values (blank = engine-derived), matched-parameter table with CIs and
+  at-bound flags, and the pressure history match plot (observed points,
+  simulated line, residual bars on ChartFrame/chartTheme) that Phase 3B
+  deferred. Fetkovich J is opt-in with the W/J degeneracy named in copy.
+- jest 1417 (from 1403), build clean, staging vite transforms green,
+  deployed-function auth smoke green. No SPA-deploy-gated pieces: MB5 is
+  live once the edge function is deployed (done) except the UI segment,
+  which rides the next prod upload with MB3/MB4.
 
 ## Next priorities (pre-program list, superseded by the MB table above)
 
