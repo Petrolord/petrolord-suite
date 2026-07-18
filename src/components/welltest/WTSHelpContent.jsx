@@ -33,11 +33,37 @@ const WTSHelpContent = () => (
 
     <H>3. Match</H>
     <P>
-      Pick a model from the catalog (homogeneous with wellbore storage and skin in this release; fractured, dual
-      porosity and bounded models follow) and drag the parameter sliders until the model curves sit on the data. The
+      Pick a model from the catalog and drag the parameter sliders until the model curves sit on the data. The
       auto-fit runs Levenberg-Marquardt on pressure and derivative simultaneously, starting from your manual match,
       and reports 95% confidence intervals. Storage and skin trade off strongly at early time, so a sensible manual
       starting point improves the regression.
+    </P>
+
+    <H>Model catalog guidance</H>
+    <P>
+      Homogeneous: the workhorse. Storage hump, then a flat derivative whose level fixes kh. This is the only model
+      that accepts negative skin; stimulated vertical wells belong here or on a fracture model.
+    </P>
+    <P>
+      Sealing fault: the derivative doubles from the radial plateau to twice its level. The transition time fixes the
+      distance L. Constant-pressure boundary: the pressure stabilizes and the derivative falls away late; typical of
+      an aquifer, a gas cap or an active injector. Parallel faults (channel): after radial flow the derivative climbs
+      on a half slope as flow becomes linear down the channel; the width W sets when. Closed circle: late unit slope
+      on the derivative (pseudo-steady state); use the Cartesian line on the Specialized tab for the connected pore
+      volume, and re fixes the drained radius.
+    </P>
+    <P>
+      Dual porosity (Warren-Root): a dip in the derivative between two parallel radial stabilizations. The storativity
+      ratio omega sets the depth of the dip (semilog line separation is half of ln(1/omega)) and lambda sets when the
+      matrix wakes up. Choose pseudo-steady interporosity flow for a sharp dip or transient slabs for a shallower,
+      earlier transition. Skin is bounded at zero on these models.
+    </P>
+    <P>
+      Vertical fractures: infinite conductivity (Gringarten) shows an early half slope on both pressure and
+      derivative; the half-length xf sets its level. Finite conductivity (Cinco-Ley) shows an early quarter slope
+      (bilinear flow) controlled by FcD, then linear, then radial flow. Fractured wells usually need little or no
+      extra skin; use the choked-fracture skin only for a damaged connection. The finite-conductivity solution solves
+      a small linear system per point, so its auto-fit takes noticeably longer than the other models.
     </P>
 
     <H>4. Specialized</H>

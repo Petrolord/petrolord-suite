@@ -62,7 +62,7 @@ const MatchResults = () => {
 
   return (
     <div className="space-y-4 overflow-y-auto">
-      {!matchParams && <WarningBanner warnings={['Enter valid match parameters (k, skin, C) in the left rail to overlay the model.']} />}
+      {!matchParams && <WarningBanner warnings={['Enter valid match parameters in the left rail to overlay the model.']} />}
       {fitResult && fitStale && (
         <WarningBanner warnings={['Inputs changed since the last auto-fit; its confidence intervals refer to the previous data. Re-run the fit.']} />
       )}
@@ -107,21 +107,13 @@ const MatchResults = () => {
               </tr>
             </thead>
             <tbody className="text-slate-300">
-              <tr className="border-t border-slate-800">
-                <td className="py-1">Permeability (md)</td>
-                <td className="py-1">{fmt.sig3(fitResult.params.k)}</td>
-                <td className="py-1">{ci(fitResult.confidence95.k)}</td>
-              </tr>
-              <tr className="border-t border-slate-800">
-                <td className="py-1">Skin</td>
-                <td className="py-1">{fmt.f2(fitResult.params.skin)}</td>
-                <td className="py-1">{ci(fitResult.confidence95.skin)}</td>
-              </tr>
-              <tr className="border-t border-slate-800">
-                <td className="py-1">Wellbore storage (bbl/psi)</td>
-                <td className="py-1">{fmt.sig3(fitResult.params.C)}</td>
-                <td className="py-1">{ci(fitResult.confidence95.C)}</td>
-              </tr>
+              {model.parameters.map((meta) => (
+                <tr key={meta.key} className="border-t border-slate-800">
+                  <td className="py-1">{meta.label} ({meta.unit})</td>
+                  <td className="py-1">{meta.logScale ? fmt.sig3(fitResult.params[meta.key]) : fmt.f2(fitResult.params[meta.key])}</td>
+                  <td className="py-1">{ci(fitResult.confidence95[meta.key])}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
           <p className="text-[11px] text-slate-500 mt-2">

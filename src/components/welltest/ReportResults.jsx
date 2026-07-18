@@ -61,9 +61,14 @@ const ReportResults = () => {
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Model match</p>
           <table className="w-full text-xs">
             <tbody>
-              <Row label="Permeability" value={fmt.sig3(matchParams?.k)} unit="md" />
-              <Row label="Skin factor" value={fmt.f2(matchParams?.skin)} />
-              <Row label="Wellbore storage" value={fmt.sig3(matchParams?.C)} unit="bbl/psi" />
+              {(model?.parameters || []).map((meta) => (
+                <Row
+                  key={meta.key}
+                  label={meta.label}
+                  value={meta.logScale ? fmt.sig3(matchParams?.[meta.key]) : fmt.f2(matchParams?.[meta.key])}
+                  unit={meta.unit === 'dimensionless' || meta.unit === 'fraction' ? undefined : meta.unit}
+                />
+              ))}
               <Row label="Dimensionless storage CD" value={fmt.sig3(derivedKpis?.cd)} />
               <Row label="Flow efficiency" value={fmt.pct(derivedKpis?.flowEfficiency)} />
               {fitResult && <Row label="Regression" value={`${fitResult.converged ? 'converged' : 'stopped early'}${fitStale ? ', stale' : ''}`} />}
