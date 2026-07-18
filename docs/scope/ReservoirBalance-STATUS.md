@@ -2,7 +2,7 @@
 
 > Companion to `docs/scope/ReservoirBalance.md` (full scope, decision log,
 > process patterns). This file is the fast-read snapshot.
-> Last updated: 2026-07-18 · MB program MB1-MB6 done (MB7 pending); prior state
+> Last updated: 2026-07-18 · **MB PROGRAM COMPLETE (MB1-MB7)**; prior state
 > as of the 2026-05-17 patch series.
 
 ## What MBAL does
@@ -109,7 +109,7 @@ cross-validation.
 | MB4 | Aquifer screening tab + calculator absorption | **DONE 2026-07-18** |
 | MB5 | Pressure history match (inverse MBE, server LM) | **DONE 2026-07-18** |
 | MB6 | Forecast/Contacts/Report wiring + DCA reconciliation | **DONE 2026-07-18** |
-| MB7 | PVT prefill via Fluid Studio correlations + polish + close-out | pending |
+| MB7 | PVT prefill via Fluid Studio correlations + polish + close-out | **DONE 2026-07-18** — **PROGRAM COMPLETE** |
 
 ### MB1 deliverables (2026-07-18)
 
@@ -343,6 +343,46 @@ utils/contactsCalculations with an invented 30-day timeline) are deleted.
   a real EPE handoff would be an MB7+ decision, not a salvage.
 - jest 1439 (from 1417: +14 forecast, +8 contacts), build clean, staging
   vite transforms green. UI rides the next prod upload with MB3-MB5.
+
+### MB7 deliverables (2026-07-18) — polish + PROGRAM CLOSE-OUT
+
+- **PVT prefill**: the PVT tab's lab-table mode gains "Prefill from
+  correlations" powered by the Fluid Systems Studio client black-oil
+  engine at the case conditions (jest-guarded
+  `lib/fluidStudioPvtPrefill.js`: exact Pb node, Rs cap + undersaturated
+  Bo shrinkage above Pb, gas z/Bg/mu_g path, GOR derived from the case Pb
+  when not typed). Generated rows are labelled correlation estimates to
+  review against measured data; correlated mode remains the default.
+- **Ramagost-Farshad overlay**: dashed cf-corrected p/z series on the gas
+  p/z plot ((p/z)·(1 − ce·Δp) with the engine's own Efw
+  effective-compressibility form; `lib/pzRamagost.js`), using the saved
+  rock compressibilities. Closes the Capsule 3B carry-over.
+- **Chart export**: `ChartFrame` gains an optional `exportFilename` prop
+  (kit-level, backward compatible) that adds a PNG download via the
+  shared exportChartAsImage helper; adopted by the history-match,
+  forecast, contacts and aquifer-screening charts. The diagnostic plots
+  already had per-plot export since 2026-05-16 (carry-over list was
+  stale).
+- **Tier consolidation** (Capsule 4B carry-over closed):
+  `resolveValidationTier` exported;
+  `tools/validation/gen-tier-matrix-golden.ts` dumps the full mapping to
+  `lib/tierMatrix.json` and the Aquifer tab's pre-run badges read the
+  generated file. The hand-maintained mirror it replaces had drifted
+  badly: oil+none, oil+Fetkovich and both Carter-Tracy paths still showed
+  `published_method` after their benchmark promotions. Regenerate the
+  JSON after any engine tier change; `tierMatrix.test.js` pins coverage
+  and the missed promotions. (The originally proposed /tier-info Edge
+  Function was rejected as a runtime network call for static data; the
+  generated-golden pattern matches MB2/MB5 practice.)
+- EnergyBalance.jsx deletion carry-over: already deleted in MB3.
+- jest 1451 (from 1439), harness 11 cases green, build clean.
+
+**Program ledger closed.** All seven MB phases shipped 2026-07-18. Still
+open outside the program: the Fetkovich Δp̄ convention question (needs a
+sourced worked example; see Known paused work), the deploy-gated tile
+migrations (20260718230000 rename + 20260718234500 archive) that ride the
+next production upload, and a possible EPE forecast handoff (idea noted in
+MB6, owner decision needed).
 
 ## Next priorities (pre-program list, superseded by the MB table above)
 
