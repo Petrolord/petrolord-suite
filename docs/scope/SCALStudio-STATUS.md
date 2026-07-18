@@ -17,7 +17,7 @@
 | Phase | Scope | Status |
 |---|---|---|
 | SC1 | dcaEngine oracle gate (§3) + EUR sign fix | **DONE 2026-07-18** |
-| SC2 | `scalCalculations.js` engine + Leverett 1941 golden | pending |
+| SC2 | `scalCalculations.js` engine + Leverett 1941 golden | **DONE 2026-07-18** |
 | SC3 | Studio app skeleton + `saved_scal_projects` persistence | pending |
 | SC4 | Lab Data tab: import, Corey fit, multi-sample averaging | pending |
 | SC5 | Height & Saturation tab + Waterflood handoff + exports | pending |
@@ -70,6 +70,41 @@ The §3 gate: `src/utils/declineCurve/dcaEngine.js` had NO direct tests
   bands). `dcaMonteCarlo.js` and `dcaSegmentDetection.js` are explicitly
   DEFERRED per Module §5 (grandfathered; consolidation happens at engine
   extraction, not before).
+
+### SC2 deliverables (2026-07-18) — `src/utils/scalCalculations.js`
+
+- Corey oil-water and gas-oil sets (gas-oil normalized on
+  (Sg − Sgc)/(1 − Swc − Sorg − Sgc), krog at connate water, no
+  three-phase), parameter validation, endpoint normalization
+  (denormalization stays the existing `scaleKrTable`). Corey primitives
+  IMPORTED from `fractionalFlowCalculations.js` (locked one-way
+  dependency).
+- Corey exponent fitting to lab kr tables via the WTA LM kernel: joint
+  log10 residuals over both curves (near-endpoint decades weighted
+  fairly), kr floor for definitional zeros, optional endpoint fitting,
+  95% CIs. Exact-synthetic recovery to 1e-5; noisy-draw test asserts
+  recovery-within-tolerance plus CI sanity (a single fixed draw carries
+  no 95% coverage guarantee — documented in the test).
+- Leverett J: `LEVERETT_C = 0.21645` (published field-unit constant;
+  exact CGS derivation 0.21665 documented, 0.09% delta), lab Pc → J,
+  power-law J fit on normalized Sw* (log-space LM), tabulated J with
+  log-linear interpolation, geometric-mean multi-sample averaging with
+  min/max band and an explicit shared-Swirr override (the data-min
+  heuristic distorts Sw* when true Swirr sits lower; the refit r2Log
+  exposes it), J → reservoir Pc, saturation-height
+  (h = Pc/(0.4335·Δγ)). Pc↔J round trip pinned at 1e-12.
+- **Leverett-principle suite** (`scalCalculations.leverett.test.js`): the
+  1941 paper's machine-testable claim tested EXACTLY — synthetic Pc for
+  three rocks (850 md air-brine, 8 md air-mercury, 120 md oil-brine)
+  generated from one J curve collapses back to it within 1e-9; averaging
+  returns the source; a 4x permeability typo breaks the collapse by
+  exactly sqrt(4) (the diagnostic the Capillary plot will show); power-law
+  refit recovers the generating parameters to 1e-6. The paper's
+  figure-read correlation points remain a visible jest todo until the
+  owner supplies the paywalled paper (armed-fixture doctrine, same as
+  SPEE / Poston & Poe).
+- CSV parsers for kr and Pc tables with header aliases and per-row error
+  messages. 27 tests across the two suites; jest 1511 total.
 
 ## Scope discipline (standing)
 
