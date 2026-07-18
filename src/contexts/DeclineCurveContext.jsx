@@ -8,6 +8,7 @@ import {
   migrateLegacyLocalProjects,
 } from '@/utils/declineCurve/dcaDataPersistence';
 import { useKeyboardShortcuts } from '@/utils/declineCurve/dcaKeyboardShortcuts';
+import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { createUndoRedoManager } from '@/utils/declineCurve/dcaUndoRedo';
 import { validateFitInput, getErrorMessage } from '@/utils/declineCurve/dcaErrorHandling';
 
@@ -91,7 +92,9 @@ export const DeclineCurveProvider = ({ children }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [lastSaveTime, setLastSaveTime] = useState(null);
-  const [notifications, setNotifications] = useState([]);
+  // W5: notifications come from the shared Studio shell hook (same 5s
+  // auto-dismiss semantics this context originally hand-rolled).
+  const { notifications, addNotification, removeNotification } = useStudioNotifications();
   const undoStack = useRef(createUndoRedoManager());
 
   // --- Helpers ---
@@ -100,16 +103,6 @@ export const DeclineCurveProvider = ({ children }) => {
   const currentData = currentWell?.data || [];
   
   // --- Actions ---
-
-  const addNotification = useCallback((message, type = 'info') => {
-    const id = uuidv4();
-    setNotifications(prev => [...prev, { id, message, type }]);
-    setTimeout(() => removeNotification(id), 5000);
-  }, []);
-
-  const removeNotification = (id) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
-  };
 
   // Persistence (R1): projects live in saved_dca_projects. Any pre-R1
   // localStorage/IndexedDB projects are lifted into Supabase once first.

@@ -45,9 +45,18 @@ its displacement physics and charts live on in the Displacement tab).
 - **W4 — Uncertainty tab. PENDING.** P90/P50/P10 via the canonical
   ReservoirCalc Pro Monte Carlo engine (sanctioned extraction to
   `src/lib/`), honest rank-correlation sensitivity.
-- **W5 — DCA adopts the Studio kit. PENDING.** Then VRR Monitor →
-  Recovery Factor Estimator → Aquifer Influx Calculator get the same
-  one-app-at-a-time upgrade treatment.
+- **W5 — DCA adopts the Studio kit. DONE 2026-07-18 (branch
+  feat/dca-studio-kit).** The DCA page now consumes
+  StudioLayout/Header/AutoSave/Help/ProjectManager and
+  useStudioNotifications; the six shell components the kit was
+  originally generalized from (DCALayout, DCAAutoSave,
+  DCANotifications, DCAProjectManager, DCAHelp chrome,
+  DCALoadingStates) are deleted, DCA help content lives on as
+  DCAHelpContent inside StudioHelp. Analysis panels untouched. New
+  page smoke test walks both tabs on the shared shell. There is now
+  a single shell implementation across DCA and this studio. Next:
+  VRR Monitor → Recovery Factor Estimator → Aquifer Influx
+  Calculator get the same one-app-at-a-time upgrade treatment.
 
 ## Deliberate scope choices
 
