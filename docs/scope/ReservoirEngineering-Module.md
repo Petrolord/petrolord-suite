@@ -61,9 +61,11 @@ requires a redeploy, and it must not survive to be re-wired.
 
 > **GATE CLEARED 2026-07-18 (SCAL program SC1, see SCALStudio-STATUS.md):**
 > 25 closed-form oracle tests + armed literature fixtures (Weaver CED
-> P03-004 worked examples, typed with provenance; SPEE REP #6 and
-> Poston & Poe remain visible jest-todo entries until the owner supplies
-> the PDFs). The suite caught and fixed a real defect: calculateEUR's
+> P03-004 worked examples, typed with provenance; SC7b then armed SPEE
+> REP #6 in full — its Table 1 is openly reproducible — plus Ahmed
+> Ch. 16 examples; only Poston & Poe remains a visible jest todo until
+> the owner supplies the PDF). The suite caught and fixed a real defect:
+> calculateEUR's
 > hyperbolic branch returned NEGATIVE EUR for every b != 1 (sign error in
 > the (1 - b) denominator; zero consumers, nothing stored was poisoned).
 
