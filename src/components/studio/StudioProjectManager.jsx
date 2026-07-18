@@ -15,6 +15,11 @@ const StudioProjectManager = ({
   onDelete,
   label = 'Project',
   confirmDeleteMessage = 'Delete this project and its saved data? This cannot be undone.',
+  // When creation needs more than a name (e.g. Material Balance Studio cases
+  // require fluid system and initial conditions), pass onRequestCreate: the +
+  // button then delegates to the app's own dialog instead of the built-in
+  // name-only one.
+  onRequestCreate,
 }) => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -46,6 +51,16 @@ const StudioProjectManager = ({
           </SelectContent>
         </Select>
 
+        {onRequestCreate ? (
+          <Button
+            variant="outline" size="icon"
+            className="bg-slate-800 border-slate-700"
+            title="Create new project"
+            onClick={onRequestCreate}
+          >
+            <Plus size={16} />
+          </Button>
+        ) : (
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" size="icon" className="bg-slate-800 border-slate-700" title="Create new project">
@@ -70,6 +85,7 @@ const StudioProjectManager = ({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        )}
 
         {currentProjectId && (
           <Button
