@@ -22,6 +22,15 @@
  * CASE 7  Published literature fixtures (Lee / Ahmed-Earlougher) - armed only when
  *           book-verified data is present in literature-fixtures.json;
  *           WT2 merges only after this case is armed and green.
+ * CASE 8  WT3 model library analytic truths (exact literature limits):
+ *           Gringarten fracture half-slope sqrt(pi tDxf) and late-time
+ *           constants (2.80907 uniform flux / 2.2 infinite conductivity),
+ *           Cinco-Ley bilinear 2.451 FcD^-1/2 tDxf^1/4 and FcD -> inf
+ *           convergence to infinite conductivity, Warren-Root semilog lines
+ *           and derivative dip, sealing-fault image = 0.5 E1(LD^2/tD) and
+ *           derivative doubling, channel late half slope, closed-circle
+ *           exact PSS line, constant-pressure stabilization at ln(2 LD) + S,
+ *           storage/skin composition identity with the WT1 formula.
  */
 
 import fs from 'fs';
@@ -193,6 +202,86 @@ banner('CASE 7: published literature fixtures (Lee / Ahmed-Earlougher)');
         checkAbs(`${fixture.citation}: p*`, result.pStar, fixture.expected.pStar, fixture.tolerances?.pStar ?? 10, 'psi');
       }
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 8: WT3 model library analytic truths (exact literature limits)');
+{
+  const { stehfestInvert } = await import('../../../src/utils/welltest/numerics.js');
+  const { expE1 } = await import('../../../src/utils/welltest/numerics.js');
+  const { radialSandfaceLaplace, composeWellbore } = await import('../../../src/utils/welltest/models/radial.js');
+  const { ufFracturePwdLaplace, fcFracturePwdLaplace, INFINITE_CONDUCTIVITY_XD } = await import('../../../src/utils/welltest/models/fracture.js');
+  const { pwdLaplaceHomogeneous } = await import('../../../src/utils/welltest/models/homogeneous.js');
+
+  const inv = (fn, t) => stehfestInvert(fn, t, 12);
+  const logDeriv = (f, t) => (f(t * 1.05) - f(t / 1.05)) / (2 * Math.log(1.05));
+  const uf = (t, xD) => inv((v) => ufFracturePwdLaplace(v, { xD }), t);
+  const fc = (t, fcd) => inv((v) => fcFracturePwdLaplace(v, { fcd }), t);
+
+  // Gringarten uniform-flux / infinite-conductivity vertical fracture
+  check('Gringarten early linear flow: pwD(tDxf=1e-4) = sqrt(pi tDxf)', uf(1e-4, 0), Math.sqrt(Math.PI * 1e-4), 1e-3);
+  check('Gringarten early half slope (derivative slope = 0.5)',
+    Math.log(logDeriv((t) => uf(t, INFINITE_CONDUCTIVITY_XD), 2e-4) / logDeriv((t) => uf(t, INFINITE_CONDUCTIVITY_XD), 5e-5)) / Math.log(4), 0.5, 0.02);
+  checkAbs('uniform-flux late time: pwD = 0.5(ln tDxf + 2.80907) at tDxf=1e4', uf(1e4, 0), 0.5 * (Math.log(1e4) + 2.80907), 0.01);
+  checkAbs('infinite-conductivity late time: pwD = 0.5(ln tDxf + 2.2) at tDxf=1e4', uf(1e4, INFINITE_CONDUCTIVITY_XD), 0.5 * (Math.log(1e4) + 2.2), 0.02);
+
+  // Cinco-Ley finite-conductivity fracture
+  check('Cinco-Ley bilinear: pwD = 2.451 FcD^-1/2 tDxf^1/4 (FcD=1, tDxf=1e-4)', fc(1e-4, 1), 2.451 * Math.pow(1e-4, 0.25), 0.01);
+  check('Cinco-Ley bilinear window start (FcD=1, tDxf=1e-5)', fc(1e-5, 1), 2.451 * Math.pow(1e-5, 0.25), 0.03);
+  check('Cinco-Ley quarter slope (derivative slope = 0.25, FcD=1)',
+    Math.log(logDeriv((t) => fc(t, 1), 2e-5) / logDeriv((t) => fc(t, 1), 5e-6)) / Math.log(4), 0.25, 0.05);
+  check('FcD -> inf converges to infinite conductivity (FcD=1000, tDxf=1)', fc(1, 1000), uf(1, INFINITE_CONDUCTIVITY_XD), 0.03);
+  check('finite-conductivity reaches radial flow (derivative -> 0.5, tDxf=1e4)', logDeriv((t) => fc(t, 5), 1e4), 0.5, 0.02);
+
+  // Warren-Root dual porosity (omega=0.05, lambda=1e-8)
+  const dp = (t, mode) => inv((u) => radialSandfaceLaplace(u, { fissure: { omega: 0.05, lambda: 1e-8, mode } }), t);
+  checkAbs('Warren-Root early fissure line: pwD = 0.5(ln(tD/omega) + 0.80907) at tD=1e4', dp(1e4, 'pss'), 0.5 * (Math.log(1e4 / 0.05) + 0.80907), 0.01);
+  checkAbs('Warren-Root late total line: pwD = 0.5(ln tD + 0.80907) at tD=1e12', dp(1e12, 'pss'), 0.5 * (Math.log(1e12) + 0.80907), 0.01);
+  {
+    const tDs = Array.from({ length: 30 }, (_, i) => Math.pow(10, 7 + (4 * i) / 29));
+    const minDeriv = Math.min(...tDs.map((t) => logDeriv((x) => dp(x, 'pss'), t)));
+    if (minDeriv < 0.35 && minDeriv > 0) { passed += 1; console.log(`  PASS  Warren-Root transition derivative dip (min ${minDeriv.toFixed(3)} < 0.35)`); }
+    else { failed += 1; console.log(`  FAIL  Warren-Root derivative dip missing (min ${minDeriv})`); }
+  }
+  check('transient-slab transition sits between the fissure and total lines',
+    Math.min(Math.max(dp(1e8, 'transient-slab'), 0.5 * (Math.log(1e8) + 0.80907)), 0.5 * (Math.log(1e8 / 0.05) + 0.80907)), dp(1e8, 'transient-slab'), 1e-9);
+  check('omega = 1 reduces exactly to homogeneous (tD=1e6)',
+    inv((u) => radialSandfaceLaplace(u, { fissure: { omega: 1, lambda: 1e-6, mode: 'pss' } }), 1e6),
+    inv((u) => radialSandfaceLaplace(u, {}), 1e6), 1e-9);
+
+  // Sealing fault (image well), LD = 500
+  const fault = (t) => inv((u) => radialSandfaceLaplace(u, { boundary: { type: 'fault', ld: 500 } }), t);
+  const noB = (t) => inv((u) => radialSandfaceLaplace(u, {}), t);
+  check('fault image term = 0.5 E1(LD^2/tD) exactly (tD=1e7)', fault(1e7) - noB(1e7), 0.5 * expE1(500 * 500 / 1e7), 1e-3);
+  check('fault image term = 0.5 E1(LD^2/tD) exactly (tD=1e8)', fault(1e8) - noB(1e8), 0.5 * expE1(500 * 500 / 1e8), 1e-3);
+  check('fault late derivative doubles to 1.0 (tD=1e10)', logDeriv(fault, 1e10), 1.0, 0.01);
+
+  // Channel (parallel sealing faults, WD=2000): late linear flow half slope
+  const channel = (t) => inv((u) => radialSandfaceLaplace(u, { boundary: { type: 'channel', wd: 2000 } }), t);
+  check('channel late half slope (derivative slope = 0.5, tD=1e10)',
+    Math.log(logDeriv(channel, 2e10) / logDeriv(channel, 5e9)) / Math.log(4), 0.5, 0.02);
+
+  // Closed circle (reD=2000): exact van Everdingen-Hurst PSS line
+  const closed = (t) => inv((u) => radialSandfaceLaplace(u, { boundary: { type: 'closed-circle', reD: 2000 } }), t);
+  check('closed circle exact PSS: pwD = 2tD/reD^2 + ln reD - 3/4 (tD=1e7)', closed(1e7), 2e7 / (2000 * 2000) + Math.log(2000) - 0.75, 1e-3);
+  check('closed circle exact PSS (tD=5e7)', closed(5e7), 1e8 / (2000 * 2000) + Math.log(2000) - 0.75, 1e-3);
+
+  // Constant-pressure boundary (LD=500): stabilization at ln(2 LD)
+  const constP = (t) => inv((u) => radialSandfaceLaplace(u, { boundary: { type: 'constant-pressure', ld: 500 } }), t);
+  check('constant-pressure stabilization: pwD(inf) = ln(2 LD)', constP(1e12), Math.log(2 * 500), 1e-3);
+  checkAbs('constant-pressure derivative dies (tD=1e12)', logDeriv(constP, 1e12), 0, 0.005);
+
+  // Storage/skin composition identity with the WT1 homogeneous formula
+  {
+    let worst = 0;
+    for (const [tD, skin, cd] of [[1e3, 0, 0], [1e5, 5, 1000], [1e8, 12, 1e4]]) {
+      const a = inv((u) => composeWellbore(u, radialSandfaceLaplace(u, {}), skin, cd), tD);
+      const b = inv((u) => pwdLaplaceHomogeneous(u, { skin, cd }), tD);
+      worst = Math.max(worst, Math.abs(a / b - 1));
+    }
+    if (worst < 1e-8) { passed += 1; console.log(`  PASS  composition identity vs WT1 formula (worst rel ${worst.toExponential(1)})`); }
+    else { failed += 1; console.log(`  FAIL  composition identity broken (worst rel ${worst.toExponential(1)})`); }
   }
 }
 

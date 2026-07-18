@@ -128,6 +128,7 @@ const REGIME_LABELS = {
   bilinear: 'Bilinear flow',
   'wellbore-storage': 'Wellbore storage',
   'boundary-or-pss': 'Boundary / pseudo-steady state',
+  'constant-pressure': 'Constant-pressure boundary / recharge',
 };
 
 /**
@@ -156,6 +157,7 @@ export const detectFlowRegimes = (derivSeries, { minSpanDecades = 0.25 } = {}) =
     if (Math.abs(slope) <= 0.12) return 'radial';
     if (slope >= 0.38 && slope <= 0.62) return 'linear';
     if (slope >= 0.16 && slope <= 0.34) return 'bilinear';
+    if (slope <= -0.35) return 'constant-pressure'; // derivative plunging late
     return null;
   };
 
