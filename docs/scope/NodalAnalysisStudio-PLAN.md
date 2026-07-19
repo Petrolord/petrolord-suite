@@ -99,13 +99,25 @@ primary transcription needed — secondary reproductions do not close
 Guo's own Table 5.4 chain; fixture parked unarmed with the printed
 numbers preserved).
 
-### NA4 — Studio UI
-`src/pages/apps/NodalAnalysisStudio.jsx` + context provider on the studio
-shell kit: fluid/reservoir/well/completion inputs, IPR tab, VLP tab,
-system plot with operating point, sensitivity tornado/family curves,
-saved projects, help content. Legacy `NodalPerformanceOptimizer.jsx` and
-the empty `NodalAnalysisEngine.jsx` are deleted; their tiles resolved in
-the catalog (archive or replace per owner call).
+### NA4 — Studio UI (DONE)
+`src/pages/apps/NodalAnalysisStudio.jsx` + `NodalAnalysisStudioContext`
+on the studio shell kit (WTA-pattern: string-form DEFAULT_* input
+groups, pure builders, useMemo derivations, sweeps behind explicit run
+with stale flags, 10 s debounced autosave, oilfield/SI display toggle
+over `src/utils/nodal/units.js`). Tabs: System (live nodal plot with
+operating point and stability copy), Inflow, Outflow (VLP curve +
+traverse profile), Sensitivity, Gas lift, Chokes. Oil and dry/wet gas
+well modes. Help drawer, white-chart standard, saved projects
+(`saved_nodal_analysis_projects`, additive migration over the legacy
+Horizons-era table, applied 2026-07-19). Routes:
+`apps/production/nodal-analysis-studio` + legacy slug aliases + `/dev`
+harness. E2E: default well solves flowing and matches the committed
+oracle golden within 2 percent on live staging. Legacy deletions:
+`NodalAnalysisEngine.jsx` (empty), `NodalPerformanceOptimizer.jsx`,
+`components/nodaloptimizer/`, `utils/nodalCalculations.js`.
+`components/nodalanalysis/` is retained: the routed Integrated Asset
+Modeler still consumes it (its fate plus the `nodal-analysis-engine`
+edge function is an NA5/owner decision).
 
 ### NA5 — Hardening + ship
 Perf smoke case in the harness, full-suite jest + build + e2e, STATUS
