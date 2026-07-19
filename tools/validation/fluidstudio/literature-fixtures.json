@@ -1,0 +1,17 @@
+{
+  "_readme": "Published worked-example fixtures for the FS3 flash (Whitson & Brule Monograph 20 flash examples; Ahmed, Equations of State and PVT Analysis, worked flash/K-value examples). Armed by typing data from the books; CASE 12 of run-validation.mjs skips with a warning while the arrays are empty and gates once populated. Do NOT fill from memory - only from the printed pages.",
+  "_shape": {
+    "flashes": [
+      {
+        "citation": "Book, edition, example number, page",
+        "keys": ["C1", "..."],
+        "z": [0],
+        "tF": 0,
+        "pPsia": 0,
+        "expected": { "beta": 0, "K": [0], "xL": [0], "yV": [0] },
+        "tolerances": { "beta": 0.02, "K": 0.05 }
+      }
+    ]
+  },
+  "flashes": []
+}

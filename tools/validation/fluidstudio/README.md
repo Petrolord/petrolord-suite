@@ -53,10 +53,32 @@ Validation-first gate for the compositional EOS engine in
    root, split invariance (duplicating a component changes nothing),
    Peneloux touching volumes only (zFactor/lnPhi bit-identical with and
    without shifts) and the correction equaling sum x_i s_i b_i.
+8. (FS3) Rachford-Rice: binary closed-form beta, root residual +
+   unit-sum + material balance, negative-flash root outside [0,1],
+   null when K does not straddle 1.
+9. (FS3) Stability + flashPT vs the plain-SS oracle flash grid - the
+   oracle uses no GDEM, bisection-only RR and the bisection cubic, so
+   both sides converging to the same fixed point cross-validates
+   accelerator, RR solver and root selection (gates 1e-8..1e-9,
+   observed ~1e-10; 8 two-phase + 31 single-phase states). Every
+   two-phase golden is sealed at generation time by the quadrature
+   fugacity-equality check (observed 5e-12, generator aborts above 1e-6).
+10. (FS3) Convergence identities on live flash results: isofugacity
+    (observed ~1e-11), exact material balance, K = y/x = phiL/phiV.
+11. (FS3) Low-pressure K limits anchored to the NIST-gated Psat:
+    plain Raoult for the heavy component (2%), the Lewis-rule phiSat
+    correction for the volatile one (3%) - the light component's
+    departure from naive Raoult IS its saturated-vapor fugacity
+    coefficient, and the gate verifies exactly that.
+12. Published literature flash fixtures (Whitson Monograph 20, Ahmed
+    EOS & PVT Analysis) - armed by committing book-typed data to
+    literature-fixtures.json; skips with a warning while empty.
 
-The same gates run in jest (`src/utils/fluidstudio/eos/__tests__/pr78.test.js`)
-so CI catches regressions without Python; this runner is the
-regeneration-time cross-check and the place tolerances are documented.
+The same gates run in jest (`src/utils/fluidstudio/eos/__tests__/pr78.test.js`
+and `flash.test.js`) so CI catches regressions without Python; this
+runner is the regeneration-time cross-check and the place tolerances are
+documented.
 
-Future phases extend this harness: FS3 arms the flash grid + K-value
-gates, FS4 the Coats & Smart SPE 11197 literature fixtures.
+Future phases extend this harness: FS4 adds C7+ characterization and the
+Coats & Smart SPE 11197 literature fixtures; the FS3 Whitson/Ahmed
+worked-example case (CASE 12) arms when the owner supplies the book pages.
