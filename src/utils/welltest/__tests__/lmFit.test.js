@@ -95,4 +95,18 @@ describe('levenbergMarquardt', () => {
     expect(seen.length).toBeGreaterThan(0);
     expect(seen[seen.length - 1][1]).toBeLessThan(1e-8);
   });
+
+  test('jacobianStep lifts quantized residuals above the noise floor (ET2)', () => {
+    // Residual from an iterative solver stopped at a coarse tolerance:
+    // quantized to steps of 0.05. The default relative step (1e-6 of
+    // theta ~ 1) changes the residual by ~1e-5, far below the quantum,
+    // so the derivative reads zero and LM cannot move. A step wider
+    // than the quantum recovers the fit.
+    const quantize = (v) => Math.round(v / 0.05) * 0.05;
+    const residuals = ([t]) => [quantize(10 * (t - 1.42))];
+    const stuck = levenbergMarquardt(residuals, [1], {});
+    expect(Math.abs(stuck.theta[0] - 1)).toBeLessThan(1e-3);
+    const fit = levenbergMarquardt(residuals, [1], { jacobianStep: [0.02] });
+    expect(Math.abs(fit.theta[0] - 1.42)).toBeLessThan(0.01);
+  });
 });
