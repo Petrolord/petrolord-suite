@@ -91,6 +91,87 @@ def gas_ipr_cases():
             "mAtPr": oracle.pseudo_pressure(base["pr"], base["tempF"], base["gasSg"])}
 
 
+def gradient_cases():
+    """NA2: correlation gradients over synthetic in-situ bundles.
+
+    Synthetic flows keep the gate on the correlation algebra itself
+    (transcribed twice); PVT coupling is gated separately by the traverse
+    cases. Matrix spans all four B&B patterns plus downhill and the
+    single-phase guards.
+    """
+    bundles = []
+    for vsl, vsg in [(0.05, 0.6), (0.5, 4.5), (3.0, 5.0), (2.0, 30.0),
+                     (6.0, 1.0), (0.2, 15.0), (4.0, 0.0), (0.0, 25.0)]:
+        vm = vsl + vsg
+        lam = vsl / vm if vm > 0 else 1.0
+        rho_l, rho_g, mu_l, mu_g, sigma = 47.0, 5.0, 1.2, 0.015, 25.0
+        bundles.append({
+            "vsl": vsl, "vsg": vsg, "vm": vm, "lambdaL": lam,
+            "rhoL": rho_l, "muL": mu_l, "sigmaL": sigma,
+            "rhoNs": rho_l * lam + rho_g * (1.0 - lam),
+            "muNs": mu_l * lam + mu_g * (1.0 - lam),
+        })
+
+    cases = []
+    for flows in bundles:
+        for theta in [90.0, 60.0, 0.0, -45.0]:
+            for corr in ["noSlip", "beggsBrill"]:
+                if corr == "noSlip":
+                    g = oracle.no_slip_gradient(2000.0, theta, 2.441, 0.00024, flows)
+                else:
+                    g = oracle.bb_gradient(2000.0, theta, 2.441, 0.00024, flows, 5.0, 0.015)
+                cases.append({
+                    "flows": flows, "thetaDeg": theta, "p": 2000.0,
+                    "dIn": 2.441, "rough": 0.00024, "correlation": corr,
+                    "out": g,
+                })
+    return cases
+
+
+def traverse_cases():
+    """NA2: full-stack BHP-from-WHP by the oracle's RK4 route (5 ft steps)."""
+    deviated = [
+        {"md": 0.0, "inc": 0.0, "azi": 0.0},
+        {"md": 2000.0, "inc": 0.0, "azi": 0.0},
+        {"md": 3000.0, "inc": 30.0, "azi": 45.0},
+        {"md": 8900.0, "inc": 30.0, "azi": 45.0},
+    ]
+    dev_tvd_max = oracle.min_curvature_tvd(deviated)[-1]
+    cases = [
+        {"label": "vertical BB producer",
+         "rates": {"qo": 800.0, "wct": 0.2, "gor": 600.0},
+         "whp": 250.0, "nodeMd": 8000.0, "whtF": 100.0, "bhtF": 180.0,
+         "tvdMax": 8000.0, "idIn": 2.441, "roughnessIn": 0.0006,
+         "correlation": "beggsBrill", "survey": None},
+        {"label": "vertical BB high-GLR",
+         "rates": {"qo": 300.0, "wct": 0.5, "gor": 1200.0},
+         "whp": 120.0, "nodeMd": 8000.0, "whtF": 100.0, "bhtF": 180.0,
+         "tvdMax": 8000.0, "idIn": 1.995, "roughnessIn": 0.0006,
+         "correlation": "beggsBrill", "survey": None},
+        {"label": "vertical no-slip producer",
+         "rates": {"qo": 800.0, "wct": 0.2, "gor": 600.0},
+         "whp": 250.0, "nodeMd": 8000.0, "whtF": 100.0, "bhtF": 180.0,
+         "tvdMax": 8000.0, "idIn": 2.441, "roughnessIn": 0.0006,
+         "correlation": "noSlip", "survey": None},
+        {"label": "vertical static column",
+         "rates": {"qo": 0.0, "wct": 0.0, "gor": 600.0},
+         "whp": 500.0, "nodeMd": 8000.0, "whtF": 100.0, "bhtF": 180.0,
+         "tvdMax": 8000.0, "idIn": 2.441, "roughnessIn": 0.0006,
+         "correlation": "noSlip", "survey": None},
+        {"label": "deviated BB producer",
+         "rates": {"qo": 1200.0, "wct": 0.35, "gor": 800.0},
+         "whp": 300.0, "nodeMd": 8900.0, "whtF": 95.0, "bhtF": 175.0,
+         "tvdMax": dev_tvd_max, "idIn": 2.992, "roughnessIn": 0.0006,
+         "correlation": "beggsBrill", "survey": deviated},
+    ]
+    for c in cases:
+        c["bhp"] = oracle.traverse_rk4(
+            MODEL, c["rates"], c["whp"], c["nodeMd"], c["whtF"], c["bhtF"],
+            c["tvdMax"], c["idIn"], c["roughnessIn"], c["correlation"],
+            survey=c["survey"], step_ft=5.0)
+    return cases
+
+
 def main():
     goldens = {
         "_source": "tools/validation/nodal/genfixtures.py (independent Python oracle)",
@@ -100,6 +181,8 @@ def main():
         "ipr": ipr_cases(),
         "trajectory": trajectory_cases(),
         "gasIpr": gas_ipr_cases(),
+        "gradients": gradient_cases(),
+        "traverse": traverse_cases(),
     }
     with open(OUT, "w") as fh:
         json.dump(goldens, fh, indent=1)

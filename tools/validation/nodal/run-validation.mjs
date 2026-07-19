@@ -40,6 +40,10 @@ import { buildFluidModel, pvtAt } from '../../../src/utils/nodal/pvt.js';
 import { computeIpr, rateAtPwf } from '../../../src/utils/nodal/ipr.js';
 import { buildTrajectory, tvdAtMd } from '../../../src/utils/nodal/trajectory.js';
 import { darcyGasIpr, backPressureIpr, litIpr } from '../../../src/utils/nodal/iprGas.js';
+import { noSlipGradient } from '../../../src/utils/nodal/correlations/noSlip.js';
+import { beggsBrillGradient } from '../../../src/utils/nodal/correlations/beggsBrill.js';
+import { linearGeothermal } from '../../../src/utils/nodal/temperature.js';
+import { bhpFromWhp } from '../../../src/utils/nodal/traverse.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const goldens = JSON.parse(
@@ -178,6 +182,62 @@ banner('CASE 7: gas deliverability vs oracle Simpson route + closed forms');
   check('back-pressure AOF closed form', bp.aof, 2e-4 * Math.pow(3000 ** 2, 0.85), 1e-12, 'Mscf/d');
   const lit = litIpr({ pr: 3000, a: 0.05, b: 5e-6 });
   check('LIT AOF inverts its quadratic', 0.05 * lit.aof + 5e-6 * lit.aof * lit.aof, 3000 ** 2, 1e-9, 'psi2');
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 9: NA2 gradient correlations vs oracle transcription');
+{
+  for (const c of goldens.gradients) {
+    const fn = c.correlation === 'noSlip' ? noSlipGradient : beggsBrillGradient;
+    const js = fn({
+      p: c.p,
+      thetaDeg: c.thetaDeg,
+      dIn: c.dIn,
+      rough: c.rough,
+      flows: c.flows,
+      pvt: { rhoG: 5.0, muG: 0.015 },
+    });
+    const label = `${c.correlation} vsl=${c.flows.vsl} vsg=${c.flows.vsg} th=${c.thetaDeg}`;
+    // Holdup algebra is closed form (equality); dpdz carries the Colebrook
+    // route difference (< 0.2 %).
+    check(`${label} holdup`, js.holdup, c.out.holdup, 1e-9);
+    check(`${label} dpdz`, js.dpdz, c.out.dpdz, 2e-3, 'psi/ft');
+    if (js.pattern !== c.out.pattern) {
+      console.log(`  FAIL  ${label} pattern: ${js.pattern} vs ${c.out.pattern}`);
+      failed += 1;
+    } else {
+      passed += 1;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 10: traverse vs oracle RK4 route (Heun 50 ft vs RK4 5 ft)');
+{
+  const model = buildFluidModel({
+    api: goldens.model.api,
+    gasSg: goldens.model.gasSg,
+    gor: goldens.model.gor,
+    salinityPpm: goldens.model.salinityPpm,
+  });
+  for (const c of goldens.traverse) {
+    const trajectory = c.survey
+      ? buildTrajectory({ mode: 'deviated', survey: c.survey })
+      : buildTrajectory({ mode: 'vertical', depthFt: c.nodeMd });
+    const res = bhpFromWhp({
+      fluidModel: model,
+      rates: c.rates,
+      trajectory,
+      tAt: linearGeothermal({ whtF: c.whtF, bhtF: c.bhtF, tvdMaxFt: c.tvdMax }),
+      idIn: c.idIn,
+      roughnessIn: c.roughnessIn,
+      correlation: c.correlation,
+      whp: c.whp,
+      nodeMd: c.nodeMd,
+      stepFt: 50,
+    });
+    check(`${c.label} BHP`, res.pEnd, c.bhp, 3e-3, 'psia');
+  }
 }
 
 // ---------------------------------------------------------------------------

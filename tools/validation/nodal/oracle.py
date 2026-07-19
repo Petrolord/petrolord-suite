@@ -335,3 +335,276 @@ def darcy_gas_q(pr: float, pwf: float, temp_f: float, gas_sg: float,
     if dm <= 0 or geom <= 0:
         return 0.0
     return k * h * dm / (1422.0 * (temp_f + 460.0) * geom)
+
+
+# ---------------------------------------------------------------------------
+# NA2: in-situ flows, gradient correlations, pressure traverse
+#
+# The Beggs & Brill (+ Payne) and no-slip gradient algebra is published
+# closed form: transcribed twice (JS and here) and gated for equality,
+# with friction the only sub-percent difference (Colebrook route). The
+# traverse is gated by ROUTE independence: this oracle integrates dp/dMD
+# with classic RK4 at 5 ft steps; the JS engine marches Heun at 50-100 ft.
+
+SEC_PER_DAY = 86400.0
+FT3_PER_BBL = 5.614583
+G_FT_S2 = 32.174
+
+
+def pipe_area(id_in: float) -> float:
+    d_ft = id_in / 12.0
+    return math.pi / 4.0 * d_ft * d_ft
+
+
+def in_situ_flows(qo: float, wct: float, gor: float, pvt: dict, area_ft2: float) -> dict:
+    wc = min(max(wct, 0.0), 0.999)
+    qw = qo * wc / (1.0 - wc) if wc > 0 else 0.0
+
+    qo_is = qo * pvt["bo"] * FT3_PER_BBL / SEC_PER_DAY
+    qw_is = qw * pvt["bw"] * FT3_PER_BBL / SEC_PER_DAY
+    ql_is = qo_is + qw_is
+
+    free_gas_scfd = max(0.0, qo * (gor - pvt["rs"]))
+    qg_is = free_gas_scfd * pvt["bg"] * FT3_PER_BBL / SEC_PER_DAY
+
+    vsl = ql_is / area_ft2
+    vsg = qg_is / area_ft2
+    vm = vsl + vsg
+    lambda_l = vsl / vm if vm > 0 else 1.0
+
+    fo = qo_is / ql_is if ql_is > 0 else 1.0
+    fw = 1.0 - fo
+    rho_l = fo * pvt["rhoO"] + fw * pvt["rhoW"]
+    mu_l = fo * pvt["muO"] + fw * pvt["muW"]
+    sigma_l = fo * pvt["sigmaOG"] + fw * pvt["sigmaWG"]
+
+    rho_ns = rho_l * lambda_l + pvt["rhoG"] * (1.0 - lambda_l)
+    mu_ns = mu_l * lambda_l + pvt["muG"] * (1.0 - lambda_l)
+
+    return {
+        "vsl": vsl, "vsg": vsg, "vm": vm, "lambdaL": lambda_l,
+        "rhoL": rho_l, "muL": mu_l, "sigmaL": sigma_l,
+        "rhoNs": rho_ns, "muNs": mu_ns,
+    }
+
+
+def reynolds(rho: float, v: float, d_ft: float, mu_cp: float) -> float:
+    if mu_cp <= 0 or d_ft <= 0:
+        return 0.0
+    return 1488.0 * rho * abs(v) * d_ft / mu_cp
+
+
+def no_slip_gradient(p: float, theta_deg: float, d_in: float, rough: float, flows: dict) -> dict:
+    vm = flows["vm"]
+    vsg = flows["vsg"]
+    rho_ns = flows["rhoNs"]
+    mu_ns = flows["muNs"]
+    d_ft = d_in / 12.0
+    sin_th = math.sin(math.radians(theta_deg))
+
+    grad_grav = rho_ns * sin_th / 144.0
+    if vm <= 0:
+        return {"dpdz": grad_grav, "holdup": flows["lambdaL"], "pattern": "static",
+                "gradGrav": grad_grav, "gradFric": 0.0, "ek": 0.0}
+
+    f = moody(reynolds(rho_ns, vm, d_ft, mu_ns), rough)
+    grad_fric = f * rho_ns * vm * vm / (2.0 * G_FT_S2 * d_ft) / 144.0
+    ek = rho_ns * vm * vsg / (G_FT_S2 * 144.0 * p) if p > 0 else 0.0
+    dpdz = (grad_grav + grad_fric) / (1.0 - min(ek, 0.95))
+    return {"dpdz": dpdz, "holdup": flows["lambdaL"], "pattern": "no-slip",
+            "gradGrav": grad_grav, "gradFric": grad_fric, "ek": ek}
+
+
+_BB_HOLDUP = {
+    "segregated": (0.98, 0.4846, 0.0868),
+    "intermittent": (0.845, 0.5351, 0.0173),
+    "distributed": (1.065, 0.5824, 0.0609),
+}
+
+_BB_C_UPHILL = {
+    "segregated": (0.011, -3.768, 3.539, -1.614),
+    "intermittent": (2.96, 0.305, -0.4473, 0.0978),
+}
+
+_BB_C_DOWNHILL = (4.7, -0.3692, 0.1244, -0.5056)
+
+
+def bb_boundaries(lam: float) -> tuple:
+    return (316.0 * lam ** 0.302,
+            0.0009252 * lam ** -2.4684,
+            0.1 * lam ** -1.4516,
+            0.5 * lam ** -6.738)
+
+
+def bb_pattern(lam: float, nfr: float) -> str:
+    l1, l2, l3, l4 = bb_boundaries(lam)
+    if (lam < 0.01 and nfr < l1) or (lam >= 0.01 and nfr < l2):
+        return "segregated"
+    if lam >= 0.01 and l2 <= nfr <= l3:
+        return "transition"
+    if (0.01 <= lam < 0.4 and l3 < nfr <= l1) or (lam >= 0.4 and l3 < nfr <= l4):
+        return "intermittent"
+    if (lam < 0.4 and nfr >= l1) or (lam >= 0.4 and nfr > l4):
+        return "distributed"
+    return "intermittent"
+
+
+def _bb_hl0(pattern: str, lam: float, nfr: float) -> float:
+    a, b, c = _BB_HOLDUP[pattern]
+    return max(a * lam ** b / nfr ** c, lam)
+
+
+def _bb_psi(pattern: str, lam: float, nlv: float, nfr: float, theta_deg: float) -> float:
+    if theta_deg == 0:
+        return 1.0
+    if theta_deg > 0:
+        if pattern == "distributed":
+            return 1.0
+        d, e, f, g = _BB_C_UPHILL[pattern]
+    else:
+        d, e, f, g = _BB_C_DOWNHILL
+    arg = d * lam ** e * nlv ** f * nfr ** g
+    c = max(0.0, (1.0 - lam) * math.log(max(arg, 1e-300)))
+    th = math.radians(1.8 * theta_deg)
+    s = math.sin(th)
+    return 1.0 + c * (s - s ** 3 / 3.0)
+
+
+def _bb_holdup(pattern: str, lam: float, nlv: float, nfr: float, theta_deg: float) -> float:
+    payne = 0.924 if theta_deg > 0 else 0.685 if theta_deg < 0 else 1.0
+    hl = _bb_hl0(pattern, lam, nfr) * _bb_psi(pattern, lam, nlv, nfr, theta_deg) * payne
+    return min(max(hl, 1e-4), 1.0)
+
+
+def bb_friction_exponent(y: float) -> float:
+    if y <= 0:
+        return 0.0
+    if 1.0 < y < 1.2:
+        return math.log(2.2 * y - 1.2)
+    ln = math.log(y)
+    denom = -0.0523 + 3.182 * ln - 0.8725 * ln * ln + 0.01853 * ln ** 4
+    if denom == 0:
+        return 0.0
+    return ln / denom
+
+
+def _single_phase(p, sin_th, d_ft, rough, rho, mu, v, holdup, ek):
+    f = moody(reynolds(rho, v, d_ft, mu), rough)
+    grad_grav = rho * sin_th / 144.0
+    grad_fric = f * rho * v * v / (2.0 * G_FT_S2 * d_ft) / 144.0
+    dpdz = (grad_grav + grad_fric) / (1.0 - min(ek, 0.95))
+    return {"dpdz": dpdz, "holdup": holdup, "pattern": "single-phase",
+            "gradGrav": grad_grav, "gradFric": grad_fric, "ek": ek}
+
+
+def bb_gradient(p: float, theta_deg: float, d_in: float, rough: float,
+                flows: dict, rho_g: float, mu_g: float) -> dict:
+    vsl, vsg, vm = flows["vsl"], flows["vsg"], flows["vm"]
+    lam = flows["lambdaL"]
+    rho_l, sigma_l = flows["rhoL"], flows["sigmaL"]
+    rho_ns, mu_ns = flows["rhoNs"], flows["muNs"]
+    d_ft = d_in / 12.0
+    sin_th = math.sin(math.radians(theta_deg))
+
+    if vm <= 0:
+        grad_grav = rho_ns * sin_th / 144.0
+        return {"dpdz": grad_grav, "holdup": lam, "pattern": "static",
+                "gradGrav": grad_grav, "gradFric": 0.0, "ek": 0.0}
+
+    if vsg <= 1e-9 or lam >= 0.9999:
+        return _single_phase(p, sin_th, d_ft, rough, rho_l, flows["muL"], vm, 1.0, 0.0)
+    if vsl <= 1e-9 or lam <= 1e-4:
+        ek = rho_g * vm * vm / (G_FT_S2 * 144.0 * max(p, 1.0))
+        return _single_phase(p, sin_th, d_ft, rough, rho_g, mu_g, vm, 0.0, ek)
+
+    nfr = vm * vm / (G_FT_S2 * d_ft)
+    nlv = 1.938 * vsl * (rho_l / max(sigma_l, 1e-6)) ** 0.25
+    pattern = bb_pattern(lam, nfr)
+
+    if pattern == "transition":
+        _, l2, l3, _ = bb_boundaries(lam)
+        a = (l3 - nfr) / (l3 - l2)
+        holdup = (a * _bb_holdup("segregated", lam, nlv, nfr, theta_deg)
+                  + (1.0 - a) * _bb_holdup("intermittent", lam, nlv, nfr, theta_deg))
+    else:
+        holdup = _bb_holdup(pattern, lam, nlv, nfr, theta_deg)
+
+    rho_s = rho_l * holdup + rho_g * (1.0 - holdup)
+    grad_grav = rho_s * sin_th / 144.0
+
+    fn = moody(reynolds(rho_ns, vm, d_ft, mu_ns), rough)
+    y = lam / (holdup * holdup)
+    ftp = fn * math.exp(bb_friction_exponent(y))
+    grad_fric = ftp * rho_ns * vm * vm / (2.0 * G_FT_S2 * d_ft) / 144.0
+
+    ek = rho_s * vm * vsg / (G_FT_S2 * 144.0 * p) if p > 0 else 0.0
+    dpdz = (grad_grav + grad_fric) / (1.0 - min(ek, 0.95))
+    return {"dpdz": dpdz, "holdup": holdup, "pattern": pattern,
+            "gradGrav": grad_grav, "gradFric": grad_fric, "ek": ek}
+
+
+# ---------------------------------------------------------------------------
+# traverse by RK4 (route-independent of the JS Heun marcher)
+
+def _trajectory_fns(survey):
+    """Piecewise-linear tvd(md) and segment-end angle(md), matching the JS
+    buildTrajectory convention (angle = station-end inclination)."""
+    if survey is None:
+        return (lambda md: md), (lambda md: 0.0)
+    tvds = min_curvature_tvd(survey)
+    mds = [s["md"] for s in survey]
+    incs = [s["inc"] for s in survey]
+
+    def tvd_at(md):
+        if md <= mds[0]:
+            return tvds[0]
+        for i in range(1, len(mds)):
+            if md <= mds[i]:
+                t = (md - mds[i - 1]) / (mds[i] - mds[i - 1])
+                return tvds[i - 1] + t * (tvds[i] - tvds[i - 1])
+        return tvds[-1]
+
+    def angle_at(md):
+        for i in range(1, len(mds)):
+            if md <= mds[i]:
+                return incs[i]
+        return incs[-1]
+
+    return tvd_at, angle_at
+
+
+def traverse_rk4(model: dict, rates: dict, whp: float, node_md: float,
+                 wht_f: float, bht_f: float, tvd_max: float,
+                 id_in: float, roughness_in: float, correlation: str,
+                 survey=None, step_ft: float = 5.0) -> float:
+    """Flowing BHP at node_md from wellhead pressure by RK4 marching."""
+    tvd_at, angle_at = _trajectory_fns(survey)
+    area = pipe_area(id_in)
+    rough = roughness_in / id_in
+
+    def temp_at(tvd):
+        span = tvd_max if tvd_max > 0 else 1.0
+        frac = min(max(tvd / span, 0.0), 1.0)
+        return wht_f + (bht_f - wht_f) * frac
+
+    def grad(md, p):
+        t_f = temp_at(tvd_at(md))
+        pvt = pvt_at(model, p, t_f)
+        flows = in_situ_flows(rates["qo"], rates.get("wct", 0.0), rates["gor"], pvt, area)
+        theta = 90.0 - angle_at(md)
+        if correlation == "noSlip":
+            return no_slip_gradient(p, theta, id_in, rough, flows)["dpdz"]
+        return bb_gradient(p, theta, id_in, rough, flows, pvt["rhoG"], pvt["muG"])["dpdz"]
+
+    n = max(2, int(math.ceil(node_md / step_ft)))
+    h = node_md / n
+    p = whp
+    md = 0.0
+    for _ in range(n):
+        k1 = grad(md, p)
+        k2 = grad(md + h / 2.0, p + h * k1 / 2.0)
+        k3 = grad(md + h / 2.0, p + h * k2 / 2.0)
+        k4 = grad(md + h, p + h * k3)
+        p += h * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0
+        md += h
+    return p
