@@ -19,7 +19,7 @@
  * Vite factory in envelopeWorkerFactory.js (jest-mapped to null).
  */
 
-import { runEnvelopeTrace } from './eos/envelope.worker.js';
+import { runEnvelopeTrace, runLabTuneJob } from './eos/envelope.worker.js';
 import { createEnvelopeWorker } from './envelopeWorkerFactory.js';
 
 export const createEnvelopeClient = ({ workerFactory = createEnvelopeWorker } = {}) => {
@@ -69,7 +69,7 @@ export const createEnvelopeClient = ({ workerFactory = createEnvelopeWorker } = 
     return worker;
   };
 
-  const trace = (request) => {
+  const run = (request) => {
     const id = nextId;
     nextId += 1;
     abortPending('superseded');
@@ -81,7 +81,7 @@ export const createEnvelopeClient = ({ workerFactory = createEnvelopeWorker } = 
         pending = null;
         activeId = null;
         try {
-          resolve(runEnvelopeTrace(request));
+          resolve(request?.kind === 'tune' ? runLabTuneJob(request) : runEnvelopeTrace(request));
         } catch (err) {
           reject(err);
         }
@@ -93,7 +93,14 @@ export const createEnvelopeClient = ({ workerFactory = createEnvelopeWorker } = 
     });
   };
 
-  /** Stop the in-flight trace (if any) without tearing the client down. */
+  const trace = (request) => run(request);
+
+  /** ET3: run the lab-tune regression off the main thread. Same
+   * one-in-flight semantics as trace, so use a dedicated client instance
+   * per concern (the tuning card owns its own). */
+  const tune = ({ fluid, targets, opts }) => run({ kind: 'tune', fluid, targets, opts });
+
+  /** Stop the in-flight request (if any) without tearing the client down. */
   const cancel = () => abortPending('cancelled');
 
   const dispose = () => {
@@ -101,5 +108,5 @@ export const createEnvelopeClient = ({ workerFactory = createEnvelopeWorker } = 
     killWorker();
   };
 
-  return { trace, cancel, dispose };
+  return { trace, tune, cancel, dispose };
 };

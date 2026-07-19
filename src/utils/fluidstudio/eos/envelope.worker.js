@@ -8,8 +8,9 @@
  * the sync path uses.
  *
  * Message contract (module worker, Seismolord pattern):
- *   in : { id, payload: { keys, z, plus, tMinF, tMaxF, nT, resTempF } }
- *   out: { id, ok: true, payload: { bubble, dew, points, satAtRes } }
+ *   in : { id, payload: { keys, z, plus, tuning, tMinF, tMaxF, nT, resTempF } }
+ *        { id, payload: { kind: 'tune', fluid, targets, opts } }   (ET3)
+ *   out: { id, ok: true, payload: { bubble, dew, points, satAtRes } | tune result }
  *        { id, ok: false, error }
  * Pressures psia, temperatures reported back in °F for the chart.
  * Cancellation/progress arrive in FS8; FS5 keeps one trace in flight per
@@ -17,12 +18,17 @@
  */
 
 import { mixtureFromKeys } from './pr78.js';
-import { mixtureWithPlusFraction } from './characterization.js';
+import { tunedMixtureWithPlusFraction } from './tuning.js';
 import { tracePhaseEnvelope, saturationPressure } from './envelope.js';
 import { degFtoR, degRtoF } from './units.js';
+import { tuneToLab } from './labTune.js';
 
-export const runEnvelopeTrace = ({ keys, z, plus, tMinF, tMaxF, nT, resTempF }) => {
-  const mix = plus ? mixtureWithPlusFraction(keys.slice(0, -1), plus) : mixtureFromKeys(keys);
+/** ET3: the lab-tune regression is seconds of LM iterations, so it shares
+ * this worker. Plain-data in, plain-data out (tuneToLab result). */
+export const runLabTuneJob = ({ fluid, targets, opts }) => tuneToLab(fluid, targets, opts);
+
+export const runEnvelopeTrace = ({ keys, z, plus, tuning, tMinF, tMaxF, nT, resTempF }) => {
+  const mix = plus ? tunedMixtureWithPlusFraction(keys.slice(0, -1), plus, tuning) : mixtureFromKeys(keys);
   const boundaryOpts = { nScan: 30 };
   const trace = tracePhaseEnvelope(mix, z, {
     tMinR: degFtoR(tMinF),
@@ -48,7 +54,8 @@ if (typeof self !== 'undefined' && typeof self.postMessage === 'function' && typ
   self.onmessage = (e) => {
     const { id, payload } = e.data || {};
     try {
-      self.postMessage({ id, ok: true, payload: runEnvelopeTrace(payload) });
+      const result = payload?.kind === 'tune' ? runLabTuneJob(payload) : runEnvelopeTrace(payload);
+      self.postMessage({ id, ok: true, payload: result });
     } catch (err) {
       self.postMessage({ id, ok: false, error: err?.message || String(err) });
     }

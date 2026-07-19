@@ -15,7 +15,7 @@
 
 import { COMPONENT_ORDER, COMPONENTS, PLUS_FRACTION_KEY } from './eos/components.js';
 import { mixtureFromKeys } from './eos/pr78.js';
-import { characterizePlusFraction, mixtureWithPlusFraction } from './eos/characterization.js';
+import { normalizeTuning, tunedMixtureWithPlusFraction } from './eos/tuning.js';
 import { flashPT } from './eos/flash.js';
 import { lbcViscosity, weinaugKatzIFT } from './eos/transport.js';
 import { separatorTrain } from './eos/separator.js';
@@ -31,6 +31,14 @@ export const emptyComposition = () => ({
   pressure: null,
   temp: null,
   envelope: { tMinF: 40, tMaxF: 400, nT: 15 },
+  // ET3 lab tuning: `lab` holds the measured values the user types (psat at
+  // psatTF, and separator-test GOR/API/Bo measured for the Separator Train
+  // stages at the flash T/P as reservoir conditions); `applied` is the
+  // accepted {fTc, fPc, kC1, sPlus} knob set (null = untuned).
+  tuning: {
+    lab: { psatPsia: null, psatTF: null, totalGor: null, stoApi: null, bo: null },
+    applied: null,
+  },
 });
 
 /**
@@ -95,6 +103,11 @@ export const parseComposition = (composition) => {
     keys,
     z,
     plus,
+    // Applied lab tuning rides the composition state so persistence and the
+    // worker payload get it for free; normalized here (ET1), applied only in
+    // eos/tuning.js. Tuning without a plus fraction is meaningless: the four
+    // knobs all act on the C7+ pseudo.
+    tuning: plus ? normalizeTuning(composition?.tuning?.applied) : null,
     sumPct,
     tempF: temp,
     pressurePsia: pressure,
@@ -104,7 +117,7 @@ export const parseComposition = (composition) => {
 /** Build the EOS mixture for a parsed composition (pseudo appended last). */
 export const buildMixture = (parsed) => {
   if (parsed.plus) {
-    return mixtureWithPlusFraction(parsed.keys.slice(0, -1), parsed.plus);
+    return tunedMixtureWithPlusFraction(parsed.keys.slice(0, -1), parsed.plus, parsed.tuning);
   }
   return mixtureFromKeys(parsed.keys);
 };
@@ -376,6 +389,58 @@ export const eosPvtTableCsv = (table) => {
  * The envelope-trace request payload for the worker (plain data only).
  * resTempF marks the temperature whose saturation pressure is reported.
  */
+/**
+ * ET3: build the worker request for the lab-tune regression from the
+ * composition state and the app's Separator Train stages. Returns null
+ * (with reasons) until the composition parses and at least one measured
+ * value is present. Separator-test measurements are interpreted against
+ * the configured Separator Train stages, with the flash T/P as the
+ * reservoir conditions for Bo.
+ */
+export const labTuneRequest = (composition, stages) => {
+  const parsed = parseComposition(composition);
+  if (!parsed.valid) return { request: null, reasons: parsed.errors };
+  if (!parsed.plus) return { request: null, reasons: ['Tuning needs a C7+ plus fraction.'] };
+
+  const lab = composition?.tuning?.lab ?? {};
+  const num = (v) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : null);
+  const psatPsia = num(lab.psatPsia);
+  const psatTF = num(lab.psatTF) ?? parsed.tempF;
+  const totalGor = num(lab.totalGor);
+  const stoApi = num(lab.stoApi);
+  const bo = num(lab.bo);
+
+  const targets = {};
+  if (psatPsia !== null) targets.psat = { tF: psatTF, pPsia: psatPsia };
+  if (totalGor !== null || stoApi !== null || bo !== null) {
+    const stagesF = (stages || [])
+      .filter((s) => Number.isFinite(Number(s.pressure)))
+      .map((s) => [Number.isFinite(Number(s.temperature)) ? Number(s.temperature) : 60, Number(s.pressure)]);
+    if (!stagesF.length) {
+      return { request: null, reasons: ['Separator-test measurements need at least one Separator Train stage.'] };
+    }
+    targets.separatorTest = {
+      stagesF,
+      resTF: parsed.tempF,
+      resPPsia: parsed.pressurePsia,
+      ...(totalGor !== null ? { totalGor } : {}),
+      ...(stoApi !== null ? { stoApi } : {}),
+      ...(bo !== null ? { bo } : {}),
+    };
+  }
+  if (!targets.psat && !targets.separatorTest) {
+    return { request: null, reasons: ['Enter at least one measured lab value.'] };
+  }
+
+  return {
+    request: {
+      fluid: { keys: parsed.keys, plus: parsed.plus, z: parsed.z },
+      targets,
+    },
+    reasons: [],
+  };
+};
+
 export const envelopeRequest = (composition) => {
   const parsed = parseComposition(composition);
   if (!parsed.valid) return null;
@@ -384,6 +449,7 @@ export const envelopeRequest = (composition) => {
     keys: parsed.keys,
     z: parsed.z,
     plus: parsed.plus,
+    tuning: parsed.tuning,
     tMinF: Number(env.tMinF) || 40,
     tMaxF: Number(env.tMaxF) || 400,
     nT: Math.min(Math.max(Math.round(Number(env.nT) || 15), 5), 40),

@@ -18,7 +18,7 @@ const Stat = ({ label, value, unit }) => (
  * Replaces the black-oil card's staged-liberation approximation and its
  * multistage-Bo heuristic when the EOS fluid model is selected.
  */
-const CompositionalSeparatorCard = ({ separator }) => {
+const CompositionalSeparatorCard = ({ separator, tuned = false }) => {
   if (!separator) return null;
   const { stages, stockTank, totals, bo, warnings } = separator;
 
@@ -30,7 +30,10 @@ const CompositionalSeparatorCard = ({ separator }) => {
             <Factory className="w-4 h-4 mr-2 text-cyan-300" />
             Compositional separator train
           </CardTitle>
-          <FluidStudioTierBadge tier="oracle_gated" />
+          <div className="flex gap-2">
+            {tuned && <FluidStudioTierBadge tier="lab_tuned" />}
+            <FluidStudioTierBadge tier="oracle_gated" />
+          </div>
         </div>
         <p className="text-xs text-slate-400 mt-1">
           Each stage is a rigorous PR78 flash of the wellstream. The vapor is taken off as surface gas and the equilibrium liquid feeds the next stage, ending at stock tank conditions (14.7 psia and 60 °F). Stage pressures and temperatures come from the Separator Train inputs.

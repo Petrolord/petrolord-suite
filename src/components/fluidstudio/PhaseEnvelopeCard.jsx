@@ -24,7 +24,7 @@ const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? 'n/a' : Number(v).
  * shared white chart surface with the reservoir point and the traced
  * saturation pressure marked.
  */
-const PhaseEnvelopeCard = ({ composition }) => {
+const PhaseEnvelopeCard = ({ composition, tuned = false }) => {
   const clientRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -72,6 +72,7 @@ const PhaseEnvelopeCard = ({ composition }) => {
             <Mountain className="w-4 h-4 mr-2 text-cyan-300" />PT phase envelope
           </CardTitle>
           <div className="flex items-center gap-2">
+            {tuned && <FluidStudioTierBadge tier="lab_tuned" />}
             <FluidStudioTierBadge
               tier="oracle_gated"
               note="Each envelope point is a stability boundary located by bisection on the validated PR78 stability test. The boundary finder is cross-checked point by point against the independent Python oracle in the validation harness."

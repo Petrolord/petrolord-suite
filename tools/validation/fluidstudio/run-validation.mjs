@@ -113,6 +113,8 @@ import {
 import {
   cceExperiment, differentialLiberation, eosBlackOilTable,
 } from '../../../src/utils/fluidstudio/eos/experiments.js';
+import { tunedMixtureWithPlusFraction } from '../../../src/utils/fluidstudio/eos/tuning.js';
+import { tuneToLab, predictTargets } from '../../../src/utils/fluidstudio/eos/labTune.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const testsDir = path.join(here, '../../../src/utils/fluidstudio/eos/__tests__');
@@ -904,6 +906,134 @@ banner('CASE 22: performance smoke (generous budgets, observed times printed)');
   timed('envelope trace (15 T-points, worker workload)', 60000, () => {
     tracePhaseEnvelope(mix, job.x, { tMinR: degFtoR(40), tMaxR: degFtoR(400), nT: 15, nScan: 30 });
   });
+  timed('lab tune, psat + full separator targets (ET2 worker workload)', 30000, () => {
+    const pre = predictTargets({ keys: job.keys, plus: job.plus, z: job.x },
+      { psat: { tF: job.tF, pPsia: 5000 }, separatorTest: { stagesF: [[75, 114.65]], resTF: job.tF } }, null);
+    tuneToLab({ keys: job.keys, plus: job.plus, z: job.x }, {
+      psat: { tF: job.tF, pPsia: pre.psatPsia * 0.95 },
+      separatorTest: {
+        stagesF: [[75, 114.65]], resTF: job.tF, resPPsia: pre.psatPsia * 0.95,
+        totalGor: pre.totalGor * 1.02, stoApi: pre.stoApi + 3, bo: pre.bo,
+      },
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 23: ET1 tuning seam - identity, decoupling, direction');
+{
+  const job = goldens.flashC7[0];
+  const mix = mixtureWithPlusFraction(job.keys, job.plus);
+  const tR = degFtoR(200);
+
+  // identity: absent tuning is bitwise the untuned path
+  const seam = tunedMixtureWithPlusFraction(job.keys, job.plus, null);
+  const a = flashPT(mix, job.x, tR, 2000);
+  const b = flashPT(seam, job.x, tR, 2000);
+  checkAbs('no tuning: identical beta (bitwise)', b.beta - a.beta, 0, 0);
+  checkAbs('no tuning: identical K (bitwise, max abs)',
+    Math.max(...a.K.map((k, i) => Math.abs(b.K[i] - k))), 0, 0);
+  const satA = saturationPressure(mix, job.x, tR, {});
+  const satB = saturationPressure(seam, job.x, tR, {});
+  checkAbs('no tuning: identical Psat (bitwise)', satB.pPsia - satA.pPsia, 0, 0);
+
+  // Peneloux decoupling: shift-only tune leaves the split bitwise intact
+  const shifted = tunedMixtureWithPlusFraction(job.keys, job.plus, { sPlus: 0.15 });
+  const c = flashPT(shifted, job.x, tR, 2000);
+  checkAbs('shift-only tune: identical beta (bitwise)', c.beta - a.beta, 0, 0);
+  checkAbs('shift-only tune: identical K (bitwise, max abs)',
+    Math.max(...a.K.map((k, i) => Math.abs(c.K[i] - k))), 0, 0);
+  checkAbs('shift-only tune: liquid density moved',
+    Math.abs(c.liquid.density - a.liquid.density) > 0.1 ? 0 : 1, 0, 0);
+
+  // direction: raising the C1-C7+ BIP raises an oil bubble point
+  const bumped = tunedMixtureWithPlusFraction(job.keys, job.plus, { kC1: 0.12 });
+  const satBump = saturationPressure(bumped, job.x, tR, {});
+  checkAbs('kC1 bump keeps a bubble point', satBump.kind === 'bubble' ? 0 : 1, 0, 0);
+  checkAbs('kC1 bump raises the bubble point', satBump.pPsia > satA.pPsia ? 0 : 1, 0, 0);
+
+  // the tune touches only the pseudo
+  const tuned = tunedMixtureWithPlusFraction(job.keys, job.plus, { fTc: 1.05, fPc: 0.9 });
+  const iC1 = tuned.keys.indexOf('C1');
+  checkAbs('library C1 untouched by tuning', tuned.comps[iC1].tcR - COMPONENTS.C1.tcR, 0, 0);
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 24: ET2 self-recovery - tune recovers synthetic lab data from a known truth');
+{
+  const job = goldens.flashC7[0];
+  const fluid = { keys: job.keys, plus: job.plus, z: job.x };
+  const truth = { fTc: 1.04, fPc: 0.88, kC1: 0.1, sPlus: 0.08 };
+
+  // synthesize "lab measurements" from the perturbed truth
+  const sepSpec = { stagesF: [[75, 114.65]], resTF: 200 };
+  const pre = predictTargets(fluid, { psat: { tF: 200, pPsia: 5000 }, separatorTest: sepSpec }, truth);
+  const targets = {
+    psat: { tF: 200, pPsia: pre.psatPsia },
+    separatorTest: {
+      ...sepSpec,
+      resPPsia: pre.psatPsia * 1.001,
+      totalGor: pre.totalGor,
+      stoApi: pre.stoApi,
+    },
+  };
+  targets.separatorTest.bo = predictTargets(fluid, targets, truth).bo;
+
+  const rec = tuneToLab(fluid, targets);
+  checkAbs('self-recovery converged', rec.converged ? 0 : 1, 0, 0);
+  const err = Object.fromEntries(rec.report.map((r) => [r.name, r.tunedErr]));
+  checkAbs('self-recovery psat within 0.1%', Math.max(0, Math.abs(err.psat) - 0.1), 0, 0, '%');
+  checkAbs('self-recovery GOR within 0.5%', Math.max(0, Math.abs(err.totalGor) - 0.5), 0, 0, '%');
+  checkAbs('self-recovery API within 0.3', Math.max(0, Math.abs(err.stoApi) - 0.3), 0, 0, 'API');
+  checkAbs('self-recovery Bo within 0.5%', Math.max(0, Math.abs(err.bo) - 0.5), 0, 0, '%');
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 25: ET2 real anchors - tuning closes the CASE 17/19 untuned biases');
+{
+  const lit = JSON.parse(fs.readFileSync(path.join(here, 'literature-fixtures.json'), 'utf8'));
+
+  // every armed Coats & Smart fluid tunes to its measured Psat, including
+  // the two pinned untuned outliers (Oil 1 +10.3%, Gas 5 dew -15.8%)
+  for (const fx of lit.coatsSmart.fluids) {
+    const fluid = { keys: [...fx.keys, 'C7+'], plus: fx.plus, z: fx.z };
+    const fit = tuneToLab(fluid, { psat: { tF: fx.tF, pPsia: fx.expected.psatPsia } });
+    const label = fx.citation.split(',')[1].trim().split(' (')[0];
+    checkAbs(`${label}: psat tune converged in-bounds`,
+      (fit.converged && fit.boundsHit.length === 0) ? 0 : 1, 0, 0);
+    checkAbs(`${label}: tuned psat within 0.5%`,
+      Math.max(0, Math.abs(fit.report[0].tunedErr) - 0.5), 0, 0, '%');
+  }
+
+  // Good Oil Well No. 4, all four targets jointly. The lab stock tank ran
+  // at 75F (volumes corrected to 60F), so it is modeled as an explicit
+  // 75F/14.65 stage ahead of the engine's implicit 60F stock tank - that
+  // fidelity is worth ~1.5 API of headroom. The joint optimum is the
+  // honest 4-knob frontier: GOR and stock-tank API pull on the same
+  // stock-tank volume and the fit balances them (documented in README).
+  const go = lit.separatorTests.fluids[1]; // 100 psig optimum-pressure test
+  const fluid = { keys: [...go.keys, 'C7+'], plus: go.plus, z: go.z };
+  const fit = tuneToLab(fluid, {
+    psat: { tF: go.resTP[0], pPsia: go.resTP[1] },
+    separatorTest: {
+      stagesF: [...go.stagesF, [75, 14.65]],
+      resTF: go.resTP[0],
+      resPPsia: go.resTP[1],
+      totalGor: go.expected.totalGor,
+      stoApi: go.expected.stoApi,
+      bo: go.expected.boMultistage,
+    },
+  });
+  checkAbs('Good Oil joint tune converged', fit.converged ? 0 : 1, 0, 0);
+  const err = Object.fromEntries(fit.report.map((r) => [r.name, r.tunedErr]));
+  const err0 = Object.fromEntries(fit.report.map((r) => [r.name, r.untunedErr]));
+  checkAbs('Good Oil tuned psat within 0.3% (untuned +5.9%)', Math.max(0, Math.abs(err.psat) - 0.3), 0, 0, '%');
+  checkAbs('Good Oil tuned GOR within 1.5%', Math.max(0, Math.abs(err.totalGor) - 1.5), 0, 0, '%');
+  checkAbs('Good Oil tuned API within 2.5 (untuned ~-9)', Math.max(0, Math.abs(err.stoApi) - 2.5), 0, 0, 'API');
+  checkAbs('Good Oil tuned Bo within 1.5%', Math.max(0, Math.abs(err.bo) - 1.5), 0, 0, '%');
+  checkAbs('Good Oil API improved by at least 6 points',
+    Math.max(0, Math.abs(err.stoApi) - (Math.abs(err0.stoApi) - 6)), 0, 0, 'API');
+  console.log(`  info  Good Oil joint fit: psat ${err.psat.toFixed(2)}% GOR ${err.totalGor.toFixed(2)}% API ${err.stoApi.toFixed(2)} Bo ${err.bo.toFixed(2)}%`);
 }
 
 // ---------------------------------------------------------------------------

@@ -72,12 +72,18 @@ export const invertMatrix = (A) => {
 
 const sumSquares = (r) => r.reduce((acc, v) => acc + v * v, 0);
 
-const numericJacobian = (residualsFn, theta, r0) => {
+const numericJacobian = (residualsFn, theta, r0, jacobianStep) => {
   const n = theta.length;
   const m = r0.length;
   const J = Array.from({ length: m }, () => new Array(n).fill(0));
   for (let j = 0; j < n; j += 1) {
-    const h = Math.max(1e-7, Math.abs(theta[j]) * 1e-6);
+    // Callers whose residuals come from iterative solvers with a coarse
+    // stopping tolerance (e.g. a bisection quantized to 0.05 psia) must
+    // widen the step above that noise floor or the derivative reads zero;
+    // jacobianStep gives a per-parameter absolute h for exactly that.
+    const h = (Array.isArray(jacobianStep) && Number.isFinite(jacobianStep[j]) && jacobianStep[j] > 0)
+      ? jacobianStep[j]
+      : Math.max(1e-7, Math.abs(theta[j]) * 1e-6);
     const perturbed = [...theta];
     perturbed[j] += h;
     const r1 = residualsFn(perturbed);
@@ -110,6 +116,9 @@ const applyBounds = (theta, bounds) => {
  * @param {number} [options.tolerance=1e-9] relative SSR improvement stop
  * @param {Array<[number, number]>} [options.bounds] per-parameter [lo, hi]
  * @param {(iter: number, ssr: number) => void} [options.onIteration]
+ * @param {number[]} [options.jacobianStep] per-parameter absolute
+ *   finite-difference step; use when residuals carry solver quantization
+ *   noise the default relative step would read as a zero derivative
  * @returns {{ theta, ssr, iterations, converged, covariance, standardErrors,
  *             confidence95 }}
  */
@@ -120,6 +129,7 @@ export const levenbergMarquardt = (residualsFn, theta0, options = {}) => {
     tolerance = 1e-9,
     bounds = null,
     onIteration = null,
+    jacobianStep = null,
   } = options;
 
   let theta = applyBounds([...theta0], bounds);
@@ -131,7 +141,7 @@ export const levenbergMarquardt = (residualsFn, theta0, options = {}) => {
 
   for (let iter = 0; iter < maxIterations; iter += 1) {
     iterations = iter + 1;
-    const J = numericJacobian(residualsFn, theta, r);
+    const J = numericJacobian(residualsFn, theta, r, jacobianStep);
     const n = theta.length;
     const m = r.length;
 
@@ -181,7 +191,7 @@ export const levenbergMarquardt = (residualsFn, theta0, options = {}) => {
   }
 
   // Covariance at the optimum from the undamped normal equations
-  const J = numericJacobian(residualsFn, theta, r);
+  const J = numericJacobian(residualsFn, theta, r, jacobianStep);
   const n = theta.length;
   const m = r.length;
   const JtJ = Array.from({ length: n }, () => new Array(n).fill(0));

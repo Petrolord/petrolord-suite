@@ -13,6 +13,7 @@ import FlowAssuranceCard from '@/components/fluidstudio/FlowAssuranceCard';
 import BatchSweepCard from '@/components/fluidstudio/BatchSweepCard';
 import CompositionalResultsCard from '@/components/fluidstudio/CompositionalResultsCard';
 import CompositionalSeparatorCard from '@/components/fluidstudio/CompositionalSeparatorCard';
+import LabTuningCard from '@/components/fluidstudio/LabTuningCard';
 import EosPvtTableCard from '@/components/fluidstudio/EosPvtTableCard';
 import PhaseEnvelopeCard from '@/components/fluidstudio/PhaseEnvelopeCard';
 
@@ -80,7 +81,7 @@ const IntegrationSuite = ({ backbone }) => {
  * Phase-1 results: PVT analysis + separator train, computed client-side.
  * Single-run only (blending / flow-assurance / batch are deferred seams).
  */
-const FluidStudioResults = ({ results, eos, composition }) => {
+const FluidStudioResults = ({ results, eos, composition, sepStages, onUpdateTuning }) => {
   const { pvt, separator, backbone, meta, blending, flowAssurance, batchSummary } = results;
   const kpis = pvt?.kpis;
   if (!kpis) return null;
@@ -129,9 +130,12 @@ const FluidStudioResults = ({ results, eos, composition }) => {
         {eos && (
           <TabsContent value="compositional" className="mt-4 space-y-4">
             <CompositionalResultsCard eos={eos} />
-            <CompositionalSeparatorCard separator={eos.separator} />
-            <EosPvtTableCard result={eos.pvtTable} />
-            <PhaseEnvelopeCard composition={composition} />
+            {onUpdateTuning && (
+              <LabTuningCard composition={composition} stages={sepStages} onUpdateTuning={onUpdateTuning} />
+            )}
+            <CompositionalSeparatorCard separator={eos.separator} tuned={!!eos.parsed?.tuning} />
+            <EosPvtTableCard result={eos.pvtTable} tuned={!!eos.parsed?.tuning} />
+            <PhaseEnvelopeCard composition={composition} tuned={!!eos.parsed?.tuning} />
           </TabsContent>
         )}
 

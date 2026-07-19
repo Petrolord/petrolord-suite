@@ -60,6 +60,7 @@ const CompositionalResultsCard = ({ eos }) => {
             Compositional flash at {fmt(parsed.pressurePsia, 0)} psia / {fmt(parsed.tempF, 0)} °F
           </CardTitle>
           <div className="flex gap-2">
+            {parsed?.tuning && <FluidStudioTierBadge tier="lab_tuned" />}
             <FluidStudioTierBadge tier="oracle_gated" />
             <FluidStudioTierBadge
               tier="screening"

@@ -29,7 +29,7 @@ const exportCsv = (table) => {
  * temperature composited with the separator-train flash (Amyx
  * adjustment), exported in MB Studio's PVT lab-table schema.
  */
-const EosPvtTableCard = ({ result }) => {
+const EosPvtTableCard = ({ result, tuned = false }) => {
   if (!result) return null;
   const { table, warnings } = result;
 
@@ -57,6 +57,7 @@ const EosPvtTableCard = ({ result }) => {
             EOS black-oil table
           </CardTitle>
           <div className="flex gap-2 items-center">
+            {tuned && <FluidStudioTierBadge tier="lab_tuned" />}
             <FluidStudioTierBadge tier="oracle_gated" />
             <FluidStudioTierBadge
               tier="published_method"
