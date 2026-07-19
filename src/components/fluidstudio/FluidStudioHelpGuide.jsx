@@ -1,8 +1,4 @@
 import React from 'react';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
-} from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
   FlaskConical, Beaker, SlidersHorizontal, LineChart, Layers, Combine, Snowflake, Gauge, Save, Share2, AlertTriangle,
@@ -77,7 +73,7 @@ const helpContent = [
     icon: Save,
     title: 'Saving & loading projects',
     content:
-      "Save names and stores the current setup to your account; Load restores it. Only your inputs are saved, and results recompute automatically on load, so nothing can go stale. Projects are private to your account (enforced by row-level security). Saving requires a one-time database table to be deployed; until then, Save and Load show a clear setup message rather than failing silently.",
+      "Use the Project selector at the top of the left panel. Create a project with the plus button, switch projects from the dropdown, and delete the current one with the trash button. Once a project is open, your inputs autosave about ten seconds after you stop editing; the header indicator shows the save status and clicking it saves immediately. Only your inputs are stored, and results recompute automatically on load, so nothing can go stale. Projects are private to your account (enforced by row-level security). Projects saved with the older Save dialog load normally.",
   },
   {
     id: 'handoff',
@@ -95,37 +91,29 @@ const helpContent = [
   },
 ];
 
-const FluidStudioHelpGuide = ({ isOpen, onOpenChange }) => (
-  <Dialog open={isOpen} onOpenChange={onOpenChange}>
-    <DialogContent className="sm:max-w-[680px] bg-slate-900 border-slate-700 text-white">
-      <DialogHeader>
-        <DialogTitle className="text-lime-300 text-xl">Fluid Systems &amp; Flow Behavior Studio Help Guide</DialogTitle>
-        <DialogDescription>
-          Black-oil and compositional PVT, blending, separator train and flow-assurance screening: how it works and how to read it.
-        </DialogDescription>
-      </DialogHeader>
-      <ScrollArea className="h-[62vh] pr-4">
-        <Accordion type="single" collapsible className="w-full" defaultValue="overview">
-          {helpContent.map((item) => {
-            const Icon = item.icon;
-            return (
-              <AccordionItem value={item.id} key={item.id}>
-                <AccordionTrigger className="text-base hover:no-underline text-left">
-                  <div className="flex items-center">
-                    <Icon className="w-5 h-5 mr-3 text-lime-400 shrink-0" />
-                    {item.title}
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="text-slate-300 pl-8 leading-relaxed">
-                  {item.content}
-                </AccordionContent>
-              </AccordionItem>
-            );
-          })}
-        </Accordion>
-      </ScrollArea>
-    </DialogContent>
-  </Dialog>
+/**
+ * Guide content only, for the Studio shell's help sheet (StudioHelp owns the
+ * chrome). Replaces the pre-shell standalone Dialog.
+ */
+export const FluidStudioHelpContent = () => (
+  <Accordion type="single" collapsible className="w-full" defaultValue="overview">
+    {helpContent.map((item) => {
+      const Icon = item.icon;
+      return (
+        <AccordionItem value={item.id} key={item.id}>
+          <AccordionTrigger className="text-base hover:no-underline text-left">
+            <div className="flex items-center">
+              <Icon className="w-5 h-5 mr-3 text-lime-400 shrink-0" />
+              {item.title}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="text-slate-300 pl-8 leading-relaxed">
+            {item.content}
+          </AccordionContent>
+        </AccordionItem>
+      );
+    })}
+  </Accordion>
 );
 
-export default FluidStudioHelpGuide;
+export default FluidStudioHelpContent;
