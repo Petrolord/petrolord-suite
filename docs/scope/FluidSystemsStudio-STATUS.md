@@ -1,6 +1,6 @@
 # Fluid Systems & Flow Behavior Studio — STATUS
 
-Last updated: 2026-07-19 (FS1)
+Last updated: 2026-07-19 (FS2)
 
 ## What this app is
 
@@ -35,7 +35,7 @@ tracing in a web worker. Validation-first per repo doctrine: Python oracle golde
 | Phase | Scope | Status |
 |---|---|---|
 | FS1 | STATUS doc, stale-header fix, component library + BIP defaults, exact-table + structural gates | DONE 2026-07-19 |
-| FS2 | PR78 core (mixing rules, cubic, lowest-Gibbs root, fugacity, Peneloux), validation harness scaffold; NIST vapor-pressure + oracle gates | pending |
+| FS2 | PR78 core (mixing rules, cubic, lowest-Gibbs root, fugacity, Peneloux), validation harness scaffold; NIST vapor-pressure + oracle gates | DONE 2026-07-19 |
 | FS3 | Stability test + SS/GDEM two-phase PT flash + negative-flash RR; Whitson/Ahmed worked-example gates, K-value gate, oracle flash grid | pending |
 | FS4 | C7+ single-pseudo characterization (Kesler-Lee/Edmister/Whitson BIP), Psat solve, PT envelope tracer, LBC viscosity + Weinaug-Katz IFT; Coats & Smart SPE 11197 gate | pending |
 | FS5 | UI: fluid-model selector, composition tab, flash/envelope cards, worker, tier badges; black-oil default snapshot pin | pending |
@@ -70,5 +70,15 @@ function.
 - `src/utils/fluidstudio/eos/__tests__/componentReference.json` — source-cited constants
   table (Whitson & Brulé Monograph 20 App. A; Jhaveri & Youngren SPE 13118 shifts;
   Monograph Table 4-2 BIPs; NIST cross-check bands). FS1 gate pins the library to it.
-- `tools/validation/fluidstudio/` — arrives in FS2 (oracle.py, genfixtures.py,
-  run-validation.mjs, committed goldens).
+- `tools/validation/fluidstudio/` (FS2) — independent Python oracle
+  (bisection cubic, residual-Helmholtz quadrature for ln phi, Maxwell
+  equal-area Psat), genfixtures.py → committed goldens, run-validation.mjs
+  labeled-CASE runner (28 gates). Observed engine-vs-oracle agreement
+  ~1e-13; NIST vapor-pressure bands documented in
+  `src/utils/fluidstudio/eos/__tests__/nistVaporPressure.json`.
+- `src/utils/fluidstudio/eos/pr78.js` (FS2) — PR78 core: both kappa
+  branches, vdW mixing with FS1 BIPs, Cardano+Newton cubic, lowest-Gibbs
+  root selection (min/max override for FS3), closed-form fugacity,
+  Peneloux translation applied to volumes/densities only, pure-component
+  Psat by fugacity-equality successive substitution. Jest gates in
+  `__tests__/pr78.test.js` (105 tests) mirror the harness.
