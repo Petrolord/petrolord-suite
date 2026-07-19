@@ -34,7 +34,7 @@ Tiers:
 | Composite black-oil table Rs / Bo (EosPvtTableCard) | published_method | Amyx/McCain separator adjustment on oracle-gated DL + separator inputs; exact at Pb (identity-gated), approximate toward atmospheric |
 | Composite table Bg / gas Z | oracle_gated | DL vapor states, CASE 21 |
 | Composite table viscosities | screening | LBC, as above |
-| Literature checks (Whitson/Ahmed flashes, Coats & Smart, Good Oil separator tests) | unarmed | CASES 12 / 17 / 19 scaffolded; arm only from printed pages |
+| Literature checks (Whitson flashes, Coats & Smart, Good Oil separator tests) | armed | CASES 12 / 17 / 19 ARMED 2026-07-19 from fetched copies of the printed sources (owner had no pages; provenance URLs in literature-fixtures.json, observed errors in tools/validation/fluidstudio/README.md). Flash beta/K at converged-EOS accuracy; lab Psat/GOR/Bo at correlation level; two documented untuned-EOS biases (Psat +5-10% heavy oils / lean-condensate dew, STO API ~9 heavy from the generalized volume shift) are regression-pinned and are the EOS-tuning initiative's targets |
 
 ## Black-oil path (default mode)
 
