@@ -61,8 +61,8 @@ const FlowAssuranceCard = ({ fa }) => {
           {crosses ? <Route className="w-6 h-6 shrink-0" /> : <ShieldCheck className="w-6 h-6 shrink-0" />}
           <div className="text-sm font-semibold">
             {crosses
-              ? `Hydrate risk — profile enters the hydrate region near ${fmt(fa.hydrate_risk.first_crossing.pressure, 0)} psia (${fmt(fa.hydrate_risk.first_crossing.temp, 0)} °F).`
-              : 'No hydrate crossing — the flowline profile stays warmer than the hydrate curve.'}
+              ? `Hydrate risk: profile enters the hydrate region near ${fmt(fa.hydrate_risk.first_crossing.pressure, 0)} psia (${fmt(fa.hydrate_risk.first_crossing.temp, 0)} °F).`
+              : 'No hydrate crossing; the flowline profile stays warmer than the hydrate curve.'}
           </div>
         </div>
 
@@ -88,7 +88,7 @@ const FlowAssuranceCard = ({ fa }) => {
         <p className="text-xs text-slate-500">
           Points left of the hydrate curve (colder than T<sub>hyd</sub> at their pressure) are inside the hydrate region and shown in red.
           Motiee validity ~0.55–1.0 gas SG, ±5–8 °F, no H₂S/CO₂/inhibitor/salt correction. AOP needs SARA/compositional data (not
-          computable here); WAT is populated only from a measured value or a labeled wax-content screening estimate — never fabricated from API.
+          computable here); WAT is populated only from a measured value or a labeled wax-content screening estimate, never fabricated from API.
         </p>
       </CardContent>
     </Card>

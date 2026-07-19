@@ -54,7 +54,7 @@ describe('SaveProjectDialog', () => {
 
 describe('friendlyError', () => {
   it('maps missing-table (code or table-named message) to the migration hint', () => {
-    expect(friendlyError({ code: '42P01', message: 'whatever' })).toMatch(/run the create_saved_fluid_studio_projects migration/);
+    expect(friendlyError({ code: '42P01', message: 'whatever' })).toMatch(/Run the create_saved_fluid_studio_projects migration/);
     expect(friendlyError({ message: 'relation "saved_fluid_studio_projects" does not exist' })).toMatch(/migration/);
   });
   it('does NOT hijack unrelated errors that merely say "does not exist"', () => {

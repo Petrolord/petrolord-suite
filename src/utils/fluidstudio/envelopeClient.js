@@ -1,5 +1,6 @@
 /**
- * Client for the phase-envelope worker — FS5.
+ * Client for the phase-envelope worker — FS5, cancellation hardened in
+ * FS8.
  *
  * Feature-detects module workers (Vite `new Worker(new URL(...))`
  * pattern used across the suite). Where workers are unavailable (jsdom
@@ -7,22 +8,45 @@
  * via the same exported function the worker calls, so behavior is
  * identical either way.
  *
- * One in-flight trace per client; a newer request supersedes an older
- * one and the stale response is dropped by id.
+ * One in-flight trace per client. FS5 dropped a superseded response by
+ * id but let the stale trace keep burning a core to completion; FS8
+ * terminates the worker on supersede/cancel/dispose and lazily respawns
+ * it, so an abandoned trace stops immediately (a worker cannot be
+ * interrupted mid-computation any other way).
+ *
+ * `createEnvelopeClient({ workerFactory })` accepts a factory override
+ * so tests can drive the worker path with a fake; the default is the
+ * Vite factory in envelopeWorkerFactory.js (jest-mapped to null).
  */
 
 import { runEnvelopeTrace } from './eos/envelope.worker.js';
 import { createEnvelopeWorker } from './envelopeWorkerFactory.js';
 
-export const createEnvelopeClient = () => {
+export const createEnvelopeClient = ({ workerFactory = createEnvelopeWorker } = {}) => {
   let worker = null;
   let nextId = 1;
   let activeId = null;
   let pending = null; // { resolve, reject } for the active request
 
+  const killWorker = () => {
+    if (worker) {
+      worker.terminate();
+      worker = null;
+    }
+  };
+
+  // reject the in-flight request and stop its computation
+  const abortPending = (reason) => {
+    if (!pending) return;
+    pending.reject(new Error(reason));
+    pending = null;
+    activeId = null;
+    killWorker();
+  };
+
   const ensureWorker = () => {
     if (worker) return worker;
-    worker = createEnvelopeWorker();
+    worker = workerFactory();
     if (worker) {
       worker.onmessage = (e) => {
         const { id, ok, payload, error } = e.data || {};
@@ -39,8 +63,7 @@ export const createEnvelopeClient = () => {
           pending = null;
           activeId = null;
         }
-        worker.terminate();
-        worker = null;
+        killWorker();
       };
     }
     return worker;
@@ -49,8 +72,7 @@ export const createEnvelopeClient = () => {
   const trace = (request) => {
     const id = nextId;
     nextId += 1;
-    // supersede any in-flight request: its response will be dropped
-    if (pending) pending.reject(new Error('superseded'));
+    abortPending('superseded');
     activeId = id;
     const w = ensureWorker();
     if (!w) {
@@ -71,17 +93,13 @@ export const createEnvelopeClient = () => {
     });
   };
 
+  /** Stop the in-flight trace (if any) without tearing the client down. */
+  const cancel = () => abortPending('cancelled');
+
   const dispose = () => {
-    if (pending) {
-      pending.reject(new Error('disposed'));
-      pending = null;
-    }
-    activeId = null;
-    if (worker) {
-      worker.terminate();
-      worker = null;
-    }
+    abortPending('disposed');
+    killWorker();
   };
 
-  return { trace, dispose };
+  return { trace, cancel, dispose };
 };

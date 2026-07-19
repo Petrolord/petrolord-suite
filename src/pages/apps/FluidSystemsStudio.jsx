@@ -27,17 +27,31 @@ const FluidSystemsStudio = () => {
   // Compositional path (FS5): opt-in beside the black-oil default. The flash
   // is fast enough to recompute synchronously; the envelope card owns the
   // slow worker path.
-  const eos = useMemo(() => {
-    if (inputs.fluidModel !== 'eos') return null;
-    const composition = inputs.streamA?.composition;
-    return {
-      ...runEosFlash(composition),
-      // FS6: per-stage EOS flash through the same Separator Train inputs
-      separator: runEosSeparator(composition, inputs.separatorTrain?.stages).separator,
-      // FS7: DL + separator composite table and the EOS backbone handoff
-      pvtTable: runEosPvtTable(composition, inputs.separatorTrain?.stages),
-    };
-  }, [inputs]);
+  // FS8 memoization: the EOS pipeline (flash + separator + saturation
+  // scan + DL table) keys on the composition and separator stages only,
+  // so black-oil-side edits (correlations, blending, flow assurance...)
+  // no longer re-run it. The input components replace these objects
+  // immutably when and only when their own fields change.
+  const eosComposition = inputs.fluidModel === 'eos' ? inputs.streamA?.composition : null;
+  const sepStages = inputs.separatorTrain?.stages;
+  const eosFlash = useMemo(
+    () => (eosComposition ? runEosFlash(eosComposition) : null),
+    [eosComposition],
+  );
+  const eosSeparator = useMemo(
+    () => (eosComposition ? runEosSeparator(eosComposition, sepStages).separator : null),
+    [eosComposition, sepStages],
+  );
+  const eosPvtTable = useMemo(
+    () => (eosComposition ? runEosPvtTable(eosComposition, sepStages) : null),
+    [eosComposition, sepStages],
+  );
+  const eos = useMemo(
+    () => (eosComposition
+      ? { ...eosFlash, separator: eosSeparator, pvtTable: eosPvtTable }
+      : null),
+    [eosComposition, eosFlash, eosSeparator, eosPvtTable],
+  );
 
   const loadSample = () => setInputs(sampleFluidStudioData());
 

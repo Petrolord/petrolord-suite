@@ -24,7 +24,7 @@ export const friendlyError = (error) => {
   const msg = error?.message || '';
   const missingTable = error?.code === '42P01' || new RegExp(`relation[^\\n]*${TABLE}[^\\n]*does not exist`, 'i').test(msg);
   if (missingTable) {
-    return 'Saving isn\'t set up yet — run the create_saved_fluid_studio_projects migration.';
+    return 'Saving isn\'t set up yet. Run the create_saved_fluid_studio_projects migration.';
   }
   return msg || 'Unexpected error.';
 };
@@ -67,7 +67,7 @@ export const SaveProjectDialog = ({ open, onOpenChange, inputs, results }) => {
       <DialogContent className="sm:max-w-[425px] bg-slate-900 text-white border-slate-700">
         <DialogHeader>
           <DialogTitle>Save project</DialogTitle>
-          <DialogDescription>Only your inputs are restored on load — results recompute automatically.</DialogDescription>
+          <DialogDescription>Only your inputs are restored on load; results recompute automatically.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-2 py-2">
           <Label htmlFor="fs-project-name">Project name</Label>

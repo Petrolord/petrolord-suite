@@ -9,8 +9,9 @@ import {
  *
  * Same visual vocabulary as MB Studio's ValidationTierBadge, with tiers
  * matched to the EOS program's validation story. The tier-to-output map
- * lives with the results cards; this component only renders. The full
- * tierMatrix reference doc lands in FS8.
+ * lives with the results cards; this component only renders. The
+ * quantity-by-quantity reference is docs/scope/FluidStudio-TierMatrix.md
+ * (FS8) and must stay in step with the badges the cards render.
  */
 const TIERS = {
   oracle_gated: {

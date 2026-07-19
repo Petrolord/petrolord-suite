@@ -27,7 +27,7 @@ const BatchSweepCard = ({ rows, variable, unit, label, blendingActive }) => {
   return (
     <Card className="bg-slate-900 border-slate-800">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base text-white flex items-center"><SlidersHorizontal className="mr-2 text-cyan-300 w-5 h-5" /> Batch sensitivity — {label || variable}</CardTitle>
+        <CardTitle className="text-base text-white flex items-center"><SlidersHorizontal className="mr-2 text-cyan-300 w-5 h-5" /> Batch sensitivity: {label || variable}</CardTitle>
         <p className="text-xs text-slate-400">Other inputs held at Stream A. Each point is a full re-run of the engine.</p>
         {blendingActive && (
           <p className="text-xs text-amber-300/80">Blending applies to the main result; this sweep characterizes the un-blended Stream A fluid.</p>
@@ -72,7 +72,7 @@ const BatchSweepCard = ({ rows, variable, unit, label, blendingActive }) => {
           </Table>
         </div>
         {!hasWat && (
-          <p className="text-xs text-slate-500">WAT is blank — it requires Flow Assurance (a measured WAT or wax content); no value is fabricated from black-oil inputs.</p>
+          <p className="text-xs text-slate-500">WAT is blank because it requires Flow Assurance (a measured WAT or wax content); no value is fabricated from black-oil inputs.</p>
         )}
       </CardContent>
     </Card>

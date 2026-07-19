@@ -51,3 +51,91 @@ describe('envelope client (sync fallback)', () => {
     client.dispose();
   });
 });
+
+describe('FS8: worker cancellation (fake worker path)', () => {
+  const makeFakeWorker = () => {
+    const w = {
+      posted: [],
+      terminated: false,
+      onmessage: null,
+      onerror: null,
+      postMessage(msg) { this.posted.push(msg); },
+      terminate() { this.terminated = true; },
+      respond(id, payload) { this.onmessage({ data: { id, ok: true, payload } }); },
+      fail(id, error) { this.onmessage({ data: { id, ok: false, error } }); },
+    };
+    return w;
+  };
+
+  const makeClient = () => {
+    const workers = [];
+    const client = createEnvelopeClient({
+      workerFactory: () => {
+        const w = makeFakeWorker();
+        workers.push(w);
+        return w;
+      },
+    });
+    return { client, workers };
+  };
+
+  test('a superseding trace terminates the stale worker and resolves fresh', async () => {
+    const { client, workers } = makeClient();
+    const first = client.trace({ n: 1 });
+    expect(workers).toHaveLength(1);
+    const second = client.trace({ n: 2 });
+    await expect(first).rejects.toThrow('superseded');
+    // the stale worker was killed mid-trace and a new one spawned
+    expect(workers[0].terminated).toBe(true);
+    expect(workers).toHaveLength(2);
+    const { id } = workers[1].posted[0];
+    workers[1].respond(id, { ok: 2 });
+    await expect(second).resolves.toEqual({ ok: 2 });
+    client.dispose();
+  });
+
+  test('cancel rejects the in-flight trace and terminates its worker', async () => {
+    const { client, workers } = makeClient();
+    const p = client.trace({ n: 1 });
+    client.cancel();
+    await expect(p).rejects.toThrow('cancelled');
+    expect(workers[0].terminated).toBe(true);
+    // cancel with nothing in flight is a no-op
+    client.cancel();
+    client.dispose();
+  });
+
+  test('dispose rejects the in-flight trace and terminates the worker', async () => {
+    const { client, workers } = makeClient();
+    const p = client.trace({ n: 1 });
+    client.dispose();
+    await expect(p).rejects.toThrow('disposed');
+    expect(workers[0].terminated).toBe(true);
+  });
+
+  test('a stale response id is ignored; the live one resolves', async () => {
+    const { client, workers } = makeClient();
+    const first = client.trace({ n: 1 });
+    const staleId = workers[0].posted[0].id;
+    const second = client.trace({ n: 2 });
+    await expect(first).rejects.toThrow('superseded');
+    const live = workers[1];
+    // a late message carrying the stale id must not settle the live trace
+    live.onmessage({ data: { id: staleId, ok: true, payload: { ok: 1 } } });
+    live.respond(live.posted[0].id, { ok: 2 });
+    await expect(second).resolves.toEqual({ ok: 2 });
+    client.dispose();
+  });
+
+  test('a worker error rejects and the next trace respawns', async () => {
+    const { client, workers } = makeClient();
+    const p = client.trace({ n: 1 });
+    workers[0].onerror();
+    await expect(p).rejects.toThrow('crashed');
+    const q = client.trace({ n: 2 });
+    expect(workers).toHaveLength(2);
+    workers[1].respond(workers[1].posted[0].id, { ok: 2 });
+    await expect(q).resolves.toEqual({ ok: 2 });
+    client.dispose();
+  });
+});

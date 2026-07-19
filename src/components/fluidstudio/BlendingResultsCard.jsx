@@ -53,7 +53,7 @@ const BlendingResultsCard = ({ blending }) => {
         </div>
 
         <p className="text-xs text-slate-500">
-          ASI is an API-contrast screening heuristic, not a SARA/CII calculation — confirm marginal or high-risk blends
+          ASI is an API-contrast screening heuristic, not a SARA/CII calculation. Confirm marginal or high-risk blends
           with an ASTM D7112/D7157 spot test. Blended API is on a specific-gravity (volume) basis, not a linear API average;
           salinity/temperature blends are labeled proxies. The blend&apos;s bubble point is re-solved and drives the PVT &amp; Separator tabs.
         </p>

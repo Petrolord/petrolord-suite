@@ -104,7 +104,7 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
         <div className="flex-grow mt-4 overflow-y-auto">
           <TabsContent value="stream-a">
             <div className="space-y-4 p-1">
-              <h3 className="text-lg font-semibold text-lime-300 flex items-center"><Beaker className="w-5 h-5 mr-2" />Stream A — black-oil properties</h3>
+              <h3 className="text-lg font-semibold text-lime-300 flex items-center"><Beaker className="w-5 h-5 mr-2" />Stream A: black-oil properties</h3>
               <InputField label="API Gravity" id="api" value={streamA.api} onChange={(e) => handleStreamChange('api', e.target.value)} unit="°API" />
               <InputField label="Solution GOR (Rsb)" id="gor" value={streamA.gor} onChange={(e) => handleStreamChange('gor', e.target.value)} unit="scf/STB" />
               <InputField label="Gas Specific Gravity" id="gasSg" value={streamA.gasSg} onChange={(e) => handleStreamChange('gasSg', e.target.value)} unit="air=1" />
@@ -130,7 +130,7 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
                   <SelectContent>
                     <SelectItem value="standing">Standing (default)</SelectItem>
                     <SelectItem value="vasquez_beggs">Vasquez-Beggs</SelectItem>
-                    <SelectItem value="glaso">Glaso (non-standard — verify)</SelectItem>
+                    <SelectItem value="glaso">Glaso (non-standard, verify)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -181,16 +181,16 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
               {blending.enabled && (
                 <>
                   <div>
-                    <Label className="text-sm text-slate-300">Blend ratio — A {100 - (blending.streamB_fraction ?? 0)}% / B {blending.streamB_fraction ?? 0}%</Label>
+                    <Label className="text-sm text-slate-300">Blend ratio: A {100 - (blending.streamB_fraction ?? 0)}% / B {blending.streamB_fraction ?? 0}%</Label>
                     <Slider className="mt-3" value={[blending.streamB_fraction ?? 0]} onValueChange={([v]) => setBlending({ streamB_fraction: v })} max={100} step={1} />
                   </div>
-                  <h4 className="text-sm font-semibold text-lime-300 pt-2">Stream B — black-oil properties</h4>
+                  <h4 className="text-sm font-semibold text-lime-300 pt-2">Stream B: black-oil properties</h4>
                   <InputField label="API Gravity" id="b-api" value={streamB.api} onChange={(e) => handleStreamBChange('api', e.target.value)} unit="°API" />
                   <InputField label="Solution GOR (Rsb)" id="b-gor" value={streamB.gor} onChange={(e) => handleStreamBChange('gor', e.target.value)} unit="scf/STB" />
                   <InputField label="Gas Specific Gravity" id="b-gasSg" value={streamB.gasSg} onChange={(e) => handleStreamBChange('gasSg', e.target.value)} unit="air=1" />
                   <InputField label="Reservoir Temperature" id="b-temp" value={streamB.temp} onChange={(e) => handleStreamBChange('temp', e.target.value)} unit="°F" />
                   <InputField label="Water Salinity" id="b-salinity" value={streamB.salinity} onChange={(e) => handleStreamBChange('salinity', e.target.value)} unit="ppm" />
-                  <p className="text-xs text-slate-500">No Pb field — the blend&apos;s bubble point is re-solved and drives the PVT &amp; Separator tabs.</p>
+                  <p className="text-xs text-slate-500">No Pb field; the blend&apos;s bubble point is re-solved and drives the PVT &amp; Separator tabs.</p>
                 </>
               )}
             </div>
@@ -240,9 +240,9 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
               <p className="text-xs text-slate-500">Flowline geometry is carried for Phase-3 heat-loss/Nodal; hydrate screening consumes only gas SG + the P-T profile.</p>
 
               <h4 className="text-sm font-semibold text-lime-300 pt-1">Wax / asphaltene</h4>
-              <InputField label="Measured WAT (optional)" id="fa-wat" value={fa.measuredWat} onChange={(e) => handleFaScalar('measuredWat', e.target.value)} unit="°F" hint="Authoritative — overrides screening." />
+              <InputField label="Measured WAT (optional)" id="fa-wat" value={fa.measuredWat} onChange={(e) => handleFaScalar('measuredWat', e.target.value)} unit="°F" hint="Authoritative; overrides screening." />
               <InputField label="Wax content (optional)" id="fa-wax" value={fa.waxContent} onChange={(e) => handleFaScalar('waxContent', e.target.value)} unit="wt%" hint="Enables a labeled screening WAT." />
-              <p className="text-xs text-slate-500">AOP is not computable from black-oil inputs — reported as N/A in results.</p>
+              <p className="text-xs text-slate-500">AOP is not computable from black-oil inputs and is reported as N/A in results.</p>
 
               <div>
                 <Label htmlFor="pt-profile" className="text-sm font-medium text-slate-300">P-T profile</Label>

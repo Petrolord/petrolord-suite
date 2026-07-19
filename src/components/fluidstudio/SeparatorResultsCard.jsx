@@ -28,7 +28,7 @@ const SeparatorResultsCard = ({ separator }) => {
       <CardHeader className="pb-2">
         <CardTitle className="text-base text-white">Separator train</CardTitle>
         <p className="text-xs text-slate-400">
-          Black-oil staged-liberation approximation — gas is partitioned across stages by the
+          Black-oil staged-liberation approximation: gas is partitioned across stages by the
           correlation GOR at each stage&apos;s P&nbsp;&amp;&nbsp;T. Not a compositional (EOS) flash.
         </p>
       </CardHeader>
