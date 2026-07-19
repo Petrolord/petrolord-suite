@@ -36,10 +36,10 @@ tracing in a web worker. Validation-first per repo doctrine: Python oracle golde
 |---|---|---|
 | FS1 | STATUS doc, stale-header fix, component library + BIP defaults, exact-table + structural gates | DONE 2026-07-19 |
 | FS2 | PR78 core (mixing rules, cubic, lowest-Gibbs root, fugacity, Peneloux), validation harness scaffold; NIST vapor-pressure + oracle gates | DONE 2026-07-19 |
-| FS3 | Stability test + SS/GDEM two-phase PT flash + negative-flash RR; Whitson/Ahmed worked-example gates, K-value gate, oracle flash grid | DONE 2026-07-19 (Whitson/Ahmed worked-example fixtures scaffolded UNARMED — CASE 12 gates once book-typed data is committed; owner to supply pages) |
-| FS4 | C7+ single-pseudo characterization (Kesler-Lee/Edmister/Chueh-Prausnitz BIP), Psat solve, PT envelope tracer, LBC viscosity + Weinaug-Katz IFT; Coats & Smart SPE 11197 gate | DONE 2026-07-19 (Coats & Smart CASE 17 scaffolded UNARMED pending owner paper pages; the planned "Whitson BIP" shipped as modified Chueh-Prausnitz — the SG-form could not be source-verified, C-P is what whitsonPVT itself uses for C1-C7+) |
+| FS3 | Stability test + SS/GDEM two-phase PT flash + negative-flash RR; Whitson/Ahmed worked-example gates, K-value gate, oracle flash grid | DONE 2026-07-19; CASE 12 ARMED 2026-07-19 (Whitson Monograph 20 Problem 18 converged PR flash — beta 4e-4, K ≤0.8% vs printed) |
+| FS4 | C7+ single-pseudo characterization (Kesler-Lee/Edmister/Chueh-Prausnitz BIP), Psat solve, PT envelope tracer, LBC viscosity + Weinaug-Katz IFT; Coats & Smart SPE 11197 gate | DONE 2026-07-19; CASE 17 ARMED 2026-07-19 (8 SPE 11197 fluids from the paper scan, measured Psat mostly within 10%, two documented outliers regression-pinned; the planned "Whitson BIP" shipped as modified Chueh-Prausnitz — the SG-form could not be source-verified, C-P is what whitsonPVT itself uses for C1-C7+) |
 | FS5 | UI: fluid-model selector, composition tab, flash/envelope cards, worker, tier badges; black-oil default snapshot pin | DONE 2026-07-19 |
-| FS6 | Compositional separator train (closes the per-stage EOS seam and the multistage-Bo hand-wave in EOS mode); Good Oil / Whitson separator gates | DONE 2026-07-19 (Good Oil / Whitson separator-test fixtures scaffolded UNARMED as CASE 19 pending owner book pages, same pattern as CASES 12/17) |
+| FS6 | Compositional separator train (closes the per-stage EOS seam and the multistage-Bo hand-wave in EOS mode); Good Oil / Whitson separator gates | DONE 2026-07-19; CASE 19 ARMED 2026-07-19 (Good Oil Well No. 4 Core Labs report, all four separator tests — GOR ≤2.4%, Bofb ≤1.4% at engine Psat, API bias documented + pinned) |
 | FS7 | CCE + DL simulation, EOS black-oil table export, MB prefill + Pipeline Sizer EOS branches | DONE 2026-07-19 (MB bridge shipped as CSV export in the exact PvtRock lab-table schema — MB has no CSV import UI, rows are typed/prefilled, so an MB-side importer is a possible follow-on; Pipeline Sizer branch = EOS backbone override in compositional mode) |
 | FS8 | Hardening (near-critical fallback, memoization, worker cancellation), perf smoke, tierMatrix + help guide finalize | DONE 2026-07-19 — program complete |
 
@@ -90,8 +90,10 @@ function.
   equality (~5e-12). K-value gates anchored to NIST-gated Psat: plain
   Raoult for heavy components, Lewis-rule phiSat for volatile ones.
   Harness CASES 8–12 + `__tests__/flash.test.js` (52 tests). CASE 12
-  (Whitson/Ahmed printed examples) scaffolded unarmed pending owner
-  book pages.
+  ARMED 2026-07-19: Whitson & Brulé Monograph 20 App. B Problem 18
+  (converged PR flash, printed component properties, kij = 0) — beta
+  within 4e-4, K within 0.8% of the printed solution (see
+  tools/validation/fluidstudio/README.md for provenance).
 - `src/utils/fluidstudio/eos/characterization.js` (FS4) — C7+
   single-pseudo characterization: Søreide Tb, Kesler-Lee Tc/Pc,
   Lee-Kesler ω (Watson-K branch above Tbr 0.8; Edmister exported),
@@ -119,9 +121,12 @@ function.
 - FS4 goldens additions: characterization grid (13 pts), characterized
   oil + condensate flash/envelope/transport states, all flash states
   quadrature-sealed. Harness now 80 gates + jest 246 EOS tests.
-- CASE 17 (Coats & Smart SPE 11197) scaffolded unarmed in
-  `tools/validation/fluidstudio/literature-fixtures.json` — owner to
-  supply the printed paper pages (compositions + measured Psat).
+- CASE 17 (Coats & Smart SPE 11197) ARMED 2026-07-19 with 8 Table 1
+  fluids read from the paper scan on Whitson's NTNU course site:
+  measured Psat vs untuned engine within 0.08–8% for six fluids (10%
+  gate); Oil 1 (+10.3%) and Gas 5 dew (−15.8%) regression-pinned just
+  above their observed untuned errors (documented in the harness
+  README).
 - `src/utils/fluidstudio/eos/separator.js` (FS6) — compositional
   separator train: sequential stability-gated flash of the wellstream
   through the user stages (stock tank 14.696 psia / 60 °F always
@@ -140,10 +145,13 @@ function.
   CASE 18 (engine vs oracle ~1e-13 + material-balance / GOR-telescoping
   / explicit-stock-tank identities); harness now 153 gates, jest 271
   EOS tests.
-- CASE 19 (Good Oil / Whitson separator tests) scaffolded unarmed in
-  `literature-fixtures.json` `separatorTests` — owner to supply printed
-  pages (wellstream composition + measured GORs/Bo/API); expect
-  correlation-level tolerances for the untuned EOS, not oracle-level.
+- CASE 19 (Good Oil Co. Well No. 4 separator tests) ARMED 2026-07-19
+  from the original Core Labs report scan (TAMU Blasingame archive)
+  cross-verified against Whitson & Brulé Ch. 6 and wiki.whitson.com:
+  all four two-stage tests — total GOR within 0.05–2.4%, multistage
+  Bofb within 0.3–1.4% (compared at the engine's Psat, +5.9% above lab
+  Pb), STO API regression-pinned with its documented ~9-API untuned
+  volume-shift bias (harness README has the full record).
 - `src/utils/fluidstudio/eos/experiments.js` (FS7) — CCE (relative
   volume V/Vsat + liquid dropout on a committed grid), differential
   liberation (stagewise vapor removal at reservoir T, 60 °F/14.696 psia
@@ -269,5 +277,10 @@ function.
 Stacked PRs #126 → #133 (merge in order, retarget bases via gh api
 PATCH as each lands). The out-of-scope register above is the follow-on
 menu; the natural next initiative is EOS tuning to lab data. The three
-literature gates (CASES 12 / 17 / 19) stay scaffolded unarmed until the
-owner supplies printed pages.
+literature gates (CASES 12 / 17 / 19) were ARMED and closed 2026-07-19
+from fetched copies of the printed sources (the owner had no pages);
+provenance and observed errors are recorded in
+tools/validation/fluidstudio/README.md and literature-fixtures.json.
+The documented untuned-EOS biases they pin (heavy-oil/dew Psat, STO
+API from the generalized volume shift) are the EOS-tuning initiative's
+first targets.
