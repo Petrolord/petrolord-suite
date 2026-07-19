@@ -90,10 +90,20 @@ Plan of record: `NodalAnalysisStudio-PLAN.md`.
 - Full jest, production build and the staging e2e re-verified on the
   final stack.
 
+## 2026-07-19 — PROD LIVE + retirement follow-on
+
+- Owner uploaded `/root/suite-upload-20260719-c7bc9e99b.zip`; the
+  deploy-gated tile migration applied and verified: **Nodal Analysis
+  Studio is Active in the Production module** (the same apply pass also
+  cleared the backlog: Material Balance Studio rename, SCAL Studio seed,
+  aquifer + rel-perm archives).
+- Integrated Asset Modeler RETIRED (owner decision 2026-07-19): page and
+  `components/nodalanalysis/` deleted (CollapsibleSection moved to
+  `components/artificiallift/`), route redirects to the studio, tile
+  Archived, `nodal-analysis-engine` edge function deleted (sole
+  consumer).
+
 ### Open items for the owner
-- Integrated Asset Modeler: routed and Active, consumes
-  `components/nodalanalysis/` and invokes the `nodal-analysis-engine`
-  edge function. Decide replace/retire in a follow-on.
 - Unarmed fixtures: Takacs mHB low-X1 chart anchor (needs the original
-  Hagedorn & Brown figure) and Guo Table 5.4 Sachdeva subcritical choke
-  (needs SPE 15657 primary text).
+  Hagedorn & Brown 1965 figure, SPE 940-PA) and Guo Table 5.4 Sachdeva
+  subcritical choke (needs SPE 15657 primary text).
