@@ -737,3 +737,138 @@ def separator_train(comps, bip, z, stages, res_tp=None):
                 bo["singleStageGor"] = single["beta"] * SCF_PER_LBMOL / (v1 / FT3_PER_BBL)
             out["bo"] = bo
     return out
+
+
+# ---------------------------------------------------------------------------
+# FS7: CCE + differential liberation + composite black-oil table
+# (independent counterparts of src/utils/fluidstudio/eos/experiments.js).
+# All flashes go through flash_plain; volumes through phase_state. The Bg
+# conversion is a deliberate second statement of the engine's rb/scf form.
+
+
+def bg_rb_per_scf(z_gas: float, t_r: float, p_psia: float) -> float:
+    return (z_gas * t_r / p_psia) * (PSC / TSC) / FT3_PER_BBL
+
+
+def cce_expansion(comps, bip, z, t_r, psat, pressures):
+    """Constant composition expansion rows on the given descending grid."""
+    v_sat = phase_state(comps, bip, z, t_r, psat)["molarVolume"]
+    rows = []
+    for p in sorted(pressures, reverse=True):
+        res = flash_plain(comps, bip, z, t_r, p)
+        if res["phases"] == 2:
+            v_l = (1.0 - res["beta"]) * phase_state(comps, bip, res["x"], t_r, p)["molarVolume"]
+            v_v = res["beta"] * phase_state(comps, bip, res["y"], t_r, p)["molarVolume"]
+            rows.append({"pPsia": p, "phases": 2, "beta": res["beta"],
+                         "relVol": (v_l + v_v) / v_sat,
+                         "liquidVolFrac": v_l / (v_l + v_v)})
+        else:
+            st = phase_state(comps, bip, z, t_r, p)
+            rows.append({"pPsia": p, "phases": 1, "beta": None,
+                         "relVol": st["molarVolume"] / v_sat,
+                         "liquidVolFrac": None})
+    return {"vSat": v_sat, "rows": rows}
+
+
+def diff_lib(comps, bip, z, t_r, psat, pressures):
+    """Differential liberation from psat down the given descending grid,
+    with the 60 F / 14.696 psia cooldown defining the residual oil."""
+    sat = phase_state(comps, bip, z, t_r, psat)
+    stages = [{"pPsia": psat, "isSaturation": True, "oilMoles": 1.0, "x": list(z),
+               "vOil": sat["molarVolume"], "vOilMolar": sat["molarVolume"],
+               "oilDensity": sat["density"], "gasMolesRemoved": 0.0, "y": None,
+               "gasZ": None, "vGasMolar": None, "gasGravity": None,
+               "gasScf": 0.0, "bg": None}]
+    comp = list(z)
+    moles = 1.0
+    for p in sorted(pressures, reverse=True):
+        if p >= psat or moles < 1e-12:
+            continue
+        res = flash_plain(comps, bip, comp, t_r, p)
+        if res["phases"] != 2:
+            st = phase_state(comps, bip, comp, t_r, p)
+            stages.append({"pPsia": p, "isSaturation": False, "oilMoles": moles,
+                           "x": comp, "vOil": moles * st["molarVolume"],
+                           "vOilMolar": st["molarVolume"], "oilDensity": st["density"],
+                           "gasMolesRemoved": 0.0, "y": None, "gasZ": None,
+                           "vGasMolar": None, "gasGravity": None, "gasScf": 0.0, "bg": None})
+            continue
+        st_l = phase_state(comps, bip, res["x"], t_r, p)
+        st_v = phase_state(comps, bip, res["y"], t_r, p)
+        gas_moles = moles * res["beta"]
+        mw_gas = sum(yi * c["mw"] for yi, c in zip(res["y"], comps))
+        stages.append({"pPsia": p, "isSaturation": False,
+                       "oilMoles": moles * (1.0 - res["beta"]), "x": res["x"],
+                       "vOil": moles * (1.0 - res["beta"]) * st_l["molarVolume"],
+                       "vOilMolar": st_l["molarVolume"], "oilDensity": st_l["density"],
+                       "gasMolesRemoved": gas_moles, "y": res["y"],
+                       "gasZ": st_v["z"], "vGasMolar": st_v["molarVolume"],
+                       "gasGravity": mw_gas / MW_AIR,
+                       "gasScf": gas_moles * SCF_PER_LBMOL,
+                       "bg": bg_rb_per_scf(st_v["z"], t_r, p)})
+        comp = res["x"]
+        moles *= (1.0 - res["beta"])
+
+    cooldown_scf = 0.0
+    residual = None
+    if moles >= 1e-12:
+        cool = flash_plain(comps, bip, comp, TSC, PSC)
+        if cool["phases"] == 2:
+            cooldown_scf = moles * cool["beta"] * SCF_PER_LBMOL
+            st = phase_state(comps, bip, cool["x"], TSC, PSC)
+            residual = {"moles": moles * (1.0 - cool["beta"]), "x": cool["x"],
+                        "volFt3": moles * (1.0 - cool["beta"]) * st["molarVolume"],
+                        "density": st["density"]}
+        else:
+            st = phase_state(comps, bip, comp, TSC, PSC)
+            residual = {"moles": moles, "x": comp,
+                        "volFt3": moles * st["molarVolume"], "density": st["density"]}
+
+    if residual:
+        below = cooldown_scf
+        res_bbl = residual["volFt3"] / FT3_PER_BBL
+        for st in reversed(stages):
+            st["rsd"] = below / res_bbl
+            st["bod"] = st["vOil"] / residual["volFt3"]
+            below += st["gasScf"]
+
+    totals = ({"bodb": stages[0]["bod"], "rsdb": stages[0]["rsd"]} if residual else None)
+    return {"stages": stages, "residual": residual,
+            "cooldownGasScf": cooldown_scf, "totals": totals}
+
+
+def black_oil_table(comps, bip, z, t_r, sep_stages, psat, dl_pressures, undersat_pressures):
+    """Separator-adjusted composite (Amyx): second transcription of the
+    engine's arithmetic on this oracle's own DL + separator results."""
+    dl = diff_lib(comps, bip, z, t_r, psat, dl_pressures)
+    sep = separator_train(comps, bip, z, sep_stages)
+    v_sat = dl["stages"][0]["vOil"]
+    bofb = v_sat / sep["totals"]["stoVolFt3PerFeedMol"]
+    rsfb = sep["totals"]["totalGor"]
+    bodb, rsdb = dl["totals"]["bodb"], dl["totals"]["rsdb"]
+    adjust = bofb / bodb
+
+    rows = []
+    for p in sorted(undersat_pressures, reverse=True):
+        st = phase_state(comps, bip, z, t_r, p)
+        rows.append({"pressure": p, "phase": "undersaturated", "Rs": rsfb,
+                     "Bo": bofb * st["molarVolume"] / v_sat, "Bg": None, "Z": None,
+                     "mu_o": lbc_viscosity(comps, z, t_r, st["molarVolume"]),
+                     "mu_g": None})
+    for st in dl["stages"]:
+        rows.append({
+            "pressure": st["pPsia"],
+            "phase": "saturated" if st["isSaturation"] else "two-phase",
+            "Rs": max(0.0, rsfb - (rsdb - st["rsd"]) * adjust),
+            "Bo": st["bod"] * adjust,
+            "Bg": st["bg"], "Z": st["gasZ"],
+            "mu_o": lbc_viscosity(comps, st["x"], t_r, st["vOilMolar"]),
+            "mu_g": (lbc_viscosity(comps, st["y"], t_r, st["vGasMolar"])
+                     if st["y"] is not None else None),
+        })
+    return {"pb": psat, "rows": rows,
+            "kpis": {"rsfb": rsfb, "bofb": bofb, "bodb": bodb, "rsdb": rsdb,
+                     "stoApi": sep["stockTank"]["api"],
+                     "surfaceGasGravity": sep["totals"]["surfaceGasGravity"],
+                     "residualOilDensity": dl["residual"]["density"]},
+            "dl": dl, "sep": sep}

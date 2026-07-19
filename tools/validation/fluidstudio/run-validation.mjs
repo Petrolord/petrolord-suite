@@ -68,6 +68,16 @@
  * CASE 19 Good Oil / Whitson separator-test literature fixtures - armed
  *           only when book-verified data is committed to
  *           literature-fixtures.json (separatorTests section)
+ * CASE 20 FS7 constant composition expansion vs the oracle counterpart:
+ *           saturation pressure agreement, relative volume and liquid
+ *           dropout on the committed grid. Identities: single phase
+ *           above Psat, relVol -> 1 approaching Psat from above,
+ *           monotonic expansion below.
+ * CASE 21 FS7 differential liberation + composite black-oil table vs the
+ *           oracle: per-stage Bod/Rsd/gas properties, residual oil, and
+ *           the separator-adjusted Rs/Bo/Bg/Z/viscosity rows. Identities:
+ *           mole balance across liberated gas + residual, Rs telescoping
+ *           to the cooldown gas, Bo(Pb) = Bofb, Rs(Pb) = Rsfb.
  */
 
 import fs from 'fs';
@@ -94,6 +104,9 @@ import {
 import {
   separatorTrain, materialBalanceError, STOCK_TANK_STAGE,
 } from '../../../src/utils/fluidstudio/eos/separator.js';
+import {
+  cceExperiment, differentialLiberation, eosBlackOilTable,
+} from '../../../src/utils/fluidstudio/eos/experiments.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const testsDir = path.join(here, '../../../src/utils/fluidstudio/eos/__tests__');
@@ -710,6 +723,122 @@ banner('CASE 19: Good Oil / Whitson separator-test literature fixtures');
       check(`${fx.citation}: multistage Bo`, res.bo?.multistage ?? NaN, fx.expected.boMultistage, fx.tolerances.bo, 'rb/STB');
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 20: constant composition expansion vs oracle');
+for (const job of goldens.experiments) {
+  const mix = job.plus ? mixtureWithPlusFraction(job.keys, job.plus) : mixtureFromKeys(job.keys);
+  const tR = degFtoR(job.tF);
+
+  const sat = saturationPressure(mix, job.x, tR, {});
+  check(`${job.fluid}: engine saturation pressure vs oracle boundary`,
+    sat ? sat.pPsia : NaN, job.psatPsia, 1e-4, 'psia');
+
+  // run on the committed grid at the oracle's psat so rows align exactly
+  const cce = cceExperiment(mix, job.x, tR, { psatPsia: job.psatPsia, pressures: job.ccePressures });
+  const worst = { name: '', err: 0, tol: 1e-7 };
+  job.cce.rows.forEach((g, i) => {
+    const e = cce.rows[i];
+    checkAbs(`${job.fluid} CCE ${g.pPsia.toFixed(0)} psia: phases`, e.phases, g.phases, 0);
+    for (const [name, ev, gv] of [
+      ['relVol', e.relVol, g.relVol],
+      ['liquidVolFrac', e.liquidVolFrac, g.liquidVolFrac],
+      ['beta', e.beta, g.beta],
+    ]) {
+      if (gv === null || gv === undefined) continue;
+      const err = Math.abs(ev - gv);
+      if (err > worst.err) Object.assign(worst, { name: `${g.pPsia.toFixed(0)} ${name}`, err });
+    }
+  });
+  worstReport(`${job.fluid}: CCE rows vs oracle`, worst);
+
+  // identities on the engine result alone
+  const above = cce.rows.filter((r) => r.pPsia > job.psatPsia);
+  checkAbs(`${job.fluid}: single phase above Psat`,
+    above.every((r) => r.phases === 1) ? 0 : 1, 0, 0);
+  const sorted = cce.rows.slice().sort((a, b) => b.pPsia - a.pPsia);
+  const monotonic = sorted.every((r, i) => i === 0 || r.relVol >= sorted[i - 1].relVol - 1e-12);
+  checkAbs(`${job.fluid}: relVol monotonic as P falls`, monotonic ? 0 : 1, 0, 0);
+  const vAtSat = cceExperiment(mix, job.x, tR,
+    { psatPsia: job.psatPsia, pressures: [job.psatPsia * 1.0005] }).rows[0].relVol;
+  checkAbs(`${job.fluid}: relVol -> 1 just above Psat`, vAtSat, 1, 5e-3);
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 21: differential liberation + composite table vs oracle');
+{
+  const job = goldens.experiments.find((j) => j.dlPressures);
+  const mix = mixtureWithPlusFraction(job.keys, job.plus);
+  const tR = degFtoR(job.tF);
+  const table = eosBlackOilTable(mix, job.x, tR,
+    job.sepStagesF.map(([tF, pPsia]) => ({ tR: degFtoR(tF), pPsia })),
+    { psatPsia: job.psatPsia, dlPressures: job.dlPressures, undersatPressures: job.undersatPressures });
+  checkAbs(`${job.fluid}: composite table ok`, table.ok ? 0 : 1, 0, 0);
+  const { dl } = table;
+  const gDl = job.table.dl;
+
+  checkAbs(`${job.fluid}: DL stage count`, dl.stages.length, gDl.stages.length, 0);
+  const worstDl = { name: '', err: 0, tol: 5e-7 };
+  gDl.stages.forEach((g, i) => {
+    const e = dl.stages[i];
+    for (const [name, ev, gv] of [
+      ['oilMoles', e.oilMoles, g.oilMoles],
+      ['bod', e.bod, g.bod],
+      ['rsd', e.rsd / 1000, g.rsd / 1000], // scf/STB scaled to O(1)
+      ['gasGravity', e.gasGravity, g.gasGravity],
+      ['gasZ', e.gasZ, g.gasZ],
+      ['oilDensity', e.oilDensity / 100, g.oilDensity / 100],
+    ]) {
+      if (gv === null || gv === undefined) continue;
+      const err = Math.abs(ev - gv);
+      if (err > worstDl.err) Object.assign(worstDl, { name: `stage ${i} ${name}`, err });
+    }
+  });
+  worstReport(`${job.fluid}: DL stages vs oracle`, worstDl);
+  check(`${job.fluid}: residual oil density`, dl.residual.density, gDl.residual.density, 1e-8, 'lb/ft3');
+
+  // mole balance: residual + all removed gas + cooldown gas = 1 lb-mol feed
+  const gasMoles = dl.stages.reduce((s, st) => s + st.gasMolesRemoved, 0)
+    + dl.cooldownGasScf / (10.7316 * 519.67 / 14.696);
+  checkAbs(`${job.fluid}: DL mole balance`, dl.residual.moles + gasMoles, 1, 1e-10);
+  checkAbs(`${job.fluid}: Rsd telescopes to the cooldown gas`,
+    dl.stages[dl.stages.length - 1].rsd,
+    dl.cooldownGasScf / (dl.residual.volFt3 / 5.614583), 1e-9);
+
+  const gT = job.table;
+  checkAbs(`${job.fluid}: table row count`, table.rows.length, gT.rows.length, 0);
+  const worstT = { name: '', err: 0, tol: 1e-6 };
+  gT.rows.forEach((g, i) => {
+    const e = table.rows[i];
+    for (const [name, ev, gv] of [
+      ['Rs', e.Rs / 1000, g.Rs / 1000],
+      ['Bo', e.Bo, g.Bo],
+      ['Bg', e.Bg, g.Bg],
+      ['Z', e.Z, g.Z],
+      ['mu_o', e.mu_o, g.mu_o],
+      ['mu_g', e.mu_g, g.mu_g],
+    ]) {
+      if (gv === null || gv === undefined) continue;
+      const err = Math.abs(ev - gv);
+      if (err > worstT.err) Object.assign(worstT, { name: `row ${i} ${name}`, err });
+    }
+  });
+  worstReport(`${job.fluid}: composite table rows vs oracle`, worstT);
+
+  for (const [k, tol] of [['rsfb', 1e-8], ['bofb', 1e-9], ['bodb', 1e-9], ['rsdb', 1e-8],
+    ['stoApi', 1e-8], ['surfaceGasGravity', 1e-9], ['residualOilDensity', 1e-9]]) {
+    check(`${job.fluid}: kpi ${k}`, table.kpis[k], job.table.kpis[k], tol);
+  }
+
+  // identities: the composite pins to the separator flash at Pb
+  const pbRow = table.rows.find((r) => r.phase === 'saturated');
+  checkAbs(`${job.fluid}: Bo(Pb) = Bofb (identity)`, pbRow.Bo - table.kpis.bofb, 0, 1e-12);
+  checkAbs(`${job.fluid}: Rs(Pb) = Rsfb (identity)`, pbRow.Rs - table.kpis.rsfb, 0, 1e-9);
+  const rsSorted = table.rows.filter((r) => r.phase !== 'undersaturated');
+  const rsMono = rsSorted.every((r, i) => i === 0 || r.Rs <= rsSorted[i - 1].Rs + 1e-9);
+  const boMono = rsSorted.every((r, i) => i === 0 || r.Bo <= rsSorted[i - 1].Bo + 1e-12);
+  checkAbs(`${job.fluid}: Rs and Bo monotonic below Pb`, rsMono && boMono ? 0 : 1, 0, 0);
 }
 
 // ---------------------------------------------------------------------------

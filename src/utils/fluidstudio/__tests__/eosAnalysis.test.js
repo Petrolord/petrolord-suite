@@ -6,7 +6,8 @@
  * runEosFlash and a direct engine call, and the envelope worker request.
  */
 import {
-  parseComposition, runEosFlash, runEosSeparator, emptyComposition, envelopeRequest, buildMixture,
+  parseComposition, runEosFlash, runEosSeparator, runEosPvtTable, eosPvtTableCsv,
+  emptyComposition, envelopeRequest, buildMixture,
 } from '../eosAnalysis';
 import { flashPT } from '../eos/flash';
 import { separatorTrain } from '../eos/separator';
@@ -156,6 +157,68 @@ describe('runEosSeparator', () => {
     const out = runEosSeparator(emptyComposition(), sampleStages);
     expect(out.separator).toBeNull();
     expect(out.parsed.errors.length).toBeGreaterThan(0);
+  });
+});
+
+describe('runEosPvtTable', () => {
+  const sampleStages = [
+    { pressure: 500, temperature: 90, enabled: true },
+    { pressure: 100, temperature: 75, enabled: true },
+  ];
+
+  test('builds the composite table and pins to the goldens experiment KPIs', () => {
+    const out = runEosPvtTable(charOilComposition(), sampleStages);
+    const golden = goldens.experiments.find((j) => j.fluid === 'char-oil');
+    expect(out.table.pb).toBe(Math.round(golden.psatPsia));
+    expect(out.table.satKind).toBe('bubble');
+    // same separator train and DL grid family as the golden -> same KPIs
+    expect(out.table.kpis.rsfb).toBeCloseTo(golden.table.kpis.rsfb, 1);
+    expect(out.table.kpis.bofb).toBeCloseTo(golden.table.kpis.bofb, 4);
+    expect(out.table.kpis.stoApi).toBeCloseTo(golden.table.kpis.stoApi, 1);
+    const pressures = out.table.rows.map((r) => r.pressure);
+    expect([...pressures].sort((a, b) => b - a)).toEqual(pressures);
+    expect(out.table.rows.some((r) => r.phase === 'saturated')).toBe(true);
+  });
+
+  test('backbone carries the EOS surface numbers in the Pipeline Sizer shape', () => {
+    const out = runEosPvtTable(charOilComposition(), sampleStages);
+    const b = out.backbone;
+    expect(b.source).toBe('eos');
+    ['oil_gravity', 'gas_gravity', 'gor', 'inlet_temperature', 'pb', 'rsb', 'bo_at_pb', 'mu_o_at_pb']
+      .forEach((k) => expect(Number.isFinite(b[k])).toBe(true));
+    expect(b.gor).toBe(out.table.kpis.rsfb);
+    expect(b.oil_gravity).toBe(out.table.kpis.stoApi);
+    expect(b.pvt_table).toBe(out.table.rows);
+  });
+
+  test('a fluid with no saturation point at this temperature degrades with a warning', () => {
+    const comp = emptyComposition();
+    comp.zPct = { ...comp.zPct, N2: 2, CO2: 2, C1: 85, C2: 7, C3: 4 };
+    comp.pressure = 2000;
+    comp.temp = 200; // lean gas: single phase across the window at 200 F
+    const out = runEosPvtTable(comp, sampleStages);
+    expect(out.table).toBeNull();
+    expect(out.backbone).toBeNull();
+    expect(out.warnings.join(' ')).toMatch(/No saturation point/);
+  });
+
+  test('invalid composition returns parse errors and no table', () => {
+    const out = runEosPvtTable(emptyComposition(), sampleStages);
+    expect(out.table).toBeNull();
+    expect(out.parsed.errors.length).toBeGreaterThan(0);
+  });
+
+  test('CSV export uses the MB lab-table schema, ascending pressure', () => {
+    const out = runEosPvtTable(charOilComposition(), sampleStages);
+    const lines = eosPvtTableCsv(out.table).split('\n');
+    expect(lines[0]).toBe('pressure_psia,bo_rb_stb,rs_scf_stb,oil_viscosity_cp,z_factor,bg_rb_mscf,gas_viscosity_cp');
+    const ps = lines.slice(1).map((l) => Number(l.split(',')[0]));
+    expect([...ps].sort((a, b) => a - b)).toEqual(ps);
+    // a two-phase row carries bg in rb/Mscf (engine rb/scf x 1000)
+    const twoPhase = out.table.rows.filter((r) => r.Bg != null)
+      .sort((a, b) => a.pressure - b.pressure)[0];
+    const line = lines.slice(1).find((l) => Number(l.split(',')[0]) === twoPhase.pressure);
+    expect(Number(line.split(',')[5])).toBeCloseTo(twoPhase.Bg * 1000, 3);
   });
 });
 

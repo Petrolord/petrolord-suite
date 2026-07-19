@@ -305,6 +305,46 @@ def main() -> None:
               + (f"  Bo={res['bo']['multistage']:.4f}" if res["bo"] and res["bo"].get("multistage")
                  else ""))
 
+    # ---- FS7: CCE + DL + composite black-oil table ----------------------
+    # Grids are derived from the oracle's own saturation pressure and
+    # committed to the golden so both sides run identical pressures.
+    out["experiments"] = []
+    exp_jobs = [
+        {"fluid": "char-oil", "tF": 200.0, "dl": True,
+         "sepF": [(90.0, 500.0), (75.0, 100.0)]},
+        {"fluid": "char-condensate", "tF": 150.0, "dl": False, "sepF": None},
+    ]
+    for job in exp_jobs:
+        comps, bip, x, keys, plus = fluids[job["fluid"]]
+        t_r = job["tF"] + 459.67
+        bounds = oracle.stability_boundaries(comps, bip, x, t_r)
+        psat = bounds[-1]["pPsia"]
+        cce_ps = [f * psat for f in (1.4, 1.25, 1.1, 1.05, 1.02,
+                                     0.95, 0.85, 0.7, 0.55, 0.4, 0.25)
+                  if f * psat > 14.696]
+        cce = oracle.cce_expansion(comps, bip, x, t_r, psat, cce_ps)
+        entry = {"fluid": job["fluid"], "keys": keys, "x": x, "tF": job["tF"],
+                 "psatPsia": psat, "ccePressures": cce_ps, "cce": cce}
+        if plus:
+            entry["plus"] = plus
+        print(f"experiments {job['fluid']:16s} psat={psat:.2f} psia  "
+              f"cce rows={len(cce['rows'])}")
+        if job["dl"]:
+            dl_ps = [f * psat for f in (0.85, 0.7, 0.55, 0.4, 0.25, 0.12)
+                     if f * psat > 2 * 14.696] + [14.696]
+            undersat = [f * psat for f in (1.05, 1.15, 1.3)]
+            sep_stages = [(tf + 459.67, p) for tf, p in job["sepF"]]
+            entry["dlPressures"] = dl_ps
+            entry["undersatPressures"] = undersat
+            entry["sepStagesF"] = job["sepF"]
+            entry["table"] = oracle.black_oil_table(
+                comps, bip, x, t_r, sep_stages, psat, dl_ps, undersat)
+            k = entry["table"]["kpis"]
+            print(f"experiments {job['fluid']:16s} DL Bodb={k['bodb']:.4f} "
+                  f"Rsdb={k['rsdb']:.2f}  table Bofb={k['bofb']:.4f} "
+                  f"Rsfb={k['rsfb']:.2f} API={k['stoApi']:.2f}")
+        out["experiments"].append(entry)
+
     for key in ORDER:
         comp = oracle.COMPONENTS[key]
         for tr in PSAT_TR:

@@ -8,9 +8,12 @@ import '@testing-library/jest-dom';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import CompositionalResultsCard from '../CompositionalResultsCard';
 import CompositionalSeparatorCard from '../CompositionalSeparatorCard';
+import EosPvtTableCard from '../EosPvtTableCard';
 import PhaseEnvelopeCard from '../PhaseEnvelopeCard';
 import CompositionInput from '../CompositionInput';
-import { runEosFlash, runEosSeparator, emptyComposition } from '@/utils/fluidstudio/eosAnalysis';
+import {
+  runEosFlash, runEosSeparator, runEosPvtTable, emptyComposition,
+} from '@/utils/fluidstudio/eosAnalysis';
 
 beforeAll(() => {
   global.ResizeObserver = class {
@@ -81,6 +84,40 @@ describe('CompositionalSeparatorCard', () => {
 
   it('renders nothing without a separator result', () => {
     const { container } = render(<CompositionalSeparatorCard separator={null} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('EosPvtTableCard', () => {
+  const sampleStages = [
+    { pressure: 500, temperature: 90, enabled: true },
+    { pressure: 100, temperature: 75, enabled: true },
+  ];
+
+  it('renders the composite table, KPI tiles and the export button', () => {
+    const result = runEosPvtTable(sampleComposition(), sampleStages);
+    render(<EosPvtTableCard result={result} />);
+    expect(screen.getByText('EOS black-oil table')).toBeInTheDocument();
+    expect(screen.getByText('Bubble point')).toBeInTheDocument();
+    expect(screen.getByText('Rs at Pb (flash)')).toBeInTheDocument();
+    expect(screen.getByText(/2898 \(Pb\)/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Export CSV/ })).toBeInTheDocument();
+    expect(screen.getByText('Oracle gated')).toBeInTheDocument();
+    expect(screen.getByText('Published method')).toBeInTheDocument();
+  });
+
+  it('shows the no-saturation-point warning for a lean gas', () => {
+    const comp = emptyComposition();
+    comp.zPct = { ...comp.zPct, N2: 2, CO2: 2, C1: 85, C2: 7, C3: 4 };
+    comp.pressure = 2000;
+    comp.temp = 200;
+    const result = runEosPvtTable(comp, sampleStages);
+    render(<EosPvtTableCard result={result} />);
+    expect(screen.getByText(/No saturation point/)).toBeInTheDocument();
+  });
+
+  it('renders nothing without a result', () => {
+    const { container } = render(<EosPvtTableCard result={null} />);
     expect(container).toBeEmptyDOMElement();
   });
 });
