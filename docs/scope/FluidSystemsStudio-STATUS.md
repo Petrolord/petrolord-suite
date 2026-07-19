@@ -55,16 +55,68 @@ regression-pinned.
 ## Out-of-scope register
 
 SRK EOS; three-phase (aqueous) flash; full Newton flash; gamma/Pedersen plus-fraction
-splitting; CVD; EOS regression/tuning; asphaltene thermodynamics; wax thermodynamic
+splitting; CVD; ~~EOS regression/tuning~~ (picked up by the ET program below,
+2026-07-19); asphaltene thermodynamics; wax thermodynamic
 model; compositional batch sweeps; compositional gradient with depth; any server/edge
 function.
 
 ## Separate debt (not this program)
 
-- Studio shell adoption: the page still uses its own 100-line header instead of
-  `src/components/studio/`. Orthogonal churn; queue with the VRR/RF kit adoptions.
+- ~~Studio shell adoption~~ DONE 2026-07-19 (PR #135, see the Shell row in the
+  FS phase table).
 - Static "PVT QuickLook" marketing card in `src/pages/dashboard/ProductionOptimization.jsx`
   references the deleted app by name only (no route); cosmetic.
+
+## EOS tuning to lab data (ET1–ET4) — plan of record (2026-07-19)
+
+Goal: take the compositional path from "untuned screening EOS" to "matches the
+user's lab report". The armed literature gates quantified exactly what tuning
+must fix: Psat off by 6–16% on heavy oils and lean-condensate dew points
+(CASES 17/19), and stock-tank API reading ~9 points heavy because the
+generalized Jhaveri-Youngren shift under-corrects heavy pseudos (pure C7+
+pseudo std-condition SG recovers 0.9075 vs its defining 0.8515).
+
+### Binding decisions
+
+- **Regression variables (fixed set, 4 knobs):** multipliers on the C7+
+  pseudo's Tc and Pc, the absolute C1–C7+ BIP, and the absolute C7+ volume
+  shift s = c/b. Bounds: fTc [0.85, 1.15], fPc [0.70, 1.30], kC1 [0, 0.25],
+  sPlus [-0.30, 0.40]. Starts are the untuned characterization values.
+  Omega stays fixed (redundant with Tc/Pc against thin-real targets).
+  Library components are never touched; only the plus fraction is tuned.
+- **Targets (all optional, at least one required):** measured saturation
+  pressure at a stated temperature; a separator test (stage T/P list,
+  total GOR scf/STB, stock-tank API, Bofb rb/STB, reservoir T/P). Residuals
+  are relative errors (API enters as stock-tank SG); joint weighted LM fit
+  with weak prior-pull regularization toward the untuned values so
+  under-determined target sets stay tame. Bo compares at the engine's own
+  Psat when the untuned model is two-phase at lab reservoir conditions
+  (CASE 19 convention) and self-heals as Psat converges.
+- **Optimizer:** the canonical LM kernel `src/utils/welltest/lmFit.js`
+  (bounded, numeric Jacobian, covariance) is imported, not reimplemented.
+- **Plumbing:** tuning is plain data `{fTc, fPc, kC1, sPlus}` carried inside
+  `composition.tuning` (persistence for free), applied in ONE place
+  (`eos/tuning.js` post-processing the characterization) and threaded
+  through both mixture-construction seams: `buildMixture` (sync consumers:
+  flash, separator, PVT table, Pipeline Sizer handoff) and the envelope
+  worker payload. Absent/identity tuning must be BITWISE identical to
+  untuned (gated). Black-oil path untouched (snapshot pin).
+- **Tier system:** new `lab_tuned` tier above `published_method` on the
+  quantities a tune actually constrained; untuned compositional quantities
+  keep their current tiers.
+- Out of scope for ET (register): CCE/DL row-matching targets, per-component
+  variable selection, omega/Ωa/Ωb regression, multi-fluid batch tuning,
+  uncertainty on tuned parameters in the UI (covariance is computed and
+  logged, not surfaced).
+
+### Phases
+
+| Phase | Scope | Status |
+|---|---|---|
+| ET1 | Plan of record; `eos/tuning.js` (normalize/apply tuning to the characterization, tuned-mixture builders); thread through `buildMixture` + envelope worker payload; identity gates (no tuning = bitwise identical), snapshot pins green | pending |
+| ET2 | Residual builder (Psat + separator-test targets) + regularized bounded LM tune on the lmFit kernel; self-recovery gates (perturbed-truth synthetic lab data), real-anchor gates (Good Oil + Coats & Smart oils tuned to ≤1% Psat, API within 0.5, Bo ≤1%), gradient-at-optimum check; perf measurement decides sync vs worker | pending |
+| ET3 | UI: Lab Tuning section in the Composition tab (targets entry, Tune/Apply/Reset, before/after table with % errors), tuned envelope through the worker, `lab_tuned` tier badges, persistence roundtrip | pending |
+| ET4 | Hardening (non-convergence UX, bound-hit warnings, weight docs), help guide section, TierMatrix + harness README updates, program close-out | pending |
 
 ## Validation assets
 

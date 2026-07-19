@@ -15,7 +15,7 @@
 
 import { COMPONENT_ORDER, COMPONENTS, PLUS_FRACTION_KEY } from './eos/components.js';
 import { mixtureFromKeys } from './eos/pr78.js';
-import { characterizePlusFraction, mixtureWithPlusFraction } from './eos/characterization.js';
+import { normalizeTuning, tunedMixtureWithPlusFraction } from './eos/tuning.js';
 import { flashPT } from './eos/flash.js';
 import { lbcViscosity, weinaugKatzIFT } from './eos/transport.js';
 import { separatorTrain } from './eos/separator.js';
@@ -95,6 +95,11 @@ export const parseComposition = (composition) => {
     keys,
     z,
     plus,
+    // Applied lab tuning rides the composition state so persistence and the
+    // worker payload get it for free; normalized here (ET1), applied only in
+    // eos/tuning.js. Tuning without a plus fraction is meaningless: the four
+    // knobs all act on the C7+ pseudo.
+    tuning: plus ? normalizeTuning(composition?.tuning?.applied) : null,
     sumPct,
     tempF: temp,
     pressurePsia: pressure,
@@ -104,7 +109,7 @@ export const parseComposition = (composition) => {
 /** Build the EOS mixture for a parsed composition (pseudo appended last). */
 export const buildMixture = (parsed) => {
   if (parsed.plus) {
-    return mixtureWithPlusFraction(parsed.keys.slice(0, -1), parsed.plus);
+    return tunedMixtureWithPlusFraction(parsed.keys.slice(0, -1), parsed.plus, parsed.tuning);
   }
   return mixtureFromKeys(parsed.keys);
 };
@@ -384,6 +389,7 @@ export const envelopeRequest = (composition) => {
     keys: parsed.keys,
     z: parsed.z,
     plus: parsed.plus,
+    tuning: parsed.tuning,
     tMinF: Number(env.tMinF) || 40,
     tMaxF: Number(env.tMaxF) || 400,
     nT: Math.min(Math.max(Math.round(Number(env.nT) || 15), 5), 40),

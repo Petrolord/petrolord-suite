@@ -113,6 +113,7 @@ import {
 import {
   cceExperiment, differentialLiberation, eosBlackOilTable,
 } from '../../../src/utils/fluidstudio/eos/experiments.js';
+import { tunedMixtureWithPlusFraction } from '../../../src/utils/fluidstudio/eos/tuning.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const testsDir = path.join(here, '../../../src/utils/fluidstudio/eos/__tests__');
@@ -904,6 +905,45 @@ banner('CASE 22: performance smoke (generous budgets, observed times printed)');
   timed('envelope trace (15 T-points, worker workload)', 60000, () => {
     tracePhaseEnvelope(mix, job.x, { tMinR: degFtoR(40), tMaxR: degFtoR(400), nT: 15, nScan: 30 });
   });
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 23: ET1 tuning seam - identity, decoupling, direction');
+{
+  const job = goldens.flashC7[0];
+  const mix = mixtureWithPlusFraction(job.keys, job.plus);
+  const tR = degFtoR(200);
+
+  // identity: absent tuning is bitwise the untuned path
+  const seam = tunedMixtureWithPlusFraction(job.keys, job.plus, null);
+  const a = flashPT(mix, job.x, tR, 2000);
+  const b = flashPT(seam, job.x, tR, 2000);
+  checkAbs('no tuning: identical beta (bitwise)', b.beta - a.beta, 0, 0);
+  checkAbs('no tuning: identical K (bitwise, max abs)',
+    Math.max(...a.K.map((k, i) => Math.abs(b.K[i] - k))), 0, 0);
+  const satA = saturationPressure(mix, job.x, tR, {});
+  const satB = saturationPressure(seam, job.x, tR, {});
+  checkAbs('no tuning: identical Psat (bitwise)', satB.pPsia - satA.pPsia, 0, 0);
+
+  // Peneloux decoupling: shift-only tune leaves the split bitwise intact
+  const shifted = tunedMixtureWithPlusFraction(job.keys, job.plus, { sPlus: 0.15 });
+  const c = flashPT(shifted, job.x, tR, 2000);
+  checkAbs('shift-only tune: identical beta (bitwise)', c.beta - a.beta, 0, 0);
+  checkAbs('shift-only tune: identical K (bitwise, max abs)',
+    Math.max(...a.K.map((k, i) => Math.abs(c.K[i] - k))), 0, 0);
+  checkAbs('shift-only tune: liquid density moved',
+    Math.abs(c.liquid.density - a.liquid.density) > 0.1 ? 0 : 1, 0, 0);
+
+  // direction: raising the C1-C7+ BIP raises an oil bubble point
+  const bumped = tunedMixtureWithPlusFraction(job.keys, job.plus, { kC1: 0.12 });
+  const satBump = saturationPressure(bumped, job.x, tR, {});
+  checkAbs('kC1 bump keeps a bubble point', satBump.kind === 'bubble' ? 0 : 1, 0, 0);
+  checkAbs('kC1 bump raises the bubble point', satBump.pPsia > satA.pPsia ? 0 : 1, 0, 0);
+
+  // the tune touches only the pseudo
+  const tuned = tunedMixtureWithPlusFraction(job.keys, job.plus, { fTc: 1.05, fPc: 0.9 });
+  const iC1 = tuned.keys.indexOf('C1');
+  checkAbs('library C1 untouched by tuning', tuned.comps[iC1].tcR - COMPONENTS.C1.tcR, 0, 0);
 }
 
 // ---------------------------------------------------------------------------

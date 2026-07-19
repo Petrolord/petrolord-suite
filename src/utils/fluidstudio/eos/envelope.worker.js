@@ -8,7 +8,7 @@
  * the sync path uses.
  *
  * Message contract (module worker, Seismolord pattern):
- *   in : { id, payload: { keys, z, plus, tMinF, tMaxF, nT, resTempF } }
+ *   in : { id, payload: { keys, z, plus, tuning, tMinF, tMaxF, nT, resTempF } }
  *   out: { id, ok: true, payload: { bubble, dew, points, satAtRes } }
  *        { id, ok: false, error }
  * Pressures psia, temperatures reported back in °F for the chart.
@@ -17,12 +17,12 @@
  */
 
 import { mixtureFromKeys } from './pr78.js';
-import { mixtureWithPlusFraction } from './characterization.js';
+import { tunedMixtureWithPlusFraction } from './tuning.js';
 import { tracePhaseEnvelope, saturationPressure } from './envelope.js';
 import { degFtoR, degRtoF } from './units.js';
 
-export const runEnvelopeTrace = ({ keys, z, plus, tMinF, tMaxF, nT, resTempF }) => {
-  const mix = plus ? mixtureWithPlusFraction(keys.slice(0, -1), plus) : mixtureFromKeys(keys);
+export const runEnvelopeTrace = ({ keys, z, plus, tuning, tMinF, tMaxF, nT, resTempF }) => {
+  const mix = plus ? tunedMixtureWithPlusFraction(keys.slice(0, -1), plus, tuning) : mixtureFromKeys(keys);
   const boundaryOpts = { nScan: 30 };
   const trace = tracePhaseEnvelope(mix, z, {
     tMinR: degFtoR(tMinF),
