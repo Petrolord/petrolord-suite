@@ -66,6 +66,13 @@ const helpContent = [
       "Batch sensitivity sweeps one Stream-A variable (API, GOR, gas SG or temperature) across a min-max range in N steps and re-runs the whole engine at each point, so you can see how bubble point, oil FVF and viscosity respond. The endpoints are always included. If blending is enabled, the sweep characterises the un-blended Stream A fluid so the x-axis value means exactly what it says. Results show a dual-axis chart (Pb and Bo @ Pb) and a full table; WAT appears in the table only when flow assurance supplies one.",
   },
   {
+    id: 'compositional',
+    icon: FlaskConical,
+    title: 'Compositional mode (PR78 EOS)',
+    content:
+      "Switch the fluid model selector to Compositional to add a Composition tab. Enter the feed in mole percent for the library components (N2 through nC6) plus a C7+ fraction described by molecular weight and specific gravity; the C7+ boiling point is optional and estimated from the Soreide correlation when blank. The engine characterizes the C7+ with the Kesler-Lee correlation set, then runs a stability-gated Peng-Robinson (1978) flash at your pressure and temperature. Results show the phase split, per-phase densities and viscosities, K values, interfacial tension and the characterized C7+ properties. The PT envelope traces in a background worker: bubble and dew branches, your flash conditions, and the saturation pressure at the flash temperature. The flash itself is validated against an independent oracle and NIST data (green badges); viscosities are an untuned correlation (amber badge). The compositional path runs beside the black oil analysis and does not change any black oil result. Tuning the EOS to lab data is a planned follow-on.",
+  },
+  {
     id: 'saveload',
     icon: Save,
     title: 'Saving & loading projects',

@@ -741,9 +741,19 @@ export const analyzeFluidSystem = (inputs) => {
 
 /** Realistic default inputs (32°API volatile-ish oil) for the Sample button. */
 export const sampleFluidStudioData = () => ({
+  fluidModel: 'black-oil',
   streamA: {
     blackOil: { api: 32, gor: 650, gasSg: 0.75, temp: 200, pb: null, salinity: 35000 },
-    composition: { model: 'pr', raw: '' },
+    // FS5 compositional sample: the "char-oil" fluid from the EOS validation
+    // goldens, so switching the fluid model shows pre-validated numbers.
+    composition: {
+      model: 'pr78',
+      zPct: { N2: 0, CO2: 2, H2S: 0, C1: 40, C2: 7, C3: 6, iC4: 0, nC4: 5, iC5: 0, nC5: 0, nC6: 6, 'C7+': 34 },
+      plus: { mw: 190, sg: 0.84, tbF: null },
+      pressure: 2500,
+      temp: 200,
+      envelope: { tMinF: 40, tMaxF: 400, nT: 15 },
+    },
   },
   correlations: { pb_rs_bo: 'standing', viscosity: 'beggs_robinson' },
   feed: { oilRate: 1000 },

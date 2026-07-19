@@ -11,6 +11,8 @@ import SeparatorResultsCard from '@/components/fluidstudio/SeparatorResultsCard'
 import BlendingResultsCard from '@/components/fluidstudio/BlendingResultsCard';
 import FlowAssuranceCard from '@/components/fluidstudio/FlowAssuranceCard';
 import BatchSweepCard from '@/components/fluidstudio/BatchSweepCard';
+import CompositionalResultsCard from '@/components/fluidstudio/CompositionalResultsCard';
+import PhaseEnvelopeCard from '@/components/fluidstudio/PhaseEnvelopeCard';
 
 const KPICard = ({ title, value, unit, icon: Icon }) => (
   <Card className="bg-slate-800/50 border-slate-700 text-white">
@@ -73,7 +75,7 @@ const IntegrationSuite = ({ backbone }) => {
  * Phase-1 results: PVT analysis + separator train, computed client-side.
  * Single-run only (blending / flow-assurance / batch are deferred seams).
  */
-const FluidStudioResults = ({ results }) => {
+const FluidStudioResults = ({ results, eos, composition }) => {
   const { pvt, separator, backbone, meta, blending, flowAssurance, batchSummary } = results;
   const kpis = pvt?.kpis;
   if (!kpis) return null;
@@ -104,6 +106,7 @@ const FluidStudioResults = ({ results }) => {
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <TabsList className="bg-slate-800 flex-wrap h-auto">
             <TabsTrigger value="pvt">PVT Analysis</TabsTrigger>
+            {eos && <TabsTrigger value="compositional">Compositional</TabsTrigger>}
             <TabsTrigger value="separators">Separator Train</TabsTrigger>
             {blending && <TabsTrigger value="blending">Blending</TabsTrigger>}
             {flowAssurance && <TabsTrigger value="flow-assurance">Flow Assurance</TabsTrigger>}
@@ -117,6 +120,13 @@ const FluidStudioResults = ({ results }) => {
         <TabsContent value="pvt" className="mt-4">
           <PvtChartsCard table={pvt.table} pb={pvt.pb} />
         </TabsContent>
+
+        {eos && (
+          <TabsContent value="compositional" className="mt-4 space-y-4">
+            <CompositionalResultsCard eos={eos} />
+            <PhaseEnvelopeCard composition={composition} />
+          </TabsContent>
+        )}
 
         <TabsContent value="separators" className="mt-4">
           <SeparatorResultsCard separator={separator} />
