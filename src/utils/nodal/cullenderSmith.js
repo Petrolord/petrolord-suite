@@ -66,6 +66,8 @@ const stepHalf = (p1, i1, rhsHalf, evalI) => {
  *   idIn    tubing ID (in), roughnessIn absolute roughness (in, default 0.0006)
  *   muCp    gas viscosity for the Reynolds number (default 0.012 cp; the
  *           friction factor is insensitive to it at fully rough turbulence)
+ *   fMoody  optional Moody friction factor override (published worked
+ *           examples prescribe their own f; validation uses this)
  * }
  * returns { pwf, pmf, iterationsConverged }
  */
@@ -80,12 +82,14 @@ export const cullenderSmithBhp = ({
   idIn = 2.441,
   roughnessIn = 0.0006,
   muCp = 0.012,
+  fMoody,
 }) => {
   const elevRatio = tvdFt / mdFt;
   let f2 = 0;
   if (qMmscfd > 0) {
-    const re = gasReynolds(qMmscfd, gasSg, muCp, idIn);
-    const f = moodyFrictionFactor(re, roughnessIn / idIn);
+    const f =
+      fMoody ??
+      moodyFrictionFactor(gasReynolds(qMmscfd, gasSg, muCp, idIn), roughnessIn / idIn);
     f2 = (0.667 * f * qMmscfd * qMmscfd) / Math.pow(idIn, 5);
   }
 
@@ -116,4 +120,54 @@ export const cullenderSmithBhp = ({
     pwf = next;
   }
   return { pwf, pmf: mid.p, converged: false };
+};
+
+/**
+ * Average temperature and z-factor method (Katz; Guo & Ghalambor Eq. 4.54,
+ * q in Mscf/d, d in inches, L = MD ft, theta from vertical via TVD/MD):
+ *
+ *   pwf^2 = e^s ptf^2 + 6.67e-4 (e^s - 1) f q^2 (Tbar zbar)^2 / (d^5 cos)
+ *   s = 0.0375 gammaG L cos / (Tbar zbar)
+ *
+ * Iterates zbar at the average column pressure. Same input contract as
+ * cullenderSmithBhp with qMscfd instead of qMmscfd.
+ */
+export const averageTzBhp = ({
+  ptf,
+  gasSg,
+  mdFt,
+  tvdFt = mdFt,
+  whtF,
+  bhtF,
+  qMscfd = 0,
+  idIn = 2.441,
+  roughnessIn = 0.0006,
+  muCp = 0.012,
+  fMoody,
+}) => {
+  const cos = tvdFt / mdFt;
+  const tBarR = (whtF + bhtF) / 2 + 460;
+  const f =
+    qMscfd > 0
+      ? fMoody ??
+        moodyFrictionFactor(gasReynolds(qMscfd / 1000, gasSg, muCp, idIn), roughnessIn / idIn)
+      : 0;
+
+  let pwf = ptf * 1.2;
+  let zBar = 0.9;
+  for (let k = 0; k < MAX_ITER; k += 1) {
+    const pBar = (ptf + pwf) / 2;
+    zBar = zFactor(pBar, tBarR - 460, gasSg);
+    const s = (0.0375 * gasSg * mdFt * cos) / (tBarR * zBar);
+    const es = Math.exp(s);
+    const fric =
+      qMscfd > 0
+        ? (6.67e-4 * (es - 1) * f * qMscfd * qMscfd * tBarR * tBarR * zBar * zBar) /
+          (Math.pow(idIn, 5) * cos)
+        : 0;
+    const next = Math.sqrt(es * ptf * ptf + fric);
+    if (Math.abs(next - pwf) < TOL_PSI) return { pwf: next, zBar, converged: true };
+    pwf = next;
+  }
+  return { pwf, zBar, converged: false };
 };

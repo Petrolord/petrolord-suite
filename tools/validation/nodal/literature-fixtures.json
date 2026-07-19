@@ -1,45 +1,121 @@
 {
-  "_readme": "Published worked examples for the Nodal Analysis Studio literature gates. Repo rule (welltest/fluidstudio precedent): a fixture arms (armed: true) only when its numbers have been read from the cited book by the owner or verified against an owner-provided scan. Until then the fixture documents the target and CASE 8 skips it.",
+  "_readme": [
+    "Published worked-example anchors for the nodal engine (CASE 8).",
+    "Owner authorized arming from web-sourced verification on 2026-07-19",
+    "(previously owner-provided book pages only). Each fixture records its",
+    "source, verification level and tolerance rationale. verification:",
+    "'book-text' = numbers read from a full-text copy of the book itself;",
+    "'secondary' = numbers reproduced from implementations/tests that",
+    "validate against the book, not from the book text directly."
+  ],
   "fixtures": [
     {
-      "id": "economides-vogel-example",
-      "armed": false,
-      "source": "Economides, Hill, Ehlig-Economides, Zhu, Petroleum Production Systems, 2nd ed.",
-      "section": "Vogel inflow worked example (chapter on well deliverability)",
-      "target": "computeIpr vogel/composite reproduces the printed qmax and rate at the example pwf",
-      "data": null
+      "id": "guo-4.5-average-tz",
+      "armed": true,
+      "type": "averageTz",
+      "source": "Guo, Lyons & Ghalambor, Petroleum Production Engineering (Elsevier 2007), Example 4.5 (AverageTZ.xls, Table 4.4)",
+      "verification": "book-text",
+      "inputs": {
+        "ptf": 800, "gasSg": 0.71, "mdFt": 10000, "whtF": 150, "bhtF": 200,
+        "qMscfd": 2000, "idIn": 2.259, "fMoody": 0.017396984
+      },
+      "expect": { "pwf": 1082 },
+      "relTol": 0.005,
+      "notes": "Book zbar 0.9027 (Brill-Beggs class) vs our Papay route 0.909; the 0.5% gate absorbs the z difference."
     },
     {
-      "id": "beggs-brill-original-example",
-      "armed": false,
-      "source": "Beggs, Production Optimization Using Nodal Analysis",
-      "section": "Beggs and Brill worked pressure-gradient example",
-      "target": "NA2 traverse single-segment gradient matches the printed dp/dz within 5 percent",
-      "data": null
+      "id": "guo-4.6-cullender-smith",
+      "armed": true,
+      "type": "cullenderSmith",
+      "source": "Guo, Lyons & Ghalambor, Petroleum Production Engineering (Elsevier 2007), Example 4.6 (Cullender-Smith.xls, Table 4.5)",
+      "verification": "book-text",
+      "inputs": {
+        "ptf": 800, "gasSg": 0.71, "mdFt": 10000, "whtF": 150, "bhtF": 200,
+        "qMmscfd": 2, "idIn": 2.259, "fMoody": 0.017396984
+      },
+      "expect": { "pwf": 1082, "pmf": 937 },
+      "relTol": 0.005
     },
     {
-      "id": "brown-hagedorn-brown-traverse",
-      "armed": false,
-      "source": "Brown, The Technology of Artificial Lift Methods, Vol 1",
-      "section": "Hagedorn-Brown example traverse",
-      "target": "NA2 modified Hagedorn-Brown BHP matches the printed traverse within 5 percent",
-      "data": null
+      "id": "brill-mukherjee-2.2-cullender-smith",
+      "armed": true,
+      "type": "cullenderSmith",
+      "source": "Brill & Mukherjee, Multiphase Flow in Wells (SPE Monograph 17, 1999), Example 2.2 (classic Cullender-Smith 10,000 ft data set)",
+      "verification": "book-text",
+      "inputs": {
+        "ptf": 2000, "gasSg": 0.75, "mdFt": 10000, "whtF": 110, "bhtF": 245,
+        "qMmscfd": 4.915, "idIn": 2.441, "fMoody": 0.015
+      },
+      "expect": { "pwf": 2744, "pmf": 2379 },
+      "relTol": 0.02,
+      "notes": "High-Ppr column: the book's Standing-Katz z (~0.79 at wellhead) vs our Papay route (~0.77) accounts for ~1.5%; gated at 2% with the z-route caveat. Book Itf 189.41, ours 193.7."
     },
     {
-      "id": "guo-ghalambor-gas-well",
+      "id": "utp-thesis-cullender-smith",
+      "armed": true,
+      "type": "cullenderSmith",
+      "source": "Norhazilah Abdul Rahman, UTP thesis (utpedia 10676), manual Cullender-Smith calculation following Economides, Petroleum Production Systems",
+      "verification": "secondary",
+      "inputs": {
+        "ptf": 2175, "gasSg": 0.65, "mdFt": 6818, "whtF": 118, "bhtF": 216,
+        "qMmscfd": 6.3, "idIn": 2.441, "fMoody": 0.0195
+      },
+      "expect": { "pwf": 2658, "pmf": 2419 },
+      "relTol": 0.01,
+      "notes": "Thesis-quality source with OCR noise; every step arithmetically cross-checked during research. Simpson pwf printed as 2175 + 6*83.09/(0.169+4*0.172+0.175)."
+    },
+    {
+      "id": "lyons-6.2.5-beggs-brill-holdup",
+      "armed": true,
+      "type": "bbHoldupChain",
+      "source": "Lyons & Plisga (eds.), Standard Handbook of Petroleum & Natural Gas Engineering 2nd ed (2005), Example 6.2.5 pp. 6-85/6-86 (original Beggs & Brill, no Payne)",
+      "verification": "book-text",
+      "inputs": { "lambdaL": 0.345, "nfr": 7.26, "nlv": 4.5, "thetaDeg": 90 },
+      "expect": {
+        "pattern": "intermittent", "hl0": 0.462, "psi": 1.055,
+        "holdup": 0.4876, "y": 1.451, "ftpOverFn": 1.4447
+      },
+      "relTol": 0.007,
+      "notes": "Gates the pre-Payne holdup chain and the friction-ratio quartic against the book's printed intermediates (book rounds each step). The book's fn=0.0271 and its Ek are internally inconsistent (its own smooth-pipe formula gives 0.0162; Ek uses p in psia), so the full-gradient chain is deliberately NOT gated."
+    },
+    {
+      "id": "rnodal-fancher-brown-friction",
+      "armed": true,
+      "type": "fbFriction",
+      "source": "rNodal (f0nzie), interp.fanbr(drhov=10, GLR=3200) = 0.009646559, degree-4 log-log fit of the Brown TALM Fig. 2.41 digitization",
+      "verification": "secondary",
+      "inputs": { "drhov": 10, "glr": 3200 },
+      "expect": { "f": 0.009646559 },
+      "relTol": 0.025,
+      "notes": "Cross-implementation check, not a book gate: we interpolate the same digitized points piecewise log-log linearly; rNodal fits a degree-4 polynomial. ~1% divergence between the two treatments is expected."
+    },
+    {
+      "id": "takacs-2.24-mhb-gradient",
       "armed": false,
-      "source": "Guo and Ghalambor, Petroleum Production Engineering",
-      "section": "Gas well deliverability and tubing performance example",
-      "target": "darcyGasIpr and the NA2 Gray traverse reproduce the printed example",
-      "data": null
+      "type": "mhbGradient",
+      "source": "Takacs, Gas Lift Manual (PennWell 2005), Example 2.24 (via PressureDrop.jl / sksite05 regression tests)",
+      "verification": "secondary",
+      "inputs": {
+        "p": 346.6, "thetaDeg": 90, "dIn": 2.441, "rough": 0.0002,
+        "flows": {
+          "vsl": 0.79, "vsg": 1.93, "vm": 2.72, "lambdaL": 0.29044,
+          "rhoL": 49.9, "muL": 3, "sigmaL": 8, "rhoNs": 15.762, "muNs": 0.8856
+        },
+        "rhoG": 1.79, "muG": 0.02
+      },
+      "expect": { "dpdz": 0.16 },
+      "relTol": 0.03,
+      "notes": "NOT ARMED: the example sits at X1 = 7.12e-5 where the book's chart read (HL/psi = 0.44) diverges from both standard published fit families (Economides/Trina and Guo log-polynomial both give ~0.28). Our engine matches the industry-standard fits (0.117 psi/ft vs the book's 0.160). Arms only if the owner re-anchors the low-X1 chart region against the original Hagedorn & Brown figure."
     },
     {
       "id": "takacs-gas-lift-sweep",
       "armed": false,
+      "type": "gasLiftSweep",
       "source": "Takacs, Gas Lift Manual",
-      "section": "Gas lift performance curve example",
-      "target": "NA3 gasLiftSweep optimum matches the printed optimum injection rate",
-      "data": null
+      "verification": "pending",
+      "inputs": null,
+      "expect": null,
+      "notes": "NA3 target: gasLiftSweep optimum matches the printed optimum injection rate."
     }
   ]
 }

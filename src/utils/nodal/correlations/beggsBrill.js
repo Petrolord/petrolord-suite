@@ -89,11 +89,36 @@ const inclinationFactor = (pattern, lambdaL, nlv, nfr, thetaDeg) => {
 };
 
 /** Inclined liquid holdup for one non-transition pattern, Payne-corrected. */
-const inclinedHoldup = (pattern, lambdaL, nlv, nfr, thetaDeg) => {
+const inclinedHoldup = (pattern, lambdaL, nlv, nfr, thetaDeg, applyPayne = true) => {
   const hl0 = horizontalHoldup(pattern, lambdaL, nfr);
   const psi = inclinationFactor(pattern, lambdaL, nlv, nfr, thetaDeg);
-  const payne = thetaDeg > 0 ? 0.924 : thetaDeg < 0 ? 0.685 : 1;
+  const payne = !applyPayne ? 1 : thetaDeg > 0 ? 0.924 : thetaDeg < 0 ? 0.685 : 1;
   return clamp(hl0 * psi * payne, 1e-4, 1);
+};
+
+/**
+ * Diagnostic holdup chain for validation against published worked
+ * examples (which predate Payne): returns { pattern, hl0, psi, holdup }
+ * with the Payne multiplier optional.
+ */
+export const beggsBrillHoldupDetail = (lambdaL, nfr, nlv, thetaDeg, applyPayne = false) => {
+  const pattern = flowPattern(lambdaL, nfr);
+  if (pattern === 'transition') {
+    const { l2, l3 } = patternBoundaries(lambdaL);
+    const a = (l3 - nfr) / (l3 - l2);
+    const holdup =
+      a * inclinedHoldup('segregated', lambdaL, nlv, nfr, thetaDeg, applyPayne) +
+      (1 - a) * inclinedHoldup('intermittent', lambdaL, nlv, nfr, thetaDeg, applyPayne);
+    return { pattern, holdup };
+  }
+  const hl0 = horizontalHoldup(pattern, lambdaL, nfr);
+  const psi = inclinationFactor(pattern, lambdaL, nlv, nfr, thetaDeg);
+  return {
+    pattern,
+    hl0,
+    psi,
+    holdup: inclinedHoldup(pattern, lambdaL, nlv, nfr, thetaDeg, applyPayne),
+  };
 };
 
 /** Friction-ratio exponent s(y), y = lambdaL / HL^2 (Beggs & Brill eq). */

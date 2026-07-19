@@ -40,8 +40,10 @@ import { buildFluidModel, pvtAt } from '../../../src/utils/nodal/pvt.js';
 import { computeIpr, rateAtPwf } from '../../../src/utils/nodal/ipr.js';
 import { buildTrajectory, tvdAtMd } from '../../../src/utils/nodal/trajectory.js';
 import { darcyGasIpr, backPressureIpr, litIpr } from '../../../src/utils/nodal/iprGas.js';
-import { noSlipGradient } from '../../../src/utils/nodal/correlations/noSlip.js';
-import { beggsBrillGradient } from '../../../src/utils/nodal/correlations/beggsBrill.js';
+import { gradientFor } from '../../../src/utils/nodal/correlations/index.js';
+import { beggsBrillHoldupDetail, frictionRatioExponent } from '../../../src/utils/nodal/correlations/beggsBrill.js';
+import { fancherBrownFriction } from '../../../src/utils/nodal/correlations/fancherBrown.js';
+import { averageTzBhp } from '../../../src/utils/nodal/cullenderSmith.js';
 import { linearGeothermal } from '../../../src/utils/nodal/temperature.js';
 import { bhpFromWhp } from '../../../src/utils/nodal/traverse.js';
 import { cullenderSmithBhp } from '../../../src/utils/nodal/cullenderSmith.js';
@@ -189,14 +191,14 @@ banner('CASE 7: gas deliverability vs oracle Simpson route + closed forms');
 banner('CASE 9: NA2 gradient correlations vs oracle transcription');
 {
   for (const c of goldens.gradients) {
-    const fn = c.correlation === 'noSlip' ? noSlipGradient : beggsBrillGradient;
-    const js = fn({
+    const js = gradientFor(c.correlation)({
       p: c.p,
       thetaDeg: c.thetaDeg,
       dIn: c.dIn,
       rough: c.rough,
       flows: c.flows,
       pvt: { rhoG: 5.0, muG: 0.015 },
+      glr: c.glr,
     });
     const label = `${c.correlation} vsl=${c.flows.vsl} vsg=${c.flows.vsg} th=${c.thetaDeg}`;
     // Holdup algebra is closed form (equality); dpdz carries the Colebrook
@@ -264,7 +266,48 @@ banner('CASE 8: published literature fixtures');
     console.log('  SKIP  no armed literature fixtures yet; gates arm when book-verified data is committed');
   }
   for (const f of armed) {
-    console.log(`  (armed fixture "${f.id}" has no runner yet - NA2+ wires it)`);
+    const tol = f.relTol;
+    if (f.type === 'cullenderSmith') {
+      const res = cullenderSmithBhp(f.inputs);
+      check(`${f.id} pwf`, res.pwf, f.expect.pwf, tol, 'psia');
+      if (f.expect.pmf) check(`${f.id} pmf`, res.pmf, f.expect.pmf, tol, 'psia');
+    } else if (f.type === 'averageTz') {
+      const res = averageTzBhp(f.inputs);
+      check(`${f.id} pwf`, res.pwf, f.expect.pwf, tol, 'psia');
+    } else if (f.type === 'bbHoldupChain') {
+      const { lambdaL, nfr, nlv, thetaDeg } = f.inputs;
+      const d = beggsBrillHoldupDetail(lambdaL, nfr, nlv, thetaDeg, false);
+      if (d.pattern !== f.expect.pattern) {
+        console.log(`  FAIL  ${f.id} pattern: ${d.pattern} vs ${f.expect.pattern}`);
+        failed += 1;
+      } else {
+        passed += 1;
+      }
+      check(`${f.id} HL(0)`, d.hl0, f.expect.hl0, tol);
+      check(`${f.id} psi`, d.psi, f.expect.psi, tol);
+      check(`${f.id} HL(theta)`, d.holdup, f.expect.holdup, tol);
+      const y = lambdaL / (d.holdup * d.holdup);
+      check(`${f.id} y`, y, f.expect.y, tol);
+      check(`${f.id} ftp/fn`, Math.exp(frictionRatioExponent(y)), f.expect.ftpOverFn, tol);
+    } else if (f.type === 'fbFriction') {
+      check(`${f.id} f`, fancherBrownFriction(f.inputs.drhov, f.inputs.glr), f.expect.f, tol);
+    } else if (f.type === 'mhbGradient') {
+      const js = gradientFor('hagedornBrown')({
+        p: f.inputs.p,
+        thetaDeg: f.inputs.thetaDeg,
+        dIn: f.inputs.dIn,
+        rough: f.inputs.rough,
+        flows: f.inputs.flows,
+        pvt: { rhoG: f.inputs.rhoG, muG: f.inputs.muG },
+      });
+      check(`${f.id} dpdz`, js.dpdz, f.expect.dpdz, tol, 'psi/ft');
+    } else {
+      console.log(`  FAIL  armed fixture "${f.id}" has unknown type "${f.type}"`);
+      failed += 1;
+    }
+  }
+  for (const f of (literature.fixtures || []).filter((x) => !x.armed)) {
+    console.log(`  SKIP  ${f.id} (unarmed: ${f.verification})`);
   }
 }
 

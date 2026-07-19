@@ -15,7 +15,7 @@
  */
 
 import { pvtAt } from './pvt.js';
-import { inSituRates, pipeArea } from './flows.js';
+import { inSituRates, inSituRatesGas, pipeArea } from './flows.js';
 import { tvdAtMd, angleAtMd } from './trajectory.js';
 import { gradientFor } from './correlations/index.js';
 import { clamp } from './numerics.js';
@@ -41,17 +41,28 @@ export const gradientAt = ({
   const tvd = tvdAtMd(trajectory, md);
   const tF = tAt(tvd);
   const pvt = pvtAt(fluidModel, p, tF);
-  const flows = inSituRates({
-    qo: rates.qo,
-    wct: rates.wct ?? 0,
-    gor: rates.gor,
-    pvt,
-    areaFt2: pipeArea(idIn),
-  });
+  const areaFt2 = pipeArea(idIn);
+  // Gas-well streams (Gray-class) are gas-centric: qg Mscf/d plus
+  // water-gas and condensate-gas ratios. Oil-well streams use qo/wct/gor.
+  const gasStream = Number.isFinite(rates.qgMscfd);
+  const flows = gasStream
+    ? inSituRatesGas({
+        qgMscfd: rates.qgMscfd,
+        wgr: rates.wgr ?? 0,
+        cgr: rates.cgr ?? 0,
+        pvt,
+        areaFt2,
+      })
+    : inSituRates({ qo: rates.qo, wct: rates.wct ?? 0, gor: rates.gor, pvt, areaFt2 });
+  // Producing gas-liquid ratio (scf per stb of total surface liquid) for
+  // the Fancher-Brown friction bands.
+  const glr = gasStream
+    ? (rates.qgMscfd * 1000) / Math.max(((rates.wgr ?? 0) + (rates.cgr ?? 0)) * (rates.qgMscfd / 1000), 1e-9)
+    : (rates.gor ?? 0) * (1 - (rates.wct ?? 0));
   // angleAtMd is from vertical; correlations use angle from horizontal,
   // positive for upflow in a producer.
   const thetaDeg = 90 - angleAtMd(trajectory, md);
-  const grad = gradientFor(correlation)({ p, thetaDeg, dIn: idIn, rough, flows, pvt });
+  const grad = gradientFor(correlation)({ p, thetaDeg, dIn: idIn, rough, flows, pvt, glr });
   return { ...grad, tvd, tF, pvt, flows, thetaDeg };
 };
 

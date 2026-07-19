@@ -9,10 +9,16 @@
 
 import { noSlipGradient } from './noSlip.js';
 import { beggsBrillGradient } from './beggsBrill.js';
+import { hagedornBrownGradient } from './hagedornBrown.js';
+import { grayGradient } from './gray.js';
+import { fancherBrownGradient } from './fancherBrown.js';
 
 export const CORRELATIONS = {
-  noSlip: { label: 'Fancher-Brown (no slip)', gradient: noSlipGradient },
+  noSlip: { label: 'No slip (homogeneous, Moody friction)', gradient: noSlipGradient },
+  fancherBrown: { label: 'Fancher & Brown (QC lower bound)', gradient: fancherBrownGradient },
   beggsBrill: { label: 'Beggs & Brill (Payne)', gradient: beggsBrillGradient },
+  hagedornBrown: { label: 'Hagedorn & Brown (modified)', gradient: hagedornBrownGradient },
+  gray: { label: 'Gray (wet gas)', gradient: grayGradient },
 };
 
 export const gradientFor = (id) => {

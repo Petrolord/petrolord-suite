@@ -14,8 +14,7 @@ import { buildFluidModel, pvtAt } from '../pvt.js';
 import { computeIpr, rateAtPwf } from '../ipr.js';
 import { buildTrajectory, tvdAtMd } from '../trajectory.js';
 import { darcyGasIpr } from '../iprGas.js';
-import { noSlipGradient } from '../correlations/noSlip.js';
-import { beggsBrillGradient } from '../correlations/beggsBrill.js';
+import { gradientFor } from '../correlations/index.js';
 import { linearGeothermal } from '../temperature.js';
 import { bhpFromWhp } from '../traverse.js';
 import { cullenderSmithBhp } from '../cullenderSmith.js';
@@ -120,14 +119,14 @@ describe('minimum-curvature trajectory vs oracle goldens', () => {
 describe('NA2 gradient correlations vs oracle transcription', () => {
   test('holdup exact, dpdz within the Colebrook route difference, pattern equal', () => {
     for (const c of goldens.gradients) {
-      const fn = c.correlation === 'noSlip' ? noSlipGradient : beggsBrillGradient;
-      const js = fn({
+      const js = gradientFor(c.correlation)({
         p: c.p,
         thetaDeg: c.thetaDeg,
         dIn: c.dIn,
         rough: c.rough,
         flows: c.flows,
         pvt: { rhoG: 5.0, muG: 0.015 },
+        glr: c.glr,
       });
       expect(relErr(js.holdup, c.out.holdup)).toBeLessThan(1e-9);
       expect(relErr(js.dpdz, c.out.dpdz)).toBeLessThan(2e-3);

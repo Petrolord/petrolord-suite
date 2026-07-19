@@ -113,17 +113,25 @@ def gradient_cases():
         })
 
     cases = []
-    for flows in bundles:
+    glrs = [800.0, 2000.0, 4000.0]
+    for bi, flows in enumerate(bundles):
+        glr = glrs[bi % 3]
         for theta in [90.0, 60.0, 0.0, -45.0]:
-            for corr in ["noSlip", "beggsBrill"]:
+            for corr in ["noSlip", "beggsBrill", "hagedornBrown", "gray", "fancherBrown"]:
                 if corr == "noSlip":
                     g = oracle.no_slip_gradient(2000.0, theta, 2.441, 0.00024, flows)
-                else:
+                elif corr == "beggsBrill":
                     g = oracle.bb_gradient(2000.0, theta, 2.441, 0.00024, flows, 5.0, 0.015)
+                elif corr == "hagedornBrown":
+                    g = oracle.hb_gradient(2000.0, theta, 2.441, 0.00024, flows, 5.0, 0.015)
+                elif corr == "gray":
+                    g = oracle.gray_gradient(theta, 2.441, 0.00024, flows, 5.0, 0.015)
+                else:
+                    g = oracle.fb_gradient(theta, 2.441, flows, glr)
                 cases.append({
                     "flows": flows, "thetaDeg": theta, "p": 2000.0,
                     "dIn": 2.441, "rough": 0.00024, "correlation": corr,
-                    "out": g,
+                    "glr": glr, "out": g,
                 })
     return cases
 
@@ -163,6 +171,26 @@ def traverse_cases():
          "whp": 300.0, "nodeMd": 8900.0, "whtF": 95.0, "bhtF": 175.0,
          "tvdMax": dev_tvd_max, "idIn": 2.992, "roughnessIn": 0.0006,
          "correlation": "beggsBrill", "survey": deviated},
+        {"label": "vertical mHB producer",
+         "rates": {"qo": 800.0, "wct": 0.2, "gor": 600.0},
+         "whp": 250.0, "nodeMd": 8000.0, "whtF": 100.0, "bhtF": 180.0,
+         "tvdMax": 8000.0, "idIn": 2.441, "roughnessIn": 0.0006,
+         "correlation": "hagedornBrown", "survey": None},
+        {"label": "vertical mHB low-rate large-tubing",
+         "rates": {"qo": 250.0, "wct": 0.1, "gor": 400.0},
+         "whp": 150.0, "nodeMd": 7000.0, "whtF": 95.0, "bhtF": 170.0,
+         "tvdMax": 7000.0, "idIn": 3.958, "roughnessIn": 0.0006,
+         "correlation": "hagedornBrown", "survey": None},
+        {"label": "vertical Gray wet-gas well",
+         "rates": {"qgMscfd": 5000.0, "wgr": 4.0, "cgr": 20.0},
+         "whp": 900.0, "nodeMd": 9000.0, "whtF": 90.0, "bhtF": 200.0,
+         "tvdMax": 9000.0, "idIn": 2.441, "roughnessIn": 0.0006,
+         "correlation": "gray", "survey": None},
+        {"label": "vertical Fancher-Brown screening",
+         "rates": {"qo": 350.0, "wct": 0.1, "gor": 900.0},
+         "whp": 200.0, "nodeMd": 6500.0, "whtF": 95.0, "bhtF": 165.0,
+         "tvdMax": 6500.0, "idIn": 2.441, "roughnessIn": 0.0006,
+         "correlation": "fancherBrown", "survey": None},
     ]
     for c in cases:
         c["bhp"] = oracle.traverse_rk4(
