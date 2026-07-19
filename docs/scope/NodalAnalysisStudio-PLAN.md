@@ -119,9 +119,18 @@ oracle golden within 2 percent on live staging. Legacy deletions:
 Modeler still consumes it (its fate plus the `nodal-analysis-engine`
 edge function is an NA5/owner decision).
 
-### NA5 — Hardening + ship
-Perf smoke case in the harness, full-suite jest + build + e2e, STATUS
-doc close-out, prod upload, deploy-gated tile migration.
+### NA5 — Hardening + ship (DONE)
+Perf smoke (harness CASE 15: interactive system solve ~50 ms, single
+traverse ~8 ms, screening workload ~0.2 s, all far inside generous
+budgets), full-suite jest + build + e2e, STATUS close-out. Tile:
+activate the existing `nodal-analysis-engine` "Coming Soon" slug in
+place as Nodal Analysis Studio (Production module, slug kept as the
+entitlement key, WTA precedent) via
+`20260719210000_activate_nodal_analysis_studio_tile.sql`, deploy-gated
+to the prod upload. Open owner items: the Integrated Asset Modeler
+(routed, Active tile, consumes `components/nodalanalysis/` and invokes
+the `nodal-analysis-engine` edge function) and the Takacs/Sachdeva
+unarmed fixtures.
 
 ## 4. Validation tiers
 
