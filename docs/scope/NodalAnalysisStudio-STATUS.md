@@ -78,6 +78,22 @@ Plan of record: `NodalAnalysisStudio-PLAN.md`.
   retained for the routed Integrated Asset Modeler (NA5/owner call,
   along with the `nodal-analysis-engine` edge function it invokes).
 
-Next: NA5 hardening, perf smoke, prod upload + deploy-gated tile
-migration (seed `nodal-analysis-studio` or reuse a legacy nodal slug per
-owner call).
+## 2026-07-19 — NA5 complete (branch `feat/nodal-na5-ship`) — PROGRAM CLOSED
+
+- Perf smoke armed (harness CASE 15): single traverse 8 ms, operating
+  point solve 49 ms, gas-lift screening 168 ms, C-S 0.2 ms, 1000 choke
+  evaluations 4 ms. **Harness total: 1027 gates green.**
+- Tile: `20260719210000_activate_nodal_analysis_studio_tile.sql`
+  activates the legacy `nodal-analysis-engine` "Coming Soon" slug in
+  place (slug kept as entitlement key, Production module). DEPLOY-GATED:
+  apply with the prod upload, never before.
+- Full jest, production build and the staging e2e re-verified on the
+  final stack.
+
+### Open items for the owner
+- Integrated Asset Modeler: routed and Active, consumes
+  `components/nodalanalysis/` and invokes the `nodal-analysis-engine`
+  edge function. Decide replace/retire in a follow-on.
+- Unarmed fixtures: Takacs mHB low-X1 chart anchor (needs the original
+  Hagedorn & Brown figure) and Guo Table 5.4 Sachdeva subcritical choke
+  (needs SPE 15657 primary text).

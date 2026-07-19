@@ -481,5 +481,59 @@ banner('CASE 8: published literature fixtures');
 }
 
 // ---------------------------------------------------------------------------
+banner('CASE 15: performance smoke (generous budgets, observed times printed)');
+{
+  const model = buildFluidModel({
+    api: goldens.model.api,
+    gasSg: goldens.model.gasSg,
+    gor: goldens.model.gor,
+    salinityPpm: goldens.model.salinityPpm,
+  });
+  const trajectory = buildTrajectory({ mode: 'vertical', depthFt: 8000 });
+  const tAt = linearGeothermal({ whtF: 100, bhtF: 180, tvdMaxFt: 8000 });
+  const vlp = {
+    fluidModel: model,
+    rates: { wct: 0.2, gor: 600 },
+    trajectory,
+    tAt,
+    idIn: 2.441,
+    roughnessIn: 0.0006,
+    correlation: 'beggsBrill',
+    whp: 250,
+    nodeMd: 8000,
+    stepFt: 50,
+  };
+  const ipr = computeIpr({ model: 'composite', pr: 3200, pb: 2400, pi: 1.2 });
+
+  const timed = (label, budgetMs, fn) => {
+    const t0 = process.hrtime.bigint();
+    fn();
+    const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+    const ok = ms <= budgetMs;
+    console.log(`  ${ok ? 'PASS' : 'FAIL'}  time ${label}: ${ms.toFixed(1)} ms (budget ${budgetMs} ms)`);
+    if (ok) passed += 1; else failed += 1;
+  };
+
+  timed('single traverse, 50 ft steps over 8000 ft', 500, () => {
+    bhpFromWhp({ ...vlp, rates: { ...vlp.rates, qo: 800 } });
+  });
+  timed('operating point solve (UI workload: nGrid 25, 200 ft steps)', 3000, () => {
+    solveOperatingPoint({ ipr, vlp: { ...vlp, stepFt: 200 }, nGrid: 25 });
+  });
+  timed('gas-lift screening, 5 injection points (explicit-run workload)', 20000, () => {
+    gasLiftScreening({ ipr, vlp: { ...vlp, stepFt: 200 }, qgis: [0, 400, 800, 1200, 1600], nGrid: 25 });
+  });
+  timed('Cullender-Smith flowing BHP', 200, () => {
+    cullenderSmithBhp({ ptf: 2000, gasSg: 0.75, mdFt: 10000, whtF: 110, bhtF: 245, qMmscfd: 4.915, idIn: 2.441 });
+  });
+  timed('1000 choke evaluations (keystroke closed forms)', 200, () => {
+    for (let i = 0; i < 1000; i += 1) {
+      chokeWhp({ q: 400 + i, glr: 800, s64: 12 });
+      gasChokeRate({ pUp: 800, pDn: 200, dIn: 1, gasSg: 0.6, tUpF: 75, k: 1.3, cd: 0.62 });
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
 console.log(`\n${failed === 0 ? 'ALL GATES PASS' : 'GATES FAILED'}: ${passed} passed, ${failed} failed`);
 process.exit(failed === 0 ? 0 : 1);
