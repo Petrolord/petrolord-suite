@@ -12,6 +12,7 @@ import BlendingResultsCard from '@/components/fluidstudio/BlendingResultsCard';
 import FlowAssuranceCard from '@/components/fluidstudio/FlowAssuranceCard';
 import BatchSweepCard from '@/components/fluidstudio/BatchSweepCard';
 import CompositionalResultsCard from '@/components/fluidstudio/CompositionalResultsCard';
+import CompositionalSeparatorCard from '@/components/fluidstudio/CompositionalSeparatorCard';
 import PhaseEnvelopeCard from '@/components/fluidstudio/PhaseEnvelopeCard';
 
 const KPICard = ({ title, value, unit, icon: Icon }) => (
@@ -124,6 +125,7 @@ const FluidStudioResults = ({ results, eos, composition }) => {
         {eos && (
           <TabsContent value="compositional" className="mt-4 space-y-4">
             <CompositionalResultsCard eos={eos} />
+            <CompositionalSeparatorCard separator={eos.separator} />
             <PhaseEnvelopeCard composition={composition} />
           </TabsContent>
         )}

@@ -32,5 +32,23 @@
       ]
     },
     "fluids": []
+  },
+  "separatorTests": {
+    "_readme": "FS6 scaffold for published multistage separator-test data with a reported wellstream composition - e.g. the Good Oil Co. Well No. 4 report reproduced in Ahmed (Reservoir Engineering Handbook / Equations of State and PVT Analysis) and McCain (Properties of Petroleum Fluids), or Whitson & Brule Monograph 20 separator examples. Arm by typing the printed composition (with C7+ MW/SG), separator stage T/P, reservoir or bubble-point conditions, and the measured separator/stock-tank GORs, Bo and stock-tank API. Expect correlation-level tolerances (untuned EOS vs lab data), not oracle-level. Unarmed while `fluids` is empty; CASE 19 of run-validation.mjs skips with a warning. Do NOT fill from memory - only from the printed pages.",
+    "_shape": {
+      "fluids": [
+        {
+          "citation": "Book, edition, table/page",
+          "keys": ["CO2", "C1", "..."],
+          "plus": { "mw": 0, "sg": 0 },
+          "z": [0],
+          "stagesF": [[75, 100]],
+          "resTP": [220, 2620],
+          "expected": { "totalGor": 0, "stoApi": 0, "boMultistage": 0 },
+          "tolerances": { "gor": 0.1, "api": 3, "bo": 0.08 }
+        }
+      ]
+    },
+    "fluids": []
   }
 }

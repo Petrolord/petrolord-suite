@@ -100,6 +100,26 @@ CHAR_FLUIDS = [
 
 ENVELOPE_TF_FULL11 = [40.0, 120.0, 200.0, 280.0]
 
+# ---------------------------------------------------------------------------
+# FS6: separator trains. Stages as (T_F, P_psia) high->low; the oracle
+# appends the stock tank. char-oil reservoir (200 F, 3500 psia) sits above
+# its 2897.8 psia bubble point so the Bo block engages; the condensate at
+# (150 F, 2000) is inside the two-phase region and pins the Bo-null path;
+# lean-gas pins the no-stock-tank-liquid path.
+
+SEPARATOR_JOBS = [
+    {"fluid": "char-oil", "train": "two-stage",
+     "stagesF": [(90.0, 500.0), (75.0, 100.0)], "resTP": (200.0, 3500.0)},
+    {"fluid": "char-oil", "train": "three-stage",
+     "stagesF": [(100.0, 1000.0), (80.0, 300.0), (70.0, 50.0)], "resTP": (200.0, 3500.0)},
+    {"fluid": "char-condensate", "train": "one-stage",
+     "stagesF": [(80.0, 800.0)], "resTP": (150.0, 5000.0)},
+    {"fluid": "char-condensate", "train": "two-phase-res",
+     "stagesF": [(80.0, 800.0)], "resTP": (150.0, 2000.0)},
+    {"fluid": "lean-gas", "train": "one-stage",
+     "stagesF": [(90.0, 500.0)], "resTP": None},
+]
+
 
 def char_mixture(fluid):
     """comps + full BIP matrix with the pseudo appended last, mirroring the
@@ -256,6 +276,34 @@ def main() -> None:
             for r in rows:
                 print(f"transport {name:16s} {r['tF']:6.1f} F {r['pPsia']:8.1f} psia  "
                       f"muL={r['muL']:.6f} muV={r['muV']:.6f} ift={r['iftDynPerCm']:.4f}")
+
+    # ---- FS6: separator trains ------------------------------------------
+    out["separator"] = []
+    fluids = {}
+    for m2 in MIXTURES:
+        fluids[m2["name"]] = ([oracle.COMPONENTS[k] for k in m2["keys"]],
+                              bip_matrix(m2["keys"]), m2["x"], m2["keys"], None)
+    for fl in CHAR_FLUIDS:
+        comps, bip = char_mixture(fl)
+        fluids[fl["name"]] = (comps, bip, fl["x"], fl["keys"], fl["plus"])
+    for job in SEPARATOR_JOBS:
+        comps, bip, x, keys, plus = fluids[job["fluid"]]
+        stages = [(t_f + 459.67, p) for t_f, p in job["stagesF"]]
+        res_tp = None
+        if job["resTP"]:
+            res_tp = (job["resTP"][0] + 459.67, job["resTP"][1])
+        res = oracle.separator_train(comps, bip, x, stages, res_tp)
+        entry = {"fluid": job["fluid"], "train": job["train"], "keys": keys,
+                 "x": x, "stagesF": job["stagesF"], "resTP": job["resTP"], **res}
+        if plus:
+            entry["plus"] = plus
+        out["separator"].append(entry)
+        tot = res["totals"]
+        print(f"separator {job['fluid']:16s} {job['train']:12s}  "
+              + (f"GOR={tot['totalGor']:.2f} scf/STB API={res['stockTank']['api']:.2f}"
+                 if tot else "no stock-tank liquid")
+              + (f"  Bo={res['bo']['multistage']:.4f}" if res["bo"] and res["bo"].get("multistage")
+                 else ""))
 
     for key in ORDER:
         comp = oracle.COMPONENTS[key]

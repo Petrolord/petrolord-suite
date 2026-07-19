@@ -5,8 +5,11 @@
  * seam: mol% parsing/normalization, error surfacing, agreement between
  * runEosFlash and a direct engine call, and the envelope worker request.
  */
-import { parseComposition, runEosFlash, emptyComposition, envelopeRequest, buildMixture } from '../eosAnalysis';
+import {
+  parseComposition, runEosFlash, runEosSeparator, emptyComposition, envelopeRequest, buildMixture,
+} from '../eosAnalysis';
 import { flashPT } from '../eos/flash';
+import { separatorTrain } from '../eos/separator';
 import { degFtoR } from '../eos/units';
 import goldens from '../eos/__tests__/goldens.json';
 
@@ -97,6 +100,62 @@ describe('runEosFlash', () => {
     expect(out.characterization.mw).toBe(190);
     expect(out.characterization.bipC1).toBeGreaterThan(0.02);
     expect(out.characterization.meta.tbSource).toBe('soreide');
+  });
+});
+
+describe('runEosSeparator', () => {
+  const sampleStages = [
+    { pressure: 450, temperature: 120, enabled: true },
+    { pressure: 200, temperature: 100, enabled: true },
+    { pressure: 14.7, temperature: 60, enabled: false },
+  ];
+
+  test('flashes the enabled stages plus the appended stock tank', () => {
+    const out = runEosSeparator(charOilComposition(), sampleStages);
+    expect(out.separator.stages.map((s) => s.name)).toEqual(['Sep 1', 'Sep 2', 'Stock Tank']);
+    expect(out.separator.totals.totalGor).toBeGreaterThan(0);
+    expect(out.separator.stockTank.api).toBeGreaterThan(20);
+    // partition telescopes after display rounding
+    expect(out.separator.totals.separatorGor + out.separator.totals.stockTankGor)
+      .toBeCloseTo(out.separator.totals.totalGor, 0);
+  });
+
+  test('matches a direct engine train on the same inputs', () => {
+    const comp = charOilComposition();
+    const out = runEosSeparator(comp, sampleStages);
+    const direct = separatorTrain(
+      buildMixture(out.parsed), out.parsed.z,
+      [{ tR: degFtoR(120), pPsia: 450 }, { tR: degFtoR(100), pPsia: 200 }],
+      { resTR: degFtoR(comp.temp), resPPsia: comp.pressure },
+    );
+    expect(out.separator.totals.totalGor).toBeCloseTo(direct.totals.totalGor, 1);
+    expect(out.separator.stockTank.density).toBeCloseTo(direct.stockTank.density, 2);
+  });
+
+  test('withholds Bo below the bubble point and reports it above', () => {
+    const below = runEosSeparator(charOilComposition(), sampleStages); // 1000 psia < Pb
+    expect(below.separator.bo.reservoirPhases).toBe(2);
+    expect(below.separator.bo.multistage).toBeNull();
+    expect(below.separator.warnings.join(' ')).toMatch(/two-phase at reservoir/);
+
+    const comp = charOilComposition();
+    comp.pressure = 3500; // above the ~2898 psia bubble point at 200 F
+    const above = runEosSeparator(comp, sampleStages);
+    expect(above.separator.bo.reservoirPhases).toBe(1);
+    expect(above.separator.bo.multistage).toBeGreaterThan(1);
+    expect(above.separator.bo.multistage).toBeLessThan(above.separator.bo.singleStage);
+  });
+
+  test('disabled stages are ignored; empty train is a single stock-tank flash', () => {
+    const out = runEosSeparator(charOilComposition(), sampleStages.map((s) => ({ ...s, enabled: false })));
+    expect(out.separator.stages).toHaveLength(1);
+    expect(out.separator.stages[0].name).toBe('Stock Tank');
+  });
+
+  test('invalid composition returns parse errors and no separator', () => {
+    const out = runEosSeparator(emptyComposition(), sampleStages);
+    expect(out.separator).toBeNull();
+    expect(out.parsed.errors.length).toBeGreaterThan(0);
   });
 });
 

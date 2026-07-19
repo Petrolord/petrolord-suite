@@ -1,6 +1,6 @@
 # Fluid Systems & Flow Behavior Studio — STATUS
 
-Last updated: 2026-07-19 (FS5)
+Last updated: 2026-07-19 (FS6)
 
 ## What this app is
 
@@ -39,7 +39,7 @@ tracing in a web worker. Validation-first per repo doctrine: Python oracle golde
 | FS3 | Stability test + SS/GDEM two-phase PT flash + negative-flash RR; Whitson/Ahmed worked-example gates, K-value gate, oracle flash grid | DONE 2026-07-19 (Whitson/Ahmed worked-example fixtures scaffolded UNARMED — CASE 12 gates once book-typed data is committed; owner to supply pages) |
 | FS4 | C7+ single-pseudo characterization (Kesler-Lee/Edmister/Chueh-Prausnitz BIP), Psat solve, PT envelope tracer, LBC viscosity + Weinaug-Katz IFT; Coats & Smart SPE 11197 gate | DONE 2026-07-19 (Coats & Smart CASE 17 scaffolded UNARMED pending owner paper pages; the planned "Whitson BIP" shipped as modified Chueh-Prausnitz — the SG-form could not be source-verified, C-P is what whitsonPVT itself uses for C1-C7+) |
 | FS5 | UI: fluid-model selector, composition tab, flash/envelope cards, worker, tier badges; black-oil default snapshot pin | DONE 2026-07-19 |
-| FS6 | Compositional separator train (closes the per-stage EOS seam and the multistage-Bo hand-wave in EOS mode); Good Oil / Whitson separator gates | pending |
+| FS6 | Compositional separator train (closes the per-stage EOS seam and the multistage-Bo hand-wave in EOS mode); Good Oil / Whitson separator gates | DONE 2026-07-19 (Good Oil / Whitson separator-test fixtures scaffolded UNARMED as CASE 19 pending owner book pages, same pattern as CASES 12/17) |
 | FS7 | CCE + DL simulation, EOS black-oil table export, MB prefill + Pipeline Sizer EOS branches | pending |
 | FS8 | Hardening (near-critical fallback, memoization, worker cancellation), perf smoke, tierMatrix + help guide finalize | pending |
 
@@ -122,6 +122,28 @@ function.
 - CASE 17 (Coats & Smart SPE 11197) scaffolded unarmed in
   `tools/validation/fluidstudio/literature-fixtures.json` — owner to
   supply the printed paper pages (compositions + measured Psat).
+- `src/utils/fluidstudio/eos/separator.js` (FS6) — compositional
+  separator train: sequential stability-gated flash of the wellstream
+  through the user stages (stock tank 14.696 psia / 60 °F always
+  appended), vapor drawn per stage, liquid fed forward on a 1 lb-mol
+  basis. Reports per-stage vapor split / gas gravity / GOR (ideal-gas
+  sc molar volume R·Tsc/Psc, GPSA air MW 28.9647, water 62.3664 lb/ft³
+  for API), stock-tank oil density/API/MW, GOR partition, and a
+  thermodynamic multistage Bo vs a single-flash Bo — reported only when
+  the feed is single-phase at reservoir conditions (two-phase state
+  withholds Bo with a warning; the wellstream Bo is undefined there).
+  Single-phase stage outcomes classified by the pr78 v/b < 1.75
+  heuristic. Oracle counterpart `oracle.separator_train` (plain-SS
+  flashes, bisection RR); goldens cover char-oil two- and three-stage
+  trains, the condensate one-stage train, the two-phase-reservoir
+  degradation and the lean-gas no-stock-tank-liquid edge. Harness
+  CASE 18 (engine vs oracle ~1e-13 + material-balance / GOR-telescoping
+  / explicit-stock-tank identities); harness now 153 gates, jest 271
+  EOS tests.
+- CASE 19 (Good Oil / Whitson separator tests) scaffolded unarmed in
+  `literature-fixtures.json` `separatorTests` — owner to supply printed
+  pages (wellstream composition + measured GORs/Bo/API); expect
+  correlation-level tolerances for the untuned EOS, not oracle-level.
 
 ## FS5 UI wiring (2026-07-19)
 
@@ -153,3 +175,20 @@ function.
   totals, backbone, warnings) at 1e-9; regenerate only for deliberate
   black-oil changes, in the same PR.
 - Help guide gained a Compositional section (full pass in FS8).
+
+## FS6 UI wiring (2026-07-19)
+
+- `eosAnalysis.runEosSeparator(composition, stages)` — reuses the SAME
+  Separator Train stage inputs as the black-oil card (pressure psia,
+  temperature °F, enabled flag); the Composition tab's flash conditions
+  double as the reservoir state for the Bo block. Returns display-ready
+  rounded rows/totals/Bo plus engine warnings.
+- `CompositionalSeparatorCard` renders in the Compositional results tab
+  under the flash card: stage table (P/T/vapor mol%/gas SG/GOR), surface
+  totals, stock-tank oil tiles, Bo tile with the single-flash comparison
+  line, oracle_gated badge. The black-oil Separator Train tab and its
+  staged-liberation card are untouched (snapshot pin stays green).
+- Known pre-existing lint gap (not FS6): `Compositional.render.test.jsx`
+  reports jest-global no-undef errors at HEAD too (.test.jsx files are
+  outside the eslint jest-globals override); all FS6 .js files lint
+  clean.
