@@ -29,5 +29,7 @@ export const psiaToBar = (p) => p / 14.503774;
 export const mpaToPsia = (pMPa) => pMPa * 145.03774;
 /** cm³/mol → ft³/lb-mol (for critical volumes in LBC). */
 export const cm3molToFt3lbmol = (v) => v * 0.016018463;
+/** lb-mol/ft³ → g-mol/cm³ (Weinaug-Katz molar densities); same factor. */
+export const LBMOL_FT3_TO_GMOL_CM3 = 0.016018463;
 /** lb/ft³ → g/cm³. */
 export const lbft3ToGcc = (rho) => rho / 62.427961;

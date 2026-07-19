@@ -443,6 +443,174 @@ def flash_plain(comps, bip, z, t_r, p_psia, tol=1e-22, max_iter=100000):
     }
 
 
+# ---------------------------------------------------------------------------
+# FS4: C7+ characterization, stability-boundary bisection, LBC viscosity,
+# Weinaug-Katz IFT. All correlation coefficients here are DELIBERATE second
+# transcriptions from the published sources (Soreide 1989; Kesler-Lee 1976;
+# Lee-Kesler omega; Edmister 1958; Jhaveri-Youngren SPE 13118; Lohrenz-
+# Bray-Clark 1964 via SPE 109892; Firoozabadi et al. 1988; Chueh-Prausnitz
+# 1967) so a typo on either side of the JS/Python fence fails the gates.
+
+def soreide_tb(mw: float, sg: float) -> float:
+    """Soreide (1989) normal boiling point, degR."""
+    return 1928.3 - 1.695e5 * mw ** -0.03522 * sg ** 3.266 * math.exp(
+        -4.922e-3 * mw - 4.7685 * sg + 3.462e-3 * mw * sg
+    )
+
+
+def kesler_lee_tc(tb: float, sg: float) -> float:
+    return 341.7 + 811.0 * sg + (0.4244 + 0.1174 * sg) * tb + (0.4669 - 3.2623 * sg) * 1e5 / tb
+
+
+def kesler_lee_pc(tb: float, sg: float) -> float:
+    ln_pc = (
+        8.3634 - 0.0566 / sg
+        - (0.24244 + 2.2898 / sg + 0.11857 / sg ** 2) * 1e-3 * tb
+        + (1.4685 + 3.648 / sg + 0.47227 / sg ** 2) * 1e-7 * tb ** 2
+        - (0.42019 + 1.6977 / sg ** 2) * 1e-10 * tb ** 3
+    )
+    return math.exp(ln_pc)
+
+
+def lee_kesler_omega(tb: float, tc: float, pc: float, sg: float) -> float:
+    tbr = tb / tc
+    if tbr > 0.8:
+        kw = tb ** (1.0 / 3.0) / sg
+        return (-7.904 + 0.1352 * kw - 0.007465 * kw ** 2 + 8.359 * tbr
+                + (1.408 - 0.01063 * kw) / tbr)
+    t6 = tbr ** 6
+    num = (-math.log(pc / 14.696) - 5.92714 + 6.09648 / tbr
+           + 1.28862 * math.log(tbr) - 0.169347 * t6)
+    den = 15.2518 - 15.6875 / tbr - 13.4721 * math.log(tbr) + 0.43577 * t6
+    return num / den
+
+
+def edmister_omega(tb: float, tc: float, pc: float) -> float:
+    return (3.0 / 7.0) * math.log10(pc / 14.696) / (tc / tb - 1.0) - 1.0
+
+
+_JY = {"paraffin": (2.258, 0.1823), "naphthene": (3.004, 0.2324), "aromatic": (2.516, 0.2008)}
+
+
+def jy_shift(mw: float, family: str = "paraffin") -> float:
+    a0, a1 = _JY[family]
+    return 1.0 - a0 / mw ** a1
+
+
+def lbc_vc7(mw: float, sg: float) -> float:
+    """LBC (1964) C7+ critical volume, ft3/lb-mol."""
+    return 21.573 + 0.015122 * mw - 27.656 * sg + 0.070615 * mw * sg
+
+
+def firoozabadi_parachor(mw: float) -> float:
+    return -11.4 + 3.23 * mw - 0.0022 * mw ** 2
+
+
+def chueh_prausnitz(vc_i: float, vc_j: float, a: float = 1.0, b: float = 1.0) -> float:
+    ci, cj = vc_i ** (1.0 / 3.0), vc_j ** (1.0 / 3.0)
+    return a * (1.0 - (2.0 * math.sqrt(ci * cj) / (ci + cj)) ** b)
+
+
+def characterize(mw: float, sg: float, tb: float | None = None) -> dict:
+    """Mirror of the engine's characterizePlusFraction (paraffin/Lee-Kesler)."""
+    tb = tb if tb is not None else soreide_tb(mw, sg)
+    tc = kesler_lee_tc(tb, sg)
+    pc = kesler_lee_pc(tb, sg)
+    vc = lbc_vc7(mw, sg)
+    return {
+        "mw": mw,
+        "tbR": tb,
+        "tcR": tc,
+        "pcPsia": pc,
+        "omega": lee_kesler_omega(tb, tc, pc, sg),
+        "omegaEdmister": edmister_omega(tb, tc, pc),
+        "vcFt3PerLbmol": vc,
+        "parachor": firoozabadi_parachor(mw),
+        "shift": jy_shift(mw),
+        "bipC1": chueh_prausnitz(COMPONENTS["C1"]["vcFt3PerLbmol"], vc),
+    }
+
+
+def stability_boundaries(comps, bip, z, t_r, p_min=14.696, p_max=12000.0,
+                         n_scan=40, tol=0.05):
+    """Phase-boundary pressures by log-grid scan + bisection on the plain-SS
+    stability flag; classification by a flash probed 1% inside (matches the
+    engine's scheme so both sides locate the same flips)."""
+    ln_lo, ln_hi = math.log(p_min), math.log(p_max)
+    grid = [math.exp(ln_lo + (ln_hi - ln_lo) * i / (n_scan - 1)) for i in range(n_scan)]
+
+    def unstable(p):
+        stable, _ = stability_plain(comps, bip, z, t_r, p)
+        return not stable
+
+    flags = [unstable(p) for p in grid]
+    out = []
+    for i in range(1, n_scan):
+        if flags[i] == flags[i - 1]:
+            continue
+        lo, hi, lo_u = grid[i - 1], grid[i], flags[i - 1]
+        while hi - lo > tol:
+            mid = 0.5 * (lo + hi)
+            if unstable(mid) == lo_u:
+                lo = mid
+            else:
+                hi = mid
+        pb = 0.5 * (lo + hi)
+        inset = max(5.0 * tol, 0.01 * pb)
+        p_probe = max(p_min, pb - inset) if lo_u else pb + inset
+        res = flash_plain(comps, bip, z, t_r, p_probe)
+        kind = "indeterminate"
+        if res["phases"] == 2:
+            kind = "bubble" if res["beta"] < 0.5 else "dew"
+        elif "negativeFlashBeta" in res:
+            kind = "bubble" if res["negativeFlashBeta"] <= 0.0 else "dew"
+        out.append({"pPsia": pb, "kind": kind, "twoPhaseSide": "below" if lo_u else "above"})
+    return out
+
+
+# ---- LBC viscosity + Weinaug-Katz IFT (field units per SPE 109892) --------
+
+LBC_A = (0.1023, 0.023364, 0.058533, -0.040758, 0.0093324)
+LBMOL_FT3_TO_GMOL_CM3 = 0.016018463
+
+
+def xi_visc(tc: float, pc: float, mw: float) -> float:
+    return 5.35 * (tc / (mw ** 3 * pc ** 4)) ** (1.0 / 6.0)
+
+
+def dilute_component_visc(comp: dict, t_r: float) -> float:
+    tr = t_r / comp["tcR"]
+    xi = xi_visc(comp["tcR"], comp["pcPsia"], comp["mw"])
+    if tr <= 1.5:
+        return 34e-5 * tr ** 0.94 / xi
+    return 17.78e-5 * (4.58 * tr - 1.67) ** 0.625 / xi
+
+
+def lbc_viscosity(comps: list[dict], x: list[float], t_r: float, molar_volume: float) -> float:
+    num = den = 0.0
+    for xi_, c in zip(x, comps):
+        w = xi_ * math.sqrt(c["mw"])
+        num += w * dilute_component_visc(c, t_r)
+        den += w
+    mu0 = num / den
+    tpc = sum(xi_ * c["tcR"] for xi_, c in zip(x, comps))
+    ppc = sum(xi_ * c["pcPsia"] for xi_, c in zip(x, comps))
+    vpc = sum(xi_ * c["vcFt3PerLbmol"] for xi_, c in zip(x, comps))
+    mw = sum(xi_ * c["mw"] for xi_, c in zip(x, comps))
+    rho_r = vpc / molar_volume
+    a0, a1, a2, a3, a4 = LBC_A
+    poly = a0 + rho_r * (a1 + rho_r * (a2 + rho_r * (a3 + rho_r * a4)))
+    return mu0 + (poly ** 4 - 1e-4) / xi_visc(tpc, ppc, mw)
+
+
+def weinaug_katz(comps, x, y, v_liq: float, v_vap: float) -> float:
+    rho_l = LBMOL_FT3_TO_GMOL_CM3 / v_liq
+    rho_v = LBMOL_FT3_TO_GMOL_CM3 / v_vap
+    s = sum(c["parachor"] * (xi_ * rho_l - yi_ * rho_v)
+            for c, xi_, yi_ in zip(comps, x, y))
+    return max(s, 0.0) ** 4
+
+
 def flash_verify(comps, bip, result, t_r, p_psia):
     """Seal a two-phase result with the quadrature ln(phi) route: return the
     worst relative fugacity mismatch max_i |x_i phiL_i - y_i phiV_i| / (x_i phiL_i)."""
