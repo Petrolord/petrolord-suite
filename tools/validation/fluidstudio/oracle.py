@@ -290,3 +290,169 @@ def pure_psat_maxwell(comp: dict, t_r: float) -> float | None:
     if (f_lo < 0.0) == (f_hi < 0.0):
         return None
     return _bisect(area_residual, p_lo, p_hi)
+
+
+# ---------------------------------------------------------------------------
+# FS3: stability + two-phase PT flash by plain successive substitution
+# (no GDEM, unlike the JS engine; Rachford-Rice by pure bisection, unlike
+# the engine's safeguarded Newton). Converged states are sealed with the
+# quadrature ln(phi) route via flash_verify().
+
+def ln_phi_closed(comps, bip, x, t_r, p_psia):
+    """(z, lnPhi) at the lowest-Gibbs root using the closed-form expression.
+
+    An independent transcription of Monograph 20 eq. 4.28 used only to
+    drive the oracle's flash iterations; final states are re-checked
+    against ln_phi_numeric by flash_verify().
+    """
+    n = len(comps)
+    aij, bi, a, b = mix_params(comps, bip, x, t_r)
+    s_i = [sum(x[j] * aij[i][j] for j in range(n)) for i in range(n)]
+    rt = R * t_r
+    big_a = a * p_psia / (rt * rt)
+    big_b = b * p_psia / rt
+
+    def ln_phi_at(z):
+        log_term = math.log((z + D1 * big_b) / (z + D2 * big_b))
+        coeff = big_a / (2.0 * SQRT2 * big_b)
+        out = []
+        for i in range(n):
+            br = bi[i] / b
+            out.append(
+                br * (z - 1.0) - math.log(z - big_b)
+                - coeff * (2.0 * s_i[i] / a - br) * log_term
+            )
+        return out
+
+    roots = [z for z in z_roots(big_a, big_b) if z > big_b]
+    if not roots:
+        roots = [z_roots(big_a, big_b)[-1]]
+    if len(roots) == 1:
+        z = roots[0]
+        return z, ln_phi_at(z)
+    cands = [roots[0], roots[-1]]
+    phis = [ln_phi_at(z) for z in cands]
+    gibbs = [sum(x[i] * lp[i] for i in range(n)) for lp in phis]
+    pick = 0 if gibbs[0] <= gibbs[1] else 1
+    return cands[pick], phis[pick]
+
+
+def wilson_k(comps, t_r, p_psia):
+    return [
+        c["pcPsia"] / p_psia * math.exp(5.373 * (1.0 + c["omega"]) * (1.0 - c["tcR"] / t_r))
+        for c in comps
+    ]
+
+
+def rr_bisect(z, K, iters=200):
+    """Rachford-Rice by pure bisection on the negative-flash window."""
+    k_max, k_min = max(K), min(K)
+    if not (k_max > 1.0 and k_min < 1.0):
+        return None
+
+    def g(beta):
+        return sum(zi * (ki - 1.0) / (1.0 + beta * (ki - 1.0)) for zi, ki in zip(z, K))
+
+    lo = 1.0 / (1.0 - k_max) + 1e-12
+    hi = 1.0 / (1.0 - k_min) - 1e-12
+    if not (g(lo) > 0.0 > g(hi)):
+        return None
+    for _ in range(iters):
+        mid = 0.5 * (lo + hi)
+        if g(mid) > 0.0:
+            lo = mid
+        else:
+            hi = mid
+    beta = 0.5 * (lo + hi)
+    x = [zi / (1.0 + beta * (ki - 1.0)) for zi, ki in zip(z, K)]
+    y = [ki * xi for ki, xi in zip(K, x)]
+    sx, sy = sum(x), sum(y)
+    return beta, [v / sx for v in x], [v / sy for v in y]
+
+
+def stability_plain(comps, bip, z, t_r, p_psia, tol=1e-13, max_iter=20000):
+    """Two-sided Michelsen stability, plain SS. Returns (stable, k_suggest)."""
+    _, ln_phi_z = ln_phi_closed(comps, bip, z, t_r, p_psia)
+    h = [math.log(zi) + lp for zi, lp in zip(z, ln_phi_z)]
+    kw = wilson_k(comps, t_r, p_psia)
+
+    def trial(y0):
+        ln_y = [math.log(v) for v in y0]
+        for _ in range(max_iter):
+            s = sum(math.exp(v) for v in ln_y)
+            y = [math.exp(v) / s for v in ln_y]
+            _, lp = ln_phi_closed(comps, bip, y, t_r, p_psia)
+            ln_new = [h[i] - lp[i] for i in range(len(z))]
+            r2 = sum((a - b) ** 2 for a, b in zip(ln_new, ln_y))
+            ln_y = ln_new
+            if r2 < tol:
+                break
+        s = sum(math.exp(v) for v in ln_y)
+        trivial = sum((ln_y[i] - math.log(z[i])) ** 2 for i in range(len(z))) < 1e-8
+        return s, trivial, [math.exp(v) / s for v in ln_y]
+
+    results = []
+    for y0 in ([zi * k for zi, k in zip(z, kw)], [zi / k for zi, k in zip(z, kw)]):
+        results.append(trial(y0))
+    unstable = [(s, y, idx) for idx, (s, triv, y) in enumerate(results)
+                if not triv and s > 1.0 + 1e-8]
+    if not unstable:
+        return True, None
+    s, y, idx = max(unstable)  # largest S = most negative tpd
+    if idx == 0:  # vapor-like trial
+        return False, [yi / zi for yi, zi in zip(y, z)]
+    return False, [zi / yi for zi, yi in zip(z, y)]
+
+
+def flash_plain(comps, bip, z, t_r, p_psia, tol=1e-22, max_iter=100000):
+    """Stability-gated two-phase PT flash by plain SS. Returns a dict."""
+    stable, k_sug = stability_plain(comps, bip, z, t_r, p_psia)
+    if stable:
+        return {"phases": 1}
+    ln_k = [math.log(k) for k in (k_sug or wilson_k(comps, t_r, p_psia))]
+    rr = None
+    converged = False
+    for _ in range(max_iter):
+        rr = rr_bisect(z, [math.exp(v) for v in ln_k])
+        if rr is None:
+            break
+        beta, x, y = rr
+        _, lp_l = ln_phi_closed(comps, bip, x, t_r, p_psia)
+        _, lp_v = ln_phi_closed(comps, bip, y, t_r, p_psia)
+        ln_new = [lp_l[i] - lp_v[i] for i in range(len(z))]
+        r2 = sum((a - b) ** 2 for a, b in zip(ln_new, ln_k))
+        ln_k = ln_new
+        if sum(v * v for v in ln_k) < 1e-10:
+            rr = None
+            break
+        if r2 < tol:
+            converged = True
+            break
+    if rr is None or not converged:
+        return {"phases": 1}
+    K = [math.exp(v) for v in ln_k]
+    beta, x, y = rr_bisect(z, K)
+    if not (0.0 < beta < 1.0):
+        return {"phases": 1, "negativeFlashBeta": beta}
+    st_l = phase_state(comps, bip, x, t_r, p_psia)
+    st_v = phase_state(comps, bip, y, t_r, p_psia)
+    return {
+        "phases": 2, "beta": beta, "K": K, "x": x, "y": y,
+        "zL": st_l["z"], "zV": st_v["z"],
+        "rhoL": st_l["density"], "rhoV": st_v["density"],
+    }
+
+
+def flash_verify(comps, bip, result, t_r, p_psia):
+    """Seal a two-phase result with the quadrature ln(phi) route: return the
+    worst relative fugacity mismatch max_i |x_i phiL_i - y_i phiV_i| / (x_i phiL_i)."""
+    lp_l = ln_phi_numeric(comps, bip, result["x"], t_r, p_psia,
+                          phase_state(comps, bip, result["x"], t_r, p_psia)["z"])
+    lp_v = ln_phi_numeric(comps, bip, result["y"], t_r, p_psia,
+                          phase_state(comps, bip, result["y"], t_r, p_psia)["z"])
+    worst = 0.0
+    for i in range(len(result["x"])):
+        f_l = result["x"][i] * math.exp(lp_l[i])
+        f_v = result["y"][i] * math.exp(lp_v[i])
+        worst = max(worst, abs(f_l - f_v) / f_l)
+    return worst

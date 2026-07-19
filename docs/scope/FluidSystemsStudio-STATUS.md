@@ -1,6 +1,6 @@
 # Fluid Systems & Flow Behavior Studio — STATUS
 
-Last updated: 2026-07-19 (FS2)
+Last updated: 2026-07-19 (FS3)
 
 ## What this app is
 
@@ -36,7 +36,7 @@ tracing in a web worker. Validation-first per repo doctrine: Python oracle golde
 |---|---|---|
 | FS1 | STATUS doc, stale-header fix, component library + BIP defaults, exact-table + structural gates | DONE 2026-07-19 |
 | FS2 | PR78 core (mixing rules, cubic, lowest-Gibbs root, fugacity, Peneloux), validation harness scaffold; NIST vapor-pressure + oracle gates | DONE 2026-07-19 |
-| FS3 | Stability test + SS/GDEM two-phase PT flash + negative-flash RR; Whitson/Ahmed worked-example gates, K-value gate, oracle flash grid | pending |
+| FS3 | Stability test + SS/GDEM two-phase PT flash + negative-flash RR; Whitson/Ahmed worked-example gates, K-value gate, oracle flash grid | DONE 2026-07-19 (Whitson/Ahmed worked-example fixtures scaffolded UNARMED — CASE 12 gates once book-typed data is committed; owner to supply pages) |
 | FS4 | C7+ single-pseudo characterization (Kesler-Lee/Edmister/Whitson BIP), Psat solve, PT envelope tracer, LBC viscosity + Weinaug-Katz IFT; Coats & Smart SPE 11197 gate | pending |
 | FS5 | UI: fluid-model selector, composition tab, flash/envelope cards, worker, tier badges; black-oil default snapshot pin | pending |
 | FS6 | Compositional separator train (closes the per-stage EOS seam and the multistage-Bo hand-wave in EOS mode); Good Oil / Whitson separator gates | pending |
@@ -82,3 +82,13 @@ function.
   Peneloux translation applied to volumes/densities only, pure-component
   Psat by fugacity-equality successive substitution. Jest gates in
   `__tests__/pr78.test.js` (105 tests) mirror the harness.
+- `src/utils/fluidstudio/eos/flash.js` (FS3) — Michelsen two-sided
+  stability + SS/GDEM two-phase PT flash + negative-flash Rachford-Rice
+  (safeguarded Newton). Oracle counterpart is deliberately different:
+  plain SS (no GDEM), bisection-only RR; agreement on the shared fixed
+  point ~1e-10, every two-phase golden sealed by quadrature fugacity
+  equality (~5e-12). K-value gates anchored to NIST-gated Psat: plain
+  Raoult for heavy components, Lewis-rule phiSat for volatile ones.
+  Harness CASES 8–12 + `__tests__/flash.test.js` (52 tests). CASE 12
+  (Whitson/Ahmed printed examples) scaffolded unarmed pending owner
+  book pages.

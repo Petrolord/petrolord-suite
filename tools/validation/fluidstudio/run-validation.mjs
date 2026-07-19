@@ -27,6 +27,21 @@
  * CASE 7  Analytic identity gates: ideal-gas limit, cubic residual at
  *           the chosen root, split invariance, Peneloux leaving
  *           equilibrium quantities untouched
+ * CASE 8  FS3 Rachford-Rice: binary closed form, root residual +
+ *           unit-sum + material balance, negative-flash root, null when
+ *           K does not straddle 1
+ * CASE 9  FS3 stability + flashPT vs the plain-SS oracle flash grid
+ *           (oracle: no GDEM, bisection-only RR, bisection cubic; every
+ *           two-phase golden sealed by quadrature fugacity equality at
+ *           generation time)
+ * CASE 10 FS3 convergence identities on live flash results: isofugacity,
+ *           material balance, K = y/x = phiL/phiV
+ * CASE 11 FS3 low-pressure K-value limits anchored to the NIST-gated
+ *           Psat: plain Raoult for the heavy component, Lewis-rule
+ *           phiSat correction for the volatile one
+ * CASE 12 Published literature flash fixtures (Whitson Monograph 20 /
+ *           Ahmed EOS & PVT Analysis) - armed only when book-verified
+ *           data is committed to literature-fixtures.json
  */
 
 import fs from 'fs';
@@ -36,6 +51,9 @@ import { fileURLToPath } from 'url';
 import {
   mixtureFromKeys, phaseProps, purePsat,
 } from '../../../src/utils/fluidstudio/eos/pr78.js';
+import {
+  solveRachfordRice, stabilityTest, flashPT,
+} from '../../../src/utils/fluidstudio/eos/flash.js';
 import { COMPONENTS } from '../../../src/utils/fluidstudio/eos/components.js';
 import { KtoR, degFtoR } from '../../../src/utils/fluidstudio/eos/units.js';
 
@@ -214,6 +232,128 @@ banner('CASE 7: analytic identity gates');
     return s + xi * c.shift * ((0.077796074 * 10.7316 * c.tcR) / c.pcPsia);
   }, 0);
   checkAbs('Peneloux correction equals sum x_i s_i b_i', shifted.molarVolumeEos - shifted.molarVolume, cExpected, 1e-12);
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 8: Rachford-Rice identities');
+{
+  const z2 = [0.35, 0.65];
+  const K2 = [23.9977, 0.5573];
+  const analytic = -(z2[0] * (K2[0] - 1) + z2[1] * (K2[1] - 1)) / ((K2[0] - 1) * (K2[1] - 1));
+  checkAbs('binary closed-form beta', solveRachfordRice(z2, K2).beta, analytic, 1e-12);
+
+  const rr = solveRachfordRice([0.1, 0.25, 0.4, 0.25], [8, 2.2, 0.7, 0.05]);
+  checkAbs('quaternary g(beta) residual', rr.residual, 0, 1e-12);
+  checkAbs('x sums to 1', rr.x.reduce((a, b) => a + b, 0), 1, 1e-12);
+  checkAbs('y sums to 1', rr.y.reduce((a, b) => a + b, 0), 1, 1e-12);
+
+  const neg = solveRachfordRice([0.1, 0.9], [1.05, 0.99]);
+  checkAbs('negative-flash root below 0 with zero residual', Math.min(neg.beta, 0), neg.beta, 0);
+  checkAbs('negative-flash residual', neg.residual, 0, 1e-12);
+  checkAbs('null when K one-sided', solveRachfordRice([0.5, 0.5], [2, 1.1]) === null ? 0 : 1, 0, 0);
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 9: stability + flashPT vs plain-SS oracle flash grid');
+{
+  let phaseMismatch = 0;
+  let stabilityMismatch = 0;
+  let twoPhase = 0;
+  const worstBeta = { name: '', err: 0, tol: 1e-9 };
+  const worstComp = { name: '', err: 0, tol: 1e-9 };
+  const worstK = { name: '', err: 0, tol: 1e-8 };
+  const worstRho = { name: '', err: 0, tol: 1e-8 };
+  for (const m of goldens.flash) {
+    const mix = mixtureFromKeys(m.keys);
+    for (const st of m.states) {
+      const label = `${m.name} ${st.tF}F/${st.pPsia}psia`;
+      const res = flashPT(mix, m.x, degFtoR(st.tF), st.pPsia);
+      if (res.phases !== st.phases) phaseMismatch += 1;
+      if (st.phases !== 2) continue;
+      twoPhase += 1;
+      if (stabilityTest(mix, m.x, degFtoR(st.tF), st.pPsia).stable) stabilityMismatch += 1;
+      const eb = Math.abs(res.beta - st.beta);
+      if (eb > worstBeta.err) Object.assign(worstBeta, { name: label, err: eb });
+      st.x.forEach((v, i) => {
+        const e = Math.max(Math.abs(res.x[i] - v), Math.abs(res.y[i] - st.y[i]));
+        if (e > worstComp.err) Object.assign(worstComp, { name: `${label} ${m.keys[i]}`, err: e });
+        const ek = Math.abs(res.K[i] - st.K[i]) / st.K[i];
+        if (ek > worstK.err) Object.assign(worstK, { name: `${label} ${m.keys[i]}`, err: ek });
+      });
+      const er = Math.max(
+        Math.abs(res.liquid.density - st.rhoL) / st.rhoL,
+        Math.abs(res.vapor.density - st.rhoV) / st.rhoV,
+      );
+      if (er > worstRho.err) Object.assign(worstRho, { name: label, err: er });
+    }
+  }
+  checkAbs('phase-count mismatches across grid', phaseMismatch, 0, 0);
+  checkAbs('stability disagreements on two-phase states', stabilityMismatch, 0, 0);
+  checkAbs('two-phase states exercised >= 8', Math.max(0, 8 - twoPhase), 0, 0);
+  worstReport('beta vs oracle (abs)', worstBeta);
+  worstReport('x/y vs oracle (abs)', worstComp);
+  worstReport('K vs oracle (rel)', worstK);
+  worstReport('phase densities vs oracle (rel)', worstRho);
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 10: flash convergence identities (live results)');
+{
+  const worstFug = { name: '', err: 0, tol: 1e-9 };
+  const worstMb = { name: '', err: 0, tol: 1e-12 };
+  for (const m of goldens.flash) {
+    const mix = mixtureFromKeys(m.keys);
+    for (const st of m.states.filter((s) => s.phases === 2)) {
+      const label = `${m.name} ${st.tF}F/${st.pPsia}psia`;
+      const res = flashPT(mix, m.x, degFtoR(st.tF), st.pPsia);
+      res.liquid.fugacityPsia.forEach((f, i) => {
+        const e = Math.abs(f - res.vapor.fugacityPsia[i]) / f;
+        if (e > worstFug.err) Object.assign(worstFug, { name: `${label} ${m.keys[i]}`, err: e });
+        const mb = Math.abs((1 - res.beta) * res.x[i] + res.beta * res.y[i] - m.x[i]);
+        if (mb > worstMb.err) Object.assign(worstMb, { name: `${label} ${m.keys[i]}`, err: mb });
+      });
+    }
+  }
+  worstReport('isofugacity f_L = f_V (rel)', worstFug);
+  worstReport('material balance (1-b)x + by = z (abs)', worstMb);
+  const seals = goldens.flash.flatMap((m) => m.states).map((s) => s.fugacitySeal).filter((v) => v !== undefined);
+  const worstSeal = Math.max(...seals);
+  checkAbs(`goldens quadrature fugacity seal (${seals.length} states, generation-time)`, worstSeal, 0, 1e-6);
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 11: low-pressure K limits anchored to NIST-gated Psat');
+{
+  const mix = mixtureFromKeys(['C3', 'nC5']);
+  const tR = degFtoR(100);
+  const p = 20;
+  const res = flashPT(mix, [0.1, 0.9], tR, p);
+  checkAbs('C3/nC5 100F/20psia is two-phase', res.phases, 2, 0);
+  check('Raoult limit, heavy: K_nC5 vs Psat/P', res.K[1], purePsat(COMPONENTS.nC5, tR) / p, 0.02);
+  const psatC3 = purePsat(COMPONENTS.C3, tR);
+  const satVap = phaseProps(mixtureFromKeys(['C3']), [1], tR, psatC3, { root: 'max' });
+  check('Lewis rule, light: K_C3 P/Psat vs phiSat', (res.K[0] * p) / psatC3, Math.exp(satVap.lnPhi[0]), 0.03);
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 12: published literature flash fixtures');
+{
+  const lit = JSON.parse(fs.readFileSync(path.join(here, 'literature-fixtures.json'), 'utf8'));
+  if (!lit.flashes.length) {
+    console.log('  SKIP  unarmed: commit book-verified data to literature-fixtures.json to gate');
+  }
+  for (const fx of lit.flashes) {
+    const mix = mixtureFromKeys(fx.keys);
+    const res = flashPT(mix, fx.z, degFtoR(fx.tF), fx.pPsia);
+    checkAbs(`${fx.citation}: two-phase`, res.phases, 2, 0);
+    if (res.phases !== 2) continue;
+    if (fx.expected.beta !== undefined) {
+      check(`${fx.citation}: beta`, res.beta, fx.expected.beta, fx.tolerances.beta);
+    }
+    (fx.expected.K || []).forEach((k, i) => {
+      check(`${fx.citation}: K ${fx.keys[i]}`, res.K[i], k, fx.tolerances.K);
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------

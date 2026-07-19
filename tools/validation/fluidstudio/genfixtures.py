@@ -79,6 +79,7 @@ def main() -> None:
         "bipKeys": ORDER,
         "bipMatrix": bip_matrix(ORDER),
         "mixtures": [],
+        "flash": [],
         "purePsat": [],
     }
 
@@ -102,6 +103,27 @@ def main() -> None:
             print(f"{m['name']:14s} {t_f:6.1f} F {p:8.1f} psia  "
                   f"roots={len(st['roots'])}  z={st['z']:.6f}")
         out["mixtures"].append({**m, "states": states})
+
+    for m in MIXTURES:
+        comps = [oracle.COMPONENTS[k] for k in m["keys"]]
+        bip = bip_matrix(m["keys"])
+        conds = [(t, p) for t in T_F for p in P_PSIA] + EXTRA.get(m["name"], [])
+        flashes = []
+        for t_f, p in conds:
+            t_r = t_f + 459.67
+            res = oracle.flash_plain(comps, bip, m["x"], t_r, p)
+            entry = {"tF": t_f, "pPsia": p, **res}
+            if res["phases"] == 2:
+                seal = oracle.flash_verify(comps, bip, res, t_r, p)
+                if seal > 1e-6:
+                    raise RuntimeError(
+                        f"quadrature fugacity seal failed: {m['name']} {t_f}F/{p}psia -> {seal}")
+                entry["fugacitySeal"] = seal
+            flashes.append(entry)
+            print(f"flash {m['name']:14s} {t_f:6.1f} F {p:8.1f} psia  "
+                  f"phases={res['phases']}"
+                  + (f"  beta={res['beta']:.6f}" if res["phases"] == 2 else ""))
+        out["flash"].append({"name": m["name"], "keys": m["keys"], "x": m["x"], "states": flashes})
 
     for key in ORDER:
         comp = oracle.COMPONENTS[key]
