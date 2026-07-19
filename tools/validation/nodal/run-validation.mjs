@@ -44,6 +44,8 @@ import { gradientFor } from '../../../src/utils/nodal/correlations/index.js';
 import { beggsBrillHoldupDetail, frictionRatioExponent } from '../../../src/utils/nodal/correlations/beggsBrill.js';
 import { fancherBrownFriction } from '../../../src/utils/nodal/correlations/fancherBrown.js';
 import { averageTzBhp } from '../../../src/utils/nodal/cullenderSmith.js';
+import { solveOperatingPoint, solveGasOperatingPoint } from '../../../src/utils/nodal/system.js';
+import { gasLiftScreening } from '../../../src/utils/nodal/gasLift.js';
 import { linearGeothermal } from '../../../src/utils/nodal/temperature.js';
 import { bhpFromWhp } from '../../../src/utils/nodal/traverse.js';
 import { cullenderSmithBhp } from '../../../src/utils/nodal/cullenderSmith.js';
@@ -255,6 +257,112 @@ banner('CASE 11: Cullender-Smith quadrature vs oracle RK4 ODE route');
     } else {
       passed += 1;
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 12: operating point vs oracle bisection + RK4 route');
+{
+  const model = buildFluidModel({
+    api: goldens.model.api,
+    gasSg: goldens.model.gasSg,
+    gor: goldens.model.gor,
+    salinityPpm: goldens.model.salinityPpm,
+  });
+  for (const c of goldens.operatingPoint.oil) {
+    const ipr = computeIpr({ model: 'composite', pr: c.ipr.pr, pb: c.ipr.pb, pi: c.ipr.pi });
+    const trajectory = buildTrajectory({ mode: 'vertical', depthFt: c.vlp.nodeMd });
+    const res = solveOperatingPoint({
+      ipr,
+      vlp: {
+        fluidModel: model,
+        rates: c.vlp.rates,
+        trajectory,
+        tAt: linearGeothermal({ whtF: c.vlp.whtF, bhtF: c.vlp.bhtF, tvdMaxFt: c.vlp.tvdMax }),
+        idIn: c.vlp.idIn,
+        roughnessIn: c.vlp.roughnessIn,
+        correlation: c.vlp.correlation,
+        whp: c.vlp.whp,
+        nodeMd: c.vlp.nodeMd,
+        stepFt: 50,
+      },
+    });
+    if (res.status !== 'flowing') {
+      console.log(`  FAIL  ${c.label}: status ${res.status}, expected flowing`);
+      failed += 1;
+    } else {
+      passed += 1;
+      check(`${c.label} q`, res.op.q, c.op.q, 1e-2, 'stb/d');
+      check(`${c.label} pwf`, res.op.pwf, c.op.pwf, 1e-2, 'psia');
+    }
+  }
+  {
+    const g = goldens.operatingPoint.gas;
+    const iprResult = backPressureIpr({ pr: g.ipr.pr, c: g.ipr.c, n: g.ipr.n, nPoints: 80 });
+    const res = solveGasOperatingPoint({ iprResult, vlp: g.cs, nGrid: 60 });
+    if (res.status !== 'flowing') {
+      console.log(`  FAIL  ${g.label}: status ${res.status}, expected flowing`);
+      failed += 1;
+    } else {
+      passed += 1;
+      check(`${g.label} q`, res.op.q, g.op.q, 2e-2, 'Mscf/d');
+      check(`${g.label} pwf`, res.op.pwf, g.op.pwf, 2e-2, 'psia');
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 14: gas-lift screening vs oracle route + concavity');
+{
+  const gl = goldens.gasLift;
+  const liftModel = buildFluidModel(gl.model);
+  const ipr = computeIpr({ model: 'composite', pr: gl.ipr.pr, pb: gl.ipr.pb, pi: gl.ipr.pi });
+  const trajectory = buildTrajectory({ mode: 'vertical', depthFt: gl.vlp.nodeMd });
+  const result = gasLiftScreening({
+    ipr,
+    vlp: {
+      fluidModel: liftModel,
+      rates: gl.vlp.rates,
+      trajectory,
+      tAt: linearGeothermal({ whtF: gl.vlp.whtF, bhtF: gl.vlp.bhtF, tvdMaxFt: gl.vlp.tvdMax }),
+      idIn: gl.vlp.idIn,
+      roughnessIn: gl.vlp.roughnessIn,
+      correlation: gl.vlp.correlation,
+      whp: gl.vlp.whp,
+      nodeMd: gl.vlp.nodeMd,
+      stepFt: 50,
+    },
+    qgis: gl.response.map((p) => p.qgi),
+  });
+  for (let i = 0; i < gl.response.length; i += 1) {
+    const oracleQ = gl.response[i].q;
+    const jsQ = result.response[i].q;
+    if (oracleQ === 0) {
+      if (jsQ !== 0) {
+        console.log(`  FAIL  gas-lift qgi ${gl.response[i].qgi}: JS flows (${jsQ}) where oracle is dead`);
+        failed += 1;
+      } else {
+        console.log(`  PASS  gas-lift qgi ${gl.response[i].qgi}: dead on both routes`);
+        passed += 1;
+      }
+    } else {
+      check(`gas-lift q at qgi ${gl.response[i].qgi}`, jsQ, oracleQ, 1.5e-2, 'stb/d');
+    }
+  }
+  // Concavity: incremental gains never grow along the lifted branch.
+  const lifted = result.response.filter((p) => p.qgi > 0);
+  let concave = true;
+  for (let i = 2; i < lifted.length; i += 1) {
+    const s1 = (lifted[i - 1].q - lifted[i - 2].q) / (lifted[i - 1].qgi - lifted[i - 2].qgi);
+    const s2 = (lifted[i].q - lifted[i - 1].q) / (lifted[i].qgi - lifted[i - 1].qgi);
+    if (s2 > s1 + 1e-6) concave = false;
+  }
+  if (concave) {
+    console.log('  PASS  gas-lift response concavity: incremental gains never increase');
+    passed += 1;
+  } else {
+    console.log('  FAIL  gas-lift response is not concave');
+    failed += 1;
   }
 }
 

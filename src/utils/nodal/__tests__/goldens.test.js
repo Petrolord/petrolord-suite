@@ -18,6 +18,8 @@ import { gradientFor } from '../correlations/index.js';
 import { linearGeothermal } from '../temperature.js';
 import { bhpFromWhp } from '../traverse.js';
 import { cullenderSmithBhp } from '../cullenderSmith.js';
+import { solveOperatingPoint, solveGasOperatingPoint } from '../system.js';
+import { backPressureIpr } from '../iprGas.js';
 
 const goldens = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'goldens.json'), 'utf8')
@@ -172,6 +174,41 @@ describe('NA2 Cullender-Smith vs oracle RK4 ODE route', () => {
       expect(res.converged).toBe(true);
       expect(relErr(res.pwf, c.pwf)).toBeLessThan(5e-3);
     }
+  });
+});
+
+describe('NA3 operating point vs oracle bisection + RK4 route', () => {
+  test('oil node solve (whp 250 case) matches within 1%', () => {
+    const model = buildFluidModel(goldens.model);
+    const c = goldens.operatingPoint.oil.find((x) => x.vlp.whp === 250);
+    const ipr = computeIpr({ model: 'composite', pr: c.ipr.pr, pb: c.ipr.pb, pi: c.ipr.pi });
+    const res = solveOperatingPoint({
+      ipr,
+      vlp: {
+        fluidModel: model,
+        rates: c.vlp.rates,
+        trajectory: buildTrajectory({ mode: 'vertical', depthFt: c.vlp.nodeMd }),
+        tAt: linearGeothermal({ whtF: c.vlp.whtF, bhtF: c.vlp.bhtF, tvdMaxFt: c.vlp.tvdMax }),
+        idIn: c.vlp.idIn,
+        roughnessIn: c.vlp.roughnessIn,
+        correlation: c.vlp.correlation,
+        whp: c.vlp.whp,
+        nodeMd: c.vlp.nodeMd,
+        stepFt: 100,
+      },
+    });
+    expect(res.status).toBe('flowing');
+    expect(relErr(res.op.q, c.op.q)).toBeLessThan(1e-2);
+    expect(relErr(res.op.pwf, c.op.pwf)).toBeLessThan(1e-2);
+  });
+
+  test('gas node solve matches within 2%', () => {
+    const g = goldens.operatingPoint.gas;
+    const iprResult = backPressureIpr({ pr: g.ipr.pr, c: g.ipr.c, n: g.ipr.n, nPoints: 80 });
+    const res = solveGasOperatingPoint({ iprResult, vlp: g.cs, nGrid: 60 });
+    expect(res.status).toBe('flowing');
+    expect(relErr(res.op.q, g.op.q)).toBeLessThan(2e-2);
+    expect(relErr(res.op.pwf, g.op.pwf)).toBeLessThan(2e-2);
   });
 });
 

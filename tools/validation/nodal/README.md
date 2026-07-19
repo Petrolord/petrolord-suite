@@ -54,9 +54,18 @@ record: `docs/scope/NodalAnalysisStudio-PLAN.md`).
 | 11 | Cullender-Smith two-step + Simpson vs oracle RK4 of the equivalent ODE, <= 0.5 % |
 | 8 | Armed literature anchors: Guo 4.5 (average T&Z), Guo 4.6 + Brill & Mukherjee 2.2 + UTP thesis (Cullender-Smith), Lyons 6.2.5 (Beggs & Brill holdup chain), rNodal Fancher-Brown friction cross-check |
 
+## Case map (NA3)
+
+| CASE | Gate |
+|------|------|
+| 12 | Operating point (oil composite IPR x B&B traverse, gas back-pressure IPR x C-S column) vs oracle bisection over the RK4 route |
+| 13 | Choke correlations (Gilbert family + gas nozzle) vs published coefficients and worked examples |
+| 14 | Gas-lift screening response vs oracle route + concavity of incremental gains |
+
 Analytic limits (single-phase reduction, hydrostatic zero-rate,
 horizontal zero-head, down-up round trip, Griffith quadratic, chart-fit
-ranges) are enforced in jest (correlations.test.js, traverse.test.js,
-correlationsWetGas.test.js); the armed literature set also runs in CI
-via literature.test.js. NA3 adds operating-point, choke coefficient and
-gas-lift concavity gates. A perf smoke case lands with NA5.
+ranges, closed-form node intersections, J-curve stability
+classification) are enforced in jest (correlations.test.js,
+traverse.test.js, correlationsWetGas.test.js, system.test.js,
+gasLift.test.js); the armed literature set also runs in CI via
+literature.test.js. A perf smoke case lands with NA5.

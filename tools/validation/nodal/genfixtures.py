@@ -226,6 +226,48 @@ def cullender_smith_cases():
     return cases
 
 
+def operating_point_cases():
+    """NA3: full-stack node solves by the oracle bisection + RK4 route."""
+    ipr = {"pr": 3200.0, "pb": 2400.0, "pi": 1.2}
+    base_vlp = {
+        "rates": {"wct": 0.2, "gor": 600.0}, "whp": 250.0, "nodeMd": 8000.0,
+        "whtF": 100.0, "bhtF": 180.0, "tvdMax": 8000.0, "idIn": 2.441,
+        "roughnessIn": 0.0006, "correlation": "beggsBrill", "survey": None,
+    }
+    oil_cases = []
+    for whp in [150.0, 250.0, 400.0]:
+        vlp = dict(base_vlp)
+        vlp["whp"] = whp
+        op = oracle.solve_op_oil(MODEL, ipr, vlp)
+        oil_cases.append({"label": f"oil whp {int(whp)}", "ipr": ipr, "vlp": vlp, "op": op})
+    vlp_id = dict(base_vlp)
+    vlp_id["idIn"] = 2.992
+    op = oracle.solve_op_oil(MODEL, ipr, vlp_id)
+    oil_cases.append({"label": "oil 3.5in tubing", "ipr": ipr, "vlp": vlp_id, "op": op})
+
+    gas_ipr = {"pr": 3000.0, "c": 0.01, "n": 0.9}
+    cs = {"ptf": 800.0, "gasSg": 0.75, "mdFt": 8000.0, "whtF": 90.0,
+          "bhtF": 190.0, "idIn": 2.441, "roughnessIn": 0.0006}
+    gas_case = {"label": "gas CS node", "ipr": gas_ipr, "cs": cs,
+                "op": oracle.solve_op_gas(gas_ipr, cs)}
+
+    return {"oil": oil_cases, "gas": gas_case}
+
+
+def gas_lift_cases():
+    """NA3: screening response by the oracle route (dead natural well)."""
+    ipr = {"pr": 2600.0, "pb": 1800.0, "pi": 2.5}
+    vlp = {
+        "rates": {"wct": 0.7, "gor": 150.0}, "whp": 150.0, "nodeMd": 7000.0,
+        "whtF": 100.0, "bhtF": 170.0, "tvdMax": 7000.0, "idIn": 2.441,
+        "roughnessIn": 0.0006, "correlation": "beggsBrill",
+    }
+    lift_model = {"api": 32.0, "gasSg": 0.75, "gor": 150.0, "salinityPpm": 30000.0}
+    qgis = [0.0, 200.0, 600.0, 1200.0, 1600.0]
+    return {"model": lift_model, "ipr": ipr, "vlp": vlp,
+            "response": oracle.gas_lift_response(lift_model, ipr, vlp, qgis)}
+
+
 def main():
     goldens = {
         "_source": "tools/validation/nodal/genfixtures.py (independent Python oracle)",
@@ -238,6 +280,8 @@ def main():
         "gradients": gradient_cases(),
         "traverse": traverse_cases(),
         "cullenderSmith": cullender_smith_cases(),
+        "operatingPoint": operating_point_cases(),
+        "gasLift": gas_lift_cases(),
     }
     with open(OUT, "w") as fh:
         json.dump(goldens, fh, indent=1)

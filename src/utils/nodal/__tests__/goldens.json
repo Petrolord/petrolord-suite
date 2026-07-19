@@ -5485,5 +5485,187 @@
    "roughnessIn": 0.0006,
    "pwf": 4787.109716901732
   }
- ]
+ ],
+ "operatingPoint": {
+  "oil": [
+   {
+    "label": "oil whp 150",
+    "ipr": {
+     "pr": 3200.0,
+     "pb": 2400.0,
+     "pi": 1.2
+    },
+    "vlp": {
+     "rates": {
+      "wct": 0.2,
+      "gor": 600.0
+     },
+     "whp": 150.0,
+     "nodeMd": 8000.0,
+     "whtF": 100.0,
+     "bhtF": 180.0,
+     "tvdMax": 8000.0,
+     "idIn": 2.441,
+     "roughnessIn": 0.0006,
+     "correlation": "beggsBrill",
+     "survey": null
+    },
+    "op": {
+     "q": 1343.0239286148249,
+     "pwf": 2059.32030916391
+    }
+   },
+   {
+    "label": "oil whp 250",
+    "ipr": {
+     "pr": 3200.0,
+     "pb": 2400.0,
+     "pi": 1.2
+    },
+    "vlp": {
+     "rates": {
+      "wct": 0.2,
+      "gor": 600.0
+     },
+     "whp": 250.0,
+     "nodeMd": 8000.0,
+     "whtF": 100.0,
+     "bhtF": 180.0,
+     "tvdMax": 8000.0,
+     "idIn": 2.441,
+     "roughnessIn": 0.0006,
+     "correlation": "beggsBrill",
+     "survey": null
+    },
+    "op": {
+     "q": 1184.9889320195944,
+     "pwf": 2205.503902593613
+    }
+   },
+   {
+    "label": "oil whp 400",
+    "ipr": {
+     "pr": 3200.0,
+     "pb": 2400.0,
+     "pi": 1.2
+    },
+    "vlp": {
+     "rates": {
+      "wct": 0.2,
+      "gor": 600.0
+     },
+     "whp": 400.0,
+     "nodeMd": 8000.0,
+     "whtF": 100.0,
+     "bhtF": 180.0,
+     "tvdMax": 8000.0,
+     "idIn": 2.441,
+     "roughnessIn": 0.0006,
+     "correlation": "beggsBrill",
+     "survey": null
+    },
+    "op": {
+     "q": 890.5137838009637,
+     "pwf": 2457.9051801658634
+    }
+   },
+   {
+    "label": "oil 3.5in tubing",
+    "ipr": {
+     "pr": 3200.0,
+     "pb": 2400.0,
+     "pi": 1.2
+    },
+    "vlp": {
+     "rates": {
+      "wct": 0.2,
+      "gor": 600.0
+     },
+     "whp": 250.0,
+     "nodeMd": 8000.0,
+     "whtF": 100.0,
+     "bhtF": 180.0,
+     "tvdMax": 8000.0,
+     "idIn": 2.992,
+     "roughnessIn": 0.0006,
+     "correlation": "beggsBrill",
+     "survey": null
+    },
+    "op": {
+     "q": 1325.5434980036543,
+     "pwf": 2075.932292592437
+    }
+   }
+  ],
+  "gas": {
+   "label": "gas CS node",
+   "ipr": {
+    "pr": 3000.0,
+    "c": 0.01,
+    "n": 0.9
+   },
+   "cs": {
+    "ptf": 800.0,
+    "gasSg": 0.75,
+    "mdFt": 8000.0,
+    "whtF": 90.0,
+    "bhtF": 190.0,
+    "idIn": 2.441,
+    "roughnessIn": 0.0006
+   },
+   "op": {
+    "q": 12044.702019380002,
+    "pwf": 1814.5459275074807
+   }
+  }
+ },
+ "gasLift": {
+  "model": {
+   "api": 32.0,
+   "gasSg": 0.75,
+   "gor": 150.0,
+   "salinityPpm": 30000.0
+  },
+  "ipr": {
+   "pr": 2600.0,
+   "pb": 1800.0,
+   "pi": 2.5
+  },
+  "vlp": {
+   "rates": {
+    "wct": 0.7,
+    "gor": 150.0
+   },
+   "whp": 150.0,
+   "nodeMd": 7000.0,
+   "whtF": 100.0,
+   "bhtF": 170.0,
+   "tvdMax": 7000.0,
+   "idIn": 2.441,
+   "roughnessIn": 0.0006,
+   "correlation": "beggsBrill"
+  },
+  "response": [
+   {
+    "qgi": 0.0,
+    "q": 0.0
+   },
+   {
+    "qgi": 200.0,
+    "q": 502.19515222264533
+   },
+   {
+    "qgi": 600.0,
+    "q": 762.5689389971071
+   },
+   {
+    "qgi": 1200.0,
+    "q": 867.3084061842171
+   },
+   {
+    "qgi": 1600.0,
+    "q": 887.9420338394652
+   }
+  ]
+ }
 }
