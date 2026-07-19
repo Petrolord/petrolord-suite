@@ -879,3 +879,185 @@ def in_situ_flows_gas(qg_mscfd: float, wgr: float, cgr: float, pvt: dict, area_f
         "rhoNs": rho_l * lam + pvt["rhoG"] * (1.0 - lam),
         "muNs": mu_l * lam + pvt["muG"] * (1.0 - lam),
     }
+
+
+# ---------------------------------------------------------------------------
+# NA3: operating point and gas-lift response, gated by route independence.
+#
+# The JS engine solves the node with a grid scan + Brent refinement over
+# its Heun traverse; this oracle solves the same systems by coarse-scan +
+# bisection over the RK4 traverse and closed-form IPR inversions.
+
+def composite_pwf_at(pr: float, pb: float, j: float, q: float) -> float:
+    """Inverse of the composite Standing IPR (exact algebra)."""
+    if q <= 0:
+        return pr
+    qb = j * (pr - pb)
+    if q <= qb or pb <= 0:
+        return pr - q / j
+    rem = 1.0 - 1.8 * (q - qb) / (j * pb)
+    if rem <= 0:
+        return 0.0
+    r = (-0.2 + math.sqrt(0.04 + 3.2 * rem)) / 1.6
+    return r * pb
+
+
+def _bisect_rightmost(g, q_lo: float, q_hi: float, n_scan: int = 60) -> float:
+    """Rightmost sign change of g on [q_lo, q_hi], refined by bisection."""
+    qs = [q_lo + (q_hi - q_lo) * i / (n_scan - 1) for i in range(n_scan)]
+    vals = [g(q) for q in qs]
+    bracket = None
+    for i in range(1, n_scan):
+        if vals[i - 1] * vals[i] < 0:
+            bracket = (qs[i - 1], qs[i])
+    if bracket is None:
+        return float("nan")
+    lo, hi = bracket
+    for _ in range(60):
+        mid = 0.5 * (lo + hi)
+        if g(lo) * g(mid) <= 0:
+            hi = mid
+        else:
+            lo = mid
+    return 0.5 * (lo + hi)
+
+
+def solve_op_oil(model: dict, ipr: dict, vlp: dict) -> dict:
+    """Operating point: composite IPR x RK4 traverse (Beggs & Brill)."""
+    pr, pb, j = ipr["pr"], ipr["pb"], ipr["pi"]
+    qb = j * (pr - pb)
+    qmax = qb + j * pb / 1.8
+
+    def vlp_bhp(q):
+        rates = dict(vlp["rates"])
+        rates["qo"] = q
+        return traverse_rk4(model, rates, vlp["whp"], vlp["nodeMd"], vlp["whtF"],
+                            vlp["bhtF"], vlp["tvdMax"], vlp["idIn"],
+                            vlp["roughnessIn"], vlp["correlation"],
+                            survey=vlp.get("survey"), step_ft=10.0)
+
+    q = _bisect_rightmost(lambda x: vlp_bhp(x) - composite_pwf_at(pr, pb, j, x),
+                          qmax * 1e-3, qmax * 0.999)
+    return {"q": q, "pwf": composite_pwf_at(pr, pb, j, q)}
+
+
+def solve_op_gas(ipr: dict, cs: dict) -> dict:
+    """Operating point: back-pressure IPR x RK4 gas-column ODE."""
+    pr, c, n = ipr["pr"], ipr["c"], ipr["n"]
+    aof = c * (pr * pr) ** n
+
+    def ipr_pwf(q):
+        if q <= 0:
+            return pr
+        delta = (q / c) ** (1.0 / n)
+        return math.sqrt(max(pr * pr - delta, 0.0))
+
+    def vlp_bhp(q):
+        return cs_ode_bhp(cs["ptf"], cs["gasSg"], cs["mdFt"],
+                          cs.get("tvdFt", cs["mdFt"]), cs["whtF"], cs["bhtF"],
+                          q / 1000.0, cs["idIn"], cs.get("roughnessIn", 0.0006),
+                          n=1500)
+
+    q = _bisect_rightmost(lambda x: vlp_bhp(x) - ipr_pwf(x), aof * 1e-3, aof * 0.999)
+    return {"q": q, "pwf": ipr_pwf(q)}
+
+
+def gas_lift_response(model: dict, ipr: dict, vlp: dict, qgis: list) -> list:
+    """Gas-lift screening response by the oracle route (mirrors the JS
+    gorEff cap and rate floor exactly; traverse by RK4)."""
+    pr, pb, j = ipr["pr"], ipr["pb"], ipr["pi"]
+    qb = j * (pr - pb)
+    qmax = qb + j * pb / 1.8
+    out = []
+    for qgi in qgis:
+        def vlp_bhp(q, qgi=qgi):
+            rates = dict(vlp["rates"])
+            gor_eff = min(rates.get("gor", 0.0) + qgi * 1000.0 / max(q, qmax * 1e-4), 50000.0)
+            rates["qo"] = q
+            rates["gor"] = gor_eff
+            return traverse_rk4(model, rates, vlp["whp"], vlp["nodeMd"], vlp["whtF"],
+                                vlp["bhtF"], vlp["tvdMax"], vlp["idIn"],
+                                vlp["roughnessIn"], vlp["correlation"], step_ft=10.0)
+
+        q = _bisect_rightmost(lambda x: vlp_bhp(x) - composite_pwf_at(pr, pb, j, x),
+                              qmax * 1e-3, qmax * 0.999)
+        out.append({"qgi": qgi, "q": 0.0 if math.isnan(q) else q})
+    return out
+
+
+# ---------------------------------------------------------------------------
+# NA3: choke performance (closed forms transcribed twice)
+
+CHOKE_COEFFS = {
+    "gilbert": (10.0, 0.546, 1.89),
+    "ros": (17.4, 0.5, 2.0),
+    "baxendell": (9.56, 0.546, 1.93),
+    "achong": (3.82, 0.65, 1.88),
+    "pilehvari": (46.67, 0.313, 2.11),
+}
+
+
+def choke_whp(q: float, glr: float, s64: float, corr: str) -> float:
+    c, m, n = CHOKE_COEFFS[corr]
+    return c * glr ** m * q / s64 ** n
+
+
+def choke_rate(pwh: float, glr: float, s64: float, corr: str) -> float:
+    c, m, n = CHOKE_COEFFS[corr]
+    return pwh * s64 ** n / (c * glr ** m)
+
+
+def choke_size(pwh: float, q: float, glr: float, corr: str) -> float:
+    c, m, n = CHOKE_COEFFS[corr]
+    return (c * glr ** m * q / pwh) ** (1.0 / n)
+
+
+def critical_ratio(k: float) -> float:
+    return (2.0 / (k + 1.0)) ** (k / (k - 1.0))
+
+
+def gas_choke_rate(p_up: float, p_dn: float, d_in: float, gas_sg: float,
+                   t_up_f: float, k: float, cd: float) -> dict:
+    yc = critical_ratio(k)
+    t_r = t_up_f + 460.0
+    a = math.pi / 4.0 * d_in * d_in
+    y = p_dn / p_up
+    if y <= yc:
+        q = 879.0 * cd * a * p_up * math.sqrt(
+            k / (gas_sg * t_r) * (2.0 / (k + 1.0)) ** ((k + 1.0) / (k - 1.0)))
+        regime = "sonic"
+        p_out = yc * p_up
+    else:
+        q = 1248.0 * cd * a * p_up * math.sqrt(
+            k / ((k - 1.0) * gas_sg * t_r) * (y ** (2.0 / k) - y ** ((k + 1.0) / k)))
+        regime = "subsonic"
+        p_out = p_dn
+    t_dn = t_r * (p_out / p_up) ** ((k - 1.0) / k) - 460.0
+    return {"qMscfd": q, "regime": regime, "yc": yc, "tDnF": t_dn}
+
+
+def gas_choke_upstream(q_mscfd: float, p_dn: float, d_in: float, gas_sg: float,
+                       t_up_f: float, k: float, cd: float) -> dict:
+    yc = critical_ratio(k)
+    t_r = t_up_f + 460.0
+    a = math.pi / 4.0 * d_in * d_in
+    sonic_factor = 879.0 * cd * a * math.sqrt(
+        k / (gas_sg * t_r) * (2.0 / (k + 1.0)) ** ((k + 1.0) / (k - 1.0)))
+    p_up_min = p_dn / yc
+    q_at_min = sonic_factor * p_up_min
+    if q_mscfd >= q_at_min:
+        return {"pUp": q_mscfd / sonic_factor, "regime": "sonic"}
+
+    def q_sub(p_up):
+        y = p_dn / p_up
+        return 1248.0 * cd * a * p_up * math.sqrt(
+            k / ((k - 1.0) * gas_sg * t_r) * (y ** (2.0 / k) - y ** ((k + 1.0) / k)))
+
+    lo, hi = p_dn * 1.000001, p_up_min
+    for _ in range(80):
+        mid = 0.5 * (lo + hi)
+        if q_sub(mid) < q_mscfd:
+            lo = mid
+        else:
+            hi = mid
+    return {"pUp": 0.5 * (lo + hi), "regime": "subsonic"}

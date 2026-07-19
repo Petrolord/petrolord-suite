@@ -78,13 +78,26 @@ book-text or secondary. Known open point: the mHB low-X1 chart region
 ~0.28); fixture committed unarmed pending a re-anchor against the
 original Hagedorn & Brown figure.
 
-### NA3 — System solve
-IPR × VLP operating-point intersection (robust bracketing, no-solution
-and unstable-branch detection), sensitivity sweeps (tubing ID, wellhead
-pressure, water cut, GOR, skin, reservoir pressure), choke performance
-(critical/subcritical), gas-lift screening (injection-rate response
-curve). Gates: operating-point closed-form cases, choke coefficient
-identities, gas-lift response concavity.
+### NA3 — System solve (DONE)
+`system.js`: solveNodeCore over injectable IPR/VLP functions (grid scan
++ Brent, stability classification: rightmost stable crossing, heading
+branch flagged unstable, dead / no-stable-solution statuses) with wired
+oil (composite IPR × traverse) and gas (sampled gas IPR ×
+Cullender-Smith or Gray) solves plus operatingPointSweep. `gasLift.js`:
+injection response curve on effective GOR with best-rate and
+economic-slope points. `chokes.js`: Gilbert family (Gilbert / Ros /
+Baxendell / Achong / Pilehvari, psia convention documented,
+critical-flow validity flag) and gas chokes (Guo Eqs. 5.1/5.5/5.8 —
+constants multiply area in in², the "879.4 d²" variant is wrong by
+4/π — with sonic/subsonic regime logic, upstream inversion per Guo Ex.
+5.3, Joule-Thomson downstream temperature). Gates: closed-form
+intersections exact, oracle route independence (bisection + RK4) for
+operating points and gas-lift response, choke transcription equality,
+armed book anchors (PEH Gilbert/Ros example, Guo 5.1/5.2/5.3).
+Deliberately deferred: Sachdeva subcritical two-phase choke (SPE 15657
+primary transcription needed — secondary reproductions do not close
+Guo's own Table 5.4 chain; fixture parked unarmed with the printed
+numbers preserved).
 
 ### NA4 — Studio UI
 `src/pages/apps/NodalAnalysisStudio.jsx` + context provider on the studio

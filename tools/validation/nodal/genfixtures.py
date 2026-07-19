@@ -226,6 +226,77 @@ def cullender_smith_cases():
     return cases
 
 
+def operating_point_cases():
+    """NA3: full-stack node solves by the oracle bisection + RK4 route."""
+    ipr = {"pr": 3200.0, "pb": 2400.0, "pi": 1.2}
+    base_vlp = {
+        "rates": {"wct": 0.2, "gor": 600.0}, "whp": 250.0, "nodeMd": 8000.0,
+        "whtF": 100.0, "bhtF": 180.0, "tvdMax": 8000.0, "idIn": 2.441,
+        "roughnessIn": 0.0006, "correlation": "beggsBrill", "survey": None,
+    }
+    oil_cases = []
+    for whp in [150.0, 250.0, 400.0]:
+        vlp = dict(base_vlp)
+        vlp["whp"] = whp
+        op = oracle.solve_op_oil(MODEL, ipr, vlp)
+        oil_cases.append({"label": f"oil whp {int(whp)}", "ipr": ipr, "vlp": vlp, "op": op})
+    vlp_id = dict(base_vlp)
+    vlp_id["idIn"] = 2.992
+    op = oracle.solve_op_oil(MODEL, ipr, vlp_id)
+    oil_cases.append({"label": "oil 3.5in tubing", "ipr": ipr, "vlp": vlp_id, "op": op})
+
+    gas_ipr = {"pr": 3000.0, "c": 0.01, "n": 0.9}
+    cs = {"ptf": 800.0, "gasSg": 0.75, "mdFt": 8000.0, "whtF": 90.0,
+          "bhtF": 190.0, "idIn": 2.441, "roughnessIn": 0.0006}
+    gas_case = {"label": "gas CS node", "ipr": gas_ipr, "cs": cs,
+                "op": oracle.solve_op_gas(gas_ipr, cs)}
+
+    return {"oil": oil_cases, "gas": gas_case}
+
+
+def gas_lift_cases():
+    """NA3: screening response by the oracle route (dead natural well)."""
+    ipr = {"pr": 2600.0, "pb": 1800.0, "pi": 2.5}
+    vlp = {
+        "rates": {"wct": 0.7, "gor": 150.0}, "whp": 150.0, "nodeMd": 7000.0,
+        "whtF": 100.0, "bhtF": 170.0, "tvdMax": 7000.0, "idIn": 2.441,
+        "roughnessIn": 0.0006, "correlation": "beggsBrill",
+    }
+    lift_model = {"api": 32.0, "gasSg": 0.75, "gor": 150.0, "salinityPpm": 30000.0}
+    qgis = [0.0, 200.0, 600.0, 1200.0, 1600.0]
+    return {"model": lift_model, "ipr": ipr, "vlp": vlp,
+            "response": oracle.gas_lift_response(lift_model, ipr, vlp, qgis)}
+
+
+def choke_cases():
+    """NA3: choke closed forms transcribed twice (equality gates)."""
+    whp = []
+    for corr in oracle.CHOKE_COEFFS:
+        for q, glr, s64 in [(400.0, 800.0, 12.0), (1200.0, 300.0, 24.0), (150.0, 2500.0, 8.0)]:
+            whp.append({"correlation": corr, "q": q, "glr": glr, "s64": s64,
+                        "pwh": oracle.choke_whp(q, glr, s64, corr),
+                        "size": oracle.choke_size(oracle.choke_whp(q, glr, s64, corr), q, glr, corr)})
+    gas = []
+    for case in [
+        {"pUp": 800.0, "pDn": 200.0, "dIn": 1.0, "gasSg": 0.6, "tUpF": 75.0, "k": 1.3, "cd": 0.62},
+        {"pUp": 100.0, "pDn": 80.0, "dIn": 1.5, "gasSg": 0.65, "tUpF": 70.0, "k": 1.25, "cd": 1.2},
+        {"pUp": 2500.0, "pDn": 2300.0, "dIn": 0.5, "gasSg": 0.7, "tUpF": 120.0, "k": 1.28, "cd": 0.85},
+        {"pUp": 1500.0, "pDn": 400.0, "dIn": 0.75, "gasSg": 0.8, "tUpF": 95.0, "k": 1.32, "cd": 0.9},
+    ]:
+        gas.append({**case, "out": oracle.gas_choke_rate(
+            case["pUp"], case["pDn"], case["dIn"], case["gasSg"], case["tUpF"],
+            case["k"], case["cd"])})
+    upstream = []
+    for case in [
+        {"qMscfd": 5000.0, "pDn": 300.0, "dIn": 0.5, "gasSg": 0.75, "tUpF": 110.0, "k": 1.3, "cd": 0.99},
+        {"qMscfd": 2500.0, "pDn": 300.0, "dIn": 0.5, "gasSg": 0.75, "tUpF": 110.0, "k": 1.3, "cd": 0.99},
+    ]:
+        upstream.append({**case, "out": oracle.gas_choke_upstream(
+            case["qMscfd"], case["pDn"], case["dIn"], case["gasSg"], case["tUpF"],
+            case["k"], case["cd"])})
+    return {"whp": whp, "gas": gas, "upstream": upstream}
+
+
 def main():
     goldens = {
         "_source": "tools/validation/nodal/genfixtures.py (independent Python oracle)",
@@ -238,6 +309,9 @@ def main():
         "gradients": gradient_cases(),
         "traverse": traverse_cases(),
         "cullenderSmith": cullender_smith_cases(),
+        "operatingPoint": operating_point_cases(),
+        "gasLift": gas_lift_cases(),
+        "chokes": choke_cases(),
     }
     with open(OUT, "w") as fh:
         json.dump(goldens, fh, indent=1)

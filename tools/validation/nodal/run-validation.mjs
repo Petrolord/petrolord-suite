@@ -44,6 +44,9 @@ import { gradientFor } from '../../../src/utils/nodal/correlations/index.js';
 import { beggsBrillHoldupDetail, frictionRatioExponent } from '../../../src/utils/nodal/correlations/beggsBrill.js';
 import { fancherBrownFriction } from '../../../src/utils/nodal/correlations/fancherBrown.js';
 import { averageTzBhp } from '../../../src/utils/nodal/cullenderSmith.js';
+import { solveOperatingPoint, solveGasOperatingPoint } from '../../../src/utils/nodal/system.js';
+import { gasLiftScreening } from '../../../src/utils/nodal/gasLift.js';
+import { chokeWhp, chokeSize, gasChokeRate, gasChokeUpstream } from '../../../src/utils/nodal/chokes.js';
 import { linearGeothermal } from '../../../src/utils/nodal/temperature.js';
 import { bhpFromWhp } from '../../../src/utils/nodal/traverse.js';
 import { cullenderSmithBhp } from '../../../src/utils/nodal/cullenderSmith.js';
@@ -259,6 +262,143 @@ banner('CASE 11: Cullender-Smith quadrature vs oracle RK4 ODE route');
 }
 
 // ---------------------------------------------------------------------------
+banner('CASE 12: operating point vs oracle bisection + RK4 route');
+{
+  const model = buildFluidModel({
+    api: goldens.model.api,
+    gasSg: goldens.model.gasSg,
+    gor: goldens.model.gor,
+    salinityPpm: goldens.model.salinityPpm,
+  });
+  for (const c of goldens.operatingPoint.oil) {
+    const ipr = computeIpr({ model: 'composite', pr: c.ipr.pr, pb: c.ipr.pb, pi: c.ipr.pi });
+    const trajectory = buildTrajectory({ mode: 'vertical', depthFt: c.vlp.nodeMd });
+    const res = solveOperatingPoint({
+      ipr,
+      vlp: {
+        fluidModel: model,
+        rates: c.vlp.rates,
+        trajectory,
+        tAt: linearGeothermal({ whtF: c.vlp.whtF, bhtF: c.vlp.bhtF, tvdMaxFt: c.vlp.tvdMax }),
+        idIn: c.vlp.idIn,
+        roughnessIn: c.vlp.roughnessIn,
+        correlation: c.vlp.correlation,
+        whp: c.vlp.whp,
+        nodeMd: c.vlp.nodeMd,
+        stepFt: 50,
+      },
+    });
+    if (res.status !== 'flowing') {
+      console.log(`  FAIL  ${c.label}: status ${res.status}, expected flowing`);
+      failed += 1;
+    } else {
+      passed += 1;
+      check(`${c.label} q`, res.op.q, c.op.q, 1e-2, 'stb/d');
+      check(`${c.label} pwf`, res.op.pwf, c.op.pwf, 1e-2, 'psia');
+    }
+  }
+  {
+    const g = goldens.operatingPoint.gas;
+    const iprResult = backPressureIpr({ pr: g.ipr.pr, c: g.ipr.c, n: g.ipr.n, nPoints: 80 });
+    const res = solveGasOperatingPoint({ iprResult, vlp: g.cs, nGrid: 60 });
+    if (res.status !== 'flowing') {
+      console.log(`  FAIL  ${g.label}: status ${res.status}, expected flowing`);
+      failed += 1;
+    } else {
+      passed += 1;
+      check(`${g.label} q`, res.op.q, g.op.q, 2e-2, 'Mscf/d');
+      check(`${g.label} pwf`, res.op.pwf, g.op.pwf, 2e-2, 'psia');
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 13: choke closed forms vs oracle transcription');
+{
+  for (const c of goldens.chokes.whp) {
+    const js = chokeWhp({ q: c.q, glr: c.glr, s64: c.s64, correlation: c.correlation });
+    check(`${c.correlation} pwh(q=${c.q}, R=${c.glr}, S=${c.s64})`, js.pwh, c.pwh, 1e-12, 'psia');
+    check(`${c.correlation} size round trip`, chokeSize({ pwh: js.pwh, q: c.q, glr: c.glr, correlation: c.correlation }), c.size, 1e-9, '64ths');
+  }
+  for (const c of goldens.chokes.gas) {
+    const js = gasChokeRate(c);
+    check(`gas choke q (pUp=${c.pUp}, pDn=${c.pDn})`, js.qMscfd, c.out.qMscfd, 1e-12, 'Mscf/d');
+    check(`gas choke tDn (pUp=${c.pUp})`, js.tDnF + 460, c.out.tDnF + 460, 1e-12, 'degR');
+    if (js.regime !== c.out.regime) {
+      console.log(`  FAIL  gas choke regime: ${js.regime} vs ${c.out.regime}`);
+      failed += 1;
+    } else {
+      passed += 1;
+    }
+  }
+  for (const c of goldens.chokes.upstream) {
+    const js = gasChokeUpstream(c);
+    check(`gas choke pUp (q=${c.qMscfd})`, js.pUp, c.out.pUp, 1e-6, 'psia');
+    if (js.regime !== c.out.regime) {
+      console.log(`  FAIL  gas choke upstream regime: ${js.regime} vs ${c.out.regime}`);
+      failed += 1;
+    } else {
+      passed += 1;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 14: gas-lift screening vs oracle route + concavity');
+{
+  const gl = goldens.gasLift;
+  const liftModel = buildFluidModel(gl.model);
+  const ipr = computeIpr({ model: 'composite', pr: gl.ipr.pr, pb: gl.ipr.pb, pi: gl.ipr.pi });
+  const trajectory = buildTrajectory({ mode: 'vertical', depthFt: gl.vlp.nodeMd });
+  const result = gasLiftScreening({
+    ipr,
+    vlp: {
+      fluidModel: liftModel,
+      rates: gl.vlp.rates,
+      trajectory,
+      tAt: linearGeothermal({ whtF: gl.vlp.whtF, bhtF: gl.vlp.bhtF, tvdMaxFt: gl.vlp.tvdMax }),
+      idIn: gl.vlp.idIn,
+      roughnessIn: gl.vlp.roughnessIn,
+      correlation: gl.vlp.correlation,
+      whp: gl.vlp.whp,
+      nodeMd: gl.vlp.nodeMd,
+      stepFt: 50,
+    },
+    qgis: gl.response.map((p) => p.qgi),
+  });
+  for (let i = 0; i < gl.response.length; i += 1) {
+    const oracleQ = gl.response[i].q;
+    const jsQ = result.response[i].q;
+    if (oracleQ === 0) {
+      if (jsQ !== 0) {
+        console.log(`  FAIL  gas-lift qgi ${gl.response[i].qgi}: JS flows (${jsQ}) where oracle is dead`);
+        failed += 1;
+      } else {
+        console.log(`  PASS  gas-lift qgi ${gl.response[i].qgi}: dead on both routes`);
+        passed += 1;
+      }
+    } else {
+      check(`gas-lift q at qgi ${gl.response[i].qgi}`, jsQ, oracleQ, 1.5e-2, 'stb/d');
+    }
+  }
+  // Concavity: incremental gains never grow along the lifted branch.
+  const lifted = result.response.filter((p) => p.qgi > 0);
+  let concave = true;
+  for (let i = 2; i < lifted.length; i += 1) {
+    const s1 = (lifted[i - 1].q - lifted[i - 2].q) / (lifted[i - 1].qgi - lifted[i - 2].qgi);
+    const s2 = (lifted[i].q - lifted[i - 1].q) / (lifted[i].qgi - lifted[i - 1].qgi);
+    if (s2 > s1 + 1e-6) concave = false;
+  }
+  if (concave) {
+    console.log('  PASS  gas-lift response concavity: incremental gains never increase');
+    passed += 1;
+  } else {
+    console.log('  FAIL  gas-lift response is not concave');
+    failed += 1;
+  }
+}
+
+// ---------------------------------------------------------------------------
 banner('CASE 8: published literature fixtures');
 {
   const armed = (literature.fixtures || []).filter((f) => f.armed);
@@ -289,6 +429,35 @@ banner('CASE 8: published literature fixtures');
       const y = lambdaL / (d.holdup * d.holdup);
       check(`${f.id} y`, y, f.expect.y, tol);
       check(`${f.id} ftp/fn`, Math.exp(frictionRatioExponent(y)), f.expect.ftpOverFn, tol);
+    } else if (f.type === 'chokeWhp') {
+      check(`${f.id} pwh`, chokeWhp(f.inputs).pwh, f.expect.pwh, tol, 'psia');
+    } else if (f.type === 'gasChokeRate') {
+      const res = gasChokeRate(f.inputs);
+      check(`${f.id} q`, res.qMscfd, f.expect.qMscfd, tol, 'Mscf/d');
+      if (res.regime !== f.expect.regime) {
+        console.log(`  FAIL  ${f.id} regime: ${res.regime} vs ${f.expect.regime}`);
+        failed += 1;
+      } else {
+        passed += 1;
+      }
+      if (Math.abs(res.tDnF - f.expect.tDnF) <= (f.tDnTolF ?? 1)) {
+        console.log(`  PASS  ${f.id} tDn: ${res.tDnF.toFixed(1)} F vs ${f.expect.tDnF} F (abs tol ${f.tDnTolF ?? 1} F)`);
+        passed += 1;
+      } else {
+        console.log(`  FAIL  ${f.id} tDn: ${res.tDnF.toFixed(1)} F vs ${f.expect.tDnF} F`);
+        failed += 1;
+      }
+    } else if (f.type === 'gasChokeUpstream') {
+      const res = gasChokeUpstream(f.inputs);
+      check(`${f.id} pUp`, res.pUp, f.expect.pUp, tol, 'psia');
+      check(`${f.id} pUpSonicMin`, res.pUpSonicMin, f.expect.pUpSonicMin, tol, 'psia');
+      check(`${f.id} qAtSonicMin`, res.qAtSonicMin, f.expect.qAtSonicMin, tol, 'Mscf/d');
+      if (res.regime !== f.expect.regime) {
+        console.log(`  FAIL  ${f.id} regime: ${res.regime} vs ${f.expect.regime}`);
+        failed += 1;
+      } else {
+        passed += 1;
+      }
     } else if (f.type === 'fbFriction') {
       check(`${f.id} f`, fancherBrownFriction(f.inputs.drhov, f.inputs.glr), f.expect.f, tol);
     } else if (f.type === 'mhbGradient') {
