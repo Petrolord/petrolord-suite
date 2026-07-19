@@ -17,6 +17,13 @@ Tiers:
   that point.
 - **screening** — untuned engineering correlation; expect meaningful
   scatter against lab data.
+- **lab_tuned** (ET program, 2026-07-19) — the C7+ plus fraction has been
+  regressed to the user's measured lab values through the Lab tuning card
+  (bounded 4-knob LM fit, `eos/labTune.js`); the card's before/after table
+  quantifies the residual mismatch per measurement. Sits above
+  published_method for the quantities the tune actually constrained;
+  shown alongside oracle_gated (implementation correctness and data
+  anchoring are orthogonal claims).
 
 ## Compositional path (EOS mode)
 
@@ -34,7 +41,8 @@ Tiers:
 | Composite black-oil table Rs / Bo (EosPvtTableCard) | published_method | Amyx/McCain separator adjustment on oracle-gated DL + separator inputs; exact at Pb (identity-gated), approximate toward atmospheric |
 | Composite table Bg / gas Z | oracle_gated | DL vapor states, CASE 21 |
 | Composite table viscosities | screening | LBC, as above |
-| Literature checks (Whitson flashes, Coats & Smart, Good Oil separator tests) | armed | CASES 12 / 17 / 19 ARMED 2026-07-19 from fetched copies of the printed sources (owner had no pages; provenance URLs in literature-fixtures.json, observed errors in tools/validation/fluidstudio/README.md). Flash beta/K at converged-EOS accuracy; lab Psat/GOR/Bo at correlation level; two documented untuned-EOS biases (Psat +5-10% heavy oils / lean-condensate dew, STO API ~9 heavy from the generalized volume shift) are regression-pinned and are the EOS-tuning initiative's targets |
+| Literature checks (Whitson flashes, Coats & Smart, Good Oil separator tests) | armed | CASES 12 / 17 / 19 ARMED 2026-07-19 from fetched copies of the printed sources (owner had no pages; provenance URLs in literature-fixtures.json, observed errors in tools/validation/fluidstudio/README.md). Flash beta/K at converged-EOS accuracy; lab Psat/GOR/Bo at correlation level; two documented untuned-EOS biases (Psat +5-10% heavy oils / lean-condensate dew, STO API ~9 heavy from the generalized volume shift) are regression-pinned |
+| Lab tuning (ET program): tuned Psat / GOR / STO API / Bo after regression to user lab data | lab_tuned | CASES 23-25: seam identity (no tuning = bitwise untuned), self-recovery of synthetic lab data ≤0.1%, all 8 Coats & Smart fluids tune to measured Psat ≤0.02% (closing both pinned outliers), Good Oil joint 4-target fit psat −0.08% / GOR −0.8% / API −1.9 / Bo −1.1% (the honest 4-knob frontier: GOR and API share the stock-tank volume). Tier applies only after the user tunes; untuned quantities keep the tiers above |
 
 ## Black-oil path (default mode)
 

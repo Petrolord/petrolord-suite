@@ -906,6 +906,17 @@ banner('CASE 22: performance smoke (generous budgets, observed times printed)');
   timed('envelope trace (15 T-points, worker workload)', 60000, () => {
     tracePhaseEnvelope(mix, job.x, { tMinR: degFtoR(40), tMaxR: degFtoR(400), nT: 15, nScan: 30 });
   });
+  timed('lab tune, psat + full separator targets (ET2 worker workload)', 30000, () => {
+    const pre = predictTargets({ keys: job.keys, plus: job.plus, z: job.x },
+      { psat: { tF: job.tF, pPsia: 5000 }, separatorTest: { stagesF: [[75, 114.65]], resTF: job.tF } }, null);
+    tuneToLab({ keys: job.keys, plus: job.plus, z: job.x }, {
+      psat: { tF: job.tF, pPsia: pre.psatPsia * 0.95 },
+      separatorTest: {
+        stagesF: [[75, 114.65]], resTF: job.tF, resPPsia: pre.psatPsia * 0.95,
+        totalGor: pre.totalGor * 1.02, stoApi: pre.stoApi + 3, bo: pre.bo,
+      },
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------
