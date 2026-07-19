@@ -12,7 +12,7 @@
  * angle of the first segment for convenience).
  */
 
-import { num } from './numerics';
+import { num } from './numerics.js';
 
 const toRad = (d) => (d * Math.PI) / 180;
 

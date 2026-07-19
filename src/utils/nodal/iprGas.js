@@ -17,8 +17,8 @@
  *    fitted or entered a and b.
  */
 
-import { buildGasPvtTable, makePseudoPressure } from '../welltest/gas';
-import { linspace, num } from './numerics';
+import { buildGasPvtTable, makePseudoPressure } from '../welltest/gas.js';
+import { linspace, num } from './numerics.js';
 
 /** Sample a gas IPR curve from a q(pwf) evaluator. */
 const sampleCurve = (pr, qOf, nPoints) =>

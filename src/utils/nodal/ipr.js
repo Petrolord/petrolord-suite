@@ -19,7 +19,7 @@
  * armed, against Economides, Petroleum Production Systems worked examples.
  */
 
-import { linspace, num, brentSolve } from './numerics';
+import { linspace, num, brentSolve } from './numerics.js';
 
 const VOGEL_A = 0.2;
 const VOGEL_B = 0.8;

@@ -32,8 +32,8 @@ import {
   muGas,
   coAt,
   undersaturatedMuO,
-} from '../fluidStudioCalculations';
-import { clamp, num } from './numerics';
+} from '../fluidStudioCalculations.js';
+import { clamp, num } from './numerics.js';
 
 const AIR_MW = 28.97;
 const WATER_DENSITY_SC = 62.368; // lbm/ft3 pure water at standard conditions
