@@ -18,7 +18,8 @@ import { mixtureFromKeys } from './eos/pr78.js';
 import { characterizePlusFraction, mixtureWithPlusFraction } from './eos/characterization.js';
 import { flashPT } from './eos/flash.js';
 import { lbcViscosity, weinaugKatzIFT } from './eos/transport.js';
-import { degFtoR } from './eos/units.js';
+import { separatorTrain } from './eos/separator.js';
+import { degFtoR, degRtoF } from './eos/units.js';
 
 /** Empty composition state (mol%), used by sample data and the input tab. */
 export const emptyComposition = () => ({
@@ -187,6 +188,77 @@ export const runEosFlash = (composition) => {
       : null,
     flash,
   };
+};
+
+/**
+ * Compositional separator train at the seam — FS6.
+ *
+ * Reuses the SAME Separator Train stage inputs as the black-oil card
+ * (pressure psia, temperature °F, enabled flag) but flashes the parsed
+ * wellstream through each stage with the FS3 EOS flash. The flash
+ * conditions on the Composition tab double as the reservoir state for
+ * the Bo block. Returns rounded, display-ready numbers; the black-oil
+ * separator path is untouched.
+ */
+export const runEosSeparator = (composition, stages) => {
+  const parsed = parseComposition(composition);
+  if (!parsed.valid) return { parsed, separator: null };
+
+  const mix = buildMixture(parsed);
+  const engineStages = (stages || [])
+    .filter((s) => s && s.enabled && Number(s.pressure) > 0)
+    .map((s) => ({
+      tR: degFtoR(Number.isFinite(Number(s.temperature)) ? Number(s.temperature) : 60),
+      pPsia: Number(s.pressure),
+    }));
+
+  const res = separatorTrain(mix, parsed.z, engineStages, {
+    resTR: degFtoR(parsed.tempF),
+    resPPsia: parsed.pressurePsia,
+  });
+
+  const stageRows = res.stages.map((s) => ({
+    name: s.isStockTank ? 'Stock Tank' : `Sep ${s.index + 1}`,
+    isStockTank: s.isStockTank,
+    pressure: round(s.pPsia, 1),
+    temperature: round(degRtoF(s.tR), 0),
+    phases: s.phases,
+    vaporMolePct: round(s.vaporMoles * 100, 2),
+    liquidMolePct: round(s.liquidMoles * 100, 2),
+    gasGravity: round(s.gasGravity, 3),
+    gor: round(s.gorScfPerStb, 1),
+  }));
+
+  const separator = {
+    stages: stageRows,
+    stockTank: res.stockTank
+      ? {
+        api: round(res.stockTank.api, 1),
+        sg: round(res.stockTank.sg, 4),
+        density: round(res.stockTank.density, 2),
+        apparentMw: round(res.stockTank.apparentMw, 1),
+      }
+      : null,
+    totals: res.stockTank
+      ? {
+        separatorGor: round(res.totals.separatorGor, 1),
+        stockTankGor: round(res.totals.stockTankGor, 1),
+        totalGor: round(res.totals.totalGor, 1),
+        surfaceGasGravity: round(res.totals.surfaceGasGravity, 3),
+      }
+      : null,
+    bo: res.bo
+      ? {
+        reservoirPhases: res.bo.reservoirPhases,
+        multistage: round(res.bo.multistage, 4),
+        singleStage: round(res.bo.singleStage, 4),
+        singleStageGor: round(res.bo.singleStageGor, 1),
+      }
+      : null,
+    warnings: res.warnings,
+  };
+
+  return { parsed, separator };
 };
 
 /**

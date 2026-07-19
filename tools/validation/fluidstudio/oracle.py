@@ -624,3 +624,116 @@ def flash_verify(comps, bip, result, t_r, p_psia):
         f_v = result["y"][i] * math.exp(lp_v[i])
         worst = max(worst, abs(f_l - f_v) / f_l)
     return worst
+
+
+# ---------------------------------------------------------------------------
+# FS6: compositional separator train (independent counterpart of
+# src/utils/fluidstudio/eos/separator.js). Sequential flash_plain through
+# the stage list, equilibrium vapor drawn off, liquid fed forward, stock
+# tank (14.696 psia / 60 F) appended. Surface constants are deliberate
+# second statements of the engine's (GPSA air MW, water at 60 F,
+# ideal-gas sc molar volume from R above).
+
+PSC = 14.696
+TSC = 519.67
+SCF_PER_LBMOL = R * TSC / PSC
+MW_AIR = 28.9647
+RHO_WATER_60F = 62.3664
+FT3_PER_BBL = 5.614583
+
+
+def _liquid_like(comps, bip, x, t_r, p_psia) -> bool:
+    """v/b < 1.75 liquid-likeness heuristic (same convention as pr78.purePsat);
+    only used to classify single-phase stage outcomes."""
+    _, _, _, b_mix = mix_params(comps, bip, x, t_r)
+    st = phase_state(comps, bip, x, t_r, p_psia)
+    v_eos = st["z"] * R * t_r / p_psia
+    return v_eos / b_mix < 1.75
+
+
+def separator_train(comps, bip, z, stages, res_tp=None):
+    """stages: [(t_r, p_psia)] sorted high->low pressure by the caller;
+    a stock-tank stage is appended unless the last stage already is one.
+    res_tp: optional (t_r, p_psia) reservoir state for the Bo block.
+    Basis 1 lb-mol feed. Returns a plain dict for the goldens."""
+    train = list(stages)
+    if not train or train[-1][1] > PSC + 1e-6:
+        train.append((TSC, PSC))
+
+    rows = []
+    feed_comp = list(z)
+    feed_moles = 1.0
+    for i, (t_r, p_psia) in enumerate(train):
+        if feed_moles < 1e-12:
+            rows.append({"tR": t_r, "pPsia": p_psia, "phases": 0,
+                         "vaporMoles": 0.0, "liquidMoles": 0.0,
+                         "x": None, "y": None, "gasGravity": None})
+            continue
+        res = flash_plain(comps, bip, feed_comp, t_r, p_psia)
+        if res["phases"] == 2:
+            beta, x, y = res["beta"], res["x"], res["y"]
+            mw_v = sum(yi * c["mw"] for yi, c in zip(y, comps))
+            rows.append({"tR": t_r, "pPsia": p_psia, "phases": 2, "beta": beta,
+                         "vaporMoles": feed_moles * beta,
+                         "liquidMoles": feed_moles * (1.0 - beta),
+                         "x": x, "y": y, "K": res["K"],
+                         "gasGravity": mw_v / MW_AIR})
+            feed_comp, feed_moles = x, feed_moles * (1.0 - beta)
+        else:
+            is_liq = _liquid_like(comps, bip, feed_comp, t_r, p_psia)
+            if "negativeFlashBeta" in res:
+                is_liq = res["negativeFlashBeta"] <= 0.0
+            mw_f = sum(zi * c["mw"] for zi, c in zip(feed_comp, comps))
+            rows.append({"tR": t_r, "pPsia": p_psia, "phases": 1,
+                         "vaporMoles": 0.0 if is_liq else feed_moles,
+                         "liquidMoles": feed_moles if is_liq else 0.0,
+                         "x": feed_comp if is_liq else None,
+                         "y": None if is_liq else feed_comp,
+                         "gasGravity": None if is_liq else mw_f / MW_AIR})
+            if not is_liq:
+                feed_moles = 0.0
+
+    out = {"stages": rows, "stockTank": None, "totals": None, "bo": None}
+    st_row = rows[-1]
+    if st_row["liquidMoles"] >= 1e-12:
+        st = phase_state(comps, bip, st_row["x"], TSC, PSC)
+        sg = st["density"] / RHO_WATER_60F
+        sto_ft3 = st_row["liquidMoles"] * st["molarVolume"]
+        sto_bbl = sto_ft3 / FT3_PER_BBL
+        mw_o = sum(xi * c["mw"] for xi, c in zip(st_row["x"], comps))
+        sep_scf = sum(r["vaporMoles"] for r in rows[:-1]) * SCF_PER_LBMOL
+        st_scf = st_row["vaporMoles"] * SCF_PER_LBMOL
+        vap_moles = sum(r["vaporMoles"] for r in rows)
+        vap_mass = sum(
+            r["vaporMoles"] * sum(yi * c["mw"] for yi, c in zip(r["y"], comps))
+            for r in rows if r["vaporMoles"] > 0.0)
+        out["stockTank"] = {"moles": st_row["liquidMoles"], "density": st["density"],
+                            "molarVolume": st["molarVolume"], "apparentMw": mw_o,
+                            "sg": sg, "api": 141.5 / sg - 131.5}
+        out["totals"] = {
+            "separatorGor": sep_scf / sto_bbl,
+            "stockTankGor": st_scf / sto_bbl,
+            "totalGor": (sep_scf + st_scf) / sto_bbl,
+            "surfaceGasGravity": (vap_mass / vap_moles / MW_AIR) if vap_moles > 1e-12 else None,
+            "stoVolFt3PerFeedMol": sto_ft3,
+        }
+
+    if res_tp is not None:
+        rt_r, rp = res_tp
+        res_flash = flash_plain(comps, bip, z, rt_r, rp)
+        if res_flash["phases"] == 2:
+            out["bo"] = {"reservoirPhases": 2, "multistage": None, "singleStage": None}
+        else:
+            v_res = phase_state(comps, bip, z, rt_r, rp)["molarVolume"]
+            bo = {"reservoirPhases": 1, "vResFt3PerFeedMol": v_res,
+                  "multistage": None, "singleStage": None, "singleStageGor": None}
+            if out["totals"]:
+                bo["multistage"] = v_res / out["totals"]["stoVolFt3PerFeedMol"]
+            single = flash_plain(comps, bip, z, TSC, PSC)
+            if single["phases"] == 2 and single["beta"] < 1.0:
+                stp = phase_state(comps, bip, single["x"], TSC, PSC)
+                v1 = (1.0 - single["beta"]) * stp["molarVolume"]
+                bo["singleStage"] = v_res / v1
+                bo["singleStageGor"] = single["beta"] * SCF_PER_LBMOL / (v1 / FT3_PER_BBL)
+            out["bo"] = bo
+    return out

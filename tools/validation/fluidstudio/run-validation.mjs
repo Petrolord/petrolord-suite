@@ -58,6 +58,16 @@
  *           for identical phases)
  * CASE 17 Coats & Smart SPE 11197 literature fixtures - armed only when
  *           paper-verified data is committed to literature-fixtures.json
+ * CASE 18 FS6 compositional separator train vs the oracle's independent
+ *           counterpart (plain-SS flashes, bisection RR): per-stage vapor
+ *           split, gas gravities, stock-tank oil density/API, GOR
+ *           partition, multistage + single-stage Bo. Identity gates:
+ *           per-component material balance, GOR partition telescoping,
+ *           explicit-stock-tank-stage equivalence, no-liquid and
+ *           two-phase-reservoir degradations.
+ * CASE 19 Good Oil / Whitson separator-test literature fixtures - armed
+ *           only when book-verified data is committed to
+ *           literature-fixtures.json (separatorTests section)
  */
 
 import fs from 'fs';
@@ -81,6 +91,9 @@ import { phaseBoundaries, saturationPressure } from '../../../src/utils/fluidstu
 import {
   lbcViscosity, diluteComponentViscosity, diluteMixtureViscosity, weinaugKatzIFT,
 } from '../../../src/utils/fluidstudio/eos/transport.js';
+import {
+  separatorTrain, materialBalanceError, STOCK_TANK_STAGE,
+} from '../../../src/utils/fluidstudio/eos/separator.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const testsDir = path.join(here, '../../../src/utils/fluidstudio/eos/__tests__');
@@ -584,6 +597,117 @@ banner('CASE 17: Coats & Smart SPE 11197 literature fixtures');
       const res = flashPT(mix, fx.z, degFtoR(fx.tF), fx.pPsia);
       checkAbs(`${fx.citation}: two-phase`, res.phases, 2, 0);
       if (res.phases === 2) check(`${fx.citation}: beta`, res.beta, fx.expected.beta, fx.tolerances.beta);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 18: FS6 separator train vs oracle counterpart + identities');
+{
+  const buildMix = (job) => (job.plus
+    ? mixtureWithPlusFraction(job.keys, job.plus)
+    : mixtureFromKeys(job.keys));
+  const toStages = (stagesF) => stagesF.map(([tF, pPsia]) => ({ tR: degFtoR(tF), pPsia }));
+
+  for (const job of goldens.separator) {
+    const label = `${job.fluid}/${job.train}`;
+    const mix = buildMix(job);
+    const opts = job.resTP
+      ? { resTR: degFtoR(job.resTP[0]), resPPsia: job.resTP[1] } : {};
+    const res = separatorTrain(mix, job.x, toStages(job.stagesF), opts);
+
+    checkAbs(`${label}: stage count (incl. stock tank)`, res.stages.length, job.stages.length, 0);
+    const worstStage = { name: '', err: 0, tol: 5e-7 };
+    job.stages.forEach((g, i) => {
+      const e = res.stages[i];
+      checkAbs(`${label} stage ${i}: phases`, e.phases, g.phases, 0);
+      for (const [name, ev, gv] of [
+        ['vaporMoles', e.vaporMoles, g.vaporMoles],
+        ['liquidMoles', e.liquidMoles, g.liquidMoles],
+      ]) {
+        const err = Math.abs(ev - gv);
+        if (err > worstStage.err) Object.assign(worstStage, { name: `stage ${i} ${name}`, err });
+      }
+      if (g.gasGravity !== null && g.gasGravity !== undefined) {
+        const err = Math.abs(e.gasGravity - g.gasGravity) / g.gasGravity;
+        if (err > worstStage.err) Object.assign(worstStage, { name: `stage ${i} gasGravity`, err });
+      }
+      if (g.phases === 2) {
+        g.x.forEach((v, k) => {
+          const err = Math.abs(e.x[k] - v);
+          if (err > worstStage.err) Object.assign(worstStage, { name: `stage ${i} x[${k}]`, err });
+        });
+        g.y.forEach((v, k) => {
+          const err = Math.abs(e.y[k] - v);
+          if (err > worstStage.err) Object.assign(worstStage, { name: `stage ${i} y[${k}]`, err });
+        });
+      }
+    });
+    worstReport(`${label}: per-stage split vs oracle`, worstStage);
+
+    if (job.stockTank) {
+      check(`${label}: stock-tank density`, res.stockTank.density, job.stockTank.density, 1e-7, 'lb/ft3');
+      checkAbs(`${label}: stock-tank API`, res.stockTank.api, job.stockTank.api, 1e-4, 'API');
+      check(`${label}: separator GOR`, res.totals.separatorGor, job.totals.separatorGor, 1e-6, 'scf/STB');
+      check(`${label}: stock-tank GOR`, res.totals.stockTankGor, job.totals.stockTankGor, 1e-6, 'scf/STB');
+      check(`${label}: total GOR`, res.totals.totalGor, job.totals.totalGor, 1e-6, 'scf/STB');
+      check(`${label}: surface gas gravity`, res.totals.surfaceGasGravity, job.totals.surfaceGasGravity, 1e-7);
+      // identity: the GOR partition telescopes exactly
+      checkAbs(`${label}: sep + stock-tank GOR = total (identity)`,
+        res.totals.separatorGor + res.totals.stockTankGor - res.totals.totalGor, 0, 1e-9);
+    } else {
+      checkAbs(`${label}: no stock-tank liquid (degradation)`, res.stockTank === null ? 0 : 1, 0, 0);
+    }
+
+    if (job.bo) {
+      checkAbs(`${label}: reservoir phase count`, res.bo.reservoirPhases, job.bo.reservoirPhases, 0);
+      if (job.bo.multistage !== null && job.bo.multistage !== undefined) {
+        check(`${label}: multistage Bo`, res.bo.multistage, job.bo.multistage, 1e-7, 'rb/STB');
+        check(`${label}: single-stage Bo`, res.bo.singleStage, job.bo.singleStage, 1e-7, 'rb/STB');
+        check(`${label}: single-stage GOR`, res.bo.singleStageGor, job.bo.singleStageGor, 1e-6, 'scf/STB');
+      } else {
+        checkAbs(`${label}: two-phase reservoir -> Bo withheld (degradation)`,
+          res.bo.multistage === null ? 0 : 1, 0, 0);
+      }
+    }
+
+    // identity: per-component material balance across all draws
+    checkAbs(`${label}: per-component material balance`, materialBalanceError(res, job.x), 0, 1e-12);
+  }
+
+  // identity: writing the stock tank as an explicit final stage changes nothing
+  {
+    const job = goldens.separator.find((j) => j.train === 'two-stage');
+    const mix = mixtureWithPlusFraction(job.keys, job.plus);
+    const implicit = separatorTrain(mix, job.x, toStages(job.stagesF));
+    const explicit = separatorTrain(mix, job.x, [...toStages(job.stagesF), { ...STOCK_TANK_STAGE }]);
+    checkAbs('explicit stock-tank stage: same stage count', explicit.stages.length, implicit.stages.length, 0);
+    checkAbs('explicit stock-tank stage: identical total GOR',
+      explicit.totals.totalGor - implicit.totals.totalGor, 0, 1e-12);
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 19: Good Oil / Whitson separator-test literature fixtures');
+{
+  const lit = JSON.parse(fs.readFileSync(path.join(here, 'literature-fixtures.json'), 'utf8'));
+  const fixtures = lit.separatorTests?.fluids || [];
+  if (!fixtures.length) {
+    console.log('  SKIP  unarmed: commit book-verified separator-test data (composition + measured GOR/Bo/API) to literature-fixtures.json to gate');
+  }
+  for (const fx of fixtures) {
+    const mix = fx.plus ? mixtureWithPlusFraction(fx.keys, fx.plus) : mixtureFromKeys(fx.keys);
+    const stages = fx.stagesF.map(([tF, pPsia]) => ({ tR: degFtoR(tF), pPsia }));
+    const opts = fx.resTP ? { resTR: degFtoR(fx.resTP[0]), resPPsia: fx.resTP[1] } : {};
+    const res = separatorTrain(mix, fx.z, stages, opts);
+    if (fx.expected.totalGor !== undefined) {
+      check(`${fx.citation}: total GOR`, res.totals?.totalGor ?? NaN, fx.expected.totalGor, fx.tolerances.gor, 'scf/STB');
+    }
+    if (fx.expected.stoApi !== undefined) {
+      checkAbs(`${fx.citation}: stock-tank API`, res.stockTank?.api ?? NaN, fx.expected.stoApi, fx.tolerances.api, 'API');
+    }
+    if (fx.expected.boMultistage !== undefined) {
+      check(`${fx.citation}: multistage Bo`, res.bo?.multistage ?? NaN, fx.expected.boMultistage, fx.tolerances.bo, 'rb/STB');
     }
   }
 }

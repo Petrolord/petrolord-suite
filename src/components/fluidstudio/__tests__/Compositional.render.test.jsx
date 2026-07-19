@@ -7,9 +7,10 @@ import React from 'react';
 import '@testing-library/jest-dom';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import CompositionalResultsCard from '../CompositionalResultsCard';
+import CompositionalSeparatorCard from '../CompositionalSeparatorCard';
 import PhaseEnvelopeCard from '../PhaseEnvelopeCard';
 import CompositionInput from '../CompositionInput';
-import { runEosFlash, emptyComposition } from '@/utils/fluidstudio/eosAnalysis';
+import { runEosFlash, runEosSeparator, emptyComposition } from '@/utils/fluidstudio/eosAnalysis';
 
 beforeAll(() => {
   global.ResizeObserver = class {
@@ -47,6 +48,40 @@ describe('CompositionalResultsCard', () => {
     const eos = runEosFlash(emptyComposition());
     render(<CompositionalResultsCard eos={eos} />);
     expect(screen.getByText(/at least two components/)).toBeInTheDocument();
+  });
+});
+
+describe('CompositionalSeparatorCard', () => {
+  const sampleStages = [
+    { pressure: 450, temperature: 120, enabled: true },
+    { pressure: 200, temperature: 100, enabled: true },
+  ];
+
+  it('renders the stage table, surface totals and Bo comparison', () => {
+    const comp = { ...sampleComposition(), pressure: 3500 }; // above Pb so Bo reports
+    const { separator } = runEosSeparator(comp, sampleStages);
+    render(<CompositionalSeparatorCard separator={separator} />);
+    expect(screen.getByText('Compositional separator train')).toBeInTheDocument();
+    expect(screen.getByText('Sep 1')).toBeInTheDocument();
+    expect(screen.getByText('Sep 2')).toBeInTheDocument();
+    expect(screen.getByText('Stock Tank')).toBeInTheDocument();
+    expect(screen.getByText('Total GOR')).toBeInTheDocument();
+    expect(screen.getByText('Bo (this train)')).toBeInTheDocument();
+    expect(screen.getByText(/single flash straight to stock tank/)).toBeInTheDocument();
+    expect(screen.getByText('Oracle gated')).toBeInTheDocument();
+  });
+
+  it('shows the two-phase-reservoir warning and no Bo tile below Pb', () => {
+    const { separator } = runEosSeparator(sampleComposition(), sampleStages); // 2500 psia < Pb
+    render(<CompositionalSeparatorCard separator={separator} />);
+    expect(screen.getByText(/two-phase at reservoir conditions/)).toBeInTheDocument();
+    expect(screen.queryByText('Bo (this train)')).not.toBeInTheDocument();
+    expect(screen.getByText('Total GOR')).toBeInTheDocument();
+  });
+
+  it('renders nothing without a separator result', () => {
+    const { container } = render(<CompositionalSeparatorCard separator={null} />);
+    expect(container).toBeEmptyDOMElement();
   });
 });
 
