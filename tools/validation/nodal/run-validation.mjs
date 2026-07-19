@@ -46,6 +46,7 @@ import { fancherBrownFriction } from '../../../src/utils/nodal/correlations/fanc
 import { averageTzBhp } from '../../../src/utils/nodal/cullenderSmith.js';
 import { solveOperatingPoint, solveGasOperatingPoint } from '../../../src/utils/nodal/system.js';
 import { gasLiftScreening } from '../../../src/utils/nodal/gasLift.js';
+import { chokeWhp, chokeSize, gasChokeRate, gasChokeUpstream } from '../../../src/utils/nodal/chokes.js';
 import { linearGeothermal } from '../../../src/utils/nodal/temperature.js';
 import { bhpFromWhp } from '../../../src/utils/nodal/traverse.js';
 import { cullenderSmithBhp } from '../../../src/utils/nodal/cullenderSmith.js';
@@ -312,6 +313,37 @@ banner('CASE 12: operating point vs oracle bisection + RK4 route');
 }
 
 // ---------------------------------------------------------------------------
+banner('CASE 13: choke closed forms vs oracle transcription');
+{
+  for (const c of goldens.chokes.whp) {
+    const js = chokeWhp({ q: c.q, glr: c.glr, s64: c.s64, correlation: c.correlation });
+    check(`${c.correlation} pwh(q=${c.q}, R=${c.glr}, S=${c.s64})`, js.pwh, c.pwh, 1e-12, 'psia');
+    check(`${c.correlation} size round trip`, chokeSize({ pwh: js.pwh, q: c.q, glr: c.glr, correlation: c.correlation }), c.size, 1e-9, '64ths');
+  }
+  for (const c of goldens.chokes.gas) {
+    const js = gasChokeRate(c);
+    check(`gas choke q (pUp=${c.pUp}, pDn=${c.pDn})`, js.qMscfd, c.out.qMscfd, 1e-12, 'Mscf/d');
+    check(`gas choke tDn (pUp=${c.pUp})`, js.tDnF + 460, c.out.tDnF + 460, 1e-12, 'degR');
+    if (js.regime !== c.out.regime) {
+      console.log(`  FAIL  gas choke regime: ${js.regime} vs ${c.out.regime}`);
+      failed += 1;
+    } else {
+      passed += 1;
+    }
+  }
+  for (const c of goldens.chokes.upstream) {
+    const js = gasChokeUpstream(c);
+    check(`gas choke pUp (q=${c.qMscfd})`, js.pUp, c.out.pUp, 1e-6, 'psia');
+    if (js.regime !== c.out.regime) {
+      console.log(`  FAIL  gas choke upstream regime: ${js.regime} vs ${c.out.regime}`);
+      failed += 1;
+    } else {
+      passed += 1;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 banner('CASE 14: gas-lift screening vs oracle route + concavity');
 {
   const gl = goldens.gasLift;
@@ -397,6 +429,35 @@ banner('CASE 8: published literature fixtures');
       const y = lambdaL / (d.holdup * d.holdup);
       check(`${f.id} y`, y, f.expect.y, tol);
       check(`${f.id} ftp/fn`, Math.exp(frictionRatioExponent(y)), f.expect.ftpOverFn, tol);
+    } else if (f.type === 'chokeWhp') {
+      check(`${f.id} pwh`, chokeWhp(f.inputs).pwh, f.expect.pwh, tol, 'psia');
+    } else if (f.type === 'gasChokeRate') {
+      const res = gasChokeRate(f.inputs);
+      check(`${f.id} q`, res.qMscfd, f.expect.qMscfd, tol, 'Mscf/d');
+      if (res.regime !== f.expect.regime) {
+        console.log(`  FAIL  ${f.id} regime: ${res.regime} vs ${f.expect.regime}`);
+        failed += 1;
+      } else {
+        passed += 1;
+      }
+      if (Math.abs(res.tDnF - f.expect.tDnF) <= (f.tDnTolF ?? 1)) {
+        console.log(`  PASS  ${f.id} tDn: ${res.tDnF.toFixed(1)} F vs ${f.expect.tDnF} F (abs tol ${f.tDnTolF ?? 1} F)`);
+        passed += 1;
+      } else {
+        console.log(`  FAIL  ${f.id} tDn: ${res.tDnF.toFixed(1)} F vs ${f.expect.tDnF} F`);
+        failed += 1;
+      }
+    } else if (f.type === 'gasChokeUpstream') {
+      const res = gasChokeUpstream(f.inputs);
+      check(`${f.id} pUp`, res.pUp, f.expect.pUp, tol, 'psia');
+      check(`${f.id} pUpSonicMin`, res.pUpSonicMin, f.expect.pUpSonicMin, tol, 'psia');
+      check(`${f.id} qAtSonicMin`, res.qAtSonicMin, f.expect.qAtSonicMin, tol, 'Mscf/d');
+      if (res.regime !== f.expect.regime) {
+        console.log(`  FAIL  ${f.id} regime: ${res.regime} vs ${f.expect.regime}`);
+        failed += 1;
+      } else {
+        passed += 1;
+      }
     } else if (f.type === 'fbFriction') {
       check(`${f.id} f`, fancherBrownFriction(f.inputs.drhov, f.inputs.glr), f.expect.f, tol);
     } else if (f.type === 'mhbGradient') {

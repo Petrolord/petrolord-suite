@@ -268,6 +268,35 @@ def gas_lift_cases():
             "response": oracle.gas_lift_response(lift_model, ipr, vlp, qgis)}
 
 
+def choke_cases():
+    """NA3: choke closed forms transcribed twice (equality gates)."""
+    whp = []
+    for corr in oracle.CHOKE_COEFFS:
+        for q, glr, s64 in [(400.0, 800.0, 12.0), (1200.0, 300.0, 24.0), (150.0, 2500.0, 8.0)]:
+            whp.append({"correlation": corr, "q": q, "glr": glr, "s64": s64,
+                        "pwh": oracle.choke_whp(q, glr, s64, corr),
+                        "size": oracle.choke_size(oracle.choke_whp(q, glr, s64, corr), q, glr, corr)})
+    gas = []
+    for case in [
+        {"pUp": 800.0, "pDn": 200.0, "dIn": 1.0, "gasSg": 0.6, "tUpF": 75.0, "k": 1.3, "cd": 0.62},
+        {"pUp": 100.0, "pDn": 80.0, "dIn": 1.5, "gasSg": 0.65, "tUpF": 70.0, "k": 1.25, "cd": 1.2},
+        {"pUp": 2500.0, "pDn": 2300.0, "dIn": 0.5, "gasSg": 0.7, "tUpF": 120.0, "k": 1.28, "cd": 0.85},
+        {"pUp": 1500.0, "pDn": 400.0, "dIn": 0.75, "gasSg": 0.8, "tUpF": 95.0, "k": 1.32, "cd": 0.9},
+    ]:
+        gas.append({**case, "out": oracle.gas_choke_rate(
+            case["pUp"], case["pDn"], case["dIn"], case["gasSg"], case["tUpF"],
+            case["k"], case["cd"])})
+    upstream = []
+    for case in [
+        {"qMscfd": 5000.0, "pDn": 300.0, "dIn": 0.5, "gasSg": 0.75, "tUpF": 110.0, "k": 1.3, "cd": 0.99},
+        {"qMscfd": 2500.0, "pDn": 300.0, "dIn": 0.5, "gasSg": 0.75, "tUpF": 110.0, "k": 1.3, "cd": 0.99},
+    ]:
+        upstream.append({**case, "out": oracle.gas_choke_upstream(
+            case["qMscfd"], case["pDn"], case["dIn"], case["gasSg"], case["tUpF"],
+            case["k"], case["cd"])})
+    return {"whp": whp, "gas": gas, "upstream": upstream}
+
+
 def main():
     goldens = {
         "_source": "tools/validation/nodal/genfixtures.py (independent Python oracle)",
@@ -282,6 +311,7 @@ def main():
         "cullenderSmith": cullender_smith_cases(),
         "operatingPoint": operating_point_cases(),
         "gasLift": gas_lift_cases(),
+        "chokes": choke_cases(),
     }
     with open(OUT, "w") as fh:
         json.dump(goldens, fh, indent=1)

@@ -108,6 +108,70 @@
       "notes": "NOT ARMED: the example sits at X1 = 7.12e-5 where the book's chart read (HL/psi = 0.44) diverges from both standard published fit families (Economides/Trina and Guo log-polynomial both give ~0.28). Our engine matches the industry-standard fits (0.117 psi/ft vs the book's 0.160). Arms only if the owner re-anchors the low-X1 chart region against the original Hagedorn & Brown figure."
     },
     {
+      "id": "peh-gilbert-choke",
+      "armed": true,
+      "type": "chokeWhp",
+      "source": "SPE Petroleum Engineering Handbook Vol. IV (PetroWiki 'Flow through chokes'), worked example: 400 STB/D, GLR 800 scf/STB, 12/64 choke",
+      "verification": "book-text",
+      "inputs": { "q": 400, "glr": 800, "s64": 12, "correlation": "gilbert" },
+      "expect": { "pwh": 1405 },
+      "relTol": 0.005
+    },
+    {
+      "id": "peh-ros-choke",
+      "armed": true,
+      "type": "chokeWhp",
+      "source": "SPE Petroleum Engineering Handbook Vol. IV, same example via the Ros coefficients",
+      "verification": "book-text",
+      "inputs": { "q": 400, "glr": 800, "s64": 12, "correlation": "ros" },
+      "expect": { "pwh": 1371 },
+      "relTol": 0.005,
+      "notes": "PEH Table 1.9 prints A1 = 4.26e-3 (implies C = 17.45); we carry the canonical C = 17.40 (Guo Table 5.3, PIPESIM), giving 1367 vs the printed 1371 - 0.28%."
+    },
+    {
+      "id": "guo-5.1-sonic-gas-choke",
+      "armed": true,
+      "type": "gasChokeRate",
+      "source": "Guo, Lyons & Ghalambor (2007) Example 5.1: 0.6 SG gas, 1-in orifice choke, 800 -> 200 psia, 75 F, k 1.3, CD 0.62",
+      "verification": "book-text",
+      "inputs": { "pUp": 800, "pDn": 200, "dIn": 1, "gasSg": 0.6, "tUpF": 75, "k": 1.3, "cd": 0.62 },
+      "expect": { "qMscfd": 12743, "regime": "sonic", "tDnF": 5 },
+      "relTol": 0.01,
+      "tDnTolF": 1,
+      "notes": "Book rounds intermediates; our exact evaluation gives 12,753 (0.08%). Downstream temperature 5 F reproduces the book's icing warning."
+    },
+    {
+      "id": "guo-5.2-subsonic-gas-choke",
+      "armed": true,
+      "type": "gasChokeRate",
+      "source": "Guo, Lyons & Ghalambor (2007) Example 5.2: 0.65 SG gas, 1.5-in nozzle choke, 100 -> 80 psia, 70 F, k 1.25, CD 1.2",
+      "verification": "book-text",
+      "inputs": { "pUp": 100, "pDn": 80, "dIn": 1.5, "gasSg": 0.65, "tUpF": 70, "k": 1.25, "cd": 1.2 },
+      "expect": { "qMscfd": 5572, "regime": "subsonic", "tDnF": 47 },
+      "relTol": 0.005,
+      "tDnTolF": 1
+    },
+    {
+      "id": "guo-5.3-upstream-from-choke",
+      "armed": true,
+      "type": "gasChokeUpstream",
+      "source": "Guo, Lyons & Ghalambor (2007) Example 5.3 (GasUpChokePressure.xls, Table 5.1): 5,000 Mscf/d against 300 psia through 32/64, CD 0.99",
+      "verification": "book-text",
+      "inputs": { "qMscfd": 5000, "pDn": 300, "dIn": 0.5, "gasSg": 0.75, "tUpF": 110, "k": 1.3, "cd": 0.99 },
+      "expect": { "pUp": 907.21, "regime": "sonic", "pUpSonicMin": 549.72, "qAtSonicMin": 3029.76 },
+      "relTol": 0.005
+    },
+    {
+      "id": "guo-table-5.4-sachdeva",
+      "armed": false,
+      "type": "sachdevaChoke",
+      "source": "Guo, Lyons & Ghalambor (2007) Table 5.4: Sachdeva (SPE 15657) subcritical two-phase example, 24/64 choke, 80 -> 50 psia, CD 0.75, printed chain to 300.56 bbl/d liquid",
+      "verification": "book-text",
+      "inputs": null,
+      "expect": null,
+      "notes": "NOT ARMED: the Sachdeva G2 mass-flux equation as reproduced in secondary sources does not close the book's own printed chain (checked by hand: factor ~3.2 in the bracket); the module ships critical-flow screening only until SPE 15657 is transcribed from the primary text. All printed Table 5.4 numbers are preserved in the research notes for that pass."
+    },
+    {
       "id": "takacs-gas-lift-sweep",
       "armed": false,
       "type": "gasLiftSweep",

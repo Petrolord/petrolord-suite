@@ -42,4 +42,22 @@ Plan of record: `NodalAnalysisStudio-PLAN.md`.
   is committed unarmed (chart-fit divergence at X1 ~ 7e-5, documented in
   literature-fixtures.json).
 
-Next: NA3 operating point, sensitivities, chokes, gas lift (PLAN §3).
+## 2026-07-19 — NA3 complete (branch `feat/nodal-na3-system-solve`)
+
+- `system.js`: operating-point solve with stability classification
+  (stable/unstable crossings, dead and no-stable-solution states), oil
+  and gas wrappers, sensitivity sweeps.
+- `gasLift.js`: injection response screening; validation case is a
+  naturally dead 70% water-cut well revived to ~500 stb/d at 200 Mscf/d
+  with textbook diminishing returns.
+- `chokes.js`: Gilbert/Ros/Baxendell/Achong/Pilehvari critical two-phase
+  chokes + gas sonic/subsonic chokes with upstream inversion and
+  Joule-Thomson downstream temperature.
+- Harness: **1022 gates green** (CASE 12 operating points vs oracle
+  bisection+RK4 ≤0.23%, CASE 13 choke transcription equality, CASE 14
+  gas-lift response ≤0.04% + concavity). Jest: 17 suites, 134 tests.
+- Literature: 11 armed fixtures (adds PEH Gilbert/Ros choke example and
+  Guo Examples 5.1/5.2/5.3, all book-text). Sachdeva subcritical
+  two-phase choke parked unarmed pending SPE 15657 primary text.
+
+Next: NA4 studio UI on the shell kit (PLAN §3).
