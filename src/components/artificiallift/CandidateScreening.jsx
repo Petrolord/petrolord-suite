@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Zap, Wind, Wrench, ArrowRight, Check, X, Minus } from 'lucide-react';
 import { screenLiftSystems } from '@/utils/liftSystemScreening';
-import CollapsibleSection from '@/components/nodalanalysis/CollapsibleSection';
+import CollapsibleSection from '@/components/artificiallift/CollapsibleSection';
 
 const CandidateScreening = ({ inputs, setInputs, onProceed }) => {
   const [results, setResults] = useState([]);

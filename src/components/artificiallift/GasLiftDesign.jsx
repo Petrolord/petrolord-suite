@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
-import CollapsibleSection from '@/components/nodalanalysis/CollapsibleSection';
+import CollapsibleSection from '@/components/artificiallift/CollapsibleSection';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { calculateGasLiftDesign } from '@/utils/gasLiftCalculations';

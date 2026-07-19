@@ -114,7 +114,6 @@ const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/Producti
 const WellTestAnalysisStudio = lazy(() => import('@/pages/apps/WellTestAnalysisStudio'));
 const NodalAnalysisStudio = lazy(() => import('@/pages/apps/NodalAnalysisStudio'));
 const FlowAssuranceMonitor = lazy(() => import('@/pages/apps/FlowAssuranceMonitor'));
-const IntegratedAssetModeler = lazy(() => import('@/pages/apps/IntegratedAssetModeler'));
 const MechanicalEarthModel = lazy(() => import('@/pages/apps/MechanicalEarthModel/MechanicalEarthModel'));
 const ExpertMode = lazy(() => import('@/pages/apps/MechanicalEarthModel/ExpertMode'));
 const Analytics = lazy(() => import('@/pages/apps/MechanicalEarthModel/Analytics'));
@@ -515,7 +514,7 @@ function App() {
                                 <Route path="apps/production/wellbore-flow-simulator" element={<WellboreFlowSimulator />} />
                                 <Route path="apps/production/artificial-lift-designer" element={<ArtificialLiftDesigner />} />
                                 <Route path="apps/production/flow-assurance-monitor" element={<FlowAssuranceMonitor />} />
-                                <Route path="apps/production/integrated-asset-modeler" element={<IntegratedAssetModeler />} />
+                                <Route path="apps/production/integrated-asset-modeler" element={<Navigate to="/dashboard/apps/production/nodal-analysis-studio" replace />} />
                                 <Route path="apps/production/well-schematic-designer" element={<WellSchematicDesigner />} />
                                 <Route path="apps/production/network-diagram-pro" element={<NetworkDiagramPro />} />
 
