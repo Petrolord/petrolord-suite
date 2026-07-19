@@ -19,6 +19,8 @@ import { characterizePlusFraction, mixtureWithPlusFraction } from './eos/charact
 import { flashPT } from './eos/flash.js';
 import { lbcViscosity, weinaugKatzIFT } from './eos/transport.js';
 import { separatorTrain } from './eos/separator.js';
+import { saturationPressure } from './eos/envelope.js';
+import { eosBlackOilTable } from './eos/experiments.js';
 import { degFtoR, degRtoF } from './eos/units.js';
 
 /** Empty composition state (mol%), used by sample data and the input tab. */
@@ -200,17 +202,20 @@ export const runEosFlash = (composition) => {
  * the Bo block. Returns rounded, display-ready numbers; the black-oil
  * separator path is untouched.
  */
+/** Separator Train UI stages -> engine stages (psia / °R, enabled only). */
+const toEngineStages = (stages) => (stages || [])
+  .filter((s) => s && s.enabled && Number(s.pressure) > 0)
+  .map((s) => ({
+    tR: degFtoR(Number.isFinite(Number(s.temperature)) ? Number(s.temperature) : 60),
+    pPsia: Number(s.pressure),
+  }));
+
 export const runEosSeparator = (composition, stages) => {
   const parsed = parseComposition(composition);
   if (!parsed.valid) return { parsed, separator: null };
 
   const mix = buildMixture(parsed);
-  const engineStages = (stages || [])
-    .filter((s) => s && s.enabled && Number(s.pressure) > 0)
-    .map((s) => ({
-      tR: degFtoR(Number.isFinite(Number(s.temperature)) ? Number(s.temperature) : 60),
-      pPsia: Number(s.pressure),
-    }));
+  const engineStages = toEngineStages(stages);
 
   const res = separatorTrain(mix, parsed.z, engineStages, {
     resTR: degFtoR(parsed.tempF),
@@ -259,6 +264,112 @@ export const runEosSeparator = (composition, stages) => {
   };
 
   return { parsed, separator };
+};
+
+/**
+ * EOS PVT table + backbone at the seam — FS7.
+ *
+ * One saturation-pressure scan at the flash temperature anchors the CCE/
+ * DL machinery; the composite table is the FS6 separator train's flash
+ * Bo/GOR grafted onto differential liberation (Amyx adjustment). The
+ * whole pipeline is a few dozen flashes (~tens of ms), so it recomputes
+ * synchronously with the inputs like runEosFlash.
+ *
+ * Returns { parsed, table, backbone }:
+ *   table    display-rounded rows { pressure, Rs, Bo, Bg, Z, mu_o, mu_g,
+ *            phase } descending, plus kpis and warnings; null when the
+ *            composition is invalid, no saturation point exists at this
+ *            temperature, or the fluid leaves no stock-tank oil.
+ *   backbone Pipeline Sizer-shaped handoff object built from the EOS
+ *            surface numbers (oil_gravity = STO API, gas_gravity =
+ *            surface gas SG, gor = separator-flash total GOR, pb = EOS
+ *            saturation pressure), with the table rows as pvt_table.
+ */
+export const runEosPvtTable = (composition, stages) => {
+  const parsed = parseComposition(composition);
+  if (!parsed.valid) return { parsed, table: null, backbone: null };
+
+  const mix = buildMixture(parsed);
+  const tR = degFtoR(parsed.tempF);
+  const sat = saturationPressure(mix, parsed.z, tR, {});
+  if (!sat) {
+    return {
+      parsed,
+      table: null,
+      backbone: null,
+      warnings: ['No saturation point at this temperature inside the pressure window; the fluid stays single phase, so there is no black-oil table to build.'],
+    };
+  }
+
+  const res = eosBlackOilTable(mix, parsed.z, tR, toEngineStages(stages), {
+    psatPsia: sat.pPsia,
+  });
+  if (!res.ok) {
+    return { parsed, table: null, backbone: null, warnings: res.warnings };
+  }
+
+  const rows = res.rows.map((r) => ({
+    pressure: round(r.pressure, 0),
+    Rs: round(r.Rs, 1),
+    Bo: round(r.Bo, 4),
+    Bg: round(r.Bg, 6),
+    Z: round(r.Z, 4),
+    mu_o: round(r.mu_o, 4),
+    mu_g: round(r.mu_g, 5),
+    phase: r.phase,
+  }));
+
+  const table = {
+    pb: round(res.pb, 0),
+    satKind: sat.kind,
+    rows,
+    kpis: {
+      rsfb: round(res.kpis.rsfb, 1),
+      bofb: round(res.kpis.bofb, 4),
+      bodb: round(res.kpis.bodb, 4),
+      rsdb: round(res.kpis.rsdb, 1),
+      stoApi: round(res.kpis.stoApi, 1),
+      surfaceGasGravity: round(res.kpis.surfaceGasGravity, 3),
+    },
+    warnings: res.warnings,
+  };
+
+  const pbRow = rows.find((r) => r.phase === 'saturated');
+  const backbone = {
+    source: 'eos',
+    oil_gravity: table.kpis.stoApi,
+    gas_gravity: table.kpis.surfaceGasGravity,
+    gor: table.kpis.rsfb,
+    inlet_temperature: parsed.tempF,
+    wat: null,
+    pb: table.pb,
+    rsb: table.kpis.rsfb,
+    bo_at_pb: table.kpis.bofb,
+    mu_o_at_pb: pbRow ? pbRow.mu_o : null,
+    pvt_table: rows,
+  };
+
+  return { parsed, table, backbone };
+};
+
+/**
+ * CSV of the composite table in MB Studio's PVT lab-table schema
+ * (fluidStudioPvtPrefill row keys, ascending pressure) so the export
+ * drops straight into the Material Balance lab-table workflow.
+ */
+export const eosPvtTableCsv = (table) => {
+  const cols = ['pressure_psia', 'bo_rb_stb', 'rs_scf_stb', 'oil_viscosity_cp',
+    'z_factor', 'bg_rb_mscf', 'gas_viscosity_cp'];
+  const rows = table.rows.slice().sort((a, b) => a.pressure - b.pressure).map((r) => [
+    r.pressure,
+    r.Bo,
+    r.Rs,
+    r.mu_o,
+    r.Z ?? '',
+    r.Bg != null ? round(r.Bg * 1000, 4) : '',
+    r.mu_g ?? '',
+  ].join(','));
+  return [cols.join(','), ...rows].join('\n');
 };
 
 /**

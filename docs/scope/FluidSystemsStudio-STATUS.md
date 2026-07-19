@@ -1,6 +1,6 @@
 # Fluid Systems & Flow Behavior Studio — STATUS
 
-Last updated: 2026-07-19 (FS6)
+Last updated: 2026-07-19 (FS7)
 
 ## What this app is
 
@@ -40,7 +40,7 @@ tracing in a web worker. Validation-first per repo doctrine: Python oracle golde
 | FS4 | C7+ single-pseudo characterization (Kesler-Lee/Edmister/Chueh-Prausnitz BIP), Psat solve, PT envelope tracer, LBC viscosity + Weinaug-Katz IFT; Coats & Smart SPE 11197 gate | DONE 2026-07-19 (Coats & Smart CASE 17 scaffolded UNARMED pending owner paper pages; the planned "Whitson BIP" shipped as modified Chueh-Prausnitz — the SG-form could not be source-verified, C-P is what whitsonPVT itself uses for C1-C7+) |
 | FS5 | UI: fluid-model selector, composition tab, flash/envelope cards, worker, tier badges; black-oil default snapshot pin | DONE 2026-07-19 |
 | FS6 | Compositional separator train (closes the per-stage EOS seam and the multistage-Bo hand-wave in EOS mode); Good Oil / Whitson separator gates | DONE 2026-07-19 (Good Oil / Whitson separator-test fixtures scaffolded UNARMED as CASE 19 pending owner book pages, same pattern as CASES 12/17) |
-| FS7 | CCE + DL simulation, EOS black-oil table export, MB prefill + Pipeline Sizer EOS branches | pending |
+| FS7 | CCE + DL simulation, EOS black-oil table export, MB prefill + Pipeline Sizer EOS branches | DONE 2026-07-19 (MB bridge shipped as CSV export in the exact PvtRock lab-table schema — MB has no CSV import UI, rows are typed/prefilled, so an MB-side importer is a possible follow-on; Pipeline Sizer branch = EOS backbone override in compositional mode) |
 | FS8 | Hardening (near-critical fallback, memoization, worker cancellation), perf smoke, tierMatrix + help guide finalize | pending |
 
 ### Binding program decisions
@@ -144,6 +144,23 @@ function.
   `literature-fixtures.json` `separatorTests` — owner to supply printed
   pages (wellstream composition + measured GORs/Bo/API); expect
   correlation-level tolerances for the untuned EOS, not oracle-level.
+- `src/utils/fluidstudio/eos/experiments.js` (FS7) — CCE (relative
+  volume V/Vsat + liquid dropout on a committed grid), differential
+  liberation (stagewise vapor removal at reservoir T, 60 °F/14.696 psia
+  cooldown defines the residual oil normalizing Bod/Rsd; per-stage gas
+  Z/gravity/Bg in the black-oil rb/scf convention), and the composite
+  black-oil table via the standard Amyx/McCain separator adjustment
+  (Bo = Bod·Bofb/Bodb, Rs = Rsfb − (Rsdb − Rsd)·Bofb/Bodb, exact at Pb,
+  approximate toward atmospheric; undersaturated branch exact from the
+  EOS molar-volume ratio; LBC viscosities per row). Saturation pressure
+  is an input (one envelope scan serves everything; callers own it).
+  Oracle counterparts cce_expansion / diff_lib / black_oil_table;
+  goldens: char-oil CCE+DL+table at 200 °F, char-condensate retrograde
+  CCE at 150 °F, grids committed from the oracle's own Psat. Harness
+  CASES 20–21 (agreement ~1e-11; identities: mole balance, Rsd
+  telescoping to the cooldown gas, Bo(Pb)=Bofb, Rs(Pb)=Rsfb,
+  monotonicity, single-phase above Psat). Harness 203 gates, jest 283
+  EOS tests.
 
 ## FS5 UI wiring (2026-07-19)
 
@@ -192,3 +209,26 @@ function.
   reports jest-global no-undef errors at HEAD too (.test.jsx files are
   outside the eslint jest-globals override); all FS6 .js files lint
   clean.
+
+## FS7 UI wiring (2026-07-19)
+
+- `eosAnalysis.runEosPvtTable(composition, stages)` — one saturation
+  scan at the flash temperature + eosBlackOilTable on the Separator
+  Train inputs. The full pipeline is a few dozen flashes (~tens of ms)
+  so it recomputes synchronously in the page useMemo like runEosFlash;
+  no worker change was needed (the worker remains envelope-only).
+  Degradations: no saturation point in the window, or no stock-tank
+  liquid → table null with the warning shown on the card.
+- `EosPvtTableCard` in the Compositional tab: Pb/Rsfb/Bofb/Bodb·Rsdb/
+  STO-API tiles, the composite table with the Pb row highlighted, and
+  "Export CSV (MB schema)" — `eosPvtTableCsv` emits exactly the
+  PvtRock lab-table columns (pressure_psia, bo_rb_stb, rs_scf_stb,
+  oil_viscosity_cp, z_factor, bg_rb_mscf, gas_viscosity_cp), ascending
+  pressure, Bg converted to rb/Mscf. Badges: oracle_gated +
+  published_method (Amyx composite) + LBC screening note.
+- Pipeline Sizer EOS branch: in compositional mode the Integration
+  Suite backbone is overridden by the EOS one (source: 'eos';
+  oil_gravity = STO API, gas_gravity = surface gas SG, gor = Rsfb,
+  pb/bo_at_pb/mu_o_at_pb from the table, pvt_table = the composite
+  rows). Black-oil mode and the black-oil backbone are untouched
+  (snapshot pin green).

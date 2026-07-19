@@ -13,6 +13,7 @@ import FlowAssuranceCard from '@/components/fluidstudio/FlowAssuranceCard';
 import BatchSweepCard from '@/components/fluidstudio/BatchSweepCard';
 import CompositionalResultsCard from '@/components/fluidstudio/CompositionalResultsCard';
 import CompositionalSeparatorCard from '@/components/fluidstudio/CompositionalSeparatorCard';
+import EosPvtTableCard from '@/components/fluidstudio/EosPvtTableCard';
 import PhaseEnvelopeCard from '@/components/fluidstudio/PhaseEnvelopeCard';
 
 const KPICard = ({ title, value, unit, icon: Icon }) => (
@@ -61,7 +62,10 @@ const IntegrationSuite = ({ backbone }) => {
         <CardTitle className="flex items-center"><Share2 className="mr-2 text-cyan-300" /> Integration Suite</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-slate-300">Send this fluid backbone to other Petrolord applications.</p>
+        <p className="text-slate-300">
+          Send this fluid backbone to other Petrolord applications.
+          {backbone?.source === 'eos' && ' The backbone carries the compositional surface numbers: stock tank API, surface gas gravity, separator-flash GOR and the EOS black-oil table.'}
+        </p>
         <div className="flex flex-col sm:flex-row gap-4">
           <Button onClick={sendToPipelineSizer} disabled={!pipelineReady} className="flex-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-40">
             <Zap className="w-4 h-4 mr-2" /> Send to Pipeline Sizer
@@ -126,6 +130,7 @@ const FluidStudioResults = ({ results, eos, composition }) => {
           <TabsContent value="compositional" className="mt-4 space-y-4">
             <CompositionalResultsCard eos={eos} />
             <CompositionalSeparatorCard separator={eos.separator} />
+            <EosPvtTableCard result={eos.pvtTable} />
             <PhaseEnvelopeCard composition={composition} />
           </TabsContent>
         )}
@@ -153,7 +158,7 @@ const FluidStudioResults = ({ results, eos, composition }) => {
         )}
       </Tabs>
 
-      <IntegrationSuite backbone={backbone} />
+      <IntegrationSuite backbone={eos?.pvtTable?.backbone ?? backbone} />
     </div>
   );
 };

@@ -11,7 +11,7 @@ import FluidStudioEmptyState from '@/components/fluidstudio/FluidStudioEmptyStat
 import FluidStudioHelpGuide from '@/components/fluidstudio/FluidStudioHelpGuide';
 import { SaveProjectDialog, LoadProjectsDrawer } from '@/components/fluidstudio/FluidStudioPersistence';
 import { analyzeFluidSystem, sampleFluidStudioData } from '@/utils/fluidStudioCalculations';
-import { runEosFlash, runEosSeparator } from '@/utils/fluidstudio/eosAnalysis';
+import { runEosFlash, runEosSeparator, runEosPvtTable } from '@/utils/fluidstudio/eosAnalysis';
 
 const FluidSystemsStudio = () => {
   const [inputs, setInputs] = useState(sampleFluidStudioData);
@@ -34,6 +34,8 @@ const FluidSystemsStudio = () => {
       ...runEosFlash(composition),
       // FS6: per-stage EOS flash through the same Separator Train inputs
       separator: runEosSeparator(composition, inputs.separatorTrain?.stages).separator,
+      // FS7: DL + separator composite table and the EOS backbone handoff
+      pvtTable: runEosPvtTable(composition, inputs.separatorTrain?.stages),
     };
   }, [inputs]);
 
