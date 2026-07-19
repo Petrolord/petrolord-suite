@@ -60,4 +60,24 @@ Plan of record: `NodalAnalysisStudio-PLAN.md`.
   Guo Examples 5.1/5.2/5.3, all book-text). Sachdeva subcritical
   two-phase choke parked unarmed pending SPE 15657 primary text.
 
-Next: NA4 studio UI on the shell kit (PLAN §3).
+## 2026-07-19 — NA4 complete (branch `feat/nodal-na4-studio-ui`)
+
+- Studio UI live: `NodalAnalysisStudio.jsx` + `NodalAnalysisStudioContext`
+  on the shell kit, six tabs (System / Inflow / Outflow / Sensitivity /
+  Gas lift / Chokes), oil and gas well modes, oilfield/SI display
+  toggle, saved projects with debounced autosave, help drawer.
+- Persistence migration applied live 2026-07-19 (additive over the
+  legacy Horizons-era table; MIGRATIONS.md row added).
+- Routes registered (`apps/production/nodal-analysis-studio` + legacy
+  slug aliases + `/dev/nodal-analysis-studio`); production build green;
+  e2e on live staging: default well flows and the UI operating point
+  matches the committed oracle golden within 2 percent.
+- Legacy cleanup: empty `NodalAnalysisEngine.jsx`, mock
+  `NodalPerformanceOptimizer.jsx`, `components/nodaloptimizer/` and
+  `utils/nodalCalculations.js` deleted. `components/nodalanalysis/`
+  retained for the routed Integrated Asset Modeler (NA5/owner call,
+  along with the `nodal-analysis-engine` edge function it invokes).
+
+Next: NA5 hardening, perf smoke, prod upload + deploy-gated tile
+migration (seed `nodal-analysis-studio` or reuse a legacy nodal slug per
+owner call).

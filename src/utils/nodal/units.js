@@ -74,3 +74,25 @@ export const toOilfield = (kind, value, system) => {
   if (!Number.isFinite(value)) return value;
   return system === 'si' ? kindOf(kind).toOil(value) : value;
 };
+
+/**
+ * Convert an oilfield-units state STRING to the display string for the
+ * active system. Non-numeric text passes through so typing stays natural.
+ */
+export const displayInputString = (kind, oilString, system) => {
+  if (system !== 'si' || oilString === '' || oilString == null) return oilString ?? '';
+  const v = parseFloat(oilString);
+  if (!Number.isFinite(v)) return oilString;
+  return String(parseFloat(fromOilfield(kind, v, system).toPrecision(10)));
+};
+
+/**
+ * Convert a display-units input STRING to the oilfield string that goes to
+ * state. Non-numeric text passes through so typing stays natural.
+ */
+export const storeInputString = (kind, displayString, system) => {
+  if (system !== 'si' || displayString === '' || displayString == null) return displayString ?? '';
+  const v = parseFloat(displayString);
+  if (!Number.isFinite(v)) return displayString;
+  return String(parseFloat(toOilfield(kind, v, system).toPrecision(12)));
+};

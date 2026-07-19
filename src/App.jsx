@@ -112,6 +112,7 @@ const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellData
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
 const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/ProductionSurveillanceDashboard'));
 const WellTestAnalysisStudio = lazy(() => import('@/pages/apps/WellTestAnalysisStudio'));
+const NodalAnalysisStudio = lazy(() => import('@/pages/apps/NodalAnalysisStudio'));
 const FlowAssuranceMonitor = lazy(() => import('@/pages/apps/FlowAssuranceMonitor'));
 const IntegratedAssetModeler = lazy(() => import('@/pages/apps/IntegratedAssetModeler'));
 const MechanicalEarthModel = lazy(() => import('@/pages/apps/MechanicalEarthModel/MechanicalEarthModel'));
@@ -508,6 +509,9 @@ function App() {
                                 <Route path="apps/production/production-surveillance-dashboard" element={<ProtectedAppRoute appId="production-surveillance-dashboard" appName="Production Surveillance Dashboard"><ProductionSurveillanceDashboard /></ProtectedAppRoute>} />
                                 <Route path="apps/production/surveillance-dashboard" element={<ProtectedAppRoute appId="production-surveillance-dashboard" appName="Production Surveillance Dashboard"><ProductionSurveillanceDashboard /></ProtectedAppRoute>} />
                                 <Route path="apps/production/well-test-analyzer" element={<Navigate to="/dashboard/apps/reservoir/well-test-analysis-studio" replace />} />
+                                <Route path="apps/production/nodal-analysis-studio" element={<NodalAnalysisStudio />} />
+                                <Route path="apps/production/nodal-analysis-engine" element={<NodalAnalysisStudio />} />
+                                <Route path="apps/production/nodal-performance-optimizer" element={<NodalAnalysisStudio />} />
                                 <Route path="apps/production/wellbore-flow-simulator" element={<WellboreFlowSimulator />} />
                                 <Route path="apps/production/artificial-lift-designer" element={<ArtificialLiftDesigner />} />
                                 <Route path="apps/production/flow-assurance-monitor" element={<FlowAssuranceMonitor />} />
@@ -668,6 +672,7 @@ function App() {
                                   <Route path="/dev/pore-pressure-studio" element={<PorePressureStudioHarness />} />
                                   <Route path="/dev/dca" element={<DeclineCurveAnalysis />} />
                                   <Route path="/dev/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
+                                  <Route path="/dev/nodal-analysis-studio" element={<NodalAnalysisStudio />} />
                                   <Route path="/dev/material-balance-studio" element={<ReservoirBalance />} />
                                   <Route path="/dev/material-balance-studio/cases/:caseId" element={<ReservoirBalance />} />
                                 </>
