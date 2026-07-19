@@ -22,7 +22,7 @@
  * wax thermodynamics (WAT stays measured/wax-content screening only).
  */
 
-import { pvtCalcs } from './pvtCalculations';
+import { pvtCalcs } from './pvtCalculations.js';
 
 // ---------------------------------------------------------------------------
 // Small helpers

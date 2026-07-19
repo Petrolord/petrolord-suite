@@ -1,0 +1,45 @@
+{
+  "_readme": "Published worked examples for the Nodal Analysis Studio literature gates. Repo rule (welltest/fluidstudio precedent): a fixture arms (armed: true) only when its numbers have been read from the cited book by the owner or verified against an owner-provided scan. Until then the fixture documents the target and CASE 8 skips it.",
+  "fixtures": [
+    {
+      "id": "economides-vogel-example",
+      "armed": false,
+      "source": "Economides, Hill, Ehlig-Economides, Zhu, Petroleum Production Systems, 2nd ed.",
+      "section": "Vogel inflow worked example (chapter on well deliverability)",
+      "target": "computeIpr vogel/composite reproduces the printed qmax and rate at the example pwf",
+      "data": null
+    },
+    {
+      "id": "beggs-brill-original-example",
+      "armed": false,
+      "source": "Beggs, Production Optimization Using Nodal Analysis",
+      "section": "Beggs and Brill worked pressure-gradient example",
+      "target": "NA2 traverse single-segment gradient matches the printed dp/dz within 5 percent",
+      "data": null
+    },
+    {
+      "id": "brown-hagedorn-brown-traverse",
+      "armed": false,
+      "source": "Brown, The Technology of Artificial Lift Methods, Vol 1",
+      "section": "Hagedorn-Brown example traverse",
+      "target": "NA2 modified Hagedorn-Brown BHP matches the printed traverse within 5 percent",
+      "data": null
+    },
+    {
+      "id": "guo-ghalambor-gas-well",
+      "armed": false,
+      "source": "Guo and Ghalambor, Petroleum Production Engineering",
+      "section": "Gas well deliverability and tubing performance example",
+      "target": "darcyGasIpr and the NA2 Gray traverse reproduce the printed example",
+      "data": null
+    },
+    {
+      "id": "takacs-gas-lift-sweep",
+      "armed": false,
+      "source": "Takacs, Gas Lift Manual",
+      "section": "Gas lift performance curve example",
+      "target": "NA3 gasLiftSweep optimum matches the printed optimum injection rate",
+      "data": null
+    }
+  ]
+}
