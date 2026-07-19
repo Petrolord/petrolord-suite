@@ -44,6 +44,7 @@ import { noSlipGradient } from '../../../src/utils/nodal/correlations/noSlip.js'
 import { beggsBrillGradient } from '../../../src/utils/nodal/correlations/beggsBrill.js';
 import { linearGeothermal } from '../../../src/utils/nodal/temperature.js';
 import { bhpFromWhp } from '../../../src/utils/nodal/traverse.js';
+import { cullenderSmithBhp } from '../../../src/utils/nodal/cullenderSmith.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const goldens = JSON.parse(
@@ -237,6 +238,21 @@ banner('CASE 10: traverse vs oracle RK4 route (Heun 50 ft vs RK4 5 ft)');
       stepFt: 50,
     });
     check(`${c.label} BHP`, res.pEnd, c.bhp, 3e-3, 'psia');
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 11: Cullender-Smith quadrature vs oracle RK4 ODE route');
+{
+  for (const c of goldens.cullenderSmith) {
+    const res = cullenderSmithBhp(c);
+    check(`${c.label} pwf`, res.pwf, c.pwf, 5e-3, 'psia');
+    if (!res.converged) {
+      console.log(`  FAIL  ${c.label}: iteration did not converge`);
+      failed += 1;
+    } else {
+      passed += 1;
+    }
   }
 }
 

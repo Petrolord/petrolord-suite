@@ -2690,5 +2690,72 @@
    ],
    "bhp": 2195.2233132914175
   }
+ ],
+ "cullenderSmith": [
+  {
+   "label": "static 10k ft",
+   "ptf": 2000.0,
+   "gasSg": 0.75,
+   "mdFt": 10000.0,
+   "tvdFt": 10000.0,
+   "whtF": 80.0,
+   "bhtF": 220.0,
+   "qMmscfd": 0.0,
+   "idIn": 2.441,
+   "roughnessIn": 0.0006,
+   "pwf": 2663.4903734916434
+  },
+  {
+   "label": "flowing 10k ft",
+   "ptf": 2000.0,
+   "gasSg": 0.75,
+   "mdFt": 10000.0,
+   "tvdFt": 10000.0,
+   "whtF": 80.0,
+   "bhtF": 220.0,
+   "qMmscfd": 4.915,
+   "idIn": 2.441,
+   "roughnessIn": 0.0006,
+   "pwf": 2754.6695400217673
+  },
+  {
+   "label": "flowing lean shallow",
+   "ptf": 800.0,
+   "gasSg": 0.6,
+   "mdFt": 6000.0,
+   "tvdFt": 6000.0,
+   "whtF": 70.0,
+   "bhtF": 160.0,
+   "qMmscfd": 2.0,
+   "idIn": 1.995,
+   "roughnessIn": 0.0006,
+   "pwf": 967.0954694045748
+  },
+  {
+   "label": "flowing deviated",
+   "ptf": 1500.0,
+   "gasSg": 0.7,
+   "mdFt": 12000.0,
+   "tvdFt": 9500.0,
+   "whtF": 85.0,
+   "bhtF": 210.0,
+   "qMmscfd": 8.0,
+   "idIn": 2.992,
+   "roughnessIn": 0.0006,
+   "pwf": 2044.2444501642979
+  },
+  {
+   "label": "high rate friction-heavy",
+   "ptf": 3000.0,
+   "gasSg": 0.65,
+   "mdFt": 11000.0,
+   "tvdFt": 11000.0,
+   "whtF": 90.0,
+   "bhtF": 230.0,
+   "qMmscfd": 20.0,
+   "idIn": 2.441,
+   "roughnessIn": 0.0006,
+   "pwf": 4787.109716901732
+  }
  ]
 }

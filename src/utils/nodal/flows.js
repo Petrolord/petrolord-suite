@@ -69,3 +69,40 @@ export const inSituRates = ({ qo, wct = 0, gor, pvt, areaFt2 }) => {
     fw,
   };
 };
+
+/**
+ * In-situ rates for a gas-well stream (NA2: Gray, Cullender-Smith with
+ * liquids screening). Rates are gas-centric: qg (Mscf/d) measured at
+ * surface, water-gas ratio and condensate-gas ratio in stb/MMscf.
+ *
+ * v1 wet-gas treatment (standard for Gray-class usage): all measured gas
+ * stays in the gas phase (no condensate flash back to gas), condensate
+ * travels as liquid with the fluid model's stock-tank oil properties at
+ * local (p, T) and no dissolved gas, water swells by Bw.
+ */
+export const inSituRatesGas = ({ qgMscfd, wgr = 0, cgr = 0, pvt, areaFt2 }) => {
+  const qgScfd = qgMscfd * 1000;
+  const qc = (cgr * qgMscfd) / 1000; // stb/d condensate
+  const qw = (wgr * qgMscfd) / 1000; // stb/d water
+
+  const qgIs = (qgScfd * pvt.bg * FT3_PER_BBL) / SEC_PER_DAY; // ft3/s
+  const qcIs = (qc * pvt.bo * FT3_PER_BBL) / SEC_PER_DAY;
+  const qwIs = (qw * pvt.bw * FT3_PER_BBL) / SEC_PER_DAY;
+  const qlIs = qcIs + qwIs;
+
+  const vsl = qlIs / areaFt2;
+  const vsg = qgIs / areaFt2;
+  const vm = vsl + vsg;
+  const lambdaL = vm > 0 ? vsl / vm : 1;
+
+  const fo = qlIs > 0 ? qcIs / qlIs : 0;
+  const fw = 1 - fo;
+  const rhoL = qlIs > 0 ? fo * pvt.rhoO + fw * pvt.rhoW : pvt.rhoW;
+  const muL = qlIs > 0 ? fo * pvt.muO + fw * pvt.muW : pvt.muW;
+  const sigmaL = qlIs > 0 ? fo * pvt.sigmaOG + fw * pvt.sigmaWG : pvt.sigmaWG;
+
+  const rhoNs = rhoL * lambdaL + pvt.rhoG * (1 - lambdaL);
+  const muNs = muL * lambdaL + pvt.muG * (1 - lambdaL);
+
+  return { qc, qw, vsl, vsg, vm, lambdaL, rhoL, muL, sigmaL, rhoNs, muNs, fo, fw };
+};

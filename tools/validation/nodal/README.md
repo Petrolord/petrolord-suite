@@ -43,8 +43,16 @@ record: `docs/scope/NodalAnalysisStudio-PLAN.md`).
 | 7 | Darcy gas IPR (trapezoid m(p)) vs oracle Simpson route at 1.5 % |
 | 8 | Literature fixtures (armed only with book-verified data) |
 
-NA2 adds the traverse and correlation cases (Fancher-Brown no-slip
-analytic limit, hydrostatic zero-rate, single-phase Darcy-Weisbach,
-Cullender-Smith gas column, Beggs and Brill + Payne, modified
-Hagedorn-Brown, Gray). NA3 adds operating-point, choke coefficient and
-gas-lift concavity gates. A perf smoke case lands with NA5.
+## Case map (NA2)
+
+| CASE | Gate |
+|------|------|
+| 9 | Gradient correlations vs oracle transcription (no-slip, Beggs and Brill + Payne: holdup exact, dpdz within the Colebrook route difference, pattern equality) |
+| 10 | Traverse route independence: JS Heun 50 ft vs oracle RK4 5 ft, <= 0.3 % |
+
+Analytic limits (single-phase reduction, hydrostatic zero-rate,
+horizontal zero-head, down-up round trip) are enforced in jest
+(correlations.test.js, traverse.test.js). Remaining NA2 gates land with
+their engines: Cullender-Smith gas column, modified Hagedorn-Brown,
+Gray. NA3 adds operating-point, choke coefficient and gas-lift concavity
+gates. A perf smoke case lands with NA5.

@@ -172,6 +172,32 @@ def traverse_cases():
     return cases
 
 
+def cullender_smith_cases():
+    """NA2: C-S two-step+Simpson vs the oracle's RK4 ODE route."""
+    cases = [
+        {"label": "static 10k ft", "ptf": 2000.0, "gasSg": 0.75, "mdFt": 10000.0,
+         "tvdFt": 10000.0, "whtF": 80.0, "bhtF": 220.0, "qMmscfd": 0.0,
+         "idIn": 2.441, "roughnessIn": 0.0006},
+        {"label": "flowing 10k ft", "ptf": 2000.0, "gasSg": 0.75, "mdFt": 10000.0,
+         "tvdFt": 10000.0, "whtF": 80.0, "bhtF": 220.0, "qMmscfd": 4.915,
+         "idIn": 2.441, "roughnessIn": 0.0006},
+        {"label": "flowing lean shallow", "ptf": 800.0, "gasSg": 0.6, "mdFt": 6000.0,
+         "tvdFt": 6000.0, "whtF": 70.0, "bhtF": 160.0, "qMmscfd": 2.0,
+         "idIn": 1.995, "roughnessIn": 0.0006},
+        {"label": "flowing deviated", "ptf": 1500.0, "gasSg": 0.7, "mdFt": 12000.0,
+         "tvdFt": 9500.0, "whtF": 85.0, "bhtF": 210.0, "qMmscfd": 8.0,
+         "idIn": 2.992, "roughnessIn": 0.0006},
+        {"label": "high rate friction-heavy", "ptf": 3000.0, "gasSg": 0.65,
+         "mdFt": 11000.0, "tvdFt": 11000.0, "whtF": 90.0, "bhtF": 230.0,
+         "qMmscfd": 20.0, "idIn": 2.441, "roughnessIn": 0.0006},
+    ]
+    for c in cases:
+        c["pwf"] = oracle.cs_ode_bhp(
+            c["ptf"], c["gasSg"], c["mdFt"], c["tvdFt"], c["whtF"], c["bhtF"],
+            c["qMmscfd"], c["idIn"], c["roughnessIn"])
+    return cases
+
+
 def main():
     goldens = {
         "_source": "tools/validation/nodal/genfixtures.py (independent Python oracle)",
@@ -183,6 +209,7 @@ def main():
         "gasIpr": gas_ipr_cases(),
         "gradients": gradient_cases(),
         "traverse": traverse_cases(),
+        "cullenderSmith": cullender_smith_cases(),
     }
     with open(OUT, "w") as fh:
         json.dump(goldens, fh, indent=1)

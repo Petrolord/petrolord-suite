@@ -18,6 +18,7 @@ import { noSlipGradient } from '../correlations/noSlip.js';
 import { beggsBrillGradient } from '../correlations/beggsBrill.js';
 import { linearGeothermal } from '../temperature.js';
 import { bhpFromWhp } from '../traverse.js';
+import { cullenderSmithBhp } from '../cullenderSmith.js';
 
 const goldens = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'goldens.json'), 'utf8')
@@ -161,6 +162,16 @@ describe('NA2 traverse vs oracle RK4 route', () => {
       });
       expect(res.ok).toBe(true);
       expect(relErr(res.pEnd, c.bhp)).toBeLessThan(3e-3);
+    }
+  });
+});
+
+describe('NA2 Cullender-Smith vs oracle RK4 ODE route', () => {
+  test('two-step + Simpson matches fine RK4 within 0.5%', () => {
+    for (const c of goldens.cullenderSmith) {
+      const res = cullenderSmithBhp(c);
+      expect(res.converged).toBe(true);
+      expect(relErr(res.pwf, c.pwf)).toBeLessThan(5e-3);
     }
   });
 });

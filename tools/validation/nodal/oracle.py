@@ -608,3 +608,43 @@ def traverse_rk4(model: dict, rates: dict, whp: float, node_md: float,
         p += h * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0
         md += h
     return p
+
+
+# ---------------------------------------------------------------------------
+# NA2: Cullender-Smith gas column, gated by route independence.
+#
+# The C-S integral relation int I(p) dp = 18.75 gammaG MD is the exact
+# hydrostatic+friction ODE recast; the JS engine evaluates it with the
+# classic two-step trapezoid + Simpson refinement. This oracle integrates
+# the equivalent ODE dp/dMD = 18.75 gammaG / I(p) by RK4 at fine steps,
+# so agreement validates the quadrature, not a re-transcription.
+
+def cs_ode_bhp(ptf: float, gas_sg: float, md_ft: float, tvd_ft: float,
+               wht_f: float, bht_f: float, q_mmscfd: float, id_in: float,
+               roughness_in: float, mu_cp: float = 0.012, n: int = 4000) -> float:
+    elev = tvd_ft / md_ft
+    f2 = 0.0
+    if q_mmscfd > 0:
+        re = 20011.0 * gas_sg * q_mmscfd / (mu_cp * id_in)
+        f = moody(re, roughness_in / id_in)
+        f2 = 0.667 * f * q_mmscfd * q_mmscfd / id_in ** 5
+
+    def dpdl(md, p):
+        t_r = wht_f + 460.0 + (bht_f - wht_f) * (md / md_ft)
+        z = sutton_papay_z(p, t_r - 460.0, gas_sg)
+        ptz = p / (t_r * z)
+        if ptz <= 0:
+            return 0.0
+        return 18.75 * gas_sg * (elev * ptz * ptz / 1000.0 + f2) / ptz
+
+    h = md_ft / n
+    p = ptf
+    md = 0.0
+    for _ in range(n):
+        k1 = dpdl(md, p)
+        k2 = dpdl(md + h / 2.0, p + h * k1 / 2.0)
+        k3 = dpdl(md + h / 2.0, p + h * k2 / 2.0)
+        k4 = dpdl(md + h, p + h * k3)
+        p += h * (k1 + 2.0 * k2 + 2.0 * k3 + k4) / 6.0
+        md += h
+    return p
