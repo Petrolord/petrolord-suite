@@ -13,9 +13,13 @@
  * the undersaturated oil-viscosity rise, plus a black-oil separator-train
  * staged-liberation flash.
  *
- * PHASE 1 SCOPE: single black-oil stream (Stream A) + separator train. Blending,
- * flow assurance, batch runs, EOS/composition flash and persistence are deferred;
- * clean seams are noted inline.
+ * SHIPPED SCOPE: Stream A black-oil PVT, separator train, Stream B blending
+ * (with asphaltene compatibility screening), flow-assurance screening (Motiee
+ * hydrate curve, WAT resolution), batch sweeps and project persistence.
+ *
+ * STILL DEFERRED: EOS/compositional flash (the FS-program work; the per-stage
+ * seam is noted inline), AOP (needs asphaltene characterization) and rigorous
+ * wax thermodynamics (WAT stays measured/wax-content screening only).
  */
 
 import { pvtCalcs } from './pvtCalculations';
