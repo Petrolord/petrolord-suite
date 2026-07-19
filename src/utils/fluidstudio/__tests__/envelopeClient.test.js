@@ -52,6 +52,27 @@ describe('envelope client (sync fallback)', () => {
   });
 });
 
+describe('ET3: lab-tune through the client (sync fallback)', () => {
+  test('tune resolves with a fit result and tuned envelope moves with it', async () => {
+    const client = createEnvelopeClient();
+    const fluid = { keys: ['C1', 'C7+'], plus: { mw: 190, sg: 0.84 }, z: [0.7, 0.3] };
+    const base = await client.trace({
+      keys: fluid.keys, z: fluid.z, plus: fluid.plus, tMinF: 100, tMaxF: 220, nT: 2, resTempF: 150,
+    });
+    const target = base.satAtRes.pPsia * 1.05; // pretend the lab measured 5% higher
+    const fit = await client.tune({ fluid, targets: { psat: { tF: 150, pPsia: target } } });
+    expect(fit.ok).toBe(true);
+    expect(Math.abs(fit.report[0].tunedErr)).toBeLessThan(0.5);
+    // the tuned knobs flow into the envelope payload and move the boundary
+    const tuned = await client.trace({
+      keys: fluid.keys, z: fluid.z, plus: fluid.plus, tuning: fit.tuning,
+      tMinF: 100, tMaxF: 220, nT: 2, resTempF: 150,
+    });
+    expect(Math.abs(tuned.satAtRes.pPsia - target) / target).toBeLessThan(0.005);
+    client.dispose();
+  });
+});
+
 describe('FS8: worker cancellation (fake worker path)', () => {
   const makeFakeWorker = () => {
     const w = {

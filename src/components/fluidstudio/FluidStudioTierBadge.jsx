@@ -14,6 +14,14 @@ import {
  * (FS8) and must stay in step with the badges the cards render.
  */
 const TIERS = {
+  lab_tuned: {
+    label: 'Lab tuned',
+    classes: 'bg-cyan-900/30 border-cyan-700/50 text-cyan-300',
+    iconClasses: 'text-cyan-400',
+    Icon: CheckCircle2,
+    tooltip:
+      'The C7+ plus fraction of this fluid has been regressed to the measured lab values you entered in the Lab tuning card. All compositional results use the tuned fluid; the before and after table on that card shows exactly how well each measurement is matched.',
+  },
   oracle_gated: {
     label: 'Oracle gated',
     classes: 'bg-lime-900/30 border-lime-700/50 text-lime-300',

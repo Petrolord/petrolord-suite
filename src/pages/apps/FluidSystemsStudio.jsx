@@ -70,6 +70,23 @@ const FluidSystemsStudio = () => {
     addNotification('Sample fluid loaded', 'info');
   };
 
+  // ET3: merge lab-tuning updates ({lab} and/or {applied}) into the
+  // composition. Replacing the composition object re-keys the EOS memos,
+  // so an applied tune recomputes every compositional result.
+  const updateTuning = (next) => setInputs((prev) => {
+    const composition = prev.streamA?.composition ?? {};
+    return {
+      ...prev,
+      streamA: {
+        ...prev.streamA,
+        composition: {
+          ...composition,
+          tuning: { ...(composition.tuning ?? {}), ...next },
+        },
+      },
+    };
+  });
+
   const leftPanel = (
     <div className="space-y-6">
       <section>
@@ -129,7 +146,15 @@ const FluidSystemsStudio = () => {
         sidebarRight={null}
         leftWidthClass="w-96"
         main={hasResults
-          ? <FluidStudioResults results={results} eos={eos} composition={inputs.streamA?.composition} />
+          ? (
+            <FluidStudioResults
+              results={results}
+              eos={eos}
+              composition={inputs.streamA?.composition}
+              sepStages={sepStages}
+              onUpdateTuning={updateTuning}
+            />
+          )
           : <FluidStudioEmptyState onRunSample={loadSample} />}
         notifications={notifications}
         onDismissNotification={removeNotification}

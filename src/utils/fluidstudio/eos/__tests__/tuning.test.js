@@ -19,7 +19,9 @@ import { saturationPressure } from '../envelope.js';
 import { separatorTrain } from '../separator.js';
 import { degFtoR } from '../units.js';
 import { runEnvelopeTrace } from '../envelope.worker.js';
-import { parseComposition, buildMixture, envelopeRequest } from '../../eosAnalysis.js';
+import {
+  parseComposition, buildMixture, envelopeRequest, labTuneRequest, emptyComposition,
+} from '../../eosAnalysis.js';
 
 // The char-oil goldens fluid (FS4) - a realistic tuning subject.
 const KEYS = ['CO2', 'N2', 'C1', 'C2', 'C3', 'nC4', 'nC5', 'nC6'];
@@ -146,5 +148,40 @@ describe('eosAnalysis plumbing', () => {
     const req = envelopeRequest({ ...composition, tuning: { applied: { sPlus: 0.1 } } });
     expect(req.tuning).toEqual({ fTc: 1, fPc: 1, kC1: null, sPlus: 0.1 });
     expect(envelopeRequest(composition).tuning).toBeNull();
+  });
+
+  it('emptyComposition ships an untuned tuning scaffold', () => {
+    const c = emptyComposition();
+    expect(c.tuning.applied).toBeNull();
+    expect(c.tuning.lab).toMatchObject({ psatPsia: null, totalGor: null });
+  });
+
+  describe('labTuneRequest (ET3)', () => {
+    const stages = [{ temperature: '75', pressure: '114.65' }];
+
+    it('rejects an invalid composition and an empty lab set', () => {
+      expect(labTuneRequest({ zPct: {} }, stages).request).toBeNull();
+      expect(labTuneRequest(composition, stages).request).toBeNull();
+      expect(labTuneRequest(composition, stages).reasons[0]).toMatch(/at least one measured/i);
+    });
+
+    it('builds a psat-only request, defaulting the temperature to the flash T', () => {
+      const { request } = labTuneRequest(
+        { ...composition, tuning: { lab: { psatPsia: '2500' } } }, stages,
+      );
+      expect(request.targets).toEqual({ psat: { tF: 200, pPsia: 2500 } });
+      expect(request.fluid.keys[request.fluid.keys.length - 1]).toBe('C7+');
+      expect(request.fluid.z.reduce((s, v) => s + v, 0)).toBeCloseTo(1, 12);
+    });
+
+    it('separator measurements need stages and pick up flash T/P as reservoir conditions', () => {
+      const withGor = { ...composition, tuning: { lab: { totalGor: 750 } } };
+      expect(labTuneRequest(withGor, []).request).toBeNull();
+      const { request } = labTuneRequest(withGor, stages);
+      expect(request.targets.separatorTest).toMatchObject({
+        stagesF: [[75, 114.65]], resTF: 200, resPPsia: 3000, totalGor: 750,
+      });
+      expect(request.targets.separatorTest.stoApi).toBeUndefined();
+    });
   });
 });
