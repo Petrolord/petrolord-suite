@@ -58,15 +58,25 @@ truths, Vogel identity + calibration round trip, composite/Fetkovich/Jones
 vs oracle, PVT adapter across a p,T matrix, minimum-curvature vs oracle,
 Darcy gas IPR trapezoid-vs-Simpson at 1.5%, literature CASE skeleton.
 
-### NA2 — Pressure traverse + VLP correlations
-Segment-by-segment wellbore traverse (marching from a boundary pressure,
-local p,T PVT per step) and the correlation set: Fancher-Brown (no-slip),
-single-phase liquid Darcy-Weisbach, Cullender-Smith dry-gas column,
-Beggs & Brill with Payne correction, modified Hagedorn-Brown, Gray
-(gas condensate). Gates: no-slip analytic limit, hydrostatic zero-rate
-identity, single-phase Darcy-Weisbach closed form, Cullender-Smith vs
-oracle, correlation behavior envelopes; literature traverse fixtures when
-armed.
+### NA2 — Pressure traverse + VLP correlations (DONE)
+Heun-marching traverse (`traverse.js`: bhpFromWhp / whpFromBhp /
+vlpCurve, oil and wet-gas streams) over the correlation registry
+(`correlations/`): no-slip, genuine Fancher-Brown (Brown Fig. 2.41
+GLR-banded chart friction, QC lower bound), Beggs & Brill 1973 + Payne
+(pattern map, transition interpolation, single-phase guards), modified
+Hagedorn-Brown (Economides-family chart fits, Griffith bubble flow,
+no-slip floor, rhoNs^2/rhoS friction), Gray 1974 (Fekete-verified
+equations, pseudo-roughness). Gas columns: Cullender-Smith two-step +
+Simpson and average T&Z (both with deviated H/MD handling and fMoody
+override). Gates: oracle transcription equality per correlation, RK4
+route independence for traverse and C-S, analytic limits in jest, and
+the armed literature set (Guo 4.5/4.6, Brill & Mukherjee 2.2, UTP
+thesis, Lyons 6.2.5 holdup chain). Owner amended the fixture-arming rule
+2026-07-19: web-sourced verification allowed, recorded per fixture as
+book-text or secondary. Known open point: the mHB low-X1 chart region
+(Takacs 2.24 reads HL/psi 0.44 where both standard fit families give
+~0.28); fixture committed unarmed pending a re-anchor against the
+original Hagedorn & Brown figure.
 
 ### NA3 — System solve
 IPR × VLP operating-point intersection (robust bracketing, no-solution

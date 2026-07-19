@@ -24,11 +24,13 @@ record: `docs/scope/NodalAnalysisStudio-PLAN.md`).
 
       node tools/validation/nodal/run-validation.mjs
 
-- `literature-fixtures.json` - published worked-example anchors
-  (Economides, Beggs, Brown, Guo and Ghalambor, Takacs). Repo rule: a
-  fixture arms only when its numbers are book-verified from an
-  owner-provided source; until then CASE 8 skips it and the affected
-  quantities stay at oracle-validated tier, not literature-anchored tier.
+- `literature-fixtures.json` - published worked-example anchors. Arming
+  rule (owner-amended 2026-07-19): fixtures may arm from web-sourced
+  verification; each records its `verification` level (`book-text` =
+  read from a full-text copy of the book, `secondary` = reproduced from
+  implementations that validate against the book) and its tolerance
+  rationale. Unarmed fixtures document why they stay off (see the Takacs
+  mHB fixture: chart-read vs standard-fit divergence at low X1).
 
 ## Case map (NA1)
 
@@ -43,8 +45,18 @@ record: `docs/scope/NodalAnalysisStudio-PLAN.md`).
 | 7 | Darcy gas IPR (trapezoid m(p)) vs oracle Simpson route at 1.5 % |
 | 8 | Literature fixtures (armed only with book-verified data) |
 
-NA2 adds the traverse and correlation cases (Fancher-Brown no-slip
-analytic limit, hydrostatic zero-rate, single-phase Darcy-Weisbach,
-Cullender-Smith gas column, Beggs and Brill + Payne, modified
-Hagedorn-Brown, Gray). NA3 adds operating-point, choke coefficient and
+## Case map (NA2)
+
+| CASE | Gate |
+|------|------|
+| 9 | All five gradient correlations vs oracle transcription (no-slip, Fancher-Brown chart, Beggs and Brill + Payne, modified Hagedorn-Brown, Gray: holdup exact, dpdz within the Colebrook route difference, pattern equality) |
+| 10 | Traverse route independence: JS Heun 50 ft vs oracle RK4 5 ft, <= 0.3 %, oil and wet-gas streams |
+| 11 | Cullender-Smith two-step + Simpson vs oracle RK4 of the equivalent ODE, <= 0.5 % |
+| 8 | Armed literature anchors: Guo 4.5 (average T&Z), Guo 4.6 + Brill & Mukherjee 2.2 + UTP thesis (Cullender-Smith), Lyons 6.2.5 (Beggs & Brill holdup chain), rNodal Fancher-Brown friction cross-check |
+
+Analytic limits (single-phase reduction, hydrostatic zero-rate,
+horizontal zero-head, down-up round trip, Griffith quadratic, chart-fit
+ranges) are enforced in jest (correlations.test.js, traverse.test.js,
+correlationsWetGas.test.js); the armed literature set also runs in CI
+via literature.test.js. NA3 adds operating-point, choke coefficient and
 gas-lift concavity gates. A perf smoke case lands with NA5.

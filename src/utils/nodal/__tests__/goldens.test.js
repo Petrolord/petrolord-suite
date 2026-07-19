@@ -14,6 +14,10 @@ import { buildFluidModel, pvtAt } from '../pvt.js';
 import { computeIpr, rateAtPwf } from '../ipr.js';
 import { buildTrajectory, tvdAtMd } from '../trajectory.js';
 import { darcyGasIpr } from '../iprGas.js';
+import { gradientFor } from '../correlations/index.js';
+import { linearGeothermal } from '../temperature.js';
+import { bhpFromWhp } from '../traverse.js';
+import { cullenderSmithBhp } from '../cullenderSmith.js';
 
 const goldens = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'goldens.json'), 'utf8')
@@ -109,6 +113,65 @@ describe('minimum-curvature trajectory vs oracle goldens', () => {
     t.survey.forEach((s, i) => {
       expect(relErr(tvdAtMd(traj, s.md), t.tvds[i])).toBeLessThan(1e-9);
     });
+  });
+});
+
+describe('NA2 gradient correlations vs oracle transcription', () => {
+  test('holdup exact, dpdz within the Colebrook route difference, pattern equal', () => {
+    for (const c of goldens.gradients) {
+      const js = gradientFor(c.correlation)({
+        p: c.p,
+        thetaDeg: c.thetaDeg,
+        dIn: c.dIn,
+        rough: c.rough,
+        flows: c.flows,
+        pvt: { rhoG: 5.0, muG: 0.015 },
+        glr: c.glr,
+      });
+      expect(relErr(js.holdup, c.out.holdup)).toBeLessThan(1e-9);
+      expect(relErr(js.dpdz, c.out.dpdz)).toBeLessThan(2e-3);
+      expect(js.pattern).toBe(c.out.pattern);
+    }
+  });
+});
+
+describe('NA2 traverse vs oracle RK4 route', () => {
+  test('Heun 50 ft matches RK4 5 ft within 0.3% on every case', () => {
+    const model = buildFluidModel({
+      api: goldens.model.api,
+      gasSg: goldens.model.gasSg,
+      gor: goldens.model.gor,
+      salinityPpm: goldens.model.salinityPpm,
+    });
+    for (const c of goldens.traverse) {
+      const trajectory = c.survey
+        ? buildTrajectory({ mode: 'deviated', survey: c.survey })
+        : buildTrajectory({ mode: 'vertical', depthFt: c.nodeMd });
+      const res = bhpFromWhp({
+        fluidModel: model,
+        rates: c.rates,
+        trajectory,
+        tAt: linearGeothermal({ whtF: c.whtF, bhtF: c.bhtF, tvdMaxFt: c.tvdMax }),
+        idIn: c.idIn,
+        roughnessIn: c.roughnessIn,
+        correlation: c.correlation,
+        whp: c.whp,
+        nodeMd: c.nodeMd,
+        stepFt: 50,
+      });
+      expect(res.ok).toBe(true);
+      expect(relErr(res.pEnd, c.bhp)).toBeLessThan(3e-3);
+    }
+  });
+});
+
+describe('NA2 Cullender-Smith vs oracle RK4 ODE route', () => {
+  test('two-step + Simpson matches fine RK4 within 0.5%', () => {
+    for (const c of goldens.cullenderSmith) {
+      const res = cullenderSmithBhp(c);
+      expect(res.converged).toBe(true);
+      expect(relErr(res.pwf, c.pwf)).toBeLessThan(5e-3);
+    }
   });
 });
 
