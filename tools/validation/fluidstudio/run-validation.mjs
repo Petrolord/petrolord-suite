@@ -78,6 +78,12 @@
  *           the separator-adjusted Rs/Bo/Bg/Z/viscosity rows. Identities:
  *           mole balance across liberated gas + residual, Rs telescoping
  *           to the cooldown gas, Bo(Pb) = Bofb, Rs(Pb) = Rsfb.
+ * CASE 22 FS8 performance smoke: wall-clock budgets on the interactive
+ *           pipelines (flash, separator train, saturation + composite
+ *           table, envelope trace) on the char-oil fluid. Budgets are
+ *           deliberately generous (an order of magnitude above observed)
+ *           so the gate only trips on real algorithmic regressions, not
+ *           machine noise; observed times print for the record.
  */
 
 import fs from 'fs';
@@ -97,7 +103,7 @@ import {
   jhaveriYoungrenShift, lbcVcC7PlusFt3, firoozabadiParachor, chuehPrausnitzBip,
   characterizePlusFraction, mixtureWithPlusFraction,
 } from '../../../src/utils/fluidstudio/eos/characterization.js';
-import { phaseBoundaries, saturationPressure } from '../../../src/utils/fluidstudio/eos/envelope.js';
+import { phaseBoundaries, saturationPressure, tracePhaseEnvelope } from '../../../src/utils/fluidstudio/eos/envelope.js';
 import {
   lbcViscosity, diluteComponentViscosity, diluteMixtureViscosity, weinaugKatzIFT,
 } from '../../../src/utils/fluidstudio/eos/transport.js';
@@ -839,6 +845,38 @@ banner('CASE 21: differential liberation + composite table vs oracle');
   const rsMono = rsSorted.every((r, i) => i === 0 || r.Rs <= rsSorted[i - 1].Rs + 1e-9);
   const boMono = rsSorted.every((r, i) => i === 0 || r.Bo <= rsSorted[i - 1].Bo + 1e-12);
   checkAbs(`${job.fluid}: Rs and Bo monotonic below Pb`, rsMono && boMono ? 0 : 1, 0, 0);
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 22: performance smoke (generous budgets, observed times printed)');
+{
+  const job = goldens.experiments.find((j) => j.dlPressures);
+  const mix = mixtureWithPlusFraction(job.keys, job.plus);
+  const tR = degFtoR(job.tF);
+  const sepStages = job.sepStagesF.map(([tF, pPsia]) => ({ tR: degFtoR(tF), pPsia }));
+
+  const timed = (label, budgetMs, fn) => {
+    const t0 = process.hrtime.bigint();
+    fn();
+    const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+    console.log(`  time  ${label}: ${ms.toFixed(1)} ms (budget ${budgetMs} ms)`);
+    checkAbs(`${label} within budget`, Math.max(0, ms - budgetMs), 0, 0, 'ms over');
+    return ms;
+  };
+
+  timed('keystroke flash (flashPT at res T,P)', 2000, () => {
+    for (let i = 0; i < 10; i += 1) flashPT(mix, job.x, tR, 2500);
+  });
+  timed('separator train (2 stages + stock tank)', 2000, () => {
+    separatorTrain(mix, job.x, sepStages);
+  });
+  timed('saturation scan + composite table (full FS7 pipeline)', 5000, () => {
+    const sat = saturationPressure(mix, job.x, tR, {});
+    eosBlackOilTable(mix, job.x, tR, sepStages, { psatPsia: sat.pPsia });
+  });
+  timed('envelope trace (15 T-points, worker workload)', 60000, () => {
+    tracePhaseEnvelope(mix, job.x, { tMinR: degFtoR(40), tMaxR: degFtoR(400), nT: 15, nScan: 30 });
+  });
 }
 
 // ---------------------------------------------------------------------------

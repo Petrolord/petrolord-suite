@@ -6,7 +6,7 @@ import FluidStudioHelpGuide from '../FluidStudioHelpGuide';
 describe('FluidStudioHelpGuide', () => {
   it('renders comprehensive sections when open', () => {
     render(<FluidStudioHelpGuide isOpen onOpenChange={() => {}} />);
-    expect(screen.getByText(/Fluid Systems & Flow Behavior Studio — Help Guide/i)).toBeInTheDocument();
+    expect(screen.getByText(/Fluid Systems & Flow Behavior Studio Help Guide/i)).toBeInTheDocument();
     // Spot-check the major section headers (accordion trigger buttons).
     [
       /What is the Fluid Systems/i,

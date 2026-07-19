@@ -13,7 +13,8 @@
  * Boundaries are classified by a flash just inside the two-phase side:
  * vapor fraction → 0 is a bubble point, → 1 a dew point.
  *
- * Caveats (documented, revisited in FS8 hardening):
+ * Caveats (documented; FS8 hardened the classification but the physics
+ * limits stand):
  * - Composition-trial stability cannot see instability for a pure
  *   component, so these routines require ≥ 2 components with nonzero z.
  * - Near the mixture critical point both trials go trivial and the
@@ -23,10 +24,20 @@
  *   spacing. Near-pure fluids (window width → 0) need a larger nScan or
  *   a narrower [pMin, pMax] window than the defaults.
  *
+ * FS8 near-critical fallback: boundary classification probes a ladder of
+ * insets (1%, 3%, 6%) instead of a single 1% probe, because close to the
+ * critical point the flash can refuse to split at the shallowest inset
+ * while a slightly deeper one still resolves. If the whole ladder stays
+ * indeterminate, saturationPressure falls back to the v/b < 1.75
+ * liquid-likeness heuristic (the pr78.purePsat convention) so the UI
+ * still gets a usable bubble/dew label, marked kindSource:
+ * 'density-heuristic' instead of the default 'flash-probe'.
+ *
  * Units psia / °R as everywhere in this directory.
  */
 
 import { stabilityTest, flashPT } from './flash.js';
+import { phaseProps } from './pr78.js';
 
 const isUnstable = (mix, z, tR, p, stabilityOpts) => !stabilityTest(mix, z, tR, p, stabilityOpts).stable;
 
@@ -70,23 +81,48 @@ export function phaseBoundaries(mix, z, tR, opts = {}) {
     }
     const pBoundary = 0.5 * (lo + hi);
     const twoPhaseSide = loUnstable ? 'below' : 'above';
-    // probe a flash slightly inside the two-phase side to classify the
-    // boundary; 1% inset keeps beta away from the numerical edge
-    const inset = Math.max(5 * tolPsia, 0.01 * pBoundary);
-    const pProbe = loUnstable ? Math.max(pMinPsia, pBoundary - inset) : pBoundary + inset;
-    const probe = flashPT(mix, z, tR, pProbe);
-    let kind = 'indeterminate';
-    if (probe.phases === 2) kind = probe.beta < 0.5 ? 'bubble' : 'dew';
-    else if (probe.reason === 'negative-flash-liquid') kind = 'bubble';
-    else if (probe.reason === 'negative-flash-vapor') kind = 'dew';
     boundaries.push({
       pPsia: pBoundary,
       twoPhaseSide,
-      kind,
-      probeBeta: probe.phases === 2 ? probe.beta : null,
+      ...classifyBoundary(mix, z, tR, pBoundary, twoPhaseSide, { pMinPsia, tolPsia }),
     });
   }
   return boundaries;
+}
+
+/**
+ * Classify a located boundary by flashing just inside its two-phase
+ * side. The original FS4 probe sat at a single 1% inset; near the
+ * critical point that flash can refuse to split while a deeper probe
+ * still resolves, so FS8 walks an inset ladder before conceding
+ * 'indeterminate'. probeBeta reports the shallowest successful probe.
+ */
+export function classifyBoundary(mix, z, tR, pBoundary, twoPhaseSide, opts = {}) {
+  const { pMinPsia = 14.696, tolPsia = 0.05, insets = [0.01, 0.03, 0.06] } = opts;
+  for (const frac of insets) {
+    const inset = Math.max(5 * tolPsia, frac * pBoundary);
+    const pProbe = twoPhaseSide === 'below'
+      ? Math.max(pMinPsia, pBoundary - inset)
+      : pBoundary + inset;
+    const probe = flashPT(mix, z, tR, pProbe);
+    if (probe.phases === 2) {
+      return { kind: probe.beta < 0.5 ? 'bubble' : 'dew', probeBeta: probe.beta };
+    }
+    if (probe.reason === 'negative-flash-liquid') return { kind: 'bubble', probeBeta: null };
+    if (probe.reason === 'negative-flash-vapor') return { kind: 'dew', probeBeta: null };
+  }
+  return { kind: 'indeterminate', probeBeta: null };
+}
+
+/**
+ * Last-resort phase-kind inference from the single-phase feed just
+ * outside the boundary: liquid-like (v/b < 1.75, the pr78.purePsat
+ * convention) means the two-phase region is entered by nucleating gas,
+ * i.e. a bubble point; vapor-like means a dew point.
+ */
+export function classifyByLiquidLikeness(mix, z, tR, pPsia) {
+  const props = phaseProps(mix, z, tR, pPsia);
+  return props.zFactor / props.B < 1.75 ? 'bubble' : 'dew';
 }
 
 /**
@@ -99,7 +135,13 @@ export function saturationPressure(mix, z, tR, opts = {}) {
   const boundaries = phaseBoundaries(mix, z, tR, opts);
   if (!boundaries.length) return null;
   const top = boundaries[boundaries.length - 1];
-  return { pPsia: top.pPsia, kind: top.kind, boundaries };
+  if (top.kind !== 'indeterminate') {
+    return { pPsia: top.pPsia, kind: top.kind, kindSource: 'flash-probe', boundaries };
+  }
+  // near-critical fallback (FS8): infer the kind from the single-phase
+  // feed just above the top boundary; 2% clears the bisection tolerance
+  const kind = classifyByLiquidLikeness(mix, z, tR, top.pPsia * 1.02);
+  return { pPsia: top.pPsia, kind, kindSource: 'density-heuristic', boundaries };
 }
 
 /**

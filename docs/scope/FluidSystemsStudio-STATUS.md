@@ -1,6 +1,6 @@
 # Fluid Systems & Flow Behavior Studio — STATUS
 
-Last updated: 2026-07-19 (FS7)
+Last updated: 2026-07-19 (FS8 — EOS program COMPLETE)
 
 ## What this app is
 
@@ -41,7 +41,7 @@ tracing in a web worker. Validation-first per repo doctrine: Python oracle golde
 | FS5 | UI: fluid-model selector, composition tab, flash/envelope cards, worker, tier badges; black-oil default snapshot pin | DONE 2026-07-19 |
 | FS6 | Compositional separator train (closes the per-stage EOS seam and the multistage-Bo hand-wave in EOS mode); Good Oil / Whitson separator gates | DONE 2026-07-19 (Good Oil / Whitson separator-test fixtures scaffolded UNARMED as CASE 19 pending owner book pages, same pattern as CASES 12/17) |
 | FS7 | CCE + DL simulation, EOS black-oil table export, MB prefill + Pipeline Sizer EOS branches | DONE 2026-07-19 (MB bridge shipped as CSV export in the exact PvtRock lab-table schema — MB has no CSV import UI, rows are typed/prefilled, so an MB-side importer is a possible follow-on; Pipeline Sizer branch = EOS backbone override in compositional mode) |
-| FS8 | Hardening (near-critical fallback, memoization, worker cancellation), perf smoke, tierMatrix + help guide finalize | pending |
+| FS8 | Hardening (near-critical fallback, memoization, worker cancellation), perf smoke, tierMatrix + help guide finalize | DONE 2026-07-19 — program complete |
 
 ### Binding program decisions
 
@@ -232,3 +232,42 @@ function.
   pb/bo_at_pb/mu_o_at_pb from the table, pvt_table = the composite
   rows). Black-oil mode and the black-oil backbone are untouched
   (snapshot pin green).
+
+## FS8 hardening (2026-07-19) — program close-out
+
+- Near-critical fallback: boundary classification in envelope.js now
+  probes an inset ladder (1/3/6%) via the exported `classifyBoundary`
+  before conceding 'indeterminate'; `saturationPressure` falls back to
+  the v/b < 1.75 liquid-likeness heuristic (`classifyByLiquidLikeness`)
+  and reports `kindSource: 'flash-probe' | 'density-heuristic'`. Golden
+  classifications unchanged (no golden was indeterminate); physics
+  limits (trace truncation at the critical point, scan-width window
+  detection) stand and are documented in-file and in Help.
+- Worker cancellation: envelopeClient terminates the in-flight worker on
+  supersede/cancel/dispose and respawns lazily, so an abandoned trace
+  stops burning CPU immediately. `createEnvelopeClient({ workerFactory })`
+  accepts a test factory; 5 fake-worker tests cover supersede, cancel,
+  dispose, stale-id drop and crash-respawn.
+- Memoization: the page splits the EOS pipeline into narrow-dep useMemos
+  (composition, separator stages), so black-oil-side edits no longer
+  re-run the flash/separator/saturation/DL pipeline. Input components
+  already preserve object identity for untouched sections.
+- Perf smoke: harness CASE 22 wall-clock budgets (observed on the dev
+  box: flash ×10 ≈ 1 ms, separator ≈ 0.3 ms, saturation + table ≈ 4 ms,
+  15-point envelope ≈ 45 ms; budgets set an order of magnitude above).
+- tierMatrix: docs/scope/FluidStudio-TierMatrix.md maps every displayed
+  quantity to its tier and backing gate; badges must stay in step.
+- Help guide full pass: compositional maturity reflected in overview /
+  separator / handoff / limits sections, and all user-facing prose
+  em dashes removed across the Fluid Studio UI per the owner copy rule
+  (table placeholder glyphs retained).
+- Final counts: harness 207 gates, jest 288 EOS tests, full suite 136
+  suites / 1878 passing, build green.
+
+## Program summary (FS1–FS8, all DONE 2026-07-19)
+
+Stacked PRs #126 → #133 (merge in order, retarget bases via gh api
+PATCH as each lands). The out-of-scope register above is the follow-on
+menu; the natural next initiative is EOS tuning to lab data. The three
+literature gates (CASES 12 / 17 / 19) stay scaffolded unarmed until the
+owner supplies printed pages.
