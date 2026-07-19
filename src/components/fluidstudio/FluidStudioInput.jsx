@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { MinusCircle, PlusCircle, Atom, SlidersHorizontal, Beaker, Combine, Route, Snowflake } from 'lucide-react';
+import CompositionInput from '@/components/fluidstudio/CompositionInput';
 
 const InputField = ({ label, id, value, onChange, unit, type = 'number', step = 'any', placeholder, hint }) => (
   <div>
@@ -66,13 +67,34 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
   const handleFaScalar = (field, value) => setInputs((prev) => ({ ...prev, flowAssurance: { ...(prev.flowAssurance ?? {}), [field]: value === '' ? null : Number(value) } }));
   const handlePtRaw = (value) => setInputs((prev) => ({ ...prev, ptProfile: { ...(prev.ptProfile ?? {}), raw: value } }));
 
+  const fluidModel = inputs.fluidModel ?? 'black-oil';
+  const setFluidModel = (v) => setInputs((prev) => ({ ...prev, fluidModel: v }));
+  const setComposition = (composition) => setInputs((prev) => ({
+    ...prev,
+    streamA: { ...prev.streamA, composition },
+  }));
+
   return (
     <div className="space-y-4 h-full flex flex-col">
       <h2 className="text-2xl font-bold text-white mb-2">Analysis Setup</h2>
       <p className="text-xs text-slate-400 -mt-2">Results recompute instantly as you type.</p>
+      <div>
+        <Label className="text-sm font-medium text-slate-300">Fluid model</Label>
+        <Select value={fluidModel} onValueChange={setFluidModel}>
+          <SelectTrigger className="bg-slate-800 border-slate-600 text-white mt-1"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="black-oil">Black oil correlations (default)</SelectItem>
+            <SelectItem value="eos">Compositional PR78 EOS (adds a Composition tab)</SelectItem>
+          </SelectContent>
+        </Select>
+        {fluidModel === 'eos' && (
+          <p className="text-xs text-slate-500 mt-1">The compositional path runs beside the black oil analysis. Separators, blending and flow assurance stay on the black oil stream.</p>
+        )}
+      </div>
       <Tabs defaultValue="stream-a" className="flex-grow flex flex-col">
         <TabsList className="flex flex-wrap h-auto justify-start bg-slate-800">
           <TabsTrigger value="stream-a">Stream A</TabsTrigger>
+          {fluidModel === 'eos' && <TabsTrigger value="composition">Composition</TabsTrigger>}
           <TabsTrigger value="correlations">Correlations</TabsTrigger>
           <TabsTrigger value="separators">Separators</TabsTrigger>
           <TabsTrigger value="blending">Blending</TabsTrigger>
@@ -91,6 +113,12 @@ const FluidStudioInput = ({ inputs, setInputs }) => {
               <InputField label="Water Salinity" id="salinity" value={streamA.salinity} onChange={(e) => handleStreamChange('salinity', e.target.value)} unit="ppm" />
             </div>
           </TabsContent>
+
+          {fluidModel === 'eos' && (
+            <TabsContent value="composition">
+              <CompositionInput composition={inputs.streamA?.composition} onChange={setComposition} />
+            </TabsContent>
+          )}
 
           <TabsContent value="correlations">
             <div className="space-y-4 p-1">

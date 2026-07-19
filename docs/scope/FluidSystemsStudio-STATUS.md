@@ -1,6 +1,6 @@
 # Fluid Systems & Flow Behavior Studio — STATUS
 
-Last updated: 2026-07-19 (FS4)
+Last updated: 2026-07-19 (FS5)
 
 ## What this app is
 
@@ -38,7 +38,7 @@ tracing in a web worker. Validation-first per repo doctrine: Python oracle golde
 | FS2 | PR78 core (mixing rules, cubic, lowest-Gibbs root, fugacity, Peneloux), validation harness scaffold; NIST vapor-pressure + oracle gates | DONE 2026-07-19 |
 | FS3 | Stability test + SS/GDEM two-phase PT flash + negative-flash RR; Whitson/Ahmed worked-example gates, K-value gate, oracle flash grid | DONE 2026-07-19 (Whitson/Ahmed worked-example fixtures scaffolded UNARMED — CASE 12 gates once book-typed data is committed; owner to supply pages) |
 | FS4 | C7+ single-pseudo characterization (Kesler-Lee/Edmister/Chueh-Prausnitz BIP), Psat solve, PT envelope tracer, LBC viscosity + Weinaug-Katz IFT; Coats & Smart SPE 11197 gate | DONE 2026-07-19 (Coats & Smart CASE 17 scaffolded UNARMED pending owner paper pages; the planned "Whitson BIP" shipped as modified Chueh-Prausnitz — the SG-form could not be source-verified, C-P is what whitsonPVT itself uses for C1-C7+) |
-| FS5 | UI: fluid-model selector, composition tab, flash/envelope cards, worker, tier badges; black-oil default snapshot pin | pending |
+| FS5 | UI: fluid-model selector, composition tab, flash/envelope cards, worker, tier badges; black-oil default snapshot pin | DONE 2026-07-19 |
 | FS6 | Compositional separator train (closes the per-stage EOS seam and the multistage-Bo hand-wave in EOS mode); Good Oil / Whitson separator gates | pending |
 | FS7 | CCE + DL simulation, EOS black-oil table export, MB prefill + Pipeline Sizer EOS branches | pending |
 | FS8 | Hardening (near-critical fallback, memoization, worker cancellation), perf smoke, tierMatrix + help guide finalize | pending |
@@ -122,3 +122,34 @@ function.
 - CASE 17 (Coats & Smart SPE 11197) scaffolded unarmed in
   `tools/validation/fluidstudio/literature-fixtures.json` — owner to
   supply the printed paper pages (compositions + measured Psat).
+
+## FS5 UI wiring (2026-07-19)
+
+- Fluid-model selector in the input panel (`black-oil` default | `eos`);
+  the compositional path runs BESIDE black-oil — separators/blending/
+  flow-assurance stay on the black-oil stream. Selecting EOS adds the
+  Composition input tab and the Compositional results tab.
+- `src/utils/fluidstudio/eosAnalysis.js` — UI seam: mol% parsing/
+  normalization/validation (`parseComposition`), sync flash orchestrator
+  (`runEosFlash`: flashPT + LBC + Weinaug-Katz + component table +
+  characterization block), worker payload builder (`envelopeRequest`).
+- Envelope worker: `eos/envelope.worker.js` (module worker, Vite idiom)
+  + `envelopeClient.js` (supersede-by-id, sync fallback when workers are
+  unavailable). `envelopeWorkerFactory.js` is the only file with
+  import.meta; jest maps it to a null factory (see jest.config.js
+  moduleNameMapper) because babel-jest cannot parse import.meta.
+- Components: `CompositionInput` (11 library components + C7+ in mol%,
+  normalize button, C7+ MW/SG/optional Tb, flash conditions, envelope
+  window), `CompositionalResultsCard` (phase split, per-phase props,
+  x/y/K table, characterization line), `PhaseEnvelopeCard` (worker
+  trace, bubble/dew branches + flash point + saturation point on the
+  shared white ChartFrame), `FluidStudioTierBadge` (oracle_gated /
+  published_method / screening; tierMatrix doc finalizes in FS8).
+- Sample composition = the "char-oil" goldens fluid (2% CO2, 40% C1, 7%
+  C2, 6% C3, 5% nC4, 6% nC6, 34% C7+ MW 190 SG 0.84 at 2500 psia/200°F)
+  so the switch shows pre-validated numbers.
+- Black-oil pin: `src/utils/__tests__/blackOilSnapshot.{json,test.js}`
+  locks the default sample analysis (KPIs, table rows, separator
+  totals, backbone, warnings) at 1e-9; regenerate only for deliberate
+  black-oil changes, in the same PR.
+- Help guide gained a Compositional section (full pass in FS8).

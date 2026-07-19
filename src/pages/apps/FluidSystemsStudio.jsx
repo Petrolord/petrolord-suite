@@ -11,6 +11,7 @@ import FluidStudioEmptyState from '@/components/fluidstudio/FluidStudioEmptyStat
 import FluidStudioHelpGuide from '@/components/fluidstudio/FluidStudioHelpGuide';
 import { SaveProjectDialog, LoadProjectsDrawer } from '@/components/fluidstudio/FluidStudioPersistence';
 import { analyzeFluidSystem, sampleFluidStudioData } from '@/utils/fluidStudioCalculations';
+import { runEosFlash } from '@/utils/fluidstudio/eosAnalysis';
 
 const FluidSystemsStudio = () => {
   const [inputs, setInputs] = useState(sampleFluidStudioData);
@@ -22,6 +23,14 @@ const FluidSystemsStudio = () => {
   // Pure, synchronous recompute on every keystroke — no backend, no spinner.
   const results = useMemo(() => analyzeFluidSystem(inputs), [inputs]);
   const hasResults = !!results?.pvt?.kpis;
+
+  // Compositional path (FS5): opt-in beside the black-oil default. The flash
+  // is fast enough to recompute synchronously; the envelope card owns the
+  // slow worker path.
+  const eos = useMemo(
+    () => (inputs.fluidModel === 'eos' ? runEosFlash(inputs.streamA?.composition) : null),
+    [inputs],
+  );
 
   const loadSample = () => setInputs(sampleFluidStudioData());
 
@@ -81,7 +90,7 @@ const FluidSystemsStudio = () => {
           <div className="flex-1 p-6 overflow-y-auto">
             {hasResults ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
-                <FluidStudioResults results={results} />
+                <FluidStudioResults results={results} eos={eos} composition={inputs.streamA?.composition} />
               </motion.div>
             ) : (
               <FluidStudioEmptyState onRunSample={loadSample} />

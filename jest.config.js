@@ -15,6 +15,10 @@ export default {
   },
   modulePathIgnorePatterns: ['<rootDir>/src/package.json'],
   moduleNameMapper: {
+    // envelopeWorkerFactory is the one file using import.meta (Vite worker
+    // URL), which babel-jest's CJS transform cannot parse — map it to a
+    // null factory so the envelope client uses its sync fallback in tests.
+    'envelopeWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/envelopeWorkerFactoryMock.js',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$':
       '<rootDir>/src/__mocks__/fileMock.js',
