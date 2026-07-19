@@ -1,6 +1,6 @@
 # Fluid Systems & Flow Behavior Studio — STATUS
 
-Last updated: 2026-07-19 (FS3)
+Last updated: 2026-07-19 (FS4)
 
 ## What this app is
 
@@ -37,7 +37,7 @@ tracing in a web worker. Validation-first per repo doctrine: Python oracle golde
 | FS1 | STATUS doc, stale-header fix, component library + BIP defaults, exact-table + structural gates | DONE 2026-07-19 |
 | FS2 | PR78 core (mixing rules, cubic, lowest-Gibbs root, fugacity, Peneloux), validation harness scaffold; NIST vapor-pressure + oracle gates | DONE 2026-07-19 |
 | FS3 | Stability test + SS/GDEM two-phase PT flash + negative-flash RR; Whitson/Ahmed worked-example gates, K-value gate, oracle flash grid | DONE 2026-07-19 (Whitson/Ahmed worked-example fixtures scaffolded UNARMED — CASE 12 gates once book-typed data is committed; owner to supply pages) |
-| FS4 | C7+ single-pseudo characterization (Kesler-Lee/Edmister/Whitson BIP), Psat solve, PT envelope tracer, LBC viscosity + Weinaug-Katz IFT; Coats & Smart SPE 11197 gate | pending |
+| FS4 | C7+ single-pseudo characterization (Kesler-Lee/Edmister/Chueh-Prausnitz BIP), Psat solve, PT envelope tracer, LBC viscosity + Weinaug-Katz IFT; Coats & Smart SPE 11197 gate | DONE 2026-07-19 (Coats & Smart CASE 17 scaffolded UNARMED pending owner paper pages; the planned "Whitson BIP" shipped as modified Chueh-Prausnitz — the SG-form could not be source-verified, C-P is what whitsonPVT itself uses for C1-C7+) |
 | FS5 | UI: fluid-model selector, composition tab, flash/envelope cards, worker, tier badges; black-oil default snapshot pin | pending |
 | FS6 | Compositional separator train (closes the per-stage EOS seam and the multistage-Bo hand-wave in EOS mode); Good Oil / Whitson separator gates | pending |
 | FS7 | CCE + DL simulation, EOS black-oil table export, MB prefill + Pipeline Sizer EOS branches | pending |
@@ -92,3 +92,33 @@ function.
   Harness CASES 8–12 + `__tests__/flash.test.js` (52 tests). CASE 12
   (Whitson/Ahmed printed examples) scaffolded unarmed pending owner
   book pages.
+- `src/utils/fluidstudio/eos/characterization.js` (FS4) — C7+
+  single-pseudo characterization: Søreide Tb, Kesler-Lee Tc/Pc,
+  Lee-Kesler ω (Watson-K branch above Tbr 0.8; Edmister exported),
+  Jhaveri-Youngren shift, LBC C7+ Vc, Firoozabadi parachor, modified
+  Chueh-Prausnitz C1–C7+ BIP (non-HC pairs reuse the FS1 table's nC6
+  column). All coefficients web-verified against published reproductions
+  at build time (SPE 109892; whitsonPVT manual; pychemqt; IntechOpen
+  Table 3 for C-P). Gates: oracle double-transcription (~1e-15), pure
+  n-alkane recovery on NIST NBP + committed GPSA SG (bands in
+  `__tests__/characterizationReference.json`).
+- `src/utils/fluidstudio/eos/envelope.js` (FS4) — phaseBoundaries /
+  saturationPressure / tracePhaseEnvelope by log-scan + bisection on
+  the FS3 stability flag; boundary kind classified by near-boundary
+  flash beta. Known limits documented in-file: needs ≥2 components,
+  truncates near-critical, can miss windows narrower than the scan
+  grid. Engine and oracle agreed exactly on every boundary probe
+  (harness CASE 15); Raoult bubble-point identity on C3/nC4 anchored
+  to the NIST-gated purePsat.
+- `src/utils/fluidstudio/eos/transport.js` (FS4) — LBC viscosity
+  (SPE 109892 field-unit statement, ξ = 5.35 form) + Weinaug-Katz IFT.
+  Gates: oracle transcription (~1e-10), NIST methane/nitrogen dilute
+  viscosity anchors (±10%), identity gates. LBC ships untuned
+  (order-10% gas, order-2x oil accuracy expected; Vc tuning is the
+  lab-data follow-on).
+- FS4 goldens additions: characterization grid (13 pts), characterized
+  oil + condensate flash/envelope/transport states, all flash states
+  quadrature-sealed. Harness now 80 gates + jest 246 EOS tests.
+- CASE 17 (Coats & Smart SPE 11197) scaffolded unarmed in
+  `tools/validation/fluidstudio/literature-fixtures.json` — owner to
+  supply the printed paper pages (compositions + measured Psat).

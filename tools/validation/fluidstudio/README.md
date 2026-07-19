@@ -73,12 +73,39 @@ Validation-first gate for the compositional EOS engine in
 12. Published literature flash fixtures (Whitson Monograph 20, Ahmed
     EOS & PVT Analysis) - armed by committing book-typed data to
     literature-fixtures.json; skips with a warning while empty.
+13. (FS4) C7+ characterization vs the oracle's second transcription of
+    Soreide / Kesler-Lee / Lee-Kesler / Edmister / Jhaveri-Youngren /
+    LBC-Vc / Firoozabadi / Chueh-Prausnitz (gate 1e-12, observed
+    ~1e-15), plus pure n-alkane recovery: Kesler-Lee run on nC5/nC6
+    NIST boiling points + committed GPSA specific gravities must land
+    inside honest correlation bands of the FS1 library constants
+    (Tc 1%, Pc 8%, omega 0.06 abs; observed 0.06%/5.6%/0.021).
+14. (FS4) Characterized-fluid flash grid vs the plain-SS oracle - the
+    pseudo is built by each side's own correlation transcription, so
+    this seals characterization -> EOS end to end (observed ~1e-12).
+15. (FS4) Phase boundaries / envelope vs the oracle's stability-
+    bisection route (same scan/bisection protocol, independent
+    stability + cubic + RR implementations). Engine and oracle agreed
+    on every one of the ~1500 stability probes, so all boundary
+    pressures matched exactly; gate kept at 2e-4 rel. Plus the Raoult
+    bubble-point band on equimolar C3/nC4 anchored to the NIST-gated
+    purePsat (4% observed, 6% band) and flash phase-count flips across
+    a detected boundary.
+16. (FS4) LBC viscosity + Weinaug-Katz IFT vs the oracle transcription
+    of the SPE 109892 field-unit statement (gate 1e-6, observed
+    ~1e-10), NIST dilute-gas viscosity anchors (methane/nitrogen at
+    300 K / 1 atm, +-10% bands; observed 2.8%/0.9%) and identity gates
+    (Herning-Zipperer collapse, zero IFT for identical phases).
+17. Coats & Smart SPE 11197 fixtures - armed by committing
+    paper-verified compositions + measured saturation pressures to
+    literature-fixtures.json (coatsSmart section); skips while empty.
 
-The same gates run in jest (`src/utils/fluidstudio/eos/__tests__/pr78.test.js`
-and `flash.test.js`) so CI catches regressions without Python; this
-runner is the regeneration-time cross-check and the place tolerances are
-documented.
+The same gates run in jest (`src/utils/fluidstudio/eos/__tests__/`:
+`pr78.test.js`, `flash.test.js`, `characterization.test.js`,
+`envelope.test.js`, `transport.test.js`) so CI catches regressions
+without Python; this runner is the regeneration-time cross-check and the
+place tolerances are documented.
 
-Future phases extend this harness: FS4 adds C7+ characterization and the
-Coats & Smart SPE 11197 literature fixtures; the FS3 Whitson/Ahmed
-worked-example case (CASE 12) arms when the owner supplies the book pages.
+Unarmed literature cases awaiting owner-supplied printed pages: CASE 12
+(Whitson/Ahmed worked flash examples) and CASE 17 (Coats & Smart SPE
+11197 compositions + measured saturation pressures).

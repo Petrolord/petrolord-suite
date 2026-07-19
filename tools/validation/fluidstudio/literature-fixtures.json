@@ -13,5 +13,24 @@
       }
     ]
   },
-  "flashes": []
+  "flashes": [],
+  "coatsSmart": {
+    "_readme": "FS4 scaffold for Coats & Smart, SPE 11197 (Application of a Regression-Based EOS PVT Program to Laboratory Data). Arm by typing the paper's fluid compositions (with C7+ MW/SG for the plus fraction), temperatures and measured saturation pressures / flash points from the printed pages. Unarmed while `fluids` is empty; CASE 17 of run-validation.mjs skips with a warning. Do NOT fill from memory - only from the printed paper.",
+    "_shape": {
+      "fluids": [
+        {
+          "citation": "Coats & Smart SPE 11197, Oil/Gas N, table/page",
+          "keys": ["CO2", "C1", "..."],
+          "plus": { "mw": 0, "sg": 0 },
+          "z": [0],
+          "tF": 0,
+          "pPsia": 0,
+          "window": { "pMaxPsia": 12000 },
+          "expected": { "psatPsia": 0, "beta": 0 },
+          "tolerances": { "psat": 0.1, "beta": 0.05 }
+        }
+      ]
+    },
+    "fluids": []
+  }
 }

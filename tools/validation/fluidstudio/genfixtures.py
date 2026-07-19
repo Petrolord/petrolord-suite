@@ -72,6 +72,59 @@ EXTRA = {"binary-c1nc4": [(100.0, 60.0), (100.0, 100.0), (100.0, 200.0)]}
 
 PSAT_TR = [0.60, 0.70, 0.85, 0.95]
 
+# ---------------------------------------------------------------------------
+# FS4: characterization grid, characterized fluids (single C7+ pseudo),
+# envelope temperatures, and the transport section built on flash states.
+
+CHAR_GRID = [(mw, sg) for mw in (110.0, 150.0, 200.0, 250.0) for sg in (0.75, 0.82, 0.88)]
+CHAR_MEASURED_TB = {"mw": 150.0, "sg": 0.80, "tb": 1000.0}
+
+CHAR_FLUIDS = [
+    {
+        "name": "char-oil",
+        "keys": ["CO2", "C1", "C2", "C3", "nC4", "nC6"],
+        "plus": {"mw": 190.0, "sg": 0.84},
+        "x": [0.02, 0.40, 0.07, 0.06, 0.05, 0.06, 0.34],
+        "envTF": [120.0, 200.0, 280.0],
+        "flashTP": [(200.0, 1000.0), (200.0, 3000.0), (280.0, 6000.0)],
+    },
+    {
+        "name": "char-condensate",
+        "keys": ["N2", "C1", "C2", "C3", "nC5"],
+        "plus": {"mw": 140.0, "sg": 0.78},
+        "x": [0.02, 0.75, 0.08, 0.05, 0.04, 0.06],
+        "envTF": [100.0, 200.0],
+        "flashTP": [(150.0, 2000.0), (150.0, 5000.0)],
+    },
+]
+
+ENVELOPE_TF_FULL11 = [40.0, 120.0, 200.0, 280.0]
+
+
+def char_mixture(fluid):
+    """comps + full BIP matrix with the pseudo appended last, mirroring the
+    engine convention: C1 pair from Chueh-Prausnitz, non-HC pairs reuse the
+    nC6 column, other HC pairs zero."""
+    keys = fluid["keys"]
+    comps = [oracle.COMPONENTS[k] for k in keys]
+    bip = bip_matrix(keys)
+    ch = oracle.characterize(fluid["plus"]["mw"], fluid["plus"]["sg"])
+    pseudo = {
+        "mw": ch["mw"], "tcR": ch["tcR"], "pcPsia": ch["pcPsia"], "omega": ch["omega"],
+        "vcFt3PerLbmol": ch["vcFt3PerLbmol"], "parachor": ch["parachor"], "shift": ch["shift"],
+    }
+    row = []
+    for k in keys:
+        if k == "C1":
+            row.append(ch["bipC1"])
+        elif k in ("N2", "CO2", "H2S"):
+            row.append(BIP_PAIRS.get((k, "nC6"), BIP_PAIRS.get(("nC6", k), 0.0)))
+        else:
+            row.append(0.0)
+    full = [r[:] + [row[i]] for i, r in enumerate(bip)]
+    full.append(row + [0.0])
+    return comps + [pseudo], full
+
 
 def main() -> None:
     out = {
@@ -124,6 +177,85 @@ def main() -> None:
                   f"phases={res['phases']}"
                   + (f"  beta={res['beta']:.6f}" if res["phases"] == 2 else ""))
         out["flash"].append({"name": m["name"], "keys": m["keys"], "x": m["x"], "states": flashes})
+
+    # ---- FS4 sections ----------------------------------------------------
+    out["characterization"] = []
+    for mw, sg in CHAR_GRID:
+        out["characterization"].append({"mw": mw, "sg": sg, **oracle.characterize(mw, sg)})
+    m = CHAR_MEASURED_TB
+    out["characterization"].append(
+        {"mw": m["mw"], "sg": m["sg"], "tbInput": m["tb"],
+         **oracle.characterize(m["mw"], m["sg"], m["tb"])})
+    print(f"characterization: {len(out['characterization'])} points")
+
+    out["envelopes"] = []
+    full11 = next(mm for mm in MIXTURES if mm["name"] == "full-11")
+    env_jobs = [(full11["name"], full11["keys"], [oracle.COMPONENTS[k] for k in full11["keys"]],
+                 bip_matrix(full11["keys"]), full11["x"], ENVELOPE_TF_FULL11, None)]
+    for fl in CHAR_FLUIDS:
+        comps, bip = char_mixture(fl)
+        env_jobs.append((fl["name"], fl["keys"], comps, bip, fl["x"], fl["envTF"], fl["plus"]))
+    for name, keys, comps, bip, x, tfs, plus in env_jobs:
+        states = []
+        for t_f in tfs:
+            bounds = oracle.stability_boundaries(comps, bip, x, t_f + 459.67)
+            states.append({"tF": t_f, "boundaries": bounds})
+            desc = ", ".join(f"{b['kind']}@{b['pPsia']:.2f}" for b in bounds) or "none"
+            print(f"envelope {name:16s} {t_f:6.1f} F  {desc}")
+        entry = {"name": name, "keys": keys, "x": x, "states": states}
+        if plus:
+            entry["plus"] = plus
+        out["envelopes"].append(entry)
+
+    out["flashC7"] = []
+    for fl in CHAR_FLUIDS:
+        comps, bip = char_mixture(fl)
+        states = []
+        for t_f, p in fl["flashTP"]:
+            t_r = t_f + 459.67
+            res = oracle.flash_plain(comps, bip, fl["x"], t_r, p)
+            entry = {"tF": t_f, "pPsia": p, **res}
+            if res["phases"] == 2:
+                seal = oracle.flash_verify(comps, bip, res, t_r, p)
+                if seal > 1e-6:
+                    raise RuntimeError(
+                        f"quadrature fugacity seal failed: {fl['name']} {t_f}F/{p}psia -> {seal}")
+                entry["fugacitySeal"] = seal
+            states.append(entry)
+            print(f"flashC7 {fl['name']:16s} {t_f:6.1f} F {p:8.1f} psia  phases={res['phases']}"
+                  + (f"  beta={res['beta']:.6f}" if res["phases"] == 2 else ""))
+        out["flashC7"].append({"name": fl["name"], "keys": fl["keys"], "plus": fl["plus"],
+                               "x": fl["x"], "states": states})
+
+    out["transport"] = []
+    transport_jobs = []
+    for m2 in MIXTURES:
+        comps = [oracle.COMPONENTS[k] for k in m2["keys"]]
+        bip = bip_matrix(m2["keys"])
+        src = next(f for f in out["flash"] if f["name"] == m2["name"])
+        transport_jobs.append((m2["name"], comps, bip, src["states"]))
+    for fl, entry in zip(CHAR_FLUIDS, out["flashC7"]):
+        comps, bip = char_mixture(fl)
+        transport_jobs.append((fl["name"], comps, bip, entry["states"]))
+    for name, comps, bip, states in transport_jobs:
+        rows = []
+        for st in states:
+            if st["phases"] != 2:
+                continue
+            t_r = st["tF"] + 459.67
+            v_l = oracle.phase_state(comps, bip, st["x"], t_r, st["pPsia"])["molarVolume"]
+            v_v = oracle.phase_state(comps, bip, st["y"], t_r, st["pPsia"])["molarVolume"]
+            rows.append({
+                "tF": st["tF"], "pPsia": st["pPsia"],
+                "muL": oracle.lbc_viscosity(comps, st["x"], t_r, v_l),
+                "muV": oracle.lbc_viscosity(comps, st["y"], t_r, v_v),
+                "iftDynPerCm": oracle.weinaug_katz(comps, st["x"], st["y"], v_l, v_v),
+            })
+        if rows:
+            out["transport"].append({"name": name, "states": rows})
+            for r in rows:
+                print(f"transport {name:16s} {r['tF']:6.1f} F {r['pPsia']:8.1f} psia  "
+                      f"muL={r['muL']:.6f} muV={r['muV']:.6f} ift={r['iftDynPerCm']:.4f}")
 
     for key in ORDER:
         comp = oracle.COMPONENTS[key]

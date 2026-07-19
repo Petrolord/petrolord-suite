@@ -42,6 +42,22 @@
  * CASE 12 Published literature flash fixtures (Whitson Monograph 20 /
  *           Ahmed EOS & PVT Analysis) - armed only when book-verified
  *           data is committed to literature-fixtures.json
+ * CASE 13 FS4 C7+ characterization vs the oracle's second transcription
+ *           of Soreide/Kesler-Lee/Lee-Kesler/Edmister/Jhaveri-Youngren/
+ *           LBC-Vc/Firoozabadi/Chueh-Prausnitz, plus pure-n-alkane
+ *           recovery bands anchored to NIST boiling points and the
+ *           committed GPSA specific gravities
+ * CASE 14 FS4 characterized-fluid flash grid vs the plain-SS oracle
+ *           (pseudo built by each side's own correlation transcription)
+ * CASE 15 FS4 phase boundaries / envelope vs the oracle's stability-
+ *           bisection route, plus the near-pure-binary Psat identity
+ *           and inside/outside flash consistency at the boundary
+ * CASE 16 FS4 LBC viscosity + Weinaug-Katz IFT vs the oracle
+ *           transcription, NIST dilute-gas viscosity anchors, and
+ *           identity gates (pure-component mixing collapse, zero IFT
+ *           for identical phases)
+ * CASE 17 Coats & Smart SPE 11197 literature fixtures - armed only when
+ *           paper-verified data is committed to literature-fixtures.json
  */
 
 import fs from 'fs';
@@ -56,6 +72,15 @@ import {
 } from '../../../src/utils/fluidstudio/eos/flash.js';
 import { COMPONENTS } from '../../../src/utils/fluidstudio/eos/components.js';
 import { KtoR, degFtoR } from '../../../src/utils/fluidstudio/eos/units.js';
+import {
+  soreideTbR, keslerLeeTcR, keslerLeePcPsia, leeKeslerOmega, edmisterOmega,
+  jhaveriYoungrenShift, lbcVcC7PlusFt3, firoozabadiParachor, chuehPrausnitzBip,
+  characterizePlusFraction, mixtureWithPlusFraction,
+} from '../../../src/utils/fluidstudio/eos/characterization.js';
+import { phaseBoundaries, saturationPressure } from '../../../src/utils/fluidstudio/eos/envelope.js';
+import {
+  lbcViscosity, diluteComponentViscosity, diluteMixtureViscosity, weinaugKatzIFT,
+} from '../../../src/utils/fluidstudio/eos/transport.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const testsDir = path.join(here, '../../../src/utils/fluidstudio/eos/__tests__');
@@ -353,6 +378,213 @@ banner('CASE 12: published literature flash fixtures');
     (fx.expected.K || []).forEach((k, i) => {
       check(`${fx.citation}: K ${fx.keys[i]}`, res.K[i], k, fx.tolerances.K);
     });
+  }
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 13: C7+ characterization vs oracle transcription + n-alkane recovery');
+{
+  const worst = { name: '', err: 0, tol: 1e-12 };
+  for (const row of goldens.characterization) {
+    const input = { mw: row.mw, sg: row.sg };
+    if (row.tbInput !== undefined) input.tbR = row.tbInput;
+    const ch = characterizePlusFraction(input);
+    const pairs = [
+      ['tbR', ch.meta.tbR, row.tbR],
+      ['tcR', ch.comp.tcR, row.tcR],
+      ['pcPsia', ch.comp.pcPsia, row.pcPsia],
+      ['omega', ch.comp.omega, row.omega],
+      ['omegaEdmister', edmisterOmega(ch.meta.tbR, ch.comp.tcR, ch.comp.pcPsia), row.omegaEdmister],
+      ['vc', ch.comp.vcFt3PerLbmol, row.vcFt3PerLbmol],
+      ['parachor', ch.comp.parachor, row.parachor],
+      ['shift', ch.comp.shift, row.shift],
+      ['bipC1', ch.bip.C1, row.bipC1],
+    ];
+    for (const [label, a, b] of pairs) {
+      const err = Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
+      if (err > worst.err) Object.assign(worst, { name: `mw=${row.mw} sg=${row.sg} ${label}`, err });
+    }
+  }
+  worstReport(`characterization grid vs oracle (${goldens.characterization.length} points x 9 fields, rel)`, worst);
+
+  const charRef = JSON.parse(fs.readFileSync(path.join(testsDir, 'characterizationReference.json'), 'utf8'));
+  for (const anchor of charRef.alkaneRecovery) {
+    const lib = COMPONENTS[anchor.key];
+    const tbR = KtoR(nist.points.find((p) => p.key === anchor.key).tK);
+    const tc = keslerLeeTcR(tbR, anchor.sg);
+    const pc = keslerLeePcPsia(tbR, anchor.sg);
+    const om = leeKeslerOmega(tbR, tc, pc, anchor.sg);
+    check(`${anchor.key} Kesler-Lee Tc recovery (NIST Tb + GPSA SG)`, tc, lib.tcR, anchor.tcRelTol, 'degR');
+    check(`${anchor.key} Kesler-Lee Pc recovery`, pc, lib.pcPsia, anchor.pcRelTol, 'psia');
+    checkAbs(`${anchor.key} Lee-Kesler omega recovery`, om, lib.omega, anchor.omegaAbsTol);
+  }
+  for (const smoke of charRef.soreideSmoke) {
+    const tbR = KtoR(nist.points.find((p) => p.key === smoke.key).tK);
+    check(`${smoke.key} Soreide Tb smoke (out-of-range edge, typo guard)`, soreideTbR(COMPONENTS[smoke.key].mw, smoke.sg), tbR, smoke.relTol, 'degR');
+  }
+
+  // spot identities on the correlation set itself
+  checkAbs('Chueh-Prausnitz kij(v, v) = 0', chuehPrausnitzBip(4.0, 4.0), 0, 0);
+  const s150 = jhaveriYoungrenShift(150);
+  checkAbs('Jhaveri-Youngren paraffin s(150) = 1 - 2.258/150^0.1823', s150, 1 - 2.258 / 150 ** 0.1823, 0);
+  checkAbs('Firoozabadi parachor at MW 150', firoozabadiParachor(150), -11.4 + 3.23 * 150 - 0.0022 * 150 * 150, 0);
+  checkAbs('LBC Vc7+ at MW 190 / SG 0.84', lbcVcC7PlusFt3(190, 0.84), 21.573 + 0.015122 * 190 - 27.656 * 0.84 + 0.070615 * 190 * 0.84, 0);
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 14: characterized-fluid flash grid vs plain-SS oracle');
+{
+  let phaseMismatch = 0;
+  let twoPhase = 0;
+  const worstBeta = { name: '', err: 0, tol: 1e-8 };
+  const worstComp = { name: '', err: 0, tol: 1e-8 };
+  const worstRho = { name: '', err: 0, tol: 1e-7 };
+  for (const m of goldens.flashC7) {
+    const mix = mixtureWithPlusFraction(m.keys, m.plus);
+    for (const st of m.states) {
+      const label = `${m.name} ${st.tF}F/${st.pPsia}psia`;
+      const res = flashPT(mix, m.x, degFtoR(st.tF), st.pPsia);
+      if (res.phases !== st.phases) phaseMismatch += 1;
+      if (st.phases !== 2 || res.phases !== 2) continue;
+      twoPhase += 1;
+      const eb = Math.abs(res.beta - st.beta);
+      if (eb > worstBeta.err) Object.assign(worstBeta, { name: label, err: eb });
+      st.x.forEach((v, i) => {
+        const e = Math.max(Math.abs(res.x[i] - v), Math.abs(res.y[i] - st.y[i]));
+        if (e > worstComp.err) Object.assign(worstComp, { name: label, err: e });
+      });
+      const er = Math.max(
+        Math.abs(res.liquid.density - st.rhoL) / st.rhoL,
+        Math.abs(res.vapor.density - st.rhoV) / st.rhoV,
+      );
+      if (er > worstRho.err) Object.assign(worstRho, { name: label, err: er });
+    }
+  }
+  checkAbs('phase-count mismatches on characterized grid', phaseMismatch, 0, 0);
+  checkAbs('two-phase characterized states exercised >= 2', Math.max(0, 2 - twoPhase), 0, 0);
+  worstReport('beta vs oracle (abs)', worstBeta);
+  worstReport('x/y vs oracle (abs)', worstComp);
+  worstReport('phase densities vs oracle (rel)', worstRho);
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 15: phase boundaries / envelope vs oracle stability bisection');
+{
+  let countMismatch = 0;
+  let kindMismatch = 0;
+  let boundaryCount = 0;
+  const worstP = { name: '', err: 0, tol: 2e-4 };
+  for (const env of goldens.envelopes) {
+    const mix = env.plus ? mixtureWithPlusFraction(env.keys, env.plus) : mixtureFromKeys(env.keys);
+    for (const st of env.states) {
+      const label = `${env.name} ${st.tF}F`;
+      const bounds = phaseBoundaries(mix, env.x, degFtoR(st.tF));
+      if (bounds.length !== st.boundaries.length) {
+        countMismatch += 1;
+        continue;
+      }
+      st.boundaries.forEach((ob, i) => {
+        boundaryCount += 1;
+        if (bounds[i].kind !== ob.kind) kindMismatch += 1;
+        const err = Math.abs(bounds[i].pPsia - ob.pPsia) / ob.pPsia;
+        if (err > worstP.err) Object.assign(worstP, { name: `${label} ${ob.kind}`, err });
+      });
+    }
+  }
+  checkAbs('boundary-count mismatches across envelope grid', countMismatch, 0, 0);
+  checkAbs('boundary-kind mismatches', kindMismatch, 0, 0);
+  checkAbs('boundaries exercised >= 10', Math.max(0, 10 - boundaryCount), 0, 0);
+  worstReport('boundary pressures vs oracle (rel)', worstP);
+
+  // Raoult identity: for the near-ideal equimolar C3/nC4 the bubble
+  // point sits within a few percent of sum z_i Psat_i, both Psat values
+  // NIST-anchored by CASE 6 (the scan cannot see the razor-thin
+  // two-phase window of a near-pure fluid, so the mixture is equimolar)
+  const tR = degFtoR(100);
+  const mixC3 = mixtureFromKeys(['C3', 'nC4']);
+  const sat = saturationPressure(mixC3, [0.5, 0.5], tR, { pMaxPsia: 600 });
+  const raoult = 0.5 * purePsat(COMPONENTS.C3, tR) + 0.5 * purePsat(COMPONENTS.nC4, tR);
+  checkAbs('equimolar C3/nC4 top boundary is a bubble point', sat.kind === 'bubble' ? 0 : 1, 0, 0);
+  check('equimolar C3/nC4 bubble point vs Raoult from NIST-gated Psat', sat.pPsia, raoult, 0.06, 'psia');
+
+  // inside/outside consistency at a characterized-oil bubble point
+  const oilEnv = goldens.envelopes.find((e) => e.name === 'char-oil');
+  const oilMix = mixtureWithPlusFraction(oilEnv.keys, oilEnv.plus);
+  const bub = oilEnv.states[1].boundaries[0];
+  const tOil = degFtoR(oilEnv.states[1].tF);
+  const inside = flashPT(oilMix, oilEnv.x, tOil, bub.pPsia - 25);
+  const outside = flashPT(oilMix, oilEnv.x, tOil, bub.pPsia + 25);
+  checkAbs('flash 25 psia inside bubble point: 2 phases', inside.phases, 2, 0);
+  checkAbs('flash 25 psia outside bubble point: 1 phase', outside.phases, 1, 0);
+  checkAbs('vapor fraction just inside bubble point < 0.05', Math.max(0, inside.phases === 2 ? inside.beta - 0.05 : 1), 0, 0);
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 16: LBC viscosity + Weinaug-Katz IFT vs oracle + NIST anchors');
+{
+  const charRef = JSON.parse(fs.readFileSync(path.join(testsDir, 'characterizationReference.json'), 'utf8'));
+  const worstMu = { name: '', err: 0, tol: 1e-6 };
+  const worstIft = { name: '', err: 0, tol: 1e-6 };
+  for (const tr of goldens.transport) {
+    const flashSrc = (goldens.flash.find((f) => f.name === tr.name) || goldens.flashC7.find((f) => f.name === tr.name));
+    const charSrc = goldens.flashC7.find((f) => f.name === tr.name);
+    const mix = charSrc ? mixtureWithPlusFraction(charSrc.keys, charSrc.plus) : mixtureFromKeys(flashSrc.keys);
+    for (const st of tr.states) {
+      const label = `${tr.name} ${st.tF}F/${st.pPsia}psia`;
+      const res = flashPT(mix, flashSrc.x, degFtoR(st.tF), st.pPsia);
+      const muL = lbcViscosity(mix, res.x, degFtoR(st.tF), res.liquid).viscosityCp;
+      const muV = lbcViscosity(mix, res.y, degFtoR(st.tF), res.vapor).viscosityCp;
+      const ift = weinaugKatzIFT(mix, res.x, res.y, res.liquid, res.vapor).iftDynPerCm;
+      const eMu = Math.max(Math.abs(muL - st.muL) / st.muL, Math.abs(muV - st.muV) / st.muV);
+      if (eMu > worstMu.err) Object.assign(worstMu, { name: label, err: eMu });
+      const eI = Math.abs(ift - st.iftDynPerCm) / st.iftDynPerCm;
+      if (eI > worstIft.err) Object.assign(worstIft, { name: label, err: eI });
+    }
+  }
+  worstReport('phase viscosities vs oracle (rel)', worstMu);
+  worstReport('IFT vs oracle (rel)', worstIft);
+
+  for (const anchor of charRef.diluteViscosity) {
+    const comp = COMPONENTS[anchor.key];
+    const tR = KtoR(anchor.tK);
+    const mix1 = mixtureFromKeys([anchor.key]);
+    const props = phaseProps(mix1, [1], tR, 14.696);
+    const mu = lbcViscosity(mix1, [1], tR, props).viscosityCp;
+    check(`${anchor.key} LBC at 1 atm / ${anchor.tK} K vs NIST`, mu, anchor.muCp, anchor.relTol, 'cP');
+  }
+
+  const tR = degFtoR(150);
+  const mixPair = mixtureFromKeys(['C1', 'C3']);
+  checkAbs(
+    'Herning-Zipperer collapses to Stiel-Thodos for a pure component',
+    diluteMixtureViscosity(mixtureFromKeys(['C3']), [1], tR),
+    diluteComponentViscosity(COMPONENTS.C3, tR),
+    0,
+  );
+  const st150 = phaseProps(mixPair, [0.5, 0.5], tR, 500);
+  const iftSame = weinaugKatzIFT(mixPair, [0.5, 0.5], [0.5, 0.5], st150, st150);
+  checkAbs('Weinaug-Katz IFT of identical phases = 0', iftSame.iftDynPerCm, 0, 0);
+}
+
+// ---------------------------------------------------------------------------
+banner('CASE 17: Coats & Smart SPE 11197 literature fixtures');
+{
+  const lit = JSON.parse(fs.readFileSync(path.join(here, 'literature-fixtures.json'), 'utf8'));
+  const fixtures = lit.coatsSmart?.fluids || [];
+  if (!fixtures.length) {
+    console.log('  SKIP  unarmed: commit paper-verified SPE 11197 data to literature-fixtures.json to gate');
+  }
+  for (const fx of fixtures) {
+    const mix = fx.plus ? mixtureWithPlusFraction(fx.keys, fx.plus) : mixtureFromKeys(fx.keys);
+    if (fx.expected.psatPsia !== undefined) {
+      const sat = saturationPressure(mix, fx.z, degFtoR(fx.tF), fx.window || {});
+      check(`${fx.citation}: saturation pressure`, sat ? sat.pPsia : NaN, fx.expected.psatPsia, fx.tolerances.psat, 'psia');
+    }
+    if (fx.expected.beta !== undefined) {
+      const res = flashPT(mix, fx.z, degFtoR(fx.tF), fx.pPsia);
+      checkAbs(`${fx.citation}: two-phase`, res.phases, 2, 0);
+      if (res.phases === 2) check(`${fx.citation}: beta`, res.beta, fx.expected.beta, fx.tolerances.beta);
+    }
   }
 }
 
