@@ -91,6 +91,19 @@ downstream). Required:
 - Ships BEFORE the course; also unblocks the `dca` extraction into
   `@petrolord/engines` with the same fixtures as goldens.
 
+> **EXTRACTION DONE 2026-07-20 (runway step 1 of 6):** `engines/dca/`
+> (arps, typeCurve, groupRollup, monteCarlo) landed in
+> petrolord-engines PR #2; the Suite consumes it via re-export shims
+> at the original paths (Suite PR #144, subtree pull + shims). The
+> literature fixture is canonical in the engines repo
+> (`packages/engines/test-data/dca/`); the Suite copy was deleted.
+> Browser-only `exportToLAS`/`exportToCSV` stay Suite-side in
+> `dcaEngine.js`. Latent bug found and fixed in the extracted copy:
+> `fitTypeCurve` passed two bare x/y arrays to `fitHyperbolic` (which
+> takes `{date, rate}` rows) and could never fit — zero consumers.
+> Remaining runway order: aquifer → fractionalflow+relperm → vrr →
+> waterflood → mbal (mbal is the server engine — extraction shape TBD).
+
 ## 4. Approved builds and their gates
 
 ### 4.1 Reservoir Balance aquifer tab (client + server engines)
