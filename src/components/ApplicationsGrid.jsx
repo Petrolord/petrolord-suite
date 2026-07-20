@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,19 +17,6 @@ export default function ApplicationsGrid({ moduleFilter, searchQuery }) {
 
   const hasSuperAdminPrivileges = isSuperAdmin || user?.role === 'super_admin';
   const loading = authLoading || dbLoading;
-
-  // TODO: Remove these after confirming production fix
-  useEffect(() => {
-    console.log('[Diagnostics Task 4] ApplicationsGrid renders with moduleFilter:', moduleFilter);
-    console.log('[Diagnostics Task 5] Raw apps from database/hook:', apps);
-    
-    // Explicit manual check for Assurance apps to satisfy prompt:
-    const debugAssuranceApps = apps.filter(app => app.module?.toLowerCase() === 'assurance');
-    console.log('[Diagnostics Task 1 & 2] All Assurance apps in memory:', debugAssuranceApps);
-    debugAssuranceApps.forEach(app => {
-        console.log(`[Diagnostics Task 3 & 6] Assurance App: ${app.name || app.app_name} | ID: ${app.id} | Module: ${app.module} | Path: ${app.path || app.route} | Icon: ${app.icon || app.icon_url}`);
-    });
-  }, [apps, moduleFilter]);
 
   if (loading) {
       return (
@@ -50,9 +37,6 @@ export default function ApplicationsGrid({ moduleFilter, searchQuery }) {
 
       return matchesSearch;
   });
-
-  // TODO: Remove these after confirming production fix
-  console.log('[Diagnostics Task 4] Apps after search filter logic:', filteredApps);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
