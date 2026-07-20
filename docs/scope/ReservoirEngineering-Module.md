@@ -114,6 +114,16 @@ downstream). Required:
 > must be PR'd to petrolord-engines and subtree-pulled). The engines
 > repo carries the full MB2 hard-gate suite standalone.
 
+> **RUNWAY STEP 3 (fractionalflow+relperm) DONE 2026-07-20:**
+> petrolord-engines PR #4 + Suite subtree/shims PR. `engines/scal/` =
+> `fractionalFlow.js` (Corey/tabular kr, Buckley-Leverett/Welge, W2
+> displacement extensions) + `scal.js` (J-function Pc, LM-fitted
+> Corey, saturation-height); `lmFit` joined `lib/welltest/`. The
+> Leverett 1941 golden suite runs standalone in the engines repo; note
+> the Suite's jest also executes the vendored `packages/engines`
+> suites, so every engines-repo gate runs in Suite CI automatically.
+> Remaining: vrr → waterflood → mbal.
+
 ## 4. Approved builds and their gates
 
 ### 4.1 Reservoir Balance aquifer tab (client + server engines)
