@@ -104,6 +104,16 @@ downstream). Required:
 > Remaining runway order: aquifer → fractionalflow+relperm → vrr →
 > waterflood → mbal (mbal is the server engine — extraction shape TBD).
 
+> **RUNWAY STEP 2 (aquifer) DONE 2026-07-20:** petrolord-engines PR #3 +
+> Suite subtree/shims PR. `engines/aquifer/aquiferInflux.js` (vEH /
+> Fetkovich / Carter-Tracy incl. the MB2 finite-reD pD) with its
+> dependency closure in `lib/welltest/` (numerics, radial, dualPorosity
+> — the future welltest domain builds on these). The Dake 9.2 golden is
+> canonical at `packages/engines/test-data/aquifer/`;
+> `gen-dake92-client-golden.ts` now writes there (a regenerated golden
+> must be PR'd to petrolord-engines and subtree-pulled). The engines
+> repo carries the full MB2 hard-gate suite standalone.
+
 ## 4. Approved builds and their gates
 
 ### 4.1 Reservoir Balance aquifer tab (client + server engines)
