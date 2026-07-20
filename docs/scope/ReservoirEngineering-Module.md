@@ -124,6 +124,18 @@ downstream). Required:
 > suites, so every engines-repo gate runs in Suite CI automatically.
 > Remaining: vrr → waterflood → mbal.
 
+> **RUNWAY STEPS 4+5 (vrr, waterflood) DONE 2026-07-20:**
+> petrolord-engines PR #5 + Suite subtree/shims PR.
+> `engines/waterflood/` = `vrr.js`, `waterflood.js` (surveillance:
+> Hall/Chan/lags/recommendations; `parseWaterfloodCSV` stays
+> Suite-side with papaparse), `layeredSweep.js`, `patternForecast.js`
+> (imports the scal domain's `analyzeDisplacement` — the one
+> sanctioned cross-domain edge). Remaining: mbal (server engine —
+> extraction shape TBD; `waterfloodUncertainty`/`src/lib/monteCarlo`
+> deliberately NOT extracted: the canonical MC lib depends on
+> simple-statistics, an npm runtime dep — extracting it needs a
+> dependency decision first).
+
 ## 4. Approved builds and their gates
 
 ### 4.1 Reservoir Balance aquifer tab (client + server engines)
