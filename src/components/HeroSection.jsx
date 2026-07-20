@@ -12,18 +12,14 @@ const HeroSection = () => {
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
 
   const handleStartConfiguration = () => {
-    console.log('HeroSection: Start Configuration clicked');
     if (user) {
-      console.log('HeroSection: User logged in, navigating to /get-quote');
       navigate('/get-quote');
     } else {
-      console.log('HeroSection: User not logged in, redirecting to /signup');
       navigate('/signup');
     }
   };
 
   const handleBookDemo = () => {
-    console.log('HeroSection: Book Demo clicked, opening modal');
     setIsDemoModalOpen(true);
   };
 
