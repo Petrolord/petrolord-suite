@@ -4,7 +4,7 @@
 // Run:
 //   npx tsx tools/validation/gen-dake92-client-golden.ts
 //
-// Emits src/utils/__tests__/goldens/dake92-we.json: the SERVER engine's
+// Emits packages/engines/test-data/aquifer/dake92-we.json: the SERVER engine's
 // Carter-Tracy cumulative-We history (finite aquifer, reD = 5, tanh-blended
 // pseudo-steady-state pD) on the Dake Exercise 9.2 pressure history, computed
 // from the shared book-verified fixture (tools/validation/fixtures/dake-9-2.ts,
@@ -64,9 +64,13 @@ const golden = {
   })),
 };
 
+// The golden is canonical in @petrolord/engines. This writes into the
+// vendored subtree copy; a regenerated golden must then be PR'd to
+// Petrolord/petrolord-engines (test-data/aquifer/) and subtree-pulled —
+// never left as a Suite-only edit of packages/engines.
 const outPath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
-  '..', '..', 'src', 'utils', '__tests__', 'goldens', 'dake92-we.json',
+  '..', '..', 'packages', 'engines', 'test-data', 'aquifer', 'dake92-we.json',
 );
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(outPath, JSON.stringify(golden, null, 2) + '\n');

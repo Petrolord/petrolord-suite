@@ -35,15 +35,10 @@ import {
   pDprimeFinite,
   pD,
   influxConstant,
-} from '../aquiferInfluxCalculations.js';
+} from '../engines/aquifer/aquiferInflux.js';
 
-// Canonical golden lives in @petrolord/engines (vendored subtree) so the
-// engines repo and the Suite validate against the same bytes.
 const golden = JSON.parse(
-  fs.readFileSync(
-    path.join(__dirname, '../../../packages/engines/test-data/aquifer/dake92-we.json'),
-    'utf8',
-  ),
+  fs.readFileSync(path.join(__dirname, '../test-data/aquifer/dake92-we.json'), 'utf8'),
 );
 
 const DAKE_HISTORY = golden.series.map((s) => ({ t: s.t_days, p: s.p_psia }));
