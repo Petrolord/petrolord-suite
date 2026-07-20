@@ -31,7 +31,10 @@ import {
   calculateArpsHyperbolic,
 } from '../dcaEngine';
 
-const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'dca-literature-fixtures.json');
+// Canonical fixture lives in @petrolord/engines (vendored subtree) so the
+// engines repo and the Suite validate against the same bytes.
+const FIXTURE_PATH = path.join(
+  __dirname, '../../../../packages/engines/test-data/dca/dca-literature-fixtures.json');
 
 describe('literature fixture harness (armed-fixture doctrine)', () => {
   test('fixture file is present and armed (missing fixtures are a hard failure)', () => {
