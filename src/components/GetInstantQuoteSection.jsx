@@ -10,12 +10,9 @@ const GetInstantQuoteSection = () => {
   const { user } = useAuth();
 
   const handleGetQuote = () => {
-    console.log('GetInstantQuoteSection: Get Instant Quote clicked');
     if (user) {
-      console.log('GetInstantQuoteSection: User logged in, navigating to /get-quote');
       navigate('/get-quote');
     } else {
-      console.log('GetInstantQuoteSection: User not logged in, redirecting to /signup');
       navigate('/signup');
     }
   };
