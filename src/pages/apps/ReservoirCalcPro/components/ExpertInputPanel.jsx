@@ -220,8 +220,9 @@ const ExpertInputPanel = () => {
 
                         {state.inputMethod !== 'surfaces' && (
                             <div className="space-y-1">
-                                <Label className="text-xs">Thickness ({depthUnit})</Label>
+                                <Label className="text-xs">Gross Thickness ({depthUnit})</Label>
                                 <Input type="number" value={state.inputs?.thickness ?? ''} onChange={e => handleDetChange('thickness', e.target.value)} className="h-8 bg-slate-900" />
+                                <p className="text-[10px] text-slate-500">Enter the gross interval thickness. Net rock is derived as gross times Net-to-Gross (set NTG under Petrophysics below). Do not enter net pay here with NTG below 1, or the net cut is applied twice.</p>
                             </div>
                         )}
                         
