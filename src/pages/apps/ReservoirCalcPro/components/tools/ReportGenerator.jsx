@@ -1,15 +1,17 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
-// Petrolord brand mark for report headers. Loaded once (from the public asset)
-// and cached as a data URL so jsPDF can embed it. Resolves to null if the asset
-// can't be fetched — reports still generate, just without the logo.
+// Petrolord brand mark for report headers: the clean transparent-background
+// logo (petrolord-icon.png is a JPEG with a baked-in dark background — never
+// use it on report surfaces). Loaded once and cached as a data URL so jsPDF
+// can embed it. Resolves to null if the asset can't be fetched — reports
+// still generate, just without the logo.
 let _logoPromise;
 function loadPetrolordLogo() {
     if (_logoPromise) return _logoPromise;
     _logoPromise = (async () => {
         try {
-            const resp = await fetch('/petrolord-icon.png');
+            const resp = await fetch('/petrolord-chart-watermark.png');
             if (!resp.ok) return null;
             const blob = await resp.blob();
             const dataUrl = await new Promise((res, rej) => {
@@ -18,13 +20,27 @@ function loadPetrolordLogo() {
                 r.onerror = rej;
                 r.readAsDataURL(blob);
             });
-            const dims = await new Promise((res, rej) => {
+            const img = await new Promise((res, rej) => {
                 const im = new Image();
-                im.onload = () => res({ w: im.naturalWidth || 1, h: im.naturalHeight || 1 });
+                im.onload = () => res(im);
                 im.onerror = rej;
                 im.src = dataUrl;
             });
-            return { dataUrl, ...dims };
+            const w = img.naturalWidth || 1;
+            const h = img.naturalHeight || 1;
+            // The source asset is ~3000px / 800 KB; downscale on a canvas (alpha
+            // preserved) so every report doesn't carry the full-resolution embed.
+            const targetH = 240;
+            if (h > targetH) {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.round((w / h) * targetH);
+                    canvas.height = targetH;
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    return { dataUrl: canvas.toDataURL('image/png'), w: canvas.width, h: canvas.height };
+                } catch { /* fall back to the original */ }
+            }
+            return { dataUrl, w, h };
         } catch {
             return null;
         }
@@ -74,13 +90,13 @@ export class ReportGenerator {
                 try { doc.addImage(logo.dataUrl, 'PNG', margin, 7.5, w, h); titleX = margin + w + 5; } catch { /* skip logo */ }
             }
             doc.setTextColor(255, 255, 255);
-            doc.setFontSize(18);
+            doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
-            doc.text('ReservoirCalc Pro', titleX, 13);
+            doc.text('Petrolord Suite - ReservoirCalc Pro', titleX, 13);
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(200, 210, 225);
-            doc.text(`${templateLabel} — Probabilistic Volumetrics  •  Petrolord Suite`, titleX, 21);
+            doc.text(`${templateLabel} · Probabilistic Volumetrics`, titleX, 21);
             doc.setTextColor(255, 255, 255);
             doc.text(`Project: ${projectName}`, pageWidth - margin, 12, { align: 'right' });
             doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 20, { align: 'right' });
@@ -183,7 +199,7 @@ export class ReportGenerator {
         yPos = addChart(chartImages.histogram, `Volume Distribution (${unit})`, yPos);
         if (includeTechnical) {
             yPos = addChart(chartImages.cdf, 'Expectation Curve (Cumulative Probability)', yPos);
-            yPos = addChart(chartImages.tornado, 'Sensitivity — Variance Decomposition (Tornado)', yPos, 80);
+            yPos = addChart(chartImages.tornado, 'Sensitivity · Variance Decomposition (Tornado)', yPos, 80);
 
             // Sensitivity table
             const sens = results.stats.sensitivity || [];
@@ -270,7 +286,7 @@ export class ReportGenerator {
                 'A default porosity-water-saturation correlation of -0.8 is applied. Out-of-bounds draws for',
                 'unbounded (normal/lognormal) marginals are rejected. Volumetrics: HCPV = GRV·NTG·φ·(1-Sw);',
                 'STOOIP = HCPV·7758/Bo (field) or HCPV/Bo (metric); GIIP = HCPV·43560/Bg (field) or HCPV/Bg.',
-                'P90/P50/P10 follow the petroleum convention (P90 = low, P10 = high). Screening estimate —',
+                'P90/P50/P10 follow the petroleum convention (P90 = low, P10 = high). Screening estimate:',
                 'confirm against reservoir simulation before use in reserves booking.',
             ];
             notes.forEach((line, i) => doc.text(line, margin, yPos + 5 + i * 5));
@@ -315,13 +331,13 @@ export class ReportGenerator {
                 try { doc.addImage(logo.dataUrl, 'PNG', margin, 7.5, w, h); titleX = margin + w + 5; } catch { /* skip */ }
             }
             doc.setTextColor(255, 255, 255);
-            doc.setFontSize(18);
+            doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
-            doc.text('ReservoirCalc Pro', titleX, 13);
+            doc.text('Petrolord Suite - ReservoirCalc Pro', titleX, 13);
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(200, 210, 225);
-            doc.text('Deterministic Volumetrics  •  Petrolord Suite', titleX, 21);
+            doc.text('Deterministic Volumetrics', titleX, 21);
             doc.setTextColor(255, 255, 255);
             doc.text(`Project: ${projectName}`, pageWidth - margin, 12, { align: 'right' });
             doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 20, { align: 'right' });
