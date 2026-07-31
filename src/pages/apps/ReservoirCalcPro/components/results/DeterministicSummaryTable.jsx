@@ -97,7 +97,7 @@ const DeterministicSummaryTable = () => {
                                 <TableCell className="py-1 font-medium text-emerald-600">Oil Zone</TableCell>
                                 <TableCell className="py-1">{fmt(r.grvOil, 0)}</TableCell>
                                 <TableCell className="py-1">{fmt(r.grvOil * inputs.ntg, 0)}</TableCell>
-                                <TableCell className="py-1">{fmt(r.grvOil * inputs.ntg * inputs.porosity * (isField ? 7758 : 1e6), 0)}</TableCell>
+                                <TableCell className="py-1">{fmt(r.grvOil * inputs.ntg * inputs.porosity, 0)}</TableCell>
                                 <TableCell className="py-1 font-bold bg-emerald-50">{fmt(r.stooip, 0)}</TableCell>
                                 {showGas && <TableCell className="py-1">-</TableCell>}
                             </TableRow>
@@ -109,7 +109,7 @@ const DeterministicSummaryTable = () => {
                                 <TableCell className="py-1 font-medium text-amber-600">Gas Zone</TableCell>
                                 <TableCell className="py-1">{fmt(r.grvGas, 0)}</TableCell>
                                 <TableCell className="py-1">{fmt(r.grvGas * inputs.ntg, 0)}</TableCell>
-                                <TableCell className="py-1">{fmt(r.grvGas * inputs.ntg * inputs.porosity * (isField ? 7758 : 1e6), 0)}</TableCell>
+                                <TableCell className="py-1">{fmt(r.grvGas * inputs.ntg * inputs.porosity, 0)}</TableCell>
                                 {showOil && <TableCell className="py-1">-</TableCell>}
                                 <TableCell className="py-1 font-bold bg-amber-50">{fmt(r.giip / 1e9, 3)} B</TableCell>
                             </TableRow>

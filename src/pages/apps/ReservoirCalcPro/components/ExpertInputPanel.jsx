@@ -324,6 +324,13 @@ const ExpertInputPanel = () => {
                                         <span className="text-[10px] self-center text-slate-500">rcf/scf</span>
                                     </div>
                                 </div>
+                                {fluidType === 'oil_gas' && state.inputMethod === 'simple' && (
+                                    <div className="space-y-1">
+                                        <Label className="text-xs">Gas Cap Fraction of GRV</Label>
+                                        <Input type="number" min="0" max="0.99" step="0.05" value={state.inputs?.gasCapFraction ?? ''} onChange={e => handleDetChange('gasCapFraction', e.target.value)} className="h-8 bg-slate-900" />
+                                        <p className="text-[10px] text-slate-500">Share of gross rock volume in the gas cap (0–1). Splits the pore volume between gas cap and oil leg. Structural methods use the GOC instead.</p>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </TabsContent>

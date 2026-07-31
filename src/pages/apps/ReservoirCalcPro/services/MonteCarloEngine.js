@@ -64,6 +64,19 @@ export class MonteCarloEngine {
                         diagnostics.warnings.push('Double Counting Warning: Both Porosity and Pore Volume are active uncertainties.');
                     }
 
+                    // Analytic oil+gas: split GRV by the gas-cap fraction (mirrors
+                    // VolumeCalculationEngine) so oil and gas never share pore volume.
+                    const gcf = parseFloat(config.gasCapFraction);
+                    const gcfValid = gcf > 0 && gcf < 1;
+                    let fracOil = 1, fracGas = 0;
+                    if (config.fluidType === 'gas') { fracOil = 0; fracGas = 1; }
+                    else if (config.fluidType === 'oil_gas') {
+                        if (gcfValid) { fracGas = gcf; fracOil = 1 - gcf; }
+                        else if (!structural) {
+                            diagnostics.warnings.push('Oil+gas without a gas-cap fraction is modelled as undersaturated oil (GIIP = 0). Set a gas-cap fraction of GRV, or run a structural study with a GOC.');
+                        }
+                    }
+
                     // Correlation matrix (identity + domain-knowledge / caller-supplied entries).
                     const C = Array(nVars).fill(0).map(() => Array(nVars).fill(0));
                     for (let i = 0; i < nVars; i++) C[i][i] = 1.0;
@@ -151,12 +164,8 @@ export class MonteCarloEngine {
                             const thickness = resolve1('thickness', 50);
                             grv = area * thickness;
                             const hcpv = grv * ntg * phi * (1 - sw);
-                            if (config.fluidType === 'oil' || config.fluidType === 'oil_gas') {
-                                stooip = (hcpv * oilFactor) / (fvf > 0 ? fvf : 1);
-                            }
-                            if (config.fluidType === 'gas' || config.fluidType === 'oil_gas') {
-                                giip = (hcpv * gasFactor) / (bg > 0 ? bg : 0.001);
-                            }
+                            if (fracOil > 0) stooip = (hcpv * fracOil * oilFactor) / (fvf > 0 ? fvf : 1);
+                            if (fracGas > 0) giip = (hcpv * fracGas * gasFactor) / (bg > 0 ? bg : 0.001);
                             sampleInputs = { area, thickness, ntg, phi, sw, fvf, bg };
                         }
                         const targetVol = config.fluidType === 'gas' ? giip : stooip;

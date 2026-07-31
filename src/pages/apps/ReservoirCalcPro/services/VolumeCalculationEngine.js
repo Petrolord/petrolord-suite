@@ -16,12 +16,15 @@ export class VolumeCalculationEngine {
 
         flag(!(phi > 0 && phi < 1), 'Porosity should be a fraction between 0 and 1.', 20);
         flag(phi > 0.4, 'Porosity above 40% is unusually high — verify the input.', 10);
-        flag(!(sw >= 0 && sw < 1), 'Water saturation should be a fraction between 0 and 1.', 20);
-        flag(sw >= 1, 'Water saturation ≥ 1 leaves no hydrocarbon pore volume.', 25);
+        flag(!(sw >= 0 && sw < 1), 'Water saturation should be a fraction between 0 and 1 (Sw ≥ 1 leaves no hydrocarbon pore volume).', 20);
         flag(!(ntg > 0 && ntg <= 1), 'Net-to-gross should be a fraction between 0 and 1.', 15);
         flag(!(area > 0) || !(h > 0), 'Area and thickness must both be positive.', 25);
         if (ft !== 'gas') flag(!(parseFloat(inputs.fvf) >= 1), 'Oil FVF (Bo) below 1.0 rb/stb is non-physical.', 15);
         if (ft === 'gas' || ft === 'oil_gas') flag(!(parseFloat(inputs.bg) > 0), 'Gas FVF (Bg) must be positive.', 15);
+        if (ft === 'oil_gas') {
+            const gcf = parseFloat(inputs.gasCapFraction);
+            flag(isFinite(gcf) && !(gcf >= 0 && gcf < 1), 'Gas-cap fraction must be a fraction between 0 and 1 of GRV.', 10);
+        }
 
         return { warnings, qualityScore: Math.max(0, Math.round(score)) };
     }
@@ -62,126 +65,74 @@ export class VolumeCalculationEngine {
 
         try {
             // Simple (analytic) method: Area × Thickness with no structural geometry.
-            // Contacts cannot apply here — there is no depth reference — so the whole
-            // column is treated as hydrocarbon. Use a structural method for contacts.
-            let grv = 0;
-            let area = parseFloat(inputs.area) || 0;
-            let thickness = parseFloat(inputs.thickness) || 0;
-            let calculatedArea = area;
-            grv = area * thickness;
+            // Contacts cannot apply here — there is no depth reference. For oil+gas
+            // the GRV is split between the gas cap and the oil leg by an explicit
+            // gas-cap fraction (the analytic stand-in for a GOC), so oil and gas
+            // never draw on the same pore volume.
+            const isField = unitSystem === 'field';
+            const area = parseFloat(inputs.area) || 0;
+            const thickness = parseFloat(inputs.thickness) || 0;
+            const calculatedArea = area;
+            // Field: acres × ft → acre-ft. Metric: km² × 1e6 → m², × m → m³.
+            const grv = isField ? area * thickness : area * 1_000_000 * thickness;
 
-            // 2. Petrophysics
             const ntg = parseFloat(inputs.ntg) || 1.0;
             const phi = parseFloat(inputs.porosity) || 0.2;
             const sw = parseFloat(inputs.sw) || 0.3;
             const soi = 1 - sw;
 
-            // 3. Fluid Props
             const fluidType = inputs.fluidType || 'oil';
-            const fvf = parseFloat(inputs.fvf) || 1.2; // Bo
-            const bg = parseFloat(inputs.bg) || 0.005; // Bg
-            
-            // Recovery factors — oil and gas are recovered independently (below),
-            // so both are read here rather than collapsing to a single figure.
+            const fvf = parseFloat(inputs.fvf) || 1.2; // Bo, rb/stb (rm³/sm³ metric)
+            const bg = parseFloat(inputs.bg) || 0.005; // Bg, rcf/scf (rm³/sm³ metric)
             const oilRecovery = parseFloat(inputs.recovery) || 0;
             const gasRecovery = parseFloat(inputs.recoveryGas) || 0;
 
-            // 4. Volumetrics Calculation
-            
-            let stooip = 0; // Stock Tank Oil Originally In Place (or Gas)
-            let recoverable = 0;
-            let volumeUnit = "STB";
-            let volUnit = "Ac-ft";
-            let areaUnit = "Acres";
-            let poreVolume = 0;   // PV (reservoir volume units)
-            let hcPoreVolume = 0; // HCPV
-            let giip = 0;         // gas-in-place, when applicable
-
-            if (unitSystem === 'field') {
-                // Field Units
-                // Area: Acres
-                // Thickness: ft
-                // GRV: Acre-feet
-                
-                // Constants
-                const OIL_CONST = 7758; // bbl/acre-ft
-                const GAS_CONST = 43560; // ft3/acre-ft
-
-                const netRockVol = grv * ntg; // Acre-ft
-                const poreVol = netRockVol * phi; // Acre-ft (PV)
-                const hcPoreVol = poreVol * soi; // Acre-ft (HCPV)
-                poreVolume = poreVol;
-                hcPoreVolume = hcPoreVol;
-
-                // Bg is rcf/scf (e.g. 0.005) so we divide. Oil and gas draw on the
-                // same HCPV for oil_gas — a saturated single-cell simplification that
-                // matches MonteCarloEngine, not a contact-split gas-cap model.
-                const validBo = fvf <= 0 ? 1 : fvf;
-                const validBg = bg <= 0 ? 0.001 : bg; // guard div-by-zero
-                if (fluidType === 'oil' || fluidType === 'oil_gas') {
-                    stooip = (hcPoreVol * OIL_CONST) / validBo; // STB
-                    volumeUnit = "STB";
+            // Split GRV between the fluid zones.
+            const warnings = [...validation.warnings];
+            let grvOil = 0;
+            let grvGas = 0;
+            if (fluidType === 'gas') {
+                grvGas = grv;
+            } else if (fluidType === 'oil_gas') {
+                const gcf = parseFloat(inputs.gasCapFraction);
+                if (gcf > 0 && gcf < 1) {
+                    grvGas = grv * gcf;
+                    grvOil = grv - grvGas;
+                } else {
+                    grvOil = grv;
+                    warnings.push('Oil+gas is selected but no gas-cap fraction is set, so the case is modelled as undersaturated oil with no free-gas cap. Set a gas-cap fraction of GRV, or use a structural method with a GOC, for a rigorous split.');
                 }
-                if (fluidType === 'gas' || fluidType === 'oil_gas') {
-                    giip = (hcPoreVol * GAS_CONST) / validBg; // scf
-                    if (fluidType === 'gas') {
-                        stooip = giip; // pure gas: primary target mirrors GIIP
-                        volumeUnit = "scf";
-                    }
-                }
-
-                volUnit = "Ac-ft";
-                areaUnit = "Acres";
             } else {
-                // Metric Units
-                // Area Input: km² (usually for user convenience) -> convert to m²
-                // Thickness: m
-                
-                let areaM2 = calculatedArea;
-                if (inputMethod === 'simple' || inputMethod === 'hybrid') {
-                     // Assume input is km2, convert to m2
-                     areaM2 = calculatedArea * 1_000_000; 
-                }
-                
-                const grvM3 = areaM2 * thickness; // m³
-                const netRockVol = grvM3 * ntg;
-                const poreVol = netRockVol * phi;
-                const hcPoreVol = poreVol * soi;
-                poreVolume = poreVol;
-                hcPoreVolume = hcPoreVol;
-
-                const validBo = fvf <= 0 ? 1 : fvf;
-                const validBg = bg <= 0 ? 0.001 : bg; // rm³/sm³, guard div-by-zero
-                if (fluidType === 'oil' || fluidType === 'oil_gas') {
-                     stooip = hcPoreVol / validBo; // sm³
-                     volumeUnit = "sm³";
-                }
-                if (fluidType === 'gas' || fluidType === 'oil_gas') {
-                     giip = hcPoreVol / validBg; // sm³
-                     if (fluidType === 'gas') {
-                         stooip = giip; // pure gas: primary target mirrors GIIP
-                         volumeUnit = "sm³";
-                     }
-                }
-
-                volUnit = "m³";
-                areaUnit = "km²";
-                
-                // Adjust GRV for display if it's huge (maybe keep as m3)
-                grv = grvM3; 
+                grvOil = grv;
             }
 
-            const isGasFluid = fluidType === 'gas';
-            const hasOil = fluidType === 'oil' || fluidType === 'oil_gas';
-            const hasGas = fluidType === 'gas' || fluidType === 'oil_gas';
+            // Per-zone roll-up so oil and gas never share pore volume.
+            const netVolume = grv * ntg;
+            const poreVolume = netVolume * phi;
+            const hcpvOil = grvOil * ntg * phi * soi;
+            const hcpvGas = grvGas * ntg * phi * soi;
+            const hcPoreVolume = hcpvOil + hcpvGas;
 
-            // Pure gas carries its volume in `stooip` (the primary target); oil and
-            // oil+gas recover oil from STOOIP and gas from GIIP independently.
-            const recoverableOil = hasOil ? stooip * (oilRecovery / 100) : 0;
-            const recoverableGas = isGasFluid
-                ? stooip * (gasRecovery / 100)
-                : (hasGas ? giip * (gasRecovery / 100) : 0);
-            recoverable = isGasFluid ? recoverableGas : recoverableOil;
+            // Field constants fold acre-ft → surface units (7758 bbl/acre-ft,
+            // 43560 ft³/acre-ft); metric HCPV is already m³ so only the FVF divides.
+            const OIL_CONST = isField ? 7758 : 1;
+            const GAS_CONST = isField ? 43560 : 1;
+            const validBo = fvf <= 0 ? 1 : fvf;
+            const validBg = bg <= 0 ? 0.001 : bg; // guard div-by-zero
+
+            const isGasFluid = fluidType === 'gas';
+            const giip = (hcpvGas * GAS_CONST) / validBg;
+            let stooip = (hcpvOil * OIL_CONST) / validBo;
+            let volumeUnit = isField ? 'STB' : 'sm³';
+            if (isGasFluid) {
+                stooip = giip; // pure gas: primary target mirrors GIIP
+                volumeUnit = isField ? 'scf' : 'sm³';
+            }
+
+            // Oil and gas are recovered independently at their own recovery factors.
+            const recoverableOil = isGasFluid ? 0 : stooip * (oilRecovery / 100);
+            const recoverableGas = giip * (gasRecovery / 100);
+            const recoverable = isGasFluid ? recoverableGas : recoverableOil;
 
             // Return results object. `inputs`/`unitSystem` are echoed back so the
             // results tables can render the case parameters without reaching into
@@ -193,18 +144,20 @@ export class VolumeCalculationEngine {
                 recoverableOil,
                 recoverableGas,
                 grv,
-                grvOil: hasOil ? grv : 0,
-                grvGas: hasGas ? grv : 0,
+                grvOil,
+                grvGas,
                 bulkVolume: grv,
-                netVolume: grv * ntg,
+                netVolume,
                 poreVolume,
                 poreVolumeRes: poreVolume,
                 hcPoreVolume,
+                hcPoreVolumeOil: hcpvOil,
+                hcPoreVolumeGas: hcpvGas,
                 hcArea: calculatedArea,
                 volumeUnit,
-                volUnit,
-                resVolUnit: volUnit,
-                areaUnit,
+                volUnit: isField ? 'Ac-ft' : 'm³',
+                resVolUnit: isField ? 'Ac-ft' : 'm³',
+                areaUnit: isField ? 'Acres' : 'km²',
                 inputMethod,
                 fluidType,
                 unitSystem,
@@ -214,13 +167,14 @@ export class VolumeCalculationEngine {
                     sw,
                     fvf,
                     bg,
-                    recovery: parseFloat(inputs.recovery) || 0,
-                    recoveryGas: parseFloat(inputs.recoveryGas) || 0,
+                    recovery: oilRecovery,
+                    recoveryGas: gasRecovery,
+                    gasCapFraction: parseFloat(inputs.gasCapFraction),
                     owc: inputs.owc,
                     goc: inputs.goc,
                     fluidType
                 },
-                warnings: validation.warnings,
+                warnings,
                 qualityScore: validation.qualityScore
             };
 
