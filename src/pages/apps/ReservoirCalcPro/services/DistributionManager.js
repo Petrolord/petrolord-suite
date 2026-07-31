@@ -84,6 +84,13 @@ export class DistributionManager {
                 }
             } else if (dist.type === 'uniform') {
                 if (x >= dist.min && x <= dist.max) y = 1 / (dist.max - dist.min);
+            } else if (dist.type === 'lognormal' && x > 0) {
+                // Same arithmetic mean/stdDev → (mu, sigma) conversion as the sampler.
+                const m2 = dist.mean * dist.mean;
+                const s2 = dist.stdDev * dist.stdDev;
+                const mu = Math.log(m2 / Math.sqrt(m2 + s2));
+                const sigma = Math.sqrt(Math.log(1 + s2 / m2));
+                y = (1 / (x * sigma * Math.sqrt(2 * Math.PI))) * Math.exp(-Math.pow(Math.log(x) - mu, 2) / (2 * sigma * sigma));
             }
             
             if (!isNaN(y)) data.push({ x, y });

@@ -1,12 +1,29 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { DistributionManager } from '../../services/DistributionManager';
+import ChartFrame from '@/components/charts/ChartFrame';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE } from '@/utils/chartTheme';
+
+const fmtTick = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '';
+    if (Math.abs(n) >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    if (Math.abs(n) >= 10) return n.toFixed(1);
+    return n.toFixed(2);
+};
 
 const DistributionEditor = ({ label, parameterKey, distribution, onChange, unit }) => {
+    // PDF preview points for the current parameters (Petrolord chart template).
+    const previewData = useMemo(
+        () => (distribution.type === 'constant' ? [] : DistributionManager.getPreviewData(distribution, 60)),
+        [distribution],
+    );
+
     const handleTypeChange = (type) => {
         const newDist = DistributionManager.createDistribution(type);
         if (type === 'constant' && distribution.mean) newDist.value = distribution.mean;
@@ -64,9 +81,25 @@ const DistributionEditor = ({ label, parameterKey, distribution, onChange, unit 
                 )}
             </div>
 
-            <div className="h-16 w-full bg-slate-950/50 rounded overflow-hidden relative flex items-center justify-center text-slate-500 text-xs">
-                {distribution.type !== 'constant' && "Chart removed"}
-            </div>
+            {distribution.type !== 'constant' && previewData.length > 1 && (
+                <div className="rounded-lg overflow-hidden border border-slate-800">
+                    <ChartFrame height={90}>
+                        <AreaChart data={previewData} margin={{ top: 8, right: 10, bottom: 0, left: 10 }}>
+                            <CartesianGrid {...GRID_STYLE} vertical={false} />
+                            <XAxis
+                                dataKey="x"
+                                stroke={CHART_COLORS.axisLine}
+                                tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.annotationFontSize }}
+                                tickFormatter={fmtTick}
+                                interval="preserveStartEnd"
+                                minTickGap={40}
+                            />
+                            <YAxis hide />
+                            <Area type="monotone" dataKey="y" stroke="#2563eb" strokeWidth={1.5} fill="#2563eb" fillOpacity={0.12} isAnimationActive={false} />
+                        </AreaChart>
+                    </ChartFrame>
+                </div>
+            )}
         </Card>
     );
 };
