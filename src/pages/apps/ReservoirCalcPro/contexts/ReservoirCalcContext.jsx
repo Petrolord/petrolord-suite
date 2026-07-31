@@ -48,7 +48,10 @@ const initialState = {
         api: 35,
         gasGrav: 0.7,
         owc: -8000,
-        goc: -7000
+        goc: -7000,
+        // Gas-cap GRV fraction for the analytic (simple) oil+gas split; structural
+        // methods derive the split from the GOC instead.
+        gasCapFraction: null
     },
     
     surfaces: {},
@@ -431,6 +434,7 @@ export const ReservoirCalcProvider = ({ children }) => {
                     consistencyMode: opts.consistencyMode,
                     baseCase: state.baseCase,
                     grvMode: structural ? 'structural' : 'analytic',
+                    gasCapFraction: state.inputs.gasCapFraction,
                     hypsometry,
                     deterministicContacts: { owc: state.inputs.owc, goc: state.inputs.goc }
                 };

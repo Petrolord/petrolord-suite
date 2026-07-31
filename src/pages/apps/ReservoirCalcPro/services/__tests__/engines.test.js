@@ -76,25 +76,46 @@ describe('VolumeCalculationEngine (deterministic)', () => {
     expect(oil.recoverableOil).toBeCloseTo(oil.recoverable, 5);
   });
 
-  it('oil_gas computes BOTH STOOIP and GIIP from the same HCPV', () => {
+  it('oil_gas splits GRV by the gas-cap fraction — oil and gas never share pore volume', () => {
     const r = VolumeCalculationEngine.calculateDeterministic(
-      { ...baseOil, fluidType: 'oil_gas', bg: 0.005, recovery: 25, recoveryGas: 70 }, 'field', 'simple');
-    // Same HCPV (7000 ac-ft) feeds oil (÷Bo·7758) and gas (÷Bg·43560) — matches MonteCarloEngine.
-    expect(near(r.stooip, (7000 * 7758) / 1.2)).toBe(true);
-    expect(near(r.giip, (7000 * 43560) / 0.005)).toBe(true);
-    expect(r.stooip).toBeGreaterThan(0);
-    expect(r.giip).toBeGreaterThan(0);
+      { ...baseOil, fluidType: 'oil_gas', bg: 0.005, recovery: 25, recoveryGas: 70, gasCapFraction: 0.3 }, 'field', 'simple');
+    // GRV 50000 ac-ft: 30% gas cap (15000), 70% oil leg (35000). HCPV factors 0.2·0.7.
+    expect(near(r.grvGas, 15000)).toBe(true);
+    expect(near(r.grvOil, 35000)).toBe(true);
+    expect(near(r.stooip, (35000 * 0.2 * 0.7 * 7758) / 1.2)).toBe(true);
+    expect(near(r.giip, (15000 * 0.2 * 0.7 * 43560) / 0.005)).toBe(true);
+    // Zone HCPVs sum to the total — nothing double-counted.
+    expect(near(r.hcPoreVolumeOil + r.hcPoreVolumeGas, r.hcPoreVolume)).toBe(true);
+    expect(near(r.grvOil + r.grvGas, r.grv)).toBe(true);
     // Oil and gas are recovered independently at their own recovery factors.
     expect(near(r.recoverableOil, r.stooip * 0.25)).toBe(true);
     expect(near(r.recoverableGas, r.giip * 0.70)).toBe(true);
-    // Per-zone GRV is exposed for the summary table (both share the single cell).
-    expect(r.grvOil).toBeGreaterThan(0);
-    expect(r.grvGas).toBeGreaterThan(0);
     // STOOIP stays the primary target; its unit label is oil.
     expect(r.volumeUnit).toBe('STB');
     // Case parameters are echoed back for the results tables.
     expect(r.inputs.ntg).toBe(1);
     expect(r.unitSystem).toBe('field');
+  });
+
+  it('oil_gas without a gas-cap fraction degrades to undersaturated oil with a warning', () => {
+    const r = VolumeCalculationEngine.calculateDeterministic(
+      { ...baseOil, fluidType: 'oil_gas', bg: 0.005 }, 'field', 'simple');
+    // All GRV is oil leg; no free gas is invented.
+    expect(near(r.stooip, (7000 * 7758) / 1.2)).toBe(true);
+    expect(r.giip).toBe(0);
+    expect(r.grvGas).toBe(0);
+    expect(r.warnings.join(' ')).toMatch(/gas-cap fraction/i);
+  });
+
+  it('metric oil_gas split: km²·m GRV in m³, sm³ volumes', () => {
+    const r = VolumeCalculationEngine.calculateDeterministic(
+      { area: 2, thickness: 20, ntg: 1, porosity: 0.2, sw: 0.3, fvf: 1.2, bg: 0.005, fluidType: 'oil_gas', gasCapFraction: 0.5 },
+      'metric', 'simple');
+    const grv = 2 * 1e6 * 20; // 40e6 m³
+    expect(near(r.grv, grv)).toBe(true);
+    expect(near(r.stooip, (grv * 0.5 * 0.2 * 0.7) / 1.2)).toBe(true);
+    expect(near(r.giip, (grv * 0.5 * 0.2 * 0.7) / 0.005)).toBe(true);
+    expect(r.volumeUnit).toBe('sm³');
   });
 });
 
@@ -468,6 +489,33 @@ describe('MonteCarloEngine.runSimulation', () => {
     expect(Math.min(...raw.stooip)).toBeGreaterThanOrEqual(0);       // never negative
     expect(Math.min(...raw.samples.map(s => s.inputs.phi))).toBeGreaterThanOrEqual(0);
     expect(Math.max(...raw.samples.map(s => s.inputs.sw))).toBeLessThanOrEqual(1);
+  });
+
+  it('analytic oil_gas splits HCPV by the gas-cap fraction (no double count)', async () => {
+    const inputs = {
+      area: { type: 'constant', value: 1000 }, thickness: { type: 'constant', value: 50 },
+      porosity: { type: 'constant', value: 0.2 }, sw: { type: 'constant', value: 0.3 },
+      fvf: { type: 'constant', value: 1.2 }, bg: { type: 'constant', value: 0.005 },
+      ntg: { type: 'constant', value: 1 },
+    };
+    const { raw } = await MonteCarloEngine.runSimulation(
+      cfg({ fluidType: 'oil_gas', gasCapFraction: 0.3, iterations: 200 }), inputs);
+    // All-constant inputs → every realization equals the deterministic split values.
+    expect(near(raw.stooip[0], (50000 * 0.7 * 0.2 * 0.7 * 7758) / 1.2)).toBe(true);
+    expect(near(raw.giip[0], (50000 * 0.3 * 0.2 * 0.7 * 43560) / 0.005)).toBe(true);
+  });
+
+  it('analytic oil_gas without a gas-cap fraction warns and produces no free gas', async () => {
+    const inputs = {
+      area: { type: 'constant', value: 1000 }, thickness: { type: 'constant', value: 50 },
+      porosity: { type: 'constant', value: 0.2 }, sw: { type: 'constant', value: 0.3 },
+      fvf: { type: 'constant', value: 1.2 }, bg: { type: 'constant', value: 0.005 },
+      ntg: { type: 'constant', value: 1 },
+    };
+    const { raw, diagnostics } = await MonteCarloEngine.runSimulation(
+      cfg({ fluidType: 'oil_gas', iterations: 200 }), inputs);
+    expect(Math.max(...raw.giip)).toBe(0);
+    expect(diagnostics.warnings.join(' ')).toMatch(/gas-cap fraction/i);
   });
 });
 

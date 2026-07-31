@@ -97,10 +97,10 @@ export const SlideShell = ({ subtitle, project, dateStr, chips, children }) => (
         {/* Header */}
         <div className="flex items-start justify-between">
             <div className="flex items-center gap-3.5">
-                <img src="/petrolord-icon.png" alt="Petrolord" className="h-12 w-12 rounded-lg object-contain" crossOrigin="anonymous" />
+                <img src="/petrolord-chart-watermark.png" alt="Petrolord" className="h-12 w-auto object-contain" crossOrigin="anonymous" />
                 <div>
-                    <div className="text-[26px] font-black leading-none tracking-tight text-slate-900">
-                        ReservoirCalc <span className="text-emerald-600">Pro</span>
+                    <div className="text-[24px] font-black leading-none tracking-tight text-slate-900">
+                        Petrolord <span className="text-emerald-600">Suite</span> - ReservoirCalc Pro
                     </div>
                     <div className="mt-1 text-[14px] font-semibold text-slate-500">{subtitle}</div>
                 </div>
@@ -121,7 +121,7 @@ export const SlideShell = ({ subtitle, project, dateStr, chips, children }) => (
         {/* Footer */}
         <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
             <div className="text-[12px] font-medium text-slate-400">
-                Generated with <span className="font-bold text-slate-500">Petrolord Suite</span> · ReservoirCalc Pro — screening estimate, confirm against reservoir simulation before reserves booking.
+                Generated with <span className="font-bold text-slate-500">Petrolord Suite</span> · ReservoirCalc Pro. Screening estimate, confirm against reservoir simulation before reserves booking.
             </div>
             <div className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> petrolord.com
