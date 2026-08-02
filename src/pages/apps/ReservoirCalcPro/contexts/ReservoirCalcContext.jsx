@@ -62,6 +62,14 @@ const initialState = {
     
     surfaces: {},
 
+    // Saved reservoir cases within the current project. Each entry is a full
+    // workspace snapshot (inputs, surfaces, results, …) so one project can hold
+    // several reservoirs that are revisited or recomputed independently. The
+    // workspace always edits the ACTIVE reservoir; switching folds the current
+    // workspace back into its entry first, so nothing is lost.
+    reservoirs: [],
+    activeReservoirId: null,
+
     // Area-of-Interest polygons (world XY coordinates), the currently selected
     // AOI, and the in-progress drawing buffer fed by map clicks.
     aois: [],
@@ -79,6 +87,63 @@ const initialState = {
     isCalculating: false,
     isDirty: false,
     error: null
+};
+
+// The per-reservoir slice of the workspace: everything that belongs to one
+// reservoir case, as opposed to project metadata or the project list.
+const captureReservoirSnapshot = (state) => ({
+    inputs: state.inputs,
+    surfaces: state.surfaces,
+    aois: state.aois,
+    maps: state.maps,
+    unitSystem: state.unitSystem,
+    inputUnits: state.inputUnits,
+    calcMethod: state.calcMethod,
+    inputMethod: state.inputMethod,
+    results: state.results,
+    probResults: state.probResults,
+    baseCase: state.baseCase,
+    updated_at: new Date().toISOString(),
+});
+
+const applyReservoirSnapshot = (state, snap) => ({
+    ...state,
+    inputs: snap.inputs || { ...initialState.inputs },
+    surfaces: snap.surfaces || {},
+    aois: snap.aois || [],
+    maps: snap.maps || [],
+    unitSystem: snap.unitSystem || 'field',
+    inputUnits: { ...defaultInputUnits(snap.unitSystem || 'field'), ...(snap.inputUnits || {}) },
+    calcMethod: snap.calcMethod || 'deterministic',
+    inputMethod: snap.inputMethod || 'simple',
+    results: snap.results || null,
+    probResults: snap.probResults || null,
+    baseCase: snap.baseCase || (snap.results ? { inputs: snap.inputs, results: snap.results } : null),
+    activeAoiId: null,
+    drawing: { isActive: false, currentPoints: [] },
+    error: null,
+});
+
+const newReservoirId = () => (crypto.randomUUID && crypto.randomUUID()) || `res-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+// Fold the live workspace into the active reservoir entry (creating one when
+// the list is still empty), so the list always reflects what is on screen.
+const foldWorkspace = (state) => {
+    const snap = captureReservoirSnapshot(state);
+    const name = state.reservoirName || 'Reservoir 1';
+    if (!state.reservoirs.length) {
+        const id = state.activeReservoirId || newReservoirId();
+        return { reservoirs: [{ id, name, ...snap }], activeReservoirId: id };
+    }
+    const exists = state.reservoirs.some(r => r.id === state.activeReservoirId);
+    if (!exists) {
+        const id = newReservoirId();
+        return { reservoirs: [...state.reservoirs, { id, name, ...snap }], activeReservoirId: id };
+    }
+    return {
+        reservoirs: state.reservoirs.map(r => r.id === state.activeReservoirId ? { ...r, ...snap } : r),
+        activeReservoirId: state.activeReservoirId,
+    };
 };
 
 const ACTIONS = {
@@ -101,6 +166,11 @@ const ACTIONS = {
     SET_PROJECTS: 'SET_PROJECTS',
     LOAD_PROJECT: 'LOAD_PROJECT',
     NEW_PROJECT: 'NEW_PROJECT',
+    // Multi-reservoir cases within a project
+    ADD_RESERVOIR: 'ADD_RESERVOIR',
+    SWITCH_RESERVOIR: 'SWITCH_RESERVOIR',
+    RENAME_RESERVOIR: 'RENAME_RESERVOIR',
+    DELETE_RESERVOIR: 'DELETE_RESERVOIR',
     // AOI drawing + management
     START_DRAWING: 'START_DRAWING',
     ADD_DRAWING_POINT: 'ADD_DRAWING_POINT',
@@ -203,38 +273,144 @@ const reducer = (state, action) => {
             return { ...state, projects: action.payload };
         case ACTIONS.LOAD_PROJECT: {
             const p = action.payload;
+            const projectFields = {
+                reservoirName: p.reservoirName || '',
+                auditTrail: p.auditTrail || [],
+                project: { name: p.name, id: p.id, created_at: p.created_at, version: p.version },
+                currentProjectMeta: { name: p.name, description: p.description || '' },
+                isDirty: false,
+            };
+
+            // Reservoir-aware project: restore the reservoir list and open the
+            // last active one (falling back to the first).
+            if (Array.isArray(p.reservoirs) && p.reservoirs.length) {
+                const active = p.reservoirs.find(r => r.id === p.activeReservoirId) || p.reservoirs[0];
+                // Legacy blobs stored surfaces as an array inside inputs; reservoir
+                // snapshots keep the workspace map shape.
+                return {
+                    ...applyReservoirSnapshot(state, active),
+                    ...projectFields,
+                    reservoirs: p.reservoirs,
+                    activeReservoirId: active.id,
+                    reservoirName: active.name || projectFields.reservoirName,
+                };
+            }
+
+            // Legacy single-reservoir project: materialise its contents as the
+            // one and only reservoir entry.
             const det = { ...initialState.inputs, ...(p.inputs?.deterministic || {}) };
             const surfaces = (p.inputs?.surfaces || []).reduce((m, s) => {
                 if (s && s.id) m[s.id] = s;
                 return m;
             }, {});
-            return {
-                ...state,
+            const legacyId = newReservoirId();
+            const legacySnap = {
                 inputs: det,
                 surfaces,
                 aois: p.inputs?.polygons || [],
-                activeAoiId: null,
-                drawing: { isActive: false, currentPoints: [] },
                 maps: p.inputs?.maps || [],
                 unitSystem: p.unitSystem || 'field',
-                inputUnits: { ...defaultInputUnits(p.unitSystem || 'field'), ...(p.inputUnits || {}) },
+                inputUnits: p.inputUnits || null,
                 calcMethod: p.calcMethod || 'deterministic',
                 inputMethod: p.inputMethod || 'simple',
-                reservoirName: p.reservoirName || '',
-                auditTrail: p.auditTrail || [],
                 results: p.results || null,
                 // Restore the saved Monte Carlo study; clear it if the project had none
                 // so it can't leak in from the previously-open workspace.
                 probResults: p.probResults || null,
                 baseCase: p.results ? { inputs: det, results: p.results } : null,
-                project: { name: p.name, id: p.id, created_at: p.created_at, version: p.version },
-                currentProjectMeta: { name: p.name, description: p.description || '' },
-                isDirty: false,
-                error: null
+            };
+            const legacyName = p.reservoirName || 'Reservoir 1';
+            return {
+                ...applyReservoirSnapshot(state, legacySnap),
+                ...projectFields,
+                reservoirs: [{ id: legacyId, name: legacyName, ...legacySnap }],
+                activeReservoirId: legacyId,
+                reservoirName: legacyName,
             };
         }
         case ACTIONS.NEW_PROJECT:
             return { ...initialState, projects: state.projects };
+
+        // --- Multi-reservoir cases ---
+        case ACTIONS.ADD_RESERVOIR: {
+            const folded = foldWorkspace(state);
+            const id = newReservoirId();
+            const name = action.payload || `Reservoir ${folded.reservoirs.length + 1}`;
+            const blank = {
+                inputs: { ...initialState.inputs },
+                surfaces: {},
+                aois: [],
+                maps: [],
+                unitSystem: state.unitSystem,
+                inputUnits: defaultInputUnits(state.unitSystem),
+                calcMethod: 'deterministic',
+                inputMethod: 'simple',
+                results: null,
+                probResults: null,
+                baseCase: null,
+            };
+            return {
+                ...applyReservoirSnapshot(state, blank),
+                reservoirs: [...folded.reservoirs, { id, name, ...blank, updated_at: new Date().toISOString() }],
+                activeReservoirId: id,
+                reservoirName: name,
+                isDirty: true,
+            };
+        }
+        case ACTIONS.SWITCH_RESERVOIR: {
+            if (action.payload === state.activeReservoirId) return state;
+            const folded = foldWorkspace(state);
+            const target = folded.reservoirs.find(r => r.id === action.payload);
+            if (!target) return { ...state, ...folded };
+            return {
+                ...applyReservoirSnapshot(state, target),
+                reservoirs: folded.reservoirs,
+                activeReservoirId: target.id,
+                reservoirName: target.name || '',
+                isDirty: true,
+            };
+        }
+        case ACTIONS.RENAME_RESERVOIR: {
+            const { id, name } = action.payload;
+            const folded = foldWorkspace(state);
+            const targetId = id || folded.activeReservoirId;
+            return {
+                ...state,
+                reservoirs: folded.reservoirs.map(r => r.id === targetId ? { ...r, name } : r),
+                activeReservoirId: folded.activeReservoirId,
+                reservoirName: targetId === folded.activeReservoirId ? name : state.reservoirName,
+                isDirty: true,
+            };
+        }
+        case ACTIONS.DELETE_RESERVOIR: {
+            const folded = foldWorkspace(state);
+            const remaining = folded.reservoirs.filter(r => r.id !== action.payload);
+            if (remaining.length === folded.reservoirs.length) return { ...state, ...folded };
+            if (action.payload !== folded.activeReservoirId) {
+                return { ...state, reservoirs: remaining, activeReservoirId: folded.activeReservoirId, isDirty: true };
+            }
+            // Deleting the open reservoir: fall back to the first remaining one,
+            // or start a fresh blank case when it was the last.
+            if (remaining.length) {
+                const next = remaining[0];
+                return {
+                    ...applyReservoirSnapshot(state, next),
+                    reservoirs: remaining,
+                    activeReservoirId: next.id,
+                    reservoirName: next.name || '',
+                    isDirty: true,
+                };
+            }
+            const id = newReservoirId();
+            const blank = { inputs: { ...initialState.inputs }, surfaces: {}, aois: [], maps: [], unitSystem: state.unitSystem, inputUnits: defaultInputUnits(state.unitSystem), calcMethod: 'deterministic', inputMethod: 'simple', results: null, probResults: null, baseCase: null };
+            return {
+                ...applyReservoirSnapshot(state, blank),
+                reservoirs: [{ id, name: 'Reservoir 1', ...blank, updated_at: new Date().toISOString() }],
+                activeReservoirId: id,
+                reservoirName: 'Reservoir 1',
+                isDirty: true,
+            };
+        }
         case ACTIONS.RESET:
             return initialState;
 
@@ -345,30 +521,39 @@ export const ReservoirCalcProvider = ({ children }) => {
     };
     const deleteMap = (id) => dispatch({ type: ACTIONS.DELETE_MAP, payload: id });
     const clearMaps = () => dispatch({ type: ACTIONS.CLEAR_MAPS });
-    const buildProjectData = (userId, meta) => ({
-        id: state.project.id || null,
-        user_id: userId,
-        name: meta?.name || state.currentProjectMeta?.name || state.reservoirName || 'Untitled Project',
-        description: meta?.description ?? state.currentProjectMeta?.description ?? '',
-        version: state.project.version || 1,
-        unitSystem: state.unitSystem,
-        inputUnits: state.inputUnits,
-        calcMethod: state.calcMethod,
-        inputMethod: state.inputMethod,
-        reservoirName: state.reservoirName,
-        inputs: {
-            deterministic: state.inputs,
-            surfaces: Object.values(state.surfaces || {}),
-            polygons: state.aois || [],
-            maps: state.maps || []
-        },
-        results: state.results,
-        // Persist the Monte Carlo study so a reloaded project reproduces its P-values
-        // and report instead of silently inheriting the previous workspace's results.
-        probResults: state.probResults,
-        // The audit trail travels with the project (also underpins collaboration handoff).
-        auditTrail: (state.auditTrail || []).slice(0, MAX_AUDIT)
-    });
+    const buildProjectData = (userId, meta) => {
+        // Fold the live workspace into its reservoir entry so every reservoir in
+        // the project persists with its latest inputs and results.
+        const folded = foldWorkspace(state);
+        return {
+            id: state.project.id || null,
+            user_id: userId,
+            name: meta?.name || state.currentProjectMeta?.name || state.reservoirName || 'Untitled Project',
+            description: meta?.description ?? state.currentProjectMeta?.description ?? '',
+            version: state.project.version || 1,
+            unitSystem: state.unitSystem,
+            inputUnits: state.inputUnits,
+            calcMethod: state.calcMethod,
+            inputMethod: state.inputMethod,
+            reservoirName: state.reservoirName,
+            // Legacy top-level fields mirror the ACTIVE reservoir so older readers
+            // and exports keep working; the full multi-reservoir set lives below.
+            inputs: {
+                deterministic: state.inputs,
+                surfaces: Object.values(state.surfaces || {}),
+                polygons: state.aois || [],
+                maps: state.maps || []
+            },
+            results: state.results,
+            // Persist the Monte Carlo study so a reloaded project reproduces its P-values
+            // and report instead of silently inheriting the previous workspace's results.
+            probResults: state.probResults,
+            reservoirs: folded.reservoirs,
+            activeReservoirId: folded.activeReservoirId,
+            // The audit trail travels with the project (also underpins collaboration handoff).
+            auditTrail: (state.auditTrail || []).slice(0, MAX_AUDIT)
+        };
+    };
 
     // Persist the current workspace as a project (create or update), then refresh
     // the project list. Throws on failure so the caller can surface a message.
@@ -406,7 +591,27 @@ export const ReservoirCalcProvider = ({ children }) => {
         logEvent('Project loaded', project?.name || '');
     };
 
-    const createNewProject = () => dispatch({ type: ACTIONS.NEW_PROJECT });
+    const createNewProject = () => {
+        dispatch({ type: ACTIONS.NEW_PROJECT });
+        logEvent('New project started');
+    };
+
+    // Multi-reservoir cases within the open project.
+    const addReservoir = (name) => {
+        dispatch({ type: ACTIONS.ADD_RESERVOIR, payload: name });
+        logEvent('Reservoir added', name || '');
+    };
+    const switchReservoir = (id) => {
+        const target = (state.reservoirs || []).find(r => r.id === id);
+        dispatch({ type: ACTIONS.SWITCH_RESERVOIR, payload: id });
+        if (target) logEvent('Reservoir opened', target.name || '');
+    };
+    const renameReservoir = (id, name) => dispatch({ type: ACTIONS.RENAME_RESERVOIR, payload: { id, name } });
+    const deleteReservoir = (id) => {
+        const target = (state.reservoirs || []).find(r => r.id === id);
+        dispatch({ type: ACTIONS.DELETE_RESERVOIR, payload: id });
+        logEvent('Reservoir deleted', target?.name || '');
+    };
 
     const getActiveSurface = () => {
         const id = state.inputs.topSurfaceId;
@@ -511,6 +716,10 @@ export const ReservoirCalcProvider = ({ children }) => {
         loadProjects,
         loadProject,
         createNewProject,
+        addReservoir,
+        switchReservoir,
+        renameReservoir,
+        deleteReservoir,
         exportWorkspace,
         calculate,
         // AOI

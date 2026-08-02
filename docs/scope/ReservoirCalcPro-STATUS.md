@@ -90,3 +90,60 @@ split field + metric + degrade-with-warning, MC analytic split + warning).
   distribution); structural mode already samples contacts instead.
 - Condensate yield in gas presets is unused (no condensate stream).
 - PPFG/Velocity adapters still dead pending `shared_data_registry`.
+
+## 2026-08-02 — Input typing fix, project flow fix, multi-reservoir projects
+
+### Numeric input typing (leading-zero fix)
+Direct-bound number fields committed `parseFloat(x) || 0` on every keystroke,
+so clearing a field snapped it back to `0` and fresh numbers were typed after
+a stuck leading zero. New shared `components/common/NumberField.jsx` (same
+local-text-while-focused pattern as `UnitInput`) now backs: the petrophysics +
+fluid property fields in `ExpertInputPanel`, the Monte Carlo `Num` fields in
+`ProbabilisticPanel`, all `DistributionEditor` parameters, and the fluid
+property calculator dialog. Parsed values still commit on each keystroke
+(engine unchanged); only the visible text stops fighting the user.
+
+### New Project flow
+The Projects sheet rendered `ProjectManager` without `onClose`, so "New"
+reset the workspace invisibly behind the still-open sheet ("nothing
+happens"). The sheet is now controlled in the header and closes on New/Load,
+the unsaved-changes confirm only appears when the workspace is dirty, and a
+toast confirms the reset.
+
+### Multi-reservoir projects
+One project can now hold several reservoir cases, each a full workspace
+snapshot (inputs, surfaces, AOIs, maps, unit system, deterministic + Monte
+Carlo results). Header gains a `ReservoirSwitcher` (select / add / rename /
+delete). Switching folds the live workspace back into its entry first, so
+revisiting a reservoir restores its results for review or recompute; project
+Save persists the whole set into the existing `inputs_data` blob
+(`reservoirs` + `activeReservoirId`, no schema change). Legacy single-
+reservoir projects load as one materialised entry; the blob's top-level
+fields still mirror the active reservoir for older readers/exports.
+
+### Tests
+`npx jest src/pages/apps/ReservoirCalcPro` — 105 green (2 new: reservoirs
+blob round-trip, legacy-row null contract). Production build green.
+
+### Project save fix (same day)
+Saving a project never actually worked against the live database: the legacy
+Horizons-era `saved_quickvol_projects` table predates the 20260708150000
+migration (its `create table if not exists` was a no-op) and carries NOT NULL
+`mode` and `results_data` columns the app never sent, so every insert failed
+a 23502 not-null violation (the table had 0 rows). Fixed three ways:
+migration `20260802220000_quickvol_projects_relax_legacy_columns.sql`
+(mode default 'deterministic', results_data nullable; applied live,
+dry-run verified rollback-wrapped first), `ProjectService` now sends `mode`
+(= calc method) on insert and update, and the Save dialog shows the failure
+reason inline instead of relying on a toast alone (it kept looking like a
+silent no-op). Success still closes the dialog and puts the project name in
+the header.
+
+### Reservoir name on all result templates (same day)
+Every results template now shows the reservoir (case) name alongside the
+project name: both presentation slides (SlideShell gained a `reservoir` line
+under the project title), both detailed summary tables (deterministic header
+block, which previously mislabelled the reservoir as "Project", and a new
+info strip on the probabilistic table), the results modal header, and both
+branded PDF reports (Project / Reservoir / Date stack in the banner, name in
+the download filename). Slide PNG filenames include the reservoir too.

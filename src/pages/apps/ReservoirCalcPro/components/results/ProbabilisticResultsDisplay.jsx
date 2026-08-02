@@ -137,11 +137,11 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
             const chartImages = { histogram: histImg, cdf: cdfImg, tornado: tornadoImg };
 
             await ReportGenerator.generateProbabilisticReport(
-                state.currentProjectMeta?.name || state.reservoirName || 'Project',
+                state.currentProjectMeta?.name || 'Project',
                 probResults,
                 state.unitSystem,
                 chartImages,
-                { template: reportTemplate, fluidType: ft },
+                { template: reportTemplate, fluidType: ft, reservoirName: state.reservoirName || 'Reservoir 1' },
             );
 
             toast({ title: "Success", description: "Report downloaded successfully.", className: "bg-emerald-900 text-white border-emerald-800" });

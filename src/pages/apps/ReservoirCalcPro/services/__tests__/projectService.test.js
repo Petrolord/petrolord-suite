@@ -72,6 +72,8 @@ describe('ProjectService round-trip', () => {
         await ProjectService.saveProject(sampleProject(), true);
         const row = store.rows[0];
         expect(row.project_name).toBe('North Field');
+        // Legacy live table has a NOT NULL mode column; the insert must send it.
+        expect(row.mode).toBe('deterministic');
         expect(row.inputs_data.description).toBe('Base case');
         expect(row.inputs_data.inputs.deterministic.area).toBe(1000);
         expect(row.results_data.stooip).toBe(45_000_000);
@@ -89,6 +91,28 @@ describe('ProjectService round-trip', () => {
         // stored inside the blob, not as loose columns
         expect(store.rows[0].inputs_data.probResults.stats.stooip.p50).toBe(42_000_000);
         expect(store.rows[0].inputs_data.auditTrail[0].id).toBe('e1');
+    });
+
+    it('round-trips the multi-reservoir list and active id inside the blob', async () => {
+        const reservoirs = [
+            { id: 'r-1', name: 'Zone A', inputs: { area: 1000 }, results: { stooip: 1 } },
+            { id: 'r-2', name: 'Zone B', inputs: { area: 2000 }, results: { stooip: 2 }, probResults: { stats: {} } },
+        ];
+        await ProjectService.saveProject(sampleProject({ reservoirs, activeReservoirId: 'r-2' }), true);
+        const [p] = await ProjectService.getProjects();
+        expect(p.reservoirs).toHaveLength(2);
+        expect(p.reservoirs[1].name).toBe('Zone B');
+        expect(p.reservoirs[1].results.stooip).toBe(2);
+        expect(p.activeReservoirId).toBe('r-2');
+        // stored inside the blob, not as loose columns
+        expect(store.rows[0].inputs_data.reservoirs[0].id).toBe('r-1');
+    });
+
+    it('reports reservoirs as null on legacy rows so the context can materialise one', async () => {
+        await ProjectService.saveProject(sampleProject(), true);
+        const [p] = await ProjectService.getProjects();
+        expect(p.reservoirs).toBeNull();
+        expect(p.activeReservoirId).toBeNull();
     });
 
     it('defaults probResults to null when a project has none', async () => {

@@ -98,8 +98,11 @@ export class ReportGenerator {
             doc.setTextColor(200, 210, 225);
             doc.text(`${templateLabel} · Probabilistic Volumetrics`, titleX, 21);
             doc.setTextColor(255, 255, 255);
-            doc.text(`Project: ${projectName}`, pageWidth - margin, 12, { align: 'right' });
-            doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 20, { align: 'right' });
+            doc.text(`Project: ${projectName}`, pageWidth - margin, 9, { align: 'right' });
+            if (options.reservoirName) {
+                doc.text(`Reservoir: ${options.reservoirName}`, pageWidth - margin, 16, { align: 'right' });
+            }
+            doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 23, { align: 'right' });
         };
 
         const addFooter = (pageNo, totalPages) => {
@@ -299,7 +302,8 @@ export class ReportGenerator {
             addFooter(i, totalPages);
         }
 
-        doc.save(`${projectName}_${template}_report.pdf`);
+        const probName = [projectName, options.reservoirName].filter(Boolean).join('_').replace(/\s+/g, '_');
+        doc.save(`${probName}_${template}_report.pdf`);
     }
 
     // Branded, printable one/two-page deterministic volumetrics report.
@@ -339,8 +343,11 @@ export class ReportGenerator {
             doc.setTextColor(200, 210, 225);
             doc.text('Deterministic Volumetrics', titleX, 21);
             doc.setTextColor(255, 255, 255);
-            doc.text(`Project: ${projectName}`, pageWidth - margin, 12, { align: 'right' });
-            doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 20, { align: 'right' });
+            doc.text(`Project: ${projectName}`, pageWidth - margin, 9, { align: 'right' });
+            if (options.reservoirName) {
+                doc.text(`Reservoir: ${options.reservoirName}`, pageWidth - margin, 16, { align: 'right' });
+            }
+            doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 23, { align: 'right' });
         };
 
         const addFooter = (pageNo, totalPages) => {
@@ -499,7 +506,7 @@ export class ReportGenerator {
         const totalPages = doc.internal.getNumberOfPages();
         for (let i = 1; i <= totalPages; i++) { doc.setPage(i); addFooter(i, totalPages); }
 
-        const safeName = (projectName || 'volumetrics').replace(/\s+/g, '_');
+        const safeName = ([projectName || 'volumetrics', options.reservoirName].filter(Boolean).join('_')).replace(/\s+/g, '_');
         doc.save(`${safeName}_deterministic_report.pdf`);
     }
 }

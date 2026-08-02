@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
+import NumberField from '../common/NumberField';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { DistributionManager } from '../../services/DistributionManager';
@@ -37,7 +37,7 @@ const DistributionEditor = ({ label, parameterKey, distribution, onChange, unit 
     };
 
     const handleParamChange = (key, val) => {
-        onChange(parameterKey, { ...distribution, [key]: parseFloat(val) });
+        onChange(parameterKey, { ...distribution, [key]: val });
     };
 
     return (
@@ -59,25 +59,25 @@ const DistributionEditor = ({ label, parameterKey, distribution, onChange, unit 
             <div className="grid grid-cols-3 gap-2">
                 {distribution.type === 'triangular' && (
                     <>
-                        <div className="space-y-1"><Label className="text-[10px] text-slate-400">Min</Label><Input type="number" className="h-6 text-xs bg-slate-950" value={distribution.min} onChange={e=>handleParamChange('min', e.target.value)}/></div>
-                        <div className="space-y-1"><Label className="text-[10px] text-slate-400">Mode</Label><Input type="number" className="h-6 text-xs bg-slate-950" value={distribution.mode} onChange={e=>handleParamChange('mode', e.target.value)}/></div>
-                        <div className="space-y-1"><Label className="text-[10px] text-slate-400">Max</Label><Input type="number" className="h-6 text-xs bg-slate-950" value={distribution.max} onChange={e=>handleParamChange('max', e.target.value)}/></div>
+                        <div className="space-y-1"><Label className="text-[10px] text-slate-400">Min</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.min} onCommit={v=>handleParamChange('min', v)}/></div>
+                        <div className="space-y-1"><Label className="text-[10px] text-slate-400">Mode</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.mode} onCommit={v=>handleParamChange('mode', v)}/></div>
+                        <div className="space-y-1"><Label className="text-[10px] text-slate-400">Max</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.max} onCommit={v=>handleParamChange('max', v)}/></div>
                     </>
                 )}
                 {(distribution.type === 'normal' || distribution.type === 'lognormal') && (
                     <>
-                        <div className="col-span-1 space-y-1"><Label className="text-[10px] text-slate-400">Mean</Label><Input type="number" className="h-6 text-xs bg-slate-950" value={distribution.mean} onChange={e=>handleParamChange('mean', e.target.value)}/></div>
-                        <div className="col-span-1 space-y-1"><Label className="text-[10px] text-slate-400">StdDev</Label><Input type="number" className="h-6 text-xs bg-slate-950" value={distribution.stdDev} onChange={e=>handleParamChange('stdDev', e.target.value)}/></div>
+                        <div className="col-span-1 space-y-1"><Label className="text-[10px] text-slate-400">Mean</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.mean} onCommit={v=>handleParamChange('mean', v)}/></div>
+                        <div className="col-span-1 space-y-1"><Label className="text-[10px] text-slate-400">StdDev</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.stdDev} onCommit={v=>handleParamChange('stdDev', v)}/></div>
                     </>
                 )}
                 {distribution.type === 'uniform' && (
                     <>
-                        <div className="col-span-1.5 space-y-1"><Label className="text-[10px] text-slate-400">Min</Label><Input type="number" className="h-6 text-xs bg-slate-950" value={distribution.min} onChange={e=>handleParamChange('min', e.target.value)}/></div>
-                        <div className="col-span-1.5 space-y-1"><Label className="text-[10px] text-slate-400">Max</Label><Input type="number" className="h-6 text-xs bg-slate-950" value={distribution.max} onChange={e=>handleParamChange('max', e.target.value)}/></div>
+                        <div className="col-span-1.5 space-y-1"><Label className="text-[10px] text-slate-400">Min</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.min} onCommit={v=>handleParamChange('min', v)}/></div>
+                        <div className="col-span-1.5 space-y-1"><Label className="text-[10px] text-slate-400">Max</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.max} onCommit={v=>handleParamChange('max', v)}/></div>
                     </>
                 )}
                 {distribution.type === 'constant' && (
-                    <div className="col-span-3 space-y-1"><Label className="text-[10px] text-slate-400">Value</Label><Input type="number" className="h-6 text-xs bg-slate-950" value={distribution.value} onChange={e=>handleParamChange('value', e.target.value)}/></div>
+                    <div className="col-span-3 space-y-1"><Label className="text-[10px] text-slate-400">Value</Label><NumberField className="h-6 text-xs bg-slate-950" value={distribution.value} onCommit={v=>handleParamChange('value', v)}/></div>
                 )}
             </div>
 
