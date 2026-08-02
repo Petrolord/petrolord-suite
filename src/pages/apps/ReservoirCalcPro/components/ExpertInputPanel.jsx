@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useReservoirCalc } from '../contexts/ReservoirCalcContext';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
@@ -18,6 +17,7 @@ import { FLUID_PRESETS, FluidPropertyCalculator } from '../services/FluidPropert
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import UnitInput from './common/UnitInput';
+import NumberField from './common/NumberField';
 import { defaultInputUnits } from '../services/unitsCatalog';
 
 const ExpertInputPanel = () => {
@@ -65,7 +65,7 @@ const ExpertInputPanel = () => {
         }
     }, [state.inputs, state.calcMethod, state.unitSystem, state.inputMethod]);
 
-    const handleDetChange = (field, val) => updateInputs({ [field]: parseFloat(val) || 0 });
+    const handleDetChange = (field, val) => updateInputs({ [field]: val });
     const handleFluidChange = (val) => updateInputs({ fluidType: val });
     
     const applyPreset = (presetKey, type) => {
@@ -239,19 +239,19 @@ const ExpertInputPanel = () => {
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-1">
                                     <Label className="text-[10px] text-slate-400">Net-to-Gross</Label>
-                                    <Input type="number" value={state.inputs?.ntg ?? ''} onChange={e => handleDetChange('ntg', e.target.value)} className="h-8 bg-slate-900" />
+                                    <NumberField value={state.inputs?.ntg} onCommit={v => handleDetChange('ntg', v ?? 0)} className="h-8 bg-slate-900" />
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-[10px] text-slate-400">Porosity</Label>
-                                    <Input type="number" value={state.inputs?.porosity ?? ''} onChange={e => handleDetChange('porosity', e.target.value)} className="h-8 bg-slate-900" />
+                                    <NumberField value={state.inputs?.porosity} onCommit={v => handleDetChange('porosity', v ?? 0)} className="h-8 bg-slate-900" />
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-[10px] text-slate-400">Water Saturation</Label>
-                                    <Input type="number" value={state.inputs?.sw ?? ''} onChange={e => handleDetChange('sw', e.target.value)} className="h-8 bg-slate-900" />
+                                    <NumberField value={state.inputs?.sw} onCommit={v => handleDetChange('sw', v ?? 0)} className="h-8 bg-slate-900" />
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-[10px] text-slate-400">Permeability (mD)</Label>
-                                    <Input type="number" value={state.inputs?.permeability ?? ''} onChange={e => handleDetChange('permeability', e.target.value)} className="h-8 bg-slate-900" />
+                                    <NumberField value={state.inputs?.permeability} onCommit={v => handleDetChange('permeability', v ?? 0)} className="h-8 bg-slate-900" />
                                 </div>
                             </div>
                         </div>
@@ -286,17 +286,17 @@ const ExpertInputPanel = () => {
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="space-y-1">
                                         <Label className="text-xs">Oil Gravity (API)</Label>
-                                        <Input type="number" value={state.inputs?.api ?? ''} onChange={e => handleDetChange('api', e.target.value)} className="h-8 bg-slate-900" />
+                                        <NumberField value={state.inputs?.api} onCommit={v => handleDetChange('api', v ?? 0)} className="h-8 bg-slate-900" />
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-xs">Recovery Factor (%)</Label>
-                                        <Input type="number" value={state.inputs?.recovery ?? ''} onChange={e => handleDetChange('recovery', e.target.value)} className="h-8 bg-slate-900" />
+                                        <NumberField value={state.inputs?.recovery} onCommit={v => handleDetChange('recovery', v ?? 0)} className="h-8 bg-slate-900" />
                                     </div>
                                 </div>
                                 <div className="space-y-1">
                                     <Label className="text-xs">Formation Vol Factor (Bo)</Label>
                                     <div className="flex gap-2">
-                                        <Input type="number" value={state.inputs?.fvf ?? ''} onChange={e => handleDetChange('fvf', e.target.value)} className="h-8 bg-slate-900" />
+                                        <NumberField value={state.inputs?.fvf} onCommit={v => handleDetChange('fvf', v ?? 0)} className="h-8 bg-slate-900" />
                                         <span className="text-[10px] self-center text-slate-500">{state.unitSystem === 'field' ? 'rb/stb' : 'rm³/sm³'}</span>
                                     </div>
                                 </div>
@@ -309,11 +309,11 @@ const ExpertInputPanel = () => {
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="space-y-1">
                                         <Label className="text-xs">Gas Gravity (Air=1)</Label>
-                                        <Input type="number" value={state.inputs?.gasGrav ?? ''} onChange={e => handleDetChange('gasGrav', e.target.value)} className="h-8 bg-slate-900" />
+                                        <NumberField value={state.inputs?.gasGrav} onCommit={v => handleDetChange('gasGrav', v ?? 0)} className="h-8 bg-slate-900" />
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-xs">Recovery Factor (%)</Label>
-                                        <Input type="number" value={state.inputs?.recoveryGas ?? ''} onChange={e => handleDetChange('recoveryGas', e.target.value)} className="h-8 bg-slate-900" />
+                                        <NumberField value={state.inputs?.recoveryGas} onCommit={v => handleDetChange('recoveryGas', v ?? 0)} className="h-8 bg-slate-900" />
                                     </div>
                                 </div>
                                 <UnitInput label="Gas FVF (Bg)" {...unitInputProps('bg')}
@@ -321,7 +321,7 @@ const ExpertInputPanel = () => {
                                 {fluidType === 'oil_gas' && state.inputMethod === 'simple' && (
                                     <div className="space-y-1">
                                         <Label className="text-xs">Gas Cap Fraction of GRV</Label>
-                                        <Input type="number" min="0" max="0.99" step="0.05" value={state.inputs?.gasCapFraction ?? ''} onChange={e => handleDetChange('gasCapFraction', e.target.value)} className="h-8 bg-slate-900" />
+                                        <NumberField min="0" max="0.99" step="0.05" value={state.inputs?.gasCapFraction} onCommit={v => handleDetChange('gasCapFraction', v)} className="h-8 bg-slate-900" />
                                         <p className="text-[10px] text-slate-500">Share of gross rock volume in the gas cap (0–1). Splits the pore volume between gas cap and oil leg. Structural methods use the GOC instead.</p>
                                     </div>
                                 )}
@@ -347,10 +347,10 @@ const ExpertInputPanel = () => {
                 <DialogContent className="bg-slate-900 border-slate-800 text-slate-100">
                     <DialogHeader><DialogTitle>Fluid Property Calculator</DialogTitle></DialogHeader>
                     <div className="grid grid-cols-2 gap-4 py-4">
-                        <div><Label>Oil Gravity (API)</Label><Input type="number" value={calcParams.api} onChange={e => setCalcParams({...calcParams, api: +e.target.value})} className="bg-slate-950 border-slate-700"/></div>
-                        <div><Label>Gas Gravity (Air=1)</Label><Input type="number" value={calcParams.gasGrav} onChange={e => setCalcParams({...calcParams, gasGrav: +e.target.value})} className="bg-slate-950 border-slate-700"/></div>
-                        <div><Label>Solution GOR (scf/stb)</Label><Input type="number" value={calcParams.rs} onChange={e => setCalcParams({...calcParams, rs: +e.target.value})} className="bg-slate-950 border-slate-700"/></div>
-                        <div><Label>Temp (F)</Label><Input type="number" value={calcParams.temp} onChange={e => setCalcParams({...calcParams, temp: +e.target.value})} className="bg-slate-950 border-slate-700"/></div>
+                        <div><Label>Oil Gravity (API)</Label><NumberField value={calcParams.api} onCommit={v => setCalcParams({...calcParams, api: v ?? 0})} className="bg-slate-950 border-slate-700"/></div>
+                        <div><Label>Gas Gravity (Air=1)</Label><NumberField value={calcParams.gasGrav} onCommit={v => setCalcParams({...calcParams, gasGrav: v ?? 0})} className="bg-slate-950 border-slate-700"/></div>
+                        <div><Label>Solution GOR (scf/stb)</Label><NumberField value={calcParams.rs} onCommit={v => setCalcParams({...calcParams, rs: v ?? 0})} className="bg-slate-950 border-slate-700"/></div>
+                        <div><Label>Temp (F)</Label><NumberField value={calcParams.temp} onCommit={v => setCalcParams({...calcParams, temp: v ?? 0})} className="bg-slate-950 border-slate-700"/></div>
                     </div>
                     <DialogFooter>
                         <Button onClick={runFluidCalc}>Calculate Bo</Button>

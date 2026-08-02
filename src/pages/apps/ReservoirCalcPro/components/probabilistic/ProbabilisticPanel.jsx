@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ChevronRight, ChevronLeft, PlayCircle, Loader2, RotateCcw, AlertTriangle, FileText } from 'lucide-react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
+import NumberField from '../common/NumberField';
 import { useToast } from '@/components/ui/use-toast';
 import { distScaleFactor } from '../../services/unitsCatalog';
 
@@ -26,8 +26,8 @@ const centralValue = (v) => {
 const Num = ({ labelText, value, onChange, invalid }) => (
     <div className="flex-1">
         <span className="text-[9px] text-slate-500 block text-center mb-0.5">{labelText}</span>
-        <Input type="number" className={`h-7 text-xs bg-slate-900 text-center ${invalid ? 'border-red-500 text-red-400' : 'border-slate-700'}`}
-            value={value} onChange={(e) => onChange(parseFloat(e.target.value) || 0)} />
+        <NumberField className={`h-7 text-xs bg-slate-900 text-center ${invalid ? 'border-red-500 text-red-400' : 'border-slate-700'}`}
+            value={value} onCommit={(v) => onChange(v ?? 0)} emptyValue={0} />
     </div>
 );
 
