@@ -37,6 +37,10 @@ const fromRow = (row) => {
         calcMethod: blob.calcMethod || 'deterministic',
         inputMethod: blob.inputMethod || 'simple',
         reservoirName: blob.reservoirName || '',
+        // Multi-reservoir projects: full per-reservoir snapshots. Absent on
+        // legacy rows, which the context materialises as a single reservoir.
+        reservoirs: Array.isArray(blob.reservoirs) ? blob.reservoirs : null,
+        activeReservoirId: blob.activeReservoirId || null,
         auditTrail: blob.auditTrail || [],
         results: row.results_data || null,
         probResults: blob.probResults || null,
@@ -55,6 +59,8 @@ const toBlob = (project, version) => ({
     calcMethod: project.calcMethod || 'deterministic',
     inputMethod: project.inputMethod || 'simple',
     reservoirName: project.reservoirName || '',
+    reservoirs: Array.isArray(project.reservoirs) ? project.reservoirs : null,
+    activeReservoirId: project.activeReservoirId || null,
     probResults: project.probResults || null,
     auditTrail: project.auditTrail || [],
     updated_at: new Date().toISOString(),

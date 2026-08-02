@@ -7,6 +7,7 @@ import ExpertVisPanel from './components/ExpertVisPanel';
 import ExpertResultsPanel from './components/ExpertResultsPanel';
 import DocumentationHub from './components/docs/DocumentationHub';
 import ProjectManager from './components/tools/ProjectManager';
+import ReservoirSwitcher from './components/tools/ReservoirSwitcher';
 import WorkspaceToolsHub from './components/tools/WorkspaceToolsHub';
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
 import { HelpCircle, Folder, ChevronLeft, ChevronRight, Sidebar, ArrowLeft, Home, Wrench } from 'lucide-react';
@@ -27,6 +28,7 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
     const { toast } = useToast();
     const navigate = useNavigate();
     const [saveOpen, setSaveOpen] = useState(false);
+    const [projectsOpen, setProjectsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [meta, setMeta] = useState({ name: '', description: '' });
     const [settings] = useReservoirSettings();
@@ -125,10 +127,14 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                         {state.isDirty && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 text-amber-400 border-amber-500/30">Modified</Badge>}
                      </div>
                 </div>
+
+                <div className="h-5 w-px bg-slate-700 mx-1 hidden md:block" />
+
+                <ReservoirSwitcher />
             </div>
 
             <div className="flex items-center gap-2">
-                <Sheet>
+                <Sheet open={projectsOpen} onOpenChange={setProjectsOpen}>
                     <SheetTrigger asChild>
                         <Button variant="outline" size="sm" className="gap-2 h-8 text-xs border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200">
                             <Folder className="w-3 h-3" />
@@ -136,7 +142,7 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                         </Button>
                     </SheetTrigger>
                     <SheetContent side="left" className="p-0 w-[400px] bg-slate-950 border-r border-slate-800">
-                        <ProjectManager />
+                        <ProjectManager onClose={() => setProjectsOpen(false)} />
                     </SheetContent>
                 </Sheet>
 

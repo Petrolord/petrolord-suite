@@ -90,3 +90,37 @@ split field + metric + degrade-with-warning, MC analytic split + warning).
   distribution); structural mode already samples contacts instead.
 - Condensate yield in gas presets is unused (no condensate stream).
 - PPFG/Velocity adapters still dead pending `shared_data_registry`.
+
+## 2026-08-02 — Input typing fix, project flow fix, multi-reservoir projects
+
+### Numeric input typing (leading-zero fix)
+Direct-bound number fields committed `parseFloat(x) || 0` on every keystroke,
+so clearing a field snapped it back to `0` and fresh numbers were typed after
+a stuck leading zero. New shared `components/common/NumberField.jsx` (same
+local-text-while-focused pattern as `UnitInput`) now backs: the petrophysics +
+fluid property fields in `ExpertInputPanel`, the Monte Carlo `Num` fields in
+`ProbabilisticPanel`, all `DistributionEditor` parameters, and the fluid
+property calculator dialog. Parsed values still commit on each keystroke
+(engine unchanged); only the visible text stops fighting the user.
+
+### New Project flow
+The Projects sheet rendered `ProjectManager` without `onClose`, so "New"
+reset the workspace invisibly behind the still-open sheet ("nothing
+happens"). The sheet is now controlled in the header and closes on New/Load,
+the unsaved-changes confirm only appears when the workspace is dirty, and a
+toast confirms the reset.
+
+### Multi-reservoir projects
+One project can now hold several reservoir cases, each a full workspace
+snapshot (inputs, surfaces, AOIs, maps, unit system, deterministic + Monte
+Carlo results). Header gains a `ReservoirSwitcher` (select / add / rename /
+delete). Switching folds the live workspace back into its entry first, so
+revisiting a reservoir restores its results for review or recompute; project
+Save persists the whole set into the existing `inputs_data` blob
+(`reservoirs` + `activeReservoirId`, no schema change). Legacy single-
+reservoir projects load as one materialised entry; the blob's top-level
+fields still mirror the active reservoir for older readers/exports.
+
+### Tests
+`npx jest src/pages/apps/ReservoirCalcPro` — 105 green (2 new: reservoirs
+blob round-trip, legacy-row null contract). Production build green.

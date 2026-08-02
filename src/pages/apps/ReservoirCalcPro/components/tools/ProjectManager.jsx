@@ -113,14 +113,14 @@ const ProjectManager = ({ onClose }) => {
                             <Upload className="w-3 h-3"/> Import
                         </Button>
                     </label>
-                    <Button 
-                        size="sm" 
+                    <Button
+                        size="sm"
                         className="gap-2 h-8 text-xs bg-blue-600 hover:bg-blue-700"
                         onClick={() => {
-                            if (window.confirm("Start a new project? Unsaved changes will be lost.")) {
-                                createNewProject();
-                                if (onClose) onClose();
-                            }
+                            if (state.isDirty && !window.confirm("Start a new project? Unsaved changes will be lost.")) return;
+                            createNewProject();
+                            toast({ title: "New project started", description: "The workspace has been reset. Use Save to store it as a project." });
+                            if (onClose) onClose();
                         }}
                     >
                         <FilePlus className="w-3 h-3"/> New
