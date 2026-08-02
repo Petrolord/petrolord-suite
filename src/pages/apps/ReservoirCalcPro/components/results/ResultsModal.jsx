@@ -38,7 +38,9 @@ const ResultsModal = ({ isOpen, onClose }) => {
                     <div>
                         <DialogTitle className="text-lg font-bold text-white">Calculation Results</DialogTitle>
                         <p className="text-xs text-slate-400 mt-0.5">
-                            Project: <span className="text-emerald-400 font-medium">{state.currentProjectMeta?.name || state.reservoirName || 'Untitled'}</span>
+                            Project: <span className="text-emerald-400 font-medium">{state.currentProjectMeta?.name || 'Untitled'}</span>
+                            <span className="mx-2 text-slate-600">|</span>
+                            Reservoir: <span className="text-emerald-400 font-medium">{state.reservoirName || 'Reservoir 1'}</span>
                         </p>
                     </div>
                     <div className="pr-8">

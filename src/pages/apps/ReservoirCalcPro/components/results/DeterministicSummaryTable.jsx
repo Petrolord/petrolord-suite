@@ -7,7 +7,8 @@ const DeterministicSummaryTable = () => {
     const r = state.results;
     if (!r) return null;
 
-    const reservoirName = state.reservoirName || 'Zone 1';
+    const reservoirName = state.reservoirName || 'Reservoir 1';
+    const projectName = state.currentProjectMeta?.name || 'Untitled Project';
     // Fall back to live inputs/unitSystem for results saved before the engine
     // began echoing them back, so legacy projects render instead of crashing.
     const inputs = r.inputs || state.inputs || {};
@@ -26,8 +27,9 @@ const DeterministicSummaryTable = () => {
             {/* Header Information */}
             <div className="bg-slate-50 p-2 border-b border-slate-200 grid grid-cols-2 gap-4 font-medium">
                 <div>
+                    <div className="flex justify-between"><span className="text-slate-500">Project:</span> <span>{projectName}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Reservoir:</span> <span className="text-emerald-700 font-semibold">{reservoirName}</span></div>
                     <div className="flex justify-between"><span className="text-slate-500">Date:</span> <span>{new Date().toLocaleString()}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Project:</span> <span>{reservoirName}</span></div>
                 </div>
                 <div>
                     <div className="flex justify-between"><span className="text-slate-500">Fluid System:</span> <span className="uppercase">{ft?.replace('_', '+')}</span></div>

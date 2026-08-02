@@ -109,7 +109,8 @@ const ProbabilisticSlide = () => {
     const unit = isGas ? (isField ? 'Bscf' : 'MMsm³') : (isField ? 'MMstb' : 'MMsm³');
     const palette = isGas ? GAS : OIL;
 
-    const project = state.currentProjectMeta?.name || state.reservoirName || 'Untitled Project';
+    const project = state.currentProjectMeta?.name || 'Untitled Project';
+    const reservoir = state.reservoirName || 'Reservoir 1';
     const dateStr = new Date().toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     const iterations = probResults.stats.iterations || (isGas ? probResults.raw?.giip?.length : probResults.raw?.stooip?.length) || 0;
     const ratio = Number.isFinite(stats.p10 / stats.p90) ? (stats.p10 / stats.p90).toFixed(2) : '—';
@@ -130,7 +131,7 @@ const ProbabilisticSlide = () => {
         try {
             const cdfImg = curveRef.current ? await svgToPng(curveRef.current, 600, 250) : null;
             await ReportGenerator.generateProbabilisticReport(
-                project, probResults, state.unitSystem, { cdf: cdfImg }, { template: 'technical', fluidType: ft },
+                project, probResults, state.unitSystem, { cdf: cdfImg }, { template: 'technical', fluidType: ft, reservoirName: reservoir },
             );
             toast({ title: 'Report downloaded', description: 'The full branded PDF was saved.', className: 'bg-emerald-900 text-white border-emerald-800' });
         } catch (e) {
@@ -147,10 +148,11 @@ const ProbabilisticSlide = () => {
     );
 
     return (
-        <SlideFrame fileName={`${project.replace(/\s+/g, '_')}_probabilistic`} extraActions={pdfButton}>
+        <SlideFrame fileName={`${project.replace(/\s+/g, '_')}_${reservoir.replace(/\s+/g, '_')}_probabilistic`} extraActions={pdfButton}>
             <SlideShell
                 subtitle="Probabilistic Volumetric Estimate · Monte Carlo"
                 project={project}
+                reservoir={reservoir}
                 dateStr={dateStr}
                 chips={<>
                     <Chip tone={isGas ? 'gas' : 'oil'}>{isGas ? 'Gas' : 'Oil'}</Chip>

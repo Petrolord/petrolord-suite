@@ -92,7 +92,7 @@ export const Panel = ({ title, icon, right, children, className = '' }) => (
  * `subtitle` names the analysis, `chips` render fluid/unit context, `children`
  * is the slide body (a flex column that fills the remaining height).
  */
-export const SlideShell = ({ subtitle, project, dateStr, chips, children }) => (
+export const SlideShell = ({ subtitle, project, reservoir, dateStr, chips, children }) => (
     <div className="flex h-full w-full flex-col px-11 py-8" style={{ fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif' }}>
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -107,6 +107,9 @@ export const SlideShell = ({ subtitle, project, dateStr, chips, children }) => (
             </div>
             <div className="text-right">
                 <div className="max-w-[420px] truncate text-[22px] font-bold text-slate-800">{project}</div>
+                {reservoir && (
+                    <div className="mt-0.5 max-w-[420px] truncate text-[13.5px] font-semibold text-emerald-700">Reservoir: {reservoir}</div>
+                )}
                 <div className="mt-1.5 flex items-center justify-end gap-2">{chips}</div>
                 <div className="mt-1.5 text-[12px] font-medium text-slate-400">{dateStr}</div>
             </div>

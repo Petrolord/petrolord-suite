@@ -15,8 +15,16 @@ const ProbabilisticSummaryTable = () => {
     const fmt = (val) => val ? (val / 1000000).toFixed(2) : '-';
     const fmtLarge = (val) => val ? (val / 1000000).toFixed(2) : '-';
 
+    const projectName = state.currentProjectMeta?.name || 'Untitled Project';
+    const reservoirName = state.reservoirName || 'Reservoir 1';
+
     return (
         <div className="rounded-md border border-slate-800 overflow-hidden bg-slate-950 shadow-sm">
+            <div className="px-3 py-2 border-b border-slate-800 bg-slate-900/60 flex flex-wrap gap-x-6 gap-y-1 text-[11px]">
+                <span className="text-slate-500">Project: <span className="text-slate-200 font-medium">{projectName}</span></span>
+                <span className="text-slate-500">Reservoir: <span className="text-emerald-400 font-medium">{reservoirName}</span></span>
+                <span className="text-slate-500">Date: <span className="text-slate-300">{new Date().toLocaleString()}</span></span>
+            </div>
             <Table>
                 <TableHeader className="bg-slate-900">
                     <TableRow>

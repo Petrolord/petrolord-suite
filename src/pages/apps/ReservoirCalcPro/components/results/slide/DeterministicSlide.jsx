@@ -53,7 +53,8 @@ const DeterministicSlide = () => {
     const inp = r.inputs || state.inputs || {};
     const volumeUnit = r.volumeUnit || (isField ? 'STB' : 'sm³');
     const gasUnit = 'B' + (isField ? 'scf' : 'sm³');
-    const project = state.currentProjectMeta?.name || state.reservoirName || 'Untitled Project';
+    const project = state.currentProjectMeta?.name || 'Untitled Project';
+    const reservoir = state.reservoirName || 'Reservoir 1';
     const dateStr = new Date().toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
     // Hero tiles — headline in-place volumes, plus a rock-volume context tile.
@@ -93,7 +94,7 @@ const DeterministicSlide = () => {
     const exportPDF = async () => {
         setIsExporting(true);
         try {
-            await ReportGenerator.generateDeterministicReport(project, r, r.unitSystem || state.unitSystem, { fluidType: ft, inputs: inp });
+            await ReportGenerator.generateDeterministicReport(project, r, r.unitSystem || state.unitSystem, { fluidType: ft, inputs: inp, reservoirName: reservoir });
             toast({ title: 'Report downloaded', description: 'The full branded PDF was saved.', className: 'bg-emerald-900 text-white border-emerald-800' });
         } catch (e) {
             toast({ variant: 'destructive', title: 'Export failed', description: e?.message || 'Could not generate the PDF.' });
@@ -109,10 +110,11 @@ const DeterministicSlide = () => {
     );
 
     return (
-        <SlideFrame fileName={`${project.replace(/\s+/g, '_')}_volumetrics`} extraActions={pdfButton}>
+        <SlideFrame fileName={`${project.replace(/\s+/g, '_')}_${reservoir.replace(/\s+/g, '_')}_volumetrics`} extraActions={pdfButton}>
             <SlideShell
                 subtitle="Deterministic Volumetric Estimate"
                 project={project}
+                reservoir={reservoir}
                 dateStr={dateStr}
                 chips={<>
                     <Chip tone={showGas && !showOil ? 'gas' : 'oil'}>{ft === 'oil_gas' ? 'Oil & Gas' : ft.charAt(0).toUpperCase() + ft.slice(1)}</Chip>

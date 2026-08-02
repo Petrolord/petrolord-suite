@@ -138,3 +138,12 @@ dry-run verified rollback-wrapped first), `ProjectService` now sends `mode`
 reason inline instead of relying on a toast alone (it kept looking like a
 silent no-op). Success still closes the dialog and puts the project name in
 the header.
+
+### Reservoir name on all result templates (same day)
+Every results template now shows the reservoir (case) name alongside the
+project name: both presentation slides (SlideShell gained a `reservoir` line
+under the project title), both detailed summary tables (deterministic header
+block, which previously mislabelled the reservoir as "Project", and a new
+info strip on the probabilistic table), the results modal header, and both
+branded PDF reports (Project / Reservoir / Date stack in the banner, name in
+the download filename). Slide PNG filenames include the reservoir too.
