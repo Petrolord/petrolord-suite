@@ -1,18 +1,55 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Layers, AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import DeterministicSummaryTable from './DeterministicSummaryTable';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    OIL_RESULT_UNITS, GAS_RESULT_UNITS, convertResultVolume,
+    resultUnitLabel, defaultResultUnits
+} from '../../services/unitsCatalog';
+
+// Compact selector rendered inside a result card header.
+const ResultUnitSelect = ({ value, onChange, options }) => (
+    <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-6 w-[92px] text-[10px] bg-slate-950 border-slate-700">
+            <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+            {options.map(o => <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>)}
+        </SelectContent>
+    </Select>
+);
 
 const DeterministicResultsDisplay = () => {
     const { state } = useReservoirCalc();
     const results = state.results || {};
-    const unit = results.volumeUnit || 'STB';
     const ft = results.fluidType || 'oil';
     const maps = state.maps || [];
 
+    // Results echo the unit system they were computed under; convert for
+    // display only, from that canonical (STB/scf field, sm³ metric).
+    const rSystem = results.unitSystem || state.unitSystem;
+    const oilCanon = rSystem === 'field' ? 'STB' : 'sm³';
+    const gasCanon = rSystem === 'field' ? 'scf' : 'sm³';
+    const [oilUnit, setOilUnit] = useState(defaultResultUnits(rSystem).oil);
+    const [gasUnit, setGasUnit] = useState(defaultResultUnits(rSystem).gas);
+    useEffect(() => {
+        setOilUnit(defaultResultUnits(rSystem).oil);
+        setGasUnit(defaultResultUnits(rSystem).gas);
+    }, [rSystem]);
+
     const safeNum = (val) => (val ?? 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    // Aggregated units (MMSTB, Bscf…) need decimals; raw units read as integers.
+    const fmtVol = (val) => {
+        const v = val ?? 0;
+        return Math.abs(v) >= 1000
+            ? v.toLocaleString(undefined, { maximumFractionDigits: 0 })
+            : v.toLocaleString(undefined, { maximumFractionDigits: 3 });
+    };
+    const oilVol = (v) => fmtVol(convertResultVolume(v, oilCanon, oilUnit, 'oil'));
+    const gasVol = (v) => fmtVol(convertResultVolume(v, gasCanon, gasUnit, 'gas'));
 
     const showOil = ft === 'oil' || ft === 'oil_gas';
     const showGas = ft === 'gas' || ft === 'oil_gas';
@@ -50,22 +87,28 @@ const DeterministicResultsDisplay = () => {
                 {showOil && (
                     <Card className="p-6 bg-slate-900 border-slate-800 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-2 opacity-10 text-9xl font-bold leading-none text-emerald-100 select-none">O</div>
-                        <h3 className="text-sm uppercase text-emerald-500 font-bold mb-2">STOOIP</h3>
-                        <div className="text-4xl font-bold text-white tracking-tight">
-                            {safeNum(results.stooip)} <span className="text-lg text-slate-500 font-normal">{unit}</span>
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm uppercase text-emerald-500 font-bold">STOOIP</h3>
+                            <ResultUnitSelect value={oilUnit} onChange={setOilUnit} options={OIL_RESULT_UNITS} />
                         </div>
-                        <p className="text-slate-400 text-sm mt-2">Recoverable: {safeNum(results.recoverableOil)}</p>
+                        <div className="text-4xl font-bold text-white tracking-tight">
+                            {oilVol(results.stooip)} <span className="text-lg text-slate-500 font-normal">{resultUnitLabel(oilUnit, 'oil')}</span>
+                        </div>
+                        <p className="text-slate-400 text-sm mt-2">Recoverable: {oilVol(results.recoverableOil)} {resultUnitLabel(oilUnit, 'oil')}</p>
                     </Card>
                 )}
                 
                 {showGas && (
                     <Card className="p-6 bg-slate-900 border-slate-800 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-2 opacity-10 text-9xl font-bold leading-none text-amber-100 select-none">G</div>
-                        <h3 className="text-sm uppercase text-amber-500 font-bold mb-2">GIIP</h3>
-                        <div className="text-4xl font-bold text-white tracking-tight">
-                            {((results.giip || 0) / 1e9).toFixed(3)} <span className="text-lg text-slate-500 font-normal">B{state.unitSystem === 'field' ? 'scf' : 'sm³'}</span>
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-sm uppercase text-amber-500 font-bold">GIIP</h3>
+                            <ResultUnitSelect value={gasUnit} onChange={setGasUnit} options={GAS_RESULT_UNITS} />
                         </div>
-                        <p className="text-slate-400 text-sm mt-2">Recoverable: {((results.recoverableGas || 0) / 1e9).toFixed(3)} B</p>
+                        <div className="text-4xl font-bold text-white tracking-tight">
+                            {gasVol(results.giip)} <span className="text-lg text-slate-500 font-normal">{resultUnitLabel(gasUnit, 'gas')}</span>
+                        </div>
+                        <p className="text-slate-400 text-sm mt-2">Recoverable: {gasVol(results.recoverableGas)} {resultUnitLabel(gasUnit, 'gas')}</p>
                     </Card>
                 )}
                 

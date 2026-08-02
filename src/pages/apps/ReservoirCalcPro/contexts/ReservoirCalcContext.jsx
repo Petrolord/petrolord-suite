@@ -5,6 +5,7 @@ import { MonteCarloEngine } from '../services/MonteCarloEngine';
 import { ProjectService } from '../services/ProjectService';
 import { AOIManager } from '../services/AOIManager';
 import { loadSettings } from '../hooks/useReservoirSettings';
+import { defaultInputUnits, convertInputsOnSystemChange } from '../services/unitsCatalog';
 
 const MAX_AUDIT = 200;
 const auditEntry = (action, details = '') => ({
@@ -25,10 +26,15 @@ const initialState = {
         description: ""
     },
     reservoirName: "",
-    unitSystem: 'field', 
-    calcMethod: 'deterministic', 
-    inputMethod: 'simple', 
-    
+    unitSystem: 'field',
+    calcMethod: 'deterministic',
+    inputMethod: 'simple',
+
+    // Per-field DISPLAY units for the analytic inputs (area, thickness, bg,
+    // pressure, temperature). state.inputs values stay canonical; the UI
+    // converts at the boundary (see services/unitsCatalog.js).
+    inputUnits: defaultInputUnits('field'),
+
     inputs: {
         fluidType: 'oil', 
         topSurfaceId: null,
@@ -89,6 +95,7 @@ const ACTIONS = {
     RESET: 'RESET',
     SET_MODE: 'SET_MODE',
     SET_UNIT_SYSTEM: 'SET_UNIT_SYSTEM',
+    SET_INPUT_UNIT: 'SET_INPUT_UNIT',
     SET_INPUT_METHOD: 'SET_INPUT_METHOD',
     MARK_DIRTY: 'MARK_DIRTY',
     SET_PROJECTS: 'SET_PROJECTS',
@@ -128,8 +135,24 @@ const reducer = (state, action) => {
             };
         case ACTIONS.SET_MODE:
             return { ...state, calcMethod: action.payload }; 
-        case ACTIONS.SET_UNIT_SYSTEM:
-            return { ...state, unitSystem: action.payload };
+        case ACTIONS.SET_UNIT_SYSTEM: {
+            if (action.payload === state.unitSystem) return state;
+            // Convert the stored case so toggling Field↔Metric preserves the
+            // physical reservoir instead of reinterpreting 5000 acres as 5000 km².
+            return {
+                ...state,
+                unitSystem: action.payload,
+                inputs: convertInputsOnSystemChange(state.inputs, state.unitSystem, action.payload),
+                inputUnits: defaultInputUnits(action.payload),
+                isDirty: true
+            };
+        }
+        case ACTIONS.SET_INPUT_UNIT:
+            // Display-unit change only — the canonical stored value is untouched.
+            return {
+                ...state,
+                inputUnits: { ...state.inputUnits, [action.payload.field]: action.payload.unit }
+            };
         case ACTIONS.SET_INPUT_METHOD:
             return { ...state, inputMethod: action.payload };
         case ACTIONS.ADD_SURFACE:
@@ -194,6 +217,7 @@ const reducer = (state, action) => {
                 drawing: { isActive: false, currentPoints: [] },
                 maps: p.inputs?.maps || [],
                 unitSystem: p.unitSystem || 'field',
+                inputUnits: { ...defaultInputUnits(p.unitSystem || 'field'), ...(p.inputUnits || {}) },
                 calcMethod: p.calcMethod || 'deterministic',
                 inputMethod: p.inputMethod || 'simple',
                 reservoirName: p.reservoirName || '',
@@ -296,6 +320,7 @@ export const ReservoirCalcProvider = ({ children }) => {
     const setBaseSurface = (id) => dispatch({ type: ACTIONS.SET_BASE_SURFACE, payload: id });
     const setCalcMethod = (mode) => dispatch({ type: ACTIONS.SET_MODE, payload: mode });
     const setUnitSystem = (system) => dispatch({ type: ACTIONS.SET_UNIT_SYSTEM, payload: system });
+    const setInputUnit = (field, unit) => dispatch({ type: ACTIONS.SET_INPUT_UNIT, payload: { field, unit } });
     const setInputMethod = (method) => dispatch({ type: ACTIONS.SET_INPUT_METHOD, payload: method });
     const setResults = (results) => dispatch({ type: ACTIONS.SET_RESULTS, payload: results });
 
@@ -327,6 +352,7 @@ export const ReservoirCalcProvider = ({ children }) => {
         description: meta?.description ?? state.currentProjectMeta?.description ?? '',
         version: state.project.version || 1,
         unitSystem: state.unitSystem,
+        inputUnits: state.inputUnits,
         calcMethod: state.calcMethod,
         inputMethod: state.inputMethod,
         reservoirName: state.reservoirName,
@@ -477,6 +503,7 @@ export const ReservoirCalcProvider = ({ children }) => {
         setBaseSurface,
         setCalcMethod,
         setUnitSystem,
+        setInputUnit,
         setInputMethod,
         setResults,
         getActiveSurface,

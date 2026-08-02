@@ -20,7 +20,13 @@ export class VolumeCalculationEngine {
         flag(!(ntg > 0 && ntg <= 1), 'Net-to-gross should be a fraction between 0 and 1.', 15);
         flag(!(area > 0) || !(h > 0), 'Area and thickness must both be positive.', 25);
         if (ft !== 'gas') flag(!(parseFloat(inputs.fvf) >= 1), 'Oil FVF (Bo) below 1.0 rb/stb is non-physical.', 15);
-        if (ft === 'gas' || ft === 'oil_gas') flag(!(parseFloat(inputs.bg) > 0), 'Gas FVF (Bg) must be positive.', 15);
+        if (ft === 'gas' || ft === 'oil_gas') {
+            const bgVal = parseFloat(inputs.bg);
+            flag(!(bgVal > 0), 'Gas FVF (Bg) must be positive.', 15);
+            // Typical Bg is 0.002–0.05 rcf/scf. A value ~100× larger usually means an
+            // rb/Mscf number was entered without selecting that unit.
+            flag(bgVal > 0.1, 'Gas FVF above 0.1 rcf/scf (rm³/sm³) is non-physical for most reservoirs. If your PVT report quotes Bg in rb/Mscf or rb/scf, select that unit so it converts correctly.', 10);
+        }
         if (ft === 'oil_gas') {
             const gcf = parseFloat(inputs.gasCapFraction);
             flag(isFinite(gcf) && !(gcf >= 0 && gcf < 1), 'Gas-cap fraction must be a fraction between 0 and 1 of GRV.', 10);

@@ -3,6 +3,34 @@
 App: `src/pages/apps/ReservoirCalcPro/` (Geoscience module). Contact-based
 volumetrics flagship; deterministic + Monte Carlo STOIIP/GIIP.
 
+## 2026-08-02 — Per-parameter unit selection + convert-on-toggle
+
+The Field/Metric select used to hard-bind every input's unit, and toggling it
+reinterpreted stored numbers (5000 acres silently became 5000 km²). The Bg
+field only accepted rcf/scf, a 5.615× trap for rb/scf–rb/Mscf PVT values.
+
+### What changed
+- **Canonical-value model**: `state.inputs` always stores engine units
+  (field: acres/ft; metric: km²/m; system-independent: Bg rcf/scf ≡ rm³/sm³,
+  pressure psi, temperature °F — what `FluidPropertyLibrary` consumes). New
+  `services/unitsCatalog.js` converts at the UI boundary; engines untouched.
+- **Per-field unit dropdowns** (`components/common/UnitInput.jsx`, used in
+  `ExpertInputPanel`): Area (acres/km²/ha/m²/ft²/mi²), Thickness (ft/m),
+  Bg (rcf/scf, rb/scf, rb/Mscf), Pressure (psi/bar/kPa/MPa), Temp (°F/°C/K).
+  Display units live in `state.inputUnits`, persisted with the project.
+- **Convert-on-toggle**: `SET_UNIT_SYSTEM` now converts area/thickness/OWC/GOC
+  in place (round-trip exact); `ProbabilisticPanel` rescales its distribution
+  params by the same factors. Bo/Bg/fractions are ratios — unchanged.
+- **Result unit selectors** (`DeterministicResultsDisplay`): STOOIP in
+  STB/MMSTB/sm³/MMsm³, GIIP in scf/MMscf/Bscf/sm³/MMsm³/Bsm³ — display-only
+  conversion from the result's own canonical; defaults reproduce the old view.
+- **Guards**: Bg > 0.1 rcf/scf now warns (typical rb/Mscf-entered-raw
+  signature); dynamic Bo/Bg labels in metric (`rm³/sm³`); `UnitConversionEngine`
+  gained ha/mi²/gasFVF factors and lost its stray React import (it was
+  previously dead code — now wired in).
+- Tests: `services/__tests__/unitsCatalog.test.js` (16) incl. cross-system
+  STOOIP equivalence through the toggle conversion.
+
 ## 2026-07-31 — Volumetrics standards audit + chart-template compliance
 
 Full audit of the oil and gas in-place computations against industry-standard
