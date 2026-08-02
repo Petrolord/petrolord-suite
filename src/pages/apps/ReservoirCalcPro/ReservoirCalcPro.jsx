@@ -30,6 +30,7 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
     const [saveOpen, setSaveOpen] = useState(false);
     const [projectsOpen, setProjectsOpen] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState(null);
     const [meta, setMeta] = useState({ name: '', description: '' });
     const [settings] = useReservoirSettings();
 
@@ -49,24 +50,29 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
             name: state.currentProjectMeta?.name || state.reservoirName || '',
             description: state.currentProjectMeta?.description || ''
         });
+        setSaveError(null);
         setSaveOpen(true);
     };
 
     const performSave = async () => {
         if (!user) {
-            toast({ variant: 'destructive', title: 'Not signed in', description: 'Sign in to save projects.' });
+            setSaveError('You are not signed in. Sign in to save projects.');
             return;
         }
         if (!meta.name.trim()) {
-            toast({ variant: 'destructive', title: 'Project name is required.' });
+            setSaveError('Project name is required.');
             return;
         }
         setSaving(true);
+        setSaveError(null);
         try {
             await saveCurrentProject(user.id, meta);
             toast({ title: 'Project saved', description: `"${meta.name.trim()}" is saved.` });
             setSaveOpen(false);
         } catch (e) {
+            // Keep the dialog open and show the reason inline; a toast alone is
+            // easy to miss behind the overlay.
+            setSaveError(e.message || 'Unexpected error.');
             toast({ variant: 'destructive', title: 'Save failed', description: e.message, duration: 8000 });
         } finally {
             setSaving(false);
@@ -175,6 +181,11 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                                 <Label>Description</Label>
                                 <Textarea value={meta.description} onChange={e => setMeta({...meta, description: e.target.value})} className="bg-slate-950 border-slate-700" />
                             </div>
+                            {saveError && (
+                                <div className="rounded border border-red-500/40 bg-red-950/40 px-3 py-2 text-xs text-red-300">
+                                    {saveError}
+                                </div>
+                            )}
                             <div className="flex justify-end gap-2 mt-4">
                                 <Button variant="ghost" onClick={() => setSaveOpen(false)} disabled={saving}>Cancel</Button>
                                 <Button onClick={performSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">{saving ? 'Saving…' : 'Save'}</Button>

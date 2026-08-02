@@ -20,6 +20,11 @@ export const friendlyError = (error) => {
     if (missingTable) {
         return "Saving isn't set up yet — run the create_saved_quickvol_projects migration.";
     }
+    // Legacy-column trap: the pre-existing table has NOT NULL columns the app
+    // doesn't populate unless the relax migration has been applied.
+    if (error?.code === '23502') {
+        return `The projects table rejected the save (${msg}). Run the quickvol_projects_relax_legacy_columns migration.`;
+    }
     return msg || 'Unexpected error.';
 };
 
@@ -87,6 +92,9 @@ export const ProjectService = {
                 .insert([{
                     user_id: projectData.user_id,
                     project_name: projectData.name || 'Untitled Project',
+                    // Legacy NOT NULL column on the pre-existing table; carries
+                    // the calc method so central project views can show it.
+                    mode: projectData.calcMethod || 'deterministic',
                     inputs_data: toBlob(projectData, 1),
                     results_data: projectData.results || null,
                 }])
@@ -101,6 +109,7 @@ export const ProjectService = {
             .from(TABLE)
             .update({
                 project_name: projectData.name || 'Untitled Project',
+                mode: projectData.calcMethod || 'deterministic',
                 inputs_data: toBlob(projectData, nextVersion),
                 results_data: projectData.results || null,
             })

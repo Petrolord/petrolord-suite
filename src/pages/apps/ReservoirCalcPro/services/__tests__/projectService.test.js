@@ -72,6 +72,8 @@ describe('ProjectService round-trip', () => {
         await ProjectService.saveProject(sampleProject(), true);
         const row = store.rows[0];
         expect(row.project_name).toBe('North Field');
+        // Legacy live table has a NOT NULL mode column; the insert must send it.
+        expect(row.mode).toBe('deterministic');
         expect(row.inputs_data.description).toBe('Base case');
         expect(row.inputs_data.inputs.deterministic.area).toBe(1000);
         expect(row.results_data.stooip).toBe(45_000_000);

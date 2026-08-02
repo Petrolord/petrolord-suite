@@ -124,3 +124,17 @@ fields still mirror the active reservoir for older readers/exports.
 ### Tests
 `npx jest src/pages/apps/ReservoirCalcPro` — 105 green (2 new: reservoirs
 blob round-trip, legacy-row null contract). Production build green.
+
+### Project save fix (same day)
+Saving a project never actually worked against the live database: the legacy
+Horizons-era `saved_quickvol_projects` table predates the 20260708150000
+migration (its `create table if not exists` was a no-op) and carries NOT NULL
+`mode` and `results_data` columns the app never sent, so every insert failed
+a 23502 not-null violation (the table had 0 rows). Fixed three ways:
+migration `20260802220000_quickvol_projects_relax_legacy_columns.sql`
+(mode default 'deterministic', results_data nullable; applied live,
+dry-run verified rollback-wrapped first), `ProjectService` now sends `mode`
+(= calc method) on insert and update, and the Save dialog shows the failure
+reason inline instead of relying on a toast alone (it kept looking like a
+silent no-op). Success still closes the dialog and puts the project name in
+the header.
