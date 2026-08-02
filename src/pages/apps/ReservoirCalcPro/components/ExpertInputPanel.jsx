@@ -17,11 +17,13 @@ import ProbabilisticPanel from './probabilistic/ProbabilisticPanel';
 import { FLUID_PRESETS, FluidPropertyCalculator } from '../services/FluidPropertyLibrary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import UnitInput from './common/UnitInput';
+import { defaultInputUnits } from '../services/unitsCatalog';
 
 const ExpertInputPanel = () => {
-    const { 
-        state, updateInputs, setUnitSystem, setCalcMethod, 
-        setInputMethod, calculate
+    const {
+        state, updateInputs, setUnitSystem, setCalcMethod,
+        setInputMethod, setInputUnit, calculate
     } = useReservoirCalc();
     
     const [isCalcOpen, setCalcOpen] = useState(false);
@@ -83,7 +85,15 @@ const ExpertInputPanel = () => {
     };
 
     const fluidType = state.inputs.fluidType || 'oil';
-    const depthUnit = state.unitSystem === 'field' ? 'ft' : 'm';
+    const inputUnits = state.inputUnits || defaultInputUnits(state.unitSystem);
+    const unitInputProps = (field) => ({
+        field,
+        canonicalValue: state.inputs?.[field],
+        displayUnit: inputUnits[field],
+        unitSystem: state.unitSystem,
+        onValueChange: (canonical) => updateInputs({ [field]: canonical }),
+        onUnitChange: (u) => setInputUnit(field, u)
+    });
 
     if (state.calcMethod === 'probabilistic') {
         return (
@@ -199,10 +209,7 @@ const ExpertInputPanel = () => {
                         </div>
 
                         {state.inputMethod === 'simple' ? (
-                            <div className="space-y-1">
-                                <Label className="text-xs">Area ({state.unitSystem === 'field' ? 'Acres' : 'km²'})</Label>
-                                <Input type="number" value={state.inputs?.area ?? ''} onChange={e => handleDetChange('area', e.target.value)} className="h-8 bg-slate-900" />
-                            </div>
+                            <UnitInput label="Area" {...unitInputProps('area')} />
                         ) : (
                             <div className="space-y-2">
                                 <Label className="text-xs text-slate-400">Surface Selection Managed in Surfaces Tab</Label>
@@ -219,11 +226,8 @@ const ExpertInputPanel = () => {
                         )}
 
                         {state.inputMethod !== 'surfaces' && (
-                            <div className="space-y-1">
-                                <Label className="text-xs">Gross Thickness ({depthUnit})</Label>
-                                <Input type="number" value={state.inputs?.thickness ?? ''} onChange={e => handleDetChange('thickness', e.target.value)} className="h-8 bg-slate-900" />
-                                <p className="text-[10px] text-slate-500">Enter the gross interval thickness. Net rock is derived as gross times Net-to-Gross (set NTG under Petrophysics below). Do not enter net pay here with NTG below 1, or the net cut is applied twice.</p>
-                            </div>
+                            <UnitInput label="Gross Thickness" {...unitInputProps('thickness')}
+                                hint="Enter the gross interval thickness. Net rock is derived as gross times Net-to-Gross (set NTG under Petrophysics below). Do not enter net pay here with NTG below 1, or the net cut is applied twice." />
                         )}
                         
                         <div className="pt-2 border-t border-slate-800">
@@ -254,15 +258,9 @@ const ExpertInputPanel = () => {
 
                         <div className="pt-2 border-t border-slate-800 space-y-2">
                             <Label className="text-xs font-bold text-slate-300">Reservoir Conditions</Label>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="space-y-1">
-                                    <Label className="text-[10px] text-slate-400">Initial Pressure (psi)</Label>
-                                    <Input type="number" value={state.inputs?.pressure ?? ''} onChange={e => handleDetChange('pressure', e.target.value)} className="h-8 bg-slate-900" />
-                                </div>
-                                <div className="space-y-1">
-                                    <Label className="text-[10px] text-slate-400">Temperature (°F)</Label>
-                                    <Input type="number" value={state.inputs?.temperature ?? ''} onChange={e => handleDetChange('temperature', e.target.value)} className="h-8 bg-slate-900" />
-                                </div>
+                            <div className="grid grid-cols-1 gap-2">
+                                <UnitInput label="Initial Pressure" {...unitInputProps('pressure')} />
+                                <UnitInput label="Temperature" {...unitInputProps('temperature')} />
                             </div>
                         </div>
                     </TabsContent>
@@ -299,7 +297,7 @@ const ExpertInputPanel = () => {
                                     <Label className="text-xs">Formation Vol Factor (Bo)</Label>
                                     <div className="flex gap-2">
                                         <Input type="number" value={state.inputs?.fvf ?? ''} onChange={e => handleDetChange('fvf', e.target.value)} className="h-8 bg-slate-900" />
-                                        <span className="text-[10px] self-center text-slate-500">rb/stb</span>
+                                        <span className="text-[10px] self-center text-slate-500">{state.unitSystem === 'field' ? 'rb/stb' : 'rm³/sm³'}</span>
                                     </div>
                                 </div>
                             </div>
@@ -318,13 +316,8 @@ const ExpertInputPanel = () => {
                                         <Input type="number" value={state.inputs?.recoveryGas ?? ''} onChange={e => handleDetChange('recoveryGas', e.target.value)} className="h-8 bg-slate-900" />
                                     </div>
                                 </div>
-                                <div className="space-y-1">
-                                    <Label className="text-xs">Gas FVF (Bg)</Label>
-                                    <div className="flex gap-2">
-                                        <Input type="number" value={state.inputs?.bg ?? ''} onChange={e => handleDetChange('bg', e.target.value)} className="h-8 bg-slate-900" />
-                                        <span className="text-[10px] self-center text-slate-500">rcf/scf</span>
-                                    </div>
-                                </div>
+                                <UnitInput label="Gas FVF (Bg)" {...unitInputProps('bg')}
+                                    hint="Pick the convention your PVT report uses. Values in rb/scf and rb/Mscf are converted internally (5.614583 ft³/bbl)." />
                                 {fluidType === 'oil_gas' && state.inputMethod === 'simple' && (
                                     <div className="space-y-1">
                                         <Label className="text-xs">Gas Cap Fraction of GRV</Label>

@@ -68,7 +68,7 @@ const DeterministicSummaryTable = () => {
                             <TableCell className="py-1">Sat. water</TableCell>
                             {showOil && <TableCell className="py-1">Bo [{isField ? 'RB/STB' : 'rm³/sm³'}]</TableCell>}
                             {showOil && <TableCell className="py-1">Rec (Oil)</TableCell>}
-                            {showGas && <TableCell className="py-1">Bg [rcf/scf]</TableCell>}
+                            {showGas && <TableCell className="py-1">Bg [{isField ? 'rcf/scf' : 'rm³/sm³'}]</TableCell>}
                             {showGas && <TableCell className="py-1">Rec (Gas)</TableCell>}
                         </TableRow>
                         <TableRow>

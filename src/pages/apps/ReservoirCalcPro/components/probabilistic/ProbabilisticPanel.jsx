@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ChevronRight, ChevronLeft, PlayCircle, Loader2, RotateCcw, AlertTriangle, FileText } from 'lucide-react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import { useToast } from '@/components/ui/use-toast';
+import { distScaleFactor } from '../../services/unitsCatalog';
 
 const DIST_TYPES = [
     { value: 'triangular', label: 'Triangular' },
@@ -147,6 +148,30 @@ const ProbabilisticPanel = () => {
         ...(isGas ? { bg: generateDefaultDist(base.bg || 0.005) } : {})
     });
 
+    // Rescale the geometric distributions when the Field/Metric system toggles,
+    // mirroring the canonical-input conversion in the context reducer (area
+    // acre↔km², thickness/contacts ft↔m). Fractions and FVFs scale by 1.
+    const prevSystem = useRef(state.unitSystem);
+    useEffect(() => {
+        const from = prevSystem.current;
+        const to = state.unitSystem;
+        if (from === to) return;
+        prevSystem.current = to;
+        setDistParams(prev => {
+            const next = { ...prev };
+            for (const key of Object.keys(next)) {
+                const f = distScaleFactor(key, from, to);
+                if (f === 1 || !next[key]) continue;
+                const d = { ...next[key] };
+                for (const p of ['p90', 'p50', 'p10', 'mean', 'stdDev', 'min', 'max']) {
+                    if (typeof d[p] === 'number' && isFinite(d[p])) d[p] = d[p] * f;
+                }
+                next[key] = d;
+            }
+            return next;
+        });
+    }, [state.unitSystem]);
+
     // Auto-update P50 when deterministic baseline changes and consistency mode is ON
     useEffect(() => {
         if (consistencyMode && state.baseCase) {
@@ -266,8 +291,8 @@ const ProbabilisticPanel = () => {
                                 <DistInput label={`Area (${state.unitSystem === 'field' ? 'acres' : 'km²'})`} paramKey="area" value={distParams.area} baseValue={base.area} onChange={v => handleParamChange('area', v)} consistencyMode={consistencyMode} />
                             </>
                         )}
-                        {isOil && <DistInput label="Oil FVF (rb/stb)" paramKey="fvf" value={distParams.fvf} baseValue={base.fvf} onChange={v => handleParamChange('fvf', v)} consistencyMode={consistencyMode} />}
-                        {isGas && <DistInput label="Gas FVF (Bg)" paramKey="bg" value={distParams.bg} baseValue={base.bg} onChange={v => handleParamChange('bg', v)} consistencyMode={consistencyMode} />}
+                        {isOil && <DistInput label={`Oil FVF (${state.unitSystem === 'field' ? 'rb/stb' : 'rm³/sm³'})`} paramKey="fvf" value={distParams.fvf} baseValue={base.fvf} onChange={v => handleParamChange('fvf', v)} consistencyMode={consistencyMode} />}
+                        {isGas && <DistInput label={`Gas FVF (Bg, ${state.unitSystem === 'field' ? 'rcf/scf' : 'rm³/sm³'})`} paramKey="bg" value={distParams.bg} baseValue={base.bg} onChange={v => handleParamChange('bg', v)} consistencyMode={consistencyMode} />}
                     </div>
                 )}
 
