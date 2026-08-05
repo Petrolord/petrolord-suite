@@ -200,6 +200,8 @@ const SystemHealth = lazy(() => import('@/pages/admin/SystemHealth'));
 const AdminCenter = lazy(() => import('@/pages/admin/AdminCenter'));
 const TermsOfService = lazy(() => import('@/pages/legal/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('@/pages/legal/PrivacyPolicy'));
+const DataRetention = lazy(() => import('@/pages/legal/DataRetention'));
+const VerifyDeletion = lazy(() => import('@/pages/legal/VerifyDeletion'));
 const Support = lazy(() => import('@/pages/legal/Support'));
 const Documentation = lazy(() => import('@/pages/legal/Documentation'));
 const AboutUs = lazy(() => import('@/pages/company/AboutUs'));
@@ -659,6 +661,8 @@ function App() {
                               <Route path="/careers" element={<Careers />} />
                               <Route path="/legal/terms-of-service" element={<TermsOfService />} />
                               <Route path="/legal/privacy-policy" element={<PrivacyPolicy />} />
+                              <Route path="/legal/data-retention" element={<DataRetention />} />
+                              <Route path="/legal/verify-deletion" element={<VerifyDeletion />} />
                               <Route path="/legal/support" element={<Support />} />
                               <Route path="/legal/documentation" element={<Documentation />} />
 
