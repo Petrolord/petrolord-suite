@@ -139,8 +139,10 @@ const DashboardSidebar = () => {
           <SidebarItem icon={HardHat} label="HSE Portal" to="/hse" />
 
           {/* Admin Section - Disable sensitive areas if Impersonating */}
-          {/* HIDE for Super Admins unless Impersonating. Super Admins use Console. */}
-          {(!isSuperAdmin || isImpersonating) && (
+          {/* Shown to super admins too: they administer their OWN org here
+              (e.g. inviting Lordsway staff); the Console is for cross-org work.
+              Items still gate on the caller's role in their org via canSuite. */}
+          {(
             <>
               <div className="pt-4 pb-2">
                 <p className="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Organization Administration</p>

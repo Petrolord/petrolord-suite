@@ -505,9 +505,18 @@ const SuperAdminConsoleContent = () => {
         >
           <ArrowLeft className="h-4 w-4" /> Back to Dashboard
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Super Admin Console</h1>
-          <p className="text-slate-400 mt-1">Platform management and audit.</p>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/admin/promo-codes')}
+            className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800"
+          >
+            Promo Codes
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Super Admin Console</h1>
+            <p className="text-slate-400 mt-1">Platform management and audit.</p>
+          </div>
         </div>
       </div>
 

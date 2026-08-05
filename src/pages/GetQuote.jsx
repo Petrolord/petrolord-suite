@@ -180,6 +180,28 @@ export default function GetQuote() {
     };
   };
 
+  // Share links (/get-quote?promo=CODE) pre-apply the promo so a prospect
+  // clicking a marketing link never has to type the code.
+  useEffect(() => {
+    const linkCode = (searchParams.get('promo') || '').trim();
+    if (!linkCode || promoInfo) return;
+    setPromoCode(linkCode.toUpperCase());
+    (async () => {
+      setPromoChecking(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('verify-promo-code', { body: { code: linkCode } });
+        if (!error && data?.found && data.status === 'valid') {
+          setPromoInfo(data);
+        } else if (data?.found) {
+          const why = { inactive: 'is no longer active', expired: 'has expired', exhausted: 'has been fully redeemed' }[data.status] || 'is not valid';
+          setPromoError(`This code ${why}.`);
+        }
+      } catch { /* leave the code typed in for a manual retry */ }
+      finally { setPromoChecking(false); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleCheckPromoCode = async () => {
     const code = promoCode.trim();
     if (!code) return;
