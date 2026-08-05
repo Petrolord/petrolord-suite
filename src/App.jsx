@@ -211,6 +211,7 @@ const QuoteBuilder = lazy(() => import('@/pages/QuoteBuilder'));
 const ModuleAccess = lazy(() => import('@/pages/ModuleAccess'));
 const SeatManagement = lazy(() => import('@/pages/SeatManagement'));
 const EmployeeManagement = lazy(() => import('@/pages/EmployeeManagement'));
+const DataExport = lazy(() => import('@/pages/DataExport'));
 const AccessRequests = lazy(() => import('@/pages/admin/AccessRequests'));
 const SubscriptionManagement = lazy(() => import('@/pages/SubscriptionManagement'));
 const RenewSubscription = lazy(() => import('@/pages/RenewSubscription'));
@@ -351,6 +352,11 @@ function App() {
                                 <Route path="employees" element={<EmployeeManagement />} />
                                 <Route path="access-requests" element={<AccessRequests />} />
                                 
+                                <Route path="data-export" element={
+                                  <ProtectedRoute requiredPermission={SUITE_PERMISSIONS.MANAGE_ORGANIZATION}>
+                                    <DataExport />
+                                  </ProtectedRoute>
+                                } />
                                 <Route path="audit-logs" element={
                                   <ProtectedRoute requiredPermission={SUITE_PERMISSIONS.MANAGE_ORGANIZATION}>
                                     <AuditLogs />
