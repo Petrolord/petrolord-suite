@@ -36,7 +36,14 @@ const AcceptInvite = () => {
         if (error || data?.error) throw new Error(error?.message || data?.error);
 
         setSuccess(true);
-        toast({ title: "Account Activated", description: "Redirecting to login...", className: "bg-green-600 text-white" });
+        toast({
+          title: data?.linked ? "Membership Activated" : "Account Activated",
+          description: data?.linked
+            ? "You already had an account, so it was added to the organization. Log in with your existing password."
+            : "Redirecting to login...",
+          className: "bg-green-600 text-white",
+          duration: data?.linked ? 10000 : undefined
+        });
         
         setTimeout(() => navigate('/login'), 2000);
 
