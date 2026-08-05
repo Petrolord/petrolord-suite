@@ -4,6 +4,7 @@ import {
   chunk,
   collectStorageTargets,
   createRowStore,
+  filterUserRowsForOrg,
   mergeRows,
   safeSegment,
   storedIds,
@@ -96,6 +97,22 @@ describe('collectStorageTargets', () => {
       'geo_surfaces', 'geo_wells_logs', 'seismic_exported_surfaces',
       'seismic_horizons', 'seismic_volumes',
     ]);
+  });
+});
+
+describe('filterUserRowsForOrg', () => {
+  const rows = [
+    { id: 'a', organization_id: 'org-1' },   // ours
+    { id: 'b', organization_id: null },      // member-private
+    { id: 'c', organization_id: 'org-2' },   // another org's row via a two-org member
+  ];
+
+  it('drops rows scoped to a different organization', () => {
+    expect(filterUserRowsForOrg(rows, 'organization_id', 'org-1').map((r) => r.id)).toEqual(['a', 'b']);
+  });
+
+  it('passes everything through for tables without an org column', () => {
+    expect(filterUserRowsForOrg(rows, null, 'org-1')).toHaveLength(3);
   });
 });
 

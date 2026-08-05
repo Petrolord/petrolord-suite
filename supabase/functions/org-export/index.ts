@@ -35,6 +35,7 @@ import {
   chunk,
   collectStorageTargets,
   createRowStore,
+  filterUserRowsForOrg,
   mergeRows,
   safeSegment,
   storedIds,
@@ -290,12 +291,13 @@ async function runExport(admin: ReturnType<typeof createClient>, jobId: string, 
   }
 
   // Pass 2: user-scoped tables for every member (private wells, seismic
-  // projects, etc.). Overlap with pass 1 is deduplicated by primary key.
+  // projects, etc.). Overlap with pass 1 is deduplicated by primary key, and
+  // rows scoped to ANOTHER org (two-org members) are dropped.
   if (memberIds.length) {
     for (const t of catalog.values()) {
       if (!t.user_column) continue;
       const rows = await dumpAll(admin, t.table_name, t.user_column, memberIds);
-      mergeRows(store, t.table_name, rows, t.pk_column);
+      mergeRows(store, t.table_name, filterUserRowsForOrg(rows, t.org_column, orgId), t.pk_column);
     }
   }
 

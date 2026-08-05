@@ -117,6 +117,17 @@ export function collectStorageTargets(store) {
   return { objects, prefixes };
 }
 
+/**
+ * Filter a user-pass dump for tables that ALSO carry an org column: keep the
+ * member's private rows (org null) and rows scoped to OUR org, drop rows
+ * scoped to any other organization (e.g. a two-org member's memberships or
+ * shared surfaces elsewhere). Tables without an org column pass through.
+ */
+export function filterUserRowsForOrg(rows, orgColumn, orgId) {
+  if (!orgColumn) return rows;
+  return rows.filter((r) => r[orgColumn] == null || r[orgColumn] === orgId);
+}
+
 /** Sum of known sizes across manifest storage entries (nulls skipped). */
 export function totalBlobBytes(entries) {
   let total = 0;
