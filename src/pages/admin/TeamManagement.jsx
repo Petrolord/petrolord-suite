@@ -32,11 +32,10 @@ const TeamManagement = () => {
     // Task 9: Check privileges
     const checkPrivileges = async () => {
         console.log('TeamManagement: Checking privileges for', user?.email);
-        
-        if (isSuperAdmin) {
-            console.log('TeamManagement: User is Super Admin');
-            return; // Allow render to show special message
-        }
+
+        // Super admins are NOT short-circuited: they manage their own org here
+        // (e.g. Lordsway Energy staff). The console screen below only shows if
+        // they genuinely have no org membership of their own.
 
         // Get user role in org
         if (user?.id) {
@@ -51,16 +50,16 @@ const TeamManagement = () => {
             
             if (error || !data) {
                 console.error("TeamManagement: Could not fetch user role");
-                navigate('/dashboard');
-                return;
+                if (!isSuperAdmin) navigate('/dashboard');
+                return; // super admin with no own org falls through to the console screen
             }
 
             console.log('TeamManagement: User Role is', data.role);
             setUserRole(data.role);
             setCurrentOrgId(data.organization_id);
 
-            // If not admin/owner, redirect
-            if (!['owner', 'admin', 'org_admin'].includes(data.role)) {
+            // If not admin/owner, redirect (super admins pass regardless)
+            if (!isSuperAdmin && !['owner', 'admin', 'org_admin'].includes(data.role)) {
                 toast({
                     variant: "destructive",
                     title: "Access Denied",
@@ -116,20 +115,33 @@ const TeamManagement = () => {
     // Org membership is not seat-capped — seats are per app (see Seat Assignments).
     // Inviting a member is free; that member only consumes a seat when an admin
     // assigns them to a specific app.
+    // Goes through the invite-employee edge fn (same pathway as the Employees
+    // page) so the invitee gets a token + email; a bare 'invited' row with no
+    // token could never be accepted.
     try {
-      const { error } = await supabase
-        .from('organization_members')
-        .insert([{
-            organization_id: currentOrgId,
-            email: inviteEmail,
-            role: inviteRole,
-            status: 'invited',
-            joined_at: new Date().toISOString()
-        }]);
+      const { data, error } = await supabase.functions.invoke('invite-employee', {
+        body: { email: inviteEmail, role: inviteRole, organization_id: currentOrgId }
+      });
+      if (error) {
+        let detail = error.message;
+        try {
+          const body = await error.context?.json?.();
+          if (body?.error) detail = body.error;
+        } catch { /* keep generic message */ }
+        throw new Error(detail);
+      }
+      if (data?.error) throw new Error(data.error);
 
-      if (error) throw error;
-
-      toast({ title: "Invitation Sent", description: `Invited ${inviteEmail} to the team.` });
+      if (data?.emailSent) {
+        toast({ title: "Invitation Sent", description: `Invite emailed to ${inviteEmail}.` });
+      } else if (data?.invite_link) {
+        try { await navigator.clipboard.writeText(data.invite_link); } catch { /* no-op */ }
+        toast({
+          title: "Invite created, email failed",
+          description: `Share this link with ${inviteEmail} (copied to clipboard): ${data.invite_link}`,
+          duration: 15000
+        });
+      }
       setInviteEmail('');
       fetchTeamData(currentOrgId);
 
@@ -158,7 +170,7 @@ const TeamManagement = () => {
   };
 
   // Super Admin View
-  if (isSuperAdmin && !isImpersonating) {
+  if (isSuperAdmin && !isImpersonating && !currentOrgId) {
       return (
           <div className="p-12 flex flex-col items-center justify-center h-[80vh] text-center space-y-6">
               <Shield className="h-24 w-24 text-amber-500 mb-4" />

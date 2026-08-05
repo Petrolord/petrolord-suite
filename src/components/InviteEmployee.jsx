@@ -36,15 +36,34 @@ const InviteEmployee = ({ orgId, onSuccess }) => {
                 }
             });
 
-            if (error) throw error;
+            if (error) {
+                // FunctionsHttpError hides the response body; surface the real reason.
+                let detail = error.message;
+                try {
+                    const body = await error.context?.json?.();
+                    if (body?.error) detail = body.error;
+                } catch { /* keep generic message */ }
+                throw new Error(detail);
+            }
             if (data?.error) throw new Error(data.error);
 
-            toast({ 
-                title: "Invitation Sent", 
-                description: `Invite sent to ${formData.email}`, 
-                className: "bg-green-600 text-white" 
-            });
-            
+            if (data?.emailSent) {
+                toast({
+                    title: "Invitation Sent",
+                    description: `Invite emailed to ${formData.email}`,
+                    className: "bg-green-600 text-white"
+                });
+            } else if (data?.invite_link) {
+                // Email delivery failed but the invite exists: hand the admin
+                // the link so the invite is never lost silently.
+                try { await navigator.clipboard.writeText(data.invite_link); } catch { /* no-op */ }
+                toast({
+                    title: "Invite created, email failed",
+                    description: `Share this link with ${formData.email} (copied to clipboard): ${data.invite_link}`,
+                    duration: 15000
+                });
+            }
+
             if (onSuccess) onSuccess();
             setFormData({ email: '', full_name: '', role: 'viewer' }); // Reset form
 
