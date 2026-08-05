@@ -89,63 +89,57 @@ grant execute on function public.export_table_allowed(text) to service_role;
 --    org-scoping column (organization_id/org_id or FK -> organizations), and
 --    owner column (user_id, or a single-column FK -> auth.users).
 -- ---------------------------------------------------------------------------
+-- pg_catalog, not information_schema: the info-schema views took ~30 s per
+-- call at this schema size (~430 tables), which multiplied across an export's
+-- hundreds of RPC calls. Only uuid columns are reported anywhere below:
+-- export_dump_rows takes uuid[] and rejects non-uuid columns, so reporting
+-- one would abort the whole export.
 create or replace function public.export_table_catalog()
 returns table (table_name text, pk_column text, org_column text, user_column text)
 language sql stable security definer
 set search_path = public
 as $$
-  with base_tables as (
-    select t.table_name
-      from information_schema.tables t
-     where t.table_schema = 'public'
-       and t.table_type = 'BASE TABLE'
-       and public.export_table_allowed(t.table_name)
+  with tbl as (
+    select c.oid, c.relname::text as table_name
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public'
+       and c.relkind = 'r'
+       and c.relname <> 'organizations'
+       and public.export_table_allowed(c.relname::text)
+  ),
+  uuid_cols as (
+    select a.attrelid, a.attname::text as column_name, a.attnum
+      from pg_attribute a
+      join tbl t on t.oid = a.attrelid
+     where a.attnum > 0 and not a.attisdropped
+       and a.atttypid = 'uuid'::regtype
   ),
   pk as (
-    select tc.table_name, min(kcu.column_name) as column_name
-      from information_schema.table_constraints tc
-      join information_schema.key_column_usage kcu
-        on kcu.constraint_name = tc.constraint_name
-       and kcu.constraint_schema = tc.constraint_schema
-     where tc.constraint_type = 'PRIMARY KEY'
-       and tc.table_schema = 'public'
-     group by tc.table_name
-    having count(*) = 1                       -- single-column PKs only
+    select i.indrelid as oid, u.column_name
+      from pg_index i
+      join uuid_cols u on u.attrelid = i.indrelid and u.attnum = i.indkey[0]
+     where i.indisprimary and i.indnatts = 1   -- single-column uuid PKs only
   ),
   org_cols as (
-    select c.table_name, min(c.column_name) as column_name
-      from information_schema.columns c
-     where c.table_schema = 'public'
-       and c.column_name in ('organization_id', 'org_id')
-     group by c.table_name
+    select u.attrelid as oid, u.column_name
+      from uuid_cols u
+     where u.column_name in ('organization_id', 'org_id')
     union
-    select tc.table_name, min(kcu.column_name)
-      from information_schema.table_constraints tc
-      join information_schema.key_column_usage kcu
-        on kcu.constraint_name = tc.constraint_name
-       and kcu.constraint_schema = tc.constraint_schema
-      join information_schema.constraint_column_usage ccu
-        on ccu.constraint_name = tc.constraint_name
-       and ccu.constraint_schema = tc.constraint_schema
-     where tc.constraint_type = 'FOREIGN KEY'
-       and tc.table_schema = 'public'
-       and ccu.table_schema = 'public'
-       and ccu.table_name = 'organizations'
-     group by tc.table_name
-  ),
-  user_cols as (
-    select c.table_name, c.column_name
-      from information_schema.columns c
-     where c.table_schema = 'public'
-       and c.column_name = 'user_id'
-       and c.data_type = 'uuid'
+    select con.conrelid, u.column_name
+      from pg_constraint con
+      join pg_class pc on pc.oid = con.confrelid
+      join pg_namespace pn on pn.oid = pc.relnamespace
+      join uuid_cols u on u.attrelid = con.conrelid and u.attnum = con.conkey[1]
+     where con.contype = 'f' and array_length(con.conkey, 1) = 1
+       and pn.nspname = 'public' and pc.relname = 'organizations'
   )
-  select b.table_name,
-         (select p.column_name from pk p where p.table_name = b.table_name),
-         (select min(o.column_name) from org_cols o where o.table_name = b.table_name),
-         (select min(u.column_name) from user_cols u where u.table_name = b.table_name)
-    from base_tables b
-   where b.table_name <> 'organizations';
+  select t.table_name,
+         (select p.column_name from pk p where p.oid = t.oid limit 1),
+         (select min(o.column_name) from org_cols o where o.oid = t.oid),
+         (select min(u.column_name) from uuid_cols u
+           where u.attrelid = t.oid and u.column_name = 'user_id')
+    from tbl t;
 $$;
 
 revoke all on function public.export_table_catalog() from public, anon, authenticated;
@@ -160,25 +154,20 @@ returns table (child_table text, child_column text, parent_table text, parent_co
 language sql stable security definer
 set search_path = public
 as $$
-  select tc.table_name, kcu.column_name, ccu.table_name, ccu.column_name
-    from information_schema.table_constraints tc
-    join information_schema.key_column_usage kcu
-      on kcu.constraint_name = tc.constraint_name
-     and kcu.constraint_schema = tc.constraint_schema
-    join information_schema.constraint_column_usage ccu
-      on ccu.constraint_name = tc.constraint_name
-     and ccu.constraint_schema = tc.constraint_schema
-   where tc.constraint_type = 'FOREIGN KEY'
-     and tc.table_schema = 'public'
-     and ccu.table_schema = 'public'
-     and public.export_table_allowed(tc.table_name)
-     and tc.constraint_name in (
-           select constraint_name
-             from information_schema.key_column_usage
-            where constraint_schema = 'public'
-            group by constraint_name
-           having count(*) = 1               -- single-column FKs only
-         );
+  select cc.relname::text, ca.attname::text, pc.relname::text, pa.attname::text
+    from pg_constraint con
+    join pg_class cc     on cc.oid = con.conrelid
+    join pg_namespace cn on cn.oid = cc.relnamespace
+    join pg_class pc     on pc.oid = con.confrelid
+    join pg_namespace pn on pn.oid = pc.relnamespace
+    join pg_attribute ca on ca.attrelid = con.conrelid  and ca.attnum = con.conkey[1]
+    join pg_attribute pa on pa.attrelid = con.confrelid and pa.attnum = con.confkey[1]
+   where con.contype = 'f'
+     and array_length(con.conkey, 1) = 1     -- single-column FKs only
+     and cn.nspname = 'public'
+     and pn.nspname = 'public'
+     and ca.atttypid = 'uuid'::regtype       -- uuid FK columns only
+     and public.export_table_allowed(cc.relname::text);
 $$;
 
 revoke all on function public.export_fk_edges() from public, anon, authenticated;
@@ -202,33 +191,36 @@ language plpgsql stable security definer
 set search_path = public
 as $$
 declare
+  v_reloid oid;
   v_redact text[];
   v_limit  integer := least(greatest(coalesce(p_limit, 1000), 1), 2000);
   v_out    jsonb;
 begin
   -- (table, column) must be a real public BASE TABLE with a uuid column of
   -- that name; anything else is a caller bug, not a request to honor.
-  if not exists (
-    select 1 from information_schema.tables t
-     where t.table_schema = 'public' and t.table_name = p_table
-       and t.table_type = 'BASE TABLE'
-  ) or not public.export_table_allowed(p_table) then
+  -- pg_catalog lookups (info-schema was ~100x slower; see catalog note).
+  select c.oid into v_reloid
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relname = p_table and c.relkind = 'r';
+  if v_reloid is null or not public.export_table_allowed(p_table) then
     raise exception 'export_dump_rows: table % is not exportable', p_table;
   end if;
 
   if not exists (
-    select 1 from information_schema.columns c
-     where c.table_schema = 'public' and c.table_name = p_table
-       and c.column_name = p_column and c.data_type = 'uuid'
+    select 1 from pg_attribute a
+     where a.attrelid = v_reloid and a.attname = p_column
+       and a.attnum > 0 and not a.attisdropped
+       and a.atttypid = 'uuid'::regtype
   ) then
     raise exception 'export_dump_rows: %.% is not a uuid column', p_table, p_column;
   end if;
 
-  select coalesce(array_agg(c.column_name), '{}')
+  select coalesce(array_agg(a.attname::text), '{}')
     into v_redact
-    from information_schema.columns c
-   where c.table_schema = 'public' and c.table_name = p_table
-     and c.column_name ~* '(token|secret|password|api_key)';
+    from pg_attribute a
+   where a.attrelid = v_reloid and a.attnum > 0 and not a.attisdropped
+     and a.attname ~* '(token|secret|password|api_key)';
 
   execute format(
     'select coalesce(jsonb_agg(to_jsonb(t) - $2), ''[]''::jsonb)
@@ -264,9 +256,12 @@ declare
   v_count bigint;
 begin
   if not exists (
-    select 1 from information_schema.columns c
-     where c.table_schema = 'public' and c.table_name = p_table
-       and c.column_name = p_column and c.data_type = 'uuid'
+    select 1 from pg_attribute a
+      join pg_class c on c.oid = a.attrelid
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relname = p_table and c.relkind = 'r'
+       and a.attname = p_column and a.attnum > 0 and not a.attisdropped
+       and a.atttypid = 'uuid'::regtype
   ) then
     raise exception 'export_count_rows: %.% is not a uuid column', p_table, p_column;
   end if;
