@@ -10,6 +10,9 @@ const platformLinks = [{
 }, {
   name: 'Resources',
   path: '/resources'
+}, {
+  name: 'Documentation',
+  path: '/legal/documentation'
 }];
 const companyLinks = [{
   name: 'About Us',
@@ -28,8 +31,11 @@ const legalLinks = [{
   name: 'Privacy Policy',
   path: '/legal/privacy-policy'
 }, {
-  name: 'Documentation',
-  path: '/legal/documentation'
+  name: 'Data Retention & Offboarding',
+  path: '/legal/data-retention'
+}, {
+  name: 'Data Processing Agreement',
+  path: '/legal/dpa'
 }];
 const Footer = () => {
   return <footer className="bg-slate-900 border-t border-slate-700 text-slate-400">
