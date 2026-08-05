@@ -222,6 +222,7 @@ const BulkImportEmployees = lazy(() => import('@/pages/admin/BulkImportEmployees
 const AppAnalyticsDashboard = lazy(() => import('@/pages/admin/AppAnalyticsDashboard'));
 const AdminSeedApps = lazy(() => import('@/pages/admin/AdminSeedApps')); 
 const MasterAppsViewer = lazy(() => import('@/pages/admin/MasterAppsViewer'));
+const PromoCodes = lazy(() => import('@/pages/admin/PromoCodes'));
 
 // Loading fallback
 const PageLoader = () => (
@@ -315,6 +316,11 @@ function App() {
                               <Route path="/admin/master-apps-viewer" element={
                                 <SuperAdminRoute>
                                   <MasterAppsViewer />
+                                </SuperAdminRoute>
+                              } />
+                              <Route path="/admin/promo-codes" element={
+                                <SuperAdminRoute>
+                                  <PromoCodes />
                                 </SuperAdminRoute>
                               } />
                               
