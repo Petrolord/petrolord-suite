@@ -1,10 +1,60 @@
-# Organization Data Export — STATUS
+# Organization Data Export & Offboarding — STATUS
 
-Offboarding pipeline, phase 1 of 3 (export → grace-period deletion →
-certificate). Program rationale: clients are more comfortable staying (and
-paying) when they know they can leave at any time with everything they own.
+Offboarding pipeline (export → grace-period deletion → certificate).
+Program rationale: clients are more comfortable staying (and paying) when
+they know they can leave at any time with everything they own.
 
-## Shipped (phase 1, branch feat/org-data-export, 2026-08-05)
+## Phase 2 SHIPPED (grace-period deletion, branch feat/org-grace-deletion, 2026-08-05)
+
+| Piece | Where |
+|---|---|
+| Migration | `supabase/migrations/20260805150000_org_grace_deletion.sql` — `org_closure_requests` (FK-free audit row that survives the purge), `admin_purge_org` RPC, `export_fk_edges` + delete_rule. APPLIED live 2026-08-05 |
+| Edge function | `supabase/functions/org-offboard/` — `request` (typed-name confirm, 30-day grace, internal orgs refused) / `cancel` (any org admin) / `execute_due` (platform super admin or service key; retries `failed` requests idempotently). DEPLOYED 2026-08-05 |
+| UI | Danger card on `/dashboard/data-export` (schedule + countdown + cancel) and `OrgClosureBanner` in DashboardLayout warning every member |
+
+Design decisions (deliberate):
+- **Access is KEPT during the grace window.** Members can still export and any
+  admin can cancel; reversibility is the point. Billing/provider-side
+  subscription cancellation (Paystack/Stripe) is NOT automated; handle at the
+  provider when a closure is scheduled.
+- **Execution is human-triggered** (`execute_due` by a platform super admin or
+  service key; pg_cron is not installed). Deliberate for now: a human in the
+  loop before an irreversible purge. Automate later via a scheduler if wanted.
+- **Ownership semantics:** members who also belong to a real shared org (or an
+  internal org) survive; their assets shared into the dying org are UNSHARED
+  (org column set to null; only nullable org columns, NOT NULL org columns
+  mean structurally org-owned and always die). Solo personal orgs (signup
+  trigger artifacts) do not keep an account alive and are purged together
+  with the main org.
+- **No replica mode.** postgres cannot set `session_replication_role` from a
+  service-role call on this project (found live in E2E; NOTE:
+  `admin_purge_test_orgs` has the same latent problem if invoked via its edge
+  function). `admin_purge_org` instead precomputes the doomed row-set (FK
+  closure honoring delete rules) and deletes in constraint-tolerant retry
+  passes with FK enforcement ON, then verifies zero survivors (raise = full
+  rollback).
+
+Phase-2 E2E (against deployed fns, disposable orgs/users, 2026-08-05): wrong
+name 400, schedule + email, duplicate 409, outsider cancel 403, member banner
+RLS visible / outsider blind, admin cancel, re-request, premature execute 0 +
+RPC refusal, user execute_due 403; after fast-forward: purge green — 13 rows /
+9 tables, shared well UNSHARED (org null, owner intact), leaving member's
+auth+identities+blobs+volume gone, solo personal org rode along, survivor org
+untouched, export archives removed, audit row survived with full report.
+Cleanup verified 0 residue. E2E also caught 3 real bugs now fixed (replica
+mode, retry guard, NOT NULL unshare) and 1 pre-existing platform bug reported
+below.
+
+Known issues found during E2E (NOT fixed here, for owner awareness):
+- `handle_new_user` fails with a duplicate-key on `organization_apps` when a
+  SECOND user signs up with `organization_id` metadata for the same org (the
+  app-init insert is not idempotent). Invitation flow works because it creates
+  members differently; fix belongs in a trigger-hardening pass.
+- `admin_purge_test_orgs` still uses `session_replication_role` and would fail
+  if run via the admin-cleanup-test-data edge function today; port it to the
+  doomed-set approach when next needed.
+
+## Phase 1 SHIPPED (export, PR #158, 2026-08-05)
 
 | Piece | Where |
 |---|---|
@@ -64,12 +114,11 @@ paying) when they know they can leave at any time with everything they own.
 - [x] Full jest suite green after all changes (2191 passed)
 - [ ] PR into main; prod SPA picks the page up at the next Hostinger upload (page is additive; safe to ship whenever)
 
-## Next phases (not started)
+## Next phase (not started)
 
-- Phase 2: account closure with grace period (deactivate on request, hold N
-  days, then a hardened generalized purge incl. storage GC + auth cleanup;
-  mind the orphaned-identities gotcha from 2026-08-05).
-- Phase 3: certificate of deletion (counts destroyed, timestamp, signed) +
-  surviving audit row; published Data Retention & Offboarding policy page and
-  a DPA template for enterprise deals.
+- Phase 3: certificate of deletion rendered from org_closure_requests.purge_report
+  (counts destroyed, timestamp, signed) + published Data Retention & Offboarding
+  policy page and a DPA template for enterprise deals.
 - Fold invite-employee onto `_shared/email.ts` at its next redeploy.
+- Optional: automate execute_due via a scheduler; provider-side subscription
+  cancellation on closure.
