@@ -27,7 +27,10 @@ export const usePurchasedModules = () => {
   
   const fetchedRef = useRef({ orgId: null, userId: null });
   
-  const hasSuperAdminPrivileges = isSuperAdmin || user?.role === 'super_admin';
+  // Internal (staff) organizations get the same full-catalog bypass as super
+  // admins: organizations.is_internal is set by migration only, never by
+  // signup. Server-side, get-user-entitlements applies the same rule.
+  const hasSuperAdminPrivileges = isSuperAdmin || user?.role === 'super_admin' || organization?.is_internal === true;
 
   const fetchPurchasedModules = useCallback(async () => {
     // ---------------------------------------------------------
