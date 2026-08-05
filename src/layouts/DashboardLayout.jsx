@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import DashboardSidebar from '@/components/DashboardSidebar';
+import OrgClosureBanner from '@/components/OrgClosureBanner';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { ApplicationProvider, useApplication } from '@/context/ApplicationContext';
 import SidebarVisibilityController from '@/components/layout/SidebarVisibilityController';
@@ -37,6 +38,7 @@ const DashboardLayoutInner = () => {
             )}
             
             <main className={`flex-1 overflow-y-auto transition-all duration-300 ${isInApplication ? 'w-full' : ''}`}>
+                <OrgClosureBanner />
                 <div className="min-h-full">
                     <Outlet />
                 </div>
