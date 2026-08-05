@@ -52,3 +52,36 @@ export function summarizeReport(report) {
 export function isUserGoneError(message) {
   return /user not found|404/i.test(String(message ?? ''));
 }
+
+/**
+ * Human-readable certificate number: PLD-DC-<year>-<first 8 hex of the
+ * request id>. Deterministic per request, so re-issuing a certificate never
+ * mints a second number for the same purge.
+ */
+export function makeCertificateNo(requestId, purgedAtIso) {
+  const year = String(purgedAtIso ?? '').slice(0, 4) || '0000';
+  const id8 = String(requestId ?? '').replace(/-/g, '').slice(0, 8).toUpperCase();
+  return `PLD-DC-${year}-${id8}`;
+}
+
+/**
+ * The single source of the facts attested by both the PDF and the public
+ * verification endpoint. Only snapshot fields that already appear on the
+ * certificate; never the verification code.
+ */
+export function buildCertificateFields(request, certificateNo) {
+  const report = request?.purge_report ?? null;
+  const rpc = report?.rpc ?? {};
+  return {
+    certificate_no: certificateNo,
+    organization_name: request?.org_name ?? '',
+    organization_id: request?.organization_id ?? '',
+    requested_by_email: request?.requested_by_email ?? '',
+    requested_at: request?.created_at ?? null,
+    effective_at: request?.effective_at ?? null,
+    purged_at: request?.purged_at ?? null,
+    summary: summarizeReport(report),
+    extra_org_names: (Array.isArray(rpc?.extra_orgs) ? rpc.extra_orgs : [])
+      .map((o) => o?.name).filter(Boolean),
+  };
+}
