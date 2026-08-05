@@ -111,6 +111,7 @@ declare
   v_remaining bigint;
   v_pass integer := 0;
   v_progress boolean;
+  v_orgs uuid[];
   v_report jsonb;
 begin
   -- Guard 1: a DUE scheduled closure request must exist. The grace window is
@@ -155,19 +156,50 @@ begin
     raise exception 'admin_purge_org: refusing to purge org %: it has protected/super-admin members', v_org.name;
   end if;
 
-  -- Members whose auth account goes with the org (no membership elsewhere)
-  -- vs members who survive (their shared assets get unshared, not deleted).
+  -- Members whose auth account goes with the org vs members who survive.
+  -- A SOLO org elsewhere (the member is its only member, e.g. the personal
+  -- org handle_new_user creates on self-signup) does NOT keep an account
+  -- alive; those solo orgs are purged together with this one. Only a
+  -- membership in a real shared org (or an internal org) makes a member
+  -- survive, in which case their shared assets get unshared, not deleted.
+  create temp table _other_org_class on commit drop as
+    select om.user_id, om.organization_id as org_id,
+           (not exists (
+              select 1 from public.organization_members om2
+               where om2.organization_id = om.organization_id
+                 and om2.user_id is not null
+                 and om2.user_id <> om.user_id)
+            and not exists (
+              select 1 from public.organizations o
+               where o.id = om.organization_id
+                 and (o.organization_type = 'internal' or o.is_internal is true))
+           ) as is_solo
+      from public.organization_members om
+     where om.user_id in (select user_id from _members)
+       and om.organization_id <> p_org_id;
+
   create temp table _auth_to_delete on commit drop as
     select m.user_id from _members m
      where not exists (
-             select 1 from public.organization_members om2
-              where om2.user_id = m.user_id
-                and om2.organization_id <> p_org_id
+             select 1 from _other_org_class c
+              where c.user_id = m.user_id and c.is_solo = false
            );
 
   create temp table _surviving on commit drop as
     select m.user_id from _members m
      where m.user_id not in (select user_id from _auth_to_delete);
+
+  -- Solo orgs of leaving members ride along with the purge (names snapshotted
+  -- now; the rows are gone by the time the report is built).
+  create temp table _extra_orgs on commit drop as
+    select distinct c.org_id, o.name
+      from _other_org_class c
+      join _auth_to_delete d on d.user_id = c.user_id
+      left join public.organizations o on o.id = c.org_id
+     where c.is_solo;
+
+  select array[p_org_id] || coalesce(array_agg(org_id), '{}'::uuid[])
+    into v_orgs from _extra_orgs;
 
   -- Discovery: same pg_catalog catalog the export uses. org_closure_requests
   -- and the denylisted platform tables are excluded by construction.
@@ -188,9 +220,9 @@ begin
   create temp table _affected (table_name text, column_name text, rows bigint) on commit drop;
   for v_tbl in select * from _org_tables loop
     execute format(
-      'insert into _affected select %L, %L, count(*) from public.%I where %I = $1',
+      'insert into _affected select %L, %L, count(*) from public.%I where %I = any($1)',
       v_tbl.table_name, v_tbl.org_column, v_tbl.table_name, v_tbl.org_column
-    ) using p_org_id;
+    ) using v_orgs;
   end loop;
   -- Member-owned rows of leaving users; rows already counted in the org pass
   -- (dual-scoped, org = this org) are excluded to keep the audit total honest.
@@ -199,10 +231,10 @@ begin
       execute format(
         'insert into _affected select %L, %L, count(*) from public.%I
           where %I in (select user_id from _auth_to_delete)
-            and %I is distinct from $1',
+            and (%I is null or %I <> all($1))',
         v_tbl.table_name, v_tbl.user_column, v_tbl.table_name,
-        v_tbl.user_column, v_tbl.org_column
-      ) using p_org_id;
+        v_tbl.user_column, v_tbl.org_column, v_tbl.org_column
+      ) using v_orgs;
     else
       execute format(
         'insert into _affected select %L, %L, count(*) from public.%I
@@ -216,9 +248,9 @@ begin
   for v_tbl in select * from _org_tables where user_column is not null loop
     execute format(
       'select count(*) from public.%I
-        where %I = $1 and %I in (select user_id from _surviving)',
+        where %I = any($1) and %I in (select user_id from _surviving)',
       v_tbl.table_name, v_tbl.org_column, v_tbl.user_column
-    ) into v_cnt using p_org_id;
+    ) into v_cnt using v_orgs;
     if v_cnt > 0 then
       insert into _unshared values (v_tbl.table_name, v_cnt);
     end if;
@@ -235,15 +267,15 @@ begin
     for v_tbl in select * from _org_tables where user_column is not null loop
       execute format(
         'update public.%I set %I = null
-          where %I = $1 and %I in (select user_id from _surviving)',
+          where %I = any($1) and %I in (select user_id from _surviving)',
         v_tbl.table_name, v_tbl.org_column, v_tbl.org_column, v_tbl.user_column
-      ) using p_org_id;
+      ) using v_orgs;
     end loop;
 
-    -- b. Delete every org-scoped row.
+    -- b. Delete every org-scoped row (main org + riding-along solo orgs).
     for v_tbl in select * from _org_tables loop
-      execute format('delete from public.%I where %I = $1',
-                     v_tbl.table_name, v_tbl.org_column) using p_org_id;
+      execute format('delete from public.%I where %I = any($1)',
+                     v_tbl.table_name, v_tbl.org_column) using v_orgs;
     end loop;
 
     -- c. Delete user-scoped rows of members whose accounts are going away
@@ -258,7 +290,7 @@ begin
 
     -- d. public.users mirrors, then the organization itself.
     delete from public.users where id in (select user_id from _auth_to_delete);
-    delete from public.organizations where id = p_org_id;
+    delete from public.organizations where id = any(v_orgs);
 
     -- e. Orphan sweep to a fixpoint. Replica mode disabled FK cascade
     --    actions, so would-be-cascaded children (org_export_jobs, profile
@@ -289,9 +321,9 @@ begin
     -- f. Verify: nothing org-scoped and nothing member-owned survives.
     --    Any remainder raises and rolls the whole purge back.
     for v_tbl in select * from _org_tables loop
-      execute format('select count(*) from public.%I where %I = $1',
+      execute format('select count(*) from public.%I where %I = any($1)',
                      v_tbl.table_name, v_tbl.org_column)
-        into v_remaining using p_org_id;
+        into v_remaining using v_orgs;
       if v_remaining > 0 then
         raise exception 'admin_purge_org incomplete: % row(s) remain in %.%',
           v_remaining, v_tbl.table_name, v_tbl.org_column;
@@ -316,6 +348,10 @@ begin
     'dry_run', p_dry_run,
     'closure_request_id', v_req.id,
     'organization', jsonb_build_object('id', v_org.id, 'name', v_org.name),
+    'extra_orgs', coalesce((
+      select jsonb_agg(jsonb_build_object('id', e.org_id, 'name', e.name) order by e.name)
+        from _extra_orgs e
+    ), '[]'::jsonb),
     'member_count', (select count(*) from _members),
     'summary', jsonb_build_object(
       'total_rows', coalesce((select sum(rows) from _affected), 0),

@@ -25,8 +25,8 @@ export function confirmNameMatches(orgName, typed) {
  * folder in each data bucket. Surviving members keep their folders (their
  * data was unshared, not destroyed).
  */
-export function storagePrefixTargets(orgId, deletedUserIds) {
-  const targets = [{ bucket: 'org-exports', prefix: orgId }];
+export function storagePrefixTargets(orgId, deletedUserIds, extraOrgIds = []) {
+  const targets = [orgId, ...extraOrgIds].map((id) => ({ bucket: 'org-exports', prefix: id }));
   for (const uid of deletedUserIds) {
     for (const bucket of OFFBOARD_BUCKETS) targets.push({ bucket, prefix: uid });
   }

@@ -37,6 +37,15 @@ describe('storagePrefixTargets', () => {
   it('surviving members contribute no targets', () => {
     expect(storagePrefixTargets('org-1', [])).toEqual([{ bucket: 'org-exports', prefix: 'org-1' }]);
   });
+
+  it('riding-along solo orgs contribute their export archives', () => {
+    const targets = storagePrefixTargets('org-1', [], ['solo-1', 'solo-2']);
+    expect(targets).toEqual([
+      { bucket: 'org-exports', prefix: 'org-1' },
+      { bucket: 'org-exports', prefix: 'solo-1' },
+      { bucket: 'org-exports', prefix: 'solo-2' },
+    ]);
+  });
 });
 
 describe('summarizeReport', () => {

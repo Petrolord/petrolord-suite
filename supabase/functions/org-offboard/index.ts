@@ -236,10 +236,12 @@ async function executeRequest(admin: ReturnType<typeof createClient>, request: R
   }
 
   const authUsers = (rpcReport.auth_users_to_delete ?? []) as Array<{ id: string; email: string }>;
+  const extraOrgIds = ((rpcReport.extra_orgs ?? []) as Array<{ id: string }>).map((o) => o.id);
 
-  // Storage: the org's export archive + each deleted member's data folders.
+  // Storage: the export archives of every purged org + each deleted member's
+  // data folders.
   const storageReport = { objects_removed: 0, errors: [] as string[] };
-  for (const target of storagePrefixTargets(orgId, authUsers.map((u) => u.id))) {
+  for (const target of storagePrefixTargets(orgId, authUsers.map((u) => u.id), extraOrgIds)) {
     try {
       storageReport.objects_removed += await removePrefix(admin, target.bucket, target.prefix);
     } catch (e) {
