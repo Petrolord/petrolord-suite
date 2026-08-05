@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 import { corsHeaders } from './cors.ts';
 import { bridgeVerifyConfigured, verifyBridgeCode } from '../_shared/nextgen-bridge.ts';
+import { validatePromoCode } from '../_shared/promo-codes.ts';
 // Logo URLs
 const LORDSWAY_LOGO_URL = 'https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/b55e5cb03a1912f6a06152592ab58d1c.png';
 const PETROLORD_LOGO_URL = 'https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/b7bb1181c53d21d5cae68a1a79fddaa7.png';
@@ -11,7 +12,7 @@ Deno.serve(async (req)=>{
   });
   try {
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    const { modules = [], apps = [], seats = 1, billing_term = 'monthly', add_ons = [], user_id, organization_id, user_email, user_name, service_tier = 'starter', storage_gb = 0, manual_discount = 0, bridge_code = null } = await req.json();
+    const { modules = [], apps = [], seats = 1, billing_term = 'monthly', add_ons = [], user_id, organization_id, user_email, user_name, service_tier = 'starter', storage_gb = 0, manual_discount = 0, bridge_code = null, promo_code = null } = await req.json();
     if (!user_id && !user_email) throw new Error('User ID or Email is required');
     // Special discounts are a sales instrument: only PLATFORM super admins may
     // apply manual_discount. Any org admin can generate a quote for their own
@@ -175,6 +176,21 @@ Deno.serve(async (req)=>{
         throw new Error(`Discount code ${bridge.code} ${why}.`);
       }
     }
+    // Suite promo code (early-adopter discounts): validated here so an
+    // invalid code fails the quote loudly instead of silently charging full
+    // price; burned by the payment finalizers via redeemPromoForQuote.
+    let promo = null;
+    if (promo_code && String(promo_code).trim()) {
+      promo = await validatePromoCode(supabase, String(promo_code));
+      if (!promo) {
+        throw new Error('Promo code not recognized. Check the code and try again.');
+      }
+      if (promo.status !== 'valid') {
+        const why = { inactive: 'is no longer active', expired: 'has expired', exhausted: 'has been fully redeemed' }[promo.status] || 'is not valid';
+        throw new Error(`Promo code ${promo.code} ${why}.`);
+      }
+    }
+    let promoableCost = 0; // monthly cost attributable to a module-scoped promo
     let bridgeableCost = 0; // monthly cost attributable to the certified module
     // Query master_apps for ACTIVE apps only
     if (appIds.length > 0) {
@@ -213,6 +229,9 @@ Deno.serve(async (req)=>{
           if (bridge && String(app.module || '').toLowerCase() === String(bridge.suite_module).toLowerCase()) {
             bridgeableCost += price + appSeatCost;
           }
+          if (promo && promo.scope !== 'all' && String(app.module || '').toLowerCase() === String(promo.scope).toLowerCase()) {
+            promoableCost += price + appSeatCost;
+          }
           console.log(`[Generate Quote] Added app: ${app.app_name} (${app.id}) - $${price} - ${appSeats} seats - seatCost $${appSeatCost}`);
         });
         // Log any apps that were requested but not found/inactive
@@ -233,6 +252,9 @@ Deno.serve(async (req)=>{
         appsCost += modPrice;
         if (bridge && String(m).toLowerCase() === String(bridge.suite_module).toLowerCase()) {
           bridgeableCost += modPrice;
+        }
+        if (promo && promo.scope !== 'all' && String(m).toLowerCase() === String(promo.scope).toLowerCase()) {
+          promoableCost += modPrice;
         }
         lineItems.push({
           description: `Module Access: ${m}`,
@@ -279,7 +301,25 @@ Deno.serve(async (req)=>{
       });
       console.log(`[Generate Quote] Bridge ${bridge.code}: ${bridge.discount_pct}% off ${bridge.suite_module} monthly ${bridgeableCost} -> -${bridgeDiscountVal}`);
     }
-    const monthlySubtotal = BASE_PLATFORM_FEE + appsCost + seatsCost + addonsCost + storageCost - bridgeDiscountVal;
+    // Promo discount: scope 'all' takes the percentage off the whole monthly
+    // subtotal (post-bridge); a module scope mirrors bridge semantics (that
+    // module's app + seat costs only). Term and manual discounts stack after.
+    let promoDiscountVal = 0;
+    if (promo) {
+      const promoBase = promo.scope === 'all'
+        ? BASE_PLATFORM_FEE + appsCost + seatsCost + addonsCost + storageCost - bridgeDiscountVal
+        : promoableCost;
+      if (promoBase <= 0) {
+        throw new Error(`Promo code ${promo.code} applies to the ${promo.scope} module. Add a ${promo.scope} app to the quote to use it.`);
+      }
+      promoDiscountVal = promoBase * (Number(promo.percent) / 100);
+      lineItems.push({
+        description: `Promo ${promo.code} (${promo.percent}% off${promo.scope === 'all' ? '' : ` ${promo.scope}`})`,
+        amount: -promoDiscountVal
+      });
+      console.log(`[Generate Quote] Promo ${promo.code}: ${promo.percent}% off ${promo.scope} monthly ${promoBase} -> -${promoDiscountVal}`);
+    }
+    const monthlySubtotal = BASE_PLATFORM_FEE + appsCost + seatsCost + addonsCost + storageCost - bridgeDiscountVal - promoDiscountVal;
     // Term discount (per billing period) then optional manual discount, then ×months.
     const period = PERIODS[billing_term] || PERIODS.monthly;
     const months = period.months;
@@ -377,7 +417,13 @@ Deno.serve(async (req)=>{
       bridge_code: bridge ? bridge.code : null,
       bridge_module: bridge ? bridge.suite_module : null,
       bridge_discount_pct: bridge ? bridge.discount_pct : null,
-      bridge_discount_amount: bridge ? bridgeDiscountVal : null
+      bridge_discount_amount: bridge ? bridgeDiscountVal : null,
+      // Promo snapshot (null when no code): redeemPromoForQuote burns the
+      // code after payment and stamps promo_redeemed_at.
+      promo_code: promo ? promo.code : null,
+      promo_scope: promo ? promo.scope : null,
+      promo_discount_pct: promo ? promo.percent : null,
+      promo_discount_amount: promo ? promoDiscountVal : null
     });
     if (quoteInsertError) throw quoteInsertError;
     // 5. Generate PDF
@@ -616,6 +662,12 @@ Deno.serve(async (req)=>{
         module: bridge.suite_module,
         discount_pct: bridge.discount_pct,
         monthly_discount: bridgeDiscountVal
+      } : null,
+      promo: promo ? {
+        code: promo.code,
+        scope: promo.scope,
+        percent: promo.percent,
+        monthly_discount: promoDiscountVal
       } : null,
       payment_links: {
         paystack: paystackLink
