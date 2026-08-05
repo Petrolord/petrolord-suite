@@ -53,6 +53,13 @@ export default function GetQuote() {
   const [selectedApps, setSelectedApps] = useState([]);
   const [appSeats, setAppSeats] = useState({}); // { [appId]: seatCount } — per-app seats
   const [billingTerm, setBillingTerm] = useState('monthly');
+  // Suite promo code (early-adopter discounts). Verified live via the
+  // verify-promo-code edge fn; generate-quote re-validates server-side and
+  // is authoritative for the final total.
+  const [promoCode, setPromoCode] = useState('');
+  const [promoInfo, setPromoInfo] = useState(null);
+  const [promoChecking, setPromoChecking] = useState(false);
+  const [promoError, setPromoError] = useState(null);
 
   // Select/deselect an app, keeping its per-app seat count in sync (default 1).
   const toggleApp = (appId) => {
@@ -146,21 +153,56 @@ export default function GetQuote() {
     // Seats (per app, graduated tiers)
     subtotal += getSeatsCost();
 
+    // Promo (preview only; generate-quote re-validates and is authoritative).
+    // 'all' scope discounts the whole monthly subtotal; a module scope is
+    // shown as applied at quote generation (server computes the exact value).
+    let promoAmount = 0;
+    if (promoInfo && promoInfo.scope === 'all') {
+      promoAmount = subtotal * (Number(promoInfo.percent) / 100);
+      subtotal -= promoAmount;
+    }
+
     // Term discount
     const multiplier = billingTerm === 'annual' ? 12 : (billingTerm === 'quarterly' ? 3 : 1);
     const discount = billingTerm === 'annual' ? 0.15 : (billingTerm === 'quarterly' ? 0.10 : 0);
-    
+
     const gross = subtotal * multiplier;
     const discounted = gross * (1 - discount);
-    
+
     return {
       monthly: subtotal,
+      promoAmount,
       gross,
       discountAmount: gross * discount,
       net: discounted,
       vat: discounted * 0.075,
       total: discounted * 1.075
     };
+  };
+
+  const handleCheckPromoCode = async () => {
+    const code = promoCode.trim();
+    if (!code) return;
+    setPromoChecking(true);
+    setPromoError(null);
+    setPromoInfo(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-promo-code', { body: { code } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.found) {
+        setPromoError('Code not recognized. Check the code and try again.');
+      } else if (data.status !== 'valid') {
+        const why = { inactive: 'is no longer active', expired: 'has expired', exhausted: 'has been fully redeemed' }[data.status] || 'is not valid';
+        setPromoError(`This code ${why}.`);
+      } else {
+        setPromoInfo(data);
+      }
+    } catch (e) {
+      setPromoError(e.message || 'Could not verify the code. Please try again.');
+    } finally {
+      setPromoChecking(false);
+    }
   };
 
   const handleGenerateQuote = async () => {
@@ -185,7 +227,8 @@ export default function GetQuote() {
           user_id: user.id,
           user_email: user.email,
           organization_id: orgId, // Can be null if new
-          user_name: user.user_metadata?.full_name || user.email.split('@')[0]
+          user_name: user.user_metadata?.full_name || user.email.split('@')[0],
+          promo_code: promoInfo ? promoInfo.code : null
         }
       });
 
@@ -409,12 +452,57 @@ export default function GetQuote() {
                           <span>Monthly Subtotal</span>
                           <span>{formatCurrency(totals.monthly)}</span>
                         </div>
+                        {totals.promoAmount > 0 && promoInfo && (
+                          <div className="flex justify-between text-lime-400">
+                            <span>Promo {promoInfo.code} ({promoInfo.percent}%)</span>
+                            <span>-{formatCurrency(totals.promoAmount)}</span>
+                          </div>
+                        )}
                         {totals.discountAmount > 0 && (
                           <div className="flex justify-between text-lime-400">
                             <span>Term Discount</span>
                             <span>-{formatCurrency(totals.discountAmount)}</span>
                           </div>
                         )}
+                        <div className="pt-3 border-t border-slate-800">
+                          <div className="text-xs text-slate-500 mb-1">Promo code</div>
+                          {promoInfo ? (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-lime-400 font-mono">{promoInfo.code}</span>
+                              <button
+                                type="button"
+                                className="text-xs text-slate-500 hover:text-white"
+                                onClick={() => { setPromoInfo(null); setPromoCode(''); setPromoError(null); }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex gap-2">
+                              <input
+                                value={promoCode}
+                                onChange={(e) => { setPromoCode(e.target.value); setPromoError(null); }}
+                                placeholder="e.g. FOUNDING50"
+                                className="flex-1 min-w-0 rounded-md bg-slate-950 border border-slate-700 px-2 py-1.5 text-sm font-mono text-slate-100"
+                              />
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleCheckPromoCode}
+                                disabled={promoChecking || !promoCode.trim()}
+                                className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 shrink-0"
+                              >
+                                {promoChecking ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Apply'}
+                              </Button>
+                            </div>
+                          )}
+                          {promoError && <p className="text-xs text-red-400 mt-1">{promoError}</p>}
+                          {promoInfo && promoInfo.scope !== 'all' && (
+                            <p className="text-xs text-slate-500 mt-1">
+                              {promoInfo.percent}% off the {promoInfo.scope} module, applied when the quote is generated.
+                            </p>
+                          )}
+                        </div>
                         <div className="flex justify-between text-slate-400">
                           <span>VAT (7.5%)</span>
                           <span>{formatCurrency(totals.vat)}</span>

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
 import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
+import { redeemPromoForQuote } from "../_shared/promo-codes.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 
 // Coerce the quote's jsonb `modules` (strings or objects) into a plain text[]
@@ -243,10 +244,11 @@ serve(async (req)=>{
         await supabase.from('organizations').update({ suite_status: 'ACTIVE' }).eq('id', orgId);
       }
 
-      // Burn the NextGen bridge code, if the quote carried one. Self-guarding
-      // no-op otherwise; never blocks the payment acknowledgement.
+      // Burn the NextGen bridge code and/or Suite promo code, if the quote
+      // carried one. Self-guarding no-ops; never block the acknowledgement.
       if (quote_id) {
         await redeemBridgeForQuote(supabase, quote_id, 'paystack');
+        await redeemPromoForQuote(supabase, quote_id, 'paystack');
       }
 
       // Create/refresh an ACTIVE subscription row + a real expiry. The Paystack
