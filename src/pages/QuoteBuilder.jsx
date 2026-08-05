@@ -39,7 +39,7 @@ import { resolveUserOrgId } from '@/lib/orgContext';
 
 const QuoteBuilder = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const { toast } = useToast();
   
   // --- State ---
@@ -1000,6 +1000,24 @@ const QuoteBuilder = () => {
                     </>
                   )}
                 </div>
+
+                {/* Sales-only special discount. The server rejects manual_discount
+                    from anyone who is not a platform super admin, so this input is
+                    hidden for customers rather than failing at submit. */}
+                {isSuperAdmin && (
+                  <div className="flex items-center justify-between gap-3 text-sm border-t border-slate-800 pt-4">
+                    <label htmlFor="sales-discount" className="text-slate-300">Sales discount (%)</label>
+                    <input
+                      id="sales-discount"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={manualDiscount}
+                      onChange={(e) => setManualDiscount(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                      className="w-20 rounded-md bg-slate-900 border border-slate-700 px-2 py-1 text-right text-slate-100"
+                    />
+                  </div>
+                )}
 
                 {/* Discounts (applied to the monthly subtotal) */}
                 {(calculation.periodDiscountVal > 0 || calculation.manualDiscountVal > 0) && (

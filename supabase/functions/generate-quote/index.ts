@@ -13,6 +13,35 @@ Deno.serve(async (req)=>{
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
     const { modules = [], apps = [], seats = 1, billing_term = 'monthly', add_ons = [], user_id, organization_id, user_email, user_name, service_tier = 'starter', storage_gb = 0, manual_discount = 0, bridge_code = null } = await req.json();
     if (!user_id && !user_email) throw new Error('User ID or Email is required');
+    // Special discounts are a sales instrument: only PLATFORM super admins may
+    // apply manual_discount. Any org admin can generate a quote for their own
+    // org, so honoring a client-sent discount would let customers self-discount
+    // to zero. The caller is resolved from the request JWT (never from the
+    // client-sent user_id) and this check runs BEFORE any writes.
+    if ((Number(manual_discount) || 0) > 0) {
+      const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+      let caller = null;
+      if (jwt) {
+        const { data: authData } = await supabase.auth.getUser(jwt);
+        caller = authData?.user ?? null;
+      }
+      // Mirrors SupabaseAuthContext: metadata flag or hardcoded emails, plus
+      // the users.is_super_admin column as the durable source.
+      const SUPER_ADMIN_EMAILS = ['info@petrolord.com', 'ayoasaolu@gmail.com', 'ayodejiasaolu1@gmail.com', 'support@petrolord.com'];
+      let isPlatformSuperAdmin = false;
+      if (caller) {
+        isPlatformSuperAdmin =
+          caller.user_metadata?.is_super_admin === true ||
+          SUPER_ADMIN_EMAILS.includes(String(caller.email || '').toLowerCase());
+        if (!isPlatformSuperAdmin) {
+          const { data: urow } = await supabase.from('users').select('is_super_admin').eq('id', caller.id).maybeSingle();
+          isPlatformSuperAdmin = urow?.is_super_admin === true;
+        }
+      }
+      if (!isPlatformSuperAdmin) {
+        throw new Error('Special discounts can only be applied by Petrolord sales. Remove the discount or contact sales@petrolord.com.');
+      }
+    }
     let orgId = organization_id;
     let orgName = '';
     // 1. Handle Organization & User
