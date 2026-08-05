@@ -76,7 +76,7 @@ serve(async (req) => {
 
       // Validate amount/currency against the quote before provisioning.
       const { data: quoteRow } = await supabase.from("quotes")
-        .select("id, total_amount").eq("quote_id", quoteTextId).maybeSingle();
+        .select("id, organization_id, total_amount").eq("quote_id", quoteTextId).maybeSingle();
       const expected = Number(quoteRow?.total_amount ?? 0);
       const amountOk = currency === "USD" && Math.abs(amountTotal - expected) <= 0.01;
 
@@ -86,6 +86,7 @@ serve(async (req) => {
         stripe_customer_id: (session.customer as string) ?? null,
         provider: "stripe",
         quote_id: quoteRow?.id ?? null,
+        organization_id: (session.metadata?.organization_id as string) ?? quoteRow?.organization_id ?? null,
         amount: amountTotal,
         currency,
         status: amountOk ? "success" : "amount_mismatch",
@@ -94,10 +95,12 @@ serve(async (req) => {
         paid_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      if (existing?.id) {
-        await supabase.from("payments").update(paymentRow).eq("id", existing.id);
-      } else {
-        await supabase.from("payments").insert({ ...paymentRow, created_at: new Date().toISOString() });
+      const { error: paymentWriteError } = existing?.id
+        ? await supabase.from("payments").update(paymentRow).eq("id", existing.id)
+        : await supabase.from("payments").insert({ ...paymentRow, created_at: new Date().toISOString() });
+      if (paymentWriteError) {
+        // The audit row matters, but never block provisioning a real payment on it.
+        console.error("[stripe-webhook] payments upsert failed:", paymentWriteError.message);
       }
 
       if (!amountOk) {

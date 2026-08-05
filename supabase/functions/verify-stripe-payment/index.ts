@@ -70,6 +70,11 @@ serve(async (req) => {
       }
     }
 
+    // Resolve quotes.id (uuid) for the FK. organization_id and quote_id are
+    // NOT NULL on payments, so fall back from session metadata to the quote row.
+    const { data: quoteRow } = await supabase.from("quotes")
+      .select("id, organization_id").eq("quote_id", quoteTextId).maybeSingle();
+
     // Upsert the payment record (unique on stripe_session_id).
     const paymentStatus = isPaid ? (amountOk ? "success" : "amount_mismatch") : (session.payment_status ?? "unpaid");
     const paymentRow = {
@@ -77,7 +82,8 @@ serve(async (req) => {
       stripe_payment_intent: paymentIntentId,
       stripe_customer_id: (session.customer as string) ?? null,
       provider: "stripe",
-      quote_id: null as string | null, // set to quotes.id (uuid) below
+      quote_id: quoteRow?.id ?? null,
+      organization_id: orgId ?? quoteRow?.organization_id ?? null,
       amount: amountTotal,
       currency,
       status: paymentStatus,
@@ -87,15 +93,12 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
 
-    // Resolve quotes.id (uuid) for the FK.
-    const { data: quoteRow } = await supabase.from("quotes")
-      .select("id, organization_id").eq("quote_id", quoteTextId).maybeSingle();
-    paymentRow.quote_id = quoteRow?.id ?? null;
-
-    if (existingPayment?.id) {
-      await supabase.from("payments").update(paymentRow).eq("id", existingPayment.id);
-    } else {
-      await supabase.from("payments").insert({ ...paymentRow, created_at: new Date().toISOString() });
+    const { error: paymentWriteError } = existingPayment?.id
+      ? await supabase.from("payments").update(paymentRow).eq("id", existingPayment.id)
+      : await supabase.from("payments").insert({ ...paymentRow, created_at: new Date().toISOString() });
+    if (paymentWriteError) {
+      // The audit row matters, but never block provisioning a real payment on it.
+      console.error("[verify-stripe-payment] payments upsert failed:", paymentWriteError.message);
     }
 
     if (!isPaid) {
