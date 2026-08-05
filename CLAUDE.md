@@ -57,5 +57,5 @@ Functions (`supabase/functions/`, shared math in
   .gitignore lists it — this is why git status shows node_modules noise.
   Do NOT commit node_modules changes; untracking it (git rm -r --cached
   node_modules) is a pending cleanup decision, not yet done.
-- MIGRATIONS.md is referenced above but doesn't exist yet — create it when
-  logging the first migration.
+- MIGRATIONS.md exists at the repo root (created 2026-07; this note used to
+  say it was missing). Log every applied migration there.

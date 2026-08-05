@@ -16,4 +16,4 @@
 
 ## Compliance
 *   **Audit Trails**: Critical actions (delete, permission change) are logged to `audit_logs`.
-*   **GDPR**: "Right to be forgotten" is implemented via the `delete_organization` function which cascades deletions.
+*   **GDPR / NDPR**: Data portability is implemented: organization admins can export all organization data from Dashboard → Data Export (`org-export` edge function; catalog-driven, covers every org-scoped table plus member-owned technical data and a storage manifest). Right to erasure is currently handled by support on request; a self-service deletion pipeline (grace period + certificate of deletion) is planned. Note the `delete_organization` RPC only removes billing tables and the org row; it is NOT a full erasure (see docs/scope/OrgDataExport-STATUS.md).

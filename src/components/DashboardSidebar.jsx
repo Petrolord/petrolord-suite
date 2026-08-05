@@ -18,8 +18,9 @@ import {
   Users, 
   CreditCard, 
   BarChart, 
-  HardHat, 
+  HardHat,
   Monitor,
+  DatabaseBackup,
   LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -165,6 +166,10 @@ const DashboardSidebar = () => {
               
               {canSuite(SUITE_PERMISSIONS.VIEW_ANALYTICS) && (
                 <SidebarItem icon={BarChart} label="Analytics" to="/dashboard/analytics" />
+              )}
+
+              {canSuite(SUITE_PERMISSIONS.MANAGE_ORGANIZATION) && (
+                <SidebarItem icon={DatabaseBackup} label="Data Export" to="/dashboard/data-export" disabled={isImpersonating} />
               )}
 
               {canSuite(SUITE_PERMISSIONS.MANAGE_ORGANIZATION) && (
