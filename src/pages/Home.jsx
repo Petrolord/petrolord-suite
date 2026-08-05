@@ -6,12 +6,15 @@ import HeroSection from '@/components/HeroSection';
 import GetInstantQuoteSection from '@/components/GetInstantQuoteSection';
 import ModulesShowcase from '@/components/home/ModulesShowcase';
 import NextGenInfoCard from '@/components/home/NextGenInfoCard';
+import TrustSection from '@/components/home/TrustSection';
 import Footer from '@/components/Footer';
 import HSEInfoCard from '@/components/HSEInfoCard';
 
+// Keep in lockstep with the live master_apps catalog (73 Active apps across
+// 7 modules, checked 2026-08-05) and the ModulesShowcase cards.
 const stats = [
   {
-    value: '60+',
+    value: '70+',
     label: 'Engineering Applications',
     gradient: 'from-lime-400 to-green-400',
   },
@@ -42,6 +45,7 @@ function Home() {
         <GetInstantQuoteSection />
         <HSEInfoCard />
         <NextGenInfoCard />
+        <TrustSection />
 
         <section className="py-20 px-6 bg-slate-900/50">
           <div className="container mx-auto max-w-6xl">

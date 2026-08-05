@@ -2,20 +2,25 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone } from 'lucide-react';
+import { ArrowRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldCheck } from 'lucide-react';
 
+// App pills and counts mirror the live master_apps catalog (Active tiles only,
+// checked 2026-08-05: 73 apps across 7 modules). When the catalog changes,
+// update this list and the stats band in Home.jsx together.
 const modules = [
   {
     name: 'Geoscience & Subsurface',
     icon: Layers,
     color: 'from-cyan-400 to-blue-500',
-    description: 'Interpret seismic in 2D and 3D, correlate wells, map surfaces, and build earth models on shared project data.',
-    apps: ['Seismolord Interpretation', 'EarthModel Studio', 'Well Log Correlation', 'Pore Pressure Predictor'],
+    count: 10,
+    description: 'Interpret seismic in 2D and 3D, correlate wells, map surfaces, predict pore pressure, and build earth models on shared project data.',
+    apps: ['Seismolord', 'Petrophysics Studio', 'Well Correlation', 'Mapping & Surface Studio', 'Earth Modeling'],
   },
   {
     name: 'Reservoir Engineering',
     icon: BarChart3,
     color: 'from-lime-400 to-green-500',
+    count: 11,
     description: 'Characterize fluids, run material balance and decline analysis, design waterfloods, and analyze well tests with engines validated against published references.',
     apps: ['Decline Curve Analysis', 'Material Balance Studio', 'Fluid Systems Studio', 'Waterflood Design Studio', 'Well Test Analysis Studio', 'SCAL Studio'],
   },
@@ -23,29 +28,41 @@ const modules = [
     name: 'Production & Optimization',
     icon: Zap,
     color: 'from-yellow-400 to-amber-500',
+    count: 7,
     description: 'Model well performance from reservoir to surface, design artificial lift, and monitor flow assurance across your asset.',
-    apps: ['Nodal Analysis Studio', 'Artificial Lift Designer', 'Flow Assurance Monitor'],
+    apps: ['Nodal Analysis Studio', 'Artificial Lift Designer', 'Flow Assurance Monitor', 'Production Surveillance Dashboard'],
   },
   {
     name: 'Drilling & Completions',
     icon: Anchor,
     color: 'from-red-500 to-orange-500',
+    count: 11,
     description: 'Plan wells, design casing and tubing strings, and simulate hydraulics, torque and drag, and cementing operations.',
-    apps: ['Well Planning', 'Casing & Tubing Design', 'Torque & Drag', 'Cementing Simulation'],
+    apps: ['Well Planning', 'Casing & Tubing Design Pro', 'Torque & Drag Predictor', 'Cementing Simulation App'],
   },
   {
     name: 'Facilities Engineering',
     icon: Factory,
     color: 'from-blue-500 to-indigo-600',
-    description: 'Size pipelines and relief systems, predict corrosion, and keep surface infrastructure safe and efficient.',
-    apps: ['Pipeline Sizer', 'Relief & Blowdown Sizing', 'Corrosion Rate Predictor'],
+    count: 9,
+    description: 'Size pipelines, separators, and relief systems, predict corrosion, and keep surface infrastructure safe and efficient.',
+    apps: ['Pipeline Sizer', 'Separator & Slug Catcher Designer', 'Relief & Blowdown Sizer', 'Corrosion Rate Predictor'],
   },
   {
     name: 'Economics & Project Management',
     icon: Milestone,
     color: 'from-purple-500 to-indigo-600',
-    description: 'Evaluate project economics, manage AFEs and capital portfolios, and accelerate field development planning.',
-    apps: ['Economic Planning Engine', 'Capital Portfolio Studio', 'AFE & Cost Control', 'FDP Accelerator'],
+    count: 11,
+    description: 'Evaluate project economics under real fiscal regimes, manage AFEs and capital portfolios, and accelerate field development planning.',
+    apps: ['Petroleum Economics Studio', 'Capital Portfolio Studio', 'AFE Cost Control Manager', 'FDP Accelerator', 'Fiscal Regime Designer'],
+  },
+  {
+    name: 'Assurance & Risk',
+    icon: ShieldCheck,
+    color: 'from-emerald-400 to-teal-500',
+    count: 14,
+    description: 'Quantify and manage risk across the portfolio, from prospect ranking and Monte Carlo analysis to compliance and audit trails.',
+    apps: ['Risk Register', 'Monte Carlo Analyzer', 'Decision Tree Analyzer', 'Exploration Risk Analyzer', 'Audit Trail Manager'],
   },
 ];
 
@@ -87,7 +104,10 @@ const ModulesShowcase = () => {
                 <div className={`p-3 rounded-lg bg-gradient-to-br ${module.color} text-slate-900 shadow-lg`}>
                   <module.icon className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-semibold text-white">{module.name}</h3>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">{module.name}</h3>
+                  <p className="text-xs text-slate-500">{module.count} apps live</p>
+                </div>
               </div>
 
               <p className="text-sm text-slate-400 leading-relaxed mb-4">{module.description}</p>

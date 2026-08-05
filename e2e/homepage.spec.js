@@ -29,9 +29,18 @@ test.describe('public homepage', () => {
     await expect(page.getByText('No Applications Found')).toHaveCount(0);
     await expect(page.getByText('Requires License')).toHaveCount(0);
 
+    // Assurance module card (added 2026-08-05; the catalog's largest module)
+    await expect(page.getByText('Assurance & Risk')).toBeVisible();
+
+    // Data-ownership trust section (claims map to shipped offboarding features)
+    await expect(page.getByText('Your data. Always yours.')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Data Retention & Offboarding policy/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Verify a deletion certificate/ })).toBeVisible();
+
     // Footer
     await expect(page.getByRole('link', { name: 'NextGen Academy' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Petrolord HSE' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Privacy Policy' })).toBeVisible();
+    await expect(page.getByRole('contentinfo').getByRole('link', { name: 'Data Processing Agreement' })).toBeVisible();
   });
 });
