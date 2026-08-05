@@ -59,6 +59,12 @@ const QuoteBuilder = () => {
   const [bridgeInfo, setBridgeInfo] = useState(null); // verify payload when status === 'valid'
   const [bridgeChecking, setBridgeChecking] = useState(false);
   const [bridgeError, setBridgeError] = useState(null);
+  // Suite promo code (early-adopter discounts). Verified live via the
+  // verify-promo-code edge fn; generate-quote re-validates server-side.
+  const [promoCode, setPromoCode] = useState('');
+  const [promoInfo, setPromoInfo] = useState(null); // verify payload when status === 'valid'
+  const [promoChecking, setPromoChecking] = useState(false);
+  const [promoError, setPromoError] = useState(null);
   
   // Selection State
   // SCHEMA: selectedApps is an array of UUID strings matching master_apps.id.
@@ -407,7 +413,26 @@ const QuoteBuilder = () => {
       bridgeDiscountVal = bridgeableCost * (Number(bridgeInfo.discount_pct) / 100);
     }
 
-    const monthlySubtotal = baseFee + softwareCost + seatsCost + storageCost - bridgeDiscountVal;
+    // Suite promo: scope 'all' takes the percentage off the whole monthly
+    // subtotal (post-bridge); a module scope mirrors the bridge semantics.
+    // Mirrors generate-quote, which is authoritative and re-validates.
+    let promoDiscountVal = 0;
+    if (promoInfo) {
+      if (promoInfo.scope === 'all') {
+        promoDiscountVal = (baseFee + softwareCost + seatsCost + storageCost - bridgeDiscountVal) * (Number(promoInfo.percent) / 100);
+      } else {
+        let promoableCost = 0;
+        selectedApps.forEach(appId => {
+          const app = masterApps.find(a => a.id === appId);
+          if (app && String(app.moduleSlug || '').toLowerCase() === String(promoInfo.scope).toLowerCase()) {
+            promoableCost += app.price + computeSeatCost(appSeats[appId] || 1);
+          }
+        });
+        promoDiscountVal = promoableCost * (Number(promoInfo.percent) / 100);
+      }
+    }
+
+    const monthlySubtotal = baseFee + softwareCost + seatsCost + storageCost - bridgeDiscountVal - promoDiscountVal;
 
     const periodDiscountVal = monthlySubtotal * period.discount;
     const manualDiscountVal = (monthlySubtotal - periodDiscountVal) * (manualDiscount / 100);
@@ -427,6 +452,7 @@ const QuoteBuilder = () => {
       storageCost,
       monthlySubtotal,
       bridgeDiscountVal,
+      promoDiscountVal,
       periodDiscountVal,
       manualDiscountVal,
       monthlyNet,
@@ -441,7 +467,7 @@ const QuoteBuilder = () => {
       vatAmount: vat,
       totalWithVat: grandTotal
     };
-  }, [serviceTier, billingPeriod, selectedModules, selectedApps, appSeats, storageGB, manualDiscount, appsGroupedByModule, masterApps, bridgeInfo]);
+  }, [serviceTier, billingPeriod, selectedModules, selectedApps, appSeats, storageGB, manualDiscount, appsGroupedByModule, masterApps, bridgeInfo, promoInfo]);
 
   const handleCheckBridgeCode = async () => {
     const code = bridgeCode.trim();
@@ -472,6 +498,37 @@ const QuoteBuilder = () => {
     setBridgeCode('');
     setBridgeInfo(null);
     setBridgeError(null);
+  };
+
+  const handleCheckPromoCode = async () => {
+    const code = promoCode.trim();
+    if (!code) return;
+    setPromoChecking(true);
+    setPromoError(null);
+    setPromoInfo(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('verify-promo-code', { body: { code } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.found) {
+        setPromoError('Code not recognized. Check the code and try again.');
+      } else if (data.status !== 'valid') {
+        const why = { inactive: 'is no longer active', expired: 'has expired', exhausted: 'has been fully redeemed' }[data.status] || 'is not valid';
+        setPromoError(`This code ${why}.`);
+      } else {
+        setPromoInfo(data);
+      }
+    } catch (e) {
+      setPromoError(e.message || 'Could not verify the code. Please try again.');
+    } finally {
+      setPromoChecking(false);
+    }
+  };
+
+  const handleClearPromoCode = () => {
+    setPromoCode('');
+    setPromoInfo(null);
+    setPromoError(null);
   };
 
   const handleSaveQuote = async () => {
@@ -507,6 +564,7 @@ const QuoteBuilder = () => {
           storage_gb: storageGB,
           manual_discount: manualDiscount,
           bridge_code: bridgeInfo ? bridgeInfo.code : null,
+          promo_code: promoInfo ? promoInfo.code : null,
           add_ons: [],
           user_id: user.id,
           user_email: user.email,
@@ -948,6 +1006,12 @@ const QuoteBuilder = () => {
                       <span className="shrink-0 tabular-nums">−{formatCurrency(calculation.bridgeDiscountVal)}/mo</span>
                     </div>
                   )}
+                  {calculation.promoDiscountVal > 0 && promoInfo && (
+                    <div className="flex justify-between text-green-400">
+                      <span className="truncate max-w-[210px]">Promo {promoInfo.code} ({promoInfo.percent}% off{promoInfo.scope === 'all' ? '' : ` ${promoInfo.scope}`})</span>
+                      <span className="shrink-0 tabular-nums">−{formatCurrency(calculation.promoDiscountVal)}/mo</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-slate-200 font-semibold pt-2 border-t border-slate-800/60">
                     <span>Monthly Subtotal</span>
                     <span className="tabular-nums">{formatCurrency(calculation.monthlySubtotal)}/mo</span>
@@ -997,6 +1061,50 @@ const QuoteBuilder = () => {
                       <p className="text-[10px] text-slate-500">
                         Earned an Expert certificate at NextGen Academy? Your discount code is on your certificates page.
                       </p>
+                    </>
+                  )}
+                </div>
+
+                {/* Suite promo code */}
+                <div className="space-y-2 border-t border-slate-800 pt-4">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">Promo code</div>
+                  {promoInfo ? (
+                    <div className="bg-green-500/10 border border-green-700/40 rounded-lg p-3 text-sm">
+                      <div className="flex items-center gap-2 text-green-400 font-medium">
+                        <CheckCircle className="w-4 h-4 shrink-0"/>
+                        <span className="truncate">{promoInfo.code}</span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">
+                        {promoInfo.percent}% off {promoInfo.scope === 'all' ? 'your subscription' : `the ${promoInfo.scope} module`}.
+                      </p>
+                      {promoInfo.scope !== 'all' && calculation.promoDiscountVal <= 0 && (
+                        <p className="text-xs text-amber-400 mt-1">
+                          Add a {promoInfo.scope} app to the quote to use this code.
+                        </p>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={handleClearPromoCode} className="text-slate-500 hover:text-white h-7 px-2 mt-1 text-xs">
+                        Remove code
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex gap-2">
+                        <Input
+                          value={promoCode}
+                          onChange={(e) => { setPromoCode(e.target.value); setPromoError(null); }}
+                          placeholder="e.g. FOUNDING50"
+                          className="bg-slate-950 border-slate-700 h-9 text-sm font-mono"
+                        />
+                        <Button
+                          onClick={handleCheckPromoCode}
+                          disabled={promoChecking || !promoCode.trim()}
+                          variant="outline"
+                          className="h-9 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 shrink-0"
+                        >
+                          {promoChecking ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Apply'}
+                        </Button>
+                      </div>
+                      {promoError && <p className="text-xs text-red-400">{promoError}</p>}
                     </>
                   )}
                 </div>
