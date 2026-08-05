@@ -13,14 +13,21 @@
 // Returns true if either provider accepted the message. Never throws: callers
 // treat delivery as best-effort and must not fail their operation on it.
 
+export interface EmailAttachment {
+  filename: string;
+  content: string;          // base64
+  contentType?: string;
+}
+
 export interface SendEmailArgs {
   to: string;
   subject: string;
   html: string;
+  attachments?: EmailAttachment[];
   logPrefix?: string;
 }
 
-export async function sendEmail({ to, subject, html, logPrefix = '[email]' }: SendEmailArgs): Promise<boolean> {
+export async function sendEmail({ to, subject, html, attachments, logPrefix = '[email]' }: SendEmailArgs): Promise<boolean> {
   const senderEmail = Deno.env.get('SENDER_EMAIL') || 'no-reply@petrolord.com';
   const resendApiKey = Deno.env.get('RESEND_API_KEY');
   const brevoApiKey = Deno.env.get('BREVO_API_KEY');
@@ -33,6 +40,9 @@ export async function sendEmail({ to, subject, html, logPrefix = '[email]' }: Se
         body: JSON.stringify({
           from: `Petrolord <${senderEmail.includes('@') ? senderEmail : 'onboarding@resend.dev'}>`,
           to, subject, html,
+          ...(attachments?.length
+            ? { attachments: attachments.map((a) => ({ filename: a.filename, content: a.content })) }
+            : {}),
         }),
       });
       if (res.ok) return true;
@@ -51,6 +61,9 @@ export async function sendEmail({ to, subject, html, logPrefix = '[email]' }: Se
             name: Deno.env.get('BREVO_SENDER_NAME') || 'Petrolord',
           },
           to: [{ email: to }], subject, htmlContent: html,
+          ...(attachments?.length
+            ? { attachment: attachments.map((a) => ({ name: a.filename, content: a.content })) }
+            : {}),
         }),
       });
       if (res.ok) return true;

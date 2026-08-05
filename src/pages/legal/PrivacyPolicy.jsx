@@ -96,7 +96,7 @@ import React from 'react';
                       <section>
                         <h2 className="text-xl font-semibold text-white">6. Your Data Rights</h2>
                         <p>
-                          You have the right to access, correct, or delete your personal data. You can review and change your account information at any time from your profile. Organization administrators can download a complete copy of their organization&apos;s data at any time from the Data Export page in the dashboard. To close an account or request deletion of your data, contact support@petrolord.com and we will action the request and confirm completion in writing.
+                          You have the right to access, correct, or delete your personal data. You can review and change your account information at any time from your profile. Organization administrators can download a complete copy of their organization&apos;s data at any time from the Data Export page in the dashboard, and can schedule account closure from the same page, with a 30 day grace period and a verifiable Certificate of Data Deletion on completion. Full details are in our <Link to="/legal/data-retention" className="text-lime-400 hover:underline">Data Retention and Offboarding policy</Link>. To close a personal account or request deletion of your personal data, contact support@petrolord.com and we will action the request and confirm completion in writing.
                         </p>
                       </section>
                       

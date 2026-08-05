@@ -17,19 +17,30 @@
 //     Admin API (never SQL: manual auth.users deletes orphan identities).
 //     Partial failures mark the request 'failed' with a report; execute_due
 //     retries failed requests idempotently. Success stores the purge report
-//     on the surviving org_closure_requests row (the phase-3 certificate
-//     source) and emails the requester.
+//     on the surviving org_closure_requests row, issues the Certificate of
+//     Data Deletion (PDF in org-exports/certificates/) and emails it to the
+//     requester with the verification code.
+//   issue_certificate { request_id }                      [super admin or
+//     service key] Re-issues the certificate for a purged request
+//     (idempotent: number and code stay stable).
+//   verify_certificate { certificate_no, verification_code, download? }
+//     PUBLIC. Confirms the attested facts straight from the deletion record;
+//     with download: true also mints a 10-minute link to the PDF. Possession
+//     of both the number and the 128-bit code is the capability.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { corsHeaders } from './cors.ts';
 import { sendEmail } from '../_shared/email.ts';
 import {
+  buildCertificateFields,
   chunk,
   confirmNameMatches,
   isUserGoneError,
+  makeCertificateNo,
   storagePrefixTargets,
   summarizeReport,
 } from './helpers.js';
+import { renderCertificatePdf, toBase64 } from './certificate.ts';
 
 const SUPER_ADMIN_EMAILS = ['info@petrolord.com', 'ayoasaolu@gmail.com', 'ayodejiasaolu1@gmail.com', 'support@petrolord.com'];
 const ADMIN_ROLES = ['owner', 'admin', 'org_admin', 'super_admin'];
@@ -188,6 +199,46 @@ Deno.serve(async (req) => {
       return json({ processed: results.length, results });
     }
 
+    if (action === 'issue_certificate') {
+      const isSuperAdmin = caller ? await isPlatformSuperAdmin(admin, caller) : false;
+      if (!isServiceCall && !isSuperAdmin) {
+        return json({ error: 'Only platform super admins can issue certificates.' }, 403);
+      }
+      const requestId = String(body.request_id || '');
+      if (!requestId) return json({ error: 'request_id is required.' }, 400);
+      const { data: request } = await admin.from('org_closure_requests')
+        .select('*').eq('id', requestId).maybeSingle();
+      if (!request) return json({ error: 'Closure request not found.' }, 404);
+      if (request.status !== 'purged') {
+        return json({ error: 'A certificate can only be issued after the deletion has completed.' }, 409);
+      }
+      const certificate = await issueCertificate(admin, request);
+      return json({ success: true, ...certificate });
+    }
+
+    if (action === 'verify_certificate') {
+      // Deliberately public: anyone holding BOTH the certificate number and
+      // the 128-bit verification code may confirm the attested facts.
+      const certNo = String(body.certificate_no || '').trim().toUpperCase();
+      const code = String(body.verification_code || '').trim().toLowerCase();
+      if (!certNo || !code) return json({ error: 'certificate_no and verification_code are required.' }, 400);
+      const { data: request } = await admin.from('org_closure_requests')
+        .select('*').eq('certificate_no', certNo).maybeSingle();
+      if (!request || String(request.verification_code || '').toLowerCase() !== code || request.status !== 'purged') {
+        return json({ valid: false, error: 'No deletion record matches that certificate number and verification code.' }, 404);
+      }
+      const payload: Record<string, unknown> = {
+        valid: true,
+        certificate: buildCertificateFields(request, request.certificate_no),
+      };
+      if (body.download === true && request.certificate_path) {
+        const { data: signed } = await admin.storage.from('org-exports')
+          .createSignedUrl(request.certificate_path, 600);
+        if (signed?.signedUrl) payload.download_url = signed.signedUrl;
+      }
+      return json(payload);
+    }
+
     return json({ error: `Unknown action '${action}'.` }, 400);
   } catch (error) {
     console.error('[org-offboard] Unhandled:', (error as Error).message);
@@ -282,30 +333,82 @@ async function executeRequest(admin: ReturnType<typeof createClient>, request: R
     })
     .eq('id', request.id);
 
+  // Certificate of Data Deletion (phase 3). A certificate failure never
+  // fails the purge: the data is already gone, and issue_certificate can
+  // re-issue later.
+  let certificate: Record<string, unknown> | null = null;
+  const { data: purgedRow } = await admin.from('org_closure_requests')
+    .select('*').eq('id', request.id).single();
+  try {
+    certificate = await issueCertificate(admin, purgedRow);
+  } catch (e) {
+    console.error(`[org-offboard] certificate issuance failed for ${request.id}:`, (e as Error).message);
+    certificate = { error: (e as Error).message };
+  }
+
   const s = summarizeReport(report);
+  console.log(`[org-offboard] purged org ${orgId} (${request.org_name}): ${s.totalRows} rows, ${s.objectsRemoved} objects, ${s.accountsDeleted} accounts`);
+  return { request_id: request.id, org_name: request.org_name, status: 'purged', summary: s, certificate };
+}
+
+// Render, store and email the Certificate of Data Deletion for a purged
+// request. Idempotent: the certificate number and verification code are kept
+// stable across re-issues.
+async function issueCertificate(admin: ReturnType<typeof createClient>, request: Record<string, unknown>) {
+  if (!request || request.status !== 'purged') {
+    throw new Error('certificate can only be issued for a purged closure request.');
+  }
+  const certificateNo = String(request.certificate_no ||
+    makeCertificateNo(request.id, request.purged_at || new Date().toISOString()));
+  const verificationCode = String(request.verification_code || crypto.randomUUID());
+  const fields = buildCertificateFields(request, certificateNo);
+  const pdfBytes = await renderCertificatePdf(fields, verificationCode);
+
+  const certificatePath = `certificates/${request.id}.pdf`;
+  const { error: upError } = await admin.storage.from('org-exports')
+    .upload(certificatePath, pdfBytes, { contentType: 'application/pdf', upsert: true });
+  if (upError) throw new Error(`certificate upload failed: ${upError.message}`);
+
+  const { error: updateError } = await admin.from('org_closure_requests')
+    .update({
+      certificate_no: certificateNo,
+      verification_code: verificationCode,
+      certificate_path: certificatePath,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', request.id);
+  if (updateError) throw new Error(`certificate record update failed: ${updateError.message}`);
+
+  let emailed = false;
   if (request.requested_by_email) {
-    await sendEmail({
+    const s = fields.summary;
+    emailed = await sendEmail({
       to: String(request.requested_by_email),
-      subject: `${request.org_name}: data deletion completed`,
+      subject: `${fields.organization_name}: certificate of data deletion ${certificateNo}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
           <h2 style="color: #111827;">Deletion completed</h2>
-          <p style="color: #4b5563;">As scheduled, all data belonging to <strong>${request.org_name}</strong> has been permanently removed from Petrolord's live systems.</p>
+          <p style="color: #4b5563;">As scheduled, all data belonging to <strong>${fields.organization_name}</strong> has been permanently removed from Petrolord's live systems. Your Certificate of Data Deletion is attached.</p>
           <ul style="color: #4b5563;">
             <li>${s.totalRows} database records across ${s.tablesAffected} tables deleted</li>
             <li>${s.objectsRemoved} stored files removed</li>
             <li>${s.accountsDeleted} member account(s) deleted</li>
             <li>${s.rowsUnshared} records owned by members of other organizations were detached, not deleted</li>
           </ul>
-          <p style="color: #4b5563;">Copies inside encrypted database backups age out automatically as backups rotate.</p>
-          <p style="color: #9ca3af; font-size: 12px;">This message confirms completion of closure request ${request.id}. Keep it for your records.</p>
+          <p style="color: #4b5563;">The certificate can be verified at any time at <a href="https://petrolord.com/legal/verify-deletion">petrolord.com/legal/verify-deletion</a> using certificate number <strong>${certificateNo}</strong> and verification code <strong>${verificationCode}</strong>. The same page can re-download the certificate.</p>
+          <p style="color: #9ca3af; font-size: 12px;">Keep this email for your records. Copies inside encrypted database backups age out automatically as backups rotate.</p>
         </div>`,
+      attachments: [{
+        filename: `${certificateNo}.pdf`,
+        content: toBase64(pdfBytes),
+        contentType: 'application/pdf',
+      }],
       logPrefix: '[org-offboard]',
     });
   }
 
-  console.log(`[org-offboard] purged org ${orgId} (${request.org_name}): ${s.totalRows} rows, ${s.objectsRemoved} objects, ${s.accountsDeleted} accounts`);
-  return { request_id: request.id, org_name: request.org_name, status: 'purged', summary: s };
+  console.log(`[org-offboard] certificate ${certificateNo} issued for request ${request.id} (emailed: ${emailed})`);
+  return { certificate_no: certificateNo, certificate_path: certificatePath, emailed };
 }
 
 async function removePrefix(admin: ReturnType<typeof createClient>, bucket: string, prefix: string): Promise<number> {

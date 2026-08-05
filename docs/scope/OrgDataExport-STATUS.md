@@ -4,6 +4,27 @@ Offboarding pipeline (export → grace-period deletion → certificate).
 Program rationale: clients are more comfortable staying (and paying) when
 they know they can leave at any time with everything they own.
 
+## Phase 3 SHIPPED (deletion certificate, branch feat/org-deletion-certificate, 2026-08-05)
+
+| Piece | Where |
+|---|---|
+| Migration | `supabase/migrations/20260805170000_deletion_certificate.sql` — certificate_no / verification_code / certificate_path on org_closure_requests. APPLIED live 2026-08-05 |
+| Renderer | `supabase/functions/org-offboard/certificate.ts` — pdf-lib (generate-quote pattern), A4, plain-sentence copy |
+| Actions | org-offboard `issue_certificate` (super admin/service, idempotent: number + code stable across re-issues) and `verify_certificate` (PUBLIC: cert number + 128-bit code confirm the facts from the deletion record; optional 10-min PDF re-download link). Certificate auto-issued + emailed as attachment on purge completion (failure never fails the purge; re-issue covers it). `_shared/email.ts` gained attachments (Resend + Brevo) |
+| SPA | `/legal/verify-deletion` (public verifier with facts + PDF download) and `/legal/data-retention` (Data Retention & Offboarding policy); Privacy Policy §6 links to the policy |
+| DPA | `docs/legal/DPA-TEMPLATE.md` — INTERNAL DRAFT for owner/legal review, deliberately not published in the app |
+
+The verification endpoint IS the signature: a successful check reads the
+surviving deletion record live, so it confirms the facts independently of the
+paper. No cryptographic signing needed for v1.
+
+Phase-3 E2E (deployed fn, disposable org, 2026-08-05): purge → certificate
+PLD-DC-2026-AD037641 issued, emailed true (attachment accepted by provider);
+public verify (anon, case-insensitive number) valid with correct facts +
+working PDF download (%PDF-1.7); wrong code 404; issue_certificate re-issue
+returned the SAME number. PDF visually reviewed. Test residue 0 (audit row and
+certificate object removed; purge itself had already deleted user/orgs).
+
 ## Phase 2 SHIPPED (grace-period deletion, branch feat/org-grace-deletion, 2026-08-05)
 
 | Piece | Where |
@@ -114,11 +135,10 @@ Known issues found during E2E (NOT fixed here, for owner awareness):
 - [x] Full jest suite green after all changes (2191 passed)
 - [ ] PR into main; prod SPA picks the page up at the next Hostinger upload (page is additive; safe to ship whenever)
 
-## Next phase (not started)
+## Remaining follow-ups (program otherwise COMPLETE)
 
-- Phase 3: certificate of deletion rendered from org_closure_requests.purge_report
-  (counts destroyed, timestamp, signed) + published Data Retention & Offboarding
-  policy page and a DPA template for enterprise deals.
+- Owner/legal review of docs/legal/DPA-TEMPLATE.md before any customer use.
 - Fold invite-employee onto `_shared/email.ts` at its next redeploy.
 - Optional: automate execute_due via a scheduler; provider-side subscription
   cancellation on closure.
+- Port admin_purge_test_orgs off session_replication_role (see phase-2 notes).

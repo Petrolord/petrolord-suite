@@ -1,8 +1,10 @@
 import {
   OFFBOARD_BUCKETS,
+  buildCertificateFields,
   chunk,
   confirmNameMatches,
   isUserGoneError,
+  makeCertificateNo,
   storagePrefixTargets,
   summarizeReport,
 } from '../helpers.js';
@@ -73,6 +75,51 @@ describe('isUserGoneError', () => {
     expect(isUserGoneError('User not found')).toBe(true);
     expect(isUserGoneError('unexpected 404 from admin api')).toBe(true);
     expect(isUserGoneError('Database error deleting user')).toBe(false);
+  });
+});
+
+describe('makeCertificateNo', () => {
+  it('is deterministic and derived from the request id and purge year', () => {
+    expect(makeCertificateNo('ce15b6a5-d44a-4052-a9a2-eb32b83e727c', '2026-08-05T23:00:00Z'))
+      .toBe('PLD-DC-2026-CE15B6A5');
+    expect(makeCertificateNo('ce15b6a5-d44a-4052-a9a2-eb32b83e727c', '2026-08-05T23:00:00Z'))
+      .toBe(makeCertificateNo('ce15b6a5-d44a-4052-a9a2-eb32b83e727c', '2026-08-05T01:00:00Z'));
+  });
+});
+
+describe('buildCertificateFields', () => {
+  const request = {
+    id: 'req-1',
+    organization_id: 'org-1',
+    org_name: 'Acme Petroleum',
+    requested_by_email: 'admin@acme.com',
+    created_at: '2026-07-01T00:00:00Z',
+    effective_at: '2026-07-31T00:00:00Z',
+    purged_at: '2026-07-31T09:00:00Z',
+    verification_code: 'super-secret-code',
+    purge_report: {
+      rpc: {
+        summary: { total_rows: 42, tables_affected: 7, rows_unshared: 2 },
+        extra_orgs: [{ id: 'x', name: 'someone@acme.com' }],
+      },
+      storage: { objects_removed: 5 },
+      auth: { deleted: ['a@acme.com'] },
+    },
+  };
+
+  it('assembles the attested facts from the surviving audit row', () => {
+    const f = buildCertificateFields(request, 'PLD-DC-2026-ABCD1234');
+    expect(f.certificate_no).toBe('PLD-DC-2026-ABCD1234');
+    expect(f.organization_name).toBe('Acme Petroleum');
+    expect(f.summary).toEqual({
+      totalRows: 42, tablesAffected: 7, rowsUnshared: 2, objectsRemoved: 5, accountsDeleted: 1,
+    });
+    expect(f.extra_org_names).toEqual(['someone@acme.com']);
+  });
+
+  it('never includes the verification code', () => {
+    const f = buildCertificateFields(request, 'PLD-DC-2026-ABCD1234');
+    expect(JSON.stringify(f)).not.toContain('super-secret-code');
   });
 });
 
