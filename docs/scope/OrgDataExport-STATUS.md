@@ -58,9 +58,10 @@ paying) when they know they can leave at any time with everything they own.
 
 ## Deploy/verify checklist
 
-- [ ] Apply `20260805130000_org_export.sql` (shared project; staging = prod DB) + log in MIGRATIONS.md
-- [ ] `supabase functions deploy org-export`
-- [ ] Staging E2E: request export on a test org, verify zip contents vs counts, blob link download, RLS probes (non-admin blocked from jobs table + all three actions)
+- [x] Apply `20260805130000_org_export.sql` (shared project; staging = prod DB) + log in MIGRATIONS.md — DONE 2026-08-05 (rollback-wrapped dry run first; RPCs rewritten on pg_catalog after info-schema measured ~30s/call)
+- [x] `supabase functions deploy org-export` — DONE 2026-08-05
+- [x] E2E vs the DEPLOYED function on a disposable org (2026-08-05): request 16s, zip verified (README/manifest/data, invitation_token redacted, verification 145 org tables passed), download signed URL works, foreign-org request 403, missing JWT 401, sign_blobs refuses non-member paths and non-export buckets; anon RPC 42501, anon jobs read blind. E2E also CAUGHT a real bug (two-org member rows from the other org leaked into the user pass) which is fixed and re-verified. Test org/user fully purged afterward (0 orphans, auth user removed via admin API)
+- [x] Full jest suite green after all changes (2191 passed)
 - [ ] PR into main; prod SPA picks the page up at the next Hostinger upload (page is additive; safe to ship whenever)
 
 ## Next phases (not started)
