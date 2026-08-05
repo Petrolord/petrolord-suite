@@ -201,6 +201,7 @@ const AdminCenter = lazy(() => import('@/pages/admin/AdminCenter'));
 const TermsOfService = lazy(() => import('@/pages/legal/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('@/pages/legal/PrivacyPolicy'));
 const DataRetention = lazy(() => import('@/pages/legal/DataRetention'));
+const DataProcessingAgreement = lazy(() => import('@/pages/legal/DataProcessingAgreement'));
 const VerifyDeletion = lazy(() => import('@/pages/legal/VerifyDeletion'));
 const Support = lazy(() => import('@/pages/legal/Support'));
 const Documentation = lazy(() => import('@/pages/legal/Documentation'));
@@ -662,6 +663,7 @@ function App() {
                               <Route path="/legal/terms-of-service" element={<TermsOfService />} />
                               <Route path="/legal/privacy-policy" element={<PrivacyPolicy />} />
                               <Route path="/legal/data-retention" element={<DataRetention />} />
+                              <Route path="/legal/dpa" element={<DataProcessingAgreement />} />
                               <Route path="/legal/verify-deletion" element={<VerifyDeletion />} />
                               <Route path="/legal/support" element={<Support />} />
                               <Route path="/legal/documentation" element={<Documentation />} />

@@ -137,7 +137,11 @@ Known issues found during E2E (NOT fixed here, for owner awareness):
 
 ## Remaining follow-ups (program otherwise COMPLETE)
 
-- Owner/legal review of docs/legal/DPA-TEMPLATE.md before any customer use.
+- DPA APPROVED by legal 2026-08-05 and PUBLISHED at /legal/dpa (linked from
+  /legal/data-retention; canonical source docs/legal/DPA-TEMPLATE.md). Four
+  values filled at publication for legal to confirm: 7-day backup retention
+  (measured live), 72h breach notice, 30-day sub-processor notice, Nigerian
+  governing law (NDPA 2023 + NDPR) with GDPR SCCs by reference.
 - Fold invite-employee onto `_shared/email.ts` at its next redeploy.
 - Optional: automate execute_due via a scheduler; provider-side subscription
   cancellation on closure.
