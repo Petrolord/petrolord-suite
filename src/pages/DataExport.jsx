@@ -3,7 +3,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { getUserOrgRow } from '@/lib/orgContext';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import {
-  DatabaseBackup, Download, FileArchive, FileJson, Loader2, RefreshCw, Search, ShieldCheck,
+  AlertTriangle, DatabaseBackup, Download, FileArchive, FileJson, Loader2, RefreshCw, Search, ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,12 @@ export default function DataExport() {
   const [manifestLoading, setManifestLoading] = useState(false);
   const [fileSearch, setFileSearch] = useState('');
   const [signingPath, setSigningPath] = useState(null);
+  const [orgName, setOrgName] = useState('');
+  const [closure, setClosure] = useState(null);          // scheduled closure request, if any
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [confirmName, setConfirmName] = useState('');
+  const [closureReason, setClosureReason] = useState('');
+  const [closureBusy, setClosureBusy] = useState(false);
   const pollRef = useRef(null);
 
   const fetchJobs = useCallback(async (org) => {
@@ -71,7 +77,12 @@ export default function DataExport() {
         const row = await getUserOrgRow(user.id);
         if (row?.organization_id) {
           setOrgId(row.organization_id);
-          await fetchJobs(row.organization_id);
+          await Promise.all([
+            fetchJobs(row.organization_id),
+            fetchClosure(row.organization_id),
+            supabase.from('organizations').select('name').eq('id', row.organization_id).maybeSingle()
+              .then(({ data }) => setOrgName(data?.name || '')),
+          ]);
         }
       } finally {
         setLoading(false);
@@ -97,6 +108,57 @@ export default function DataExport() {
       }
     };
   }, [jobs, fetchJobs]);
+
+  const fetchClosure = async (org) => {
+    const { data } = await supabase
+      .from('org_closure_requests')
+      .select('id, status, effective_at, requested_by_email, created_at')
+      .eq('organization_id', org || orgId)
+      .eq('status', 'scheduled')
+      .maybeSingle();
+    setClosure(data || null);
+  };
+
+  const requestClosure = async () => {
+    setClosureBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('org-offboard', {
+        body: { action: 'request', organization_id: orgId, confirm_name: confirmName, reason: closureReason || undefined },
+      });
+      if (error) throw new Error(data?.error || error.message);
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: 'Account closure scheduled',
+        description: `All data will be permanently deleted on ${new Date(data.effective_at).toLocaleDateString()}. Any admin can cancel before then.`,
+      });
+      setCloseDialogOpen(false);
+      setConfirmName('');
+      setClosureReason('');
+      await fetchClosure();
+    } catch (e) {
+      toast({ title: 'Could not schedule closure', description: e.message, variant: 'destructive' });
+    } finally {
+      setClosureBusy(false);
+    }
+  };
+
+  const cancelClosure = async () => {
+    if (!closure) return;
+    setClosureBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('org-offboard', {
+        body: { action: 'cancel', request_id: closure.id },
+      });
+      if (error) throw new Error(data?.error || error.message);
+      if (data?.error) throw new Error(data.error);
+      toast({ title: 'Closure cancelled', description: 'Your account continues unchanged.' });
+      setClosure(null);
+    } catch (e) {
+      toast({ title: 'Could not cancel', description: e.message, variant: 'destructive' });
+    } finally {
+      setClosureBusy(false);
+    }
+  };
 
   const requestExport = async () => {
     if (!orgId) return;
@@ -308,6 +370,100 @@ export default function DataExport() {
             </Table>
           </CardContent>
         </Card>
+
+        <Card className="bg-slate-900 border-red-900/60">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg text-red-400">
+              <AlertTriangle className="w-5 h-5" /> Close organization account
+            </CardTitle>
+            <CardDescription className="text-slate-400">
+              Closing the account schedules the permanent deletion of every database record,
+              every stored file and every member account that belongs only to this organization.
+              There is a 30 day grace period during which everything keeps working and any admin
+              can cancel. Download a data export before the deletion date; it cannot be recovered afterwards.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {closure ? (
+              <div className="flex flex-col md:flex-row md:items-center gap-4">
+                <div className="text-sm">
+                  <div className="text-red-300 font-semibold">
+                    Deletion scheduled for {new Date(closure.effective_at).toLocaleDateString()}
+                  </div>
+                  <div className="text-slate-400">
+                    Requested by {closure.requested_by_email} on {new Date(closure.created_at).toLocaleDateString()}.
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={closureBusy}
+                  onClick={cancelClosure}
+                  className="md:ml-auto border-slate-600 text-slate-200 hover:bg-slate-800"
+                >
+                  {closureBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  Cancel scheduled deletion
+                </Button>
+              </div>
+            ) : (
+              <Button variant="destructive" onClick={() => setCloseDialogOpen(true)} disabled={!orgId}>
+                Close organization account
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
+          <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-red-400">Schedule account closure</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 text-sm">
+              <ul className="list-disc pl-5 text-slate-300 space-y-1">
+                <li>Deletion happens 30 days from today. Until then everything keeps working.</li>
+                <li>Any organization admin can cancel during those 30 days.</li>
+                <li>All projects, wells, interpretations, files and billing history will be permanently removed.</li>
+                <li>Member accounts that belong only to this organization will be deleted.</li>
+                <li>You will receive written confirmation when deletion completes.</li>
+              </ul>
+              <p className="text-slate-400">
+                We strongly recommend requesting a data export above before the deletion date.
+              </p>
+              <div>
+                <label className="block text-slate-300 mb-1">
+                  Type the organization name{orgName ? <> (<span className="font-semibold">{orgName}</span>)</> : ''} to confirm
+                </label>
+                <Input
+                  value={confirmName}
+                  onChange={(e) => setConfirmName(e.target.value)}
+                  placeholder={orgName || 'Organization name'}
+                  className="bg-slate-950 border-slate-700"
+                />
+              </div>
+              <div>
+                <label className="block text-slate-300 mb-1">Reason (optional)</label>
+                <Input
+                  value={closureReason}
+                  onChange={(e) => setClosureReason(e.target.value)}
+                  placeholder="Helps us improve"
+                  className="bg-slate-950 border-slate-700"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setCloseDialogOpen(false)} className="text-slate-300">
+                  Keep account
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={closureBusy || !confirmName.trim()}
+                  onClick={requestClosure}
+                >
+                  {closureBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  Schedule deletion
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={!!filesJob} onOpenChange={(open) => { if (!open) setFilesJob(null); }}>
           <DialogContent className="bg-slate-900 border-slate-700 text-white max-w-3xl">
