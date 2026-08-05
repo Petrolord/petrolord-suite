@@ -116,9 +116,11 @@ const DataRetention = () => {
                   <section>
                     <h2 className="text-xl font-semibold text-white">8. Questions</h2>
                     <p>
-                      For anything not covered here, including data processing agreements for
-                      enterprise customers, contact{' '}
-                      <a href="mailto:support@petrolord.com" className="text-lime-400 hover:underline">support@petrolord.com</a>.
+                      Our standard{' '}
+                      <Link to="/legal/dpa" className="text-lime-400 hover:underline">Data Processing Agreement</Link>{' '}
+                      is available for enterprise customers; contact{' '}
+                      <a href="mailto:support@petrolord.com" className="text-lime-400 hover:underline">support@petrolord.com</a>{' '}
+                      to execute a signed copy, or for anything not covered here.
                     </p>
                   </section>
                 </div>

@@ -1,10 +1,16 @@
-# Data Processing Agreement — DRAFT TEMPLATE
+# Data Processing Agreement — Standard Template
 
-> STATUS: INTERNAL DRAFT for owner and legal-counsel review. Do NOT send to
-> customers or publish until reviewed by a lawyer. Bracketed fields are
-> placeholders. This draft reflects what the platform actually does as of
-> 2026-08-05 (see docs/scope/OrgDataExport-STATUS.md); keep it in sync with
-> the product or it becomes a liability like the old Privacy Policy claim.
+> STATUS: APPROVED by legal 2026-08-05 and published at /legal/dpa
+> (src/pages/legal/DataProcessingAgreement.jsx; keep the two in sync).
+> Four values were filled at publication and flagged back to legal for
+> confirmation: 7-day backup retention (measured on the live project,
+> daily backups, no PITR), 72-hour breach notice, 30-day sub-processor
+> notice, Nigerian governing law (NDPA 2023 + NDPR) with GDPR/UK-GDPR
+> standard contractual clauses incorporated by reference where applicable.
+> Executed customer copies name the Controller and are arranged through
+> support@petrolord.com. Keep this document in sync with the product
+> (docs/scope/OrgDataExport-STATUS.md) or it becomes a liability like the
+> old Privacy Policy claim.
 
 This Data Processing Agreement ("DPA") forms part of the agreement between
 **Lordsway Energy** ("Processor", operating the Petrolord platform) and
@@ -42,11 +48,13 @@ support or operations, and access is limited to what the task requires.
 
 ## 5. Sub-processors
 
-The Processor uses the following sub-processors: [Supabase (database, storage,
-authentication), hosting provider(s), email delivery provider(s) (Resend,
-Brevo), payment providers (Paystack, Stripe)]. The Processor will inform the
-Controller of intended changes to sub-processors [notice period and objection
-mechanism to be defined by counsel].
+The Processor uses the following sub-processors: Supabase (database, storage
+and authentication; hosted in the eu-west-2, London region), Hostinger (web
+hosting), Resend and Brevo (transactional email), and Paystack and Stripe
+(payment processing). The Processor will give the Controller at least 30 days
+notice by email before adding or replacing a sub-processor that processes
+Customer Data, and the Controller may object on reasonable data-protection
+grounds within that period.
 
 ## 6. Data portability
 
@@ -62,21 +70,24 @@ effect after a 30 day grace period during which the export remains available
 and the closure can be cancelled. On completion the Processor permanently
 deletes all Customer Data from live systems, verified programmatically, and
 issues a Certificate of Data Deletion that can be independently verified at
-petrolord.com/legal/verify-deletion. Copies within encrypted backups age out
-automatically as backups rotate [state the provider's maximum backup
-retention window here once confirmed].
+petrolord.com/legal/verify-deletion. Copies within encrypted daily backups
+are retained for no more than seven days and age out automatically as
+backups rotate.
 
 ## 8. Personal data requests and breach notice
 
 The Processor will assist the Controller with data-subject requests relating
-to Customer Data and will notify the Controller without undue delay after
-becoming aware of a personal-data breach affecting Customer Data
-[notification window to be defined by counsel].
+to Customer Data, and will notify the Controller without undue delay, and in
+any case within 72 hours of becoming aware, of a personal-data breach
+affecting Customer Data.
 
 ## 9. Applicable law
 
-[To be completed by counsel: NDPR (Nigeria) as baseline; GDPR standard
-contractual clauses if the Controller is subject to EU law.]
+This DPA is governed by the laws of the Federal Republic of Nigeria,
+including the Nigeria Data Protection Act 2023 and the Nigeria Data
+Protection Regulation. Where the Controller is subject to the EU or UK GDPR,
+the relevant standard contractual clauses are incorporated into the executed
+copy by reference.
 
 ## 10. Term
 
