@@ -1,11 +1,9 @@
 // Shared transactional email helper: Resend first, Brevo fallback.
 //
-// Extracted from the invite-employee flow (rewritten 2026-08-05) so new
-// functions stop inlining provider calls. The legacy `send-email` /
-// `send-email-via-smtp` functions some code still invokes are deployed-but-
-// unversioned; never build on them. invite-employee itself still carries its
-// inline copy — fold it onto this helper at its next scheduled redeploy so an
-// email refactor never rides along with an unrelated deploy of a critical flow.
+// Extracted from the invite-employee flow (rewritten 2026-08-05); since
+// 2026-08-06 invite-employee itself uses this helper too. The legacy
+// `send-email` / `send-email-via-smtp` functions some code still invokes are
+// deployed-but-unversioned; never build on them.
 //
 // Env: RESEND_API_KEY, BREVO_API_KEY, BREVO_SENDER_EMAIL, BREVO_SENDER_NAME,
 // SENDER_EMAIL (default no-reply@petrolord.com).

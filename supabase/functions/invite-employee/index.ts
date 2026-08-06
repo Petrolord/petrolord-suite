@@ -16,6 +16,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 import { corsHeaders } from './cors.ts';
+import { sendEmail } from '../_shared/email.ts';
 
 const SUPER_ADMIN_EMAILS = ['info@petrolord.com', 'ayoasaolu@gmail.com', 'ayodejiasaolu1@gmail.com', 'support@petrolord.com'];
 const ADMIN_ROLES = ['owner', 'admin', 'org_admin', 'super_admin'];
@@ -112,39 +113,15 @@ Deno.serve(async (req) => {
       </div>
     `;
 
-    let emailSent = false;
-    const senderEmail = Deno.env.get('SENDER_EMAIL') || 'no-reply@petrolord.com';
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    const brevoApiKey = Deno.env.get('BREVO_API_KEY');
-
-    if (resendApiKey) {
-      try {
-        const res = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            from: `Petrolord <${senderEmail.includes('@') ? senderEmail : 'onboarding@resend.dev'}>`,
-            to: inviteEmail, subject: emailSubject, html: emailHtml,
-          }),
-        });
-        if (res.ok) emailSent = true;
-        else console.warn('[invite-employee] Resend failed:', await res.text());
-      } catch (e) { console.warn('[invite-employee] Resend exception:', (e as Error).message); }
-    }
-    if (!emailSent && brevoApiKey) {
-      try {
-        const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-          method: 'POST',
-          headers: { 'api-key': brevoApiKey, 'Content-Type': 'application/json', 'accept': 'application/json' },
-          body: JSON.stringify({
-            sender: { email: Deno.env.get('BREVO_SENDER_EMAIL') || senderEmail, name: Deno.env.get('BREVO_SENDER_NAME') || 'Petrolord' },
-            to: [{ email: inviteEmail }], subject: emailSubject, htmlContent: emailHtml,
-          }),
-        });
-        if (res.ok) emailSent = true;
-        else console.warn('[invite-employee] Brevo failed:', await res.text());
-      } catch (e) { console.warn('[invite-employee] Brevo exception:', (e as Error).message); }
-    }
+    // Shared Resend -> Brevo helper (extracted from this function; behavior
+    // identical). Send failure never fails the invite: the link is returned
+    // for manual sharing.
+    const emailSent = await sendEmail({
+      to: inviteEmail,
+      subject: emailSubject,
+      html: emailHtml,
+      logPrefix: '[invite-employee]',
+    });
 
     console.log(`[invite-employee] ${caller.email} invited ${inviteEmail} to org ${organization_id} (email sent: ${emailSent})`);
     return json({
