@@ -145,4 +145,6 @@ Known issues found during E2E (NOT fixed here, for owner awareness):
 - Fold invite-employee onto `_shared/email.ts` at its next redeploy.
 - Optional: automate execute_due via a scheduler; provider-side subscription
   cancellation on closure.
-- Port admin_purge_test_orgs off session_replication_role (see phase-2 notes).
+- DONE 2026-08-06: admin_purge_test_orgs ported off replica mode AND off the
+  dropped legacy membership tables (20260806110000; it was doubly broken);
+  handle_new_user made idempotent (20260806100000). Both E2E'd live.
