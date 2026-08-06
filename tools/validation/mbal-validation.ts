@@ -2038,9 +2038,12 @@ async function runCarterTracyOilCase(): Promise<void> {
 // A missing fixture is a HARD FAILURE, not a skip: these cases are the merge
 // gate for MB1 and must not silently disarm.
 
+// Armed fixtures are canonical in the vendored engines package since the
+// mbal extraction (2026-08-06); the engines-repo acceptance gates read the
+// same files.
 const FIXTURE_DIR = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
-  'mbal-fixtures',
+  '..', '..', 'packages', 'engines', 'test-data', 'mbal',
 );
 
 function requireArmedFixture(caseLabel: string, filename: string): any | null {

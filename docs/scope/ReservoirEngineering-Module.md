@@ -136,6 +136,29 @@ downstream). Required:
 > simple-statistics, an npm runtime dep — extracting it needs a
 > dependency decision first).
 
+> **RUNWAY STEP 6 (mbal) DONE 2026-08-06 — RUNWAY COMPLETE:**
+> petrolord-engines PR #6 + Suite subtree/shims PR. Shape decision
+> (owner-approved): the engines package gained TypeScript support and
+> `engines/mbal/{mbalEngine.ts,lm.ts}` are verbatim moves of
+> `supabase/functions/_shared/{mbal-engine,lm}.ts`, which are now
+> re-export shims. The calculate-mbal edge function bundles THROUGH the
+> shim into the vendored package (deploy verified live: clean boot,
+> application-level 401 on anon probe, no BOOT errors). Explicit `.ts`
+> import extensions keep the same files loadable under Deno, jest
+> (babel preset-typescript added to engines and Suite configs) and
+> Vite. Acceptance gates ported to the engines repo
+> (`__tests__/mbal.test.ts`: Pletcher SPE 75354, Ahmed Ex. 10-10,
+> Ahmed Ex. 11-1 + m>0 synthetic round trip); fixtures canonical in
+> engines `test-data/mbal` (dake-9-2.ts + armed Ahmed JSONs; Suite
+> harness FIXTURE_DIR repointed, fixtures/dake-9-2.ts is a shim). The
+> full eleven-case tiered harness stays Suite-side
+> (`npx tsx tools/validation/mbal-validation.ts`) and passes against
+> the vendored engine through the shim. Two LM solvers coexist
+> (`engines/mbal/lm.ts` server port vs `lib/welltest/lmFit.js` client
+> original) per the verbatim rule — unification is a later cleanup.
+> Still deliberately unextracted: `waterfloodUncertainty` +
+> `src/lib/monteCarlo` (simple-statistics dependency decision).
+
 ## 4. Approved builds and their gates
 
 ### 4.1 Reservoir Balance aquifer tab (client + server engines)

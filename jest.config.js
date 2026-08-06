@@ -4,12 +4,15 @@ export default {
     // Hermetic babel config: src/package.json sets "type":"module", which stops
     // the root .babelrc from applying to files under src/. Pass presets inline
     // (babelrc/configFile disabled) so jest transforms ESM regardless.
-    '^.+\\.(js|jsx)$': ['babel-jest', {
+    // .ts added 2026-08-06 for the vendored TypeScript mbal engine + its
+    // acceptance gates (packages/engines/engines/mbal, __tests__/mbal.test.ts).
+    '^.+\\.(js|jsx|ts)$': ['babel-jest', {
       babelrc: false,
       configFile: false,
       presets: [
         ['@babel/preset-env', { targets: { node: 'current' } }],
         ['@babel/preset-react', { runtime: 'automatic' }],
+        '@babel/preset-typescript',
       ],
     }],
   },
@@ -25,8 +28,8 @@ export default {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.js'],
-  testMatch: ['**/__tests__/**/*.test.(js|jsx)'],
-  moduleFileExtensions: ['js', 'jsx', 'json', 'node'],
+  testMatch: ['**/__tests__/**/*.test.(js|jsx|ts)'],
+  moduleFileExtensions: ['js', 'jsx', 'ts', 'json', 'node'],
   collectCoverageFrom: [
     'src/**/*.{js,jsx}',
     '!src/main.jsx',
