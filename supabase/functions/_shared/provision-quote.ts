@@ -47,6 +47,12 @@ export interface ProvisionResult {
   error?: string;
 }
 
+// An HSE Professional quote (sold from hse.petrolord.com via hse-checkout).
+// These provision the HSE app grant, NOT Suite entitlements.
+export function isHseQuote(modules: unknown): boolean {
+  return toModuleSlugs(modules).includes("hse_professional");
+}
+
 // deno-lint-ignore no-explicit-any
 export async function provisionPaidQuote(supabase: any, opts: ProvisionOpts): Promise<ProvisionResult> {
   const paidAt = opts.paidAt || new Date().toISOString();
@@ -57,6 +63,10 @@ export async function provisionPaidQuote(supabase: any, opts: ProvisionOpts): Pr
     .maybeSingle();
 
   if (!quote) return { ok: false, orgId: null, quoteUuid: null, error: `Quote ${opts.quoteTextId} not found` };
+
+  if (isHseQuote(quote.modules)) {
+    return provisionPaidHseQuote(supabase, quote, opts, paidAt);
+  }
 
   const orgId: string = quote.organization_id;
   const quoteUuid: string = quote.id;
@@ -163,6 +173,118 @@ export async function provisionPaidQuote(supabase: any, opts: ProvisionOpts): Pr
       });
     } catch (mailErr) {
       console.error("[provision] confirmation email failed (non-fatal):", (mailErr as Error).message);
+    }
+  }
+
+  return { ok: true, orgId, quoteUuid };
+}
+
+// HSE Professional provisioning. Both payment rails (and both delivery paths —
+// redirect verify and webhook backstop) must end in the SAME state:
+//   1. organization_apps (org, 'hse') → module_id 'hse_professional', ACTIVE,
+//      seats_allocated = band cap. This is THE grant: HSEContext accessLevel,
+//      the free-tier limits, and hse_check_and_increment_ai_usage all key off it.
+//   2. organizations.hse_status = 'ACTIVE' (suite_status is NOT touched).
+//   3. quote marked paid; promo code burned.
+//   4. an active subscriptions row whose end_date drives the nightly
+//      hse-professional-lapse cron sweep (downgrade back to hse_free on expiry).
+// deno-lint-ignore no-explicit-any
+async function provisionPaidHseQuote(supabase: any, quote: any, opts: ProvisionOpts, paidAt: string): Promise<ProvisionResult> {
+  const orgId: string = quote.organization_id;
+  const quoteUuid: string = quote.id;
+  const userLimit = quote.user_seats || quote.seats || 10;
+
+  // 1. The grant. organization_apps is unique on (organization_id, app_id).
+  const { error: grantError } = await supabase.from("organization_apps").upsert({
+    organization_id: orgId,
+    app_id: "hse",
+    module_id: "hse_professional",
+    seats_allocated: userLimit,
+    status: "ACTIVE",
+  }, { onConflict: "organization_id,app_id" });
+  if (grantError) {
+    console.error("[provision-hse] organization_apps grant failed:", grantError.message);
+    return { ok: false, orgId, quoteUuid, error: grantError.message };
+  }
+
+  // 2. Org status + quote paid.
+  await supabase.from("organizations").update({ hse_status: "ACTIVE" }).eq("id", orgId);
+  await supabase.from("quotes").update({
+    payment_verified: true,
+    payment_verified_at: paidAt,
+    status: "ACCEPTED",
+    updated_at: new Date().toISOString(),
+  }).eq("quote_id", opts.quoteTextId);
+
+  // 3. Burn the promo code if the quote carried one (self-guarding no-op).
+  await redeemPromoForQuote(supabase, opts.quoteTextId, opts.provider);
+
+  // 4. Subscription row: its end_date is what the lapse sweep enforces.
+  try {
+    const billingPeriod = quote.billing_period || (/month/i.test(quote.billing_term || "") ? "monthly" : "annual");
+    const start = new Date(paidAt);
+    const end = new Date(start);
+    if (billingPeriod === "monthly") end.setMonth(end.getMonth() + 1);
+    else end.setFullYear(end.getFullYear() + 1);
+    const endDate = end.toISOString().slice(0, 10);
+
+    const subRow = {
+      organization_id: orgId,
+      quote_id: quoteUuid,
+      modules: ["hse_professional"],
+      user_limit: userLimit,
+      term: quote.billing_term || billingPeriod,
+      billing_period: billingPeriod,
+      start_date: start.toISOString().slice(0, 10),
+      end_date: endDate,
+      next_renewal_date: endDate,
+      renewal_status: "pending",
+      status: "active",
+      payment_status: "COMPLETED",
+      quote_details: {
+        quote_id: opts.quoteTextId,
+        quote_uuid: quoteUuid,
+        total_amount: quote.total_amount,
+        currency: quote.currency || "USD",
+        billing_term: quote.billing_term,
+        modules: ["hse_professional"],
+        seats: userLimit,
+        payment_method: opts.provider,
+        provider_reference: opts.reference,
+      },
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: existingSub } = await supabase.from("subscriptions")
+      .select("id").eq("organization_id", orgId).eq("quote_id", quoteUuid).limit(1).maybeSingle();
+    if (existingSub?.id) {
+      await supabase.from("subscriptions").update(subRow).eq("id", existingSub.id);
+    } else {
+      await supabase.from("subscriptions").insert(subRow);
+    }
+  } catch (subErr) {
+    console.error("[provision-hse] subscription sync failed (non-fatal):", (subErr as Error).message);
+  }
+
+  // 5. Confirmation email (best-effort).
+  if (opts.sendEmail !== false && opts.customerEmail) {
+    try {
+      const appOrigin = opts.appOrigin || "https://hse.petrolord.com";
+      const prettyAmount = `${opts.currency || ""} ${(opts.amountPaid ?? 0).toLocaleString()}`.trim();
+      await supabase.functions.invoke("send-email-via-smtp", {
+        body: JSON.stringify({
+          to: opts.customerEmail,
+          subject: `Payment received — Petrolord HSE Professional`,
+          html:
+            `<p>Thank you! We've received your payment and Petrolord HSE Professional is now active for your organization.</p>` +
+            `<p><strong>Reference:</strong> ${opts.quoteTextId}<br/>` +
+            `<strong>Amount paid:</strong> ${prettyAmount}<br/>` +
+            `<strong>Team size:</strong> up to ${userLimit} users</p>` +
+            `<p><a href="${appOrigin}/dashboard">Open your HSE dashboard</a></p>`,
+        }),
+      });
+    } catch (mailErr) {
+      console.error("[provision-hse] confirmation email failed (non-fatal):", (mailErr as Error).message);
     }
   }
 

@@ -1,6 +1,7 @@
 import { corsHeaders } from "./cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
+import { isHseQuote, provisionPaidQuote } from "../_shared/provision-quote.ts";
 import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 Deno.serve(async (req)=>{
@@ -50,6 +51,29 @@ Deno.serve(async (req)=>{
     }).eq('paystack_reference', reference);
     const quote_id = metadata?.quote_id;
     if (quote_id) {
+      // HSE Professional quotes provision an HSE app grant instead of Suite
+      // entitlements — the shared helper branches on the quote's modules (it
+      // also marks the quote paid). Suite quotes continue below untouched.
+      const { data: quoteForRouting } = await supabase.from('quotes')
+        .select('modules, payment_verified').eq('quote_id', quote_id).maybeSingle();
+      if (quoteForRouting && isHseQuote(quoteForRouting.modules)) {
+        // Idempotency: the redirect verify path may have provisioned already.
+        if (quoteForRouting.payment_verified) {
+          return new Response("Already processed", { status: 200 });
+        }
+        const result = await provisionPaidQuote(supabase, {
+          quoteTextId: quote_id,
+          provider: 'paystack',
+          reference,
+          amountPaid: (amount ?? 0) / 100,
+          currency: event.data?.currency,
+          paidAt: paid_at || new Date().toISOString(),
+          customerEmail: event.data?.customer?.email || null,
+          appOrigin: ''
+        });
+        if (!result.ok) console.error('[paystack-webhook] HSE provisioning error:', result.error);
+        return new Response("Webhook received", { status: 200 });
+      }
       // The Paystack reference IS the text quote_id (e.g. "QT-..."), so match the
       // quote on quote_id — NOT on id (a uuid). The previous .eq('id', quote_id)
       // matched zero rows, so the webhook never actually marked quotes paid.
