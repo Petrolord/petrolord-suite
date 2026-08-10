@@ -11,6 +11,7 @@
 
 import { redeemBridgeForQuote } from "./nextgen-bridge.ts";
 import { redeemPromoForQuote } from "./promo-codes.ts";
+import { sendEmail } from "./email.ts";
 
 // Coerce the quote's jsonb `modules` (strings or objects) into text[] for
 // subscriptions.modules (a NOT NULL text[] column). Mirrors verify-paystack-payment.
@@ -266,26 +267,23 @@ async function provisionPaidHseQuote(supabase: any, quote: any, opts: ProvisionO
     console.error("[provision-hse] subscription sync failed (non-fatal):", (subErr as Error).message);
   }
 
-  // 5. Confirmation email (best-effort).
+  // 5. Confirmation email (best-effort, via the shared Resend→Brevo helper —
+  // the legacy send-email-via-smtp function is deployed-but-unversioned and
+  // must not gain new callers).
   if (opts.sendEmail !== false && opts.customerEmail) {
-    try {
-      const appOrigin = opts.appOrigin || "https://hse.petrolord.com";
-      const prettyAmount = `${opts.currency || ""} ${(opts.amountPaid ?? 0).toLocaleString()}`.trim();
-      await supabase.functions.invoke("send-email-via-smtp", {
-        body: JSON.stringify({
-          to: opts.customerEmail,
-          subject: `Payment received — Petrolord HSE Professional`,
-          html:
-            `<p>Thank you! We've received your payment and Petrolord HSE Professional is now active for your organization.</p>` +
-            `<p><strong>Reference:</strong> ${opts.quoteTextId}<br/>` +
-            `<strong>Amount paid:</strong> ${prettyAmount}<br/>` +
-            `<strong>Team size:</strong> up to ${userLimit} users</p>` +
-            `<p><a href="${appOrigin}/dashboard">Open your HSE dashboard</a></p>`,
-        }),
-      });
-    } catch (mailErr) {
-      console.error("[provision-hse] confirmation email failed (non-fatal):", (mailErr as Error).message);
-    }
+    const appOrigin = opts.appOrigin || "https://hse.petrolord.com";
+    const prettyAmount = `${opts.currency || ""} ${(opts.amountPaid ?? 0).toLocaleString()}`.trim();
+    await sendEmail({
+      to: opts.customerEmail,
+      subject: `Payment received — Petrolord HSE Professional`,
+      html:
+        `<p>Thank you! We've received your payment and Petrolord HSE Professional is now active for your organization.</p>` +
+        `<p><strong>Reference:</strong> ${opts.quoteTextId}<br/>` +
+        `<strong>Amount paid:</strong> ${prettyAmount}<br/>` +
+        `<strong>Team size:</strong> up to ${userLimit} users</p>` +
+        `<p><a href="${appOrigin}/dashboard">Open your HSE dashboard</a></p>`,
+      logPrefix: "[provision-hse]",
+    });
   }
 
   return { ok: true, orgId, quoteUuid };
