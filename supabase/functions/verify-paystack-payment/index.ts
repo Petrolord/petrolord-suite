@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
 import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
 import { redeemPromoForQuote } from "../_shared/promo-codes.ts";
+import { isHseQuote, provisionPaidQuote } from "../_shared/provision-quote.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 
 // Coerce the quote's jsonb `modules` (strings or objects) into a plain text[]
@@ -195,6 +196,43 @@ serve(async (req)=>{
       }
     }
     // --- Process Success Logic ---
+    // HSE Professional quotes (sold from hse.petrolord.com) provision an HSE
+    // app grant, not Suite entitlements — the shared helper branches on the
+    // quote's modules. The Suite path below stays exactly as it was.
+    if (isSuccess && quoteRow && isHseQuote(quoteRow.modules)) {
+      const result = await provisionPaidQuote(supabase, {
+        quoteTextId: quote_id,
+        provider: 'paystack',
+        reference,
+        amountPaid,
+        currency: paystackData.currency,
+        paidAt: paymentDate,
+        customerEmail: paystackData.customer?.email || user_email || null,
+        appOrigin: req.headers.get('origin') || ''
+      });
+      if (!result.ok) {
+        await supabase.from("payment_audit_log").insert({
+          payment_id: paymentId,
+          action: 'provisioning_failed',
+          details: { error: result.error, product: 'hse_professional' }
+        });
+        throw new Error(result.error || 'HSE provisioning failed');
+      }
+      await supabase.from("payment_audit_log").insert({
+        payment_id: paymentId,
+        action: 'provisioning_success',
+        details: { quote_id, org_id: result.orgId, product: 'hse_professional' }
+      });
+      // provisionPaidQuote sent the confirmation email.
+      await supabase.from('payments').update({ notification_sent: true }).eq('id', paymentId);
+      return new Response(JSON.stringify({
+        success: true,
+        status: paystackStatus,
+        message: "Payment verified successfully"
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
     if (isSuccess) {
       // 1. Call manual_verify_quote to provision access (Legacy/Existing logic support)
       if (orgId && quote_id) {
