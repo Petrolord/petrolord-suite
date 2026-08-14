@@ -14,6 +14,8 @@ import { useToast } from '@/components/ui/use-toast';
 import html2canvas from 'html2canvas';
 import ResultsModal from './ResultsModal';
 import ChartFrame from '@/components/charts/ChartFrame';
+import TornadoChart from './TornadoChart';
+import { tornadoSwings } from '@/lib/monteCarlo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 
 const PARAM_LABELS = { area: 'Area', thickness: 'Thickness', ntg: 'NTG', phi: 'Porosity', sw: 'Water Sat.', fvf: 'Bo', bg: 'Bg', owc: 'OWC', goc: 'GOC', grvFactor: 'GRV Factor' };
@@ -31,12 +33,12 @@ const AXIS_TICK = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axis
 // Bin raw realizations + shape CDF / tornado series for the charts. Computed
 // before any early return so hook order stays stable.
 function buildChartData(probResults, fluidType) {
-    if (!probResults || !probResults.stats) return { histogram: [], cdf: [], tornado: [] };
+    if (!probResults || !probResults.stats) return { histogram: [], cdf: [], tornado: [], swings: [] };
     const gas = fluidType === 'gas';
     const st = gas ? probResults.stats.giip : probResults.stats.stooip;
     const raw = (gas ? probResults.raw.giip : probResults.raw.stooip) || [];
     const d = gas ? 1e9 : 1e6;
-    if (!st || raw.length === 0) return { histogram: [], cdf: [], tornado: [] };
+    if (!st || raw.length === 0) return { histogram: [], cdf: [], tornado: [], swings: [] };
 
     const vals = raw.map((v) => v / d);
     let mn = Infinity, mx = -Infinity;
@@ -57,7 +59,20 @@ function buildChartData(probResults, fluidType) {
         contribution: +s.contribution.toFixed(1),
         dir: s.impactDirection,
     }));
-    return { histogram, cdf, tornado, p10: st.p10 / d, p50: st.p50 / d, p90: st.p90 / d };
+    // Symmetric tornado: conditional P50 swings around the overall P50,
+    // computed from the stored realizations. Legacy saved results without
+    // raw samples fall back to the variance-share bars.
+    const contribByParam = Object.fromEntries((probResults.stats.sensitivity || []).map((s) => [s.parameter, s.contribution]));
+    const swings = tornadoSwings(probResults.raw?.samples || []).map((s) => ({
+        label: PARAM_LABELS[s.parameter] || s.parameter,
+        low: s.low / d,
+        high: s.high / d,
+        lowInputVol: s.lowInputVol / d,
+        highInputVol: s.highInputVol / d,
+        contribution: contribByParam[s.parameter],
+        base: s.base / d,
+    }));
+    return { histogram, cdf, tornado, swings, p10: st.p10 / d, p50: st.p50 / d, p90: st.p90 / d };
 }
 
 const RealizationCard = ({ title, realization, unit }) => {
@@ -306,11 +321,24 @@ const ProbabilisticResultsDisplay = ({ isCompact = false }) => {
                 <Card className={`${isCompact ? 'p-3' : 'p-4'} bg-slate-900 border-slate-800 flex flex-col`}>
                     <div className="flex justify-between items-center mb-2 border-b border-slate-800 pb-2">
                         <h3 className="text-xs font-bold text-slate-200 flex items-center gap-2">
-                            <Activity className="w-3 h-3 text-purple-400" /> Variance Decomposition (Tornado)
+                            <Activity className="w-3 h-3 text-purple-400" /> Sensitivity Tornado (P50 swing per parameter)
                         </h3>
+                        {chartData.swings.length > 0 && (
+                            <span className="text-[10px] text-slate-500">bar ends = P50 when the parameter sits in its bottom / top decile</span>
+                        )}
                     </div>
                     <div ref={tornadoRef}>
-                        {chartData.tornado.length > 0 ? (
+                        {chartData.swings.length > 0 ? (
+                            <ChartFrame height={Math.max(160, 44 + chartData.swings.length * 40)}>
+                                <TornadoChart
+                                    rows={chartData.swings}
+                                    base={chartData.swings[0].base}
+                                    unit={unitLabel}
+                                    height={Math.max(160, 44 + chartData.swings.length * 40)}
+                                />
+                            </ChartFrame>
+                        ) : chartData.tornado.length > 0 ? (
+                            /* Legacy saved results carry no raw samples — fall back to variance shares. */
                             <ChartFrame height={Math.max(140, chartData.tornado.length * 34)}>
                                 <BarChart data={chartData.tornado} layout="vertical" margin={{ top: 8, right: 40, bottom: 8, left: 24 }}>
                                     <CartesianGrid {...GRID_STYLE} horizontal={false} />

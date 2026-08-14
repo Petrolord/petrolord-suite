@@ -306,3 +306,41 @@ export function varianceDecomposition(samples) {
     impactDirection: r.r > 0 ? 1 : -1,
   })).sort((a, b) => b.contribution - a.contribution);
 }
+
+// Conditional-swing tornado over MC samples: for each sampled input, the
+// median output when that input sits in its bottom vs top `fraction` of
+// draws. This is the classic symmetric tornado (bars spanning low→high
+// around the overall P50), derived from the SAME realizations as the run —
+// no re-simulation, so it honours correlations exactly as sampled.
+// samples: [{ targetVol, inputs: { key: value } }]
+// Returns [{ parameter, base, low, high, lowInputVol, highInputVol }] sorted
+// by swing width (widest first). `low`/`high` are output volumes;
+// lowInputVol/highInputVol record which INPUT end produced which output so
+// callers can phrase direction (e.g. Sw low → volume high).
+export function tornadoSwings(samples, fraction = 0.1) {
+  if (!samples || samples.length < 30) return [];
+  const outputs = samples.map((s) => s.targetVol);
+  const base = ss.median(outputs);
+  const parameters = Object.keys(samples[0].inputs || {});
+  const n = samples.length;
+  const k = Math.max(15, Math.floor(n * fraction));
+  const swings = [];
+
+  parameters.forEach((param) => {
+    const vals = samples.map((s) => s.inputs[param]);
+    if (!vals.every(Number.isFinite) || ss.standardDeviation(vals) === 0) return;
+    const sorted = [...samples].sort((a, b) => a.inputs[param] - b.inputs[param]);
+    const lowInputVol = ss.median(sorted.slice(0, k).map((s) => s.targetVol));
+    const highInputVol = ss.median(sorted.slice(n - k).map((s) => s.targetVol));
+    swings.push({
+      parameter: param,
+      base,
+      low: Math.min(lowInputVol, highInputVol),
+      high: Math.max(lowInputVol, highInputVol),
+      lowInputVol,
+      highInputVol,
+    });
+  });
+
+  return swings.sort((a, b) => (b.high - b.low) - (a.high - a.low));
+}

@@ -147,3 +147,38 @@ block, which previously mislabelled the reservoir as "Project", and a new
 info strip on the probabilistic table), the results modal header, and both
 branded PDF reports (Project / Reservoir / Date stack in the banner, name in
 the download filename). Slide PNG filenames include the reservoir too.
+
+### Export polish + symmetric tornado (2026-08-14)
+Owner/tester feedback: exported PNG/PDF had overlapping or clipped text, and
+the tornado chart was left-justified variance bars rather than the symmetric
+tornado geoscientists expect.
+
+Export fixes:
+- Slide header (SlideShell) clips project/reservoir names in JS. The CSS
+  `truncate` relied on text-overflow: ellipsis, which html2canvas does not
+  implement, so long names were drawn full-length into the title block in
+  the exported PNG.
+- PDF banner (both reports, now shared `drawBrandHeader`): right-aligned
+  Project/Reservoir strings are ellipsized with jsPDF text metrics to the
+  space left of the banner title instead of overlapping it.
+- PDF chart embeds preserve the captured image's aspect ratio via
+  `getImageProperties` (was a fixed 170x70 box that stretched charts and
+  clipped axis text).
+- PDF KPI cards shrink the value font to fit the card width (`textFitted`),
+  so long volumes no longer overflow into the neighbouring card.
+
+Symmetric tornado:
+- New canonical `tornadoSwings(samples)` in src/lib/monteCarlo.js: per
+  parameter, the conditional median volume when that input sits in its
+  bottom vs top decile of the run's own realizations (honours correlations,
+  no re-simulation), centred on the overall P50.
+- New shared `TornadoChart` SVG component (components/results/): bars span
+  low-to-high around a dashed P50 axis, blue below / emerald above
+  (validated diverging pair), end-value labels, variance-share annotation.
+  Used by the results display (ChartFrame), the probabilistic slide panel,
+  and rasterised into the PDF (slide export now embeds it too). The PDF
+  sensitivity table gained Low/High swing columns.
+- Legacy saved results without raw samples fall back to the old
+  variance-share bars.
+- Tests: tornadoSwings unit tests (monteCarlo.test.js), TornadoChart render
+  tests, reportGenerator mock extended with getTextWidth/getImageProperties.

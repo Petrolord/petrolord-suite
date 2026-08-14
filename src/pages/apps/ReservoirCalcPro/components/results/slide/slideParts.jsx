@@ -87,6 +87,13 @@ export const Panel = ({ title, icon, right, children, className = '' }) => (
     </div>
 );
 
+// Hard character clip with an ellipsis. The header used to rely on CSS
+// `truncate`, but html2canvas does not implement text-overflow: ellipsis —
+// long names were drawn full-length in the exported PNG and overlapped the
+// title block (or were cut mid-glyph by overflow clipping). Clipping the
+// string in JS keeps screen and export identical.
+const clip = (s, n) => (s && s.length > n ? `${s.slice(0, n - 1)}…` : s);
+
 /**
  * The branded 16:9 shell every slide lives inside.
  * `subtitle` names the analysis, `chips` render fluid/unit context, `children`
@@ -106,9 +113,9 @@ export const SlideShell = ({ subtitle, project, reservoir, dateStr, chips, child
                 </div>
             </div>
             <div className="text-right">
-                <div className="max-w-[420px] truncate text-[22px] font-bold text-slate-800">{project}</div>
+                <div className="max-w-[420px] text-[22px] font-bold text-slate-800 whitespace-nowrap">{clip(project, 34)}</div>
                 {reservoir && (
-                    <div className="mt-0.5 max-w-[420px] truncate text-[13.5px] font-semibold text-emerald-700">Reservoir: {reservoir}</div>
+                    <div className="mt-0.5 max-w-[420px] text-[13.5px] font-semibold text-emerald-700 whitespace-nowrap">Reservoir: {clip(reservoir, 48)}</div>
                 )}
                 <div className="mt-1.5 flex items-center justify-end gap-2">{chips}</div>
                 <div className="mt-1.5 text-[12px] font-medium text-slate-400">{dateStr}</div>

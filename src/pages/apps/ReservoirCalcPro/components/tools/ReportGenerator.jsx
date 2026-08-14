@@ -1,5 +1,31 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { tornadoSwings } from '@/lib/monteCarlo';
+
+// ── Text-fitting helpers ────────────────────────────────────────────────────
+// Long project/reservoir names used to be drawn at full length and collided
+// with the banner title; big KPI values could overflow their cards. Both are
+// now measured with jsPDF's own metrics and clipped/shrunk to fit.
+
+// Ellipsize `text` so it renders within `maxWidth` mm at the CURRENT doc font.
+function fitText(doc, text, maxWidth) {
+    if (!text || doc.getTextWidth(text) <= maxWidth) return text;
+    let t = String(text);
+    while (t.length > 1 && doc.getTextWidth(`${t}…`) > maxWidth) t = t.slice(0, -1);
+    return `${t}…`;
+}
+
+// Draw centred text shrunk (never enlarged) to fit `maxWidth` mm.
+function textFitted(doc, text, x, y, maxWidth, startSize, minSize = 7) {
+    let size = startSize;
+    doc.setFontSize(size);
+    while (size > minSize && doc.getTextWidth(text) > maxWidth) {
+        size -= 0.5;
+        doc.setFontSize(size);
+    }
+    doc.text(text, x, y, { align: 'center' });
+    doc.setFontSize(startSize);
+}
 
 // Petrolord brand mark for report headers: the clean transparent-background
 // logo (petrolord-icon.png is a JPEG with a baked-in dark background — never
@@ -48,6 +74,37 @@ function loadPetrolordLogo() {
     return _logoPromise;
 }
 
+// Shared slate banner for both report types. Right-hand project/reservoir
+// strings are ellipsized to the space left of the banner title so long names
+// can no longer overlap it.
+function drawBrandHeader(doc, { logo, margin, pageWidth, subtitle, projectName, reservoirName }) {
+    doc.setFillColor(15, 23, 42); // Slate 900
+    doc.rect(0, 0, pageWidth, 30, 'F');
+    let titleX = margin;
+    if (logo) {
+        const h = 15;
+        const w = h * (logo.w / logo.h);
+        try { doc.addImage(logo.dataUrl, 'PNG', margin, 7.5, w, h); titleX = margin + w + 5; } catch { /* skip logo */ }
+    }
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    const title = 'Petrolord Suite - ReservoirCalc Pro';
+    doc.text(title, titleX, 13);
+    const titleEnd = titleX + doc.getTextWidth(title);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(200, 210, 225);
+    doc.text(subtitle, titleX, 21);
+    doc.setTextColor(255, 255, 255);
+    const rightMax = pageWidth - margin - titleEnd - 6;
+    doc.text(fitText(doc, `Project: ${projectName}`, rightMax), pageWidth - margin, 9, { align: 'right' });
+    if (reservoirName) {
+        doc.text(fitText(doc, `Reservoir: ${reservoirName}`, rightMax), pageWidth - margin, 16, { align: 'right' });
+    }
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 23, { align: 'right' });
+}
+
 // Report presets. Each successive tier is a superset of the previous one.
 //   executive  — one-page decision summary: KPI band + key stats + histogram.
 //   technical  — full statistics, all three charts, and the sensitivity table.
@@ -79,31 +136,12 @@ export class ReportGenerator {
         const margin = 20;
         const logo = await loadPetrolordLogo();
 
-        const addHeader = () => {
-            doc.setFillColor(15, 23, 42); // Slate 900
-            doc.rect(0, 0, pageWidth, 30, 'F');
-            // Petrolord logo on the left of the banner; title text shifts to clear it.
-            let titleX = margin;
-            if (logo) {
-                const h = 15;
-                const w = h * (logo.w / logo.h);
-                try { doc.addImage(logo.dataUrl, 'PNG', margin, 7.5, w, h); titleX = margin + w + 5; } catch { /* skip logo */ }
-            }
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Petrolord Suite - ReservoirCalc Pro', titleX, 13);
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(200, 210, 225);
-            doc.text(`${templateLabel} · Probabilistic Volumetrics`, titleX, 21);
-            doc.setTextColor(255, 255, 255);
-            doc.text(`Project: ${projectName}`, pageWidth - margin, 9, { align: 'right' });
-            if (options.reservoirName) {
-                doc.text(`Reservoir: ${options.reservoirName}`, pageWidth - margin, 16, { align: 'right' });
-            }
-            doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 23, { align: 'right' });
-        };
+        const addHeader = () => drawBrandHeader(doc, {
+            logo, margin, pageWidth,
+            subtitle: `${templateLabel} · Probabilistic Volumetrics`,
+            projectName,
+            reservoirName: options.reservoirName,
+        });
 
         const addFooter = (pageNo, totalPages) => {
             doc.setFontSize(8);
@@ -122,14 +160,24 @@ export class ReportGenerator {
             return yPos;
         };
 
-        const addChart = (img, title, y, h = 70) => {
+        // Draw a captured chart preserving its aspect ratio (the old fixed
+        // 170×70 box stretched/squashed the bitmap and clipped axis text).
+        const addChart = (img, title, y, maxH = 90) => {
             if (!img) return y;
+            let w = 170, h = 70;
+            try {
+                const props = doc.getImageProperties(img);
+                if (props?.width && props?.height) {
+                    h = Math.min(maxH, (props.height / props.width) * w);
+                    w = (props.width / props.height) * h;
+                }
+            } catch { /* fall back to the default box */ }
             let yPos = ensureSpace(h + 12, y);
             doc.setFontSize(12);
             doc.setTextColor(0, 0, 0);
             doc.text(title, margin, yPos);
             yPos += 5;
-            doc.addImage(img, 'PNG', margin, yPos, 170, h);
+            doc.addImage(img, 'PNG', margin, yPos, w, h);
             return yPos + h + 10;
         };
 
@@ -158,10 +206,9 @@ export class ReportGenerator {
             doc.setFontSize(9);
             doc.setTextColor(accent ? 5 : 100, accent ? 150 : 116, accent ? 105 : 139);
             doc.text(label, x + cardWidth / 2, yPos + 10, { align: 'center' });
-            doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(accent ? 6 : 15, accent ? 95 : 23, accent ? 70 : 42);
-            doc.text(`${value} ${unit}`, x + cardWidth / 2, yPos + 22, { align: 'center' });
+            textFitted(doc, `${value} ${unit}`, x + cardWidth / 2, yPos + 22, cardWidth - 6, 16);
             doc.setFont('helvetica', 'normal');
         };
         drawCard(margin, 'P90 (PROVEN)', fmt(stats.p90), false);
@@ -202,21 +249,34 @@ export class ReportGenerator {
         yPos = addChart(chartImages.histogram, `Volume Distribution (${unit})`, yPos);
         if (includeTechnical) {
             yPos = addChart(chartImages.cdf, 'Expectation Curve (Cumulative Probability)', yPos);
-            yPos = addChart(chartImages.tornado, 'Sensitivity · Variance Decomposition (Tornado)', yPos, 80);
+            yPos = addChart(chartImages.tornado, 'Sensitivity Tornado (P50 swing per parameter)', yPos, 90);
 
-            // Sensitivity table
+            // Sensitivity table — variance share plus the conditional P50 swing
+            // (median volume when the parameter sits in its bottom / top decile).
             const sens = results.stats.sensitivity || [];
             if (sens.length) {
+                const swings = tornadoSwings(results.raw?.samples || []);
+                const swingByParam = Object.fromEntries(swings.map((s) => [s.parameter, s]));
+                const hasSwings = swings.length > 0;
                 yPos = ensureSpace(20 + sens.length * 8, yPos);
                 doc.setFontSize(14);
                 doc.setFont('helvetica', 'bold');
                 doc.text('Parameter Sensitivity', margin, yPos);
                 doc.setFont('helvetica', 'normal');
-                const PL = { area: 'Area', thickness: 'Thickness', ntg: 'NTG', phi: 'Porosity', sw: 'Water Saturation', fvf: 'Bo', bg: 'Bg' };
+                const PL = { area: 'Area', thickness: 'Thickness', ntg: 'NTG', phi: 'Porosity', sw: 'Water Saturation', fvf: 'Bo', bg: 'Bg', owc: 'OWC', goc: 'GOC', grvFactor: 'GRV Factor' };
                 doc.autoTable({
                     startY: yPos + 5,
-                    head: [['Parameter', 'Contribution to Variance', 'Direction']],
-                    body: sens.map((s) => [PL[s.parameter] || s.parameter, `${s.contribution.toFixed(1)}%`, s.impactDirection > 0 ? 'Increases volume' : 'Decreases volume']),
+                    head: [hasSwings
+                        ? ['Parameter', 'Variance Share', 'Direction', `Low Swing (${unit})`, `High Swing (${unit})`]
+                        : ['Parameter', 'Contribution to Variance', 'Direction']],
+                    body: sens.map((s) => {
+                        const row = [PL[s.parameter] || s.parameter, `${s.contribution.toFixed(1)}%`, s.impactDirection > 0 ? 'Increases volume' : 'Decreases volume'];
+                        if (hasSwings) {
+                            const sw = swingByParam[s.parameter];
+                            row.push(sw ? fmt(sw.low) : '—', sw ? fmt(sw.high) : '—');
+                        }
+                        return row;
+                    }),
                     theme: 'striped',
                     headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
                     styles: { fontSize: 10, cellPadding: 3 },
@@ -325,30 +385,12 @@ export class ReportGenerator {
         const margin = 20;
         const logo = await loadPetrolordLogo();
 
-        const addHeader = () => {
-            doc.setFillColor(15, 23, 42);
-            doc.rect(0, 0, pageWidth, 30, 'F');
-            let titleX = margin;
-            if (logo) {
-                const h = 15;
-                const w = h * (logo.w / logo.h);
-                try { doc.addImage(logo.dataUrl, 'PNG', margin, 7.5, w, h); titleX = margin + w + 5; } catch { /* skip */ }
-            }
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.text('Petrolord Suite - ReservoirCalc Pro', titleX, 13);
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(200, 210, 225);
-            doc.text('Deterministic Volumetrics', titleX, 21);
-            doc.setTextColor(255, 255, 255);
-            doc.text(`Project: ${projectName}`, pageWidth - margin, 9, { align: 'right' });
-            if (options.reservoirName) {
-                doc.text(`Reservoir: ${options.reservoirName}`, pageWidth - margin, 16, { align: 'right' });
-            }
-            doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 23, { align: 'right' });
-        };
+        const addHeader = () => drawBrandHeader(doc, {
+            logo, margin, pageWidth,
+            subtitle: 'Deterministic Volumetrics',
+            projectName,
+            reservoirName: options.reservoirName,
+        });
 
         const addFooter = (pageNo, totalPages) => {
             doc.setFontSize(8);
@@ -390,10 +432,9 @@ export class ReportGenerator {
             doc.setFontSize(8);
             doc.setTextColor(c.accent ? 5 : 100, c.accent ? 150 : 116, c.accent ? 105 : 139);
             doc.text(c.label, x + cardW / 2, yPos + 9, { align: 'center' });
-            doc.setFontSize(13);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(c.accent ? 6 : 15, c.accent ? 95 : 23, c.accent ? 70 : 42);
-            doc.text(c.value, x + cardW / 2, yPos + 19, { align: 'center' });
+            textFitted(doc, c.value, x + cardW / 2, yPos + 19, cardW - 6, 13);
             doc.setFont('helvetica', 'normal');
         });
         yPos += cardH + 12;

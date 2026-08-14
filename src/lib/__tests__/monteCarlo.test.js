@@ -17,6 +17,7 @@ import {
   spearman,
   rankCorrelationSensitivity,
   varianceDecomposition,
+  tornadoSwings,
 } from '@/lib/monteCarlo';
 
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
@@ -285,5 +286,52 @@ describe('randomNormal', () => {
     const sd = Math.sqrt(draws.reduce((s, v) => s + (v - m) ** 2, 0) / (draws.length - 1));
     expect(Math.abs(m)).toBeLessThan(0.05);
     expect(near(sd, 1, 0.05)).toBe(true);
+  });
+});
+
+describe('tornadoSwings (symmetric tornado)', () => {
+  it('ranks the dominant driver first with the widest low→high span around the base P50', () => {
+    const rng = makeLcg(7);
+    const samples = Array.from({ length: 1000 }, () => {
+      const p = rng();
+      const q = rng();
+      return { targetVol: 100 + 50 * p - 10 * q, inputs: { p, q } };
+    });
+    const swings = tornadoSwings(samples);
+    expect(swings[0].parameter).toBe('p');
+    expect(swings[0].high - swings[0].low).toBeGreaterThan(swings[1].high - swings[1].low);
+    // The dominant driver's conditional medians must straddle the base P50.
+    // (Weak parameters can sit marginally to one side — the chart clamps that.)
+    expect(swings[0].low).toBeLessThanOrEqual(swings[0].base);
+    expect(swings[0].high).toBeGreaterThanOrEqual(swings[0].base);
+    swings.forEach((s) => {
+      expect(s.low).toBe(Math.min(s.lowInputVol, s.highInputVol));
+      expect(s.high).toBe(Math.max(s.lowInputVol, s.highInputVol));
+    });
+  });
+
+  it('records which input end produced which output (inverse parameters swing opposite)', () => {
+    const rng = makeLcg(11);
+    const samples = Array.from({ length: 1000 }, () => {
+      const p = rng();
+      const sw = rng();
+      return { targetVol: 100 + 40 * p - 40 * sw, inputs: { p, sw } };
+    });
+    const swings = tornadoSwings(samples);
+    const pSwing = swings.find((s) => s.parameter === 'p');
+    const swSwing = swings.find((s) => s.parameter === 'sw');
+    expect(pSwing.lowInputVol).toBeLessThan(pSwing.highInputVol);   // p up → volume up
+    expect(swSwing.lowInputVol).toBeGreaterThan(swSwing.highInputVol); // sw up → volume down
+  });
+
+  it('skips fixed inputs and tiny sample sets', () => {
+    const rng = makeLcg(13);
+    const samples = Array.from({ length: 500 }, () => {
+      const p = rng();
+      return { targetVol: 10 * p, inputs: { p, fixed: 0.5 } };
+    });
+    const swings = tornadoSwings(samples);
+    expect(swings.map((s) => s.parameter)).toEqual(['p']);
+    expect(tornadoSwings(samples.slice(0, 10))).toEqual([]);
   });
 });
