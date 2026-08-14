@@ -11,9 +11,13 @@ export const exportForecastToCSV = (forecastData, wellName, stream) => {
   const headers = ['Date', 'Days', 'Rate', 'Cumulative'];
   const csvContent = [
     headers.join(','),
-    ...forecastData.map(row => {
+    // generateForecast rows are {date, rate, cumulative} (day index implicit);
+    // older callers passed {date, t, rate, cum} — accept both shapes.
+    ...forecastData.map((row, i) => {
       const dateStr = row.date ? new Date(row.date).toISOString().split('T')[0] : '';
-      return `${dateStr},${row.t.toFixed(2)},${row.rate.toFixed(2)},${row.cum.toFixed(2)}`;
+      const days = typeof row.t === 'number' ? row.t : i + 1;
+      const cum = typeof row.cum === 'number' ? row.cum : (row.cumulative || 0);
+      return `${dateStr},${days.toFixed(2)},${(row.rate || 0).toFixed(2)},${cum.toFixed(2)}`;
     })
   ].join('\n');
 
@@ -55,7 +59,15 @@ export const exportChartAsImage = async (elementId, fileName) => {
   if (!element) return;
 
   try {
-    const canvas = await html2canvas(element);
+    // scrollHeight captures the element's full laid-out size even if an
+    // ancestor is scrolled/clipping it; white background matches the chart
+    // surface (the default transparent PNG looks broken in viewers).
+    const canvas = await html2canvas(element, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      width: element.scrollWidth,
+      height: element.scrollHeight,
+    });
     canvas.toBlob((blob) => {
       saveAs(blob, `${fileName}.png`);
     });

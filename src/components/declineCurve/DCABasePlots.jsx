@@ -24,26 +24,39 @@ const DCABasePlots = () => {
   const forecastResults = streamState[selectedStream]?.forecastResults;
   const fit = streamState[selectedStream]?.fitResults;
   
+  // On a log axis a single 0 or negative value produces an invalid path
+  // coordinate, which silently kills the entire line — so non-positive
+  // values become null (gaps) whenever log scale is on.
+  const logSafe = (v) => {
+    if (v == null || !isFinite(v)) return null;
+    if (logScale && v <= 0) return null;
+    return v;
+  };
+
   // Merge historical and forecast data
   const chartData = useMemo(() => {
     if (!currentData || currentData.length === 0) return [];
-    
+
     const merged = [];
-    
+
     // Add historical points with fitted values
     currentData.forEach(point => {
       let fitted = null;
-      
+
       // Calculate fitted value if fit results exist
       const fit = streamState[selectedStream]?.fitResults;
       if (fit && fit.qi && fit.Di !== undefined && fit.b !== undefined && fit.t0) {
         const tDays = (new Date(point.date) - new Date(fit.t0)) / 86400000;
-        fitted = calculateArpsHyperbolic(fit.qi, fit.Di, fit.b, tDays);
+        // Points before the fit window's t0 have no fitted value (the model
+        // returns 0 for t<0, which used to break the whole line on log scale).
+        if (tDays >= 0) {
+          fitted = logSafe(calculateArpsHyperbolic(fit.qi, fit.Di, fit.b, tDays));
+        }
       }
-      
+
       merged.push({
         date: point.date,
-        history: getStreamRate(point, selectedStream),
+        history: logSafe(getStreamRate(point, selectedStream)),
         forecast: null,
         fitted: fitted
       });
@@ -67,7 +80,7 @@ const DCABasePlots = () => {
         const row = {
           date: point.date,
           history: null,
-          forecast: point.rate,
+          forecast: logSafe(point.rate),
           fitted: null,
           p10: null,
           p90: null
@@ -77,15 +90,15 @@ const DCABasePlots = () => {
           const r10 = calculateArpsHyperbolic(qiOpt, DiOpt, fit.b, tDays);
           const r90 = calculateArpsHyperbolic(qiPess, DiPess, fit.b, tDays);
           // Defensive: ensure p10 >= p90 (high >= low) for the band
-          row.p10 = Math.max(r10, r90);
-          row.p90 = Math.min(r10, r90);
+          row.p10 = logSafe(Math.max(r10, r90));
+          row.p90 = logSafe(Math.min(r10, r90));
         }
         merged.push(row);
       });
     }
-    
+
     return merged.sort((a, b) => new Date(a.date) - new Date(b.date));
-  }, [currentData, forecastResults, streamState, selectedStream]);
+  }, [currentData, forecastResults, streamState, selectedStream, logScale]);
   
   // Get Y-axis label based on stream
   const getYAxisLabel = () => {
@@ -226,10 +239,9 @@ const DCABasePlots = () => {
                   <Line
                     type="monotone"
                     dataKey="p10"
-                    stroke={palette.forecast}
-                    strokeWidth={1}
+                    stroke={palette.p10}
+                    strokeWidth={1.5}
                     strokeDasharray="2 4"
-                    strokeOpacity={0.7}
                     dot={false}
                     activeDot={false}
                     name="P10"
@@ -241,10 +253,9 @@ const DCABasePlots = () => {
                   <Line
                     type="monotone"
                     dataKey="p90"
-                    stroke={palette.forecast}
-                    strokeWidth={1}
-                    strokeDasharray="2 4"
-                    strokeOpacity={0.7}
+                    stroke={palette.p90}
+                    strokeWidth={1.5}
+                    strokeDasharray="8 4"
                     dot={false}
                     activeDot={false}
                     name="P90"

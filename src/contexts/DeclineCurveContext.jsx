@@ -260,10 +260,14 @@ export const DeclineCurveProvider = ({ children }) => {
   // Wells live inside the project payload; the auto-save effect
   // persists them (the pre-R1 localStorage index is gone).
   const addWell = (name, type='oil') => {
-    if (!currentProjectId) return;
+    if (!currentProjectId) {
+      addNotification('Create or open a project before adding a well', 'warning');
+      return;
+    }
     const newWell = { id: uuidv4(), name, type, data: [], projectId: currentProjectId, notes: '', tags: [] };
     setWells(prev => ({ ...prev, [newWell.id]: newWell }));
     setCurrentWellId(newWell.id);
+    addNotification(`Well "${name}" added`, 'success');
   };
 
   const removeWell = (id) => {
@@ -353,12 +357,16 @@ export const DeclineCurveProvider = ({ children }) => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       const result = fitArpsModel(streamData, config.modelType, fitWindow, config.constraints);
-      
-      if (result) {
+
+      // fitArpsModel returns a stub (qi 0, modelType 'None') when no model
+      // converges — treat that as a failure, not a fit.
+      if (result && result.qi > 0 && result.modelType && result.modelType !== 'None') {
         const quality = getFitQuality(result.R2, result.RMSE);
-        
+        const level = quality.tier === 'Excellent' || quality.tier === 'Good'
+          ? 'success' : quality.tier === 'Fair' ? 'info' : 'warning';
+
         updateStreamConfig('fitResults', result);
-        addNotification(`${quality.label} fit completed (R²=${(result.R2*100).toFixed(1)}%)`, quality.level);
+        addNotification(`${quality.tier} fit completed (R²=${(result.R2*100).toFixed(1)}%)`, level);
       } else {
         addNotification("Fit failed - check data quality", "error");
       }

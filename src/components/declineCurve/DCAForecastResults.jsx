@@ -11,22 +11,23 @@ import DCAEURDistribution from './DCAEURDistribution';
 const DCAForecastResults = () => {
   const { selectedStream, streamState, currentWell } = useDeclineCurve();
   const results = streamState[selectedStream]?.forecastResults;
-  const probabilisticResults = streamState[selectedStream]?.probabilisticResults;
   const config = streamState[selectedStream]?.forecastConfig;
 
-  if (!results && !probabilisticResults) return (
+  if (!results) return (
     <div className="flex items-center justify-center h-full text-slate-500 text-sm p-4 bg-slate-900/50 rounded border border-dashed border-slate-800">
       No Forecast Generated
     </div>
   );
 
-  const isProbabilistic = config?.probabilisticMode && probabilisticResults;
-  const displayResults = isProbabilistic ? probabilisticResults : results;
-  
+  // Monte Carlo results ride on forecastResults.probabilistic (runForecast
+  // attaches them there); the deterministic curve is forecastResults.rates.
+  const probabilisticResults = results.probabilistic;
+  const isProbabilistic = !!(config?.probabilisticMode && probabilisticResults);
+
   // Safely handle potentially undefined values
-  const safeEur = displayResults?.eur || 0;
-  const safeTimeToLimit = displayResults?.timeToLimit || 0;
-  const safeData = displayResults?.data || [];
+  const safeEur = results.eur || 0;
+  const safeTimeToLimit = results.timeToLimit || 0;
+  const safeData = results.rates || [];
 
   const handleExport = () => {
     if (safeData.length > 0) {
@@ -36,7 +37,7 @@ const DCAForecastResults = () => {
 
   const getUnits = () => {
     switch(selectedStream) {
-      case 'gas': return 'Mcf';
+      case 'gas': return 'Mscf';
       case 'water': return 'bbl';
       default: return 'bbl';
     }
@@ -64,7 +65,7 @@ const DCAForecastResults = () => {
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="p-3">
               <div className="text-[10px] text-slate-400 uppercase mb-1">P10 EUR (Optimistic)</div>
-              <div className="text-sm font-bold text-green-400">
+              <div className="text-sm font-bold text-emerald-400">
                 {probabilisticResults.p10?.toLocaleString(undefined, {maximumFractionDigits:0}) || '0'}
               </div>
               <div className="text-[8px] text-slate-500">{getUnits()}</div>
@@ -73,7 +74,7 @@ const DCAForecastResults = () => {
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="p-3">
               <div className="text-[10px] text-slate-400 uppercase mb-1">P50 EUR (Most Likely)</div>
-              <div className="text-sm font-bold text-blue-400">
+              <div className="text-sm font-bold text-sky-400">
                 {probabilisticResults.p50?.toLocaleString(undefined, {maximumFractionDigits:0}) || '0'}
               </div>
               <div className="text-[8px] text-slate-500">{getUnits()}</div>
@@ -82,7 +83,7 @@ const DCAForecastResults = () => {
           <Card className="bg-slate-800 border-slate-700">
             <CardContent className="p-3">
               <div className="text-[10px] text-slate-400 uppercase mb-1">P90 EUR (Conservative)</div>
-              <div className="text-sm font-bold text-red-400">
+              <div className="text-sm font-bold text-amber-400">
                 {probabilisticResults.p90?.toLocaleString(undefined, {maximumFractionDigits:0}) || '0'}
               </div>
               <div className="text-[8px] text-slate-500">{getUnits()}</div>
@@ -153,7 +154,7 @@ const DCAForecastResults = () => {
                       {typeof row.rate === 'number' ? row.rate.toFixed(1) : '0.0'}
                     </TableCell>
                     <TableCell className="py-1 text-xs text-right text-slate-400 font-mono">
-                      {typeof row.cum === 'number' ? row.cum.toLocaleString() : '0'}
+                      {typeof row.cumulative === 'number' ? Math.round(row.cumulative).toLocaleString() : '0'}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -48,14 +48,16 @@ const DCAForecastEngine = () => {
               "Standard deterministic forecast"
             )}
             {!hasConfidenceIntervals && hasFit && (
-              <div className="text-amber-400 mt-1">Phase 1 confidence intervals required for probabilistic mode</div>
+              <div className="text-amber-400 mt-1">
+                Probabilistic mode needs reliable parameter confidence intervals, which this fit could not produce. Refit with more data points or a cleaner decline period to enable it.
+              </div>
             )}
           </div>
         </div>
 
         {/* Economic Limit */}
         <div className="space-y-2">
-          <Label className="text-xs">Economic Limit Rate ({selectedStream === 'gas' ? 'Mcf/d' : 'bbl/d'})</Label>
+          <Label className="text-xs">Economic Limit Rate ({selectedStream === 'gas' ? 'Mscf/d' : 'bbl/d'})</Label>
           <div className="flex items-center gap-2">
             <Input 
               type="number" 

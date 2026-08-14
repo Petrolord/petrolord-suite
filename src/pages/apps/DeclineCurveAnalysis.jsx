@@ -134,11 +134,14 @@ const DeclineCurveContent = () => {
   );
 
   const main = activeTab === 'analysis' ? (
-    <div className="h-full flex flex-col gap-4">
+    // The KPI card grid grows (up to 10 cards in probabilistic mode); the
+    // chart keeps a guaranteed minimum height and the column scrolls instead
+    // of clipping the plot's axis/legend (which also cut off PNG exports).
+    <div className="h-full flex flex-col gap-4 overflow-y-auto">
       <div className="flex-shrink-0">
         <DCAKPICardsEnhanced />
       </div>
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-[480px]">
         <DCABasePlots />
       </div>
     </div>
