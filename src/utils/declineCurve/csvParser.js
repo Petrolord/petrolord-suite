@@ -25,10 +25,13 @@ export const parseCSV = (fileContent) => {
 const COLUMN_ALIASES = {
   date: ['date', 'time', 'timestamp', 'prod_date', 'period'],
   well: ['well_name', 'wellname', 'well', 'api', 'uwi'],
-  cum: ['cum', 'cumulative', 'np', 'gp', 'wp'],
   oilRate: ['oil_rate', 'oil rate', 'qo', 'bopd', 'oil'],
   gasRate: ['gas_rate', 'gas rate', 'qg', 'mscf', 'gas'],
   waterRate: ['water_rate', 'water rate', 'qw', 'bwpd', 'water'],
+  // cum resolves AFTER the stream rates: its short np/gp/wp aliases are
+  // substrings of common rate headers ('wp' is inside 'bwpd'), and resolving
+  // cum first silently claimed the water column as a cumulative.
+  cum: ['cum', 'cumulative', 'np', 'gp', 'wp'],
   rate: ['rate', 'volume'] // generic single-stream column, resolved last
 };
 
