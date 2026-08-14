@@ -50,6 +50,7 @@ const WellboreStabilityAnalyzer = lazy(() => import('@/pages/apps/WellboreStabil
 const OffsetWellIncidentFinder = lazy(() => import('@/pages/apps/OffsetWellIncidentFinder'));
 const NpvScenarioBuilder = lazy(() => import('@/pages/apps/NpvScenarioBuilder'));
 const DecisionTreeBuilder = lazy(() => import('@/pages/apps/DecisionTreeBuilder'));
+const DecisionStudio = lazy(() => import('@/pages/apps/DecisionStudio'));
 const ValueOfInformationAnalyzer = lazy(() => import('@/pages/apps/ValueOfInformationAnalyzer'));
 const ProbabilisticBreakevenAnalyzer = lazy(() => import('@/pages/apps/ProbabilisticBreakevenAnalyzer'));
 const FdpAccelerator = lazy(() => import('@/pages/apps/FDPAccelerator'));
@@ -561,6 +562,7 @@ function App() {
                                 
                                 <Route path="apps/economics/npv-scenario-builder" element={<NpvScenarioBuilder />} />
                                 <Route path="apps/economics/decision-tree-builder" element={<ProtectedAppRoute appId="decision-tree-builder" appName="Decision Tree Builder"><DecisionTreeBuilder /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/decision-studio" element={<ProtectedAppRoute appId="decision-studio" appName="Decision Studio"><DecisionStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/economics/fiscal-regime-designer" element={<FiscalRegimeDesigner />} />
                                 <Route path="apps/economics/capital-portfolio-studio" element={<CapitalPortfolioStudio />} />
                                 <Route path="apps/economics/fdp-accelerator" element={<FdpAccelerator />} />

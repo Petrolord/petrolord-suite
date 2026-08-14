@@ -44,7 +44,7 @@ const AuthProviderContent = ({ children }) => {
     'fiscal-regime-designer', 'capital-portfolio-studio', 'fdp-accelerator', 'report-autopilot',
     'technical-report-autopilot', 'afe-cost-control-manager', 'petroleum-economics-studio',
     'value-of-information-analyzer', 'probabilistic-breakeven-analyzer', 'risk-register',
-    'decision-tree-builder',
+    'decision-tree-builder', 'decision-studio',
     'voi-analyzer', 'breakeven-analyzer', 'epe', 'epe-suite', 'pipeline-sizer', 'separator-slug-catcher-designer',
     'compressor-pump-pack', 'heat-exchanger-sizer', 'gas-treating-dehydration', 'relief-blowdown-sizer',
     'facility-layout-mapper', 'corrosion-rate-predictor', 'mechanical-earth-model', 'well-log-analyzer'
