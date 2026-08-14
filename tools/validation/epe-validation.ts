@@ -31,11 +31,15 @@
  *   6. CPR cessation forfeiture (EPE.md §4.1): a case ending with an
  *      unrecovered CPR pool must flag the forfeited amount on the final
  *      year row and in KPIs.
+ *   7. Monte Carlo layer (D2): degenerate distributions reproduce the
+ *      deterministic NPV exactly, seeded runs are reproducible, and a
+ *      mode-at-base spread brackets the deterministic NPV.
  *
  * Exit code 0 on full pass, 1 on any failure.
  */
 
 import { computeCashFlow } from '../../supabase/functions/_shared/epe-engine.ts';
+import { runEpeMonteCarlo } from '../../supabase/functions/_shared/epe-mc.ts';
 import {
   PIA_WORKED_EXAMPLE_CFG,
   PIA_WORKED_EXAMPLE_PROD,
@@ -287,6 +291,40 @@ console.log('\n=== Case 6: CPR cessation forfeiture diagnostic ===');
   check('CPR deferred = 8M', row.cpr_deferred_to_next, 8_000_000);
   check('final-year forfeiture flag = 8M', row.cpr_forfeited_at_cessation, 8_000_000);
   check('KPI cpr_forfeited_at_cessation = 8M', kpis.cpr_forfeited_at_cessation, 8_000_000);
+}
+
+// ============================================================================
+// CASE 7 — MONTE CARLO LAYER (D2)
+// ============================================================================
+// The MC layer must be a pure wrapper around the deterministic engine:
+// (a) with zero uncertain inputs every iteration reproduces the worked
+//     example NPV exactly; (b) a seeded run is bit-reproducible; (c) a
+//     triangular oil-price spread must bracket the deterministic NPV
+//     between its P90 and P10 when the mode equals the base price.
+console.log('\n=== Case 7: Monte Carlo layer over the engine ===');
+{
+  const baseArgs = {
+    cfg: PIA_WORKED_EXAMPLE_CFG,
+    prodRows: PIA_WORKED_EXAMPLE_PROD,
+    capexRows: PIA_WORKED_EXAMPLE_CAPEX,
+    opexRows: PIA_WORKED_EXAMPLE_OPEX,
+  };
+  const degenerate = runEpeMonteCarlo({ ...baseArgs, mcConfig: { iterations: 100, seed: 1, variables: {} } });
+  check('degenerate MC P90 = deterministic NPV', degenerate.npv.p90, PIA_WORKED_EXAMPLE_EXPECTED.npv, 0.01);
+  check('degenerate MC P10 = deterministic NPV', degenerate.npv.p10, PIA_WORKED_EXAMPLE_EXPECTED.npv, 0.01);
+  check('degenerate MC stdDev = 0', degenerate.npv.stdDev, 0, 1e-6);
+
+  const mcConfig = {
+    iterations: 500, seed: 42,
+    variables: { oil_price: { type: 'triangular', min: 60, mode: 80, max: 110 } },
+  };
+  const runA = runEpeMonteCarlo({ ...baseArgs, mcConfig });
+  const runB = runEpeMonteCarlo({ ...baseArgs, mcConfig });
+  check('seeded run reproducible (P50 identical)', runA.npv.p50, runB.npv.p50, 0);
+  check('P90 < deterministic NPV < P10 (mode at base price)',
+    runA.npv.p90 < PIA_WORKED_EXAMPLE_EXPECTED.npv && PIA_WORKED_EXAMPLE_EXPECTED.npv < runA.npv.p10, true);
+  check('P(NPV>0) within (0, 1]', runA.probNpvPositive > 0 && runA.probNpvPositive <= 1, true);
+  check('tornado has the single varied input', runA.tornado.length === 1 && runA.tornado[0].parameter === 'oil_price', true);
 }
 
 // ============================================================================
