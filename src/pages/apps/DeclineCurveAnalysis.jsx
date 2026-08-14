@@ -31,6 +31,7 @@ import DCAIntegrationPanel from '@/components/declineCurve/DCAIntegrationPanel';
 import DCAWellMetadata from '@/components/declineCurve/DCAWellMetadata';
 import DCAHelpContent from '@/components/declineCurve/DCAHelpContent';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const TABS = [
   { value: 'analysis', label: 'Single Well Analysis' },
@@ -43,6 +44,7 @@ const SectionLabel = ({ children }) => (
 
 const DeclineCurveContent = () => {
   const [activeTab, setActiveTab] = useState('analysis');
+  const [resultsTab, setResultsTab] = useState('fit');
   const {
     projects, currentProjectId, createProject, openProject, deleteProject,
     manualSave, isSaving, saveError, lastSaveTime,
@@ -134,19 +136,34 @@ const DeclineCurveContent = () => {
   );
 
   const main = activeTab === 'analysis' ? (
-    // The KPI card grid grows (up to 10 cards in probabilistic mode); the
-    // chart keeps a guaranteed minimum height and the column scrolls instead
-    // of clipping the plot's axis/legend (which also cut off PNG exports).
-    <div className="h-full flex flex-col gap-4 overflow-y-auto">
-      <div className="flex-shrink-0">
-        <DCAKPICardsEnhanced />
-      </div>
-      <div className="flex-1 min-h-[480px]">
-        <DCABasePlots />
-      </div>
-    </div>
+    // Fit and forecast results each get the full middle column on their own
+    // tab (they used to split it in half, which clipped both). The fit tab
+    // scrolls because the KPI grid grows (up to 10 cards in probabilistic
+    // mode) while the chart keeps a guaranteed minimum height; the forecast
+    // tab stays bounded so its table scrolls internally.
+    <Tabs value={resultsTab} onValueChange={setResultsTab} className="h-full flex flex-col min-h-0">
+      <TabsList className="self-start h-9 shrink-0">
+        <TabsTrigger value="fit" className="text-xs">Model Fit</TabsTrigger>
+        <TabsTrigger value="forecast" className="text-xs">Forecast Results</TabsTrigger>
+      </TabsList>
+      <TabsContent value="fit" className="flex-1 min-h-0 mt-3 overflow-y-auto">
+        <div className="min-h-full flex flex-col gap-4">
+          <div className="flex-shrink-0">
+            <DCAKPICardsEnhanced />
+          </div>
+          <div className="flex-1 min-h-[480px]">
+            <DCABasePlots />
+          </div>
+        </div>
+      </TabsContent>
+      <TabsContent value="forecast" className="flex-1 min-h-0 mt-3">
+        <DCAForecastResults />
+      </TabsContent>
+    </Tabs>
   ) : (
-    <div className="h-full flex flex-col gap-4">
+    // Type curve content is taller than the viewport once a curve is active
+    // (plot + stats + apply panel); the column scrolls instead of clipping.
+    <div className="h-full flex flex-col gap-4 overflow-y-auto">
       <DCATypeCurve />
     </div>
   );
@@ -186,7 +203,6 @@ const DeclineCurveContent = () => {
         sidebarLeft={leftPanel}
         sidebarRight={rightPanel}
         main={main}
-        bottom={activeTab === 'analysis' ? <DCAForecastResults /> : null}
         busyMessage={isFitting ? 'Fitting Model...' : isForecasting ? 'Generating Forecast...' : null}
         notifications={notifications}
         onDismissNotification={removeNotification}

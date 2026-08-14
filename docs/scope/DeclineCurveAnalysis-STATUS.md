@@ -78,6 +78,25 @@ Verification: jest dca/declineCurve suites green (8 suites, 94 passed),
 `npm run build` green, `/dev/dca` staging harness loads with no console
 errors.
 
+## Layout round 2026-08-14 (user-reported display limitations)
+
+- **Single Well Analysis results now tabbed** — the middle column no longer
+  splits vertically between the fit chart and the forecast results panel
+  (each got about half the height, so both were cramped). The main area is
+  now a Model Fit / Forecast Results tab pair (local `resultsTab` state in
+  `DeclineCurveAnalysis.jsx`); each view gets the full column height. The
+  StudioLayout `bottom` slot is no longer used by DCA;
+  `DCAForecastResults.jsx` itself is unchanged.
+- **Type Curve page scrolls** — the tab's content was locked to viewport
+  height (`h-full` + `min-h-0` + `overflow-hidden` cards), clipping the
+  stats row and the Apply To Well panel unless the user zoomed the browser
+  out. The page wrapper is now `overflow-y-auto` and `DCATypeCurve.jsx`
+  uses `min-h-full` so it grows past the viewport; the well-selection list
+  keeps a 200px floor so its ScrollArea can't collapse now that card
+  heights are content-driven.
+
+Verification: DCA smoke test green, `npm run build` green.
+
 ## Known gaps / next
 
 - Segmented decline fitting: detection util exists, no engine branch, no UI.
