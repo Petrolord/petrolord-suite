@@ -394,8 +394,9 @@ const DataHub = ({ caseId, caseData, onDataSaved }) => {
             setParseWarnings(warnings);
             setColMap(cm);
             toast({
-              title: 'CSV parsed',
-              description: `${rows.length} rows mapped. Review and save below.`,
+              title: 'CSV parsed, not saved yet',
+              description: `${rows.length} rows mapped. Click "Save to case" below to write them to the case before running MBAL.`,
+              duration: 8000,
             });
           } catch (err) {
             toast({
