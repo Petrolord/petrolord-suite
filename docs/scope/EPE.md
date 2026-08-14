@@ -184,16 +184,28 @@ In rough priority order, with rough sizing estimates:
 
 ## 5. Validation status snapshot
 
+Updated 2026-08-14 (D1, docs/scope/Economics-ROADMAP.md). The engine now
+has a standing oracle harness (`tools/validation/epe-validation.ts`, run
+with `npx tsx`; 60 checks) plus a CI gate
+(`supabase/functions/_shared/__tests__/epe-engine.test.ts`) that re-asserts
+the same numbers under jest. The worked-example inputs are frozen locally
+in `tools/validation/fixtures/epe-pia-worked-example.ts` so the regression
+contract no longer depends on database access.
+
 | Component | Validation | Status |
 |---|---|---|
-| PIA 2021 math (worked example) | Byte-for-byte against published example, 17 line items | ✓ Validated |
-| NTA 2025 framework | Synthetic example mathematically derived from PIA example | ✓ Internally consistent, NOT NUPRC-validated |
-| JV math | Conventional formulae | ⚠ No worked example used |
-| PSC math | Conventional formulae | ⚠ No worked example used |
+| PIA 2021 math (worked example) | Byte-for-byte against published example, 17 line items; inputs frozen locally, NPV + every line item locked to ±$0.01 in harness and CI | ✓ Validated + regression-gated |
+| NTA 2025 framework | Synthetic example mathematically derived from PIA example; harness additionally proves force_nta differs from force_pia only by TET→Dev Levy on the same assessable base | ✓ Internally consistent, NOT NUPRC-validated |
+| JV math | Hand-derived closed-form two-year case (royalty, tax, NCF, NPV, IRR 200%, payback) asserted in harness + CI | ✓ Analytically validated |
+| PSC math | Hand-derived two-year carryforward case (cost-oil cap binding, pool consumed in year 2) asserted in harness + CI | ✓ Analytically validated |
 | Sensitivity (tornado) | Direction and magnitude sane; specific numbers not validated | ⚠ Sanity-checked, not validated |
-| Production allowance cap math | Code present | ✗ Untested against synthetic case |
-| CPR cessation forfeiture | Code present | ✗ Untested against synthetic case |
+| Production allowance cap math | Mid-year crossing case (99→101 MMbbl over the shallow-water cap): eligible-bbl split, allowance, and exhaustion asserted exactly | ✓ Validated (closes §4.1) |
+| CPR cessation forfeiture | Single-year case with 8M unrecovered pool: final-row flag + KPI asserted | ✓ Validated (closes §4.1) |
 | Min ETR (NTA §57) | Schema only | ✗ Math not implemented |
+
+Literature byte-verification of JV/PSC against published worked examples
+(Mian; SPE) remains open pending owner-provided references; the analytic
+cases above are independently hand-derived, not literature-traced.
 
 ---
 
