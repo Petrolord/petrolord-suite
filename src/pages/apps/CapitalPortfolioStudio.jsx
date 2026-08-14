@@ -16,6 +16,7 @@ import ProjectForm from '@/components/capitalportfoliostudio/ProjectForm';
 import PortfolioForm from '@/components/capitalportfoliostudio/PortfolioForm';
 import OptimizationResults from '@/components/capitalportfoliostudio/OptimizationResults';
 import PortfolioComparison from '@/components/capitalportfoliostudio/PortfolioComparison';
+import { optimizePortfolio, projectEmv } from '@/utils/portfolioOptimizer';
 
 const CapitalPortfolioStudio = () => {
   const { user } = useAuth();
@@ -153,46 +154,13 @@ const CapitalPortfolioStudio = () => {
     });
   };
 
+  // Optimization math lives in src/utils/portfolioOptimizer.js (D4):
+  // risked-EMV knapsack, efficient frontier, and the normal-approximation
+  // portfolio risk summary. totalNpv is kept as an alias of totalEmv for
+  // the comparison view's field names.
   const runSingleOptimization = (portfolio, candidateProjects) => {
-    const capexLimit = Math.round(portfolio.capex_limit);
-    const n = candidateProjects.length;
-    const dp = Array(capexLimit + 1).fill(0);
-    const items = Array(capexLimit + 1).fill(null).map(() => []);
-
-    for (let i = 0; i < n; i++) {
-      const project = candidateProjects[i];
-      const weight = Math.round(project.capex);
-      const value = project.npv_p50;
-
-      for (let w = capexLimit; w >= weight; w--) {
-        if (dp[w - weight] + value > dp[w]) {
-          dp[w] = dp[w - weight] + value;
-          items[w] = [...items[w - weight], project];
-        }
-      }
-    }
-
-    const optimalProjects = items[capexLimit];
-    const totalCapex = optimalProjects.reduce((sum, p) => sum + p.capex, 0);
-    const totalNpv = optimalProjects.reduce((sum, p) => sum + p.npv_p50, 0);
-
-    const frontierData = [];
-    let lastNpv = -1;
-    for (let w = 0; w <= capexLimit; w++) {
-      if (dp[w] > lastNpv) {
-        const frontierCapex = items[w].reduce((sum, p) => sum + p.capex, 0);
-        frontierData.push({ capex: frontierCapex, npv: dp[w] });
-        lastNpv = dp[w];
-      }
-    }
-
-    return {
-      ...portfolio,
-      optimalProjects,
-      totalCapex,
-      totalNpv,
-      frontierData,
-    };
+    const result = optimizePortfolio({ projects: candidateProjects, capexLimit: portfolio.capex_limit });
+    return { ...portfolio, ...result, totalNpv: result.totalEmv };
   };
 
   const runOptimization = () => {
@@ -313,13 +281,18 @@ const CapitalPortfolioStudio = () => {
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                 <Card className="bg-white/5 border-white/10 text-white">
                   <CardHeader>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center gap-2 flex-wrap">
                       <CardTitle className="text-2xl">{activePortfolio.name} - Workbench</CardTitle>
-                      <Button onClick={runOptimization} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-                        <Zap className="w-4 h-4 mr-2" /> Run Optimization
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button onClick={() => handleOpenProjectDialog()} variant="outline" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
+                          <PlusCircle className="w-4 h-4 mr-2" /> Add Project
+                        </Button>
+                        <Button onClick={runOptimization} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+                          <Zap className="w-4 h-4 mr-2" /> Run Optimization
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-slate-300">Select projects to include in the optimization. CAPEX Limit: <span className="font-bold text-amber-300">{formatCurrency(activePortfolio.capex_limit)}</span></p>
+                    <p className="text-slate-300">Select projects to include. The optimizer maximizes risked EMV under the CAPEX limit: <span className="font-bold text-amber-300">{formatCurrency(activePortfolio.capex_limit)}</span></p>
                   </CardHeader>
                   <CardContent>
                     <div className="max-h-64 overflow-y-auto pr-2">
@@ -330,17 +303,34 @@ const CapitalPortfolioStudio = () => {
                             <TableHead className="text-white">Project</TableHead>
                             <TableHead className="text-white text-right">CAPEX</TableHead>
                             <TableHead className="text-white text-right">NPV P50</TableHead>
+                            <TableHead className="text-white text-right">POS</TableHead>
+                            <TableHead className="text-white text-right">Risked EMV</TableHead>
+                            <TableHead className="w-[70px]"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {projects.map(p => (
                             <TableRow key={p.id} className="border-b-white/10">
                               <TableCell><Checkbox checked={selectedProjectIds.has(p.id)} onCheckedChange={() => handleProjectSelectionChange(p.id)} /></TableCell>
-                              <TableCell className="font-medium">{p.name}</TableCell>
+                              <TableCell className="font-medium">
+                                {p.name}
+                                {p.source_type === 'epe_mc' && (
+                                  <span className="ml-2 text-[10px] text-emerald-300 bg-emerald-900/30 border border-emerald-500/30 rounded px-1.5 py-0.5" title={p.source_label || 'Linked EPE Monte Carlo run'}>EPE MC</span>
+                                )}
+                              </TableCell>
                               <TableCell className="text-right text-amber-300">{formatCurrency(p.capex)}</TableCell>
-                              <TableCell className="text-right text-lime-300">{formatCurrency(p.npv_p50)}</TableCell>
+                              <TableCell className="text-right text-slate-200">{formatCurrency(p.npv_p50)}</TableCell>
+                              <TableCell className="text-right text-slate-300">{Math.round((p.pos ?? 1) * 100)}%</TableCell>
+                              <TableCell className="text-right text-lime-300">{formatCurrency(projectEmv(p))}</TableCell>
+                              <TableCell className="text-right">
+                                <Button variant="ghost" size="icon" onClick={() => handleOpenProjectDialog(p)} className="text-blue-400 hover:text-blue-300 h-7 w-7"><Edit className="w-4 h-4" /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDeleteProject(p.id)} className="text-red-500 hover:text-red-400 h-7 w-7"><Trash2 className="w-4 h-4" /></Button>
+                              </TableCell>
                             </TableRow>
                           ))}
+                          {projects.length === 0 && (
+                            <TableRow><TableCell colSpan={7} className="text-center text-slate-400 py-6">No projects yet. Use Add Project to create one, typed or linked to an EPE Monte Carlo run.</TableCell></TableRow>
+                          )}
                         </TableBody>
                       </Table>
                     </div>
