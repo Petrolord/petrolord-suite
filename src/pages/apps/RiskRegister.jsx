@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { RiskRegisterShell } from './risk-register/components/RiskRegisterShell';
 import RiskRegisterDashboardPage from './risk-register/RiskRegisterDashboardPage';
 import RiskRegisterTablePage from './risk-register/RiskRegisterTablePage';
@@ -29,8 +30,13 @@ const RiskRegisterRouter = ({ activeTab, setActiveTab }) => {
   );
 };
 
+const VALID_TABS = ['dashboard', 'register', 'heatmap', 'reports', 'advanced-reports'];
+
 const RiskRegister = () => {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => {
+    const requested = searchParams.get('tab');
+    if (VALID_TABS.includes(requested)) return requested;
     return localStorage.getItem('riskRegisterActiveTab') || 'dashboard';
   });
 

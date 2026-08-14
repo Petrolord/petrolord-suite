@@ -127,7 +127,6 @@ const PipelineSizer = lazy(() => import('@/pages/apps/PipelineSizer.jsx'));
 const ProducedWaterTreatment = lazy(() => import('@/pages/apps/ProducedWaterTreatment.jsx'));
 
 // Assurance
-const RiskHeatmap = lazy(() => import('@/pages/apps/RiskHeatmap.jsx'));
 const RiskRegister = lazy(() => import('@/pages/apps/RiskRegister.jsx'));
 
 // Risk Register Consolidated Flow
@@ -424,7 +423,7 @@ function App() {
                                 <Route path="assurance/*" element={<Navigate to="/dashboard/assurance" replace />} />
                                 
                                 <Route path="apps/geoscience/hub" element={<ProtectedAppRoute appId="geoscience-hub" appName="Geoscience Hub"><GeoscienceHub /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/quickvol" element={<ProtectedAppRoute appId="quickvol" appName="QuickVol"><ReservoirCalcPro /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/quickvol" element={<ProtectedAppRoute appId="reservoircalc-pro" appName="QuickVol"><ReservoirCalcPro /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/reservoircalc-pro" element={<ProtectedAppRoute appId="reservoircalc-pro" appName="ReservoirCalc Pro"><ReservoirCalcPro /></ProtectedAppRoute>} />
                                 {/* Well Correlation (G3) replaces the mock Well Correlation Tool;
                                     the legacy slug redirects to the successor (roadmap G0 alias rule). */}
@@ -460,15 +459,15 @@ function App() {
                                 <Route path="apps/geoscience/well-data-manager" element={<ProtectedAppRoute appId="well-data-manager" appName="Well Data Manager"><WellDataManager /></ProtectedAppRoute>} />
 
                                 {/* MEM Aliases ensuring all database slugs route properly without hitting catch-all */}
-                                <Route path="apps/geoscience/mechanical-earth-model" element={<ProtectedAppRoute appId="mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
-                                <Route path="apps/mechanical-earth-model" element={<ProtectedAppRoute appId="mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/1d-mechanical-earth-model" element={<ProtectedAppRoute appId="mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
-                                <Route path="apps/1d-mechanical-earth-model" element={<ProtectedAppRoute appId="mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/mem" element={<ProtectedAppRoute appId="mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/geomechanics" element={<ProtectedAppRoute appId="mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/mechanical-earth-model" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
+                                <Route path="apps/mechanical-earth-model" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/1d-mechanical-earth-model" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
+                                <Route path="apps/1d-mechanical-earth-model" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/mem" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/geomechanics" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
                                 
-                                <Route path="apps/geoscience/mechanical-earth-model/expert" element={<ProtectedAppRoute appId="mechanical-earth-model" appName="1D Mechanical Earth Model"><ExpertMode /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/mechanical-earth-model/analytics" element={<ProtectedAppRoute appId="mechanical-earth-model" appName="1D Mechanical Earth Model"><Analytics /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/mechanical-earth-model/expert" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><ExpertMode /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/mechanical-earth-model/analytics" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><Analytics /></ProtectedAppRoute>} />
                                 
                                 <Route path="apps/reservoir/fluid-systems-studio" element={<FluidSystemsStudio />} />
                                 {/* W6: surveillance absorbed into the Waterflood Design Studio */}
@@ -510,7 +509,7 @@ function App() {
                                 <Route path="apps/drilling/casing-wear-analyzer" element={<CasingWearAnalyzer />} />
                                 <Route path="apps/drilling/drilling-fluids-hydraulics" element={<DrillingFluidsHydraulics />} />
                                 <Route path="apps/drilling/torque-drag-predictor" element={<TorqueDragPredictor />} />
-                                <Route path="apps/drilling/cementing-simulation" element={<ProtectedAppRoute appId="cementing-simulation" appName="Cementing Simulation App"><CementingSimulationApp /></ProtectedAppRoute>} />
+                                <Route path="apps/drilling/cementing-simulation" element={<ProtectedAppRoute appId="cementing-simulation-app" appName="Cementing Simulation App"><CementingSimulationApp /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/frac-completion" element={<FracCompletionApp />} />
                                 {/* legacy PPFG shell — retired for Pore Pressure Studio (plan Q2) */}
                                 <Route path="apps/drilling/pore-pressure-fracture-gradient" element={<Navigate to="/dashboard/apps/geoscience/pore-pressure-studio" replace />} />
@@ -603,7 +602,7 @@ function App() {
                                 <Route path="apps/facilities/produced-water-treatment" element={<ProducedWaterTreatment />} />
                                 
                                 {/* Assurance routes */}
-                                <Route path="apps/assurance/risk-heatmap" element={<ProtectedAppRoute appId="risk-heatmap" appName="Risk Heatmap"><RiskHeatmap /></ProtectedAppRoute>} />
+                                <Route path="apps/assurance/risk-heatmap" element={<Navigate to="/dashboard/apps/assurance/risk-register?tab=heatmap" replace />} />
                                 
                                 {/* Risk Register Full Flow Routes */}
                                 <Route path="apps/assurance/risk-register" element={<ProtectedAppRoute appId="risk-register" appName="Risk Register"><RiskRegister /></ProtectedAppRoute>} />
@@ -634,16 +633,16 @@ function App() {
                                 <Route path="apps/assurance/management-of-change/:id" element={<ProtectedAppRoute appId="management-of-change" appName="Management of Change"><MOCDetail /></ProtectedAppRoute>} />
                                 
                                 {/* Quality Assurance Plan Routes */}
-                                <Route path="apps/assurance/qa-plan/*" element={<ProtectedAppRoute appId="qa-plan" appName="Quality Assurance Plan"><QAPlanPageShell /></ProtectedAppRoute>} />
+                                <Route path="apps/assurance/qa-plan/*" element={<ProtectedAppRoute appId="quality-assurance-plan" appName="Quality Assurance Plan"><QAPlanPageShell /></ProtectedAppRoute>} />
 
                                 {/* Regulatory Compliance Routes */}
                                 <Route path="apps/assurance/regulatory-compliance/*" element={<ProtectedAppRoute appId="regulatory-compliance" appName="Regulatory Compliance"><RegulatoryCompliancePageShell /></ProtectedAppRoute>} />
 
                                 {/* ISO Compliance Routes */}
-                                <Route path="apps/assurance/iso-compliance/*" element={<ProtectedAppRoute appId="iso-compliance" appName="ISO Compliance"><ISOCompliancePageShell /></ProtectedAppRoute>} />
+                                <Route path="apps/assurance/iso-compliance/*" element={<ProtectedAppRoute appId="iso-compliance-tool" appName="ISO Compliance"><ISOCompliancePageShell /></ProtectedAppRoute>} />
 
                                 {/* Lessons Learned Routes */}
-                                <Route path="apps/assurance/lessons-learned/*" element={<ProtectedAppRoute appId="lessons-learned" appName="Lessons Learned"><LessonsLearnedPageShell /></ProtectedAppRoute>} />
+                                <Route path="apps/assurance/lessons-learned/*" element={<ProtectedAppRoute appId="lesson-learned-db" appName="Lessons Learned"><LessonsLearnedPageShell /></ProtectedAppRoute>} />
 
                                 {/* legacy EarthModel Studio project list — retired with the ss_* drop */}
                                 <Route path="my-projects" element={<Navigate to="/dashboard" replace />} />
