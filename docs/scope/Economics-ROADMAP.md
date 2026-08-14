@@ -1,6 +1,6 @@
 # Economics / Decision Analysis module — plan of record (D series)
 
-Status: **APPROVED by owner 2026-08-14. D0 IN PROGRESS.**
+Status: **APPROVED by owner 2026-08-14. D0 COMPLETE (this branch).**
 Owner directive: build a senior-management decision-analysis flagship
 ("Petrolord Decision Studio") that sets a mark in the industry, the way
 Geoscience-ROADMAP.md (G0-G8) and Reservoir-ROADMAP.md (R0-R5) did for
@@ -122,7 +122,7 @@ Each phase is independently shippable, branch + PR per phase (or per
 sub-phase where large). Validation-first: engine math gates on
 published worked examples before promotion, per repo doctrine.
 
-### D0 — Truth and cleanup (2-3 days) — IN PROGRESS
+### D0 — Truth and cleanup — DONE 2026-08-14
 Credibility prerequisite: an executive tool cannot share a module with
 fabricated numbers.
 - D0.1 Delete the three orphan mock apps (Fiscal Regime Comparator,
@@ -217,7 +217,7 @@ fabricated numbers.
 
 | Phase | Status | Landed |
 |---|---|---|
-| D0 truth & cleanup | IN PROGRESS 2026-08-14 | branch feat/economics-d0-truth-cleanup |
+| D0 truth & cleanup | **DONE 2026-08-14** | branch feat/economics-d0-truth-cleanup. Deltas vs plan: the two dashboard pages tile-linking to the comparator (EconomicEvaluation, EconomicAndRisk) were themselves unrouted orphans and were deleted rather than repointed. The entitlement issue was deeper than id aliases: get-user-entitlements returned only master_apps UUIDs while all 78 ProtectedAppRoute guards check slugs, so every guarded app denied licensed non-superadmin users; the function now grants both forms (deployed 2026-08-14). Six route appIds pointed at nonexistent catalog slugs and were repointed (quickvol→reservoircalc-pro, cementing-simulation→cementing-simulation-app, mechanical-earth-model→1d-mechanical-earth-model, iso-compliance→iso-compliance-tool, lessons-learned→lesson-learned-db, qa-plan→quality-assurance-plan). PES breakeven is now a real bisection solve (NPV=0 verified exact). NPV Portfolio/Integration tabs and the FDP Advanced Analytics facade were deleted outright. Follow-up noted: apps/geoscience/hub gates on a nonexistent geoscience-hub app id (should be a module gate); PM Pro has its own untouched IntegrationHub (unaudited). Jest 2229 green, build clean. |
 | D1 one fiscal truth | pending | |
 | D2 probabilistic economics | pending | |
 | D3 decision trees / VOI | pending | |
