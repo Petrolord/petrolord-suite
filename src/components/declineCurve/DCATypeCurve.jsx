@@ -167,8 +167,12 @@ const DCATypeCurve = () => {
         <div className="lg:col-span-2 flex flex-col gap-4">
           {activeCurve ? (
             <>
-              {/* Plot */}
-              <Card className="flex-1 bg-slate-900 border-slate-800 flex flex-col min-h-[400px]">
+              {/* Plot. Same height floor as the Model Fit chart (480px), and
+                  the plot sits in an absolutely positioned inset because the
+                  card's height is min-h/stretch driven: Recharts'
+                  ResponsiveContainer needs a definite-height ancestor or it
+                  collapses to zero. */}
+              <Card className="flex-1 bg-slate-900 border-slate-800 flex flex-col min-h-[480px]">
                 <CardHeader className="py-2 px-4 border-b border-slate-800 flex flex-row justify-between items-center bg-slate-800/50">
                   <CardTitle className="text-xs font-medium text-slate-300">Type Curve Plot: {activeCurve.name}</CardTitle>
                   <Badge variant="outline" className="bg-slate-800 border-purple-500/50 text-purple-400">
@@ -176,7 +180,9 @@ const DCATypeCurve = () => {
                   </Badge>
                 </CardHeader>
                 <CardContent className="flex-1 p-0 relative">
-                  <DCATypeCurvePlot typeCurve={activeCurve} />
+                  <div className="absolute inset-0">
+                    <DCATypeCurvePlot typeCurve={activeCurve} />
+                  </div>
                 </CardContent>
               </Card>
 

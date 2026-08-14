@@ -146,8 +146,11 @@ const DeclineCurveContent = () => {
         <TabsTrigger value="fit" className="text-xs">Model Fit</TabsTrigger>
         <TabsTrigger value="forecast" className="text-xs">Forecast Results</TabsTrigger>
       </TabsList>
-      <TabsContent value="fit" className="flex-1 min-h-0 mt-3 overflow-y-auto">
-        <div className="min-h-full flex flex-col gap-4">
+      {/* The inner div must be h-full (definite height), not min-h-full:
+          the chart's ResponsiveContainer resolves percentage heights and
+          collapses to zero under a min-h-only ancestor chain. */}
+      <TabsContent value="fit" className="flex-1 min-h-0 mt-3">
+        <div className="h-full flex flex-col gap-4 overflow-y-auto">
           <div className="flex-shrink-0">
             <DCAKPICardsEnhanced />
           </div>
