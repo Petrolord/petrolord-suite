@@ -10,10 +10,28 @@ const ResultsPanel = ({ results }) => {
   const { kpis, plotData, insights } = results;
   const { toast } = useToast();
 
-  const handleExport = (format) => {
-    toast({
-      title: "🚧 This feature isn't implemented yet—but don't worry! You can request it in your next prompt! 🚀",
-    });
+  const handleExport = () => {
+    const esc = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    const rows = [
+      ['Metric', 'Value ($M)'],
+      ['EMV without Information', kpis.emvWithoutInfo],
+      ['EMV with Information', kpis.emvWithInfo],
+      ['Gross Value of Information (VOI)', kpis.voi],
+      ['Net Value of Information (Net VOI)', kpis.netVoi],
+      ['Expected Value of Perfect Information (EVPI)', kpis.evpi],
+      [],
+      ['Decision Guidance'],
+      [insights],
+    ];
+    const csv = rows.map((r) => r.map(esc).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'voi-analysis.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Export Complete', description: 'VOI analysis downloaded as CSV.' });
   };
 
   const kpiCards = [
@@ -41,7 +59,7 @@ const ResultsPanel = ({ results }) => {
         <DecisionTreePlot data={plotData} />
       </CollapsibleSection>
       
-      <CollapsibleSection title="Decision Guidance (AI)" icon={<BrainCircuit />} defaultOpen>
+      <CollapsibleSection title="Decision Guidance" icon={<BrainCircuit />} defaultOpen>
         <div className="bg-sky-500/10 p-4 rounded-lg border border-sky-500/30">
             <p className="text-sky-200 leading-relaxed">{insights}</p>
         </div>
@@ -51,8 +69,7 @@ const ResultsPanel = ({ results }) => {
         <div className="bg-white/5 p-6 rounded-lg flex items-center justify-between">
             <h3 className="text-lg font-semibold text-white">Download Your Analysis</h3>
             <div className="flex items-center gap-3">
-                <Button onClick={() => handleExport('CSV')}><Download className="w-4 h-4 mr-2"/>Export Data</Button>
-                <Button onClick={() => handleExport('PDF')}><Download className="w-4 h-4 mr-2"/>Export Report</Button>
+                <Button onClick={handleExport}><Download className="w-4 h-4 mr-2"/>Export CSV</Button>
             </div>
         </div>
       </CollapsibleSection>

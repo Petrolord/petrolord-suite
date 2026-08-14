@@ -99,7 +99,12 @@ export const generateVoiData = (inputs) => {
         ].map((link, i) => ({ ...link, id: i }))
     };
     
-    const insights = `The Expected Monetary Value (EMV) without new information is $${emvWithoutInfo.toFixed(2)}M, with the optimal decision being to '${optimalActionWithoutInfo}'. Acquiring the '${infoScenario.name}' for $${infoScenario.cost}M results in a final EMV of $${emvWithInfo.toFixed(2)}M. The gross Value of Information (VOI) is $${voi.toFixed(2)}M. After accounting for the cost, the Net VOI is $${netVoi.toFixed(2)}M. Since this is positive, acquiring the information is financially advantageous. The EVPI of $${evpi.toFixed(2)}M sets the theoretical maximum value of any information-gathering activity.`;
+    const recommendation = netVoi > 0
+        ? `Since this is positive, acquiring the information is financially advantageous.`
+        : netVoi < 0
+            ? `Since this is negative, the information costs more than the value it adds, so acquiring it is not justified on EMV grounds.`
+            : `The information exactly pays for itself, so the decision is value-neutral on EMV grounds.`;
+    const insights = `The Expected Monetary Value (EMV) without new information is $${emvWithoutInfo.toFixed(2)}M, with the optimal decision being to '${optimalActionWithoutInfo}'. Acquiring the '${infoScenario.name}' for $${infoScenario.cost}M results in a final EMV of $${emvWithInfo.toFixed(2)}M. The gross Value of Information (VOI) is $${voi.toFixed(2)}M. After accounting for the cost, the Net VOI is $${netVoi.toFixed(2)}M. ${recommendation} The EVPI of $${evpi.toFixed(2)}M sets the theoretical maximum value of any information-gathering activity.`;
 
     return {
         kpis,

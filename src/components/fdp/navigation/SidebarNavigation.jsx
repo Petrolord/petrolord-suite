@@ -67,7 +67,6 @@ const SidebarNavigation = () => {
         { id: 'hse', label: 'HSE', icon: ShieldCheck },
         { id: 'community', label: 'Community', icon: Users },
         { id: 'risks', label: 'Risk Management', icon: AlertTriangle },
-        { id: 'analytics', label: 'Analytics', icon: BarChart2 },
         { id: 'optimization', label: 'Optimization', icon: Target },
         { id: 'workflow', label: 'Workflow & Tasks', icon: Workflow },
         { id: 'collaboration', label: 'Collaboration', icon: Share2 },

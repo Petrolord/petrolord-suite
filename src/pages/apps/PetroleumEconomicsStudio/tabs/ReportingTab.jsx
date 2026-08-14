@@ -109,7 +109,7 @@ const ReportingTab = () => {
             { label: 'Payback', value: `${calculationResults.metrics.payback_year ? (calculationResults.metrics.payback_year - modelSettings.startYear).toFixed(1) : '-'} years` }
         ],
         breakevens: [
-            { label: 'Breakeven Price', value: `$${calculationResults.metrics.breakeven_price?.toFixed(2)}/boe` },
+            { label: 'Breakeven Price', value: calculationResults.metrics.breakeven_price != null ? `$${calculationResults.metrics.breakeven_price.toFixed(2)}/boe` : 'N/A' },
             { label: 'Unit Tech Cost', value: `$${calculationResults.metrics.unit_technical_cost?.toFixed(2)}/boe` }
         ]
     };

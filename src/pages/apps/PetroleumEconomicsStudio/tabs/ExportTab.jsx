@@ -69,7 +69,7 @@ const ExportTab = () => {
             ['DPI', metrics.dpi, 'ratio'],
             ['Payback Year', metrics.payback_year, 'Year'],
             ['Unit Tech Cost', metrics.unit_technical_cost, '$/boe'],
-            ['Breakeven Price', metrics.breakeven_price, '$/boe'],
+            ['Breakeven Price', metrics.breakeven_price ?? 'N/A', '$/boe'],
             [],
             ['CHARTS DATA SOURCE', '', ''],
             ['Year', 'Oil Rate', 'Gas Rate', 'Net Cashflow', 'Cum Cashflow']
