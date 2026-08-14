@@ -12,6 +12,7 @@ import {
   Cell, LabelList, Label
 } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
+import EpeMonteCarloPanel from './EpeMonteCarloPanel';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS,
   GRID_STYLE, TOOLTIP_STYLE
@@ -900,6 +901,7 @@ if (loading) {
                     { key: 'profile',   label: 'Cash Flow Profile' },
                     { key: 'waterfall',   label: 'Waterfall' },
                     { key: 'sensitivity', label: 'Sensitivity (Tornado)' },
+                    { key: 'risk',        label: 'Risk (Monte Carlo)' },
                     { key: 'detail',      label: 'Year-by-Year Detail' },
                   ]}
                 />
@@ -952,6 +954,10 @@ if (loading) {
                   runConfigId={runDetails?.run_config_id}
                   userId={runDetails?.user_id}
                 />
+              )}
+
+              {activeTab === 'risk' && (
+                <EpeMonteCarloPanel runConfigId={runDetails?.run_config_id} />
               )}
 
               {activeTab === 'detail' && (
