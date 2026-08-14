@@ -69,7 +69,10 @@ const DCATypeCurve = () => {
   const activeCurve = typeCurves.find(tc => tc.id === selectedTypeCurve);
 
   return (
-    <div className="h-full flex flex-col space-y-4">
+    // min-h-full (not h-full): fills the viewport when content is short but
+    // grows past it when a curve is active, letting the parent column scroll
+    // instead of clipping the stats and apply panels.
+    <div className="min-h-full flex flex-col space-y-4">
       {/* Header / Toolbar */}
       <div className="flex items-center justify-between p-2 bg-slate-800 rounded-md">
         <div className="flex items-center gap-2">
@@ -101,7 +104,7 @@ const DCATypeCurve = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4">
         
         {/* Left: Creation & Selection */}
         <Card className="bg-slate-900 border-slate-800 flex flex-col overflow-hidden">
@@ -133,9 +136,12 @@ const DCATypeCurve = () => {
               </Select>
             </div>
 
-            <div className="flex-1 flex flex-col min-h-0 space-y-2">
+            <div className="flex-1 flex flex-col space-y-2">
               <Label className="text-xs">Select Wells ({selectedWells.length})</Label>
-              <div className="flex-1 border border-slate-800 rounded-md bg-slate-950 overflow-hidden">
+              {/* Explicit min height: the card's height is now content-driven
+                  (the page scrolls), so the list needs its own floor to keep
+                  the ScrollArea from collapsing. */}
+              <div className="flex-1 min-h-[200px] border border-slate-800 rounded-md bg-slate-950 overflow-hidden">
                 <ScrollArea className="h-full p-2">
                   {wellList.map(well => (
                     <div key={well.id} className="flex items-center gap-2 py-1.5 px-2 hover:bg-slate-900 rounded cursor-pointer" onClick={() => handleToggleWell(well.id)}>
@@ -161,8 +167,12 @@ const DCATypeCurve = () => {
         <div className="lg:col-span-2 flex flex-col gap-4">
           {activeCurve ? (
             <>
-              {/* Plot */}
-              <Card className="flex-1 bg-slate-900 border-slate-800 flex flex-col min-h-[400px]">
+              {/* Plot. Same height floor as the Model Fit chart (480px), and
+                  the plot sits in an absolutely positioned inset because the
+                  card's height is min-h/stretch driven: Recharts'
+                  ResponsiveContainer needs a definite-height ancestor or it
+                  collapses to zero. */}
+              <Card className="flex-1 bg-slate-900 border-slate-800 flex flex-col min-h-[480px]">
                 <CardHeader className="py-2 px-4 border-b border-slate-800 flex flex-row justify-between items-center bg-slate-800/50">
                   <CardTitle className="text-xs font-medium text-slate-300">Type Curve Plot: {activeCurve.name}</CardTitle>
                   <Badge variant="outline" className="bg-slate-800 border-purple-500/50 text-purple-400">
@@ -170,7 +180,9 @@ const DCATypeCurve = () => {
                   </Badge>
                 </CardHeader>
                 <CardContent className="flex-1 p-0 relative">
-                  <DCATypeCurvePlot typeCurve={activeCurve} />
+                  <div className="absolute inset-0">
+                    <DCATypeCurvePlot typeCurve={activeCurve} />
+                  </div>
                 </CardContent>
               </Card>
 
