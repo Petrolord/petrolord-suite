@@ -330,9 +330,13 @@ const MaterialBalanceStudioContent = ({ onOpenCase }) => {
     </Alert>
   ) : (
     <>
-      {activeTab === 'data' && (
+      {/* DataHub stays mounted (hidden) on other tabs so a parsed-but-unsaved
+          CSV survives a visit to PVT/Aquifer/etc. Case switches still reset it:
+          refreshCase flips caseLoading, which swaps in the loader branch and
+          unmounts the whole tab tree. */}
+      <div className={activeTab === 'data' ? undefined : 'hidden'}>
         <DataHub caseId={caseId} caseData={caseData} onDataSaved={refreshCase} />
-      )}
+      </div>
       {activeTab === 'pvt' && (
         <PvtRock caseId={caseId} caseData={caseData} onConfigChange={() => {}} />
       )}

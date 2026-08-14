@@ -377,6 +377,15 @@ utils/contactsCalculations with an invented 30-day timeline) are deleted.
 - EnergyBalance.jsx deletion carry-over: already deleted in MB3.
 - jest 1451 (from 1439), harness 11 cases green, build clean.
 
+**Post-program fix (2026-08-14).** Tester report: parsed CSV showed
+"Pending preview" but the Run tab said no production data. Root cause was
+UX, not the save path: parsed rows lived only in DataHub local state, and
+DataHub unmounted on tab switch, silently discarding an unsaved upload.
+Fixes: DataHub now stays mounted (hidden) on other tabs so pending rows
+survive navigation (case switches still reset it via the caseLoading
+unmount), and the parse toast now says "CSV parsed, not saved yet" with an
+explicit pointer to the Save to case button.
+
 **Program ledger closed.** All seven MB phases shipped 2026-07-18. Still
 open outside the program: the Fetkovich Δp̄ convention question (needs a
 sourced worked example; see Known paused work), the deploy-gated tile
