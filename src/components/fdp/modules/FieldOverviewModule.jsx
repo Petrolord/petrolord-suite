@@ -1,6 +1,6 @@
 import React from 'react';
 import { useFDP } from '@/contexts/FDPContext';
-import CollapsibleSection from '@/components/fdpaccelerator/CollapsibleSection';
+import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 import FieldInformation from './field-overview/FieldInformation';
 import FieldLocationMap from './field-overview/FieldLocationMap';
 import KeyDates from './field-overview/KeyDates';

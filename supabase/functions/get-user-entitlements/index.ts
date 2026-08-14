@@ -52,9 +52,11 @@ Deno.serve(async (req)=>{
       .select('id, is_internal').eq('id', orgId).maybeSingle();
     if (orgRow?.is_internal === true) {
       const { data: catalogApps, error: catalogError } = await supabase.from('master_apps')
-        .select('id, module_id').ilike('status', 'active');
+        .select('id, module_id, slug').ilike('status', 'active');
       if (catalogError) throw catalogError;
-      const allAppIds = (catalogApps ?? []).map((a)=>a.id);
+      // Route guards check by slug while admin views check by UUID, so the
+      // access list carries both forms for every app.
+      const allAppIds = (catalogApps ?? []).flatMap((a)=>a.slug ? [a.id, a.slug] : [a.id]);
       const allModuleIds = Array.from(new Set((catalogApps ?? []).map((a)=>a.module_id).filter(Boolean)));
       return new Response(JSON.stringify({
         accessible_app_ids: allAppIds,
@@ -94,8 +96,16 @@ Deno.serve(async (req)=>{
     const entitlements = [];
     // Pre-fetch master_apps to resolve module-level purchases to app IDs
     // We need to know which apps belong to which module_uuid
-    const { data: allApps, error: appsError } = await supabase.from('master_apps').select('id, module_id');
+    const { data: allApps, error: appsError } = await supabase.from('master_apps').select('id, module_id, slug');
     if (appsError) throw appsError;
+    // Route guards (ProtectedAppRoute) check by slug; admin views check by
+    // UUID. Grant both forms so either check passes.
+    const slugById = new Map((allApps ?? []).map((a)=>[a.id, a.slug]));
+    const grantApp = (appUuid)=>{
+      accessibleAppIds.add(appUuid);
+      const slug = slugById.get(appUuid);
+      if (slug) accessibleAppIds.add(slug);
+    };
     for (const p of purchases){
       const ent = {
         purchase_id: p.id,
@@ -111,12 +121,12 @@ Deno.serve(async (req)=>{
       entitlements.push(ent);
       if (p.app_uuid) {
         // Direct App Purchase
-        accessibleAppIds.add(p.app_uuid);
+        grantApp(p.app_uuid);
       } else if (p.module_uuid) {
         // Module Purchase - Grant access to all apps in this module
         accessibleModuleIds.add(p.module_uuid);
         const moduleApps = allApps?.filter((a)=>a.module_id === p.module_uuid) || [];
-        moduleApps.forEach((a)=>accessibleAppIds.add(a.id));
+        moduleApps.forEach((a)=>grantApp(a.id));
       }
     }
     // 5. Return Structured JSON

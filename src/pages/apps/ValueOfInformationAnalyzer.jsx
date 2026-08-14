@@ -34,25 +34,23 @@ const ValueOfInformationAnalyzer = () => {
     setLoading(true);
     setResults(null);
 
-    setTimeout(() => {
-      try {
-        const analysisResults = generateVoiData(inputs);
-        setResults(analysisResults);
-        toast({
-          title: "Analysis Complete!",
-          description: "Value of Information has been calculated.",
-        });
-      } catch (error) {
-        console.error("VOI Error:", error);
-        toast({
-          variant: "destructive",
-          title: "Analysis Failed",
-          description: error.message || "An unexpected error occurred.",
-        });
-      } finally {
-        setLoading(false);
-      }
-    }, 1500);
+    try {
+      const analysisResults = generateVoiData(inputs);
+      setResults(analysisResults);
+      toast({
+        title: "Analysis Complete!",
+        description: "Value of Information has been calculated.",
+      });
+    } catch (error) {
+      console.error("VOI Error:", error);
+      toast({
+        variant: "destructive",
+        title: "Analysis Failed",
+        description: error.message || "An unexpected error occurred.",
+      });
+    } finally {
+      setLoading(false);
+    }
   }, [toast]);
 
   return (

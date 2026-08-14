@@ -42,7 +42,9 @@ const AuthProviderContent = ({ children }) => {
     'artificial-lift-designer', 'flow-assurance-monitor', 'integrated-asset-modeler', 'well-schematic-designer',
     'network-diagram-pro', 'project-management-pro', 'afe-cost-control', 'npv-scenario-builder',
     'fiscal-regime-designer', 'capital-portfolio-studio', 'fdp-accelerator', 'report-autopilot',
-    'voi-analyzer', 'breakeven-analyzer', 'epe', 'pipeline-sizer', 'separator-slug-catcher-designer',
+    'technical-report-autopilot', 'afe-cost-control-manager', 'petroleum-economics-studio',
+    'value-of-information-analyzer', 'probabilistic-breakeven-analyzer', 'risk-register',
+    'voi-analyzer', 'breakeven-analyzer', 'epe', 'epe-suite', 'pipeline-sizer', 'separator-slug-catcher-designer',
     'compressor-pump-pack', 'heat-exchanger-sizer', 'gas-treating-dehydration', 'relief-blowdown-sizer',
     'facility-layout-mapper', 'corrosion-rate-predictor', 'mechanical-earth-model', 'well-log-analyzer'
   ], []);

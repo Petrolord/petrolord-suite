@@ -179,6 +179,38 @@ export const calculateEconomics = (inputs) => {
   const totalBoe = productionData.reduce((acc, r) => acc + r.oil_rate + (r.gas_rate / 6), 0); // 6 mcf = 1 boe
   const unitTechCost = totalBoe > 0 ? (annualResults.reduce((acc, r) => acc + r.capex + r.opex, 0) / totalBoe) : 0;
 
+  // Breakeven price: the flat unescalated oil price (gas repriced at the same
+  // ratio) at which project NPV = 0, solved by bisection on a price multiplier
+  // through this same engine. Null when NPV never crosses zero in the searched
+  // range (e.g. no production, or costs exceed revenue at any price).
+  let breakevenPrice = null;
+  if (!inputs._skipBreakeven && priceAssumptions.oilPrice > 0) {
+    const npvAtScale = (scale) => calculateEconomics({
+      ...inputs,
+      _skipBreakeven: true,
+      priceAssumptions: {
+        ...priceAssumptions,
+        oilPrice: priceAssumptions.oilPrice * scale,
+        gasPrice: priceAssumptions.gasPrice * scale
+      }
+    }).metrics.npv;
+    let lo = 0;
+    let hi = 1;
+    let npvHi = npv;
+    for (let i = 0; i < 8 && npvHi < 0; i++) {
+      hi *= 2;
+      npvHi = npvAtScale(hi);
+    }
+    if (npvAtScale(lo) < 0 && npvHi >= 0) {
+      for (let i = 0; i < 40; i++) {
+        const mid = (lo + hi) / 2;
+        if (npvAtScale(mid) < 0) lo = mid;
+        else hi = mid;
+      }
+      breakevenPrice = priceAssumptions.oilPrice * ((lo + hi) / 2);
+    }
+  }
+
   return {
     annualResults,
     metrics: {
@@ -187,7 +219,7 @@ export const calculateEconomics = (inputs) => {
         payback_year: hasPayback ? paybackYear : null,
         dpi,
         unit_technical_cost: unitTechCost,
-        breakeven_price: unitTechCost * 1.1 // Mock breakeven slightly higher than UTC
+        breakeven_price: breakevenPrice
     }
   };
 };

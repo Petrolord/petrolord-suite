@@ -59,7 +59,7 @@ const ProbabilisticBreakevenAnalyzer = () => {
       } finally {
         setLoading(false);
       }
-    }, 1500);
+    }, 50); // yield one frame so the loading state paints before the synchronous Monte Carlo run
   }, [toast]);
 
   return (

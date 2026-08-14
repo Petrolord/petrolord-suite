@@ -1,6 +1,6 @@
 import React from 'react';
 import { useFDP } from '@/contexts/FDPContext';
-import CollapsibleSection from '@/components/fdpaccelerator/CollapsibleSection';
+import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 import ReservesTable from './subsurface/ReservesTable';
 import ReservoirProperties from './subsurface/ReservoirProperties';
 import PressureTemperature from './subsurface/PressureTemperature';

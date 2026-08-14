@@ -18,7 +18,6 @@ import ScheduleModule from '@/components/fdp/modules/ScheduleModule';
 import CostModule from '@/components/fdp/modules/CostModule'; 
 import RiskManagementModule from '@/components/fdp/modules/RiskManagementModule'; 
 import FDPGenerationModule from '@/components/fdp/modules/FDPGenerationModule';
-import AdvancedAnalyticsModule from '@/components/fdp/modules/AdvancedAnalyticsModule'; 
 import OptimizationModule from '@/components/fdp/modules/OptimizationModule'; 
 import CollaborationModule from '@/components/fdp/modules/CollaborationModule';
 import WorkflowManagementModule from '@/components/fdp/modules/WorkflowManagementModule';
@@ -127,7 +126,6 @@ const ExpertMode = () => {
         case 'hse': return <HSEModule />;
         case 'community': return <CommunityRelationsModule />;
         case 'risks': return <RiskManagementModule />;
-        case 'analytics': return <AdvancedAnalyticsModule />; 
         case 'optimization': return <OptimizationModule />; 
         case 'collaboration': return <CollaborationModule />;
         case 'workflow': return <WorkflowManagementModule />;

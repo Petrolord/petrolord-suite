@@ -3,7 +3,7 @@ import { useFDP } from '@/contexts/FDPContext';
 import { Button } from '@/components/ui/button';
 import { Plus, Download } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import CollapsibleSection from '@/components/fdpaccelerator/CollapsibleSection';
+import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 import HSEOverview from './hse/HSEOverview';
 import HSERiskRegister from './hse/HSERiskRegister';
 import HSERiskForm from './hse/HSERiskForm';

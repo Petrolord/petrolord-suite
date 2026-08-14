@@ -36,9 +36,9 @@ const EmptyState = () => {
         </div>
         
         <div className="mt-8 p-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-lg border border-cyan-500/20">
-          <h3 className="text-lg font-semibold text-white mb-3">Backend Simulation</h3>
+          <h3 className="text-lg font-semibold text-white mb-3">How It Computes</h3>
           <p className="text-lime-200 text-sm max-w-3xl mx-auto">
-            This app simulates a connection to a powerful Monte Carlo engine. The "Run Simulation" button triggers a mock API call that returns a full probabilistic distribution of NPV results based on your inputs.
+            The Run Simulation button executes a real Monte Carlo engine in your browser: triangular sampling of reserves, price, and costs through a discounted cash-flow model, returning the full NPV distribution with P90/P50/P10, chance of positive NPV, and sensitivity rankings.
           </p>
         </div>
       </div>

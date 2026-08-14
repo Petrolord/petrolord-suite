@@ -36,9 +36,9 @@ const EmptyState = () => {
         </div>
         
         <div className="mt-8 p-4 bg-gradient-to-r from-green-500/10 to-lime-500/10 rounded-lg border border-lime-500/20">
-          <h3 className="text-lg font-semibold text-white mb-3">Backend Simulation</h3>
+          <h3 className="text-lg font-semibold text-white mb-3">How It Computes</h3>
           <p className="text-lime-200 text-sm max-w-3xl mx-auto">
-            This app simulates a connection to a powerful economics engine. The "Calculate" button triggers a mock API call that returns a full set of cash flow data and financial metrics for all your defined scenarios.
+            The Calculate button runs a full fiscal cash-flow model in your browser: year-by-year revenue, royalty and tax (or PSC cost recovery and profit split), NPV, IRR, payback, low/base/high scenarios, tornado sensitivities, and a 1,000-iteration Monte Carlo risk analysis.
           </p>
         </div>
       </div>

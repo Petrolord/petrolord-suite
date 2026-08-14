@@ -1,5 +1,8 @@
-// Simplified simulation of fiscal regime comparisons.
-// This is a placeholder for a complex backend economics engine.
+// Client-side screening model for fiscal regime design: sliding-scale
+// royalty, R-factor profit splits, cost recovery with carryforward, CIT/RRT.
+// Known simplifications pending D1 of docs/scope/Economics-ROADMAP.md:
+// deductions use opex/2, RRT uplift is a flat 20% of capex, and the IRR
+// solver is a bounded guess-adjuster. Screening use only.
 
 const PROJECT_LIFE = 25; // years
 
@@ -184,8 +187,6 @@ const runSensitivityAnalysis = (regimes, projectInputs) => {
 };
 
 export const runFiscalComparison = async (inputs) => {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
     const { projectInputs, regimes } = inputs;
     const summary = [];
     const annualCashFlows = [];
