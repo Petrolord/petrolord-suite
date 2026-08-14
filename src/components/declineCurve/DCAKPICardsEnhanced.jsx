@@ -31,6 +31,9 @@ const DCAKPICardsEnhanced = () => {
 
   const formatNum = (n) => typeof n === 'number' ? n.toLocaleString(undefined, {maximumFractionDigits: 2}) : '-';
 
+  const rateUnit = selectedStream === 'gas' ? 'Mscf/d' : 'bbl/d';
+  const volumeUnit = selectedStream === 'gas' ? 'Mscf' : 'bbl';
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
       <MetricCard 
@@ -39,10 +42,10 @@ const DCAKPICardsEnhanced = () => {
         color="text-white"
         subtext="Active Selection"
       />
-      <MetricCard 
-        label={`Initial Rate (qi)`} 
-        value={formatNum(qi)} 
-        unit="bbl/d" 
+      <MetricCard
+        label={`Initial Rate (qi)`}
+        value={formatNum(qi)}
+        unit={rateUnit}
         color="text-emerald-400"
       />
       <MetricCard 
@@ -64,33 +67,33 @@ const DCAKPICardsEnhanced = () => {
       />
       {isProbabilistic ? (
         <>
-          <MetricCard 
-            label="P10 Reserves" 
-            value={formatNum(probabilistic.p10)} 
-            unit="bbl"
-            color="text-emerald-300"
+          <MetricCard
+            label="P10 Reserves"
+            value={formatNum(probabilistic.p10)}
+            unit={volumeUnit}
+            color="text-emerald-400"
             subtext="Optimistic (10% chance ≥)"
           />
-          <MetricCard 
-            label="P50 Reserves" 
-            value={formatNum(probabilistic.p50)} 
-            unit="bbl"
-            color="text-emerald-400"
+          <MetricCard
+            label="P50 Reserves"
+            value={formatNum(probabilistic.p50)}
+            unit={volumeUnit}
+            color="text-sky-400"
             subtext={`Median (${probabilistic.iterations} sims)`}
           />
-          <MetricCard 
-            label="P90 Reserves" 
-            value={formatNum(probabilistic.p90)} 
-            unit="bbl"
+          <MetricCard
+            label="P90 Reserves"
+            value={formatNum(probabilistic.p90)}
+            unit={volumeUnit}
             color="text-amber-400"
             subtext="Conservative (90% chance ≥)"
           />
         </>
       ) : (
-        <MetricCard 
-          label="Rem. Reserves" 
-          value={formatNum(eur)} 
-          unit="bbl"
+        <MetricCard
+          label="Rem. Reserves"
+          value={formatNum(eur)}
+          unit={volumeUnit}
           color="text-emerald-400"
           subtext="Forecasted Volume"
         />

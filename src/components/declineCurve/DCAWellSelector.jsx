@@ -11,21 +11,18 @@ const DCAWellSelector = () => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newWellName, setNewWellName] = useState('');
 
-  // Assuming wells are stored in context.wells but referenced by ID in project
-  // We need to filter context.wells by currentProject.wellIds if structure allows, 
-  // or rely on the context exposing a filtered list or we fetch from global `wells` dictionary.
-  // In `DeclineCurveContext`, we provided `wells` (all) and `currentProject` (has ids).
-  
-  // Safely access context
   const { wells } = useDeclineCurve();
-  
-  const projectWells = currentProject && currentProject.wellIds 
-    ? currentProject.wellIds.map(id => wells[id]).filter(Boolean)
-    : [];
+
+  // The `wells` dict in context holds exactly the current project's wells
+  // (it is replaced wholesale on project open/create). Listing from it is the
+  // fix for the old silent add-well bug: addWell wrote into `wells`, but this
+  // list used to read `currentProject.wellIds`, which nothing ever populated,
+  // so newly added wells never appeared.
+  const projectWells = Object.values(wells || {});
 
   const handleAdd = () => {
-    if (newWellName && currentProject) {
-      addWell(newWellName);
+    if (newWellName.trim() && currentProject) {
+      addWell(newWellName.trim());
       setNewWellName('');
       setIsAddOpen(false);
     }
@@ -71,15 +68,16 @@ const DCAWellSelector = () => {
               <DialogTitle>Add New Well</DialogTitle>
             </DialogHeader>
             <div className="py-4">
-              <Input 
-                placeholder="Well Name" 
+              <Input
+                placeholder="Well Name"
                 value={newWellName}
                 onChange={(e) => setNewWellName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
                 className="bg-slate-800 border-slate-700"
               />
             </div>
             <DialogFooter>
-              <Button onClick={handleAdd}>Add Well</Button>
+              <Button onClick={handleAdd} disabled={!newWellName.trim()}>Add Well</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

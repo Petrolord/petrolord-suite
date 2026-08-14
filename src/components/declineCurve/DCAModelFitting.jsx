@@ -60,13 +60,12 @@ const DCAModelFitting = () => {
             <SelectItem value="Exponential">Arps Exponential</SelectItem>
             <SelectItem value="Hyperbolic">Arps Hyperbolic</SelectItem>
             <SelectItem value="Harmonic">Arps Harmonic</SelectItem>
-            <SelectItem value="Segmented">Segmented (Hyp-Exp)</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {/* Constraints */}
-      {(config.modelType === 'Hyperbolic' || config.modelType === 'Auto' || config.modelType === 'Segmented') && (
+      {(config.modelType === 'Hyperbolic' || config.modelType === 'Auto') && (
         <div className="space-y-4 p-3 bg-slate-800/50 rounded border border-slate-800">
           <Label className="text-xs text-slate-400 uppercase">b-Factor Constraints</Label>
           

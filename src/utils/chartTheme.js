@@ -23,25 +23,36 @@ export const CHART_COLORS = {
 };
 
 // Stream-specific color palettes — chosen for distinguishability in both
-// screen viewing and B&W printing. Each stream gets 3 roles:
+// screen viewing and B&W printing. Each stream gets 5 roles:
 // - primary: historical scatter points
 // - fitted: fitted-model overlay line
-// - forecast: forecast projection line
+// - forecast: forecast projection line (P50 in probabilistic mode)
+// - p10 / p90: probabilistic envelope boundary lines
+// The p10/p90 hues are per-stream because each 5-color set was validated
+// (CVD + normal-vision separation, all pairs, on the white chart surface):
+// fuchsia-700/rose-800 pass alongside emerald+amber+blue; the gas set
+// (amber+blue+pink) needs cyan-600 instead of fuchsia.
 export const STREAM_PALETTES = {
   oil: {
     primary: '#059669',   // emerald-600 (darker for white bg legibility)
     fitted:  '#d97706',   // amber-600
     forecast:'#2563eb',   // blue-600
+    p10:     '#a21caf',   // fuchsia-700
+    p90:     '#9f1239',   // rose-800
   },
   gas: {
     primary: '#d97706',   // amber-600
     fitted:  '#2563eb',   // blue-600
     forecast:'#db2777',   // pink-600
+    p10:     '#0891b2',   // cyan-600
+    p90:     '#9f1239',   // rose-800
   },
   water: {
     primary: '#2563eb',   // blue-600
     fitted:  '#d97706',   // amber-600
     forecast:'#059669',   // emerald-600
+    p10:     '#a21caf',   // fuchsia-700
+    p90:     '#9f1239',   // rose-800
   },
 };
 
