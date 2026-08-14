@@ -5,6 +5,8 @@ import { useToast } from '@/components/ui/use-toast';
 import { useReservoirCalc } from '../../../contexts/ReservoirCalcContext';
 import { ReportGenerator } from '../../tools/ReportGenerator';
 import SlideFrame from './SlideFrame';
+import TornadoChart from '../TornadoChart';
+import { tornadoSwings } from '@/lib/monteCarlo';
 import {
     SlideShell, HeroTile, Panel, StatCell, Chip,
     fmtDec, OIL, GAS, SLATE,
@@ -90,6 +92,7 @@ const ProbabilisticSlide = () => {
     const { probResults, inputs } = state;
     const { toast } = useToast();
     const curveRef = useRef(null);
+    const tornadoSvgRef = useRef(null);
     const [isExporting, setIsExporting] = useState(false);
 
     const ready = probResults && probResults.stats;
@@ -118,6 +121,17 @@ const ProbabilisticSlide = () => {
     const sens = [...(probResults.stats.sensitivity || [])].sort((a, b) => b.contribution - a.contribution).slice(0, 5);
     const maxContrib = sens.length ? Math.max(...sens.map((s) => s.contribution)) : 1;
 
+    // Symmetric tornado (conditional P50 swing per parameter). Legacy results
+    // without raw samples fall back to the variance-share bars below.
+    const contribByParam = Object.fromEntries((probResults.stats.sensitivity || []).map((s) => [s.parameter, s.contribution]));
+    const swings = tornadoSwings(probResults.raw?.samples || []).slice(0, 5).map((s) => ({
+        label: PARAM_LABELS[s.parameter] || s.parameter,
+        low: s.low / denom,
+        high: s.high / denom,
+        contribution: contribByParam[s.parameter],
+        base: s.base / denom,
+    }));
+
     const hero = [
         { label: 'P90 · Proven', value: fmtDec(stats.p90 / denom, 2), unit, palette: SLATE, primary: false },
         { label: 'P50 · Probable', value: fmtDec(stats.p50 / denom, 2), unit, palette, primary: true, sub: `Mean ${fmtDec(stats.mean / denom, 2)} ${unit}` },
@@ -130,8 +144,9 @@ const ProbabilisticSlide = () => {
         setIsExporting(true);
         try {
             const cdfImg = curveRef.current ? await svgToPng(curveRef.current, 600, 250) : null;
+            const tornadoImg = tornadoSvgRef.current ? await svgToPng(tornadoSvgRef.current, 520, 180) : null;
             await ReportGenerator.generateProbabilisticReport(
-                project, probResults, state.unitSystem, { cdf: cdfImg }, { template: 'technical', fluidType: ft, reservoirName: reservoir },
+                project, probResults, state.unitSystem, { cdf: cdfImg, tornado: tornadoImg }, { template: 'technical', fluidType: ft, reservoirName: reservoir },
             );
             toast({ title: 'Report downloaded', description: 'The full branded PDF was saved.', className: 'bg-emerald-900 text-white border-emerald-800' });
         } catch (e) {
@@ -188,8 +203,22 @@ const ProbabilisticSlide = () => {
                             </div>
                         </Panel>
 
-                        <Panel title="Sensitivity" icon={<Activity className="h-4 w-4 text-purple-500" />} className="flex-1" right={<span className="text-[11px] font-medium text-slate-400">variance share</span>}>
-                            {sens.length ? (
+                        <Panel title="Sensitivity Tornado" icon={<Activity className="h-4 w-4 text-purple-500" />} className="flex-1" right={<span className="text-[11px] font-medium text-slate-400">P50 swing per parameter</span>}>
+                            {swings.length ? (
+                                <div className="min-h-0 flex-1">
+                                    <TornadoChart
+                                        svgRef={tornadoSvgRef}
+                                        rows={swings}
+                                        base={swings[0].base}
+                                        unit={unit}
+                                        width={520}
+                                        height={180}
+                                        compact
+                                        fluid
+                                    />
+                                </div>
+                            ) : sens.length ? (
+                                /* Legacy results without raw samples: variance-share bars. */
                                 <div className="flex flex-col justify-center gap-2">
                                     {sens.map((s) => (
                                         <div key={s.parameter} className="flex items-center gap-2">

@@ -8,6 +8,8 @@ jest.mock('jspdf', () => jest.fn().mockImplementation(() => {
         lastAutoTable: { finalY: 60 },
         setFillColor() {}, rect() {}, setTextColor() {}, setFontSize() {}, setFont() {},
         roundedRect() {}, setDrawColor() {}, setPage() {},
+        getTextWidth: (t) => (typeof t === 'string' ? t.length * 2 : 0),
+        getImageProperties: () => ({ width: 1000, height: 400 }),
         text(t) { if (typeof t === 'string') calls.text.push(t); },
         autoTable(opts) { calls.tableHeads.push((opts.head?.[0] || []).join('|')); this.lastAutoTable = { finalY: (this.lastAutoTable.finalY || 45) + 30 }; },
         addImage() { calls.images += 1; },
