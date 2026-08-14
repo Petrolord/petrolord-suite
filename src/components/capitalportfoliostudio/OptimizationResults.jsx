@@ -2,40 +2,50 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Line } from 'recharts';
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import ChartFrame from '@/components/charts/ChartFrame';
+import { projectEmv } from '@/utils/portfolioOptimizer';
+import {
+  CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE,
+} from '@/utils/chartTheme';
 
 const formatCurrency = (value, unit = 'MM') => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value || 0) + (unit ? ` ${unit}` : '');
 
-const CustomTooltip = ({ active, payload }) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="bg-slate-800/80 backdrop-blur-sm p-2 border border-slate-600 rounded-md text-white text-sm">
-        <p className="label">{`CAPEX: ${formatCurrency(data.capex)}`}</p>
-        <p className="intro">{`NPV: ${formatCurrency(data.npv)}`}</p>
-      </div>
-    );
-  }
-  return null;
-};
+const AXIS_TICK = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
+
+const Metric = ({ title, value, accent }) => (
+  <div>
+    <p className="text-xs text-slate-400 uppercase tracking-wide">{title}</p>
+    <p className={`font-bold ${accent || 'text-white'}`}>{value}</p>
+  </div>
+);
 
 const OptimizationResults = ({ result }) => {
   if (!result) return null;
 
-  const { optimalProjects, totalCapex, totalNpv, frontierData } = result;
-
-  const optimalPoint = [{ capex: totalCapex, npv: totalNpv }];
+  const { optimalProjects, totalCapex, totalEmv, totalNpvSuccess, frontierData, risk } = result;
+  const optimalPoint = [{ capex: totalCapex, emv: totalEmv }];
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
       <Card className="bg-gradient-to-br from-green-500/10 via-slate-900 to-slate-900 border-green-500/30 text-white">
         <CardHeader>
           <CardTitle className="text-2xl text-green-300">Optimal Portfolio</CardTitle>
-          <div className="flex flex-wrap gap-x-8 pt-2 text-slate-200">
-            <p>Total CAPEX: <span className="font-bold text-amber-300">{formatCurrency(totalCapex)}</span></p>
-            <p>Total NPV: <span className="font-bold text-lime-300">{formatCurrency(totalNpv)}</span></p>
-            <p>Projects: <span className="font-bold text-white">{optimalProjects.length}</span></p>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-2">
+            <Metric title="Risked EMV" value={formatCurrency(totalEmv)} accent="text-lime-300" />
+            <Metric title="Success-case NPV" value={formatCurrency(totalNpvSuccess)} accent="text-emerald-200" />
+            <Metric title="Total CAPEX" value={formatCurrency(totalCapex)} accent="text-amber-300" />
+            <Metric title="Projects" value={optimalProjects.length} />
+            <Metric
+              title="P(portfolio NPV < 0)"
+              value={`${(risk.probLoss * 100).toFixed(1)}%`}
+              accent={risk.probLoss <= 0.1 ? 'text-emerald-300' : risk.probLoss <= 0.3 ? 'text-amber-300' : 'text-red-300'}
+            />
+            <Metric title="NPV P90 / P10" value={`${formatCurrency(risk.p90, '')} / ${formatCurrency(risk.p10, '')}`} />
           </div>
+          <p className="text-xs text-slate-400 pt-1">
+            Risk metrics assume independent projects and a normal approximation of the summed NPV (screening basis). Risked EMV weights each NPV by its chance of success and charges the failure loss.
+          </p>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -47,7 +57,8 @@ const OptimizationResults = ({ result }) => {
                     <TableRow className="border-b-white/20 hover:bg-transparent">
                       <TableHead className="text-white">Project</TableHead>
                       <TableHead className="text-white text-right">CAPEX</TableHead>
-                      <TableHead className="text-white text-right">NPV P50</TableHead>
+                      <TableHead className="text-white text-right">POS</TableHead>
+                      <TableHead className="text-white text-right">Risked EMV</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -55,7 +66,8 @@ const OptimizationResults = ({ result }) => {
                       <TableRow key={p.id} className="border-b-white/10">
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell className="text-right text-amber-300">{formatCurrency(p.capex)}</TableCell>
-                        <TableCell className="text-right text-lime-300">{formatCurrency(p.npv_p50)}</TableCell>
+                        <TableCell className="text-right text-slate-300">{Math.round((p.pos ?? 1) * 100)}%</TableCell>
+                        <TableCell className="text-right text-lime-300">{formatCurrency(projectEmv(p))}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -63,35 +75,31 @@ const OptimizationResults = ({ result }) => {
               </div>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4 text-slate-200">Efficiency Frontier</h3>
-              <div className="h-80 w-full">
-                <ResponsiveContainer>
-                  <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 30 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.2)" />
-                    <XAxis 
-                      dataKey="capex" 
-                      type="number" 
-                      name="CAPEX" 
-                      label={{ value: 'Total CAPEX ($MM)', position: 'insideBottom', offset: -10, fill: '#94a3b8' }}
-                      tick={{ fill: '#94a3b8' }}
-                      tickFormatter={(tick) => `$${tick}`}
-                      domain={['dataMin', 'dataMax']}
-                    />
-                    <YAxis 
-                      dataKey="npv" 
-                      type="number" 
-                      name="NPV" 
-                      label={{ value: 'Total NPV ($MM)', angle: -90, position: 'insideLeft', offset: -20, fill: '#94a3b8' }}
-                      tick={{ fill: '#94a3b8' }}
-                      tickFormatter={(tick) => `$${tick}`}
-                    />
-                    <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
-                    <Legend />
-                    <Scatter name="Efficient Frontier" data={frontierData} fill="#8884d8" shape="circle" />
-                    <Scatter name="Optimal Portfolio" data={optimalPoint} fill="#ffc658" shape="star" size={150} />
-                  </ScatterChart>
-                </ResponsiveContainer>
-              </div>
+              <h3 className="text-lg font-semibold mb-2 text-slate-200">Efficient Frontier (risked EMV vs capital)</h3>
+              <ChartFrame height={300} exportFilename="portfolio-efficient-frontier">
+                <ScatterChart margin={{ top: 16, right: 20, bottom: 20, left: 30 }}>
+                  <CartesianGrid {...GRID_STYLE} />
+                  <XAxis
+                    dataKey="capex" type="number" name="CAPEX"
+                    label={{ value: 'Total CAPEX ($MM)', position: 'insideBottom', offset: -10, fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+                    tick={AXIS_TICK} stroke={CHART_COLORS.axisLine}
+                    domain={['dataMin', 'dataMax']}
+                  />
+                  <YAxis
+                    dataKey="emv" type="number" name="Risked EMV"
+                    label={{ value: 'Risked EMV ($MM)', angle: -90, position: 'insideLeft', offset: -18, fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+                    tick={AXIS_TICK} stroke={CHART_COLORS.axisLine}
+                  />
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    cursor={{ strokeDasharray: '3 3' }}
+                    formatter={(v, name) => [formatCurrency(v), name]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
+                  <Scatter name="Efficient frontier" data={frontierData} fill="#2563eb" shape="circle" />
+                  <Scatter name="Optimal portfolio" data={optimalPoint} fill="#059669" shape="star" />
+                </ScatterChart>
+              </ChartFrame>
             </div>
           </div>
         </CardContent>

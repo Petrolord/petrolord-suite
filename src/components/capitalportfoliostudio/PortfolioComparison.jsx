@@ -13,7 +13,7 @@ const PortfolioComparison = ({ isOpen, onClose, comparisonData }) => {
 
   const chartData = comparisonData.map(item => ({
     name: item.name,
-    NPV: item.totalNpv,
+    EMV: item.totalNpv,
     CAPEX: item.totalCapex,
   }));
 
@@ -30,7 +30,7 @@ const PortfolioComparison = ({ isOpen, onClose, comparisonData }) => {
           <div className="lg:col-span-2">
             <Card className="bg-white/5 border-white/10">
               <CardHeader>
-                <CardTitle className="text-xl text-amber-300">NPV vs. CAPEX</CardTitle>
+                <CardTitle className="text-xl text-amber-300">Risked EMV vs. CAPEX</CardTitle>
               </CardHeader>
               <CardContent>
                 <div style={{ width: '100%', height: 300 }}>
@@ -49,7 +49,7 @@ const PortfolioComparison = ({ isOpen, onClose, comparisonData }) => {
                         formatter={(value, name) => [formatCurrency(value), name]}
                       />
                       <Legend wrapperStyle={{ color: '#f8fafc' }} />
-                      <Bar yAxisId="left" dataKey="NPV" fill="#a3e635" name="Total NPV" />
+                      <Bar yAxisId="left" dataKey="EMV" fill="#a3e635" name="Risked EMV" />
                       <Bar yAxisId="right" dataKey="CAPEX" fill="#facc15" name="Total CAPEX" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -72,7 +72,7 @@ const PortfolioComparison = ({ isOpen, onClose, comparisonData }) => {
                   </CardHeader>
                   <CardContent className="flex-grow space-y-3">
                     <div>
-                      <p className="text-sm text-slate-400">Optimal Total NPV</p>
+                      <p className="text-sm text-slate-400">Optimal Risked EMV</p>
                       <p className="text-2xl font-bold text-lime-400">{formatCurrency(item.totalNpv)}</p>
                     </div>
                     <div>
