@@ -24,7 +24,8 @@ const DCADataImporter = () => {
       const text = await file.text();
       const { headers, rows } = await parseCSV(text);
       const mapping = detectColumns(headers);
-      if (!mapping.date || !mapping.rate) {
+      const hasRateColumn = mapping.rate || mapping.oilRate || mapping.gasRate || mapping.waterRate;
+      if (!mapping.date || !hasRateColumn) {
         throw new Error("Could not auto-detect Date or Rate columns. Please verify CSV format.");
       }
       const mappedData = mapColumns(rows, mapping);
@@ -33,6 +34,11 @@ const DCADataImporter = () => {
         toast({ title: "Data Validation Failed", description: validation.errors[0], variant: "destructive" });
         return;
       }
+      const streams = [
+        mapping.oilRate || mapping.rate ? 'oil' : null,
+        mapping.gasRate ? 'gas' : null,
+        mapping.waterRate ? 'water' : null
+      ].filter(Boolean);
       const qc = generateQCSummary(mappedData);
       setDataQuality(qc);
 
@@ -52,7 +58,7 @@ const DCADataImporter = () => {
       };
 
       importProductionData(currentWell.id, mappedData, dataMeta);
-      toast({ title: "Import Successful", description: `Loaded ${mappedData.length} records.` });
+      toast({ title: "Import Successful", description: `Loaded ${mappedData.length} records (${streams.join(', ')} stream${streams.length === 1 ? '' : 's'} detected).` });
     } catch (error) {
       console.error(error);
       toast({ title: "Import Error", description: error.message, variant: "destructive" });

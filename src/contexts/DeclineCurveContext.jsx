@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { fitArpsModel, getFitQuality, generateForecast } from '@/utils/declineCurve/dcaEngine';
+import { getStreamRate } from '@/utils/declineCurve/csvParser';
 import { runMonteCarloSimulation } from '@/utils/dcaMonteCarlo';
 import { normalizeByTime, normalizeByRate, normalizeByTimeAndRate, applyTypeCurve } from '@/utils/declineCurve/typeCurveEngine';
 import {
@@ -325,11 +326,18 @@ export const DeclineCurveProvider = ({ children }) => {
     setIsFitting(true);
 
     try {
-      // 1. Validate Input
-      const streamData = currentData.map(d => ({
-        date: d.date,
-        rate: selectedStream === 'oil' ? d.rate : (selectedStream === 'gas' ? d.gasRate : d.waterRate) || d.rate 
-      })).filter(d => d.rate != null);
+      // 1. Validate Input. getStreamRate never substitutes another stream's
+      // rates: a missing gas/water column yields no points here, not a
+      // duplicate fit of the oil curve.
+      const streamData = currentData
+        .map(d => ({ date: d.date, rate: getStreamRate(d, selectedStream) }))
+        .filter(d => d.rate != null && !isNaN(d.rate));
+
+      if (streamData.length === 0 && currentData.length > 0) {
+        addNotification(`No ${selectedStream} rates in this well's data. Import a CSV with a ${selectedStream} column to fit this stream.`, "error");
+        setIsFitting(false);
+        return;
+      }
 
       const config = streamState[selectedStream];
       

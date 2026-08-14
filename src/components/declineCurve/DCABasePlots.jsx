@@ -5,6 +5,7 @@ import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
 import { Camera } from 'lucide-react';
 import { ResponsiveContainer, ComposedChart, Scatter, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Label } from 'recharts';
 import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
+import { getStreamRate } from '@/utils/declineCurve/csvParser';
 import ChartLogo from '@/components/charts/ChartLogo';
 import {
   CHART_COLORS,
@@ -42,7 +43,7 @@ const DCABasePlots = () => {
       
       merged.push({
         date: point.date,
-        history: point.rate,
+        history: getStreamRate(point, selectedStream),
         forecast: null,
         fitted: fitted
       });

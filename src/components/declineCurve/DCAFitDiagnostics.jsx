@@ -8,6 +8,7 @@ import ChartLogo from '@/components/charts/ChartLogo';
 import { calculateR2, calculateRMSE, calculateResiduals, getVerdictInfo, calculateArpsConfidenceIntervals } from '@/utils/dcaDiagnostics';
 import { detectSegmentBreakpoints } from '@/utils/dcaSegmentDetection';
 import { calculateArpsHyperbolic } from '@/utils/declineCurve/dcaEngine';
+import { getStreamRate } from '@/utils/declineCurve/csvParser';
 import { CHART_COLORS, TOOLTIP_STYLE, GRID_STYLE, CHART_TYPOGRAPHY } from '@/utils/chartTheme';
 
 const DCAFitDiagnostics = () => {
@@ -24,9 +25,9 @@ const DCAFitDiagnostics = () => {
       const t0 = productionData[0]?.date ? new Date(productionData[0].date).getTime() : 0;
       const dataWithTime = productionData.map(d => ({
         date: new Date(d.date),
-        rate: d.rate,
+        rate: getStreamRate(d, selectedStream),
         time: (new Date(d.date).getTime() - t0) / 86400000  // days from first
-      }));
+      })).filter(d => d.rate != null);
       const breakpoints = detectSegmentBreakpoints(dataWithTime);
       setDetectedBreakpoints(breakpoints);
     } else {
@@ -60,17 +61,18 @@ const DCAFitDiagnostics = () => {
   if (fitResults && fitResults.qi && fitResults.t0 && productionData.length > 0) {
     const t0ms = new Date(fitResults.t0).getTime();
     residuals = productionData
-      .filter(p => p.rate > 0)
+      .map(p => ({ ...p, streamRate: getStreamRate(p, selectedStream) }))
+      .filter(p => p.streamRate > 0)
       .map(p => {
         const tDays = (new Date(p.date).getTime() - t0ms) / 86400000;
         const predicted = calculateArpsHyperbolic(fitResults.qi, fitResults.Di, fitResults.b, tDays);
-        const rawResidual = p.rate - predicted;
+        const rawResidual = p.streamRate - predicted;
         // Normalize residual by observed rate for comparability across magnitudes
         const normalizedResidual = predicted > 0 ? rawResidual / predicted : 0;
         return {
           time: tDays,
           date: p.date,
-          observed: p.rate,
+          observed: p.streamRate,
           predicted,
           residual: normalizedResidual
         };
