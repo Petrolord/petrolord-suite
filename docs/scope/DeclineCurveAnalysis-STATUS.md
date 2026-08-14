@@ -95,7 +95,21 @@ errors.
   keeps a 200px floor so its ScrollArea can't collapse now that card
   heights are content-driven.
 
-Verification: DCA smoke test green, `npm run build` green.
+Follow-ups in the same round (PR #179, merged 10956d0e1):
+
+- **Recharts height gotcha** — `ResponsiveContainer height="100%"` resolves
+  percentage heights, so it collapses to zero under a `min-h`-only ancestor
+  chain. The Model Fit tab content is a definite `h-full` scroll column
+  (the pre-tab structure, now inside the tab), and the Type Curve plot sits
+  in an `absolute inset-0` wrapper within its card (card floor raised to
+  480px to match the Model Fit chart). Keep any future chart under a
+  definite-height or absolutely positioned ancestor.
+- **EUR Distribution histogram full-size** — was a deliberate h-24
+  sparkline (axes hidden) from the bottom-slot era; now h-64 with real
+  X/Y axes (compact EUR bin ticks + run count) on chartTheme tokens.
+
+Verification: DCA smoke test green, `npm run build` green, user confirmed
+all three charts render on staging.
 
 ## Known gaps / next
 
