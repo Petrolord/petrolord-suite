@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useFDP } from '@/contexts/FDPContext';
-import CollapsibleSection from '@/components/fdpaccelerator/CollapsibleSection';
+import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 import FDPGenerationOverview from './generation/FDPGenerationOverview';
 import FDPDataCompilation from './generation/FDPDataCompilation';
 import FDPExport from './generation/FDPExport';

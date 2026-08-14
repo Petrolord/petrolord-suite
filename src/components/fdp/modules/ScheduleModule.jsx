@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
-import CollapsibleSection from '@/components/fdpaccelerator/CollapsibleSection';
+import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 import { ScheduleDataImporter } from '@/services/fdp/ScheduleDataImporter';
 
 import ProjectSchedule from './schedule/ProjectSchedule';

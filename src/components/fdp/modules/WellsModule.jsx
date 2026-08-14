@@ -17,7 +17,7 @@ import WellForm from './wells/WellForm';
 import WellStrategy from './wells/WellStrategy';
 import DrillingRiskAssessment from './wells/DrillingRiskAssessment';
 import { WellDataImporter } from '@/services/fdp/WellDataImporter';
-import CollapsibleSection from '@/components/fdpaccelerator/CollapsibleSection';
+import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 
 const WellsModule = () => {
     const { state, actions } = useFDP();

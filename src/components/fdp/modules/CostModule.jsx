@@ -3,7 +3,7 @@ import { useFDP } from '@/contexts/FDPContext';
 import { Button } from '@/components/ui/button';
 import { Plus, Download, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import CollapsibleSection from '@/components/fdpaccelerator/CollapsibleSection';
+import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 import CostBreakdown from './cost/CostBreakdown';
 import CostForm from './cost/CostForm';
 import EconomicsAnalysis from './cost/EconomicsAnalysis';

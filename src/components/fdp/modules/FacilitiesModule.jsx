@@ -18,7 +18,7 @@ import FacilitiesCapacityAnalysis from './facilities/FacilitiesCapacityAnalysis'
 import FlowAssuranceAnalysis from './facilities/FlowAssuranceAnalysis';
 import FacilitiesCostEstimation from './facilities/FacilitiesCostEstimation';
 import { FacilitiesDataImporter } from '@/services/fdp/FacilitiesDataImporter';
-import CollapsibleSection from '@/components/fdpaccelerator/CollapsibleSection';
+import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 
 const FacilitiesModule = () => {
     const { state, actions } = useFDP();

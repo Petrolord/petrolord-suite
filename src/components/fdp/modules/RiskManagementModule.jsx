@@ -3,7 +3,7 @@ import { useFDP } from '@/contexts/FDPContext';
 import { Button } from '@/components/ui/button';
 import { Plus, RefreshCw, Download } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import CollapsibleSection from '@/components/fdpaccelerator/CollapsibleSection';
+import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 import RiskManagementOverview from './risk/RiskManagementOverview';
 import ConsolidatedRiskRegister from './risk/ConsolidatedRiskRegister';
 import RiskMatrix from './risk/RiskMatrix';

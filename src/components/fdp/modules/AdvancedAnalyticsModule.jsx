@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useFDP } from '@/contexts/FDPContext';
 import { Button } from '@/components/ui/button';
 import { LineChart, BarChart2, BrainCircuit, Database } from 'lucide-react';
-import CollapsibleSection from '@/components/fdpaccelerator/CollapsibleSection';
+import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 import AnalyticsOverview from './analytics/AnalyticsOverview';
 import DataAnalyticsEngine from './analytics/DataAnalyticsEngine';
 import PredictiveAnalyticsEngine from './analytics/PredictiveAnalyticsEngine';
