@@ -1,5 +1,24 @@
 import { quantile } from 'simple-statistics';
 
+// Canonical CLIENT-SIDE SCREENING economics engine (docs/scope/
+// ReservoirEngineering-Module.md §5). Full-fiscal Nigerian economics
+// (PIA/NTA, terrain royalties, HCT/CIT) is NOT here; that is the EPE
+// engine, supabase/functions/_shared/epe-engine.ts, the module's single
+// fiscal source of truth (docs/scope/Economics-ROADMAP.md D1).
+//
+// CONVENTIONS (deliberate, documented D1):
+// - Discounting is MID-YEAR (t + 0.5): screening convention, treats cash
+//   as received evenly through the year. The EPE engine discounts
+//   YEAR-END with a real-vs-nominal basis choice. The two engines will
+//   not produce identical NPVs for the same case; that is a convention
+//   difference, not a bug.
+// - PSC cost recovery carries unrecovered costs forward across years
+//   (same semantics as epe-engine applyPSC).
+// - Taxable income deducts CAPEX via straight-line depreciation over
+//   `capexDepreciationYears` (default 1 = immediate expensing, the
+//   historical behavior). Cash outflow is always in-year regardless.
+//   Depreciation scheduled beyond the project horizon is not deducted.
+
 // --- Helper Functions ---
 
 const generateExponentialDecline = (initialRate, declineRate, years) => {
@@ -36,9 +55,20 @@ export const calculateEconomics = (inputs) => {
     // Fiscal Terms
     royaltyRate = 0, // %
     taxRate = 0, // %
-    costRecoveryCap = 100, 
+    costRecoveryCap = 100,
     profitSplitContractor = 100,
+    capexDepreciationYears = 1, // 1 = immediate expensing (tax only; cash is always in-year)
   } = inputs;
+
+  // Straight-line depreciation schedule for the tax calculation.
+  const deprYears = Math.max(1, Math.round(capexDepreciationYears));
+  const depreciation = new Array(projectLife).fill(0);
+  for (let i = 0; i < projectLife; i++) {
+    const annualPortion = (capex[i] || 0) / deprYears;
+    for (let y = i; y < Math.min(i + deprYears, projectLife); y++) {
+      depreciation[y] += annualPortion;
+    }
+  }
 
   const cashflow = [];
   let cumulativeNCF = 0;
@@ -48,6 +78,7 @@ export const calculateEconomics = (inputs) => {
   let totalTax = 0;
   let totalRoyalty = 0;
   let totalGovTake = 0;
+  let pscUnrecoveredPool = 0;
 
   for (let i = 0; i < projectLife; i++) {
     const year = startYear + i;
@@ -76,11 +107,12 @@ export const calculateEconomics = (inputs) => {
     if (fiscalType === 'TaxRoyalty') {
         royalty = grossRevenue * (royaltyRate / 100);
         const netRevenue = grossRevenue - royalty;
-        
-        // Taxable Income (Simplified expensing)
-        const taxableIncome = netRevenue - totalCostOutflow; 
+
+        // Taxable income deducts depreciation, not cash CAPEX; with the
+        // default capexDepreciationYears = 1 the two are identical.
+        const taxableIncome = netRevenue - annualOpex - annualAbex - depreciation[i];
         tax = taxableIncome > 0 ? taxableIncome * (taxRate / 100) : 0;
-        
+
         contractorNCF = netRevenue - totalCostOutflow - tax;
         governmentShare = royalty + tax;
 
@@ -89,9 +121,14 @@ export const calculateEconomics = (inputs) => {
         royalty = grossRevenue * (royaltyRate / 100);
         const netRevenue = grossRevenue - royalty;
 
-        // Cost Recovery
-        const recoverableCost = Math.min(netRevenue * (costRecoveryCap / 100), totalCostOutflow);
-        
+        // Cost recovery against the cost-oil cap, with unrecovered costs
+        // carried forward (same semantics as epe-engine applyPSC; the pool
+        // is never silently dropped).
+        const recoverablePool = pscUnrecoveredPool + totalCostOutflow;
+        const costOilCap = netRevenue * (costRecoveryCap / 100);
+        const recoverableCost = Math.min(costOilCap, recoverablePool);
+        pscUnrecoveredPool = recoverablePool - recoverableCost;
+
         // Profit Oil
         const profitOil = Math.max(0, netRevenue - recoverableCost);
         const contractorProfit = profitOil * (profitSplitContractor / 100);
@@ -120,6 +157,8 @@ export const calculateEconomics = (inputs) => {
       opex: annualOpex,
       abex: annualAbex,
       tax,
+      depreciation: depreciation[i],
+      pscUnrecoveredCost: fiscalType === 'TaxRoyalty' ? 0 : pscUnrecoveredPool,
       ncf: contractorNCF,
       cumulativeNCF,
       govTake: governmentShare
@@ -132,23 +171,30 @@ export const calculateEconomics = (inputs) => {
       npv += cf.ncf / Math.pow(1 + discountRate / 100, i + 0.5);
   });
 
-  // IRR
+  // IRR (mid-year convention, matching the NPV above). Guard: an IRR only
+  // exists if the cash flow changes sign; without that, report 0 rather
+  // than letting Newton-Raphson wander.
   let irr = 0;
-  let guess = 0.1;
-  for(let iter=0; iter<50; iter++){
-      let npvIter = 0;
-      let dNpv = 0;
-      for(let t=0; t<cashflow.length; t++){
-          const df = Math.pow(1+guess, t+0.5);
-          npvIter += cashflow[t].ncf / df;
-          dNpv -= (t+0.5) * cashflow[t].ncf / (df * (1+guess));
-      }
-      if(Math.abs(dNpv) < 1e-5) break;
-      const newGuess = guess - npvIter/dNpv;
-      if(Math.abs(newGuess - guess) < 1e-5) { guess = newGuess; break; }
-      guess = newGuess;
+  const hasNeg = cashflow.some(c => c.ncf < 0);
+  const hasPos = cashflow.some(c => c.ncf > 0);
+  if (hasNeg && hasPos) {
+    let guess = 0.1;
+    for(let iter=0; iter<100; iter++){
+        let npvIter = 0;
+        let dNpv = 0;
+        for(let t=0; t<cashflow.length; t++){
+            const df = Math.pow(1+guess, t+0.5);
+            npvIter += cashflow[t].ncf / df;
+            dNpv -= (t+0.5) * cashflow[t].ncf / (df * (1+guess));
+        }
+        if(Math.abs(dNpv) < 1e-5) break;
+        const newGuess = guess - npvIter/dNpv;
+        if(!isFinite(newGuess)) break;
+        if(Math.abs(newGuess - guess) < 1e-7) { guess = newGuess; break; }
+        guess = Math.max(-0.99, Math.min(newGuess, 10));
+    }
+    irr = isFinite(guess) ? guess * 100 : 0;
   }
-  irr = isFinite(guess) ? guess * 100 : 0;
 
   // Payback
   let payback = 0;

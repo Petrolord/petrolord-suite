@@ -1,8 +1,11 @@
 // Client-side screening model for fiscal regime design: sliding-scale
 // royalty, R-factor profit splits, cost recovery with carryforward, CIT/RRT.
-// Known simplifications pending D1 of docs/scope/Economics-ROADMAP.md:
-// deductions use opex/2, RRT uplift is a flat 20% of capex, and the IRR
-// solver is a bounded guess-adjuster. Screening use only.
+// D1 (docs/scope/Economics-ROADMAP.md): IRR is a robust bisection solver
+// (no artificial cap), the tax base is the contractor profit share (costs
+// are compensated via cost recovery; the old opex/2 halving is gone), and
+// the RRT capital uplift is a regime parameter (tax.rrtUpliftPct, default
+// 20). Screening use only; full Nigerian fiscal math lives in the EPE
+// engine (supabase/functions/_shared/epe-engine.ts).
 
 const PROJECT_LIFE = 25; // years
 
@@ -55,37 +58,39 @@ const getTieredSplit = (rFactor, splitInfo) => {
     return split / 100;
 };
 
-const calculateNPV = (cashFlows, discountRate) => {
+export const calculateNPV = (cashFlows, discountRate) => {
     return cashFlows.reduce((npv, cf) => {
         return npv + cf.contractorNCF / Math.pow(1 + discountRate / 100, cf.year);
     }, 0);
 };
 
-const calculateIRR = (cashFlows) => {
-    let irr = 0;
-    let npv = 0;
-    const maxIterations = 100;
-    const tolerance = 0.0001;
+// Robust IRR by bisection on the NPV(r) sign change. Returns 0 when the
+// cash flow never changes sign (no IRR exists) or when NPV(0) < 0 and no
+// positive root exists in the searched range. No artificial rate cap.
+export const calculateIRR = (cashFlows) => {
+    const hasNeg = cashFlows.some(cf => cf.contractorNCF < 0);
+    const hasPos = cashFlows.some(cf => cf.contractorNCF > 0);
+    if (!hasNeg || !hasPos) return 0;
 
-    for (let i = 0; i < maxIterations; i++) {
-        npv = calculateNPV(cashFlows, irr * 100);
-        if (Math.abs(npv) < tolerance) {
-            return irr * 100;
-        }
-        // A simple guess adjustment - not a robust solver
-        if (npv > 0) {
-            irr += 0.01;
-        } else {
-            irr -= 0.005;
-        }
+    const npvAt = (ratePct) => calculateNPV(cashFlows, ratePct);
+    if (npvAt(0) <= 0) return 0;
+
+    // Bracket the root: NPV(0) > 0, find an upper rate where NPV < 0.
+    let lo = 0;
+    let hi = 100; // 100%
+    for (let i = 0; i < 10 && npvAt(hi) > 0; i++) hi *= 2;
+    if (npvAt(hi) > 0) return hi; // beyond search range; report the bound
+
+    for (let i = 0; i < 80; i++) {
+        const mid = (lo + hi) / 2;
+        if (npvAt(mid) > 0) lo = mid;
+        else hi = mid;
     }
-    // Fallback for simple solver
-    if (calculateNPV(cashFlows, 0) < 0) return 0;
-    return irr * 100 > 50 ? 50 : irr * 100; // Cap at 50%
+    return (lo + hi) / 2;
 };
 
 
-const calculateCashFlowForRegime = (regime, project, capexMultiplier = 1, priceMultiplier = 1) => {
+export const calculateCashFlowForRegime = (regime, project, capexMultiplier = 1, priceMultiplier = 1) => {
     const oilProd = generateProductionProfile(project.production.oil.initial, project.production.oil.decline);
     const gasProd = generateProductionProfile(project.production.gas.initial, project.production.gas.decline);
     const nglProd = generateProductionProfile(project.production.ngl.initial, project.production.ngl.decline);
@@ -136,9 +141,15 @@ const calculateCashFlowForRegime = (regime, project, capexMultiplier = 1, priceM
         const contractorProfitShare = profitOil * contractorProfitSplit;
         const governmentProfitShare = profitOil * (1 - contractorProfitSplit);
         
-        const taxableIncome = contractorProfitShare - (opex / 2);
+        // Tax base is the contractor's profit share. Costs are already
+        // compensated through cost recovery, so no further opex deduction
+        // here (the old `- opex / 2` was an invented halving, removed D1).
+        const taxableIncome = contractorProfitShare;
         const cit = taxableIncome > 0 ? taxableIncome * (regime.tax.cit / 100) : 0;
-        const rrtBase = taxableIncome - (totalCapex * 0.2);
+        // RRT base allows an annual capital uplift (screening approximation
+        // of an uplifted cost pool); rate is a regime parameter, default 20%.
+        const rrtUpliftPct = regime.tax.rrtUpliftPct ?? 20;
+        const rrtBase = taxableIncome - (totalCapex * rrtUpliftPct / 100);
         const rrt = rrtBase > 0 ? rrtBase * (regime.tax.rrt / 100) : 0;
         const minTax = grossRevenue * (regime.tax.minTax / 100);
         const tax = Math.max(cit + rrt, minTax);

@@ -14,7 +14,7 @@ EPE is a cash-flow modeling tool for Nigerian upstream oil and gas projects. It 
 
 **Target users:** Nigerian petroleum engineers, asset managers, fiscal analysts, investment evaluators preparing operator submissions, partner reviews, or government-facing economic forecasts.
 
-**What it is not:** It is not a probabilistic / Monte Carlo simulator. It is not a partner-carry mechanics modeler. It is not a tax-advice tool — its outputs are best-interpretation forecasts that should be reviewed by tax counsel.
+**What it is not:** It is not a partner-carry mechanics modeler. It is not a tax-advice tool — its outputs are best-interpretation forecasts that should be reviewed by tax counsel. (The "not a Monte Carlo simulator" caveat retired 2026-08-14: D2 of docs/scope/Economics-ROADMAP.md landed probabilistic runs via the `epe-monte-carlo` endpoint and the Risk tab.)
 
 ---
 
@@ -26,12 +26,14 @@ EPE is a cash-flow modeling tool for Nigerian upstream oil and gas projects. It 
 |---|---|---|
 | `epe-cash-flow-engine` | Single-run deterministic compute. I/O orchestration only. | ~125 kB |
 | `epe-cash-flow-engine-batch` | Sensitivity (tornado) compute. Runs the engine N times in-process. | ~130 kB |
+| `epe-monte-carlo` | Probabilistic runs (D2). Samples distributions, runs the engine per iteration, persists summaries to `epe_mc_runs`. | ~119 kB |
 
-Both functions delegate math to a shared library:
+The functions delegate math to shared libraries:
 
 | Shared module | Role |
 |---|---|
-| `supabase/functions/_shared/epe-engine.ts` | Pure compute. All MBAL-style math. No Supabase I/O. Used by both engine endpoints. |
+| `supabase/functions/_shared/epe-engine.ts` | Pure compute. All MBAL-style math. No Supabase I/O. Used by all engine endpoints. |
+| `supabase/functions/_shared/epe-mc.ts` | Monte Carlo layer (D2): seeded sampling (vendored 1:1 from the canonical `src/lib/monteCarlo.js`, jest anti-drift gated), NPV/IRR distributions, fan bands, tornado swings. No fiscal math of its own. |
 
 **Architectural decision (load-bearing):** the shared library is the single source of truth for math. Both endpoints import `computeCashFlow()`. This prevents the single-run engine and the sensitivity engine from drifting apart mathematically. Any math change must go through this file.
 
@@ -50,6 +52,7 @@ Tables in the `public` schema, all with RLS:
 | `epe_opex` | Uploaded opex CSV data |
 | `epe_sensitivity_runs` | One row per sensitivity invocation |
 | `epe_sensitivity_results` | Per-sweep delta NPV records (variable × run) |
+| `epe_mc_runs` | One row per Monte Carlo invocation (D2): distribution config + summarized results (percentiles, CDF, fan, tornado, seed). No raw samples. |
 
 **RLS pattern:** users see only their own org's data. Service role (Edge Functions) bypasses RLS.
 
@@ -163,7 +166,7 @@ In rough priority order, with rough sizing estimates:
 |---|---|---|
 | **B2.6** | Sliding-scale weighted-average royalty for boundary-straddling fields (multi-terrain split) | 6-8 hours |
 | **B2.6** | Marginal field monthly volumetric split for royalty rate transitions (5k/10k bopd crossings) | 6-8 hours |
-| **B4** | Monte Carlo simulation. Adds stochastic distributions over the deterministic tornado we already have. Requires probability distribution UI, multi-sample batch engine, fan-chart visualization. | 12-18 hours |
+| ~~B4~~ | ~~Monte Carlo simulation~~ — **LANDED 2026-08-14** (D2, Economics-ROADMAP.md): `epe-monte-carlo` fn + `_shared/epe-mc.ts` + Risk tab (distribution UI, NPV CDF, P(NPV>0), fan chart, decile tornado); validated in harness Case 7 + 13 jest tests | done |
 | **B5** | Carry/promote partner mechanics. Models pre-payout and post-payout splits with carry arrangements. | 8-12 hours |
 | **B5** | Multi-partner working-interest tracking with separate cash flow per partner. | 4-6 hours |
 | **B6** | Real options modeling (decision trees for expand/abandon/extend choices under uncertainty). | 15-25 hours (deferred indefinitely — large scope, unclear demand) |
@@ -184,16 +187,29 @@ In rough priority order, with rough sizing estimates:
 
 ## 5. Validation status snapshot
 
+Updated 2026-08-14 (D1, docs/scope/Economics-ROADMAP.md). The engine now
+has a standing oracle harness (`tools/validation/epe-validation.ts`, run
+with `npx tsx`; 60 checks) plus a CI gate
+(`supabase/functions/_shared/__tests__/epe-engine.test.ts`) that re-asserts
+the same numbers under jest. The worked-example inputs are frozen locally
+in `tools/validation/fixtures/epe-pia-worked-example.ts` so the regression
+contract no longer depends on database access.
+
 | Component | Validation | Status |
 |---|---|---|
-| PIA 2021 math (worked example) | Byte-for-byte against published example, 17 line items | ✓ Validated |
-| NTA 2025 framework | Synthetic example mathematically derived from PIA example | ✓ Internally consistent, NOT NUPRC-validated |
-| JV math | Conventional formulae | ⚠ No worked example used |
-| PSC math | Conventional formulae | ⚠ No worked example used |
+| PIA 2021 math (worked example) | Byte-for-byte against published example, 17 line items; inputs frozen locally, NPV + every line item locked to ±$0.01 in harness and CI | ✓ Validated + regression-gated |
+| NTA 2025 framework | Synthetic example mathematically derived from PIA example; harness additionally proves force_nta differs from force_pia only by TET→Dev Levy on the same assessable base | ✓ Internally consistent, NOT NUPRC-validated |
+| JV math | Hand-derived closed-form two-year case (royalty, tax, NCF, NPV, IRR 200%, payback) asserted in harness + CI | ✓ Analytically validated |
+| PSC math | Hand-derived two-year carryforward case (cost-oil cap binding, pool consumed in year 2) asserted in harness + CI | ✓ Analytically validated |
 | Sensitivity (tornado) | Direction and magnitude sane; specific numbers not validated | ⚠ Sanity-checked, not validated |
-| Production allowance cap math | Code present | ✗ Untested against synthetic case |
-| CPR cessation forfeiture | Code present | ✗ Untested against synthetic case |
+| Production allowance cap math | Mid-year crossing case (99→101 MMbbl over the shallow-water cap): eligible-bbl split, allowance, and exhaustion asserted exactly | ✓ Validated (closes §4.1) |
+| CPR cessation forfeiture | Single-year case with 8M unrecovered pool: final-row flag + KPI asserted | ✓ Validated (closes §4.1) |
 | Min ETR (NTA §57) | Schema only | ✗ Math not implemented |
+| Monte Carlo layer (D2) | Harness Case 7 (degenerate = deterministic, seeded reproducibility, spread brackets base) + 13 jest tests incl. bit-identical anti-drift vs canonical `src/lib/monteCarlo.js` | ✓ Validated as a pure wrapper |
+
+Literature byte-verification of JV/PSC against published worked examples
+(Mian; SPE) remains open pending owner-provided references; the analytic
+cases above are independently hand-derived, not literature-traced.
 
 ---
 
