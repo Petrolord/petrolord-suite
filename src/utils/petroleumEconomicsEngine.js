@@ -81,13 +81,15 @@ export const calculateEconomics = (inputs) => {
         royalties = grossRevenue * royaltyRate;
         const netRevenue = grossRevenue - royalties;
         
-        // Cost Recovery
+        // Cost Recovery with unrecovered-cost carryforward: costs that do
+        // not fit under this year's cost-oil cap stay in the pool and are
+        // recovered in later years (D1, matching epe-engine applyPSC).
         const maxCostRecovery = netRevenue * costRecoveryLimit;
         const currentCosts = totalCapex + totalOpex;
-        // Simplified: Recover current costs + pool
-        recoverableCost = Math.min(currentCosts, maxCostRecovery); 
-        // Note: Real PSC would track unrecovered cost pool. Simplified here.
-        
+        costPool += currentCosts;
+        recoverableCost = Math.min(costPool, maxCostRecovery);
+        costPool -= recoverableCost;
+
         const profitOil = netRevenue - recoverableCost;
         const contractorProfit = profitOil * profitSplitContractor;
         const govtProfit = profitOil * (1 - profitSplitContractor);
