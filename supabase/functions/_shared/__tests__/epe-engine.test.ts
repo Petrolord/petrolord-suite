@@ -143,6 +143,120 @@ describe('EPE engine: production allowance volume cap (EPE.md §4.1)', () => {
   });
 });
 
+describe('EPE engine: real-world CSV schema ingestion (ALAOMA shapes)', () => {
+  // Mirrors the alaoma_*_base.csv uploads that used to produce a silent
+  // $0-revenue/$0-capex run: bare oil_bbl (not per-well *_oil_bbl), capex in
+  // cost_usd (not amount_usd), monthly YYYY-MM dates, extra non-volume columns.
+  const cfg = {
+    fiscal_regime: 'JV', base_year: 2027,
+    oil_price_usd_bbl: 75, gas_price_usd_mscf: 4.5, condensate_price_usd_bbl: 70,
+    discount_rate_pct: 10, inflation_rate_pct: 0,
+    oil_price_escalator_pct: 0, gas_price_escalator_pct: 0,
+    condensate_price_escalator_pct: 0, opex_escalator_pct: 0, capex_escalator_pct: 0,
+    present_value_basis: 'nominal',
+    jv_working_interest_pct: 100, jv_royalty_pct: 10, jv_tax_rate_pct: 50,
+  };
+  const prodRows = [
+    { date: '2027-01', days_in_month: 31, oil_rate_bopd: 3225.8, oil_bbl: 100_000, liquid_bbl: 120_000, water_bbl: 20_000, watercut_pct: 16.7 },
+    { date: '2027-02', days_in_month: 28, oil_rate_bopd: 3214.3, oil_bbl: 90_000, liquid_bbl: 115_000, water_bbl: 25_000, watercut_pct: 21.7 },
+  ];
+  const capexRows = [
+    { date: '2027-01', category: 'Drilling', item: 'Well A1', cost_usd: 30_000_000, basis_note: 'AFE' },
+    { date: '2027-06', category: 'Facilities', item: 'Flowline', cost_usd: 10_000_000, basis_note: 'estimate' },
+  ];
+  const opexRows = [
+    { date: '2027-01', fixed_opex_usd: 500_000, variable_oil_usd: 200_000, variable_water_usd: 50_000, total_opex_usd: 750_000, oil_bbl_basis: 100_000, unit_opex_usd_per_bbl: 7.5 },
+    { date: '2027-02', fixed_opex_usd: 500_000, variable_oil_usd: 180_000, variable_water_usd: 60_000, total_opex_usd: 740_000, oil_bbl_basis: 90_000, unit_opex_usd_per_bbl: 8.2 },
+  ];
+
+  it('yields nonzero revenue, capex, and opex from all three files', () => {
+    const { kpis } = computeCashFlow({ cfg, prodRows, capexRows, opexRows });
+    expect(kpis.total_revenue).toBeCloseTo(190_000 * 75, 2);   // oil_bbl only — liquid/water carry no price
+    expect(kpis.total_capex).toBeCloseTo(40_000_000, 2);        // cost_usd alias
+    expect(kpis.total_opex).toBeCloseTo(1_490_000, 2);          // total_opex_usd preferred
+    expect(kpis.total_revenue).toBeGreaterThan(0);
+    expect(kpis.total_capex).toBeGreaterThan(0);
+    expect(kpis.total_opex).toBeGreaterThan(0);
+  });
+
+  it('matches headers case-insensitively', () => {
+    const { kpis } = computeCashFlow({
+      cfg,
+      prodRows: [{ Date: '2027-01', 'Oil_BBL': 100_000, 'Water_BBL': 20_000 }],
+      capexRows: [{ DATE: '2027-01', Category: 'Drilling', 'Cost_USD': 30_000_000 }],
+      opexRows: [{ date: '2027-01', 'Total_Opex_USD': 750_000 }],
+    });
+    expect(kpis.total_revenue).toBeCloseTo(100_000 * 75, 2);
+    expect(kpis.total_capex).toBeCloseTo(30_000_000, 2);
+    expect(kpis.total_opex).toBeCloseTo(750_000, 2);
+  });
+
+  it('still prefers per-well columns and ignores total_* rollups alongside them', () => {
+    const { kpis } = computeCashFlow({
+      cfg,
+      prodRows: [{ year: 2027, well1_oil_bbl: 60_000, well2_oil_bbl: 40_000, total_oil_bbl: 100_000 }],
+      capexRows: [],
+      opexRows: [],
+    });
+    expect(kpis.total_revenue).toBeCloseTo(100_000 * 75, 2); // not double-counted
+  });
+});
+
+describe('EPE engine: ingestion failures are loud (no silent $0 runs)', () => {
+  const cfg = {
+    fiscal_regime: 'JV', base_year: 2027,
+    oil_price_usd_bbl: 75, gas_price_usd_mscf: 4.5, condensate_price_usd_bbl: 70,
+    discount_rate_pct: 10, inflation_rate_pct: 0,
+    oil_price_escalator_pct: 0, gas_price_escalator_pct: 0,
+    condensate_price_escalator_pct: 0, opex_escalator_pct: 0, capex_escalator_pct: 0,
+    present_value_basis: 'nominal',
+    jv_working_interest_pct: 100, jv_royalty_pct: 10, jv_tax_rate_pct: 50,
+  };
+  const goodProd = [{ date: '2027-01', oil_bbl: 100_000 }];
+
+  it('throws when no production volume column is recognized', () => {
+    expect(() => computeCashFlow({
+      cfg,
+      prodRows: [{ date: '2027-01', oil_production: 100_000 }],
+      capexRows: [], opexRows: [],
+    })).toThrow(/Production file.*no oil\/gas\/condensate volume columns/);
+  });
+
+  it('throws when production rows have no usable date', () => {
+    expect(() => computeCashFlow({
+      cfg,
+      prodRows: [{ period: 'Jan-27', oil_bbl: 100_000 }],
+      capexRows: [], opexRows: [],
+    })).toThrow(/no row had a usable date/);
+  });
+
+  it('throws when the capex file has no recognized cost column', () => {
+    expect(() => computeCashFlow({
+      cfg,
+      prodRows: goodProd,
+      capexRows: [{ date: '2027-01', category: 'Drilling', spend: 30_000_000 }],
+      opexRows: [],
+    })).toThrow(/CAPEX file.*no cost column recognized/);
+  });
+
+  it('throws when the opex file has no recognized cost column', () => {
+    expect(() => computeCashFlow({
+      cfg,
+      prodRows: goodProd,
+      capexRows: [],
+      opexRows: [{ date: '2027-01', monthly_cost: 750_000 }],
+    })).toThrow(/OPEX file.*no cost column recognized/);
+  });
+
+  it('throws when the oil price is unset but oil volumes exist', () => {
+    expect(() => computeCashFlow({
+      cfg: { ...cfg, oil_price_usd_bbl: null },
+      prodRows: goodProd,
+      capexRows: [], opexRows: [],
+    })).toThrow(/Oil price.*is not set/);
+  });
+});
+
 describe('EPE engine: CPR cessation forfeiture (EPE.md §4.1)', () => {
   const { cashFlowData, kpis } = computeCashFlow({
     cfg: { ...PIA_WORKED_EXAMPLE_CFG },

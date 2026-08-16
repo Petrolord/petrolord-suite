@@ -112,6 +112,17 @@ Sub-components live in `src/pages/apps/epe/` and `src/components/charts/` (share
 - CPR cessation forfeiture diagnostic (final-year unrecovered costs flagged in output)
 - Brownfield support (configurable starting cumulative production)
 - Per-config minimum effective tax rate floor (NTA Section 57) — schema present, not yet implemented in engine math
+- CSV ingestion (v3.3, 2026-08-16): headers matched case-insensitively;
+  production accepts per-well `*_oil_bbl`-style columns (preferred), bare
+  `oil_bbl`/`gas_mscf`/`condensate_bbl`/`water_bbl` aliases, or `total_*`
+  rollups; capex accepts `amount_usd`/`cost_usd`/`capex_usd`/`total_capex_usd`/
+  `value_usd` plus a `*_usd` fallback; opex prefers `total_opex_usd` with
+  `opex_usd`/`cost_usd`/`amount_usd` aliases and a `*_usd` parts fallback.
+  computeCashFlow throws an ingestion validation error (naming the headers it
+  saw) when uploads have no recognizable columns, no usable dates, or a price
+  is unset for a stream with volumes — a run can no longer "succeed" at $0
+  because a header didn't match. Run Console requires oil price > 0 and
+  surfaces the engine's error body on 500s.
 
 ### 3.3 Visualization (EpeResultsViewer)
 

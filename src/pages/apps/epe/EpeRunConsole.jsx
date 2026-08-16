@@ -117,6 +117,10 @@ const EpeRunConsole = () => {
         errors[k] = 'Must be a non-negative number';
       }
     });
+    // A $0 oil price silently produces a $0-revenue run; require a real price.
+    if (!errors.oil_price_usd_bbl && Number(config.oil_price_usd_bbl) <= 0) {
+      errors.oil_price_usd_bbl = 'Oil price must be greater than zero';
+    }
     percentFields.forEach((k) => {
       if (config[k] === '' || isNaN(config[k]) || config[k] < 0 || config[k] > 100) {
         errors[k] = 'Must be 0–100';
@@ -253,7 +257,17 @@ const EpeRunConsole = () => {
         'epe-cash-flow-engine',
         { body: { run_id: runRow.id, run_config_id: cfgRow.id } }
       );
-      if (engineErr) throw new Error(`Engine failed: ${engineErr.message}`);
+      if (engineErr) {
+        // On a non-2xx the invoke error message is generic ("Edge Function
+        // returned a non-2xx status code") — pull the engine's real message
+        // (e.g. ingestion validation failures) out of the response body.
+        let detail = engineErr.message;
+        try {
+          const body = await engineErr.context?.json?.();
+          if (body?.error) detail = body.error;
+        } catch (_) { /* keep generic message */ }
+        throw new Error(`Engine failed: ${detail}`);
+      }
       if (engineData?.error) throw new Error(`Engine error: ${engineData.error}`);
 
       toast({
