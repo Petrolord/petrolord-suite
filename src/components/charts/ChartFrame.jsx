@@ -17,7 +17,7 @@ import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
  *   </ChartFrame>
  *
  * `height` is the plot height in px (ResponsiveContainer needs a fixed height
- * because the parent's height is content-driven). The logo sits in a ~48px band
+ * because the parent's height is content-driven). The logo sits in a ~116px band
  * below that, clear of the axis labels.
  *
  * Optional `exportFilename` (MB7, kit-level and backward compatible): when
@@ -25,7 +25,7 @@ import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
  * watermark) as a PNG named `<exportFilename>.png`, via the shared
  * exportChartAsImage helper (html2canvas) the DCA and MBAL plots use.
  */
-const LOGO_BAND = 56; // px reserved below the plot for the watermark
+const LOGO_BAND = 116; // px reserved below the plot for the watermark
 
 const ChartFrame = ({ height = 260, className = '', exportFilename = null, children }) => {
   const frameId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -39,7 +39,7 @@ const ChartFrame = ({ height = 260, className = '', exportFilename = null, child
       <ResponsiveContainer width="100%" height={height}>
         {children}
       </ResponsiveContainer>
-      <ChartLogo style={{ height: '36px', bottom: '14px', opacity: 0.55 }} />
+      <ChartLogo style={{ height: '96px', bottom: '10px', opacity: 0.55 }} />
       {exportFilename && (
         <button
           type="button"

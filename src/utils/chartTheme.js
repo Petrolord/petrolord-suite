@@ -131,7 +131,7 @@ export const CHART_LOGO_STYLE = {
   position: 'absolute',
   bottom: '8px',
   right: '8px',
-  height: '72px',
+  height: '180px',
   width: 'auto',
   opacity: 0.50,
   pointerEvents: 'none',
