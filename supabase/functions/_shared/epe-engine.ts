@@ -11,6 +11,20 @@
 //     run) when uploaded rows have no recognizable columns, no usable dates,
 //     or a price is unset for a stream with nonzero volumes
 //
+// v3.4 changes (Petroleum Economics Studio capability round, 2026-08-16):
+//   - Economic limit test (cfg.apply_economic_limit): trailing years whose
+//     escalated revenue no longer covers inflated opex are trimmed before the
+//     fiscal loop; KPI economic_limit_year reports the last economic year
+//   - Abandonment cost (cfg.abandonment_cost_usd / cfg.abandonment_year):
+//     lump-sum post-tax outflow in the chosen year (defaults to the final
+//     modeled year); deliberately NOT tax-deducted, NOT depreciated, and
+//     excluded from PSC cost recovery / PIA CPR (regime-specific decom-fund
+//     deductibility is future, literature-gated work)
+//   - Decision KPI bundle: total volumes + BOE (6:1 gas), unit technical
+//     cost, opex/boe, government take %, PV(capex) + DPI, numeric payback and
+//     discounted payback
+//   - computeBreakevenOilPrice(): bisection on the flat oil price to NPV = 0
+//
 // v3.2 changes (B2.5 — NTA 2025 fiscal framework):
 //   - determineFiscalFramework(): date-trigger + per-config override switch
 //     between PIA-only and NTA-2025 fiscal frameworks
@@ -628,6 +642,17 @@ export function irr(cashFlows: number[]): number | null {
   return r;
 }
 
+// v3.4: numeric companion to paybackPeriod() — null means never paid back.
+export function paybackYears(cashFlows: number[]): number | null {
+  let cumulative = 0;
+  for (let i = 0; i < cashFlows.length; i++) {
+    const prev = cumulative;
+    cumulative += cashFlows[i];
+    if (prev < 0 && cumulative >= 0) return i + (-prev / cashFlows[i]);
+  }
+  return cumulative >= 0 ? 0 : null;
+}
+
 export function paybackPeriod(cashFlows: number[]): string {
   let cumulative = 0;
   for (let i = 0; i < cashFlows.length; i++) {
@@ -763,6 +788,47 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
     ...annualOpex.keys()
   ]);
   const years = Array.from(yearSet).sort((a, b) => a - b);
+
+  // ---- v3.4: economic limit test (config-gated, default off) ----
+  // Trim trailing years whose escalated revenue no longer covers inflated
+  // opex, before the fiscal loop, so royalties/taxes never accrue on an
+  // uneconomic tail. Mid-life negative years that recover later are kept;
+  // trailing capex-only years (revenue 0, opex 0) are kept.
+  let economicLimitYear: number | null = null;
+  let yearsTrimmedByLimit = 0;
+  if (cfg.apply_economic_limit === true) {
+    const revenueLessOpex = (year: number): number => {
+      const t = year - baseYear;
+      const v = annualVols.find(vv => vv.year === year);
+      const rev = v
+        ? v.oil_bbl * (Number(cfg.oil_price_usd_bbl) || 0) * Math.pow(1 + oilEscalator, t)
+          + v.gas_mscf * (Number(cfg.gas_price_usd_mscf) || 0) * Math.pow(1 + gasEscalator, t)
+          + v.condensate_bbl * (Number(cfg.condensate_price_usd_bbl) || 0) * Math.pow(1 + condEscalator, t)
+        : 0;
+      const opex = (annualOpex.get(year) || 0) * Math.pow(1 + opexEscalator, t);
+      return rev - opex;
+    };
+    while (years.length > 1 && revenueLessOpex(years[years.length - 1]) < 0) {
+      years.pop();
+      yearsTrimmedByLimit++;
+    }
+    economicLimitYear = years[years.length - 1];
+  }
+
+  // ---- v3.4: abandonment / decommissioning (config-gated, default off) ----
+  // Lump sum entered in money-of-the-day for its year, applied as a post-tax
+  // cash outflow in cfg.abandonment_year (default: final modeled year). See
+  // the header note on the deliberate no-deduction treatment.
+  const abandonmentCost = Number(cfg.abandonment_cost_usd) || 0;
+  let abandonmentYear: number | null = null;
+  if (abandonmentCost > 0 && years.length > 0) {
+    const requested = parseInt(String(cfg.abandonment_year ?? ''));
+    abandonmentYear = Number.isFinite(requested) && requested > 0 ? requested : years[years.length - 1];
+    if (!years.includes(abandonmentYear)) {
+      years.push(abandonmentYear);
+      years.sort((a, b) => a - b);
+    }
+  }
 
   const isPIA = cfg.fiscal_regime === 'PIA';
   const DEPR_LIFE = isPIA ? (cfg.pia_capex_recovery_years || 5) : 10;
@@ -921,6 +987,14 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
       });
     }
 
+    // v3.4: abandonment outflow lands after regime math (post-tax by design)
+    if (abandonmentYear !== null && year === abandonmentYear) {
+      regOut.net_cash_flow -= abandonmentCost;
+      baseRow.abandonment_cost = abandonmentCost;
+      baseRow.net_cash_flow = regOut.net_cash_flow;
+      baseRow.netCashFlow = regOut.net_cash_flow;
+    }
+
     const deflator = Math.pow(1 + inflationRate, t);
     const realCF = regOut.net_cash_flow / deflator;
     cumCF_nominal += regOut.net_cash_flow;
@@ -970,6 +1044,52 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
     total_net_cash_flow: cashFlowData.reduce((s, d) => s + (pvBasis === 'real' ? d.real_net_cash_flow : d.net_cash_flow), 0),
   };
 
+  // ---- v3.4: decision KPI bundle ----
+  // BOE conversion uses the industry 6:1 gas energy-equivalence convention.
+  const GAS_MSCF_PER_BOE = 6.0;
+  const totalOilBbl = cashFlowData.reduce((s, d) => s + (d.oil_bbl || 0), 0);
+  const totalGasMscf = cashFlowData.reduce((s, d) => s + (d.gas_mscf || 0), 0);
+  const totalCondBbl = cashFlowData.reduce((s, d) => s + (d.condensate_bbl || 0), 0);
+  const totalBoe = totalOilBbl + totalCondBbl + totalGasMscf / GAS_MSCF_PER_BOE;
+  const totalAbandonment = abandonmentYear !== null ? abandonmentCost : 0;
+
+  kpis.total_oil_bbl = totalOilBbl;
+  kpis.total_gas_mscf = totalGasMscf;
+  kpis.total_condensate_bbl = totalCondBbl;
+  kpis.total_boe = totalBoe;
+  if (totalAbandonment > 0) {
+    kpis.total_abandonment_cost = totalAbandonment;
+    kpis.abandonment_year = abandonmentYear;
+  }
+  if (cfg.apply_economic_limit === true) {
+    kpis.economic_limit_year = economicLimitYear;
+    kpis.years_trimmed_by_economic_limit = yearsTrimmedByLimit;
+  }
+
+  // Unit costs on a BOE basis (null when there are no volumes to divide by)
+  kpis.unit_technical_cost_usd_per_boe = totalBoe > 0
+    ? (kpis.total_capex + kpis.total_opex + totalAbandonment) / totalBoe : null;
+  kpis.opex_usd_per_boe = totalBoe > 0 ? kpis.total_opex / totalBoe : null;
+
+  // Government take: share of pre-take value (revenue less capex, opex and
+  // abandonment) captured by the state. Contractor NCF already nets out every
+  // fiscal instrument in all three regimes, so the residual IS the take.
+  const preTakeValue = kpis.total_revenue - kpis.total_capex - kpis.total_opex - totalAbandonment;
+  kpis.government_take_pct = preTakeValue > 0
+    ? ((preTakeValue - kpis.total_net_cash_flow_nominal) / preTakeValue) * 100 : null;
+
+  // DPI: NPV per present-value dollar of capex, on the same PV basis as NPV
+  const pvCapex = cashFlowData.reduce((s, d) => {
+    const t = d.year - baseYear;
+    const capexOnBasis = pvBasis === 'real' ? d.capex / Math.pow(1 + inflationRate, t) : d.capex;
+    return s + capexOnBasis / Math.pow(1 + discountForNPV, t);
+  }, 0);
+  kpis.pv_capex = pvCapex;
+  kpis.dpi = pvCapex > 0 ? npvVal / pvCapex : null;
+
+  kpis.payback_years = paybackYears(cfForPayback);
+  kpis.discounted_payback_years = paybackYears(cashFlowData.map(d => d.discounted_cash_flow));
+
   if (cfg.fiscal_regime === 'PIA') {
     kpis.total_royalties = cashFlowData.reduce((s, d) => s + (d.royalty || 0), 0);
     kpis.total_hct = cashFlowData.reduce((s, d) => s + (d.hct_tax || 0), 0);
@@ -985,4 +1105,28 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
   }
 
   return { cashFlowData, kpis };
+}
+
+// ============================================================================
+// BREAKEVEN OIL PRICE (v3.4)
+// ============================================================================
+//
+// Bisection on the flat oil price to NPV = 0, rerunning the full engine at
+// each trial price so every fiscal nonlinearity (tax floors, CPR caps, price
+// royalty tiers) is honored. NPV is piecewise linear in price, so bisection
+// converges cleanly. Returns null when the project never breaks even below
+// `hi`, or is NPV-positive even at `lo` (breakeven not meaningful).
+export function computeBreakevenOilPrice(input: ComputeInput, lo = 0.5, hi = 500): number | null {
+  const npvAt = (p: number) =>
+    computeCashFlow({ ...input, cfg: { ...input.cfg, oil_price_usd_bbl: p } }).kpis.npv;
+  const fLo = npvAt(lo);
+  const fHi = npvAt(hi);
+  if (!Number.isFinite(fLo) || !Number.isFinite(fHi)) return null;
+  if (fLo >= 0 || fHi < 0) return null;
+  let a = lo, b = hi;
+  for (let i = 0; i < 50 && b - a > 0.001; i++) {
+    const mid = (a + b) / 2;
+    if (npvAt(mid) < 0) a = mid; else b = mid;
+  }
+  return (a + b) / 2;
 }

@@ -65,27 +65,39 @@ const EpeRunComparison = () => {
         selectedRunIds.map(async (runId) => {
           const { data: runData, error: runError } = await supabase
             .from('epe_runs')
-            .select('run_name')
+            .select('run_name, run_config_id')
             .eq('id', runId)
             .single();
           if (runError) throw new Error(`Failed to fetch run name for ${runId}: ${runError.message}`);
 
+          // maybeSingle: a run whose engine call failed has no results row;
+          // show it as "no results" instead of failing the whole comparison.
           const { data: resultData, error: resultError } = await supabase
             .from('epe_results')
             .select('kpis')
             .eq('run_id', runId)
-            .single();
+            .maybeSingle();
           if (resultError) throw new Error(`Failed to fetch results for run ${runId}: ${resultError.message}`);
+
+          let config = null;
+          if (runData.run_config_id) {
+            const { data: cfgData } = await supabase
+              .from('epe_run_configs')
+              .select('oil_price_usd_bbl, gas_price_usd_mscf, discount_rate_pct, base_year, fiscal_regime, present_value_basis')
+              .eq('id', runData.run_config_id)
+              .maybeSingle();
+            config = cfgData || null;
+          }
 
           return {
             id: runId,
             name: runData.run_name,
-            kpis: resultData.kpis,
+            kpis: resultData?.kpis || null,
+            config,
           };
         })
       );
       setComparisonResults(fetchedResults);
-      toast({ title: 'Success', description: 'Runs compared successfully.' });
     } catch (error) {
       console.error('Comparison failed:', error);
       toast({ title: 'Comparison Failed', description: error.message || 'An error occurred during comparison.', variant: 'destructive' });
@@ -101,7 +113,7 @@ const EpeRunComparison = () => {
 
   return (
     <>
-      <Helmet><title>Compare Runs - EPE</title></Helmet>
+      <Helmet><title>Compare Runs - Petroleum Economics Studio</title></Helmet>
       <div className="p-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-8">
           <div className="flex items-center justify-between mb-4">
@@ -159,24 +171,58 @@ const EpeRunComparison = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow className="border-slate-800">
-                  <TableCell className="font-medium text-white flex items-center"><DollarSign className="w-4 h-4 mr-2 text-green-400" /> NPV</TableCell>
-                  {comparisonResults.map(run => (
-                    <TableCell key={run.id} className="text-lime-300">{formatCurrency(run.kpis.npv)}</TableCell>
-                  ))}
-                </TableRow>
-                <TableRow className="border-slate-800">
-                  <TableCell className="font-medium text-white flex items-center"><TrendingUp className="w-4 h-4 mr-2 text-blue-400" /> IRR</TableCell>
-                  {comparisonResults.map(run => (
-                    <TableCell key={run.id} className="text-lime-300">{run.kpis.irr ? `${run.kpis.irr.toFixed(2)}%` : 'N/A'}</TableCell>
-                  ))}
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium text-white flex items-center"><Clock className="w-4 h-4 mr-2 text-orange-400" /> Payback</TableCell>
-                  {comparisonResults.map(run => (
-                    <TableCell key={run.id} className="text-lime-300">{run.kpis.payback}</TableCell>
-                  ))}
-                </TableRow>
+                {/* What differs between the configs (the old table showed
+                    results with no way to see WHY they differ) */}
+                {[
+                  ['Fiscal regime', (r) => r.config?.fiscal_regime ?? '—'],
+                  ['Oil price', (r) => r.config?.oil_price_usd_bbl != null ? `$${r.config.oil_price_usd_bbl}/bbl` : '—'],
+                  ['Gas price', (r) => r.config?.gas_price_usd_mscf != null ? `$${r.config.gas_price_usd_mscf}/mscf` : '—'],
+                  ['Discount rate', (r) => r.config?.discount_rate_pct != null ? `${r.config.discount_rate_pct}%` : '—'],
+                  ['Base year / PV basis', (r) => r.config ? `${r.config.base_year ?? '—'} / ${r.config.present_value_basis ?? '—'}` : '—'],
+                ].map(([label, get]) => (
+                  <TableRow key={label} className="border-slate-800">
+                    <TableCell className="text-slate-400 text-sm">{label}</TableCell>
+                    {comparisonResults.map(run => (
+                      <TableCell key={run.id} className="text-slate-300 text-sm">{get(run)}</TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+
+                {[
+                  { label: 'NPV', icon: <DollarSign className="w-4 h-4 mr-2 text-green-400" />, get: (k) => k?.npv, fmt: formatCurrency, delta: true },
+                  { label: 'IRR', icon: <TrendingUp className="w-4 h-4 mr-2 text-blue-400" />, get: (k) => k?.irr, fmt: (v) => v != null ? `${v.toFixed(2)}%` : 'N/A' },
+                  { label: 'Payback', icon: <Clock className="w-4 h-4 mr-2 text-orange-400" />, get: (k) => k?.payback, fmt: (v) => v ?? 'N/A' },
+                  { label: 'Breakeven oil price', get: (k) => k?.breakeven_oil_price_usd_bbl, fmt: (v) => v != null ? `$${Number(v).toFixed(1)}/bbl` : '—' },
+                  { label: 'Government take', get: (k) => k?.government_take_pct, fmt: (v) => v != null ? `${Number(v).toFixed(1)}%` : '—' },
+                  { label: 'Total revenue', get: (k) => k?.total_revenue, fmt: formatCurrency, delta: true },
+                  { label: 'Total CAPEX', get: (k) => k?.total_capex, fmt: formatCurrency, delta: true },
+                  { label: 'Total OPEX', get: (k) => k?.total_opex, fmt: formatCurrency, delta: true },
+                  { label: 'Total tax', get: (k) => k?.total_tax, fmt: formatCurrency, delta: true },
+                ].map(({ label, icon, get, fmt, delta }) => {
+                  const baseVal = get(comparisonResults[0]?.kpis);
+                  return (
+                    <TableRow key={label} className="border-slate-800">
+                      <TableCell className="font-medium text-white"><span className="flex items-center">{icon}{label}</span></TableCell>
+                      {comparisonResults.map((run, i) => {
+                        const v = get(run.kpis);
+                        if (run.kpis === null) {
+                          return <TableCell key={run.id} className="text-slate-500 italic">no results</TableCell>;
+                        }
+                        const d = delta && i > 0 && typeof v === 'number' && typeof baseVal === 'number' ? v - baseVal : null;
+                        return (
+                          <TableCell key={run.id} className="text-lime-300">
+                            {fmt(v)}
+                            {d !== null && (
+                              <span className={`block text-xs ${d >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {d >= 0 ? '+' : ''}{formatCurrency(d)} vs {comparisonResults[0].name}
+                              </span>
+                            )}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </motion.div>

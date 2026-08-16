@@ -3,8 +3,9 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Plus, ChevronRight, ArrowLeft, HelpCircle } from 'lucide-react';
+import { Briefcase, Plus, ChevronRight, ArrowLeft, HelpCircle, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { buildExampleCaseData } from '@/lib/epeExampleCase';
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,7 @@ const EpeCaseList = () => {
   const [newCaseName, setNewCaseName] = useState('');
   const [newCaseDescription, setNewCaseDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreatingExample, setIsCreatingExample] = useState(false);
 
   useEffect(() => {
     fetchCases();
@@ -82,10 +84,56 @@ const EpeCaseList = () => {
     setIsSubmitting(false);
   };
 
+  const handleCreateExampleCase = async () => {
+    setIsCreatingExample(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: 'Error', description: 'You must be logged in to create a case.', variant: 'destructive' });
+        return;
+      }
+
+      const example = buildExampleCaseData();
+
+      const { data: newCase, error: caseError } = await supabase
+        .from('epe_cases')
+        .insert([{ case_name: example.caseName, description: example.caseDescription, user_id: user.id }])
+        .select()
+        .single();
+
+      if (caseError) throw new Error(`Creating case: ${caseError.message}`);
+
+      const datasets = [
+        { table: 'epe_production_volumes', fileName: 'example_production.csv', rows: example.production },
+        { table: 'epe_capex', fileName: 'example_capex.csv', rows: example.capex },
+        { table: 'epe_opex', fileName: 'example_opex.csv', rows: example.opex },
+      ];
+
+      for (const ds of datasets) {
+        const { error: dataError } = await supabase
+          .from(ds.table)
+          .insert({
+            case_id: newCase.id,
+            user_id: user.id,
+            file_name: ds.fileName,
+            data: ds.rows,
+          });
+        if (dataError) throw new Error(`Saving ${ds.fileName}: ${dataError.message}`);
+      }
+
+      toast({ title: 'Example case created', description: 'Sample production, CAPEX and OPEX data are ready to explore.' });
+      await fetchCases();
+    } catch (err) {
+      toast({ title: 'Error creating example case', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsCreatingExample(false);
+    }
+  };
+
   return (
     <>
       <Helmet>
-        <title>EPE Cases - Petrolord Suite</title>
+        <title>Petroleum Economics Studio - Petrolord Suite</title>
         <meta name="description" content="Manage your Enterprise Petroleum Economics cases." />
       </Helmet>
       <div className="p-8">
@@ -110,13 +158,24 @@ const EpeCaseList = () => {
                 <Briefcase className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold text-white">Enterprise Petroleum Economics</h1>
+                <h1 className="text-4xl font-bold text-white">Petroleum Economics Studio</h1>
                 <p className="text-lime-200 text-lg">Case Management</p>
               </div>
             </div>
-            <Button onClick={() => setIsNewCaseDialogOpen(true)} className="bg-gradient-to-r from-green-600 to-lime-600 hover:from-green-700 hover:to-lime-700">
-              <Plus className="w-4 h-4 mr-2" /> New Case
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={handleCreateExampleCase}
+                disabled={isCreatingExample}
+                className="text-white border-white/20 hover:bg-white/10"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                {isCreatingExample ? 'Creating example...' : 'Create example case'}
+              </Button>
+              <Button onClick={() => setIsNewCaseDialogOpen(true)} className="bg-gradient-to-r from-green-600 to-lime-600 hover:from-green-700 hover:to-lime-700">
+                <Plus className="w-4 h-4 mr-2" /> New Case
+              </Button>
+            </div>
           </div>
         </motion.div>
 

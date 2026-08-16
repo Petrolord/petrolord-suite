@@ -4,7 +4,7 @@ import Papa from 'papaparse';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   UploadCloud, Loader2, CheckCircle2, XCircle, AlertTriangle,
-  FileSpreadsheet, X
+  FileSpreadsheet, X, Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -30,6 +30,38 @@ const DATA_TYPE_LABEL = {
   production_volumes: 'Production',
   capex: 'CAPEX',
   opex: 'OPEX',
+};
+
+// Template CSVs offered from the idle dropzone so users can see the exact
+// schema each slot expects before preparing their own file.
+const TEMPLATE_CSV = {
+  production_volumes: {
+    fileName: 'epe_production_template.csv',
+    content: [
+      'year,oil_bbl,gas_mscf,water_bbl',
+      '2027,1200000,600000,150000',
+      '2028,950000,480000,210000',
+      '2029,760000,380000,260000',
+    ].join('\n'),
+  },
+  capex: {
+    fileName: 'epe_capex_template.csv',
+    content: [
+      'year,category,item,cost_usd',
+      '2027,Drilling,"Producer wells (2)",30000000',
+      '2027,Facilities,"Flowlines and manifold",12000000',
+      '2028,Drilling,"Water injector",9000000',
+    ].join('\n'),
+  },
+  opex: {
+    fileName: 'epe_opex_template.csv',
+    content: [
+      'year,fixed_opex_usd,variable_opex_usd,total_opex_usd',
+      '2027,8000000,4200000,12200000',
+      '2028,8000000,3300000,11300000',
+      '2029,8000000,2700000,10700000',
+    ].join('\n'),
+  },
 };
 
 const formatBytes = (b) => {
@@ -265,6 +297,28 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess }) => {
   };
 
   // -------------------------------------------------------------------------
+  // Template CSV download (idle state)
+  // -------------------------------------------------------------------------
+  const handleDownloadTemplate = (e) => {
+    // The dropzone root treats clicks as "open file picker" — stop that.
+    e.stopPropagation();
+    e.preventDefault();
+
+    const template = TEMPLATE_CSV[dataType];
+    if (!template) return;
+
+    const blob = new Blob([template.content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = template.fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // -------------------------------------------------------------------------
   // Cancel during preview
   // -------------------------------------------------------------------------
   const handleCancelPreview = () => {
@@ -295,6 +349,14 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess }) => {
               <p className="text-xs text-slate-500 mt-2">
                 Filename should contain "<span className="font-mono">{FILENAME_KEYWORD[dataType]}</span>" • Max {MAX_FILE_SIZE_MB} MB
               </p>
+              <button
+                type="button"
+                onClick={handleDownloadTemplate}
+                className="mt-3 inline-flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download template CSV
+              </button>
             </div>
           </>
         )}

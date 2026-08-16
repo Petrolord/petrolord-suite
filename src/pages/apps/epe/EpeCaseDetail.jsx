@@ -114,7 +114,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
       return (
         <>
           <Helmet>
-            <title>{caseDetails?.case_name || 'Case Detail'} - EPE</title>
+            <title>{caseDetails?.case_name || 'Case Detail'} - Petroleum Economics Studio</title>
           </Helmet>
           <div className="p-4 sm:p-6 md:p-8">
             <div className="flex items-center justify-between mb-6">
