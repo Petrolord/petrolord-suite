@@ -92,7 +92,7 @@ const DCAEURDistribution = ({ distribution, selectedStream }) => {
           />
         </BarChart>
       </ResponsiveContainer>
-      <ChartLogo style={{ height: '16px', bottom: '6px', right: '8px', opacity: 0.5 }} />
+      <ChartLogo style={{ height: '40px', bottom: '6px', right: '8px', opacity: 0.5 }} />
     </div>
   );
 };

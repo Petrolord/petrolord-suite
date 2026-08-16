@@ -237,7 +237,7 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
           {/* NPV cumulative probability */}
           <div>
             <h3 className="text-sm font-semibold text-white mb-2">NPV cumulative probability</h3>
-            <ChartFrame height={260} exportFilename="epe-mc-npv-cdf">
+            <ChartFrame height={420} exportFilename="epe-mc-npv-cdf">
               <ComposedChart data={cdfData} margin={CHART_MARGINS.withLegend}>
                 <CartesianGrid {...GRID_STYLE} />
                 <XAxis dataKey="npv" tickFormatter={fmtM} tick={AXIS_TICK} stroke={CHART_COLORS.axisLine} type="number" domain={['dataMin', 'dataMax']} />
@@ -253,7 +253,7 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
           {fanData.length >= 2 ? (
             <div>
               <h3 className="text-sm font-semibold text-white mb-2">Cumulative cash flow fan (nominal)</h3>
-              <ChartFrame height={260} exportFilename="epe-mc-cashflow-fan">
+              <ChartFrame height={420} exportFilename="epe-mc-cashflow-fan">
                 <ComposedChart data={fanData} margin={CHART_MARGINS.withLegend}>
                   <CartesianGrid {...GRID_STYLE} />
                   <XAxis dataKey="year" tick={AXIS_TICK} stroke={CHART_COLORS.axisLine} />
@@ -283,12 +283,12 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
           {tornadoRows.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-white mb-2">NPV sensitivity tornado (conditional P50 by input decile)</h3>
-              <ChartFrame height={Math.max(160, 44 + tornadoRows.length * 40)} exportFilename="epe-mc-tornado">
+              <ChartFrame height={Math.max(320, 60 + tornadoRows.length * 56)} exportFilename="epe-mc-tornado">
                 <TornadoChart
                   rows={tornadoRows}
                   base={(results.tornado[0]?.base ?? 0) / 1e6}
                   unit="$MM"
-                  height={Math.max(160, 44 + tornadoRows.length * 40)}
+                  height={Math.max(320, 60 + tornadoRows.length * 56)}
                 />
               </ChartFrame>
             </div>

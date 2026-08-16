@@ -129,7 +129,7 @@ const TreeDiagram = ({ annotated, unit = '$MM' }) => {
           <text x={245} y={0}>optimal path</text>
         </g>
       </svg>
-      <ChartLogo style={{ height: '36px', bottom: '14px', opacity: 0.55 }} />
+      <ChartLogo style={{ height: '96px', bottom: '10px', opacity: 0.55 }} />
     </div>
   );
 };

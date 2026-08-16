@@ -44,7 +44,7 @@ const CalibrationProfilePlot = ({ title, xLabel, modeled, measured, color }) => 
                     </ComposedChart>
                 </ResponsiveContainer>
             </div>
-            <ChartLogo style={{ height: '16px' }} />
+            <ChartLogo style={{ height: '40px' }} />
         </div>
     );
 };
