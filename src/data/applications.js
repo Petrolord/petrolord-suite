@@ -125,26 +125,18 @@ export const applications = [
         icon: 'Target'
     },
     {
+        // Renamed from "EPE Suite" 2026-08-16; the failed standalone
+        // petroleum-economics-studio app was retired and EPE carries the
+        // name. Slug stays epe-suite: it is the tile link + entitlement key.
         id: 'epe-suite',
         slug: 'epe-suite',
-        name: 'EPE Suite',
-        description: 'Economic Planning & Evaluation Suite for comprehensive case management and comparison.',
+        name: 'Petroleum Economics Studio',
+        description: 'Case-based petroleum economics: JV, PSC, PIA 2021 and NTA 2025 fiscal modeling with sensitivities, Monte Carlo, and run comparison.',
         module: 'economics-project-management',
         category: 'economics-project-management',
         path: '/dashboard/apps/economics/epe/cases',
         route: '/dashboard/apps/economics/epe/cases',
         icon: 'Briefcase'
-    },
-    {
-        id: 'petroleum-economics-studio',
-        slug: 'petroleum-economics-studio',
-        name: 'Petroleum Economics Studio',
-        description: 'Comprehensive economic modeling, fiscal regime design, and portfolio optimization tool.',
-        module: 'economics-project-management',
-        category: 'economics-project-management',
-        path: '/dashboard/apps/economics-project-management/petroleum-economics-studio',
-        route: '/dashboard/apps/economics-project-management/petroleum-economics-studio',
-        icon: 'DollarSign'
     },
     {
         id: 'pipeline-designer',

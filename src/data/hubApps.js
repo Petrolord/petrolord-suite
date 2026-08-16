@@ -31,7 +31,7 @@ export const assuranceApps = [
 ];
 
 export const economicsApps = [
-    { id: 'petro-econ-studio', name: "Petroleum Economics Studio", category: "Project Economics", iconName: "Calculator", description: "Comprehensive economic modeling and decision analysis suite.", status: "Active", path: "/dashboard/apps/petroleum-economics-studio/projects", stats: { projects: "New", last: "Now" } },
+    { id: 'epe-suite', name: "Petroleum Economics Studio", category: "Project Economics", iconName: "Calculator", description: "Case-based fiscal modeling: JV, PSC, PIA 2021 and NTA 2025, with sensitivities and Monte Carlo.", status: "Active", path: "/dashboard/apps/economics/epe/cases", stats: { projects: "New", last: "Now" } },
     { id: 'pm-pro', name: "Project Management Pro", category: "Project Management", iconName: "LayoutTemplate", description: "Advanced project tracking, Gantt charts, and resource allocation.", status: "Active", path: "/dashboard/apps/economics/project-management-pro", stats: { projects: "12", last: "2h ago" } },
     { id: 'afe-mgr', name: "AFE & Cost Control", category: "Project Management", iconName: "DollarSign", description: "Manage AFEs, track costs, and monitor budget variance.", status: "Active", path: "/dashboard/apps/economics/afe-cost-control", stats: { projects: "45", last: "4h ago" } },
     { id: 'npv-bldr', name: "NPV & Scenario Builder", category: "Project Economics", iconName: "TrendingUp", description: "Build economic models and run NPV scenarios.", status: "Active", path: "/dashboard/apps/economics/npv-scenario-builder", stats: { projects: "8", last: "1d ago" } },

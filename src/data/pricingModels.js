@@ -55,7 +55,6 @@ export const SPECIAL_APP_PRICING = {
   'project-management-pro': 199,
   'basinflow-genesis': 349,
   'network-diagram-pro': 199,
-  'petroleum-economics-studio': 399,
   'fracture-prediction': 249
 };
 
