@@ -13,9 +13,10 @@
 > 20260816120000, routes redirect here). The slug stays `epe-suite`
 > (tile link + entitlement key) and routes stay under
 > `/dashboard/apps/economics/epe/`; "EPE" remains the internal
-> code/table prefix. Its 6 orphan `econ_*` tables are read-only pending
-> an owner drop decision; `src/utils/petroleumEconomicsEngine.js` + its
-> test survive as this engine's cross-check oracle.
+> code/table prefix. Its orphan `econ_*` family was dropped 2026-08-17
+> (owner-approved, migration 20260817100000);
+> `src/utils/petroleumEconomicsEngine.js` + its test survive as this
+> engine's cross-check oracle.
 
 ---
 
@@ -200,10 +201,13 @@ Risk level: low (math is straightforward). But a future Reservoir Balance-style 
 
 ### 4.2b Known structural debt (2026-08-16 audit)
 
-- **No repo DDL for 9 of the 10 `epe_*` tables** — only `epe_mc_runs` has a
-  migration; `epe_cases`/`epe_runs`/`epe_run_configs`/`epe_results`/
-  `epe_production_volumes`/`epe_capex`/`epe_opex`/`epe_sensitivity_*` exist
-  live but cannot be rebuilt from source. Backfill migration pending.
+- ~~No repo DDL for 9 of the 10 `epe_*` tables~~ — **CLOSED 2026-08-17**:
+  `20260814185000_backfill_epe_tables_ddl.sql` captures the live shape
+  (filename back-dated so it sorts before epe_mc_runs' FKs on fresh
+  rebuilds); fresh-rebuild proven in a rollback-wrapped transaction with
+  byte-count parity against live. The retired PES `econ_*` family (17
+  tables + view + `integration_snapshots`) was dropped the same day
+  (`20260817100000`).
 - **`epe_runs` has no status/error columns** (unlike `epe_sensitivity_runs`);
   the console now deletes the run row on engine failure as a stopgap.
 - **Working interest applies only to JV** — PSC and PIA results are 100%
