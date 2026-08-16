@@ -166,6 +166,98 @@ function safeParseFloat(val) {
   return isNaN(parsed) ? null : parsed;
 }
 
+// ── Date normalization ──
+// observation_date is a postgres `date` column, and ONE unparseable string
+// (e.g. "31/12/2019" under postgres's default month-first parsing, or an
+// Excel serial) makes PostgREST reject the ENTIRE insert batch with a 400.
+// So every date is normalized to ISO YYYY-MM-DD client-side; anything
+// unrecognizable becomes null (the column is nullable) plus a parse warning.
+
+const MONTH_NAMES = {
+  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+};
+
+/**
+ * Decide whether numeric 3-part dates in this file are day-first or
+ * month-first by scanning the whole column once. Returns { order, certain }:
+ * order is 'dmy' or 'mdy'; certain=false means every date was ambiguous
+ * (both parts <= 12) and day-first was assumed.
+ */
+function inferDateOrder(rawDates) {
+  let dayFirst = 0;
+  let monthFirst = 0;
+  for (const s of rawDates) {
+    const m = String(s ?? '').trim().match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
+    if (!m) continue;
+    if (Number(m[1]) > 12) dayFirst++;
+    if (Number(m[2]) > 12) monthFirst++;
+  }
+  if (dayFirst > 0 && monthFirst === 0) return { order: 'dmy', certain: true };
+  if (monthFirst > 0 && dayFirst === 0) return { order: 'mdy', certain: true };
+  return { order: 'dmy', certain: false };
+}
+
+/** Build a validated ISO date string, or null (rejects 31/02, year out of range). */
+function buildIsoDate(yRaw, mo, d) {
+  let y = yRaw;
+  if (y < 100) y += y < 50 ? 2000 : 1900;
+  if (y < 1900 || y > 2100 || !mo || !d) return null;
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+/**
+ * Normalize a raw CSV date value to ISO YYYY-MM-DD, or null if unrecognizable.
+ * Handles: ISO (with optional time), numeric d/m/y or m/d/y (order from
+ * inferDateOrder), month names (31-May-2024, May-2024, May 31 2024),
+ * month/year (05/2024), and Excel 1900-system serial numbers.
+ */
+function normalizeDate(raw, order) {
+  const s = String(raw ?? '').trim();
+  if (!s) return null;
+  let m;
+  if ((m = s.match(/^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})([T ].*)?$/))) {
+    return buildIsoDate(+m[1], +m[2], +m[3]);
+  }
+  if ((m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/))) {
+    const a = +m[1];
+    const b = +m[2];
+    const y = +m[3];
+    if (a > 12 && b <= 12) return buildIsoDate(y, b, a);
+    if (b > 12 && a <= 12) return buildIsoDate(y, a, b);
+    return order === 'mdy' ? buildIsoDate(y, a, b) : buildIsoDate(y, b, a);
+  }
+  const monMatch = s.toLowerCase().match(/([a-z]{3,})/);
+  if (monMatch && MONTH_NAMES[monMatch[1].slice(0, 3)]) {
+    const mo = MONTH_NAMES[monMatch[1].slice(0, 3)];
+    const nums = (s.match(/\d{1,4}/g) || []).map(Number);
+    if (nums.length === 1) return buildIsoDate(nums[0], mo, 1);
+    if (nums.length >= 2) {
+      let d;
+      let y;
+      if (nums[0] > 31) { y = nums[0]; d = nums[1]; }
+      else { d = nums[0]; y = nums[1]; }
+      return buildIsoDate(y, mo, d);
+    }
+  }
+  if (/^(19|20)\d{2}$/.test(s)) {
+    return buildIsoDate(+s, 1, 1);
+  }
+  if (/^\d{5,6}$/.test(s)) {
+    const n = +s;
+    if (n >= 20000 && n <= 80000) {
+      const dt = new Date(Date.UTC(1899, 11, 30) + n * 86400000);
+      return buildIsoDate(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
+    }
+  }
+  if ((m = s.match(/^(\d{1,2})[/\-.](\d{4})$/))) {
+    return buildIsoDate(+m[2], +m[1], 1);
+  }
+  return null;
+}
+
 /**
  * Map a raw papaparse row to a schema row, using the column alias map.
  * Returns { row: schemaRow, warnings: string[] } where warnings flag missing
@@ -200,11 +292,19 @@ function mapAndScaleRows(rawRows) {
     rs_scf_stb: colMap.rs_scf_stb ? detectUnitScale(colMap.rs_scf_stb, 'rs') : 1,
   };
 
+  // Date order (day-first vs month-first) is inferred once for the whole
+  // file so ambiguous dates like 04/05/2024 are read consistently.
+  const dateOrder = colMap.observation_date
+    ? inferDateOrder(rawRows.map((raw) => raw[colMap.observation_date]))
+    : null;
+  let ambiguousDates = 0;
+  const badDates = [];
+
   // Map each row
   const rows = rawRows.map((raw, idx) => {
     const row = { timestep_index: idx };
     for (const [schemaCol, header] of Object.entries(colMap)) {
-      if (header == null) continue;
+      if (header == null || schemaCol === 'observation_date') continue;
       const rawVal = raw[header];
       const num = safeParseFloat(rawVal);
       if (num == null) {
@@ -214,9 +314,18 @@ function mapAndScaleRows(rawRows) {
       const scale = scales[schemaCol] ?? 1;
       row[schemaCol] = num * scale;
     }
-    // Date handling — keep as string (the API helper will pass through; postgres will coerce)
-    if (colMap.observation_date && raw[colMap.observation_date]) {
-      row.observation_date = String(raw[colMap.observation_date]);
+    // Dates are normalized to ISO, never passed through raw: one string
+    // postgres can't parse 400s the whole insert (and the row loses no
+    // engine input — observation_date is display/validation metadata).
+    if (colMap.observation_date) {
+      const rawDate = raw[colMap.observation_date];
+      const iso = normalizeDate(rawDate, dateOrder?.order);
+      row.observation_date = iso;
+      if (iso == null && String(rawDate ?? '').trim() !== '') {
+        badDates.push(String(rawDate).trim());
+      } else if (iso && !dateOrder.certain && /^(\d{1,2})[/\-.](\d{1,2})[/\-.]/.test(String(rawDate).trim())) {
+        ambiguousDates++;
+      }
     }
     return row;
   });
@@ -235,6 +344,17 @@ function mapAndScaleRows(rawRows) {
   if (!colMap.cum_oil_stb && !colMap.cum_gas_scf) {
     warnings.push(
       'No cumulative oil or gas column detected. At least one is needed for material balance.',
+    );
+  }
+  if (ambiguousDates > 0) {
+    warnings.push(
+      `Dates like 04/05/2024 were read as day/month/year. If your file uses month/day, switch the date column to ISO format (YYYY-MM-DD) and re-upload.`,
+    );
+  }
+  if (badDates.length > 0) {
+    const sample = badDates.slice(0, 3).map((d) => `"${d}"`).join(', ');
+    warnings.push(
+      `${badDates.length} date value(s) could not be read (${sample}${badDates.length > 3 ? ', …' : ''}). Those rows will save without a date.`,
     );
   }
 

@@ -128,36 +128,53 @@ export async function listProductionData(caseId) {
 }
 
 /**
- * Atomic replace: delete all existing rows for the case, then insert the new
- * batch. Used after CSV upload or bulk paste.
+ * Replace all production rows for a case. Used after CSV upload or bulk paste.
  *
- * Note: Supabase doesn't have a single-call atomic replace. We do delete +
- * insert in sequence; if insert fails after delete succeeds, the user loses
- * their old data. For Phase 2 this is acceptable; future enhancement could use
- * a Postgres function (RPC) for true atomicity.
+ * Not single-call atomic (that would need an RPC), but ordered so a failure
+ * never destroys existing data: upsert the new batch over the old rows first
+ * (keyed on case_id + timestep_index), then trim any leftover old rows with
+ * higher timestep indices. If the upsert fails (bad value, RLS), the old
+ * rows are untouched. The previous delete-then-insert order wiped the case's
+ * data whenever the insert was rejected.
  *
  * rows must have shape:
  *   { timestep_index, pressure_psia, cum_oil_stb?, cum_gas_scf?, ... }
  * case_id is added to each row automatically.
  */
 export async function replaceProductionData(caseId, rows) {
-  // Step 1: delete existing rows
+  if (!rows || rows.length === 0) {
+    const { error } = await supabase
+      .from('rb_production_data')
+      .delete()
+      .eq('case_id', caseId);
+    return { data: error ? null : [], error };
+  }
+
+  // Every column is stamped (null when absent) so the upsert fully
+  // overwrites overlapping rows; otherwise columns missing from the new CSV
+  // would keep their old values and mix datasets.
+  const DATA_COLUMNS = [
+    'pressure_psia', 'cum_oil_stb', 'cum_gas_scf', 'cum_water_stb',
+    'cum_water_inj_stb', 'cum_gas_inj_scf', 'bo_rb_stb', 'rs_scf_stb',
+    'bg_rb_mscf', 'bw_rb_stb', 'z_factor', 'observation_date', 'observed_we_rb',
+  ];
+  const stamped = rows.map((row) => {
+    const full = { case_id: caseId, timestep_index: row.timestep_index };
+    for (const col of DATA_COLUMNS) full[col] = row[col] ?? null;
+    return full;
+  });
+  const { data, error } = await supabase
+    .from('rb_production_data')
+    .upsert(stamped, { onConflict: 'case_id,timestep_index' })
+    .select();
+  if (error) return { data: null, error };
+
   const { error: delErr } = await supabase
     .from('rb_production_data')
     .delete()
-    .eq('case_id', caseId);
-  if (delErr) return { data: null, error: delErr };
-
-  // Step 2: insert new rows with case_id stamped
-  if (!rows || rows.length === 0) {
-    return { data: [], error: null };
-  }
-  const stamped = rows.map((row) => ({ ...row, case_id: caseId }));
-  const { data, error } = await supabase
-    .from('rb_production_data')
-    .insert(stamped)
-    .select();
-  return { data, error };
+    .eq('case_id', caseId)
+    .gte('timestep_index', rows.length);
+  return { data, error: delErr || null };
 }
 
 /**
