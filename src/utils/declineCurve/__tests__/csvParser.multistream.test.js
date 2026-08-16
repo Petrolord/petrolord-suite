@@ -40,6 +40,18 @@ describe('detectColumns (multi-stream)', () => {
     expect(mapping.gasRate).toBeNull();
     expect(mapping.waterRate).toBeNull();
   });
+
+  it('maps a bwpd water column to waterRate, not cum (wp is a substring of bwpd)', () => {
+    const mapping = detectColumns(['date', 'oil_rate (bopd)', 'gas_rate (Mscf/d)', 'water_rate (bwpd)']);
+    expect(mapping.waterRate).toBe('water_rate (bwpd)');
+    expect(mapping.cum).toBeNull();
+  });
+
+  it('still maps a genuine cumulative column alongside stream rates', () => {
+    const mapping = detectColumns(['Date', 'Oil Rate (bopd)', 'Cum Oil (stb)']);
+    expect(mapping.oilRate).toBe('Oil Rate (bopd)');
+    expect(mapping.cum).toBe('Cum Oil (stb)');
+  });
 });
 
 describe('mapColumns (multi-stream)', () => {
