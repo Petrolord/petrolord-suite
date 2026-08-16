@@ -171,10 +171,6 @@ const ISOCompliancePageShell = lazy(() => import('@/pages/apps/assurance/iso-com
 const LessonsLearnedPageShell = lazy(() => import('@/pages/apps/assurance/lessons-learned/LessonsLearnedPageShell.jsx'));
 
 // Petroleum Economics Studio Components
-const PetroleumEconomicsStudio = lazy(() => import('@/pages/apps/PetroleumEconomicsStudio'));
-const PetroleumEconomicsStudioProjects = lazy(() => import('@/pages/apps/PetroleumEconomicsStudio/ProjectsList'));
-const PetroleumEconomicsStudioWorkspace = lazy(() => import('@/pages/apps/PetroleumEconomicsStudio/ModelWorkspace'));
-const PetroleumEconomicsStudioTemplates = lazy(() => import('@/pages/apps/PetroleumEconomicsStudio/TemplatesLibrary'));
 
 const EpeCaseList = lazy(() => import('@/pages/apps/epe/EpeCaseList'));
 const EpeHelpGuide = lazy(() => import('@/pages/apps/epe/EpeHelpGuide'));
@@ -567,31 +563,29 @@ function App() {
                                 <Route path="apps/economics/capital-portfolio-studio" element={<CapitalPortfolioStudio />} />
                                 <Route path="apps/economics/fdp-accelerator" element={<FdpAccelerator />} />
                                 
-                                {/* Petroleum Economics Studio robust routing */}
-                                <Route path="apps/economics-project-management/petroleum-economics-studio" element={<ProtectedAppRoute appId="petroleum-economics-studio" appName="Petroleum Economics Studio"><PetroleumEconomicsStudio /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/petroleum-economics-studio" element={<ProtectedAppRoute appId="petroleum-economics-studio" appName="Petroleum Economics Studio"><PetroleumEconomicsStudio /></ProtectedAppRoute>} />
-                                <Route path="apps/economic/petroleum-economics-studio" element={<ProtectedAppRoute appId="petroleum-economics-studio" appName="Petroleum Economics Studio"><PetroleumEconomicsStudio /></ProtectedAppRoute>} />
-                                
-                                {/* Keep sub-routes for deep linking compatibility */}
-                                <Route path="apps/economics-project-management/petroleum-economics-studio/projects" element={<ProtectedAppRoute appId="petroleum-economics-studio" appName="Petroleum Economics Studio"><PetroleumEconomicsStudioProjects /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/petroleum-economics-studio/projects" element={<ProtectedAppRoute appId="petroleum-economics-studio" appName="Petroleum Economics Studio"><PetroleumEconomicsStudioProjects /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/petroleum-economics-studio/workspace/:projectId?" element={<PetroleumEconomicsStudioWorkspace />} />
-                                <Route path="apps/economics/petroleum-economics-studio/templates" element={<PetroleumEconomicsStudioTemplates />} />
-                                
-                                {/* EPE Suite targeted robust routing aliases mapping exactly to the app card logic */}
+                                {/* Petroleum Economics Studio: the legacy standalone app is retired
+                                    (2026-08-16); EPE carries the name now. Old links land on it. */}
+                                <Route path="apps/economics-project-management/petroleum-economics-studio/*" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
+                                <Route path="apps/economics/petroleum-economics-studio/*" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
+                                <Route path="apps/economic/petroleum-economics-studio/*" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
+
+                                {/* Petroleum Economics Studio (slug epe-suite) routing aliases mapping exactly to the app card logic */}
                                 <Route path="apps/economics-project-management/epe-suite" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
                                 <Route path="apps/economics/epe-suite" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
                                 <Route path="apps/economic/epe-suite" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
                                 
-                                <Route path="apps/economics/epe/cases" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeCaseList /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/help" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeHelpGuide /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/cases/:caseId" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeCaseDetail /></ProtectedAppRoute>} />
-				<Route path="apps/economics/epe/cases/:caseId/run" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeRunConsole /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/cases/:caseId/compare" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeRunComparison /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/runs/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeResultsViewer /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/run/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeRunConsole /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/results/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeResultsViewer /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/epe/compare" element={<ProtectedAppRoute appId="epe-suite" appName="EPE Suite"><EpeRunComparison /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/cases" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseList /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/help" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeHelpGuide /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/cases/:caseId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeCaseDetail /></ProtectedAppRoute>} />
+				<Route path="apps/economics/epe/cases/:caseId/run" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunConsole /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/cases/:caseId/compare" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeRunComparison /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/runs/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
+                                {/* run/:runId used to open the Run Console, which needs a caseId and
+                                    broke; a run link means "show me the run" — send it to results. */}
+                                <Route path="apps/economics/epe/run/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/epe/results/:runId" element={<ProtectedAppRoute appId="epe-suite" appName="Petroleum Economics Studio"><EpeResultsViewer /></ProtectedAppRoute>} />
+                                {/* compare without a caseId cannot query; land on the case list */}
+                                <Route path="apps/economics/epe/compare" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
 
                                 <Route path="apps/facilities/separator-slug-catcher-designer" element={<SeparatorSlugCatcherDesigner />} />
                                 <Route path="apps/facilities/compressor-pump-pack" element={<CompressorPumpPack />} />

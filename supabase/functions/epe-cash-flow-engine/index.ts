@@ -15,7 +15,7 @@
 //   Writes: epe_results(run_id) with { kpis, cash_flow_data }
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { computeCashFlow } from '../_shared/epe-engine.ts';
+import { computeCashFlow, computeBreakevenOilPrice } from '../_shared/epe-engine.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -62,6 +62,12 @@ Deno.serve(async (req) => {
     // Delegate all math to the shared library
     // ====================================================================
     const { cashFlowData, kpis } = computeCashFlow({ cfg, prodRows, capexRows, opexRows });
+
+    // v3.4: breakeven oil price (bisection re-runs of the engine; only
+    // meaningful when liquids carry revenue)
+    if ((kpis.total_oil_bbl ?? 0) > 0 || (kpis.total_condensate_bbl ?? 0) > 0) {
+      kpis.breakeven_oil_price_usd_bbl = computeBreakevenOilPrice({ cfg, prodRows, capexRows, opexRows });
+    }
 
     // Replace any prior result for this run
     await supabase.from('epe_results').delete().eq('run_id', run_id);

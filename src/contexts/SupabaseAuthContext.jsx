@@ -42,7 +42,7 @@ const AuthProviderContent = ({ children }) => {
     'artificial-lift-designer', 'flow-assurance-monitor', 'integrated-asset-modeler', 'well-schematic-designer',
     'network-diagram-pro', 'project-management-pro', 'afe-cost-control', 'npv-scenario-builder',
     'fiscal-regime-designer', 'capital-portfolio-studio', 'fdp-accelerator', 'report-autopilot',
-    'technical-report-autopilot', 'afe-cost-control-manager', 'petroleum-economics-studio',
+    'technical-report-autopilot', 'afe-cost-control-manager',
     'value-of-information-analyzer', 'probabilistic-breakeven-analyzer', 'risk-register',
     'decision-tree-builder', 'decision-studio',
     'voi-analyzer', 'breakeven-analyzer', 'epe', 'epe-suite', 'pipeline-sizer', 'separator-slug-catcher-designer',

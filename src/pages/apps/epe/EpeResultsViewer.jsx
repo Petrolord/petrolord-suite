@@ -3,15 +3,19 @@ import { Helmet } from 'react-helmet';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { BarChart, ArrowLeft, DollarSign, TrendingUp, Clock, FileText, Receipt, Wallet, Landmark } from 'lucide-react';
+import { BarChart, ArrowLeft, DollarSign, TrendingUp, Clock, FileText, Receipt, Wallet, Landmark, Download, Pencil } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
-  ResponsiveContainer, ComposedChart, Bar, Area, Line, XAxis, YAxis,
+  ComposedChart, Bar, Area, Line, XAxis, YAxis,
   CartesianGrid, Tooltip as RTooltip, Legend as RLegend, ReferenceLine,
   Cell, LabelList, Label
 } from 'recharts';
-import ChartLogo from '@/components/charts/ChartLogo';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import ChartFrame from '@/components/charts/ChartFrame';
+import { drawBrandHeader, loadPetrolordLogo } from '@/lib/pdfBrand';
 import EpeMonteCarloPanel from './EpeMonteCarloPanel';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS,
@@ -65,6 +69,73 @@ const fmtCompact = (n) => {
 };
 
 // ----------------------------------------------------------------------------
+// Export helpers (v3.4): one canonical column spec feeds CSV and XLSX so the
+// downloads always match what the engine wrote.
+// ----------------------------------------------------------------------------
+
+const cashFlowColumns = (isPIA) => {
+  const cols = [
+    { key: 'year', label: 'Year' },
+    { key: 'oil_bbl', label: 'Oil (bbl)' },
+    { key: 'gas_mscf', label: 'Gas (Mscf)' },
+    { key: 'condensate_bbl', label: 'Condensate (bbl)' },
+    { key: 'gross_revenue', label: 'Gross Revenue (USD)' },
+    { key: 'royalty', label: 'Royalty (USD)' },
+    { key: 'opex', label: 'OPEX (USD)' },
+    { key: 'capex', label: 'CAPEX (USD)' },
+  ];
+  if (isPIA) {
+    cols.push(
+      { key: 'hcdt', label: 'HCDT (USD)' },
+      { key: 'nddc', label: 'NDDC (USD)' },
+      { key: 'hct_tax', label: 'HCT (USD)' },
+      { key: 'cit_tax', label: 'CIT (USD)' },
+      { key: 'tet_tax', label: 'TET (USD)' },
+      { key: 'dev_levy_tax', label: 'Dev Levy (USD)' },
+      { key: 'production_allowance', label: 'Production Allowance (USD)' },
+    );
+  } else {
+    cols.push(
+      { key: 'taxable_income', label: 'Taxable Income (USD)' },
+      { key: 'tax', label: 'Tax (USD)' },
+    );
+  }
+  cols.push(
+    { key: 'abandonment_cost', label: 'Abandonment (USD)' },
+    { key: 'net_cash_flow', label: 'Net Cash Flow (USD)' },
+    { key: 'real_net_cash_flow', label: 'Real NCF (USD)' },
+    { key: 'discounted_cash_flow', label: 'Discounted CF (USD)' },
+    { key: 'cumulative_nominal', label: 'Cumulative NCF (USD)' },
+  );
+  return cols;
+};
+
+const KPI_EXPORT_ROWS = [
+  ['npv', 'NPV (USD)'],
+  ['irr', 'IRR (%)'],
+  ['payback_years', 'Payback (years)'],
+  ['discounted_payback_years', 'Discounted Payback (years)'],
+  ['breakeven_oil_price_usd_bbl', 'Breakeven Oil Price (USD/bbl)'],
+  ['dpi', 'DPI (NPV / PV capex)'],
+  ['government_take_pct', 'Government Take (%)'],
+  ['unit_technical_cost_usd_per_boe', 'Unit Technical Cost (USD/boe)'],
+  ['opex_usd_per_boe', 'OPEX (USD/boe)'],
+  ['total_revenue', 'Total Revenue (USD)'],
+  ['total_capex', 'Total CAPEX (USD)'],
+  ['total_opex', 'Total OPEX (USD)'],
+  ['total_tax', 'Total Tax (USD)'],
+  ['total_abandonment_cost', 'Abandonment (USD)'],
+  ['total_oil_bbl', 'Total Oil (bbl)'],
+  ['total_gas_mscf', 'Total Gas (Mscf)'],
+  ['total_boe', 'Total BOE'],
+  ['economic_limit_year', 'Economic Limit Year'],
+  ['fiscal_regime', 'Fiscal Regime'],
+  ['fiscal_framework', 'Fiscal Framework'],
+  ['pv_basis', 'PV Basis'],
+  ['discount_rate_applied_pct', 'Discount Rate Applied (%)'],
+];
+
+// ----------------------------------------------------------------------------
 // Cash Flow Profile: stacked inflow/outflow area chart with cumulative line
 // ----------------------------------------------------------------------------
 const CashFlowProfile = ({ results }) => {
@@ -103,11 +174,11 @@ const CashFlowProfile = ({ results }) => {
   });
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: 480, background: CHART_COLORS.background, borderRadius: 8, padding: 12 }}>
+    <div style={{ width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12 }}>
       <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: '0 0 8px 4px' }}>
         Cash Flow Profile {isPIA ? '(PIA 2021)' : ''}
       </h3>
-      <ResponsiveContainer width="100%" height="92%">
+      <ChartFrame height={410} exportFilename="pe-studio-cash-flow-profile">
         <ComposedChart data={data} margin={CHART_MARGINS.withLegend} stackOffset="sign">
           <CartesianGrid {...GRID_STYLE} />
           <XAxis
@@ -159,8 +230,7 @@ const CashFlowProfile = ({ results }) => {
           {/* Cumulative CF as a line on the right axis */}
           <Line yAxisId="right" type="monotone" dataKey="cumulative" name="Cumulative CF" stroke="#0f172a" strokeWidth={2.5} dot={false} />
         </ComposedChart>
-      </ResponsiveContainer>
-      <ChartLogo />
+      </ChartFrame>
     </div>
   );
 };
@@ -210,6 +280,8 @@ const CashFlowWaterfall = ({ results }) => {
   } else {
     if ((row.tax || 0) > 0) steps.push({ label: 'Tax', value: -(row.tax), color: '#be123c' });
   }
+
+  if ((row.abandonment_cost || 0) > 0) steps.push({ label: 'Abandonment', value: -(row.abandonment_cost), color: '#0f172a' });
 
   const finalNcf = row.net_cash_flow ?? row.netCashFlow ?? 0;
   steps.push({ label: 'Net Cash Flow', value: finalNcf, color: finalNcf >= 0 ? '#059669' : '#dc2626', isEnd: true });
@@ -282,8 +354,7 @@ const CashFlowWaterfall = ({ results }) => {
           </select>
         </label>
       </div>
-      <div style={{ width: '100%', height: 440, position: 'relative' }}>
-        <ResponsiveContainer width="100%" height="100%">
+      <ChartFrame height={440} exportFilename="pe-studio-cash-flow-waterfall">
           <ComposedChart data={data} margin={CHART_MARGINS.standard}>
             <CartesianGrid {...GRID_STYLE} />
             <XAxis
@@ -316,9 +387,7 @@ const CashFlowWaterfall = ({ results }) => {
               />
             </Bar>
           </ComposedChart>
-        </ResponsiveContainer>
-        <ChartLogo />
-      </div>
+      </ChartFrame>
     </div>
   );
 };
@@ -382,8 +451,7 @@ const TornadoChart = ({ rows, baseNpv }) => {
   const dynamicHeight = Math.max(360, 60 + data.length * 36);
 
   return (
-    <div style={{ width: '100%', height: dynamicHeight, position: 'relative' }}>
-      <ResponsiveContainer width="100%" height="100%">
+    <ChartFrame height={dynamicHeight} exportFilename="pe-studio-npv-tornado">
         <ComposedChart
           data={data}
           layout="vertical"
@@ -414,13 +482,11 @@ const TornadoChart = ({ rows, baseNpv }) => {
           />
           <RTooltip content={renderTooltip} cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
           <ReferenceLine x={0} stroke={CHART_COLORS.axisLabel} strokeWidth={1.5} />
-          <Bar dataKey="deltaLow"  name="-20% variant" fill="#dc2626" />
-          <Bar dataKey="deltaHigh" name="+20% variant" fill="#059669" />
+          <Bar dataKey="deltaLow"  name="Low variant" fill="#dc2626" />
+          <Bar dataKey="deltaHigh" name="High variant" fill="#059669" />
           <RLegend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} verticalAlign="top" />
         </ComposedChart>
-      </ResponsiveContainer>
-      <ChartLogo />
-    </div>
+    </ChartFrame>
   );
 };
 
@@ -673,6 +739,9 @@ const YearByYearTable = ({ results }) => {
     rows.push({ label: 'Tax', get: (r) => r.tax || 0, fmt: fmtCompact });
   }
 
+  if (cf.some((r) => (r.abandonment_cost || 0) > 0)) {
+    rows.push({ label: 'Abandonment', get: (r) => r.abandonment_cost || 0, fmt: fmtCompact });
+  }
   rows.push(
     { label: 'Net Cash Flow', get: (r) => r.net_cash_flow ?? r.netCashFlow ?? 0, fmt: fmtCompact, bold: true },
   );
@@ -769,8 +838,12 @@ const EpeResultsViewer = () => {
   const { toast } = useToast();
   const [results, setResults] = useState(null);
   const [runDetails, setRunDetails] = useState(null);
+  const [runConfig, setRunConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('profile');  // 'profile' default per L1b/Q2
+  // Annual chart legend toggles (default view matches the original: only Net
+  // Cash Flow visible; the legend now actually toggles the other three).
+  const [hiddenSeries, setHiddenSeries] = useState({ netCashFlow: false, revenue: true, capex: true, opex: true });
 
   useEffect(() => {
     const fetchResults = async () => {
@@ -793,17 +866,182 @@ const EpeResultsViewer = () => {
         .select('*')
         .eq('run_id', runId)
         .single();
-      
+
       if (resultError) {
         toast({ title: 'Error', description: 'Could not fetch results for this run.', variant: 'destructive' });
       } else {
         setResults(resultData);
+      }
+
+      // Config row (assumptions sheet in exports + the re-run link); optional
+      if (runData?.run_config_id) {
+        const { data: cfgData } = await supabase
+          .from('epe_run_configs')
+          .select('*')
+          .eq('id', runData.run_config_id)
+          .maybeSingle();
+        if (cfgData) setRunConfig(cfgData);
       }
       setLoading(false);
     };
 
     fetchResults();
   }, [runId, toast, navigate]);
+
+  // -------------------------------------------------------------------------
+  // Exports (v3.4): CSV / XLSX / branded PDF of the run
+  // -------------------------------------------------------------------------
+  const exportBaseName = () => {
+    const run = (runDetails?.run_name || 'run').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    return `pe_studio_${run}`;
+  };
+
+  const configRowsForExport = () => {
+    if (!runConfig) return [];
+    return Object.entries(runConfig)
+      .filter(([k, v]) => v !== null && v !== undefined
+        && !['id', 'case_id', 'user_id', 'created_at', 'updated_at'].includes(k))
+      .map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : v]);
+  };
+
+  const handleExportCsv = () => {
+    const cf = results?.cash_flow_data || [];
+    const cols = cashFlowColumns(results?.kpis?.fiscal_regime === 'PIA');
+    const esc = (v) => {
+      const s = v === null || v === undefined ? '' : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [
+      cols.map((c) => esc(c.label)).join(','),
+      ...cf.map((row) => cols.map((c) => esc(row[c.key] ?? '')).join(',')),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${exportBaseName()}_cash_flow.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportXlsx = () => {
+    try {
+      const kpis = results?.kpis || {};
+      const cf = results?.cash_flow_data || [];
+      const cols = cashFlowColumns(kpis.fiscal_regime === 'PIA');
+      const wb = XLSX.utils.book_new();
+
+      const kpiAoa = [
+        ['Petroleum Economics Studio', ''],
+        ['Run', runDetails?.run_name || ''],
+        ['Case', runDetails?.epe_cases?.case_name || ''],
+        [],
+        ['Metric', 'Value'],
+        ...KPI_EXPORT_ROWS
+          .filter(([k]) => kpis[k] !== undefined && kpis[k] !== null)
+          .map(([k, label]) => [label, kpis[k]]),
+      ];
+      const wsKpi = XLSX.utils.aoa_to_sheet(kpiAoa);
+      wsKpi['!cols'] = [{ wch: 34 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, wsKpi, 'KPIs');
+
+      const cfAoa = [
+        cols.map((c) => c.label),
+        ...cf.map((row) => cols.map((c) => row[c.key] ?? '')),
+      ];
+      const wsCf = XLSX.utils.aoa_to_sheet(cfAoa);
+      wsCf['!cols'] = cols.map(() => ({ wch: 16 }));
+      XLSX.utils.book_append_sheet(wb, wsCf, 'Cash Flow');
+
+      const cfgRows = configRowsForExport();
+      if (cfgRows.length > 0) {
+        const wsCfg = XLSX.utils.aoa_to_sheet([['Parameter', 'Value'], ...cfgRows]);
+        wsCfg['!cols'] = [{ wch: 40 }, { wch: 24 }];
+        XLSX.utils.book_append_sheet(wb, wsCfg, 'Assumptions');
+      }
+
+      XLSX.writeFile(wb, `${exportBaseName()}.xlsx`);
+    } catch (err) {
+      console.error('XLSX export error:', err);
+      toast({ variant: 'destructive', title: 'Export failed', description: err?.message || 'Could not generate the workbook.' });
+    }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      const kpis = results?.kpis || {};
+      const cf = results?.cash_flow_data || [];
+      const isPIA = kpis.fiscal_regime === 'PIA';
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 14;
+      const logo = await loadPetrolordLogo();
+      let y = drawBrandHeader(doc, {
+        logo, margin, pageWidth,
+        appTitle: 'Petroleum Economics Studio',
+        subtitle: `${runDetails?.epe_cases?.case_name || ''}`.trim() || 'Economic run report',
+        rightLines: [runDetails?.run_name || ''],
+      }) + 10;
+
+      doc.setTextColor(15, 23, 42);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Key metrics', margin, y);
+      y += 4;
+      doc.autoTable({
+        startY: y,
+        head: [['Metric', 'Value']],
+        body: KPI_EXPORT_ROWS
+          .filter(([k]) => kpis[k] !== undefined && kpis[k] !== null)
+          .map(([k, label]) => {
+            const v = kpis[k];
+            return [label, typeof v === 'number' ? Number(v.toFixed(4)).toLocaleString() : String(v)];
+          }),
+        theme: 'striped',
+        headStyles: { fillColor: [15, 23, 42] },
+        styles: { fontSize: 8, cellPadding: 1.6 },
+        margin: { left: margin, right: margin },
+      });
+      y = doc.lastAutoTable.finalY + 10;
+
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Annual cash flow', margin, y);
+      y += 4;
+      const pdfCols = ['Year', 'Revenue', 'OPEX', 'CAPEX', isPIA ? 'Total Tax' : 'Tax', 'Net CF', 'Cum. NCF'];
+      doc.autoTable({
+        startY: y,
+        head: [pdfCols],
+        body: cf.map((r) => [
+          r.year,
+          fmtCompact(r.gross_revenue ?? r.revenue ?? 0),
+          fmtCompact(r.opex || 0),
+          fmtCompact(r.capex || 0),
+          fmtCompact(r.tax || 0),
+          fmtCompact(r.net_cash_flow ?? r.netCashFlow ?? 0),
+          fmtCompact(r.cumulative_nominal ?? 0),
+        ]),
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42] },
+        styles: { fontSize: 7.5, cellPadding: 1.4 },
+        margin: { left: margin, right: margin },
+      });
+
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(120);
+        doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin, doc.internal.pageSize.getHeight() - 8, { align: 'right' });
+      }
+      doc.save(`${exportBaseName()}.pdf`);
+    } catch (err) {
+      console.error('PDF export error:', err);
+      toast({ variant: 'destructive', title: 'Export failed', description: err?.message || 'Could not generate the PDF.' });
+    }
+  };
 
   const formatCurrency = (value) => {
     if (typeof value !== 'number') return 'N/A';
@@ -831,13 +1069,33 @@ if (loading) {
 
   return (
     <>
-      <Helmet><title>EPE Results: {runDetails?.run_name} - Petrolord</title></Helmet>
+      <Helmet><title>Results: {runDetails?.run_name} - Petroleum Economics Studio</title></Helmet>
       <div className="p-8">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mb-8">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
             <Link to={`/dashboard/apps/economics/epe/cases/${runDetails?.case_id}`}>
               <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Case</Button>
             </Link>
+            {results && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {runDetails?.case_id && runDetails?.run_config_id && (
+                  <Link to={`/dashboard/apps/economics/epe/cases/${runDetails.case_id}/run?fromConfig=${runDetails.run_config_id}`}>
+                    <Button variant="outline" size="sm">
+                      <Pencil className="mr-2 h-3.5 w-3.5" /> Re-run with edits
+                    </Button>
+                  </Link>
+                )}
+                <Button variant="outline" size="sm" onClick={handleExportCsv}>
+                  <Download className="mr-2 h-3.5 w-3.5" /> CSV
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleExportXlsx}>
+                  <Download className="mr-2 h-3.5 w-3.5" /> Excel
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleExportPdf}>
+                  <FileText className="mr-2 h-3.5 w-3.5" /> PDF report
+                </Button>
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-4">
             <div className="bg-gradient-to-r from-green-500 to-cyan-500 p-3 rounded-xl"><BarChart className="w-8 h-8 text-white" /></div>
@@ -888,6 +1146,48 @@ if (loading) {
                   color="from-red-500 to-orange-500"
                 />
               </div>
+
+              {/* v3.4 decision metrics (older runs predate these KPIs) */}
+              {(results.kpis.government_take_pct != null || results.kpis.unit_technical_cost_usd_per_boe != null
+                || results.kpis.breakeven_oil_price_usd_bbl != null || results.kpis.dpi != null) && (
+                <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {[
+                    ['Breakeven oil price', results.kpis.breakeven_oil_price_usd_bbl != null
+                      ? `$${Number(results.kpis.breakeven_oil_price_usd_bbl).toFixed(1)}/bbl` : null],
+                    ['Government take', results.kpis.government_take_pct != null
+                      ? `${Number(results.kpis.government_take_pct).toFixed(1)}%` : null],
+                    ['Unit technical cost', results.kpis.unit_technical_cost_usd_per_boe != null
+                      ? `$${Number(results.kpis.unit_technical_cost_usd_per_boe).toFixed(2)}/boe` : null],
+                    ['OPEX per boe', results.kpis.opex_usd_per_boe != null
+                      ? `$${Number(results.kpis.opex_usd_per_boe).toFixed(2)}/boe` : null],
+                    ['DPI', results.kpis.dpi != null ? Number(results.kpis.dpi).toFixed(2) : null],
+                    ['Discounted payback', results.kpis.discounted_payback_years != null
+                      ? `${Number(results.kpis.discounted_payback_years).toFixed(2)} yrs` : null],
+                  ].filter(([, v]) => v !== null).map(([label, value]) => (
+                    <div key={label} className="bg-white/5 rounded-lg px-3 py-2">
+                      <p className="text-xs text-slate-400">{label}</p>
+                      <p className="text-base font-semibold text-white">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {(results.kpis.economic_limit_year != null || results.kpis.total_abandonment_cost != null) && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {results.kpis.economic_limit_year != null && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-amber-900/40 text-amber-200 border border-amber-500/30">
+                      Economic limit applied: field life ends {results.kpis.economic_limit_year}
+                      {results.kpis.years_trimmed_by_economic_limit
+                        ? ` (${results.kpis.years_trimmed_by_economic_limit} uneconomic year${results.kpis.years_trimmed_by_economic_limit > 1 ? 's' : ''} trimmed)` : ''}
+                    </span>
+                  )}
+                  {results.kpis.total_abandonment_cost != null && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-cyan-900/40 text-cyan-200 border border-cyan-500/30">
+                      Abandonment {formatCurrency(results.kpis.total_abandonment_cost)} in {results.kpis.abandonment_year} (post-tax)
+                    </span>
+                  )}
+                </div>
+              )}
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }} className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
@@ -908,36 +1208,42 @@ if (loading) {
               </div>
 
               {activeTab === 'annual' && (
-              <div className="h-96">
-                <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 300, background: CHART_COLORS.background, borderRadius: 8, padding: 8 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: '0 0 8px 4px' }}>Annual Cash Flow</h3>
-              <ResponsiveContainer width="100%" height="92%">
-                <ComposedChart data={chartData} margin={CHART_MARGINS.withLegend}>
-                  <CartesianGrid {...GRID_STYLE} />
-                  <XAxis
-                    dataKey="year"
-                    tick={{ fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText }}
-                    stroke={CHART_COLORS.axisLine}
-                  />
-                  <YAxis
-                    tick={{ fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText }}
-                    stroke={CHART_COLORS.axisLine}
-                    tickFormatter={fmtMillions}
-                  />
-                  <RTooltip
-                    contentStyle={TOOLTIP_STYLE}
-                    formatter={(value) => fmtMillions(value)}
-                  />
-                  <RLegend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText, paddingTop: 8 }} />
-                  <Bar dataKey="netCashFlow" name="Net Cash Flow" fill="#059669" />
-                  <Bar dataKey="revenue" name="Revenue" fill="#2563eb" hide />
-                  <Bar dataKey="capex" name="CAPEX" fill="#dc2626" hide />
-                  <Bar dataKey="opex" name="OPEX" fill="#d97706" hide />
-                </ComposedChart>
-              </ResponsiveContainer>
-              <ChartLogo />
-            </div>
-              </div>
+                <div style={{ background: CHART_COLORS.background, borderRadius: 8, padding: 8 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: '0 0 8px 4px' }}>Annual Cash Flow</h3>
+                  <p style={{ fontSize: 11, color: CHART_COLORS.axisText, margin: '0 0 4px 4px' }}>
+                    Click a legend entry to show or hide its series.
+                  </p>
+                  <ChartFrame height={330} exportFilename="pe-studio-annual-cash-flow">
+                    <ComposedChart data={chartData} margin={CHART_MARGINS.withLegend}>
+                      <CartesianGrid {...GRID_STYLE} />
+                      <XAxis
+                        dataKey="year"
+                        tick={{ fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText }}
+                        stroke={CHART_COLORS.axisLine}
+                      />
+                      <YAxis
+                        tick={{ fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText }}
+                        stroke={CHART_COLORS.axisLine}
+                        tickFormatter={fmtMillions}
+                      />
+                      <RTooltip
+                        contentStyle={TOOLTIP_STYLE}
+                        formatter={(value) => fmtMillions(value)}
+                      />
+                      <RLegend
+                        wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText, paddingTop: 8, cursor: 'pointer' }}
+                        onClick={(e) => {
+                          const key = e?.dataKey;
+                          if (key) setHiddenSeries((prev) => ({ ...prev, [key]: !prev[key] }));
+                        }}
+                      />
+                      <Bar dataKey="netCashFlow" name="Net Cash Flow" fill="#059669" hide={hiddenSeries.netCashFlow} />
+                      <Bar dataKey="revenue" name="Revenue" fill="#2563eb" hide={hiddenSeries.revenue} />
+                      <Bar dataKey="capex" name="CAPEX" fill="#dc2626" hide={hiddenSeries.capex} />
+                      <Bar dataKey="opex" name="OPEX" fill="#d97706" hide={hiddenSeries.opex} />
+                    </ComposedChart>
+                  </ChartFrame>
+                </div>
               )}
 
               {activeTab === 'profile' && (

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { PlayCircle, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
@@ -49,12 +49,14 @@ const DEFAULT_CONFIG = {
   pia_deep_offshore_hct_interpretation: 'conservative_zero',
   pia_deep_offshore_hct_custom_rate_pct: null,
   pia_development_levy_rate_pct: 4.0,
-  pia_apply_minimum_etr: false,
-  pia_minimum_etr_pct: 15.0,
   pia_new_lease_prod_alw_cap_onshore_bbl: 50000000,
   pia_new_lease_prod_alw_cap_shallow_bbl: 100000000,
   pia_new_lease_prod_alw_cap_deep_bbl: 500000000,
   pia_prior_cumulative_oil_bbl: 0,
+  // ---- v3.4: field life ----
+  apply_economic_limit: false,
+  abandonment_cost_usd: null,
+  abandonment_year: null,
   fiscal_regime: 'JV',
   // JV
   jv_working_interest_pct: 100,
@@ -77,6 +79,7 @@ const EpeRunConsole = () => {
   const { caseId } = useParams();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [isRunning, setIsRunning] = useState(false);
   const [runName, setRunName] = useState(`Run ${formatTimestampForName()}`);
@@ -87,9 +90,54 @@ const EpeRunConsole = () => {
   const [showAdvancedEscalation, setShowAdvancedEscalation] = useState(false);
   const [showPiaAdvancedRates, setShowPiaAdvancedRates] = useState(false);
   const [showPiaAdvancedLevies, setShowPiaAdvancedLevies] = useState(false);
+  const [savedConfigs, setSavedConfigs] = useState([]);
+  const [loadedConfigId, setLoadedConfigId] = useState('');
+
+  // Copy a saved epe_run_configs row into the form. Only keys the form knows
+  // about are taken; DB nulls fall back to the field's default so a partial
+  // legacy row cannot blank out required inputs.
+  const applyConfigRow = useCallback((row) => {
+    setConfig(() => {
+      const next = { ...DEFAULT_CONFIG };
+      for (const key of Object.keys(DEFAULT_CONFIG)) {
+        if (row[key] !== null && row[key] !== undefined) next[key] = row[key];
+      }
+      return next;
+    });
+    setValidationErrors({});
+  }, []);
+
+  // Saved scenarios for this case, newest first; also honors ?fromConfig=<id>
+  // ("re-run with edits" from the results viewer).
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const { data, error } = await supabase
+        .from('epe_run_configs')
+        .select('*')
+        .eq('case_id', caseId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (cancelled || error || !data) return;
+      setSavedConfigs(data);
+      const fromConfig = searchParams.get('fromConfig');
+      if (fromConfig) {
+        const row = data.find((r) => r.id === fromConfig);
+        if (row) {
+          applyConfigRow(row);
+          setLoadedConfigId(row.id);
+        }
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [caseId, searchParams, applyConfigRow]);
 
   const handleNumberChange = (key, value) => {
-    setConfig((prev) => ({ ...prev, [key]: value === '' ? '' : Number(value) }));
+    // null = "cleared optional field" (HCT override, NDDC fixed, abandonment):
+    // it must stay null, not become Number(null) === 0 — an explicit 0 means
+    // something different for these fields (e.g. a 0% HCT override).
+    setConfig((prev) => ({ ...prev, [key]: value === null ? null : (value === '' ? '' : Number(value)) }));
     if (validationErrors[key]) {
       setValidationErrors((prev) => {
         const next = { ...prev };
@@ -128,6 +176,14 @@ const EpeRunConsole = () => {
     });
     if (!Number.isInteger(Number(config.base_year)) || config.base_year < 1990 || config.base_year > 2100) {
       errors.base_year = 'Enter a 4-digit year';
+    }
+    if (config.abandonment_cost_usd !== null && config.abandonment_cost_usd !== '' &&
+        (isNaN(config.abandonment_cost_usd) || config.abandonment_cost_usd < 0)) {
+      errors.abandonment_cost_usd = 'Must be a non-negative amount';
+    }
+    if (config.abandonment_year !== null && config.abandonment_year !== '' &&
+        (!Number.isInteger(Number(config.abandonment_year)) || config.abandonment_year < 1990 || config.abandonment_year > 2100)) {
+      errors.abandonment_year = 'Enter a 4-digit year (or leave blank for the final year)';
     }
 
     if (config.fiscal_regime === 'JV') {
@@ -222,12 +278,14 @@ const EpeRunConsole = () => {
         pia_deep_offshore_hct_interpretation: config.pia_deep_offshore_hct_interpretation,
         pia_deep_offshore_hct_custom_rate_pct: config.pia_deep_offshore_hct_custom_rate_pct,
         pia_development_levy_rate_pct: config.pia_development_levy_rate_pct,
-        pia_apply_minimum_etr: config.pia_apply_minimum_etr,
-        pia_minimum_etr_pct: config.pia_minimum_etr_pct,
         pia_new_lease_prod_alw_cap_onshore_bbl: config.pia_new_lease_prod_alw_cap_onshore_bbl,
         pia_new_lease_prod_alw_cap_shallow_bbl: config.pia_new_lease_prod_alw_cap_shallow_bbl,
         pia_new_lease_prod_alw_cap_deep_bbl: config.pia_new_lease_prod_alw_cap_deep_bbl,
         pia_prior_cumulative_oil_bbl: config.pia_prior_cumulative_oil_bbl,
+        // ---- v3.4: field life ----
+        apply_economic_limit: config.apply_economic_limit === true,
+        abandonment_cost_usd: config.abandonment_cost_usd === '' ? null : config.abandonment_cost_usd,
+        abandonment_year: config.abandonment_year === '' ? null : config.abandonment_year,
       };
 
       // 1. Insert config
@@ -257,18 +315,23 @@ const EpeRunConsole = () => {
         'epe-cash-flow-engine',
         { body: { run_id: runRow.id, run_config_id: cfgRow.id } }
       );
-      if (engineErr) {
-        // On a non-2xx the invoke error message is generic ("Edge Function
-        // returned a non-2xx status code") — pull the engine's real message
-        // (e.g. ingestion validation failures) out of the response body.
-        let detail = engineErr.message;
-        try {
-          const body = await engineErr.context?.json?.();
-          if (body?.error) detail = body.error;
-        } catch (_) { /* keep generic message */ }
-        throw new Error(`Engine failed: ${detail}`);
+      if (engineErr || engineData?.error) {
+        // A failed engine call would otherwise leave an orphan run with no
+        // results; remove the run row (best effort) before surfacing.
+        await supabase.from('epe_runs').delete().eq('id', runRow.id).then(() => {}, () => {});
+        if (engineErr) {
+          // On a non-2xx the invoke error message is generic ("Edge Function
+          // returned a non-2xx status code") — pull the engine's real message
+          // (e.g. ingestion validation failures) out of the response body.
+          let detail = engineErr.message;
+          try {
+            const body = await engineErr.context?.json?.();
+            if (body?.error) detail = body.error;
+          } catch (_) { /* keep generic message */ }
+          throw new Error(`Engine failed: ${detail}`);
+        }
+        throw new Error(`Engine error: ${engineData.error}`);
       }
-      if (engineData?.error) throw new Error(`Engine error: ${engineData.error}`);
 
       toast({
         title: 'Analysis complete',
@@ -316,7 +379,7 @@ const EpeRunConsole = () => {
   return (
     <>
       <Helmet>
-        <title>{`Run Console: Case ${caseId || ''} - EPE`}</title>
+        <title>{`Run Console - Petroleum Economics Studio`}</title>
       </Helmet>
 
       <div className="p-8 max-w-4xl mx-auto">
@@ -363,6 +426,40 @@ const EpeRunConsole = () => {
               <p className="text-red-400 text-xs mt-1">{validationErrors.runName}</p>
             )}
           </div>
+
+          {/* Start from a saved scenario (fixes the write-only scenario gap:
+              every prior run's config is now one click away) */}
+          {savedConfigs.length > 0 && (
+            <div>
+              <Label htmlFor="loadScenario" className="text-white text-sm">Start from saved scenario</Label>
+              <select
+                id="loadScenario"
+                value={loadedConfigId}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setLoadedConfigId(id);
+                  if (!id) {
+                    setConfig(DEFAULT_CONFIG);
+                    setValidationErrors({});
+                    return;
+                  }
+                  const row = savedConfigs.find((r) => r.id === id);
+                  if (row) applyConfigRow(row);
+                }}
+                className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+              >
+                <option value="">Defaults (start fresh)</option>
+                {savedConfigs.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.config_name}{r.created_at ? ` (${new Date(r.created_at).toLocaleDateString()})` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500 mt-1">
+                Loads that run's full configuration into the form. Edit anything, then run.
+              </p>
+            </div>
+          )}
 
           {/* Pricing */}
           <section>
@@ -418,6 +515,47 @@ const EpeRunConsole = () => {
                 step="1"
               />
             </div>
+          </section>
+
+          {/* Field Life (v3.4) */}
+          <section>
+            <h2 className="text-white text-lg font-semibold mb-3 border-b border-white/20 pb-1">Field Life</h2>
+            <div className="flex items-center gap-2 mb-3">
+              <Checkbox
+                id="apply_economic_limit"
+                checked={config.apply_economic_limit === true}
+                onCheckedChange={(v) => setConfig((p) => ({ ...p, apply_economic_limit: v === true }))}
+                className="border-slate-400"
+              />
+              <Label htmlFor="apply_economic_limit" className="text-white text-sm cursor-pointer">
+                Apply economic limit test
+              </Label>
+            </div>
+            <p className="text-xs text-slate-400 mb-4 -mt-2">
+              Trims trailing years whose revenue no longer covers operating costs, so taxes and
+              royalties never accrue on an uneconomic tail. The last economic year is reported in the KPIs.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <NumField
+                id="abandonment_cost_usd"
+                label="Abandonment cost"
+                suffix="USD (blank = none)"
+                value={config.abandonment_cost_usd ?? ''}
+                onChange={(v) => handleNumberChange('abandonment_cost_usd', v === '' ? null : v)}
+              />
+              <NumField
+                id="abandonment_year"
+                label="Abandonment year"
+                suffix="blank = final year"
+                step="1"
+                value={config.abandonment_year ?? ''}
+                onChange={(v) => handleNumberChange('abandonment_year', v === '' ? null : v)}
+              />
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Applied as a post-tax cash outflow in that year. It is not tax-deducted, not
+              depreciated, and excluded from cost recovery.
+            </p>
           </section>
 
           {/* Escalation & PV Basis */}
@@ -916,34 +1054,14 @@ const EpeRunConsole = () => {
                           />
                         </div>
 
-                        <details className="mt-2">
-                          <summary className="text-xs text-lime-200/70 cursor-pointer hover:text-lime-200">
-                            Advanced: Minimum Effective Tax Rate (NTA §57)
-                          </summary>
-                          <div className="grid grid-cols-2 gap-3 mt-2 ml-2">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                id="pia_apply_minimum_etr"
-                                checked={config.pia_apply_minimum_etr}
-                                onChange={(e) => setConfig((p) => ({ ...p, pia_apply_minimum_etr: e.target.checked }))}
-                              />
-                              <Label htmlFor="pia_apply_minimum_etr" className="text-white text-xs">
-                                Apply minimum ETR floor
-                              </Label>
-                            </div>
-                            <NumField
-                              id="pia_minimum_etr_pct"
-                              label="Min ETR"
-                              suffix="%"
-                              value={config.pia_minimum_etr_pct}
-                              onChange={(v) => handleNumberChange('pia_minimum_etr_pct', v)}
-                            />
-                          </div>
-                          <p className="text-xs text-lime-200/50 mt-1 ml-2">
-                            Applies to MNE groups (turnover ≥ €750m) or NGN ≥50bn turnover. Rarely binds for petroleum.
-                          </p>
-                        </details>
+                        {/* Minimum ETR (NTA §57): the toggle shipped here before the
+                            engine implemented the math, so checking it changed
+                            nothing. Removed until the engine supports it (tracked in
+                            docs/scope/EPE.md §4.2); the schema columns remain. */}
+                        <p className="text-xs text-lime-200/50 mt-2">
+                          Minimum Effective Tax Rate (NTA §57) is not modeled yet. It applies to MNE
+                          groups (turnover above €750m) or NGN 50bn+ turnover and rarely binds for petroleum.
+                        </p>
                       </div>
                       </div>
                     </>

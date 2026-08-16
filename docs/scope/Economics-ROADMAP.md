@@ -84,6 +84,12 @@ moat no global tool has.
   (`src/utils/petroleumEconomicsEngine.js`) fabricates its breakeven
   KPI (`unitTechCost * 1.1` presented as a computed number — D0),
   loses PSC unrecovered costs, expenses CAPEX immediately (D1).
+  [RETIRED 2026-08-16 by owner decision: the standalone app never
+  worked (workspace route param mismatch, dead nav links, undefined
+  context functions) — code deleted, tile archived, routes redirect to
+  EPE, which now carries the name "Petroleum Economics Studio"
+  (migration 20260816120000). `petroleumEconomicsEngine.js` + its test
+  survive as the EPE cross-check oracle.]
 - **FDP Accelerator** (33-LOC entry + `src/components/fdp/`, 93 files)
   — real DCF/IRR/scenario/optimization utils but 8.8k LOC of UI over
   745 LOC of math, localStorage-only persistence, and a Math.random()

@@ -161,6 +161,16 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
     highInputVol: s.highInputVol / 1e6,
   })), [results]);
 
+  // Legacy runs predate run_config_id; without it there is nothing to sample,
+  // so say so instead of showing a loading message forever.
+  if (!runConfigId) {
+    return (
+      <p className="text-slate-300 text-sm py-8">
+        This run has no saved configuration, so Monte Carlo cannot sample its inputs.
+        Re-run the case from the Run Console to enable the Risk tab.
+      </p>
+    );
+  }
   if (!vars) {
     return <p className="text-slate-300 text-sm py-8">Loading run configuration...</p>;
   }
