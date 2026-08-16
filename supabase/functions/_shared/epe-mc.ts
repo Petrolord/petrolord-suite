@@ -20,7 +20,7 @@
 // Conventions: petroleum percentiles (P90 = low case), Gaussian-copula
 // correlation, injectable RNG (seeded mulberry32 for reproducible runs).
 
-import { computeCashFlow } from './epe-engine.ts';
+import { computeCashFlow, isVolumeColumn } from './epe-engine.ts';
 
 // ============================================================================
 // Seeded RNG
@@ -282,14 +282,15 @@ export interface McConfig {
   correlations?: Array<{ a: McVariableKey; b: McVariableKey; rho: number }>;
 }
 
-const PROD_VOLUME_SUFFIXES = ['_oil_bbl', '_gas_mscf', '_condensate_bbl', '_water_bbl'];
-
+// Column recognition delegates to the engine (isVolumeColumn) so scaled
+// columns stay in sync with what computeCashFlow actually reads — including
+// bare oil_bbl-style aliases and case-insensitive headers (v3.3).
 function scaleProdRows(rows: any[], s: number): any[] {
   if (s === 1) return rows;
   return rows.map((row) => {
     const out: any = { ...row };
     for (const k of Object.keys(row)) {
-      if (PROD_VOLUME_SUFFIXES.some((suf) => k.endsWith(suf))) out[k] = Number(row[k]) * s;
+      if (isVolumeColumn(k)) out[k] = Number(row[k]) * s;
     }
     return out;
   });
@@ -300,7 +301,7 @@ function scaleUsdRows(rows: any[], s: number): any[] {
   return rows.map((row) => {
     const out: any = { ...row };
     for (const k of Object.keys(row)) {
-      if (k.endsWith('_usd')) out[k] = Number(row[k]) * s;
+      if (k.trim().toLowerCase().endsWith('_usd')) out[k] = Number(row[k]) * s;
     }
     return out;
   });

@@ -21,7 +21,7 @@
 //   - Status polling unnecessary at this scale; client awaits the response
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { computeCashFlow } from '../_shared/epe-engine.ts';
+import { computeCashFlow, extractAnnualCapex, extractAnnualOpex } from '../_shared/epe-engine.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -226,9 +226,9 @@ Deno.serve(async (req) => {
       const scaleRows = (rows: any[], factor: number): any[] => {
         return rows.map((r: any) => {
           const cloned = { ...r };
-          // Scale all USD-denominated numeric fields
+          // Scale all USD-denominated numeric fields (case-insensitive headers)
           for (const k of Object.keys(cloned)) {
-            if (k.endsWith('_usd') || k === 'amount_usd' || k === 'total_opex_usd') {
+            if (k.trim().toLowerCase().endsWith('_usd')) {
               const v = Number(cloned[k]);
               if (!isNaN(v)) cloned[k] = v * factor;
             }
@@ -249,10 +249,13 @@ Deno.serve(async (req) => {
       const deltaLow = lowNpv - baseNpv;
       const deltaHigh = highNpv - baseNpv;
 
-      // base_value for CAPEX/OPEX: total $ across years
+      // base_value for CAPEX/OPEX: total $ across years, via the same
+      // alias-aware extraction the engine uses (so cost_usd files show a
+      // real base value instead of 0)
+      const sumMap = (m: Map<number, number>) => Array.from(m.values()).reduce((s, v) => s + v, 0);
       const baseTotal = isCapex
-        ? capexRows.reduce((s, r) => s + (Number(r.amount_usd) || 0), 0)
-        : opexRows.reduce((s, r) => s + (Number(r.total_opex_usd) || 0), 0);
+        ? sumMap(extractAnnualCapex(capexRows, baseCfg.base_year || 2027))
+        : sumMap(extractAnnualOpex(opexRows, baseCfg.base_year || 2027));
 
       sweepResults.push({
         sensitivity_run_id,

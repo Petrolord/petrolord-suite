@@ -1,6 +1,15 @@
 // supabase/functions/_shared/epe-engine.ts
 //
-// PETROLORD EPE CASH FLOW ENGINE — Shared compute library (v3.2, 2026-05-12)
+// PETROLORD EPE CASH FLOW ENGINE — Shared compute library (v3.3, 2026-08-16)
+//
+// v3.3 changes (ingestion hardening):
+//   - Case-insensitive header normalization for all uploaded CSV rows
+//   - Production accepts bare oil_bbl/gas_mscf/condensate_bbl/water_bbl (and
+//     total_* rollups) in addition to the per-well *_oil_bbl convention
+//   - CAPEX accepts cost_usd/capex_usd/value_usd aliases and a *_usd fallback
+//   - computeCashFlow() throws a validation error (instead of emitting a $0
+//     run) when uploaded rows have no recognizable columns, no usable dates,
+//     or a price is unset for a stream with nonzero volumes
 //
 // v3.2 changes (B2.5 — NTA 2025 fiscal framework):
 //   - determineFiscalFramework(): date-trigger + per-config override switch
@@ -155,64 +164,135 @@ export function determineFiscalFramework(cfg: any): FiscalFramework {
 }
 
 // ============================================================================
-// VOLUME / COST AGGREGATION (unchanged from v3.1)
+// HEADER NORMALIZATION & ALIASING (v3.3)
 // ============================================================================
+
+const normalizeKey = (k: string) => String(k).trim().toLowerCase().replace(/[\s-]+/g, '_');
+
+// Lowercase/trim every key so uploaded headers match case-insensitively.
+export function normalizeRows(rows: any[]): any[] {
+  return (rows || []).map(row => {
+    const out: any = {};
+    for (const k of Object.keys(row)) out[normalizeKey(k)] = row[k];
+    return out;
+  });
+}
+
+// Per volume stream: the per-well suffix convention plus accepted bare aliases.
+const VOLUME_STREAMS: Array<{ field: keyof Omit<AnnualVolumes, 'year'>; suffix: string; bare: string[] }> = [
+  { field: 'oil_bbl',        suffix: '_oil_bbl',        bare: ['oil_bbl', 'oil_volume_bbl', 'oil_prod_bbl'] },
+  { field: 'gas_mscf',       suffix: '_gas_mscf',       bare: ['gas_mscf', 'gas_volume_mscf', 'gas_prod_mscf'] },
+  { field: 'condensate_bbl', suffix: '_condensate_bbl', bare: ['condensate_bbl', 'cond_bbl'] },
+  { field: 'water_bbl',      suffix: '_water_bbl',      bare: ['water_bbl', 'water_prod_bbl'] },
+];
+
+// Column-name recognizer shared with the MC engine's production_scale
+// perturbation so scaled columns stay in sync with what the engine reads.
+export function isVolumeColumn(key: string): boolean {
+  const k = normalizeKey(key);
+  return VOLUME_STREAMS.some(s => k.endsWith(s.suffix) || s.bare.includes(k));
+}
+
+// Pick the columns to sum for one stream: per-well suffix columns win
+// (excluding total_* rollups to avoid double counting); otherwise the first
+// bare alias present; otherwise the total_* rollup alone.
+function pickStreamCols(keys: string[], stream: { suffix: string; bare: string[] }): string[] {
+  const perWell = keys.filter(k => k.endsWith(stream.suffix) && !k.startsWith('total_'));
+  if (perWell.length > 0) return perWell;
+  const bare = stream.bare.find(b => keys.includes(b));
+  if (bare) return [bare];
+  const total = `total${stream.suffix}`;
+  if (keys.includes(total)) return [total];
+  return [];
+}
+
+// Which columns each stream would read from these rows (normalized names).
+// Used by computeCashFlow's ingestion validation to fail loudly.
+export function pickVolumeColumns(prodRows: any[]): Record<string, string[]> {
+  const out: Record<string, string[]> = { oil_bbl: [], gas_mscf: [], condensate_bbl: [], water_bbl: [] };
+  if (!prodRows || prodRows.length === 0) return out;
+  const keys = Object.keys(normalizeRows([prodRows[0]])[0]);
+  for (const stream of VOLUME_STREAMS) out[stream.field] = pickStreamCols(keys, stream);
+  return out;
+}
+
+const CAPEX_USD_COLS = ['amount_usd', 'cost_usd', 'capex_usd', 'total_capex_usd', 'value_usd'];
+const OPEX_USD_COLS = ['total_opex_usd', 'opex_usd', 'cost_usd', 'amount_usd'];
+
+// Which USD columns a cost file exposes (preferred aliases + *_usd fallback).
+export function pickUsdColumns(rows: any[], preferredCols: string[], fallbackPattern?: RegExp): string[] {
+  if (!rows || rows.length === 0) return [];
+  const keys = Object.keys(normalizeRows([rows[0]])[0]);
+  const preferred = keys.filter(k => preferredCols.includes(k));
+  if (preferred.length > 0) return preferred;
+  if (fallbackPattern) return keys.filter(k => fallbackPattern.test(k) && !k.startsWith('total_'));
+  return [];
+}
+
+export function pickCapexColumns(rows: any[]): string[] {
+  return pickUsdColumns(rows, CAPEX_USD_COLS, /_usd$/);
+}
+
+export function pickOpexColumns(rows: any[]): string[] {
+  return pickUsdColumns(rows, OPEX_USD_COLS, /_usd$/);
+}
+
+// ============================================================================
+// VOLUME / COST AGGREGATION
+// ============================================================================
+
+function resolveRowYear(row: any, baseYear: number): number | null {
+  let year: number;
+  if (row.year !== undefined && row.year !== null) year = parseInt(String(row.year));
+  else if (row.date) year = new Date(row.date).getUTCFullYear();
+  else if (row.month_index !== undefined && row.month_index !== null) {
+    year = baseYear + Math.floor((parseInt(String(row.month_index)) - 1) / 12);
+  } else return null;
+  return Number.isFinite(year) ? year : null;
+}
 
 export function extractAnnualVolumes(prodRows: any[], baseYear: number): AnnualVolumes[] {
   if (!prodRows || prodRows.length === 0) return [];
-  const oilCols = Object.keys(prodRows[0]).filter(k => k.endsWith('_oil_bbl'));
-  const gasCols = Object.keys(prodRows[0]).filter(k => k.endsWith('_gas_mscf'));
-  const condCols = Object.keys(prodRows[0]).filter(k => k.endsWith('_condensate_bbl'));
-  const waterCols = Object.keys(prodRows[0]).filter(k => k.endsWith('_water_bbl'));
-
-  const filterPerWell = (cols: string[]) => cols.filter(c => !c.startsWith('total_'));
-  const oilPerWell = filterPerWell(oilCols);
-  const gasPerWell = filterPerWell(gasCols);
-  const condPerWell = filterPerWell(condCols);
-  const waterPerWell = filterPerWell(waterCols);
+  const rows = normalizeRows(prodRows);
+  const keys = Object.keys(rows[0]);
+  const streamCols = VOLUME_STREAMS.map(s => ({ field: s.field, cols: pickStreamCols(keys, s) }));
 
   const annual = new Map<number, AnnualVolumes>();
-  for (const row of prodRows) {
-    let year: number;
-    if (row.year !== undefined && row.year !== null) year = parseInt(String(row.year));
-    else if (row.date) year = new Date(row.date).getUTCFullYear();
-    else if (row.month_index !== undefined && row.month_index !== null) {
-      year = baseYear + Math.floor((parseInt(String(row.month_index)) - 1) / 12);
-    } else continue;
+  for (const row of rows) {
+    const year = resolveRowYear(row, baseYear);
+    if (year === null) continue;
 
     if (!annual.has(year)) annual.set(year, { year, oil_bbl: 0, gas_mscf: 0, condensate_bbl: 0, water_bbl: 0 });
     const a = annual.get(year)!;
-    const sumCols = (cols: string[]) => cols.reduce((s, c) => s + (Number(row[c]) || 0), 0);
-    a.oil_bbl += sumCols(oilPerWell);
-    a.gas_mscf += sumCols(gasPerWell);
-    a.condensate_bbl += sumCols(condPerWell);
-    a.water_bbl += sumCols(waterPerWell);
+    for (const { field, cols } of streamCols) {
+      a[field] += cols.reduce((s, c) => s + (Number(row[c]) || 0), 0);
+    }
   }
   return Array.from(annual.values()).sort((a, b) => a.year - b.year);
 }
 
 export function extractAnnualCapex(capexRows: any[], baseYear: number): Map<number, number> {
-  return aggregateAnnualUsd(capexRows, baseYear, 'amount_usd');
+  return aggregateAnnualUsd(capexRows, baseYear, CAPEX_USD_COLS, /_usd$/);
 }
 
 export function extractAnnualOpex(opexRows: any[], baseYear: number): Map<number, number> {
-  return aggregateAnnualUsd(opexRows, baseYear, 'total_opex_usd', /_usd$/);
+  return aggregateAnnualUsd(opexRows, baseYear, OPEX_USD_COLS, /_usd$/);
 }
 
-function aggregateAnnualUsd(rows: any[], baseYear: number, preferredCol: string, fallbackPattern?: RegExp): Map<number, number> {
+function aggregateAnnualUsd(rawRows: any[], baseYear: number, preferredCols: string[], fallbackPattern?: RegExp): Map<number, number> {
   const m = new Map<number, number>();
-  if (!rows || rows.length === 0) return m;
-  for (const row of rows) {
-    let year: number;
-    if (row.year !== undefined && row.year !== null) year = parseInt(String(row.year));
-    else if (row.date) year = new Date(row.date).getUTCFullYear();
-    else if (row.month_index !== undefined && row.month_index !== null) {
-      year = baseYear + Math.floor((parseInt(String(row.month_index)) - 1) / 12);
-    } else continue;
-    let amt = Number(row[preferredCol]) || 0;
+  if (!rawRows || rawRows.length === 0) return m;
+  for (const row of normalizeRows(rawRows)) {
+    const year = resolveRowYear(row, baseYear);
+    if (year === null) continue;
+    let amt = 0;
+    for (const c of preferredCols) {
+      const v = Number(row[c]);
+      if (row[c] !== undefined && row[c] !== null && Number.isFinite(v) && v !== 0) { amt = v; break; }
+    }
     if (amt === 0 && fallbackPattern) {
       amt = Object.keys(row)
-        .filter(k => fallbackPattern.test(k) && k !== preferredCol && !k.startsWith('total_'))
+        .filter(k => fallbackPattern.test(k) && !preferredCols.includes(k) && !k.startsWith('total_'))
         .reduce((s, k) => s + (Number(row[k]) || 0), 0);
     }
     m.set(year, (m.get(year) || 0) + amt);
@@ -562,6 +642,89 @@ export function paybackPeriod(cashFlows: number[]): string {
 }
 
 // ============================================================================
+// INGESTION VALIDATION (v3.3)
+// ============================================================================
+//
+// A run whose uploads were silently dropped used to come back as a "successful"
+// $0-revenue result. Fail loudly instead, naming the headers we saw so the
+// user can fix the file (or we can add an alias).
+
+const seenHeaders = (rows: any[]) =>
+  rows.length > 0 ? Object.keys(normalizeRows([rows[0]])[0]).join(', ') : '(none)';
+
+function validateIngestion({ cfg, prodRows, capexRows, opexRows, annualVols, annualCapex, annualOpex }: {
+  cfg: any;
+  prodRows: any[];
+  capexRows: any[];
+  opexRows: any[];
+  annualVols: AnnualVolumes[];
+  annualCapex: Map<number, number>;
+  annualOpex: Map<number, number>;
+}): void {
+  const issues: string[] = [];
+
+  const volCols = pickVolumeColumns(prodRows);
+  const hasHydrocarbonCols =
+    volCols.oil_bbl.length > 0 || volCols.gas_mscf.length > 0 || volCols.condensate_bbl.length > 0;
+  if (!hasHydrocarbonCols) {
+    issues.push(
+      `Production file: no oil/gas/condensate volume columns recognized. ` +
+      `Headers found: ${seenHeaders(prodRows)}. Expected per-well columns ending in ` +
+      `_oil_bbl / _gas_mscf / _condensate_bbl, or bare oil_bbl / gas_mscf / condensate_bbl.`
+    );
+  } else if (annualVols.length === 0) {
+    issues.push(
+      `Production file: no row had a usable date. Provide a "year", "date" ` +
+      `(YYYY-MM or YYYY-MM-DD), or "month_index" column.`
+    );
+  }
+
+  if (capexRows.length > 0) {
+    if (pickCapexColumns(capexRows).length === 0) {
+      issues.push(
+        `CAPEX file: no cost column recognized. Headers found: ${seenHeaders(capexRows)}. ` +
+        `Expected one of ${CAPEX_USD_COLS.join(' / ')} (or any *_usd column).`
+      );
+    } else if (annualCapex.size === 0) {
+      issues.push(`CAPEX file: no row had a usable date (need "year", "date", or "month_index").`);
+    }
+  }
+
+  if (opexRows.length > 0) {
+    if (pickOpexColumns(opexRows).length === 0) {
+      issues.push(
+        `OPEX file: no cost column recognized. Headers found: ${seenHeaders(opexRows)}. ` +
+        `Expected one of ${OPEX_USD_COLS.join(' / ')} (or any *_usd column).`
+      );
+    } else if (annualOpex.size === 0) {
+      issues.push(`OPEX file: no row had a usable date (need "year", "date", or "month_index").`);
+    }
+  }
+
+  // Prices: a null/unset price for a stream with nonzero volumes silently
+  // zeroed (or NaN-poisoned) revenue. Require it explicitly.
+  const totals = annualVols.reduce(
+    (t, v) => ({ oil: t.oil + v.oil_bbl, gas: t.gas + v.gas_mscf, cond: t.cond + v.condensate_bbl }),
+    { oil: 0, gas: 0, cond: 0 }
+  );
+  const priceUnset = (raw: any) =>
+    raw === null || raw === undefined || raw === '' || !Number.isFinite(Number(raw));
+  if (totals.oil > 0 && priceUnset(cfg.oil_price_usd_bbl)) {
+    issues.push(`Oil price (oil_price_usd_bbl) is not set but the production data has oil volumes.`);
+  }
+  if (totals.gas > 0 && priceUnset(cfg.gas_price_usd_mscf)) {
+    issues.push(`Gas price (gas_price_usd_mscf) is not set but the production data has gas volumes.`);
+  }
+  if (totals.cond > 0 && priceUnset(cfg.condensate_price_usd_bbl)) {
+    issues.push(`Condensate price (condensate_price_usd_bbl) is not set but the production data has condensate volumes.`);
+  }
+
+  if (issues.length > 0) {
+    throw new Error(`Ingestion validation failed: ${issues.join(' | ')}`);
+  }
+}
+
+// ============================================================================
 // MAIN COMPUTE FUNCTION (B2.5 framework-aware)
 // ============================================================================
 
@@ -591,6 +754,8 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
   const annualVols = extractAnnualVolumes(prodRows, baseYear);
   const annualCapex = extractAnnualCapex(capexRows, baseYear);
   const annualOpex = extractAnnualOpex(opexRows, baseYear);
+
+  validateIngestion({ cfg, prodRows, capexRows, opexRows, annualVols, annualCapex, annualOpex });
 
   const yearSet = new Set<number>([
     ...annualVols.map(v => v.year),
@@ -633,9 +798,12 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
     const opexInflated = (annualOpex.get(year) || 0) * Math.pow(1 + opexEscalator, t);
     const depr = annualDepr.get(year) || 0;
 
-    const oilPrice = Number(cfg.oil_price_usd_bbl) * Math.pow(1 + oilEscalator, t);
-    const gasPrice = Number(cfg.gas_price_usd_mscf) * Math.pow(1 + gasEscalator, t);
-    const condPrice = Number(cfg.condensate_price_usd_bbl) * Math.pow(1 + condEscalator, t);
+    // validateIngestion() already required a price wherever volumes exist;
+    // coerce unset prices on zero-volume streams to 0 so they can't NaN-poison
+    // gross revenue (0 * NaN === NaN).
+    const oilPrice = (Number(cfg.oil_price_usd_bbl) || 0) * Math.pow(1 + oilEscalator, t);
+    const gasPrice = (Number(cfg.gas_price_usd_mscf) || 0) * Math.pow(1 + gasEscalator, t);
+    const condPrice = (Number(cfg.condensate_price_usd_bbl) || 0) * Math.pow(1 + condEscalator, t);
 
     const oilRev = v.oil_bbl * oilPrice;
     const gasRev = v.gas_mscf * gasPrice;
