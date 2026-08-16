@@ -1,16 +1,27 @@
-# EPE — Enterprise Petroleum Economics
+# EPE — Petroleum Economics Studio
 
 **Scope document maintained at:** `docs/scope/EPE.md`
 
-**Last meaningful update:** 2026-05-12 (end of Day 10)
+**Last meaningful update:** 2026-08-16 (rename + v3.3/v3.4 capability round)
 
 **Status:** Active — production-ready core, staging-only deployment
+
+> **Naming (2026-08-16):** the app formerly branded "EPE / Enterprise
+> Petroleum Economics" is now **Petroleum Economics Studio** (owner
+> decision). The failed standalone petroleum-economics-studio app was
+> retired the same day (code deleted, tile archived via migration
+> 20260816120000, routes redirect here). The slug stays `epe-suite`
+> (tile link + entitlement key) and routes stay under
+> `/dashboard/apps/economics/epe/`; "EPE" remains the internal
+> code/table prefix. Its 6 orphan `econ_*` tables are read-only pending
+> an owner drop decision; `src/utils/petroleumEconomicsEngine.js` + its
+> test survive as this engine's cross-check oracle.
 
 ---
 
 ## 1. What this app is
 
-EPE is a cash-flow modeling tool for Nigerian upstream oil and gas projects. It computes deterministic year-by-year cash flow, NPV, IRR, and payback under any of three fiscal regimes (JV, PSC, PIA 2021), with full Nigeria Tax Act 2025 framework awareness. It produces presentation-grade visualizations and supports sensitivity analysis via ±20% tornado sweeps.
+Petroleum Economics Studio (internally EPE) is a cash-flow modeling tool for Nigerian upstream oil and gas projects. It computes deterministic year-by-year cash flow, NPV, IRR, and payback under any of three fiscal regimes (JV, PSC, PIA 2021), with full Nigeria Tax Act 2025 framework awareness. It produces presentation-grade visualizations and supports sensitivity analysis via ±20% tornado sweeps.
 
 **Target users:** Nigerian petroleum engineers, asset managers, fiscal analysts, investment evaluators preparing operator submissions, partner reviews, or government-facing economic forecasts.
 
@@ -123,6 +134,24 @@ Sub-components live in `src/pages/apps/epe/` and `src/components/charts/` (share
   is unset for a stream with volumes — a run can no longer "succeed" at $0
   because a header didn't match. Run Console requires oil price > 0 and
   surfaces the engine's error body on 500s.
+- Field life (v3.4, 2026-08-16, both config-gated/default-off): economic
+  limit test (`apply_economic_limit` trims trailing years whose escalated
+  revenue no longer covers inflated opex; `economic_limit_year` KPI) and
+  abandonment cost (`abandonment_cost_usd`/`abandonment_year`: lump-sum
+  post-tax outflow, deliberately NOT tax-deducted/depreciated/cost-recovered —
+  regime-specific decom-fund deductibility is literature-gated future work).
+- Decision KPIs (v3.4): total volumes + BOE (6:1 gas), unit technical cost
+  ($/boe), opex/boe, government take % (pre-take value minus contractor NCF
+  over pre-take value), PV(capex) + DPI, numeric payback + discounted
+  payback, and `breakeven_oil_price_usd_bbl` (bisection to NPV=0 rerunning
+  the full engine per trial price; computed in the single-run edge fn).
+- Workflow (v3.4): saved run configs load back into the Run Console
+  ("Start from saved scenario" + `?fromConfig` deep link / "Re-run with
+  edits"); results export as CSV, XLSX (KPIs/Cash Flow/Assumptions sheets)
+  and a branded PDF report; all five deterministic charts sit on the shared
+  ChartFrame (watermark band + per-chart PNG download); per-slot template
+  CSV downloads and a one-click example case ("Ilara Field") fix the cold
+  start.
 
 ### 3.3 Visualization (EpeResultsViewer)
 
@@ -167,7 +196,22 @@ Risk level: low (math is straightforward). But a future Reservoir Balance-style 
 
 ### 4.2 Schema present, engine math not implemented
 
-- **Minimum 15% effective tax rate (NTA Section 57)** — `pia_apply_minimum_etr` and `pia_minimum_etr_pct` columns exist in `epe_run_configs`. Engine reads them but does not apply the floor. Rationale: ETR check requires evaluating total taxes vs total profit across all years plus turnover threshold checks (NGN-denominated, company-level) that don't fit the project-level engine cleanly. Implementation requires further design.
+- **Minimum 15% effective tax rate (NTA Section 57)** — `pia_apply_minimum_etr` and `pia_minimum_etr_pct` columns exist in `epe_run_configs`. Engine does not apply the floor. Rationale: ETR check requires evaluating total taxes vs total profit across all years plus turnover threshold checks (NGN-denominated, company-level) that don't fit the project-level engine cleanly. Implementation requires further design. **2026-08-16: the Run Console controls were removed** (the checkbox shipped before the math and changed nothing — honesty rule); a one-line note remains in the PIA panel. Columns stay for forward compatibility.
+
+### 4.2b Known structural debt (2026-08-16 audit)
+
+- **No repo DDL for 9 of the 10 `epe_*` tables** — only `epe_mc_runs` has a
+  migration; `epe_cases`/`epe_runs`/`epe_run_configs`/`epe_results`/
+  `epe_production_volumes`/`epe_capex`/`epe_opex`/`epe_sensitivity_*` exist
+  live but cannot be rebuilt from source. Backfill migration pending.
+- **`epe_runs` has no status/error columns** (unlike `epe_sensitivity_runs`);
+  the console now deletes the run row on engine failure as a stopgap.
+- **Working interest applies only to JV** — PSC and PIA results are 100%
+  project-level; equity-share reporting needs a WI parameter in both.
+- **Flat price + escalator only** — no per-year price decks, differentials,
+  or gas contract structures.
+- **No incremental (with vs without) economics**; comparison is KPI-level.
+- RLS is per-user (`auth.uid() = user_id`), not per-org; no sharing.
 
 ### 4.3 Backlog items not yet started
 
