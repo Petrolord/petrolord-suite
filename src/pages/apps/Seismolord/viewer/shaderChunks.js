@@ -114,6 +114,39 @@ export function buildLut(key) {
   return lut;
 }
 
+/**
+ * CPU mirror of DISPLAY_GLSL's shadeAmp for canvas-2D consumers (the Map
+ * window's time-slice raster): symmetric clip around zero into the LUT,
+ * nulls transparent. Kept HERE so the amplitude→color math still lives in
+ * one place; any change to shadeAmp must change this identically (the
+ * shadeAmpPixels jest suite pins the mapping).
+ *
+ * @param {Float32Array} data amplitudes (1e30 nulls), row-major
+ * @param {number} width
+ * @param {number} height
+ * @param {Uint8Array} lut 256x4 RGBA from buildLut()
+ * @param {{gain: number, polarity: number, clip: number}} display
+ * @returns {Uint8ClampedArray} width*height*4 RGBA, null cells alpha 0
+ */
+export function shadeAmpPixels(data, width, height, lut, { gain, polarity, clip }) {
+  const out = new Uint8ClampedArray(width * height * 4);
+  const safeClip = Math.max(clip, 1e-12);
+  for (let c = 0; c < width * height; c++) {
+    const amp = data[c];
+    if (Math.abs(amp) > 1.0e29) continue;          // null: transparent
+    const a = amp * gain * polarity;
+    const x = Math.min(1, Math.max(0, 0.5 + (0.5 * a) / safeClip));
+    // LUT texel pick matches SliceRenderer.referenceRender: floor(x*256)
+    const li = Math.min(255, Math.floor(x * 256)) * 4;
+    const o = c * 4;
+    out[o] = lut[li];
+    out[o + 1] = lut[li + 1];
+    out[o + 2] = lut[li + 2];
+    out[o + 3] = 255;
+  }
+  return out;
+}
+
 /** Compile a shader or throw with the info log. */
 export function compileShader(gl, type, src) {
   const s = gl.createShader(type);

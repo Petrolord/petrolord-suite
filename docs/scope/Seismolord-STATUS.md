@@ -1,6 +1,45 @@
 # Seismolord — STATUS
 
-Last updated: 2026-07-13 (LAS-driven synthetics)
+Last updated: 2026-08-18 (map time slice + horizon settings)
+
+## Map time slice + horizon settings dialog: DONE
+
+Branch `feat/seismolord-map-timeslice-horizon-settings`:
+
+- **Explorer slice-plane children**: the ACTIVE volume now shows three
+  children in the Seismic Explorer — Inline / Crossline / Time slice —
+  labeled with the CURRENT positions (labels follow scrubbing and map
+  clicks). Each row has its own visibility eye; clicking a row makes
+  that orientation the Section window's. Eye state persists to
+  localStorage (`SLICE_VIS_KEY`).
+- **Time slice in the Map window**: when the Time slice eye is on,
+  `ViewerPanel` assembles the horizontal slice at the current time
+  index (brick fetch shielded from the section scrub's cancellation;
+  a request counter drops stale assemblies) and `MapView` draws it as
+  an amplitude raster UNDER the horizon layers using the exact
+  section/3D shading math — `shadeAmpPixels` in
+  `viewer/shaderChunks.js` (the only place for display math, per
+  playbook), covered by `__tests__/shadeAmpPixels.test.js` against the
+  WebGL path's behavior. The map's status readout reports the slice
+  amplitude under the cursor; Inline/Crossline eyes draw their location
+  lines on the map.
+- **Horizon settings dialog** (Petrel-style Settings on a horizon):
+  right-click a horizon in the Map window or the explorer → Settings….
+  `components/workspace/dialogs/HorizonSettingsDialog.jsx` offers
+  rename, interpretation color (house palette + custom picker) and line
+  weight (shared by sections, 3D, map, explorer swatches), and map
+  display: per-horizon colormap override, fill opacity, contour on/off
+  + manual contour interval, auto/manual color range (zMin/zMax clamp).
+  Settings apply LIVE (session state) and persist to
+  `seismic_horizons.params.display` after an 800 ms debounce via
+  `updateHorizonMeta` (merges params jsonb WITHOUT touching the pick
+  blob; also handles rename). No schema change — params is existing
+  jsonb.
+- **Tests**: `seismicExplorer.slicePlanes.test.jsx` (7),
+  `horizonSettingsDialog.test.jsx` (9), `shadeAmpPixels.test.js`;
+  full repo run 184 suites / 2361 passed. Jsdom gotchas encoded in the
+  explorer test: Radix context menus need a DOMRect polyfill, and a
+  mock-actions Proxy must memoize its jest.fn per property.
 
 ## Synthetics — LAS-driven synthetic seismograms (G5 deferred item): DONE
 

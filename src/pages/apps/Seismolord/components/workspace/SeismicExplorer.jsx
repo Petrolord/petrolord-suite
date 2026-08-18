@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import {
   Database, Layers, Slash, CircleDot, Route, Eye, EyeOff, Loader2, Upload,
   Plus, RefreshCw, ChevronDown, ChevronRight, Pencil, ArrowLeft,
+  Rows, Columns, Clock, Settings2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -67,13 +68,14 @@ function IconButton({ title, onClick, children }) {
  *  busy spinner; wrapped in a context menu when `menu` is given. */
 function Row({
   visible, onToggleVisible, busy, color, icon: Icon, label, meta,
-  selected, onClick, onDoubleClick, badge, menu, title,
+  selected, onClick, onDoubleClick, badge, menu, title, depth = 0,
 }) {
   const row = (
     <div
       role="button"
       tabIndex={0}
       title={title}
+      style={depth ? { paddingLeft: `${10 + depth * 16}px` } : undefined}
       className={`group flex items-center gap-1.5 pl-2.5 pr-2 py-[3px] text-[13px]
         cursor-pointer select-none min-w-0
         ${selected ? 'bg-cyan-500/10 text-cyan-200' : 'text-slate-300 hover:bg-slate-800/70'}`}
@@ -113,6 +115,18 @@ const geometrySummary = (meta) => (meta?.il
     + `${meta.ns} samples @ ${meta.dt_us / 1000} ms`
   : 'No geometry recorded');
 
+// The active volume's slice-plane children (Petrel-style): one row per
+// orientation with its own visibility eye. The eye shows/hides that
+// plane's footprint in the MAP window (the time slice as an amplitude
+// raster, inline/crossline as location lines); clicking the row makes it
+// the Section window's orientation.
+const PLANE_ICONS = { inline: Rows, xline: Columns, time: Clock };
+const PLANE_TITLES = {
+  inline: 'Inline plane — eye shows its location line in the Map window; click to open in the Section window',
+  xline: 'Crossline plane — eye shows its location line in the Map window; click to open in the Section window',
+  time: 'Time slice — eye shows the amplitude slice in the Map window; click to open in the Section window',
+};
+
 /**
  * @param {Object} p
  * @param {Object} p.tree grouped, memoized tree model from the controller
@@ -124,6 +138,7 @@ export default function SeismicExplorer({ tree, actions }) {
     faults, visibleFaultIds, faultBusyId,
     wells, visibleWellIds, wellBusyId, wellsError,
     savedTraverses, traverseSavedId,
+    slicePlanes, horizonColorById,
   } = tree;
 
   return (
@@ -153,38 +168,51 @@ export default function SeismicExplorer({ tree, actions }) {
       <ScrollArea className="flex-1 min-h-0">
         <Section icon={Database} title="Volumes" count={volumes.length || ''}>
           {volumes.map((v) => (
-            <Row
-              key={v.id}
-              icon={Database}
-              label={v.name}
-              title={geometrySummary(v.survey_meta)}
-              meta={v.status !== 'ready' ? v.status : ''}
-              selected={v.id === activeVolumeId}
-              onClick={() => v.status === 'ready' && actions.selectVolume(v.id)}
-              menu={(
-                <>
-                  <ContextMenuItem
-                    disabled={v.status !== 'ready'}
-                    onSelect={() => actions.selectVolume(v.id)}
-                  >
-                    Set active
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    disabled={v.id !== activeVolumeId}
-                    onSelect={() => actions.openExport()}
-                  >
-                    Export surfaces…
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    className="text-red-400 focus:text-red-300"
-                    onSelect={() => actions.deleteVolume(v)}
-                  >
-                    Delete volume…
-                  </ContextMenuItem>
-                </>
-              )}
-            />
+            <React.Fragment key={v.id}>
+              <Row
+                icon={Database}
+                label={v.name}
+                title={geometrySummary(v.survey_meta)}
+                meta={v.status !== 'ready' ? v.status : ''}
+                selected={v.id === activeVolumeId}
+                onClick={() => v.status === 'ready' && actions.selectVolume(v.id)}
+                menu={(
+                  <>
+                    <ContextMenuItem
+                      disabled={v.status !== 'ready'}
+                      onSelect={() => actions.selectVolume(v.id)}
+                    >
+                      Set active
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      disabled={v.id !== activeVolumeId}
+                      onSelect={() => actions.openExport()}
+                    >
+                      Export surfaces…
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem
+                      className="text-red-400 focus:text-red-300"
+                      onSelect={() => actions.deleteVolume(v)}
+                    >
+                      Delete volume…
+                    </ContextMenuItem>
+                  </>
+                )}
+              />
+              {v.id === activeVolumeId && (slicePlanes || []).map((pl) => (
+                <Row
+                  key={pl.key}
+                  depth={1}
+                  icon={PLANE_ICONS[pl.key] || Layers}
+                  label={pl.label}
+                  title={PLANE_TITLES[pl.key]}
+                  visible={pl.visible}
+                  onToggleVisible={() => actions.toggleSlicePlane(pl.key)}
+                  onClick={() => actions.selectPlane(pl.key)}
+                />
+              ))}
+            </React.Fragment>
           ))}
           {!volumes.length && (
             <Hint>No volumes yet — import a SEG-Y file to get started.</Hint>
@@ -196,7 +224,7 @@ export default function SeismicExplorer({ tree, actions }) {
             <Row
               key={h.id}
               icon={Layers}
-              color={horizonColor(idx)}
+              color={horizonColorById?.[h.id] || horizonColor(idx)}
               label={h.name}
               visible={visibleIds.has(h.id)}
               onToggleVisible={() => actions.toggleHorizon(h)}
@@ -215,6 +243,10 @@ export default function SeismicExplorer({ tree, actions }) {
               onClick={() => actions.toggleHorizon(h)}
               menu={(
                 <>
+                  <ContextMenuItem onSelect={() => actions.openHorizonSettings(h)}>
+                    <Settings2 className="w-3.5 h-3.5 mr-1.5" />
+                    Settings…
+                  </ContextMenuItem>
                   <ContextMenuItem onSelect={() => actions.toggleHorizon(h)}>
                     {visibleIds.has(h.id) ? 'Hide' : 'Show'}
                   </ContextMenuItem>
