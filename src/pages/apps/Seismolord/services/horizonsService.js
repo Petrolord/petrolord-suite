@@ -104,6 +104,33 @@ export async function updateHorizon({ horizon, picks, dtUs, params }) {
   return data;
 }
 
+/**
+ * Persist display settings (and optionally a rename) WITHOUT touching the
+ * pick blob: params.display is merged non-destructively into the stored
+ * params jsonb. Used by the horizon settings dialog — a settings save
+ * must never re-upload (or risk clobbering) the picks.
+ *
+ * @param {Object} p
+ * @param {Object} p.horizon seismic_horizons row
+ * @param {Object} [p.display] display settings to store under params.display
+ * @param {string} [p.name] new horizon name
+ * @returns {Promise<Object>} the refreshed row
+ */
+export async function updateHorizonMeta({ horizon, display, name }) {
+  const patch = {};
+  if (display !== undefined) {
+    patch.params = { ...(horizon.params || {}), display };
+  }
+  if (name !== undefined && name !== horizon.name) patch.name = name;
+  if (!Object.keys(patch).length) return horizon;
+  const { data, error } = await supabase.from('seismic_horizons')
+    .update(patch)
+    .eq('id', horizon.id)
+    .select().single();
+  if (error) throw new Error(`Could not save horizon settings: ${error.message}`);
+  return data;
+}
+
 export async function listHorizons(volumeId) {
   const { data, error } = await supabase.from('seismic_horizons')
     .select('*')

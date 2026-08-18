@@ -25,11 +25,15 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
   DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem,
+  ContextMenuLabel, ContextMenuSeparator,
+} from '@/components/ui/context-menu';
 import { ViewTransform } from '../viewer/viewTransform';
 import {
-  drawAxes, drawScaleBar, drawNorthArrow, surveySpacing, northScreenDir,
+  drawAxes, drawScaleBar, drawNorthArrow, drawColorbar, surveySpacing, northScreenDir,
 } from '../viewer/annotations';
-import { buildLut } from '../viewer/shaderChunks';
+import { buildLut, shadeAmpPixels } from '../viewer/shaderChunks';
 import {
   contourLevels, contourPolylines, buildMapPixels, gridRange, cellsInPolygon,
 } from '@/lib/gridding/mapContours';
@@ -57,8 +61,9 @@ const DEFAULT_PREFS = {
   colorbar: true,
 };
 
-/** Sequential maps that read as elevation — structure-map palette. */
-const MAP_COLORMAPS = [
+/** Sequential maps that read as elevation — structure-map palette.
+ *  (Exported for the horizon settings dialog's per-horizon override.) */
+export const MAP_COLORMAPS = [
   { key: 'spectrum', label: 'Spectrum' },
   { key: 'jet', label: 'Rainbow' },
   { key: 'viridis', label: 'Viridis' },
@@ -127,11 +132,29 @@ const fmtZ = (v, step) => (step >= 1
  *   the volume has no usable coordinates
  * @param {number|'fill'} [p.height] viewport CSS height, or 'fill' to
  *   stretch to the parent container's height
+ * @param {?{data: Float32Array, width: number, height: number,
+ *   index: number, ms: number}} [p.timeSlice] assembled time slice
+ *   (already in map layout: row = inline, col = crossline) drawn as an
+ *   amplitude raster under the horizon layers when sliceVis.time is on
+ * @param {{inline: boolean, xline: boolean, time: boolean}} [p.sliceVis]
+ *   the explorer's slice-plane toggles: time shows the raster,
+ *   inline/xline show their location lines at the current positions
+ * @param {{inline: number, xline: number, time: number}} [p.indices]
+ *   current slice positions (location lines; map click moves them)
+ * @param {?{colormap: string, gain: number, polarity: number,
+ *   clip: number}} [p.display] the SEISMIC display params — the raster
+ *   shades with the exact section/3D math (shadeAmpPixels)
+ * @param {(id: string) => void} [p.onHorizonSettings] open the horizon
+ *   settings dialog (map right-click → Settings…)
+ * @param {(id: string) => void} [p.onToggleHorizon] hide a horizon from
+ *   the map right-click menu
  */
 function MapView({
   manifest, geom, horizons, faults, velocity, velocityBoundaries,
   onNavigate, onEraseRegion, traverse, onTraverse, savedTraverses,
   onAmplitude, wells, height = 560, onCursor = null,
+  timeSlice = null, sliceVis = null, indices = null, display = null,
+  onHorizonSettings = null, onToggleHorizon = null,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -170,6 +193,43 @@ function MapView({
   const spacing = useMemo(() => (manifest ? surveySpacing(manifest) : null), [manifest]);
   const northDir = useMemo(() => (manifest ? northScreenDir(manifest) : null), [manifest]);
   const lut = useMemo(() => buildLut(colormap), [colormap]);
+
+  // per-horizon colormap-override LUTs (256x4 bytes each — cache by key)
+  const lutCacheRef = useRef(new Map());
+  const lutFor = useCallback((key) => {
+    let l = lutCacheRef.current.get(key);
+    if (!l) {
+      l = buildLut(key);
+      lutCacheRef.current.set(key, l);
+    }
+    return l;
+  }, []);
+
+  // time-slice amplitude raster: shaded ONCE per (slice, display) with
+  // the canonical symmetric-clip math (shadeAmpPixels mirrors the
+  // shaders' shadeAmp), then drawImage per camera frame like the fill
+  const showTimeSlice = Boolean(sliceVis?.time && timeSlice && display);
+  const tsLut = useMemo(
+    () => (display ? buildLut(display.colormap) : null),
+    [display],
+  );
+  const tsBitmap = useMemo(() => {
+    if (!showTimeSlice || !tsLut) return null;
+    const px = shadeAmpPixels(
+      timeSlice.data, timeSlice.width, timeSlice.height, tsLut, display,
+    );
+    const bmp = document.createElement('canvas');
+    bmp.width = timeSlice.width;
+    bmp.height = timeSlice.height;
+    bmp.getContext('2d').putImageData(
+      new ImageData(new Uint8ClampedArray(px), timeSlice.width, timeSlice.height), 0, 0,
+    );
+    return bmp;
+  }, [showTimeSlice, timeSlice, tsLut, display]);
+
+  // right-click target: resolved in onContextMenu (before Radix opens
+  // the menu) so the menu can name the horizon under the cursor
+  const [menuCtx, setMenuCtx] = useState(null); // {horizon, hit} | null
 
   // the mapped (active) horizon follows visibility: keep the selection
   // while it stays visible, else fall back to the first visible horizon
@@ -234,9 +294,16 @@ function MapView({
     const dtMs = manifest.geometry.dt_us / 1000;
     const amp = ampMode && !second && ampLayer
       && ampLayer.grid === h.grid && ampLayer.mode === ampMode.key ? ampLayer : null;
-    const key = amp
+    // per-horizon display settings that change the derived layer (color
+    // range, contour interval) ride on the cache key; colormap swaps only
+    // rebuild the bitmap (lutKey below), opacity is draw-time only
+    const disp = h.display || {};
+    const dispKey = `${disp.contourStep || ''}~${disp.rangeMode || ''}`
+      + `~${disp.zMin ?? ''}~${disp.zMax ?? ''}`;
+    const key = (amp
       ? `${h.id}~amp~${amp.mode}~${amp.window}`
-      : `${h.id}~${second ? second.id : ''}~${effDomain}~${velocityKey(velocity)}`;
+      : `${h.id}~${second ? second.id : ''}~${effDomain}~${velocityKey(velocity)}`)
+      + `~${dispKey}`;
     let c = cacheRef.current.get(key);
     const srcA = amp ? amp.values : h.grid;
     if (!c || c.gridA !== srcA || c.gridB !== (second ? second.grid : null)
@@ -262,8 +329,28 @@ function MapView({
             : conv ? conv(b * dtMs, i) - conv(a * dtMs, i) : (b - a) * dtMs;
         }
       }
-      const { zMin, zMax } = gridRange(values);
-      const { levels, step } = contourLevels(zMin ?? 0, zMax ?? 0, 12);
+      const range = gridRange(values);
+      // manual color range (settings dialog) replaces the data range for
+      // the fill and the colorbar; out-of-range values clamp to its ends
+      const manual = disp.rangeMode === 'manual'
+        && Number.isFinite(disp.zMin) && Number.isFinite(disp.zMax)
+        && disp.zMax > disp.zMin;
+      const zMin = manual ? disp.zMin : range.zMin;
+      const zMax = manual ? disp.zMax : range.zMax;
+      // manual contour interval keeps the data's full span (contours are
+      // geometry, not colors); capped so a tiny step can't hang the map
+      let levels;
+      let step;
+      if (disp.contourStep > 0 && range.zMin != null) {
+        step = disp.contourStep;
+        levels = [];
+        const start = Math.ceil(range.zMin / step) * step;
+        for (let v = start; v <= range.zMax && levels.length < 200; v += step) {
+          levels.push(v);
+        }
+      } else {
+        ({ levels, step } = contourLevels(range.zMin ?? 0, range.zMax ?? 0, 12));
+      }
       c = {
         gridA: srcA,
         gridB: second ? second.grid : null,
@@ -280,8 +367,10 @@ function MapView({
       };
       cacheRef.current.set(key, c);
     }
-    if (c.lutKey !== colormap && c.zMin != null) {
-      const px = buildMapPixels(c.values, geom.nIl, geom.nXl, lut, c.zMin, c.zMax);
+    const mapKey = disp.colormap || colormap;
+    if (c.lutKey !== mapKey && c.zMin != null) {
+      const layerLut = lutFor(mapKey);
+      const px = buildMapPixels(c.values, geom.nIl, geom.nXl, layerLut, c.zMin, c.zMax);
       const bmp = document.createElement('canvas');
       bmp.width = geom.nXl;
       bmp.height = geom.nIl;
@@ -289,10 +378,11 @@ function MapView({
         new ImageData(px, geom.nXl, geom.nIl), 0, 0,
       );
       c.bitmap = bmp;
-      c.lutKey = colormap;
+      c.lutKey = mapKey;
+      c.lut = layerLut;
     }
     return c;
-  }, [geom, manifest, colormap, lut, effDomain, unit, velocity, velocityBoundaries,
+  }, [geom, manifest, colormap, lutFor, effDomain, unit, velocity, velocityBoundaries,
     depthConv, ampMode, ampLayer]);
 
   // horizon-level fault traces: where each fault's sticks actually cross
@@ -312,6 +402,7 @@ function MapView({
     manifest, geom, horizons, faults, prefs, gutter: g, active, vs, spacing,
     northDir, velocity, depthConv, effDomain, traverse, savedTraverses,
     effAttr, ampLayer, wells, faultTraceLayer, onCursor,
+    timeSlice, showTimeSlice, tsBitmap, tsLut, sliceVis, indices, display,
   };
 
   // ---- drawing -----------------------------------------------------------
@@ -337,13 +428,25 @@ function MapView({
     ctx.rect(0, 0, canvas.width - gl, canvas.height - gt);
     ctx.clip();
 
+    // time-slice amplitude raster — the deepest layer: horizons, faults
+    // and every overlay read on top of the seismic
+    if (p.showTimeSlice && p.tsBitmap) {
+      const o = t.worldToScreen(0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(p.tsBitmap, o.x, o.y, p.geom.nXl * t.ppx, p.geom.nIl * t.ppy);
+    }
+
     if (p.prefs.fill && layer && layer.bitmap) {
       const o = t.worldToScreen(0, 0);
       ctx.imageSmoothingEnabled = true;
+      const fillAlpha = p.active?.display?.opacity;
+      if (fillAlpha != null && fillAlpha < 1) ctx.globalAlpha = fillAlpha;
       ctx.drawImage(layer.bitmap, o.x, o.y, p.geom.nXl * t.ppx, p.geom.nIl * t.ppy);
+      ctx.globalAlpha = 1;
     }
 
-    if (p.prefs.contours && layer && layer.levels.length) {
+    if (p.prefs.contours && layer && layer.levels.length
+      && p.active?.display?.contours !== false) {
       const inkFor = (major) => (p.prefs.fill
         ? `rgba(15, 23, 42, ${major ? 0.85 : 0.5})`
         : `rgba(148, 163, 184, ${major ? 0.95 : 0.55})`);
@@ -451,6 +554,44 @@ function MapView({
       ctx.setLineDash([5 * dpr, 4 * dpr]);
       ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
       ctx.setLineDash([]);
+    }
+
+    // inline / crossline location lines (explorer slice-plane toggles):
+    // where the Section window's current lines sit — a map click moves
+    // them, so the lines follow navigation live
+    if (p.indices && p.sliceVis && (p.sliceVis.inline || p.sliceVis.xline)) {
+      const geoLn = p.manifest.geometry;
+      ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
+      ctx.lineJoin = 'round';
+      const lineWith = (label, x0, y0, x1, y1, color, lx, ly, align) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.6 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+        ctx.textAlign = align;
+        ctx.textBaseline = 'top';
+        ctx.lineWidth = 3 * dpr;
+        ctx.strokeStyle = 'rgba(2, 6, 23, 0.9)';
+        ctx.fillStyle = color;
+        ctx.strokeText(label, lx, ly);
+        ctx.fillText(label, lx, ly);
+      };
+      if (p.sliceVis.inline) {
+        const y = t.worldToScreen(0, p.indices.inline + 0.5).y;
+        const a = t.worldToScreen(0, 0);
+        const b = t.worldToScreen(p.geom.nXl, 0);
+        lineWith(`IL ${geoLn.il.min + p.indices.inline * geoLn.il.step}`,
+          a.x, y, b.x, y, 'rgba(56, 189, 248, 0.9)', a.x + 4 * dpr, y + 3 * dpr, 'left');
+      }
+      if (p.sliceVis.xline) {
+        const x = t.worldToScreen(p.indices.xline + 0.5, 0).x;
+        const a = t.worldToScreen(0, 0);
+        const b = t.worldToScreen(0, p.geom.nIl);
+        lineWith(`XL ${geoLn.xl.min + p.indices.xline * geoLn.xl.step}`,
+          x, a.y, x, b.y, 'rgba(251, 146, 60, 0.9)', x + 4 * dpr, a.y + 3 * dpr, 'left');
+      }
     }
 
     const rect = rectRef.current;
@@ -647,8 +788,23 @@ function MapView({
       });
     }
 
+    // amplitude legend for the time-slice raster (the shared drawColorbar
+    // used by the section windows; ±clip/gain at the ends)
+    if (p.prefs.colorbar && p.showTimeSlice && p.tsLut && p.display) {
+      drawColorbar(ctx, {
+        x: canvas.width - 24 * dpr,
+        y: gt + 60 * dpr,
+        w: 12 * dpr,
+        h: Math.min(120 * dpr, canvas.height * 0.3),
+        lut: p.tsLut,
+        ampAtEnds: p.display.clip / (p.display.gain || 1),
+        dpr,
+      });
+    }
+
     if (p.prefs.colorbar && layer && layer.zMin != null && layer.bitmap) {
       // Z legend: shallow (zMin) at the top, matching the fill's LUT ends
+      const barLut = layer.lut || lut;
       const h = Math.min(150 * dpr, canvas.height * 0.4);
       const w = 12 * dpr;
       const x = canvas.width - 24 * dpr;
@@ -656,7 +812,7 @@ function MapView({
       const grad = ctx.createLinearGradient(0, y, 0, y + h);
       for (let i = 0; i <= 8; i++) {
         const li = Math.round((i / 8) * 255) * 4;
-        grad.addColorStop(i / 8, `rgb(${lut[li]}, ${lut[li + 1]}, ${lut[li + 2]})`);
+        grad.addColorStop(i / 8, `rgb(${barLut[li]}, ${barLut[li + 1]}, ${barLut[li + 2]})`);
       }
       ctx.fillStyle = grad;
       ctx.fillRect(x, y, w, h);
@@ -675,6 +831,15 @@ function MapView({
         ctx.fillStyle = INK_DIM;
         ctx.fillText(`CI ${layer.step} ${layer.unit}`, x + w, y + h + 14 * dpr);
       }
+    }
+
+    if (p.showTimeSlice && p.timeSlice) {
+      ctx.fillStyle = INK;
+      ctx.font = `${Math.round(11 * dpr)}px ui-monospace, monospace`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`Time slice ${p.timeSlice.ms} ms`, gl + 8 * dpr,
+        canvas.height - (p.active ? 40 : 26) * dpr);
     }
 
     if (p.active) {
@@ -747,6 +912,7 @@ function MapView({
 
   useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, vs,
     effDomain, velocity, traverse, savedTraverses, effAttr, ampLayer, wells,
+    timeSlice, tsBitmap, showTimeSlice, sliceVis, indices, display,
     scheduleDraw]);
 
   // model removed -> fall back to TWT so the select never lies
@@ -823,6 +989,12 @@ function MapView({
         const s = p.active.grid[c];
         z = `   Z ${s === NULL_F32 ? 'null' : `${conv(s * dtMs).toFixed(1)} ${zUnit}`}`;
       }
+    }
+    // seismic amplitude under the cursor when the time slice is showing
+    // (the horizon-attribute readout keeps priority — one A per line)
+    if (!z.includes('A ') && p.showTimeSlice && p.timeSlice) {
+      const v = p.timeSlice.data[hit.ilIdx * p.geom.nXl + hit.xlIdx];
+      z += `   A ${Math.abs(v) > 1.0e29 ? 'null' : v.toExponential(3)}`;
     }
     vals.textContent = `${world}IL ${geo.il.min + hit.ilIdx * geo.il.step}   `
       + `XL ${geo.xl.min + hit.xlIdx * geo.xl.step}${z}`;
@@ -1011,6 +1183,56 @@ function MapView({
     transformRef.current.zoomAt(2, sx, sy);
     scheduleDraw();
   }, [toDevice, scheduleDraw, eraseArmed, closePolygon, travArmed, closeTraverse]);
+
+  // ---- right-click context menu -------------------------------------------
+
+  /** Topmost horizon with picks at the hit cell: the mapped (active)
+   *  horizon wins, then explorer order. The edit-session draft has no
+   *  row to configure, so it never becomes a menu target. */
+  const horizonAt = useCallback((hit) => {
+    const p = propsRef.current;
+    if (!hit || !hit.inData || !p.geom) return null;
+    const c = hit.ilIdx * p.geom.nXl + hit.xlIdx;
+    const hs = (p.horizons || []).filter((h) => h.id !== '__draft');
+    const ordered = p.active && p.active.id !== '__draft'
+      ? [p.active, ...hs.filter((h) => h.id !== p.active.id)] : hs;
+    return ordered.find((h) => h.grid && h.grid[c] !== NULL_F32) || null;
+  }, []);
+
+  /** Record what sits under a right-click BEFORE Radix opens the menu
+   *  (no preventDefault — the ContextMenu trigger consumes the event). */
+  const onContextMenu = useCallback((e) => {
+    const { sx, sy } = toDevice(e);
+    const hit = pickAt(sx, sy);
+    const horizon = horizonAt(hit);
+    // off-horizon right-click still offers the mapped horizon's settings
+    const p = propsRef.current;
+    const fallback = p.active && p.active.id !== '__draft' ? p.active : null;
+    setMenuCtx({ hit, horizon, fallback: horizon ? null : fallback });
+  }, [toDevice, pickAt, horizonAt]);
+
+  /** Fit the camera to a horizon's picked extent. */
+  const zoomToHorizon = useCallback((h) => {
+    const p = propsRef.current;
+    if (!h || !h.grid || !p.geom) return;
+    const { nIl, nXl } = p.geom;
+    let i0 = Infinity; let i1 = -1; let x0 = Infinity; let x1 = -1;
+    for (let i = 0; i < nIl; i++) {
+      for (let x = 0; x < nXl; x++) {
+        if (h.grid[i * nXl + x] === NULL_F32) continue;
+        if (i < i0) i0 = i;
+        if (i > i1) i1 = i;
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+      }
+    }
+    if (i1 < 0) return;
+    const t = transformRef.current;
+    const a = t.worldToScreen(x0, i0);
+    const b = t.worldToScreen(x1 + 1, i1 + 1);
+    t.zoomToRect(a.x, a.y, b.x, b.y);
+    scheduleDraw();
+  }, [scheduleDraw]);
 
   // ---- toolbar -------------------------------------------------------------
 
@@ -1311,36 +1533,80 @@ function MapView({
         </Button>
       </div>
 
-      <div
-        ref={viewportRef}
-        className={`relative rounded-lg border border-slate-800 bg-slate-950 overflow-hidden
-          ${fillHeight ? 'flex-1 min-h-0' : ''}`}
-        style={fillHeight ? undefined : { height }}
-      >
-        <canvas
-          ref={canvasRef}
-          className={`w-full h-full block touch-none ${eraseArmed || travArmed
-            ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'}`}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={onPointerLeave}
-          onDoubleClick={onDoubleClick}
-        />
-        {!hasData && (
-          <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
-            Select an ingested volume to open the map window.
-          </div>
-        )}
-        {hasData && !hasLayers && (
-          <div className="absolute inset-x-0 top-0 flex items-center justify-center pt-8
-            pointer-events-none text-slate-500 text-sm"
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div
+            ref={viewportRef}
+            className={`relative rounded-lg border border-slate-800 bg-slate-950 overflow-hidden
+              ${fillHeight ? 'flex-1 min-h-0' : ''}`}
+            style={fillHeight ? undefined : { height }}
           >
-            <MapIcon className="w-4 h-4 mr-2" />
-            Toggle a horizon or fault visible to map it.
+            <canvas
+              ref={canvasRef}
+              className={`w-full h-full block touch-none ${eraseArmed || travArmed
+                ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'}`}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerLeave={onPointerLeave}
+              onDoubleClick={onDoubleClick}
+              onContextMenu={onContextMenu}
+            />
+            {!hasData && (
+              <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-sm">
+                Select an ingested volume to open the map window.
+              </div>
+            )}
+            {hasData && !hasLayers && !showTimeSlice && (
+              <div className="absolute inset-x-0 top-0 flex items-center justify-center pt-8
+                pointer-events-none text-slate-500 text-sm"
+              >
+                <MapIcon className="w-4 h-4 mr-2" />
+                Toggle a horizon, fault or the volume's time slice visible to map it.
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-60">
+          {(() => {
+            const target = menuCtx?.horizon || menuCtx?.fallback || null;
+            const direct = Boolean(menuCtx?.horizon);
+            return (
+              <>
+                {target && (
+                  <>
+                    <ContextMenuLabel className="text-slate-400">
+                      {direct ? target.name : `${target.name} (mapped horizon)`}
+                    </ContextMenuLabel>
+                    {onHorizonSettings && (
+                      <ContextMenuItem onSelect={() => onHorizonSettings(target.id)}>
+                        Horizon settings…
+                      </ContextMenuItem>
+                    )}
+                    {target.id !== active?.id && (
+                      <ContextMenuItem onSelect={() => setActiveId(target.id)}>
+                        Set as mapped horizon
+                      </ContextMenuItem>
+                    )}
+                    {onToggleHorizon && (
+                      <ContextMenuItem onSelect={() => onToggleHorizon(target.id)}>
+                        Hide horizon
+                      </ContextMenuItem>
+                    )}
+                    <ContextMenuItem onSelect={() => zoomToHorizon(target)}>
+                      Zoom to horizon extent
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                  </>
+                )}
+                <ContextMenuItem onSelect={fitView} disabled={!hasData}>
+                  Fit survey
+                </ContextMenuItem>
+              </>
+            );
+          })()}
+        </ContextMenuContent>
+      </ContextMenu>
 
       <div className="flex items-center gap-4 text-xs text-slate-400 font-mono mt-1 h-5">
         {ampBusy && <span className="text-cyan-400">extracting amplitude…</span>}

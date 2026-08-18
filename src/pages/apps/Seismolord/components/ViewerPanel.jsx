@@ -10,6 +10,7 @@ import {
 } from '../services/volumesService';
 import {
   saveHorizon, listHorizons, loadHorizonGrid, deleteHorizon, updateHorizon,
+  updateHorizonMeta,
 } from '../services/horizonsService';
 import { saveFault, listFaults, deleteFault } from '../services/faultsService';
 import { listLogs, downloadCurve } from '../services/wellsService';
@@ -51,6 +52,7 @@ import ImportSegyDialog from './workspace/dialogs/ImportSegyDialog';
 import ExportDialog from './workspace/dialogs/ExportDialog';
 import WellImportDialog from './workspace/dialogs/WellImportDialog';
 import VelocityModelDialog from './workspace/dialogs/VelocityModelDialog';
+import HorizonSettingsDialog from './workspace/dialogs/HorizonSettingsDialog';
 import SeismicExplorer from './workspace/SeismicExplorer';
 import StatusBar from './workspace/StatusBar';
 import RightDock from './workspace/RightDock';
@@ -61,6 +63,19 @@ import useBackendStatus from '../hooks/useBackendStatus';
 const NULL_F32 = Math.fround(NULL_VALUE);
 
 const DRAFT_COLOR = '#facc15';
+
+// Explorer slice-plane visibility (Feature: volume tree children). Same
+// localStorage idiom as the map/cube layer prefs — a display preference,
+// not project data.
+const SLICE_VIS_KEY = 'seismolord.sliceVis.v1';
+const DEFAULT_SLICE_VIS = { inline: false, xline: false, time: false };
+const loadSliceVis = () => {
+  try {
+    return { ...DEFAULT_SLICE_VIS, ...JSON.parse(localStorage.getItem(SLICE_VIS_KEY) || '{}') };
+  } catch {
+    return { ...DEFAULT_SLICE_VIS };
+  }
+};
 
 // storage base URL without touching the shared client module
 const storageBase = () => supabase.storage.from('seismic')
@@ -161,6 +176,22 @@ export default function ViewerPanel() {
   // bricks of an in-flight map amplitude extraction — shielded from the
   // slice scrub's cancellation exactly like an in-flight traverse
   const ampBricksRef = useRef(null);
+
+  // explorer slice-plane toggles + the assembled time slice the Map
+  // window rasters (independent of the Section window's slice)
+  const [sliceVis, setSliceVis] = useState(loadSliceVis);
+  const [mapTimeSlice, setMapTimeSlice] = useState(null);
+  const mapSliceReqRef = useRef(0);
+  const mapSliceBricksRef = useRef(null);       // Set<brickKey> while assembling
+
+  // per-horizon display settings: session overrides layered over the
+  // persisted row params.display; the settings dialog edits live and a
+  // debounced updateHorizonMeta writes them back to the row
+  const [horizonDisplay, setHorizonDisplay] = useState({});
+  const [settingsId, setSettingsId] = useState(null);   // horizon settings dialog target
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const settingsTimersRef = useRef(new Map());  // horizon id -> debounce timer
+  const horizonsRef = useRef([]);
 
   // Phase 3: picking + horizons; Phase 4: fault sticks; editing tools:
   // 'manual' (paint picks) and 'erase' (paint nulls) run against the
@@ -534,6 +565,11 @@ export default function ViewerPanel() {
     traverseReqRef.current += 1;                  // supersede in-flight assembly
     traverseBricksRef.current = null;
     ampBricksRef.current = null;
+    mapSliceReqRef.current += 1;                  // supersede in-flight time slice
+    mapSliceBricksRef.current = null;
+    setMapTimeSlice(null);
+    setHorizonDisplay({});
+    setSettingsId(null);
     setTraverse(null);
     setTraverseSlice(null);
     setTraverseLoading(false);
@@ -647,7 +683,8 @@ export default function ViewerPanel() {
       // extraction, which a scrub must never abort
       const needed = new Set(bricksForSlice(geom, orientation, sliceIndex)
         .map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
-      for (const shield of [traverseBricksRef.current, ampBricksRef.current]) {
+      for (const shield of [traverseBricksRef.current, ampBricksRef.current,
+        mapSliceBricksRef.current]) {
         if (shield) for (const key of shield) needed.add(key);
       }
       cacheRef.current.cancelPendingExcept(needed);
@@ -696,11 +733,16 @@ export default function ViewerPanel() {
             cacheGrid(gridCacheRef.current, h.id, grid);
           }
         }
+        // per-horizon display settings (params.display + session edits):
+        // color/lineWidth feed every viewport, the rest styles the map
+        const disp = { ...(h.params?.display || {}), ...(horizonDisplay[h.id] || {}) };
         out.push({
           id: h.id,
           name: isEditing ? `${h.name} (editing)` : h.name,
           grid,
-          color: horizonColor(idx),
+          color: disp.color || horizonColor(idx),
+          lineWidth: disp.lineWidth,
+          display: disp,
         });
       }
       if (session && session.targetId === 'new') {
@@ -711,7 +753,7 @@ export default function ViewerPanel() {
       if (!stale) setResolvedHorizons(out);
     })();
     return () => { stale = true; };
-  }, [horizons, visibleIds, toast, edit.version]);
+  }, [horizons, visibleIds, toast, edit.version, horizonDisplay]);
 
   // ---- picking (horizon seed / fault sticks) ----------------------------
   // SliceView already mapped the click through its view transform.
@@ -1068,6 +1110,117 @@ export default function ViewerPanel() {
     });
   };
 
+  // ---- explorer slice planes + the map's time slice ----------------------
+
+  horizonsRef.current = horizons;
+
+  useEffect(() => {
+    try { localStorage.setItem(SLICE_VIS_KEY, JSON.stringify(sliceVis)); } catch { /* private mode */ }
+  }, [sliceVis]);
+
+  const toggleSlicePlane = useCallback((o) => {
+    setSliceVis((v) => ({ ...v, [o]: !v[o] }));
+  }, []);
+
+  // Assemble the map's time slice whenever its toggle is on and the time
+  // position moves. Bricks are shielded from the slice scrub's
+  // cancellation (traverse/amplitude pattern); a volume switch bumps the
+  // request counter so a stale assembly can never land.
+  useEffect(() => {
+    if (!sliceVis.time || !manifest || !geom || !volume) {
+      setMapTimeSlice(null);
+      return;
+    }
+    const idx = Math.min(geom.ns - 1, Math.max(0, indices.time));
+    const req = ++mapSliceReqRef.current;
+    const keys = new Set(bricksForSlice(geom, 'time', idx)
+      .map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
+    mapSliceBricksRef.current = keys;
+    (async () => {
+      try {
+        const assembled = await assembleSlice(getBrick, geom, 'time', idx);
+        if (req !== mapSliceReqRef.current) return;    // superseded
+        setMapTimeSlice({
+          ...assembled, index: idx, ms: (idx * manifest.geometry.dt_us) / 1000,
+        });
+      } catch (e) {
+        if (e.message !== ABORTED && req === mapSliceReqRef.current) {
+          toast({ title: 'Time slice failed', description: e.message, variant: 'destructive' });
+        }
+      } finally {
+        if (mapSliceBricksRef.current === keys) mapSliceBricksRef.current = null;
+      }
+    })();
+  }, [sliceVis.time, manifest, geom, volume, indices.time, getBrick, toast]);
+
+  // ---- per-horizon display settings --------------------------------------
+
+  /** Effective display settings: persisted row params.display overlaid
+   *  with this session's (possibly not-yet-persisted) edits. */
+  const displayFor = useCallback(
+    (h) => ({ ...(h.params?.display || {}), ...(horizonDisplay[h.id] || {}) }),
+    [horizonDisplay],
+  );
+
+  /** Live settings change: apply to the session immediately, persist to
+   *  the row (params.display merge) after an 800 ms debounce. The saved
+   *  row replaces the state row so a later pick-save can't clobber the
+   *  display with stale params. */
+  const changeHorizonDisplay = useCallback((h, partial) => {
+    const merged = { ...displayFor(h), ...partial };
+    for (const k of Object.keys(merged)) {
+      if (merged[k] === undefined) delete merged[k];
+    }
+    setHorizonDisplay((prev) => ({ ...prev, [h.id]: merged }));
+    const timers = settingsTimersRef.current;
+    clearTimeout(timers.get(h.id));
+    timers.set(h.id, setTimeout(async () => {
+      timers.delete(h.id);
+      const row = horizonsRef.current.find((x) => x.id === h.id);
+      if (!row) return;
+      setSettingsSaving(true);
+      try {
+        const saved = await updateHorizonMeta({ horizon: row, display: merged });
+        setHorizons((hs) => hs.map((r) => (r.id === saved.id ? saved : r)));
+      } catch (e) {
+        toast({ title: 'Settings not saved', description: e.message, variant: 'destructive' });
+      } finally {
+        setSettingsSaving(false);
+      }
+    }, 800));
+  }, [displayFor, toast]);
+
+  useEffect(() => () => {
+    for (const t of settingsTimersRef.current.values()) clearTimeout(t);
+  }, []);
+
+  const renameHorizon = useCallback(async (h, name) => {
+    try {
+      const saved = await updateHorizonMeta({ horizon: h, name });
+      setHorizons((hs) => hs.map((r) => (r.id === saved.id ? saved : r)));
+      toast({ title: 'Horizon renamed', description: name });
+    } catch (e) {
+      toast({ title: 'Rename failed', description: e.message, variant: 'destructive' });
+    }
+  }, [toast]);
+
+  const settingsHorizon = useMemo(
+    () => horizons.find((h) => h.id === settingsId) || null,
+    [horizons, settingsId],
+  );
+
+  const openHorizonSettings = useCallback((h) => setSettingsId(h.id), []);
+
+  // explorer swatches for ALL horizons (visible or not): custom color
+  // when set, else the index-keyed house color
+  const horizonColorById = useMemo(() => {
+    const out = {};
+    horizons.forEach((h, idx) => {
+      out[h.id] = displayFor(h).color || horizonColor(idx);
+    });
+    return out;
+  }, [horizons, displayFor]);
+
   const onDeleteHorizon = async (h) => {
     // eslint-disable-next-line no-alert
     if (!window.confirm(`Delete horizon "${h.name}"?`)) return;
@@ -1291,8 +1444,34 @@ export default function ViewerPanel() {
     return `${(sliceIndex * g.dt_us) / 1000} ms`;
   }, [manifest, orientation, sliceIndex]);
 
+  // the active volume's slice-plane children in the explorer, labeled
+  // with the CURRENT positions (they follow scrubbing and map clicks)
+  const slicePlanes = useMemo(() => {
+    if (!manifest) return [];
+    const g = manifest.geometry;
+    return [
+      {
+        key: 'inline',
+        label: `Inline ${g.il.min + indices.inline * g.il.step}`,
+        visible: sliceVis.inline,
+      },
+      {
+        key: 'xline',
+        label: `Crossline ${g.xl.min + indices.xline * g.xl.step}`,
+        visible: sliceVis.xline,
+      },
+      {
+        key: 'time',
+        label: `Time slice ${(indices.time * g.dt_us) / 1000} ms`,
+        visible: sliceVis.time,
+      },
+    ];
+  }, [manifest, indices, sliceVis]);
+
   // ---- workspace tree model + actions (explorer props) -------------------
   const tree = {
+    slicePlanes,
+    horizonColorById,
     volumes: allVolumes,
     activeVolumeId: volume?.id || null,
     volumeBusyId,
@@ -1320,6 +1499,9 @@ export default function ViewerPanel() {
     refresh: () => { setVolumesRefresh((k) => k + 1); wellsApi.reload(); },
     toggleHorizon,
     deleteHorizon: onDeleteHorizon,
+    openHorizonSettings,
+    toggleSlicePlane,
+    selectPlane,
     setEditTarget: changeEditTarget,
     toggleFault,
     deleteFault: onDeleteFault,
@@ -1662,6 +1844,15 @@ export default function ViewerPanel() {
                   onAmplitude={extractAmplitude}
                   wells={wells}
                   onCursor={handleCursor}
+                  timeSlice={mapTimeSlice}
+                  sliceVis={sliceVis}
+                  indices={indices}
+                  display={display}
+                  onHorizonSettings={setSettingsId}
+                  onToggleHorizon={(id) => {
+                    const h = horizons.find((x) => x.id === id);
+                    if (h) toggleHorizon(h);
+                  }}
                   height="fill"
                 />
               ),
@@ -1723,6 +1914,16 @@ export default function ViewerPanel() {
           />
         )}
       </VelocityModelDialog>
+
+      <HorizonSettingsDialog
+        open={Boolean(settingsHorizon)}
+        onOpenChange={(o) => { if (!o) setSettingsId(null); }}
+        horizon={settingsHorizon}
+        display={settingsHorizon ? displayFor(settingsHorizon) : {}}
+        onChange={(partial) => settingsHorizon && changeHorizonDisplay(settingsHorizon, partial)}
+        onRename={(name) => settingsHorizon && renameHorizon(settingsHorizon, name)}
+        saving={settingsSaving}
+      />
 
     </>
   );

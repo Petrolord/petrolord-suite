@@ -207,10 +207,11 @@ function SliceView({
     const { geom: gm, orientation: ori, sliceIndex: idx, overlays: ov } = p;
     const vis = t.visibleRect();
 
-    for (const { grid, color } of ov.horizons) {
+    for (const { grid, color, lineWidth: weight } of ov.horizons) {
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
-      ctx.lineWidth = lw;
+      // per-horizon line weight (settings dialog); 1 = the house default
+      ctx.lineWidth = lw * (weight || 1);
       if (ori !== 'time') {
         const posn = ori === 'traverse' ? p.slice?.positions : null;
         if (ori === 'traverse' && !posn) continue;
