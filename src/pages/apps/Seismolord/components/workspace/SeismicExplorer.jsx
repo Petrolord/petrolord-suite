@@ -1,6 +1,9 @@
 // Seismic Explorer — the workspace's left data tree (Petrel-explorer
-// style): Volumes / Horizons / Faults / Wells / Traverses with eye
-// visibility toggles, per-row context menus and import launchers.
+// style): Volumes / Horizons / Surfaces / Faults / Wells / Traverses
+// with eye visibility toggles, per-row context menus and import
+// launchers. Horizons are INTERPRETATIONS (pick lattices); Surfaces
+// are first-class gridded objects converted from them (shared
+// geo_surfaces registry).
 // Presentational: all state lives in the workspace controller
 // (ViewerPanel) and arrives through `tree` + `actions`.
 
@@ -8,14 +11,16 @@ import React, { useState } from 'react';
 import {
   Database, Layers, Slash, CircleDot, Route, Eye, EyeOff, Loader2, Upload,
   Plus, RefreshCw, ChevronDown, ChevronRight, Pencil, ArrowLeft,
-  Rows, Columns, Clock, Settings2,
+  Rows, Columns, Clock, Settings2, Mountain, Download,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem,
-  ContextMenuSeparator,
+  ContextMenuSeparator, ContextMenuSub, ContextMenuSubTrigger,
+  ContextMenuSubContent,
 } from '@/components/ui/context-menu';
+import { SURFACE_EXPORT_FORMATS } from '../../services/surfacesService';
 import { horizonColor, faultColor, wellColor } from './interpretationColors';
 
 function Section({ icon: Icon, title, count, actions, children, hint }) {
@@ -135,6 +140,7 @@ const PLANE_TITLES = {
 export default function SeismicExplorer({ tree, actions }) {
   const {
     volumes, activeVolumeId, horizons, visibleIds, horizonBusyId, editTargetId,
+    surfaces, surfaceBusyId,
     faults, visibleFaultIds, faultBusyId,
     wells, visibleWellIds, wellBusyId, wellsError,
     savedTraverses, traverseSavedId,
@@ -188,7 +194,7 @@ export default function SeismicExplorer({ tree, actions }) {
                       disabled={v.id !== activeVolumeId}
                       onSelect={() => actions.openExport()}
                     >
-                      Export surfaces…
+                      Export surface / picks…
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem
@@ -269,6 +275,56 @@ export default function SeismicExplorer({ tree, actions }) {
               {activeVolumeId
                 ? 'No horizons yet — pick a seed on the section, then Track 3D.'
                 : 'Select a volume to see its horizons.'}
+            </Hint>
+          )}
+        </Section>
+
+        <Section icon={Mountain} title="Surfaces" count={(surfaces || []).length || ''}>
+          {(surfaces || []).map((s) => (
+            <Row
+              key={s.id}
+              icon={Mountain}
+              label={s.name}
+              busy={surfaceBusyId === s.id}
+              meta={`${s.nx}×${s.ny}`}
+              title={`${s.z_domain === 'time' ? 'TWT' : 'Depth'} surface from `
+                + `${s.provenance?.horizon?.name || 'horizon'} · cell `
+                + `${s.dx} m`}
+              onClick={() => actions.exportSurface(s, 'xyz')}
+              menu={(
+                <>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <Download className="w-3.5 h-3.5 mr-1.5" />
+                      Export as
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-48">
+                      {SURFACE_EXPORT_FORMATS.map((f) => (
+                        <ContextMenuItem
+                          key={f.key}
+                          onSelect={() => actions.exportSurface(s, f.key)}
+                        >
+                          {f.label}
+                        </ContextMenuItem>
+                      ))}
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    className="text-red-400 focus:text-red-300"
+                    onSelect={() => actions.deleteSurface(s)}
+                  >
+                    Delete surface…
+                  </ContextMenuItem>
+                </>
+              )}
+            />
+          ))}
+          {!(surfaces || []).length && (
+            <Hint>
+              {activeVolumeId
+                ? 'No surfaces yet. Grid a horizon in Export and choose "Save as surface".'
+                : 'Select a volume to see its surfaces.'}
             </Hint>
           )}
         </Section>

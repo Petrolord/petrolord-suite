@@ -13,6 +13,9 @@ import {
   updateHorizonMeta,
 } from '../services/horizonsService';
 import { saveFault, listFaults, deleteFault } from '../services/faultsService';
+import {
+  listVolumeSurfaces, exportStoredSurface, deleteSurface as deleteRegistrySurface,
+} from '../services/surfacesService';
 import { listLogs, downloadCurve } from '../services/wellsService';
 import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
 import {
@@ -1239,6 +1242,54 @@ export default function ViewerPanel() {
     }
   };
 
+  // ---- surfaces: first-class converted horizons (geo_surfaces rows
+  // with Seismolord provenance for the active volume) -----------------
+  const [surfaces, setSurfaces] = useState([]);
+  const [surfaceBusyId, setSurfaceBusyId] = useState(null);
+  const [surfacesRefresh, setSurfacesRefresh] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    if (!volume) { setSurfaces([]); return undefined; }
+    listVolumeSurfaces(volume.id)
+      .then((rows) => { if (alive) setSurfaces(rows); })
+      .catch(() => { if (alive) setSurfaces([]); });
+    return () => { alive = false; };
+  }, [volume, surfacesRefresh]);
+
+  const onExportSurface = async (s, formatKey) => {
+    setSurfaceBusyId(s.id);
+    try {
+      const { text, fileName } = await exportStoredSurface(s, formatKey);
+      const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Surface exported', description: fileName });
+    } catch (e) {
+      toast({ title: 'Export failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setSurfaceBusyId(null);
+    }
+  };
+
+  const onDeleteSurface = async (s) => {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Delete surface "${s.name}"? This removes it from the shared `
+      + 'surface registry (Mapping & Surface Studio included).')) return;
+    setSurfaceBusyId(s.id);
+    try {
+      await deleteRegistrySurface(s);
+      setSurfacesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setSurfaceBusyId(null);
+    }
+  };
+
   useEffect(() => () => {
     if (cacheRef.current) cacheRef.current.clear();
     if (workerRef.current) workerRef.current.terminate();
@@ -1479,6 +1530,8 @@ export default function ViewerPanel() {
     visibleIds,
     horizonBusyId,
     editTargetId: editTarget !== 'new' ? editTarget : null,
+    surfaces,
+    surfaceBusyId,
     faults,
     visibleFaultIds,
     faultBusyId,
@@ -1496,10 +1549,16 @@ export default function ViewerPanel() {
     openImport: () => setOpenDialog('import'),
     openWellImport: () => setOpenDialog('wellImport'),
     openExport: () => setOpenDialog('export'),
-    refresh: () => { setVolumesRefresh((k) => k + 1); wellsApi.reload(); },
+    refresh: () => {
+      setVolumesRefresh((k) => k + 1);
+      setSurfacesRefresh((k) => k + 1);
+      wellsApi.reload();
+    },
     toggleHorizon,
     deleteHorizon: onDeleteHorizon,
     openHorizonSettings,
+    exportSurface: onExportSurface,
+    deleteSurface: onDeleteSurface,
     toggleSlicePlane,
     selectPlane,
     setEditTarget: changeEditTarget,
@@ -1875,6 +1934,7 @@ export default function ViewerPanel() {
         onOpenChange={(o) => setOpenDialog(o ? 'export' : null)}
         volume={volume}
         manifest={manifest}
+        onSurfaceSaved={() => setSurfacesRefresh((k) => k + 1)}
       />
 
       <WellImportDialog

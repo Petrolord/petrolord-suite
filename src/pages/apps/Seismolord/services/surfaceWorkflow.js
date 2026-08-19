@@ -1,9 +1,13 @@
-// Shared grid-a-horizon workflow used by the AI tools and the Export
-// panel: load picks, convert to world points, TPS-grid in the worker
-// (fault-blocked when the caller passes faults that cut the horizon),
-// return the grid + XYZ text.
+// Shared horizon export workflows used by the AI tools and the Export
+// panel. Two distinct objects come out of a horizon:
+//  - gridHorizonSurface: picks -> world points -> TPS grid in the
+//    worker (fault-blocked when the caller passes faults that cut the
+//    horizon) -> the SURFACE (grid + XYZ text);
+//  - exportHorizonPicks: the INTERPRETATION itself — labeled il/xl
+//    pick rows for the Charisma / points writers, no gridding.
 
 import { loadHorizonGrid, listHorizons } from './horizonsService';
+import { picksToPickRows } from '../engine/pickExport';
 import { picksToPoints, exportGridSpec } from '@/lib/gridding/gridding';
 import { buildFaultBlocks } from '../engine/faultBarriers';
 import { surveyAffine, cellSpacing, surveyBounds, worldToIlxl } from '../engine/surveyGeometry';
@@ -41,19 +45,17 @@ let jobSeq = 0;
  *   faultInfo: {faults: number, traces: number,
  *   blocks: number}|null}>} faultInfo is null when gridding ran unblocked
  */
-export async function gridHorizonSurface({
-  manifest, horizon, domain, velocityFtS = 10000, cellM = 0, faults = null,
-  signal = null, maxExtrapolationM = 0,
-}) {
-  if (signal?.aborted) throw new Error('Export cancelled');
-  const geom = geomFromManifest(manifest);
-  const picks = await loadHorizonGrid(horizon);
+/**
+ * Resolve the sample -> Z conversion for an export (negative-down, ft
+ * for depth / ms for TWT). Shared by surface gridding and pick export.
+ * Layer-cake conversion is column-dependent: loads the boundary
+ * horizons' pick grids (a deleted/missing boundary loads as null — the
+ * layer above then extends, per the engine convention).
+ */
+async function resolveSampleToZ({ manifest, horizon, domain, velocityFtS }) {
   const dtMs = manifest.geometry.dt_us / 1000;
   const model = normalizeVelocity(manifest.velocity);
 
-  // layer-cake conversion is column-dependent: load the boundary
-  // horizons' pick grids (a deleted/missing boundary loads as null —
-  // the layer above then extends, per the engine convention)
   let velocityBoundaries = null;
   if (domain === 'depth' && model?.kind === 'layercake') {
     const rows = await listHorizons(horizon.volume_id);
@@ -69,6 +71,17 @@ export async function gridHorizonSurface({
       ? sampleToExportZ(model, manifest.geometry.dt_us, { boundaries: velocityBoundaries })
       : (s) => -((s * dtMs) / 1000) * (velocityFtS / 2))
     : (s) => -(s * dtMs);
+  return { sampleToZ, model };
+}
+
+export async function gridHorizonSurface({
+  manifest, horizon, domain, velocityFtS = 10000, cellM = 0, faults = null,
+  signal = null, maxExtrapolationM = 0,
+}) {
+  if (signal?.aborted) throw new Error('Export cancelled');
+  const geom = geomFromManifest(manifest);
+  const picks = await loadHorizonGrid(horizon);
+  const { sampleToZ } = await resolveSampleToZ({ manifest, horizon, domain, velocityFtS });
   const affine = surveyAffine(manifest.geometry);
   if (!affine) throw new Error('Volume has no usable survey coordinates for gridding.');
   const points = picksToPoints(picks, geom, affine, sampleToZ);
@@ -149,4 +162,43 @@ export async function gridHorizonSurface({
     y: Array.from({ length: spec.ny }, (_, i) => spec.y0 + i * spec.dy),
   };
   return { g, spec, gridded, xyzText: writeXYZ(g), faultInfo, maxExtrapolationM: maxExtra };
+}
+
+/**
+ * Load a horizon's pick lattice and turn it into labeled interpretation
+ * rows (il, xl, x, y, z) for the pick writers — the horizon
+ * INTERPRETATION itself, no gridding involved.
+ *
+ * @param {Object} p
+ * @param {Object} p.manifest volume manifest (v1)
+ * @param {Object} p.horizon seismic_horizons row
+ * @param {'depth'|'twt'} p.domain
+ * @param {number} [p.velocityFtS] constant-velocity fallback (model wins)
+ * @param {'negative'|'positive'} [p.zSign] suite convention is negative
+ *   down; 'positive' flips for Petrel/Charisma-bound files
+ * @returns {Promise<{rows: Array, count: number, zMin: number, zMax: number}>}
+ */
+export async function exportHorizonPicks({
+  manifest, horizon, domain, velocityFtS = 10000, zSign = 'negative',
+}) {
+  const geom = geomFromManifest(manifest);
+  const picks = await loadHorizonGrid(horizon);
+  const { sampleToZ } = await resolveSampleToZ({ manifest, horizon, domain, velocityFtS });
+  const affine = surveyAffine(manifest.geometry);
+  if (!affine) throw new Error('Volume has no usable survey coordinates for export.');
+  const g = manifest.geometry;
+  const sign = zSign === 'positive' ? -1 : 1;
+  const rows = picksToPickRows(
+    picks, geom, affine,
+    (s, cell) => sign * sampleToZ(s, cell),
+    { il0: g.il.min, ilStep: g.il.step, xl0: g.xl.min, xlStep: g.xl.step },
+  );
+  if (!rows.length) throw new Error('Horizon has no live picks to export.');
+  let zMin = Infinity;
+  let zMax = -Infinity;
+  for (const r of rows) {
+    if (r.z < zMin) zMin = r.z;
+    if (r.z > zMax) zMax = r.z;
+  }
+  return { rows, count: rows.length, zMin, zMax };
 }

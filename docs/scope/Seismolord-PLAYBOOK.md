@@ -3,8 +3,13 @@
 ## What this is
 Web-based 3D/2D seismic interpretation app in the Geoscience module of Petrolord Suite: SEG-Y
 loading, inline/crossline/time-slice viewing, horizon and fault
-interpretation, surface gridding, and export to XYZ / CPS-3 / ZMAP+ for
-downstream apps (ReservoirCalc Pro and some other apps which you will determine consume our exports).
+interpretation, surface gridding, and export to XYZ / CPS-3 / ZMAP+ /
+Irap classic (surfaces) and Charisma 3D / IL-XL points (horizon picks)
+for downstream apps (ReservoirCalc Pro and some other apps which you will determine consume our exports).
+Horizon PICKS (seismic_horizons, the interpretation) and SURFACES
+(gridded objects in the shared geo_surfaces registry) are distinct
+first-class objects; conversion is the export dialog's "Save as
+surface".
 
 ## Stack (revised 2026-07-10 — see Seismolord-PLAN.md, the plan of record)
 - Frontend: React 18 + Vite, WebGL2 renderer (raw WebGL, no three.js for the
