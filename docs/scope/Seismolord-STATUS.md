@@ -1,7 +1,50 @@
 # Seismolord — STATUS
 
-Last updated: 2026-08-19 (follow-on trio: surfaces on sections,
-org-shared surfaces, fault-stick import)
+Last updated: 2026-08-19 (horizon amplitude-map export)
+
+## Horizon amplitude-map export: DONE
+
+Branch `feat/seismolord-amplitude-export` (Suite) + engines PR #10
+(subtree-pulled). The export dialog's third object kind: a seismic
+attribute along a horizon (amplitude at the sub-sample pick, or
+windowed RMS / mean / max |amp| — the same engine modes the Map
+window's live attribute display uses) exported as a world grid.
+
+- **Resample, never TPS**: attribute values already exist at bin
+  resolution, so `latticeToWorldGrid` (engines
+  `seismolord/surfaceOnLattice.js`, PR #10) bilinearly resamples the
+  lattice onto the same axis-aligned export grid the structure export
+  uses — a TPS fit's ≤800-control decimation would smooth away exactly
+  the detail an amplitude map exists to show. Same contributing-corner
+  null policy as `sampleSurfaceAt` (mirror function): off-survey nodes
+  and null-hole neighborhoods stay 1.0E+30, never invented. Validation:
+  exact on world-linear fields across a rotated survey (bilinear ∘
+  affine is closed-form), `latticeSampleSurface` round-trip, null-policy
+  cases (engines `seismolord.latticeexport.test.js`).
+- **Workflow**: `gridHorizonAmplitude` in `services/surfaceWorkflow.js`
+  — picks → caller-supplied brick extractor (ViewerPanel's
+  cache-shielded `extractAmplitude`, threaded through ExportDialog as a
+  prop; the amplitude option only appears when it's provided) → resample
+  → the four grid writers. Values keep their physical sign and unit
+  (raw amplitude), unlike the negative-down structure convention.
+- **Save as surface**: `saveAmplitudeAsSurface` persists to the shared
+  geo_surfaces registry as `kind`/`z_domain` `'attribute'`, `z_unit`
+  `'amp'` (schema anticipated these values; NO DDL). Attribute surfaces
+  are **map-only**: `loadSurfaceMapLayer` skips the depth sign flip,
+  `surfaceSectionGrid` returns null (an amplitude is not a time or
+  depth), the ViewerPanel section-overlay path skips them, and the
+  explorer tooltip says so. Re-export from the stored grid and org
+  sharing work unchanged.
+- **Jest plumbing**: `surfaceWorkflow.js` was untestable under jest
+  (inline `import.meta` worker URL); worker construction moved to
+  `services/griddingWorkerFactory.js` with a jest moduleNameMapper mock
+  — the established envelopeWorkerFactory pattern.
+- Suites: 193/2455 green (new `amplitudeExport.test.js`; engines 268);
+  build green.
+
+Adjacent gaps after this: Mapping & Surface Studio still has no share
+toggle UI of its own; amplitude extraction modes are per-horizon
+single-window (no multi-attribute batch export).
 
 ## Surfaces on sections + org sharing + fault-stick import: DONE
 
@@ -1426,56 +1469,15 @@ revised to match — client-side worker numerics, no server runtime).
   hand off via XYZ. Phase 0 reference surfaces stay shallower than
   9,000 ft so the round-trip test is honest.
 
-## Walking skeleton (PR #22)
+## Early history (walking skeleton, PR #22 — superseded)
 
-The end-to-end path exists and nothing more: page → `seismolord-engine`
-edge function → test manifest in the private `seismic` Storage bucket →
-`{status:"ok"}` rendered on the page. No interpretation functionality yet.
-See `docs/scope/Seismolord-PLAYBOOK.md` for the target product; the
-playbook's Node/Express + Python architecture is future scope — the
-skeleton uses the Suite's standard Supabase Edge Function path.
-
-## What exists
-
-- **Route**: `/dashboard/apps/geoscience/seismolord` (`src/App.jsx`),
-  gated by `ProtectedAppRoute appId="seismolord"`.
-- **Page shell**: `src/pages/apps/Seismolord/Seismolord.jsx` — header +
-  a backend-connectivity card that invokes `seismolord-engine` on mount
-  and renders the JSON result. Folder-based app archetype (like
-  ReservoirCalcPro) so canvas/store/services can grow inside it.
-- **Catalog**: `master_apps` row seeded by
-  `supabase/migrations/20260710120500_seed_seismolord_app.sql`
-  (slug `seismolord`, module Geoscience, status Active, icon `Waves`).
-- **DB**: `public.seismic_volumes` (volume registry; metadata only) via
-  `supabase/migrations/20260710120000_create_seismic_volumes.sql`.
-  User-scoped RLS (`auth.uid() = user_id`), the Suite's house pattern.
-- **Edge function**: `supabase/functions/seismolord-engine/` — verifies
-  the caller's JWT (anon client + forwarded Authorization header), reads
-  `seismic/test/manifest.json` with the service-role client, returns
-  `{status:"ok", manifest}`. Deployed separately via
-  `supabase functions deploy seismolord-engine`.
-- **Storage**: private `seismic` bucket created 2026-07-10 with
-  `test/manifest.json` uploaded. NOTE: a legacy public `seismic-files`
-  bucket (SEG-Y mime types, 2025-10-07) also exists from the deleted
-  seismic apps — Seismolord does not use it; candidate for cleanup.
-
-## Decisions
-
-- RLS: user-scoped now; org scoping deferred until the suite standardizes
-  on one membership table (three inconsistent ones exist today).
-- Bucket: new private `seismic` (deployment-checklist name). The legacy
-  `seismic-files` bucket was rejected: public + mime-restricted to SEG-Y.
-- Tile status: `Active` immediately (owner's call). Caveat: staging and
-  production share the Supabase project, so the tile is visible on
-  petrolord.com before the SPA route ships there — until the next manual
-  production build upload, clicking it hits the catch-all redirect home.
-  (Caveat retired: prod has carried the route since the 2026-07-13
-  upload and is current as of 2026-07-14 at main `e84f8a181`.)
-
-## Not built yet (per playbook)
-
-SEG-Y ingest/indexing, WebGL2 section/slice viewer, Zustand store, Web
-Worker decoding, horizon/fault picking, gridding, XYZ/CPS-3/ZMAP+ export,
-storage RLS policies on the `seismic` bucket (skeleton reads it with the
-service role inside the function only), brick file format, master_apps
-pricing/entitlement review for the `seismolord` appId.
+The 2026-07-10 walking skeleton ("What exists / Not built yet" lists)
+described a page shell + `seismolord-engine` connectivity card and a
+to-do list that has since been built end-to-end — see the phase
+sections above (P0–P6, wells W0–W4, workspace UI, and the export/import
+line). Decisions that still stand from that pass: user-scoped RLS
+(org sharing has since arrived for surfaces via the shared geo_surfaces
+registry), the private `seismic` bucket (the legacy public
+`seismic-files` bucket from the deleted mock apps remains a cleanup
+candidate), and the `Active` tile. Everything else in the original
+skeleton write-up is history; consult git for the full text.

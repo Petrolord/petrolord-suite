@@ -1367,6 +1367,7 @@ export default function ViewerPanel() {
     const out = [];
     surfaces.forEach((s, idx) => {
       if (!visibleSurfaceIds.has(s.id)) return;
+      if (s.z_domain === 'attribute') return; // amplitude maps are map-only
       const layer = surfaceLayers.get(s.id);
       if (!layer) return;
       const conv = s.z_domain === 'time' ? null : surfaceTimeConv;
@@ -2104,6 +2105,7 @@ export default function ViewerPanel() {
         volume={volume}
         manifest={manifest}
         onSurfaceSaved={() => setSurfacesRefresh((k) => k + 1)}
+        extractAmplitude={extractAmplitude}
       />
 
       <ImportSurfaceDialog

@@ -1,8 +1,12 @@
 // Shared horizon export workflows used by the AI tools and the Export
-// panel. Two distinct objects come out of a horizon:
+// panel. Three distinct objects come out of a horizon:
 //  - gridHorizonSurface: picks -> world points -> TPS grid in the
 //    worker (fault-blocked when the caller passes faults that cut the
-//    horizon) -> the SURFACE (grid + XYZ text);
+//    horizon) -> the STRUCTURE surface (grid + XYZ text);
+//  - gridHorizonAmplitude: seismic attribute along the horizon
+//    (extracted from the bricks at bin resolution) -> bilinear
+//    RESAMPLE onto the export grid — never a TPS fit, whose control
+//    decimation would smooth away the amplitude detail;
 //  - exportHorizonPicks: the INTERPRETATION itself — labeled il/xl
 //    pick rows for the Charisma / points writers, no gridding.
 
@@ -13,13 +17,12 @@ import { buildFaultBlocks } from '../engine/faultBarriers';
 import { surveyAffine, cellSpacing, surveyBounds, worldToIlxl } from '../engine/surveyGeometry';
 import { geomFromManifest } from '../engine/sliceAssembly';
 import { writeXYZ } from '@/lib/gridding/surfaceExport';
+import { latticeToWorldGrid } from '../engine/surfaceOnLattice';
 import { normalizeVelocity, sampleToExportZ } from '../engine/velocityModel';
 import { NULL_VALUE } from '../engine/manifest';
+import { newGriddingWorker } from './griddingWorkerFactory';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
-
-const newGriddingWorker = () =>
-  new Worker(new URL('../workers/gridding.worker.js', import.meta.url), { type: 'module' });
 
 let jobSeq = 0;
 
@@ -162,6 +165,59 @@ export async function gridHorizonSurface({
     y: Array.from({ length: spec.ny }, (_, i) => spec.y0 + i * spec.dy),
   };
   return { g, spec, gridded, xyzText: writeXYZ(g), faultInfo, maxExtrapolationM: maxExtra };
+}
+
+/**
+ * Grid a seismic attribute along a horizon: extract the amplitude
+ * lattice from the bricks (the caller's extractor — ViewerPanel's
+ * cache-shielded extractAmplitude), then bilinearly resample it onto
+ * the same axis-aligned export grid the structure export uses. The
+ * grid "z" is the ATTRIBUTE value (unitless amplitude), not depth/time.
+ * Cancellation is checkpointed around the brick extraction — an
+ * in-flight brick fetch itself is not interruptible (the map
+ * attribute display shares this behavior).
+ *
+ * @param {Object} p
+ * @param {Object} p.manifest volume manifest (v1)
+ * @param {Object} p.horizon seismic_horizons row
+ * @param {(picks: Float32Array, opts: {mode, window}) =>
+ *   Promise<Float32Array>} p.extract amplitude extractor over the
+ *   volume's bricks (lattice in, lattice out, 1e30 nulls)
+ * @param {string} [p.mode] attribute per engine AMP_MODES
+ * @param {number} [p.window] half-width in samples (windowed modes)
+ * @param {number} [p.cellM] grid cell (default: survey bin)
+ * @param {AbortSignal} [p.signal]
+ * @returns {Promise<{g: Object, spec: Object, live: number,
+ *   vMin: ?number, vMax: ?number, xyzText: string}>}
+ */
+export async function gridHorizonAmplitude({
+  manifest, horizon, extract, mode = 'value', window: w = 0, cellM = 0, signal = null,
+}) {
+  if (signal?.aborted) throw new Error('Export cancelled');
+  const geom = geomFromManifest(manifest);
+  const picks = await loadHorizonGrid(horizon);
+  const affine = surveyAffine(manifest.geometry);
+  if (!affine) throw new Error('Volume has no usable survey coordinates for gridding.');
+
+  const values = await extract(picks, { mode, window: w });
+  if (signal?.aborted) throw new Error('Export cancelled');
+
+  const bin = cellSpacing(affine).xl || 25;
+  const b = surveyBounds(affine, manifest.geometry.il.count, manifest.geometry.xl.count);
+  const spec = exportGridSpec(b, cellM, bin);
+  const { z, live, vMin, vMax } = latticeToWorldGrid(values, affine, geom, spec);
+  if (!live) throw new Error('Horizon has no live amplitude values to export.');
+
+  const g = {
+    z,
+    nx: spec.nx,
+    ny: spec.ny,
+    dx: spec.dx,
+    dy: spec.dy,
+    x: Array.from({ length: spec.nx }, (_, i) => spec.x0 + i * spec.dx),
+    y: Array.from({ length: spec.ny }, (_, i) => spec.y0 + i * spec.dy),
+  };
+  return { g, spec, live, vMin, vMax, xyzText: writeXYZ(g) };
 }
 
 /**
