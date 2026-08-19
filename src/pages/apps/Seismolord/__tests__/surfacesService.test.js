@@ -6,8 +6,12 @@
  * exercised in staging.
  */
 import {
-  isVolumeSurface, surfaceToGrid, exportStoredSurface, SURFACE_EXPORT_FORMATS,
+  isVolumeSurface, isExplorerSurface, surfaceToGrid, exportStoredSurface,
+  SURFACE_EXPORT_FORMATS, surfaceSectionGrid,
 } from '@/pages/apps/Seismolord/services/surfacesService';
+import { makeTvdssToTwt } from '@/pages/apps/Seismolord/engine/wellSection';
+
+const NULL_F32 = Math.fround(1.0e30);
 
 describe('isVolumeSurface', () => {
   const row = (prov) => ({ provenance: prov });
@@ -28,6 +32,17 @@ describe('isVolumeSurface', () => {
   });
 });
 
+describe('isExplorerSurface (org-shared rows)', () => {
+  test('own volume-derived rows and ANY teammate-shared row list; own foreign-volume rows do not', () => {
+    const mine = { is_own: true, provenance: { app: 'seismolord', volume: { id: 'v1' } } };
+    const mineOtherVol = { is_own: true, provenance: { app: 'seismolord', volume: { id: 'v2' } } };
+    const teammates = { is_own: false, organization_id: 'org1', provenance: { app: 'mapping-studio' } };
+    expect(isExplorerSurface(mine, 'v1')).toBe(true);
+    expect(isExplorerSurface(mineOtherVol, 'v1')).toBe(false);
+    expect(isExplorerSurface(teammates, 'v1')).toBe(true);
+  });
+});
+
 describe('surfaceToGrid', () => {
   test('reconstructs axes from origin + cell on the registry row', () => {
     const surface = { nx: 3, ny: 2, dx: 25, dy: 50, origin_x: 1000, origin_y: 2000 };
@@ -38,6 +53,43 @@ describe('surfaceToGrid', () => {
     expect(g.z).toBe(grid);
     expect(g.nx).toBe(3);
     expect(g.dy).toBe(50);
+  });
+});
+
+describe('surfaceSectionGrid (surfaces on section windows)', () => {
+  const geom = { nIl: 1, nXl: 3, ns: 64 };
+  const dtMs = 4;
+
+  test('time surface: ms values become fractional sample indices', () => {
+    const layer = { values: Float32Array.from([80, NULL_F32, 300]), unit: 'ms' };
+    const grid = surfaceSectionGrid({ z_domain: 'time' }, layer, geom, dtMs, null);
+    expect(grid[0]).toBeCloseTo(20, 6);
+    expect(grid[1]).toBe(NULL_F32);
+    expect(grid[2]).toBe(NULL_F32);           // beyond (ns-1)*dt = 252 ms
+  });
+
+  test('depth surface without a velocity model stays map-only (null)', () => {
+    const layer = { values: Float32Array.from([5000]), unit: 'ft' };
+    expect(surfaceSectionGrid({ z_domain: 'depth' }, layer, geom, dtMs, null)).toBeNull();
+  });
+
+  test('depth-ft surface converts through the inverse model', () => {
+    const timeConv = makeTvdssToTwt({
+      checkshots: null,
+      velocity: { v0: 2000, k: 0 },           // depth m = twtMs at 2000 m/s
+      boundaries: null,
+      dtUs: dtMs * 1000,
+      maxTwtMs: (geom.ns - 1) * dtMs,
+    });
+    const layer = { values: Float32Array.from([100 / 0.3048, NULL_F32, NULL_F32]), unit: 'ft' };
+    const grid = surfaceSectionGrid({ z_domain: 'depth' }, layer, geom, dtMs, timeConv);
+    expect(grid[0]).toBeCloseTo(100 / dtMs, 5);
+    expect(grid[1]).toBe(NULL_F32);
+  });
+
+  test('a fully out-of-window surface returns null, not an empty grid', () => {
+    const layer = { values: Float32Array.from([9000, 9000, 9000]), unit: 'ms' };
+    expect(surfaceSectionGrid({ z_domain: 'time' }, layer, geom, dtMs, null)).toBeNull();
   });
 });
 

@@ -9,12 +9,16 @@ import { supabase } from '@/lib/customSupabaseClient';
  *  il/xl are 0-based grid indices; s is a sub-sample float (time down).
  */
 
-/** @param {{volumeId: string, name: string, sticks: FaultStick[]}} p */
-export async function saveFault({ volumeId, name, sticks }) {
+/** @param {{volumeId: string, name: string, sticks: FaultStick[],
+ *   params?: Object}} p params carries provenance (import source) in
+ *   the seismic_horizons.params shape; omitted for hand-picked faults */
+export async function saveFault({ volumeId, name, sticks, params }) {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error('You must be signed in to save faults.');
   const { data, error } = await supabase.from('seismic_faults')
-    .insert({ user_id: user.id, volume_id: volumeId, name, sticks })
+    .insert({
+      user_id: user.id, volume_id: volumeId, name, sticks, ...(params ? { params } : {}),
+    })
     .select().single();
   if (error) throw new Error(`Could not save fault: ${error.message}`);
   return data;

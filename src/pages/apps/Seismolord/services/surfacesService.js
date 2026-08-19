@@ -9,11 +9,15 @@
 
 import {
   listSurfaces, saveSurface, deleteSurface, downloadSurfaceGrid,
+  shareSurface, unshareSurface,
 } from '@/lib/surfacesRegistry';
+import { resolveUserOrgId } from '@/lib/orgContext';
+import { supabase } from '@/lib/customSupabaseClient';
 import {
   writeXYZ, writeCPS3, writeZMAP, writeIrapClassic,
 } from '@/lib/gridding/surfaceExport';
-import { latticeSampleSurface } from '../engine/surfaceOnLattice';
+import { latticeSampleSurface, latticeValuesToSamples } from '../engine/surfaceOnLattice';
+import { M_PER_FT } from '../engine/velocityModel';
 
 export const SURFACE_APP = 'seismolord';
 
@@ -24,10 +28,46 @@ export const isVolumeSurface = (row, volumeId) => (
   && row?.provenance?.volume?.id === volumeId
 );
 
-/** Registry surfaces derived from this volume's horizons. */
+/** Rows the explorer's Surfaces section lists: the caller's OWN
+ *  surfaces derived from this volume, plus every surface a teammate
+ *  shared with the organization (read-only, whatever app made it — an
+ *  org surface displays wherever it overlaps the survey; one that
+ *  doesn't fails the map load with a clear message). Pure — unit
+ *  tested. */
+export const isExplorerSurface = (row, volumeId) => (
+  isVolumeSurface(row, volumeId) || row?.is_own === false
+);
+
+/** Registry surfaces for the explorer: own volume-derived first, then
+ *  org-shared rows from teammates. */
 export async function listVolumeSurfaces(volumeId) {
   const all = await listSurfaces();
-  return all.filter((s) => isVolumeSurface(s, volumeId));
+  const mine = all.filter((s) => isVolumeSurface(s, volumeId));
+  const shared = all.filter((s) => s.is_own === false);
+  return [...mine, ...shared];
+}
+
+/** The caller's organization id, resolved once per session; null when
+ *  they belong to no organization (the share action explains instead
+ *  of failing). */
+let orgIdPromise; // undefined = not yet requested
+export function myOrgId() {
+  if (orgIdPromise === undefined) {
+    orgIdPromise = supabase.auth.getUser()
+      .then(({ data: { user } }) => (user ? resolveUserOrgId(user.id) : null))
+      .catch(() => null);
+  }
+  return orgIdPromise;
+}
+
+/** Share/unshare an OWN surface with the caller's organization
+ *  (read-only for members, the geo_wells model). Returns the updated
+ *  row. */
+export async function setSurfaceShared(surface, shared) {
+  if (!shared) return unshareSurface(surface.id);
+  const org = await myOrgId();
+  if (!org) throw new Error('You belong to no organization — nothing to share with.');
+  return shareSurface(surface.id, org);
 }
 
 /**
@@ -163,6 +203,35 @@ export async function loadSurfaceMapLayer(surface, affine, geom) {
   }
   const unit = surface.z_unit || (surface.z_domain === 'time' ? 'ms' : 'ft');
   return { values, unit, live };
+}
+
+/**
+ * Convert a loaded map layer to the SECTION overlay contract: a
+ * fractional sample-index lattice grid (1e30 nulls), drawable by
+ * SliceView exactly like a horizon pick grid. Time surfaces divide by
+ * the sample rate; depth surfaces need the volume's velocity model
+ * inverted (makeTvdssToTwt) — without one they stay map-only and this
+ * returns null. Cells outside the volume time window go null.
+ *
+ * @param {Object} surface geo_surfaces row (z_domain decides the path)
+ * @param {{values: Float32Array, unit: string}} layer loadSurfaceMapLayer
+ * @param {{nIl, nXl, ns}} geom
+ * @param {number} dtMs
+ * @param {?{toTwtMs: Function}} timeConv makeTvdssToTwt result
+ * @returns {?Float32Array} sample-index grid, or null (depth surface
+ *   with no velocity model, or nothing inside the time window)
+ */
+export function surfaceSectionGrid(surface, layer, geom, dtMs, timeConv) {
+  let r;
+  if (surface.z_domain === 'time') {
+    r = latticeValuesToSamples(layer.values, geom, { dtMs });
+  } else {
+    if (!timeConv) return null;
+    r = latticeValuesToSamples(layer.values, geom, {
+      dtMs, timeConv, mPerUnit: layer.unit === 'ft' ? M_PER_FT : 1,
+    });
+  }
+  return r.live ? r.grid : null;
 }
 
 export { deleteSurface };
