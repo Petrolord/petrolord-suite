@@ -1,6 +1,56 @@
 # Seismolord — STATUS
 
-Last updated: 2026-08-19 (picks vs surfaces + Petrel-format exports)
+Last updated: 2026-08-19 (map surfaces + external import, stacked on
+picks-vs-surfaces)
+
+## Stored surfaces in the Map window + external surface/pick import: DONE
+
+Branch `feat/seismolord-map-surfaces-import` (Suite, stacked on
+`feat/seismolord-picks-vs-surfaces`) + engines PR #8 (stacked on #7,
+subtree-pulled):
+
+- **Surfaces in the Map window.** Registry surfaces get visibility
+  eyes in the explorer's Surfaces section. Showing one downloads the
+  grid once and resamples it onto the volume lattice
+  (`engines/seismolord/surfaceOnLattice.js` — weight-aware bilinear:
+  a support corner only matters if its bilinear weight is nonzero, so
+  no invented values across null holes/edges; non-overlapping surfaces
+  error loudly). The map's layer select becomes "Layer" with Horizons
+  and Surfaces optgroups; a mapped surface renders with the same
+  fill/contours/colorbar machinery in its OWN fixed domain and unit
+  (positive-down display values; isochron, amplitude and TWT/depth
+  domain selects disable with explanatory titles). Readout shows the
+  surface Z. Sign handling lives in
+  `surfacesService.loadSurfaceMapLayer` (stored negative-down ->
+  map positive-down, nulls preserved).
+- **Import** (ribbon Export tab "Import…", Surfaces section header
+  icon): `ImportSurfaceDialog` auto-detects the dialect client-side.
+  - Surface grids (`lib/gridding/surfaceImport.js`): XYZ points on a
+    regular lattice (scattered points refused — import does not
+    grid), CPS-3, ZMAP+, Irap classic (rotation != 0 refused).
+    Normalised to row-major south-first + 1e30 nulls, sign
+    auto-detected (override offered), stored negative-down into the
+    shared geo_surfaces registry with imported_from provenance —
+    immediately mappable/exportable like converted surfaces.
+  - Horizon picks (`engines/seismolord/pickImport.js`): Charisma 3D /
+    five-column il-xl-x-y-z / bare xyz. Rows land on the lattice by
+    line numbering (step-aligned) or the inverse survey affine;
+    off-lattice / off-survey / out-of-time-range rows are SKIPPED and
+    counted, collisions keep the last row and are counted,
+    nothing-landed is a domain error. Saves as a normal
+    seismic_horizons row (params.mode='imported' + source provenance)
+    so it tracks/edits/grids/exports like any horizon. TWT-only by
+    design (depth picks would need an inverse velocity model).
+- **Validation**: engines round-trips parse(write(g)) for all 4
+  surface + 3 pick dialects and malformed-file domain errors (246
+  green); Suite `surfacePickImport.test.js` parses the COMMITTED
+  oracle goldens — dome surface files reproduce the analytic dome
+  (dialect precision + float32 quantization tolerance), pick files
+  land the exact oracle lattice cells for both fixtures. Full repo
+  189 suites / 2419 passed; build green.
+- **Follow-ons (open)**: surfaces as sections overlays; org-shared
+  surface visibility in the explorer (registry already supports it);
+  fault-stick import (Charisma fault sticks).
 
 ## Picks vs surfaces separation + interpretation-format exports: DONE
 
