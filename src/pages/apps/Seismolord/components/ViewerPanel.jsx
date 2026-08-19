@@ -14,7 +14,8 @@ import {
 } from '../services/horizonsService';
 import { saveFault, listFaults, deleteFault } from '../services/faultsService';
 import {
-  listVolumeSurfaces, exportStoredSurface, deleteSurface as deleteRegistrySurface,
+  listVolumeSurfaces, exportStoredSurface, loadSurfaceMapLayer,
+  deleteSurface as deleteRegistrySurface,
 } from '../services/surfacesService';
 import { listLogs, downloadCurve } from '../services/wellsService';
 import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
@@ -53,6 +54,7 @@ import AiTab from './workspace/ribbonTabs/AiTab';
 import VelocityModelEditor from './workspace/VelocityModelEditor';
 import ImportSegyDialog from './workspace/dialogs/ImportSegyDialog';
 import ExportDialog from './workspace/dialogs/ExportDialog';
+import ImportSurfaceDialog from './workspace/dialogs/ImportSurfaceDialog';
 import WellImportDialog from './workspace/dialogs/WellImportDialog';
 import VelocityModelDialog from './workspace/dialogs/VelocityModelDialog';
 import HorizonSettingsDialog from './workspace/dialogs/HorizonSettingsDialog';
@@ -1257,6 +1259,59 @@ export default function ViewerPanel() {
     return () => { alive = false; };
   }, [volume, surfacesRefresh]);
 
+  // map display: eye-toggled surfaces, downloaded once and resampled
+  // onto the volume lattice (positive-down, surface's own unit)
+  const [visibleSurfaceIds, setVisibleSurfaceIds] = useState(new Set());
+  const [surfaceLayers, setSurfaceLayers] = useState(new Map()); // id -> {values, unit}
+
+  useEffect(() => {
+    setVisibleSurfaceIds(new Set());
+    setSurfaceLayers(new Map());
+  }, [volume?.id]);
+
+  const toggleSurface = async (s) => {
+    if (visibleSurfaceIds.has(s.id)) {
+      setVisibleSurfaceIds((set) => {
+        const n = new Set(set);
+        n.delete(s.id);
+        return n;
+      });
+      return;
+    }
+    if (!surfaceLayers.has(s.id)) {
+      if (!affine || !geom) {
+        toast({
+          title: 'Cannot map surface',
+          description: 'The volume has no usable survey coordinates.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setSurfaceBusyId(s.id);
+      try {
+        const layer = await loadSurfaceMapLayer(s, affine, geom);
+        setSurfaceLayers((m) => new Map(m).set(s.id, layer));
+      } catch (e) {
+        toast({ title: 'Cannot map surface', description: e.message, variant: 'destructive' });
+        return;
+      } finally {
+        setSurfaceBusyId(null);
+      }
+    }
+    setVisibleSurfaceIds((set) => new Set(set).add(s.id));
+  };
+
+  // MapView takes the visible, resampled layers; Float32Array refs stay
+  // stable across renders so the map's layer cache holds
+  const mapSurfaces = useMemo(() => surfaces
+    .filter((s) => visibleSurfaceIds.has(s.id) && surfaceLayers.has(s.id))
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      values: surfaceLayers.get(s.id).values,
+      unit: surfaceLayers.get(s.id).unit,
+    })), [surfaces, visibleSurfaceIds, surfaceLayers]);
+
   const onExportSurface = async (s, formatKey) => {
     setSurfaceBusyId(s.id);
     try {
@@ -1282,6 +1337,16 @@ export default function ViewerPanel() {
     setSurfaceBusyId(s.id);
     try {
       await deleteRegistrySurface(s);
+      setVisibleSurfaceIds((set) => {
+        const n = new Set(set);
+        n.delete(s.id);
+        return n;
+      });
+      setSurfaceLayers((m) => {
+        const n = new Map(m);
+        n.delete(s.id);
+        return n;
+      });
       setSurfacesRefresh((k) => k + 1);
     } catch (e) {
       toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
@@ -1532,6 +1597,7 @@ export default function ViewerPanel() {
     editTargetId: editTarget !== 'new' ? editTarget : null,
     surfaces,
     surfaceBusyId,
+    visibleSurfaceIds,
     faults,
     visibleFaultIds,
     faultBusyId,
@@ -1559,6 +1625,8 @@ export default function ViewerPanel() {
     openHorizonSettings,
     exportSurface: onExportSurface,
     deleteSurface: onDeleteSurface,
+    toggleSurface,
+    openSurfaceImport: () => setOpenDialog('importSurface'),
     toggleSlicePlane,
     selectPlane,
     setEditTarget: changeEditTarget,
@@ -1682,7 +1750,11 @@ export default function ViewerPanel() {
           key: 'export',
           label: 'Export',
           content: (
-            <ExportTab volume={volume} openExport={() => setOpenDialog('export')} />
+            <ExportTab
+              volume={volume}
+              openExport={() => setOpenDialog('export')}
+              openSurfaceImport={() => setOpenDialog('importSurface')}
+            />
           ),
         },
         {
@@ -1912,6 +1984,7 @@ export default function ViewerPanel() {
                     const h = horizons.find((x) => x.id === id);
                     if (h) toggleHorizon(h);
                   }}
+                  surfaces={mapSurfaces}
                   height="fill"
                 />
               ),
@@ -1935,6 +2008,15 @@ export default function ViewerPanel() {
         volume={volume}
         manifest={manifest}
         onSurfaceSaved={() => setSurfacesRefresh((k) => k + 1)}
+      />
+
+      <ImportSurfaceDialog
+        open={openDialog === 'importSurface'}
+        onOpenChange={(o) => setOpenDialog(o ? 'importSurface' : null)}
+        volume={volume}
+        manifest={manifest}
+        onSurfaceImported={() => setSurfacesRefresh((k) => k + 1)}
+        onHorizonImported={() => reloadHorizons(volume)}
       />
 
       <WellImportDialog

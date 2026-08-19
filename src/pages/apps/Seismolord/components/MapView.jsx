@@ -148,13 +148,18 @@ const fmtZ = (v, step) => (step >= 1
  *   settings dialog (map right-click → Settings…)
  * @param {(id: string) => void} [p.onToggleHorizon] hide a horizon from
  *   the map right-click menu
+ * @param {Array<{id, name, values: Float32Array, unit: string}>}
+ *   [p.surfaces] VISIBLE registry surfaces, already resampled onto the
+ *   volume lattice (latticeSampleSurface) with positive-down physical
+ *   values in their own unit — mappable layers alongside the horizons
+ *   (fixed domain: no TWT/depth conversion, isochron or amplitude)
  */
 function MapView({
   manifest, geom, horizons, faults, velocity, velocityBoundaries,
   onNavigate, onEraseRegion, traverse, onTraverse, savedTraverses,
   onAmplitude, wells, height = 560, onCursor = null,
   timeSlice = null, sliceVis = null, indices = null, display = null,
-  onHorizonSettings = null, onToggleHorizon = null,
+  onHorizonSettings = null, onToggleHorizon = null, surfaces = null,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -231,11 +236,20 @@ function MapView({
   // the menu) so the menu can name the horizon under the cursor
   const [menuCtx, setMenuCtx] = useState(null); // {horizon, hit} | null
 
-  // the mapped (active) horizon follows visibility: keep the selection
-  // while it stays visible, else fall back to the first visible horizon
+  // the mapped (active) layer follows visibility: a `surf:<id>` value
+  // maps a registry surface, anything else a horizon; a hidden layer
+  // falls back to the first visible horizon, then the first surface
+  const activeSurface = useMemo(() => {
+    const hit = (surfaces || []).find((s) => `surf:${s.id}` === activeId);
+    if (hit) return hit;
+    if ((horizons || []).length) return null;   // horizons take the fallback
+    return (surfaces || [])[0] || null;
+  }, [surfaces, horizons, activeId]);
+
   const active = useMemo(
-    () => (horizons || []).find((h) => h.id === activeId) || (horizons || [])[0] || null,
-    [horizons, activeId],
+    () => (activeSurface ? null
+      : (horizons || []).find((h) => h.id === activeId) || (horizons || [])[0] || null),
+    [horizons, activeId, activeSurface],
   );
 
   // isochron second surface (Δ = vs − horizon); never the primary itself
@@ -284,6 +298,23 @@ function MapView({
       .finally(() => { if (!stale) setAmpBusy(false); });
     return () => { stale = true; };
   }, [ampMode, activeGrid, attrWindow, onAmplitude]);
+
+  /** (Re)build a layer's fill bitmap when its colormap changes. */
+  const ensureBitmap = useCallback((c, mapKey) => {
+    if (c.lutKey !== mapKey && c.zMin != null) {
+      const layerLut = lutFor(mapKey);
+      const px = buildMapPixels(c.values, geom.nIl, geom.nXl, layerLut, c.zMin, c.zMax);
+      const bmp = document.createElement('canvas');
+      bmp.width = geom.nXl;
+      bmp.height = geom.nIl;
+      bmp.getContext('2d').putImageData(
+        new ImageData(px, geom.nXl, geom.nIl), 0, 0,
+      );
+      c.bitmap = bmp;
+      c.lutKey = mapKey;
+      c.lut = layerLut;
+    }
+  }, [geom, lutFor]);
 
   /** Layer cache (per horizon/pair × domain × model, or per amplitude
    *  extraction): value grid — structure TWT or depth, the isochron
@@ -367,23 +398,40 @@ function MapView({
       };
       cacheRef.current.set(key, c);
     }
-    const mapKey = disp.colormap || colormap;
-    if (c.lutKey !== mapKey && c.zMin != null) {
-      const layerLut = lutFor(mapKey);
-      const px = buildMapPixels(c.values, geom.nIl, geom.nXl, layerLut, c.zMin, c.zMax);
-      const bmp = document.createElement('canvas');
-      bmp.width = geom.nXl;
-      bmp.height = geom.nIl;
-      bmp.getContext('2d').putImageData(
-        new ImageData(px, geom.nXl, geom.nIl), 0, 0,
-      );
-      c.bitmap = bmp;
-      c.lutKey = mapKey;
-      c.lut = layerLut;
-    }
+    ensureBitmap(c, disp.colormap || colormap);
     return c;
-  }, [geom, manifest, colormap, lutFor, effDomain, unit, velocity, velocityBoundaries,
-    depthConv, ampMode, ampLayer]);
+  }, [geom, manifest, colormap, effDomain, unit, velocity, velocityBoundaries,
+    depthConv, ampMode, ampLayer, ensureBitmap]);
+
+  /** Registry-surface layer: values are already physical (positive
+   *  down, own unit) — same cache shape, no domain conversion, no
+   *  isochron/amplitude, default contour levels. */
+  const layerForSurface = useCallback((s) => {
+    if (!s || !geom) return null;
+    const key = `surf~${s.id}`;
+    let c = cacheRef.current.get(key);
+    if (!c || c.gridA !== s.values) {
+      const range = gridRange(s.values);
+      const { levels, step } = contourLevels(range.zMin ?? 0, range.zMax ?? 0, 12);
+      c = {
+        gridA: s.values,
+        gridB: null,
+        boundaries: null,
+        values: s.values,
+        unit: s.unit,
+        zMin: range.zMin,
+        zMax: range.zMax,
+        levels,
+        step,
+        paths: levels.map((l) => contourPolylines(s.values, geom.nIl, geom.nXl, l)),
+        lutKey: null,
+        bitmap: null,
+      };
+      cacheRef.current.set(key, c);
+    }
+    ensureBitmap(c, colormap);
+    return c;
+  }, [geom, colormap, ensureBitmap]);
 
   // horizon-level fault traces: where each fault's sticks actually cross
   // the MAPPED horizon (the same crossings gridding rasterizes into
@@ -403,6 +451,7 @@ function MapView({
     northDir, velocity, depthConv, effDomain, traverse, savedTraverses,
     effAttr, ampLayer, wells, faultTraceLayer, onCursor,
     timeSlice, showTimeSlice, tsBitmap, tsLut, sliceVis, indices, display,
+    surfaces, activeSurface,
   };
 
   // ---- drawing -----------------------------------------------------------
@@ -419,7 +468,8 @@ function MapView({
     const gl = Math.round(p.gutter.left * dpr);
     const gt = Math.round(p.gutter.top * dpr);
     const layer = p.prefs.fill || p.prefs.contours || p.prefs.colorbar
-      ? layerFor(p.active, p.vs) : null;
+      ? (p.activeSurface ? layerForSurface(p.activeSurface) : layerFor(p.active, p.vs))
+      : null;
 
     // data area (clipped, gutter-offset)
     ctx.save();
@@ -839,7 +889,16 @@ function MapView({
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
       ctx.fillText(`Time slice ${p.timeSlice.ms} ms`, gl + 8 * dpr,
-        canvas.height - (p.active ? 40 : 26) * dpr);
+        canvas.height - (p.active || p.activeSurface ? 40 : 26) * dpr);
+    }
+
+    if (p.activeSurface) {
+      ctx.fillStyle = INK;
+      ctx.font = `${Math.round(11 * dpr)}px ui-monospace, monospace`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(`${p.activeSurface.name} (surface)`,
+        gl + 8 * dpr, canvas.height - 26 * dpr);
     }
 
     if (p.active) {
@@ -857,7 +916,7 @@ function MapView({
           : p.active.name || 'Horizon';
       ctx.fillText(label, gl + 8 * dpr, canvas.height - 26 * dpr);
     }
-  }, [layerFor, lut]);
+  }, [layerFor, layerForSurface, lut]);
 
   const scheduleDraw = useCallback(() => {
     if (rafRef.current) return;
@@ -913,7 +972,7 @@ function MapView({
   useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, vs,
     effDomain, velocity, traverse, savedTraverses, effAttr, ampLayer, wells,
     timeSlice, tsBitmap, showTimeSlice, sliceVis, indices, display,
-    scheduleDraw]);
+    surfaces, activeSurface, scheduleDraw]);
 
   // model removed -> fall back to TWT so the select never lies
   useEffect(() => {
@@ -969,7 +1028,10 @@ function MapView({
     let z = '';
     const ampL = p.active && p.effAttr !== 'structure' && p.ampLayer
       && p.ampLayer.grid === p.active.grid ? p.ampLayer : null;
-    if (ampL) {
+    if (p.activeSurface) {
+      const v = p.activeSurface.values[hit.ilIdx * p.geom.nXl + hit.xlIdx];
+      z = `   Z ${v === NULL_F32 ? 'null' : `${v.toFixed(1)} ${p.activeSurface.unit}`}`;
+    } else if (ampL) {
       const v = ampL.values[hit.ilIdx * p.geom.nXl + hit.xlIdx];
       z = `   A ${v === NULL_F32 ? 'null' : v.toExponential(3)}`;
     } else if (p.active) {
@@ -1300,18 +1362,30 @@ function MapView({
           <Expand className="w-4 h-4" />
         </Button>
 
-        <span className="text-xs text-slate-400 ml-1">Horizon</span>
+        <span className="text-xs text-slate-400 ml-1">Layer</span>
         <select
           className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs max-w-[160px]"
-          value={active?.id || ''}
+          value={activeSurface ? `surf:${activeSurface.id}` : active?.id || ''}
           onChange={(e) => setActiveId(e.target.value)}
-          disabled={!(horizons || []).length}
-          title="Mapped horizon (toggle visibility in the horizons list)"
+          disabled={!(horizons || []).length && !(surfaces || []).length}
+          title="Mapped layer: a horizon or a registry surface (toggle visibility in the explorer)"
         >
-          {!(horizons || []).length && <option value="">none visible</option>}
-          {(horizons || []).map((h) => (
-            <option key={h.id} value={h.id}>{h.name}</option>
-          ))}
+          {!(horizons || []).length && !(surfaces || []).length
+            && <option value="">none visible</option>}
+          {(horizons || []).length > 0 && (
+            <optgroup label="Horizons">
+              {(horizons || []).map((h) => (
+                <option key={h.id} value={h.id}>{h.name}</option>
+              ))}
+            </optgroup>
+          )}
+          {(surfaces || []).length > 0 && (
+            <optgroup label="Surfaces">
+              {(surfaces || []).map((s) => (
+                <option key={s.id} value={`surf:${s.id}`}>{s.name}</option>
+              ))}
+            </optgroup>
+          )}
         </select>
 
         <span className="text-xs text-slate-400">vs</span>
@@ -1322,8 +1396,10 @@ function MapView({
             setVsId(e.target.value);
             if (e.target.value) setAttr('structure');   // isochron ⊕ amplitude
           }}
-          disabled={(horizons || []).length < 2}
-          title="Isochron mode: map the TWT interval Δ = vs − horizon (needs two visible horizons)"
+          disabled={(horizons || []).length < 2 || Boolean(activeSurface)}
+          title={activeSurface
+            ? 'Isochron mode maps horizon pairs — pick a horizon layer first'
+            : 'Isochron mode: map the TWT interval Δ = vs − horizon (needs two visible horizons)'}
         >
           <option value="">— (structure)</option>
           {(horizons || []).filter((h) => h.id !== active?.id).map((h) => (
@@ -1373,12 +1449,15 @@ function MapView({
           className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs"
           value={effDomain}
           onChange={(e) => setDomain(e.target.value)}
-          disabled={!hasData || !velocity || effAttr !== 'structure'}
-          title={effAttr !== 'structure'
-            ? 'Amplitude maps have no display domain — switch the attribute back to Structure'
-            : velocity
-              ? 'Display domain (depth via the volume velocity model)'
-              : 'Depth display needs a velocity model — set one in the viewer controls'}
+          disabled={!hasData || !velocity || effAttr !== 'structure'
+            || Boolean(activeSurface)}
+          title={activeSurface
+            ? 'A stored surface keeps its own domain and unit'
+            : effAttr !== 'structure'
+              ? 'Amplitude maps have no display domain — switch the attribute back to Structure'
+              : velocity
+                ? 'Display domain (depth via the volume velocity model)'
+                : 'Depth display needs a velocity model — set one in the viewer controls'}
         >
           <option value="twt">TWT ms</option>
           <option value="depth_m">Depth m</option>

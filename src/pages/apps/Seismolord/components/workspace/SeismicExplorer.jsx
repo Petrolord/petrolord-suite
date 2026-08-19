@@ -140,7 +140,7 @@ const PLANE_TITLES = {
 export default function SeismicExplorer({ tree, actions }) {
   const {
     volumes, activeVolumeId, horizons, visibleIds, horizonBusyId, editTargetId,
-    surfaces, surfaceBusyId,
+    surfaces, surfaceBusyId, visibleSurfaceIds,
     faults, visibleFaultIds, faultBusyId,
     wells, visibleWellIds, wellBusyId, wellsError,
     savedTraverses, traverseSavedId,
@@ -279,20 +279,35 @@ export default function SeismicExplorer({ tree, actions }) {
           )}
         </Section>
 
-        <Section icon={Mountain} title="Surfaces" count={(surfaces || []).length || ''}>
+        <Section
+          icon={Mountain}
+          title="Surfaces"
+          count={(surfaces || []).length || ''}
+          actions={(
+            <IconButton title="Import surface or picks…" onClick={actions.openSurfaceImport}>
+              <Upload className="w-3.5 h-3.5" />
+            </IconButton>
+          )}
+        >
           {(surfaces || []).map((s) => (
             <Row
               key={s.id}
               icon={Mountain}
               label={s.name}
               busy={surfaceBusyId === s.id}
+              visible={visibleSurfaceIds?.has(s.id)}
+              onToggleVisible={() => actions.toggleSurface(s)}
               meta={`${s.nx}×${s.ny}`}
               title={`${s.z_domain === 'time' ? 'TWT' : 'Depth'} surface from `
-                + `${s.provenance?.horizon?.name || 'horizon'} · cell `
-                + `${s.dx} m`}
-              onClick={() => actions.exportSurface(s, 'xyz')}
+                + `${s.provenance?.horizon?.name
+                  || (s.provenance?.imported_from ? 'import' : 'horizon')} · cell `
+                + `${s.dx} m. The eye shows it in the Map window.`}
+              onClick={() => actions.toggleSurface(s)}
               menu={(
                 <>
+                  <ContextMenuItem onSelect={() => actions.toggleSurface(s)}>
+                    {visibleSurfaceIds?.has(s.id) ? 'Hide in Map' : 'Show in Map'}
+                  </ContextMenuItem>
                   <ContextMenuSub>
                     <ContextMenuSubTrigger>
                       <Download className="w-3.5 h-3.5 mr-1.5" />
@@ -323,7 +338,8 @@ export default function SeismicExplorer({ tree, actions }) {
           {!(surfaces || []).length && (
             <Hint>
               {activeVolumeId
-                ? 'No surfaces yet. Grid a horizon in Export and choose "Save as surface".'
+                ? 'No surfaces yet. Grid a horizon in Export and choose "Save as '
+                  + 'surface", or import a surface file here.'
                 : 'Select a volume to see its surfaces.'}
             </Hint>
           )}
