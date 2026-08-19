@@ -286,7 +286,7 @@ export default function SeismicExplorer({ tree, actions }) {
           title="Surfaces"
           count={(surfaces || []).length || ''}
           actions={(
-            <IconButton title="Import surface or picks…" onClick={actions.openSurfaceImport}>
+            <IconButton title="Import surface, picks or faults…" onClick={actions.openSurfaceImport}>
               <Upload className="w-3.5 h-3.5" />
             </IconButton>
           )}
