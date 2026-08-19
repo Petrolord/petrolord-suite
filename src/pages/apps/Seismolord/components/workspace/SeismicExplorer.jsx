@@ -11,7 +11,7 @@ import React, { useState } from 'react';
 import {
   Database, Layers, Slash, CircleDot, Route, Eye, EyeOff, Loader2, Upload,
   Plus, RefreshCw, ChevronDown, ChevronRight, Pencil, ArrowLeft,
-  Rows, Columns, Clock, Settings2, Mountain, Download,
+  Rows, Columns, Clock, Settings2, Mountain, Download, Building2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,7 +21,9 @@ import {
   ContextMenuSubContent,
 } from '@/components/ui/context-menu';
 import { SURFACE_EXPORT_FORMATS } from '../../services/surfacesService';
-import { horizonColor, faultColor, wellColor } from './interpretationColors';
+import {
+  horizonColor, faultColor, wellColor, surfaceColor,
+} from './interpretationColors';
 
 function Section({ icon: Icon, title, count, actions, children, hint }) {
   const [open, setOpen] = useState(true);
@@ -284,29 +286,43 @@ export default function SeismicExplorer({ tree, actions }) {
           title="Surfaces"
           count={(surfaces || []).length || ''}
           actions={(
-            <IconButton title="Import surface or picks…" onClick={actions.openSurfaceImport}>
+            <IconButton title="Import surface, picks or faults…" onClick={actions.openSurfaceImport}>
               <Upload className="w-3.5 h-3.5" />
             </IconButton>
           )}
         >
-          {(surfaces || []).map((s) => (
+          {(surfaces || []).map((s, idx) => (
             <Row
               key={s.id}
               icon={Mountain}
+              color={surfaceColor(idx)}
               label={s.name}
               busy={surfaceBusyId === s.id}
               visible={visibleSurfaceIds?.has(s.id)}
               onToggleVisible={() => actions.toggleSurface(s)}
               meta={`${s.nx}×${s.ny}`}
+              badge={s.organization_id ? (
+                <span
+                  title={s.is_own === false
+                    ? 'Shared by a teammate (read-only)'
+                    : 'Shared with your organization (read-only for members)'}
+                  className="shrink-0"
+                >
+                  <Building2 className={`w-3 h-3 ${s.is_own === false
+                    ? 'text-sky-400' : 'text-emerald-400'}`} />
+                </span>
+              ) : null}
               title={`${s.z_domain === 'time' ? 'TWT' : 'Depth'} surface from `
-                + `${s.provenance?.horizon?.name
+                + `${s.is_own === false ? 'a teammate (org-shared, read-only)'
+                  : s.provenance?.horizon?.name
                   || (s.provenance?.imported_from ? 'import' : 'horizon')} · cell `
-                + `${s.dx} m. The eye shows it in the Map window.`}
+                + `${s.dx} m. The eye shows it in the Map window and dashed on `
+                + 'sections (depth surfaces need a velocity model there).'}
               onClick={() => actions.toggleSurface(s)}
               menu={(
                 <>
                   <ContextMenuItem onSelect={() => actions.toggleSurface(s)}>
-                    {visibleSurfaceIds?.has(s.id) ? 'Hide in Map' : 'Show in Map'}
+                    {visibleSurfaceIds?.has(s.id) ? 'Hide' : 'Show'}
                   </ContextMenuItem>
                   <ContextMenuSub>
                     <ContextMenuSubTrigger>
@@ -324,13 +340,21 @@ export default function SeismicExplorer({ tree, actions }) {
                       ))}
                     </ContextMenuSubContent>
                   </ContextMenuSub>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    className="text-red-400 focus:text-red-300"
-                    onSelect={() => actions.deleteSurface(s)}
-                  >
-                    Delete surface…
-                  </ContextMenuItem>
+                  {s.is_own !== false && (
+                    <>
+                      <ContextMenuItem onSelect={() => actions.shareSurface(s)}>
+                        <Building2 className="w-3.5 h-3.5 mr-1.5" />
+                        {s.organization_id ? 'Make private' : 'Share with organization'}
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem
+                        className="text-red-400 focus:text-red-300"
+                        onSelect={() => actions.deleteSurface(s)}
+                      >
+                        Delete surface…
+                      </ContextMenuItem>
+                    </>
+                  )}
                 </>
               )}
             />
@@ -362,6 +386,20 @@ export default function SeismicExplorer({ tree, actions }) {
                   <ContextMenuItem onSelect={() => actions.toggleFault(f)}>
                     {visibleFaultIds.has(f.id) ? 'Hide' : 'Show'}
                   </ContextMenuItem>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <Download className="w-3.5 h-3.5 mr-1.5" />
+                      Export sticks
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-60">
+                      <ContextMenuItem onSelect={() => actions.exportFaultSticks(f, 'positive')}>
+                        Charisma, positive down (Petrel)
+                      </ContextMenuItem>
+                      <ContextMenuItem onSelect={() => actions.exportFaultSticks(f, 'negative')}>
+                        Charisma, negative down (suite)
+                      </ContextMenuItem>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
                   <ContextMenuSeparator />
                   <ContextMenuItem
                     className="text-red-400 focus:text-red-300"

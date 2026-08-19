@@ -107,6 +107,30 @@ export async function downloadSurfaceGrid(surface) {
   return new Float32Array(buf);
 }
 
+/** Owner-only metadata update (RLS re-checks; org readers get no row
+ *  back and that surfaces as an error, not a silent no-op). */
+export async function updateSurface(surfaceId, patch) {
+  const { data, error } = await supabase.from('geo_surfaces')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', surfaceId).select().single();
+  if (error) throw new Error(`Could not update surface: ${error.message}`);
+  return data;
+}
+
+// ---- org sharing (the geo_wells model) -----------------------------------
+
+/** Share a surface (metadata row + grid object) read-only with an
+ *  organization the owner belongs to. RLS re-checks membership. */
+export async function shareSurface(surfaceId, organizationId) {
+  if (!organizationId) throw new Error('Pick the organization to share with.');
+  return updateSurface(surfaceId, { organization_id: organizationId });
+}
+
+/** Back to private. Org members lose read access immediately. */
+export async function unshareSurface(surfaceId) {
+  return updateSurface(surfaceId, { organization_id: null });
+}
+
 export async function deleteSurface(surface) {
   const user = await requireUser();
   if (surface.storage_path?.startsWith(`${user.id}/`)) {
