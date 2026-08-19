@@ -82,5 +82,10 @@ export function makeInMemoryBackend() {
       surfaces.splice(i, 1);
       gridStore.delete(surface.id);
     },
+    async setSurfaceShared(surface, shared) {
+      const s = ownSurface(surface, 'share');
+      s.organization_id = shared ? 'org-dev' : null;
+      return { ...s };
+    },
   };
 }

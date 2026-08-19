@@ -5,7 +5,25 @@
 // surfaces from the new geo_surfaces registry.
 
 import { listWellsWithTops, listZones } from '@/lib/wellsRegistry';
-import { listSurfaces, saveSurface, downloadSurfaceGrid, deleteSurface } from '@/lib/surfacesRegistry';
+import {
+  listSurfaces, saveSurface, downloadSurfaceGrid, deleteSurface,
+  shareSurface, unshareSurface,
+} from '@/lib/surfacesRegistry';
+import { resolveUserOrgId } from '@/lib/orgContext';
+import { supabase } from '@/lib/customSupabaseClient';
+
+/** The caller's organization id, resolved once per session; null when
+ *  they belong to no organization (the share action explains instead
+ *  of failing) — the Seismolord explorer's pattern. */
+let orgIdPromise; // undefined = not yet requested
+function myOrgId() {
+  if (orgIdPromise === undefined) {
+    orgIdPromise = supabase.auth.getUser()
+      .then(({ data: { user } }) => (user ? resolveUserOrgId(user.id) : null))
+      .catch(() => null);
+  }
+  return orgIdPromise;
+}
 
 export function makeRegistryBackend() {
   return {
@@ -22,5 +40,14 @@ export function makeRegistryBackend() {
     saveSurface,
     downloadSurfaceGrid,
     deleteSurface,
+    /** Share/unshare an OWN surface with the caller's organization
+     *  (read-only for members — the geo_wells model; RLS + storage
+     *  policies have existed since G4). Returns the updated row. */
+    async setSurfaceShared(surface, shared) {
+      if (!shared) return unshareSurface(surface.id);
+      const org = await myOrgId();
+      if (!org) throw new Error('You belong to no organization — nothing to share with.');
+      return shareSurface(surface.id, org);
+    },
   };
 }

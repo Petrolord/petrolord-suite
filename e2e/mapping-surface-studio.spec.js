@@ -43,6 +43,14 @@ test('grid a top, render the map, publish, isochore, delete', async ({ page }) =
   await page.getByTestId('map-publish').click();
   await expect(page.getByTestId('map-surface-count')).toHaveText('4');
 
+  // share toggle on an owned surface: private -> shared -> private; the
+  // teammate's row shows a passive badge, never a toggle
+  await page.getByTestId('map-share-Top Dome structure').click();
+  await expect(page.getByTestId('map-status')).toContainText('Shared Top Dome structure');
+  await page.getByTestId('map-share-Top Dome structure').click();
+  await expect(page.getByTestId('map-status')).toContainText('private again');
+  await expect(page.getByTestId('map-share-Regional Top (org shared)')).toHaveCount(0);
+
   // delete an owned surface
   await page.getByTestId('map-delete-Top Dome structure').click();
   await expect(page.getByTestId('map-surface-count')).toHaveText('3');

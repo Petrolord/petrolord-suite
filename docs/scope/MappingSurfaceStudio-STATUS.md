@@ -11,6 +11,21 @@ raster import wizard — the standalone digitizer stays as-is (it works;
 its dead `useIntegration` import was stripped). Prod build upload:
 **DONE 2026-07-14** — prod is current (main `e84f8a181`).
 
+## Post-G4: org share toggle (2026-08-19) — DONE
+
+Branch `feat/mapping-studio-share-toggle`. The G4.2 org-read RLS and
+storage policies existed but the studio had no way to exercise them —
+teammates could only receive surfaces shared from inside Seismolord's
+explorer. The explorer's org/private badge is now the SHARE TOGGLE on
+own rows (private ⇄ org-shared, read-only for members — the geo_wells
+model); teammates' rows keep a passive read-only badge. Backend
+contract gained `setSurfaceShared(surface, shared)` in BOTH backends
+(registryBackend resolves the caller's org once per session and
+explains "no organization" instead of failing; inMemoryBackend mirrors
+the owner-only RLS guard). No DDL, no engines change. Tests: backend
+jest (share/unshare/owner-only) + e2e share-toggle steps on the
+harness; full run 194 suites / 2468 green, build green.
+
 ## Phase status
 
 | Phase | Status | Landed |

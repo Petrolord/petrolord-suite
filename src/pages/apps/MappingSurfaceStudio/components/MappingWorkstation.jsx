@@ -35,6 +35,7 @@ export default function MappingWorkstation({ backend }) {
   const [isoPair, setIsoPair] = useState({ a: '', b: '' });
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
+  const [sharingId, setSharingId] = useState(null); // share toggle in flight
 
   const refresh = useCallback(async () => {
     try { setSurfaces(await backend.listSurfaces()); }
@@ -153,6 +154,21 @@ export default function MappingWorkstation({ backend }) {
     catch (e) { setStatus(e.message); }
   };
 
+  const toggleShare = async (surface) => {
+    setSharingId(surface.id);
+    try {
+      const updated = await backend.setSurfaceShared(surface, !surface.organization_id);
+      setStatus(updated.organization_id
+        ? `Shared ${surface.name} with your organization (read-only for members).`
+        : `${surface.name} is private again.`);
+      await refresh();
+    } catch (e) {
+      setStatus(e.message);
+    } finally {
+      setSharingId(null);
+    }
+  };
+
   const ribbon = (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
       <MapIcon className="w-4 h-4 text-cyan-400" />
@@ -198,6 +214,8 @@ export default function MappingWorkstation({ backend }) {
           selectedId={selectedId}
           onSelect={selectSurface}
           onDelete={del}
+          onToggleShare={toggleShare}
+          sharingId={sharingId}
           topNames={topNames}
           zoneKeys={zoneKeys}
           source={source}
