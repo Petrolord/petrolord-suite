@@ -9,7 +9,10 @@ for downstream apps (ReservoirCalc Pro and some other apps which you will determ
 Horizon PICKS (seismic_horizons, the interpretation) and SURFACES
 (gridded objects in the shared geo_surfaces registry) are distinct
 first-class objects; conversion is the export dialog's "Save as
-surface".
+surface". Both directions exist: the import dialog reads the same
+dialects back (surface grids into the registry, TWT picks onto the
+volume lattice as a normal horizon), and stored surfaces display in
+the Map window via lattice resampling.
 
 ## Stack (revised 2026-07-10 — see Seismolord-PLAN.md, the plan of record)
 - Frontend: React 18 + Vite, WebGL2 renderer (raw WebGL, no three.js for the
