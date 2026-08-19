@@ -13,7 +13,8 @@ import {
 import {
   writeXYZ, writeCPS3, writeZMAP, writeIrapClassic,
 } from '@/lib/gridding/surfaceExport';
-import { latticeSampleSurface } from '../engine/surfaceOnLattice';
+import { latticeSampleSurface, latticeValuesToSamples } from '../engine/surfaceOnLattice';
+import { M_PER_FT } from '../engine/velocityModel';
 
 export const SURFACE_APP = 'seismolord';
 
@@ -163,6 +164,35 @@ export async function loadSurfaceMapLayer(surface, affine, geom) {
   }
   const unit = surface.z_unit || (surface.z_domain === 'time' ? 'ms' : 'ft');
   return { values, unit, live };
+}
+
+/**
+ * Convert a loaded map layer to the SECTION overlay contract: a
+ * fractional sample-index lattice grid (1e30 nulls), drawable by
+ * SliceView exactly like a horizon pick grid. Time surfaces divide by
+ * the sample rate; depth surfaces need the volume's velocity model
+ * inverted (makeTvdssToTwt) — without one they stay map-only and this
+ * returns null. Cells outside the volume time window go null.
+ *
+ * @param {Object} surface geo_surfaces row (z_domain decides the path)
+ * @param {{values: Float32Array, unit: string}} layer loadSurfaceMapLayer
+ * @param {{nIl, nXl, ns}} geom
+ * @param {number} dtMs
+ * @param {?{toTwtMs: Function}} timeConv makeTvdssToTwt result
+ * @returns {?Float32Array} sample-index grid, or null (depth surface
+ *   with no velocity model, or nothing inside the time window)
+ */
+export function surfaceSectionGrid(surface, layer, geom, dtMs, timeConv) {
+  let r;
+  if (surface.z_domain === 'time') {
+    r = latticeValuesToSamples(layer.values, geom, { dtMs });
+  } else {
+    if (!timeConv) return null;
+    r = latticeValuesToSamples(layer.values, geom, {
+      dtMs, timeConv, mPerUnit: layer.unit === 'ft' ? M_PER_FT : 1,
+    });
+  }
+  return r.live ? r.grid : null;
 }
 
 export { deleteSurface };

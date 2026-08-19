@@ -85,6 +85,9 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  * @param {{colormap:string, gain:number, polarity:number, clip:number,
  *          traceBalance:boolean}} p.display clip is ABSOLUTE amplitude
  * @param {{horizons:Array<{grid:Float32Array,color:string}>,
+ *          surfaces?:Array<{grid:Float32Array,color:string,dash:boolean}>
+ *            stored registry surfaces converted to sample-index grids
+ *            (surfaceSectionGrid) — drawn like horizons but dashed,
  *          faults:Array<{sticks:Array,color:string}>,
  *          draftSticks:Array, seedPick:?Object,
  *          wells?:Array<{name, color, points:Array, tops:Array}>}}
@@ -207,11 +210,17 @@ function SliceView({
     const { geom: gm, orientation: ori, sliceIndex: idx, overlays: ov } = p;
     const vis = t.visibleRect();
 
-    for (const { grid, color, lineWidth: weight } of ov.horizons) {
+    // stored surfaces share the horizon overlay contract (sample-index
+    // lattice grids) and draw in the same loop, dashed so a registry
+    // surface never reads as an editable pick lattice
+    const gridOverlays = ov.surfaces?.length
+      ? [...ov.horizons, ...ov.surfaces] : ov.horizons;
+    for (const { grid, color, lineWidth: weight, dash } of gridOverlays) {
       ctx.strokeStyle = color;
       ctx.fillStyle = color;
       // per-horizon line weight (settings dialog); 1 = the house default
       ctx.lineWidth = lw * (weight || 1);
+      ctx.setLineDash(dash ? [5 * dpr, 4 * dpr] : []);
       if (ori !== 'time') {
         const posn = ori === 'traverse' ? p.slice?.positions : null;
         if (ori === 'traverse' && !posn) continue;
@@ -262,6 +271,7 @@ function SliceView({
         }
       }
     }
+    ctx.setLineDash([]);
 
     const drawSticks = (sticks, color, dashed) => {
       const posn = ori === 'traverse' ? p.slice?.positions : null;

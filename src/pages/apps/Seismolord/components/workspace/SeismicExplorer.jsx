@@ -21,7 +21,9 @@ import {
   ContextMenuSubContent,
 } from '@/components/ui/context-menu';
 import { SURFACE_EXPORT_FORMATS } from '../../services/surfacesService';
-import { horizonColor, faultColor, wellColor } from './interpretationColors';
+import {
+  horizonColor, faultColor, wellColor, surfaceColor,
+} from './interpretationColors';
 
 function Section({ icon: Icon, title, count, actions, children, hint }) {
   const [open, setOpen] = useState(true);
@@ -289,10 +291,11 @@ export default function SeismicExplorer({ tree, actions }) {
             </IconButton>
           )}
         >
-          {(surfaces || []).map((s) => (
+          {(surfaces || []).map((s, idx) => (
             <Row
               key={s.id}
               icon={Mountain}
+              color={surfaceColor(idx)}
               label={s.name}
               busy={surfaceBusyId === s.id}
               visible={visibleSurfaceIds?.has(s.id)}
@@ -301,12 +304,13 @@ export default function SeismicExplorer({ tree, actions }) {
               title={`${s.z_domain === 'time' ? 'TWT' : 'Depth'} surface from `
                 + `${s.provenance?.horizon?.name
                   || (s.provenance?.imported_from ? 'import' : 'horizon')} · cell `
-                + `${s.dx} m. The eye shows it in the Map window.`}
+                + `${s.dx} m. The eye shows it in the Map window and dashed on `
+                + 'sections (depth surfaces need a velocity model there).'}
               onClick={() => actions.toggleSurface(s)}
               menu={(
                 <>
                   <ContextMenuItem onSelect={() => actions.toggleSurface(s)}>
-                    {visibleSurfaceIds?.has(s.id) ? 'Hide in Map' : 'Show in Map'}
+                    {visibleSurfaceIds?.has(s.id) ? 'Hide' : 'Show'}
                   </ContextMenuItem>
                   <ContextMenuSub>
                     <ContextMenuSubTrigger>

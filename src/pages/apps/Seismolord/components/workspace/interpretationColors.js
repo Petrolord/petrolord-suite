@@ -10,3 +10,6 @@ export const faultColor = (index) => FAULT_COLORS[index % FAULT_COLORS.length];
 
 export const WELL_COLORS = ['#fbbf24', '#34d399', '#f472b6', '#38bdf8', '#fb923c', '#e879f9'];
 export const wellColor = (index) => WELL_COLORS[index % WELL_COLORS.length];
+
+export const SURFACE_COLORS = ['#5eead4', '#fde047', '#93c5fd', '#fda4af', '#d8b4fe', '#bef264'];
+export const surfaceColor = (index) => SURFACE_COLORS[index % SURFACE_COLORS.length];

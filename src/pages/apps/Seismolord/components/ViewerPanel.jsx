@@ -15,7 +15,7 @@ import {
 import { saveFault, listFaults, deleteFault } from '../services/faultsService';
 import {
   listVolumeSurfaces, exportStoredSurface, loadSurfaceMapLayer,
-  deleteSurface as deleteRegistrySurface,
+  surfaceSectionGrid, deleteSurface as deleteRegistrySurface,
 } from '../services/surfacesService';
 import { listLogs, downloadCurve } from '../services/wellsService';
 import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
@@ -61,7 +61,7 @@ import HorizonSettingsDialog from './workspace/dialogs/HorizonSettingsDialog';
 import SeismicExplorer from './workspace/SeismicExplorer';
 import StatusBar from './workspace/StatusBar';
 import RightDock from './workspace/RightDock';
-import { horizonColor, faultColor } from './workspace/interpretationColors';
+import { horizonColor, faultColor, surfaceColor } from './workspace/interpretationColors';
 import useWells from '../hooks/useWells';
 import useBackendStatus from '../hooks/useBackendStatus';
 
@@ -1263,10 +1263,12 @@ export default function ViewerPanel() {
   // onto the volume lattice (positive-down, surface's own unit)
   const [visibleSurfaceIds, setVisibleSurfaceIds] = useState(new Set());
   const [surfaceLayers, setSurfaceLayers] = useState(new Map()); // id -> {values, unit}
+  const sectionGridCacheRef = useRef(new Map()); // id -> {values, conv, grid}
 
   useEffect(() => {
     setVisibleSurfaceIds(new Set());
     setSurfaceLayers(new Map());
+    sectionGridCacheRef.current.clear();
   }, [volume?.id]);
 
   const toggleSurface = async (s) => {
@@ -1312,6 +1314,51 @@ export default function ViewerPanel() {
       unit: surfaceLayers.get(s.id).unit,
     })), [surfaces, visibleSurfaceIds, surfaceLayers]);
 
+  // section windows draw the same visible surfaces as dashed sample-index
+  // polylines (the horizon overlay contract). Time surfaces convert by the
+  // sample rate; depth surfaces invert the volume velocity model
+  // (makeTvdssToTwt) and stay map-only without one. Grids are cached per
+  // (surface, resample, converter) — the conversion is O(cells) and, for
+  // layer cakes, bisects per cell.
+  const surfaceTimeConv = useMemo(() => {
+    if (!manifest || !geom) return null;
+    const dtUs = manifest.geometry.dt_us;
+    return makeTvdssToTwt({
+      checkshots: null,
+      velocity: velocityForDisplay,
+      boundaries: velBoundaries,
+      dtUs,
+      maxTwtMs: ((geom.ns - 1) * dtUs) / 1000,
+    });
+  }, [manifest, geom, velocityForDisplay, velBoundaries]);
+
+  const sectionSurfaces = useMemo(() => {
+    if (!manifest || !geom) return [];
+    const dtMs = manifest.geometry.dt_us / 1000;
+    const out = [];
+    surfaces.forEach((s, idx) => {
+      if (!visibleSurfaceIds.has(s.id)) return;
+      const layer = surfaceLayers.get(s.id);
+      if (!layer) return;
+      const conv = s.z_domain === 'time' ? null : surfaceTimeConv;
+      if (s.z_domain !== 'time' && !conv) return; // depth surface, no model
+      const cached = sectionGridCacheRef.current.get(s.id);
+      let grid;
+      if (cached && cached.values === layer.values && cached.conv === conv) {
+        grid = cached.grid;
+      } else {
+        grid = surfaceSectionGrid(s, layer, geom, dtMs, conv);
+        sectionGridCacheRef.current.set(s.id, { values: layer.values, conv, grid });
+      }
+      if (grid) {
+        out.push({
+          id: s.id, name: s.name, grid, color: surfaceColor(idx), lineWidth: 1, dash: true,
+        });
+      }
+    });
+    return out;
+  }, [surfaces, visibleSurfaceIds, surfaceLayers, surfaceTimeConv, geom, manifest]);
+
   const onExportSurface = async (s, formatKey) => {
     setSurfaceBusyId(s.id);
     try {
@@ -1347,6 +1394,7 @@ export default function ViewerPanel() {
         n.delete(s.id);
         return n;
       });
+      sectionGridCacheRef.current.delete(s.id);
       setSurfacesRefresh((k) => k + 1);
     } catch (e) {
       toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
@@ -1371,13 +1419,15 @@ export default function ViewerPanel() {
 
   const overlays = useMemo(() => ({
     horizons: resolvedHorizons,
+    surfaces: sectionSurfaces,
     faults: faults
       .map((f, idx) => ({ sticks: f.sticks, color: faultColor(idx), id: f.id }))
       .filter((f) => visibleFaultIds.has(f.id)),
     draftSticks,
     seedPick,
     wells: wellSections,
-  }), [resolvedHorizons, faults, visibleFaultIds, draftSticks, seedPick, wellSections]);
+  }), [resolvedHorizons, sectionSurfaces, faults, visibleFaultIds, draftSticks, seedPick,
+    wellSections]);
 
   const stepSlice = useCallback((delta) => {
     setIndices((prev) => ({
