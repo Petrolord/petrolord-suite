@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Ban, Download, Grid3X3, Loader2, XCircle, Send } from 'lucide-react';
+import {
+  Ban, Download, Grid3X3, Loader2, XCircle, Send, Mountain,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,32 +10,61 @@ import { useToast } from '@/components/ui/use-toast';
 import { listHorizons } from '../services/horizonsService';
 import { listFaults } from '../services/faultsService';
 import { surveyAffine } from '../engine/surveyGeometry';
-import { writeCPS3, writeZMAP, grvAcreFt } from '@/lib/gridding/surfaceExport';
+import { writeCPS3, writeZMAP, writeIrapClassic, grvAcreFt } from '@/lib/gridding/surfaceExport';
+import {
+  writeCharismaHorizon, writeIlXlXyz, writeXyzPoints,
+} from '../engine/pickExport';
 import { normalizeVelocity, describeVelocity } from '../engine/velocityModel';
 import { publishSurface } from '../services/exportsService';
-import { gridHorizonSurface } from '../services/surfaceWorkflow';
+import { saveHorizonAsSurface } from '../services/surfacesService';
+import { gridHorizonSurface, exportHorizonPicks } from '../services/surfaceWorkflow';
 
 const FORMATS = [
   { key: 'xyz', label: 'XYZ points (.xyz)', ext: 'xyz' },
   { key: 'cps3', label: 'CPS-3 grid (.dat)', ext: 'cps3.dat' },
   { key: 'zmap', label: 'ZMAP+ grid (.dat)', ext: 'zmap.dat' },
+  { key: 'irap', label: 'Irap classic grid (.dat)', ext: 'irap.dat' },
 ];
 
+const PICK_FORMATS = [
+  { key: 'charisma', label: 'Charisma 3D horizon (.txt)', ext: 'charisma.txt' },
+  { key: 'ilxl', label: 'IL/XL/X/Y/Z points (.txt)', ext: 'picks.txt' },
+  { key: 'xyz', label: 'XYZ points (.xyz)', ext: 'picks.xyz' },
+];
+
+const downloadText = (text, fileName) => {
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 /**
- * Grid a horizon and export it. Exports follow the playbook convention:
- * z is NEGATIVE downward — depth in feet (constant-velocity conversion)
- * or negated TWT milliseconds. When the volume has faults that cut the
- * horizon, gridding is fault-blocked by default (interpolation never
- * crosses a fault).
+ * Export a horizon as either of its two distinct objects:
+ *  - the SURFACE: gridded (fault-aware TPS) then written as XYZ /
+ *    CPS-3 / ZMAP+ / Irap classic, sent to ReservoirCalc Pro, or SAVED
+ *    to the shared surface registry (geo_surfaces — first-class object,
+ *    visible in the explorer's Surfaces section and in Mapping &
+ *    Surface Studio);
+ *  - the PICKS: the interpretation itself, written as Charisma 3D
+ *    horizon / five-column IL-XL points / bare XYZ points, no gridding.
+ * Exports follow the playbook convention: Z NEGATIVE downward — depth
+ * in feet (velocity model wins over the constant fallback) or negated
+ * TWT ms; picks offer a positive-down flip for Petrel-bound files.
  */
-export default function ExportPanel({ volume, manifest, frameless }) {
+export default function ExportPanel({ volume, manifest, frameless, onSurfaceSaved }) {
   const { toast } = useToast();
   const [horizons, setHorizons] = useState([]);
   const [horizonId, setHorizonId] = useState('');
+  const [objectKind, setObjectKind] = useState('surface'); // 'surface' | 'picks'
   const [domain, setDomain] = useState('depth');      // 'depth' | 'twt'
   const [velocity, setVelocity] = useState(10000);    // ft/s
   const [cell, setCell] = useState(0);                // m, 0 -> default bin
   const [format, setFormat] = useState('xyz');
+  const [pickFormat, setPickFormat] = useState('charisma');
+  const [zSign, setZSign] = useState('negative');     // picks only
   const [contact, setContact] = useState('');         // ft, optional
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);         // {live, zMin, zMax, grv, fileName}
@@ -70,7 +101,28 @@ export default function ExportPanel({ volume, manifest, frameless }) {
   const affine = useMemo(
     () => (manifest ? surveyAffine(manifest.geometry) : null), [manifest]);
 
-  /** @param {'download'|'rcp'} destination */
+  const isPicks = objectKind === 'picks';
+
+  const runPicksExport = async (horizon) => {
+    const { rows, count, zMin, zMax } = await exportHorizonPicks({
+      manifest, horizon, domain, velocityFtS: velocity, zSign,
+    });
+    const fmt = PICK_FORMATS.find((f) => f.key === pickFormat);
+    let text;
+    if (pickFormat === 'charisma') text = writeCharismaHorizon(rows);
+    else if (pickFormat === 'ilxl') text = writeIlXlXyz(rows);
+    else text = writeXyzPoints(rows);
+    const safeName = horizon.name.replace(/[^\w-]+/g, '_').toLowerCase();
+    const fileName = `${safeName}_${domain}_${fmt.ext}`;
+    downloadText(text, fileName);
+    setResult({ live: count, zMin, zMax, fileName });
+    toast({
+      title: 'Horizon picks exported',
+      description: `${fileName} (${count.toLocaleString()} picks)`,
+    });
+  };
+
+  /** @param {'download'|'rcp'|'registry'} destination */
   const runExport = async (destination = 'download') => {
     if (!volume || !manifest || !horizonId) return;
     const horizon = horizons.find((h) => h.id === horizonId);
@@ -81,6 +133,12 @@ export default function ExportPanel({ volume, manifest, frameless }) {
     abortRef.current = ctl;
     try {
       if (!affine) throw new Error('Volume has no usable survey coordinates for gridding.');
+
+      if (isPicks) {
+        await runPicksExport(horizon);
+        return;
+      }
+
       // z NEGATIVE downward (playbook export convention); the volume's
       // velocity model wins over the constant-velocity fallback; the
       // INCLUDED faults that cut the horizon block interpolation
@@ -105,8 +163,38 @@ export default function ExportPanel({ volume, manifest, frameless }) {
       let text;
       if (effectiveFormat === 'xyz') text = xyzText;
       else if (effectiveFormat === 'cps3') text = writeCPS3(g);
+      else if (effectiveFormat === 'irap') text = writeIrapClassic(g);
       else text = writeZMAP({ ...g, name: safeName });
       const fileName = `${safeName}_${domain}.${fmt.ext}`;
+
+      // shared provenance for the RCP handoff and the surface registry
+      const exportParams = {
+        cell_m: dxy,
+        velocity_model: domain === 'depth' && model ? model : null,
+        velocity_ft_s: domain === 'depth' && !model ? velocity : null,
+        // well-tie provenance: which wells calibrated the model that
+        // drove this depth conversion (null = uncalibrated / TWT)
+        velocity_calibration: domain === 'depth' && model
+          ? (manifest.velocity_calibration || null) : null,
+        wells_used: domain === 'depth' && model
+          ? (manifest.velocity_calibration?.wells ?? null) : null,
+        // provenance: measured survey orientation vs the legacy
+        // axis-aligned corner assumption
+        survey_geometry: affine.legacyAxisAligned ? 'corners_axis_aligned' : 'measured_affine',
+        // fault blocking: null when gridding ran unblocked (no
+        // faults, toggle off, or no fault cuts this horizon)
+        fault_aware: Boolean(faultInfo),
+        fault_blocks: faultInfo?.blocks ?? null,
+        faults_used: faultInfo?.traces ?? null,
+        faults_excluded: faultAware && excludedFaultIds.size
+          ? faults.filter((f) => excludedFaultIds.has(f.id)).map((f) => f.name)
+          : null,
+        max_extrapolation_m: maxExtrapolationM,
+        control_points: gridded.controlCount,
+        live_nodes: gridded.live,
+        z_min: gridded.zMin,
+        z_max: gridded.zMax,
+      };
 
       if (destination === 'rcp') {
         await publishSurface({
@@ -115,41 +203,15 @@ export default function ExportPanel({ volume, manifest, frameless }) {
           domain: domain === 'depth' ? 'depth_ft' : 'twt_ms',
           volume,
           horizon,
-          params: {
-            cell_m: dxy,
-            velocity_model: domain === 'depth' && model ? model : null,
-            velocity_ft_s: domain === 'depth' && !model ? velocity : null,
-            // well-tie provenance: which wells calibrated the model that
-            // drove this depth conversion (null = uncalibrated / TWT)
-            velocity_calibration: domain === 'depth' && model
-              ? (manifest.velocity_calibration || null) : null,
-            wells_used: domain === 'depth' && model
-              ? (manifest.velocity_calibration?.wells ?? null) : null,
-            // provenance: measured survey orientation vs the legacy
-            // axis-aligned corner assumption
-            survey_geometry: affine.legacyAxisAligned ? 'corners_axis_aligned' : 'measured_affine',
-            // fault blocking: null when gridding ran unblocked (no
-            // faults, toggle off, or no fault cuts this horizon)
-            fault_aware: Boolean(faultInfo),
-            fault_blocks: faultInfo?.blocks ?? null,
-            faults_used: faultInfo?.traces ?? null,
-            faults_excluded: faultAware && excludedFaultIds.size
-              ? faults.filter((f) => excludedFaultIds.has(f.id)).map((f) => f.name)
-              : null,
-            max_extrapolation_m: maxExtrapolationM,
-            control_points: gridded.controlCount,
-            live_nodes: gridded.live,
-            z_min: gridded.zMin,
-            z_max: gridded.zMax,
-          },
+          params: exportParams,
         });
+      } else if (destination === 'registry') {
+        await saveHorizonAsSurface({
+          volume, horizon, domain, g, spec, params: exportParams,
+        });
+        onSurfaceSaved?.();
       } else {
-        const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.click();
-        URL.revokeObjectURL(url);
+        downloadText(text, fileName);
       }
 
       const grv = domain === 'depth' && contact !== ''
@@ -162,13 +224,17 @@ export default function ExportPanel({ volume, manifest, frameless }) {
         zMax: gridded.zMax,
         grv,
         faultInfo,
-        fileName: destination === 'rcp' ? 'sent to ReservoirCalc Pro' : fileName,
+        fileName: destination === 'rcp' ? 'sent to ReservoirCalc Pro'
+          : destination === 'registry' ? 'saved as surface' : fileName,
       });
       toast({
-        title: destination === 'rcp' ? 'Surface sent to ReservoirCalc Pro' : 'Surface exported',
+        title: destination === 'rcp' ? 'Surface sent to ReservoirCalc Pro'
+          : destination === 'registry' ? 'Surface saved' : 'Surface exported',
         description: destination === 'rcp'
           ? 'Open ReservoirCalc Pro → Import surface → From Seismolord.'
-          : fileName,
+          : destination === 'registry'
+            ? 'Now in the explorer’s Surfaces section and Mapping & Surface Studio.'
+            : fileName,
       });
     } catch (e) {
       if (e.message !== 'Export cancelled') setError(e.message);
@@ -195,6 +261,22 @@ export default function ExportPanel({ volume, manifest, frameless }) {
                 >
                   <option value="">Select a horizon…</option>
                   {horizons.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label
+                  className="text-slate-300"
+                  title="Surface = gridded from the picks; Picks = the interpretation itself (one row per live pick)"
+                >
+                  Export
+                </Label>
+                <select
+                  className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                  value={objectKind}
+                  onChange={(e) => setObjectKind(e.target.value)}
+                >
+                  <option value="surface">Surface (gridded)</option>
+                  <option value="picks">Horizon picks</option>
                 </select>
               </div>
               <div>
@@ -229,24 +311,56 @@ export default function ExportPanel({ volume, manifest, frameless }) {
                   />
                 )}
               </div>
-              <div>
-                <Label className="text-slate-300">Cell (m, 0=bin)</Label>
-                <Input
-                  type="number" value={cell} min="0" step="5"
-                  className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
-                  onChange={(e) => setCell(Number(e.target.value))}
-                />
-              </div>
+              {!isPicks && (
+                <div>
+                  <Label className="text-slate-300">Cell (m, 0=bin)</Label>
+                  <Input
+                    type="number" value={cell} min="0" step="5"
+                    className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                    onChange={(e) => setCell(Number(e.target.value))}
+                  />
+                </div>
+              )}
               <div>
                 <Label className="text-slate-300">Format</Label>
-                <select
-                  className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
-                  value={format}
-                  onChange={(e) => setFormat(e.target.value)}
-                >
-                  {FORMATS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-                </select>
+                {isPicks ? (
+                  <select
+                    className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                    value={pickFormat}
+                    onChange={(e) => setPickFormat(e.target.value)}
+                  >
+                    {PICK_FORMATS.map((f) => (
+                      <option key={f.key} value={f.key}>{f.label}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                    value={format}
+                    onChange={(e) => setFormat(e.target.value)}
+                  >
+                    {FORMATS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
+                  </select>
+                )}
               </div>
+              {isPicks && (
+                <div>
+                  <Label
+                    className="text-slate-300"
+                    title="The suite convention is Z negative downward; Petrel's Charisma import conventionally expects positive-down values"
+                  >
+                    Z sign
+                  </Label>
+                  <select
+                    className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                    value={zSign}
+                    onChange={(e) => setZSign(e.target.value)}
+                  >
+                    <option value="negative">Negative down (suite)</option>
+                    <option value="positive">Positive down (Petrel)</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -258,18 +372,32 @@ export default function ExportPanel({ volume, manifest, frameless }) {
                 {running
                   ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   : <Download className="w-4 h-4 mr-2" />}
-                Grid &amp; download
+                {isPicks ? 'Export picks' : 'Grid & download'}
               </Button>
-              <Button
-                onClick={() => runExport('rcp')}
-                disabled={!horizonId || running}
-                variant="outline"
-                className="border-emerald-600/60 text-emerald-300 hover:bg-emerald-950/40"
-              >
-                <Send className="w-4 h-4 mr-2" />
-                Send to ReservoirCalc Pro
-              </Button>
-              {running && (
+              {!isPicks && (
+                <>
+                  <Button
+                    onClick={() => runExport('registry')}
+                    disabled={!horizonId || running}
+                    variant="outline"
+                    className="border-cyan-600/60 text-cyan-300 hover:bg-cyan-950/40"
+                    title="Grid the picks and keep the result as a first-class surface (explorer Surfaces section + Mapping & Surface Studio)"
+                  >
+                    <Mountain className="w-4 h-4 mr-2" />
+                    Save as surface
+                  </Button>
+                  <Button
+                    onClick={() => runExport('rcp')}
+                    disabled={!horizonId || running}
+                    variant="outline"
+                    className="border-emerald-600/60 text-emerald-300 hover:bg-emerald-950/40"
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    Send to ReservoirCalc Pro
+                  </Button>
+                </>
+              )}
+              {running && !isPicks && (
                 <Button
                   variant="outline" size="sm"
                   onClick={() => abortRef.current?.abort()}
@@ -279,7 +407,7 @@ export default function ExportPanel({ volume, manifest, frameless }) {
                   Cancel
                 </Button>
               )}
-              {faults.length > 0 && (
+              {!isPicks && faults.length > 0 && (
                 <label
                   className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer select-none"
                   title="Interpolation will not cross faults that cut this horizon; nodes on the fault trace stay null"
@@ -293,32 +421,36 @@ export default function ExportPanel({ volume, manifest, frameless }) {
                   Fault-aware ({faults.length} fault{faults.length > 1 ? 's' : ''})
                 </label>
               )}
-              <div className="flex items-center gap-2">
-                <Label
-                  className="text-slate-300 text-sm"
-                  title="Nodes farther than this from any pick stay null — with fault blocking on, this bounds how far a block extrapolates toward the fault"
-                >
-                  Max extrap. (m, 0=2×cell)
-                </Label>
-                <Input
-                  type="number" value={maxExtra} min="0" step="10"
-                  className="w-24 bg-slate-950 border-slate-700 text-slate-200"
-                  onChange={(e) => setMaxExtra(Number(e.target.value))}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="text-slate-300 text-sm">Contact (ft, optional)</Label>
-                <Input
-                  type="number" value={contact} placeholder="-6200" step="10"
-                  className="w-28 bg-slate-950 border-slate-700 text-slate-200"
-                  onChange={(e) => setContact(e.target.value)}
-                  disabled={domain !== 'depth'}
-                />
-                <span className="text-xs text-slate-500">for GRV readout</span>
-              </div>
+              {!isPicks && (
+                <div className="flex items-center gap-2">
+                  <Label
+                    className="text-slate-300 text-sm"
+                    title="Nodes farther than this from any pick stay null — with fault blocking on, this bounds how far a block extrapolates toward the fault"
+                  >
+                    Max extrap. (m, 0=2×cell)
+                  </Label>
+                  <Input
+                    type="number" value={maxExtra} min="0" step="10"
+                    className="w-24 bg-slate-950 border-slate-700 text-slate-200"
+                    onChange={(e) => setMaxExtra(Number(e.target.value))}
+                  />
+                </div>
+              )}
+              {!isPicks && (
+                <div className="flex items-center gap-2">
+                  <Label className="text-slate-300 text-sm">Contact (ft, optional)</Label>
+                  <Input
+                    type="number" value={contact} placeholder="-6200" step="10"
+                    className="w-28 bg-slate-950 border-slate-700 text-slate-200"
+                    onChange={(e) => setContact(e.target.value)}
+                    disabled={domain !== 'depth'}
+                  />
+                  <span className="text-xs text-slate-500">for GRV readout</span>
+                </div>
+              )}
             </div>
 
-            {faultAware && faults.length > 1 && (
+            {!isPicks && faultAware && faults.length > 1 && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-1 text-sm text-slate-400">
                 <span className="text-xs text-slate-500">Faults included:</span>
                 {faults.map((f) => (
@@ -343,7 +475,10 @@ export default function ExportPanel({ volume, manifest, frameless }) {
             {result && (
               <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300 grid grid-cols-2 md:grid-cols-4 gap-y-1">
                 <div>File: <span className="text-white">{result.fileName}</span></div>
-                <div>Live nodes: <span className="text-white">{result.live.toLocaleString()}</span></div>
+                <div>
+                  {result.controlCount != null ? 'Live nodes' : 'Picks'}:{' '}
+                  <span className="text-white">{result.live.toLocaleString()}</span>
+                </div>
                 <div>
                   Z range: <span className="text-white">
                     {result.zMin?.toFixed(1)} … {result.zMax?.toFixed(1)}
@@ -369,13 +504,21 @@ export default function ExportPanel({ volume, manifest, frameless }) {
               </div>
             )}
             <p className="text-xs text-slate-500">
-              Exports use the suite convention: Z negative downward (depth in feet via
-              the volume velocity model when set, else constant velocity; or negated
-              TWT ms); nulls are 1.0E+30;
-              CPS-3/ZMAP+ bodies are column-major, north to south. World positions
-              come from the measured survey geometry (rotated surveys supported).
-              With fault-aware gridding on, interpolation never crosses a fault that
-              cuts the horizon and nodes on the fault trace stay null.
+              {isPicks
+                ? 'Pick export writes the interpretation itself: one row per live '
+                  + 'pick with real inline/crossline numbers and world X/Y from the '
+                  + 'measured survey geometry. Charisma rows use the 9-token dialect '
+                  + 'Petrel imports; nulls are skipped (no sentinel rows). Depth uses '
+                  + 'the volume velocity model when set, else constant velocity.'
+                : 'Exports use the suite convention: Z negative downward (depth in feet via '
+                  + 'the volume velocity model when set, else constant velocity; or negated '
+                  + 'TWT ms); nulls are 1.0E+30 (Irap writes its own 9999900 sentinel); '
+                  + 'CPS-3/ZMAP+ bodies are column-major, north to south. World positions '
+                  + 'come from the measured survey geometry (rotated surveys supported). '
+                  + 'With fault-aware gridding on, interpolation never crosses a fault that '
+                  + 'cuts the horizon and nodes on the fault trace stay null. "Save as '
+                  + 'surface" keeps the grid as a first-class object in the shared surface '
+                  + 'registry.'}
             </p>
           </>
         )}

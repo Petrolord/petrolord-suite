@@ -1,5 +1,6 @@
-// Ribbon · Export: launcher for the gridding & surface-export dialog
-// (XYZ / CPS-3 / ZMAP+ writers, fault-aware gridding, contact GRV).
+// Ribbon · Export: launcher for the surface/pick export dialog
+// (surfaces: XYZ / CPS-3 / ZMAP+ / Irap classic, fault-aware gridding,
+// contact GRV, save-to-registry; picks: Charisma 3D / IL-XL points).
 
 import React from 'react';
 import { Grid3X3 } from 'lucide-react';
@@ -7,13 +8,13 @@ import { RibbonGroup, RibbonButton } from '../Ribbon';
 
 export default function ExportTab({ volume, openExport }) {
   return (
-    <RibbonGroup label="Surfaces">
+    <RibbonGroup label="Surfaces & picks">
       <RibbonButton
         icon={Grid3X3}
-        label="Gridding & export…"
+        label="Export…"
         onClick={openExport}
         disabled={!volume}
-        title="Grid a horizon and export it (XYZ / CPS-3 / ZMAP+; fault-aware; depth or TWT)"
+        title="Export a horizon as a gridded surface (XYZ / CPS-3 / ZMAP+ / Irap; fault-aware; depth or TWT; save as a registry surface) or as interpretation picks (Charisma 3D / IL-XL points)"
       />
     </RibbonGroup>
   );
