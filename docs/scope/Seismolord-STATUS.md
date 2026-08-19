@@ -1,6 +1,46 @@
 # Seismolord — STATUS
 
-Last updated: 2026-08-19 (horizon amplitude-map export)
+Last updated: 2026-08-19 (ingest resume)
+
+## Ingest resume (interrupted imports): DONE
+
+Branch `feat/seismolord-ingest-resume`. Closes the last hardening-doc
+follow-up that lived purely in Seismolord: an import that dies
+mid-transcode/upload is now resumable from the import dialog, safely.
+
+- **Identity before anything else**: `services/ingestResume.js` — a
+  sampled SHA-256 fingerprint (size + first/middle/last 64 KiB,
+  clamped/merged windows; ~192 KiB read regardless of file size) is
+  computed up front and recorded on the seismic_volumes row as
+  `survey_meta.ingest` (fingerprint + il/xl byte mapping + file
+  name/size) at REGISTRATION time — an interrupted ingest has no
+  manifest, so the row is the only place identity can live. On
+  completion the record survives into the final survey_meta and the
+  manifest gains additive `source.fingerprint` (still
+  manifest_version 1). NO DDL — survey_meta jsonb existed.
+- **The gate**: `resumeGate(row, fingerprint)` refuses non-'ingesting'
+  rows, pre-feature rows (no identity record — message says delete and
+  re-import), and any fingerprint mismatch (message names the original
+  file and whether size or content differs). On success it returns the
+  ORIGINAL header mapping — a resume transcodes under the bytes the
+  brick store was started with, never whatever the dialog currently
+  shows. Hashing runs through an injectable digest so jest never needs
+  crypto.subtle.
+- **UI**: ImportPanel lists interrupted imports (status 'ingesting')
+  with Resume (file picker → fingerprint check → same pipeline with
+  `resumeVolumeId`; already-uploaded bricks skipped) and Discard
+  (volumesService.deleteVolume — row + partial bricks). The list
+  refreshes when a run ends, so a failed/cancelled import is resumable
+  immediately.
+- **Fixed en route**: the resume path's existing-brick listing used a
+  single `list({limit: 100000})` call, but storage list pages cap at
+  1000 — volumes over 1000 bricks re-uploaded the tail (correct but
+  wasteful, gigabytes on big volumes). Now paginated like deleteVolume.
+- Tests: `ingestResume.test.js` (12 — plan windows/merging, digest
+  byte-exactness, sensitivity, strict match, all gate refusals, mapping
+  snake-casing). 194 suites / 2467 green; build green. Manual staging
+  pass (kill an import mid-upload, resume, wrong-file refusal) still
+  worth doing signed-in.
 
 ## Horizon amplitude-map export: DONE
 

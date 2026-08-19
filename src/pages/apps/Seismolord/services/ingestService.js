@@ -5,6 +5,7 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { buildManifest, brickRelPath, volumeDir, manifestPath } from '../engine/manifest';
+import { fileFingerprint, ingestRecord, resumeGate } from './ingestResume';
 
 export const SEISMIC_BUCKET = 'seismic';
 // Concurrency is governed by the worker's MAX_UNACKED_BRICKS backpressure
@@ -89,10 +90,12 @@ async function uploadObject(path, body, contentType, skipExisting) {
  *
  * @param {Object} p
  * @param {File} p.file
- * @param {{ilByte?: number, xlByte?: number}} p.mapping
+ * @param {{ilByte?: number, xlByte?: number}} p.mapping ignored on resume —
+ *   the transcode reruns under the ORIGINAL mapping stored on the row
  * @param {string} [p.name] display name, defaults to file name
  * @param {string} [p.resumeVolumeId] reuse a prior 'ingesting' volume id;
- *   already-uploaded bricks are skipped
+ *   the file must fingerprint-match the row's survey_meta.ingest identity
+ *   (resumeGate), and already-uploaded bricks are skipped
  * @param {number} [p.memoryBudgetBytes]
  * @param {(p:{phase:string,done:number,total:number})=>void} [p.onProgress]
  * @param {{cancelled?: boolean}} [p.cancelToken] set .cancelled = true to abort
@@ -107,15 +110,26 @@ export async function ingestVolume({
 
   if (!resumeVolumeId) await assertQuota(file.size);   // brick store ≈ sample bytes
 
+  // Source identity, computed before anything is registered or uploaded.
+  const fingerprint = await fileFingerprint(file);
+
   // Register (or find) the row first so a failed ingest is visible and
-  // resumable instead of leaving orphan storage objects.
+  // resumable instead of leaving orphan storage objects. The identity
+  // record rides on the row (survey_meta.ingest) from the very start —
+  // an interrupted ingest has no manifest, so the row is the only place
+  // a later resume can verify the file against.
   let row;
+  let ingestRec;
+  let effectiveMapping = mapping;
   if (resumeVolumeId) {
     const { data, error } = await supabase.from('seismic_volumes')
       .select('*').eq('id', resumeVolumeId).single();
     if (error || !data) throw new Error('Volume to resume was not found.');
     row = data;
+    effectiveMapping = resumeGate(row, fingerprint).mapping;
+    ingestRec = row.survey_meta.ingest;
   } else {
+    ingestRec = ingestRecord(fingerprint, mapping, file);
     const { data, error } = await supabase.from('seismic_volumes')
       .insert({
         id: volumeId,
@@ -123,6 +137,7 @@ export async function ingestVolume({
         name: displayName,
         storage_path: dir,
         status: 'ingesting',
+        survey_meta: { ingest: ingestRec },
       })
       .select().single();
     if (error) throw new Error(`Could not register volume: ${error.message}`);
@@ -131,9 +146,18 @@ export async function ingestVolume({
 
   const existing = new Set();
   if (resumeVolumeId) {
-    const { data } = await supabase.storage.from(SEISMIC_BUCKET)
-      .list(`${dir}/bricks`, { limit: 100000 });
-    (data || []).forEach((o) => existing.add(o.name));
+    // paginate: list() pages cap at 1000 regardless of the limit asked,
+    // and a large volume easily exceeds 1000 bricks — an incomplete set
+    // here only costs redundant uploads (skipExisting tolerates them),
+    // but a resume should not re-send gigabytes
+    let offset = 0;
+    for (;;) {
+      const { data } = await supabase.storage.from(SEISMIC_BUCKET)
+        .list(`${dir}/bricks`, { limit: 1000, offset });
+      (data || []).forEach((o) => existing.add(o.name));
+      if (!data || data.length < 1000) break;
+      offset += data.length;
+    }
   }
 
   const worker = newWorker();
@@ -193,7 +217,7 @@ export async function ingestVolume({
       }
     };
     worker.onerror = (e) => fail(new Error(e.message));
-    worker.postMessage({ type: 'ingest', id, file, mapping, memoryBudgetBytes });
+    worker.postMessage({ type: 'ingest', id, file, mapping: effectiveMapping, memoryBudgetBytes });
   }).finally(() => worker.terminate());
 
   const manifest = buildManifest({
@@ -204,6 +228,9 @@ export async function ingestVolume({
     sourceFileName: file.name,
     sourceFileSize: file.size,
   });
+  // additive manifest field (still manifest_version 1): the source
+  // identity the ingest was gated on, for future re-import dedup hints
+  manifest.source.fingerprint = ingestRec.fingerprint;
   await uploadObject(manifestPath(userId, volumeId),
     new Blob([JSON.stringify(manifest, null, 1)], { type: 'application/json' }),
     'application/json', false).catch(async (err) => {
@@ -231,6 +258,10 @@ export async function ingestVolume({
         stats: manifest.stats,
         // quota accounting: actual brick-store footprint of this volume
         storage_bytes: manifest.brick.count * manifest.brick.size ** 3 * 4,
+        // identity survives readiness (survey_meta is replaced wholesale
+        // here, and the completion of an interrupted-then-resumed ingest
+        // must not erase what it was resumed from)
+        ingest: ingestRec,
       },
       updated_at: new Date().toISOString(),
     })

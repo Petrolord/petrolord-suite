@@ -134,6 +134,12 @@ DONE since: rotated-survey geometry (measured affine), fault-aware
 gridding (blocked TPS), server-side quota enforcement
 (20260712120000_seismic_storage_quota.sql).
 
+DONE 2026-08-19: ingest resume UI — the import dialog lists interrupted
+('ingesting') volumes with Resume/Discard; resume verifies the picked
+file against a sampled SHA-256 fingerprint recorded on the row at
+registration time and reruns the transcode under the ORIGINAL header
+mapping, skipping already-uploaded bricks (see
+services/ingestResume.js and Seismolord-STATUS.md).
+
 Still open: RCP's ZMAP+/CPS-3 grid-body import; packed-brick storage
-layout when volumes outgrow per-brick objects; ingest resume UI (with a
-file-identity check before reusing a volume id).
+layout when volumes outgrow per-brick objects.
