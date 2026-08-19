@@ -13,6 +13,7 @@ import {
   updateHorizonMeta,
 } from '../services/horizonsService';
 import { saveFault, listFaults, deleteFault } from '../services/faultsService';
+import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExport';
 import {
   listVolumeSurfaces, exportStoredSurface, loadSurfaceMapLayer,
   surfaceSectionGrid, setSurfaceShared,
@@ -857,6 +858,33 @@ export default function ViewerPanel() {
     });
   };
 
+  // Charisma fault-stick download from the stored sticks (the fault
+  // mirror of pick export; sign per the pickExport convention — suite
+  // negative-down, Petrel-bound files positive-down)
+  const onExportFaultSticks = (f, zSign) => {
+    try {
+      if (!manifest || !affine) throw new Error('The volume has no usable survey coordinates.');
+      const geo = manifest.geometry;
+      const dtMs = geo.dt_us / 1000;
+      const lines = {
+        il0: geo.il.min, ilStep: geo.il.step, xl0: geo.xl.min, xlStep: geo.xl.step,
+      };
+      const sign = zSign === 'positive' ? 1 : -1;
+      const rows = faultSticksToRows(f.sticks, affine, (s) => sign * s * dtMs, lines);
+      const text = writeCharismaFaultSticks([{ name: f.name, rows }]);
+      const safeName = f.name.replace(/[^\w-]+/g, '_').toLowerCase();
+      const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${safeName}_sticks.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Fault sticks exported', description: `${safeName}_sticks.txt` });
+    } catch (e) {
+      toast({ title: 'Export failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const onDeleteFault = async (f) => {
     // eslint-disable-next-line no-alert
     if (!window.confirm(`Delete fault "${f.name}"?`)) return;
@@ -1699,6 +1727,7 @@ export default function ViewerPanel() {
     setEditTarget: changeEditTarget,
     toggleFault,
     deleteFault: onDeleteFault,
+    exportFaultSticks: onExportFaultSticks,
     toggleWell: wellsApi.toggle,
     deleteWell: wellsApi.remove,
     openTraverse: (t) => handleTraverse(t.vertices, t.id),
@@ -2084,6 +2113,11 @@ export default function ViewerPanel() {
         manifest={manifest}
         onSurfaceImported={() => setSurfacesRefresh((k) => k + 1)}
         onHorizonImported={() => reloadHorizons(volume)}
+        onFaultsImported={async (saved) => {
+          setFaults(await listFaults(volume.id).catch(() => []));
+          // imported faults show immediately (the fault-save behavior)
+          setVisibleFaultIds((s) => new Set([...s, ...saved.map((f) => f.id)]));
+        }}
       />
 
       <WellImportDialog

@@ -386,6 +386,20 @@ export default function SeismicExplorer({ tree, actions }) {
                   <ContextMenuItem onSelect={() => actions.toggleFault(f)}>
                     {visibleFaultIds.has(f.id) ? 'Hide' : 'Show'}
                   </ContextMenuItem>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <Download className="w-3.5 h-3.5 mr-1.5" />
+                      Export sticks
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-60">
+                      <ContextMenuItem onSelect={() => actions.exportFaultSticks(f, 'positive')}>
+                        Charisma, positive down (Petrel)
+                      </ContextMenuItem>
+                      <ContextMenuItem onSelect={() => actions.exportFaultSticks(f, 'negative')}>
+                        Charisma, negative down (suite)
+                      </ContextMenuItem>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
                   <ContextMenuSeparator />
                   <ContextMenuItem
                     className="text-red-400 focus:text-red-300"
