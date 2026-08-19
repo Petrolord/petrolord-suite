@@ -1,17 +1,20 @@
 // Surfaces explorer (Mapping & Surface Studio G4.3): saved surfaces
-// list (select to view, org/private badges, owner-only delete) plus
-// the "grid a new surface" form — pick a control-point source from the
-// registry (a top across wells, or a zone attribute), a cell size, and
-// grid. Presentational; the controller owns state + the engine calls.
+// list (select to view, share toggle + org/private badges, owner-only
+// delete) plus the "grid a new surface" form — pick a control-point
+// source from the registry (a top across wells, or a zone attribute),
+// a cell size, and grid. Presentational; the controller owns state +
+// the engine calls. On OWN rows the org/private badge is the share
+// toggle (read-only for members, the geo_wells model); teammates' rows
+// keep a passive badge.
 
 import React from 'react';
-import { Layers, Building2, Lock, Trash2, Grid3x3 } from 'lucide-react';
+import { Layers, Building2, Lock, Trash2, Grid3x3, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const selCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
 
 export default function SurfacesExplorer({
-  surfaces, selectedId, onSelect, onDelete,
+  surfaces, selectedId, onSelect, onDelete, onToggleShare, sharingId,
   topNames, zoneKeys, source, onSource, cellM, onCellM, onGrid, gridding,
 }) {
   return (
@@ -58,11 +61,26 @@ export default function SurfacesExplorer({
               <Layers className="w-3.5 h-3.5 shrink-0 text-amber-400" />
               <span className="truncate">{s.name}</span>
               <span className="text-[10px] text-slate-500">{s.kind}</span>
-              <span className={`ml-auto inline-flex items-center rounded px-1 text-[10px]
-                ${shared ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-700/60 text-slate-400'}`}
-                title={shared ? 'Shared with the organization' : 'Private'}>
-                {shared ? <Building2 className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-              </span>
+              {s.is_own ? (
+                <button type="button" data-testid={`map-share-${s.name}`}
+                  className={`ml-auto inline-flex items-center rounded px-1 py-0.5 text-[10px] border border-transparent
+                    hover:border-slate-600 disabled:opacity-40
+                    ${shared ? 'bg-emerald-500/15 text-emerald-300' : 'bg-slate-700/60 text-slate-400'}`}
+                  title={shared
+                    ? 'Shared with your organization (read-only for members) — click to make private'
+                    : 'Private — click to share with your organization (read-only for members)'}
+                  disabled={sharingId === s.id}
+                  onClick={(e) => { e.stopPropagation(); onToggleShare(s); }}>
+                  {sharingId === s.id
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : shared ? <Building2 className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                </button>
+              ) : (
+                <span className="ml-auto inline-flex items-center rounded px-1 text-[10px] bg-sky-500/15 text-sky-300"
+                  title="Shared by a teammate (read-only)">
+                  <Building2 className="w-3 h-3" />
+                </span>
+              )}
               {s.is_own && (
                 <button type="button" title={`Delete ${s.name}`} data-testid={`map-delete-${s.name}`}
                   className="text-slate-500 hover:text-red-400" onClick={(e) => { e.stopPropagation(); onDelete(s); }}>

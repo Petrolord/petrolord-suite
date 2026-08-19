@@ -49,6 +49,25 @@ test('owner-only: deleting the org-shared surface is rejected (mirrors RLS)', as
   expect(grid.length).toBe(shared.nx * shared.ny);
 });
 
+test('share toggle: own surfaces share/unshare; teammate rows are owner-only (mirrors RLS)', async () => {
+  const b = makeInMemoryBackend();
+  const wells = await b.listWells();
+  const pts = topsToPoints(wells, 'Top Dome');
+  const spec = specForPoints(pts, 150, 2);
+  const saved = await b.saveSurface({ name: 'Top Dome structure', spec, grid: gridSurface(pts, spec).z });
+  expect(saved.organization_id).toBeNull();
+
+  const shared = await b.setSurfaceShared(saved, true);
+  expect(shared.organization_id).toBeTruthy();
+  expect((await b.listSurfaces()).find((s) => s.id === saved.id).organization_id).toBeTruthy();
+
+  const unshared = await b.setSurfaceShared(saved, false);
+  expect(unshared.organization_id).toBeNull();
+
+  const teammate = (await b.listSurfaces()).find((s) => !s.is_own);
+  await expect(b.setSurfaceShared(teammate, false)).rejects.toThrow(/Only the owner/);
+});
+
 test('isochore of two published surfaces resamples + subtracts', async () => {
   const b = makeInMemoryBackend();
   const wells = await b.listWells();
