@@ -9,7 +9,10 @@
 
 import {
   listSurfaces, saveSurface, deleteSurface, downloadSurfaceGrid,
+  shareSurface, unshareSurface,
 } from '@/lib/surfacesRegistry';
+import { resolveUserOrgId } from '@/lib/orgContext';
+import { supabase } from '@/lib/customSupabaseClient';
 import {
   writeXYZ, writeCPS3, writeZMAP, writeIrapClassic,
 } from '@/lib/gridding/surfaceExport';
@@ -25,10 +28,46 @@ export const isVolumeSurface = (row, volumeId) => (
   && row?.provenance?.volume?.id === volumeId
 );
 
-/** Registry surfaces derived from this volume's horizons. */
+/** Rows the explorer's Surfaces section lists: the caller's OWN
+ *  surfaces derived from this volume, plus every surface a teammate
+ *  shared with the organization (read-only, whatever app made it — an
+ *  org surface displays wherever it overlaps the survey; one that
+ *  doesn't fails the map load with a clear message). Pure — unit
+ *  tested. */
+export const isExplorerSurface = (row, volumeId) => (
+  isVolumeSurface(row, volumeId) || row?.is_own === false
+);
+
+/** Registry surfaces for the explorer: own volume-derived first, then
+ *  org-shared rows from teammates. */
 export async function listVolumeSurfaces(volumeId) {
   const all = await listSurfaces();
-  return all.filter((s) => isVolumeSurface(s, volumeId));
+  const mine = all.filter((s) => isVolumeSurface(s, volumeId));
+  const shared = all.filter((s) => s.is_own === false);
+  return [...mine, ...shared];
+}
+
+/** The caller's organization id, resolved once per session; null when
+ *  they belong to no organization (the share action explains instead
+ *  of failing). */
+let orgIdPromise; // undefined = not yet requested
+export function myOrgId() {
+  if (orgIdPromise === undefined) {
+    orgIdPromise = supabase.auth.getUser()
+      .then(({ data: { user } }) => (user ? resolveUserOrgId(user.id) : null))
+      .catch(() => null);
+  }
+  return orgIdPromise;
+}
+
+/** Share/unshare an OWN surface with the caller's organization
+ *  (read-only for members, the geo_wells model). Returns the updated
+ *  row. */
+export async function setSurfaceShared(surface, shared) {
+  if (!shared) return unshareSurface(surface.id);
+  const org = await myOrgId();
+  if (!org) throw new Error('You belong to no organization — nothing to share with.');
+  return shareSurface(surface.id, org);
 }
 
 /**

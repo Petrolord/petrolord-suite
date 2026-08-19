@@ -6,8 +6,8 @@
  * exercised in staging.
  */
 import {
-  isVolumeSurface, surfaceToGrid, exportStoredSurface, SURFACE_EXPORT_FORMATS,
-  surfaceSectionGrid,
+  isVolumeSurface, isExplorerSurface, surfaceToGrid, exportStoredSurface,
+  SURFACE_EXPORT_FORMATS, surfaceSectionGrid,
 } from '@/pages/apps/Seismolord/services/surfacesService';
 import { makeTvdssToTwt } from '@/pages/apps/Seismolord/engine/wellSection';
 
@@ -29,6 +29,17 @@ describe('isVolumeSurface', () => {
     expect(isVolumeSurface(row(undefined), 'v1')).toBe(false);
     expect(isVolumeSurface(row({}), 'v1')).toBe(false);
     expect(isVolumeSurface(null, 'v1')).toBeFalsy();
+  });
+});
+
+describe('isExplorerSurface (org-shared rows)', () => {
+  test('own volume-derived rows and ANY teammate-shared row list; own foreign-volume rows do not', () => {
+    const mine = { is_own: true, provenance: { app: 'seismolord', volume: { id: 'v1' } } };
+    const mineOtherVol = { is_own: true, provenance: { app: 'seismolord', volume: { id: 'v2' } } };
+    const teammates = { is_own: false, organization_id: 'org1', provenance: { app: 'mapping-studio' } };
+    expect(isExplorerSurface(mine, 'v1')).toBe(true);
+    expect(isExplorerSurface(mineOtherVol, 'v1')).toBe(false);
+    expect(isExplorerSurface(teammates, 'v1')).toBe(true);
   });
 });
 

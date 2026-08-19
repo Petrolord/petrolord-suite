@@ -15,7 +15,8 @@ import {
 import { saveFault, listFaults, deleteFault } from '../services/faultsService';
 import {
   listVolumeSurfaces, exportStoredSurface, loadSurfaceMapLayer,
-  surfaceSectionGrid, deleteSurface as deleteRegistrySurface,
+  surfaceSectionGrid, setSurfaceShared,
+  deleteSurface as deleteRegistrySurface,
 } from '../services/surfacesService';
 import { listLogs, downloadCurve } from '../services/wellsService';
 import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
@@ -1377,6 +1378,21 @@ export default function ViewerPanel() {
     }
   };
 
+  const onShareSurface = async (s) => {
+    setSurfaceBusyId(s.id);
+    try {
+      await setSurfaceShared(s, !s.organization_id);
+      toast(s.organization_id
+        ? { title: 'Surface is private again', description: `${s.name} is no longer visible to your organization.` }
+        : { title: 'Surface shared', description: `${s.name} is now read-only visible to your organization (Mapping & Surface Studio included).` });
+      setSurfacesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Share failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setSurfaceBusyId(null);
+    }
+  };
+
   const onDeleteSurface = async (s) => {
     // eslint-disable-next-line no-alert
     if (!window.confirm(`Delete surface "${s.name}"? This removes it from the shared `
@@ -1675,6 +1691,7 @@ export default function ViewerPanel() {
     openHorizonSettings,
     exportSurface: onExportSurface,
     deleteSurface: onDeleteSurface,
+    shareSurface: onShareSurface,
     toggleSurface,
     openSurfaceImport: () => setOpenDialog('importSurface'),
     toggleSlicePlane,
