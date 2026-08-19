@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Ban, Download, Grid3X3, Loader2, XCircle, Send, Mountain,
 } from 'lucide-react';
+import { AMP_MODES } from '../engine/horizonAmplitude';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,8 +17,10 @@ import {
 } from '../engine/pickExport';
 import { normalizeVelocity, describeVelocity } from '../engine/velocityModel';
 import { publishSurface } from '../services/exportsService';
-import { saveHorizonAsSurface } from '../services/surfacesService';
-import { gridHorizonSurface, exportHorizonPicks } from '../services/surfaceWorkflow';
+import { saveHorizonAsSurface, saveAmplitudeAsSurface } from '../services/surfacesService';
+import {
+  gridHorizonSurface, gridHorizonAmplitude, exportHorizonPicks,
+} from '../services/surfaceWorkflow';
 
 const FORMATS = [
   { key: 'xyz', label: 'XYZ points (.xyz)', ext: 'xyz' },
@@ -42,23 +45,37 @@ const downloadText = (text, fileName) => {
 };
 
 /**
- * Export a horizon as either of its two distinct objects:
- *  - the SURFACE: gridded (fault-aware TPS) then written as XYZ /
- *    CPS-3 / ZMAP+ / Irap classic, sent to ReservoirCalc Pro, or SAVED
- *    to the shared surface registry (geo_surfaces — first-class object,
- *    visible in the explorer's Surfaces section and in Mapping &
- *    Surface Studio);
+ * Export a horizon as one of its three distinct objects:
+ *  - the STRUCTURE surface: gridded (fault-aware TPS) then written as
+ *    XYZ / CPS-3 / ZMAP+ / Irap classic, sent to ReservoirCalc Pro, or
+ *    SAVED to the shared surface registry (geo_surfaces — first-class
+ *    object, visible in the explorer's Surfaces section and in
+ *    Mapping & Surface Studio);
+ *  - the AMPLITUDE map: a seismic attribute along the horizon
+ *    (amplitude at pick / windowed RMS / mean / max |amp|), extracted
+ *    from the bricks at bin resolution and bilinearly RESAMPLED onto
+ *    the export grid (never TPS-fit — decimation would smooth the
+ *    detail away); downloadable in the grid formats or saved to the
+ *    registry as an attribute surface (map-only, no sign flip);
  *  - the PICKS: the interpretation itself, written as Charisma 3D
  *    horizon / five-column IL-XL points / bare XYZ points, no gridding.
- * Exports follow the playbook convention: Z NEGATIVE downward — depth
- * in feet (velocity model wins over the constant fallback) or negated
- * TWT ms; picks offer a positive-down flip for Petrel-bound files.
+ * Structure/pick exports follow the playbook convention: Z NEGATIVE
+ * downward — depth in feet (velocity model wins over the constant
+ * fallback) or negated TWT ms; picks offer a positive-down flip for
+ * Petrel-bound files. Amplitude values keep their physical sign.
+ * The amplitude option needs brick access and only appears when the
+ * caller passes extractAmplitude (ViewerPanel's cache-shielded
+ * extractor).
  */
-export default function ExportPanel({ volume, manifest, frameless, onSurfaceSaved }) {
+export default function ExportPanel({
+  volume, manifest, frameless, onSurfaceSaved, extractAmplitude,
+}) {
   const { toast } = useToast();
   const [horizons, setHorizons] = useState([]);
   const [horizonId, setHorizonId] = useState('');
-  const [objectKind, setObjectKind] = useState('surface'); // 'surface' | 'picks'
+  const [objectKind, setObjectKind] = useState('surface'); // 'surface' | 'amplitude' | 'picks'
+  const [ampMode, setAmpMode] = useState('value');    // engine AMP_MODES key
+  const [ampWindow, setAmpWindow] = useState(4);      // half-width, samples
   const [domain, setDomain] = useState('depth');      // 'depth' | 'twt'
   const [velocity, setVelocity] = useState(10000);    // ft/s
   const [cell, setCell] = useState(0);                // m, 0 -> default bin
@@ -102,6 +119,61 @@ export default function ExportPanel({ volume, manifest, frameless, onSurfaceSave
     () => (manifest ? surveyAffine(manifest.geometry) : null), [manifest]);
 
   const isPicks = objectKind === 'picks';
+  const isAmp = objectKind === 'amplitude';
+  const ampMeta = AMP_MODES.find((m) => m.key === ampMode);
+
+  const runAmplitudeExport = async (horizon, destination, signal) => {
+    const win = ampMeta.windowed ? Math.max(0, Math.round(ampWindow)) : 0;
+    const { g, spec, live, vMin, vMax, xyzText } = await gridHorizonAmplitude({
+      manifest,
+      horizon,
+      extract: extractAmplitude,
+      mode: ampMode,
+      window: win,
+      cellM: cell,
+      signal,
+    });
+    const safeName = horizon.name.replace(/[^\w-]+/g, '_').toLowerCase();
+    const fmt = FORMATS.find((f) => f.key === format);
+    let text;
+    if (format === 'xyz') text = xyzText;
+    else if (format === 'cps3') text = writeCPS3(g);
+    else if (format === 'irap') text = writeIrapClassic(g);
+    else text = writeZMAP({ ...g, name: safeName });
+    const fileName = `${safeName}_${ampMode}.${fmt.ext}`;
+
+    const params = {
+      attribute: ampMode,
+      window_samples: ampMeta.windowed ? win : null,
+      cell_m: spec.dx,
+      survey_geometry: affine.legacyAxisAligned ? 'corners_axis_aligned' : 'measured_affine',
+      live_nodes: live,
+      amp_min: vMin,
+      amp_max: vMax,
+    };
+
+    if (destination === 'registry') {
+      await saveAmplitudeAsSurface({
+        volume, horizon, mode: ampMode, modeLabel: ampMeta.label, g, spec, params,
+      });
+      onSurfaceSaved?.();
+    } else {
+      downloadText(text, fileName);
+    }
+    setResult({
+      live,
+      zMin: vMin,
+      zMax: vMax,
+      isAmp: true,
+      fileName: destination === 'registry' ? 'saved as attribute surface' : fileName,
+    });
+    toast({
+      title: destination === 'registry' ? 'Amplitude map saved' : 'Amplitude map exported',
+      description: destination === 'registry'
+        ? 'Now in the explorer’s Surfaces section and Mapping & Surface Studio (map display only).'
+        : fileName,
+    });
+  };
 
   const runPicksExport = async (horizon) => {
     const { rows, count, zMin, zMax } = await exportHorizonPicks({
@@ -136,6 +208,11 @@ export default function ExportPanel({ volume, manifest, frameless, onSurfaceSave
 
       if (isPicks) {
         await runPicksExport(horizon);
+        return;
+      }
+
+      if (isAmp) {
+        await runAmplitudeExport(horizon, destination, ctl.signal);
         return;
       }
 
@@ -266,7 +343,7 @@ export default function ExportPanel({ volume, manifest, frameless, onSurfaceSave
               <div>
                 <Label
                   className="text-slate-300"
-                  title="Surface = gridded from the picks; Picks = the interpretation itself (one row per live pick)"
+                  title="Surface = structure gridded from the picks; Amplitude = seismic attribute along the horizon; Picks = the interpretation itself (one row per live pick)"
                 >
                   Export
                 </Label>
@@ -276,41 +353,79 @@ export default function ExportPanel({ volume, manifest, frameless, onSurfaceSave
                   onChange={(e) => setObjectKind(e.target.value)}
                 >
                   <option value="surface">Surface (gridded)</option>
+                  {extractAmplitude && (
+                    <option value="amplitude">Amplitude map (gridded)</option>
+                  )}
                   <option value="picks">Horizon picks</option>
                 </select>
               </div>
-              <div>
-                <Label className="text-slate-300">Domain</Label>
-                <select
-                  className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                >
-                  <option value="depth">Depth (ft, −down)</option>
-                  <option value="twt">TWT (ms, −down)</option>
-                </select>
-              </div>
-              <div>
-                <Label className="text-slate-300">
-                  {model ? 'Velocity (volume model)' : 'Velocity ft/s'}
-                </Label>
-                {model ? (
-                  <div
-                    className="mt-1 rounded-md bg-slate-950 border border-slate-700
-                      text-slate-400 p-2 text-sm truncate"
-                    title="Set in the viewer's velocity model controls; clear it there to use a constant"
+              {isAmp && (
+                <div>
+                  <Label
+                    className="text-slate-300"
+                    title="Amplitude = parabolic value at the sub-sample pick; the windowed statistics run over ± the window around it, nulls excluded"
                   >
-                    {describeVelocity(model)}
-                  </div>
-                ) : (
+                    Attribute
+                  </Label>
+                  <select
+                    className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                    value={ampMode}
+                    onChange={(e) => setAmpMode(e.target.value)}
+                  >
+                    {AMP_MODES.map((m) => (
+                      <option key={m.key} value={m.key}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {isAmp && ampMeta?.windowed && (
+                <div>
+                  <Label className="text-slate-300" title="Half-width of the statistic window, in samples either side of the pick">
+                    Window (± samples)
+                  </Label>
                   <Input
-                    type="number" value={velocity} min="1000" step="100"
+                    type="number" value={ampWindow} min="0" step="1"
                     className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
-                    onChange={(e) => setVelocity(Number(e.target.value))}
-                    disabled={domain !== 'depth'}
+                    onChange={(e) => setAmpWindow(Number(e.target.value))}
                   />
-                )}
-              </div>
+                </div>
+              )}
+              {!isAmp && (
+                <div>
+                  <Label className="text-slate-300">Domain</Label>
+                  <select
+                    className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                    value={domain}
+                    onChange={(e) => setDomain(e.target.value)}
+                  >
+                    <option value="depth">Depth (ft, −down)</option>
+                    <option value="twt">TWT (ms, −down)</option>
+                  </select>
+                </div>
+              )}
+              {!isAmp && (
+                <div>
+                  <Label className="text-slate-300">
+                    {model ? 'Velocity (volume model)' : 'Velocity ft/s'}
+                  </Label>
+                  {model ? (
+                    <div
+                      className="mt-1 rounded-md bg-slate-950 border border-slate-700
+                        text-slate-400 p-2 text-sm truncate"
+                      title="Set in the viewer's velocity model controls; clear it there to use a constant"
+                    >
+                      {describeVelocity(model)}
+                    </div>
+                  ) : (
+                    <Input
+                      type="number" value={velocity} min="1000" step="100"
+                      className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                      onChange={(e) => setVelocity(Number(e.target.value))}
+                      disabled={domain !== 'depth'}
+                    />
+                  )}
+                </div>
+              )}
               {!isPicks && (
                 <div>
                   <Label className="text-slate-300">Cell (m, 0=bin)</Label>
@@ -372,30 +487,32 @@ export default function ExportPanel({ volume, manifest, frameless, onSurfaceSave
                 {running
                   ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   : <Download className="w-4 h-4 mr-2" />}
-                {isPicks ? 'Export picks' : 'Grid & download'}
+                {isPicks ? 'Export picks' : isAmp ? 'Extract & download' : 'Grid & download'}
               </Button>
               {!isPicks && (
-                <>
-                  <Button
-                    onClick={() => runExport('registry')}
-                    disabled={!horizonId || running}
-                    variant="outline"
-                    className="border-cyan-600/60 text-cyan-300 hover:bg-cyan-950/40"
-                    title="Grid the picks and keep the result as a first-class surface (explorer Surfaces section + Mapping & Surface Studio)"
-                  >
-                    <Mountain className="w-4 h-4 mr-2" />
-                    Save as surface
-                  </Button>
-                  <Button
-                    onClick={() => runExport('rcp')}
-                    disabled={!horizonId || running}
-                    variant="outline"
-                    className="border-emerald-600/60 text-emerald-300 hover:bg-emerald-950/40"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    Send to ReservoirCalc Pro
-                  </Button>
-                </>
+                <Button
+                  onClick={() => runExport('registry')}
+                  disabled={!horizonId || running}
+                  variant="outline"
+                  className="border-cyan-600/60 text-cyan-300 hover:bg-cyan-950/40"
+                  title={isAmp
+                    ? 'Extract the attribute and keep the map as a first-class attribute surface (explorer Surfaces section + Mapping & Surface Studio; map display only)'
+                    : 'Grid the picks and keep the result as a first-class surface (explorer Surfaces section + Mapping & Surface Studio)'}
+                >
+                  <Mountain className="w-4 h-4 mr-2" />
+                  Save as surface
+                </Button>
+              )}
+              {!isPicks && !isAmp && (
+                <Button
+                  onClick={() => runExport('rcp')}
+                  disabled={!horizonId || running}
+                  variant="outline"
+                  className="border-emerald-600/60 text-emerald-300 hover:bg-emerald-950/40"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Send to ReservoirCalc Pro
+                </Button>
               )}
               {running && !isPicks && (
                 <Button
@@ -407,7 +524,7 @@ export default function ExportPanel({ volume, manifest, frameless, onSurfaceSave
                   Cancel
                 </Button>
               )}
-              {!isPicks && faults.length > 0 && (
+              {!isPicks && !isAmp && faults.length > 0 && (
                 <label
                   className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer select-none"
                   title="Interpolation will not cross faults that cut this horizon; nodes on the fault trace stay null"
@@ -421,7 +538,7 @@ export default function ExportPanel({ volume, manifest, frameless, onSurfaceSave
                   Fault-aware ({faults.length} fault{faults.length > 1 ? 's' : ''})
                 </label>
               )}
-              {!isPicks && (
+              {!isPicks && !isAmp && (
                 <div className="flex items-center gap-2">
                   <Label
                     className="text-slate-300 text-sm"
@@ -436,7 +553,7 @@ export default function ExportPanel({ volume, manifest, frameless, onSurfaceSave
                   />
                 </div>
               )}
-              {!isPicks && (
+              {!isPicks && !isAmp && (
                 <div className="flex items-center gap-2">
                   <Label className="text-slate-300 text-sm">Contact (ft, optional)</Label>
                   <Input
@@ -450,7 +567,7 @@ export default function ExportPanel({ volume, manifest, frameless, onSurfaceSave
               )}
             </div>
 
-            {!isPicks && faultAware && faults.length > 1 && (
+            {!isPicks && !isAmp && faultAware && faults.length > 1 && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-1 text-sm text-slate-400">
                 <span className="text-xs text-slate-500">Faults included:</span>
                 {faults.map((f) => (
@@ -476,12 +593,12 @@ export default function ExportPanel({ volume, manifest, frameless, onSurfaceSave
               <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300 grid grid-cols-2 md:grid-cols-4 gap-y-1">
                 <div>File: <span className="text-white">{result.fileName}</span></div>
                 <div>
-                  {result.controlCount != null ? 'Live nodes' : 'Picks'}:{' '}
+                  {result.controlCount != null || result.isAmp ? 'Live nodes' : 'Picks'}:{' '}
                   <span className="text-white">{result.live.toLocaleString()}</span>
                 </div>
                 <div>
-                  Z range: <span className="text-white">
-                    {result.zMin?.toFixed(1)} … {result.zMax?.toFixed(1)}
+                  {result.isAmp ? 'Amp range' : 'Z range'}: <span className="text-white">
+                    {result.zMin?.toFixed(result.isAmp ? 4 : 1)} … {result.zMax?.toFixed(result.isAmp ? 4 : 1)}
                   </span>
                 </div>
                 {result.grv != null && (
@@ -504,7 +621,17 @@ export default function ExportPanel({ volume, manifest, frameless, onSurfaceSave
               </div>
             )}
             <p className="text-xs text-slate-500">
-              {isPicks
+              {isAmp
+                ? 'Amplitude export extracts the seismic attribute along the horizon '
+                  + '(parabolic value at the sub-sample pick, or a windowed statistic '
+                  + 'with nulls excluded) at bin resolution, then bilinearly resamples '
+                  + 'it onto the export grid — no TPS fit, so amplitude detail is '
+                  + 'preserved. Values keep their physical sign and unit (raw '
+                  + 'amplitude); nulls are 1.0E+30 (Irap writes its own 9999900 '
+                  + 'sentinel); grid bodies follow the same column-major, '
+                  + 'north-to-south conventions as structure exports. Saved attribute '
+                  + 'surfaces display in the Map window only.'
+                : isPicks
                 ? 'Pick export writes the interpretation itself: one row per live '
                   + 'pick with real inline/crossline numbers and world X/Y from the '
                   + 'measured survey geometry. Charisma rows use the 9-token dialect '

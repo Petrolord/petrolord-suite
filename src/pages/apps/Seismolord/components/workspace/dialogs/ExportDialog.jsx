@@ -10,7 +10,7 @@ import {
 import ExportPanel from '../../ExportPanel';
 
 export default function ExportDialog({
-  open, onOpenChange, volume, manifest, onSurfaceSaved,
+  open, onOpenChange, volume, manifest, onSurfaceSaved, extractAmplitude,
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -26,6 +26,7 @@ export default function ExportDialog({
           volume={volume}
           manifest={manifest}
           onSurfaceSaved={onSurfaceSaved}
+          extractAmplitude={extractAmplitude}
         />
       </DialogContent>
     </Dialog>

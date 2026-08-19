@@ -22,6 +22,8 @@ export default {
     // URL), which babel-jest's CJS transform cannot parse — map it to a
     // null factory so the envelope client uses its sync fallback in tests.
     'envelopeWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/envelopeWorkerFactoryMock.js',
+    // same import.meta story for Seismolord's gridding worker
+    'griddingWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/griddingWorkerFactoryMock.js',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$':
       '<rootDir>/src/__mocks__/fileMock.js',

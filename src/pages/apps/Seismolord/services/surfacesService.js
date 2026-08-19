@@ -105,6 +105,44 @@ export async function saveHorizonAsSurface({ volume, horizon, domain, g, spec, p
 }
 
 /**
+ * Persist a gridded horizon AMPLITUDE map as a first-class attribute
+ * surface. Values are seismic amplitudes (unitless, sign-preserved,
+ * NOT negative-down depth) — kind/z_domain 'attribute' keeps every
+ * consumer honest: the map draws it without the depth sign flip and
+ * the section overlay skips it (an amplitude is not a time or depth).
+ *
+ * @param {Object} p
+ * @param {Object} p.volume seismic_volumes row
+ * @param {Object} p.horizon seismic_horizons row
+ * @param {string} p.mode attribute key (engine AMP_MODES)
+ * @param {string} p.modeLabel display label for the mode
+ * @param {{z: Float32Array}} p.g gridded attribute (gridHorizonAmplitude)
+ * @param {{x0,y0,dx,dy,nx,ny}} p.spec export grid spec
+ * @param {Object} p.params extraction/resample provenance
+ */
+export async function saveAmplitudeAsSurface({
+  volume, horizon, mode, modeLabel, g, spec, params,
+}) {
+  return saveSurface({
+    name: `${horizon.name} (${modeLabel})`,
+    kind: 'attribute',
+    spec,
+    zDomain: 'attribute',
+    zUnit: 'amp',
+    crsNote: 'Survey world metres XY; seismic amplitude values (unitless, sign preserved)',
+    grid: g.z,
+    provenance: {
+      app: SURFACE_APP,
+      volume: { id: volume.id, name: volume.name },
+      horizon: { id: horizon.id, name: horizon.name },
+      attribute: mode,
+      params,
+      converted_at: new Date().toISOString(),
+    },
+  });
+}
+
+/**
  * Persist an imported surface file as a first-class registry surface
  * tied to the active volume. The grid arrives normalised by the
  * parsers (row-major south-first, 1e30 nulls) and sign-fixed by the
@@ -179,9 +217,11 @@ export async function exportStoredSurface(surface, formatKey) {
 
 /**
  * Download a stored surface and resample it onto the volume lattice
- * for the Map window. Stored z is negative-down (suite convention);
- * the map reads positive-down values in the surface's own unit, so
- * live values flip sign and nulls stay the 1e30 sentinel.
+ * for the Map window. Structure z is stored negative-down (suite
+ * convention) and the map reads positive-down values in the surface's
+ * own unit, so live values flip sign; ATTRIBUTE surfaces carry raw
+ * amplitudes whose sign is physical and stay untouched. Nulls stay
+ * the 1e30 sentinel either way.
  * @returns {Promise<{values: Float32Array, unit: string, live: number}>}
  */
 export async function loadSurfaceMapLayer(surface, affine, geom) {
@@ -198,10 +238,14 @@ export async function loadSurfaceMapLayer(surface, affine, geom) {
   if (!live) {
     throw new Error(`"${surface.name}" does not overlap this volume's survey area.`);
   }
-  for (let i = 0; i < values.length; i++) {
-    if (Math.abs(values[i]) < 1e29) values[i] = -values[i];
+  const isAttribute = surface.z_domain === 'attribute';
+  if (!isAttribute) {
+    for (let i = 0; i < values.length; i++) {
+      if (Math.abs(values[i]) < 1e29) values[i] = -values[i];
+    }
   }
-  const unit = surface.z_unit || (surface.z_domain === 'time' ? 'ms' : 'ft');
+  const unit = surface.z_unit
+    || (surface.z_domain === 'time' ? 'ms' : isAttribute ? 'amp' : 'ft');
   return { values, unit, live };
 }
 
@@ -222,6 +266,9 @@ export async function loadSurfaceMapLayer(surface, affine, geom) {
  *   with no velocity model, or nothing inside the time window)
  */
 export function surfaceSectionGrid(surface, layer, geom, dtMs, timeConv) {
+  // attribute surfaces (amplitude maps) are map-only: their values are
+  // not a time or depth, so no sample-index conversion exists
+  if (surface.z_domain === 'attribute') return null;
   let r;
   if (surface.z_domain === 'time') {
     r = latticeValuesToSamples(layer.values, geom, { dtMs });

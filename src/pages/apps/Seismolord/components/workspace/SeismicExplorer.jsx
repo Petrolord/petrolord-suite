@@ -312,12 +312,14 @@ export default function SeismicExplorer({ tree, actions }) {
                     ? 'text-sky-400' : 'text-emerald-400'}`} />
                 </span>
               ) : null}
-              title={`${s.z_domain === 'time' ? 'TWT' : 'Depth'} surface from `
+              title={`${s.z_domain === 'time' ? 'TWT'
+                : s.z_domain === 'attribute' ? 'Amplitude attribute' : 'Depth'} surface from `
                 + `${s.is_own === false ? 'a teammate (org-shared, read-only)'
                   : s.provenance?.horizon?.name
                   || (s.provenance?.imported_from ? 'import' : 'horizon')} · cell `
-                + `${s.dx} m. The eye shows it in the Map window and dashed on `
-                + 'sections (depth surfaces need a velocity model there).'}
+                + `${s.dx} m. The eye shows it in the Map window${
+                  s.z_domain === 'attribute' ? ' (attribute surfaces are map-only)'
+                    : ' and dashed on sections (depth surfaces need a velocity model there)'}.`}
               onClick={() => actions.toggleSurface(s)}
               menu={(
                 <>
