@@ -1,7 +1,63 @@
 # Seismolord — STATUS
 
-Last updated: 2026-08-19 (map surfaces + external import, stacked on
-picks-vs-surfaces)
+Last updated: 2026-08-19 (follow-on trio: surfaces on sections,
+org-shared surfaces, fault-stick import)
+
+## Surfaces on sections + org sharing + fault-stick import: DONE
+
+Branch `feat/seismolord-sections-sharing-faultsticks` (Suite, stacked
+on the merged map-surfaces branch) + engines PR #9 (subtree-pulled).
+The three follow-ons recorded by the previous session:
+
+- **Stored surfaces on section windows.** Visible registry surfaces
+  draw on inline/xline/time/traverse windows as DASHED polylines in
+  their own color family (`SURFACE_COLORS`), through the horizon
+  overlay contract: `surfaceSectionGrid` converts the map layer's
+  physical values to fractional sample indices
+  (`engines/seismolord/surfaceOnLattice.js latticeValuesToSamples`).
+  Time surfaces divide by the sample rate; depth surfaces invert the
+  volume velocity model per cell (`makeTvdssToTwt`, ft→m→TWT ms) and
+  stay map-only when no model exists. Cells outside the volume time
+  window go null (pen-break, never clamped). Grids cache per
+  (surface, resample, converter); the conversion bisects per cell for
+  layer cakes, so huge surveys pay a one-off cost on eye-toggle.
+- **Org-shared surface rows.** `surfacesRegistry` grows the geo_wells
+  sharing trio (updateSurface / shareSurface / unshareSurface — RLS
+  and storage policies existed since G4, unexercised until now).
+  Explorer context menu on OWN surfaces: "Share with organization" /
+  "Make private" (org resolved once per session via
+  `resolveUserOrgId`); teammates' org-shared surfaces list read-only
+  (any app's — they display wherever they overlap the survey, export
+  fine, never delete), Building2 badges mark shared state (emerald =
+  own shared, sky = teammate's).
+- **Fault-stick import** (`engines/seismolord/faultImport.js`, shimmed):
+  the import dialog gains a "Fault sticks (TWT)" kind. Charisma fault
+  sticks (the Petrel/seismiqb FAULT_STICKS 8-column layout,
+  `INLINE- il xl x y z name stick#`, spaced names tolerated) or plain
+  `x y z stick#` files land as ONE seismic_faults row per named
+  fault. Points are CONTINUOUS lattice positions (fractional il/xl —
+  barriers/ribbons interpolate); stick order preserved (sorted by
+  file stick number — the faultBarriers/ribbon-loft invariant);
+  off-survey / out-of-window points skipped and counted; sticks left
+  with <2 points dropped whole and counted; nothing-landed is a
+  domain error. A Charisma HORIZON file is refused, not misread (the
+  `:` marker distinguishes). Provenance: `seismic_faults.params`
+  (migration `20260819210000`, applied live 2026-08-19, logged) holds
+  params.mode='imported' + source counts. Fault rows also RE-EXPORT
+  Charisma sticks from the explorer (positive-down Petrel or
+  negative-down suite), via `pickExport.faultSticksToRows` +
+  `writeCharismaFaultSticks`.
+- **Validation**: engines round-trip parse(write) for the stick writer
+  + grouping/order/count/misdetection tests + latticeValuesToSamples
+  (constant model hand-truth, out-of-window nulls) — engines 260
+  green; Suite pins a COMMITTED hand-computed Charisma fixture
+  (`test-data/seismolord/faults/`) against dialect drift plus
+  writer→reader identity, and `surfaceSectionGrid` unit truth. Full
+  repo 191 suites / 2441 passed; build green.
+- **Open**: no Seismolord follow-ons recorded. Adjacent gaps that
+  remain: Mapping & Surface Studio has no share TOGGLE of its own
+  (badge only; Seismolord's now writes the same rows), amplitude
+  export (from the picks-vs-surfaces list).
 
 ## Stored surfaces in the Map window + external surface/pick import: DONE
 
