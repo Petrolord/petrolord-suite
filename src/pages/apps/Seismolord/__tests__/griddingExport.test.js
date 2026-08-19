@@ -16,7 +16,7 @@ import {
   fitTps, gridSurface, convexHull, picksToPoints, exportGridSpec,
 } from '@/lib/gridding/gridding';
 import {
-  writeXYZ, writeCPS3, writeZMAP, grvAcreFt, pyExp,
+  writeXYZ, writeCPS3, writeZMAP, writeIrapClassic, grvAcreFt, pyExp,
 } from '@/lib/gridding/surfaceExport';
 import { NULL_VALUE } from '@/pages/apps/Seismolord/engine/manifest';
 import { affineFromCorners } from '@/pages/apps/Seismolord/engine/surveyGeometry';
@@ -67,6 +67,11 @@ describe('export writers vs committed Phase 0 reference files (byte identity)', 
     expect(writeZMAP({
       ...g, name: 'dome_surface_zmap', commentSuffix: ' (Seismolord validation golden)',
     })).toBe(ref);
+  });
+
+  test('Irap classic writer matches dome_surface_irap.dat byte-for-byte', () => {
+    const ref = fs.readFileSync(path.join(SURF_DIR, 'dome_surface_irap.dat'), 'utf8');
+    expect(writeIrapClassic(g)).toBe(ref);
   });
 
   test('pyExp matches the Python %.7E dialect on edge values', () => {

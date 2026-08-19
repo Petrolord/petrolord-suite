@@ -219,6 +219,27 @@ def write_cps3(x, y, z, path: pathlib.Path):
     path.write_text('\n'.join(header + body) + '\n')
 
 
+IRAP_NULL = 9999900.0
+
+
+def write_irap(x, y, z, path: pathlib.Path):
+    """Irap 'RMS classic' ASCII grid: -996 header, x-fastest south-first
+    body (our storage order), 6 values per line, 9999900 sentinel."""
+    header = [
+        f'-996 {z.shape[0]} {model.SURF_DX:.6f} {model.SURF_DY:.6f}',
+        f'{x[0]:.6f} {x[-1]:.6f} {y[0]:.6f} {y[-1]:.6f}',
+        f'{z.shape[1]} {0.0:.6f} {x[0]:.6f} {y[0]:.6f}',
+        '0  0  0  0  0  0  0',
+    ]
+    vals = []
+    for r in range(z.shape[0]):
+        for c in range(z.shape[1]):
+            v = z[r, c]
+            vals.append(f'{(IRAP_NULL if v == model.NULL_VALUE else v):.6f}')
+    body = [' '.join(vals[i:i + 6]) for i in range(0, len(vals), 6)]
+    path.write_text('\n'.join(header + body) + '\n')
+
+
 def write_zmap(x, y, z, path: pathlib.Path):
     name = path.stem
     header = [
@@ -242,6 +263,7 @@ def write_surfaces():
     write_xyz(x, y, z, SURF_DIR / 'dome_surface.xyz')
     write_cps3(x, y, z, SURF_DIR / 'dome_surface_cps3.dat')
     write_zmap(x, y, z, SURF_DIR / 'dome_surface_zmap.dat')
+    write_irap(x, y, z, SURF_DIR / 'dome_surface_irap.dat')
 
     live = z[z != model.NULL_VALUE]
     meta = {
@@ -266,6 +288,86 @@ def write_surfaces():
     print(f'wrote surfaces + meta to {SURF_DIR.relative_to(REPO)}')
 
 
+# ---------------------------------------------------------------------------
+# Horizon PICK export goldens (Charisma / il-xl-xyz / xyz writers)
+# ---------------------------------------------------------------------------
+# The pick lattice itself ships in the meta JSON as a float32 blob; the
+# jest side runs picksToPickRows + the writers over that blob and
+# byte-compares the text files. Row math here mirrors the JS
+# op-for-op in scalar float64 (JS doubles == Python floats).
+
+PICKS_DIR = REPO / 'test-data' / 'seismolord' / 'picks'
+PICK_HULL_FRACTION = 0.8    # picks nulled outside this fraction of corner radius
+
+
+def pick_lattice(spec: model.VolumeSpec) -> np.ndarray:
+    """float32 pick-sample lattice from the analytic dome, nulled outside
+    a local-frame radius so writers' null-skipping is exercised."""
+    dome = model.dome_twt_ms(spec)
+    dt_ms = spec.dt_us / 1000.0
+    picks = (dome / dt_ms).astype(np.float32)
+    bil = spec.bin_m if spec.il_bin_m is None else spec.il_bin_m
+    lx, ly = model.local_coords(spec)
+    lxc = (spec.n_xl - 1) * spec.bin_m / 2.0
+    lyc = (spec.n_il - 1) * bil / 2.0
+    r = np.sqrt((lx - lxc) ** 2 + (ly - lyc) ** 2)
+    rmax = np.sqrt(lxc ** 2 + lyc ** 2)
+    picks[r > PICK_HULL_FRACTION * rmax] = np.float32(model.NULL_VALUE)
+    return picks
+
+
+def pick_rows(spec: model.VolumeSpec, picks: np.ndarray) -> list:
+    """Live picks -> (il, xl, x, y, z) rows, il-major, z = -(sample*dt_ms)
+    (negative-down TWT, the suite convention)."""
+    aff = model.affine_truth(spec)
+    dt_ms = spec.dt_us / 1000.0
+    null32 = np.float32(model.NULL_VALUE)
+    rows = []
+    for i in range(spec.n_il):
+        for j in range(spec.n_xl):
+            s = picks[i, j]
+            if s == null32:
+                continue
+            rows.append((
+                spec.il0 + i * spec.il_step,
+                spec.xl0 + j * spec.xl_step,
+                aff['origin']['x'] + i * aff['il_vec']['x'] + j * aff['xl_vec']['x'],
+                aff['origin']['y'] + i * aff['il_vec']['y'] + j * aff['xl_vec']['y'],
+                -(float(s) * dt_ms),
+            ))
+    return rows
+
+
+def write_picks():
+    PICKS_DIR.mkdir(parents=True, exist_ok=True)
+    for spec in (model.DOME_IEEE, model.DOME_STEP):
+        picks = pick_lattice(spec)
+        rows = pick_rows(spec, picks)
+        base = f'{spec.name}_picks'
+        charisma = [f'INLINE :{il:>7} XLINE :{xl:>7}{x:>12.2f}{y:>12.2f}{z:>12.4f}'
+                    for il, xl, x, y, z in rows]
+        (PICKS_DIR / f'{base}_charisma.txt').write_text('\n'.join(charisma) + '\n')
+        ilxl = [f'{il} {xl} {x:.2f} {y:.2f} {z:.4f}' for il, xl, x, y, z in rows]
+        (PICKS_DIR / f'{base}_ilxl.txt').write_text('\n'.join(ilxl) + '\n')
+        xyz = [f'{x:.2f} {y:.2f} {z:.4f}' for _, _, x, y, z in rows]
+        (PICKS_DIR / f'{base}.xyz').write_text('\n'.join(xyz) + '\n')
+        meta = {
+            'convention': 'Z negative-down TWT ms; live picks only, il-major; '
+                          'Charisma rows are 9 whitespace tokens',
+            'geometry': {
+                'n_il': spec.n_il, 'n_xl': spec.n_xl,
+                'il0': spec.il0, 'il_step': spec.il_step,
+                'xl0': spec.xl0, 'xl_step': spec.xl_step,
+                'dt_ms': spec.dt_us / 1000.0,
+            },
+            'affine': model.affine_truth(spec),
+            'live_rows': len(rows),
+            'picks': array_blob(picks),
+        }
+        (PICKS_DIR / f'{base}_meta.json').write_text(json.dumps(meta, indent=1) + '\n')
+    print(f'wrote pick goldens to {PICKS_DIR.relative_to(REPO)}')
+
+
 if __name__ == '__main__':
     GOLD_DIR.mkdir(parents=True, exist_ok=True)
     for spec in model.ALL_VOLUMES:
@@ -274,3 +376,4 @@ if __name__ == '__main__':
         out.write_text(json.dumps(golden, indent=1) + '\n')
         print(f'wrote {out.relative_to(REPO)}')
     write_surfaces()
+    write_picks()
