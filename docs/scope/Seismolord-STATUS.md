@@ -1584,6 +1584,7 @@ age in production ahead of Wave 2 derived volumes and W4 sharing.
   AiPanel, surfaceWorkflow) is untouched. This removes the last-write-
   wins read-modify-write hazard and is the precondition for org sharing
   (W4.1).
-- Migration status: 20260820150000 PENDING live apply (classifier
-  blocked the session's DDL; owner to apply — see MIGRATIONS.md row).
-  Reads work without the columns (manifest fallback); saves need them.
+- Migration status: 20260820150000 APPLIED live 2026-08-20
+  (owner-authorized; rollback-wrapped dry run first; post-apply probe:
+  4 columns present, 5 existing volumes at interp_rev 0 awaiting lazy
+  write-through on first open). W0.1 merged to main via PR #204.
