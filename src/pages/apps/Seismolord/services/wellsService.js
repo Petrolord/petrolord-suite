@@ -21,6 +21,7 @@ import {
   deleteWell as registryDeleteWell,
   listLogs as registryListLogs,
   downloadCurve as registryDownloadCurve,
+  updateWell,
 } from '@/lib/wellsRegistry';
 
 const legacyTops = (tops) => (tops || []).map((t) => ({ name: t.name, md: t.md_m }));
@@ -73,4 +74,23 @@ export async function listLogs(wellId) {
 /** @param {Object} log a listLogs row @returns {Promise<Float32Array>} */
 export async function downloadCurve(log) {
   return registryDownloadCurve(log);
+}
+
+/**
+ * W3.3 well tie 2.0: the effective checkshot set — a committed
+ * tie-derived set wins over imported checkshots when present (imported
+ * data itself is never touched).
+ * @returns {{rows: Array, derived: boolean}}
+ */
+export function effectiveCheckshots(well) {
+  const d = well?.checkshots_derived;
+  if (Array.isArray(d?.rows) && d.rows.length >= 2) {
+    return { rows: d.rows, derived: true };
+  }
+  return { rows: well?.checkshots || [], derived: false };
+}
+
+/** Persist (or clear, with null) a well's derived checkshot set. */
+export async function saveDerivedCheckshots(wellId, payload) {
+  return updateWell(wellId, { checkshots_derived: payload });
 }

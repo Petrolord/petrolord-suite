@@ -28,7 +28,9 @@ import {
   surfaceSectionGrid, setSurfaceShared,
   deleteSurface as deleteRegistrySurface,
 } from '../services/surfacesService';
-import { listLogs, downloadCurve } from '../services/wellsService';
+import {
+  listLogs, downloadCurve, effectiveCheckshots, saveDerivedCheckshots,
+} from '../services/wellsService';
 import { BrickCache, storageBrickFetcher, ABORTED } from '../engine/brickCache';
 import {
   assembleSlice, assembleTrace, bricksForSlice, geomFromManifest, brickKey,
@@ -479,6 +481,19 @@ export default function ViewerPanel() {
     toast({ title: 'Velocity model calibrated', description: describeVelocity(model) });
   };
 
+  /** W3.3: persist a tie warp as the well's DERIVED checkshot set (the
+   *  imported set is never overwritten), then refresh wells so every
+   *  T(z) consumer picks it up. */
+  const commitDerivedCheckshots = async (well, payload) => {
+    payload.provenance = { ...payload.provenance, volume_id: volume?.id || null };
+    await saveDerivedCheckshots(well.id, payload);
+    wellsApi.reload();
+    toast({
+      title: 'Derived checkshots saved',
+      description: `${well.name}: ${payload.rows.length} rows from the tie warp — synthetics and well displays now use them.`,
+    });
+  };
+
   // load the layer cake's boundary pick grids (deleted horizons yield a
   // null entry — the layer above then extends, per the engine convention);
   // depth displays stay gated until the grids are in
@@ -540,8 +555,9 @@ export default function ViewerPanel() {
     const maxTwtMs = ((geom.ns - 1) * dtUs) / 1000;
     const out = [];
     for (const w of wells) {
+      // W3.3: a committed tie-derived checkshot set wins over imported
       const timeConv = makeTvdssToTwt({
-        checkshots: w.checkshots,
+        checkshots: effectiveCheckshots(w).rows,
         velocity: velocityForDisplay,
         boundaries: velBoundaries,
         dtUs,
@@ -2829,6 +2845,8 @@ export default function ViewerPanel() {
                   dtUs={manifest ? manifest.geometry.dt_us : null}
                   velocity={velocityForDisplay}
                   boundaries={velBoundaries}
+                  onApplyVelocity={applyCalibratedModel}
+                  onCommitCheckshots={commitDerivedCheckshots}
                 />
               ),
             },
