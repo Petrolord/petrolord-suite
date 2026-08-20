@@ -1613,7 +1613,7 @@ age in production ahead of Wave 2 derived volumes and W4 sharing.
   editor's cell-level undo while a session has pending ops. Ribbon
   History group.
 - W1.2b Sessions + bookmarks (Suite PR #208 + migration 20260820170000
-  PENDING owner apply): seismic_sessions rows (kind session/bookmark,
+  APPLIED live 2026-08-20): seismic_sessions rows (kind session/bookmark,
   versioned payload); sessions capture volume/line/display/visibility/
   cameras (ViewTransform.getCamera/setCamera via cameraApi props) plus
   the allow-listed localStorage layout keys; restore replays local
