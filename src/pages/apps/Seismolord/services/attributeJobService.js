@@ -11,11 +11,15 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { buildDerivedManifest, brickRelPath, volumeDir, manifestPath } from '../engine/manifest';
 import { ATTRIBUTE_DEFS } from '../engine/attributes';
+import { DISCONTINUITY_DEFS } from '../engine/discontinuity';
 import { SEISMIC_BUCKET, STORAGE_QUOTA_BYTES } from './seismicStorage';
 import { deleteVolume } from './volumesService';
 import { newAttributeWorker } from './attributeWorkerFactory';
 
 let nextJobId = 1;
+
+/** Every computable derived-volume attribute: per-trace + neighborhood. */
+export const ALL_ATTRIBUTE_DEFS = { ...ATTRIBUTE_DEFS, ...DISCONTINUITY_DEFS };
 
 /** Brick-store footprint of a volume on the parent's lattice. */
 export function derivedStorageBytes(parentManifest) {
@@ -26,7 +30,7 @@ export function derivedStorageBytes(parentManifest) {
 
 /** Default display name for a derived volume. */
 export function defaultDerivedName(parentName, attributeName, params = {}) {
-  const def = ATTRIBUTE_DEFS[attributeName];
+  const def = ALL_ATTRIBUTE_DEFS[attributeName];
   const label = def ? def.label.replace(/\s*\(.*\)$/, '') : attributeName;
   const win = params.windowMs ? ` ${params.windowMs} ms` : '';
   return `${parentName} [${label}${win}]`;
@@ -85,7 +89,7 @@ export async function computeAttributeVolume({
   if (!parent || parent.status !== 'ready') {
     throw new Error('Attributes need a fully ingested (ready) parent volume.');
   }
-  if (!ATTRIBUTE_DEFS[attribute?.name]) {
+  if (!ALL_ATTRIBUTE_DEFS[attribute?.name]) {
     throw new Error(`Unknown attribute "${attribute?.name}".`);
   }
   const { data: { user }, error: userError } = await supabase.auth.getUser();

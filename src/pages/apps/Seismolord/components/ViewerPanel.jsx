@@ -35,9 +35,10 @@ import {
 } from '../engine/traverse';
 import {
   extractHorizonAmplitude, bricksForHorizonAmplitude,
+  extractIntervalAttribute, bricksForIntervalAttribute, extractHorizonIsofrequency,
 } from '../engine/horizonAmplitude';
 import { makeTvdssToTwt, buildWellLatticePath } from '../engine/wellSection';
-import { surveyAffine } from '../engine/surveyGeometry';
+import { surveyAffine, sameLattice } from '../engine/surveyGeometry';
 import {
   snapPick, autotrack2D, smoothHorizon, fillHorizonHoles,
 } from '../engine/horizonTrack';
@@ -233,6 +234,17 @@ export default function ViewerPanel() {
   const [agcWindowMs, setAgcWindowMs] = useState(120);
   const [wiggleMode, setWiggleMode] = useState('off');
   const [reverseCmap, setReverseCmap] = useState(false);
+  // W2.4 co-render: second same-lattice volume blended over the primary
+  // in the section window; its bricks live in their own 128 MiB cache so
+  // primary scrubs never abort overlay fetches (and vice versa)
+  const [overlayVolumeId, setOverlayVolumeId] = useState(null);
+  const [overlayInfo, setOverlayInfo] = useState(null);   // {row, manifest}
+  const [overlayColormap, setOverlayColormap] = useState('viridis');
+  const [overlayOpacity, setOverlayOpacity] = useState(0.5);
+  const [overlayBlend, setOverlayBlend] = useState('mix');
+  const [overlaySlice, setOverlaySlice] = useState(null);
+  const cacheBRef = useRef(null);
+  const overlayReqRef = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [sliceMs, setSliceMs] = useState(null);
@@ -783,6 +795,12 @@ export default function ViewerPanel() {
     setPickMode(null);
     gridCacheRef.current.clear();
     undoStack.clear();               // commands reference the old volume
+    // the co-render overlay is per-primary-volume state
+    setOverlayVolumeId(null);
+    setOverlayInfo(null);
+    setOverlaySlice(null);
+    cacheBRef.current?.clear();
+    cacheBRef.current = null;
     setError(null);
     if (!v) { setHorizons([]); setFaults([]); return; }
     setLoading(true);
@@ -865,6 +883,95 @@ export default function ViewerPanel() {
 
   const getBrick = useCallback((i, j, k) => cacheRef.current
     .get(brickKey(volume.storage_path, i, j, k)), [volume]);
+
+  // ---- W2.4 co-render overlay ------------------------------------------
+
+  /** Same-lattice candidates for the overlay picker, judged from the
+   *  registered survey_meta (no manifest fetch needed); the ACTIVE
+   *  volume's own derived attributes list first. */
+  const overlayCandidates = useMemo(() => {
+    if (!volume || !manifest) return [];
+    const pm = { geometry: manifest.geometry };
+    return volumes
+      .filter((v) => v.id !== volume.id && v.status === 'ready'
+        && v.survey_meta?.il && sameLattice(pm, { geometry: v.survey_meta }))
+      .sort((a, b) => (b.parent_volume_id === volume.id ? 1 : 0)
+        - (a.parent_volume_id === volume.id ? 1 : 0));
+  }, [volumes, volume, manifest]);
+
+  const selectOverlayVolume = useCallback(async (id) => {
+    setOverlayVolumeId(id || null);
+    setOverlayInfo(null);
+    setOverlaySlice(null);
+    cacheBRef.current?.clear();
+    cacheBRef.current = null;
+    if (!id) return;
+    const row = volumes.find((x) => x.id === id);
+    if (!row) return;
+    try {
+      const m = await getManifest(row);
+      if (!sameLattice(manifest, m)) {
+        throw new Error('The volumes are not on the same survey lattice.');
+      }
+      cacheBRef.current = new BrickCache(
+        storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
+        { maxBytes: 128 * 1024 * 1024 },
+      );
+      setOverlayInfo({ row, manifest: m });
+    } catch (e) {
+      toast({ title: 'Co-render unavailable', description: e.message, variant: 'destructive' });
+      setOverlayVolumeId(null);
+    }
+  }, [volumes, manifest, toast]);
+
+  // Assemble the overlay's matching slice AFTER the primary lands (the
+  // overlay lags one beat on scrub by design); errors degrade to a toast
+  // and turn the overlay off rather than wedging the section window.
+  useEffect(() => {
+    if (!slice || !overlayInfo || !cacheBRef.current) {
+      setOverlaySlice(null);
+      return undefined;
+    }
+    let stale = false;
+    const req = ++overlayReqRef.current;
+    const geomB = geomFromManifest(overlayInfo.manifest);
+    const needed = new Set(bricksForSlice(geomB, slice.orientation, slice.index)
+      .map(({ i, j, k }) => brickKey(overlayInfo.row.storage_path, i, j, k)));
+    cacheBRef.current.cancelPendingExcept(needed);
+    const getB = (i, j, k) => cacheBRef.current
+      .get(brickKey(overlayInfo.row.storage_path, i, j, k));
+    assembleSlice(getB, geomB, slice.orientation, slice.index)
+      .then((s) => {
+        if (!stale && req === overlayReqRef.current) {
+          setOverlaySlice({ ...s, orientation: slice.orientation, index: slice.index });
+        }
+      })
+      .catch((e) => {
+        if (stale || req !== overlayReqRef.current || e.message === ABORTED) return;
+        toast({ title: 'Co-render overlay unavailable', description: e.message, variant: 'destructive' });
+        setOverlayVolumeId(null);
+        setOverlayInfo(null);
+        setOverlaySlice(null);
+      });
+    return () => { stale = true; };
+  }, [slice, overlayInfo, toast]);
+
+  /** Overlay display params: its OWN volume's rms drives the clip (the
+   *  shared RMS-multiple), sequential-map default, no trace balance. */
+  const overlayDisplay = useMemo(() => {
+    if (!overlayInfo) return null;
+    const statsRms = overlayInfo.manifest?.stats?.rms || 1;
+    return {
+      colormap: overlayColormap,
+      reverse: false,
+      gain: 1,
+      polarity: 1,
+      clip: Math.max(statsRms * clipRms, 1e-12),
+      traceBalance: false,
+      opacity: overlayOpacity,
+      mode: overlayBlend,
+    };
+  }, [overlayInfo, overlayColormap, overlayOpacity, overlayBlend, clipRms]);
 
   // ---- synthetics window (G5) -------------------------------------------
   // pipeline runs in a dedicated worker (big sonic logs never block the
@@ -1855,6 +1962,7 @@ export default function ViewerPanel() {
 
   useEffect(() => () => {
     if (cacheRef.current) cacheRef.current.clear();
+    if (cacheBRef.current) cacheBRef.current.clear();
     if (workerRef.current) workerRef.current.terminate();
   }, []);
 
@@ -2010,20 +2118,35 @@ export default function ViewerPanel() {
     }
   }, [geom, traverse, traverseSlice, pickMode, eraseSize, snapMode, snapWindow, applyOp]);
 
-  /** Map amplitude-attribute extraction along a horizon grid. The
-   *  needed brick keys are registered up front so a concurrent slice
-   *  scrub cannot abort the extraction's fetches (traverse pattern). */
+  /** Map amplitude-attribute extraction along a horizon grid — single
+   *  horizon, A-to-B interval (opts.picksB, W2.5) or isofrequency
+   *  (opts.freqHz, W2.5). The needed brick keys are registered up front
+   *  so a concurrent slice scrub cannot abort the extraction's fetches
+   *  (traverse pattern). */
   const extractAmplitude = useCallback(async (grid, opts) => {
     if (!geom || !volume) throw new Error('No volume selected');
-    const keys = new Set(bricksForHorizonAmplitude(geom, grid, opts.window || 0)
-      .map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
+    let preflight;
+    let run;
+    if (opts.picksB) {
+      preflight = bricksForIntervalAttribute(geom, grid, opts.picksB);
+      run = () => extractIntervalAttribute(getBrick, geom, grid, opts.picksB, { mode: opts.mode });
+    } else if (opts.freqHz) {
+      preflight = bricksForHorizonAmplitude(geom, grid, opts.window || 0);
+      run = () => extractHorizonIsofrequency(getBrick, geom, grid, {
+        freqHz: opts.freqHz, window: opts.window, dtUs: manifest.geometry.dt_us,
+      });
+    } else {
+      preflight = bricksForHorizonAmplitude(geom, grid, opts.window || 0);
+      run = () => extractHorizonAmplitude(getBrick, geom, grid, opts);
+    }
+    const keys = new Set(preflight.map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
     ampBricksRef.current = keys;
     try {
-      return await extractHorizonAmplitude(getBrick, geom, grid, opts);
+      return await run();
     } finally {
       if (ampBricksRef.current === keys) ampBricksRef.current = null;
     }
-  }, [geom, volume, getBrick]);
+  }, [geom, volume, manifest, getBrick]);
 
   /** Persist the drawn line under a name (seismic_volumes.traverses,
    *  CAS-guarded — the same revision the velocity model saves under). */
@@ -2259,6 +2382,15 @@ export default function ViewerPanel() {
               setWiggleMode={setWiggleMode}
               reverseCmap={reverseCmap}
               setReverseCmap={setReverseCmap}
+              overlayCandidates={overlayCandidates}
+              overlayVolumeId={overlayVolumeId}
+              selectOverlayVolume={selectOverlayVolume}
+              overlayColormap={overlayColormap}
+              setOverlayColormap={setOverlayColormap}
+              overlayOpacity={overlayOpacity}
+              setOverlayOpacity={setOverlayOpacity}
+              overlayBlend={overlayBlend}
+              setOverlayBlend={setOverlayBlend}
               onUndo={undoAction}
               onRedo={redoAction}
               canUndo={edit.undo > 0 || undoStack.canUndo}
@@ -2411,6 +2543,9 @@ export default function ViewerPanel() {
                     ? slice.index : sliceIndex}
                   display={display}
                   overlays={overlays}
+                  overlaySlice={overlaySlice && overlaySlice.orientation === orientation
+                    ? overlaySlice : null}
+                  overlayDisplay={overlayDisplay}
                   pickMode={pickMode}
                   ghost={pickMode === 'manual' ? { mode: snapMode, window: snapWindow } : null}
                   loading={loading}

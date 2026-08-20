@@ -12,9 +12,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { ATTRIBUTE_DEFS } from '../../../engine/attributes';
 import {
-  computeAttributeVolume, defaultDerivedName, derivedStorageBytes,
+  ALL_ATTRIBUTE_DEFS, computeAttributeVolume, defaultDerivedName, derivedStorageBytes,
 } from '../../../services/attributeJobService';
 
 const selCls = 'mt-1 w-full rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-2 py-1 text-sm';
@@ -24,15 +23,14 @@ export default function ComputeAttributeDialog({
 }) {
   const { toast } = useToast();
   const [attr, setAttr] = useState('envelope');
-  const [windowMs, setWindowMs] = useState(null);
+  const [paramValues, setParamValues] = useState({});
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null);
   const cancelRef = useRef({ cancelled: false });
 
-  const def = ATTRIBUTE_DEFS[attr];
-  const hasWindow = Boolean(def?.params?.windowMs);
-  const effWindow = windowMs ?? def?.params?.windowMs?.default;
+  const def = ALL_ATTRIBUTE_DEFS[attr];
+  const paramDefs = Object.entries(def?.params || {});
 
   useEffect(() => {
     if (!open) return;
@@ -41,7 +39,9 @@ export default function ComputeAttributeDialog({
     cancelRef.current = { cancelled: false };
   }, [open]);
 
-  const params = hasWindow ? { windowMs: effWindow } : {};
+  const params = Object.fromEntries(paramDefs.map(([key, p]) => [
+    key, paramValues[key] ?? p.default,
+  ]));
   const placeholder = volume ? defaultDerivedName(volume.name, attr, params) : '';
 
   let sizeText = null;
@@ -98,29 +98,31 @@ export default function ComputeAttributeDialog({
               <span className="text-xs text-slate-400">Attribute</span>
               <select
                 value={attr}
-                onChange={(e) => { setAttr(e.target.value); setWindowMs(null); }}
+                onChange={(e) => { setAttr(e.target.value); setParamValues({}); }}
                 className={selCls}
                 disabled={busy}
               >
-                {Object.values(ATTRIBUTE_DEFS).map((d) => (
+                {Object.values(ALL_ATTRIBUTE_DEFS).map((d) => (
                   <option key={d.key} value={d.key}>{d.label}</option>
                 ))}
               </select>
             </label>
-            {hasWindow && (
-              <label className="block">
-                <span className="text-xs text-slate-400">{def.params.windowMs.label}</span>
+            {paramDefs.map(([key, p]) => (
+              <label key={key} className="block">
+                <span className="text-xs text-slate-400">{p.label}</span>
                 <input
                   type="number"
-                  min={def.params.windowMs.min}
-                  max={def.params.windowMs.max}
-                  value={effWindow}
-                  onChange={(e) => setWindowMs(Number(e.target.value) || def.params.windowMs.default)}
+                  min={p.min}
+                  max={p.max}
+                  value={params[key]}
+                  onChange={(e) => setParamValues((v) => ({
+                    ...v, [key]: Number(e.target.value) || p.default,
+                  }))}
                   className={selCls}
                   disabled={busy}
                 />
               </label>
-            )}
+            ))}
             <label className="block col-span-2">
               <span className="text-xs text-slate-400">Volume name</span>
               <input

@@ -191,15 +191,22 @@ export async function gridHorizonSurface({
  *   vMin: ?number, vMax: ?number, xyzText: string}>}
  */
 export async function gridHorizonAmplitude({
-  manifest, horizon, extract, mode = 'value', window: w = 0, cellM = 0, signal = null,
+  manifest, horizon, horizonB = null, extract, mode = 'value', window: w = 0,
+  freqHz = null, cellM = 0, signal = null,
 }) {
   if (signal?.aborted) throw new Error('Export cancelled');
   const geom = geomFromManifest(manifest);
   const picks = await loadHorizonGrid(horizon);
+  // W2.5: a second horizon turns the extraction into an A-to-B interval
+  // attribute; a frequency turns it into an isofrequency map. The
+  // extract callback (ViewerPanel) dispatches on these opts.
+  const picksB = horizonB ? await loadHorizonGrid(horizonB) : null;
   const affine = surveyAffine(manifest.geometry);
   if (!affine) throw new Error('Volume has no usable survey coordinates for gridding.');
 
-  const values = await extract(picks, { mode, window: w });
+  const values = await extract(picks, {
+    mode, window: w, ...(picksB ? { picksB } : {}), ...(freqHz ? { freqHz } : {}),
+  });
   if (signal?.aborted) throw new Error('Export cancelled');
 
   const bin = cellSpacing(affine).xl || 25;
