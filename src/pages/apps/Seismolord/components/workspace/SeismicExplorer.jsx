@@ -508,6 +508,38 @@ export default function SeismicExplorer({ tree, actions }) {
                       </ContextMenuItem>
                     </ContextMenuSubContent>
                   </ContextMenuSub>
+                  <ContextMenuSub>
+                    <ContextMenuSubTrigger>
+                      <Download className="w-3.5 h-3.5 mr-1.5" />
+                      Export surface (XYZ)
+                    </ContextMenuSubTrigger>
+                    <ContextMenuSubContent className="w-60">
+                      <ContextMenuItem onSelect={() => actions.exportFaultSurface(f, 'positive')}>
+                        TWT positive down (Petrel)
+                      </ContextMenuItem>
+                      <ContextMenuItem onSelect={() => actions.exportFaultSurface(f, 'negative')}>
+                        TWT negative down (suite)
+                      </ContextMenuItem>
+                    </ContextMenuSubContent>
+                  </ContextMenuSub>
+                  {(horizons || []).length > 0 && (
+                    <ContextMenuSub>
+                      <ContextMenuSubTrigger>
+                        <Download className="w-3.5 h-3.5 mr-1.5" />
+                        Fault polygon vs horizon
+                      </ContextMenuSubTrigger>
+                      <ContextMenuSubContent className="w-60">
+                        {horizons.map((h) => (
+                          <ContextMenuItem
+                            key={h.id}
+                            onSelect={() => actions.exportFaultPolygon(f, h)}
+                          >
+                            {h.name}
+                          </ContextMenuItem>
+                        ))}
+                      </ContextMenuSubContent>
+                    </ContextMenuSub>
+                  )}
                   <ContextMenuSeparator />
                   <ContextMenuItem
                     className="text-red-400 focus:text-red-300"

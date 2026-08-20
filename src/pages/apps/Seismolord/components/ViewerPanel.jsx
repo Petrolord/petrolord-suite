@@ -20,6 +20,8 @@ import {
 import { saveFault, listFaults, deleteFault } from '../services/faultsService';
 import { placeWellsForHost } from '@/lib/crs/guards';
 import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExport';
+import { faultHorizonIntersection } from '../engine/faultObjects';
+import { faultSurfaceXyz, faultPolygonCsv } from '../lib/faultObjectsExport';
 import {
   listVolumeSurfaces, exportStoredSurface, loadSurfaceMapLayer,
   surfaceSectionGrid, setSurfaceShared,
@@ -1261,6 +1263,57 @@ export default function ViewerPanel() {
     }
   };
 
+  // W3.1 fault objects: the persisted lofted surface as XYZ, and the
+  // horizon-intersection polygon + throw map as CSV (per chosen horizon)
+  const downloadText = (text, filename, title, description) => {
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title, description });
+  };
+
+  const onExportFaultSurface = (f, zSign) => {
+    try {
+      if (!manifest || !affine) throw new Error('The volume has no usable survey coordinates.');
+      const dtMs = manifest.geometry.dt_us / 1000;
+      const out = faultSurfaceXyz(f, affine, dtMs, zSign);
+      if (!out) throw new Error('A fault surface needs at least two sticks.');
+      const safeName = f.name.replace(/[^\w-]+/g, '_').toLowerCase();
+      downloadText(out.text, `${safeName}_surface.xyz`,
+        'Fault surface exported', `${out.points} points (TWT ms, ${zSign} down).`);
+    } catch (e) {
+      toast({ title: 'Export failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const onExportFaultPolygon = async (f, h) => {
+    try {
+      if (!manifest || !affine || !geom) throw new Error('The volume has no usable survey coordinates.');
+      const picks = gridCacheRef.current?.get?.(h.id) || await loadHorizonGrid(h);
+      const x = faultHorizonIntersection(f, picks, geom);
+      if (!x) {
+        toast({
+          title: 'No intersection',
+          description: `"${f.name}" needs at least two sticks crossing "${h.name}".`,
+        });
+        return;
+      }
+      const dtMs = manifest.geometry.dt_us / 1000;
+      const { text, segments } = faultPolygonCsv({
+        intersection: x, affine, dtMs, faultName: f.name, horizonName: h.name,
+      });
+      const safe = (v) => v.replace(/[^\w-]+/g, '_').toLowerCase();
+      downloadText(text, `${safe(f.name)}_vs_${safe(h.name)}_polygon.csv`,
+        'Fault polygon exported',
+        `${segments} throw segment(s); cutoff walls + throw/heave per stick.`);
+    } catch (e) {
+      toast({ title: 'Export failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const onDeleteFault = async (f) => {
     // eslint-disable-next-line no-alert
     if (!window.confirm(`Delete fault "${f.name}"? (Undo restores it)`)) return;
@@ -2319,6 +2372,8 @@ export default function ViewerPanel() {
     toggleFault,
     deleteFault: onDeleteFault,
     exportFaultSticks: onExportFaultSticks,
+    exportFaultSurface: onExportFaultSurface,
+    exportFaultPolygon: onExportFaultPolygon,
     toggleWell: wellsApi.toggle,
     deleteWell: wellsApi.remove,
     openTraverse: (t) => handleTraverse(t.vertices, t.id),

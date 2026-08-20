@@ -40,6 +40,7 @@ import {
 import { makeDepthConverter, velocityKey, M_PER_FT } from '../engine/velocityModel';
 import { AMP_MODES } from '../engine/horizonAmplitude';
 import { faultTraces } from '../engine/faultBarriers';
+import { faultHorizonIntersection } from '../engine/faultObjects';
 import { ilxlToWorld, worldToIlxl } from '../engine/surveyGeometry';
 import { NULL_VALUE } from '../engine/manifest';
 import { projectorFor } from '@/lib/crs';
@@ -68,6 +69,8 @@ const DEFAULT_PREFS = {
   contourLabels: true,
   faults: true,
   faultTraces: true,
+  faultPolygons: true,
+  faultThrow: false,
   traverses: true,
   wells: true,
   outline: true,
@@ -465,10 +468,25 @@ function MapView({
     return out.length ? out : null;
   }, [geom, faults, active]);
 
+  // W3.1 fault objects vs the mapped horizon: hanging-wall/footwall
+  // cutoff polygon (the heave gap gridding nulls) + per-stick throw
+  // segments. Gap-tolerant, so a horizon correctly nulled at the fault
+  // still yields its polygon. Same cache key as the trace layer.
+  const faultObjectsLayer = useMemo(() => {
+    if (!geom || !active?.grid || !(faults || []).length) return null;
+    const out = faults
+      .map((f) => ({
+        color: f.color,
+        x: faultHorizonIntersection(f, active.grid, geom),
+      }))
+      .filter((e) => e.x);
+    return out.length ? out : null;
+  }, [geom, faults, active]);
+
   propsRef.current = {
     manifest, geom, horizons, faults, prefs, gutter: g, active, vs, spacing,
     northDir, velocity, depthConv, effDomain, traverse, savedTraverses,
-    effAttr, ampLayer, wells, faultTraceLayer, onCursor,
+    effAttr, ampLayer, wells, faultTraceLayer, faultObjectsLayer, onCursor,
     timeSlice, showTimeSlice, tsBitmap, tsLut, sliceVis, indices, display,
     surfaces, activeSurface, cultureLayers,
   };
@@ -613,6 +631,57 @@ function MapView({
         }
       }
       ctx.lineCap = 'butt';
+    }
+
+    // W3.1 fault polygons: the hanging-wall/footwall gap on the mapped
+    // horizon (translucent fill + dashed wall outlines), and optional
+    // throw labels along the trace
+    if ((p.prefs.faultPolygons || p.prefs.faultThrow) && p.faultObjectsLayer) {
+      const dtMs = (p.manifest?.geometry?.dt_us || 0) / 1000;
+      for (const f of p.faultObjectsLayer) {
+        const { polygon, cutNeg, cutPos, segments } = f.x;
+        if (p.prefs.faultPolygons && polygon) {
+          ctx.beginPath();
+          polygon.forEach((q, i) => {
+            const s = t.worldToScreen(q.xl + 0.5, q.il + 0.5);
+            if (i === 0) ctx.moveTo(s.x, s.y);
+            else ctx.lineTo(s.x, s.y);
+          });
+          ctx.closePath();
+          ctx.save();
+          ctx.globalAlpha = 0.18;
+          ctx.fillStyle = f.color;
+          ctx.fill();
+          ctx.restore();
+          ctx.strokeStyle = f.color;
+          ctx.lineWidth = 1.4 * dpr;
+          ctx.setLineDash([6 * dpr, 3 * dpr]);
+          for (const wallPts of [cutNeg, cutPos]) {
+            ctx.beginPath();
+            wallPts.forEach((q, i) => {
+              const s = t.worldToScreen(q.xl + 0.5, q.il + 0.5);
+              if (i === 0) ctx.moveTo(s.x, s.y);
+              else ctx.lineTo(s.x, s.y);
+            });
+            ctx.stroke();
+          }
+          ctx.setLineDash([]);
+        }
+        if (p.prefs.faultThrow && dtMs > 0) {
+          ctx.font = `${10 * dpr}px ui-monospace, monospace`;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'bottom';
+          for (const seg of segments) {
+            const s = t.worldToScreen(seg.j + 0.5, seg.i + 0.5);
+            const label = `${Math.abs(seg.throwSamples * dtMs).toFixed(0)} ms`;
+            ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+            ctx.lineWidth = 3 * dpr;
+            ctx.strokeText(label, s.x + 4 * dpr, s.y - 3 * dpr);
+            ctx.fillStyle = f.color;
+            ctx.fillText(label, s.x + 4 * dpr, s.y - 3 * dpr);
+          }
+        }
+      }
     }
 
     if (p.prefs.outline) {
@@ -1623,6 +1692,16 @@ function MapView({
               checked={prefs.faultTraces} onCheckedChange={() => togglePref('faultTraces')}
             >
               Fault traces on horizon
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
+              checked={prefs.faultPolygons} onCheckedChange={() => togglePref('faultPolygons')}
+            >
+              Fault polygons (heave gap)
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
+              checked={prefs.faultThrow} onCheckedChange={() => togglePref('faultThrow')}
+            >
+              Throw labels
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
               checked={prefs.traverses} onCheckedChange={() => togglePref('traverses')}
