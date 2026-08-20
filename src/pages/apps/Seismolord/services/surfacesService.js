@@ -235,10 +235,13 @@ export async function exportStoredSurface(surface, formatKey) {
   const g = surfaceToGrid(surface, grid);
   const safeName = surface.name.replace(/[^\w-]+/g, '_').toLowerCase();
   let text;
+  const crsLabel = isTransformableTag(surface.crs)
+    ? `${normalizeTag(surface.crs)}` : null;
   if (formatKey === 'xyz') text = writeXYZ(g);
   else if (formatKey === 'cps3') text = writeCPS3(g);
-  else if (formatKey === 'zmap') text = writeZMAP({ ...g, name: safeName });
-  else text = writeIrapClassic(g);
+  else if (formatKey === 'zmap') {
+    text = writeZMAP({ ...g, name: safeName, ...(crsLabel ? { crsLabel } : {}) });
+  } else text = writeIrapClassic(g);
   return { text, fileName: `${safeName}.${fmt.ext}` };
 }
 

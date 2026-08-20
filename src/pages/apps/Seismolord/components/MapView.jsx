@@ -42,8 +42,25 @@ import { AMP_MODES } from '../engine/horizonAmplitude';
 import { faultTraces } from '../engine/faultBarriers';
 import { ilxlToWorld, worldToIlxl } from '../engine/surveyGeometry';
 import { NULL_VALUE } from '../engine/manifest';
+import { projectorFor } from '@/lib/crs';
+import { isTransformableTag } from '@/lib/crs/tags';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
+
+// Cursor lat/lon readout: projector cached per tag (pointer moves run
+// this; proj4 construction must not).
+const projectorCache = new Map();
+function latLonReadout(tag, x, y) {
+  if (!isTransformableTag(tag)) return '';
+  try {
+    if (!projectorCache.has(tag)) projectorCache.set(tag, projectorFor(tag));
+    const { lon, lat } = projectorCache.get(tag).toLonLat(x, y);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return '';
+    return `${Math.abs(lat).toFixed(5)}${lat >= 0 ? 'N' : 'S'} ${Math.abs(lon).toFixed(5)}${lon >= 0 ? 'E' : 'W'}   `;
+  } catch {
+    return '';
+  }
+}
 const PREFS_KEY = 'seismolord.mapPrefs.v1';
 const DEFAULT_PREFS = {
   fill: true,
@@ -1023,7 +1040,11 @@ function MapView({
     let world = '';
     if (p.spacing?.affine) {
       const w = ilxlToWorld(p.spacing.affine, hit.ilIdx, hit.xlIdx);
-      world = `X ${w.x.toFixed(0)}   Y ${w.y.toFixed(0)}   `;
+      // CRS-aware readout (Phase 8): name the frame instead of bare
+      // numbers, and add lat/lon when the volume carries a real CRS.
+      const tag = p.manifest?.geometry?.crs?.project;
+      const geoTxt = latLonReadout(tag, w.x, w.y);
+      world = `X ${w.x.toFixed(0)}   Y ${w.y.toFixed(0)}${tag && tag !== 'UNKNOWN' ? ` (${tag})` : ''}   ${geoTxt}`;
     }
     let z = '';
     const ampL = p.active && p.effAttr !== 'structure' && p.ampLayer
