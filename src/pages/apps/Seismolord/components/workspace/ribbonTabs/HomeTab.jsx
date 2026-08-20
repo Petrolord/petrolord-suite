@@ -23,6 +23,9 @@ export default function HomeTab({
   scaleMode, setScaleMode, clipPct, setClipPct, manualClip, setManualClip,
   agcOn, setAgcOn, agcWindowMs, setAgcWindowMs,
   wiggleMode, setWiggleMode, reverseCmap, setReverseCmap,
+  overlayCandidates, overlayVolumeId, selectOverlayVolume,
+  overlayColormap, setOverlayColormap, overlayOpacity, setOverlayOpacity,
+  overlayBlend, setOverlayBlend,
   onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel, onOpenSessions,
 }) {
   const isTimeSlice = orientation === 'time';
@@ -215,6 +218,51 @@ export default function HomeTab({
           <option value="overlay">Wiggle + VA over density</option>
           <option value="only">Wiggle + VA only</option>
         </RibbonSelect>
+      </RibbonGroup>
+
+      <RibbonGroup label="Co-render">
+        <RibbonSelect
+          label="Overlay volume"
+          value={overlayVolumeId || ''}
+          onChange={(e) => selectOverlayVolume(e.target.value)}
+          disabled={!manifest || !overlayCandidates?.length}
+          title={overlayCandidates?.length
+            ? 'Blend a second volume on the same lattice over the section (attributes of this volume list first)'
+            : 'Compute an attribute volume of this volume to co-render it'}
+          className="w-40"
+        >
+          <option value="">None</option>
+          {(overlayCandidates || []).map((v) => (
+            <option key={v.id} value={v.id}>{v.name}</option>
+          ))}
+        </RibbonSelect>
+        {overlayVolumeId && (
+          <>
+            <RibbonSelect
+              label="Overlay colors"
+              value={overlayColormap}
+              onChange={(e) => setOverlayColormap(e.target.value)}
+            >
+              {SEISMIC_COLORMAPS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </RibbonSelect>
+            <RibbonSelect
+              label="Blend"
+              value={overlayBlend}
+              onChange={(e) => setOverlayBlend(e.target.value)}
+              title="Opacity mix paints the overlay over the seismic; multiply darkens the seismic by the overlay (good for variance)"
+            >
+              <option value="mix">Opacity mix</option>
+              <option value="multiply">Multiply</option>
+            </RibbonSelect>
+            <RibbonSlider
+              label={`Opacity ${Math.round(overlayOpacity * 100)}%`}
+              min={0.05} max={1} step={0.05}
+              value={overlayOpacity}
+              onChange={(e) => setOverlayOpacity(Number(e.target.value))}
+              className="w-24"
+            />
+          </>
+        )}
       </RibbonGroup>
     </>
   );

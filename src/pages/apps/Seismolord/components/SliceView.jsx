@@ -117,7 +117,7 @@ function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
   pickMode, ghost, loading, onPick, onPickEnd, onStepSlice, height = 520,
   vexag: vexagProp, onVexagChange, emptyHint, depthConv = null, onCursor = null,
-  cameraApi = null,
+  cameraApi = null, overlaySlice = null, overlayDisplay = null,
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
   const viewportRef = useRef(null);    // the canvas container
@@ -832,6 +832,36 @@ function SliceView({
     r.setAgc(agcMap);
     scheduleView();
   }, [slice, display, agcMap, prefs.interpolate, scheduleView]);
+
+  // W2.4 co-render: the overlay volume's matching slice + its display
+  // params. Kept out of the effect above so an opacity tweak never
+  // re-uploads the R32F texture (and vice versa). The renderer draws the
+  // overlay only while its dims match the primary's, so a lagging
+  // overlay upload waits instead of smearing.
+  useEffect(() => {
+    const r = rendererRef.current;
+    if (!r) return;
+    r.setSliceB(overlaySlice || null);
+    scheduleView();
+  }, [slice, overlaySlice, scheduleView]);
+  useEffect(() => {
+    const r = rendererRef.current;
+    if (!r) return;
+    if (overlayDisplay) {
+      r.setColormapB(overlayDisplay.colormap, { reverse: Boolean(overlayDisplay.reverse) });
+      r.setOverlay({
+        gain: overlayDisplay.gain,
+        polarity: overlayDisplay.polarity,
+        clip: overlayDisplay.clip,
+        traceBalance: overlayDisplay.traceBalance,
+        opacity: overlayDisplay.opacity,
+        mode: overlayDisplay.mode,
+      });
+    } else {
+      r.setOverlay(null);
+    }
+    scheduleView();
+  }, [slice, overlayDisplay, scheduleView]);
 
   // overlays / prefs / ghost mode / depth conversion changed -> repaint 2D layers
   useEffect(() => { scheduleView(); }, [overlays, prefs, ghost, depthConv, scheduleView]);

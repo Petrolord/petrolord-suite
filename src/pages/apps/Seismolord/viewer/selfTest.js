@@ -113,6 +113,19 @@ export async function runViewerSelfTest(canvas, opts = {}) {
       orientation: 'xline', index: 137, agc: { halfWindow: 15 },
       params: { gain: 1.5, polarity: -1, clip: 2, traceBalance: true },
     },
+    // W2.4 co-render: an |amp| pseudo-attribute of the same slice blended
+    // over the primary through its own LUT; referenceRender mirrors the
+    // blend from the same overlay slice + params
+    {
+      orientation: 'inline', index: 42,
+      overlay: { colormap: 'viridis', params: { clip: 1, opacity: 0.5, mode: 'mix' } },
+      params: { gain: 1, polarity: 1, clip: 1, traceBalance: false },
+    },
+    {
+      orientation: 'xline', index: 137,
+      overlay: { colormap: 'magma', params: { clip: 0.7, gain: 1.2, opacity: 0.75, mode: 'multiply' } },
+      params: { gain: 2, polarity: -1, clip: 0.8, traceBalance: true },
+    },
   ];
   for (const c of cases) {
     const slice = await assembleSlice(getBrick, geom, c.orientation, c.index);
@@ -124,12 +137,27 @@ export async function runViewerSelfTest(canvas, opts = {}) {
     if (c.agc) {
       renderer.setAgc(agcGainMap(slice.data, slice.width, slice.height, c.agc));
     }
+    if (c.overlay) {
+      const ovSlice = {
+        ...slice,
+        data: Float32Array.from(slice.data, (v) => (Math.abs(v) > 1.0e29 ? v : Math.abs(v))),
+        traceRms: null,
+      };
+      renderer.setColormapB(c.overlay.colormap, { reverse: false });
+      renderer.setOverlay(c.overlay.params);
+      renderer.setSliceB(ovSlice);
+    } else {
+      renderer.setOverlay(null);
+      renderer.setSliceB(null);
+    }
     renderer.render();
     const actual = renderer.readPixels();
     const expected = renderer.referenceRender(slice, canvas.width, canvas.height);
     const cmp = compareImages(actual, expected);
     checks.push({ ...c, ...cmp, pass: cmp.maxDiff <= 8 && cmp.pctWithin2 >= 99 });
   }
+  renderer.setOverlay(null);            // overlay off for every later block
+  renderer.setSliceB(null);
   renderer.setView([0, 0, 1, 1]);       // camera back to identity
   // ---- screen convention: time increases DOWNWARD on sections ---------
   // A pure depth gradient (-1 shallow -> +1 deep) must render red at the

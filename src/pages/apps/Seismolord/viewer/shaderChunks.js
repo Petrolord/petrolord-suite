@@ -6,9 +6,15 @@
 import { COLOR_MAPS } from '@/utils/colorMaps';
 
 /**
- * Amplitude sampling chunk. Declares u_data / u_traceRms / u_traceBalance
- * / u_interp and provides:
- *   float sampleBalanced(vec2 t, out bool isNull)
+ * Amplitude sampling chunk, suffix-parameterized (W2.4 co-rendering):
+ * `makeSamplingGlsl('')` is the primary volume's chunk (uniform names
+ * and function bodies BYTE-IDENTICAL to the pre-W2.4 single-volume
+ * chunk, so the overlay-off shader arithmetic is unchanged);
+ * `makeSamplingGlsl('B')` declares the u_dataB / u_traceRmsB / … family
+ * for the co-rendered overlay volume. Each instance declares
+ * u_data<S> / u_traceRms<S> / u_traceBalance<S> / u_interp<S> and
+ * provides:
+ *   float sampleBalanced<S>(vec2 t, out bool isNull)
  * t is a normalized texture coordinate (x = data width axis, y = trace
  * axis). Returns the per-trace-rms-balanced amplitude. u_interp == 1 runs
  * null-aware bicubic Catmull-Rom via texelFetch (no float-linear
@@ -17,16 +23,16 @@ import { COLOR_MAPS } from '@/utils/colorMaps';
  * edges. u_interp == 0 is the exact-NEAREST path the CPU-reference
  * self-test models.
  */
-export const SAMPLING_GLSL = `
-uniform sampler2D u_data;      // R32F amplitudes
-uniform sampler2D u_traceRms;  // R32F per-trace rms, x = trace
-uniform sampler2D u_agc;       // R32F windowed-AGC gain, same dims as u_data
-uniform int   u_traceBalance;  // 1 = divide by per-trace rms
-uniform int   u_useAgc;        // 1 = multiply the AGC gain map in
-uniform int   u_interp;        // 1 = smooth (bicubic Catmull-Rom), 0 = nearest
+export const makeSamplingGlsl = (S = '') => `
+uniform sampler2D u_data${S};      // R32F amplitudes
+uniform sampler2D u_traceRms${S};  // R32F per-trace rms, x = trace
+uniform sampler2D u_agc${S};       // R32F windowed-AGC gain, same dims as u_data${S}
+uniform int   u_traceBalance${S};  // 1 = divide by per-trace rms
+uniform int   u_useAgc${S};        // 1 = multiply the AGC gain map in
+uniform int   u_interp${S};        // 1 = smooth (bicubic Catmull-Rom), 0 = nearest
 
 // Catmull-Rom weights for taps at offsets -1, 0, +1, +2 around the cell.
-vec4 cubicWeights(float f) {
+vec4 cubicWeights${S}(float f) {
   float f2 = f * f;
   float f3 = f2 * f;
   return vec4(
@@ -36,51 +42,53 @@ vec4 cubicWeights(float f) {
     0.5 * (f3 - f2));
 }
 
-float rmsScaleAt(int trace) {
-  float r = texelFetch(u_traceRms, ivec2(trace, 0), 0).r;
+float rmsScaleAt${S}(int trace) {
+  float r = texelFetch(u_traceRms${S}, ivec2(trace, 0), 0).r;
   return r > 0.0 ? 1.0 / r : 0.0;
 }
 
-float sampleBalanced(vec2 t, out bool isNull) {
+float sampleBalanced${S}(vec2 t, out bool isNull) {
   isNull = false;
-  if (u_interp == 1) {
-    ivec2 sz = textureSize(u_data, 0);
+  if (u_interp${S} == 1) {
+    ivec2 sz = textureSize(u_data${S}, 0);
     vec2 pos = t * vec2(sz) - 0.5;
     ivec2 base = ivec2(floor(pos));
     vec2 f = pos - vec2(base);
     ivec2 nearestT = clamp(ivec2(t * vec2(sz)), ivec2(0), sz - 1);
-    float centre = texelFetch(u_data, nearestT, 0).r;
+    float centre = texelFetch(u_data${S}, nearestT, 0).r;
     if (abs(centre) > 1.0e29) { isNull = true; return 0.0; }
-    float bC = centre * (u_traceBalance == 1 ? rmsScaleAt(nearestT.y) : 1.0)
-      * (u_useAgc == 1 ? texelFetch(u_agc, nearestT, 0).r : 1.0);
-    vec4 wx = cubicWeights(f.x);
-    vec4 wy = cubicWeights(f.y);
+    float bC = centre * (u_traceBalance${S} == 1 ? rmsScaleAt${S}(nearestT.y) : 1.0)
+      * (u_useAgc${S} == 1 ? texelFetch(u_agc${S}, nearestT, 0).r : 1.0);
+    vec4 wx = cubicWeights${S}(f.x);
+    vec4 wy = cubicWeights${S}(f.y);
     float acc = 0.0;
     for (int j = 0; j < 4; j++) {
       int py = clamp(base.y - 1 + j, 0, sz.y - 1);
-      float rScale = u_traceBalance == 1 ? rmsScaleAt(py) : 1.0;
+      float rScale = u_traceBalance${S} == 1 ? rmsScaleAt${S}(py) : 1.0;
       float row = 0.0;
       for (int i = 0; i < 4; i++) {
         int px = clamp(base.x - 1 + i, 0, sz.x - 1);
-        float raw = texelFetch(u_data, ivec2(px, py), 0).r;
-        float aG = u_useAgc == 1 ? texelFetch(u_agc, ivec2(px, py), 0).r : 1.0;
+        float raw = texelFetch(u_data${S}, ivec2(px, py), 0).r;
+        float aG = u_useAgc${S} == 1 ? texelFetch(u_agc${S}, ivec2(px, py), 0).r : 1.0;
         row += wx[i] * (abs(raw) > 1.0e29 ? bC : raw * rScale * aG);
       }
       acc += wy[j] * row;
     }
     return acc;
   }
-  float amp = texture(u_data, t).r;
+  float amp = texture(u_data${S}, t).r;
   if (abs(amp) > 1.0e29) { isNull = true; return 0.0; }
   float scale = 1.0;
-  if (u_traceBalance == 1) {
-    float rms = texture(u_traceRms, vec2(t.y, 0.5)).r;
+  if (u_traceBalance${S} == 1) {
+    float rms = texture(u_traceRms${S}, vec2(t.y, 0.5)).r;
     scale = rms > 0.0 ? 1.0 / rms : 0.0;
   }
-  if (u_useAgc == 1) scale *= texture(u_agc, t).r;
+  if (u_useAgc${S} == 1) scale *= texture(u_agc${S}, t).r;
   return amp * scale;
 }
 `;
+
+export const SAMPLING_GLSL = makeSamplingGlsl('');
 
 /**
  * Display chunk on top of SAMPLING_GLSL: symmetric clip around zero into
@@ -101,6 +109,45 @@ vec4 shadeAmp(vec2 t) {
   float a = balanced * u_gain * u_polarity;
   float x = clamp(0.5 + 0.5 * a / u_clip, 0.0, 1.0);
   return texture(u_lut, vec2(x, 0.5));
+}
+`;
+
+/**
+ * Co-render chunk (W2.4) on top of makeSamplingGlsl('B') + DISPLAY_GLSL:
+ * shades the overlay volume through its own LUT/gain/clip and blends it
+ * over the already-shaded primary pixel. Null policy: a null OVERLAY
+ * sample leaves the primary untouched (nulls never tint data), and the
+ * caller skips blending entirely where the PRIMARY is null (use
+ * primaryIsNull) so null regions keep the null color.
+ *   bool primaryIsNull(vec2 t)
+ *   vec4 blendOverlay(vec2 t, vec4 base)
+ */
+export const OVERLAY_GLSL = `
+uniform sampler2D u_lutB;      // overlay 256x1 RGBA colormap
+uniform float u_gainB;
+uniform float u_polarityB;
+uniform float u_clipB;
+uniform int   u_overlayOn;     // 1 = co-render the overlay volume
+uniform int   u_blendMode;     // 0 = opacity mix, 1 = multiply
+uniform float u_overlayOpacity;
+
+bool primaryIsNull(vec2 t) {
+  ivec2 sz = textureSize(u_data, 0);
+  ivec2 nt = clamp(ivec2(t * vec2(sz)), ivec2(0), sz - 1);
+  return abs(texelFetch(u_data, nt, 0).r) > 1.0e29;
+}
+
+vec4 blendOverlay(vec2 t, vec4 base) {
+  bool isNullB;
+  float balancedB = sampleBalancedB(t, isNullB);
+  if (isNullB) return base;
+  float aB = balancedB * u_gainB * u_polarityB;
+  float xB = clamp(0.5 + 0.5 * aB / u_clipB, 0.0, 1.0);
+  vec4 over = texture(u_lutB, vec2(xB, 0.5));
+  if (u_blendMode == 1) {
+    return vec4(base.rgb * mix(vec3(1.0), over.rgb, u_overlayOpacity), base.a);
+  }
+  return vec4(mix(base.rgb, over.rgb, u_overlayOpacity), base.a);
 }
 `;
 
@@ -126,7 +173,10 @@ export function buildLut(key, reverse = false) {
  * window's time-slice raster): symmetric clip around zero into the LUT,
  * nulls transparent. Kept HERE so the amplitude→color math still lives in
  * one place; any change to shadeAmp must change this identically (the
- * shadeAmpPixels jest suite pins the mapping).
+ * shadeAmpPixels jest suite pins the mapping). This mirror models the
+ * PRIMARY-only path — co-rendering (W2.4) is a section/cube feature and
+ * the map raster stays single-volume; the overlay's CPU mirror lives in
+ * SliceRenderer.referenceRender for the self-test.
  *
  * @param {Float32Array} data amplitudes (1e30 nulls), row-major
  * @param {number} width
