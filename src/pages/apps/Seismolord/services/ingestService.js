@@ -250,6 +250,12 @@ export async function ingestVolume({
         ns: manifest.geometry.ns,
         dt_us: manifest.geometry.dt_us,
         corners: manifest.geometry.corners,
+        // world-placement identity: without these, SQL-level consumers
+        // saw corners only and every world question re-read the manifest
+        ...(manifest.geometry.affine ? { affine: manifest.geometry.affine } : {}),
+        ...(manifest.geometry.coord_scalar != null
+          ? { coord_scalar: manifest.geometry.coord_scalar } : {}),
+        ...(manifest.geometry.crs ? { crs: manifest.geometry.crs } : {}),
         sample_format: manifest.source.sample_format,
         il_byte: manifest.source.il_byte,
         xl_byte: manifest.source.xl_byte,

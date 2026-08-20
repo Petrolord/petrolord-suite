@@ -27,8 +27,8 @@ const legacyTops = (tops) => (tops || []).map((t) => ({ name: t.name, md: t.md_m
 
 /**
  * @param {{name: string, uwi?: ?string, surfaceX: number, surfaceY: number,
- *   kbM?: number, tdMdM?: ?number, deviation?: Array, tops?: Array,
- *   checkshots?: Array}} w
+ *   kbM?: number, tdMdM?: ?number, crsNote?: ?string, unitsNote?: ?string,
+ *   deviation?: Array, tops?: Array, checkshots?: Array}} w
  */
 export async function saveWell(w) {
   const well = await registrySaveWell({
@@ -38,6 +38,8 @@ export async function saveWell(w) {
     surfaceY: w.surfaceY,
     kbM: w.kbM,
     tdMdM: w.tdMdM,
+    crsNote: w.crsNote,
+    unitsNote: w.unitsNote,
     deviation: w.deviation || [],
     checkshots: w.checkshots || [],
   });
