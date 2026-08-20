@@ -8,8 +8,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import WellImport from '@/components/wells/WellImport';
+import useCrsContext from '@/components/crs/useCrsContext';
 
 export default function WellImportDialog({ open, onOpenChange, onSave }) {
+  const { crsContext, commitAutoSetProject } = useCrsContext();
+  const save = async (draft) => {
+    await onSave(draft);
+    await commitAutoSetProject(draft.autoSetProject);
+  };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
@@ -19,7 +25,7 @@ export default function WellImportDialog({ open, onOpenChange, onSave }) {
             Import well
           </DialogTitle>
         </DialogHeader>
-        <WellImport onSave={onSave} />
+        <WellImport onSave={save} crsContext={crsContext} />
       </DialogContent>
     </Dialog>
   );

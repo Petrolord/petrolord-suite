@@ -40,8 +40,13 @@ export const curvePath = (userId, wellId, logId) => `${userId}/${wellId}/logs/${
 
 /**
  * @param {{name: string, uwi?: ?string, surfaceX: number, surfaceY: number,
- *   kbM?: number, tdMdM?: ?number, crsNote?: ?string, unitsNote?: ?string,
+ *   kbM?: number, tdMdM?: ?number, crs?: ?string, xyUnit?: ?string,
+ *   crsProvenance?: ?Object, crsNote?: ?string, unitsNote?: ?string,
  *   deviation?: Array, checkshots?: Array}} w
+ *   crs is the structured tag the coordinates are stored IN (CRS
+ *   program): 'EPSG:<code>' | 'CUSTOM:<uuid>' | 'LOCAL'; null/absent =
+ *   unknown placement (legacy behavior, badge in the UI). crs_note
+ *   stays free-text context.
  */
 export async function saveWell(w) {
   const user = await requireUser();
@@ -54,6 +59,9 @@ export async function saveWell(w) {
       surface_y: w.surfaceY,
       kb_m: w.kbM ?? 0,
       td_md_m: w.tdMdM ?? null,
+      crs: w.crs || null,
+      xy_unit: w.xyUnit || null,
+      crs_provenance: w.crsProvenance || null,
       crs_note: w.crsNote || null,
       units_note: w.unitsNote || null,
       deviation: w.deviation || [],

@@ -13,7 +13,8 @@ import { Slider } from '@/components/ui/slider';
 import { Loader2, Plus, Trash2, GripVertical, Lock, Unlock, Download, AlertCircle, RefreshCw, Box, Activity, Map as MapIcon, Table as TableIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
-import proj4 from 'proj4';
+import { toLonLat } from '@/lib/crs';
+import { isTransformableTag } from '@/lib/crs/tags';
 import Papa from 'papaparse';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
@@ -66,14 +67,17 @@ const TrajectoryTab = ({ wellId, user }) => {
     const convertToMeters = useCallback((val) => (units === 'feet' ? parseFloat(val || 0) / METERS_TO_FEET : parseFloat(val || 0)), [units]);
     const convertFromMeters = useCallback((val) => (units === 'feet' ? parseFloat(val || 0) * METERS_TO_FEET : parseFloat(val || 0)), [units]);
 
-    // Geo Projection
+    // Geo Projection through the suite CRS engine. The old guard asked
+    // proj4.defs(crs), which no code ever registered, so every projected
+    // CRS silently returned {lat: 0, lon: 0}; the catalog now resolves
+    // EPSG tags directly.
     const getGeoCoords = useCallback((easting, northing) => {
-        if (!well?.crs || well.crs === 'EPSG:4326' || !proj4.defs(well.crs)) {
+        if (!well?.crs || well.crs === 'EPSG:4326' || !isTransformableTag(well.crs)) {
             return { lat: 0, lon: 0 };
         }
         try {
-            const [lon, lat] = proj4(well.crs, 'EPSG:4326', [easting, northing]);
-            return { lat, lon };
+            const { lon, lat } = toLonLat(well.crs, easting, northing);
+            return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : { lat: 0, lon: 0 };
         } catch (e) { return { lat: 0, lon: 0 }; }
     }, [well?.crs]);
 
