@@ -26,6 +26,8 @@ async function listVelocityModels() {
   const volumes = await listVolumes();
   const models = [];
   for (const v of volumes) {
+    if (v.kind === 'attribute') continue;   // derived volumes carry no velocity of their own
+
     try {
       const manifest = await getManifest(v);
       if (isLinearVelocityModel(manifest.velocity)) {

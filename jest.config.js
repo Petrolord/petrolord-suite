@@ -24,6 +24,8 @@ export default {
     'envelopeWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/envelopeWorkerFactoryMock.js',
     // same import.meta story for Seismolord's gridding worker
     'griddingWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/griddingWorkerFactoryMock.js',
+    // and for the W2.1 attribute-volume worker
+    'attributeWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/attributeWorkerFactoryMock.js',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$':
       '<rootDir>/src/__mocks__/fileMock.js',

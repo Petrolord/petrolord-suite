@@ -6,7 +6,7 @@
 import React from 'react';
 import {
   Crosshair, Route, Spline, Ban, Loader2, Pencil, Eraser, Undo2, Save,
-  Wand2, PaintBucket, Ruler, Slash, CheckCheck, Trash2,
+  Wand2, PaintBucket, Ruler, Slash, CheckCheck, Trash2, Waves,
 } from 'lucide-react';
 import { RibbonGroup, RibbonButton, RibbonSelect } from '../Ribbon';
 import { describeVelocity } from '../../../engine/velocityModel';
@@ -36,7 +36,7 @@ export default function InterpretationTab({
   eraseSize, setEraseSize, edit, editBusy, undoEdit, saveEdits, discardEdits,
   smoothEdits, smoothMethod, setSmoothMethod, smoothRadius, setSmoothRadius, fillHoles,
   draftSticks, endStick, saveDraftFault, discardDraft,
-  openVelocity, velocityModel,
+  openVelocity, velocityModel, openAttribute,
 }) {
   const noSection = !manifest || orientation === 'time';
 
@@ -247,6 +247,16 @@ export default function InterpretationTab({
             />
           </>
         )}
+      </RibbonGroup>
+
+      <RibbonGroup label="Attributes">
+        <RibbonButton
+          icon={Waves}
+          label="Attribute volume…"
+          onClick={openAttribute}
+          disabled={!manifest}
+          title="Compute a derived volume (envelope, phase, frequency, sweetness, RMS, AGC) from the open volume"
+        />
       </RibbonGroup>
 
       <RibbonGroup label="Velocity">

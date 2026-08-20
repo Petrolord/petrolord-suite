@@ -12,6 +12,7 @@ import {
   Database, Layers, Slash, CircleDot, Route, Eye, EyeOff, Loader2, Upload,
   Plus, RefreshCw, ChevronDown, ChevronRight, Pencil, ArrowLeft,
   Rows, Columns, Clock, Settings2, Mountain, Download, Building2, Globe2,
+  Activity,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -176,13 +177,22 @@ export default function SeismicExplorer({ tree, actions }) {
 
       <ScrollArea className="flex-1 min-h-0">
         <Section icon={Database} title="Volumes" count={volumes.length || ''}>
-          {volumes.map((v) => (
-            <React.Fragment key={v.id}>
+          {(() => {
+            // Derived (attribute) volumes nest under their parent; a child
+            // whose parent is gone lists at the top level like any volume.
+            const ids = new Set(volumes.map((v) => v.id));
+            const roots = volumes.filter(
+              (v) => !(v.parent_volume_id && ids.has(v.parent_volume_id)),
+            );
+            const childrenOf = (id) => volumes.filter((v) => v.parent_volume_id === id);
+            const volumeRow = (v, depth = 0) => (
               <Row
-                icon={Database}
+                icon={v.kind === 'attribute' ? Activity : Database}
+                depth={depth}
                 label={v.name}
                 title={geometrySummary(v.survey_meta)}
-                meta={v.status !== 'ready' ? v.status : ''}
+                meta={v.status !== 'ready' ? v.status
+                  : (depth > 0 && v.attribute_params?.name) || ''}
                 selected={v.id === activeVolumeId}
                 onClick={() => v.status === 'ready' && actions.selectVolume(v.id)}
                 menu={(
@@ -192,6 +202,12 @@ export default function SeismicExplorer({ tree, actions }) {
                       onSelect={() => actions.selectVolume(v.id)}
                     >
                       Set active
+                    </ContextMenuItem>
+                    <ContextMenuItem
+                      disabled={v.id !== activeVolumeId}
+                      onSelect={() => actions.openAttribute()}
+                    >
+                      Compute attribute volume…
                     </ContextMenuItem>
                     <ContextMenuItem
                       disabled={v.id !== activeVolumeId}
@@ -209,20 +225,42 @@ export default function SeismicExplorer({ tree, actions }) {
                   </>
                 )}
               />
-              {v.id === activeVolumeId && (slicePlanes || []).map((pl) => (
-                <Row
-                  key={pl.key}
-                  depth={1}
-                  icon={PLANE_ICONS[pl.key] || Layers}
-                  label={pl.label}
-                  title={PLANE_TITLES[pl.key]}
-                  visible={pl.visible}
-                  onToggleVisible={() => actions.toggleSlicePlane(pl.key)}
-                  onClick={() => actions.selectPlane(pl.key)}
-                />
-              ))}
-            </React.Fragment>
-          ))}
+            );
+            return roots.map((v) => (
+              <React.Fragment key={v.id}>
+                {volumeRow(v)}
+                {v.id === activeVolumeId && (slicePlanes || []).map((pl) => (
+                  <Row
+                    key={pl.key}
+                    depth={1}
+                    icon={PLANE_ICONS[pl.key] || Layers}
+                    label={pl.label}
+                    title={PLANE_TITLES[pl.key]}
+                    visible={pl.visible}
+                    onToggleVisible={() => actions.toggleSlicePlane(pl.key)}
+                    onClick={() => actions.selectPlane(pl.key)}
+                  />
+                ))}
+                {childrenOf(v.id).map((c) => (
+                  <React.Fragment key={c.id}>
+                    {volumeRow(c, 1)}
+                    {c.id === activeVolumeId && (slicePlanes || []).map((pl) => (
+                      <Row
+                        key={pl.key}
+                        depth={2}
+                        icon={PLANE_ICONS[pl.key] || Layers}
+                        label={pl.label}
+                        title={PLANE_TITLES[pl.key]}
+                        visible={pl.visible}
+                        onToggleVisible={() => actions.toggleSlicePlane(pl.key)}
+                        onClick={() => actions.selectPlane(pl.key)}
+                      />
+                    ))}
+                  </React.Fragment>
+                ))}
+              </React.Fragment>
+            ));
+          })()}
           {!volumes.length && (
             <Hint>No volumes yet — import a SEG-Y file to get started.</Hint>
           )}
