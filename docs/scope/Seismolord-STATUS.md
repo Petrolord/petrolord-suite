@@ -1605,3 +1605,28 @@ age in production ahead of Wave 2 derived volumes and W4 sharing.
   section/traverse PNG snapshot (same-tick composite, the CubeView
   pattern). Ribbon Home gained a Scaling group. Stored amplitudes are
   never modified anywhere in this line.
+
+- W1.2a Global undo/redo (Suite PR #207): bounded async command stack
+  (lib/undoStack.js) covering fault stick drafts, fault/horizon deletes
+  with full restore (pick grids captured before blob deletion), and
+  traverse edits under the CAS revision; Ctrl+Z routes to the horizon
+  editor's cell-level undo while a session has pending ops. Ribbon
+  History group.
+- W1.2b Sessions + bookmarks (Suite PR #208 + migration 20260820170000
+  PENDING owner apply): seismic_sessions rows (kind session/bookmark,
+  versioned payload); sessions capture volume/line/display/visibility/
+  cameras (ViewTransform.getCamera/setCamera via cameraApi props) plus
+  the allow-listed localStorage layout keys; restore replays local
+  state (window tree remounts via epoch key), validates display fields,
+  clamps indices to live geometry. Sessions & bookmarks dialog.
+- W1.3 Culture/GIS layers (engines PRs #17 #18 + migration
+  20260820190000 PENDING owner apply): geo_culture registry (features
+  blob in new private culture bucket, org-shareable, the geo_surfaces
+  model), GeoJSON + shapefile import engines (spec-level golden
+  binaries; realm-safe buffers), shared CultureImportDialog with CRS
+  declaration + convert-to-Project-CRS (.prj shown as evidence, never
+  trusted; LOCAL never transforms), Seismolord explorer Culture section
+  + MapView overlay (ground -> lattice via the survey affine, cached
+  per layer; CRS-honest: transformable tags convert on the fly, LOCAL
+  vs georeferenced never draws), Mapping Studio dock list + MapCanvas
+  overlay + import (backend-injected, harness demo layer).

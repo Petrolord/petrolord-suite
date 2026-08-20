@@ -9,6 +9,7 @@ import {
   listSurfaces, saveSurface, downloadSurfaceGrid, deleteSurface,
   shareSurface, unshareSurface,
 } from '@/lib/surfacesRegistry';
+import { listCulture, downloadCultureFeatures } from '@/lib/cultureRegistry';
 import { resolveUserOrgId } from '@/lib/orgContext';
 import { supabase } from '@/lib/customSupabaseClient';
 
@@ -49,5 +50,9 @@ export function makeRegistryBackend() {
       if (!org) throw new Error('You belong to no organization — nothing to share with.');
       return shareSurface(surface.id, org);
     },
+    // culture / GIS layers (W1.3): shared geo_culture registry
+    listCulture,
+    downloadCultureFeatures,
+    canImportCulture: true,
   };
 }

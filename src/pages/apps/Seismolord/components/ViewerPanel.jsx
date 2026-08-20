@@ -49,6 +49,13 @@ import { amplitudePercentile } from '../engine/displayEnhance';
 import { UndoStack } from '../lib/undoStack';
 import { captureLocal, applyLocal, clampIndices } from '../lib/sessionSnapshot';
 import SessionsDialog from './workspace/dialogs/SessionsDialog';
+import CultureImportDialog from '@/components/culture/CultureImportDialog';
+import {
+  listCulture, downloadCultureFeatures, deleteCulture, setCultureShared,
+} from '@/lib/cultureRegistry';
+import { reprojectFeatures } from '@/lib/cultureImport';
+import { transformPoint } from '@/lib/crs';
+import { normalizeTag, isTransformableTag, LOCAL } from '@/lib/crs/tags';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
 import SyntheticsPanel from './SyntheticsPanel';
@@ -1586,6 +1593,104 @@ export default function ViewerPanel() {
     return () => { alive = false; };
   }, [volume, surfacesRefresh]);
 
+  // ---- culture / GIS layers (shared geo_culture registry, W1.3) ------
+  // Volume-independent rows; features download once per eye toggle and
+  // convert into the ACTIVE volume's frame for the map (CRS-honest:
+  // transformable tags convert, LOCAL vs georeferenced never draws).
+  const [culture, setCulture] = useState([]);
+  const [cultureBusyId, setCultureBusyId] = useState(null);
+  const [cultureRefresh, setCultureRefresh] = useState(0);
+  const [visibleCultureIds, setVisibleCultureIds] = useState(new Set());
+  const [cultureFeatures, setCultureFeatures] = useState(new Map());
+
+  useEffect(() => {
+    let alive = true;
+    listCulture()
+      .then((rows) => { if (alive) setCulture(rows); })
+      .catch(() => { if (alive) setCulture([]); });
+    return () => { alive = false; };
+  }, [cultureRefresh]);
+
+  const toggleCulture = async (c) => {
+    if (visibleCultureIds.has(c.id)) {
+      setVisibleCultureIds((set) => { const n = new Set(set); n.delete(c.id); return n; });
+      return;
+    }
+    if (!cultureFeatures.has(c.id)) {
+      setCultureBusyId(c.id);
+      try {
+        const feats = await downloadCultureFeatures(c);
+        setCultureFeatures((m) => new Map(m).set(c.id, feats));
+      } catch (e) {
+        toast({ title: 'Cannot load culture layer', description: e.message, variant: 'destructive' });
+        return;
+      } finally {
+        setCultureBusyId(null);
+      }
+    }
+    setVisibleCultureIds((set) => new Set([...set, c.id]));
+  };
+
+  const onShareCulture = async (c) => {
+    setCultureBusyId(c.id);
+    try {
+      await setCultureShared(c, !c.organization_id);
+      toast(c.organization_id
+        ? { title: 'Culture layer is private again', description: `${c.name} is no longer visible to your organization.` }
+        : { title: 'Culture layer shared', description: `${c.name} is now read-only visible to your organization.` });
+      setCultureRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Share failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setCultureBusyId(null);
+    }
+  };
+
+  const onDeleteCulture = async (c) => {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Delete culture layer "${c.name}"? This removes it for every app that uses it.`)) return;
+    setCultureBusyId(c.id);
+    try {
+      await deleteCulture(c);
+      setVisibleCultureIds((set) => { const n = new Set(set); n.delete(c.id); return n; });
+      setCultureRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setCultureBusyId(null);
+    }
+  };
+
+  const mapCulture = useMemo(() => {
+    if (!visibleCultureIds.size || !volume) return [];
+    const volTag = normalizeTag(volume.crs);
+    const out = [];
+    for (const row of culture) {
+      if (!visibleCultureIds.has(row.id)) continue;
+      const feats = cultureFeatures.get(row.id);
+      if (!feats) continue;
+      const rowTag = normalizeTag(row.crs);
+      let features = feats;
+      if (rowTag !== volTag) {
+        if (isTransformableTag(rowTag) && isTransformableTag(volTag)) {
+          try {
+            features = reprojectFeatures(feats, (x, y) => {
+              const p = transformPoint(rowTag, volTag, x, y);
+              return [p.x, p.y];
+            });
+          } catch {
+            continue;                    // unresolvable custom def etc.
+          }
+        } else if (rowTag === LOCAL || volTag === LOCAL) {
+          continue;                      // never guess a local grid's placement
+        }
+        // UNKNOWN on either side draws as-is (legacy frames, badged in the tree)
+      }
+      out.push({ id: row.id, name: row.name, style: row.style || {}, features });
+    }
+    return out;
+  }, [culture, visibleCultureIds, cultureFeatures, volume]);
+
   // map display: eye-toggled surfaces, downloaded once and resampled
   // onto the volume lattice (positive-down, surface's own unit)
   const [visibleSurfaceIds, setVisibleSurfaceIds] = useState(new Set());
@@ -2045,6 +2150,9 @@ export default function ViewerPanel() {
     surfaces,
     surfaceBusyId,
     visibleSurfaceIds,
+    culture,
+    cultureBusyId,
+    visibleCultureIds,
     faults,
     visibleFaultIds,
     faultBusyId,
@@ -2075,6 +2183,10 @@ export default function ViewerPanel() {
     shareSurface: onShareSurface,
     toggleSurface,
     openSurfaceImport: () => setOpenDialog('importSurface'),
+    toggleCulture,
+    shareCulture: onShareCulture,
+    deleteCulture: onDeleteCulture,
+    openCultureImport: () => setOpenDialog('importCulture'),
     toggleSlicePlane,
     selectPlane,
     setEditTarget: changeEditTarget,
@@ -2459,6 +2571,7 @@ export default function ViewerPanel() {
                   surfaces={mapSurfaces}
                   height="fill"
                   cameraApi={mapCameraApi}
+                  cultureLayers={mapCulture}
                 />
               ),
             },
@@ -2469,6 +2582,12 @@ export default function ViewerPanel() {
       />
 
       {/* Heavyweight workflows live in modal dialogs over the workspace. */}
+      <CultureImportDialog
+        open={openDialog === 'importCulture'}
+        onOpenChange={(o) => setOpenDialog(o ? 'importCulture' : null)}
+        onImported={() => setCultureRefresh((k) => k + 1)}
+      />
+
       <SessionsDialog
         open={sessionsOpen}
         onOpenChange={setSessionsOpen}
