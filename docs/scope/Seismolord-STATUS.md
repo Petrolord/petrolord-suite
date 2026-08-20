@@ -1521,3 +1521,33 @@ registry), the private `seismic` bucket (the legacy public
 `seismic-files` bucket from the deleted mock apps remains a cleanup
 candidate), and the `Active` tile. Everything else in the original
 skeleton write-up is history; consult git for the full text.
+
+## Petrel-grade CRS program (2026-08-20): DONE (Phases 1-8)
+Plan approved 2026-08-20 (owner decisions: per-user Project CRS, full
+parity program). Engines PRs #11-#14 (CRS engine + scan evidence +
+azimuth reference + ZMAP stamp, all merged + subtree-pulled); Suite:
+migration 20260820120000 APPLIED live (probes green) + PR #196 (schema/
+settings, merged) + stacked PRs #197 (SEG-Y door) -> #198 (well doors)
+-> #199 (surface doors + hand-off fixes) -> #200 (overlay guards) ->
+#201 (reproject-or-block) -> #202 (display/exports/docs).
+- SEG-Y import requires a CRS declaration: header-hint prefill (quoted,
+  never trusted), bytes 89-90/measurement-system readouts, per-trace
+  scalar spread, source-XY cross-check, X/Y/scalar byte overrides,
+  area-of-use sanity gate with explicit override. Convert-on-import
+  refits the affine into the Project CRS; native declaration kept in
+  survey_meta.crs + manifest; resume finishes under the original
+  declaration (fingerprint extended).
+- Wells: CRS picker + lat/lon entry + m/ft/ftUS numbers; azimuth
+  reference (grid/true/magnetic) rotates to grid north via wellhead
+  convergence (engines oracle: ~27 m/km silent error prevented).
+- Surfaces inherit the volume frame; imports can declare a different
+  CRS and convert; Mapping/isochores inherit consensus of inputs;
+  Earth Modeling refuses mixed-CRS stacks; RCP hand-off honors z_unit
+  and structured CRS (stale-CRS carryover fixed).
+- Overlay guards everywhere; MapView cursor shows CRS tag + lat/lon;
+  ZMAP exports stamp the CRS; Project CRS chip in the status bar.
+- Known limits: 3-param Helmert datum shifts (metre-level vs Petrel
+  grid files; accuracy recorded per catalog entry); zone-swap errors
+  are geodetically invisible per-dataset (caught by overlay guards);
+  RCP ft-rescale hand-off deliberately kept (one-unit model) with CRS
+  blanked on rescale.

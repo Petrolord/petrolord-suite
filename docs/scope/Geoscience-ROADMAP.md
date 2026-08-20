@@ -344,5 +344,12 @@ and is the biggest build risk in the domain.
 - **CRS/units debt**: wells, seismic and maps must agree on coordinates
   and units. G1 records CRS + units explicitly per well/survey from day
   one; no silent assumptions (the SEG-Y lesson).
+  **CLOSED 2026-08-20 by the Petrel-grade CRS program** (migration
+  20260820120000 + Suite PRs #196-#201 + engines PRs #11-#14): per-user
+  Project CRS (geoscience_settings), structured `crs`/`xy_unit`/
+  `crs_provenance` on wells/surfaces/volumes/models, explicit CRS
+  assignment at every import door with convert-on-import, overlay
+  guards, and a reproject-or-block Project CRS change flow. The CRS
+  model is documented in docs/scope/Seismolord-PLAYBOOK.md.
 - **Audit surprises** (BasinFlowGenesis/MEM): sized as unknowns on
   purpose; no roadmap phase depends on them.

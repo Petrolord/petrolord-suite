@@ -65,3 +65,33 @@ the Map window via lattice resampling.
 ## Verify yourself
 - `npm test` (jest) runs all suites. A phase is complete only when its
   acceptance tests are green (see Seismolord-PLAN.md per-phase acceptance).
+
+## CRS model (Petrel-grade CRS program, 2026-08-20)
+- One PROJECT CRS per user (geoscience_settings.project_crs), the system
+  every geoscience import converts into — the role Petrel's project CRS
+  plays. The first placed import defines it; after that it changes only
+  through the reproject-or-block flow (ProjectCrsDialog), which converts
+  every owned tagged dataset and always reprojects seismic from the
+  NATIVE declaration, never chained.
+- Tags: `EPSG:<code>` (curated catalog, packages/engines/lib/crs/catalog),
+  `CUSTOM:<uuid>` (user proj4/WKT in settings custom_defs), `LOCAL`
+  (engineering grid, never transforms), `UNKNOWN`/null (legacy or
+  declared-unknown; badge, never a retroactive block).
+- Every import door requires a CRS declaration: SEG-Y (ImportPanel CRS
+  step — textual-header hints prefill but never commit, area-of-use
+  sanity check blocks implausible declarations unless overridden), wells
+  (WellImport picker + lat/lon mode + azimuth reference grid/true/
+  magnetic with convergence correction), surfaces/picks/faults
+  (ImportSurfaceDialog file-CRS declaration with convert-to-volume-frame).
+- Seismic reprojection is affine-only: traces are NEVER resampled; the
+  survey affine refits in the target CRS (lib/crs/affineReproject) with
+  the residual recorded; survey_meta.crs + manifest geometry.crs keep the
+  native declaration for chain-free later changes.
+- Overlays compare tags first (src/lib/crs/guards): same renders,
+  known-different converts on the fly (wells point-transform; surfaces
+  via refitting the volume affine in the surface's CRS), unknown renders
+  flagged as unverified, LOCAL never co-renders with georeferenced data.
+  The "does not overlap" error names a CRS mismatch when tags disagree.
+- Engine math is validated against published oracles (EPSG GN7-2 worked
+  example, first-principles Helmert cross-check, Snyder convergence);
+  proj4 is injected into the engines package, bound once in src/lib/crs.
