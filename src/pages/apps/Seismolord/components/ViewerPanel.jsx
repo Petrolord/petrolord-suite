@@ -16,7 +16,7 @@ import {
 } from '../services/interpState';
 import {
   saveHorizon, listHorizons, loadHorizonGrid, deleteHorizon, updateHorizon,
-  loadHorizonConfidence,
+  loadHorizonConfidence, saveHorizonVersion,
   updateHorizonMeta,
 } from '../services/horizonsService';
 import { saveFault, listFaults, deleteFault } from '../services/faultsService';
@@ -333,7 +333,17 @@ export default function ViewerPanel() {
   // boundary pick grids aligned with the saved layer cake's layer bases
   const [velBoundaries, setVelBoundaries] = useState(null);
   const [tracking, setTracking] = useState(null);   // {tracked, total}
-  const [horizons, setHorizons] = useState([]);
+  const [horizonRows, setHorizonRows] = useState([]); // heads + archived (W4.3)
+  // heads drive every existing consumer; archived versions live in the
+  // History submenu and (when toggled) as dashed comparison overlays
+  const horizons = useMemo(
+    () => horizonRows.filter((h) => !h.archived_at), [horizonRows],
+  );
+  const horizonVersions = useMemo(
+    () => horizonRows.filter((h) => h.archived_at), [horizonRows],
+  );
+  const [visibleVersionIds, setVisibleVersionIds] = useState(new Set());
+  const setHorizons = setHorizonRows;
   const [visibleIds, setVisibleIds] = useState(new Set());
   const [horizonBusyId, setHorizonBusyId] = useState(null);
   const [faults, setFaults] = useState([]);
@@ -1175,6 +1185,29 @@ export default function ViewerPanel() {
           display: disp,
         });
       }
+      // W4.3 comparison overlays: visible ARCHIVED versions draw dashed
+      // with their version + interpreter in the name (two versions on
+      // one section = toggle the head and a history entry together)
+      for (const h of horizonVersions) {
+        if (!visibleVersionIds.has(h.id)) continue;
+        let grid = gridCacheRef.current.get(h.id);
+        if (!grid) {
+          try {
+            grid = await loadHorizonGrid(h);
+          } catch (e) {
+            toast({ title: `Version "${h.name} v${h.version}" failed to load`, description: e.message, variant: 'destructive' });
+            continue;
+          }
+          cacheGrid(gridCacheRef.current, h.id, grid);
+        }
+        out.push({
+          id: h.id,
+          name: `${h.name} (v${h.version}${h.interpreter ? ` · ${h.interpreter}` : ''})`,
+          grid,
+          color: '#94a3b8',
+          dash: true,
+        });
+      }
       if (session && session.targetId === 'new') {
         out.push({
           id: '__draft', name: 'New horizon (editing)', grid: session.grid, color: DRAFT_COLOR,
@@ -1183,7 +1216,8 @@ export default function ViewerPanel() {
       if (!stale) setResolvedHorizons(out);
     })();
     return () => { stale = true; };
-  }, [horizons, visibleIds, toast, edit.version, horizonDisplay]);
+  }, [horizons, visibleIds, toast, edit.version, horizonDisplay,
+    horizonVersions, visibleVersionIds]);
 
   // ---- picking (horizon seed / fault sticks) ----------------------------
   // SliceView already mapped the click through its view transform.
@@ -1861,15 +1895,110 @@ export default function ViewerPanel() {
     return out;
   }, [horizons, displayFor]);
 
+  // ---- W4.3 version chain ----------------------------------------------
+
+  /** Archived ancestors of a head, newest first (parent_version_id walk). */
+  const versionChainOf = useCallback((head) => {
+    const byId = new Map(horizonVersions.map((v) => [v.id, v]));
+    const chain = [];
+    let cur = byId.get(head.parent_version_id);
+    while (cur) {
+      chain.push(cur);
+      cur = byId.get(cur.parent_version_id);
+    }
+    return chain;
+  }, [horizonVersions]);
+
+  /** Snapshot the head's CURRENT stored picks as the new head version
+   *  (old head archives into History; storage stays append-only). */
+  const onNewHorizonVersion = async (h) => {
+    setHorizonBusyId(h.id);
+    try {
+      const picks = gridCacheRef.current.get(h.id) || await loadHorizonGrid(h);
+      const conf = await loadHorizonConfidence(h);
+      const head = await saveHorizonVersion({
+        horizon: h,
+        volume,
+        picks,
+        dtUs: manifest.geometry.dt_us,
+        params: { versioned_from: h.id },
+        confidence: conf,
+      });
+      cacheGrid(gridCacheRef.current, head.id, picks);
+      setVisibleIds((sv) => {
+        const n = new Set(sv);
+        if (n.delete(h.id)) n.add(head.id);
+        return n;
+      });
+      if (editTarget === h.id) setEditTarget(head.id);
+      await reloadHorizons(volume);
+      toast({
+        title: 'New version created',
+        description: `${h.name} is now v${head.version}; v${h.version || 1} moved to History.`,
+      });
+    } catch (e) {
+      toast({ title: 'Version failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setHorizonBusyId(null);
+    }
+  };
+
+  const onToggleVersion = (v) => {
+    setVisibleVersionIds((sv) => {
+      const n = new Set(sv);
+      if (n.has(v.id)) n.delete(v.id);
+      else n.add(v.id);
+      return n;
+    });
+  };
+
+  /** Restore = the archived content becomes ANOTHER new head version —
+   *  history never rewrites. */
+  const onRestoreVersion = async (head, v) => {
+    setHorizonBusyId(head.id);
+    try {
+      const picks = gridCacheRef.current.get(v.id) || await loadHorizonGrid(v);
+      const newHead = await saveHorizonVersion({
+        horizon: head,
+        volume,
+        picks,
+        dtUs: manifest.geometry.dt_us,
+        params: { restored_from_version: v.version },
+      });
+      cacheGrid(gridCacheRef.current, newHead.id, picks);
+      setVisibleIds((sv) => {
+        const n = new Set(sv);
+        if (n.delete(head.id)) n.add(newHead.id);
+        return n;
+      });
+      if (editTarget === head.id) setEditTarget(newHead.id);
+      await reloadHorizons(volume);
+      toast({
+        title: 'Version restored',
+        description: `${head.name} v${newHead.version} now carries the v${v.version} picks.`,
+      });
+    } catch (e) {
+      toast({ title: 'Restore failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setHorizonBusyId(null);
+    }
+  };
+
   const onDeleteHorizon = async (h) => {
+    const chain = versionChainOf(h);
     // eslint-disable-next-line no-alert
-    if (!window.confirm(`Delete horizon "${h.name}"? (Undo restores it)`)) return;
+    if (!window.confirm(`Delete horizon "${h.name}"${chain.length
+      ? ` and its ${chain.length} archived version(s)` : ''}? (Undo restores the head)`)) return;
     setHorizonBusyId(h.id);
     try {
       // capture the pick grid BEFORE the blob goes away, so undo can
       // re-create the horizon in full (new id, tracked in the box)
       const grid = gridCacheRef.current.get(h.id) || await loadHorizonGrid(h);
-      await deleteHorizon(h);
+      await deleteHorizon(h, chain);
+      chain.forEach((v) => {
+        gridCacheRef.current.delete(v.id);
+        setVisibleVersionIds((sv) => { const n = new Set(sv); n.delete(v.id); return n; });
+      });
       if (editRef.current?.targetId === h.id) closeSession();
       if (editTarget === h.id) setEditTarget('new');
       gridCacheRef.current.delete(h.id);
@@ -2570,6 +2699,9 @@ export default function ViewerPanel() {
     activeVolumeId: volume?.id || null,
     volumeBusyId,
     horizons,
+    horizonVersions,
+    visibleVersionIds,
+    versionChainOf,
     visibleIds,
     horizonBusyId,
     editTargetId: editTarget !== 'new' ? editTarget : null,
@@ -2608,6 +2740,9 @@ export default function ViewerPanel() {
     },
     toggleHorizon,
     deleteHorizon: onDeleteHorizon,
+    newHorizonVersion: onNewHorizonVersion,
+    toggleVersion: onToggleVersion,
+    restoreVersion: onRestoreVersion,
     openHorizonSettings,
     exportSurface: onExportSurface,
     deleteSurface: onDeleteSurface,

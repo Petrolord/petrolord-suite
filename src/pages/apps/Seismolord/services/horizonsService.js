@@ -21,6 +21,11 @@ const hasConfidence = (confidence) => {
   return false;
 };
 
+/** Attribution string for version rows (W4.3): the signed-in user's
+ *  display name, falling back to their email. */
+const interpreterName = (user) => user?.user_metadata?.full_name
+  || user?.user_metadata?.name || user?.email || null;
+
 /**
  * Save a tracked horizon: blob first, row second.
  *
@@ -82,6 +87,7 @@ export async function saveHorizon({ volume, name, picks, seed, params, dtUs, con
       params,
       stats,
       storage_path: blobPath,
+      interpreter: interpreterName(user),
     })
     .select().single();
   if (error) {
@@ -171,6 +177,86 @@ export async function updateHorizonMeta({ horizon, display, name }) {
   return data;
 }
 
+/**
+ * W4.3 "New version": snapshot `grid` as the chain's new HEAD — a fresh
+ * row (fresh id -> fresh blob, append-only storage), version + 1,
+ * linked to its parent; the old head is soft-archived. History never
+ * rewrites: restoring an old version calls this again with its grid.
+ *
+ * @param {Object} p
+ * @param {Object} p.horizon the current HEAD row
+ * @param {Object} p.volume seismic_volumes row
+ * @param {Float32Array} p.picks the snapshot content
+ * @param {number} p.dtUs
+ * @param {Object} [p.params] provenance merged onto the head's params
+ * @param {Float32Array} [p.confidence]
+ * @returns {Promise<Object>} the NEW head row
+ */
+export async function saveHorizonVersion({
+  horizon, volume, picks, dtUs, params = null, confidence = null,
+}) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error('You must be signed in to save versions.');
+
+  const newId = crypto.randomUUID();
+  const blobDir = volume.user_id === user.id
+    ? volume.storage_path : `${user.id}/${volume.id}`;
+  const blobPath = horizonBlobPath(blobDir, newId);
+  const s = horizonStats(picks);
+  const dtMs = dtUs / 1000;
+  const stats = {
+    tracked: s.tracked,
+    coverage: s.coverage,
+    min_twt_ms: s.minSample != null ? s.minSample * dtMs : null,
+    max_twt_ms: s.maxSample != null ? s.maxSample * dtMs : null,
+    grid: { n_il_by_n_xl: picks.length },
+  };
+
+  const { error: uploadError } = await supabase.storage.from(SEISMIC_BUCKET)
+    .upload(blobPath, new Blob([picks.buffer], { type: 'application/octet-stream' }),
+      { contentType: 'application/octet-stream' });
+  if (uploadError) throw new Error(`Could not store the version: ${uploadError.message}`);
+  if (hasConfidence(confidence)) {
+    await supabase.storage.from(SEISMIC_BUCKET)
+      .upload(confidenceBlobPath(blobPath),
+        new Blob([confidence.buffer], { type: 'application/octet-stream' }),
+        { contentType: 'application/octet-stream' });
+  }
+
+  const { data: head, error } = await supabase.from('seismic_horizons')
+    .insert({
+      id: newId,
+      user_id: user.id,
+      volume_id: volume.id,
+      name: horizon.name,
+      domain: horizon.domain,
+      snap_mode: horizon.snap_mode,
+      seed: horizon.seed,
+      params: { ...(horizon.params || {}), ...(params || {}) },
+      stats,
+      storage_path: blobPath,
+      version: (horizon.version || 1) + 1,
+      parent_version_id: horizon.id,
+      interpreter: interpreterName(user),
+    })
+    .select().single();
+  if (error) {
+    await supabase.storage.from(SEISMIC_BUCKET)
+      .remove([blobPath, confidenceBlobPath(blobPath)]);
+    throw new Error(`Could not register the version: ${error.message}`);
+  }
+
+  // archive the old head (own rows only — RLS enforces); a failure here
+  // leaves two heads, which the explorer disambiguates by version
+  const { error: archiveError } = await supabase.from('seismic_horizons')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', horizon.id);
+  if (archiveError) {
+    throw new Error(`Version created, but the old head could not be archived: ${archiveError.message}`);
+  }
+  return head;
+}
+
 export async function listHorizons(volumeId) {
   const [{ data, error }, { data: { user } }] = await Promise.all([
     supabase.from('seismic_horizons')
@@ -203,18 +289,24 @@ export async function loadHorizonConfidence(horizon) {
   return new Float32Array(await data.arrayBuffer());
 }
 
-export async function deleteHorizon(horizon) {
-  // blob first, and NOT fire-and-forget: a transient storage failure that
-  // was silently ignored while the row still deleted would strand an
-  // unreachable orphan blob forever (L1). Failing here keeps the row, so
-  // the user just retries the delete.
+/**
+ * Delete a horizon head AND its archived version chain (W4.3): blobs
+ * first (a transient storage failure keeps the rows so the user just
+ * retries — no unreachable orphan blobs, L1), then all rows.
+ * @param {Object} horizon the head row
+ * @param {Object[]} [versions] its archived ancestors (ViewerPanel's
+ *   chain walk); [] for pre-versioning callers
+ */
+export async function deleteHorizon(horizon, versions = []) {
+  const rows = [horizon, ...versions];
+  const paths = rows.flatMap((h) => [h.storage_path, confidenceBlobPath(h.storage_path)]);
   const { error: removeError } = await supabase.storage.from(SEISMIC_BUCKET)
-    .remove([horizon.storage_path, confidenceBlobPath(horizon.storage_path)]);
+    .remove(paths);
   if (removeError) {
     throw new Error(
       `Could not delete stored picks (${removeError.message}) — nothing was deleted; try again.`);
   }
   const { error } = await supabase.from('seismic_horizons')
-    .delete().eq('id', horizon.id);
+    .delete().in('id', rows.map((h) => h.id));
   if (error) throw new Error(`Could not delete horizon: ${error.message}`);
 }

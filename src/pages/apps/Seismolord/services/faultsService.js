@@ -26,6 +26,9 @@ export async function saveFault({ volumeId, name, sticks, params }) {
       name,
       sticks,
       surface: loftFaultSurface(sticks),
+      // W4.3 attribution (the version-chain columns are schema-ready;
+      // the fault History UI is a recorded follow-on)
+      interpreter: user.user_metadata?.full_name || user.user_metadata?.name || user.email || null,
       ...(params ? { params } : {}),
     })
     .select().single();

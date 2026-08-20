@@ -12,7 +12,7 @@ import {
   Database, Layers, Slash, CircleDot, Route, Eye, EyeOff, Loader2, Upload,
   Plus, RefreshCw, ChevronDown, ChevronRight, Pencil, ArrowLeft,
   Rows, Columns, Clock, Settings2, Mountain, Download, Building2, Globe2,
-  Activity, Folder, FolderPlus,
+  Activity, Folder, FolderPlus, History,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -143,6 +143,7 @@ const PLANE_TITLES = {
 export default function SeismicExplorer({ tree, actions }) {
   const {
     volumes, projects, activeVolumeId, horizons, visibleIds, horizonBusyId, editTargetId,
+    horizonVersions, visibleVersionIds, versionChainOf,
     surfaces, surfaceBusyId, visibleSurfaceIds,
     culture, cultureBusyId, visibleCultureIds,
     faults, visibleFaultIds, faultBusyId,
@@ -379,8 +380,10 @@ export default function SeismicExplorer({ tree, actions }) {
                   </span>
                 )
                 : null}
-              meta={h.is_own === false ? 'teammate'
-                : (h.stats?.coverage != null ? `${Math.round(h.stats.coverage * 100)}%` : '')}
+              meta={[h.version > 1 ? `v${h.version}` : '',
+                h.is_own === false ? 'teammate'
+                  : (h.stats?.coverage != null ? `${Math.round(h.stats.coverage * 100)}%` : ''),
+              ].filter(Boolean).join(' ')}
               title={h.stats?.min_twt_ms != null
                 ? `${h.stats.min_twt_ms.toFixed(0)}–${h.stats.max_twt_ms.toFixed(0)} ms`
                 : undefined}
@@ -394,8 +397,41 @@ export default function SeismicExplorer({ tree, actions }) {
                   <ContextMenuItem onSelect={() => actions.toggleHorizon(h)}>
                     {visibleIds.has(h.id) ? 'Hide' : 'Show'}
                   </ContextMenuItem>
+                  {(() => {
+                    const chain = versionChainOf ? versionChainOf(h) : [];
+                    if (!chain.length) return null;
+                    return (
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger>
+                          <History className="w-3.5 h-3.5 mr-1.5" />
+                          {`History (${chain.length})`}
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-64">
+                          {chain.map((v) => (
+                            <React.Fragment key={v.id}>
+                              <ContextMenuItem onSelect={() => actions.toggleVersion(v)}>
+                                {`${visibleVersionIds?.has(v.id) ? 'Hide' : 'Show'} v${v.version}`}
+                                <span className="ml-auto pl-2 text-[10px] text-slate-500 truncate">
+                                  {v.interpreter || ''}
+                                </span>
+                              </ContextMenuItem>
+                              {h.is_own !== false && (
+                                <ContextMenuItem onSelect={() => actions.restoreVersion(h, v)}>
+                                  {`Restore v${v.version} as new version`}
+                                </ContextMenuItem>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                    );
+                  })()}
                   {h.is_own !== false && (
                     <>
+                      <ContextMenuItem onSelect={() => actions.newHorizonVersion(h)}>
+                        <History className="w-3.5 h-3.5 mr-1.5" />
+                        New version (snapshot)
+                      </ContextMenuItem>
                       <ContextMenuItem onSelect={() => actions.setEditTarget(h.id)}>
                         Set as edit target
                       </ContextMenuItem>
