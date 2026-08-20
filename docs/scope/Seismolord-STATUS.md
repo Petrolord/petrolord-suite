@@ -1649,3 +1649,38 @@ undo/redo incl. a horizon delete-restore, save + reload a session,
 bookmark round-trip, culture import (GeoJSON + zipped shapefile) drawn
 on Seismolord map + Mapping Studio, PDF plot at 1:25,000 with the
 scale bar measured against a ruler.
+
+## Interpreter program Wave 2 (analysis engine)
+
+- W2.1 Derived-volume pipeline + W2.2 trace attributes (engines PR #19 +
+  Suite PR TBD): client-side attribute volumes computed from a parent's
+  brick store, one (i,j) brick column at a time (engine volumeJob.js,
+  memory ~2·nk bricks, output lattice VERBATIM = the W2.4 co-render
+  contract; bit-exact identity oracle over a synthetic store). Attribute
+  math in engines attributes.js — envelope / instantaneous phase /
+  instantaneous frequency / sweetness (analytic signal via the FFT
+  extracted from synthetics.js into lib/fft.js) + windowed RMS + AGC
+  amplitude, all scipy-golden validated (self-asserting
+  tools/validation/seismolord/attributes/gen_attributes.py; recipe
+  pinned: hilbert with nextpow2 padding, numpy unwrap/gradient, null
+  zero-fill + propagation, nulls never in stats). Derived volumes write
+  manifest v2 (kind/parent/attribute provenance, geometry + brick block
+  copied verbatim); MANIFEST_READ_MAX bumped 1→2 WITH reader support,
+  riding W0.1's aged gate — pre-Wave-2 clients refuse attribute volumes
+  with upgrade copy instead of guessing. Suite side: volumeJob.worker
+  (reads parent bricks directly, horizon-worker token handshake) +
+  attributeJobService (register 'ingesting' → compute → upload under the
+  ack window → v2 manifest → 'ready' with storage_bytes; failure/cancel
+  DELETES the row + bricks — recompute is the resume story, so
+  ImportPanel's file-resume list excludes kind='attribute').
+  Backpressure factored out of ingest.worker.js into
+  workers/brickAckChannel.js (one ack per completed upload, waiter
+  queue). seismic_volumes gains kind / parent_volume_id (FK, on delete
+  SET NULL — children stay standalone-usable) / attribute_params
+  (migration 20260820220000). Explorer nests attribute volumes under
+  their parent (Activity icon, attribute badge, "Compute attribute
+  volume…" context item); ribbon Interpretation tab gained an
+  Attributes group; SEISMIC_BUCKET/quota constants hoisted to
+  services/seismicStorage.js so volumesService/horizonsService no longer
+  inherit ingestService's jest-unparseable import.meta. PorePressure's
+  velocity-trend registry skips attribute volumes.

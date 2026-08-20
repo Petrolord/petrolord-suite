@@ -57,6 +57,7 @@ import { reprojectFeatures } from '@/lib/cultureImport';
 import { transformPoint, crsDisplayName } from '@/lib/crs';
 import { normalizeTag, isTransformableTag, LOCAL } from '@/lib/crs/tags';
 import PlotDialog from './workspace/dialogs/PlotDialog';
+import ComputeAttributeDialog from './workspace/dialogs/ComputeAttributeDialog';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
 import SyntheticsPanel from './SyntheticsPanel';
@@ -2171,6 +2172,7 @@ export default function ViewerPanel() {
     openImport: () => setOpenDialog('import'),
     openWellImport: () => setOpenDialog('wellImport'),
     openExport: () => setOpenDialog('export'),
+    openAttribute: () => setOpenDialog('attribute'),
     refresh: () => {
       setVolumesRefresh((k) => k + 1);
       setSurfacesRefresh((k) => k + 1);
@@ -2309,6 +2311,7 @@ export default function ViewerPanel() {
               discardDraft={discardDraft}
               openVelocity={() => setOpenDialog('velocity')}
               velocityModel={velocityModel}
+              openAttribute={() => setOpenDialog('attribute')}
             />
           ),
         },
@@ -2597,6 +2600,14 @@ export default function ViewerPanel() {
         mapCameraApi={mapCameraApi}
         volume={volume}
         crsName={volume?.crs ? crsDisplayName(volume.crs) : null}
+      />
+
+      <ComputeAttributeDialog
+        open={openDialog === 'attribute'}
+        onOpenChange={(o) => setOpenDialog(o ? 'attribute' : null)}
+        volume={volume}
+        manifest={manifest}
+        onComputed={() => setVolumesRefresh((k) => k + 1)}
       />
 
       <SessionsDialog

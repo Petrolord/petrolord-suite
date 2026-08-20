@@ -18,15 +18,9 @@
 import { fileReader } from '../engine/reader';
 import { readTextualHeader, scanGeometry, previewTraceHeaders } from '../engine/segyScan';
 import { transcodeToBricks } from '../engine/brickTranscode';
+import { createBrickChannel } from './brickAckChannel';
 
-const MAX_UNACKED_BRICKS = 4;   // backpressure: don't outrun the uploads
-
-const jobs = new Map();         // id -> {cancelled, unacked, wake}
-
-const state = (id) => {
-  if (!jobs.has(id)) jobs.set(id, { cancelled: false, unacked: 0, wake: null });
-  return jobs.get(id);
-};
+const channel = createBrickChannel((msg, transfer) => self.postMessage(msg, transfer));
 
 async function handleScan({ id, file, mapping, maxTraces }) {
   const reader = fileReader(file);
@@ -42,7 +36,6 @@ async function handleScan({ id, file, mapping, maxTraces }) {
 }
 
 async function handleIngest({ id, file, mapping, memoryBudgetBytes }) {
-  const job = state(id);
   const reader = fileReader(file);
   const scan = await scanGeometry(reader, mapping, {
     onProgress: (done, total) => self.postMessage({ type: 'progress', id, phase: 'scan', done, total }),
@@ -51,15 +44,12 @@ async function handleIngest({ id, file, mapping, memoryBudgetBytes }) {
   const result = await transcodeToBricks(reader, scan, {
     memoryBudgetBytes,
     onProgress: (done, total) => self.postMessage({ type: 'progress', id, phase: 'transcode', done, total }),
-    onBrick: async ({ i, j, k, data }) => {
-      if (job.cancelled) throw new Error('Ingestion cancelled.');
-      self.postMessage({ type: 'brick', id, i, j, k, buffer: data.buffer }, [data.buffer]);
-      job.unacked += 1;
-      while (job.unacked >= MAX_UNACKED_BRICKS && !job.cancelled) {
-        await new Promise((resolve) => { job.wake = resolve; });
-      }
-      if (job.cancelled) throw new Error('Ingestion cancelled.');
-    },
+    onBrick: ({ i, j, k, data }) => channel.sendBrick(
+      id,
+      { type: 'brick', id, i, j, k, buffer: data.buffer },
+      [data.buffer],
+      { cancelMessage: 'Ingestion cancelled.' },
+    ),
   });
 
   self.postMessage({ type: 'ingest:done', id, scan, result });
@@ -67,17 +57,11 @@ async function handleIngest({ id, file, mapping, memoryBudgetBytes }) {
 
 self.onmessage = async (e) => {
   const msg = e.data;
-  const job = state(msg.id);
   try {
     if (msg.type === 'scan') await handleScan(msg);
     else if (msg.type === 'ingest') await handleIngest(msg);
-    else if (msg.type === 'brick:ack') {
-      job.unacked -= 1;
-      if (job.wake) { job.wake(); job.wake = null; }
-    } else if (msg.type === 'cancel') {
-      job.cancelled = true;
-      if (job.wake) { job.wake(); job.wake = null; }
-    }
+    else if (msg.type === 'brick:ack') channel.ack(msg.id);
+    else if (msg.type === 'cancel') channel.cancel(msg.id);
   } catch (err) {
     self.postMessage({ type: 'error', id: msg.id, message: err.message });
   }

@@ -196,7 +196,12 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
     if (phase === 'ingesting' || phase === 'scanning') return;
     let stale = false;
     listVolumes()
-      .then((vs) => { if (!stale) setInterrupted(vs.filter((v) => v.status === 'ingesting')); })
+      .then((vs) => {
+        // derived (attribute) jobs are recomputed, never file-resumed
+        if (!stale) {
+          setInterrupted(vs.filter((v) => v.status === 'ingesting' && v.kind !== 'attribute'));
+        }
+      })
       .catch(() => {});   // the list is a convenience — never block importing on it
     return () => { stale = true; };
   }, [phase]);

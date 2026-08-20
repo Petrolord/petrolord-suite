@@ -3,7 +3,7 @@
 // seismic bucket under the volume's owner path.
 
 import { supabase } from '@/lib/customSupabaseClient';
-import { SEISMIC_BUCKET } from './ingestService';
+import { SEISMIC_BUCKET } from './seismicStorage';
 import { horizonStats } from '../engine/horizonTrack';
 
 const horizonBlobPath = (volumeStoragePath, horizonId) =>

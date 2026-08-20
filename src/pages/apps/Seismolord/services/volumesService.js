@@ -3,7 +3,7 @@
 // owner-path objects so no orphan bricks accumulate.
 
 import { supabase } from '@/lib/customSupabaseClient';
-import { SEISMIC_BUCKET } from './ingestService';
+import { SEISMIC_BUCKET } from './seismicStorage';
 import { gateManifest } from './manifestGate';
 
 export { gateManifest };

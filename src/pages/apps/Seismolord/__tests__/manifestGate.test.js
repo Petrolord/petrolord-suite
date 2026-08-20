@@ -27,8 +27,13 @@ describe('gateManifest', () => {
     expect(gateManifest(m)).toBe(m);
   });
 
+  test('a v2 (derived-volume, W2.1) manifest passes through', () => {
+    const m = v1({ manifest_version: 2, kind: 'attribute' });
+    expect(gateManifest(m)).toBe(m);
+  });
+
   test('a future manifest_version becomes the upgrade message', () => {
-    expect(() => gateManifest(v1({ manifest_version: 2 })))
+    expect(() => gateManifest(v1({ manifest_version: 3 })))
       .toThrow(/newer version of Seismolord/);
   });
 

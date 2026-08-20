@@ -11,19 +11,14 @@ import { getProjectCrs, setProjectCrs } from '@/lib/crs/settingsService';
 import { crsDisplayName, crsUnit } from '@/lib/crs';
 import { UNKNOWN } from '@/lib/crs/tags';
 
-export const SEISMIC_BUCKET = 'seismic';
+// Constants live in seismicStorage.js (import.meta-free) so other
+// services can use them without inheriting this module's inline worker
+// URL, which babel-jest cannot parse. Re-exported for existing callers.
+import { SEISMIC_BUCKET, STORAGE_QUOTA_BYTES } from './seismicStorage';
+
+export { SEISMIC_BUCKET, STORAGE_QUOTA_BYTES };
 // Concurrency is governed by the worker's MAX_UNACKED_BRICKS backpressure
 // window (one ack per completed upload), not a separate counter here.
-
-// Per-user storage quota. This client check is the FRIENDLY layer: it
-// fails an ingest up-front with a clear message before any upload work.
-// The AUTHORITATIVE layer is server-side since migration
-// 20260712120000_seismic_storage_quota.sql: the 'seismic' bucket's
-// INSERT policy refuses new objects once the user's bucket footprint
-// reaches the same 20 GiB (updates/deletes stay quota-free so an
-// over-quota user can still save work and free space). Keep the two
-// constants in lockstep.
-export const STORAGE_QUOTA_BYTES = 20 * 1024 ** 3;   // 20 GiB
 
 async function assertQuota(estimateBytes) {
   const { data, error } = await supabase.from('seismic_volumes')
