@@ -14,6 +14,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import CrsPicker from '@/components/crs/CrsPicker';
+import useCrsContext from '@/components/crs/useCrsContext';
+import { placeWellLocation } from '@/lib/crs/wellPlacement';
+import { UNKNOWN } from '@/lib/crs/tags';
 
 const inputCls = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs w-full';
 const thCls = 'text-left font-medium text-slate-500 pr-3 pb-1';
@@ -24,6 +28,8 @@ const KNOWN_SI = new Set(['M', 'US/M', 'MS', 'S', 'GAPI', 'API', 'G/C3', 'G/CM3'
 const emptyHeader = { name: '', uwi: '', x: '', y: '', kb: '', td: '', crs: '' };
 
 export default function LasImportDialog({ open, onOpenChange, backend, wells, onDone }) {
+  const { crsContext, commitAutoSetProject } = useCrsContext();
+  const [crsTag, setCrsTag] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [fileName, setFileName] = useState(null);
@@ -109,16 +115,30 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         if (!Number.isFinite(kbM)) throw new Error('KB must be a number (metres above datum).');
         const tdMdM = head.td.trim() === '' ? null : Number(head.td);
         if (tdMdM !== null && !(tdMdM > 0)) throw new Error('TD must be a positive number (m MD).');
+        // Structured placement: declared CRS -> Project CRS (Phase 4).
+        const placed = placeWellLocation(
+          {
+            mode: 'xy',
+            crsTag: crsTag || crsContext?.projectTag || UNKNOWN,
+            x: surfaceX,
+            y: surfaceY,
+          },
+          crsContext || {},
+        );
         well = await backend.saveWell({
           name,
           uwi: head.uwi.trim() || null,
-          surfaceX,
-          surfaceY,
+          surfaceX: placed.surfaceX,
+          surfaceY: placed.surfaceY,
           kbM,
           tdMdM,
+          crs: placed.crs,
+          xyUnit: placed.xyUnit,
+          crsProvenance: placed.crsProvenance,
           crsNote: head.crs.trim() || null,
           unitsNote: parsed.meta.suggestedHeader.unitsNote,
         });
+        await commitAutoSetProject(placed.autoSetProject);
         wellId = well.id;
       }
       const saved = await backend.saveLogs(wellId, logs);
@@ -277,7 +297,14 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                     onChange={setHeadField('kb')} />
                   <input className={inputCls} placeholder="TD m MD" value={head.td}
                     onChange={setHeadField('td')} />
-                  <input className={`${inputCls} col-span-2`} placeholder="CRS note (e.g. EPSG:32630)"
+                  <div className="col-span-2">
+                    <CrsPicker
+                      value={crsTag || crsContext?.projectTag || null}
+                      onChange={(tag) => setCrsTag(tag)}
+                      customDefs={crsContext?.customDefs || {}}
+                    />
+                  </div>
+                  <input className={`${inputCls} col-span-2`} placeholder="CRS note (optional context)"
                     value={head.crs} onChange={setHeadField('crs')} />
                 </div>
               )}

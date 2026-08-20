@@ -18,8 +18,22 @@ import {
 } from '@/lib/gridding/surfaceExport';
 import { latticeSampleSurface, latticeValuesToSamples } from '../engine/surfaceOnLattice';
 import { M_PER_FT } from '../engine/velocityModel';
+import { crsUnit, reprojectSurveyAffine } from '@/lib/crs';
+import { isTransformableTag, normalizeTag, compareTags, LOCAL } from '@/lib/crs/tags';
+import { explainOverlapFailure } from '@/lib/crs/guards';
 
 export const SURFACE_APP = 'seismolord';
+
+/** Structured CRS fields a surface inherits from its volume: exported
+ *  grids live in the volume's stored frame (the Project CRS at the
+ *  volume's import). Legacy volumes without a tag save an unknown
+ *  placement, exactly as before the CRS program. Pure. */
+export const volumeCrsFields = (volume) => {
+  const tag = normalizeTag(volume?.crs);
+  if (isTransformableTag(tag)) return { crs: tag, xyUnit: crsUnit(tag) };
+  if (tag === LOCAL) return { crs: LOCAL, xyUnit: null };
+  return {};
+};
 
 /** True when a geo_surfaces row was converted from a horizon of this
  *  volume (pure — unit tested). */
@@ -91,7 +105,8 @@ export async function saveHorizonAsSurface({ volume, horizon, domain, g, spec, p
     spec,
     zDomain: domain === 'depth' ? 'depth' : 'time',
     zUnit: domain === 'depth' ? 'ft' : 'ms',
-    crsNote: 'Survey world metres XY; Z negative-down (Petrolord convention)',
+    ...volumeCrsFields(volume),
+    crsNote: 'Survey world XY from the volume; Z negative-down (Petrolord convention)',
     grid: g.z,
     provenance: {
       app: SURFACE_APP,
@@ -129,7 +144,8 @@ export async function saveAmplitudeAsSurface({
     spec,
     zDomain: 'attribute',
     zUnit: 'amp',
-    crsNote: 'Survey world metres XY; seismic amplitude values (unitless, sign preserved)',
+    ...volumeCrsFields(volume),
+    crsNote: 'Survey world XY from the volume; seismic amplitude values (unitless, sign preserved)',
     grid: g.z,
     provenance: {
       app: SURFACE_APP,
@@ -157,14 +173,25 @@ export async function saveAmplitudeAsSurface({
  * @param {string} p.format detected dialect (provenance)
  * @param {{live, zMin, zMax}} p.stats pre-sign-fix stats (provenance)
  */
-export async function saveImportedSurface({ volume, name, g, domain, fileName, format, stats }) {
+export async function saveImportedSurface({
+  volume, name, g, domain, fileName, format, stats, declaredCrs, reprojected,
+}) {
   return saveSurface({
     name,
     kind: 'structure',
     spec: { x0: g.x0, y0: g.y0, dx: g.dx, dy: g.dy, nx: g.nx, ny: g.ny },
     zDomain: domain === 'depth' ? 'depth' : 'time',
     zUnit: domain === 'depth' ? 'ft' : 'ms',
-    crsNote: 'Imported file; world metres XY assumed; Z negative-down (Petrolord convention)',
+    ...volumeCrsFields(volume),
+    ...(declaredCrs ? {
+      crsProvenance: {
+        declared_crs: declaredCrs,
+        ...(reprojected ? { transform: 'proj4', coverage: reprojected.coverage } : { transform: 'none' }),
+      },
+    } : {}),
+    crsNote: declaredCrs
+      ? `Imported file declared ${declaredCrs}; Z negative-down (Petrolord convention)`
+      : 'Imported file; volume frame assumed; Z negative-down (Petrolord convention)',
     grid: g.z,
     provenance: {
       app: SURFACE_APP,
@@ -208,10 +235,13 @@ export async function exportStoredSurface(surface, formatKey) {
   const g = surfaceToGrid(surface, grid);
   const safeName = surface.name.replace(/[^\w-]+/g, '_').toLowerCase();
   let text;
+  const crsLabel = isTransformableTag(surface.crs)
+    ? `${normalizeTag(surface.crs)}` : null;
   if (formatKey === 'xyz') text = writeXYZ(g);
   else if (formatKey === 'cps3') text = writeCPS3(g);
-  else if (formatKey === 'zmap') text = writeZMAP({ ...g, name: safeName });
-  else text = writeIrapClassic(g);
+  else if (formatKey === 'zmap') {
+    text = writeZMAP({ ...g, name: safeName, ...(crsLabel ? { crsLabel } : {}) });
+  } else text = writeIrapClassic(g);
   return { text, fileName: `${safeName}.${fmt.ext}` };
 }
 
@@ -224,8 +254,27 @@ export async function exportStoredSurface(surface, formatKey) {
  * the 1e30 sentinel either way.
  * @returns {Promise<{values: Float32Array, unit: string, live: number}>}
  */
-export async function loadSurfaceMapLayer(surface, affine, geom) {
+export async function loadSurfaceMapLayer(surface, affine, geom, volume) {
   const grid = await downloadSurfaceGrid(surface);
+  // CRS guard (Phase 6): when the surface and the volume are in
+  // DIFFERENT known systems, refit the volume affine in the SURFACE's
+  // CRS so every lattice cell samples the grid at its true position —
+  // an exact on-the-fly conversion, no regridding, no data touched.
+  // Unknown tags sample as-is (legacy behavior) and report
+  // crsRelation 'unknown' for the UI to badge; a local-grid surface
+  // against a georeferenced volume refuses outright.
+  const relation = compareTags(surface.crs, volume?.crs);
+  let sampleAffine = affine;
+  if (relation === 'local-mismatch') {
+    throw new Error(`"${surface.name}" is on a local grid and cannot be placed on a georeferenced survey.`);
+  }
+  if (relation === 'transformable' && affine) {
+    const r = reprojectSurveyAffine({
+      affine, nIl: geom.nIl, nXl: geom.nXl,
+      fromTag: volume.crs, toTag: surface.crs,
+    });
+    sampleAffine = r.affine;
+  }
   const { values, live } = latticeSampleSurface({
     nx: surface.nx,
     ny: surface.ny,
@@ -234,9 +283,9 @@ export async function loadSurfaceMapLayer(surface, affine, geom) {
     dx: surface.dx,
     dy: surface.dy,
     z: grid,
-  }, affine, geom);
+  }, sampleAffine, geom);
   if (!live) {
-    throw new Error(`"${surface.name}" does not overlap this volume's survey area.`);
+    throw new Error(explainOverlapFailure(surface.name, surface.crs, volume?.crs));
   }
   const isAttribute = surface.z_domain === 'attribute';
   if (!isAttribute) {
@@ -246,7 +295,13 @@ export async function loadSurfaceMapLayer(surface, affine, geom) {
   }
   const unit = surface.z_unit
     || (surface.z_domain === 'time' ? 'ms' : isAttribute ? 'amp' : 'ft');
-  return { values, unit, live };
+  // unitAssumed: the row records no z unit, so the label is a guess —
+  // consumers surface that instead of printing the guess as fact
+  // (Mapping publishes 'm', Seismolord 'ft'; only legacy rows are null).
+  return {
+    values, unit, unitAssumed: !surface.z_unit && !isAttribute, live,
+    crsRelation: relation,
+  };
 }
 
 /**

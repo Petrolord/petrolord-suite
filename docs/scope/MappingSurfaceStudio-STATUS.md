@@ -46,3 +46,10 @@ harness; full run 194 suites / 2468 green, build green.
   grids in a private `surfaces` bucket, org-read RLS (geo_wells model).
 - RCP's `SurfaceImportDialog`/`SurfaceParser` is the ready consumer for
   the Seismolord horizon → mapped surface → GRV acceptance.
+
+## CRS program touchpoints (2026-08-20)
+Published grids/isochores inherit the consensus CRS of their inputs
+(consensusTag; disagreement or unknown input leaves placement
+unverified). Publish passes crs/xy_unit/crs_provenance (previously
+dropped). Wells co-render through the overlay guard against the
+displayed surface's frame. See Seismolord-PLAYBOOK.md CRS model.

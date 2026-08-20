@@ -10,6 +10,7 @@ import { labelBlocks, blockCensus, pointInPolygon, validatePolygon } from '../en
 import { wellTies, zoneControlPoints } from '../engine/wellties';
 import { populateZoneProperty } from '../engine/properties';
 import { zoneVolumes } from '../engine/volumes';
+import { normalizeTag, isTransformableTag, consensusTag } from '@/lib/crs/tags';
 
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
@@ -54,6 +55,17 @@ export async function buildModel(definition, wells, surfaces, backend) {
   });
   if (stack.length < 2) throw new Error('A framework needs at least 2 surfaces (top and base).');
   (definition.faultPolygons || []).forEach((p) => validatePolygon(p.vertices));
+
+  // CRS guard (Phase 5): two surfaces in DIFFERENT known systems must
+  // not be stacked by raw index math — that is exactly the silent
+  // misregistration the CRS program exists to stop. Unknown tags pass
+  // (legacy data; the model's own tag then stays unverified).
+  const known = [...new Set(stack.map((s) => normalizeTag(s.crs))
+    .filter((t) => isTransformableTag(t)))];
+  if (known.length > 1) {
+    throw new Error(`The stacked surfaces are in different coordinate systems (${known.join(' vs ')}). Convert them to one CRS before building.`);
+  }
+  const crs = consensusTag(stack.map((s) => s.crs));
 
   const grids = await Promise.all(stack.map((s) => backend.downloadSurfaceGrid(s)));
   const spec = specOf(stack[0]); // v1: the model frame is the TOP surface's frame
@@ -100,5 +112,5 @@ export async function buildModel(definition, wells, surfaces, backend) {
     return { name: zdef.name, registryZone: zdef.registryZone, thickness, props, provenance, volumes };
   });
 
-  return { spec, ...framework, labels, census, ties, zones };
+  return { spec, crs, ...framework, labels, census, ties, zones };
 }

@@ -51,6 +51,7 @@ export default function useWells() {
       id: row.id,
       name: row.name,
       color: wellColor(idx),
+      crs: row.crs || null,
       surfaceX: row.surface_x,
       surfaceY: row.surface_y,
       kbM: row.kb_m || 0,

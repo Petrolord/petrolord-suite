@@ -7,8 +7,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import WellImport from '@/components/wells/WellImport';
+import useCrsContext from '@/components/crs/useCrsContext';
 
 export default function AddWellDialog({ open, onOpenChange, backend, onDone }) {
+  const { crsContext, commitAutoSetProject } = useCrsContext();
   const save = async (draft) => {
     const well = await backend.saveWell({
       name: draft.name,
@@ -17,10 +19,14 @@ export default function AddWellDialog({ open, onOpenChange, backend, onDone }) {
       surfaceY: draft.surfaceY,
       kbM: draft.kbM,
       tdMdM: draft.tdMdM,
+      crs: draft.crs,
+      xyUnit: draft.xyUnit,
+      crsProvenance: draft.crsProvenance,
       deviation: draft.deviation,
       checkshots: draft.checkshots,
     });
     if (draft.tops.length) await backend.replaceTops(well.id, draft.tops);
+    await commitAutoSetProject(draft.autoSetProject);
     onOpenChange(false);
     onDone(well);
   };
@@ -37,7 +43,7 @@ export default function AddWellDialog({ open, onOpenChange, backend, onDone }) {
             Header plus optional pasted deviation survey, tops and checkshots (SI units).
           </DialogDescription>
         </DialogHeader>
-        <WellImport onSave={save} />
+        <WellImport onSave={save} crsContext={crsContext} />
       </DialogContent>
     </Dialog>
   );

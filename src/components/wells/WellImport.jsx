@@ -12,12 +12,15 @@
 // geo_wells registry; dev harnesses capture the draft locally), so the
 // whole import path is drivable by Playwright without auth.
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   parseDelimited, guessMapping, buildDeviation, buildTops, buildCheckshots,
 } from '@/lib/wellImport';
+import CrsPicker from '@/components/crs/CrsPicker';
+import { placeWellLocation, placeDeviation } from '@/lib/crs/wellPlacement';
+import { normalizeTag, isTransformableTag, UNKNOWN } from '@/lib/crs/tags';
 
 const TABS = [
   { key: 'deviation', label: 'Deviation', fields: ['md', 'inc', 'azi'], build: buildDeviation },
@@ -48,16 +51,41 @@ function useTabData(text, fields, mapOverride) {
 }
 
 /**
- * @param {{onSave: (draft: Object) => Promise<void>}} p draft carries
- *   {name, uwi, surfaceX, surfaceY, kbM, tdMdM, deviation, tops, checkshots}
+ * @param {Object} p
+ * @param {(draft: Object) => Promise<void>} p.onSave draft carries
+ *   {name, uwi, surfaceX, surfaceY, kbM, tdMdM, deviation, tops,
+ *   checkshots} plus, from the CRS step, {crs, xyUnit, crsProvenance,
+ *   autoSetProject} — surfaceX/surfaceY are already converted into the
+ *   Project CRS and deviation azimuths rotated to grid north
+ * @param {?{projectTag: ?string, projectName: ?string, customDefs: Object}}
+ *   [p.crsContext] Project CRS context (from getProjectCrs()); when
+ *   absent (dev harnesses) the form still works and the well stores an
+ *   UNKNOWN placement
  */
-export default function WellImport({ onSave }) {
+export default function WellImport({ onSave, crsContext }) {
   const [head, setHead] = useState({ name: '', uwi: '', x: '', y: '', kb: '0', td: '' });
   const [tab, setTab] = useState('deviation');
   const [texts, setTexts] = useState({ deviation: '', tops: '', checkshots: '' });
   const [maps, setMaps] = useState({ deviation: {}, tops: {}, checkshots: {} });
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  // CRS step (Phase 4): entry mode, declared CRS, unit of the entered
+  // numbers, and the deviation azimuth reference.
+  const [locMode, setLocMode] = useState('xy');
+  const [crsTag, setCrsTag] = useState(null);
+  const [xyUnit, setXyUnit] = useState('m');
+  const [latlon, setLatlon] = useState({ lat: '', lon: '' });
+  const [azimuthRef, setAzimuthRef] = useState('grid');
+  const [declination, setDeclination] = useState('0');
+
+  // Default the declaration to the Project CRS once context arrives;
+  // never overwrite a user choice.
+  useEffect(() => {
+    if (crsTag === null && crsContext?.projectTag
+      && isTransformableTag(crsContext.projectTag)) {
+      setCrsTag(normalizeTag(crsContext.projectTag));
+    }
+  }, [crsContext, crsTag]);
 
   const spec = TABS.find((t) => t.key === tab);
   const { parsed, map, nCols } = useTabData(texts[tab], spec.fields, maps[tab]);
@@ -77,11 +105,16 @@ export default function WellImport({ onSave }) {
   const buildDraft = () => {
     const name = head.name.trim();
     if (!name) throw new Error('The well needs a name.');
-    const surfaceX = Number(head.x);
-    const surfaceY = Number(head.y);
-    if (!Number.isFinite(surfaceX) || !Number.isFinite(surfaceY)) {
-      throw new Error('Surface X and Y must be world coordinates in metres.');
-    }
+    // Placement: declared coordinates -> Project CRS (or stored as
+    // declared for LOCAL/UNKNOWN). Throws user-facing messages.
+    const placed = placeWellLocation(
+      locMode === 'latlon'
+        ? { mode: 'latlon', lat: latlon.lat, lon: latlon.lon }
+        : { mode: 'xy', crsTag: crsTag || UNKNOWN, x: head.x, y: head.y, xyUnit },
+      crsContext || {},
+    );
+    const surfaceX = placed.surfaceX;
+    const surfaceY = placed.surfaceY;
     const kbM = head.kb.trim() === '' ? 0 : Number(head.kb);
     if (!Number.isFinite(kbM)) throw new Error('KB must be a number (metres above datum).');
     const payloads = {};
@@ -106,9 +139,20 @@ export default function WellImport({ onSave }) {
     } else if (tdMdM === null) {
       tdMdM = payloads.deviation[payloads.deviation.length - 1].md;
     }
+    // Azimuth reference -> grid north of the stored CRS.
+    const dev = placeDeviation(
+      payloads.deviation,
+      { azimuthRef, declinationDeg: declination },
+      placed,
+      crsContext?.customDefs || {},
+    );
     return {
       name, uwi: head.uwi.trim() || null, surfaceX, surfaceY, kbM, tdMdM,
-      deviation: payloads.deviation, tops: payloads.tops, checkshots: payloads.checkshots,
+      deviation: dev.deviation, tops: payloads.tops, checkshots: payloads.checkshots,
+      crs: placed.crs,
+      xyUnit: placed.xyUnit,
+      crsProvenance: { ...placed.crsProvenance, ...dev.azimuthProvenance },
+      autoSetProject: placed.autoSetProject,
     };
   };
 
@@ -145,13 +189,78 @@ export default function WellImport({ onSave }) {
           onChange={setHeadField('uwi')} />
         <input className={inputCls} placeholder="KB m above datum" value={head.kb}
           onChange={setHeadField('kb')} data-testid="well-import-kb" title="Kelly bushing elevation above the (seismic) datum" />
-        <input className={inputCls} placeholder="Surface X (m) *" value={head.x}
-          onChange={setHeadField('x')} data-testid="well-import-x" />
-        <input className={inputCls} placeholder="Surface Y (m) *" value={head.y}
-          onChange={setHeadField('y')} data-testid="well-import-y" />
         <input className={inputCls} placeholder="TD m MD (vertical wells)" value={head.td}
           onChange={setHeadField('td')} data-testid="well-import-td"
           title="Required only when no deviation survey is pasted; defaults to the last station otherwise" />
+      </div>
+
+      {/* Surface location with an explicit CRS declaration (Phase 4):
+          coordinates convert into the Project CRS at save. */}
+      <div className="rounded border border-slate-800 bg-slate-950/40 p-2 space-y-2">
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          Surface location
+          <button
+            type="button"
+            className={`px-1.5 py-0.5 rounded border text-xs ${locMode === 'xy'
+              ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+            onClick={() => setLocMode('xy')}
+            data-testid="well-loc-xy"
+          >
+            Projected XY
+          </button>
+          <button
+            type="button"
+            className={`px-1.5 py-0.5 rounded border text-xs ${locMode === 'latlon'
+              ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+            onClick={() => setLocMode('latlon')}
+            data-testid="well-loc-latlon"
+          >
+            Lat / Lon (WGS 84)
+          </button>
+          {crsContext?.projectTag && isTransformableTag(crsContext.projectTag) && (
+            <span className="ml-auto text-slate-500">
+              Stored in {crsContext.projectName || crsContext.projectTag}
+            </span>
+          )}
+        </div>
+        {locMode === 'xy' ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-start">
+            <div className="col-span-2">
+              <CrsPicker
+                value={crsTag}
+                onChange={(tag) => setCrsTag(tag)}
+                customDefs={crsContext?.customDefs || {}}
+                allowSentinels
+              />
+            </div>
+            <input className={inputCls} placeholder="Surface X *" value={head.x}
+              onChange={setHeadField('x')} data-testid="well-import-x" />
+            <input className={inputCls} placeholder="Surface Y *" value={head.y}
+              onChange={setHeadField('y')} data-testid="well-import-y" />
+            <label className="text-xs text-slate-400 flex items-center gap-1 col-span-2">
+              Values are in
+              <select
+                className={inputCls}
+                value={xyUnit}
+                onChange={(e) => setXyUnit(e.target.value)}
+                data-testid="well-import-xyunit"
+              >
+                <option value="m">metres</option>
+                <option value="ft">feet</option>
+                <option value="ftUS">US survey feet</option>
+              </select>
+            </label>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <input className={inputCls} placeholder="Latitude (deg, N positive) *" value={latlon.lat}
+              onChange={(e) => setLatlon((v) => ({ ...v, lat: e.target.value }))}
+              data-testid="well-import-lat" />
+            <input className={inputCls} placeholder="Longitude (deg, E positive) *" value={latlon.lon}
+              onChange={(e) => setLatlon((v) => ({ ...v, lon: e.target.value }))}
+              data-testid="well-import-lon" />
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-1">
@@ -173,6 +282,31 @@ export default function WellImport({ onSave }) {
           <input type="file" accept=".csv,.txt,.dev,.tsv,text/*" className="hidden" onChange={loadFile} />
         </label>
       </div>
+
+      {tab === 'deviation' && texts.deviation.trim() && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+          Azimuths referenced to
+          <select
+            className={inputCls}
+            value={azimuthRef}
+            onChange={(e) => setAzimuthRef(e.target.value)}
+            data-testid="well-import-aziref"
+            title="Deviation surveys record azimuths against grid, true or magnetic north. True and magnetic rotate to grid north using the wellhead grid convergence."
+          >
+            <option value="grid">Grid north (no correction)</option>
+            <option value="true">True north</option>
+            <option value="magnetic">Magnetic north</option>
+          </select>
+          {azimuthRef === 'magnetic' && (
+            <label className="flex items-center gap-1">
+              Declination (deg, E positive)
+              <input className={`${inputCls} w-16`} value={declination}
+                onChange={(e) => setDeclination(e.target.value)}
+                data-testid="well-import-declination" />
+            </label>
+          )}
+        </div>
+      )}
 
       <textarea
         className={`${inputCls} w-full h-24 font-mono`}

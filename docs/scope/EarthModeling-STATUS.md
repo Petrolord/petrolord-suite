@@ -71,3 +71,9 @@ slugs 301 to `apps/geoscience/earth-modeling`.
   shared location.
 - ~~Prod build upload (Hostinger) covering G1–G8.~~ **DONE
   2026-07-14** — prod is current (main `e84f8a181`, owner-confirmed).
+
+## CRS program touchpoints (2026-08-20)
+modelBuild refuses stacking surfaces in different known CRSs and stamps
+em_models.crs from the input consensus; the Project CRS reproject flow
+transforms fault polygons and retags models (grids recompute from
+surfaces). See Seismolord-PLAYBOOK.md CRS model.
