@@ -190,9 +190,22 @@ export default function SeismicExplorer({ tree, actions }) {
                 icon={v.kind === 'attribute' ? Activity : Database}
                 depth={depth}
                 label={v.name}
-                title={geometrySummary(v.survey_meta)}
+                title={v.is_own === false
+                  ? `Shared by a teammate (read-only). ${geometrySummary(v.survey_meta)}`
+                  : geometrySummary(v.survey_meta)}
                 meta={v.status !== 'ready' ? v.status
                   : (depth > 0 && v.attribute_params?.name) || ''}
+                badge={v.organization_id ? (
+                  <span
+                    title={v.is_own === false
+                      ? 'Shared by a teammate (read-only)'
+                      : 'Shared with your organization (read-only for members)'}
+                    className="shrink-0"
+                  >
+                    <Building2 className={`w-3 h-3 ${v.is_own === false
+                      ? 'text-sky-400' : 'text-emerald-400'}`} />
+                  </span>
+                ) : null}
                 selected={v.id === activeVolumeId}
                 onClick={() => v.status === 'ready' && actions.selectVolume(v.id)}
                 menu={(
@@ -215,13 +228,21 @@ export default function SeismicExplorer({ tree, actions }) {
                     >
                       Export surface / picks…
                     </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem
-                      className="text-red-400 focus:text-red-300"
-                      onSelect={() => actions.deleteVolume(v)}
-                    >
-                      Delete volume…
-                    </ContextMenuItem>
+                    {v.is_own !== false && (
+                      <>
+                        <ContextMenuItem onSelect={() => actions.shareVolume(v)}>
+                          <Building2 className="w-3.5 h-3.5 mr-1.5" />
+                          {v.organization_id ? 'Make private' : 'Share with organization'}
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          className="text-red-400 focus:text-red-300"
+                          onSelect={() => actions.deleteVolume(v)}
+                        >
+                          Delete volume…
+                        </ContextMenuItem>
+                      </>
+                    )}
                   </>
                 )}
               />
@@ -283,7 +304,8 @@ export default function SeismicExplorer({ tree, actions }) {
                   </span>
                 )
                 : null}
-              meta={h.stats?.coverage != null ? `${Math.round(h.stats.coverage * 100)}%` : ''}
+              meta={h.is_own === false ? 'teammate'
+                : (h.stats?.coverage != null ? `${Math.round(h.stats.coverage * 100)}%` : '')}
               title={h.stats?.min_twt_ms != null
                 ? `${h.stats.min_twt_ms.toFixed(0)}–${h.stats.max_twt_ms.toFixed(0)} ms`
                 : undefined}
@@ -297,16 +319,20 @@ export default function SeismicExplorer({ tree, actions }) {
                   <ContextMenuItem onSelect={() => actions.toggleHorizon(h)}>
                     {visibleIds.has(h.id) ? 'Hide' : 'Show'}
                   </ContextMenuItem>
-                  <ContextMenuItem onSelect={() => actions.setEditTarget(h.id)}>
-                    Set as edit target
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    className="text-red-400 focus:text-red-300"
-                    onSelect={() => actions.deleteHorizon(h)}
-                  >
-                    Delete horizon…
-                  </ContextMenuItem>
+                  {h.is_own !== false && (
+                    <>
+                      <ContextMenuItem onSelect={() => actions.setEditTarget(h.id)}>
+                        Set as edit target
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem
+                        className="text-red-400 focus:text-red-300"
+                        onSelect={() => actions.deleteHorizon(h)}
+                      >
+                        Delete horizon…
+                      </ContextMenuItem>
+                    </>
+                  )}
                 </>
               )}
             />
@@ -487,7 +513,8 @@ export default function SeismicExplorer({ tree, actions }) {
               visible={visibleFaultIds.has(f.id)}
               onToggleVisible={() => actions.toggleFault(f)}
               busy={faultBusyId === f.id}
-              meta={`${f.sticks.length} stick${f.sticks.length === 1 ? '' : 's'}`}
+              meta={f.is_own === false ? 'teammate'
+                : `${f.sticks.length} stick${f.sticks.length === 1 ? '' : 's'}`}
               onClick={() => actions.toggleFault(f)}
               menu={(
                 <>
@@ -540,13 +567,17 @@ export default function SeismicExplorer({ tree, actions }) {
                       </ContextMenuSubContent>
                     </ContextMenuSub>
                   )}
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    className="text-red-400 focus:text-red-300"
-                    onSelect={() => actions.deleteFault(f)}
-                  >
-                    Delete fault…
-                  </ContextMenuItem>
+                  {f.is_own !== false && (
+                    <>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem
+                        className="text-red-400 focus:text-red-300"
+                        onSelect={() => actions.deleteFault(f)}
+                      >
+                        Delete fault…
+                      </ContextMenuItem>
+                    </>
+                  )}
                 </>
               )}
             />

@@ -14,6 +14,7 @@ import WellTiePanel from '../WellTiePanel';
 export default function VelocityModelEditor({
   velMode, setVelMode, velDraft, setVelDraft, velLayers, setVelLayers,
   velBusy, saveVelocity, velocityModel, velocityForDisplay, velBoundaries,
+  readOnly = false,
   calOpen, setCalOpen, horizons, wells, manifest, geom,
   loadGridById, applyCalibratedModel,
 }) {
@@ -65,7 +66,8 @@ export default function VelocityModelEditor({
         <Button
           variant="outline" size="sm"
           onClick={saveVelocity}
-          disabled={velBusy}
+          disabled={velBusy || readOnly}
+          title={readOnly ? 'Shared by a teammate — the velocity model is owner-only' : undefined}
           title={velMode === 'linear'
             ? 'Persist V(z) = V0 + k·z on this volume (clear V0 to remove)'
             : 'Persist the layer cake on this volume (remove all layers to clear)'}

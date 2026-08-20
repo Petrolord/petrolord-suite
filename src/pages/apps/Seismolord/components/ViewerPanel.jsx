@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
-  listVolumes, deleteVolume, getManifest,
-} from '../services/volumesService';
+  listVolumes, deleteVolume, getManifest, setVolumeShared } from '../services/volumesService';
 import {
   resolveInterpState, interpNeedsMigration, composeManifest,
   applyVelocityToManifest, applyTraversesToManifest,
@@ -909,6 +908,29 @@ export default function ViewerPanel() {
       setVolumeBusyId(null);
     }
   };
+
+  /** W4.1: share/unshare an own volume with the caller's organization —
+   *  read-only for members (bricks, manifest, everyone's horizons and
+   *  faults included). */
+  const onShareVolume = async (v) => {
+    setVolumeBusyId(v.id);
+    try {
+      await setVolumeShared(v, !v.organization_id);
+      toast(v.organization_id
+        ? { title: 'Volume is private again', description: `${v.name} is no longer visible to your organization.` }
+        : { title: 'Volume shared', description: `${v.name} is now read-only visible to your organization (interpretations included).` });
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Share failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setVolumeBusyId(null);
+    }
+  };
+
+  // W4.1 read-only gating: on a teammate's shared volume, MY tracking /
+  // fault picking works (own rows under my storage path), but volume-row
+  // interpretation state (velocity, traverses) is owner-only
+  const volumeReadOnly = Boolean(volume && volume.is_own === false);
 
   const getBrick = useCallback((i, j, k) => cacheRef.current
     .get(brickKey(volume.storage_path, i, j, k)), [volume]);
@@ -2389,6 +2411,10 @@ export default function ViewerPanel() {
    *  CAS-guarded — the same revision the velocity model saves under). */
   const saveTraverseAs = async () => {
     if (!traverse || !volume || !manifest) return;
+    if (volumeReadOnly) {
+      toast({ title: 'Read-only volume', description: 'Named traverses are owner-only on a shared volume — draw and view freely, saving is disabled.' });
+      return;
+    }
     // eslint-disable-next-line no-alert
     const name = window.prompt('Traverse name:', `Traverse ${savedTraverses.length + 1}`);
     if (!name) return;
@@ -2529,6 +2555,7 @@ export default function ViewerPanel() {
   const treeActions = {
     selectVolume,
     deleteVolume: deleteVolumeAction,
+    shareVolume: onShareVolume,
     openImport: () => setOpenDialog('import'),
     openWellImport: () => setOpenDialog('wellImport'),
     openExport: () => setOpenDialog('export'),
@@ -3053,6 +3080,7 @@ export default function ViewerPanel() {
       >
         {manifest && (
           <VelocityModelEditor
+            readOnly={volumeReadOnly}
             velMode={velMode}
             setVelMode={setVelMode}
             velDraft={velDraft}

@@ -37,7 +37,13 @@ export async function saveHorizon({ volume, name, picks, seed, params, dtUs, con
   if (userError || !user) throw new Error('You must be signed in to save horizons.');
 
   const horizonId = crypto.randomUUID();
-  const blobPath = horizonBlobPath(volume.storage_path, horizonId);
+  // W4.1: on an org-shared volume that is not mine, my interpretation
+  // blobs live under MY uid with the same volume id at path segment 2 —
+  // storage writes stay owner-path-only, the org SELECT policy matches
+  // on the volume id, so teammates still read them
+  const blobDir = volume.user_id === user.id
+    ? volume.storage_path : `${user.id}/${volume.id}`;
+  const blobPath = horizonBlobPath(blobDir, horizonId);
   const s = horizonStats(picks);
   const dtMs = dtUs / 1000;
   const stats = {
@@ -166,12 +172,18 @@ export async function updateHorizonMeta({ horizon, display, name }) {
 }
 
 export async function listHorizons(volumeId) {
-  const { data, error } = await supabase.from('seismic_horizons')
-    .select('*')
-    .eq('volume_id', volumeId)
-    .order('created_at', { ascending: false });
+  const [{ data, error }, { data: { user } }] = await Promise.all([
+    supabase.from('seismic_horizons')
+      .select('*')
+      .eq('volume_id', volumeId)
+      .order('created_at', { ascending: false }),
+    supabase.auth.getUser(),
+  ]);
   if (error) throw new Error(`Could not load horizons: ${error.message}`);
-  return data || [];
+  // is_own drives read-only affordances on org-shared volumes (W4.1)
+  return (data || []).map((h) => ({
+    ...h, is_own: !!user && h.user_id === user.id,
+  }));
 }
 
 /** @returns {Promise<Float32Array>} the pick grid */

@@ -5,16 +5,40 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { SEISMIC_BUCKET } from './seismicStorage';
 import { gateManifest } from './manifestGate';
+import { myOrgId } from './surfacesService';
 
 export { gateManifest };
 
+/** Own volumes plus org-shared ones (W4.1). is_own drives the UI's
+ *  read-only affordances; RLS enforces the writes regardless. */
 export async function listVolumes() {
-  const { data, error } = await supabase
-    .from('seismic_volumes')
-    .select('*')
-    .order('created_at', { ascending: false });
+  const [{ data, error }, { data: { user } }] = await Promise.all([
+    supabase.from('seismic_volumes')
+      .select('*')
+      .order('created_at', { ascending: false }),
+    supabase.auth.getUser(),
+  ]);
   if (error) throw new Error(`Could not load volumes: ${error.message}`);
-  return data || [];
+  return (data || []).map((v) => ({
+    ...v, is_own: !!user && v.user_id === user.id,
+  }));
+}
+
+/** Share/unshare an OWN volume with the caller's organization —
+ *  read-only for members (bricks, manifest, everyone's horizons and
+ *  faults on it). The geo_surfaces model; RLS re-checks membership. */
+export async function setVolumeShared(volume, shared) {
+  let organizationId = null;
+  if (shared) {
+    organizationId = await myOrgId();
+    if (!organizationId) throw new Error('You belong to no organization — nothing to share with.');
+  }
+  const { data, error } = await supabase.from('seismic_volumes')
+    .update({ organization_id: organizationId })
+    .eq('id', volume.id)
+    .select().single();
+  if (error) throw new Error(`Could not update sharing: ${error.message}`);
+  return data;
 }
 
 export async function getManifest(volume) {
