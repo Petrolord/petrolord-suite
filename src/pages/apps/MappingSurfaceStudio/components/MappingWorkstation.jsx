@@ -21,6 +21,7 @@ import {
 } from '../engine/surface';
 import { consensusTag } from '@/lib/crs/tags';
 import { crsUnit } from '@/lib/crs';
+import { placeWellsForHost } from '@/lib/crs/guards';
 
 const selCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
 
@@ -96,7 +97,7 @@ export default function MappingWorkstation({ backend }) {
         spec, grid: g.z, name, kind: source.type === 'top' ? 'structure' : 'attribute', crs,
         provenance: { source: source, control_points: points.length, cell_m: cell, engine: 'mapping-surface-studio' },
       });
-      setDisplaySurface({ origin_x: spec.x0, origin_y: spec.y0, nx: spec.nx, ny: spec.ny, dx: spec.dx, dy: spec.dy, name, kind: preview?.kind });
+      setDisplaySurface({ origin_x: spec.x0, origin_y: spec.y0, nx: spec.nx, ny: spec.ny, dx: spec.dx, dy: spec.dy, name, kind: preview?.kind, crs });
       setDisplayGrid(g.z);
       setSelectedId(null);
       setStatus(`Gridded ${name} from ${points.length} wells (${spec.nx}×${spec.ny}). Review, then Publish.`);
@@ -208,6 +209,18 @@ export default function MappingWorkstation({ backend }) {
     </div>
   );
 
+  // CRS guard: wells convert into the displayed surface's frame when
+  // both tags are known; local-grid wells drop from a georeferenced
+  // map. Unknown tags render as before (legacy behavior).
+  const displayWells = useMemo(() => {
+    if (!wells || !displaySurface || displaySurface.crs === undefined) return wells;
+    const r = placeWellsForHost(
+      wells.map((w) => ({ ...w, surfaceX: w.surface_x, surfaceY: w.surface_y })),
+      displaySurface.crs,
+    );
+    return r.wells.map((w) => ({ ...w, surface_x: w.surfaceX, surface_y: w.surfaceY }));
+  }, [wells, displaySurface]);
+
   const center = !wells ? (
     <div className="h-full flex items-center justify-center text-slate-500 text-sm"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry…</div>
   ) : !displayGrid ? (
@@ -215,7 +228,7 @@ export default function MappingWorkstation({ backend }) {
       Grid a top from the left, or select a surface.
     </div>
   ) : (
-    <div className="p-3"><MapCanvas surface={displaySurface} grid={displayGrid} wells={wells} /></div>
+    <div className="p-3"><MapCanvas surface={displaySurface} grid={displayGrid} wells={displayWells} /></div>
   );
 
   return (
