@@ -18,8 +18,9 @@ import {
 } from '@/lib/gridding/surfaceExport';
 import { latticeSampleSurface, latticeValuesToSamples } from '../engine/surfaceOnLattice';
 import { M_PER_FT } from '../engine/velocityModel';
-import { crsUnit } from '@/lib/crs';
-import { isTransformableTag, normalizeTag, LOCAL } from '@/lib/crs/tags';
+import { crsUnit, reprojectSurveyAffine } from '@/lib/crs';
+import { isTransformableTag, normalizeTag, compareTags, LOCAL } from '@/lib/crs/tags';
+import { explainOverlapFailure } from '@/lib/crs/guards';
 
 export const SURFACE_APP = 'seismolord';
 
@@ -250,8 +251,27 @@ export async function exportStoredSurface(surface, formatKey) {
  * the 1e30 sentinel either way.
  * @returns {Promise<{values: Float32Array, unit: string, live: number}>}
  */
-export async function loadSurfaceMapLayer(surface, affine, geom) {
+export async function loadSurfaceMapLayer(surface, affine, geom, volume) {
   const grid = await downloadSurfaceGrid(surface);
+  // CRS guard (Phase 6): when the surface and the volume are in
+  // DIFFERENT known systems, refit the volume affine in the SURFACE's
+  // CRS so every lattice cell samples the grid at its true position —
+  // an exact on-the-fly conversion, no regridding, no data touched.
+  // Unknown tags sample as-is (legacy behavior) and report
+  // crsRelation 'unknown' for the UI to badge; a local-grid surface
+  // against a georeferenced volume refuses outright.
+  const relation = compareTags(surface.crs, volume?.crs);
+  let sampleAffine = affine;
+  if (relation === 'local-mismatch') {
+    throw new Error(`"${surface.name}" is on a local grid and cannot be placed on a georeferenced survey.`);
+  }
+  if (relation === 'transformable' && affine) {
+    const r = reprojectSurveyAffine({
+      affine, nIl: geom.nIl, nXl: geom.nXl,
+      fromTag: volume.crs, toTag: surface.crs,
+    });
+    sampleAffine = r.affine;
+  }
   const { values, live } = latticeSampleSurface({
     nx: surface.nx,
     ny: surface.ny,
@@ -260,9 +280,9 @@ export async function loadSurfaceMapLayer(surface, affine, geom) {
     dx: surface.dx,
     dy: surface.dy,
     z: grid,
-  }, affine, geom);
+  }, sampleAffine, geom);
   if (!live) {
-    throw new Error(`"${surface.name}" does not overlap this volume's survey area.`);
+    throw new Error(explainOverlapFailure(surface.name, surface.crs, volume?.crs));
   }
   const isAttribute = surface.z_domain === 'attribute';
   if (!isAttribute) {
@@ -275,7 +295,10 @@ export async function loadSurfaceMapLayer(surface, affine, geom) {
   // unitAssumed: the row records no z unit, so the label is a guess —
   // consumers surface that instead of printing the guess as fact
   // (Mapping publishes 'm', Seismolord 'ft'; only legacy rows are null).
-  return { values, unit, unitAssumed: !surface.z_unit && !isAttribute, live };
+  return {
+    values, unit, unitAssumed: !surface.z_unit && !isAttribute, live,
+    crsRelation: relation,
+  };
 }
 
 /**

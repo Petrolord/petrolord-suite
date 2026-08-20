@@ -13,6 +13,7 @@ import {
   updateHorizonMeta,
 } from '../services/horizonsService';
 import { saveFault, listFaults, deleteFault } from '../services/faultsService';
+import { placeWellsForHost } from '@/lib/crs/guards';
 import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExport';
 import {
   listVolumeSurfaces, exportStoredSurface, loadSurfaceMapLayer,
@@ -121,9 +122,12 @@ export default function ViewerPanel() {
   const gridCacheRef = useRef(new Map());       // horizon id -> Float32Array
 
   // wells are per-user and volume-independent; visible wells carry
-  // computed world paths so the viewer windows just draw
+  // computed world paths so the viewer windows just draw. The CRS
+  // guard (placeWellsForHost, below the volume state) converts or
+  // flags them against the active volume's frame before any window
+  // draws them.
   const wellsApi = useWells();
-  const wells = wellsApi.visible;
+  const rawWells = wellsApi.visible;
   const backend = useBackendStatus();
 
   const [volumesRefresh, setVolumesRefresh] = useState(0);
@@ -149,6 +153,24 @@ export default function ViewerPanel() {
   const [volumes, setVolumes] = useState([]);
   const [volume, setVolume] = useState(null);
   const [manifest, setManifest] = useState(null);
+
+  // CRS guard: wells convert into the active volume's frame when both
+  // tags are known, render flagged when either is unknown, and drop
+  // (with a toast) when a local grid meets a georeferenced frame.
+  const wellsPlacement = useMemo(
+    () => placeWellsForHost(rawWells, volume?.crs),
+    [rawWells, volume?.crs],
+  );
+  const wells = wellsPlacement.wells;
+  const skippedWellNames = wellsPlacement.skipped.map((s) => s.name).join(', ');
+  useEffect(() => {
+    if (!skippedWellNames) return;
+    toast({
+      title: 'Wells not shown on this volume',
+      description: `${skippedWellNames}: local grid data cannot be placed on a georeferenced survey.`,
+      variant: 'destructive',
+    });
+  }, [skippedWellNames, toast]);
   const [orientation, setOrientation] = useState('inline');
   // one slice position PER orientation — the 2D view shows the current
   // orientation's; the 3D window shows all three, so a 2D slider move
@@ -1320,7 +1342,7 @@ export default function ViewerPanel() {
       }
       setSurfaceBusyId(s.id);
       try {
-        const layer = await loadSurfaceMapLayer(s, affine, geom);
+        const layer = await loadSurfaceMapLayer(s, affine, geom, volume);
         setSurfaceLayers((m) => new Map(m).set(s.id, layer));
       } catch (e) {
         toast({ title: 'Cannot map surface', description: e.message, variant: 'destructive' });
