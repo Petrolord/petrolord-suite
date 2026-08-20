@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
-  listVolumes, deleteVolume, getManifest, setVolumeShared } from '../services/volumesService';
+  listVolumes, deleteVolume, getManifest, setVolumeShared,
+  listProjects, createProject, deleteProject, assignVolumeProject,
+} from '../services/volumesService';
 import {
   resolveInterpState, interpNeedsMigration, composeManifest,
   applyVelocityToManifest, applyTraversesToManifest,
@@ -157,6 +159,7 @@ export default function ViewerPanel() {
   const backend = useBackendStatus();
 
   const [volumesRefresh, setVolumesRefresh] = useState(0);
+  const [projects, setProjects] = useState([]);      // W4.2 explorer grouping
   const [allVolumes, setAllVolumes] = useState([]);  // explorer list (any status)
   const [volumeBusyId, setVolumeBusyId] = useState(null);
   // heavyweight workflows open as modal dialogs over the workspace
@@ -345,6 +348,7 @@ export default function ViewerPanel() {
   const volumeIdRef = useRef(null);             // selected id for list-refresh checks
 
   useEffect(() => {
+    listProjects().then(setProjects).catch(() => setProjects([]));
     listVolumes()
       .then((vs) => {
         setAllVolumes(vs);
@@ -924,6 +928,39 @@ export default function ViewerPanel() {
       toast({ title: 'Share failed', description: e.message, variant: 'destructive' });
     } finally {
       setVolumeBusyId(null);
+    }
+  };
+
+  // ---- W4.2 projects ----------------------------------------------------
+  const onCreateProject = async () => {
+    // eslint-disable-next-line no-alert
+    const name = window.prompt('Project name:');
+    if (!name) return;
+    try {
+      await createProject(name);
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Could not create project', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const onDeleteProject = async (p) => {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Delete project "${p.name}"? Its volumes stay — they return to the flat list.`)) return;
+    try {
+      await deleteProject(p);
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Could not delete project', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const onMoveVolumeToProject = async (v, projectId) => {
+    try {
+      await assignVolumeProject(v, projectId);
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Could not move volume', description: e.message, variant: 'destructive' });
     }
   };
 
@@ -2529,6 +2566,7 @@ export default function ViewerPanel() {
     slicePlanes,
     horizonColorById,
     volumes: allVolumes,
+    projects,
     activeVolumeId: volume?.id || null,
     volumeBusyId,
     horizons,
@@ -2556,6 +2594,9 @@ export default function ViewerPanel() {
     selectVolume,
     deleteVolume: deleteVolumeAction,
     shareVolume: onShareVolume,
+    createProject: onCreateProject,
+    deleteProject: onDeleteProject,
+    moveVolumeToProject: onMoveVolumeToProject,
     openImport: () => setOpenDialog('import'),
     openWellImport: () => setOpenDialog('wellImport'),
     openExport: () => setOpenDialog('export'),

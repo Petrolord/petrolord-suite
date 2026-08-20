@@ -12,7 +12,7 @@ import {
   Database, Layers, Slash, CircleDot, Route, Eye, EyeOff, Loader2, Upload,
   Plus, RefreshCw, ChevronDown, ChevronRight, Pencil, ArrowLeft,
   Rows, Columns, Clock, Settings2, Mountain, Download, Building2, Globe2,
-  Activity,
+  Activity, Folder, FolderPlus,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -142,7 +142,7 @@ const PLANE_TITLES = {
  */
 export default function SeismicExplorer({ tree, actions }) {
   const {
-    volumes, activeVolumeId, horizons, visibleIds, horizonBusyId, editTargetId,
+    volumes, projects, activeVolumeId, horizons, visibleIds, horizonBusyId, editTargetId,
     surfaces, surfaceBusyId, visibleSurfaceIds,
     culture, cultureBusyId, visibleCultureIds,
     faults, visibleFaultIds, faultBusyId,
@@ -176,7 +176,16 @@ export default function SeismicExplorer({ tree, actions }) {
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
-        <Section icon={Database} title="Volumes" count={volumes.length || ''}>
+        <Section
+          icon={Database}
+          title="Volumes"
+          count={volumes.length || ''}
+          actions={(
+            <IconButton title="New project (explorer grouping)…" onClick={actions.createProject}>
+              <FolderPlus className="w-3.5 h-3.5" />
+            </IconButton>
+          )}
+        >
           {(() => {
             // Derived (attribute) volumes nest under their parent; a child
             // whose parent is gone lists at the top level like any volume.
@@ -230,6 +239,33 @@ export default function SeismicExplorer({ tree, actions }) {
                     </ContextMenuItem>
                     {v.is_own !== false && (
                       <>
+                        <ContextMenuSub>
+                          <ContextMenuSubTrigger>
+                            <Folder className="w-3.5 h-3.5 mr-1.5" />
+                            Move to project
+                          </ContextMenuSubTrigger>
+                          <ContextMenuSubContent className="w-52">
+                            {(projects || []).map((pr) => (
+                              <ContextMenuItem
+                                key={pr.id}
+                                disabled={v.project_id === pr.id}
+                                onSelect={() => actions.moveVolumeToProject(v, pr.id)}
+                              >
+                                {pr.name}
+                              </ContextMenuItem>
+                            ))}
+                            <ContextMenuItem
+                              disabled={!v.project_id}
+                              onSelect={() => actions.moveVolumeToProject(v, null)}
+                            >
+                              No project (flat list)
+                            </ContextMenuItem>
+                            <ContextMenuSeparator />
+                            <ContextMenuItem onSelect={() => actions.createProject()}>
+                              New project…
+                            </ContextMenuItem>
+                          </ContextMenuSubContent>
+                        </ContextMenuSub>
                         <ContextMenuItem onSelect={() => actions.shareVolume(v)}>
                           <Building2 className="w-3.5 h-3.5 mr-1.5" />
                           {v.organization_id ? 'Make private' : 'Share with organization'}
@@ -247,13 +283,20 @@ export default function SeismicExplorer({ tree, actions }) {
                 )}
               />
             );
-            return roots.map((v) => (
+            // W4.2: group by project (flat list stays the default); a
+            // project header row carries its own delete (volumes unfile)
+            const projList = projects || [];
+            const filed = new Set(projList.map((pr) => pr.id));
+            const rootsIn = (pid) => roots.filter((v) => (pid
+              ? v.project_id === pid
+              : !v.project_id || !filed.has(v.project_id)));
+            const renderRoot = (v, depth = 0) => (
               <React.Fragment key={v.id}>
-                {volumeRow(v)}
+                {volumeRow(v, depth)}
                 {v.id === activeVolumeId && (slicePlanes || []).map((pl) => (
                   <Row
                     key={pl.key}
-                    depth={1}
+                    depth={depth + 1}
                     icon={PLANE_ICONS[pl.key] || Layers}
                     label={pl.label}
                     title={PLANE_TITLES[pl.key]}
@@ -264,11 +307,11 @@ export default function SeismicExplorer({ tree, actions }) {
                 ))}
                 {childrenOf(v.id).map((c) => (
                   <React.Fragment key={c.id}>
-                    {volumeRow(c, 1)}
+                    {volumeRow(c, depth + 1)}
                     {c.id === activeVolumeId && (slicePlanes || []).map((pl) => (
                       <Row
                         key={pl.key}
-                        depth={2}
+                        depth={depth + 2}
                         icon={PLANE_ICONS[pl.key] || Layers}
                         label={pl.label}
                         title={PLANE_TITLES[pl.key]}
@@ -280,7 +323,39 @@ export default function SeismicExplorer({ tree, actions }) {
                   </React.Fragment>
                 ))}
               </React.Fragment>
-            ));
+            );
+            return (
+              <>
+                {projList.map((pr) => {
+                  const inProject = rootsIn(pr.id);
+                  return (
+                    <React.Fragment key={pr.id}>
+                      <Row
+                        icon={Folder}
+                        label={pr.name}
+                        meta={String(inProject.length || '')}
+                        title="Project (explorer grouping) — volumes inside are unchanged"
+                        menu={(
+                          <>
+                            <ContextMenuItem
+                              className="text-red-400 focus:text-red-300"
+                              onSelect={() => actions.deleteProject(pr)}
+                            >
+                              Delete project (volumes stay)…
+                            </ContextMenuItem>
+                          </>
+                        )}
+                      />
+                      {inProject.map((v) => renderRoot(v, 1))}
+                      {!inProject.length && (
+                        <Hint>Empty project — use a volume&apos;s &quot;Move to project&quot;.</Hint>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+                {rootsIn(null).map((v) => renderRoot(v, 0))}
+              </>
+            );
           })()}
           {!volumes.length && (
             <Hint>No volumes yet — import a SEG-Y file to get started.</Hint>

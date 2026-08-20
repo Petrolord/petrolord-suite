@@ -81,3 +81,50 @@ export async function deleteVolume(volume) {
   const { error } = await supabase.from('seismic_volumes').delete().eq('id', volume.id);
   if (error) throw new Error(`Could not delete volume record: ${error.message}`);
 }
+
+// ---- W4.2 projects (explorer grouping) -----------------------------------
+
+export async function listProjects() {
+  const { data, error } = await supabase.from('seismic_projects')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(`Could not load projects: ${error.message}`);
+  return data || [];
+}
+
+export async function createProject(name, description = null) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error('You must be signed in to create projects.');
+  const { data, error } = await supabase.from('seismic_projects')
+    .insert({ user_id: user.id, name, description })
+    .select().single();
+  if (error) throw new Error(`Could not create project: ${error.message}`);
+  return data;
+}
+
+export async function renameProject(project, name) {
+  const { data, error } = await supabase.from('seismic_projects')
+    .update({ name, updated_at: new Date().toISOString() })
+    .eq('id', project.id)
+    .select().single();
+  if (error) throw new Error(`Could not rename project: ${error.message}`);
+  return data;
+}
+
+/** Deleting a project UNFILES its volumes (FK SET NULL) — data is never
+ *  touched. */
+export async function deleteProject(project) {
+  const { error } = await supabase.from('seismic_projects')
+    .delete().eq('id', project.id);
+  if (error) throw new Error(`Could not delete project: ${error.message}`);
+}
+
+/** File a volume under a project (null = back to the flat list). */
+export async function assignVolumeProject(volume, projectId) {
+  const { data, error } = await supabase.from('seismic_volumes')
+    .update({ project_id: projectId })
+    .eq('id', volume.id)
+    .select().single();
+  if (error) throw new Error(`Could not move the volume: ${error.message}`);
+  return data;
+}
