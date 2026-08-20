@@ -183,7 +183,9 @@ export class CubeRenderer {
     gl.uniform1i(this.pu.u_traceRms, 2);
     gl.uniform4f(this.pu.u_nullColor, 0.25, 0.25, 0.28, 1.0);
 
-    if (this.colormapKey) this.setColormap(this.colormapKey, true);
+    if (this.colormapKey) {
+      this.setColormap(this.colormapKey, { force: true, reverse: this.reverse });
+    }
   }
 
   #makeTex() {
@@ -197,10 +199,11 @@ export class CubeRenderer {
     return t;
   }
 
-  setColormap(key, force = false) {
-    if (!force && key === this.colormapKey && this.lut) return;
-    this.lut = buildLut(key);
+  setColormap(key, { force = false, reverse = false } = {}) {
+    if (!force && key === this.colormapKey && reverse === this.reverse && this.lut) return;
+    this.lut = buildLut(key, reverse);
     this.colormapKey = key;
+    this.reverse = reverse;
     if (this.contextLost) return;
     const { gl } = this;
     gl.activeTexture(gl.TEXTURE1);

@@ -20,7 +20,9 @@ import { COLOR_MAPS } from '@/utils/colorMaps';
 export const SAMPLING_GLSL = `
 uniform sampler2D u_data;      // R32F amplitudes
 uniform sampler2D u_traceRms;  // R32F per-trace rms, x = trace
+uniform sampler2D u_agc;       // R32F windowed-AGC gain, same dims as u_data
 uniform int   u_traceBalance;  // 1 = divide by per-trace rms
+uniform int   u_useAgc;        // 1 = multiply the AGC gain map in
 uniform int   u_interp;        // 1 = smooth (bicubic Catmull-Rom), 0 = nearest
 
 // Catmull-Rom weights for taps at offsets -1, 0, +1, +2 around the cell.
@@ -49,7 +51,8 @@ float sampleBalanced(vec2 t, out bool isNull) {
     ivec2 nearestT = clamp(ivec2(t * vec2(sz)), ivec2(0), sz - 1);
     float centre = texelFetch(u_data, nearestT, 0).r;
     if (abs(centre) > 1.0e29) { isNull = true; return 0.0; }
-    float bC = centre * (u_traceBalance == 1 ? rmsScaleAt(nearestT.y) : 1.0);
+    float bC = centre * (u_traceBalance == 1 ? rmsScaleAt(nearestT.y) : 1.0)
+      * (u_useAgc == 1 ? texelFetch(u_agc, nearestT, 0).r : 1.0);
     vec4 wx = cubicWeights(f.x);
     vec4 wy = cubicWeights(f.y);
     float acc = 0.0;
@@ -60,7 +63,8 @@ float sampleBalanced(vec2 t, out bool isNull) {
       for (int i = 0; i < 4; i++) {
         int px = clamp(base.x - 1 + i, 0, sz.x - 1);
         float raw = texelFetch(u_data, ivec2(px, py), 0).r;
-        row += wx[i] * (abs(raw) > 1.0e29 ? bC : raw * rScale);
+        float aG = u_useAgc == 1 ? texelFetch(u_agc, ivec2(px, py), 0).r : 1.0;
+        row += wx[i] * (abs(raw) > 1.0e29 ? bC : raw * rScale * aG);
       }
       acc += wy[j] * row;
     }
@@ -73,6 +77,7 @@ float sampleBalanced(vec2 t, out bool isNull) {
     float rms = texture(u_traceRms, vec2(t.y, 0.5)).r;
     scale = rms > 0.0 ? 1.0 / rms : 0.0;
   }
+  if (u_useAgc == 1) scale *= texture(u_agc, t).r;
   return amp * scale;
 }
 `;
@@ -99,13 +104,15 @@ vec4 shadeAmp(vec2 t) {
 }
 `;
 
-/** Build the 256x1 RGBA LUT bytes for a suite colormap key. */
-export function buildLut(key) {
+/** Build the 256x1 RGBA LUT bytes for a suite colormap key; `reverse`
+ *  flips the map end-for-end (LUT-level, so every consumer — shaders,
+ *  colorbars, the map raster mirror — reverses identically). */
+export function buildLut(key, reverse = false) {
   const map = COLOR_MAPS[key];
   if (!map) throw new Error(`Unknown colormap: ${key}`);
   const lut = new Uint8Array(256 * 4);
   for (let i = 0; i < 256; i++) {
-    const [r, g, b] = map.fn(i / 255);
+    const [r, g, b] = map.fn((reverse ? 255 - i : i) / 255);
     lut[i * 4] = r;
     lut[i * 4 + 1] = g;
     lut[i * 4 + 2] = b;

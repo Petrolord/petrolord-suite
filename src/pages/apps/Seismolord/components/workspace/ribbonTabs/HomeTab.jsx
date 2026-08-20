@@ -17,7 +17,11 @@ export default function HomeTab({
   orientation, setOrientation, lineLabel, sliceIndex, maxIndex, changeIndex,
   colormap, setColormap, gain, setGain, clipRms, setClipRms,
   polarity, setPolarity, traceBalance, setTraceBalance,
+  scaleMode, setScaleMode, clipPct, setClipPct, manualClip, setManualClip,
+  agcOn, setAgcOn, agcWindowMs, setAgcWindowMs,
+  wiggleMode, setWiggleMode, reverseCmap, setReverseCmap,
 }) {
+  const isTimeSlice = orientation === 'time';
   return (
     <>
       <RibbonGroup label="Volume">
@@ -52,27 +56,31 @@ export default function HomeTab({
       </RibbonGroup>
 
       <RibbonGroup label="Display">
-        <RibbonSelect
-          label="Colormap"
-          value={colormap}
-          onChange={(e) => setColormap(e.target.value)}
-          disabled={!manifest}
-        >
-          {SEISMIC_COLORMAPS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
-        </RibbonSelect>
+        <div className="flex flex-col gap-0.5">
+          <RibbonSelect
+            label="Colormap"
+            value={colormap}
+            onChange={(e) => setColormap(e.target.value)}
+            disabled={!manifest}
+          >
+            {SEISMIC_COLORMAPS.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+          </RibbonSelect>
+          <button
+            type="button"
+            className={`px-2 py-0.5 text-xs rounded border disabled:opacity-40 ${reverseCmap
+              ? 'border-cyan-500 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+            onClick={() => setReverseCmap((r) => !r)}
+            disabled={!manifest}
+            title="Reverse the colormap end for end"
+          >
+            Reverse colors
+          </button>
+        </div>
         <RibbonSlider
           label={`Gain ×${gain.toFixed(1)}`}
           min={0.1} max={10} step={0.1}
           value={gain}
           onChange={(e) => setGain(Number(e.target.value))}
-          disabled={!manifest}
-          className="w-28"
-        />
-        <RibbonSlider
-          label={`Clip ×${clipRms.toFixed(1)} RMS`}
-          min={0.5} max={10} step={0.5}
-          value={clipRms}
-          onChange={(e) => setClipRms(Number(e.target.value))}
           disabled={!manifest}
           className="w-28"
         />
@@ -96,6 +104,90 @@ export default function HomeTab({
             Trace balance
           </button>
         </div>
+      </RibbonGroup>
+
+      <RibbonGroup label="Scaling">
+        <RibbonSelect
+          label="Amplitude scale"
+          value={scaleMode}
+          onChange={(e) => setScaleMode(e.target.value)}
+          disabled={!manifest}
+          title="How the color range maps to amplitude"
+        >
+          <option value="rms">RMS multiple</option>
+          <option value="pct">Percentile</option>
+          <option value="manual">Manual clip</option>
+        </RibbonSelect>
+        {scaleMode === 'rms' && (
+          <RibbonSlider
+            label={`Clip ×${clipRms.toFixed(1)} RMS`}
+            min={0.5} max={10} step={0.5}
+            value={clipRms}
+            onChange={(e) => setClipRms(Number(e.target.value))}
+            disabled={!manifest}
+            className="w-28"
+          />
+        )}
+        {scaleMode === 'pct' && (
+          <RibbonSlider
+            label={`P${clipPct} of current slice`}
+            min={80} max={99.9} step={0.1}
+            value={clipPct}
+            onChange={(e) => setClipPct(Number(e.target.value))}
+            disabled={!manifest}
+            className="w-28"
+          />
+        )}
+        {scaleMode === 'manual' && (
+          <label className="flex flex-col gap-0.5 text-[10px] text-slate-500">
+            Clip amplitude
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={manualClip || ''}
+              placeholder="absolute"
+              onChange={(e) => setManualClip(Number(e.target.value) || 0)}
+              disabled={!manifest}
+              className="rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs w-24 disabled:opacity-40"
+            />
+          </label>
+        )}
+        <div className="flex flex-col gap-0.5">
+          <button
+            type="button"
+            className={`px-2 py-0.5 text-xs rounded border disabled:opacity-40 ${agcOn
+              ? 'border-cyan-500 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+            onClick={() => setAgcOn((a) => !a)}
+            disabled={!manifest || isTimeSlice}
+            title={isTimeSlice ? 'AGC applies to sections and traverses'
+              : 'Windowed automatic gain control (display only)'}
+          >
+            AGC
+          </button>
+          <RibbonSelect
+            label="Window"
+            value={String(agcWindowMs)}
+            onChange={(e) => setAgcWindowMs(Number(e.target.value))}
+            disabled={!manifest || !agcOn || isTimeSlice}
+          >
+            {[50, 80, 120, 200, 300, 500].map((ms) => (
+              <option key={ms} value={String(ms)}>{`${ms} ms`}</option>
+            ))}
+          </RibbonSelect>
+        </div>
+        <RibbonSelect
+          label="Trace style"
+          value={wiggleMode}
+          onChange={(e) => setWiggleMode(e.target.value)}
+          disabled={!manifest || isTimeSlice}
+          title={isTimeSlice ? 'Wiggle display applies to sections and traverses'
+            : 'Density image, wiggle overlay, or wiggle only'}
+        >
+          <option value="off">Density</option>
+          <option value="overlay">Wiggle + VA over density</option>
+          <option value="only">Wiggle + VA only</option>
+        </RibbonSelect>
       </RibbonGroup>
     </>
   );

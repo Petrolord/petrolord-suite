@@ -1588,3 +1588,20 @@ age in production ahead of Wave 2 derived volumes and W4 sharing.
   (owner-authorized; rollback-wrapped dry run first; post-apply probe:
   4 columns present, 5 existing volumes at interp_rev 0 awaiting lazy
   write-through on first open). W0.1 merged to main via PR #204.
+
+## Interpreter program Wave 1 (in progress)
+
+- W1.1 Section display upgrades (engines PR #16 + Suite PR TBD): wiggle /
+  variable-area rendering on sections and traverses (overlay-on-density
+  or wiggle-only; engine wiggleDeviations runs the exact density-shader
+  amplitude pipeline, varAreaRuns fills positive lobes with fractional
+  zero crossings; trace decimation by zoom, per-trace deviation cache);
+  windowed AGC as a display-only gain map (engine agcGainMap, u_agc
+  texture path in the shared SAMPLING_GLSL, referenceRender mirrors it —
+  two AGC cases added to the viewer self-test, GPU==CPU held under
+  SwiftShader); percentile (per-slice, deterministic strided sort) and
+  manual amplitude scaling beside the RMS-multiple clip; LUT-level
+  colormap reversal (shaders, colorbars, map raster reverse together);
+  section/traverse PNG snapshot (same-tick composite, the CubeView
+  pattern). Ribbon Home gained a Scaling group. Stored amplitudes are
+  never modified anywhere in this line.

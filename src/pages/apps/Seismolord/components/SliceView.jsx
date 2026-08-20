@@ -15,7 +15,7 @@ import React, {
   useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState,
 } from 'react';
 import {
-  ZoomIn, ZoomOut, Expand, Maximize, Minimize, Layers, Loader2,
+  ZoomIn, ZoomOut, Expand, Maximize, Minimize, Layers, Loader2, Camera,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +23,7 @@ import {
   DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { SliceRenderer } from '../viewer/SliceRenderer';
+import { agcGainMap, wiggleDeviations, varAreaRuns } from '../engine/displayEnhance';
 import { snapPick } from '../engine/horizonTrack';
 import { projectStickToTraverse } from '../engine/traverse';
 import { projectWellToSection } from '../engine/wellSection';
@@ -137,6 +138,10 @@ function SliceView({
   const timeMatchesRef = useRef(new WeakMap()); // horizon grid -> time-slice cells
   const stickProjRef = useRef(new WeakMap());   // stick -> traverse projection
   const wellProjRef = useRef(new WeakMap());    // well points -> traverse projection
+  // W1.1 wiggle: per-trace deviation cache, invalidated on slice /
+  // display / AGC change — deviations are computed lazily per visible
+  // trace, never per camera frame
+  const wigCacheRef = useRef({ slice: null, key: null, agc: null, devs: [] });
   // Adaptive render resolution: backing-store px per CSS px, starting at
   // devicePixelRatio and stepped down (never below 1) when sustained
   // interaction frames run slow. Frame cost is dominated by backing-store
@@ -162,10 +167,19 @@ function SliceView({
     try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* private mode */ }
   }, [prefs]);
 
+  // W1.1 windowed AGC: display-only gain map derived per (slice, window);
+  // no trace axis on time slices, so no AGC there
+  const agcMap = useMemo(() => (
+    slice && isSection && display.agc && display.agc.halfWindow >= 1
+      ? agcGainMap(slice.data, slice.width, slice.height,
+        { halfWindow: display.agc.halfWindow })
+      : null
+  ), [slice, isSection, display.agc]);
+
   // Latest props snapshot so rAF/pointer handlers never see stale closures.
   propsRef.current = {
     slice, geom, manifest, orientation, sliceIndex, display, overlays,
-    pickMode, ghost, prefs, gutter: g, depthConv, onCursor,
+    pickMode, ghost, prefs, gutter: g, depthConv, onCursor, agcMap,
   };
 
   // ---- axis metadata per orientation ----------------------------------
@@ -209,6 +223,82 @@ function SliceView({
     const lw = Math.max(1.5, 1.5 * dpr);
     const { geom: gm, orientation: ori, sliceIndex: idx, overlays: ov } = p;
     const vis = t.visibleRect();
+
+    // ---- W1.1 wiggle / variable-area (sections + traverses) ----------
+    // Deviations run the exact density-shader amplitude pipeline (engine
+    // wiggleDeviations incl. balance + AGC); positive lobes fill from the
+    // trace baseline with fractional zero crossings (varAreaRuns). Trace
+    // decimation by zoom: below ~5 px per trace, every Nth trace draws.
+    const wigMode = p.display?.wiggle || 'off';
+    if (wigMode !== 'off' && ori !== 'time') {
+      const ns = p.slice.width;
+      const nTraces = p.slice.height;
+      const ppxTrace = t.ppx;                 // device px per trace cell
+      const step = Math.max(1, Math.ceil(5 / Math.max(ppxTrace, 1e-9)));
+      const cache = wigCacheRef.current;
+      const key = `${p.display.gain}|${p.display.clip}|${p.display.polarity}|${p.display.traceBalance}`;
+      if (cache.slice !== p.slice || cache.key !== key || cache.agc !== (p.agcMap || null)) {
+        cache.slice = p.slice;
+        cache.key = key;
+        cache.agc = p.agcMap || null;
+        cache.devs = new Array(nTraces).fill(null);
+      }
+      const devFor = (tr) => {
+        let d = cache.devs[tr];
+        if (!d) {
+          const rms = p.display.traceBalance && p.slice.traceRms
+            ? (p.slice.traceRms[tr] > 0 ? 1 / p.slice.traceRms[tr] : 0) : 1;
+          d = wiggleDeviations(p.slice.data.subarray(tr * ns, (tr + 1) * ns), {
+            gain: p.display.gain * p.display.polarity,
+            clip: p.display.clip,
+            rmsScale: rms,
+            agc: cache.agc ? cache.agc.subarray(tr * ns, (tr + 1) * ns) : null,
+          });
+          cache.devs[tr] = d;
+        }
+        return d;
+      };
+      const s0v = Math.max(0, Math.floor(vis.y0) - 1);
+      const s1v = Math.min(ns - 1, Math.ceil(vis.y0 + vis.h) + 1);
+      const tr0 = Math.max(0, (Math.floor(vis.x0 / step) - 1) * step);
+      const tr1 = Math.min(nTraces - 1, Math.ceil(vis.x0 + vis.w) + 1);
+      const exc = 0.75 * ppxTrace * step;     // ±1 deviation in device px
+      // black over the density image, light on the bare dark background
+      const overDensity = wigMode === 'overlay';
+      const strokeC = overDensity ? 'rgba(2, 6, 23, 0.95)' : 'rgba(226, 232, 240, 0.95)';
+      const fillC = overDensity ? 'rgba(2, 6, 23, 0.8)' : 'rgba(226, 232, 240, 0.75)';
+      ctx.lineWidth = Math.max(1, 0.8 * dpr);
+      const yAt = (s) => t.worldToScreen(0, s + 0.5).y;
+      for (let tr = tr0; tr <= tr1; tr += step) {
+        const dev = devFor(tr);
+        const cx = t.worldToScreen(tr + 0.5, 0).x;
+        ctx.fillStyle = fillC;
+        const runs = varAreaRuns(dev.subarray(s0v, s1v + 1));
+        for (const run of runs) {
+          const a0 = run.s0 + s0v;
+          const a1 = run.s1 + s0v;
+          ctx.beginPath();
+          ctx.moveTo(cx, yAt(a0));
+          for (let s = Math.ceil(a0); s <= Math.floor(a1); s++) {
+            ctx.lineTo(cx + Math.max(0, dev[s]) * exc, yAt(s));
+          }
+          ctx.lineTo(cx, yAt(a1));
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.strokeStyle = strokeC;
+        ctx.beginPath();
+        let pen = false;
+        for (let s = s0v; s <= s1v; s++) {
+          const d0 = dev[s];
+          if (Number.isNaN(d0)) { pen = false; continue; }
+          const x = cx + d0 * exc;
+          if (pen) ctx.lineTo(x, yAt(s));
+          else { ctx.moveTo(x, yAt(s)); pen = true; }
+        }
+        ctx.stroke();
+      }
+    }
 
     // stored surfaces share the horizon overlay contract (sample-index
     // lattice grids) and draw in the same loop, dashed so a registry
@@ -729,7 +819,7 @@ function SliceView({
   useEffect(() => {
     const r = rendererRef.current;
     if (!r) return;
-    r.setColormap(display.colormap);
+    r.setColormap(display.colormap, { reverse: Boolean(display.reverse) });
     r.setParams({
       gain: display.gain,
       polarity: display.polarity,
@@ -737,8 +827,10 @@ function SliceView({
       traceBalance: display.traceBalance,
       interpolate: prefs.interpolate,
     });
+    // AGC re-applies after every slice upload (setSlice clears the map)
+    r.setAgc(agcMap);
     scheduleView();
-  }, [slice, display, prefs.interpolate, scheduleView]);
+  }, [slice, display, agcMap, prefs.interpolate, scheduleView]);
 
   // overlays / prefs / ghost mode / depth conversion changed -> repaint 2D layers
   useEffect(() => { scheduleView(); }, [overlays, prefs, ghost, depthConv, scheduleView]);
@@ -994,6 +1086,37 @@ function SliceView({
     if (onVexagChange) onVexagChange(v);
   };
 
+  /** W1.1 section screenshot: fresh GL frame + overlay + annotations
+   *  composited in the SAME tick (preserveDrawingBuffer is off), the
+   *  CubeView/MapView snapshot pattern. */
+  const screenshot = () => {
+    const glCanvas = glCanvasRef.current;
+    const overlay = overlayRef.current;
+    const anno = annoRef.current;
+    if (!glCanvas || !slice) return;
+    applyView();
+    const scale = Math.min(scaleRef.current || 1, window.devicePixelRatio || 1);
+    const out = document.createElement('canvas');
+    out.width = anno.width;
+    out.height = anno.height;
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, 0, out.width, out.height);
+    const ox = Math.round(g.left * scale);
+    const oy = Math.round(g.top * scale);
+    if (display.wiggle !== 'only') ctx.drawImage(glCanvas, ox, oy);
+    ctx.drawImage(overlay, ox, oy);
+    ctx.drawImage(anno, 0, 0);
+    out.toBlob((blob) => {
+      if (!blob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `seismolord-${orientation}${orientation === 'traverse' ? '' : `-${sliceIndex}`}.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }, 'image/png');
+  };
+
   const toggleFullscreen = async () => {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
@@ -1119,8 +1242,13 @@ function SliceView({
           </DropdownMenuContent>
         </DropdownMenu>
 
+        <Button variant="outline" size="sm" onClick={screenshot}
+          title="Save PNG snapshot" disabled={!slice} className="ml-auto"
+        >
+          <Camera className="w-4 h-4" />
+        </Button>
         <Button variant="outline" size="sm" onClick={toggleFullscreen}
-          title="Fullscreen" className="ml-auto"
+          title="Fullscreen"
         >
           {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
         </Button>
@@ -1138,7 +1266,14 @@ function SliceView({
           className="absolute"
           style={{ left: g.left, top: g.top, right: 0, bottom: 0 }}
         >
-          <canvas ref={glCanvasRef} className="w-full h-full block" />
+          {/* wiggle-only keeps the GL layer mounted but invisible: the
+              renderer/self-test lifecycle is untouched, only the density
+              image hides */}
+          <canvas
+            ref={glCanvasRef}
+            className="w-full h-full block"
+            style={display.wiggle === 'only' && isSection ? { visibility: 'hidden' } : undefined}
+          />
           <canvas
             ref={overlayRef}
             className={`absolute inset-0 w-full h-full touch-none ${pickMode

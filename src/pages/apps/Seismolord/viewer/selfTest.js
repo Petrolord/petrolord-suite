@@ -6,6 +6,7 @@
 
 import { assembleSlice } from '../engine/sliceAssembly';
 import { NULL_VALUE } from '../engine/manifest';
+import { agcGainMap } from '../engine/displayEnhance';
 import { SliceRenderer } from './SliceRenderer';
 
 export const TEST_DIM = 200;          // 200^3 per the acceptance targets
@@ -102,6 +103,16 @@ export async function runViewerSelfTest(canvas, opts = {}) {
       orientation: 'time', index: 60, view: [-0.125, -0.25, 1.25, 1.5],
       params: { gain: 1, polarity: 1, clip: 1, traceBalance: false },
     },
+    // W1.1 windowed AGC: the shader multiplies the gain-map texture in;
+    // referenceRender mirrors it from the same map
+    {
+      orientation: 'inline', index: 42, agc: { halfWindow: 8 },
+      params: { gain: 1, polarity: 1, clip: 1, traceBalance: false },
+    },
+    {
+      orientation: 'xline', index: 137, agc: { halfWindow: 15 },
+      params: { gain: 1.5, polarity: -1, clip: 2, traceBalance: true },
+    },
   ];
   for (const c of cases) {
     const slice = await assembleSlice(getBrick, geom, c.orientation, c.index);
@@ -110,6 +121,9 @@ export async function runViewerSelfTest(canvas, opts = {}) {
     renderer.setView(c.view || [0, 0, 1, 1]);
     renderer.setParams(c.params);
     renderer.setSlice(slice, c.orientation !== 'time');
+    if (c.agc) {
+      renderer.setAgc(agcGainMap(slice.data, slice.width, slice.height, c.agc));
+    }
     renderer.render();
     const actual = renderer.readPixels();
     const expected = renderer.referenceRender(slice, canvas.width, canvas.height);

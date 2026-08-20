@@ -455,7 +455,7 @@ function CubeView({
   useEffect(() => {
     const r = rendererRef.current;
     if (!r || !display) return;
-    r.setColormap(display.colormap);
+    r.setColormap(display.colormap, { reverse: Boolean(display.reverse) });
     r.setDisplay({
       gain: display.gain,
       polarity: display.polarity,
