@@ -46,6 +46,7 @@ import {
 } from '../engine/velocityModel';
 import { NULL_VALUE } from '../engine/manifest';
 import { amplitudePercentile } from '../engine/displayEnhance';
+import { UndoStack } from '../lib/undoStack';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
 import SyntheticsPanel from './SyntheticsPanel';
@@ -165,6 +166,13 @@ export default function ViewerPanel() {
   // seismic_volumes.interp_rev this session read; every save is a CAS
   // against it and adopts the bumped value from the returned row.
   const [interpRev, setInterpRev] = useState(0);
+  // W1.2 global interpretation undo/redo. Commands read CURRENT values
+  // through refs (interpRevRef, draftSticksRef) because they execute
+  // long after the closures that created them.
+  const [, setUndoTick] = useState(0);
+  const [undoStack] = useState(() => new UndoStack(60, () => setUndoTick((t) => t + 1)));
+  const interpRevRef = useRef(0);
+  const draftSticksRef = useRef([]);
 
   // CRS guard: wells convert into the active volume's frame when both
   // tags are known, render flagged when either is unknown, and drop
@@ -284,6 +292,9 @@ export default function ViewerPanel() {
   const [faultBusyId, setFaultBusyId] = useState(null);
   // draft fault: array of sticks; each stick = array of {il, xl, s}
   const [draftSticks, setDraftSticks] = useState([]);
+  // per-render mirrors for undo commands (see undoStack above)
+  draftSticksRef.current = draftSticks;
+  interpRevRef.current = interpRev;
 
   const volumeIdRef = useRef(null);             // selected id for list-refresh checks
 
@@ -604,6 +615,45 @@ export default function ViewerPanel() {
     setEdit((e) => ({ version: e.version + 1, undo: s.undo.length, active: true }));
   }, []);
 
+  // ---- W1.2 global undo/redo router ------------------------------------
+  // An active horizon edit session keeps its own cell-level undo and
+  // takes priority; everything else runs through the command stack.
+  const undoAction = useCallback(async () => {
+    if (editRef.current?.undo.length) { undoEdit(); return; }
+    try {
+      const c = await undoStack.undo();
+      if (c) toast({ title: 'Undone', description: c.label });
+    } catch (e) {
+      toast({ title: 'Undo failed', description: e.message, variant: 'destructive' });
+    }
+  }, [undoEdit, undoStack, toast]);
+
+  const redoAction = useCallback(async () => {
+    try {
+      const c = await undoStack.redo();
+      if (c) toast({ title: 'Redone', description: c.label });
+    } catch (e) {
+      toast({ title: 'Redo failed', description: e.message, variant: 'destructive' });
+    }
+  }, [undoStack, toast]);
+
+  // Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or Ctrl+Y), skipped while typing
+  useEffect(() => {
+    const onKey = (e) => {
+      const mod = e.ctrlKey || e.metaKey;
+      const k = e.key.toLowerCase();
+      if (!mod || (k !== 'z' && k !== 'y')) return;
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA'
+        || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      e.preventDefault();
+      if (k === 'z' && !e.shiftKey) undoAction();
+      else redoAction();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undoAction, redoAction]);
+
   const selectVolume = async (id) => {
     const seq = ++selectSeqRef.current;           // supersedes any in-flight select
     const v = volumes.find((x) => x.id === id) || null;
@@ -633,6 +683,7 @@ export default function ViewerPanel() {
     setEditTarget('new');
     setPickMode(null);
     gridCacheRef.current.clear();
+    undoStack.clear();               // commands reference the old volume
     setError(null);
     if (!v) { setHorizons([]); setFaults([]); return; }
     setLoading(true);
@@ -828,11 +879,15 @@ export default function ViewerPanel() {
 
     if (pickMode === 'fault') {
       // fault points are raw picks on visible discontinuities — no snap
-      setDraftSticks((sticks) => {
-        const next = sticks.map((s) => [...s]);
-        if (next.length === 0) next.push([]);
-        next[next.length - 1].push({ il: ilIdx, xl: xlIdx, s: sample });
-        return next;
+      const prev = draftSticksRef.current;
+      const next = prev.map((s) => [...s]);
+      if (next.length === 0) next.push([]);
+      next[next.length - 1].push({ il: ilIdx, xl: xlIdx, s: sample });
+      setDraftSticks(next);
+      undoStack.push({
+        label: 'fault stick point',
+        undo: () => setDraftSticks(prev),
+        redo: () => setDraftSticks(next),
       });
       return;
     }
@@ -878,12 +933,32 @@ export default function ViewerPanel() {
     } catch (err) {
       setError(err.message);
     }
-  }, [pickMode, geom, volume, orientation, getBrick, toast, snapMode, snapWindow, applyOp, eraseSize]);
+  }, [pickMode, geom, volume, orientation, getBrick, toast, snapMode, snapWindow, applyOp,
+    eraseSize, undoStack]);
 
   // ---- fault stick editing ----------------------------------------------
-  const endStick = () => setDraftSticks((s) => (s.length && s[s.length - 1].length ? [...s, []] : s));
+  const endStick = () => {
+    const prev = draftSticksRef.current;
+    if (!(prev.length && prev[prev.length - 1].length)) return;
+    const next = [...prev, []];
+    setDraftSticks(next);
+    undoStack.push({
+      label: 'end fault stick',
+      undo: () => setDraftSticks(prev),
+      redo: () => setDraftSticks(next),
+    });
+  };
 
-  const discardDraft = () => setDraftSticks([]);
+  const discardDraft = () => {
+    const prev = draftSticksRef.current;
+    if (!prev.length) return;
+    setDraftSticks([]);
+    undoStack.push({
+      label: 'discard fault draft',
+      undo: () => setDraftSticks(prev),
+      redo: () => setDraftSticks([]),
+    });
+  };
 
   const saveDraftFault = async () => {
     const sticks = draftSticks.filter((s) => s.length >= 2)
@@ -897,9 +972,26 @@ export default function ViewerPanel() {
     if (!name) return;
     try {
       const row = await saveFault({ volumeId: volume.id, name, sticks });
+      const prevDraft = draftSticksRef.current;
       setDraftSticks([]);
       setFaults(await listFaults(volume.id));
       setVisibleFaultIds((s) => new Set([...s, row.id]));
+      const box = { row };            // redo re-creates under a NEW id
+      undoStack.push({
+        label: `save fault "${name}"`,
+        undo: async () => {
+          await deleteFault(box.row);
+          setVisibleFaultIds((s) => { const n = new Set(s); n.delete(box.row.id); return n; });
+          setFaults(await listFaults(volume.id));
+          setDraftSticks(prevDraft);
+        },
+        redo: async () => {
+          box.row = await saveFault({ volumeId: volume.id, name, sticks });
+          setDraftSticks([]);
+          setFaults(await listFaults(volume.id));
+          setVisibleFaultIds((s) => new Set([...s, box.row.id]));
+        },
+      });
       toast({ title: 'Fault saved', description: `${name}: ${sticks.length} stick(s).` });
     } catch (e) {
       toast({ title: 'Save failed', description: e.message, variant: 'destructive' });
@@ -944,12 +1036,30 @@ export default function ViewerPanel() {
 
   const onDeleteFault = async (f) => {
     // eslint-disable-next-line no-alert
-    if (!window.confirm(`Delete fault "${f.name}"?`)) return;
+    if (!window.confirm(`Delete fault "${f.name}"? (Undo restores it)`)) return;
     setFaultBusyId(f.id);
     try {
       await deleteFault(f);
       setVisibleFaultIds((s) => { const n = new Set(s); n.delete(f.id); return n; });
       setFaults(await listFaults(volume.id));
+      // delete-with-restore: the row carries its sticks + params, so a
+      // full re-create is possible (under a new id, tracked in the box)
+      const box = { row: f };
+      undoStack.push({
+        label: `delete fault "${f.name}"`,
+        undo: async () => {
+          box.row = await saveFault({
+            volumeId: volume.id, name: f.name, sticks: f.sticks, params: f.params,
+          });
+          setFaults(await listFaults(volume.id));
+          setVisibleFaultIds((s) => new Set([...s, box.row.id]));
+        },
+        redo: async () => {
+          await deleteFault(box.row);
+          setVisibleFaultIds((s) => { const n = new Set(s); n.delete(box.row.id); return n; });
+          setFaults(await listFaults(volume.id));
+        },
+      });
     } catch (e) {
       toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
     } finally {
@@ -1314,15 +1424,35 @@ export default function ViewerPanel() {
 
   const onDeleteHorizon = async (h) => {
     // eslint-disable-next-line no-alert
-    if (!window.confirm(`Delete horizon "${h.name}"?`)) return;
+    if (!window.confirm(`Delete horizon "${h.name}"? (Undo restores it)`)) return;
     setHorizonBusyId(h.id);
     try {
+      // capture the pick grid BEFORE the blob goes away, so undo can
+      // re-create the horizon in full (new id, tracked in the box)
+      const grid = gridCacheRef.current.get(h.id) || await loadHorizonGrid(h);
       await deleteHorizon(h);
       if (editRef.current?.targetId === h.id) closeSession();
       if (editTarget === h.id) setEditTarget('new');
       gridCacheRef.current.delete(h.id);
       setVisibleIds((s) => { const n = new Set(s); n.delete(h.id); return n; });
       await reloadHorizons(volume);
+      const dtUs = manifest.geometry.dt_us;
+      const box = { row: h };
+      undoStack.push({
+        label: `delete horizon "${h.name}"`,
+        undo: async () => {
+          box.row = await saveHorizon({
+            volume, name: h.name, picks: grid, seed: h.seed, params: h.params, dtUs,
+          });
+          await reloadHorizons(volume);
+        },
+        redo: async () => {
+          await deleteHorizon(box.row);
+          gridCacheRef.current.delete(box.row.id);
+          setVisibleIds((s) => { const n = new Set(s); n.delete(box.row.id); return n; });
+          await reloadHorizons(volume);
+        },
+      });
     } catch (e) {
       toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
     } finally {
@@ -1687,11 +1817,25 @@ export default function ViewerPanel() {
     setTraverseBusy(true);
     try {
       const entry = { id: crypto.randomUUID(), name, vertices: traverse.vertices };
+      const prevList = savedTraverses;
       const nextList = [...savedTraverses, entry];
       const row = await saveVolumeTraverses(volume, nextList, interpRev);
       setInterpRev(row.interp_rev);
       setManifest((m) => applyTraversesToManifest(m, nextList));
       setTraverseSavedId(entry.id);
+      const applyList = async (list) => {
+        const r = await saveVolumeTraverses(volume, list, interpRevRef.current);
+        setInterpRev(r.interp_rev);
+        setManifest((m) => applyTraversesToManifest(m, list));
+      };
+      undoStack.push({
+        label: `save traverse "${name}"`,
+        undo: async () => {
+          await applyList(prevList);
+          setTraverseSavedId((cur) => (cur === entry.id ? null : cur));
+        },
+        redo: () => applyList(nextList),
+      });
       toast({ title: 'Traverse saved', description: `${name}: ${traverse.positions.length} traces.` });
     } catch (e) {
       toast({ title: 'Save failed', description: e.message, variant: 'destructive' });
@@ -1717,12 +1861,26 @@ export default function ViewerPanel() {
     if (!window.confirm(`Delete saved traverse "${entry.name}"?`)) return;
     setTraverseBusy(true);
     try {
+      const prevList = savedTraverses;
       const nextList = savedTraverses.filter((s) => s.id !== entry.id);
       const row = await saveVolumeTraverses(volume, nextList, interpRev);
       setInterpRev(row.interp_rev);
       setManifest((m) => applyTraversesToManifest(m, nextList));
       // the drawn line stays on screen
       setTraverseSavedId((id) => (id === entry.id ? null : id));
+      const applyList = async (list) => {
+        const r = await saveVolumeTraverses(volume, list, interpRevRef.current);
+        setInterpRev(r.interp_rev);
+        setManifest((m) => applyTraversesToManifest(m, list));
+      };
+      undoStack.push({
+        label: `delete traverse "${entry.name}"`,
+        undo: () => applyList(prevList),
+        redo: async () => {
+          await applyList(nextList);
+          setTraverseSavedId((id) => (id === entry.id ? null : id));
+        },
+      });
     } catch (e) {
       toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
     } finally {
@@ -1875,6 +2033,12 @@ export default function ViewerPanel() {
               setWiggleMode={setWiggleMode}
               reverseCmap={reverseCmap}
               setReverseCmap={setReverseCmap}
+              onUndo={undoAction}
+              onRedo={redoAction}
+              canUndo={edit.undo > 0 || undoStack.canUndo}
+              canRedo={undoStack.canRedo}
+              undoLabel={edit.undo > 0 ? 'horizon edit step' : undoStack.peekUndo()}
+              redoLabel={undoStack.peekRedo()}
             />
           ),
         },
