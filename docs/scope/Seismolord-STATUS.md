@@ -1630,3 +1630,22 @@ age in production ahead of Wave 2 derived volumes and W4 sharing.
   per layer; CRS-honest: transformable tags convert on the fly, LOCAL
   vs georeferenced never draws), Mapping Studio dock list + MapCanvas
   overlay + import (backend-injected, harness demo layer).
+- W1.4 Plotting: true-scale PDF plots of the Map or Section window
+  (lib/plotComposer.js math: paper layouts, 1/2/2.5/5 scale series,
+  crop-for-scale so one plotted mm = scale/1000 ground metres exactly;
+  sections add ms/cm vertical). Snapshots arrive georeferenced through
+  the windows' cameraApi (metersPerPx from survey spacing / transform,
+  msPerPx from dt; fresh same-tick composite). jsPDF renders frame,
+  centered image, title block (title/volume/CRS/scale/author/date/view)
+  and an exact paper scale bar; the map image carries its own north
+  arrow. Ribbon Export tab gained a Plotting group. Gotcha fixed en
+  route: a useCallback referenced in an earlier effect's deps is a TDZ
+  crash the jsdom suites never see (SliceView mounts only in e2e) —
+  declaration order matters.
+
+Wave 1 COMPLETE (W1.1-W1.4). Staging E2E checklist for the owner:
+wiggle + AGC on the dome volume, percentile scaling, section PNG,
+undo/redo incl. a horizon delete-restore, save + reload a session,
+bookmark round-trip, culture import (GeoJSON + zipped shapefile) drawn
+on Seismolord map + Mapping Studio, PDF plot at 1:25,000 with the
+scale bar measured against a ruler.

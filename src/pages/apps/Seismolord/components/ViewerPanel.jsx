@@ -54,8 +54,9 @@ import {
   listCulture, downloadCultureFeatures, deleteCulture, setCultureShared,
 } from '@/lib/cultureRegistry';
 import { reprojectFeatures } from '@/lib/cultureImport';
-import { transformPoint } from '@/lib/crs';
+import { transformPoint, crsDisplayName } from '@/lib/crs';
 import { normalizeTag, isTransformableTag, LOCAL } from '@/lib/crs/tags';
+import PlotDialog from './workspace/dialogs/PlotDialog';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
 import SyntheticsPanel from './SyntheticsPanel';
@@ -2336,6 +2337,7 @@ export default function ViewerPanel() {
               volume={volume}
               openExport={() => setOpenDialog('export')}
               openSurfaceImport={() => setOpenDialog('importSurface')}
+              openPlot={() => setOpenDialog('plot')}
             />
           ),
         },
@@ -2586,6 +2588,15 @@ export default function ViewerPanel() {
         open={openDialog === 'importCulture'}
         onOpenChange={(o) => setOpenDialog(o ? 'importCulture' : null)}
         onImported={() => setCultureRefresh((k) => k + 1)}
+      />
+
+      <PlotDialog
+        open={openDialog === 'plot'}
+        onOpenChange={(o) => setOpenDialog(o ? 'plot' : null)}
+        sectionCameraApi={sectionCameraApi}
+        mapCameraApi={mapCameraApi}
+        volume={volume}
+        crsName={volume?.crs ? crsDisplayName(volume.crs) : null}
       />
 
       <SessionsDialog

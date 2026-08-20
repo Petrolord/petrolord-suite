@@ -1017,15 +1017,34 @@ function MapView({
     });
   }, [draw]);
 
-  // W1.2b sessions/bookmarks: expose the map camera for capture/restore
+  // W1.2b sessions/bookmarks + W1.4 plotting: camera capture/restore
+  // and a georeferenced snapshot (fresh frame in the same tick; the
+  // ground frame is isotropic because vexag carries the lattice aspect)
   useEffect(() => {
     if (!cameraApi) return undefined;
     cameraApi.current = {
       get: () => transformRef.current.getCamera(),
       set: (c) => { transformRef.current.setCamera(c); scheduleDraw(); },
+      snapshot: () => {
+        const p = propsRef.current;
+        const src = canvasRef.current;
+        if (!src || !p.geom || !(p.spacing?.xlSpacing > 0)) return null;
+        draw();
+        const out = document.createElement('canvas');
+        out.width = src.width;
+        out.height = src.height;
+        out.getContext('2d').drawImage(src, 0, 0);
+        return {
+          canvas: out,
+          kind: 'map',
+          metersPerPx: p.spacing.xlSpacing / transformRef.current.ppx,
+          msPerPx: null,
+          label: 'Map',
+        };
+      },
     };
     return () => { cameraApi.current = null; };
-  }, [cameraApi, scheduleDraw]);
+  }, [cameraApi, scheduleDraw, draw]);
 
   // ---- sizing / lifecycle --------------------------------------------------
 
