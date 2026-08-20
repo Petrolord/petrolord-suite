@@ -125,7 +125,22 @@ describe('resumeGate', () => {
   };
 
   test('happy path returns the ORIGINAL mapping (stored bytes win over the dialog)', () => {
-    expect(resumeGate(row, { ...fp })).toEqual({ mapping: { ilByte: 9, xlByte: 21 } });
+    // pre-CRS record: extended bytes absent, crs null (resumes as UNKNOWN)
+    expect(resumeGate(row, { ...fp })).toEqual({ mapping: { ilByte: 9, xlByte: 21 }, crs: null });
+  });
+
+  test('extended records return the full byte mapping and the CRS declaration', () => {
+    const rec = ingestRecord(
+      fp,
+      { ilByte: 9, xlByte: 21, xByte: 73, yByte: 77, scalarByte: 71 },
+      { name: 'keta.sgy', size: 1000 },
+      { native: 'EPSG:23031', project: 'EPSG:32631' },
+    );
+    const extRow = { ...row, survey_meta: { ingest: rec } };
+    expect(resumeGate(extRow, { ...fp })).toEqual({
+      mapping: { ilByte: 9, xlByte: 21, xByte: 73, yByte: 77, scalarByte: 71 },
+      crs: { native: 'EPSG:23031', project: 'EPSG:32631' },
+    });
   });
 
   test('missing row / wrong status refuse', () => {
