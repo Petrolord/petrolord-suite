@@ -846,15 +846,61 @@ function SliceView({
     }
   }, [vexagProp, scheduleView]);
 
-  // W1.2b sessions/bookmarks: expose the camera for capture/restore
+  /** W1.1/W1.4 snapshot composite: fresh GL frame + overlay +
+   *  annotations in the SAME tick (preserveDrawingBuffer is off), the
+   *  CubeView/MapView pattern. Reads propsRef so the persistent
+   *  cameraApi object never sees stale closures. Declared BEFORE the
+   *  cameraApi effect that depends on it. */
+  const composeSnapshot = useCallback(() => {
+    const glCanvas = glCanvasRef.current;
+    const overlay = overlayRef.current;
+    const anno = annoRef.current;
+    const p = propsRef.current;
+    if (!glCanvas || !p.slice) return null;
+    applyView();
+    const scale = Math.min(scaleRef.current || 1, window.devicePixelRatio || 1);
+    const out = document.createElement('canvas');
+    out.width = anno.width;
+    out.height = anno.height;
+    const ctx = out.getContext('2d');
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, 0, out.width, out.height);
+    const ox = Math.round(p.gutter.left * scale);
+    const oy = Math.round(p.gutter.top * scale);
+    if (p.display?.wiggle !== 'only') ctx.drawImage(glCanvas, ox, oy);
+    ctx.drawImage(overlay, ox, oy);
+    ctx.drawImage(anno, 0, 0);
+    return out;
+  }, [applyView]);
+
+  // W1.2b sessions/bookmarks + W1.4 plotting: expose the camera and a
+  // georeferenced snapshot for capture/restore and the plot composer
   useEffect(() => {
     if (!cameraApi) return undefined;
     cameraApi.current = {
       get: () => transformRef.current.getCamera(),
       set: (c) => { transformRef.current.setCamera(c); scheduleView(); },
+      snapshot: () => {
+        const p = propsRef.current;
+        const canvas2 = composeSnapshot();
+        if (!canvas2) return null;
+        const t = transformRef.current;
+        const perCell = p.orientation === 'traverse' ? (p.slice?.stepM || 0)
+          : p.orientation === 'xline' ? (spacing?.ilSpacing || 0)
+            : (spacing?.xlSpacing || 0);
+        return {
+          canvas: canvas2,
+          kind: p.orientation === 'time' ? 'timeslice' : 'section',
+          metersPerPx: perCell > 0 ? perCell / t.ppx : null,
+          msPerPx: p.orientation !== 'time' && p.manifest
+            ? (p.manifest.geometry.dt_us / 1000) / t.ppy : null,
+          label: p.orientation === 'traverse' ? 'Traverse'
+            : `${p.orientation} ${p.sliceIndex}`,
+        };
+      },
     };
     return () => { cameraApi.current = null; };
-  }, [cameraApi, scheduleView]);
+  }, [cameraApi, scheduleView, composeSnapshot, spacing]);
 
   // ---- interactions ------------------------------------------------------
   const toDevice = useCallback((e) => {
@@ -1097,27 +1143,9 @@ function SliceView({
     if (onVexagChange) onVexagChange(v);
   };
 
-  /** W1.1 section screenshot: fresh GL frame + overlay + annotations
-   *  composited in the SAME tick (preserveDrawingBuffer is off), the
-   *  CubeView/MapView snapshot pattern. */
   const screenshot = () => {
-    const glCanvas = glCanvasRef.current;
-    const overlay = overlayRef.current;
-    const anno = annoRef.current;
-    if (!glCanvas || !slice) return;
-    applyView();
-    const scale = Math.min(scaleRef.current || 1, window.devicePixelRatio || 1);
-    const out = document.createElement('canvas');
-    out.width = anno.width;
-    out.height = anno.height;
-    const ctx = out.getContext('2d');
-    ctx.fillStyle = '#020617';
-    ctx.fillRect(0, 0, out.width, out.height);
-    const ox = Math.round(g.left * scale);
-    const oy = Math.round(g.top * scale);
-    if (display.wiggle !== 'only') ctx.drawImage(glCanvas, ox, oy);
-    ctx.drawImage(overlay, ox, oy);
-    ctx.drawImage(anno, 0, 0);
+    const out = composeSnapshot();
+    if (!out) return;
     out.toBlob((blob) => {
       if (!blob) return;
       const a = document.createElement('a');
