@@ -12,6 +12,7 @@ import { UNKNOWN } from '@/lib/crs/tags';
 import {
   getProjectCrs, setProjectCrs, countCrsTaggedData, addCustomDef,
 } from '@/lib/crs/settingsService';
+import { reprojectProjectData } from '@/lib/crs/reprojectProject';
 
 /**
  * View and set the Project CRS (Petrel model): the one system all
@@ -28,6 +29,9 @@ export default function ProjectCrsDialog({ open, onOpenChange, onChanged }) {
   const [current, setCurrent] = useState(null);
   const [counts, setCounts] = useState(null);
   const [choice, setChoice] = useState(null);   // {tag, name}
+  const [reprojectOpen, setReprojectOpen] = useState(false);
+  const [reprojecting, setReprojecting] = useState(null);   // {step, done, total}
+  const [report, setReport] = useState(null);
 
   useEffect(() => {
     if (!open) return;
@@ -116,19 +120,50 @@ export default function ProjectCrsDialog({ open, onOpenChange, onChanged }) {
                     .filter((t) => counts[t] > 0)
                     .map((t) => ` ${counts[t]} in ${t.replace('geo_', '').replace('_', ' ')}`)
                     .join(',')}.
-                  Changing it will require reprojecting that data (coming with the
-                  reproject flow); until then the setting stays as it is.
+                  Changing it reprojects all of that data into the new system.
                 </div>
               </div>
             )}
 
-            {!locked && (
+            {(!locked || reprojectOpen) && !reprojecting && !report && (
               <CrsPicker
                 value={choice?.tag}
                 customDefs={current?.customDefs || {}}
                 onChange={onPick}
                 allowSentinels={false}
               />
+            )}
+
+            {locked && !reprojectOpen && !report && (
+              <Button
+                variant="outline"
+                className="border-amber-700/60 text-amber-300 hover:bg-amber-500/10"
+                onClick={() => { setChoice(null); setReprojectOpen(true); }}
+              >
+                Change Project CRS and reproject the data…
+              </Button>
+            )}
+
+            {reprojecting && (
+              <div className="flex items-center text-sm text-cyan-300">
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Reprojecting {reprojecting.step}
+                {reprojecting.total > 1 ? ` (${reprojecting.done + 1} of ${reprojecting.total})` : ''}…
+              </div>
+            )}
+
+            {report && (
+              <div className="rounded-lg border border-emerald-700/50 bg-emerald-950/20 p-3 text-sm text-emerald-300 space-y-1">
+                <div>
+                  Reprojection complete: {report.wells.converted} wells, {report.surfaces.converted} surfaces,
+                  {' '}{report.volumes.converted} seismic volumes, {report.models.converted} models converted.
+                </div>
+                {report.skippedNames.length > 0 && (
+                  <div className="text-amber-300">
+                    Skipped (unknown or local placement, unchanged): {report.skippedNames.join('; ')}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
@@ -143,6 +178,32 @@ export default function ProjectCrsDialog({ open, onOpenChange, onChanged }) {
             >
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Set Project CRS
+            </Button>
+          )}
+          {locked && reprojectOpen && !report && (
+            <Button
+              disabled={loading || !choice || !!reprojecting}
+              onClick={async () => {
+                setReprojecting({ step: 'starting', done: 0, total: 1 });
+                try {
+                  const r = await reprojectProjectData({
+                    toTag: choice.tag,
+                    onProgress: setReprojecting,
+                  });
+                  setReport(r);
+                  setCurrent(await getProjectCrs());
+                  if (onChanged) onChanged(choice);
+                  toast({ title: 'Project CRS changed', description: choice.name || choice.tag });
+                } catch (e) {
+                  toast({ title: 'Reprojection stopped', description: `${e.message} Run it again to finish the remaining datasets.`, variant: 'destructive' });
+                } finally {
+                  setReprojecting(null);
+                }
+              }}
+              className="bg-amber-600 hover:bg-amber-500 text-white"
+            >
+              {reprojecting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Reproject everything to the new CRS
             </Button>
           )}
         </DialogFooter>
