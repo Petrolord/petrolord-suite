@@ -3,7 +3,7 @@
 // control rows (everything but the volume select gates on a manifest).
 
 import React from 'react';
-import { Undo2, Redo2 } from 'lucide-react';
+import { Undo2, Redo2, BookMarked } from 'lucide-react';
 import {
   RibbonGroup, RibbonButton, RibbonSelect, RibbonSlider,
 } from '../Ribbon';
@@ -23,7 +23,7 @@ export default function HomeTab({
   scaleMode, setScaleMode, clipPct, setClipPct, manualClip, setManualClip,
   agcOn, setAgcOn, agcWindowMs, setAgcWindowMs,
   wiggleMode, setWiggleMode, reverseCmap, setReverseCmap,
-  onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel,
+  onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel, onOpenSessions,
 }) {
   const isTimeSlice = orientation === 'time';
   return (
@@ -42,6 +42,12 @@ export default function HomeTab({
           onClick={onRedo}
           disabled={!canRedo}
           title={redoLabel ? `Redo: ${redoLabel} (Ctrl+Shift+Z)` : 'Nothing to redo (Ctrl+Shift+Z)'}
+        />
+        <RibbonButton
+          icon={BookMarked}
+          label="Sessions"
+          onClick={onOpenSessions}
+          title="Named sessions and viewport bookmarks"
         />
       </RibbonGroup>
 

@@ -47,6 +47,8 @@ import {
 import { NULL_VALUE } from '../engine/manifest';
 import { amplitudePercentile } from '../engine/displayEnhance';
 import { UndoStack } from '../lib/undoStack';
+import { captureLocal, applyLocal, clampIndices } from '../lib/sessionSnapshot';
+import SessionsDialog from './workspace/dialogs/SessionsDialog';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
 import SyntheticsPanel from './SyntheticsPanel';
@@ -173,6 +175,15 @@ export default function ViewerPanel() {
   const [undoStack] = useState(() => new UndoStack(60, () => setUndoTick((t) => t + 1)));
   const interpRevRef = useRef(0);
   const draftSticksRef = useRef([]);
+  // W1.2b sessions/bookmarks: camera access into the section + map
+  // windows, the pending restore applied once the volume opens, and an
+  // epoch key that remounts the window tree so localStorage-backed
+  // layout/prefs re-read after a session restore.
+  const sectionCameraApi = useRef(null);
+  const mapCameraApi = useRef(null);
+  const pendingRestoreRef = useRef(null);
+  const [sessionEpoch, setSessionEpoch] = useState(0);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
 
   // CRS guard: wells convert into the active volume's frame when both
   // tags are known, render flagged when either is unknown, and drop
@@ -654,6 +665,85 @@ export default function ViewerPanel() {
     return () => window.removeEventListener('keydown', onKey);
   }, [undoAction, redoAction]);
 
+  // ---- W1.2b sessions & bookmarks --------------------------------------
+  // Cameras restore once the right slice is on screen (the transforms
+  // re-fit on slice arrival, which would wipe an earlier set()).
+  useEffect(() => {
+    const pr = pendingRestoreRef.current;
+    if (!pr || !slice) return;
+    if (pr.camera && sectionCameraApi.current) sectionCameraApi.current.set(pr.camera);
+    if (pr.mapCamera && mapCameraApi.current) mapCameraApi.current.set(pr.mapCamera);
+    pendingRestoreRef.current = null;
+  }, [slice]);
+
+  const captureBookmark = () => ({
+    v: 1,
+    volume_id: volume?.id || null,
+    orientation,
+    indices,
+    vexag,
+    camera: sectionCameraApi.current ? sectionCameraApi.current.get() : null,
+    mapCamera: mapCameraApi.current ? mapCameraApi.current.get() : null,
+  });
+
+  const captureSession = () => ({
+    ...captureBookmark(),
+    display: {
+      colormap,
+      gain,
+      clipRms,
+      polarity,
+      traceBalance,
+      scaleMode,
+      clipPct,
+      manualClip,
+      agcOn,
+      agcWindowMs,
+      wiggleMode,
+      reverseCmap,
+    },
+    visibleIds: [...visibleIds],
+    visibleFaultIds: [...visibleFaultIds],
+    visibleSurfaceIds: [...visibleSurfaceIds],
+    sliceVis,
+    local: captureLocal(window.localStorage),
+  });
+
+  /** Bookmark restore: navigation only. */
+  const restoreBookmark = async (payload) => {
+    if (!payload?.volume_id) throw new Error('This entry points at no volume.');
+    if (!volumes.some((x) => x.id === payload.volume_id)) {
+      throw new Error('The volume this entry points at no longer exists.');
+    }
+    pendingRestoreRef.current = payload;
+    await selectVolume(payload.volume_id);
+  };
+
+  /** Session restore: local layout/prefs first (the window tree remounts
+   *  via the epoch key to re-read them), then display state, then
+   *  navigation through the same pending-restore path. */
+  const restoreSession = async (payload) => {
+    applyLocal(payload?.local, window.localStorage);
+    setSessionEpoch((e) => e + 1);
+    const d = payload?.display || {};
+    if (SEISMIC_COLORMAPS.some((c) => c.key === d.colormap)) setColormap(d.colormap);
+    if (Number.isFinite(d.gain)) setGain(d.gain);
+    if (Number.isFinite(d.clipRms)) setClipRms(d.clipRms);
+    if (d.polarity === 1 || d.polarity === -1) setPolarity(d.polarity);
+    if (typeof d.traceBalance === 'boolean') setTraceBalance(d.traceBalance);
+    if (['rms', 'pct', 'manual'].includes(d.scaleMode)) setScaleMode(d.scaleMode);
+    if (Number.isFinite(d.clipPct)) setClipPct(d.clipPct);
+    if (Number.isFinite(d.manualClip)) setManualClip(d.manualClip);
+    if (typeof d.agcOn === 'boolean') setAgcOn(d.agcOn);
+    if (Number.isFinite(d.agcWindowMs)) setAgcWindowMs(d.agcWindowMs);
+    if (['off', 'overlay', 'only'].includes(d.wiggle ?? d.wiggleMode)) {
+      setWiggleMode(d.wiggle ?? d.wiggleMode);
+    }
+    if (typeof d.reverseCmap === 'boolean') setReverseCmap(d.reverseCmap);
+    if (payload?.volume_id) await restoreBookmark(payload);
+    else pendingRestoreRef.current = null;
+  };
+
   const selectVolume = async (id) => {
     const seq = ++selectSeqRef.current;           // supersedes any in-flight select
     const v = volumes.find((x) => x.id === id) || null;
@@ -712,12 +802,33 @@ export default function ViewerPanel() {
       setManifest(composeManifest(m, interp));
       setHorizons(hz);
       setFaults(flt);
-      setOrientation('inline');
-      setIndices({
-        inline: Math.floor(m.geometry.il.count / 2),
-        xline: Math.floor(m.geometry.xl.count / 2),
-        time: Math.floor(m.geometry.ns / 2),
-      });
+      // a session/bookmark restore lands its navigation state here, once
+      // the manifest is in (indices clamp against the live geometry;
+      // stale layer ids are filtered against the fresh lists)
+      const pr = pendingRestoreRef.current;
+      if (pr && pr.volume_id === v.id) {
+        setOrientation(['inline', 'xline', 'time'].includes(pr.orientation)
+          ? pr.orientation : 'inline');
+        setIndices(clampIndices(pr.indices, m.geometry));
+        if (Array.isArray(pr.visibleIds)) {
+          setVisibleIds(new Set(pr.visibleIds.filter((id) => hz.some((h) => h.id === id))));
+        }
+        if (Array.isArray(pr.visibleFaultIds)) {
+          setVisibleFaultIds(new Set(pr.visibleFaultIds.filter((id) => flt.some((f) => f.id === id))));
+        }
+        if (Array.isArray(pr.visibleSurfaceIds)) {
+          setVisibleSurfaceIds(new Set(pr.visibleSurfaceIds));
+        }
+        if (pr.sliceVis) setSliceVis(pr.sliceVis);
+        if (Number.isFinite(pr.vexag)) setVexag(pr.vexag);
+      } else {
+        setOrientation('inline');
+        setIndices({
+          inline: Math.floor(m.geometry.il.count / 2),
+          xline: Math.floor(m.geometry.xl.count / 2),
+          time: Math.floor(m.geometry.ns / 2),
+        });
+      }
     } catch (e) {
       if (seq === selectSeqRef.current) setError(e.message);
     } finally {
@@ -2039,6 +2150,7 @@ export default function ViewerPanel() {
               canRedo={undoStack.canRedo}
               undoLabel={edit.undo > 0 ? 'horizon edit step' : undoStack.peekUndo()}
               redoLabel={undoStack.peekRedo()}
+              onOpenSessions={() => setSessionsOpen(true)}
             />
           ),
         },
@@ -2158,6 +2270,7 @@ export default function ViewerPanel() {
         center={(
           <div className="h-full min-h-0 p-2">
         <ViewerWindows
+          key={`epoch-${sessionEpoch}`}
           fill
           defaultOpen={['section']}
           focus={winFocus}
@@ -2192,6 +2305,7 @@ export default function ViewerPanel() {
                   height="fill"
                   vexag={vexag}
                   onVexagChange={setVexag}
+                  cameraApi={sectionCameraApi}
                 />
               ),
             },
@@ -2344,6 +2458,7 @@ export default function ViewerPanel() {
                   }}
                   surfaces={mapSurfaces}
                   height="fill"
+                  cameraApi={mapCameraApi}
                 />
               ),
             },
@@ -2354,6 +2469,16 @@ export default function ViewerPanel() {
       />
 
       {/* Heavyweight workflows live in modal dialogs over the workspace. */}
+      <SessionsDialog
+        open={sessionsOpen}
+        onOpenChange={setSessionsOpen}
+        captureSession={captureSession}
+        restoreSession={restoreSession}
+        captureBookmark={captureBookmark}
+        restoreBookmark={restoreBookmark}
+        hasVolume={Boolean(volume)}
+      />
+
       <ImportSegyDialog
         open={openDialog === 'import'}
         onOpenChange={(o) => setOpenDialog(o ? 'import' : null)}
