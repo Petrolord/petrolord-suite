@@ -12,7 +12,7 @@ import {
   Database, Layers, Slash, CircleDot, Route, Eye, EyeOff, Loader2, Upload,
   Plus, RefreshCw, ChevronDown, ChevronRight, Pencil, ArrowLeft,
   Rows, Columns, Clock, Settings2, Mountain, Download, Building2, Globe2,
-  Activity,
+  Activity, Folder, FolderPlus, History,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -142,7 +142,8 @@ const PLANE_TITLES = {
  */
 export default function SeismicExplorer({ tree, actions }) {
   const {
-    volumes, activeVolumeId, horizons, visibleIds, horizonBusyId, editTargetId,
+    volumes, projects, activeVolumeId, horizons, visibleIds, horizonBusyId, editTargetId,
+    horizonVersions, visibleVersionIds, versionChainOf,
     surfaces, surfaceBusyId, visibleSurfaceIds,
     culture, cultureBusyId, visibleCultureIds,
     faults, visibleFaultIds, faultBusyId,
@@ -176,7 +177,16 @@ export default function SeismicExplorer({ tree, actions }) {
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
-        <Section icon={Database} title="Volumes" count={volumes.length || ''}>
+        <Section
+          icon={Database}
+          title="Volumes"
+          count={volumes.length || ''}
+          actions={(
+            <IconButton title="New project (explorer grouping)…" onClick={actions.createProject}>
+              <FolderPlus className="w-3.5 h-3.5" />
+            </IconButton>
+          )}
+        >
           {(() => {
             // Derived (attribute) volumes nest under their parent; a child
             // whose parent is gone lists at the top level like any volume.
@@ -190,9 +200,22 @@ export default function SeismicExplorer({ tree, actions }) {
                 icon={v.kind === 'attribute' ? Activity : Database}
                 depth={depth}
                 label={v.name}
-                title={geometrySummary(v.survey_meta)}
+                title={v.is_own === false
+                  ? `Shared by a teammate (read-only). ${geometrySummary(v.survey_meta)}`
+                  : geometrySummary(v.survey_meta)}
                 meta={v.status !== 'ready' ? v.status
                   : (depth > 0 && v.attribute_params?.name) || ''}
+                badge={v.organization_id ? (
+                  <span
+                    title={v.is_own === false
+                      ? 'Shared by a teammate (read-only)'
+                      : 'Shared with your organization (read-only for members)'}
+                    className="shrink-0"
+                  >
+                    <Building2 className={`w-3 h-3 ${v.is_own === false
+                      ? 'text-sky-400' : 'text-emerald-400'}`} />
+                  </span>
+                ) : null}
                 selected={v.id === activeVolumeId}
                 onClick={() => v.status === 'ready' && actions.selectVolume(v.id)}
                 menu={(
@@ -215,24 +238,66 @@ export default function SeismicExplorer({ tree, actions }) {
                     >
                       Export surface / picks…
                     </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem
-                      className="text-red-400 focus:text-red-300"
-                      onSelect={() => actions.deleteVolume(v)}
-                    >
-                      Delete volume…
-                    </ContextMenuItem>
+                    {v.is_own !== false && (
+                      <>
+                        <ContextMenuSub>
+                          <ContextMenuSubTrigger>
+                            <Folder className="w-3.5 h-3.5 mr-1.5" />
+                            Move to project
+                          </ContextMenuSubTrigger>
+                          <ContextMenuSubContent className="w-52">
+                            {(projects || []).map((pr) => (
+                              <ContextMenuItem
+                                key={pr.id}
+                                disabled={v.project_id === pr.id}
+                                onSelect={() => actions.moveVolumeToProject(v, pr.id)}
+                              >
+                                {pr.name}
+                              </ContextMenuItem>
+                            ))}
+                            <ContextMenuItem
+                              disabled={!v.project_id}
+                              onSelect={() => actions.moveVolumeToProject(v, null)}
+                            >
+                              No project (flat list)
+                            </ContextMenuItem>
+                            <ContextMenuSeparator />
+                            <ContextMenuItem onSelect={() => actions.createProject()}>
+                              New project…
+                            </ContextMenuItem>
+                          </ContextMenuSubContent>
+                        </ContextMenuSub>
+                        <ContextMenuItem onSelect={() => actions.shareVolume(v)}>
+                          <Building2 className="w-3.5 h-3.5 mr-1.5" />
+                          {v.organization_id ? 'Make private' : 'Share with organization'}
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                          className="text-red-400 focus:text-red-300"
+                          onSelect={() => actions.deleteVolume(v)}
+                        >
+                          Delete volume…
+                        </ContextMenuItem>
+                      </>
+                    )}
                   </>
                 )}
               />
             );
-            return roots.map((v) => (
+            // W4.2: group by project (flat list stays the default); a
+            // project header row carries its own delete (volumes unfile)
+            const projList = projects || [];
+            const filed = new Set(projList.map((pr) => pr.id));
+            const rootsIn = (pid) => roots.filter((v) => (pid
+              ? v.project_id === pid
+              : !v.project_id || !filed.has(v.project_id)));
+            const renderRoot = (v, depth = 0) => (
               <React.Fragment key={v.id}>
-                {volumeRow(v)}
+                {volumeRow(v, depth)}
                 {v.id === activeVolumeId && (slicePlanes || []).map((pl) => (
                   <Row
                     key={pl.key}
-                    depth={1}
+                    depth={depth + 1}
                     icon={PLANE_ICONS[pl.key] || Layers}
                     label={pl.label}
                     title={PLANE_TITLES[pl.key]}
@@ -243,11 +308,11 @@ export default function SeismicExplorer({ tree, actions }) {
                 ))}
                 {childrenOf(v.id).map((c) => (
                   <React.Fragment key={c.id}>
-                    {volumeRow(c, 1)}
+                    {volumeRow(c, depth + 1)}
                     {c.id === activeVolumeId && (slicePlanes || []).map((pl) => (
                       <Row
                         key={pl.key}
-                        depth={2}
+                        depth={depth + 2}
                         icon={PLANE_ICONS[pl.key] || Layers}
                         label={pl.label}
                         title={PLANE_TITLES[pl.key]}
@@ -259,7 +324,39 @@ export default function SeismicExplorer({ tree, actions }) {
                   </React.Fragment>
                 ))}
               </React.Fragment>
-            ));
+            );
+            return (
+              <>
+                {projList.map((pr) => {
+                  const inProject = rootsIn(pr.id);
+                  return (
+                    <React.Fragment key={pr.id}>
+                      <Row
+                        icon={Folder}
+                        label={pr.name}
+                        meta={String(inProject.length || '')}
+                        title="Project (explorer grouping) — volumes inside are unchanged"
+                        menu={(
+                          <>
+                            <ContextMenuItem
+                              className="text-red-400 focus:text-red-300"
+                              onSelect={() => actions.deleteProject(pr)}
+                            >
+                              Delete project (volumes stay)…
+                            </ContextMenuItem>
+                          </>
+                        )}
+                      />
+                      {inProject.map((v) => renderRoot(v, 1))}
+                      {!inProject.length && (
+                        <Hint>Empty project — use a volume&apos;s &quot;Move to project&quot;.</Hint>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+                {rootsIn(null).map((v) => renderRoot(v, 0))}
+              </>
+            );
           })()}
           {!volumes.length && (
             <Hint>No volumes yet — import a SEG-Y file to get started.</Hint>
@@ -283,7 +380,10 @@ export default function SeismicExplorer({ tree, actions }) {
                   </span>
                 )
                 : null}
-              meta={h.stats?.coverage != null ? `${Math.round(h.stats.coverage * 100)}%` : ''}
+              meta={[h.version > 1 ? `v${h.version}` : '',
+                h.is_own === false ? 'teammate'
+                  : (h.stats?.coverage != null ? `${Math.round(h.stats.coverage * 100)}%` : ''),
+              ].filter(Boolean).join(' ')}
               title={h.stats?.min_twt_ms != null
                 ? `${h.stats.min_twt_ms.toFixed(0)}–${h.stats.max_twt_ms.toFixed(0)} ms`
                 : undefined}
@@ -297,16 +397,53 @@ export default function SeismicExplorer({ tree, actions }) {
                   <ContextMenuItem onSelect={() => actions.toggleHorizon(h)}>
                     {visibleIds.has(h.id) ? 'Hide' : 'Show'}
                   </ContextMenuItem>
-                  <ContextMenuItem onSelect={() => actions.setEditTarget(h.id)}>
-                    Set as edit target
-                  </ContextMenuItem>
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    className="text-red-400 focus:text-red-300"
-                    onSelect={() => actions.deleteHorizon(h)}
-                  >
-                    Delete horizon…
-                  </ContextMenuItem>
+                  {(() => {
+                    const chain = versionChainOf ? versionChainOf(h) : [];
+                    if (!chain.length) return null;
+                    return (
+                      <ContextMenuSub>
+                        <ContextMenuSubTrigger>
+                          <History className="w-3.5 h-3.5 mr-1.5" />
+                          {`History (${chain.length})`}
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-64">
+                          {chain.map((v) => (
+                            <React.Fragment key={v.id}>
+                              <ContextMenuItem onSelect={() => actions.toggleVersion(v)}>
+                                {`${visibleVersionIds?.has(v.id) ? 'Hide' : 'Show'} v${v.version}`}
+                                <span className="ml-auto pl-2 text-[10px] text-slate-500 truncate">
+                                  {v.interpreter || ''}
+                                </span>
+                              </ContextMenuItem>
+                              {h.is_own !== false && (
+                                <ContextMenuItem onSelect={() => actions.restoreVersion(h, v)}>
+                                  {`Restore v${v.version} as new version`}
+                                </ContextMenuItem>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </ContextMenuSubContent>
+                      </ContextMenuSub>
+                    );
+                  })()}
+                  {h.is_own !== false && (
+                    <>
+                      <ContextMenuItem onSelect={() => actions.newHorizonVersion(h)}>
+                        <History className="w-3.5 h-3.5 mr-1.5" />
+                        New version (snapshot)
+                      </ContextMenuItem>
+                      <ContextMenuItem onSelect={() => actions.setEditTarget(h.id)}>
+                        Set as edit target
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem
+                        className="text-red-400 focus:text-red-300"
+                        onSelect={() => actions.deleteHorizon(h)}
+                      >
+                        Delete horizon…
+                      </ContextMenuItem>
+                    </>
+                  )}
                 </>
               )}
             />
@@ -487,7 +624,8 @@ export default function SeismicExplorer({ tree, actions }) {
               visible={visibleFaultIds.has(f.id)}
               onToggleVisible={() => actions.toggleFault(f)}
               busy={faultBusyId === f.id}
-              meta={`${f.sticks.length} stick${f.sticks.length === 1 ? '' : 's'}`}
+              meta={f.is_own === false ? 'teammate'
+                : `${f.sticks.length} stick${f.sticks.length === 1 ? '' : 's'}`}
               onClick={() => actions.toggleFault(f)}
               menu={(
                 <>
@@ -540,13 +678,17 @@ export default function SeismicExplorer({ tree, actions }) {
                       </ContextMenuSubContent>
                     </ContextMenuSub>
                   )}
-                  <ContextMenuSeparator />
-                  <ContextMenuItem
-                    className="text-red-400 focus:text-red-300"
-                    onSelect={() => actions.deleteFault(f)}
-                  >
-                    Delete fault…
-                  </ContextMenuItem>
+                  {f.is_own !== false && (
+                    <>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem
+                        className="text-red-400 focus:text-red-300"
+                        onSelect={() => actions.deleteFault(f)}
+                      >
+                        Delete fault…
+                      </ContextMenuItem>
+                    </>
+                  )}
                 </>
               )}
             />

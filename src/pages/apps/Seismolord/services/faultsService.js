@@ -26,6 +26,9 @@ export async function saveFault({ volumeId, name, sticks, params }) {
       name,
       sticks,
       surface: loftFaultSurface(sticks),
+      // W4.3 attribution (the version-chain columns are schema-ready;
+      // the fault History UI is a recorded follow-on)
+      interpreter: user.user_metadata?.full_name || user.user_metadata?.name || user.email || null,
       ...(params ? { params } : {}),
     })
     .select().single();
@@ -34,12 +37,18 @@ export async function saveFault({ volumeId, name, sticks, params }) {
 }
 
 export async function listFaults(volumeId) {
-  const { data, error } = await supabase.from('seismic_faults')
-    .select('*')
-    .eq('volume_id', volumeId)
-    .order('created_at', { ascending: false });
+  const [{ data, error }, { data: { user } }] = await Promise.all([
+    supabase.from('seismic_faults')
+      .select('*')
+      .eq('volume_id', volumeId)
+      .order('created_at', { ascending: false }),
+    supabase.auth.getUser(),
+  ]);
   if (error) throw new Error(`Could not load faults: ${error.message}`);
-  return data || [];
+  // is_own drives read-only affordances on org-shared volumes (W4.1)
+  return (data || []).map((f) => ({
+    ...f, is_own: !!user && f.user_id === user.id,
+  }));
 }
 
 export async function deleteFault(fault) {

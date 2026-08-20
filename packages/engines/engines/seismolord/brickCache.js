@@ -12,20 +12,60 @@
  * @typedef {(path: string, signal: AbortSignal) => Promise<ArrayBuffer>} BrickFetcher
  */
 
+import { decodeBrickPayload } from './brickCodec';
+
 export class BrickCache {
   /**
    * @param {BrickFetcher} fetcher
-   * @param {{maxBytes?: number}} [opts]
+   * @param {{maxBytes?: number, dtype?: string, maxConcurrent?: number}} [opts]
+   *   dtype: the volume's brick encoding (manifest.brick.dtype) — decode
+   *   happens HERE so everything downstream of the cache is codec-blind
+   *   (W4.4). maxConcurrent caps simultaneous fetches (excess calls
+   *   queue FIFO); 0/undefined = unlimited, the pre-W4.4 behaviour.
    */
-  constructor(fetcher, { maxBytes = 256 * 1024 * 1024 } = {}) {
+  constructor(fetcher, { maxBytes = 256 * 1024 * 1024, dtype = 'float32le', maxConcurrent = 0 } = {}) {
     this.fetcher = fetcher;
     this.maxBytes = maxBytes;
+    this.dtype = dtype;
+    this.maxConcurrent = maxConcurrent;
     this.bytes = 0;
     /** @type {Map<string, Float32Array>} insertion order = LRU order */
     this.cache = new Map();
     /** @type {Map<string, {promise: Promise<Float32Array>, controller: AbortController}>} */
     this.inflight = new Map();
+    /** @type {Array<() => void>} fetch-slot waiters (concurrency cap) */
+    this.slotQueue = [];
+    this.activeFetches = 0;
     this.stats = { hits: 0, misses: 0, evictions: 0, aborts: 0 };
+  }
+
+  /** Wait for a fetch slot (queued case only — callers with a free slot
+   *  must start their fetch SYNCHRONOUSLY, or an abort racing the start
+   *  hands the fetcher an already-aborted signal it never listens to). */
+  #queueSlot(signal) {
+    return new Promise((resolve, reject) => {
+      const waiter = () => {
+        this.activeFetches += 1;
+        resolve();
+      };
+      waiter.cancel = () => reject(new Error(ABORTED));
+      this.slotQueue.push(waiter);
+      if (signal) {
+        signal.addEventListener('abort', () => {
+          const i = this.slotQueue.indexOf(waiter);
+          if (i >= 0) {
+            this.slotQueue.splice(i, 1);
+            waiter.cancel();
+          }
+        }, { once: true });
+      }
+    });
+  }
+
+  #releaseSlot() {
+    this.activeFetches -= 1;
+    const next = this.slotQueue.shift();
+    if (next) next();
   }
 
   has(path) {
@@ -51,9 +91,24 @@ export class BrickCache {
     // fetch for the same path may already occupy the slot by the time the
     // old promise settles.
     const entry = { promise: null, controller };
-    entry.promise = this.fetcher(path, controller.signal)
+    const startFetch = () => this.fetcher(path, controller.signal)
+      .finally(() => this.#releaseSlot());
+    let fetchPromise;
+    if (!this.maxConcurrent || this.activeFetches < this.maxConcurrent) {
+      this.activeFetches += 1;
+      fetchPromise = startFetch();               // synchronous start
+    } else {
+      fetchPromise = this.#queueSlot(controller.signal).then(() => {
+        if (controller.signal.aborted) {         // aborted while queued
+          this.#releaseSlot();
+          throw new Error(ABORTED);
+        }
+        return startFetch();
+      });
+    }
+    entry.promise = fetchPromise
       .then((buffer) => {
-        const data = new Float32Array(buffer);
+        const data = decodeBrickPayload(buffer, this.dtype);
         if (this.inflight.get(path) === entry) this.inflight.delete(path);
         this.#insert(path, data);
         return data;

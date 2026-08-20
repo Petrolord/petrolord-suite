@@ -56,6 +56,7 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
   const [project, setProject] = useState(null);
   const [sanity, setSanity] = useState(null);
   const [sanityOverride, setSanityOverride] = useState(false);
+  const [compress16, setCompress16] = useState(false); // W4.4 int16 storage
   const crsPrefilledRef = useRef(false);
   const [interrupted, setInterrupted] = useState([]); // status 'ingesting' rows
   const [resuming, setResuming] = useState(null);     // row being resumed
@@ -108,6 +109,7 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
         file,
         mapping,
         nativeCrs: crsTag,
+        compress16,
         onProgress: (p) => setProgress(p),
         cancelToken,
       });
@@ -639,6 +641,18 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
             <XCircle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />{error}
           </div>
         )}
+
+        <div className="flex items-center gap-3 text-sm text-slate-300">
+          <label className="flex items-center gap-2" title="Bricks store as scaled 16-bit integers with per-brick scaling — half the storage and egress. Quantization error is bounded by 1/65534 of each brick's own amplitude range; display and every computation still run in float32. Attribute volumes need a float32 parent.">
+            <input
+              type="checkbox"
+              checked={compress16}
+              onChange={(e) => setCompress16(e.target.checked)}
+              disabled={phase === 'ingesting'}
+            />
+            16-bit storage (half size)
+          </label>
+        </div>
 
         <div className="flex gap-3">
           <Button

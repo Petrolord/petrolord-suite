@@ -1811,3 +1811,74 @@ add two anchors, drag one, commit to checkshots -> re-synthesize shows
 'checkshots (tie-derived)'; calibrate velocity from anchors -> model
 updates with provenance; flip a section to Depth -> wells land on TVD,
 horizons overlay the stretched image, readout shows metres.
+
+## Interpreter program Wave 4 (team platform)
+
+- W4.1 Org sharing v1, read-only (migration 20260821100000 APPLIED live
+  2026-08-21): seismic_volumes.organization_id + (id::text) expression
+  index; SELECT policies own-or-org on volumes and — via exists-subquery
+  through the shared volume, no denormalization — horizons + faults;
+  the seismic bucket's SELECT policy gained the org disjunct (owner
+  first, so the private hot path is untouched; the org reader pays one
+  indexed exists per brick GET — measure in staging; recorded
+  escalation: a materialized readers grant table). All writes stay
+  owner-scoped; sharing to a foreign org is blocked by WITH CHECK. A
+  member's own interpretations on a shared volume upload under the
+  MEMBER'S uid with the volume id at path segment 2 (deliberate v1
+  semantic: org-visible, attribution stays with the author). Explorer:
+  Share with organization / Make private on own volumes, org badge,
+  teammate rows read-only ('teammate' meta, no delete/edit-target);
+  velocity + named-traverse saves disabled on shared volumes. RLS
+  pentest blocks 7/7b added and EXECUTED live (member sees 4x1, member
+  writes 0, non-member 0, foreign-org share 42501; block 1 isolation
+  re-verified; stale seismic_wells note added to the pentest header).
+- W4.2 Projects (migration 20260821110000 APPLIED live): seismic_projects
+  (personal, user-scoped) + seismic_volumes.project_id (SET NULL —
+  deleting a project unfiles, never deletes). Explorer groups volumes
+  under project header rows (flat list stays the default), New-project
+  action, per-volume Move-to-project submenu. Multi-volume: the W2.4
+  co-render overlay slot IS the second-open-volume mechanism, and
+  org-shared volumes now flow into its same-lattice candidates.
+- W4.3 Interpretation versioning (migration 20260821120000 APPLIED
+  live): version / parent_version_id / interpreter / archived_at on
+  horizons AND faults. 'New version (snapshot)' creates a fresh head
+  row (fresh id -> fresh blob: storage is append-only per version;
+  confidence companion rides along), links the parent and soft-archives
+  the old head; Restore creates ANOTHER new version — history never
+  rewrites. History submenu per horizon (Show/Hide vN with interpreter
+  attribution, Restore); visible archived versions render as dashed
+  slate overlays named 'name (vN · interpreter)' — two versions on one
+  section is the head plus a History toggle. Deleting a head removes
+  its whole archived chain. saveHorizon/saveFault stamp the interpreter.
+- W4.4 Scale and cost (engines #29 + slot fix): int16le-scaled brick
+  codec — 8-byte float32 scale/offset header + int16 counts, -32768
+  null sentinel, PER-BRICK scaling (quiet bricks keep resolution),
+  quantization error <= scale/2 (oracle-pinned, incl. the fround
+  under-span hair). '16-bit storage (half size)' at import; encode on
+  the upload edge (engines stay float32); the codec rides the ingest
+  identity so resume matches; decode lives inside BrickCache (dtype
+  option) so everything downstream is codec-blind; the aged W0.1 gate
+  turns int16 manifests into upgrade copy on old clients. Quota
+  honesty: storage_bytes counts the PADDED grid at real bytes/voxel;
+  attribute compute refuses int16 parents with friendly copy. Read
+  path: fetch concurrency cap (12/8), neighbor-slice prefetch, and an
+  IndexedDB persistent brick cache (512 MB LRU, raw payloads, IDB
+  failures fall through to the network, volume delete purges).
+
+Wave 4 OPEN items (recorded): volume thumbnails on ingest (deferred —
+cosmetic); fault version-chain UI (columns + attribution are live);
+org-shared brick-GET timing measurement in staging (escalation: readers
+grant table); projects are personal-only (no shared/org projects);
+IndexedDB cache not yet wired into workers (main-thread scrubbing is
+the hot path).
+
+Wave 4 staging E2E checklist for the owner: share a volume -> second
+account sees it read-only (bricks render, teammate horizons/faults
+listed, no delete/velocity/traverse writes) and tracks its OWN horizon
+on it (visible back to the owner); make private -> access gone; create
+a project, file volumes, delete the project -> volumes unfile; snapshot
+a horizon version, edit the head, Show the old version (dashed
+comparison), Restore it; import a small SEG-Y with 16-bit storage ->
+renders identically (±quantization), attribute compute refuses it with
+the friendly message, storage_bytes ~halved; scrub a section, reload
+the page, scrub again -> visibly faster (IndexedDB cache).

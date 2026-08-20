@@ -38,8 +38,11 @@ describe('gateManifest', () => {
   });
 
   test('a foreign brick dtype becomes the upgrade message', () => {
+    const ok = v1();
+    ok.brick.dtype = 'int16le-scaled';          // accepted since W4.4
+    expect(() => gateManifest(ok)).not.toThrow();
     const m = v1();
-    m.brick.dtype = 'int16le-scaled';
+    m.brick.dtype = 'int8le';
     expect(() => gateManifest(m)).toThrow(/Refresh the page/);
   });
 

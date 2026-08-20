@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
-  listVolumes, deleteVolume, getManifest,
+  listVolumes, deleteVolume, getManifest, setVolumeShared,
+  listProjects, createProject, deleteProject, assignVolumeProject,
 } from '../services/volumesService';
 import {
   resolveInterpState, interpNeedsMigration, composeManifest,
@@ -15,7 +16,7 @@ import {
 } from '../services/interpState';
 import {
   saveHorizon, listHorizons, loadHorizonGrid, deleteHorizon, updateHorizon,
-  loadHorizonConfidence,
+  loadHorizonConfidence, saveHorizonVersion,
   updateHorizonMeta,
 } from '../services/horizonsService';
 import { saveFault, listFaults, deleteFault } from '../services/faultsService';
@@ -23,6 +24,7 @@ import { placeWellsForHost } from '@/lib/crs/guards';
 import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExport';
 import { faultHorizonIntersection } from '../engine/faultObjects';
 import { faultSurfaceXyz, faultPolygonCsv, barriersFromFaults } from '../lib/faultObjectsExport';
+import { persistentBrickFetcher, purgePersistedBricks } from '../services/brickStore';
 import {
   listVolumeSurfaces, exportStoredSurface, loadSurfaceMapLayer,
   surfaceSectionGrid, setSurfaceShared,
@@ -158,6 +160,7 @@ export default function ViewerPanel() {
   const backend = useBackendStatus();
 
   const [volumesRefresh, setVolumesRefresh] = useState(0);
+  const [projects, setProjects] = useState([]);      // W4.2 explorer grouping
   const [allVolumes, setAllVolumes] = useState([]);  // explorer list (any status)
   const [volumeBusyId, setVolumeBusyId] = useState(null);
   // heavyweight workflows open as modal dialogs over the workspace
@@ -331,7 +334,17 @@ export default function ViewerPanel() {
   // boundary pick grids aligned with the saved layer cake's layer bases
   const [velBoundaries, setVelBoundaries] = useState(null);
   const [tracking, setTracking] = useState(null);   // {tracked, total}
-  const [horizons, setHorizons] = useState([]);
+  const [horizonRows, setHorizonRows] = useState([]); // heads + archived (W4.3)
+  // heads drive every existing consumer; archived versions live in the
+  // History submenu and (when toggled) as dashed comparison overlays
+  const horizons = useMemo(
+    () => horizonRows.filter((h) => !h.archived_at), [horizonRows],
+  );
+  const horizonVersions = useMemo(
+    () => horizonRows.filter((h) => h.archived_at), [horizonRows],
+  );
+  const [visibleVersionIds, setVisibleVersionIds] = useState(new Set());
+  const setHorizons = setHorizonRows;
   const [visibleIds, setVisibleIds] = useState(new Set());
   const [horizonBusyId, setHorizonBusyId] = useState(null);
   const [faults, setFaults] = useState([]);
@@ -346,6 +359,7 @@ export default function ViewerPanel() {
   const volumeIdRef = useRef(null);             // selected id for list-refresh checks
 
   useEffect(() => {
+    listProjects().then(setProjects).catch(() => setProjects([]));
     listVolumes()
       .then((vs) => {
         setAllVolumes(vs);
@@ -851,8 +865,14 @@ export default function ViewerPanel() {
       }
       if (seq !== selectSeqRef.current) return;   // a newer selection won; drop this one
       cacheRef.current = new BrickCache(
-        storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
-        { maxBytes: 256 * 1024 * 1024 },
+        persistentBrickFetcher(
+          storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
+        ),
+        {
+          maxBytes: 256 * 1024 * 1024,
+          dtype: m.brick?.dtype,             // W4.4: decode inside the cache
+          maxConcurrent: 12,                 // W4.4: read-path fetch cap
+        },
       );
       setInterpRev(interp.rev);
       setManifest(composeManifest(m, interp));
@@ -901,6 +921,7 @@ export default function ViewerPanel() {
     setVolumeBusyId(v.id);
     try {
       await deleteVolume(v);
+      purgePersistedBricks(v.id);            // W4.4 IndexedDB cache
       toast({ title: 'Volume deleted', description: v.name });
       setVolumesRefresh((k) => k + 1);
     } catch (e) {
@@ -909,6 +930,62 @@ export default function ViewerPanel() {
       setVolumeBusyId(null);
     }
   };
+
+  /** W4.1: share/unshare an own volume with the caller's organization —
+   *  read-only for members (bricks, manifest, everyone's horizons and
+   *  faults included). */
+  const onShareVolume = async (v) => {
+    setVolumeBusyId(v.id);
+    try {
+      await setVolumeShared(v, !v.organization_id);
+      toast(v.organization_id
+        ? { title: 'Volume is private again', description: `${v.name} is no longer visible to your organization.` }
+        : { title: 'Volume shared', description: `${v.name} is now read-only visible to your organization (interpretations included).` });
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Share failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setVolumeBusyId(null);
+    }
+  };
+
+  // ---- W4.2 projects ----------------------------------------------------
+  const onCreateProject = async () => {
+    // eslint-disable-next-line no-alert
+    const name = window.prompt('Project name:');
+    if (!name) return;
+    try {
+      await createProject(name);
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Could not create project', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const onDeleteProject = async (p) => {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Delete project "${p.name}"? Its volumes stay — they return to the flat list.`)) return;
+    try {
+      await deleteProject(p);
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Could not delete project', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const onMoveVolumeToProject = async (v, projectId) => {
+    try {
+      await assignVolumeProject(v, projectId);
+      setVolumesRefresh((k) => k + 1);
+    } catch (e) {
+      toast({ title: 'Could not move volume', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  // W4.1 read-only gating: on a teammate's shared volume, MY tracking /
+  // fault picking works (own rows under my storage path), but volume-row
+  // interpretation state (velocity, traverses) is owner-only
+  const volumeReadOnly = Boolean(volume && volume.is_own === false);
 
   const getBrick = useCallback((i, j, k) => cacheRef.current
     .get(brickKey(volume.storage_path, i, j, k)), [volume]);
@@ -943,8 +1020,10 @@ export default function ViewerPanel() {
         throw new Error('The volumes are not on the same survey lattice.');
       }
       cacheBRef.current = new BrickCache(
-        storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
-        { maxBytes: 128 * 1024 * 1024 },
+        persistentBrickFetcher(
+          storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
+        ),
+        { maxBytes: 128 * 1024 * 1024, dtype: m.brick?.dtype, maxConcurrent: 8 },
       );
       setOverlayInfo({ row, manifest: m });
     } catch (e) {
@@ -1068,6 +1147,17 @@ export default function ViewerPanel() {
       // lines for index N+1 over the image of index N (ML4)
       setSlice({ ...assembled, orientation, index: sliceIndex });
       setSliceMs(performance.now() - t0);
+      // W4.4 neighbor prefetch: warm the adjacent slices' bricks at idle
+      // priority (fire-and-forget; a scrub's cancelPendingExcept aborts
+      // stale prefetches, and cache hits make the common step instant)
+      const maxIdx = orientation === 'inline' ? geom.nIl - 1
+        : orientation === 'xline' ? geom.nXl - 1 : geom.ns - 1;
+      for (const nIdx of [sliceIndex - 1, sliceIndex + 1]) {
+        if (nIdx < 0 || nIdx > maxIdx) continue;
+        for (const { i, j, k } of bricksForSlice(geom, orientation, nIdx)) {
+          cacheRef.current.get(brickKey(volume.storage_path, i, j, k)).catch(() => {});
+        }
+      }
     } catch (e) {
       if (e.message !== ABORTED && req === requestRef.current) setError(e.message);
     } finally {
@@ -1116,6 +1206,29 @@ export default function ViewerPanel() {
           display: disp,
         });
       }
+      // W4.3 comparison overlays: visible ARCHIVED versions draw dashed
+      // with their version + interpreter in the name (two versions on
+      // one section = toggle the head and a history entry together)
+      for (const h of horizonVersions) {
+        if (!visibleVersionIds.has(h.id)) continue;
+        let grid = gridCacheRef.current.get(h.id);
+        if (!grid) {
+          try {
+            grid = await loadHorizonGrid(h);
+          } catch (e) {
+            toast({ title: `Version "${h.name} v${h.version}" failed to load`, description: e.message, variant: 'destructive' });
+            continue;
+          }
+          cacheGrid(gridCacheRef.current, h.id, grid);
+        }
+        out.push({
+          id: h.id,
+          name: `${h.name} (v${h.version}${h.interpreter ? ` · ${h.interpreter}` : ''})`,
+          grid,
+          color: '#94a3b8',
+          dash: true,
+        });
+      }
       if (session && session.targetId === 'new') {
         out.push({
           id: '__draft', name: 'New horizon (editing)', grid: session.grid, color: DRAFT_COLOR,
@@ -1124,7 +1237,8 @@ export default function ViewerPanel() {
       if (!stale) setResolvedHorizons(out);
     })();
     return () => { stale = true; };
-  }, [horizons, visibleIds, toast, edit.version, horizonDisplay]);
+  }, [horizons, visibleIds, toast, edit.version, horizonDisplay,
+    horizonVersions, visibleVersionIds]);
 
   // ---- picking (horizon seed / fault sticks) ----------------------------
   // SliceView already mapped the click through its view transform.
@@ -1593,6 +1707,7 @@ export default function ViewerPanel() {
             token,
             bucket: 'seismic',
             storagePath: volume.storage_path,
+            dtype: manifest?.brick?.dtype,   // W4.4 codec-aware worker cache
             geom,
             seed,
             opts: { ...trackerOpts(), ...extraOpts },
@@ -1802,15 +1917,110 @@ export default function ViewerPanel() {
     return out;
   }, [horizons, displayFor]);
 
+  // ---- W4.3 version chain ----------------------------------------------
+
+  /** Archived ancestors of a head, newest first (parent_version_id walk). */
+  const versionChainOf = useCallback((head) => {
+    const byId = new Map(horizonVersions.map((v) => [v.id, v]));
+    const chain = [];
+    let cur = byId.get(head.parent_version_id);
+    while (cur) {
+      chain.push(cur);
+      cur = byId.get(cur.parent_version_id);
+    }
+    return chain;
+  }, [horizonVersions]);
+
+  /** Snapshot the head's CURRENT stored picks as the new head version
+   *  (old head archives into History; storage stays append-only). */
+  const onNewHorizonVersion = async (h) => {
+    setHorizonBusyId(h.id);
+    try {
+      const picks = gridCacheRef.current.get(h.id) || await loadHorizonGrid(h);
+      const conf = await loadHorizonConfidence(h);
+      const head = await saveHorizonVersion({
+        horizon: h,
+        volume,
+        picks,
+        dtUs: manifest.geometry.dt_us,
+        params: { versioned_from: h.id },
+        confidence: conf,
+      });
+      cacheGrid(gridCacheRef.current, head.id, picks);
+      setVisibleIds((sv) => {
+        const n = new Set(sv);
+        if (n.delete(h.id)) n.add(head.id);
+        return n;
+      });
+      if (editTarget === h.id) setEditTarget(head.id);
+      await reloadHorizons(volume);
+      toast({
+        title: 'New version created',
+        description: `${h.name} is now v${head.version}; v${h.version || 1} moved to History.`,
+      });
+    } catch (e) {
+      toast({ title: 'Version failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setHorizonBusyId(null);
+    }
+  };
+
+  const onToggleVersion = (v) => {
+    setVisibleVersionIds((sv) => {
+      const n = new Set(sv);
+      if (n.has(v.id)) n.delete(v.id);
+      else n.add(v.id);
+      return n;
+    });
+  };
+
+  /** Restore = the archived content becomes ANOTHER new head version —
+   *  history never rewrites. */
+  const onRestoreVersion = async (head, v) => {
+    setHorizonBusyId(head.id);
+    try {
+      const picks = gridCacheRef.current.get(v.id) || await loadHorizonGrid(v);
+      const newHead = await saveHorizonVersion({
+        horizon: head,
+        volume,
+        picks,
+        dtUs: manifest.geometry.dt_us,
+        params: { restored_from_version: v.version },
+      });
+      cacheGrid(gridCacheRef.current, newHead.id, picks);
+      setVisibleIds((sv) => {
+        const n = new Set(sv);
+        if (n.delete(head.id)) n.add(newHead.id);
+        return n;
+      });
+      if (editTarget === head.id) setEditTarget(newHead.id);
+      await reloadHorizons(volume);
+      toast({
+        title: 'Version restored',
+        description: `${head.name} v${newHead.version} now carries the v${v.version} picks.`,
+      });
+    } catch (e) {
+      toast({ title: 'Restore failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setHorizonBusyId(null);
+    }
+  };
+
   const onDeleteHorizon = async (h) => {
+    const chain = versionChainOf(h);
     // eslint-disable-next-line no-alert
-    if (!window.confirm(`Delete horizon "${h.name}"? (Undo restores it)`)) return;
+    if (!window.confirm(`Delete horizon "${h.name}"${chain.length
+      ? ` and its ${chain.length} archived version(s)` : ''}? (Undo restores the head)`)) return;
     setHorizonBusyId(h.id);
     try {
       // capture the pick grid BEFORE the blob goes away, so undo can
       // re-create the horizon in full (new id, tracked in the box)
       const grid = gridCacheRef.current.get(h.id) || await loadHorizonGrid(h);
-      await deleteHorizon(h);
+      await deleteHorizon(h, chain);
+      chain.forEach((v) => {
+        gridCacheRef.current.delete(v.id);
+        setVisibleVersionIds((sv) => { const n = new Set(sv); n.delete(v.id); return n; });
+      });
       if (editRef.current?.targetId === h.id) closeSession();
       if (editTarget === h.id) setEditTarget('new');
       gridCacheRef.current.delete(h.id);
@@ -2389,6 +2599,10 @@ export default function ViewerPanel() {
    *  CAS-guarded — the same revision the velocity model saves under). */
   const saveTraverseAs = async () => {
     if (!traverse || !volume || !manifest) return;
+    if (volumeReadOnly) {
+      toast({ title: 'Read-only volume', description: 'Named traverses are owner-only on a shared volume — draw and view freely, saving is disabled.' });
+      return;
+    }
     // eslint-disable-next-line no-alert
     const name = window.prompt('Traverse name:', `Traverse ${savedTraverses.length + 1}`);
     if (!name) return;
@@ -2503,9 +2717,13 @@ export default function ViewerPanel() {
     slicePlanes,
     horizonColorById,
     volumes: allVolumes,
+    projects,
     activeVolumeId: volume?.id || null,
     volumeBusyId,
     horizons,
+    horizonVersions,
+    visibleVersionIds,
+    versionChainOf,
     visibleIds,
     horizonBusyId,
     editTargetId: editTarget !== 'new' ? editTarget : null,
@@ -2529,6 +2747,10 @@ export default function ViewerPanel() {
   const treeActions = {
     selectVolume,
     deleteVolume: deleteVolumeAction,
+    shareVolume: onShareVolume,
+    createProject: onCreateProject,
+    deleteProject: onDeleteProject,
+    moveVolumeToProject: onMoveVolumeToProject,
     openImport: () => setOpenDialog('import'),
     openWellImport: () => setOpenDialog('wellImport'),
     openExport: () => setOpenDialog('export'),
@@ -2540,6 +2762,9 @@ export default function ViewerPanel() {
     },
     toggleHorizon,
     deleteHorizon: onDeleteHorizon,
+    newHorizonVersion: onNewHorizonVersion,
+    toggleVersion: onToggleVersion,
+    restoreVersion: onRestoreVersion,
     openHorizonSettings,
     exportSurface: onExportSurface,
     deleteSurface: onDeleteSurface,
@@ -3053,6 +3278,7 @@ export default function ViewerPanel() {
       >
         {manifest && (
           <VelocityModelEditor
+            readOnly={volumeReadOnly}
             velMode={velMode}
             setVelMode={setVelMode}
             velDraft={velDraft}

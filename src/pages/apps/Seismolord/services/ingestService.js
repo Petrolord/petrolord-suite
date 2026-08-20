@@ -5,6 +5,7 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { buildManifest, brickRelPath, volumeDir, manifestPath } from '../engine/manifest';
+import { encodeBrickInt16, bytesPerVoxel, INT16_DTYPE, INT16_HEADER_BYTES } from '../engine/brickCodec';
 import { fileFingerprint, ingestRecord, resumeGate } from './ingestResume';
 import { planCrs, planFromRecord, applyCrsToScan } from './ingestCrs';
 import { getProjectCrs, setProjectCrs } from '@/lib/crs/settingsService';
@@ -107,13 +108,17 @@ async function uploadObject(path, body, contentType, skipExisting) {
  */
 export async function ingestVolume({
   file, mapping, name, resumeVolumeId, nativeCrs, memoryBudgetBytes, onProgress, cancelToken = {},
+  compress16 = false,
 }) {
   const userId = await currentUserId();
   const volumeId = resumeVolumeId || crypto.randomUUID();
   const dir = volumeDir(userId, volumeId);
   const displayName = name || file.name;
 
-  if (!resumeVolumeId) await assertQuota(file.size);   // brick store ≈ sample bytes
+  // pre-scan estimate: sample bytes approximate the PADDED brick store
+  // well for regular grids; the exact padded accounting lands on the row
+  // (storage_bytes) after transcode. int16 halves it.
+  if (!resumeVolumeId) await assertQuota(compress16 ? Math.ceil(file.size / 2) : file.size);
 
   // Source identity, computed before anything is registered or uploaded.
   const fingerprint = await fileFingerprint(file);
@@ -148,6 +153,9 @@ export async function ingestVolume({
       native: crsPlan.nativeTag,
       project: crsPlan.projectTag,
     });
+    // W4.4: the brick encoding is part of the ingest identity — a resume
+    // must finish with the SAME codec the first bricks were written in
+    if (compress16) ingestRec.dtype = INT16_DTYPE;
     const { data, error } = await supabase.from('seismic_volumes')
       .insert({
         id: volumeId,
@@ -172,6 +180,8 @@ export async function ingestVolume({
       });
     }
   }
+
+  const dtype = ingestRec.dtype || 'float32le';
 
   const existing = new Set();
   if (resumeVolumeId) {
@@ -213,8 +223,12 @@ export async function ingestVolume({
           const rel = brickRelPath(msg.i, msg.j, msg.k);
           const task = (async () => {
             if (!existing.has(rel.split('/').pop())) {
+              // W4.4: int16 volumes encode here, on the upload edge —
+              // the worker and every engine stage stay float32
+              const payload = dtype === INT16_DTYPE
+                ? encodeBrickInt16(new Float32Array(msg.buffer)) : msg.buffer;
               await uploadObject(`${dir}/${rel}`,
-                new Blob([msg.buffer], { type: 'application/octet-stream' }),
+                new Blob([payload], { type: 'application/octet-stream' }),
                 'application/octet-stream', Boolean(resumeVolumeId));
             }
             uploadedBricks += 1;
@@ -266,6 +280,9 @@ export async function ingestVolume({
   // additive manifest field (still manifest_version 1): the source
   // identity the ingest was gated on, for future re-import dedup hints
   manifest.source.fingerprint = ingestRec.fingerprint;
+  // W4.4: record the codec; the aged W0.1 gate turns this into upgrade
+  // copy on pre-W4.4 clients instead of garbage
+  manifest.brick.dtype = dtype;
   await uploadObject(manifestPath(userId, volumeId),
     new Blob([JSON.stringify(manifest, null, 1)], { type: 'application/json' }),
     'application/json', false).catch(async (err) => {
@@ -298,8 +315,12 @@ export async function ingestVolume({
         brick: manifest.brick.grid,
         brick_size: manifest.brick.size,
         stats: manifest.stats,
-        // quota accounting: actual brick-store footprint of this volume
-        storage_bytes: manifest.brick.count * manifest.brick.size ** 3 * 4,
+        // quota accounting: actual PADDED brick-store footprint (bricks
+        // pad to size^3 at every ragged edge; int16 halves the voxels
+        // and adds an 8-byte header per brick)
+        storage_bytes: manifest.brick.count
+          * (manifest.brick.size ** 3 * bytesPerVoxel(dtype)
+            + (dtype === INT16_DTYPE ? INT16_HEADER_BYTES : 0)),
         // identity survives readiness (survey_meta is replaced wholesale
         // here, and the completion of an interrupted-then-resumed ingest
         // must not erase what it was resumed from)
