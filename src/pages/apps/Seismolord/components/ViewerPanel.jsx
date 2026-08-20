@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot, Waves,
+  Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot, Waves, Spline,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -25,6 +25,10 @@ import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExpor
 import { faultHorizonIntersection } from '../engine/faultObjects';
 import { faultSurfaceXyz, faultPolygonCsv, barriersFromFaults } from '../lib/faultObjectsExport';
 import { persistentBrickFetcher, purgePersistedBricks } from '../services/brickStore';
+import Line2dPanel from './Line2dPanel';
+import {
+  listLines, deleteLine, setLineShared, loadLineNav,
+} from '../services/linesService';
 import {
   listVolumeSurfaces, exportStoredSurface, loadSurfaceMapLayer,
   surfaceSectionGrid, setSurfaceShared,
@@ -161,6 +165,9 @@ export default function ViewerPanel() {
 
   const [volumesRefresh, setVolumesRefresh] = useState(0);
   const [projects, setProjects] = useState([]);      // W4.2 explorer grouping
+  const [lines2d, setLines2d] = useState([]);        // W5 2D line registry
+  const [visibleLineIds, setVisibleLineIds] = useState(new Set());
+  const [lineNavs, setLineNavs] = useState(new Map()); // id -> nav (map layer)
   const [allVolumes, setAllVolumes] = useState([]);  // explorer list (any status)
   const [volumeBusyId, setVolumeBusyId] = useState(null);
   // heavyweight workflows open as modal dialogs over the workspace
@@ -360,6 +367,7 @@ export default function ViewerPanel() {
 
   useEffect(() => {
     listProjects().then(setProjects).catch(() => setProjects([]));
+    listLines().then(setLines2d).catch(() => setLines2d([]));
     listVolumes()
       .then((vs) => {
         setAllVolumes(vs);
@@ -946,6 +954,54 @@ export default function ViewerPanel() {
       toast({ title: 'Share failed', description: e.message, variant: 'destructive' });
     } finally {
       setVolumeBusyId(null);
+    }
+  };
+
+  // ---- W5 2D lines ------------------------------------------------------
+  const refreshLines2d = () => {
+    listLines().then(setLines2d).catch(() => {});
+  };
+
+  const toggleLine2d = async (l) => {
+    const showing = visibleLineIds.has(l.id);
+    setVisibleLineIds((sv) => {
+      const n = new Set(sv);
+      if (showing) n.delete(l.id);
+      else n.add(l.id);
+      return n;
+    });
+    if (!showing && !lineNavs.has(l.id)) {
+      try {
+        const nav = await loadLineNav(l);
+        setLineNavs((m) => new Map(m).set(l.id, nav));
+      } catch (e) {
+        toast({ title: 'Line navigation failed to load', description: e.message, variant: 'destructive' });
+      }
+    }
+  };
+
+  const onShareLine = async (l) => {
+    try {
+      await setLineShared(l, !l.organization_id);
+      toast(l.organization_id
+        ? { title: 'Line is private again', description: `${l.name} is no longer visible to your organization.` }
+        : { title: 'Line shared', description: `${l.name} is now read-only visible to your organization (picks included).` });
+      refreshLines2d();
+    } catch (e) {
+      toast({ title: 'Share failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const onDeleteLine = async (l) => {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Delete 2D line "${l.name}" and all of its data? This cannot be undone.`)) return;
+    try {
+      await deleteLine(l);
+      purgePersistedBricks(l.id);
+      toast({ title: 'Line deleted', description: l.name });
+      refreshLines2d();
+    } catch (e) {
+      toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
     }
   };
 
@@ -2718,6 +2774,8 @@ export default function ViewerPanel() {
     horizonColorById,
     volumes: allVolumes,
     projects,
+    lines2d,
+    visibleLineIds,
     activeVolumeId: volume?.id || null,
     volumeBusyId,
     horizons,
@@ -2751,6 +2809,10 @@ export default function ViewerPanel() {
     createProject: onCreateProject,
     deleteProject: onDeleteProject,
     moveVolumeToProject: onMoveVolumeToProject,
+    shareLine: onShareLine,
+    deleteLine: onDeleteLine,
+    toggleLine2d,
+    openLineWindow: () => setWinFocus((f) => ({ key: 'line2d', seq: (f?.seq || 0) + 1 })),
     openImport: () => setOpenDialog('import'),
     openWellImport: () => setOpenDialog('wellImport'),
     openExport: () => setOpenDialog('export'),
@@ -3159,6 +3221,22 @@ export default function ViewerPanel() {
               ),
             },
             {
+              key: 'line2d',
+              title: '2D Lines',
+              icon: Spline,
+              content: (
+                <Line2dPanel
+                  lines={lines2d}
+                  refreshLines={refreshLines2d}
+                  volumeManifest={manifest}
+                  affine={affine}
+                  geom={geom}
+                  overlays={overlays}
+                  storageCfg={{ supabaseUrl: storageBase(), getToken: accessToken }}
+                />
+              ),
+            },
+            {
               key: 'map',
               title: 'Map',
               icon: MapIcon,
@@ -3167,6 +3245,11 @@ export default function ViewerPanel() {
                   manifest={manifest}
                   geom={geom}
                   horizons={resolvedHorizons}
+                  lines2d={lines2d
+                    .filter((l) => visibleLineIds.has(l.id) && lineNavs.has(l.id))
+                    .map((l, idx) => ({
+                      id: l.id, name: l.name, nav: lineNavs.get(l.id), colorIdx: idx,
+                    }))}
                   faults={overlays.faults}
                   velocity={velocityForDisplay}
                   velocityBoundaries={velBoundaries}

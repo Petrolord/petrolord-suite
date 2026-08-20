@@ -26,6 +26,8 @@ export default {
     'griddingWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/griddingWorkerFactoryMock.js',
     // and for the W2.1 attribute-volume worker
     'attributeWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/attributeWorkerFactoryMock.js',
+    // same story for the 2D line worker (W5)
+    'lineWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/lineWorkerFactoryMock.js',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$':
       '<rootDir>/src/__mocks__/fileMock.js',

@@ -33,7 +33,8 @@ describe('gateManifest', () => {
   });
 
   test('a future manifest_version becomes the upgrade message', () => {
-    expect(() => gateManifest(v1({ manifest_version: 3 })))
+    // v3 = 2D lines (W5.1) — v4 is the future version now
+    expect(() => gateManifest(v1({ manifest_version: 4 })))
       .toThrow(/newer version of Seismolord/);
   });
 
