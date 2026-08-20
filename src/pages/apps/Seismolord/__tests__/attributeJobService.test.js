@@ -200,6 +200,7 @@ describe('helpers', () => {
   test('defaultDerivedName strips the label parenthetical and adds the window', () => {
     expect(defaultDerivedName('Dome', 'envelope')).toBe('Dome [Envelope]');
     expect(defaultDerivedName('Dome', 'rms', { windowMs: 80 })).toBe('Dome [RMS amplitude 80 ms]');
+    expect(defaultDerivedName('Dome', 'variance', { windowMs: 40 })).toBe('Dome [Variance 40 ms]');
   });
 });
 
@@ -255,6 +256,23 @@ describe('computeAttributeVolume', () => {
     expect(worker.terminated).toBe(true);
     expect(progress.some((p) => p.phase === 'upload')).toBe(true);
     expect(log.deletedId).toBeNull();
+  });
+
+  test('a neighborhood (discontinuity) attribute registers and completes too', async () => {
+    const log = wireSupabase();
+    const worker = new FakeWorker({ bricks: 2 });
+    const { manifest } = await computeAttributeVolume({
+      parent: PARENT_ROW,
+      parentManifest: PARENT_MANIFEST,
+      attribute: { name: 'variance', params: { windowMs: 40, radius: 1 } },
+      workerFactory: () => worker,
+    });
+    expect(log.inserted.attribute_params).toEqual({
+      name: 'variance', params: { windowMs: 40, radius: 1 },
+    });
+    expect(worker.config.attribute.name).toBe('variance');
+    expect(manifest.attribute).toEqual({ name: 'variance', params: { windowMs: 40, radius: 1 } });
+    expect(log.updated.status).toBe('ready');
   });
 
   test('quota preflight refuses before any registration', async () => {

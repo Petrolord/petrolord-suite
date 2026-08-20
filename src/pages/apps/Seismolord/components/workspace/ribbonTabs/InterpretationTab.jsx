@@ -255,7 +255,7 @@ export default function InterpretationTab({
           label="Attribute volume…"
           onClick={openAttribute}
           disabled={!manifest}
-          title="Compute a derived volume (envelope, phase, frequency, sweetness, RMS, AGC) from the open volume"
+          title="Compute a derived volume (envelope, phase, frequency, sweetness, RMS, AGC, variance) from the open volume"
         />
       </RibbonGroup>
 

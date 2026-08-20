@@ -19,10 +19,11 @@
 //   {type:'compute:done', id, result}        ({brickGrid, stats, traceCount})
 //   {type:'error', id, message}
 
-import { storageBrickFetcher } from '../engine/brickCache';
+import { BrickCache, storageBrickFetcher } from '../engine/brickCache';
 import { geomFromManifest, brickKey } from '../engine/sliceAssembly';
 import { makeTraceCompute } from '../engine/attributes';
-import { runVolumeJob } from '../engine/volumeJob';
+import { DISCONTINUITY_DEFS, makeNeighborhoodCompute } from '../engine/discontinuity';
+import { runVolumeJob, runNeighborhoodJob } from '../engine/volumeJob';
 import { createBrickChannel } from './brickAckChannel';
 
 const channel = createBrickChannel((msg, transfer) => self.postMessage(msg, transfer));
@@ -48,22 +49,28 @@ async function handleCompute({ id, config }) {
     getToken,
     bucket: config.bucket,
   });
-  // No LRU cache: the job reads every parent brick exactly once.
-  const fetchBrick = async (i, j, k) => new Float32Array(
-    await fetcher(brickKey(config.storagePath, i, j, k)),
-  );
 
   const manifest = config.manifest;
   const geom = geomFromManifest(manifest);           // version gate at the choke point
-  const compute = makeTraceCompute(
-    config.attribute.name,
-    config.attribute.params || {},
-    { dtUs: manifest.geometry.dt_us },
-  );
+  const { name, params = {} } = config.attribute;
+  const dtUs = manifest.geometry.dt_us;
+  const neighborhood = Boolean(DISCONTINUITY_DEFS[name]);
 
-  const result = await runVolumeJob({
+  // Per-trace jobs read every parent brick exactly once — no cache.
+  // Neighborhood jobs re-read each brick from up to 9 column rings, so
+  // an LRU keeps the shared ring bricks hot between adjacent columns.
+  let fetchBrick;
+  if (neighborhood) {
+    const cache = new BrickCache(fetcher, { maxBytes: 256 * 1024 * 1024 });
+    fetchBrick = (i, j, k) => cache.get(brickKey(config.storagePath, i, j, k));
+  } else {
+    fetchBrick = async (i, j, k) => new Float32Array(
+      await fetcher(brickKey(config.storagePath, i, j, k)),
+    );
+  }
+
+  const shared = {
     geom,
-    compute,
     fetchBrick,
     shouldCancel: () => channel.isCancelled(id),
     onProgress: (done, total, phase) => self.postMessage({ type: 'progress', id, phase, done, total }),
@@ -73,7 +80,18 @@ async function handleCompute({ id, config }) {
       [data.buffer],
       { cancelMessage: 'Attribute computation cancelled.' },
     ),
-  });
+  };
+
+  let result;
+  if (neighborhood) {
+    const { radius, compute } = makeNeighborhoodCompute(name, params, { dtUs });
+    result = await runNeighborhoodJob({ ...shared, radius, compute });
+  } else {
+    result = await runVolumeJob({
+      ...shared,
+      compute: makeTraceCompute(name, params, { dtUs }),
+    });
+  }
 
   self.postMessage({ type: 'compute:done', id, result });
 }
