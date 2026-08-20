@@ -8,6 +8,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Trash2, Building2, Lock } from 'lucide-react';
 import LogTracks from './LogTracks';
+import CrsBadge from '@/components/crs/CrsBadge';
+import CrsPicker from '@/components/crs/CrsPicker';
 
 const TABS = ['Header', 'Logs', 'Tops', 'Deviation', 'Checkshots'];
 
@@ -29,6 +31,11 @@ export default function WellDetail({ backend, well, onStatus }) {
   const [tab, setTab] = useState('Header');
   const [tops, setTops] = useState(null);       // null = loading
   const [logs, setLogs] = useState(null);
+  // Legacy wells carry no structured CRS; Assign CRS patches the row
+  // in place (declares what the stored coordinates already are — it
+  // never transforms them). crsPatch mirrors the update locally.
+  const [assigningCrs, setAssigningCrs] = useState(false);
+  const [crsPatch, setCrsPatch] = useState(null);
   const [plotted, setPlotted] = useState([]);   // log ids ticked for the tracks
   const [tracks, setTracks] = useState([]);     // [{log, data}] resolved curves
   const [curveBusy, setCurveBusy] = useState(false);
@@ -140,7 +147,49 @@ export default function WellDetail({ backend, well, onStatus }) {
             <Field label="Surface Y (m)">{fmt(well.surface_y)}</Field>
             <Field label="KB (m)">{fmt(well.kb_m)}</Field>
             <Field label="TD (m MD)">{fmt(well.td_md_m)}</Field>
-            <Field label="CRS">{well.crs_note}</Field>
+            <Field label="CRS">
+              <span className="flex items-center gap-2 flex-wrap">
+                <CrsBadge tag={crsPatch?.crs ?? well.crs} />
+                {(crsPatch?.crs ?? well.crs) == null && (
+                  <button
+                    type="button"
+                    className="text-cyan-400 hover:underline"
+                    onClick={() => setAssigningCrs((a) => !a)}
+                  >
+                    Assign CRS…
+                  </button>
+                )}
+              </span>
+              {assigningCrs && (
+                <div className="mt-1 max-w-xs">
+                  <div className="text-slate-500 mb-1">
+                    Declares what the stored coordinates already are. Nothing is transformed.
+                  </div>
+                  <CrsPicker
+                    value={null}
+                    onChange={async (tag) => {
+                      try {
+                        const patch = {
+                          crs: tag === 'UNKNOWN' ? null : tag,
+                          crs_provenance: {
+                            assigned_manually: true,
+                            declared_crs: tag,
+                            date: new Date().toISOString(),
+                          },
+                        };
+                        await backend.updateWell(well.id, patch);
+                        setCrsPatch(patch);
+                        setAssigningCrs(false);
+                        onStatus(`CRS assigned: ${tag}`);
+                      } catch (e) {
+                        onStatus(e.message);
+                      }
+                    }}
+                  />
+                </div>
+              )}
+            </Field>
+            <Field label="CRS note">{well.crs_note}</Field>
             <Field label="Units">{well.units_note}</Field>
             <Field label="Deviation stations">{(well.deviation || []).length}</Field>
             <Field label="Checkshot pairs">{(well.checkshots || []).length}</Field>
