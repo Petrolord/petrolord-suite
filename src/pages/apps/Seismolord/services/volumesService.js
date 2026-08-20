@@ -4,6 +4,9 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { SEISMIC_BUCKET } from './ingestService';
+import { gateManifest } from './manifestGate';
+
+export { gateManifest };
 
 export async function listVolumes() {
   const { data, error } = await supabase
@@ -19,7 +22,7 @@ export async function getManifest(volume) {
     .from(SEISMIC_BUCKET)
     .download(`${volume.storage_path}/manifest.json`);
   if (error) throw new Error(`Could not load manifest: ${error.message}`);
-  return JSON.parse(await data.text());
+  return gateManifest(JSON.parse(await data.text()));
 }
 
 /**
