@@ -25,7 +25,17 @@ export const ALL_ATTRIBUTE_DEFS = { ...ATTRIBUTE_DEFS, ...DISCONTINUITY_DEFS };
 export function derivedStorageBytes(parentManifest) {
   const b = parentManifest?.brick;
   if (!b?.count || !b?.size) throw new Error('Parent manifest has no brick block.');
+  // derived volumes always write float32 bricks on the parent's PADDED grid
   return b.count * b.size ** 3 * 4;
+}
+
+/** W4.4: attribute math needs full-precision input — surface the engine
+ *  rule as friendly copy before any work starts. */
+export function assertFloat32Parent(parentManifest) {
+  const dtype = parentManifest?.brick?.dtype ?? 'float32le';
+  if (dtype !== 'float32le') {
+    throw new Error('Attribute volumes need a float32 parent — this volume was imported with 16-bit storage. Re-import it without compression to compute attributes.');
+  }
 }
 
 /** Default display name for a derived volume. */
@@ -96,6 +106,7 @@ export async function computeAttributeVolume({
   if (userError || !user) throw new Error('You must be signed in to compute attributes.');
   const userId = user.id;
 
+  assertFloat32Parent(parentManifest);
   await assertQuota(derivedStorageBytes(parentManifest));
 
   const volumeId = crypto.randomUUID();

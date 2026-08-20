@@ -24,6 +24,7 @@ import { placeWellsForHost } from '@/lib/crs/guards';
 import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExport';
 import { faultHorizonIntersection } from '../engine/faultObjects';
 import { faultSurfaceXyz, faultPolygonCsv, barriersFromFaults } from '../lib/faultObjectsExport';
+import { persistentBrickFetcher, purgePersistedBricks } from '../services/brickStore';
 import {
   listVolumeSurfaces, exportStoredSurface, loadSurfaceMapLayer,
   surfaceSectionGrid, setSurfaceShared,
@@ -864,8 +865,14 @@ export default function ViewerPanel() {
       }
       if (seq !== selectSeqRef.current) return;   // a newer selection won; drop this one
       cacheRef.current = new BrickCache(
-        storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
-        { maxBytes: 256 * 1024 * 1024 },
+        persistentBrickFetcher(
+          storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
+        ),
+        {
+          maxBytes: 256 * 1024 * 1024,
+          dtype: m.brick?.dtype,             // W4.4: decode inside the cache
+          maxConcurrent: 12,                 // W4.4: read-path fetch cap
+        },
       );
       setInterpRev(interp.rev);
       setManifest(composeManifest(m, interp));
@@ -914,6 +921,7 @@ export default function ViewerPanel() {
     setVolumeBusyId(v.id);
     try {
       await deleteVolume(v);
+      purgePersistedBricks(v.id);            // W4.4 IndexedDB cache
       toast({ title: 'Volume deleted', description: v.name });
       setVolumesRefresh((k) => k + 1);
     } catch (e) {
@@ -1012,8 +1020,10 @@ export default function ViewerPanel() {
         throw new Error('The volumes are not on the same survey lattice.');
       }
       cacheBRef.current = new BrickCache(
-        storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
-        { maxBytes: 128 * 1024 * 1024 },
+        persistentBrickFetcher(
+          storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
+        ),
+        { maxBytes: 128 * 1024 * 1024, dtype: m.brick?.dtype, maxConcurrent: 8 },
       );
       setOverlayInfo({ row, manifest: m });
     } catch (e) {
@@ -1137,6 +1147,17 @@ export default function ViewerPanel() {
       // lines for index N+1 over the image of index N (ML4)
       setSlice({ ...assembled, orientation, index: sliceIndex });
       setSliceMs(performance.now() - t0);
+      // W4.4 neighbor prefetch: warm the adjacent slices' bricks at idle
+      // priority (fire-and-forget; a scrub's cancelPendingExcept aborts
+      // stale prefetches, and cache hits make the common step instant)
+      const maxIdx = orientation === 'inline' ? geom.nIl - 1
+        : orientation === 'xline' ? geom.nXl - 1 : geom.ns - 1;
+      for (const nIdx of [sliceIndex - 1, sliceIndex + 1]) {
+        if (nIdx < 0 || nIdx > maxIdx) continue;
+        for (const { i, j, k } of bricksForSlice(geom, orientation, nIdx)) {
+          cacheRef.current.get(brickKey(volume.storage_path, i, j, k)).catch(() => {});
+        }
+      }
     } catch (e) {
       if (e.message !== ABORTED && req === requestRef.current) setError(e.message);
     } finally {
@@ -1686,6 +1707,7 @@ export default function ViewerPanel() {
             token,
             bucket: 'seismic',
             storagePath: volume.storage_path,
+            dtype: manifest?.brick?.dtype,   // W4.4 codec-aware worker cache
             geom,
             seed,
             opts: { ...trackerOpts(), ...extraOpts },

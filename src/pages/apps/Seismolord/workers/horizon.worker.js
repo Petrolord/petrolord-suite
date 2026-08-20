@@ -49,7 +49,7 @@ self.onmessage = async (e) => {
       supabaseUrl: config.supabaseUrl,
       getToken,
       bucket: config.bucket,
-    }), { maxBytes: 512 * 1024 * 1024 });
+    }), { maxBytes: 512 * 1024 * 1024, dtype: config.dtype });
 
     const getBrick = (i, j, k) =>
       cache.get(brickKey(config.storagePath, i, j, k));
