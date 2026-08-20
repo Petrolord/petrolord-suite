@@ -1882,3 +1882,62 @@ comparison), Restore it; import a small SEG-Y with 16-bit storage ->
 renders identically (±quantization), attribute compute refuses it with
 the friendly message, storage_bytes ~halved; scrub a section, reload
 the page, scrub again -> visibly faster (IndexedDB cache).
+
+## Interpreter program Wave 5 (2D seismic — the committed final wave)
+
+- W5.1 Data model (engines #30 + migration 20260821140000 APPLIED live
+  2026-08-21): seismic_lines — strip store (strips/{i}-{k}.f32, 64x64
+  float32 tiles), float64 nav.bin (UTM precision), manifest_version 3
+  kind '2d_line' riding the aged W0.1 gate (READ_MAX 2 -> 3; pre-W5
+  clients get upgrade copy; 3D readers refuse the KIND loudly). Org
+  sharing + projects + the mistie static (bulk_shift_ms) ride the Wave
+  4 machinery from day one; the seismic bucket SELECT policy resolves
+  shared LINES from path segment 2 like shared volumes.
+  seismic_line_picks = per-trace f32 pick arrays grouped across lines
+  by horizon NAME (the mistie/mapping join key), own-or-org SELECT.
+- W5.2 Ingest: full-scan navigation from trace headers (CDP/SP labels;
+  crooked lines are the normal case; dead-header coordinates
+  interpolate with a warning; CDP monotonicity advisory), rev1 + source
+  -coords mapping presets, one-pass strip transcode under the ingest
+  memory discipline, uploads under the ack backpressure. Navigation
+  converts to the Project CRS by POINT transform (no lattice, no affine
+  subtlety); the native declaration is kept on the row. No resume in v1
+  (lines are small; a failed import marks the row 'failed' for delete).
+- W5.3 Display + interpretation: the 2D Lines window renders the line
+  through SliceView in traverse mode. With a 3D volume open and a
+  MATCHING sample rate, lineToLattice emits the traverse positions
+  contract, so horizons, registry surfaces, fault sticks and wells all
+  draw on the line through the existing traverse overlay stack — the
+  line-volume intersection display for free. Pick horizon: snap picking
+  + track-along-line (autotrack2D on the line section, manual picks
+  kept where the tracker loses the event), named pick sets
+  (create/update by name), per-trace pick overlays (new SliceView
+  tracePicks channel). Explorer 2D Lines section (map eye, share,
+  delete); MapView draws navigation polylines with name labels and
+  line-line crossing markers (Layers toggle).
+- W5.4 2D-3D integration: line-line crossings (binned segment
+  intersection, fractional trace indices), mistie analysis — every line
+  carrying the chosen horizon name joins; least-squares per-line bulk
+  shifts (mean-zero gauge; constructed statics recovered exactly in the
+  oracle); Apply stores bulk_shift_ms per line and the section reloads
+  with the static applied as an integer-sample roll (stored samples
+  never change). crossingTraces feeds the existing phase/bulk-shift
+  estimators for character misties (engine-ready).
+
+Wave 5 OPEN items (recorded): 2D pick grids as extra control points in
+surface gridding/mapping (the engines pieces exist — picks + nav +
+lineToLattice; the surfaceWorkflow merge is the follow-on); line
+position markers on 3D inline/xline sections; phase/amplitude mistie UI
+(crossingTraces + estimatePhaseRotation are wired engine-side); 3D
+overlays on lines require matching dt (resample later); import resume;
+sub-sample static application; standalone 2D basemap (map needs an open
+volume today).
+
+Wave 5 staging E2E checklist for the owner: import a 2D SEG-Y (declare
+its CRS) -> line lists in the explorer, navigation draws on the map;
+import a second crossing line -> crossing marker appears; open the 2D
+Lines window, pick a horizon on each line under the same name (track
+along line), Misties -> Analyze shows the crossing dt and RMS, Apply ->
+both lines carry statics and the section reloads shifted; with the 3D
+volume open (same dt) confirm 3D horizons/wells draw on the line;
+share a line -> teammate sees it read-only with picks.
