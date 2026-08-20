@@ -6,8 +6,13 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import {
-  listVolumes, deleteVolume, getManifest, saveManifestVelocity, saveManifestTraverses,
+  listVolumes, deleteVolume, getManifest,
 } from '../services/volumesService';
+import {
+  resolveInterpState, interpNeedsMigration, composeManifest,
+  applyVelocityToManifest, applyTraversesToManifest,
+  getVolumeRow, saveVolumeVelocity, saveVolumeTraverses, migrateInterpState,
+} from '../services/interpState';
 import {
   saveHorizon, listHorizons, loadHorizonGrid, deleteHorizon, updateHorizon,
   updateHorizonMeta,
@@ -152,7 +157,13 @@ export default function ViewerPanel() {
 
   const [volumes, setVolumes] = useState([]);
   const [volume, setVolume] = useState(null);
+  // Effective manifest: the frozen storage manifest composed with the
+  // row's interpretation state (velocity / calibration / traverses).
+  // Storage manifest.json is never rewritten after ingest (W0.2).
   const [manifest, setManifest] = useState(null);
+  // seismic_volumes.interp_rev this session read; every save is a CAS
+  // against it and adopts the bumped value from the returned row.
+  const [interpRev, setInterpRev] = useState(0);
 
   // CRS guard: wells convert into the active volume's frame when both
   // tags are known, render flagged when either is unknown, and drop
@@ -366,8 +377,9 @@ export default function ViewerPanel() {
     }
     setVelBusy(true);
     try {
-      const next = await saveManifestVelocity(volume, manifest, model);
-      setManifest(next);
+      const row = await saveVolumeVelocity(volume, model, null, interpRev);
+      setInterpRev(row.interp_rev);
+      setManifest((m) => applyVelocityToManifest(m, model, null));
       toast({
         title: model ? 'Velocity model saved' : 'Velocity model removed',
         description: describeVelocity(model),
@@ -393,12 +405,13 @@ export default function ViewerPanel() {
 
   /** Apply a calibrated model (WellTiePanel's explicit Save — the only
    *  path that rewrites the model outside the editor). The calibration
-   *  provenance persists alongside (manifest.velocity_calibration) so
-   *  depth exports can record wells_used; a manual editor save clears
-   *  it again (saveManifestVelocity's default). */
+   *  provenance persists alongside (velocity_calibration) so depth
+   *  exports can record wells_used; a manual editor save clears it
+   *  again (saveVolumeVelocity with null calibration). */
   const applyCalibratedModel = async (model, calibration) => {
-    const next = await saveManifestVelocity(volume, manifest, model, calibration);
-    setManifest(next);
+    const row = await saveVolumeVelocity(volume, model, calibration, interpRev);
+    setInterpRev(row.interp_rev);
+    setManifest((m) => applyVelocityToManifest(m, model, calibration));
     toast({ title: 'Velocity model calibrated', description: describeVelocity(model) });
   };
 
@@ -613,17 +626,28 @@ export default function ViewerPanel() {
     if (!v) { setHorizons([]); setFaults([]); return; }
     setLoading(true);
     try {
-      const m = await getManifest(v);
-      const [hz, flt] = await Promise.all([
+      const [m, row, hz, flt] = await Promise.all([
+        getManifest(v),
+        // the list snapshot's interp_rev may be stale; CAS needs fresh
+        getVolumeRow(v.id).catch(() => v),
         listHorizons(v.id).catch(() => []),
         listFaults(v.id).catch(() => []),
       ]);
+      let interp = resolveInterpState(row, m);
+      if (interp.rev === 0 && interpNeedsMigration(m)) {
+        // one-time write-through of legacy manifest interp state; a
+        // failure (offline, race) just keeps the manifest fallback
+        try {
+          interp = resolveInterpState(await migrateInterpState(v, m), m);
+        } catch { /* fallback already in place */ }
+      }
       if (seq !== selectSeqRef.current) return;   // a newer selection won; drop this one
       cacheRef.current = new BrickCache(
         storageBrickFetcher({ supabaseUrl: storageBase(), getToken: accessToken }),
         { maxBytes: 256 * 1024 * 1024 },
       );
-      setManifest(m);
+      setInterpRev(interp.rev);
+      setManifest(composeManifest(m, interp));
       setHorizons(hz);
       setFaults(flt);
       setOrientation('inline');
@@ -1618,8 +1642,8 @@ export default function ViewerPanel() {
     }
   }, [geom, volume, getBrick]);
 
-  /** Persist the drawn line under a name (manifest.traverses — the same
-   *  owner-path manifest upsert as the velocity model). */
+  /** Persist the drawn line under a name (seismic_volumes.traverses,
+   *  CAS-guarded — the same revision the velocity model saves under). */
   const saveTraverseAs = async () => {
     if (!traverse || !volume || !manifest) return;
     // eslint-disable-next-line no-alert
@@ -1628,8 +1652,10 @@ export default function ViewerPanel() {
     setTraverseBusy(true);
     try {
       const entry = { id: crypto.randomUUID(), name, vertices: traverse.vertices };
-      const next = await saveManifestTraverses(volume, manifest, [...savedTraverses, entry]);
-      setManifest(next);
+      const nextList = [...savedTraverses, entry];
+      const row = await saveVolumeTraverses(volume, nextList, interpRev);
+      setInterpRev(row.interp_rev);
+      setManifest((m) => applyTraversesToManifest(m, nextList));
       setTraverseSavedId(entry.id);
       toast({ title: 'Traverse saved', description: `${name}: ${traverse.positions.length} traces.` });
     } catch (e) {
@@ -1656,10 +1682,10 @@ export default function ViewerPanel() {
     if (!window.confirm(`Delete saved traverse "${entry.name}"?`)) return;
     setTraverseBusy(true);
     try {
-      const next = await saveManifestTraverses(
-        volume, manifest, savedTraverses.filter((s) => s.id !== entry.id),
-      );
-      setManifest(next);
+      const nextList = savedTraverses.filter((s) => s.id !== entry.id);
+      const row = await saveVolumeTraverses(volume, nextList, interpRev);
+      setInterpRev(row.interp_rev);
+      setManifest((m) => applyTraversesToManifest(m, nextList));
       // the drawn line stays on screen
       setTraverseSavedId((id) => (id === entry.id ? null : id));
     } catch (e) {

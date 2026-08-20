@@ -1551,3 +1551,40 @@ settings, merged) + stacked PRs #197 (SEG-Y door) -> #198 (well doors)
   are geodetically invisible per-dataset (caught by overlay guards);
   RCP ft-rescale hand-off deliberately kept (one-unit model) with CRS
   blanked on rescale.
+
+## Interpreter program Wave 0 — enablers (2026-08-20): DONE, aging
+
+Plan of record: /root/.claude/plans/glowing-napping-firefly.md (three-agent
+Petrel-expert audit; owner-locked order: interpreter-trust wins first, 2D
+seismic committed as the final wave). Wave 0 ships first so both enablers
+age in production ahead of Wave 2 derived volumes and W4 sharing.
+
+- W0.1 Manifest version gate (engines PR #15 + Suite PR #204):
+  `assertManifestSupported` (MANIFEST_READ_MAX = 1, named
+  UNSUPPORTED_MANIFEST error) refuses newer manifest_version or any brick
+  dtype other than float32le, called at the top of `geomFromManifest` in
+  `sliceAssembly.js` — the single reader choke point. Suite surfaces the
+  refusal as upgrade copy from `getManifest` (services/manifestGate.js;
+  separate module because ingestService's inline worker URL uses
+  import.meta, which jest cannot parse). v1 and pre-versioning manifests
+  pass unchanged (pinned in both repos' tests).
+- W0.2 Manifest immutable-after-ingest (Suite PR #205 + migration
+  20260820150000): velocity model, well-tie calibration, and named
+  traverses move from manifest.json into seismic_volumes columns
+  (velocity_model / velocity_calibration / traverses jsonb) guarded by
+  integer-revision compare-and-set (interp_rev; stale revision = named
+  INTERP_CONFLICT with reload copy). services/interpState.js owns
+  precedence (row authoritative once interp_rev > 0, its nulls mean
+  deleted; rev 0 falls back to legacy manifest fields and writes through
+  once on open), manifest composition for the viewer, and the CAS saves.
+  saveManifestVelocity / saveManifestTraverses are deleted — remaining
+  manifest.json writers are ingest (creation) and CRS reprojection
+  (geometry-only patch, by design). ViewerPanel keeps a composed
+  "effective manifest" so every downstream consumer (ExportPanel,
+  AiPanel, surfaceWorkflow) is untouched. This removes the last-write-
+  wins read-modify-write hazard and is the precondition for org sharing
+  (W4.1).
+- Migration status: 20260820150000 APPLIED live 2026-08-20
+  (owner-authorized; rollback-wrapped dry run first; post-apply probe:
+  4 columns present, 5 existing volumes at interp_rev 0 awaiting lazy
+  write-through on first open). W0.1 merged to main via PR #204.
