@@ -1620,7 +1620,7 @@ age in production ahead of Wave 2 derived volumes and W4 sharing.
   state (window tree remounts via epoch key), validates display fields,
   clamps indices to live geometry. Sessions & bookmarks dialog.
 - W1.3 Culture/GIS layers (engines PRs #17 #18 + migration
-  20260820190000 PENDING owner apply): geo_culture registry (features
+  20260820190000 APPLIED live 2026-08-20): geo_culture registry (features
   blob in new private culture bucket, org-shareable, the geo_surfaces
   model), GeoJSON + shapefile import engines (spec-level golden
   binaries; realm-safe buffers), shared CultureImportDialog with CRS
