@@ -35,6 +35,7 @@ import {
 } from '../engine/traverse';
 import {
   extractHorizonAmplitude, bricksForHorizonAmplitude,
+  extractIntervalAttribute, bricksForIntervalAttribute, extractHorizonIsofrequency,
 } from '../engine/horizonAmplitude';
 import { makeTvdssToTwt, buildWellLatticePath } from '../engine/wellSection';
 import { surveyAffine, sameLattice } from '../engine/surveyGeometry';
@@ -2117,20 +2118,35 @@ export default function ViewerPanel() {
     }
   }, [geom, traverse, traverseSlice, pickMode, eraseSize, snapMode, snapWindow, applyOp]);
 
-  /** Map amplitude-attribute extraction along a horizon grid. The
-   *  needed brick keys are registered up front so a concurrent slice
-   *  scrub cannot abort the extraction's fetches (traverse pattern). */
+  /** Map amplitude-attribute extraction along a horizon grid — single
+   *  horizon, A-to-B interval (opts.picksB, W2.5) or isofrequency
+   *  (opts.freqHz, W2.5). The needed brick keys are registered up front
+   *  so a concurrent slice scrub cannot abort the extraction's fetches
+   *  (traverse pattern). */
   const extractAmplitude = useCallback(async (grid, opts) => {
     if (!geom || !volume) throw new Error('No volume selected');
-    const keys = new Set(bricksForHorizonAmplitude(geom, grid, opts.window || 0)
-      .map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
+    let preflight;
+    let run;
+    if (opts.picksB) {
+      preflight = bricksForIntervalAttribute(geom, grid, opts.picksB);
+      run = () => extractIntervalAttribute(getBrick, geom, grid, opts.picksB, { mode: opts.mode });
+    } else if (opts.freqHz) {
+      preflight = bricksForHorizonAmplitude(geom, grid, opts.window || 0);
+      run = () => extractHorizonIsofrequency(getBrick, geom, grid, {
+        freqHz: opts.freqHz, window: opts.window, dtUs: manifest.geometry.dt_us,
+      });
+    } else {
+      preflight = bricksForHorizonAmplitude(geom, grid, opts.window || 0);
+      run = () => extractHorizonAmplitude(getBrick, geom, grid, opts);
+    }
+    const keys = new Set(preflight.map(({ i, j, k }) => brickKey(volume.storage_path, i, j, k)));
     ampBricksRef.current = keys;
     try {
-      return await extractHorizonAmplitude(getBrick, geom, grid, opts);
+      return await run();
     } finally {
       if (ampBricksRef.current === keys) ampBricksRef.current = null;
     }
-  }, [geom, volume, getBrick]);
+  }, [geom, volume, manifest, getBrick]);
 
   /** Persist the drawn line under a name (seismic_volumes.traverses,
    *  CAS-guarded — the same revision the velocity model saves under). */

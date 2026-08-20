@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Ban, Download, Grid3X3, Loader2, XCircle, Send, Mountain,
 } from 'lucide-react';
-import { AMP_MODES } from '../engine/horizonAmplitude';
+import { AMP_MODES, INTERVAL_MODES } from '../engine/horizonAmplitude';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -74,8 +74,10 @@ export default function ExportPanel({
   const [horizons, setHorizons] = useState([]);
   const [horizonId, setHorizonId] = useState('');
   const [objectKind, setObjectKind] = useState('surface'); // 'surface' | 'amplitude' | 'picks'
-  const [ampMode, setAmpMode] = useState('value');    // engine AMP_MODES key
+  const [ampMode, setAmpMode] = useState('value');    // AMP_MODES key, 'interval_<mode>' or 'isofreq'
   const [ampWindow, setAmpWindow] = useState(4);      // half-width, samples
+  const [horizonBId, setHorizonBId] = useState('');   // W2.5 interval: second horizon
+  const [freqHz, setFreqHz] = useState(30);           // W2.5 isofrequency
   const [domain, setDomain] = useState('depth');      // 'depth' | 'twt'
   const [velocity, setVelocity] = useState(10000);    // ft/s
   const [cell, setCell] = useState(0);                // m, 0 -> default bin
@@ -120,16 +122,28 @@ export default function ExportPanel({
 
   const isPicks = objectKind === 'picks';
   const isAmp = objectKind === 'amplitude';
-  const ampMeta = AMP_MODES.find((m) => m.key === ampMode);
+  const isInterval = ampMode.startsWith('interval_');
+  const isIso = ampMode === 'isofreq';
+  const ampMeta = AMP_MODES.find((m) => m.key === ampMode) || null;
 
   const runAmplitudeExport = async (horizon, destination, signal) => {
-    const win = ampMeta.windowed ? Math.max(0, Math.round(ampWindow)) : 0;
+    const horizonB = isInterval ? horizons.find((h) => h.id === horizonBId) : null;
+    if (isInterval && !horizonB) {
+      throw new Error('Pick the second horizon for an interval attribute.');
+    }
+    if (isInterval && horizonB.id === horizon.id) {
+      throw new Error('Interval attributes need two different horizons.');
+    }
+    const win = isIso ? Math.max(2, Math.round(ampWindow))
+      : ampMeta?.windowed ? Math.max(0, Math.round(ampWindow)) : 0;
     const { g, spec, live, vMin, vMax, xyzText } = await gridHorizonAmplitude({
       manifest,
       horizon,
+      horizonB,
       extract: extractAmplitude,
-      mode: ampMode,
+      mode: isInterval ? ampMode.slice('interval_'.length) : ampMode,
       window: win,
+      freqHz: isIso ? freqHz : null,
       cellM: cell,
       signal,
     });
@@ -142,9 +156,15 @@ export default function ExportPanel({
     else text = writeZMAP({ ...g, name: safeName });
     const fileName = `${safeName}_${ampMode}.${fmt.ext}`;
 
+    const modeLabel = isIso ? `Isofrequency ${freqHz} Hz`
+      : isInterval
+        ? INTERVAL_MODES.find((m) => `interval_${m.key}` === ampMode).label
+        : ampMeta.label;
     const params = {
       attribute: ampMode,
-      window_samples: ampMeta.windowed ? win : null,
+      window_samples: ampMeta?.windowed || isIso ? win : null,
+      ...(isIso ? { freq_hz: freqHz } : {}),
+      ...(horizonB ? { horizon_b: horizonB.name, horizon_b_id: horizonB.id } : {}),
       cell_m: spec.dx,
       survey_geometry: affine.legacyAxisAligned ? 'corners_axis_aligned' : 'measured_affine',
       live_nodes: live,
@@ -154,7 +174,7 @@ export default function ExportPanel({
 
     if (destination === 'registry') {
       await saveAmplitudeAsSurface({
-        volume, horizon, mode: ampMode, modeLabel: ampMeta.label, g, spec, params,
+        volume, horizon, mode: ampMode, modeLabel, g, spec, params,
       });
       onSurfaceSaved?.();
     } else {
@@ -363,7 +383,7 @@ export default function ExportPanel({
                 <div>
                   <Label
                     className="text-slate-300"
-                    title="Amplitude = parabolic value at the sub-sample pick; the windowed statistics run over ± the window around it, nulls excluded"
+                    title="At-horizon attributes run around the pick; interval attributes run over every sample between this horizon and a second one; isofrequency reads the spectral amplitude at one frequency in a window about the pick"
                   >
                     Attribute
                   </Label>
@@ -372,19 +392,58 @@ export default function ExportPanel({
                     value={ampMode}
                     onChange={(e) => setAmpMode(e.target.value)}
                   >
-                    {AMP_MODES.map((m) => (
-                      <option key={m.key} value={m.key}>{m.label}</option>
+                    <optgroup label="At horizon">
+                      {AMP_MODES.map((m) => (
+                        <option key={m.key} value={m.key}>{m.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Between two horizons">
+                      {INTERVAL_MODES.map((m) => (
+                        <option key={m.key} value={`interval_${m.key}`}>{m.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Spectral">
+                      <option value="isofreq">Isofrequency</option>
+                    </optgroup>
+                  </select>
+                </div>
+              )}
+              {isAmp && isInterval && (
+                <div>
+                  <Label className="text-slate-300" title="The statistic runs from this horizon to the one picked above, whichever is shallower">
+                    Second horizon
+                  </Label>
+                  <select
+                    className="w-full mt-1 rounded-md bg-slate-950 border border-slate-700 text-slate-200 p-2 text-sm"
+                    value={horizonBId}
+                    onChange={(e) => setHorizonBId(e.target.value)}
+                  >
+                    <option value="">Select…</option>
+                    {horizons.filter((h) => h.id !== horizonId).map((h) => (
+                      <option key={h.id} value={h.id}>{h.name}</option>
                     ))}
                   </select>
                 </div>
               )}
-              {isAmp && ampMeta?.windowed && (
+              {isAmp && isIso && (
                 <div>
-                  <Label className="text-slate-300" title="Half-width of the statistic window, in samples either side of the pick">
+                  <Label className="text-slate-300" title="Spectral amplitude is read at this frequency (Hann-tapered window about the pick)">
+                    Frequency (Hz)
+                  </Label>
+                  <Input
+                    type="number" value={freqHz} min="1" step="1"
+                    className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                    onChange={(e) => setFreqHz(Number(e.target.value) || 30)}
+                  />
+                </div>
+              )}
+              {isAmp && (ampMeta?.windowed || isIso) && (
+                <div>
+                  <Label className="text-slate-300" title="Half-width of the window, in samples either side of the pick">
                     Window (± samples)
                   </Label>
                   <Input
-                    type="number" value={ampWindow} min="0" step="1"
+                    type="number" value={ampWindow} min={isIso ? '2' : '0'} step="1"
                     className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
                     onChange={(e) => setAmpWindow(Number(e.target.value))}
                   />

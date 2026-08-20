@@ -119,6 +119,37 @@ describe('gridHorizonAmplitude', () => {
     expect(extract).toHaveBeenCalledWith(expect.any(Float32Array), { mode: 'rms', window: 6 });
   });
 
+  test('W2.5: a second horizon loads its grid and reaches the extractor as picksB', async () => {
+    const aff = surveyAffine(MANIFEST.geometry);
+    const picksA = fullPicks();
+    const picksB = fullPicks();
+    picksB.fill(20);
+    loadHorizonGrid.mockImplementation(async (h) => (h.id === 'h2' ? picksB : picksA));
+    const extract = jest.fn(linearExtract(0.4, 3e-4, -1.5e-4, aff));
+    await gridHorizonAmplitude({
+      manifest: MANIFEST,
+      horizon: HORIZON,
+      horizonB: { id: 'h2', name: 'Dome Base', volume_id: 'v1' },
+      extract,
+      mode: 'rms',
+    });
+    expect(loadHorizonGrid).toHaveBeenCalledWith(expect.objectContaining({ id: 'h2' }));
+    const opts = extract.mock.calls[0][1];
+    expect(opts.mode).toBe('rms');
+    expect(opts.picksB).toBe(picksB);
+    expect(opts.freqHz).toBeUndefined();
+  });
+
+  test('W2.5: a frequency reaches the extractor for isofrequency maps', async () => {
+    const aff = surveyAffine(MANIFEST.geometry);
+    loadHorizonGrid.mockResolvedValue(fullPicks());
+    const extract = jest.fn(linearExtract(0.4, 3e-4, -1.5e-4, aff));
+    await gridHorizonAmplitude({
+      manifest: MANIFEST, horizon: HORIZON, extract, mode: 'isofreq', window: 8, freqHz: 30,
+    });
+    expect(extract.mock.calls[0][1]).toEqual({ mode: 'isofreq', window: 8, freqHz: 30 });
+  });
+
   test('a pre-aborted signal cancels before touching bricks', async () => {
     loadHorizonGrid.mockResolvedValue(fullPicks());
     const extract = jest.fn();

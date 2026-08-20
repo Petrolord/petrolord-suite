@@ -1684,3 +1684,45 @@ scale bar measured against a ruler.
   services/seismicStorage.js so volumesService/horizonsService no longer
   inherit ingestService's jest-unparseable import.meta. PorePressure's
   velocity-trend registry skips attribute volumes.
+- W2.3 Discontinuity (engines PR #20 + Suite integration): windowed
+  semblance variance over a (2r+1)^2 trace neighborhood (per-lag live
+  counts; center-null propagation, <2 live traces -> NULL, silent
+  window -> coherent 0, clamped [0,1]) validated against an independent
+  numpy implementation on a synthetic faulted wedge (fault bright,
+  interior dark, 1e-6 parity end-to-end through a real brick store).
+  runNeighborhoodJob reads the one-brick ring per output column; the
+  worker wraps fetches in a 256 MiB LRU (ring bricks re-read by up to
+  9 neighboring columns). Variance lists in the same compute dialog
+  (params windowMs + trace radius). Dip estimate + dip-steered variance
+  remain the recorded stretch goal.
+- W2.4 Co-rendering (section window): suffix-parameterized sampling
+  GLSL (makeSamplingGlsl; suffix '' is the primary chunk BYTE-FOR-BYTE,
+  pinned by coRender.test.js) + OVERLAY_GLSL (u_dataB family on texture
+  units 4-7, own LUT/gain/clip, opacity-mix + multiply blends). Null
+  policy: null overlay leaves the primary untouched; null primary keeps
+  the null color. SliceRenderer setSliceB/setColormapB/setOverlay; the
+  overlay draws only while its dims match the primary (lags one beat on
+  scrub by design); referenceRender mirrors the blend and TWO co-render
+  cases joined the GPU==CPU self-test (SwiftShader-verified via e2e).
+  ViewerPanel: second 128 MiB BrickCache (primary scrubs never abort
+  overlay fetches), sameLattice picker judged from survey_meta (engines
+  PR #21; derived children of the active volume first), Home ribbon
+  Co-render group (overlay volume, colormap, blend, opacity). Errors
+  degrade to a toast. OPEN: cube-view co-render (CubeRenderer untouched
+  — its chunks are unchanged), traverse/map windows stay single-volume,
+  overlay state not yet in session snapshots.
+- W2.5 Horizon-window analytics (engines PR #22 + Suite): interval
+  attributes between TWO horizons (A-to-B stratal windows, order-free,
+  windowStat null/clamp semantics; blockRanges generalized to a
+  span-per-cell walker, single-horizon behavior pinned unchanged) and
+  horizon isofrequency (Hann-tapered window about each pick,
+  nextpow2(4n) zero-pad, |X| at the rounded bin; numpy goldens via
+  self-asserting gen_isofrequency.py; Nyquist + window guards). The
+  export dialog's amplitude section gained optgroups: at-horizon /
+  between-two-horizons (second-horizon select) / spectral (frequency +
+  window); same gridding, download formats, and save-as-attribute-
+  surface path (params record freq_hz / horizon_b). ViewerPanel's
+  cache-shielded extractor dispatches on picksB/freqHz. Map-window live
+  attribute overlay stays single-horizon (registry surfaces display
+  interval / isofrequency maps); volume spectral decomposition deferred
+  until demanded (plan).
