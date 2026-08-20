@@ -27,6 +27,7 @@ export default function HomeTab({
   overlayColormap, setOverlayColormap, overlayOpacity, setOverlayOpacity,
   overlayBlend, setOverlayBlend,
   onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel, onOpenSessions,
+  sectionDomain, setSectionDomain, depthReady,
 }) {
   const isTimeSlice = orientation === 'time';
   return (
@@ -83,6 +84,18 @@ export default function HomeTab({
           disabled={!manifest}
           className="w-44"
         />
+        <RibbonSelect
+          label="Domain"
+          value={sectionDomain}
+          onChange={(e) => setSectionDomain(e.target.value)}
+          disabled={!manifest || isTimeSlice || orientation === 'traverse' || !depthReady}
+          title={depthReady
+            ? 'Depth stretches the section per column through the velocity model (display only; picking is disabled in depth)'
+            : 'Depth needs a velocity model (layer cakes also need their boundary horizons loaded)'}
+        >
+          <option value="twt">Time (TWT)</option>
+          <option value="depth">Depth (m)</option>
+        </RibbonSelect>
       </RibbonGroup>
 
       <RibbonGroup label="Display">

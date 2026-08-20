@@ -24,7 +24,12 @@ import {
 import { normalizeStations } from '../engine/wellSection';
 import { computeWellPath, positionAtMd } from '../engine/wellPath';
 import { worldToIlxl } from '../engine/surveyGeometry';
-import { sampleGridAt } from '../engine/wellTie';
+import { sampleGridAt, fitWellTie, calibrationProvenance } from '../engine/wellTie';
+import {
+  makeTieWarp, warpTrace, warpToCheckshots, warpToTiePoints,
+  rotateConstantPhase, estimatePhaseRotation, windowedTieQc,
+} from '../engine/tieWarp';
+import { effectiveCheckshots } from '../services/wellsService';
 
 const inputCls = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
 
@@ -71,6 +76,10 @@ function valueRange(values, times, t0, t1) {
 function drawTracks(canvas, view) {
   const {
     result, corridor, dtMs, shiftMs, tops, horizonMarks, t0, t1,
+    // W3.3: a pre-warped/rotated synthetic replaces the raw one for
+    // display (shift already baked in), anchors draw as tie lines and
+    // qc as a correlation strip beside the seismic track
+    displaySynthetic = null, displayValidity, anchors = null, qc = null,
   } = view;
   const dpr = window.devicePixelRatio || 1;
   const tracks = ['DT', 'RHOB', 'Z', 'RC', 'Synthetic', 'Seismic'];
@@ -215,11 +224,14 @@ function drawTracks(canvas, view) {
       ctx.stroke();
     }
 
-    const synMax = Math.max(1e-12, ...[...result.synthetic].filter((v) => !isGap(v)).map(Math.abs));
-    drawWiggle(4, result.synthetic, {
+    const synDisplay = displaySynthetic || result.synthetic;
+    const synShift = displaySynthetic ? 0 : shiftMs;
+    const synValid = displaySynthetic ? displayValidity ?? null : result.validity;
+    const synMax = Math.max(1e-12, ...[...synDisplay].filter((v) => !isGap(v)).map(Math.abs));
+    drawWiggle(4, synDisplay, {
       scale: (TRACK_W / 2 - 6) / synMax,
-      shift: shiftMs,
-      valid: result.validity,
+      shift: synShift,
+      valid: synValid,
       color: '#f87171',
     });
     // ghost of the synthetic over the seismic corridor for the visual tie
@@ -240,10 +252,10 @@ function drawTracks(canvas, view) {
           fill: centre,
         });
       });
-      drawWiggle(5, result.synthetic, {
+      drawWiggle(5, synDisplay, {
         scale: (step * 0.9) / synMax,
-        shift: shiftMs,
-        valid: result.validity,
+        shift: synShift,
+        valid: synValid,
         color: 'rgba(248,113,113,0.8)',
         fill: false,
       });
@@ -277,6 +289,54 @@ function drawTracks(canvas, view) {
     ctx.fillText(m.name, x0(5) + 2, y(m.twtMs) - 3);
   }
   ctx.setLineDash([]);
+
+  // W3.3 tie anchors: a line across the synthetic + seismic tracks at
+  // the SEISMIC time, with a diamond handle (drag target) and the
+  // stretch it applies
+  if (anchors && anchors.length) {
+    ctx.textAlign = 'left';
+    for (const a of anchors) {
+      if (a.seisTwtMs < t0 || a.seisTwtMs > t1) continue;
+      const ya = y(a.seisTwtMs);
+      ctx.strokeStyle = '#34d399';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x0(4), ya);
+      ctx.lineTo(x0(5) + TRACK_W, ya);
+      ctx.stroke();
+      const hx = x0(4) - 5;
+      ctx.fillStyle = '#34d399';
+      ctx.beginPath();
+      ctx.moveTo(hx, ya - 5);
+      ctx.lineTo(hx + 5, ya);
+      ctx.lineTo(hx, ya + 5);
+      ctx.lineTo(hx - 5, ya);
+      ctx.closePath();
+      ctx.fill();
+      const d = a.seisTwtMs - a.synTwtMs;
+      ctx.fillText(`${d >= 0 ? '+' : ''}${d.toFixed(0)} ms`, x0(5) + TRACK_W - 44, ya - 3);
+    }
+  }
+
+  // W3.3 tie QC strip: windowed correlation beside the seismic track
+  // (green +1 / yellow 0 / red -1; gaps stay dark)
+  if (qc && qc.length) {
+    const sx = x0(5) + TRACK_W + 2;
+    for (let i = 0; i < qc.length; i++) {
+      const row = qc[i];
+      if (row.twtMs < t0 || row.twtMs > t1) continue;
+      const yA = y(row.twtMs - (i > 0 ? (qc[1].twtMs - qc[0].twtMs) / 2 : 0));
+      const yB = y(row.twtMs + (i > 0 ? (qc[1].twtMs - qc[0].twtMs) / 2 : 0));
+      if (row.corr == null) ctx.fillStyle = '#1e293b';
+      else if (row.corr >= 0) {
+        const g = Math.round(80 + 120 * row.corr);
+        ctx.fillStyle = `rgb(${Math.round(200 - 150 * row.corr)}, ${g + 55}, 80)`;
+      } else {
+        ctx.fillStyle = `rgb(${Math.round(150 - 100 * row.corr)}, 60, 60)`;
+      }
+      ctx.fillRect(sx, Math.min(yA, yB), 6, Math.abs(yB - yA) + 1);
+    }
+  }
 }
 
 // ---- panel ---------------------------------------------------------------
@@ -303,6 +363,7 @@ function drawTracks(canvas, view) {
 export default function SyntheticsPanel({
   wells, listLogs, downloadCurve, synthesize, getTraces,
   horizons, loadGrid, affine, geom, dtUs, velocity, boundaries,
+  onApplyVelocity = null, onCommitCheckshots = null,
 }) {
   const [logsByWell, setLogsByWell] = useState({});
   const [logsLoading, setLogsLoading] = useState(false);
@@ -318,7 +379,16 @@ export default function SyntheticsPanel({
   const [view, setView] = useState(null);   // {result, corridor, tops, horizonMarks, note}
   const [shiftMs, setShiftMs] = useState(0);
   const [suggestion, setSuggestion] = useState(null);
+  // W3.3 well tie 2.0: anchors build the stretch/squeeze warp (they
+  // replace the bulk shift while present), phase is the estimated /
+  // applied constant rotation, commitBusy guards the two commit paths
+  const [anchors, setAnchors] = useState([]);
+  const [phase, setPhase] = useState(null);       // estimatePhaseRotation result
+  const [phiApplied, setPhiApplied] = useState(false);
+  const [commitBusy, setCommitBusy] = useState(false);
   const canvasRef = useRef(null);
+  const layoutRef = useRef(null);                 // {t0, t1} of the last draw
+  const dragRef = useRef(null);                   // index of the dragged anchor
 
   const dtMs = dtUs ? dtUs / 1000 : null;
   const maxTwtMs = geom && dtMs ? (geom.ns - 1) * dtMs : null;
@@ -362,6 +432,9 @@ export default function SyntheticsPanel({
     setView(null);
     setSuggestion(null);
     setShiftMs(0);
+    setAnchors([]);
+    setPhase(null);
+    setPhiApplied(false);
     const logs = logsByWell[id] || [];
     const sonic = logs.find((l) => kindOf(l) === 'sonic');
     const dens = logs.find((l) => kindOf(l) === 'density');
@@ -447,7 +520,7 @@ export default function SyntheticsPanel({
         kbM: well.kb_m || 0,
         surfaceX: well.surface_x,
         surfaceY: well.surface_y,
-        checkshots: well.checkshots,
+        checkshots: effectiveCheckshots(well).rows,
         velocity,
         boundaries,
         dtUs,
@@ -490,10 +563,16 @@ export default function SyntheticsPanel({
         horizonMarks,
         note,
         wellName: well.name,
+        well,
+        stations,
+        derivedCheckshots: effectiveCheckshots(well).derived,
         constantDensity: !densityLog,
         ilxl,
       });
       setShiftMs(0);
+      setAnchors([]);
+      setPhase(null);
+      setPhiApplied(false);
     } catch (e) {
       setError(e.message);
       setView(null);
@@ -530,6 +609,35 @@ export default function SyntheticsPanel({
     setSuggestion(s || { none: true });
   };
 
+  // W3.3 tie pipeline: warp (anchors replace the bulk shift), optional
+  // constant-phase rotation, and windowed QC against the corridor centre
+  const tie = useMemo(() => {
+    if (!view?.result || !dtMs) return null;
+    const warp = anchors.length ? makeTieWarp(anchors) : null;
+    let display = null;
+    if (warp) display = warpTrace(view.result.synthetic, dtMs, warp);
+    if (phiApplied && phase) {
+      display = rotateConstantPhase(display || view.result.synthetic, phase.phiRad);
+    }
+    const centre = view.corridor?.length
+      ? view.corridor[(view.corridor.length - 1) / 2] : null;
+    let qc = null;
+    if (centre && (display || shiftMs === 0)) {
+      // QC is meaningful on the seismic axis: the warped/rotated display
+      // trace (or the raw synthetic when no shift is applied)
+      qc = windowedTieQc(display || view.result.synthetic, centre, dtMs);
+    }
+    return { warp, display, qc };
+  }, [view, anchors, phase, phiApplied, shiftMs, dtMs]);
+
+  const qcSummary = useMemo(() => {
+    const rows = (tie?.qc || []).filter((r) => r.corr != null);
+    if (!rows.length) return null;
+    const mean = rows.reduce((s, r) => s + r.corr, 0) / rows.length;
+    const min = Math.min(...rows.map((r) => r.corr));
+    return { mean, min };
+  }, [tie]);
+
   // redraw on any display change
   useEffect(() => {
     if (!canvasRef.current || !view?.result || !dtMs) return;
@@ -543,6 +651,7 @@ export default function SyntheticsPanel({
     }
     const t0 = Math.max(0, lo - 60);
     const t1 = Math.min(maxTwtMs ?? hi + 60, hi + 60);
+    layoutRef.current = { t0, t1 };
     drawTracks(canvasRef.current, {
       result: r,
       corridor: view.corridor,
@@ -552,8 +661,171 @@ export default function SyntheticsPanel({
       shiftMs,
       t0,
       t1,
+      displaySynthetic: tie?.display || null,
+      anchors,
+      qc: tie?.qc || null,
     });
-  }, [view, shiftMs, dtMs, maxTwtMs]);
+  }, [view, shiftMs, dtMs, maxTwtMs, tie, anchors]);
+
+  // ---- W3.3 anchor interactions on the canvas ---------------------------
+  const CANVAS_H = 560;
+  const yToTwt = (py) => {
+    const l = layoutRef.current;
+    if (!l) return null;
+    return l.t0 + ((py - PAD_Y) / (CANVAS_H - 2 * PAD_Y)) * (l.t1 - l.t0);
+  };
+  const canvasPos = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    return { px: e.clientX - rect.left, py: e.clientY - rect.top };
+  };
+  const nearestAnchor = (py) => {
+    const l = layoutRef.current;
+    if (!l || !anchors.length) return -1;
+    const yOf = (t) => PAD_Y + ((t - l.t0) / (l.t1 - l.t0)) * (CANVAS_H - 2 * PAD_Y);
+    let best = -1;
+    let bestD = 7;
+    anchors.forEach((a, i) => {
+      const d = Math.abs(yOf(a.seisTwtMs) - py);
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    return best;
+  };
+  const tieTrackX = () => AXIS_W + 4 * (TRACK_W + GAP_X) - 12; // left of synthetic track
+
+  const onCanvasPointerDown = (e) => {
+    if (!view?.result || !layoutRef.current) return;
+    const { px, py } = canvasPos(e);
+    if (px < tieTrackX()) return;                 // log tracks: no tie UI
+    const hit = nearestAnchor(py);
+    if (hit >= 0) {
+      dragRef.current = hit;
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    }
+  };
+  const onCanvasPointerMove = (e) => {
+    if (dragRef.current == null) return;
+    const { py } = canvasPos(e);
+    const t = yToTwt(py);
+    if (t == null) return;
+    setAnchors((list) => {
+      const i = dragRef.current;
+      const next = [...list];
+      // monotonicity: stay strictly between the neighbours' seismic times
+      const lo = i > 0 ? next[i - 1].seisTwtMs + dtMs : -Infinity;
+      const hi = i < next.length - 1 ? next[i + 1].seisTwtMs - dtMs : Infinity;
+      next[i] = { ...next[i], seisTwtMs: Math.min(hi, Math.max(lo, t)) };
+      return next;
+    });
+  };
+  const onCanvasPointerUp = () => { dragRef.current = null; };
+  const onCanvasDblClick = (e) => {
+    if (!view?.result || !layoutRef.current) return;
+    const { px, py } = canvasPos(e);
+    if (px < tieTrackX()) return;
+    const hit = nearestAnchor(py);
+    if (hit >= 0) {
+      setAnchors((list) => list.filter((_, i) => i !== hit));
+      return;
+    }
+    const t = yToTwt(py);
+    if (t == null) return;
+    // anchor the event CURRENTLY displayed at t: through the active warp
+    // (or the bulk shift) back to synthetic time — adding it does not
+    // move anything until the anchor is dragged
+    const synT = tie?.warp ? tie.warp.toSyntheticMs(t) : t - shiftMs;
+    setAnchors((list) => {
+      const next = [...list, { synTwtMs: synT, seisTwtMs: t }]
+        .sort((a, b) => a.synTwtMs - b.synTwtMs);
+      // reject an add that would fold the warp instead of throwing later
+      for (let i = 1; i < next.length; i++) {
+        if (next[i].synTwtMs <= next[i - 1].synTwtMs
+          || next[i].seisTwtMs <= next[i - 1].seisTwtMs) return list;
+      }
+      return next;
+    });
+  };
+
+  // ---- W3.3 phase + commits ---------------------------------------------
+  const estimatePhase = () => {
+    if (!view?.result || !view.corridor?.length) return;
+    const centre = view.corridor[(view.corridor.length - 1) / 2];
+    const est = estimatePhaseRotation(tie?.display || view.result.synthetic, centre);
+    setPhase(est);
+    if (!est) setPhiApplied(false);
+  };
+
+  /** Synthetic-time -> TVDss through the run's own MD/TWT series (the
+   *  same T(z) the synthetic used — provenance preserved). */
+  const buildTwtToTvdss = () => {
+    const r = view.result;
+    const { stations } = view;
+    const path = computeWellPath(stations, {
+      surfaceX: view.well.surface_x, surfaceY: view.well.surface_y, kb: view.well.kb_m || 0,
+    });
+    const mds = [];
+    const twts = [];
+    for (let i = 0; i < r.mdArray.length; i++) {
+      if (isGap(r.twtMs[i])) continue;
+      mds.push(r.mdArray[i]);
+      twts.push(r.twtMs[i]);
+    }
+    return (twtMs) => {
+      if (twts.length < 2 || twtMs < twts[0] || twtMs > twts[twts.length - 1]) return null;
+      let i = 1;
+      while (i < twts.length - 1 && twts[i] < twtMs) i++;
+      const f = (twtMs - twts[i - 1]) / (twts[i] - twts[i - 1]);
+      const md = mds[i - 1] + f * (mds[i] - mds[i - 1]);
+      const pos = positionAtMd(stations, path, md);
+      return pos ? pos.tvdss : null;
+    };
+  };
+
+  const commitCheckshots = async () => {
+    if (!tie?.warp || !onCommitCheckshots || !view?.well) return;
+    setCommitBusy(true);
+    setError(null);
+    try {
+      const rows = warpToCheckshots(tie.warp, buildTwtToTvdss())
+        .map((r) => ({ tvdss_m: r.tvdssM, twt_ms: r.twtMs }));
+      await onCommitCheckshots(view.well, {
+        rows,
+        provenance: {
+          source: 'well_tie_warp',
+          anchors: anchors.length,
+          phi_deg: phiApplied && phase ? Math.round(phase.phiDeg * 10) / 10 : null,
+          created_at: new Date().toISOString(),
+        },
+      });
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCommitBusy(false);
+    }
+  };
+
+  const commitCalibration = async () => {
+    if (!tie?.warp || !onApplyVelocity || !view) return;
+    setCommitBusy(true);
+    setError(null);
+    try {
+      if (!velocity) throw new Error('Set a velocity model first — anchors calibrate the existing model.');
+      const cell = view.ilxl && geom
+        ? view.ilxl.il * geom.nXl + view.ilxl.xl : 0;
+      const ties = warpToTiePoints(tie.warp, buildTwtToTvdss(), {
+        wellName: view.wellName, cell,
+      });
+      const fit = fitWellTie(ties, velocity, { boundaries, dtUs });
+      await onApplyVelocity(fit.manifestModel, {
+        ...calibrationProvenance(fit),
+        source: 'well_tie_warp',
+        created_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCommitBusy(false);
+    }
+  };
 
   if (!geom || !dtUs) {
     return (
@@ -655,7 +927,9 @@ export default function SyntheticsPanel({
               data-testid="synth-provenance"
               title="Time-depth source resolved by makeTvdssToTwt — never mixed"
             >
-              {`T(z): ${view.result.timeSource === 'checkshots' ? 'checkshots' : 'velocity model'}`}
+              {`T(z): ${view.result.timeSource === 'checkshots'
+                ? (view.derivedCheckshots ? 'checkshots (tie-derived)' : 'checkshots')
+                : 'velocity model'}`}
             </span>
             {view.constantDensity && (
               <span className="text-amber-400" data-testid="synth-density-note">
@@ -668,6 +942,8 @@ export default function SyntheticsPanel({
               <input
                 type="number" step={dtMs} className={`${inputCls} w-20`} value={shiftMs}
                 onChange={(e) => setShiftMs(Number(e.target.value) || 0)}
+                disabled={anchors.length > 0}
+                title={anchors.length ? 'Anchors replace the bulk shift while present' : undefined}
                 data-testid="synth-shift"
               />
             </label>
@@ -692,10 +968,81 @@ export default function SyntheticsPanel({
                 no usable correlation within ±{MAX_SHIFT_SEARCH_MS} ms
               </span>
             )}
-            <span className="text-slate-600">display-only — the velocity model is not changed</span>
+            <span className="text-slate-600">
+              {anchors.length
+                ? 'anchors are display-side until committed below'
+                : 'display-only — the velocity model is not changed'}
+            </span>
+          </div>
+
+          <div className="shrink-0 flex flex-wrap items-center gap-3 text-xs" data-testid="synth-tie-row">
+            <span className="text-slate-400" title="Double-click on the synthetic/seismic tracks to add an anchor; drag its diamond to stretch; double-click an anchor to remove it">
+              {`Anchors: ${anchors.length}`}
+            </span>
+            {anchors.length > 0 && (
+              <Button variant="link" size="sm" className="text-slate-400 h-auto p-0"
+                onClick={() => { setAnchors([]); setPhase(null); setPhiApplied(false); }}
+                data-testid="synth-anchors-clear"
+              >
+                clear
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={estimatePhase}
+              disabled={!view.corridor?.length} data-testid="synth-phase-estimate"
+            >
+              Estimate phase
+            </Button>
+            {phase && (
+              <span className="text-slate-300" data-testid="synth-phase-result">
+                {`${phase.phiDeg.toFixed(0)}° (r ${phase.corr0.toFixed(2)} → ${phase.corr.toFixed(2)})`}
+                <Button variant="link" size="sm"
+                  className={`h-auto p-0 ml-1 ${phiApplied ? 'text-amber-400' : 'text-cyan-400'}`}
+                  onClick={() => setPhiApplied((v) => !v)} data-testid="synth-phase-apply"
+                >
+                  {phiApplied ? 'remove rotation' : 'apply to display'}
+                </Button>
+              </span>
+            )}
+            {qcSummary && (
+              <span className="text-slate-400" data-testid="synth-qc-summary"
+                title="Windowed correlation of the displayed synthetic vs the centre trace (the colored strip beside the seismic track)"
+              >
+                {`tie QC: mean r ${qcSummary.mean.toFixed(2)}, min ${qcSummary.min.toFixed(2)}`}
+              </span>
+            )}
+            {anchors.length > 0 && (
+              <>
+                <Button size="sm" variant="outline" className="border-emerald-700 text-emerald-400"
+                  onClick={commitCheckshots}
+                  disabled={commitBusy || !onCommitCheckshots}
+                  data-testid="synth-commit-checkshots"
+                  title="Store the warp as a DERIVED checkshot set on the well (imported checkshots are never overwritten); synthetics and well displays use it from then on"
+                >
+                  {commitBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null}
+                  Commit to checkshots
+                </Button>
+                <Button size="sm" variant="outline" className="border-sky-700 text-sky-400"
+                  onClick={commitCalibration}
+                  disabled={commitBusy || !onApplyVelocity}
+                  data-testid="synth-commit-velocity"
+                  title="Fit the volume's velocity model to the anchors (wellTie least squares) and save it with tie provenance"
+                >
+                  Calibrate velocity
+                </Button>
+              </>
+            )}
           </div>
           <div className="flex-1 min-h-0 overflow-auto" data-testid="synth-result">
-            <canvas ref={canvasRef} data-testid="synth-canvas" />
+            <canvas
+              ref={canvasRef}
+              data-testid="synth-canvas"
+              style={{ touchAction: 'none' }}
+              onPointerDown={onCanvasPointerDown}
+              onPointerMove={onCanvasPointerMove}
+              onPointerUp={onCanvasPointerUp}
+              onPointerLeave={onCanvasPointerUp}
+              onDoubleClick={onCanvasDblClick}
+            />
           </div>
         </>
       )}

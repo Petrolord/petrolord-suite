@@ -55,12 +55,17 @@ self.onmessage = async (e) => {
       cache.get(brickKey(config.storagePath, i, j, k));
     const getTrace = (il, xl) => assembleTrace(getBrick, config.geom, il, xl);
 
-    const { picks, tracked } = await regionGrow3D(getTrace, config.geom, config.seed, {
+    const { picks, tracked, confidence } = await regionGrow3D(getTrace, config.geom, config.seed, {
       ...config.opts,
       onProgress: (done, total) => self.postMessage({ type: 'progress', id, tracked: done, total }),
       shouldCancel: () => cancelled.has(id),
     });
-    self.postMessage({ type: 'done', id, picks: picks.buffer, tracked }, [picks.buffer]);
+    // W3.2: the confidence companion rides along (1e30 nulls; all-null
+    // for snap modes — the main thread decides whether to persist it)
+    self.postMessage(
+      { type: 'done', id, picks: picks.buffer, confidence: confidence.buffer, tracked },
+      [picks.buffer, confidence.buffer],
+    );
   } catch (err) {
     self.postMessage({ type: 'error', id, message: err.message });
   } finally {

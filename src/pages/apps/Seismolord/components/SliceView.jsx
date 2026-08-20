@@ -118,6 +118,7 @@ function SliceView({
   pickMode, ghost, loading, onPick, onPickEnd, onStepSlice, height = 520,
   vexag: vexagProp, onVexagChange, emptyHint, depthConv = null, onCursor = null,
   cameraApi = null, overlaySlice = null, overlayDisplay = null,
+  depthAxisInfo = null,
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
   const viewportRef = useRef(null);    // the canvas container
@@ -180,7 +181,7 @@ function SliceView({
   // Latest props snapshot so rAF/pointer handlers never see stale closures.
   propsRef.current = {
     slice, geom, manifest, orientation, sliceIndex, display, overlays,
-    pickMode, ghost, prefs, gutter: g, depthConv, onCursor, agcMap,
+    pickMode, ghost, prefs, gutter: g, depthConv, onCursor, agcMap, depthAxisInfo,
   };
 
   // ---- axis metadata per orientation ----------------------------------
@@ -189,7 +190,11 @@ function SliceView({
     const gm = manifest.geometry;
     const il = { title: 'IL', valueAtZero: gm.il.min, valuePerCell: gm.il.step };
     const xl = { title: 'XL', valueAtZero: gm.xl.min, valuePerCell: gm.xl.step };
-    const twt = { title: 'ms', valueAtZero: 0, valuePerCell: gm.dt_us / 1000 };
+    // W3.4 depth mode: the section rows ARE depth (engine stretch) —
+    // the vertical axis reads metres from the shared depth axis
+    const twt = depthAxisInfo
+      ? { title: 'm TVD', valueAtZero: depthAxisInfo.z0, valuePerCell: depthAxisInfo.dz }
+      : { title: 'ms', valueAtZero: 0, valuePerCell: gm.dt_us / 1000 };
     if (orientation === 'inline') return { x: xl, y: twt };
     if (orientation === 'xline') return { x: il, y: twt };
     if (orientation === 'traverse') {
@@ -201,7 +206,7 @@ function SliceView({
       return { x, y: twt };
     }
     return { x: xl, y: il };
-  }, [manifest, orientation, slice]);
+  }, [manifest, orientation, slice, depthAxisInfo]);
 
   const spacing = useMemo(() => (manifest ? surveySpacing(manifest) : null), [manifest]);
   const northDir = useMemo(() => (manifest ? northScreenDir(manifest) : null), [manifest]);
@@ -574,7 +579,7 @@ function SliceView({
     // monotonic in t), ticked along the RIGHT edge. Drawn from the same
     // ViewTransform as everything else.
     if (pr.axes && pr.depthAxis && p.depthConv && !p.depthConv.columnDependent
-      && p.orientation !== 'time' && p.slice && p.manifest) {
+      && !p.depthAxisInfo && p.orientation !== 'time' && p.slice && p.manifest) {
       const t2 = transformRef.current;
       const dtMs = p.manifest.geometry.dt_us / 1000;
       const vis = t2.visibleRect();
@@ -950,12 +955,13 @@ function SliceView({
       if (!posn) return null;
       const trace = Math.floor(w.x);
       const sample = w.y;
-      const inData = trace >= 0 && trace < posn.length && sample >= 0 && sample < gm.ns;
+      const nsV = p.slice?.width ?? gm.ns;
+      const inData = trace >= 0 && trace < posn.length && sample >= 0 && sample < nsV;
       const cl = Math.min(Math.max(trace, 0), posn.length - 1);
       return {
         ilIdx: posn[cl].il,
         xlIdx: posn[cl].xl,
-        sample: Math.min(Math.max(sample, 0), gm.ns - 1e-3),
+        sample: Math.min(Math.max(sample, 0), (p.slice?.width ?? gm.ns) - 1e-3),
         inData,
         trace: cl,
       };
@@ -964,11 +970,12 @@ function SliceView({
       const nTraces = p.orientation === 'inline' ? gm.nXl : gm.nIl;
       const trace = Math.floor(w.x);
       const sample = w.y;
-      const inData = trace >= 0 && trace < nTraces && sample >= 0 && sample < gm.ns;
+      const nsV = p.slice?.width ?? gm.ns;
+      const inData = trace >= 0 && trace < nTraces && sample >= 0 && sample < nsV;
       return {
         ilIdx: p.orientation === 'inline' ? p.sliceIndex : Math.min(Math.max(trace, 0), gm.nIl - 1),
         xlIdx: p.orientation === 'inline' ? Math.min(Math.max(trace, 0), gm.nXl - 1) : p.sliceIndex,
-        sample: Math.min(Math.max(sample, 0), gm.ns - 1e-3),
+        sample: Math.min(Math.max(sample, 0), (p.slice?.width ?? gm.ns) - 1e-3),
         inData,
       };
     }
@@ -992,7 +999,8 @@ function SliceView({
     const hint = readoutHintRef.current;
     if (!vals || !hint) return;
     if (info) {
-      vals.textContent = `IL ${info.il}   XL ${info.xl}   ${info.ms.toFixed(1)} ms   `
+      vals.textContent = `IL ${info.il}   XL ${info.xl}   `
+        + (info.ms != null ? `${info.ms.toFixed(1)} ms   ` : '')
         + (info.z != null ? `TVD ${info.z.toFixed(1)} m   ` : '')
         + `amp ${info.amp === null ? 'null' : info.amp.toExponential(3)}`;
       vals.style.display = '';
@@ -1013,11 +1021,24 @@ function SliceView({
     const gm = p.geom;
     const geo = p.manifest.geometry;
     const sampleIdx = Math.floor(hit.sample);
+    const rowN = p.slice.width;               // ns in time, nz in depth mode
     let amp;
-    if (p.orientation === 'inline') amp = p.slice.data[hit.xlIdx * gm.ns + sampleIdx];
-    else if (p.orientation === 'xline') amp = p.slice.data[hit.ilIdx * gm.ns + sampleIdx];
-    else if (p.orientation === 'traverse') amp = p.slice.data[hit.trace * gm.ns + sampleIdx];
+    if (p.orientation === 'inline') amp = p.slice.data[hit.xlIdx * rowN + sampleIdx];
+    else if (p.orientation === 'xline') amp = p.slice.data[hit.ilIdx * rowN + sampleIdx];
+    else if (p.orientation === 'traverse') amp = p.slice.data[hit.trace * rowN + sampleIdx];
     else amp = p.slice.data[hit.ilIdx * gm.nXl + hit.xlIdx];
+    if (p.depthAxisInfo) {
+      // depth section: rows are metres on the shared axis; time varies
+      // per column and is not reported (readout-only mode, plan W3.4)
+      setCursorReadout({
+        il: geo.il.min + hit.ilIdx * geo.il.step,
+        xl: geo.xl.min + hit.xlIdx * geo.xl.step,
+        ms: null,
+        z: p.depthAxisInfo.z0 + hit.sample * p.depthAxisInfo.dz,
+        amp: amp === NULL_F32 ? null : amp,
+      });
+      return;
+    }
     const ms = (p.orientation === 'time' ? p.sliceIndex : hit.sample) * (geo.dt_us / 1000);
     // depth via the volume's velocity model (layer cakes convert per
     // column, so the cursor's lattice cell rides along); null-safe —

@@ -6,18 +6,24 @@
 import React from 'react';
 import {
   Crosshair, Route, Spline, Ban, Loader2, Pencil, Eraser, Undo2, Save,
-  Wand2, PaintBucket, Ruler, Slash, CheckCheck, Trash2, Waves,
+  Wand2, PaintBucket, Ruler, Slash, CheckCheck, Trash2, Waves, Sprout,
 } from 'lucide-react';
 import { RibbonGroup, RibbonButton, RibbonSelect } from '../Ribbon';
 import { describeVelocity } from '../../../engine/velocityModel';
 
-/** Event kinds a horizon can snap/track to (engine SNAP_MODES + labels). */
+/** Event kinds a horizon can snap/track to (engine SNAP_MODES + labels).
+ *  'ncc' (W3.2) tracks the waveform by normalized cross-correlation —
+ *  seed and manual clicks still snap to the nearest peak. */
 const SNAP_OPTIONS = [
   { key: 'peak', label: 'Peak (+)' },
   { key: 'trough', label: 'Trough (−)' },
   { key: 'zero_pos', label: 'Zero cross − → +' },
   { key: 'zero_neg', label: 'Zero cross + → −' },
+  { key: 'ncc', label: 'Correlation (NCC)' },
 ];
+
+/** NCC acceptance thresholds (correlation coefficient). */
+const THRESHOLD_OPTIONS = [0.5, 0.6, 0.7, 0.8, 0.9];
 
 /** Section eraser widths (traces): radius r erases 2r+1 traces per pass. */
 const BRUSH_OPTIONS = [
@@ -31,7 +37,8 @@ const BRUSH_OPTIONS = [
 export default function InterpretationTab({
   manifest, orientation, slice,
   pickMode, setPickMode, seedPick, snapMode, setSnapMode, snapWindow, setSnapWindow,
-  tracking, trackHorizon, cancelTracking, track2D,
+  corrThreshold, setCorrThreshold, stopAtFaults, setStopAtFaults, hasFaults,
+  tracking, trackHorizon, growHorizon, cancelTracking, track2D,
   editTarget, changeEditTarget, horizons, toggleEditTool,
   eraseSize, setEraseSize, edit, editBusy, undoEdit, saveEdits, discardEdits,
   smoothEdits, smoothMethod, setSmoothMethod, smoothRadius, setSmoothRadius, fillHoles,
@@ -66,6 +73,24 @@ export default function InterpretationTab({
           disabled={!manifest || !seedPick || tracking !== null}
           title="Autotrack the seed across the whole survey (worker)"
         />
+        <RibbonButton
+          icon={Sprout}
+          label="Grow target"
+          onClick={growHorizon}
+          disabled={!manifest || editTarget === 'new' || tracking !== null}
+          title="Grow the edit-target horizon outward from ALL its existing picks (kept exactly); a picked seed joins in"
+        />
+        <RibbonButton
+          icon={Slash}
+          label="Stop at faults"
+          active={stopAtFaults}
+          accent="orange"
+          onClick={() => setStopAtFaults((v) => !v)}
+          disabled={!manifest || !hasFaults}
+          title={hasFaults
+            ? 'Tracking never crosses a fault surface (barriers at the seed level)'
+            : 'Pick or import faults first'}
+        />
         {tracking && (
           <>
             <span className="text-xs text-slate-300 flex items-center whitespace-nowrap">
@@ -98,12 +123,27 @@ export default function InterpretationTab({
           value={String(snapWindow)}
           onChange={(e) => setSnapWindow(Number(e.target.value))}
           disabled={!manifest}
-          title="Search half-window (samples) for snapping and tracking — wider follows rougher events but can jump reflectors"
+          title={snapMode === 'ncc'
+            ? 'Correlation lag search (samples) — how far the event may move trace to trace'
+            : 'Search half-window (samples) for snapping and tracking — wider follows rougher events but can jump reflectors'}
         >
           {[2, 3, 5, 8, 12].map((w) => (
             <option key={w} value={String(w)}>{`±${w}`}</option>
           ))}
         </RibbonSelect>
+        {snapMode === 'ncc' && (
+          <RibbonSelect
+            label="Threshold"
+            value={String(corrThreshold)}
+            onChange={(e) => setCorrThreshold(Number(e.target.value))}
+            disabled={!manifest}
+            title="Minimum correlation coefficient to accept a pick — the coefficient is stored as the pick's confidence"
+          >
+            {THRESHOLD_OPTIONS.map((t) => (
+              <option key={t} value={String(t)}>{t.toFixed(1)}</option>
+            ))}
+          </RibbonSelect>
+        )}
       </RibbonGroup>
 
       <RibbonGroup label="Edit horizon">

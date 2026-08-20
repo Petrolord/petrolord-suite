@@ -14,6 +14,7 @@ import { loadHorizonGrid, listHorizons } from './horizonsService';
 import { picksToPickRows } from '../engine/pickExport';
 import { picksToPoints, exportGridSpec } from '@/lib/gridding/gridding';
 import { buildFaultBlocks } from '../engine/faultBarriers';
+import { faultIntersections, maskGridNodesByRings } from '../lib/faultObjectsExport';
 import { surveyAffine, cellSpacing, surveyBounds, worldToIlxl } from '../engine/surveyGeometry';
 import { geomFromManifest } from '../engine/sliceAssembly';
 import { writeXYZ } from '@/lib/gridding/surfaceExport';
@@ -104,6 +105,7 @@ export async function gridHorizonSurface({
   // node its lattice cell's block through the inverse affine
   let nodeBlocks = null;
   let faultInfo = null;
+  let gapNodes = null;
   const invertible = Boolean(worldToIlxl(affine, spec.x0, spec.y0));
   const blocks = faults?.length && invertible ? buildFaultBlocks(faults, picks, geom) : null;
   if (blocks) {
@@ -123,7 +125,20 @@ export async function gridHorizonSurface({
         nodeBlocks[r * spec.nx + c] = blocks.labels[ci * geom.nXl + cj];
       }
     }
-    faultInfo = { faults: faults.length, traces: blocks.traces.length, blocks: blocks.count };
+    // W3.1 fault polygons: the heave gap between the hanging-wall and
+    // footwall cutoffs is nulled after gridding — wider than the
+    // one-cell barrier whenever the fault dips, and exactly the region
+    // Petrel leaves blank inside a fault polygon
+    const rings = faultIntersections(faults, picks, geom)
+      .map(({ intersection }) => intersection.polygon)
+      .filter(Boolean);
+    gapNodes = maskGridNodesByRings(rings, geom, affine, spec);
+    faultInfo = {
+      faults: faults.length,
+      traces: blocks.traces.length,
+      blocks: blocks.count,
+      polygons: rings.length,
+    };
   }
 
   if (signal?.aborted) throw new Error('Export cancelled');
@@ -155,8 +170,12 @@ export async function gridHorizonSurface({
     );
   }).finally(() => worker.terminate());
 
+  const z = new Float32Array(gridded.z);
+  if (gapNodes) {
+    for (let c = 0; c < z.length; c++) if (gapNodes[c]) z[c] = NULL_F32;
+  }
   const g = {
-    z: new Float32Array(gridded.z),
+    z,
     nx: spec.nx,
     ny: spec.ny,
     dx: spec.dx,

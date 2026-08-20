@@ -1726,3 +1726,88 @@ scale bar measured against a ruler.
   attribute overlay stays single-horizon (registry surfaces display
   interval / isofrequency maps); volume spectral decomposition deferred
   until demanded (plan).
+
+## Interpreter program Wave 3 (structural framework and depth)
+
+- W3.1 Fault objects (engines PR #23 + #25, Suite integration): faults
+  stop being display-only stick sets. loftFaultSurface persists the
+  arc-length-resampled rail grid on `seismic_faults.surface` (migration
+  20260821000000 APPLIED live 2026-08-21; derived in
+  faultsService.saveFault, the single write choke point; legacy rows
+  loft on the fly). faultHorizonIntersection builds hanging-wall/
+  footwall cutoff pairs by line-line intersection (per-side horizon
+  fits outside a drag corridor x a local fault-line fit through the
+  stick), using a GAP-TOLERANT crossing walker — a correctly
+  interpreted horizon is null exactly in the fault gap, where
+  faultBarriers.stickCrossing deliberately resets. Per-stick
+  throwSamples/heaveCells form the throw map; ordered cutoffs form the
+  closed fault polygon. Gridding nulls the polygon (heave gap) after
+  the blocked TPS — wider than the one-cell barrier whenever the fault
+  dips. Map window draws polygons (translucent gap + dashed walls) and
+  throw labels; explorer fault menu exports the surface (XYZ, both z
+  signs) and per-horizon polygon CSV (cutoff walls + throw_ms /
+  world-metre heave). 16 engine oracles on analytic faulted horizons
+  with known throw/heave + 11 Suite tests.
+- W3.2 Tracker 2.0 (engines PR #24, Suite integration): 'Correlation
+  (NCC)' joins the event modes — rolling-reference normalized
+  cross-correlation with parabolic sub-sample peak refinement, a
+  threshold gate, and a SUB-SAMPLE RESIDUAL correction (the reference
+  window is cut at round(prev); without the correction a dipping event
+  accumulates half-sample bias per step — caught by the oracle). The
+  correlation coefficient persists as the pick's confidence in a
+  companion blob ({id}.conf.f32 beside the pick grid; removed with the
+  horizon) and displays as the map's 'Tracker confidence' attribute.
+  regionGrow3D gains multi-seed, grow-from-existing (live picks seed
+  the queue and are kept bit-exact — the ribbon's 'Grow target'
+  updates the horizon in place) and fault-aware growth ('Stop at
+  faults': barriers = each fault surface's trace at the seed level via
+  surfaceLevelTrace, rasterized — works before any horizon exists).
+  13 deterministic engine oracles.
+- W3.3 Well tie 2.0 (engines PR #26 + #28, Suite integration): the
+  display-only bulk shift becomes a committable tie. Double-click on
+  the synthetic/seismic tracks adds an anchor (through the active warp,
+  so nothing moves until dragged), dragging stretches/squeezes
+  (makeTieWarp: piecewise linear, strictly increasing in both times,
+  slope-one extension; single anchor == the old bulk shift, pinned).
+  'Estimate phase' fits a constant rotation (s·cosφ + H(s)·sinφ via
+  the analytic signal; known rotations recovered within a degree) with
+  before/after correlation; windowed tie QC draws as a color strip
+  beside the seismic track with a mean/min summary. TWO commit paths:
+  'Commit to checkshots' stores the warp as geo_wells.checkshots_derived
+  (migration 20260821010000 APPLIED live 2026-08-21 — a DERIVED set
+  with provenance; imported checkshots are never overwritten;
+  effectiveCheckshots prefers it wherever T(z) is built and the badge
+  reads 'checkshots (tie-derived)') and 'Calibrate velocity' runs
+  warpToTiePoints -> fitWellTie -> the existing CAS velocity save with
+  tie provenance. 14 engine oracles + 4 Suite tests.
+- W3.4 Depth section display (engines PR #27, Suite integration): true
+  per-column CPU depth stretch (engine depthConvert: monotone-walk
+  resample, O(ns+nz) per column, layer cakes stretch per column;
+  stored amplitudes never modified). Home ribbon Line group gains a
+  Domain select (Time/Depth) on inline/xline sections. Every overlay
+  converts through the SAME converter closure — horizons/registry
+  surfaces via depthRowGrid, fault vertices per point — so a layer
+  boundary lands EXACTLY on its stretched row (oracle); wells plot at
+  their NATIVE tvdss (engines #28 carries it on the lattice points).
+  Depth mode is readout-only v1: picking/ghost/draft/seed and the
+  co-render overlay are disabled; the vertical axis reads m TVD and
+  the cursor reports depth. 6 engine oracles.
+
+Wave 3 OPEN items (recorded, not blocking): fault polygons are not yet
+consumed by the 3D window or exported as GeoJSON; dip estimate +
+dip-steered variance remain the W2.3 stretch goal; tracker confidence
+is not yet an accept/reject repick filter; tie QC is display-only (no
+stored QC provenance); depth mode covers inline/xline sections only
+(traverses/map stay time) and depth picking is deliberately disabled;
+suggestBulkShift stays for the one-anchor case.
+
+Wave 3 staging E2E checklist for the owner: pick a two-stick fault
+crossing a horizon -> fault polygon + throw labels on the map, polygon
+CSV export, surface XYZ export; grid that horizon with the fault ->
+the heave gap stays null in the export; NCC-track a horizon (threshold
+0.7) -> confidence map displays; 'Grow target' extends an edited
+horizon and 'Stop at faults' halts growth at a fault; synthetics:
+add two anchors, drag one, commit to checkshots -> re-synthesize shows
+'checkshots (tie-derived)'; calibrate velocity from anchors -> model
+updates with provenance; flip a section to Depth -> wells land on TVD,
+horizons overlay the stretched image, readout shows metres.
