@@ -8,7 +8,10 @@
 // coordinates out); vertical is TWT ms with the suite's negative-down
 // export sign (zSign 'positive' flips for Petrel-bound files).
 
-import { loftFaultSurface, faultHorizonIntersection, polygonMask } from '../engine/faultObjects';
+import {
+  loftFaultSurface, faultHorizonIntersection, polygonMask, surfaceLevelTrace,
+} from '../engine/faultObjects';
+import { rasterizeTraces } from '../engine/faultBarriers';
 import { ilxlToWorld, worldToIlxl } from '../engine/surveyGeometry';
 
 const fmt = (v) => (Number.isFinite(v) ? v.toFixed(2) : '');
@@ -93,6 +96,29 @@ export function faultIntersections(faults, picks, geom, opts = {}) {
     if (x) out.push({ fault: f, intersection: x });
   }
   return out;
+}
+
+/**
+ * Fault-aware tracking barriers (W3.2): each fault's surface trace at
+ * the seed's time level, rasterized onto the lattice. Works BEFORE any
+ * horizon exists — the surface knows where the fault lives at that
+ * level. Faults whose surface does not reach the level contribute
+ * nothing (they cannot block a horizon they do not cut).
+ *
+ * @param {Array<{sticks, surface?}>} faults
+ * @param {number} sampleLevel seed sample (float)
+ * @param {{nIl:number, nXl:number}} geom
+ * @returns {Uint8Array|null} barrier mask, null when no fault reaches
+ */
+export function barriersFromFaults(faults, sampleLevel, geom) {
+  const traces = [];
+  for (const f of faults || []) {
+    const surf = faultSurfaceOf(f);
+    const trace = surf && surfaceLevelTrace(surf, sampleLevel);
+    if (trace) traces.push(trace);
+  }
+  if (!traces.length) return null;
+  return rasterizeTraces(traces, geom.nIl, geom.nXl);
 }
 
 /**

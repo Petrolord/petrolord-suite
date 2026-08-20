@@ -9,6 +9,18 @@ import { horizonStats } from '../engine/horizonTrack';
 const horizonBlobPath = (volumeStoragePath, horizonId) =>
   `${volumeStoragePath}/horizons/${horizonId}.f32`;
 
+/** Companion confidence layer (W3.2 NCC tracking): {id}.conf.f32 beside
+ *  the pick blob. Absent for snap-tracked and hand-edited horizons. */
+export const confidenceBlobPath = (pickBlobPath) =>
+  pickBlobPath.replace(/\.f32$/, '.conf.f32');
+
+/** True when a confidence grid carries at least one live coefficient. */
+const hasConfidence = (confidence) => {
+  if (!confidence) return false;
+  for (const v of confidence) if (Math.abs(v) < 1.0e29) return true;
+  return false;
+};
+
 /**
  * Save a tracked horizon: blob first, row second.
  *
@@ -20,7 +32,7 @@ const horizonBlobPath = (volumeStoragePath, horizonId) =>
  * @param {Object} p.params tracker options used (mode, window, maxJump, …)
  * @param {number} p.dtUs volume sample interval, for TWT stats
  */
-export async function saveHorizon({ volume, name, picks, seed, params, dtUs }) {
+export async function saveHorizon({ volume, name, picks, seed, params, dtUs, confidence = null }) {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error('You must be signed in to save horizons.');
 
@@ -40,6 +52,17 @@ export async function saveHorizon({ volume, name, picks, seed, params, dtUs }) {
     .upload(blobPath, new Blob([picks.buffer], { type: 'application/octet-stream' }),
       { contentType: 'application/octet-stream' });
   if (uploadError) throw new Error(`Could not store horizon picks: ${uploadError.message}`);
+
+  if (hasConfidence(confidence)) {
+    const { error: confError } = await supabase.storage.from(SEISMIC_BUCKET)
+      .upload(confidenceBlobPath(blobPath),
+        new Blob([confidence.buffer], { type: 'application/octet-stream' }),
+        { contentType: 'application/octet-stream' });
+    if (confError) {
+      await supabase.storage.from(SEISMIC_BUCKET).remove([blobPath]);
+      throw new Error(`Could not store tracking confidence: ${confError.message}`);
+    }
+  }
 
   const { data, error } = await supabase.from('seismic_horizons')
     .insert({
@@ -75,12 +98,23 @@ export async function saveHorizon({ volume, name, picks, seed, params, dtUs }) {
  * @param {Object} [p.params] merged into the stored params (e.g. edit
  *   provenance: snap mode, tools used)
  */
-export async function updateHorizon({ horizon, picks, dtUs, params }) {
+export async function updateHorizon({ horizon, picks, dtUs, params, confidence = null }) {
   const { error: uploadError } = await supabase.storage.from(SEISMIC_BUCKET)
     .upload(horizon.storage_path,
       new Blob([picks.buffer], { type: 'application/octet-stream' }),
       { contentType: 'application/octet-stream', upsert: true });
   if (uploadError) throw new Error(`Could not store edited picks: ${uploadError.message}`);
+
+  // W3.2: a re-track passes a fresh confidence grid; hand edits pass
+  // nothing and the stored layer (if any) is left as-is — per-cell
+  // confidence for edited picks is undefined, not zero
+  if (hasConfidence(confidence)) {
+    const { error: confError } = await supabase.storage.from(SEISMIC_BUCKET)
+      .upload(confidenceBlobPath(horizon.storage_path),
+        new Blob([confidence.buffer], { type: 'application/octet-stream' }),
+        { contentType: 'application/octet-stream', upsert: true });
+    if (confError) throw new Error(`Could not store tracking confidence: ${confError.message}`);
+  }
 
   const s = horizonStats(picks);
   const dtMs = dtUs / 1000;
@@ -148,13 +182,22 @@ export async function loadHorizonGrid(horizon) {
   return new Float32Array(await data.arrayBuffer());
 }
 
+/** @returns {Promise<Float32Array|null>} the confidence companion grid,
+ *  or null when the horizon has none (snap-tracked / hand-edited). */
+export async function loadHorizonConfidence(horizon) {
+  const { data, error } = await supabase.storage.from(SEISMIC_BUCKET)
+    .download(confidenceBlobPath(horizon.storage_path));
+  if (error || !data) return null;
+  return new Float32Array(await data.arrayBuffer());
+}
+
 export async function deleteHorizon(horizon) {
   // blob first, and NOT fire-and-forget: a transient storage failure that
   // was silently ignored while the row still deleted would strand an
   // unreachable orphan blob forever (L1). Failing here keeps the row, so
   // the user just retries the delete.
   const { error: removeError } = await supabase.storage.from(SEISMIC_BUCKET)
-    .remove([horizon.storage_path]);
+    .remove([horizon.storage_path, confidenceBlobPath(horizon.storage_path)]);
   if (removeError) {
     throw new Error(
       `Could not delete stored picks (${removeError.message}) — nothing was deleted; try again.`);

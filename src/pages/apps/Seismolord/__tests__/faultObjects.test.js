@@ -144,3 +144,44 @@ describe('faultIntersections / maskGridNodesByRings', () => {
     expect(faultIntersections([makeFault()], flat, geom)).toHaveLength(0);
   });
 });
+
+describe('barriersFromFaults (W3.2 fault-aware tracking)', () => {
+  const { barriersFromFaults } = require('@/pages/apps/Seismolord/lib/faultObjectsExport');
+
+  test('rasterizes each fault surface trace at the seed level', () => {
+    const barriers = barriersFromFaults([makeFault()], 44, geom);
+    expect(barriers).not.toBeNull();
+    // the dipping fault sits at xl = 32 + 0.5 (44 - 50) = 29 at s 44
+    let count = 0;
+    for (let i = 0; i < NIL; i++) {
+      for (let j = 0; j < NXL; j++) {
+        if (!barriers[i * NXL + j]) continue;
+        count += 1;
+        expect(Math.abs(j - 29)).toBeLessThanOrEqual(1);
+        expect(i).toBeGreaterThanOrEqual(8);
+        expect(i).toBeLessThanOrEqual(56);
+      }
+    }
+    expect(count).toBeGreaterThan(40); // a continuous chain along the sticks
+  });
+
+  test('level beyond every stick -> null (nothing to block)', () => {
+    expect(barriersFromFaults([makeFault()], 95, geom)).toBeNull();
+    expect(barriersFromFaults([], 44, geom)).toBeNull();
+  });
+
+  test('a stored surface is honored without re-lofting', () => {
+    const fault = makeFault();
+    const stored = {
+      version: 1,
+      samples: 2,
+      rails: [
+        [[0, 10, 0], [0, 10, 100]],
+        [[NIL - 1, 10, 0], [NIL - 1, 10, 100]],
+      ],
+    };
+    const barriers = barriersFromFaults([{ ...fault, surface: stored }], 44, geom);
+    expect(barriers[5 * NXL + 10]).toBe(1);   // the stored plane at xl 10
+    expect(barriers[5 * NXL + 29]).toBe(0);   // not the sticks' position
+  });
+});

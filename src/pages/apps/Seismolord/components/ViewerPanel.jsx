@@ -15,13 +15,14 @@ import {
 } from '../services/interpState';
 import {
   saveHorizon, listHorizons, loadHorizonGrid, deleteHorizon, updateHorizon,
+  loadHorizonConfidence,
   updateHorizonMeta,
 } from '../services/horizonsService';
 import { saveFault, listFaults, deleteFault } from '../services/faultsService';
 import { placeWellsForHost } from '@/lib/crs/guards';
 import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExport';
 import { faultHorizonIntersection } from '../engine/faultObjects';
-import { faultSurfaceXyz, faultPolygonCsv } from '../lib/faultObjectsExport';
+import { faultSurfaceXyz, faultPolygonCsv, barriersFromFaults } from '../lib/faultObjectsExport';
 import {
   listVolumeSurfaces, exportStoredSurface, loadSurfaceMapLayer,
   surfaceSectionGrid, setSurfaceShared,
@@ -306,6 +307,13 @@ export default function ViewerPanel() {
   // search half-window (samples) for seed snap, manual picking, ghost
   // preview and BOTH trackers; ±3 preserves the validated tracker default
   const [snapWindow, setSnapWindow] = useState(3);
+  // W3.2 Tracker 2.0: correlation threshold (ncc mode) + fault-aware
+  // growth toggle (barriers from the fault surfaces at the seed level)
+  const [corrThreshold, setCorrThreshold] = useState(0.7);
+  const [stopAtFaults, setStopAtFaults] = useState(false);
+  // seed clicks and manual picks still snap to an EVENT in ncc mode —
+  // correlation needs a waveform anchor, not a raw click position
+  const eventSnapMode = snapMode === 'ncc' ? 'peak' : snapMode;
   // velocity model draft (strings while typing; saved model lives in the
   // manifest and is the ONLY thing depth displays / exports consume)
   const [velMode, setVelMode] = useState('linear');   // 'linear' | 'layercake'
@@ -1143,7 +1151,7 @@ export default function ViewerPanel() {
       const cell = ilIdx * geom.nXl + xlIdx;
       try {
         const traceData = await assembleTrace(getBrick, geom, ilIdx, xlIdx);
-        const hit = snapPick(traceData, sample, { mode: snapMode, window: snapWindow });
+        const hit = snapPick(traceData, sample, { mode: eventSnapMode, window: snapWindow });
         applyOp([cell], [hit ? hit.sample : sample]);
       } catch {
         applyOp([cell], [sample]);
@@ -1153,7 +1161,7 @@ export default function ViewerPanel() {
 
     try {
       const traceData = await assembleTrace(getBrick, geom, ilIdx, xlIdx);
-      const hit = snapPick(traceData, sample, { mode: snapMode, window: snapWindow });
+      const hit = snapPick(traceData, sample, { mode: eventSnapMode, window: snapWindow });
       if (!hit) {
         toast({ title: 'No event found', description: 'No event of the selected snap kind near that click — try closer to one.' });
         return;
@@ -1350,13 +1358,23 @@ export default function ViewerPanel() {
   // ---- horizon editing actions ------------------------------------------
 
   /** Tracker gates: zero crossings sit at ~0 amplitude, so the RMS-based
-   *  amplitude floor only applies to extrema modes. */
-  const trackerOpts = useCallback(() => ({
-    mode: snapMode,
-    window: snapWindow,
-    maxJump: 4,
-    minAbsAmp: snapMode.startsWith('zero') ? 0 : (manifest?.stats?.rms || 0) * 0.3,
-  }), [snapMode, snapWindow, manifest]);
+   *  amplitude floor only applies to extrema modes. In ncc mode the
+   *  snap window doubles as the correlation lag search and the
+   *  threshold replaces the amplitude floor. */
+  const trackerOpts = useCallback(() => (snapMode === 'ncc'
+    ? {
+      mode: 'ncc',
+      corrHalf: 8,
+      corrSearch: snapWindow,
+      corrThreshold,
+      maxJump: 4,
+    }
+    : {
+      mode: snapMode,
+      window: snapWindow,
+      maxJump: 4,
+      minAbsAmp: snapMode.startsWith('zero') ? 0 : (manifest?.stats?.rms || 0) * 0.3,
+    }), [snapMode, snapWindow, corrThreshold, manifest]);
 
   const toggleEditTool = async (tool) => {
     if (pickMode === tool) { setPickMode(null); return; }
@@ -1517,23 +1535,35 @@ export default function ViewerPanel() {
   };
 
   // ---- 3D tracking -----------------------------------------------------
-  const trackHorizon = async () => {
-    if (!seedPick || !geom || !volume || !manifest) return;
+
+  /** W3.2 fault-aware barriers: each visible fault's surface trace at
+   *  the tracking level, rasterized. Null when off or nothing reaches. */
+  const trackingBarriers = (sampleLevel) => {
+    if (!stopAtFaults || !geom) return null;
+    return barriersFromFaults(faults, sampleLevel, geom);
+  };
+
+  /** Run the region-grow worker and return {picks, confidence}. */
+  const runTracker = async ({ seed, extraOpts }) => {
     const id = ++jobIdRef.current;
     setTracking({ tracked: 0, total: geom.nIl * geom.nXl });
+    const token = await accessToken();
+    const worker = newHorizonWorker();
+    workerRef.current = worker;
     try {
-      const token = await accessToken();
-      const worker = newHorizonWorker();
-      workerRef.current = worker;
-      const picks = await new Promise((resolve, reject) => {
+      return await new Promise((resolve, reject) => {
         worker.onmessage = async (e) => {
           const msg = e.data;
           if (msg.id !== id) return;
           if (msg.type === 'progress') setTracking({ tracked: msg.tracked, total: msg.total });
           else if (msg.type === 'need-token') {
             worker.postMessage({ type: 'token', nonce: msg.nonce, token: await accessToken() });
-          } else if (msg.type === 'done') resolve(new Float32Array(msg.picks));
-          else if (msg.type === 'error') reject(new Error(msg.message));
+          } else if (msg.type === 'done') {
+            resolve({
+              picks: new Float32Array(msg.picks),
+              confidence: msg.confidence ? new Float32Array(msg.confidence) : null,
+            });
+          } else if (msg.type === 'error') reject(new Error(msg.message));
         };
         worker.onerror = (ev) => reject(new Error(ev.message));
         worker.postMessage({
@@ -1545,12 +1575,25 @@ export default function ViewerPanel() {
             bucket: 'seismic',
             storagePath: volume.storage_path,
             geom,
-            seed: seedPick,
-            opts: trackerOpts(),
+            seed,
+            opts: { ...trackerOpts(), ...extraOpts },
           },
         });
-      }).finally(() => worker.terminate());
+      });
+    } finally {
+      worker.terminate();
       workerRef.current = null;
+    }
+  };
+
+  const trackHorizon = async () => {
+    if (!seedPick || !geom || !volume || !manifest) return;
+    try {
+      const barriers = trackingBarriers(seedPick.sample);
+      const { picks, confidence } = await runTracker({
+        seed: seedPick,
+        extraOpts: barriers ? { barriers } : {},
+      });
 
       // eslint-disable-next-line no-alert
       const name = window.prompt('Horizon name:', `Horizon ${horizons.length + 1}`);
@@ -1560,8 +1603,9 @@ export default function ViewerPanel() {
         name,
         picks,
         seed: seedPick,
-        params: { ...trackerOpts(), source: 'track3d' },
+        params: { ...trackerOpts(), source: 'track3d', stop_at_faults: Boolean(barriers) },
         dtUs: manifest.geometry.dt_us,
+        confidence,
       });
       cacheGrid(gridCacheRef.current, row.id, picks);
       setVisibleIds((s) => new Set([...s, row.id]));
@@ -1570,6 +1614,43 @@ export default function ViewerPanel() {
     } catch (e) {
       if (!/cancelled/i.test(e.message)) {
         toast({ title: 'Tracking failed', description: e.message, variant: 'destructive' });
+      }
+    } finally {
+      setTracking(null);
+    }
+  };
+
+  /** W3.2 grow-from-existing: the edit target's live picks all seed the
+   *  region grow (values kept bit-exact), new cells fill outward; the
+   *  horizon row is UPDATED in place. A picked seed joins in. */
+  const growHorizon = async () => {
+    if (editTarget === 'new' || !geom || !volume || !manifest) return;
+    const h = horizons.find((x) => x.id === editTarget);
+    if (!h) return;
+    try {
+      const initialPicks = gridCacheRef.current.get(h.id) || await loadHorizonGrid(h);
+      const level = seedPick?.sample
+        ?? (h.stats?.min_twt_ms != null && h.stats?.max_twt_ms != null
+          ? ((h.stats.min_twt_ms + h.stats.max_twt_ms) / 2) / (manifest.geometry.dt_us / 1000)
+          : null);
+      const barriers = level != null ? trackingBarriers(level) : null;
+      const { picks, confidence } = await runTracker({
+        seed: seedPick || null,
+        extraOpts: { initialPicks, ...(barriers ? { barriers } : {}) },
+      });
+      const row = await updateHorizon({
+        horizon: h,
+        picks,
+        dtUs: manifest.geometry.dt_us,
+        params: { ...trackerOpts(), source: 'grow3d', stop_at_faults: Boolean(barriers) },
+        confidence,
+      });
+      cacheGrid(gridCacheRef.current, h.id, picks);
+      await reloadHorizons(volume);
+      toast({ title: 'Horizon grown', description: `${h.name}: ${row.stats.tracked} traces.` });
+    } catch (e) {
+      if (!/cancelled/i.test(e.message)) {
+        toast({ title: 'Growing failed', description: e.message, variant: 'destructive' });
       }
     } finally {
       setTracking(null);
@@ -2164,7 +2245,7 @@ export default function ViewerPanel() {
     const ts = traverseSlice;
     if (ts) {
       const trData = ts.data.subarray(trace * ts.width, (trace + 1) * ts.width);
-      const hit = snapPick(trData, sample, { mode: snapMode, window: snapWindow });
+      const hit = snapPick(trData, sample, { mode: eventSnapMode, window: snapWindow });
       applyOp([cell], [hit ? hit.sample : sample]);
     } else {
       applyOp([cell], [sample]);
@@ -2178,6 +2259,17 @@ export default function ViewerPanel() {
    *  (traverse pattern). */
   const extractAmplitude = useCallback(async (grid, opts) => {
     if (!geom || !volume) throw new Error('No volume selected');
+    // W3.2 confidence pseudo-attribute: not a brick extraction at all —
+    // the horizon's stored companion layer, resolved by grid identity
+    if (opts.mode === 'confidence') {
+      const h = (horizonsRef.current || [])
+        .find((x) => gridCacheRef.current.get(x.id) === grid);
+      const conf = h ? await loadHorizonConfidence(h) : null;
+      if (!conf || conf.length !== grid.length) {
+        throw new Error('This horizon has no tracking-confidence layer (NCC tracking writes one).');
+      }
+      return conf;
+    }
     let preflight;
     let run;
     if (opts.picksB) {
@@ -2471,8 +2563,14 @@ export default function ViewerPanel() {
               setSnapMode={setSnapMode}
               snapWindow={snapWindow}
               setSnapWindow={setSnapWindow}
+              corrThreshold={corrThreshold}
+              setCorrThreshold={setCorrThreshold}
+              stopAtFaults={stopAtFaults}
+              setStopAtFaults={setStopAtFaults}
+              hasFaults={faults.length > 0}
               tracking={tracking}
               trackHorizon={trackHorizon}
+              growHorizon={growHorizon}
               cancelTracking={cancelTracking}
               track2D={track2D}
               editTarget={editTarget}
@@ -2602,7 +2700,7 @@ export default function ViewerPanel() {
                     ? overlaySlice : null}
                   overlayDisplay={overlayDisplay}
                   pickMode={pickMode}
-                  ghost={pickMode === 'manual' ? { mode: snapMode, window: snapWindow } : null}
+                  ghost={pickMode === 'manual' ? { mode: eventSnapMode, window: snapWindow } : null}
                   loading={loading}
                   depthConv={depthConv}
                   onPick={handlePick}
@@ -2696,7 +2794,7 @@ export default function ViewerPanel() {
                     display={display}
                     overlays={overlays}
                     pickMode={pickMode === 'manual' || pickMode === 'erase' ? pickMode : null}
-                    ghost={pickMode === 'manual' ? { mode: snapMode, window: snapWindow } : null}
+                    ghost={pickMode === 'manual' ? { mode: eventSnapMode, window: snapWindow } : null}
                     loading={traverseLoading}
                     depthConv={depthConv}
                     onPick={handleTraversePick}

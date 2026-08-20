@@ -298,8 +298,14 @@ function MapView({
   // amplitude attribute needs the extraction callback and a single
   // mapped horizon — isochron (vs) and amplitude are mutually exclusive
   const effAttr = onAmplitude && active && !vs ? attr : 'structure';
+  // W3.2 pseudo-attribute: the NCC tracking-confidence companion layer —
+  // resolved by the extraction callback, no bricks involved
+  const CONFIDENCE_MODE = { key: 'confidence', label: 'Tracker confidence', windowed: false };
   const ampMode = effAttr !== 'structure'
-    ? AMP_MODES.find((m) => m.key === effAttr) || null : null;
+    ? (effAttr === 'confidence'
+      ? CONFIDENCE_MODE
+      : AMP_MODES.find((m) => m.key === effAttr) || null)
+    : null;
   const [ampBusy, setAmpBusy] = useState(false);
 
   // extract (or re-extract) when the attribute, its window, or the
@@ -1613,6 +1619,7 @@ function MapView({
           >
             <option value="structure">Structure</option>
             {AMP_MODES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+            <option value="confidence">Tracker confidence</option>
           </select>
         )}
         {ampMode?.windowed && (
