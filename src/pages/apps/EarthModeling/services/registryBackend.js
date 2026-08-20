@@ -21,11 +21,11 @@ async function listProjects() {
   return data || [];
 }
 
-async function saveProject({ name, definition }) {
+async function saveProject({ name, definition, crs = null }) {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error('You must be signed in to save models.');
   const { data, error } = await supabase.from('em_models')
-    .insert({ user_id: user.id, name, definition })
+    .insert({ user_id: user.id, name, definition, crs })
     .select().single();
   if (error) throw new Error(`Could not save the model: ${error.message}`);
   return data;

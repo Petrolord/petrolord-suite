@@ -7,7 +7,7 @@
  */
 import {
   isVolumeSurface, isExplorerSurface, surfaceToGrid, exportStoredSurface,
-  SURFACE_EXPORT_FORMATS, surfaceSectionGrid,
+  SURFACE_EXPORT_FORMATS, surfaceSectionGrid, volumeCrsFields,
 } from '@/pages/apps/Seismolord/services/surfacesService';
 import { makeTvdssToTwt } from '@/pages/apps/Seismolord/engine/wellSection';
 
@@ -102,5 +102,14 @@ describe('exportStoredSurface', () => {
   test('rejects an unknown format before touching storage', async () => {
     await expect(exportStoredSurface({ name: 's' }, 'nope'))
       .rejects.toThrow(/Unknown surface export format/);
+  });
+});
+
+describe('volumeCrsFields (surfaces inherit the volume frame, Phase 5)', () => {
+  test('tagged volumes stamp their tag and unit; legacy volumes stamp nothing', () => {
+    expect(volumeCrsFields({ crs: 'EPSG:32631' })).toEqual({ crs: 'EPSG:32631', xyUnit: 'm' });
+    expect(volumeCrsFields({ crs: 'LOCAL' })).toEqual({ crs: 'LOCAL', xyUnit: null });
+    expect(volumeCrsFields({ crs: null })).toEqual({});
+    expect(volumeCrsFields(null)).toEqual({});
   });
 });

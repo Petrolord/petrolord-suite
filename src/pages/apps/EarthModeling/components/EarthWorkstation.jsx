@@ -200,7 +200,11 @@ export default function EarthWorkstation({ backend }) {
 
   const saveProject = async () => {
     try {
-      const saved = await backend.saveProject({ name: definition.name, definition });
+      const saved = await backend.saveProject({
+        name: definition.name,
+        definition,
+        crs: built?.crs || null,
+      });
       setProjects(await backend.listProjects());
       setStatus(`Saved model "${saved.name}".`);
     } catch (e) { setStatus(e.message); }

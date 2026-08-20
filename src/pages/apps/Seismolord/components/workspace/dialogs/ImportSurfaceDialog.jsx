@@ -33,6 +33,10 @@ import { geomFromManifest } from '../../../engine/sliceAssembly';
 import { saveImportedSurface } from '../../../services/surfacesService';
 import { saveHorizon } from '../../../services/horizonsService';
 import { saveFault } from '../../../services/faultsService';
+import CrsPicker from '@/components/crs/CrsPicker';
+import useCrsContext from '@/components/crs/useCrsContext';
+import { getTransformer, reprojectSurfaceGrid } from '@/lib/crs';
+import { normalizeTag, isTransformableTag, compareTags } from '@/lib/crs/tags';
 
 const NULL_F32 = Math.fround(1.0e30);
 
@@ -79,6 +83,12 @@ export default function ImportSurfaceDialog({
   const [zSign, setZSign] = useState('auto');    // 'auto' | 'negative' | 'positive'
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // File CRS declaration (Phase 5): null = same frame as the volume
+  // (today's contract); a differing transformable declaration converts
+  // into the volume's frame before anything lands.
+  const { crsContext } = useCrsContext();
+  const [fileCrs, setFileCrs] = useState(null);
+  const volumeTag = normalizeTag(volume?.crs);
 
   const reset = () => {
     setFileName('');
@@ -124,28 +134,66 @@ export default function ImportSurfaceDialog({
 
   const effSign = zSign === 'auto' ? preview?.autoSign || 'negative' : zSign;
 
+  // Conversion decision for the declared file CRS vs the volume frame.
+  const declaredTag = fileCrs ? normalizeTag(fileCrs) : volumeTag;
+  const needsConvert = fileCrs && compareTags(declaredTag, volumeTag) === 'transformable';
+  const convertBlocked = fileCrs && declaredTag !== volumeTag && !needsConvert;
+
+  /** Transform world-space {x, y} rows into the volume frame. */
+  const toVolumeFrame = (points) => {
+    if (!needsConvert) return points;
+    const t = getTransformer(declaredTag, volumeTag, crsContext?.customDefs || {});
+    return points.map((p) => (Number.isFinite(p.x) && Number.isFinite(p.y)
+      ? { ...p, ...t.forward(p.x, p.y) } : p));
+  };
+
   const doImport = async () => {
     if (!preview || !volume) return;
+    if (convertBlocked) {
+      setError(declaredTag === volumeTag
+        ? 'Nothing to convert.'
+        : 'The file declares a different CRS but the volume has no usable CRS to convert into. Assign the volume CRS first, or import the file as being in the volume frame.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       if (kind === 'surface') {
         // storage convention is negative-down: flip a positive-down file
-        const g = preview.g;
+        let g = preview.g;
         const z = new Float32Array(g.z);
         if (effSign === 'positive') {
           for (let i = 0; i < z.length; i++) {
             if (Math.abs(z[i]) < 1e29) z[i] = -z[i];
           }
         }
+        g = { ...g, z };
+        let reprojected = null;
+        if (needsConvert) {
+          const r = reprojectSurfaceGrid({
+            spec: { x0: g.x0, y0: g.y0, dx: g.dx, dy: g.dy, nx: g.nx, ny: g.ny },
+            z: g.z,
+            fromTag: declaredTag,
+            toTag: volumeTag,
+            customDefs: crsContext?.customDefs || {},
+          });
+          g = {
+            ...g,
+            x0: r.spec.x0, y0: r.spec.y0, dx: r.spec.dx, dy: r.spec.dy,
+            nx: r.spec.nx, ny: r.spec.ny, z: r.z,
+          };
+          reprojected = { coverage: r.coverage };
+        }
         await saveImportedSurface({
           volume,
           name: name || fileName,
-          g: { ...g, z },
+          g,
           domain,
           fileName,
           format: preview.g.format,
           stats: preview.stats,
+          declaredCrs: fileCrs ? declaredTag : null,
+          reprojected,
         });
         toast({
           title: 'Surface imported',
@@ -161,8 +209,11 @@ export default function ImportSurfaceDialog({
           il0: geo.il.min, ilStep: geo.il.step, xl0: geo.xl.min, xlStep: geo.xl.step,
         };
         const sign = effSign === 'negative' ? -1 : 1;
+        const inputFaults = needsConvert
+          ? preview.faults.map((f) => ({ ...f, sticks: f.sticks.map((s) => toVolumeFrame(s)) }))
+          : preview.faults;
         const { faults, placed, skipped, droppedSticks } = faultSticksToLattice(
-          preview.faults, geom, lines, affine, (z) => (sign * z) / dtMs,
+          inputFaults, geom, lines, affine, (z) => (sign * z) / dtMs,
         );
         const source = {
           file_name: fileName,
@@ -172,6 +223,7 @@ export default function ImportSurfaceDialog({
           skipped,
           dropped_sticks: droppedSticks,
           z_sign: effSign === 'negative' ? 'negative_down' : 'positive_down',
+          ...(fileCrs ? { declared_crs: declaredTag, converted: needsConvert } : {}),
         };
         // a single-fault file takes the editable dialog name; multi-fault
         // files keep each fault's own file name
@@ -202,7 +254,7 @@ export default function ImportSurfaceDialog({
         };
         const sign = effSign === 'negative' ? -1 : 1;
         const { picks, placed, skipped, collisions } = rowsToPickLattice(
-          preview.rows, geom, lines, affine, (z) => (sign * z) / dtMs,
+          toVolumeFrame(preview.rows), geom, lines, affine, (z) => (sign * z) / dtMs,
         );
         const seedCell = picks.findIndex((v) => v !== NULL_F32);
         const seed = {
@@ -225,6 +277,7 @@ export default function ImportSurfaceDialog({
               skipped,
               collisions,
               z_sign: effSign === 'negative' ? 'negative_down' : 'positive_down',
+              ...(fileCrs ? { declared_crs: declaredTag, converted: needsConvert } : {}),
             },
           },
           dtUs: geo.dt_us,
@@ -340,6 +393,36 @@ export default function ImportSurfaceDialog({
                       </select>
                     </div>
                   )}
+                  <div className="col-span-2 md:col-span-3">
+                    <Label className="text-slate-300">File CRS</Label>
+                    <div className="mt-1 grid grid-cols-[auto,1fr] items-center gap-2">
+                      <label className="text-xs text-slate-400 flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          checked={!fileCrs}
+                          onChange={(e) => setFileCrs(e.target.checked ? null : (volume?.crs || 'UNKNOWN'))}
+                        />
+                        Same frame as the volume{volume?.crs ? ` (${volumeTag})` : ''}
+                      </label>
+                      {fileCrs && (
+                        <CrsPicker
+                          value={fileCrs}
+                          onChange={(tag) => setFileCrs(tag)}
+                          customDefs={crsContext?.customDefs || {}}
+                        />
+                      )}
+                    </div>
+                    {needsConvert && (
+                      <div className="mt-1 text-xs text-cyan-300">
+                        The data will be converted from {declaredTag} into the volume frame ({volumeTag}) before it lands.
+                      </div>
+                    )}
+                    {convertBlocked && (
+                      <div className="mt-1 text-xs text-amber-300">
+                        The volume has no usable CRS to convert into. Assign the volume CRS first, or import the file as being in the volume frame.
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <Label
                       className="text-slate-300"
