@@ -9,11 +9,14 @@
 // app glue (registry points, resample, surface math) is engine/surface.js.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Map as MapIcon, Loader2, UploadCloud, Sigma } from 'lucide-react';
+import {
+  Map as MapIcon, Loader2, UploadCloud, Sigma, Globe2,
+} from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import SurfacesExplorer from './SurfacesExplorer';
 import MapCanvas from './MapCanvas';
+import CultureImportDialog from '@/components/culture/CultureImportDialog';
 import { gridSurface } from '@/lib/gridding/gridding';
 import {
   topsToPoints, zoneAttrToPoints, specForPoints, gridObject,
@@ -39,6 +42,12 @@ export default function MappingWorkstation({ backend }) {
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
   const [sharingId, setSharingId] = useState(null); // share toggle in flight
+  // culture / GIS layers (W1.3): geo_culture rows through the backend
+  const [culture, setCulture] = useState([]);
+  const [cultureTick, setCultureTick] = useState(0);
+  const [visibleCultureIds, setVisibleCultureIds] = useState(new Set());
+  const [cultureFeatures, setCultureFeatures] = useState(new Map());
+  const [cultureImportOpen, setCultureImportOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     try { setSurfaces(await backend.listSurfaces()); }
@@ -57,6 +66,38 @@ export default function MappingWorkstation({ backend }) {
     })();
     return () => { live = false; };
   }, [backend, refresh]);
+
+  useEffect(() => {
+    let live = true;
+    if (!backend.listCulture) return undefined;
+    backend.listCulture()
+      .then((rows) => { if (live) setCulture(rows); })
+      .catch(() => { if (live) setCulture([]); });
+    return () => { live = false; };
+  }, [backend, cultureTick]);
+
+  const toggleCultureLayer = async (row) => {
+    if (visibleCultureIds.has(row.id)) {
+      setVisibleCultureIds((set) => { const n = new Set(set); n.delete(row.id); return n; });
+      return;
+    }
+    if (!cultureFeatures.has(row.id)) {
+      try {
+        const feats = await backend.downloadCultureFeatures(row);
+        setCultureFeatures((m) => new Map(m).set(row.id, feats));
+      } catch (e) {
+        setStatus(e.message);
+        return;
+      }
+    }
+    setVisibleCultureIds((set) => new Set([...set, row.id]));
+  };
+
+  const cultureLayers = useMemo(() => culture
+    .filter((c) => visibleCultureIds.has(c.id) && cultureFeatures.has(c.id))
+    .map((c) => ({
+      id: c.id, name: c.name, style: c.style || {}, features: cultureFeatures.get(c.id),
+    })), [culture, visibleCultureIds, cultureFeatures]);
 
   const topNames = useMemo(() => {
     const seen = [];
@@ -228,12 +269,20 @@ export default function MappingWorkstation({ backend }) {
       Grid a top from the left, or select a surface.
     </div>
   ) : (
-    <div className="p-3"><MapCanvas surface={displaySurface} grid={displayGrid} wells={displayWells} /></div>
+    <div className="p-3">
+      <MapCanvas
+        surface={displaySurface}
+        grid={displayGrid}
+        wells={displayWells}
+        cultureLayers={cultureLayers}
+      />
+    </div>
   );
 
   return (
-    <WorkspaceShell
-      autoSaveId="mappingsurfacestudio.workspace.v1"
+    <>
+      <WorkspaceShell
+        autoSaveId="mappingsurfacestudio.workspace.v1"
       minWidth={1000}
       dockDefaultSize={20}
       ribbon={ribbon}
@@ -274,12 +323,54 @@ export default function MappingWorkstation({ backend }) {
               Compute isochore
             </button>
             <p className="text-[10px] text-slate-600">Resamples B onto A's frame, subtracts, and previews the thickness map. Publish to save.</p>
+
+            <div className="pt-2 border-t border-slate-800/60">
+              <div className="text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1 mb-1">
+                <Globe2 className="w-3 h-3" /> Culture layers
+              </div>
+              {culture.map((c) => (
+                <label key={c.id} className="flex items-center gap-1.5 py-0.5 text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={visibleCultureIds.has(c.id)}
+                    onChange={() => toggleCultureLayer(c)}
+                  />
+                  <span
+                    className="inline-block w-2.5 h-2.5 rounded-sm"
+                    style={{ background: c.style?.color || '#f59e0b' }}
+                  />
+                  <span className="truncate">{c.name}</span>
+                  <span className="ml-auto text-slate-600">{c.feature_count}</span>
+                </label>
+              ))}
+              {!culture.length && (
+                <p className="text-[10px] text-slate-600">
+                  No culture layers yet (license blocks, outlines, pipelines).
+                </p>
+              )}
+              {backend.canImportCulture && (
+                <button
+                  type="button"
+                  data-testid="map-culture-import"
+                  className="mt-1 w-full px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
+                  onClick={() => setCultureImportOpen(true)}
+                >
+                  Import GeoJSON / shapefile…
+                </button>
+              )}
+            </div>
           </div>
         </ScrollArea>
       )}
       dockOpen={dockOpen}
       onDockOpenChange={setDockOpen}
       statusBar={statusBar}
-    />
+      />
+      <CultureImportDialog
+        open={cultureImportOpen}
+        onOpenChange={setCultureImportOpen}
+        onImported={() => setCultureTick((k) => k + 1)}
+      />
+    </>
   );
 }

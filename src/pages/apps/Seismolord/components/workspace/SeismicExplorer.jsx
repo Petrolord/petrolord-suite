@@ -11,7 +11,7 @@ import React, { useState } from 'react';
 import {
   Database, Layers, Slash, CircleDot, Route, Eye, EyeOff, Loader2, Upload,
   Plus, RefreshCw, ChevronDown, ChevronRight, Pencil, ArrowLeft,
-  Rows, Columns, Clock, Settings2, Mountain, Download, Building2,
+  Rows, Columns, Clock, Settings2, Mountain, Download, Building2, Globe2,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -143,6 +143,7 @@ export default function SeismicExplorer({ tree, actions }) {
   const {
     volumes, activeVolumeId, horizons, visibleIds, horizonBusyId, editTargetId,
     surfaces, surfaceBusyId, visibleSurfaceIds,
+    culture, cultureBusyId, visibleCultureIds,
     faults, visibleFaultIds, faultBusyId,
     wells, visibleWellIds, wellBusyId, wellsError,
     savedTraverses, traverseSavedId,
@@ -367,6 +368,73 @@ export default function SeismicExplorer({ tree, actions }) {
                 ? 'No surfaces yet. Grid a horizon in Export and choose "Save as '
                   + 'surface", or import a surface file here.'
                 : 'Select a volume to see its surfaces.'}
+            </Hint>
+          )}
+        </Section>
+
+        <Section
+          icon={Globe2}
+          title="Culture"
+          count={(culture || []).length || ''}
+          actions={(
+            <IconButton title="Import GeoJSON or shapefile…" onClick={actions.openCultureImport}>
+              <Upload className="w-3.5 h-3.5" />
+            </IconButton>
+          )}
+        >
+          {(culture || []).map((c) => (
+            <Row
+              key={c.id}
+              icon={Globe2}
+              color={c.style?.color || '#f59e0b'}
+              label={c.name}
+              busy={cultureBusyId === c.id}
+              visible={visibleCultureIds?.has(c.id)}
+              onToggleVisible={() => actions.toggleCulture(c)}
+              meta={`${c.feature_count}`}
+              badge={c.organization_id ? (
+                <span
+                  title={c.is_own === false
+                    ? 'Shared by a teammate (read-only)'
+                    : 'Shared with your organization (read-only for members)'}
+                  className="shrink-0"
+                >
+                  <Building2 className={`w-3 h-3 ${c.is_own === false
+                    ? 'text-sky-400' : 'text-emerald-400'}`} />
+                </span>
+              ) : null}
+              title={`${c.kind.replace('_', ' ')} · ${c.geometry_type} · `
+                + `${c.crs || 'unknown CRS'}. The eye shows it in the Map window `
+                + '(converted into the active volume’s frame when both CRS are known).'}
+              onClick={() => actions.toggleCulture(c)}
+              menu={(
+                <>
+                  <ContextMenuItem onSelect={() => actions.toggleCulture(c)}>
+                    {visibleCultureIds?.has(c.id) ? 'Hide' : 'Show'}
+                  </ContextMenuItem>
+                  {c.is_own !== false && (
+                    <>
+                      <ContextMenuItem onSelect={() => actions.shareCulture(c)}>
+                        <Building2 className="w-3.5 h-3.5 mr-1.5" />
+                        {c.organization_id ? 'Make private' : 'Share with organization'}
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem
+                        className="text-red-400 focus:text-red-300"
+                        onSelect={() => actions.deleteCulture(c)}
+                      >
+                        Delete layer…
+                      </ContextMenuItem>
+                    </>
+                  )}
+                </>
+              )}
+            />
+          ))}
+          {!(culture || []).length && (
+            <Hint>
+              No culture layers yet. Import license blocks, field outlines,
+              pipelines or coastlines from GeoJSON or a shapefile.
             </Hint>
           )}
         </Section>

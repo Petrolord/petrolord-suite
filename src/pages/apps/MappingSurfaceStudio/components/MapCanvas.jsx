@@ -39,7 +39,9 @@ function makeLut() {
   return lut;
 }
 
-export default function MapCanvas({ surface, grid, wells = [], height = 460 }) {
+export default function MapCanvas({
+  surface, grid, wells = [], height = 460, cultureLayers = [],
+}) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const lut = useMemo(makeLut, []);
@@ -111,6 +113,45 @@ export default function MapCanvas({ surface, grid, wells = [], height = 460 }) {
       }
     }
 
+    // culture / GIS layers (W1.3): normalized geo_culture features in
+    // the same world frame as the surface (both stored in the Project
+    // CRS at import; frames are not reconciled per-layer here)
+    for (const layer of cultureLayers) {
+      const color = layer.style?.color || '#f59e0b';
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = Math.max(1, layer.style?.weight || 1);
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'left';
+      for (const f of layer.features) {
+        if (f.type === 'point') {
+          const { px, py } = toPx(f.x, f.y);
+          ctx.fillRect(px - 2.5, py - 2.5, 5, 5);
+          if (f.label) ctx.fillText(f.label, px + 5, py + 3);
+          continue;
+        }
+        const rings = f.type === 'polygon' ? f.rings : f.paths;
+        let first = null;
+        for (const ring of rings) {
+          if (ring.length < 2) continue;
+          ctx.beginPath();
+          ring.forEach((v, i) => {
+            const { px, py } = toPx(v[0], v[1]);
+            if (i === 0) { ctx.moveTo(px, py); if (!first) first = { px, py }; } else ctx.lineTo(px, py);
+          });
+          if (f.type === 'polygon') {
+            ctx.closePath();
+            ctx.save();
+            ctx.globalAlpha = 0.08;
+            ctx.fill();
+            ctx.restore();
+          }
+          ctx.stroke();
+        }
+        if (first && f.label) ctx.fillText(f.label, first.px + 5, first.py + 3);
+      }
+    }
+
     // posted wells
     for (const w of wells) {
       if (!Number.isFinite(w.surface_x)) continue;
@@ -137,7 +178,7 @@ export default function MapCanvas({ surface, grid, wells = [], height = 460 }) {
     ctx.textAlign = 'right';
     ctx.fillText(zMax.toFixed(0), cbX - 2, cbY + 8);
     ctx.fillText(zMin.toFixed(0), cbX - 2, cbY + cbH);
-  }, [surface, grid, wells, range, lut, height]);
+  }, [surface, grid, wells, range, lut, height, cultureLayers]);
 
   return (
     <div ref={wrapRef} className="w-full" data-testid="map-canvas-wrap">

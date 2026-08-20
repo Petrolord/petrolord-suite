@@ -87,5 +87,29 @@ export function makeInMemoryBackend() {
       s.organization_id = shared ? 'org-dev' : null;
       return { ...s };
     },
+    // culture / GIS layers (W1.3): one demo block so the harness can
+    // exercise the overlay without auth/DB; import stays registry-only
+    async listCulture() {
+      return [{
+        id: 'cult-dev',
+        name: 'Demo license block',
+        kind: 'license_block',
+        geometry_type: 'polygon',
+        feature_count: 1,
+        style: { color: '#f59e0b', weight: 1 },
+        crs: null,
+        is_own: true,
+        organization_id: null,
+      }];
+    },
+    async downloadCultureFeatures() {
+      return [{
+        type: 'polygon',
+        rings: [[[500600, 6699000], [503600, 6699000], [503600, 6701000], [500600, 6701000], [500600, 6699000]]],
+        props: { NAME: 'OML-DEV' },
+        label: 'OML-DEV',
+      }];
+    },
+    canImportCulture: false,
   };
 }

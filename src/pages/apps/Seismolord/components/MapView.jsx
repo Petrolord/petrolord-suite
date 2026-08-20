@@ -177,7 +177,7 @@ function MapView({
   onAmplitude, wells, height = 560, onCursor = null,
   timeSlice = null, sliceVis = null, indices = null, display = null,
   onHorizonSettings = null, onToggleHorizon = null, surfaces = null,
-  cameraApi = null,
+  cameraApi = null, cultureLayers = null,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -187,6 +187,7 @@ function MapView({
   const dragRef = useRef(null);
   const propsRef = useRef({});
   const cacheRef = useRef(new Map());   // horizon id -> layer cache
+  const cultureProjRef = useRef(new WeakMap());  // features -> lattice geoms
   const readoutValsRef = useRef(null);
   const readoutHintRef = useRef(null);
 
@@ -469,7 +470,7 @@ function MapView({
     northDir, velocity, depthConv, effDomain, traverse, savedTraverses,
     effAttr, ampLayer, wells, faultTraceLayer, onCursor,
     timeSlice, showTimeSlice, tsBitmap, tsLut, sliceVis, indices, display,
-    surfaces, activeSurface,
+    surfaces, activeSurface, cultureLayers,
   };
 
   // ---- drawing -----------------------------------------------------------
@@ -760,6 +761,78 @@ function MapView({
       }
     }
 
+    // culture / GIS layers (W1.3) — ground XY in the volume's frame,
+    // through the survey affine like wells. The O(vertices) ground ->
+    // lattice conversion caches per (features, affine) — worldToScreen
+    // only per frame.
+    const affC = p.spacing?.affine;
+    if (affC && p.cultureLayers && p.cultureLayers.length) {
+      ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.lineJoin = 'round';
+      for (const layer of p.cultureLayers) {
+        let cached = cultureProjRef.current.get(layer.features);
+        if (!cached || cached.aff !== affC) {
+          const toLat = (x, y) => {
+            const ij = worldToIlxl(affC, x, y);
+            return ij ? [ij.j + 0.5, ij.i + 0.5] : null;
+          };
+          const geoms = layer.features.map((f) => {
+            if (f.type === 'point') return { type: 'point', at: toLat(f.x, f.y), label: f.label };
+            const conv = (ring) => ring.map(([x, y]) => toLat(x, y)).filter(Boolean);
+            if (f.type === 'polyline') {
+              return { type: 'polyline', paths: f.paths.map(conv), label: f.label };
+            }
+            return { type: 'polygon', rings: f.rings.map(conv), label: f.label };
+          });
+          cached = { aff: affC, geoms };
+          cultureProjRef.current.set(layer.features, cached);
+        }
+        const color = layer.style?.color || '#f59e0b';
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.lineWidth = Math.max(1, (layer.style?.weight || 1) * 1.4 * dpr);
+        const labelAt = (s, text) => {
+          if (!text) return;
+          ctx.lineWidth = 3 * dpr;
+          ctx.strokeStyle = 'rgba(2, 6, 23, 0.9)';
+          ctx.strokeText(text, s.x + 5 * dpr, s.y);
+          ctx.fillText(text, s.x + 5 * dpr, s.y);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = Math.max(1, (layer.style?.weight || 1) * 1.4 * dpr);
+        };
+        for (const gf of cached.geoms) {
+          if (gf.type === 'point') {
+            if (!gf.at) continue;
+            const s = t.worldToScreen(gf.at[0], gf.at[1]);
+            ctx.fillRect(s.x - 2.5 * dpr, s.y - 2.5 * dpr, 5 * dpr, 5 * dpr);
+            labelAt(s, gf.label);
+            continue;
+          }
+          const rings = gf.type === 'polygon' ? gf.rings : gf.paths;
+          let first = null;
+          for (const ring of rings) {
+            if (ring.length < 2) continue;
+            ctx.beginPath();
+            ring.forEach((v, i) => {
+              const s = t.worldToScreen(v[0], v[1]);
+              if (i === 0) { ctx.moveTo(s.x, s.y); if (!first) first = s; } else ctx.lineTo(s.x, s.y);
+            });
+            if (gf.type === 'polygon') {
+              ctx.closePath();
+              ctx.save();
+              ctx.globalAlpha = 0.08;
+              ctx.fill();
+              ctx.restore();
+            }
+            ctx.stroke();
+          }
+          if (first) labelAt(first, gf.label);
+        }
+      }
+    }
+
     // wells — world coordinates through the survey affine (fractional
     // lattice indices; +0.5 puts a well ON its trace like every other
     // grid-anchored overlay). Surface spot + name label; deviated wells
@@ -1000,7 +1073,7 @@ function MapView({
   useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, vs,
     effDomain, velocity, traverse, savedTraverses, effAttr, ampLayer, wells,
     timeSlice, tsBitmap, showTimeSlice, sliceVis, indices, display,
-    surfaces, activeSurface, scheduleDraw]);
+    surfaces, activeSurface, cultureLayers, scheduleDraw]);
 
   // model removed -> fall back to TWT so the select never lies
   useEffect(() => {
