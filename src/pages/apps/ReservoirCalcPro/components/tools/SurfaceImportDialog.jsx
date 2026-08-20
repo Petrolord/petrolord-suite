@@ -54,14 +54,25 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
     }, [open]);
 
     // geo_surfaces grid -> XYZ (byte-golden writeXYZ) -> the same parse
-    // path as a manual XYZ upload. Structure maps carry z in metres,
-    // positive-down (depth); attribute maps are unitless.
+    // path as a manual XYZ upload. The registry now records what the
+    // row actually is (CRS program): z_unit is honored instead of the
+    // old hard 'm' (Seismolord publishes depth in feet into the same
+    // registry), the z sign convention follows the producing app, and
+    // the row's structured CRS lands in the provenance field instead of
+    // whatever CRS string a previous manual import left behind.
     const loadMappingSurface = async (row) => {
         setFetchingHandoffId(row.id);
         resetFeedback();
         try {
             const grid = await downloadSurfaceGrid(row);
-            const text = surfaceToXyzText(row, grid);
+            let text = surfaceToXyzText(row, grid);
+            let xyUnit = 'm';
+            if (row.z_unit === 'ft') {
+                // one-unit import model: XY metres -> feet so the surface
+                // is self-consistently in feet with z preserved
+                text = rescaleXyToFeet(text);
+                xyUnit = 'ft';
+            }
             const file = new File([text], `${row.name.replace(/[^\w-]+/g, '_')}.xyz`, { type: 'text/plain' });
             setImportData(prev => ({
                 ...prev,
@@ -69,10 +80,17 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
                 rawData: text,
                 name: row.name,
                 format: 'xyz',
-                xyUnit: 'm',
-                zConvention: 'depth',   // geo_surfaces structure z is metres positive-down
+                xyUnit,
+                // Seismolord rows are negative-down; Mapping Studio grids
+                // (MD-based structure) are positive-down.
+                zConvention: row.provenance?.app === 'seismolord' ? 'elevation' : 'depth',
+                crs: xyUnit === 'ft'
+                    ? ''    // rescaled XY are no longer coordinates in any CRS
+                    : (row.crs || ''),
             }));
-            toast({ title: 'Surface loaded from Mapping Studio', description: row.name });
+            const unitNote = row.z_unit == null && row.z_domain !== 'attribute'
+                ? ' The row records no z unit; metres were assumed. Verify before volumetrics.' : '';
+            toast({ title: 'Surface loaded from Mapping Studio', description: `${row.name}.${unitNote}` });
         } catch (e) {
             setError({ title: 'Could not load mapped surface', message: e.message, guidance: [] });
         } finally {
@@ -87,20 +105,24 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
     // which was off by ~3.28x). TWT-ms exports are not a length surface — flag
     // that and leave the values untouched.
     const FT_PER_M = 3.280839895013123;
+    /** XY metres -> feet, z untouched. The result is a self-consistent
+     *  all-feet surface for RCP's one-unit model; the rescaled XY are
+     *  deliberately NOT coordinates in any CRS anymore, and the loaders
+     *  blank the CRS field accordingly. */
+    const rescaleXyToFeet = (text) => text.split('\n').map((line) => {
+        const t = line.trim();
+        if (!t) return line;
+        const parts = t.split(/\s+/);
+        if (parts.length < 3) return line;
+        const x = Number(parts[0]) * FT_PER_M;
+        const y = Number(parts[1]) * FT_PER_M;
+        return `${x.toFixed(2)} ${y.toFixed(2)} ${parts[2]}`;   // z unchanged
+    }).join('\n');
     const normalizeHandoff = (text, domain) => {
         if (domain !== 'depth_ft') return { text, xyUnit: 'm', warning: domain === 'twt_ms'
             ? 'This is a two-way-time (ms) surface, not depth — volumetric results will not be meaningful.'
             : null };
-        const out = text.split('\n').map((line) => {
-            const t = line.trim();
-            if (!t) return line;
-            const parts = t.split(/\s+/);
-            if (parts.length < 3) return line;
-            const x = Number(parts[0]) * FT_PER_M;
-            const y = Number(parts[1]) * FT_PER_M;
-            return `${x.toFixed(2)} ${y.toFixed(2)} ${parts[2]}`;   // z (ft) unchanged
-        }).join('\n');
-        return { text: out, xyUnit: 'ft', warning: null };
+        return { text: rescaleXyToFeet(text), xyUnit: 'ft', warning: null };
     };
 
     const loadSeismolordSurface = async (row) => {
@@ -118,6 +140,9 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
                 format: 'xyz',
                 xyUnit,                      // 'ft' for depth exports, 'm' for TWT
                 zConvention: 'elevation',    // z negative downward
+                // never carry a CRS typed for a previous manual import;
+                // rescaled-to-feet XY are not in any CRS at all
+                crs: '',
             }));
             toast({
                 title: 'Surface loaded from Seismolord',

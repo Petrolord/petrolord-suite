@@ -18,8 +18,21 @@ import {
 } from '@/lib/gridding/surfaceExport';
 import { latticeSampleSurface, latticeValuesToSamples } from '../engine/surfaceOnLattice';
 import { M_PER_FT } from '../engine/velocityModel';
+import { crsUnit } from '@/lib/crs';
+import { isTransformableTag, normalizeTag, LOCAL } from '@/lib/crs/tags';
 
 export const SURFACE_APP = 'seismolord';
+
+/** Structured CRS fields a surface inherits from its volume: exported
+ *  grids live in the volume's stored frame (the Project CRS at the
+ *  volume's import). Legacy volumes without a tag save an unknown
+ *  placement, exactly as before the CRS program. Pure. */
+export const volumeCrsFields = (volume) => {
+  const tag = normalizeTag(volume?.crs);
+  if (isTransformableTag(tag)) return { crs: tag, xyUnit: crsUnit(tag) };
+  if (tag === LOCAL) return { crs: LOCAL, xyUnit: null };
+  return {};
+};
 
 /** True when a geo_surfaces row was converted from a horizon of this
  *  volume (pure — unit tested). */
@@ -91,7 +104,8 @@ export async function saveHorizonAsSurface({ volume, horizon, domain, g, spec, p
     spec,
     zDomain: domain === 'depth' ? 'depth' : 'time',
     zUnit: domain === 'depth' ? 'ft' : 'ms',
-    crsNote: 'Survey world metres XY; Z negative-down (Petrolord convention)',
+    ...volumeCrsFields(volume),
+    crsNote: 'Survey world XY from the volume; Z negative-down (Petrolord convention)',
     grid: g.z,
     provenance: {
       app: SURFACE_APP,
@@ -129,7 +143,8 @@ export async function saveAmplitudeAsSurface({
     spec,
     zDomain: 'attribute',
     zUnit: 'amp',
-    crsNote: 'Survey world metres XY; seismic amplitude values (unitless, sign preserved)',
+    ...volumeCrsFields(volume),
+    crsNote: 'Survey world XY from the volume; seismic amplitude values (unitless, sign preserved)',
     grid: g.z,
     provenance: {
       app: SURFACE_APP,
@@ -157,14 +172,25 @@ export async function saveAmplitudeAsSurface({
  * @param {string} p.format detected dialect (provenance)
  * @param {{live, zMin, zMax}} p.stats pre-sign-fix stats (provenance)
  */
-export async function saveImportedSurface({ volume, name, g, domain, fileName, format, stats }) {
+export async function saveImportedSurface({
+  volume, name, g, domain, fileName, format, stats, declaredCrs, reprojected,
+}) {
   return saveSurface({
     name,
     kind: 'structure',
     spec: { x0: g.x0, y0: g.y0, dx: g.dx, dy: g.dy, nx: g.nx, ny: g.ny },
     zDomain: domain === 'depth' ? 'depth' : 'time',
     zUnit: domain === 'depth' ? 'ft' : 'ms',
-    crsNote: 'Imported file; world metres XY assumed; Z negative-down (Petrolord convention)',
+    ...volumeCrsFields(volume),
+    ...(declaredCrs ? {
+      crsProvenance: {
+        declared_crs: declaredCrs,
+        ...(reprojected ? { transform: 'proj4', coverage: reprojected.coverage } : { transform: 'none' }),
+      },
+    } : {}),
+    crsNote: declaredCrs
+      ? `Imported file declared ${declaredCrs}; Z negative-down (Petrolord convention)`
+      : 'Imported file; volume frame assumed; Z negative-down (Petrolord convention)',
     grid: g.z,
     provenance: {
       app: SURFACE_APP,
@@ -246,7 +272,10 @@ export async function loadSurfaceMapLayer(surface, affine, geom) {
   }
   const unit = surface.z_unit
     || (surface.z_domain === 'time' ? 'ms' : isAttribute ? 'amp' : 'ft');
-  return { values, unit, live };
+  // unitAssumed: the row records no z unit, so the label is a guess —
+  // consumers surface that instead of printing the guess as fact
+  // (Mapping publishes 'm', Seismolord 'ft'; only legacy rows are null).
+  return { values, unit, unitAssumed: !surface.z_unit && !isAttribute, live };
 }
 
 /**

@@ -1,6 +1,6 @@
 import {
   normalizeTag, isEpsgTag, isCustomTag, isTransformableTag, compareTags,
-  LOCAL, UNKNOWN,
+  consensusTag, LOCAL, UNKNOWN,
 } from '@/lib/crs/tags';
 
 describe('normalizeTag', () => {
@@ -48,5 +48,18 @@ describe('compareTags (the overlay guard matrix)', () => {
   it('a LOCAL grid never overlays a real CRS', () => {
     expect(compareTags('LOCAL', 'EPSG:32631')).toBe('local-mismatch');
     expect(compareTags('EPSG:32631', 'LOCAL')).toBe('local-mismatch');
+  });
+});
+
+describe('consensusTag (derived products inherit only agreement)', () => {
+  it('unanimous known tags pass through', () => {
+    expect(consensusTag(['EPSG:32631', 'epsg:32631'])).toBe('EPSG:32631');
+    expect(consensusTag(['LOCAL', 'LOCAL'])).toBe('LOCAL');
+  });
+  it('any disagreement or unknown input yields null', () => {
+    expect(consensusTag(['EPSG:32631', 'EPSG:23031'])).toBeNull();
+    expect(consensusTag(['EPSG:32631', null])).toBeNull();
+    expect(consensusTag([null, null])).toBeNull();
+    expect(consensusTag([])).toBeNull();
   });
 });

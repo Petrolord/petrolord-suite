@@ -42,6 +42,20 @@ export function isTransformableTag(tag) {
  *   'unknown'         at least one side is UNKNOWN — placement unverified
  *   'local-mismatch'  a LOCAL grid against anything else — never overlay
  */
+/**
+ * The single tag a set of inputs agrees on, or null. Used when a
+ * derived product (a gridded map, an isochore, a model) inherits its
+ * CRS from its inputs: any disagreement or any UNKNOWN input makes the
+ * product's placement unverified rather than guessed.
+ */
+export function consensusTag(tags) {
+  const list = (tags || []).map(normalizeTag);
+  if (!list.length) return null;
+  const first = list[0];
+  if (first === UNKNOWN) return null;
+  return list.every((t) => t === first) ? first : null;
+}
+
 export function compareTags(a, b) {
   const ta = normalizeTag(a);
   const tb = normalizeTag(b);

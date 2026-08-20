@@ -51,7 +51,11 @@ export async function listSurfaces() {
  * metadata row pointing at it; a failed insert removes the fresh
  * object so nothing orphans.
  * @param {{name, kind?, spec:{x0,y0,dx,dy,nx,ny}, zDomain?, zUnit?,
- *   crsNote?, provenance?, grid: Float32Array}} s
+ *   crs?, xyUnit?, crsProvenance?, crsNote?, provenance?,
+ *   grid: Float32Array}} s
+ *   crs is the structured tag the grid frame is IN (CRS program):
+ *   'EPSG:<code>' | 'CUSTOM:<uuid>' | 'LOCAL'; null/absent = unknown
+ *   placement (badge in consumers). crs_note stays free-text context.
  */
 export async function saveSurface(s) {
   const user = await requireUser();
@@ -82,6 +86,9 @@ export async function saveSurface(s) {
       dy: spec.dy,
       z_domain: s.zDomain || 'depth',
       z_unit: s.zUnit || null,
+      crs: s.crs || null,
+      xy_unit: s.xyUnit || null,
+      crs_provenance: s.crsProvenance || null,
       crs_note: s.crsNote || null,
       provenance: s.provenance || {},
       storage_path: path,
