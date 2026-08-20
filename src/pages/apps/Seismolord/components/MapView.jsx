@@ -232,7 +232,7 @@ function MapView({
   // shaders' shadeAmp), then drawImage per camera frame like the fill
   const showTimeSlice = Boolean(sliceVis?.time && timeSlice && display);
   const tsLut = useMemo(
-    () => (display ? buildLut(display.colormap) : null),
+    () => (display ? buildLut(display.colormap, Boolean(display.reverse)) : null),
     [display],
   );
   const tsBitmap = useMemo(() => {

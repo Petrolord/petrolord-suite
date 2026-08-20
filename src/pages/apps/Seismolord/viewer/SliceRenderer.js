@@ -78,6 +78,8 @@ export class SliceRenderer {
     };
     this.view = [0, 0, 1, 1];   // normalized visible rect (ViewTransform)
     this.colormapKey = SEISMIC_COLORMAPS[0].key;
+    this.reverse = false;
+    this.agcMap = null;         // W1.1 windowed-AGC gain map (slice dims)
     this.lastSlice = null;
     this.lastIsSection = true;
     this.contextLost = false;
@@ -96,7 +98,9 @@ export class SliceRenderer {
       this.contextLost = false;
       this.#initGL();
       if (this.lastSlice) {
+        const agc = this.agcMap;              // setSlice clears it
         this.setSlice(this.lastSlice, this.lastIsSection);
+        if (agc) this.setAgc(agc);
         this.render();
       }
       if (this.onRestore) this.onRestore();
@@ -126,14 +130,15 @@ export class SliceRenderer {
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
     this.u = {};
-    for (const name of ['u_data', 'u_lut', 'u_traceRms', 'u_gain', 'u_polarity',
-      'u_clip', 'u_traceBalance', 'u_transpose', 'u_interp', 'u_nullColor',
-      'u_view', 'u_bgColor']) {
+    for (const name of ['u_data', 'u_lut', 'u_traceRms', 'u_agc', 'u_gain',
+      'u_polarity', 'u_clip', 'u_traceBalance', 'u_useAgc', 'u_transpose',
+      'u_interp', 'u_nullColor', 'u_view', 'u_bgColor']) {
       this.u[name] = gl.getUniformLocation(prog, name);
     }
     gl.uniform1i(this.u.u_data, 0);
     gl.uniform1i(this.u.u_lut, 1);
     gl.uniform1i(this.u.u_traceRms, 2);
+    gl.uniform1i(this.u.u_agc, 3);
     gl.uniform4f(this.u.u_nullColor, 0.25, 0.25, 0.28, 1.0);
     // matches BG_RGBA below and the panel's slate background
     gl.uniform4f(this.u.u_bgColor, 2 / 255, 6 / 255, 23 / 255, 1.0);
@@ -141,9 +146,11 @@ export class SliceRenderer {
     this.dataTex = this.#makeTex(gl.NEAREST);
     this.lutTex = this.#makeTex(gl.NEAREST);      // NEAREST: deterministic self-test
     this.rmsTex = this.#makeTex(gl.NEAREST);
+    this.agcTex = this.#makeTex(gl.NEAREST);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 
-    this.setColormap(this.colormapKey, true);   // force: lutTex is brand new
+    // force: lutTex is brand new
+    this.setColormap(this.colormapKey, { force: true, reverse: this.reverse });
     this.#applyParams();
   }
 
@@ -160,13 +167,15 @@ export class SliceRenderer {
 
   /**
    * Build the 256x1 RGBA LUT from the shared suite colormaps. No-op when
-   * the key is unchanged (the display effect calls this on every gain /
-   * clip tweak) — `force` re-uploads after #initGL recreated lutTex.
+   * key + reversal are unchanged (the display effect calls this on every
+   * gain / clip tweak) — `force` re-uploads after #initGL recreated
+   * lutTex; `reverse` flips the map end-for-end.
    */
-  setColormap(key, force = false) {
-    if (!force && key === this.colormapKey && this.lut) return;
-    this.lut = buildLut(key);                   // throws on unknown key
+  setColormap(key, { force = false, reverse = false } = {}) {
+    if (!force && key === this.colormapKey && reverse === this.reverse && this.lut) return;
+    this.lut = buildLut(key, reverse);          // throws on unknown key
     this.colormapKey = key;
+    this.reverse = reverse;
     if (this.contextLost) return;               // re-uploaded on restore
     const { gl } = this;
     gl.activeTexture(gl.TEXTURE1);
@@ -196,8 +205,34 @@ export class SliceRenderer {
     const rms = slice.traceRms || new Float32Array(slice.height).fill(1);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, rms.length, 1, 0, gl.RED, gl.FLOAT, rms);
 
+    // a new slice invalidates any AGC map (dims / content are per slice);
+    // the display effect re-derives and re-sets it right after
+    this.agcMap = null;
+
     this.params.transpose = isSection;
     this.#applyParams();
+  }
+
+  /**
+   * W1.1 windowed AGC: upload the gain map (engine agcGainMap, SAME dims
+   * and layout as the current slice) or pass null to turn AGC off. The
+   * shader multiplies it per texel; referenceRender mirrors it, so the
+   * GPU==CPU self-test covers the path.
+   */
+  setAgc(map) {
+    this.agcMap = map || null;
+    if (this.contextLost) return;               // re-applied on restore
+    const { gl } = this;
+    gl.useProgram(this.prog);
+    if (this.agcMap && this.lastSlice) {
+      gl.activeTexture(gl.TEXTURE3);
+      gl.bindTexture(gl.TEXTURE_2D, this.agcTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, this.lastSlice.width,
+        this.lastSlice.height, 0, gl.RED, gl.FLOAT, this.agcMap);
+      gl.uniform1i(this.u.u_useAgc, 1);
+    } else {
+      gl.uniform1i(this.u.u_useAgc, 0);
+    }
   }
 
   /**
@@ -234,6 +269,9 @@ export class SliceRenderer {
     gl.uniform1f(u.u_polarity, params.polarity);
     gl.uniform1f(u.u_clip, Math.max(params.clip, 1e-30));
     gl.uniform1i(u.u_traceBalance, params.traceBalance ? 1 : 0);
+    // the AGC flag re-applies wherever params do (init / setSlice /
+    // setParams), so a cleared map can never leave a stale flag behind
+    gl.uniform1i(u.u_useAgc, this.agcMap ? 1 : 0);
     gl.uniform1i(u.u_transpose, params.transpose ? 1 : 0);
     gl.uniform1i(u.u_interp, params.interpolate ? 1 : 0);
     gl.uniform4f(u.u_view, this.view[0], this.view[1], this.view[2], this.view[3]);
@@ -294,6 +332,7 @@ export class SliceRenderer {
           const r = slice.traceRms[sy];
           scale = r > 0 ? 1 / r : 0;
         }
+        if (this.agcMap) scale *= this.agcMap[sy * slice.width + sx];
         const a = amp * scale * params.gain * params.polarity;
         const t = Math.min(1, Math.max(0, 0.5 + (0.5 * a) / params.clip));
         const li = Math.min(255, Math.floor(t * 256));
@@ -315,6 +354,7 @@ export class SliceRenderer {
     gl.deleteTexture(this.dataTex);
     gl.deleteTexture(this.lutTex);
     gl.deleteTexture(this.rmsTex);
+    gl.deleteTexture(this.agcTex);
     gl.deleteProgram(this.prog);
   }
 }

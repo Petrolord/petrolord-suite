@@ -45,6 +45,7 @@ import {
   normalizeVelocity, describeVelocity, velocityToManifest, makeDepthConverter,
 } from '../engine/velocityModel';
 import { NULL_VALUE } from '../engine/manifest';
+import { amplitudePercentile } from '../engine/displayEnhance';
 import { SEISMIC_COLORMAPS } from '../viewer/SliceRenderer';
 import SliceView from './SliceView';
 import SyntheticsPanel from './SyntheticsPanel';
@@ -194,6 +195,16 @@ export default function ViewerPanel() {
   const [clipRms, setClipRms] = useState(3);
   const [polarity, setPolarity] = useState(1);
   const [traceBalance, setTraceBalance] = useState(false);
+  // W1.1 display upgrades: amplitude scaling mode (global-RMS multiple /
+  // per-slice percentile / manual absolute), windowed AGC, wiggle/VA
+  // rendering, colormap reversal
+  const [scaleMode, setScaleMode] = useState('rms');
+  const [clipPct, setClipPct] = useState(98);
+  const [manualClip, setManualClip] = useState(0);   // 0 = unset (rms fallback)
+  const [agcOn, setAgcOn] = useState(false);
+  const [agcWindowMs, setAgcWindowMs] = useState(120);
+  const [wiggleMode, setWiggleMode] = useState('off');
+  const [reverseCmap, setReverseCmap] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [sliceMs, setSliceMs] = useState(null);
@@ -1500,13 +1511,37 @@ export default function ViewerPanel() {
   }, []);
 
   // ---- SliceView inputs --------------------------------------------------
-  const display = useMemo(() => ({
-    colormap,
-    gain,
-    polarity,
-    clip: Math.max((manifest?.stats?.rms || 1) * clipRms, 1e-12),
-    traceBalance,
-  }), [colormap, gain, polarity, clipRms, traceBalance, manifest]);
+  // Percentile scaling reads the ACTIVE section slice (one deterministic
+  // strided sort per slice change — engine amplitudePercentile); the
+  // traverse / map / 3D windows share the resulting clip, exactly as
+  // they always shared the global-RMS clip.
+  const pctClip = useMemo(() => (
+    scaleMode === 'pct' && slice
+      ? amplitudePercentile(slice.data, clipPct, { cap: 1 << 18 })
+      : null
+  ), [scaleMode, slice, clipPct]);
+
+  const display = useMemo(() => {
+    const rmsClip = Math.max((manifest?.stats?.rms || 1) * clipRms, 1e-12);
+    let clip = rmsClip;
+    if (scaleMode === 'pct' && pctClip > 0) clip = pctClip;
+    else if (scaleMode === 'manual' && manualClip > 0) clip = manualClip;
+    const dtMs = manifest ? manifest.geometry.dt_us / 1000 : 4;
+    return {
+      colormap,
+      gain,
+      polarity,
+      clip,
+      traceBalance,
+      reverse: reverseCmap,
+      wiggle: wiggleMode,
+      // window length in ms -> half-window in samples (AGC is display-only)
+      agc: agcOn
+        ? { halfWindow: Math.max(1, Math.round(agcWindowMs / 2 / dtMs)) }
+        : null,
+    };
+  }, [colormap, gain, polarity, clipRms, traceBalance, manifest, scaleMode,
+    pctClip, manualClip, reverseCmap, wiggleMode, agcOn, agcWindowMs]);
 
   const overlays = useMemo(() => ({
     horizons: resolvedHorizons,
@@ -1826,6 +1861,20 @@ export default function ViewerPanel() {
               setPolarity={setPolarity}
               traceBalance={traceBalance}
               setTraceBalance={setTraceBalance}
+              scaleMode={scaleMode}
+              setScaleMode={setScaleMode}
+              clipPct={clipPct}
+              setClipPct={setClipPct}
+              manualClip={manualClip}
+              setManualClip={setManualClip}
+              agcOn={agcOn}
+              setAgcOn={setAgcOn}
+              agcWindowMs={agcWindowMs}
+              setAgcWindowMs={setAgcWindowMs}
+              wiggleMode={wiggleMode}
+              setWiggleMode={setWiggleMode}
+              reverseCmap={reverseCmap}
+              setReverseCmap={setReverseCmap}
             />
           ),
         },
