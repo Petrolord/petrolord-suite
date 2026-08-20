@@ -117,6 +117,7 @@ function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
   pickMode, ghost, loading, onPick, onPickEnd, onStepSlice, height = 520,
   vexag: vexagProp, onVexagChange, emptyHint, depthConv = null, onCursor = null,
+  cameraApi = null,
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
   const viewportRef = useRef(null);    // the canvas container
@@ -844,6 +845,16 @@ function SliceView({
       scheduleView();
     }
   }, [vexagProp, scheduleView]);
+
+  // W1.2b sessions/bookmarks: expose the camera for capture/restore
+  useEffect(() => {
+    if (!cameraApi) return undefined;
+    cameraApi.current = {
+      get: () => transformRef.current.getCamera(),
+      set: (c) => { transformRef.current.setCamera(c); scheduleView(); },
+    };
+    return () => { cameraApi.current = null; };
+  }, [cameraApi, scheduleView]);
 
   // ---- interactions ------------------------------------------------------
   const toDevice = useCallback((e) => {

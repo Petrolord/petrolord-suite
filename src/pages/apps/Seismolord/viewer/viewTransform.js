@@ -107,6 +107,23 @@ export class ViewTransform {
     this.#clampCenter();
   }
 
+  /** Serializable camera state (sessions / bookmarks, W1.2b). */
+  getCamera() {
+    return {
+      zoom: this.zoom, vexag: this.vexag, cx: this.cx, cy: this.cy,
+    };
+  }
+
+  /** Restore a getCamera() snapshot, clamped to the current world. */
+  setCamera(c) {
+    if (!c) return;
+    if (Number.isFinite(c.zoom)) this.zoom = clampNum(c.zoom, MIN_ZOOM, MAX_ZOOM);
+    if (Number.isFinite(c.vexag)) this.vexag = clampNum(c.vexag, MIN_VEXAG, MAX_VEXAG);
+    if (Number.isFinite(c.cx)) this.cx = c.cx;
+    if (Number.isFinite(c.cy)) this.cy = c.cy;
+    this.#clampCenter();
+  }
+
   worldToScreen(wx, wy) {
     return {
       x: (wx - this.cx) * this.ppx + this.vw / 2,

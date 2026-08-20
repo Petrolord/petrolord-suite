@@ -177,6 +177,7 @@ function MapView({
   onAmplitude, wells, height = 560, onCursor = null,
   timeSlice = null, sliceVis = null, indices = null, display = null,
   onHorizonSettings = null, onToggleHorizon = null, surfaces = null,
+  cameraApi = null,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -942,6 +943,16 @@ function MapView({
       draw();
     });
   }, [draw]);
+
+  // W1.2b sessions/bookmarks: expose the map camera for capture/restore
+  useEffect(() => {
+    if (!cameraApi) return undefined;
+    cameraApi.current = {
+      get: () => transformRef.current.getCamera(),
+      set: (c) => { transformRef.current.setCamera(c); scheduleDraw(); },
+    };
+    return () => { cameraApi.current = null; };
+  }, [cameraApi, scheduleDraw]);
 
   // ---- sizing / lifecycle --------------------------------------------------
 
