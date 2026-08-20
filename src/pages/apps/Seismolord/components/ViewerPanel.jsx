@@ -43,6 +43,9 @@ import {
   extractIntervalAttribute, bricksForIntervalAttribute, extractHorizonIsofrequency,
 } from '../engine/horizonAmplitude';
 import { makeTvdssToTwt, buildWellLatticePath } from '../engine/wellSection';
+import {
+  depthAxisFor, depthStretchSlice, depthRowGrid, depthRowOfSample,
+} from '../engine/depthConvert';
 import { surveyAffine, sameLattice } from '../engine/surveyGeometry';
 import {
   snapPick, autotrack2D, smoothHorizon, fillHorizonHoles,
@@ -2161,6 +2164,79 @@ export default function ViewerPanel() {
   }), [resolvedHorizons, sectionSurfaces, faults, visibleFaultIds, draftSticks, seedPick,
     wellSections]);
 
+  // ---- W3.4 depth section display ---------------------------------------
+  // CPU per-column stretch of the section through the velocity model
+  // (engine depthConvert; layer cakes stretch per column). Cached by the
+  // memo key: the slice reference and the velocity model/boundaries —
+  // exactly "per slice keyed on velocityKey" from the plan. Overlays
+  // convert through the SAME converter closure; wells plot native TVD.
+  const [sectionDomain, setSectionDomain] = useState('twt');
+  const isDepthSection = sectionDomain === 'depth'
+    && (orientation === 'inline' || orientation === 'xline');
+
+  const depthSection = useMemo(() => {
+    if (!isDepthSection || !slice || !geom || !manifest || !depthConv) return null;
+    if (slice.orientation !== orientation) return null;
+    const dtMs = manifest.geometry.dt_us / 1000;
+    const line = slice.index;
+    const cellOf = orientation === 'inline'
+      ? (t) => line * geom.nXl + t
+      : (t) => t * geom.nXl + line;
+    try {
+      // axis from a coarse sweep of this section's columns (the axis
+      // only needs the deepest bottom; nz = ns keeps vertical detail)
+      const cells = [];
+      const step = Math.max(1, Math.floor(slice.height / 32));
+      for (let t = 0; t < slice.height; t += step) cells.push(cellOf(t));
+      const axis = depthAxisFor(depthConv, cells, (geom.ns - 1) * dtMs, geom.ns);
+      const stretched = depthStretchSlice(slice, cellOf, depthConv, dtMs, axis);
+      return {
+        slice: { ...slice, ...stretched },
+        axis,
+        dtMs,
+      };
+    } catch {
+      return null;                 // no usable depth: stay in time
+    }
+  }, [isDepthSection, slice, geom, manifest, orientation, depthConv]);
+
+  const depthOverlays = useMemo(() => {
+    if (!depthSection || !geom || !manifest) return null;
+    const { axis, dtMs } = depthSection;
+    const cellAt = (il, xl) => Math.min(geom.nIl - 1, Math.max(0, Math.round(il))) * geom.nXl
+      + Math.min(geom.nXl - 1, Math.max(0, Math.round(xl)));
+    const cvPoint = (p) => {
+      if (p.s == null) return { ...p, s: null };
+      // wells carry native tvdss (plan rule); everything else converts
+      // through the section's own closure
+      const row = Number.isFinite(p.tvdss)
+        ? (p.tvdss - axis.z0) / axis.dz
+        : depthRowOfSample(depthConv, cellAt(p.il, p.xl), p.s, dtMs, axis);
+      return { ...p, s: row == null || row < 0 ? null : row };
+    };
+    return {
+      horizons: overlays.horizons.map((h) => ({
+        ...h, grid: depthRowGrid(h.grid, depthConv, dtMs, axis),
+      })),
+      surfaces: overlays.surfaces.map((s) => ({
+        ...s, grid: depthRowGrid(s.grid, depthConv, dtMs, axis),
+      })),
+      faults: overlays.faults.map((f) => ({
+        ...f,
+        sticks: f.sticks.map((stick) => ({
+          points: (stick.points || stick).map(cvPoint).filter((p) => p.s != null),
+        })),
+      })),
+      draftSticks: [],             // picking is disabled in depth mode v1
+      seedPick: null,
+      wells: overlays.wells.map((w) => ({
+        ...w,
+        points: w.points.map(cvPoint),
+        tops: (w.tops || []).map(cvPoint).filter((p) => p.s != null),
+      })),
+    };
+  }, [depthSection, overlays, geom, manifest, depthConv]);
+
   const stepSlice = useCallback((delta) => {
     setIndices((prev) => ({
       ...prev,
@@ -2515,6 +2591,9 @@ export default function ViewerPanel() {
               volume={volume}
               selectVolume={selectVolume}
               manifest={manifest}
+              sectionDomain={sectionDomain}
+              setSectionDomain={setSectionDomain}
+              depthReady={Boolean(depthConv)}
               orientation={orientation}
               setOrientation={setOrientation}
               lineLabel={lineLabel}
@@ -2704,21 +2783,25 @@ export default function ViewerPanel() {
                   // old slice under the new axes while the new one assembles.
                   // sliceIndex follows the DISPLAYED slice while a scrub's
                   // assembly is in flight so overlays and image agree (ML4)
-                  slice={manifest && slice && slice.orientation === orientation ? slice : null}
+                  slice={depthSection ? depthSection.slice
+                    : (manifest && slice && slice.orientation === orientation ? slice : null)}
                   geom={geom}
                   manifest={manifest}
                   orientation={orientation}
                   sliceIndex={manifest && slice && slice.orientation === orientation
                     ? slice.index : sliceIndex}
                   display={display}
-                  overlays={overlays}
-                  overlaySlice={overlaySlice && overlaySlice.orientation === orientation
-                    ? overlaySlice : null}
+                  overlays={depthSection && depthOverlays ? depthOverlays : overlays}
+                  overlaySlice={!depthSection && overlaySlice
+                    && overlaySlice.orientation === orientation ? overlaySlice : null}
                   overlayDisplay={overlayDisplay}
-                  pickMode={pickMode}
-                  ghost={pickMode === 'manual' ? { mode: eventSnapMode, window: snapWindow } : null}
+                  pickMode={depthSection ? null : pickMode}
+                  ghost={!depthSection && pickMode === 'manual'
+                    ? { mode: eventSnapMode, window: snapWindow } : null}
                   loading={loading}
-                  depthConv={depthConv}
+                  depthConv={depthSection ? null : depthConv}
+                  depthAxisInfo={depthSection
+                    ? { z0: depthSection.axis.z0, dz: depthSection.axis.dz } : null}
                   onPick={handlePick}
                   onPickEnd={commitStroke}
                   onStepSlice={stepSlice}
