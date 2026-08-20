@@ -3,7 +3,10 @@
 // control rows (everything but the volume select gates on a manifest).
 
 import React from 'react';
-import { RibbonGroup, RibbonSelect, RibbonSlider } from '../Ribbon';
+import { Undo2, Redo2 } from 'lucide-react';
+import {
+  RibbonGroup, RibbonButton, RibbonSelect, RibbonSlider,
+} from '../Ribbon';
 import { SEISMIC_COLORMAPS } from '../../../viewer/SliceRenderer';
 
 const ORIENTATIONS = [
@@ -20,10 +23,28 @@ export default function HomeTab({
   scaleMode, setScaleMode, clipPct, setClipPct, manualClip, setManualClip,
   agcOn, setAgcOn, agcWindowMs, setAgcWindowMs,
   wiggleMode, setWiggleMode, reverseCmap, setReverseCmap,
+  onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel,
 }) {
   const isTimeSlice = orientation === 'time';
   return (
     <>
+      <RibbonGroup label="History">
+        <RibbonButton
+          icon={Undo2}
+          label="Undo"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title={undoLabel ? `Undo: ${undoLabel} (Ctrl+Z)` : 'Nothing to undo (Ctrl+Z)'}
+        />
+        <RibbonButton
+          icon={Redo2}
+          label="Redo"
+          onClick={onRedo}
+          disabled={!canRedo}
+          title={redoLabel ? `Redo: ${redoLabel} (Ctrl+Shift+Z)` : 'Nothing to redo (Ctrl+Shift+Z)'}
+        />
+      </RibbonGroup>
+
       <RibbonGroup label="Volume">
         <RibbonSelect
           label="Active volume"
