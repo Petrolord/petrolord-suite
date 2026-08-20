@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Upload, FileText, AlertTriangle, CheckCircle2, Loader2, XCircle, Play, Ban,
   RotateCcw, Trash2,
@@ -9,8 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { MAPPING_PRESETS, DEFAULT_MAPPING } from '../engine/segyScan';
+import { crsHintsFromText } from '../engine/crsHint';
 import { scanFile, ingestVolume } from '../services/ingestService';
 import { listVolumes, deleteVolume } from '../services/volumesService';
+import CrsPicker from '@/components/crs/CrsPicker';
+import CrsBadge from '@/components/crs/CrsBadge';
+import { sanityCheck, crsDisplayName } from '@/lib/crs';
+import { getProjectCrs, addCustomDef } from '@/lib/crs/settingsService';
+import { isTransformableTag, normalizeTag, UNKNOWN } from '@/lib/crs/tags';
 
 const fmtInt = (v) => (v == null ? '—' : v.toLocaleString('en-US'));
 
@@ -37,11 +43,20 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
 
   const [file, setFile] = useState(null);
   const [mapping, setMapping] = useState({ ilByte: DEFAULT_MAPPING.ilByte, xlByte: DEFAULT_MAPPING.xlByte });
+  const [showBytes, setShowBytes] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle|scanning|scanned|ingesting|done|error
   const [scanData, setScanData] = useState(null);
   const [showHeader, setShowHeader] = useState(false);
   const [progress, setProgress] = useState(null);
   const [error, setError] = useState(null);
+  // CRS step: the user's declaration for THIS file, the Project CRS it
+  // will be stored in, and the plausibility verdict on the scanned
+  // coordinates. crsPrefilled guards the one-time prefill per file.
+  const [crsTag, setCrsTag] = useState(null);
+  const [project, setProject] = useState(null);
+  const [sanity, setSanity] = useState(null);
+  const [sanityOverride, setSanityOverride] = useState(false);
+  const crsPrefilledRef = useRef(false);
   const [interrupted, setInterrupted] = useState([]); // status 'ingesting' rows
   const [resuming, setResuming] = useState(null);     // row being resumed
   const [discardingId, setDiscardingId] = useState(null);
@@ -70,6 +85,9 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
     const f = e.target.files?.[0];
     if (!f) return;
     setFile(f);
+    setCrsTag(null);
+    setSanityOverride(false);
+    crsPrefilledRef.current = false;
     runScan(f, mapping);
   };
 
@@ -89,6 +107,7 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
       const { row } = await ingestVolume({
         file,
         mapping,
+        nativeCrs: crsTag,
         onProgress: (p) => setProgress(p),
         cancelToken,
       });
@@ -108,6 +127,67 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
   useEffect(() => {
     if (onBusyChange) onBusyChange(phase === 'ingesting');
   }, [phase, onBusyChange]);
+
+  // Project CRS context for the CRS step (refreshes after each run in
+  // case the first import just defined it).
+  useEffect(() => {
+    if (phase === 'ingesting') return;
+    let stale = false;
+    getProjectCrs()
+      .then((p) => { if (!stale) setProject(p); })
+      .catch(() => {});
+    return () => { stale = true; };
+  }, [phase]);
+
+  const crsHints = useMemo(
+    () => (scanData?.textLines ? crsHintsFromText(scanData.textLines) : { suggestions: [], unitHints: [] }),
+    [scanData],
+  );
+
+  // One-time prefill per file: the Project CRS when set, else the
+  // strongest header hint. Never overwrites a user choice.
+  useEffect(() => {
+    if (!scan || crsPrefilledRef.current) return;
+    crsPrefilledRef.current = true;
+    if (project?.tag && isTransformableTag(project.tag)) setCrsTag(project.tag);
+    else if (crsHints.suggestions[0]?.code) setCrsTag(crsHints.suggestions[0].code);
+  }, [scan, project, crsHints]);
+
+  // Plausibility of the scanned coordinates under the declared CRS.
+  useEffect(() => {
+    if (!scan || !crsTag || !isTransformableTag(crsTag)) { setSanity(null); return; }
+    const samples = [
+      scan.corners?.first, scan.corners?.last,
+      ...(scanData?.preview || []).map((r) => ({ x: r.x, y: r.y })),
+    ].filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y));
+    try {
+      setSanity(sanityCheck(crsTag, samples, project?.customDefs || {}));
+    } catch {
+      setSanity(null);
+    }
+  }, [scan, scanData, crsTag, project]);
+
+  const onCrsPick = async (tag, meta) => {
+    setSanityOverride(false);
+    if (meta?.customDef) {
+      try {
+        const customTag = await addCustomDef(meta.customDef);
+        setCrsTag(customTag);
+        const p = await getProjectCrs();
+        setProject(p);
+      } catch (e) {
+        toast({ title: 'Custom CRS not saved', description: e.message, variant: 'destructive' });
+      }
+    } else {
+      setCrsTag(tag);
+    }
+  };
+
+  const crsChosen = Boolean(crsTag);
+  const sanityBlocks = Boolean(sanity && !sanity.ok && sanity.verdict === 'out-of-area' && !sanityOverride);
+  const projectSet = Boolean(project?.tag && isTransformableTag(project.tag));
+  const willConvert = projectSet && crsTag && isTransformableTag(crsTag)
+    && normalizeTag(crsTag) !== normalizeTag(project.tag);
 
   // Interrupted imports ('ingesting' rows): loaded on mount and after
   // every run ends — a failed/cancelled ingest becomes resumable right
@@ -307,6 +387,50 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
               </div>
             </div>
 
+            <div>
+              <button
+                type="button"
+                className="text-sm text-cyan-400 hover:underline"
+                onClick={() => setShowBytes((s) => !s)}
+              >
+                {showBytes ? 'Hide' : 'Show'} coordinate byte positions (X, Y, scalar)
+              </button>
+              {showBytes && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+                  <div>
+                    <Label className="text-slate-300">X byte</Label>
+                    <Input
+                      type="number" min="1" max="237"
+                      value={mapping.xByte ?? DEFAULT_MAPPING.xByte}
+                      className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                      onChange={(e) => onMappingChange({ xByte: Number(e.target.value) })}
+                      disabled={phase === 'ingesting'}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-slate-300">Y byte</Label>
+                    <Input
+                      type="number" min="1" max="237"
+                      value={mapping.yByte ?? DEFAULT_MAPPING.yByte}
+                      className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                      onChange={(e) => onMappingChange({ yByte: Number(e.target.value) })}
+                      disabled={phase === 'ingesting'}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-slate-300">Scalar byte</Label>
+                    <Input
+                      type="number" min="1" max="239"
+                      value={mapping.scalarByte ?? DEFAULT_MAPPING.scalarByte}
+                      className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                      onChange={(e) => onMappingChange({ scalarByte: Number(e.target.value) })}
+                      disabled={phase === 'ingesting'}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Measured geometry */}
             <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-300 grid grid-cols-2 md:grid-cols-4 gap-y-2">
               <div>Format: <span className="text-white">{scan.formatCode === 1 ? 'IBM float' : 'IEEE float'}</span></div>
@@ -320,9 +444,102 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
                   {scan.corners.first ? `${scan.corners.first.x}, ${scan.corners.first.y}` : '—'}
                 </span>
               </div>
+              {scan.sourceCoords && (
+                <div className="col-span-2">
+                  First source XY: <span className="text-white">
+                    {scan.sourceCoords.x}, {scan.sourceCoords.y}
+                  </span>
+                  <span className="text-slate-500"> (bytes 73/77 cross-check)</span>
+                </div>
+              )}
+              <div className="col-span-2">
+                Header units words: <span className="text-white">
+                  {scan.coordUnits === 1 ? 'length' : scan.coordUnits === 2 ? 'arc-seconds' : 'unstated'}
+                </span>
+                <span className="text-slate-500"> (byte 89)</span>
+                {', '}
+                <span className="text-white">
+                  {scan.measurementSystem === 1 ? 'metres' : scan.measurementSystem === 2 ? 'feet' : 'unstated'}
+                </span>
+                <span className="text-slate-500"> (binary header)</span>
+              </div>
+              {scan.scalarStats?.varied && (
+                <div className="col-span-2">
+                  Scalars seen: <span className="text-white">{scan.scalarStats.distinct.join(', ')}</span>
+                </div>
+              )}
               {scan.sampled && (
                 <div className="col-span-full text-slate-400">
                   Preview from sampled headers — every trace is validated during import.
+                </div>
+              )}
+            </div>
+
+            {/* CRS assignment: the Petrel step. Nothing imports without an
+                explicit declaration; hints prefill, never commit. */}
+            <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-slate-200">Coordinate reference system of this file</Label>
+                <CrsBadge tag={crsTag} name={crsTag ? crsDisplayName(crsTag, project?.customDefs || {}) : null} />
+              </div>
+              <CrsPicker
+                value={crsTag}
+                onChange={onCrsPick}
+                customDefs={project?.customDefs || {}}
+                suggestions={crsHints.suggestions}
+                disabled={phase === 'ingesting'}
+              />
+              {crsHints.unitHints.length > 0 && (
+                <div className="text-xs text-slate-500">
+                  Header mentions units: {crsHints.unitHints.map((u) => `${u.unit} ("${u.match}")`).join(', ')}
+                </div>
+              )}
+              <div className="text-sm text-slate-400">
+                {projectSet ? (
+                  <>
+                    Stored in the Project CRS <CrsBadge tag={project.tag} name={project.name} className="mx-1" />
+                    {willConvert
+                      ? 'The survey placement will be converted at import. Traces are never resampled.'
+                      : crsTag && normalizeTag(crsTag) === UNKNOWN
+                        ? 'This volume will carry an unverified placement until a CRS is assigned.'
+                        : 'No conversion needed.'}
+                  </>
+                ) : (
+                  crsTag && isTransformableTag(crsTag)
+                    ? 'No Project CRS is set yet. This first import will define it, like the first dataset in a new Petrel project.'
+                    : 'No Project CRS is set yet.'
+                )}
+              </div>
+              {sanity && sanity.ok && (
+                <div className="flex items-center text-sm text-emerald-400">
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Scanned coordinates are plausible for this system.
+                </div>
+              )}
+              {sanity && !sanity.ok && sanity.verdict === 'out-of-area' && (
+                <div className="rounded-lg border border-red-700/50 bg-red-950/20 p-3 text-sm text-red-300 space-y-2">
+                  <div className="flex items-start">
+                    <AlertTriangle className="w-4 h-4 mr-2 mt-0.5 shrink-0" />
+                    <div>
+                      The scanned coordinates fall outside this system's area of use.
+                      {sanity.suggestion === 'unit-feet'
+                        && ' They read like feet values for a metric system. Check the scalar byte or pick the feet variant of this CRS.'}
+                      {sanity.suggestion === 'unit-metres'
+                        && ' They read like metre values for a feet-based system.'}
+                      {sanity.suggestion === 'axes-swapped'
+                        && ' X and Y look swapped. Check the X and Y byte positions.'}
+                      {!sanity.suggestion
+                        && ' Check the CRS choice and the X, Y and scalar byte positions.'}
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={sanityOverride}
+                      onChange={(e) => setSanityOverride(e.target.checked)}
+                    />
+                    Import as declared anyway. I have verified the coordinates myself.
+                  </label>
                 </div>
               )}
             </div>
@@ -421,7 +638,11 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
         <div className="flex gap-3">
           <Button
             onClick={startIngest}
-            disabled={!scan || phase === 'ingesting' || phase === 'scanning'}
+            disabled={!scan || phase === 'ingesting' || phase === 'scanning' || !crsChosen || sanityBlocks}
+            title={!scan ? undefined
+              : !crsChosen ? 'Choose the coordinate reference system of this file first'
+                : sanityBlocks ? 'The coordinates are implausible for the chosen CRS. Fix the choice or confirm the override.'
+                  : undefined}
             className="bg-cyan-600 hover:bg-cyan-500 text-white"
           >
             <Play className="w-4 h-4 mr-2" />

@@ -6,6 +6,10 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { buildManifest, brickRelPath, volumeDir, manifestPath } from '../engine/manifest';
 import { fileFingerprint, ingestRecord, resumeGate } from './ingestResume';
+import { planCrs, planFromRecord, applyCrsToScan } from './ingestCrs';
+import { getProjectCrs, setProjectCrs } from '@/lib/crs/settingsService';
+import { crsDisplayName, crsUnit } from '@/lib/crs';
+import { UNKNOWN } from '@/lib/crs/tags';
 
 export const SEISMIC_BUCKET = 'seismic';
 // Concurrency is governed by the worker's MAX_UNACKED_BRICKS backpressure
@@ -96,12 +100,18 @@ async function uploadObject(path, body, contentType, skipExisting) {
  * @param {string} [p.resumeVolumeId] reuse a prior 'ingesting' volume id;
  *   the file must fingerprint-match the row's survey_meta.ingest identity
  *   (resumeGate), and already-uploaded bricks are skipped
+ * @param {?string} [p.nativeCrs] the CRS the user declared for THIS file
+ *   in the import panel (tag: EPSG:/CUSTOM:/LOCAL/UNKNOWN). Storage is in
+ *   the Project CRS: a differing transformable declaration reprojects
+ *   the survey affine at commit; the first placed import with no Project
+ *   CRS defines it (Petrel behavior). Ignored on resume — the original
+ *   declaration on the row wins.
  * @param {number} [p.memoryBudgetBytes]
  * @param {(p:{phase:string,done:number,total:number})=>void} [p.onProgress]
  * @param {{cancelled?: boolean}} [p.cancelToken] set .cancelled = true to abort
  */
 export async function ingestVolume({
-  file, mapping, name, resumeVolumeId, memoryBudgetBytes, onProgress, cancelToken = {},
+  file, mapping, name, resumeVolumeId, nativeCrs, memoryBudgetBytes, onProgress, cancelToken = {},
 }) {
   const userId = await currentUserId();
   const volumeId = resumeVolumeId || crypto.randomUUID();
@@ -121,6 +131,8 @@ export async function ingestVolume({
   let row;
   let ingestRec;
   let effectiveMapping = mapping;
+  let crsPlan;
+  let customDefs = {};
   if (resumeVolumeId) {
     const { data, error } = await supabase.from('seismic_volumes')
       .select('*').eq('id', resumeVolumeId).single();
@@ -128,8 +140,19 @@ export async function ingestVolume({
     row = data;
     effectiveMapping = resumeGate(row, fingerprint).mapping;
     ingestRec = row.survey_meta.ingest;
+    // finish under the ORIGINAL declaration, never the current settings
+    crsPlan = planFromRecord(ingestRec);
+    if (crsPlan.needsTransform) {
+      customDefs = (await getProjectCrs()).customDefs;
+    }
   } else {
-    ingestRec = ingestRecord(fingerprint, mapping, file);
+    const project = await getProjectCrs();
+    customDefs = project.customDefs;
+    crsPlan = planCrs(nativeCrs, project.tag);
+    ingestRec = ingestRecord(fingerprint, mapping, file, {
+      native: crsPlan.nativeTag,
+      project: crsPlan.projectTag,
+    });
     const { data, error } = await supabase.from('seismic_volumes')
       .insert({
         id: volumeId,
@@ -137,11 +160,22 @@ export async function ingestVolume({
         name: displayName,
         storage_path: dir,
         status: 'ingesting',
+        crs: crsPlan.storeTag,
         survey_meta: { ingest: ingestRec },
       })
       .select().single();
     if (error) throw new Error(`Could not register volume: ${error.message}`);
     row = data;
+    if (crsPlan.autoSetProject && crsPlan.projectTag !== UNKNOWN) {
+      // Petrel behavior: the first placed dataset defines the Project
+      // CRS. allowWithData because this volume's own row already counts.
+      await setProjectCrs({
+        tag: crsPlan.projectTag,
+        name: crsDisplayName(crsPlan.projectTag, customDefs),
+        xyUnit: crsUnit(crsPlan.projectTag, customDefs),
+        allowWithData: true,
+      });
+    }
   }
 
   const existing = new Set();
@@ -220,13 +254,19 @@ export async function ingestVolume({
     worker.postMessage({ type: 'ingest', id, file, mapping: effectiveMapping, memoryBudgetBytes });
   }).finally(() => worker.terminate());
 
+  // Convert-on-import: the stored affine/corners are in the Project CRS;
+  // the crs block preserves the native declaration and native affine so
+  // any later reprojection restarts from native, never chains.
+  const { scan: placedScan, crsBlock } = applyCrsToScan(finish.scan, crsPlan, customDefs);
+
   const manifest = buildManifest({
     volumeId,
     name: displayName,
-    scan: finish.scan,
+    scan: placedScan,
     transcode: finish.result,
     sourceFileName: file.name,
     sourceFileSize: file.size,
+    crs: crsBlock,
   });
   // additive manifest field (still manifest_version 1): the source
   // identity the ingest was gated on, for future re-import dedup hints
@@ -244,6 +284,7 @@ export async function ingestVolume({
   const { data: updated, error: updateError } = await supabase.from('seismic_volumes')
     .update({
       status: 'ready',
+      crs: crsPlan.storeTag,
       survey_meta: {
         il: manifest.geometry.il,
         xl: manifest.geometry.xl,

@@ -3,14 +3,47 @@
 // tracking progress, errors and the backend connectivity dot (which
 // replaces the old full-width "Backend connectivity" card).
 
-import React, { useEffect, useRef } from 'react';
-import { Loader2, XCircle } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Loader2, XCircle, Globe2 } from 'lucide-react';
+import ProjectCrsDialog from '@/components/crs/ProjectCrsDialog';
+import { getProjectCrs } from '@/lib/crs/settingsService';
+import { UNKNOWN } from '@/lib/crs/tags';
 
 const BACKEND_DOT = {
   ok: 'bg-emerald-400',
   error: 'bg-red-500',
   checking: 'bg-amber-400 animate-pulse',
 };
+
+/** Self-contained Project CRS chip: shows the workspace CRS, opens the
+ *  settings dialog. Fetch failures degrade to an unlabeled chip so the
+ *  status bar never blocks on settings. */
+function ProjectCrsChip() {
+  const [info, setInfo] = useState(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    let stale = false;
+    getProjectCrs().then((p) => { if (!stale) setInfo(p); }).catch(() => {});
+    return () => { stale = true; };
+  }, [open]);
+  const unset = !info || info.tag === UNKNOWN;
+  return (
+    <>
+      <button
+        type="button"
+        className={`flex items-center gap-1 hover:text-slate-200 ${unset ? 'text-amber-300' : ''}`}
+        onClick={() => setOpen(true)}
+        title={unset
+          ? 'No Project CRS is set. Imports will define it, or set it here.'
+          : `Project CRS: ${info.name || info.tag}. All geoscience data is stored in this system.`}
+      >
+        <Globe2 className="w-3 h-3" />
+        {unset ? 'CRS not set' : info.tag}
+      </button>
+      <ProjectCrsDialog open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
 
 /**
  * @param {Object} p
@@ -73,6 +106,7 @@ export default function StatusBar({
       )}
 
       <span className="ml-auto flex items-center gap-4">
+        <ProjectCrsChip />
         {volumeName && (
           <span className="truncate max-w-[240px]" title={volumeName}>{volumeName}</span>
         )}

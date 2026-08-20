@@ -83,10 +83,21 @@ export function fingerprintsMatch(a, b) {
  * transcode under the ORIGINAL byte positions, not whatever the dialog
  * currently shows. Pure.
  */
-export function ingestRecord(fingerprint, mapping, file) {
+export function ingestRecord(fingerprint, mapping, file, crs) {
   return {
     fingerprint,
-    mapping: { il_byte: mapping.ilByte, xl_byte: mapping.xlByte },
+    mapping: {
+      il_byte: mapping.ilByte,
+      xl_byte: mapping.xlByte,
+      // world-placement identity (CRS program): the brick store itself
+      // only depends on il/xl, but the survey geometry depends on the
+      // X/Y/scalar bytes and the declared CRS, so a resume must finish
+      // under exactly what the import started with
+      ...(mapping.xByte != null ? { x_byte: mapping.xByte } : {}),
+      ...(mapping.yByte != null ? { y_byte: mapping.yByte } : {}),
+      ...(mapping.scalarByte != null ? { scalar_byte: mapping.scalarByte } : {}),
+    },
+    ...(crs ? { crs } : {}),
     file_name: file.name,
     file_size: file.size,
   };
@@ -101,7 +112,12 @@ export function ingestRecord(fingerprint, mapping, file) {
  *
  * @param {Object} row seismic_volumes row
  * @param {{algo, size, hash}} fingerprint of the offered file
- * @returns {{mapping: {ilByte: number, xlByte: number}}}
+ * @returns {{mapping: {ilByte: number, xlByte: number, xByte?: number,
+ *   yByte?: number, scalarByte?: number}, crs: ?Object}} original
+ *   mapping (records from before the CRS program carry il/xl only, so
+ *   the extended bytes stay undefined and the scan defaults apply,
+ *   which is exactly what those imports ran with) and the original CRS
+ *   declaration when one was recorded
  */
 export function resumeGate(row, fingerprint) {
   if (!row) throw new Error('Volume to resume was not found.');
@@ -124,5 +140,14 @@ export function resumeGate(row, fingerprint) {
       + `Resume needs the original file${rec.file_name ? ` "${rec.file_name}"` : ''}; `
       + 'to import this file instead, start a new import.');
   }
-  return { mapping: { ilByte: rec.mapping.il_byte, xlByte: rec.mapping.xl_byte } };
+  return {
+    mapping: {
+      ilByte: rec.mapping.il_byte,
+      xlByte: rec.mapping.xl_byte,
+      ...(rec.mapping.x_byte != null ? { xByte: rec.mapping.x_byte } : {}),
+      ...(rec.mapping.y_byte != null ? { yByte: rec.mapping.y_byte } : {}),
+      ...(rec.mapping.scalar_byte != null ? { scalarByte: rec.mapping.scalar_byte } : {}),
+    },
+    crs: rec.crs || null,
+  };
 }
