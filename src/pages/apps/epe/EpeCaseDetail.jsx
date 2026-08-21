@@ -96,6 +96,17 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
         }
       };
 
+      const handleDeleteRun = async (runId) => {
+        try {
+          const { error } = await supabase.from('epe_runs').delete().eq('id', runId);
+          if (error) throw error;
+          toast({ title: 'Failed run deleted' });
+          fetchData();
+        } catch (error) {
+          toast({ variant: 'destructive', title: 'Could not delete run', description: error.message });
+        }
+      };
+
       const handleDeleteFile = async (fileId, table) => {
         try {
           const { error } = await supabase.from(table).delete().eq('id', fileId);
@@ -179,22 +190,43 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
               <TabsContent value="runs">
                 <Card className="bg-slate-800/50 border-slate-700 mt-6">
                   <CardHeader>
-                    <CardTitle>Completed Runs</CardTitle>
+                    <CardTitle>Run History</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {runs.length > 0 ? (
                       <ul className="space-y-3">
-                        {runs.map(run => (
-                          <li key={run.id} className="p-3 bg-slate-800 rounded-md flex justify-between items-center">
-                            <div>
-                              <p className="font-semibold text-cyan-400">{run.run_name}</p>
-                              <p className="text-xs text-slate-400">Run on: {new Date(run.created_at).toLocaleString()}</p>
-                            </div>
-                            <Link to={`/dashboard/apps/economics/epe/runs/${run.id}`}>
-                              <Button variant="secondary">View Results</Button>
-                            </Link>
-                          </li>
-                        ))}
+                        {runs.map(run => {
+                          const status = run.status || 'complete';
+                          return (
+                            <li key={run.id} className="p-3 bg-slate-800 rounded-md flex justify-between items-center gap-4">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-cyan-400 flex items-center gap-2">
+                                  {run.run_name}
+                                  {status === 'failed' && (
+                                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-red-900/50 text-red-400 border border-red-800">Failed</span>
+                                  )}
+                                  {status === 'running' && (
+                                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-400 border border-amber-800">Running</span>
+                                  )}
+                                </p>
+                                <p className="text-xs text-slate-400">Run on: {new Date(run.created_at).toLocaleString()}</p>
+                                {status === 'failed' && run.error_message && (
+                                  <p className="text-xs text-red-400/80 mt-1 truncate" title={run.error_message}>{run.error_message}</p>
+                                )}
+                              </div>
+                              {status === 'failed' ? (
+                                <Button variant="ghost" size="icon" className="hover:text-red-400 shrink-0" title="Delete failed run"
+                                  onClick={() => handleDeleteRun(run.id)}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              ) : (
+                                <Link to={`/dashboard/apps/economics/epe/runs/${run.id}`} className="shrink-0">
+                                  <Button variant="secondary">View Results</Button>
+                                </Link>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     ) : (
                       <div className="text-center py-12">

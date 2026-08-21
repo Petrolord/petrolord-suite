@@ -34,6 +34,8 @@ const EpeRunComparison = () => {
         .select('id, run_name, created_at')
         .eq('case_id', caseId)
         .eq('user_id', user.id)
+        // Wave A: failed/running runs have no results to compare
+        .or('status.is.null,status.eq.complete')
         .order('created_at', { ascending: false });
 
       if (error) {
