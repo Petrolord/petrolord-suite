@@ -132,17 +132,20 @@ const EpeDataFileCard = ({ file, onProcess, onDelete, processing }) => {
             </Button>
           )}
 
-          {/* Delete is always available */}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onDelete}
-            disabled={processing}
-            className="text-red-300 border-red-500/40 hover:bg-red-500/10"
-          >
-            <Trash2 className="w-3 h-3" />
-            <span className="ml-1 text-xs">Delete</span>
-          </Button>
+          {/* Delete is available whenever the parent allows it (Wave E:
+              read-only shared views pass no onDelete) */}
+          {onDelete && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onDelete}
+              disabled={processing}
+              className="text-red-300 border-red-500/40 hover:bg-red-500/10"
+            >
+              <Trash2 className="w-3 h-3" />
+              <span className="ml-1 text-xs">Delete</span>
+            </Button>
+          )}
         </div>
       </div>
 

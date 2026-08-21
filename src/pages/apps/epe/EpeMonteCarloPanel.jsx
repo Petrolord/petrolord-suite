@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Loader2, Play, Download, Plus, X } from 'lucide-react';
@@ -143,7 +144,12 @@ const csvEscape = (v) => (v == null ? '' : String(v));
 
 const EpeMonteCarloPanel = ({ runConfigId }) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [cfg, setCfg] = useState(null);
+  // Wave E: org sharing is read-only; reviewers see saved results but only
+  // the config owner may launch simulations (the edge function enforces
+  // this server-side too).
+  const isOwnConfig = !cfg?.user_id || !user?.id || cfg.user_id === user.id;
   const [vars, setVars] = useState(null);
   const [iterations, setIterations] = useState(1000);
   // Wave C: editable correlation pairs (the old oil/gas rho 0.7 checkbox is
@@ -398,7 +404,12 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
               className="w-28 px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-sm"
             />
           </label>
-          <Button onClick={runMonteCarlo} disabled={running} className="bg-gradient-to-r from-green-500 to-cyan-500 text-white">
+          {!isOwnConfig && (
+            <span className="text-xs text-amber-300">
+              Shared run: simulations are disabled. Clone the case to run your own.
+            </span>
+          )}
+          <Button onClick={runMonteCarlo} disabled={running || !isOwnConfig} className="bg-gradient-to-r from-green-500 to-cyan-500 text-white">
             {running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
             {running ? 'Running simulation...' : 'Run Monte Carlo'}
           </Button>

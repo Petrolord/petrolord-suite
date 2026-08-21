@@ -9,6 +9,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/lib/customSupabaseClient';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { labelForConfigKey } from '@/pages/apps/epe/epeConfigLabels';
+
+// Wave E (audit 4.3): the pricing + economics subset an assumption set pins.
+// Regime terms and case-specific dates (base/valuation year) stay out.
+const ASSUMPTION_SET_KEYS = [
+  'oil_price_usd_bbl', 'gas_price_usd_mscf', 'condensate_price_usd_bbl',
+  'oil_price_differential_usd_bbl', 'gas_price_differential_usd_mscf', 'condensate_price_differential_usd_bbl',
+  'price_deck',
+  'oil_price_escalator_pct', 'gas_price_escalator_pct', 'condensate_price_escalator_pct',
+  'opex_escalator_pct', 'capex_escalator_pct',
+  'discount_rate_pct', 'inflation_rate_pct',
+  'present_value_basis', 'discounting_convention',
+];
 
 // ----------------------------------------------------------------------------
 // Defaults match the schema column defaults in epe_run_configs
@@ -90,8 +104,18 @@ const EpeRunConsole = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
 
   const [isRunning, setIsRunning] = useState(false);
+  // Wave E: shared-case guard + assumption library
+  const [caseRow, setCaseRow] = useState(null);
+  const [activeOrgId, setActiveOrgId] = useState(null);
+  const [assumptionSets, setAssumptionSets] = useState([]);
+  const [selectedSetId, setSelectedSetId] = useState('');
+  const [showSaveSet, setShowSaveSet] = useState(false);
+  const [setName, setSetName] = useState('');
+  const [shareSetWithOrg, setShareSetWithOrg] = useState(false);
+  const [savingSet, setSavingSet] = useState(false);
   const [runName, setRunName] = useState(`Run ${formatTimestampForName()}`);
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [saveAsScenario, setSaveAsScenario] = useState(false);
@@ -142,6 +166,121 @@ const EpeRunConsole = () => {
     load();
     return () => { cancelled = true; };
   }, [caseId, searchParams, applyConfigRow]);
+
+  // Wave E: case ownership (shared cases are read-only here), the user's
+  // active org (for sharing assumption sets), and the visible library.
+  const loadAssumptionSets = useCallback(async () => {
+    const { data } = await supabase
+      .from('epe_assumption_sets')
+      .select('id, user_id, organization_id, name, description, created_at')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    setAssumptionSets(data || []);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const { data: cRow } = await supabase
+        .from('epe_cases').select('id, user_id, case_name').eq('id', caseId).maybeSingle();
+      if (!cancelled) setCaseRow(cRow || null);
+      if (user?.id) {
+        const { data: mem } = await supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .order('joined_at', { ascending: true, nullsFirst: false })
+          .limit(1);
+        if (!cancelled) setActiveOrgId(mem?.[0]?.organization_id ?? null);
+      }
+      if (!cancelled) await loadAssumptionSets();
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [caseId, user, loadAssumptionSets]);
+
+  const isSharedReadOnly = Boolean(caseRow && user && caseRow.user_id !== user.id);
+
+  const applyAssumptionSet = (id) => {
+    setSelectedSetId(id);
+    if (!id) return;
+    const row = assumptionSets.find((s) => s.id === id);
+    if (!row) return;
+    supabase.from('epe_assumption_sets').select('payload').eq('id', id).maybeSingle().then(({ data }) => {
+      const payload = data?.payload;
+      if (!payload || typeof payload !== 'object') {
+        toast({ variant: 'destructive', title: 'Could not load the assumption set' });
+        return;
+      }
+      const appliedKeys = [];
+      setConfig((prev) => {
+        const next = { ...prev };
+        for (const key of ASSUMPTION_SET_KEYS) {
+          if (payload[key] !== undefined && payload[key] !== null) {
+            next[key] = payload[key];
+            appliedKeys.push(key);
+          }
+        }
+        return next;
+      });
+      setValidationErrors({});
+      toast({
+        title: `Applied "${row.name}"`,
+        description: appliedKeys.length > 0
+          ? `Set: ${appliedKeys.map((k) => labelForConfigKey(k)).join(', ')}`
+          : 'The set carried no recognized fields.',
+      });
+    });
+  };
+
+  const saveAssumptionSet = async () => {
+    if (!setName.trim()) {
+      toast({ variant: 'destructive', title: 'Name the assumption set first' });
+      return;
+    }
+    setSavingSet(true);
+    try {
+      const payload = {};
+      for (const key of ASSUMPTION_SET_KEYS) {
+        const v = config[key];
+        if (v !== undefined && v !== null && v !== '') payload[key] = v;
+      }
+      const { error } = await supabase.from('epe_assumption_sets').insert({
+        user_id: user.id,
+        organization_id: shareSetWithOrg && activeOrgId ? activeOrgId : null,
+        name: setName.trim(),
+        description: 'Saved from the Run Console',
+        payload,
+      });
+      if (error) throw error;
+      toast({
+        title: 'Assumption set saved',
+        description: shareSetWithOrg && activeOrgId
+          ? 'Shared with your organization.' : 'Saved to your personal library.',
+      });
+      setSetName('');
+      setShowSaveSet(false);
+      setShareSetWithOrg(false);
+      await loadAssumptionSets();
+    } catch (err) {
+      toast({ variant: 'destructive', title: 'Save failed', description: err.message });
+    } finally {
+      setSavingSet(false);
+    }
+  };
+
+  const deleteAssumptionSet = async (row) => {
+    if (!window.confirm(`Delete assumption set "${row.name}"?`)) return;
+    const { error } = await supabase.from('epe_assumption_sets').delete().eq('id', row.id);
+    if (error) {
+      toast({ variant: 'destructive', title: 'Delete failed', description: error.message });
+      return;
+    }
+    if (selectedSetId === row.id) setSelectedSetId('');
+    toast({ title: 'Assumption set deleted' });
+    await loadAssumptionSets();
+  };
 
   const handleNumberChange = (key, value) => {
     // null = "cleared optional field" (HCT override, NDDC fixed, abandonment):
@@ -464,6 +603,16 @@ const EpeRunConsole = () => {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6 space-y-8"
         >
+          {/* Wave E: shared-case read-only banner */}
+          {isSharedReadOnly && (
+            <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded text-amber-200 text-sm">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>
+                This case is shared with you read-only. Clone it from the case list to run your own economics.
+              </span>
+            </div>
+          )}
+
           {/* Run Name */}
           <div>
             <Label htmlFor="runName" className="text-white text-sm">Run Name</Label>
@@ -511,6 +660,85 @@ const EpeRunConsole = () => {
               </p>
             </div>
           )}
+
+          {/* Wave E (audit 4.3): corporate assumption library */}
+          <section>
+            <h2 className="text-white text-lg font-semibold mb-3 border-b border-white/20 pb-1">Assumption library</h2>
+            {assumptionSets.length === 0 ? (
+              <p className="text-sm text-slate-400">
+                No assumption sets yet. Save your corporate price deck once and reuse it on every case.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex gap-2 items-center">
+                  <select
+                    value={selectedSetId}
+                    onChange={(e) => applyAssumptionSet(e.target.value)}
+                    className="flex-1 bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                  >
+                    <option value="">Apply an assumption set...</option>
+                    {assumptionSets.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                        {s.organization_id ? ' [org]' : ''}
+                        {user && s.user_id !== user.id ? ' (teammate)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {assumptionSets.filter((s) => user && s.user_id === user.id).map((s) => (
+                    <span key={s.id} className="inline-flex items-center gap-1 text-xs text-slate-300 bg-slate-800 border border-slate-700 rounded px-2 py-0.5">
+                      {s.name}
+                      <button
+                        type="button"
+                        onClick={() => deleteAssumptionSet(s)}
+                        className="text-slate-500 hover:text-red-400"
+                        title={`Delete "${s.name}"`}
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="mt-3">
+              {!showSaveSet ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowSaveSet(true)}>
+                  Save current as assumption set
+                </Button>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    value={setName}
+                    onChange={(e) => setSetName(e.target.value)}
+                    placeholder="e.g. Corporate deck Q3 2026"
+                    className="bg-gray-800 border-slate-600 text-white w-64"
+                  />
+                  <label className={`text-sm flex items-center gap-2 ${activeOrgId ? 'text-white cursor-pointer' : 'text-slate-500'}`}>
+                    <input
+                      type="checkbox"
+                      checked={shareSetWithOrg}
+                      disabled={!activeOrgId}
+                      onChange={(e) => setShareSetWithOrg(e.target.checked)}
+                      className="accent-lime-400"
+                    />
+                    Share with my organization
+                  </label>
+                  <Button type="button" size="sm" onClick={saveAssumptionSet} disabled={savingSet}>
+                    {savingSet ? 'Saving...' : 'Save'}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => { setShowSaveSet(false); setSetName(''); }}>
+                    Cancel
+                  </Button>
+                </div>
+              )}
+              <p className="text-xs text-slate-500 mt-1">
+                An assumption set pins pricing and economics (prices, differentials, deck, escalation, discounting). Regime terms and case dates stay with the case.
+              </p>
+            </div>
+          </section>
 
           {/* Pricing */}
           <section>
@@ -1277,16 +1505,21 @@ const EpeRunConsole = () => {
             )}
           </section>
 
-          {/* Run button */}
+          {/* Run button (Wave E: disabled on shared read-only cases) */}
           <Button
             onClick={handleRun}
-            disabled={isRunning}
+            disabled={isRunning || isSharedReadOnly}
             className="w-full text-lg py-6 bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-600 hover:to-cyan-600"
           >
             {isRunning
               ? <><Loader2 className="mr-2 h-6 w-6 animate-spin" /> Running Analysis...</>
               : <><PlayCircle className="mr-2 h-6 w-6" /> Run Economic Analysis</>}
           </Button>
+          {isSharedReadOnly && (
+            <p className="text-xs text-amber-300 text-center">
+              Running is disabled on shared cases.
+            </p>
+          )}
         </motion.div>
       </div>
     </>

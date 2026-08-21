@@ -18,6 +18,7 @@ import html2canvas from 'html2canvas';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { drawBrandHeader, loadPetrolordLogo } from '@/lib/pdfBrand';
 import { configSectionsForReport } from './epeConfigLabels';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import EpeMonteCarloPanel from './EpeMonteCarloPanel';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS,
@@ -558,7 +559,10 @@ const TornadoChart = ({ rows, baseNpv }) => {
 
 // SensitivityPanel — orchestrates the run lifecycle:
 // idle → invoking → running → complete (or failed)
-const SensitivityPanel = ({ runId, runConfigId, userId }) => {
+// Wave E: readOnly = the viewer does not own this run (shared case); the
+// tornado stays visible but new sensitivity runs are owner-only (the
+// epe_sensitivity_runs insert policy is owner-scoped anyway).
+const SensitivityPanel = ({ runId, runConfigId, userId, readOnly = false }) => {
   const [state, setState] = useState('loading');  // 'loading' | 'idle' | 'invoking' | 'running' | 'complete' | 'failed'
   const [sensitivityRun, setSensitivityRun] = useState(null);
   const [results, setResults] = useState([]);
@@ -737,15 +741,21 @@ const SensitivityPanel = ({ runId, runConfigId, userId }) => {
         <p style={{ color: CHART_COLORS.axisText, fontSize: 12, marginBottom: 16 }}>
           Estimated time: 1 to 5 seconds.
         </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          {rangeControls}
-          <Button
-            onClick={handleRunSensitivity}
-            className="bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:opacity-90"
-          >
-            Run Sensitivity Analysis
-          </Button>
-        </div>
+        {readOnly ? (
+          <p style={{ color: CHART_COLORS.axisText, fontSize: 12 }}>
+            Sensitivity runs are disabled on shared runs. Ask the case owner to run one, or clone the case.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            {rangeControls}
+            <Button
+              onClick={handleRunSensitivity}
+              className="bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:opacity-90"
+            >
+              Run Sensitivity Analysis
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -781,15 +791,21 @@ const SensitivityPanel = ({ runId, runConfigId, userId }) => {
         <p style={{ color: CHART_COLORS.axisText, fontSize: 13, marginBottom: 16 }}>
           {errorMsg || 'An unknown error occurred.'}
         </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          {rangeControls}
-          <Button
-            onClick={handleRunSensitivity}
-            className="bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:opacity-90"
-          >
-            Retry
-          </Button>
-        </div>
+        {readOnly ? (
+          <p style={{ color: CHART_COLORS.axisText, fontSize: 12 }}>
+            Sensitivity runs are disabled on shared runs.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            {rangeControls}
+            <Button
+              onClick={handleRunSensitivity}
+              className="bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:opacity-90"
+            >
+              Retry
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -802,17 +818,19 @@ const SensitivityPanel = ({ runId, runConfigId, userId }) => {
         <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: 0 }}>
           Tornado: NPV Sensitivity ({rangeLow}% / +{rangeHigh}%)
         </h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {rangeControls}
-          <Button
-            onClick={handleRunSensitivity}
-            size="sm"
-            variant="outline"
-            className="text-xs"
-          >
-            Re-run
-          </Button>
-        </div>
+        {!readOnly && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {rangeControls}
+            <Button
+              onClick={handleRunSensitivity}
+              size="sm"
+              variant="outline"
+              className="text-xs"
+            >
+              Re-run
+            </Button>
+          </div>
+        )}
       </div>
       <p style={{ fontSize: 11, color: CHART_COLORS.axisText, marginBottom: 4 }}>
         Base NPV: <span style={{ fontWeight: 600 }}>{fmtCompact(baseNpv)}</span>
@@ -953,6 +971,7 @@ const EpeResultsViewer = () => {
   const { runId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [results, setResults] = useState(null);
   const [runDetails, setRunDetails] = useState(null);
   const [runConfig, setRunConfig] = useState(null);
@@ -961,6 +980,9 @@ const EpeResultsViewer = () => {
   // Annual chart legend toggles (default view matches the original: only Net
   // Cash Flow visible; the legend now actually toggles the other three).
   const [hiddenSeries, setHiddenSeries] = useState({ netCashFlow: false, revenue: true, capex: true, opex: true });
+
+  // Wave E: a run opened through org sharing is read-only for the viewer.
+  const isOwnRun = Boolean(runDetails?.user_id && user?.id && runDetails.user_id === user.id);
 
   useEffect(() => {
     const fetchResults = async () => {
@@ -1353,7 +1375,8 @@ if (loading) {
             </Link>
             {results && (
               <div className="flex items-center gap-2 flex-wrap">
-                {runDetails?.case_id && runDetails?.run_config_id && (
+                {/* Wave E: mutation affordances are owner-only; reviewers keep exports */}
+                {isOwnRun && runDetails?.case_id && runDetails?.run_config_id && (
                   <Link to={`/dashboard/apps/economics/epe/cases/${runDetails.case_id}/run?fromConfig=${runDetails.run_config_id}`}>
                     <Button variant="outline" size="sm">
                       <Pencil className="mr-2 h-3.5 w-3.5" /> Re-run with edits
@@ -1538,6 +1561,7 @@ if (loading) {
                   runId={runId}
                   runConfigId={runDetails?.run_config_id}
                   userId={runDetails?.user_id}
+                  readOnly={!isOwnRun}
                 />
               )}
 

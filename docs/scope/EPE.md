@@ -287,6 +287,31 @@ Per `docs/scope/EPE-Industry-Audit.md` Band 4 (4.1, 4.4–4.9):
 - **Comparison**: capped at 6 runs, deltas on all numeric rows, cumulative
   NCF overlay chart, labeled config rows, CSV download.
 
+## 3f. Wave E — enterprise workflow (2026-08-21)
+
+Per `docs/scope/EPE-Industry-Audit.md` Band 4 (4.2, 4.3, 4.11, 4.13 + run
+locking). Migration `20260821230000` (applied live):
+
+- **Org sharing v1 (read-only)**, Seismolord W4.1 pattern: sharing a case
+  makes the WHOLE family (uploads, configs, runs, results, MC, sensitivity)
+  readable by the owner's organization; all writes stay owner-scoped.
+  Case list splits My Cases / Shared with your organization; shared cases
+  open read-only (no uploads, runs, or deletes); Run Console blocks running
+  on shared cases and points at Clone.
+- **Run lock/approve**: `epe_runs.locked` (RLS-enforced: locked runs cannot
+  be deleted until unlocked) + `approved_by/approved_at` badges.
+- **Corporate assumption library** (`epe_assumption_sets`): save the
+  pricing + economics subset of a run config (prices, differentials, deck,
+  escalators, discounting) as a named set, personal or org-shared; apply it
+  to any case from the Run Console.
+- **Case management**: search, soft archive (`archived_at`), clone-as-
+  what-if (case + data files copied into the cloner's workspace, unshared),
+  last-run KPI badge on case cards, file-delete confirm.
+- **Forecast Scenario Hub import**: pick a saved FSH scenario, EPE rebuilds
+  its annual profile with FSH's own Arps math and files it as a generated
+  production dataset (replace-on-upload semantics honored).
+- Deferred from the wave (still open): in-app data editing (4.10).
+
 ---
 
 ## 4. What is NOT YET BUILT — known gaps
@@ -322,8 +347,10 @@ Risk level: low (math is straightforward). But a future Reservoir Balance-style 
 - ~~Flat price + escalator only~~ — **PARTLY CLOSED 2026-08-21 (Wave B)**:
   per-year decks + differentials shipped (§3c); contracted gas price
   structures (take-or-pay etc.) remain future work.
-- **No incremental (with vs without) economics**; comparison is KPI-level.
-- RLS is per-user (`auth.uid() = user_id`), not per-org; no sharing.
+- **No incremental (with vs without) economics**; comparison is KPI-level
+  (though Wave D added deltas and a cumulative NCF overlay).
+- ~~RLS is per-user, no sharing~~ — **CLOSED 2026-08-21 (Wave E)**: org
+  sharing v1 read-only across the case family (§3f).
 
 ### 4.3 Backlog items not yet started
 

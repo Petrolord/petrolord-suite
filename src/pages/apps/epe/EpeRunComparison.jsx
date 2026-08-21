@@ -47,11 +47,12 @@ const EpeRunComparison = () => {
         return;
       }
 
+      // Wave E: no user_id filter — RLS scopes visibility, so on a shared
+      // case a reviewer sees the owner's complete runs too.
       const { data, error } = await supabase
         .from('epe_runs')
         .select('id, run_name, created_at')
         .eq('case_id', caseId)
-        .eq('user_id', user.id)
         // Wave A: failed/running runs have no results to compare
         .or('status.is.null,status.eq.complete')
         .order('created_at', { ascending: false });
