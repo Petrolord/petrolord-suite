@@ -32,7 +32,7 @@
 //   - White background wrapper with slate-200 border
 //   - chartTheme tokens (CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS,
 //     GRID_STYLE, TOOLTIP_STYLE) for visual consistency with EPE/DCA
-//   - <ChartLogo /> as bottom-right watermark inside each chart wrapper
+//   - <ChartLogo style={MBAL_LOGO_STYLE} /> as bottom-right watermark inside each chart wrapper
 //   - ComposedChart for plots that mix scatter points + lines
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
@@ -75,6 +75,10 @@ import {
   getCaseDefaultConfig,
 } from '@/pages/apps/reservoir-balance/lib/api';
 import { ramagostCorrectedPz } from '@/pages/apps/reservoir-balance/lib/pzRamagost';
+
+// MBAL charts overlay the logo directly on the plot area, so the suite
+// default (180px) overflows them; keep the mark small in this app.
+const MBAL_LOGO_STYLE = { height: '40px' };
 
 // =============================================================================
 // COLOR PALETTE — local to MBAL plots
@@ -474,7 +478,7 @@ const HavlenaOdehPlot = ({ rows, result, isGas, caseName }) => {
               />
             </ComposedChart>
           </ResponsiveContainer>
-          <ChartLogo />
+          <ChartLogo style={MBAL_LOGO_STYLE} />
           {/* Annotation box top-right */}
           <div className="absolute top-3 right-3 bg-white/95 border border-slate-300 rounded px-3 py-2 text-[11px] font-mono leading-relaxed shadow-sm">
             <div className="text-slate-700">
@@ -688,7 +692,7 @@ const PZPlot = ({ rows, result, caseName, ramagost }) => {
               )}
             </ComposedChart>
           </ResponsiveContainer>
-          <ChartLogo />
+          <ChartLogo style={MBAL_LOGO_STYLE} />
           <div className="absolute top-3 right-3 bg-white/95 border border-slate-300 rounded px-3 py-2 text-[11px] font-mono leading-relaxed shadow-sm">
             {apparentOgipBcf != null && (
               <div className="text-slate-700">
@@ -863,7 +867,7 @@ const ColePlot = ({ rows, result, caseName }) => {
               />
             </ComposedChart>
           </ResponsiveContainer>
-          <ChartLogo />
+          <ChartLogo style={MBAL_LOGO_STYLE} />
         </div>
         <TimestepDetailPanel
           row={expandedRow}
@@ -1016,7 +1020,7 @@ const CampbellPlot = ({ rows, result, caseName }) => {
               />
             </ComposedChart>
           </ResponsiveContainer>
-          <ChartLogo />
+          <ChartLogo style={MBAL_LOGO_STYLE} />
         </div>
         <TimestepDetailPanel
           row={expandedRow}
@@ -1182,7 +1186,7 @@ const DriveIndicesPlot = ({ rows, isGas, caseName }) => {
               />
             </ComposedChart>
           </ResponsiveContainer>
-          <ChartLogo />
+          <ChartLogo style={MBAL_LOGO_STYLE} />
         </div>
         <TimestepDetailPanel
           row={expandedRow}

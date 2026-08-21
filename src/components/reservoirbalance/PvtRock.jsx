@@ -82,6 +82,10 @@ import {
 } from '@/pages/apps/reservoir-balance/lib/api';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { buildPvtPrefillRows } from '@/pages/apps/reservoir-balance/lib/fluidStudioPvtPrefill';
+
+// MBAL charts overlay the logo directly on the plot area, so the suite
+// default (180px) overflows them; keep the mark small in this app.
+const MBAL_LOGO_STYLE = { height: '40px' };
 import {
   CHART_COLORS,
   CHART_TYPOGRAPHY,
@@ -1085,7 +1089,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                   />
                 </ComposedChart>
               </ResponsiveContainer>
-              <ChartLogo />
+              <ChartLogo style={MBAL_LOGO_STYLE} />
             </div>
           ) : (
             <div className="h-[350px] flex items-center justify-center text-slate-500 bg-white">
