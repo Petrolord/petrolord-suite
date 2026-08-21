@@ -8,6 +8,18 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { ArrowLeft, Landmark, FileDown, GitMerge, Package, BarChart3, ExternalLink } from 'lucide-react';
 import { buildBriefModel, fmtMMUsd } from '@/components/decisionstudio/briefModel';
 import { downloadBriefPdf } from '@/components/decisionstudio/briefPdf';
+import {
+  ComposedChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip as RTooltip, Legend as RLegend, ReferenceLine,
+} from 'recharts';
+import ChartFrame from '@/components/charts/ChartFrame';
+import {
+  CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE,
+} from '@/utils/chartTheme';
+
+// Wave C (audit 3.8): overlaid NPV S-curves for the compared cases, one line
+// per saved Monte Carlo run, from the persisted results.npv.cdf arrays.
+const SCURVE_COLORS = ['#2563eb', '#059669', '#7c3aed', '#d97706'];
 
 // Decision Studio (D5, docs/scope/Economics-ROADMAP.md): the executive
 // layer over the decision chain. Pulls the user's saved artifacts from the
@@ -259,6 +271,54 @@ const DecisionStudio = () => {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+              {compareRows.length >= 2 && compareRows.some((r) => (r.results?.npv?.cdf || []).length > 1) && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-semibold text-white mb-2">NPV S-curves</h4>
+                  <ChartFrame height={340} logoHeight={24} exportFilename="decision-studio-npv-scurves">
+                    <ComposedChart margin={CHART_MARGINS.withLegend}>
+                      <CartesianGrid {...GRID_STYLE} />
+                      <XAxis
+                        dataKey="x"
+                        type="number"
+                        domain={['dataMin', 'dataMax']}
+                        tickFormatter={fmtMMUsd}
+                        tick={{ fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText }}
+                        stroke={CHART_COLORS.axisLine}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        tickFormatter={(v) => `${v}%`}
+                        tick={{ fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText }}
+                        stroke={CHART_COLORS.axisLine}
+                      />
+                      <RTooltip
+                        contentStyle={TOOLTIP_STYLE}
+                        formatter={(v) => `${Number(v).toFixed(1)}%`}
+                        labelFormatter={(v) => `NPV ${fmtMMUsd(v)}`}
+                      />
+                      <RLegend wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText, paddingTop: 8 }} />
+                      <ReferenceLine x={0} stroke="#dc2626" strokeDasharray="4 4" />
+                      {compareRows.map((r, i) => (
+                        (r.results?.npv?.cdf || []).length > 1 && (
+                          <Line
+                            key={r.id}
+                            data={r.results.npv.cdf}
+                            dataKey="y"
+                            name={r.configName || 'EPE run'}
+                            stroke={SCURVE_COLORS[i % SCURVE_COLORS.length]}
+                            strokeWidth={2}
+                            dot={false}
+                            type="monotone"
+                          />
+                        )
+                      ))}
+                    </ComposedChart>
+                  </ChartFrame>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Cumulative probability that each case's NPV falls at or below a value. A curve further to the right is better; a steeper curve is more certain. Runs saved before the S-curve update may not appear.
+                  </p>
                 </div>
               )}
             </SectionCard>

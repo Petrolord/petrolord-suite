@@ -497,6 +497,9 @@ const SensitivityPanel = ({ runId, runConfigId, userId }) => {
   const [sensitivityRun, setSensitivityRun] = useState(null);
   const [results, setResults] = useState([]);
   const [errorMsg, setErrorMsg] = useState(null);
+  // Wave C (audit 3.2): user-set sweep ranges, in percent vs the base value.
+  const [rangeLow, setRangeLow] = useState(-20);
+  const [rangeHigh, setRangeHigh] = useState(20);
 
   // On mount: check whether a recent sensitivity run already exists for this base run
   useEffect(() => {
@@ -544,6 +547,18 @@ const SensitivityPanel = ({ runId, runConfigId, userId }) => {
   }, [runId]);
 
   const handleRunSensitivity = async () => {
+    const low = Number(rangeLow);
+    const high = Number(rangeHigh);
+    if (!Number.isFinite(low) || low < -99 || low > 0) {
+      setErrorMsg('Low must be between -99 and 0 percent.');
+      setState('failed');
+      return;
+    }
+    if (!Number.isFinite(high) || high < 0 || high > 400) {
+      setErrorMsg('High must be between 0 and 400 percent.');
+      setState('failed');
+      return;
+    }
     setState('invoking');
     setErrorMsg(null);
     try {
@@ -569,6 +584,8 @@ const SensitivityPanel = ({ runId, runConfigId, userId }) => {
             run_id: runId,
             base_run_config_id: runConfigId,
             sensitivity_run_id: newRun.id,
+            // Wave C: ranges apply to every multiplicative bar.
+            sweep_options: { factor_low: 1 + Number(rangeLow) / 100, factor_high: 1 + Number(rangeHigh) / 100 },
           },
         }
       );
@@ -599,6 +616,29 @@ const SensitivityPanel = ({ runId, runConfigId, userId }) => {
     }
   };
 
+
+  const rangeControls = (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: CHART_COLORS.axisText }}>
+      Low
+      <input
+        type="number"
+        step="1"
+        value={rangeLow}
+        onChange={(e) => setRangeLow(e.target.value)}
+        style={{ width: 56, padding: '2px 6px', borderRadius: 4, border: `1px solid ${CHART_COLORS.grid}`, background: 'transparent', color: 'inherit', fontSize: 12 }}
+      />
+      % High
+      <input
+        type="number"
+        step="1"
+        value={rangeHigh}
+        onChange={(e) => setRangeHigh(e.target.value)}
+        style={{ width: 56, padding: '2px 6px', borderRadius: 4, border: `1px solid ${CHART_COLORS.grid}`, background: 'transparent', color: 'inherit', fontSize: 12 }}
+      />
+      %
+    </span>
+  );
+
   // ----- Render by state -----
   const containerStyle = {
     background: CHART_COLORS.background,
@@ -623,18 +663,23 @@ const SensitivityPanel = ({ runId, runConfigId, userId }) => {
         </h3>
         <p style={{ color: CHART_COLORS.axisText, fontSize: 13, lineHeight: 1.5, marginBottom: 16 }}>
           Quantify how much each input variable affects NPV. The analysis runs your project
-          through the engine ~20 times with each variable at ±20% of its current value,
-          then plots the NPV change as a tornado chart sorted by impact magnitude.
+          through the engine with each variable at your chosen Low and High of its current
+          value, then plots the NPV change as a tornado chart sorted by impact magnitude.
+          The ranges apply to every multiplicative bar; Production and First Oil Delay
+          bars are included.
         </p>
         <p style={{ color: CHART_COLORS.axisText, fontSize: 12, marginBottom: 16 }}>
-          Estimated time: 1–5 seconds.
+          Estimated time: 1 to 5 seconds.
         </p>
-        <Button
-          onClick={handleRunSensitivity}
-          className="bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:opacity-90"
-        >
-          Run Sensitivity Analysis
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          {rangeControls}
+          <Button
+            onClick={handleRunSensitivity}
+            className="bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:opacity-90"
+          >
+            Run Sensitivity Analysis
+          </Button>
+        </div>
       </div>
     );
   }
@@ -670,12 +715,15 @@ const SensitivityPanel = ({ runId, runConfigId, userId }) => {
         <p style={{ color: CHART_COLORS.axisText, fontSize: 13, marginBottom: 16 }}>
           {errorMsg || 'An unknown error occurred.'}
         </p>
-        <Button
-          onClick={handleRunSensitivity}
-          className="bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:opacity-90"
-        >
-          Retry
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          {rangeControls}
+          <Button
+            onClick={handleRunSensitivity}
+            className="bg-gradient-to-r from-green-500 to-cyan-500 text-white hover:opacity-90"
+          >
+            Retry
+          </Button>
+        </div>
       </div>
     );
   }
@@ -686,16 +734,19 @@ const SensitivityPanel = ({ runId, runConfigId, userId }) => {
     <div style={containerStyle}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: 0 }}>
-          Tornado — NPV Sensitivity (±20%)
+          Tornado: NPV Sensitivity ({rangeLow}% / +{rangeHigh}%)
         </h3>
-        <Button
-          onClick={handleRunSensitivity}
-          size="sm"
-          variant="outline"
-          className="text-xs"
-        >
-          Re-run
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {rangeControls}
+          <Button
+            onClick={handleRunSensitivity}
+            size="sm"
+            variant="outline"
+            className="text-xs"
+          >
+            Re-run
+          </Button>
+        </div>
       </div>
       <p style={{ fontSize: 11, color: CHART_COLORS.axisText, marginBottom: 4 }}>
         Base NPV: <span style={{ fontWeight: 600 }}>{fmtCompact(baseNpv)}</span>
