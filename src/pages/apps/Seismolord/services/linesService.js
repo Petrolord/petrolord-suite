@@ -7,7 +7,7 @@
 // subtlety, and the native declaration is preserved on the row).
 
 import { supabase } from '@/lib/customSupabaseClient';
-import { SEISMIC_BUCKET, STORAGE_QUOTA_BYTES } from './seismicStorage';
+import { SEISMIC_BUCKET, assertQuota } from './seismicStorage';
 import { myOrgId } from './surfacesService';
 import { newLineWorker } from './lineWorkerFactory';
 import {
@@ -94,20 +94,6 @@ export async function setLineBulkShift(line, bulkShiftMs) {
 }
 
 // ---- ingest ---------------------------------------------------------------
-
-async function assertQuota(estimateBytes) {
-  const { data, error } = await supabase.from('seismic_lines').select('survey_meta');
-  if (error) return;
-  const { data: vols } = await supabase.from('seismic_volumes').select('survey_meta');
-  const used = [...(data || []), ...(vols || [])].reduce(
-    (sum, r) => sum + (Number(r.survey_meta?.storage_bytes) || 0), 0);
-  if (used + estimateBytes > STORAGE_QUOTA_BYTES) {
-    const gib = (b) => (b / 1024 ** 3).toFixed(2);
-    throw new Error(
-      `Storage quota exceeded: ${gib(used)} GiB used + ~${gib(estimateBytes)} GiB new `
-      + `> ${gib(STORAGE_QUOTA_BYTES)} GiB. Delete old data first.`);
-  }
-}
 
 async function uploadObject(path, body, contentType) {
   const { error } = await supabase.storage.from(SEISMIC_BUCKET)

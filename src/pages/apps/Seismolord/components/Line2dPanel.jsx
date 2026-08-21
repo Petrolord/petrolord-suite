@@ -21,6 +21,7 @@ import { useToast } from '@/components/ui/use-toast';
 import CrsPicker from '@/components/crs/CrsPicker';
 import { getProjectCrs, addCustomDef } from '@/lib/crs/settingsService';
 import SliceView from './SliceView';
+import StorageMeter from './StorageMeter';
 import {
   ingestLine2d, getLineManifest, loadLineNav,
   loadLineSection, listLinePicks, loadLinePicks, saveLinePicks,
@@ -562,6 +563,7 @@ export default function Line2dPanel({
             <DialogTitle>Import 2D line (SEG-Y)</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 text-sm">
+            <StorageMeter refreshKey={`${importOpen}:${readyLines.length}`} />
             <input
               type="file"
               accept=".sgy,.segy"

@@ -123,7 +123,10 @@ function wireSupabase({ quotaRows = [], insertError = null } = {}) {
 
   mockFrom.mockImplementation(() => ({
     select: (cols) => {
-      if (cols === 'survey_meta') return Promise.resolve({ data: quotaRows, error: null });
+      // quota accounting now filters .eq('user_id', ...) on own rows
+      if (cols === 'survey_meta') {
+        return { eq: () => Promise.resolve({ data: quotaRows, error: null }) };
+      }
       return Promise.resolve({ data: [], error: null });
     },
     insert: (payload) => ({

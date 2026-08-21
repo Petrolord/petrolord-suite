@@ -22,6 +22,7 @@ import {
   ContextMenuSubContent,
 } from '@/components/ui/context-menu';
 import { SURFACE_EXPORT_FORMATS } from '../../services/surfacesService';
+import StorageMeter from '../StorageMeter';
 import {
   horizonColor, faultColor, wellColor, surfaceColor,
 } from './interpretationColors';
@@ -846,6 +847,10 @@ export default function SeismicExplorer({ tree, actions }) {
           )}
         </Section>
       </ScrollArea>
+      <StorageMeter
+        className="shrink-0 px-2 py-1.5 border-t border-slate-800"
+        refreshKey={`${volumes.length}:${lines2d.length}`}
+      />
     </div>
   );
 }
