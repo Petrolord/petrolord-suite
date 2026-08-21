@@ -582,6 +582,158 @@ describe('EPE engine v3.5: run provenance (Wave A finding 1.8)', () => {
   });
 });
 
+describe('EPE engine v3.6: working interest on PSC and PIA (Wave B 2.1)', () => {
+  const pscCfg = {
+    fiscal_regime: 'PSC', base_year: 2030,
+    oil_price_usd_bbl: 100, gas_price_usd_mscf: 0, condensate_price_usd_bbl: 0,
+    discount_rate_pct: 10, inflation_rate_pct: 0,
+    oil_price_escalator_pct: 0, gas_price_escalator_pct: 0,
+    condensate_price_escalator_pct: 0, opex_escalator_pct: 0, capex_escalator_pct: 0,
+    present_value_basis: 'nominal',
+    psc_royalty_pct: 10, psc_cost_oil_cap_pct: 40,
+    psc_contractor_profit_share_pct: 50, psc_tax_rate_pct: 50,
+  };
+  const pscInput = {
+    prodRows: [{ year: 2030, well1_oil_bbl: 1_000_000 }, { year: 2031, well1_oil_bbl: 1_000_000 }],
+    capexRows: [{ year: 2030, amount_usd: 80_000_000 }],
+    opexRows: [{ year: 2030, total_opex_usd: 10_000_000 }, { year: 2031, total_opex_usd: 10_000_000 }],
+  };
+
+  it('PSC at 50% WI halves every monetary line and the NPV (linear regime)', () => {
+    const full = computeCashFlow({ cfg: pscCfg, ...pscInput });
+    const half = computeCashFlow({ cfg: { ...pscCfg, psc_working_interest_pct: 50 }, ...pscInput });
+    for (const k of ['gross_revenue', 'royalty', 'tax', 'net_cash_flow', 'oil_bbl']) {
+      expect(half.cashFlowData[0][k]).toBeCloseTo(full.cashFlowData[0][k] * 0.5, 2);
+      expect(half.cashFlowData[1][k]).toBeCloseTo(full.cashFlowData[1][k] * 0.5, 2);
+    }
+    expect(half.kpis.npv).toBeCloseTo(full.kpis.npv * 0.5, 2);
+    expect(half.kpis.working_interest_pct).toBe(50);
+    // Take % is a ratio, so it must be WI-invariant.
+    expect(half.kpis.government_take_pct).toBeCloseTo(full.kpis.government_take_pct, 6);
+  });
+
+  it('PIA WI keeps field-level royalty tiers (rate from field bopd, not the WI share)', () => {
+    // Deep offshore: >50,000 bopd pays 7.5% production royalty, <=50,000 pays 5%.
+    // Field is 60,000 bopd; the 50% WI share alone (30,000 bopd) would sit in
+    // the lower tier, which is exactly the naive-prescaling error.
+    const piaCfg = { ...PIA_WORKED_EXAMPLE_CFG, pia_terrain: 'deep_offshore' };
+    const prodRows = [{ year: 2025, well1_oil_bbl: 21_900_000 }];   // 60,000 bopd
+    const capexRows = [{ year: 2025, amount_usd: 100_000_000 }];
+    const opexRows = [{ year: 2025, total_opex_usd: 100_000_000 }];
+    const full = computeCashFlow({ cfg: piaCfg, prodRows, capexRows, opexRows });
+    const wi50 = computeCashFlow({ cfg: { ...piaCfg, pia_working_interest_pct: 50 }, prodRows, capexRows, opexRows });
+    const naive = computeCashFlow({
+      cfg: piaCfg,
+      prodRows: [{ year: 2025, well1_oil_bbl: 10_950_000 }],        // 30,000 bopd
+      capexRows, opexRows,
+    });
+    // WI share of the field-level royalty...
+    expect(wi50.cashFlowData[0].production_royalty).toBeCloseTo(full.cashFlowData[0].production_royalty * 0.5, 2);
+    // ...which is NOT what half the volumes at 100% WI would pay (5% tier):
+    // the field royalty rate is 7.5/5 = 1.5x the naive rate.
+    expect(wi50.cashFlowData[0].production_royalty)
+      .toBeCloseTo(naive.cashFlowData[0].production_royalty * 1.5, 2);
+    // Field-level diagnostics stay unscaled.
+    expect(wi50.cashFlowData[0].cumulative_oil_bbl_lifetime).toBeCloseTo(21_900_000, 2);
+  });
+});
+
+describe('EPE engine v3.6: per-year price decks and differentials (Wave B 2.2)', () => {
+  const cfg = {
+    fiscal_regime: 'JV', base_year: 2030,
+    oil_price_usd_bbl: 100, gas_price_usd_mscf: 0, condensate_price_usd_bbl: 0,
+    discount_rate_pct: 10, inflation_rate_pct: 0,
+    oil_price_escalator_pct: 10, gas_price_escalator_pct: 0,
+    condensate_price_escalator_pct: 0, opex_escalator_pct: 0, capex_escalator_pct: 0,
+    present_value_basis: 'nominal',
+    jv_working_interest_pct: 100, jv_royalty_pct: 20, jv_tax_rate_pct: 50,
+  };
+  const prodRows = [2030, 2031, 2032, 2033].map(year => ({ year, well1_oil_bbl: 1_000_000 }));
+
+  it('deck values step-hold between entries and escalate beyond the last', () => {
+    const { cashFlowData } = computeCashFlow({
+      cfg: { ...cfg, price_deck: [{ year: 2030, oil: 100 }, { year: 2032, oil: 50 }] },
+      prodRows, capexRows: [], opexRows: [],
+    });
+    expect(cashFlowData[0].applied_oil_price).toBeCloseTo(100, 6);   // deck year
+    expect(cashFlowData[1].applied_oil_price).toBeCloseTo(100, 6);   // step-hold
+    expect(cashFlowData[2].applied_oil_price).toBeCloseTo(50, 6);    // deck year
+    expect(cashFlowData[3].applied_oil_price).toBeCloseTo(55, 6);    // 50 x 1.10 beyond deck
+  });
+
+  it('differential adds after resolution; flat runs without a deck are unchanged', () => {
+    const withDiff = computeCashFlow({
+      cfg: { ...cfg, price_deck: [{ year: 2030, oil: 100 }], oil_price_differential_usd_bbl: -5 },
+      prodRows: prodRows.slice(0, 2), capexRows: [], opexRows: [],
+    });
+    expect(withDiff.cashFlowData[0].applied_oil_price).toBeCloseTo(95, 6);
+    expect(withDiff.cashFlowData[1].applied_oil_price).toBeCloseTo(100 * 1.1 - 5, 6);
+    const flat = computeCashFlow({ cfg, prodRows: prodRows.slice(0, 2), capexRows: [], opexRows: [] });
+    expect(flat.cashFlowData[1].applied_oil_price).toBeCloseTo(110, 6); // old escalator path intact
+  });
+
+  it('price scale multiplies the resolved deck price (sweep hook)', () => {
+    const { cashFlowData } = computeCashFlow({
+      cfg: { ...cfg, price_deck: [{ year: 2030, oil: 100 }], oil_price_scale: 1.2 },
+      prodRows: prodRows.slice(0, 1), capexRows: [], opexRows: [],
+    });
+    expect(cashFlowData[0].applied_oil_price).toBeCloseTo(120, 6);
+  });
+
+  it('breakeven is null when an oil deck prices the run', () => {
+    const input = {
+      cfg: { ...cfg, price_deck: [{ year: 2030, oil: 100 }] },
+      prodRows: prodRows.slice(0, 2),
+      capexRows: [{ year: 2030, amount_usd: 50_000_000 }],
+      opexRows: [],
+    };
+    expect(computeBreakevenOilPrice(input)).toBeNull();
+  });
+});
+
+describe('EPE engine v3.6: discounting convention and valuation date (Wave B 2.3/2.4)', () => {
+  const cfg = {
+    fiscal_regime: 'JV', base_year: 2030,
+    oil_price_usd_bbl: 100, gas_price_usd_mscf: 0, condensate_price_usd_bbl: 0,
+    discount_rate_pct: 10, inflation_rate_pct: 0,
+    oil_price_escalator_pct: 0, gas_price_escalator_pct: 0,
+    condensate_price_escalator_pct: 0, opex_escalator_pct: 0, capex_escalator_pct: 0,
+    present_value_basis: 'nominal',
+    jv_working_interest_pct: 100, jv_royalty_pct: 20, jv_tax_rate_pct: 50,
+  };
+  const input = {
+    prodRows: [{ year: 2030, well1_oil_bbl: 1_000_000 }, { year: 2031, well1_oil_bbl: 1_000_000 }],
+    capexRows: [{ year: 2030, amount_usd: 50_000_000 }],
+    opexRows: [{ year: 2030, total_opex_usd: 10_000_000 }, { year: 2031, total_opex_usd: 10_000_000 }],
+  };
+
+  it('mid-year discounting shifts every exponent by exactly half a year', () => {
+    const end = computeCashFlow({ cfg, ...input });
+    const mid = computeCashFlow({ cfg: { ...cfg, discounting_convention: 'mid_year' }, ...input });
+    expect(mid.kpis.npv).toBeCloseTo(end.kpis.npv / Math.sqrt(1.1), 2);
+    expect(mid.kpis.discounting_convention).toBe('mid_year');
+    expect(end.kpis.discounting_convention).toBe('end_year');
+  });
+
+  it('valuation date re-references discounting; sunk mode excludes prior years from value metrics', () => {
+    // Flows: 2030 = -12.5M, 2031 = +37.5M (JV analytic case).
+    const forward = computeCashFlow({ cfg: { ...cfg, valuation_year: 2031 }, ...input });
+    expect(forward.kpis.npv).toBeCloseTo(-12_500_000 * 1.1 + 37_500_000, 2);
+    const sunk = computeCashFlow({
+      cfg: { ...cfg, valuation_year: 2031, treat_prior_as_sunk: true }, ...input,
+    });
+    expect(sunk.kpis.npv).toBeCloseTo(37_500_000, 2);
+    expect(sunk.kpis.sunk_net_cash_flow).toBeCloseTo(-12_500_000, 2);
+    expect(sunk.cashFlowData[0].sunk).toBe(true);
+    // Fiscal state still accrues through the sunk year: 2031 tax includes the
+    // 2030 capex's depreciation deduction exactly as in the full run.
+    const full = computeCashFlow({ cfg, ...input });
+    expect(sunk.cashFlowData[1].tax).toBeCloseTo(full.cashFlowData[1].tax, 2);
+    // Payback is measured on evaluated flows only (single positive year -> year 0).
+    expect(sunk.kpis.payback_years).toBe(0);
+  });
+});
+
 describe('EPE engine: CPR cessation forfeiture (EPE.md §4.1)', () => {
   const { cashFlowData, kpis } = computeCashFlow({
     cfg: { ...PIA_WORKED_EXAMPLE_CFG },
