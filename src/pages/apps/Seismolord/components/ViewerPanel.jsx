@@ -515,7 +515,19 @@ export default function ViewerPanel() {
     wellsApi.reload();
     toast({
       title: 'Derived checkshots saved',
-      description: `${well.name}: ${payload.rows.length} rows from the tie warp — synthetics and well displays now use them.`,
+      description: `${well.name}: ${payload.rows.length} rows from the tie warp. Synthetics and well displays now use them.`,
+    });
+  };
+
+  /** Manual-findings fix pack: the clear door the service always had
+   *  (null payload) but nothing called. Imported checkshots come back
+   *  into effect; re-committing a tie restores a derived set. */
+  const clearDerivedCheckshots = async (well) => {
+    await saveDerivedCheckshots(well.id, null);
+    wellsApi.reload();
+    toast({
+      title: 'Derived checkshots removed',
+      description: `${well.name} reverts to its imported checkshots (or none).`,
     });
   };
 
@@ -3217,6 +3229,7 @@ export default function ViewerPanel() {
                   boundaries={velBoundaries}
                   onApplyVelocity={applyCalibratedModel}
                   onCommitCheckshots={commitDerivedCheckshots}
+                  onClearCheckshots={clearDerivedCheckshots}
                 />
               ),
             },
