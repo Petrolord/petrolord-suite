@@ -3,7 +3,6 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -19,8 +18,6 @@ const TeamManagement = () => {
   const navigate = useNavigate();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('member');
   const [seatsAllocated, setSeatsAllocated] = useState(0);
   const [currentOrgId, setCurrentOrgId] = useState(null);
   const [userRole, setUserRole] = useState(null);
@@ -107,49 +104,6 @@ const TeamManagement = () => {
     }
   };
 
-  const handleInvite = async (e) => {
-    e.preventDefault();
-    if (isImpersonating) return;
-    if (!inviteEmail) return;
-
-    // Org membership is not seat-capped — seats are per app (see Seat Assignments).
-    // Inviting a member is free; that member only consumes a seat when an admin
-    // assigns them to a specific app.
-    // Goes through the invite-employee edge fn (same pathway as the Employees
-    // page) so the invitee gets a token + email; a bare 'invited' row with no
-    // token could never be accepted.
-    try {
-      const { data, error } = await supabase.functions.invoke('invite-employee', {
-        body: { email: inviteEmail, role: inviteRole, organization_id: currentOrgId }
-      });
-      if (error) {
-        let detail = error.message;
-        try {
-          const body = await error.context?.json?.();
-          if (body?.error) detail = body.error;
-        } catch { /* keep generic message */ }
-        throw new Error(detail);
-      }
-      if (data?.error) throw new Error(data.error);
-
-      if (data?.emailSent) {
-        toast({ title: "Invitation Sent", description: `Invite emailed to ${inviteEmail}.` });
-      } else if (data?.invite_link) {
-        try { await navigator.clipboard.writeText(data.invite_link); } catch { /* no-op */ }
-        toast({
-          title: "Invite created, email failed",
-          description: `Share this link with ${inviteEmail} (copied to clipboard): ${data.invite_link}`,
-          duration: 15000
-        });
-      }
-      setInviteEmail('');
-      fetchTeamData(currentOrgId);
-
-    } catch (error) {
-      toast({ variant: "destructive", title: "Invitation Failed", description: error.message });
-    }
-  };
-
   const handleRemoveMember = async (memberId) => {
       if (isImpersonating) return;
       if (!confirm("Are you sure you want to remove this member?")) return;
@@ -223,53 +177,21 @@ const TeamManagement = () => {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="bg-slate-900 border-slate-800 lg:col-span-1 h-fit opacity-100 relative overflow-hidden">
-            {isImpersonating && <div className="absolute inset-0 bg-slate-950/50 z-10 cursor-not-allowed" />}
+        <Card className="bg-slate-900 border-slate-800 lg:col-span-1 h-fit">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <UserPlus className="h-5 w-5 text-emerald-500" />
                     Invite Member
                 </CardTitle>
                 <CardDescription>
-                    Send an email invitation.
+                    New members are invited from the Employees page, where each
+                    invitation includes the person's full name.
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <form onSubmit={handleInvite} className="space-y-4">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">Email Address</label>
-                        <Input 
-                            type="email" 
-                            placeholder="email@company.com" 
-                            value={inviteEmail}
-                            onChange={(e) => setInviteEmail(e.target.value)}
-                            className="bg-slate-950 border-slate-700 text-white"
-                            required
-                            disabled={isImpersonating}
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-slate-300">Role</label>
-                        <select 
-                            className="flex h-10 w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
-                            value={inviteRole}
-                            onChange={(e) => setInviteRole(e.target.value)}
-                            disabled={isImpersonating}
-                        >
-                            <option value="member">Member</option>
-                            <option value="admin">Admin</option>
-                            <option value="viewer">Viewer</option>
-                        </select>
-                    </div>
-                    
-                    <Button 
-                        type="submit" 
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                        disabled={loading || isImpersonating}
-                    >
-                        {loading ? 'Sending...' : 'Send Invitation'}
-                    </Button>
-                </form>
+                <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+                    <Link to="/dashboard/employees">Go to Employees</Link>
+                </Button>
             </CardContent>
         </Card>
 

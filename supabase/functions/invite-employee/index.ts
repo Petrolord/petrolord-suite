@@ -75,10 +75,12 @@ Deno.serve(async (req) => {
 
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    // organization_members.full_name is NOT NULL; a caller that omits the name
+    // must not 500 the invite, so fall back to the email's local part.
     const memberRow = {
       organization_id,
       email: inviteEmail,
-      full_name: full_name || null,
+      full_name: String(full_name || '').trim() || inviteEmail.split('@')[0],
       role,
       status: 'invited',
       invited_at: new Date().toISOString(),
