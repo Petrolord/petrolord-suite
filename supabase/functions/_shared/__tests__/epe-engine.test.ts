@@ -773,6 +773,45 @@ describe('EPE engine v3.7: schedule delay (Wave C 3.1)', () => {
   });
 });
 
+describe('EPE engine v3.8: reporting KPIs (Wave D)', () => {
+  const cfg = {
+    fiscal_regime: 'JV', base_year: 2030,
+    oil_price_usd_bbl: 100, gas_price_usd_mscf: 0, condensate_price_usd_bbl: 0,
+    discount_rate_pct: 10, inflation_rate_pct: 0,
+    oil_price_escalator_pct: 0, gas_price_escalator_pct: 0,
+    condensate_price_escalator_pct: 0, opex_escalator_pct: 0, capex_escalator_pct: 0,
+    present_value_basis: 'nominal',
+    jv_working_interest_pct: 100, jv_royalty_pct: 20, jv_tax_rate_pct: 50,
+  };
+  const input = {
+    cfg,
+    prodRows: [{ year: 2030, well1_oil_bbl: 1_000_000 }, { year: 2031, well1_oil_bbl: 1_000_000 }],
+    capexRows: [{ year: 2030, amount_usd: 50_000_000 }],
+    opexRows: [{ year: 2030, total_opex_usd: 10_000_000 }, { year: 2031, total_opex_usd: 10_000_000 }],
+  };
+  const { kpis } = computeCashFlow(input);
+
+  it('npv_profile passes through the headline NPV at the applied rate and falls with rate', () => {
+    const at10 = kpis.npv_profile.find((p: any) => p.rate_pct === 10);
+    expect(at10.npv).toBeCloseTo(kpis.npv, 2);
+    const rates = kpis.npv_profile.map((p: any) => p.rate_pct);
+    expect(rates).toEqual([...rates].sort((a: number, b: number) => a - b));
+    // Conventional (invest-then-earn) flows: NPV decreases as the rate rises.
+    for (let i = 1; i < kpis.npv_profile.length; i++) {
+      expect(kpis.npv_profile[i].npv).toBeLessThan(kpis.npv_profile[i - 1].npv);
+    }
+    const at0 = kpis.npv_profile.find((p: any) => p.rate_pct === 0);
+    expect(at0.npv).toBeCloseTo(kpis.total_net_cash_flow_nominal, 2);
+  });
+
+  it('discounted government take matches the closed form', () => {
+    // PV(pre-take) = 40M + 90M/1.1; PV(contractor) = -12.5M + 37.5M/1.1.
+    const pvPre = 40_000_000 + 90_000_000 / 1.1;
+    const pvCon = -12_500_000 + 37_500_000 / 1.1;
+    expect(kpis.government_take_pct_discounted).toBeCloseTo(((pvPre - pvCon) / pvPre) * 100, 6);
+  });
+});
+
 describe('EPE engine: CPR cessation forfeiture (EPE.md §4.1)', () => {
   const { cashFlowData, kpis } = computeCashFlow({
     cfg: { ...PIA_WORKED_EXAMPLE_CFG },

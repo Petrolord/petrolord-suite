@@ -1,13 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, GitCompare, CopyCheck as CheckboxIcon, DollarSign, TrendingUp, Clock } from 'lucide-react';
+import { ArrowLeft, GitCompare, DollarSign, TrendingUp, Clock, Download } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend,
+} from 'recharts';
+import ChartFrame from '@/components/charts/ChartFrame';
+import {
+  CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE, LEGEND_PROPS,
+} from '@/utils/chartTheme';
+import { CONFIG_SECTIONS, labelForConfigKey, unitForConfigKey, formatConfigValue } from './epeConfigLabels';
+
+// Wave D (audit 4.6): comparison is capped so the table and chart stay
+// readable; six runs also matches the series palette below.
+const MAX_COMPARE = 6;
+
+// Distinguishable line hues on the white chart surface (from the validated
+// stream-palette hues in chartTheme).
+const SERIES_COLORS = ['#2563eb', '#059669', '#d97706', '#a21caf', '#0891b2', '#9f1239'];
+
+const AXIS_TICK = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
 
 const EpeRunComparison = () => {
   const { caseId } = useParams();
@@ -49,9 +67,14 @@ const EpeRunComparison = () => {
   }, [caseId, toast, navigate]);
 
   const handleCheckboxChange = (runId) => {
-    setSelectedRunIds(prev =>
-      prev.includes(runId) ? prev.filter(id => id !== runId) : [...prev, runId]
-    );
+    setSelectedRunIds(prev => {
+      if (prev.includes(runId)) return prev.filter(id => id !== runId);
+      if (prev.length >= MAX_COMPARE) {
+        toast({ title: 'Selection limit', description: `Compare up to ${MAX_COMPARE} runs at a time. Deselect one to add another.` });
+        return prev;
+      }
+      return [...prev, runId];
+    });
   };
 
   const handleCompare = async () => {
@@ -76,7 +99,7 @@ const EpeRunComparison = () => {
           // show it as "no results" instead of failing the whole comparison.
           const { data: resultData, error: resultError } = await supabase
             .from('epe_results')
-            .select('kpis')
+            .select('kpis, cash_flow_data')
             .eq('run_id', runId)
             .maybeSingle();
           if (resultError) throw new Error(`Failed to fetch results for run ${runId}: ${resultError.message}`);
@@ -85,7 +108,7 @@ const EpeRunComparison = () => {
           if (runData.run_config_id) {
             const { data: cfgData } = await supabase
               .from('epe_run_configs')
-              .select('oil_price_usd_bbl, gas_price_usd_mscf, discount_rate_pct, base_year, fiscal_regime, present_value_basis')
+              .select('*')
               .eq('id', runData.run_config_id)
               .maybeSingle();
             config = cfgData || null;
@@ -95,6 +118,7 @@ const EpeRunComparison = () => {
             id: runId,
             name: runData.run_name,
             kpis: resultData?.kpis || null,
+            cashFlowData: Array.isArray(resultData?.cash_flow_data) ? resultData.cash_flow_data : null,
             config,
           };
         })
@@ -111,6 +135,107 @@ const EpeRunComparison = () => {
   const formatCurrency = (value) => {
     if (typeof value !== 'number') return 'N/A';
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(value);
+  };
+
+  // Wave D: deltas vs run 1 for every numeric KPI row, in the row's own unit.
+  const formatDelta = (d, kind) => {
+    const sign = d >= 0 ? '+' : '';
+    switch (kind) {
+      case 'currency': return `${sign}${formatCurrency(d)}`;
+      case 'pp': return `${sign}${d.toFixed(2)} pp`;
+      case 'years': return `${sign}${d.toFixed(2)} yrs`;
+      case 'usdbbl': return `${sign}$${d.toFixed(1)}/bbl`;
+      default: return `${sign}${d}`;
+    }
+  };
+
+  // KPI row specs shared by the table and the CSV export. `num` extracts the
+  // numeric value used for deltas; `get`+`fmt` produce the display value.
+  const KPI_ROWS = [
+    { label: 'NPV', icon: <DollarSign className="w-4 h-4 mr-2 text-green-400" />, get: (k) => k?.npv, num: (k) => k?.npv, fmt: formatCurrency, delta: 'currency' },
+    { label: 'IRR', icon: <TrendingUp className="w-4 h-4 mr-2 text-blue-400" />, get: (k) => k?.irr, num: (k) => k?.irr, fmt: (v) => v != null ? `${v.toFixed(2)}%` : 'N/A', delta: 'pp' },
+    {
+      label: 'Payback', icon: <Clock className="w-4 h-4 mr-2 text-orange-400" />,
+      get: (k) => (typeof k?.payback_years === 'number' ? k.payback_years : (k?.payback ?? null)),
+      num: (k) => (typeof k?.payback_years === 'number' ? k.payback_years : null),
+      fmt: (v) => (typeof v === 'number' ? `${v.toFixed(2)} years` : (v ?? 'N/A')),
+      delta: 'years',
+    },
+    { label: 'Breakeven oil price', get: (k) => k?.breakeven_oil_price_usd_bbl, num: (k) => k?.breakeven_oil_price_usd_bbl, fmt: (v) => v != null ? `$${Number(v).toFixed(1)}/bbl` : '—', delta: 'usdbbl' },
+    { label: 'Government take', get: (k) => k?.government_take_pct, num: (k) => k?.government_take_pct, fmt: (v) => v != null ? `${Number(v).toFixed(1)}%` : '—', delta: 'pp' },
+    { label: 'Government take (discounted)', get: (k) => k?.government_take_pct_discounted, num: (k) => k?.government_take_pct_discounted, fmt: (v) => v != null ? `${Number(v).toFixed(1)}%` : '—', delta: 'pp' },
+    { label: 'Total revenue', get: (k) => k?.total_revenue, num: (k) => k?.total_revenue, fmt: formatCurrency, delta: 'currency' },
+    { label: 'Total CAPEX', get: (k) => k?.total_capex, num: (k) => k?.total_capex, fmt: formatCurrency, delta: 'currency' },
+    { label: 'Total OPEX', get: (k) => k?.total_opex, num: (k) => k?.total_opex, fmt: formatCurrency, delta: 'currency' },
+    { label: 'Total tax', get: (k) => k?.total_tax, num: (k) => k?.total_tax, fmt: formatCurrency, delta: 'currency' },
+  ];
+
+  // Wave D: cumulative net cash flow overlay. One series per run keyed by a
+  // unique display name; missing years stay undefined so lines simply end.
+  const overlay = useMemo(() => {
+    const withData = comparisonResults.filter(r => r.cashFlowData && r.cashFlowData.length > 0);
+    if (withData.length === 0) return null;
+    const seen = new Map();
+    const series = withData.map((r) => {
+      const n = (seen.get(r.name) || 0) + 1;
+      seen.set(r.name, n);
+      return { ...r, seriesKey: n > 1 ? `${r.name} (${n})` : r.name };
+    });
+    const byYear = new Map();
+    for (const run of series) {
+      for (const row of run.cashFlowData) {
+        const cum = typeof row.cumulative_nominal === 'number' ? row.cumulative_nominal : row.cumulative_cash_flow;
+        if (typeof row.year !== 'number' || typeof cum !== 'number') continue;
+        if (!byYear.has(row.year)) byYear.set(row.year, { year: row.year });
+        byYear.get(row.year)[run.seriesKey] = cum;
+      }
+    }
+    return {
+      series,
+      data: Array.from(byYear.values()).sort((a, b) => a.year - b.year),
+    };
+  }, [comparisonResults]);
+
+  // Wave D: labeled CSV of everything on screen (config, KPIs, deltas).
+  const downloadCsv = () => {
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const base = comparisonResults[0];
+    const lines = [];
+    lines.push(['Metric', ...comparisonResults.map(r => r.name)].map(esc).join(','));
+
+    lines.push(esc('CONFIGURATION'));
+    for (const section of CONFIG_SECTIONS) {
+      for (const [key] of section.fields) {
+        if (section.regime && !comparisonResults.some(r => r.config?.fiscal_regime === section.regime)) continue;
+        const values = comparisonResults.map(r => formatConfigValue(key, r.config?.[key]));
+        if (values.every(v => v === null)) continue;
+        const unit = unitForConfigKey(key);
+        const label = unit && unit !== 'table' ? `${labelForConfigKey(key)} (${unit})` : labelForConfigKey(key);
+        lines.push([label, ...values.map(v => v ?? '')].map(esc).join(','));
+      }
+    }
+
+    lines.push(esc('RESULTS'));
+    for (const row of KPI_ROWS) {
+      lines.push([row.label, ...comparisonResults.map(r => r.kpis ? row.fmt(row.get(r.kpis)) : 'no results')].map(esc).join(','));
+      const baseNum = row.num(base?.kpis);
+      if (typeof baseNum === 'number') {
+        const deltas = comparisonResults.map((r, i) => {
+          if (i === 0) return 'base';
+          const v = row.num(r.kpis);
+          return typeof v === 'number' ? formatDelta(v - baseNum, row.delta) : '';
+        });
+        lines.push([`${row.label} vs ${base.name}`, ...deltas].map(esc).join(','));
+      }
+    }
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'epe-run-comparison.csv';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -133,7 +258,8 @@ const EpeRunComparison = () => {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6 mb-8">
-          <h2 className="text-2xl font-bold text-white mb-4">Available Runs</h2>
+          <h2 className="text-2xl font-bold text-white mb-1">Available Runs</h2>
+          <p className="text-sm text-slate-400 mb-4">Pick 2 to {MAX_COMPARE} runs. The first selected run is the comparison base.</p>
           {loading ? (
             <div className="text-center py-8 text-white">Loading runs...</div>
           ) : availableRuns.length === 0 ? (
@@ -162,7 +288,12 @@ const EpeRunComparison = () => {
 
         {comparisonResults.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }} className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
-            <h2 className="text-2xl font-bold text-white mb-4">Comparison Results</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-white">Comparison Results</h2>
+              <Button variant="outline" size="sm" onClick={downloadCsv}>
+                <Download className="w-4 h-4 mr-2" /> Download comparison (CSV)
+              </Button>
+            </div>
             <Table>
               <TableHeader>
                 <TableRow className="border-slate-700">
@@ -176,7 +307,7 @@ const EpeRunComparison = () => {
                 {/* What differs between the configs (the old table showed
                     results with no way to see WHY they differ) */}
                 {[
-                  ['Fiscal regime', (r) => r.config?.fiscal_regime ?? '—'],
+                  ['Fiscal regime', (r) => formatConfigValue('fiscal_regime', r.config?.fiscal_regime) ?? '—'],
                   ['Oil price', (r) => r.config?.oil_price_usd_bbl != null ? `$${r.config.oil_price_usd_bbl}/bbl` : '—'],
                   ['Gas price', (r) => r.config?.gas_price_usd_mscf != null ? `$${r.config.gas_price_usd_mscf}/mscf` : '—'],
                   ['Discount rate', (r) => r.config?.discount_rate_pct != null ? `${r.config.discount_rate_pct}%` : '—'],
@@ -190,33 +321,24 @@ const EpeRunComparison = () => {
                   </TableRow>
                 ))}
 
-                {[
-                  { label: 'NPV', icon: <DollarSign className="w-4 h-4 mr-2 text-green-400" />, get: (k) => k?.npv, fmt: formatCurrency, delta: true },
-                  { label: 'IRR', icon: <TrendingUp className="w-4 h-4 mr-2 text-blue-400" />, get: (k) => k?.irr, fmt: (v) => v != null ? `${v.toFixed(2)}%` : 'N/A' },
-                  { label: 'Payback', icon: <Clock className="w-4 h-4 mr-2 text-orange-400" />, get: (k) => k?.payback, fmt: (v) => v ?? 'N/A' },
-                  { label: 'Breakeven oil price', get: (k) => k?.breakeven_oil_price_usd_bbl, fmt: (v) => v != null ? `$${Number(v).toFixed(1)}/bbl` : '—' },
-                  { label: 'Government take', get: (k) => k?.government_take_pct, fmt: (v) => v != null ? `${Number(v).toFixed(1)}%` : '—' },
-                  { label: 'Total revenue', get: (k) => k?.total_revenue, fmt: formatCurrency, delta: true },
-                  { label: 'Total CAPEX', get: (k) => k?.total_capex, fmt: formatCurrency, delta: true },
-                  { label: 'Total OPEX', get: (k) => k?.total_opex, fmt: formatCurrency, delta: true },
-                  { label: 'Total tax', get: (k) => k?.total_tax, fmt: formatCurrency, delta: true },
-                ].map(({ label, icon, get, fmt, delta }) => {
-                  const baseVal = get(comparisonResults[0]?.kpis);
+                {KPI_ROWS.map(({ label, icon, get, num, fmt, delta }) => {
+                  const baseNum = num(comparisonResults[0]?.kpis);
                   return (
                     <TableRow key={label} className="border-slate-800">
                       <TableCell className="font-medium text-white"><span className="flex items-center">{icon}{label}</span></TableCell>
                       {comparisonResults.map((run, i) => {
-                        const v = get(run.kpis);
                         if (run.kpis === null) {
                           return <TableCell key={run.id} className="text-slate-500 italic">no results</TableCell>;
                         }
-                        const d = delta && i > 0 && typeof v === 'number' && typeof baseVal === 'number' ? v - baseVal : null;
+                        const v = get(run.kpis);
+                        const n = num(run.kpis);
+                        const d = i > 0 && typeof n === 'number' && typeof baseNum === 'number' ? n - baseNum : null;
                         return (
                           <TableCell key={run.id} className="text-lime-300">
                             {fmt(v)}
                             {d !== null && (
                               <span className={`block text-xs ${d >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                {d >= 0 ? '+' : ''}{formatCurrency(d)} vs {comparisonResults[0].name}
+                                {formatDelta(d, delta)} vs {comparisonResults[0].name}
                               </span>
                             )}
                           </TableCell>
@@ -227,6 +349,37 @@ const EpeRunComparison = () => {
                 })}
               </TableBody>
             </Table>
+
+            {/* Wave D: cumulative net cash flow overlay */}
+            {overlay && (
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold text-white mb-2">Cumulative net cash flow</h3>
+                <ChartFrame height={340} logoHeight={24} exportFilename="epe-comparison-cumulative-ncf">
+                  <LineChart data={overlay.data} margin={CHART_MARGINS.legend}>
+                    <CartesianGrid {...GRID_STYLE} />
+                    <XAxis dataKey="year" tick={AXIS_TICK} stroke={CHART_COLORS.axisLine} />
+                    <YAxis tickFormatter={formatCurrency} tick={AXIS_TICK} stroke={CHART_COLORS.axisLine} width={90} />
+                    <RTooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => formatCurrency(v)} labelFormatter={(y) => `Year ${y}`} />
+                    <Legend {...LEGEND_PROPS} />
+                    {overlay.series.map((run, i) => (
+                      <Line
+                        key={run.id}
+                        type="monotone"
+                        dataKey={run.seriesKey}
+                        stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
+                        strokeWidth={2}
+                        dot={false}
+                        connectNulls
+                        isAnimationActive={false}
+                      />
+                    ))}
+                  </LineChart>
+                </ChartFrame>
+                <p className="text-xs text-slate-500 mt-1">
+                  Nominal cumulative net cash flow per run. Runs without stored yearly data are not plotted.
+                </p>
+              </div>
+            )}
           </motion.div>
         )}
       </div>

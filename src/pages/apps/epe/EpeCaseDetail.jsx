@@ -35,6 +35,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
       const [capex, setCapex] = useState([]);
       const [opex, setOpex] = useState([]);
       const [runs, setRuns] = useState([]);
+      const [runKpis, setRunKpis] = useState({}); // Wave D: run_id -> kpis for the history table
       const [loading, setLoading] = useState(true);
       const [processingFileId, setProcessingFileId] = useState(null);
 
@@ -64,6 +65,21 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
 
           if (runsRes.error) throw runsRes.error;
           setRuns(runsRes.data);
+
+          // Wave D (audit 4.4): the run list is a decision table, so pull each
+          // run's headline KPIs in one batch query.
+          const runIds = (runsRes.data || []).map((r) => r.id);
+          if (runIds.length > 0) {
+            const { data: kpiRows } = await supabase
+              .from('epe_results')
+              .select('run_id, kpis')
+              .in('run_id', runIds);
+            const kpiMap = {};
+            (kpiRows || []).forEach((r) => { kpiMap[r.run_id] = r.kpis; });
+            setRunKpis(kpiMap);
+          } else {
+            setRunKpis({});
+          }
 
         } catch (error) {
           toast({ variant: 'destructive', title: 'Failed to fetch case details', description: error.message });
@@ -108,16 +124,26 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
         }
       };
 
-      const handleDeleteRun = async (runId) => {
+      const handleDeleteRun = async (runId, runName) => {
+        // Wave D: any run can be deleted; results row goes first so no orphan
+        // is left if the second delete fails.
+        if (!window.confirm(`Delete run "${runName}" and its results? This cannot be undone.`)) return;
         try {
+          const { error: resErr } = await supabase.from('epe_results').delete().eq('run_id', runId);
+          if (resErr) throw resErr;
           const { error } = await supabase.from('epe_runs').delete().eq('id', runId);
           if (error) throw error;
-          toast({ title: 'Failed run deleted' });
+          toast({ title: 'Run deleted' });
           fetchData();
         } catch (error) {
           toast({ variant: 'destructive', title: 'Could not delete run', description: error.message });
         }
       };
+
+      // Compact KPI formatting for the run history strip (Wave D).
+      const fmtCompactUsd = (v) => (typeof v === 'number'
+        ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(v)
+        : null);
 
       const handleDeleteFile = async (fileId, table) => {
         try {
@@ -228,16 +254,36 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                                 {status === 'failed' && run.error_message && (
                                   <p className="text-xs text-red-400/80 mt-1 truncate" title={run.error_message}>{run.error_message}</p>
                                 )}
+                                {/* Wave D: headline KPIs make the list a decision table */}
+                                {status === 'complete' && runKpis[run.id] && (
+                                  <p className="text-xs text-slate-300 mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+                                    <span>NPV <span className="font-mono text-lime-300">{fmtCompactUsd(runKpis[run.id].npv) ?? 'n/a'}</span></span>
+                                    <span>IRR <span className="font-mono text-lime-300">{typeof runKpis[run.id].irr === 'number' ? `${runKpis[run.id].irr.toFixed(1)}%` : 'n/a'}</span></span>
+                                    <span>Payback <span className="font-mono text-lime-300">{typeof runKpis[run.id].payback_years === 'number' ? `${runKpis[run.id].payback_years.toFixed(2)} yrs` : (runKpis[run.id].payback ?? 'n/a')}</span></span>
+                                    {runKpis[run.id].fiscal_regime && (
+                                      <span>Regime <span className="font-mono text-slate-400">{runKpis[run.id].fiscal_regime}</span></span>
+                                    )}
+                                    {runKpis[run.id].engine_version && (
+                                      <span className="text-slate-500" title="Engine version that produced this result">v{runKpis[run.id].engine_version}</span>
+                                    )}
+                                  </p>
+                                )}
                               </div>
                               {status === 'failed' ? (
                                 <Button variant="ghost" size="icon" className="hover:text-red-400 shrink-0" title="Delete failed run"
-                                  onClick={() => handleDeleteRun(run.id)}>
+                                  onClick={() => handleDeleteRun(run.id, run.run_name)}>
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
                               ) : (
-                                <Link to={`/dashboard/apps/economics/epe/runs/${run.id}`} className="shrink-0">
-                                  <Button variant="secondary">View Results</Button>
-                                </Link>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <Link to={`/dashboard/apps/economics/epe/runs/${run.id}`}>
+                                    <Button variant="secondary">View Results</Button>
+                                  </Link>
+                                  <Button variant="ghost" size="icon" className="hover:text-red-400" title="Delete run"
+                                    onClick={() => handleDeleteRun(run.id, run.run_name)}>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
                               )}
                             </li>
                           );

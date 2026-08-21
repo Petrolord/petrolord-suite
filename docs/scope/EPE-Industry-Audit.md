@@ -18,8 +18,12 @@ valuation date + sunk handling. **Wave C APPROVED and IMPLEMENTED
 2026-08-21** (engine v3.7, EPE.md §3d): production + first-oil-delay
 tornado bars, custom sweep ranges, all four MC distribution types,
 correlation editor, IRR/payback distributions, convergence SE, MC CSV
-export, Decision Studio S-curve overlay. Remaining Band 2 items
-(2.5–2.11), 3.6 reserves scenarios, and Waves D–F awaiting owner
+export, Decision Studio S-curve overlay. **Wave D APPROVED and
+IMPLEMENTED 2026-08-21** (engine v3.8, EPE.md §3e): one-pager PDF with
+assumptions + regime-aware full table, full-life waterfall, NPV-vs-rate
+profile, discounted take, run-history KPI strip, comparison overlays +
+deltas + CSV. Remaining: Band 2 items 2.5–2.11, 3.6 reserves scenarios,
+4.2/4.3/4.10–4.13 (Wave E), and Wave F fiscal depth — awaiting owner
 selection.
 
 ## Headline

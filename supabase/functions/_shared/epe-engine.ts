@@ -1,6 +1,14 @@
 // supabase/functions/_shared/epe-engine.ts
 //
-// PETROLORD EPE CASH FLOW ENGINE — Shared compute library (v3.7, 2026-08-21)
+// PETROLORD EPE CASH FLOW ENGINE — Shared compute library (v3.8, 2026-08-21)
+//
+// v3.8 changes (Wave D reporting, docs/scope/EPE-Industry-Audit.md):
+//   - kpis.npv_profile: NPV at a standard discount-rate vector (0/5/8/10/
+//     12/15/20% plus the applied rate), on the run's PV basis and
+//     discounting convention — the classic NPV-vs-rate exhibit.
+//   - kpis.government_take_pct_discounted: take share on present-value
+//     terms (PV of pre-take value minus PV of contractor NCF, over PV of
+//     pre-take value), same basis/exponents as the NPV.
 //
 // v3.7 changes (Wave C risk workbench, docs/scope/EPE-Industry-Audit.md):
 //   - Schedule delay (cfg.schedule_shift_years, integer, default 0): shifts
@@ -105,7 +113,7 @@
 //   instead of TET 2.5%, with the volume-cap and CPR-forfeiture behavior.
 
 // Stamped into kpis.engine_version on every run (Wave A provenance).
-export const ENGINE_VERSION = '3.7.0';
+export const ENGINE_VERSION = '3.8.0';
 
 // ============================================================================
 // TYPES
@@ -1469,6 +1477,36 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
   const preTakeValue = kpis.total_revenue - kpis.total_capex - kpis.total_opex - totalAbandonment;
   kpis.government_take_pct = preTakeValue > 0
     ? ((preTakeValue - kpis.total_net_cash_flow_nominal) / preTakeValue) * 100 : null;
+
+  // v3.8 (Wave D): discounted government take, on the same PV basis and
+  // discount exponents as the NPV. Abandonment sits inside net_cash_flow
+  // already; the pre-take PV subtracts it in its year.
+  const pvOf = (nominal: number, year: number): number => {
+    const t = year - baseYear;
+    const onBasis = pvBasis === 'real' ? nominal / Math.pow(1 + inflationRate, t) : nominal;
+    return onBasis / Math.pow(1 + discountForNPV, dexp(year));
+  };
+  const pvPreTake = evalRows.reduce((s, d) =>
+    s + pvOf(d.gross_revenue - d.capex - d.opex - (d.abandonment_cost || 0), d.year), 0);
+  const pvContractor = evalRows.reduce((s, d) => s + d.discounted_cash_flow, 0);
+  kpis.government_take_pct_discounted = pvPreTake > 0
+    ? ((pvPreTake - pvContractor) / pvPreTake) * 100 : null;
+
+  // v3.8 (Wave D): NPV at a standard rate vector (the NPV-vs-discount-rate
+  // profile). Same basis and exponents; the applied rate is included so the
+  // curve always passes through the headline NPV.
+  const profileRates = Array.from(new Set(
+    [0, 5, 8, 10, 12, 15, 20, Math.round(discountForNPV * 10000) / 100]
+  )).sort((a, b) => a - b);
+  kpis.npv_profile = profileRates.map((ratePct) => {
+    const r = ratePct / 100;
+    const v = evalRows.reduce((s, d) => {
+      const t = d.year - baseYear;
+      const onBasis = pvBasis === 'real' ? d.net_cash_flow / Math.pow(1 + inflationRate, t) : d.net_cash_flow;
+      return s + onBasis / Math.pow(1 + r, dexp(d.year));
+    }, 0);
+    return { rate_pct: ratePct, npv: v };
+  });
 
   // DPI: NPV per present-value dollar of capex, on the same PV basis as NPV
   const pvCapex = evalRows.reduce((s, d) => {
