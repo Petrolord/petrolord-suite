@@ -12,7 +12,7 @@ import {
   Database, Layers, Slash, CircleDot, Route, Eye, EyeOff, Loader2, Upload,
   Plus, RefreshCw, ChevronDown, ChevronRight, Pencil, ArrowLeft,
   Rows, Columns, Clock, Settings2, Mountain, Download, Building2, Globe2,
-  Activity, Folder, FolderPlus, History,
+  Activity, Folder, FolderPlus, History, Spline,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -142,7 +142,8 @@ const PLANE_TITLES = {
  */
 export default function SeismicExplorer({ tree, actions }) {
   const {
-    volumes, projects, activeVolumeId, horizons, visibleIds, horizonBusyId, editTargetId,
+    volumes, projects, lines2d, visibleLineIds,
+    activeVolumeId, horizons, visibleIds, horizonBusyId, editTargetId,
     horizonVersions, visibleVersionIds, versionChainOf,
     surfaces, surfaceBusyId, visibleSurfaceIds,
     culture, cultureBusyId, visibleCultureIds,
@@ -360,6 +361,66 @@ export default function SeismicExplorer({ tree, actions }) {
           })()}
           {!volumes.length && (
             <Hint>No volumes yet — import a SEG-Y file to get started.</Hint>
+          )}
+        </Section>
+
+        <Section icon={Spline} title="2D Lines" count={(lines2d || []).length || ''}>
+          {(lines2d || []).map((l, idx) => (
+            <Row
+              key={l.id}
+              icon={Spline}
+              color={wellColor(idx)}
+              label={l.name}
+              visible={visibleLineIds?.has(l.id)}
+              onToggleVisible={() => actions.toggleLine2d(l)}
+              meta={l.status !== 'ready' ? l.status
+                : (l.is_own === false ? 'teammate'
+                  : `${((l.survey_meta?.length_m || 0) / 1000).toFixed(1)} km`)}
+              badge={l.organization_id ? (
+                <span
+                  title={l.is_own === false
+                    ? 'Shared by a teammate (read-only)'
+                    : 'Shared with your organization (read-only for members)'}
+                  className="shrink-0"
+                >
+                  <Building2 className={`w-3 h-3 ${l.is_own === false
+                    ? 'text-sky-400' : 'text-emerald-400'}`} />
+                </span>
+              ) : null}
+              title={`2D line · ${l.survey_meta?.ntraces || '?'} traces · the eye shows its navigation on the map; open it in the 2D Lines window`}
+              onClick={() => actions.openLineWindow()}
+              menu={(
+                <>
+                  <ContextMenuItem onSelect={() => actions.openLineWindow()}>
+                    Open the 2D Lines window
+                  </ContextMenuItem>
+                  <ContextMenuItem onSelect={() => actions.toggleLine2d(l)}>
+                    {visibleLineIds?.has(l.id) ? 'Hide on map' : 'Show on map'}
+                  </ContextMenuItem>
+                  {l.is_own !== false && (
+                    <>
+                      <ContextMenuItem onSelect={() => actions.shareLine(l)}>
+                        <Building2 className="w-3.5 h-3.5 mr-1.5" />
+                        {l.organization_id ? 'Make private' : 'Share with organization'}
+                      </ContextMenuItem>
+                      <ContextMenuSeparator />
+                      <ContextMenuItem
+                        className="text-red-400 focus:text-red-300"
+                        onSelect={() => actions.deleteLine(l)}
+                      >
+                        Delete line…
+                      </ContextMenuItem>
+                    </>
+                  )}
+                </>
+              )}
+            />
+          ))}
+          {!(lines2d || []).length && (
+            <Hint>
+              No 2D lines yet — import a 2D SEG-Y in the 2D Lines window.
+              Crooked lines are fine: navigation comes from the trace headers.
+            </Hint>
           )}
         </Section>
 

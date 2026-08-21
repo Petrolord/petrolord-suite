@@ -41,7 +41,9 @@ import { makeDepthConverter, velocityKey, M_PER_FT } from '../engine/velocityMod
 import { AMP_MODES } from '../engine/horizonAmplitude';
 import { faultTraces } from '../engine/faultBarriers';
 import { faultHorizonIntersection } from '../engine/faultObjects';
-import { ilxlToWorld, worldToIlxl } from '../engine/surveyGeometry';
+import { lineIntersections } from '../engine/line2dIntegration';
+import { wellColor } from './workspace/interpretationColors';
+import { ilxlToWorld, worldToIlxl, surveyAffine } from '../engine/surveyGeometry';
 import { NULL_VALUE } from '../engine/manifest';
 import { projectorFor } from '@/lib/crs';
 import { isTransformableTag } from '@/lib/crs/tags';
@@ -71,6 +73,7 @@ const DEFAULT_PREFS = {
   faultTraces: true,
   faultPolygons: true,
   faultThrow: false,
+  lines2d: true,
   traverses: true,
   wells: true,
   outline: true,
@@ -177,7 +180,7 @@ const fmtZ = (v, step) => (step >= 1
 function MapView({
   manifest, geom, horizons, faults, velocity, velocityBoundaries,
   onNavigate, onEraseRegion, traverse, onTraverse, savedTraverses,
-  onAmplitude, wells, height = 560, onCursor = null,
+  onAmplitude, wells, height = 560, onCursor = null, lines2d = null,
   timeSlice = null, sliceVis = null, indices = null, display = null,
   onHorizonSettings = null, onToggleHorizon = null, surfaces = null,
   cameraApi = null, cultureLayers = null,
@@ -489,10 +492,41 @@ function MapView({
     return out.length ? out : null;
   }, [geom, faults, active]);
 
+  // W5.3: 2D lines on the basemap — navigation projected into this
+  // volume's lattice (decimated), plus line-line crossing markers
+  const lines2dLayer = useMemo(() => {
+    if (!geom || !manifest || !(lines2d || []).length) return null;
+    const aff = surveyAffine(manifest.geometry);
+    if (!aff) return null;
+    const out = [];
+    for (const l of lines2d) {
+      const n = l.nav.x.length;
+      const step = Math.max(1, Math.floor(n / 800));
+      const path = [];
+      for (let i = 0; i < n; i += step) {
+        const ij = worldToIlxl(aff, l.nav.x[i], l.nav.y[i]);
+        path.push(ij ? { i: ij.i, j: ij.j } : null);
+      }
+      const last = worldToIlxl(aff, l.nav.x[n - 1], l.nav.y[n - 1]);
+      path.push(last ? { i: last.i, j: last.j } : null);
+      out.push({ id: l.id, name: l.name, color: wellColor(l.colorIdx || 0), path });
+    }
+    const crossings = [];
+    for (let a = 0; a < lines2d.length; a++) {
+      for (let b = a + 1; b < lines2d.length; b++) {
+        for (const c of lineIntersections(lines2d[a].nav, lines2d[b].nav)) {
+          const ij = worldToIlxl(aff, c.x, c.y);
+          if (ij) crossings.push({ i: ij.i, j: ij.j });
+        }
+      }
+    }
+    return { lines: out, crossings };
+  }, [lines2d, geom, manifest]);
+
   propsRef.current = {
     manifest, geom, horizons, faults, prefs, gutter: g, active, vs, spacing,
     northDir, velocity, depthConv, effDomain, traverse, savedTraverses,
-    effAttr, ampLayer, wells, faultTraceLayer, faultObjectsLayer, onCursor,
+    effAttr, ampLayer, wells, faultTraceLayer, faultObjectsLayer, lines2dLayer, onCursor,
     timeSlice, showTimeSlice, tsBitmap, tsLut, sliceVis, indices, display,
     surfaces, activeSurface, cultureLayers,
   };
@@ -687,6 +721,41 @@ function MapView({
             ctx.fillText(label, s.x + 4 * dpr, s.y - 3 * dpr);
           }
         }
+      }
+    }
+
+    // W5.3 2D lines: navigation polylines + crossing markers + name label
+    if (p.prefs.lines2d && p.lines2dLayer) {
+      for (const l of p.lines2dLayer.lines) {
+        ctx.strokeStyle = l.color;
+        ctx.lineWidth = 2 * dpr;
+        ctx.beginPath();
+        let pen = false;
+        let labelAt = null;
+        for (const q of l.path) {
+          if (!q) { pen = false; continue; }
+          const sc = t.worldToScreen(q.j + 0.5, q.i + 0.5);
+          if (pen) ctx.lineTo(sc.x, sc.y);
+          else { ctx.moveTo(sc.x, sc.y); pen = true; }
+          if (!labelAt) labelAt = sc;
+        }
+        ctx.stroke();
+        if (labelAt) {
+          ctx.font = `${10 * dpr}px ui-monospace, monospace`;
+          ctx.textAlign = 'left';
+          ctx.fillStyle = l.color;
+          ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+          ctx.lineWidth = 3 * dpr;
+          ctx.strokeText(l.name, labelAt.x + 4 * dpr, labelAt.y - 4 * dpr);
+          ctx.fillText(l.name, labelAt.x + 4 * dpr, labelAt.y - 4 * dpr);
+        }
+      }
+      ctx.fillStyle = '#facc15';
+      for (const c of p.lines2dLayer.crossings) {
+        const sc = t.worldToScreen(c.j + 0.5, c.i + 0.5);
+        ctx.beginPath();
+        ctx.arc(sc.x, sc.y, 3.5 * dpr, 0, Math.PI * 2);
+        ctx.fill();
       }
     }
 
@@ -1164,7 +1233,7 @@ function MapView({
   // volume switch: drop stale layer caches
   useEffect(() => { cacheRef.current.clear(); }, [geom]);
 
-  useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, vs,
+  useEffect(() => { scheduleDraw(); }, [horizons, faults, prefs, colormap, active, vs, lines2dLayer,
     effDomain, velocity, traverse, savedTraverses, effAttr, ampLayer, wells,
     timeSlice, tsBitmap, showTimeSlice, sliceVis, indices, display,
     surfaces, activeSurface, cultureLayers, scheduleDraw]);
@@ -1709,6 +1778,11 @@ function MapView({
               checked={prefs.faultThrow} onCheckedChange={() => togglePref('faultThrow')}
             >
               Throw labels
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
+              checked={prefs.lines2d} onCheckedChange={() => togglePref('lines2d')}
+            >
+              2D lines (navigation + crossings)
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem onSelect={(e) => e.preventDefault()}
               checked={prefs.traverses} onCheckedChange={() => togglePref('traverses')}

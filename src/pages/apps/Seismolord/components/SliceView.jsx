@@ -369,6 +369,32 @@ function SliceView({
     }
     ctx.setLineDash([]);
 
+    // W5.3 per-trace pick overlays (2D line window): value = sample per
+    // TRACE, no lattice involved — pen-break at nulls, small markers
+    if (ov.tracePicks?.length && (ori === 'traverse')) {
+      const mk2 = Math.max(3, 1.5 * dpr);
+      for (const tp of ov.tracePicks) {
+        ctx.strokeStyle = tp.color;
+        ctx.fillStyle = tp.color;
+        ctx.lineWidth = lw * (tp.lineWidth || 1);
+        ctx.setLineDash(tp.dash ? [5 * dpr, 4 * dpr] : []);
+        ctx.beginPath();
+        let pen = false;
+        const tr0 = Math.max(0, Math.floor(vis.x0) - 1);
+        const tr1 = Math.min(tp.picks.length - 1, Math.ceil(vis.x0 + vis.w) + 1);
+        for (let tr = tr0; tr <= tr1; tr++) {
+          const z = tp.picks[tr];
+          if (z === NULL_F32 || !Number.isFinite(z)) { pen = false; continue; }
+          const s = t.worldToScreen(tr + 0.5, z + 0.5);
+          if (pen) ctx.lineTo(s.x, s.y);
+          else { ctx.moveTo(s.x, s.y); pen = true; }
+          if (tp.markers) ctx.fillRect(s.x - mk2 / 2, s.y - mk2 / 2, mk2, mk2);
+        }
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
     const drawSticks = (sticks, color, dashed) => {
       const posn = ori === 'traverse' ? p.slice?.positions : null;
       if (ori === 'traverse' && !posn) return;
