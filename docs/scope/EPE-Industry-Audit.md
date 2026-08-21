@@ -11,7 +11,11 @@ practice). All findings verified against code, not doc claims. Companion to
 v3.5, see EPE.md §3b): findings 1.1–1.8 closed (1.3 shipped with
 revenue-share cost apportionment plus the `pia_hct_include_gas_revenue`
 escape hatch; a published gas-weighted worked example remains a
-literature-gated cross-check). Waves B–F awaiting owner selection.
+literature-gated cross-check). **Wave B (2.1–2.4) APPROVED and IMPLEMENTED
+2026-08-21** (engine v3.6, EPE.md §3c): WI on PSC/PIA, per-year price decks
++ differentials with deck-aware tornado/MC sweeps, mid-year discounting,
+valuation date + sunk handling. Remaining Band 2 items (2.5–2.11) and
+Waves C–F awaiting owner selection.
 
 ## Headline
 

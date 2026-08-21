@@ -57,6 +57,16 @@ const DEFAULT_CONFIG = {
   apply_economic_limit: false,
   abandonment_cost_usd: null,
   abandonment_year: null,
+  // ---- v3.6 Wave B: equity + price realism ----
+  psc_working_interest_pct: 100,
+  pia_working_interest_pct: 100,
+  price_deck: [],
+  oil_price_differential_usd_bbl: 0,
+  gas_price_differential_usd_mscf: 0,
+  condensate_price_differential_usd_bbl: 0,
+  discounting_convention: 'end_year',
+  valuation_year: '',
+  treat_prior_as_sunk: false,
   fiscal_regime: 'JV',
   // JV
   jv_working_interest_pct: 100,
@@ -282,6 +292,29 @@ const EpeRunConsole = () => {
         pia_new_lease_prod_alw_cap_shallow_bbl: config.pia_new_lease_prod_alw_cap_shallow_bbl,
         pia_new_lease_prod_alw_cap_deep_bbl: config.pia_new_lease_prod_alw_cap_deep_bbl,
         pia_prior_cumulative_oil_bbl: config.pia_prior_cumulative_oil_bbl,
+        // ---- v3.6 Wave B: equity + price realism ----
+        psc_working_interest_pct: config.psc_working_interest_pct === '' ? 100 : config.psc_working_interest_pct,
+        pia_working_interest_pct: config.pia_working_interest_pct === '' ? 100 : config.pia_working_interest_pct,
+        price_deck: (() => {
+          const rows = (config.price_deck || [])
+            .map((r) => {
+              const year = parseInt(String(r.year));
+              const out = { year };
+              for (const k of ['oil', 'gas', 'condensate']) {
+                const v = Number(r[k]);
+                if (r[k] !== '' && r[k] !== null && r[k] !== undefined && Number.isFinite(v)) out[k] = v;
+              }
+              return out;
+            })
+            .filter((r) => Number.isFinite(r.year) && Object.keys(r).length > 1);
+          return rows.length > 0 ? rows : null;
+        })(),
+        oil_price_differential_usd_bbl: config.oil_price_differential_usd_bbl === '' ? 0 : config.oil_price_differential_usd_bbl,
+        gas_price_differential_usd_mscf: config.gas_price_differential_usd_mscf === '' ? 0 : config.gas_price_differential_usd_mscf,
+        condensate_price_differential_usd_bbl: config.condensate_price_differential_usd_bbl === '' ? 0 : config.condensate_price_differential_usd_bbl,
+        discounting_convention: config.discounting_convention || 'end_year',
+        valuation_year: config.valuation_year === '' ? null : config.valuation_year,
+        treat_prior_as_sunk: config.treat_prior_as_sunk === true,
         // ---- v3.4: field life ----
         apply_economic_limit: config.apply_economic_limit === true,
         abandonment_cost_usd: config.abandonment_cost_usd === '' ? null : config.abandonment_cost_usd,
@@ -361,6 +394,17 @@ const EpeRunConsole = () => {
   // -------------------------------------------------------------------------
   // Reusable input field with error display
   // -------------------------------------------------------------------------
+  // v3.6 Wave B: yearly price deck editor state helpers
+  const addDeckRow = () => setConfig((p) => ({
+    ...p, price_deck: [...(p.price_deck || []), { year: '', oil: '', gas: '', condensate: '' }],
+  }));
+  const setDeckCell = (i, key, v) => setConfig((p) => ({
+    ...p, price_deck: (p.price_deck || []).map((r, idx) => (idx === i ? { ...r, [key]: v } : r)),
+  }));
+  const delDeckRow = (i) => setConfig((p) => ({
+    ...p, price_deck: (p.price_deck || []).filter((_, idx) => idx !== i),
+  }));
+
   const NumField = ({ id, label, suffix, value, onChange, step = 'any' }) => (
     <div>
       <Label htmlFor={id} className="text-white text-sm">
@@ -494,6 +538,84 @@ const EpeRunConsole = () => {
                 onChange={(v) => handleNumberChange('condensate_price_usd_bbl', v)}
               />
             </div>
+            {/* v3.6 Wave B: differentials to marker prices */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+              <NumField
+                id="oil_price_differential_usd_bbl"
+                label="Oil differential"
+                suffix="USD/bbl"
+                value={config.oil_price_differential_usd_bbl}
+                onChange={(v) => handleNumberChange('oil_price_differential_usd_bbl', v)}
+              />
+              <NumField
+                id="gas_price_differential_usd_mscf"
+                label="Gas differential"
+                suffix="USD/mscf"
+                value={config.gas_price_differential_usd_mscf}
+                onChange={(v) => handleNumberChange('gas_price_differential_usd_mscf', v)}
+              />
+              <NumField
+                id="condensate_price_differential_usd_bbl"
+                label="Condensate differential"
+                suffix="USD/bbl"
+                value={config.condensate_price_differential_usd_bbl}
+                onChange={(v) => handleNumberChange('condensate_price_differential_usd_bbl', v)}
+              />
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Differentials adjust the realized price against the marker (negative for a discount). They apply to deck prices too.
+            </p>
+            {/* v3.6 Wave B: yearly price deck */}
+            <div className="mt-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-white text-sm">
+                  Yearly price deck <span className="text-slate-400">(optional)</span>
+                </Label>
+                <Button type="button" variant="outline" size="sm" onClick={addDeckRow}>
+                  Add year
+                </Button>
+              </div>
+              {(config.price_deck || []).length > 0 && (
+                <div className="mt-2 overflow-x-auto rounded border border-white/10">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-800 text-slate-300">
+                      <tr>
+                        <th className="px-2 py-1 text-left">Year</th>
+                        <th className="px-2 py-1 text-left">Oil USD/bbl</th>
+                        <th className="px-2 py-1 text-left">Gas USD/mscf</th>
+                        <th className="px-2 py-1 text-left">Cond. USD/bbl</th>
+                        <th className="px-2 py-1" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(config.price_deck || []).map((row, i) => (
+                        <tr key={i} className="border-t border-white/5">
+                          {['year', 'oil', 'gas', 'condensate'].map((key) => (
+                            <td key={key} className="px-1 py-1">
+                              <Input
+                                type="number"
+                                step={key === 'year' ? '1' : 'any'}
+                                value={row[key] ?? ''}
+                                onChange={(e) => setDeckCell(i, key, e.target.value)}
+                                className="bg-gray-800 border-slate-600 text-white h-7 text-xs"
+                              />
+                            </td>
+                          ))}
+                          <td className="px-1 py-1 text-center">
+                            <button type="button" onClick={() => delDeckRow(i)} className="text-slate-400 hover:text-red-400 text-sm" title="Remove year">
+                              &times;
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <p className="text-xs text-slate-500 mt-1">
+                A deck year overrides the flat price for the streams it fills. Prices hold flat between listed years; beyond the last year the deck escalates at the stream escalator. Blank cells keep the flat price for that stream.
+              </p>
+            </div>
           </section>
 
           {/* Discounting */}
@@ -521,6 +643,36 @@ const EpeRunConsole = () => {
                 onChange={(v) => handleNumberChange('base_year', v)}
                 step="1"
               />
+              {/* v3.6 Wave B */}
+              <div>
+                <Label htmlFor="discounting_convention" className="text-white text-sm">Discounting convention</Label>
+                <select
+                  id="discounting_convention"
+                  value={config.discounting_convention || 'end_year'}
+                  onChange={(e) => setConfig((p) => ({ ...p, discounting_convention: e.target.value }))}
+                  className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                >
+                  <option value="end_year">End of year</option>
+                  <option value="mid_year">Mid-year</option>
+                </select>
+              </div>
+              <NumField
+                id="valuation_year"
+                label="Valuation year"
+                suffix="blank = base year"
+                value={config.valuation_year}
+                onChange={(v) => handleNumberChange('valuation_year', v)}
+                step="1"
+              />
+              <label className="flex items-end gap-2 pb-2 text-sm text-white cursor-pointer" title="Years before the valuation year stay in the model (allowances and pools accrue) but are excluded from NPV, IRR and payback.">
+                <input
+                  type="checkbox"
+                  checked={config.treat_prior_as_sunk === true}
+                  onChange={(e) => setConfig((p) => ({ ...p, treat_prior_as_sunk: e.target.checked }))}
+                  className="accent-lime-400 mb-1"
+                />
+                Treat years before valuation as sunk
+              </label>
             </div>
           </section>
 
@@ -724,6 +876,13 @@ const EpeRunConsole = () => {
             ) : config.fiscal_regime === 'PSC' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <NumField
+                  id="psc_working_interest_pct"
+                  label="Working interest"
+                  suffix="% of contractor group"
+                  value={config.psc_working_interest_pct}
+                  onChange={(v) => handleNumberChange('psc_working_interest_pct', v)}
+                />
+                <NumField
                   id="psc_royalty_pct"
                   label="Royalty"
                   suffix="%"
@@ -754,6 +913,16 @@ const EpeRunConsole = () => {
               </div>
             ) : (
               <div className="space-y-6">
+                {/* v3.6 Wave B: lessee equity share */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <NumField
+                    id="pia_working_interest_pct"
+                    label="Working interest"
+                    suffix="% of lessee; royalty tiers and caps stay field-level"
+                    value={config.pia_working_interest_pct}
+                    onChange={(v) => handleNumberChange('pia_working_interest_pct', v)}
+                  />
+                </div>
                 {/* ── PIA Asset Profile ── */}
                 <div>
                   <h3 className="text-white text-sm font-semibold mb-2">Asset Profile</h3>

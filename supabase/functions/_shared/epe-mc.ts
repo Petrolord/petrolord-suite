@@ -20,7 +20,7 @@
 // Conventions: petroleum percentiles (P90 = low case), Gaussian-copula
 // correlation, injectable RNG (seeded mulberry32 for reproducible runs).
 
-import { computeCashFlow, isVolumeColumn } from './epe-engine.ts';
+import { computeCashFlow, isVolumeColumn, parsePriceDeck } from './epe-engine.ts';
 
 // ============================================================================
 // Seeded RNG
@@ -344,6 +344,7 @@ export function runEpeMonteCarlo({ cfg, prodRows, capexRows, opexRows, mcConfig 
   const perYearCum: number[][] = years.map(() => []);
   const tornadoSamples: Array<{ targetVol: number; inputs: Record<string, number> }> = [];
   let truncationRejects = 0;
+  const deckStreams = parsePriceDeck(cfg);  // Wave B: deck-aware price sampling
 
   for (let i = 0; i < iterations; i++) {
     let draw = sample();
@@ -356,8 +357,27 @@ export function runEpeMonteCarlo({ cfg, prodRows, capexRows, opexRows, mcConfig 
     const v = draw.values;
 
     const iterCfg = { ...cfg };
-    if (v.oil_price !== undefined) iterCfg.oil_price_usd_bbl = v.oil_price;
-    if (v.gas_price !== undefined) iterCfg.gas_price_usd_mscf = v.gas_price;
+    // Wave B: with a per-year price deck the flat config price does not price
+    // the run, so a sampled absolute price is applied as a SCALE on the
+    // resolved deck (sample / reference), where the reference is the flat
+    // base price the distribution was centered on. Without a deck the
+    // absolute replacement is unchanged.
+    if (v.oil_price !== undefined) {
+      if (deckStreams.oil.length > 0) {
+        const ref = Number(cfg.oil_price_usd_bbl) || deckStreams.oil[0].value || 1;
+        iterCfg.oil_price_scale = v.oil_price / ref;
+      } else {
+        iterCfg.oil_price_usd_bbl = v.oil_price;
+      }
+    }
+    if (v.gas_price !== undefined) {
+      if (deckStreams.gas.length > 0) {
+        const ref = Number(cfg.gas_price_usd_mscf) || deckStreams.gas[0].value || 1;
+        iterCfg.gas_price_scale = v.gas_price / ref;
+      } else {
+        iterCfg.gas_price_usd_mscf = v.gas_price;
+      }
+    }
 
     const iterProd = scaleProdRows(prodRows, v.production_scale ?? 1);
     const iterCapex = scaleUsdRows(capexRows, v.capex_scale ?? 1);

@@ -21,7 +21,7 @@
 //   - Status polling unnecessary at this scale; client awaits the response
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { computeCashFlow, extractAnnualCapex, extractAnnualOpex } from '../_shared/epe-engine.ts';
+import { computeCashFlow, extractAnnualCapex, extractAnnualOpex, parsePriceDeck } from '../_shared/epe-engine.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,7 +57,18 @@ interface SweepDef {
   factor_high: number;
   regimes: string[];      // applicable fiscal regimes
   floor?: number;         // optional lower bound
+  cap?: number;           // optional upper bound (e.g. WI <= 100%)
+  default_value?: number; // used when the config leaves the field unset
 }
+
+// Wave B: price sweeps must stay meaningful when a per-year price deck
+// prices the stream (the flat config price is then inert). These map the
+// swept flat field to the deck stream + the engine's resolved-price scale
+// hook; when the deck has entries the sweep sets the scale instead.
+const PRICE_SCALE_SWEEPS: Record<string, { stream: 'oil' | 'gas' | 'condensate'; scaleField: string }> = {
+  oil_price_usd_bbl: { stream: 'oil', scaleField: 'oil_price_scale' },
+  gas_price_usd_mscf: { stream: 'gas', scaleField: 'gas_price_scale' },
+};
 
 const SWEEPS_ALL: SweepDef[] = [
   // Common to every regime
@@ -67,17 +78,19 @@ const SWEEPS_ALL: SweepDef[] = [
   { variable: 'inflation_rate_pct',          label: 'Inflation',           factor_low: 0.8, factor_high: 1.2, regimes: ['JV', 'PSC', 'PIA'], floor: 0 },
 
   // JV-specific
-  { variable: 'jv_working_interest_pct',     label: 'Working Interest',    factor_low: 0.8, factor_high: 1.2, regimes: ['JV'] },
+  { variable: 'jv_working_interest_pct',     label: 'Working Interest',    factor_low: 0.8, factor_high: 1.2, regimes: ['JV'], floor: 0, cap: 100 },
   { variable: 'jv_royalty_pct',              label: 'JV Royalty Rate',     factor_low: 0.8, factor_high: 1.2, regimes: ['JV'] },
   { variable: 'jv_tax_rate_pct',             label: 'JV Tax Rate',         factor_low: 0.8, factor_high: 1.2, regimes: ['JV'] },
 
   // PSC-specific
+  { variable: 'psc_working_interest_pct',    label: 'Working Interest',    factor_low: 0.8, factor_high: 1.2, regimes: ['PSC'], floor: 0, cap: 100, default_value: 100 },
   { variable: 'psc_royalty_pct',             label: 'PSC Royalty Rate',    factor_low: 0.8, factor_high: 1.2, regimes: ['PSC'] },
   { variable: 'psc_cost_oil_cap_pct',        label: 'Cost Oil Cap',        factor_low: 0.8, factor_high: 1.2, regimes: ['PSC'] },
   { variable: 'psc_contractor_profit_share_pct', label: 'Contractor Profit Share', factor_low: 0.8, factor_high: 1.2, regimes: ['PSC'] },
   { variable: 'psc_tax_rate_pct',            label: 'PSC Tax Rate',        factor_low: 0.8, factor_high: 1.2, regimes: ['PSC'] },
 
   // PIA-specific
+  { variable: 'pia_working_interest_pct',    label: 'Working Interest',    factor_low: 0.8, factor_high: 1.2, regimes: ['PIA'], floor: 0, cap: 100, default_value: 100 },
   { variable: 'pia_cit_rate_pct',            label: 'CIT Rate',            factor_low: 0.8, factor_high: 1.2, regimes: ['PIA'] },
   { variable: 'pia_tet_rate_pct',            label: 'TET Rate',            factor_low: 0.8, factor_high: 1.2, regimes: ['PIA'] },
   { variable: 'pia_cpr_limit_pct',           label: 'CPR Cap',             factor_low: 0.8, factor_high: 1.2, regimes: ['PIA'] },
@@ -172,8 +185,15 @@ Deno.serve(async (req) => {
     // -------------------------------------------------------------------
     // Config-field sweeps: clone cfg, override the variable, run engine twice
     // -------------------------------------------------------------------
+    const priceDeck = parsePriceDeck(baseCfg);  // Wave B
     for (const sweep of applicableSweeps) {
-      const baseValue = Number(baseCfg[sweep.variable]);
+      const priceInfo = PRICE_SCALE_SWEEPS[sweep.variable];
+      const deckEntries = priceInfo ? priceDeck[priceInfo.stream] : [];
+      const usesDeckScale = !!priceInfo && deckEntries.length > 0;
+
+      let baseValue = Number(baseCfg[sweep.variable]);
+      if (!Number.isFinite(baseValue) && usesDeckScale) baseValue = deckEntries[0].value;
+      if (!Number.isFinite(baseValue) && sweep.default_value !== undefined) baseValue = sweep.default_value;
       if (baseValue === null || baseValue === undefined || isNaN(baseValue)) {
         // Skip sweeps where the base config has no usable value
         continue;
@@ -184,15 +204,23 @@ Deno.serve(async (req) => {
         lowValue = Math.max(lowValue, sweep.floor);
         highValue = Math.max(highValue, sweep.floor);
       }
+      if (sweep.cap !== undefined) {
+        lowValue = Math.min(lowValue, sweep.cap);
+        highValue = Math.min(highValue, sweep.cap);
+      }
+
+      // Wave B: with a deck, the sweep scales the resolved deck price via the
+      // engine's *_price_scale hook instead of the inert flat field.
+      const variant = (value: number, factor: number) => usesDeckScale
+        ? { ...baseCfg, [priceInfo!.scaleField]: factor }
+        : { ...baseCfg, [sweep.variable]: value };
 
       // Low variant
-      const lowCfg = { ...baseCfg, [sweep.variable]: lowValue };
-      const lowResult = computeCashFlow({ cfg: lowCfg, prodRows, capexRows, opexRows });
+      const lowResult = computeCashFlow({ cfg: variant(lowValue, sweep.factor_low), prodRows, capexRows, opexRows });
       const lowNpv = lowResult.kpis.npv;
 
       // High variant
-      const highCfg = { ...baseCfg, [sweep.variable]: highValue };
-      const highResult = computeCashFlow({ cfg: highCfg, prodRows, capexRows, opexRows });
+      const highResult = computeCashFlow({ cfg: variant(highValue, sweep.factor_high), prodRows, capexRows, opexRows });
       const highNpv = highResult.kpis.npv;
 
       const deltaLow = lowNpv - baseNpv;

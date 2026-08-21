@@ -1,6 +1,31 @@
 // supabase/functions/_shared/epe-engine.ts
 //
-// PETROLORD EPE CASH FLOW ENGINE — Shared compute library (v3.5, 2026-08-21)
+// PETROLORD EPE CASH FLOW ENGINE — Shared compute library (v3.6, 2026-08-21)
+//
+// v3.6 changes (Wave B equity + price realism, docs/scope/EPE-Industry-Audit.md):
+//   - Working interest on PSC and PIA (psc_working_interest_pct /
+//     pia_working_interest_pct, default 100): fiscal math runs at 100% field
+//     level first (royalty rate tiers, price-royalty thresholds, production
+//     allowance volume caps and CPR caps are all field-level constructs),
+//     then every monetary line item AND the entitlement volumes are scaled to
+//     the working-interest share. JV keeps its existing in-regime WI.
+//   - Per-year price decks (cfg.price_deck: [{year, oil|gas|condensate}]):
+//     a deck entry overrides flat+escalator for its stream. Step-hold between
+//     entries, first value before the first entry, last value escalated by
+//     the stream escalator beyond the last entry. Per-stream differentials
+//     (oil_price_differential_usd_bbl etc.) are added after resolution, and
+//     resolved prices honor optional *_price_scale multipliers so tornado/MC
+//     sweeps remain meaningful with decks. Realized prices floor at 0.
+//   - Mid-year discounting (cfg.discounting_convention: 'end_year' default |
+//     'mid_year'): mid-year adds 0.5 to every discount exponent.
+//   - Valuation date (cfg.valuation_year, default base_year) as the
+//     discounting reference, and cfg.treat_prior_as_sunk: pre-valuation
+//     years stay modeled (fiscal state accrues through them) but are
+//     excluded from NPV/IRR/payback and KPI totals, reported separately as
+//     kpis.sunk_net_cash_flow.
+//   - computeBreakevenOilPrice() returns null when an oil deck is present
+//     (bisection on the flat price would be meaningless).
+//   Defaults reproduce v3.5 byte-identically (PIA worked example unchanged).
 //
 // v3.5 changes (Wave A correctness round, docs/scope/EPE-Industry-Audit.md):
 //   - Tax-loss carryforward (JV taxable income; PIA HCT and CIT chargeable
@@ -73,7 +98,7 @@
 //   instead of TET 2.5%, with the volume-cap and CPR-forfeiture behavior.
 
 // Stamped into kpis.engine_version on every run (Wave A provenance).
-export const ENGINE_VERSION = '3.5.0';
+export const ENGINE_VERSION = '3.6.0';
 
 // ============================================================================
 // TYPES
@@ -290,6 +315,78 @@ export function pickCapexColumns(rows: any[]): string[] {
 
 export function pickOpexColumns(rows: any[]): string[] {
   return pickUsdColumns(rows, OPEX_USD_COLS, /_usd$/);
+}
+
+// ============================================================================
+// PRICE DECKS (v3.6, Wave B)
+// ============================================================================
+
+export type PriceStream = 'oil' | 'gas' | 'condensate';
+
+// Accepted deck row value keys per stream: full config-style names plus the
+// short aliases the Run Console deck editor writes.
+const DECK_KEYS: Record<PriceStream, string[]> = {
+  oil: ['oil', 'oil_price_usd_bbl'],
+  gas: ['gas', 'gas_price_usd_mscf'],
+  condensate: ['condensate', 'cond', 'condensate_price_usd_bbl'],
+};
+
+// Parse cfg.price_deck into per-stream sorted {year, value} entries. Tolerant
+// of string numbers and rows that only price some streams. Shared with the
+// MC and batch engines so sweep logic agrees with what the engine reads.
+export function parsePriceDeck(cfg: any): Record<PriceStream, Array<{ year: number; value: number }>> {
+  const out: Record<PriceStream, Array<{ year: number; value: number }>> = { oil: [], gas: [], condensate: [] };
+  const deck = cfg?.price_deck;
+  if (!Array.isArray(deck)) return out;
+  for (const raw of deck) {
+    if (!raw || typeof raw !== 'object') continue;
+    const year = parseInt(String(raw.year));
+    if (!Number.isFinite(year)) continue;
+    for (const stream of Object.keys(DECK_KEYS) as PriceStream[]) {
+      for (const key of DECK_KEYS[stream]) {
+        const v = Number(raw[key]);
+        if (raw[key] !== undefined && raw[key] !== null && raw[key] !== '' && Number.isFinite(v)) {
+          out[stream].push({ year, value: v });
+          break;
+        }
+      }
+    }
+  }
+  for (const stream of Object.keys(out) as PriceStream[]) {
+    out[stream].sort((a, b) => a.year - b.year);
+  }
+  return out;
+}
+
+// Resolved price for one stream in one year. Deck rules: step-hold between
+// entries, first value before the first entry, last value escalated by the
+// stream escalator beyond the last entry; no deck -> flat base escalated
+// from base_year. Differential is added after resolution and the optional
+// scale multiplier (tornado/MC hook) applies last; result floors at 0.
+export function resolveStreamPrice(
+  entries: Array<{ year: number; value: number }>,
+  flatBase: number,
+  escalator: number,
+  baseYear: number,
+  year: number,
+  differential = 0,
+  scale = 1,
+): number {
+  let base: number;
+  if (entries.length === 0) {
+    base = flatBase * Math.pow(1 + escalator, year - baseYear);
+  } else if (year <= entries[0].year) {
+    base = entries[0].value;
+  } else {
+    let e = entries[0];
+    for (const entry of entries) {
+      if (entry.year <= year) e = entry; else break;
+    }
+    base = e.year === entries[entries.length - 1].year && year > e.year
+      ? e.value * Math.pow(1 + escalator, year - e.year)
+      : e.value;
+  }
+  return Math.max(0, (base + differential) * scale);
 }
 
 // ============================================================================
@@ -890,13 +987,15 @@ function validateIngestion({ cfg, prodRows, capexRows, opexRows, annualVols, ann
   );
   const priceUnset = (raw: any) =>
     raw === null || raw === undefined || raw === '' || !Number.isFinite(Number(raw));
-  if (totals.oil > 0 && priceUnset(cfg.oil_price_usd_bbl)) {
+  // v3.6: a per-year deck entry for the stream also satisfies the requirement.
+  const deck = parsePriceDeck(cfg);
+  if (totals.oil > 0 && priceUnset(cfg.oil_price_usd_bbl) && deck.oil.length === 0) {
     issues.push(`Oil price (oil_price_usd_bbl) is not set but the production data has oil volumes.`);
   }
-  if (totals.gas > 0 && priceUnset(cfg.gas_price_usd_mscf)) {
+  if (totals.gas > 0 && priceUnset(cfg.gas_price_usd_mscf) && deck.gas.length === 0) {
     issues.push(`Gas price (gas_price_usd_mscf) is not set but the production data has gas volumes.`);
   }
-  if (totals.cond > 0 && priceUnset(cfg.condensate_price_usd_bbl)) {
+  if (totals.cond > 0 && priceUnset(cfg.condensate_price_usd_bbl) && deck.condensate.length === 0) {
     issues.push(`Condensate price (condensate_price_usd_bbl) is not set but the production data has condensate volumes.`);
   }
 
@@ -932,6 +1031,39 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
   const realDiscountRate = (1 + nominalDiscountRate) / (1 + inflationRate) - 1;
   const discountForNPV = pvBasis === 'real' ? realDiscountRate : nominalDiscountRate;
 
+  // ---- v3.6 (Wave B): discounting convention + valuation date ----
+  const midYear = cfg.discounting_convention === 'mid_year';
+  const valuationYearRaw = parseInt(String(cfg.valuation_year ?? ''));
+  const valuationYear = Number.isFinite(valuationYearRaw) && valuationYearRaw > 0 ? valuationYearRaw : baseYear;
+  const sunkCutoff = cfg.treat_prior_as_sunk === true ? valuationYear : null;
+  // Discount exponent: years from the valuation date, +0.5 under mid-year.
+  const dexp = (year: number) => (year - valuationYear) + (midYear ? 0.5 : 0);
+
+  // ---- v3.6 (Wave B): price resolution (decks, differentials, scales) ----
+  const priceDeck = parsePriceDeck(cfg);
+  const oilDiff = Number(cfg.oil_price_differential_usd_bbl ?? 0) || 0;
+  const gasDiff = Number(cfg.gas_price_differential_usd_mscf ?? 0) || 0;
+  const condDiff = Number(cfg.condensate_price_differential_usd_bbl ?? 0) || 0;
+  const oilScale = Number(cfg.oil_price_scale ?? 1) || 1;
+  const gasScale = Number(cfg.gas_price_scale ?? 1) || 1;
+  const condScale = Number(cfg.condensate_price_scale ?? 1) || 1;
+  const oilPriceAt = (year: number) =>
+    resolveStreamPrice(priceDeck.oil, Number(cfg.oil_price_usd_bbl) || 0, oilEscalator, baseYear, year, oilDiff, oilScale);
+  const gasPriceAt = (year: number) =>
+    resolveStreamPrice(priceDeck.gas, Number(cfg.gas_price_usd_mscf) || 0, gasEscalator, baseYear, year, gasDiff, gasScale);
+  const condPriceAt = (year: number) =>
+    resolveStreamPrice(priceDeck.condensate, Number(cfg.condensate_price_usd_bbl) || 0, condEscalator, baseYear, year, condDiff, condScale);
+
+  // ---- v3.6 (Wave B): working interest for PSC / PIA ----
+  // Fiscal math runs at 100% field level (rate tiers, thresholds and caps
+  // are field-level constructs); monetary line items and entitlement volumes
+  // are scaled to the WI share afterwards. JV scales inside applyJV.
+  const wiRegime = cfg.fiscal_regime === 'PIA'
+    ? Math.max(0, Math.min(1, Number(cfg.pia_working_interest_pct ?? 100) / 100))
+    : cfg.fiscal_regime === 'PSC'
+      ? Math.max(0, Math.min(1, Number(cfg.psc_working_interest_pct ?? 100) / 100))
+      : 1;
+
   const annualVols = extractAnnualVolumes(prodRows, baseYear);
   const annualCapex = extractAnnualCapex(capexRows, baseYear);
   const annualOpex = extractAnnualOpex(opexRows, baseYear);
@@ -963,9 +1095,9 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
       let rev = 0;
       let royalty = 0;
       if (v) {
-        const oilP = (Number(cfg.oil_price_usd_bbl) || 0) * Math.pow(1 + oilEscalator, t);
-        const gasP = (Number(cfg.gas_price_usd_mscf) || 0) * Math.pow(1 + gasEscalator, t);
-        const condP = (Number(cfg.condensate_price_usd_bbl) || 0) * Math.pow(1 + condEscalator, t);
+        const oilP = oilPriceAt(year);
+        const gasP = gasPriceAt(year);
+        const condP = condPriceAt(year);
         const oilCondRev = v.oil_bbl * oilP + v.condensate_bbl * condP;
         const gasRev = v.gas_mscf * gasP;
         rev = oilCondRev + gasRev;
@@ -1043,12 +1175,12 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
     const opexInflated = (annualOpex.get(year) || 0) * Math.pow(1 + opexEscalator, t);
     const depr = annualDepr.get(year) || 0;
 
-    // validateIngestion() already required a price wherever volumes exist;
-    // coerce unset prices on zero-volume streams to 0 so they can't NaN-poison
-    // gross revenue (0 * NaN === NaN).
-    const oilPrice = (Number(cfg.oil_price_usd_bbl) || 0) * Math.pow(1 + oilEscalator, t);
-    const gasPrice = (Number(cfg.gas_price_usd_mscf) || 0) * Math.pow(1 + gasEscalator, t);
-    const condPrice = (Number(cfg.condensate_price_usd_bbl) || 0) * Math.pow(1 + condEscalator, t);
+    // validateIngestion() already required a price (flat or deck) wherever
+    // volumes exist; unset flat prices on zero-volume streams resolve to 0 so
+    // they can't NaN-poison gross revenue.
+    const oilPrice = oilPriceAt(year);
+    const gasPrice = gasPriceAt(year);
+    const condPrice = condPriceAt(year);
 
     const oilRev = v.oil_bbl * oilPrice;
     const gasRev = v.gas_mscf * gasPrice;
@@ -1177,7 +1309,37 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
       });
     }
 
-    // v3.4: abandonment outflow lands after regime math (post-tax by design)
+    // v3.6 (Wave B): scale PSC/PIA rows to the working-interest share. The
+    // fiscal computation above ran at 100% field level; every monetary line
+    // and the entitlement volumes now become the WI share. Field-level
+    // diagnostics (applied prices, cumulative_oil_bbl_lifetime,
+    // prod_alw_eligible_bbl) stay unscaled, as does the field-level pool
+    // state threaded between years (pscCarryforward, piaState).
+    if (wiRegime !== 1) {
+      const WI_SCALED_KEYS = [
+        'gross_revenue', 'revenue', 'opex', 'capex', 'depreciation',
+        'oil_bbl', 'gas_mscf', 'condensate_bbl',
+        'royalty', 'production_royalty', 'price_royalty', 'hcdt', 'nddc',
+        'hct_assessable_profit', 'production_allowance', 'hct_chargeable_profit', 'hct_tax',
+        'cit_assessable_profit', 'cit_chargeable_profit', 'cit_tax',
+        'tet_tax', 'dev_levy_tax', 'tax', 'taxable_income',
+        'cpr_cap', 'cpr_costs_claimed', 'cpr_deferred_to_next',
+        'hct_loss_offset_used', 'cit_loss_offset_used',
+        'hct_loss_carryforward', 'cit_loss_carryforward',
+        'net_cash_flow', 'netCashFlow',
+      ];
+      for (const k of WI_SCALED_KEYS) {
+        if (typeof baseRow[k] === 'number') baseRow[k] *= wiRegime;
+      }
+      regOut.royalty *= wiRegime;
+      regOut.taxable_income *= wiRegime;
+      regOut.tax *= wiRegime;
+      regOut.net_cash_flow *= wiRegime;
+      baseRow.working_interest_pct = wiRegime * 100;
+    }
+
+    // v3.4: abandonment outflow lands after regime math (post-tax by design).
+    // Entered as the user's own share, so applied after WI scaling.
     if (abandonmentYear !== null && year === abandonmentYear) {
       regOut.net_cash_flow -= abandonmentCost;
       baseRow.abandonment_cost = abandonmentCost;
@@ -1192,11 +1354,14 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
 
     Object.assign(baseRow, {
       real_net_cash_flow: realCF,
-      discounted_cash_flow: (pvBasis === 'real' ? realCF : regOut.net_cash_flow) / Math.pow(1 + discountForNPV, t),
+      discounted_cash_flow: (pvBasis === 'real' ? realCF : regOut.net_cash_flow) / Math.pow(1 + discountForNPV, dexp(year)),
       cumulative_cash_flow: pvBasis === 'real' ? cumCF_real : cumCF_nominal,
       cumulative_nominal: cumCF_nominal,
       cumulative_real: cumCF_real,
     });
+    // v3.6: pre-valuation years stay modeled (fiscal state accrued above)
+    // but are excluded from the value metrics when treated as sunk.
+    if (sunkCutoff !== null && year < sunkCutoff) baseRow.sunk = true;
 
     cashFlowData.push(baseRow);
   }
@@ -1204,21 +1369,24 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
   // B2.5: CPR cessation forfeiture diagnostic (Item D)
   let cprForfeited = 0;
   if (cfg.fiscal_regime === 'PIA' && piaState.cpr_carryforward > 0 && cashFlowData.length > 0) {
-    cprForfeited = piaState.cpr_carryforward;
+    cprForfeited = piaState.cpr_carryforward * wiRegime;  // v3.6: WI share
     const lastRow = cashFlowData[cashFlowData.length - 1];
     lastRow.cpr_forfeited_at_cessation = cprForfeited;
   }
 
-  // v3.5: tax losses left unused at cessation (diagnostic, mirrors CPR forfeiture)
-  const unusedTaxLosses = cfg.fiscal_regime === 'PIA'
+  // v3.5: tax losses left unused at cessation (diagnostic, mirrors CPR
+  // forfeiture); v3.6 reports the WI share for PSC/PIA.
+  const unusedTaxLosses = (cfg.fiscal_regime === 'PIA'
     ? piaState.hct_loss_carryforward + piaState.cit_loss_carryforward
-    : (cfg.fiscal_regime === 'PSC' ? 0 : jvLossCarryforward);
+    : (cfg.fiscal_regime === 'PSC' ? 0 : jvLossCarryforward)) * wiRegime;
 
-  const cfForNPV = cashFlowData.map(d => pvBasis === 'real' ? d.real_net_cash_flow : d.net_cash_flow);
-  const cfForIRR = cashFlowData.map(d => d.net_cash_flow);
-  const cfForPayback = cashFlowData.map(d => d.net_cash_flow);
-  const firstYear = years[0];
-  const npvVal = npv(cfForNPV, discountForNPV, baseYear, firstYear);
+  // v3.6: value metrics run over the evaluated (non-sunk) rows; discounting
+  // uses the valuation-date/mid-year exponent already baked into
+  // discounted_cash_flow above.
+  const evalRows = cashFlowData.filter(d => d.sunk !== true);
+  const cfForIRR = evalRows.map(d => d.net_cash_flow);
+  const cfForPayback = evalRows.map(d => d.net_cash_flow);
+  const npvVal = evalRows.reduce((s, d) => s + d.discounted_cash_flow, 0);
   const irrVal = irr(cfForIRR);
   const paybackVal = paybackPeriod(cfForPayback);
 
@@ -1231,21 +1399,30 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
     discount_rate_applied_pct: discountForNPV * 100,
     fiscal_regime: cfg.fiscal_regime,
     fiscal_framework: framework,  // B2.5: surface to KPIs for UI
-    total_revenue: cashFlowData.reduce((s, d) => s + d.gross_revenue, 0),
-    total_capex: cashFlowData.reduce((s, d) => s + d.capex, 0),
-    total_opex: cashFlowData.reduce((s, d) => s + d.opex, 0),
-    total_tax: cashFlowData.reduce((s, d) => s + (d.tax || 0), 0),
-    total_net_cash_flow_nominal: cashFlowData.reduce((s, d) => s + d.net_cash_flow, 0),
-    total_net_cash_flow_real: cashFlowData.reduce((s, d) => s + d.real_net_cash_flow, 0),
-    total_net_cash_flow: cashFlowData.reduce((s, d) => s + (pvBasis === 'real' ? d.real_net_cash_flow : d.net_cash_flow), 0),
+    discounting_convention: midYear ? 'mid_year' : 'end_year',  // v3.6
+    total_revenue: evalRows.reduce((s, d) => s + d.gross_revenue, 0),
+    total_capex: evalRows.reduce((s, d) => s + d.capex, 0),
+    total_opex: evalRows.reduce((s, d) => s + d.opex, 0),
+    total_tax: evalRows.reduce((s, d) => s + (d.tax || 0), 0),
+    total_net_cash_flow_nominal: evalRows.reduce((s, d) => s + d.net_cash_flow, 0),
+    total_net_cash_flow_real: evalRows.reduce((s, d) => s + d.real_net_cash_flow, 0),
+    total_net_cash_flow: evalRows.reduce((s, d) => s + (pvBasis === 'real' ? d.real_net_cash_flow : d.net_cash_flow), 0),
   };
+  // v3.6 provenance / equity KPIs
+  if (valuationYear !== baseYear || sunkCutoff !== null) kpis.valuation_year = valuationYear;
+  if (sunkCutoff !== null) {
+    kpis.sunk_net_cash_flow = cashFlowData.filter(d => d.sunk === true)
+      .reduce((s, d) => s + d.net_cash_flow, 0);
+  }
+  if (wiRegime !== 1) kpis.working_interest_pct = wiRegime * 100;
+  else if (cfg.fiscal_regime === 'JV') kpis.working_interest_pct = Number(cfg.jv_working_interest_pct ?? 100);
 
   // ---- v3.4: decision KPI bundle ----
   // BOE conversion uses the industry 6:1 gas energy-equivalence convention.
   const GAS_MSCF_PER_BOE = 6.0;
-  const totalOilBbl = cashFlowData.reduce((s, d) => s + (d.oil_bbl || 0), 0);
-  const totalGasMscf = cashFlowData.reduce((s, d) => s + (d.gas_mscf || 0), 0);
-  const totalCondBbl = cashFlowData.reduce((s, d) => s + (d.condensate_bbl || 0), 0);
+  const totalOilBbl = evalRows.reduce((s, d) => s + (d.oil_bbl || 0), 0);
+  const totalGasMscf = evalRows.reduce((s, d) => s + (d.gas_mscf || 0), 0);
+  const totalCondBbl = evalRows.reduce((s, d) => s + (d.condensate_bbl || 0), 0);
   const totalBoe = totalOilBbl + totalCondBbl + totalGasMscf / GAS_MSCF_PER_BOE;
   const totalAbandonment = abandonmentYear !== null ? abandonmentCost : 0;
 
@@ -1278,26 +1455,26 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
     ? ((preTakeValue - kpis.total_net_cash_flow_nominal) / preTakeValue) * 100 : null;
 
   // DPI: NPV per present-value dollar of capex, on the same PV basis as NPV
-  const pvCapex = cashFlowData.reduce((s, d) => {
-    const t = d.year - baseYear;
+  const pvCapex = evalRows.reduce((s, d) => {
+    const t = d.year - baseYear;  // deflator stays anchored at base_year
     const capexOnBasis = pvBasis === 'real' ? d.capex / Math.pow(1 + inflationRate, t) : d.capex;
-    return s + capexOnBasis / Math.pow(1 + discountForNPV, t);
+    return s + capexOnBasis / Math.pow(1 + discountForNPV, dexp(d.year));
   }, 0);
   kpis.pv_capex = pvCapex;
   kpis.dpi = pvCapex > 0 ? npvVal / pvCapex : null;
 
   kpis.payback_years = paybackYears(cfForPayback);
-  kpis.discounted_payback_years = paybackYears(cashFlowData.map(d => d.discounted_cash_flow));
+  kpis.discounted_payback_years = paybackYears(evalRows.map(d => d.discounted_cash_flow));
 
   if (cfg.fiscal_regime === 'PIA') {
-    kpis.total_royalties = cashFlowData.reduce((s, d) => s + (d.royalty || 0), 0);
-    kpis.total_hct = cashFlowData.reduce((s, d) => s + (d.hct_tax || 0), 0);
-    kpis.total_cit = cashFlowData.reduce((s, d) => s + (d.cit_tax || 0), 0);
-    kpis.total_tet = cashFlowData.reduce((s, d) => s + (d.tet_tax || 0), 0);
-    kpis.total_dev_levy = cashFlowData.reduce((s, d) => s + (d.dev_levy_tax || 0), 0);  // B2.5: NEW
-    kpis.total_hcdt = cashFlowData.reduce((s, d) => s + (d.hcdt || 0), 0);
-    kpis.total_nddc = cashFlowData.reduce((s, d) => s + (d.nddc || 0), 0);
-    kpis.total_production_allowance = cashFlowData.reduce((s, d) => s + (d.production_allowance || 0), 0);
+    kpis.total_royalties = evalRows.reduce((s, d) => s + (d.royalty || 0), 0);
+    kpis.total_hct = evalRows.reduce((s, d) => s + (d.hct_tax || 0), 0);
+    kpis.total_cit = evalRows.reduce((s, d) => s + (d.cit_tax || 0), 0);
+    kpis.total_tet = evalRows.reduce((s, d) => s + (d.tet_tax || 0), 0);
+    kpis.total_dev_levy = evalRows.reduce((s, d) => s + (d.dev_levy_tax || 0), 0);  // B2.5: NEW
+    kpis.total_hcdt = evalRows.reduce((s, d) => s + (d.hcdt || 0), 0);
+    kpis.total_nddc = evalRows.reduce((s, d) => s + (d.nddc || 0), 0);
+    kpis.total_production_allowance = evalRows.reduce((s, d) => s + (d.production_allowance || 0), 0);
     if (cprForfeited > 0) {
       kpis.cpr_forfeited_at_cessation = cprForfeited;  // B2.5: diagnostic
     }
@@ -1316,6 +1493,9 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
 // converges cleanly. Returns null when the project never breaks even below
 // `hi`, or is NPV-positive even at `lo` (breakeven not meaningful).
 export function computeBreakevenOilPrice(input: ComputeInput, lo = 0.5, hi = 500): number | null {
+  // v3.6: with a per-year oil deck the flat price is not what prices oil, so
+  // bisecting it would be meaningless — no single breakeven price exists.
+  if (parsePriceDeck(input.cfg).oil.length > 0) return null;
   const npvAt = (p: number) =>
     computeCashFlow({ ...input, cfg: { ...input.cfg, oil_price_usd_bbl: p } }).kpis.npv;
   const fLo = npvAt(lo);
