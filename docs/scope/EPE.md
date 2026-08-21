@@ -217,6 +217,31 @@ Per `docs/scope/EPE-Industry-Audit.md` Band 1, all validated in
   for complementary files); multi-file slots warn about double-counting.
 - **Risk tab**: seed round-trip (set/reuse) makes MC runs reproducible.
 
+## 3c. Engine v3.6 — Wave B equity + price realism (2026-08-21)
+
+Per `docs/scope/EPE-Industry-Audit.md` Band 2 (2.1–2.4), defaults byte-identical:
+
+- **Working interest on PSC/PIA** (`psc_working_interest_pct` /
+  `pia_working_interest_pct`, default 100): fiscal math runs at 100% field
+  level (royalty rate tiers, price-royalty thresholds, allowance volume caps
+  and CPR caps are field-level), then monetary lines + entitlement volumes
+  scale to the WI share. Oracle: deep-offshore tier case proves the field
+  rate (7.5% at 60k bopd) survives a 50% WI where naive pre-scaling would
+  drop to the 5% tier. Tornado gains capped WI sweeps for all regimes.
+- **Per-year price decks** (`price_deck` jsonb: `[{year, oil, gas,
+  condensate}]`): step-hold between entries, first value before, last value
+  escalated beyond; per-stream differentials add after resolution; resolved
+  prices honor `*_price_scale` hooks so tornado/MC stay meaningful under a
+  deck (batch sets the scale; MC converts sampled absolute prices to a
+  scale). Breakeven oil price is null under an oil deck.
+- **Mid-year discounting** (`discounting_convention`), and **valuation
+  date** (`valuation_year` + `treat_prior_as_sunk`: pre-valuation years stay
+  modeled for fiscal state, excluded from value metrics, reported as
+  `kpis.sunk_net_cash_flow`).
+- Run Console: WI fields on PSC/PIA panels, differential inputs, deck
+  editor table, convention select, valuation-year + sunk controls; all
+  round-trip through saved scenarios.
+
 ---
 
 ## 4. What is NOT YET BUILT — known gaps
@@ -247,10 +272,11 @@ Risk level: low (math is straightforward). But a future Reservoir Balance-style 
   `20260821170000_epe_runs_status.sql` added `status`/`error_message`; the
   engine stamps complete/failed and failed runs are kept and surfaced in
   Run History instead of being deleted.
-- **Working interest applies only to JV** — PSC and PIA results are 100%
-  project-level; equity-share reporting needs a WI parameter in both.
-- **Flat price + escalator only** — no per-year price decks, differentials,
-  or gas contract structures.
+- ~~Working interest applies only to JV~~ — **CLOSED 2026-08-21 (Wave B)**:
+  WI on PSC/PIA with field-level fiscal math (§3c).
+- ~~Flat price + escalator only~~ — **PARTLY CLOSED 2026-08-21 (Wave B)**:
+  per-year decks + differentials shipped (§3c); contracted gas price
+  structures (take-or-pay etc.) remain future work.
 - **No incremental (with vs without) economics**; comparison is KPI-level.
 - RLS is per-user (`auth.uid() = user_id`), not per-org; no sharing.
 
