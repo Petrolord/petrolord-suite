@@ -265,6 +265,28 @@ reserves scenarios stays in Wave F):
 - **Decision Studio**: overlaid NPV S-curves from each compared run's
   stored `npv.cdf`.
 
+## 3e. Engine v3.8 — Wave D submission-grade reporting (2026-08-21)
+
+Per `docs/scope/EPE-Industry-Audit.md` Band 4 (4.1, 4.4–4.9):
+
+- **Engine**: `kpis.npv_profile` (NPV at 0/5/8/10/12/15/20% plus the applied
+  rate, same basis/convention; passes through the headline NPV) and
+  `kpis.government_take_pct_discounted` (PV terms, closed-form oracle).
+- **Config labels**: `epeConfigLabels.js` maps every run-config field to a
+  report-grade label/unit/formatter; single source for the PDF assumptions
+  block, the XLSX Assumptions sheet, and comparison config rows.
+- **PDF**: rebuilt as a submission one-pager (assumptions + full KPI panel
+  incl. discounted take and engine version) + regime-aware full annual
+  table (PIA royalty/HCDT/NDDC/allowance/HCT/CIT/levies now included) +
+  chart capture.
+- **Waterfall**: "All years" full-life government-take exhibit.
+- **NPV-vs-rate chart** on the overview; discounted-take KPI beside the
+  nominal one.
+- **Run History**: per-run KPI strip (NPV/IRR/payback/regime/engine
+  version) joined from `epe_results`, delete-with-confirm for any run.
+- **Comparison**: capped at 6 runs, deltas on all numeric rows, cumulative
+  NCF overlay chart, labeled config rows, CSV download.
+
 ---
 
 ## 4. What is NOT YET BUILT — known gaps

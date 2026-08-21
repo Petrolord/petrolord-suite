@@ -9,13 +9,15 @@ import { supabase } from '@/lib/customSupabaseClient';
 import {
   ComposedChart, Bar, Area, Line, XAxis, YAxis,
   CartesianGrid, Tooltip as RTooltip, Legend as RLegend, ReferenceLine,
-  Cell, LabelList, Label
+  ReferenceDot, Cell, LabelList, Label
 } from 'recharts';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { drawBrandHeader, loadPetrolordLogo } from '@/lib/pdfBrand';
+import { configSectionsForReport } from './epeConfigLabels';
 import EpeMonteCarloPanel from './EpeMonteCarloPanel';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS,
@@ -118,6 +120,7 @@ const KPI_EXPORT_ROWS = [
   ['breakeven_oil_price_usd_bbl', 'Breakeven Oil Price (USD/bbl)'],
   ['dpi', 'DPI (NPV / PV capex)'],
   ['government_take_pct', 'Government Take (%)'],
+  ['government_take_pct_discounted', 'Government Take, Discounted (%)'],
   ['unit_technical_cost_usd_per_boe', 'Unit Technical Cost (USD/boe)'],
   ['opex_usd_per_boe', 'OPEX (USD/boe)'],
   ['total_revenue', 'Total Revenue (USD)'],
@@ -174,7 +177,7 @@ const CashFlowProfile = ({ results }) => {
   });
 
   return (
-    <div style={{ width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12 }}>
+    <div id="epe-pdf-capture-profile" style={{ width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12 }}>
       <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: '0 0 8px 4px' }}>
         Cash Flow Profile {isPIA ? '(PIA 2021)' : ''}
       </h3>
@@ -236,6 +239,57 @@ const CashFlowProfile = ({ results }) => {
 };
 
 // ----------------------------------------------------------------------------
+// NPV vs discount rate (Wave D, audit 4.5): the classic profile exhibit.
+// Engine v3.8 writes kpis.npv_profile; older runs simply skip this panel.
+// ----------------------------------------------------------------------------
+const NpvProfileChart = ({ kpis }) => {
+  const profile = kpis?.npv_profile;
+  if (!Array.isArray(profile) || profile.length === 0) return null;
+  const applied = kpis.discount_rate_applied_pct != null
+    ? Math.round(Number(kpis.discount_rate_applied_pct) * 100) / 100 : null;
+  const appliedPoint = applied != null
+    ? profile.find((p) => Math.abs(p.rate_pct - applied) < 0.005) : null;
+  return (
+    <div id="epe-pdf-capture-npvprofile" style={{ width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12, marginTop: 16 }}>
+      <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: '0 0 2px 4px' }}>
+        NPV vs Discount Rate
+      </h3>
+      <p style={{ fontSize: 11, color: CHART_COLORS.axisText, margin: '0 0 6px 4px' }}>
+        On the run's PV basis and discounting convention. The dot marks the applied rate.
+      </p>
+      <ChartFrame height={220} logoHeight={24} exportFilename="pe-studio-npv-vs-rate">
+        <ComposedChart data={profile} margin={CHART_MARGINS.standard}>
+          <CartesianGrid {...GRID_STYLE} />
+          <XAxis
+            dataKey="rate_pct"
+            type="number"
+            domain={['dataMin', 'dataMax']}
+            tickFormatter={(v) => `${v}%`}
+            tick={{ fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText }}
+            stroke={CHART_COLORS.axisLine}
+          />
+          <YAxis
+            tickFormatter={fmtCompact}
+            tick={{ fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText }}
+            stroke={CHART_COLORS.axisLine}
+          />
+          <RTooltip
+            contentStyle={TOOLTIP_STYLE}
+            formatter={(value) => fmtCompact(value)}
+            labelFormatter={(v) => `Discount rate ${v}%`}
+          />
+          <ReferenceLine y={0} stroke={CHART_COLORS.axisLabel} strokeWidth={1.5} />
+          <Line type="monotone" dataKey="npv" name="NPV" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 2.5 }} />
+          {appliedPoint && (
+            <ReferenceDot x={appliedPoint.rate_pct} y={appliedPoint.npv} r={6} fill="#059669" stroke="#ffffff" strokeWidth={2} />
+          )}
+        </ComposedChart>
+      </ChartFrame>
+    </div>
+  );
+};
+
+// ----------------------------------------------------------------------------
 // Cash Flow Waterfall: single-year cascade from Gross Revenue to ATCF
 // ----------------------------------------------------------------------------
 //
@@ -257,7 +311,18 @@ const CashFlowWaterfall = ({ results }) => {
     return <div style={{ color: CHART_COLORS.axisText, padding: 16 }}>No cash flow data available.</div>;
   }
 
-  const row = cf[Math.min(selectedIdx, cf.length - 1)];
+  // Wave D (audit 4.7): "All years" sums every row into one full-life
+  // cascade, the standard government-take exhibit.
+  const isAllYears = selectedIdx === 'all';
+  const sumKeys = ['gross_revenue', 'revenue', 'royalty', 'opex', 'capex',
+    'hcdt', 'nddc', 'hct_tax', 'cit_tax', 'tet_tax', 'dev_levy_tax', 'tax',
+    'abandonment_cost', 'net_cash_flow'];
+  const row = isAllYears
+    ? cf.reduce((acc, r) => {
+        for (const k of sumKeys) acc[k] = (acc[k] || 0) + (r[k] || 0);
+        return acc;
+      }, {})
+    : cf[Math.min(Number(selectedIdx), cf.length - 1)];
   if (!row) return null;
 
   // Build the cascade. Each step has: label, value (signed), color.
@@ -329,16 +394,16 @@ const CashFlowWaterfall = ({ results }) => {
   // with fill from data via a 'fill' field. Recharts 2.x supports per-cell fill via <Cell>.
 
   return (
-    <div style={{ position: 'relative', width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12 }}>
+    <div id="epe-pdf-capture-waterfall" style={{ position: 'relative', width: '100%', background: CHART_COLORS.background, borderRadius: 8, padding: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
         <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: 0 }}>
-          Cash Flow Waterfall — Year {row.year} {isPIA ? '(PIA 2021)' : ''}
+          Cash Flow Waterfall: {isAllYears ? 'All Years (full life)' : `Year ${row.year}`} {isPIA ? '(PIA 2021)' : ''}
         </h3>
         <label style={{ fontSize: 12, color: CHART_COLORS.axisText, display: 'flex', alignItems: 'center', gap: 8 }}>
           Year:
           <select
             value={selectedIdx}
-            onChange={(e) => setSelectedIdx(Number(e.target.value))}
+            onChange={(e) => setSelectedIdx(e.target.value === 'all' ? 'all' : Number(e.target.value))}
             style={{
               padding: '4px 8px',
               fontSize: 12,
@@ -348,6 +413,7 @@ const CashFlowWaterfall = ({ results }) => {
               color: CHART_COLORS.axisLabel,
             }}
           >
+            <option value="all">All years</option>
             {cf.map((r, i) => (
               <option key={r.year} value={i}>{r.year}</option>
             ))}
@@ -947,12 +1013,12 @@ const EpeResultsViewer = () => {
     return `pe_studio_${run}`;
   };
 
+  // Wave D (audit 4.9): assumptions render with report-grade labels from the
+  // shared epeConfigLabels map instead of raw column names.
   const configRowsForExport = () => {
     if (!runConfig) return [];
-    return Object.entries(runConfig)
-      .filter(([k, v]) => v !== null && v !== undefined
-        && !['id', 'case_id', 'user_id', 'created_at', 'updated_at'].includes(k))
-      .map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v) : v]);
+    return configSectionsForReport(runConfig).flatMap((section) =>
+      section.rows.map((r) => [section.title, r.label, r.value, r.unit || '']));
   };
 
   const handleExportCsv = () => {
@@ -1008,8 +1074,8 @@ const EpeResultsViewer = () => {
 
       const cfgRows = configRowsForExport();
       if (cfgRows.length > 0) {
-        const wsCfg = XLSX.utils.aoa_to_sheet([['Parameter', 'Value'], ...cfgRows]);
-        wsCfg['!cols'] = [{ wch: 40 }, { wch: 24 }];
+        const wsCfg = XLSX.utils.aoa_to_sheet([['Section', 'Assumption', 'Value', 'Unit'], ...cfgRows]);
+        wsCfg['!cols'] = [{ wch: 16 }, { wch: 38 }, { wch: 28 }, { wch: 20 }];
         XLSX.utils.book_append_sheet(wb, wsCfg, 'Assumptions');
       }
 
@@ -1020,6 +1086,11 @@ const EpeResultsViewer = () => {
     }
   };
 
+  // Wave D (audit 4.1): submission-grade PDF. Page 1 is the economics
+  // one-pager (title block, assumptions, full KPI panel); then a landscape
+  // regime-aware annual cash flow table with every fiscal line item; then
+  // one landscape page per branded chart panel currently on screen,
+  // captured with html2canvas so the watermark rides along.
   const handleExportPdf = async () => {
     try {
       const kpis = results?.kpis || {};
@@ -1034,58 +1105,211 @@ const EpeResultsViewer = () => {
         appTitle: 'Petroleum Economics Studio',
         subtitle: `${runDetails?.epe_cases?.case_name || ''}`.trim() || 'Economic run report',
         rightLines: [runDetails?.run_name || ''],
-      }) + 10;
+      }) + 6;
+
+      // ---- Title block info line ----
+      const frameworkLabel = kpis.fiscal_framework === 'nta_2025' ? 'NTA 2025'
+        : kpis.fiscal_framework === 'pia_only' ? 'PIA 2021' : null;
+      const infoBits = [
+        `Regime: ${kpis.fiscal_regime || runConfig?.fiscal_regime || 'n/a'}`,
+        frameworkLabel ? `Framework: ${frameworkLabel}` : null,
+        kpis.working_interest_pct != null ? `Working interest: ${Number(kpis.working_interest_pct).toFixed(0)}%` : null,
+        `Generated: ${new Date().toISOString().slice(0, 10)}`,
+        kpis.engine_version ? `Engine v${kpis.engine_version}` : null,
+      ].filter(Boolean);
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(71, 85, 105);
+      doc.text(infoBits.join('   |   '), margin, y);
+      y += 7;
+
+      // ---- Key metrics: paired two-per-row so the one-pager stays one page ----
+      const money = (v) => (v == null ? null : `$${fmtCompact(v)}`);
+      const pct = (v, d = 1) => (v == null ? null : `${Number(v).toFixed(d)}%`);
+      const yrs = (v) => (v == null ? null : `${Number(v).toFixed(2)} yrs`);
+      const vol = (v, unit) => (v == null || v === 0 ? null
+        : `${Number(v).toLocaleString('en-US', { maximumFractionDigits: 0 })} ${unit}`);
+      const conventionNote = kpis.discounting_convention === 'mid_year' ? ', mid-year' : '';
+      const kpiPairs = [
+        [`NPV @ ${kpis.discount_rate_applied_pct != null ? Number(kpis.discount_rate_applied_pct).toFixed(1) : '10'}% (${kpis.pv_basis || 'real'}${conventionNote})`, money(kpis.npv)],
+        ['IRR', pct(kpis.irr, 2)],
+        ['Payback', kpis.payback ?? null],
+        ['Discounted payback', yrs(kpis.discounted_payback_years)],
+        ['Breakeven oil price', kpis.breakeven_oil_price_usd_bbl != null ? `$${Number(kpis.breakeven_oil_price_usd_bbl).toFixed(1)}/bbl` : null],
+        ['DPI (NPV / PV capex)', kpis.dpi != null ? Number(kpis.dpi).toFixed(2) : null],
+        ['Government take', pct(kpis.government_take_pct)],
+        ['Government take (discounted)', pct(kpis.government_take_pct_discounted)],
+        ['Unit technical cost', kpis.unit_technical_cost_usd_per_boe != null ? `$${Number(kpis.unit_technical_cost_usd_per_boe).toFixed(2)}/boe` : null],
+        ['OPEX per boe', kpis.opex_usd_per_boe != null ? `$${Number(kpis.opex_usd_per_boe).toFixed(2)}/boe` : null],
+        ['Total revenue', money(kpis.total_revenue)],
+        ['Total CAPEX', money(kpis.total_capex)],
+        ['Total OPEX', money(kpis.total_opex)],
+        ['Total tax', money(kpis.total_tax)],
+        ['Total oil', vol(kpis.total_oil_bbl, 'bbl')],
+        ['Total gas', vol(kpis.total_gas_mscf, 'Mscf')],
+        ['Total condensate', vol(kpis.total_condensate_bbl, 'bbl')],
+        ['Total BOE', vol(kpis.total_boe, 'boe')],
+        ['Abandonment', kpis.total_abandonment_cost != null ? `${money(kpis.total_abandonment_cost)} in ${kpis.abandonment_year}` : null],
+        ['Economic limit year', kpis.economic_limit_year != null ? String(kpis.economic_limit_year) : null],
+        ['Sunk (pre-valuation) NCF', kpis.sunk_net_cash_flow != null ? money(kpis.sunk_net_cash_flow) : null],
+      ].filter(([, v]) => v != null);
+      const kpiBody = [];
+      for (let i = 0; i < kpiPairs.length; i += 2) {
+        const a = kpiPairs[i];
+        const b = kpiPairs[i + 1] || ['', ''];
+        kpiBody.push([a[0], a[1], b[0], b[1]]);
+      }
 
       doc.setTextColor(15, 23, 42);
-      doc.setFontSize(14);
+      doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.text('Key metrics', margin, y);
-      y += 4;
+      y += 3;
       doc.autoTable({
         startY: y,
-        head: [['Metric', 'Value']],
-        body: KPI_EXPORT_ROWS
-          .filter(([k]) => kpis[k] !== undefined && kpis[k] !== null)
-          .map(([k, label]) => {
-            const v = kpis[k];
-            return [label, typeof v === 'number' ? Number(v.toFixed(4)).toLocaleString() : String(v)];
-          }),
+        head: [['Metric', 'Value', 'Metric', 'Value']],
+        body: kpiBody,
         theme: 'striped',
-        headStyles: { fillColor: [15, 23, 42] },
-        styles: { fontSize: 8, cellPadding: 1.6 },
+        headStyles: { fillColor: [15, 23, 42], fontSize: 7.5 },
+        styles: { fontSize: 7.5, cellPadding: 1.4 },
+        columnStyles: { 1: { fontStyle: 'bold' }, 3: { fontStyle: 'bold' } },
         margin: { left: margin, right: margin },
       });
-      y = doc.lastAutoTable.finalY + 10;
+      y = doc.lastAutoTable.finalY + 8;
 
-      doc.setFontSize(14);
+      // ---- Assumptions from the shared label map ----
+      const sections = configSectionsForReport(runConfig);
+      if (sections.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text('Assumptions', margin, y);
+        y += 3;
+        const cfgBody = sections.flatMap((section) =>
+          section.rows.map((r, i) => [
+            i === 0 ? section.title : '',
+            r.label,
+            r.unit && r.unit !== 'table' ? `${r.value} ${r.unit}` : r.value,
+          ]));
+        doc.autoTable({
+          startY: y,
+          head: [['Section', 'Assumption', 'Value']],
+          body: cfgBody,
+          theme: 'striped',
+          headStyles: { fillColor: [15, 23, 42], fontSize: 7 },
+          styles: { fontSize: 6.8, cellPadding: 1.1 },
+          columnStyles: { 0: { fontStyle: 'bold', cellWidth: 28 }, 1: { cellWidth: 62 } },
+          margin: { left: margin, right: margin },
+        });
+      }
+
+      // ---- Landscape: full regime-aware annual cash flow ----
+      doc.addPage('a4', 'landscape');
+      const lsWidth = doc.internal.pageSize.getWidth();
+      doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text('Annual cash flow', margin, y);
-      y += 4;
-      const pdfCols = ['Year', 'Revenue', 'OPEX', 'CAPEX', isPIA ? 'Total Tax' : 'Tax', 'Net CF', 'Cum. NCF'];
-      doc.autoTable({
-        startY: y,
-        head: [pdfCols],
-        body: cf.map((r) => [
+      doc.setTextColor(15, 23, 42);
+      doc.text(`Annual cash flow${isPIA ? ' (PIA 2021)' : ''}`, margin, margin + 2);
+      const sum = (get) => cf.reduce((s, r) => s + (get(r) || 0), 0);
+      let head; let body; let foot;
+      if (isPIA) {
+        head = [['Year', 'Oil (bbl)', 'Gross Rev', 'Royalty', 'HCDT', 'NDDC', 'Prod. Allow.', 'HCT', 'CIT', 'TET / Levy', 'OPEX', 'CAPEX', 'Net CF', 'Cum. NCF']];
+        body = cf.map((r) => [
           r.year,
+          (r.oil_bbl || 0).toLocaleString('en-US', { maximumFractionDigits: 0 }),
           fmtCompact(r.gross_revenue ?? r.revenue ?? 0),
+          fmtCompact(r.royalty || 0),
+          fmtCompact(r.hcdt || 0),
+          fmtCompact(r.nddc || 0),
+          fmtCompact(r.production_allowance || 0),
+          fmtCompact(r.hct_tax || 0),
+          fmtCompact(r.cit_tax || 0),
+          fmtCompact((r.tet_tax || 0) + (r.dev_levy_tax || 0)),
           fmtCompact(r.opex || 0),
           fmtCompact(r.capex || 0),
-          fmtCompact(r.tax || 0),
           fmtCompact(r.net_cash_flow ?? r.netCashFlow ?? 0),
           fmtCompact(r.cumulative_nominal ?? 0),
-        ]),
+        ]);
+        foot = [['Total', '', fmtCompact(sum((r) => r.gross_revenue ?? r.revenue)), fmtCompact(sum((r) => r.royalty)),
+          fmtCompact(sum((r) => r.hcdt)), fmtCompact(sum((r) => r.nddc)), fmtCompact(sum((r) => r.production_allowance)),
+          fmtCompact(sum((r) => r.hct_tax)), fmtCompact(sum((r) => r.cit_tax)),
+          fmtCompact(sum((r) => (r.tet_tax || 0) + (r.dev_levy_tax || 0))),
+          fmtCompact(sum((r) => r.opex)), fmtCompact(sum((r) => r.capex)),
+          fmtCompact(sum((r) => r.net_cash_flow ?? r.netCashFlow)), '']];
+      } else {
+        head = [['Year', 'Oil (bbl)', 'Gross Rev', 'Royalty', 'Taxable Income', 'Tax', 'OPEX', 'CAPEX', 'Net CF', 'Cum. NCF']];
+        body = cf.map((r) => [
+          r.year,
+          (r.oil_bbl || 0).toLocaleString('en-US', { maximumFractionDigits: 0 }),
+          fmtCompact(r.gross_revenue ?? r.revenue ?? 0),
+          fmtCompact(r.royalty || 0),
+          fmtCompact(r.taxable_income || 0),
+          fmtCompact(r.tax || 0),
+          fmtCompact(r.opex || 0),
+          fmtCompact(r.capex || 0),
+          fmtCompact(r.net_cash_flow ?? r.netCashFlow ?? 0),
+          fmtCompact(r.cumulative_nominal ?? 0),
+        ]);
+        foot = [['Total', '', fmtCompact(sum((r) => r.gross_revenue ?? r.revenue)), fmtCompact(sum((r) => r.royalty)),
+          '', fmtCompact(sum((r) => r.tax)), fmtCompact(sum((r) => r.opex)), fmtCompact(sum((r) => r.capex)),
+          fmtCompact(sum((r) => r.net_cash_flow ?? r.netCashFlow)), '']];
+      }
+      doc.autoTable({
+        startY: margin + 6,
+        head,
+        body,
+        foot,
         theme: 'grid',
-        headStyles: { fillColor: [15, 23, 42] },
-        styles: { fontSize: 7.5, cellPadding: 1.4 },
+        headStyles: { fillColor: [15, 23, 42], fontSize: 6.8 },
+        footStyles: { fillColor: [226, 232, 240], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 6.8 },
+        styles: { fontSize: 6.8, cellPadding: 1.2, halign: 'right' },
+        columnStyles: { 0: { halign: 'left' } },
         margin: { left: margin, right: margin },
       });
+
+      // ---- Chart pages: capture the branded panels currently on screen ----
+      const captureIds = [
+        'epe-pdf-capture-profile',
+        'epe-pdf-capture-waterfall',
+        'epe-pdf-capture-annual',
+        'epe-pdf-capture-npvprofile',
+      ];
+      let chartsEmbedded = 0;
+      for (const id of captureIds) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        try {
+          const canvas = await html2canvas(el, { backgroundColor: '#ffffff', scale: 2, logging: false });
+          doc.addPage('a4', 'landscape');
+          const pw = doc.internal.pageSize.getWidth();
+          const ph = doc.internal.pageSize.getHeight();
+          const maxW = pw - margin * 2;
+          const maxH = ph - margin * 2 - 6;
+          const scale = Math.min(maxW / canvas.width, maxH / canvas.height);
+          doc.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, canvas.width * scale, canvas.height * scale);
+          chartsEmbedded += 1;
+        } catch (capErr) {
+          console.warn(`PDF chart capture skipped for ${id}:`, capErr);
+        }
+      }
+      if (chartsEmbedded === 0) {
+        doc.setPage(doc.internal.getNumberOfPages());
+        const ph = doc.internal.pageSize.getHeight();
+        doc.setFontSize(7.5);
+        doc.setTextColor(120);
+        doc.text(
+          'Charts are captured from the open tab. Open the Cash Flow Profile or Waterfall tab before exporting, or use each chart\'s PNG download button.',
+          margin, ph - 14);
+      }
 
       const pageCount = doc.internal.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
+        const pw = doc.internal.pageSize.getWidth();
+        const ph = doc.internal.pageSize.getHeight();
         doc.setFontSize(8);
         doc.setTextColor(120);
-        doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin, doc.internal.pageSize.getHeight() - 8, { align: 'right' });
+        doc.text(`Page ${i} of ${pageCount}`, pw - margin, ph - 8, { align: 'right' });
       }
       doc.save(`${exportBaseName()}.pdf`);
     } catch (err) {
@@ -1207,6 +1431,8 @@ if (loading) {
                       ? `$${Number(results.kpis.breakeven_oil_price_usd_bbl).toFixed(1)}/bbl` : null],
                     ['Government take', results.kpis.government_take_pct != null
                       ? `${Number(results.kpis.government_take_pct).toFixed(1)}%` : null],
+                    ['Govt take (disc.)', results.kpis.government_take_pct_discounted != null
+                      ? `${Number(results.kpis.government_take_pct_discounted).toFixed(1)}%` : null],
                     ['Unit technical cost', results.kpis.unit_technical_cost_usd_per_boe != null
                       ? `$${Number(results.kpis.unit_technical_cost_usd_per_boe).toFixed(2)}/boe` : null],
                     ['OPEX per boe', results.kpis.opex_usd_per_boe != null
@@ -1239,6 +1465,8 @@ if (loading) {
                   )}
                 </div>
               )}
+
+              <NpvProfileChart kpis={results.kpis} />
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }} className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-6">
@@ -1259,7 +1487,7 @@ if (loading) {
               </div>
 
               {activeTab === 'annual' && (
-                <div style={{ background: CHART_COLORS.background, borderRadius: 8, padding: 8 }}>
+                <div id="epe-pdf-capture-annual" style={{ background: CHART_COLORS.background, borderRadius: 8, padding: 8 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 600, color: CHART_COLORS.axisLabel, margin: '0 0 8px 4px' }}>Annual Cash Flow</h3>
                   <p style={{ fontSize: 11, color: CHART_COLORS.axisText, margin: '0 0 4px 4px' }}>
                     Click a legend entry to show or hide its series.
