@@ -340,6 +340,11 @@ export function runEpeMonteCarlo({ cfg, prodRows, capexRows, opexRows, mcConfig 
   const npvs: number[] = [];
   const irrs: number[] = [];
   let irrNullCount = 0;
+  // Wave C: payback distribution + convergence trace
+  const paybacks: number[] = [];
+  let paybackNeverCount = 0;
+  const convergence: Array<{ n: number; mean: number }> = [];
+  const convergenceStep = Math.max(1, Math.floor(iterations / 20));
   const perYearNcf: number[][] = years.map(() => []);
   const perYearCum: number[][] = years.map(() => []);
   const tornadoSamples: Array<{ targetVol: number; inputs: Record<string, number> }> = [];
@@ -390,6 +395,11 @@ export function runEpeMonteCarlo({ cfg, prodRows, capexRows, opexRows, mcConfig 
     npvs.push(kpis.npv);
     if (kpis.irr === null || kpis.irr === undefined) irrNullCount++;
     else irrs.push(kpis.irr);
+    if (kpis.payback_years === null || kpis.payback_years === undefined) paybackNeverCount++;
+    else paybacks.push(kpis.payback_years);
+    if ((i + 1) % convergenceStep === 0 || i === iterations - 1) {
+      convergence.push({ n: i + 1, mean: mean(npvs) });
+    }
 
     for (let y = 0; y < years.length; y++) {
       const row = cashFlowData[y];
@@ -411,9 +421,12 @@ export function runEpeMonteCarlo({ cfg, prodRows, capexRows, opexRows, mcConfig 
     seed,
     varKeys,
     base: { npv: baseRun.kpis.npv, irr: baseRun.kpis.irr, fiscal_framework: baseRun.kpis.fiscal_framework, pv_basis: baseRun.kpis.pv_basis },
-    npv: basicStats(npvs),
+    npv: { ...basicStats(npvs), se: stdDev(npvs) / Math.sqrt(npvs.length) },
     probNpvPositive: npvs.filter((x) => x > 0).length / npvs.length,
     irr: { ...basicStats(irrs), nullShare: irrNullCount / iterations },
+    // Wave C: payback distribution; neverShare = iterations that never pay back
+    payback: { ...basicStats(paybacks), neverShare: paybackNeverCount / iterations },
+    convergence,
     // Fan bands are NOMINAL annual and cumulative net cash flow.
     fan: { ncf: yearStats(perYearNcf), cumulative: yearStats(perYearCum) },
     tornado: tornadoSwings(tornadoSamples),

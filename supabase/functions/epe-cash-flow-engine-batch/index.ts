@@ -21,7 +21,7 @@
 //   - Status polling unnecessary at this scale; client awaits the response
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
-import { computeCashFlow, extractAnnualCapex, extractAnnualOpex, parsePriceDeck } from '../_shared/epe-engine.ts';
+import { computeCashFlow, extractAnnualCapex, extractAnnualOpex, extractAnnualVolumes, parsePriceDeck, isVolumeColumn } from '../_shared/epe-engine.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -59,6 +59,9 @@ interface SweepDef {
   floor?: number;         // optional lower bound
   cap?: number;           // optional upper bound (e.g. WI <= 100%)
   default_value?: number; // used when the config leaves the field unset
+  // Wave C: absolute deltas instead of multiplicative factors (e.g. a
+  // schedule delay of +1 year); when set, low/high = base + delta.
+  abs_delta?: { low: number; high: number };
 }
 
 // Wave B: price sweeps must stay meaningful when a per-year price deck
@@ -76,6 +79,9 @@ const SWEEPS_ALL: SweepDef[] = [
   { variable: 'gas_price_usd_mscf',          label: 'Gas Price',           factor_low: 0.8, factor_high: 1.2, regimes: ['JV', 'PSC', 'PIA'] },
   { variable: 'discount_rate_pct',           label: 'Discount Rate',       factor_low: 0.8, factor_high: 1.2, regimes: ['JV', 'PSC', 'PIA'], floor: 0 },
   { variable: 'inflation_rate_pct',          label: 'Inflation',           factor_low: 0.8, factor_high: 1.2, regimes: ['JV', 'PSC', 'PIA'], floor: 0 },
+  // Wave C: first-oil delay — the industry tornado's schedule bar. One-sided:
+  // low = base schedule (delta 0), high = one further year of delay.
+  { variable: 'schedule_shift_years',        label: 'First Oil Delay (+1 yr)', factor_low: 1, factor_high: 1, regimes: ['JV', 'PSC', 'PIA'], default_value: 0, abs_delta: { low: 0, high: 1 } },
 
   // JV-specific
   { variable: 'jv_working_interest_pct',     label: 'Working Interest',    factor_low: 0.8, factor_high: 1.2, regimes: ['JV'], floor: 0, cap: 100 },
@@ -109,6 +115,9 @@ const CAPEX_OPEX_SWEEPS: SweepDef[] = [
   // Inline-multiply CSV totals using a special handling path below
   { variable: '__capex_multiplier',          label: 'CAPEX',               factor_low: 0.8, factor_high: 1.2, regimes: ['JV', 'PSC', 'PIA'] },
   { variable: '__opex_multiplier',           label: 'OPEX',                factor_low: 0.8, factor_high: 1.2, regimes: ['JV', 'PSC', 'PIA'] },
+  // Wave C: production/reserves — usually the longest bar on an industry
+  // tornado. Scales the recognized volume columns of the production CSV.
+  { variable: '__production_multiplier',     label: 'Production',          factor_low: 0.8, factor_high: 1.2, regimes: ['JV', 'PSC', 'PIA'] },
 ];
 
 // ============================================================================
@@ -126,7 +135,23 @@ Deno.serve(async (req) => {
     if (!SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('Missing Supabase environment configuration.');
     supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    const { run_id, base_run_config_id, sensitivity_run_id } = await req.json();
+    const { run_id, base_run_config_id, sensitivity_run_id, sweep_options } = await req.json();
+    // Wave C: user-set ranges. Global factor overrides apply to every
+    // multiplicative sweep; per-variable overrides win over the globals.
+    const globalLow = Number(sweep_options?.factor_low);
+    const globalHigh = Number(sweep_options?.factor_high);
+    const perVarOverrides = sweep_options?.overrides ?? {};
+    const effectiveFactors = (sweep: SweepDef): { low: number; high: number } => {
+      const o = perVarOverrides[sweep.variable] ?? {};
+      let low = Number(o.factor_low);
+      let high = Number(o.factor_high);
+      if (!Number.isFinite(low)) low = Number.isFinite(globalLow) ? globalLow : sweep.factor_low;
+      if (!Number.isFinite(high)) high = Number.isFinite(globalHigh) ? globalHigh : sweep.factor_high;
+      // sanity: low <= 1 <= high, both positive
+      low = Math.min(Math.max(low, 0.01), 1);
+      high = Math.max(Math.min(high, 5), 1);
+      return { low, high };
+    };
     if (!run_id || !base_run_config_id || !sensitivity_run_id) {
       throw new Error('Missing run_id, base_run_config_id, or sensitivity_run_id.');
     }
@@ -198,8 +223,9 @@ Deno.serve(async (req) => {
         // Skip sweeps where the base config has no usable value
         continue;
       }
-      let lowValue = baseValue * sweep.factor_low;
-      let highValue = baseValue * sweep.factor_high;
+      const eff = sweep.abs_delta ? { low: 1, high: 1 } : effectiveFactors(sweep);
+      let lowValue = sweep.abs_delta ? baseValue + sweep.abs_delta.low : baseValue * eff.low;
+      let highValue = sweep.abs_delta ? baseValue + sweep.abs_delta.high : baseValue * eff.high;
       if (sweep.floor !== undefined) {
         lowValue = Math.max(lowValue, sweep.floor);
         highValue = Math.max(highValue, sweep.floor);
@@ -216,11 +242,11 @@ Deno.serve(async (req) => {
         : { ...baseCfg, [sweep.variable]: value };
 
       // Low variant
-      const lowResult = computeCashFlow({ cfg: variant(lowValue, sweep.factor_low), prodRows, capexRows, opexRows });
+      const lowResult = computeCashFlow({ cfg: variant(lowValue, eff.low), prodRows, capexRows, opexRows });
       const lowNpv = lowResult.kpis.npv;
 
       // High variant
-      const highResult = computeCashFlow({ cfg: variant(highValue, sweep.factor_high), prodRows, capexRows, opexRows });
+      const highResult = computeCashFlow({ cfg: variant(highValue, eff.high), prodRows, capexRows, opexRows });
       const highNpv = highResult.kpis.npv;
 
       const deltaLow = lowNpv - baseNpv;
@@ -231,8 +257,8 @@ Deno.serve(async (req) => {
         variable: sweep.variable,
         variable_label: sweep.label,
         base_value: baseValue,
-        low_factor: sweep.factor_low,
-        high_factor: sweep.factor_high,
+        low_factor: sweep.abs_delta ? 1 : eff.low,
+        high_factor: sweep.abs_delta ? 1 : eff.high,
         low_value: lowValue,
         high_value: highValue,
         base_npv: baseNpv,
@@ -250,6 +276,8 @@ Deno.serve(async (req) => {
     for (const sweep of applicableCapexOpex) {
       const isCapex = sweep.variable === '__capex_multiplier';
       const isOpex = sweep.variable === '__opex_multiplier';
+      const isProd = sweep.variable === '__production_multiplier';
+      const eff = effectiveFactors(sweep);
 
       const scaleRows = (rows: any[], factor: number): any[] => {
         return rows.map((r: any) => {
@@ -264,14 +292,28 @@ Deno.serve(async (req) => {
           return cloned;
         });
       };
+      // Wave C: production scaling uses the engine's own column recognizer so
+      // scaled columns match exactly what computeCashFlow reads.
+      const scaleVolRows = (rows: any[], factor: number): any[] => rows.map((r: any) => {
+        const cloned = { ...r };
+        for (const k of Object.keys(cloned)) {
+          if (isVolumeColumn(k)) {
+            const v = Number(cloned[k]);
+            if (!isNaN(v)) cloned[k] = v * factor;
+          }
+        }
+        return cloned;
+      });
 
-      const lowCapex = isCapex ? scaleRows(capexRows, sweep.factor_low) : capexRows;
-      const highCapex = isCapex ? scaleRows(capexRows, sweep.factor_high) : capexRows;
-      const lowOpex = isOpex ? scaleRows(opexRows, sweep.factor_low) : opexRows;
-      const highOpex = isOpex ? scaleRows(opexRows, sweep.factor_high) : opexRows;
+      const lowCapex = isCapex ? scaleRows(capexRows, eff.low) : capexRows;
+      const highCapex = isCapex ? scaleRows(capexRows, eff.high) : capexRows;
+      const lowOpex = isOpex ? scaleRows(opexRows, eff.low) : opexRows;
+      const highOpex = isOpex ? scaleRows(opexRows, eff.high) : opexRows;
+      const lowProd = isProd ? scaleVolRows(prodRows, eff.low) : prodRows;
+      const highProd = isProd ? scaleVolRows(prodRows, eff.high) : prodRows;
 
-      const lowResult = computeCashFlow({ cfg: baseCfg, prodRows, capexRows: lowCapex, opexRows: lowOpex });
-      const highResult = computeCashFlow({ cfg: baseCfg, prodRows, capexRows: highCapex, opexRows: highOpex });
+      const lowResult = computeCashFlow({ cfg: baseCfg, prodRows: lowProd, capexRows: lowCapex, opexRows: lowOpex });
+      const highResult = computeCashFlow({ cfg: baseCfg, prodRows: highProd, capexRows: highCapex, opexRows: highOpex });
       const lowNpv = lowResult.kpis.npv;
       const highNpv = highResult.kpis.npv;
       const deltaLow = lowNpv - baseNpv;
@@ -281,19 +323,22 @@ Deno.serve(async (req) => {
       // alias-aware extraction the engine uses (so cost_usd files show a
       // real base value instead of 0)
       const sumMap = (m: Map<number, number>) => Array.from(m.values()).reduce((s, v) => s + v, 0);
-      const baseTotal = isCapex
-        ? sumMap(extractAnnualCapex(capexRows, baseCfg.base_year || 2027))
-        : sumMap(extractAnnualOpex(opexRows, baseCfg.base_year || 2027));
+      const baseTotal = isProd
+        ? extractAnnualVolumes(prodRows, baseCfg.base_year || 2027)
+            .reduce((t, v) => t + v.oil_bbl + v.condensate_bbl + v.gas_mscf / 6, 0)
+        : isCapex
+          ? sumMap(extractAnnualCapex(capexRows, baseCfg.base_year || 2027))
+          : sumMap(extractAnnualOpex(opexRows, baseCfg.base_year || 2027));
 
       sweepResults.push({
         sensitivity_run_id,
         variable: sweep.variable,
         variable_label: sweep.label,
         base_value: baseTotal,
-        low_factor: sweep.factor_low,
-        high_factor: sweep.factor_high,
-        low_value: baseTotal * sweep.factor_low,
-        high_value: baseTotal * sweep.factor_high,
+        low_factor: eff.low,
+        high_factor: eff.high,
+        low_value: baseTotal * eff.low,
+        high_value: baseTotal * eff.high,
         base_npv: baseNpv,
         low_npv: lowNpv,
         high_npv: highNpv,

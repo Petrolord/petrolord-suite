@@ -734,6 +734,45 @@ describe('EPE engine v3.6: discounting convention and valuation date (Wave B 2.3
   });
 });
 
+describe('EPE engine v3.7: schedule delay (Wave C 3.1)', () => {
+  // Hand derivation (JV analytic case shifted +1, loss carryforward ON):
+  //   2030: no production/opex (shifted), capex 50M, depr 5M -> taxable -5M,
+  //         tax 0, net -50M.
+  //   2031: rev 100M, roy 20M, opex 10M, depr 5M -> taxable 65M, loss offset
+  //         5M -> tax 30M, net 40M.
+  //   2032: taxable 65M -> tax 32.5M, net 37.5M.
+  const cfg = {
+    fiscal_regime: 'JV', base_year: 2030,
+    oil_price_usd_bbl: 100, gas_price_usd_mscf: 0, condensate_price_usd_bbl: 0,
+    discount_rate_pct: 10, inflation_rate_pct: 0,
+    oil_price_escalator_pct: 0, gas_price_escalator_pct: 0,
+    condensate_price_escalator_pct: 0, opex_escalator_pct: 0, capex_escalator_pct: 0,
+    present_value_basis: 'nominal',
+    jv_working_interest_pct: 100, jv_royalty_pct: 20, jv_tax_rate_pct: 50,
+  };
+  const input = {
+    prodRows: [{ year: 2030, well1_oil_bbl: 1_000_000 }, { year: 2031, well1_oil_bbl: 1_000_000 }],
+    capexRows: [{ year: 2030, amount_usd: 50_000_000 }],
+    opexRows: [{ year: 2030, total_opex_usd: 10_000_000 }, { year: 2031, total_opex_usd: 10_000_000 }],
+  };
+
+  it('shifts production and opex, keeps capex and its allowances on schedule', () => {
+    const { cashFlowData, kpis } = computeCashFlow({ cfg: { ...cfg, schedule_shift_years: 1 }, ...input });
+    expect(cashFlowData.map(d => d.year)).toEqual([2030, 2031, 2032]);
+    expect(cashFlowData[0].gross_revenue).toBe(0);
+    expect(cashFlowData[0].capex).toBeCloseTo(50_000_000, 2);
+    expect(cashFlowData[0].net_cash_flow).toBeCloseTo(-50_000_000, 2);
+    expect(cashFlowData[1].tax).toBeCloseTo(30_000_000, 2);       // loss relief carried in
+    expect(cashFlowData[1].net_cash_flow).toBeCloseTo(40_000_000, 2);
+    expect(cashFlowData[2].tax).toBeCloseTo(32_500_000, 2);
+    expect(kpis.npv).toBeCloseTo(-50_000_000 + 40_000_000 / 1.1 + 37_500_000 / 1.21, 2);
+    expect(kpis.schedule_shift_years).toBe(1);
+    // A delay must destroy value vs the base schedule.
+    const base = computeCashFlow({ cfg, ...input });
+    expect(kpis.npv).toBeLessThan(base.kpis.npv);
+  });
+});
+
 describe('EPE engine: CPR cessation forfeiture (EPE.md §4.1)', () => {
   const { cashFlowData, kpis } = computeCashFlow({
     cfg: { ...PIA_WORKED_EXAMPLE_CFG },
