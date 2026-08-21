@@ -331,14 +331,19 @@ export default function Line2dPanel({
     setBusy(true);
     setError(null);
     try {
-      const { row } = await ingestLine2d({
+      const { row, warnings } = await ingestLine2d({
         file,
         mapping: preset.mapping,
         nativeCrs: crsTag,
         onProgress: setProgress,
         cancelToken: cancelRef.current,
       });
-      toast({ title: '2D line imported', description: `${row.name} is ready.` });
+      toast({
+        title: '2D line imported',
+        description: warnings?.length
+          ? `${row.name} is ready, with ${warnings.length} scan warning${warnings.length > 1 ? 's' : ''} (shown beside the line).`
+          : `${row.name} is ready.`,
+      });
       setImportOpen(false);
       setFile(null);
       setProgress(null);
@@ -511,6 +516,12 @@ export default function Line2dPanel({
         {busy && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
       </div>
 
+      {(line?.survey_meta?.ingest?.warnings?.length || 0) > 0 && (
+        <div className="text-xs text-amber-300 shrink-0" data-testid="line2d-warnings">
+          <span className="text-amber-400 font-medium">Import warnings: </span>
+          {line.survey_meta.ingest.warnings.join(' ')}
+        </div>
+      )}
       {error && <div className="text-xs text-red-400 shrink-0" data-testid="line2d-error">{error}</div>}
       {!line && !error && (
         <p className="text-xs text-slate-500 p-2" data-testid="line2d-empty">

@@ -266,7 +266,12 @@ export async function ingestLine2d({
         bbox: manifest.geometry.bbox,
         stats: manifest.stats,
         storage_bytes: stripBytes + converted.navBlob.byteLength,
-        ingest: row.survey_meta.ingest,
+        ingest: {
+          ...row.survey_meta.ingest,
+          // scan warnings persist with the line so they stay reviewable
+          // after the import dialog closes
+          ...(finish.summary.warnings?.length ? { warnings: finish.summary.warnings } : {}),
+        },
         ...(converted.converted ? { crs_converted_from: nativeTag } : {}),
       },
       updated_at: new Date().toISOString(),
@@ -274,7 +279,7 @@ export async function ingestLine2d({
     .eq('id', lineId)
     .select().single();
   if (updError) throw new Error(`Line imported but registration failed: ${updError.message}`);
-  return { lineId, manifest, row: updated };
+  return { lineId, manifest, row: updated, warnings: finish.summary.warnings || [] };
 }
 
 // ---- loading --------------------------------------------------------------
