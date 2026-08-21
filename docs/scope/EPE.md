@@ -184,6 +184,41 @@ EpeHelpGuide component covers 9 sections: overview, quick start, case setup, dat
 
 ---
 
+## 3b. Engine v3.5 — Wave A correctness round (2026-08-21)
+
+Per `docs/scope/EPE-Industry-Audit.md` Band 1, all validated in
+`epe-engine.test.ts` with the PIA worked example byte-identical:
+
+- **Tax-loss carryforward** (default ON): JV taxable income and PIA HCT/CIT
+  chargeable profits each carry a loss pool; a negative year banks its loss
+  and offsets the next positive year. Kill switch
+  `apply_loss_carryforward=false` reproduces pre-3.5 clamp-at-zero runs.
+  PSC needs no pool (its tax base is structurally non-negative; cost losses
+  ride cost recovery). TET/Dev-Levy assessable bases deliberately get no
+  loss relief. KPI `tax_losses_unused_at_cessation` mirrors CPR forfeiture.
+- **HCT base = crude + condensate only** (PIA charges HCT on liquids; gas
+  profits are CIT-only). Directly attributable oil royalties deducted in
+  full; shared costs (claimed opex, HCDT, capital allowance) apportioned by
+  liquids revenue share. Escape hatch `pia_hct_include_gas_revenue=true`.
+  Gas-weighted PIA numbers changed (they were over-taxed); oil-only cases
+  identical. Revenue-share apportionment is the practical convention; a
+  cross-check against the PIA text for a published gas-weighted example
+  remains a literature-gated to-do.
+- **IRR solver**: Newton fast path unchanged; unconverged cases fall back to
+  bisection and return null when no sign change brackets a root.
+- **Ambiguous cost aliases fail loudly**: a row populating two different
+  cost columns (e.g. `amount_usd` and `cost_usd` with different values)
+  throws instead of silently taking the first; identical duplicates pass.
+- **Economic limit test** nets the regime's royalty out of the tail check
+  (net operating income convention).
+- **Provenance**: `kpis.engine_version` stamps every result; `epe_runs`
+  carries `status`/`error_message` (see §4.2b closure).
+- **Ingestion**: uploads replace the slot's files by default (opt-out kept
+  for complementary files); multi-file slots warn about double-counting.
+- **Risk tab**: seed round-trip (set/reuse) makes MC runs reproducible.
+
+---
+
 ## 4. What is NOT YET BUILT — known gaps
 
 ### 4.1 Untested code paths (engine code exists but no validation case)
@@ -208,8 +243,10 @@ Risk level: low (math is straightforward). But a future Reservoir Balance-style 
   byte-count parity against live. The retired PES `econ_*` family (17
   tables + view + `integration_snapshots`) was dropped the same day
   (`20260817100000`).
-- **`epe_runs` has no status/error columns** (unlike `epe_sensitivity_runs`);
-  the console now deletes the run row on engine failure as a stopgap.
+- ~~`epe_runs` has no status/error columns~~ — **CLOSED 2026-08-21 (Wave A)**:
+  `20260821170000_epe_runs_status.sql` added `status`/`error_message`; the
+  engine stamps complete/failed and failed runs are kept and surfaced in
+  Run History instead of being deleted.
 - **Working interest applies only to JV** — PSC and PIA results are 100%
   project-level; equity-share reporting needs a WI parameter in both.
 - **Flat price + escalator only** — no per-year price decks, differentials,
