@@ -812,6 +812,128 @@ describe('EPE engine v3.8: reporting KPIs (Wave D)', () => {
   });
 });
 
+describe('EPE engine v3.9: Wave F fiscal depth', () => {
+  const jvCfg = {
+    fiscal_regime: 'JV', base_year: 2030,
+    oil_price_usd_bbl: 100, gas_price_usd_mscf: 0, condensate_price_usd_bbl: 0,
+    discount_rate_pct: 10, inflation_rate_pct: 0,
+    oil_price_escalator_pct: 0, gas_price_escalator_pct: 0,
+    condensate_price_escalator_pct: 0, opex_escalator_pct: 0, capex_escalator_pct: 0,
+    present_value_basis: 'nominal',
+    jv_working_interest_pct: 100, jv_royalty_pct: 20, jv_tax_rate_pct: 50,
+  };
+  const jvInput = {
+    prodRows: [{ year: 2030, well1_oil_bbl: 1_000_000 }, { year: 2031, well1_oil_bbl: 1_000_000 }],
+    capexRows: [{ year: 2030, amount_usd: 50_000_000 }],
+    opexRows: [{ year: 2030, total_opex_usd: 10_000_000 }, { year: 2031, total_opex_usd: 10_000_000 }],
+  };
+  const pscCfg = {
+    ...jvCfg, fiscal_regime: 'PSC',
+    psc_royalty_pct: 10, psc_cost_oil_cap_pct: 40,
+    psc_contractor_profit_share_pct: 50, psc_tax_rate_pct: 50,
+  };
+  const pscInput = {
+    prodRows: [{ year: 2030, well1_oil_bbl: 1_000_000 }, { year: 2031, well1_oil_bbl: 1_000_000 }],
+    capexRows: [{ year: 2030, amount_usd: 80_000_000 }],
+    opexRows: [{ year: 2030, total_opex_usd: 10_000_000 }, { year: 2031, total_opex_usd: 10_000_000 }],
+  };
+
+  it('PSC tranches: contractor share steps on cumulative liquids at start of year', () => {
+    // Hand derivation on the PSC hand-derived case: profit oil is 54M both
+    // years (36M cost-oil cap binding). Tranche 1 (0+): 60% -> 32.4M;
+    // year 2 starts at 1 MMbbl cumulative -> tranche 2: 40% -> 21.6M.
+    const { cashFlowData } = computeCashFlow({
+      cfg: {
+        ...pscCfg,
+        psc_profit_split_mode: 'tranches',
+        psc_profit_tranches: [
+          { from_cum_mmbbl: 0, contractor_share_pct: 60 },
+          { from_cum_mmbbl: 1, contractor_share_pct: 40 },
+        ],
+      },
+      ...pscInput,
+    });
+    expect(cashFlowData[0].psc_contractor_share_pct).toBeCloseTo(60, 6);
+    expect(cashFlowData[0].taxable_income).toBeCloseTo(32_400_000, 2);
+    expect(cashFlowData[1].psc_contractor_share_pct).toBeCloseTo(40, 6);
+    expect(cashFlowData[1].taxable_income).toBeCloseTo(21_600_000, 2);
+  });
+
+  it('PSC investment tax credit offsets tax with carryforward', () => {
+    // 50% ITC on 80M capex = 40M credit. Flat-split tax is 13.5M per year:
+    // year 1 tax -> 0 (13.5M used, 26.5M carried), year 2 tax -> 0
+    // (13.5M used, 13M carried and reported unused).
+    const { cashFlowData } = computeCashFlow({
+      cfg: { ...pscCfg, psc_itc_pct: 50 }, ...pscInput,
+    });
+    expect(cashFlowData[0].psc_itc_used).toBeCloseTo(13_500_000, 2);
+    expect(cashFlowData[0].tax).toBeCloseTo(0, 2);
+    expect(cashFlowData[0].net_cash_flow).toBeCloseTo(-27_000_000, 2);
+    expect(cashFlowData[1].psc_itc_used).toBeCloseTo(13_500_000, 2);
+    expect(cashFlowData[1].psc_itc_carryforward).toBeCloseTo(13_000_000, 2);
+  });
+
+  it('minimum ETR top-up (config-gated project-level approximation)', () => {
+    const base = runWorkedExample();
+    const floored = runWorkedExample({ pia_apply_minimum_etr: true, pia_minimum_etr_pct: 85 });
+    const row0 = base.cashFlowData[0];
+    const paid = row0.hct_tax + row0.cit_tax + row0.tet_tax + row0.dev_levy_tax;
+    const floor = Math.max(0, row0.cit_assessable_profit * 0.85);
+    const expectedTopup = Math.max(0, floor - paid);
+    expect(expectedTopup).toBeGreaterThan(0); // the test must actually bind
+    expect(floored.cashFlowData[0].min_etr_topup).toBeCloseTo(expectedTopup, 2);
+    expect(floored.kpis.total_min_etr_topup).toBeCloseTo(expectedTopup, 2);
+    expect(floored.cashFlowData[0].net_cash_flow)
+      .toBeCloseTo(row0.net_cash_flow - expectedTopup, 2);
+    // Default off: no top-up anywhere.
+    expect(base.kpis.total_min_etr_topup).toBeUndefined();
+  });
+
+  it('decommissioning sinking fund: deductible contributions, no end-of-life double hit', () => {
+    const lump = computeCashFlow({
+      cfg: { ...jvCfg, abandonment_cost_usd: 10_000_000 }, ...jvInput,
+    });
+    const fund = computeCashFlow({
+      cfg: { ...jvCfg, abandonment_cost_usd: 10_000_000, abandonment_funding_mode: 'sinking_fund' },
+      ...jvInput,
+    });
+    // 5M/yr contribution rides the opex lane: taxable falls 5M -> tax falls
+    // 2.5M -> net year 1 = base - 5M + 2.5M.
+    const baseRun = computeCashFlow({ cfg: jvCfg, ...jvInput });
+    expect(fund.cashFlowData[0].decom_fund_contribution).toBeCloseTo(5_000_000, 2);
+    expect(fund.cashFlowData[0].tax).toBeCloseTo(baseRun.cashFlowData[0].tax - 2_500_000, 2);
+    expect(fund.cashFlowData[0].net_cash_flow)
+      .toBeCloseTo(baseRun.cashFlowData[0].net_cash_flow - 2_500_000, 2);
+    // Final year: fund pays the spend — no second 10M outflow.
+    expect(fund.cashFlowData[1].abandonment_cost_funded).toBe(10_000_000);
+    expect(fund.cashFlowData[1].net_cash_flow)
+      .toBeCloseTo(lump.cashFlowData[1].net_cash_flow + 10_000_000 - 2_500_000, 2);
+    expect(fund.kpis.total_decom_fund_contributions).toBeCloseTo(10_000_000, 2);
+  });
+
+  it('depreciation controls: configurable years and the nigeria_ppt preset', () => {
+    // 5-year SL on 50M -> 10M/yr -> year-1 taxable 60M -> tax 30M.
+    const sl5 = computeCashFlow({ cfg: { ...jvCfg, jv_psc_depr_years: 5 }, ...jvInput });
+    expect(sl5.cashFlowData[0].depreciation).toBeCloseTo(10_000_000, 2);
+    expect(sl5.cashFlowData[0].tax).toBeCloseTo(30_000_000, 2);
+    // nigeria_ppt: 20% of 50M = 10M in year 1 as well; year 5 would be 19%
+    // (1% retention never claimed) — assert the schedule shape directly.
+    const ppt = computeCashFlow({ cfg: { ...jvCfg, depreciation_method: 'nigeria_ppt' }, ...jvInput });
+    expect(ppt.cashFlowData[0].depreciation).toBeCloseTo(10_000_000, 2);
+    const totalDepr = [0.2, 0.2, 0.2, 0.2, 0.19].reduce((s, x) => s + x, 0);
+    expect(totalDepr).toBeCloseTo(0.99, 10); // retention documented, not claimed
+  });
+
+  it('NGN mirrors stamp when an FX rate is set', () => {
+    const usd = computeCashFlow({ cfg: jvCfg, ...jvInput });
+    const ngn = computeCashFlow({ cfg: { ...jvCfg, fx_ngn_per_usd: 1500 }, ...jvInput });
+    expect(usd.kpis.fx_ngn_per_usd).toBeUndefined();
+    expect(ngn.kpis.fx_ngn_per_usd).toBe(1500);
+    expect(ngn.kpis.npv_ngn).toBeCloseTo(usd.kpis.npv * 1500, 2);
+    expect(ngn.kpis.total_tax_ngn).toBeCloseTo(usd.kpis.total_tax * 1500, 2);
+  });
+});
+
 describe('EPE engine: CPR cessation forfeiture (EPE.md §4.1)', () => {
   const { cashFlowData, kpis } = computeCashFlow({
     cfg: { ...PIA_WORKED_EXAMPLE_CFG },

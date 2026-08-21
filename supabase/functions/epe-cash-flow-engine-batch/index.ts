@@ -173,7 +173,14 @@ Deno.serve(async (req) => {
 
     // Load CSV data once
     const [prodRes, capexRes, opexRes] = await Promise.all([
-      supabase.from('epe_production_volumes').select('data').eq('case_id', run.case_id),
+      (() => {
+        // Wave F (3.6): a config may pin a reserves scenario; null matches
+        // untagged (base) production rows.
+        let q = supabase.from('epe_production_volumes').select('data').eq('case_id', run.case_id);
+        return baseCfg.production_scenario
+          ? q.eq('scenario_label', baseCfg.production_scenario)
+          : q.is('scenario_label', null);
+      })(),
       supabase.from('epe_capex').select('data').eq('case_id', run.case_id),
       supabase.from('epe_opex').select('data').eq('case_id', run.case_id),
     ]);

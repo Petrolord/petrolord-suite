@@ -49,7 +49,14 @@ Deno.serve(async (req) => {
     if (cfgErr) throw new Error(`Run config lookup failed: ${cfgErr.message}`);
 
     const [prodRes, capexRes, opexRes] = await Promise.all([
-      supabase.from('epe_production_volumes').select('data').eq('case_id', run.case_id),
+      (() => {
+        // Wave F (3.6): a config may pin a reserves scenario; null matches
+        // untagged (base) production rows.
+        let q = supabase.from('epe_production_volumes').select('data').eq('case_id', run.case_id);
+        return cfg.production_scenario
+          ? q.eq('scenario_label', cfg.production_scenario)
+          : q.is('scenario_label', null);
+      })(),
       supabase.from('epe_capex').select('data').eq('case_id', run.case_id),
       supabase.from('epe_opex').select('data').eq('case_id', run.case_id),
     ]);

@@ -1,6 +1,31 @@
 // supabase/functions/_shared/epe-engine.ts
 //
-// PETROLORD EPE CASH FLOW ENGINE — Shared compute library (v3.8, 2026-08-21)
+// PETROLORD EPE CASH FLOW ENGINE — Shared compute library (v3.9, 2026-08-21)
+//
+// v3.9 changes (Wave F fiscal depth, docs/scope/EPE-Industry-Audit.md):
+//   - PSC profit-oil tranches (psc_profit_split_mode='tranches' with
+//     psc_profit_tranches: [{from_cum_mmbbl, contractor_share_pct}], applied
+//     on cumulative liquids) and Investment Tax Credit (psc_itc_pct of that
+//     year's capex, credited against PSC tax with carryforward of unused
+//     credit). Flat split stays the default and is byte-identical.
+//   - Minimum effective tax rate top-up (pia_apply_minimum_etr, default
+//     off): per-year top-up when PIA taxes fall short of
+//     pia_minimum_etr_pct x CIT assessable profit. DELIBERATE PROJECT-LEVEL
+//     APPROXIMATION of NTA 2025 s.57 (real min-ETR is company-level with
+//     NGN turnover thresholds); the KPI reports the top-up separately so
+//     reviewers can strip it.
+//   - Decommissioning sinking fund (abandonment_funding_mode='sinking_fund'):
+//     equal annual contributions from abandonment_fund_start_year (default:
+//     first modeled year) through the abandonment year; contributions are
+//     tax-deductible in the regime bases (PIA s.233-style treatment) and the
+//     end-of-life spend is paid from the fund (no second cash hit). Lump-sum
+//     post-tax remains the default.
+//   - Depreciation controls: jv_psc_depr_years (default 10, now
+//     configurable) and depreciation_method 'nigeria_ppt' preset
+//     (20/20/20/20/19 with the statutory 1% retention held until disposal —
+//     the retained 1% is deliberately never claimed in-model).
+//   - NGN mirrors: cfg.fx_ngn_per_usd stamps kpis.fx_ngn_per_usd and
+//     npv_ngn / total_revenue_ngn / total_tax_ngn (flat FX, v1).
 //
 // v3.8 changes (Wave D reporting, docs/scope/EPE-Industry-Audit.md):
 //   - kpis.npv_profile: NPV at a standard discount-rate vector (0/5/8/10/
@@ -113,7 +138,7 @@
 //   instead of TET 2.5%, with the volume-cap and CPR-forfeiture behavior.
 
 // Stamped into kpis.engine_version on every run (Wave A provenance).
-export const ENGINE_VERSION = '3.8.0';
+export const ENGINE_VERSION = '3.9.0';
 
 // ============================================================================
 // TYPES
@@ -525,7 +550,18 @@ export function applyJV(
   };
 }
 
-export function applyPSC(inputs: RegimeInputs, royaltyRate: number, costOilCapPct: number, contractorProfitShare: number, taxRate: number): RegimeOutputs {
+// v3.9 (Wave F): optional tranche split and Investment Tax Credit.
+// `trancheShare` (when provided) replaces the flat contractor share; `itc`
+// is this year's credit (itcPct x capex) plus any carried unused credit,
+// applied against the tax line; unused credit is returned for carryforward.
+export function applyPSC(
+  inputs: RegimeInputs,
+  royaltyRate: number,
+  costOilCapPct: number,
+  contractorProfitShare: number,
+  taxRate: number,
+  itcAvailable = 0,
+): RegimeOutputs & { itc_used: number; itc_carryforward_after: number } {
   const gross = inputs.gross_revenue;
   const royalty = gross * royaltyRate;
   const revenueAfterRoyalty = gross - royalty;
@@ -535,9 +571,36 @@ export function applyPSC(inputs: RegimeInputs, royaltyRate: number, costOilCapPc
   const carryForward = recoverableThisYear - costRecovery;
   const profitOil = revenueAfterRoyalty - costRecovery;
   const contractorProfitOil = profitOil * contractorProfitShare;
-  const tax = Math.max(0, contractorProfitOil * taxRate);
+  const taxBeforeCredit = Math.max(0, contractorProfitOil * taxRate);
+  const itcUsed = Math.min(itcAvailable, taxBeforeCredit);
+  const tax = taxBeforeCredit - itcUsed;
   const net = costRecovery + contractorProfitOil - tax - inputs.capex - inputs.opex;
-  return { royalty, taxable_income: contractorProfitOil, tax, net_cash_flow: net, cumulative_unrecovered_cost_after: carryForward };
+  return {
+    royalty, taxable_income: contractorProfitOil, tax, net_cash_flow: net,
+    cumulative_unrecovered_cost_after: carryForward,
+    itc_used: itcUsed,
+    itc_carryforward_after: itcAvailable - itcUsed,
+  };
+}
+
+// Contractor profit share for the year from a cumulative-liquids tranche
+// table: [{from_cum_mmbbl, contractor_share_pct}] sorted ascending; the
+// tranche whose from_cum_mmbbl is the highest at or below the cumulative
+// liquids AT THE START of the year applies for the whole year (annual-model
+// simplification; document mid-year crossings as a known approximation).
+export function pscTrancheShare(tranches: any[], cumLiquidsBbl: number): number | null {
+  if (!Array.isArray(tranches) || tranches.length === 0) return null;
+  const rows = tranches
+    .map((t) => ({ from: Number(t.from_cum_mmbbl), share: Number(t.contractor_share_pct) }))
+    .filter((t) => Number.isFinite(t.from) && Number.isFinite(t.share))
+    .sort((a, b) => a.from - b.from);
+  if (rows.length === 0) return null;
+  let share = rows[0].share;
+  const cumMM = cumLiquidsBbl / 1_000_000;
+  for (const t of rows) {
+    if (t.from <= cumMM) share = t.share; else break;
+  }
+  return share / 100;
 }
 
 // ============================================================================
@@ -1159,9 +1222,31 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
       years.sort((a, b) => a - b);
     }
   }
+  // v3.9 (Wave F): decommissioning sinking fund. Equal annual contributions
+  // from the start year through the abandonment year; contributions deduct
+  // in the regime tax bases and the final spend draws on the fund (no
+  // second cash hit). Default stays the post-tax lump sum.
+  const sinkingFund = cfg.abandonment_funding_mode === 'sinking_fund'
+    && abandonmentCost > 0 && abandonmentYear !== null;
+  const fundContribution = new Map<number, number>();
+  if (sinkingFund) {
+    const reqStart = parseInt(String(cfg.abandonment_fund_start_year ?? ''));
+    const fundStart = Number.isFinite(reqStart) && reqStart > 0
+      ? Math.min(reqStart, abandonmentYear!) : years[0];
+    const fundYears = years.filter(y => y >= fundStart && y <= abandonmentYear!);
+    const perYear = abandonmentCost / Math.max(1, fundYears.length);
+    for (const y of fundYears) fundContribution.set(y, perYear);
+  }
 
   const isPIA = cfg.fiscal_regime === 'PIA';
-  const DEPR_LIFE = isPIA ? (cfg.pia_capex_recovery_years || 5) : 10;
+  // v3.9 (Wave F): JV/PSC life is configurable; 'nigeria_ppt' applies the
+  // statutory PPT-era schedule 20/20/20/20/19 with the 1% retention held
+  // until disposal (deliberately never claimed in-model).
+  const deprMethod = cfg.depreciation_method === 'nigeria_ppt' && !isPIA ? 'nigeria_ppt' : 'straight_line';
+  const DEPR_LIFE = isPIA
+    ? (cfg.pia_capex_recovery_years || 5)
+    : Math.max(1, Math.round(Number(cfg.jv_psc_depr_years ?? 10) || 10));
+  const PPT_SCHEDULE = [0.20, 0.20, 0.20, 0.20, 0.19];
 
   const annualDepr = new Map<number, number>();
   const annualCapexInflated = new Map<number, number>();
@@ -1169,9 +1254,16 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
     const t = capexYear - baseYear;
     const inflatedCapex = capexAmount * Math.pow(1 + capexEscalator, t);
     annualCapexInflated.set(capexYear, inflatedCapex);
-    const annualPortion = inflatedCapex / DEPR_LIFE;
-    for (let y = capexYear; y < capexYear + DEPR_LIFE; y++) {
-      annualDepr.set(y, (annualDepr.get(y) || 0) + annualPortion);
+    if (deprMethod === 'nigeria_ppt') {
+      PPT_SCHEDULE.forEach((pct, i) => {
+        const y = capexYear + i;
+        annualDepr.set(y, (annualDepr.get(y) || 0) + inflatedCapex * pct);
+      });
+    } else {
+      const annualPortion = inflatedCapex / DEPR_LIFE;
+      for (let y = capexYear; y < capexYear + DEPR_LIFE; y++) {
+        annualDepr.set(y, (annualDepr.get(y) || 0) + annualPortion);
+      }
     }
   }
 
@@ -1190,6 +1282,9 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
   };
   let jvLossCarryforward = 0;
   const applyLossRelief = cfg.apply_loss_carryforward !== false;
+  // v3.9 (Wave F): PSC tranche/ITC state
+  let pscItcCarry = 0;
+  let pscCumLiquidsBbl = Number(cfg.psc_prior_cumulative_liquids_bbl ?? 0) || 0;
 
   for (const year of years) {
     const t = year - baseYear;
@@ -1252,6 +1347,43 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
       const { output: pia, newState } = applyPIA(piaInputs, cfg as unknown as PIAConfig, piaState, framework);
       piaState = newState;
 
+      // v3.9 (Wave F): decommissioning fund contribution — deductible in the
+      // HCT (liquids share) and CIT bases outside the CPR machinery, cash
+      // out this year. Levy bases (HCDT/NDDC) deliberately unaffected.
+      const decomContribution = fundContribution.get(year) || 0;
+      if (decomContribution > 0) {
+        const oilShareForFund = pia.hct_assessable_profit !== 0 || grossRev > 0
+          ? (grossRev > 0 ? oilAndCondRev / grossRev : 0) : 0;
+        const hctRelief = decomContribution * oilShareForFund * (pia.hct_chargeable_profit > 0 ? 1 : 0);
+        const hctRateEff = pia.hct_chargeable_profit > 0 && pia.hct_tax > 0
+          ? pia.hct_tax / Math.max(1e-9, pia.hct_chargeable_profit) : 0;
+        const hctSaving = Math.min(pia.hct_tax, hctRelief * hctRateEff);
+        const citRateEff = (Number(cfg.pia_cit_rate_pct ?? 30) / 100);
+        const citSaving = Math.min(pia.cit_tax, decomContribution * citRateEff);
+        pia.hct_tax -= hctSaving;
+        pia.cit_tax -= citSaving;
+        pia.total_tax -= hctSaving + citSaving;
+        pia.net_cash_flow += hctSaving + citSaving - decomContribution;
+        baseRow.decom_fund_contribution = decomContribution;
+        baseRow.decom_fund_tax_relief = hctSaving + citSaving;
+      }
+
+      // v3.9 (Wave F): minimum effective tax rate top-up (config-gated,
+      // PROJECT-LEVEL APPROXIMATION of NTA 2025 s.57 — the statutory test is
+      // company-level with NGN turnover thresholds; reviewers can strip the
+      // reported top-up line).
+      if (cfg.pia_apply_minimum_etr === true) {
+        const etr = (Number(cfg.pia_minimum_etr_pct ?? 15) || 15) / 100;
+        const floor = Math.max(0, pia.cit_assessable_profit * etr);
+        const paid = pia.hct_tax + pia.cit_tax + pia.tet_tax + pia.dev_levy_tax;
+        if (paid < floor) {
+          const topup = floor - paid;
+          pia.total_tax += topup;
+          pia.net_cash_flow -= topup;
+          baseRow.min_etr_topup = topup;
+        }
+      }
+
       regOut = {
         royalty: pia.total_royalties,
         taxable_income: pia.hct_chargeable_profit + pia.cit_chargeable_profit,
@@ -1295,24 +1427,42 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
       });
 
     } else if (cfg.fiscal_regime === 'PSC') {
-      regOut = applyPSC(
-        { gross_revenue: grossRev, capex: capexNominal, opex: opexInflated, depreciation: depr, cumulative_unrecovered_cost: pscCarryforward },
+      // v3.9 (Wave F): tranche share from cumulative liquids at the START of
+      // the year (annual-model simplification); ITC = pct of this year's
+      // capex, credited against tax with carryforward; decom contribution
+      // rides the opex lane (recoverable cost + cash out).
+      const decomContributionPsc = fundContribution.get(year) || 0;
+      const trancheShare = cfg.psc_profit_split_mode === 'tranches'
+        ? pscTrancheShare(cfg.psc_profit_tranches, pscCumLiquidsBbl) : null;
+      const shareEff = trancheShare ?? (Number(cfg.psc_contractor_profit_share_pct) / 100);
+      const itcThisYear = (Number(cfg.psc_itc_pct ?? 0) || 0) / 100 * capexNominal;
+      const pscOut = applyPSC(
+        { gross_revenue: grossRev, capex: capexNominal, opex: opexInflated + decomContributionPsc, depreciation: depr, cumulative_unrecovered_cost: pscCarryforward },
         Number(cfg.psc_royalty_pct) / 100,
         Number(cfg.psc_cost_oil_cap_pct) / 100,
-        Number(cfg.psc_contractor_profit_share_pct) / 100,
-        Number(cfg.psc_tax_rate_pct) / 100
+        shareEff,
+        Number(cfg.psc_tax_rate_pct) / 100,
+        pscItcCarry + itcThisYear
       );
-      pscCarryforward = regOut.cumulative_unrecovered_cost_after;
+      pscCarryforward = pscOut.cumulative_unrecovered_cost_after;
+      pscItcCarry = pscOut.itc_carryforward_after;
+      pscCumLiquidsBbl += v.oil_bbl + v.condensate_bbl;
+      regOut = pscOut;
       Object.assign(baseRow, {
         royalty: regOut.royalty,
         taxable_income: regOut.taxable_income,
         tax: regOut.tax,
         net_cash_flow: regOut.net_cash_flow,
         netCashFlow: regOut.net_cash_flow,
+        psc_contractor_share_pct: shareEff * 100,
+        ...(itcThisYear > 0 || pscOut.itc_used > 0
+          ? { psc_itc_used: pscOut.itc_used, psc_itc_carryforward: pscOut.itc_carryforward_after } : {}),
+        ...(decomContributionPsc > 0 ? { decom_fund_contribution: decomContributionPsc } : {}),
       });
     } else {
+      const decomContributionJv = fundContribution.get(year) || 0;
       const jvOut = applyJV(
-        { gross_revenue: grossRev, capex: capexNominal, opex: opexInflated, depreciation: depr, cumulative_unrecovered_cost: 0 },
+        { gross_revenue: grossRev, capex: capexNominal, opex: opexInflated + decomContributionJv, depreciation: depr, cumulative_unrecovered_cost: 0 },
         Number(cfg.jv_working_interest_pct) / 100,
         Number(cfg.jv_royalty_pct) / 100,
         Number(cfg.jv_tax_rate_pct) / 100,
@@ -1329,6 +1479,7 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
         netCashFlow: regOut.net_cash_flow,
         loss_offset_used: jvOut.loss_offset_used,
         loss_carryforward: jvOut.loss_carryforward_after,
+        ...(decomContributionJv > 0 ? { decom_fund_contribution: decomContributionJv } : {}),
       });
     }
 
@@ -1349,6 +1500,8 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
         'cpr_cap', 'cpr_costs_claimed', 'cpr_deferred_to_next',
         'hct_loss_offset_used', 'cit_loss_offset_used',
         'hct_loss_carryforward', 'cit_loss_carryforward',
+        'min_etr_topup', 'decom_fund_contribution', 'decom_fund_tax_relief',
+        'psc_itc_used', 'psc_itc_carryforward',
         'net_cash_flow', 'netCashFlow',
       ];
       for (const k of WI_SCALED_KEYS) {
@@ -1362,12 +1515,18 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
     }
 
     // v3.4: abandonment outflow lands after regime math (post-tax by design).
-    // Entered as the user's own share, so applied after WI scaling.
+    // Entered as the user's own share, so applied after WI scaling. v3.9:
+    // under a sinking fund the spend is paid FROM the fund (contributions
+    // already hit cash), so no second outflow here.
     if (abandonmentYear !== null && year === abandonmentYear) {
-      regOut.net_cash_flow -= abandonmentCost;
-      baseRow.abandonment_cost = abandonmentCost;
-      baseRow.net_cash_flow = regOut.net_cash_flow;
-      baseRow.netCashFlow = regOut.net_cash_flow;
+      if (sinkingFund) {
+        baseRow.abandonment_cost_funded = abandonmentCost;
+      } else {
+        regOut.net_cash_flow -= abandonmentCost;
+        baseRow.abandonment_cost = abandonmentCost;
+        baseRow.net_cash_flow = regOut.net_cash_flow;
+        baseRow.netCashFlow = regOut.net_cash_flow;
+      }
     }
 
     const deflator = Math.pow(1 + inflationRate, t);
@@ -1465,6 +1624,22 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
     kpis.tax_losses_unused_at_cessation = unusedTaxLosses;
   }
   if (scheduleShift !== 0) kpis.schedule_shift_years = scheduleShift;  // v3.7
+  // v3.9 (Wave F) diagnostics
+  const totalMinEtrTopup = evalRows.reduce((s, d) => s + (d.min_etr_topup || 0), 0);
+  if (totalMinEtrTopup > 0) kpis.total_min_etr_topup = totalMinEtrTopup;
+  const totalFundContrib = evalRows.reduce((s, d) => s + (d.decom_fund_contribution || 0), 0);
+  if (totalFundContrib > 0) {
+    kpis.total_decom_fund_contributions = totalFundContrib;
+    kpis.abandonment_funding_mode = 'sinking_fund';
+  }
+  const fxNgn = Number(cfg.fx_ngn_per_usd);
+  if (Number.isFinite(fxNgn) && fxNgn > 0) {
+    kpis.fx_ngn_per_usd = fxNgn;
+    kpis.npv_ngn = npvVal * fxNgn;
+    kpis.total_revenue_ngn = kpis.total_revenue * fxNgn;
+    kpis.total_tax_ngn = kpis.total_tax * fxNgn;
+    kpis.total_net_cash_flow_ngn = kpis.total_net_cash_flow * fxNgn;
+  }
 
   // Unit costs on a BOE basis (null when there are no volumes to divide by)
   kpis.unit_technical_cost_usd_per_boe = totalBoe > 0
