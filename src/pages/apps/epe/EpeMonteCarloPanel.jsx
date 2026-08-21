@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Loader2, Play } from 'lucide-react';
+import { Loader2, Play, Download, Plus, X } from 'lucide-react';
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, Legend as RLegend, ReferenceLine,
@@ -17,6 +17,11 @@ import {
 // docs/scope/Economics-ROADMAP.md). Sampling and fiscal math run
 // server-side in the epe-monte-carlo edge function; this panel only
 // configures distributions and renders the returned summaries.
+//
+// Wave C (docs/scope/EPE-Industry-Audit.md 3.3/3.4/3.5/3.7): per-variable
+// distribution types (the sampler always supported four; the UI now exposes
+// them), an editable correlation list, IRR and payback distributions,
+// NPV standard error + convergence trace, and a CSV results export.
 
 const VAR_LABELS = {
   oil_price: 'Oil price ($/bbl)',
@@ -25,6 +30,24 @@ const VAR_LABELS = {
   opex_scale: 'OPEX multiplier',
   production_scale: 'Production multiplier',
 };
+const VAR_KEYS = Object.keys(VAR_LABELS);
+
+const DIST_TYPES = [
+  ['triangular', 'Triangular'],
+  ['uniform', 'Uniform'],
+  ['normal', 'Normal'],
+  ['lognormal', 'Lognormal'],
+];
+
+// Which numeric cells each distribution type shows. Normal and lognormal are
+// parameterized by mean and standard deviation (value space); their Low/High
+// act as optional truncation bounds, matching the sampler's Dist contract.
+const CELLS_BY_TYPE = {
+  triangular: [['min', 'Low'], ['mode', 'Most likely'], ['max', 'High']],
+  uniform: [['min', 'Low'], ['max', 'High']],
+  normal: [['mean', 'Mean'], ['stdDev', 'Std dev'], ['min', 'Low (opt.)'], ['max', 'High (opt.)']],
+  lognormal: [['mean', 'Mean'], ['stdDev', 'Std dev'], ['min', 'Low (opt.)'], ['max', 'High (opt.)']],
+};
 
 const fmtM = (n) => {
   if (n == null || isNaN(n)) return 'N/A';
@@ -32,6 +55,8 @@ const fmtM = (n) => {
   if (Math.abs(m) >= 1000) return `$${(m / 1000).toFixed(2)}B`;
   return `$${m.toFixed(1)}M`;
 };
+const fmtPct = (n) => (n == null || isNaN(n) ? 'N/A' : `${Number(n).toFixed(1)}%`);
+const fmtYr = (n) => (n == null || isNaN(n) ? 'N/A' : `${Number(n).toFixed(2)} yr`);
 
 const AXIS_TICK = { fontSize: CHART_TYPOGRAPHY.axisFontSize, fill: CHART_COLORS.axisText };
 
@@ -42,7 +67,7 @@ const StatCard = ({ title, value, accent }) => (
   </div>
 );
 
-const TriangularRow = ({ varKey, spec, onChange }) => (
+const DistRow = ({ varKey, spec, onChange }) => (
   <div className="flex flex-wrap items-center gap-3 py-2 border-b border-white/10">
     <label className="flex items-center gap-2 w-56 text-sm text-white">
       <input
@@ -53,13 +78,21 @@ const TriangularRow = ({ varKey, spec, onChange }) => (
       />
       {VAR_LABELS[varKey]}
     </label>
-    {['min', 'mode', 'max'].map((field) => (
+    <select
+      value={spec.type}
+      disabled={!spec.enabled}
+      onChange={(e) => onChange(varKey, { ...spec, type: e.target.value })}
+      className="px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-xs disabled:opacity-40"
+    >
+      {DIST_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+    </select>
+    {CELLS_BY_TYPE[spec.type].map(([field, label]) => (
       <label key={field} className="text-xs text-slate-300 flex items-center gap-1">
-        {field === 'min' ? 'Low' : field === 'mode' ? 'Most likely' : 'High'}
+        {label}
         <input
           type="number"
           step="any"
-          value={spec[field]}
+          value={spec[field] ?? ''}
           disabled={!spec.enabled}
           onChange={(e) => onChange(varKey, { ...spec, [field]: e.target.value })}
           className="w-20 px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-xs disabled:opacity-40"
@@ -69,12 +102,53 @@ const TriangularRow = ({ varKey, spec, onChange }) => (
   </div>
 );
 
+// Validate one variable spec and build its Dist payload; returns
+// { dist } or { error }.
+const buildDist = (key, spec) => {
+  const num = (v) => (v === '' || v === null || v === undefined ? null : Number(v));
+  const min = num(spec.min);
+  const max = num(spec.max);
+  if (spec.type === 'triangular') {
+    const mode = num(spec.mode);
+    if (min === null || mode === null || max === null || !(min <= mode && mode <= max) || !(max > min)) {
+      return { error: `${VAR_LABELS[key]}: Low, Most likely, and High must be increasing.` };
+    }
+    return { dist: { type: 'triangular', min, mode, max } };
+  }
+  if (spec.type === 'uniform') {
+    if (min === null || max === null || !(max > min)) {
+      return { error: `${VAR_LABELS[key]}: High must be greater than Low.` };
+    }
+    return { dist: { type: 'uniform', min, max } };
+  }
+  // normal / lognormal
+  const mean = num(spec.mean);
+  const stdDev = num(spec.stdDev);
+  if (mean === null || stdDev === null || !(stdDev > 0)) {
+    return { error: `${VAR_LABELS[key]}: Mean and a positive Std dev are required.` };
+  }
+  if (spec.type === 'lognormal' && !(mean > 0)) {
+    return { error: `${VAR_LABELS[key]}: a lognormal mean must be positive.` };
+  }
+  if (min !== null && max !== null && !(max > min)) {
+    return { error: `${VAR_LABELS[key]}: the High truncation bound must exceed the Low bound.` };
+  }
+  const dist = { type: spec.type, mean, stdDev };
+  if (min !== null) dist.min = min;
+  if (max !== null) dist.max = max;
+  return { dist };
+};
+
+const csvEscape = (v) => (v == null ? '' : String(v));
+
 const EpeMonteCarloPanel = ({ runConfigId }) => {
   const { toast } = useToast();
   const [cfg, setCfg] = useState(null);
   const [vars, setVars] = useState(null);
   const [iterations, setIterations] = useState(1000);
-  const [correlatePrices, setCorrelatePrices] = useState(true);
+  // Wave C: editable correlation pairs (the old oil/gas rho 0.7 checkbox is
+  // now just the default first row).
+  const [correlations, setCorrelations] = useState([{ a: 'oil_price', b: 'gas_price', rho: '0.7' }]);
   // Wave A (audit finding 1.7): a run is only auditable if it can be
   // reproduced. Blank = new random seed; a set seed reproduces the run
   // exactly (the sampler is seeded end to end).
@@ -92,12 +166,15 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
         setCfg(cfgRow);
         const oil = Number(cfgRow.oil_price_usd_bbl) || 80;
         const gas = Number(cfgRow.gas_price_usd_mscf) || 3;
+        const tri = (enabled, min, mode, max) => ({
+          enabled, type: 'triangular', min, mode, max, mean: mode, stdDev: '',
+        });
         setVars({
-          oil_price: { enabled: true, min: (oil * 0.7).toFixed(1), mode: oil, max: (oil * 1.3).toFixed(1) },
-          gas_price: { enabled: false, min: (gas * 0.7).toFixed(2), mode: gas, max: (gas * 1.3).toFixed(2) },
-          capex_scale: { enabled: true, min: 0.8, mode: 1.0, max: 1.3 },
-          opex_scale: { enabled: false, min: 0.9, mode: 1.0, max: 1.15 },
-          production_scale: { enabled: false, min: 0.85, mode: 1.0, max: 1.1 },
+          oil_price: tri(true, (oil * 0.7).toFixed(1), oil, (oil * 1.3).toFixed(1)),
+          gas_price: tri(false, (gas * 0.7).toFixed(2), gas, (gas * 1.3).toFixed(2)),
+          capex_scale: tri(true, 0.8, 1.0, 1.3),
+          opex_scale: tri(false, 0.9, 1.0, 1.15),
+          production_scale: tri(false, 0.85, 1.0, 1.1),
         });
       }
       const { data: prior } = await supabase
@@ -111,32 +188,42 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
   }, [runConfigId]);
 
   const setVar = (key, spec) => setVars((v) => ({ ...v, [key]: spec }));
+  const setCorrCell = (i, key, value) => setCorrelations((rows) =>
+    rows.map((r, idx) => (idx === i ? { ...r, [key]: value } : r)));
+  const addCorrRow = () => setCorrelations((rows) => [...rows, { a: 'oil_price', b: 'capex_scale', rho: '0.5' }]);
+  const delCorrRow = (i) => setCorrelations((rows) => rows.filter((_, idx) => idx !== i));
 
   const runMonteCarlo = async () => {
     if (!vars) return;
     const variables = {};
     for (const [key, spec] of Object.entries(vars)) {
       if (!spec.enabled) continue;
-      const min = Number(spec.min);
-      const mode = Number(spec.mode);
-      const max = Number(spec.max);
-      if (!(min <= mode && mode <= max) || !(max > min)) {
-        toast({ variant: 'destructive', title: 'Check distribution bounds', description: `${VAR_LABELS[key]}: Low, Most likely, and High must be increasing.` });
+      const built = buildDist(key, spec);
+      if (built.error) {
+        toast({ variant: 'destructive', title: 'Check distribution inputs', description: built.error });
         return;
       }
-      variables[key] = { type: 'triangular', min, mode, max };
+      variables[key] = built.dist;
     }
     if (Object.keys(variables).length === 0) {
       toast({ variant: 'destructive', title: 'No uncertain inputs', description: 'Enable at least one input distribution to run the simulation.' });
       return;
     }
-    const correlations = (correlatePrices && variables.oil_price && variables.gas_price)
-      ? [{ a: 'oil_price', b: 'gas_price', rho: 0.7 }]
-      : [];
+    // Only correlations whose BOTH variables are enabled are sent.
+    const activeCorrelations = [];
+    for (const row of correlations) {
+      if (!variables[row.a] || !variables[row.b] || row.a === row.b) continue;
+      const rho = Number(row.rho);
+      if (!Number.isFinite(rho) || rho <= -1 || rho >= 1) {
+        toast({ variant: 'destructive', title: 'Check correlations', description: `Correlation between ${VAR_LABELS[row.a]} and ${VAR_LABELS[row.b]} must be between -1 and 1 (exclusive).` });
+        return;
+      }
+      activeCorrelations.push({ a: row.a, b: row.b, rho });
+    }
 
     setRunning(true);
     try {
-      const mcConfig = { iterations, variables, correlations };
+      const mcConfig = { iterations, variables, correlations: activeCorrelations };
       const seedNum = Number(seedInput);
       if (seedInput !== '' && Number.isFinite(seedNum)) mcConfig.seed = Math.floor(seedNum);
       const { data, error } = await supabase.functions.invoke('epe-monte-carlo', {
@@ -144,7 +231,7 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
       });
       if (error) throw new Error(error.message || 'Monte Carlo run failed.');
       if (data?.error) throw new Error(data.error);
-      setMcRun({ results: data.results, mc_config: { iterations, variables, correlations }, created_at: new Date().toISOString() });
+      setMcRun({ results: data.results, mc_config: mcConfig, created_at: new Date().toISOString() });
       toast({ title: 'Simulation complete', description: `${data.results.iterations} iterations through the fiscal engine.` });
     } catch (err) {
       console.error('[EpeMonteCarloPanel]', err);
@@ -155,6 +242,45 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
   };
 
   const results = mcRun?.results;
+
+  // Wave C: percentile + CDF + fan tables as a CSV, so results feed decks and
+  // models without screenshotting charts.
+  const downloadCsv = () => {
+    if (!results) return;
+    const lines = [];
+    lines.push('metric,p90,p50,p10,mean,stddev,se');
+    const st = (o) => [o?.p90, o?.p50, o?.p10, o?.mean, o?.stdDev, o?.se].map(csvEscape).join(',');
+    lines.push(`npv_usd,${st(results.npv)}`);
+    if (results.irr && results.irr.p50 != null) lines.push(`irr_pct,${st(results.irr)}`);
+    if (results.payback && results.payback.p50 != null) lines.push(`payback_years,${st(results.payback)}`);
+    lines.push('');
+    lines.push('metric,value');
+    lines.push(`prob_npv_positive,${csvEscape(results.probNpvPositive)}`);
+    if (results.irr?.nullShare != null) lines.push(`irr_undefined_share,${csvEscape(results.irr.nullShare)}`);
+    if (results.payback?.neverShare != null) lines.push(`payback_never_share,${csvEscape(results.payback.neverShare)}`);
+    lines.push(`iterations,${csvEscape(results.iterations)}`);
+    lines.push(`seed,${csvEscape(results.seed)}`);
+    if (results.npv?.cdf?.length) {
+      lines.push('');
+      lines.push('npv_cdf_value_usd,cumulative_probability_pct');
+      results.npv.cdf.forEach((p) => lines.push(`${p.x},${p.y}`));
+    }
+    if (results.fan?.ncf?.length) {
+      lines.push('');
+      lines.push('year,ncf_p90,ncf_p50,ncf_p10,cum_p90,cum_p50,cum_p10');
+      results.fan.ncf.forEach((r, i) => {
+        const c = results.fan.cumulative?.[i] || {};
+        lines.push([r.year, r.p90, r.p50, r.p10, c.p90, c.p50, c.p10].map(csvEscape).join(','));
+      });
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'epe-mc-results.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const cdfData = useMemo(() => (results?.npv?.cdf || []).map((p) => ({ npv: p.x, prob: p.y })), [results]);
   const fanData = useMemo(() => (results?.fan?.cumulative || []).map((r) => ({
@@ -167,6 +293,7 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
     lowInputVol: s.lowInputVol / 1e6,
     highInputVol: s.highInputVol / 1e6,
   })), [results]);
+  const convergenceData = useMemo(() => (results?.convergence || []), [results]);
 
   // Legacy runs predate run_config_id; without it there is nothing to sample,
   // so say so instead of showing a loading message forever.
@@ -182,17 +309,74 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
     return <p className="text-slate-300 text-sm py-8">Loading run configuration...</p>;
   }
 
+  const hasIrrStats = results?.irr && results.irr.p50 != null;
+  const hasPaybackStats = results?.payback && results.payback.p50 != null;
+
   return (
     <div className="space-y-6">
       {/* Configuration */}
       <div className="bg-white/5 rounded-lg p-4">
         <h3 className="text-lg font-semibold text-white mb-1">Uncertain inputs</h3>
         <p className="text-xs text-slate-300 mb-3">
-          Each enabled input is sampled from a triangular distribution and run through the full fiscal engine per iteration. Prices are absolute; multipliers scale the uploaded CAPEX, OPEX, and production data.
+          Each enabled input is sampled from its distribution and run through the full fiscal engine per iteration. Prices are absolute; multipliers scale the uploaded CAPEX, OPEX, and production data. Normal and lognormal use a mean and standard deviation, with optional Low/High truncation bounds.
         </p>
         {Object.entries(vars).map(([key, spec]) => (
-          <TriangularRow key={key} varKey={key} spec={spec} onChange={setVar} />
+          <DistRow key={key} varKey={key} spec={spec} onChange={setVar} />
         ))}
+
+        {/* Correlations */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-slate-200 font-medium">Correlations</p>
+            <Button type="button" variant="outline" size="sm" onClick={addCorrRow}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> Add pair
+            </Button>
+          </div>
+          {correlations.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              {correlations.map((row, i) => {
+                const active = vars[row.a]?.enabled && vars[row.b]?.enabled && row.a !== row.b;
+                return (
+                  <div key={i} className={`flex flex-wrap items-center gap-2 text-xs ${active ? 'text-slate-200' : 'text-slate-500'}`}>
+                    <select
+                      value={row.a}
+                      onChange={(e) => setCorrCell(i, 'a', e.target.value)}
+                      className="px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-xs"
+                    >
+                      {VAR_KEYS.map((k) => <option key={k} value={k}>{VAR_LABELS[k]}</option>)}
+                    </select>
+                    <span>with</span>
+                    <select
+                      value={row.b}
+                      onChange={(e) => setCorrCell(i, 'b', e.target.value)}
+                      className="px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-xs"
+                    >
+                      {VAR_KEYS.map((k) => <option key={k} value={k}>{VAR_LABELS[k]}</option>)}
+                    </select>
+                    <span>rho</span>
+                    <input
+                      type="number"
+                      step="0.05"
+                      min="-0.99"
+                      max="0.99"
+                      value={row.rho}
+                      onChange={(e) => setCorrCell(i, 'rho', e.target.value)}
+                      className="w-16 px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-xs"
+                    />
+                    {!active && <span className="italic">inactive (enable both inputs)</span>}
+                    <button type="button" onClick={() => delCorrRow(i)} className="text-slate-400 hover:text-red-400" title="Remove pair">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <p className="text-[11px] text-slate-500 mt-1.5">
+            Pairs apply only while both inputs are enabled. Strongly contradictory correlation sets may be dampened; the sampler keeps the correlation matrix decomposable.
+          </p>
+        </div>
+
         <div className="flex flex-wrap items-center gap-6 mt-4">
           <label className="text-sm text-slate-200 flex items-center gap-2">
             Iterations
@@ -203,15 +387,6 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
             >
               {[500, 1000, 2000, 5000].map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
-          </label>
-          <label className="text-sm text-slate-200 flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={correlatePrices}
-              onChange={(e) => setCorrelatePrices(e.target.checked)}
-              className="accent-lime-400"
-            />
-            Correlate oil and gas prices (rho 0.7)
           </label>
           <label className="text-sm text-slate-200 flex items-center gap-2" title="Blank picks a new random seed. Set a seed to reproduce a run exactly for review or audit.">
             Seed
@@ -227,6 +402,11 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
             {running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
             {running ? 'Running simulation...' : 'Run Monte Carlo'}
           </Button>
+          {results && (
+            <Button type="button" variant="outline" onClick={downloadCsv} title="Percentiles, CDF points, and the yearly fan as a CSV">
+              <Download className="w-4 h-4 mr-2" /> Download results (CSV)
+            </Button>
+          )}
         </div>
       </div>
 
@@ -258,9 +438,47 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
                   reuse
                 </button>
               )}
+              {results.npv?.se != null && (
+                <> . Mean NPV {fmtM(results.npv.mean)} with standard error {fmtM(results.npv.se)}</>
+              )}
               . NPV on the run basis ({results.base?.pv_basis || 'real'}); fan bands are nominal cash flow. Petroleum convention: P90 is the low case.
             </p>
           </div>
+
+          {/* IRR and payback distributions (Wave C; older saved runs may not have them) */}
+          {(hasIrrStats || hasPaybackStats) && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+                {hasIrrStats && (
+                  <>
+                    <StatCard title="IRR P90 (low)" value={fmtPct(results.irr.p90)} accent="text-blue-300" />
+                    <StatCard title="IRR P50" value={fmtPct(results.irr.p50)} />
+                    <StatCard title="IRR P10 (high)" value={fmtPct(results.irr.p10)} accent="text-emerald-300" />
+                    <StatCard title="IRR mean" value={fmtPct(results.irr.mean)} />
+                  </>
+                )}
+                {hasPaybackStats && (
+                  <>
+                    <StatCard title="Payback P90 (yr)" value={fmtYr(results.payback.p90)} />
+                    <StatCard title="Payback P50 (yr)" value={fmtYr(results.payback.p50)} />
+                    <StatCard title="Payback P10 (yr)" value={fmtYr(results.payback.p10)} />
+                    <StatCard title="Payback mean (yr)" value={fmtYr(results.payback.mean)} />
+                  </>
+                )}
+              </div>
+              <p className="text-xs text-slate-400">
+                {hasIrrStats && results.irr.nullShare > 0 && (
+                  <>IRR is undefined in {(results.irr.nullShare * 100).toFixed(1)}% of iterations. </>
+                )}
+                {hasPaybackStats && results.payback.neverShare > 0 && (
+                  <>The project never pays back in {(results.payback.neverShare * 100).toFixed(1)}% of iterations. </>
+                )}
+                {hasPaybackStats && (
+                  <>Payback percentiles are on years, sorted low to high; shorter is better.</>
+                )}
+              </p>
+            </div>
+          )}
 
           {/* NPV cumulative probability */}
           <div>
@@ -276,6 +494,23 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
               </ComposedChart>
             </ChartFrame>
           </div>
+
+          {/* Convergence of the running mean (Wave C) */}
+          {convergenceData.length >= 2 && (
+            <div>
+              <h3 className="text-sm font-semibold text-white mb-2">Convergence of mean NPV</h3>
+              <ChartFrame height={180} logoHeight={24} exportFilename="epe-mc-convergence">
+                <ComposedChart data={convergenceData} margin={CHART_MARGINS.withLegend}>
+                  <CartesianGrid {...GRID_STYLE} />
+                  <XAxis dataKey="n" tick={AXIS_TICK} stroke={CHART_COLORS.axisLine} />
+                  <YAxis tickFormatter={fmtM} tick={AXIS_TICK} stroke={CHART_COLORS.axisLine} domain={['auto', 'auto']} />
+                  <RTooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => fmtM(v)} labelFormatter={(v) => `${v} iterations`} />
+                  <Line type="monotone" dataKey="mean" name="Running mean" stroke="#7c3aed" strokeWidth={2} dot={false} />
+                </ComposedChart>
+              </ChartFrame>
+              <p className="text-[11px] text-slate-500 mt-1">A flat tail means the mean has settled; a still-moving tail suggests more iterations.</p>
+            </div>
+          )}
 
           {/* Cumulative cash flow fan */}
           {fanData.length >= 2 ? (

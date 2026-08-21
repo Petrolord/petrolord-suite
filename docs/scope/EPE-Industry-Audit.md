@@ -14,8 +14,13 @@ escape hatch; a published gas-weighted worked example remains a
 literature-gated cross-check). **Wave B (2.1–2.4) APPROVED and IMPLEMENTED
 2026-08-21** (engine v3.6, EPE.md §3c): WI on PSC/PIA, per-year price decks
 + differentials with deck-aware tornado/MC sweeps, mid-year discounting,
-valuation date + sunk handling. Remaining Band 2 items (2.5–2.11) and
-Waves C–F awaiting owner selection.
+valuation date + sunk handling. **Wave C APPROVED and IMPLEMENTED
+2026-08-21** (engine v3.7, EPE.md §3d): production + first-oil-delay
+tornado bars, custom sweep ranges, all four MC distribution types,
+correlation editor, IRR/payback distributions, convergence SE, MC CSV
+export, Decision Studio S-curve overlay. Remaining Band 2 items
+(2.5–2.11), 3.6 reserves scenarios, and Waves D–F awaiting owner
+selection.
 
 ## Headline
 

@@ -1,6 +1,13 @@
 // supabase/functions/_shared/epe-engine.ts
 //
-// PETROLORD EPE CASH FLOW ENGINE — Shared compute library (v3.6, 2026-08-21)
+// PETROLORD EPE CASH FLOW ENGINE — Shared compute library (v3.7, 2026-08-21)
+//
+// v3.7 changes (Wave C risk workbench, docs/scope/EPE-Industry-Audit.md):
+//   - Schedule delay (cfg.schedule_shift_years, integer, default 0): shifts
+//     production AND opex years by N (opex follows production); capex stays
+//     on its committed schedule and depreciation/allowances still start from
+//     the spend year. This is the "first oil delay" convention: a delay
+//     costs value because spend precedes shifted revenue.
 //
 // v3.6 changes (Wave B equity + price realism, docs/scope/EPE-Industry-Audit.md):
 //   - Working interest on PSC and PIA (psc_working_interest_pct /
@@ -98,7 +105,7 @@
 //   instead of TET 2.5%, with the volume-cap and CPR-forfeiture behavior.
 
 // Stamped into kpis.engine_version on every run (Wave A provenance).
-export const ENGINE_VERSION = '3.6.0';
+export const ENGINE_VERSION = '3.7.0';
 
 // ============================================================================
 // TYPES
@@ -1066,7 +1073,15 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
 
   const annualVols = extractAnnualVolumes(prodRows, baseYear);
   const annualCapex = extractAnnualCapex(capexRows, baseYear);
-  const annualOpex = extractAnnualOpex(opexRows, baseYear);
+  let annualOpex = extractAnnualOpex(opexRows, baseYear);
+
+  // v3.7 (Wave C): first-oil delay. Production and opex shift together;
+  // capex (and the allowances it seeds) stays on the committed schedule.
+  const scheduleShift = parseInt(String(cfg.schedule_shift_years ?? '')) || 0;
+  if (scheduleShift !== 0) {
+    for (const v of annualVols) v.year += scheduleShift;
+    annualOpex = new Map(Array.from(annualOpex.entries()).map(([y, amt]) => [y + scheduleShift, amt]));
+  }
 
   validateIngestion({ cfg, prodRows, capexRows, opexRows, annualVols, annualCapex, annualOpex });
 
@@ -1441,6 +1456,7 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
   if (unusedTaxLosses > 0) {
     kpis.tax_losses_unused_at_cessation = unusedTaxLosses;
   }
+  if (scheduleShift !== 0) kpis.schedule_shift_years = scheduleShift;  // v3.7
 
   // Unit costs on a BOE basis (null when there are no volumes to divide by)
   kpis.unit_technical_cost_usd_per_boe = totalBoe > 0

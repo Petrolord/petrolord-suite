@@ -242,6 +242,29 @@ Per `docs/scope/EPE-Industry-Audit.md` Band 2 (2.1–2.4), defaults byte-identic
   editor table, convention select, valuation-year + sunk controls; all
   round-trip through saved scenarios.
 
+## 3d. Engine v3.7 — Wave C risk workbench (2026-08-21)
+
+Per `docs/scope/EPE-Industry-Audit.md` Band 3 (3.1–3.5, 3.7–3.9; 3.6
+reserves scenarios stays in Wave F):
+
+- **Schedule delay** (`schedule_shift_years`): production and opex shift
+  together; capex and the allowances it seeds stay on the committed
+  schedule (first-oil-delay convention; hand-derived oracle).
+- **Tornado**: new Production bar (scales the engine-recognized volume
+  columns) and one-sided First Oil Delay (+1 yr) bar; user-set ranges via
+  the batch request's `sweep_options` (global `factor_low`/`factor_high`
+  plus per-variable `overrides`), surfaced in the results viewer as Low/High
+  percentage controls.
+- **Monte Carlo**: payback distribution (+`neverShare`), NPV standard error,
+  20-point running-mean convergence trace; Risk tab exposes all four
+  sampler distribution types (triangular/uniform/normal/lognormal with
+  truncation), an editable correlation list (arbitrary enabled-variable
+  pairs), IRR and payback stat cards, and a CSV results export (summary +
+  CDF + fan table). Old saved MC runs without the new fields render
+  guarded.
+- **Decision Studio**: overlaid NPV S-curves from each compared run's
+  stored `npv.cdf`.
+
 ---
 
 ## 4. What is NOT YET BUILT — known gaps

@@ -194,4 +194,42 @@ describe('runEpeMonteCarlo', () => {
     const res = runEpeMonteCarlo({ ...baseArgs, mcConfig: { iterations: 3, seed: 1, variables: {} } });
     expect(res.iterations).toBe(100);
   });
+
+  it('Wave C: reports payback distribution, NPV standard error, and a convergence trace', () => {
+    const res = runEpeMonteCarlo({
+      ...baseArgs,
+      mcConfig: {
+        iterations: 400, seed: 11,
+        variables: { oil_price: { type: 'triangular', min: 60, mode: 80, max: 100 } },
+      },
+    });
+    expect(Number.isFinite(res.payback.p50)).toBe(true);
+    expect(res.payback.p90).toBeLessThanOrEqual(res.payback.p10 + 1e-9); // petroleum convention on years... low years = p90? stats are value-sorted: p90 <= p10
+    expect(res.payback.neverShare).toBeGreaterThanOrEqual(0);
+    expect(res.payback.neverShare).toBeLessThanOrEqual(1);
+    expect(res.npv.se).toBeGreaterThan(0);
+    expect(res.npv.se).toBeCloseTo(res.npv.stdDev / Math.sqrt(400), 6);
+    expect(res.convergence.length).toBeGreaterThanOrEqual(10);
+    const last = res.convergence[res.convergence.length - 1];
+    expect(last.n).toBe(400);
+    expect(last.mean).toBeCloseTo(res.npv.mean, 6);
+  });
+
+  it('Wave C: all four distribution types sample within their support', () => {
+    const res = runEpeMonteCarlo({
+      ...baseArgs,
+      mcConfig: {
+        iterations: 300, seed: 21,
+        variables: {
+          oil_price: { type: 'lognormal', mean: 80, stdDev: 12 },
+          capex_scale: { type: 'normal', mean: 1.0, stdDev: 0.1, min: 0.7, max: 1.3 },
+          opex_scale: { type: 'uniform', min: 0.9, max: 1.15 },
+          production_scale: { type: 'triangular', min: 0.85, mode: 1.0, max: 1.1 },
+        },
+      },
+    });
+    expect(res.varKeys.sort()).toEqual(['capex_scale', 'oil_price', 'opex_scale', 'production_scale']);
+    expect(Number.isFinite(res.npv.p50)).toBe(true);
+    expect(res.npv.stdDev).toBeGreaterThan(0);
+  });
 });
