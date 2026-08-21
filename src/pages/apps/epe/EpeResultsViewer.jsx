@@ -76,7 +76,7 @@ const fmtCompact = (n) => {
 // downloads always match what the engine wrote.
 // ----------------------------------------------------------------------------
 
-const cashFlowColumns = (isPIA) => {
+const cashFlowColumns = (isPIA, sampleRows = []) => {
   const cols = [
     { key: 'year', label: 'Year' },
     { key: 'oil_bbl', label: 'Oil (bbl)' },
@@ -103,6 +103,13 @@ const cashFlowColumns = (isPIA) => {
       { key: 'tax', label: 'Tax (USD)' },
     );
   }
+  // Wave F: fiscal-depth columns appear only when the run actually used the
+  // feature (any row carries a value), so old exports stay unchanged.
+  const rows = Array.isArray(sampleRows) ? sampleRows : [];
+  const anyRow = (k) => rows.some((r) => r && r[k] != null && r[k] !== 0);
+  if (anyRow('min_etr_topup')) cols.push({ key: 'min_etr_topup', label: 'Min ETR Top-up (USD)' });
+  if (anyRow('psc_itc_used')) cols.push({ key: 'psc_itc_used', label: 'ITC Used (USD)' });
+  if (anyRow('decom_fund_contribution')) cols.push({ key: 'decom_fund_contribution', label: 'Decom Fund Contribution (USD)' });
   cols.push(
     { key: 'abandonment_cost', label: 'Abandonment (USD)' },
     { key: 'net_cash_flow', label: 'Net Cash Flow (USD)' },
@@ -129,6 +136,12 @@ const KPI_EXPORT_ROWS = [
   ['total_opex', 'Total OPEX (USD)'],
   ['total_tax', 'Total Tax (USD)'],
   ['total_abandonment_cost', 'Abandonment (USD)'],
+  // Wave F (absent keys are filtered out, so old runs are unaffected)
+  ['total_min_etr_topup', 'Min ETR Top-up (USD)'],
+  ['total_decom_fund_contributions', 'Decom Fund Contributions (USD)'],
+  ['fx_ngn_per_usd', 'FX Rate (NGN/USD)'],
+  ['npv_ngn', 'NPV (NGN)'],
+  ['total_net_cash_flow_ngn', 'Total Net Cash Flow (NGN)'],
   ['total_oil_bbl', 'Total Oil (bbl)'],
   ['total_gas_mscf', 'Total Gas (Mscf)'],
   ['total_boe', 'Total BOE'],
@@ -874,8 +887,21 @@ const YearByYearTable = ({ results }) => {
     rows.push({ label: 'Tax', get: (r) => r.tax || 0, fmt: fmtCompact });
   }
 
+  // Wave F: fiscal-depth rows appear only when the run used the feature.
+  if (cf.some((r) => (r.min_etr_topup || 0) > 0)) {
+    rows.push({ label: 'Min ETR Top-up', get: (r) => r.min_etr_topup || 0, fmt: fmtCompact });
+  }
+  if (cf.some((r) => (r.psc_itc_used || 0) > 0)) {
+    rows.push({ label: 'ITC Used', get: (r) => r.psc_itc_used || 0, fmt: fmtCompact });
+  }
+  if (cf.some((r) => (r.decom_fund_contribution || 0) > 0)) {
+    rows.push({ label: 'Decom Fund Contribution', get: (r) => r.decom_fund_contribution || 0, fmt: fmtCompact });
+  }
   if (cf.some((r) => (r.abandonment_cost || 0) > 0)) {
     rows.push({ label: 'Abandonment', get: (r) => r.abandonment_cost || 0, fmt: fmtCompact });
+  }
+  if (cf.some((r) => (r.abandonment_cost_funded || 0) > 0)) {
+    rows.push({ label: 'Abandonment (paid from fund)', get: (r) => r.abandonment_cost_funded || 0, fmt: fmtCompact });
   }
   rows.push(
     { label: 'Net Cash Flow', get: (r) => r.net_cash_flow ?? r.netCashFlow ?? 0, fmt: fmtCompact, bold: true },
@@ -1045,7 +1071,7 @@ const EpeResultsViewer = () => {
 
   const handleExportCsv = () => {
     const cf = results?.cash_flow_data || [];
-    const cols = cashFlowColumns(results?.kpis?.fiscal_regime === 'PIA');
+    const cols = cashFlowColumns(results?.kpis?.fiscal_regime === 'PIA', cf);
     const esc = (v) => {
       const s = v === null || v === undefined ? '' : String(v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -1069,7 +1095,7 @@ const EpeResultsViewer = () => {
     try {
       const kpis = results?.kpis || {};
       const cf = results?.cash_flow_data || [];
-      const cols = cashFlowColumns(kpis.fiscal_regime === 'PIA');
+      const cols = cashFlowColumns(kpis.fiscal_regime === 'PIA', cf);
       const wb = XLSX.utils.book_new();
 
       const kpiAoa = [
@@ -1174,6 +1200,11 @@ const EpeResultsViewer = () => {
         ['Abandonment', kpis.total_abandonment_cost != null ? `${money(kpis.total_abandonment_cost)} in ${kpis.abandonment_year}` : null],
         ['Economic limit year', kpis.economic_limit_year != null ? String(kpis.economic_limit_year) : null],
         ['Sunk (pre-valuation) NCF', kpis.sunk_net_cash_flow != null ? money(kpis.sunk_net_cash_flow) : null],
+        // Wave F rows (present only when the run used the feature)
+        ['Min ETR top-up (approx.)', kpis.total_min_etr_topup != null ? money(kpis.total_min_etr_topup) : null],
+        ['Decom fund contributions', kpis.total_decom_fund_contributions != null ? money(kpis.total_decom_fund_contributions) : null],
+        ['NPV (NGN)', kpis.npv_ngn != null && kpis.fx_ngn_per_usd != null
+          ? `N${fmtCompact(kpis.npv_ngn)} at ${Number(kpis.fx_ngn_per_usd).toLocaleString('en-US')} NGN/USD` : null],
       ].filter(([, v]) => v != null);
       const kpiBody = [];
       for (let i = 0; i < kpiPairs.length; i += 2) {
@@ -1360,6 +1391,17 @@ const EpeResultsViewer = () => {
     const m = n / 1_000_000;
     return `$${m.toFixed(1)}M`;
   };
+
+  // Wave F: compact NGN display for the flat-FX mirror KPIs (plain N prefix).
+  const fmtNgn = (n) => {
+    if (n == null || isNaN(n)) return '—';
+    const abs = Math.abs(n);
+    const sign = n < 0 ? '-' : '';
+    if (abs >= 1e12) return `${sign}N${(abs / 1e12).toFixed(2)}tn`;
+    if (abs >= 1e9) return `${sign}N${(abs / 1e9).toFixed(2)}bn`;
+    if (abs >= 1e6) return `${sign}N${(abs / 1e6).toFixed(1)}m`;
+    return `${sign}N${abs.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  };
 if (loading) {
     return <div className="p-8 text-white">Loading results...</div>;
   }
@@ -1463,12 +1505,40 @@ if (loading) {
                     ['DPI', results.kpis.dpi != null ? Number(results.kpis.dpi).toFixed(2) : null],
                     ['Discounted payback', results.kpis.discounted_payback_years != null
                       ? `${Number(results.kpis.discounted_payback_years).toFixed(2)} yrs` : null],
-                  ].filter(([, v]) => v !== null).map(([label, value]) => (
-                    <div key={label} className="bg-white/5 rounded-lg px-3 py-2">
+                    // Wave F tiles (present only when the run used the feature)
+                    ['Min ETR top-up', results.kpis.total_min_etr_topup != null
+                      ? formatCurrency(results.kpis.total_min_etr_topup) : null,
+                      'Project-level approximation of the NTA minimum effective tax rate; the statutory test is company-level. Reviewers can strip this line.'],
+                    ['Decom fund contributions', results.kpis.total_decom_fund_contributions != null
+                      ? formatCurrency(results.kpis.total_decom_fund_contributions) : null,
+                      'Deductible sinking-fund contributions; the fund pays the final abandonment spend.'],
+                  ].filter(([, v]) => v !== null).map(([label, value, tooltip]) => (
+                    <div key={label} className="bg-white/5 rounded-lg px-3 py-2" title={tooltip || undefined}>
                       <p className="text-xs text-slate-400">{label}</p>
                       <p className="text-base font-semibold text-white">{value}</p>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Wave F: NGN mirrors under a flat FX assumption */}
+              {results.kpis.fx_ngn_per_usd != null && (
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <div className="bg-white/5 rounded-lg px-3 py-2">
+                    <p className="text-xs text-slate-400">NPV (NGN)</p>
+                    <p className="text-base font-semibold text-white">{fmtNgn(results.kpis.npv_ngn)}</p>
+                  </div>
+                  <div className="bg-white/5 rounded-lg px-3 py-2">
+                    <p className="text-xs text-slate-400">Total net cash flow (NGN)</p>
+                    <p className="text-base font-semibold text-white">{fmtNgn(results.kpis.total_net_cash_flow_ngn)}</p>
+                  </div>
+                  <div className="bg-white/5 rounded-lg px-3 py-2">
+                    <p className="text-xs text-slate-400">Total tax (NGN)</p>
+                    <p className="text-base font-semibold text-white">{fmtNgn(results.kpis.total_tax_ngn)}</p>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Flat FX at {Number(results.kpis.fx_ngn_per_usd).toLocaleString('en-US')} NGN/USD
+                  </p>
                 </div>
               )}
 
@@ -1483,7 +1553,8 @@ if (loading) {
                   )}
                   {results.kpis.total_abandonment_cost != null && (
                     <span className="text-xs px-2 py-0.5 rounded bg-cyan-900/40 text-cyan-200 border border-cyan-500/30">
-                      Abandonment {formatCurrency(results.kpis.total_abandonment_cost)} in {results.kpis.abandonment_year} (post-tax)
+                      Abandonment {formatCurrency(results.kpis.total_abandonment_cost)} in {results.kpis.abandonment_year}
+                      {results.kpis.abandonment_funding_mode === 'sinking_fund' ? ' (paid from the sinking fund)' : ' (post-tax)'}
                     </span>
                   )}
                 </div>

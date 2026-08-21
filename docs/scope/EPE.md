@@ -312,6 +312,40 @@ locking). Migration `20260821230000` (applied live):
   production dataset (replace-on-upload semantics honored).
 - Deferred from the wave (still open): in-app data editing (4.10).
 
+## 3g. Engine v3.9 — Wave F fiscal depth (2026-08-21)
+
+Per `docs/scope/EPE-Industry-Audit.md` (2.5–2.10, 3.6). Migration
+`20260822000000` applied live. All defaults byte-identical; oracles in
+`epe-engine.test.ts`:
+
+- **PSC tranches + ITC** (2.6): cumulative-liquids tranche table for the
+  contractor profit share (start-of-year basis; mid-year crossings are a
+  documented annual-model approximation) and Investment Tax Credit (% of
+  capex, credited against PSC tax, carryforward). Breakpoint presets are
+  the USER'S responsibility to verify against the actual PSC. DMO remains
+  unimplemented (contract-specific; recorded).
+- **Minimum ETR** (2.8): per-year top-up to `pia_minimum_etr_pct` x CIT
+  assessable profit, config-gated, DELIBERATE project-level approximation
+  of the company-level NTA 2025 s.57 test; the top-up is its own reported
+  line (`total_min_etr_topup`) so reviewers can strip it. Run Console
+  control restored now that the math exists.
+- **Decommissioning sinking fund** (2.10): equal contributions through the
+  abandonment year, tax-deductible (PIA: HCT liquids-share + CIT relief
+  outside CPR; JV/PSC: opex lane), fund pays the final spend. Lump-sum
+  post-tax stays the default. Literature cross-check of the PIA s.233
+  treatment remains a to-do alongside the HCT gas base.
+- **Depreciation** (2.5): configurable JV/PSC straight-line life +
+  `nigeria_ppt` preset (20/20/20/20/19; the statutory 1% retention is held,
+  never claimed in-model).
+- **Reserves scenarios** (3.6): `scenario_label` on production files
+  (1P/2P/3P/custom; null = base), `production_scenario` on run configs; all
+  three engines filter production accordingly; scenario-aware
+  replace-on-upload.
+- **NGN mirrors** (2.9): flat `fx_ngn_per_usd` stamps NGN KPI mirrors.
+- **Incremental economics** (2.7): comparison view computes second-minus-
+  first delta flows with incremental NPV (base run's rate), IRR
+  (bisection), and payback.
+
 ---
 
 ## 4. What is NOT YET BUILT — known gaps

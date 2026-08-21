@@ -9,7 +9,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend,
+  LineChart, Line, BarChart, Bar, Cell, ReferenceLine, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend,
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
 import {
@@ -197,6 +197,83 @@ const EpeRunComparison = () => {
     };
   }, [comparisonResults]);
 
+  // Wave F (audit 2.7): incremental economics when exactly two runs are
+  // compared. Delta flows are second minus first (with-project minus base),
+  // discounted at the BASE run's applied rate with end-year exponents
+  // anchored at the base run's earliest year. Client-side bisection mirrors
+  // the engine's IRR bracket; no server code imported.
+  const incremental = useMemo(() => {
+    if (comparisonResults.length !== 2) return null;
+    const [base, second] = comparisonResults;
+    if (!base.cashFlowData || !second.cashFlowData) return null;
+
+    const ncfByYear = (rows) => {
+      const m = new Map();
+      for (const row of rows) {
+        if (typeof row.year === 'number' && typeof row.net_cash_flow === 'number') {
+          m.set(row.year, row.net_cash_flow);
+        }
+      }
+      return m;
+    };
+    const baseNcf = ncfByYear(base.cashFlowData);
+    const secondNcf = ncfByYear(second.cashFlowData);
+    const years = Array.from(new Set([...baseNcf.keys(), ...secondNcf.keys()])).sort((a, b) => a - b);
+    if (years.length === 0) return null;
+
+    let cum = 0;
+    const rows = years.map((year) => {
+      const delta = (secondNcf.get(year) || 0) - (baseNcf.get(year) || 0);
+      cum += delta;
+      return { year, delta, cumulative: cum };
+    });
+
+    const anchorYear = Math.min(...base.cashFlowData.map((r) => r.year).filter((y) => typeof y === 'number'));
+    const ratePct = base.kpis?.discount_rate_applied_pct;
+    const rate = typeof ratePct === 'number' ? ratePct / 100 : null;
+
+    const npvAt = (r) => rows.reduce((s, row) => s + row.delta / Math.pow(1 + r, row.year - anchorYear), 0);
+    const npv = rate !== null ? npvAt(rate) : null;
+
+    // Bisection IRR on the delta flows: bracket [-0.99, 10], null when no
+    // sign change (same convention as the engine solver).
+    const irr = (() => {
+      const hasNeg = rows.some((r) => r.delta < 0);
+      const hasPos = rows.some((r) => r.delta > 0);
+      if (!hasNeg || !hasPos) return null;
+      let lo = -0.99, hi = 10;
+      let fLo = npvAt(lo), fHi = npvAt(hi);
+      if (!Number.isFinite(fLo) || !Number.isFinite(fHi) || fLo * fHi > 0) return null;
+      for (let i = 0; i < 200 && hi - lo > 1e-9; i++) {
+        const mid = (lo + hi) / 2;
+        const fMid = npvAt(mid);
+        if (fMid === 0) return mid;
+        if (fLo * fMid < 0) { hi = mid; fHi = fMid; } else { lo = mid; fLo = fMid; }
+      }
+      return (lo + hi) / 2;
+    })();
+
+    // Payback on cumulative delta, in years from the first delta year.
+    const payback = (() => {
+      let running = 0;
+      for (const row of rows) {
+        const prev = running;
+        running += row.delta;
+        if (prev < 0 && running >= 0 && row.delta !== 0) {
+          return (row.year - rows[0].year) + (-prev / row.delta);
+        }
+      }
+      return running >= 0 && rows[0].delta >= 0 ? 0 : null;
+    })();
+
+    const basisMismatch = base.kpis && second.kpis && (
+      base.kpis.pv_basis !== second.kpis.pv_basis
+      || base.kpis.discount_rate_applied_pct !== second.kpis.discount_rate_applied_pct
+    );
+
+    return { baseName: base.name, secondName: second.name, rows, ratePct, npv, irr, payback, basisMismatch };
+  }, [comparisonResults]);
+
   // Wave D: labeled CSV of everything on screen (config, KPIs, deltas).
   const downloadCsv = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -227,6 +304,18 @@ const EpeRunComparison = () => {
           return typeof v === 'number' ? formatDelta(v - baseNum, row.delta) : '';
         });
         lines.push([`${row.label} vs ${base.name}`, ...deltas].map(esc).join(','));
+      }
+    }
+
+    // Wave F: incremental block for a two-run compare.
+    if (incremental) {
+      lines.push(esc(`INCREMENTAL (${incremental.secondName} minus ${incremental.baseName})`));
+      lines.push(['Incremental NPV', incremental.npv != null ? incremental.npv.toFixed(2) : 'N/A'].map(esc).join(','));
+      lines.push(['Incremental IRR (%)', incremental.irr != null ? (incremental.irr * 100).toFixed(2) : 'undefined'].map(esc).join(','));
+      lines.push(['Incremental payback (years)', incremental.payback != null ? incremental.payback.toFixed(2) : 'never'].map(esc).join(','));
+      lines.push(['year', 'delta_net_cash_flow', 'cumulative_delta'].map(esc).join(','));
+      for (const row of incremental.rows) {
+        lines.push([row.year, row.delta.toFixed(2), row.cumulative.toFixed(2)].map(esc).join(','));
       }
     }
 
@@ -379,6 +468,79 @@ const EpeRunComparison = () => {
                 <p className="text-xs text-slate-500 mt-1">
                   Nominal cumulative net cash flow per run. Runs without stored yearly data are not plotted.
                 </p>
+              </div>
+            )}
+
+            {/* Wave F (audit 2.7): incremental economics for a two-run compare */}
+            {incremental && (
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold text-white mb-1">
+                  Incremental: {incremental.secondName} minus {incremental.baseName}
+                </h3>
+                <p className="text-xs text-slate-400 mb-3">
+                  The with-project view: what the second run adds over the base run, year by year.
+                  Deltas discounted at the base run's applied rate
+                  {typeof incremental.ratePct === 'number' ? ` (${incremental.ratePct.toFixed(2)}%)` : ''}; both runs should share a basis for a clean read.
+                </p>
+                {incremental.basisMismatch && (
+                  <p className="text-xs text-amber-300 mb-3">
+                    The two runs use different PV bases or discount rates. Incremental NPV is still computed at the base run's rate, but align the configs before relying on it.
+                  </p>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="bg-gray-800 p-4 rounded-md">
+                    <p className="text-xs text-slate-400">Incremental NPV</p>
+                    <p className={`text-xl font-bold ${incremental.npv >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {incremental.npv != null ? formatCurrency(incremental.npv) : 'N/A'}
+                    </p>
+                  </div>
+                  <div className="bg-gray-800 p-4 rounded-md">
+                    <p className="text-xs text-slate-400">Incremental IRR</p>
+                    <p className="text-xl font-bold text-blue-300">
+                      {incremental.irr != null ? `${(incremental.irr * 100).toFixed(2)}%` : 'undefined'}
+                    </p>
+                  </div>
+                  <div className="bg-gray-800 p-4 rounded-md">
+                    <p className="text-xs text-slate-400">Incremental payback</p>
+                    <p className="text-xl font-bold text-orange-300">
+                      {incremental.payback != null ? `${incremental.payback.toFixed(2)} years` : 'never'}
+                    </p>
+                  </div>
+                </div>
+                <ChartFrame height={280} logoHeight={24} exportFilename="epe-incremental-ncf">
+                  <BarChart data={incremental.rows} margin={CHART_MARGINS.legend}>
+                    <CartesianGrid {...GRID_STYLE} />
+                    <XAxis dataKey="year" tick={AXIS_TICK} stroke={CHART_COLORS.axisLine} />
+                    <YAxis tickFormatter={formatCurrency} tick={AXIS_TICK} stroke={CHART_COLORS.axisLine} width={90} />
+                    <RTooltip contentStyle={TOOLTIP_STYLE} formatter={(v) => formatCurrency(v)} labelFormatter={(y) => `Year ${y}`} />
+                    <ReferenceLine y={0} stroke={CHART_COLORS.axisLine} />
+                    <Bar dataKey="delta" name="Delta net cash flow" isAnimationActive={false}>
+                      {incremental.rows.map((row) => (
+                        <Cell key={row.year} fill={row.delta >= 0 ? '#059669' : '#dc2626'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ChartFrame>
+                <div className="mt-3 overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-slate-700">
+                        <TableHead className="text-white">Year</TableHead>
+                        <TableHead className="text-white">Delta net cash flow</TableHead>
+                        <TableHead className="text-white">Cumulative delta</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {incremental.rows.map((row) => (
+                        <TableRow key={row.year} className="border-slate-800">
+                          <TableCell className="text-slate-300 text-sm">{row.year}</TableCell>
+                          <TableCell className={`text-sm ${row.delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCurrency(row.delta)}</TableCell>
+                          <TableCell className={`text-sm ${row.cumulative >= 0 ? 'text-green-400' : 'text-red-400'}`}>{formatCurrency(row.cumulative)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             )}
           </motion.div>

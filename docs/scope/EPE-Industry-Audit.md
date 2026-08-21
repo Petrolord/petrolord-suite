@@ -25,9 +25,14 @@ profile, discounted take, run-history KPI strip, comparison overlays +
 deltas + CSV. **Wave E APPROVED and IMPLEMENTED 2026-08-21** (EPE.md
 §3f): org sharing v1 read-only across the case family, run lock/approve,
 corporate assumption library, case search/archive/clone + KPI badges,
-Forecast Scenario Hub import. Remaining: Band 2 items 2.5–2.11, 3.6
-reserves scenarios, 4.10 in-app data editing (deferred from Wave E), and
-Wave F fiscal depth — awaiting owner selection.
+Forecast Scenario Hub import. **Wave F APPROVED and IMPLEMENTED
+2026-08-21** (engine v3.9, EPE.md §3g): PSC tranches + ITC, min-ETR
+top-up (project-level approximation, honestly lined), decom sinking
+fund, statutory depreciation preset, 1P/2P/3P scenarios, NGN mirrors,
+incremental economics. THE AUDIT PROGRAM IS COMPLETE except: 4.10
+in-app data editing, DMO (contract-specific), 2.11 carried interests,
+monthly evaluation (2.3 note), and the standing literature cross-checks
+(HCT gas base, PIA s.233 decom treatment, PSC tranche presets).
 
 ## Headline
 

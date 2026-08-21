@@ -24,14 +24,22 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
 
     // Wave A (audit finding 1.1): the engine sums every file in a slot, so
     // multiple files are only correct when they are complementary.
-    const MultiFileWarning = ({ count }) => (
+    const MultiFileWarning = ({ count, scenarios = false }) => (
       <div className="flex items-start gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded text-amber-200 text-xs">
         <span className="font-bold shrink-0">!</span>
         <span>
-          {count} files in this slot. The engine adds them all together. If one is a revision of another,
+          {count} files in this slot. The engine adds together the files a run actually uses. If one is a revision of another,
           delete the outdated file or the run will double-count.
+          {scenarios ? ' Files tagged with different reserves scenarios do not sum; each run prices one scenario.' : ''}
         </span>
       </div>
+    );
+
+    // Wave F (3.6): reserves scenario chip for production file cards.
+    const ScenarioChip = ({ label }) => (
+      <span className="inline-block text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-cyan-900/50 text-cyan-300 border border-cyan-800">
+        {label || 'Base'}
+      </span>
     );
 
     const EpeCaseDetail = () => {
@@ -176,11 +184,16 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
           if (insErr) throw new Error(insErr.message);
 
           let replaced = 0;
-          if (fshReplace && productionVolumes.length > 0) {
+          // Wave F: the import lands untagged (Base scenario), so replacing
+          // only supersedes other Base-scenario files; tagged scenario files
+          // are untouched.
+          const baseFiles = productionVolumes.filter((f) => (f.scenario_label ?? null) === null);
+          if (fshReplace && baseFiles.length > 0) {
             const { error: delErr, count } = await supabase
               .from('epe_production_volumes')
               .delete({ count: 'exact' })
               .eq('case_id', caseId)
+              .is('scenario_label', null)
               .neq('id', newRow.id);
             if (delErr) {
               toast({ variant: 'destructive', title: 'Could not remove the previous file(s)', description: `${delErr.message}. Delete them manually or the engine will sum both.` });
@@ -391,11 +404,18 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                       <CardDescription>Upload production forecast files.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {productionVolumes.length > 1 && <MultiFileWarning count={productionVolumes.length} />}
-                      {productionVolumes.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'production_volumes'})} onDelete={isOwner ? () => handleDeleteFile(f.id, 'epe_production_volumes', f.file_name) : undefined} processing={processingFileId === f.id} />)}
+                      {productionVolumes.length > 1 && <MultiFileWarning count={productionVolumes.length} scenarios />}
+                      {productionVolumes.map(f => (
+                        <div key={f.id}>
+                          <div className="flex justify-end -mb-2 relative z-10 pr-2 pt-1">
+                            <ScenarioChip label={f.scenario_label} />
+                          </div>
+                          <EpeDataFileCard file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'production_volumes'})} onDelete={isOwner ? () => handleDeleteFile(f.id, 'epe_production_volumes', f.file_name) : undefined} processing={processingFileId === f.id} />
+                        </div>
+                      ))}
                       {isOwner && (
                         <>
-                          <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="production_volumes" existingCount={productionVolumes.length} />
+                          <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="production_volumes" existingCount={productionVolumes.length} existingFiles={productionVolumes.map(f => ({ id: f.id, scenario_label: f.scenario_label }))} />
                           <Button variant="outline" size="sm" onClick={openFshDialog} className="w-full">
                             <GitBranch className="w-4 h-4 mr-2" />Import from Forecast Scenario Hub
                           </Button>
