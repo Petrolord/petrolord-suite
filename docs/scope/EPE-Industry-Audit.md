@@ -22,9 +22,12 @@ export, Decision Studio S-curve overlay. **Wave D APPROVED and
 IMPLEMENTED 2026-08-21** (engine v3.8, EPE.md §3e): one-pager PDF with
 assumptions + regime-aware full table, full-life waterfall, NPV-vs-rate
 profile, discounted take, run-history KPI strip, comparison overlays +
-deltas + CSV. Remaining: Band 2 items 2.5–2.11, 3.6 reserves scenarios,
-4.2/4.3/4.10–4.13 (Wave E), and Wave F fiscal depth — awaiting owner
-selection.
+deltas + CSV. **Wave E APPROVED and IMPLEMENTED 2026-08-21** (EPE.md
+§3f): org sharing v1 read-only across the case family, run lock/approve,
+corporate assumption library, case search/archive/clone + KPI badges,
+Forecast Scenario Hub import. Remaining: Band 2 items 2.5–2.11, 3.6
+reserves scenarios, 4.10 in-app data editing (deferred from Wave E), and
+Wave F fiscal depth — awaiting owner selection.
 
 ## Headline
 

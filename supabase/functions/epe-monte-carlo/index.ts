@@ -48,6 +48,16 @@ Deno.serve(async (req) => {
       .from('epe_run_configs').select('*').eq('id', run_config_id).single();
     if (cfgErr) throw new Error(`Run config lookup failed: ${cfgErr.message}`);
 
+    // Wave E: org sharing is read-only. Only the config's owner may launch
+    // a Monte Carlo run on it (this function writes with the service role,
+    // so RLS alone cannot enforce it).
+    if (cfg.user_id && cfg.user_id !== user.id) {
+      return new Response(
+        JSON.stringify({ error: 'This case is shared with you read-only. Clone it to run your own simulations.' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const [prodRes, capexRes, opexRes] = await Promise.all([
       supabase.from('epe_production_volumes').select('data').eq('case_id', cfg.case_id),
       supabase.from('epe_capex').select('data').eq('case_id', cfg.case_id),

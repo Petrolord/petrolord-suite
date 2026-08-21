@@ -7,11 +7,20 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
     import { Button } from '@/components/ui/button';
     import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-    import { ArrowLeft, Upload, FileText, BarChart, Play, Plus, Loader2, Trash2, FileSpreadsheet, FileJson, Contrast as Compare } from 'lucide-react';
+    import { ArrowLeft, Upload, FileText, BarChart, Play, Plus, Loader2, Trash2, FileSpreadsheet, FileJson, Contrast as Compare, Users, Lock, Unlock, BadgeCheck, GitBranch } from 'lucide-react';
     import { supabase } from '@/lib/customSupabaseClient';
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useDropzone } from 'react-dropzone';
     import Papa from 'papaparse';
+    import {
+      Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+    } from '@/components/ui/dialog';
+    import { Label } from '@/components/ui/label';
+    import { Input } from '@/components/ui/input';
+    // Wave E (audit 4.13): the Forecast Scenario Hub handoff. compareCases is
+    // the SAME shared util the Hub itself renders from (canonical DCA engine
+    // under the hood), so an imported profile matches the Hub bbl for bbl.
+    import { compareCases } from '@/utils/forecastScenarioCalculations';
 
     // Wave A (audit finding 1.1): the engine sums every file in a slot, so
     // multiple files are only correct when they are complementary.
@@ -38,6 +47,162 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
       const [runKpis, setRunKpis] = useState({}); // Wave D: run_id -> kpis for the history table
       const [loading, setLoading] = useState(true);
       const [processingFileId, setProcessingFileId] = useState(null);
+      // Wave E: sharing + import state
+      const [myOrgId, setMyOrgId] = useState(null);
+      const [shareBusy, setShareBusy] = useState(false);
+      const [fshOpen, setFshOpen] = useState(false);
+      const [fshProjects, setFshProjects] = useState([]);
+      const [fshProjectId, setFshProjectId] = useState('');
+      const [fshCaseIdx, setFshCaseIdx] = useState('');
+      const [fshStartYear, setFshStartYear] = useState(String(new Date().getFullYear()));
+      const [fshReplace, setFshReplace] = useState(true);
+      const [fshBusy, setFshBusy] = useState(false);
+
+      const isOwner = !!caseDetails && !!user && caseDetails.user_id === user.id;
+
+      // Wave E: the user's active organization (for the share toggle), same
+      // resolution as TeamManagement.
+      useEffect(() => {
+        if (!user?.id) return;
+        let alive = true;
+        (async () => {
+          const { data } = await supabase
+            .from('organization_members')
+            .select('organization_id')
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .limit(1)
+            .maybeSingle();
+          if (alive) setMyOrgId(data?.organization_id ?? null);
+        })();
+        return () => { alive = false; };
+      }, [user?.id]);
+
+      const handleToggleShare = async () => {
+        if (!isOwner) return;
+        const sharing = !caseDetails.organization_id;
+        if (sharing && !myOrgId) return;
+        setShareBusy(true);
+        const { error } = await supabase
+          .from('epe_cases')
+          .update({ organization_id: sharing ? myOrgId : null })
+          .eq('id', caseId);
+        if (error) {
+          toast({ variant: 'destructive', title: sharing ? 'Share failed' : 'Unshare failed', description: error.message });
+        } else {
+          toast({
+            title: sharing ? 'Case shared with your organization' : 'Case is private again',
+            description: sharing ? 'Teammates can view this case, its data and results. Only you can edit or run.' : undefined,
+          });
+          fetchData();
+        }
+        setShareBusy(false);
+      };
+
+      const handleToggleLock = async (run) => {
+        const { error } = await supabase
+          .from('epe_runs')
+          .update({ locked: !run.locked })
+          .eq('id', run.id);
+        if (error) {
+          toast({ variant: 'destructive', title: 'Could not update lock', description: error.message });
+        } else {
+          toast({ title: run.locked ? 'Run unlocked' : 'Run locked', description: run.locked ? undefined : 'Locked runs cannot be deleted until unlocked.' });
+          fetchData();
+        }
+      };
+
+      const handleToggleApprove = async (run) => {
+        const approving = !run.approved_at;
+        const { error } = await supabase
+          .from('epe_runs')
+          .update(approving
+            ? { approved_by: user.id, approved_at: new Date().toISOString() }
+            : { approved_by: null, approved_at: null })
+          .eq('id', run.id);
+        if (error) {
+          toast({ variant: 'destructive', title: 'Could not update approval', description: error.message });
+        } else {
+          toast({ title: approving ? 'Run approved' : 'Approval removed' });
+          fetchData();
+        }
+      };
+
+      const openFshDialog = async () => {
+        setFshOpen(true);
+        const { data, error } = await supabase
+          .from('saved_scenario_hub_projects')
+          .select('id, project_name, inputs_data, updated_at')
+          .order('updated_at', { ascending: false });
+        if (error) {
+          toast({ variant: 'destructive', title: 'Could not list scenario sets', description: error.message });
+          setFshProjects([]);
+        } else {
+          setFshProjects(data || []);
+        }
+        setFshProjectId('');
+        setFshCaseIdx('');
+      };
+
+      const handleFshImport = async () => {
+        const project = fshProjects.find((p) => p.id === fshProjectId);
+        const scenarioCases = project?.inputs_data?.cases || [];
+        const idx = parseInt(fshCaseIdx, 10);
+        const scenario = Number.isFinite(idx) ? scenarioCases[idx] : null;
+        const startYear = parseInt(fshStartYear, 10);
+        if (!scenario || !Number.isFinite(startYear)) {
+          toast({ variant: 'destructive', title: 'Pick a scenario and a start year' });
+          return;
+        }
+        setFshBusy(true);
+        try {
+          // Same math as the Hub's own display and CSV export.
+          const { summaries } = compareCases([scenario]);
+          const s = summaries[0];
+          if (!s || s.error) throw new Error(s?.error || 'The scenario could not be evaluated.');
+          const rows = s.annual.map((bbl, i) => ({ year: startYear + i, oil_bbl: Math.round(bbl) }));
+          if (rows.length === 0) throw new Error('The scenario produced no annual volumes.');
+
+          const { data: newRow, error: insErr } = await supabase
+            .from('epe_production_volumes')
+            .insert({
+              case_id: caseId,
+              user_id: user.id,
+              file_name: `FSH - ${scenario.name || 'scenario'}.generated`,
+              data: rows,
+            })
+            .select('id')
+            .single();
+          if (insErr) throw new Error(insErr.message);
+
+          let replaced = 0;
+          if (fshReplace && productionVolumes.length > 0) {
+            const { error: delErr, count } = await supabase
+              .from('epe_production_volumes')
+              .delete({ count: 'exact' })
+              .eq('case_id', caseId)
+              .neq('id', newRow.id);
+            if (delErr) {
+              toast({ variant: 'destructive', title: 'Could not remove the previous file(s)', description: `${delErr.message}. Delete them manually or the engine will sum both.` });
+            } else {
+              replaced = count || 0;
+            }
+          }
+
+          const totalMMbbl = rows.reduce((t, r) => t + r.oil_bbl, 0) / 1e6;
+          toast({
+            title: 'Production profile imported',
+            description: `${rows.length} years, ${totalMMbbl.toLocaleString('en-US', { maximumFractionDigits: 2 })} MMbbl from "${scenario.name}".`
+              + (replaced > 0 ? ` Replaced ${replaced} previous file${replaced > 1 ? 's' : ''}.` : ''),
+          });
+          setFshOpen(false);
+          fetchData();
+        } catch (err) {
+          toast({ variant: 'destructive', title: 'Import failed', description: err.message });
+        } finally {
+          setFshBusy(false);
+        }
+      };
 
       const fetchData = useCallback(async () => {
         if (!user || !caseId) return;
@@ -145,7 +310,9 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
         ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(v)
         : null);
 
-      const handleDeleteFile = async (fileId, table) => {
+      const handleDeleteFile = async (fileId, table, fileName) => {
+        // Wave E (audit 4.11): destructive action gets a confirm.
+        if (!window.confirm(`Delete ${fileName || 'this file'}? The engine will no longer see its data.`)) return;
         try {
           const { error } = await supabase.from(table).delete().eq('id', fileId);
           if (error) throw error;
@@ -177,14 +344,39 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {isOwner && (
+                  <Button
+                    variant="outline"
+                    onClick={handleToggleShare}
+                    disabled={shareBusy || (!caseDetails?.organization_id && !myOrgId)}
+                    title={!caseDetails?.organization_id && !myOrgId
+                      ? 'Join an organization to share cases'
+                      : caseDetails?.organization_id
+                        ? 'Shared read-only with your organization. Click to make it private.'
+                        : 'Make this case visible read-only to your organization.'}
+                    className={caseDetails?.organization_id ? 'border-sky-600 text-sky-300' : ''}
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    {caseDetails?.organization_id ? 'Shared with organization' : 'Share with organization'}
+                  </Button>
+                )}
                 <Link to={`/dashboard/apps/economics/epe/cases/${caseId}/compare`}>
                   <Button variant="outline"><Compare className="w-4 h-4 mr-2" />Compare Runs</Button>
                 </Link>
-                <Link to={`/dashboard/apps/economics/epe/cases/${caseId}/run`}>
-                  <Button><Play className="w-4 h-4 mr-2" />New Run</Button>
-                </Link>
+                {isOwner && (
+                  <Link to={`/dashboard/apps/economics/epe/cases/${caseId}/run`}>
+                    <Button><Play className="w-4 h-4 mr-2" />New Run</Button>
+                  </Link>
+                )}
               </div>
             </div>
+
+            {!isOwner && (
+              <div className="mb-6 flex items-center gap-2 p-3 bg-sky-900/20 border border-sky-800/50 rounded-lg text-sky-200 text-sm">
+                <Users className="w-4 h-4 shrink-0" />
+                Shared by a teammate. Read-only: you can view data, runs and results, and clone the case from the case list to work on your own copy.
+              </div>
+            )}
 
             <Tabs defaultValue="data" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
@@ -200,8 +392,15 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {productionVolumes.length > 1 && <MultiFileWarning count={productionVolumes.length} />}
-                      {productionVolumes.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'production_volumes'})} onDelete={() => handleDeleteFile(f.id, 'epe_production_volumes')} processing={processingFileId === f.id} />)}
-                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="production_volumes" existingCount={productionVolumes.length} />
+                      {productionVolumes.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'production_volumes'})} onDelete={isOwner ? () => handleDeleteFile(f.id, 'epe_production_volumes', f.file_name) : undefined} processing={processingFileId === f.id} />)}
+                      {isOwner && (
+                        <>
+                          <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="production_volumes" existingCount={productionVolumes.length} />
+                          <Button variant="outline" size="sm" onClick={openFshDialog} className="w-full">
+                            <GitBranch className="w-4 h-4 mr-2" />Import from Forecast Scenario Hub
+                          </Button>
+                        </>
+                      )}
                     </CardContent>
                   </Card>
                   <Card className="bg-slate-800/50 border-slate-700">
@@ -211,8 +410,8 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {capex.length > 1 && <MultiFileWarning count={capex.length} />}
-                      {capex.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'capex'})} onDelete={() => handleDeleteFile(f.id, 'epe_capex')} processing={processingFileId === f.id} />)}
-                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="capex" existingCount={capex.length} />
+                      {capex.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'capex'})} onDelete={isOwner ? () => handleDeleteFile(f.id, 'epe_capex', f.file_name) : undefined} processing={processingFileId === f.id} />)}
+                      {isOwner && <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="capex" existingCount={capex.length} />}
                     </CardContent>
                   </Card>
                   <Card className="bg-slate-800/50 border-slate-700">
@@ -222,8 +421,8 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                     </CardHeader>
                     <CardContent className="space-y-4">
                       {opex.length > 1 && <MultiFileWarning count={opex.length} />}
-                      {opex.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'opex'})} onDelete={() => handleDeleteFile(f.id, 'epe_opex')} processing={processingFileId === f.id} />)}
-                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="opex" existingCount={opex.length} />
+                      {opex.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'opex'})} onDelete={isOwner ? () => handleDeleteFile(f.id, 'epe_opex', f.file_name) : undefined} processing={processingFileId === f.id} />)}
+                      {isOwner && <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="opex" existingCount={opex.length} />}
                     </CardContent>
                   </Card>
                 </div>
@@ -249,6 +448,12 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                                   {status === 'running' && (
                                     <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-400 border border-amber-800">Running</span>
                                   )}
+                                  {run.locked && (
+                                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 border border-slate-600 inline-flex items-center gap-1"><Lock className="w-2.5 h-2.5" />Locked</span>
+                                  )}
+                                  {run.approved_at && (
+                                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-900/50 text-emerald-300 border border-emerald-800 inline-flex items-center gap-1" title={`Approved ${new Date(run.approved_at).toLocaleString()}`}><BadgeCheck className="w-2.5 h-2.5" />Approved</span>
+                                  )}
                                 </p>
                                 <p className="text-xs text-slate-400">Run on: {new Date(run.created_at).toLocaleString()}</p>
                                 {status === 'failed' && run.error_message && (
@@ -270,19 +475,40 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                                 )}
                               </div>
                               {status === 'failed' ? (
-                                <Button variant="ghost" size="icon" className="hover:text-red-400 shrink-0" title="Delete failed run"
-                                  onClick={() => handleDeleteRun(run.id, run.run_name)}>
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
+                                isOwner ? (
+                                  <Button variant="ghost" size="icon" className="hover:text-red-400 shrink-0" title="Delete failed run"
+                                    onClick={() => handleDeleteRun(run.id, run.run_name)}>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                ) : null
                               ) : (
                                 <div className="flex items-center gap-1 shrink-0">
                                   <Link to={`/dashboard/apps/economics/epe/runs/${run.id}`}>
                                     <Button variant="secondary">View Results</Button>
                                   </Link>
-                                  <Button variant="ghost" size="icon" className="hover:text-red-400" title="Delete run"
-                                    onClick={() => handleDeleteRun(run.id, run.run_name)}>
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
+                                  {isOwner && status === 'complete' && (
+                                    <>
+                                      <Button variant="ghost" size="icon"
+                                        title={run.locked ? 'Unlock this run' : 'Lock this run so it cannot be deleted'}
+                                        onClick={() => handleToggleLock(run)}>
+                                        {run.locked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                                      </Button>
+                                      <Button variant="ghost" size="icon"
+                                        className={run.approved_at ? 'text-emerald-400' : ''}
+                                        title={run.approved_at ? 'Remove approval' : 'Approve this run'}
+                                        onClick={() => handleToggleApprove(run)}>
+                                        <BadgeCheck className="w-4 h-4" />
+                                      </Button>
+                                    </>
+                                  )}
+                                  {isOwner && (
+                                    <Button variant="ghost" size="icon" className="hover:text-red-400"
+                                      title={run.locked ? 'Unlock the run before deleting it' : 'Delete run'}
+                                      disabled={run.locked}
+                                      onClick={() => handleDeleteRun(run.id, run.run_name)}>
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  )}
                                 </div>
                               )}
                             </li>
@@ -304,6 +530,84 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
               </TabsContent>
             </Tabs>
           </div>
+
+          {/* Wave E (audit 4.13): Forecast Scenario Hub import */}
+          <Dialog open={fshOpen} onOpenChange={setFshOpen}>
+            <DialogContent className="sm:max-w-[480px] bg-gray-900 text-white border-slate-700">
+              <DialogHeader>
+                <DialogTitle>Import from Forecast Scenario Hub</DialogTitle>
+                <DialogDescription>
+                  Pick a saved scenario set and one of its cases. The annual profile is rebuilt with the same decline engine the Hub uses and loaded into this case's production slot.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div>
+                  <Label className="text-sm text-white">Scenario set</Label>
+                  <select
+                    value={fshProjectId}
+                    onChange={(e) => { setFshProjectId(e.target.value); setFshCaseIdx(''); }}
+                    className="w-full mt-1 bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                  >
+                    <option value="">Choose a saved scenario set</option>
+                    {fshProjects.map((pr) => (
+                      <option key={pr.id} value={pr.id}>
+                        {pr.project_name}{pr.updated_at ? ` (${new Date(pr.updated_at).toLocaleDateString()})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {fshProjects.length === 0 && (
+                    <p className="text-xs text-slate-500 mt-1">No saved scenario sets found. Save one in Forecast Scenario Hub first.</p>
+                  )}
+                </div>
+                {fshProjectId && (
+                  <div>
+                    <Label className="text-sm text-white">Case</Label>
+                    <select
+                      value={fshCaseIdx}
+                      onChange={(e) => setFshCaseIdx(e.target.value)}
+                      className="w-full mt-1 bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                    >
+                      <option value="">Choose a case</option>
+                      {(fshProjects.find((pr) => pr.id === fshProjectId)?.inputs_data?.cases || []).map((c, i) => (
+                        <option key={i} value={String(i)}>
+                          {c.name} (qi {c.qi} bbl/d, {c.declineAnnualPct}%/yr, b {c.b}, {c.years} yr)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div>
+                  <Label className="text-sm text-white">First production year</Label>
+                  <Input
+                    type="number" step="1"
+                    value={fshStartYear}
+                    onChange={(e) => setFshStartYear(e.target.value)}
+                    className="mt-1 bg-gray-800 border-slate-600 text-white"
+                  />
+                </div>
+                {productionVolumes.length > 0 && (
+                  <label className="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={fshReplace}
+                      onChange={(e) => setFshReplace(e.target.checked)}
+                      className="mt-0.5 accent-cyan-500"
+                    />
+                    <span>
+                      Replace the {productionVolumes.length} existing production file{productionVolumes.length > 1 ? 's' : ''} (recommended). The engine sums every file in the slot.
+                    </span>
+                  </label>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setFshOpen(false)}>Cancel</Button>
+                <Button onClick={handleFshImport} disabled={fshBusy || !fshProjectId || fshCaseIdx === ''}>
+                  {fshBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <GitBranch className="w-4 h-4 mr-2" />}
+                  Import profile
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       );
     };
