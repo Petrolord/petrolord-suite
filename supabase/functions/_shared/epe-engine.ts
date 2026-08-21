@@ -1,6 +1,33 @@
 // supabase/functions/_shared/epe-engine.ts
 //
-// PETROLORD EPE CASH FLOW ENGINE — Shared compute library (v3.3, 2026-08-16)
+// PETROLORD EPE CASH FLOW ENGINE — Shared compute library (v3.5, 2026-08-21)
+//
+// v3.5 changes (Wave A correctness round, docs/scope/EPE-Industry-Audit.md):
+//   - Tax-loss carryforward (JV taxable income; PIA HCT and CIT chargeable
+//     profits): a negative year banks its loss and offsets the next positive
+//     year, per CITA/PIA loss-relief practice. Config kill-switch
+//     cfg.apply_loss_carryforward === false restores the old clamp-at-zero
+//     behavior for reproducing historical runs. PSC needs no loss pool: its
+//     tax base (contractor profit oil) is structurally non-negative and cost
+//     losses already ride the cost-recovery pool. TET / Development Levy stay
+//     on assessable profit without loss relief (deliberate; education-tax
+//     style levies do not enjoy loss carryforward).
+//   - PIA HCT base narrowed to crude + condensate: PIA 2021 charges HCT on
+//     crude oil and condensate profits only (upstream gas profits are
+//     CIT-only). Directly attributable oil royalties (production royalty on
+//     liquids + price royalty) are deducted in full; shared costs (claimed
+//     opex, HCDT, capital allowance) are apportioned by liquids' revenue
+//     share. Escape hatch cfg.pia_hct_include_gas_revenue === true restores
+//     the old whole-revenue base. Oil-only cases are byte-identical.
+//   - irr(): Newton now falls back to bisection when unconverged and returns
+//     null when no sign change brackets a root (the old code returned the
+//     last Newton iterate however wrong).
+//   - Cost ingestion: a row with two different populated cost aliases (e.g.
+//     amount_usd AND cost_usd) now fails loudly instead of silently taking
+//     the first non-zero column.
+//   - Economic limit test now nets royalty out of the revenue-vs-opex check
+//     (net operating income convention).
+//   - kpis.engine_version stamps every result for run provenance.
 //
 // v3.3 changes (ingestion hardening):
 //   - Case-insensitive header normalization for all uploaded CSV rows
@@ -44,6 +71,9 @@
 // NEW CONTRACT:
 //   NTA-era cases (year >= 2026 OR override='force_nta') apply Dev Levy 4%
 //   instead of TET 2.5%, with the volume-cap and CPR-forfeiture behavior.
+
+// Stamped into kpis.engine_version on every run (Wave A provenance).
+export const ENGINE_VERSION = '3.5.0';
 
 // ============================================================================
 // TYPES
@@ -104,12 +134,18 @@ export interface PIAConfig {
   pia_new_lease_prod_alw_cap_shallow_bbl?: number;
   pia_new_lease_prod_alw_cap_deep_bbl?: number;
   pia_prior_cumulative_oil_bbl?: number;
+  // v3.5 (Wave A)
+  apply_loss_carryforward?: boolean;          // default true; false = old clamp
+  pia_hct_include_gas_revenue?: boolean;      // default false; true = old whole-revenue HCT base
 }
 
 export interface PIAState {
   cpr_carryforward: number;
   prior_year_opex_usd: number;
   cumulative_oil_bbl_lifetime: number;  // B2.5: tracks vol-cap progress
+  // v3.5 (Wave A): tax-loss pools, one per tax (separate bases)
+  hct_loss_carryforward: number;
+  cit_loss_carryforward: number;
 }
 
 export interface PIAInputs {
@@ -150,6 +186,11 @@ export interface PIAOutputs {
   fiscal_framework: FiscalFramework;
   prod_alw_cap_applied: boolean;
   prod_alw_eligible_bbl: number;
+  // v3.5 (Wave A) loss-relief diagnostics
+  hct_loss_offset_used: number;
+  cit_loss_offset_used: number;
+  hct_loss_carryforward: number;
+  cit_loss_carryforward: number;
 }
 
 export interface ComputeInput {
@@ -286,24 +327,35 @@ export function extractAnnualVolumes(prodRows: any[], baseYear: number): AnnualV
 }
 
 export function extractAnnualCapex(capexRows: any[], baseYear: number): Map<number, number> {
-  return aggregateAnnualUsd(capexRows, baseYear, CAPEX_USD_COLS, /_usd$/);
+  return aggregateAnnualUsd(capexRows, baseYear, CAPEX_USD_COLS, /_usd$/, 'CAPEX file');
 }
 
 export function extractAnnualOpex(opexRows: any[], baseYear: number): Map<number, number> {
-  return aggregateAnnualUsd(opexRows, baseYear, OPEX_USD_COLS, /_usd$/);
+  return aggregateAnnualUsd(opexRows, baseYear, OPEX_USD_COLS, /_usd$/, 'OPEX file');
 }
 
-function aggregateAnnualUsd(rawRows: any[], baseYear: number, preferredCols: string[], fallbackPattern?: RegExp): Map<number, number> {
+function aggregateAnnualUsd(rawRows: any[], baseYear: number, preferredCols: string[], fallbackPattern?: RegExp, fileLabel = 'Cost file'): Map<number, number> {
   const m = new Map<number, number>();
   if (!rawRows || rawRows.length === 0) return m;
   for (const row of normalizeRows(rawRows)) {
     const year = resolveRowYear(row, baseYear);
     if (year === null) continue;
-    let amt = 0;
-    for (const c of preferredCols) {
+    // v3.5 (Wave A finding 1.5): two different populated cost aliases on one
+    // row are ambiguous — the old first-non-zero pick silently dropped the
+    // rest. Duplicated identical values (a file exporting the same amount
+    // under two names) stay accepted; differing values fail loudly.
+    const populated = preferredCols.filter(c => {
       const v = Number(row[c]);
-      if (row[c] !== undefined && row[c] !== null && Number.isFinite(v) && v !== 0) { amt = v; break; }
+      return row[c] !== undefined && row[c] !== null && Number.isFinite(v) && v !== 0;
+    });
+    const distinct = new Set(populated.map(c => Number(row[c])));
+    if (distinct.size > 1) {
+      throw new Error(
+        `Ingestion validation failed: ${fileLabel}: a row has multiple cost columns populated with different values ` +
+        `(${populated.join(', ')}). Keep exactly one cost column per row so the amount is unambiguous.`
+      );
     }
+    let amt = populated.length > 0 ? Number(row[populated[0]]) : 0;
     if (amt === 0 && fallbackPattern) {
       amt = Object.keys(row)
         .filter(k => fallbackPattern.test(k) && !preferredCols.includes(k) && !k.startsWith('total_'))
@@ -318,7 +370,19 @@ function aggregateAnnualUsd(rawRows: any[], baseYear: number, preferredCols: str
 // JV / PSC REGIMES (unchanged)
 // ============================================================================
 
-export function applyJV(inputs: RegimeInputs, workingInterest: number, royaltyRate: number, taxRate: number): RegimeOutputs {
+// v3.5 (Wave A finding 1.2): a loss year banks its loss and offsets the next
+// positive taxable year instead of being clamped away. `lossCarryforwardIn`
+// is the pool brought forward; the returned `loss_carryforward_after` is
+// threaded by computeCashFlow. `applyLossRelief` false restores the old
+// clamp-at-zero behavior (cfg.apply_loss_carryforward === false).
+export function applyJV(
+  inputs: RegimeInputs,
+  workingInterest: number,
+  royaltyRate: number,
+  taxRate: number,
+  lossCarryforwardIn = 0,
+  applyLossRelief = true,
+): RegimeOutputs & { loss_carryforward_after: number; loss_offset_used: number } {
   const wi = workingInterest;
   const gross = inputs.gross_revenue * wi;
   const royalty = gross * royaltyRate;
@@ -326,9 +390,27 @@ export function applyJV(inputs: RegimeInputs, workingInterest: number, royaltyRa
   const capex = inputs.capex * wi;
   const depr = inputs.depreciation * wi;
   const taxable = gross - royalty - opex - depr;
-  const tax = Math.max(0, taxable * taxRate);
+  let lossPool = applyLossRelief ? lossCarryforwardIn : 0;
+  let lossOffset = 0;
+  let chargeable = taxable;
+  if (applyLossRelief) {
+    if (taxable < 0) {
+      lossPool += -taxable;
+      chargeable = 0;
+    } else {
+      lossOffset = Math.min(lossPool, taxable);
+      lossPool -= lossOffset;
+      chargeable = taxable - lossOffset;
+    }
+  }
+  const tax = Math.max(0, chargeable * taxRate);
   const net = gross - royalty - opex - capex - tax;
-  return { royalty, taxable_income: taxable, tax, net_cash_flow: net, cumulative_unrecovered_cost_after: 0 };
+  return {
+    royalty, taxable_income: taxable, tax, net_cash_flow: net,
+    cumulative_unrecovered_cost_after: 0,
+    loss_carryforward_after: applyLossRelief ? lossPool : 0,
+    loss_offset_used: lossOffset,
+  };
 }
 
 export function applyPSC(inputs: RegimeInputs, royaltyRate: number, costOilCapPct: number, contractorProfitShare: number, taxRate: number): RegimeOutputs {
@@ -522,7 +604,21 @@ export function applyPIA(
   const capAllowClaimed = cprClaimed - opexClaimed;
 
   // HCT computation
-  const hctAssessableProfit = grossRev - totalRoyalties - opexClaimed - hcdt;
+  //
+  // v3.5 (Wave A finding 1.3): PIA charges HCT on crude oil and condensate
+  // profits only — upstream gas profits are CIT-only. The HCT base is
+  // liquids revenue less directly attributable oil royalties (liquids
+  // production royalty + price royalty), less the liquids revenue-share of
+  // costs that are not directly attributable (claimed opex, HCDT, capital
+  // allowance). cfg.pia_hct_include_gas_revenue === true restores the old
+  // whole-revenue base. Oil-only cases are numerically identical either way.
+  const includeGasInHct = cfg.pia_hct_include_gas_revenue === true;
+  const oilShare = includeGasInHct ? 1 : (grossRev > 0 ? oilCondRevenue / grossRev : 0);
+  const hctRevenueBase = includeGasInHct ? grossRev : oilCondRevenue;
+  const hctRoyalties = includeGasInHct
+    ? totalRoyalties
+    : oilCondRevenue * oilProdRoyaltyRate + priceRoyalty;
+  const hctAssessableProfit = hctRevenueBase - hctRoyalties - opexClaimed * oilShare - hcdt * oilShare;
 
   // B2.5: Production allowance now cap-aware (Item C)
   const prodAlwResult = computeProductionAllowance(
@@ -533,7 +629,7 @@ export function applyPIA(
   );
   const productionAllowance = prodAlwResult.allowance;
 
-  const hctChargeableProfit = hctAssessableProfit - capAllowClaimed - productionAllowance;
+  const hctChargeableProfit = hctAssessableProfit - capAllowClaimed * oilShare - productionAllowance;
 
   // B2.5: HCT rate now framework-aware (deep offshore interpretation matters)
   const hctRate = deriveHctRate(
@@ -545,14 +641,45 @@ export function applyPIA(
     cfg.pia_deep_offshore_hct_interpretation ?? 'conservative_zero',
     cfg.pia_deep_offshore_hct_custom_rate_pct ?? null,
   );
-  const hctTax = Math.max(0, hctChargeableProfit * hctRate);
 
-  // CIT computation
+  // v3.5 (Wave A finding 1.2): loss relief — a negative chargeable year banks
+  // its loss; a positive year offsets the brought-forward pool. Separate
+  // pools per tax (HCT and CIT have different bases).
+  const applyLossRelief = cfg.apply_loss_carryforward !== false;
+  let hctLossPool = applyLossRelief ? state.hct_loss_carryforward : 0;
+  let hctLossOffset = 0;
+  let hctTaxBase = hctChargeableProfit;
+  if (applyLossRelief) {
+    if (hctChargeableProfit < 0) {
+      hctLossPool += -hctChargeableProfit;
+      hctTaxBase = 0;
+    } else {
+      hctLossOffset = Math.min(hctLossPool, hctChargeableProfit);
+      hctLossPool -= hctLossOffset;
+      hctTaxBase = hctChargeableProfit - hctLossOffset;
+    }
+  }
+  const hctTax = Math.max(0, hctTaxBase * hctRate);
+
+  // CIT computation (base unchanged: CIT applies to oil AND gas profits)
   const citAssessableProfit = grossRev - totalRoyalties - opexClaimed - hcdt - nddc;
   const citCapAllowCap = Math.max(0, citAssessableProfit * 2 / 3);
   const citCapAllowClaimed = Math.min(capAllowClaimed, citCapAllowCap);
   const citChargeableProfit = citAssessableProfit - citCapAllowClaimed;
-  const citTax = Math.max(0, citChargeableProfit * (cfg.pia_cit_rate_pct / 100));
+  let citLossPool = applyLossRelief ? state.cit_loss_carryforward : 0;
+  let citLossOffset = 0;
+  let citTaxBase = citChargeableProfit;
+  if (applyLossRelief) {
+    if (citChargeableProfit < 0) {
+      citLossPool += -citChargeableProfit;
+      citTaxBase = 0;
+    } else {
+      citLossOffset = Math.min(citLossPool, citChargeableProfit);
+      citLossPool -= citLossOffset;
+      citTaxBase = citChargeableProfit - citLossOffset;
+    }
+  }
+  const citTax = Math.max(0, citTaxBase * (cfg.pia_cit_rate_pct / 100));
 
   // B2.5: TET vs Development Levy — framework-dependent (Items A2, B)
   // Same assessable-profit base (cit_assessable_profit), only rate differs
@@ -597,12 +724,18 @@ export function applyPIA(
       fiscal_framework: framework,
       prod_alw_cap_applied: prodAlwResult.cap_applied,
       prod_alw_eligible_bbl: prodAlwResult.eligible_bbl,
+      hct_loss_offset_used: hctLossOffset,
+      cit_loss_offset_used: citLossOffset,
+      hct_loss_carryforward: hctLossPool,
+      cit_loss_carryforward: citLossPool,
     },
     newState: {
       cpr_carryforward: cprDeferred,
       prior_year_opex_usd: inputs.opex_inflated,
       // B2.5: accumulate oil for volume-cap tracking
       cumulative_oil_bbl_lifetime: state.cumulative_oil_bbl_lifetime + inputs.oil_bbl + inputs.condensate_bbl,
+      hct_loss_carryforward: hctLossPool,
+      cit_loss_carryforward: citLossPool,
     },
   };
 }
@@ -624,6 +757,16 @@ export function irr(cashFlows: number[]): number | null {
   const hasNeg = cashFlows.some(cf => cf < 0);
   const hasPos = cashFlows.some(cf => cf > 0);
   if (!hasNeg || !hasPos) return null;
+
+  const npvAt = (rate: number): number => {
+    let f = 0;
+    for (let i = 0; i < cashFlows.length; i++) f += cashFlows[i] / Math.pow(1 + rate, i);
+    return f;
+  };
+
+  // Fast path: Newton from 10%, as before. Only a CONVERGED Newton result is
+  // trusted; the old code returned the last iterate even when it never
+  // converged (v3.5, Wave A finding 1.4).
   let r = 0.10;
   for (let iter = 0; iter < 100; iter++) {
     let f = 0, df = 0;
@@ -639,7 +782,20 @@ export function irr(cashFlows: number[]): number | null {
     if (r < -0.99) r = -0.99;
     if (r > 10) r = 10;
   }
-  return r;
+
+  // Fallback: bisection on [-0.99, 10]. NPV(r) is continuous; without a sign
+  // change in the bracket there is no IRR to report, so return null rather
+  // than a number the cash flows do not support.
+  let lo = -0.99, hi = 10;
+  let fLo = npvAt(lo), fHi = npvAt(hi);
+  if (!Number.isFinite(fLo) || !Number.isFinite(fHi) || fLo * fHi > 0) return null;
+  for (let iter = 0; iter < 200 && hi - lo > 1e-9; iter++) {
+    const mid = (lo + hi) / 2;
+    const fMid = npvAt(mid);
+    if (fMid === 0) return mid;
+    if (fLo * fMid < 0) { hi = mid; fHi = fMid; } else { lo = mid; fLo = fMid; }
+  }
+  return (lo + hi) / 2;
 }
 
 // v3.4: numeric companion to paybackPeriod() — null means never paid back.
@@ -797,18 +953,37 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
   let economicLimitYear: number | null = null;
   let yearsTrimmedByLimit = 0;
   if (cfg.apply_economic_limit === true) {
-    const revenueLessOpex = (year: number): number => {
+    // v3.5 (Wave A finding 1.6): the limit test now uses net operating income
+    // (revenue less the regime's royalty burden less opex), not bare revenue
+    // less opex — a tail year whose margin only exists before royalty is not
+    // economic to produce.
+    const netOperatingIncome = (year: number): number => {
       const t = year - baseYear;
       const v = annualVols.find(vv => vv.year === year);
-      const rev = v
-        ? v.oil_bbl * (Number(cfg.oil_price_usd_bbl) || 0) * Math.pow(1 + oilEscalator, t)
-          + v.gas_mscf * (Number(cfg.gas_price_usd_mscf) || 0) * Math.pow(1 + gasEscalator, t)
-          + v.condensate_bbl * (Number(cfg.condensate_price_usd_bbl) || 0) * Math.pow(1 + condEscalator, t)
-        : 0;
+      let rev = 0;
+      let royalty = 0;
+      if (v) {
+        const oilP = (Number(cfg.oil_price_usd_bbl) || 0) * Math.pow(1 + oilEscalator, t);
+        const gasP = (Number(cfg.gas_price_usd_mscf) || 0) * Math.pow(1 + gasEscalator, t);
+        const condP = (Number(cfg.condensate_price_usd_bbl) || 0) * Math.pow(1 + condEscalator, t);
+        const oilCondRev = v.oil_bbl * oilP + v.condensate_bbl * condP;
+        const gasRev = v.gas_mscf * gasP;
+        rev = oilCondRev + gasRev;
+        if (cfg.fiscal_regime === 'PIA') {
+          const oilRoyRate = deriveOilRoyaltyRate(cfg.pia_terrain, v.oil_bbl / 365);
+          const gasRoyRate = deriveGasRoyaltyRate(cfg.pia_terrain);
+          const priceRoyRate = derivePriceRoyaltyRate(oilP, year, cfg.pia_terrain);
+          royalty = oilCondRev * (oilRoyRate + priceRoyRate) + gasRev * gasRoyRate;
+        } else if (cfg.fiscal_regime === 'PSC') {
+          royalty = rev * (Number(cfg.psc_royalty_pct) || 0) / 100;
+        } else {
+          royalty = rev * (Number(cfg.jv_royalty_pct) || 0) / 100;
+        }
+      }
       const opex = (annualOpex.get(year) || 0) * Math.pow(1 + opexEscalator, t);
-      return rev - opex;
+      return rev - royalty - opex;
     };
-    while (years.length > 1 && revenueLessOpex(years[years.length - 1]) < 0) {
+    while (years.length > 1 && netOperatingIncome(years[years.length - 1]) < 0) {
       years.pop();
       yearsTrimmedByLimit++;
     }
@@ -855,7 +1030,11 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
     cpr_carryforward: 0,
     prior_year_opex_usd: Number(cfg.pia_prior_year_opex_usd ?? 0),
     cumulative_oil_bbl_lifetime: Number(cfg.pia_prior_cumulative_oil_bbl ?? 0),
+    hct_loss_carryforward: 0,
+    cit_loss_carryforward: 0,
   };
+  let jvLossCarryforward = 0;
+  const applyLossRelief = cfg.apply_loss_carryforward !== false;
 
   for (const year of years) {
     const t = year - baseYear;
@@ -953,6 +1132,11 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
         prod_alw_cap_applied: pia.prod_alw_cap_applied,
         prod_alw_eligible_bbl: pia.prod_alw_eligible_bbl,
         cumulative_oil_bbl_lifetime: piaState.cumulative_oil_bbl_lifetime,
+        // v3.5 loss-relief diagnostics
+        hct_loss_offset_used: pia.hct_loss_offset_used,
+        cit_loss_offset_used: pia.cit_loss_offset_used,
+        hct_loss_carryforward: pia.hct_loss_carryforward,
+        cit_loss_carryforward: pia.cit_loss_carryforward,
       });
 
     } else if (cfg.fiscal_regime === 'PSC') {
@@ -972,18 +1156,24 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
         netCashFlow: regOut.net_cash_flow,
       });
     } else {
-      regOut = applyJV(
+      const jvOut = applyJV(
         { gross_revenue: grossRev, capex: capexNominal, opex: opexInflated, depreciation: depr, cumulative_unrecovered_cost: 0 },
         Number(cfg.jv_working_interest_pct) / 100,
         Number(cfg.jv_royalty_pct) / 100,
-        Number(cfg.jv_tax_rate_pct) / 100
+        Number(cfg.jv_tax_rate_pct) / 100,
+        jvLossCarryforward,
+        applyLossRelief,
       );
+      jvLossCarryforward = jvOut.loss_carryforward_after;
+      regOut = jvOut;
       Object.assign(baseRow, {
         royalty: regOut.royalty,
         taxable_income: regOut.taxable_income,
         tax: regOut.tax,
         net_cash_flow: regOut.net_cash_flow,
         netCashFlow: regOut.net_cash_flow,
+        loss_offset_used: jvOut.loss_offset_used,
+        loss_carryforward: jvOut.loss_carryforward_after,
       });
     }
 
@@ -1019,6 +1209,11 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
     lastRow.cpr_forfeited_at_cessation = cprForfeited;
   }
 
+  // v3.5: tax losses left unused at cessation (diagnostic, mirrors CPR forfeiture)
+  const unusedTaxLosses = cfg.fiscal_regime === 'PIA'
+    ? piaState.hct_loss_carryforward + piaState.cit_loss_carryforward
+    : (cfg.fiscal_regime === 'PSC' ? 0 : jvLossCarryforward);
+
   const cfForNPV = cashFlowData.map(d => pvBasis === 'real' ? d.real_net_cash_flow : d.net_cash_flow);
   const cfForIRR = cashFlowData.map(d => d.net_cash_flow);
   const cfForPayback = cashFlowData.map(d => d.net_cash_flow);
@@ -1028,6 +1223,7 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
   const paybackVal = paybackPeriod(cfForPayback);
 
   const kpis: any = {
+    engine_version: ENGINE_VERSION,
     npv: npvVal,
     irr: irrVal !== null ? irrVal * 100 : null,
     payback: paybackVal,
@@ -1064,6 +1260,9 @@ export function computeCashFlow(input: ComputeInput): ComputeOutput {
   if (cfg.apply_economic_limit === true) {
     kpis.economic_limit_year = economicLimitYear;
     kpis.years_trimmed_by_economic_limit = yearsTrimmedByLimit;
+  }
+  if (unusedTaxLosses > 0) {
+    kpis.tax_losses_unused_at_cessation = unusedTaxLosses;
   }
 
   // Unit costs on a BOE basis (null when there are no volumes to divide by)
