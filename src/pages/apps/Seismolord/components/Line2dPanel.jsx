@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import CrsPicker from '@/components/crs/CrsPicker';
+import { getProjectCrs, addCustomDef } from '@/lib/crs/settingsService';
 import SliceView from './SliceView';
 import {
   ingestLine2d, getLineManifest, loadLineNav,
@@ -71,6 +72,32 @@ export default function Line2dPanel({
   const [file, setFile] = useState(null);
   const [presetKey, setPresetKey] = useState(MAPPING_2D_PRESETS[0].key);
   const [crsTag, setCrsTag] = useState(null);
+  const [projectCrs, setProjectCrs] = useState(null);
+
+  // stored custom defs resolve display names; refreshed when the dialog
+  // opens so defs added elsewhere (3D importer) are listed here too
+  useEffect(() => {
+    if (!importOpen) return;
+    getProjectCrs().then(setProjectCrs).catch(() => {});
+  }, [importOpen]);
+
+  // A pasted definition arrives as onChange(null, {customDef}) per the
+  // CrsPicker contract: register it in settings and select its CUSTOM
+  // tag (the 3D importer's flow). Wiring setCrsTag directly here used
+  // to clear the selection and drop the pasted definition.
+  const onCrsPick = useCallback(async (tag, meta) => {
+    if (meta?.customDef) {
+      try {
+        const customTag = await addCustomDef(meta.customDef);
+        setCrsTag(customTag);
+        setProjectCrs(await getProjectCrs());
+      } catch (e) {
+        toast({ title: 'Custom CRS not saved', description: e.message, variant: 'destructive' });
+      }
+    } else {
+      setCrsTag(tag);
+    }
+  }, [toast]);
   const [progress, setProgress] = useState(null);
   const cancelRef = useRef(null);
 
@@ -523,7 +550,7 @@ export default function Line2dPanel({
                 Coordinate reference system of this file (navigation converts
                 to the Project CRS; the native declaration is kept)
               </div>
-              <CrsPicker value={crsTag} onChange={setCrsTag} />
+              <CrsPicker value={crsTag} onChange={onCrsPick} customDefs={projectCrs?.customDefs || {}} />
             </div>
             {progress && (
               <div className="text-xs text-slate-400">
