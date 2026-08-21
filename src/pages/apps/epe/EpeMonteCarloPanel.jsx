@@ -75,6 +75,10 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
   const [vars, setVars] = useState(null);
   const [iterations, setIterations] = useState(1000);
   const [correlatePrices, setCorrelatePrices] = useState(true);
+  // Wave A (audit finding 1.7): a run is only auditable if it can be
+  // reproduced. Blank = new random seed; a set seed reproduces the run
+  // exactly (the sampler is seeded end to end).
+  const [seedInput, setSeedInput] = useState('');
   const [running, setRunning] = useState(false);
   const [mcRun, setMcRun] = useState(null); // { results, created_at, mc_config }
 
@@ -132,8 +136,11 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
 
     setRunning(true);
     try {
+      const mcConfig = { iterations, variables, correlations };
+      const seedNum = Number(seedInput);
+      if (seedInput !== '' && Number.isFinite(seedNum)) mcConfig.seed = Math.floor(seedNum);
       const { data, error } = await supabase.functions.invoke('epe-monte-carlo', {
-        body: { run_config_id: runConfigId, mc_config: { iterations, variables, correlations } },
+        body: { run_config_id: runConfigId, mc_config: mcConfig },
       });
       if (error) throw new Error(error.message || 'Monte Carlo run failed.');
       if (data?.error) throw new Error(data.error);
@@ -206,6 +213,16 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
             />
             Correlate oil and gas prices (rho 0.7)
           </label>
+          <label className="text-sm text-slate-200 flex items-center gap-2" title="Blank picks a new random seed. Set a seed to reproduce a run exactly for review or audit.">
+            Seed
+            <input
+              type="number"
+              value={seedInput}
+              onChange={(e) => setSeedInput(e.target.value)}
+              placeholder="random"
+              className="w-28 px-2 py-1 rounded bg-slate-800 border border-slate-600 text-white text-sm"
+            />
+          </label>
           <Button onClick={runMonteCarlo} disabled={running} className="bg-gradient-to-r from-green-500 to-cyan-500 text-white">
             {running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
             {running ? 'Running simulation...' : 'Run Monte Carlo'}
@@ -230,7 +247,18 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
               <StatCard title="Deterministic base" value={fmtM(results.base?.npv)} />
             </div>
             <p className="text-xs text-slate-400 mt-2">
-              {results.iterations} iterations, seed {results.seed}. NPV on the run basis ({results.base?.pv_basis || 'real'}); fan bands are nominal cash flow. Petroleum convention: P90 is the low case.
+              {results.iterations} iterations, seed {results.seed}
+              {results.seed != null && (
+                <button
+                  type="button"
+                  onClick={() => setSeedInput(String(results.seed))}
+                  className="ml-1 text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
+                  title="Copy this seed into the Seed field so the next run reproduces this one exactly"
+                >
+                  reuse
+                </button>
+              )}
+              . NPV on the run basis ({results.base?.pv_basis || 'real'}); fan bands are nominal cash flow. Petroleum convention: P90 is the low case.
             </p>
           </div>
 

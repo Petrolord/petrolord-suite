@@ -305,6 +305,7 @@ const EpeRunConsole = () => {
           run_name: runName.trim(),
           parameters: { source: 'EpeRunConsole', regime: config.fiscal_regime },
           run_config_id: cfgRow.id,
+          status: 'running',
         })
         .select('id')
         .single();
@@ -316,9 +317,9 @@ const EpeRunConsole = () => {
         { body: { run_id: runRow.id, run_config_id: cfgRow.id } }
       );
       if (engineErr || engineData?.error) {
-        // A failed engine call would otherwise leave an orphan run with no
-        // results; remove the run row (best effort) before surfacing.
-        await supabase.from('epe_runs').delete().eq('id', runRow.id).then(() => {}, () => {});
+        // Wave A: the failed run row is KEPT (the engine marks it status
+        // 'failed' with the error message) so the failure stays auditable in
+        // Run History.
         if (engineErr) {
           // On a non-2xx the invoke error message is generic ("Edge Function
           // returned a non-2xx status code") — pull the engine's real message
@@ -328,6 +329,12 @@ const EpeRunConsole = () => {
             const body = await engineErr.context?.json?.();
             if (body?.error) detail = body.error;
           } catch (_) { /* keep generic message */ }
+          // Best effort, only if the engine never got to stamp it itself
+          // (e.g. network failure before the function ran).
+          await supabase.from('epe_runs')
+            .update({ status: 'failed', error_message: detail })
+            .eq('id', runRow.id).eq('status', 'running')
+            .then(() => {}, () => {});
           throw new Error(`Engine failed: ${detail}`);
         }
         throw new Error(`Engine error: ${engineData.error}`);

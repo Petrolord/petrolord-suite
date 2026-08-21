@@ -31,11 +31,14 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  let runId: string | null = null;
+  let supabase: ReturnType<typeof createClient> | null = null;
   try {
     if (!SUPABASE_URL || !SERVICE_ROLE_KEY) throw new Error('Missing Supabase environment configuration.');
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+    supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
     const { run_id, run_config_id } = await req.json();
     if (!run_id || !run_config_id) throw new Error('Missing run_id or run_config_id.');
+    runId = run_id;
 
     const { data: run, error: runErr } = await supabase
       .from('epe_runs').select('id, case_id, user_id').eq('id', run_id).single();
@@ -77,6 +80,11 @@ Deno.serve(async (req) => {
       .select('id').single();
     if (resInsErr) throw new Error(`Result save failed: ${resInsErr.message}`);
 
+    // Wave A (finding 1.8): stamp run status on success.
+    await supabase.from('epe_runs')
+      .update({ status: 'complete', error_message: null })
+      .eq('id', run_id);
+
     return new Response(
       JSON.stringify({ success: true, result_id: resultRow.id, kpis, years_modeled: cashFlowData.length }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -84,6 +92,14 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     console.error('[epe-cash-flow-engine] error:', err);
+    // Wave A (finding 1.8): keep the failed run row with the error instead of
+    // leaving an orphan for the client to delete.
+    if (supabase && runId) {
+      await supabase.from('epe_runs')
+        .update({ status: 'failed', error_message: String(err?.message || err).slice(0, 2000) })
+        .eq('id', runId)
+        .then(() => {}, () => {});
+    }
     return new Response(
       JSON.stringify({ error: err?.message || 'Engine failed.', stack: err?.stack }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

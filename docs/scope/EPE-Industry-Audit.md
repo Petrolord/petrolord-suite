@@ -7,8 +7,11 @@ SPEE / @RISK practice; reporting & enterprise workflow vs operator-submission
 practice). All findings verified against code, not doc claims. Companion to
 `docs/scope/EPE.md` (feature census) and `docs/scope/Economics-ROADMAP.md`
 (the completed D0–D5 program).
-**Status:** AWAITING OWNER APPROVAL — no implementation started. Wave
-boundaries and cut-lines are the owner's call.
+**Status:** Wave A APPROVED by owner and IMPLEMENTED 2026-08-21 (engine
+v3.5, see EPE.md §3b): findings 1.1–1.8 closed (1.3 shipped with
+revenue-share cost apportionment plus the `pia_hct_include_gas_revenue`
+escape hatch; a published gas-weighted worked example remains a
+literature-gated cross-check). Waves B–F awaiting owner selection.
 
 ## Headline
 

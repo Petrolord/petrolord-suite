@@ -6,7 +6,7 @@
 // change one, change the other. Plan of record: docs/scope/Economics-ROADMAP.md
 // phase D1. Regression contract: docs/scope/EPE.md §6.7/§7.
 
-import { computeCashFlow, computeBreakevenOilPrice } from '../epe-engine.ts';
+import { computeCashFlow, computeBreakevenOilPrice, irr, ENGINE_VERSION } from '../epe-engine.ts';
 import {
   PIA_WORKED_EXAMPLE_CFG,
   PIA_WORKED_EXAMPLE_PROD,
@@ -393,6 +393,192 @@ describe('EPE engine: ingestion failures are loud (no silent $0 runs)', () => {
       prodRows: goodProd,
       capexRows: [], opexRows: [],
     })).toThrow(/Oil price.*is not set/);
+  });
+});
+
+describe('EPE engine v3.5: tax-loss carryforward (Wave A finding 1.2)', () => {
+  // Hand derivation (JV, WI 100%, royalty 20%, tax 50%, 10y SL depreciation):
+  //   2030: no production, 50M capex -> depr 5M/yr; taxable = -5M -> tax 0,
+  //         loss pool 5M (old engine also taxed 0 here, so year 1 matches).
+  //   2031: gross 100M, royalty 20M, opex 10M, depr 5M -> taxable 65M;
+  //         offset 5M -> chargeable 60M -> tax 30M (old engine: 32.5M).
+  //         net = 100 - 20 - 10 - 30 = 40M.
+  const cfg = {
+    fiscal_regime: 'JV', base_year: 2030,
+    oil_price_usd_bbl: 100, gas_price_usd_mscf: 0, condensate_price_usd_bbl: 0,
+    discount_rate_pct: 10, inflation_rate_pct: 0,
+    oil_price_escalator_pct: 0, gas_price_escalator_pct: 0,
+    condensate_price_escalator_pct: 0, opex_escalator_pct: 0, capex_escalator_pct: 0,
+    present_value_basis: 'nominal',
+    jv_working_interest_pct: 100, jv_royalty_pct: 20, jv_tax_rate_pct: 50,
+  };
+  const input = {
+    cfg,
+    prodRows: [{ year: 2030, well1_oil_bbl: 0 }, { year: 2031, well1_oil_bbl: 1_000_000 }],
+    capexRows: [{ year: 2030, amount_usd: 50_000_000 }],
+    opexRows: [{ year: 2031, total_opex_usd: 10_000_000 }],
+  };
+
+  it('banks the loss year and offsets the next taxable year (JV closed form)', () => {
+    const { cashFlowData } = computeCashFlow(input);
+    expect(cashFlowData[0].tax).toBeCloseTo(0, 2);
+    expect(cashFlowData[0].loss_carryforward).toBeCloseTo(5_000_000, 2);
+    expect(cashFlowData[1].loss_offset_used).toBeCloseTo(5_000_000, 2);
+    expect(cashFlowData[1].tax).toBeCloseTo(30_000_000, 2);
+    expect(cashFlowData[1].net_cash_flow).toBeCloseTo(40_000_000, 2);
+    expect(cashFlowData[1].loss_carryforward).toBeCloseTo(0, 2);
+  });
+
+  it('kill switch restores the old clamp-at-zero behavior', () => {
+    const { cashFlowData } = computeCashFlow({
+      ...input, cfg: { ...cfg, apply_loss_carryforward: false },
+    });
+    expect(cashFlowData[1].tax).toBeCloseTo(32_500_000, 2);
+    expect(cashFlowData[1].net_cash_flow).toBeCloseTo(37_500_000, 2);
+  });
+
+  it('reports losses left unused at cessation', () => {
+    const { kpis } = computeCashFlow({
+      ...input,
+      prodRows: [{ year: 2030, well1_oil_bbl: 0 }],
+      opexRows: [],
+    });
+    expect(kpis.tax_losses_unused_at_cessation).toBeCloseTo(5_000_000, 2);
+  });
+
+  it('offsets PIA HCT and CIT via separate pools (self-consistent vs kill switch)', () => {
+    // Loss year: production but heavy opex; recovery year: normal margins.
+    const piaInput = {
+      cfg: { ...PIA_WORKED_EXAMPLE_CFG, base_year: 2025 },
+      prodRows: [{ year: 2025, well1_oil_bbl: 500_000 }, { year: 2026, well1_oil_bbl: 5_000_000 }],
+      capexRows: [{ year: 2025, amount_usd: 100_000_000 }],
+      opexRows: [{ year: 2025, total_opex_usd: 60_000_000 }, { year: 2026, total_opex_usd: 40_000_000 }],
+    };
+    const withRelief = computeCashFlow(piaInput);
+    const noRelief = computeCashFlow({
+      ...piaInput, cfg: { ...piaInput.cfg, apply_loss_carryforward: false },
+    });
+    const y1 = noRelief.cashFlowData[0];
+    // The scenario must actually produce a year-1 loss on at least one tax
+    // base, or it validates nothing.
+    expect(Math.min(y1.hct_chargeable_profit, y1.cit_chargeable_profit)).toBeLessThan(0);
+    const y2Relief = withRelief.cashFlowData[1];
+    const y2Flat = noRelief.cashFlowData[1];
+    // Year 2 taxes drop by exactly rate x carried loss for each tax.
+    const hctCarried = Math.max(0, -y1.hct_chargeable_profit);
+    const citCarried = Math.max(0, -y1.cit_chargeable_profit);
+    expect(y2Relief.hct_loss_offset_used).toBeCloseTo(Math.min(hctCarried, Math.max(0, y2Flat.hct_chargeable_profit)), 2);
+    expect(y2Flat.hct_tax - y2Relief.hct_tax).toBeCloseTo(y2Relief.hct_loss_offset_used * 0.30, 2);
+    expect(y2Relief.cit_loss_offset_used).toBeCloseTo(Math.min(citCarried, Math.max(0, y2Flat.cit_chargeable_profit)), 2);
+    expect(y2Flat.cit_tax - y2Relief.cit_tax)
+      .toBeCloseTo(y2Relief.cit_loss_offset_used * (PIA_WORKED_EXAMPLE_CFG.pia_cit_rate_pct / 100), 2);
+    // TET base is deliberately untouched by loss relief.
+    expect(y2Relief.tet_tax).toBeCloseTo(y2Flat.tet_tax, 2);
+  });
+});
+
+describe('EPE engine v3.5: HCT excludes gas revenue (Wave A finding 1.3)', () => {
+  it('charges zero HCT on a gas-only case (gas profits are CIT-only under PIA)', () => {
+    const input = {
+      cfg: { ...PIA_WORKED_EXAMPLE_CFG },
+      prodRows: [{ year: 2025, well1_gas_mscf: 20_000_000 }],
+      capexRows: [{ year: 2025, amount_usd: 20_000_000 }],
+      opexRows: [{ year: 2025, total_opex_usd: 10_000_000 }],
+    };
+    const { cashFlowData, kpis } = computeCashFlow(input);
+    expect(cashFlowData[0].hct_tax).toBe(0);
+    expect(cashFlowData[0].hct_assessable_profit).toBe(0);
+    expect(kpis.total_cit).toBeGreaterThan(0);        // gas still pays CIT
+    // Escape hatch reproduces the old whole-revenue base.
+    const legacy = computeCashFlow({
+      ...input, cfg: { ...input.cfg, pia_hct_include_gas_revenue: true },
+    });
+    expect(legacy.cashFlowData[0].hct_tax).toBeGreaterThan(0);
+  });
+});
+
+describe('EPE engine v3.5: IRR solver hardening (Wave A finding 1.4)', () => {
+  it('still solves the JV analytic case via Newton (200%)', () => {
+    expect(irr([-12_500_000, 37_500_000])! * 100).toBeCloseTo(200, 6);
+  });
+
+  it('returns null when no real IRR exists instead of a garbage rate', () => {
+    // -1 + 3/(1+r) - 3/(1+r)^2 has no real root (max is -0.25 at r = 1).
+    expect(irr([-1, 3, -3])).toBeNull();
+  });
+
+  it('any non-null IRR actually zeroes the NPV (self-consistency)', () => {
+    const flows = [-100, 230, -132]; // multiple-IRR shape (roots at 10% and 20%)
+    const r = irr(flows);
+    if (r !== null) {
+      const f = flows.reduce((s, cf, i) => s + cf / Math.pow(1 + r, i), 0);
+      expect(Math.abs(f)).toBeLessThan(1e-4);
+    }
+  });
+});
+
+describe('EPE engine v3.5: ambiguous cost aliases fail loudly (Wave A finding 1.5)', () => {
+  const cfg = {
+    fiscal_regime: 'JV', base_year: 2027,
+    oil_price_usd_bbl: 75, gas_price_usd_mscf: 4.5, condensate_price_usd_bbl: 70,
+    discount_rate_pct: 10, inflation_rate_pct: 0,
+    oil_price_escalator_pct: 0, gas_price_escalator_pct: 0,
+    condensate_price_escalator_pct: 0, opex_escalator_pct: 0, capex_escalator_pct: 0,
+    present_value_basis: 'nominal',
+    jv_working_interest_pct: 100, jv_royalty_pct: 10, jv_tax_rate_pct: 50,
+  };
+  const goodProd = [{ date: '2027-01', oil_bbl: 100_000 }];
+
+  it('throws when a row populates two cost aliases with different values', () => {
+    expect(() => computeCashFlow({
+      cfg, prodRows: goodProd,
+      capexRows: [{ date: '2027-01', amount_usd: 30_000_000, cost_usd: 10_000_000 }],
+      opexRows: [],
+    })).toThrow(/multiple cost columns populated with different values/);
+  });
+
+  it('accepts duplicated identical values under two aliases', () => {
+    const { kpis } = computeCashFlow({
+      cfg, prodRows: goodProd,
+      capexRows: [{ date: '2027-01', amount_usd: 30_000_000, cost_usd: 30_000_000 }],
+      opexRows: [],
+    });
+    expect(kpis.total_capex).toBeCloseTo(30_000_000, 2);
+  });
+});
+
+describe('EPE engine v3.5: economic limit honors royalty (Wave A finding 1.6)', () => {
+  const cfg = {
+    fiscal_regime: 'JV', base_year: 2030,
+    oil_price_usd_bbl: 100, gas_price_usd_mscf: 0, condensate_price_usd_bbl: 0,
+    discount_rate_pct: 10, inflation_rate_pct: 0,
+    oil_price_escalator_pct: 0, gas_price_escalator_pct: 0,
+    condensate_price_escalator_pct: 0, opex_escalator_pct: 0, capex_escalator_pct: 0,
+    present_value_basis: 'nominal',
+    jv_working_interest_pct: 100, jv_royalty_pct: 20, jv_tax_rate_pct: 50,
+    apply_economic_limit: true,
+  };
+  // Tail year: revenue 12M > opex 10M, but 12M x (1 - 20% royalty) = 9.6M < 10M.
+  const prodRows = [
+    { year: 2030, well1_oil_bbl: 1_000_000 },
+    { year: 2031, well1_oil_bbl: 120_000 },
+  ];
+  const capexRows = [{ year: 2030, amount_usd: 50_000_000 }];
+  const opexRows = [{ year: 2030, total_opex_usd: 10_000_000 }, { year: 2031, total_opex_usd: 10_000_000 }];
+
+  it('trims a tail year that is only economic before royalty', () => {
+    const { cashFlowData, kpis } = computeCashFlow({ cfg, prodRows, capexRows, opexRows });
+    expect(cashFlowData).toHaveLength(1);
+    expect(kpis.economic_limit_year).toBe(2030);
+    expect(kpis.years_trimmed_by_economic_limit).toBe(1);
+  });
+});
+
+describe('EPE engine v3.5: run provenance (Wave A finding 1.8)', () => {
+  it('stamps engine_version into every KPI set', () => {
+    const { kpis } = runWorkedExample();
+    expect(kpis.engine_version).toBe(ENGINE_VERSION);
+    expect(ENGINE_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });
 

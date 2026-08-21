@@ -13,6 +13,18 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
     import { useDropzone } from 'react-dropzone';
     import Papa from 'papaparse';
 
+    // Wave A (audit finding 1.1): the engine sums every file in a slot, so
+    // multiple files are only correct when they are complementary.
+    const MultiFileWarning = ({ count }) => (
+      <div className="flex items-start gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded text-amber-200 text-xs">
+        <span className="font-bold shrink-0">!</span>
+        <span>
+          {count} files in this slot. The engine adds them all together. If one is a revision of another,
+          delete the outdated file or the run will double-count.
+        </span>
+      </div>
+    );
+
     const EpeCaseDetail = () => {
       const { caseId } = useParams();
       const navigate = useNavigate();
@@ -96,6 +108,17 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
         }
       };
 
+      const handleDeleteRun = async (runId) => {
+        try {
+          const { error } = await supabase.from('epe_runs').delete().eq('id', runId);
+          if (error) throw error;
+          toast({ title: 'Failed run deleted' });
+          fetchData();
+        } catch (error) {
+          toast({ variant: 'destructive', title: 'Could not delete run', description: error.message });
+        }
+      };
+
       const handleDeleteFile = async (fileId, table) => {
         try {
           const { error } = await supabase.from(table).delete().eq('id', fileId);
@@ -150,8 +173,9 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                       <CardDescription>Upload production forecast files.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {productionVolumes.length > 1 && <MultiFileWarning count={productionVolumes.length} />}
                       {productionVolumes.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'production_volumes'})} onDelete={() => handleDeleteFile(f.id, 'epe_production_volumes')} processing={processingFileId === f.id} />)}
-                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="production_volumes" />
+                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="production_volumes" existingCount={productionVolumes.length} />
                     </CardContent>
                   </Card>
                   <Card className="bg-slate-800/50 border-slate-700">
@@ -160,8 +184,9 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                       <CardDescription>Upload capital expenditure files.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {capex.length > 1 && <MultiFileWarning count={capex.length} />}
                       {capex.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'capex'})} onDelete={() => handleDeleteFile(f.id, 'epe_capex')} processing={processingFileId === f.id} />)}
-                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="capex" />
+                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="capex" existingCount={capex.length} />
                     </CardContent>
                   </Card>
                   <Card className="bg-slate-800/50 border-slate-700">
@@ -170,8 +195,9 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                       <CardDescription>Upload operational expenditure files.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {opex.length > 1 && <MultiFileWarning count={opex.length} />}
                       {opex.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'opex'})} onDelete={() => handleDeleteFile(f.id, 'epe_opex')} processing={processingFileId === f.id} />)}
-                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="opex" />
+                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="opex" existingCount={opex.length} />
                     </CardContent>
                   </Card>
                 </div>
@@ -179,22 +205,43 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
               <TabsContent value="runs">
                 <Card className="bg-slate-800/50 border-slate-700 mt-6">
                   <CardHeader>
-                    <CardTitle>Completed Runs</CardTitle>
+                    <CardTitle>Run History</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {runs.length > 0 ? (
                       <ul className="space-y-3">
-                        {runs.map(run => (
-                          <li key={run.id} className="p-3 bg-slate-800 rounded-md flex justify-between items-center">
-                            <div>
-                              <p className="font-semibold text-cyan-400">{run.run_name}</p>
-                              <p className="text-xs text-slate-400">Run on: {new Date(run.created_at).toLocaleString()}</p>
-                            </div>
-                            <Link to={`/dashboard/apps/economics/epe/runs/${run.id}`}>
-                              <Button variant="secondary">View Results</Button>
-                            </Link>
-                          </li>
-                        ))}
+                        {runs.map(run => {
+                          const status = run.status || 'complete';
+                          return (
+                            <li key={run.id} className="p-3 bg-slate-800 rounded-md flex justify-between items-center gap-4">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-cyan-400 flex items-center gap-2">
+                                  {run.run_name}
+                                  {status === 'failed' && (
+                                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-red-900/50 text-red-400 border border-red-800">Failed</span>
+                                  )}
+                                  {status === 'running' && (
+                                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-900/50 text-amber-400 border border-amber-800">Running</span>
+                                  )}
+                                </p>
+                                <p className="text-xs text-slate-400">Run on: {new Date(run.created_at).toLocaleString()}</p>
+                                {status === 'failed' && run.error_message && (
+                                  <p className="text-xs text-red-400/80 mt-1 truncate" title={run.error_message}>{run.error_message}</p>
+                                )}
+                              </div>
+                              {status === 'failed' ? (
+                                <Button variant="ghost" size="icon" className="hover:text-red-400 shrink-0" title="Delete failed run"
+                                  onClick={() => handleDeleteRun(run.id)}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              ) : (
+                                <Link to={`/dashboard/apps/economics/epe/runs/${run.id}`} className="shrink-0">
+                                  <Button variant="secondary">View Results</Button>
+                                </Link>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     ) : (
                       <div className="text-center py-12">
