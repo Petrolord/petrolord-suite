@@ -51,6 +51,22 @@ export async function listFaults(volumeId) {
   }));
 }
 
+/** Replace a fault's sticks in place (stick edit session save). Goes
+ *  through the same loft choke point as saveFault so the derived
+ *  surface never drifts from the sticks. */
+export async function updateFaultSticks(fault, sticks) {
+  const { data, error } = await supabase.from('seismic_faults')
+    .update({
+      sticks,
+      surface: loftFaultSurface(sticks),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', fault.id)
+    .select().single();
+  if (error) throw new Error(`Could not update fault: ${error.message}`);
+  return data;
+}
+
 export async function deleteFault(fault) {
   const { error } = await supabase.from('seismic_faults')
     .delete().eq('id', fault.id);

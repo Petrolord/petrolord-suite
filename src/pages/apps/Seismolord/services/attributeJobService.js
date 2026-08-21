@@ -12,7 +12,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { buildDerivedManifest, brickRelPath, volumeDir, manifestPath } from '../engine/manifest';
 import { ATTRIBUTE_DEFS } from '../engine/attributes';
 import { DISCONTINUITY_DEFS } from '../engine/discontinuity';
-import { SEISMIC_BUCKET, STORAGE_QUOTA_BYTES } from './seismicStorage';
+import { SEISMIC_BUCKET, assertQuota } from './seismicStorage';
 import { deleteVolume } from './volumesService';
 import { newAttributeWorker } from './attributeWorkerFactory';
 
@@ -44,19 +44,6 @@ export function defaultDerivedName(parentName, attributeName, params = {}) {
   const label = def ? def.label.replace(/\s*\(.*\)$/, '') : attributeName;
   const win = params.windowMs ? ` ${params.windowMs} ms` : '';
   return `${parentName} [${label}${win}]`;
-}
-
-async function assertQuota(estimateBytes) {
-  const { data, error } = await supabase.from('seismic_volumes').select('survey_meta');
-  if (error) return;                    // quota check must never block on a read hiccup
-  const used = (data || []).reduce(
-    (sum, v) => sum + (Number(v.survey_meta?.storage_bytes) || 0), 0);
-  if (used + estimateBytes > STORAGE_QUOTA_BYTES) {
-    const gib = (n) => (n / 1024 ** 3).toFixed(1);
-    throw new Error(
-      `Storage quota exceeded: ${gib(used)} GiB used + ~${gib(estimateBytes)} GiB new `
-      + `> ${gib(STORAGE_QUOTA_BYTES)} GiB. Delete old volumes first.`);
-  }
 }
 
 async function uploadObject(path, body, contentType, skipExisting) {

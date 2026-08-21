@@ -1,6 +1,43 @@
 # Seismolord — STATUS
 
-Last updated: 2026-08-19 (ingest resume)
+Last updated: 2026-08-21 (manual-findings fix pack)
+
+## Manual-findings fix pack: DONE (2026-08-21)
+
+Branch `fix/seismolord-manual-findings`. Closes the six app-fix
+candidates logged while writing the 9-handbook user manual series
+(three real defects, three workflow gaps):
+
+- **2D custom CRS**: Line2dPanel wired CrsPicker's onChange straight to
+  setCrsTag, so a pasted proj4/WKT definition cleared the selection and
+  was dropped. Now mirrors the 3D importer: addCustomDef -> select the
+  CUSTOM tag, stored defs listed and names resolved.
+- **Mistie statics / pick frame** (the deep one): stored line picks are
+  now DEFINED as raw (unshifted) line time, mapped by one shared
+  `shiftPickGrid` helper. Stored grids shift by the section's
+  integer-sample roll for display (they used to detach from events
+  after Apply), drafts unshift on save (they used to bake the static
+  in), and the mistie solve runs in display time — so re-Analyze after
+  Apply reports ~zero shifts and a second Apply no longer doubles the
+  statics. Idempotency asserted in jest.
+- **2D scan warnings surfaced**: warnings (trailing bytes, dead coords,
+  non-monotonic CDPs) persist in survey_meta.ingest.warnings, count in
+  the import toast, and render as an amber strip on the active line
+  (engines #31 reworded the copy to plain sentences).
+- **Storage meter + one quota accounting**: shared
+  getStorageUsage/assertQuota in seismicStorage.js (own volumes + 2D
+  lines; the three per-service copies disagreed and over-counted
+  org-shared rows). StorageMeter renders in the explorer footer and
+  both import dialogs (amber 80%, red 95%).
+- **Clear derived checkshots**: SyntheticsPanel button (confirm-guarded)
+  calls the null door saveDerivedCheckshots always had; the well
+  reverts to imported checkshots and T(z) consumers reload.
+- **Fault stick editing**: explorer "Edit sticks…" loads a saved fault
+  into the draft (stored copy hides), Alt+click deletes the nearest
+  draft point (SliceView click picks now carry altKey), and Save edits
+  updates the row in place via updateFaultSticks, relofting the derived
+  surface at the same write choke point as saveFault. Undoable; NO DDL
+  anywhere in the pack.
 
 ## Ingest resume (interrupted imports): DONE
 

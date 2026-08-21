@@ -19,7 +19,9 @@ import {
   loadHorizonConfidence, saveHorizonVersion,
   updateHorizonMeta,
 } from '../services/horizonsService';
-import { saveFault, listFaults, deleteFault } from '../services/faultsService';
+import {
+  saveFault, listFaults, deleteFault, updateFaultSticks,
+} from '../services/faultsService';
 import { placeWellsForHost } from '@/lib/crs/guards';
 import { faultSticksToRows, writeCharismaFaultSticks } from '../engine/pickExport';
 import { faultHorizonIntersection } from '../engine/faultObjects';
@@ -359,6 +361,9 @@ export default function ViewerPanel() {
   const [faultBusyId, setFaultBusyId] = useState(null);
   // draft fault: array of sticks; each stick = array of {il, xl, s}
   const [draftSticks, setDraftSticks] = useState([]);
+  // stick edit session: the saved fault whose sticks the draft holds;
+  // Save then updates that row in place instead of inserting a new one
+  const [editingFault, setEditingFault] = useState(null);
   // per-render mirrors for undo commands (see undoStack above)
   draftSticksRef.current = draftSticks;
   interpRevRef.current = interpRev;
@@ -515,7 +520,19 @@ export default function ViewerPanel() {
     wellsApi.reload();
     toast({
       title: 'Derived checkshots saved',
-      description: `${well.name}: ${payload.rows.length} rows from the tie warp — synthetics and well displays now use them.`,
+      description: `${well.name}: ${payload.rows.length} rows from the tie warp. Synthetics and well displays now use them.`,
+    });
+  };
+
+  /** Manual-findings fix pack: the clear door the service always had
+   *  (null payload) but nothing called. Imported checkshots come back
+   *  into effect; re-committing a tie restores a derived set. */
+  const clearDerivedCheckshots = async (well) => {
+    await saveDerivedCheckshots(well.id, null);
+    wellsApi.reload();
+    toast({
+      title: 'Derived checkshots removed',
+      description: `${well.name} reverts to its imported checkshots (or none).`,
     });
   };
 
@@ -827,6 +844,7 @@ export default function ViewerPanel() {
     setVisibleIds(new Set());
     setVisibleFaultIds(new Set());
     setDraftSticks([]);
+    setEditingFault(null);
     traverseReqRef.current += 1;                  // supersede in-flight assembly
     traverseBricksRef.current = null;
     ampBricksRef.current = null;
@@ -1300,12 +1318,38 @@ export default function ViewerPanel() {
   // SliceView already mapped the click through its view transform.
   // useCallback keeps the memoized SliceView from re-rendering on every
   // ViewerPanel state change (gain/clip slider ticks, list refreshes).
-  const handlePick = useCallback(async ({ ilIdx, xlIdx, sample }) => {
+  const handlePick = useCallback(async ({ ilIdx, xlIdx, sample, altKey }) => {
     if (!pickMode || !geom || !volume || orientation === 'time') return;
 
     if (pickMode === 'fault') {
-      // fault points are raw picks on visible discontinuities — no snap
       const prev = draftSticksRef.current;
+      // Alt+click deletes the nearest draft point (a few traces / samples
+      // of tolerance); a stick emptied by the deletion is dropped
+      if (altKey) {
+        let best = null;
+        prev.forEach((stick, si) => {
+          stick.forEach((p, pi) => {
+            const dLat = Math.abs(p.il - ilIdx) + Math.abs(p.xl - xlIdx);
+            const dS = Math.abs(p.s - sample);
+            const score = dLat * 4 + dS;
+            if (dLat <= 2 && dS <= 12 && (!best || score < best.score)) {
+              best = { si, pi, score };
+            }
+          });
+        });
+        if (!best) return;
+        const next = prev
+          .map((s, si) => (si === best.si ? s.filter((_, pi) => pi !== best.pi) : [...s]))
+          .filter((s, si) => s.length > 0 || si === prev.length - 1);
+        setDraftSticks(next);
+        undoStack.push({
+          label: 'delete fault stick point',
+          undo: () => setDraftSticks(prev),
+          redo: () => setDraftSticks(next),
+        });
+        return;
+      }
+      // fault points are raw picks on visible discontinuities — no snap
       const next = prev.map((s) => [...s]);
       if (next.length === 0) next.push([]);
       next[next.length - 1].push({ il: ilIdx, xl: xlIdx, s: sample });
@@ -1379,10 +1423,33 @@ export default function ViewerPanel() {
     const prev = draftSticksRef.current;
     if (!prev.length) return;
     setDraftSticks([]);
+    if (editingFault) {
+      // abandoned edit session: the stored fault comes back into view
+      setVisibleFaultIds((s) => new Set([...s, editingFault.id]));
+      setEditingFault(null);
+    }
     undoStack.push({
       label: 'discard fault draft',
       undo: () => setDraftSticks(prev),
       redo: () => setDraftSticks([]),
+    });
+  };
+
+  /** Manual-findings fix pack: load a saved fault's sticks into the
+   *  draft for editing (add points, Alt+click deletes one); Save then
+   *  updates the row in place. The stored copy hides while the draft
+   *  stands in for it. */
+  const startEditFaultSticks = (f) => {
+    const prev = draftSticksRef.current;
+    if (prev.length && prev.some((s) => s.length)
+      && !window.confirm('Replace the current fault draft with this fault\'s sticks?')) return;
+    setDraftSticks(f.sticks.map((st) => st.points.map((p) => ({ ...p }))));
+    setEditingFault(f);
+    setPickMode('fault');
+    setVisibleFaultIds((s) => { const n = new Set(s); n.delete(f.id); return n; });
+    toast({
+      title: 'Editing fault sticks',
+      description: `${f.name}: click to add points, Alt+click a point to delete it, then Save.`,
     });
   };
 
@@ -1391,6 +1458,33 @@ export default function ViewerPanel() {
       .map((points) => ({ points }));
     if (!sticks.length) {
       toast({ title: 'Nothing to save', description: 'A fault stick needs at least 2 points.' });
+      return;
+    }
+    if (editingFault) {
+      // edit session: update the row in place, no rename
+      const target = editingFault;
+      const prevSticks = target.sticks;
+      try {
+        const row = await updateFaultSticks(target, sticks);
+        setDraftSticks([]);
+        setEditingFault(null);
+        setFaults(await listFaults(volume.id));
+        setVisibleFaultIds((s) => new Set([...s, row.id]));
+        undoStack.push({
+          label: `edit fault "${row.name}"`,
+          undo: async () => {
+            await updateFaultSticks(row, prevSticks);
+            setFaults(await listFaults(volume.id));
+          },
+          redo: async () => {
+            await updateFaultSticks(row, sticks);
+            setFaults(await listFaults(volume.id));
+          },
+        });
+        toast({ title: 'Fault updated', description: `${row.name}: ${sticks.length} stick(s).` });
+      } catch (e) {
+        toast({ title: 'Update failed', description: e.message, variant: 'destructive' });
+      }
       return;
     }
     // eslint-disable-next-line no-alert
@@ -2842,6 +2936,7 @@ export default function ViewerPanel() {
     setEditTarget: changeEditTarget,
     toggleFault,
     deleteFault: onDeleteFault,
+    editFaultSticks: startEditFaultSticks,
     exportFaultSticks: onExportFaultSticks,
     exportFaultSurface: onExportFaultSurface,
     exportFaultPolygon: onExportFaultPolygon,
@@ -2976,6 +3071,7 @@ export default function ViewerPanel() {
               endStick={endStick}
               saveDraftFault={saveDraftFault}
               discardDraft={discardDraft}
+              editingFaultName={editingFault?.name || null}
               openVelocity={() => setOpenDialog('velocity')}
               velocityModel={velocityModel}
               openAttribute={() => setOpenDialog('attribute')}
@@ -3217,6 +3313,7 @@ export default function ViewerPanel() {
                   boundaries={velBoundaries}
                   onApplyVelocity={applyCalibratedModel}
                   onCommitCheckshots={commitDerivedCheckshots}
+                  onClearCheckshots={clearDerivedCheckshots}
                 />
               ),
             },

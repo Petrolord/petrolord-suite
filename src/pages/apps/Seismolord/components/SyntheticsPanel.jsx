@@ -363,7 +363,7 @@ function drawTracks(canvas, view) {
 export default function SyntheticsPanel({
   wells, listLogs, downloadCurve, synthesize, getTraces,
   horizons, loadGrid, affine, geom, dtUs, velocity, boundaries,
-  onApplyVelocity = null, onCommitCheckshots = null,
+  onApplyVelocity = null, onCommitCheckshots = null, onClearCheckshots = null,
 }) {
   const [logsByWell, setLogsByWell] = useState({});
   const [logsLoading, setLogsLoading] = useState(false);
@@ -803,6 +803,28 @@ export default function SyntheticsPanel({
     }
   };
 
+  // The inverse door commit-to-checkshots never had: drop the DERIVED
+  // set so the well reverts to its imported checkshots (or none).
+  const clearDerivedCheckshots = async () => {
+    if (!onClearCheckshots || !view?.well) return;
+    const ok = window.confirm(
+      `Remove the tie-derived checkshots on "${view.well.name}"? Displays revert to the imported checkshots (or none). Re-commit a tie to restore them.`,
+    );
+    if (!ok) return;
+    setCommitBusy(true);
+    setError(null);
+    try {
+      await onClearCheckshots(view.well);
+      // the current display was synthesized against the derived set;
+      // flip the badge now, T(z) consumers refresh via the wells reload
+      setView((v) => (v ? { ...v, derivedCheckshots: false } : v));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCommitBusy(false);
+    }
+  };
+
   const commitCalibration = async () => {
     if (!tie?.warp || !onApplyVelocity || !view) return;
     setCommitBusy(true);
@@ -1030,6 +1052,16 @@ export default function SyntheticsPanel({
                   Calibrate velocity
                 </Button>
               </>
+            )}
+            {view?.derivedCheckshots && (
+              <Button size="sm" variant="outline" className="border-rose-800 text-rose-400"
+                onClick={clearDerivedCheckshots}
+                disabled={commitBusy || !onClearCheckshots}
+                data-testid="synth-clear-checkshots"
+                title="Remove the committed tie-derived checkshot set; the well reverts to its imported checkshots (or none)"
+              >
+                Clear derived checkshots
+              </Button>
             )}
           </div>
           <div className="flex-1 min-h-0 overflow-auto" data-testid="synth-result">

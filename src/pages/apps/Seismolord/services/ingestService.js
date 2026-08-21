@@ -15,25 +15,11 @@ import { UNKNOWN } from '@/lib/crs/tags';
 // Constants live in seismicStorage.js (import.meta-free) so other
 // services can use them without inheriting this module's inline worker
 // URL, which babel-jest cannot parse. Re-exported for existing callers.
-import { SEISMIC_BUCKET, STORAGE_QUOTA_BYTES } from './seismicStorage';
+import { SEISMIC_BUCKET, STORAGE_QUOTA_BYTES, assertQuota } from './seismicStorage';
 
 export { SEISMIC_BUCKET, STORAGE_QUOTA_BYTES };
 // Concurrency is governed by the worker's MAX_UNACKED_BRICKS backpressure
 // window (one ack per completed upload), not a separate counter here.
-
-async function assertQuota(estimateBytes) {
-  const { data, error } = await supabase.from('seismic_volumes')
-    .select('survey_meta');
-  if (error) return;                                  // quota check must never block on a read hiccup
-  const used = (data || []).reduce(
-    (sum, v) => sum + (Number(v.survey_meta?.storage_bytes) || 0), 0);
-  if (used + estimateBytes > STORAGE_QUOTA_BYTES) {
-    const gib = (n) => (n / 1024 ** 3).toFixed(1);
-    throw new Error(
-      `Storage quota exceeded: ${gib(used)} GiB used + ~${gib(estimateBytes)} GiB new `
-      + `> ${gib(STORAGE_QUOTA_BYTES)} GiB. Delete old volumes first.`);
-  }
-}
 
 const newWorker = () =>
   new Worker(new URL('../workers/ingest.worker.js', import.meta.url), { type: 'module' });

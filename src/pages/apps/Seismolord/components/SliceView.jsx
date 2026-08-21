@@ -103,7 +103,9 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  *   the cursor before any click — circle = snapped to an event, square
  *   = no event nearby (the raw click position would be used)
  * @param {boolean} p.loading
- * @param {(pick:{ilIdx:number,xlIdx:number,sample:number}) => void} p.onPick
+ * @param {(pick:{ilIdx:number,xlIdx:number,sample:number,altKey?:boolean}) => void} p.onPick
+ *   click picks carry altKey (modifier actions, e.g. fault point delete);
+ *   paint-stroke picks do not
  * @param {(delta:number) => void} p.onStepSlice
  * @param {string} [p.emptyHint] placeholder text when there is no slice
  *   (the Traverse window explains its draw-on-map flow here)
@@ -1151,7 +1153,9 @@ function SliceView({
     }
     if (!d.moved && d.button === 0 && propsRef.current.pickMode) {
       const hit = pickAt(sx, sy);
-      if (hit && hit.inData && onPick) onPick(hit);
+      // altKey rides along so editors can offer modifier actions
+      // (fault mode: Alt+click deletes the nearest draft point)
+      if (hit && hit.inData && onPick) onPick({ ...hit, altKey: e.altKey });
     }
     scheduleView();   // clears any band remnants, syncs HUD
   }, [toDevice, pickAt, onPick, onPickEnd, scheduleView]);

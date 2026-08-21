@@ -7,7 +7,7 @@
 // subtlety, and the native declaration is preserved on the row).
 
 import { supabase } from '@/lib/customSupabaseClient';
-import { SEISMIC_BUCKET, STORAGE_QUOTA_BYTES } from './seismicStorage';
+import { SEISMIC_BUCKET, assertQuota } from './seismicStorage';
 import { myOrgId } from './surfacesService';
 import { newLineWorker } from './lineWorkerFactory';
 import {
@@ -94,20 +94,6 @@ export async function setLineBulkShift(line, bulkShiftMs) {
 }
 
 // ---- ingest ---------------------------------------------------------------
-
-async function assertQuota(estimateBytes) {
-  const { data, error } = await supabase.from('seismic_lines').select('survey_meta');
-  if (error) return;
-  const { data: vols } = await supabase.from('seismic_volumes').select('survey_meta');
-  const used = [...(data || []), ...(vols || [])].reduce(
-    (sum, r) => sum + (Number(r.survey_meta?.storage_bytes) || 0), 0);
-  if (used + estimateBytes > STORAGE_QUOTA_BYTES) {
-    const gib = (b) => (b / 1024 ** 3).toFixed(2);
-    throw new Error(
-      `Storage quota exceeded: ${gib(used)} GiB used + ~${gib(estimateBytes)} GiB new `
-      + `> ${gib(STORAGE_QUOTA_BYTES)} GiB. Delete old data first.`);
-  }
-}
 
 async function uploadObject(path, body, contentType) {
   const { error } = await supabase.storage.from(SEISMIC_BUCKET)
@@ -266,7 +252,12 @@ export async function ingestLine2d({
         bbox: manifest.geometry.bbox,
         stats: manifest.stats,
         storage_bytes: stripBytes + converted.navBlob.byteLength,
-        ingest: row.survey_meta.ingest,
+        ingest: {
+          ...row.survey_meta.ingest,
+          // scan warnings persist with the line so they stay reviewable
+          // after the import dialog closes
+          ...(finish.summary.warnings?.length ? { warnings: finish.summary.warnings } : {}),
+        },
         ...(converted.converted ? { crs_converted_from: nativeTag } : {}),
       },
       updated_at: new Date().toISOString(),
@@ -274,7 +265,7 @@ export async function ingestLine2d({
     .eq('id', lineId)
     .select().single();
   if (updError) throw new Error(`Line imported but registration failed: ${updError.message}`);
-  return { lineId, manifest, row: updated };
+  return { lineId, manifest, row: updated, warnings: finish.summary.warnings || [] };
 }
 
 // ---- loading --------------------------------------------------------------
@@ -296,9 +287,29 @@ export async function loadLineNav(line) {
 }
 
 /**
+ * Shift a pick grid by whole samples, preserving nulls. The pick frame
+ * convention: STORED picks are raw (unshifted) line time; display and
+ * mistie comparison shift them by the line's bulk-static roll
+ * (+Math.round(bulk_shift_ms / dtMs)), and drafts picked on the shifted
+ * display unshift (negative) before storage. Keeping storage raw means
+ * statics can be re-applied or revised without invalidating picks.
+ * @param {Float32Array} picks
+ * @param {number} shiftSamples integer; 0 returns the input unchanged
+ */
+export function shiftPickGrid(picks, shiftSamples) {
+  if (!shiftSamples) return picks;
+  const out = new Float32Array(picks.length);
+  for (let i = 0; i < picks.length; i++) {
+    out[i] = picks[i] === NULL_F32 ? NULL_F32 : picks[i] + shiftSamples;
+  }
+  return out;
+}
+
+/**
  * Assemble the full line section through a small strip cache. The
- * bulk-shift static applies HERE as an integer-sample roll (display +
- * pick comparisons see shifted time; stored strips never change).
+ * bulk-shift static applies HERE as an integer-sample roll; stored
+ * strips never change. STORED picks stay in raw (unshifted) line time
+ * (see shiftPickGrid).
  */
 export async function loadLineSection(line, manifest, {
   supabaseUrl, getToken, applyShift = true,

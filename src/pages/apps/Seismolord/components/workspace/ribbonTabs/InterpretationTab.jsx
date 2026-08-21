@@ -42,7 +42,7 @@ export default function InterpretationTab({
   editTarget, changeEditTarget, horizons, toggleEditTool,
   eraseSize, setEraseSize, edit, editBusy, undoEdit, saveEdits, discardEdits,
   smoothEdits, smoothMethod, setSmoothMethod, smoothRadius, setSmoothRadius, fillHoles,
-  draftSticks, endStick, saveDraftFault, discardDraft,
+  draftSticks, endStick, saveDraftFault, discardDraft, editingFaultName = null,
   openVelocity, velocityModel, openAttribute,
 }) {
   const noSection = !manifest || orientation === 'time';
@@ -273,11 +273,14 @@ export default function InterpretationTab({
             />
             <RibbonButton
               icon={Save}
-              label="Save fault"
+              label={editingFaultName ? 'Save edits' : 'Save fault'}
               active
               accent="orange"
               onClick={saveDraftFault}
               disabled={!draftSticks.some((s) => s.length >= 2)}
+              title={editingFaultName
+                ? `Update "${editingFaultName}" in place (Alt+click a point to delete it)`
+                : undefined}
             />
             <RibbonButton
               icon={Trash2}

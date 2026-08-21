@@ -13,6 +13,7 @@ import { crsHintsFromText } from '../engine/crsHint';
 import { scanFile, ingestVolume } from '../services/ingestService';
 import { listVolumes, deleteVolume } from '../services/volumesService';
 import CrsPicker from '@/components/crs/CrsPicker';
+import StorageMeter from './StorageMeter';
 import CrsBadge from '@/components/crs/CrsBadge';
 import { sanityCheck, crsDisplayName } from '@/lib/crs';
 import { getProjectCrs, addCustomDef } from '@/lib/crs/settingsService';
@@ -262,6 +263,7 @@ export default function ImportPanel({ onIngested, onBusyChange, frameless }) {
 
   const inner = (
     <div className="space-y-4">
+        <StorageMeter refreshKey={phase} />
         {interrupted.length > 0 && phase !== 'ingesting' && (
           <div className="rounded-lg border border-amber-700/50 bg-amber-950/20 p-3 space-y-2">
             <div className="flex items-center text-sm text-amber-300">
