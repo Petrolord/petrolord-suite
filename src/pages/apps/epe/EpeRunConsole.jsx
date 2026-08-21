@@ -81,6 +81,19 @@ const DEFAULT_CONFIG = {
   discounting_convention: 'end_year',
   valuation_year: '',
   treat_prior_as_sunk: false,
+  // ---- v3.9 Wave F: fiscal depth ----
+  production_scenario: '',
+  fx_ngn_per_usd: '',
+  depreciation_method: 'straight_line',
+  jv_psc_depr_years: 10,
+  psc_profit_split_mode: 'flat',
+  psc_profit_tranches: [],
+  psc_itc_pct: 0,
+  psc_prior_cumulative_liquids_bbl: 0,
+  abandonment_funding_mode: 'lump_sum',
+  abandonment_fund_start_year: '',
+  pia_apply_minimum_etr: false,
+  pia_minimum_etr_pct: 15,
   fiscal_regime: 'JV',
   // JV
   jv_working_interest_pct: 100,
@@ -126,6 +139,8 @@ const EpeRunConsole = () => {
   const [showPiaAdvancedLevies, setShowPiaAdvancedLevies] = useState(false);
   const [savedConfigs, setSavedConfigs] = useState([]);
   const [loadedConfigId, setLoadedConfigId] = useState('');
+  // Wave F (3.6): scenario tags present on this case's production files
+  const [scenarioLabels, setScenarioLabels] = useState([]);
 
   // Copy a saved epe_run_configs row into the form. Only keys the form knows
   // about are taken; DB nulls fall back to the field's default so a partial
@@ -184,6 +199,16 @@ const EpeRunConsole = () => {
       const { data: cRow } = await supabase
         .from('epe_cases').select('id, user_id, case_name').eq('id', caseId).maybeSingle();
       if (!cancelled) setCaseRow(cRow || null);
+      // Wave F (3.6): distinct scenario tags on this case's production files
+      const { data: prodTags } = await supabase
+        .from('epe_production_volumes').select('scenario_label').eq('case_id', caseId);
+      if (!cancelled) {
+        const tags = Array.from(new Set((prodTags || [])
+          .map((r) => r.scenario_label)
+          .filter((t) => t !== null && t !== undefined && t !== '')));
+        tags.sort();
+        setScenarioLabels(tags);
+      }
       if (user?.id) {
         const { data: mem } = await supabase
           .from('organization_members')
@@ -458,6 +483,27 @@ const EpeRunConsole = () => {
         apply_economic_limit: config.apply_economic_limit === true,
         abandonment_cost_usd: config.abandonment_cost_usd === '' ? null : config.abandonment_cost_usd,
         abandonment_year: config.abandonment_year === '' ? null : config.abandonment_year,
+        // ---- v3.9 Wave F: fiscal depth ----
+        production_scenario: config.production_scenario === '' ? null : config.production_scenario,
+        fx_ngn_per_usd: config.fx_ngn_per_usd === '' || config.fx_ngn_per_usd === null ? null : config.fx_ngn_per_usd,
+        depreciation_method: config.depreciation_method || 'straight_line',
+        jv_psc_depr_years: config.jv_psc_depr_years === '' ? 10 : config.jv_psc_depr_years,
+        psc_profit_split_mode: config.psc_profit_split_mode || 'flat',
+        psc_profit_tranches: (() => {
+          const rows = (config.psc_profit_tranches || [])
+            .map((r) => ({
+              from_cum_mmbbl: Number(r.from_cum_mmbbl),
+              contractor_share_pct: Number(r.contractor_share_pct),
+            }))
+            .filter((r) => Number.isFinite(r.from_cum_mmbbl) && Number.isFinite(r.contractor_share_pct));
+          return rows.length > 0 ? rows : null;
+        })(),
+        psc_itc_pct: config.psc_itc_pct === '' ? 0 : config.psc_itc_pct,
+        psc_prior_cumulative_liquids_bbl: config.psc_prior_cumulative_liquids_bbl === '' ? 0 : config.psc_prior_cumulative_liquids_bbl,
+        abandonment_funding_mode: config.abandonment_funding_mode || 'lump_sum',
+        abandonment_fund_start_year: config.abandonment_fund_start_year === '' || config.abandonment_fund_start_year === null ? null : config.abandonment_fund_start_year,
+        pia_apply_minimum_etr: config.pia_apply_minimum_etr === true,
+        pia_minimum_etr_pct: config.pia_minimum_etr_pct === '' ? 15 : config.pia_minimum_etr_pct,
       };
 
       // 1. Insert config
@@ -544,6 +590,17 @@ const EpeRunConsole = () => {
     ...p, price_deck: (p.price_deck || []).filter((_, idx) => idx !== i),
   }));
 
+  // v3.9 Wave F: PSC profit-oil tranche editor helpers
+  const addTrancheRow = () => setConfig((p) => ({
+    ...p, psc_profit_tranches: [...(p.psc_profit_tranches || []), { from_cum_mmbbl: '', contractor_share_pct: '' }],
+  }));
+  const setTrancheCell = (i, key, v) => setConfig((p) => ({
+    ...p, psc_profit_tranches: (p.psc_profit_tranches || []).map((r, idx) => (idx === i ? { ...r, [key]: v } : r)),
+  }));
+  const delTrancheRow = (i) => setConfig((p) => ({
+    ...p, psc_profit_tranches: (p.psc_profit_tranches || []).filter((_, idx) => idx !== i),
+  }));
+
   const NumField = ({ id, label, suffix, value, onChange, step = 'any' }) => (
     <div>
       <Label htmlFor={id} className="text-white text-sm">
@@ -626,6 +683,27 @@ const EpeRunConsole = () => {
               <p className="text-red-400 text-xs mt-1">{validationErrors.runName}</p>
             )}
           </div>
+
+          {/* Wave F (3.6): reserves scenario the run should price */}
+          {scenarioLabels.length > 0 && (
+            <div>
+              <Label htmlFor="production_scenario" className="text-white text-sm">Reserves scenario</Label>
+              <select
+                id="production_scenario"
+                value={config.production_scenario || ''}
+                onChange={(e) => setConfig((p) => ({ ...p, production_scenario: e.target.value }))}
+                className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+              >
+                <option value="">Base (untagged files)</option>
+                {scenarioLabels.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500 mt-1">
+                The run uses only the production files tagged with the chosen scenario.
+              </p>
+            </div>
+          )}
 
           {/* Start from a saved scenario (fixes the write-only scenario gap:
               every prior run's config is now one click away) */}
@@ -793,6 +871,19 @@ const EpeRunConsole = () => {
             <p className="text-xs text-slate-500 mt-1">
               Differentials adjust the realized price against the marker (negative for a discount). They apply to deck prices too.
             </p>
+            {/* v3.9 Wave F: NGN mirror rate */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+              <NumField
+                id="fx_ngn_per_usd"
+                label="NGN per USD"
+                suffix="optional"
+                value={config.fx_ngn_per_usd ?? ''}
+                onChange={(v) => handleNumberChange('fx_ngn_per_usd', v)}
+              />
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Flat rate. When set, the results carry NGN figures as mirrors of the USD economics; leave blank for USD only.
+            </p>
             {/* v3.6 Wave B: yearly price deck */}
             <div className="mt-4">
               <div className="flex items-center justify-between">
@@ -902,6 +993,41 @@ const EpeRunConsole = () => {
                 Treat years before valuation as sunk
               </label>
             </div>
+            {/* v3.9 Wave F: depreciation controls (JV/PSC; PIA uses its own
+                capex recovery period) */}
+            {config.fiscal_regime !== 'PIA' && (
+              <div className="mt-4">
+                <Label className="text-white text-sm mb-1 block">Depreciation (JV and PSC)</Label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <select
+                      id="depreciation_method"
+                      value={config.depreciation_method || 'straight_line'}
+                      onChange={(e) => setConfig((p) => ({ ...p, depreciation_method: e.target.value }))}
+                      className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                    >
+                      <option value="straight_line">Straight line</option>
+                      <option value="nigeria_ppt">Nigeria PPT schedule (20/20/20/20/19)</option>
+                    </select>
+                  </div>
+                  {(config.depreciation_method || 'straight_line') === 'straight_line' && (
+                    <NumField
+                      id="jv_psc_depr_years"
+                      label="Depreciation life"
+                      suffix="years"
+                      step="1"
+                      value={config.jv_psc_depr_years}
+                      onChange={(v) => handleNumberChange('jv_psc_depr_years', v)}
+                    />
+                  )}
+                </div>
+                {config.depreciation_method === 'nigeria_ppt' && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    Statutory PPT-era annual allowances. The 1 percent retention is held until disposal and is not claimed in the model.
+                  </p>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Field Life (v3.4) */}
@@ -939,9 +1065,34 @@ const EpeRunConsole = () => {
                 onChange={(v) => handleNumberChange('abandonment_year', v === '' ? null : v)}
               />
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <Label htmlFor="abandonment_funding_mode" className="text-white text-sm">Abandonment funding</Label>
+                <select
+                  id="abandonment_funding_mode"
+                  value={config.abandonment_funding_mode || 'lump_sum'}
+                  onChange={(e) => setConfig((p) => ({ ...p, abandonment_funding_mode: e.target.value }))}
+                  className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                >
+                  <option value="lump_sum">Post-tax lump sum</option>
+                  <option value="sinking_fund">Sinking fund</option>
+                </select>
+              </div>
+              {config.abandonment_funding_mode === 'sinking_fund' && (
+                <NumField
+                  id="abandonment_fund_start_year"
+                  label="Fund start year"
+                  suffix="blank = first modeled year"
+                  step="1"
+                  value={config.abandonment_fund_start_year ?? ''}
+                  onChange={(v) => handleNumberChange('abandonment_fund_start_year', v === '' ? '' : v)}
+                />
+              )}
+            </div>
             <p className="text-xs text-slate-500 mt-2">
-              Applied as a post-tax cash outflow in that year. It is not tax-deducted, not
-              depreciated, and excluded from cost recovery.
+              {config.abandonment_funding_mode === 'sinking_fund'
+                ? 'Equal annual contributions from the start year through the abandonment year. Contributions are tax-deductible and the fund pays the final spend, so there is no second cash hit at end of life.'
+                : 'Applied as a post-tax cash outflow in that year. It is not tax-deducted, not depreciated, and excluded from cost recovery.'}
             </p>
           </section>
 
@@ -1138,6 +1289,83 @@ const EpeRunConsole = () => {
                   value={config.psc_tax_rate_pct}
                   onChange={(v) => handleNumberChange('psc_tax_rate_pct', v)}
                 />
+                <NumField
+                  id="psc_itc_pct"
+                  label="Investment tax credit"
+                  suffix="% of CAPEX, credited against tax"
+                  value={config.psc_itc_pct}
+                  onChange={(v) => handleNumberChange('psc_itc_pct', v)}
+                />
+                {/* v3.9 Wave F: profit split mode */}
+                <div>
+                  <Label htmlFor="psc_profit_split_mode" className="text-white text-sm">Profit split</Label>
+                  <select
+                    id="psc_profit_split_mode"
+                    value={config.psc_profit_split_mode || 'flat'}
+                    onChange={(e) => setConfig((p) => ({ ...p, psc_profit_split_mode: e.target.value }))}
+                    className="w-full bg-gray-800 border border-slate-600 rounded px-2 py-2 text-sm text-white"
+                  >
+                    <option value="flat">Flat share</option>
+                    <option value="tranches">Production tranches</option>
+                  </select>
+                </div>
+                {config.psc_profit_split_mode === 'tranches' && (
+                  <div className="md:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-white text-sm">Profit-oil tranches</Label>
+                      <Button type="button" variant="outline" size="sm" onClick={addTrancheRow}>
+                        Add tranche
+                      </Button>
+                    </div>
+                    {(config.psc_profit_tranches || []).length > 0 && (
+                      <div className="mt-2 overflow-x-auto rounded border border-white/10">
+                        <table className="w-full text-xs">
+                          <thead className="bg-slate-800 text-slate-300">
+                            <tr>
+                              <th className="px-2 py-1 text-left">From cumulative MMbbl</th>
+                              <th className="px-2 py-1 text-left">Contractor share %</th>
+                              <th className="px-2 py-1" />
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(config.psc_profit_tranches || []).map((row, i) => (
+                              <tr key={i} className="border-t border-white/5">
+                                {['from_cum_mmbbl', 'contractor_share_pct'].map((key) => (
+                                  <td key={key} className="px-1 py-1">
+                                    <Input
+                                      type="number"
+                                      step="any"
+                                      value={row[key] ?? ''}
+                                      onChange={(e) => setTrancheCell(i, key, e.target.value)}
+                                      className="bg-gray-800 border-slate-600 text-white h-7 text-xs"
+                                    />
+                                  </td>
+                                ))}
+                                <td className="px-1 py-1 text-center">
+                                  <button type="button" onClick={() => delTrancheRow(i)} className="text-slate-400 hover:text-red-400 text-sm" title="Remove tranche">
+                                    &times;
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                      <NumField
+                        id="psc_prior_cumulative_liquids_bbl"
+                        label="Prior cumulative liquids"
+                        suffix="bbl (brownfield start)"
+                        value={config.psc_prior_cumulative_liquids_bbl}
+                        onChange={(v) => handleNumberChange('psc_prior_cumulative_liquids_bbl', v)}
+                      />
+                    </div>
+                    <p className="text-xs text-amber-300/80 mt-2">
+                      The tranche whose threshold is met at the start of a year applies for that whole year. Verify tranche breakpoints against your PSC. Presets vary by contract round.
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-6">
@@ -1458,14 +1686,37 @@ const EpeRunConsole = () => {
                           />
                         </div>
 
-                        {/* Minimum ETR (NTA §57): the toggle shipped here before the
-                            engine implemented the math, so checking it changed
-                            nothing. Removed until the engine supports it (tracked in
-                            docs/scope/EPE.md §4.2); the schema columns remain. */}
-                        <p className="text-xs text-lime-200/50 mt-2">
-                          Minimum Effective Tax Rate (NTA §57) is not modeled yet. It applies to MNE
-                          groups (turnover above €750m) or NGN 50bn+ turnover and rarely binds for petroleum.
-                        </p>
+                        {/* v3.9 Wave F: minimum ETR restored now that the engine
+                            implements the top-up math. */}
+                        <div className="mt-2 pt-3 border-t border-white/10">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Checkbox
+                              id="pia_apply_minimum_etr"
+                              checked={config.pia_apply_minimum_etr === true}
+                              onCheckedChange={(v) => setConfig((p) => ({ ...p, pia_apply_minimum_etr: v === true }))}
+                              className="border-slate-400"
+                            />
+                            <Label htmlFor="pia_apply_minimum_etr" className="text-white text-sm cursor-pointer">
+                              Apply minimum effective tax rate (NTA s.57)
+                            </Label>
+                          </div>
+                          {config.pia_apply_minimum_etr === true && (
+                            <div className="grid grid-cols-2 gap-3 mb-2">
+                              <NumField
+                                id="pia_minimum_etr_pct"
+                                label="Minimum ETR"
+                                suffix="%"
+                                value={config.pia_minimum_etr_pct}
+                                onChange={(v) => handleNumberChange('pia_minimum_etr_pct', v)}
+                              />
+                            </div>
+                          )}
+                          <div className="bg-amber-900/20 border border-amber-500/30 rounded p-2">
+                            <p className="text-amber-200 text-xs">
+                              Project-level approximation. The statutory test is company-level (MNE groups above EUR 750m turnover or NGN 50bn+ turnover) and this model tops up per year when PIA taxes fall short of the rate times CIT assessable profit. The top-up is reported as its own line in results so reviewers can strip it.
+                            </p>
+                          </div>
+                        </div>
                       </div>
                       </div>
                     </>

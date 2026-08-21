@@ -91,12 +91,31 @@ const formatBytes = (b) => {
 // re-uploading a revised forecast used to silently double-count. Uploads now
 // replace the slot's existing file(s) by default; keeping both is an explicit
 // opt-out for genuinely complementary files.
-const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0 }) => {
+//
+// Wave F (audit 3.6): production files carry a reserves scenario tag
+// (scenario_label; null = Base). The engine sums only same-scenario files,
+// so replace-on-upload is scenario-aware for the production slot. Parents
+// may pass existingFiles ([{id, scenario_label}]) for a same-scenario count;
+// without it the total existingCount keeps the pre-Wave-F behavior.
+const SCENARIO_PRESETS = ['1P', '2P', '3P'];
+
+const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0, existingFiles = null }) => {
   const { toast } = useToast();
   const { user } = useAuth();
 
   const [stage, setStage] = useState('IDLE'); // IDLE | PREVIEWING | UPLOADING | PROCESSING | SUCCESS | ERROR
   const [replaceExisting, setReplaceExisting] = useState(true);
+  const [scenarioTag, setScenarioTag] = useState('');   // '' = Base, '__custom__' = free text
+  const [customTag, setCustomTag] = useState('');
+  const isProduction = dataType === 'production_volumes';
+  const effectiveScenario = isProduction
+    ? (scenarioTag === '__custom__' ? customTag.trim() : scenarioTag) || null
+    : null;
+  // Files this upload would supersede: same scenario when the parent tells
+  // us the per-file tags, else the whole slot (legacy behavior).
+  const replaceableCount = existingFiles
+    ? existingFiles.filter((f) => (f.scenario_label ?? null) === effectiveScenario).length
+    : existingCount;
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewData, setPreviewData] = useState(null);  // { columns, rows, totalRows }
   const [filenameWarning, setFilenameWarning] = useState(null);
@@ -237,6 +256,7 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0 }) => 
           user_id: user.id,
           file_name: selectedFile.name,
           data: { storagePath: filePath },
+          ...(isProduction ? { scenario_label: effectiveScenario } : {}),
         })
         .select()
         .single();
@@ -279,16 +299,23 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0 }) => 
       if (cancelledRef.current) return;
       if (updateError) throw new Error(`Saving parsed rows: ${updateError.message}`);
 
-      // ---- Replace-on-upload (Wave A finding 1.1) ----
-      // The engine sums every file in the slot; unless the user explicitly
-      // opted to keep them, older files are superseded by this upload.
+      // ---- Replace-on-upload (Wave A finding 1.1; Wave F: scenario-aware) ----
+      // The engine sums every same-scenario file in the slot; unless the user
+      // explicitly opted to keep them, older files IN THE SAME SCENARIO are
+      // superseded by this upload. Other scenarios' files are untouched.
       let replacedCount = 0;
-      if (replaceExisting && existingCount > 0) {
-        const { error: replaceError, count } = await supabase
+      if (replaceExisting && replaceableCount > 0) {
+        let deleteQuery = supabase
           .from(`epe_${dataType}`)
           .delete({ count: 'exact' })
           .eq('case_id', caseId)
           .neq('id', dbRecord.id);
+        if (isProduction) {
+          deleteQuery = effectiveScenario
+            ? deleteQuery.eq('scenario_label', effectiveScenario)
+            : deleteQuery.is('scenario_label', null);
+        }
+        const { error: replaceError, count } = await deleteQuery;
         if (replaceError) {
           toast({
             variant: 'destructive',
@@ -455,7 +482,33 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0 }) => 
                 </table>
               </div>
 
-              {existingCount > 0 && (
+              {isProduction && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-300">
+                  <span>Scenario tag</span>
+                  <select
+                    value={scenarioTag}
+                    onChange={(e) => setScenarioTag(e.target.value)}
+                    className="bg-gray-800 border border-slate-600 rounded px-2 py-1 text-xs text-white"
+                  >
+                    <option value="">Base</option>
+                    {SCENARIO_PRESETS.map((t) => <option key={t} value={t}>{t}</option>)}
+                    <option value="__custom__">Custom...</option>
+                  </select>
+                  {scenarioTag === '__custom__' && (
+                    <input
+                      value={customTag}
+                      onChange={(e) => setCustomTag(e.target.value)}
+                      placeholder="e.g. 2C"
+                      className="bg-gray-800 border border-slate-600 rounded px-2 py-1 text-xs text-white w-24"
+                    />
+                  )}
+                  <span className="text-slate-500">
+                    Runs price one scenario at a time; untagged files are the Base scenario.
+                  </span>
+                </div>
+              )}
+
+              {replaceableCount > 0 && (
                 <label className="mt-3 flex items-start gap-2 p-2 bg-slate-900/60 border border-white/10 rounded text-xs text-slate-300 cursor-pointer">
                   <input
                     type="checkbox"
@@ -464,8 +517,9 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0 }) => 
                     className="mt-0.5 accent-cyan-500"
                   />
                   <span>
-                    Replace the {existingCount} existing file{existingCount > 1 ? 's' : ''} in this slot (recommended).
-                    Untick only if this file adds to the existing data rather than revising it; the engine sums every file in the slot.
+                    Replace the {replaceableCount} existing file{replaceableCount > 1 ? 's' : ''}
+                    {isProduction ? ` in the ${effectiveScenario || 'Base'} scenario` : ' in this slot'} (recommended).
+                    Untick only if this file adds to the existing data rather than revising it; the engine sums every {isProduction ? 'same-scenario file' : 'file in the slot'}.
                   </span>
                 </label>
               )}
