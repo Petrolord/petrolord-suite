@@ -296,9 +296,29 @@ export async function loadLineNav(line) {
 }
 
 /**
+ * Shift a pick grid by whole samples, preserving nulls. The pick frame
+ * convention: STORED picks are raw (unshifted) line time; display and
+ * mistie comparison shift them by the line's bulk-static roll
+ * (+Math.round(bulk_shift_ms / dtMs)), and drafts picked on the shifted
+ * display unshift (negative) before storage. Keeping storage raw means
+ * statics can be re-applied or revised without invalidating picks.
+ * @param {Float32Array} picks
+ * @param {number} shiftSamples integer; 0 returns the input unchanged
+ */
+export function shiftPickGrid(picks, shiftSamples) {
+  if (!shiftSamples) return picks;
+  const out = new Float32Array(picks.length);
+  for (let i = 0; i < picks.length; i++) {
+    out[i] = picks[i] === NULL_F32 ? NULL_F32 : picks[i] + shiftSamples;
+  }
+  return out;
+}
+
+/**
  * Assemble the full line section through a small strip cache. The
- * bulk-shift static applies HERE as an integer-sample roll (display +
- * pick comparisons see shifted time; stored strips never change).
+ * bulk-shift static applies HERE as an integer-sample roll; stored
+ * strips never change. STORED picks stay in raw (unshifted) line time
+ * (see shiftPickGrid).
  */
 export async function loadLineSection(line, manifest, {
   supabaseUrl, getToken, applyShift = true,

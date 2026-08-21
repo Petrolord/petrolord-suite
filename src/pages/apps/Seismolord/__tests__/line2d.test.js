@@ -11,6 +11,7 @@ import {
   geomFromLineManifest, assembleLineSection,
 } from '@/pages/apps/Seismolord/engine/line2d';
 import { lineIntersections, solveMisties } from '@/pages/apps/Seismolord/engine/line2dIntegration';
+import { shiftPickGrid } from '@/pages/apps/Seismolord/services/linesService';
 import Line2dPanel from '@/pages/apps/Seismolord/components/Line2dPanel';
 
 const NS = 40;
@@ -73,6 +74,32 @@ test('crossing + mistie chain works end to end', () => {
   expect(res.tied).toBe(1);
   expect(res.observations[0].dtMs).toBeCloseTo(8, 6);
   expect(res.rmsAfterMs).toBeLessThan(1e-6);
+
+  // Applying the solved statics and re-solving in display time (picks +
+  // applied shift, the panel's convention) must report ~zero shifts:
+  // Apply is idempotent, not compounding.
+  const dt = 4;
+  const applied = res.shiftsMs;
+  const shifted = [
+    new Float32Array(50).fill(60), new Float32Array(50).fill(62),
+  ].map((p, i) => shiftPickGrid(p, Math.round(applied[i] / dt)));
+  const again = solveMisties(
+    [{ id: 'A', picks: shifted[0] }, { id: 'B', picks: shifted[1] }],
+    [{ a: 0, b: 1, ia: hits[0].ia, ib: hits[0].ib }],
+    dt,
+  );
+  expect(Math.abs(again.shiftsMs[0])).toBeLessThan(1e-6);
+  expect(Math.abs(again.shiftsMs[1])).toBeLessThan(1e-6);
+});
+
+test('shiftPickGrid rolls live picks, preserves nulls, round-trips', () => {
+  const NULL_F32 = Math.fround(1e30);
+  const picks = Float32Array.from([10, NULL_F32, 20.5]);
+  const up = shiftPickGrid(picks, 3);
+  expect(Array.from(up)).toEqual([13, NULL_F32, 23.5]);
+  expect(shiftPickGrid(picks, 0)).toBe(picks);
+  const back = shiftPickGrid(up, -3);
+  expect(Array.from(back)).toEqual(Array.from(picks));
 });
 
 test('the Line window renders its empty state without a line', () => {

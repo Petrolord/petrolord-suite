@@ -24,7 +24,7 @@ import SliceView from './SliceView';
 import {
   ingestLine2d, getLineManifest, loadLineNav,
   loadLineSection, listLinePicks, loadLinePicks, saveLinePicks,
-  updateLinePicks, setLineBulkShift,
+  updateLinePicks, setLineBulkShift, shiftPickGrid,
 } from '../services/linesService';
 import { MAPPING_2D_PRESETS } from '../engine/line2d';
 import {
@@ -218,6 +218,15 @@ export default function Line2dPanel({
     return { nIl: manifest.geometry.ntraces, nXl: 1, ns: manifest.geometry.ns };
   }, [manifest, geom, affine, volumeManifest]);
 
+  // Frame convention: STORED picks are in raw (unshifted) line time; the
+  // draft and the displayed section are in display time (raw + the bulk
+  // static's integer-sample roll). Stored grids therefore shift by the
+  // section's roll for display, and the draft unshifts on save.
+  const shiftGridForDisplay = useCallback(
+    (grid) => shiftPickGrid(grid, section?.shiftSamples || 0),
+    [section?.shiftSamples],
+  );
+
   const lineOverlays = useMemo(() => {
     const tracePicks = [];
     if (draft) {
@@ -230,7 +239,7 @@ export default function Line2dPanel({
       const grid = pickGrids.get(p.id);
       if (!grid) return;
       tracePicks.push({
-        name: p.name, color: horizonColor(idx), picks: grid,
+        name: p.name, color: horizonColor(idx), picks: shiftGridForDisplay(grid),
       });
     });
     // the 3D overlay bundle projects through positions ONLY when the
@@ -240,7 +249,8 @@ export default function Line2dPanel({
       horizons: [], surfaces: [], faults: [], draftSticks: [], seedPick: null, wells: [],
     };
     return { ...base, tracePicks };
-  }, [overlays, draft, pickSets, visiblePickIds, pickGrids, affine, geom, volumeManifest, dtMatches]);
+  }, [overlays, draft, pickSets, visiblePickIds, pickGrids, affine, geom, volumeManifest, dtMatches,
+    shiftGridForDisplay]);
 
   // ---- picking on the line ---------------------------------------------
   const traceAt = useCallback((tr) => {
@@ -291,11 +301,13 @@ export default function Line2dPanel({
     }
     setBusy(true);
     try {
+      // the draft was picked on the shifted display; store raw line time
+      const raw = shiftPickGrid(draft, -(section?.shiftSamples || 0));
       const existing = pickSets.find((p) => p.name === name && p.is_own !== false);
       if (existing) {
-        await updateLinePicks(existing, draft);
+        await updateLinePicks(existing, raw);
       } else {
-        await saveLinePicks({ line, name, picks: draft, params: { mode: snapMode } });
+        await saveLinePicks({ line, name, picks: raw, params: { mode: snapMode } });
       }
       const ps = await listLinePicks(line.id);
       setPickSets(ps);
@@ -362,7 +374,7 @@ export default function Line2dPanel({
         participants.push({ line: l, picks, nav: n });
       }
       if (participants.length < 2) {
-        throw new Error(`"${name}" is picked on ${participants.length} line(s) — misties need at least two.`);
+        throw new Error(`"${name}" is picked on ${participants.length} line(s); misties need at least two.`);
       }
       const crossings = [];
       for (let a = 0; a < participants.length; a++) {
@@ -373,8 +385,17 @@ export default function Line2dPanel({
         }
       }
       const dt = (manifest?.geometry.dt_us ?? 4000) / 1000;
+      // Solve in DISPLAY time: picks store unshifted sample indices, so
+      // each line's already-applied bulk static is added before the
+      // solve. The returned shifts are then deltas on top of the current
+      // statics, which makes Apply idempotent (re-Analyze after Apply
+      // reports ~0 residual shifts instead of the same corrections again).
       const res = solveMisties(
-        participants.map((p) => ({ id: p.line.id, picks: p.picks })),
+        participants.map((p) => ({
+          id: p.line.id,
+          // integer roll, matching loadLineSection's display convention
+          picks: shiftPickGrid(p.picks, Math.round((p.line.bulk_shift_ms || 0) / dt)),
+        })),
         crossings, dt,
       );
       setMistieResult({ ...res, participants, horizon: name, crossings: crossings.length });
