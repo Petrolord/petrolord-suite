@@ -13,6 +13,18 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
     import { useDropzone } from 'react-dropzone';
     import Papa from 'papaparse';
 
+    // Wave A (audit finding 1.1): the engine sums every file in a slot, so
+    // multiple files are only correct when they are complementary.
+    const MultiFileWarning = ({ count }) => (
+      <div className="flex items-start gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded text-amber-200 text-xs">
+        <span className="font-bold shrink-0">!</span>
+        <span>
+          {count} files in this slot. The engine adds them all together. If one is a revision of another,
+          delete the outdated file or the run will double-count.
+        </span>
+      </div>
+    );
+
     const EpeCaseDetail = () => {
       const { caseId } = useParams();
       const navigate = useNavigate();
@@ -161,8 +173,9 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                       <CardDescription>Upload production forecast files.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {productionVolumes.length > 1 && <MultiFileWarning count={productionVolumes.length} />}
                       {productionVolumes.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'production_volumes'})} onDelete={() => handleDeleteFile(f.id, 'epe_production_volumes')} processing={processingFileId === f.id} />)}
-                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="production_volumes" />
+                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="production_volumes" existingCount={productionVolumes.length} />
                     </CardContent>
                   </Card>
                   <Card className="bg-slate-800/50 border-slate-700">
@@ -171,8 +184,9 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                       <CardDescription>Upload capital expenditure files.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {capex.length > 1 && <MultiFileWarning count={capex.length} />}
                       {capex.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'capex'})} onDelete={() => handleDeleteFile(f.id, 'epe_capex')} processing={processingFileId === f.id} />)}
-                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="capex" />
+                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="capex" existingCount={capex.length} />
                     </CardContent>
                   </Card>
                   <Card className="bg-slate-800/50 border-slate-700">
@@ -181,8 +195,9 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
                       <CardDescription>Upload operational expenditure files.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {opex.length > 1 && <MultiFileWarning count={opex.length} />}
                       {opex.map(f => <EpeDataFileCard key={f.id} file={f} onProcess={(f2) => handleProcessFile({...f2, dataType: 'opex'})} onDelete={() => handleDeleteFile(f.id, 'epe_opex')} processing={processingFileId === f.id} />)}
-                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="opex" />
+                      <EpeDataUploader caseId={caseId} onSuccess={fetchData} dataType="opex" existingCount={opex.length} />
                     </CardContent>
                   </Card>
                 </div>

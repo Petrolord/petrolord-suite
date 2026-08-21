@@ -87,11 +87,16 @@ const formatBytes = (b) => {
 // On success, calls onSuccess() so the parent can refresh its file list.
 // ============================================================================
 
-const EpeDataUploader = ({ caseId, dataType, onSuccess }) => {
+// Wave A (audit finding 1.1): the engine SUMS every file in a slot, so
+// re-uploading a revised forecast used to silently double-count. Uploads now
+// replace the slot's existing file(s) by default; keeping both is an explicit
+// opt-out for genuinely complementary files.
+const EpeDataUploader = ({ caseId, dataType, onSuccess, existingCount = 0 }) => {
   const { toast } = useToast();
   const { user } = useAuth();
 
   const [stage, setStage] = useState('IDLE'); // IDLE | PREVIEWING | UPLOADING | PROCESSING | SUCCESS | ERROR
+  const [replaceExisting, setReplaceExisting] = useState(true);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewData, setPreviewData] = useState(null);  // { columns, rows, totalRows }
   const [filenameWarning, setFilenameWarning] = useState(null);
@@ -274,13 +279,35 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess }) => {
       if (cancelledRef.current) return;
       if (updateError) throw new Error(`Saving parsed rows: ${updateError.message}`);
 
+      // ---- Replace-on-upload (Wave A finding 1.1) ----
+      // The engine sums every file in the slot; unless the user explicitly
+      // opted to keep them, older files are superseded by this upload.
+      let replacedCount = 0;
+      if (replaceExisting && existingCount > 0) {
+        const { error: replaceError, count } = await supabase
+          .from(`epe_${dataType}`)
+          .delete({ count: 'exact' })
+          .eq('case_id', caseId)
+          .neq('id', dbRecord.id);
+        if (replaceError) {
+          toast({
+            variant: 'destructive',
+            title: 'Could not remove the previous file(s)',
+            description: `${replaceError.message}. Delete them manually or the engine will sum both.`,
+          });
+        } else {
+          replacedCount = count || 0;
+        }
+      }
+
       setProgress(100);
       setSuccessInfo({ fileName: selectedFile.name, rowCount: rows.length });
       setStage('SUCCESS');
 
       toast({
         title: 'Upload complete',
-        description: `${selectedFile.name}: ${rows.length} rows imported.`,
+        description: `${selectedFile.name}: ${rows.length} rows imported.` +
+          (replacedCount > 0 ? ` Replaced ${replacedCount} previous file${replacedCount > 1 ? 's' : ''}.` : ''),
       });
 
       if (onSuccess) onSuccess(dbRecord);
@@ -427,6 +454,21 @@ const EpeDataUploader = ({ caseId, dataType, onSuccess }) => {
                   </tbody>
                 </table>
               </div>
+
+              {existingCount > 0 && (
+                <label className="mt-3 flex items-start gap-2 p-2 bg-slate-900/60 border border-white/10 rounded text-xs text-slate-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={replaceExisting}
+                    onChange={(e) => setReplaceExisting(e.target.checked)}
+                    className="mt-0.5 accent-cyan-500"
+                  />
+                  <span>
+                    Replace the {existingCount} existing file{existingCount > 1 ? 's' : ''} in this slot (recommended).
+                    Untick only if this file adds to the existing data rather than revising it; the engine sums every file in the slot.
+                  </span>
+                </label>
+              )}
 
               <div className="flex justify-end gap-2 mt-4">
                 <Button variant="outline" size="sm" onClick={handleCancelPreview} type="button">
