@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Home, ChevronRight, Waypoints, Shield, FileText, Grid3X3, Target, Ruler,
-  Compass,
+  Compass, HelpCircle,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -211,11 +211,18 @@ const WellPlanningContent = () => {
             {wellbore && (<><ChevronRight className="mx-1 h-3 w-3 opacity-50" /><span className="text-slate-300">{wellbore.name}</span></>)}
             {design && (<><ChevronRight className="mx-1 h-3 w-3 opacity-50" /><span className="text-slate-200">{design.name} r{design.revision}</span></>)}
           </nav>
-          {site?.crs && (
-            <span className="rounded-full border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400">
-              {site.crs}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {site?.crs && (
+              <span className="rounded-full border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400">
+                {site.crs}
+              </span>
+            )}
+            <Link to="/dashboard/apps/drilling/well-planning/help"
+              className="flex items-center gap-1 rounded-full border border-slate-700 bg-slate-800 px-2 py-0.5 text-[10px] text-slate-300 transition-colors hover:border-lime-600 hover:text-lime-300"
+              title="Open the Well Design Studio help guide">
+              <HelpCircle className="h-3 w-3" /> Help
+            </Link>
+          </div>
         </header>
 
         <div className="min-h-0 flex-1 overflow-auto p-4">
