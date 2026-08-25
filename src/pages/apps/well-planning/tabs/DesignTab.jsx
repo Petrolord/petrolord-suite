@@ -7,7 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Plus, Trash2, GripVertical, Download, AlertCircle, Wand2, Activity, Table as TableIcon, LayoutGrid, Save } from 'lucide-react';
+import { Loader2, Plus, Trash2, GripVertical, Download, AlertCircle, Wand2, Activity, Table as TableIcon, LayoutGrid, Save, Box, Share2 } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toLonLat } from '@/lib/crs';
 import { isTransformableTag } from '@/lib/crs/tags';
 import Papa from 'papaparse';
@@ -25,6 +28,14 @@ import { updateDesign, getSurveyProgram } from '../services/wpApi';
 import TrajectoryKPIs from '../components/TrajectoryKPIs';
 import SolverDialog from '../components/SolverDialog';
 import SurveyProgramEditor from '../components/SurveyProgramEditor';
+import PublishDialog from '../components/PublishDialog';
+import WellpathCubeView from '../components/WellpathCubeView';
+import MudWindowPanel from '../charts/MudWindowPanel';
+import { buildTrajectoryContract, exportFormats } from '../services/trajectoryContract';
+import { loadPpfgCurves, buildMudWindow, mudWindowSummary } from '../services/ppfg';
+import { compositeStations } from '../services/surveyUtils';
+import { listSurveys, listDesigns } from '../services/wpApi';
+import { listTops } from '@/lib/wellsRegistry';
 import PlanViewChart from '../charts/PlanViewChart';
 import {
   SectionViewPanel, InclinationPanel, DlsPanel,
@@ -41,7 +52,7 @@ import {
 const ENGINE_VERSION = 'drilling-wd2';
 
 const DesignTab = () => {
-    const { user, site, wellbore, design, targets: siteTargets, refreshDesigns } = useWellPlanningStore();
+    const { user, site, wellbore, design, targets: siteTargets, wellbores, refreshDesigns, refreshWellbores } = useWellPlanningStore();
     const { trajectoryDraft, updateTrajectoryDraft } = useWellPlanning();
     const { toast } = useToast();
 
@@ -58,6 +69,10 @@ const DesignTab = () => {
     const [programOpen, setProgramOpen] = useState(false);
     const [programIntervals, setProgramIntervals] = useState(null);
     const [showEou, setShowEou] = useState(true);
+    const [publishOpen, setPublishOpen] = useState(false);
+    const [showPpfg, setShowPpfg] = useState(false);
+    const [ppfg, setPpfg] = useState(null);          // {rows, summary} | 'loading' | 'none' | null
+    const [scene3d, setScene3d] = useState(null);    // {composite, offsets, tops} lazy-loaded
     const loadedFor = useRef(null);
 
     const mdUnit = wellbore?.depth_unit === 'ft' ? 'ft' : 'm';
@@ -95,22 +110,132 @@ const DesignTab = () => {
     // stations (metres/grid), EOU overlays at 2 sigma. Needs a
     // geomagnetic reference; without one the overlay is off, loudly.
     const magRef = useMemo(() => resolveMagReference(site, wellbore), [site, wellbore]);
+    const gridMeterStations = useMemo(() => (stations && stations.length >= 2
+        ? stations.map((s) => ({ md: userToMeters(s.md), inc: s.inc, azi: s.azi }))
+        : null), [stations, userToMeters]);
     const uncertainty = useMemo(() => {
-        if (!showEou || !magRef || !stations || stations.length < 2 || !planRows) return null;
+        if (!showEou || !magRef || !gridMeterStations || !planRows) return null;
         try {
-            const gridMeterStations = stations.map((s) => ({
-                md: userToMeters(s.md), inc: s.inc, azi: s.azi,
-            }));
             const { totalCov, programUsed } = computeStationUncertainty(
                 gridMeterStations, magRef, { programIntervals },
             );
             return {
+                totalCov,
                 ellipses: eouPlanEllipses(planRows, totalCov, { k: 2, every: 8, metersToUser }),
                 band: eouSectionBand(planRows, totalCov, { k: 2, metersToUser }),
                 programUsed,
             };
         } catch (e) { return null; }
-    }, [showEou, magRef, stations, planRows, programIntervals, userToMeters, metersToUser]);
+    }, [showEou, magRef, gridMeterStations, planRows, programIntervals, metersToUser]);
+
+    // 3D scene context (WD5): lazy-loaded the first time the 3D view
+    // opens — actual composite runs, the site's other definitive
+    // designs (offsets) and registry tops on the bridged geo_well.
+    useEffect(() => {
+        if (viewMode !== '3d' || scene3d || !wellbore?.id) return;
+        let live = true;
+        (async () => {
+            const out = { composite: null, offsets: [], tops: [] };
+            try {
+                const surveys = await listSurveys(wellbore.id);
+                const gridOf = (s) => (Array.isArray(s.computed) && s.computed.length >= 2 ? s.computed : s.stations);
+                const comp = compositeStations(
+                    surveys.filter((s) => s.is_in_definitive).map((s) => ({ stations: gridOf(s) })),
+                );
+                if (comp.length >= 2) out.composite = comp;
+            } catch (e) { /* composite is optional */ }
+            for (const w of (wellbores || []).filter((x) => x.id !== wellbore.id)) {
+                if (!Number.isFinite(w.head_x)) continue;
+                try {
+                    const ds = await listDesigns(w.id);
+                    const withStations = ds.filter((d) => Array.isArray(d.stations) && d.stations.length >= 2);
+                    const pick = withStations.find((d) => d.status === 'definitive')
+                        || withStations[withStations.length - 1];
+                    if (pick) {
+                        out.offsets.push({
+                            id: w.id, label: w.name, stations: pick.stations,
+                            headX: w.head_x, headY: w.head_y, kbElevM: w.kb_elev_m || 0,
+                        });
+                    }
+                } catch (e) { /* skip unreadable wellbores */ }
+            }
+            if (wellbore.geo_well_id) {
+                try {
+                    out.tops = (await listTops(wellbore.geo_well_id))
+                        .map((t) => ({ name: t.name, mdM: t.md_m }));
+                } catch (e) { /* tops are optional */ }
+            }
+            if (live) setScene3d(out);
+        })();
+        return () => { live = false; };
+    }, [viewMode, scene3d, wellbore, wellbores]);
+    useEffect(() => { setScene3d(null); }, [wellbore?.id]);
+
+    const cubeWells = useMemo(() => {
+        if (!gridMeterStations) return [];
+        const out = [{
+            id: 'plan', label: `${wellbore?.name || 'well'} (plan)`, color: '#166534',
+            stations: gridMeterStations, headX: wellbore?.head_x ?? 0, headY: wellbore?.head_y ?? 0,
+            kbElevM: wellbore?.kb_elev_m || 0, cov: uncertainty?.totalCov || null, kind: 'plan',
+        }];
+        if (scene3d?.composite) {
+            out.push({
+                id: 'actual', label: `${wellbore?.name || 'well'} (actual)`, color: '#b91c1c',
+                stations: scene3d.composite, headX: wellbore?.head_x ?? 0, headY: wellbore?.head_y ?? 0,
+                kbElevM: wellbore?.kb_elev_m || 0, kind: 'actual',
+            });
+        }
+        const palette = ['#1d4ed8', '#7c3aed', '#0f766e', '#be185d', '#b45309'];
+        (scene3d?.offsets || []).forEach((o, i) => {
+            out.push({
+                id: `off-${o.id}`, label: o.label, color: palette[i % palette.length],
+                stations: o.stations, headX: o.headX, headY: o.headY,
+                kbElevM: o.kbElevM, kind: 'offset',
+            });
+        });
+        return out;
+    }, [gridMeterStations, wellbore, uncertainty, scene3d]);
+
+    const cubeTops = useMemo(() => (scene3d?.tops || [])
+        .map((t) => ({ ...t, wellId: 'plan' })), [scene3d]);
+
+    // PPFG mud window (WD5): the pore-pressure prognosis published to
+    // the bridged registry well, hung on this design's trajectory.
+    useEffect(() => {
+        if (!showPpfg || !gridMeterStations) return;
+        if (!wellbore?.geo_well_id) { setPpfg('none'); return; }
+        let live = true;
+        setPpfg('loading');
+        loadPpfgCurves(wellbore.geo_well_id)
+            .then((curves) => {
+                if (!live) return;
+                const rows = buildMudWindow(curves, gridMeterStations, { kbElevM: wellbore.kb_elev_m || 0 });
+                setPpfg(rows.length ? { rows, summary: mudWindowSummary(rows) } : 'none');
+            })
+            .catch(() => { if (live) setPpfg('none'); });
+        return () => { live = false; };
+    }, [showPpfg, wellbore?.geo_well_id, gridMeterStations, wellbore?.kb_elev_m]);
+
+    const handleExport = (format) => {
+        if (!gridMeterStations) return;
+        try {
+            const contract = buildTrajectoryContract({
+                site, wellbore, design, stations: gridMeterStations, magRef,
+                generatedAt: new Date().toISOString(),
+            });
+            const fmt = exportFormats(contract, `${wellbore?.name || 'well'}-${design?.name || 'design'}`)
+                .find((f) => f.id === format);
+            const data = fmt.make();
+            const blob = new Blob([data], { type: fmt.mime });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = fmt.filename;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Export failed', description: e.message });
+        }
+    };
 
     const getGeoCoords = useCallback((easting, northing) => {
         if (!site?.crs || !isTransformableTag(site.crs)) return null;
@@ -469,15 +594,74 @@ const DesignTab = () => {
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('section')} className={`h-7 px-3 text-xs ${viewMode === 'section' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}><Activity className="w-3 h-3 mr-1" /> Section</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('plots')} className={`h-7 px-3 text-xs ${viewMode === 'plots' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}><LayoutGrid className="w-3 h-3 mr-1" /> Plots</Button>
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('table')} className={`h-7 px-3 text-xs ${viewMode === 'table' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`}><TableIcon className="w-3 h-3 mr-1" /> Survey</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setViewMode('3d')} className={`h-7 px-3 text-xs ${viewMode === '3d' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`} data-testid="view-3d"><Box className="w-3 h-3 mr-1" /> 3D</Button>
                         </div>
-                        <Button size="sm" onClick={handleExportCsv} disabled={!planRows} className="h-7 bg-lime-600 hover:bg-lime-700 text-white text-xs"><Download className="w-3 h-3 mr-1" /> Export CSV</Button>
+                        <div className="flex items-center gap-2">
+                            {viewMode === 'section' && (
+                                <Button size="sm" variant="ghost" onClick={() => setShowPpfg((v) => !v)}
+                                    className={`h-7 px-2 text-xs ${showPpfg ? 'bg-slate-700 text-sky-300' : 'text-slate-400'}`}
+                                    title={wellbore?.geo_well_id ? 'Pore/frac mud window from the bridged registry well' : 'Needs a bridged registry well with a published PPFG prognosis (publish this design, then run Pore Pressure Studio on it).'}>
+                                    PPFG
+                                </Button>
+                            )}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button size="sm" disabled={!planRows} className="h-7 bg-lime-600 hover:bg-lime-700 text-white text-xs" data-testid="export-menu">
+                                        <Download className="w-3 h-3 mr-1" /> Export
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="bg-slate-800 text-white border-slate-700">
+                                    <DropdownMenuItem className="text-xs" onClick={handleExportCsv}>Survey CSV ({depthUnitLabel}, quick)</DropdownMenuItem>
+                                    <DropdownMenuItem className="text-xs" onClick={() => handleExport('json')}>Trajectory contract (JSON)</DropdownMenuItem>
+                                    <DropdownMenuItem className="text-xs" onClick={() => handleExport('csv')}>Trajectory CSV (m, full)</DropdownMenuItem>
+                                    <DropdownMenuItem className="text-xs" onClick={() => handleExport('xlsx')}>Excel workbook</DropdownMenuItem>
+                                    <DropdownMenuItem className="text-xs" onClick={() => handleExport('dxf')}>DXF (CAD wellpath)</DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            <Button size="sm" onClick={() => setPublishOpen(true)}
+                                disabled={!Array.isArray(design?.stations) || design.stations.length < 2}
+                                title={Array.isArray(design?.stations) && design.stations.length >= 2 ? 'Publish this design to the geo_wells registry (Seismolord, correlation, petrophysics)' : 'Save the design first — publishing uses the saved station cache.'}
+                                className="h-7 bg-sky-700 hover:bg-sky-600 text-white text-xs" data-testid="open-publish">
+                                <Share2 className="w-3 h-3 mr-1" /> Publish
+                            </Button>
+                        </div>
                     </div>
 
                     <div className="flex-1 pt-12 relative">
                         {viewMode === 'section' && planRows && (
-                            <div className="h-full w-full bg-white">
-                                <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} />
+                            <div className="flex h-full w-full bg-white">
+                                <div className="min-w-0 flex-1">
+                                    <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} />
+                                </div>
+                                {showPpfg && (
+                                    <div className="w-[340px] shrink-0 border-l border-slate-200">
+                                        {ppfg === 'loading' && (
+                                            <div className="flex h-full items-center justify-center text-xs text-slate-500">
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading PPFG curves…
+                                            </div>
+                                        )}
+                                        {ppfg === 'none' && (
+                                            <div className="flex h-full items-center justify-center p-4 text-center text-xs text-slate-500">
+                                                {wellbore?.geo_well_id
+                                                    ? 'No PPFG prognosis on the bridged registry well. Run Pore Pressure Studio on it and publish the PP/FP curves.'
+                                                    : 'No bridged registry well. Publish this design first, then run Pore Pressure Studio on the published well.'}
+                                            </div>
+                                        )}
+                                        {ppfg && typeof ppfg === 'object' && (
+                                            <MudWindowPanel rows={ppfg.rows} summary={ppfg.summary} sourceLabel="registry PPFG" />
+                                        )}
+                                    </div>
+                                )}
                             </div>
+                        )}
+
+                        {viewMode === '3d' && gridMeterStations && (
+                            <WellpathCubeView
+                                wells={cubeWells}
+                                targets={siteTargets || []}
+                                tops={cubeTops}
+                                background="light"
+                            />
                         )}
 
                         {viewMode === 'plots' && planRows && (
@@ -524,6 +708,17 @@ const DesignTab = () => {
                     </div>
                 </div>
             </div>
+
+            <PublishDialog
+                open={publishOpen}
+                onOpenChange={setPublishOpen}
+                site={site}
+                wellbore={wellbore}
+                design={design}
+                stations={design?.stations || []}
+                source="plan"
+                onPublished={() => { refreshDesigns(wellbore.id); refreshWellbores(site.id); }}
+            />
 
             <SurveyProgramEditor
                 open={programOpen}
