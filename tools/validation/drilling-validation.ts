@@ -18,10 +18,16 @@
 //      WD4 when the official iscwsa.net workbook data was secured)
 //   A8 ISCWSA separation rule vs the official clearance example wells
 //      (iscwsa_clearance_wells.json, published per-station SFs)
+//   A9 ADE ch.8 survey-calculation example (the former ARMED L1,
+//      activated when the published values were secured via the
+//      attributed open-access republication, Amorin & Broni-Bediako
+//      2010 RJASET 2(7):679-686; ade_ch8_survey_methods.json)
 // ARMED gates (pending owner literature PDFs):
-//   L1 Bourgoyne et al., Applied Drilling Engineering ch.8 build-hold
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
-//   L3 Amoco/API MD-TVD table
+//   L3 Amoco/API MD-TVD table (the Amoco Directional Survey Handbook,
+//      BPA-D-004, is publicly viewable on document-sharing sites but
+//      blocked to scripted download — drop the PDF in
+//      /root/wds-literature/ to arm extraction)
 
 import fs from 'fs';
 import path from 'path';
@@ -225,8 +231,20 @@ async function main() {
     }
   });
 
+  gate('A9', 'ADE ch.8 survey-calculation example (Bourgoyne et al. 1991)', () => {
+    const g = goldens('ade_ch8_survey_methods.json');
+    const stations = g.survey.md.map((md: number, i: number) => ({
+      md, inc: g.survey.inc[i], azi: g.survey.azi[i],
+    }));
+    const p = computeWellPath(stations, { surfaceX: 0, surfaceY: 0, kb: 0 });
+    const last = p[p.length - 1];
+    const exp = g.expected.minimumCurvature;
+    close(last.tvd, exp.tvd, g.expected.tolerance, 'TVD at TD');
+    close(last.y, exp.northDisplacement, g.expected.tolerance, 'north displacement at TD');
+    close(last.x, 0, 1e-9, 'east displacement (due-north well)');
+  });
+
   const armed = [
-    ['L1', 'Bourgoyne et al. ADE ch.8 build-hold example'],
     ['L2', 'Mitchell & Miska survey table'],
     ['L3', 'Amoco/API MD-TVD table'],
   ];

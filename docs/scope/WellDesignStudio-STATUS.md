@@ -306,6 +306,28 @@ Casing/Costing tabs remain launcher mocks (reviewed in WD5/WD6),
 - jsPDF note: `import { jsPDF }` (named) — the default export is not a
   constructor under node ESM.
 
+## Post-launch follow-on (2026-08-25, same day)
+
+- User manual v1.0 delivered:
+  /root/WellDesignStudio-UserManual-20260825.docx (~7,000 words, 18
+  chapters + 4 appendices, house docx style).
+- In-app help guide: WellDesignHelpGuide.jsx (EPE help-guide pattern,
+  16 sections incl. quick start, all workflows, validation basis,
+  pitfalls, glossary) routed at apps/drilling/well-planning/help with
+  a Help chip in the app header; 3 jest render/content gates.
+- Literature gate L1 CLOSED: the ADE ch.8 survey-calculation example
+  (due-north 3 deg/100ft build to 60 deg at 2,000 ft; published
+  minimum-curvature TVD 1,653.99 ft / ND 954.93 ft) secured via the
+  attributed open-access republication (Amorin & Broni-Bediako 2010,
+  RJASET 2(7):679-686, archived at /root/wds-literature/) and
+  cross-checked against the closed-form build-arc identity. Engines
+  PR #36 (golden + jest gate) subtree-pulled; validation runner gate
+  A9 ACTIVE. L2 (Mitchell & Miska) and L3 (Amoco BPA-D-004) remain
+  armed: M&M needs the book (OnePetro/PennWell); the Amoco handbook is
+  publicly viewable (Scribd/SlideShare/pdfcoffee) but blocked to
+  scripted download — drop either PDF in /root/wds-literature/ to
+  activate.
+
 ## Launch state
 
 - All six waves DONE. Tabs: Design (solvers, charts, 3D, exports,
