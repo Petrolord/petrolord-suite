@@ -1,7 +1,7 @@
-// Well Design Studio shell (WD1): EDM-style workspace on the wp_* data
-// model. Left: Site > Wellbore > Design tree. Right: workspace tabs.
-// Anti-Collision and Reports show honest wave placeholders until their
-// engines land (WD4 / WD6).
+// Well Design Studio shell (WD1, complete at WD6): EDM-style workspace
+// on the wp_* data model. Left: Site > Wellbore > Design tree. Right:
+// workspace tabs — Design (solvers, charts, 3D, exports, publish),
+// Targets, Surveys (actuals), Anti-Collision, Reports (PDF pack), Apps.
 
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
@@ -32,16 +32,9 @@ import DesignTab from './well-planning/tabs/DesignTab';
 import TargetsTab from './well-planning/tabs/TargetsTab';
 import SurveysTab from './well-planning/tabs/SurveysTab';
 import AntiCollisionTab from './well-planning/tabs/AntiCollisionTab';
+import ReportsTab from './well-planning/tabs/ReportsTab';
 import AnalysisTab from './well-planning/tabs/AnalysisTab';
 import * as wpApi from './well-planning/services/wpApi';
-
-const WavePlaceholder = ({ icon: Icon, title, body }) => (
-  <div className="flex h-[50vh] flex-col items-center justify-center gap-3 text-center">
-    <Icon className="h-10 w-10 text-slate-700" />
-    <h3 className="text-base font-semibold text-slate-300">{title}</h3>
-    <p className="max-w-md text-sm text-slate-500">{body}</p>
-  </div>
-);
 
 const WellPlanningContent = () => {
   const store = useWellPlanningStore();
@@ -240,12 +233,7 @@ const WellPlanningContent = () => {
             <TabsContent value="targets" className="mt-4"><TargetsTab /></TabsContent>
             <TabsContent value="surveys" className="mt-4"><SurveysTab /></TabsContent>
             <TabsContent value="anticollision" className="mt-4"><AntiCollisionTab /></TabsContent>
-            <TabsContent value="reports" className="mt-4">
-              <WavePlaceholder
-                icon={FileText}
-                title="Report pack is being rebuilt"
-                body="Wall plot, survey listing and anti-collision reports on the Petrolord brand arrive later in this program. Use Export CSV on the Design tab for survey listings today." />
-            </TabsContent>
+            <TabsContent value="reports" className="mt-4"><ReportsTab /></TabsContent>
             <TabsContent value="apps" className="mt-4"><AnalysisTab wellId={wellbore?.id} /></TabsContent>
           </Tabs>
         </div>

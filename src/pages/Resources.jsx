@@ -23,7 +23,7 @@ const Resources = () => {
         },
         {
           title: 'AI-Powered Geosteering Reduces Drilling Time by 30%',
-          description: 'Discover how real-time AI guidance in our Well Planning app transformed drilling operations.',
+          description: 'Discover how real-time AI guidance in Well Design Studio transformed drilling operations.',
         },
         {
           title: 'Portfolio Optimization Unlocks $200M in Capital Efficiency',

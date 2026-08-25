@@ -55,7 +55,7 @@ export class DataImporter {
 
     static mockWellPlanningData() {
         return {
-            source: 'Well Planning',
+            source: 'Well Design Studio',
             timestamp: new Date().toISOString(),
             data: {
                 wells: [

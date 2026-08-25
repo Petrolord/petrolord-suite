@@ -70,7 +70,7 @@ const WellsModule = () => {
 
     const handleImport = async () => {
         try {
-            toast({ title: "Importing Wells", description: "Connecting to Well Planning App..." });
+            toast({ title: "Importing Wells", description: "Connecting to Well Design Studio..." });
             const importedWells = await WellDataImporter.importFromWellPlanning();
             // Calculate estimated costs for imported wells since mock api might not have them
             const processed = importedWells.map(w => ({

@@ -7,7 +7,7 @@ export class IntegrationService {
     static registry = [
         { id: 'geoscience', name: 'Geoscience Analytics', icon: 'Globe', status: 'connected' },
         { id: 'reservoir', name: 'Reservoir Management', icon: 'Layers', status: 'connected' },
-        { id: 'wells', name: 'Well Planning', icon: 'Activity', status: 'disconnected' },
+        { id: 'wells', name: 'Well Design Studio', icon: 'Activity', status: 'disconnected' },
         { id: 'facilities', name: 'Facilities Engineering', icon: 'Factory', status: 'connected' },
         { id: 'economics', name: 'Economics & Risk', icon: 'DollarSign', status: 'active' }
     ];

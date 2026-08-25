@@ -15,6 +15,8 @@ import { computeClearance } from '../packages/engines/engines/drilling/antiColli
 import {
   buildTrajectoryContract, contractToCsv, contractToDxf,
 } from '../src/pages/apps/well-planning/services/trajectoryContract.js';
+import { preparePublishPayload } from '../src/pages/apps/well-planning/services/publishPayload.js';
+import { generateSurveyListing } from '../src/pages/apps/well-planning/services/reportPack.js';
 
 // The harness's seeded geometry (WellDesignHarness.jsx).
 const WELLBORE = { head_x: 500000, head_y: 6800000, kb_elev_m: 30 };
@@ -134,6 +136,48 @@ test('trajectory contract exports + 3D window in the browser bundle (WD5)', asyn
   await page.getByTestId('wp-cube-snapshot').click();
   const bytes = await page.getByTestId('wd-snapbytes').textContent();
   expect(Number(bytes)).toBeGreaterThan(5000);
+});
+
+test('publish payload + survey-listing PDF in the browser bundle (WD6)', async ({ page }) => {
+  const stations = [];
+  for (let i = 0; i < 40; i++) {
+    const md = i * 50;
+    stations.push({ md, inc: Math.min(30, Math.max(0, (md - 300) / 30)), azi: 90 });
+  }
+  const wellbore = {
+    id: 'harness-wb', name: 'HAR-1', head_x: 500000, head_y: 6800000,
+    kb_elev_m: 30, depth_unit: 'm', grid_convergence_deg: -1.2,
+  };
+  // publish payload: recompute with the same pure module the bundle ships
+  const payload = preparePublishPayload({
+    site: { id: 'harness-site', crs: 'EPSG:32631', xy_unit: 'm' },
+    wellbore,
+    design: { id: 'harness-design', name: 'Harness plan', revision: 1 },
+    stations,
+    publishedAt: '2026-08-25T00:00:00Z',
+  });
+  // survey-listing PDF: same generator in node (logo fetch fails ->
+  // brand mark omitted in BOTH environments? no — the browser CAN fetch
+  // the logo, which changes bytes but not pagination; compare pages).
+  const contract = buildTrajectoryContract({
+    site: { name: 'Harness pad', crs: 'EPSG:32631', xy_unit: 'm' },
+    wellbore,
+    design: { name: 'Harness plan', revision: 1, status: 'draft' },
+    stations,
+    generatedAt: '2026-08-25T00:00:00Z',
+  });
+  const nodeDoc = await generateSurveyListing({ contract, generatedAt: '2026-08-25 00:00' });
+  const expPages = nodeDoc.internal.getNumberOfPages();
+
+  await page.goto('/dev/well-design');
+  await expect(page.getByTestId('wd-pubdev'))
+    .toHaveText(`${payload.deviation.length}@${payload.tdMdM}`);
+  await page.getByTestId('wd-pdf-run').click();
+  await expect(page.getByTestId('wd-pdfprobe')).not.toHaveText('--', { timeout: 15000 });
+  const probe = await page.getByTestId('wd-pdfprobe').textContent();
+  const [pages, bytes] = probe.split(/[p/]+/).map(Number);
+  expect(pages).toBe(expPages);
+  expect(bytes).toBeGreaterThan(10000);
 });
 
 test('charts render for the solved design', async ({ page }) => {
