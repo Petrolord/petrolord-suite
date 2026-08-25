@@ -55,6 +55,39 @@ tab still reads legacy `trajectory_plans` (WD1 replaces persistence),
 Casing/Costing tabs remain launcher mocks (reviewed in WD5/WD6),
 `WellTrajectory3DView.jsx` retained only for the AC tab until WD4.
 
+## WD1 — data model and workspace shell
+
+- Migration `20260825220000_create_wp_wellplanning_tables.sql` APPLIED
+  live 2026-08-25 (dry-run first; probes: 7 tables, 17 policies, RLS
+  on): wp_sites (share root, CRS trio, slots, lease lines),
+  wp_wellbores (wellhead/slot, KB/GL/water datum, azimuth reference,
+  cached grid convergence, geo_wells bridge FK, sidetrack parent),
+  wp_designs (versioned; one definitive per wellbore enforced by
+  partial unique index), wp_targets, wp_surveys, wp_survey_programs,
+  wp_ac_runs.
+- New workspace: EDM-style Site > Wellbore > Design tree
+  (`tree/SiteTree.jsx`) with status/share badges and lifecycle actions
+  (new/rename/duplicate-as-revision/set-definitive/delete, org share
+  on sites). `services/wpApi.js` CRUD, `state/WellPlanningStore.jsx`
+  selection + caches. Draft undo/redo context now keys on the design id.
+- Site dialog with the suite CrsPicker, pad origin, north reference and
+  slot template editor; wellbore dialog with datum block and live grid
+  convergence via `convergenceAt` (declination arrives with WD3).
+- DesignTab (was TrajectoryTab) saves segments + tie-on + a station
+  cache (metres) to wp_designs; definitive/archived designs are
+  read-only with a duplicate-as-revision path.
+- TargetsTab ported to site-scoped wp_targets (point + circle now;
+  ellipse/polygon and registry pickers in WD2); CSV export; map kept.
+- One-time `LegacyImportDialog` imports the legacy wells/well_targets
+  tables into an "Imported wells" site (legacy rows untouched;
+  trajectory_plans ignored as stale).
+- Old mock tabs deleted (AntiCollision, Reports, CasingCement, Costing,
+  fake 3D view, mock target importer); Anti-Collision and Reports tabs
+  show honest wave placeholders until WD4/WD6.
+- Known WD1 leftovers: no /dev harness route yet (planned with WD2's
+  solver UI), Apps tab launcher passes the wellbore id as ?wellId=
+  (consumers adopt the trajectory contract in WD5).
+
 ## Upcoming waves
 
 - WD1 wp_* schema + Site>Wellbore>Design workspace shell
