@@ -103,6 +103,16 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
         azimuth_reference: form.azimuth_reference,
         grid_convergence_deg: convergence,
         mag_declination_deg: magnetics ? +magnetics.declinationDeg.toFixed(4) : null,
+        // Full geomagnetic reference for the WD4 error model (total
+        // field + dip); refreshed on every save at today's date.
+        mag_model: magnetics ? {
+          model: magnetics.model,
+          b_total_nt: +magnetics.totalFieldNt.toFixed(1),
+          dip_deg: +magnetics.dipDeg.toFixed(4),
+          declination_deg: +magnetics.declinationDeg.toFixed(4),
+          in_model_range: magnetics.inModelRange,
+          computed_at: new Date().toISOString(),
+        } : null,
         parent_wellbore_id: form.parent_wellbore_id === NONE ? null : form.parent_wellbore_id,
         status: form.status,
       });

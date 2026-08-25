@@ -31,6 +31,7 @@ import LegacyImportDialog from './well-planning/components/LegacyImportDialog';
 import DesignTab from './well-planning/tabs/DesignTab';
 import TargetsTab from './well-planning/tabs/TargetsTab';
 import SurveysTab from './well-planning/tabs/SurveysTab';
+import AntiCollisionTab from './well-planning/tabs/AntiCollisionTab';
 import AnalysisTab from './well-planning/tabs/AnalysisTab';
 import * as wpApi from './well-planning/services/wpApi';
 
@@ -238,12 +239,7 @@ const WellPlanningContent = () => {
             <TabsContent value="design" className="mt-4"><DesignTab /></TabsContent>
             <TabsContent value="targets" className="mt-4"><TargetsTab /></TabsContent>
             <TabsContent value="surveys" className="mt-4"><SurveysTab /></TabsContent>
-            <TabsContent value="anticollision" className="mt-4">
-              <WavePlaceholder
-                icon={Shield}
-                title="Anti-collision is being rebuilt"
-                body="Separation-factor scans against offset wells with ISCWSA instrument error models, ladder and traveling-cylinder plots arrive in a coming update of this program. The previous version could not produce results and has been removed rather than pretend." />
-            </TabsContent>
+            <TabsContent value="anticollision" className="mt-4"><AntiCollisionTab /></TabsContent>
             <TabsContent value="reports" className="mt-4">
               <WavePlaceholder
                 icon={FileText}

@@ -16,11 +16,15 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { compileSegments } from '../engine/segmentCompiler';
 import { M_TO_FT } from '../engine/surveyMath';
 import { gridAzimuthDelta } from '../services/surveyUtils';
+import {
+  resolveMagReference, computeStationUncertainty, eouPlanEllipses, eouSectionBand,
+} from '../services/acUtils';
 import { useWellPlanning } from '../contexts/WellPlanningContext';
 import { useWellPlanningStore } from '../state/WellPlanningStore';
-import { updateDesign } from '../services/wpApi';
+import { updateDesign, getSurveyProgram } from '../services/wpApi';
 import TrajectoryKPIs from '../components/TrajectoryKPIs';
 import SolverDialog from '../components/SolverDialog';
+import SurveyProgramEditor from '../components/SurveyProgramEditor';
 import PlanViewChart from '../charts/PlanViewChart';
 import {
   SectionViewPanel, InclinationPanel, DlsPanel,
@@ -37,7 +41,7 @@ import {
 const ENGINE_VERSION = 'drilling-wd2';
 
 const DesignTab = () => {
-    const { site, wellbore, design, targets: siteTargets, refreshDesigns } = useWellPlanningStore();
+    const { user, site, wellbore, design, targets: siteTargets, refreshDesigns } = useWellPlanningStore();
     const { trajectoryDraft, updateTrajectoryDraft } = useWellPlanning();
     const { toast } = useToast();
 
@@ -51,6 +55,9 @@ const DesignTab = () => {
     const [qaResult, setQaResult] = useState(null);
     const [compileError, setCompileError] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [programOpen, setProgramOpen] = useState(false);
+    const [programIntervals, setProgramIntervals] = useState(null);
+    const [showEou, setShowEou] = useState(true);
     const loadedFor = useRef(null);
 
     const mdUnit = wellbore?.depth_unit === 'ft' ? 'ft' : 'm';
@@ -74,6 +81,36 @@ const DesignTab = () => {
         setKickoffAzi(Number.isFinite(draft?.kickoffAzi) ? draft.kickoffAzi : savedAzi);
         if (draft?.constraints) setConstraints((c) => ({ ...c, ...draft.constraints }));
     }, [design, trajectoryDraft, mdUnit]);
+
+    // Survey program (WD4): loaded per design; a saved program routes
+    // the uncertainty engine through per-tool runs with tie-on carry.
+    useEffect(() => {
+        if (!design?.id) { setProgramIntervals(null); return; }
+        getSurveyProgram(design.id)
+            .then((row) => setProgramIntervals(Array.isArray(row?.intervals) && row.intervals.length ? row.intervals : null))
+            .catch(() => setProgramIntervals(null));
+    }, [design?.id]);
+
+    // Positional uncertainty (WD4): ISCWSA MWD Rev4 over the compiled
+    // stations (metres/grid), EOU overlays at 2 sigma. Needs a
+    // geomagnetic reference; without one the overlay is off, loudly.
+    const magRef = useMemo(() => resolveMagReference(site, wellbore), [site, wellbore]);
+    const uncertainty = useMemo(() => {
+        if (!showEou || !magRef || !stations || stations.length < 2 || !planRows) return null;
+        try {
+            const gridMeterStations = stations.map((s) => ({
+                md: userToMeters(s.md), inc: s.inc, azi: s.azi,
+            }));
+            const { totalCov, programUsed } = computeStationUncertainty(
+                gridMeterStations, magRef, { programIntervals },
+            );
+            return {
+                ellipses: eouPlanEllipses(planRows, totalCov, { k: 2, every: 8, metersToUser }),
+                band: eouSectionBand(planRows, totalCov, { k: 2, metersToUser }),
+                programUsed,
+            };
+        } catch (e) { return null; }
+    }, [showEou, magRef, stations, planRows, programIntervals, userToMeters, metersToUser]);
 
     const getGeoCoords = useCallback((easting, northing) => {
         if (!site?.crs || !isTransformableTag(site.crs)) return null;
@@ -294,6 +331,11 @@ const DesignTab = () => {
     const vsAzimuthDeg = planRows && planRows.length > 1
         ? planRows[planRows.length - 1].closureAzi : null;
 
+    const eouSectionOverlays = useMemo(() => (uncertainty?.band ? [
+        { name: 'TVD −2σ', rows: uncertainty.band.up, color: '#0284c7', dash: '3 3' },
+        { name: 'TVD +2σ', rows: uncertainty.band.down, color: '#0284c7', dash: '3 3' },
+    ] : []), [uncertainty]);
+
     if (!design) {
         return (
             <div className="flex h-[50vh] items-center justify-center text-sm text-slate-500">
@@ -337,6 +379,21 @@ const DesignTab = () => {
                                     )}
                                 </div>
                             </div>
+                            <div className="flex items-center gap-2 pt-1">
+                                <Button size="sm" variant="outline" onClick={() => setProgramOpen(true)} className="h-7 flex-1 border-slate-700 text-slate-300 text-xs" data-testid="open-survey-program">
+                                    Survey program{programIntervals ? ` (${programIntervals.length})` : ''}
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setShowEou((v) => !v)}
+                                    className={`h-7 flex-1 border-slate-700 text-xs ${showEou ? 'text-sky-300' : 'text-slate-500'}`}
+                                    title={magRef ? 'Ellipse-of-uncertainty overlay (ISCWSA MWD Rev4, 2 sigma)' : 'Needs a geomagnetic reference: re-save the wellbore with a transformable site CRS.'}>
+                                    EOU {showEou && uncertainty ? 'on (2σ)' : 'off'}
+                                </Button>
+                            </div>
+                            {showEou && !magRef && (
+                                <p className="text-[10px] text-amber-400">
+                                    Uncertainty needs a geomagnetic reference. Re-save the wellbore (with a transformable site CRS) to cache its magnetic model.
+                                </p>
+                            )}
                             <p className="text-[10px] text-slate-500">
                                 Wellhead {Number.isFinite(wellbore?.head_x) ? `${wellbore.head_x.toFixed(1)} E, ${wellbore.head_y.toFixed(1)} N` : 'not set'}
                                 {Number.isFinite(wellbore?.grid_convergence_deg) ? ` | convergence ${Number(wellbore.grid_convergence_deg).toFixed(3)} deg` : ''}
@@ -419,14 +476,14 @@ const DesignTab = () => {
                     <div className="flex-1 pt-12 relative">
                         {viewMode === 'section' && planRows && (
                             <div className="h-full w-full bg-white">
-                                <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} />
+                                <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} />
                             </div>
                         )}
 
                         {viewMode === 'plots' && planRows && (
                             <div className="grid grid-cols-2 grid-rows-2 gap-px bg-slate-800 h-full w-full">
-                                <PlanViewChart rows={planRows} targets={chartTargets} slots={chartSlots} leaseLines={chartLeaseLines} unit={depthUnitLabel} />
-                                <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} />
+                                <PlanViewChart rows={planRows} targets={chartTargets} slots={chartSlots} leaseLines={chartLeaseLines} unit={depthUnitLabel} ellipses={uncertainty?.ellipses || []} />
+                                <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} />
                                 <InclinationPanel rows={planRows} unit={depthUnitLabel} />
                                 <DlsPanel rows={planRows} unit={depthUnitLabel} />
                             </div>
@@ -467,6 +524,16 @@ const DesignTab = () => {
                     </div>
                 </div>
             </div>
+
+            <SurveyProgramEditor
+                open={programOpen}
+                onOpenChange={setProgramOpen}
+                design={design}
+                tdMdM={stations && stations.length ? userToMeters(stations[stations.length - 1].md) : null}
+                mdUnit={mdUnit}
+                userId={user?.id}
+                onSaved={(intervals) => setProgramIntervals(intervals)}
+            />
 
             <SolverDialog
                 open={solverOpen}

@@ -8,9 +8,14 @@ import { Button } from '@/components/ui/button';
 import { compileSegments } from './engine/segmentCompiler';
 import { solveSlant, solveHorizontalLanding } from './engine/profileDesign';
 import { declinationAt } from './engine/magnetics';
+import { computeWellPath } from './engine/surveyMath';
+import { computeErrorModel } from './engine/errorModel';
+import { computeClearance } from './engine/antiCollision';
 import SolverDialog from './components/SolverDialog';
 import PlanViewChart from './charts/PlanViewChart';
 import { SectionViewPanel, DlsPanel } from './charts/TrajectoryCharts';
+import LadderChart from './charts/LadderChart';
+import TravelingCylinderChart from './charts/TravelingCylinderChart';
 
 const WELLBORE = {
   id: 'harness-wb', name: 'HAR-1', head_x: 500000, head_y: 6800000,
@@ -20,6 +25,44 @@ const WELLBORE = {
 // e2e spec can assert the browser-bundled magnetics shim against the
 // engines package digit for digit.
 const MAG_PROBE = { latDeg: 4.75, lonDeg: 7.0, decimalYear: 2026.65 };
+
+// Fixed WD4 anti-collision probe: two parallel J-wells 50 m apart with
+// a fixed geomagnetic reference, run through the browser-bundled Rev4
+// error model + separation rule. Deterministic, so the e2e spec
+// recomputes the same scan from the engines package and asserts the
+// bundle digit for digit. Keep in sync with e2e/well-design-studio.spec.js.
+export const AC_PROBE = {
+  magRef: {
+    bTotalNT: 50000, dipDeg: 72, declinationDeg: -4, convergenceDeg: 0, aziReference: 'grid',
+  },
+  offsetNorth: 50,
+  params: { k: 3.5, sigmaPa: 0.5, Sm: 0.3, refRadius: 0.4572, offRadius: 0.3048 },
+  stations() {
+    const out = [];
+    for (let i = 0; i < 40; i++) {
+      const md = i * 50;
+      out.push({ md, inc: Math.min(30, Math.max(0, (md - 300) / 30)), azi: 90 });
+    }
+    return out;
+  },
+};
+
+export function runAcProbe() {
+  const stations = AC_PROBE.stations();
+  const build = (headY) => {
+    const path = computeWellPath(stations, { surfaceX: 0, surfaceY: headY, kb: 0 });
+    const model = computeErrorModel(stations, AC_PROBE.magRef);
+    return {
+      stations,
+      positions: path.map((p) => ({ n: p.y, e: p.x, tvd: p.tvd })),
+      cov: model.totalCov,
+      radius: headY === 0 ? AC_PROBE.params.refRadius : AC_PROBE.params.offRadius,
+    };
+  };
+  return computeClearance(build(0), build(AC_PROBE.offsetNorth), {
+    k: AC_PROBE.params.k, sigmaPa: AC_PROBE.params.sigmaPa, Sm: AC_PROBE.params.Sm,
+  });
+}
 
 const TARGETS = [
   {
@@ -76,6 +119,14 @@ const WellDesignHarness = () => {
     if (azi != null && mode !== 'append') setKickoffAzi(azi);
   };
 
+  // WD4 probe: browser-bundled Rev4 + separation rule on the fixed pair.
+  const acProbe = useMemo(() => {
+    try { return runAcProbe(); } catch (e) { return null; }
+  }, []);
+  const acResults = acProbe
+    ? [{ id: 'probe', label: 'Probe offset (50 m N)', clearance: acProbe, classification: { status: 'review' } }]
+    : [];
+
   return (
     <div className="min-h-screen bg-slate-950 p-4 text-white">
       <h1 className="mb-2 text-sm font-bold">Well Design Studio harness</h1>
@@ -92,13 +143,18 @@ const WellDesignHarness = () => {
         <div>Inc <span data-testid="wd-inc" className="font-mono text-lime-400">{last ? last.inc.toFixed(2) : '--'}</span></div>
         <div>Segs <span data-testid="wd-segcount" className="font-mono text-lime-400">{segments.length}</span></div>
         <div>Decl <span data-testid="wd-decl" className="font-mono text-lime-400">{declinationAt(MAG_PROBE).declinationDeg.toFixed(3)}</span></div>
+        <div>AC SF <span data-testid="wd-acsf" className="font-mono text-lime-400">{acProbe ? acProbe.summary.minSf.toFixed(4) : '--'}</span></div>
       </div>
       {compiled.error && <div className="mb-3 text-xs text-red-400" data-testid="wd-error">{compiled.error}</div>}
 
-      <div className="grid h-[70vh] grid-cols-3 gap-px bg-slate-800">
+      <div className="grid h-[52vh] grid-cols-3 gap-px bg-slate-800">
         <PlanViewChart rows={rows || []} targets={chartTargets} unit="m" />
         <SectionViewPanel rows={rows || []} unit="m" vsAzimuthDeg={last?.closureAzi} />
         <DlsPanel rows={rows || []} unit="m" />
+      </div>
+      <div className="mt-px grid h-[34vh] grid-cols-2 gap-px bg-slate-800">
+        <LadderChart results={acResults} mode="sf" unit="m" />
+        <TravelingCylinderChart results={acResults} unit="m" />
       </div>
 
       <SolverDialog
