@@ -501,8 +501,8 @@ function App() {
                                 <Route path="apps/reservoir/uncertainty-analysis" element={<Navigate to="/dashboard/apps/geoscience/reservoircalc-pro" replace />} />
                                 <Route path="apps/reservoir/reservoir-simulation-connector" element={<Navigate to="/dashboard/reservoir" replace />} />
 
-                                <Route path="apps/drilling/well-planning" element={<WellPlanning />} />
-				<Route path="apps/drilling/well-planning/:wellId" element={<WellPlanning />} />
+                                <Route path="apps/drilling/well-planning" element={<ProtectedAppRoute appId="well-planning" appName="Well Design Studio"><WellPlanning /></ProtectedAppRoute>} />
+                                <Route path="apps/drilling/well-planning/:wellId" element={<ProtectedAppRoute appId="well-planning" appName="Well Design Studio"><WellPlanning /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/casing-tubing-design-pro" element={<ProtectedAppRoute appId="casing-tubing-design-pro" appName="Casing & Tubing Design Pro"><CasingTubingDesignPro /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/casing-wear-analyzer" element={<CasingWearAnalyzer />} />
                                 <Route path="apps/drilling/drilling-fluids-hydraulics" element={<DrillingFluidsHydraulics />} />

@@ -38,7 +38,7 @@ const modules = [
     color: 'from-red-500 to-orange-500',
     count: 11,
     description: 'Plan wells, design casing and tubing strings, and simulate hydraulics, torque and drag, and cementing operations.',
-    apps: ['Well Planning', 'Casing & Tubing Design Pro', 'Torque & Drag Predictor', 'Cementing Simulation App'],
+    apps: ['Well Design Studio', 'Casing & Tubing Design Pro', 'Torque & Drag Predictor', 'Cementing Simulation App'],
   },
   {
     name: 'Facilities Engineering',

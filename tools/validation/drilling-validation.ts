@@ -1,0 +1,139 @@
+// Drilling engine hard validation gate (Well Design Studio program).
+// Mirrors tools/validation/mbal-validation.ts: every ACTIVE gate must
+// pass or the process exits 1. Gates whose published source data the
+// owner has not yet supplied are ARMED (schema + tolerance committed,
+// reported as pending, never silently passed).
+//
+// Run:  npx tsx tools/validation/drilling-validation.ts
+//
+// ACTIVE gates (self-contained truth):
+//   A1 closed-form circle exactness   (arc_vertical_plane.json)
+//   A2 toolface spherical triangle    (toolface_sphere.json)
+//   A3 TVD-plane crossings            (tvd_crossings.json)
+//   A4 survey listing m + ft          (survey_table.json)
+//   A5 build-hold closed form         (compile_buildhold.json)
+// ARMED gates (pending owner literature PDFs):
+//   L1 Bourgoyne et al., Applied Drilling Engineering ch.8 build-hold
+//   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
+//   L3 Amoco/API MD-TVD table
+//   L4 ISCWSA MWD Rev4 error-model test Well #1 (WD4 arms the model too)
+
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+const goldens = (name: string) => JSON.parse(fs.readFileSync(
+  path.join(dirname, '..', '..', 'packages', 'engines', 'test-data', 'drilling', 'goldens', name), 'utf8',
+));
+
+async function main() {
+  const { computeWellPath, mdsAtTvd, computeSurveyTable } = await import(
+    '../../packages/engines/engines/drilling/surveyMath.js');
+  const { compileSegments, attitudeAfterArc } = await import(
+    '../../packages/engines/engines/drilling/segmentCompiler.js');
+
+  let failures = 0;
+  const gate = (id: string, name: string, fn: () => void) => {
+    try {
+      fn();
+      console.log(`PASS  ${id}  ${name}`);
+    } catch (e: any) {
+      failures += 1;
+      console.error(`FAIL  ${id}  ${name}: ${e.message}`);
+    }
+  };
+  const close = (a: number, b: number, tol: number, what: string) => {
+    if (!(Math.abs(a - b) <= tol)) {
+      throw new Error(`${what}: ${a} vs ${b} (tol ${tol})`);
+    }
+  };
+  const toStations = (rows: number[][]) => rows.map(([md, inc, azi]) => ({ md, inc, azi }));
+
+  gate('A1', 'closed-form circle exactness', () => {
+    for (const c of goldens('arc_vertical_plane.json').cases) {
+      const p = computeWellPath(toStations(c.stations));
+      c.expected.forEach((exp: any, i: number) => {
+        close(p[i].x, exp.e, 1e-6, `case azi ${c.aziDeg} station ${i} E`);
+        close(p[i].y, exp.n, 1e-6, `case azi ${c.aziDeg} station ${i} N`);
+        close(p[i].tvd, exp.tvd, 1e-6, `case azi ${c.aziDeg} station ${i} TVD`);
+      });
+    }
+  });
+
+  gate('A2', 'toolface spherical triangle vs vector rotation', () => {
+    for (const c of goldens('toolface_sphere.json').cases) {
+      const a = attitudeAfterArc(c.inc1, c.azi1, c.betaDeg * Math.PI / 180, c.toolfaceDeg);
+      close(a.inc, c.inc2, 1e-7, 'inc');
+      const dAzi = ((a.azi - c.azi2) % 360 + 540) % 360 - 180;
+      close(dAzi, 0, 1e-7, 'azi');
+    }
+  });
+
+  gate('A3', 'TVD-plane crossings vs dense-sampled oracle', () => {
+    const g = goldens('tvd_crossings.json');
+    const st = toStations(g.stations);
+    const p = computeWellPath(st);
+    for (const c of g.cases) {
+      const mds = mdsAtTvd(st, p, c.tvd);
+      if (mds.length !== c.mds.length) {
+        throw new Error(`tvd ${c.tvd}: ${mds.length} crossings vs ${c.mds.length}`);
+      }
+      mds.forEach((md: number, i: number) => close(md, c.mds[i], 1e-4, `tvd ${c.tvd} crossing ${i}`));
+    }
+  });
+
+  gate('A4', 'survey listing (m and ft, incl. the ft-rate regression class)', () => {
+    const g = goldens('survey_table.json');
+    for (const key of ['metric', 'feet'] as const) {
+      const c = g[key];
+      const rows = computeSurveyTable(toStations(c.stations), {
+        mdUnit: c.mdUnit, vsAzimuthDeg: c.vsAzimuthDeg,
+      });
+      c.rows.forEach((exp: any, i: number) => {
+        close(rows[i].tvd, exp.tvd, 1e-6, `${key} row ${i} tvd`);
+        close(rows[i].dls30m, exp.dls30m, 1e-6, `${key} row ${i} dls30m`);
+        close(rows[i].dls100ft, exp.dls100ft, 1e-6, `${key} row ${i} dls100ft`);
+        close(rows[i].vs, exp.vs, 1e-6, `${key} row ${i} vs`);
+      });
+    }
+  });
+
+  gate('A5', 'build-hold closed form via the segment compiler', () => {
+    for (const c of goldens('compile_buildhold.json').cases) {
+      const { stations, path: p } = compileSegments({
+        mdUnit: c.mdUnit,
+        tieOn: { md: 0, inc: 0, azi: c.aziDeg },
+        segments: [
+          { kind: 'hold', length: c.kop },
+          { kind: 'build', rate: c.rate, targetInc: c.targetInc },
+          { kind: 'hold', length: c.holdLen },
+        ],
+      });
+      const last = p[p.length - 1];
+      close(stations[stations.length - 1].inc, c.endInc, 1e-9, `${c.mdUnit} end inc`);
+      close(last.tvd, c.endTvd, 1e-4, `${c.mdUnit} end tvd`);
+      close(last.y, c.endN, 1e-4, `${c.mdUnit} end N`);
+      close(last.x, c.endE, 1e-4, `${c.mdUnit} end E`);
+    }
+  });
+
+  const armed = [
+    ['L1', 'Bourgoyne et al. ADE ch.8 build-hold example'],
+    ['L2', 'Mitchell & Miska survey table'],
+    ['L3', 'Amoco/API MD-TVD table'],
+    ['L4', 'ISCWSA MWD Rev4 test Well #1 covariances'],
+  ];
+  for (const [id, name] of armed) {
+    console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
+  }
+
+  if (failures > 0) {
+    console.error(`\n${failures} gate(s) FAILED.`);
+    process.exit(1);
+  }
+  console.log('\nAll active drilling gates passed.');
+}
+
+main().catch((e) => { console.error(e); process.exit(1); });
