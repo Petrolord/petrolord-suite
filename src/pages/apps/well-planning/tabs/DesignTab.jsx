@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Plus, Trash2, GripVertical, Download, AlertCircle, RefreshCw, Activity, Table as TableIcon, LayoutGrid } from 'lucide-react';
+import { Loader2, Plus, Trash2, GripVertical, Download, AlertCircle, RefreshCw, Activity, Table as TableIcon, LayoutGrid, Save } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toLonLat } from '@/lib/crs';
 import { isTransformableTag } from '@/lib/crs/tags';
@@ -18,90 +17,75 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { compileSegments } from '../engine/segmentCompiler';
 import { M_TO_FT } from '../engine/surveyMath';
 import { useWellPlanning } from '../contexts/WellPlanningContext';
+import { useWellPlanningStore } from '../state/WellPlanningStore';
+import { updateDesign } from '../services/wpApi';
 import TrajectoryKPIs from '../components/TrajectoryKPIs';
 import {
   PlanViewPanel, SectionViewPanel, InclinationPanel, DlsPanel,
 } from '../charts/TrajectoryCharts';
 
-// Trajectory design on the validated drilling engine (Well Design
-// Studio WD0). All lengths and rates stay in the well's depth unit end
-// to end; rates are deg/30m (metric) or deg/100ft (feet) of that SAME
-// unit — the engine enforces it. N/E are relative to the wellhead;
-// absolute coordinates (well CRS is metres) are derived only where
-// lat/lon is displayed.
+// Trajectory design on the validated drilling engine (WD0), rewired to
+// the wp_* data model (WD1): the design's segments/tie-on load from
+// wp_designs, unsaved edits live in the localStorage draft keyed by the
+// design id, and Save writes segments + a station cache (metres, the
+// registry convention) back to the row. All lengths and rates stay in
+// the wellbore's depth unit end to end; wellhead/targets are site-CRS
+// metres and convert only at the boundary.
 
-const TrajectoryTab = ({ wellId, user }) => {
-    const [well, setWell] = useState(null);
-    const [units, setUnits] = useState('feet');
+const ENGINE_VERSION = 'drilling-wd0';
+
+const DesignTab = () => {
+    const { site, wellbore, design, targets: siteTargets, refreshDesigns } = useWellPlanningStore();
+    const { trajectoryDraft, updateTrajectoryDraft } = useWellPlanning();
+    const { toast } = useToast();
+
     const [viewMode, setViewMode] = useState('section'); // section | plots | table
-
-    const [surfaceN, setSurfaceN] = useState(0);
-    const [surfaceE, setSurfaceE] = useState(0);
-    const [kbElevation, setKbElevation] = useState(0);
     const [kickoffAzi, setKickoffAzi] = useState(0);
-    const [segments, setSegments] = useState([{ id: 'seg-1', type: 'Hold', length: 1000, buildRate: 0, turnRate: 0, errors: {} }]);
-
-    const [targets, setTargets] = useState([]);
+    const [segments, setSegments] = useState([]);
     const [selectedTargets, setSelectedTargets] = useState([]);
     const [lockToTarget, setLockToTarget] = useState(false);
     const [constraints, setConstraints] = useState({ maxDLS: 3, maxBuildRate: 3, kop: 1000 });
-
     const [planRows, setPlanRows] = useState(null);
+    const [stations, setStations] = useState(null);
     const [qaResult, setQaResult] = useState(null);
     const [compileError, setCompileError] = useState(null);
     const [solving, setSolving] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const loadedFor = useRef(null);
 
-    const { trajectoryDraft, updateTrajectoryDraft } = useWellPlanning();
-    const { toast } = useToast();
-    const draftAppliedFor = useRef(null);
-
-    const mdUnit = units === 'meters' ? 'm' : 'ft';
+    const mdUnit = wellbore?.depth_unit === 'ft' ? 'ft' : 'm';
     const depthUnitLabel = mdUnit;
-    // Well/target coordinates live in the well CRS (metres); depth-unit
-    // conversion is only needed at that boundary.
     const metersToUser = useCallback((v) => (mdUnit === 'ft' ? v * M_TO_FT : v), [mdUnit]);
     const userToMeters = useCallback((v) => (mdUnit === 'ft' ? v / M_TO_FT : v), [mdUnit]);
+    const headX = wellbore?.head_x ?? 0;
+    const headY = wellbore?.head_y ?? 0;
+    const kbUser = metersToUser(wellbore?.kb_elev_m || 0);
+
+    // Load the design payload once per design; the localStorage draft
+    // (unsaved work) wins over the saved row.
+    useEffect(() => {
+        if (!design || loadedFor.current === design.id) return;
+        loadedFor.current = design.id;
+        const draft = trajectoryDraft;
+        const savedSegments = Array.isArray(design.segments) && design.segments.length
+            ? design.segments : [{ id: 'seg-1', type: 'Hold', length: mdUnit === 'ft' ? 1000 : 300, buildRate: 0, turnRate: 0 }];
+        setSegments(draft?.segments?.length ? draft.segments : savedSegments);
+        const savedAzi = design.tie_on?.azi ?? 0;
+        setKickoffAzi(Number.isFinite(draft?.kickoffAzi) ? draft.kickoffAzi : savedAzi);
+        if (draft?.constraints) setConstraints((c) => ({ ...c, ...draft.constraints }));
+        setLockToTarget(draft?.lockToTarget || false);
+    }, [design, trajectoryDraft, mdUnit]);
 
     const getGeoCoords = useCallback((easting, northing) => {
-        if (!well?.crs || well.crs === 'EPSG:4326' || !isTransformableTag(well.crs)) {
-            return null;
-        }
+        if (!site?.crs || !isTransformableTag(site.crs)) return null;
         try {
-            const { lon, lat } = toLonLat(well.crs, easting, northing);
+            const { lon, lat } = toLonLat(site.crs, easting, northing);
             return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
         } catch (e) { return null; }
-    }, [well?.crs]);
-
-    useEffect(() => {
-        const loadData = async () => {
-            if (!wellId) return;
-            const { data: w } = await supabase.from('wells').select('*').eq('id', wellId).single();
-            if (w) {
-                setWell(w);
-                setUnits(w.depth_unit || 'feet');
-                setSurfaceN(w.surface_y || 0);
-                setSurfaceE(w.surface_x || 0);
-                setKbElevation(w.kb_elev || 0);
-            }
-            const { data: t } = await supabase.from('well_targets').select('*').eq('well_id', wellId).order('priority');
-            if (t) setTargets(t);
-        };
-        loadData();
-    }, [wellId]);
-
-    // Apply the saved draft once per well; segment edits write the draft
-    // back, so keeping this reactive to trajectoryDraft loops.
-    useEffect(() => {
-        if (!trajectoryDraft || draftAppliedFor.current === wellId) return;
-        draftAppliedFor.current = wellId;
-        if (trajectoryDraft.segments?.length) setSegments(trajectoryDraft.segments);
-        if (trajectoryDraft.constraints) setConstraints((c) => ({ ...c, ...trajectoryDraft.constraints }));
-        if (Number.isFinite(trajectoryDraft.kickoffAzi)) setKickoffAzi(trajectoryDraft.kickoffAzi);
-        setLockToTarget(trajectoryDraft.lockToTarget || false);
-    }, [wellId, trajectoryDraft]);
+    }, [site?.crs]);
 
     const calculateTrajectory = useCallback(() => {
-        if (segments.length === 0) { setPlanRows(null); return; }
+        if (!segments.length) { setPlanRows(null); setStations(null); return; }
         try {
             const compiled = compileSegments({
                 mdUnit,
@@ -114,22 +98,46 @@ const TrajectoryTab = ({ wellId, user }) => {
                     if (type === 'turn') return { kind: 'turn', rate: parseFloat(s.turnRate || 0), length };
                     return { kind: 'hold', length };
                 }).filter((s) => s.length > 0 && (s.kind === 'hold' || Math.abs(s.rate) > 0)),
-                kb: parseFloat(kbElevation) || 0,
+                kb: kbUser,
             });
             setPlanRows(compiled.table);
+            setStations(compiled.stations);
             setQaResult(compiled.qa);
             setCompileError(null);
         } catch (e) {
             setPlanRows(null);
+            setStations(null);
             setQaResult(null);
             setCompileError(e.message);
         }
-    }, [segments, kickoffAzi, kbElevation, constraints.maxDLS, mdUnit]);
+    }, [segments, kickoffAzi, kbUser, constraints.maxDLS, mdUnit]);
 
     useEffect(() => {
         const timer = setTimeout(calculateTrajectory, 300);
         return () => clearTimeout(timer);
     }, [calculateTrajectory]);
+
+    const handleSaveDesign = async () => {
+        if (!design || !stations) return;
+        setSaving(true);
+        try {
+            await updateDesign(design.id, {
+                segments,
+                tie_on: { md: 0, inc: 0, azi: parseFloat(kickoffAzi) || 0 },
+                // Station cache in metres (registry convention).
+                stations: stations.map((s) => ({
+                    md: userToMeters(s.md), inc: s.inc, azi: s.azi,
+                })),
+                engine_version: ENGINE_VERSION,
+            });
+            await refreshDesigns(wellbore.id);
+            toast({ title: 'Design saved', description: `${design.name} r${design.revision} updated.`, className: 'bg-green-600 text-white' });
+        } catch (e) {
+            toast({ variant: 'destructive', title: 'Save failed', description: e.message });
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const handleDragEnd = (result) => {
         if (!result.destination) return;
@@ -149,7 +157,7 @@ const TrajectoryTab = ({ wellId, user }) => {
 
     const addSegment = () => {
         const id = `seg-${Date.now()}`;
-        const newSegments = [...segments, { id, type: 'Hold', length: 100, buildRate: 0, turnRate: 0, errors: {} }];
+        const newSegments = [...segments, { id, type: 'Hold', length: 100, buildRate: 0, turnRate: 0 }];
         setSegments(newSegments);
         updateTrajectoryDraft({ segments: newSegments });
     };
@@ -160,10 +168,9 @@ const TrajectoryTab = ({ wellId, user }) => {
         updateTrajectoryDraft({ segments: newSegments });
     };
 
-    // Closed-form slant (build-hold) solve to the selected target. The
-    // WD2 wave replaces this with engines/drilling profileDesign; the
-    // geometry here is the exact circle-tangent construction:
-    //   theta = atan2(D - R, dV) + asin(R / c),  c = |target - centre side|
+    // Closed-form slant (build-hold) solve to the selected target
+    // (engines profileDesign replaces this inline geometry in WD2):
+    //   theta = atan2(D - R, dV) + asin(R / c)
     const handleAutoSolve = () => {
         if (selectedTargets.length === 0) {
             toast({ variant: 'destructive', title: 'No target selected', description: 'Select a target to solve to.' });
@@ -171,7 +178,7 @@ const TrajectoryTab = ({ wellId, user }) => {
         }
         setSolving(true);
         try {
-            const target = targets.find((t) => t.id === selectedTargets[0]);
+            const target = siteTargets.find((t) => t.id === selectedTargets[0]);
             if (!target) throw new Error('Target not found');
 
             const rate = parseFloat(constraints.maxBuildRate);
@@ -180,11 +187,12 @@ const TrajectoryTab = ({ wellId, user }) => {
             const interval = mdUnit === 'ft' ? 100 : 30;
             const R = interval / (rate * (Math.PI / 180));
 
-            // Target geometry in the user's depth unit, relative to the wellhead.
-            const dE = metersToUser((target.x || 0) - (parseFloat(surfaceE) || 0));
-            const dN = metersToUser((target.y || 0) - (parseFloat(surfaceN) || 0));
+            const dE = metersToUser((target.center_x || 0) - headX);
+            const dN = metersToUser((target.center_y || 0) - headY);
             const D = Math.hypot(dE, dN);
-            const dV = metersToUser(target.tvd_m || 0) - kop;
+            // Target depth below KB: TVDSS + KB elevation (both metres MSL basis).
+            const targetTvdUser = metersToUser((target.tvdss_m || 0) + (wellbore?.kb_elev_m || 0));
+            const dV = targetTvdUser - kop;
             if (dV <= 0) throw new Error('Target TVD is above the kickoff point.');
 
             const c = Math.hypot(D - R, dV);
@@ -198,13 +206,12 @@ const TrajectoryTab = ({ wellId, user }) => {
             const buildLen = R * theta;
             const holdLen = Math.sqrt(Math.max(0, c * c - R * R));
             const thetaDeg = theta * (180 / Math.PI);
-            // Compass azimuth to the target: atan2(dE, dN).
             const azm = (Math.atan2(dE, dN) * 180 / Math.PI + 360) % 360;
 
             const newSegments = [
-                { id: 'auto-1', type: 'Hold', length: kop, buildRate: 0, turnRate: 0, errors: {} },
-                { id: 'auto-2', type: 'Build', length: +buildLen.toFixed(2), buildRate: rate, turnRate: 0, errors: {} },
-                { id: 'auto-3', type: 'Hold', length: +holdLen.toFixed(2), buildRate: 0, turnRate: 0, errors: {} },
+                { id: 'auto-1', type: 'Hold', length: kop, buildRate: 0, turnRate: 0 },
+                { id: 'auto-2', type: 'Build', length: +buildLen.toFixed(2), buildRate: rate, turnRate: 0 },
+                { id: 'auto-3', type: 'Hold', length: +holdLen.toFixed(2), buildRate: 0, turnRate: 0 },
             ];
             setSegments(newSegments);
             setKickoffAzi(+azm.toFixed(2));
@@ -233,7 +240,7 @@ const TrajectoryTab = ({ wellId, user }) => {
         const blob = new Blob([csv], { type: 'text/csv' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `${well?.name || 'well'}-survey.csv`;
+        a.download = `${wellbore?.name || 'well'}-${design?.name || 'design'}-survey.csv`;
         a.click();
         URL.revokeObjectURL(a.href);
     };
@@ -241,50 +248,69 @@ const TrajectoryTab = ({ wellId, user }) => {
     const planSummary = useMemo(() => {
         if (!planRows || planRows.length < 2) return null;
         const last = planRows[planRows.length - 1];
-        const bhAbs = {
-            x: (parseFloat(surfaceE) || 0) + userToMeters(last.e),
-            y: (parseFloat(surfaceN) || 0) + userToMeters(last.n),
-        };
+        const bh = getGeoCoords(headX + userToMeters(last.e), headY + userToMeters(last.n));
         return {
             totalMD: last.md,
             totalTVD: last.tvd,
             horizontalDisplacement: last.closureDist,
             maxInclination: Math.max(...planRows.map((s) => s.inc)),
             maxDLS: Math.max(...planRows.map((s) => (mdUnit === 'ft' ? s.dls100ft : s.dls30m))),
-            bottomHole: getGeoCoords(bhAbs.x, bhAbs.y),
+            bottomHole: bh,
         };
-    }, [planRows, surfaceE, surfaceN, userToMeters, mdUnit, getGeoCoords]);
+    }, [planRows, headX, headY, userToMeters, mdUnit, getGeoCoords]);
 
-    const chartTargets = useMemo(() => targets.map((t) => ({
+    const chartTargets = useMemo(() => (siteTargets || []).map((t) => ({
         id: t.id,
         name: t.name,
-        e: metersToUser((t.x || 0) - (parseFloat(surfaceE) || 0)),
-        n: metersToUser((t.y || 0) - (parseFloat(surfaceN) || 0)),
-    })), [targets, surfaceE, surfaceN, metersToUser]);
+        e: metersToUser((t.center_x || 0) - headX),
+        n: metersToUser((t.center_y || 0) - headY),
+    })), [siteTargets, headX, headY, metersToUser]);
 
     const vsAzimuthDeg = planRows && planRows.length > 1
         ? planRows[planRows.length - 1].closureAzi : null;
 
+    if (!design) {
+        return (
+            <div className="flex h-[50vh] items-center justify-center text-sm text-slate-500">
+                Select a design in the tree, or create one from a wellbore's menu.
+            </div>
+        );
+    }
+
+    const readOnly = design.status !== 'draft';
+
     return (
         <div className="flex flex-col lg:flex-row h-[calc(100vh-140px)] gap-4">
-            {/* LEFT SIDEBAR: Controls */}
             <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="w-full lg:w-[400px] flex flex-col bg-slate-900 border-r border-slate-800 rounded-lg overflow-hidden shrink-0">
-                <div className="p-4 border-b border-slate-800 bg-slate-900 z-10">
+                <div className="p-4 border-b border-slate-800 bg-slate-900 z-10 flex items-center justify-between">
                     <h2 className="text-lg font-bold text-white flex items-center">
                         <Activity className="w-5 h-5 mr-2 text-lime-400" />
-                        Trajectory Design
+                        {design.name} <span className="ml-2 text-xs font-normal text-slate-500">r{design.revision} {design.status !== 'draft' ? `(${design.status})` : ''}</span>
                     </h2>
+                    <Button size="sm" onClick={handleSaveDesign} disabled={saving || readOnly || !stations} title={readOnly ? 'Definitive and archived designs are read-only; duplicate as a new revision to edit.' : 'Save design'} className="h-7 bg-[#4CAF50] hover:bg-[#43a047] text-white text-xs">
+                        {saving ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />} Save
+                    </Button>
                 </div>
 
                 <ScrollArea className="flex-1 p-4">
                     <div className="space-y-6">
+                        {readOnly && (
+                            <div className="rounded-md border border-amber-800/50 bg-amber-900/15 px-3 py-2 text-xs text-amber-300">
+                                This design is {design.status}. Duplicate it as a new revision from the tree to make changes.
+                            </div>
+                        )}
                         <div className="space-y-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
                             <Label className="text-slate-400 text-xs uppercase font-bold">Design Settings</Label>
                             <div className="grid grid-cols-3 gap-2 mt-2">
-                                <div><Label className="text-[10px]">Max DLS (/{mdUnit === 'ft' ? '100ft' : '30m'})</Label><Input type="number" value={constraints.maxDLS} onChange={e => setConstraints({ ...constraints, maxDLS: e.target.value })} className="h-7 bg-slate-900 text-xs" /></div>
-                                <div><Label className="text-[10px]">KOP ({depthUnitLabel})</Label><Input type="number" value={constraints.kop} onChange={e => setConstraints({ ...constraints, kop: e.target.value })} className="h-7 bg-slate-900 text-xs" /></div>
-                                <div><Label className="text-[10px]">KO Azi (deg)</Label><Input type="number" value={kickoffAzi} onChange={e => { setKickoffAzi(e.target.value); updateTrajectoryDraft({ kickoffAzi: parseFloat(e.target.value) || 0 }); }} className="h-7 bg-slate-900 text-xs" /></div>
+                                <div><Label className="text-[10px]">Max DLS (/{mdUnit === 'ft' ? '100ft' : '30m'})</Label><Input type="number" value={constraints.maxDLS} onChange={e => { setConstraints({ ...constraints, maxDLS: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, maxDLS: e.target.value } }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
+                                <div><Label className="text-[10px]">KOP ({depthUnitLabel})</Label><Input type="number" value={constraints.kop} onChange={e => { setConstraints({ ...constraints, kop: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, kop: e.target.value } }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
+                                <div><Label className="text-[10px]">KO Azi (deg)</Label><Input type="number" value={kickoffAzi} onChange={e => { setKickoffAzi(e.target.value); updateTrajectoryDraft({ kickoffAzi: parseFloat(e.target.value) || 0 }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
                             </div>
+                            <p className="text-[10px] text-slate-500">
+                                Wellhead {Number.isFinite(wellbore?.head_x) ? `${wellbore.head_x.toFixed(1)} E, ${wellbore.head_y.toFixed(1)} N` : 'not set'}
+                                {Number.isFinite(wellbore?.grid_convergence_deg) ? ` | convergence ${Number(wellbore.grid_convergence_deg).toFixed(3)} deg` : ''}
+                                {` | KB ${kbUser.toFixed(1)} ${depthUnitLabel}`}
+                            </p>
                         </div>
 
                         <div className="space-y-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
@@ -292,18 +318,18 @@ const TrajectoryTab = ({ wellId, user }) => {
                                 <Label className="text-slate-400 text-xs uppercase font-bold">Targeting</Label>
                                 <div className="flex items-center space-x-2">
                                     <Label htmlFor="lock" className="text-[10px] cursor-pointer">Auto-Solve</Label>
-                                    <Checkbox id="lock" checked={lockToTarget} onCheckedChange={setLockToTarget} />
+                                    <Checkbox id="lock" checked={lockToTarget} onCheckedChange={setLockToTarget} disabled={readOnly} />
                                 </div>
                             </div>
 
                             <Select value={selectedTargets[0] || ''} onValueChange={(v) => setSelectedTargets([v])}>
                                 <SelectTrigger className="bg-slate-900 border-slate-700 h-8 text-xs"><SelectValue placeholder="Select Target..." /></SelectTrigger>
                                 <SelectContent className="bg-slate-800 border-slate-700">
-                                    {targets.map(t => <SelectItem key={t.id} value={t.id}>{t.name} ({t.tvd_m}m TVD)</SelectItem>)}
+                                    {(siteTargets || []).map(t => <SelectItem key={t.id} value={t.id}>{t.name} ({t.tvdss_m}m TVDSS)</SelectItem>)}
                                 </SelectContent>
                             </Select>
 
-                            {lockToTarget && (
+                            {lockToTarget && !readOnly && (
                                 <>
                                     <div><Label className="text-[10px]">Build rate (deg/{mdUnit === 'ft' ? '100ft' : '30m'})</Label><Input type="number" value={constraints.maxBuildRate} onChange={e => setConstraints({ ...constraints, maxBuildRate: e.target.value })} className="h-7 bg-slate-900 text-xs" /></div>
                                     <Button size="sm" onClick={handleAutoSolve} disabled={solving} className="w-full bg-lime-600 hover:bg-lime-700 text-white h-8 text-xs">
@@ -318,7 +344,7 @@ const TrajectoryTab = ({ wellId, user }) => {
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
                                     <Label className="text-slate-400 text-xs uppercase font-bold">Segments</Label>
-                                    <Button size="sm" variant="ghost" onClick={addSegment} className="h-6 w-6 p-0 hover:bg-slate-800"><Plus className="w-4 h-4 text-lime-400" /></Button>
+                                    {!readOnly && <Button size="sm" variant="ghost" onClick={addSegment} className="h-6 w-6 p-0 hover:bg-slate-800"><Plus className="w-4 h-4 text-lime-400" /></Button>}
                                 </div>
 
                                 <DragDropContext onDragEnd={handleDragEnd}>
@@ -326,21 +352,21 @@ const TrajectoryTab = ({ wellId, user }) => {
                                         {(provided) => (
                                             <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
                                                 {segments.map((seg, index) => (
-                                                    <Draggable key={seg.id} draggableId={seg.id} index={index}>
-                                                        {(provided) => (
-                                                            <div ref={provided.innerRef} {...provided.draggableProps} className="bg-slate-800 border border-slate-700 rounded p-2 text-xs group">
+                                                    <Draggable key={seg.id || index} draggableId={String(seg.id || index)} index={index} isDragDisabled={readOnly}>
+                                                        {(dragProvided) => (
+                                                            <div ref={dragProvided.innerRef} {...dragProvided.draggableProps} className="bg-slate-800 border border-slate-700 rounded p-2 text-xs group">
                                                                 <div className="flex items-center gap-2 mb-2">
-                                                                    <div {...provided.dragHandleProps} className="cursor-grab text-slate-600 hover:text-slate-400"><GripVertical className="w-4 h-4" /></div>
+                                                                    <div {...dragProvided.dragHandleProps} className="cursor-grab text-slate-600 hover:text-slate-400"><GripVertical className="w-4 h-4" /></div>
                                                                     <span className="font-bold text-lime-400">#{index + 1}</span>
-                                                                    <Select value={seg.type} onValueChange={(v) => updateSegment(index, 'type', v)}>
+                                                                    <Select value={seg.type} onValueChange={(v) => updateSegment(index, 'type', v)} disabled={readOnly}>
                                                                         <SelectTrigger className="h-6 w-24 bg-slate-900 border-none text-[10px]"><SelectValue /></SelectTrigger>
                                                                         <SelectContent className="bg-slate-800"><SelectItem value="Hold">Hold</SelectItem><SelectItem value="Build">Build</SelectItem><SelectItem value="Turn">Turn</SelectItem></SelectContent>
                                                                     </Select>
-                                                                    <Button variant="ghost" size="icon" onClick={() => removeSegment(index)} className="ml-auto h-5 w-5 text-slate-600 hover:text-red-400"><Trash2 className="w-3 h-3" /></Button>
+                                                                    {!readOnly && <Button variant="ghost" size="icon" onClick={() => removeSegment(index)} className="ml-auto h-5 w-5 text-slate-600 hover:text-red-400"><Trash2 className="w-3 h-3" /></Button>}
                                                                 </div>
                                                                 <div className="grid grid-cols-2 gap-2 pl-6">
-                                                                    <div className="flex items-center justify-between"><span className="text-slate-500">Len:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.length} onChange={(e) => updateSegment(index, 'length', e.target.value)} /></div>
-                                                                    {seg.type !== 'Hold' && <div className="flex items-center justify-between"><span className="text-slate-500">{seg.type === 'Turn' ? 'TR' : 'BR'}:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.type === 'Turn' ? seg.turnRate : seg.buildRate} onChange={(e) => updateSegment(index, seg.type === 'Turn' ? 'turnRate' : 'buildRate', e.target.value)} /></div>}
+                                                                    <div className="flex items-center justify-between"><span className="text-slate-500">Len:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.length} onChange={(e) => updateSegment(index, 'length', e.target.value)} disabled={readOnly} /></div>
+                                                                    {seg.type !== 'Hold' && <div className="flex items-center justify-between"><span className="text-slate-500">{seg.type === 'Turn' ? 'TR' : 'BR'}:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.type === 'Turn' ? seg.turnRate : seg.buildRate} onChange={(e) => updateSegment(index, seg.type === 'Turn' ? 'turnRate' : 'buildRate', e.target.value)} disabled={readOnly} /></div>}
                                                                 </div>
                                                             </div>
                                                         )}
@@ -357,7 +383,6 @@ const TrajectoryTab = ({ wellId, user }) => {
                 </ScrollArea>
             </motion.div>
 
-            {/* RIGHT MAIN AREA */}
             <div className="flex-1 flex flex-col min-w-0 gap-4">
                 <TrajectoryKPIs summary={planSummary} qc={qaResult} depthUnit={depthUnitLabel} />
 
@@ -432,4 +457,4 @@ const TrajectoryTab = ({ wellId, user }) => {
     );
 };
 
-export default TrajectoryTab;
+export default DesignTab;
