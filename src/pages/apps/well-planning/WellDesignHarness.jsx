@@ -16,6 +16,8 @@ import PlanViewChart from './charts/PlanViewChart';
 import { SectionViewPanel, DlsPanel } from './charts/TrajectoryCharts';
 import LadderChart from './charts/LadderChart';
 import TravelingCylinderChart from './charts/TravelingCylinderChart';
+import WellpathCubeView from './components/WellpathCubeView';
+import { buildTrajectoryContract, contractToCsv, contractToDxf } from './services/trajectoryContract';
 
 const WELLBORE = {
   id: 'harness-wb', name: 'HAR-1', head_x: 500000, head_y: 6800000,
@@ -127,6 +129,43 @@ const WellDesignHarness = () => {
     ? [{ id: 'probe', label: 'Probe offset (50 m N)', clearance: acProbe, classification: { status: 'review' } }]
     : [];
 
+  // WD5 probes: trajectory-contract exports + the 3D cube view on the
+  // fixed probe geometry (deterministic; e2e recomputes the expected
+  // numbers by importing the same service).
+  const wd5 = useMemo(() => {
+    try {
+      const stations = AC_PROBE.stations();
+      const contract = buildTrajectoryContract({
+        site: { name: 'Harness pad', crs: 'EPSG:32631', xy_unit: 'm' },
+        wellbore: WELLBORE,
+        design: { name: 'Harness plan', revision: 1, status: 'draft' },
+        stations,
+        generatedAt: '2026-08-25T00:00:00Z',
+      });
+      const csv = contractToCsv(contract);
+      const dxf = contractToDxf(contract);
+      const model = computeErrorModel(stations, AC_PROBE.magRef);
+      return {
+        csvLines: csv.split('\n').length,
+        dxfVertices: (dxf.match(/VERTEX/g) || []).length,
+        tdTvdss: contract.stations[contract.stations.length - 1].tvdss,
+        cubeWells: [
+          {
+            id: 'probe-plan', label: 'HAR-1 (plan)', color: '#166534', kind: 'plan',
+            stations, headX: WELLBORE.head_x, headY: WELLBORE.head_y,
+            kbElevM: WELLBORE.kb_elev_m, cov: model.totalCov,
+          },
+          {
+            id: 'probe-off', label: 'HAR-offset', color: '#1d4ed8', kind: 'offset',
+            stations, headX: WELLBORE.head_x, headY: WELLBORE.head_y + AC_PROBE.offsetNorth,
+            kbElevM: 0,
+          },
+        ],
+      };
+    } catch (e) { return null; }
+  }, []);
+  const [snapshotBytes, setSnapshotBytes] = useState(null);
+
   return (
     <div className="min-h-screen bg-slate-950 p-4 text-white">
       <h1 className="mb-2 text-sm font-bold">Well Design Studio harness</h1>
@@ -144,6 +183,10 @@ const WellDesignHarness = () => {
         <div>Segs <span data-testid="wd-segcount" className="font-mono text-lime-400">{segments.length}</span></div>
         <div>Decl <span data-testid="wd-decl" className="font-mono text-lime-400">{declinationAt(MAG_PROBE).declinationDeg.toFixed(3)}</span></div>
         <div>AC SF <span data-testid="wd-acsf" className="font-mono text-lime-400">{acProbe ? acProbe.summary.minSf.toFixed(4) : '--'}</span></div>
+        <div>CSV <span data-testid="wd-csvlines" className="font-mono text-lime-400">{wd5 ? wd5.csvLines : '--'}</span></div>
+        <div>DXF <span data-testid="wd-dxfverts" className="font-mono text-lime-400">{wd5 ? wd5.dxfVertices : '--'}</span></div>
+        <div>TDss <span data-testid="wd-tdtvdss" className="font-mono text-lime-400">{wd5 ? wd5.tdTvdss.toFixed(1) : '--'}</span></div>
+        <div>Snap <span data-testid="wd-snapbytes" className="font-mono text-lime-400">{snapshotBytes ?? '--'}</span></div>
       </div>
       {compiled.error && <div className="mb-3 text-xs text-red-400" data-testid="wd-error">{compiled.error}</div>}
 
@@ -152,9 +195,24 @@ const WellDesignHarness = () => {
         <SectionViewPanel rows={rows || []} unit="m" vsAzimuthDeg={last?.closureAzi} />
         <DlsPanel rows={rows || []} unit="m" />
       </div>
-      <div className="mt-px grid h-[34vh] grid-cols-2 gap-px bg-slate-800">
+      <div className="mt-px grid h-[34vh] grid-cols-3 gap-px bg-slate-800">
         <LadderChart results={acResults} mode="sf" unit="m" />
         <TravelingCylinderChart results={acResults} unit="m" />
+        <div className="relative">
+          {wd5 && (
+            <WellpathCubeView
+              wells={wd5.cubeWells}
+              targets={[{
+                id: 'harness-t1', name: 'Amber sand', kind: 'circle',
+                center_x: 500850, center_y: 6801100, tvdss_m: 1400,
+                geometry: { radius_m: 120 }, color: '#d97706',
+              }]}
+              tops={[]}
+              background="light"
+              onSnapshot={(url) => setSnapshotBytes(url.length)}
+            />
+          )}
+        </div>
       </div>
 
       <SolverDialog

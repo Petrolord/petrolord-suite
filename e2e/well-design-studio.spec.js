@@ -12,6 +12,9 @@ import { declinationAt } from '../packages/engines/engines/drilling/magnetics.js
 import { computeWellPath } from '../packages/engines/engines/drilling/surveyMath.js';
 import { computeErrorModel } from '../packages/engines/engines/drilling/errorModel.js';
 import { computeClearance } from '../packages/engines/engines/drilling/antiCollision.js';
+import {
+  buildTrajectoryContract, contractToCsv, contractToDxf,
+} from '../src/pages/apps/well-planning/services/trajectoryContract.js';
 
 // The harness's seeded geometry (WellDesignHarness.jsx).
 const WELLBORE = { head_x: 500000, head_y: 6800000, kb_elev_m: 30 };
@@ -92,6 +95,45 @@ test('Rev4 + separation rule in the browser bundle match the engine (WD4)', asyn
   await expect(page.getByTestId('wd-acsf')).toHaveText(expected.summary.minSf.toFixed(4));
   // and the WD4 chart pack renders from the same scan
   await expect(page.getByTestId('traveling-cylinder-chart')).toBeVisible();
+});
+
+test('trajectory contract exports + 3D window in the browser bundle (WD5)', async ({ page }) => {
+  // Recompute the harness's fixed WD5 probe with the SAME service the
+  // bundle ships (no '@' aliases in trajectoryContract, so it imports
+  // directly here).
+  const stations = [];
+  for (let i = 0; i < 40; i++) {
+    const md = i * 50;
+    stations.push({ md, inc: Math.min(30, Math.max(0, (md - 300) / 30)), azi: 90 });
+  }
+  const contract = buildTrajectoryContract({
+    site: { name: 'Harness pad', crs: 'EPSG:32631', xy_unit: 'm' },
+    wellbore: {
+      id: 'harness-wb', name: 'HAR-1', head_x: 500000, head_y: 6800000,
+      kb_elev_m: 30, depth_unit: 'm', grid_convergence_deg: -1.2,
+    },
+    design: { name: 'Harness plan', revision: 1, status: 'draft' },
+    stations,
+    generatedAt: '2026-08-25T00:00:00Z',
+  });
+  const expCsvLines = contractToCsv(contract).split('\n').length;
+  const expDxfVerts = (contractToDxf(contract).match(/VERTEX/g) || []).length;
+  const expTdTvdss = contract.stations[contract.stations.length - 1].tvdss;
+
+  await page.goto('/dev/well-design');
+  await expect(page.getByTestId('wd-csvlines')).toHaveText(String(expCsvLines));
+  await expect(page.getByTestId('wd-dxfverts')).toHaveText(String(expDxfVerts));
+  await expect(page.getByTestId('wd-tdtvdss')).toHaveText(expTdTvdss.toFixed(1));
+
+  // 3D window: WebGL pixels are unreadable in e2e (house rule), but the
+  // camera-projected DOM labels are assertable, and the snapshot path
+  // must yield a real PNG data URL.
+  await expect(page.getByTestId('wp-cube-view')).toBeVisible();
+  await expect(page.getByTestId('wp-cube-label-wellhead').first()).toContainText('HAR-1');
+  await expect(page.getByTestId('wp-cube-label-target').first()).toContainText('Amber sand');
+  await page.getByTestId('wp-cube-snapshot').click();
+  const bytes = await page.getByTestId('wd-snapbytes').textContent();
+  expect(Number(bytes)).toBeGreaterThan(5000);
 });
 
 test('charts render for the solved design', async ({ page }) => {

@@ -219,6 +219,54 @@ Casing/Costing tabs remain launcher mocks (reviewed in WD5/WD6),
   a browser-bundle Rev4+separation-rule probe asserted digit for digit
   against the engines package.
 
+## WD5 — 3D and the integration differentiators
+
+- 3D window: `components/WellpathCubeView.jsx` on a lean raw-WebGL2
+  line renderer (`viewer3d/WpCubeRenderer.js`, no three.js — house
+  playbook) sharing the Seismolord orbit-camera math
+  (Seismolord/viewer/cube3d.js, pure + jest-tested). Scene geometry is
+  `services/wpMesh.js` (jest-gated): multi-well co-render (plan +
+  definitive actual composite + the site's other definitive designs),
+  2-sigma EOU rings from the WD4 covariances, targets with true
+  geometry at TVDSS, registry tops on the bridged well, axes box with
+  E/N/TVDSS ticks, north arrow, vexag 1/2/5, layer toggles, PNG
+  snapshot (preserveDrawingBuffer). Labels are camera-projected DOM
+  (e2e cannot read WebGL pixels — house rule), so wellhead/TD/target/
+  top labels are assertable.
+- Publish bridge: `services/publishPlan.js` + `PublishDialog` — the
+  design's saved trajectory becomes a geo_wells registry row (create
+  on first publish + stamp wp_wellbores.geo_well_id; republish updates
+  the SAME row so Seismolord/correlation/petrophysics references
+  survive), with optional checkshot borrow from another registry well
+  (provenance recorded in crs_provenance) and
+  wp_designs.published_geo_well_id/published_at stamping. Deviation
+  follows the registry contract (metres, grid azimuths, ascending MD)
+  — the same shape Seismolord's cube lattice-path builder consumes, so
+  a published plan co-renders there with no further wiring.
+- Trajectory contract: `services/trajectoryContract.js` — versioned
+  (`petrolord-trajectory` v1.0.0) self-describing shape with the full
+  azimuth chain + geomagnetic context, stations in both wellhead-
+  relative and absolute site-CRS frames. Four serializers: JSON, CSV
+  (# header block), Excel (xlsx Header+Stations sheets), DXF 3D
+  polyline in absolute coordinates with z up (dxf-writer). Export menu
+  on the Design tab (quick user-unit CSV kept).
+- PPFG mud window: `services/ppfg.js` reads the Pore Pressure Studio
+  prognosis published to the bridged registry well (geo_wells_logs
+  PP/FP/OBG, MPa vs MD, pipeline pp-1.0.0), hangs it on the design
+  trajectory (MD→TVD via the engine path) and renders
+  `charts/MudWindowPanel.jsx` beside the section view — MPa or EMW
+  g/cc, safe-window band, tightest-window callout. Honest empty states
+  when there is no bridge or no published prognosis.
+- Compare polish: absorbed into the 3D window — plan, actual composite
+  and offset wells co-render with EOU rings (the WD3 2D overlays
+  remain on the Surveys tab).
+- Tests: Suite jest 3179 green incl. 25 new WD5 gates (wpMesh frame/
+  EOU/targets/tops/axes, contract build + all four serializers with
+  xlsx re-read and DXF vertex counts, PPFG hydrostatic EMW identity +
+  curve plumbing, publish payload/patch contracts); build green; e2e
+  5/5 incl. a WD5 probe asserting contract exports digit-for-digit and
+  the 3D window's projected labels + PNG snapshot.
+
 ## Upcoming waves
 
 - WD1 wp_* schema + Site>Wellbore>Design workspace shell [DONE]
@@ -229,5 +277,5 @@ Casing/Costing tabs remain launcher mocks (reviewed in WD5/WD6),
 - WD4 ISCWSA Rev4 error model + anti-collision (ladder, traveling
   cylinder) + survey programs [DONE]
 - WD5 WebGL2 3D + geo_wells publish bridge (Seismolord co-render) +
-  PPFG overlay + trajectory contract + DXF exports
+  PPFG overlay + trajectory contract + DXF exports [DONE]
 - WD6 wall-plot report pack + literature gates + launch
