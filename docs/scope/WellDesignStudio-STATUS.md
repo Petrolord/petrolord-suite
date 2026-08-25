@@ -88,6 +88,37 @@ Casing/Costing tabs remain launcher mocks (reviewed in WD5/WD6),
   solver UI), Apps tab launcher passes the wellbore id as ?wellId=
   (consumers adopt the trajectory contract in WD5).
 
+## WD2 — design studio (profile solvers, chart pack, registry targets)
+
+- Engines PR #33 (subtree-pulled): `engines/drilling/profileDesign.js`
+  with six solvers on exact circular-arc geometry — slant/J
+  (circle-tangent closed form, build and drop sides), S-profile
+  (two-circle common tangent to a final inclination), continuous 3D
+  build (single arc, exact toolface emission), horizontal landing
+  (Sawaryn & Thorogood SPE 84246 curve-hold-curve vector iteration),
+  nudge forward + closed-form inverse, and toolfaceForTarget. Every
+  solver validated by round-trip (solve, compile, land on target)
+  against forward-constructed independent numpy goldens
+  (oracle_profiles.py); 16 gates, engines suite 575 green.
+- DesignTab: "Design methods" launcher (SolverDialog) replaces the old
+  single auto-solve; whole-well profiles replace the segment list,
+  curve-to-target and horizontal landing append from the current design
+  end; new ToolfaceArc segment kind editable in the segment grid.
+- PlanViewChart: custom equal-aspect SVG plan view (targets with true
+  geometry, slots, lease lines, north arrow) replacing the stretched
+  Recharts panel.
+- Targets: ellipse and polygon geometry in TargetDialog, plus the two
+  registry pickers ("From top": geo_wells top position via the
+  minimum-curvature engine; "From surface": bilinear sample of a
+  geo_surfaces grid) with provenance stamped.
+- Dev harness `/dev/well-design` (unauthenticated, seeded) + e2e spec
+  `e2e/well-design-studio.spec.js`: expectations computed from the
+  engines package in the spec itself; the browser-solved J-well must
+  match the engine's endpoint digit for digit. 2 e2e green locally.
+- Known polish for WD3: holds emit a single station, so strip charts
+  interpolate linearly across long holds (chart artifact only; the
+  math is exact) — subdivide holds in the compiler.
+
 ## Upcoming waves
 
 - WD1 wp_* schema + Site>Wellbore>Design workspace shell
