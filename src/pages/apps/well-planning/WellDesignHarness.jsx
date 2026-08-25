@@ -7,6 +7,7 @@ import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { compileSegments } from './engine/segmentCompiler';
 import { solveSlant, solveHorizontalLanding } from './engine/profileDesign';
+import { declinationAt } from './engine/magnetics';
 import SolverDialog from './components/SolverDialog';
 import PlanViewChart from './charts/PlanViewChart';
 import { SectionViewPanel, DlsPanel } from './charts/TrajectoryCharts';
@@ -15,6 +16,11 @@ const WELLBORE = {
   id: 'harness-wb', name: 'HAR-1', head_x: 500000, head_y: 6800000,
   kb_elev_m: 30, depth_unit: 'm', grid_convergence_deg: -1.2,
 };
+// Fixed WMM2025 probe (Niger Delta-ish wellhead, fixed epoch) so the
+// e2e spec can assert the browser-bundled magnetics shim against the
+// engines package digit for digit.
+const MAG_PROBE = { latDeg: 4.75, lonDeg: 7.0, decimalYear: 2026.65 };
+
 const TARGETS = [
   {
     id: 'harness-t1', name: 'Amber sand', kind: 'circle', category: 'geological',
@@ -78,13 +84,14 @@ const WellDesignHarness = () => {
         <Button size="sm" data-testid="wd-reset" onClick={() => { setSegments([{ id: 'h1', type: 'Hold', length: 500, buildRate: 0, turnRate: 0 }]); setKickoffAzi(0); }} variant="outline" className="h-7 border-slate-600 text-xs text-slate-300">Reset</Button>
       </div>
 
-      <div className="mb-3 grid grid-cols-6 gap-2 text-xs" data-testid="wd-readout">
+      <div className="mb-3 grid grid-cols-7 gap-2 text-xs" data-testid="wd-readout">
         <div>MD <span data-testid="wd-md" className="font-mono text-lime-400">{last ? last.md.toFixed(1) : '--'}</span></div>
         <div>TVD <span data-testid="wd-tvd" className="font-mono text-lime-400">{last ? last.tvd.toFixed(1) : '--'}</span></div>
         <div>N <span data-testid="wd-n" className="font-mono text-lime-400">{last ? last.n.toFixed(1) : '--'}</span></div>
         <div>E <span data-testid="wd-e" className="font-mono text-lime-400">{last ? last.e.toFixed(1) : '--'}</span></div>
         <div>Inc <span data-testid="wd-inc" className="font-mono text-lime-400">{last ? last.inc.toFixed(2) : '--'}</span></div>
         <div>Segs <span data-testid="wd-segcount" className="font-mono text-lime-400">{segments.length}</span></div>
+        <div>Decl <span data-testid="wd-decl" className="font-mono text-lime-400">{declinationAt(MAG_PROBE).declinationDeg.toFixed(3)}</span></div>
       </div>
       {compiled.error && <div className="mb-3 text-xs text-red-400" data-testid="wd-error">{compiled.error}</div>}
 

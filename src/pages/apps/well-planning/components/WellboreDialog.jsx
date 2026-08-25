@@ -2,7 +2,9 @@
 // block (KB / ground / water depth), depth unit, azimuth reference and
 // sidetrack parent. Grid convergence at the wellhead is computed from
 // the site CRS via the suite engine and cached on the row; magnetic
-// declination arrives with the WD3 magnetics wave.
+// declination (WD3) comes from WMM2025 at the wellhead lat/lon for
+// today's date and is cached alongside it — together they close the
+// magnetic -> true -> grid azimuth chain for MWD surveys.
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -10,8 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { convergenceAt } from '@/lib/crs';
+import { convergenceAt, toLonLat } from '@/lib/crs';
 import { isTransformableTag } from '@/lib/crs/tags';
+import { declinationAt, decimalYearOf } from '../engine/magnetics';
 
 const num = (v) => {
   const n = parseFloat(v);
@@ -66,6 +69,23 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
     } catch (e) { return null; }
   }, [head, site?.crs]);
 
+  // WMM2025 declination at the wellhead for today's date (the survey
+  // date belongs to each run; the cached value serves planning).
+  const magnetics = useMemo(() => {
+    if (!head || !site?.crs || !isTransformableTag(site.crs)) return null;
+    try {
+      const { lon, lat } = toLonLat(site.crs, head.x, head.y);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+      const now = new Date();
+      const d = declinationAt({
+        latDeg: lat,
+        lonDeg: lon,
+        decimalYear: decimalYearOf(now.getUTCFullYear(), now.getUTCMonth() + 1, now.getUTCDate()),
+      });
+      return Number.isFinite(d.declinationDeg) ? d : null;
+    } catch (e) { return null; }
+  }, [head, site?.crs]);
+
   const handleSave = async () => {
     if (!form.name.trim()) return;
     setSaving(true);
@@ -82,6 +102,7 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
         depth_unit: form.depth_unit,
         azimuth_reference: form.azimuth_reference,
         grid_convergence_deg: convergence,
+        mag_declination_deg: magnetics ? +magnetics.declinationDeg.toFixed(4) : null,
         parent_wellbore_id: form.parent_wellbore_id === NONE ? null : form.parent_wellbore_id,
         status: form.status,
       });
@@ -190,7 +211,17 @@ const WellboreDialog = ({ open, onOpenChange, site, wellbore, siblings = [], onS
               ? <span className="font-mono text-slate-200">{convergence.toFixed(4)} deg</span>
               : <span className="italic">needs a site CRS and a wellhead location</span>}
             <span className="mx-2 text-slate-600">|</span>
-            Magnetic declination: <span className="italic">computed automatically from WD3 (WMM2025)</span>
+            Declination ({magnetics ? magnetics.model : 'WMM-2025'}): {magnetics
+              ? (
+                <span className="font-mono text-slate-200" data-testid="wellbore-declination">
+                  {magnetics.declinationDeg.toFixed(4)} deg
+                  {!magnetics.inModelRange && <span className="ml-1 text-amber-400">(outside model validity)</span>}
+                </span>
+              )
+              : <span className="italic">needs a transformable site CRS</span>}
+            {magnetics && (
+              <span className="ml-2 text-slate-500">dip {magnetics.dipDeg.toFixed(2)} deg, field {(magnetics.totalFieldNt / 1000).toFixed(2)} uT</span>
+            )}
           </div>
         </div>
 

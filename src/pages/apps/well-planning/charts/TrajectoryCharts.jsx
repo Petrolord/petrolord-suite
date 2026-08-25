@@ -11,7 +11,7 @@
 import React from 'react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis,
-  CartesianGrid, Tooltip, ReferenceDot,
+  CartesianGrid, Tooltip, ReferenceDot, Legend,
 } from 'recharts';
 import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
@@ -56,8 +56,10 @@ export const PlanViewPanel = ({ rows, targets = [], unit }) => (
   </Panel>
 );
 
-/** Section view: TVD (down) vs vertical section. */
-export const SectionViewPanel = ({ rows, unit, vsAzimuthDeg }) => (
+/** Section view: TVD (down) vs vertical section. Overlays (WD3
+ *  plan-vs-actual) are extra series with their own rows in the same
+ *  VS/TVD frame: [{name, rows, color, dash}]. */
+export const SectionViewPanel = ({ rows, unit, vsAzimuthDeg, overlays = [], name = 'Plan' }) => (
   <Panel title={`Section view (TVD vs VS at ${Number.isFinite(vsAzimuthDeg) ? vsAzimuthDeg.toFixed(1) : '--'}°, ${unit})`}>
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={rows} margin={CHART_MARGINS.compact}>
@@ -71,13 +73,19 @@ export const SectionViewPanel = ({ rows, unit, vsAzimuthDeg }) => (
         <Tooltip contentStyle={TOOLTIP_STYLE}
           formatter={(v) => v.toFixed(1)}
           labelFormatter={() => ''} />
-        <Line dataKey="tvd" stroke="#166534" strokeWidth={2} dot={false} isAnimationActive={false} />
+        {overlays.length > 0 && <Legend wrapperStyle={{ fontSize: 10 }} />}
+        <Line dataKey="tvd" name={name} stroke="#166534" strokeWidth={2} dot={false} isAnimationActive={false} />
+        {overlays.map((o) => (
+          <Line key={o.name} data={o.rows} dataKey="tvd" name={o.name}
+            stroke={o.color || '#b91c1c'} strokeWidth={2}
+            strokeDasharray={o.dash || '5 3'} dot={false} isAnimationActive={false} />
+        ))}
       </LineChart>
     </ResponsiveContainer>
   </Panel>
 );
 
-const StripPanel = ({ rows, dataKey, title, color, unit }) => (
+const StripPanel = ({ rows, dataKey, title, color, unit, overlays = [], name = 'Plan' }) => (
   <Panel title={title}>
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={rows} margin={CHART_MARGINS.compact}>
@@ -89,14 +97,20 @@ const StripPanel = ({ rows, dataKey, title, color, unit }) => (
         <Tooltip contentStyle={TOOLTIP_STYLE}
           formatter={(v) => v.toFixed(2)}
           labelFormatter={(v) => `MD ${Number(v).toFixed(0)} ${unit}`} />
-        <Line dataKey={dataKey} stroke={color} strokeWidth={2} dot={false} isAnimationActive={false} />
+        {overlays.length > 0 && <Legend wrapperStyle={{ fontSize: 10 }} />}
+        <Line dataKey={dataKey} name={name} stroke={color} strokeWidth={2} dot={false} isAnimationActive={false} />
+        {overlays.map((o) => (
+          <Line key={o.name} data={o.rows} dataKey={dataKey} name={o.name}
+            stroke={o.color || '#b91c1c'} strokeWidth={2}
+            strokeDasharray={o.dash || '5 3'} dot={false} isAnimationActive={false} />
+        ))}
       </LineChart>
     </ResponsiveContainer>
   </Panel>
 );
 
-export const InclinationPanel = ({ rows, unit }) => (
-  <StripPanel rows={rows} dataKey="inc" color="#1d4ed8" unit={unit} title="Inclination (deg) vs MD" />
+export const InclinationPanel = ({ rows, unit, overlays }) => (
+  <StripPanel rows={rows} dataKey="inc" color="#1d4ed8" unit={unit} title="Inclination (deg) vs MD" overlays={overlays} />
 );
 
 export const DlsPanel = ({ rows, unit }) => (
