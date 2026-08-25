@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Plus, Trash2, GripVertical, Download, AlertCircle, RefreshCw, Activity, Table as TableIcon, LayoutGrid, Save } from 'lucide-react';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, Plus, Trash2, GripVertical, Download, AlertCircle, Wand2, Activity, Table as TableIcon, LayoutGrid, Save } from 'lucide-react';
 import { toLonLat } from '@/lib/crs';
 import { isTransformableTag } from '@/lib/crs/tags';
 import Papa from 'papaparse';
@@ -20,8 +19,10 @@ import { useWellPlanning } from '../contexts/WellPlanningContext';
 import { useWellPlanningStore } from '../state/WellPlanningStore';
 import { updateDesign } from '../services/wpApi';
 import TrajectoryKPIs from '../components/TrajectoryKPIs';
+import SolverDialog from '../components/SolverDialog';
+import PlanViewChart from '../charts/PlanViewChart';
 import {
-  PlanViewPanel, SectionViewPanel, InclinationPanel, DlsPanel,
+  SectionViewPanel, InclinationPanel, DlsPanel,
 } from '../charts/TrajectoryCharts';
 
 // Trajectory design on the validated drilling engine (WD0), rewired to
@@ -32,7 +33,7 @@ import {
 // the wellbore's depth unit end to end; wellhead/targets are site-CRS
 // metres and convert only at the boundary.
 
-const ENGINE_VERSION = 'drilling-wd0';
+const ENGINE_VERSION = 'drilling-wd2';
 
 const DesignTab = () => {
     const { site, wellbore, design, targets: siteTargets, refreshDesigns } = useWellPlanningStore();
@@ -42,14 +43,12 @@ const DesignTab = () => {
     const [viewMode, setViewMode] = useState('section'); // section | plots | table
     const [kickoffAzi, setKickoffAzi] = useState(0);
     const [segments, setSegments] = useState([]);
-    const [selectedTargets, setSelectedTargets] = useState([]);
-    const [lockToTarget, setLockToTarget] = useState(false);
-    const [constraints, setConstraints] = useState({ maxDLS: 3, maxBuildRate: 3, kop: 1000 });
+    const [solverOpen, setSolverOpen] = useState(false);
+    const [constraints, setConstraints] = useState({ maxDLS: 3 });
     const [planRows, setPlanRows] = useState(null);
     const [stations, setStations] = useState(null);
     const [qaResult, setQaResult] = useState(null);
     const [compileError, setCompileError] = useState(null);
-    const [solving, setSolving] = useState(false);
     const [saving, setSaving] = useState(false);
     const loadedFor = useRef(null);
 
@@ -73,7 +72,6 @@ const DesignTab = () => {
         const savedAzi = design.tie_on?.azi ?? 0;
         setKickoffAzi(Number.isFinite(draft?.kickoffAzi) ? draft.kickoffAzi : savedAzi);
         if (draft?.constraints) setConstraints((c) => ({ ...c, ...draft.constraints }));
-        setLockToTarget(draft?.lockToTarget || false);
     }, [design, trajectoryDraft, mdUnit]);
 
     const getGeoCoords = useCallback((easting, northing) => {
@@ -96,8 +94,15 @@ const DesignTab = () => {
                     const length = parseFloat(s.length || 0);
                     if (type === 'build') return { kind: 'build', rate: parseFloat(s.buildRate || 0), length };
                     if (type === 'turn') return { kind: 'turn', rate: parseFloat(s.turnRate || 0), length };
+                    if (type === 'toolfacearc') {
+                        return {
+                            kind: 'toolfaceArc', length,
+                            dls: parseFloat(s.dls || 0), toolfaceDeg: parseFloat(s.toolface || 0),
+                        };
+                    }
                     return { kind: 'hold', length };
-                }).filter((s) => s.length > 0 && (s.kind === 'hold' || Math.abs(s.rate) > 0)),
+                }).filter((s) => s.length > 0
+                    && (s.kind === 'hold' || (s.kind === 'toolfaceArc' ? s.dls > 0 : Math.abs(s.rate) > 0))),
                 kb: kbUser,
             });
             setPlanRows(compiled.table);
@@ -168,61 +173,26 @@ const DesignTab = () => {
         updateTrajectoryDraft({ segments: newSegments });
     };
 
-    // Closed-form slant (build-hold) solve to the selected target
-    // (engines profileDesign replaces this inline geometry in WD2):
-    //   theta = atan2(D - R, dV) + asin(R / c)
-    const handleAutoSolve = () => {
-        if (selectedTargets.length === 0) {
-            toast({ variant: 'destructive', title: 'No target selected', description: 'Select a target to solve to.' });
-            return;
+    // The design-method solvers live in engines/drilling profileDesign;
+    // SolverDialog returns compiler-ready UI segments plus the mode.
+    const handleSolverApply = ({ segments: solved, kickoffAzi: azi, mode }) => {
+        const next = mode === 'append' ? [...segments, ...solved] : solved;
+        setSegments(next);
+        const patch = { segments: next };
+        if (azi != null && mode !== 'append') {
+            setKickoffAzi(+azi.toFixed(2));
+            patch.kickoffAzi = +azi.toFixed(2);
         }
-        setSolving(true);
-        try {
-            const target = siteTargets.find((t) => t.id === selectedTargets[0]);
-            if (!target) throw new Error('Target not found');
-
-            const rate = parseFloat(constraints.maxBuildRate);
-            if (!(rate > 0)) throw new Error('Build rate must be positive.');
-            const kop = parseFloat(constraints.kop) || 0;
-            const interval = mdUnit === 'ft' ? 100 : 30;
-            const R = interval / (rate * (Math.PI / 180));
-
-            const dE = metersToUser((target.center_x || 0) - headX);
-            const dN = metersToUser((target.center_y || 0) - headY);
-            const D = Math.hypot(dE, dN);
-            // Target depth below KB: TVDSS + KB elevation (both metres MSL basis).
-            const targetTvdUser = metersToUser((target.tvdss_m || 0) + (wellbore?.kb_elev_m || 0));
-            const dV = targetTvdUser - kop;
-            if (dV <= 0) throw new Error('Target TVD is above the kickoff point.');
-
-            const c = Math.hypot(D - R, dV);
-            if (c < R) {
-                const rMin = (D * D + dV * dV) / (2 * D);
-                const rateMin = (interval / rMin) * (180 / Math.PI);
-                throw new Error(`Target is inside the build circle. Increase the build rate above ${rateMin.toFixed(2)} deg/${interval}${mdUnit} or lower the KOP.`);
-            }
-            const theta = Math.atan2(D - R, dV) + Math.asin(R / c);
-            if (!(theta > 0)) throw new Error('No positive-inclination solution; check KOP and target.');
-            const buildLen = R * theta;
-            const holdLen = Math.sqrt(Math.max(0, c * c - R * R));
-            const thetaDeg = theta * (180 / Math.PI);
-            const azm = (Math.atan2(dE, dN) * 180 / Math.PI + 360) % 360;
-
-            const newSegments = [
-                { id: 'auto-1', type: 'Hold', length: kop, buildRate: 0, turnRate: 0 },
-                { id: 'auto-2', type: 'Build', length: +buildLen.toFixed(2), buildRate: rate, turnRate: 0 },
-                { id: 'auto-3', type: 'Hold', length: +holdLen.toFixed(2), buildRate: 0, turnRate: 0 },
-            ];
-            setSegments(newSegments);
-            setKickoffAzi(+azm.toFixed(2));
-            updateTrajectoryDraft({ segments: newSegments, kickoffAzi: +azm.toFixed(2), lockToTarget: true });
-            toast({ title: 'Solve complete', description: `Build to ${thetaDeg.toFixed(1)} deg at azimuth ${azm.toFixed(1)} deg hits the target.`, className: 'bg-green-600 text-white' });
-        } catch (e) {
-            toast({ variant: 'destructive', title: 'Solver error', description: e.message });
-        } finally {
-            setSolving(false);
-        }
+        updateTrajectoryDraft(patch);
     };
+
+    // Attitude and position at the current design end (user units,
+    // wellhead-relative) for the append-mode solvers.
+    const currentEnd = useMemo(() => {
+        if (!planRows || planRows.length < 2) return null;
+        const last = planRows[planRows.length - 1];
+        return { inc: last.inc, azi: last.azi, n: last.n, e: last.e, tvd: last.tvd };
+    }, [planRows]);
 
     const handleExportCsv = () => {
         if (!planRows) return;
@@ -259,12 +229,50 @@ const DesignTab = () => {
         };
     }, [planRows, headX, headY, userToMeters, mdUnit, getGeoCoords]);
 
-    const chartTargets = useMemo(() => (siteTargets || []).map((t) => ({
-        id: t.id,
-        name: t.name,
-        e: metersToUser((t.center_x || 0) - headX),
-        n: metersToUser((t.center_y || 0) - headY),
-    })), [siteTargets, headX, headY, metersToUser]);
+    const chartTargets = useMemo(() => (siteTargets || []).map((t) => {
+        const g = t.geometry || {};
+        const geometry = {};
+        if (g.radius_m) geometry.radius_m = metersToUser(g.radius_m);
+        if (g.semi_major_m) {
+            geometry.semi_major_m = metersToUser(g.semi_major_m);
+            geometry.semi_minor_m = metersToUser(g.semi_minor_m || g.semi_major_m);
+            geometry.rotation_deg = g.rotation_deg || 0;
+        }
+        if (Array.isArray(g.points)) {
+            geometry.points = g.points.map(([px, py]) => [
+                metersToUser(px - headX), metersToUser(py - headY),
+            ]);
+        }
+        return {
+            id: t.id,
+            name: t.name,
+            kind: t.kind,
+            color: t.color,
+            geometry,
+            e: metersToUser((t.center_x || 0) - headX),
+            n: metersToUser((t.center_y || 0) - headY),
+        };
+    }), [siteTargets, headX, headY, metersToUser]);
+
+    const chartSlots = useMemo(() => {
+        const slots = Array.isArray(site?.slots) ? site.slots : [];
+        if (site?.origin_x == null) return [];
+        return slots.map((s) => ({
+            name: s.name,
+            e: metersToUser(site.origin_x + (s.dx_m || 0) - headX),
+            n: metersToUser(site.origin_y + (s.dy_m || 0) - headY),
+        }));
+    }, [site, headX, headY, metersToUser]);
+
+    const chartLeaseLines = useMemo(() => {
+        const lines = Array.isArray(site?.lease_lines) ? site.lease_lines : [];
+        return lines.map((l) => ({
+            kind: l.kind,
+            points: (l.points || []).map(([px, py]) => [
+                metersToUser(px - headX), metersToUser(py - headY),
+            ]),
+        }));
+    }, [site, headX, headY, metersToUser]);
 
     const vsAzimuthDeg = planRows && planRows.length > 1
         ? planRows[planRows.length - 1].closureAzi : null;
@@ -303,8 +311,14 @@ const DesignTab = () => {
                             <Label className="text-slate-400 text-xs uppercase font-bold">Design Settings</Label>
                             <div className="grid grid-cols-3 gap-2 mt-2">
                                 <div><Label className="text-[10px]">Max DLS (/{mdUnit === 'ft' ? '100ft' : '30m'})</Label><Input type="number" value={constraints.maxDLS} onChange={e => { setConstraints({ ...constraints, maxDLS: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, maxDLS: e.target.value } }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
-                                <div><Label className="text-[10px]">KOP ({depthUnitLabel})</Label><Input type="number" value={constraints.kop} onChange={e => { setConstraints({ ...constraints, kop: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, kop: e.target.value } }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
                                 <div><Label className="text-[10px]">KO Azi (deg)</Label><Input type="number" value={kickoffAzi} onChange={e => { setKickoffAzi(e.target.value); updateTrajectoryDraft({ kickoffAzi: parseFloat(e.target.value) || 0 }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
+                                <div className="flex items-end">
+                                    {!readOnly && (
+                                        <Button size="sm" onClick={() => setSolverOpen(true)} className="h-7 w-full bg-lime-600 hover:bg-lime-700 text-white text-xs" data-testid="open-solver">
+                                            <Wand2 className="mr-1 h-3 w-3" /> Design methods
+                                        </Button>
+                                    )}
+                                </div>
                             </div>
                             <p className="text-[10px] text-slate-500">
                                 Wellhead {Number.isFinite(wellbore?.head_x) ? `${wellbore.head_x.toFixed(1)} E, ${wellbore.head_y.toFixed(1)} N` : 'not set'}
@@ -313,34 +327,7 @@ const DesignTab = () => {
                             </p>
                         </div>
 
-                        <div className="space-y-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
-                            <div className="flex justify-between items-center">
-                                <Label className="text-slate-400 text-xs uppercase font-bold">Targeting</Label>
-                                <div className="flex items-center space-x-2">
-                                    <Label htmlFor="lock" className="text-[10px] cursor-pointer">Auto-Solve</Label>
-                                    <Checkbox id="lock" checked={lockToTarget} onCheckedChange={setLockToTarget} disabled={readOnly} />
-                                </div>
-                            </div>
-
-                            <Select value={selectedTargets[0] || ''} onValueChange={(v) => setSelectedTargets([v])}>
-                                <SelectTrigger className="bg-slate-900 border-slate-700 h-8 text-xs"><SelectValue placeholder="Select Target..." /></SelectTrigger>
-                                <SelectContent className="bg-slate-800 border-slate-700">
-                                    {(siteTargets || []).map(t => <SelectItem key={t.id} value={t.id}>{t.name} ({t.tvdss_m}m TVDSS)</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-
-                            {lockToTarget && !readOnly && (
-                                <>
-                                    <div><Label className="text-[10px]">Build rate (deg/{mdUnit === 'ft' ? '100ft' : '30m'})</Label><Input type="number" value={constraints.maxBuildRate} onChange={e => setConstraints({ ...constraints, maxBuildRate: e.target.value })} className="h-7 bg-slate-900 text-xs" /></div>
-                                    <Button size="sm" onClick={handleAutoSolve} disabled={solving} className="w-full bg-lime-600 hover:bg-lime-700 text-white h-8 text-xs">
-                                        {solving ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <RefreshCw className="w-3 h-3 mr-2" />}
-                                        Solve Path
-                                    </Button>
-                                </>
-                            )}
-                        </div>
-
-                        {!lockToTarget && (
+                        {(
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
                                     <Label className="text-slate-400 text-xs uppercase font-bold">Segments</Label>
@@ -360,13 +347,19 @@ const DesignTab = () => {
                                                                     <span className="font-bold text-lime-400">#{index + 1}</span>
                                                                     <Select value={seg.type} onValueChange={(v) => updateSegment(index, 'type', v)} disabled={readOnly}>
                                                                         <SelectTrigger className="h-6 w-24 bg-slate-900 border-none text-[10px]"><SelectValue /></SelectTrigger>
-                                                                        <SelectContent className="bg-slate-800"><SelectItem value="Hold">Hold</SelectItem><SelectItem value="Build">Build</SelectItem><SelectItem value="Turn">Turn</SelectItem></SelectContent>
+                                                                        <SelectContent className="bg-slate-800"><SelectItem value="Hold">Hold</SelectItem><SelectItem value="Build">Build</SelectItem><SelectItem value="Turn">Turn</SelectItem><SelectItem value="ToolfaceArc">TF Arc</SelectItem></SelectContent>
                                                                     </Select>
                                                                     {!readOnly && <Button variant="ghost" size="icon" onClick={() => removeSegment(index)} className="ml-auto h-5 w-5 text-slate-600 hover:text-red-400"><Trash2 className="w-3 h-3" /></Button>}
                                                                 </div>
                                                                 <div className="grid grid-cols-2 gap-2 pl-6">
                                                                     <div className="flex items-center justify-between"><span className="text-slate-500">Len:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.length} onChange={(e) => updateSegment(index, 'length', e.target.value)} disabled={readOnly} /></div>
-                                                                    {seg.type !== 'Hold' && <div className="flex items-center justify-between"><span className="text-slate-500">{seg.type === 'Turn' ? 'TR' : 'BR'}:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.type === 'Turn' ? seg.turnRate : seg.buildRate} onChange={(e) => updateSegment(index, seg.type === 'Turn' ? 'turnRate' : 'buildRate', e.target.value)} disabled={readOnly} /></div>}
+                                                                    {(seg.type === 'Build' || seg.type === 'Turn') && <div className="flex items-center justify-between"><span className="text-slate-500">{seg.type === 'Turn' ? 'TR' : 'BR'}:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.type === 'Turn' ? seg.turnRate : seg.buildRate} onChange={(e) => updateSegment(index, seg.type === 'Turn' ? 'turnRate' : 'buildRate', e.target.value)} disabled={readOnly} /></div>}
+                                                                    {seg.type === 'ToolfaceArc' && (
+                                                                        <>
+                                                                            <div className="flex items-center justify-between"><span className="text-slate-500">DLS:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.dls} onChange={(e) => updateSegment(index, 'dls', e.target.value)} disabled={readOnly} /></div>
+                                                                            <div className="flex items-center justify-between"><span className="text-slate-500">TF:</span><Input type="number" className="h-6 w-16 bg-slate-900 text-right px-1 text-[10px]" value={seg.toolface} onChange={(e) => updateSegment(index, 'toolface', e.target.value)} disabled={readOnly} /></div>
+                                                                        </>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         )}
@@ -411,7 +404,7 @@ const DesignTab = () => {
 
                         {viewMode === 'plots' && planRows && (
                             <div className="grid grid-cols-2 grid-rows-2 gap-px bg-slate-800 h-full w-full">
-                                <PlanViewPanel rows={planRows} targets={chartTargets} unit={depthUnitLabel} />
+                                <PlanViewChart rows={planRows} targets={chartTargets} slots={chartSlots} leaseLines={chartLeaseLines} unit={depthUnitLabel} />
                                 <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} />
                                 <InclinationPanel rows={planRows} unit={depthUnitLabel} />
                                 <DlsPanel rows={planRows} unit={depthUnitLabel} />
@@ -453,6 +446,18 @@ const DesignTab = () => {
                     </div>
                 </div>
             </div>
+
+            <SolverDialog
+                open={solverOpen}
+                onOpenChange={setSolverOpen}
+                targets={siteTargets || []}
+                wellbore={wellbore}
+                mdUnit={mdUnit}
+                kbM={wellbore?.kb_elev_m || 0}
+                metersToUser={metersToUser}
+                currentEnd={currentEnd}
+                onApply={handleSolverApply}
+            />
         </div>
     );
 };

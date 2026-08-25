@@ -13,6 +13,7 @@ import Papa from 'papaparse';
 import { useWellPlanningStore } from '../state/WellPlanningStore';
 import { saveTarget, updateTarget, deleteTarget } from '../services/wpApi';
 import TargetDialog from '../components/TargetDialog';
+import TargetFromRegistryDialog from '../components/TargetFromRegistryDialog';
 import TargetsMap from '../components/TargetsMap';
 
 const TargetsTab = () => {
@@ -21,6 +22,7 @@ const TargetsTab = () => {
   const [search, setSearch] = useState('');
   const [view, setView] = useState('table');
   const [dialogTarget, setDialogTarget] = useState(undefined); // undefined closed, null new, object edit
+  const [pickerMode, setPickerMode] = useState(null); // 'tops' | 'surface' | null
 
   const filtered = useMemo(() => (targets || []).filter(
     (t) => !search || t.name.toLowerCase().includes(search.toLowerCase()),
@@ -109,7 +111,11 @@ const TargetsTab = () => {
           </div>
           <Button size="sm" variant="outline" onClick={handleExport} disabled={!filtered.length} className="h-8 border-slate-600 text-slate-300 text-xs"><Download className="mr-1 h-3 w-3" /> CSV</Button>
           {own && (
-            <Button size="sm" onClick={() => setDialogTarget(null)} className="h-8 bg-[#4CAF50] hover:bg-[#43a047] text-white text-xs"><Plus className="mr-1 h-3 w-3" /> New target</Button>
+            <>
+              <Button size="sm" variant="outline" onClick={() => setPickerMode('tops')} className="h-8 border-emerald-700 text-emerald-300 text-xs">From top</Button>
+              <Button size="sm" variant="outline" onClick={() => setPickerMode('surface')} className="h-8 border-emerald-700 text-emerald-300 text-xs">From surface</Button>
+              <Button size="sm" onClick={() => setDialogTarget(null)} className="h-8 bg-[#4CAF50] hover:bg-[#43a047] text-white text-xs"><Plus className="mr-1 h-3 w-3" /> New target</Button>
+            </>
           )}
         </div>
       </div>
@@ -172,6 +178,23 @@ const TargetsTab = () => {
           onOpenChange={(o) => { if (!o) setDialogTarget(undefined); }}
           target={dialogTarget}
           onSave={handleSave}
+        />
+      )}
+
+      {pickerMode && (
+        <TargetFromRegistryDialog
+          open
+          mode={pickerMode}
+          onOpenChange={(o) => { if (!o) setPickerMode(null); }}
+          onPick={async (payload) => {
+            try {
+              await saveTarget({ ...payload, site_id: site.id }, user.id);
+              await refreshTargets(site.id);
+              toast({ title: 'Target created', description: `${payload.name} from the ${payload.provenance.source === 'geo_top' ? 'well registry' : 'surface registry'}.`, className: 'bg-green-600 text-white' });
+            } catch (e) {
+              toast({ variant: 'destructive', title: 'Save failed', description: e.message });
+            }
+          }}
         />
       )}
     </div>
