@@ -267,6 +267,61 @@ Casing/Costing tabs remain launcher mocks (reviewed in WD5/WD6),
   5/5 incl. a WD5 probe asserting contract exports digit-for-digit and
   the 3D window's projected labels + PNG snapshot.
 
+## WD6 — reporting, launch
+
+- Report pack (`services/reportPack.js` + `tabs/ReportsTab.jsx`,
+  replacing the last placeholder): three client-side PDFs on the house
+  jsPDF+autotable pattern (brand header with the transparent watermark
+  logo, fitted text, page footers, jest-tested against the mocked-jsPDF
+  exemplar). Charts are VECTORS drawn into the page (crisp at print
+  scale, never rasterized DOM).
+  - Wall plot: A4 landscape — well-header block, plan + section views
+    with 2σ EOU overlays, key-station table, target table.
+  - Survey listing: portrait, full station table + TD/QC summary line.
+  - Anti-collision report: from a saved wp_ac_runs row — rule
+    parameters, per-offset minimum SF, vector SF ladder, and every
+    station below the review threshold (explicit "none" row when
+    clean).
+  All render from the design's SAVED station cache — nothing reports
+  from unsaved drafts.
+- `services/publishPayload.js` split out of publishPlan (pure, no
+  Supabase import) so the e2e spec recomputes publish payloads in
+  node; publishPlan re-exports, all consumers unchanged.
+- Marketing rename sweep: every user-facing "Well Planning (Pro/App)"
+  string now says Well Design Studio — Resources case study,
+  Casing & Tubing Design Pro integration panel + quick start, Casing
+  Wear Analyzer, FDP integration services, ecosystem integration list.
+  (Solutions.jsx and ModulesShowcase already said Well Design Studio.)
+  Legacy-importer copy intentionally still names the old app.
+- Launch tile copy: migration `20260826000000_well_design_studio_tile_launch.sql`
+  (update-only, idempotent) replaces WD0's "being rebuilt wave by
+  wave" description with the real feature set. DEPLOY-GATED with
+  20260825200000 — both apply at the WD6 prod upload (MIGRATIONS.md
+  rows PENDING until then).
+- Operator guide: docs/scope/WellDesignStudio-GUIDE.md (workspace,
+  design/surveys/AC/reports workflows, the full trust chain A1–A8).
+- e2e: 6/6 — new WD6 probe asserts the publish payload and a real
+  survey-listing PDF whose page count matches the same generator run
+  in node (jsPDF named-import fix makes reportPack node-importable).
+- jsPDF note: `import { jsPDF }` (named) — the default export is not a
+  constructor under node ESM.
+
+## Launch state
+
+- All six waves DONE. Tabs: Design (solvers, charts, 3D, exports,
+  publish), Targets, Surveys, Anti-Collision, Reports, Apps — no
+  placeholders left.
+- Validation: drilling runner gates A1–A8 ACTIVE and passing; L1–L3
+  ARMED awaiting owner literature PDFs (non-blocking).
+- Ship checklist: prod upload (slim source zip per the Hostinger
+  procedure) → owner confirms live + purges CDN → apply the TWO
+  deploy-gated tile migrations (20260825200000, 20260826000000) → flip
+  their MIGRATIONS.md rows → verify chunk markers.
+- Owner staging E2E checklist (from the program plan): design a J-well
+  and an S-well, land a horizontal, import an actual survey, run AC
+  vs a shared offset, publish and see the well in Seismolord's cube,
+  print the wall plot.
+
 ## Upcoming waves
 
 - WD1 wp_* schema + Site>Wellbore>Design workspace shell [DONE]
@@ -278,4 +333,4 @@ Casing/Costing tabs remain launcher mocks (reviewed in WD5/WD6),
   cylinder) + survey programs [DONE]
 - WD5 WebGL2 3D + geo_wells publish bridge (Seismolord co-render) +
   PPFG overlay + trajectory contract + DXF exports [DONE]
-- WD6 wall-plot report pack + literature gates + launch
+- WD6 wall-plot report pack + literature gates + launch [DONE]

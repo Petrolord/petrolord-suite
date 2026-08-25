@@ -1,6 +1,6 @@
 /**
  * Well Data Importer
- * Simulation of data ingestion from Well Planning and Project Management apps.
+ * Simulation of data ingestion from Well Design Studio and Project Management apps.
  */
 
 export class WellDataImporter {

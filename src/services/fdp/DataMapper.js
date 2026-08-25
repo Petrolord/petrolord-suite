@@ -35,7 +35,7 @@ export class DataMapper {
     }
 
     static mapWellData(data) {
-        // Standardize well data structure from Well Planning app
+        // Standardize well data structure from Well Design Studio
         return data.map(well => ({
             id: well.id,
             name: well.name || well.well_name,

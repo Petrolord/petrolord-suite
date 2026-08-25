@@ -18,6 +18,8 @@ import LadderChart from './charts/LadderChart';
 import TravelingCylinderChart from './charts/TravelingCylinderChart';
 import WellpathCubeView from './components/WellpathCubeView';
 import { buildTrajectoryContract, contractToCsv, contractToDxf } from './services/trajectoryContract';
+import { preparePublishPayload } from './services/publishPayload';
+import { generateSurveyListing } from './services/reportPack';
 
 const WELLBORE = {
   id: 'harness-wb', name: 'HAR-1', head_x: 500000, head_y: 6800000,
@@ -166,6 +168,36 @@ const WellDesignHarness = () => {
   }, []);
   const [snapshotBytes, setSnapshotBytes] = useState(null);
 
+  // WD6 probes: publish payload (pure) + a real survey-listing PDF
+  // generated on demand (page count + bytes are the e2e readout).
+  const publishProbe = useMemo(() => {
+    try {
+      const p = preparePublishPayload({
+        site: { id: 'harness-site', crs: 'EPSG:32631', xy_unit: 'm' },
+        wellbore: WELLBORE,
+        design: { id: 'harness-design', name: 'Harness plan', revision: 1 },
+        stations: AC_PROBE.stations(),
+        publishedAt: '2026-08-25T00:00:00Z',
+      });
+      return { count: p.deviation.length, tdMdM: p.tdMdM, lastAzi: p.deviation[p.deviation.length - 1].azi };
+    } catch (e) { return null; }
+  }, []);
+  const [pdfProbe, setPdfProbe] = useState(null);
+  const handlePdfProbe = async () => {
+    const contract = buildTrajectoryContract({
+      site: { name: 'Harness pad', crs: 'EPSG:32631', xy_unit: 'm' },
+      wellbore: WELLBORE,
+      design: { name: 'Harness plan', revision: 1, status: 'draft' },
+      stations: AC_PROBE.stations(),
+      generatedAt: '2026-08-25T00:00:00Z',
+    });
+    const doc = await generateSurveyListing({ contract, generatedAt: '2026-08-25 00:00' });
+    setPdfProbe({
+      pages: doc.internal.getNumberOfPages(),
+      bytes: doc.output('arraybuffer').byteLength,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 p-4 text-white">
       <h1 className="mb-2 text-sm font-bold">Well Design Studio harness</h1>
@@ -187,6 +219,12 @@ const WellDesignHarness = () => {
         <div>DXF <span data-testid="wd-dxfverts" className="font-mono text-lime-400">{wd5 ? wd5.dxfVertices : '--'}</span></div>
         <div>TDss <span data-testid="wd-tdtvdss" className="font-mono text-lime-400">{wd5 ? wd5.tdTvdss.toFixed(1) : '--'}</span></div>
         <div>Snap <span data-testid="wd-snapbytes" className="font-mono text-lime-400">{snapshotBytes ?? '--'}</span></div>
+        <div>Pub <span data-testid="wd-pubdev" className="font-mono text-lime-400">{publishProbe ? `${publishProbe.count}@${publishProbe.tdMdM}` : '--'}</span></div>
+        <div>
+          <button type="button" data-testid="wd-pdf-run" onClick={handlePdfProbe} className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">PDF</button>
+          {' '}
+          <span data-testid="wd-pdfprobe" className="font-mono text-lime-400">{pdfProbe ? `${pdfProbe.pages}p/${pdfProbe.bytes}` : '--'}</span>
+        </div>
       </div>
       {compiled.error && <div className="mb-3 text-xs text-red-400" data-testid="wd-error">{compiled.error}</div>}
 

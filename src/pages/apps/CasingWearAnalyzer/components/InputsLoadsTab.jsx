@@ -51,7 +51,7 @@ const InputsLoadsTab = () => {
       <div className="bg-slate-900/50 border border-slate-800 rounded-lg p-4 flex items-start gap-3">
         <AlertCircle className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
         <div className="text-sm text-slate-400">
-          <span className="font-semibold text-slate-200">Well Trajectory Data:</span> Integrated from Well Planning Pro. 
+          <span className="font-semibold text-slate-200">Well Trajectory Data:</span> Integrated from Well Design Studio. 
           Current simulation uses synthetic dogleg severity data for contact force estimation. 
           Actual survey data will be loaded in production environment.
         </div>

@@ -6,7 +6,7 @@ const QuickStartGuide = () => {
     const steps = [
         {
             title: "Load Well & Environment",
-            description: "Select a well from the project explorer or import data from Well Planning Pro. Define pore pressure and fracture gradients.",
+            description: "Select a well from the project explorer or import data from Well Design Studio. Define pore pressure and fracture gradients.",
             action: "Well & Loads Tab"
         },
         {

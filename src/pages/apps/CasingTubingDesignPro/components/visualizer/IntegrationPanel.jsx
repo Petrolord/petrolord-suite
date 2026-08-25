@@ -23,11 +23,11 @@ const IntegrationPanel = () => {
                     <Button 
                         variant="outline" 
                         className="h-auto py-3 flex flex-col items-center justify-center border-slate-700 hover:bg-slate-800 hover:border-lime-500/50 group"
-                        onClick={() => handleIntegration('Well Planning Pro')}
+                        onClick={() => handleIntegration('Well Design Studio')}
                     >
                         <Database className="w-5 h-5 mb-2 text-blue-400 group-hover:text-lime-400" />
                         <span className="text-xs font-semibold text-slate-300">Import Well Path</span>
-                        <span className="text-[10px] text-slate-500 mt-1">From Well Planning Pro</span>
+                        <span className="text-[10px] text-slate-500 mt-1">From Well Design Studio</span>
                     </Button>
 
                     <Button 
