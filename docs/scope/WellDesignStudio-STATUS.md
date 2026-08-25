@@ -117,14 +117,57 @@ Casing/Costing tabs remain launcher mocks (reviewed in WD5/WD6),
   match the engine's endpoint digit for digit. 2 e2e green locally.
 - Known polish for WD3: holds emit a single station, so strip charts
   interpolate linearly across long holds (chart artifact only; the
-  math is exact) — subdivide holds in the compiler.
+  math is exact) — subdivide holds in the compiler. [DONE in WD3]
+
+## WD3 — north, magnetics, actual surveys
+
+- Engines PR #34 (subtree-pulled): `engines/drilling/magnetics.js` —
+  WMM2025 spherical-harmonic synthesis (WGS84 geodetic to geocentric,
+  Schmidt semi-normalized Legendre recursion, main field + secular
+  variation, D/I/H/F + rates, UPS grid variation) on the official
+  NOAA public-domain coefficient set (`data/wmm2025.js`, generated
+  from the distributed WMM.COF). HARD GATE ACTIVE from day 1: all 24
+  official NOAA WMM2025 test points reproduce within table rounding
+  (0.06 nT / 0.006 deg) — jest + validation runner gate A6. Hold
+  segments now subdivide in the compiler (strip-chart density;
+  endpoints regression-gated unchanged).
+- WellboreDialog: declination auto-fill — wellhead XY inverse-projected
+  through the site CRS (`toLonLat`), WMM2025 evaluated at today's
+  date, declination + dip + total field shown live and
+  `mag_declination_deg` cached on save (no DDL; column existed from
+  WD1).
+- Azimuth reference chain closed (per the validated `toGridAzimuths`
+  convention: grid +0, true +convergence, magnetic +declination
+  +convergence): DesignTab now interprets the KO azimuth in the
+  wellbore's azimuth reference and compiles in grid, converts solver
+  results back, labels the listing "Azi grid", and warns loudly when
+  a non-grid reference has no cached angles.
+- New Surveys tab (`tabs/SurveysTab.jsx` + `SurveyDialog.jsx` +
+  `services/surveyUtils.js`): actual survey runs per wellbore into
+  wp_surveys — manual paste, CSV file (shared wellImport mapping
+  helpers) or wells-registry deviation import; per-run azimuth
+  reference and MD unit; stations stored in metres with the
+  grid-converted cache written alongside. Definitive composite by the
+  industry rule (deeper run wins from its tie-on down) via
+  is_in_definitive flags. Views: survey listing, plan-vs-actual
+  (overlaid plan/section/inclination charts + delta table: dInc,
+  dAzi, dTVD, dN, dE, 3D separation at every actual station via exact
+  arc-slerp plan interpolation), and project-ahead (continuous-build
+  solve from the last actual station to a target with a max-DLS
+  guard).
+- Tests: engines suite 610 (24-point NOAA gate + hold subdivision);
+  Suite jest 2985 green incl. 14 new surveyUtils gates (chain deltas,
+  composite rule, plan-vs-actual vs engine paths, project-ahead
+  compile round trip); e2e 3/3 incl. a browser-bundle declination
+  probe asserted against the engines package.
 
 ## Upcoming waves
 
-- WD1 wp_* schema + Site>Wellbore>Design workspace shell
+- WD1 wp_* schema + Site>Wellbore>Design workspace shell [DONE]
 - WD2 profile solvers (J/S/continuous/horizontal landing/nudge/toolface)
-  + design studio + full chart pack + targets from geo registries
-- WD3 WMM2025 magnetics + actual surveys + plan-vs-actual + project-ahead
+  + design studio + full chart pack + targets from geo registries [DONE]
+- WD3 WMM2025 magnetics + actual surveys + plan-vs-actual +
+  project-ahead [DONE]
 - WD4 ISCWSA Rev4 error model + anti-collision (ladder, traveling
   cylinder, spider) + survey programs
 - WD5 WebGL2 3D + geo_wells publish bridge (Seismolord co-render) +

@@ -15,6 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { compileSegments } from '../engine/segmentCompiler';
 import { M_TO_FT } from '../engine/surveyMath';
+import { gridAzimuthDelta } from '../services/surveyUtils';
 import { useWellPlanning } from '../contexts/WellPlanningContext';
 import { useWellPlanningStore } from '../state/WellPlanningStore';
 import { updateDesign } from '../services/wpApi';
@@ -82,12 +83,25 @@ const DesignTab = () => {
         } catch (e) { return null; }
     }, [site?.crs]);
 
+    // Azimuths are entered in the wellbore's azimuth reference; the
+    // compile runs in grid (WD3 chain: magnetic + declination + grid
+    // convergence, per the validated toGridAzimuths convention). A
+    // non-grid reference with no cached angles falls back to grid,
+    // loudly.
+    const aziRef = wellbore?.azimuth_reference || 'grid';
+    const aziDelta = useMemo(() => {
+        try { return gridAzimuthDelta(aziRef, wellbore); } catch (e) { return null; }
+    }, [aziRef, wellbore]);
+    const aziRefWarning = aziRef !== 'grid' && aziDelta == null
+        ? `The wellbore's azimuth reference is ${aziRef} north but its cached convergence/declination is missing. Re-save the wellbore (with a site CRS) to cache them; azimuths are treated as grid until then.`
+        : null;
+
     const calculateTrajectory = useCallback(() => {
         if (!segments.length) { setPlanRows(null); setStations(null); return; }
         try {
             const compiled = compileSegments({
                 mdUnit,
-                tieOn: { md: 0, inc: 0, azi: parseFloat(kickoffAzi) || 0 },
+                tieOn: { md: 0, inc: 0, azi: (parseFloat(kickoffAzi) || 0) + (aziDelta || 0) },
                 maxDls: parseFloat(constraints.maxDLS) || null,
                 segments: segments.map((s) => {
                     const type = (s.type || 'Hold').toLowerCase();
@@ -115,7 +129,7 @@ const DesignTab = () => {
             setQaResult(null);
             setCompileError(e.message);
         }
-    }, [segments, kickoffAzi, kbUser, constraints.maxDLS, mdUnit]);
+    }, [segments, kickoffAzi, kbUser, constraints.maxDLS, mdUnit, aziDelta]);
 
     useEffect(() => {
         const timer = setTimeout(calculateTrajectory, 300);
@@ -180,8 +194,11 @@ const DesignTab = () => {
         setSegments(next);
         const patch = { segments: next };
         if (azi != null && mode !== 'append') {
-            setKickoffAzi(+azi.toFixed(2));
-            patch.kickoffAzi = +azi.toFixed(2);
+            // Solvers work in grid azimuths; the KO Azi field is in the
+            // wellbore's azimuth reference.
+            const refAzi = +(((azi - (aziDelta || 0)) % 360 + 360) % 360).toFixed(2);
+            setKickoffAzi(refAzi);
+            patch.kickoffAzi = refAzi;
         }
         updateTrajectoryDraft(patch);
     };
@@ -311,7 +328,7 @@ const DesignTab = () => {
                             <Label className="text-slate-400 text-xs uppercase font-bold">Design Settings</Label>
                             <div className="grid grid-cols-3 gap-2 mt-2">
                                 <div><Label className="text-[10px]">Max DLS (/{mdUnit === 'ft' ? '100ft' : '30m'})</Label><Input type="number" value={constraints.maxDLS} onChange={e => { setConstraints({ ...constraints, maxDLS: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, maxDLS: e.target.value } }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
-                                <div><Label className="text-[10px]">KO Azi (deg)</Label><Input type="number" value={kickoffAzi} onChange={e => { setKickoffAzi(e.target.value); updateTrajectoryDraft({ kickoffAzi: parseFloat(e.target.value) || 0 }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
+                                <div><Label className="text-[10px]">KO Azi (deg {aziRef})</Label><Input type="number" value={kickoffAzi} onChange={e => { setKickoffAzi(e.target.value); updateTrajectoryDraft({ kickoffAzi: parseFloat(e.target.value) || 0 }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
                                 <div className="flex items-end">
                                     {!readOnly && (
                                         <Button size="sm" onClick={() => setSolverOpen(true)} className="h-7 w-full bg-lime-600 hover:bg-lime-700 text-white text-xs" data-testid="open-solver">
@@ -323,8 +340,12 @@ const DesignTab = () => {
                             <p className="text-[10px] text-slate-500">
                                 Wellhead {Number.isFinite(wellbore?.head_x) ? `${wellbore.head_x.toFixed(1)} E, ${wellbore.head_y.toFixed(1)} N` : 'not set'}
                                 {Number.isFinite(wellbore?.grid_convergence_deg) ? ` | convergence ${Number(wellbore.grid_convergence_deg).toFixed(3)} deg` : ''}
+                                {Number.isFinite(wellbore?.mag_declination_deg) ? ` | declination ${Number(wellbore.mag_declination_deg).toFixed(3)} deg` : ''}
                                 {` | KB ${kbUser.toFixed(1)} ${depthUnitLabel}`}
                             </p>
+                            {aziRefWarning && (
+                                <p className="text-[10px] text-amber-400">{aziRefWarning}</p>
+                            )}
                         </div>
 
                         {(
@@ -418,7 +439,7 @@ const DesignTab = () => {
                                         <TableRow className="border-slate-700">
                                             <TableHead className="text-slate-300">MD ({depthUnitLabel})</TableHead>
                                             <TableHead className="text-slate-300">Inc (deg)</TableHead>
-                                            <TableHead className="text-slate-300">Azi (deg)</TableHead>
+                                            <TableHead className="text-slate-300">Azi grid (deg)</TableHead>
                                             <TableHead className="text-slate-300">TVD ({depthUnitLabel})</TableHead>
                                             <TableHead className="text-slate-300">North ({depthUnitLabel})</TableHead>
                                             <TableHead className="text-slate-300">East ({depthUnitLabel})</TableHead>

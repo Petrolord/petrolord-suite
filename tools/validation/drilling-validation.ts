@@ -12,6 +12,7 @@
 //   A3 TVD-plane crossings            (tvd_crossings.json)
 //   A4 survey listing m + ft          (survey_table.json)
 //   A5 build-hold closed form         (compile_buildhold.json)
+//   A6 WMM2025 vs the official NOAA test values (wmm2025_noaa_testvalues.json)
 // ARMED gates (pending owner literature PDFs):
 //   L1 Bourgoyne et al., Applied Drilling Engineering ch.8 build-hold
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
@@ -33,6 +34,8 @@ async function main() {
     '../../packages/engines/engines/drilling/surveyMath.js');
   const { compileSegments, attitudeAfterArc } = await import(
     '../../packages/engines/engines/drilling/segmentCompiler.js');
+  const { fieldAt } = await import(
+    '../../packages/engines/engines/drilling/magnetics.js');
 
   let failures = 0;
   const gate = (id: string, name: string, fn: () => void) => {
@@ -116,6 +119,33 @@ async function main() {
       close(last.tvd, c.endTvd, 1e-4, `${c.mdUnit} end tvd`);
       close(last.y, c.endN, 1e-4, `${c.mdUnit} end N`);
       close(last.x, c.endE, 1e-4, `${c.mdUnit} end E`);
+    }
+  });
+
+  gate('A6', 'WMM2025 vs the official NOAA test-value table', () => {
+    const g = goldens('wmm2025_noaa_testvalues.json');
+    for (const c of g.mainField) {
+      const f = fieldAt({
+        latDeg: c.latDeg, lonDeg: c.lonDeg, heightKm: c.heightKm, decimalYear: c.date,
+      });
+      const tag = `${c.date} h${c.heightKm} lat${c.latDeg} lon${c.lonDeg}`;
+      close(f.x, c.x, 0.06, `${tag} X`);
+      close(f.y, c.y, 0.06, `${tag} Y`);
+      close(f.z, c.z, 0.06, `${tag} Z`);
+      close(f.f, c.f, 0.06, `${tag} F`);
+      close(f.declinationDeg, c.d, 0.006, `${tag} D`);
+      close(f.inclinationDeg, c.i, 0.006, `${tag} I`);
+      if (c.gv != null) close(f.gridVariationDeg, c.gv, 0.006, `${tag} GV`);
+    }
+    for (const c of g.secularVariation) {
+      const f = fieldAt({
+        latDeg: c.latDeg, lonDeg: c.lonDeg, heightKm: c.heightKm, decimalYear: c.date,
+      });
+      const tag = `SV ${c.date} h${c.heightKm} lat${c.latDeg}`;
+      close(f.xDot, c.xDot, 0.06, `${tag} Xdot`);
+      close(f.yDot, c.yDot, 0.06, `${tag} Ydot`);
+      close(f.zDot, c.zDot, 0.06, `${tag} Zdot`);
+      close(f.declinationDotDeg, c.dDot, 0.006, `${tag} Ddot`);
     }
   });
 

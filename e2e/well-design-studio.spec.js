@@ -8,6 +8,7 @@
 import { test, expect } from '@playwright/test';
 import { solveSlant } from '../packages/engines/engines/drilling/profileDesign.js';
 import { compileSegments } from '../packages/engines/engines/drilling/segmentCompiler.js';
+import { declinationAt } from '../packages/engines/engines/drilling/magnetics.js';
 
 // The harness's seeded geometry (WellDesignHarness.jsx).
 const WELLBORE = { head_x: 500000, head_y: 6800000, kb_elev_m: 30 };
@@ -50,6 +51,13 @@ test('J-well solve through the dialog lands on the engine answer', async ({ page
   expect(exp.end.y).toBeCloseTo(TARGET.center_y - WELLBORE.head_y, 0);
   expect(exp.end.x).toBeCloseTo(TARGET.center_x - WELLBORE.head_x, 0);
   expect(exp.end.tvd).toBeCloseTo(TARGET.tvdss_m + WELLBORE.kb_elev_m, 0);
+});
+
+test('WMM2025 declination in the browser bundle matches the engine (WD3)', async ({ page }) => {
+  // The harness's fixed probe (WellDesignHarness.jsx MAG_PROBE).
+  const expected = declinationAt({ latDeg: 4.75, lonDeg: 7.0, decimalYear: 2026.65 });
+  await page.goto('/dev/well-design');
+  await expect(page.getByTestId('wd-decl')).toHaveText(expected.declinationDeg.toFixed(3));
 });
 
 test('charts render for the solved design', async ({ page }) => {

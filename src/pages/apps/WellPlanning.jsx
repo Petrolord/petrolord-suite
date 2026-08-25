@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Home, ChevronRight, Waypoints, Shield, FileText, Grid3X3, Target, Ruler,
+  Compass,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import {
@@ -29,6 +30,7 @@ import WellboreDialog from './well-planning/components/WellboreDialog';
 import LegacyImportDialog from './well-planning/components/LegacyImportDialog';
 import DesignTab from './well-planning/tabs/DesignTab';
 import TargetsTab from './well-planning/tabs/TargetsTab';
+import SurveysTab from './well-planning/tabs/SurveysTab';
 import AnalysisTab from './well-planning/tabs/AnalysisTab';
 import * as wpApi from './well-planning/services/wpApi';
 
@@ -227,6 +229,7 @@ const WellPlanningContent = () => {
             <TabsList className="bg-slate-900 border border-slate-800">
               <TabsTrigger value="design" className="text-xs"><Ruler className="mr-1 h-3.5 w-3.5" /> Design</TabsTrigger>
               <TabsTrigger value="targets" className="text-xs"><Target className="mr-1 h-3.5 w-3.5" /> Targets</TabsTrigger>
+              <TabsTrigger value="surveys" className="text-xs"><Compass className="mr-1 h-3.5 w-3.5" /> Surveys</TabsTrigger>
               <TabsTrigger value="anticollision" className="text-xs"><Shield className="mr-1 h-3.5 w-3.5" /> Anti-Collision</TabsTrigger>
               <TabsTrigger value="reports" className="text-xs"><FileText className="mr-1 h-3.5 w-3.5" /> Reports</TabsTrigger>
               <TabsTrigger value="apps" className="text-xs"><Grid3X3 className="mr-1 h-3.5 w-3.5" /> Apps</TabsTrigger>
@@ -234,6 +237,7 @@ const WellPlanningContent = () => {
 
             <TabsContent value="design" className="mt-4"><DesignTab /></TabsContent>
             <TabsContent value="targets" className="mt-4"><TargetsTab /></TabsContent>
+            <TabsContent value="surveys" className="mt-4"><SurveysTab /></TabsContent>
             <TabsContent value="anticollision" className="mt-4">
               <WavePlaceholder
                 icon={Shield}
