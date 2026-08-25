@@ -9,6 +9,9 @@ import { test, expect } from '@playwright/test';
 import { solveSlant } from '../packages/engines/engines/drilling/profileDesign.js';
 import { compileSegments } from '../packages/engines/engines/drilling/segmentCompiler.js';
 import { declinationAt } from '../packages/engines/engines/drilling/magnetics.js';
+import { computeWellPath } from '../packages/engines/engines/drilling/surveyMath.js';
+import { computeErrorModel } from '../packages/engines/engines/drilling/errorModel.js';
+import { computeClearance } from '../packages/engines/engines/drilling/antiCollision.js';
 
 // The harness's seeded geometry (WellDesignHarness.jsx).
 const WELLBORE = { head_x: 500000, head_y: 6800000, kb_elev_m: 30 };
@@ -58,6 +61,37 @@ test('WMM2025 declination in the browser bundle matches the engine (WD3)', async
   const expected = declinationAt({ latDeg: 4.75, lonDeg: 7.0, decimalYear: 2026.65 });
   await page.goto('/dev/well-design');
   await expect(page.getByTestId('wd-decl')).toHaveText(expected.declinationDeg.toFixed(3));
+});
+
+test('Rev4 + separation rule in the browser bundle match the engine (WD4)', async ({ page }) => {
+  // The harness's fixed AC probe (WellDesignHarness.jsx AC_PROBE): two
+  // parallel J-wells 50 m apart, fixed geomagnetic reference.
+  const magRef = {
+    bTotalNT: 50000, dipDeg: 72, declinationDeg: -4, convergenceDeg: 0, aziReference: 'grid',
+  };
+  const stations = [];
+  for (let i = 0; i < 40; i++) {
+    const md = i * 50;
+    stations.push({ md, inc: Math.min(30, Math.max(0, (md - 300) / 30)), azi: 90 });
+  }
+  const build = (headY, radius) => {
+    const path = computeWellPath(stations, { surfaceX: 0, surfaceY: headY, kb: 0 });
+    const model = computeErrorModel(stations, magRef);
+    return {
+      stations,
+      positions: path.map((p) => ({ n: p.y, e: p.x, tvd: p.tvd })),
+      cov: model.totalCov,
+      radius,
+    };
+  };
+  const expected = computeClearance(build(0, 0.4572), build(50, 0.3048), {
+    k: 3.5, sigmaPa: 0.5, Sm: 0.3,
+  });
+
+  await page.goto('/dev/well-design');
+  await expect(page.getByTestId('wd-acsf')).toHaveText(expected.summary.minSf.toFixed(4));
+  // and the WD4 chart pack renders from the same scan
+  await expect(page.getByTestId('traveling-cylinder-chart')).toBeVisible();
 });
 
 test('charts render for the solved design', async ({ page }) => {

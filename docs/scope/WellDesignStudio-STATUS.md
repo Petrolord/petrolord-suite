@@ -161,6 +161,64 @@ Casing/Costing tabs remain launcher mocks (reviewed in WD5/WD6),
   compile round trip); e2e 3/3 incl. a browser-bundle declination
   probe asserted against the engines package.
 
+## WD4 — uncertainty and anti-collision (the trust wave)
+
+- Engines PR #35 (subtree-pulled): three new validated modules.
+  - `engines/drilling/errorModel.js` — ISCWSA/OWSG MWD Rev4
+    positional-uncertainty engine: all 27 agreed error sources
+    (`data/iscwsaMwdRev4.js`), weighting functions, the Williamson
+    balanced-tangential position Jacobian, systematic/random/global
+    propagation, near-vertical singularity substitutions, NEV<->HLA,
+    EOU ellipse + section extraction. HARD GATE ACTIVE: the official
+    iscwsa.net example Well #1 — all 112 full-precision per-source
+    workbook covariances at the 4 checkpoint depths and welleng-oracle
+    totals at all 268 stations within 1e-8 (jest + validation gate A7;
+    the former ARMED L4, activated now that the official workbook data
+    is secured at /root/wds-literature/).
+  - `engines/drilling/antiCollision.js` — SPE-187073 separation rule
+    with pedal-curve projected uncertainty: closed-form closest point
+    on minimum-curvature arcs, KOP sidetrack slicing (per-source sigma
+    restart), SF/MASD/EOU-separation, ladder + traveling-cylinder
+    series, rule classification. HARD GATE ACTIVE: the official ISCWSA
+    clearance example — 11 offset scenarios match the published
+    per-station SFs at the standard criteria (rtol 1e-2/atol 1e-3) and
+    the welleng oracle geometry at 1e-6 (jest + validation gate A8).
+  - `engines/drilling/surveyProgram.js` — instrument library
+    (validated tools only; Rev4 today) + multi-run compositing with
+    the ISCWSA tie-on carry (covariance freezes at tool changes;
+    single-run program == plain model exactly).
+- Suite: new Anti-Collision tab (`tabs/AntiCollisionTab.jsx`) replaces
+  the WD1 placeholder — reference picker (design plan or definitive
+  actual composite), offset picker across the site's other wp
+  wellbores (definitive/latest designs) and geo_wells registry
+  deviations in the site CRS, SPE-187073 rules editor (k, sigma_pa,
+  Sm, radii, no-go/review thresholds), scan + summary cards +
+  SF/distance ladder (`charts/LadderChart.jsx`) + traveling cylinder
+  (`charts/TravelingCylinderChart.jsx`, highside/north frames) +
+  violation table, and immutable run history in wp_ac_runs
+  (save/view/delete; stored runs re-render the full chart pack).
+- Survey programs: `components/SurveyProgramEditor.jsx` edits
+  wp_survey_programs intervals per design (tiling validated loudly);
+  a saved program routes DesignTab uncertainty through per-tool
+  compositing.
+- EOU on the design charts: DesignTab computes Rev4 uncertainty over
+  the compiled stations (`services/acUtils.js`) and overlays 2-sigma
+  EOU ellipses on the plan view + a TVD band on the section view;
+  toggle in Design Settings; loud warning when no geomagnetic
+  reference exists.
+- WellboreDialog now caches the full magnetic model (total field +
+  dip + declination) in wp_wellbores.mag_model on save;
+  `resolveMagReference` prefers the cache and falls back to a live
+  WMM2025 lookup through the site CRS (never silently defaults).
+- No new DDL: wp_survey_programs and wp_ac_runs existed from WD1.
+- Tests: engines jest 763; Suite jest 3154 green incl. 16 new acUtils
+  gates (mag-reference fallbacks incl. the Number(null)==0 guard,
+  program tiling validation, program-vs-single-run compositing, EOU
+  overlay geometry, synthetic-pad scan ordering, serialize round
+  trip); validation runner A1-A8 all active and passing; e2e 4/4 incl.
+  a browser-bundle Rev4+separation-rule probe asserted digit for digit
+  against the engines package.
+
 ## Upcoming waves
 
 - WD1 wp_* schema + Site>Wellbore>Design workspace shell [DONE]
@@ -169,7 +227,7 @@ Casing/Costing tabs remain launcher mocks (reviewed in WD5/WD6),
 - WD3 WMM2025 magnetics + actual surveys + plan-vs-actual +
   project-ahead [DONE]
 - WD4 ISCWSA Rev4 error model + anti-collision (ladder, traveling
-  cylinder, spider) + survey programs
+  cylinder) + survey programs [DONE]
 - WD5 WebGL2 3D + geo_wells publish bridge (Seismolord co-render) +
   PPFG overlay + trajectory contract + DXF exports
 - WD6 wall-plot report pack + literature gates + launch

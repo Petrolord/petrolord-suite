@@ -20,7 +20,7 @@ function niceStep(span) {
 
 const PlanViewChart = ({
   rows = [], targets = [], slots = [], leaseLines = [], unit = 'm',
-  extraPaths = [], title = 'Plan view',
+  extraPaths = [], ellipses = [], title = 'Plan view',
 }) => {
   const holder = useRef(null);
   const [size, setSize] = useState({ w: 640, h: 420 });
@@ -48,6 +48,10 @@ const PlanViewChart = ({
     slots.forEach((s) => { xs.push(s.e); ys.push(s.n); });
     leaseLines.forEach((l) => (l.points || []).forEach(([px, py]) => { xs.push(px); ys.push(py); }));
     extraPaths.forEach((p) => p.points.forEach(([px, py]) => { xs.push(px); ys.push(py); }));
+    ellipses.forEach((el) => {
+      xs.push(el.e + el.semiMajor, el.e - el.semiMajor);
+      ys.push(el.n + el.semiMajor, el.n - el.semiMajor);
+    });
     let minX = Math.min(...xs);
     let maxX = Math.max(...xs);
     let minY = Math.min(...ys);
@@ -67,7 +71,7 @@ const PlanViewChart = ({
     return {
       minX: cx - halfW, maxX: cx + halfW, minY: cy - halfH, maxY: cy + halfH, scale,
     };
-  }, [rows, targets, slots, leaseLines, extraPaths, size]);
+  }, [rows, targets, slots, leaseLines, extraPaths, ellipses, size]);
 
   const X = (e) => PAD + (e - frame.minX) * frame.scale;
   const Y = (n) => size.h - PAD - (n - frame.minY) * frame.scale;
@@ -168,6 +172,17 @@ const PlanViewChart = ({
             <circle cx={X(t.e)} cy={Y(t.n)} r={3} fill={t.color || '#b45309'} />
             <text x={X(t.e) + 6} y={Y(t.n) + 3} fontSize={9} fill="#78350f">{t.name}</text>
           </g>
+        ))}
+
+        {/* EOU ellipses (uncertainty; major axis at its compass bearing —
+            SVG rotate is screen-clockwise with +x = east, so bearing-90) */}
+        {ellipses.map((el, i) => (
+          <ellipse key={`eou${i}`}
+            cx={X(el.e)} cy={Y(el.n)}
+            rx={Math.max(1, el.semiMajor * frame.scale)}
+            ry={Math.max(1, el.semiMinor * frame.scale)}
+            transform={`rotate(${(el.azimuthDeg || 0) - 90} ${X(el.e)} ${Y(el.n)})`}
+            fill="#0ea5e922" stroke="#0284c7" strokeWidth={1} strokeDasharray="3 2" />
         ))}
 
         {/* wellpath */}

@@ -160,3 +160,37 @@ export async function deleteSurvey(id) {
   const { error } = await supabase.from('wp_surveys').delete().eq('id', id);
   if (error) throw error;
 }
+
+// ---- survey programs (one per design; WD4) --------------------------------
+
+export async function getSurveyProgram(designId) {
+  const { data, error } = await supabase.from('wp_survey_programs')
+    .select('*').eq('design_id', designId).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function upsertSurveyProgram(designId, intervals, userId) {
+  return one(await supabase.from('wp_survey_programs')
+    .upsert({
+      design_id: designId, intervals, user_id: userId,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'design_id' })
+    .select().single());
+}
+
+// ---- anti-collision runs (immutable history; WD4) -------------------------
+
+export async function listAcRuns(designId) {
+  return many(await supabase.from('wp_ac_runs').select('*')
+    .eq('design_id', designId).order('created_at', { ascending: false }));
+}
+
+export async function saveAcRun(run, userId) {
+  return one(await supabase.from('wp_ac_runs').insert({ ...run, user_id: userId }).select().single());
+}
+
+export async function deleteAcRun(id) {
+  const { error } = await supabase.from('wp_ac_runs').delete().eq('id', id);
+  if (error) throw error;
+}

@@ -13,11 +13,15 @@
 //   A4 survey listing m + ft          (survey_table.json)
 //   A5 build-hold closed form         (compile_buildhold.json)
 //   A6 WMM2025 vs the official NOAA test values (wmm2025_noaa_testvalues.json)
+//   A7 ISCWSA MWD Rev4 error model vs official example Well #1
+//      (iscwsa_mwd_rev4_well1.json — the former ARMED L4, activated in
+//      WD4 when the official iscwsa.net workbook data was secured)
+//   A8 ISCWSA separation rule vs the official clearance example wells
+//      (iscwsa_clearance_wells.json, published per-station SFs)
 // ARMED gates (pending owner literature PDFs):
 //   L1 Bourgoyne et al., Applied Drilling Engineering ch.8 build-hold
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
 //   L3 Amoco/API MD-TVD table
-//   L4 ISCWSA MWD Rev4 error-model test Well #1 (WD4 arms the model too)
 
 import fs from 'fs';
 import path from 'path';
@@ -36,6 +40,10 @@ async function main() {
     '../../packages/engines/engines/drilling/segmentCompiler.js');
   const { fieldAt } = await import(
     '../../packages/engines/engines/drilling/magnetics.js');
+  const { computeErrorModel } = await import(
+    '../../packages/engines/engines/drilling/errorModel.js');
+  const { computeClearance } = await import(
+    '../../packages/engines/engines/drilling/antiCollision.js');
 
   let failures = 0;
   const gate = (id: string, name: string, fn: () => void) => {
@@ -149,11 +157,78 @@ async function main() {
     }
   });
 
+  gate('A7', 'ISCWSA MWD Rev4 error model vs official example Well #1', () => {
+    const g = goldens('iscwsa_mwd_rev4_well1.json');
+    const stations = g.survey.md.map((md: number, i: number) => ({
+      md, inc: g.survey.inc[i], azi: g.survey.azi[i],
+    }));
+    const result = computeErrorModel(stations, g.header);
+    const mdIndex = new Map(g.survey.md.map((md: number, i: number) => [md, i]));
+    const bySource = new Map(result.sources.map((s: any) => [s.code, s]));
+    const comps = (cov: number[][]) => ({
+      nn: cov[0][0], ee: cov[1][1], vv: cov[2][2],
+      ne: cov[0][1], nv: cov[0][2], ev: cov[1][2],
+    });
+    for (const row of g.perSource) {
+      const i = mdIndex.get(row.md) as number;
+      const cov = row.source === 'Totals'
+        ? result.totalCov[i]
+        : (bySource.get(row.source) as any).covNEV[i];
+      const got: any = comps(cov);
+      const exp: any = { nn: row.nn, ee: row.ee, vv: row.vv, ne: row.ne, nv: row.nv, ev: row.ev };
+      const scale = Math.max(1e-9, ...Object.values(exp).map((v: any) => Math.abs(v)));
+      for (const key of Object.keys(exp)) {
+        close(got[key] / scale, exp[key] / scale, 1e-8, `${row.md} ${row.source} ${key}`);
+      }
+    }
+    for (let i = 0; i < g.survey.md.length; i++) {
+      const got: any = comps(result.totalCov[i]);
+      const exp: any = {
+        nn: g.totalsAll.nn[i], ee: g.totalsAll.ee[i], vv: g.totalsAll.vv[i],
+        ne: g.totalsAll.ne[i], nv: g.totalsAll.nv[i], ev: g.totalsAll.ev[i],
+      };
+      const scale = Math.max(1e-9, ...Object.values(exp).map((v: any) => Math.abs(v)));
+      for (const key of Object.keys(exp)) {
+        close(got[key] / scale, exp[key] / scale, 1e-8, `totals@${g.survey.md[i]} ${key}`);
+      }
+    }
+  });
+
+  gate('A8', 'ISCWSA separation rule vs official clearance example wells', () => {
+    const g = goldens('iscwsa_clearance_wells.json');
+    const build = (name: string, radius: number) => {
+      const w = g.wells[name];
+      const stations = w.md.map((md: number, i: number) => ({
+        md, inc: w.inc[i], azi: w.azi[i], tvd: w.tvd[i],
+      }));
+      const positions = w.md.map((_: number, i: number) => ({
+        n: w.n[i], e: w.e[i], tvd: w.tvd[i],
+      }));
+      const model = computeErrorModel(stations, w.header);
+      return { stations, positions, cov: model.totalCov, sources: model.sources, radius };
+    };
+    const reference = build('Reference well', g.acr.refRadius);
+    for (const name of Object.keys(g.wells)) {
+      if (name === 'Reference well') continue;
+      const clearance = computeClearance(reference, build(name, g.acr.offRadius), {
+        k: g.acr.k, sigmaPa: g.acr.sigmaPa, Sm: g.acr.Sm,
+        kopDepth: g.oracle[name].kopDepth,
+      });
+      const sfOfficial = g.wells[name].sfOfficial;
+      if (clearance.sf.length !== sfOfficial.length) {
+        throw new Error(`${name}: ${clearance.sf.length} stations vs ${sfOfficial.length} published`);
+      }
+      for (let i = 0; i < sfOfficial.length; i++) {
+        // official criteria: |got - exp| <= 1e-3 + 1e-2|exp|
+        close(clearance.sf[i], sfOfficial[i], 1e-3 + 1e-2 * Math.abs(sfOfficial[i]), `${name} SF@${clearance.md[i]}`);
+      }
+    }
+  });
+
   const armed = [
     ['L1', 'Bourgoyne et al. ADE ch.8 build-hold example'],
     ['L2', 'Mitchell & Miska survey table'],
     ['L3', 'Amoco/API MD-TVD table'],
-    ['L4', 'ISCWSA MWD Rev4 test Well #1 covariances'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
