@@ -46,7 +46,7 @@ const solutionCategories = [
     path: '/dashboard/drilling',
     count: 11,
     description: 'Plan wells and spacing, design casing and tubing strings, and simulate drilling hydraulics, torque and drag, cementing, and fracturing before committing capital to the hole.',
-    apps: ['Well Planning', 'Casing & Tubing Design Pro', 'Drilling Fluids & Hydraulics', 'Torque & Drag Predictor', 'Cementing Simulation App', 'Wellbore Stability Analyzer'],
+    apps: ['Well Design Studio', 'Casing & Tubing Design Pro', 'Drilling Fluids & Hydraulics', 'Torque & Drag Predictor', 'Cementing Simulation App', 'Wellbore Stability Analyzer'],
   },
   {
     name: 'Facilities Engineering',

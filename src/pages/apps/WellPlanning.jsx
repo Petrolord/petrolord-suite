@@ -472,7 +472,7 @@ const WellPlanningContent = () => {
       <div className="flex h-screen items-center justify-center bg-slate-950">
         <div className="flex flex-col items-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#4CAF50]"></div>
-          <p className="text-slate-400 font-medium">Loading Well Planning Pro...</p>
+          <p className="text-slate-400 font-medium">Loading Well Design Studio...</p>
         </div>
       </div>
     );
@@ -493,7 +493,7 @@ const WellPlanningContent = () => {
                                 <Waypoints className="h-5 w-5 text-slate-900" />
                             </div>
                             <div>
-                                <h1 className="font-bold text-sm leading-tight text-white">Well Planning Pro</h1>
+                                <h1 className="font-bold text-sm leading-tight text-white">Well Design Studio</h1>
                                 <p className="text-[10px] text-slate-500">v4.2.0 Enterprise</p>
                             </div>
                         </div>
@@ -563,7 +563,7 @@ const WellPlanningContent = () => {
                         <ChevronRight className="w-3 h-3 mx-1 opacity-50" />
                         <Link to="/dashboard/drilling" className="hover:text-white transition-colors">Drilling</Link>
                         <ChevronRight className="w-3 h-3 mx-1 opacity-50" />
-                        <span className="text-[#4CAF50] font-medium">Well Planning</span>
+                        <span className="text-[#4CAF50] font-medium">Well Design Studio</span>
                     </nav>
                     
                     <div className="h-4 w-px bg-slate-700 mx-2" />

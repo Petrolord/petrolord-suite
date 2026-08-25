@@ -3,8 +3,9 @@
  *
  * Builds the MD -> (TVD, local angle-from-vertical) description the
  * pressure traverse marches over. Deviated wells use the minimum curvature
- * method (same formulation as src/lib/wellpath-kernel.js, kept pure and
- * side-effect free here; the NA6 gate cross-checks TVD between the two).
+ * method (TVD-only; the full-position engine is
+ * packages/engines/engines/drilling/surveyMath — the NA6 gate covers this
+ * module's TVD independently).
  *
  * Station shape in: { md (ft), inc (deg from vertical), azi (deg) }.
  * Point shape out: { md, tvd, angle } with angle in degrees from vertical
