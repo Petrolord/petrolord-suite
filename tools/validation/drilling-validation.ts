@@ -53,6 +53,10 @@
 //      oracle (Drilling D7; completion_cases.json)
 //   A25 run-in clearance / through-bore governing logic + seal space-out
 //      statuses vs the oracle
+//   A26 Karakas-Tariq tables + closed forms + sieve statistics + Saucier
+//      sizing vs the oracle (Drilling D8; perfsand_cases.json)
+//   A27 gun clearance / advisor / screen logic + sanding CDP closed form
+//      vs the oracle
 // ARMED gates (pending owner literature PDFs):
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
 //   L3 Amoco/API MD-TVD table (the Amoco Directional Survey Handbook,
@@ -123,6 +127,13 @@ async function main() {
     apiDriftM, buildStack, casingProgramProfile, governingDriftTo,
     runInClearance, throughBoreProfile, completionVolumes, sealSpaceOut,
   } = await import('../../packages/engines/engines/drilling/completionDesign.js');
+  const {
+    karakasTariq, productivityRatio,
+  } = await import('../../packages/engines/engines/drilling/perforation.js');
+  const {
+    sieveStats, saucierGravel, screenSelection, sandControlAdvisor,
+    sandingOnset, cdpAlongInterval,
+  } = await import('../../packages/engines/engines/drilling/sandControl.js');
 
   let failures = 0;
   const gate = (id: string, name: string, fn: () => void) => {
@@ -788,6 +799,94 @@ async function main() {
     }
   });
 
+  gate('A26', 'Karakas-Tariq tables + closed forms + sieve + Saucier vs oracle', () => {
+    const g = goldens('perfsand_cases.json');
+    const IN = 0.0254;
+    // Hand-computed 90 deg case (the oracle self-assert twin).
+    const hand = karakasTariq({
+      lpM: 12 * IN, rpM: 0.25 * IN, spfPerM: 4 * 3.280839895,
+      phasingDeg: 90, rwM: 4.25 * IN,
+    });
+    close(hand.sH, -1.0210, 2e-3, 'K-T s_h hand case');
+    close(hand.sV, 0.4960, 2e-3, 'K-T s_v hand case');
+    close(hand.sWb, 0.0095, 5e-4, 'K-T s_wb hand case');
+    // 0 deg limit: rw' = lp/4 exactly.
+    const zero = karakasTariq({
+      lpM: 12 * IN, rpM: 0.25 * IN, spfPerM: 4 * 3.280839895,
+      phasingDeg: 0, rwM: 4.25 * IN,
+    });
+    close(zero.rwPrimeM, (12 * IN) / 4, 1e-12, 'K-T 0 deg rw-prime');
+    // Golden gun cases + productivity ratios.
+    for (const c of g.guns) {
+      const kt = karakasTariq({
+        lpM: c.inputs.lpM, rpM: c.inputs.rpM, spfPerM: c.inputs.spfPerM,
+        phasingDeg: c.inputs.phasingDeg, rwM: c.inputs.rwM,
+        khOverKv: c.inputs.khOverKv, rcM: c.inputs.rcM, kOverKc: c.inputs.kOverKc,
+      });
+      for (const k of ['sH', 'sV', 'sWb', 'sCz', 'total'] as const) {
+        close(kt[k], c.expected.skin[k], 1e-9 + 1e-8 * Math.abs(c.expected.skin[k]), `K-T ${k} ${c.inputs.key}`);
+      }
+      const pr = productivityRatio({ reM: g.params.reM, rwM: c.inputs.rwM, sTotal: kt.total });
+      close(pr.ratio, c.expected.pr.ratio, 1e-8, `PR ${c.inputs.key}`);
+    }
+    // Sieve statistics + Saucier + screen gauge on the golden sieve.
+    const stats = sieveStats(g.sieve.points);
+    for (const k of ['d10M', 'd40M', 'd50M', 'd90M', 'd95M'] as const) {
+      close(stats[k], g.sieve.expected[k], 1e-9 + 1e-8 * g.sieve.expected[k], `sieve ${k}`);
+    }
+    close(stats.uniformity, g.sieve.expected.uniformity, 1e-8, 'uniformity');
+    close(stats.finesPct, g.sieve.expected.finesPct, 1e-8, 'fines');
+    const sauc = saucierGravel({ d50M: stats.d50M });
+    close(sauc.bandMinM, g.gravel.expected.bandMinM, 1e-9, 'Saucier band min');
+    if (sauc.matches.map((m: any) => m.mesh).join() !== g.gravel.expected.matches.join()) {
+      throw new Error(`Saucier match: ${sauc.matches.map((m: any) => m.mesh)}`);
+    }
+  });
+
+  gate('A27', 'gun clearance / advisor / screen logic + sanding CDP vs oracle', () => {
+    const g = goldens('perfsand_cases.json');
+    // Screen gauge below the smallest gravel grain (published spot: 20/40
+    // -> 16 thou) + advisor ladder on the golden sieve.
+    const stats = sieveStats(g.sieve.points);
+    const sauc = saucierGravel({ d50M: stats.d50M });
+    const gauge = screenSelection({ mode: 'gravel-pack', gravel: sauc.matches[0] });
+    close(gauge.gaugeM / 25.4e-6, g.gravel.screenGaugeThou, 1e-9, 'screen gauge thou');
+    if (!(gauge.gaugeM < sauc.matches[0].minM)) throw new Error('gauge not below smallest grain');
+    const adv = sandControlAdvisor(stats);
+    if (adv.indication !== g.gravel.advisorIndication) {
+      throw new Error(`advisor: ${adv.indication} vs ${g.gravel.advisorIndication}`);
+    }
+    // Sanding closed form + CDP sweep, both geometries.
+    const fx = g.sanding.fixture;
+    const onset = sandingOnset({
+      s1Pa: fx.inputs.s1Pa, s2Pa: fx.inputs.s2Pa,
+      ucsPa: fx.inputs.ucsPa, boostFactor: fx.inputs.boostFactor,
+    });
+    close(onset.pwfCritPa, (3 * fx.inputs.s1Pa - fx.inputs.s2Pa - fx.inputs.ucsPa) / 2, 1e-6, 'CDP closed form');
+    const curves = {
+      tvdM: g.profile.tvdM, svPa: g.profile.svPa, shmaxPa: g.profile.shmaxPa,
+      shminPa: g.profile.shminPa, ppPa: g.profile.ppPa, ucsPa: g.profile.ucsPa,
+    };
+    for (const geometry of ['perf-tunnel', 'openhole'] as const) {
+      const res = cdpAlongInterval({
+        stations: g.stations, curves,
+        topMdM: g.params.interval.topMdM, bottomMdM: g.params.interval.bottomMdM,
+        geometry, boostFactor: g.params.boostFactor, stepMdM: g.params.stepMdM,
+      });
+      const exp = g.sanding.cdp[geometry];
+      if (res.rows.length !== exp.rows.length) throw new Error(`CDP rows ${geometry}`);
+      res.rows.forEach((r: any, i: number) => {
+        close(r.pwfCritPa, exp.rows[i].pwfCritPa, 1e-6 * Math.abs(exp.rows[i].pwfCritPa), `pwfCrit ${geometry} ${i}`);
+        close(r.cdpPa, exp.rows[i].cdpPa, 1e-5 * Math.abs(exp.rows[i].cdpPa) + 1, `cdp ${geometry} ${i}`);
+      });
+      close(res.governing.mdM, exp.governing.mdM, 1e-9, `governing md ${geometry}`);
+    }
+    // Weaker rock lowers the margin.
+    const weak = sandingOnset({ s1Pa: 60e6, s2Pa: 45e6, ucsPa: 20e6 });
+    const strong = sandingOnset({ s1Pa: 60e6, s2Pa: 45e6, ucsPa: 60e6 });
+    if (!(weak.pwfCritPa > strong.pwfCritPa)) throw new Error('CDP not monotone in UCS');
+  });
+
   const armed = [
     ['L2', 'Mitchell & Miska survey table'],
     ['L3', 'Amoco/API MD-TVD table'],
@@ -802,6 +901,8 @@ async function main() {
     ['L12', 'Zoback, Reservoir Geomechanics worked example'],
     ['L13', 'API 5C3 / vendor data book published ratings table'],
     ['L14', 'vendor completion equipment catalog dimensions'],
+    ['L15', 'Karakas-Tariq SPE 18247 / Economides PPS worked example + vendor gun data'],
+    ['L16', 'sand control selection + underbalance published criteria (Tiffin SPE 39437; King/Behrmann)'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);

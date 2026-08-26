@@ -86,6 +86,9 @@ export function buildGoldenCaseDoc(golden, completionGolden) {
   const cd = buildCdGoldenCaseDoc(completionGolden);
   return {
     name: 'Golden Perforation',
+    // Matches the harness backend's seeded D7 completion case id, so the
+    // through-tubing clearance resolves out of the box.
+    cd_case_id: 'cd-1',
     interval: { ...golden.params.interval },
     sieve: { source: 'golden', points: golden.sieve.points.map((p) => ({ ...p })) },
     gun: gunFromCatalog(catalogGun),
