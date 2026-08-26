@@ -92,4 +92,34 @@ describe('VoidageReplacementMonitor page', () => {
     fireEvent.click(screen.getByRole('button', { name: /Clear import/i }));
     expect(await screen.findByText(/Production & injection by period/i)).toBeInTheDocument();
   });
+
+  it('pressure tab gates without surveys, then charts once a survey attaches (V3)', async () => {
+    render(
+      <MemoryRouter>
+        <VoidageReplacementMonitor />
+      </MemoryRouter>,
+    );
+
+    // Imported ledger gives YYYY-MM period labels for pressure attachment.
+    fireEvent.click(await screen.findByRole('button', { name: /Sample wells/i }));
+    await screen.findByText(/Monthly field ledger/i);
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Pressure' }));
+    // Withheld with a reason until pressure attaches.
+    expect(screen.getByText(/withheld/i)).toBeInTheDocument();
+
+    // Add one survey via the left rail; a single point clamps flat across
+    // all periods, so the chart appears.
+    fireEvent.click(screen.getByTitle('Add survey'));
+    const dateInput = screen.getByPlaceholderText('YYYY-MM-DD');
+    const pInput = screen.getByPlaceholderText('psia');
+    fireEvent.change(dateInput, { target: { value: '2025-01-01' } });
+    fireEvent.change(pInput, { target: { value: '3000' } });
+    expect(await screen.findByText(/VRR vs reservoir pressure/i)).toBeInTheDocument();
+
+    // Pressure-track mode reveals fluid inputs and flags the chart title.
+    fireEvent.click(screen.getByRole('button', { name: /Pressure track/i }));
+    expect(screen.getByText(/Oil API/i)).toBeInTheDocument();
+    expect(await screen.findByText(/pressure-dependent FVFs active/i)).toBeInTheDocument();
+  });
 });

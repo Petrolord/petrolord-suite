@@ -1,8 +1,9 @@
 // Production & injection period grid (VRR Monitor main area, Data tab).
-// Manual entry plus the legacy exact-header CSV round-trip; V2 replaces the
-// import with the real per-well alias importer.
-import React, { useRef } from 'react';
-import { Plus, Trash2, Upload, Download, RotateCcw, Beaker } from 'lucide-react';
+// Manual entry plus the legacy exact-header CSV round-trip (the per-well
+// importer lives in ImportPanel). V3 adds optional per-period PVT override
+// columns — the engine's resolveFvf has honored them all along.
+import React, { useRef, useState } from 'react';
+import { Plus, Trash2, Upload, Download, RotateCcw, Beaker, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,15 @@ export const COLS = [
   { key: 'Gi', label: 'Gas Inj', unit: 'Mscf' },
 ];
 
+// Optional per-period PVT overrides; a blank cell falls back to the
+// global FVF set (engine resolveFvf semantics).
+const PVT_COLS = [
+  { key: 'Bo', label: 'Bo', unit: 'RB/STB' },
+  { key: 'Bw', label: 'Bw', unit: 'RB/STB' },
+  { key: 'Bg', label: 'Bg', unit: 'RB/Mscf' },
+  { key: 'Rs', label: 'Rs', unit: 'scf/STB' },
+];
+
 const fmt = (v, d = 0) =>
   v == null || !Number.isFinite(v) ? '—' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
 
@@ -28,6 +38,8 @@ const PeriodGridPanel = () => {
     loadSample, clearAll, addNotification,
   } = useVrrMonitor();
   const fileRef = useRef(null);
+  const [showPvt, setShowPvt] = useState(false);
+  const cols = showPvt ? [...COLS, ...PVT_COLS] : COLS;
 
   const exportCsv = () => {
     const header = COLS.map((c) => c.key).join(',');
@@ -78,6 +90,14 @@ const PeriodGridPanel = () => {
           <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}><Upload className="w-4 h-4 mr-1" /> Import</Button>
           <Button variant="outline" size="sm" onClick={exportCsv}><Download className="w-4 h-4 mr-1" /> Export</Button>
           <Button variant="outline" size="sm" onClick={clearAll}><RotateCcw className="w-4 h-4 mr-1" /> Clear</Button>
+          <Button
+            variant="outline" size="sm"
+            className={showPvt ? 'bg-sky-500/10 border-sky-500/40 text-sky-300' : ''}
+            onClick={() => setShowPvt((v) => !v)}
+            title="Show per-period Bo/Bw/Bg/Rs override columns"
+          >
+            <FlaskConical className="w-4 h-4 mr-1" /> PVT overrides
+          </Button>
           <Button size="sm" onClick={addPeriod}><Plus className="w-4 h-4 mr-1" /> Add period</Button>
           <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={importCsv} />
         </div>
@@ -86,7 +106,7 @@ const PeriodGridPanel = () => {
         <Table>
           <TableHeader>
             <TableRow className="border-slate-800 hover:bg-transparent">
-              {COLS.map((c) => (
+              {cols.map((c) => (
                 <TableHead key={c.key} className="text-slate-400 whitespace-nowrap">
                   {c.label}{c.unit ? <span className="text-slate-600 ml-1">({c.unit})</span> : null}
                 </TableHead>
@@ -101,12 +121,12 @@ const PeriodGridPanel = () => {
               const band = classifyVRR(row.instantaneousVRR);
               return (
                 <TableRow key={i} className="border-slate-800">
-                  {COLS.map((c) => (
+                  {cols.map((c) => (
                     <TableCell key={c.key} className="p-1">
                       <Input
                         value={inputs.periods[i]?.[c.key] ?? ''}
                         onChange={(e) => updatePeriodCell(i, c.key, e.target.value)}
-                        placeholder={c.key === 'label' ? `P${i + 1}` : '0'}
+                        placeholder={c.key === 'label' ? `P${i + 1}` : PVT_COLS.some((pc) => pc.key === c.key) ? 'global' : '0'}
                         className={`h-8 bg-slate-800 border-slate-700 ${c.key === 'label' ? 'w-24' : 'w-24 text-right'}`}
                       />
                     </TableCell>
@@ -127,7 +147,8 @@ const PeriodGridPanel = () => {
         </Table>
         <p className="text-xs text-slate-500 mt-3">
           Voidage is computed in reservoir barrels. Only free (excess) produced gas adds voidage; solution
-          gas (Rs x oil) is already in B<sub>o</sub>. One fluid-property set currently applies to all periods.
+          gas (Rs x oil) is already in B<sub>o</sub>. The global fluid-property set applies to every period
+          unless a PVT override cell is filled (toggle the PVT overrides columns) or the pressure track is on.
         </p>
       </CardContent>
     </Card>

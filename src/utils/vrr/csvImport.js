@@ -200,6 +200,52 @@ export function parseVrrWellCSV(text) {
   return { rows, report };
 }
 
+// --- Pressure survey CSV (V3) ---
+// Columns: a date and a reservoir pressure (psia). Same alias/claim-once
+// and date machinery as the well ledger.
+export const PRESSURE_ALIASES = [
+  { key: 'date', aliases: ['survey_date', 'date', 'month', 'period', 'time'] },
+  { key: 'p_psia', aliases: ['p_psia', 'pressure', 'psia', 'res_press', 'reservoir_pressure', 'pres', 'press', 'bhp'] },
+];
+
+export function parsePressureCSV(text) {
+  const report = { totalRows: 0, imported: 0, skipped: [], warnings: [], colMap: {} };
+  const parsed = Papa.parse(String(text ?? '').replace(/^﻿/, ''), {
+    header: true,
+    skipEmptyLines: 'greedy',
+    transformHeader: (h) => String(h).trim(),
+  });
+  const data = parsed.data || [];
+  const headers = (parsed.meta?.fields || []).filter(Boolean);
+  report.totalRows = data.length;
+
+  const colMap = {};
+  const claimed = new Set();
+  PRESSURE_ALIASES.forEach(({ key, aliases }) => {
+    for (const alias of aliases) {
+      const found = headers.find((h) => !claimed.has(h) && String(h).toLowerCase().includes(alias));
+      if (found) { colMap[key] = found; claimed.add(found); break; }
+    }
+  });
+  report.colMap = colMap;
+  if (!colMap.date || !colMap.p_psia) {
+    report.warnings.push('Need a date column and a pressure column (psia).');
+    return { surveys: [], report };
+  }
+
+  const { order } = inferDateOrder(data.map((r) => r[colMap.date]));
+  const surveys = [];
+  data.forEach((raw, i) => {
+    const date = normalizeDate(raw[colMap.date], order);
+    const p = parseFloat(raw[colMap.p_psia]);
+    if (!date) { report.skipped.push({ row: i + 1, reason: `Unparseable date "${raw[colMap.date] ?? ''}"` }); return; }
+    if (!Number.isFinite(p) || p <= 0) { report.skipped.push({ row: i + 1, reason: `Unusable pressure "${raw[colMap.p_psia] ?? ''}"` }); return; }
+    surveys.push({ date, p_psia: p });
+  });
+  report.imported = surveys.length;
+  return { surveys, report };
+}
+
 // Template CSV in the canonical schema. The sample volumes ARE the engine
 // fixture (test-data/waterflood/vrr-ledger-fixture.json), so loading the
 // template reproduces the jest-pinned oracle numbers end to end.

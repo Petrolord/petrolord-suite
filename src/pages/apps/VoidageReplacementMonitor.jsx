@@ -1,8 +1,8 @@
-// Voidage Replacement Monitor on the shared Studio shell (V1 of the VRR
-// upgrade program, docs/scope/VoidageReplacementMonitor-STATUS.md). This
-// closes the W5 kit-adoption queue item from the Waterflood Design Studio
-// program: same shell as DCA/WDS, saved_vrr_projects persistence, panels
-// split out of the old single-file page. Math unchanged (vrr.js engine).
+// Voidage Replacement Monitor on the shared Studio shell (VRR upgrade
+// program, docs/scope/VoidageReplacementMonitor-STATUS.md). V1: Studio kit
+// + saved_vrr_projects. V2: per-well CSV ledger + rolling VRR/target
+// bands. V3: pressure surveys + pressure-dependent PVT + the
+// VRR-vs-pressure maintenance-proof tab.
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
 import { useSearchParams } from 'react-router-dom';
@@ -20,11 +20,14 @@ import PeriodGridPanel from '@/components/vrrmonitor/PeriodGridPanel';
 import LedgerSummaryPanel from '@/components/vrrmonitor/LedgerSummaryPanel';
 import VrrChartsPanel from '@/components/vrrmonitor/VrrChartsPanel';
 import VrrKpiPanel from '@/components/vrrmonitor/VrrKpiPanel';
+import PressurePanel from '@/components/vrrmonitor/PressurePanel';
+import PressureChartPanel from '@/components/vrrmonitor/PressureChartPanel';
 import VrrHelpContent from '@/components/reservoir/VrrHelpGuide';
 
 const TABS = [
   { value: 'data', label: 'Data & PVT' },
   { value: 'dashboard', label: 'VRR Dashboard' },
+  { value: 'pressure', label: 'Pressure' },
 ];
 
 const SectionLabel = ({ children }) => (
@@ -56,14 +59,23 @@ const VrrMonitorContent = () => {
           onDelete={deleteProject}
         />
       </section>
-      <section>
-        <SectionLabel>Fluid Properties (Reservoir)</SectionLabel>
-        <FvfPanel />
-      </section>
-      <section>
-        <SectionLabel>Analysis Settings</SectionLabel>
-        <AnalysisSettingsPanel />
-      </section>
+      {activeTab === 'pressure' ? (
+        <section>
+          <SectionLabel>Pressure &amp; PVT Mode</SectionLabel>
+          <PressurePanel />
+        </section>
+      ) : (
+        <>
+          <section>
+            <SectionLabel>Fluid Properties (Reservoir)</SectionLabel>
+            <FvfPanel />
+          </section>
+          <section>
+            <SectionLabel>Analysis Settings</SectionLabel>
+            <AnalysisSettingsPanel />
+          </section>
+        </>
+      )}
     </div>
   );
 
@@ -90,6 +102,7 @@ const VrrMonitorContent = () => {
           {isImported && <LedgerSummaryPanel />}
         </>
       )}
+      {activeTab === 'pressure' && <PressureChartPanel />}
     </div>
   );
 

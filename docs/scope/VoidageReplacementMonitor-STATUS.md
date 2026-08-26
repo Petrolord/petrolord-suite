@@ -34,11 +34,11 @@ central engines repo first):
   `vrrLedger.js` (`buildFieldPeriods`, `computeRollingVRR`, `flagPeriods`
   with a configurable target band, gas injectors recognized), rolling VRR +
   shaded target band on the chart. See V2 notes below.
-- **V3 — PVT + pressure**: per-period FVF overrides in the UI (engine's
-  `resolveFvf` already supports them), pressure survey import,
-  pressure-dependent FVFs via `nodal/pvt.js` (Suite-side; engine gets only a
-  correlation-free `interpolateFvfTrack`), VRR-vs-pressure dual-axis chart +
-  fill-up marker (`findFillUp`).
+- **V3 — PVT + pressure (DONE, this PR)**: per-period FVF overrides in the
+  UI, pressure survey entry/import, pressure-dependent FVFs via
+  `nodal/pvt.js` (Suite-side; engine gets only a correlation-free
+  `interpolateFvfTrack`), VRR-vs-pressure dual-axis chart + fill-up marker
+  (`findFillUp`). See V3 notes below.
 - **V4 — Patterns + allocation**: injector→producer allocation matrix,
   pattern VRR via `buildPatternPeriods` feeding the untouched
   `computeVRRSeries`, per-pattern injection recommendations
@@ -105,6 +105,41 @@ industry benchmark, decisions taken).
   replaces the manual grid until cleared; project payload persists
   `mode`/`wellRows`/`settings` (additive, schema stays 1).
 - No DDL in V2.
+
+## V3 notes (2026-08-28)
+
+- Engine: V3 additions to `vrrLedger.js` — landed centrally first
+  (petrolord-engines PR #44, branch feat/waterflood-vrr-pressure), vendored
+  copy synced byte-identical; built in a TEMP GIT WORKTREE of the engines
+  clone so the parked/active drilling branch there was never touched.
+  `monthCoordOf` (pure string month coordinates, (day-1)/31 fraction, no
+  Date parsing), `attachPressure` (survey linear interpolation onto
+  mid-month coordinates, flat clamp outside range, dp/dt psi/month),
+  `findFillUp` (first cum-VRR >= 1 crossing; `startedAbove` for records
+  beginning mid-flood), `interpolateFvfTrack` (correlation-free table
+  interpolation for future course use). 13 gates (75 psi/month hand
+  oracle); vrr.js + V2 ledger suites pass unchanged.
+- PVT bridge: `src/utils/vrr/pvtTrack.js` — `derivePeriodFvf(fluid,
+  pressures)` via the goldened `nodal/pvt.js` (`buildFluidModel`/`pvtAt`);
+  **the unit seam is explicit: pvtAt bg is rb/scf, x1000 to RB/Mscf**
+  (same unit class as the V1 WDS label bug). Rs clamps at the model GOR
+  above Pb. 6 gates incl. physics-direction (falling p below Pb: Bg up,
+  Rs down) and magnitude sanity.
+- Importer: `parsePressureCSV` added to `csvImport.js` (same claim-once /
+  date machinery; date + psia columns).
+- UI: new Pressure tab — left rail PressurePanel (manual survey rows +
+  CSV import + Constant FVF / Pressure track mode + fluid inputs +
+  correlation-band warnings), main PressureChartPanel (dual-axis VRR vs
+  psia, fill-up ReferenceLine, dp/dt in tooltip), withheld-with-reason
+  GatedNotice until pressure actually attaches (manual free-text period
+  labels honestly yield no pressure; imported ledgers attach
+  automatically). Manual grid gains a "PVT overrides" toggle revealing
+  per-period Bo/Bw/Bg/Rs columns (blank = global; track mode wins over
+  manual overrides). Track state persists in the project payload
+  (`pressureSurveys`/`pvtMode`/`fluid`, additive, schema stays 1).
+- Series rows carry `pressure`/`dpdt` through `computeVRRSeries`
+  automatically (it spreads period props).
+- No DDL in V3.
 
 ## Known gaps / next
 

@@ -15,7 +15,9 @@ import { useStudioNotifications } from '@/components/studio/useStudioNotificatio
 import {
   computeVRRSeries, summarizeVRR, sampleVRRData,
   buildFieldPeriods, classifyLedgerWells, computeRollingVRR, flagPeriods,
+  attachPressure, findFillUp,
 } from '@/utils/vrrCalculations';
+import { derivePeriodFvf } from '@/utils/vrr/pvtTrack';
 
 const TABLE = 'saved_vrr_projects';
 
@@ -44,6 +46,10 @@ export const defaultInputs = () => ({
   mode: 'manual', // 'manual' (period grid) | 'imported' (per-well CSV ledger)
   wellRows: [],   // vrrLedger row schema {date, well, oil_stb, ...}
   settings: { targetBandMin: '1.0', targetBandMax: '1.2', rollingWindow: '3' },
+  // V3: reservoir pressure track + pressure-dependent PVT.
+  pressureSurveys: [], // [{date: 'YYYY-MM-DD'|'YYYY-MM', p_psia: number}]
+  pvtMode: 'constant', // 'constant' (global FVF set) | 'track' (correlation-derived per period)
+  fluid: { api: '35', gasSg: '0.7', gor: '550', salinityPpm: '35000', tempF: '180' },
 });
 
 /** Restore inputs from a payload, tolerating missing keys from older rows. */
@@ -59,6 +65,9 @@ export const inputsFromPayload = (payload) => {
     mode: raw.mode === 'imported' ? 'imported' : 'manual',
     wellRows: Array.isArray(raw.wellRows) ? raw.wellRows : [],
     settings: { ...base.settings, ...(raw.settings || {}) },
+    pressureSurveys: Array.isArray(raw.pressureSurveys) ? raw.pressureSurveys : [],
+    pvtMode: raw.pvtMode === 'track' ? 'track' : 'constant',
+    fluid: { ...base.fluid, ...(raw.fluid || {}) },
   };
 };
 
@@ -87,11 +96,34 @@ export const VrrMonitorProvider = ({ children }) => {
   // periods (vrrLedger.buildFieldPeriods); manual mode uses the grid rows
   // directly. Everything downstream (series, rolling, flags) is shared.
   const isImported = inputs.mode === 'imported';
-  const effectivePeriods = useMemo(
+  const basePeriods = useMemo(
     () => (isImported ? buildFieldPeriods(inputs.wellRows) : inputs.periods),
     [isImported, inputs.wellRows, inputs.periods],
   );
+  // V3: pressure survey interpolation onto period mid-months (labels must
+  // be YYYY-MM; manual free-text labels honestly yield pressure null).
+  const periodsWithPressure = useMemo(
+    () => attachPressure(basePeriods, inputs.pressureSurveys),
+    [basePeriods, inputs.pressureSurveys],
+  );
+  const hasPressure = useMemo(
+    () => periodsWithPressure.some((p) => p.pressure != null),
+    [periodsWithPressure],
+  );
+  // Pressure-dependent PVT: correlation-derived per-period overrides
+  // (Suite-side pvtTrack; the engine's resolveFvf honors them). Track
+  // overrides win over any manual per-period entries.
+  const trackActive = inputs.pvtMode === 'track' && hasPressure;
+  const pvtTrack = useMemo(() => {
+    if (!trackActive) return null;
+    return derivePeriodFvf(inputs.fluid, periodsWithPressure.map((p) => p.pressure));
+  }, [trackActive, inputs.fluid, periodsWithPressure]);
+  const effectivePeriods = useMemo(() => {
+    if (!pvtTrack) return periodsWithPressure;
+    return periodsWithPressure.map((p, i) => (pvtTrack.overrides[i] ? { ...p, ...pvtTrack.overrides[i] } : p));
+  }, [periodsWithPressure, pvtTrack]);
   const series = useMemo(() => computeVRRSeries(effectivePeriods, inputs.fvf), [effectivePeriods, inputs.fvf]);
+  const fillUp = useMemo(() => findFillUp(series), [series]);
   const summary = useMemo(() => summarizeVRR(series), [series]);
   const rolling = useMemo(
     () => computeRollingVRR(series, parseFloat(inputs.settings.rollingWindow) || 3),
@@ -164,6 +196,34 @@ export const VrrMonitorProvider = ({ children }) => {
 
   const setSettingsField = useCallback((key, value) => {
     setInputs((prev) => ({ ...prev, settings: { ...prev.settings, [key]: value } }));
+  }, []);
+
+  // --- V3: pressure survey + PVT mode actions ---
+  const setPressureSurveys = useCallback((surveys) => {
+    setInputs((prev) => ({ ...prev, pressureSurveys: surveys }));
+  }, []);
+
+  const updateSurvey = useCallback((index, key, value) => {
+    setInputs((prev) => ({
+      ...prev,
+      pressureSurveys: prev.pressureSurveys.map((s, i) => (i === index ? { ...s, [key]: value } : s)),
+    }));
+  }, []);
+
+  const addSurvey = useCallback(() => {
+    setInputs((prev) => ({ ...prev, pressureSurveys: [...prev.pressureSurveys, { date: '', p_psia: '' }] }));
+  }, []);
+
+  const removeSurvey = useCallback((index) => {
+    setInputs((prev) => ({ ...prev, pressureSurveys: prev.pressureSurveys.filter((_, i) => i !== index) }));
+  }, []);
+
+  const setPvtMode = useCallback((mode) => {
+    setInputs((prev) => ({ ...prev, pvtMode: mode === 'track' ? 'track' : 'constant' }));
+  }, []);
+
+  const setFluidField = useCallback((key, value) => {
+    setInputs((prev) => ({ ...prev, fluid: { ...prev.fluid, [key]: value } }));
   }, []);
 
   // --- Project lifecycle (useFluidStudioProjects recipe) ---
@@ -289,6 +349,11 @@ export const VrrMonitorProvider = ({ children }) => {
     isImported,
     ledgerWells,
     effectivePeriods,
+    periodsWithPressure,
+    hasPressure,
+    trackActive,
+    pvtTrack,
+    fillUp,
     // input actions
     setFvfField,
     updatePeriodCell,
@@ -300,6 +365,12 @@ export const VrrMonitorProvider = ({ children }) => {
     importWellRows,
     clearImported,
     setSettingsField,
+    setPressureSurveys,
+    updateSurvey,
+    addSurvey,
+    removeSurvey,
+    setPvtMode,
+    setFluidField,
     // projects
     projects,
     currentProjectId,

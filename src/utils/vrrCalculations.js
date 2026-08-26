@@ -4,4 +4,5 @@
 export * from '../../packages/engines/engines/waterflood/vrr.js';
 export {
   monthKeyOf, classifyLedgerWells, buildFieldPeriods, computeRollingVRR, flagPeriods, analyzeLedger,
+  monthCoordOf, attachPressure, findFillUp, interpolateFvfTrack,
 } from '../../packages/engines/engines/waterflood/vrrLedger.js';
