@@ -28,6 +28,13 @@ const helpContent = [
       'Upload an Eclipse-format .DATA file (plus any INCLUDE files), or install a bundled SPE template. You can edit the deck text in place; the worker validates everything again before running. Limits on this platform: 25 MB bundle, 40 files, 200,000 grid cells, 5,000 report steps. PYACTION/PYINPUT are not allowed (they embed executable code), and INCLUDE paths must stay inside the bundle.',
   },
   {
+    id: 'builder',
+    icon: FileText,
+    title: 'No deck? Use the Model Builder',
+    content:
+      'The Builder tab generates a complete deck from engineering inputs: a layer-cake grid, black-oil PVT from the same correlations Fluid Studio uses (Standing, Beggs-Robinson; the bubble point is solved from your GOR), Corey relative permeability curves as in SCAL Studio with optional Leverett-J capillary pressure, equilibration contacts, vertical wells and a monthly schedule. Generate attaches the deck to the case; you can inspect and hand-edit it on the Deck tab before running.',
+  },
+  {
     id: 'run',
     icon: Play,
     title: 'Step 2: Run',

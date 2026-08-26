@@ -126,9 +126,45 @@ via SECURITY DEFINER RPCs; `sim_runs` is read-only to humans.
   migration 20260826201000 applies WITH the prod upload carrying
   this route.
 
+## S3 — Deck generation (2026-08-26)
+
+- **engines/sim domain** (petrolord-engines PR #50, built in a temp
+  worktree; vendored at packages/engines/engines/sim): deckFormat
+  primitives (fmt/starRepeat), pure keyword emitters — PVTO (with
+  undersaturated branches; pvtoRecordsFromTable collapses duplicate
+  Rs and closes the last node), PVDG, PVTW, ROCK, DENSITY, SWOF/SGOF
+  (+ resamplePc for Leverett-J alignment), layer-cake box grid,
+  WELSPECS/COMPDAT/WCONPROD/WCONINJE/TSTEP — and composeDeck
+  (RUNSPEC..SCHEDULE, FIELD units, three-phase DISGAS, SUMMARY
+  requests exactly the worker's charted vectors). No physics in the
+  domain by design; hostile well names and non-monotonic tables
+  throw. 18 jest gates pin the emitted text; the SPE1-equivalent
+  referenceSpec composes deterministically and **runs to completion
+  in flow 2026.04** with SPE1-like physics (ORAT→BHP decline, GOR
+  rise under gas injection).
+- **Suite builder adapter** `src/utils/simDeckBuilder.js` (+ shim
+  simDeckGeneration.js): guided form → spec. PVT from Fluid Studio
+  correlations (computePvtTable; unit seams explicit: Rs scf/STB →
+  Mscf/STB, Bg rb/scf → RB/Mscf), SCAL from the scal Corey builders
+  with the axis-closure rules (SWOF starts at Swc so equilibrated
+  water is connate; SGOF ends at 1-Swc so the tables close — the
+  SPE1 lesson), optional Leverett-J Pc (power-law jSpec, Swirr=Swc),
+  surface densities from API/gas SG. 9 jest gates incl. a checked-in
+  fixture pin: the default form's deck IS the flow-acceptance
+  fixture (regen via GEN_SIM_FIXTURE=1).
+- **Builder tab** in the app (BuilderPanel): model/grid+layers/
+  fluid/water-rock/SCAL(+Pc toggle)/equilibration/wells table/
+  schedule, live cell count vs the 200k cap, Generate composes and
+  attaches the deck to the case (deck_source 'generated') with the
+  solved Pb reported; errors listed verbatim. Deck lands on the Deck
+  tab for inspection/edit before running.
+- **Worker gate** tests/integration/test_generated_deck.py: the
+  generated fixture passes the worker's own validation and runs in
+  flow with sane physics (FOPR at target, FPR physical). Worker
+  pytest 24/24 in the image on the VPS; Suite jest 279 suites /
+  3,452 green; build clean.
+
 ## Upcoming phases
-- **S3 — Deck generation** (engines-repo keyword emitters: PVT from
-  mbal generatePvtTable, SWOF/SGOF from scal Corey+pcFromJ, box
-  grid, WELSPECS/COMPDAT via drilling surveyMath).
 - S4 ideas (NOT committed): corner-point grids from geo_surfaces,
-  WCONHIST from rb_production_data, 3D grid viz, multi-realization.
+  WCONHIST history import from rb_production_data, deviated wells
+  via drilling surveyMath, 3D grid viz, multi-realization.

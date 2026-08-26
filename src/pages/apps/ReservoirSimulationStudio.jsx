@@ -12,6 +12,7 @@ import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import { SimStudioProvider, useSimStudio } from '@/contexts/SimStudioContext';
 import DeckPanel from '@/components/simstudio/DeckPanel';
+import BuilderPanel from '@/components/simstudio/BuilderPanel';
 import RunPanel from '@/components/simstudio/RunPanel';
 import ResultsPanel from '@/components/simstudio/ResultsPanel';
 import SimKpiPanel from '@/components/simstudio/SimKpiPanel';
@@ -19,6 +20,7 @@ import SimHelpGuide from '@/components/simstudio/SimHelpGuide';
 
 const TABS = [
   { value: 'deck', label: 'Deck' },
+  { value: 'builder', label: 'Builder' },
   { value: 'runs', label: 'Runs' },
   { value: 'results', label: 'Results' },
 ];
@@ -72,6 +74,7 @@ const SimStudioContent = () => {
   const main = (
     <div className="h-full overflow-y-auto space-y-4">
       {activeTab === 'deck' && <DeckPanel />}
+      {activeTab === 'builder' && <BuilderPanel />}
       {activeTab === 'runs' && <RunPanel />}
       {activeTab === 'results' && <ResultsPanel />}
     </div>

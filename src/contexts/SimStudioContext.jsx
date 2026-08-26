@@ -172,6 +172,30 @@ export const SimStudioProvider = ({ children }) => {
     }
   }, [activeCase, addNotification]);
 
+  const uploadGeneratedDeck = useCallback(async (deckText, filename = 'MODEL.DATA') => {
+    if (!activeCase) return false;
+    setBusy(true);
+    try {
+      const blob = new Blob([deckText], { type: 'text/plain' });
+      const path = await sim.uploadDeckFile(activeCase, blob, filename);
+      const updated = await sim.updateCase(activeCase.id, {
+        deck_source: 'generated',
+        template_slug: null,
+        deck_path: path,
+        deck_bytes: deckText.length,
+      });
+      setCases((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      addNotification('Deck generated and attached to the case', 'success');
+      return true;
+    } catch (e) {
+      console.error(e);
+      addNotification(sim.friendlyError(e), 'error');
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }, [activeCase, addNotification]);
+
   // --- run actions ---
   const queueRun = useCallback(async () => {
     if (!activeCase) return;
@@ -225,7 +249,7 @@ export const SimStudioProvider = ({ children }) => {
     deckText, deckLoading, busy,
     summary, summaryRunId, prtText, prtRunId,
     createCase, openCase, deleteCase,
-    uploadDeck, applyTemplate,
+    uploadDeck, applyTemplate, uploadGeneratedDeck,
     queueRun, requestCancel, refreshRuns,
     loadResults, loadPrt,
     notifications, addNotification, removeNotification,

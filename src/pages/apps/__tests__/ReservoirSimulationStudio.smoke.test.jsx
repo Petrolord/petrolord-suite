@@ -104,4 +104,17 @@ describe('ReservoirSimulationStudio page', () => {
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Results' }));
     expect(await screen.findByText(/Run a simulation first/i)).toBeInTheDocument();
   });
+
+  it('builder tab generates a deck through the real engines and attaches it (S3)', async () => {
+    mount();
+    await screen.findByText('SPE1 demo');
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Builder' }));
+    // Guided form renders with engine-backed defaults.
+    expect(await screen.findByText(/Grid — 300 cells/i)).toBeInTheDocument();
+    expect(screen.getByText(/correlations from Fluid Studio/i)).toBeInTheDocument();
+    // Generate runs correlation PVT + Corey SCAL + composeDeck for real
+    // (only the upload is mocked) and reports the solved bubble point.
+    fireEvent.click(screen.getByTestId('generate-deck'));
+    expect(await screen.findByText(/Model generated \(Pb \d+ psia/i)).toBeInTheDocument();
+  });
 });
