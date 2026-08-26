@@ -36,7 +36,7 @@ const AuthProviderContent = ({ children }) => {
     'contour-map-digitizer', 'log-facies-analysis', 'velocity-model-builder', 'fluid-systems-studio',
     'waterflood-dashboard', 'voidage-replacement-monitor', 'fractional-flow-calculator', 'relative-permeability-designer', 'recovery-factor-estimator', 'risked-reserves-valuation', 'eor-screening', 'forecast-scenario-hub', 'aquifer-influx-calculator', 'decline-curve-analysis', 'reservoir-balance',
     'well-planning',
-    'casing-tubing-design-pro', 'torque-drag-studio', 'well-spacing-optimizer',
+    'casing-tubing-design-pro', 'torque-drag-studio', 'drilling-fluids-hydraulics', 'well-spacing-optimizer',
     'surveillance-dashboard', 'well-test-analyzer', 'wellbore-flow-simulator',
     'artificial-lift-designer', 'flow-assurance-monitor', 'integrated-asset-modeler', 'well-schematic-designer',
     'network-diagram-pro', 'project-management-pro', 'afe-cost-control', 'npv-scenario-builder',

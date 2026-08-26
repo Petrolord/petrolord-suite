@@ -27,6 +27,10 @@
 //   A11 capstan limit: weightless arc converges to T·e^{μβ}
 //   A12 casing wear crescent geometry + energy model round-trip
 //      (casingwear_cases.json)
+//   A13 rheology fits + Newtonian/power-law laminar closed forms
+//      (Drilling D2; hydraulics_cases.json)
+//   A14 circulating losses / bit / ECD vs the independent oracle
+//   A15 surge-swab + hole-cleaning slip velocities vs the oracle
 // ARMED gates (pending owner literature PDFs):
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
 //   L3 Amoco/API MD-TVD table (the Amoco Directional Survey Handbook,
@@ -36,6 +40,9 @@
 //   L4 Mitchell & Miska torque & drag worked example (same book as L2)
 //   L5 Johancsik SPE 11380 field cases (owner PDF; chart-read data,
 //      tolerance band to be set at extraction)
+//   L6 ADE ch.4 (Bourgoyne et al.) hydraulics worked example (owner PDF
+//      or attributed open-access republication, the A9 route)
+//   L7 API RP 13D worked example well (owner PDF)
 
 import fs from 'fs';
 import path from 'path';
@@ -60,6 +67,14 @@ async function main() {
     '../../packages/engines/engines/drilling/torqueDrag.js');
   const { grooveArea, grooveDepthForArea, slidingDistanceM } = await import(
     '../../packages/engines/engines/drilling/casingWear.js');
+  const { fitModels } = await import(
+    '../../packages/engines/engines/drilling/rheology.js');
+  const { computeHydraulics, elementLoss } = await import(
+    '../../packages/engines/engines/drilling/hydraulics.js');
+  const { computeSurgeSwab } = await import(
+    '../../packages/engines/engines/drilling/surgeSwab.js');
+  const { computeHoleCleaning } = await import(
+    '../../packages/engines/engines/drilling/holeCleaning.js');
   const { computeClearance } = await import(
     '../../packages/engines/engines/drilling/antiCollision.js');
 
@@ -318,11 +333,80 @@ async function main() {
     );
   });
 
+  gate('A13', 'rheology fits + Newtonian/power-law laminar closed forms', () => {
+    const g = goldens('hydraulics_cases.json');
+    for (const c of g.cases) {
+      const fits = fitModels(c.mud.fann);
+      close(fits.herschelBulkley.n, c.fits.herschelBulkley.n, 1e-9 + 1e-6 * c.fits.herschelBulkley.n, `${c.well}/${c.mudName} n`);
+      close(fits.herschelBulkley.tauYPa, c.fits.herschelBulkley.tauYPa, 1e-9 + 1e-6 * c.fits.herschelBulkley.tauYPa, `${c.well}/${c.mudName} tauY`);
+    }
+    // Newtonian laminar pipe = Hagen-Poiseuille exactly.
+    const mu = 0.05;
+    const d = 0.1086;
+    const q = 0.004;
+    const v = q / ((Math.PI / 4) * d * d);
+    const loss = elementLoss({
+      model: { type: 'bingham', pvPaS: mu, ypPa: 0 },
+      rhoKgM3: 1440, vMs: v, dCharM: d, kind: 'pipe', lengthM: 1000,
+    });
+    close(loss.dpPa, (128 * mu * 1000 * q) / (Math.PI * d ** 4), 1e-9, 'Hagen-Poiseuille');
+    // Power-law laminar pipe: dP = 4·L·tau_w/d exactly.
+    const n = 0.7;
+    const K = 0.5;
+    const v2 = 0.006 / ((Math.PI / 4) * d * d);
+    const gw = ((8 * v2) / d) * ((3 * n + 1) / (4 * n));
+    const pl = elementLoss({
+      model: { type: 'powerLaw', n, kPaSn: K },
+      rhoKgM3: 1300, vMs: v2, dCharM: d, kind: 'pipe', lengthM: 800,
+    });
+    close(pl.dpPa, (4 * 800 * K * gw ** n) / d, 1e-6 * pl.dpPa, 'power-law laminar');
+  });
+
+  gate('A14', 'circulating losses / bit / ECD vs the independent oracle', () => {
+    const g = goldens('hydraulics_cases.json');
+    for (const c of g.cases) {
+      const mud = { densityKgM3: c.mud.densityKgM3, model: fitModels(c.mud.fann).herschelBulkley };
+      for (const q of c.flowRates) {
+        const exp = c.expected.hydraulics[`q_${q}`];
+        const res = computeHydraulics({
+          stations: c.stations, string: c.string, geometry: c.geometry,
+          mud, flowRateM3s: q, nozzleTfaM2: c.nozzleTfaM2,
+        });
+        close(res.summary.pumpPressurePa, exp.pumpPressurePa, 1 + 1e-6 * exp.pumpPressurePa, `${c.well}/${c.mudName}@${q} pump`);
+        close(res.summary.ecdAtTdKgM3, exp.ecdAtTdKgM3, 1e-4 + 1e-6 * exp.ecdAtTdKgM3, `${c.well}/${c.mudName}@${q} ECD`);
+      }
+    }
+  });
+
+  gate('A15', 'surge-swab + hole-cleaning slip velocities vs the oracle', () => {
+    const g = goldens('hydraulics_cases.json');
+    for (const c of g.cases) {
+      const mud = { densityKgM3: c.mud.densityKgM3, model: fitModels(c.mud.fann).herschelBulkley };
+      for (const [key, exp] of Object.entries(c.expected.surgeSwab) as [string, any][]) {
+        const open = key.startsWith('open_');
+        const v = parseFloat(key.replace('open_v_', '').replace('v_', ''));
+        const r = computeSurgeSwab({
+          stations: c.stations, string: c.string, geometry: c.geometry, mud,
+          tripSpeedMs: v, mode: open ? 'open' : 'closed',
+        });
+        close(r.surgeEmwKgM3, exp.surgeEmwKgM3, 1e-4 + 1e-6 * exp.surgeEmwKgM3, `${c.well}/${c.mudName} ${key} surge`);
+      }
+      const hc = computeHoleCleaning({
+        stations: c.stations, string: c.string, geometry: c.geometry, mud,
+        flowRateM3s: 0.025, cuttings: { ropMs: 0.005, dParticleM: 0.006, rhoSolidKgM3: 2600 },
+      });
+      close(hc.summary.minTransportRatio, c.expected.holeCleaning.minTransportRatio,
+        1e-9 + 1e-6 * Math.abs(c.expected.holeCleaning.minTransportRatio), `${c.well}/${c.mudName} minTR`);
+    }
+  });
+
   const armed = [
     ['L2', 'Mitchell & Miska survey table'],
     ['L3', 'Amoco/API MD-TVD table'],
     ['L4', 'Mitchell & Miska torque & drag worked example'],
     ['L5', 'Johancsik SPE 11380 field cases'],
+    ['L6', 'ADE ch.4 hydraulics worked example'],
+    ['L7', 'API RP 13D worked example well'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
