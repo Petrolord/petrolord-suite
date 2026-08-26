@@ -31,6 +31,10 @@
 //      (Drilling D2; hydraulics_cases.json)
 //   A14 circulating losses / bit / ECD vs the independent oracle
 //   A15 surge-swab + hole-cleaning slip velocities vs the oracle
+//   A16 kill sheet + volumes closed forms + oracle agreement
+//      (Drilling D3; wellcontrol_cases.json incl. the self-asserting
+//      IWCF-style fixture)
+//   A17 kick tolerance + Boyle + MAASP vs the oracle
 // ARMED gates (pending owner literature PDFs):
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
 //   L3 Amoco/API MD-TVD table (the Amoco Directional Survey Handbook,
@@ -43,6 +47,8 @@
 //   L6 ADE ch.4 (Bourgoyne et al.) hydraulics worked example (owner PDF
 //      or attributed open-access republication, the A9 route)
 //   L7 API RP 13D worked example well (owner PDF)
+//   L8 IWCF/IADC kill sheet worked example (owner PDF)
+//   L9 ADE worked kick and kill example (owner PDF)
 
 import fs from 'fs';
 import path from 'path';
@@ -75,6 +81,8 @@ async function main() {
     '../../packages/engines/engines/drilling/surgeSwab.js');
   const { computeHoleCleaning } = await import(
     '../../packages/engines/engines/drilling/holeCleaning.js');
+  const { wellVolumes, annulusCapAt, killSheet, kickTolerance, boyle, maaspPa: maaspFn, tvdAt } = await import(
+    '../../packages/engines/engines/drilling/wellControl.js');
   const { computeClearance } = await import(
     '../../packages/engines/engines/drilling/antiCollision.js');
 
@@ -400,6 +408,63 @@ async function main() {
     }
   });
 
+  gate('A16', 'kill sheet + volumes closed forms + oracle agreement', () => {
+    const g = goldens('wellcontrol_cases.json');
+    // Self-asserting IWCF-style fixture end to end.
+    const fx = g.iwcfStyleExample;
+    const ks = killSheet(fx.inputs);
+    close(ks.killMudDensityKgM3, fx.killSheet.killMudDensityKgM3, 1e-6, 'fixture KMW');
+    close(ks.icpPa, fx.killSheet.icpPa, 1e-3, 'fixture ICP');
+    close(ks.fcpPa, fx.killSheet.fcpPa, 1e-3, 'fixture FCP');
+    if (ks.influx.kind !== fx.killSheet.influx.kind) throw new Error('fixture influx kind');
+    // Golden wells: volumes + kill sheets.
+    for (const c of g.cases) {
+      const v = wellVolumes({
+        stations: c.stations, string: c.string, geometry: c.geometry,
+        pumpOutputM3PerStroke: c.pump.outputM3PerStroke,
+      });
+      const ev = c.expected.volumes;
+      close(v.stringVolumeM3, ev.stringVolumeM3, 1e-9 + 1e-6 * ev.stringVolumeM3, `${c.well} string vol`);
+      close(v.annulusVolumeM3, ev.annulusVolumeM3, 1e-9 + 1e-6 * ev.annulusVolumeM3, `${c.well} annulus vol`);
+      close(tvdAt(c.stations, v.bitMd), ev.tvdBhM, 1e-6 + 1e-6 * ev.tvdBhM, `${c.well} TVD bh`);
+      const capBit = annulusCapAt(v.annulusRows, v.bitMd - 1);
+      for (const [name, exp] of Object.entries(c.expected.killSheets) as [string, any][]) {
+        const kick = { moderate_gas: { sidppPa: 2.0e6, sicpPa: 2.9e6, pitGainM3: 3.0 }, small_liquid: { sidppPa: 0.8e6, sicpPa: 0.9e6, pitGainM3: 1.5 } }[name];
+        const r = killSheet({
+          tvdBhM: tvdAt(c.stations, v.bitMd), tvdShoeM: tvdAt(c.stations, c.shoeMd),
+          mudDensityKgM3: c.mudDensityKgM3, sidppPa: kick.sidppPa, sicpPa: kick.sicpPa,
+          pitGainM3: kick.pitGainM3, scrPressurePa: c.pump.scrPressurePa,
+          pumpOutputM3PerStroke: c.pump.outputM3PerStroke,
+          stringVolumeM3: v.stringVolumeM3, annulusVolumeM3: v.annulusVolumeM3,
+          annulusCapNearBitM2: capBit,
+        });
+        close(r.killMudDensityKgM3, exp.killMudDensityKgM3, 1e-6 + 1e-6 * exp.killMudDensityKgM3, `${c.well}/${name} KMW`);
+        close(r.icpPa, exp.icpPa, 1 + 1e-6 * exp.icpPa, `${c.well}/${name} ICP`);
+        close(r.fcpPa, exp.fcpPa, 1 + 1e-6 * exp.fcpPa, `${c.well}/${name} FCP`);
+      }
+    }
+  });
+
+  gate('A17', 'kick tolerance + Boyle + MAASP vs the oracle', () => {
+    const g = goldens('wellcontrol_cases.json');
+    close(boyle({ p1Pa: 50e6, v1M3: 2, p2Pa: 25e6 }), 4, 1e-12, 'Boyle');
+    close(maaspFn({ tvdShoeM: 2000, mudDensityKgM3: 1200, fracEmwKgM3: 1700 }),
+      500 * 9.80665 * 2000, 1e-6, 'MAASP algebra');
+    for (const c of g.cases) {
+      const v = wellVolumes({ stations: c.stations, string: c.string, geometry: c.geometry });
+      const kt = kickTolerance({
+        tvdBhM: tvdAt(c.stations, v.bitMd), tvdShoeM: tvdAt(c.stations, c.shoeMd),
+        mudDensityKgM3: c.mudDensityKgM3, fracEmwKgM3: c.fracEmwKgM3,
+        kickIntensityKgM3: 60, influxDensityKgM3: 240,
+        annulusCapAtShoeM2: annulusCapAt(v.annulusRows, c.shoeMd - 1),
+        annulusCapAtBitM2: annulusCapAt(v.annulusRows, v.bitMd - 1),
+      });
+      close(kt.maaspPa, c.expected.kickTolerance.maaspPa, 1 + 1e-6 * c.expected.kickTolerance.maaspPa, `${c.well} MAASP`);
+      close(kt.kickToleranceM3, c.expected.kickTolerance.kickToleranceM3,
+        1e-9 + 1e-6 * c.expected.kickTolerance.kickToleranceM3, `${c.well} KT`);
+    }
+  });
+
   const armed = [
     ['L2', 'Mitchell & Miska survey table'],
     ['L3', 'Amoco/API MD-TVD table'],
@@ -407,6 +472,8 @@ async function main() {
     ['L5', 'Johancsik SPE 11380 field cases'],
     ['L6', 'ADE ch.4 hydraulics worked example'],
     ['L7', 'API RP 13D worked example well'],
+    ['L8', 'IWCF/IADC kill sheet worked example'],
+    ['L9', 'ADE worked kick and kill example'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
