@@ -105,9 +105,28 @@ via SECURITY DEFINER RPCs; `sim_runs` is read-only to humans.
   deck, kill-worker-mid-run requeue). S2 app work can proceed in
   parallel; S2 does not ship until these pass.
 
+## S2 — App (2026-08-26)
+
+- `ReservoirSimulationStudio.jsx` on the Studio kit (VRR exemplar):
+  cases in the left rail (most recent auto-opens), Deck tab (SPE1/
+  SPE9 template cards from public/sim-templates with ODbL
+  ATTRIBUTION, multi-file upload, monospace editor with save-back),
+  Runs tab (RPC enqueue with verbatim quota errors, 5 s polling,
+  cancel, honest failure_stage/error_message + PRT excerpt viewer),
+  Results tab (field small-multiples + per-well multi-line charts on
+  the white standard, run metadata, summary.csv download).
+- `SimStudioContext` + `src/lib/simService.js` (direct RLS calls +
+  the two RPCs; 42P01 friendly message) +
+  `src/components/simstudio/` incl. jest-tested resultAdapters.
+- Routing: entitlement-gated route, allApps slug, old
+  reservoir-simulation-connector redirect repointed to the studio.
+- Tests: page smoke (3) + adapters (6); full jest 277 suites / 3,417
+  green; build clean (own lazy chunk).
+- **Ship gates:** owner completes the S1 live-queue gate first; tile
+  migration 20260826201000 applies WITH the prod upload carrying
+  this route.
+
 ## Upcoming phases
-- **S2 — App** (Studio kit: Cases/Run/Results; 5 s polling; honest
-  PRT errors; SPE1/SPE9 templates; tile applied with the upload).
 - **S3 — Deck generation** (engines-repo keyword emitters: PVT from
   mbal generatePvtTable, SWOF/SGOF from scal Corey+pcFromJ, box
   grid, WELSPECS/COMPDAT via drilling surveyMath).
