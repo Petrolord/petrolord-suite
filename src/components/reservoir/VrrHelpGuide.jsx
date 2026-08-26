@@ -38,7 +38,7 @@ const helpContent = [
     icon: LineChart,
     title: 'Step 3: Read the VRR trend',
     content:
-      "The Dashboard tab plots instantaneous VRR (this period alone) and cumulative VRR (all periods to date) against a reference line at VRR = 1. The instantaneous line tells you what is happening right now; the cumulative line smooths out monthly noise and reflects the reservoir's overall voidage balance since the start of the record. The download button on the chart saves it as a PNG.",
+      "The Dashboard tab plots instantaneous VRR (this period alone), rolling VRR (a trailing multi-period window that smooths month-to-month allocation noise) and cumulative VRR (all periods to date) against a reference line at VRR = 1 and your shaded operator target band. The instantaneous line tells you what is happening right now; the cumulative line reflects the reservoir's overall voidage balance since the start of the record. Set the band and rolling window under Analysis Settings; periods outside the band flag as Under or Over. The download button on the chart saves it as a PNG.",
   },
   {
     id: 'interpret',
@@ -48,11 +48,18 @@ const helpContent = [
       "VRR near 1 (0.9 to 1.1): balanced, voidage is being replaced and pressure maintenance is effective. VRR below 0.9: under-injection, you are withdrawing faster than you replace, so expect reservoir pressure to decline. VRR above 1.1: over-injection, injecting more than produced, repressurizing the reservoir or filling up voidage (watch for fracturing or out-of-zone injection).",
   },
   {
-    id: 'data',
+    id: 'import',
     icon: Upload,
-    title: 'Sample data, import and export',
+    title: 'Importing real field data (per-well CSV)',
     content:
-      'Click Sample on the Data tab to load a realistic 6-month waterflood dataset and see the whole workflow immediately. Use Export to download your table as CSV, and Import to load a CSV back in (columns: label, Np, Wp, Gp, Wi, Gi). This makes it easy to keep monthly surveillance in a spreadsheet and paste updates in.',
+      'The Data tab imports real allocation files: one row per well per date (daily or monthly), with columns for date, well, oil, water and gas produced, and water and gas injected. Common header aliases are recognized (oil_bbl, np, bopd, water_inj, inj_bbl, gas_inj and more) and units auto-scale from the header (MMscf and Bscf to Mscf, Mbbl to bbl). Rows the importer cannot use are listed in the import report, never dropped silently. Daily rows aggregate to calendar months. Download the Template for the exact schema, or click Sample wells to load a worked 3-month, 4-well example. Wells that ever inject classify as injectors, including gas injectors.',
+  },
+  {
+    id: 'data',
+    icon: Table2,
+    title: 'Manual entry, sample and export',
+    content:
+      'Without an import, enter monthly field totals directly in the period grid. Click Sample to load a 6-month waterflood dataset, Export to download the grid as CSV, and Import on the grid toolbar to load that same format back in (columns: label, Np, Wp, Gp, Wi, Gi). When a per-well import is active, the grid is replaced by the read-only monthly ledger; clear the import to return to manual entry.',
   },
   {
     id: 'assumptions',

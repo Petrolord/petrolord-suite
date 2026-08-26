@@ -29,11 +29,11 @@ central engines repo first):
   (FvfPanel/PeriodGridPanel/VrrChartsPanel/VrrKpiPanel), `?tab=` deep links,
   chart PNG export, smoke test. Math unchanged. This closes the
   WaterfloodDesignStudio-STATUS.md W5 kit-adoption queue item.
-- **V2 — Real import + monthly ledger**: per-well production/injection CSV
-  with aliases + unit auto-scale (DataHub recipe), `vrrLedger.js`
-  (`buildFieldPeriods`, `computeRollingVRR`, `flagPeriods` with a
-  configurable target band, gas injectors recognized), rolling VRR + target
-  band on the chart.
+- **V2 — Real import + monthly ledger (DONE, this PR)**: per-well
+  production/injection CSV with aliases + unit auto-scale (DataHub recipe),
+  `vrrLedger.js` (`buildFieldPeriods`, `computeRollingVRR`, `flagPeriods`
+  with a configurable target band, gas injectors recognized), rolling VRR +
+  shaded target band on the chart. See V2 notes below.
 - **V3 — PVT + pressure**: per-period FVF overrides in the UI (engine's
   `resolveFvf` already supports them), pressure survey import,
   pressure-dependent FVFs via `nodal/pvt.js` (Suite-side; engine gets only a
@@ -73,6 +73,38 @@ industry benchmark, decisions taken).
   section.
 - Legacy exact-header CSV import/export kept verbatim in PeriodGridPanel for
   V1 (no behavior change wave); V2 replaces it with the real importer.
+
+## V2 notes (2026-08-28)
+
+- Engine: NEW `packages/engines/engines/waterflood/vrrLedger.js` — landed
+  in the central repo first (petrolord-engines PR #42, branch
+  feat/waterflood-vrr-ledger), vendored copy synced byte-identical from the
+  pushed ref. `vrr.js` untouched (oracle guard suites pass unchanged).
+  Ledger API: `monthKeyOf` (YYYY-MM prefix keying, no Date parsing),
+  `classifyLedgerWells` (injection wins; gas-only injectors recognized),
+  `buildFieldPeriods` (daily/monthly rows aggregate to ordered monthly
+  periods feeding the untouched `computeVRRSeries`), `computeRollingVRR`
+  (partial trailing windows; null when no produced voidage), `flagPeriods`
+  (operator band, default 1.0-1.2; `classifyVRR` 0.9/1.1 interpretation
+  defaults untouched), `analyzeLedger`. 13 gates vs a hand-computed
+  3-month, 4-well fixture — creates `packages/engines/test-data/waterflood/`.
+- Importer: `src/utils/vrr/csvImport.js` (papaparse, Suite-side by design) —
+  claim-once aliases with injection columns resolving BEFORE their
+  production twins (the csvParser 'wp'-in-'bwpd' lesson applied to
+  'water'-in-'water_inj'), unit auto-scale from headers (MMscf/Bscf→Mscf,
+  Mbbl→bbl, scf→Mscf), DD/MM vs MM/DD inference with an explicit
+  ambiguity warning, well-less files import as one FIELD well, negatives
+  zeroed and counted — every drop/adjustment lands in the report, nothing
+  silent. 11 jest gates. The template CSV's sample volumes ARE the engine
+  fixture, so Sample wells reproduces the jest-pinned oracle end to end.
+- UI: ImportPanel (dropzone + report + template + Sample wells),
+  LedgerSummaryPanel (read-only monthly aggregation w/ flags),
+  AnalysisSettingsPanel (target band + rolling window, left rail);
+  chart gains the rolling line + shaded ReferenceArea target band; KPI
+  rail gains rolling VRR, out-of-band count, well counts. Imported mode
+  replaces the manual grid until cleared; project payload persists
+  `mode`/`wellRows`/`settings` (additive, schema stays 1).
+- No DDL in V2.
 
 ## Known gaps / next
 

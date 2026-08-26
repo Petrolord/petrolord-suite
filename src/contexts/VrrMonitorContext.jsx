@@ -12,7 +12,10 @@ import React, { createContext, useContext, useCallback, useEffect, useMemo, useR
 import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
-import { computeVRRSeries, summarizeVRR, sampleVRRData } from '@/utils/vrrCalculations';
+import {
+  computeVRRSeries, summarizeVRR, sampleVRRData,
+  buildFieldPeriods, classifyLedgerWells, computeRollingVRR, flagPeriods,
+} from '@/utils/vrrCalculations';
 
 const TABLE = 'saved_vrr_projects';
 
@@ -37,6 +40,10 @@ export const emptyPeriod = () => ({ label: '', Np: '', Wp: '', Gp: '', Wi: '', G
 export const defaultInputs = () => ({
   fvf: { Bo: '1.25', Bw: '1.02', Bg: '0.9', Rs: '550' },
   periods: [emptyPeriod()],
+  // V2: imported per-well ledger mode + analysis settings.
+  mode: 'manual', // 'manual' (period grid) | 'imported' (per-well CSV ledger)
+  wellRows: [],   // vrrLedger row schema {date, well, oil_stb, ...}
+  settings: { targetBandMin: '1.0', targetBandMax: '1.2', rollingWindow: '3' },
 });
 
 /** Restore inputs from a payload, tolerating missing keys from older rows. */
@@ -49,6 +56,9 @@ export const inputsFromPayload = (payload) => {
     ...raw,
     fvf: { ...base.fvf, ...(raw.fvf || {}) },
     periods: Array.isArray(raw.periods) && raw.periods.length ? raw.periods : base.periods,
+    mode: raw.mode === 'imported' ? 'imported' : 'manual',
+    wellRows: Array.isArray(raw.wellRows) ? raw.wellRows : [],
+    settings: { ...base.settings, ...(raw.settings || {}) },
   };
 };
 
@@ -73,8 +83,29 @@ export const VrrMonitorProvider = ({ children }) => {
   const [hydrated, setHydrated] = useState(false);
 
   // --- Derived analysis (pure functions of inputs) ---
-  const series = useMemo(() => computeVRRSeries(inputs.periods, inputs.fvf), [inputs.periods, inputs.fvf]);
+  // In imported mode the per-well ledger aggregates to monthly field
+  // periods (vrrLedger.buildFieldPeriods); manual mode uses the grid rows
+  // directly. Everything downstream (series, rolling, flags) is shared.
+  const isImported = inputs.mode === 'imported';
+  const effectivePeriods = useMemo(
+    () => (isImported ? buildFieldPeriods(inputs.wellRows) : inputs.periods),
+    [isImported, inputs.wellRows, inputs.periods],
+  );
+  const series = useMemo(() => computeVRRSeries(effectivePeriods, inputs.fvf), [effectivePeriods, inputs.fvf]);
   const summary = useMemo(() => summarizeVRR(series), [series]);
+  const rolling = useMemo(
+    () => computeRollingVRR(series, parseFloat(inputs.settings.rollingWindow) || 3),
+    [series, inputs.settings.rollingWindow],
+  );
+  const targetBand = useMemo(() => ({
+    min: parseFloat(inputs.settings.targetBandMin) || 1.0,
+    max: parseFloat(inputs.settings.targetBandMax) || 1.2,
+  }), [inputs.settings.targetBandMin, inputs.settings.targetBandMax]);
+  const flags = useMemo(() => flagPeriods(series, targetBand), [series, targetBand]);
+  const ledgerWells = useMemo(
+    () => (isImported ? classifyLedgerWells(inputs.wellRows) : { injectors: [], producers: [] }),
+    [isImported, inputs.wellRows],
+  );
 
   // --- Input actions ---
   const setFvfField = useCallback((key, value) => {
@@ -119,6 +150,21 @@ export const VrrMonitorProvider = ({ children }) => {
     setInputs((prev) => ({ ...prev, periods: [emptyPeriod()] }));
     addNotification('Periods cleared', 'info');
   }, [addNotification]);
+
+  // --- V2: imported ledger + settings actions ---
+  const importWellRows = useCallback((rows, sourceName) => {
+    setInputs((prev) => ({ ...prev, mode: 'imported', wellRows: rows }));
+    addNotification(`Loaded ${rows.length.toLocaleString()} well-rows${sourceName ? ` from ${sourceName}` : ''}`, 'success');
+  }, [addNotification]);
+
+  const clearImported = useCallback(() => {
+    setInputs((prev) => ({ ...prev, mode: 'manual', wellRows: [] }));
+    addNotification('Imported data cleared; back to manual entry', 'info');
+  }, [addNotification]);
+
+  const setSettingsField = useCallback((key, value) => {
+    setInputs((prev) => ({ ...prev, settings: { ...prev.settings, [key]: value } }));
+  }, []);
 
   // --- Project lifecycle (useFluidStudioProjects recipe) ---
   const serialize = useCallback((name) => ({
@@ -237,6 +283,12 @@ export const VrrMonitorProvider = ({ children }) => {
     inputs,
     series,
     summary,
+    rolling,
+    flags,
+    targetBand,
+    isImported,
+    ledgerWells,
+    effectivePeriods,
     // input actions
     setFvfField,
     updatePeriodCell,
@@ -245,6 +297,9 @@ export const VrrMonitorProvider = ({ children }) => {
     setPeriods,
     loadSample,
     clearAll,
+    importWellRows,
+    clearImported,
+    setSettingsField,
     // projects
     projects,
     currentProjectId,

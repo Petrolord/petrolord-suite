@@ -14,7 +14,10 @@ import StudioHelp from '@/components/studio/StudioHelp';
 import StudioProjectManager from '@/components/studio/StudioProjectManager';
 import { VrrMonitorProvider, useVrrMonitor } from '@/contexts/VrrMonitorContext';
 import FvfPanel from '@/components/vrrmonitor/FvfPanel';
+import AnalysisSettingsPanel from '@/components/vrrmonitor/AnalysisSettingsPanel';
+import ImportPanel from '@/components/vrrmonitor/ImportPanel';
 import PeriodGridPanel from '@/components/vrrmonitor/PeriodGridPanel';
+import LedgerSummaryPanel from '@/components/vrrmonitor/LedgerSummaryPanel';
 import VrrChartsPanel from '@/components/vrrmonitor/VrrChartsPanel';
 import VrrKpiPanel from '@/components/vrrmonitor/VrrKpiPanel';
 import VrrHelpContent from '@/components/reservoir/VrrHelpGuide';
@@ -38,7 +41,7 @@ const VrrMonitorContent = () => {
   const {
     projects, currentProjectId, createProject, openProject, deleteProject,
     manualSave, isSaving, saveError, lastSaveTime,
-    notifications, removeNotification,
+    notifications, removeNotification, isImported,
   } = useVrrMonitor();
 
   const leftPanel = (
@@ -57,6 +60,10 @@ const VrrMonitorContent = () => {
         <SectionLabel>Fluid Properties (Reservoir)</SectionLabel>
         <FvfPanel />
       </section>
+      <section>
+        <SectionLabel>Analysis Settings</SectionLabel>
+        <AnalysisSettingsPanel />
+      </section>
     </div>
   );
 
@@ -71,8 +78,18 @@ const VrrMonitorContent = () => {
 
   const main = (
     <div className="h-full overflow-y-auto space-y-4">
-      {activeTab === 'data' && <PeriodGridPanel />}
-      {activeTab === 'dashboard' && <VrrChartsPanel />}
+      {activeTab === 'data' && (
+        <>
+          <ImportPanel />
+          {isImported ? <LedgerSummaryPanel /> : <PeriodGridPanel />}
+        </>
+      )}
+      {activeTab === 'dashboard' && (
+        <>
+          <VrrChartsPanel />
+          {isImported && <LedgerSummaryPanel />}
+        </>
+      )}
     </div>
   );
 

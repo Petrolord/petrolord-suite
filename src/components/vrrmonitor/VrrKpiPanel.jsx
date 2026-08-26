@@ -27,8 +27,11 @@ const Kpi = ({ title, value, unit, accent }) => (
 );
 
 const VrrKpiPanel = () => {
-  const { summary } = useVrrMonitor();
+  const { summary, rolling, flags, targetBand, isImported, ledgerWells } = useVrrMonitor();
   const status = summary?.status ?? classifyVRR(null);
+  const latestRolling = rolling.length ? rolling[rolling.length - 1] : null;
+  const flagged = flags.filter((f) => f != null);
+  const outOfBand = flagged.filter((f) => f !== 'in-band').length;
 
   return (
     <div className="space-y-3">
@@ -41,8 +44,17 @@ const VrrKpiPanel = () => {
       </div>
       <Kpi title="Cumulative VRR" value={fmt(summary?.cumulativeVRR, 2)} accent />
       <Kpi title="Latest Instantaneous VRR" value={fmt(summary?.latestInstantaneousVRR, 2)} />
+      <Kpi title="Latest Rolling VRR" value={fmt(latestRolling, 2)} />
+      <Kpi
+        title={`Vs target band ${targetBand.min.toFixed(2)}–${targetBand.max.toFixed(2)}`}
+        value={flagged.length ? `${outOfBand} / ${flagged.length}` : '—'}
+        unit={flagged.length ? 'periods out' : ''}
+      />
       <Kpi title="Total Produced Voidage" value={fmt(summary?.totalProducedVoidage)} unit="RB" />
       <Kpi title="Total Injected Voidage" value={fmt(summary?.totalInjectedVoidage)} unit="RB" />
+      {isImported && (
+        <Kpi title="Wells" value={`${ledgerWells.producers.length} prod / ${ledgerWells.injectors.length} inj`} />
+      )}
     </div>
   );
 };
