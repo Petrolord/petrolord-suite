@@ -39,6 +39,11 @@
 //      (Drilling D4; cementing_cases.json incl. the self-asserting
 //      vertical fixture)
 //   A19 placement ECD series + API 10D standoff vs the oracle
+//   A20 geomech poroelastic/UCS/rotation closed forms + golden agreement
+//      (Drilling D5; geomech_cases.json incl. the self-asserting vertical
+//      Kirsch fixture)
+//   A21 Kirsch collapse/frac-initiation closed forms + trajectory mud
+//      windows vs the oracle
 // ARMED gates (pending owner literature PDFs):
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
 //   L3 Amoco/API MD-TVD table (the Amoco Directional Survey Handbook,
@@ -55,6 +60,7 @@
 //   L9 ADE worked kick and kill example (owner PDF)
 //   L10 API RP 10B-2/10D worked example (owner PDF)
 //   L11 Nelson & Guillot, Well Cementing worked example (owner PDF)
+//   L12 Zoback, Reservoir Geomechanics worked example (owner PDF)
 
 import fs from 'fs';
 import path from 'path';
@@ -91,6 +97,8 @@ async function main() {
     '../../packages/engines/engines/drilling/wellControl.js');
   const { jobVolumes, simulatePlacement, standoffProfile, requiredSpacing } = await import(
     '../../packages/engines/engines/drilling/cementing.js');
+  const { horizontalStresses, ucsFromDt, wellboreStability, mudWindowAlongWell, frictionalLimitRatio } = await import(
+    '../../packages/engines/engines/drilling/geomech.js');
   const { computeClearance } = await import(
     '../../packages/engines/engines/drilling/antiCollision.js');
 
@@ -538,6 +546,61 @@ async function main() {
     }
   });
 
+  gate('A20', 'geomech poroelastic/UCS/rotation closed forms + golden agreement', () => {
+    const g = goldens('geomech_cases.json');
+    const P = g.params;
+    const prof = g.profile;
+    // Poroelastic algebra exact.
+    const hs1 = horizontalStresses({ svPa: [50e6], ppPa: [20e6], nu: 0.25, frictionAngleDeg: 45 });
+    close(hs1.shminPa[0], (0.25 / 0.75) * 30e6 + 20e6, 1e-6, 'poroelastic Shmin');
+    close(frictionalLimitRatio(30), 3, 1e-12, 'frictional ratio');
+    // UCS formulas exact.
+    const u = ucsFromDt({ dtUsPerM: [300], correlation: 'horsrud' });
+    close(u.ucsPa[0], 0.77 * (1e6 / 300 / 1000) ** 3.2 * 1e6, 1e-9, 'Horsrud');
+    // Golden profile agreement.
+    const hs = horizontalStresses({
+      svPa: prof.svPa, ppPa: prof.ppPa, nu: P.nu, alphaBiot: P.alphaBiot,
+      ePa: P.ePa, epsX: P.epsX, epsY: P.epsY,
+      frictionAngleDeg: P.frictionAngleDeg, regime: P.regime,
+    });
+    for (let i = 0; i < prof.tvdM.length; i += 4) {
+      close(hs.shminPa[i], prof.shminPa[i], 1 + 1e-6 * prof.shminPa[i], `Shmin[${i}]`);
+      close(hs.shmaxPa[i], prof.shmaxPa[i], 1 + 1e-6 * prof.shmaxPa[i], `SHmax[${i}]`);
+    }
+  });
+
+  gate('A21', 'Kirsch collapse/frac-init closed forms + trajectory mud windows', () => {
+    const g = goldens('geomech_cases.json');
+    const fx = g.verticalFixture;
+    const st = wellboreStability(fx.inputs);
+    close(st.collapsePa, fx.expected.closedFormCollapsePa, 500 + 1e-5 * fx.expected.closedFormCollapsePa, 'vertical collapse closed form');
+    close(st.fracInitPa, fx.expected.closedFormFracPa, 500 + 1e-5 * fx.expected.closedFormFracPa, 'vertical frac-init closed form');
+    const P = g.params;
+    const prof = g.profile;
+    for (const c of g.cases) {
+      const res = mudWindowAlongWell({
+        stations: c.stations,
+        profile: {
+          tvdM: prof.tvdM, svPa: prof.svPa, shmaxPa: prof.shmaxPa,
+          shminPa: prof.shminPa, ppPa: prof.ppPa, ucsPa: prof.ucsPa,
+        },
+        params: {
+          shmaxAzimuthDeg: P.shmaxAzimuthDeg, frictionAngleDeg: P.frictionAngleDeg,
+          nu: P.nu, tensileStrengthPa: P.tensileStrengthPa, alphaBiot: P.alphaBiot,
+        },
+        stepMdM: 30,
+      });
+      if (res.rows.length !== c.expected.nRows) throw new Error(`${c.well}: ${res.rows.length} rows vs ${c.expected.nRows}`);
+      for (const cp of c.expected.checkpoints) {
+        const row = res.rows.find((r: any) => Math.abs(r.md - cp.md) < 1e-6);
+        if (!row) throw new Error(`${c.well}: missing checkpoint at ${cp.md}`);
+        close(row.collapseEmwKgM3, cp.collapseEmwKgM3, 1e-3 + 1e-6 * cp.collapseEmwKgM3, `${c.well} collapse@${cp.md}`);
+        close(row.fracInitEmwKgM3, cp.fracInitEmwKgM3, 1e-3 + 1e-6 * cp.fracInitEmwKgM3, `${c.well} frac@${cp.md}`);
+      }
+      close(res.tightest.widthKgM3, c.expected.tightestWidthKgM3, 1e-3 + 1e-6 * Math.abs(c.expected.tightestWidthKgM3), `${c.well} tightest`);
+    }
+  });
+
   const armed = [
     ['L2', 'Mitchell & Miska survey table'],
     ['L3', 'Amoco/API MD-TVD table'],
@@ -549,6 +612,7 @@ async function main() {
     ['L9', 'ADE worked kick and kill example'],
     ['L10', 'API RP 10B-2/10D worked example'],
     ['L11', 'Nelson & Guillot, Well Cementing worked example'],
+    ['L12', 'Zoback, Reservoir Geomechanics worked example'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);

@@ -75,12 +75,6 @@ const GeoscienceHub = () => {
             icon={Box}
             path="/dashboard/apps/geoscience/contour-map-digitizer"
           />
-          <AppCard 
-            title="Mechanical Earth Model"
-            description="Geomechanical modeling and wellbore stability analysis."
-            icon={Layers}
-            path="/dashboard/apps/geoscience/mechanical-earth-model"
-          />
         </div>
 
         <div className="mt-12 p-6 bg-slate-900/50 rounded-xl border border-slate-800">
