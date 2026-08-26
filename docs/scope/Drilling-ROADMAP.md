@@ -179,10 +179,14 @@ Locked to the WDS/G-series precedents:
   (well-planning, casing-tubing-design-pro). MEM tree is left in place
   (tile already archived) and is deleted at D5 when its salvage is
   re-imported.
-- **D1 — Torque & Drag + Drillstring Studio**: engines PR first
-  (soft-string T&D, Johancsik SPE 11380 oracle; buckling checks;
-  casing-wear from computed side forces), then app on the trajectory
-  contract. Supersedes Casing Wear Analyzer.
+- **D1 — Torque & Drag + Drillstring Studio**: **SHIPPED 2026-08-26**
+  (engines PR #37 + Suite waves TD0-TD3; see
+  docs/scope/TorqueDragStudio-STATUS.md). Soft-string T&D with
+  independent-oracle gates A10-A12, buckling flags, crescent-geometry
+  casing wear, `wp_wellbore_geometry` spine (D2/D6 reuse), workstation +
+  harness + e2e. Tile migration 20260826140000 HELD until the prod
+  upload. ARMED: L4 Mitchell & Miska T&D example, L5 SPE 11380 field
+  cases (owner PDFs).
 - **D2 — Drilling Fluids & Hydraulics Studio**: rheology + API RP 13D
   hydraulics/ECD, surge/swab, hole cleaning; shares the D1 geometry
   model.
