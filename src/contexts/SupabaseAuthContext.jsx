@@ -34,7 +34,7 @@ const AuthProviderContent = ({ children }) => {
     'earth-model-studio', 'basinflow-genesis', 'quickvol', 'well-correlation-panel', 
     'crossplot-generator', 'petrophysics-estimator', 'seismic-interpreter', 'automated-log-digitizer',
     'contour-map-digitizer', 'log-facies-analysis', 'velocity-model-builder', 'fluid-systems-studio',
-    'waterflood-dashboard', 'voidage-replacement-monitor', 'fractional-flow-calculator', 'relative-permeability-designer', 'recovery-factor-estimator', 'risked-reserves-valuation', 'eor-screening', 'forecast-scenario-hub', 'aquifer-influx-calculator', 'decline-curve-analysis', 'reservoir-balance',
+    'waterflood-dashboard', 'voidage-replacement-monitor', 'fractional-flow-calculator', 'relative-permeability-designer', 'recovery-factor-estimator', 'risked-reserves-valuation', 'eor-screening', 'forecast-scenario-hub', 'aquifer-influx-calculator', 'decline-curve-analysis', 'reservoir-balance', 'reservoir-simulation-studio',
     'well-planning',
     'casing-tubing-design-pro', 'torque-drag-studio', 'drilling-fluids-hydraulics', 'well-control-studio', 'cementing-studio', 'well-spacing-optimizer',
     'surveillance-dashboard', 'well-test-analyzer', 'wellbore-flow-simulator',
