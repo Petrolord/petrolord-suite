@@ -88,7 +88,11 @@ const DCAWellSelector = () => {
           variant="ghost" 
           size="sm" 
           className="w-full text-red-400 hover:text-red-300 hover:bg-red-900/20 h-6 text-xs"
-          onClick={() => removeWell(currentWellId)}
+          onClick={() => {
+            if (window.confirm('Remove this well and its production data? You can Undo from the notification for a few seconds.')) {
+              removeWell(currentWellId);
+            }
+          }}
         >
           <Trash2 size={12} className="mr-2" /> Remove Well
         </Button>
