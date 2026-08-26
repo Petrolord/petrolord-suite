@@ -56,9 +56,10 @@ industry benchmark, decisions taken).
   tolerates older/partial rows; 42P01 maps to a friendly
   "run the migration" message so the app works before the table exists.
 - Migration `20260828010000_create_saved_vrr_projects.sql` (owner-RLS,
-  idempotent, safe pre-deploy). Rollback-wrapped dry run green 2026-08-28;
-  **live apply pending** (session lacked DB-write permission) — apply +
-  RLS probe, then update MIGRATIONS.md.
+  idempotent, safe pre-deploy). Rollback-wrapped dry run green, then
+  APPLIED LIVE 2026-08-28 (owner-authorized; post-apply probe: table
+  present and queryable; RLS + policy DDL ran clean). MIGRATIONS.md row
+  updated.
 - The planned `get_all_my_projects` UNION arm was dropped from V1:
   `src/database/functions/get_all_my_projects.sql` is explicitly flagged
   "ASPIRATIONAL MIRROR, NOT LIVE" (no such function exists in production;
