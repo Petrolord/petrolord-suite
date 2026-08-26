@@ -220,9 +220,17 @@ Locked to the WDS/G-series precedents:
   definitive trajectory, gm-1.0.0 publish (SHMIN/SHMAX/UCS). Legacy MEM
   tree (112 files) DELETED; alias routes redirect. Gates A20-A21 ACTIVE
   (21/21 total); L12 ARMED. Tile 20260827060000 HELD.
-- **D6 — Casing & Tubing Design Studio upgrade**: validate/replace the
-  simplified pressure math (API TR 5C3), migrate off legacy
-  `public.wells` to the registries, add persistence + tests.
+- **D6 — Casing & Tubing Design Studio upgrade**: **SHIPPED 2026-08-27**
+  (engines PRs #43/#45 + Suite waves U0-U3; see
+  docs/scope/CasingTubingStudio-STATUS.md). CTDP upgraded in place: API
+  5C3 four-regime collapse with axial derate + Barlow burst + Lamé/VME
+  triaxial, canonical load-case profiles evaluated at the governing
+  depth, real API 5CT catalog with engine-computed ratings, Lubinski
+  tubing-packer force system with buckling + PBR stroke checks, wp_ct_*
+  persistence. The LAST legacy `public.wells` consumer in the module is
+  gone (only the WDS legacyImport bridge remains, by design). Gates
+  A22-A23 ACTIVE (23/23 total); L13 ARMED. Tile update 20260827100000
+  HELD.
 - **D7 — Completion Design Studio**: string architect + schematic + BOM
   (absorbs Well Schematic Designer and CTDP completion components).
 - **D8 — Perforation & Sand Control Designer.**
