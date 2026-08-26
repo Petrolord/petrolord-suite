@@ -13,7 +13,9 @@ import { Field, SectionLabel } from './primitives';
 const FLUID_FIELDS = [
   { k: 'bo', label: 'Bo (rb/stb)' },
   { k: 'bw', label: 'Bw (rb/stb)' },
-  { k: 'bg', label: 'Bg (rb/scf)' },
+  // RB/Mscf, not rb/scf: the VRR core (engines/waterflood/vrr.js) takes
+  // Gp in Mscf and Bg in RB/Mscf.
+  { k: 'bg', label: 'Bg (rb/Mscf)' },
   { k: 'rs', label: 'Rs (scf/stb)' },
 ];
 const WINDOW_FIELDS = [
