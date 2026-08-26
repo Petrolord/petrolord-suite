@@ -199,8 +199,12 @@ Locked to the WDS/G-series precedents:
   apps are ready. EVERY D-phase tile migration is HELD and they all
   apply together at the one launch upload (currently held:
   20260826140000 D1, 20260826190000 D2).**
-- **D3 — Well Control Studio**: kick tolerance, kill sheets, MAASP;
-  IWCF-style worked examples as gates.
+- **D3 — Well Control Studio**: **SHIPPED 2026-08-26** (engines PR #39 +
+  Suite waves W0-W3; see docs/scope/WellControlStudio-STATUS.md).
+  Volumes/strokes, IWCF-convention kill sheets (W&W + driller's, kill
+  sheet PDF), MAASP, single-bubble kick tolerance; exact
+  minimum-curvature TVDs. Gates A16-A17 ACTIVE (17/17 total); L8/L9
+  ARMED. Tile migration 20260826230000 HELD (single-upload gate).
 - **D4 — Cementing Studio**: keeps the real volume math, replaces all
   random placement outputs with a real placement/free-fall/ECD model +
   API 10D standoff.

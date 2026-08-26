@@ -114,7 +114,7 @@ Target portfolio: 12 apps (docs/scope/Drilling-ROADMAP.md, owner-approved
 2026-08-26). The D0 honest-catalog pass archived the legacy mock tiles;
 apps below ship phase by phase (D1-D11) and seed their tiles at ship time.
 
-### ✅ Complete Applications (4)
+### ✅ Complete Applications (5)
 *   **Well Design Studio**
     *   *Description:* Compass-class well design: validated minimum-curvature planning, ISCWSA error models, anti-collision, survey management, wall-plot reports.
     *   *Key Features:* Trajectory Design, Anti-Collision (ladder/traveling cylinder), Survey Programs, WMM2025 Magnetics, PPFG Mud Window, 3D Viewer, Report Pack.
@@ -130,9 +130,12 @@ apps below ship phase by phase (D1-D11) and seed their tiles at ship time.
     *   *Description:* Mud rheology, circulating pressure losses, ECD, surge and swab, and hole cleaning on planned trajectories.
     *   *Key Features:* Fann fits (Bingham/PL/Herschel-Bulkley), RP 13D loss chain (oracle-validated), bit hydraulics, ECD vs TVD with PP/FP overlay, Burkhardt surge/swab with safe trip speed, transport-ratio screening, immutable run history.
     *   *Status:* Tile held for the single 12-app launch upload (migration 20260826190000).
+*   **Well Control Studio** (D3, shipped 2026-08-26)
+    *   *Description:* Kill sheets, kick tolerance and MAASP on planned wells with volumes, strokes and a printable kill sheet.
+    *   *Key Features:* IWCF-convention kill sheet (oracle-validated), wait and weight and driller's method schedules, influx characterization, single-bubble kick tolerance with mud-weight sweep, kill sheet PDF, immutable run history.
+    *   *Status:* Tile held for the single 12-app launch upload (migration 20260826230000).
 
-### 🚧 Planned (Drilling-ROADMAP.md phases D3-D11)
-*   **Well Control Studio** (D3) — kick tolerance, kill sheets, MAASP.
+### 🚧 Planned (Drilling-ROADMAP.md phases D4-D11)
 *   **Cementing Studio** (D4) — volumes, placement, free-fall, centralization, ECD.
 *   **Geomechanics & Wellbore Stability Studio** (D5) — 1D MEM rebuild, breakout/mud-weight window.
 *   **Completion Design Studio** (D7) — string architecture, schematic, BOM.
