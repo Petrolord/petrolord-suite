@@ -10,7 +10,6 @@ import { LoadProfileChart, TubingForcesChart } from '../charts/CtCharts';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ShieldAlert, ExternalLink, Wind } from 'lucide-react';
 import TubingVisualizer from '../tubing/TubingVisualizer';
-import CompletionComponentsList from '../tubing/CompletionComponentsList';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -55,7 +54,13 @@ const TubingDesignTab = () => {
             <TubingStringList selectedId={selectedStringId} onSelect={setSelectedStringId} />
             <div className="space-y-4">
               <TubingSectionsTable stringId={selectedStringId} />
-              <CompletionComponentsList stringId={selectedStringId} />
+              {/* D7: completion component architecture moved to Completion Design Studio */}
+              <div className="rounded-md border border-slate-800 bg-slate-900/50 p-2 text-[11px] text-slate-400">
+                Completion string architecture (jewelry, clearances, BOM) lives in{' '}
+                <Link to="/dashboard/apps/drilling/completion-design-studio" className="text-cyan-400 hover:underline">
+                  Completion Design Studio
+                </Link>. The packer that drives the force analysis stays on the packer panel here.
+              </div>
             </div>
           </div>
         </div>

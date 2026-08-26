@@ -65,7 +65,6 @@ const CompressorPumpPack = lazy(() => import('@/pages/apps/CompressorPumpPack'))
 const HeatExchangerSizer = lazy(() => import('@/pages/apps/HeatExchangerSizer'));
 const GasTreatingDehydration = lazy(() => import('@/pages/apps/GasTreatingDehydration'));
 const CorrosionRatePredictor = lazy(() => import('@/pages/apps/CorrosionRatePredictor'));
-const WellSchematicDesigner = lazy(() => import('@/pages/apps/WellSchematicDesigner'));
 const AfeCostControlManager = lazy(() => import('@/pages/apps/AfeCostControlManager'));
 const CapitalPortfolioStudio = lazy(() => import('@/pages/apps/CapitalPortfolioStudio'));
 const FiscalRegimeDesigner = lazy(() => import('@/pages/apps/FiscalRegimeDesigner'));
@@ -130,6 +129,9 @@ const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 const CasingTubingHelpGuide = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingHelpGuide'));
 const CasingTubingHarness = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingHarness'));
+const CompletionDesignStudio = lazy(() => import('@/pages/apps/CompletionDesignStudio/CompletionDesignStudio'));
+const CompletionDesignHelpGuide = lazy(() => import('@/pages/apps/CompletionDesignStudio/CompletionDesignHelpGuide'));
+const CompletionDesignHarness = lazy(() => import('@/pages/apps/CompletionDesignStudio/CompletionDesignHarness'));
 
 // Facilities newly added ones
 const PipelineDesigner = lazy(() => import('@/pages/apps/PipelineDesigner.jsx'));
@@ -511,6 +513,8 @@ function App() {
                                 <Route path="apps/drilling/well-planning/:wellId" element={<ProtectedAppRoute appId="well-planning" appName="Well Design Studio"><WellPlanning /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/casing-tubing-design-pro" element={<ProtectedAppRoute appId="casing-tubing-design-pro" appName="Casing & Tubing Design Studio"><CasingTubingDesignPro /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/casing-tubing-design-pro/help" element={<ProtectedAppRoute appId="casing-tubing-design-pro" appName="Casing & Tubing Design Studio"><CasingTubingHelpGuide /></ProtectedAppRoute>} />
+                                <Route path="apps/drilling/completion-design-studio" element={<ProtectedAppRoute appId="completion-design-studio" appName="Completion Design Studio"><CompletionDesignStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/drilling/completion-design-studio/help" element={<ProtectedAppRoute appId="completion-design-studio" appName="Completion Design Studio"><CompletionDesignHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/geomechanics-studio" element={<ProtectedAppRoute appId="geomechanics-studio" appName="Geomechanics & Wellbore Stability Studio"><GeomechanicsStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/geomechanics-studio/help" element={<ProtectedAppRoute appId="geomechanics-studio" appName="Geomechanics & Wellbore Stability Studio"><GeomechanicsHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/cementing-studio" element={<ProtectedAppRoute appId="cementing-studio" appName="Cementing Studio"><CementingStudio /></ProtectedAppRoute>} />
@@ -548,7 +552,8 @@ function App() {
                                 <Route path="apps/production/artificial-lift-designer" element={<ArtificialLiftDesigner />} />
                                 <Route path="apps/production/flow-assurance-monitor" element={<FlowAssuranceMonitor />} />
                                 <Route path="apps/production/integrated-asset-modeler" element={<Navigate to="/dashboard/apps/production/nodal-analysis-studio" replace />} />
-                                <Route path="apps/production/well-schematic-designer" element={<WellSchematicDesigner />} />
+                                {/* D7: Well Schematic Designer absorbed by Completion Design Studio (Drilling-ROADMAP.md §2) */}
+                                <Route path="apps/production/well-schematic-designer" element={<Navigate to="/dashboard/apps/drilling/completion-design-studio" replace />} />
                                 <Route path="apps/production/network-diagram-pro" element={<NetworkDiagramPro />} />
 
                                 <Route path="apps/economics/project-management-pro" element={<ProjectManagementPro />} />
@@ -712,6 +717,7 @@ function App() {
                                   <Route path="/dev/cementing" element={<CementingHarness />} />
                                   <Route path="/dev/geomechanics" element={<GeomechanicsHarness />} />
                                   <Route path="/dev/casing-tubing" element={<CasingTubingHarness />} />
+                                  <Route path="/dev/completion-design" element={<CompletionDesignHarness />} />
                                   <Route path="/dev/dca" element={<DeclineCurveAnalysis />} />
                                   <Route path="/dev/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
                                   <Route path="/dev/nodal-analysis-studio" element={<NodalAnalysisStudio />} />

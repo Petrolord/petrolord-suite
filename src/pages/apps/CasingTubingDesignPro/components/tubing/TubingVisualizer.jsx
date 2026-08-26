@@ -1,8 +1,10 @@
 import React from 'react';
 import { depthDisp, depthLabel } from '../../services/ctRun';
 
-// Schematic of the tubing string with the packer (from the case doc) and
-// any schematic completion components. MD metres in, display unit out.
+// Schematic of the tubing string with the packer (from the case doc).
+// MD metres in, display unit out. Completion jewelry is drawn by
+// Completion Design Studio (D7); legacy `components` markers on saved
+// cases are tolerated on load and ignored here.
 const TubingVisualizer = ({ activeString, packer, depthUnit = 'm' }) => {
   if (!activeString || !activeString.sections || activeString.sections.length === 0) {
     return (
@@ -13,13 +15,11 @@ const TubingVisualizer = ({ activeString, packer, depthUnit = 'm' }) => {
   }
 
   const sections = activeString.sections;
-  const components = activeString.components || [];
   const unit = depthLabel(depthUnit);
 
   const maxDepth = Math.max(
     ...sections.map((s) => s.bottomMdM),
     packer?.hasPacker ? packer.depthMdM : 0,
-    ...(components.length ? components.map((c) => c.depthMdM || 0) : [0]),
   ) * 1.1;
 
   const width = 200;
@@ -73,23 +73,6 @@ const TubingVisualizer = ({ activeString, packer, depthUnit = 'm' }) => {
             </g>
           );
         })()}
-
-        {components.map((comp) => {
-          const depthY = scaleY(comp.depthMdM || 0);
-          const cx = width / 2;
-          let shape;
-          if ((comp.type || '').includes('Valve')) {
-            shape = <circle cx={cx} cy={depthY} r="6" fill="#f97316" stroke="white" strokeWidth="0.5" />;
-          } else {
-            shape = <rect x={cx - 12} y={depthY - 3} width="24" height="6" fill="#eab308" stroke="white" strokeWidth="0.5" />;
-          }
-          return (
-            <g key={comp.id} className="group cursor-pointer">
-              {shape}
-              <title>{comp.type} @ {Math.round(depthDisp(comp.depthMdM || 0, depthUnit))}{unit}</title>
-            </g>
-          );
-        })}
 
         <text x="5" y="15" fill="#64748b" fontSize="8" fontFamily="monospace">0{unit}</text>
         <text x="5" y={height - 5} fill="#64748b" fontSize="8" fontFamily="monospace">

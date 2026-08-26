@@ -49,6 +49,10 @@
 //      catalog golden agreement (Drilling D6; tubular_cases.json)
 //   A23 canonical load-case profiles + governing-depth string evaluation
 //      + Lubinski tubing-packer forces vs the oracle
+//   A24 API 5CT drift closed forms + completion stack-up + volumes vs the
+//      oracle (Drilling D7; completion_cases.json)
+//   A25 run-in clearance / through-bore governing logic + seal space-out
+//      statuses vs the oracle
 // ARMED gates (pending owner literature PDFs):
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
 //   L3 Amoco/API MD-TVD table (the Amoco Directional Survey Handbook,
@@ -115,6 +119,10 @@ async function main() {
   } = await import('../../packages/engines/engines/drilling/tubularDesign.js');
   const { CASING_CATALOG, TUBING_CATALOG, casingGradeYieldPa } = await import(
     '../../packages/engines/engines/drilling/data/tubulars.js');
+  const {
+    apiDriftM, buildStack, casingProgramProfile, governingDriftTo,
+    runInClearance, throughBoreProfile, completionVolumes, sealSpaceOut,
+  } = await import('../../packages/engines/engines/drilling/completionDesign.js');
 
   let failures = 0;
   const gate = (id: string, name: string, fn: () => void) => {
@@ -713,6 +721,73 @@ async function main() {
     void KSI;
   });
 
+  gate('A24', 'API 5CT drift closed forms + completion stack-up + volumes vs oracle', () => {
+    const g = goldens('completion_cases.json');
+    const IN = 0.0254;
+    // Published drift table (exact inch-fraction deductions).
+    for (const r of g.driftTable) {
+      const d = apiDriftM({ odM: r.odIn * IN, idM: r.idIn * IN, kind: r.kind });
+      close(d / IN, r.driftIn, 1e-9 + 1e-9 * r.driftIn, `drift ${r.odIn}" ${r.kind}`);
+    }
+    // Hand spot value: 9-5/8 47# drift 8.525" (published table rounding).
+    close(apiDriftM({ odM: 9.625 * IN, idM: 8.681 * IN, kind: 'casing' }) / IN, 8.525, 5e-4, 'drift 9-5/8 47');
+    // Stack-up telescoping + golden rows.
+    const stack = buildStack({ hangerMdM: g.stack.hangerMdM, components: g.stack.components });
+    close(stack.bottomMdM, g.results.bottomMdM, 1e-9, 'stack bottom');
+    g.results.stackRows.forEach((r: any, i: number) => {
+      close(stack.components[i].topMdM, r.topMdM, 1e-9 + 1e-12, `stack top ${i}`);
+      close(stack.components[i].bottomMdM, r.bottomMdM, 1e-9 + 1e-12, `stack bottom ${i}`);
+    });
+    // Exposed program profile (liner overlap) + volumes vs the oracle's
+    // independent 1 cm slicing.
+    const profile = casingProgramProfile(g.program.strings);
+    if (profile.length !== g.results.profile.length) throw new Error('profile segment count');
+    profile.forEach((seg: any, i: number) => {
+      close(seg.idM, g.results.profile[i].idM, 1e-9, `profile id ${i}`);
+      close(seg.driftM, g.results.profile[i].driftM, 1e-9, `profile drift ${i}`);
+    });
+    const vols = completionVolumes({ stack, profile, packerMdM: g.packerMdM, tdMdM: g.tdMdM });
+    close(vols.stringCapacityM3, g.results.volumes.stringCapacityM3, 1e-6 * g.results.volumes.stringCapacityM3, 'string capacity');
+    close(vols.annulusAbovePackerM3, g.results.volumes.annulusAbovePackerM3, 1e-5 * g.results.volumes.annulusAbovePackerM3, 'annulus above packer');
+    close(vols.belowPackerM3, g.results.volumes.belowPackerM3, 1e-5 * g.results.volumes.belowPackerM3, 'below packer');
+    // Field capacity identity: 2-7/8 6.5# = ID^2/1029.4 bbl/ft.
+    const capM3PerM = (Math.PI / 4) * (2.441 * IN) ** 2;
+    close((capM3PerM / 0.158987294928) * 0.3048, (2.441 ** 2) / 1029.4, 5e-5 * 0.0058, 'capacity identity');
+  });
+
+  gate('A25', 'run-in clearance / through-bore governing logic + space-out vs oracle', () => {
+    const g = goldens('completion_cases.json');
+    const stack = buildStack({ hangerMdM: g.stack.hangerMdM, components: g.stack.components });
+    const profile = casingProgramProfile(g.program.strings);
+    // Governing drift monotone + gap-aware.
+    const d1 = governingDriftTo(profile, 1000);
+    const d3 = governingDriftTo(profile, 3000);
+    if (!(d1.driftM > d3.driftM)) throw new Error('governing drift not decreasing');
+    const cl = runInClearance({ stack, profile, warnMarginM: g.warnMarginM });
+    cl.rows.forEach((r: any, i: number) => {
+      const e = g.results.clearance[i];
+      close(r.clearanceM, e.clearanceM, 1e-9 + 1e-6 * Math.abs(e.clearanceM), `clearance ${i}`);
+      if (r.status !== e.status) throw new Error(`clearance status ${i}: ${r.status} vs ${e.status}`);
+      if (r.controlling !== e.controlling) throw new Error(`controlling ${i}: ${r.controlling} vs ${e.controlling}`);
+    });
+    const tb = throughBoreProfile(stack);
+    close(tb.minIdM, g.results.throughBore.minIdM, 1e-9, 'through-bore min');
+    if (tb.controlling !== g.results.throughBore.controlling) {
+      throw new Error(`through-bore controlling: ${tb.controlling}`);
+    }
+    tb.rows.forEach((r: any, i: number) => {
+      close(r.cumMinIdM, g.results.throughBore.rows[i].cumMinIdM, 1e-9, `cum min id ${i}`);
+    });
+    for (const c of g.results.spaceOut) {
+      const r = sealSpaceOut({
+        pbrLengthM: c.pbrLengthM, insertLengthM: c.insertLengthM,
+        expectedDLM: c.expectedDLM, marginM: c.marginM,
+      });
+      close(r.remainingM, c.result.remainingM, 1e-12 + 1e-9, `space-out ${c.name}`);
+      if (r.status !== c.result.status) throw new Error(`space-out status ${c.name}: ${r.status}`);
+    }
+  });
+
   const armed = [
     ['L2', 'Mitchell & Miska survey table'],
     ['L3', 'Amoco/API MD-TVD table'],
@@ -726,6 +801,7 @@ async function main() {
     ['L11', 'Nelson & Guillot, Well Cementing worked example'],
     ['L12', 'Zoback, Reservoir Geomechanics worked example'],
     ['L13', 'API 5C3 / vendor data book published ratings table'],
+    ['L14', 'vendor completion equipment catalog dimensions'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
