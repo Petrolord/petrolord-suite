@@ -18,7 +18,7 @@ import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
  *
  * `height` is the plot height in px (ResponsiveContainer needs a fixed height
  * because the parent's height is content-driven). The logo sits in a reserved
- * band below that (logoHeight + 20px, 116px at the default), clear of the axis
+ * band below that (logoHeight + 20px, 60px at the default), clear of the axis
  * labels. Optional `logoHeight` shrinks or grows the watermark and its band;
  * apps whose layouts crowd the default mark pass a smaller value.
  *
@@ -27,7 +27,10 @@ import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
  * watermark) as a PNG named `<exportFilename>.png`, via the shared
  * exportChartAsImage helper (html2canvas) the DCA and MBAL plots use.
  */
-const DEFAULT_LOGO_HEIGHT = 96; // px; the reserved band below the plot scales with it
+// px; the reserved band below the plot scales with it. 40px is the suite
+// standard watermark size (2026-08-26 owner directive rolling back the
+// 2.5x enlargement of 2026-08-16, which read as oversized).
+const DEFAULT_LOGO_HEIGHT = 40;
 
 const ChartFrame = ({ height = 260, className = '', exportFilename = null, logoHeight = DEFAULT_LOGO_HEIGHT, children }) => {
   const frameId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
