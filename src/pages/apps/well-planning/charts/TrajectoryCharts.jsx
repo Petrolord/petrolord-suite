@@ -59,6 +59,26 @@ export const PlanViewPanel = ({ rows, targets = [], unit }) => (
   </Panel>
 );
 
+/** Compass-style VS axis: pad both sides of the data so the axis
+ *  carries negative and positive section, and a vertical hold from
+ *  surface (VS ~ 0) sits mid-plot instead of hugging the TVD axis.
+ *  The pad floor scales with the TVD span so vertical wells get a
+ *  sensible width in either depth unit. */
+const vsDomain = (rows, overlays, targets) => {
+  const vs = [
+    ...rows.map((r) => r.vs),
+    ...overlays.flatMap((o) => (o.rows || []).map((r) => r.vs)),
+    ...targets.map((t) => t.vs),
+  ].filter(Number.isFinite);
+  if (!vs.length) return ['auto', 'auto'];
+  const min = Math.min(...vs);
+  const max = Math.max(...vs);
+  const tvd = rows.map((r) => r.tvd).filter(Number.isFinite);
+  const tvdSpan = tvd.length ? Math.max(...tvd) - Math.min(...tvd) : 0;
+  const pad = Math.max((max - min) * 0.1, tvdSpan * 0.05, 1);
+  return [Math.floor(min - pad), Math.ceil(max + pad)];
+};
+
 /** Section view: TVD (down) vs vertical section. Overlays (WD3
  *  plan-vs-actual) are extra series with their own rows in the same
  *  VS/TVD frame: [{name, rows, color, dash}]. Targets are
@@ -69,6 +89,8 @@ export const SectionViewPanel = ({ rows, unit, vsAzimuthDeg, overlays = [], targ
       <LineChart data={rows} margin={CHART_MARGINS.compact}>
         <CartesianGrid {...GRID_STYLE} />
         <XAxis dataKey="vs" type="number" {...axisProps}
+          domain={vsDomain(rows, overlays, targets)}
+          allowDataOverflow={false}
           tickFormatter={(v) => v.toFixed(0)}
           label={{ value: `Vertical section (${unit})`, position: 'insideBottom', offset: -2, fill: CHART_COLORS.axisLabel, fontSize: 10 }} />
         <YAxis dataKey="tvd" type="number" reversed {...axisProps}

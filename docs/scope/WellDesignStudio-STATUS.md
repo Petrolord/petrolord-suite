@@ -341,6 +341,12 @@ Casing/Costing tabs remain launcher mocks (reviewed in WD5/WD6),
   own azimuth, TVD below KB = tvdss_m + kb_elev_m) and drawn as
   labelled ReferenceDots (ifOverflow extendDomain), and the Plots-mode
   plan view honors the same toggle.
+- Compass-style VS axis: the section view's X domain is padded both
+  sides of the data (10% of VS span, floored at 5% of TVD span), so
+  the axis carries negative and positive section and a vertical hold
+  from surface sits mid-plot instead of hugging the TVD axis. Applies
+  to every SectionViewPanel (dedicated Section view, Plots grid,
+  Surveys tab, harness).
 
 ## Launch state
 
