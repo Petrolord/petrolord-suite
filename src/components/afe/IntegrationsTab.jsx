@@ -84,7 +84,7 @@ const IntegrationsTab = ({ afe }) => {
                         description="Monitors narrow drilling windows. Triggers contingency for stuck pipe."
                     />
                     <IntegrationCard 
-                        title="Mechanical Earth Model (MEM)" 
+                        title="Geomechanics Studio (MEM)" 
                         status="Inactive" 
                         lastSync="2 days ago" 
                         icon={Activity} 

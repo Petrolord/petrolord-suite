@@ -116,6 +116,9 @@ const WellControlHarness = lazy(() => import('@/pages/apps/WellControlStudio/Wel
 const CementingStudio = lazy(() => import('@/pages/apps/CementingStudio/CementingStudio'));
 const CementingHelpGuide = lazy(() => import('@/pages/apps/CementingStudio/CementingHelpGuide'));
 const CementingHarness = lazy(() => import('@/pages/apps/CementingStudio/CementingHarness'));
+const GeomechanicsStudio = lazy(() => import('@/pages/apps/GeomechanicsStudio/GeomechanicsStudio'));
+const GeomechanicsHelpGuide = lazy(() => import('@/pages/apps/GeomechanicsStudio/GeomechanicsHelpGuide'));
+const GeomechanicsHarness = lazy(() => import('@/pages/apps/GeomechanicsStudio/GeomechanicsHarness'));
 const WellDesignHelpGuide = lazy(() => import('@/pages/apps/well-planning/WellDesignHelpGuide'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
@@ -123,9 +126,6 @@ const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/Producti
 const WellTestAnalysisStudio = lazy(() => import('@/pages/apps/WellTestAnalysisStudio'));
 const NodalAnalysisStudio = lazy(() => import('@/pages/apps/NodalAnalysisStudio'));
 const FlowAssuranceMonitor = lazy(() => import('@/pages/apps/FlowAssuranceMonitor'));
-const MechanicalEarthModel = lazy(() => import('@/pages/apps/MechanicalEarthModel/MechanicalEarthModel'));
-const ExpertMode = lazy(() => import('@/pages/apps/MechanicalEarthModel/ExpertMode'));
-const Analytics = lazy(() => import('@/pages/apps/MechanicalEarthModel/Analytics'));
 const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 
@@ -462,16 +462,13 @@ function App() {
                                 <Route path="apps/geoscience/seismolord" element={<ProtectedAppRoute appId="seismolord" appName="Seismolord"><Seismolord /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/well-data-manager" element={<ProtectedAppRoute appId="well-data-manager" appName="Well Data Manager"><WellDataManager /></ProtectedAppRoute>} />
 
-                                {/* MEM Aliases ensuring all database slugs route properly without hitting catch-all */}
-                                <Route path="apps/geoscience/mechanical-earth-model" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
-                                <Route path="apps/mechanical-earth-model" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/1d-mechanical-earth-model" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
-                                <Route path="apps/1d-mechanical-earth-model" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/mem" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/geomechanics" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><MechanicalEarthModel /></ProtectedAppRoute>} />
-                                
-                                <Route path="apps/geoscience/mechanical-earth-model/expert" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><ExpertMode /></ProtectedAppRoute>} />
-                                <Route path="apps/geoscience/mechanical-earth-model/analytics" element={<ProtectedAppRoute appId="1d-mechanical-earth-model" appName="1D Mechanical Earth Model"><Analytics /></ProtectedAppRoute>} />
+                                {/* Legacy MEM aliases — the 1D MEM rebuilt under Drilling at D5 (Drilling-ROADMAP.md); the legacy tree is deleted */}
+                                <Route path="apps/geoscience/mechanical-earth-model" element={<Navigate to="/dashboard/apps/drilling/geomechanics-studio" replace />} />
+                                <Route path="apps/mechanical-earth-model" element={<Navigate to="/dashboard/apps/drilling/geomechanics-studio" replace />} />
+                                <Route path="apps/geoscience/1d-mechanical-earth-model" element={<Navigate to="/dashboard/apps/drilling/geomechanics-studio" replace />} />
+                                <Route path="apps/1d-mechanical-earth-model" element={<Navigate to="/dashboard/apps/drilling/geomechanics-studio" replace />} />
+                                <Route path="apps/geoscience/mem" element={<Navigate to="/dashboard/apps/drilling/geomechanics-studio" replace />} />
+                                <Route path="apps/geoscience/geomechanics" element={<Navigate to="/dashboard/apps/drilling/geomechanics-studio" replace />} />
                                 
                                 <Route path="apps/reservoir/fluid-systems-studio" element={<FluidSystemsStudio />} />
                                 {/* W6: surveillance absorbed into the Waterflood Design Studio */}
@@ -511,6 +508,8 @@ function App() {
                                 <Route path="apps/drilling/well-planning/help" element={<ProtectedAppRoute appId="well-planning" appName="Well Design Studio"><WellDesignHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/well-planning/:wellId" element={<ProtectedAppRoute appId="well-planning" appName="Well Design Studio"><WellPlanning /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/casing-tubing-design-pro" element={<ProtectedAppRoute appId="casing-tubing-design-pro" appName="Casing & Tubing Design Pro"><CasingTubingDesignPro /></ProtectedAppRoute>} />
+                                <Route path="apps/drilling/geomechanics-studio" element={<ProtectedAppRoute appId="geomechanics-studio" appName="Geomechanics & Wellbore Stability Studio"><GeomechanicsStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/drilling/geomechanics-studio/help" element={<ProtectedAppRoute appId="geomechanics-studio" appName="Geomechanics & Wellbore Stability Studio"><GeomechanicsHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/cementing-studio" element={<ProtectedAppRoute appId="cementing-studio" appName="Cementing Studio"><CementingStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/cementing-studio/help" element={<ProtectedAppRoute appId="cementing-studio" appName="Cementing Studio"><CementingHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/well-control-studio" element={<ProtectedAppRoute appId="well-control-studio" appName="Well Control Studio"><WellControlStudio /></ProtectedAppRoute>} />
@@ -708,6 +707,7 @@ function App() {
                                   <Route path="/dev/hydraulics" element={<HydraulicsHarness />} />
                                   <Route path="/dev/well-control" element={<WellControlHarness />} />
                                   <Route path="/dev/cementing" element={<CementingHarness />} />
+                                  <Route path="/dev/geomechanics" element={<GeomechanicsHarness />} />
                                   <Route path="/dev/dca" element={<DeclineCurveAnalysis />} />
                                   <Route path="/dev/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
                                   <Route path="/dev/nodal-analysis-studio" element={<NodalAnalysisStudio />} />

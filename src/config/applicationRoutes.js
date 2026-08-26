@@ -14,9 +14,9 @@ export const applicationRoutes = [
     fullscreen: true
   },
   {
-    id: 'mechanical-earth-model',
-    path: '/dashboard/apps/geoscience/mechanical-earth-model',
-    name: 'Mechanical Earth Model',
+    id: 'geomechanics-studio',
+    path: '/dashboard/apps/drilling/geomechanics-studio',
+    name: 'Geomechanics & Wellbore Stability Studio',
     hideSidebar: true,
     fullscreen: true
   },

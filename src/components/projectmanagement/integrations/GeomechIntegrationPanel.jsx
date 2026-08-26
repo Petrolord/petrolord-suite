@@ -56,7 +56,7 @@ const GeomechIntegrationPanel = ({ project, onRefresh }) => {
                         1D Geomechanics
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                        Sync Mechanical Earth Models (MEM) and drilling windows.
+                        Sync geomechanical models (MEM) and drilling windows.
                     </CardDescription>
                 </div>
                 <Badge variant="outline" className="bg-green-900/20 text-green-400 border-green-800 flex items-center gap-1">
