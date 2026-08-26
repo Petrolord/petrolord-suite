@@ -46,8 +46,6 @@ const SuperAdminConsole = lazy(() => import('@/pages/SuperAdminConsole'));
 // unrendered, mostly-mocked duplicate). Existing links/bookmarks keep working.
 const ReservoirCalcPro = lazy(() => import('@/pages/apps/ReservoirCalcPro/ReservoirCalcPro'));
 const WellSpacingOptimizer = lazy(() => import('@/pages/apps/WellSpacingOptimizer'));
-const WellboreStabilityAnalyzer = lazy(() => import('@/pages/apps/WellboreStabilityAnalyzer'));
-const OffsetWellIncidentFinder = lazy(() => import('@/pages/apps/OffsetWellIncidentFinder'));
 const NpvScenarioBuilder = lazy(() => import('@/pages/apps/NpvScenarioBuilder'));
 const DecisionTreeBuilder = lazy(() => import('@/pages/apps/DecisionTreeBuilder'));
 const DecisionStudio = lazy(() => import('@/pages/apps/DecisionStudio'));
@@ -84,12 +82,7 @@ const NetworkDiagramPro = lazy(() => import('@/pages/apps/NetworkDiagramPro'));
 const ReservoirBalance = lazy(() => import('@/pages/apps/reservoir-balance/ReservoirBalance'));
 const ArtificialLiftDesigner = lazy(() => import('@/pages/apps/ArtificialLiftDesigner'));
 const WellboreFlowSimulator = lazy(() => import('@/pages/apps/WellboreFlowSimulator'));
-const TorqueDragPredictor = lazy(() => import('@/pages/apps/TorqueDragPredictor'));
-const CementingSimulationApp = lazy(() => import('@/pages/apps/CementingSimulationApp'));
-const FracCompletionApp = lazy(() => import('@/pages/apps/FracCompletionApp'));
-const RtoDashboard = lazy(() => import('@/pages/apps/RtoDashboard'));
 const PorePressureStudio = lazy(() => import('@/pages/apps/PorePressureStudio/PorePressureStudio'));
-const DrillingFluidsHydraulics = lazy(() => import('@/pages/apps/DrillingFluidsHydraulics'));
 const BasinFlowGenesis = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowGenesis'));
 const Seismolord = lazy(() => import('@/pages/apps/Seismolord/Seismolord'));
 const SeismolordSelfTest = lazy(() => import('@/pages/apps/Seismolord/SeismolordSelfTest'));
@@ -123,7 +116,6 @@ const ExpertMode = lazy(() => import('@/pages/apps/MechanicalEarthModel/ExpertMo
 const Analytics = lazy(() => import('@/pages/apps/MechanicalEarthModel/Analytics'));
 const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
-const CasingWearAnalyzer = lazy(() => import('@/pages/apps/CasingWearAnalyzer/CasingWearAnalyzer'));
 
 // Facilities newly added ones
 const PipelineDesigner = lazy(() => import('@/pages/apps/PipelineDesigner.jsx'));
@@ -507,17 +499,21 @@ function App() {
                                 <Route path="apps/drilling/well-planning/help" element={<ProtectedAppRoute appId="well-planning" appName="Well Design Studio"><WellDesignHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/well-planning/:wellId" element={<ProtectedAppRoute appId="well-planning" appName="Well Design Studio"><WellPlanning /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/casing-tubing-design-pro" element={<ProtectedAppRoute appId="casing-tubing-design-pro" appName="Casing & Tubing Design Pro"><CasingTubingDesignPro /></ProtectedAppRoute>} />
-                                <Route path="apps/drilling/casing-wear-analyzer" element={<CasingWearAnalyzer />} />
-                                <Route path="apps/drilling/drilling-fluids-hydraulics" element={<DrillingFluidsHydraulics />} />
-                                <Route path="apps/drilling/torque-drag-predictor" element={<TorqueDragPredictor />} />
-                                <Route path="apps/drilling/cementing-simulation" element={<ProtectedAppRoute appId="cementing-simulation-app" appName="Cementing Simulation App"><CementingSimulationApp /></ProtectedAppRoute>} />
-                                <Route path="apps/drilling/frac-completion" element={<FracCompletionApp />} />
                                 {/* legacy PPFG shell — retired for Pore Pressure Studio (plan Q2) */}
                                 <Route path="apps/drilling/pore-pressure-fracture-gradient" element={<Navigate to="/dashboard/apps/geoscience/pore-pressure-studio" replace />} />
-                                <Route path="apps/drilling/rto-dashboard" element={<RtoDashboard />} />
-                                <Route path="apps/drilling/incident-finder" element={<OffsetWellIncidentFinder />} />
-                                <Route path="apps/drilling/wellbore-stability-analyzer" element={<WellboreStabilityAnalyzer />} />
-                                <Route path="apps/drilling/well-spacing-optimizer" element={<WellSpacingOptimizer />} />
+                                {/* D0-archived shells (Drilling-ROADMAP.md §1) — mock/broken apps derouted
+                                    until their D1-D9 successors ship; tiles Archived in 20260826100000 */}
+                                <Route path="apps/drilling/casing-wear-analyzer" element={<Navigate to="/dashboard/drilling" replace />} />
+                                <Route path="apps/drilling/drilling-fluids-hydraulics" element={<Navigate to="/dashboard/drilling" replace />} />
+                                <Route path="apps/drilling/torque-drag-predictor" element={<Navigate to="/dashboard/drilling" replace />} />
+                                <Route path="apps/drilling/cementing-simulation" element={<Navigate to="/dashboard/drilling" replace />} />
+                                <Route path="apps/drilling/frac-completion" element={<Navigate to="/dashboard/drilling" replace />} />
+                                <Route path="apps/drilling/rto-dashboard" element={<Navigate to="/dashboard/drilling" replace />} />
+                                <Route path="apps/drilling/incident-finder" element={<Navigate to="/dashboard/drilling" replace />} />
+                                <Route path="apps/drilling/wellbore-stability-analyzer" element={<Navigate to="/dashboard/drilling" replace />} />
+                                {/* well-spacing-optimizer moved to the Reservoir module at D0 */}
+                                <Route path="apps/drilling/well-spacing-optimizer" element={<Navigate to="/dashboard/apps/reservoir/well-spacing-optimizer" replace />} />
+                                <Route path="apps/reservoir/well-spacing-optimizer" element={<ProtectedAppRoute appId="well-spacing-optimizer" appName="Well Spacing Optimizer"><WellSpacingOptimizer /></ProtectedAppRoute>} />
 
                                 {/* Production Module routes including targeted explicit slug match for surveillance dashboard */}
                                 <Route path="apps/production/production-surveillance-dashboard" element={<ProtectedAppRoute appId="production-surveillance-dashboard" appName="Production Surveillance Dashboard"><ProductionSurveillanceDashboard /></ProtectedAppRoute>} />
