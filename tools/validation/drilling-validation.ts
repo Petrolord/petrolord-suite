@@ -57,6 +57,10 @@
 //      sizing vs the oracle (Drilling D8; perfsand_cases.json)
 //   A27 gun clearance / advisor / screen logic + sanding CDP closed form
 //      vs the oracle
+//   A28 plane-strain/PKN/KGD widths + Nolte material balance + schedule
+//      closed forms vs the oracle (Drilling D9; stim_cases.json)
+//   A29 Cinco-Ley productivity + proppant pack interp + acidizing closed
+//      forms vs the oracle
 // ARMED gates (pending owner literature PDFs):
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
 //   L3 Amoco/API MD-TVD table (the Amoco Directional Survey Handbook,
@@ -134,6 +138,16 @@ async function main() {
     sieveStats, saucierGravel, screenSelection, sandControlAdvisor,
     sandingOnset, cdpAlongInterval,
   } = await import('../../packages/engines/engines/drilling/sandControl.js');
+  const {
+    planeStrainModulus, fracGeometry, pumpTime, pumpSchedule, proppedFrac,
+    fracProductivity, noltekL,
+  } = await import('../../packages/engines/engines/drilling/fracDesign.js');
+  const {
+    hawkinsSkin, sandstoneAcid, carbonateAcid, maxMatrixRate,
+  } = await import('../../packages/engines/engines/drilling/acidizing.js');
+  const {
+    PROPPANT_CATALOG, packPermeabilityM2,
+  } = await import('../../packages/engines/engines/drilling/data/proppants.js');
 
   let failures = 0;
   const gate = (id: string, name: string, fn: () => void) => {
@@ -887,6 +901,98 @@ async function main() {
     if (!(weak.pwfCritPa > strong.pwfCritPa)) throw new Error('CDP not monotone in UCS');
   });
 
+  gate('A28', 'plane-strain/PKN/KGD widths + Nolte balance + schedule vs oracle', () => {
+    const g = goldens('stim_cases.json');
+    const p = g.params;
+    const ep = planeStrainModulus({ ePa: p.ePa, nu: p.nu });
+    close(ep, p.ePrimePa, 1e-9 * p.ePrimePa, 'plane strain modulus');
+    // Hand case (the oracle self-assert twin).
+    const hand = fracGeometry({
+      model: 'pkn', qiM3s: 0.053, muPaS: 0.2, xfM: 150, hfM: 30,
+      ePrimePa: planeStrainModulus({ ePa: 2.5e10, nu: 0.28 }),
+    });
+    close(hand.wMaxM, 6.392e-3, 5e-6, 'PKN width hand case');
+    for (const model of ['pkn', 'kgd'] as const) {
+      const geo = fracGeometry({
+        model, qiM3s: p.qiM3s, muPaS: p.muPaS, xfM: p.xfM, hfM: p.hfM,
+        ePrimePa: ep, closurePa: p.closurePa,
+      });
+      const e = g.geometry[model];
+      close(geo.wMaxM, e.wMaxM, 1e-9 + 1e-8 * e.wMaxM, `${model} wMax`);
+      close(geo.pNetPa, e.pNetPa, 1e-7 * e.pNetPa, `${model} pNet`);
+      close(geo.bhtpPa, e.bhtpPa, 1e-8 * e.bhtpPa, `${model} BHTP`);
+    }
+    const wAvg = fracGeometry({
+      model: 'pkn', qiM3s: p.qiM3s, muPaS: p.muPaS, xfM: p.xfM, hfM: p.hfM, ePrimePa: ep,
+    }).wAvgM;
+    // CL = 0 limit exact.
+    const b0 = pumpTime({ qiM3s: p.qiM3s, hfM: p.hfM, xfM: p.xfM, wAvgM: wAvg, clMSqrtS: 0 });
+    if (b0.etaFrac !== 1) throw new Error('CL=0 efficiency not 1');
+    // Balance vs the oracle's bisection + residual identity.
+    const b = pumpTime({ qiM3s: p.qiM3s, hfM: p.hfM, xfM: p.xfM, wAvgM: wAvg, clMSqrtS: p.clMSqrtS });
+    close(b.tiS, g.balance.tiS, 1e-6 * g.balance.tiS, 'pump time');
+    close(b.etaFrac, g.balance.etaFrac, 1e-6, 'efficiency');
+    const residual = p.qiM3s * b.tiS - b.vfM3
+      - noltekL(b.etaFrac) * p.clMSqrtS * 4 * p.xfM * p.hfM * Math.sqrt(b.tiS);
+    close(residual, 0, 1e-6, 'balance residual');
+    const sch = pumpSchedule({
+      tiS: b.tiS, etaFrac: b.etaFrac, qiM3s: p.qiM3s, cEojKgM3: p.cEojKgM3, nSteps: p.nSteps,
+    });
+    close(sch.padFrac, g.schedule.padFrac, 1e-6, 'pad fraction');
+    close(sch.massKg, g.schedule.massKg, 1e-6 * g.schedule.massKg, 'proppant mass');
+    sch.steps.forEach((s: any, i: number) => {
+      close(s.cKgM3, g.schedule.steps[i].cKgM3, 1e-6 * p.cEojKgM3, `step conc ${i}`);
+    });
+  });
+
+  gate('A29', 'Cinco-Ley productivity + proppant interp + acidizing vs oracle', () => {
+    const g = goldens('stim_cases.json');
+    const p = g.params;
+    const DARCY = 9.869233e-13;
+    const MDM2 = 9.869233e-16;
+    const row = PROPPANT_CATALOG.find((r: any) => r.name === p.proppant.name);
+    const perm = packPermeabilityM2(row, p.closurePa);
+    if (perm.clamped) throw new Error('golden closure clamped in the proppant table');
+    close(perm.kM2 / DARCY, g.proppantPack.kfDarcy, 1e-7 * g.proppantPack.kfDarcy, 'pack permeability');
+    const prop = proppedFrac({
+      massKg: g.schedule.massKg, xfM: p.xfM, hfM: p.hfM,
+      rhoKgM3: row.rhoKgM3, packPorosity: row.packPorosity,
+      kfM2: perm.kM2, damageFactor: p.damageFactor,
+    });
+    close(prop.wpM, g.proppantPack.wpM, 1e-9 + 1e-6 * g.proppantPack.wpM, 'propped width');
+    const prod = fracProductivity({
+      kfwM3: prop.kfwM3, kM2: p.kMd * MDM2, xfM: p.xfM, rwM: p.rwM,
+    });
+    close(prod.cfd, g.productivity.cfd, 1e-6, 'C_fD');
+    close(prod.sF, g.productivity.sF, 1e-6 * Math.abs(g.productivity.sF), 'pseudo-skin');
+    close(prod.rwPrimeM, g.productivity.rwPrimeM, 1e-6 * g.productivity.rwPrimeM, 'effective rw');
+    // Hand value at the optimum + the infinite-conductivity limit.
+    const at = (cfd: number) => fracProductivity({
+      kfwM3: cfd * MDM2 * p.xfM, kM2: MDM2, xfM: p.xfM, rwM: p.rwM,
+    });
+    close(at(1.6).f, 1.3841, 1e-3, 'Cinco-Ley f(1.6)');
+    close(at(1000).f, Math.log(2), 0.05 * Math.log(2), 'infinite-conductivity limit');
+    // Acidizing closed forms + golden block.
+    close(hawkinsSkin({ kOverKs: 5, rsM: 0.5, rwM: 0.1 }), 4 * Math.log(5), 1e-12, 'Hawkins');
+    const a = p.acid;
+    const sand = sandstoneAcid({
+      rwM: p.rwM, raM: a.raM, hM: a.hM, porosity: a.porosity,
+      pvFactor: p.pvFactor, kOverKs: a.kOverKs, rsM: a.rsM,
+    });
+    close(sand.volumeM3, g.acidizing.sandstone.volumeM3, 1e-9 * g.acidizing.sandstone.volumeM3, 'acid volume');
+    close(sand.sAfter, g.acidizing.sandstone.sAfter, 1e-9 + 1e-9, 'skin after');
+    const carb = carbonateAcid({
+      rwM: p.rwM, hM: a.hM, porosity: a.porosity, volumeM3: a.volumeM3, pvBt: p.pvBt,
+    });
+    close(carb.skin, g.acidizing.carbonate.skin, 1e-8, 'carbonate skin');
+    if (!(carb.skin < 0)) throw new Error('carbonate skin not negative');
+    const q = maxMatrixRate({
+      kM2: p.kMd * MDM2, hM: a.hM, pFracPa: p.closurePa, pResPa: p.pResPa,
+      muPaS: 1e-3, reM: p.reM, rwM: p.rwM, sSkin: sand.sBefore,
+    });
+    close(q.qM3s, g.acidizing.qMaxM3s, 1e-9 + 1e-6 * g.acidizing.qMaxM3s, 'matrix ceiling');
+  });
+
   const armed = [
     ['L2', 'Mitchell & Miska survey table'],
     ['L3', 'Amoco/API MD-TVD table'],
@@ -903,6 +1009,8 @@ async function main() {
     ['L14', 'vendor completion equipment catalog dimensions'],
     ['L15', 'Karakas-Tariq SPE 18247 / Economides PPS worked example + vendor gun data'],
     ['L16', 'sand control selection + underbalance published criteria (Tiffin SPE 39437; King/Behrmann)'],
+    ['L17', 'Economides PPS / Valko-Economides frac worked examples'],
+    ['L18', 'proppant vendor conductivity data (API RP 19D cells)'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);

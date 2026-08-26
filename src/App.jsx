@@ -135,6 +135,9 @@ const CompletionDesignHarness = lazy(() => import('@/pages/apps/CompletionDesign
 const PerforationSandControlStudio = lazy(() => import('@/pages/apps/PerforationSandControl/PerforationSandControlStudio'));
 const PerforationSandControlHelpGuide = lazy(() => import('@/pages/apps/PerforationSandControl/PerforationSandControlHelpGuide'));
 const PerforationSandControlHarness = lazy(() => import('@/pages/apps/PerforationSandControl/PerforationSandControlHarness'));
+const StimulationDesignerStudio = lazy(() => import('@/pages/apps/StimulationDesigner/StimulationDesignerStudio'));
+const StimulationDesignerHelpGuide = lazy(() => import('@/pages/apps/StimulationDesigner/StimulationDesignerHelpGuide'));
+const StimulationDesignerHarness = lazy(() => import('@/pages/apps/StimulationDesigner/StimulationDesignerHarness'));
 
 // Facilities newly added ones
 const PipelineDesigner = lazy(() => import('@/pages/apps/PipelineDesigner.jsx'));
@@ -520,6 +523,8 @@ function App() {
                                 <Route path="apps/drilling/completion-design-studio/help" element={<ProtectedAppRoute appId="completion-design-studio" appName="Completion Design Studio"><CompletionDesignHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/perforation-sand-control" element={<ProtectedAppRoute appId="perforation-sand-control" appName="Perforation & Sand Control Designer"><PerforationSandControlStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/perforation-sand-control/help" element={<ProtectedAppRoute appId="perforation-sand-control" appName="Perforation & Sand Control Designer"><PerforationSandControlHelpGuide /></ProtectedAppRoute>} />
+                                <Route path="apps/drilling/stimulation-designer" element={<ProtectedAppRoute appId="stimulation-designer" appName="Stimulation Designer"><StimulationDesignerStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/drilling/stimulation-designer/help" element={<ProtectedAppRoute appId="stimulation-designer" appName="Stimulation Designer"><StimulationDesignerHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/geomechanics-studio" element={<ProtectedAppRoute appId="geomechanics-studio" appName="Geomechanics & Wellbore Stability Studio"><GeomechanicsStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/geomechanics-studio/help" element={<ProtectedAppRoute appId="geomechanics-studio" appName="Geomechanics & Wellbore Stability Studio"><GeomechanicsHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/cementing-studio" element={<ProtectedAppRoute appId="cementing-studio" appName="Cementing Studio"><CementingStudio /></ProtectedAppRoute>} />
@@ -724,6 +729,7 @@ function App() {
                                   <Route path="/dev/casing-tubing" element={<CasingTubingHarness />} />
                                   <Route path="/dev/completion-design" element={<CompletionDesignHarness />} />
                                   <Route path="/dev/perforation-sand-control" element={<PerforationSandControlHarness />} />
+                                  <Route path="/dev/stimulation" element={<StimulationDesignerHarness />} />
                                   <Route path="/dev/dca" element={<DeclineCurveAnalysis />} />
                                   <Route path="/dev/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
                                   <Route path="/dev/nodal-analysis-studio" element={<NodalAnalysisStudio />} />
