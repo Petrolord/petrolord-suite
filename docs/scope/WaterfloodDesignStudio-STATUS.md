@@ -74,6 +74,15 @@ its displacement physics and charts live on in the Displacement tab).
   a single shell implementation across DCA and this studio. Next:
   VRR Monitor → Recovery Factor Estimator → Aquifer Influx
   Calculator get the same one-app-at-a-time upgrade treatment.
+  [2026-08-28 update: the VRR Monitor queue item is CLOSED — and went
+  far beyond a shell adoption (V1-V4 program: per-well import, pressure
+  track, pattern allocation; VoidageReplacementMonitor-STATUS.md).
+  Aquifer Influx was absorbed into Reservoir Balance; Recovery Factor
+  Estimator remains the last small standalone adoption. Scope boundary
+  restated: this studio keeps waterflood DESIGN + daily well
+  surveillance diagnostics (Hall, Chan, pattern lags); the VRR Monitor
+  is the monthly voidage-accounting and pressure-maintenance ledger,
+  field→pattern→well via allocation factors, water AND gas injection.]
 - **W6 — Surveillance tab (Waterflood Dashboard absorbed). DONE
   2026-07-18 (branch feat/waterflood-surveillance-tab; owner decision:
   one waterflood app in Reservoir).** The dashboard's real, jest-tested

@@ -22,12 +22,16 @@ import VrrChartsPanel from '@/components/vrrmonitor/VrrChartsPanel';
 import VrrKpiPanel from '@/components/vrrmonitor/VrrKpiPanel';
 import PressurePanel from '@/components/vrrmonitor/PressurePanel';
 import PressureChartPanel from '@/components/vrrmonitor/PressureChartPanel';
+import PatternManagerPanel from '@/components/vrrmonitor/PatternManagerPanel';
+import AllocationMatrixEditor from '@/components/vrrmonitor/AllocationMatrixEditor';
+import PatternResultsPanel from '@/components/vrrmonitor/PatternResultsPanel';
 import VrrHelpContent from '@/components/reservoir/VrrHelpGuide';
 
 const TABS = [
   { value: 'data', label: 'Data & PVT' },
   { value: 'dashboard', label: 'VRR Dashboard' },
   { value: 'pressure', label: 'Pressure' },
+  { value: 'patterns', label: 'Patterns' },
 ];
 
 const SectionLabel = ({ children }) => (
@@ -63,6 +67,11 @@ const VrrMonitorContent = () => {
         <section>
           <SectionLabel>Pressure &amp; PVT Mode</SectionLabel>
           <PressurePanel />
+        </section>
+      ) : activeTab === 'patterns' ? (
+        <section>
+          <SectionLabel>Patterns</SectionLabel>
+          <PatternManagerPanel />
         </section>
       ) : (
         <>
@@ -103,6 +112,12 @@ const VrrMonitorContent = () => {
         </>
       )}
       {activeTab === 'pressure' && <PressureChartPanel />}
+      {activeTab === 'patterns' && (
+        <>
+          {isImported && <AllocationMatrixEditor />}
+          <PatternResultsPanel />
+        </>
+      )}
     </div>
   );
 

@@ -122,4 +122,41 @@ describe('VoidageReplacementMonitor page', () => {
     expect(screen.getByText(/Oil API/i)).toBeInTheDocument();
     expect(await screen.findByText(/pressure-dependent FVFs active/i)).toBeInTheDocument();
   });
+
+  it('patterns tab gates, then analyzes once a pattern + allocation exist (V4)', async () => {
+    render(
+      <MemoryRouter>
+        <VoidageReplacementMonitor />
+      </MemoryRouter>,
+    );
+
+    // Without an import, the whole tab is gated with a reason (shown in
+    // both the left rail and the main gated notice).
+    fireEvent.mouseDown((await screen.findAllByRole('tab', { name: 'Patterns' }))[0]);
+    expect(screen.getAllByText(/imported per-well ledger/i).length).toBeGreaterThan(0);
+
+    // Import the sample ledger, then build a pattern.
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Data & PVT' }));
+    fireEvent.click(screen.getByRole('button', { name: /Sample wells/i }));
+    await screen.findByText(/Monthly field ledger/i);
+
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Patterns' }));
+    fireEvent.change(screen.getByPlaceholderText('New pattern name'), { target: { value: 'North' } });
+    fireEvent.click(screen.getByTitle('Add pattern'));
+    // Assign both fixture producers to the pattern.
+    fireEvent.click(screen.getByRole('button', { name: 'P-1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'P-2' }));
+
+    // Still withheld: no allocation yet, and never faked (the reason shows
+    // both in the rollup row and on the pattern card).
+    expect(screen.getAllByText(/No allocation factors route injection/i).length).toBeGreaterThan(0);
+
+    // Explicit even split for both injectors -> analysis + recommendation appear.
+    const splitButtons = screen.getAllByRole('button', { name: /Even split/i });
+    splitButtons.forEach((b) => fireEvent.click(b));
+    expect(await screen.findByText(/Rollup/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/scale water injection/i).length).toBeGreaterThan(0);
+    // Weakest-pattern KPI appears in the right rail.
+    expect(screen.getByText(/Weakest pattern/i)).toBeInTheDocument();
+  });
 });

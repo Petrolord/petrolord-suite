@@ -39,11 +39,12 @@ central engines repo first):
   `nodal/pvt.js` (Suite-side; engine gets only a correlation-free
   `interpolateFvfTrack`), VRR-vs-pressure dual-axis chart + fill-up marker
   (`findFillUp`). See V3 notes below.
-- **V4 — Patterns + allocation**: injector→producer allocation matrix,
-  pattern VRR via `buildPatternPeriods` feeding the untouched
-  `computeVRRSeries`, per-pattern injection recommendations
-  (`recommendPatternInjection`), withheld-with-reason gating when no
-  allocation is defined.
+- **V4 — Patterns + allocation (DONE, this PR — PROGRAM COMPLETE)**:
+  injector→producer allocation matrix, pattern VRR via
+  `buildPatternPeriods` feeding the untouched `computeVRRSeries`,
+  per-pattern injection recommendations (`recommendPatternInjection`),
+  withheld-with-reason gating when no allocation is defined. See V4
+  notes below.
 
 Full plan of record: the approved 2026-08-28 upgrade plan (V1-V4 details,
 industry benchmark, decisions taken).
@@ -141,8 +142,41 @@ industry benchmark, decisions taken).
   automatically (it spreads period props).
 - No DDL in V3.
 
+## V4 notes (2026-08-28) — program complete
+
+- Engine: V4 additions to `vrrLedger.js`, central first (petrolord-engines
+  PR #46, feat/waterflood-vrr-patterns; temp-worktree build again),
+  vendored copy synced byte-identical. `validateAllocation` (row sums > 1
+  error, shortfall = out-of-zone warning), `allocateInjection`
+  (conservation audit: allocated + unallocated == injected exactly),
+  `patternHasAllocation` (the withholding predicate — even splits never
+  assumed by the engine), `buildPatternPeriods` (allocation-weighted
+  monthly pattern periods; jest-pinned invariant: one pattern holding all
+  producers with rows summing to 1 reproduces the field series exactly),
+  `recommendPatternInjection` (target/current rolling VRR scale, clamped
+  0.5–2.0 with the clamp reported; per-injector split by allocated share;
+  gas injection reported, not scaled — compression-constrained). 9 gates.
+- UI: Patterns tab — PatternManagerPanel (left rail: create/delete
+  patterns, producer chips), AllocationMatrixEditor (injector×producer
+  grid, live row sums, error/warning surfacing, conservation audit line,
+  explicit per-injector Even split button = user action not engine
+  assumption), PatternResultsPanel (field/pattern rollup table +
+  per-pattern VRR chart + recommendation block). Gating ladder: no
+  import → tab gated; no producers → withheld; no allocation → withheld;
+  matrix errors → withheld. KPI rail gains the weakest-pattern card.
+  Recommendation target = the operator band minimum.
+- `patterns`/`allocation` persist in the project payload (additive,
+  schema stays 1). No DDL in V4.
+- WaterfloodDesignStudio-STATUS.md W5 queue item CLOSED with the scope
+  boundary restated (WDS = design + daily diagnostics; VRR Monitor =
+  monthly voidage/pressure-maintenance ledger).
+
 ## Known gaps / next
 
-- V2-V4 above.
+- Program V1-V4 COMPLETE. Possible future waves (not committed): bubble
+  maps for pattern balance, CRM-derived allocation factor suggestions,
+  gas-injection recommendation logic, NextGen Reservoir course teaching
+  to vrr.js/vrrLedger.js (the oracle-stability doctrine exists for
+  this).
 - No entry in any file-driven app registry (tile is DB-driven); entitlement
   slug lives in `SupabaseAuthContext.jsx`.
