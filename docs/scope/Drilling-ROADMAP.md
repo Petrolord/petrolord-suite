@@ -212,10 +212,14 @@ Locked to the WDS/G-series precedents:
   spacing, honest quality checklist. Gates A18-A19 ACTIVE (19/19
   total); L10/L11 ARMED. Tile migration 20260827030000 HELD
   (single-upload gate).
-- **D5 — Geomechanics & Wellbore Stability Studio**: the locked MEM
-  rebuild under Drilling on the salvaged ~440-LOC engine core;
-  breakout/mud-window vs inclination/azimuth; consumes pp-1.0.0
-  curves; deletes the MEM tree + re-homes its geoscience alias routes.
+- **D5 — Geomechanics & Wellbore Stability Studio**: **SHIPPED
+  2026-08-27** (engines PR #41 + Suite waves G0-G3; see
+  docs/scope/GeomechanicsStudio-STATUS.md). The owner-locked MEM rebuild
+  executed: poroelastic stresses with frictional bounds, UCS
+  correlations, full-tensor Kirsch stability, mud windows along the
+  definitive trajectory, gm-1.0.0 publish (SHMIN/SHMAX/UCS). Legacy MEM
+  tree (112 files) DELETED; alias routes redirect. Gates A20-A21 ACTIVE
+  (21/21 total); L12 ARMED. Tile 20260827060000 HELD.
 - **D6 — Casing & Tubing Design Studio upgrade**: validate/replace the
   simplified pressure math (API TR 5C3), migrate off legacy
   `public.wells` to the registries, add persistence + tests.

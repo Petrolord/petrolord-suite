@@ -114,7 +114,7 @@ Target portfolio: 12 apps (docs/scope/Drilling-ROADMAP.md, owner-approved
 2026-08-26). The D0 honest-catalog pass archived the legacy mock tiles;
 apps below ship phase by phase (D1-D11) and seed their tiles at ship time.
 
-### ✅ Complete Applications (6)
+### ✅ Complete Applications (7)
 *   **Well Design Studio**
     *   *Description:* Compass-class well design: validated minimum-curvature planning, ISCWSA error models, anti-collision, survey management, wall-plot reports.
     *   *Key Features:* Trajectory Design, Anti-Collision (ladder/traveling cylinder), Survey Programs, WMM2025 Magnetics, PPFG Mud Window, 3D Viewer, Report Pack.
@@ -138,9 +138,12 @@ apps below ship phase by phase (D1-D11) and seed their tiles at ship time.
     *   *Description:* Primary cement job design: volumes and sacks, plug-flow placement with U-tube, free fall and ECD, API 10D centralization.
     *   *Key Features:* Auto lead/tail volumes from TOC (oracle-validated), placement charts with free-fall shading and frac-EMW line, standoff profile and required spacing, honest quality checklist, job report PDF, immutable run history.
     *   *Status:* Tile held for the single 12-app launch upload (migration 20260827030000).
+*   **Geomechanics & Wellbore Stability Studio** (D5, shipped 2026-08-27)
+    *   *Description:* 1D mechanical earth models from registry logs and published pore pressure, with wellbore stability and mud weight windows along planned trajectories.
+    *   *Key Features:* Poroelastic stresses with frictional bounds (oracle-validated), Horsrud/McNally UCS, full-tensor Kirsch stability honoring inclination and azimuth, trajectory mud windows, gm-1.0.0 SHMIN/SHMAX/UCS publish, quality score.
+    *   *Status:* Tile held for the single 12-app launch upload (migration 20260827060000). Replaces the legacy Mechanical Earth Model app.
 
-### 🚧 Planned (Drilling-ROADMAP.md phases D5-D11)
-*   **Geomechanics & Wellbore Stability Studio** (D5) — 1D MEM rebuild, breakout/mud-weight window.
+### 🚧 Planned (Drilling-ROADMAP.md phases D6-D11)
 *   **Completion Design Studio** (D7) — string architecture, schematic, BOM.
 *   **Perforation & Sand Control Designer** (D8) — perforation productivity, gravel pack and screen selection.
 *   **Stimulation Designer** (D9) — hydraulic frac and matrix acidizing design.
