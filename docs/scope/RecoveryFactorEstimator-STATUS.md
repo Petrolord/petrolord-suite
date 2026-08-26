@@ -29,7 +29,7 @@ untouched**.
   10 s debounced autosave; payload {id, name, schema: 1, inputs,
   modified}; results recomputed on load; 42P01 mapped to a friendly
   "run the migration" message.
-- Migration `20260826100000_create_saved_rf_projects.sql` APPLIED
+- Migration `20260826101500_create_saved_rf_projects.sql` APPLIED
   LIVE 2026-08-26 (verbatim mirror of saved_vrr_projects; probe:
   table + RLS + rf_owner_all policy). Logged in MIGRATIONS.md.
 - Help re-housed from a standalone Dialog into StudioHelp content
