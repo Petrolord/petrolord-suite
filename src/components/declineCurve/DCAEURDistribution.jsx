@@ -89,6 +89,7 @@ const DCAEURDistribution = ({ distribution, selectedStream }) => {
             stroke={palette.forecast}
             strokeWidth={0.5}
             radius={[1, 1, 0, 0]}
+            isAnimationActive={false}
           />
         </BarChart>
       </ResponsiveContainer>
