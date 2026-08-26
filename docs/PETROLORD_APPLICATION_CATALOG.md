@@ -114,7 +114,7 @@ Target portfolio: 12 apps (docs/scope/Drilling-ROADMAP.md, owner-approved
 2026-08-26). The D0 honest-catalog pass archived the legacy mock tiles;
 apps below ship phase by phase (D1-D11) and seed their tiles at ship time.
 
-### ✅ Complete Applications (5)
+### ✅ Complete Applications (6)
 *   **Well Design Studio**
     *   *Description:* Compass-class well design: validated minimum-curvature planning, ISCWSA error models, anti-collision, survey management, wall-plot reports.
     *   *Key Features:* Trajectory Design, Anti-Collision (ladder/traveling cylinder), Survey Programs, WMM2025 Magnetics, PPFG Mud Window, 3D Viewer, Report Pack.
@@ -134,9 +134,12 @@ apps below ship phase by phase (D1-D11) and seed their tiles at ship time.
     *   *Description:* Kill sheets, kick tolerance and MAASP on planned wells with volumes, strokes and a printable kill sheet.
     *   *Key Features:* IWCF-convention kill sheet (oracle-validated), wait and weight and driller's method schedules, influx characterization, single-bubble kick tolerance with mud-weight sweep, kill sheet PDF, immutable run history.
     *   *Status:* Tile held for the single 12-app launch upload (migration 20260826230000).
+*   **Cementing Studio** (D4, shipped 2026-08-27)
+    *   *Description:* Primary cement job design: volumes and sacks, plug-flow placement with U-tube, free fall and ECD, API 10D centralization.
+    *   *Key Features:* Auto lead/tail volumes from TOC (oracle-validated), placement charts with free-fall shading and frac-EMW line, standoff profile and required spacing, honest quality checklist, job report PDF, immutable run history.
+    *   *Status:* Tile held for the single 12-app launch upload (migration 20260827030000).
 
-### 🚧 Planned (Drilling-ROADMAP.md phases D4-D11)
-*   **Cementing Studio** (D4) — volumes, placement, free-fall, centralization, ECD.
+### 🚧 Planned (Drilling-ROADMAP.md phases D5-D11)
 *   **Geomechanics & Wellbore Stability Studio** (D5) — 1D MEM rebuild, breakout/mud-weight window.
 *   **Completion Design Studio** (D7) — string architecture, schematic, BOM.
 *   **Perforation & Sand Control Designer** (D8) — perforation productivity, gravel pack and screen selection.

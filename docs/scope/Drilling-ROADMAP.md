@@ -205,9 +205,13 @@ Locked to the WDS/G-series precedents:
   sheet PDF), MAASP, single-bubble kick tolerance; exact
   minimum-curvature TVDs. Gates A16-A17 ACTIVE (17/17 total); L8/L9
   ARMED. Tile migration 20260826230000 HELD (single-upload gate).
-- **D4 — Cementing Studio**: keeps the real volume math, replaces all
-  random placement outputs with a real placement/free-fall/ECD model +
-  API 10D standoff.
+- **D4 — Cementing Studio**: **SHIPPED 2026-08-27** (engines PR #40 +
+  Suite waves C0-C3; see docs/scope/CementingStudio-STATUS.md).
+  Plug-flow placement (U-tube/free-fall/ECD, exact-TVD hydrostatics),
+  job volumes with excess and lead/tail, API 10D standoff + required
+  spacing, honest quality checklist. Gates A18-A19 ACTIVE (19/19
+  total); L10/L11 ARMED. Tile migration 20260827030000 HELD
+  (single-upload gate).
 - **D5 — Geomechanics & Wellbore Stability Studio**: the locked MEM
   rebuild under Drilling on the salvaged ~440-LOC engine core;
   breakout/mud-window vs inclination/azimuth; consumes pp-1.0.0
