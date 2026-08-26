@@ -110,43 +110,38 @@ This document provides a comprehensive inventory of all applications within the 
 ## 3. Drilling & Completion
 **Focus:** Plan, execute, and optimize drilling and completion operations efficiently.
 
-### ✅ Complete Applications (10)
-*   **Well Planning**
-    *   *Description:* Comprehensive well planning, trajectory design, and anti-collision analysis.
-    *   *Key Features:* Trajectory Design, Anti-Collision Scanning, Survey Management, Target Planning.
-*   **Casing & Tubing Design**
+Target portfolio: 12 apps (docs/scope/Drilling-ROADMAP.md, owner-approved
+2026-08-26). The D0 honest-catalog pass archived the legacy mock tiles;
+apps below ship phase by phase (D1-D11) and seed their tiles at ship time.
+
+### ✅ Complete Applications (2)
+*   **Well Design Studio**
+    *   *Description:* Compass-class well design: validated minimum-curvature planning, ISCWSA error models, anti-collision, survey management, wall-plot reports.
+    *   *Key Features:* Trajectory Design, Anti-Collision (ladder/traveling cylinder), Survey Programs, WMM2025 Magnetics, PPFG Mud Window, 3D Viewer, Report Pack.
+*   **Casing & Tubing Design Pro**
     *   *Description:* Design casing and tubing strings for various well conditions and loads.
     *   *Key Features:* Load Case Analysis, Stress Checks (Burst, Collapse, Tension), Grade Selection.
-*   **Drilling Fluids & Hydraulics**
-    *   *Description:* Optimize drilling fluid properties and hydraulics for efficient hole cleaning.
-    *   *Key Features:* Rheology Modeling, ECD Management, Hydraulics Optimization, Cuttings Transport.
-*   **Torque & Drag Predictor**
-    *   *Description:* Predict torque and drag for complex well trajectories to prevent drilling problems.
-    *   *Key Features:* Friction Factor Sensitivity, Hook Load Prediction, Buckling Analysis.
-*   **Cementing Simulation App**
-    *   *Description:* Simulate cementing operations for optimal bond and zonal isolation.
-    *   *Key Features:* Displacement Efficiency, Centralization, Temperature Modeling, Slurry Design.
-*   **Frac Completion App**
-    *   *Description:* Design and optimize hydraulic fracturing treatments for unconventional reservoirs.
-    *   *Key Features:* Stage Design, Proppant Schedule, pumping Schedules, Frac Geometry.
-*   **Pore Pressure & Frac Gradient**
-    *   *Description:* Predict pore pressure and fracture gradients for safe drilling windows.
-    *   *Key Features:* Eaton/Bowers Methods, Overburden Calculation, Safe Mud Window.
-*   **RTO Dashboard**
-    *   *Description:* Real-time optimization dashboard for drilling operations.
-    *   *Key Features:* Real-time Data Feeds, Drilling Parameters (WOB, RPM), ROP Optimization.
-*   **Offset Well Incident Finder**
-    *   *Description:* Search and analyze drilling incidents from offset wells to mitigate risks.
-    *   *Key Features:* NPT Analysis, Incident Database, Offset Well Correlation, Risk Mapping.
-*   **Wellbore Stability Analyzer**
-    *   *Description:* Assess wellbore stability and predict potential collapse or fracture issues.
-    *   *Key Features:* Stress Analysis, Failure Criteria (Mohr-Coulomb, Mogi), Mud Weight Window.
+    *   *Status:* Active; full engineering upgrade scheduled (Phase D6).
 
-### 🚧 Coming Soon (2)
-*   **Drilling Program Writer**
-    *   *Description:* Automated generation of detailed drilling programs and operational procedures.
-*   **Well Control Simulator**
-    *   *Description:* Simulate well control scenarios and train personnel for critical operations.
+### 🚧 Planned (Drilling-ROADMAP.md phases D1-D11)
+*   **Torque & Drag + Drillstring Studio** (D1) — soft-string T&D, drillstring loads, casing wear.
+*   **Drilling Fluids & Hydraulics Studio** (D2) — rheology, API RP 13D hydraulics, ECD, surge/swab, hole cleaning.
+*   **Well Control Studio** (D3) — kick tolerance, kill sheets, MAASP.
+*   **Cementing Studio** (D4) — volumes, placement, free-fall, centralization, ECD.
+*   **Geomechanics & Wellbore Stability Studio** (D5) — 1D MEM rebuild, breakout/mud-weight window.
+*   **Completion Design Studio** (D7) — string architecture, schematic, BOM.
+*   **Perforation & Sand Control Designer** (D8) — perforation productivity, gravel pack and screen selection.
+*   **Stimulation Designer** (D9) — hydraulic frac and matrix acidizing design.
+*   **Well Integrity & P&A Studio** (D10) — barrier envelopes, MAASP, abandonment program.
+*   **Well Cost & Time Estimator** (D11) — probabilistic time-depth and AFE-grade cost.
+
+Archived at D0 (2026-08-26): Casing Wear Analyzer, Drilling Fluids & Hydraulics,
+Torque & Drag Predictor, Cementing Simulation App, Frac Completion App,
+RTO Dashboard, Offset Well Incident Finder, Wellbore Stability Analyzer
+(mock or broken implementations; superseded by the phases above), plus all
+legacy Coming Soon stubs. Well Spacing Optimizer moved to the Reservoir
+module. Pore Pressure & Frac Gradient was previously retired in favor of
+the Geoscience Pore Pressure Studio.
 
 ---
 
