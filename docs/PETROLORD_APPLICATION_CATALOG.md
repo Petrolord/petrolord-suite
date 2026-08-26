@@ -114,7 +114,7 @@ Target portfolio: 12 apps (docs/scope/Drilling-ROADMAP.md, owner-approved
 2026-08-26). The D0 honest-catalog pass archived the legacy mock tiles;
 apps below ship phase by phase (D1-D11) and seed their tiles at ship time.
 
-### ✅ Complete Applications (2)
+### ✅ Complete Applications (3)
 *   **Well Design Studio**
     *   *Description:* Compass-class well design: validated minimum-curvature planning, ISCWSA error models, anti-collision, survey management, wall-plot reports.
     *   *Key Features:* Trajectory Design, Anti-Collision (ladder/traveling cylinder), Survey Programs, WMM2025 Magnetics, PPFG Mud Window, 3D Viewer, Report Pack.
@@ -122,9 +122,12 @@ apps below ship phase by phase (D1-D11) and seed their tiles at ship time.
     *   *Description:* Design casing and tubing strings for various well conditions and loads.
     *   *Key Features:* Load Case Analysis, Stress Checks (Burst, Collapse, Tension), Grade Selection.
     *   *Status:* Active; full engineering upgrade scheduled (Phase D6).
+*   **Torque & Drag Studio** (D1, shipped 2026-08-26)
+    *   *Description:* Soft-string torque and drag on planned trajectories: hookloads, surface torque, side forces, buckling limits, friction sensitivity and casing wear.
+    *   *Key Features:* Johancsik soft-string model (oracle-validated), 6 operations, catalog drillstring builder, crescent-geometry casing wear, friction sweep, immutable run history, CSV/PDF export.
+    *   *Status:* Tile activates with the next prod upload (held migration 20260826140000).
 
-### 🚧 Planned (Drilling-ROADMAP.md phases D1-D11)
-*   **Torque & Drag + Drillstring Studio** (D1) — soft-string T&D, drillstring loads, casing wear.
+### 🚧 Planned (Drilling-ROADMAP.md phases D2-D11)
 *   **Drilling Fluids & Hydraulics Studio** (D2) — rheology, API RP 13D hydraulics, ECD, surge/swab, hole cleaning.
 *   **Well Control Studio** (D3) — kick tolerance, kill sheets, MAASP.
 *   **Cementing Studio** (D4) — volumes, placement, free-fall, centralization, ECD.
