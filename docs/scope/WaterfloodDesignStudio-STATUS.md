@@ -78,7 +78,14 @@ its displacement physics and charts live on in the Displacement tab).
   far beyond a shell adoption (V1-V4 program: per-well import, pressure
   track, pattern allocation; VoidageReplacementMonitor-STATUS.md).
   Aquifer Influx was absorbed into Reservoir Balance; Recovery Factor
-  Estimator remains the last small standalone adoption. Scope boundary
+  Estimator remains the last small standalone adoption.
+  2026-08-26: Recovery Factor Estimator adoption DONE
+  (RecoveryFactorEstimator-STATUS.md; saved_rf_projects) — the
+  kit-adoption queue is now fully CLOSED. The Aquifer item needed no
+  work: the standalone app was retired when Material Balance Studio
+  absorbed aquifer influx as its Aquifer tab (tile Archived, route
+  redirects to reservoir-balance?tab=aquifer, screening logic lives on
+  in AquiferScreening.jsx with rb_* case persistence). Scope boundary
   restated: this studio keeps waterflood DESIGN + daily well
   surveillance diagnostics (Hall, Chan, pattern lags); the VRR Monitor
   is the monthly voidage-accounting and pressure-maintenance ledger,

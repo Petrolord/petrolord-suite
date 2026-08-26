@@ -46,5 +46,8 @@ untouched**.
   stacked-reservoir cases, analog benchmarking against published RF
   distributions, RF handoff into ReservoirCalc Pro or Forecast
   Scenario Hub.
-- Aquifer Influx Calculator is next (and last) in the kit-adoption
-  queue.
+- The kit-adoption queue is CLOSED with this app: the Aquifer Influx
+  Calculator item needed no work — the standalone app was retired when
+  Material Balance Studio absorbed aquifer influx as its Aquifer tab
+  (tile Archived 2026-07-19; route redirects to
+  reservoir-balance?tab=aquifer; rb_* case persistence).
