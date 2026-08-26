@@ -107,6 +107,9 @@ const WellDesignHarness = lazy(() => import('@/pages/apps/well-planning/WellDesi
 const TorqueDragStudio = lazy(() => import('@/pages/apps/TorqueDragStudio/TorqueDragStudio'));
 const TorqueDragHelpGuide = lazy(() => import('@/pages/apps/TorqueDragStudio/TorqueDragHelpGuide'));
 const TorqueDragHarness = lazy(() => import('@/pages/apps/TorqueDragStudio/TorqueDragHarness'));
+const HydraulicsStudio = lazy(() => import('@/pages/apps/HydraulicsStudio/HydraulicsStudio'));
+const HydraulicsHelpGuide = lazy(() => import('@/pages/apps/HydraulicsStudio/HydraulicsHelpGuide'));
+const HydraulicsHarness = lazy(() => import('@/pages/apps/HydraulicsStudio/HydraulicsHarness'));
 const WellDesignHelpGuide = lazy(() => import('@/pages/apps/well-planning/WellDesignHelpGuide'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
@@ -509,7 +512,9 @@ function App() {
                                 {/* D0-archived shells (Drilling-ROADMAP.md §1) — mock/broken apps derouted
                                     until their D1-D9 successors ship; tiles Archived in 20260826100000 */}
                                 <Route path="apps/drilling/casing-wear-analyzer" element={<Navigate to="/dashboard/drilling" replace />} />
-                                <Route path="apps/drilling/drilling-fluids-hydraulics" element={<Navigate to="/dashboard/drilling" replace />} />
+                                {/* D2: the drilling-fluids-hydraulics slug is REBUILT (Drilling-ROADMAP.md §2) */}
+                                <Route path="apps/drilling/drilling-fluids-hydraulics" element={<ProtectedAppRoute appId="drilling-fluids-hydraulics" appName="Drilling Fluids & Hydraulics Studio"><HydraulicsStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/drilling/drilling-fluids-hydraulics/help" element={<ProtectedAppRoute appId="drilling-fluids-hydraulics" appName="Drilling Fluids & Hydraulics Studio"><HydraulicsHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/torque-drag-predictor" element={<Navigate to="/dashboard/drilling" replace />} />
                                 <Route path="apps/drilling/cementing-simulation" element={<Navigate to="/dashboard/drilling" replace />} />
                                 <Route path="apps/drilling/frac-completion" element={<Navigate to="/dashboard/drilling" replace />} />
@@ -690,6 +695,7 @@ function App() {
                                   <Route path="/dev/pore-pressure-studio" element={<PorePressureStudioHarness />} />
                                   <Route path="/dev/well-design" element={<WellDesignHarness />} />
                                   <Route path="/dev/torque-drag" element={<TorqueDragHarness />} />
+                                  <Route path="/dev/hydraulics" element={<HydraulicsHarness />} />
                                   <Route path="/dev/dca" element={<DeclineCurveAnalysis />} />
                                   <Route path="/dev/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
                                   <Route path="/dev/nodal-analysis-studio" element={<NodalAnalysisStudio />} />

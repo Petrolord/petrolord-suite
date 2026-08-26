@@ -9,7 +9,7 @@ export default function Explorer({
   sites, selectedSiteId, onSelectSite,
   wellbores, selectedWellboreId, onSelectWellbore,
   cases, selectedCaseId, onSelectCase, onNewCase, onDeleteCase,
-  trajectory,
+  trajectory, caseLabel = 'T&D cases', testPrefix = 'td',
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-slate-900/40 p-2 text-xs text-slate-300">
@@ -29,7 +29,7 @@ export default function Explorer({
           <div className="mb-1 mt-3 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Wellbores</div>
           {(wellbores || []).map((w) => (
             <button key={w.id} type="button" onClick={() => onSelectWellbore(w.id)}
-              data-testid={`td-wellbore-${w.name}`}
+              data-testid={`${testPrefix}-wellbore-${w.name}`}
               className={`flex items-center gap-1.5 rounded px-2 py-1 text-left hover:bg-slate-800 ${w.id === selectedWellboreId ? 'bg-slate-800 text-lime-300' : ''}`}>
               <CircleDot className="h-3 w-3 shrink-0" /> {w.name}
               <span className="ml-auto text-[9px] text-slate-500">{w.depth_unit}</span>
@@ -41,14 +41,14 @@ export default function Explorer({
       {selectedWellboreId && (
         <>
           <div className="mb-1 mt-3 flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">T&D cases</span>
-            <Button size="icon" variant="ghost" className="h-5 w-5 text-slate-400 hover:text-lime-300" onClick={onNewCase} data-testid="td-new-case">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{caseLabel}</span>
+            <Button size="icon" variant="ghost" className="h-5 w-5 text-slate-400 hover:text-lime-300" onClick={onNewCase} data-testid={`${testPrefix}-new-case`}>
               <Plus className="h-3 w-3" />
             </Button>
           </div>
           {(cases || []).map((c) => (
             <div key={c.id} className={`group flex items-center gap-1.5 rounded px-2 py-1 hover:bg-slate-800 ${c.id === selectedCaseId ? 'bg-slate-800 text-lime-300' : ''}`}>
-              <button type="button" onClick={() => onSelectCase(c.id)} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" data-testid={`td-case-${c.name}`}>
+              <button type="button" onClick={() => onSelectCase(c.id)} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" data-testid={`${testPrefix}-case-${c.name}`}>
                 <FlaskConical className="h-3 w-3 shrink-0" />
                 <span className="truncate">{c.name}</span>
               </button>
@@ -57,7 +57,7 @@ export default function Explorer({
               </Button>
             </div>
           ))}
-          <div className="mt-3 border-t border-slate-800 pt-2 text-[10px] text-slate-500" data-testid="td-traj-info">
+          <div className="mt-3 border-t border-slate-800 pt-2 text-[10px] text-slate-500" data-testid={`${testPrefix}-traj-info`}>
             {trajectory?.design
               ? `Trajectory: ${trajectory.design.name} r${trajectory.design.revision} (definitive), ${trajectory.stations.length} stations`
               : 'No definitive design on this wellbore.'}

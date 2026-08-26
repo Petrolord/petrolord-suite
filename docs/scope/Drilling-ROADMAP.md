@@ -187,9 +187,18 @@ Locked to the WDS/G-series precedents:
   harness + e2e. Tile migration 20260826140000 HELD until the prod
   upload. ARMED: L4 Mitchell & Miska T&D example, L5 SPE 11380 field
   cases (owner PDFs).
-- **D2 — Drilling Fluids & Hydraulics Studio**: rheology + API RP 13D
-  hydraulics/ECD, surge/swab, hole cleaning; shares the D1 geometry
-  model.
+- **D2 — Drilling Fluids & Hydraulics Studio**: **SHIPPED 2026-08-26**
+  (engines PR #38 + Suite waves H0-H3; see
+  docs/scope/HydraulicsStudio-STATUS.md). Rheology fits, Metzner-Reed
+  loss chain with exact laminar closed forms, ECD with PP/FP overlay,
+  Burkhardt surge/swab, hole cleaning; reuses the D1 geometry spine.
+  Gates A13-A15 ACTIVE; L6/L7 ARMED. Tile migration 20260826190000
+  HELD under the single-upload gate.
+
+  **DEPLOY NOTE (owner directive 2026-08-26): no prod zip until all 12
+  apps are ready. EVERY D-phase tile migration is HELD and they all
+  apply together at the one launch upload (currently held:
+  20260826140000 D1, 20260826190000 D2).**
 - **D3 — Well Control Studio**: kick tolerance, kill sheets, MAASP;
   IWCF-style worked examples as gates.
 - **D4 — Cementing Studio**: keeps the real volume math, replaces all
