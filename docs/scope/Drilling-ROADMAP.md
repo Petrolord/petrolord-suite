@@ -231,8 +231,20 @@ Locked to the WDS/G-series precedents:
   gone (only the WDS legacyImport bridge remains, by design). Gates
   A22-A23 ACTIVE (23/23 total); L13 ARMED. Tile update 20260827100000
   HELD.
-- **D7 — Completion Design Studio**: string architect + schematic + BOM
-  (absorbs Well Schematic Designer and CTDP completion components).
+- **D7 — Completion Design Studio**: **SHIPPED 2026-08-28** (engines PR
+  #47 + Suite waves CD0-CD3; see
+  docs/scope/CompletionDesignStudio-STATUS.md). Fresh slug
+  completion-design-studio: API 5CT drift (exact inch-fraction
+  deductions), stack-up tally, innermost-exposed-program run-in
+  clearance with the controlling string named, through-bore access,
+  breakpoint-exact volumes, PBR seal space-out, to-scale SVG schematic +
+  grouped BOM, and tubing sizing screened with the Production nodal VLP
+  engine (owner-locked reuse). wp_cd_* persistence; casing program
+  snapshots from D6 wp_ct_cases. ABSORBED: Well Schematic Designer
+  (tree deleted, route redirects, tile archived in the held migration)
+  and the CTDP completion markers (cross-link card instead). Gates
+  A24-A25 ACTIVE (25/25 total); L14 ARMED. Tile seed 20260828120000
+  HELD.
 - **D8 — Perforation & Sand Control Designer.**
 - **D9 — Stimulation Designer**: rebuild of frac-completion.
 - **D10 — Well Integrity & P&A Studio.**
