@@ -1,344 +1,389 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+// Casing & Tubing Design Studio state (D6/U1 rewrite): the wp spine
+// (sites -> wellbores -> definitive design stations) replaces the legacy
+// public.wells read and every mock generator. The backend is injected —
+// the page passes the wp/registry backend, the /dev harness the in-memory
+// one — and results recompute synchronously through the pure ctRun service
+// on every input change (no stale results state).
+
+import React, {
+  createContext, useContext, useState, useEffect, useCallback, useMemo,
+} from 'react';
 import { useToast } from '@/components/ui/use-toast';
-import { MOCK_CATALOG } from '../data/catalog';
+import {
+  runAll, defaultCaseDoc, defaultEnvironment, emwKgM3, ENGINE_VERSION,
+} from '../services/ctRun';
 
 const CasingTubingDesignContext = createContext();
 
-export const CasingTubingDesignProvider = ({ children }) => {
-    const { user } = useAuth();
-    const { toast } = useToast();
+const docFromRow = (row) => ({
+  strings: row.strings && row.strings.casingStrings ? row.strings : defaultCaseDoc().strings,
+  environment: { ...defaultEnvironment(), ...(row.environment || {}) },
+  loadCases: Array.isArray(row.load_cases) && row.load_cases.length
+    ? row.load_cases : defaultCaseDoc().loadCases,
+  packer: { ...defaultCaseDoc().packer, ...(row.packer || {}) },
+  safetyFactors: { ...defaultCaseDoc().safetyFactors, ...(row.safety_factors || {}) },
+});
 
-    // -- App State --
-    const [wells, setWells] = useState([]);
-    const [selectedWell, setSelectedWell] = useState(null);
-    const [designCases, setDesignCases] = useState([]); 
-    const [selectedDesignCase, setSelectedDesignCase] = useState(null);
-    const [activeTab, setActiveTab] = useState('well-loads');
-    
-    // -- UX State (Phase 5) --
-    const [isHelpOpen, setIsHelpOpen] = useState(false);
-    
-    // -- Engineering Data State --
-    const [wellTrajectory, setWellTrajectory] = useState([]);
-    const [ppfgProfile, setPpfgProfile] = useState([]);
-    const [tempProfile, setTempProfile] = useState([]);
-    const [loadCases, setLoadCases] = useState([]);
-    const [casingStrings, setCasingStrings] = useState([]); // Array of casing strings
-    const [tubingStrings, setTubingStrings] = useState([]); // Array of tubing strings
-    
-    // -- Phase 4: Packer & Completion Config --
-    const [packerConfig, setPackerConfig] = useState({
-        hasPacker: true,
-        depth: 3400,
-        type: 'Permanent',
-        rating: 450, // kN
-        stroke: 2.0, // m
-        hasSSSV: true,
-        sssvDepth: 150,
-        sssvPressure: 350 // bar
-    });
+const rowFromDoc = (doc) => ({
+  strings: doc.strings,
+  environment: doc.environment,
+  load_cases: doc.loadCases,
+  packer: doc.packer,
+  safety_factors: doc.safetyFactors,
+});
 
-    const [catalog, setCatalog] = useState(MOCK_CATALOG);
-    
-    // -- Settings & Results --
-    const [safetyFactors, setSafetyFactors] = useState({
-        burst: 1.1,
-        collapse: 1.0,
-        tension: 1.6,
-        triaxial: 1.25,
-        compression: 1.2
-    });
-    
-    const [results, setResults] = useState(null);
-    const [logs, setLogs] = useState([]);
-    const [warnings, setWarnings] = useState([]);
+export const CasingTubingDesignProvider = ({ backend, children }) => {
+  const { toast } = useToast();
 
-    // -- Helpers --
-    const addLog = (message, type = 'info') => {
-        setLogs(prev => [{ timestamp: new Date(), message, type }, ...prev]);
-    };
+  const [sites, setSites] = useState([]);
+  const [selectedSiteId, setSelectedSiteId] = useState(null);
+  const [wellbores, setWellbores] = useState([]);
+  const [selectedWellboreId, setSelectedWellboreId] = useState(null);
+  const [trajectory, setTrajectory] = useState(null); // {wellbore, design, stations}
+  const [mudWindow, setMudWindow] = useState(null);
 
-    const addWarning = (message, severity = 'medium') => {
-        setWarnings(prev => [...prev, { id: Date.now(), message, severity }]);
-    };
+  const [caseRows, setCaseRows] = useState([]);
+  const [selectedCaseId, setSelectedCaseId] = useState(null);
+  const [caseDoc, setCaseDoc] = useState(null);
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-    const toggleHelp = () => setIsHelpOpen(prev => !prev);
+  const [activeTab, setActiveTab] = useState('well-loads');
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [logs, setLogs] = useState([]);
 
-    // -- Mock Data Generators --
-    const generateMockTrajectory = (wellId) => {
-        const points = [];
-        let md = 0;
-        let tvd = 0;
-        let inc = 0;
-        // Simple build and hold profile
-        for (let i = 0; i <= 24; i++) {
-            points.push({ md, tvd: Math.round(tvd), inc: Math.round(inc), azi: 0 });
-            md += 500;
-            if (md < 3000) { // Vertical section
-                tvd += 500;
-            } else if (md < 6000) { // Build section
-                inc += 2; // Build 2 deg per 500ft approx
-                tvd += 500 * Math.cos(inc * Math.PI / 180);
-            } else { // Hold section
-                tvd += 500 * Math.cos(inc * Math.PI / 180);
-            }
-        }
-        return points;
-    };
+  const addLog = useCallback((message, type = 'info') => {
+    setLogs((prev) => [{ timestamp: new Date(), message, type }, ...prev].slice(0, 200));
+  }, []);
+  const toggleHelp = () => setIsHelpOpen((prev) => !prev);
 
-    const generateMockPPFG = () => {
-        return [
-            { tvd: 0, pp: 8.5, fg: 12.0 },
-            { tvd: 2000, pp: 8.6, fg: 13.0 },
-            { tvd: 4000, pp: 9.0, fg: 13.5 },
-            { tvd: 6000, pp: 9.8, fg: 14.2 },
-            { tvd: 8000, pp: 11.5, fg: 15.5 },
-            { tvd: 10000, pp: 13.5, fg: 16.5 },
-            { tvd: 12000, pp: 14.0, fg: 17.0 }
-        ];
-    };
+  // ---- spine loading -------------------------------------------------------
 
-    const generateMockTemp = () => {
-        return [
-            { tvd: 0, temp: 60 },
-            { tvd: 6000, temp: 150 },
-            { tvd: 12000, temp: 280 }
-        ];
-    };
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const rows = await backend.listSites();
+        if (!live) return;
+        setSites(rows);
+        if (rows.length === 1) setSelectedSiteId(rows[0].id);
+      } catch (e) {
+        addLog(`Failed to load sites: ${e.message}`, 'error');
+      }
+    })();
+    return () => { live = false; };
+  }, [backend, addLog]);
 
-    // -- Fetching --
-    const fetchWells = useCallback(async () => {
-        // Mocking well list for instant UI if DB is empty or slow
-        try {
-            // Fallback mock wells immediately for UI testing
-            const mockWells = [
-                { id: '1', name: 'Adalu-1', field: 'Unknown Field', location: 'Offshore' },
-                { id: '2', name: 'Bravo-2', field: 'Permian', location: 'Onshore' }
-            ];
-            setWells(mockWells);
-            if (!selectedWell) setSelectedWell(mockWells[0]);
-            
-            if (user) {
-                const { data, error } = await supabase
-                    .from('wells')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .order('name');
-                
-                if (data && data.length > 0) {
-                    setWells(data);
-                    if (!selectedWell) setSelectedWell(data[0]);
-                }
-            }
-        } catch (error) {
-            console.error('Error fetching wells:', error);
-        }
-    }, [user, selectedWell]);
+  useEffect(() => {
+    if (!selectedSiteId) { setWellbores([]); return undefined; }
+    let live = true;
+    (async () => {
+      try {
+        const rows = await backend.listWellbores(selectedSiteId);
+        if (!live) return;
+        setWellbores(rows);
+        if (rows.length === 1) setSelectedWellboreId(rows[0].id);
+      } catch (e) {
+        addLog(`Failed to load wellbores: ${e.message}`, 'error');
+      }
+    })();
+    return () => { live = false; };
+  }, [backend, selectedSiteId, addLog]);
 
-    const fetchCaseData = useCallback(async () => {
-        if (!selectedWell) return;
-        
-        // Mock Loading Data
-        addLog(`Loading environment for ${selectedWell.name}...`);
-        
-        // 1. Trajectory
-        setWellTrajectory(generateMockTrajectory(selectedWell.id));
-
-        // 2. PPFG & Temp
-        setPpfgProfile(generateMockPPFG());
-        setTempProfile(generateMockTemp());
-
-        // 3. Load Cases (Phase 4 Updates: Added types for tubing analysis)
-        if (loadCases.length === 0) {
-            setLoadCases([
-                { id: 1, name: 'Production - Base', type: 'Production', internal_fluid_density: 8.5, external_fluid_density: 9.0, surface_pressure: 200 },
-                { id: 2, name: 'Injection - Max Rate', type: 'Injection', internal_fluid_density: 9.2, external_fluid_density: 9.0, surface_pressure: 3000 },
-                { id: 3, name: 'Stimulation - Acid', type: 'Stimulation', internal_fluid_density: 9.5, external_fluid_density: 9.0, surface_pressure: 5000 },
-                { id: 4, name: 'Kill - Bullhead', type: 'Kill', internal_fluid_density: 12.0, external_fluid_density: 9.0, surface_pressure: 1500 },
-                { id: 5, name: 'Drilling Liner', type: 'Drilling', internal_fluid_density: 12.5, surface_pressure: 0, external_profile: 'Pore Pressure' }
-            ]);
-        }
-        
-        // 4. Design Cases (Mock if empty)
-        if (designCases.length === 0) {
-            setDesignCases([
-                { id: 'dc1', scheme_name: 'Base Case - Production', created_at: new Date().toISOString() },
-                { id: 'dc2', scheme_name: 'Contingency Liner', created_at: new Date().toISOString() }
-            ]);
-            if (!selectedDesignCase) setSelectedDesignCase({ id: 'dc1', scheme_name: 'Base Case - Production' });
-        }
-
-        // 5. Mock Casing Strings if empty
-        if (casingStrings.length === 0) {
-            setCasingStrings([
-                {
-                    id: 'str1',
-                    name: 'Surface Casing',
-                    top_depth: 0,
-                    bottom_depth: 500,
-                    od: '20',
-                    weight: 94,
-                    grade: 'K-55',
-                    status: 'Active',
-                    connection: 'API',
-                    sections: [
-                        { id: 'sec1', name: 'Surf-1', top_depth: 0, bottom_depth: 500, od: '20', weight: 94, grade: 'K-55', api_burst: 3000, api_collapse: 1500, yield_strength: 500000 }
-                    ]
-                },
-                {
-                    id: 'str2',
-                    name: 'Intermediate Casing',
-                    top_depth: 0,
-                    bottom_depth: 2000,
-                    od: '13.375',
-                    weight: 68,
-                    grade: 'N-80',
-                    status: 'Active',
-                    connection: 'API',
-                    sections: [
-                        { id: 'sec2', name: 'Inter-1', top_depth: 0, bottom_depth: 2000, od: '13.375', weight: 68, grade: 'N-80', api_burst: 5000, api_collapse: 3500, yield_strength: 800000 }
-                    ]
-                },
-                {
-                    id: 'str3',
-                    name: 'Production Casing',
-                    top_depth: 0,
-                    bottom_depth: 3500,
-                    od: '9.625',
-                    weight: 47,
-                    grade: 'P-110',
-                    status: 'Active',
-                    connection: 'API',
-                    sections: [
-                        { id: 'sec3', name: 'Prod-1', top_depth: 0, bottom_depth: 3500, od: '9.625', weight: 47, grade: 'P-110', api_burst: 9000, api_collapse: 7000, yield_strength: 1000000 }
-                    ]
-                }
-            ]);
-        }
-
-        // 6. Mock Tubing Strings if empty (Phase 3/4)
-        if (tubingStrings.length === 0) {
-            setTubingStrings([
-                {
-                    id: 101,
-                    name: 'Production Tubing',
-                    top_depth: 0,
-                    bottom_depth: 3500,
-                    od: '3.5',
-                    weight: 9.3,
-                    grade: 'L-80',
-                    status: 'Active',
-                    connection: 'VAM Top',
-                    sections: [
-                        { id: 'tsec1', name: 'Upper Section', top_depth: 0, bottom_depth: 1000, od: '3.5', id_nom: '2.992', weight: 9.3, grade: 'L-80', api_burst: 10000, api_collapse: 9500, yield_strength: 150000 },
-                        { id: 'tsec2', name: 'Lower Section', top_depth: 1000, bottom_depth: 3500, od: '3.5', id_nom: '2.992', weight: 12.7, grade: 'P-110', api_burst: 12000, api_collapse: 11000, yield_strength: 180000 }
-                    ],
-                    components: [
-                        { id: 'comp1', type: 'Safety Valve (SSSV)', depth: 150, od: '4.5', status: 'Active', description: 'Surface controlled' },
-                        { id: 'comp2', type: 'Packer', depth: 3400, od: '7.0', status: 'Active', description: 'Permanent production packer' }
-                    ]
-                }
-            ]);
-        }
-
-        addLog(`Data loaded successfully.`);
-
-    }, [selectedWell]);
-
-    // -- Effects --
-    useEffect(() => {
-        fetchWells();
-    }, [fetchWells]);
-
-    useEffect(() => {
-        if (selectedWell) fetchCaseData();
-    }, [fetchCaseData, selectedWell]);
-
-    // -- Actions --
-    const createDesignCase = (name) => {
-        const newCase = { id: `new-${Date.now()}`, scheme_name: name, created_at: new Date().toISOString() };
-        setDesignCases([newCase, ...designCases]);
-        setSelectedDesignCase(newCase);
-        toast({ title: 'Success', description: 'New design case created.' });
-        addLog(`Created design case: ${name}`);
-    };
-
-    const updateSafetyFactors = (newFactors) => {
-        setSafetyFactors(newFactors);
-        addLog('Safety Factors updated.');
-    };
-
-    const saveLoadCase = (loadCase) => {
-        if (loadCase.id) {
-            setLoadCases(prev => prev.map(lc => lc.id === loadCase.id ? loadCase : lc));
-            toast({ title: 'Updated', description: 'Load case updated.' });
+  useEffect(() => {
+    if (!selectedWellboreId) {
+      setTrajectory(null); setCaseRows([]); setSelectedCaseId(null);
+      setCaseDoc(null); setMudWindow(null);
+      return undefined;
+    }
+    let live = true;
+    (async () => {
+      setBusy(true);
+      try {
+        const traj = await backend.getDefinitiveTrajectory(selectedWellboreId);
+        if (!live) return;
+        setTrajectory(traj);
+        if (!traj.stations.length) {
+          addLog('No definitive design with saved stations on this wellbore — save one in Well Design Studio first.', 'error');
         } else {
-            const newCase = { ...loadCase, id: Date.now() };
-            setLoadCases(prev => [...prev, newCase]);
-            toast({ title: 'Created', description: 'Load case added.' });
+          addLog(`Definitive trajectory loaded: ${traj.design?.name || 'design'} (${traj.stations.length} stations).`);
         }
-    };
+        const rows = await backend.listCases(selectedWellboreId);
+        if (!live) return;
+        setCaseRows(rows);
+        if (rows.length) {
+          setSelectedCaseId(rows[0].id);
+          setCaseDoc(docFromRow(rows[0]));
+          setDirty(false);
+        } else {
+          setSelectedCaseId(null);
+          setCaseDoc(null);
+        }
+        try {
+          const mw = await backend.loadMudWindow(traj.wellbore, traj.stations);
+          if (live) setMudWindow(mw && mw.length ? mw : null);
+        } catch {
+          if (live) setMudWindow(null);
+        }
+      } catch (e) {
+        addLog(`Failed to load wellbore data: ${e.message}`, 'error');
+      } finally {
+        if (live) setBusy(false);
+      }
+    })();
+    return () => { live = false; };
+  }, [backend, selectedWellboreId, addLog]);
 
-    const deleteLoadCase = (id) => {
-        setLoadCases(prev => prev.filter(lc => lc.id !== id));
-        toast({ title: 'Deleted', description: 'Load case removed.' });
-    };
+  // ---- case CRUD -----------------------------------------------------------
 
-    return (
-        <CasingTubingDesignContext.Provider value={{
-            wells,
-            selectedWell,
-            setSelectedWell,
-            designCases,
-            selectedDesignCase,
-            setSelectedDesignCase,
-            activeTab,
-            setActiveTab,
-            
-            // Engineering Data
-            wellTrajectory,
-            setWellTrajectory,
-            ppfgProfile,
-            setPpfgProfile,
-            tempProfile,
-            setTempProfile,
-            loadCases,
-            saveLoadCase,
-            deleteLoadCase,
-            casingStrings,
-            setCasingStrings,
-            tubingStrings,
-            setTubingStrings,
-            packerConfig,
-            setPackerConfig,
-            
-            catalog,
-            
-            // Settings
-            safetyFactors,
-            setSafetyFactors: updateSafetyFactors,
-            results,
-            logs,
-            warnings,
-            createDesignCase,
-            addLog,
-            addWarning,
-            
-            // UX State
-            isHelpOpen,
-            toggleHelp
-        }}>
-            {children}
-        </CasingTubingDesignContext.Provider>
-    );
+  const stations = trajectory?.stations || [];
+  const depthUnit = trajectory?.wellbore?.depth_unit === 'ft' ? 'ft' : 'm';
+
+  const selectCase = useCallback((id) => {
+    const row = caseRows.find((r) => r.id === id);
+    if (!row) return;
+    setSelectedCaseId(id);
+    setCaseDoc(docFromRow(row));
+    setDirty(false);
+  }, [caseRows]);
+
+  const createCase = useCallback(async (name) => {
+    if (!selectedWellboreId || !stations.length) {
+      toast({ title: 'No trajectory', description: 'Select a wellbore with a definitive design first.', variant: 'destructive' });
+      return;
+    }
+    setBusy(true);
+    try {
+      const shoeMdM = stations[stations.length - 1].md;
+      const doc = defaultCaseDoc({ shoeMdM });
+      const created = await backend.saveCase({
+        wellbore_id: selectedWellboreId,
+        design_id: trajectory?.design?.id || null,
+        name: name || 'New Design Case',
+        ...rowFromDoc(doc),
+      });
+      setCaseRows((prev) => [...prev, created]);
+      setSelectedCaseId(created.id);
+      setCaseDoc(docFromRow(created));
+      setDirty(false);
+      addLog(`Created design case: ${created.name}`);
+      toast({ title: 'Case created', description: created.name });
+    } catch (e) {
+      toast({ title: 'Create failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  }, [backend, selectedWellboreId, stations, trajectory, toast, addLog]);
+
+  const saveCase = useCallback(async (resultsSummary) => {
+    if (!selectedCaseId || !caseDoc) return;
+    setBusy(true);
+    try {
+      const updated = await backend.updateCase(selectedCaseId, rowFromDoc(caseDoc));
+      setCaseRows((prev) => prev.map((r) => (r.id === selectedCaseId ? updated : r)));
+      setDirty(false);
+      if (resultsSummary) {
+        await backend.saveRun({
+          case_id: selectedCaseId,
+          design_id: trajectory?.design?.id || null,
+          params: rowFromDoc(caseDoc),
+          results: resultsSummary.results,
+          summary: resultsSummary.summary,
+          engine_version: ENGINE_VERSION,
+        });
+      }
+      addLog('Design case saved.');
+      toast({ title: 'Saved', description: 'Design case saved.' });
+    } catch (e) {
+      toast({ title: 'Save failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  }, [backend, selectedCaseId, caseDoc, trajectory, toast, addLog]);
+
+  const duplicateCase = useCallback(async () => {
+    const row = caseRows.find((r) => r.id === selectedCaseId);
+    if (!row || !caseDoc) return;
+    setBusy(true);
+    try {
+      const created = await backend.saveCase({
+        wellbore_id: row.wellbore_id,
+        design_id: row.design_id,
+        name: `${row.name} (copy)`,
+        ...rowFromDoc(caseDoc),
+      });
+      setCaseRows((prev) => [...prev, created]);
+      setSelectedCaseId(created.id);
+      setCaseDoc(docFromRow(created));
+      setDirty(false);
+      toast({ title: 'Duplicated', description: created.name });
+    } catch (e) {
+      toast({ title: 'Duplicate failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  }, [backend, caseRows, selectedCaseId, caseDoc, toast]);
+
+  const deleteCase = useCallback(async (id) => {
+    setBusy(true);
+    try {
+      await backend.deleteCase(id);
+      setCaseRows((prev) => prev.filter((r) => r.id !== id));
+      if (selectedCaseId === id) {
+        setSelectedCaseId(null);
+        setCaseDoc(null);
+      }
+      toast({ title: 'Deleted', description: 'Design case removed.' });
+    } catch (e) {
+      toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setBusy(false);
+    }
+  }, [backend, selectedCaseId, toast]);
+
+  // ---- doc updaters --------------------------------------------------------
+
+  const patchDoc = useCallback((patch) => {
+    setCaseDoc((prev) => (prev ? { ...prev, ...patch } : prev));
+    setDirty(true);
+  }, []);
+
+  const setStrings = useCallback((updater) => {
+    setCaseDoc((prev) => {
+      if (!prev) return prev;
+      const strings = typeof updater === 'function' ? updater(prev.strings) : updater;
+      return { ...prev, strings };
+    });
+    setDirty(true);
+  }, []);
+
+  const setEnvironment = useCallback((patch) => {
+    setCaseDoc((prev) => (prev
+      ? { ...prev, environment: { ...prev.environment, ...patch } } : prev));
+    setDirty(true);
+  }, []);
+
+  const setPacker = useCallback((patch) => {
+    setCaseDoc((prev) => (prev ? { ...prev, packer: { ...prev.packer, ...patch } } : prev));
+    setDirty(true);
+  }, []);
+
+  const setSafetyFactors = useCallback((patch) => {
+    setCaseDoc((prev) => (prev
+      ? { ...prev, safetyFactors: { ...prev.safetyFactors, ...patch } } : prev));
+    setDirty(true);
+  }, []);
+
+  const saveLoadCase = useCallback((lc) => {
+    setCaseDoc((prev) => {
+      if (!prev) return prev;
+      const exists = prev.loadCases.some((x) => x.id === lc.id);
+      const loadCases = exists
+        ? prev.loadCases.map((x) => (x.id === lc.id ? lc : x))
+        : [...prev.loadCases, { ...lc, id: lc.id || `lc-${Date.now()}` }];
+      return { ...prev, loadCases };
+    });
+    setDirty(true);
+  }, []);
+
+  const deleteLoadCase = useCallback((id) => {
+    setCaseDoc((prev) => (prev
+      ? { ...prev, loadCases: prev.loadCases.filter((x) => x.id !== id) } : prev));
+    setDirty(true);
+  }, []);
+
+  // PPFG hint: sample the published mud window at the deepest casing shoe.
+  const syncPpfgFromPublished = useCallback(() => {
+    if (!mudWindow || !mudWindow.length || !caseDoc) {
+      toast({ title: 'No published PPFG', description: 'This wellbore has no bridged pp-1.0.0 curves — enter EMWs manually.', variant: 'destructive' });
+      return;
+    }
+    const last = mudWindow[mudWindow.length - 1];
+    const pp = last.ppEmw != null ? last.ppEmw * 1000 : null;
+    const fp = last.fpEmw != null ? last.fpEmw * 1000 : null;
+    setEnvironment({
+      ppfg: {
+        source: 'published',
+        geoWellId: trajectory?.wellbore?.geo_well_id || null,
+        ppEmwAtShoeKgM3: pp ?? caseDoc.environment.ppfg?.ppEmwAtShoeKgM3 ?? null,
+        fracEmwAtShoeKgM3: fp ?? caseDoc.environment.ppfg?.fracEmwAtShoeKgM3 ?? null,
+      },
+    });
+    addLog(`PPFG synced from published curves (pp ${pp ? Math.round(pp) : 'n/a'} / frac ${fp ? Math.round(fp) : 'n/a'} kg/m3 at ${Math.round(last.md)} m MD).`);
+  }, [mudWindow, caseDoc, trajectory, setEnvironment, toast, addLog]);
+
+  // ---- results (synchronous, pure) ----------------------------------------
+
+  const { results, runError } = useMemo(() => {
+    if (!caseDoc || !stations.length) return { results: null, runError: null };
+    try {
+      return { results: runAll({ caseDoc, stations }), runError: null };
+    } catch (e) {
+      return { results: null, runError: e.message };
+    }
+  }, [caseDoc, stations]);
+
+  const warnings = results?.warnings || [];
+
+  const value = {
+    backend,
+    // spine
+    sites,
+    selectedSite: sites.find((s) => s.id === selectedSiteId) || null,
+    selectSite: setSelectedSiteId,
+    wellbores,
+    selectedWellbore: wellbores.find((w) => w.id === selectedWellboreId) || null,
+    selectWellbore: setSelectedWellboreId,
+    trajectory,
+    stations,
+    mudWindow,
+    depthUnit,
+    // cases
+    caseRows,
+    selectedCase: caseRows.find((r) => r.id === selectedCaseId) || null,
+    selectCase,
+    createCase,
+    saveCase,
+    duplicateCase,
+    deleteCase,
+    dirty,
+    busy,
+    // doc + updaters
+    caseDoc,
+    patchDoc,
+    setStrings,
+    setEnvironment,
+    setPacker,
+    setSafetyFactors,
+    saveLoadCase,
+    deleteLoadCase,
+    syncPpfgFromPublished,
+    // results
+    results,
+    runError,
+    warnings,
+    // UX
+    activeTab,
+    setActiveTab,
+    isHelpOpen,
+    toggleHelp,
+    logs,
+    addLog,
+  };
+
+  return (
+    <CasingTubingDesignContext.Provider value={value}>
+      {children}
+    </CasingTubingDesignContext.Provider>
+  );
 };
 
 export const useCasingTubingDesign = () => {
-    const context = useContext(CasingTubingDesignContext);
-    if (!context) {
-        throw new Error('useCasingTubingDesign must be used within a CasingTubingDesignProvider');
-    }
-    return context;
+  const context = useContext(CasingTubingDesignContext);
+  if (!context) {
+    throw new Error('useCasingTubingDesign must be used within a CasingTubingDesignProvider');
+  }
+  return context;
 };
+
+export { emwKgM3 };
