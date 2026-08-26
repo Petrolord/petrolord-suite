@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Plus, Trash2, GripVertical, Download, AlertCircle, Wand2, Activity, Table as TableIcon, LayoutGrid, Save, Box, Share2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, GripVertical, Download, AlertCircle, Wand2, Activity, Table as TableIcon, LayoutGrid, Save, Box, Share2, Target } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -71,6 +71,7 @@ const DesignTab = () => {
     const [showEou, setShowEou] = useState(true);
     const [publishOpen, setPublishOpen] = useState(false);
     const [showPpfg, setShowPpfg] = useState(false);
+    const [showTargets, setShowTargets] = useState(true);
     const [ppfg, setPpfg] = useState(null);          // {rows, summary} | 'loading' | 'none' | null
     const [scene3d, setScene3d] = useState(null);    // {composite, offsets, tops} lazy-loaded
     const loadedFor = useRef(null);
@@ -430,8 +431,10 @@ const DesignTab = () => {
             geometry,
             e: metersToUser((t.center_x || 0) - headX),
             n: metersToUser((t.center_y || 0) - headY),
+            // TVD below KB in the user's unit, for the section view.
+            tvd: Number.isFinite(t.tvdss_m) ? kbUser + metersToUser(t.tvdss_m) : null,
         };
-    }), [siteTargets, headX, headY, metersToUser]);
+    }), [siteTargets, headX, headY, metersToUser, kbUser]);
 
     const chartSlots = useMemo(() => {
         const slots = Array.isArray(site?.slots) ? site.slots : [];
@@ -455,6 +458,19 @@ const DesignTab = () => {
 
     const vsAzimuthDeg = planRows && planRows.length > 1
         ? planRows[planRows.length - 1].closureAzi : null;
+
+    // Targets projected into the section frame: VS is the N/E offset
+    // projected onto the same VS azimuth the survey rows use.
+    const sectionTargets = useMemo(() => {
+        if (!Number.isFinite(vsAzimuthDeg)) return [];
+        const az = (vsAzimuthDeg * Math.PI) / 180;
+        return chartTargets
+            .filter((t) => Number.isFinite(t.tvd))
+            .map((t) => ({
+                id: t.id, name: t.name, tvd: t.tvd,
+                vs: t.n * Math.cos(az) + t.e * Math.sin(az),
+            }));
+    }, [chartTargets, vsAzimuthDeg]);
 
     const eouSectionOverlays = useMemo(() => (uncertainty?.band ? [
         { name: 'TVD −2σ', rows: uncertainty.band.up, color: '#0284c7', dash: '3 3' },
@@ -597,6 +613,13 @@ const DesignTab = () => {
                             <Button variant="ghost" size="sm" onClick={() => setViewMode('3d')} className={`h-7 px-3 text-xs ${viewMode === '3d' ? 'bg-slate-700 text-white shadow' : 'text-slate-400'}`} data-testid="view-3d"><Box className="w-3 h-3 mr-1" /> 3D</Button>
                         </div>
                         <div className="flex items-center gap-2">
+                            {(viewMode === 'section' || viewMode === 'plots') && (
+                                <Button size="sm" variant="ghost" onClick={() => setShowTargets((v) => !v)}
+                                    className={`h-7 px-2 text-xs ${showTargets ? 'bg-slate-700 text-amber-300' : 'text-slate-400'}`}
+                                    title="Show site targets on the section and plan views">
+                                    <Target className="w-3 h-3 mr-1" /> Targets
+                                </Button>
+                            )}
                             {viewMode === 'section' && (
                                 <Button size="sm" variant="ghost" onClick={() => setShowPpfg((v) => !v)}
                                     className={`h-7 px-2 text-xs ${showPpfg ? 'bg-slate-700 text-sky-300' : 'text-slate-400'}`}
@@ -631,7 +654,7 @@ const DesignTab = () => {
                         {viewMode === 'section' && planRows && (
                             <div className="flex h-full w-full bg-white">
                                 <div className="min-w-0 flex-1">
-                                    <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} />
+                                    <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} targets={showTargets ? sectionTargets : []} />
                                 </div>
                                 {showPpfg && (
                                     <div className="w-[340px] shrink-0 border-l border-slate-200">
@@ -666,8 +689,8 @@ const DesignTab = () => {
 
                         {viewMode === 'plots' && planRows && (
                             <div className="grid grid-cols-2 grid-rows-2 gap-px bg-slate-800 h-full w-full">
-                                <PlanViewChart rows={planRows} targets={chartTargets} slots={chartSlots} leaseLines={chartLeaseLines} unit={depthUnitLabel} ellipses={uncertainty?.ellipses || []} />
-                                <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} />
+                                <PlanViewChart rows={planRows} targets={showTargets ? chartTargets : []} slots={chartSlots} leaseLines={chartLeaseLines} unit={depthUnitLabel} ellipses={uncertainty?.ellipses || []} />
+                                <SectionViewPanel rows={planRows} unit={depthUnitLabel} vsAzimuthDeg={vsAzimuthDeg} overlays={eouSectionOverlays} targets={showTargets ? sectionTargets : []} />
                                 <InclinationPanel rows={planRows} unit={depthUnitLabel} />
                                 <DlsPanel rows={planRows} unit={depthUnitLabel} />
                             </div>

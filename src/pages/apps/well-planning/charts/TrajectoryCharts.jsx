@@ -22,8 +22,11 @@ const axisProps = {
   tick: { fill: CHART_COLORS.axisText, fontSize: 10 },
 };
 
+// h-full matters: in the single-view Section mode the panel's parent is
+// a flex item with a resolved height, not a stretching grid cell, and
+// without it the ResponsiveContainer collapses to 0 and no plot renders.
 const Panel = ({ title, children }) => (
-  <div className="bg-white relative flex flex-col min-h-0 min-w-0">
+  <div className="bg-white relative flex flex-col h-full min-h-0 min-w-0">
     <div className={PANEL_TITLE}>{title}</div>
     <div className="flex-1 min-h-0">{children}</div>
     <ChartLogo style={{ height: 40 }} />
@@ -58,8 +61,9 @@ export const PlanViewPanel = ({ rows, targets = [], unit }) => (
 
 /** Section view: TVD (down) vs vertical section. Overlays (WD3
  *  plan-vs-actual) are extra series with their own rows in the same
- *  VS/TVD frame: [{name, rows, color, dash}]. */
-export const SectionViewPanel = ({ rows, unit, vsAzimuthDeg, overlays = [], name = 'Plan' }) => (
+ *  VS/TVD frame: [{name, rows, color, dash}]. Targets are
+ *  [{id, name, vs, tvd}] already projected onto the VS azimuth. */
+export const SectionViewPanel = ({ rows, unit, vsAzimuthDeg, overlays = [], targets = [], name = 'Plan' }) => (
   <Panel title={`Section view (TVD vs VS at ${Number.isFinite(vsAzimuthDeg) ? vsAzimuthDeg.toFixed(1) : '--'}°, ${unit})`}>
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={rows} margin={CHART_MARGINS.compact}>
@@ -79,6 +83,13 @@ export const SectionViewPanel = ({ rows, unit, vsAzimuthDeg, overlays = [], name
           <Line key={o.name} data={o.rows} dataKey="tvd" name={o.name}
             stroke={o.color || '#b91c1c'} strokeWidth={2}
             strokeDasharray={o.dash || '5 3'} dot={false} isAnimationActive={false} />
+        ))}
+        {targets.map((t) => (
+          Number.isFinite(t.vs) && Number.isFinite(t.tvd)
+            ? <ReferenceDot key={t.id} x={t.vs} y={t.tvd} r={4}
+                fill="#d97706" stroke="#92400e" ifOverflow="extendDomain"
+                label={{ value: t.name, position: 'right', fill: '#92400e', fontSize: 9 }} />
+            : null
         ))}
       </LineChart>
     </ResponsiveContainer>
