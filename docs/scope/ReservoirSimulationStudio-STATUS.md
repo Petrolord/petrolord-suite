@@ -67,11 +67,45 @@ via SECURITY DEFINER RPCs; `sim_runs` is read-only to humans.
   by design); INCLUDE/GDFILE/IMPORT/PATHS confined to the bundle dir
   via realpath; flow runs credential-free as an unprivileged user.
 
-## Upcoming phases
+## S1 — Worker (2026-08-26)
 
-- **S1 — Worker** (`worker/sim-worker/`: opmreleases-based Docker
-  image + Python poll loop; pytest; SPE1 golden gate vs the
-  opm-tests flow reference ON the VPS before S2 starts).
+- `worker/sim-worker/`: Dockerfile (FROM openporousmedia/opmreleases,
+  OPM Flow **2026.04**, Ubuntu 24.04 base + venv with resdata/httpx/
+  pytest, unprivileged simuser; base image defaults to non-root so the
+  build steps need an explicit USER root), docker-compose (cpus 2.0,
+  mem 6g, pids 256, read-only rootfs + /scratch volume, restart
+  unless-stopped, log rotation), `.env.example` (real `.env` is
+  untracked by the repo-wide policy and holds the service-role key,
+  root 0600).
+- `simworker/` package: main poll loop (10 s) + 30 s heartbeat thread
+  that also mirrors cancel_requested; atomic PostgREST claim
+  (`status=eq.queued` guard); stale sweep (heartbeat > 3 min →
+  requeue, attempt-capped at 2 → worker_lost); deck download +
+  authoritative validation (deny-list PYACTION/PYINPUT/PATHS,
+  realpath-confined INCLUDE/GDFILE/IMPORT, DIMENS/TSTEP caps);
+  rlimit-capped flow subprocess in its own process group with scrubbed
+  env; resdata → capped summary.json/summary.csv + honest PRT excerpt;
+  full failure taxonomy.
+- **Tests: 22/22 pass in the worker image on the VPS**, including the
+  **SPE1 golden gate**: flow 2026.04 reproduces the checked-in
+  opm-tests flow reference (FOPR/FGOR/WBHP:PROD/WBHP:INJ/WOPT:PROD/
+  WGPT:PROD at every report step, abs 2e-2 / rel 1e-3 — the
+  opm-simulators spe1 regression settings; final WOPT within 0.1%).
+  Note: SPE1CASE1's SUMMARY section only writes FOPR/FGOR at field
+  level — the golden compares what the deck actually requests.
+  Chaos tests: broken deck fails with flow's real error text; a 3 s
+  wall clock kills SPE9 as timed_out (group kill verified); cancel
+  lands cancelled. Fixtures: SPE1 deck + reference, SPE9 deck
+  (ODbL, ATTRIBUTION files in fixtures/).
+- **REMAINING for the S1 gate (owner step):** create
+  `worker/sim-worker/.env` with the service-role key (the CLI
+  classifier rightly blocks the agent from reading it), then
+  `docker compose up -d --build` and run the three live gate checks
+  in worker/sim-worker/README.md (SPE1 through the queue, garbage
+  deck, kill-worker-mid-run requeue). S2 app work can proceed in
+  parallel; S2 does not ship until these pass.
+
+## Upcoming phases
 - **S2 — App** (Studio kit: Cases/Run/Results; 5 s polling; honest
   PRT errors; SPE1/SPE9 templates; tile applied with the upload).
 - **S3 — Deck generation** (engines-repo keyword emitters: PVT from
