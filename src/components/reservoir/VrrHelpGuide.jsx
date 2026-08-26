@@ -2,7 +2,7 @@
 // VRR upgrade re-housed this from a standalone Dialog).
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { BookOpen, Droplets, Table2, LineChart, Scale, Upload, AlertTriangle, FolderOpen } from 'lucide-react';
+import { BookOpen, Droplets, Table2, LineChart, Scale, Upload, AlertTriangle, FolderOpen, Gauge } from 'lucide-react';
 
 const helpContent = [
   {
@@ -39,6 +39,13 @@ const helpContent = [
     title: 'Step 3: Read the VRR trend',
     content:
       "The Dashboard tab plots instantaneous VRR (this period alone), rolling VRR (a trailing multi-period window that smooths month-to-month allocation noise) and cumulative VRR (all periods to date) against a reference line at VRR = 1 and your shaded operator target band. The instantaneous line tells you what is happening right now; the cumulative line reflects the reservoir's overall voidage balance since the start of the record. Set the band and rolling window under Analysis Settings; periods outside the band flag as Under or Over. The download button on the chart saves it as a PNG.",
+  },
+  {
+    id: 'pressure',
+    icon: Gauge,
+    title: 'Pressure tab: the maintenance proof',
+    content:
+      'VRR is a means to an end; the end is reservoir pressure. On the Pressure tab, enter or import pressure surveys (date and psia) and the app interpolates them onto each period, overlays pressure on the VRR trend, shows dp/dt in the tooltip, and marks fill-up where cumulative VRR first reaches 1. A VRR near 1 with steady pressure is the proof of pressure maintenance; a VRR near 1 with falling pressure suggests out-of-zone injection or unaccounted voidage. With Pressure track mode on, Bo, Bw, Bg and Rs are derived per period from black-oil correlations at the interpolated pressure instead of one constant set, which matters most below the bubble point where gas properties move quickly. The chart is withheld with a stated reason until pressure actually attaches to your periods.',
   },
   {
     id: 'interpret',
