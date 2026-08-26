@@ -3,8 +3,7 @@ import { useCasingTubingDesign } from '../../contexts/CasingTubingDesignContext'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { BookOpen, Lightbulb, PlayCircle, Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { BookOpen } from 'lucide-react';
 import QuickStartGuide from './QuickStartGuide';
 import ConceptNotes from './ConceptNotes';
 import WorkedExamples from './WorkedExamples';
@@ -21,16 +20,8 @@ const HelpPanel = () => {
                         Help & Resources
                     </SheetTitle>
                     <SheetDescription className="text-slate-400 text-xs">
-                        Guides, concepts, and references for Casing Design.
+                        Quick reference for casing and tubing design. The full user guide lives on the Guide button in the top bar.
                     </SheetDescription>
-                    
-                    <div className="relative mt-4">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-500" />
-                        <Input 
-                            placeholder="Search help topics..." 
-                            className="bg-slate-900 border-slate-700 pl-8 text-sm"
-                        />
-                    </div>
                 </SheetHeader>
 
                 <Tabs defaultValue="quickstart" className="flex-1 flex flex-col">

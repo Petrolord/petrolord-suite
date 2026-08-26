@@ -44,6 +44,11 @@
 //      Kirsch fixture)
 //   A21 Kirsch collapse/frac-initiation closed forms + trajectory mud
 //      windows vs the oracle
+//   A22 API 5C3 tubular ratings: Barlow hand algebra, collapse
+//      regime-boundary continuity, Ypa monotonicity, VME identity, and
+//      catalog golden agreement (Drilling D6; tubular_cases.json)
+//   A23 canonical load-case profiles + governing-depth string evaluation
+//      + Lubinski tubing-packer forces vs the oracle
 // ARMED gates (pending owner literature PDFs):
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
 //   L3 Amoco/API MD-TVD table (the Amoco Directional Survey Handbook,
@@ -61,6 +66,8 @@
 //   L10 API RP 10B-2/10D worked example (owner PDF)
 //   L11 Nelson & Guillot, Well Cementing worked example (owner PDF)
 //   L12 Zoback, Reservoir Geomechanics worked example (owner PDF)
+//   L13 API 5C3 / vendor data book published ratings table (owner PDF;
+//      spot-checks the computed catalog against the printed values)
 
 import fs from 'fs';
 import path from 'path';
@@ -101,6 +108,13 @@ async function main() {
     '../../packages/engines/engines/drilling/geomech.js');
   const { computeClearance } = await import(
     '../../packages/engines/engines/drilling/antiCollision.js');
+  const {
+    barlowBurstPa, api5c3CollapsePa, adjustedYieldPa, pipeBodyYieldN,
+    triaxialSF, loadCaseProfiles, evaluateString, tubingLoads,
+    erosionalVelocityMs,
+  } = await import('../../packages/engines/engines/drilling/tubularDesign.js');
+  const { CASING_CATALOG, TUBING_CATALOG, casingGradeYieldPa } = await import(
+    '../../packages/engines/engines/drilling/data/tubulars.js');
 
   let failures = 0;
   const gate = (id: string, name: string, fn: () => void) => {
@@ -601,6 +615,104 @@ async function main() {
     }
   });
 
+  gate('A22', '5C3 ratings: closed forms, regime continuity, catalog golden agreement', () => {
+    const g = goldens('tubular_cases.json');
+    const IN = 0.0254;
+    const KSI = 6.894757e6;
+    const PSI = 6894.757293168;
+    // Barlow hand algebra (9-5/8 47 L-80).
+    const b = barlowBurstPa({ odM: 9.625 * IN, wallM: 0.472 * IN, yieldPa: 80 * KSI });
+    close(b / PSI, (0.875 * 2 * 80000 * 0.472) / 9.625, 1e-3, 'Barlow 9-5/8 47 L-80');
+    // Regime-boundary continuity for a representative grade.
+    const { boundaries } = api5c3CollapsePa({ odM: 9.625 * IN, wallM: 0.472 * IN, yieldPa: 80 * KSI });
+    for (const dt of [boundaries.dtYp, boundaries.dtPt, boundaries.dtTe]) {
+      const wall = 0.5 * IN;
+      const lo = api5c3CollapsePa({ odM: dt * wall * (1 - 1e-7), wallM: wall, yieldPa: 80 * KSI });
+      const hi = api5c3CollapsePa({ odM: dt * wall * (1 + 1e-7), wallM: wall, yieldPa: 80 * KSI });
+      close(lo.collapsePa, hi.collapsePa, 100 + 1e-4 * hi.collapsePa, `continuity at D/t ${dt.toFixed(2)}`);
+      if (lo.regime === hi.regime) throw new Error(`no regime switch at D/t ${dt.toFixed(2)}`);
+    }
+    // Ypa monotone in tension.
+    let prev = adjustedYieldPa(80 * KSI, 0);
+    for (const f of [0.2, 0.5, 0.8]) {
+      const cur = adjustedYieldPa(80 * KSI, f * 80 * KSI);
+      if (!(cur < prev)) throw new Error(`Ypa not decreasing at ${f}`);
+      prev = cur;
+    }
+    // Catalog golden agreement (every row x grade, incl. combined loading).
+    const all = [...CASING_CATALOG, ...TUBING_CATALOG];
+    for (const r of g.ratings) {
+      const row = all.find((x: any) => Math.abs(x.odIn - r.odIn) < 1e-9
+        && Math.abs(x.weightLbFt - r.weightLbFt) < 1e-9);
+      if (!row) throw new Error(`catalog row missing: ${r.odIn}" ${r.weightLbFt}#`);
+      const yp = casingGradeYieldPa(r.grade);
+      close(barlowBurstPa({ odM: row.odM, wallM: row.wallM, yieldPa: yp }), r.burstPa,
+        1 + 1e-6 * r.burstPa, `burst ${r.odIn}x${r.weightLbFt} ${r.grade}`);
+      const col = api5c3CollapsePa({ odM: row.odM, wallM: row.wallM, yieldPa: yp });
+      if (col.regime !== r.regime) throw new Error(`regime ${r.odIn}x${r.weightLbFt} ${r.grade}: ${col.regime} vs ${r.regime}`);
+      close(col.collapsePa, r.collapsePa, 1 + 1e-6 * r.collapsePa, `collapse ${r.odIn}x${r.weightLbFt} ${r.grade}`);
+      const colT = api5c3CollapsePa({ odM: row.odM, wallM: row.wallM, yieldPa: yp, axialStressPa: 0.4 * yp });
+      close(colT.collapsePa, r.collapseAt40pctTensionPa, 1 + 1e-6 * r.collapseAt40pctTensionPa, `derated ${r.odIn}x${r.weightLbFt} ${r.grade}`);
+      close(pipeBodyYieldN({ odM: row.odM, idM: row.odM - 2 * row.wallM, yieldPa: yp }), r.bodyYieldN,
+        1 + 1e-6 * r.bodyYieldN, `body yield ${r.odIn}x${r.weightLbFt} ${r.grade}`);
+    }
+    // VME identity: pure tension.
+    const areaM2 = (Math.PI / 4) * ((9.625 * IN) ** 2 - (8.681 * IN) ** 2);
+    const tri = triaxialSF({ odM: 9.625 * IN, idM: 8.681 * IN, yieldPa: 80 * KSI, piPa: 0, poPa: 0, axialN: 1e6 });
+    close(tri.vmePa, 1e6 / areaM2, 1, 'VME pure-tension identity');
+  });
+
+  gate('A23', 'load profiles + string evaluation + Lubinski tubing forces vs oracle', () => {
+    const g = goldens('tubular_cases.json');
+    const IN = 0.0254;
+    const KSI = 6.894757e6;
+    const sections = g.sections;
+    for (const c of g.cases) {
+      const profile = loadCaseProfiles({
+        kind: c.kind, shoeTvdM: g.shoeTvdM, env: g.env, string: g.string,
+      });
+      for (const cp of c.profileCheckpoints) {
+        const i = profile.tvdM.findIndex((z: number) => Math.abs(z - cp.tvdM) < 1e-6);
+        if (i < 0) throw new Error(`${c.kind}: checkpoint TVD ${cp.tvdM} not on grid`);
+        close(profile.piPa[i], cp.piPa, 1 + 1e-6 * Math.abs(cp.piPa), `${c.kind} pi@${cp.tvdM}`);
+        close(profile.poPa[i], cp.poPa, 1 + 1e-6 * Math.abs(cp.poPa), `${c.kind} po@${cp.tvdM}`);
+        close(profile.faN[i], cp.faN, 1 + 1e-6 * Math.abs(cp.faN), `${c.kind} fa@${cp.tvdM}`);
+      }
+      const res = evaluateString({
+        sections, profile, safetyFactors: g.designFactors,
+        bendingDlsDegPer30m: g.bendingDlsDegPer30m,
+      });
+      for (let s = 0; s < sections.length; s += 1) {
+        const got: any = res.sections[s];
+        const exp: any = c.sections[s];
+        if (got.status !== exp.status) throw new Error(`${c.kind} sec ${s}: ${got.status} vs ${exp.status}`);
+        for (const k of ['burstSF', 'collapseSF', 'tensionSF', 'triaxSF']) {
+          if (exp[k] == null) continue;
+          close(got[k], exp[k], 1e-6 + 1e-6 * exp[k], `${c.kind} sec ${s} ${k}`);
+        }
+      }
+    }
+    for (const t of g.tubing) {
+      const r = tubingLoads({
+        tubing: { odM: 3.5 * IN, idM: 2.992 * IN, lengthM: 2500, weightKgM: 9.3 * 1.4881639 },
+        packer: { sealBoreM: 4 * IN, ratingN: 6.7e5, strokeM: 1.5 },
+        loadCase: t.case,
+        tempProfile: t.temp,
+        casingIdM: 6.184 * IN,
+      });
+      for (const k of ['pistonN', 'ballooningN', 'thermalN', 'totalN']) {
+        close(r.forces[k], t.result.forces[k], 1e-3 + 1e-6 * Math.abs(t.result.forces[k]), `${t.name} ${k}`);
+      }
+      if (r.buckling.state !== t.result.buckling.state) {
+        throw new Error(`${t.name}: buckling ${r.buckling.state} vs ${t.result.buckling.state}`);
+      }
+      close(r.packer.sf, t.result.packer.sf, 1e-6 + 1e-6 * t.result.packer.sf, `${t.name} packer SF`);
+    }
+    close(erosionalVelocityMs({ mixtureKgM3: g.erosional.mixtureKgM3, cFactor: g.erosional.cFactor }),
+      g.erosional.veMs, 1e-9, 'erosional velocity');
+    void KSI;
+  });
+
   const armed = [
     ['L2', 'Mitchell & Miska survey table'],
     ['L3', 'Amoco/API MD-TVD table'],
@@ -613,6 +725,7 @@ async function main() {
     ['L10', 'API RP 10B-2/10D worked example'],
     ['L11', 'Nelson & Guillot, Well Cementing worked example'],
     ['L12', 'Zoback, Reservoir Geomechanics worked example'],
+    ['L13', 'API 5C3 / vendor data book published ratings table'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);

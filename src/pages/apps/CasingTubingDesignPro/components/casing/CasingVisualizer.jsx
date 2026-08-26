@@ -11,8 +11,8 @@ const CasingVisualizer = ({ activeString }) => {
     }
 
     const sections = activeString.sections;
-    const maxDepth = Math.max(...sections.map(s => parseFloat(s.bottom_depth))) * 1.1;
-    const maxOD = Math.max(...sections.map(s => parseFloat(s.od))) * 1.5;
+    const maxDepth = Math.max(...sections.map(s => s.bottomMdM)) * 1.1;
+    const maxOD = Math.max(...sections.map(s => s.odIn)) * 1.5;
 
     // SVG Dimensions
     const width = 200;
@@ -41,10 +41,10 @@ const CasingVisualizer = ({ activeString }) => {
 
                 {/* Casing Sections */}
                 {sections.map((sec, idx) => {
-                    const topY = scaleY(parseFloat(sec.top_depth));
-                    const bottomY = scaleY(parseFloat(sec.bottom_depth));
+                    const topY = scaleY(sec.topMdM);
+                    const bottomY = scaleY(sec.bottomMdM);
                     const sectionHeight = bottomY - topY;
-                    const sectionWidth = scaleX(parseFloat(sec.od));
+                    const sectionWidth = scaleX(sec.odIn);
                     const startX = (width - sectionWidth) / 2;
                     
                     // Color based on index to differentiate
@@ -64,7 +64,7 @@ const CasingVisualizer = ({ activeString }) => {
                                 strokeWidth="1.5"
                             />
                             {/* Hover info (simple title for now) */}
-                            <title>{sec.name}: {sec.top_depth}-{sec.bottom_depth}m, {sec.od}"</title>
+                            <title>{sec.name}: {Math.round(sec.topMdM)}-{Math.round(sec.bottomMdM)}m, {sec.odIn}"</title>
                         </g>
                     );
                 })}
