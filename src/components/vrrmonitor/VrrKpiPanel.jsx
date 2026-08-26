@@ -27,7 +27,7 @@ const Kpi = ({ title, value, unit, accent }) => (
 );
 
 const VrrKpiPanel = () => {
-  const { summary, rolling, flags, targetBand, isImported, ledgerWells } = useVrrMonitor();
+  const { summary, rolling, flags, targetBand, isImported, ledgerWells, worstPattern } = useVrrMonitor();
   const status = summary?.status ?? classifyVRR(null);
   const latestRolling = rolling.length ? rolling[rolling.length - 1] : null;
   const flagged = flags.filter((f) => f != null);
@@ -54,6 +54,9 @@ const VrrKpiPanel = () => {
       <Kpi title="Total Injected Voidage" value={fmt(summary?.totalInjectedVoidage)} unit="RB" />
       {isImported && (
         <Kpi title="Wells" value={`${ledgerWells.producers.length} prod / ${ledgerWells.injectors.length} inj`} />
+      )}
+      {worstPattern && (
+        <Kpi title="Weakest pattern (cum. VRR)" value={`${worstPattern.pattern.name}: ${fmt(worstPattern.summary.cumulativeVRR, 2)}`} />
       )}
     </div>
   );

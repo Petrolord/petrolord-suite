@@ -16,6 +16,7 @@ import {
   computeVRRSeries, summarizeVRR, sampleVRRData,
   buildFieldPeriods, classifyLedgerWells, computeRollingVRR, flagPeriods,
   attachPressure, findFillUp,
+  validateAllocation, patternHasAllocation, buildPatternPeriods, recommendPatternInjection,
 } from '@/utils/vrrCalculations';
 import { derivePeriodFvf } from '@/utils/vrr/pvtTrack';
 
@@ -50,6 +51,9 @@ export const defaultInputs = () => ({
   pressureSurveys: [], // [{date: 'YYYY-MM-DD'|'YYYY-MM', p_psia: number}]
   pvtMode: 'constant', // 'constant' (global FVF set) | 'track' (correlation-derived per period)
   fluid: { api: '35', gasSg: '0.7', gor: '550', salinityPpm: '35000', tempF: '180' },
+  // V4: patterns + injector->producer allocation factors.
+  patterns: [],   // [{id, name, producers: [well, ...]}]
+  allocation: {}, // {[injector]: {[producer]: fraction-string}}
 });
 
 /** Restore inputs from a payload, tolerating missing keys from older rows. */
@@ -68,6 +72,8 @@ export const inputsFromPayload = (payload) => {
     pressureSurveys: Array.isArray(raw.pressureSurveys) ? raw.pressureSurveys : [],
     pvtMode: raw.pvtMode === 'track' ? 'track' : 'constant',
     fluid: { ...base.fluid, ...(raw.fluid || {}) },
+    patterns: Array.isArray(raw.patterns) ? raw.patterns : [],
+    allocation: raw.allocation && typeof raw.allocation === 'object' ? raw.allocation : {},
   };
 };
 
@@ -138,6 +144,41 @@ export const VrrMonitorProvider = ({ children }) => {
     () => (isImported ? classifyLedgerWells(inputs.wellRows) : { injectors: [], producers: [] }),
     [isImported, inputs.wellRows],
   );
+
+  // V4: per-pattern analyses. Only meaningful on an imported ledger (wells
+  // are the allocation unit); each pattern is either an analysis or an
+  // honest { withheld, reason }.
+  const allocationCheck = useMemo(() => validateAllocation(inputs.allocation), [inputs.allocation]);
+  const patternAnalyses = useMemo(() => {
+    if (!isImported) return [];
+    return inputs.patterns.map((pattern) => {
+      if (!allocationCheck.ok) {
+        return { pattern, withheld: true, reason: 'Allocation matrix has errors (a row sums above 1 or holds a bad value). Fix it first.' };
+      }
+      if (!pattern.producers?.length) {
+        return { pattern, withheld: true, reason: 'No producers assigned to this pattern yet.' };
+      }
+      if (!patternHasAllocation(pattern, inputs.allocation)) {
+        return { pattern, withheld: true, reason: 'No allocation factors route injection to this pattern. Fill the matrix; even splits are never assumed.' };
+      }
+      const periods = buildPatternPeriods(inputs.wellRows, pattern, inputs.allocation);
+      const pSeries = computeVRRSeries(periods, inputs.fvf);
+      const pRolling = computeRollingVRR(pSeries, parseFloat(inputs.settings.rollingWindow) || 3);
+      const pFlags = flagPeriods(pSeries, targetBand);
+      const pSummary = summarizeVRR(pSeries);
+      const recommendation = recommendPatternInjection(inputs.wellRows, pattern, inputs.allocation, inputs.fvf, {
+        targetVRR: targetBand.min,
+        windowPeriods: parseFloat(inputs.settings.rollingWindow) || 3,
+      });
+      return { pattern, withheld: false, series: pSeries, rolling: pRolling, flags: pFlags, summary: pSummary, recommendation };
+    });
+  }, [isImported, inputs.patterns, inputs.allocation, inputs.wellRows, inputs.fvf, inputs.settings.rollingWindow, targetBand, allocationCheck]);
+
+  const worstPattern = useMemo(() => {
+    const live = patternAnalyses.filter((a) => !a.withheld && a.summary?.cumulativeVRR != null);
+    if (!live.length) return null;
+    return live.reduce((worst, a) => (a.summary.cumulativeVRR < worst.summary.cumulativeVRR ? a : worst));
+  }, [patternAnalyses]);
 
   // --- Input actions ---
   const setFvfField = useCallback((key, value) => {
@@ -224,6 +265,53 @@ export const VrrMonitorProvider = ({ children }) => {
 
   const setFluidField = useCallback((key, value) => {
     setInputs((prev) => ({ ...prev, fluid: { ...prev.fluid, [key]: value } }));
+  }, []);
+
+  // --- V4: pattern + allocation actions ---
+  const addPattern = useCallback((name) => {
+    const clean = String(name || '').trim();
+    if (!clean) return;
+    setInputs((prev) => ({
+      ...prev,
+      patterns: [...prev.patterns, { id: `pt_${uuidv4().slice(0, 8)}`, name: clean, producers: [] }],
+    }));
+  }, []);
+
+  const removePattern = useCallback((id) => {
+    setInputs((prev) => ({ ...prev, patterns: prev.patterns.filter((p) => p.id !== id) }));
+  }, []);
+
+  const togglePatternProducer = useCallback((id, well) => {
+    setInputs((prev) => ({
+      ...prev,
+      patterns: prev.patterns.map((p) => {
+        if (p.id !== id) return p;
+        const has = p.producers.includes(well);
+        return { ...p, producers: has ? p.producers.filter((w) => w !== well) : [...p.producers, well] };
+      }),
+    }));
+  }, []);
+
+  const setAllocationCell = useCallback((injector, producer, value) => {
+    setInputs((prev) => {
+      const row = { ...(prev.allocation[injector] || {}) };
+      if (String(value).trim() === '') delete row[producer];
+      else row[producer] = value;
+      return { ...prev, allocation: { ...prev.allocation, [injector]: row } };
+    });
+  }, []);
+
+  // Explicit user action, so this is not the engine faking a split.
+  const evenSplitInjector = useCallback((injector, producers) => {
+    if (!producers.length) return;
+    const frac = (1 / producers.length).toFixed(4);
+    setInputs((prev) => ({
+      ...prev,
+      allocation: {
+        ...prev.allocation,
+        [injector]: Object.fromEntries(producers.map((p) => [p, frac])),
+      },
+    }));
   }, []);
 
   // --- Project lifecycle (useFluidStudioProjects recipe) ---
@@ -354,6 +442,9 @@ export const VrrMonitorProvider = ({ children }) => {
     trackActive,
     pvtTrack,
     fillUp,
+    allocationCheck,
+    patternAnalyses,
+    worstPattern,
     // input actions
     setFvfField,
     updatePeriodCell,
@@ -371,6 +462,11 @@ export const VrrMonitorProvider = ({ children }) => {
     removeSurvey,
     setPvtMode,
     setFluidField,
+    addPattern,
+    removePattern,
+    togglePatternProducer,
+    setAllocationCell,
+    evenSplitInjector,
     // projects
     projects,
     currentProjectId,
