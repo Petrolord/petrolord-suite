@@ -1,10 +1,8 @@
+// Recovery Factor Estimator help content, rendered inside the StudioHelp
+// sheet (the kit upgrade re-housed this from a standalone Dialog).
 import React from 'react';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
-} from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { BookOpen, Layers, Percent, Calculator, BarChart3, AlertTriangle } from 'lucide-react';
+import { BookOpen, FolderOpen, Layers, Percent, Calculator, BarChart3, AlertTriangle } from 'lucide-react';
 
 const helpContent = [
   {
@@ -13,6 +11,13 @@ const helpContent = [
     title: 'What this estimates',
     content:
       "The Recovery Factor (RF) is the fraction of oil- or gas-in-place that you expect to produce. This tool closes the volumetrics-to-reserves bridge: Recoverable Reserves = RF × OOIP (or OGIP). It gives you a defensible RF and a low/typical/high reserves band, either from published drive-mechanism analog ranges or from empirical correlations.",
+  },
+  {
+    id: 'projects',
+    icon: FolderOpen,
+    title: 'Projects and auto-save',
+    content:
+      'Use the Project selector in the left rail to create a project. Once a project is open, your phase, method and every input auto-save about 10 seconds after each change, and the save indicator in the header shows when the last save happened. Click the indicator to save immediately. Reopening the app restores the project exactly as you left it.',
   },
   {
     id: 'inplace',
@@ -51,37 +56,25 @@ const helpContent = [
   },
 ];
 
-const RecoveryFactorHelpGuide = ({ isOpen, onOpenChange }) => (
-  <Dialog open={isOpen} onOpenChange={onOpenChange}>
-    <DialogContent className="sm:max-w-[620px] bg-slate-900 border-slate-700 text-white">
-      <DialogHeader>
-        <DialogTitle className="text-lime-300 text-xl">Recovery Factor Estimator — Help Guide</DialogTitle>
-        <DialogDescription>
-          How to estimate recovery factor and convert in-place volumes to reserves.
-        </DialogDescription>
-      </DialogHeader>
-      <ScrollArea className="h-[60vh] pr-4">
-        <Accordion type="single" collapsible className="w-full" defaultValue="what">
-          {helpContent.map((item) => {
-            const Icon = item.icon;
-            return (
-              <AccordionItem value={item.id} key={item.id}>
-                <AccordionTrigger className="text-base hover:no-underline">
-                  <div className="flex items-center">
-                    <Icon className="w-5 h-5 mr-3 text-lime-400" />
-                    {item.title}
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="text-slate-300 pl-8 leading-relaxed">
-                  {item.content}
-                </AccordionContent>
-              </AccordionItem>
-            );
-          })}
-        </Accordion>
-      </ScrollArea>
-    </DialogContent>
-  </Dialog>
+const RecoveryFactorHelpContent = () => (
+  <Accordion type="single" collapsible className="w-full" defaultValue="what">
+    {helpContent.map((item) => {
+      const Icon = item.icon;
+      return (
+        <AccordionItem value={item.id} key={item.id}>
+          <AccordionTrigger className="text-base hover:no-underline">
+            <div className="flex items-center">
+              <Icon className="w-5 h-5 mr-3 text-lime-400" />
+              {item.title}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="text-slate-300 pl-8 leading-relaxed">
+            {item.content}
+          </AccordionContent>
+        </AccordionItem>
+      );
+    })}
+  </Accordion>
 );
 
-export default RecoveryFactorHelpGuide;
+export default RecoveryFactorHelpContent;
