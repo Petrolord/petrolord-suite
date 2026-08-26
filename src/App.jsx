@@ -104,6 +104,9 @@ const EarthModeling = lazy(() => import('@/pages/apps/EarthModeling/EarthModelin
 const EarthModelingHarness = lazy(() => import('@/pages/apps/EarthModeling/EarthModelingHarness'));
 const PorePressureStudioHarness = lazy(() => import('@/pages/apps/PorePressureStudio/PorePressureStudioHarness'));
 const WellDesignHarness = lazy(() => import('@/pages/apps/well-planning/WellDesignHarness'));
+const TorqueDragStudio = lazy(() => import('@/pages/apps/TorqueDragStudio/TorqueDragStudio'));
+const TorqueDragHelpGuide = lazy(() => import('@/pages/apps/TorqueDragStudio/TorqueDragHelpGuide'));
+const TorqueDragHarness = lazy(() => import('@/pages/apps/TorqueDragStudio/TorqueDragHarness'));
 const WellDesignHelpGuide = lazy(() => import('@/pages/apps/well-planning/WellDesignHelpGuide'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
@@ -499,6 +502,8 @@ function App() {
                                 <Route path="apps/drilling/well-planning/help" element={<ProtectedAppRoute appId="well-planning" appName="Well Design Studio"><WellDesignHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/well-planning/:wellId" element={<ProtectedAppRoute appId="well-planning" appName="Well Design Studio"><WellPlanning /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/casing-tubing-design-pro" element={<ProtectedAppRoute appId="casing-tubing-design-pro" appName="Casing & Tubing Design Pro"><CasingTubingDesignPro /></ProtectedAppRoute>} />
+                                <Route path="apps/drilling/torque-drag-studio" element={<ProtectedAppRoute appId="torque-drag-studio" appName="Torque & Drag Studio"><TorqueDragStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/drilling/torque-drag-studio/help" element={<ProtectedAppRoute appId="torque-drag-studio" appName="Torque & Drag Studio"><TorqueDragHelpGuide /></ProtectedAppRoute>} />
                                 {/* legacy PPFG shell — retired for Pore Pressure Studio (plan Q2) */}
                                 <Route path="apps/drilling/pore-pressure-fracture-gradient" element={<Navigate to="/dashboard/apps/geoscience/pore-pressure-studio" replace />} />
                                 {/* D0-archived shells (Drilling-ROADMAP.md §1) — mock/broken apps derouted
@@ -684,6 +689,7 @@ function App() {
                                   <Route path="/dev/earth-modeling" element={<EarthModelingHarness />} />
                                   <Route path="/dev/pore-pressure-studio" element={<PorePressureStudioHarness />} />
                                   <Route path="/dev/well-design" element={<WellDesignHarness />} />
+                                  <Route path="/dev/torque-drag" element={<TorqueDragHarness />} />
                                   <Route path="/dev/dca" element={<DeclineCurveAnalysis />} />
                                   <Route path="/dev/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
                                   <Route path="/dev/nodal-analysis-studio" element={<NodalAnalysisStudio />} />

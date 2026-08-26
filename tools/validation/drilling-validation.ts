@@ -22,12 +22,20 @@
 //      activated when the published values were secured via the
 //      attributed open-access republication, Amorin & Broni-Bediako
 //      2010 RJASET 2(7):679-686; ade_ch8_survey_methods.json)
+//   A10 soft-string T&D closed forms + oracle golden agreement
+//      (torquedrag_cases.json — Drilling D1; independent RK4 oracle)
+//   A11 capstan limit: weightless arc converges to T·e^{μβ}
+//   A12 casing wear crescent geometry + energy model round-trip
+//      (casingwear_cases.json)
 // ARMED gates (pending owner literature PDFs):
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
 //   L3 Amoco/API MD-TVD table (the Amoco Directional Survey Handbook,
 //      BPA-D-004, is publicly viewable on document-sharing sites but
 //      blocked to scripted download — drop the PDF in
 //      /root/wds-literature/ to arm extraction)
+//   L4 Mitchell & Miska torque & drag worked example (same book as L2)
+//   L5 Johancsik SPE 11380 field cases (owner PDF; chart-read data,
+//      tolerance band to be set at extraction)
 
 import fs from 'fs';
 import path from 'path';
@@ -48,6 +56,10 @@ async function main() {
     '../../packages/engines/engines/drilling/magnetics.js');
   const { computeErrorModel } = await import(
     '../../packages/engines/engines/drilling/errorModel.js');
+  const { computeTorqueDrag } = await import(
+    '../../packages/engines/engines/drilling/torqueDrag.js');
+  const { grooveArea, grooveDepthForArea, slidingDistanceM } = await import(
+    '../../packages/engines/engines/drilling/casingWear.js');
   const { computeClearance } = await import(
     '../../packages/engines/engines/drilling/antiCollision.js');
 
@@ -244,9 +256,73 @@ async function main() {
     close(last.x, 0, 1e-9, 'east displacement (due-north well)');
   });
 
+  gate('A10', 'soft-string T&D closed forms + oracle golden agreement', () => {
+    const g = goldens('torquedrag_cases.json');
+    // Closed form: straight slant T = wL(cosθ ± μ sinθ), exact.
+    const bf = 1 - 1440 / 7850;
+    const w = 33.126529 * 9.80665 * bf;
+    const theta = 30 * Math.PI / 180;
+    const slantStations = [{ md: 0, inc: 30, azi: 45 }, { md: 1500, inc: 30, azi: 45 }];
+    const slantGeom = [{ fromMd: 0, toMd: 1500, frictionFactor: 0.3, holeIdM: 0.2159, cased: false }];
+    const slantString = [{ type: 'dp', lengthM: 1500, odM: 0.127, idM: 0.1086, weightKgM: 33.126529 }];
+    for (const [op, sign] of [['trip_out', 1], ['trip_in', -1]] as [string, number][]) {
+      const res = computeTorqueDrag({
+        stations: slantStations, string: slantString, geometry: slantGeom,
+        mud: { densityKgM3: 1440 }, operation: op, params: { stepM: 50 },
+      });
+      const exp = w * 1500 * (Math.cos(theta) + sign * 0.3 * Math.sin(theta));
+      close(res.summary.hookloadN, exp, 1e-6 * Math.abs(exp), `slant ${op}`);
+    }
+    // Oracle agreement on every golden well × operation (rtol 1e-4 + floors).
+    for (const c of g.cases) {
+      for (const [op, exp] of Object.entries(c.expected) as [string, any][]) {
+        const res = computeTorqueDrag({
+          stations: c.stations, string: c.string, geometry: c.geometry,
+          mud: { densityKgM3: c.mudDensityKgM3 }, operation: op,
+          params: { ...c.params, stepM: 1 },
+        });
+        close(res.summary.hookloadN, exp.hookloadN, 200 + 1e-4 * Math.abs(exp.hookloadN), `${c.name}/${op} hookload`);
+        close(res.summary.surfaceTorqueNm, exp.surfaceTorqueNm, 5 + 1e-4 * Math.abs(exp.surfaceTorqueNm), `${c.name}/${op} torque`);
+      }
+    }
+  });
+
+  gate('A11', 'capstan limit: weightless arc converges to T·e^{μβ}', () => {
+    const stations: { md: number; inc: number; azi: number }[] = [];
+    for (let md = 0; md <= 900; md += 30) stations.push({ md, inc: md / 10, azi: 0 });
+    const res = computeTorqueDrag({
+      stations,
+      string: [{ type: 'dp', lengthM: 900, odM: 0.127, idM: 0.1086, weightKgM: 0 }],
+      geometry: [{ fromMd: 0, toMd: 900, frictionFactor: 0.3, holeIdM: 0.2159, cased: false }],
+      mud: { densityKgM3: 0 }, operation: 'slide_drill',
+      params: { stepM: 0.5, wobN: 100000 },
+    });
+    const capstan = -100000 * Math.exp(0.3 * Math.PI / 2);
+    close(res.summary.hookloadN, capstan, 1e-3 * Math.abs(capstan), 'capstan compression');
+  });
+
+  gate('A12', 'casing wear crescent geometry + energy model round-trip', () => {
+    const g = goldens('casingwear_cases.json');
+    const R = g.casing.irM;
+    const r = g.tjRadiusM;
+    for (const { depthM, areaM2 } of g.grooveGeometry) {
+      close(grooveArea({ casingIrM: R, tjRadiusM: r, depthM }), areaM2, 1e-9 + 1e-6 * Math.abs(areaM2), `A(${depthM})`);
+    }
+    for (const d of [0.001, 0.005, 0.01]) {
+      const a = grooveArea({ casingIrM: R, tjRadiusM: r, depthM: d });
+      close(grooveDepthForArea({ casingIrM: R, tjRadiusM: r, areaM2: a }), d, 1e-10 + 1e-8 * d, `depth(A(${d}))`);
+    }
+    close(
+      slidingDistanceM({ tjRadiusM: r, rpm: g.schedule[0].rpm, hours: g.schedule[0].hours }),
+      g.totalSlidingDistanceM, 1e-9 * g.totalSlidingDistanceM, 'sliding distance',
+    );
+  });
+
   const armed = [
     ['L2', 'Mitchell & Miska survey table'],
     ['L3', 'Amoco/API MD-TVD table'],
+    ['L4', 'Mitchell & Miska torque & drag worked example'],
+    ['L5', 'Johancsik SPE 11380 field cases'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
