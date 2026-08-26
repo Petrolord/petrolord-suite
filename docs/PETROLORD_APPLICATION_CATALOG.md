@@ -114,7 +114,7 @@ Target portfolio: 12 apps (docs/scope/Drilling-ROADMAP.md, owner-approved
 2026-08-26). The D0 honest-catalog pass archived the legacy mock tiles;
 apps below ship phase by phase (D1-D11) and seed their tiles at ship time.
 
-### ✅ Complete Applications (3)
+### ✅ Complete Applications (4)
 *   **Well Design Studio**
     *   *Description:* Compass-class well design: validated minimum-curvature planning, ISCWSA error models, anti-collision, survey management, wall-plot reports.
     *   *Key Features:* Trajectory Design, Anti-Collision (ladder/traveling cylinder), Survey Programs, WMM2025 Magnetics, PPFG Mud Window, 3D Viewer, Report Pack.
@@ -125,10 +125,13 @@ apps below ship phase by phase (D1-D11) and seed their tiles at ship time.
 *   **Torque & Drag Studio** (D1, shipped 2026-08-26)
     *   *Description:* Soft-string torque and drag on planned trajectories: hookloads, surface torque, side forces, buckling limits, friction sensitivity and casing wear.
     *   *Key Features:* Johancsik soft-string model (oracle-validated), 6 operations, catalog drillstring builder, crescent-geometry casing wear, friction sweep, immutable run history, CSV/PDF export.
-    *   *Status:* Tile activates with the next prod upload (held migration 20260826140000).
+    *   *Status:* Tile held for the single 12-app launch upload (migration 20260826140000).
+*   **Drilling Fluids & Hydraulics Studio** (D2, shipped 2026-08-26)
+    *   *Description:* Mud rheology, circulating pressure losses, ECD, surge and swab, and hole cleaning on planned trajectories.
+    *   *Key Features:* Fann fits (Bingham/PL/Herschel-Bulkley), RP 13D loss chain (oracle-validated), bit hydraulics, ECD vs TVD with PP/FP overlay, Burkhardt surge/swab with safe trip speed, transport-ratio screening, immutable run history.
+    *   *Status:* Tile held for the single 12-app launch upload (migration 20260826190000).
 
-### 🚧 Planned (Drilling-ROADMAP.md phases D2-D11)
-*   **Drilling Fluids & Hydraulics Studio** (D2) — rheology, API RP 13D hydraulics, ECD, surge/swab, hole cleaning.
+### 🚧 Planned (Drilling-ROADMAP.md phases D3-D11)
 *   **Well Control Studio** (D3) — kick tolerance, kill sheets, MAASP.
 *   **Cementing Studio** (D4) — volumes, placement, free-fall, centralization, ECD.
 *   **Geomechanics & Wellbore Stability Studio** (D5) — 1D MEM rebuild, breakout/mud-weight window.

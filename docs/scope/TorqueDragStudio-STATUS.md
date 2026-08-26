@@ -66,11 +66,10 @@ Built 2026-08-26 (waves TD0-TD3, one Suite PR + engines PR #37).
 
 ## Operator steps (owner)
 
-1. Prod upload: build a zip from main after the D1 PR merges and upload to
-   Hostinger (per the deploy procedure), purge cache.
-2. AFTER the upload is verified live, apply the HELD tile migration
-   `20260826140000_seed_torque_drag_studio_tile.sql` (dry-run first) so
-   the tile never 404s in prod. Update MIGRATIONS.md.
+1. PROGRAM-WIDE HOLD (owner directive 2026-08-26): no prod zip until all
+   12 D&C apps are ready. The tile migration `20260826140000` stays HELD
+   and applies together with every other D-phase tile at the single
+   launch upload (dry-run first). Update MIGRATIONS.md then.
 3. Staging E2E checklist: pick a wellbore with a definitive design, build
    a string, run, save a run, export PDF; share the site to an org member
    and confirm read-only visibility of cases/runs.
