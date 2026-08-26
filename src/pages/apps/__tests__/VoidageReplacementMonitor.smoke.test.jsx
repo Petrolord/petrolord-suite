@@ -42,8 +42,9 @@ describe('VoidageReplacementMonitor page', () => {
     expect(screen.getByText(/Production & injection by period/i)).toBeInTheDocument();
     expect(screen.getByText(/Bo \(RB\/STB\)/i)).toBeInTheDocument();
 
-    // Load the deterministic sample; the KPI rail should show real numbers.
-    fireEvent.click(screen.getByRole('button', { name: /Sample/i }));
+    // Load the deterministic sample (exact name: "Sample wells" is the V2
+    // importer's separate button); the KPI rail should show real numbers.
+    fireEvent.click(screen.getByRole('button', { name: 'Sample' }));
     // First sample month: injected 40800 RB / produced 90970 RB = 0.45
     // (documented oracle in vrrCalculations.test.js).
     expect(await screen.findByText(/Cumulative VRR/i)).toBeInTheDocument();
@@ -62,5 +63,33 @@ describe('VoidageReplacementMonitor page', () => {
     );
     fireEvent.mouseDown(screen.getAllByRole('tab', { name: 'VRR Dashboard' })[0]);
     expect(screen.getByText(/Enter production & injection volumes on the Data tab/i)).toBeInTheDocument();
+  });
+
+  it('imports the sample well ledger through the real parser and shows the monthly ledger (V2)', async () => {
+    render(
+      <MemoryRouter>
+        <VoidageReplacementMonitor />
+      </MemoryRouter>,
+    );
+
+    // "Sample wells" runs vrrTemplateCSV() through parseVrrWellCSV — the
+    // template IS the engine fixture, so the ledger shows oracle months.
+    fireEvent.click(await screen.findByRole('button', { name: /Sample wells/i }));
+    expect(await screen.findByText(/Monthly field ledger/i)).toBeInTheDocument();
+    expect(screen.getByText('2025-01')).toBeInTheDocument();
+    expect(screen.getByText('2025-03')).toBeInTheDocument();
+    // 2 producers / 2 injectors from the fixture classification.
+    expect(screen.getByText(/2 producers, 2 injectors/i)).toBeInTheDocument();
+    // Manual grid is replaced while an import is active.
+    expect(screen.queryByText(/Production & injection by period/i)).not.toBeInTheDocument();
+
+    // Dashboard shows the trend with the imported series.
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'VRR Dashboard' }));
+    expect(screen.getByText(/VRR trend/i)).toBeInTheDocument();
+
+    // Clear import returns to manual entry.
+    fireEvent.mouseDown(screen.getByRole('tab', { name: 'Data & PVT' }));
+    fireEvent.click(screen.getByRole('button', { name: /Clear import/i }));
+    expect(await screen.findByText(/Production & injection by period/i)).toBeInTheDocument();
   });
 });
