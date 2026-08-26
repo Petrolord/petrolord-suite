@@ -245,7 +245,17 @@ Locked to the WDS/G-series precedents:
   and the CTDP completion markers (cross-link card instead). Gates
   A24-A25 ACTIVE (25/25 total); L14 ARMED. Tile seed 20260828120000
   HELD.
-- **D8 — Perforation & Sand Control Designer.**
+- **D8 — Perforation & Sand Control Designer**: **SHIPPED 2026-08-28**
+  (engines PR #48 + Suite waves PS0-PS3; see
+  docs/scope/PerforationSandControl-STATUS.md). Fresh slug
+  perforation-sand-control: Karakas-Tariq SPE 18247 skin with the
+  published phasing tables, productivity ratio, underbalance guideline
+  bands (ranges, not points), gun clearance through the D7 completion
+  bore or D6 casing drift with the controlling element named, sieve
+  statistics + Saucier gravel + screen selection + Tiffin-style advisor,
+  and Kirsch sanding-onset CDP screening over the published
+  gm-1.0.0/pp-1.0.0 curves. wp_ps_* persistence. Gates A26-A27 ACTIVE
+  (27/27 total); L15 + L16 ARMED. Tile seed 20260828160000 HELD.
 - **D9 — Stimulation Designer**: rebuild of frac-completion.
 - **D10 — Well Integrity & P&A Studio.**
 - **D11 — Well Cost & Time Estimator**: salvages WellCostIQ utils;
