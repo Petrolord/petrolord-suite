@@ -35,6 +35,10 @@
 //      (Drilling D3; wellcontrol_cases.json incl. the self-asserting
 //      IWCF-style fixture)
 //   A17 kick tolerance + Boyle + MAASP vs the oracle
+//   A18 cement job volumes + U-tube closed forms + oracle agreement
+//      (Drilling D4; cementing_cases.json incl. the self-asserting
+//      vertical fixture)
+//   A19 placement ECD series + API 10D standoff vs the oracle
 // ARMED gates (pending owner literature PDFs):
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
 //   L3 Amoco/API MD-TVD table (the Amoco Directional Survey Handbook,
@@ -49,6 +53,8 @@
 //   L7 API RP 13D worked example well (owner PDF)
 //   L8 IWCF/IADC kill sheet worked example (owner PDF)
 //   L9 ADE worked kick and kill example (owner PDF)
+//   L10 API RP 10B-2/10D worked example (owner PDF)
+//   L11 Nelson & Guillot, Well Cementing worked example (owner PDF)
 
 import fs from 'fs';
 import path from 'path';
@@ -83,6 +89,8 @@ async function main() {
     '../../packages/engines/engines/drilling/holeCleaning.js');
   const { wellVolumes, annulusCapAt, killSheet, kickTolerance, boyle, maaspPa: maaspFn, tvdAt } = await import(
     '../../packages/engines/engines/drilling/wellControl.js');
+  const { jobVolumes, simulatePlacement, standoffProfile, requiredSpacing } = await import(
+    '../../packages/engines/engines/drilling/cementing.js');
   const { computeClearance } = await import(
     '../../packages/engines/engines/drilling/antiCollision.js');
 
@@ -465,6 +473,71 @@ async function main() {
     }
   });
 
+  gate('A18', 'cement job volumes + U-tube closed forms + oracle agreement', () => {
+    const g = goldens('cementing_cases.json');
+    const fx = g.verticalFixture;
+    const vols = jobVolumes({
+      stations: fx.stations, holeSections: fx.holeSections, casing: fx.casing,
+      tocMd: fx.tocMd, excessOpenHolePct: 0, spacerVolM3: 3,
+    });
+    close(vols.slurryM3, fx.volumes.slurryM3, 1e-9 + 1e-6 * fx.volumes.slurryM3, 'fixture slurry');
+    close(vols.displacementM3, fx.volumes.displacementM3, 1e-9 + 1e-6 * fx.volumes.displacementM3, 'fixture displacement');
+    const res = simulatePlacement({
+      stations: fx.stations, holeSections: fx.holeSections, casing: fx.casing,
+      mudInHole: fx.mudInHole, fluids: fx.fluids, pumpRateM3s: fx.pumpRateM3s, tocMd: fx.tocMd,
+    });
+    close(res.achievedTocMd, fx.tocMd, 1e-6, 'fixture TOC');
+    close(res.floatDiffPa, fx.placement.floatDiffPa, 1 + 1e-6 * Math.abs(fx.placement.floatDiffPa), 'fixture U-tube');
+    close(res.endPumpPressurePa, fx.placement.endPumpPressurePa, 1 + 1e-6 * fx.placement.endPumpPressurePa, 'fixture end pressure');
+    for (const c of g.cases) {
+      const v = jobVolumes({
+        stations: c.stations, holeSections: c.holeSections, casing: c.casing,
+        tocMd: c.tocMd, excessOpenHolePct: c.excessOpenHolePct, spacerVolM3: 4,
+        slurryYieldM3PerSack: c.slurryYieldM3PerSack, leadTailSplitMd: c.leadTailSplitMd,
+      });
+      close(v.slurryM3, c.expected.volumes.slurryM3, 1e-9 + 1e-6 * c.expected.volumes.slurryM3, `${c.well} slurry`);
+      close(v.sacks, c.expected.volumes.sacks, 1e-9 + 1e-6 * c.expected.volumes.sacks, `${c.well} sacks`);
+    }
+  });
+
+  gate('A19', 'placement ECD series + API 10D standoff vs the oracle', () => {
+    const g = goldens('cementing_cases.json');
+    const hb = (fann: any) => fitModels(fann).herschelBulkley;
+    for (const c of g.cases) {
+      const v = jobVolumes({
+        stations: c.stations, holeSections: c.holeSections, casing: c.casing,
+        tocMd: c.tocMd, excessOpenHolePct: c.excessOpenHolePct, spacerVolM3: 4,
+        slurryYieldM3PerSack: c.slurryYieldM3PerSack, leadTailSplitMd: c.leadTailSplitMd,
+      });
+      const mud = { kind: 'mud', densityKgM3: 1440, rheology: hb(c.mudFann) };
+      const fluids = [
+        { kind: 'spacer', densityKgM3: 1500, volumeM3: 4, rheology: hb(c.spacerFann) },
+        { kind: 'lead', densityKgM3: 1560, volumeM3: v.leadM3, rheology: hb(c.leadFann) },
+        { kind: 'tail', densityKgM3: 1900, volumeM3: v.tailM3, rheology: hb(c.tailFann) },
+        { kind: 'displacement', densityKgM3: 1440, volumeM3: v.displacementM3, rheology: hb(c.mudFann) },
+      ];
+      const res = simulatePlacement({
+        stations: c.stations, holeSections: c.holeSections, casing: c.casing,
+        mudInHole: mud, fluids, pumpRateM3s: c.pumpRateM3s,
+        tocMd: c.tocMd, excessOpenHolePct: c.excessOpenHolePct,
+      });
+      const exp = c.expected.programs.lead_tail;
+      close(res.endPumpPressurePa, exp.endPumpPressurePa, 1 + 1e-6 * exp.endPumpPressurePa, `${c.well} end pressure`);
+      close(res.maxEcdPrevShoeKgM3, exp.maxEcdPrevShoeKgM3, 1e-4 + 1e-6 * exp.maxEcdPrevShoeKgM3, `${c.well} max ECD`);
+      close(res.achievedTocMd, exp.achievedTocMd, 1e-6 + 1e-6 * exp.achievedTocMd, `${c.well} TOC`);
+      const so = standoffProfile({
+        stations: c.stations, holeSections: c.holeSections, casing: c.casing,
+        mudDensityKgM3: 1440, centralizer: c.centralizer,
+      });
+      close(so.minStandoff, c.expected.standoff.minStandoff, 1e-9 + 1e-6 * c.expected.standoff.minStandoff, `${c.well} min standoff`);
+      const req = requiredSpacing({
+        stations: c.stations, holeSections: c.holeSections, casing: c.casing,
+        mudDensityKgM3: 1440, centralizer: c.centralizer,
+      });
+      close(req, c.expected.requiredSpacingM, 1e-6 + 1e-6 * c.expected.requiredSpacingM, `${c.well} required spacing`);
+    }
+  });
+
   const armed = [
     ['L2', 'Mitchell & Miska survey table'],
     ['L3', 'Amoco/API MD-TVD table'],
@@ -474,6 +547,8 @@ async function main() {
     ['L7', 'API RP 13D worked example well'],
     ['L8', 'IWCF/IADC kill sheet worked example'],
     ['L9', 'ADE worked kick and kill example'],
+    ['L10', 'API RP 10B-2/10D worked example'],
+    ['L11', 'Nelson & Guillot, Well Cementing worked example'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
