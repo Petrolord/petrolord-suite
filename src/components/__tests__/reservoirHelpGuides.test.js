@@ -42,6 +42,10 @@ const COVERAGE = {
     // as if it were per year, so probabilistic EUR is ~25x high. The guide
     // must keep warning until the engine fix lands.
     /probabilistic EUR is overstated/i,
+    // The Integration panel cards report success but transmit nothing.
+    /does not transmit anything yet/i,
+    // Fits are keyed by stream, so switching wells silently reattributes them.
+    /belongs to the stream rather than to the well/i,
   ],
   'Waterflood Design Studio': [
     /SCAL Studio/i,

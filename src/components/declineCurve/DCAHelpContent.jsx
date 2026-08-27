@@ -97,12 +97,13 @@ const DCAHelpContent = () => {
             <ul className="text-xs space-y-1 list-disc pl-4">
               <li>Only the streams present in your CSV are offered.</li>
               <li>Each stream carries its own fit and its own forecast, so a gas fit is never overwritten by refitting oil.</li>
+              <li><strong className="text-amber-400">The fit belongs to the stream rather than to the well.</strong> Switching wells leaves the previous well's fit, diagnostics, KPI cards and forecast on screen, now shown against the new well. Re-fit immediately after every well change, and treat any result you did not just generate as belonging to the previous well.</li>
               <li>Switching streams re-renders the charts against that stream's units.</li>
             </ul>
             <div className="bg-slate-900 p-3 rounded border border-slate-800">
               <h4 className="text-xs font-bold text-slate-200 mb-1">Well Metadata</h4>
               <p className="text-xs">
-                The metadata panel at the top of the right sidebar records the descriptive detail that travels with the well: field and reservoir names, operator, well type, spud and first production dates, and free-text notes. It is carried into exports and reports so a forecast is traceable to the well it came from.
+                The metadata panel at the top of the right sidebar holds two fields: comma separated <strong>Tags</strong> for grouping and filtering, and free text <strong>Notes</strong> for engineering comments. Tags are what the well filters on the Type Curve tab read, so they are worth keeping tidy on a field with many wells.
               </p>
             </div>
           </AccordionContent>
@@ -126,9 +127,9 @@ const DCAHelpContent = () => {
             </div>
             <ul className="text-xs space-y-2 list-disc pl-4">
               <li><span className="text-blue-400 font-semibold">Exponential (b = 0):</span> Constant percentage decline. Conservative; appropriate for boundary-dominated flow in conventional reservoirs.</li>
-              <li><span className="text-blue-400 font-semibold">Hyperbolic (0 &lt; b &lt; 2):</span> Decline rate decreases over time. Standard for unconventional wells. Most shales fit b = 0.8 to 1.5.</li>
+              <li><span className="text-blue-400 font-semibold">Hyperbolic (0 &lt; b &lt; 2):</span> Decline rate decreases over time. Standard for unconventional wells. Most shales fit b = 0.8 to 1.5, and the B-FACTOR CONSTRAINTS default caps b at 1.0, so raise that ceiling before fitting a shale or the fit will sit on the bound.</li>
               <li><span className="text-blue-400 font-semibold">Harmonic (b = 1):</span> Special case of hyperbolic. Most optimistic late-time behavior.</li>
-              <li><span className="text-blue-400 font-semibold">Auto-Select:</span> Petrolord fits all three and picks the highest R². Good default for unfamiliar wells.</li>
+              <li><span className="text-blue-400 font-semibold">Auto-Select:</span> Petrolord fits all three and keeps the one with the lowest RMSE. Good default for unfamiliar wells. Note that RMSE decides it, so on noisy data the winner is not always the one with the best R².</li>
             </ul>
             <div className="bg-amber-900/20 border border-amber-900/50 p-3 rounded flex gap-2">
               <AlertTriangle className="text-amber-500 shrink-0" size={16} />
@@ -150,10 +151,9 @@ const DCAHelpContent = () => {
               The right-sidebar Diagnostics section evaluates fit quality after every fit:
             </p>
             <ul className="text-xs space-y-2 list-disc pl-4">
-              <li><strong className="text-emerald-400">Excellent Fit (R² ≥ 0.95):</strong> Forecast is reliable for typical use.</li>
-              <li><strong className="text-blue-400">Good Fit (0.85 ≤ R² &lt; 0.95):</strong> Acceptable, minor uncertainty.</li>
-              <li><strong className="text-amber-400">Reasonable Fit (0.7 ≤ R² &lt; 0.85):</strong> Use with caution on late-time extrapolation.</li>
-              <li><strong className="text-red-400">Poor Fit (R² &lt; 0.7):</strong> Check for multi-segment behavior or data anomalies.</li>
+              <li><strong className="text-emerald-400">Excellent (R² ≥ 0.95):</strong> Forecast is reliable for typical use.</li>
+              <li><strong className="text-amber-400">Good (0.85 ≤ R² &lt; 0.95):</strong> Acceptable, with minor uncertainty on late-time extrapolation.</li>
+              <li><strong className="text-red-400">Poor (R² &lt; 0.85):</strong> Check for multi-segment behavior or data anomalies.</li>
             </ul>
             <div className="bg-slate-900 p-3 rounded border border-slate-800">
               <h4 className="text-xs font-bold text-slate-200 mb-1">Detected Segments</h4>
@@ -179,7 +179,7 @@ const DCAHelpContent = () => {
             <ul className="text-xs space-y-2 list-disc pl-4">
               <li><strong>Economic Limit Rate:</strong> Production rate where opex exceeds revenue. The forecast stops here when <em>Stop at Limit</em> is on. Set it realistically, typically 1 to 10 bbl/d for oil.</li>
               <li><strong>Max Duration (Days):</strong> Hard cap on forecast length. Default 3,650 (10 years).</li>
-              <li><strong>Facility Limit (Max Rate):</strong> Caps the rate during early life if a well is choked back. 0 means no cap.</li>
+              <li><strong>Facility Limit (Max Rate):</strong> Intended to cap the rate during early life on a choked-back well. It is currently read but not applied by the deterministic forecast, so setting it changes nothing on the Forecast Results tab. Leave it at 0 and impose any plateau outside this app until that is wired.</li>
               <li><strong>Stop at Limit:</strong> When on, the forecast terminates at the economic limit rate. When off, it runs to Max Duration.</li>
             </ul>
             <div className="bg-amber-900/20 border border-amber-900/50 p-3 rounded flex gap-2">
@@ -224,11 +224,13 @@ const DCAHelpContent = () => {
               <AlertTriangle className="text-red-400 shrink-0" size={16} />
               <div className="text-xs">
                 <strong className="text-red-300 block mb-1">Known issue: probabilistic EUR is overstated</strong>
-                The Monte Carlo forecast currently reads the fitted decline in the wrong time unit, which
-                inflates the P10, P50 and P90 EUR figures by roughly twenty five times. A fix is in progress.
-                Until it lands, treat the probabilistic percentiles as unusable and take your EUR from the
-                deterministic forecast on the Forecast Results tab, which is unaffected. The shape of the
-                uncertainty band is still indicative; the volumes attached to it are not.
+                The Monte Carlo forecast reads the fitted decline in the wrong time unit, so it declines
+                roughly 365 times too slowly and almost never reaches your economic limit. Every iteration
+                then runs to the duration cap instead, which means the overstatement grows with Max
+                Duration: about 5 times at the default 3,650 days, about 25 times at 20,000 days, and about
+                45 times at 36,500 days. A fix is in progress. Until it lands, treat the probabilistic
+                percentiles as unusable and take your EUR from the deterministic forecast on the Forecast
+                Results tab, which is unaffected.
               </div>
             </div>
             <p className="text-xs">
@@ -342,15 +344,25 @@ const DCAHelpContent = () => {
             11. Sending a Forecast Downstream
           </AccordionTrigger>
           <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
+            <div className="bg-red-900/25 border border-red-700/60 p-3 rounded flex gap-2">
+              <AlertTriangle className="text-red-400 shrink-0" size={16} />
+              <div className="text-xs">
+                <strong className="text-red-300 block mb-1">The Integration panel does not transmit anything yet</strong>
+                The NPV &amp; Economics and FDP Accelerator cards in the right sidebar report a successful
+                sync, but the functions behind them are placeholders that log to the console and return
+                success after a short delay. No forecast data leaves this app through them, and the call
+                sites pass an empty payload. Ignore the success message.
+              </div>
+            </div>
             <p className="text-xs">
-              Once a forecast is generated, the Integration panel in the right sidebar hands the production profile to the apps that need it, without a manual re-key:
+              <strong>Use the CSV export instead.</strong> The Export CSV button on the Forecast Results tab
+              writes the rate and cumulative profile, and that file is the working handoff into NPV Scenario
+              Builder, Petroleum Economics Studio and FDP Accelerator until the panel is wired.
             </p>
-            <ul className="text-xs space-y-1 list-disc pl-4">
-              <li><strong>NPV &amp; Economics</strong> takes the profile as the production input for a cash flow run.</li>
-              <li><strong>FDP Accelerator</strong> takes it as the well profile behind a development case.</li>
-            </ul>
             <p className="text-xs">
-              For anything else, the CSV export on the Forecast Results tab carries the same numbers.
+              For a route that genuinely carries a profile between apps today, build the case in Forecast
+              Scenario Hub instead. Petroleum Economics Studio reads saved scenario sets from that app
+              directly.
             </p>
           </AccordionContent>
         </AccordionItem>
