@@ -33,6 +33,7 @@ export {
   costPerMeter, programFromSections,
   REGION_BENCHMARKS, WELL_TYPE_MODIFIERS, benchmarkSuggestion,
 };
+export { depthDisp, depthStore, depthLabel, FT_PER_M } from '../../CasingTubingDesignPro/services/ctRun';
 
 // Deterministic small PRNG for reproducible risk runs (seed in the case
 // doc; the sampling math itself is the canonical module's).
@@ -102,7 +103,7 @@ export function defaultCaseDoc({ tdMdM = 3000, sections = null } = {}) {
 // the in-memory backend (JSON import) and the Playwright spec (fs read)
 // share one construction.
 export function buildGoldenCaseDoc(golden) {
-  return JSON.parse(JSON.stringify(golden.caseDoc));
+  return { params: {}, notes: '', ...JSON.parse(JSON.stringify(golden.caseDoc)) };
 }
 
 // ---- deterministic run -----------------------------------------------------

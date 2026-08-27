@@ -141,6 +141,9 @@ const StimulationDesignerHarness = lazy(() => import('@/pages/apps/StimulationDe
 const WellIntegrityPAStudio = lazy(() => import('@/pages/apps/WellIntegrityPA/WellIntegrityPAStudio'));
 const WellIntegrityPAHelpGuide = lazy(() => import('@/pages/apps/WellIntegrityPA/WellIntegrityPAHelpGuide'));
 const WellIntegrityPAHarness = lazy(() => import('@/pages/apps/WellIntegrityPA/WellIntegrityPAHarness'));
+const WellCostTimeStudio = lazy(() => import('@/pages/apps/WellCostTime/WellCostTimeStudio'));
+const WellCostTimeHelpGuide = lazy(() => import('@/pages/apps/WellCostTime/WellCostTimeHelpGuide'));
+const WellCostTimeHarness = lazy(() => import('@/pages/apps/WellCostTime/WellCostTimeHarness'));
 
 // Facilities newly added ones
 const PipelineDesigner = lazy(() => import('@/pages/apps/PipelineDesigner.jsx'));
@@ -530,6 +533,8 @@ function App() {
                                 <Route path="apps/drilling/stimulation-designer/help" element={<ProtectedAppRoute appId="stimulation-designer" appName="Stimulation Designer"><StimulationDesignerHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/well-integrity-pa" element={<ProtectedAppRoute appId="well-integrity-pa" appName="Well Integrity & P&A Studio"><WellIntegrityPAStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/well-integrity-pa/help" element={<ProtectedAppRoute appId="well-integrity-pa" appName="Well Integrity & P&A Studio"><WellIntegrityPAHelpGuide /></ProtectedAppRoute>} />
+                                <Route path="apps/drilling/well-cost-time" element={<ProtectedAppRoute appId="well-cost-time" appName="Well Cost & Time Estimator"><WellCostTimeStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/drilling/well-cost-time/help" element={<ProtectedAppRoute appId="well-cost-time" appName="Well Cost & Time Estimator"><WellCostTimeHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/geomechanics-studio" element={<ProtectedAppRoute appId="geomechanics-studio" appName="Geomechanics & Wellbore Stability Studio"><GeomechanicsStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/geomechanics-studio/help" element={<ProtectedAppRoute appId="geomechanics-studio" appName="Geomechanics & Wellbore Stability Studio"><GeomechanicsHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/cementing-studio" element={<ProtectedAppRoute appId="cementing-studio" appName="Cementing Studio"><CementingStudio /></ProtectedAppRoute>} />
@@ -736,6 +741,7 @@ function App() {
                                   <Route path="/dev/perforation-sand-control" element={<PerforationSandControlHarness />} />
                                   <Route path="/dev/stimulation" element={<StimulationDesignerHarness />} />
                                   <Route path="/dev/well-integrity" element={<WellIntegrityPAHarness />} />
+                                  <Route path="/dev/well-cost" element={<WellCostTimeHarness />} />
                                   <Route path="/dev/dca" element={<DeclineCurveAnalysis />} />
                                   <Route path="/dev/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
                                   <Route path="/dev/nodal-analysis-studio" element={<NodalAnalysisStudio />} />

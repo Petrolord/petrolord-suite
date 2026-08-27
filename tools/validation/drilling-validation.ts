@@ -65,6 +65,13 @@
 //      closed forms vs the oracle (Drilling D10; wellintegrity_cases.json)
 //   A31 balanced plug closed forms + D-010 rule checks + program
 //      compliance vs the oracle
+//   A32 activity schedule / time-depth curve / AFE rollup / cost-time
+//      accrual identity / ADE cost-per-metre / benchmark suggestion vs
+//      the oracle (Drilling D11; wellcost_cases.json)
+//   A33 Monte Carlo cost path through the CANONICAL suite sampler
+//      (src/lib/monteCarlo.js, seeded): reproduces the oracle's
+//      analytic mean/variance of the linear triangular fixture within
+//      CLT tolerance
 // ARMED gates (pending owner literature PDFs):
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
 //   L3 Amoco/API MD-TVD table (the Amoco Directional Survey Handbook,
@@ -158,6 +165,13 @@ async function main() {
   const {
     balancedPlug, plugRuleCheck, annularBarrierCheck, abandonmentProgram,
   } = await import('../../packages/engines/engines/drilling/plugAbandonment.js');
+  const {
+    activityDuration, evaluateProgram, afeCosts, costTimeCurve: wcCostTimeCurve,
+    costPerMeter,
+  } = await import('../../packages/engines/engines/drilling/wellCost.js');
+  const { benchmarkSuggestion } = await import(
+    '../../packages/engines/engines/drilling/data/costBenchmarks.js');
+  const { createCorrelatedSampler } = await import('../../src/lib/monteCarlo.js');
 
   let failures = 0;
   const gate = (id: string, name: string, fn: () => void) => {
@@ -1083,6 +1097,100 @@ async function main() {
     close(prog.takeoff.slurryM3, g.program.p1Placement.slurryM3, 1e-9 * g.program.p1Placement.slurryM3, 'takeoff');
   });
 
+  gate('A32', 'schedule / AFE / accrual identity / cost-per-m / benchmark vs oracle', () => {
+    const g = goldens('wellcost_cases.json');
+    const doc = g.caseDoc;
+    // Per-kind duration closed forms on the hand well's activities.
+    close(activityDuration({ kind: 'drill', fromMdM: 500, toMdM: 2000, ropMPerHr: 15 }), 100, 1e-12, 'drill duration');
+    close(activityDuration({ kind: 'trip', mdM: 2000, tripSpeedMPerHr: 500 }), 8, 1e-12, 'trip duration');
+    close(activityDuration({ kind: 'casing', mdM: 2000, runSpeedMPerHr: 400, flatHr: 19 }), 24, 1e-12, 'casing duration');
+    // Whole-program schedule vs the oracle (NPT stretch, exact hours).
+    const prog = evaluateProgram(doc.program);
+    close(prog.totals.productiveHr, g.totals.productiveHr, 1e-12, 'productive hours');
+    close(prog.totals.totalHr, g.totals.totalHr, 1e-12, 'total hours');
+    close(prog.totals.totalDays, 18, 1e-12, 'total days hand value');
+    close(prog.totals.drilledM, g.totals.drilledM, 1e-12, 'drilled metres');
+    prog.curve.forEach((p: any, i: number) => {
+      close(p.tHr, g.curve[i].tHr, 1e-12, `curve t ${i}`);
+      close(p.mdM, g.curve[i].mdM, 1e-12, `curve md ${i}`);
+    });
+    // AFE rollup vs the oracle (exact arithmetic).
+    const afe = afeCosts({
+      items: doc.costs.items, totalDays: prog.totals.totalDays,
+      drilledM: prog.totals.drilledM, contingencyFrac: doc.costs.contingencyFrac,
+    });
+    afe.byItem.forEach((r: any, i: number) => {
+      close(r.amountUsd, g.afe.byItem[i].amountUsd, 1e-12, `item ${r.id}`);
+    });
+    close(afe.tangibleUsd, g.afe.tangibleUsd, 1e-12, 'tangible');
+    close(afe.baseUsd, g.afe.baseUsd, 1e-12, 'base');
+    close(afe.totalUsd, g.afe.totalUsd, 1e-12, 'AFE total');
+    // Cost-time accrual: golden points, the 2,260,000 checkpoint, and
+    // the endpoint identity (final accrual == base subtotal).
+    const cc = wcCostTimeCurve({ program: prog, items: doc.costs.items });
+    cc.forEach((p: any, i: number) => {
+      close(p.usd, g.costCurve[i].usd, 1e-12, `accrual ${i}`);
+    });
+    const cp = cc.find((p: any) => p.tHr === g.costCurveCheckpoint.tHr);
+    close(cp.usd, g.costCurveCheckpoint.usd, 1e-12, 'accrual checkpoint');
+    close(cc[cc.length - 1].usd, afe.baseUsd, 1e-12, 'endpoint identity');
+    // ADE ch.1 cost per metre + the benchmark suggestion fixture.
+    close(costPerMeter(g.costPerMeter.inputs), g.costPerMeter.usdPerM, 1e-12, 'cost per metre');
+    const bm = benchmarkSuggestion(g.benchmark.inputs);
+    for (const [k, v] of Object.entries(g.benchmark.suggestion)) {
+      if ((bm as any)[k] !== v) throw new Error(`benchmark suggestion ${k}: ${(bm as any)[k]} vs ${v}`);
+    }
+  });
+
+  gate('A33', 'canonical-sampler Monte Carlo vs oracle analytic identities', () => {
+    const g = goldens('wellcost_cases.json');
+    const an = g.mc.analytic;
+    // Seeded PRNG (mulberry32) so the statistical assertion is
+    // deterministic; the sampling math is the canonical module's.
+    let a = 7 >>> 0;
+    const rng = () => {
+      a += 0x6D2B79F5;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const key = (u: any) => `${u.target}:${u.id}:${u.field}`;
+    const inputs: any = {};
+    for (const u of g.mc.uncertainties) inputs[key(u)] = u.dist;
+    const { sample } = createCorrelatedSampler({
+      inputs, paramOrder: g.mc.uncertainties.map(key), rng,
+    });
+    const N = 20000;
+    const costs: number[] = [];
+    for (let i = 0; i < N; i++) {
+      const { values } = sample();
+      const acts = g.mc.program.activities.map((row: any) => ({ ...row }));
+      const items = g.mc.costs.items.map((row: any) => ({ ...row }));
+      for (const u of g.mc.uncertainties) {
+        const list = u.target === 'activity' ? acts : items;
+        const row = list.find((r: any) => r.id === u.id);
+        row[u.field] = values[key(u)];
+      }
+      const prog = evaluateProgram({ activities: acts, nptFrac: 0 });
+      const afe = afeCosts({
+        items, totalDays: prog.totals.totalDays,
+        drilledM: prog.totals.drilledM, contingencyFrac: 0,
+      });
+      costs.push(afe.baseUsd);
+    }
+    const mean = costs.reduce((s, v) => s + v, 0) / N;
+    const varSum = costs.reduce((s, v) => s + (v - mean) * (v - mean), 0) / (N - 1);
+    close(mean, an.meanUsd, 5 * (an.sdUsd / Math.sqrt(N)), 'MC mean (5 standard errors)');
+    close(varSum, an.varUsd, 0.05 * an.varUsd, 'MC variance (5%)');
+    const sorted = [...costs].sort((x, y) => x - y);
+    const p10 = sorted[Math.floor(0.1 * N)];
+    const p50 = sorted[Math.floor(0.5 * N)];
+    const p90 = sorted[Math.floor(0.9 * N)];
+    if (!(p10 < p50 && p50 < p90)) throw new Error('percentile ordering');
+    if (!(p10 > sorted[0] && p90 < sorted[N - 1])) throw new Error('percentile bounds');
+  });
+
   const armed = [
     ['L2', 'Mitchell & Miska survey table'],
     ['L3', 'Amoco/API MD-TVD table'],
@@ -1103,6 +1211,7 @@ async function main() {
     ['L18', 'proppant vendor conductivity data (API RP 19D cells)'],
     ['L19', 'NORSOK D-010 well barrier / plug requirement tables'],
     ['L20', 'API RP 90 annular casing pressure worked example'],
+    ['L21', 'ADE ch.1 (Bourgoyne et al.) drilling cost analysis worked example'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
