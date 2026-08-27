@@ -95,9 +95,18 @@ const WDSHelpContent = () => (
       </p>
       <p>
         <strong>SCAL Studio</strong> sends a fitted relative permeability set. It lands on the Displacement panel and
-        replaces the Corey endpoints and exponents, or the pasted table, with the curves you fitted to lab data.
-        <strong> Well Test Analysis Studio</strong> sends an interpreted permeability, which replaces the k used by the
-        pattern forecast. Both arrivals raise a notification naming what changed, so an overwrite is never silent.
+        replaces the Corey endpoints and exponents, or the pasted table, with the curves you fitted to lab data. It
+        also overwrites the water and oil viscosities on that panel whenever SCAL supplies them, so check those two
+        fields after an arrival.
+      </p>
+      <p>
+        <strong>Well Test Analysis Studio</strong> sends an interpreted permeability. It lands in the permeability
+        field on the Displacement panel, which is the k used by the dip and gravity term. If the dip and gravity
+        switch is off, the arriving value is stored and changes no result until you turn it on. The pattern forecast
+        takes no permeability input at all.
+      </p>
+      <p>
+        Both arrivals raise a notification naming what changed, so an overwrite is never silent.
       </p>
       <p>
         Each tab is also directly linkable, which is what the retired Waterflood Dashboard now redirects into, so a
@@ -107,13 +116,15 @@ const WDSHelpContent = () => (
 
     <Section icon={Gauge} title="The diagnostics rail">
       <p>
-        The rail down the right side stays with you across tabs and reports the state of the working case: front
-        diagnostics from the current displacement solution, the heterogeneity measure from the layer set, a summary of
-        the pattern forecast, the last Monte Carlo run, and a field summary once surveillance history is loaded.
+        The rail down the right side shows the readout that belongs to the tab you are on: front diagnostics on
+        Displacement, the heterogeneity measure on Layered Sweep, a pattern summary on Pattern Forecast, the last
+        Monte Carlo run on Uncertainty, and a field summary on Surveillance. The scenario manager is the one part
+        that stays with you across every tab.
       </p>
       <p>
-        It is the quickest way to see whether a change on one tab has moved the answer on another, for example whether
-        a new relative permeability set has shifted the shock front and with it the breakthrough time.
+        Because the rail follows the tab, checking whether a change on one tab has moved the answer on another means
+        switching to that tab and reading it there. Saving a scenario before and after the change is the reliable way
+        to compare, since the scenario table recomputes both.
       </p>
     </Section>
 

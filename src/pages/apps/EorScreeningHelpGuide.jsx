@@ -58,10 +58,10 @@ const EorScreeningHelpGuide = () => (
 
     <GuideSection id="quickstart">
       <SectionHeading icon={Zap}>Quick start</SectionHeading>
-      <Step n={1} title="Load the sample if you want to see it work first">
-        The button under the input card loads a West Texas style CO2 candidate: 32 degrees API,
-        2 cp, 45 percent oil saturation, 40 ft net, 25 md, 5200 ft, 105 degrees F, carbonate.
-        Three methods qualify on that reservoir.
+      <Step n={1} title="The app opens on a worked example">
+        You start on a West Texas style CO2 candidate: 32 degrees API, 2 cp, 45 percent oil
+        saturation, 40 ft net, 25 md, 5200 ft, 105 degrees F, carbonate. Three methods qualify
+        on that reservoir. The button under the input card reloads it after you have made edits.
       </Step>
       <Step n={2} title="Enter your reservoir">
         Type over the eight fields. Every one is optional. A field you leave blank is not
@@ -138,9 +138,22 @@ const EorScreeningHelpGuide = () => (
       />
       <Para>
         For all four gas methods, permeability and temperature are not critical, and net
-        thickness is advisory only. The app shows a note such as "thin unless dipping" and
-        does not score it, because the paper's guidance there is about geometry and dip rather
-        than a number.
+        thickness is never scored. What the thickness row says varies by method, because the
+        paper's guidance there is about geometry and dip rather than a number.
+      </Para>
+      <Table
+        headers={['Method', 'What the thickness row reads']}
+        rows={[
+          ['Nitrogen and flue gas', 'Thin unless dipping (advisory)'],
+          ['Hydrocarbon miscible', 'Thin unless dipping (advisory)'],
+          ['CO2 miscible', 'Not critical'],
+          ['Immiscible gas', 'Not critical if dipping (advisory)'],
+        ]}
+        widths={[2.4, 4.2]}
+      />
+      <Para>
+        None of those four affects the score. If your candidate is a thin gas injection target,
+        the thickness and dip question has to be settled outside this tool.
       </Para>
 
       <SubHeading>Chemical</SubHeading>

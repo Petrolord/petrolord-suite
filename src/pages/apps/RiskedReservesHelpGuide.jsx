@@ -76,11 +76,24 @@ const RiskedReservesHelpGuide = () => (
         The two conventions sit on the same screen. Enter low to high, left to right, and read
         the output cards knowing P90 is your downside.
       </Para>
-      <Callout tone="warn" title="What happens if you enter them the other way round">
-        If you enter 120, 100, 80 for reserves, expecting P10 to be the optimistic case, the
-        sampler does not warn you and does not error. It produces values outside the range you
-        typed, roughly 60 to 140 in that example, because the triangular inverse is being fed a
-        negative width. Your distribution will be wider than you intended in both directions.
+      <Callout tone="danger" title="What happens if you enter them the other way round">
+        <p className="mb-2">
+          If you enter 120, 100, 80 for reserves, expecting P10 to be the optimistic case, the
+          sampler does not warn you and does not error. It produces something far stranger than a
+          wider distribution.
+        </p>
+        <p className="mb-2">
+          The triangular inverse is being fed a negative width, and the result splits into two
+          disjoint lobes. Half the draws land between 120 and 140, the other half between 60 and
+          80, and <strong>nothing at all is drawn between 80 and 120</strong>. The value you
+          entered as the most likely case is never sampled once. Every iteration is therefore an
+          extreme case, and the P50 you read out is an artefact of where the two lobes happen to
+          sit rather than a median of anything meaningful.
+        </p>
+        <p>
+          Enter low, most likely, high, left to right. If a result distribution ever looks
+          strongly two-humped on the histogram, check the input order before you interpret it.
+        </p>
       </Callout>
     </GuideSection>
 
