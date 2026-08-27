@@ -8,16 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { listSurfaces, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import { sampleSurfaceToTops, topsPreviewCells } from '@/utils/simStructureImport';
-
-// Shallow -> deep, warm to cool (depth heatmap, colorblind-safe ramp).
-const depthColor = (t) => {
-  const ramp = [[254, 224, 144], [253, 174, 97], [244, 109, 67], [178, 24, 43], [103, 0, 31]];
-  const x = Math.max(0, Math.min(0.9999, t)) * (ramp.length - 1);
-  const a = ramp[Math.floor(x)];
-  const b = ramp[Math.ceil(x)];
-  const f = x - Math.floor(x);
-  return `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * f)).join(',')})`;
-};
+import { depthColor } from '@/utils/simGridViz';
 
 const StructurePreview = ({ tops, nx, ny }) => {
   const { cells, px, py } = useMemo(() => topsPreviewCells(tops, nx, ny), [tops, nx, ny]);

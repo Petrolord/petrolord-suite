@@ -227,8 +227,52 @@ unchanged worker run path.
   covers dipping structure honestly), 3D grid viz, multi-realization
   (conflicts with the ≤2 in-flight / ≤10 per day quotas).
 
+## S5 — Per-well history + 3D preview (2026-08-27)
+
+Suite-only wave (the two feasible items from the S4 ideas list): no
+engines, worker or schema changes — the S4 engines layer already emits
+per-well WCONHIST and the worker already whitelists the per-well H
+vectors, so both features ride the existing run path unchanged.
+
+- **Per-well history import** `src/utils/simWellHistoryImport.js`:
+  per-well rate CSVs (`date, well, oil, water, gas` with column aliases,
+  comment/blank handling, per-line errors) -> history periods where every
+  well keeps its OWN metered rates — no field allocation at all (the S4
+  MBAL path splits one field signal by fractions; this one doesn't).
+  Producer rows -> WCONHIST, injector wells -> WCONINJH from their phase
+  column. Modes: daily rates or interval volumes (spread over the days
+  to the next date); gas unit Mscf or scf (÷1000 seam). Eclipse keyword
+  persistence is used honestly: a well missing on a date keeps its
+  previous declared rate (warned with a count), a well whose first row
+  is mid-history stays shut until then, and model wells with no rows are
+  reported as shut through the phase. The last period has no closing
+  date and runs the median interval (warned). The History card gained a
+  source select (MBAL allocated / per-well CSV) with a per-well average
+  summary table; the Results overlays and worker vectors were already
+  per-well-aware.
+- **3D model preview** `src/utils/simGridViz.js` (pure math, jest-gated)
+  + `builder/Grid3DView.jsx`: the current form's grid renders as a
+  rotatable depth-colored structure surface (node depths averaged from
+  the block-centred cell TOPS, quads decimated under a 3,600 budget for
+  big grids) inside the reservoir box outline, with wells drawn in place
+  — vertical sticks (dashed uncompleted stalk) or the actual deviated
+  survey path via the drilling minimum-curvature kernel. Orthographic
+  azimuth/elevation projection with painter's-order sorting and
+  vertical exaggeration (auto by default, slider override). Display
+  only: Generate still composes from the same spec, and the depth ramp
+  is shared with the Structure card's 2D heatmap (single definition).
+- Tests: simS5Import.test.js (15 gates: CSV parsing, per-well periods +
+  persistence/tail/clamp warnings, volumes + scf seams, actionable
+  rejections, scene building, node smoothing, decimation, projection
+  map/section sanity + painter order, builder integration pinning each
+  well's own rates into WCONHIST text). Full jest 282 suites / 3,499
+  green; build clean.
+- Deliberately NOT in S5 (unchanged reasoning): corner-point ZCORN +
+  faults, LGRs (both heavy engine lifts), multi-realization batches
+  (conflicts with the ≤2 in-flight / ≤10 per day quotas).
+
 ## Upcoming phases
-- S5 ideas (NOT committed): corner-point ZCORN + fault handling,
-  3D grid/trajectory viz, multi-realization batches with quota-aware
-  scheduling, per-well history import (per-well rate CSVs rather than
-  field allocation), LGRs.
+- S6 ideas (NOT committed): corner-point ZCORN + fault handling, LGRs,
+  multi-realization batches (needs an owner quota decision first),
+  saved builder forms (the form currently lives only in component
+  state), per-well BHP observations (WBHPH) for pressure matching.

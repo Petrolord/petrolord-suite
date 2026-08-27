@@ -16,6 +16,7 @@ import { defaultBuilderForm, buildDeckFromForm } from '@/utils/simDeckBuilder';
 import StructureCard from '@/components/simstudio/builder/StructureCard';
 import HistoryCard from '@/components/simstudio/builder/HistoryCard';
 import TrajectoryEditor from '@/components/simstudio/builder/TrajectoryEditor';
+import Grid3DView from '@/components/simstudio/builder/Grid3DView';
 
 const Field = ({ label, value, onChange, className = '' }) => (
   <div className={`space-y-1 ${className}`}>
@@ -129,6 +130,8 @@ const BuilderPanel = () => {
       </Section>
 
       <StructureCard form={form} set={set} addNotification={addNotification} />
+
+      <Grid3DView form={{ ...form, grid: { ...form.grid, layers } }} />
 
       <Section title="Fluid (black oil — correlations from Fluid Studio)">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

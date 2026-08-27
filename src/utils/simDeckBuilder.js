@@ -58,9 +58,12 @@ export const defaultBuilderForm = () => ({
   // 'surface', tops/dxFt/dyFt come from simStructureImport and replace
   // the uniform topsDepth and DX/DY.
   structure: { mode: 'uniform', surfaceId: null, surfaceName: '', tops: null, dxFt: null, dyFt: null, stats: null },
-  // S4: MBAL production history -> WCONHIST phase. periods/dates are
-  // filled by the History import; predictionYears appends a TSTEP tail.
-  history: { enabled: false, caseName: '', startDate: null, endDate: null, periods: null, predictionYears: '3' },
+  // S4/S5: production history -> WCONHIST phase. source 'mbal' allocates
+  // field cumulatives across the wells; 'perwell' takes each well's own
+  // rates from a CSV (no allocation, wellSummary drives the preview).
+  // periods/dates are filled by the History import; predictionYears
+  // appends a TSTEP tail.
+  history: { enabled: false, source: 'mbal', caseName: '', startDate: null, endDate: null, periods: null, wellSummary: null, predictionYears: '3' },
 });
 
 // -------------------------------------------------------------------- PVT ---
