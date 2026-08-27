@@ -148,9 +148,11 @@ const WTSHelpContent = () => (
       left it.
     </P>
     <P>
-      Results also travel to other studios directly: the average pressure, permeability and skin prefill a new
-      Reservoir Balance material balance case, and the tested permeability lands in the Waterflood Design Studio
-      displacement inputs.
+      Results also travel to other studios directly. Sending to Material Balance Studio opens a new case with the
+      average pressure carried in as the initial pressure, along with the reservoir temperature, the fluid system
+      and a case name taken from the well. Permeability and skin travel in the notification text for reference and
+      are not written into the case, because material balance has no field for them. Sending to Waterflood Design
+      Studio writes the tested permeability into the displacement inputs, where it feeds the dip and gravity term.
     </P>
 
     <H>Gas wells, injection tests and multi-rate</H>

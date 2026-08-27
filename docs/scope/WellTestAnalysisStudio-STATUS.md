@@ -333,7 +333,9 @@ Guide was frozen at WT9 and contradicted itself. Corrected:
 - **Section numbering fixed.** RTA was unnumbered and printed out of tab
   order, leaving Specialized and Report numbered 4 and 5 for tabs 4 and
   6. Now 1 Data, 2 Diagnostics, 3 Match, 4 Specialized, 5 RTA, 6 Report.
-- Added: the 13th model (dual porosity PSS + sealing fault) with the
+- Added: the dual porosity PSS plus sealing fault model (the 9th of the 12
+  catalog entries; an earlier note in this file called it the 13th, which was
+  a miscount) with the
   two-stage read and when not to reach for it, the persistent
   DiagnosticsRail including the stale-match flag, the inbound Fluid
   Systems Studio PVT handoff (and why ct is left for review), the RTA
