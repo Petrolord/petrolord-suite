@@ -2,7 +2,7 @@
 // StudioHelp). Sections carried over from the retired Fractional Flow help
 // guide plus the new tabs, with the method citations.
 import React from 'react';
-import { GitMerge, Layers, TrendingUp, Dices, Activity, Camera, BookOpen, AlertTriangle } from 'lucide-react';
+import { GitMerge, Layers, TrendingUp, Dices, Activity, Camera, BookOpen, AlertTriangle, Share2, Gauge } from 'lucide-react';
 
 const Section = ({ icon: Icon, title, children }) => (
   <section className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
@@ -26,6 +26,10 @@ const WDSHelpContent = () => (
         The dip/gravity switch adds the field-unit gravity term to fw (updip displacement positive; denser water
         moving updip delays breakthrough). The polymer switch multiplies water viscosity for mobility-control
         screening only.
+      </p>
+      <p>
+        Sample loads a worked case so you can see the whole displacement solution before entering your own numbers,
+        and Reset returns the panel to its defaults.
       </p>
     </Section>
 
@@ -81,6 +85,35 @@ const WDSHelpContent = () => (
       <p>
         Diagnostics that need data your file does not carry state exactly what is missing instead of showing empty
         charts. Uploaded history saves with the project.
+      </p>
+    </Section>
+
+    <Section icon={Share2} title="Data arriving from other studios">
+      <p>
+        Two studios can push their results straight into this one, so a design does not have to be re-keyed from
+        another app's output.
+      </p>
+      <p>
+        <strong>SCAL Studio</strong> sends a fitted relative permeability set. It lands on the Displacement panel and
+        replaces the Corey endpoints and exponents, or the pasted table, with the curves you fitted to lab data.
+        <strong> Well Test Analysis Studio</strong> sends an interpreted permeability, which replaces the k used by the
+        pattern forecast. Both arrivals raise a notification naming what changed, so an overwrite is never silent.
+      </p>
+      <p>
+        Each tab is also directly linkable, which is what the retired Waterflood Dashboard now redirects into, so a
+        saved link opens on the tab you left it on.
+      </p>
+    </Section>
+
+    <Section icon={Gauge} title="The diagnostics rail">
+      <p>
+        The rail down the right side stays with you across tabs and reports the state of the working case: front
+        diagnostics from the current displacement solution, the heterogeneity measure from the layer set, a summary of
+        the pattern forecast, the last Monte Carlo run, and a field summary once surveillance history is loaded.
+      </p>
+      <p>
+        It is the quickest way to see whether a change on one tab has moved the answer on another, for example whether
+        a new relative permeability set has shifted the shock front and with it the breakthrough time.
       </p>
     </Section>
 

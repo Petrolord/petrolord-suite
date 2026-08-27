@@ -24,21 +24,21 @@ const helpContent = [
     icon: Droplets,
     title: 'Step 1: Set PVT / formation volume factors',
     content:
-      'All volumes are converted to reservoir barrels (RB) before the ratio is taken, so the engine needs your fluid properties: Bo (oil FVF, RB/STB), Bw (water FVF, RB/STB), Bg (gas FVF, RB/Mscf) and Rs (solution GOR, scf/STB). These apply to every period. Solution gas (Rs times Np) is already carried in Bo, so only free produced gas above solution adds to voidage; the engine subtracts it automatically.',
+      'All volumes are converted to reservoir barrels (RB) before the ratio is taken, so the engine needs your fluid properties: Bo (oil FVF, RB/STB), Bw (water FVF, RB/STB), Bg (gas FVF, RB/Mscf) and Rs (solution GOR, scf/STB). These are the defaults and they apply to every period unless you override them. Where fluid properties have moved over the life of the record, switch on the PVT override columns in the period grid and give a period its own Bo, Bw, Bg and Rs; any period you leave blank falls back to the defaults above. Solution gas (Rs times Np) is already carried in Bo, so only free produced gas above solution adds to voidage; the engine subtracts it automatically.',
   },
   {
     id: 'periods',
     icon: Table2,
     title: 'Step 2: Enter production and injection by period',
     content:
-      'On the Data tab, add one row per surveillance period (typically a month). Enter oil produced (Np, STB), water produced (Wp, STB), gas produced (Gp, Mscf), water injected (Wi, bbl) and gas injected (Gi, Mscf). Produced voidage = Np·Bo + Wp·Bw + free-gas·Bg; injected voidage = Wi·Bw + Gi·Bg. Leave a cell blank and it counts as zero.',
+      'On the Data & PVT tab, add one row per surveillance period (typically a month). Enter oil produced (Np, STB), water produced (Wp, STB), gas produced (Gp, Mscf), water injected (Wi, bbl) and gas injected (Gi, Mscf). Produced voidage = Np·Bo + Wp·Bw + free-gas·Bg; injected voidage = Wi·Bw + Gi·Bg. Leave a cell blank and it counts as zero.',
   },
   {
     id: 'read',
     icon: LineChart,
     title: 'Step 3: Read the VRR trend',
     content:
-      "The Dashboard tab plots instantaneous VRR (this period alone), rolling VRR (a trailing multi-period window that smooths month-to-month allocation noise) and cumulative VRR (all periods to date) against a reference line at VRR = 1 and your shaded operator target band. The instantaneous line tells you what is happening right now; the cumulative line reflects the reservoir's overall voidage balance since the start of the record. Set the band and rolling window under Analysis Settings; periods outside the band flag as Under or Over. The download button on the chart saves it as a PNG.",
+      "The VRR Dashboard tab plots instantaneous VRR (this period alone), rolling VRR (a trailing multi-period window that smooths month-to-month allocation noise) and cumulative VRR (all periods to date) against a reference line at VRR = 1 and your shaded operator target band. The instantaneous line tells you what is happening right now; the cumulative line reflects the reservoir's overall voidage balance since the start of the record. Set the band and rolling window under Analysis Settings; periods outside the band flag as Under or Over. The download button on the chart saves it as a PNG.",
   },
   {
     id: 'pressure',
@@ -52,7 +52,7 @@ const helpContent = [
     icon: Network,
     title: 'Patterns tab: allocation factors and per-pattern VRR',
     content:
-      'A field-level VRR of 1 can hide one flooded-out pattern and one starved one. On the Patterns tab (available with an imported per-well ledger), define patterns as sets of producers, then fill the allocation matrix: for each injector, the fraction of its volume reaching each producer. Rows should sum to 1; a shortfall counts as out-of-zone injection and the audit line accounts for every barrel. The fractions are your judgement (from streamline runs, interference tests or geometry); the app never assumes even splits on its own, though an Even split button is there when that is your call. Each pattern then gets its own VRR trend, band flags, and a water-injection recommendation that scales recent allocated injection by target over current rolling VRR, split per injector by allocated share. Recommendations with an implausibly large step are clamped and flagged; treat that as a prompt to re-check allocation and PVT rather than as an instruction.',
+      'A field-level VRR of 1 can hide one flooded-out pattern and one starved one. On the Patterns tab (available with an imported per-well ledger), define patterns as sets of producers, then fill the allocation matrix: for each injector, the fraction of its volume reaching each producer. Rows should sum to 1; a shortfall counts as out-of-zone injection and the audit line accounts for every barrel. The fractions are your judgement (from streamline runs, interference tests or geometry); the app never assumes even splits on its own, though an Even split button is there when that is your call. Each pattern then gets its own VRR trend, band flags, and a water-injection recommendation that scales recent allocated injection by target over current rolling VRR, split per injector by allocated share. Recommendations with an implausibly large step are clamped and flagged; treat that as a prompt to re-check allocation and PVT rather than as an instruction. The KPI row above the trend names the weakest pattern in the field, which is the one furthest below your target band, so the pattern that most needs attention is on screen without hunting through the list.',
   },
   {
     id: 'interpret',
@@ -66,7 +66,7 @@ const helpContent = [
     icon: Upload,
     title: 'Importing real field data (per-well CSV)',
     content:
-      'The Data tab imports real allocation files: one row per well per date (daily or monthly), with columns for date, well, oil, water and gas produced, and water and gas injected. Common header aliases are recognized (oil_bbl, np, bopd, water_inj, inj_bbl, gas_inj and more) and units auto-scale from the header (MMscf and Bscf to Mscf, Mbbl to bbl). Rows the importer cannot use are listed in the import report, never dropped silently. Daily rows aggregate to calendar months. Download the Template for the exact schema, or click Sample wells to load a worked 3-month, 4-well example. Wells that ever inject classify as injectors, including gas injectors.',
+      'The Data & PVT tab imports real allocation files: one row per well per date (daily or monthly), with columns for date, well, oil, water and gas produced, and water and gas injected. Common header aliases are recognized (oil_bbl, np, bopd, water_inj, inj_bbl, gas_inj and more) and units auto-scale from the header (MMscf and Bscf to Mscf, Mbbl to bbl). Rows the importer cannot use are listed in the import report, never dropped silently. Daily rows aggregate to calendar months. Download the Template for the exact schema, or click Sample wells to load a worked 3-month, 4-well example. Wells that ever inject classify as injectors, including gas injectors.',
   },
   {
     id: 'data',

@@ -12,14 +12,33 @@ const WTSHelpContent = () => (
       classic straight lines, and assemble the report.
     </P>
 
+    <H>The diagnostics rail</H>
+    <P>
+      The rail down the right side follows you across tabs and shows the state of the interpretation as it stands:
+      the test type, how many gauge points were imported and how many survived QC, the permeability and skin from the
+      current match with their confidence intervals, and the derived quantities. It changes with the tab you are on
+      so the numbers in view are the ones that matter to the step you are working through.
+    </P>
+    <P>
+      It also flags a match that has gone stale. Change an input after a fit and the rail says so, which is the
+      reminder to re-run the regression before quoting a number that was computed against the old inputs.
+    </P>
+
     <H>1. Data</H>
     <P>
       Choose the test type and enter the reservoir and fluid properties (net thickness, porosity, wellbore radius,
       total compressibility, FVF, viscosity, rate, initial pressure). Import the gauge as a two-column CSV: elapsed
-      time in hours (shut-in time for a buildup) and pressure in psi. For a buildup, set the producing time tp and the
-      flowing pressure at shut-in; if left blank the earliest gauge point is used. The spike filter removes isolated
-      gauge outliers and dense data is thinned to a set number of points per log cycle. The Sample button loads a
-      synthetic homogeneous buildup so you can explore the workflow.
+      time in hours (shut-in time for a buildup) and pressure in the unit system you have selected. The field labels
+      show the live unit, so check the selector before importing and the file will be read correctly either way. For a
+      buildup, set the producing time tp and the flowing pressure at shut-in; if left blank the earliest gauge point
+      is used. The spike filter removes isolated gauge outliers and dense data is thinned to a set number of points
+      per log cycle. The Sample button loads a synthetic homogeneous buildup so you can explore the workflow.
+    </P>
+    <P>
+      Fluid properties can also arrive from Fluid Systems Studio rather than being typed in. A PVT handoff fills the
+      formation volume factor and viscosity from the fluid model you built there and tells you it has done so. Total
+      compressibility is deliberately left for you to review, because ct depends on the rock and the saturations as
+      well as the fluid.
     </P>
 
     <H>2. Diagnostics</H>
@@ -37,18 +56,6 @@ const WTSHelpContent = () => (
       auto-fit runs Levenberg-Marquardt on pressure and derivative simultaneously, starting from your manual match,
       and reports 95% confidence intervals. Storage and skin trade off strongly at early time, so a sensible manual
       starting point improves the regression.
-    </P>
-
-    <H>RTA (production data)</H>
-    <P>
-      The RTA tab analyzes daily production data (time in days, rate, flowing pressure) instead of a shut-in
-      transient. Material-balance time te = Q/q collapses any rate history onto the constant-rate equivalent during
-      boundary-dominated flow, so the log-log rate-normalized drawdown and its derivative merge on a late unit
-      slope. The flowing material balance regresses the rate-normalized drawdown against te: the slope gives the
-      connected oil in place N (for gas, the dynamic material balance iterates G, average pressure and
-      material-balance pseudo-time and yields G) and the intercept gives the productivity index. The straight line
-      only means something once boundary-dominated flow is established. The transient linear card regresses the
-      early data against the square root of time for xf sqrt(k) (Wattenbarger).
     </P>
 
     <H>Units and gas pseudo-time</H>
@@ -88,6 +95,14 @@ const WTSHelpContent = () => (
       earlier transition. Skin is bounded at zero on these models.
     </P>
     <P>
+      Dual porosity with a sealing fault is the crossed case, for a fractured reservoir that also has a boundary in
+      range of the test. Read it in two stages: the omega dip resolves first as the matrix begins to feed the
+      fractures, then the derivative doubles when the fault is felt. It needs a long, clean test to be worth
+      choosing, because a dip and a doubling that overlap in time are difficult to separate. If the two features are
+      not clearly apart on the derivative, match the simpler dual porosity model and treat the late rise as
+      unresolved rather than reaching for the extra parameter.
+    </P>
+    <P>
       Horizontal well: three regimes in sequence. Early radial flow in the vertical plane (plateau at
       70.6 qBmu divided by Lw times the square root of kh kv), then linear flow toward the well (half slope) once the
       top and bottom are felt, then late pseudoradial flow on the full kh h (plateau at 70.6 qBmu/kh h). The well
@@ -110,13 +125,32 @@ const WTSHelpContent = () => (
       pseudo-steady state yields the connected pore volume.
     </P>
 
-    <H>5. Report</H>
+    <H>5. RTA (production data)</H>
+    <P>
+      The RTA tab analyzes daily production data (time in days, rate, flowing pressure), which is a different kind of
+      input from the shut-in transient the other tabs work on. Material-balance time te = Q/q collapses any rate
+      history onto the constant-rate equivalent during boundary-dominated flow, so the log-log rate-normalized
+      drawdown and its derivative merge on a late unit slope. The flowing material balance regresses the
+      rate-normalized drawdown against te: the slope gives the connected oil in place N (for gas, the dynamic material
+      balance iterates G, average pressure and material-balance pseudo-time and yields G) and the intercept gives the
+      productivity index. The straight line only means something once boundary-dominated flow is established. The
+      transient linear card regresses the early data against the square root of time for xf sqrt(k) (Wattenbarger),
+      and you can override the window it regresses over when the automatic pick lands on the wrong stretch of data.
+    </P>
+
+    <H>6. Report</H>
     <P>
       The report tab consolidates the match, straight-line answers, derived quantities (kh, skin pressure drop, flow
-      efficiency, radius of investigation) and your interpretation notes. Projects save automatically to your account;
-      export a PDF report or a JSON snapshot for sharing, and send results onward: the average pressure, permeability
-      and skin prefill a new Reservoir Balance material balance case, and the tested permeability lands in the
-      Waterflood Design Studio displacement inputs.
+      efficiency, radius of investigation), the flow regimes read off the diagnostic plot, the rate transient results
+      where production data was analyzed, and your interpretation notes. Projects save automatically to your account;
+      export a PDF report or a JSON snapshot for sharing. The JSON carries the whole study, including the gas
+      deliverability points, the rate transient inputs and the unit system, so a colleague opens it in the state you
+      left it.
+    </P>
+    <P>
+      Results also travel to other studios directly: the average pressure, permeability and skin prefill a new
+      Reservoir Balance material balance case, and the tested permeability lands in the Waterflood Design Studio
+      displacement inputs.
     </P>
 
     <H>Gas wells, injection tests and multi-rate</H>
@@ -138,9 +172,11 @@ const WTSHelpContent = () => (
 
     <H>Conventions</H>
     <P>
-      Oilfield units throughout: md, ft, cp, psi, STB/D, RB/STB, hours. All results are recomputed from inputs on
-      load; nothing is stored stale. Engines are validated against an independent oracle and published literature
-      examples (see the Reservoir module documentation).
+      Display units follow the selector on the Data tab, in either oilfield (md, ft, cp, psi, STB/D, RB/STB, hours) or
+      SI (kPa, m, m3/d). Permeability stays in millidarcies in both. Projects store oilfield values internally
+      whichever system you are viewing, so switching is instant and nothing is lost in the round trip. All results are
+      recomputed from inputs on load; nothing is stored stale. Engines are validated against an independent numerical
+      oracle and against published worked examples from the well test literature.
     </P>
   </div>
 );

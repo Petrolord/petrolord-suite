@@ -1,36 +1,25 @@
 // Help-sheet body for Decline Curve Analysis (rendered inside the shared
 // StudioHelp drawer since W5; the Sheet chrome lives in the Studio kit).
+// Kept in step with the shipped surface: multi-stream import, the Model Fit /
+// Forecast Results split, well grouping and rollup, and the Economics handoff.
 import React from 'react';
-import { Keyboard, BookOpen, AlertTriangle, Sparkles, BarChart2, Layers, Save } from 'lucide-react';
+import { Save, BookOpen, AlertTriangle, Sparkles, BarChart2, Layers, Share2 } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const DCAHelpContent = () => {
   return (
     <>
-    {/* Shortcuts Section */}
+    {/* Saving and undo */}
     <section className="bg-slate-900/50 p-4 rounded-lg border border-slate-800">
       <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-blue-400">
-        <Keyboard size={16} />
-        <h3>Keyboard Shortcuts</h3>
+        <Save size={16} />
+        <h3>Saving Your Work</h3>
       </div>
-      <div className="grid grid-cols-2 gap-3 text-xs">
-        <div className="flex justify-between items-center bg-slate-950 p-2 rounded border border-slate-800">
-          <span className="text-slate-400">Save Project</span>
-          <kbd className="bg-slate-800 px-2 py-0.5 rounded font-mono text-slate-200 border border-slate-700 shadow-sm">Ctrl+S</kbd>
-        </div>
-        <div className="flex justify-between items-center bg-slate-950 p-2 rounded border border-slate-800">
-          <span className="text-slate-400">Undo Action</span>
-          <kbd className="bg-slate-800 px-2 py-0.5 rounded font-mono text-slate-200 border border-slate-700 shadow-sm">Ctrl+Z</kbd>
-        </div>
-        <div className="flex justify-between items-center bg-slate-950 p-2 rounded border border-slate-800">
-          <span className="text-slate-400">Redo Action</span>
-          <kbd className="bg-slate-800 px-2 py-0.5 rounded font-mono text-slate-200 border border-slate-700 shadow-sm">Ctrl+Y</kbd>
-        </div>
-        <div className="flex justify-between items-center bg-slate-950 p-2 rounded border border-slate-800">
-          <span className="text-slate-400">Export Chart</span>
-          <kbd className="bg-slate-800 px-2 py-0.5 rounded font-mono text-slate-200 border border-slate-700 shadow-sm">Ctrl+E</kbd>
-        </div>
-      </div>
+      <ul className="text-xs space-y-2 list-disc pl-4 text-slate-400">
+        <li>Your project saves itself a few seconds after every change. The header shows when the last save landed, and you can force one with the Save button beside it.</li>
+        <li>Deleting a project or a well shows a toast with an Undo button for ten seconds. The row is only removed for good once that window closes.</li>
+        <li>Everything else, including fits, forecasts and scenarios, is stored with the project and is there when you come back.</li>
+      </ul>
     </section>
 
     {/* Analysis Guide */}
@@ -51,12 +40,13 @@ const DCAHelpContent = () => {
             <ol className="list-decimal pl-4 text-xs space-y-2">
               <li><strong>Create a project</strong> using the Project dropdown in the top-left.</li>
               <li><strong>Add a well</strong> using the + button next to the Well dropdown.</li>
-              <li><strong>Upload a CSV</strong> by dragging into the upload box. The file must have <code className="bg-slate-800 px-1 rounded">date</code> and <code className="bg-slate-800 px-1 rounded">rate</code> columns. After upload, the box turns green showing the filename, record count, and date range.</li>
-              <li><strong>Fit a model</strong>: leave Decline Model at "Auto-Select (Best Fit)" and click <em>Fit Model</em>. The fitted curve overlays the historical points.</li>
-              <li><strong>Generate a forecast</strong>: scroll down to Forecast Settings, then click <em>Generate Forecast</em>. The chart extends with the projected decline; KPI cards above show EUR and life of well.</li>
+              <li><strong>Upload a CSV</strong> by dragging into the upload box. The file needs a date column and at least one rate column. After upload, the box turns green showing the filename, record count, and date range.</li>
+              <li><strong>Pick a stream</strong> if the file carried more than one. The Production Stream strip under the importer switches between oil, gas and water.</li>
+              <li><strong>Fit a model</strong>: leave Decline Model at "Auto-Select (Best Fit)" and click <em>Fit Model</em>. The fitted curve overlays the historical points on the Model Fit tab.</li>
+              <li><strong>Generate a forecast</strong>: set your limits in Forecast Settings, then click <em>Generate Forecast</em>. Switch to the <strong>Forecast Results</strong> tab for the rate and cumulative table, the EUR cards and the CSV export.</li>
             </ol>
             <div className="bg-emerald-900/20 border border-emerald-900/50 p-3 rounded text-xs">
-              That's the minimum path. The next sections cover the full feature set.
+              That is the minimum path. The next sections cover the full feature set.
             </div>
           </AccordionContent>
         </AccordionItem>
@@ -64,24 +54,26 @@ const DCAHelpContent = () => {
         {/* Item 2: CSV Format */}
         <AccordionItem value="item-2" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
           <AccordionTrigger className="text-sm font-medium text-slate-200 hover:text-white hover:no-underline py-3">
-            2. CSV Format & Data Import
+            2. CSV Format &amp; Data Import
           </AccordionTrigger>
           <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
             <p className="text-xs">
-              Petrolord auto-detects the date and rate columns from common header names. Two columns are required:
+              Petrolord auto-detects the date and rate columns from common header names. You need a date column and at least one rate column. A single file can carry all three streams at once:
             </p>
             <div className="bg-slate-900 p-3 rounded border border-slate-800 font-mono text-xs">
-              <div className="text-slate-300">date,rate</div>
-              <div className="text-slate-500">2020-01-01,1850.0</div>
-              <div className="text-slate-500">2020-01-06,1827.5</div>
-              <div className="text-slate-500">2020-01-11,1805.3</div>
+              <div className="text-slate-300">date,oilRate,gasRate,waterRate</div>
+              <div className="text-slate-500">2020-01-01,1850.0,2400.0,120.0</div>
+              <div className="text-slate-500">2020-01-06,1827.5,2385.1,131.4</div>
+              <div className="text-slate-500">2020-01-11,1805.3,2370.6,143.8</div>
               <div className="text-slate-500">...</div>
             </div>
             <ul className="text-xs list-disc pl-4 space-y-1">
+              <li>A plain <code className="bg-slate-800 px-1 rounded">rate</code> column is still accepted and is read as the oil stream.</li>
               <li>Date column accepts ISO format (YYYY-MM-DD), MM/DD/YYYY, or DD/MM/YYYY.</li>
-              <li>Rate column should be in <strong>bbl/d</strong> (oil), <strong>Mscf/d</strong> (gas), or <strong>bbl/d</strong> (water).</li>
+              <li>Rates are in <strong>bbl/d</strong> for oil and water, <strong>Mscf/d</strong> for gas.</li>
               <li>Zero rates are interpreted as shut-ins; the segment detector handles them automatically.</li>
               <li>Additional columns are tolerated but ignored.</li>
+              <li>After upload, the data quality summary reports the record count, the date range and any gaps or outliers found.</li>
             </ul>
             <div className="bg-amber-900/20 border border-amber-900/50 p-3 rounded flex gap-2">
               <AlertTriangle className="text-amber-500 shrink-0" size={16} />
@@ -93,10 +85,33 @@ const DCAHelpContent = () => {
           </AccordionContent>
         </AccordionItem>
 
-        {/* Item 3: Arps Models */}
+        {/* Item 3: Streams and well metadata */}
         <AccordionItem value="item-3" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
           <AccordionTrigger className="text-sm font-medium text-slate-200 hover:text-white hover:no-underline py-3">
-            3. Arps Decline Models
+            3. Production Streams &amp; Well Metadata
+          </AccordionTrigger>
+          <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
+            <p className="text-xs">
+              A well holds an oil, gas and water history side by side. The Production Stream strip picks which one you are working on, and it drives everything downstream: the fit, the diagnostics, the forecast, and which scenarios are listed.
+            </p>
+            <ul className="text-xs space-y-1 list-disc pl-4">
+              <li>Only the streams present in your CSV are offered.</li>
+              <li>Each stream carries its own fit and its own forecast, so a gas fit is never overwritten by refitting oil.</li>
+              <li>Switching streams re-renders the charts against that stream's units.</li>
+            </ul>
+            <div className="bg-slate-900 p-3 rounded border border-slate-800">
+              <h4 className="text-xs font-bold text-slate-200 mb-1">Well Metadata</h4>
+              <p className="text-xs">
+                The metadata panel at the top of the right sidebar records the descriptive detail that travels with the well: field and reservoir names, operator, well type, spud and first production dates, and free-text notes. It is carried into exports and reports so a forecast is traceable to the well it came from.
+              </p>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Item 4: Arps Models */}
+        <AccordionItem value="item-4" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
+          <AccordionTrigger className="text-sm font-medium text-slate-200 hover:text-white hover:no-underline py-3">
+            4. Arps Decline Models
           </AccordionTrigger>
           <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
             <div className="bg-slate-900 p-3 rounded border border-slate-800">
@@ -125,10 +140,10 @@ const DCAHelpContent = () => {
           </AccordionContent>
         </AccordionItem>
 
-        {/* Item 4: Diagnostics */}
-        <AccordionItem value="item-4" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
+        {/* Item 5: Diagnostics */}
+        <AccordionItem value="item-5" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
           <AccordionTrigger className="text-sm font-medium text-slate-200 hover:text-white hover:no-underline py-3">
-            4. Diagnostics — Verdict, Residuals, Segments
+            5. Diagnostics: Verdict, Residuals, Segments
           </AccordionTrigger>
           <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
             <p className="text-xs">
@@ -143,23 +158,66 @@ const DCAHelpContent = () => {
             <div className="bg-slate-900 p-3 rounded border border-slate-800">
               <h4 className="text-xs font-bold text-slate-200 mb-1">Detected Segments</h4>
               <p className="text-xs">
-                Petrolord uses piecewise regression to find regime changes (e.g., transient → boundary-dominated → terminal). Each breakpoint is flagged with the date and the R² improvement that splitting yields. Robust against noise — clean wells correctly report "single-segment".
+                Petrolord uses piecewise regression to find regime changes such as transient giving way to boundary-dominated and then terminal decline. Each breakpoint is flagged with the date and the R² improvement that splitting yields. The detector is robust against noise, so clean wells correctly report a single segment.
               </p>
             </div>
             <div className="bg-slate-900 p-3 rounded border border-slate-800">
               <h4 className="text-xs font-bold text-slate-200 mb-1">Normalized Residuals</h4>
               <p className="text-xs">
-                The residuals chart shows per-point fit error normalized by the predicted rate. Random scatter around zero = good fit. Systematic patterns (waves, drift, clustered outliers) suggest the wrong model or a missing regime change.
+                The residuals chart shows per-point fit error normalized by the predicted rate. Random scatter around zero means a good fit. Systematic patterns such as waves, drift or clustered outliers suggest the wrong model or a missing regime change.
               </p>
             </div>
           </AccordionContent>
         </AccordionItem>
 
-        {/* Item 5: Probabilistic Mode */}
-        <AccordionItem value="item-5" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
+        {/* Item 6: Forecast Settings */}
+        <AccordionItem value="item-6" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
+          <AccordionTrigger className="text-sm font-medium text-slate-200 hover:text-white hover:no-underline py-3">
+            6. Forecast Settings: Limits &amp; Constraints
+          </AccordionTrigger>
+          <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
+            <ul className="text-xs space-y-2 list-disc pl-4">
+              <li><strong>Economic Limit Rate:</strong> Production rate where opex exceeds revenue. The forecast stops here when <em>Stop at Limit</em> is on. Set it realistically, typically 1 to 10 bbl/d for oil.</li>
+              <li><strong>Max Duration (Days):</strong> Hard cap on forecast length. Default 3,650 (10 years).</li>
+              <li><strong>Facility Limit (Max Rate):</strong> Caps the rate during early life if a well is choked back. 0 means no cap.</li>
+              <li><strong>Stop at Limit:</strong> When on, the forecast terminates at the economic limit rate. When off, it runs to Max Duration.</li>
+            </ul>
+            <div className="bg-amber-900/20 border border-amber-900/50 p-3 rounded flex gap-2">
+              <AlertTriangle className="text-amber-500 shrink-0" size={16} />
+              <div className="text-xs">
+                <strong className="text-amber-500 block mb-1">High b factors with no economic limit</strong>
+                For hyperbolic fits with b ≥ 1 the forecast asymptotes, so EUR grows indefinitely if the economic limit is not enforced. Always set a realistic limit.
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Item 7: Forecast Results tab */}
+        <AccordionItem value="item-7" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
+          <AccordionTrigger className="text-sm font-medium text-slate-200 hover:text-white hover:no-underline py-3">
+            7. Reading the Forecast Results Tab
+          </AccordionTrigger>
+          <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
+            <p className="text-xs">
+              Results are split across two tabs above the chart. <strong>Model Fit</strong> shows the history with the fitted curve and the forecast extension. <strong>Forecast Results</strong> is where the numbers live:
+            </p>
+            <ul className="text-xs space-y-2 list-disc pl-4">
+              <li><strong>EUR cards</strong> reporting remaining reserves, cumulative to date and estimated ultimate recovery. After a Monte Carlo run these show P10, P50 and P90 side by side.</li>
+              <li><strong>The forecast table</strong>, one row per period, carrying rate and running cumulative through to the economic limit or the duration cap.</li>
+              <li><strong>Export CSV</strong> writes that table out for use elsewhere.</li>
+              <li><strong>The EUR distribution histogram</strong>, shown once a probabilistic run has produced a spread of outcomes.</li>
+            </ul>
+            <div className="bg-blue-900/20 border border-blue-900/50 p-3 rounded text-xs">
+              The chart itself has its own export button on the plot card, which writes the current view as an image for reports.
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Item 8: Probabilistic Mode */}
+        <AccordionItem value="item-8" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
           <AccordionTrigger className="text-sm font-medium text-slate-200 hover:text-white hover:no-underline py-3 flex items-center gap-2">
             <Sparkles size={14} className="text-purple-400 inline" />
-            5. Probabilistic Mode (Monte Carlo P10/P50/P90)
+            8. Probabilistic Mode (Monte Carlo P10/P50/P90)
           </AccordionTrigger>
           <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
             <p className="text-xs">
@@ -176,7 +234,7 @@ const DCAHelpContent = () => {
             </div>
             <div className="bg-blue-900/20 border border-blue-900/50 p-3 rounded text-xs">
               <strong className="text-blue-400 block mb-1">Petroleum convention</strong>
-              P10 = optimistic = high EUR (10% chance of exceeding). P90 = conservative = low EUR. P50 = median.
+              P10 is the optimistic case with high EUR (a 10% chance of exceeding it). P90 is conservative and low. P50 is the median.
               The KPI cards and chart envelope follow this convention.
             </div>
             <p className="text-xs">
@@ -185,33 +243,11 @@ const DCAHelpContent = () => {
           </AccordionContent>
         </AccordionItem>
 
-        {/* Item 6: Forecast Settings */}
-        <AccordionItem value="item-6" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
-          <AccordionTrigger className="text-sm font-medium text-slate-200 hover:text-white hover:no-underline py-3">
-            6. Forecast Settings — Limits & Constraints
-          </AccordionTrigger>
-          <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
-            <ul className="text-xs space-y-2 list-disc pl-4">
-              <li><strong>Economic Limit Rate:</strong> Production rate where opex exceeds revenue. The forecast stops here when <em>Stop at Limit</em> is on. Set realistically — typically 1–10 bbl/d for oil.</li>
-              <li><strong>Max Duration (Days):</strong> Hard cap on forecast length. Default 3,650 (10 years).</li>
-              <li><strong>Facility Limit (Max Rate):</strong> Caps the rate during early life if a well is choked back. 0 means no cap.</li>
-              <li><strong>Stop at Limit:</strong> When on, the forecast terminates at the economic limit rate. When off, it runs to Max Duration.</li>
-            </ul>
-            <div className="bg-amber-900/20 border border-amber-900/50 p-3 rounded flex gap-2">
-              <AlertTriangle className="text-amber-500 shrink-0" size={16} />
-              <div className="text-xs">
-                <strong className="text-amber-500 block mb-1">High b factors with no economic limit</strong>
-                For hyperbolic fits with b ≥ 1, the forecast asymptotes — EUR grows indefinitely if the economic limit isn't enforced. Always set a realistic limit.
-              </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        {/* Item 7: Type Curves */}
-        <AccordionItem value="item-7" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
+        {/* Item 9: Type Curves */}
+        <AccordionItem value="item-9" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
           <AccordionTrigger className="text-sm font-medium text-slate-200 hover:text-white hover:no-underline py-3 flex items-center gap-2">
             <Layers size={14} className="text-blue-400 inline" />
-            7. Type Curve — Multi-Well Analysis
+            9. Type Curve: Multi-Well Analysis
           </AccordionTrigger>
           <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
             <p className="text-xs">
@@ -225,39 +261,50 @@ const DCAHelpContent = () => {
                   <ul className="list-disc pl-4 mt-1 text-slate-500 space-y-1">
                     <li><strong>Time Only:</strong> Aligns wells to days from first production. Keeps absolute rates.</li>
                     <li><strong>Rate Only:</strong> Each well's rate divided by its peak. Keeps absolute dates.</li>
-                    <li><strong>Time &amp; Rate:</strong> Both transforms. Most common — produces a normalized type curve in the 0–1 rate range.</li>
+                    <li><strong>Time &amp; Rate:</strong> Both transforms. The most common choice, producing a normalized type curve in the 0 to 1 rate range.</li>
                   </ul>
                 </li>
-                <li>Select 2+ wells from the list. Pick wells with similar character (same play, same completion era).</li>
+                <li>Select 2 or more wells from the list. Pick wells with similar character (same play, same completion era).</li>
                 <li>Name the curve and click <em>Create &amp; Fit Curve</em>.</li>
                 <li>The fitted Arps parameters and R² appear in the stats footer; the cloud and fitted line render in the chart.</li>
               </ol>
             </div>
+            <div className="bg-slate-900 p-3 rounded border border-slate-800">
+              <h4 className="text-xs font-bold text-slate-200 mb-1">Groups, Filters and Rollup</h4>
+              <p className="text-xs mb-2">
+                On a field with many wells, build the population once instead of picking wells by hand every time:
+              </p>
+              <ul className="text-xs space-y-1 list-disc pl-4">
+                <li><strong>Well grouping</strong> saves a named set of wells, for example a pad, a horizon or a completion vintage, and makes it selectable as a unit.</li>
+                <li><strong>Well filters</strong> narrow the list by the metadata you recorded, so you can assemble a population by field, reservoir or well type rather than by name.</li>
+                <li><strong>Group rollup</strong> sums the member wells into a single group profile and forecasts that, which is the quickest route to a pad or field level outlook.</li>
+              </ul>
+            </div>
             <div className="bg-blue-900/20 border border-blue-900/50 p-3 rounded text-xs">
               <strong className="text-blue-400 block mb-1">Apply to Target Well</strong>
-              With a type curve fitted, use the <em>Apply To Well</em> panel to project a target well. Petrolord holds <strong>b</strong> from the type curve (more reliable than single-well b) and solves for qᵢ and Dᵢ from the target's history.
+              With a type curve fitted, use the <em>Apply To Well</em> panel to project a target well. Petrolord holds <strong>b</strong> from the type curve, which is more reliable than a single-well b, and solves for qᵢ and Dᵢ from the target's history.
             </div>
             <ul className="text-xs space-y-1 list-disc pl-4">
               <li><strong>Good Fit (R² ≥ 0.85):</strong> Target well closely follows the type curve population.</li>
               <li><strong>Fair Fit:</strong> Acceptable proxy when single-well data is sparse.</li>
-              <li><strong>Poor Fit:</strong> Target well behavior differs from the population — type curve may not be applicable.</li>
+              <li><strong>Poor Fit:</strong> Target well behavior differs from the population, so the type curve may not be applicable.</li>
             </ul>
           </AccordionContent>
         </AccordionItem>
 
-        {/* Item 8: Scenarios */}
-        <AccordionItem value="item-8" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
+        {/* Item 10: Scenarios */}
+        <AccordionItem value="item-10" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
           <AccordionTrigger className="text-sm font-medium text-slate-200 hover:text-white hover:no-underline py-3 flex items-center gap-2">
             <Save size={14} className="text-emerald-400 inline" />
-            8. Scenarios — Save, Compare, Iterate
+            10. Scenarios: Save, Compare, Iterate
           </AccordionTrigger>
           <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
             <p className="text-xs">
-              A scenario captures the entire fit + forecast state for a well at a moment in time. Use scenarios to:
+              A scenario captures the entire fit and forecast state for a well at a moment in time. Use scenarios to:
             </p>
             <ul className="text-xs space-y-1 list-disc pl-4">
-              <li>Compare different decline models (Hyperbolic vs. Exponential).</li>
-              <li>Bracket uncertainty (Low / Base / High b factor).</li>
+              <li>Compare different decline models (Hyperbolic against Exponential).</li>
+              <li>Bracket uncertainty (Low, Base and High b factor).</li>
               <li>Test sensitivity to economic limits or facility caps.</li>
               <li>Snapshot a fit before re-running with different parameters.</li>
             </ul>
@@ -265,23 +312,43 @@ const DCAHelpContent = () => {
               <h4 className="text-xs font-bold text-slate-200 mb-2">Workflow</h4>
               <ol className="text-xs space-y-1 list-decimal pl-4">
                 <li>Run a fit and a forecast (Probabilistic optional).</li>
-                <li>In the right sidebar's Scenarios section, type a name (e.g., "Base Case P50") and click <strong>+</strong>.</li>
+                <li>In the right sidebar's Scenarios section, type a name such as "Base Case P50" and click <strong>+</strong>.</li>
                 <li>Re-fit with different parameters; save another scenario.</li>
-                <li>Click the empty circles to <strong>select</strong> scenarios — selected ones appear in the comparison table below.</li>
-                <li>Compare Qi, Di, b, and EUR side-by-side.</li>
+                <li>Click the empty circles to <strong>select</strong> scenarios. Selected ones appear in the comparison table below.</li>
+                <li>Compare Qi, Di, b, and EUR side by side.</li>
               </ol>
             </div>
             <div className="text-xs">
-              Scenarios are filtered by stream — oil scenarios only appear when the Oil stream is selected, etc. Saved scenarios persist with the project.
+              Scenarios are filtered by stream, so oil scenarios only appear when the oil stream is selected. Saved scenarios persist with the project.
             </div>
           </AccordionContent>
         </AccordionItem>
 
-        {/* Item 9: Common Issues */}
-        <AccordionItem value="item-9" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
+        {/* Item 11: Integration */}
+        <AccordionItem value="item-11" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
+          <AccordionTrigger className="text-sm font-medium text-slate-200 hover:text-white hover:no-underline py-3 flex items-center gap-2">
+            <Share2 size={14} className="text-cyan-400 inline" />
+            11. Sending a Forecast Downstream
+          </AccordionTrigger>
+          <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
+            <p className="text-xs">
+              Once a forecast is generated, the Integration panel in the right sidebar hands the production profile to the apps that need it, without a manual re-key:
+            </p>
+            <ul className="text-xs space-y-1 list-disc pl-4">
+              <li><strong>NPV &amp; Economics</strong> takes the profile as the production input for a cash flow run.</li>
+              <li><strong>FDP Accelerator</strong> takes it as the well profile behind a development case.</li>
+            </ul>
+            <p className="text-xs">
+              For anything else, the CSV export on the Forecast Results tab carries the same numbers.
+            </p>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Item 12: Common Issues */}
+        <AccordionItem value="item-12" className="border border-slate-800 rounded-lg bg-slate-900/30 px-3">
           <AccordionTrigger className="text-sm font-medium text-slate-200 hover:text-white hover:no-underline py-3 flex items-center gap-2">
             <BarChart2 size={14} className="text-amber-400 inline" />
-            9. Troubleshooting
+            12. Troubleshooting
           </AccordionTrigger>
           <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
             <div className="space-y-3 text-xs">
@@ -290,20 +357,28 @@ const DCAHelpContent = () => {
                 <p>Header names like <code className="bg-slate-800 px-1 rounded">date_time</code>, <code className="bg-slate-800 px-1 rounded">prod_date</code>, <code className="bg-slate-800 px-1 rounded">qo</code>, <code className="bg-slate-800 px-1 rounded">oil_rate</code> are recognized. Rename your columns to clear matches if detection fails.</p>
               </div>
               <div>
+                <h4 className="text-slate-200 font-semibold mb-1">A stream is missing from the Production Stream strip</h4>
+                <p>Only streams found in the CSV are offered. If gas or water is absent, the importer did not recognize that column. Rename it to <code className="bg-slate-800 px-1 rounded">gasRate</code> or <code className="bg-slate-800 px-1 rounded">waterRate</code> and re-upload with Replace File.</p>
+              </div>
+              <div>
                 <h4 className="text-slate-200 font-semibold mb-1">R² is below 0.7 (Poor Fit)</h4>
-                <p>Check the residuals chart for systematic patterns. Likely causes: (1) wrong fit window — exclude transient flow, (2) multi-segment behavior — check the Detected Segments section, (3) data quality — outliers or shut-ins skewing the fit.</p>
+                <p>Check the residuals chart for systematic patterns. Likely causes: the wrong fit window, so exclude transient flow; multi-segment behavior, so check the Detected Segments section; or data quality, where outliers or shut-ins skew the fit.</p>
               </div>
               <div>
                 <h4 className="text-slate-200 font-semibold mb-1">Probabilistic Mode toggle is greyed out</h4>
-                <p>Confidence intervals are computed during fit. If the toggle won't enable, the fit didn't converge well enough to produce reliable CIs. Try a different Decline Model or trim the fit window.</p>
+                <p>Confidence intervals are computed during fit. If the toggle will not enable, the fit did not converge well enough to produce reliable CIs. Try a different Decline Model or trim the fit window.</p>
+              </div>
+              <div>
+                <h4 className="text-slate-200 font-semibold mb-1">I deleted a well by mistake</h4>
+                <p>The toast that appears after a delete carries an Undo button for ten seconds. Use it and the well comes back with its data. Once the toast closes the removal is final.</p>
               </div>
               <div>
                 <h4 className="text-slate-200 font-semibold mb-1">Type Curve application returns "non-hyperbolic shape"</h4>
-                <p>The target well's history doesn't fit the type curve's b at all. The well's decline may be a different regime (e.g., applying a high-b shale type curve to a conventional well).</p>
+                <p>The target well's history does not fit the type curve's b at all. The well's decline may be a different regime, for example applying a high-b shale type curve to a conventional well.</p>
               </div>
               <div>
                 <h4 className="text-slate-200 font-semibold mb-1">EUR seems unrealistically high</h4>
-                <p>Check the b factor. Values ≥ 1.5 produce optimistic late-time forecasts. Either constrain the b range using the B-FACTOR CONSTRAINTS sliders, or set a realistic Economic Limit Rate.</p>
+                <p>Check the b factor. Values at or above 1.5 produce optimistic late-time forecasts. Either constrain the b range using the B-FACTOR CONSTRAINTS sliders, or set a realistic Economic Limit Rate.</p>
               </div>
             </div>
           </AccordionContent>
