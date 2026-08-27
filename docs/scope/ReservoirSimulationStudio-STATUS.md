@@ -276,3 +276,43 @@ vectors, so both features ride the existing run path unchanged.
   multi-realization batches (needs an owner quota decision first),
   saved builder forms (the form currently lives only in component
   state), per-well BHP observations (WBHPH) for pressure matching.
+
+## 2026-08-27 — the simulator pin was a claim, not a pin
+
+Found while writing the Reservoir Simulation Studio user manual against the
+worker source. The Dockerfile comment said the base tag was pinned deliberately
+and that bumping it required re-passing the SPE1 golden. The next line read
+`FROM openporousmedia/opmreleases:latest`, and the README likewise stated the
+tag was pinned. So any rebuild could land a different simulator than the one
+the golden was passed against, and nothing anywhere would have said so.
+
+This STATUS doc's claim of flow 2026.04 turned out to be correct in substance:
+the cached image reports `flow 2026.04`. The reproducibility gap was that
+nothing held it there.
+
+Fixed on `fix/sim-worker-pin-opm`:
+
+- **Pinned by digest**, `openporousmedia/opmreleases@sha256:18c497f6a918...`,
+  which is the multi-arch manifest list `latest` resolved to on 2026-05-20
+  covering linux/amd64 and linux/arm64. Those are the same images published as
+  `2026.04_amd64` and `2026.04_arm64`. Upstream publishes no plain `2026.04`
+  tag, which is why this is a digest rather than a version tag.
+- **The build asserts the version.** `EXPECTED_OPM_VERSION` is compared against
+  `flow --version` in a build stage, so changing the digest without updating
+  the expectation fails the build. Verified in both directions: the pinned
+  digest builds clean, and forcing an expectation of 2025.10 fails with
+  "OPM version mismatch: pinned digest gives '2026.04'".
+- **The deploy runs the golden.** `deploy.sh` builds, runs the worker suite
+  including the SPE1 golden inside the image that is about to serve, and only
+  then starts. It fails closed. The gate is also available alone as
+  `docker compose --profile verify run --rm verify`.
+- README corrected: it now describes what is enforced rather than what was
+  intended, and the bump procedure names the digest lookup.
+
+Verified: full worker suite 26 passed against the pinned image, and the same
+26 through the compose gate.
+
+Runs already record `sim_runs.opm_version` and carry it in `summary.json`, so
+an answer remains traceable to the build that produced it. `sim_runs` is empty,
+confirming the worker has never been deployed, so there was no production
+version to reconcile against.
