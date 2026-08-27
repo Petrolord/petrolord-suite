@@ -38,6 +38,10 @@ const COVERAGE = {
     /group rollup/i,
     /Integration panel/i,
     /gasRate/,
+    // Live defect: the Monte Carlo curve consumes the per-day fitted decline
+    // as if it were per year, so probabilistic EUR is ~25x high. The guide
+    // must keep warning until the engine fix lands.
+    /probabilistic EUR is overstated/i,
   ],
   'Waterflood Design Studio': [
     /SCAL Studio/i,

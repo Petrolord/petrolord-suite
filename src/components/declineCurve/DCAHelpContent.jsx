@@ -220,6 +220,17 @@ const DCAHelpContent = () => {
             8. Probabilistic Mode (Monte Carlo P10/P50/P90)
           </AccordionTrigger>
           <AccordionContent className="text-sm text-slate-400 space-y-3 pb-4 pt-1">
+            <div className="bg-red-900/25 border border-red-700/60 p-3 rounded flex gap-2">
+              <AlertTriangle className="text-red-400 shrink-0" size={16} />
+              <div className="text-xs">
+                <strong className="text-red-300 block mb-1">Known issue: probabilistic EUR is overstated</strong>
+                The Monte Carlo forecast currently reads the fitted decline in the wrong time unit, which
+                inflates the P10, P50 and P90 EUR figures by roughly twenty five times. A fix is in progress.
+                Until it lands, treat the probabilistic percentiles as unusable and take your EUR from the
+                deterministic forecast on the Forecast Results tab, which is unaffected. The shape of the
+                uncertainty band is still indicative; the volumes attached to it are not.
+              </div>
+            </div>
             <p className="text-xs">
               Probabilistic Mode replaces the deterministic forecast with a 1,000-iteration Monte Carlo simulation. After Fit Model runs, toggle <em>Probabilistic Mode</em> in Forecast Settings, then click <em>Run Monte Carlo</em>.
             </p>
