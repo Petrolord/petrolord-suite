@@ -14,6 +14,7 @@ import { MemoryRouter } from 'react-router-dom';
 import EorScreeningHelpGuide from '../EorScreeningHelpGuide';
 import ForecastScenarioHubHelpGuide from '../ForecastScenarioHubHelpGuide';
 import RiskedReservesHelpGuide from '../RiskedReservesHelpGuide';
+import WellSpacingHelpGuide from '../WellSpacingHelpGuide';
 
 const GUIDES = [
   {
@@ -33,6 +34,12 @@ const GUIDES = [
     Component: RiskedReservesHelpGuide,
     heading: /Risked Reserves Valuation Help Guide/i,
     sectionIds: ['overview', 'convention', 'quickstart', 'variables', 'settings', 'engine', 'results', 'sensitivity', 'pitfalls'],
+  },
+  {
+    name: 'Well Spacing Optimizer',
+    Component: WellSpacingHelpGuide,
+    heading: /Well Spacing Optimizer Help Guide/i,
+    sectionIds: ['overview', 'model', 'quickstart', 'inputs', 'engine', 'results', 'choosing', 'pitfalls'],
   },
 ];
 
