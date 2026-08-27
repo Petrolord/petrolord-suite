@@ -9,7 +9,7 @@ import React from 'react';
             name: 'Casing & Tubing Design',
             description: 'Full burst, collapse, and tension analysis for well integrity.',
             icon: BookCopy,
-            appId: 'drilling/casing-tubing-design',
+            appId: 'drilling/casing-tubing-design-pro',
             status: 'Available',
             color: 'from-gray-500 to-slate-600',
         },

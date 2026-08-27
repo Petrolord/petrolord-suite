@@ -5,29 +5,29 @@ import { ArrowRight, CheckCircle2 } from 'lucide-react';
 const QuickStartGuide = () => {
     const steps = [
         {
-            title: "Load Well & Environment",
-            description: "Select a well from the project explorer or import data from Well Design Studio. Define pore pressure and fracture gradients.",
+            title: "Pick the Wellbore",
+            description: "Choose a site and wellbore in the project explorer. The trajectory comes from the definitive design saved in Well Design Studio.",
+            action: "Left Panel"
+        },
+        {
+            title: "Set the Environment",
+            description: "Enter mud, cement and packer fluid densities, the temperature profile, and pore/frac EMWs (sync from published Pore Pressure Studio curves when available).",
             action: "Well & Loads Tab"
         },
         {
             title: "Define Load Cases",
-            description: "Set up design scenarios like Production, Burst, Collapse, and Stimulation. Configure fluid densities and surface pressures.",
+            description: "Configure the canonical scenarios: gas kick, pressure test, evacuation, cementing, running, and the tubing operating cases.",
             action: "Load Cases Tab"
         },
         {
-            title: "Configure Casing Strings",
-            description: "Add casing sections, set top/bottom depths, and select grades/weights from the catalog.",
-            action: "Casing Design Tab"
+            title: "Configure Strings",
+            description: "Add casing sections with real API 5CT tubulars from the catalog; set the tubing string and packer.",
+            action: "Casing / Tubing Tabs"
         },
         {
-            title: "Design Tubing & Completion",
-            description: "Configure production tubing, add packers, safety valves, and other completion accessories.",
-            action: "Tubing Design Tab"
-        },
-        {
-            title: "Verify & Export",
-            description: "Check safety factors against limits (1.1 Burst, 1.0 Collapse). Visualize the string and export reports to AFE.",
-            action: "Visualizer / Export"
+            title: "Verify & Save",
+            description: "Check the worst-point safety factors against your design factors, then save the case to the wellbore.",
+            action: "Results / Save Design"
         }
     ];
 
@@ -62,7 +62,7 @@ const QuickStartGuide = () => {
                     <CheckCircle2 className="w-4 h-4 mr-2" /> Pro Tip
                 </h4>
                 <p className="text-xs text-emerald-200/70">
-                    Use the <strong>"String Visualizer"</strong> tab to compare multiple design iterations side-by-side before finalizing your selection.
+                    Duplicate a saved case before big changes; each case keeps its own strings, load cases and results, so alternatives stay comparable.
                 </p>
             </div>
         </div>

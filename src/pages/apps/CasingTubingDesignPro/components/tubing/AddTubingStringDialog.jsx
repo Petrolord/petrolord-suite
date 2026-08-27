@@ -1,145 +1,192 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import React, { useMemo, useState } from 'react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { useCasingTubingDesign } from '../../contexts/CasingTubingDesignContext';
-import { TUBING_SIZES, CASING_GRADES, CONNECTIONS } from '../../data/catalog';
+import {
+  TUBING_CATALOG, findCatalogRow, catalogRatings, paToPsi,
+  depthDisp, depthStore, depthLabel,
+} from '../../services/ctRun';
+
+const TUBING_GRADES = ['J-55', 'L-80', 'P-110'];
+const TUBING_CONNECTIONS = ['EUE', 'NUE', 'Premium'];
 
 const AddTubingStringDialog = ({ open, onOpenChange }) => {
-    const { setTubingStrings, addLog } = useCasingTubingDesign();
-    
-    const [formData, setFormData] = useState({
-        name: 'New Tubing String',
-        top_depth: 0,
-        bottom_depth: 3500,
-        od: '3.5',
-        weight: 9.3,
-        grade: 'L-80',
-        connection: 'VAM Top',
-        status: 'Active'
-    });
+  const { setStrings, addLog, depthUnit, caseDoc } = useCasingTubingDesign();
+  const unit = depthLabel(depthUnit);
+  const packerMd = caseDoc?.packer?.depthMdM ?? 2500;
 
-    const handleSubmit = () => {
-        const newString = {
-            id: Date.now(),
-            ...formData,
-            sections: [{
-                id: `sec-${Date.now()}`,
-                name: `${formData.name} - Sec 1`,
-                top_depth: formData.top_depth,
-                bottom_depth: formData.bottom_depth,
-                od: formData.od,
-                id_nom: (parseFloat(formData.od) * 0.88).toFixed(3), // Mock ID
-                weight: formData.weight,
-                grade: formData.grade,
-                api_burst: 10500, 
-                api_collapse: 9500,
-                yield_strength: 150000 
-            }],
-            components: [] // Empty components list
-        };
-        
-        setTubingStrings(prev => [...prev, newString]);
-        addLog(`Added new tubing string: ${formData.name}`);
-        onOpenChange(false);
-    };
+  const [form, setForm] = useState({
+    name: 'Production Tubing',
+    topDisp: 0,
+    bottomDisp: null,
+    odIn: 3.5,
+    weightLbFt: 9.3,
+    grade: 'L-80',
+    connection: 'EUE',
+  });
 
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-slate-950 border-slate-800 text-white sm:max-w-[500px]">
-                <DialogHeader>
-                    <DialogTitle>Add Tubing String</DialogTitle>
-                </DialogHeader>
-                
-                <div className="grid grid-cols-2 gap-4 py-4">
-                    <div className="col-span-2 space-y-2">
-                        <Label>String Name</Label>
-                        <Input 
-                            value={formData.name} 
-                            onChange={(e) => setFormData({...formData, name: e.target.value})}
-                            className="bg-slate-900 border-slate-700" 
-                        />
-                    </div>
-                    
-                    <div className="space-y-2">
-                        <Label>Top Depth (m)</Label>
-                        <Input 
-                            type="number" 
-                            value={formData.top_depth} 
-                            onChange={(e) => setFormData({...formData, top_depth: e.target.value})}
-                            className="bg-slate-900 border-slate-700" 
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Bottom Depth (m)</Label>
-                        <Input 
-                            type="number" 
-                            value={formData.bottom_depth} 
-                            onChange={(e) => setFormData({...formData, bottom_depth: e.target.value})}
-                            className="bg-slate-900 border-slate-700" 
-                        />
-                    </div>
+  const odOptions = useMemo(
+    () => [...new Set(TUBING_CATALOG.map((r) => r.odIn))].sort((a, b) => a - b), [],
+  );
+  const weightOptions = useMemo(
+    () => TUBING_CATALOG.filter((r) => r.odIn === form.odIn).map((r) => r.weightLbFt), [form.odIn],
+  );
+  const row = findCatalogRow('tubing', form.odIn, form.weightLbFt);
+  const ratings = row ? catalogRatings(row, form.grade, form.connection) : null;
 
-                    <div className="space-y-2">
-                        <Label>OD (in)</Label>
-                        <Select value={formData.od} onValueChange={(v) => setFormData({...formData, od: v})}>
-                            <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
-                            <SelectContent className="bg-slate-900 border-slate-700">
-                                {TUBING_SIZES.map(s => (
-                                    <SelectItem key={s.od} value={s.od.toString()}>{s.od}"</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+  const handleSubmit = () => {
+    const topMdM = depthStore(parseFloat(form.topDisp) || 0, depthUnit);
+    const bottomMdM = depthStore(parseFloat(form.bottomDisp ?? depthDisp(packerMd, depthUnit)), depthUnit);
+    if (!(bottomMdM > topMdM)) return;
+    setStrings((prev) => ({
+      ...prev,
+      tubingStrings: [...prev.tubingStrings, {
+        id: `ts-${Date.now()}`,
+        name: form.name,
+        sections: [{
+          id: `tsec-${Date.now()}`,
+          name: `${form.name} - Sec 1`,
+          topMdM,
+          bottomMdM,
+          odIn: form.odIn,
+          weightLbFt: form.weightLbFt,
+          grade: form.grade,
+          connection: form.connection,
+          kind: 'tubing',
+        }],
+        components: [],
+      }],
+    }));
+    addLog(`Added tubing string ${form.name} (${form.odIn}" ${form.weightLbFt}# ${form.grade}).`);
+    onOpenChange(false);
+  };
 
-                    <div className="space-y-2">
-                        <Label>Weight (kg/m)</Label>
-                        <Input 
-                            type="number"
-                            value={formData.weight}
-                            onChange={(e) => setFormData({...formData, weight: e.target.value})}
-                            className="bg-slate-900 border-slate-700"
-                        />
-                    </div>
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-slate-950 border-slate-800 text-white sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Add Tubing String</DialogTitle>
+        </DialogHeader>
 
-                    <div className="space-y-2">
-                        <Label>Grade</Label>
-                        <Select value={formData.grade} onValueChange={(v) => setFormData({...formData, grade: v})}>
-                            <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
-                            <SelectContent className="bg-slate-900 border-slate-700">
-                                {CASING_GRADES.map(g => (
-                                    <SelectItem key={g.name} value={g.name}>{g.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+        <div className="grid grid-cols-2 gap-4 py-4">
+          <div className="col-span-2 space-y-2">
+            <Label>String Name</Label>
+            <Input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="bg-slate-900 border-slate-700"
+            />
+          </div>
 
-                    <div className="space-y-2">
-                        <Label>Connection</Label>
-                        <Select value={formData.connection} onValueChange={(v) => setFormData({...formData, connection: v})}>
-                            <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
-                            <SelectContent className="bg-slate-900 border-slate-700">
-                                {CONNECTIONS.map(c => (
-                                    <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
+          <div className="space-y-2">
+            <Label>Hanger MD ({unit})</Label>
+            <Input
+              type="number"
+              value={form.topDisp}
+              onChange={(e) => setForm({ ...form, topDisp: e.target.value })}
+              className="bg-slate-900 border-slate-700"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Setting MD ({unit})</Label>
+            <Input
+              type="number"
+              value={form.bottomDisp ?? Math.round(depthDisp(packerMd, depthUnit))}
+              onChange={(e) => setForm({ ...form, bottomDisp: e.target.value })}
+              className="bg-slate-900 border-slate-700"
+            />
+          </div>
 
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800">
-                        Cancel
-                    </Button>
-                    <Button onClick={handleSubmit} className="bg-lime-600 hover:bg-lime-700 text-white">
-                        Save Tubing
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
+          <div className="space-y-2">
+            <Label>OD</Label>
+            <Select
+              value={String(form.odIn)}
+              onValueChange={(v) => {
+                const odIn = parseFloat(v);
+                const first = TUBING_CATALOG.find((r) => r.odIn === odIn);
+                setForm({ ...form, odIn, weightLbFt: first.weightLbFt });
+              }}
+            >
+              <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-700">
+                {odOptions.map((od) => (
+                  <SelectItem key={od} value={String(od)}>{od}&quot;</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Weight (lb/ft)</Label>
+            <Select
+              value={String(form.weightLbFt)}
+              onValueChange={(v) => setForm({ ...form, weightLbFt: parseFloat(v) })}
+            >
+              <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-700">
+                {weightOptions.map((w) => (
+                  <SelectItem key={w} value={String(w)}>{w}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Grade</Label>
+            <Select value={form.grade} onValueChange={(v) => setForm({ ...form, grade: v })}>
+              <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-700">
+                {TUBING_GRADES.map((g) => (
+                  <SelectItem key={g} value={g}>{g}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Connection</Label>
+            <Select value={form.connection} onValueChange={(v) => setForm({ ...form, connection: v })}>
+              <SelectTrigger className="bg-slate-900 border-slate-700"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-slate-900 border-slate-700">
+                {TUBING_CONNECTIONS.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {ratings && (
+            <div className="col-span-2 grid grid-cols-2 gap-2 bg-slate-900/50 border border-slate-800 rounded p-3">
+              <div>
+                <span className="text-[10px] text-slate-500 block">API Burst</span>
+                <span className="text-xs font-mono text-emerald-400">{Math.round(paToPsi(ratings.burstPa)).toLocaleString()} psi</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 block">5C3 Collapse ({ratings.collapseRegime})</span>
+                <span className="text-xs font-mono text-amber-400">{Math.round(paToPsi(ratings.collapsePa)).toLocaleString()} psi</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800">
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={!row} className="bg-lime-600 hover:bg-lime-700 text-white">
+            Add Tubing
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 };
 
 export default AddTubingStringDialog;

@@ -37,7 +37,7 @@ const solutionCategories = [
     path: '/dashboard/production',
     count: 7,
     description: 'Model well performance from reservoir to surface with the Nodal Analysis Studio, design artificial lift, watch flow assurance risks, and keep an eye on daily performance with the surveillance dashboard.',
-    apps: ['Nodal Analysis Studio', 'Artificial Lift Designer', 'Flow Assurance Monitor', 'Production Surveillance Dashboard', 'Wellbore Flow Simulator', 'Well Schematic Designer'],
+    apps: ['Nodal Analysis Studio', 'Artificial Lift Designer', 'Flow Assurance Monitor', 'Production Surveillance Dashboard', 'Wellbore Flow Simulator'],
   },
   {
     name: 'Drilling & Completions',
@@ -45,8 +45,8 @@ const solutionCategories = [
     color: 'from-red-500 to-orange-500',
     path: '/dashboard/drilling',
     count: 11,
-    description: 'Plan wells and spacing, design casing and tubing strings, and simulate drilling hydraulics, torque and drag, cementing, and fracturing before committing capital to the hole.',
-    apps: ['Well Design Studio', 'Casing & Tubing Design Pro', 'Drilling Fluids & Hydraulics', 'Torque & Drag Predictor', 'Cementing Simulation App', 'Wellbore Stability Analyzer'],
+    description: 'Plan wells, design casing, tubing and completion strings, and prove hydraulics, torque and drag, well control margins, cementing, wellbore stability, perforating, sand control, stimulation and well integrity through abandonment before committing capital to the hole.',
+    apps: ['Well Design Studio', 'Casing & Tubing Design Studio', 'Drilling Fluids & Hydraulics Studio', 'Torque & Drag Studio', 'Well Control Studio', 'Cementing Studio', 'Geomechanics Studio', 'Completion Design Studio', 'Perforation & Sand Control Designer', 'Stimulation Designer'],
   },
   {
     name: 'Facilities Engineering',
