@@ -269,7 +269,18 @@ Locked to the WDS/G-series precedents:
   Closure = published SHMIN, reservoir p = PP at the treatment TVD.
   wp_st_* persistence. Gates A28-A29 ACTIVE (29/29 total); L17 + L18
   ARMED. Tile seed 20260828200000 HELD.
-- **D10 — Well Integrity & P&A Studio.**
+- **D10 — Well Integrity & P&A Studio**: **SHIPPED 2026-08-28** (engines
+  PR #51 stacked on #49 + Suite waves WI1-WI3; see
+  docs/scope/WellIntegrityPA-STATUS.md). Fresh slug well-integrity-pa,
+  supersedes the archived well-abandonment-plan mock: NORSOK D-010
+  two-barrier envelope verification with the traffic-light category
+  (16-row decision table), element-governed MAASP + API RP 90 MAWOP in
+  the differential hydrostatic form on the definitive trajectory,
+  balanced cement plug closed forms with D-010-style rule checks, and
+  the phased abandonment program (source-covering primary +
+  above-source secondary per flow zone) with material takeoff and the
+  EPE decommissioning cross-link. wp_wi_* persistence. Gates A30-A31
+  ACTIVE (31/31 total); L19 + L20 ARMED. Tile seed 20260828230000 HELD.
 - **D11 — Well Cost & Time Estimator**: salvages WellCostIQ utils;
   canonical MC + EPE cash-flow links.
 
