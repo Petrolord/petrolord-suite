@@ -196,7 +196,11 @@ Three further defects in the same module, closed in the same pass:
    onto) or at the cap, and a facility plateau integrated as a rectangle up to
    the exact time the decline falls to the cap plus the decline integral after
    it. A zero-uncertainty run now reproduces `calculateEUR` to floating-point
-   precision instead of to a couple of percent.
+   precision instead of to a couple of percent. This moves numbers users see:
+   probabilistic EUR drops by the size of the old bias, measured on the three
+   Ekene producers as 2.13% (exponential), 1.97% (hyperbolic b=0.5) and 0.89%
+   (harmonic). The new value is the closed form the deterministic side already
+   reported.
 2. **The economic-limit spread was imposed.** ±20% was hardcoded and applied
    unconditionally, so a fit carrying no parameter uncertainty still produced a
    scattered EUR from a number the user never chose and nothing displayed. It

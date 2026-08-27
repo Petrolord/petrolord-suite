@@ -11,6 +11,6 @@
 - [Pricing - Petrolord Suite](/pricing): Choose the perfect plan for your oil & gas operations. Flexible pricing for teams of all sizes.
 - [Profile Complete - Petrolord Suite](/profile): No description available
 - [Resources - Petrolord](/resources): Explore case studies, white papers, webinars, and blog posts from the experts at Petrolord. Gain insights into the future of the energy industry.
-- [Solutions - Petrolord](/solutions): Explore the integrated suite of solutions offered by Petrolord, covering the entire energy lifecycle from subsurface to strategy.
+- [Solutions - Petrolord](/solutions): Seven discipline modules and more than 70 live engineering applications covering the full E&P workflow on one platform.
 - [Super Admin Console](/superadminconsole): No description available
 - [Validating Invitation - Petrolord](/setpassword): Validating your invitation link...
