@@ -4,11 +4,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
-import { Zap, Wind, Wrench, ArrowRight, Check, X, Minus } from 'lucide-react';
+import { Zap, Wind, Wrench, Check, X, Minus } from 'lucide-react';
 import { screenLiftSystems } from '@/utils/liftSystemScreening';
 import CollapsibleSection from '@/components/artificiallift/CollapsibleSection';
 
-const CandidateScreening = ({ inputs, setInputs, onProceed }) => {
+const CandidateScreening = ({ inputs, setInputs }) => {
   const [results, setResults] = useState([]);
 
   useEffect(() => {
@@ -132,14 +132,12 @@ const CandidateScreening = ({ inputs, setInputs, onProceed }) => {
                   <p className={`font-semibold text-lg ${result.isRecommended ? 'text-green-300' : 'text-yellow-300'}`}>
                     {result.isRecommended ? 'Recommended' : 'Consider with Caution'}
                   </p>
-                  <Button
-                    size="sm"
-                    className="mt-2 bg-blue-600 hover:bg-blue-500 text-white"
-                    onClick={() => onProceed(result.type.toLowerCase().replace(' ', '_'))}
-                    disabled={result.score < 50}
-                  >
-                    Proceed to Design <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
+                  {/* P0: the in-app design tabs this button opened are retired
+                      (their math was wrong); full design ships as dedicated
+                      studios on the validated nodal engine. */}
+                  <p className="mt-2 text-xs text-slate-400 sm:text-right max-w-[220px]">
+                    Full {result.type} design is coming as its own studio in this module.
+                  </p>
                 </div>
               </div>
               <div className="mt-4 pt-4 border-t border-slate-700">

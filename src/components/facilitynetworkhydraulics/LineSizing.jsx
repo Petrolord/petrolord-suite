@@ -11,6 +11,8 @@ import { optimizePipeline } from './OptimizationEngine';
 import { exportToPDF, exportToJSON } from './ExportUtils';
 import { Download, Save, TrendingUp, Settings, BarChart2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { CHART_COLORS, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import ChartLogo from '@/components/charts/ChartLogo';
 
 export default function LineSizing() {
   const { toast } = useToast();
@@ -186,26 +188,28 @@ export default function LineSizing() {
             </Card>
           </div>
 
-          <Card className="bg-slate-900 border-slate-800 text-white relative overflow-hidden">
-            <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1521737023650-6f374e9fb8d5)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
-            <CardHeader className="flex flex-row items-center justify-between relative z-10">
+          {/* P0 chart sweep: suite chart standard (white chartTheme + ChartLogo);
+              the Unsplash stock-photo backdrop behind the plot is gone with it. */}
+          <Card className="bg-slate-900 border-slate-800 text-white">
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-xl flex items-center"><BarChart2 className="w-5 h-5 mr-2" /> Pressure Profile</CardTitle>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => exportToJSON({inputs, results}, 'pipeline.json')} className="border-slate-700 text-white hover:bg-slate-800"><Download className="w-4 h-4 mr-2" /> JSON</Button>
                 <Button size="sm" onClick={() => exportToPDF({inputs, results}, 'pipeline.pdf')} className="bg-blue-600 hover:bg-blue-700 text-white"><Download className="w-4 h-4 mr-2" /> PDF</Button>
               </div>
             </CardHeader>
-            <CardContent className="relative z-10">
-              <div className="h-[300px] w-full">
+            <CardContent>
+              <div className="relative h-[300px] w-full bg-white rounded-lg p-2">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={profileData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="dist" stroke="#94a3b8" label={{ value: 'Distance (m)', position: 'insideBottomRight', offset: -10, fill: '#94a3b8' }} />
-                    <YAxis stroke="#94a3b8" label={{ value: 'Pressure (bar)', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} />
-                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }} />
-                    <Line type="monotone" dataKey="pressure" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6' }} />
+                  <LineChart data={profileData} margin={{ top: 8, right: 24, bottom: 8, left: 4 }}>
+                    <CartesianGrid {...GRID_STYLE} />
+                    <XAxis dataKey="dist" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText }} label={{ value: 'Distance (m)', position: 'insideBottomRight', offset: -4, fill: CHART_COLORS.axisLabel }} />
+                    <YAxis stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText }} label={{ value: 'Pressure (bar)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel }} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Line type="monotone" dataKey="pressure" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 3, fill: '#2563eb' }} isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
+                <ChartLogo />
               </div>
             </CardContent>
           </Card>
@@ -216,18 +220,19 @@ export default function LineSizing() {
                   <CardTitle className="text-xl">Scenario Comparison</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[250px] w-full">
+                  <div className="relative h-[250px] w-full bg-white rounded-lg p-2">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={scenarios.map((s, i) => ({ name: `Scen ${i+1}`, dp: s.results.totalPressureDropBar, vel: s.results.velocity }))} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                        <XAxis dataKey="name" stroke="#94a3b8" />
-                        <YAxis yAxisId="left" stroke="#3b82f6" label={{ value: 'ΔP (bar)', angle: -90, position: 'insideLeft', fill: '#3b82f6' }} />
-                        <YAxis yAxisId="right" orientation="right" stroke="#10b981" label={{ value: 'Velocity (m/s)', angle: -90, position: 'insideRight', fill: '#10b981' }} />
-                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155' }} />
-                        <Bar yAxisId="left" dataKey="dp" fill="#3b82f6" name="Pressure Drop" />
-                        <Bar yAxisId="right" dataKey="vel" fill="#10b981" name="Velocity" />
+                      <BarChart data={scenarios.map((s, i) => ({ name: `Scen ${i+1}`, dp: s.results.totalPressureDropBar, vel: s.results.velocity }))} margin={{ top: 8, right: 24, bottom: 8, left: 4 }}>
+                        <CartesianGrid {...GRID_STYLE} />
+                        <XAxis dataKey="name" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText }} />
+                        <YAxis yAxisId="left" stroke="#2563eb" tick={{ fill: CHART_COLORS.axisText }} label={{ value: 'ΔP (bar)', angle: -90, position: 'insideLeft', fill: '#2563eb' }} />
+                        <YAxis yAxisId="right" orientation="right" stroke="#059669" tick={{ fill: CHART_COLORS.axisText }} label={{ value: 'Velocity (m/s)', angle: -90, position: 'insideRight', fill: '#059669' }} />
+                        <Tooltip contentStyle={TOOLTIP_STYLE} />
+                        <Bar yAxisId="left" dataKey="dp" fill="#2563eb" name="Pressure Drop" isAnimationActive={false} />
+                        <Bar yAxisId="right" dataKey="vel" fill="#059669" name="Velocity" isAnimationActive={false} />
                       </BarChart>
                     </ResponsiveContainer>
+                    <ChartLogo />
                   </div>
                 </CardContent>
              </Card>

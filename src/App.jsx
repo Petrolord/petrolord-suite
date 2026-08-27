@@ -60,6 +60,7 @@ const ContourMapDigitizer = lazy(() => import('@/pages/apps/ContourMapDigitizer'
 const WellPlanning = lazy(() => import('@/pages/apps/WellPlanning'));
 const ReliefBlowdownSizer = lazy(() => import('@/pages/apps/ReliefBlowdownSizer'));
 const FacilityLayoutMapper = lazy(() => import('@/pages/apps/FacilityLayoutMapper'));
+const FacilityNetworkHydraulics = lazy(() => import('@/pages/apps/FacilityNetworkHydraulics'));
 const SeparatorSlugCatcherDesigner = lazy(() => import('@/pages/apps/SeparatorSlugCatcherDesigner'));
 const CompressorPumpPack = lazy(() => import('@/pages/apps/CompressorPumpPack'));
 const HeatExchangerSizer = lazy(() => import('@/pages/apps/HeatExchangerSizer'));
@@ -78,10 +79,8 @@ const EorScreeningTool = lazy(() => import('@/pages/apps/EorScreeningTool'));
 const ForecastScenarioHub = lazy(() => import('@/pages/apps/ForecastScenarioHub'));
 const DeclineCurveAnalysis = lazy(() => import('@/pages/apps/DeclineCurveAnalysis'));
 const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'));
-const NetworkDiagramPro = lazy(() => import('@/pages/apps/NetworkDiagramPro'));
 const ReservoirBalance = lazy(() => import('@/pages/apps/reservoir-balance/ReservoirBalance'));
 const ArtificialLiftDesigner = lazy(() => import('@/pages/apps/ArtificialLiftDesigner'));
-const WellboreFlowSimulator = lazy(() => import('@/pages/apps/WellboreFlowSimulator'));
 const PorePressureStudio = lazy(() => import('@/pages/apps/PorePressureStudio/PorePressureStudio'));
 const BasinFlowGenesis = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowGenesis'));
 const Seismolord = lazy(() => import('@/pages/apps/Seismolord/Seismolord'));
@@ -122,10 +121,8 @@ const GeomechanicsHarness = lazy(() => import('@/pages/apps/GeomechanicsStudio/G
 const WellDesignHelpGuide = lazy(() => import('@/pages/apps/well-planning/WellDesignHelpGuide'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
-const ProductionSurveillanceDashboard = lazy(() => import('@/pages/apps/ProductionSurveillanceDashboard'));
 const WellTestAnalysisStudio = lazy(() => import('@/pages/apps/WellTestAnalysisStudio'));
 const NodalAnalysisStudio = lazy(() => import('@/pages/apps/NodalAnalysisStudio'));
-const FlowAssuranceMonitor = lazy(() => import('@/pages/apps/FlowAssuranceMonitor'));
 const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 const CasingTubingHelpGuide = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingHelpGuide'));
@@ -564,20 +561,26 @@ function App() {
                                 <Route path="apps/drilling/well-spacing-optimizer" element={<Navigate to="/dashboard/apps/reservoir/well-spacing-optimizer" replace />} />
                                 <Route path="apps/reservoir/well-spacing-optimizer" element={<ProtectedAppRoute appId="well-spacing-optimizer" appName="Well Spacing Optimizer"><WellSpacingOptimizer /></ProtectedAppRoute>} />
 
-                                {/* Production Module routes including targeted explicit slug match for surveillance dashboard */}
-                                <Route path="apps/production/production-surveillance-dashboard" element={<ProtectedAppRoute appId="production-surveillance-dashboard" appName="Production Surveillance Dashboard"><ProductionSurveillanceDashboard /></ProtectedAppRoute>} />
-                                <Route path="apps/production/surveillance-dashboard" element={<ProtectedAppRoute appId="production-surveillance-dashboard" appName="Production Surveillance Dashboard"><ProductionSurveillanceDashboard /></ProtectedAppRoute>} />
+                                {/* Production Module routes (P0 hygiene 2026-08-27, Production-ROADMAP.md §5):
+                                    archived mock apps redirect to the hub until their rebuild phase ships;
+                                    every surviving app is entitlement-gated. */}
+                                <Route path="apps/production/production-surveillance-dashboard" element={<Navigate to="/dashboard/production" replace />} />
+                                <Route path="apps/production/surveillance-dashboard" element={<Navigate to="/dashboard/production" replace />} />
                                 <Route path="apps/production/well-test-analyzer" element={<Navigate to="/dashboard/apps/reservoir/well-test-analysis-studio" replace />} />
-                                <Route path="apps/production/nodal-analysis-studio" element={<NodalAnalysisStudio />} />
-                                <Route path="apps/production/nodal-analysis-engine" element={<NodalAnalysisStudio />} />
-                                <Route path="apps/production/nodal-performance-optimizer" element={<NodalAnalysisStudio />} />
-                                <Route path="apps/production/wellbore-flow-simulator" element={<WellboreFlowSimulator />} />
-                                <Route path="apps/production/artificial-lift-designer" element={<ArtificialLiftDesigner />} />
-                                <Route path="apps/production/flow-assurance-monitor" element={<FlowAssuranceMonitor />} />
+                                {/* Production Forecasting tile archived at P0 — the real engine is DCA Studio */}
+                                <Route path="apps/production/production-forecasting" element={<Navigate to="/dashboard/apps/reservoir/decline-curve-analysis" replace />} />
+                                <Route path="apps/production/nodal-analysis-studio" element={<ProtectedAppRoute appId="nodal-analysis-engine" appName="Nodal Analysis Studio"><NodalAnalysisStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/production/nodal-analysis-engine" element={<ProtectedAppRoute appId="nodal-analysis-engine" appName="Nodal Analysis Studio"><NodalAnalysisStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/production/nodal-performance-optimizer" element={<ProtectedAppRoute appId="nodal-analysis-engine" appName="Nodal Analysis Studio"><NodalAnalysisStudio /></ProtectedAppRoute>} />
+                                {/* P0: Wellbore Flow Simulator retired (Production-ROADMAP.md §6.3) — its "transient simulation" was a Math.random pressure walk; real traverses live in Nodal */}
+                                <Route path="apps/production/wellbore-flow-simulator" element={<Navigate to="/dashboard/apps/production/nodal-analysis-studio" replace />} />
+                                <Route path="apps/production/artificial-lift-designer" element={<ProtectedAppRoute appId="artificial-lift-designer" appName="Artificial Lift Designer"><ArtificialLiftDesigner /></ProtectedAppRoute>} />
+                                <Route path="apps/production/flow-assurance-monitor" element={<Navigate to="/dashboard/production" replace />} />
                                 <Route path="apps/production/integrated-asset-modeler" element={<Navigate to="/dashboard/apps/production/nodal-analysis-studio" replace />} />
                                 {/* D7: Well Schematic Designer absorbed by Completion Design Studio (Drilling-ROADMAP.md §2) */}
                                 <Route path="apps/production/well-schematic-designer" element={<Navigate to="/dashboard/apps/drilling/completion-design-studio" replace />} />
-                                <Route path="apps/production/network-diagram-pro" element={<NetworkDiagramPro />} />
+                                {/* P0: Network Diagram Pro delisted (§6.4) — inert solver, no persistence; its editor folds into Production Network Studio at P11 */}
+                                <Route path="apps/production/network-diagram-pro" element={<Navigate to="/dashboard/production" replace />} />
 
                                 <Route path="apps/economics/project-management-pro" element={<ProjectManagementPro />} />
                                 
@@ -641,7 +644,10 @@ function App() {
                                 <Route path="apps/facilities/heat-exchanger-sizer" element={<HeatExchangerSizer />} />
                                 <Route path="apps/facilities/gas-treating-dehydration" element={<GasTreatingDehydration />} />
                                 <Route path="apps/facilities/relief-blowdown-sizer" element={<ReliefBlowdownSizer />} />
-                                <Route path="apps/facilities/facility-network-hydraulics" element={<FacilityLayoutMapper />} />
+                                {/* Production P0: this slug was hijacked to FacilityLayoutMapper, leaving 1,024 LOC of real
+                                    hydraulics (Beggs & Brill, Swamee-Jain, Barlow) unreachable. Facilities keeps single-line
+                                    sizing (Production-ROADMAP.md §6.2); the gathering-network solver ships as Production #11. */}
+                                <Route path="apps/facilities/facility-network-hydraulics" element={<ProtectedAppRoute appId="facility-network-hydraulics" appName="Facility Network Hydraulics"><FacilityNetworkHydraulics /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/facility-layout-mapper" element={<FacilityLayoutMapper />} />
                                 <Route path="apps/facilities/corrosion-rate-predictor" element={<CorrosionRatePredictor />} />
                                 <Route path="apps/facilities/pipeline-designer" element={<PipelineDesigner />} />

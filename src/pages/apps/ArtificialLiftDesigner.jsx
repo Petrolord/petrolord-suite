@@ -4,11 +4,8 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Zap, Wind, Wrench, CheckSquare, Save, FolderOpen } from 'lucide-react';
+import { ArrowLeft, CheckSquare, Save, FolderOpen } from 'lucide-react';
 import CandidateScreening from '@/components/artificiallift/CandidateScreening';
-import GasLiftDesign from '@/components/artificiallift/GasLiftDesign';
-import ESPDesign from '@/components/artificiallift/ESPDesign';
-import RodPumpDesign from '@/components/artificiallift/RodPumpDesign';
 import SaveDesignDialog from '@/components/artificiallift/SaveDesignDialog';
 import LoadDesignsDialog from '@/components/artificiallift/LoadDesignsDialog';
 
@@ -25,81 +22,30 @@ const initialScreeningInputs = {
   gasAvailable: true,
 };
 
-const initialGasLiftInputs = {
-  tubingID: 2.441,
-  wellDepth: 8000,
-  whp: 200,
-  bhp: 2000,
-  liquidRate: 1500,
-  waterCut: 30,
-  gor: 300,
-  oilApi: 35,
-  gasGravity: 0.7,
-  waterSalinity: 30000,
-  wellheadTemp: 120,
-  bottomholeTemp: 180,
-  surfaceInjectionPressure: 1500,
-  injectionGasGravity: 0.65,
-  valveSpacingSafetyFactor: 100,
-};
-
-const initialEspInputs = {
-  targetRate: 2500,
-  wellDepth: 7500,
-  pumpDepth: 7000,
-  whp: 150,
-  waterCut: 50,
-  gor: 500,
-  oilApi: 32,
-  gasGravity: 0.75,
-  tubingID: 3.958,
-  casingID: 6.366,
-  frequency: 60,
-  pumpModel: 'REDADN2600',
-};
-
-const initialRodPumpInputs = {
-  strokeLength: 120,
-  pumpingSpeed: 10,
-  pumpDepth: 6000,
-  pumpDiameter: 1.75,
-  tubingPressure: 200,
-  casingPressure: 100,
-  liquidRate: 300,
-  waterCut: 60,
-  oilApi: 30,
-  rodString: "7/8,3/4",
-  rodPercentages: "50,50",
-};
-
 const ArtificialLiftDesigner = () => {
-  const [activeTab, setActiveTab] = useState("screening");
   const [isSaveOpen, setIsSaveOpen] = useState(false);
   const [isLoadOpen, setIsLoadOpen] = useState(false);
   const [currentDesignName, setCurrentDesignName] = useState('');
 
-  // Lifted state for all modules to support full save/load
   const [screeningInputs, setScreeningInputs] = useState(initialScreeningInputs);
-  const [gasLiftInputs, setGasLiftInputs] = useState(initialGasLiftInputs);
-  const [espInputs, setEspInputs] = useState(initialEspInputs);
-  const [rodPumpInputs, setRodPumpInputs] = useState(initialRodPumpInputs);
+  // Design-tab inputs from saves made before P0 are carried through
+  // untouched, so nothing a user stored is lost and the P4-P6 studios
+  // can offer to import them.
+  const [legacyDesignInputs, setLegacyDesignInputs] = useState(null);
 
   const getCurrentDesignData = () => {
     return {
-      activeTab,
+      activeTab: 'screening',
       screeningInputs,
-      gasLiftInputs,
-      espInputs,
-      rodPumpInputs
+      ...(legacyDesignInputs || {})
     };
   };
 
   const handleLoadData = (data, name) => {
     if (data.screeningInputs) setScreeningInputs(data.screeningInputs);
-    if (data.gasLiftInputs) setGasLiftInputs(data.gasLiftInputs);
-    if (data.espInputs) setEspInputs(data.espInputs);
-    if (data.rodPumpInputs) setRodPumpInputs(data.rodPumpInputs);
-    if (data.activeTab) setActiveTab(data.activeTab);
+    const { gasLiftInputs, espInputs, rodPumpInputs } = data;
+    const legacy = { gasLiftInputs, espInputs, rodPumpInputs };
+    setLegacyDesignInputs(Object.values(legacy).some(Boolean) ? legacy : null);
     setCurrentDesignName(name);
   };
 
@@ -153,26 +99,21 @@ const ArtificialLiftDesigner = () => {
         </header>
 
         <main className="flex-1 p-6 overflow-hidden flex flex-col relative">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col h-full min-h-0">
-            <TabsList className="grid w-full grid-cols-4 bg-slate-800/80 mb-6 border border-slate-700 p-1 rounded-lg">
+          {/* Production P0: the three design tabs are gone (Production-ROADMAP.md §3 #9).
+              Their math was silently wrong: ESP TDH omitted net lift (stage counts ~10x off),
+              the gas-lift gradient was an invented fudge with no multiphase model, and the
+              "Mills method" rod code was neither Mills nor API RP 11L (and parsed rod
+              diameter "7/8" as 7.8 in). Full design ships as the Gas Lift (P4), ESP (P5)
+              and Rod Pump (P6) studios on the validated nodal + PVT engines. The screening
+              matrix below is the honest part of this app and stays. */}
+          <Tabs value="screening" className="flex-1 flex flex-col h-full min-h-0">
+            <TabsList className="grid w-full grid-cols-1 bg-slate-800/80 mb-6 border border-slate-700 p-1 rounded-lg">
               <TabsTrigger value="screening" className="data-[state=active]:bg-lime-500/20 data-[state=active]:text-lime-400"><CheckSquare className="w-4 h-4 mr-2" />Candidate Screening</TabsTrigger>
-              <TabsTrigger value="gas_lift" className="data-[state=active]:bg-lime-500/20 data-[state=active]:text-lime-400"><Wind className="w-4 h-4 mr-2" />Gas Lift Design</TabsTrigger>
-              <TabsTrigger value="esp" className="data-[state=active]:bg-lime-500/20 data-[state=active]:text-lime-400"><Zap className="w-4 h-4 mr-2" />ESP Design</TabsTrigger>
-              <TabsTrigger value="rod_pump" className="data-[state=active]:bg-lime-500/20 data-[state=active]:text-lime-400"><Wrench className="w-4 h-4 mr-2" />Rod Pump Design</TabsTrigger>
             </TabsList>
-            
+
             <div className="flex-1 overflow-y-auto min-h-0 relative custom-scrollbar pb-6">
               <TabsContent value="screening" className="m-0 h-full">
-                <CandidateScreening inputs={screeningInputs} setInputs={setScreeningInputs} onProceed={setActiveTab} />
-              </TabsContent>
-              <TabsContent value="gas_lift" className="m-0 h-full">
-                <GasLiftDesign inputs={gasLiftInputs} setInputs={setGasLiftInputs} />
-              </TabsContent>
-              <TabsContent value="esp" className="m-0 h-full">
-                <ESPDesign inputs={espInputs} setInputs={setEspInputs} />
-              </TabsContent>
-              <TabsContent value="rod_pump" className="m-0 h-full">
-                <RodPumpDesign inputs={rodPumpInputs} setInputs={setRodPumpInputs} />
+                <CandidateScreening inputs={screeningInputs} setInputs={setScreeningInputs} />
               </TabsContent>
             </div>
           </Tabs>
