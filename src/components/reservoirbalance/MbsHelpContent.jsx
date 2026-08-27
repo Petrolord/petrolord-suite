@@ -80,6 +80,13 @@ const MbsHelpContent = () => (
       the case. First-row time zero sets the initial pressure. The screen is an estimate; the engine run and its
       validation tier remain the authority.
     </P>
+    <P>
+      Expect the screen and the engine to differ slightly on Carter-Tracy with a finite aquifer. The browser screen
+      evaluates the bounded-circle dimensionless pressure directly, while the server engine blends the
+      infinite-acting solution into the pseudo-steady-state one across the transition. Both are legitimate and the
+      difference is small, so treat a modest gap as normal rather than as a sign that one of them is wrong. Where
+      they disagree, the engine result is the one your tier badge and your report are built on.
+    </P>
 
     <H>5. Run</H>
     <P>
@@ -101,15 +108,17 @@ const MbsHelpContent = () => (
 
     <H>6. Plots</H>
     <P>
-      Diagnostic plots for the latest run: the Havlena-Odeh straight line, p over z for gas, drive indices through
-      time, and the two aquifer-diagnosis plots. A straight line with scatter tells you more than a forced fit;
-      curvature usually means the aquifer model or the gas cap size is wrong.
+      Diagnostic plots for the latest run. A gas case shows four charts: the Havlena-Odeh straight line, p over z,
+      the Cole plot and the drive indices through time. An oil case shows three: Havlena-Odeh, the Campbell plot and
+      the drive indices. A straight line with scatter tells you more than a forced fit; curvature usually means the
+      aquifer model or the gas cap size is wrong.
     </P>
     <P>
-      The Cole plot is the gas diagnostic and the Campbell plot is its oil counterpart. Both are read the same way: a
-      flat trend points to depletion with no significant aquifer, while a rising trend points to water influx, and
-      the steeper it rises the stronger the support. They are the fastest check on whether an aquifer belongs in the
-      model at all, before you spend time choosing between Fetkovich and Carter-Tracy.
+      The Cole plot is the gas aquifer diagnostic and the Campbell plot is its oil counterpart, so you see whichever
+      one matches your fluid system rather than both. They are read the same way: a flat trend points to depletion
+      with no significant aquifer, while a rising trend points to water influx, and the steeper it rises the stronger
+      the support. Either is the fastest check on whether an aquifer belongs in the model at all, before you spend
+      time choosing between Fetkovich and Carter-Tracy.
     </P>
     <P>
       On the gas p over z plot, an overlay corrects for formation and water compressibility by the Ramagost-Farshad
@@ -150,9 +159,10 @@ const MbsHelpContent = () => (
       warnings) plus a CSV with every per-timestep series for spreadsheet work.
     </P>
     <P>
-      Individual charts can also be lifted out on their own. The history match, forecast, contacts and aquifer
-      screening charts each carry a download button that saves the current view as a PNG, which is usually what you
-      want when a single plot has to go into a partner deck or a well review.
+      Individual charts can also be lifted out on their own. Every chart in the studio carries a download button
+      that saves the current view as a PNG, including all of the diagnostic plots as well as the history match,
+      forecast, contacts and aquifer screening charts. That is usually what you want when a single plot has to go
+      into a partner deck or a well review.
     </P>
 
     <H>Validation</H>

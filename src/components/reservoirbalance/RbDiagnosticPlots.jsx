@@ -1347,7 +1347,7 @@ const RbDiagnosticPlots = ({ caseId, caseData, runVersion = 0 }) => {
             <CardTitle className="text-lime-300">Diagnostic Plots</CardTitle>
             <CardDescription>
               Five plots derived from the latest MBAL run on this case.
-              {' '}{isGas ? 'Gas reservoir — showing F vs Et, p/z, Cole, and drive indices.' : 'Oil reservoir — showing F vs Et, Campbell, and drive indices.'}
+              {' '}{isGas ? 'Gas reservoir: showing F vs Et, p/z, Cole, and drive indices.' : 'Oil reservoir: showing F vs Et, Campbell, and drive indices.'}
               {' '}Click any data point to inspect that timestep's full payload.
             </CardDescription>
           </div>
