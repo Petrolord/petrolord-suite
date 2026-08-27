@@ -141,6 +141,91 @@ Three issues reported by the owner, all fixed:
    holds the removed well in the Undo closure and restores it into state.
    The well Remove button also gained a confirm (it had none).
 
+## Monte Carlo reproducibility 2026-08-27
+
+Second defect found in the same audit that produced the decline-unit fix
+(engines #57, Suite #268). Every draw in `engines/dca/monteCarlo.js` came from
+a bare `Math.random` with no way to inject a generator, so clicking **Run Monte
+Carlo** twice on one unchanged fit returned two different P10/P50/P90 and no
+reported EUR could be re-derived by a reviewer holding the same inputs. The
+economic-limit draw made that true even for a fit carrying no uncertainty:
+with all parameter spreads at zero, the sampler still moved the limit +-20%.
+
+Fixed in the engine (petrolord-engines PR #59, vendored here):
+
+- `runMonteCarloSimulation(..., onProgress, rngOrSeed)` and
+  `generateProbabilisticCurves(..., rngOrSeed)` take a numeric seed or any
+  uniform `[0,1)` function, threaded through the normal, uniform and parameter
+  samplers. Omitting it keeps the old `Math.random` behavior, so no other
+  consumer changes meaning.
+- The result carries `seed`, or `null` when the run drew from `Math.random`,
+  which is the signal that its numbers cannot be reproduced.
+- `createSeededRng(seed)` (mulberry32) is exported so callers do not each
+  invent one.
+- `config.startDate` anchors the curve dates. `generateForecastCurve` read
+  `Date.now()` per point, so the sampled curves sat on a different time axis
+  to the deterministic forecast they bracket.
+
+Suite side:
+
+- `DeclineCurveContext` exports `DEFAULT_MC_SEED` (42), carries `mcSeed` in
+  every stream's `forecastConfig` (so it saves and reloads with the project),
+  passes it plus `startDate: fit.t0` into the sampler, and keeps `seed` on
+  `forecastResults.probabilistic`.
+- `DCAForecastEngine` gained a **Random Seed** field with a **New seed**
+  button, shown only in probabilistic mode. `DCAForecastResults` prints the
+  seed under the EUR distribution ("1000 Monte Carlo simulations, seed 42");
+  forecasts saved before this change read "seed not recorded".
+- Help item 5 documents reproducibility and the previously undocumented
+  economic-limit sampling; item 6 lists the seed.
+
+Gates: `packages/engines/__tests__/dca.montecarlo.seed.test.js` (9 tests on the
+engine, 4 fail with the injection removed) and
+`src/contexts/__tests__/dcaMonteCarloSeed.test.jsx` (4 tests driving the real
+context end to end: project, well, import, fit, forecast; 2 fail if the call
+site drops the seed).
+
+Three further defects in the same module, closed in the same pass:
+
+1. **EUR was a rectangle sum.** Volume was `rate(t) * 30` at the LEFT endpoint
+   of each 30-day step over a falling rate, about 1.8% high on a typical fit
+   and worse the steeper the decline. The loop also dropped the whole last
+   partial step at the economic limit while allowing a full step past the
+   duration cap. Volume is now the closed-form Arps integral over each step,
+   with the last step ending exactly at the limit time (solved, not stepped
+   onto) or at the cap, and a facility plateau integrated as a rectangle up to
+   the exact time the decline falls to the cap plus the decline integral after
+   it. A zero-uncertainty run now reproduces `calculateEUR` to floating-point
+   precision instead of to a couple of percent. This moves numbers users see:
+   probabilistic EUR drops by the size of the old bias, measured on the three
+   Ekene producers as 2.13% (exponential), 1.97% (hyperbolic b=0.5) and 0.89%
+   (harmonic). The new value is the closed form the deterministic side already
+   reported.
+2. **The economic-limit spread was imposed.** ±20% was hardcoded and applied
+   unconditionally, so a fit carrying no parameter uncertainty still produced a
+   scattered EUR from a number the user never chose and nothing displayed. It
+   is now `config.economicLimitUncertainty` (fraction, clamped to [0,1],
+   default `DEFAULT_ECONOMIC_LIMIT_UNCERTAINTY = 0.2`); 0 turns the draw off.
+   Surfaced as **Economic Limit Uncertainty (±%)** in Forecast Settings,
+   carried on `forecastResults.probabilistic`, and printed with the seed under
+   the EUR distribution.
+3. **The P10/P90 curves were draws.** `generateProbabilisticCurves` passed the
+   CI scaled by ±1.28 into `sampleArpsParameters`, which then sampled a normal
+   from it, so the curves were random realizations with an inflated spread
+   rather than percentiles, moved on every call, and the sign flips meant to
+   steer direction were inert (a normal with a negative sigma is the same
+   distribution). They are now deterministic 1.28σ offsets of the fit
+   (σ = CI/2), high case being a higher qi with a slower decline and flatter b.
+
+Gate for those three: `packages/engines/__tests__/dca.montecarlo.quadrature.test.js`
+(volume against `calculateEUR` for all three families and against an
+independent Simpson integration for the facility and duration caps; the spread
+setting at 0, default, wide and out-of-range; the curves for determinism,
+ordering and the exact 1.28σ offset). Verified adversarially: restoring the
+rectangle sum fails 5, ignoring the setting fails 6, drawing the curves again
+fails 3. `dca.montecarlo.test.js` keeps its decline-unit role with its band
+tightened from 10% to 3% now that the rectangle bias is gone.
+
 ## Known gaps / next
 
 - Segmented decline fitting: detection util exists, no engine branch, no UI.
