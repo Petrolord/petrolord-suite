@@ -62,6 +62,7 @@ const DeclineCurveContent = () => {
           onCreate={createProject}
           onOpen={openProject}
           onDelete={deleteProject}
+          confirmDeleteMessage="Delete this project and its saved data? You can Undo from the notification for a few seconds."
         />
         <div className="h-2"></div>
         <DCAWellSelector />

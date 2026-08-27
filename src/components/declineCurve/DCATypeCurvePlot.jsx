@@ -125,6 +125,7 @@ const DCATypeCurvePlot = ({ typeCurve }) => {
               name="Aggregated Well Data"
               shape="circle"
               fillOpacity={0.4}
+              isAnimationActive={false}
             />
 
             {/* Fitted Arps curve through the cloud */}

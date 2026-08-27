@@ -127,11 +127,16 @@ export const CHART_LOGO_PATH = '/petrolord-chart-watermark.png';
 // Standard logo styling — used by ChartLogo component.
 // Tuned for white-background charts. The logo is positioned absolutely
 // so it must sit inside a relative-positioned container.
+// 40px keeps the mark clear of the plot area when overlaid directly on a
+// chart (owner directive 2026-08-26; supersedes the 180px directive of
+// 2026-08-17, which overflowed into the plot). Matches the MBAL charts'
+// settled size. Use ChartFrame with a larger logoHeight when a bigger
+// mark is wanted — it reserves a footer band so nothing overlaps.
 export const CHART_LOGO_STYLE = {
   position: 'absolute',
   bottom: '8px',
   right: '8px',
-  height: '180px',
+  height: '40px',
   width: 'auto',
   opacity: 0.50,
   pointerEvents: 'none',

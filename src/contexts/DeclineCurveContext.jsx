@@ -207,16 +207,21 @@ export const DeclineCurveProvider = ({ children }) => {
     addNotification(`Project "${name}" created`, "success");
   };
 
+  // Recoverable delete: the project disappears from the UI immediately, but
+  // the database row is only removed after the undo window closes. Undo
+  // cancels the pending delete and reloads the untouched row. If the app is
+  // closed mid-window the delete never lands and the project survives —
+  // erring on the side of keeping data.
+  const PROJECT_UNDO_WINDOW_MS = 10000;
+  const pendingProjectDeletes = useRef({});
+
   const deleteProject = async (id) => {
-    try {
-      await deleteProjectRow(id);
-    } catch (e) {
-      console.error(e);
-      addNotification(`Could not delete project: ${e.message}`, 'error');
-      return;
-    }
+    if (pendingProjectDeletes.current[id]) return; // delete already pending
+    const listEntry = projects.find(p => p.id === id);
+    const wasCurrent = currentProjectId === id;
+
     setProjects(prev => prev.filter(p => p.id !== id));
-    if (currentProjectId === id) {
+    if (wasCurrent) {
       setCurrentProjectId(null);
       setCurrentWellId(null);
       setWells({});
@@ -224,7 +229,32 @@ export const DeclineCurveProvider = ({ children }) => {
       setTypeCurves([]);
       setWellGroups([]);
     }
-    addNotification('Project deleted', 'info');
+
+    pendingProjectDeletes.current[id] = setTimeout(async () => {
+      delete pendingProjectDeletes.current[id];
+      try {
+        await deleteProjectRow(id);
+      } catch (e) {
+        console.error(e);
+        addNotification(`Could not delete project: ${e.message}`, 'error');
+        if (listEntry) setProjects(prev => prev.some(p => p.id === id) ? prev : [listEntry, ...prev]);
+      }
+    }, PROJECT_UNDO_WINDOW_MS);
+
+    addNotification(`Project "${listEntry?.name || 'Untitled'}" deleted`, 'info', {
+      duration: PROJECT_UNDO_WINDOW_MS,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          const timer = pendingProjectDeletes.current[id];
+          if (!timer) return; // window already closed; row is gone
+          clearTimeout(timer);
+          delete pendingProjectDeletes.current[id];
+          if (listEntry) setProjects(prev => prev.some(p => p.id === id) ? prev : [listEntry, ...prev]);
+          if (wasCurrent) openProject(id);
+        },
+      },
+    });
   };
 
   const openProject = async (id) => {
@@ -270,10 +300,26 @@ export const DeclineCurveProvider = ({ children }) => {
     addNotification(`Well "${name}" added`, 'success');
   };
 
+  // Recoverable delete: the removed well (data included) is held in the
+  // toast's Undo closure; restoring it re-triggers auto-save, so the project
+  // payload converges either way.
   const removeWell = (id) => {
+    const well = wells[id];
+    if (!well) return;
+    const wasCurrent = currentWellId === id;
     const newWells = {...wells}; delete newWells[id];
     setWells(newWells);
-    if (currentWellId === id) setCurrentWellId(null);
+    if (wasCurrent) setCurrentWellId(null);
+    addNotification(`Well "${well.name}" deleted`, 'info', {
+      duration: 10000,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          setWells(prev => ({ ...prev, [id]: well }));
+          if (wasCurrent) setCurrentWellId(id);
+        },
+      },
+    });
   };
 
   const updateWellMetadata = (wellId, metadata) => {

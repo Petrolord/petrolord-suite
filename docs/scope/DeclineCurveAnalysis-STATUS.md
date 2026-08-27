@@ -111,6 +111,36 @@ Follow-ups in the same round (PR #179, merged 10956d0e1):
 Verification: DCA smoke test green, `npm run build` green, user confirmed
 all three charts render on staging.
 
+## Bugfix round 2026-08-26 (user-reported)
+
+Three issues reported by the owner, all fixed:
+
+1. **Oversized chart watermark** — the 2026-08-16 2.5x watermark enlargement
+   (commit 7645705fb, `CHART_LOGO_STYLE` default 180px) spilled the logo into
+   the plot area of every chart that drops `<ChartLogo />` bare (DCA,
+   Petrophysics Crossplot, BasinFlow plots, RockPhysics panels, PorePressure,
+   Risked Reserves). Default rolled back to 40px — the size MBAL's charts
+   settled on — and the enlargement's companions rolled back with it
+   (ChartFrame band default 96 → 40px, decision-tree TreeDiagram 96 → 40px).
+   40px is now the suite-standard watermark size.
+2. **"Scattered" chart after tab switches until refit** — Recharts mount
+   animations freeze mid-interpolation when chart content remounts (in-app
+   tab switch) or the browser tab is backgrounded (throttled rAF), leaving
+   points at interpolated positions until the next data change (i.e. the next
+   fit). The probabilistic overlays already disabled animation; now every
+   series in the DCA charts does (`isAnimationActive={false}` on the
+   Historical scatter, fitted/forecast lines, type-curve cloud, EUR
+   histogram). Keep it false on any series added later.
+3. **No undo for project/well deletion** — deletes are now recoverable via
+   an Undo action on the toast (Studio kit extension: `addNotification`
+   accepts `{ duration, action: { label, onClick } }`, backward compatible;
+   `StudioNotifications` renders the button). Project delete removes the row
+   from the DB only after the 10s undo window closes — Undo cancels the
+   pending delete and reloads the untouched row, and a mid-window app close
+   means the delete never lands (fails safe, project survives). Well delete
+   holds the removed well in the Undo closure and restores it into state.
+   The well Remove button also gained a confirm (it had none).
+
 ## Known gaps / next
 
 - Segmented decline fitting: detection util exists, no engine branch, no UI.
