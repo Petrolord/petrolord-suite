@@ -123,6 +123,12 @@ const DCAForecastResults = () => {
             />
             <div className="text-[10px] text-slate-500 text-center mt-1">
               {probabilisticResults.iterations} Monte Carlo simulations
+              {/* Quote the seed with the numbers: it is what lets a reviewer
+                  re-run this exact realization. Older saved forecasts predate
+                  the seed and carry none. */}
+              {probabilisticResults.seed != null
+                ? `, seed ${probabilisticResults.seed}`
+                : ', seed not recorded'}
             </div>
           </CardContent>
         </Card>

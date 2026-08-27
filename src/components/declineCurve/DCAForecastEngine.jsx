@@ -1,10 +1,10 @@
 import React from 'react';
-import { useDeclineCurve } from '@/contexts/DeclineCurveContext';
+import { useDeclineCurve, DEFAULT_MC_SEED } from '@/contexts/DeclineCurveContext';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, TrendingUp, Dices } from 'lucide-react';
+import { Loader2, TrendingUp, Dices, RefreshCw } from 'lucide-react';
 
 const DCAForecastEngine = () => {
   const { 
@@ -18,6 +18,8 @@ const DCAForecastEngine = () => {
   const config = streamState[selectedStream].forecastConfig;
   const hasFit = !!streamState[selectedStream].fitResults;
   const hasConfidenceIntervals = streamState[selectedStream].fitResults?.confidenceIntervals?.hasIntervals;
+  // Projects saved before the seed existed carry no mcSeed, so fall back.
+  const seedValue = Number.isFinite(config.mcSeed) ? config.mcSeed : DEFAULT_MC_SEED;
 
   return (
     <div className="space-y-6">
@@ -53,6 +55,39 @@ const DCAForecastEngine = () => {
               </div>
             )}
           </div>
+
+          {/* Random seed. The sampler draws every parameter and the economic
+              limit through this seed, so the same fit plus the same seed
+              reproduce the same P10/P50/P90 and a reported EUR can be checked
+              by anyone holding the inputs. */}
+          {config.probabilisticMode && (
+            <div className="space-y-1 pt-1 border-t border-slate-700">
+              <Label className="text-xs">Random Seed</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  value={seedValue}
+                  onChange={(e) => {
+                    const next = parseInt(e.target.value, 10);
+                    updateForecastConfig('mcSeed', Number.isFinite(next) ? next : DEFAULT_MC_SEED);
+                  }}
+                  className="bg-slate-800 border-slate-700 h-8 text-xs"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs gap-1 shrink-0"
+                  onClick={() => updateForecastConfig('mcSeed', Math.floor(Math.random() * 1000000))}
+                  title="Draw a different realization"
+                >
+                  <RefreshCw size={12} /> New seed
+                </Button>
+              </div>
+              <div className="text-[10px] text-slate-500">
+                The same seed reproduces the same P10/P50/P90. Change it to see a different realization.
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Economic Limit */}

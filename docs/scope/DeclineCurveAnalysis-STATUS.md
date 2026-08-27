@@ -141,6 +141,57 @@ Three issues reported by the owner, all fixed:
    holds the removed well in the Undo closure and restores it into state.
    The well Remove button also gained a confirm (it had none).
 
+## Monte Carlo reproducibility 2026-08-27
+
+Second defect found in the same audit that produced the decline-unit fix
+(engines #57, Suite #268). Every draw in `engines/dca/monteCarlo.js` came from
+a bare `Math.random` with no way to inject a generator, so clicking **Run Monte
+Carlo** twice on one unchanged fit returned two different P10/P50/P90 and no
+reported EUR could be re-derived by a reviewer holding the same inputs. The
+economic-limit draw made that true even for a fit carrying no uncertainty:
+with all parameter spreads at zero, the sampler still moved the limit +-20%.
+
+Fixed in the engine (petrolord-engines PR #59, vendored here):
+
+- `runMonteCarloSimulation(..., onProgress, rngOrSeed)` and
+  `generateProbabilisticCurves(..., rngOrSeed)` take a numeric seed or any
+  uniform `[0,1)` function, threaded through the normal, uniform and parameter
+  samplers. Omitting it keeps the old `Math.random` behavior, so no other
+  consumer changes meaning.
+- The result carries `seed`, or `null` when the run drew from `Math.random`,
+  which is the signal that its numbers cannot be reproduced.
+- `createSeededRng(seed)` (mulberry32) is exported so callers do not each
+  invent one.
+- `config.startDate` anchors the curve dates. `generateForecastCurve` read
+  `Date.now()` per point, so the sampled curves sat on a different time axis
+  to the deterministic forecast they bracket.
+
+Suite side:
+
+- `DeclineCurveContext` exports `DEFAULT_MC_SEED` (42), carries `mcSeed` in
+  every stream's `forecastConfig` (so it saves and reloads with the project),
+  passes it plus `startDate: fit.t0` into the sampler, and keeps `seed` on
+  `forecastResults.probabilistic`.
+- `DCAForecastEngine` gained a **Random Seed** field with a **New seed**
+  button, shown only in probabilistic mode. `DCAForecastResults` prints the
+  seed under the EUR distribution ("1000 Monte Carlo simulations, seed 42");
+  forecasts saved before this change read "seed not recorded".
+- Help item 5 documents reproducibility and the previously undocumented
+  economic-limit sampling; item 6 lists the seed.
+
+Gates: `packages/engines/__tests__/dca.montecarlo.seed.test.js` (9 tests on the
+engine, 4 fail with the injection removed) and
+`src/contexts/__tests__/dcaMonteCarloSeed.test.jsx` (4 tests driving the real
+context end to end: project, well, import, fit, forecast; 2 fail if the call
+site drops the seed).
+
+Not fixed, worth its own pass: `generateProbabilisticCurves` builds its "P10"
+and "P90" curves by drawing from a normal centred on the base parameters with
+the CI scaled by +-1.28, rather than offsetting by 1.28 sigma, so those curves
+are random draws with an inflated spread rather than percentile curves. This
+change makes them reproducible, not correct. Nothing in the Suite calls that
+export today.
+
 ## Known gaps / next
 
 - Segmented decline fitting: detection util exists, no engine branch, no UI.
@@ -148,3 +199,5 @@ Three issues reported by the owner, all fixed:
   legacy panels; prune or wire them deliberately.
 - Probabilistic chart envelope is the analytic 1.28σ band from fit CIs; the
   Monte Carlo sample curves are computed but not plotted.
+- `generateProbabilisticCurves` samples its P10/P90 curves instead of
+  offsetting by 1.28 sigma (see the 2026-08-27 entry). Unused by the Suite.

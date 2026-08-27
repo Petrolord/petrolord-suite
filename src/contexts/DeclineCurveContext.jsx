@@ -15,6 +15,14 @@ import { validateFitInput, getErrorMessage } from '@/utils/declineCurve/dcaError
 
 const DeclineCurveContext = createContext();
 
+// Default Monte Carlo seed. Every draw in runMonteCarloSimulation goes through
+// it, so the same fit, the same forecast config and the same seed give back the
+// same P10/P50/P90. Before this was wired, the sampler drew from Math.random
+// and a reported EUR could not be re-derived by anyone holding the same inputs,
+// not even by the same user clicking Run Monte Carlo twice. Change the seed
+// from Forecast Settings to look at a different realization.
+export const DEFAULT_MC_SEED = 42;
+
 export const useDeclineCurve = () => {
   const context = useContext(DeclineCurveContext);
   if (!context) throw new Error("useDeclineCurve must be used within a DeclineCurveProvider");
@@ -39,21 +47,21 @@ export const DeclineCurveProvider = ({ children }) => {
       fitResults: null, 
       modelType: 'Auto', 
       constraints: { minB: 0, maxB: 1.0 },
-      forecastConfig: { economicLimit: 10, durationDays: 3650, facilityLimit: 0, stopAtLimit: true },
+      forecastConfig: { economicLimit: 10, durationDays: 3650, facilityLimit: 0, stopAtLimit: true, mcSeed: DEFAULT_MC_SEED },
       forecastResults: null
     },
     gas: { 
       fitResults: null, 
       modelType: 'Auto', 
       constraints: { minB: 0, maxB: 1.0 },
-      forecastConfig: { economicLimit: 100, durationDays: 3650, facilityLimit: 0, stopAtLimit: true },
+      forecastConfig: { economicLimit: 100, durationDays: 3650, facilityLimit: 0, stopAtLimit: true, mcSeed: DEFAULT_MC_SEED },
       forecastResults: null
     },
     water: { 
       fitResults: null, 
       modelType: 'Auto', 
       constraints: { minB: 0, maxB: 1.0 },
-      forecastConfig: { economicLimit: 0, durationDays: 3650, facilityLimit: 0, stopAtLimit: false },
+      forecastConfig: { economicLimit: 0, durationDays: 3650, facilityLimit: 0, stopAtLimit: false, mcSeed: DEFAULT_MC_SEED },
       forecastResults: null
     }
   });
@@ -444,11 +452,19 @@ export const DeclineCurveProvider = ({ children }) => {
       // If probabilistic mode is on AND we have confidence intervals, also run Monte Carlo
       if (config.probabilisticMode && fit.confidenceIntervals && fit.confidenceIntervals.hasIntervals) {
         const baseParams = { qi: fit.qi, Di: fit.Di, b: fit.b };
+        const seed = Number.isFinite(config.mcSeed) ? config.mcSeed : DEFAULT_MC_SEED;
+        // startDate anchors the sampled curves to the fit's t0, the same origin
+        // the deterministic forecast above uses. Without it the engine fell
+        // back to Date.now() per point, so the P10/P50/P90 sample curves sat on
+        // a different time axis to the curve they are meant to bracket.
+        const mcConfig = { ...config, startDate: fit.t0 || new Date().toISOString() };
         const mcResult = await runMonteCarloSimulation(
           baseParams,
           fit.confidenceIntervals,
-          config,
-          1000  // iterations
+          mcConfig,
+          1000,  // iterations
+          null,  // onProgress
+          seed   // reproducible run: same inputs and seed, same P10/P50/P90
         );
         // Attach probabilistic results next to the deterministic forecast
         combined = {
@@ -460,10 +476,13 @@ export const DeclineCurveProvider = ({ children }) => {
             mean: mcResult.mean,
             distribution: mcResult.distribution,
             sampleCurves: mcResult.sampleCurves,
-            iterations: mcResult.iterations
+            iterations: mcResult.iterations,
+            // Carried so the numbers can be quoted with the seed that produced
+            // them, and re-run later from a saved scenario.
+            seed: mcResult.seed
           }
         };
-        addNotification(`Monte Carlo complete — P10/P50/P90 EUR computed (${mcResult.iterations} sims)`, "success");
+        addNotification(`Monte Carlo complete. P10/P50/P90 EUR computed (${mcResult.iterations} sims, seed ${mcResult.seed})`, "success");
       } else {
         addNotification("Forecast completed successfully", "success");
       }
