@@ -81,7 +81,6 @@ const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'))
 const NetworkDiagramPro = lazy(() => import('@/pages/apps/NetworkDiagramPro'));
 const ReservoirBalance = lazy(() => import('@/pages/apps/reservoir-balance/ReservoirBalance'));
 const ArtificialLiftDesigner = lazy(() => import('@/pages/apps/ArtificialLiftDesigner'));
-const WellboreFlowSimulator = lazy(() => import('@/pages/apps/WellboreFlowSimulator'));
 const PorePressureStudio = lazy(() => import('@/pages/apps/PorePressureStudio/PorePressureStudio'));
 const BasinFlowGenesis = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowGenesis'));
 const Seismolord = lazy(() => import('@/pages/apps/Seismolord/Seismolord'));
@@ -571,7 +570,8 @@ function App() {
                                 <Route path="apps/production/nodal-analysis-studio" element={<NodalAnalysisStudio />} />
                                 <Route path="apps/production/nodal-analysis-engine" element={<NodalAnalysisStudio />} />
                                 <Route path="apps/production/nodal-performance-optimizer" element={<NodalAnalysisStudio />} />
-                                <Route path="apps/production/wellbore-flow-simulator" element={<WellboreFlowSimulator />} />
+                                {/* P0: Wellbore Flow Simulator retired (Production-ROADMAP.md §6.3) — its "transient simulation" was a Math.random pressure walk; real traverses live in Nodal */}
+                                <Route path="apps/production/wellbore-flow-simulator" element={<Navigate to="/dashboard/apps/production/nodal-analysis-studio" replace />} />
                                 <Route path="apps/production/artificial-lift-designer" element={<ArtificialLiftDesigner />} />
                                 <Route path="apps/production/flow-assurance-monitor" element={<FlowAssuranceMonitor />} />
                                 <Route path="apps/production/integrated-asset-modeler" element={<Navigate to="/dashboard/apps/production/nodal-analysis-studio" replace />} />
