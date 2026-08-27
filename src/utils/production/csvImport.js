@@ -223,6 +223,122 @@ export function dailyProductionTemplateCSV() {
   return [header, ...rows].join('\n');
 }
 
+// ---- field totals (P3 allocation basis) ------------------------------------
+
+export const FIELD_TOTAL_ALIASES = [
+  { key: 'date', aliases: ['prod_date', 'date', 'month', 'period', 'time'] },
+  { key: 'oil_stb', aliases: ['oil_stb', 'oil_bbl', 'oil_prod', 'oil_total', 'oil_sales', 'oil_rate', 'bopd', 'oil'] },
+  { key: 'water_stb', aliases: ['water_stb', 'water_bbl', 'water_prod', 'water_total', 'water_rate', 'bwpd', 'water'] },
+  { key: 'gas_mscf', aliases: ['gas_mscf', 'gas_mcf', 'gas_prod', 'gas_total', 'gas_sales', 'gas_rate', 'gas'] },
+];
+
+const FIELD_TOTAL_KINDS = {
+  oil_stb: 'liquid',
+  water_stb: 'liquid',
+  gas_mscf: 'gas',
+};
+const FIELD_TOTAL_KEYS = Object.keys(FIELD_TOTAL_KINDS);
+
+/**
+ * Parse a metered field/separator/export total CSV into po_field_totals
+ * rows: one row per DATE (no well column — this is the commingled
+ * measurement the wells are allocated from). Returns { rows, report }
+ * on the daily-ledger recipe; nothing is dropped silently.
+ */
+export function parseFieldTotalsCSV(text) {
+  const report = {
+    totalRows: 0,
+    imported: 0,
+    skipped: [],
+    warnings: [],
+    negativesZeroed: 0,
+    duplicateDates: 0,
+    colMap: {},
+    unitScales: {},
+  };
+
+  const { data, headers } = parseCsv(text);
+  report.totalRows = data.length;
+  if (!data.length) {
+    report.warnings.push('No data rows found in the file.');
+    return { rows: [], report };
+  }
+
+  const colMap = claimColumns(FIELD_TOTAL_ALIASES, headers);
+  report.colMap = colMap;
+
+  if (!colMap.date) {
+    report.warnings.push('No date column recognized. Expected a header like "date", "month" or "period".');
+    return { rows: [], report };
+  }
+  if (!FIELD_TOTAL_KEYS.some((k) => colMap[k])) {
+    report.warnings.push('No oil, water or gas total columns recognized.');
+    return { rows: [], report };
+  }
+
+  FIELD_TOTAL_KEYS.forEach((k) => {
+    if (colMap[k]) report.unitScales[k] = detectScale(colMap[k], FIELD_TOTAL_KINDS[k]);
+  });
+  Object.entries(report.unitScales).forEach(([k, scale]) => {
+    if (scale !== 1) {
+      report.warnings.push(`${colMap[k]}: values scaled x${scale} to ${FIELD_TOTAL_KINDS[k] === 'gas' ? 'Mscf' : 'bbl'}.`);
+    }
+  });
+
+  const { order, ambiguous } = inferDateOrder(data.map((r) => r[colMap.date]));
+  if (ambiguous && data.some((r) => /^\d{1,2}[/.]\d{1,2}[/.]\d{4}$/.test(String(r[colMap.date] ?? '').trim()))) {
+    report.warnings.push('Day/month order in dates is ambiguous; day-first (DD/MM/YYYY) assumed.');
+  }
+
+  const dateState = { monthly: 0 };
+  const seen = new Set();
+  const rows = [];
+  data.forEach((raw, i) => {
+    const date = normalizeFullDate(raw[colMap.date], order, dateState);
+    if (!date) {
+      report.skipped.push({ row: i + 1, reason: `Unparseable date "${raw[colMap.date] ?? ''}"` });
+      return;
+    }
+    if (seen.has(date)) report.duplicateDates += 1;
+    seen.add(date);
+    const row = { date, oil_stb: 0, water_stb: 0, gas_mscf: 0 };
+    FIELD_TOTAL_KEYS.forEach((k) => {
+      if (!colMap[k]) return;
+      const n = parseFloat(raw[colMap[k]]);
+      if (!Number.isFinite(n)) return; // blank = 0, the ledger convention
+      if (n < 0) {
+        report.negativesZeroed += 1;
+        return;
+      }
+      row[k] = n * (report.unitScales[k] || 1);
+    });
+    rows.push(row);
+  });
+
+  report.imported = rows.length;
+  if (dateState.monthly > 0) {
+    report.warnings.push(`${dateState.monthly} monthly date${dateState.monthly === 1 ? '' : 's'} stored as the first of the month.`);
+  }
+  if (report.negativesZeroed > 0) {
+    report.warnings.push(`${report.negativesZeroed} negative value${report.negativesZeroed === 1 ? '' : 's'} zeroed.`);
+  }
+  if (report.duplicateDates > 0) {
+    report.warnings.push(`${report.duplicateDates} repeated date${report.duplicateDates === 1 ? '' : 's'} in the file; the last row for each date wins.`);
+  }
+  return { rows, report };
+}
+
+// Template CSV in the canonical field-totals schema.
+export function fieldTotalsTemplateCSV() {
+  const header = 'date,oil_stb,water_stb,gas_mscf';
+  const rows = [
+    '2025-01-01,1900,430,1350',
+    '2025-01-02,1850,450,1320',
+    '2025-01-03,1875,445,1330',
+  ];
+  return [header, ...rows].join('\n');
+}
+
 // ---- well tests ------------------------------------------------------------
 
 export const WELL_TEST_ALIASES = [
