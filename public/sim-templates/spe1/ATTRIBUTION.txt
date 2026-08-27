@@ -1,0 +1,15 @@
+SPE1CASE1.DATA
+  Source: https://github.com/OPM/opm-data (spe1/SPE1CASE1.DATA)
+  License: Open Database License (ODbL) 1.0
+  http://opendatacommons.org/licenses/odbl/1.0/
+  Contents: Database Contents License (DbCL) 1.0
+  Copyright (C) 2015 Statoil
+  Based on: Odeh, A.S., "Comparison of Solutions to a Three-Dimensional
+  Black-Oil Reservoir Simulation Problem", JPT, January 1981 (SPE 9723).
+
+REF_SPE1CASE1.SMSPEC / REF_SPE1CASE1.UNSMRY
+  Source: https://github.com/OPM/opm-tests
+  (spe1/opm-simulation-reference/flow/SPE1CASE1.{SMSPEC,UNSMRY})
+  License: Open Database License (ODbL) 1.0
+  These are the OPM project's flow reference results used as the
+  regression baseline for the worker's SPE1 golden gate.

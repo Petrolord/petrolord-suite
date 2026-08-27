@@ -1,0 +1,9 @@
+SPE9.DATA / PERMVALUES.DATA / TOPSVALUES.DATA
+  Source: https://github.com/OPM/opm-data (spe9/)
+  License: Open Database License (ODbL) 1.0
+  http://opendatacommons.org/licenses/odbl/1.0/
+  Contents: Database Contents License (DbCL) 1.0
+  Based on: Killough, J.E., "Ninth SPE Comparative Solution Project:
+  A Reexamination of Black-Oil Simulation", SPE 29110 (1995).
+  Used here as the long-running case for timeout/cancel chaos tests
+  and as an S2 template.

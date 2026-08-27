@@ -1,0 +1,25 @@
+# Sim worker deployment on the studio VPS. One instance, one job at a time,
+# hard-capped so the staging dev server on the same host stays healthy.
+# Deploy: docker compose up -d --build   (see README.md)
+services:
+  sim-worker:
+    build: .
+    container_name: plstudio-sim-worker
+    env_file: .env
+    restart: unless-stopped
+    cpus: "2.0"
+    mem_limit: 6g
+    pids_limit: 256
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m
+    volumes:
+      - sim-scratch:/scratch
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  sim-scratch:

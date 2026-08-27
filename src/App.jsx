@@ -72,6 +72,7 @@ const FiscalRegimeDesigner = lazy(() => import('@/pages/apps/FiscalRegimeDesigne
 const VoidageReplacementMonitor = lazy(() => import('@/pages/apps/VoidageReplacementMonitor'));
 const WaterfloodDesignStudio = lazy(() => import('@/pages/apps/WaterfloodDesignStudio'));
 const ScalStudio = lazy(() => import('@/pages/apps/ScalStudio'));
+const ReservoirSimulationStudio = lazy(() => import('@/pages/apps/ReservoirSimulationStudio'));
 const RecoveryFactorEstimator = lazy(() => import('@/pages/apps/RecoveryFactorEstimator'));
 const RiskedReservesValuation = lazy(() => import('@/pages/apps/RiskedReservesValuation'));
 const EorScreeningTool = lazy(() => import('@/pages/apps/EorScreeningTool'));
@@ -476,6 +477,7 @@ function App() {
                                 <Route path="apps/reservoir/voidage-replacement-monitor" element={<VoidageReplacementMonitor />} />
                                 <Route path="apps/reservoir/waterflood-design-studio" element={<WaterfloodDesignStudio />} />
                                 <Route path="apps/reservoir/scal-studio" element={<ScalStudio />} />
+                                <Route path="apps/reservoir/reservoir-simulation-studio" element={<ProtectedAppRoute appId="reservoir-simulation-studio" appName="Reservoir Simulation Studio"><ReservoirSimulationStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/reservoir/well-test-analysis-studio" element={<WellTestAnalysisStudio />} />
                                 {/* tile slug (kept as the entitlement key; WT3 tile migration moves it to Reservoir) */}
                                 <Route path="apps/reservoir/well-test-analyzer" element={<WellTestAnalysisStudio />} />
@@ -502,7 +504,8 @@ function App() {
                                 <Route path="apps/reservoir/scenario-planner" element={<Navigate to="/dashboard/apps/reservoir/forecast-scenario-hub" replace />} />
                                 <Route path="apps/reservoir/eor-designer" element={<Navigate to="/dashboard/apps/reservoir/eor-screening" replace />} />
                                 <Route path="apps/reservoir/uncertainty-analysis" element={<Navigate to="/dashboard/apps/geoscience/reservoircalc-pro" replace />} />
-                                <Route path="apps/reservoir/reservoir-simulation-connector" element={<Navigate to="/dashboard/reservoir" replace />} />
+                                {/* S2: the old connector slug now lands on the real simulation studio */}
+                                <Route path="apps/reservoir/reservoir-simulation-connector" element={<Navigate to="/dashboard/apps/reservoir/reservoir-simulation-studio" replace />} />
 
                                 <Route path="apps/drilling/well-planning" element={<ProtectedAppRoute appId="well-planning" appName="Well Design Studio"><WellPlanning /></ProtectedAppRoute>} />
                                 <Route path="apps/drilling/well-planning/help" element={<ProtectedAppRoute appId="well-planning" appName="Well Design Studio"><WellDesignHelpGuide /></ProtectedAppRoute>} />
