@@ -71,9 +71,18 @@ const InputMethodsGuide = () => (
       Both route to the same engine. The difference is only how the base of the reservoir column is defined.
     </P>
     <UL>
-      <li><strong>hybrid.</strong> Base is the top surface offset downwards by the constant gross thickness you type. Structural relief is honoured, thickness variation is not.</li>
+      <li><strong>hybrid.</strong> Base is the top surface offset downwards by the constant gross thickness you type. Structural relief is honoured and thickness variation is treated as constant.</li>
       <li><strong>surfaces.</strong> Base is a second imported surface. Both relief and thickness variation are honoured, and the Gross Thickness field disappears.</li>
     </UL>
+    <Note tone="danger" title="hybrid thickness is added in the surface's own depth unit">
+      The constant gross thickness is added to the top depth before the surface is scaled into the
+      project unit system. That is correct whenever the surface's declared depth unit matches the
+      project, which is the normal case. Where they differ, for example a surface declared in metres
+      opened in a Field project, the thickness you typed in feet is added as though it were metres
+      and the interval is silently wrong. Check the depth unit on the surface before trusting a
+      hybrid volume, and prefer the surfaces method, or re-import the surface in the project unit,
+      whenever the two disagree.
+    </Note>
     <P>
       A regular grid is draped over the bounding box of the top surface. At each cell centre the top and base
       depths are interpolated, giving a reservoir column, and the engine sums the overlap of that column with each

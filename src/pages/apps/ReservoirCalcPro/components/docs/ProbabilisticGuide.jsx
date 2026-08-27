@@ -139,6 +139,15 @@ const ProbabilisticGuide = () => (
       Normal and lognormal marginals are unbounded, which will eventually draw a negative porosity or
       an absurd Bo. Supplying a finite min or max on those two shapes turns on truncation.
     </P>
+    <Note tone="warn" title="Not reachable from the wizard today">
+      The distribution step submits only the shape, the mean and the standard deviation for normal
+      and lognormal marginals. No min or max is sent, so a run you start in the interface never has
+      truncation bounds and the rejection path below cannot fire. Everything in this section is the
+      engine contract. It matters when you are reading a saved study that reports a non-zero rejected
+      count, and it explains what the safeguard would do. For a run you start here, rely instead on
+      the clamping described in the next section, and keep the standard deviation small enough that
+      an unbounded normal will not wander into impossible values.
+    </Note>
     <P>
       Truncation is enforced by rejection of the entire realisation. If any one truncated parameter
       falls outside its bounds, the whole draw is discarded and no volume is recorded, which preserves
