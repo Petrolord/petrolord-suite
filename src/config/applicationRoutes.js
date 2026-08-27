@@ -26,14 +26,8 @@ export const applicationRoutes = [
     name: 'BasinFlow Genesis',
     hideSidebar: true,
     fullscreen: true
-  },
-  {
-    id: 'network-diagram-pro',
-    path: '/dashboard/apps/production/network-diagram-pro',
-    name: 'Network Diagram Pro',
-    hideSidebar: true,
-    fullscreen: true
   }
+  // network-diagram-pro entry removed at Production P0 (app delisted; editor returns inside Production Network Studio at P11)
   // Add more applications here as needed
 ];
 

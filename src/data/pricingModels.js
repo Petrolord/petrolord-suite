@@ -54,7 +54,6 @@ export const SPECIAL_APP_PRICING = {
   'well-planning': 299,
   'project-management-pro': 199,
   'basinflow-genesis': 349,
-  'network-diagram-pro': 199,
   'fracture-prediction': 249
 };
 
