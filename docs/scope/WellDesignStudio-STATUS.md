@@ -328,6 +328,26 @@ Casing/Costing tabs remain launcher mocks (reviewed in WD5/WD6),
   scripted download — drop either PDF in /root/wds-literature/ to
   activate.
 
+## Fix pack (2026-08-26)
+
+- Section view rendered no plot: the chart-pack Panel had no height of
+  its own, so in the single-panel Section mode (a flex parent, unlike
+  the stretching grid cells of Plots mode) the ResponsiveContainer
+  collapsed to 0. Panel is now h-full (TrajectoryCharts.jsx); all
+  existing usages are grid/flex parents with resolved heights.
+- Targets were only toggleable in the 3D view (layer chips). DesignTab
+  now has a Targets toggle in the Section and Plots view header;
+  targets are projected into the section frame (VS at the section's
+  own azimuth, TVD below KB = tvdss_m + kb_elev_m) and drawn as
+  labelled ReferenceDots (ifOverflow extendDomain), and the Plots-mode
+  plan view honors the same toggle.
+- Compass-style VS axis: the section view's X domain is padded both
+  sides of the data (10% of VS span, floored at 5% of TVD span), so
+  the axis carries negative and positive section and a vertical hold
+  from surface sits mid-plot instead of hugging the TVD axis. Applies
+  to every SectionViewPanel (dedicated Section view, Plots grid,
+  Surveys tab, harness).
+
 ## Launch state
 
 - All six waves DONE. Tabs: Design (solvers, charts, 3D, exports,

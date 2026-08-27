@@ -202,16 +202,22 @@ const DCABasePlots = () => {
                     }}
                   />
                   
-                  {/* Historical Data as Scatter */}
-                  <Scatter 
+                  {/* Historical Data as Scatter.
+                      isAnimationActive must stay false on every series here:
+                      Recharts mount animations freeze mid-interpolation when
+                      the tab content remounts or the browser tab is hidden,
+                      leaving points at scattered intermediate positions until
+                      the next data change (i.e. the next fit). */}
+                  <Scatter
                     dataKey="history"
                     fill={palette.primary}
                     name="Historical"
                     shape="circle"
+                    isAnimationActive={false}
                   />
-                  
+
                   {/* Fitted Model Line */}
-                  <Line 
+                  <Line
                     type="monotone"
                     dataKey="fitted"
                     stroke={palette.fitted}
@@ -220,6 +226,7 @@ const DCABasePlots = () => {
                     dot={false}
                     name="Fitted Model"
                     connectNulls={false}
+                    isAnimationActive={false}
                   />
                   
                   {/* P10–P90 Envelope Band (filled area) */}
@@ -273,6 +280,7 @@ const DCABasePlots = () => {
                     dot={false}
                     name="Forecast (P50)"
                     connectNulls={false}
+                    isAnimationActive={false}
                   />
                 </ComposedChart>
               </ResponsiveContainer>

@@ -220,14 +220,67 @@ Locked to the WDS/G-series precedents:
   definitive trajectory, gm-1.0.0 publish (SHMIN/SHMAX/UCS). Legacy MEM
   tree (112 files) DELETED; alias routes redirect. Gates A20-A21 ACTIVE
   (21/21 total); L12 ARMED. Tile 20260827060000 HELD.
-- **D6 — Casing & Tubing Design Studio upgrade**: validate/replace the
-  simplified pressure math (API TR 5C3), migrate off legacy
-  `public.wells` to the registries, add persistence + tests.
-- **D7 — Completion Design Studio**: string architect + schematic + BOM
-  (absorbs Well Schematic Designer and CTDP completion components).
-- **D8 — Perforation & Sand Control Designer.**
-- **D9 — Stimulation Designer**: rebuild of frac-completion.
-- **D10 — Well Integrity & P&A Studio.**
+- **D6 — Casing & Tubing Design Studio upgrade**: **SHIPPED 2026-08-27**
+  (engines PRs #43/#45 + Suite waves U0-U3; see
+  docs/scope/CasingTubingStudio-STATUS.md). CTDP upgraded in place: API
+  5C3 four-regime collapse with axial derate + Barlow burst + Lamé/VME
+  triaxial, canonical load-case profiles evaluated at the governing
+  depth, real API 5CT catalog with engine-computed ratings, Lubinski
+  tubing-packer force system with buckling + PBR stroke checks, wp_ct_*
+  persistence. The LAST legacy `public.wells` consumer in the module is
+  gone (only the WDS legacyImport bridge remains, by design). Gates
+  A22-A23 ACTIVE (23/23 total); L13 ARMED. Tile update 20260827100000
+  HELD.
+- **D7 — Completion Design Studio**: **SHIPPED 2026-08-28** (engines PR
+  #47 + Suite waves CD0-CD3; see
+  docs/scope/CompletionDesignStudio-STATUS.md). Fresh slug
+  completion-design-studio: API 5CT drift (exact inch-fraction
+  deductions), stack-up tally, innermost-exposed-program run-in
+  clearance with the controlling string named, through-bore access,
+  breakpoint-exact volumes, PBR seal space-out, to-scale SVG schematic +
+  grouped BOM, and tubing sizing screened with the Production nodal VLP
+  engine (owner-locked reuse). wp_cd_* persistence; casing program
+  snapshots from D6 wp_ct_cases. ABSORBED: Well Schematic Designer
+  (tree deleted, route redirects, tile archived in the held migration)
+  and the CTDP completion markers (cross-link card instead). Gates
+  A24-A25 ACTIVE (25/25 total); L14 ARMED. Tile seed 20260828120000
+  HELD.
+- **D8 — Perforation & Sand Control Designer**: **SHIPPED 2026-08-28**
+  (engines PR #48 + Suite waves PS0-PS3; see
+  docs/scope/PerforationSandControl-STATUS.md). Fresh slug
+  perforation-sand-control: Karakas-Tariq SPE 18247 skin with the
+  published phasing tables, productivity ratio, underbalance guideline
+  bands (ranges, not points), gun clearance through the D7 completion
+  bore or D6 casing drift with the controlling element named, sieve
+  statistics + Saucier gravel + screen selection + Tiffin-style advisor,
+  and Kirsch sanding-onset CDP screening over the published
+  gm-1.0.0/pp-1.0.0 curves. wp_ps_* persistence. Gates A26-A27 ACTIVE
+  (27/27 total); L15 + L16 ARMED. Tile seed 20260828160000 HELD.
+- **D9 — Stimulation Designer**: **SHIPPED 2026-08-28** (engines PR #49
+  stacked on #48 + Suite waves ST0-ST3; see
+  docs/scope/StimulationDesigner-STATUS.md). Fresh slug
+  stimulation-designer, rebuild of the archived Math.random
+  frac-completion-app: PKN/KGD widths on the PPS formula set, Nolte
+  material balance + pad/ramp schedule with closed-form proppant mass,
+  proppant catalog with closure-stress pack-permeability interp,
+  Cinco-Ley-Samaniego productivity vs the UFD 1.6 optimum with FOI via
+  the shared radial identity, and matrix acidizing (Hawkins, volumetric
+  sandstone front, carbonate PV_bt wormholing, Darcy matrix ceiling).
+  Closure = published SHMIN, reservoir p = PP at the treatment TVD.
+  wp_st_* persistence. Gates A28-A29 ACTIVE (29/29 total); L17 + L18
+  ARMED. Tile seed 20260828200000 HELD.
+- **D10 — Well Integrity & P&A Studio**: **SHIPPED 2026-08-28** (engines
+  PR #51 stacked on #49 + Suite waves WI1-WI3; see
+  docs/scope/WellIntegrityPA-STATUS.md). Fresh slug well-integrity-pa,
+  supersedes the archived well-abandonment-plan mock: NORSOK D-010
+  two-barrier envelope verification with the traffic-light category
+  (16-row decision table), element-governed MAASP + API RP 90 MAWOP in
+  the differential hydrostatic form on the definitive trajectory,
+  balanced cement plug closed forms with D-010-style rule checks, and
+  the phased abandonment program (source-covering primary +
+  above-source secondary per flow zone) with material takeoff and the
+  EPE decommissioning cross-link. wp_wi_* persistence. Gates A30-A31
+  ACTIVE (31/31 total); L19 + L20 ARMED. Tile seed 20260828230000 HELD.
 - **D11 — Well Cost & Time Estimator**: salvages WellCostIQ utils;
   canonical MC + EPE cash-flow links.
 

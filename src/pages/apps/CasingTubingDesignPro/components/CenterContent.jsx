@@ -11,10 +11,10 @@ import CatalogBrowser from './CatalogBrowser';
 import { Button } from '@/components/ui/button';
 
 const CenterContent = () => {
-    const { activeTab, setActiveTab, selectedDesignCase, results } = useCasingTubingDesign();
+    const { activeTab, setActiveTab, caseDoc, runError } = useCasingTubingDesign();
     const [isCatalogOpen, setIsCatalogOpen] = React.useState(false);
-    
-    if (!selectedDesignCase) {
+
+    if (!caseDoc) {
         return (
             <div className="flex-1 bg-slate-950 flex items-center justify-center p-8 text-center">
                 <div className="max-w-md">
@@ -22,11 +22,11 @@ const CenterContent = () => {
                         <Layers className="w-12 h-12 text-slate-600" />
                     </div>
                     <h3 className="text-xl font-bold text-white mb-2">Ready to Design</h3>
-                    <p className="text-slate-400 mb-6">Select a well and create or choose a design case from the left panel to begin your casing and tubing analysis.</p>
+                    <p className="text-slate-400 mb-6">Pick a site and wellbore with a definitive well design, then create or choose a design case from the left panel to begin the casing and tubing analysis.</p>
                     <div className="flex justify-center gap-4 text-xs text-slate-600">
-                        <span className="flex items-center"><Activity className="w-3 h-3 mr-1" /> Load Analysis</span>
-                        <span className="flex items-center"><Ruler className="w-3 h-3 mr-1" /> String Design</span>
-                        <span className="flex items-center"><Box className="w-3 h-3 mr-1" /> 3D Vis</span>
+                        <span className="flex items-center"><Activity className="w-3 h-3 mr-1" /> Load Cases</span>
+                        <span className="flex items-center"><Ruler className="w-3 h-3 mr-1" /> API 5C3 Ratings</span>
+                        <span className="flex items-center"><Box className="w-3 h-3 mr-1" /> Tubing Forces</span>
                     </div>
                 </div>
             </div>
@@ -35,6 +35,11 @@ const CenterContent = () => {
 
     return (
         <div className="flex-1 bg-slate-950 flex flex-col overflow-hidden">
+            {runError && (
+                <div data-testid="ct-run-error" className="px-4 py-1.5 bg-red-900/20 border-b border-red-900/50 text-red-200 text-xs shrink-0">
+                    {runError}
+                </div>
+            )}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col h-full">
                 <div className="px-4 pt-2 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center shrink-0">
                     <TabsList className="bg-transparent h-9 p-0 space-x-6">

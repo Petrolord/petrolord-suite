@@ -16,7 +16,20 @@ const StudioNotifications = ({ notifications = [], onDismiss }) => {
               note.type === 'success' ? 'bg-emerald-950/90 border-emerald-800 text-emerald-200' :
               'bg-slate-800/90 border-slate-700 text-slate-200'}`}
         >
-          <div className="text-sm">{note.message}</div>
+          <div className="text-sm">
+            {note.message}
+            {note.action && (
+              <button
+                onClick={() => {
+                  note.action.onClick && note.action.onClick();
+                  onDismiss && onDismiss(note.id);
+                }}
+                className="ml-3 font-semibold underline underline-offset-2 text-current hover:opacity-80"
+              >
+                {note.action.label}
+              </button>
+            )}
+          </div>
           <button onClick={() => onDismiss && onDismiss(note.id)} className="text-current opacity-70 hover:opacity-100">
             <X size={14} />
           </button>
