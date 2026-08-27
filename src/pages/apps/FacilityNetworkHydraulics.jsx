@@ -9,7 +9,6 @@ import LineSizing from '@/components/facilitynetworkhydraulics/LineSizing';
 import MultiphaseHydraulics from '@/components/facilitynetworkhydraulics/MultiphaseHydraulics';
 import WallThickness from '@/components/facilitynetworkhydraulics/WallThickness';
 import PiggingAnalysis from '@/components/facilitynetworkhydraulics/PiggingAnalysis';
-import DeliverablesGenerator from '@/components/facilitynetworkhydraulics/DeliverablesGenerator';
 
 const FacilityNetworkHydraulics = () => {
   const navigate = useNavigate();
@@ -47,12 +46,15 @@ const FacilityNetworkHydraulics = () => {
             transition={{ delay: 0.2, duration: 0.5 }}
         >
            <Tabs defaultValue="line-sizing" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 bg-slate-800/60 border border-slate-700 h-auto rounded-lg overflow-hidden">
+            {/* P0: the Deliverables tab is gone. Every one of its PDF exports was hardcoded
+                fiction (a 12.75" line whatever you sized, canned pigging verdicts) because the
+                tabs hold their own state and it could not see any computed result. Real
+                deliverables return when the tabs share state or via Production Network Studio. */}
+            <TabsList className="grid w-full grid-cols-4 bg-slate-800/60 border border-slate-700 h-auto rounded-lg overflow-hidden">
               <TabsTrigger value="line-sizing" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">Pipeline Sizer</TabsTrigger>
               <TabsTrigger value="multiphase-hydraulics" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">Multiphase Hydraulics</TabsTrigger>
               <TabsTrigger value="wall-thickness" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">Wall Thickness</TabsTrigger>
               <TabsTrigger value="pigging" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">Pigging</TabsTrigger>
-              <TabsTrigger value="deliverables" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">Deliverables</TabsTrigger>
             </TabsList>
             <div className="mt-6">
               <TabsContent value="line-sizing">
@@ -66,9 +68,6 @@ const FacilityNetworkHydraulics = () => {
               </TabsContent>
               <TabsContent value="pigging">
                 <PiggingAnalysis />
-              </TabsContent>
-              <TabsContent value="deliverables">
-                <DeliverablesGenerator />
               </TabsContent>
             </div>
           </Tabs>

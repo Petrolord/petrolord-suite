@@ -45,7 +45,7 @@ const AuthProviderContent = ({ children }) => {
     'decision-tree-builder', 'decision-studio',
     'voi-analyzer', 'breakeven-analyzer', 'epe', 'epe-suite', 'pipeline-sizer', 'separator-slug-catcher-designer',
     'compressor-pump-pack', 'heat-exchanger-sizer', 'gas-treating-dehydration', 'relief-blowdown-sizer',
-    'facility-layout-mapper', 'corrosion-rate-predictor', 'geomechanics-studio', 'well-log-analyzer'
+    'facility-layout-mapper', 'facility-network-hydraulics', 'corrosion-rate-predictor', 'geomechanics-studio', 'well-log-analyzer'
   ], []);
 
   const fetchUserOrgAndPermissions = useCallback(async (userId) => {

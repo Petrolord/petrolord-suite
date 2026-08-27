@@ -60,6 +60,7 @@ const ContourMapDigitizer = lazy(() => import('@/pages/apps/ContourMapDigitizer'
 const WellPlanning = lazy(() => import('@/pages/apps/WellPlanning'));
 const ReliefBlowdownSizer = lazy(() => import('@/pages/apps/ReliefBlowdownSizer'));
 const FacilityLayoutMapper = lazy(() => import('@/pages/apps/FacilityLayoutMapper'));
+const FacilityNetworkHydraulics = lazy(() => import('@/pages/apps/FacilityNetworkHydraulics'));
 const SeparatorSlugCatcherDesigner = lazy(() => import('@/pages/apps/SeparatorSlugCatcherDesigner'));
 const CompressorPumpPack = lazy(() => import('@/pages/apps/CompressorPumpPack'));
 const HeatExchangerSizer = lazy(() => import('@/pages/apps/HeatExchangerSizer'));
@@ -643,7 +644,10 @@ function App() {
                                 <Route path="apps/facilities/heat-exchanger-sizer" element={<HeatExchangerSizer />} />
                                 <Route path="apps/facilities/gas-treating-dehydration" element={<GasTreatingDehydration />} />
                                 <Route path="apps/facilities/relief-blowdown-sizer" element={<ReliefBlowdownSizer />} />
-                                <Route path="apps/facilities/facility-network-hydraulics" element={<FacilityLayoutMapper />} />
+                                {/* Production P0: this slug was hijacked to FacilityLayoutMapper, leaving 1,024 LOC of real
+                                    hydraulics (Beggs & Brill, Swamee-Jain, Barlow) unreachable. Facilities keeps single-line
+                                    sizing (Production-ROADMAP.md §6.2); the gathering-network solver ships as Production #11. */}
+                                <Route path="apps/facilities/facility-network-hydraulics" element={<ProtectedAppRoute appId="facility-network-hydraulics" appName="Facility Network Hydraulics"><FacilityNetworkHydraulics /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/facility-layout-mapper" element={<FacilityLayoutMapper />} />
                                 <Route path="apps/facilities/corrosion-rate-predictor" element={<CorrosionRatePredictor />} />
                                 <Route path="apps/facilities/pipeline-designer" element={<PipelineDesigner />} />
