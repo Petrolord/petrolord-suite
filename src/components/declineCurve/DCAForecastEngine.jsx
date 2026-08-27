@@ -1,5 +1,5 @@
 import React from 'react';
-import { useDeclineCurve, DEFAULT_MC_SEED } from '@/contexts/DeclineCurveContext';
+import { useDeclineCurve, DEFAULT_MC_SEED, DEFAULT_ECON_LIMIT_UNCERTAINTY } from '@/contexts/DeclineCurveContext';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -18,8 +18,11 @@ const DCAForecastEngine = () => {
   const config = streamState[selectedStream].forecastConfig;
   const hasFit = !!streamState[selectedStream].fitResults;
   const hasConfidenceIntervals = streamState[selectedStream].fitResults?.confidenceIntervals?.hasIntervals;
-  // Projects saved before the seed existed carry no mcSeed, so fall back.
+  // Projects saved before these settings existed carry neither, so fall back.
   const seedValue = Number.isFinite(config.mcSeed) ? config.mcSeed : DEFAULT_MC_SEED;
+  const econUncertaintyPct = Math.round(100 * (Number.isFinite(config.economicLimitUncertainty)
+    ? config.economicLimitUncertainty
+    : DEFAULT_ECON_LIMIT_UNCERTAINTY));
 
   return (
     <div className="space-y-6">
@@ -109,8 +112,30 @@ const DCAForecastEngine = () => {
               <span>Stop at limit</span>
             </div>
           </div>
+          {/* The Monte Carlo has always varied the economic limit, but on a
+              hardcoded ±20% that nothing displayed and no one chose. It is a
+              setting now, and 0 switches the draw off. */}
           {config.probabilisticMode && (
-            <div className="text-[10px] text-slate-500">Economic limit will be varied ±20% in Monte Carlo</div>
+            <div className="space-y-1 pt-1">
+              <Label className="text-xs">Economic Limit Uncertainty (±%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={econUncertaintyPct}
+                onChange={(e) => {
+                  const pct = parseFloat(e.target.value);
+                  const fraction = Number.isFinite(pct) ? Math.min(Math.max(pct, 0), 100) / 100 : DEFAULT_ECON_LIMIT_UNCERTAINTY;
+                  updateForecastConfig('economicLimitUncertainty', fraction);
+                }}
+                className="bg-slate-800 border-slate-700 h-8 text-xs"
+              />
+              <div className="text-[10px] text-slate-500">
+                {econUncertaintyPct > 0
+                  ? `Each realization draws the limit uniformly within ±${econUncertaintyPct}% of the value above.`
+                  : 'The limit is held fixed, so only the fitted parameters carry uncertainty.'}
+              </div>
+            </div>
           )}
         </div>
 

@@ -129,6 +129,9 @@ const DCAForecastResults = () => {
               {probabilisticResults.seed != null
                 ? `, seed ${probabilisticResults.seed}`
                 : ', seed not recorded'}
+              {Number.isFinite(probabilisticResults.economicLimitUncertainty)
+                ? `, limit ±${Math.round(100 * probabilisticResults.economicLimitUncertainty)}%`
+                : ''}
             </div>
           </CardContent>
         </Card>

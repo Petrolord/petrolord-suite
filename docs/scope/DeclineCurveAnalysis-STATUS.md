@@ -185,12 +185,42 @@ engine, 4 fail with the injection removed) and
 context end to end: project, well, import, fit, forecast; 2 fail if the call
 site drops the seed).
 
-Not fixed, worth its own pass: `generateProbabilisticCurves` builds its "P10"
-and "P90" curves by drawing from a normal centred on the base parameters with
-the CI scaled by +-1.28, rather than offsetting by 1.28 sigma, so those curves
-are random draws with an inflated spread rather than percentile curves. This
-change makes them reproducible, not correct. Nothing in the Suite calls that
-export today.
+Three further defects in the same module, closed in the same pass:
+
+1. **EUR was a rectangle sum.** Volume was `rate(t) * 30` at the LEFT endpoint
+   of each 30-day step over a falling rate, about 1.8% high on a typical fit
+   and worse the steeper the decline. The loop also dropped the whole last
+   partial step at the economic limit while allowing a full step past the
+   duration cap. Volume is now the closed-form Arps integral over each step,
+   with the last step ending exactly at the limit time (solved, not stepped
+   onto) or at the cap, and a facility plateau integrated as a rectangle up to
+   the exact time the decline falls to the cap plus the decline integral after
+   it. A zero-uncertainty run now reproduces `calculateEUR` to floating-point
+   precision instead of to a couple of percent.
+2. **The economic-limit spread was imposed.** ±20% was hardcoded and applied
+   unconditionally, so a fit carrying no parameter uncertainty still produced a
+   scattered EUR from a number the user never chose and nothing displayed. It
+   is now `config.economicLimitUncertainty` (fraction, clamped to [0,1],
+   default `DEFAULT_ECONOMIC_LIMIT_UNCERTAINTY = 0.2`); 0 turns the draw off.
+   Surfaced as **Economic Limit Uncertainty (±%)** in Forecast Settings,
+   carried on `forecastResults.probabilistic`, and printed with the seed under
+   the EUR distribution.
+3. **The P10/P90 curves were draws.** `generateProbabilisticCurves` passed the
+   CI scaled by ±1.28 into `sampleArpsParameters`, which then sampled a normal
+   from it, so the curves were random realizations with an inflated spread
+   rather than percentiles, moved on every call, and the sign flips meant to
+   steer direction were inert (a normal with a negative sigma is the same
+   distribution). They are now deterministic 1.28σ offsets of the fit
+   (σ = CI/2), high case being a higher qi with a slower decline and flatter b.
+
+Gate for those three: `packages/engines/__tests__/dca.montecarlo.quadrature.test.js`
+(volume against `calculateEUR` for all three families and against an
+independent Simpson integration for the facility and duration caps; the spread
+setting at 0, default, wide and out-of-range; the curves for determinism,
+ordering and the exact 1.28σ offset). Verified adversarially: restoring the
+rectangle sum fails 5, ignoring the setting fails 6, drawing the curves again
+fails 3. `dca.montecarlo.test.js` keeps its decline-unit role with its band
+tightened from 10% to 3% now that the rectangle bias is gone.
 
 ## Known gaps / next
 
@@ -199,5 +229,3 @@ export today.
   legacy panels; prune or wire them deliberately.
 - Probabilistic chart envelope is the analytic 1.28σ band from fit CIs; the
   Monte Carlo sample curves are computed but not plotted.
-- `generateProbabilisticCurves` samples its P10/P90 curves instead of
-  offsetting by 1.28 sigma (see the 2026-08-27 entry). Unused by the Suite.

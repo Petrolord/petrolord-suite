@@ -117,6 +117,30 @@ describe('DCA Studio: a Monte Carlo forecast can be repeated', () => {
     expect(second.p50 / first.p50).toBeLessThan(1.25);
   });
 
+  it('the economic-limit uncertainty setting reaches the sampler', async () => {
+    await setUpFittedWell();
+    // Long enough that the curve actually reaches the economic limit; on the
+    // default 3650-day cap this fit is still producing 139 stb/d at the end,
+    // so where the limit sits could not matter.
+    await act(async () => { api.updateForecastConfig('durationDays', 20000); });
+
+    // Same seed throughout, so any difference between these runs is the
+    // setting itself. If the engine ignored it, or the context dropped it,
+    // both runs would draw the limit the same way and match exactly.
+    await act(async () => { api.updateForecastConfig('economicLimitUncertainty', 0.5); });
+    const wide = await runProbabilisticForecast();
+    await act(async () => { api.updateForecastConfig('economicLimitUncertainty', 0); });
+    const fixed = await runProbabilisticForecast();
+
+    expect(wide.economicLimitUncertainty).toBe(0.5);
+    expect(fixed.economicLimitUncertainty).toBe(0);
+    expect(fixed.distribution).not.toEqual(wide.distribution);
+
+    // Holding the limit fixed is still reproducible.
+    const again = await runProbabilisticForecast();
+    expect(again.distribution).toEqual(fixed.distribution);
+  });
+
   it('sample curves start at the fit t0, not at "now"', async () => {
     await setUpFittedWell();
     const { sampleCurves } = await runProbabilisticForecast();

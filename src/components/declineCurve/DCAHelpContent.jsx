@@ -170,7 +170,7 @@ const DCAHelpContent = () => {
               <ol className="text-xs space-y-1 list-decimal pl-4">
                 <li>From the fit, Petrolord computes 95% confidence intervals on qᵢ, Dᵢ, b using regression standard errors propagated through the Arps transforms (delta method).</li>
                 <li>Each iteration samples qᵢ, Dᵢ, b from normal distributions with those CIs as ±2σ ranges.</li>
-                <li>Each iteration also samples the economic limit ±20% around the value you set, so the point where the curve stops carries uncertainty too.</li>
+                <li>Each iteration also samples the economic limit within the <em>Economic Limit Uncertainty</em> you set (±20% by default), so the point where the curve stops carries uncertainty too. Set it to 0 to hold the limit fixed.</li>
                 <li>1,000 forecasts are run, each producing an EUR.</li>
                 <li>EUR distribution is sorted to extract P10, P50, P90 percentiles.</li>
               </ol>
@@ -204,6 +204,7 @@ const DCAHelpContent = () => {
               <li><strong>Facility Limit (Max Rate):</strong> Caps the rate during early life if a well is choked back. 0 means no cap.</li>
               <li><strong>Stop at Limit:</strong> When on, the forecast terminates at the economic limit rate. When off, it runs to Max Duration.</li>
               <li><strong>Random Seed</strong> (probabilistic mode only): Fixes the Monte Carlo draws so a run can be repeated exactly. Default 42.</li>
+              <li><strong>Economic Limit Uncertainty</strong> (probabilistic mode only): How far each realization may move the economic limit, as a percentage of it. Default ±20%. Set 0 to hold the limit fixed and let only the fitted parameters vary.</li>
             </ul>
             <div className="bg-amber-900/20 border border-amber-900/50 p-3 rounded flex gap-2">
               <AlertTriangle className="text-amber-500 shrink-0" size={16} />
