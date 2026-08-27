@@ -223,14 +223,17 @@ const DCAHelpContent = () => {
             <div className="bg-red-900/25 border border-red-700/60 p-3 rounded flex gap-2">
               <AlertTriangle className="text-red-400 shrink-0" size={16} />
               <div className="text-xs">
-                <strong className="text-red-300 block mb-1">Known issue: probabilistic EUR is overstated</strong>
-                The Monte Carlo forecast reads the fitted decline in the wrong time unit, so it declines
-                roughly 365 times too slowly and almost never reaches your economic limit. Every iteration
-                then runs to the duration cap instead, which means the overstatement grows with Max
-                Duration: about 5 times at the default 3,650 days, about 25 times at 20,000 days, and about
-                45 times at 36,500 days. A fix is in progress. Until it lands, treat the probabilistic
-                percentiles as unusable and take your EUR from the deterministic forecast on the Forecast
-                Results tab, which is unaffected.
+                <strong className="text-red-300 block mb-1">Check your build: probabilistic EUR was overstated</strong>
+                On builds from before this was corrected, the Monte Carlo forecast read the fitted decline
+                in the wrong time unit. It declined roughly 365 times too slowly and almost never reached
+                the economic limit, so every iteration ran to the duration cap instead and the
+                overstatement grew with Max Duration: about 5 times at the default 3,650 days, about 25
+                times at 20,000 days, and about 45 times at 36,500 days.
+                <br /><br />
+                <strong>How to tell which build you are on.</strong> Run a forecast both ways on the same
+                well. If the probabilistic P50 EUR is close to the deterministic EUR, you have the fix. If
+                it is many times larger, you do not, and you should take your EUR from the deterministic
+                forecast on the Forecast Results tab, which was never affected.
               </div>
             </div>
             <p className="text-xs">
