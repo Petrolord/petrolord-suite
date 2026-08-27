@@ -45,7 +45,7 @@ const solutionCategories = [
     color: 'from-red-500 to-orange-500',
     path: '/dashboard/drilling',
     count: 11,
-    description: 'Plan wells, design casing, tubing and completion strings, and prove hydraulics, torque and drag, well control margins, cementing, wellbore stability, perforating, sand control and stimulation before committing capital to the hole.',
+    description: 'Plan wells, design casing, tubing and completion strings, and prove hydraulics, torque and drag, well control margins, cementing, wellbore stability, perforating, sand control, stimulation and well integrity through abandonment before committing capital to the hole.',
     apps: ['Well Design Studio', 'Casing & Tubing Design Studio', 'Drilling Fluids & Hydraulics Studio', 'Torque & Drag Studio', 'Well Control Studio', 'Cementing Studio', 'Geomechanics Studio', 'Completion Design Studio', 'Perforation & Sand Control Designer', 'Stimulation Designer'],
   },
   {

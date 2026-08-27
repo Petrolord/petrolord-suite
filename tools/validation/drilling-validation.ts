@@ -61,6 +61,10 @@
 //      closed forms vs the oracle (Drilling D9; stim_cases.json)
 //   A29 Cinco-Ley productivity + proppant pack interp + acidizing closed
 //      forms vs the oracle
+//   A30 barrier categorization truth table + element MAASP / RP 90 MAWOP
+//      closed forms vs the oracle (Drilling D10; wellintegrity_cases.json)
+//   A31 balanced plug closed forms + D-010 rule checks + program
+//      compliance vs the oracle
 // ARMED gates (pending owner literature PDFs):
 //   L2 Mitchell & Miska, Fundamentals of Drilling Engineering survey table
 //   L3 Amoco/API MD-TVD table (the Amoco Directional Survey Handbook,
@@ -148,6 +152,12 @@ async function main() {
   const {
     PROPPANT_CATALOG, packPermeabilityM2,
   } = await import('../../packages/engines/engines/drilling/data/proppants.js');
+  const {
+    envelopeStatus, wellCategory, verifyBarriers, maaspRows, mawop,
+  } = await import('../../packages/engines/engines/drilling/wellIntegrity.js');
+  const {
+    balancedPlug, plugRuleCheck, annularBarrierCheck, abandonmentProgram,
+  } = await import('../../packages/engines/engines/drilling/plugAbandonment.js');
 
   let failures = 0;
   const gate = (id: string, name: string, fn: () => void) => {
@@ -993,6 +1003,86 @@ async function main() {
     close(q.qM3s, g.acidizing.qMaxM3s, 1e-9 + 1e-6 * g.acidizing.qMaxM3s, 'matrix ceiling');
   });
 
+  gate('A30', 'barrier truth table + MAASP / RP 90 MAWOP vs oracle', () => {
+    const g = goldens('wellintegrity_cases.json');
+    const GRAV = 9.80665;
+    // Full 16-row categorization truth table.
+    for (const row of g.categoryTable) {
+      const got = wellCategory({ primary: row.primary, secondary: row.secondary });
+      if (got.category !== row.category) {
+        throw new Error(`category ${row.primary}/${row.secondary}: ${got.category} vs ${row.category}`);
+      }
+    }
+    // Envelope roll-up + the golden barrier fixture.
+    if (envelopeStatus([{ status: 'verified' }, { status: 'not-verified' }]) !== 'degraded') {
+      throw new Error('not-verified must degrade');
+    }
+    const out = verifyBarriers({ elements: g.barrier.elements });
+    if (out.primary.status !== g.barrier.primaryStatus
+      || out.secondary.status !== g.barrier.secondaryStatus
+      || out.category !== g.barrier.category) {
+      throw new Error(`barrier fixture: ${out.primary.status}/${out.secondary.status}/${out.category}`);
+    }
+    // MAASP closed form (hand fixture at the trajectory TVD).
+    const f = g.params.maaspFixture;
+    const rho = g.params.annulusFluidDensityKgM3;
+    const single = maaspRows({
+      annulusFluidDensityKgM3: rho,
+      elements: [{ name: 'x', limitPa: f.limitPa, factor: f.factor, tvdM: f.tvdM, backupDensityKgM3: f.backupDensityKgM3 }],
+    });
+    const hand = f.factor * f.limitPa - (rho - f.backupDensityKgM3) * GRAV * f.tvdM;
+    close(single.rows[0].allowSurfacePa, hand, 1e-12, 'MAASP closed form');
+    close(single.rows[0].allowSurfacePa, g.annulus.maaspFixtureAllowPa, 1e-9 * Math.abs(g.annulus.maaspFixtureAllowPa), 'MAASP vs oracle');
+    // MAWOP rows + governing on the slant well.
+    const cands = g.params.mawopCandidates.map((c: any, i: number) => ({
+      name: c.name, role: c.role, limitPa: c.limitPa,
+      tvdM: g.annulus.mawop.rows[i].tvdM, backupDensityKgM3: c.backupDensityKgM3,
+    }));
+    const mw = mawop({ annulusFluidDensityKgM3: rho, candidates: cands });
+    if (mw.governing !== g.annulus.mawop.governing) throw new Error(`governing ${mw.governing}`);
+    close(mw.mawopPa, g.annulus.mawop.mawopPa, 1e-9 * g.annulus.mawop.mawopPa, 'MAWOP');
+    mw.rows.forEach((r: any, i: number) => {
+      close(r.allowSurfacePa, g.annulus.mawop.rows[i].allowSurfacePa,
+        1e-9 * Math.abs(g.annulus.mawop.rows[i].allowSurfacePa) + 1e-6, `MAWOP row ${i}`);
+    });
+  });
+
+  gate('A31', 'balanced plug + D-010 rules + program compliance vs oracle', () => {
+    const g = goldens('wellintegrity_cases.json');
+    // Hand fixture: plugged top 1820 m exactly; balance identities.
+    const bp = balancedPlug(g.params.plugFixture);
+    close(bp.pluggedTopMdM, 1820, 1e-12, 'plugged top hand case');
+    close(bp.slurryM3, g.plug.slurryM3, 1e-9 * g.plug.slurryM3, 'slurry volume');
+    close(bp.balancedHeightM, g.plug.balancedHeightM, 1e-9 * g.plug.balancedHeightM, 'balanced height');
+    close(bp.displacementM3, g.plug.displacementM3, 1e-9 * g.plug.displacementM3 + 1e-9, 'displacement');
+    close(bp.spacerBehindM3 / bp.cInM2, g.params.plugFixture.spacerAheadM3 / bp.cAnnM2, 1e-12, 'spacer balance');
+    const bp0 = balancedPlug({ ...g.params.plugFixture, excessFrac: 0 });
+    close(bp0.pluggedTopMdM, g.params.plugFixture.plugTopMdM, 1e-12, 'zero-excess identity');
+    // Rule checks.
+    if (!plugRuleCheck({ plug: { topMdM: 2380, bottomMdM: 2520, foundation: 'mechanical' }, sourceTopMdM: 2500 }).pass) {
+      throw new Error('foundation plug should pass');
+    }
+    if (plugRuleCheck({ plug: { topMdM: 2470, bottomMdM: 2580, foundation: 'none' }, sourceTopMdM: 2500 }).pass) {
+      throw new Error('30 m above the source must fail');
+    }
+    if (!annularBarrierCheck({ topMdM: 0, bottomMdM: 40, verifiedByLog: true }).pass
+      || annularBarrierCheck({ topMdM: 0, bottomMdM: 40, verifiedByLog: false }).pass) {
+      throw new Error('annular cement 30/100 rule');
+    }
+    // Program fixture: zone verdicts, qualifying lists, takeoff.
+    const prog = abandonmentProgram({ zones: g.program.zones, plugs: g.program.plugs });
+    prog.zoneCompliance.forEach((z: any, i: number) => {
+      const e = g.program.zoneCompliance[i];
+      if (z.pass !== e.passZone) throw new Error(`zone ${z.zone} verdict`);
+      if (JSON.stringify(z.primaryQualifying) !== JSON.stringify(e.primaryQualifying)
+        || JSON.stringify(z.secondaryQualifying) !== JSON.stringify(e.secondaryQualifying)) {
+        throw new Error(`zone ${z.zone} qualifying lists`);
+      }
+    });
+    if (prog.pass !== g.program.programPass) throw new Error('program verdict');
+    close(prog.takeoff.slurryM3, g.program.p1Placement.slurryM3, 1e-9 * g.program.p1Placement.slurryM3, 'takeoff');
+  });
+
   const armed = [
     ['L2', 'Mitchell & Miska survey table'],
     ['L3', 'Amoco/API MD-TVD table'],
@@ -1011,6 +1101,8 @@ async function main() {
     ['L16', 'sand control selection + underbalance published criteria (Tiffin SPE 39437; King/Behrmann)'],
     ['L17', 'Economides PPS / Valko-Economides frac worked examples'],
     ['L18', 'proppant vendor conductivity data (API RP 19D cells)'],
+    ['L19', 'NORSOK D-010 well barrier / plug requirement tables'],
+    ['L20', 'API RP 90 annular casing pressure worked example'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
