@@ -187,7 +187,10 @@ const windowMean = (points, key, fromDay, toDay) => {
  */
 export function detectExceptions(wellSeries, settings = {}) {
   const s = { ...DEFAULT_SURVEILLANCE_SETTINGS, ...settings };
-  const all = (wellSeries || []).filter((w) => w.points.length);
+  // Observation wells carry no rates of their own to surveil; every
+  // other type is read as a producer unless it is typed as an injector.
+  const all = (wellSeries || [])
+    .filter((w) => w.points.length && w.well.well_type !== 'observation');
   if (!all.length) return { asOf: null, exceptions: [] };
 
   const asOf = all.reduce((max, w) => {
@@ -367,6 +370,20 @@ export function rateSeriesForFit(points, stream = 'oil', basis = 'producing') {
   return (points || [])
     .filter((p) => Number.isFinite(p[key]) && p[key] > 0)
     .map((p) => ({ date: p.date, rate: p[key] }));
+}
+
+/**
+ * Effective decline over the first year (per cent), the number an
+ * engineer reads off a fit. Di from the Arps engine is nominal per day;
+ * exponential and harmonic are the b -> 0 and b = 1 limits of the
+ * hyperbolic form. Returns null for a non-declining or unusable Di.
+ */
+export function annualEffectiveDecline(Di, b, modelType) {
+  if (!Number.isFinite(Di) || Di <= 0) return null;
+  const t = 365;
+  if (modelType === 'Exponential' || !b) return (1 - Math.exp(-Di * t)) * 100;
+  if (modelType === 'Harmonic' || b === 1) return (1 - 1 / (1 + Di * t)) * 100;
+  return (1 - (1 + b * Di * t) ** (-1 / b)) * 100;
 }
 
 /**

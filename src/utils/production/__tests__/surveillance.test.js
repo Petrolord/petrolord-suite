@@ -5,6 +5,7 @@ import {
   derivePoint, buildWellSeries, buildFieldSeries, seriesCadenceDays,
   movingAverage, decimate, detectExceptions, DEFAULT_SURVEILLANCE_SETTINGS,
   summarizeDeferments, computeKpis, rateSeriesForFit, fitWellDecline,
+  annualEffectiveDecline,
 } from '../surveillance';
 
 const P1 = { id: 'w1', name: 'P-1', well_type: 'producer' };
@@ -296,5 +297,42 @@ describe('decline overlay via the canonical Arps engine', () => {
   it('refuses to fit under three points', () => {
     const pts = buildWellSeries(dailyRows(P1, 1, 2, () => ({ oil: 100, hours: 24 })))[0].points;
     expect(fitWellDecline(pts).insufficient).toBe(true);
+  });
+});
+
+describe('annualEffectiveDecline', () => {
+  it('converts a nominal exponential Di to first-year effective decline', () => {
+    // Di = 0.001/day -> 1 - exp(-0.365) = 30.58 %
+    expect(annualEffectiveDecline(0.001, 0, 'Exponential')).toBeCloseTo(30.58, 2);
+  });
+
+  it('handles the harmonic limit (b = 1)', () => {
+    // 1 - 1/(1 + 0.365) = 26.74 %
+    expect(annualEffectiveDecline(0.001, 1, 'Harmonic')).toBeCloseTo(26.74, 2);
+  });
+
+  it('a hyperbolic b sits between the exponential and harmonic limits', () => {
+    const hyp = annualEffectiveDecline(0.001, 0.5, 'Hyperbolic');
+    expect(hyp).toBeLessThan(annualEffectiveDecline(0.001, 0, 'Exponential'));
+    expect(hyp).toBeGreaterThan(annualEffectiveDecline(0.001, 1, 'Harmonic'));
+  });
+
+  it('returns null rather than a number for a non-declining fit', () => {
+    expect(annualEffectiveDecline(0, 0, 'Exponential')).toBeNull();
+    expect(annualEffectiveDecline(NaN, 0, 'Exponential')).toBeNull();
+  });
+});
+
+describe('observation wells', () => {
+  it('are left out of exception surveillance', () => {
+    const OBS = { id: 'w9', name: 'OBS-1', well_type: 'observation' };
+    // Same hard drop that flags a producer, on an observation well.
+    const rows = [
+      ...dailyRows(P1, 59, 60, (idx) => ({ oil: idx < 53 ? 1000 : 100 })),
+      ...dailyRows(OBS, 59, 60, (idx) => ({ oil: idx < 53 ? 1000 : 100 })),
+    ];
+    const { exceptions } = detectExceptions(buildWellSeries(rows));
+    expect(exceptions.some((e) => e.wellName === 'P-1')).toBe(true);
+    expect(exceptions.some((e) => e.wellName === 'OBS-1')).toBe(false);
   });
 });

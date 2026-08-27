@@ -124,12 +124,85 @@ then flips the MIGRATIONS.md row.
 **Tests:** `src/utils/production/__tests__/` — 20 gates over the
 importers and the registry matcher.
 
-## Next: P2 — Production Surveillance Studio
+## P2 — Production Surveillance Studio (BUILT 2026-08-27)
 
-OFM-class rebuild on the P1 spine (ROADMAP §3 app 2): well/field
-hierarchy, rate–watercut–GOR trends, exception surveillance,
-downtime/deferment capture, DCA overlays. Studio kit shell, white
-chartTheme.
+Ships on `feat/production-p2`. The OFM-class rebuild of the retired
+surveillance dashboard (archived at P0 for discarding its own CSV
+uploads and rendering `Math.random()` rates), now reading the P1 spine.
+
+**Route:** `apps/production/production-surveillance-studio`, gated with
+`ProtectedAppRoute appId="production-surveillance-studio"`. The two old
+dashboard slugs redirect to it instead of to the hub.
+
+**Analytics** (`src/utils/production/surveillance.js`, pure, 33 gates):
+
+- Per-well and field series with derived watercut, GOR and
+  producing-day rates. `hours_on` is handled honestly: zero hours means
+  shut in (rate null, never Infinity), missing hours means uptime is
+  unknown and the producing-day rate equals the calendar-day volume.
+- Cadence-aware exception surveillance (shut-in, rate drop, injection
+  drop, watercut rise, GOR rise, downtime, stale data) anchored on the
+  FIELD's latest ledger date, never the wall clock, so historical
+  datasets surveil honestly. Monthly ledgers widen the windows rather
+  than compare a single month against a single day.
+- Deferment rollups by cause, trailing-window field KPIs, date-window
+  moving averages, chart decimation.
+- Decline overlays through the CANONICAL Arps engine
+  (`fitArpsModel`/`generateForecast`); under three usable points there
+  is no fit and the studio says so. `annualEffectiveDecline` converts
+  the engine's nominal Di to the first-year effective decline an
+  engineer reads (exponential and harmonic handled as the b limits).
+
+**State** (`src/contexts/ProductionSurveillanceContext.jsx`, 10 gates):
+two layers, deliberately separate. Spine data (fields, wells, ledger,
+deferments) loads through `lib/productionSpine` and is NEVER part of the
+project payload; analysis state (selected field, thresholds, trend and
+decline picks) is the `saved_surveillance_projects` payload on the
+VrrMonitorContext recipe (hydrated guard + 10 s debounced autosave).
+Thresholds are coerced to numbers at the point of use, so a value that
+comes back from JSON as a string, or a half-typed field, cannot silently
+disable a rule.
+
+**UI** (`src/components/surveillance/`, studio kit shell, white
+chartTheme + 40px ChartLogo on every chart): field picker with the
+geo_wells share model, ledger and well-test CSV intake on the P1
+importers with the full honest report, well register with type and
+wellsRegistry linking, exception list that hands a well to the Trends
+tab, trend charts (field or well; rates, ratios or injection; real-time
+smoothing; producing-day basis; log axis that drops zeros rather than
+drawing them at the floor), deferment capture with the fixed cause
+taxonomy and a loss-by-cause rollup, decline overlay with the fit
+statistics and a link out to the DCA Studio, plus a nine-section help
+guide.
+
+**Deleted:** the dead predecessor tree (`ProductionSurveillanceDashboard`
+page + `components/productionsurveillance`, unrouted since P0) and its
+two stale investigation reports under `src/docs/`.
+
+**Migrations:**
+
+- `20260829140000_p2_saved_surveillance_projects.sql` — analysis-state
+  persistence, owner-scoped RLS. Safe pre-deploy. **NOT APPLIED**: the
+  session cannot run the real apply; owner runs
+  `supabase db query --linked --file supabase/migrations/20260829140000_p2_saved_surveillance_projects.sql`
+  and flips the MIGRATIONS.md row. Until then the studio computes
+  normally and only project save/load reports the missing table.
+- `20260829150000_seed_production_surveillance_studio_tile.sql` — the
+  Active tile, HELD for the single P12 upload with the other P-phase
+  tiles.
+
+**Verification:** 43 P2 gates (33 analytics + 10 context); full Suite
+jest and `npm run build` green.
+
+## Next: P3 — Production Allocation Studio
+
+Back-allocation from separator and field totals by well-test factors,
+test validation against Nodal theoretical rates, and data QC
+(ROADMAP §3 app 3), writing `po_allocation_factors` and setting the
+`po_well_tests.is_valid` QC flag. The spine service already carries
+`upsertAllocationFactor`, `listAllocationFactors`, `listWellTests` and
+`updateWellTest`, so P3 is a UI and allocation-math build over existing
+persistence.
 
 ## Gotchas for later phases
 
