@@ -124,6 +124,7 @@ const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
 const WellTestAnalysisStudio = lazy(() => import('@/pages/apps/WellTestAnalysisStudio'));
 const NodalAnalysisStudio = lazy(() => import('@/pages/apps/NodalAnalysisStudio'));
 const ProductionSurveillanceStudio = lazy(() => import('@/pages/apps/ProductionSurveillanceStudio'));
+const ProductionAllocationStudio = lazy(() => import('@/pages/apps/ProductionAllocationStudio'));
 const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 const CasingTubingHelpGuide = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingHelpGuide'));
@@ -569,6 +570,8 @@ function App() {
                                 <Route path="apps/production/production-surveillance-studio" element={<ProtectedAppRoute appId="production-surveillance-studio" appName="Production Surveillance Studio"><ProductionSurveillanceStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/production/production-surveillance-dashboard" element={<Navigate to="/dashboard/apps/production/production-surveillance-studio" replace />} />
                                 <Route path="apps/production/surveillance-dashboard" element={<Navigate to="/dashboard/apps/production/production-surveillance-studio" replace />} />
+                                {/* P3: Production Allocation Studio — back-allocation on the po_* spine */}
+                                <Route path="apps/production/production-allocation-studio" element={<ProtectedAppRoute appId="production-allocation-studio" appName="Production Allocation Studio"><ProductionAllocationStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/production/well-test-analyzer" element={<Navigate to="/dashboard/apps/reservoir/well-test-analysis-studio" replace />} />
                                 {/* Production Forecasting tile archived at P0 — the real engine is DCA Studio */}
                                 <Route path="apps/production/production-forecasting" element={<Navigate to="/dashboard/apps/reservoir/decline-curve-analysis" replace />} />

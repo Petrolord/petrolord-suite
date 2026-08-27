@@ -1,14 +1,14 @@
-// Surveillance Studio field rail: the shared production FieldPicker
-// wired to the surveillance context.
+// Allocation Studio field rail: the shared production FieldPicker wired
+// to the allocation context.
 import React from 'react';
 import FieldPicker from '@/components/production/FieldPicker';
-import { useSurveillance } from '@/contexts/ProductionSurveillanceContext';
+import { useAllocation } from '@/contexts/ProductionAllocationContext';
 
 const FieldPanel = () => {
   const {
     fields, currentField, canEditField, inputs,
     selectField, createField, deleteField, shareCurrentField, unshareCurrentField,
-  } = useSurveillance();
+  } = useAllocation();
 
   return (
     <FieldPicker

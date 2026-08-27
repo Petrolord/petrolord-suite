@@ -194,15 +194,95 @@ two stale investigation reports under `src/docs/`.
 **Verification:** 43 P2 gates (33 analytics + 10 context); full Suite
 jest and `npm run build` green.
 
-## Next: P3 — Production Allocation Studio
+## P3 — Production Allocation Studio (BUILT 2026-08-27)
 
-Back-allocation from separator and field totals by well-test factors,
-test validation against Nodal theoretical rates, and data QC
-(ROADMAP §3 app 3), writing `po_allocation_factors` and setting the
-`po_well_tests.is_valid` QC flag. The spine service already carries
-`upsertAllocationFactor`, `listAllocationFactors`, `listWellTests` and
-`updateWellTest`, so P3 is a UI and allocation-math build over existing
-persistence.
+Ships on `feat/production-p3` (stacked on the P2 branch). Route
+`apps/production/production-allocation-studio`, gated with
+`ProtectedAppRoute appId="production-allocation-studio"`.
+
+**New spine table.** Allocation starts from a measurement the P1 spine
+did not hold: the facility, separator or export meter reading for the
+whole field on a date. `po_field_totals` is that data class, kept
+deliberately separate from `po_daily_production` (which in a commingled
+field is itself an allocation). One metered stream per field per date;
+fields with several independent trains are a future extension rather
+than a silent sum.
+
+**Engine** (`src/utils/production/allocation.js`, pure, 31 gates):
+
+- `testInForce` picks the most recent valid test on or before a date,
+  within a validity window, so a stale test stops carrying a well
+  instead of propping it up forever.
+- `computeAllocation` distributes each metered date across the wells:
+  theoretical = test rate x uptime fraction (or the wells' own ledger
+  volumes on the proration basis), factor = metered / theoretical per
+  phase, allocated = theoretical x factor. Injectors and observation
+  wells never take a share. A well with no basis takes nothing and is
+  reported; measured volume with no carrier allocates nothing and says
+  so. Factors outside the warning band are flagged and NEVER clamped —
+  the drift is the only evidence that the tests, the meter or the
+  uptime record disagree.
+- `monthlyFactors` rolls up volume-weighted per well per month in the
+  `po_allocation_factors` shape; `allocatedLedgerRows` returns the
+  ledger-shaped rows for the write-back, carrying the uptime that
+  produced them; `imbalanceSeries` is meter against booked.
+- `validateWellTests` QCs every test against data the spine already
+  holds: the well's own test-history median, the ledger rate on the
+  test date (producing-day basis, so a part-day well is judged fairly),
+  the ledger watercut, test duration and zero flow. **Nodal
+  cross-check is deliberately NOT here**: a theoretical nodal rate
+  needs a per-well IPR/VLP model, which the spine does not carry until
+  the P4-P7 lift studios build one. It is a P5+ follow-on, recorded
+  rather than faked.
+
+**State** (`src/contexts/ProductionAllocationContext.jsx`, 19 gates):
+the P2 two-layer split — spine data (fields, wells, ledger, tests,
+metered totals, saved factors) never enters the payload;
+`saved_allocation_projects` holds analysis state only (field, period,
+basis, thresholds). Numeric settings are coerced at the point of use,
+so a string from JSON or a half-typed field cannot disable a rule.
+
+**UI** (`src/components/allocation/`, studio kit shell, white
+chartTheme): Allocation tab (per-well allocated volumes against
+theoretical and metered, daily factor chart with the warning band,
+grouped diagnostics), Test QC tab (every test with its verdict, accept
+or reject writing `is_valid` to the spine, bulk-reject the high
+severity ones), Reconciliation tab (meter against booked per phase with
+the imbalance as bars), Factors tab (monthly factors against what is
+already saved, plus the two write-backs), Data tab (meter CSV import,
+manual entry, register). Eight-section help guide.
+
+**Write-backs are deliberate, never side effects.** Save factors writes
+one row per well-month to `po_allocation_factors`. Book to ledger
+upserts allocated volumes into `po_daily_production` stamped
+`source = 'allocation'`, behind a confirmation that says plainly it
+replaces the measurements for those well-dates.
+
+**Shared refactor:** the field picker both studios use moved to
+`src/components/production/FieldPicker.jsx` (pure props); P2's
+`FieldPanel` is now a thin wrapper, behavior unchanged.
+
+**Migrations:**
+
+- `20260829160000_p3_create_po_field_totals.sql` — the metered totals
+  table. **NOT APPLIED** (session permission gate); owner runs
+  `supabase db query --linked --file supabase/migrations/20260829160000_p3_create_po_field_totals.sql`.
+- `20260829170000_p3_saved_allocation_projects.sql` — analysis-state
+  persistence. **NOT APPLIED**, same gate.
+- `20260829180000_seed_production_allocation_studio_tile.sql` — the
+  Active tile, HELD for the single P12 upload.
+
+**Verification:** 56 P3 gates (31 allocation + 6 importer + 19
+context); full Suite jest and `npm run build` green.
+
+## Next: P4 — Gas Lift Design Studio
+
+Valve spacing, unloading sequence, injection-depth optimization and
+performance curves over the validated `nodal/gasLift.js` ("NA4+"),
+with ARMED literature gates (Takacs Gas Lift Manual, Guo) per
+ROADMAP §3 app 4 and §4. First of the P4-P7 artificial-lift block, and
+the first phase to need an engine PR to
+`packages/engines/engines/production/`.
 
 ## Gotchas for later phases
 
