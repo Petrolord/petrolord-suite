@@ -1,8 +1,10 @@
-// Model Builder tab (S3): a guided form that generates a runnable
+// Model Builder tab (S3/S4): a guided form that generates a runnable
 // Eclipse deck from Suite engine data — Fluid Studio correlation PVT,
-// SCAL Corey curves (optional Leverett-J Pc), a layer-cake box grid,
-// vertical wells and a monthly schedule. Generate = compose + attach to
-// the case; the worker treats it exactly like an uploaded deck.
+// SCAL Corey curves (optional Leverett-J Pc), a layer-cake grid on a
+// uniform or surface-sampled structure, vertical or survey-deviated
+// wells, and a prediction schedule with an optional MBAL history phase.
+// Generate = compose + attach to the case; the worker treats it exactly
+// like an uploaded deck.
 import React, { useState } from 'react';
 import { Wand2, Plus, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useSimStudio } from '@/contexts/SimStudioContext';
 import { defaultBuilderForm, buildDeckFromForm } from '@/utils/simDeckBuilder';
+import StructureCard from '@/components/simstudio/builder/StructureCard';
+import HistoryCard from '@/components/simstudio/builder/HistoryCard';
+import TrajectoryEditor from '@/components/simstudio/builder/TrajectoryEditor';
 
 const Field = ({ label, value, onChange, className = '' }) => (
   <div className={`space-y-1 ${className}`}>
@@ -65,7 +70,15 @@ const BuilderPanel = () => {
     const name = `${(form.title || 'MODEL').replace(/[^A-Za-z0-9]/g, '_').toUpperCase().slice(0, 24) || 'MODEL'}.DATA`;
     const done = await uploadGeneratedDeck(out.deck, name);
     if (done) {
-      addNotification(`Model generated (Pb ${out.pb.toFixed(0)} psia, ${cellCount.toLocaleString()} cells) — see the Deck tab, then Run`, 'success');
+      const extras = [
+        form.structure?.mode === 'surface' && 'structural tops',
+        form.wells.some((w) => w.trajectory?.enabled) && 'deviated wells',
+        form.history?.enabled && form.history?.periods && 'history phase',
+      ].filter(Boolean);
+      addNotification(
+        `Model generated (Pb ${out.pb.toFixed(0)} psia, ${cellCount.toLocaleString()} cells${extras.length ? `, ${extras.join(' + ')}` : ''}) — see the Deck tab, then Run`,
+        'success',
+      );
     }
   };
 
@@ -108,7 +121,14 @@ const BuilderPanel = () => {
             </div>
           ))}
         </div>
+        {form.structure?.mode === 'surface' && (
+          <p className="text-[11px] text-slate-500 mt-2">
+            DX/DY and the top depth are taken from the sampled structure below while surface mode is on.
+          </p>
+        )}
       </Section>
+
+      <StructureCard form={form} set={set} addNotification={addNotification} />
 
       <Section title="Fluid (black oil — correlations from Fluid Studio)">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -180,12 +200,13 @@ const BuilderPanel = () => {
       </Section>
 
       <Section
-        title="Wells (vertical, I/J with a K1-K2 completion)"
+        title="Wells (vertical I/J/K window, or deviated from a survey)"
         aside={(
           <Button size="sm" variant="ghost" className="h-6 text-xs text-slate-300"
             onClick={() => set('wells', [...form.wells, {
               name: `W${form.wells.length + 1}`, type: 'producer', i: '5', j: '5', k1: '1',
               k2: String(nz), refDepth: form.grid.topsDepth, mode: 'ORAT', rate: '2000', bhp: '1200',
+              trajectory: null,
             }])}>
             <Plus className="w-3 h-3 mr-1" /> Add well
           </Button>
@@ -193,34 +214,60 @@ const BuilderPanel = () => {
       >
         <div className="space-y-2">
           {form.wells.map((w, idx) => (
-            <div key={idx} className="grid grid-cols-4 md:grid-cols-9 gap-2 items-end">
-              <Field label="Name" value={w.name} onChange={(v) => set(`wells.${idx}.name`, v)} />
-              <div className="space-y-1">
-                <Label className="text-[11px] text-slate-400">Type</Label>
-                <select value={w.type} onChange={(e) => set(`wells.${idx}.type`, e.target.value)}
-                  className="w-full h-8 rounded-md bg-slate-800 border border-slate-700 px-1 text-xs">
-                  <option value="producer">Producer</option>
-                  <option value="water_injector">Water inj</option>
-                  <option value="gas_injector">Gas inj</option>
-                </select>
+            <React.Fragment key={idx}>
+              <div className="grid grid-cols-4 md:grid-cols-9 gap-2 items-end">
+                <Field label="Name" value={w.name} onChange={(v) => set(`wells.${idx}.name`, v)} />
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-slate-400">Type</Label>
+                  <select value={w.type} onChange={(e) => set(`wells.${idx}.type`, e.target.value)}
+                    className="w-full h-8 rounded-md bg-slate-800 border border-slate-700 px-1 text-xs">
+                    <option value="producer">Producer</option>
+                    <option value="water_injector">Water inj</option>
+                    <option value="gas_injector">Gas inj</option>
+                  </select>
+                </div>
+                {w.trajectory?.enabled ? (
+                  <div className="col-span-2 md:col-span-4 text-[11px] text-slate-500 pb-2">
+                    Completion from the survey below — cells are computed at generate time.
+                  </div>
+                ) : (
+                  <>
+                    <Field label="I" value={w.i} onChange={(v) => set(`wells.${idx}.i`, v)} />
+                    <Field label="J" value={w.j} onChange={(v) => set(`wells.${idx}.j`, v)} />
+                    <Field label="K1" value={w.k1} onChange={(v) => set(`wells.${idx}.k1`, v)} />
+                    <Field label="K2" value={w.k2} onChange={(v) => set(`wells.${idx}.k2`, v)} />
+                  </>
+                )}
+                <Field label={w.type === 'producer' ? 'Oil rate (STB/d)' : w.type === 'gas_injector' ? 'Gas rate (Mscf/d)' : 'Water rate (STB/d)'}
+                  value={w.rate} onChange={(v) => set(`wells.${idx}.rate`, v)} />
+                <Field label={w.type === 'producer' ? 'BHP min (psia)' : 'BHP max (psia)'}
+                  value={w.bhp} onChange={(v) => set(`wells.${idx}.bhp`, v)} />
+                <div className="flex items-end gap-1">
+                  <label className="flex items-center gap-1 text-[11px] text-slate-400 h-8"
+                    title="Complete this well along a deviated survey">
+                    <input type="checkbox" checked={!!w.trajectory?.enabled}
+                      data-testid={`well-deviated-${idx}`}
+                      onChange={(e) => set(`wells.${idx}.trajectory`, e.target.checked
+                        ? { enabled: true, text: w.trajectory?.text || '', mdUnit: w.trajectory?.mdUnit || 'ft', wellheadX: w.trajectory?.wellheadX ?? '', wellheadY: w.trajectory?.wellheadY ?? '', kbToDatum: w.trajectory?.kbToDatum ?? '0' }
+                        : null)} />
+                    Deviated
+                  </label>
+                  <Button size="sm" variant="ghost" className="h-8 text-red-400"
+                    onClick={() => set('wells', form.wells.filter((_, k) => k !== idx))}
+                    title="Remove well">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
               </div>
-              <Field label="I" value={w.i} onChange={(v) => set(`wells.${idx}.i`, v)} />
-              <Field label="J" value={w.j} onChange={(v) => set(`wells.${idx}.j`, v)} />
-              <Field label="K1" value={w.k1} onChange={(v) => set(`wells.${idx}.k1`, v)} />
-              <Field label="K2" value={w.k2} onChange={(v) => set(`wells.${idx}.k2`, v)} />
-              <Field label={w.type === 'producer' ? 'Oil rate (STB/d)' : w.type === 'gas_injector' ? 'Gas rate (Mscf/d)' : 'Water rate (STB/d)'}
-                value={w.rate} onChange={(v) => set(`wells.${idx}.rate`, v)} />
-              <Field label={w.type === 'producer' ? 'BHP min (psia)' : 'BHP max (psia)'}
-                value={w.bhp} onChange={(v) => set(`wells.${idx}.bhp`, v)} />
-              <Button size="sm" variant="ghost" className="h-8 text-red-400"
-                onClick={() => set('wells', form.wells.filter((_, k) => k !== idx))}
-                title="Remove well">
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
-            </div>
+              {w.trajectory?.enabled && (
+                <TrajectoryEditor form={{ ...form, grid: { ...form.grid, layers } }} wellIdx={idx} set={set} />
+              )}
+            </React.Fragment>
           ))}
         </div>
       </Section>
+
+      <HistoryCard form={form} set={set} addNotification={addNotification} />
 
       {errors && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-amber-300 text-xs">

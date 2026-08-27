@@ -165,3 +165,28 @@ export async function fetchPrtExcerpt(run) {
   if (!run?.log_path) return null;
   return downloadText(run.log_path);
 }
+
+// ---------------------------------------------------- cross-app imports ---
+// S4 Model Builder imports. Reads only, through each source's own RLS:
+// Material Balance cases/production (rb_*) for the history phase. The
+// structure import goes through src/lib/surfacesRegistry directly.
+
+export async function listMbalCases() {
+  const { data, error } = await supabase
+    .from('rb_cases')
+    .select('id, name, updated_at')
+    .is('archived_at', null)
+    .order('updated_at', { ascending: false });
+  if (error) throw new Error(`Could not load Material Balance cases: ${error.message}`);
+  return data || [];
+}
+
+export async function listMbalProductionRows(rbCaseId) {
+  const { data, error } = await supabase
+    .from('rb_production_data')
+    .select('timestep_index, observation_date, cum_oil_stb, cum_gas_scf, cum_water_stb, cum_water_inj_stb, cum_gas_inj_scf')
+    .eq('case_id', rbCaseId)
+    .order('timestep_index', { ascending: true });
+  if (error) throw new Error(`Could not load production data: ${error.message}`);
+  return data || [];
+}

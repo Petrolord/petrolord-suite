@@ -164,7 +164,71 @@ via SECURITY DEFINER RPCs; `sim_runs` is read-only to humans.
   pytest 24/24 in the image on the VPS; Suite jest 279 suites /
   3,452 green; build clean.
 
+## S4 — Structure, deviated wells, history (2026-08-27)
+
+Theme: from a synthetic box to a real field model. Three imports feed
+the Model Builder; everything still funnels through composeDeck and the
+unchanged worker run path.
+
+- **engines/sim S4** (petrolord-engines feat/sim-s4-structure-history,
+  stacked on the S3 PR #50; vendored sync in the Suite):
+  - `emitGrid`: `grid.tops` per-cell TOPS array (Eclipse natural order,
+    I fastest) for structural grids — deeper layers stack conformably,
+    the block-centred TOPS rule. `columnInterfaces`/`gridDepthRange`
+    depth helpers; EQUIL/RSVD now use the true depth envelope.
+  - `wellPath.js`: pure trajectory→connections intersector. Walks a
+    densified path polyline through the grid, merges re-entered cells,
+    tags each connection with its dominant traversal axis for COMPDAT
+    item 13 (X/Y/Z). Frame: grid-local feet, x with I, y with J.
+  - `emitSchedule`: connections-list COMPDAT (one record per penetrated
+    cell), WCONHIST/WCONINJH/DATES emitters and the period-wise history
+    schedule; WELLDIMS sized from max connections.
+  - `composeDeck`: `schedule.history` runs producers on observed rates
+    (WCONHIST) to the history end date, then the prediction phase
+    switches to declared controls + TSTEP; SUMMARY adds injection
+    vectors (FWIR/FGIR/FWIT/FGIT, WWIR/WGIR) always and observed-rate
+    H vectors when a history is present. 15 new jest gates (33 sim
+    total in the engines repo), S3 pins unchanged.
+- **Suite importers** (each pure + jest-gated in simS4Import.test.js):
+  - `simStructureImport.js`: geo_surfaces grid → per-cell TOPS.
+    Bilinear resample at cell centers over the surface extent, null-
+    sentinel masking (1e30) with mean-fill for isolated holes (refused
+    when holes dominate), m→ft seam, rejects time-domain surfaces and
+    elevation-signed grids. Returns dx/dy that cover the extent+stats.
+  - `simHistoryImport.js`: rb_production_data cumulatives → interval
+    rates (Δcum/Δdays; scf→Mscf seam), allocation split across
+    producers, injection cumulatives → WCONINJH entries; clamps
+    cumulative dips to zero with a warning; synthesizes monthly dates
+    only when NO rows are dated (mixed dating is refused).
+  - `simTrajectoryImport.js`: MD/INC/AZI survey text → connections via
+    the drilling minimum-curvature kernel (computeWellPath + resample —
+    never reimplemented) and wellPath. m→ft seam, KB→datum shift,
+    actionable misses.
+- **Builder**: Structure card (surface picker → sample → SVG depth
+  heatmap + relief stats; grid-edit staleness guard), per-well Deviated
+  toggle (survey editor + live "check trajectory" against the current
+  grid; connections recomputed at generate time so they can never go
+  stale), History card (MBAL case picker, producer allocation
+  fractions, prediction-years tail, period preview table). specFromForm
+  wires all three; `gridFromForm` shared with the preview.
+- **Results**: observed H vectors never chart standalone — they overlay
+  their simulated twin as dashed "observed" series (field and per-well),
+  the history-match view. New injection charts appear when present.
+- **Worker**: FIELD_VECTORS/WELL_VECTORS extended with injection + H
+  vectors (absent keys skipped, uploaded decks unaffected). New gate
+  tests/integration/test_s4_deck.py: the S4 fixture (structural TOPS +
+  deviated lateral + 3-month WCONHIST history + 1y prediction,
+  regenerated via GEN_SIM_FIXTURE=1 on simS4Import.test.js) passes
+  validation and runs in flow — FOPRH echoes the observed 2000 STB/d,
+  FOPR matches it within 1%, FWIR echoes the 2500 STB/d injection, and
+  the prediction phase departs from the last observed rate. **Worker
+  pytest 26/26 in the image on the VPS.**
+- Deliberately NOT in S4: corner-point ZCORN export (block-centred TOPS
+  covers dipping structure honestly), 3D grid viz, multi-realization
+  (conflicts with the ≤2 in-flight / ≤10 per day quotas).
+
 ## Upcoming phases
-- S4 ideas (NOT committed): corner-point grids from geo_surfaces,
-  WCONHIST history import from rb_production_data, deviated wells
-  via drilling surveyMath, 3D grid viz, multi-realization.
+- S5 ideas (NOT committed): corner-point ZCORN + fault handling,
+  3D grid/trajectory viz, multi-realization batches with quota-aware
+  scheduling, per-well history import (per-well rate CSVs rather than
+  field allocation), LGRs.

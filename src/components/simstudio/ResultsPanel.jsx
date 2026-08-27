@@ -14,7 +14,8 @@ import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/uti
 import { useSimStudio } from '@/contexts/SimStudioContext';
 import { downloadBlob } from '@/lib/simService';
 import {
-  availableFieldVectors, availableWellVectors, fieldSeries, wellSeries, VECTOR_META,
+  availableFieldVectors, availableWellVectors, fieldSeries, wellSeries,
+  wellSeriesKeys, hasObservedField, VECTOR_META,
 } from '@/components/simstudio/resultAdapters';
 
 const LINE_COLORS = ['#166534', '#1d4ed8', '#b45309', '#b91c1c', '#7c3aed', '#0e7490', '#be185d', '#4d7c0f'];
@@ -22,6 +23,15 @@ const LINE_COLORS = ['#166534', '#1d4ed8', '#b45309', '#b91c1c', '#7c3aed', '#0e
 const axisProps = {
   stroke: CHART_COLORS.axisLine,
   tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize },
+};
+
+// Observed-history overlays ("observed" / "<well> obs") draw dashed in
+// the same hue family as their simulated twin — the history-match view.
+const isObserved = (key) => key === 'observed' || key.endsWith(' obs');
+const twinIndex = (key, keys) => {
+  const twin = key === 'observed' ? 'value' : key.slice(0, -4);
+  const idx = keys.filter((k) => !isObserved(k)).indexOf(twin);
+  return idx >= 0 ? idx : 0;
 };
 
 const VectorChart = ({ title, unit, rows, seriesKeys }) => (
@@ -37,11 +47,19 @@ const VectorChart = ({ title, unit, rows, seriesKeys }) => (
           <YAxis {...axisProps} tickFormatter={(v) => (Math.abs(v) >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : Math.abs(v) >= 1e3 ? `${(v / 1e3).toFixed(0)}k` : `${v}`)} width={56} />
           <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={(v) => `day ${Number(v).toFixed(0)}`} />
           {seriesKeys.length > 1 && <Legend wrapperStyle={{ fontSize: 10 }} />}
-          {seriesKeys.map((key, i) => (
-            <Line key={key} dataKey={key} dot={false} isAnimationActive={false}
-              name={key === 'value' ? title.split(' ')[0] : key}
-              stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={2} connectNulls />
-          ))}
+          {seriesKeys.map((key, i) => {
+            const observed = isObserved(key);
+            const colorIdx = observed ? twinIndex(key, seriesKeys) : seriesKeys.filter((k) => !isObserved(k)).indexOf(key);
+            return (
+              <Line key={key} dataKey={key} dot={false} isAnimationActive={false}
+                name={key === 'value' ? title.split(' ')[0] : key === 'observed' ? 'observed' : key}
+                stroke={LINE_COLORS[colorIdx % LINE_COLORS.length]}
+                strokeWidth={observed ? 1.5 : 2}
+                strokeDasharray={observed ? '5 4' : undefined}
+                strokeOpacity={observed ? 0.75 : 1}
+                connectNulls />
+            );
+          })}
         </LineChart>
       </ChartFrame>
     </CardContent>
@@ -129,14 +147,14 @@ const ResultsPanel = () => {
               title={`${key} — ${VECTOR_META[key]?.label || key}`}
               unit={VECTOR_META[key]?.unit || ''}
               rows={fieldSeries(summary, key)}
-              seriesKeys={['value']} />
+              seriesKeys={hasObservedField(summary, key) ? ['value', 'observed'] : ['value']} />
           ))}
           {availableWellVectors(summary).map((base) => (
             <VectorChart key={base}
               title={`${base} — ${VECTOR_META[base]?.label || base} by well`}
               unit={VECTOR_META[base]?.unit || ''}
               rows={wellSeries(summary, base)}
-              seriesKeys={Object.keys(summary.wells || {})} />
+              seriesKeys={wellSeriesKeys(summary, base)} />
           ))}
         </div>
       )}

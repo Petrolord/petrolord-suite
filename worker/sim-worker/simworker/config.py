@@ -47,5 +47,11 @@ ERROR_MESSAGE_MAX_BYTES = _int("ERROR_MESSAGE_MAX_BYTES", 4096)
 
 SCRATCH_DIR = os.environ.get("SCRATCH_DIR", "/scratch")
 
-FIELD_VECTORS = ["FOPR", "FOPT", "FWPR", "FWCT", "FGPR", "FGOR", "FPR"]
-WELL_VECTORS = ["WOPR", "WWPR", "WGPR", "WBHP", "WWCT"]
+# Injection and observed-history (H) vectors only exist when the deck's
+# SUMMARY section requests them (S4 generated decks); build_summary skips
+# absent keys, so uploaded S3-era decks are unaffected.
+FIELD_VECTORS = ["FOPR", "FOPT", "FWPR", "FWCT", "FGPR", "FGOR", "FPR",
+                 "FWIR", "FGIR", "FWIT", "FGIT",
+                 "FOPRH", "FWPRH", "FGPRH", "FWCTH", "FGORH"]
+WELL_VECTORS = ["WOPR", "WWPR", "WGPR", "WBHP", "WWCT", "WWIR", "WGIR",
+                "WOPRH", "WWPRH", "WGPRH"]

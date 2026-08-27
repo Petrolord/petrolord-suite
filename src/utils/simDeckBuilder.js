@@ -1,4 +1,4 @@
-// Model Builder adapter (S3): guided form state -> composeDeck spec.
+// Model Builder adapter (S3/S4): guided form state -> composeDeck spec.
 // This is where Suite engine outputs become deck tables:
 //   - PVT: Fluid Studio correlations (computePvtTable) -> PVTO/PVDG rows,
 //     with the unit seams handled HERE (engine Rs scf/STB -> deck Mscf/STB;
@@ -7,12 +7,17 @@
 //     extended to the saturation-axis ends the simulator equilibrates on
 //     (SWOF starts at Swc so initial water is connate; SGOF ends at 1-Swc
 //     so the two tables close exactly - the SPE1 lesson).
+//   - S4: structural tops sampled from a Mapping Studio surface, deviated
+//     wells recomputed FRESH from their stored survey at generate time
+//     (never stale connections), and MBAL production history as the
+//     WCONHIST phase with an optional prediction tail.
 // Physics stays in the engines; this module shapes and converts.
 import { computePvtTable } from '@/utils/fluidStudioCalculations';
 import { buildCoreyOilWater, buildCoreyGasOil, pcFromJ } from '@/utils/scalCalculations';
 import {
   composeDeck, validateSpec, pvtoRecordsFromTable, resamplePc,
 } from '@/utils/simDeckGeneration';
+import { parseSurveyText, buildTrajectoryConnections } from '@/utils/simTrajectoryImport';
 
 const num = (v, d = 0) => {
   const n = parseFloat(v);
@@ -45,10 +50,17 @@ export const defaultBuilderForm = () => ({
   },
   equil: { datumDepth: '8050', datumPressure: '4200', owc: '8150', goc: '7900' },
   wells: [
-    { name: 'PROD1', type: 'producer', i: '9', j: '9', k1: '1', k2: '3', refDepth: '8000', mode: 'ORAT', rate: '4000', bhp: '1200' },
-    { name: 'INJ1', type: 'water_injector', i: '2', j: '2', k1: '1', k2: '3', refDepth: '8000', rate: '5000', bhp: '6500' },
+    { name: 'PROD1', type: 'producer', i: '9', j: '9', k1: '1', k2: '3', refDepth: '8000', mode: 'ORAT', rate: '4000', bhp: '1200', trajectory: null },
+    { name: 'INJ1', type: 'water_injector', i: '2', j: '2', k1: '1', k2: '3', refDepth: '8000', rate: '5000', bhp: '6500', trajectory: null },
   ],
   schedule: { years: '5', reportDays: '30.4375' },
+  // S4: structural tops from a Mapping Studio surface. When mode is
+  // 'surface', tops/dxFt/dyFt come from simStructureImport and replace
+  // the uniform topsDepth and DX/DY.
+  structure: { mode: 'uniform', surfaceId: null, surfaceName: '', tops: null, dxFt: null, dyFt: null, stats: null },
+  // S4: MBAL production history -> WCONHIST phase. periods/dates are
+  // filled by the History import; predictionYears appends a TSTEP tail.
+  history: { enabled: false, caseName: '', startDate: null, endDate: null, periods: null, predictionYears: '3' },
 });
 
 // -------------------------------------------------------------------- PVT ---
@@ -145,37 +157,95 @@ export function buildSatFns(scalForm) {
 
 // ------------------------------------------------------------------- spec ---
 
+/** The composeDeck grid for the current form — shared by specFromForm
+ *  and the trajectory preview so both always see the same geometry. */
+export function gridFromForm(form) {
+  const nx = Math.round(num(form.grid.nx));
+  const ny = Math.round(num(form.grid.ny));
+  const nz = Math.round(num(form.grid.nz));
+  const structure = form.structure || {};
+  const useSurface = structure.mode === 'surface' && Array.isArray(structure.tops);
+  if (useSurface && structure.tops.length !== nx * ny) {
+    throw new Error(`The imported structure was sampled for a different grid (${structure.tops.length} cells vs ${nx * ny}) — re-import the surface after changing NX/NY.`);
+  }
+  return {
+    nx,
+    ny,
+    nz,
+    dx: useSurface ? num(structure.dxFt) : num(form.grid.dx, 500),
+    dy: useSurface ? num(structure.dyFt) : num(form.grid.dy, 500),
+    ...(useSurface
+      ? { tops: structure.tops }
+      : { topsDepth: num(form.grid.topsDepth, 8000) }),
+    layers: form.grid.layers.map((l) => ({
+      dz: num(l.dz, 30), poro: num(l.poro, 0.2),
+      permx: num(l.permx, 100), permz: num(l.permz, 10),
+    })),
+  };
+}
+
 export function specFromForm(form) {
   const { pvtoRecords, pvdg, pb } = buildPvtFromFluid(form.fluid);
   const { swof, sgof } = buildSatFns(form.scal);
+  const grid = gridFromForm(form);
 
-  const wells = form.wells.map((w) => ({
-    name: String(w.name || '').trim().toUpperCase(),
-    type: w.type,
-    i: Math.round(num(w.i)), j: Math.round(num(w.j)),
-    k1: Math.round(num(w.k1)), k2: Math.round(num(w.k2)),
-    refDepth: num(w.refDepth, num(form.grid.topsDepth, 8000)),
-    wellboreRadiusFt: 0.25,
-    control: w.type === 'producer'
-      ? { mode: w.mode || 'ORAT', rate: num(w.rate), bhpMin: num(w.bhp, 1000) }
-      : { rate: num(w.rate), bhpMax: num(w.bhp, 8000) },
-  }));
+  const wells = form.wells.map((w) => {
+    const name = String(w.name || '').trim().toUpperCase();
+    const base = {
+      name,
+      type: w.type,
+      refDepth: num(w.refDepth, num(form.grid.topsDepth, 8000)),
+      wellboreRadiusFt: 0.25,
+      control: w.type === 'producer'
+        ? { mode: w.mode || 'ORAT', rate: num(w.rate), bhpMin: num(w.bhp, 1000) }
+        : { rate: num(w.rate), bhpMax: num(w.bhp, 8000) },
+    };
+    const traj = w.trajectory;
+    if (traj?.enabled) {
+      // Recompute connections from the stored survey at generate time so
+      // grid edits can never leave a well on stale cells.
+      const { stations, errors } = parseSurveyText(traj.text);
+      if (errors.length) throw new Error(`Well ${name} survey: ${errors[0]}`);
+      const t = buildTrajectoryConnections({
+        stations,
+        mdUnit: traj.mdUnit === 'm' ? 'm' : 'ft',
+        wellheadX: num(traj.wellheadX),
+        wellheadY: num(traj.wellheadY),
+        kbToDatumFt: num(traj.kbToDatum, 0),
+      }, grid);
+      return { ...base, connections: t.connections, refDepth: t.refDepthFt };
+    }
+    return {
+      ...base,
+      i: Math.round(num(w.i)), j: Math.round(num(w.j)),
+      k1: Math.round(num(w.k1)), k2: Math.round(num(w.k2)),
+    };
+  });
 
   const reportDays = num(form.schedule.reportDays, 30.4375);
   const count = Math.max(1, Math.round((num(form.schedule.years, 5) * 365.25) / reportDays));
 
+  const hist = form.history;
+  const useHistory = !!(hist?.enabled && Array.isArray(hist.periods) && hist.periods.length && hist.endDate);
+  let schedule;
+  let startDate = form.startDate;
+  if (useHistory) {
+    startDate = hist.startDate || hist.periods[0].date;
+    const predYears = num(hist.predictionYears, 0);
+    schedule = {
+      history: { periods: hist.periods, endDate: hist.endDate },
+      ...(predYears > 0
+        ? { steps: [{ count: Math.max(1, Math.round((predYears * 365.25) / reportDays)), dtDays: reportDays }] }
+        : {}),
+    };
+  } else {
+    schedule = { steps: [{ count, dtDays: reportDays }] };
+  }
+
   const spec = {
     title: String(form.title || 'Petrolord model').toUpperCase().slice(0, 60),
-    startDate: form.startDate,
-    grid: {
-      nx: Math.round(num(form.grid.nx)), ny: Math.round(num(form.grid.ny)), nz: Math.round(num(form.grid.nz)),
-      dx: num(form.grid.dx, 500), dy: num(form.grid.dy, 500),
-      topsDepth: num(form.grid.topsDepth, 8000),
-      layers: form.grid.layers.map((l) => ({
-        dz: num(l.dz, 30), poro: num(l.poro, 0.2),
-        permx: num(l.permx, 100), permz: num(l.permz, 10),
-      })),
-    },
+    startDate,
+    grid,
     pvt: {
       pvtoRecords,
       pvdg,
@@ -194,7 +264,7 @@ export function specFromForm(form) {
       goc: num(form.equil.goc),
     },
     wells,
-    schedule: { steps: [{ count, dtDays: reportDays }] },
+    schedule,
   };
   return { spec, pb };
 }

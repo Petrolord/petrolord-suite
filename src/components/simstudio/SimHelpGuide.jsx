@@ -35,6 +35,13 @@ const helpContent = [
       'The Builder tab generates a complete deck from engineering inputs: a layer-cake grid, black-oil PVT from the same correlations Fluid Studio uses (Standing, Beggs-Robinson; the bubble point is solved from your GOR), Corey relative permeability curves as in SCAL Studio with optional Leverett-J capillary pressure, equilibration contacts, vertical wells and a monthly schedule. Generate attaches the deck to the case; you can inspect and hand-edit it on the Deck tab before running.',
   },
   {
+    id: 'builder-s4',
+    icon: FileText,
+    title: 'Structure, deviated wells and history',
+    content:
+      'Three imports turn the Builder model into a field model. Structure: sample a depth surface from Mapping & Surface Studio onto the grid as per-cell tops (layers stack conformably below it; the preview shows the relief). Deviated wells: tick Deviated on a well and paste its MD/INC/AZI survey; the completion cells are computed along the minimum-curvature path each time you generate. History: import a Material Balance case to run the observed production first (WCONHIST), split across your producers, before the prediction phase takes over on declared controls. On the Results tab, observed rates overlay the simulated curves as dashed lines so you can judge the history match honestly.',
+  },
+  {
     id: 'run',
     icon: Play,
     title: 'Step 2: Run',

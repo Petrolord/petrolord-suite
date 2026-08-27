@@ -2,4 +2,8 @@
 export * from '../../packages/engines/engines/sim/composeDeck.js';
 export * from '../../packages/engines/engines/sim/emitPvt.js';
 export * from '../../packages/engines/engines/sim/emitSatFns.js';
+export * from '../../packages/engines/engines/sim/emitGrid.js';
+export * from '../../packages/engines/engines/sim/emitSchedule.js';
+export * from '../../packages/engines/engines/sim/wellPath.js';
 export * from '../../packages/engines/engines/sim/referenceSpec.js';
+export { daysBetween } from '../../packages/engines/engines/sim/deckFormat.js';
