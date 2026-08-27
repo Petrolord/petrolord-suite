@@ -51,3 +51,19 @@ untouched**.
   Material Balance Studio absorbed aquifer influx as its Aquifer tab
   (tile Archived 2026-07-19; route redirects to
   reservoir-balance?tab=aquifer; rb_* case persistence).
+
+## 2026-08-27 — help guide refresh (branch `docs/reservoir-help-refresh`)
+
+Guide was written with the kit adoption so had no phase drift, but it
+under-documented the pre-existing engine. Added:
+
+- The **Water-drive gas (trapping)** method, which shipped and was
+  missing from the correlations section entirely.
+- That the method menu is phase-gated, and what each phase offers.
+- All seven drive mechanisms with their bands (the guide named three),
+  and the drive-mechanism reference table as an on-screen panel.
+- The gas volumetric OGIP relation (Bgi); only the oil OOIP relation was
+  given.
+- The header Sample button.
+
+4 em dashes removed, including two contrastives (owner copy rule).

@@ -319,3 +319,28 @@ Nothing remains open on either program. Named future scope stays:
 limited entry, variable wellbore storage, multiphase Perrine,
 closed-rectangle × dual-porosity crossing, Blasingame type-curve
 matching on the RTA tab.
+
+## 2026-08-27 — help guide refresh (branch `docs/reservoir-help-refresh`)
+
+Guide was frozen at WT9 and contradicted itself. Corrected:
+
+- **The Conventions block claimed "Oilfield units throughout"**, false
+  since WT8 and directly contradicting the units section 80 lines above
+  it. Rewritten to describe the oilfield/SI selector, oilfield internal
+  storage and the lossless round trip.
+- **CSV import said "pressure in psi"**; the parser converts from the
+  active system and the field labels render the live unit. Corrected.
+- **Section numbering fixed.** RTA was unnumbered and printed out of tab
+  order, leaving Specialized and Report numbered 4 and 5 for tabs 4 and
+  6. Now 1 Data, 2 Diagnostics, 3 Match, 4 Specialized, 5 RTA, 6 Report.
+- Added: the 13th model (dual porosity PSS + sealing fault) with the
+  two-stage read and when not to reach for it, the persistent
+  DiagnosticsRail including the stale-match flag, the inbound Fluid
+  Systems Studio PVT handoff (and why ct is left for review), the RTA
+  transient-linear window override, and the WT10 report surface (RTA
+  section, flow-regimes block, and the JSON now carrying deliverability,
+  RTA inputs and unit system).
+
+Also deleted `Well_Test_Analyzer_User_Guide.md` from the repo root: the
+mock app's guide, unreferenced anywhere, documenting an app removed in
+WT2 and claiming a Nodal integration the real studio does not have.

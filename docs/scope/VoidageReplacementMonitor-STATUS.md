@@ -180,3 +180,15 @@ industry benchmark, decisions taken).
   this).
 - No entry in any file-driven app registry (tile is DB-driven); entitlement
   slug lives in `SupabaseAuthContext.jsx`.
+
+## 2026-08-27 — help guide refresh (branch `docs/reservoir-help-refresh`)
+
+Guide had no phase drift (it was rewritten with every V wave). One real
+error and two omissions:
+
+- **PVT section said the FVF set "applies to every period"**, untrue
+  since V3 added per-period PVT override columns. Rewritten to describe
+  defaults plus overrides and the blank-falls-back-to-default rule.
+- Tab-name drift fixed: "Data tab" and "Dashboard tab" are labelled
+  **Data & PVT** and **VRR Dashboard**.
+- Added the V4 weakest-pattern KPI to the Patterns section.

@@ -212,3 +212,143 @@ staging-first, logged in MIGRATIONS.md; validation-first engine work.
   only with working code behind it (the G-series rule).
 - No new test framework; engines follow the util-engine + jest
   pattern, server engines the mbal-validation pattern.
+
+## 6. In-app help guides (added 2026-08-27)
+
+The R series shipped without a help-guide deliverable. That convention
+arrived later, with the EPE guide and then the Drilling roadmap's "help
+guide per app (EPE pattern)" UI standard, so reservoir help was written
+ad hoc mid-programme and never revisited. A 2026-08-27 audit found the
+predictable result: guides frozen at SC5, MB6, WT9 and the DCA W5 shell
+adoption, four apps with no guide at all, and four user-visible false
+claims.
+
+Standing rules for this module from now on:
+
+- **A phase is not done until its guide is updated.** Any phase that
+  changes a tab, a method, a selector, an import path or an export adds
+  the matching guide edit in the same PR.
+- **Guides state only what ships.** A capability that is not built is
+  either absent from the guide or named as not built. Never described
+  as if present.
+- **Copy rule applies**: no em dashes, no "X — not Y" contrastives.
+- **Both mechanisms are sanctioned.** Studio-kit apps use the
+  `StudioHelp` drawer (exemplar
+  `src/components/fluidstudio/FluidStudioHelpGuide.jsx`); non-kit apps
+  use the full-page route (exemplar
+  `src/pages/apps/epe/EpeHelpGuide.jsx`, the D-series standard).
+- **Guarded by test**: `src/components/__tests__/reservoirHelpGuides.test.js`
+  pins the copy rule, a per-app coverage list, and the retired false
+  claims so they cannot return. Adding a feature means adding its phrase
+  to the coverage list.
+
+### Help coverage as of 2026-08-27 (second pass)
+
+Every Reservoir app now has a help guide except one, and the exception is
+deliberate (see the blocking finding below).
+
+| App | Guide | Mechanism |
+|---|---|---|
+| Decline Curve Analysis | current | StudioHelp drawer |
+| Material Balance Studio | current | StudioHelp drawer |
+| SCAL Studio | current | StudioHelp drawer |
+| Waterflood Design Studio | current | StudioHelp drawer |
+| Well Test Analysis Studio | current | StudioHelp drawer |
+| Fluid Systems Studio | current | StudioHelp drawer |
+| Reservoir Simulation Studio | current | StudioHelp drawer |
+| VRR Monitor | current | StudioHelp drawer |
+| Recovery Factor Estimator | current | StudioHelp drawer |
+| EOR Screening | NEW | full-page route |
+| Forecast Scenario Hub | NEW | full-page route |
+| Risked Reserves Valuation | NEW | full-page route |
+| ReservoirCalc Pro | REWRITTEN | DocumentationHub, 23 articles |
+| Well Spacing Optimizer | BLOCKED | see below |
+
+`src/components/helpguide/HelpGuideLayout.jsx` now holds the full-page guide
+shell and primitives that the EPE guide established and the eleven drilling
+guides each re-declared locally. New guides build on it; the older ones can
+migrate when next touched.
+
+ReservoirCalc Pro's documentation was replaced rather than patched. Seven
+articles were deleted outright because they described things that do not
+exist: a `Petrolord.ReservoirCalc` JavaScript API, video tutorials, sample
+projects with dead Load buttons, a v2.1.0 changelog, a support form with no
+submit path, four keyboard shortcuts of which only Ctrl+B is real, and an
+Integration Hub. The replacement is 23 articles grouped into six categories
+with keyword search, covering the features that had no documentation at all,
+including contact volumetrics, probabilistic mode, the tornado, per-parameter
+units, multi-reservoir projects, prospect risking, the audit trail and reports.
+
+### BLOCKING: Well Spacing Optimizer has engine defects, guide withheld
+
+A help guide was scoped for this app and deliberately not written. The app
+produces numbers that are wrong, and documenting them would give them
+standing. Four defects, all verified in `src/utils/wellSpacingCalculations.js`:
+
+1. **The results table and all three charts are ordered by cost per barrel,
+   not by spacing.** `generateJustification` calls `allResults.sort(...)` twice
+   in place, on the same array that is returned and rendered. The last sort
+   wins. The "NPV vs Well Spacing" chart therefore draws a zigzag across a
+   non-monotonic x axis, and a user reading its shape draws the wrong
+   conclusion.
+2. **Recovery is not a function of spacing in any physical sense.**
+   Substituting the EUR expression into the recovery expression collapses the
+   whole thing to `(N x spacing / A) x RF`, and since `N = floor(A / spacing)`
+   this is a `Math.floor` sawtooth measuring how evenly spacing divides into
+   area. There is no well interference, no drainage overlap and no incremental
+   recovery from downspacing. That is the app's central claim and it is not
+   modelled.
+3. **The production stream is inconsistent with the reported EUR by a factor
+   of roughly 365.** `initialRate = eurPerWell * 1000 * 0.15` is then treated
+   as a daily rate and multiplied by 365 in the annual loop, so NPV is inflated
+   by orders of magnitude relative to the EUR and cost per barrel in the same
+   table row.
+4. **Opex is double counted in cost per barrel.** `totalOpex` is already
+   accumulated over the life inside the loop, then multiplied by `actualLife`
+   again.
+
+Two further honesty problems sit on top of the math. The "Sensitivity
+Analysis" panel is fabricated: its three cards are hard-coded arithmetic on the
+optimal spacing (plus or minus 5 and 10 acres) rather than a re-run of the
+model, the base row is labelled with a fixed 75 dollar oil price whatever the
+user entered, and a note underneath asserts the numbers are model output. And
+there is a hard-coded three second delay before the calculation runs, which
+reads as a heavy simulation to the user.
+
+Supporting gaps: four inputs are mandatory and unused (temperature, pressure,
+oil gravity, gas gravity), well pattern type and the map coordinates are unused
+entirely, the DMS toggle prints a hard-coded Houston example rather than
+converting what the user typed, Swi is a fraction while porosity and recovery
+factor are percentages with no guard, nothing is saved and nothing is
+prefilled, the charts follow neither the white chartTheme nor the ChartLogo
+standard, and the engine has no tests at all (single commit since the Horizons
+import).
+
+Recommendation, for an owner decision:
+- Fix defects 1, 3 and 4, which are mechanical and well understood.
+- Delete the fabricated sensitivity panel and its note.
+- Decide what defect 2 means for the app. Either implement a real interference
+  or drainage model, or narrow the app honestly to a capital and economics
+  optimiser at a stated recovery factor and stop claiming a recovery response
+  to spacing.
+- Then write the guide, which is otherwise the highest value one in the module
+  given roughly 25 mandatory inputs with no explanation on screen.
+
+Until then the tile is arguably a candidate for the same treatment the R0 audit
+gave other unbacked apps.
+
+### Remaining help work
+
+- **Sibling UI copy**: roughly 30 label and description strings in the SCAL,
+  MBAL and RF component trees still carry em dashes (mostly "symbol, gloss"
+  labels). Worth one sweep with a lint rule behind it.
+- **Route gaps**: EOR Screening, Forecast Scenario Hub and Risked Reserves
+  Valuation mount without `ProtectedAppRoute` (`src/App.jsx`), unlike every
+  drilling app. The new help routes match their apps' current gating, so
+  changing one should change both.
+- **Guide shell migration**: the eleven drilling guides and the EPE guide still
+  carry local copies of the primitives now shared in `HelpGuideLayout.jsx`.
+- **Risked Reserves input labels**: the three boxes are labelled P10, P50 and
+  P90 but are read as low, mode and high, while the result cards use the
+  petroleum convention. The guide documents this prominently. Relabelling the
+  inputs to Low, Mode and High would remove the trap without touching any math.

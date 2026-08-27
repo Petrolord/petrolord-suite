@@ -148,3 +148,23 @@ Three issues reported by the owner, all fixed:
   legacy panels; prune or wire them deliberately.
 - Probabilistic chart envelope is the analytic 1.28σ band from fit CIs; the
   Monte Carlo sample curves are computed but not plotted.
+
+## 2026-08-27 — help guide refresh (branch `docs/reservoir-help-refresh`)
+
+Guide was frozen at the W5 shell adoption (2026-07-18) while eight
+feature and fix commits shipped through 2026-08-26. Corrected:
+
+- **Removed the Keyboard Shortcuts panel.** It advertised Ctrl+S / Ctrl+Z
+  / Ctrl+Y / Ctrl+E. None are wired: `useKeyboardShortcuts` is imported
+  and never invoked, and `createUndoRedoManager()` is instantiated and
+  never pushed to. Replaced with an accurate "Saving your work" panel
+  covering autosave, the header save button and the ten-second undo
+  toast on project and well deletion.
+- **CSV section rewritten**: multi-stream files (`oilRate` / `gasRate` /
+  `waterRate`) instead of the old two-column `date,rate` claim.
+- Added: Production Stream selector, well metadata editor, the Model Fit
+  vs Forecast Results tab split, the Forecast Results tab contents (EUR
+  cards, forecast table, Export CSV, EUR histogram), well grouping, well
+  filters, group rollup, and the Integration panel handoff to NPV &
+  Economics and FDP Accelerator.
+- 12 em dashes removed (owner copy rule).

@@ -122,3 +122,18 @@ its displacement physics and charts live on in the Displacement tab).
 - Screening-level analytical methods, stated in-app: 1-D BL with Pc
   neglected, piston areal growth, non-communicating layers, constant
   injectivity, no pattern interference.
+
+## 2026-08-27 — help guide refresh (branch `docs/reservoir-help-refresh`)
+
+Guide was current on all six W-phase tabs; gaps were the inbound
+handoffs added after the last help edit. Added:
+
+- SCAL Studio relative permeability intake and Well Test Analysis Studio
+  permeability intake, both noting that an arrival raises a notification
+  naming what it overwrote.
+- The persistent diagnostics rail (front diagnostics, heterogeneity,
+  pattern summary, last MC run, field summary).
+- Tab deep links (the retired Waterflood Dashboard redirect target) and
+  the displacement panel Sample/Reset loaders.
+
+Copy rule was already clean.
