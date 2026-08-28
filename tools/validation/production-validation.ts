@@ -58,6 +58,29 @@
 //       sums exactly, a deeper pump costs head rather than saving it,
 //       the operating point brackets the pump against the system curve,
 //       and a naturally flowing well is refused rather than staged
+//   PA15 rod string mechanics: a fraction is read as a fraction (the
+//       predecessor's 7/8 became 7.8 in), Archimedes buoyancy with no
+//       invented factor in it, compliances that sum, and the published
+//       rod weights all a consistent coupling allowance above bare steel
+//   PA16 the natural frequency constant DERIVED: bare-steel wave speed
+//       from E and rho, slowed by the square root of the coupling
+//       allowance, landing N0 on 245,000/L; and a tapered string solved
+//       as an eigenvalue rather than read off a factor table
+//   PA17 the damped wave equation reduces to the static limit as the
+//       unit slows: Sp -> S - Fo/kr, PPRL -> Wrf + Fo, MPRL -> Wrf. Any
+//       error in the boundary conditions, the valve transfer states or
+//       the march shows up here. An undamped string is refused
+//   PA18 predict and diagnose are two solvers sharing no code path: a
+//       predicted card handed to the Gibbs harmonic diagnostic returns
+//       the pump card the prediction assumed
+//   PA19 the pumping unit: the torque factor IS ds/dtheta, proved by
+//       the energy identity that torque through a revolution equals the
+//       area of the dynamometer card; and a conventional linkage is not
+//       a sine wave
+//   PA20 rod pump Suite layer on a real nodal well: the fluid load is
+//       the differential across the plunger with tubing pressure ADDED,
+//       production follows the plunger stroke rather than the polished
+//       rod stroke, and a string that does not reach its pump is refused
 //
 // ARMED gates (pending owner literature PDFs):
 //   PL1 Takacs, Gas Lift Manual — worked continuous-lift installation
@@ -128,6 +151,21 @@ async function main() {
     '../../src/utils/production/gasLift.js');
   const { dutyAtRate, runEspDesign, buildStageCurve, solveEspOperatingPoint } = await import(
     '../../src/utils/production/esp.js');
+  const {
+    ROD_SIZES, COUPLING_ALLOWANCE, parseRodSize, rodArea, bareRodWeightLbPerFt,
+    steelAcousticVelocityFtS, ROD_ACOUSTIC_VELOCITY_FT_S,
+  } = await import('../../packages/engines/engines/production/data/rodCatalog.js');
+  const { buildRodString, buoyancyFactor, naturalFrequency, sectionWaveSpeedFtS } = await import(
+    '../../packages/engines/engines/production/rodString.js');
+  const { predictCard, diagnoseCard } = await import(
+    '../../packages/engines/engines/production/rodDynamics.js');
+  const {
+    genericConventionalGeometry, unitKinematics, surfacePositionFn,
+    simpleHarmonicPosition, netTorque,
+  } = await import('../../packages/engines/engines/production/pumpingUnit.js');
+  const {
+    runDesign: runRodDesign, fluidLoadLb: rodFluidLoad, displacementBpd,
+  } = await import('../../src/utils/production/rodPump.js');
 
   const G = goldens('gaslift_cases.json');
   const E = goldens('esp_cases.json');
@@ -521,6 +559,160 @@ async function main() {
     }
   });
 
+  const rodTaper = () => buildRodString({
+    sections: [{ size: '7/8', lengthFt: 3000 }, { size: '3/4', lengthFt: 2000 }],
+    fluidSg: 1,
+  });
+
+  gate('PA15', 'rod string mechanics: fractions, Archimedes buoyancy, compliances that sum', () => {
+    // The predecessor did parseFloat("7/8".replace('/', '.')) === 7.8,
+    // giving a 7/8 rod a 47 square inch section instead of 0.6.
+    if (Math.abs(parseRodSize('7/8') - 0.875) > 1e-12) throw new Error('a fraction was not read as a fraction');
+    if (rodArea(parseRodSize('7/8')) > 1) throw new Error('the rod section is not a rod section');
+    if (Math.abs(parseRodSize('1 1/8') - 1.125) > 1e-12) throw new Error('a mixed number was misread');
+    if (Number.isFinite(parseRodSize('seven eighths'))) throw new Error('an unreadable size produced a number');
+
+    relClose(buoyancyFactor(1.0), 1 - 1 / 7.85, 1e-12, 'buoyancy is Archimedes');
+    if (Math.abs(buoyancyFactor(1.0) - (1 - (1.2 * 1.0) / 7.85)) < 1e-3) {
+      throw new Error('the buoyancy factor still carries the predecessor\'s invented 1.2');
+    }
+    for (const r of ROD_SIZES) {
+      relClose(r.weightLbPerFt / bareRodWeightLbPerFt(r.dIn), COUPLING_ALLOWANCE, 5e-3,
+        `the ${r.label} rod weight is bare steel plus a consistent coupling allowance`);
+    }
+    const st = rodTaper();
+    const compliance = st.sections.reduce((a: number, x: any) => a + x.stretchPerLb, 0);
+    relClose(1 / st.krLbPerIn, compliance, 1e-12, 'the string compliance is the sum of its sections');
+  });
+
+  gate('PA16', 'the 245,000 constant derived from E, rho and the coupling mass', () => {
+    const bare = steelAcousticVelocityFtS();
+    if (!(bare > 16800 && bare < 17100)) throw new Error(`bare steel wave speed ${bare} is not steel`);
+    // Couplings add mass and almost no stiffness, so they slow the wave
+    // by the square root of the coupling allowance. That IS where the
+    // familiar 245,000/L comes from, and it is derived rather than quoted.
+    relClose(bare / Math.sqrt(COUPLING_ALLOWANCE), ROD_ACOUSTIC_VELOCITY_FT_S, 5e-3,
+      'the coupling mass explains the conventional rod-string wave speed');
+    const uni = buildRodString({ sections: [{ size: '7/8', lengthFt: 6000 }], fluidSg: 1 });
+    relClose(naturalFrequency({ string: uni }).n0Spm * 6000, 245000, 5e-3,
+      'a uniform string gives N0 = 245,000 / L');
+    relClose(sectionWaveSpeedFtS(uni.sections[0]), ROD_ACOUSTIC_VELOCITY_FT_S, 5e-3,
+      'the section wave speed is the conventional one');
+    const ft = naturalFrequency({ string: rodTaper() });
+    if (!(ft.taperFactor > 1)) throw new Error('the taper factor did not exceed one');
+    if (ft.uniform) throw new Error('a tapered string was treated as uniform');
+  });
+
+  gate('PA17', 'the wave equation reduces to the static limit as the unit slows', () => {
+    const st = rodTaper();
+    const FO = 5000;
+    const r = predictCard({
+      string: st, surfacePosition: simpleHarmonicPosition(64 / 12), strokeFt: 64 / 12,
+      spm: 0.5, fluidLoadLb: FO, fillage: 1, dampingRatio: 0.1,
+    });
+    if (!r.converged) throw new Error('the quasi-static solution did not settle');
+    relClose(r.plungerStrokeIn, 64 - FO * st.erInPerLb, 0.01,
+      'the plunger loses exactly the rod stretch');
+    relClose(r.prlPeakLb, st.weightFluidLb + FO, 0.02, 'PPRL is the buoyed weight plus the fluid load');
+    relClose(r.prlMinLb, st.weightFluidLb, 0.02, 'MPRL is the buoyed weight');
+    const undamped = predictCard({
+      string: st, surfacePosition: simpleHarmonicPosition(64 / 12), strokeFt: 64 / 12,
+      spm: 8, fluidLoadLb: FO, fillage: 1, dampingRatio: 0,
+    });
+    if (undamped.ok) throw new Error('a string with no damping was marched instead of refused');
+  });
+
+  gate('PA18', 'predict and diagnose: two solvers, no shared path, one answer', () => {
+    const st = rodTaper();
+    const FO = 5000;
+    const r = predictCard({
+      string: st, surfacePosition: simpleHarmonicPosition(64 / 12), strokeFt: 64 / 12,
+      spm: 8, fluidLoadLb: FO, fillage: 1, dampingRatio: 0.1,
+    });
+    const d = diagnoseCard({
+      string: st, surfaceCard: r.surfaceCard, spm: 8, dampingRatio: 0.1, harmonics: 30,
+    });
+    if (!d.ok) throw new Error('the diagnostic could not read a card the predictor produced');
+    relClose(d.plungerStrokeIn, r.plungerStrokeIn, 0.02, 'the diagnostic recovers the plunger stroke');
+    relClose(d.pumpLoadRangeLb[1], FO, 0.05, 'the diagnostic recovers the fluid load');
+    if (Math.abs(d.pumpLoadRangeLb[0]) > 0.05 * FO) {
+      throw new Error('the diagnostic did not see the traveling valve open');
+    }
+  });
+
+  gate('PA19', 'the torque factor IS ds/dtheta, proved by the energy identity', () => {
+    const st = rodTaper();
+    const g = genericConventionalGeometry({ strokeIn: 64 });
+    const kin = unitKinematics(g.geometry, { steps: 360 });
+    relClose(kin.strokeIn, 64, 1e-3, 'the generic linkage achieves the stroke it was asked for');
+    if (Math.abs(kin.upstrokeFraction - 0.5) < 0.02) {
+      throw new Error('the linkage behaved like a pure sine wave, which no four-bar does');
+    }
+    const r = predictCard({
+      string: st, surfacePosition: surfacePositionFn(kin), strokeFt: 64 / 12,
+      spm: 9, fluidLoadLb: 5000, fillage: 1, dampingRatio: 0.1,
+    });
+    const card = r.surfaceCard;
+    const cardLoadAt = (f: number) => card[Math.min(card.length - 1,
+      Math.max(0, Math.round(f * card.length) % card.length))].loadLb;
+    const t = netTorque({ kin, cardLoadAt, counterbalanceMomentInLb: 0 });
+    const dTheta = (2 * Math.PI) / t.length;
+    const work = Math.abs(t.reduce((a: number, row: any) => a + row.rodTorqueInLb * dTheta, 0));
+    // Whatever work the polished rod does has to arrive at the
+    // crankshaft. The strongest available check on the torque factor,
+    // and it needs no remembered formula.
+    relClose(work, r.workInLbPerCycle, 0.05, 'torque through a revolution is the card area');
+  });
+
+  gate('PA20', 'rod pump Suite layer: the chain on a real nodal well', () => {
+    const rodDepth = 5000;
+    const rodModel = {
+      fluidModel: buildFluidModel({ api: 30, gasSg: 0.7, gor: 80, salinityPpm: 30000 }),
+      trajectory: buildTrajectory({ mode: 'vertical', depthFt: rodDepth }),
+      tAt: linearGeothermal({ whtF: 90, bhtF: 150, tvdMaxFt: rodDepth }),
+      ipr: computeIpr({ model: 'composite', pr: 1200, pb: 800, pi: 0.6 }),
+      tvdMax: rodDepth,
+    };
+    const form: any = {
+      designRateStbd: '120', wctPct: '80', gorScfStb: '80', pumpTvdFt: '4800',
+      strokeIn: '64', spm: '8', plungerDIn: '1.75', whp: '80',
+      annulusGradPsiPerFt: '0.38', separatorEfficiencyPct: '60',
+      pumpEfficiencyPct: '90', serviceFactor: '1', api: '30', gradeId: 'D',
+      sectionsText: '7/8, 2400\n3/4, 2400', unitSource: 'generic',
+      unitDesignation: 'C-228D-200-74', structuralUnbalanceLb: '0', crankOffsetDeg: '0',
+    };
+    const res = runRodDesign({ form, model: rodModel });
+    if (!res.ok) throw new Error(`the design did not run: ${res.errors.join(' ')}`);
+    const d = res.design;
+
+    relClose(d.fluidLoadLb, rodFluidLoad({
+      plungerDIn: 1.75, pDischargePsi: d.pDischargePsi, pIntakePsi: d.intake.pipPsia,
+    }), 1e-9, 'the fluid load is the plunger differential');
+    // Tubing pressure ADDS to the fluid load; the predecessor subtracted it.
+    const heavier = runRodDesign({ form: { ...form, whp: '300' }, model: rodModel });
+    if (!(heavier.design.fluidLoadLb > d.fluidLoadLb)) {
+      throw new Error('more tubing pressure lightened the fluid load');
+    }
+    if (!(d.pprlLb > res.string.weightFluidLb && d.mprlLb < res.string.weightFluidLb)) {
+      throw new Error('the polished rod load does not bracket the buoyed rod weight');
+    }
+    if (!(d.plungerStrokeIn < 64)) throw new Error('the plunger out-travelled the polished rod');
+    relClose(d.sweptBpd, displacementBpd({
+      plungerDIn: 1.75, strokeIn: d.plungerStrokeIn, spm: 8,
+    }), 1e-9, 'displacement is swept by the plunger, not the polished rod');
+    if (!(d.producedBpd < d.ratedBpd)) throw new Error('production exceeded the rated displacement');
+
+    const harder = runRodDesign({ form: { ...form, designRateStbd: '300' }, model: rodModel });
+    if (harder.ok && !(harder.design.intake.submergenceFt < d.intake.submergenceFt)) {
+      throw new Error('pumping harder did not cost submergence');
+    }
+    const short = runRodDesign({ form: { ...form, sectionsText: '7/8, 2000' }, model: rodModel });
+    if (short.ok) throw new Error('a rod string shorter than its pump depth was accepted');
+    if (!/reaches its pump/.test(short.errors.join(' '))) {
+      throw new Error('the refusal did not say why');
+    }
+  });
+
   const armed: [string, string][] = [
     ['PL1', 'Takacs, Gas Lift Manual worked installation design (valve depths, domes, test-rack settings)'],
     ['PL2', 'API Gas Lift Manual Book 6 nitrogen Ct table / NIST nitrogen isotherm z values'],
@@ -530,6 +722,10 @@ async function main() {
     ['PL6', 'Turpin / Alhanati SPE 28526 gas-handling criteria'],
     ['PL7', 'vendor pump catalog stage curves (reference-model spot check)'],
     ['PL8', 'Takacs, Electrical Submersible Pumps Manual worked design example'],
+    ['PL9', 'API RP 11L dimensionless charts (Sp/S, F1/Skr, F2/Skr, 2T/S^2kr) against the wave-equation solution across the N/N0 and Fo/Skr grid'],
+    ['PL10', 'Takacs, Sucker-Rod Pumping Manual worked design example (loads, torque, plunger stroke)'],
+    ['PL11', 'API RP 11BR modified Goodman allowable and published service factors'],
+    ['PL12', 'a measured field dynamometer card with its independently computed downhole card (Gibbs diagnostic spot check)'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
