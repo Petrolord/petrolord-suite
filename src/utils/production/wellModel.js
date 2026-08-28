@@ -1,0 +1,266 @@
+/**
+ * The shared per-well model (Production P6.5).
+ *
+ * ONE description of a well, used by every production studio that needs
+ * one. Before this module the gas lift, ESP and rod pump studios each
+ * carried their own copy of the same code and the same input sections,
+ * which meant the same well could be described three different ways and
+ * the nodal cross-check of well tests deferred at P3 had nothing to
+ * check against.
+ *
+ * WHAT BELONGS HERE and what does not. This is the WELL, not a design:
+ *
+ *   here          trajectory, temperatures, fluid (PVT), inflow (IPR),
+ *                 and the completion the tubing traverse runs in
+ *   not here      the duty a design was run at -- rate, water cut,
+ *                 wellhead pressure, injection gas, plunger size, rod
+ *                 taper, stroke. Those belong to the design, and two
+ *                 designs against one well should be free to differ.
+ *
+ * The line matters because it is what makes the record shareable. Water
+ * cut and wellhead pressure look like well properties and are not: they
+ * are what the well was doing on the day, and a design is entitled to
+ * ask what happens at a different one.
+ *
+ * The completion block is OPTIONAL for consumers. A rod pump lifts a
+ * liquid column and never runs a multiphase traverse, so it ignores
+ * the completion entirely; gas lift and ESP need it. It is stored on
+ * the well because tubing is a property of the well, not of a design.
+ *
+ * Inputs stay as STRINGS, the way the studio forms hold them, so a
+ * model round-trips into the form it came from without a coercion
+ * changing what the user typed.
+ */
+
+// Relative imports (not the @/ alias) so this module also loads outside
+// Vite: tools/validation/production-validation.ts exercises it directly.
+import { computeIpr } from '../nodal/ipr.js';
+import { buildFluidModel } from '../nodal/pvt.js';
+import { buildTrajectory } from '../nodal/trajectory.js';
+import { linearGeothermal } from '../nodal/temperature.js';
+import { num } from '../nodal/numerics.js';
+
+export const WELL_MODEL_SCHEMA = 1;
+
+/** The sections a well model is made of. */
+export const WELL_MODEL_SECTIONS = ['well', 'fluid', 'inflow', 'completion'];
+
+/**
+ * Default well description. Studios override the numbers for the kind
+ * of well they usually see; the SHAPE is fixed here so a model saved
+ * from one studio loads into another.
+ */
+export const defaultWellInputs = () => ({
+  well: {
+    mode: 'vertical',
+    depthFt: '7000',
+    surveyText: '0, 0, 0\n2000, 0, 0\n3000, 30, 45\n8000, 30, 45',
+    whtF: '100',
+    bhtF: '170',
+  },
+  fluid: {
+    api: '32',
+    gasSg: '0.75',
+    gor: '150',
+    salinityPpm: '30000',
+  },
+  inflow: {
+    model: 'composite',
+    pr: '2600',
+    pb: '1800',
+    calMode: 'pi',
+    pi: '2.5',
+    qmax: '1200',
+    testQ: '',
+    testPwf: '',
+  },
+  completion: {
+    idIn: '2.441',
+    casingIdIn: '6.276',
+    roughnessIn: '0.0006',
+    correlation: 'beggsBrill',
+    stepFt: '100',
+  },
+});
+
+/**
+ * Merge a partial well description onto the defaults, section by
+ * section. Used both by studio payload restore and by the spine load,
+ * so a model written by an older build never loses a key.
+ */
+export const mergeWellInputs = (raw, base = defaultWellInputs()) => {
+  const out = { ...base };
+  WELL_MODEL_SECTIONS.forEach((s) => {
+    out[s] = { ...base[s], ...((raw && raw[s]) || {}) };
+  });
+  return out;
+};
+
+/** Pull just the well-model sections out of a studio's inputs. */
+export const wellInputsFrom = (inputs) => ({
+  well: { ...inputs.well },
+  fluid: { ...inputs.fluid },
+  inflow: { ...inputs.inflow },
+  completion: { ...(inputs.completion || {}) },
+});
+
+/**
+ * The trajectory a studio's well section describes.
+ * A survey line that cannot be read is dropped rather than guessed at,
+ * and a model with no usable depth returns null rather than a default
+ * well nobody asked for.
+ */
+export const buildWellTrajectory = (well) => {
+  const depthFt = num(well.depthFt, NaN);
+  if (well.mode === 'deviated') {
+    const survey = String(well.surveyText || '').split('\n').map((line) => {
+      const [md, inc, azi] = line.split(',').map((v) => parseFloat(v));
+      return { md, inc, azi };
+    }).filter((s) => Number.isFinite(s.md) && Number.isFinite(s.inc));
+    if (!survey.length) return null;
+    return buildTrajectory({ mode: 'deviated', survey });
+  }
+  if (!(depthFt > 0)) return null;
+  return buildTrajectory({ mode: 'vertical', depthFt });
+};
+
+/**
+ * The nodal bundle every production studio runs on.
+ *
+ * returns { trajectory, tvdMax, fluidModel, tAt, ipr, vlp } or null
+ * when the description is not complete enough to build one.
+ *
+ * `vlp` is SELF-CONTAINED on purpose: it carries the fluid, the
+ * trajectory and the temperature alongside the completion, so a
+ * consumer can spread it straight into a traverse call. A consumer that
+ * never marches a traverse (a rod pump lifts a liquid column) simply
+ * ignores it. What vlp does NOT carry is the duty — wellhead pressure,
+ * water cut, rate — because those belong to a design, not to the well.
+ */
+export const buildWellModel = (inputs) => {
+  if (!inputs?.well) return null;
+  const trajectory = buildWellTrajectory(inputs.well);
+  if (!trajectory) return null;
+  const tvdMax = trajectory.tvdMax || num(inputs.well.depthFt, 0);
+  if (!(tvdMax > 0)) return null;
+
+  const fluid = inputs.fluid || {};
+  const completion = inputs.completion || {};
+  const fluidModel = buildFluidModel({
+    api: num(fluid.api, 32),
+    gasSg: num(fluid.gasSg, 0.75),
+    gor: num(fluid.gor, 150),
+    salinityPpm: num(fluid.salinityPpm, 0),
+  });
+  const tAt = linearGeothermal({
+    whtF: num(inputs.well.whtF, 100),
+    bhtF: num(inputs.well.bhtF, 170),
+    tvdMaxFt: tvdMax,
+  });
+  const ipr = computeIpr({
+    model: inputs.inflow?.model,
+    pr: num(inputs.inflow?.pr, NaN),
+    pb: num(inputs.inflow?.pb, 0),
+    pi: inputs.inflow?.calMode === 'pi' ? num(inputs.inflow.pi, NaN) : undefined,
+    qmax: inputs.inflow?.calMode === 'qmax' ? num(inputs.inflow.qmax, NaN) : undefined,
+    testPoint: inputs.inflow?.calMode === 'test'
+      ? { q: num(inputs.inflow.testQ, NaN), pwf: num(inputs.inflow.testPwf, NaN) }
+      : null,
+  });
+  // An inflow that did not calibrate has an absolute open flow of NaN,
+  // and every rate check downstream compares against it. NaN comparisons
+  // are false, so the design would sail past its own guards and produce
+  // a page of NaN. Refusing here turns that into the honest "the well
+  // model is incomplete" every studio already reports.
+  if (!(ipr.qmax > 0)) return null;
+
+  return {
+    trajectory,
+    tvdMax,
+    fluidModel,
+    tAt,
+    ipr,
+    vlp: {
+      // Self-contained: spreadable straight into a traverse call.
+      fluidModel,
+      trajectory,
+      tAt,
+      idIn: num(completion.idIn, 2.441),
+      casingIdIn: num(completion.casingIdIn, NaN),
+      roughnessIn: num(completion.roughnessIn, 0.0006),
+      correlation: completion.correlation || 'beggsBrill',
+      stepFt: num(completion.stepFt, 100),
+      nodeMd: trajectory.mdMax || tvdMax,
+    },
+  };
+};
+
+/**
+ * Why a description will not build, in words a user can act on.
+ * Returned as a list so every problem shows at once rather than one
+ * per attempt.
+ */
+export const wellModelProblems = (inputs) => {
+  const problems = [];
+  if (!inputs?.well) return ['The well description is missing.'];
+  if (inputs.well.mode === 'deviated') {
+    const rows = String(inputs.well.surveyText || '').split('\n')
+      .map((line) => line.split(',').map((v) => parseFloat(v)))
+      .filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    if (!rows.length) problems.push('The deviation survey has no readable stations (measured depth, inclination, azimuth per line).');
+  } else if (!(num(inputs.well.depthFt, NaN) > 0)) {
+    problems.push('The well needs a depth.');
+  }
+  if (!(num(inputs.inflow?.pr, NaN) > 0)) problems.push('The inflow needs a reservoir pressure.');
+  const cal = inputs.inflow?.calMode;
+  if (cal === 'pi' && !(num(inputs.inflow.pi, NaN) > 0)) {
+    problems.push('The inflow is calibrated on a productivity index, so it needs one.');
+  }
+  if (cal === 'qmax') {
+    if (!(num(inputs.inflow.qmax, NaN) > 0)) {
+      problems.push('The inflow is calibrated on absolute open flow, so it needs one.');
+    }
+    // Only Vogel is defined by its open flow alone. A straight-line PI
+    // and the composite model are calibrated by a productivity index or
+    // a test point, and handing them an open flow calibrates nothing --
+    // which used to produce a silently uncalibrated inflow rather than
+    // this sentence.
+    if (inputs.inflow.model && inputs.inflow.model !== 'vogel') {
+      problems.push('Absolute open flow calibrates a Vogel inflow. This one is not Vogel, so give it a productivity index or a production test instead.');
+    }
+  }
+  if (cal === 'test' && !(num(inputs.inflow.testQ, NaN) > 0 && num(inputs.inflow.testPwf, NaN) > 0)) {
+    problems.push('The inflow is calibrated on a production test, so it needs both a rate and a flowing bottomhole pressure.');
+  }
+  return problems;
+};
+
+/** Serialise a well description for the spine. */
+export const toWellModelPayload = (inputs, extra = {}) => ({
+  schema: WELL_MODEL_SCHEMA,
+  ...extra,
+  ...wellInputsFrom(inputs),
+});
+
+/**
+ * Read a spine payload back into studio inputs.
+ * Unknown or missing keys fall back to the defaults rather than
+ * producing a half-built form.
+ */
+export const fromWellModelPayload = (payload, base) => {
+  if (!payload || typeof payload !== 'object') return null;
+  return mergeWellInputs(payload, base || defaultWellInputs());
+};
+
+/**
+ * A one-line description of the well, for pickers and headers.
+ */
+export const describeWellModel = (inputs) => {
+  const depth = num(inputs?.well?.depthFt, NaN);
+  const pr = num(inputs?.inflow?.pr, NaN);
+  const bits = [];
+  if (Number.isFinite(depth) && depth > 0) bits.push(`${Math.round(depth).toLocaleString()} ft`);
+  if (Number.isFinite(pr) && pr > 0) bits.push(`${Math.round(pr).toLocaleString()} psia`);
+  if (inputs?.fluid?.api) bits.push(`${inputs.fluid.api} API`);
+  return bits.join(', ');
+};

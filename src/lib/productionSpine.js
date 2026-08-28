@@ -525,3 +525,69 @@ export async function writeAllocatedProduction(rows) {
   }
   return written;
 }
+
+// ---- well models (P6.5) ---------------------------------------------------
+//
+// The well's OWN description -- trajectory, fluid, temperature, inflow
+// and completion -- shared by every production studio that needs one.
+// Before this, the gas lift, ESP and rod pump studios each stored their
+// own copy inside their own design payloads, so one well could be
+// described three ways and the P3 nodal cross-check of well tests had
+// nothing to check against.
+//
+// A design still keeps the DUTY it was run at. What lives here is only
+// what belongs to the well itself. See src/utils/production/wellModel.js
+// for where that line is drawn and why.
+
+/**
+ * The current model for one well, or null when it has none.
+ * A well without a model is an ordinary state, not an error: the spine
+ * has always known wells before it knew what they do.
+ */
+export async function getWellModel(wellId) {
+  if (!wellId) return null;
+  const { data, error } = await supabase.from('po_well_models')
+    .select('*')
+    .eq('well_id', wellId)
+    .maybeSingle();
+  if (error) throw new Error(`Could not load the well model: ${error.message}`);
+  return data || null;
+}
+
+/** Every model in a field, well attached, for pickers. */
+export async function listFieldWellModels(fieldId) {
+  const { data, error } = await supabase.from('po_well_models')
+    .select('*, po_wells!inner(id, name, field_id, well_type)')
+    .eq('po_wells.field_id', fieldId)
+    .order('updated_at', { ascending: false });
+  if (error) throw new Error(`Could not load well models: ${error.message}`);
+  return (data || []).map(({ po_wells: w, ...row }) => ({ ...row, well: w }));
+}
+
+/**
+ * Save the current model for a well. One model per well, so this
+ * overwrites rather than accumulating revisions; the unique key on
+ * well_id is what makes "what does this well do" have one answer.
+ */
+export async function upsertWellModel(wellId, modelData, notes = null) {
+  const user = await requireUser();
+  if (!wellId) throw new Error('A well model has to belong to a well on the spine.');
+  const { data, error } = await supabase.from('po_well_models')
+    .upsert({
+      user_id: user.id,
+      well_id: wellId,
+      model_data: modelData,
+      notes,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'well_id' })
+    .select()
+    .single();
+  if (error) throw new Error(`Could not save the well model: ${error.message}`);
+  return data;
+}
+
+/** Remove a well's model. The well and its production stay. */
+export async function deleteWellModel(wellId) {
+  const { error } = await supabase.from('po_well_models').delete().eq('well_id', wellId);
+  if (error) throw new Error(`Could not delete the well model: ${error.message}`);
+}

@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { useRodPump } from '@/contexts/RodPumpDesignContext';
+import WellModelSpinePanel from '@/components/production/WellModelSpinePanel';
 
 const SpineLinkPanel = () => {
   const {
     inputs, patchSection, fields, spineWells, linkWell, latestTestForLinkedWell,
     applyLatestTest, legacyDesigns, loadLegacyDesigns, importLegacyDesign,
+    savedWellModel, wellModelDirty, loadFromSpine, saveToSpine, wellModelBusy,
   } = useRodPump();
   const { link } = inputs;
 
@@ -76,6 +78,18 @@ const SpineLinkPanel = () => {
           )}
         </div>
       )}
+
+      <div className="border-t border-slate-800 pt-3 space-y-2">
+        <Label className="text-xs text-slate-400">Well model</Label>
+        <WellModelSpinePanel
+          wellName={inputs.link.wellName}
+          savedModel={savedWellModel}
+          isDirty={wellModelDirty}
+          onLoad={loadFromSpine}
+          onSave={saveToSpine}
+          busy={wellModelBusy}
+        />
+      </div>
 
       <div className="border-t border-slate-800 pt-3 space-y-2">
         <Label className="text-xs text-slate-400">Old Artificial Lift Designer saves</Label>

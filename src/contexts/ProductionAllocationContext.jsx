@@ -21,9 +21,12 @@ import { useStudioNotifications } from '@/components/studio/useStudioNotificatio
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import * as spine from '@/lib/productionSpine';
 import { buildWellSeries } from '@/utils/production/surveillance';
+import { buildWellModel, fromWellModelPayload } from '@/utils/production/wellModel';
+import { solveOperatingPoint } from '@/utils/nodal/system';
 import {
   computeAllocation, monthlyFactors, allocatedLedgerRows, imbalanceSeries,
-  validateWellTests, DEFAULT_ALLOCATION_SETTINGS, DEFAULT_TEST_QC_SETTINGS,
+  validateWellTests, crossCheckTestsAgainstNodal, DEFAULT_ALLOCATION_SETTINGS,
+  DEFAULT_TEST_QC_SETTINGS, DEFAULT_NODAL_CHECK_SETTINGS,
 } from '@/utils/production/allocation';
 
 const TABLE = 'saved_allocation_projects';
@@ -111,6 +114,12 @@ export const ProductionAllocationProvider = ({ children }) => {
   const [savedFactors, setSavedFactors] = useState([]);
   const [loadingField, setLoadingField] = useState(false);
   const [busyMessage, setBusyMessage] = useState(null);
+  // The nodal cross-check (P6.5). Deferred at P3 for want of a per-well
+  // model; possible now that po_well_models exists. It marches a
+  // traverse per rate per test, so it is an explicit run rather than
+  // something recomputed with the rest of the QC.
+  const [nodalCheck, setNodalCheck] = useState(null);
+  const [isCrossChecking, setIsCrossChecking] = useState(false);
 
   const currentField = useMemo(
     () => fields.find((f) => f.id === inputs.fieldId) || null,
@@ -202,6 +211,55 @@ export const ProductionAllocationProvider = ({ children }) => {
     () => validateWellTests(tests, wellSeries, activeQc),
     [tests, wellSeries, activeQc],
   );
+  /**
+   * Check every well test against what its own well model says the well
+   * should make at the test's wellhead pressure. This is the strongest
+   * test QC there is, and it is the reason the shared well record
+   * exists: the spine knew the wells but not what they do until P6.5.
+   */
+  const runNodalCrossCheck = useCallback(async () => {
+    if (!inputs.fieldId) {
+      addNotification('Pick a field first.', 'error');
+      return;
+    }
+    setIsCrossChecking(true);
+    setBusyMessage('Solving each well against its own model...');
+    // Yield a frame so the busy state paints before the solves block.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    try {
+      const rows = await spine.listFieldWellModels(inputs.fieldId);
+      const models = new Map(
+        rows.map((r) => [r.well_id, fromWellModelPayload(r.model_data)]),
+      );
+      const results = crossCheckTestsAgainstNodal({
+        tests,
+        wellModels: models,
+        buildModel: buildWellModel,
+        solveNode: solveOperatingPoint,
+        settings: DEFAULT_NODAL_CHECK_SETTINGS,
+      });
+      setNodalCheck({ results, modelCount: models.size, ranAt: new Date() });
+      const off = results.filter((r) => r.status === 'off' || r.status === 'dead').length;
+      addNotification(
+        models.size === 0
+          ? 'No wells in this field have a model on the spine yet. Save one from the gas lift, ESP or rod pump studio and the tests can be checked against it.'
+          : `Checked ${results.length} test${results.length === 1 ? '' : 's'} against ${models.size} well model${models.size === 1 ? '' : 's'}: ${off} disagree.`,
+        off > 0 ? 'info' : 'success',
+      );
+    } catch (e) {
+      console.error(e);
+      addNotification(e.message, 'error');
+    } finally {
+      setIsCrossChecking(false);
+      setBusyMessage(null);
+    }
+  }, [inputs.fieldId, tests, addNotification]);
+
+  const nodalCheckById = useMemo(
+    () => new Map((nodalCheck?.results || []).map((r) => [r.testId, r])),
+    [nodalCheck],
+  );
+
   const testQcById = useMemo(
     () => new Map(testQc.map((r) => [r.testId, r])),
     [testQc],
@@ -554,6 +612,11 @@ export const ProductionAllocationProvider = ({ children }) => {
     imbalance,
     testQc,
     testQcById,
+    // the nodal cross-check (P6.5)
+    nodalCheck,
+    nodalCheckById,
+    runNodalCrossCheck,
+    isCrossChecking,
     // field actions
     selectField,
     createField,

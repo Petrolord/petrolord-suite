@@ -22,11 +22,11 @@ import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { supabase } from '@/lib/customSupabaseClient';
 import * as spine from '@/lib/productionSpine';
-import { computeIpr } from '@/utils/nodal/ipr';
-import { buildFluidModel } from '@/utils/nodal/pvt';
-import { buildTrajectory } from '@/utils/nodal/trajectory';
-import { linearGeothermal } from '@/utils/nodal/temperature';
 import { linspace, num } from '@/utils/nodal/numerics';
+import {
+  defaultWellInputs, buildWellModel as buildSharedWellModel, mergeWellInputs,
+} from '@/utils/production/wellModel';
+import { useWellModelSync } from '@/hooks/useWellModelSync';
 import {
   runInstallationDesign, liftedTraverse, injectionPointFromTraverse,
   gasLiftPerformance, injectionDepthSweep, mdAtTvd, psigToPsia,
@@ -51,66 +51,52 @@ export const friendlyError = (error) => {
   return msg || 'Unexpected error.';
 };
 
-export const defaultInputs = () => ({
-  well: {
-    mode: 'vertical',
-    depthFt: '7000',
-    surveyText: '0, 0, 0\n2000, 0, 0\n3000, 30, 45\n8000, 30, 45',
-    whtF: '100',
-    bhtF: '170',
-  },
-  fluid: {
-    api: '32',
-    gasSg: '0.75',
-    gor: '150',
-    salinityPpm: '30000',
-  },
-  inflow: {
-    model: 'composite',
-    pr: '2600',
-    pb: '1800',
-    calMode: 'pi',
-    pi: '2.5',
-    qmax: '1200',
-    testQ: '',
-    testPwf: '',
-  },
-  completion: {
-    idIn: '2.441',
-    roughnessIn: '0.0006',
-    whp: '150',
-    correlation: 'beggsBrill',
-    wctPct: '70',
-    stepFt: '100',
-  },
-  injection: {
-    kickoffPsig: '1000',
-    operatingPsig: '900',
-    injGasSg: '0.65',
-    targetQgiMscfd: '600',
-    designRateStbd: '400',
-    maxQgiMscfd: '1600',
-    nPoints: '9',
-    econSlope: '0.05',
-  },
-  design: {
-    method: 'surfaceClose',
-    dpPerValvePsi: '25',
-    dpTransferPsi: '50',
-    killGradPsiPerFt: '0.45',
-    unloadGradPsiPerFt: '0.10',
-    whUnloadPsig: '100',
-    minSpacingFt: '250',
-    maxValves: '12',
-    packerDepthFt: '7000',
-    bottomOrifice: true,
-    orificeIdIn: '0.25',
-    valveFamilyId: 'r15',
-    valveType: 'IPO',
-    useComputedInjectionDepth: true,
-  },
-  link: { fieldId: null, wellId: null, wellName: '' },
-});
+export const defaultInputs = () => {
+  // The well description comes from the SHARED shape (P6.5) so a model
+  // saved here loads in the ESP and rod pump studios.
+  //
+  // Note what MOVED to `injection` in that phase: the wellhead pressure
+  // and the water cut. They look like completion properties and are
+  // not — they are what the well was doing on the day, so they belong
+  // to the duty a design is run at, not to the well record every studio
+  // shares.
+  const w = defaultWellInputs();
+  return {
+    well: { ...w.well },
+    fluid: { ...w.fluid },
+    inflow: { ...w.inflow },
+    completion: { ...w.completion },
+    injection: {
+      kickoffPsig: '1000',
+      operatingPsig: '900',
+      injGasSg: '0.65',
+      targetQgiMscfd: '600',
+      designRateStbd: '400',
+      maxQgiMscfd: '1600',
+      nPoints: '9',
+      econSlope: '0.05',
+      whp: '150',
+      wctPct: '70',
+    },
+    design: {
+      method: 'surfaceClose',
+      dpPerValvePsi: '25',
+      dpTransferPsi: '50',
+      killGradPsiPerFt: '0.45',
+      unloadGradPsiPerFt: '0.10',
+      whUnloadPsig: '100',
+      minSpacingFt: '250',
+      maxValves: '12',
+      packerDepthFt: '7000',
+      bottomOrifice: true,
+      orificeIdIn: '0.25',
+      valveFamilyId: 'r15',
+      valveType: 'IPO',
+      useComputedInjectionDepth: true,
+    },
+    link: { fieldId: null, wellId: null, wellName: '' },
+  };
+};
 
 const SECTIONS = ['well', 'fluid', 'inflow', 'completion', 'injection', 'design', 'link'];
 
@@ -119,7 +105,7 @@ export const inputsFromPayload = (payload) => {
   if (!payload || typeof payload !== 'object') return null;
   const raw = payload.inputs && typeof payload.inputs === 'object' ? payload.inputs : payload;
   const base = defaultInputs();
-  const out = { ...base };
+  const out = { ...base, ...mergeWellInputs(raw, base) };
   SECTIONS.forEach((s) => {
     out[s] = { ...base[s], ...(raw[s] || {}) };
   });
@@ -146,57 +132,29 @@ export const designFormFrom = (inputs, targetDepthFt) => ({
   targetDepthFt: targetDepthFt ?? '',
 });
 
-/** The nodal bundles this studio's analytics run on. */
+/**
+ * The nodal bundle this studio runs on.
+ *
+ * The well itself comes from the shared model (P6.5), so gas lift, ESP
+ * and rod pump cannot disagree about it. What is added here is the part
+ * a gas-lift traverse needs and the well record deliberately does not
+ * hold: the wellhead pressure the tubing is flowing against and the
+ * water cut it is flowing at. Those are duty, not well.
+ */
 export const buildWellModel = (inputs) => {
-  const depthFt = num(inputs.well.depthFt, NaN);
-  if (!(depthFt > 0)) return null;
-  const trajectory = inputs.well.mode === 'deviated'
-    ? buildTrajectory({
-      mode: 'deviated',
-      survey: (inputs.well.surveyText || '').split('\n').map((line) => {
-        const [md, inc, azi] = line.split(',').map((v) => parseFloat(v));
-        return { md, inc, azi };
-      }).filter((s) => Number.isFinite(s.md) && Number.isFinite(s.inc)),
-    })
-    : buildTrajectory({ mode: 'vertical', depthFt });
-  const tvdMax = trajectory.tvdMax || depthFt;
-  const fluidModel = buildFluidModel({
-    api: num(inputs.fluid.api, 32),
-    gasSg: num(inputs.fluid.gasSg, 0.75),
-    gor: num(inputs.fluid.gor, 150),
-    salinityPpm: num(inputs.fluid.salinityPpm, 0),
-  });
-  const tAt = linearGeothermal({
-    whtF: num(inputs.well.whtF, 100),
-    bhtF: num(inputs.well.bhtF, 170),
-    tvdMaxFt: tvdMax,
-  });
-  const ipr = computeIpr({
-    model: inputs.inflow.model,
-    pr: num(inputs.inflow.pr, NaN),
-    pb: num(inputs.inflow.pb, 0),
-    pi: inputs.inflow.calMode === 'pi' ? num(inputs.inflow.pi, NaN) : undefined,
-    qmax: inputs.inflow.calMode === 'qmax' ? num(inputs.inflow.qmax, NaN) : undefined,
-    testPoint: inputs.inflow.calMode === 'test'
-      ? { q: num(inputs.inflow.testQ, NaN), pwf: num(inputs.inflow.testPwf, NaN) }
-      : null,
-  });
-  const vlp = {
-    fluidModel,
-    trajectory,
-    tAt,
-    idIn: num(inputs.completion.idIn, 2.441),
-    roughnessIn: num(inputs.completion.roughnessIn, 0.0006),
-    correlation: inputs.completion.correlation,
-    whp: num(inputs.completion.whp, NaN),
-    nodeMd: trajectory.mdMax || depthFt,
-    stepFt: num(inputs.completion.stepFt, 100),
-    rates: {
-      wct: num(inputs.completion.wctPct, 0) / 100,
-      gor: num(inputs.fluid.gor, 0),
+  const base = buildSharedWellModel(inputs);
+  if (!base) return null;
+  return {
+    ...base,
+    vlp: {
+      ...base.vlp,
+      whp: num(inputs.injection.whp, NaN),
+      rates: {
+        wct: num(inputs.injection.wctPct, 0) / 100,
+        gor: num(inputs.fluid.gor, 0),
+      },
     },
   };
-  return { trajectory, fluidModel, tAt, ipr, vlp, tvdMax };
 };
 
 export const GasLiftDesignProvider = ({ children }) => {
@@ -417,6 +375,19 @@ export const GasLiftDesignProvider = ({ children }) => {
     patchSection('link', { wellId: wellId || null, wellName: well?.name || '' });
   }, [spineWells, patchSection]);
 
+  // The well's own description lives on the spine (P6.5), shared with
+  // every other production studio.
+  const {
+    savedWellModel, wellModelDirty, loadFromSpine, saveToSpine, wellModelBusy,
+  } = useWellModelSync({
+    inputs,
+    setInputs,
+    wellId: inputs.link.wellId,
+    wellName: inputs.link.wellName,
+    addNotification,
+    onLoaded: () => { setPerformance(null); setDepthSweep(null); },
+  });
+
   const applyLatestTest = useCallback(() => {
     const t = latestTestForLinkedWell;
     if (!t) {
@@ -437,16 +408,16 @@ export const GasLiftDesignProvider = ({ children }) => {
         next.injection = { ...prev.injection, designRateStbd: String(oil) };
         applied.push('design rate');
       }
-      const completion = { ...prev.completion };
+      const injection = { ...next.injection };
       if (liquid > 0) {
-        completion.wctPct = ((water / liquid) * 100).toFixed(1);
+        injection.wctPct = ((water / liquid) * 100).toFixed(1);
         applied.push('water cut');
       }
-      if (Number.isFinite(num(t.thp_psia, NaN)) && num(t.thp_psia, 0) > 0) {
-        completion.whp = String(t.thp_psia);
+      if (num(t.thp_psia, 0) > 0) {
+        injection.whp = String(t.thp_psia);
         applied.push('wellhead pressure');
       }
-      next.completion = completion;
+      next.injection = injection;
       if (oil > 0 && gas > 0) {
         next.fluid = { ...prev.fluid, gor: ((gas * 1000) / oil).toFixed(0) };
         applied.push('gas-oil ratio');
@@ -509,14 +480,14 @@ export const GasLiftDesignProvider = ({ children }) => {
       completion: {
         ...prev.completion,
         ...(patch.tubingIdIn ? { idIn: patch.tubingIdIn } : {}),
-        ...(patch.whpPsig ? { whp: patch.whpPsig } : {}),
-        ...(patch.wctPct ? { wctPct: patch.wctPct } : {}),
       },
       injection: {
         ...prev.injection,
         ...(patch.kickoffPsig ? { kickoffPsig: patch.kickoffPsig } : {}),
         ...(patch.injGasSg ? { injGasSg: patch.injGasSg } : {}),
         ...(patch.designRateStbd ? { designRateStbd: patch.designRateStbd } : {}),
+        ...(patch.whpPsig ? { whp: patch.whpPsig } : {}),
+        ...(patch.wctPct ? { wctPct: patch.wctPct } : {}),
       },
       design: {
         ...prev.design,
@@ -671,6 +642,12 @@ export const GasLiftDesignProvider = ({ children }) => {
     latestTestForLinkedWell,
     linkWell,
     applyLatestTest,
+    // shared well model on the spine
+    savedWellModel,
+    wellModelDirty,
+    loadFromSpine,
+    saveToSpine,
+    wellModelBusy,
     // legacy import
     legacyDesigns,
     loadLegacyDesigns,

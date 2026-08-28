@@ -18,11 +18,11 @@ import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { supabase } from '@/lib/customSupabaseClient';
 import * as spine from '@/lib/productionSpine';
-import { computeIpr } from '@/utils/nodal/ipr';
-import { buildFluidModel } from '@/utils/nodal/pvt';
-import { buildTrajectory } from '@/utils/nodal/trajectory';
-import { linearGeothermal } from '@/utils/nodal/temperature';
 import { linspace, num } from '@/utils/nodal/numerics';
+import {
+  defaultWellInputs, buildWellModel, mergeWellInputs,
+} from '@/utils/production/wellModel';
+import { useWellModelSync } from '@/hooks/useWellModelSync';
 import {
   runDesign, speedSweep, parseMeasuredCard, diagnoseMeasured, suggestTaper,
   parseSections, liquidGravity, importLegacyRodInputs,
@@ -45,73 +45,66 @@ export const friendlyError = (error) => {
   return msg || 'Unexpected error.';
 };
 
-export const defaultInputs = () => ({
-  well: {
-    mode: 'vertical',
-    depthFt: '5000',
-    surveyText: '0, 0, 0\n1500, 0, 0\n2500, 25, 30\n5600, 25, 30',
-    whtF: '90',
-    bhtF: '150',
-  },
-  fluid: {
-    api: '30',
-    gasSg: '0.7',
-    gor: '80',
-    salinityPpm: '30000',
-  },
-  inflow: {
-    model: 'composite',
-    pr: '1200',
-    pb: '800',
-    calMode: 'pi',
-    pi: '0.6',
-    qmax: '400',
-    testQ: '',
-    testPwf: '',
-  },
-  duty: {
-    designRateStbd: '120',
-    wctPct: '80',
-    whp: '80',
-    pumpTvdFt: '4800',
-    annulusGradPsiPerFt: '0.38',
-    separatorEfficiencyPct: '60',
-    pumpEfficiencyPct: '90',
-  },
-  unit: {
-    strokeIn: '64',
-    spm: '8',
-    plungerDIn: '1.75',
-    unitSource: 'generic',
-    unitDesignation: 'C-228D-200-74',
-    structuralUnbalanceLb: '0',
-    crankOffsetDeg: '0',
-    dampingRatio: '0.1',
-    aIn: '',
-    cIn: '',
-    pIn: '',
-    crankBehindIn: '',
-    crankBelowIn: '',
-    rIn: '',
-  },
-  rods: {
-    gradeId: 'D',
-    serviceFactor: '1',
-    sectionsText: '7/8, 2400\n3/4, 2400',
-  },
-  sweep: { minSpm: '4', maxSpm: '14', nPoints: '6' },
-  diagnostics: { cardText: '', spm: '' },
-  link: { fieldId: null, wellId: null, wellName: '' },
-});
+export const defaultInputs = () => {
+  // The well description comes from the SHARED shape (P6.5) so a model
+  // saved here loads in the gas lift and ESP studios; only the numbers
+  // are tuned for the kind of well a rod pump lifts.
+  //
+  // The completion block is carried even though a rod pump never uses
+  // it: it lifts a liquid column and marches no multiphase traverse.
+  // It is part of the WELL, and the studios that do march one need it,
+  // so dropping it here would mean a model saved from this studio came
+  // back incomplete somewhere else.
+  const w = defaultWellInputs();
+  return {
+    well: { ...w.well, depthFt: '5000', whtF: '90', bhtF: '150' },
+    fluid: { ...w.fluid, api: '30', gasSg: '0.7', gor: '80' },
+    inflow: { ...w.inflow, pr: '1200', pb: '800', pi: '0.6', qmax: '400' },
+    completion: { ...w.completion },
+    duty: {
+      designRateStbd: '120',
+      wctPct: '80',
+      whp: '80',
+      pumpTvdFt: '4800',
+      annulusGradPsiPerFt: '0.38',
+      separatorEfficiencyPct: '60',
+      pumpEfficiencyPct: '90',
+    },
+    unit: {
+      strokeIn: '64',
+      spm: '8',
+      plungerDIn: '1.75',
+      unitSource: 'generic',
+      unitDesignation: 'C-228D-200-74',
+      structuralUnbalanceLb: '0',
+      crankOffsetDeg: '0',
+      dampingRatio: '0.1',
+      aIn: '',
+      cIn: '',
+      pIn: '',
+      crankBehindIn: '',
+      crankBelowIn: '',
+      rIn: '',
+    },
+    rods: {
+      gradeId: 'D',
+      serviceFactor: '1',
+      sectionsText: '7/8, 2400\n3/4, 2400',
+    },
+    sweep: { minSpm: '4', maxSpm: '14', nPoints: '6' },
+    diagnostics: { cardText: '', spm: '' },
+    link: { fieldId: null, wellId: null, wellName: '' },
+  };
+};
 
-const SECTIONS = ['well', 'fluid', 'inflow', 'duty', 'unit', 'rods', 'sweep', 'diagnostics', 'link'];
+const SECTIONS = ['well', 'fluid', 'inflow', 'completion', 'duty', 'unit', 'rods', 'sweep', 'diagnostics', 'link'];
 
 /** Restore inputs from a payload, tolerating missing keys from older rows. */
 export const inputsFromPayload = (payload) => {
   if (!payload || typeof payload !== 'object') return null;
   const raw = payload.inputs && typeof payload.inputs === 'object' ? payload.inputs : payload;
   const base = defaultInputs();
-  const out = { ...base };
+  const out = { ...base, ...mergeWellInputs(raw, base) };
   SECTIONS.forEach((s) => {
     out[s] = { ...base[s], ...(raw[s] || {}) };
   });
@@ -141,46 +134,11 @@ export const designFormFrom = (inputs) => ({
   api: inputs.fluid.api,
 });
 
-/** The nodal bundle this studio's analytics run on. */
-export const buildWellModel = (inputs) => {
-  const depthFt = num(inputs.well.depthFt, NaN);
-  if (!(depthFt > 0)) return null;
-  const trajectory = inputs.well.mode === 'deviated'
-    ? buildTrajectory({
-      mode: 'deviated',
-      survey: (inputs.well.surveyText || '').split('\n').map((line) => {
-        const [md, inc, azi] = line.split(',').map((v) => parseFloat(v));
-        return { md, inc, azi };
-      }).filter((s) => Number.isFinite(s.md) && Number.isFinite(s.inc)),
-    })
-    : buildTrajectory({ mode: 'vertical', depthFt });
-  const tvdMax = trajectory.tvdMax || depthFt;
-  return {
-    trajectory,
-    tvdMax,
-    fluidModel: buildFluidModel({
-      api: num(inputs.fluid.api, 30),
-      gasSg: num(inputs.fluid.gasSg, 0.7),
-      gor: num(inputs.fluid.gor, 80),
-      salinityPpm: num(inputs.fluid.salinityPpm, 0),
-    }),
-    tAt: linearGeothermal({
-      whtF: num(inputs.well.whtF, 90),
-      bhtF: num(inputs.well.bhtF, 150),
-      tvdMaxFt: tvdMax,
-    }),
-    ipr: computeIpr({
-      model: inputs.inflow.model,
-      pr: num(inputs.inflow.pr, NaN),
-      pb: num(inputs.inflow.pb, 0),
-      pi: inputs.inflow.calMode === 'pi' ? num(inputs.inflow.pi, NaN) : undefined,
-      qmax: inputs.inflow.calMode === 'qmax' ? num(inputs.inflow.qmax, NaN) : undefined,
-      testPoint: inputs.inflow.calMode === 'test'
-        ? { q: num(inputs.inflow.testQ, NaN), pwf: num(inputs.inflow.testPwf, NaN) }
-        : null,
-    }),
-  };
-};
+// The nodal bundle this studio runs on now comes from the shared
+// well-model module (P6.5): one implementation, so the gas lift, ESP and
+// rod pump studios cannot disagree about what a well does. The vlp it
+// returns is ignored here — a rod pump lifts a liquid column.
+export { buildWellModel };
 
 export const RodPumpDesignProvider = ({ children }) => {
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
@@ -364,6 +322,19 @@ export const RodPumpDesignProvider = ({ children }) => {
     const well = spineWells.find((w) => w.id === wellId) || null;
     patchSection('link', { wellId: wellId || null, wellName: well?.name || '' });
   }, [spineWells, patchSection]);
+
+  // The well's own description lives on the spine (P6.5), shared with
+  // every other production studio.
+  const {
+    savedWellModel, wellModelDirty, loadFromSpine, saveToSpine, wellModelBusy,
+  } = useWellModelSync({
+    inputs,
+    setInputs,
+    wellId: inputs.link.wellId,
+    wellName: inputs.link.wellName,
+    addNotification,
+    onLoaded: () => setSweep(null),
+  });
 
   const applyLatestTest = useCallback(() => {
     const t = latestTestForLinkedWell;
@@ -592,6 +563,12 @@ export const RodPumpDesignProvider = ({ children }) => {
     latestTestForLinkedWell,
     linkWell,
     applyLatestTest,
+    // shared well model on the spine
+    savedWellModel,
+    wellModelDirty,
+    loadFromSpine,
+    saveToSpine,
+    wellModelBusy,
     // legacy import
     legacyDesigns,
     loadLegacyDesigns,

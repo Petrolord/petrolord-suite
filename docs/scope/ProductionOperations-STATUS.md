@@ -686,12 +686,118 @@ it to 1e-16.
 context) plus the page smoke test; full Suite jest 324/4173 and
 `npm run build` green.
 
-**The shared per-well model record, still open.** P4 raised it, P5
-declined it and recorded the cost. P6 has now built the same local
-`buildWellModel` shape a third time. It is genuinely the right thing to
-do and it is genuinely not a thing to do from a phase branch that would
-have to change three shipped studios. It belongs to its own piece of
-work, and the cost of deferring it has now tripled.
+**The shared per-well model record — CLOSED at P6.5.** P4 raised it, P5
+declined it and recorded the cost, and P6 built the same local
+`buildWellModel` a third time before the owner called it. It was done
+as its own phase immediately after this one, before P7 could make it a
+fourth. See the P6.5 section below.
+
+## P6.5 — the shared per-well model record (BUILT 2026-08-28)
+
+Ships on `feat/production-p6.5-well-model` (stacked on the P6 branch).
+**Unplanned, inserted before P7 on an explicit owner decision.** P4
+raised the need, P5 declined it and recorded the cost, P6 deferred it a
+third time. The count was heading for six or seven, and P9 (the
+Artificial Lift Advisor) cannot be built without it: comparing gas
+lift against ESP against rod pump *on the same well* is meaningless if
+each studio holds its own description of that well.
+
+**What the record is, and the line it draws.** `po_well_models` holds
+the well's OWN description and nothing else:
+
+| Belongs to the WELL (shared) | Belongs to the DESIGN (not shared) |
+|---|---|
+| trajectory, temperatures | design rate |
+| fluid / PVT | water cut |
+| inflow (IPR) | wellhead pressure |
+| completion (tubing, casing, roughness, correlation, step) | injection gas, plunger size, rod taper, stroke, speed |
+
+That line is the whole discipline of the phase, and it is gated in
+three places. Water cut and wellhead pressure look like well properties
+and are not: they are what the well was doing on the day. If they
+leaked into the shared record, two studios sharing a well would
+silently overwrite each other's design conditions, which is worse than
+the duplication this replaced. **The gas lift studio's `completion`
+section therefore lost `whp` and `wctPct` to its `injection` section**
+in this phase; that is a visible move in a built studio and is
+deliberate.
+
+One current model per well, enforced by a unique key on `well_id`.
+Named revisions are a real want, but the cross-check needs an
+unambiguous answer to "what does this well do", so the simple shape
+ships first and revisions can be a child table later.
+
+**Code:**
+
+- `supabase/migrations/20260829290000_p65_create_po_well_models.sql` —
+  the table, RLS on the po_* spine pattern verbatim. **NOT APPLIED**;
+  owner runs it.
+- `src/utils/production/wellModel.js` — one `buildWellModel`, the
+  default shape, merge/round-trip helpers, and `wellModelProblems`.
+  The `vlp` it returns is SELF-CONTAINED (it carries the fluid, the
+  trajectory and the temperature alongside the completion) because the
+  gas lift studio spreads it straight into a traverse call; a vlp
+  missing those would build fine and fail at the traverse, which is the
+  worst place to find out.
+- `src/lib/productionSpine.js` — `getWellModel`, `listFieldWellModels`,
+  `upsertWellModel`, `deleteWellModel`.
+- `src/hooks/useWellModelSync.js` — load, save and the divergence
+  report, written once so the shared record did not arrive with its own
+  triplicated wiring. It never syncs automatically: a design may try a
+  different inflow without rewriting the field's record for everyone,
+  so loading and saving are both deliberate and the drift is reported
+  rather than resolved. The dirty check compares the TYPED STRINGS,
+  because comparing coerced numbers would call "2.441" and "2.4410"
+  different and a half-typed field a change.
+- `src/components/production/WellModelPanel.jsx` — the panel, replacing
+  three near-identical copies that had already drifted in wording and
+  in which fields they offered. `showCompletion` is a prop because it
+  is genuinely optional: a rod pump lifts a liquid column and marches
+  no multiphase traverse.
+- `src/components/production/WellModelSpinePanel.jsx` — load/save, in
+  each studio's spine link panel.
+- `src/components/allocation/NodalCheckPanel.jsx` — the P3 check, below
+  the existing Test QC panel.
+
+**THE P3 CROSS-CHECK, now closed.** P3 deferred checking well tests
+against what the well should make, and said exactly why: it needs a
+per-well IPR and VLP, and the spine knew the wells but not what they
+do. `crossCheckTestsAgainstNodal` in `utils/production/allocation.js`
+is that check. A test records a rate and a tubing head pressure; feed
+that pressure to the well's own model, solve where inflow meets
+outflow, and the rate that comes out is what the well should have made.
+It uses the TEST's own water cut and gas ratio, not the model's,
+because the model says what the well IS and the test says what it was
+doing. Five honest outcomes: agrees, disagrees (with the direction
+named), will not flow at those conditions, no wellhead pressure, no
+well model. It is an explicit run in the Allocation Studio, not part of
+the live QC, because it marches a traverse per rate per test.
+
+**A live defect this consolidation found.** Absolute open flow
+calibrates a Vogel inflow and only a Vogel inflow — the straight-line
+PI and composite models are calibrated by a productivity index or a
+test point. All three lift studios offered "Absolute open flow" for
+every model, and picking it on the default composite model calibrated
+nothing: `qmax` came back NaN, and because every downstream rate guard
+compares against it — and NaN comparisons are false — the design sailed
+straight past its own refusals and produced a page of NaN. Fixed three
+ways: `buildWellModel` now returns null when the inflow did not
+calibrate (so every studio's existing "the well model is incomplete"
+refusal fires), `wellModelProblems` names the combination, and the
+shared panel only offers the option where it means something. This was
+live in P4, P5 and P6.
+
+**Verification:** 20 well-model gates + 9 cross-check gates + 8 new
+context gates across the three studios (save carries no duty, refuses
+without a linked well, loading replaces the well and leaves the duty
+alone, and the drift report). `production-validation.ts` PA21 ACTIVE
+added; 21/21 active gates. Full Suite jest 325/4210 and `npm run build`
+green.
+
+**What this does NOT do.** It does not yet give P2 (Surveillance) or
+the future P8/P11 studios a well model — they simply have no reason to
+build one yet. When they do, they consume the same module. Named model
+revisions are deliberately not built.
 
 ## Gotchas for later phases
 

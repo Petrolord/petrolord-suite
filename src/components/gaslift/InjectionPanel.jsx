@@ -1,7 +1,13 @@
-// Injection and design-rate inputs (left rail). These are the numbers
-// that decide how deep the gas can be put and how much of it is bought:
+// Injection and duty inputs (left rail). These are the numbers that
+// decide how deep the gas can be put and how much of it is bought:
 // what the compressor can deliver, what the well is being designed to
 // make, and what the target injection rate is.
+//
+// The wellhead pressure and the water cut moved here from the well
+// model at P6.5. They look like well properties and are not: they are
+// what the well is doing on the day, so they belong to the duty a
+// design is run at rather than to the well record that gas lift, ESP
+// and rod pump all share.
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +34,16 @@ const rows = [
     key: 'designRateStbd',
     label: 'Design oil rate (stb/d)',
     hint: 'The rate the flowing gradient is drawn at. Run the performance curve to see what the well actually makes, then bring that number back here.',
+  },
+  {
+    key: 'wctPct',
+    label: 'Water cut (%)',
+    hint: 'What the well is making now, not a property of the well: it belongs to this design rather than to the shared well model.',
+  },
+  {
+    key: 'whp',
+    label: 'Wellhead pressure (psia)',
+    hint: 'The pressure the flowing gradient is drawn down from.',
   },
 ];
 
