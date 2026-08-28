@@ -1,6 +1,8 @@
 # Sim worker deployment on the studio VPS. One instance, one job at a time,
 # hard-capped so the staging dev server on the same host stays healthy.
-# Deploy: docker compose up -d --build   (see README.md)
+# Deploy: ./deploy.sh   (builds, runs the SPE1 golden, then starts)
+# See README.md. Do not start this without passing `verify` first: the whole
+# point of pinning the simulator is knowing which one produced your answers.
 services:
   sim-worker:
     build: .
@@ -20,6 +22,23 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  # Deploy gate. Runs the worker's own test suite, including the SPE1 golden
+  # against the pinned OPM build, inside the image that is about to serve.
+  # Kept behind a profile so `docker compose up -d` never starts it as a
+  # long-running service.
+  #
+  #   docker compose --profile verify run --rm verify
+  #
+  # Exits non-zero if anything fails, which is what makes it usable as a gate.
+  verify:
+    profiles: ["verify"]
+    build: .
+    image: plstudio-sim-worker:verify
+    entrypoint: ["python3", "-m", "pytest", "tests/", "-q"]
+    volumes:
+      - ./tests:/app/tests:ro
+    restart: "no"
 
 volumes:
   sim-scratch:
