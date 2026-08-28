@@ -932,6 +932,122 @@ smoke test; full Suite jest 328/4272 and `npm run build` green.
 - `20260829320000_seed_gas_well_performance_studio_tile.sql` — the
   Active tile, HELD for the single P12 upload.
 
+## P8 — Choke & Wellhead Performance Studio (BUILT 2026-08-28)
+
+Ships on `feat/production-p8` (stacked on the P7 branch). Route
+`apps/production/choke-performance-studio`, gated with
+`ProtectedAppRoute appId="choke-performance-studio"`, studio kit shell.
+Handles BOTH phases from the shared well record: an oil well takes the
+Gilbert family, a gas well takes the single-phase gas choke, and the
+record's phase decides without the user restating anything.
+
+**Engine first: engines PR #67, MERGED — and deliberately a small one.**
+
+**WHAT WAS NOT REBUILT.** The choke physics already exists and is
+validated: the Gilbert-family critical-flow correlations, the
+single-phase gas choke with its exact thermodynamic critical ratio, the
+sonic and subsonic branches and the isentropic downstream temperature
+are all `utils/nodal/chokes.js` (NA3). Rebuilding them in the engine
+package would have been exactly the duplication P6.5 existed to
+remove. **Subcritical two-phase flow (Sachdeva/Perkins) stays parked
+and unarmed**, as that module already documents: the honest screening
+answer is the critical-flow result carrying `valid=false`, and
+transcribing SPE 15657 from memory is the hazard this platform refuses.
+It is armed as PL17.
+
+**What the engine phase added** is the rest of the wellhead:
+
+- **API RP 14E erosional velocity**, `Ve = C / sqrt(rho)`, with **C as
+  an INPUT**. RP 14E is explicit that its own 100 and 125 are
+  conservative and permits higher where the fluid is free of sand and
+  corrosion is controlled; operators routinely run 150 to 200 on clean
+  inhibited service. Baking 100 into the equation would make a
+  recommended practice look like physics. There is a gate that the C
+  factor actually changes the verdict, so it cannot quietly become a
+  constant again.
+- **Fitting the Gilbert family to a well's own tests.** The correlation
+  is a power law in every variable, so taking logs makes it linear and
+  the three coefficients come out of an ordinary least squares. This
+  matters more than it looks: the five published sets span a **factor
+  of twelve** in their leading constant (3.82 to 46.67), they are not
+  interchangeable, and picking one by habit is how a choke calculation
+  goes quietly wrong. The fit recovers Gilbert's own coefficients
+  exactly from data generated with them, which is the check on the log
+  transform.
+- **A Hammerschmidt hydrate screening** on the Joule-Thomson cooling
+  across a bean, labelled as a screening. It takes no account of gas
+  composition, which hydrate formation depends strongly on; a real
+  curve is a flash against a hydrate model and is armed as PL19 rather
+  than approximated. Both constants are inputs.
+
+**THE CHOKE AS A CONSTRAINT, NOT A CALCULATION.** This is the Suite
+layer and it is the point of the studio. Ordinary nodal analysis solves
+inflow against tubing at a fixed wellhead pressure; a choked well has
+no fixed wellhead pressure, because the bean sets it. So the chain runs
+the other way: for a candidate rate the choke says what wellhead
+pressure it takes, the tubing says what bottomhole pressure that needs,
+and the inflow says what that rate actually gives. Where the last two
+agree is the operating point. There is a gate that the solved point
+really lies on the choke curve, not just on something the residual
+happened to zero.
+
+**WHERE THE CORRELATION STOPS, FOUND RATHER THAN ASSUMED.** The Gilbert
+family is a critical-flow correlation. Past the critical ratio it does
+not apply, and — practically — the bean has stopped controlling the
+well: the line pressure is doing it, and opening further buys much less
+than the curve alone suggests. The studio finds the bean size where
+that happens from the solved envelope and marks everything past it as
+out of range. On a gas well the same question is answered exactly,
+because the sonic condition is thermodynamic. The gas envelope shows it
+plainly: rate climbs steeply while sonic and then flattens.
+
+**Refusals worth naming:** a bean that produces no operating point is
+reported with why rather than given a rate of zero; subcritical results
+are marked and kept out of the correlation; a fit whose tests do not
+span both gas-liquid ratio and bean size is refused, **including the
+collinear case where the two move together**, because collinear data is
+no more determined than constant data and solving it anyway produces
+confident-looking numbers that mean nothing; a fit landing outside the
+published family, or missing its own tests badly, says so.
+
+**The spine earns its keep here more than anywhere.** `po_well_tests`
+already carries `choke_64ths` from P1, so the coefficient fit runs
+directly off the well's own test history — scoped to the linked well,
+or the whole field when none is picked, which is a legitimate thing to
+want on wells that complete alike but has to be the user's choice.
+
+**A fitted coefficient set is NOT saved with the analysis.** It is a
+result of the tests that were on the spine when it ran, so reopening an
+analysis re-fits from the tests that are there now rather than showing
+yesterday's answer as if it were current.
+
+**UI** (`src/components/choke/`, white chartTheme + ChartLogo on every
+chart). Tabs: Operating Point (the bean solved on the well, the
+flowline check, the hydrate screening on gas), Performance (the
+explicit envelope run, the critical limit, and bean sizing to a target
+rate), Coefficients (the fit, its residuals against the published sets,
+and a measured-against-fitted scatter), Well Model. Nine-section help
+guide; page smoke test across every tab.
+
+**Validation:** `tools/validation/production-validation.ts` PA24 ACTIVE
++ PL17-PL19 ARMED (Sachdeva subcritical two-phase, the RP 14E worked
+example and C guidance in full, a composition-based hydrate curve).
+24/24 active gates.
+
+**The oracle worked in SI** and factored the least squares by
+Gram-Schmidt QR where the engine forms the normal equations — different
+algorithm, different conditioning, same minimiser.
+
+**Verification:** 44 P8 gates (17 engine + 27 Suite) plus the page
+smoke test; full Suite jest 331/4318 and `npm run build` green.
+
+**Migrations:**
+
+- `20260829340000_p8_saved_choke_projects.sql` — analysis persistence,
+  owner-scoped RLS. Safe pre-deploy. **NOT APPLIED**.
+- `20260829350000_seed_choke_performance_studio_tile.sql` — the Active
+  tile, HELD for the single P12 upload.
+
 ## Gotchas for later phases
 
 - The retired apps' tables (`wellbore_flow_projects`,

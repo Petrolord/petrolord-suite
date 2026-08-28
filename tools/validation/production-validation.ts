@@ -96,6 +96,13 @@
 //   PA23 plunger lift: the static force balance term by term, and a
 //       feasibility verdict that rests on the COMPUTED gas-liquid ratio
 //       while reporting the screening rule of thumb beside it
+//   PA24 the choke as a nodal CONSTRAINT (P8): a bean size becomes a
+//       rate on a real well, the operating point sits on both the
+//       choke and the inflow, rate rises with bean size, and the bean
+//       at which the flow stops being critical is found rather than
+//       assumed. Plus the RP 14E erosional limit with C as an input,
+//       and a Gilbert-family fit that recovers the coefficients it was
+//       generated from and refuses data that cannot pin them down
 //
 // ARMED gates (pending owner literature PDFs):
 //   PL1 Takacs, Gas Lift Manual — worked continuous-lift installation
@@ -194,6 +201,14 @@ async function main() {
     '../../packages/engines/engines/production/plungerLift.js');
   const { runGasWellAnalysis, loadingForecast } = await import(
     '../../src/utils/production/gasWell.js');
+  const {
+    erosionalCheck, erosionalRateBpd, fitGilbertCoefficients: fitChoke, erosionalC,
+  } = await import('../../packages/engines/engines/production/chokePerformance.js');
+  const {
+    solveChokedOil, operatingEnvelope, criticalBeanLimit, runChokeAnalysis,
+    beanForRate, testsToChokePoints, CRITICAL_RATIO_LIMIT,
+  } = await import('../../src/utils/production/choke.js');
+  const { CHOKE_COEFFS } = await import('../../src/utils/nodal/chokes.js');
   const { solveOperatingPoint } = await import('../../src/utils/nodal/system.js');
 
   const G = goldens('gaslift_cases.json');
@@ -971,6 +986,122 @@ async function main() {
     }
   });
 
+  gate('PA24', 'the choke as a nodal constraint, and what really caps a bean', () => {
+    // A choke correlation on its own says what wellhead pressure a rate
+    // needs. On a real well the rate is whatever the well, the tubing
+    // and the bean settle at together, so the bean has to go INTO the
+    // solve rather than beside it.
+    const ck = defaultWellInputs();
+    ck.inflow.pr = '3200';
+    ck.inflow.pb = '2200';
+    ck.inflow.pi = '1.5';
+    ck.fluid.gor = '600';
+    const ckModel = buildSharedWell(ck);
+    const oilArgs = { glr: 600, wct: 0.2, pDownstream: 150, correlation: 'gilbert' };
+
+    const at32 = solveChokedOil({ model: ckModel, s64: 32, ...oilArgs });
+    if (!at32.ok) throw new Error('a 32/64 bean produced no operating point');
+    // The operating point really is on the choke curve: the correlation
+    // evaluated at the solved rate has to give back the solved wellhead
+    // pressure, or the residual was solved on something else.
+    const { c, m, n } = CHOKE_COEFFS.gilbert;
+    relClose((c * Math.pow(600, m) * at32.q) / Math.pow(32, n), at32.pwh, 1e-6,
+      'the operating point lies on the choke curve');
+    if (!(at32.pwf > at32.pwh)) throw new Error('the bottomhole pressure is not above the wellhead');
+
+    // A bigger bean makes more and holds less back.
+    const at16 = solveChokedOil({ model: ckModel, s64: 16, ...oilArgs });
+    const at48 = solveChokedOil({ model: ckModel, s64: 48, ...oilArgs });
+    if (!(at48.q > at32.q && at32.q > at16.q)) throw new Error('rate did not rise with bean size');
+    if (!(at48.pwh < at32.pwh && at32.pwh < at16.pwh)) {
+      throw new Error('wellhead pressure did not fall as the bean opened');
+    }
+
+    // WHERE THE CORRELATION STOPS. The Gilbert family is a critical-flow
+    // correlation; past the critical ratio it does not apply and the
+    // bean has stopped controlling the well. That boundary is found from
+    // the solved points rather than assumed.
+    const env = operatingEnvelope({
+      model: ckModel, beans: [16, 24, 32, 40, 48, 64], phase: 'oil', oil: oilArgs,
+    });
+    const limit = criticalBeanLimit(env);
+    if (!limit) throw new Error('the critical limit was not found in a range that contains it');
+    const last = env.find((e: any) => e.s64 === limit.lastCriticalS64);
+    const first = env.find((e: any) => e.s64 === limit.firstSubcriticalS64);
+    if (!(last.ratio <= CRITICAL_RATIO_LIMIT && first.ratio > CRITICAL_RATIO_LIMIT)) {
+      throw new Error('the critical limit does not straddle the critical ratio');
+    }
+    const subcritical = runChokeAnalysis({
+      form: {
+        s64: '80', pDownstream: '150', flowlineIdIn: '3', cFactor: '100',
+        glr: '600', wctPct: '20', correlation: 'gilbert',
+      },
+      model: ckModel,
+    });
+    if (subcritical.result.solved.critical) throw new Error('an 80/64 bean was still critical');
+    if (!subcritical.result.warnings.some((w: any) => w.code === 'subcritical')) {
+      throw new Error('subcritical flow was not reported');
+    }
+
+    // Sizing a bean for a target rate is solved against the nodal point,
+    // not by inverting the correlation at a guessed wellhead pressure.
+    const sized = beanForRate({ model: ckModel, targetQ: 1200, ...oilArgs });
+    if (!sized.ok) throw new Error('no bean was found for a reachable target');
+    const check = solveChokedOil({ model: ckModel, s64: sized.s64, ...oilArgs });
+    close(check.q, 1200, 5, 'the sized bean puts the well on the target rate');
+
+    // API RP 14E: C is an INPUT, because the practice itself calls its
+    // own values conservative.
+    if (erosionalC('continuous').c !== 100 || erosionalC('cleanInhibited').c <= 125) {
+      throw new Error('the erosional C presets are not what RP 14E and practice use');
+    }
+    const strict = erosionalCheck({
+      inSituBpd: 9000, idIn: 2.441, mixtureDensityLbFt3: 45, cFactor: 100,
+    });
+    const relaxed = erosionalCheck({
+      inSituBpd: 9000, idIn: 2.441, mixtureDensityLbFt3: 45, cFactor: 175,
+    });
+    if (!(strict.exceeded && !relaxed.exceeded)) {
+      throw new Error('the C factor did not change the verdict, so it is not really an input');
+    }
+    const limitBpd = erosionalRateBpd({ idIn: 2.441, mixtureDensityLbFt3: 45, cFactor: 100 });
+    relClose(erosionalCheck({
+      inSituBpd: limitBpd, idIn: 2.441, mixtureDensityLbFt3: 45, cFactor: 100,
+    }).ratio, 1, 1e-9, 'the erosional rate sits exactly on the limit');
+
+    // The published sets span a factor of twelve, so fitting a well's
+    // own tests is worth more than any of them. The fit is exact on
+    // data generated from a known set, which is the check on the log
+    // transform.
+    const truth = CHOKE_COEFFS.gilbert;
+    const pts = [[500, 300, 32], [800, 600, 32], [400, 300, 48], [900, 900, 40], [650, 450, 24]]
+      .map(([q, glr, s64]) => ({
+        q, glr, s64, pwh: (truth.c * Math.pow(glr, truth.m) * q) / Math.pow(s64, truth.n),
+      }));
+    const fit = fitChoke({ points: pts });
+    if (!fit.ok) throw new Error('a well-posed fit was refused');
+    relClose(fit.c, truth.c, 1e-6, 'the fit recovers the leading constant');
+    relClose(fit.n, truth.n, 1e-6, 'the fit recovers the bean exponent');
+    // Data that cannot pin the coefficients down is REFUSED rather than
+    // solved to confident nonsense.
+    const flat = [
+      { pwh: 500, q: 400, glr: 400, s64: 32 },
+      { pwh: 620, q: 500, glr: 400, s64: 32 },
+      { pwh: 750, q: 600, glr: 400, s64: 32 },
+    ];
+    if (fitChoke({ points: flat }).ok) throw new Error('a singular fit was accepted');
+    if (fitChoke({ points: pts.slice(0, 2) }).ok) throw new Error('two tests fitted three coefficients');
+
+    // Spine well tests shape into fit points with the gas-liquid ratio
+    // taken over LIQUID, not over oil.
+    const shaped = testsToChokePoints([{
+      id: 't', test_date: '2025-01-01', is_valid: true, oil_rate_stbd: 400,
+      water_rate_stbd: 100, gas_rate_mscfd: 300, choke_64ths: 32, thp_psia: 620,
+    }]);
+    if (shaped.length !== 1) throw new Error('a usable well test was dropped');
+    relClose(shaped[0].glr, (300 * 1000) / 500, 1e-9, 'the gas-liquid ratio is over liquid');
+  });
+
   const armed: [string, string][] = [
     ['PL1', 'Takacs, Gas Lift Manual worked installation design (valve depths, domes, test-rack settings)'],
     ['PL2', 'API Gas Lift Manual Book 6 nitrogen Ct table / NIST nitrogen isotherm z values'],
@@ -988,6 +1119,9 @@ async function main() {
     ['PL14', 'Coleman et al. 1991 low-pressure gas well data set (unadjusted critical velocity)'],
     ['PL15', 'Foss & Gaul 1965 / Beeson-Knox-Stoddard plunger-lift worked example (minimum casing pressure and cycle)'],
     ['PL16', 'Lea & Nickens gas well deliverability worked example over the back-pressure and LIT routes'],
+    ['PL17', 'Sachdeva SPE 15657 subcritical two-phase choke equations (parked unarmed in NA3; would replace the critical-flow screening answer)'],
+    ['PL18', 'API RP 14E worked erosional-velocity example and the C-factor guidance in full'],
+    ['PL19', 'a composition-based hydrate curve (Fluid Studio EOS flash) against the Hammerschmidt screening'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
