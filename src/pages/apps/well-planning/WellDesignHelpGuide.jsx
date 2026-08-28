@@ -290,17 +290,24 @@ const WellDesignHelpGuide = () => {
                   ['Build and hold (J)', 'Replace', 'Vertical, one build at your rate, a hold that lands on the target.'],
                   ['S-profile', 'Replace', 'Build, hold, then drop toward a final inclination while hitting the target.'],
                   ['Curve to target', 'Append', 'One circular arc from the design end to the target, with the required DLS reported.'],
-                  ['Horizontal landing', 'Append', 'Curve-hold-curve arriving horizontally at a heel target. Add a toe target and the landing azimuth comes from the heel-to-toe direction.'],
+                  ['Horizontal landing', 'Append', 'Curve-hold-curve arriving at a heel target. Add a toe target and both the landing azimuth and inclination come from the heel-to-toe direction; either can be overridden.'],
                   ['Nudge', 'Replace', 'A shallow deviation and return for slot separation on crowded pads.'],
                 ]}
               />
               <Para>
                 The horizontal landing takes two targets, the way Compass builds a landing from a Final Target plus an
                 Align on Target. The heel is where the well lands. The toe sets the direction the lateral runs, and the
-                dialog shows the heel-to-toe azimuth before you solve. The azimuth field below it is an optional
-                override: leave it blank to use the heel-to-toe direction, or type a value to force one. With no toe
-                selected the landing aims at the heel from the current design end, which is how the method behaved
-                before the toe target existed.
+                dialog shows the landing attitude it will solve with before you press Solve. With no toe selected the
+                landing aims at the heel from the current design end, which is how the method behaved before the toe
+                target existed.
+              </Para>
+              <Para>
+                Horizontal wells are not all flat. A lateral planned to nose up or down along reservoir dip lands at 89
+                or 91 degrees rather than 90, so the landing inclination is a field of its own. Leave it blank and the
+                inclination comes from the heel-to-toe line: a toe 20 m deeper than the heel over 400 m of lateral lands
+                the well at about 87 degrees so it runs straight down that line. Type a value to force the attitude
+                instead. With no toe and a blank field the landing is flat at 90 degrees. Inclination and azimuth are
+                independent, so you can align on a toe for direction and still force the attitude.
               </Para>
               <Callout tone="success" title="Infeasible is an answer">
                 When a target cannot be reached at the requested rates, the solver says so with the constraint that failed,

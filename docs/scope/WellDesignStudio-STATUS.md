@@ -405,6 +405,20 @@ grows 17 -> 56: 30 non-finite-input cases across all six solvers, a
 20,000-call randomised sweep asserting every feasible answer compiles to
 under 50,000 stations, the iteration cap, and the heel/toe round trip.
 
+**Landing inclination is a control, not a constant** (same fix pack,
+engines PR #76). Horizontal wells are not all flat: laterals planned to
+nose up or down along reservoir dip land at 89 or 91 degrees. The
+inclination now resolves the same three ways the azimuth does, recorded
+in `report.landIncSource`: a manual override field, else the heel-to-toe
+angle from vertical when a toe is selected, else 90. Inclination and
+azimuth resolve independently, so a designer can align on a toe for
+direction while forcing the attitude. Note the behaviour change: a
+two-target landing with no explicit inclination used to land at 90
+regardless of the toe's TVD, and now runs straight down the heel-to-toe
+line, which is what aligning on a target means. The dialog shows both
+attitudes it will solve with before you press Solve, and the toast no
+longer rounds the landing inclination to whole degrees.
+
 Still open: owner staging E2E on the two-target landing.
 
 ## Launch state

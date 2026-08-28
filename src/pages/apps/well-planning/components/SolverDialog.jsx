@@ -92,7 +92,7 @@ const SolverDialog = ({
   const [p, setP] = useState({
     kop: mdUnit === 'ft' ? 1000 : 300,
     buildRate: 3, dropRate: 2, finalInc: 0,
-    landAzi: '', rate1: 3, rate2: 3,
+    landAzi: '', landInc: '', rate1: 3, rate2: 3,
     nudgeInc: 10, nudgeAzi: 0, nudgeHold: 100,
     nudgeMode: 'forward', nudgeOffset: 50, nudgeVertical: 500,
   });
@@ -168,6 +168,19 @@ const SolverDialog = ({
     return null;
   }, [manualAzi, alignment, delta]);
 
+  // Landing inclination resolves the same three ways. Horizontal wells
+  // are not all flat: a lateral planned to nose up or down along dip
+  // lands at 89 or 91 degrees, and a lateral that has to run straight
+  // from the heel to a toe at a different TVD takes the angle that
+  // vector implies.
+  const manualInc = num(p.landInc);
+  const effectiveLandInc = manualInc != null
+    ? manualInc
+    : (alignment?.ok ? alignment.incDeg : 90);
+  const landIncSource = manualInc != null
+    ? 'manual'
+    : (alignment?.ok ? 'alignOn' : 'default');
+
   // Everything the designer can get wrong, checked before the solver
   // runs so the message names the field rather than the geometry.
   const fieldProblem = useMemo(() => {
@@ -203,6 +216,10 @@ const SolverDialog = ({
       }
       if (alignment && !alignment.ok) return alignment.error;
       if (manualAzi == null && p.landAzi !== '') return 'Landing azimuth must be a number, or blank to derive it.';
+      if (manualInc == null && p.landInc !== '') return 'Landing inclination must be a number, or blank to derive it.';
+      if (manualInc != null && (manualInc <= 0 || manualInc > 180)) {
+        return 'Landing inclination must be above 0 and no more than 180 degrees. A horizontal lateral is 90; nose it up or down with 89 or 91.';
+      }
       if (effectiveLandAzi == null) {
         return 'The heel target is directly below the current design end, so it does not set a landing azimuth on its own. Pick an alignment (toe) target, or type an azimuth.';
       }
@@ -223,7 +240,7 @@ const SolverDialog = ({
   }, [
     needsTarget, target, delta, methodDef.mode, currentEnd, method, isHorizontal,
     p, mdUnit, intervalLabel, toeTargetId, targetId, toeTarget, toeDelta,
-    alignment, manualAzi, effectiveLandAzi,
+    alignment, manualAzi, effectiveLandAzi, manualInc,
   ]);
 
   const runSolver = () => {
@@ -268,9 +285,10 @@ const SolverDialog = ({
           tieOn: { inc: currentEnd.inc, azi: currentEnd.azi },
           landing: {
             ...delta,
-            incDeg: 90,
-            // Manual entry wins; otherwise the engine derives the
-            // azimuth from the heel-to-toe vector.
+            // Manual entry wins for either attitude; otherwise the
+            // engine derives it from the heel-to-toe vector, falling
+            // back to horizontal for the inclination.
+            incDeg: manualInc != null ? manualInc : undefined,
             aziDeg: manualAzi != null ? manualAzi : undefined,
             alignOn: toeDelta || undefined,
           },
@@ -330,7 +348,7 @@ const SolverDialog = ({
       description: r.holdIncDeg != null
         ? `Hold inclination ${r.holdIncDeg.toFixed(1)} deg at azimuth ${(r.aziDeg ?? 0).toFixed(1)} deg.`
         : r.holdInc != null
-          ? `Hold ${r.holdInc.toFixed(1)} deg / ${r.holdAzi.toFixed(1)} deg, landing at ${r.landInc.toFixed(0)} deg on azimuth ${r.landAzi.toFixed(1)} deg.`
+          ? `Hold ${r.holdInc.toFixed(1)} deg / ${r.holdAzi.toFixed(1)} deg, landing at ${r.landInc.toFixed(1)} deg on azimuth ${r.landAzi.toFixed(1)} deg.`
           : 'Segments added to the design.',
       className: 'bg-green-600 text-white',
     });
@@ -413,7 +431,7 @@ const SolverDialog = ({
                       Heel to toe: <span className="font-mono text-lime-400">{fmt(alignment.aziDeg)} deg</span> over {fmt(alignment.horizontal, 0)} {mdUnit}
                     </div>
                     <div className="text-slate-500">
-                      Toe is {fmt(Math.abs(alignment.tvdRise), 0)} {mdUnit} {alignment.tvdRise >= 0 ? 'deeper than' : 'shallower than'} the heel (heel-to-toe inclination {fmt(alignment.incDeg)} deg). The landing itself is solved at 90 deg.
+                      Toe is {fmt(Math.abs(alignment.tvdRise), 0)} {mdUnit} {alignment.tvdRise >= 0 ? 'deeper than' : 'shallower than'} the heel, so the lateral runs at {fmt(alignment.incDeg)} deg inclination to stay on that line.
                     </div>
                   </>
                 ) : (
@@ -421,31 +439,50 @@ const SolverDialog = ({
                     Pick an alignment target to set the landing azimuth from the heel-to-toe direction, or type one below.
                   </div>
                 )}
-                <div className="text-slate-300 pt-1 border-t border-slate-700/70">
-                  Landing azimuth in use: <span className="font-mono text-lime-400" data-testid="solver-effective-azi">{fmt(effectiveLandAzi)} deg</span>
-                  <span className="text-slate-500">
-                    {manualAzi != null
-                      ? ' (manual override)'
-                      : alignment?.ok ? ' (from heel to toe)' : ' (aimed at the heel from the design end)'}
-                  </span>
+                <div className="text-slate-300 pt-1 border-t border-slate-700/70 space-y-0.5">
+                  <div>
+                    Landing azimuth in use: <span className="font-mono text-lime-400" data-testid="solver-effective-azi">{fmt(effectiveLandAzi)} deg</span>
+                    <span className="text-slate-500">
+                      {manualAzi != null
+                        ? ' (manual override)'
+                        : alignment?.ok ? ' (from heel to toe)' : ' (aimed at the heel from the design end)'}
+                    </span>
+                  </div>
+                  <div>
+                    Landing inclination in use: <span className="font-mono text-lime-400" data-testid="solver-effective-inc">{fmt(effectiveLandInc)} deg</span>
+                    <span className="text-slate-500">
+                      {landIncSource === 'manual'
+                        ? ' (manual override)'
+                        : landIncSource === 'alignOn' ? ' (from heel to toe)' : ' (horizontal)'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <NumField label={`Curve 1 rate (deg/${intervalLabel})`} value={p.rate1} onChange={set('rate1')} invalid={!(num(p.rate1) > 0)} />
                 <NumField label={`Curve 2 rate (deg/${intervalLabel})`} value={p.rate2} onChange={set('rate2')} invalid={!(num(p.rate2) > 0)} />
-                <div className="col-span-2">
-                  <NumField
-                    label="Landing azimuth override (deg)"
-                    value={p.landAzi}
-                    onChange={set('landAzi')}
-                    testid="solver-landazi"
-                    invalid={p.landAzi !== '' && manualAzi == null}
-                    hint={alignment?.ok
-                      ? 'Blank uses the heel-to-toe azimuth above.'
-                      : 'Blank aims at the heel target from the current design end.'}
-                  />
-                </div>
+                <NumField
+                  label="Landing inclination override (deg)"
+                  value={p.landInc}
+                  onChange={set('landInc')}
+                  testid="solver-landinc"
+                  invalid={(p.landInc !== '' && manualInc == null)
+                    || (manualInc != null && (manualInc <= 0 || manualInc > 180))}
+                  hint={alignment?.ok
+                    ? 'Blank uses the heel-to-toe inclination above. 90 is flat; 89 noses up, 91 noses down.'
+                    : 'Blank lands flat at 90. Use 89 to nose up or 91 to nose down along dip.'}
+                />
+                <NumField
+                  label="Landing azimuth override (deg)"
+                  value={p.landAzi}
+                  onChange={set('landAzi')}
+                  testid="solver-landazi"
+                  invalid={p.landAzi !== '' && manualAzi == null}
+                  hint={alignment?.ok
+                    ? 'Blank uses the heel-to-toe azimuth above.'
+                    : 'Blank aims at the heel target from the current design end.'}
+                />
               </div>
             </div>
           )}

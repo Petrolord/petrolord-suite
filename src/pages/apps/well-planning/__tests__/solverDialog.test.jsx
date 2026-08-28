@@ -37,7 +37,6 @@ jest.mock('@/components/ui/select', () => {
 const mockToast = jest.fn();
 jest.mock('@/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 
-// eslint-disable-next-line import/first
 import SolverDialog from '../components/SolverDialog';
 
 const HEAD_X = 500000;
@@ -257,6 +256,74 @@ describe('horizontal landing takes a heel and a toe', () => {
       rate1: 3, rate2: 3, mdUnit: 'm',
     });
     expect(report.landAzi).toBeCloseTo(expected.report.landAzi, 9);
+  });
+
+  test('the landing inclination defaults to horizontal and is shown', () => {
+    const { onApply, pick, solve } = horizontal();
+    pick(TARGET, 't-heel');
+    expect(screen.getByTestId('solver-effective-inc')).toHaveTextContent('90.0 deg');
+    solve();
+    const { report } = onApply.mock.calls[0][0];
+    expect(report.landInc).toBeCloseTo(90, 9);
+    expect(report.landIncSource).toBe('default');
+  });
+
+  test.each([89, 91, 88.5])('lands at %s deg when the designer asks for it', (inc) => {
+    const { onApply, pick, solve } = horizontal();
+    pick(TARGET, 't-heel');
+    fireEvent.change(screen.getByTestId('solver-landinc'), { target: { value: String(inc) } });
+    expect(screen.getByTestId('solver-effective-inc')).toHaveTextContent(`${inc.toFixed(1)} deg`);
+    solve();
+    const { report } = onApply.mock.calls[0][0];
+    expect(report.landInc).toBeCloseTo(inc, 9);
+    expect(report.landIncSource).toBe('override');
+  });
+
+  test('a toe at a different TVD noses the landing along the heel-to-toe line', () => {
+    // Toe 300 m NE of the heel and 20 m deeper: the lateral cannot be flat.
+    const deepToe = {
+      id: 't-deep', name: 'Deeper toe',
+      center_x: HEAD_X + 600, center_y: HEAD_Y + 600, tvdss_m: 2520,
+    };
+    const u = setup({ currentEnd: AT_KOP, targets: [...TARGETS, deepToe] });
+    u.pick(METHOD, 'horizontal');
+    u.pick(TARGET, 't-heel');
+    u.pick(TOE, 't-deep');
+    const expected = (Math.atan2(Math.hypot(300, 300), 20) * 180) / Math.PI;
+    expect(screen.getByTestId('solver-effective-inc')).toHaveTextContent(`${expected.toFixed(1)} deg`);
+    expect(screen.getByTestId('solver-alignment')).toHaveTextContent(/deeper than the heel/i);
+    u.solve();
+    const { report } = u.onApply.mock.calls[0][0];
+    expect(report.landIncSource).toBe('alignOn');
+    expect(report.landInc).toBeCloseTo(expected, 6);
+    expect(report.landInc).toBeLessThan(90);
+  });
+
+  test('the inclination override beats the heel-to-toe angle, azimuth still aligned', () => {
+    const deepToe = {
+      id: 't-deep', name: 'Deeper toe',
+      center_x: HEAD_X + 600, center_y: HEAD_Y + 600, tvdss_m: 2520,
+    };
+    const u = setup({ currentEnd: AT_KOP, targets: [...TARGETS, deepToe] });
+    u.pick(METHOD, 'horizontal');
+    u.pick(TARGET, 't-heel');
+    u.pick(TOE, 't-deep');
+    fireEvent.change(screen.getByTestId('solver-landinc'), { target: { value: '91' } });
+    u.solve();
+    const { report } = u.onApply.mock.calls[0][0];
+    expect(report.landIncSource).toBe('override');
+    expect(report.landInc).toBeCloseTo(91, 9);
+    expect(report.landAziSource).toBe('alignOn');
+    expect(report.landAzi).toBeCloseTo(45, 6);
+  });
+
+  test('an out-of-range inclination is refused inline', () => {
+    const { onApply, pick, solve, problem } = horizontal();
+    pick(TARGET, 't-heel');
+    fireEvent.change(screen.getByTestId('solver-landinc'), { target: { value: '200' } });
+    solve();
+    expect(problem()).toHaveTextContent(/above 0 and no more than 180/i);
+    expect(onApply).not.toHaveBeenCalled();
   });
 
   test('the same target for heel and toe is refused', () => {
