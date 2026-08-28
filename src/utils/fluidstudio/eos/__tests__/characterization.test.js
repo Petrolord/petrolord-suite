@@ -21,9 +21,9 @@ import {
   jhaveriYoungrenShift, lbcVcC7PlusFt3, firoozabadiParachor, chuehPrausnitzBip,
   characterizePlusFraction, mixtureWithPlusFraction,
 } from '../characterization';
-import goldens from './goldens.json';
-import nist from './nistVaporPressure.json';
-import charRef from './characterizationReference.json';
+import goldens from '../../../../../packages/engines/test-data/fluid/goldens.json';
+import nist from '../../../../../packages/engines/test-data/fluid/nistVaporPressure.json';
+import charRef from '../../../../../packages/engines/test-data/fluid/characterizationReference.json';
 
 const relErr = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
 

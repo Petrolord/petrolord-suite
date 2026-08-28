@@ -18,7 +18,7 @@ import {
   separatorTrain, materialBalanceError, normalizeStages,
   SCF_PER_LBMOL, MW_AIR, STOCK_TANK_STAGE,
 } from '../separator.js';
-import goldens from './goldens.json';
+import goldens from '../../../../../packages/engines/test-data/fluid/goldens.json';
 
 const relErr = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
 
