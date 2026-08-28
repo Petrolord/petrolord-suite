@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Target, ArrowLeft, Calculator, TrendingUp, DollarSign } from 'lucide-react';
+import { Target, ArrowLeft, Calculator, TrendingUp, DollarSign, HelpCircle } from 'lucide-react';
 import InputPanel from '@/components/wellspacing/InputPanel';
 import ResultsPanel from '@/components/wellspacing/ResultsPanel';
 import EmptyState from '@/components/wellspacing/EmptyState';
@@ -66,34 +66,38 @@ const WellSpacingOptimizer = () => {
   };
 
   const handleCalculate = async () => {
-    if (!validateInputs(formData)) {
+    const { ok, errors } = validateInputs(formData);
+    if (!ok) {
       toast({
-        title: "Invalid Inputs",
-        description: "Please fill in all required fields with valid positive numbers.",
+        title: errors.length === 1 ? 'One input needs attention' : `${errors.length} inputs need attention`,
+        // Name the offending fields. With two dozen inputs on screen, "fill in
+        // all required fields" left users hunting.
+        description: errors.slice(0, 4).join(' ') + (errors.length > 4 ? ' ...' : ''),
         variant: "destructive",
-        duration: 4000,
+        duration: 7000,
       });
       return;
     }
 
     setLoading(true);
-    
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
+      // The sweep is a few hundred closed-form evaluations and returns in
+      // milliseconds. There used to be a hard-coded three second wait here,
+      // which read as a heavy simulation running.
       const spacingResults = await calculateOptimalSpacing(formData);
-      
+
       setResults(spacingResults);
-      
+
       toast({
-        title: "Well Spacing Optimization Complete! 🎉",
-        description: `Optimal spacing: ${spacingResults.optimalSpacing.spacing} acres/well with NPV of $${spacingResults.optimalSpacing.npv.toFixed(1)}M`,
+        title: "Spacing economics ready",
+        description: `${spacingResults.spacingResults.length} spacings evaluated. Read the table and pick the case that fits your development plan.`,
         duration: 4000,
       });
     } catch (error) {
       toast({
         title: "Calculation Failed",
-        description: "There was an error calculating optimal well spacing. Please try again.",
+        description: error?.message || "There was an error evaluating the spacing cases. Please try again.",
         variant: "destructive",
         duration: 4000,
       });
@@ -132,7 +136,7 @@ const WellSpacingOptimizer = () => {
     <>
       <Helmet>
         <title>Well Spacing Optimizer - Petrolord Suite</title>
-        <meta name="description" content="Optimize well spacing for maximum NPV and field recovery using advanced reservoir modeling." />
+        <meta name="description" content="Compare well spacing cases on capex, volume, cost per barrel and NPV at a stated recovery factor." />
       </Helmet>
 
       <div className="p-8">
@@ -147,6 +151,11 @@ const WellSpacingOptimizer = () => {
               <Button variant="outline" size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Reservoir
+              </Button>
+            </Link>
+            <Link to="/dashboard/apps/reservoir/well-spacing-optimizer/help">
+              <Button variant="outline" size="sm" className="border-cyan-400/50 text-cyan-200 hover:bg-cyan-500/20">
+                <HelpCircle className="w-4 h-4 mr-2" /> Help guide
               </Button>
             </Link>
           </div>

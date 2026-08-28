@@ -279,63 +279,50 @@ with keyword search, covering the features that had no documentation at all,
 including contact volumetrics, probabilistic mode, the tornado, per-parameter
 units, multi-reservoir projects, prospect risking, the audit trail and reports.
 
-### BLOCKING: Well Spacing Optimizer has engine defects, guide withheld
+### RESOLVED: Well Spacing Optimizer corrected, guide shipped
 
-A help guide was scoped for this app and deliberately not written. The app
-produces numbers that are wrong, and documenting them would give them
-standing. Four defects, all verified in `src/utils/wellSpacingCalculations.js`:
+The guide was withheld in the first pass because the app produced wrong
+numbers. Fixed 2026-08-27 on `fix/well-spacing-optimizer`, and the guide is
+written.
 
-1. **The results table and all three charts are ordered by cost per barrel,
-   not by spacing.** `generateJustification` calls `allResults.sort(...)` twice
-   in place, on the same array that is returned and rendered. The last sort
-   wins. The "NPV vs Well Spacing" chart therefore draws a zigzag across a
-   non-monotonic x axis, and a user reading its shape draws the wrong
-   conclusion.
-2. **Recovery is not a function of spacing in any physical sense.**
-   Substituting the EUR expression into the recovery expression collapses the
-   whole thing to `(N x spacing / A) x RF`, and since `N = floor(A / spacing)`
-   this is a `Math.floor` sawtooth measuring how evenly spacing divides into
-   area. There is no well interference, no drainage overlap and no incremental
-   recovery from downspacing. That is the app's central claim and it is not
-   modelled.
-3. **The production stream is inconsistent with the reported EUR by a factor
-   of roughly 365.** `initialRate = eurPerWell * 1000 * 0.15` is then treated
-   as a daily rate and multiplied by 365 in the annual loop, so NPV is inflated
-   by orders of magnitude relative to the EUR and cost per barrel in the same
-   table row.
-4. **Opex is double counted in cost per barrel.** `totalOpex` is already
-   accumulated over the life inside the loop, then multiplied by `actualLife`
-   again.
+Four defects fixed, each of which put a wrong number on screen: the results
+array was sorted in place twice so the table and every chart came out ordered
+by cost per barrel rather than spacing; the initial rate was treated as a daily
+rate and then multiplied by 365 so the production stream disagreed with the EUR
+in the same row by roughly 365x; opex entered cost per barrel as N x opex x
+life squared; and cost per barrel divided by the full EUR even when the project
+duration truncated the well. The engine now derives the rate from the EUR
+through the Arps relation, so produced volume equals EUR by construction, and
+21 tests pin all of it. The engine previously had none.
 
-Two further honesty problems sit on top of the math. The "Sensitivity
-Analysis" panel is fabricated: its three cards are hard-coded arithmetic on the
-optimal spacing (plus or minus 5 and 10 acres) rather than a re-run of the
-model, the base row is labelled with a fixed 75 dollar oil price whatever the
-user entered, and a note underneath asserts the numbers are model output. And
-there is a hard-coded three second delay before the calculation runs, which
-reads as a heavy simulation to the user.
+**The optimum was removed, and this is the finding worth carrying forward.**
+With no interference physics, total field volume barely changes with spacing
+while capex falls as wells are removed, so NPV rises with spacing. Measured on
+the reference case, the top five spacings by NPV are exactly the top five by
+areal coverage, and among spacings that divide 5000 acres exactly (100, 200,
+500, 1000) NPV rises monotonically. The reported "Optimal Spacing
+Recommendation" was a Math.floor remainder wearing an engineering label. It is
+gone, and the panel now says why and presents the table as spacing economics
+for the engineer to choose from.
 
-Supporting gaps: four inputs are mandatory and unused (temperature, pressure,
-oil gravity, gas gravity), well pattern type and the map coordinates are unused
-entirely, the DMS toggle prints a hard-coded Houston example rather than
-converting what the user typed, Swi is a fraction while porosity and recovery
-factor are percentages with no guard, nothing is saved and nothing is
-prefilled, the charts follow neither the white chartTheme nor the ChartLogo
-standard, and the engine has no tests at all (single commit since the Horizons
-import).
+Also removed: the fabricated Sensitivity Analysis panel (70 lines of
+hard-coded arithmetic with a base row fixed at 75 dollar oil whatever the user
+entered, and a note asserting it was model output) and the hard-coded three
+second delay. Validation now names the offending field, rejects a water
+saturation entered as a percentage and a decline rate at or above 100 percent,
+and no longer requires the four inputs the engine never reads. Charts moved to
+the white chartTheme with the ChartLogo watermark.
 
-Recommendation, for an owner decision:
-- Fix defects 1, 3 and 4, which are mechanical and well understood.
-- Delete the fabricated sensitivity panel and its note.
-- Decide what defect 2 means for the app. Either implement a real interference
-  or drainage model, or narrow the app honestly to a capital and economics
-  optimiser at a stated recovery factor and stop claiming a recovery response
-  to spacing.
-- Then write the guide, which is otherwise the highest value one in the module
-  given roughly 25 mandatory inputs with no explanation on screen.
-
-Until then the tile is arguably a candidate for the same treatment the R0 audit
-gave other unbacked apps.
+**To make it a real optimiser** the missing physics is well productivity, not
+interference. Rate should follow pseudo-steady-state radial inflow, where
+productivity scales with 1/ln(re/rw) rather than linearly with drainage area.
+That makes more wells deliver more total rate, which with discounting creates a
+genuine acceleration-against-capital trade-off and therefore an interior
+optimum. It needs permeability and a flowing bottomhole pressure as new inputs;
+reservoir pressure, temperature and oil gravity are already collected and
+currently unused, and would feed the drawdown and the fluid properties through
+the existing Fluid Studio correlations. That is a validated-engine build in its
+own right and has not been started.
 
 ### Remaining help work
 
