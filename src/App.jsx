@@ -125,6 +125,7 @@ const WellTestAnalysisStudio = lazy(() => import('@/pages/apps/WellTestAnalysisS
 const NodalAnalysisStudio = lazy(() => import('@/pages/apps/NodalAnalysisStudio'));
 const ProductionSurveillanceStudio = lazy(() => import('@/pages/apps/ProductionSurveillanceStudio'));
 const ProductionAllocationStudio = lazy(() => import('@/pages/apps/ProductionAllocationStudio'));
+const GasLiftDesignStudio = lazy(() => import('@/pages/apps/GasLiftDesignStudio'));
 const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 const CasingTubingHelpGuide = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingHelpGuide'));
@@ -572,6 +573,8 @@ function App() {
                                 <Route path="apps/production/surveillance-dashboard" element={<Navigate to="/dashboard/apps/production/production-surveillance-studio" replace />} />
                                 {/* P3: Production Allocation Studio — back-allocation on the po_* spine */}
                                 <Route path="apps/production/production-allocation-studio" element={<ProtectedAppRoute appId="production-allocation-studio" appName="Production Allocation Studio"><ProductionAllocationStudio /></ProtectedAppRoute>} />
+                                {/* P4: Gas Lift Design Studio — valve spacing, unloading and injection depth over the production engines */}
+                                <Route path="apps/production/gas-lift-design-studio" element={<ProtectedAppRoute appId="gas-lift-design-studio" appName="Gas Lift Design Studio"><GasLiftDesignStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/production/well-test-analyzer" element={<Navigate to="/dashboard/apps/reservoir/well-test-analysis-studio" replace />} />
                                 {/* Production Forecasting tile archived at P0 — the real engine is DCA Studio */}
                                 <Route path="apps/production/production-forecasting" element={<Navigate to="/dashboard/apps/reservoir/decline-curve-analysis" replace />} />
