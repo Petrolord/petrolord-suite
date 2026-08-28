@@ -7,7 +7,7 @@ import path from 'path';
 import { tuneToLab, predictTargets, untunedKnobs } from '../labTune.js';
 import { TUNING_BOUNDS } from '../tuning.js';
 
-const goldens = JSON.parse(fs.readFileSync(path.join(__dirname, 'goldens.json'), 'utf8'));
+const goldens = JSON.parse(fs.readFileSync(path.join(__dirname, '../../../../../packages/engines/test-data/fluid', 'goldens.json'), 'utf8'));
 
 describe('tuneToLab failure modes', () => {
   it('refuses a fluid without a plus fraction', () => {
@@ -65,7 +65,7 @@ describe('self-recovery: the tune recovers synthetic lab data from a known truth
 describe('real anchor: Good Oil Well No. 4 joint tune (CASE 19 fixture data)', () => {
   it('closes the untuned Psat and API biases jointly', () => {
     const lit = JSON.parse(fs.readFileSync(
-      path.join(__dirname, '../../../../../tools/validation/fluidstudio/literature-fixtures.json'), 'utf8',
+      path.join(__dirname, '../../../../../packages/engines/test-data/fluid', 'literature-fixtures.json'), 'utf8',
     ));
     const go = lit.separatorTests.fluids[1];
     const fluid = { keys: [...go.keys, 'C7+'], plus: go.plus, z: go.z };

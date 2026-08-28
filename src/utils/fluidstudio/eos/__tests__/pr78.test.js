@@ -19,8 +19,8 @@ import { R_PSIA, KtoR, degFtoR } from '../units';
 import {
   kappaPR78, mixtureFromKeys, mixParams, solveCubicZ, phaseProps, purePsat,
 } from '../pr78';
-import goldens from './goldens.json';
-import nist from './nistVaporPressure.json';
+import goldens from '../../../../../packages/engines/test-data/fluid/goldens.json';
+import nist from '../../../../../packages/engines/test-data/fluid/nistVaporPressure.json';
 
 const KPA_PER_PSIA = 6.894757;
 

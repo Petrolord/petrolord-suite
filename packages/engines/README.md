@@ -28,6 +28,117 @@ and its consumers.
   analytics — Hall plots, Chan diagnostics, cross-correlation lags,
   injection recommendations — plus layered sweep and pattern
   forecasting).
+  The `fluid` domain (2026-08-28) is the PVT backbone, and it holds two
+  layers that are deliberately not merged. `blackOil.ts` carries the
+  correlation set -- Standing / Vasquez-Beggs / Glaso for Pb, Rs and Bo,
+  Hall-Yarborough and Dranchuk-Abou-Kassem for gas z, McCain for water,
+  Beal + Beggs-Robinson + Vasquez-Beggs for oil viscosity and
+  Lee-Gonzalez-Eakin for gas -- each with the published training range
+  attached, so a number produced outside the range a correlation was
+  fitted over is reported as such rather than quietly used. Everything
+  else is the Peng-Robinson (1978) compositional engine the Suite's
+  Fluid Systems Studio was built on: `components` (Whitson & Brule
+  Monograph 20 library with Jhaveri & Youngren shifts and BIPs), `pr78`,
+  `flash` (Michelsen stability + SS/GDEM with a safeguarded
+  Rachford-Rice), `characterization` (single C7+ pseudo: Soreide,
+  Kesler-Lee, Lee-Kesler, Firoozabadi, modified Chueh-Prausnitz),
+  `envelope`, `separator` (sequential per-stage flash to stock tank),
+  `experiments` (CCE, differential liberation, and the Amyx composite
+  black-oil table an EOS fluid hands to a simulator), `transport` (LBC
+  viscosity + Weinaug-Katz IFT) and `tuning`/`labTune` (four bounded
+  C7+ knobs regressed to lab targets on the shared LM kernel).
+  Goldens are an independent Python oracle (`tools/validation/fluid/`,
+  which reaches the same numbers by different routes -- bisection rather
+  than Cardano for the cubic, residual-Helmholtz quadrature rather than
+  closed-form fugacity, Maxwell equal areas rather than successive
+  substitution for Psat) plus NIST vapor pressures and three published
+  anchors: Whitson & Brule Monograph 20 App. B Problem 18, the eight
+  Coats & Smart SPE 11197 fluids, and Good Oil Well No. 4 (Core Labs
+  RFL 88001).
+  The `production` domain (2026-08-28) holds eight families. Well
+  intervention diagnostics (P12), whose organising idea is that THE
+  DIAGNOSIS DECIDES THE TREATMENT: water channelling is a plumbing
+  problem and a squeeze has something to seal, while water coning is
+  not and the cone simply re-forms above whatever was plugged. Every
+  screening rule is therefore gated by the diagnosis, and a candidate
+  the diagnostic argues against comes back as a refusal with the reason
+  rather than quietly scored lower. Chan's published type curves are
+  NOT transcribed; what is here reads the same two things Chan reads,
+  the trend of the ratio and the sign and steepness of its derivative,
+  with every threshold a named input. The derivative itself is passed
+  in, because the consumer already has a validated Bourdet one and a
+  second would be a second thing to be wrong. Plus the skin group
+  ln(re/rw) - 3/4 + S, which refuses the skin at which the productivity
+  index goes infinite instead of returning a spectacular uplift. The
+  gathering-network solver (P11), which is the one module here with no
+  petroleum in it at all: nodes, branches, a Newton solve on nodal mass
+  balance, and the branch relations supplied as CALLBACKS. That is
+  deliberate, and it is what makes it checkable without judgement --
+  hand it linear resistances and the network collapses to a weighted
+  graph Laplacian whose answer is a matrix inverse, so Newton iteration
+  and Gaussian elimination have to agree to machine precision. They do.
+  Mass is the currency throughout, because surface volumes do not add
+  across pressures. Plus line pipe geometry, whose schedule table
+  carries od, wall AND bore so that it can catch its own transcription
+  errors. Flow
+  assurance thermal-hydraulics (P10), which contains no correlation at
+  all: the overall heat transfer coefficient as series resistances
+  including the classical buried-pipe shape factor acosh(2H/D)/(2 pi k),
+  the steady-state exponential approach to ambient that an energy
+  balance on a pipe element integrates to, and the lumped-capacitance
+  cooldown that gives a no-touch time. Plus hydrate inhibition:
+  Hammerschmidt and Nielsen-Bucklin computed side by side with the gap
+  between them reported rather than resolved, since they agree when
+  dilute and separate badly when not. Where the hydrate boundary IS
+  stays with the consumer's fluid model. Wellhead
+  limits (P8): the API RP 14E erosional velocity with its C factor as an
+  INPUT rather than a baked-in 100 (RP 14E is explicit that its own
+  values are conservative), fitting the Gilbert-family choke
+  coefficients to a well's OWN test data by the log-linear least
+  squares the power law admits -- the five published sets span a factor
+  of twelve in their leading constant and are not interchangeable --
+  and a labelled Hammerschmidt hydrate SCREENING on the Joule-Thomson
+  cooling across a bean. The choke physics itself is deliberately NOT
+  here: the Gilbert family and the single-phase gas choke are the
+  consumer's already-validated nodal layer. Gas-well
+  performance (P7): liquid loading by the Turner/Coleman droplet
+  balance, DERIVED from drag against weight plus a critical Weber
+  number rather than quoted, so the 1.593 constant falls out of Cd and
+  We instead of being remembered; the critical rate profile down the
+  whole string, because critical rate rises with pressure and it is the
+  shoe that controls, not the wellhead; tubing sizing for a loading
+  well; and plunger lift as a static force balance with the required
+  gas-liquid ratio computed from the work the gas actually does, with
+  the industry screening rule of thumb reported alongside as a labelled
+  cross-check and never as the verdict. Sucker-rod
+  pumping (P6): rod string mechanics with the fractions read as
+  fractions and Archimedes buoyancy, the tapered-string natural
+  frequency solved as an eigenvalue problem rather than read off a
+  table, the DAMPED WAVE EQUATION itself in both directions (a
+  finite-difference predictive march for design and the Gibbs harmonic
+  solution for reading a measured dynamometer card), exact four-bar
+  pumping-unit kinematics with the torque factor as ds/dtheta,
+  counterbalancing, and the rod stress check against modified Goodman.
+  API RP 11L's dimensionless GROUPS are reported because they are how
+  the answer is read, but its published CHARTS are not reproduced from
+  memory: the equation those charts solve is solved directly instead,
+  and the charts stay a literature gate. ESP sizing
+  (P5): stage curves fitted from vendor points or built as transparent
+  reference MODELS with named parameters (never invented vendor curves),
+  affinity scaling, intake stream and gas handling from a supplied
+  black-oil PVT set, total dynamic head as the pressure the pump adds,
+  staging and shaft power, operating diagnostics, and the electrical
+  side (motor current, copper cable drop, surface voltage and kVA). And
+  the gas-lift
+  installation engines (P4): gas properties (Sutton pseudo-criticals,
+  Wichert-Aziz, DAK z, real-gas static casing column), bellows-valve
+  mechanics (nitrogen dome charge across the test-rack/valve temperature
+  step, the IPO/PPO force balance, test-rack settings, spread,
+  Thornhill-Craver port throughput) and the top-down design itself
+  (valve spacing, per-valve settings, the unloading sequence and the
+  deepest point of gas injection). The flowing production traverse it
+  needs is passed in as a depth-pressure table, so the well's inflow and
+  multiphase outflow stay with the consumer's validated nodal model.
 - Cross-directory imports: `engines/* -> ../../lib/*`, plus ONE
   sanctioned cross-domain edge: `engines/waterflood/patternForecast.js
   -> ../scal/fractionalFlow.js` (Buckley-Leverett displacement is the
@@ -109,6 +220,11 @@ Ex. 10-10 and 11-1).
 | `engines/waterflood/layeredSweep.js` | `src/utils/layeredSweepCalculations.js` |
 | `engines/waterflood/patternForecast.js` | `src/utils/patternForecastCalculations.js` |
 | `tools/validation/{wells,petrophysics,rockphysics,earthmodel,porepressure}` | same paths in suite |
+| `engines/fluid/blackOil.ts` | `engines/mbal/mbalEngine.ts` (private helpers; mbal now imports them, and its own gates still pin every one) |
+| `engines/fluid/{units,components,pr78,flash,characterization,envelope,transport,separator,experiments,tuning,labTune}.js` | `src/utils/fluidstudio/eos/` (same names; `envelope.worker.js` and `eosAnalysis.js` stay in the Suite -- they are worker and UI plumbing, not physics) |
+| `test-data/fluid/{goldens,componentReference,characterizationReference,nistVaporPressure}.json` | `src/utils/fluidstudio/eos/__tests__/` |
+| `test-data/fluid/literature-fixtures.json` | `tools/validation/fluidstudio/` |
+| `tools/validation/fluid/` | `tools/validation/fluidstudio/` |
 
 Import rewrites at extraction: `engines/seismolord/synthetics.js` and
 all `@/lib/*` imports became `../../lib/*` (the package has no `@/`

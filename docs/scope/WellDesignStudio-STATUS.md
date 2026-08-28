@@ -348,6 +348,79 @@ Casing/Costing tabs remain launcher mocks (reviewed in WD5/WD6),
   to every SectionViewPanel (dedicated Section view, Plots grid,
   Surveys tab, harness).
 
+## Post-launch fix pack: solver hardening + heel/toe landing (2026-08-28)
+
+Reported: the "Design method" dialog's Solve button could take the app
+down with `RangeError: Maximum call stack size exceeded`, reaching the
+global error boundary instead of saying what was wrong.
+
+What was actually wrong, on three levels:
+
+1. **Unit coupling.** `SolverDialog` converted target metres to the
+   designer's depth unit through a `metersToUser` prop, while the KOP,
+   hold lengths and rates came from the fields in the wellbore's own
+   unit and interval. Nothing asserted that the prop and `mdUnit`
+   agreed, so a caller could hand the dialog metre target depths to
+   solve against a feet kickoff and a deg/100ft build rate. The
+   conversion is now derived from `mdUnit` inside the dialog and the
+   prop is gone from both call sites (DesignTab and the harness), so
+   the two cannot diverge.
+2. **Solvers were not total.** `engines/drilling/profileDesign` could be
+   handed NaN, Infinity or a missing target and would propagate it into
+   segment lengths, and a curve-hold-curve request whose arcs had almost
+   cancelled emitted a runaway hold. Every solver now validates its
+   inputs for finiteness up front, the Sawaryn and Thorogood iteration
+   carries an explicit clamped cap and reports the passes it used, and
+   emitted geometry is length-checked (50x the straight-line reach,
+   floor 10,000) before it is returned. Engines PR #74.
+3. **The actual overflow.** A runaway length compiles to a station every
+   10 units of hole, and the KPI, plan-view, section-view and report-pack
+   code reduced those station arrays with `Math.max(...rows)`. That
+   spread is a call with one argument per station, and it is what raised
+   the RangeError. All four sites now go through `services/extent.js`
+   (`minOf` / `maxOf` / `extentOf`), which cannot overflow.
+
+The dialog no longer throws at all. Every problem the designer can
+create is a validation message rendered inline under the fields, with
+the offending input outlined, and an infeasible solve shows the engine's
+own constraint message in the same place. `delta` is computed defensively
+during render, so a malformed target cannot reach the error boundary
+either.
+
+**Horizontal landing now takes two targets**, matching Compass's Final
+Target plus Align on Target: a heel (landing) target and an optional toe
+(alignment) target, both picked from the existing target list. With both
+set, the landing azimuth is the heel-to-toe bearing, shown live in the
+dialog before solving along with the heel-to-toe reach and TVD rise. The
+azimuth field is now an optional override rather than the only way in;
+blank with no toe keeps the old behaviour of aiming at the heel from the
+current design end. `report.landAziSource` records which of the three
+sources was used.
+
+Tests: `src/pages/apps/well-planning/__tests__/solverDialog.test.jsx`
+(14 cases: unit normalisation in both depth units including a
+discriminating check against the metres-leaked answer, six inline-problem
+cases, six heel/toe cases). Engine side, `drilling.profiledesign.test.js`
+grows 17 -> 56: 30 non-finite-input cases across all six solvers, a
+20,000-call randomised sweep asserting every feasible answer compiles to
+under 50,000 stations, the iteration cap, and the heel/toe round trip.
+
+**Landing inclination is a control, not a constant** (same fix pack,
+engines PR #76). Horizontal wells are not all flat: laterals planned to
+nose up or down along reservoir dip land at 89 or 91 degrees. The
+inclination now resolves the same three ways the azimuth does, recorded
+in `report.landIncSource`: a manual override field, else the heel-to-toe
+angle from vertical when a toe is selected, else 90. Inclination and
+azimuth resolve independently, so a designer can align on a toe for
+direction while forcing the attitude. Note the behaviour change: a
+two-target landing with no explicit inclination used to land at 90
+regardless of the toe's TVD, and now runs straight down the heel-to-toe
+line, which is what aligning on a target means. The dialog shows both
+attitudes it will solve with before you press Solve, and the toast no
+longer rounds the landing inclination to whole degrees.
+
+Still open: owner staging E2E on the two-target landing.
+
 ## Launch state
 
 - All six waves DONE. Tabs: Design (solvers, charts, 3D, exports,

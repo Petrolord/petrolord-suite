@@ -21,7 +21,7 @@ import { SCF_PER_LBMOL, FT3_PER_BBL } from '../separator.js';
 import {
   cceExperiment, differentialLiberation, eosBlackOilTable, bgRbPerScf,
 } from '../experiments.js';
-import goldens from './goldens.json';
+import goldens from '../../../../../packages/engines/test-data/fluid/goldens.json';
 
 const relErr = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
 const buildMix = (job) => (job.plus

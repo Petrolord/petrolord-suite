@@ -215,13 +215,28 @@ export const runEosFlash = (composition) => {
  * the Bo block. Returns rounded, display-ready numbers; the black-oil
  * separator path is untouched.
  */
+/**
+ * A Separator Train stage counts only when the user has enabled it and given
+ * it a positive pressure.
+ *
+ * This predicate is shared deliberately. Lab tuning used to select stages with
+ * its own looser test (any finite pressure), so a DISABLED stage entered the
+ * tuning targets while being excluded from every result it was being matched
+ * against. On the shipped defaults that bit: the third stage is disabled at
+ * 14.7 psia, and because 14.7 sits just above standard pressure,
+ * normalizeStages then appended a second stock-tank stage on top of it. Lab
+ * tuning regressed against a four-stage train while the displayed separator
+ * results, the black-oil table and the Pipeline Sizer handoff all used three.
+ */
+export const isActiveStage = (s) => Boolean(s) && Boolean(s.enabled) && Number(s.pressure) > 0;
+
+/** A stage's temperature in °F, defaulting to standard temperature. */
+const stageTempF = (s) => (Number.isFinite(Number(s.temperature)) ? Number(s.temperature) : 60);
+
 /** Separator Train UI stages -> engine stages (psia / °R, enabled only). */
 const toEngineStages = (stages) => (stages || [])
-  .filter((s) => s && s.enabled && Number(s.pressure) > 0)
-  .map((s) => ({
-    tR: degFtoR(Number.isFinite(Number(s.temperature)) ? Number(s.temperature) : 60),
-    pPsia: Number(s.pressure),
-  }));
+  .filter(isActiveStage)
+  .map((s) => ({ tR: degFtoR(stageTempF(s)), pPsia: Number(s.pressure) }));
 
 export const runEosSeparator = (composition, stages) => {
   const parsed = parseComposition(composition);
@@ -413,11 +428,13 @@ export const labTuneRequest = (composition, stages) => {
   const targets = {};
   if (psatPsia !== null) targets.psat = { tF: psatTF, pPsia: psatPsia };
   if (totalGor !== null || stoApi !== null || bo !== null) {
+    // Same stage selection as every consumer of the separator train, so the
+    // targets and the results being matched describe the same train.
     const stagesF = (stages || [])
-      .filter((s) => Number.isFinite(Number(s.pressure)))
-      .map((s) => [Number.isFinite(Number(s.temperature)) ? Number(s.temperature) : 60, Number(s.pressure)]);
+      .filter(isActiveStage)
+      .map((s) => [stageTempF(s), Number(s.pressure)]);
     if (!stagesF.length) {
-      return { request: null, reasons: ['Separator-test measurements need at least one Separator Train stage.'] };
+      return { request: null, reasons: ['Separator-test measurements need at least one enabled Separator Train stage.'] };
     }
     targets.separatorTest = {
       stagesF,

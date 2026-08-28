@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE, GRID_STYLE } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
+import { extentOf } from '../services/extent';
 
 const PANEL_TITLE = 'text-[11px] font-semibold text-slate-700 px-3 pt-2';
 const axisProps = {
@@ -71,10 +72,9 @@ const vsDomain = (rows, overlays, targets) => {
     ...targets.map((t) => t.vs),
   ].filter(Number.isFinite);
   if (!vs.length) return ['auto', 'auto'];
-  const min = Math.min(...vs);
-  const max = Math.max(...vs);
-  const tvd = rows.map((r) => r.tvd).filter(Number.isFinite);
-  const tvdSpan = tvd.length ? Math.max(...tvd) - Math.min(...tvd) : 0;
+  const { min, max } = extentOf(vs);
+  const tvdExtent = extentOf(rows, (r) => r.tvd);
+  const tvdSpan = tvdExtent.max === null ? 0 : tvdExtent.max - tvdExtent.min;
   const pad = Math.max((max - min) * 0.1, tvdSpan * 0.05, 1);
   return [Math.floor(min - pad), Math.ceil(max + pad)];
 };
