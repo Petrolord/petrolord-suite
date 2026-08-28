@@ -10,6 +10,8 @@ import {
   WELL_TEST_ALIASES,
   dailyProductionTemplateCSV,
   wellTestTemplateCSV,
+  parseFieldTotalsCSV,
+  fieldTotalsTemplateCSV,
 } from '../csvImport';
 
 describe('claimColumns', () => {
@@ -172,5 +174,57 @@ describe('parseWellTestCSV', () => {
     expect(tests).toHaveLength(3);
     expect(tests[2].well).toBe('P-2');
     expect(tests[2].choke_64ths).toBe(24);
+  });
+});
+
+describe('parseFieldTotalsCSV', () => {
+  it('parses the canonical field-totals schema', () => {
+    const { rows, report } = parseFieldTotalsCSV(fieldTotalsTemplateCSV());
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toEqual({
+      date: '2025-01-01', oil_stb: 1900, water_stb: 430, gas_mscf: 1350,
+    });
+    expect(report.skipped).toHaveLength(0);
+    expect(report.warnings).toHaveLength(0);
+  });
+
+  it('scales units from the header', () => {
+    const { rows, report } = parseFieldTotalsCSV(
+      'date,oil_mbbl,gas_mmscf\n2025-01-01,1.9,1.35',
+    );
+    expect(rows[0].oil_stb).toBeCloseTo(1900, 6);
+    expect(rows[0].gas_mscf).toBeCloseTo(1350, 6);
+    expect(report.warnings.some((w) => /scaled/.test(w))).toBe(true);
+  });
+
+  it('reports a repeated date rather than silently keeping one row', () => {
+    const { rows, report } = parseFieldTotalsCSV(
+      'date,oil\n2025-01-01,100\n2025-01-01,200',
+    );
+    expect(rows).toHaveLength(2);
+    expect(report.duplicateDates).toBe(1);
+    expect(report.warnings.some((w) => /last row for each date wins/.test(w))).toBe(true);
+  });
+
+  it('refuses a file with no recognizable volume column', () => {
+    const { rows, report } = parseFieldTotalsCSV('date,pressure\n2025-01-01,3200');
+    expect(rows).toHaveLength(0);
+    expect(report.warnings[0]).toMatch(/No oil, water or gas total columns/);
+  });
+
+  it('zeroes negatives and skips unparseable dates, accounting for both', () => {
+    const { rows, report } = parseFieldTotalsCSV(
+      'date,oil\n2025-01-01,-50\nnot-a-date,100',
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].oil_stb).toBe(0);
+    expect(report.negativesZeroed).toBe(1);
+    expect(report.skipped).toHaveLength(1);
+  });
+
+  it('lands a monthly file on the first of the month and says so', () => {
+    const { rows, report } = parseFieldTotalsCSV('month,oil\n2025-03,58000');
+    expect(rows[0].date).toBe('2025-03-01');
+    expect(report.warnings.some((w) => /first of the month/.test(w))).toBe(true);
   });
 });
