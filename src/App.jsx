@@ -131,6 +131,7 @@ const RodPumpDesignStudio = lazy(() => import('@/pages/apps/RodPumpDesignStudio'
 const GasWellPerformanceStudio = lazy(() => import('@/pages/apps/GasWellPerformanceStudio'));
 const ChokePerformanceStudio = lazy(() => import('@/pages/apps/ChokePerformanceStudio'));
 const FlowAssuranceStudio = lazy(() => import('@/pages/apps/FlowAssuranceStudio'));
+const ProductionNetworkStudio = lazy(() => import('@/pages/apps/ProductionNetworkStudio'));
 const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 const CasingTubingHelpGuide = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingHelpGuide'));
@@ -604,6 +605,11 @@ function App() {
                                 {/* D7: Well Schematic Designer absorbed by Completion Design Studio (Drilling-ROADMAP.md §2) */}
                                 <Route path="apps/production/well-schematic-designer" element={<Navigate to="/dashboard/apps/drilling/completion-design-studio" replace />} />
                                 {/* P0: Network Diagram Pro delisted (§6.4) — inert solver, no persistence; its editor folds into Production Network Studio at P11 */}
+                                <Route path="apps/production/production-network-studio" element={<ProtectedAppRoute appId="production-network-studio" appName="Production Network Studio"><ProductionNetworkStudio /></ProtectedAppRoute>} />
+                                {/* Network Diagram Pro was delisted at P0 (a canvas whose Solve
+                                    button raised a toast). Its slug stays a redirect: the editor
+                                    returns inside the Production Network Studio, which is a
+                                    different app with a different id. */}
                                 <Route path="apps/production/network-diagram-pro" element={<Navigate to="/dashboard/production" replace />} />
 
                                 <Route path="apps/economics/project-management-pro" element={<ProjectManagementPro />} />

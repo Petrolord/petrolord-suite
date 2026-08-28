@@ -1272,6 +1272,135 @@ gates.
 context gates; full engines suite 72/1359, full Suite jest 336/4431,
 `npx vite build` green.
 
+## P11 — Production Network Studio (BUILT 2026-08-28)
+
+`feat/production-p11`, stacked on P10. Engines PR #71 (the domain's
+seventh family) and PR #72 (a defect this layer found on first use).
+
+**The one thing no other studio in this module can say.** Every
+single-well studio here — nodal, gas lift, ESP, rod pump, gas well,
+choke, flow assurance — solves one well against a wellhead pressure
+somebody typed in. That is right when designing a completion and wrong
+when asking what a field makes, because in a gathering system nobody
+types it in: the header pressure is whatever the trunk needs to carry
+the total, and the total is the sum of what the wells make at that
+header pressure. **The wells set the pressure that holds the wells
+back.** Open a new well into a header and every well already on it
+makes less, and that loss is invisible to any amount of single-well
+work.
+
+The studio's headline number is what each well makes in the network
+against what it would make **alone** — and "alone" is solved on the
+SAME network with the others shut in, not by a separate single-well
+calculation. That is what makes the comparison mean anything: the
+flowline, the trunk, the delivery pressure, the correlation and even
+the interpolation error in the curves are identical on both sides, so
+the difference is the other wells and nothing else.
+
+**The engine has no petroleum in it (PR #71).** Node pressures as
+unknowns, nodal mass balance as equations, Newton with a
+central-difference Jacobian. The branch relations are CALLBACKS, which
+is exactly what lets it be checked without judgement: hand it linear
+resistances and the network collapses to a weighted graph Laplacian
+whose solution is a matrix inverse, and Newton has to reproduce that.
+It does, to **2e-16 relative** — the only gate in this program with no
+tolerance chosen by anybody. Central differences buy that last part;
+with forward differences the same comparison sits at 1e-8, limited by
+subtraction cancellation. The nonlinear cases go against an oracle that
+forms no Jacobian and solves no linear system, bisecting each node in
+turn.
+
+**The Suite supplies both relations from the already-validated nodal
+layer.** A well is its inflow met against its own tubing, sampled by
+marching **up** from the IPR: pick a rate, ask the inflow what
+bottomhole pressure it gives, march the tubing to the wellhead. One
+traverse per sample, and it produces deliverability against wellhead
+pressure directly — the curve a network actually wants — instead of a
+nodal solve's single point at a pressure you had to guess. A pipe is
+the same two-phase traverse marched horizontally or up a rise. Both
+become characteristic curves handed to the solver as fast monotone
+interpolations, because solving a traverse inside every Newton
+evaluation would mean thousands of them.
+
+**The unstable branch.** A tubing curve is not monotone: at low rate
+the column is heavy and the wellhead pressure the well can hold is LOW,
+rising as the column lightens until friction takes over. So the curve
+peaks, and everything left of the peak is the classic unstable branch
+where a well heads rather than holding a rate. It is dropped rather
+than handed to the solver — physically it is not an operating point,
+and numerically a non-monotone inflow gives the network more than one
+answer. The peak is **reported** instead, as the rate below which the
+well is unstable. A well whose network operating point sits near it is
+about to start heading, and no single-well study would have said so
+because none of them knew what the header was going to do.
+
+**Two defects found building it.**
+
+1. *(Suite)* A branch carrying nothing got a one-point characteristic
+   at the origin, which makes its flow identically zero whatever
+   pressure is across it, flattens the Jacobian row of the node behind
+   it, and took the whole network down the first time a well shut in at
+   a high separator pressure. What a branch **is** carrying and what it
+   **would** carry are different questions and only the second belongs
+   in a pressure-drop curve; a quiet branch now keeps its last real
+   mixture for curve-building.
+2. *(Engine, PR #72)* A node whose Jacobian row and column are both
+   zero was treated as a singular system and the whole network refused.
+   That is exactly what a shut-in well on a dead flowline looks like,
+   and the physical answer is obvious — it sits where it sits. Such
+   nodes are now pinned, dropped from the linear system, and reported.
+
+**Mixing.** Component rates add; ratios do not. A header fed by a well
+at 10 percent water and one at 80 is not at 45 — on the gated case it
+is at 27.5. Everything is carried as mass and component rates for that
+reason, and line water cuts and gas-oil ratios are consequences. It
+matters to the answer and not only the reporting, because a line's
+pressure drop depends on what is in it: mixtures are settled in an
+outer loop, pushed down the solved flow directions, until nothing
+moves.
+
+**What was salvaged, and what was not.** The roadmap said absorb the
+Network Diagram Pro editor. Its canvas was kept in spirit but not in
+code: a gathering system is a DAG that lays itself out by depth from
+the delivery point, so hand-positioning nodes is busywork, and
+generating the drawing frees it to carry the **answer** — pressure at
+every node, rate on every line, the bottleneck picked out — which a
+hand-arranged diagram never could, having nothing to say until somebody
+finished arranging it. The FNH segment math was **not** salvaged: it
+was a second, unvalidated single-phase implementation of physics the
+nodal layer already has validated, and its line sizer assumed a 0.25
+inch wall for every size with a real schedule table sitting beside it.
+Its DATA went into the engine instead — pipe schedules, Crane K values,
+API 5L grades — with od, wall AND bore carried so the table catches its
+own transcription errors.
+
+**What it refuses.** Compressors, pumps and separators are not
+modelled. A compressor in a network solve needs a real machine curve,
+and inventing one would be worse than leaving it out. Line temperatures
+are inputs rather than solved: solving them is what the Flow Assurance
+Studio does, one line at a time and in far more detail than a network
+solve needs, and taking a number from there and typing it here is the
+honest way round.
+
+**Deleted:** `components/networkdiagram/` (8 files) and
+`pages/apps/NetworkDiagramPro.jsx`. The replacement takes a FRESH SLUG
+(`production-network-studio`); `network-diagram-pro` stays delisted and
+its route stays a redirect.
+
+**Migrations (both pending owner apply):**
+`20260829410000_p11_saved_network_projects.sql` (safe pre-deploy) and
+`20260829420000_seed_production_network_studio_tile.sql` (HELD for the
+single P12 upload).
+
+**Validation:** `tools/validation/production-validation.ts` PA27 ACTIVE
++ PL28-PL31 ARMED (the full B36.10 table, a metered field against the
+solved network, Crane TP-410 in full, a published multi-well network
+benchmark). 27/27 active gates.
+
+**Verification:** 33 engine gates + 29 Suite computation gates + 22
+context gates; full engines suite 73/1395, full Suite jest 339/4522,
+`npx vite build` green.
+
 **Migrations:**
 
 - `20260829370000_p9_saved_liftadvisor_projects.sql` — study
@@ -1292,7 +1421,11 @@ context gates; full engines suite 72/1359, full Suite jest 336/4431,
 - `utils/anomalyDetection.js` and `hooks/usePhase5State.js` sound like
   the deleted anomaly detector but belong to a different (multi-well
   portfolio) tree; they were deliberately left alone.
-- Salvage for P11: `components/networkdiagram` (editor) +
-  `components/facilitynetworkhydraulics` (segment math). P10 is done:
+- P11 is done. `components/networkdiagram` was deleted rather than
+  salvaged (the drawing is generated from the topology now), and
+  `components/facilitynetworkhydraulics` was NOT used as a source of
+  math — it duplicated the validated nodal layer and its line sizer
+  assumed a 0.25 in wall at every size. Its DATA moved into the engine.
+  The FNH app itself is untouched and still routed. P10 is done:
   nothing was salvaged from `components/flowassurance` (the equations
   were invented) and the whole tree was deleted.
