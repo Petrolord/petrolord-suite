@@ -418,16 +418,27 @@ export const diagnoseMeasured = ({ string, card, spm, dampingRatio }) => {
   const d = diagnoseCard({ string, surfaceCard: card, spm, dampingRatio, harmonics: 24 });
   if (!d.ok) return d;
   const loads = d.pumpCard.map((p) => p.loadLb);
-  const span = Math.max(...loads) - Math.min(...loads);
+  // The fluid load is read off the two PLATEAUS of the pump card, not
+  // off its extremes. A Fourier series truncated at a sharp load
+  // transfer overshoots at the corners — the Gibbs phenomenon, named
+  // for the same Gibbs — so the extreme values sit a good ten percent
+  // outside the load the pump is really carrying. The tenth and
+  // ninetieth percentiles land on the flat parts, which is where an
+  // engineer reads the card by eye anyway.
+  const sorted = [...loads].sort((a, b) => a - b);
+  const at = (q) => sorted[Math.min(sorted.length - 1,
+    Math.max(0, Math.round(q * (sorted.length - 1))))];
+  const span = at(0.9) - at(0.1);
   // Fillage read off the pump card: the fraction of the plunger stroke
   // for which the load is up on the rods.
-  const threshold = Math.min(...loads) + 0.5 * span;
+  const threshold = at(0.1) + 0.5 * span;
   const carrying = d.pumpCard.filter((p) => p.loadLb > threshold).length;
   return {
     ...d,
     ok: true,
     surfaceCard: card,
     fluidLoadLb: span,
+    pumpLoadExtremesLb: [Math.min(...loads), Math.max(...loads)],
     fillageEstimate: d.pumpCard.length > 0 ? carrying / d.pumpCard.length : NaN,
   };
 };
