@@ -536,6 +536,163 @@ mean changing two shipped studios from a third one's branch. It stays
 open as its own piece of work, and it is now duplicated in two studios
 rather than one, which is the cost of deferring it again.
 
+## P6 — Rod Pump Design Studio (BUILT 2026-08-28)
+
+Ships on `feat/production-p6` (stacked on the P5 branch). Route
+`apps/production/rod-pump-design-studio`, gated with
+`ProtectedAppRoute appId="rod-pump-design-studio"`, studio kit shell.
+
+**THE SCOPE CALL, stated plainly because it is a deviation.** The
+roadmap asks for API RP 11L. RP 11L predicts plunger stroke, loads and
+torque from a set of dimensionless CHARTS, and those charts are
+themselves solutions of the damped wave equation, computed once and
+plotted. Reproducing plotted curves from memory is exactly what this
+platform refuses elsewhere (the Hydraulic Institute correction in P5,
+the vendor pump curves in the ESP catalog). Here there was no need to
+take the risk: the equation the charts solve is first-principles
+physics, so P6 solves it directly. That is a superset of the ask, not a
+substitute for it. The RP 11L dimensionless groups ARE reported on the
+Design tab, because they are how a rod-pump engineer reads an answer,
+and the published chart values are ARMED as gate PL9 for when the owner
+supplies the document.
+
+**Engine first: engines PR #64, MERGED** (plus a follow-up fix on main,
+below). `packages/engines/engines/production/`:
+
+- `rodString.js` — stepped-bar mechanics, closed form. The tapered
+  natural frequency is an eigenvalue problem with an exact
+  transfer-matrix statement, so it is SOLVED rather than read off a
+  frequency-factor table.
+- `rodDynamics.js` — the damped wave equation in BOTH directions.
+  `predictCard` marches displacement on a collocated grid for the
+  design problem; `diagnoseCard` propagates Fourier harmonics in closed
+  form for the measurement problem, which is Gibbs 1963. They share no
+  code path.
+- `pumpingUnit.js` — exact four-bar kinematics. The torque factor is
+  ds/dtheta, which is what virtual work says it is, so it is
+  differentiated from the linkage rather than quoted from a formula.
+- `rodPumpDesign.js` — the chain, the dimensionless groups, section
+  stresses off the tension envelope against modified Goodman.
+- `data/rodCatalog.js` — API sizes with areas COMPUTED from diameters,
+  published weights checked against bare steel plus a consistent
+  coupling allowance. No named pumping units: real beam dimensions are
+  manufacturer data, so a generic four-bar scaled to a requested stroke
+  is offered and labelled generic everywhere it surfaces.
+
+**Two results worth recording.**
+
+1. *The 245,000 constant is derived, not asserted.* Bare steel gives a
+   wave speed near 16,980 ft/s. Couplings add mass and essentially no
+   stiffness, so they slow the wave by the square root of the 1.087
+   coupling allowance, giving about 16,290 ft/s — which is exactly the
+   value N0 = 245,000/L is built on. The gates land the derivation on
+   244,331, 0.27 percent off the textbook constant, from material
+   properties alone.
+2. *A conventional unit is not a sine wave.* The exact linkage spends
+   54.4 percent of the revolution on the upstroke. The predecessor
+   assumed pure harmonic motion, and that asymmetry is most of the
+   difference between a real peak torque and a textbook one.
+
+**The four defects this phase exists to fix**, all from the removed
+Artificial Lift Designer rod pump tab (`src/utils/rodPumpCalculations.js`,
+deleted in this phase). Its "Mills method" was neither Mills nor RP 11L
+— the dynamic factor, the torque factor and the minimum load were all
+invented expressions — and underneath that:
+
+1. Rod diameter came from `parseFloat("7/8".replace('/', '.'))`, which
+   is **7.8 inches**. Areas were about eighty times too large and the
+   string could not stretch.
+2. The buoyancy factor was `1 - 1.2 * SG / 7.85`. Archimedes has no 1.2
+   in it; that factor removed roughly a fifth of the rod weight.
+3. Displacement was `0.1166 * plungerArea * S * N`. The constant already
+   carries pi/4, so multiplying by area applies it twice: displacement
+   21 percent low, which came back out as a pump fillage 27 percent high.
+4. The fluid load SUBTRACTED tubing pressure from the column instead of
+   adding it, lightening every design.
+
+Each of the four is gated against directly, in the engine suite and in
+`production-validation.ts`, because each is easy to repeat.
+
+**Suite layer** (`src/utils/production/rodPump.js`, 27 gates) is the
+part that needs the well: the IPR at the design rate, the intake
+pressure and the submergence it implies, the free gas that decides how
+much of the barrel fills, and the liquid column that sets the fluid
+load. Plus the speed sweep, the measured-card diagnosis and the legacy
+import.
+
+**State** (`src/contexts/RodPumpDesignContext.jsx`, 22 gates): the
+P4/P5 recipe — the design IS the project, in the
+`saved_rodpump_projects` payload. Perforation depth is deliberately not
+an input: it is the well model's node depth, the same rule P5 set. Live
+versus explicit run is decided by wave-equation solves: one design is
+one solve, so it recomputes as you type; the speed sweep is a solve per
+speed, so it is explicit with a stale flag.
+
+**UI** (`src/components/rodpump/`, white chartTheme + ChartLogo on
+every chart). Tabs: Design (fluid load, submergence, fillage, plunger
+stroke, production, loads, torque, unit ratings and the RP 11L groups),
+Dyno Cards (surface and downhole cards, and gearbox torque through a
+revolution), Rod String (the taper, section stresses against modified
+Goodman, and the tension envelope down the string), Performance (the
+explicit speed sweep), Diagnostics (a measured card read down the
+string by the Gibbs solution), Well Model. Ten-section help guide; page
+smoke test across every tab.
+
+**Refusals worth naming:** a rod string that does not reach its pump; a
+rod size that cannot be read (rather than a plausible diameter); a rate
+at or above the absolute open flow; a unit driven at or above the
+string's own natural frequency; a linkage whose dimensions cannot
+close; and a string with no damping.
+
+**A defect found and fixed mid-phase.** `num(value, undefined)` in
+`utils/nodal/numerics` falls back to **0**, because the helper's own
+default parameter is 0. The studio's damping input therefore became
+zero damping, and an undamped string never settles: the plunger stroke
+grew past the surface stroke, the minimum load went negative and the
+loads looked perfectly stable. Fixed in both layers — the Suite no
+longer asks for it, and the ENGINE now refuses a non-positive damping
+ratio up front rather than marching it (engines main `a51a11a`,
+subtree-pulled). Worth remembering for P7+: that helper's fallback is
+not `undefined`-transparent.
+
+**Validation:** `tools/validation/production-validation.ts` PA15-PA20
+ACTIVE (rod mechanics with the fraction and buoyancy regressions, the
+245,000 constant derived from the coupling mass, the static limit the
+wave equation must reduce to, the predict/diagnose round trip, the
+energy identity behind the torque factor, and the Suite chain on a real
+nodal well) + PL9-PL12 ARMED (RP 11L charts, Takacs rod manual, API RP
+11BR service factors, a measured field card). 20/20 active gates.
+
+**The oracle earned its keep.** It takes a different route at every
+step — finite-element eigenvalues against the transfer matrix, Newton
+loop closure with implicit differentiation against circle intersection
+with finite differences, a staggered velocity/tension RK4 march against
+the collocated explicit displacement march, and Python's own complex
+type against hand-rolled complex arithmetic. Building it found a real
+bug in its own surface boundary condition (a zero surface velocity),
+which is what an independent oracle is for. The diagnostic agrees with
+it to 1e-16.
+
+**Migrations:**
+
+- `20260829260000_p6_saved_rodpump_projects.sql` — design persistence,
+  owner-scoped RLS. Safe pre-deploy. **NOT APPLIED**: owner runs
+  `supabase db query --linked --file supabase/migrations/20260829260000_p6_saved_rodpump_projects.sql`
+  and flips the MIGRATIONS.md row.
+- `20260829270000_seed_rod_pump_design_studio_tile.sql` — the Active
+  tile, HELD for the single P12 upload with the other P-phase tiles.
+
+**Verification:** 95 P6 gates (46 engine + 27 Suite analytics + 22
+context) plus the page smoke test; full Suite jest 324/4173 and
+`npm run build` green.
+
+**The shared per-well model record, still open.** P4 raised it, P5
+declined it and recorded the cost. P6 has now built the same local
+`buildWellModel` shape a third time. It is genuinely the right thing to
+do and it is genuinely not a thing to do from a phase branch that would
+have to change three shipped studios. It belongs to its own piece of
+work, and the cost of deferring it has now tripled.
+
 ## Gotchas for later phases
 
 - The retired apps' tables (`wellbore_flow_projects`,
