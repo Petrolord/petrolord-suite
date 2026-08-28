@@ -39,6 +39,25 @@
 //   PA8 Suite layer: injection at depth lowers the bottomhole pressure
 //       and raises the rate on a real nodal well, and the studio's
 //       psig/psia boundary round-trips
+//   PA9 ESP stage curves: a polynomial is recovered from its own
+//       samples, a vendor fit matches the oracle QR solve, the
+//       reference MODEL passes through the parameters it was built
+//       from, and a curve with too few points is refused
+//   PA10 affinity laws: head as speed squared, power as speed cubed,
+//       efficiency unchanged, and the whole oracle table
+//   PA11 intake stream and gas handling against the oracle, including
+//       the density of what the pump swallows once gas is vented
+//   PA12 total dynamic head and staging: the pressure identity, the
+//       oracle designs, the net-lift regression against the
+//       predecessor app's missing lift term, and the refusal to stage
+//       a duty off the end of the curve
+//   PA13 electrical: copper resistance with temperature, three-phase
+//       drop against the oracle, and cable selection returning nothing
+//       rather than the least bad cable
+//   PA14 ESP Suite layer on a real nodal well: the head decomposition
+//       sums exactly, a deeper pump costs head rather than saving it,
+//       the operating point brackets the pump against the system curve,
+//       and a naturally flowing well is refused rather than staged
 //
 // ARMED gates (pending owner literature PDFs):
 //   PL1 Takacs, Gas Lift Manual — worked continuous-lift installation
@@ -51,6 +70,17 @@
 //   PL4 vendor valve data book: published bellows areas and R per port,
 //       spot-checking the generic geometry in
 //       engines/production/data/gasLiftValveCatalog.js
+//   PL5 Hydraulic Institute ANSI/HI 9.6.7 viscous performance
+//       correction (or the Turzo et al. SPE 57722 digitisation of the
+//       same chart) against espPump.viscosityCheck: the engine
+//       deliberately applies no correction it cannot source
+//   PL6 Turpin / Alhanati (SPE 28526) gas-handling criteria against the
+//       gas volume fraction verdicts, which currently use configurable
+//       operating guidance rather than a published correlation
+//   PL7 vendor pump catalog: published stage curves spot-checking the
+//       reference MODELS in engines/production/data/espCatalog.js
+//   PL8 Takacs, Electrical Submersible Pumps Manual worked design
+//       example (intake conditions through stages and motor loading)
 
 import fs from 'fs';
 import path from 'path';
@@ -77,6 +107,18 @@ async function main() {
   const {
     linearTemperature, spaceValves, designGasLift, deepestInjectionPoint,
   } = await import('../../packages/engines/engines/production/gasLiftDesign.js');
+  const {
+    polyFit, polyEval, fitStageCurve, referenceStageCurve, stagePerformance,
+    HP_HEAD_DIVISOR,
+  } = await import('../../packages/engines/engines/production/espPump.js');
+  const {
+    intakeStream, gasHandling, totalDynamicHead, tdhBreakdown, sizePump,
+    intakePressure, gradientFromDensity, PSI_PER_FT_SG,
+  } = await import('../../packages/engines/engines/production/espDesign.js');
+  const { conductorResistance, surfaceRequirement, selectCable, COPPER_REF_TEMP_F } = await import(
+    '../../packages/engines/engines/production/espMotorCable.js');
+  const { CABLE_SIZES, REFERENCE_STAGES } = await import(
+    '../../packages/engines/engines/production/data/espCatalog.js');
   const { gasChokeRate } = await import('../../src/utils/nodal/chokes.js');
   const { computeIpr } = await import('../../src/utils/nodal/ipr.js');
   const { buildFluidModel } = await import('../../src/utils/nodal/pvt.js');
@@ -84,8 +126,11 @@ async function main() {
   const { linearGeothermal } = await import('../../src/utils/nodal/temperature.js');
   const { liftedTraverse, solveLiftedOperatingPoint, psigToPsia, psiaToPsig } = await import(
     '../../src/utils/production/gasLift.js');
+  const { dutyAtRate, runEspDesign, buildStageCurve, solveEspOperatingPoint } = await import(
+    '../../src/utils/production/esp.js');
 
   const G = goldens('gaslift_cases.json');
+  const E = goldens('esp_cases.json');
 
   let failures = 0;
   const gate = (id: string, name: string, fn: () => void) => {
@@ -291,11 +336,200 @@ async function main() {
     relClose(psiaToPsig(psigToPsia(875)), 875, 1e-12, 'psig round trip');
   });
 
+  gate('PA9', 'ESP stage curves: recovery, vendor fit vs oracle, model parameters, refusals', () => {
+    const truth = (x: number) => 30 - 1e-3 * x + 2e-7 * x * x - 4e-11 * x * x * x;
+    const xs = [1000, 1500, 2000, 2500, 3000, 3500];
+    const fit = polyFit(xs, xs.map(truth), 3);
+    xs.forEach((x) => relClose(polyEval(fit, x), truth(x), 1e-8, 'polynomial recovery'));
+
+    const curve = fitStageCurve({ points: E.vendorCurve.points });
+    if (!curve.ok) throw new Error('the vendor curve did not fit');
+    for (let q = curve.qMin; q <= curve.qMax; q += 100) {
+      let py = 0;
+      const t = q / E.vendorCurve.headScale;
+      for (let k = E.vendorCurve.headCoeffs.length - 1; k >= 0; k -= 1) {
+        py = py * t + E.vendorCurve.headCoeffs[k];
+      }
+      relClose(polyEval(curve.headFit, q), py, 1e-9, `vendor head at ${q} bbl/d`);
+    }
+    relClose(curve.bep.qBpd, E.vendorCurve.bep.qBpd, 1e-9, 'vendor BEP rate');
+
+    E.referenceCurves.forEach((g: any) => {
+      const c = referenceStageCurve(g.spec);
+      if (c.source !== 'reference-model') throw new Error('a model stage is not labelled as one');
+      relClose(polyEval(c.headFit, g.spec.bepBpd), g.spec.bepHeadFt, 1e-9, `${g.id} head at BEP`);
+      g.samples.forEach((sm: any) =>
+        relClose(polyEval(c.headFit, sm.qBpd), sm.headFt, 1e-8, `${g.id} sample`));
+    });
+    REFERENCE_STAGES.forEach((s2: any) => {
+      if (!/^Reference stage/.test(s2.label)) throw new Error('a catalog stage reads as a vendor pump');
+    });
+    const short = fitStageCurve({ points: [{ qBpd: 1000, headFt: 30 }, { qBpd: 2000, headFt: 25 }] });
+    if (short.ok) throw new Error('a two-point curve was fitted instead of refused');
+  });
+
+  gate('PA10', 'affinity laws: speed scaling identities and the oracle table', () => {
+    const curve = fitStageCurve({ points: E.vendorCurve.points });
+    const at60 = stagePerformance({ curve, qBpd: 2500, hz: 60, specificGravity: 0.9 });
+    const at50 = stagePerformance({ curve, qBpd: 2500 * (50 / 60), hz: 50, specificGravity: 0.9 });
+    relClose(at50.headFt, at60.headFt * (50 / 60) ** 2, 1e-9, 'head as speed squared');
+    relClose(at50.bhpPerStage, at60.bhpPerStage * (50 / 60) ** 3, 1e-9, 'power as speed cubed');
+    relClose(at50.efficiency, at60.efficiency, 1e-12, 'efficiency unchanged by speed');
+    E.affinity.forEach((g: any) => {
+      const s2 = stagePerformance({ curve, qBpd: g.qBpd, hz: g.hz, specificGravity: g.sg });
+      relClose(s2.headFt, g.headFt, 1e-8, `head at ${g.qBpd} bbl/d, ${g.hz} Hz`);
+      relClose(s2.bhpPerStage, g.bhpPerStage, 1e-8, `power at ${g.qBpd} bbl/d, ${g.hz} Hz`);
+      if (s2.region !== g.region) throw new Error(`region at ${g.qBpd} bbl/d, ${g.hz} Hz`);
+    });
+  });
+
+  gate('PA11', 'intake stream, gas split and the density the pump actually sees', () => {
+    E.designs.forEach((g: any) => {
+      const stream = intakeStream({
+        qoStbd: g.inputs.qoStbd, wct: g.inputs.wct, gorScfStb: g.inputs.gorScfStb, pvt: g.inputs.pvt,
+      });
+      relClose(stream.totalResBpd, g.stream.totalResBpd, 1e-10, `${g.id} in-situ rate`);
+      relClose(stream.gvf, g.stream.gvf, 1e-9, `${g.id} gas volume fraction`);
+      const gas = gasHandling({ stream, separatorEfficiency: g.inputs.separatorEfficiency });
+      relClose(gas.pumpIntakeBpd, g.gas.pumpIntakeBpd, 1e-10, `${g.id} pump intake rate`);
+      relClose(gas.mixtureDensityLbFt3, g.gas.mixtureDensityLbFt3, 1e-10, `${g.id} pump-side density`);
+      if (gas.verdict !== g.gas.verdict) throw new Error(`${g.id} gas verdict`);
+    });
+    // venting gas leaves a heavier fluid behind, all the way to the liquid
+    const pvt = { rs: 300, bo: 1.2, bw: 1.02, bg: 0.0012, rhoO: 48, rhoW: 64, rhoG: 6 };
+    const stream = intakeStream({ qoStbd: 1200, wct: 0.5, gorScfStb: 500, pvt });
+    const all = gasHandling({ stream, separatorEfficiency: 1 });
+    relClose(all.mixtureDensityLbFt3, stream.liquidDensityLbFt3, 1e-12, 'full separation leaves liquid');
+  });
+
+  gate('PA12', 'total dynamic head, staging, the net-lift regression and the off-curve refusal', () => {
+    const grad = gradientFromDensity(50.54);
+    const { tdhFt, dpPsi } = totalDynamicHead({
+      pIntakePsia: 1340, pDischargePsia: 3200, gradientPsiPerFt: grad,
+    });
+    relClose(tdhFt * grad, dpPsi, 1e-12, 'TDH times gradient is the pressure added');
+    close(intakePressure({
+      pwfPsia: 1500, perfTvdFt: 7500, pumpTvdFt: 7000, annulusGradPsiPerFt: 0.32,
+    }), 1340, 1e-9, 'intake pressure through the annulus column');
+    // the predecessor set TDH = friction + wellhead and staged an order
+    // of magnitude short; the lift term has to dominate
+    const parts = tdhBreakdown({ netLiftFt: 4800, frictionFt: 260, whpHeadFt: 340 });
+    if (!(parts.tdhFt > 6 * (parts.frictionFt + parts.whpHeadFt))) {
+      throw new Error('the net lift term is not dominating a deep well');
+    }
+    E.designs.forEach((g: any) => {
+      const curve = g.inputs.curve === 'vendor'
+        ? fitStageCurve({ points: E.vendorCurve.points })
+        : referenceStageCurve(E.referenceCurves.find((c: any) => c.id === g.inputs.curve).spec);
+      const sized = sizePump({
+        curve, qBpd: g.gas.pumpIntakeBpd, tdhFt: g.tdhFt, hz: g.inputs.hz,
+        specificGravity: g.gradientPsiPerFt / PSI_PER_FT_SG, nameplateHp: g.inputs.nameplateHp,
+      });
+      if (sized.stages !== g.sized.stages) {
+        throw new Error(`${g.id} stages ${sized.stages} vs ${g.sized.stages}`);
+      }
+      relClose(sized.shaftHp, g.sized.shaftHp, 1e-7, `${g.id} shaft power`);
+      if (!(sized.headMarginFt >= 0 && sized.headMarginFt < sized.stage.headFt)) {
+        throw new Error(`${g.id} the stack does not just cover the head`);
+      }
+    });
+    const offCurve = sizePump({
+      curve: fitStageCurve({ points: E.vendorCurve.points }),
+      qBpd: 4800, tdhFt: 3800, hz: 50, specificGravity: 1, nameplateHp: 200,
+    });
+    if (Number.isFinite(offCurve.stages) && offCurve.stages > 0) {
+      throw new Error('a duty off the end of the curve produced a stage count');
+    }
+    relClose(HP_HEAD_DIVISOR, E.constants.hpHeadDivisor, 1e-10, 'hydraulic power constant');
+  });
+
+  gate('PA13', 'electrical: copper resistance, cable drop vs oracle, and the selection refusal', () => {
+    close(conductorResistance({ ohmsPer1000FtAt77F: 0.1593, tempF: COPPER_REF_TEMP_F }),
+      0.1593, 1e-12, 'resistance at the reference temperature');
+    E.electrical.forEach((g: any) => {
+      const r = surfaceRequirement({
+        shaftHp: g.inputs.shaftHp, nameplateHp: g.inputs.nameplateHp,
+        nameplateAmps: g.inputs.nameplateAmps, nameplateVolts: g.inputs.nameplateVolts,
+        powerFactor: g.inputs.powerFactor, lengthFt: g.inputs.lengthFt,
+        ohmsPer1000FtAt77F: g.inputs.ohmsPer1000FtAt77F, cableTempF: g.inputs.cableTempF,
+      });
+      relClose(r.dropV, g.dropV, 1e-9, 'cable voltage drop');
+      relClose(r.surfaceVolts, g.surfaceVolts, 1e-9, 'surface voltage');
+      relClose(r.kva, g.kva, 1e-9, 'apparent power');
+      relClose(r.lossKw, g.lossKw, 1e-9, 'cable loss');
+    });
+    const impossible = selectCable({
+      cables: CABLE_SIZES.map((c: any) => ({ ...c, ampacityA: 10 })),
+      maxDropPct: 1, shaftHp: 200, nameplateHp: 250, nameplateAmps: 67,
+      nameplateVolts: 1000, lengthFt: 12000, cableTempF: 220,
+    });
+    if (impossible.cable !== null) throw new Error('a cable was selected that fails its own checks');
+  });
+
+  gate('PA14', 'ESP Suite layer: the chain on a real nodal well', () => {
+    const depth = 7500;
+    const model = {
+      fluidModel: buildFluidModel({ api: 32, gasSg: 0.75, gor: 120, salinityPpm: 30000 }),
+      trajectory: buildTrajectory({ mode: 'vertical', depthFt: depth }),
+      tAt: linearGeothermal({ whtF: 100, bhtF: 190, tvdMaxFt: depth }),
+      ipr: computeIpr({ model: 'composite', pr: 2200, pb: 1500, pi: 0.5 }),
+      vlp: {
+        idIn: 3.958, roughnessIn: 0.0006, correlation: 'beggsBrill', stepFt: 250, nodeMd: depth,
+      },
+    };
+    const common = {
+      model, wct: 0.9, gorScfStb: 120, perfTvdFt: depth,
+      annulusGradPsiPerFt: 0.4, separatorEfficiency: 0.7, whp: 200,
+    };
+    const duty = dutyAtRate({ ...common, qoStbd: 300, pumpTvdFt: 7000, pumpMd: 7000 });
+    close(duty.breakdown.netLiftFt + duty.breakdown.frictionFt + duty.breakdown.whpHeadFt,
+      duty.tdhFt, 1e-6, 'the head decomposition sums to the total');
+    relClose(duty.tdhFt * duty.intake.gradientPsiPerFt, duty.dpPsi, 1e-6,
+      'TDH is the pressure the pump adds');
+    const deep = dutyAtRate({ ...common, qoStbd: 300, pumpTvdFt: 7400, pumpMd: 7400 });
+    if (!(deep.intake.pipPsia > duty.intake.pipPsia)) throw new Error('a deeper pump lost submergence');
+    if (!(deep.tdhFt > duty.tdhFt)) {
+      throw new Error('a deeper pump appeared to save head, which the gradients do not allow');
+    }
+
+    const curve = buildStageCurve({ curveSource: 'reference', referenceStageId: 'ref-562-4000' });
+    const op = solveEspOperatingPoint({
+      ...common, curve, stages: 190, hz: 60, pumpTvdFt: 7000, pumpMd: 7000, nScan: 7,
+    });
+    if (!op) throw new Error('the pump and system curves did not cross');
+    close(op.headFt, op.tdhFt, 15, 'the operating point balances head against demand');
+
+    // a well that flows on its own is refused rather than staged
+    const flowing = runEspDesign({
+      model: {
+        ...model,
+        fluidModel: buildFluidModel({ api: 32, gasSg: 0.75, gor: 500, salinityPpm: 30000 }),
+        ipr: computeIpr({ model: 'composite', pr: 2800, pb: 2200, pi: 3.0 }),
+      },
+      form: {
+        designRateStbd: '1200', wctPct: '50', gorScfStb: '500', pumpTvdFt: '7000',
+        perfTvdFt: String(depth), annulusGradPsiPerFt: '0.32', separatorEfficiencyPct: '70',
+        whp: '200', hz: '60', nameplateHp: '250', nameplateVolts: '2400', nameplateAmps: '67',
+        cableLengthFt: '7200', cableTempF: '180', maxDropPct: '5', powerFactor: '0.85',
+        motorEfficiencyPct: '85', curveSource: 'reference', referenceStageId: 'ref-540-2500',
+        curveRefHz: '60', curveText: '',
+      },
+    });
+    if (flowing.ok) throw new Error('a naturally flowing well was staged instead of refused');
+    if (!/flows on its own/.test(flowing.errors.join(' '))) {
+      throw new Error('the refusal did not say why');
+    }
+  });
+
   const armed: [string, string][] = [
     ['PL1', 'Takacs, Gas Lift Manual worked installation design (valve depths, domes, test-rack settings)'],
     ['PL2', 'API Gas Lift Manual Book 6 nitrogen Ct table / NIST nitrogen isotherm z values'],
     ['PL3', 'Guo & Ghalambor / Brown worked gas-lift example (injection point and performance curve)'],
     ['PL4', 'vendor valve data book bellows areas and R per port (generic-geometry spot check)'],
+    ['PL5', 'Hydraulic Institute ANSI/HI 9.6.7 viscous correction (or Turzo SPE 57722)'],
+    ['PL6', 'Turpin / Alhanati SPE 28526 gas-handling criteria'],
+    ['PL7', 'vendor pump catalog stage curves (reference-model spot check)'],
+    ['PL8', 'Takacs, Electrical Submersible Pumps Manual worked design example'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
