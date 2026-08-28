@@ -1556,7 +1556,30 @@ exclude `.vite/`, upload, **purge the CDN cache**. This one upload also
 carries the drilling/completions work and the DCA Monte Carlo fixes
 that have been waiting behind the same hold.
 
-### 4. Only THEN apply the 11 HELD tile migrations
+### 4. Apply the 11 HELD tile migrations — DONE 2026-08-28
+
+**Applied, after the upload was confirmed live and the cache cleared.**
+Done together with the 11 held DRILLING tile migrations, 22 in all.
+
+Before activating anything, every target slug was checked against the
+uploaded build: all 22 have a live route, all are wrapped in
+`ProtectedAppRoute`, none is a redirect. A tile that went Active
+pointing at a redirect or a missing route would be the exact failure
+this hold existed to prevent.
+
+A rollback-wrapped dry run of all 22 ran first and was verified to have
+left the catalog untouched.
+
+**Post-apply: Drilling 12 Active, Production 12 Active**, every one
+`is_built` and `is_functional`, and all 24 slugs resolve to a real
+non-redirect route. The Artificial Lift rename landed on the existing
+`artificial-lift-designer` slug, so entitlements and pricing are
+undisturbed.
+
+Still held, on its own separate preconditions (worker `.env` and its
+gate checks): `20260826201000_seed_reservoir_simulation_studio_tile.sql`.
+
+### (original list) The 11 production tile migrations
 
 Every one of these turns a tile Active. Applying any of them before the
 upload is live points a working tile at code that is not there yet.
