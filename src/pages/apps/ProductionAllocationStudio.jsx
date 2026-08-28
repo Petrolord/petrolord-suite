@@ -22,6 +22,7 @@ import SettingsPanel from '@/components/allocation/SettingsPanel';
 import QcSettingsPanel from '@/components/allocation/QcSettingsPanel';
 import TotalsPanel from '@/components/allocation/TotalsPanel';
 import TestQcPanel from '@/components/allocation/TestQcPanel';
+import NodalCheckPanel from '@/components/allocation/NodalCheckPanel';
 import AllocationResultsPanel from '@/components/allocation/AllocationResultsPanel';
 import FactorChartPanel from '@/components/allocation/FactorChartPanel';
 import DiagnosticsPanel from '@/components/allocation/DiagnosticsPanel';
@@ -103,7 +104,12 @@ const AllocationContent = () => {
           <DiagnosticsPanel />
         </>
       )}
-      {activeTab === 'tests' && <TestQcPanel />}
+      {activeTab === 'tests' && (
+        <>
+          <TestQcPanel />
+          <NodalCheckPanel />
+        </>
+      )}
       {activeTab === 'reconciliation' && <ImbalancePanel />}
       {activeTab === 'factors' && <FactorsPanel />}
       {activeTab === 'data' && <TotalsPanel />}

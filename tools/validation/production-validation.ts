@@ -81,6 +81,12 @@
 //       the differential across the plunger with tubing pressure ADDED,
 //       production follows the plunger stroke rather than the polished
 //       rod stroke, and a string that does not reach its pump is refused
+//   PA21 the SHARED per-well model (P6.5): one description builds one
+//       nodal bundle whichever studio asked for it, the record holds no
+//       duty, an inflow that never calibrated is refused instead of
+//       producing NaN, and a well test cross-checks against its own
+//       well through the nodal solution -- the check P3 deferred for
+//       want of exactly this record
 //
 // ARMED gates (pending owner literature PDFs):
 //   PL1 Takacs, Gas Lift Manual — worked continuous-lift installation
@@ -166,6 +172,12 @@ async function main() {
   const {
     runDesign: runRodDesign, fluidLoadLb: rodFluidLoad, displacementBpd,
   } = await import('../../src/utils/production/rodPump.js');
+  const {
+    defaultWellInputs, buildWellModel: buildSharedWell, wellInputsFrom,
+    toWellModelPayload, fromWellModelPayload, wellModelProblems,
+  } = await import('../../src/utils/production/wellModel.js');
+  const { crossCheckTestsAgainstNodal } = await import('../../src/utils/production/allocation.js');
+  const { solveOperatingPoint } = await import('../../src/utils/nodal/system.js');
 
   const G = goldens('gaslift_cases.json');
   const E = goldens('esp_cases.json');
@@ -711,6 +723,91 @@ async function main() {
     if (!/reaches its pump/.test(short.errors.join(' '))) {
       throw new Error('the refusal did not say why');
     }
+  });
+
+  gate('PA21', 'the shared per-well model, and the nodal cross-check it unlocks', () => {
+    // ONE description, ONE bundle. Before P6.5 the gas lift, ESP and rod
+    // pump studios each carried their own copy of this code, so the same
+    // well could be described three ways.
+    const base = defaultWellInputs();
+    const model = buildSharedWell(base);
+    if (!model) throw new Error('the default well description did not build');
+    if (!(model.ipr.qmax > 0)) throw new Error('the inflow did not calibrate');
+    // The vlp is self-contained, because the gas lift studio spreads it
+    // straight into a traverse call.
+    for (const k of ['fluidModel', 'trajectory', 'tAt', 'idIn', 'correlation', 'nodeMd']) {
+      if ((model.vlp as any)[k] === undefined) throw new Error(`the vlp is missing ${k}`);
+    }
+    // and it carries no duty
+    if ((model.vlp as any).whp !== undefined || (model.vlp as any).rates !== undefined) {
+      throw new Error('the shared vlp carries duty, which belongs to a design');
+    }
+    const payload = toWellModelPayload(base);
+    for (const k of ['wctPct', 'whp', 'designRateStbd', 'spm', 'plungerDIn']) {
+      if (JSON.stringify(payload).includes(k)) {
+        throw new Error(`the well record carries ${k}, which is duty and belongs to a design`);
+      }
+    }
+    // Round trip: a saved model comes back as the form it was typed in.
+    const back = fromWellModelPayload(payload);
+    if (JSON.stringify(wellInputsFrom(back)) !== JSON.stringify(wellInputsFrom(base))) {
+      throw new Error('a well model did not round-trip through its payload');
+    }
+
+    // An inflow that never calibrated is REFUSED. Absolute open flow
+    // calibrates a Vogel inflow and only a Vogel inflow; asking for it
+    // on a composite model calibrated nothing, and because every rate
+    // guard downstream compares against a NaN open flow -- and NaN
+    // comparisons are false -- the design used to sail past its own
+    // checks and produce NaN everywhere. This was live in three studios.
+    const badCal = defaultWellInputs();
+    badCal.inflow.model = 'composite';
+    badCal.inflow.calMode = 'qmax';
+    badCal.inflow.qmax = '900';
+    if (buildSharedWell(badCal) !== null) {
+      throw new Error('an uncalibrated inflow built a model instead of being refused');
+    }
+    if (!/Vogel inflow/.test(wellModelProblems(badCal).join(' '))) {
+      throw new Error('the refusal did not say why');
+    }
+
+    // THE CHECK P3 DEFERRED. A well test records a rate and a wellhead
+    // pressure; the well's own model says what it should have made at
+    // that pressure. This needed a per-well record to exist at all.
+    const flowing = defaultWellInputs();
+    flowing.inflow.pr = '3800';
+    flowing.inflow.pb = '2200';
+    flowing.inflow.pi = '1.2';
+    flowing.fluid.gor = '600';
+    const fm = buildSharedWell(flowing);
+    const solved = solveOperatingPoint({
+      ipr: fm.ipr, vlp: { ...fm.vlp, whp: 200, rates: { wct: 0.2, gor: 600 } },
+    });
+    if (!solved.op) throw new Error('the reference well did not flow, so there is nothing to check against');
+    const q = solved.op.q;
+    const mkTest = (id: string, oil: number) => ({
+      id, well_id: 'w1', well: { name: 'P-1' }, test_date: '2025-03-01',
+      oil_rate_stbd: oil, water_rate_stbd: oil * 0.25, gas_rate_mscfd: oil * 0.6,
+      thp_psia: 200,
+    });
+    const rows = crossCheckTestsAgainstNodal({
+      tests: [mkTest('good', Math.round(q)), mkTest('bad', Math.round(q * 0.35))],
+      wellModels: new Map([['w1', flowing]]),
+      buildModel: buildSharedWell,
+      solveNode: solveOperatingPoint,
+    });
+    const good = rows.find((r: any) => r.testId === 'good');
+    const bad = rows.find((r: any) => r.testId === 'bad');
+    if (good.status !== 'ok') throw new Error('a test matching its own well was flagged');
+    relClose(good.nodalStbd, q, 1e-6, 'the nodal rate is the operating point');
+    if (bad.status !== 'off') throw new Error('a test well off its own well was not flagged');
+    if (!(bad.deviationPct < 0)) throw new Error('the deviation did not carry its direction');
+    // A well with no model is reported, never silently skipped.
+    const none = crossCheckTestsAgainstNodal({
+      tests: [mkTest('x', 100)], wellModels: new Map(),
+      buildModel: buildSharedWell, solveNode: solveOperatingPoint,
+    });
+    if (none[0].status !== 'no-model') throw new Error('a test with no well model was not reported');
   });
 
   const armed: [string, string][] = [

@@ -19,6 +19,8 @@ jest.mock('@/lib/productionSpine', () => ({
   listFields: jest.fn(),
   listPoWells: jest.fn(),
   listFieldWellTests: jest.fn(),
+  getWellModel: jest.fn(),
+  upsertWellModel: jest.fn(),
 }));
 jest.mock('@/utils/savedProjects', () => {
   const service = { list: jest.fn(), load: jest.fn(), save: jest.fn(), remove: jest.fn() };
@@ -72,6 +74,10 @@ beforeEach(() => {
   spine.listFields.mockResolvedValue([FIELD]);
   spine.listPoWells.mockResolvedValue([WELL]);
   spine.listFieldWellTests.mockResolvedValue([TEST]);
+  spine.getWellModel.mockResolvedValue(null);
+  spine.upsertWellModel.mockImplementation(async (wellId, modelData) => ({
+    id: 'm1', well_id: wellId, model_data: modelData, updated_at: '2026-08-28T00:00:00Z',
+  }));
   savedService.list.mockResolvedValue([]);
   savedService.save.mockResolvedValue(undefined);
   supabaseMock.__result.data = [];
@@ -114,6 +120,9 @@ describe('well model from typed strings', () => {
     expect(model.trajectory.tvdMax).toBe(7000);
     expect(model.vlp.nodeMd).toBe(7000);
     expect(model.vlp.rates.wct).toBeCloseTo(0.7, 9);
+    // The vlp is self-contained so it can be spread into a traverse.
+    expect(model.vlp.fluidModel).toBeDefined();
+    expect(model.vlp.tAt).toBeInstanceOf(Function);
     expect(model.ipr.qmax).toBeGreaterThan(0);
   });
 
@@ -166,7 +175,7 @@ describe('explicit runs', () => {
     await act(async () => { await api.runPerformance(); });
     expect(api.performance.response.length).toBeGreaterThan(2);
     expect(api.performanceStale).toBe(false);
-    await act(async () => { api.setSection('completion', 'whp', '200'); });
+    await act(async () => { api.setSection('injection', 'whp', '200'); });
     expect(api.performanceStale).toBe(true);
   });
 
@@ -199,9 +208,13 @@ describe('spine link', () => {
     expect(api.latestTestForLinkedWell.id).toBe('t1');
     await act(async () => { api.applyLatestTest(); });
     expect(api.inputs.injection.designRateStbd).toBe('520');
-    expect(api.inputs.completion.wctPct).toBe('48.0');
+    // Water cut and wellhead pressure are DUTY, so they live with the
+    // injection settings rather than in the shared well record (P6.5).
+    expect(api.inputs.injection.wctPct).toBe('48.0');
+    expect(api.inputs.injection.whp).toBe('180');
     expect(api.inputs.fluid.gor).toBe('500');
-    expect(api.inputs.completion.whp).toBe('180');
+    expect(api.inputs.completion).not.toHaveProperty('wctPct');
+    expect(api.inputs.completion).not.toHaveProperty('whp');
   });
 
   it('the link stays identity only: the saved payload carries ids, never spine rows', async () => {
@@ -250,7 +263,7 @@ describe('legacy Artificial Lift Designer import', () => {
     expect(api.inputs.injection.kickoffPsig).toBe('1250');
     expect(api.inputs.injection.injGasSg).toBe('0.7');
     expect(api.inputs.completion.idIn).toBe('2.992');
-    expect(api.inputs.completion.wctPct).toBe('55');
+    expect(api.inputs.injection.wctPct).toBe('55');
     expect(api.inputs.fluid.gor).toBe('420');
   });
 });

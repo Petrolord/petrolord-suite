@@ -391,3 +391,134 @@ describe('defaults', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// The nodal cross-check (P6.5). Deferred at P3 for want of a per-well
+// model; possible once wells got one.
+
+describe('crossCheckTestsAgainstNodal', () => {
+  const { crossCheckTestsAgainstNodal, DEFAULT_NODAL_CHECK_SETTINGS } = require('../allocation');
+  const { buildWellModel, defaultWellInputs } = require('../wellModel');
+  const { solveOperatingPoint } = require('@/utils/nodal/system');
+
+  // A well that flows on its own, so there is a nodal rate to compare to.
+  const inputs = () => {
+    const w = defaultWellInputs();
+    w.inflow.pr = '3800';
+    w.inflow.pb = '2200';
+    w.inflow.pi = '1.2';
+    w.fluid.gor = '600';
+    return w;
+  };
+  const nodalRate = () => {
+    const m = buildWellModel(inputs());
+    return solveOperatingPoint({
+      ipr: m.ipr, vlp: { ...m.vlp, whp: 200, rates: { wct: 0.2, gor: 600 } },
+    }).op.q;
+  };
+  const test = (id, oil, over = {}) => ({
+    id,
+    well_id: 'w1',
+    well: { name: 'P-1' },
+    test_date: '2025-03-01',
+    oil_rate_stbd: oil,
+    water_rate_stbd: oil * 0.25,
+    gas_rate_mscfd: oil * 0.6,
+    thp_psia: 200,
+    ...over,
+  });
+  const run = (tests, models) => crossCheckTestsAgainstNodal({
+    tests,
+    wellModels: models ?? new Map([['w1', inputs()]]),
+    buildModel: buildWellModel,
+    solveNode: solveOperatingPoint,
+  });
+
+  it('a test that matches its well is reported as agreeing', () => {
+    const q = nodalRate();
+    const [r] = run([test('t1', Math.round(q))]);
+    expect(r.status).toBe('ok');
+    expect(Math.abs(r.deviationPct)).toBeLessThan(2);
+    expect(r.nodalStbd).toBeCloseTo(q, 0);
+  });
+
+  it('a test well off its well is flagged, with the direction named', () => {
+    const q = nodalRate();
+    const low = run([test('t-low', Math.round(q * 0.4))])[0];
+    expect(low.status).toBe('off');
+    expect(low.deviationPct).toBeLessThan(0);
+    expect(low.message).toMatch(/below/);
+    const high = run([test('t-high', Math.round(q * 1.9))])[0];
+    expect(high.status).toBe('off');
+    expect(high.message).toMatch(/above/);
+  });
+
+  it('uses the TEST conditions, not the model\'s: its own water cut and gas ratio', () => {
+    // A wetter test is a heavier column, so the well the model describes
+    // makes less. If the check ignored the test's own conditions this
+    // would come back identical.
+    const q = nodalRate();
+    const dry = run([test('t-dry', Math.round(q))])[0];
+    const wet = run([test('t-wet', Math.round(q), {
+      water_rate_stbd: Math.round(q) * 4, gas_rate_mscfd: Math.round(q) * 0.6,
+    })])[0];
+    expect(wet.nodalStbd).not.toBeCloseTo(dry.nodalStbd, 0);
+  });
+
+  it('a well with no model is reported as such, not silently skipped', () => {
+    const [r] = run([test('t1', 500)], new Map());
+    expect(r.status).toBe('no-model');
+    expect(r.nodalStbd).toBeNull();
+    expect(r.message).toMatch(/no model on the spine/);
+  });
+
+  it('a test with no wellhead pressure cannot be checked, and says why', () => {
+    const [r] = run([test('t1', 500, { thp_psia: null })]);
+    expect(r.status).toBe('no-thp');
+    expect(r.message).toMatch(/tubing head pressure/);
+  });
+
+  it('a model that will not flow at the test conditions is a finding, not a crash', () => {
+    // Watered out and nearly gasless: the column is too heavy for this
+    // well to lift on its own, which is exactly why such a well is a
+    // gas lift or ESP candidate. The check has to say so rather than
+    // throw or return a number.
+    const [r] = run(
+      [test('t1', 400, { water_rate_stbd: 3600, gas_rate_mscfd: 20 })],
+      new Map([['w1', defaultWellInputs()]]),
+    );
+    expect(r.status).toBe('dead');
+    expect(r.nodalStbd).toBeNull();
+    expect(r.message).toMatch(/does not flow/);
+  });
+
+  it('sorts the worst findings first', () => {
+    const q = nodalRate();
+    const rows = run([
+      test('t-ok', Math.round(q)),
+      test('t-off', Math.round(q * 0.3)),
+      test('t-nothp', 500, { thp_psia: null }),
+    ]);
+    expect(rows[0].testId).toBe('t-off');
+    expect(rows[rows.length - 1].testId).toBe('t-ok');
+  });
+
+  it('never divides by a rate that says nothing', () => {
+    const [r] = run([test('t1', 0)]);
+    expect(r.status).toBe('ok');
+    expect(r.deviationPct).toBeNull();
+    expect(DEFAULT_NODAL_CHECK_SETTINGS.minRateStbd).toBeGreaterThan(0);
+  });
+
+  it('solves each well once however many tests it has', () => {
+    const q = nodalRate();
+    const built = jest.fn(buildWellModel);
+    crossCheckTestsAgainstNodal({
+      tests: [test('a', q), test('b', q), test('c', q)],
+      wellModels: new Map([['w1', inputs()]]),
+      buildModel: built,
+      solveNode: solveOperatingPoint,
+    });
+    expect(built).toHaveBeenCalledTimes(1);
+  });
+});

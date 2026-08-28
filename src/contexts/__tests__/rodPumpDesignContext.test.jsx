@@ -18,6 +18,8 @@ jest.mock('@/lib/productionSpine', () => ({
   listFields: jest.fn(),
   listPoWells: jest.fn(),
   listFieldWellTests: jest.fn(),
+  getWellModel: jest.fn(),
+  upsertWellModel: jest.fn(),
 }));
 jest.mock('@/utils/savedProjects', () => {
   const service = { list: jest.fn(), load: jest.fn(), save: jest.fn(), remove: jest.fn() };
@@ -71,6 +73,10 @@ beforeEach(() => {
   spine.listFields.mockResolvedValue([FIELD]);
   spine.listPoWells.mockResolvedValue([WELL]);
   spine.listFieldWellTests.mockResolvedValue([TEST]);
+  spine.getWellModel.mockResolvedValue(null);
+  spine.upsertWellModel.mockImplementation(async (wellId, modelData) => ({
+    id: 'm1', well_id: wellId, model_data: modelData, updated_at: '2026-08-28T00:00:00Z',
+  }));
   savedService.list.mockResolvedValue([]);
   savedService.save.mockResolvedValue(undefined);
   supabaseMock.__result.data = [];
@@ -318,5 +324,66 @@ describe('project lifecycle', () => {
     await mount();
     expect(api.notifications.some((n) => /p6_saved_rodpump_projects migration/.test(n.message)))
       .toBe(true);
+  });
+});
+
+describe('the shared well model on the spine (P6.5)', () => {
+  it('saves only the well, never the duty this design is run at', async () => {
+    await mount();
+    await act(async () => { api.patchSection('link', { fieldId: 'f1' }); });
+    await act(async () => { api.linkWell('w1'); });
+    await act(async () => { await api.saveToSpine(); });
+    expect(spine.upsertWellModel).toHaveBeenCalledWith('w1', expect.anything());
+    const [, payload] = spine.upsertWellModel.mock.calls[0];
+    expect(Object.keys(payload).sort())
+      .toEqual(['completion', 'fluid', 'inflow', 'schema', 'well']);
+    // The duty stays with the design. If it leaked into the shared
+    // record, two studios sharing a well would overwrite each other's
+    // design conditions -- worse than the duplication this replaced.
+    expect(payload).not.toHaveProperty('duty');
+    expect(JSON.stringify(payload)).not.toContain('designRateStbd');
+  });
+
+  it('refuses to save without a linked well', async () => {
+    await mount();
+    await act(async () => { await api.saveToSpine(); });
+    expect(spine.upsertWellModel).not.toHaveBeenCalled();
+    expect(api.notifications.some((n) => /belongs to a well/.test(n.message))).toBe(true);
+  });
+
+  it('loading a saved model replaces the well and leaves the duty alone', async () => {
+    const saved = {
+      id: 'm1',
+      well_id: 'w1',
+      updated_at: '2026-08-28T00:00:00Z',
+      model_data: { schema: 1, inflow: { pr: '4321' } },
+    };
+    spine.getWellModel.mockResolvedValue(saved);
+    await mount();
+    await act(async () => { api.patchSection('link', { fieldId: 'f1' }); });
+    await act(async () => { api.linkWell('w1'); });
+    const dutyBefore = JSON.stringify(api.inputs.duty);
+    await act(async () => { api.loadFromSpine(); });
+    expect(api.inputs.inflow.pr).toBe('4321');
+    expect(JSON.stringify(api.inputs.duty)).toBe(dutyBefore);
+  });
+
+  it('says when the design has drifted from the well record', async () => {
+    spine.getWellModel.mockImplementation(async () => ({
+      id: 'm1', well_id: 'w1', updated_at: '2026-08-28T00:00:00Z',
+      model_data: { schema: 1, ...JSON.parse(JSON.stringify({
+        well: api.inputs.well, fluid: api.inputs.fluid,
+        inflow: api.inputs.inflow, completion: api.inputs.completion,
+      })) },
+    }));
+    await mount();
+    await act(async () => { api.patchSection('link', { fieldId: 'f1' }); });
+    await act(async () => { api.linkWell('w1'); });
+    expect(api.wellModelDirty).toBe(false);
+    await act(async () => { api.setSection('inflow', 'pr', '9999'); });
+    expect(api.wellModelDirty).toBe(true);
+    // Changing the DUTY is not a drift from the well record.
+    await act(async () => { api.setSection('inflow', 'pr', api.savedWellModel.inputs.inflow.pr); });
+    expect(api.wellModelDirty).toBe(false);
   });
 });

@@ -482,3 +482,153 @@ export function validateWellTests(tests, wellSeries = [], settings = {}) {
   return results.sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity]
     || (a.testDate < b.testDate ? 1 : -1));
 }
+
+// ---- the nodal cross-check (P6.5) -------------------------------------------
+//
+// P3 deferred this, and said why: checking a well test against what the
+// well SHOULD make needs a per-well IPR and VLP, and the spine knew the
+// wells but not what they do. P6.5 added `po_well_models`, so the check
+// is possible and this is it.
+//
+// The idea is simple and it is the strongest test QC there is. A well
+// test records a rate and a tubing head pressure. Feed that pressure to
+// the well's own model, solve the node where inflow meets outflow, and
+// the rate that falls out is what the well should have made at that
+// wellhead pressure. A test that disagrees badly with its own well is
+// either a bad test or a well that has changed, and both are worth
+// knowing before that test is used to allocate a month of production.
+//
+// It is kept OUT of validateWellTests deliberately. Every check in
+// there is arithmetic on rows already in memory; this one marches a
+// multiphase traverse per rate per test, so it is an explicit run the
+// studio asks for rather than something that happens on every render.
+
+/** How far a test may sit from its well's nodal solution before it is flagged. */
+export const DEFAULT_NODAL_CHECK_SETTINGS = {
+  tolerancePct: 35,   // deviation from the nodal rate, %
+  minRateStbd: 1,     // below this a percentage deviation says nothing
+};
+
+/**
+ * Cross-check well tests against each well's own nodal model.
+ *
+ * @param {object} args
+ * @param {Array}  args.tests       po_well_tests rows
+ * @param {Map}    args.wellModels  wellId -> well-model INPUTS (the studio
+ *                                  shape from utils/production/wellModel)
+ * @param {Function} args.buildModel  wellModel.buildWellModel, injected so
+ *                                  this module stays free of that import
+ *                                  cycle and testable with a stub
+ * @param {Function} args.solveNode   nodal system.solveOperatingPoint
+ * @param {object} [args.settings]
+ *
+ * returns [{ testId, wellId, wellName, testDate, measuredStbd,
+ *            nodalStbd, deviationPct, status, message }]
+ *
+ * `status` is one of:
+ *   'ok'        the test agrees with the well's model
+ *   'off'       it does not, by more than the tolerance
+ *   'dead'      the model says the well should not flow at that pressure
+ *   'no-model'  the well has no model on the spine to check against
+ *   'no-thp'    the test recorded no tubing head pressure
+ */
+export function crossCheckTestsAgainstNodal({
+  tests, wellModels, buildModel, solveNode, settings = {},
+}) {
+  const s = { ...DEFAULT_NODAL_CHECK_SETTINGS, ...settings };
+  const built = new Map();
+  const results = [];
+
+  (tests || []).forEach((t) => {
+    if (!t?.well_id) return;
+    const wellName = t.well?.name || 'Unknown well';
+    const base = {
+      testId: t.id, wellId: t.well_id, wellName, testDate: t.test_date,
+      measuredStbd: t.oil_rate_stbd || 0,
+    };
+
+    const inputs = wellModels?.get ? wellModels.get(t.well_id) : null;
+    if (!inputs) {
+      results.push({
+        ...base, nodalStbd: null, deviationPct: null, status: 'no-model',
+        message: 'This well has no model on the spine, so there is nothing to check the test against. Save one from any of the lift studios.',
+      });
+      return;
+    }
+    const thp = Number(t.thp_psia);
+    if (!Number.isFinite(thp) || thp <= 0) {
+      results.push({
+        ...base, nodalStbd: null, deviationPct: null, status: 'no-thp',
+        message: 'The test recorded no tubing head pressure, and the nodal solution is found at that pressure.',
+      });
+      return;
+    }
+
+    if (!built.has(t.well_id)) built.set(t.well_id, buildModel(inputs));
+    const model = built.get(t.well_id);
+    if (!model) {
+      results.push({
+        ...base, nodalStbd: null, deviationPct: null, status: 'no-model',
+        message: 'This well\'s saved model is not complete enough to solve.',
+      });
+      return;
+    }
+
+    // The test's OWN conditions, not the model's: a well model holds
+    // what the well is, and the test says what it was doing that day.
+    const oil = t.oil_rate_stbd || 0;
+    const water = t.water_rate_stbd || 0;
+    const gas = t.gas_rate_mscfd || 0;
+    const liquid = oil + water;
+    const rates = {
+      wct: liquid > 0 ? water / liquid : (model.vlp.rates?.wct ?? 0),
+      gor: oil > 0 && gas > 0 ? (gas * 1000) / oil : 0,
+    };
+
+    let solved = null;
+    try {
+      solved = solveNode({ ipr: model.ipr, vlp: { ...model.vlp, whp: thp, rates } });
+    } catch (e) {
+      results.push({
+        ...base, nodalStbd: null, deviationPct: null, status: 'no-model',
+        message: `The nodal solution could not be found: ${e.message}`,
+      });
+      return;
+    }
+
+    if (!solved?.op) {
+      results.push({
+        ...base,
+        nodalStbd: null,
+        deviationPct: null,
+        status: 'dead',
+        message: `At ${Math.round(thp)} psia wellhead this well's model does not flow, yet the test recorded ${Math.round(oil).toLocaleString()} stb/d. Either the model is wrong or the test is.`,
+      });
+      return;
+    }
+
+    const nodal = solved.op.q;
+    if (!(oil > s.minRateStbd) || !(nodal > s.minRateStbd)) {
+      results.push({
+        ...base, nodalStbd: nodal, deviationPct: null, status: 'ok',
+        message: 'Both the test and the model are near zero; a percentage comparison would say nothing.',
+      });
+      return;
+    }
+    const deviationPct = ((oil - nodal) / nodal) * 100;
+    const off = Math.abs(deviationPct) >= s.tolerancePct;
+    results.push({
+      ...base,
+      nodalStbd: nodal,
+      deviationPct,
+      status: off ? 'off' : 'ok',
+      message: off
+        ? `Test ${Math.round(oil).toLocaleString()} stb/d against a nodal ${Math.round(nodal).toLocaleString()} stb/d at ${Math.round(thp)} psia, ${Math.round(Math.abs(deviationPct))}% ${deviationPct > 0 ? 'above' : 'below'}. Check the test, the wellhead pressure, or whether the well's model is still current.`
+        : `Test ${Math.round(oil).toLocaleString()} stb/d against a nodal ${Math.round(nodal).toLocaleString()} stb/d, within tolerance.`,
+    });
+  });
+
+  const RANK = { dead: 0, off: 1, 'no-thp': 2, 'no-model': 3, ok: 4 };
+  return results.sort((a, b) => RANK[a.status] - RANK[b.status]
+    || Math.abs(b.deviationPct || 0) - Math.abs(a.deviationPct || 0));
+}
