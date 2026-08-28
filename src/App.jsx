@@ -117,6 +117,9 @@ const CementingHelpGuide = lazy(() => import('@/pages/apps/CementingStudio/Cemen
 const CementingHarness = lazy(() => import('@/pages/apps/CementingStudio/CementingHarness'));
 const GeomechanicsStudio = lazy(() => import('@/pages/apps/GeomechanicsStudio/GeomechanicsStudio'));
 const GeomechanicsHelpGuide = lazy(() => import('@/pages/apps/GeomechanicsStudio/GeomechanicsHelpGuide'));
+const EorScreeningHelpGuide = lazy(() => import('@/pages/apps/EorScreeningHelpGuide'));
+const ForecastScenarioHubHelpGuide = lazy(() => import('@/pages/apps/ForecastScenarioHubHelpGuide'));
+const RiskedReservesHelpGuide = lazy(() => import('@/pages/apps/RiskedReservesHelpGuide'));
 const GeomechanicsHarness = lazy(() => import('@/pages/apps/GeomechanicsStudio/GeomechanicsHarness'));
 const WellDesignHelpGuide = lazy(() => import('@/pages/apps/well-planning/WellDesignHelpGuide'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
@@ -510,8 +513,11 @@ function App() {
                                 <Route path="apps/reservoir/relative-permeability-designer" element={<Navigate to="/dashboard/apps/reservoir/scal-studio" replace />} />
                                 <Route path="apps/reservoir/recovery-factor-estimator" element={<RecoveryFactorEstimator />} />
                                 <Route path="apps/reservoir/risked-reserves-valuation" element={<RiskedReservesValuation />} />
+                                <Route path="apps/reservoir/risked-reserves-valuation/help" element={<RiskedReservesHelpGuide />} />
                                 <Route path="apps/reservoir/eor-screening" element={<EorScreeningTool />} />
+                                <Route path="apps/reservoir/eor-screening/help" element={<EorScreeningHelpGuide />} />
                                 <Route path="apps/reservoir/forecast-scenario-hub" element={<ForecastScenarioHub />} />
+                                <Route path="apps/reservoir/forecast-scenario-hub/help" element={<ForecastScenarioHubHelpGuide />} />
                                 <Route path="apps/reservoir/aquifer-influx-calculator" element={<Navigate to="/dashboard/apps/reservoir/reservoir-balance?tab=aquifer" replace />} />
                                 <Route path="apps/reservoir/decline-curve-analysis" element={<DeclineCurveAnalysis />} />
                                 <Route path="apps/reservoir/reservoir-balance" element={<ReservoirBalance />} />

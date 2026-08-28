@@ -1,7 +1,7 @@
-// Help drawer content for the Material Balance Studio (MB3). Replaces the
-// retired HelpGuideDialog, whose step list described tabs that did not exist
-// yet; this guide covers only what ships (screening added in MB4, history
-// match in MB5; MB6 adds contacts/forecast/report).
+// Help drawer content for the Material Balance Studio. Replaces the retired
+// HelpGuideDialog, whose step list described tabs that did not exist yet; this
+// guide covers the full shipped surface through MB7 (Cole and Campbell
+// diagnostics, the cf-corrected p/z overlay, PVT prefill and chart exports).
 import React from 'react';
 
 const H = ({ children }) => <h4 className="text-sm font-semibold text-slate-200 mt-5 mb-1.5">{children}</h4>;
@@ -27,15 +27,38 @@ const MbsHelpContent = () => (
     <P>
       Load the production history as cumulative volumes per observation date: pressure plus cumulative oil, gas and
       water (and injection where present). Upload CSV files or edit the table directly, then save. The first row is
-      the initial state and must carry zero cumulative production. Two timesteps below initial pressure are the
-      minimum for a regression; more history gives a far more trustworthy line.
+      the initial state and must carry zero cumulative production.
+    </P>
+    <P>
+      A CSV upload is a two-stage operation. The file is parsed and shown to you as a preview first, marked as parsed
+      but not yet saved, and nothing reaches the case until you save it. That is deliberate, so a mis-mapped column is
+      caught before it overwrites history you already have. The panel stays mounted while you move between tabs, so a
+      pending preview is still waiting when you come back.
+    </P>
+    <P>
+      A regression needs at least two rows in total, counting the initial state, which means one observed pressure
+      below initial. A history match needs at least three. Those are floors rather than targets; more history gives a
+      far more trustworthy line.
     </P>
 
     <H>3. PVT</H>
     <P>
       Choose correlated PVT (Standing, Vasquez-Beggs or Glaso families with Hall-Yarborough or
-      Dranchuk-Abou-Kassem z factors and McCain water properties) or paste a laboratory table. The preview shows the
-      properties the engine will use. Save to make the configuration the case default; runs inherit it.
+      Dranchuk-Abou-Kassem z factors and McCain water properties) or paste a laboratory table. Oil viscosity has its
+      own selector, Beggs-Robinson or Beal-Standing, because the two families diverge noticeably on heavier crudes.
+      The preview shows the properties the engine will use. Save to make the configuration the case default; runs
+      inherit it.
+    </P>
+    <P>
+      Each correlation was published for a particular range of gravity, temperature, pressure and gas gravity. When
+      your inputs fall outside the range its author validated, the tab says so and names the property concerned. That
+      is a caution rather than a block: you can still run, but a result built on an extrapolated correlation deserves
+      a second look.
+    </P>
+    <P>
+      Working from a laboratory table, Prefill from correlations fills the table with correlated values at your
+      pressures so you have a starting grid to paste your measured numbers over, instead of typing every row from
+      blank.
     </P>
 
     <H>4. Aquifer</H>
@@ -44,7 +67,9 @@ const MbsHelpContent = () => (
       Carter-Tracy. Pot solves aquifer size from the regression itself; Fetkovich and Carter-Tracy march water influx
       from your aquifer geometry and properties. Carter-Tracy supports a finite aquifer through the radius ratio, and
       defaults water viscosity from the McCain correlation and the reservoir radius from area when you leave them
-      blank; every defaulted value is named in the run warnings.
+      blank; every defaulted value is named in the run warnings. Each aquifer model carries its validation tier badge
+      here on the configuration itself, so you can see what a choice is backed by before you commit a run to it
+      rather than only afterwards on the result.
     </P>
     <P>
       Screening is the absorbed Aquifer Influx Calculator: it computes a We history entirely in the browser by
@@ -54,6 +79,13 @@ const MbsHelpContent = () => (
       against the dashed We from the last engine run, then press Use in model to write the screened parameters into
       the case. First-row time zero sets the initial pressure. The screen is an estimate; the engine run and its
       validation tier remain the authority.
+    </P>
+    <P>
+      Expect the screen and the engine to differ slightly on Carter-Tracy with a finite aquifer. The browser screen
+      evaluates the bounded-circle dimensionless pressure directly, while the server engine blends the
+      infinite-acting solution into the pseudo-steady-state one across the transition. Both are legitimate and the
+      difference is small, so treat a modest gap as normal rather than as a sign that one of them is wrong. Where
+      they disagree, the engine result is the one your tier badge and your report are built on.
     </P>
 
     <H>5. Run</H>
@@ -76,9 +108,28 @@ const MbsHelpContent = () => (
 
     <H>6. Plots</H>
     <P>
-      Diagnostic plots for the latest run: the Havlena-Odeh straight line, p over z for gas, drive indices through
-      time and the water influx history. A straight line with scatter tells you more than a forced fit; curvature
-      usually means the aquifer model or the gas cap size is wrong.
+      Diagnostic plots for the latest run. A gas case shows four charts: the Havlena-Odeh straight line, p over z,
+      the Cole plot and the drive indices through time. An oil case shows three: Havlena-Odeh, the Campbell plot and
+      the drive indices. A straight line with scatter tells you more than a forced fit; curvature usually means the
+      aquifer model or the gas cap size is wrong.
+    </P>
+    <P>
+      The Cole plot is the gas aquifer diagnostic and the Campbell plot is its oil counterpart, so you see whichever
+      one matches your fluid system rather than both. They are read the same way: a flat trend points to depletion
+      with no significant aquifer, while a rising trend points to water influx, and the steeper it rises the stronger
+      the support. Either is the fastest check on whether an aquifer belongs in the model at all, before you spend
+      time choosing between Fetkovich and Carter-Tracy.
+    </P>
+    <P>
+      On the gas p over z plot, an overlay corrects for formation and water compressibility by the Ramagost-Farshad
+      method. In an overpressured gas reservoir the raw p over z line bends and reads low on gas in place; the
+      corrected line straightens it. A wide gap between the two lines is itself the signal that rock compressibility
+      matters in this reservoir.
+    </P>
+    <P>
+      Clicking any point on a diagnostic plot opens the underlying timestep: the pressure, the cumulative volumes, the
+      PVT properties used and the computed water influx at that date. It is the quickest way to chase down a single
+      point that sits off the trend.
     </P>
 
     <H>7. Forecast</H>
@@ -106,6 +157,12 @@ const MbsHelpContent = () => (
       Exports a PDF of the latest run (case summary, headline volumes with validation tier and benchmark reference,
       drive indices, pressure history, the history match with confidence intervals when one was run, and all engine
       warnings) plus a CSV with every per-timestep series for spreadsheet work.
+    </P>
+    <P>
+      Individual charts can also be lifted out on their own. Every chart in the studio carries a download button
+      that saves the current view as a PNG, including all of the diagnostic plots as well as the history match,
+      forecast, contacts and aquifer screening charts. That is usually what you want when a single plot has to go
+      into a partner deck or a well review.
     </P>
 
     <H>Validation</H>

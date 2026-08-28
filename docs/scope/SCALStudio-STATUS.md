@@ -249,3 +249,18 @@ against the owner lock and get rejected in review.
 - Persistence: `saved_scal_projects` (migration 20260719100000, SC3).
 - Tiles (SC6, deploy-gated pair): seed `scal-studio`, archive the
   `relative-permeability-designer` alias.
+
+## 2026-08-27 — help guide refresh (branch `docs/reservoir-help-refresh`)
+
+Audit verdict was "current": SC6 was migrations and routing, SC7 was
+fixtures, so neither added a user surface. Narrow corrections only:
+
+- **Export section said the studio "moves whole projects as JSON".**
+  Export writes the project payload but import is a samples-only merge.
+  Rewritten to say so plainly.
+- Header comment was frozen at SC3 ("Lab Data, Height and Export join in
+  SC4-SC5") while the body already covered all five tabs.
+- Autosave corrected from "a few seconds" to about ten seconds.
+- Added per-chart PNG download and the SC7 armed literature goldens,
+  including that a gate waiting on its source document is recorded as
+  pending rather than passed.

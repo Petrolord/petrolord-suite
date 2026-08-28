@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
-  FlaskConical, ArrowLeft, Beaker, Info, CheckCircle2, XCircle, MinusCircle,
+  FlaskConical, ArrowLeft, Beaker, Info, CheckCircle2, XCircle, MinusCircle, HelpCircle,
 } from 'lucide-react';
 import {
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, LabelList,
@@ -87,6 +87,11 @@ export default function EorScreeningTool() {
             <Link to="/dashboard/reservoir">
               <Button variant="outline" size="sm" className="border-lime-400/50 text-lime-300 hover:bg-lime-500/20">
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back to Reservoir Management
+              </Button>
+            </Link>
+            <Link to="/dashboard/apps/reservoir/eor-screening/help">
+              <Button variant="outline" size="sm" className="border-cyan-400/50 text-cyan-200 hover:bg-cyan-500/20">
+                <HelpCircle className="w-4 h-4 mr-2" /> Help guide
               </Button>
             </Link>
           </div>

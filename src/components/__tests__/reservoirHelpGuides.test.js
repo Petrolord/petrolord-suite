@@ -21,6 +21,10 @@ const GUIDES = {
   'Reservoir Simulation Studio': 'components/simstudio/SimHelpGuide.jsx',
   'VRR Monitor': 'components/reservoir/VrrHelpGuide.jsx',
   'Recovery Factor Estimator': 'components/reservoir/RecoveryFactorHelpGuide.jsx',
+  'EOR Screening': 'pages/apps/EorScreeningHelpGuide.jsx',
+  'Forecast Scenario Hub': 'pages/apps/ForecastScenarioHubHelpGuide.jsx',
+  'Risked Reserves Valuation': 'pages/apps/RiskedReservesHelpGuide.jsx',
+  'Help guide layout': 'components/helpguide/HelpGuideLayout.jsx',
 };
 
 // Phrases that pin a shipped capability into its guide. Each entry is a
@@ -34,6 +38,14 @@ const COVERAGE = {
     /group rollup/i,
     /Integration panel/i,
     /gasRate/,
+    // Live defect: the Monte Carlo curve consumes the per-day fitted decline
+    // as if it were per year, so probabilistic EUR is ~25x high. The guide
+    // must keep warning until the engine fix lands.
+    /probabilistic EUR was overstated/i,
+    // The Integration panel cards report success but transmit nothing.
+    /does not transmit anything yet/i,
+    // Fits are keyed by stream, so switching wells silently reattributes them.
+    /belongs to the stream rather than to the well/i,
   ],
   'Waterflood Design Studio': [
     /SCAL Studio/i,
@@ -57,6 +69,29 @@ const COVERAGE = {
   'Reservoir Simulation Studio': [/WCONINJH/, /Interval volume/i],
   'VRR Monitor': [/PVT override/i, /weakest pattern/i],
   'Recovery Factor Estimator': [/gravity drainage/i, /water-drive gas/i, /Sample button/i],
+  // The three guides written for apps that previously had none. Each list
+  // pins the trap that made the guide necessary in the first place.
+  'EOR Screening': [
+    /Taber/,
+    /unscored/i,
+    /Qualification requires a clean sheet/i,
+    /Immiscible gas nearly always qualifies/i,
+    /inclusive/i,
+  ],
+  'Forecast Scenario Hub': [
+    /nominal, not effective/i,
+    /Clearing a box writes zero/i,
+    /Time to limit is ambiguous/i,
+    /no capex/i,
+    /Import from Forecast Scenario Hub/i,
+  ],
+  'Risked Reserves Valuation': [
+    /low bound/i,
+    /petroleum convention/i,
+    /steeper decline raises NPV/i,
+    /chance of a positive NPV/i,
+    /size and not direction/i,
+  ],
 };
 
 // Claims that were in a guide and were not true. Pinned so they cannot come

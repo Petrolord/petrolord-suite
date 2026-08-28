@@ -277,6 +277,21 @@ vectors, so both features ride the existing run path unchanged.
   saved builder forms (the form currently lives only in component
   state), per-well BHP observations (WBHPH) for pressure matching.
 
+## 2026-08-27 — help guide refresh (branch `docs/reservoir-help-refresh`)
+
+Guide was frozen at S4. Corrected:
+
+- **The scope section said "Restart files, 3D grid visualization and
+  compositional runs are not included yet."** S5 shipped the 3D grid
+  preview. Rewritten to drop the false exclusion and state what the 3D
+  view actually is: a preview of the built grid, not a results viewer.
+- Added a per-well history import section covering the History card
+  source selector, WCONHIST and WCONINJH, the daily-rate vs
+  interval-volume reading modes, the Mscf/scf toggle, and the
+  keyword-persistence warning that stops a data gap being read as a real
+  shut-in. The S4 section previously described history as
+  MBAL-allocated only.
+
 ## 2026-08-27 — the simulator pin was a claim, not a pin
 
 Found while writing the Reservoir Simulation Studio user manual against the

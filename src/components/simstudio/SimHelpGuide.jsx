@@ -39,7 +39,14 @@ const helpContent = [
     icon: FileText,
     title: 'Structure, deviated wells and history',
     content:
-      'Three imports turn the Builder model into a field model. Structure: sample a depth surface from Mapping & Surface Studio onto the grid as per-cell tops (layers stack conformably below it; the preview shows the relief). Deviated wells: tick Deviated on a well and paste its MD/INC/AZI survey; the completion cells are computed along the minimum-curvature path each time you generate. History: import a Material Balance case to run the observed production first (WCONHIST), split across your producers, before the prediction phase takes over on declared controls. On the Results tab, observed rates overlay the simulated curves as dashed lines so you can judge the history match honestly.',
+      'Three imports turn the Builder model into a field model. Structure: sample a depth surface from Mapping & Surface Studio onto the grid as per-cell tops (layers stack conformably below it; the preview shows the relief). Deviated wells: tick Deviated on a well and paste its MD/INC/AZI survey; the completion cells are computed along the minimum-curvature path each time you generate. History: run the observed production first (WCONHIST for producers, WCONINJH for injectors) before the prediction phase takes over on declared controls. On the Results tab, observed rates overlay the simulated curves as dashed lines so you can judge the history match honestly.',
+  },
+  {
+    id: 'history-import',
+    icon: FileText,
+    title: 'Per-well history import',
+    content:
+      'The History card takes its observed rates from one of two sources, chosen in its source selector. A Material Balance case gives you field production split across your producers. A per-well CSV gives you the real thing: one row per well per period, with its own producer and injector rates. Two reading modes are offered because field data arrives both ways. Daily rate treats each value as a rate that already holds for the period. Interval volume treats it as a total produced over the period and divides by the period length. Gas columns can be read as Mscf or scf. Where a well reports no value for a period, the previous keyword stays in force, and the importer warns you where that happens so a gap in the data is never silently read as a real shut-in.',
   },
   {
     id: 'run',
@@ -74,7 +81,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Scope and honesty',
     content:
-      'This is screening-scale simulation: the worker is sized for models up to roughly 200,000 cells. Restart files, 3D grid visualization and compositional runs are not included yet. What you see is exactly what the simulator computed; failed runs stay failed, with the reason.',
+      'This is screening-scale simulation: the worker is sized for models up to roughly 200,000 cells. Restart files and compositional runs are not included yet. The 3D view is a preview of the built grid, not a results viewer, so simulated properties are not painted onto the cells. What you see is exactly what the simulator computed; failed runs stay failed, with the reason.',
   },
 ];
 

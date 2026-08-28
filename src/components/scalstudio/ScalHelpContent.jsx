@@ -1,6 +1,6 @@
-// Help drawer content for SCAL Studio. Covers only what ships (SC3: Curves
-// and Capillary; Lab Data, Height and Export join in SC4-SC5). Plain
-// sentences, no em dashes (owner copy rule).
+// Help drawer content for SCAL Studio. Covers all five shipped tabs (Curves,
+// Lab Data, Capillary, Height and Saturation, Export). Plain sentences, no em
+// dashes (owner copy rule).
 import React from 'react';
 
 const H = ({ children }) => <h4 className="text-sm font-semibold text-slate-200 mt-5 mb-1.5">{children}</h4>;
@@ -54,15 +54,23 @@ const ScalHelpContent = () => (
     <H>5. Export</H>
     <P>
       Sends the working oil-water Corey set straight into the Waterflood Design Studio displacement inputs (the
-      same handoff contract the Well Test Studio uses), downloads the kr, reservoir Pc and saturation-height
-      tables as CSV, and moves whole projects as JSON. Gas-oil sets stay in SCAL because the Waterflood
-      displacement is an oil-water calculation.
+      same handoff contract the Well Test Studio uses), and downloads the kr, reservoir Pc and saturation-height
+      tables as CSV. Gas-oil sets stay in SCAL because the Waterflood displacement is an oil-water calculation.
+    </P>
+    <P>
+      JSON moves core samples between projects. Export writes the project payload out; import reads the samples from
+      that file and merges them into the project you have open, leaving your curves, capillary settings and reservoir
+      rock inputs untouched. It is a way to carry lab work across projects, not a way to restore a whole project.
+    </P>
+    <P>
+      Every chart in the studio has its own download button that saves the current view as a PNG for reports.
     </P>
 
     <H>Projects</H>
     <P>
       Projects save to your account (inputs only; every curve and fit is recomputed from inputs on load). Autosave
-      runs a few seconds after your last change once a project is open.
+      runs about ten seconds after your last change once a project is open, and the save indicator in the header
+      shows when the last save landed.
     </P>
 
     <H>Validation</H>
@@ -70,6 +78,12 @@ const ScalHelpContent = () => (
       The engine is pinned by jest suites: Corey identities and fitting recovery, the exact Pc to J round trip, and
       the Leverett collapse test in which capillary data from three very different rocks must reduce to a single J
       curve to machine precision, which is the 1941 paper's central claim.
+    </P>
+    <P>
+      Published worked examples are also committed as literature goldens, covering a textbook Corey relative
+      permeability construction and a J-function averaging case from the SPEE reserves literature. Where a gate is
+      waiting on the original source document it is recorded as pending rather than quietly passed, so the validation
+      state is always the real one.
     </P>
   </div>
 );

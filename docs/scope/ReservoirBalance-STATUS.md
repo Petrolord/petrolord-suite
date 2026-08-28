@@ -418,3 +418,27 @@ MB6, owner decision needed).
 
 Deploy reminder: repo edits to the engine are **not** deployment — redeploy
 with `supabase functions deploy calculate-mbal` after patching.
+
+## 2026-08-27 — help guide refresh (branch `docs/reservoir-help-refresh`)
+
+Guide's own header comment stopped at MB6; MB7 plus the 2026-08-14 and
+2026-08-21 fixes were undocumented. Corrected:
+
+- **Removed a plot that does not exist.** The Plots section listed "the
+  water influx history" as a diagnostic. The Plots tab renders
+  Havlena-Odeh, p/z, Cole, Campbell and drive indices only; We appears
+  only in the click-through detail and inside Aquifer Screening.
+- **Fixed the row-count gate.** Guide said two timesteps below initial
+  pressure; the actual regression gate is two rows total including the
+  initial row, and history match separately needs three.
+- Added: Cole (gas) and Campbell (oil) aquifer diagnostics with how to
+  read them, the Ramagost-Farshad cf-corrected p/z overlay, PVT prefill
+  from correlations for lab-table mode, the Beggs-Robinson vs
+  Beal-Standing oil viscosity selector, per-correlation validity-range
+  warnings, pre-run tier badges on the Aquifer tab, click-a-point
+  timestep inspection, the two-stage CSV preview workflow, and chart PNG
+  export on the history-match, forecast, contacts and screening charts.
+
+Copy rule was already clean in the guide itself. Note ~5 sibling UI
+strings in this tree still carry em dashes (AquiferModel.jsx:87,
+DataHub.jsx:723, PvtRock.jsx:1392, RbDiagnosticPlots.jsx:708-709).

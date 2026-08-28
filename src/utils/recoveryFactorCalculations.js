@@ -20,7 +20,9 @@
 //
 // Field units throughout: area (acres), thickness (ft), porosity & saturations
 // (fraction), permeability (md), viscosity (cp), pressure (psia),
-// Bo/Boi (RB/STB), Bgi (RB/scf). OOIP in STB, OGIP in scf.
+// Bo/Boi (RB/STB), Bgi (reservoir-ft3/scf, matching the UI label and the
+// 43560 constant in ogipVolumetric below; an RB/scf value inflates OGIP by
+// about 5.615x). OOIP in STB, OGIP in scf.
 
 const num = (v) => {
   const n = parseFloat(v);
