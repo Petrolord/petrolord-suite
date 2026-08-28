@@ -157,7 +157,7 @@ describe('eosAnalysis plumbing', () => {
   });
 
   describe('labTuneRequest (ET3)', () => {
-    const stages = [{ temperature: '75', pressure: '114.65' }];
+    const stages = [{ temperature: '75', pressure: '114.65', enabled: true }];
 
     it('rejects an invalid composition and an empty lab set', () => {
       expect(labTuneRequest({ zPct: {} }, stages).request).toBeNull();
@@ -182,6 +182,53 @@ describe('eosAnalysis plumbing', () => {
         stagesF: [[75, 114.65]], resTF: 200, resPPsia: 3000, totalGor: 750,
       });
       expect(request.targets.separatorTest.stoApi).toBeUndefined();
+    });
+
+    // Regression: labTuneRequest used to select stages with its own looser
+    // test (any finite pressure) while runEosSeparator, the black-oil table
+    // and the Pipeline Sizer handoff all required `enabled` and a positive
+    // pressure. A disabled stage therefore entered the tuning targets without
+    // entering the results it was being matched against.
+    describe('stage selection matches the rest of the app', () => {
+      const withGor = { ...composition, tuning: { lab: { totalGor: 750 } } };
+
+      it('ignores a disabled stage', () => {
+        const mixed = [
+          { temperature: '75', pressure: '114.65', enabled: true },
+          { temperature: '60', pressure: '14.7', enabled: false },
+        ];
+        const { request } = labTuneRequest(withGor, mixed);
+        expect(request.targets.separatorTest.stagesF).toEqual([[75, 114.65]]);
+      });
+
+      it('reproduces the shipped default train, which has a disabled third stage', () => {
+        // 14.7 psia sits just above standard pressure, so letting the disabled
+        // stage through also made normalizeStages append a second stock-tank
+        // stage: tuning saw four stages where the results had three.
+        const shipped = [
+          { pressure: 450, temperature: 120, enabled: true },
+          { pressure: 200, temperature: 100, enabled: true },
+          { pressure: 14.7, temperature: 60, enabled: false },
+        ];
+        const { request } = labTuneRequest(withGor, shipped);
+        expect(request.targets.separatorTest.stagesF).toEqual([[120, 450], [100, 200]]);
+      });
+
+      it('ignores a stage with a non-positive pressure', () => {
+        const zeroed = [
+          { temperature: '75', pressure: '114.65', enabled: true },
+          { temperature: '60', pressure: '0', enabled: true },
+        ];
+        const { request } = labTuneRequest(withGor, zeroed);
+        expect(request.targets.separatorTest.stagesF).toEqual([[75, 114.65]]);
+      });
+
+      it('asks for an enabled stage when every stage is disabled', () => {
+        const allOff = [{ temperature: '75', pressure: '114.65', enabled: false }];
+        const { request, reasons } = labTuneRequest(withGor, allOff);
+        expect(request).toBeNull();
+        expect(reasons[0]).toMatch(/enabled Separator Train stage/i);
+      });
     });
   });
 });

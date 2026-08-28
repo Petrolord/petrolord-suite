@@ -37,16 +37,15 @@ const AuthProviderContent = ({ children }) => {
     'waterflood-dashboard', 'voidage-replacement-monitor', 'fractional-flow-calculator', 'relative-permeability-designer', 'recovery-factor-estimator', 'risked-reserves-valuation', 'eor-screening', 'forecast-scenario-hub', 'aquifer-influx-calculator', 'decline-curve-analysis', 'reservoir-balance', 'reservoir-simulation-studio',
     'well-planning',
     'casing-tubing-design-pro', 'torque-drag-studio', 'drilling-fluids-hydraulics', 'well-control-studio', 'cementing-studio', 'completion-design-studio', 'perforation-sand-control', 'stimulation-designer', 'well-integrity-pa', 'well-cost-time', 'well-spacing-optimizer',
-    'surveillance-dashboard', 'well-test-analyzer', 'wellbore-flow-simulator',
-    'artificial-lift-designer', 'flow-assurance-monitor', 'integrated-asset-modeler',
-    'network-diagram-pro', 'project-management-pro', 'afe-cost-control', 'npv-scenario-builder',
+    'nodal-analysis-engine', 'artificial-lift-designer',
+    'project-management-pro', 'afe-cost-control', 'npv-scenario-builder',
     'fiscal-regime-designer', 'capital-portfolio-studio', 'fdp-accelerator', 'report-autopilot',
     'technical-report-autopilot', 'afe-cost-control-manager',
     'value-of-information-analyzer', 'probabilistic-breakeven-analyzer', 'risk-register',
     'decision-tree-builder', 'decision-studio',
     'voi-analyzer', 'breakeven-analyzer', 'epe', 'epe-suite', 'pipeline-sizer', 'separator-slug-catcher-designer',
     'compressor-pump-pack', 'heat-exchanger-sizer', 'gas-treating-dehydration', 'relief-blowdown-sizer',
-    'facility-layout-mapper', 'corrosion-rate-predictor', 'geomechanics-studio', 'well-log-analyzer'
+    'facility-layout-mapper', 'facility-network-hydraulics', 'corrosion-rate-predictor', 'geomechanics-studio', 'well-log-analyzer'
   ], []);
 
   const fetchUserOrgAndPermissions = useCallback(async (userId) => {
