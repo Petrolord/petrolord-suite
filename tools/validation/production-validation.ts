@@ -103,6 +103,20 @@
 //       assumed. Plus the RP 14E erosional limit with C as an input,
 //       and a Gilbert-family fit that recovers the coefficients it was
 //       generated from and refuses data that cannot pin them down
+//   PA26 flow assurance (P10): the buried-pipe shape factor proves
+//       itself at H = D/2 where it must be exactly zero, the material
+//       lookups refuse an unknown id instead of falling back to steel,
+//       the marched arrival IS the closed-form exponential, the U
+//       inverted from a target arrival lands back on that target, the
+//       pressure march responds to the thermal one (coupled, not
+//       overlaid), Hammerschmidt inverts exactly and its metric
+//       constant converts to the field one, the two depression
+//       relations diverge with concentration and the basis switches at
+//       the band edge, an unkillable subcooling is refused from the
+//       practical ceiling, the trace is monotone and runs in the flow
+//       direction with the choke as a step rather than a length, the
+//       worst station is ranked by subcooling, and cooldown carries the
+//       steel
 //   PA25 the lift advisor (P9): the screening matrix lands on the right
 //       method for each archetype, the design pass runs all four
 //       engine-backed chains against ONE shared well record and reaches
@@ -220,6 +234,17 @@ async function main() {
     runDesignPass, reconcile, designRodPump, RATE_TOLERANCE,
   } = await import('../../src/utils/production/liftAdvisor.js');
   const { solveOperatingPoint } = await import('../../src/utils/nodal/system.js');
+  const {
+    overallU, burialResistance, relaxationLengthFt, uForArrivalTemp, cooldownTime,
+    conductivity, filmCoefficient,
+  } = await import('../../packages/engines/engines/production/flowlineThermal.js');
+  const {
+    hammerschmidtDepression, weightPctForDepression, depression: hydrateDepression,
+    inhibitionRequirement, MAX_PRACTICAL_WT_PCT,
+  } = await import('../../packages/engines/engines/production/hydrateInhibition.js');
+  const {
+    runFlowAssurance, marchLeg, legU, streamMass, scoreTrace,
+  } = await import('../../src/utils/production/flowAssurance.js');
 
   const G = goldens('gaslift_cases.json');
   const E = goldens('esp_cases.json');
@@ -1227,6 +1252,196 @@ async function main() {
     }
   });
 
+  gate('PA26', 'flow assurance: one continuous trace, and the U that decides it', () => {
+    // --- The buried-pipe shape factor is the right formula, and the
+    // proof is its own limiting case. A pipe LYING ON THE BOTTOM has
+    // H = D/2, where acosh(1) = 0 and the ground adds exactly nothing.
+    // No tolerance is needed: it is zero or the formula is wrong.
+    const odIn = 6;
+    const lying = burialResistance({ odIn, burialFt: odIn / 24, kSoil: 1.2 });
+    if (Math.abs(lying) > 1e-12) {
+      throw new Error(`a pipe on the seabed picked up ${lying} of soil resistance`);
+    }
+    if (!(burialResistance({ odIn, burialFt: 6, kSoil: 1.2 }) > 0)) {
+      throw new Error('burying a line did not add resistance');
+    }
+
+    // --- No silent fallback in the material lookups. An unknown id used
+    // to return the FIRST catalog entry, carbon steel, so a typo turned
+    // aerogel into steel and made a line look two thousand times better
+    // insulated than it is.
+    if (Number.isFinite(conductivity('aerogl'))) {
+      throw new Error('an unknown conductivity id resolved to something');
+    }
+    if (Number.isFinite(filmCoefficient('seabed'))) {
+      throw new Error('an unknown film id resolved to something');
+    }
+    const typo = legU({
+      idIn: 6, wallIn: 0.5, insideFilmId: 'multiphaseFlowing',
+      outsideFilmId: 'seawaterCurrent', coatings: [{ materialId: 'aerogl', thicknessIn: 2 }],
+    });
+    if (typo.ok) throw new Error('a coating with no conductivity was silently dropped from the stack');
+
+    // --- U carries the area it is referred to, and U x A is invariant.
+    const stack = {
+      idIn: 6, wallIn: 0.5, insideFilmId: 'multiphaseFlowing', outsideFilmId: 'seawaterCurrent',
+      coatings: [{ materialId: 'syntacticPP', thicknessIn: 1.5 }],
+    };
+    const u = legU(stack);
+    if (!u.ok) throw new Error(u.error);
+    const foam = u.resistances.find((r: any) => /polypropylene/i.test(r.label || ''));
+    if (!(foam.sharePct > 85)) {
+      throw new Error(`the insulation carried only ${foam.sharePct.toFixed(1)} percent of the stack`);
+    }
+    const shares = u.resistances.reduce((a: number, r: any) => a + r.sharePct, 0);
+    relClose(shares, 100, 1e-9, 'the resistance shares sum to the whole');
+
+    // --- The thermal march is the exponential the energy balance
+    // integrates to, checked against the closed form at the far end.
+    const common = {
+      lengthFt: 26400, inclinationDeg: 90, idIn: 6,
+      fluidModel: buildFluidModel({ api: 32, gasSg: 0.7, gor: 600, salinityPpm: 0 }),
+      rates: { qo: 1200, wct: 0.2, gor: 600 },
+      pInPsia: 400, tInF: 130, ambientTempF: 39,
+      massRateLbHr: 2.2e4, cpBtuLbF: 0.6, uBtuHrFt2F: 1.5,
+    };
+    const marched = marchLeg(common);
+    const lc = relaxationLengthFt({
+      massRateLbHr: 2.2e4, cpBtuLbF: 0.6, uBtuHrFt2F: 1.5, idIn: 6,
+    });
+    const closed = 39 + (130 - 39) * Math.exp(-26400 / lc);
+    relClose(marched.tOut, closed, 1e-12, 'the marched arrival is the closed-form exponential');
+    relClose(marched.ntu, 26400 / lc, 1e-12, 'NTU is the length in relaxation lengths');
+
+    // --- Inverting the same relation for the U a target arrival needs
+    // has to land back on the same arrival. Two directions, one physics.
+    const inv = uForArrivalTemp({
+      lengthFt: 26400, inletTempF: 130, ambientTempF: 39, targetTempF: 90,
+      massRateLbHr: 2.2e4, cpBtuLbF: 0.6, idIn: 6,
+    });
+    if (!inv.ok) throw new Error('the insulation target was refused on a reachable target');
+    const back = marchLeg({ ...common, uBtuHrFt2F: inv.uBtuHrFt2F });
+    relClose(back.tOut, 90, 1e-9, 'the required U lands on the target it was inverted from');
+
+    // --- The march is COUPLED, not overlaid. Same hydraulics, different
+    // insulation: if the pressure march ignored the thermal one these
+    // would be identical.
+    const cold = marchLeg({ ...common, uBtuHrFt2F: 100 });
+    const hot = marchLeg({ ...common, uBtuHrFt2F: 0.2 });
+    if (Math.abs(cold.dpPsi - hot.dpPsi) < 1e-6) {
+      throw new Error('the pressure drop did not respond to the temperature; the march is decoupled');
+    }
+
+    // --- Hammerschmidt and its inverse are exact inverses.
+    const w = 20;
+    const d = hammerschmidtDepression({ weightPct: w, molecularWeight: 32.04 });
+    relClose(
+      weightPctForDepression({ depressionF: d, molecularWeight: 32.04 }), w, 1e-12,
+      'the depression inverts exactly',
+    );
+
+    // --- The metric constants ARE the field ones. 1297 x 1.8 = 2334.6
+    // against the 2335 carried, and 72 x 1.8 = 129.6 exactly.
+    relClose(1297 * 1.8, 2335, 3e-4, 'the Hammerschmidt constant is the metric one converted');
+
+    // --- Both relations are reported and the gap is named, not resolved
+    // silently. They agree when dilute and separate when not.
+    const dilute = hydrateDepression({ weightPct: 10, inhibitorId: 'methanol' });
+    const strong = hydrateDepression({ weightPct: 50, inhibitorId: 'methanol' });
+    if (!(strong.spreadF > dilute.spreadF * 5)) {
+      throw new Error('the gap between the two relations did not widen with concentration');
+    }
+    if (dilute.basis !== 'hammerschmidt' || strong.basis !== 'nielsenBucklin') {
+      throw new Error('the basis did not switch at the edge of the Hammerschmidt band');
+    }
+
+    // --- Subcooling nothing practical can kill is REFUSED. The inverse
+    // asymptotes to 100 percent, so it would otherwise cheerfully ask
+    // for 96 weight percent: arithmetically fine, physically absurd.
+    const impossible = inhibitionRequirement({
+      subcoolingF: 400, waterRateBpd: 200, inhibitorId: 'teg',
+    });
+    if (impossible.ok) throw new Error('an unkillable subcooling was answered instead of refused');
+    if (!(impossible.weightPct > MAX_PRACTICAL_WT_PCT && impossible.weightPct < 100)) {
+      throw new Error('the refusal did not come from the practical ceiling');
+    }
+
+    // --- The whole trace: continuous, in the flow direction, and scored
+    // at every station.
+    const wi = defaultWellInputs();
+    wi.well.depthFt = '8000'; wi.well.whtF = '150'; wi.well.bhtF = '210';
+    wi.fluid.api = '32'; wi.fluid.gasSg = '0.7'; wi.fluid.gor = '600';
+    wi.inflow.pr = '3200'; wi.inflow.pb = '2200'; wi.inflow.calMode = 'pi'; wi.inflow.pi = '1.5';
+    wi.completion.idIn = '2.992';
+    const model = buildSharedWell(wi);
+    const form = {
+      duty: { qoStbd: '1200', wctPct: '20', gor: '600', whpPsia: '900' },
+      choke: { pDownPsia: '400', jtCoeffFPerPsi: '0.04' },
+      flowline: {
+        enabled: true, lengthFt: '26400', idIn: '6', wallIn: '0.5', ambientTempF: '39',
+        insideFilmId: 'multiphaseFlowing', outsideFilmId: 'seawaterCurrent',
+        burialFt: '0', roughnessIn: '0.0018', coatings: [],
+      },
+      riser: { enabled: false },
+      thermal: {}, hydrate: {},
+      inhibitor: { inhibitorId: 'methanol', safetyMarginF: '5', leanWtPct: '100' },
+      cooldown: {},
+    };
+    const fa = runFlowAssurance({ form, model });
+    if (!fa.ok) throw new Error(`the trace did not run: ${fa.errors.join('; ')}`);
+    for (let i = 1; i < fa.trace.length; i += 1) {
+      if (fa.trace[i].sFt < fa.trace[i - 1].sFt) {
+        throw new Error('the trace is not monotone in distance; the legs are concatenated, not joined');
+      }
+    }
+    // The wellbore runs in the FLOW direction: perforations first.
+    const wb = fa.trace.filter((p: any) => p.leg === 'wellbore');
+    if (!(wb[0].mdFt > wb[wb.length - 1].mdFt)) {
+      throw new Error('the wellbore leg runs backwards');
+    }
+    // The choke is a step at ONE distance, not smeared over a length.
+    const ck = fa.trace.find((p: any) => p.leg === 'choke');
+    if (ck.sFt !== wb[wb.length - 1].sFt) throw new Error('the choke was given a length');
+    relClose(
+      ck.tempF, wb[wb.length - 1].tempF - 0.04 * (900 - 400), 1e-9,
+      'the Joule-Thomson cooling is the coefficient times the drop',
+    );
+
+    // --- The worst station is ranked by SUBCOOLING, not temperature. A
+    // cold low-pressure arrival can be safe while a warmer
+    // high-pressure spool is not, and ranking by temperature picks the
+    // wrong one.
+    const ranked = scoreTrace({
+      trace: [{ sFt: 0, pPsia: 2000, tempF: 60 }, { sFt: 100, pPsia: 200, tempF: 45 }],
+      gasSg: 0.7,
+    });
+    if (ranked.worst.sFt !== 0) throw new Error('the worst station was ranked by temperature');
+
+    // --- Mass is surface rates times standard densities, exactly. No
+    // formation volume factor is needed and none is used.
+    const m = streamMass({ qoStbd: 1000, qwStbd: 0, qgMscfd: 0, api: 32, gasSg: 0.7 });
+    relClose(
+      m.oilLbHr, (1000 * 5.614583 * 62.428 * (141.5 / 163.5)) / 24, 1e-12,
+      'the oil mass rate is the surface rate at standard density',
+    );
+
+    // --- Cooldown carries the STEEL, not just the fluid. Leaving it out
+    // is a common and optimistic error.
+    const withSteel = cooldownTime({
+      contents: { massLbPerFt: 10, cpBtuLbF: 0.5 },
+      shell: { massLbPerFt: 30, cpBtuLbF: 0.11 },
+      uBtuHrFt2F: 1.5, idIn: 6, startTempF: 120, ambientTempF: 39, targetTempF: 60,
+    });
+    const without = cooldownTime({
+      contents: { massLbPerFt: 10, cpBtuLbF: 0.5 },
+      shell: { massLbPerFt: 0, cpBtuLbF: 0 },
+      uBtuHrFt2F: 1.5, idIn: 6, startTempF: 120, ambientTempF: 39, targetTempF: 60,
+    });
+    if (!(withSteel.hours > without.hours)) {
+      throw new Error('the steel did not add to the no-touch time');
+    }
+  });
+
   const armed: [string, string][] = [
     ['PL1', 'Takacs, Gas Lift Manual worked installation design (valve depths, domes, test-rack settings)'],
     ['PL2', 'API Gas Lift Manual Book 6 nitrogen Ct table / NIST nitrogen isotherm z values'],
@@ -1250,6 +1465,11 @@ async function main() {
     ['PL20', 'a published lift-selection matrix (Clegg/Bucaram/Heiser SPE 24834 or a comparable operator standard) against the screening rules'],
     ['PL21', 'progressing cavity pump performance (published stator/rotor curves and elastomer temperature limits) — would move PCP from screened to designed'],
     ['PL22', 'jet pump nozzle/throat performance (Petrie/Wilson charts) — would move jet pumps from screened to designed'],
+    ['PL23', 'a measured subsea flowline arrival temperature with its as-built coating stack (the only real check on an overall U)'],
+    ['PL24', 'published Joule-Thomson coefficients for a real gas composition, against the coefficient this studio takes as an input'],
+    ['PL25', 'a measured hydrate dissociation curve for a gas with CO2 or H2S, against the Motiee sweet-gas screening'],
+    ['PL26', 'Nielsen & Bucklin 1983 original methanol depression data, and glycol depression data for the range where their relation is used'],
+    ['PL27', 'a measured wax appearance temperature with the fluid it came from — would let WAT be screened rather than only entered'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
