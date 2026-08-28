@@ -127,13 +127,19 @@ export const mergeWellInputs = (raw, base = defaultWellInputs()) => {
   return out;
 };
 
-/** Pull just the well-model sections out of a studio's inputs. */
-export const wellInputsFrom = (inputs) => ({
-  well: { ...inputs.well },
-  fluid: { ...inputs.fluid },
-  inflow: { ...inputs.inflow },
-  completion: { ...(inputs.completion || {}) },
-});
+/**
+ * Pull just the well-model sections out of a studio's inputs.
+ *
+ * Driven by WELL_MODEL_SECTIONS rather than written out, so a section
+ * added to the record cannot be forgotten here. It was written out
+ * once, and adding `gasInflow` at P7 silently stopped a gas well's
+ * deliverability coefficients from ever reaching the spine.
+ */
+export const wellInputsFrom = (inputs) => {
+  const out = {};
+  WELL_MODEL_SECTIONS.forEach((s) => { out[s] = { ...(inputs?.[s] || {}) }; });
+  return out;
+};
 
 /**
  * The trajectory a studio's well section describes.
@@ -196,6 +202,11 @@ export const buildWellModel = (inputs) => {
       phase,
       trajectory,
       tvdMax,
+      // The reservoir pressure the model was built at. It belongs to
+      // the well, and the gas IPR results do not carry it, so a
+      // consumer that wants to show a drawdown has nowhere else to get
+      // it from.
+      prPsia: num(inputs.inflow?.pr, NaN),
       fluidModel,
       tAt,
       ipr: null,
@@ -225,6 +236,7 @@ export const buildWellModel = (inputs) => {
     phase,
     trajectory,
     tvdMax,
+    prPsia: num(inputs.inflow?.pr, NaN),
     fluidModel,
     tAt,
     ipr,

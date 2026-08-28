@@ -60,6 +60,10 @@ export const defaultInputs = () => {
     well: { ...w.well, depthFt: '5000', whtF: '90', bhtF: '150' },
     fluid: { ...w.fluid, api: '30', gasSg: '0.7', gor: '80' },
     inflow: { ...w.inflow, pr: '1200', pb: '800', pi: '0.6', qmax: '400' },
+    // Carried but unused here. The well record is SHARED, so a studio
+    // that dropped this section would wipe a gas well's deliverability
+    // coefficients the moment it saved the model back.
+    gasInflow: { ...w.gasInflow },
     completion: { ...w.completion },
     duty: {
       designRateStbd: '120',
@@ -97,7 +101,7 @@ export const defaultInputs = () => {
   };
 };
 
-const SECTIONS = ['well', 'fluid', 'inflow', 'completion', 'duty', 'unit', 'rods', 'sweep', 'diagnostics', 'link'];
+const SECTIONS = ['well', 'fluid', 'inflow', 'gasInflow', 'completion', 'duty', 'unit', 'rods', 'sweep', 'diagnostics', 'link'];
 
 /** Restore inputs from a payload, tolerating missing keys from older rows. */
 export const inputsFromPayload = (payload) => {

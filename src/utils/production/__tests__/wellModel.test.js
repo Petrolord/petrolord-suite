@@ -15,10 +15,31 @@ import {
 } from '../wellModel';
 
 describe('the shape of a well description', () => {
-  it('has exactly the four sections that belong to a well', () => {
+  it('has exactly the sections that belong to a well', () => {
     const d = defaultWellInputs();
     expect(Object.keys(d).sort()).toEqual([...WELL_MODEL_SECTIONS].sort());
-    expect(WELL_MODEL_SECTIONS).toEqual(['well', 'fluid', 'inflow', 'completion']);
+    // gasInflow arrived at P7: a well is an oil well or a gas well and
+    // the two take different inflow relationships, but everything else
+    // does not care what phase the well makes.
+    expect(WELL_MODEL_SECTIONS)
+      .toEqual(['well', 'fluid', 'inflow', 'gasInflow', 'completion']);
+  });
+
+  it('the extractor is driven by the section list, so a new section cannot be forgotten', () => {
+    // It was written out by hand once, and adding gasInflow silently
+    // stopped a gas well's deliverability coefficients from ever
+    // reaching the spine.
+    const studio = { ...defaultWellInputs(), duty: { designRateStbd: '400' } };
+    WELL_MODEL_SECTIONS.forEach((s) => {
+      expect(wellInputsFrom(studio)[s]).toEqual(studio[s]);
+    });
+  });
+
+  it('carries the phase, and both inflows so switching does not lose one', () => {
+    const d = defaultWellInputs();
+    expect(d.well.phase).toBe('oil');
+    expect(d.inflow.model).toBeDefined();
+    expect(d.gasInflow.model).toBeDefined();
   });
 
   it('holds NO duty: not a rate, not a water cut, not a wellhead pressure', () => {

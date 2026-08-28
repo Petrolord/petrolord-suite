@@ -128,6 +128,7 @@ const ProductionAllocationStudio = lazy(() => import('@/pages/apps/ProductionAll
 const GasLiftDesignStudio = lazy(() => import('@/pages/apps/GasLiftDesignStudio'));
 const EspDesignStudio = lazy(() => import('@/pages/apps/EspDesignStudio'));
 const RodPumpDesignStudio = lazy(() => import('@/pages/apps/RodPumpDesignStudio'));
+const GasWellPerformanceStudio = lazy(() => import('@/pages/apps/GasWellPerformanceStudio'));
 const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 const CasingTubingHelpGuide = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingHelpGuide'));
@@ -579,6 +580,7 @@ function App() {
                                 <Route path="apps/production/gas-lift-design-studio" element={<ProtectedAppRoute appId="gas-lift-design-studio" appName="Gas Lift Design Studio"><GasLiftDesignStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/production/esp-design-studio" element={<ProtectedAppRoute appId="esp-design-studio" appName="ESP Design Studio"><EspDesignStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/production/rod-pump-design-studio" element={<ProtectedAppRoute appId="rod-pump-design-studio" appName="Rod Pump Design Studio"><RodPumpDesignStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/production/gas-well-performance-studio" element={<ProtectedAppRoute appId="gas-well-performance-studio" appName="Gas Well Performance Studio"><GasWellPerformanceStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/production/well-test-analyzer" element={<Navigate to="/dashboard/apps/reservoir/well-test-analysis-studio" replace />} />
                                 {/* Production Forecasting tile archived at P0 — the real engine is DCA Studio */}
                                 <Route path="apps/production/production-forecasting" element={<Navigate to="/dashboard/apps/reservoir/decline-curve-analysis" replace />} />

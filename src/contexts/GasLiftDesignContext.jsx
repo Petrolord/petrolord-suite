@@ -65,6 +65,10 @@ export const defaultInputs = () => {
     well: { ...w.well },
     fluid: { ...w.fluid },
     inflow: { ...w.inflow },
+    // Carried but unused here. The well record is SHARED, so a studio
+    // that dropped this section would wipe a gas well's deliverability
+    // coefficients the moment it saved the model back.
+    gasInflow: { ...w.gasInflow },
     completion: { ...w.completion },
     injection: {
       kickoffPsig: '1000',
@@ -98,7 +102,7 @@ export const defaultInputs = () => {
   };
 };
 
-const SECTIONS = ['well', 'fluid', 'inflow', 'completion', 'injection', 'design', 'link'];
+const SECTIONS = ['well', 'fluid', 'inflow', 'gasInflow', 'completion', 'injection', 'design', 'link'];
 
 /** Restore inputs from a payload, tolerating missing keys from older rows. */
 export const inputsFromPayload = (payload) => {

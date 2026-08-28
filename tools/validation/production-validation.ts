@@ -87,6 +87,15 @@
 //       producing NaN, and a well test cross-checks against its own
 //       well through the nodal solution -- the check P3 deferred for
 //       want of exactly this record
+//   PA22 gas wells (P7): the Turner constant DERIVED from the droplet
+//       balance rather than quoted, Turner and Coleman as one equation
+//       and one factor, the critical rate profile whose CONTROLLING
+//       station is the shoe and not the wellhead, and the loading
+//       forecast that finds the reservoir pressure at which a well
+//       starts to load
+//   PA23 plunger lift: the static force balance term by term, and a
+//       feasibility verdict that rests on the COMPUTED gas-liquid ratio
+//       while reporting the screening rule of thumb beside it
 //
 // ARMED gates (pending owner literature PDFs):
 //   PL1 Takacs, Gas Lift Manual — worked continuous-lift installation
@@ -177,6 +186,14 @@ async function main() {
     toWellModelPayload, fromWellModelPayload, wellModelProblems,
   } = await import('../../src/utils/production/wellModel.js');
   const { crossCheckTestsAgainstNodal } = await import('../../src/utils/production/allocation.js');
+  const {
+    terminalDropletVelocity, criticalVelocity, loadingProfile, rateAtVelocity,
+    tubingAreaFt2, gasDensityLbFt3, RATE_CONSTANT_MSCFD, recommendCorrelation,
+  } = await import('../../packages/engines/engines/production/gasWellLoading.js');
+  const { liftPressure, screenPlungerLift, maxSlugLengthFt } = await import(
+    '../../packages/engines/engines/production/plungerLift.js');
+  const { runGasWellAnalysis, loadingForecast } = await import(
+    '../../src/utils/production/gasWell.js');
   const { solveOperatingPoint } = await import('../../src/utils/nodal/system.js');
 
   const G = goldens('gaslift_cases.json');
@@ -810,6 +827,150 @@ async function main() {
     if (none[0].status !== 'no-model') throw new Error('a test with no well model was not reported');
   });
 
+  gate('PA22', 'gas wells: the Turner constant derived, and where loading bites first', () => {
+    // The whole correlation from drag against weight, with the largest
+    // stable droplet set by the critical Weber number. Nothing quoted.
+    const t = terminalDropletVelocity({ sigmaDyneCm: 1, rhoLiquidLbFt3: 2, rhoGasLbFt3: 1 });
+    relClose(t.constant, 1.593, 1e-3, 'the droplet balance produces the published constant');
+    relClose(RATE_CONSTANT_MSCFD / 1000, 3.06, 2e-3, 'the rate constant is the published one');
+
+    // Turner and Coleman are one equation and one factor.
+    const args = {
+      sigmaDyneCm: 60, rhoLiquidLbFt3: 67, pPsia: 1200, tempR: 600, z: 0.9, gasSg: 0.65,
+    };
+    const turner = criticalVelocity({ correlation: 'turner', ...args });
+    const coleman = criticalVelocity({ correlation: 'coleman', ...args });
+    relClose(turner.velocityFtS, coleman.velocityFtS * 1.2, 1e-12,
+      'Turner is Coleman with the 20 percent adjustment');
+    if (criticalVelocity({ correlation: 'guess', ...args }).ok) {
+      throw new Error('an unknown correlation was accepted');
+    }
+    if (recommendCorrelation(400).correlation !== 'coleman'
+        || recommendCorrelation(2500).correlation !== 'turner') {
+      throw new Error('the correlation guidance does not follow the pressure ranges');
+    }
+
+    // THE SHOE CONTROLS. Critical rate goes as roughly the square root
+    // of pressure, so it is highest at the bottom. A studio that
+    // checked the wellhead would pass wells that are loading exactly
+    // where the liquid collects.
+    const stations = [
+      { depthFt: 0, pPsia: 400, tempR: 540, z: 0.94, idIn: 2.441 },
+      { depthFt: 3000, pPsia: 700, tempR: 570, z: 0.91, idIn: 2.441 },
+      { depthFt: 6000, pPsia: 1100, tempR: 600, z: 0.89, idIn: 2.441 },
+    ];
+    const prof = loadingProfile({
+      stations, qMscfd: 1200, correlation: 'turner',
+      sigmaDyneCm: 60, rhoLiquidLbFt3: 67, gasSg: 0.65,
+    });
+    if (!prof.ok) throw new Error('the loading profile did not build');
+    if (prof.controlling.depthFt !== 6000) throw new Error('the controlling station is not the deepest');
+    if (!(prof.points[0].ratio > 1)) throw new Error('the wellhead should be passing in this case');
+    if (!(prof.controlling.ratio < 1)) throw new Error('the shoe should be loading in this case');
+    // and each point carries the conditions it was computed at
+    if (prof.controlling.pPsia !== 1100) throw new Error('a profile point lost its conditions');
+
+    // Condensate holds together less well than water, so a well making
+    // it can run slower before loading. Backwards here flags healthy wells.
+    const rate = (sigma: number, rhoL: number) => rateAtVelocity({
+      velocityFtS: criticalVelocity({
+        correlation: 'turner', sigmaDyneCm: sigma, rhoLiquidLbFt3: rhoL,
+        pPsia: 800, tempR: 580, z: 0.9, gasSg: 0.65,
+      }).velocityFtS,
+      areaFt2: tubingAreaFt2(2.441), pPsia: 800, tempR: 580, z: 0.9,
+    });
+    if (!(rate(20, 45) < rate(60, 67))) {
+      throw new Error('condensate came out harder to carry than water');
+    }
+    if (!(gasDensityLbFt3({ pPsia: 1000, tempR: 600, z: 0.88, gasSg: 0.65 }) > 0)) {
+      throw new Error('gas density did not build');
+    }
+
+    // THE FORECAST, which is the point of the studio: the reservoir
+    // pressure at which the well stops carrying its liquid.
+    const gw = defaultWellInputs();
+    gw.well.phase = 'gas';
+    gw.well.depthFt = '8000';
+    gw.well.whtF = '90';
+    gw.well.bhtF = '210';
+    gw.inflow.pr = '2200';
+    gw.gasInflow = { ...gw.gasInflow, model: 'backPressure', c: '0.0025', n: '0.87' };
+    gw.completion.idIn = '2.441';
+    const gwModel = buildSharedWell(gw);
+    if (!gwModel || gwModel.phase !== 'gas' || !(gwModel.gasIpr.aof > 0)) {
+      throw new Error('the shared record did not build a gas well');
+    }
+    const analysis = runGasWellAnalysis({
+      form: {
+        whp: '400', gasSg: '0.65', sigmaDyneCm: '60', rhoLiquidLbFt3: '67',
+        correlation: 'auto',
+      },
+      model: gwModel,
+    });
+    if (!analysis.ok) throw new Error(`the gas well analysis did not run: ${analysis.errors.join(' ')}`);
+    const fc = loadingForecast({
+      model: gwModel, inputs: gw, whp: 400, gasSg: 0.65, sigmaDyneCm: 60,
+      rhoLiquidLbFt3: 67, correlation: analysis.result.correlation,
+      prFrom: 2200, prTo: 900, nPoints: 7,
+    });
+    if (!(fc.crossingPrPsia > 900 && fc.crossingPrPsia < 2200)) {
+      throw new Error('the forecast did not find the pressure at which the well loads');
+    }
+    const rates = fc.points.map((p: any) => p.qMscfd);
+    for (let i = 1; i < rates.length; i += 1) {
+      if (!(rates[i] < rates[i - 1])) throw new Error('deliverability did not fall with depletion');
+    }
+
+    // An oil record is refused rather than run through a gas inflow.
+    const oilRecord = runGasWellAnalysis({
+      form: { whp: '400', gasSg: '0.65', sigmaDyneCm: '60', rhoLiquidLbFt3: '67', correlation: 'auto' },
+      model: buildSharedWell(defaultWellInputs()),
+    });
+    if (oilRecord.ok) throw new Error('an oil-phase record was analysed as a gas well');
+  });
+
+  gate('PA23', 'plunger lift: the force balance, and a verdict the rule of thumb does not decide', () => {
+    const base = {
+      depthFt: 6000, idIn: 2.441, linePressurePsia: 120, casingPressurePsia: 600,
+      slugLengthFt: 200, liquidSg: 1.02, plungerWeightLb: 6, gasSg: 0.65,
+      avgTempR: 580, z: 0.9,
+    };
+    const lift = liftPressure(base);
+    // Every term is what it says, and they sum to the requirement.
+    close(lift.terms.slugPsi, 0.433 * 1.02 * 200, 1e-9, 'the slug term is its hydrostatic');
+    const sum = Object.values(lift.terms).reduce((a: number, v: any) => a + v, 0);
+    relClose(lift.requiredPsia, sum, 1e-12, 'the lift balance sums to its terms');
+    // At the longest slug the available pressure is exactly used up.
+    const max = maxSlugLengthFt(base);
+    relClose(liftPressure({ ...base, slugLengthFt: max }).requiredPsia,
+      base.casingPressurePsia, 1e-6, 'the longest slug uses the casing pressure exactly');
+
+    // Feasibility rests on the COMPUTED ratio, and the heuristic is
+    // reported beside it rather than deciding.
+    const good = screenPlungerLift({ ...base, wellGlrScfBbl: 12000, afterflowMin: 20, shutInMin: 35 });
+    if (!good.ok || !good.design.feasible) throw new Error('a feasible well was screened out');
+    relClose(good.design.ruleOfThumbGlrScfBbl, 400 * 6, 1e-9, 'the rule of thumb is reported');
+    if (!(good.design.requiredGlrScfBbl > 0)) throw new Error('no required gas-liquid ratio');
+
+    // A well the heuristic passes and the physics fails is exactly
+    // where a screening rule misleads, so the disagreement is surfaced.
+    const between = screenPlungerLift({ ...base, wellGlrScfBbl: 3000, afterflowMin: 20, shutInMin: 35 });
+    if (!(between.design.wellGlrScfBbl > between.design.ruleOfThumbGlrScfBbl)) {
+      throw new Error('the test case no longer sits above the rule of thumb');
+    }
+    if (between.design.glrOk) throw new Error('the physics should refuse this well');
+    if (between.design.ruleOfThumbAgrees !== false) {
+      throw new Error('the disagreement between heuristic and physics was not reported');
+    }
+
+    // Refusals.
+    const noPressure = screenPlungerLift({ ...base, casingPressurePsia: 180, wellGlrScfBbl: 12000 });
+    if (noPressure.design.pressureOk) throw new Error('a well that cannot lift was passed');
+    if (screenPlungerLift({ ...base, slugLengthFt: 9000 }).ok) {
+      throw new Error('a slug longer than the tubing was accepted');
+    }
+  });
+
   const armed: [string, string][] = [
     ['PL1', 'Takacs, Gas Lift Manual worked installation design (valve depths, domes, test-rack settings)'],
     ['PL2', 'API Gas Lift Manual Book 6 nitrogen Ct table / NIST nitrogen isotherm z values'],
@@ -823,6 +984,10 @@ async function main() {
     ['PL10', 'Takacs, Sucker-Rod Pumping Manual worked design example (loads, torque, plunger stroke)'],
     ['PL11', 'API RP 11BR modified Goodman allowable and published service factors'],
     ['PL12', 'a measured field dynamometer card with its independently computed downhole card (Gibbs diagnostic spot check)'],
+    ['PL13', 'Turner et al. 1969 SPE 2198 worked critical-rate examples and the field data behind the 20 percent adjustment'],
+    ['PL14', 'Coleman et al. 1991 low-pressure gas well data set (unadjusted critical velocity)'],
+    ['PL15', 'Foss & Gaul 1965 / Beeson-Knox-Stoddard plunger-lift worked example (minimum casing pressure and cycle)'],
+    ['PL16', 'Lea & Nickens gas well deliverability worked example over the back-pressure and LIT routes'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);

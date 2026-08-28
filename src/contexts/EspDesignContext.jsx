@@ -58,6 +58,10 @@ export const defaultInputs = () => {
     well: { ...w.well, depthFt: '7500', bhtF: '190' },
     fluid: { ...w.fluid, gor: '120' },
     inflow: { ...w.inflow, pr: '2200', pb: '1500', pi: '0.5' },
+    // Carried but unused here. The well record is SHARED, so a studio
+    // that dropped this section would wipe a gas well's deliverability
+    // coefficients the moment it saved the model back.
+    gasInflow: { ...w.gasInflow },
     completion: { ...w.completion, idIn: '3.958', stepFt: '250' },
     duty: {
       designRateStbd: '300',
@@ -101,7 +105,7 @@ export const defaultInputs = () => {
 };
 
 const SECTIONS = [
-  'well', 'fluid', 'inflow', 'completion', 'duty', 'pump', 'motor',
+  'well', 'fluid', 'inflow', 'gasInflow', 'completion', 'duty', 'pump', 'motor',
   'diagnostics', 'system', 'link',
 ];
 
