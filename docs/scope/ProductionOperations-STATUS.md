@@ -799,6 +799,139 @@ the future P8/P11 studios a well model — they simply have no reason to
 build one yet. When they do, they consume the same module. Named model
 revisions are deliberately not built.
 
+## P7 — Gas Well Performance Studio (BUILT 2026-08-28)
+
+Ships on `feat/production-p7` (stacked on the P6.5 branch). Route
+`apps/production/gas-well-performance-studio`, gated with
+`ProtectedAppRoute appId="gas-well-performance-studio"`, studio kit
+shell. **The first studio built on the shared per-well record from the
+start** rather than carrying its own copy of the well, which is what
+P6.5 was for.
+
+**Engine first: engines PR #66, MERGED**, plus a follow-up fix on
+engines main.
+
+**TURNER'S EQUATION IS DERIVED, NOT QUOTED.** The whole correlation
+falls out of two statements about the largest droplet a gas stream can
+hold up: at terminal velocity drag balances weight less buoyancy, and a
+droplet above a critical Weber number shatters. Eliminating the droplet
+diameter between them gives
+
+    v = [ 40 gc^2 sigma (rho_L - rho_g) / (Cd rho_g^2) ]^(1/4)
+
+and with Cd = 0.44, We = 30 and sigma in dyne/cm the bracket collapses
+to **1.5935** — the 1.593 every gas-well text prints. The critical-rate
+constant is derived the same way and lands on the published 3.06.
+Deriving them means the drag coefficient and the Weber number are
+visible inputs a user can argue with rather than numbers buried in a
+constant. This is the same discipline as the 245,000 constant at P6.
+
+**Turner and Coleman are ONE equation and one factor.** Turner applied
+a 20 percent upward adjustment to match his field data; Coleman,
+working on wells below about 1,000 psi wellhead, found none was needed.
+Treating them as rival correlations would hide that. The guidance
+follows the pressure ranges each was fitted on, and choosing against it
+is allowed but reported.
+
+**THE SHOE CONTROLS, NOT THE WELLHEAD.** Critical rate goes as roughly
+the square root of pressure, so it is highest at the bottom of the
+tubing. A well can sit comfortably above it at the wellhead — which is
+where the operator is looking — while loading at the shoe, which is
+where liquid actually collects. So the gas column is marched segment by
+segment and the droplet check runs at every station; the controlling
+one is found rather than assumed. There is a gate on exactly that case.
+Temperature works the other way and partly cancels the pressure effect,
+which is why some wells come out nearly uniform down the string.
+
+**THE FORECAST IS THE POINT OF THE STUDIO.** A loading number for today
+is surveillance. The reservoir pressure at which a well STARTS to load
+is a plan, and it is what a tubing change, a plunger or a compressor
+gets justified against. As the reservoir depletes the deliverability
+falls faster than the critical rate does and the two curves cross; the
+crossing is reported. Each point is a full nodal solve and a marched
+column, so it is an explicit run, and the deliverability coefficients
+are held across it — this is the same well depleted, not a different
+one.
+
+**Plunger lift rests on computed physics, not a rule of thumb.** The
+required gas-liquid ratio is the gas a cycle needs, from the real gas
+law over the swept tubing volume, divided by the liquid it brings up.
+The industry's ~400 scf/bbl per 1,000 ft heuristic is reported beside
+it as a labelled cross-check and **whether the two agree is surfaced**,
+because a well sitting between them is exactly where a screening rule
+misleads. There is a gate on a well the heuristic passes and the
+physics fails. The lift pressure is a static force balance readable
+term by term; friction, rise and fall velocities and the cycle times
+are inputs with stated typical ranges, because plunger lift is a field
+full of rules of thumb and none of them is dressed up here as physics.
+
+**The shared record grew a phase.** `well.phase` says oil or gas, and a
+`gasInflow` section carries the deliverability coefficients. Everything
+else — trajectory, temperatures, fluid, completion — stays shared,
+because none of it cares what phase the well makes. Reservoir pressure,
+gas gravity and bottomhole temperature are read from the sections that
+already hold them rather than asked for twice. The record carries BOTH
+inflows, so re-describing a well does not lose the other one.
+`wellPhaseProblem` gives a studio a sentence to show when the wrong
+phase is loaded, which is an ordinary accident now that records are
+shared.
+
+**Three defects the P6.5 gates caught during this phase**, each of them
+the kind of thing a shared record is supposed to prevent:
+
+1. `wellInputsFrom` was written out by hand, so adding `gasInflow`
+   silently stopped a gas well's deliverability coefficients from ever
+   reaching the spine. It is now driven by `WELL_MODEL_SECTIONS`, so a
+   section added to the record cannot be forgotten.
+2. The lift studios did not carry the `gasInflow` section at all, so
+   opening a gas well in the ESP or rod pump studio and saving would
+   have **wiped its deliverability coefficients for every other
+   studio** — worse than the duplication the shared record replaced.
+   All three now carry the whole record even though they use part of
+   it, with a regression gate in each.
+3. The gas IPR results do not carry the reservoir pressure, so
+   `model.prPsia` was added: a consumer showing a drawdown had nowhere
+   else to get it from, and the Deliverability panel was reading a
+   field that did not exist.
+
+**Engine defect found and fixed mid-phase:** a loading profile point
+reported only its depth and its result, not the pressure, temperature
+and z it was computed at. That made the profile unplottable and the
+controlling station useless to the tubing sizing, which has to be
+evaluated exactly there — every candidate silently failed. Fixed in the
+engine (main `b7c111d`, subtree-pulled) and gated.
+
+**UI** (`src/components/gaswell/`, white chartTheme + ChartLogo on
+every chart). Tabs: Deliverability (the node on the validated gas
+layer), Liquid Loading (the profile down the string, the controlling
+station, and tubing screening), Forecast (the explicit run that says
+when the well will load), Plunger Lift, Well Model (the shared panel
+plus the gas inflow). Ten-section help guide; page smoke test across
+every tab.
+
+**Validation:** `tools/validation/production-validation.ts` PA22-PA23
+ACTIVE + PL13-PL16 ARMED (Turner 1969 worked examples, the Coleman
+data set, Foss & Gaul / Beeson-Knox-Stoddard plunger examples, Lea &
+Nickens deliverability). 23/23 active gates.
+
+**The oracle worked in SI throughout** — newtons per metre, kilograms
+per cubic metre, pascals, with no gc anywhere because SI does not need
+one — and converts only at the boundary, while the engine works in
+field units. Agreement is two unit systems meeting, which is the
+strongest available check on a correlation full of remembered
+constants. The derived Turner constant matches across that boundary to
+a part in a million.
+
+**Verification:** 55 P7 gates (31 engine + 24 Suite) plus the page
+smoke test; full Suite jest 328/4272 and `npm run build` green.
+
+**Migrations:**
+
+- `20260829310000_p7_saved_gaswell_projects.sql` — analysis
+  persistence, owner-scoped RLS. Safe pre-deploy. **NOT APPLIED**.
+- `20260829320000_seed_gas_well_performance_studio_tile.sql` — the
+  Active tile, HELD for the single P12 upload.
+
 ## Gotchas for later phases
 
 - The retired apps' tables (`wellbore_flow_projects`,

@@ -386,7 +386,7 @@ describe('the shared well model on the spine (P6.5)', () => {
     expect(spine.upsertWellModel).toHaveBeenCalledWith('w1', expect.anything());
     const [, payload] = spine.upsertWellModel.mock.calls[0];
     expect(Object.keys(payload).sort())
-      .toEqual(['completion', 'fluid', 'inflow', 'schema', 'well']);
+      .toEqual(['completion', 'fluid', 'gasInflow', 'inflow', 'schema', 'well']);
     // The duty stays with the design. If it leaked into the shared
     // record, two studios sharing a well would overwrite each other's
     // design conditions -- worse than the duplication this replaced.
@@ -423,7 +423,8 @@ describe('the shared well model on the spine (P6.5)', () => {
       id: 'm1', well_id: 'w1', updated_at: '2026-08-28T00:00:00Z',
       model_data: { schema: 1, ...JSON.parse(JSON.stringify({
         well: api.inputs.well, fluid: api.inputs.fluid,
-        inflow: api.inputs.inflow, completion: api.inputs.completion,
+        inflow: api.inputs.inflow, gasInflow: api.inputs.gasInflow,
+        completion: api.inputs.completion,
       })) },
     }));
     await mount();
@@ -435,5 +436,23 @@ describe('the shared well model on the spine (P6.5)', () => {
     // Changing the DUTY is not a drift from the well record.
     await act(async () => { api.setSection('inflow', 'pr', api.savedWellModel.inputs.inflow.pr); });
     expect(api.wellModelDirty).toBe(false);
+  });
+});
+
+describe('the shared record travels whole, even the parts this studio ignores', () => {
+  it('carries a gas well\'s deliverability coefficients through a save', async () => {
+    // This studio designs against an oil inflow and never reads
+    // gasInflow. If it dropped the section, saving the model back would
+    // wipe a gas well's deliverability coefficients for every other
+    // studio — which is worse than the duplication the shared record
+    // replaced.
+    await mount();
+    await act(async () => { api.patchSection('link', { fieldId: 'f1' }); });
+    await act(async () => { api.linkWell('w1'); });
+    await act(async () => { api.setSection('gasInflow', 'c', '0.0042'); });
+    await act(async () => { await api.saveToSpine(); });
+    const [, payload] = spine.upsertWellModel.mock.calls[0];
+    expect(payload.gasInflow.c).toBe('0.0042');
+    expect(payload).toHaveProperty('gasInflow');
   });
 });
