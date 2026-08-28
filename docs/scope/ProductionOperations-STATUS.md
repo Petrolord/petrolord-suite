@@ -1510,10 +1510,18 @@ Suite PRs merge oldest first. Each is based on the one before it:
 
 The engine PRs (#62-#68, #70-#73) are already merged and vendored.
 
-### 2. Apply the 14 SAFE migrations
+### 2. Apply the 14 SAFE migrations — DONE 2026-08-28
 
-These create tables and add no tile, so they can go in before the
-upload. Each with
+**Applied.** A rollback-wrapped dry run of all fourteen together went
+first and was verified to have left nothing behind. Post-apply probe:
+**19 tables** — 8 `po_*` spine plus 11 `saved_*` — every one with row
+level security enabled and at least one policy, **0** with RLS off and
+**0** with no policy. `master_apps` was probed afterwards and is
+untouched: none of the ten new slugs exists and `artificial-lift-designer`
+is still under its old name, so no tile went Active early.
+
+These create tables and add no tile, which is why they could go in
+before the upload. Each was applied with
 `supabase db query --linked --file supabase/migrations/<file>`:
 
 | # | File | What |
@@ -1534,6 +1542,12 @@ upload. Each with
 | 14 | `20260829430000_p12_saved_intervention_projects.sql` | P12 saves |
 
 Rollback-wrapped dry run first, as the conventions require.
+
+### 3. Recut and upload the production zip — NEXT
+
+Both pre-cut zips are now stale: they were cut on 2026-08-27 and
+predate the P0-P12 merge. Cut a fresh one from merged `main`
+(`d2234ec9d`).
 
 ### 3. Recut and upload the production zip
 
