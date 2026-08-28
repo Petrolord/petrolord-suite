@@ -407,6 +407,135 @@ Two P4 follow-ons to fold in when they fit:
   curves, so it belongs with the Advisor (P9) or the Network Studio
   (P11).
 
+## P5 — ESP Design Studio (BUILT 2026-08-28)
+
+Ships on `feat/production-p5` (stacked on the P4 branch). Route
+`apps/production/esp-design-studio`, gated with
+`ProtectedAppRoute appId="esp-design-studio"`, studio kit shell.
+Absorbs the ESP Performance Monitor tile as the Diagnostics tab, so a
+running installation is read against the same stage curve the design
+was sized on.
+
+**Engine first (the P4 pattern): engines PR #63, MERGED.**
+`packages/engines/engines/production/`:
+
+- `espPump.js` — one stage is the whole description of a pump: head,
+  efficiency and brake power against rate at a reference frequency.
+  Two routes to that curve and deliberately no third: a least-squares
+  fit through the vendor's published points (reported with its
+  residual, so a bad transcription shows up), or `referenceStageCurve`,
+  a transparent MODEL shape from four named parameters, labelled as a
+  model everywhere it surfaces. Affinity laws for speed. The Hydraulic
+  Institute viscous correction (ANSI/HI 9.6.7) is NOT reproduced from
+  memory: in-situ viscosity is reported and a correction is flagged as
+  required, because invented factors would be worse than none.
+- `espDesign.js` — intake pressure, the intake stream from black-oil
+  PVT, the separator split and the gas volume fraction that picks the
+  equipment, total dynamic head from the two pressures, staging, and
+  `diagnoseOperation` (the curve read backwards).
+- `espMotorCable.js` — motor current at part load by nameplate scaling
+  (flagged below half load rather than extrapolated to zero), copper
+  conductor resistance with the standard temperature correction, the
+  three-phase drop, and a cable selection that returns nothing rather
+  than the least bad conductor when none qualifies.
+- `data/espCatalog.js` — reference model stages (no part numbers), AWG
+  copper resistances (a property of the metal), common motor
+  nameplates. Ampacity is absent on purpose: it belongs to the
+  insulation system and is a manufacturer number.
+
+Independent Python oracle + byte-identical goldens; 40 engine gates.
+
+**Suite layer** (`src/utils/production/esp.js`, 28 gates) is the part
+that needs the well: the IPR at the design rate, the PVT at intake
+conditions, the separator split, and a discharge pressure that is a
+real multiphase traverse from the wellhead down to the pump. Total
+dynamic head falls out of those two pressures.
+
+**The two defects this phase exists to fix**, both from the removed
+Artificial Lift Designer ESP tab (`src/utils/espCalculations.js`,
+deleted in this phase):
+
+1. TDH was friction plus wellhead pressure with the net vertical lift
+   missing. On the studio's default well the net lift is 88 percent of
+   the head, so the old staging was short by roughly an order of
+   magnitude. The gate `espDesignContext.test.jsx` asserts net lift is
+   more than half the head, and the Design tab names it on its own row.
+2. Intake and discharge were a static column at one mixture gravity.
+   Both are now computed, and the gas in the tubing is the gas the
+   separator did not take out.
+
+It also divided hydraulic power by 58800 with head in feet, where that
+constant belongs to pressure in psi, and shipped invented stage curves
+under vendor-sounding model names.
+
+**State** (`src/contexts/EspDesignContext.jsx`, 25 gates): the P4
+recipe — the design IS the project, in the `saved_esp_projects`
+payload (hydrated guard + 10 s debounced autosave); the po_* spine is
+an optional identity link only. Perforation depth is deliberately NOT
+a separate input: it is the well model's node depth, because carrying
+it twice is how a pump gets designed against a depth the traverse
+never saw. What is live and what is an explicit run is decided by
+traverse count: one design run is one traverse, so it recomputes as you
+type; the system curve is a traverse per rate and the operating point
+is a solve on top of them, so that is an explicit run with a stale
+flag.
+
+**UI** (`src/components/esp/`, white chartTheme + ChartLogo on every
+chart). Tabs: Design (the head, its three-part decomposition arranged
+so the parts sum exactly, and the gas at the intake), Pump Curve (the
+stack curve with the recommended band and the duty point, plus where
+the duty sits relative to the best efficiency point), Performance (the
+explicit pump-against-system run and the operating point), Electrical
+(motor load, surface requirement, and every cable candidate with why it
+passed or failed), Diagnostics (the absorbed Performance Monitor),
+Well Model (the nodal inputs, the spine link and the legacy import).
+Ten-section help guide; page smoke test across every tab.
+
+**Refusals worth naming** (each is a real engineering answer):
+
+- A duty off the end of the pump curve produces no stage count rather
+  than a negative one.
+- A well whose inflow already beats the tubing is reported as naturally
+  flowing at that rate, not handed a pump.
+- A design rate at or above the inflow's absolute open flow is refused
+  with the open-flow number.
+- No cable meeting the drop limit is reported as no cable.
+
+**Validation:** `tools/validation/production-validation.ts` PA9-PA14
+ACTIVE (stage curve fitting and recovery, affinity laws, the gas split
+and the density the pump actually sees, TDH and staging with the
+net-lift regression, the electrical side against the oracle, and the
+Suite chain on a real nodal well) + PL5-PL8 ARMED (HI 9.6.7 viscous
+correction, Turpin / Alhanati gas handling, vendor pump curves, Takacs
+ESP manual). 14/14 active production gates passing.
+
+**Migrations:**
+
+- `20260829230000_p5_saved_esp_projects.sql` — design persistence,
+  owner-scoped RLS. Safe pre-deploy. **NOT APPLIED**: the session
+  cannot run the real apply; owner runs
+  `supabase db query --linked --file supabase/migrations/20260829230000_p5_saved_esp_projects.sql`
+  and flips the MIGRATIONS.md row. Until then the studio computes
+  normally and only project save/load reports the missing table.
+- `20260829240000_seed_esp_design_studio_tile.sql` — the Active tile,
+  HELD for the single P12 upload with the other P-phase tiles.
+
+**Verification:** 93 P5 gates (40 engine + 28 Suite analytics + 25
+context) plus the page smoke test; full Suite jest 320/4072 and
+`npm run build` green.
+
+**The P4 follow-on, answered honestly.** P4 recorded that a shared
+per-well IPR/VLP model record would close the P3 nodal cross-check of
+well tests, and suggested P5 consider it rather than duplicating. P5
+considered it and DID NOT build it: it uses the same local
+`buildWellModel` shape the gas lift studio uses. The reason is scope,
+not convenience — a shared record is a new spine table plus a service,
+and it would have to migrate the design payloads P4 already writes and
+be consumed by P3 and P6 to be worth anything. Doing it inside P5 would
+mean changing two shipped studios from a third one's branch. It stays
+open as its own piece of work, and it is now duplicated in two studios
+rather than one, which is the cost of deferring it again.
+
 ## Gotchas for later phases
 
 - The retired apps' tables (`wellbore_flow_projects`,
