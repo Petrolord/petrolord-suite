@@ -260,7 +260,6 @@ const WellDesignHarness = () => {
         wellbore={WELLBORE}
         mdUnit="m"
         kbM={WELLBORE.kb_elev_m}
-        metersToUser={(v) => v}
         currentEnd={currentEnd}
         onApply={applySolution}
       />

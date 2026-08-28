@@ -14,6 +14,7 @@
 // (the e2e spec runs this module in node to recompute expectations).
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { minOf, maxOf, extentOf } from './extent';
 
 // ---------------------------------------------------------------------------
 // brand chrome
@@ -101,8 +102,9 @@ const fmtNum = (v, dp = 1) => (Number.isFinite(v) ? v.toFixed(dp) : '—');
 
 /** Fit world points into a page rect. flipY: world +y draws upward. */
 function makeMapper(rect, xs, ys, { flipY = true, equalAspect = false, pad = 0.06 } = {}) {
-  let minX = Math.min(...xs); let maxX = Math.max(...xs);
-  let minY = Math.min(...ys); let maxY = Math.max(...ys);
+  const ex = extentOf(xs); const ey = extentOf(ys);
+  let minX = ex.min; let maxX = ex.max;
+  let minY = ey.min; let maxY = ey.max;
   const spanX = Math.max(maxX - minX, 1e-6);
   const spanY = Math.max(maxY - minY, 1e-6);
   minX -= spanX * pad; maxX += spanX * pad;
@@ -345,7 +347,7 @@ export async function generateSurveyListing({ contract, magRef = null, generated
   const td = contract.stations[contract.stations.length - 1];
   doc.setFontSize(8);
   doc.text(
-    `TD: ${fmtNum(td.md, 1)} m MD / ${fmtNum(td.tvd, 1)} m TVD · closure ${fmtNum(Math.hypot(td.n, td.e), 1)} m · max DLS ${fmtNum(Math.max(...contract.stations.map((s) => s.dls30m)), 2)} deg/30m`,
+    `TD: ${fmtNum(td.md, 1)} m MD / ${fmtNum(td.tvd, 1)} m TVD · closure ${fmtNum(Math.hypot(td.n, td.e), 1)} m · max DLS ${fmtNum(maxOf(contract.stations, (s) => s.dls30m), 2)} deg/30m`,
     8,
     (doc.lastAutoTable?.finalY ?? 250) + 6,
   );
@@ -384,7 +386,7 @@ export async function generateAcReport({ run, wellName = '', designLabel = '', g
     head: [['Offset well', 'Kind', 'Status', 'Min SF', 'At ref MD (m)', 'Min C-C (m)']],
     body: (run.results || []).map((r) => [
       r.label, r.kind, (r.status || '').toUpperCase(), fmtNum(r.minSf, 2),
-      fmtNum(r.minSfMd, 0), fmtNum(Math.min(...r.distanceCC), 1),
+      fmtNum(r.minSfMd, 0), fmtNum(minOf(r.distanceCC), 1),
     ]),
     styles: { fontSize: 7, cellPadding: 1 },
     headStyles: { fillColor: [30, 41, 59] },

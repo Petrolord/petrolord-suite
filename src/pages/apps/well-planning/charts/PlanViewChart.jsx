@@ -7,6 +7,7 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { CHART_COLORS } from '@/utils/chartTheme';
 import ChartLogo from '@/components/charts/ChartLogo';
+import { extentOf } from '../services/extent';
 
 const PAD = 42;
 
@@ -52,10 +53,12 @@ const PlanViewChart = ({
       xs.push(el.e + el.semiMajor, el.e - el.semiMajor);
       ys.push(el.n + el.semiMajor, el.n - el.semiMajor);
     });
-    let minX = Math.min(...xs);
-    let maxX = Math.max(...xs);
-    let minY = Math.min(...ys);
-    let maxY = Math.max(...ys);
+    const ex = extentOf(xs);
+    const ey = extentOf(ys);
+    let minX = ex.min;
+    let maxX = ex.max;
+    let minY = ey.min;
+    let maxY = ey.max;
     const spanX = Math.max(maxX - minX, 10);
     const spanY = Math.max(maxY - minY, 10);
     minX -= spanX * 0.08; maxX += spanX * 0.08;
