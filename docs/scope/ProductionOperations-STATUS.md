@@ -275,14 +275,137 @@ replaces the measurements for those well-dates.
 **Verification:** 56 P3 gates (31 allocation + 6 importer + 19
 context); full Suite jest and `npm run build` green.
 
-## Next: P4 — Gas Lift Design Studio
+## P4 — Gas Lift Design Studio (BUILT 2026-08-28)
 
-Valve spacing, unloading sequence, injection-depth optimization and
-performance curves over the validated `nodal/gasLift.js` ("NA4+"),
-with ARMED literature gates (Takacs Gas Lift Manual, Guo) per
-ROADMAP §3 app 4 and §4. First of the P4-P7 artificial-lift block, and
-the first phase to need an engine PR to
-`packages/engines/engines/production/`.
+Route `apps/production/gas-lift-design-studio`, entitlement-gated,
+studio kit shell. The first phase to need an engine PR: the valve
+mechanics and the spacing construction landed in
+**@petrolord/engines PR #62** (merged, subtree-pulled here) as the
+package's first `production` domain.
+
+**Engine** (`packages/engines/engines/production/`, vendored; the Suite
+imports it through `src/utils/production/engine/*` shims and never
+edits the vendored copy):
+
+- `gasProperties.js` — Sutton pseudo-criticals, Wichert-Aziz acid-gas
+  correction, DAK z solved on reduced density, the real-gas static
+  casing column marched with local temperature and z (plus its inverse,
+  which is what expresses a valve's closing pressure at surface), and
+  nitrogen z for the dome charge. No flat 0.02 psi/ft gas gradient
+  anywhere.
+- `gasLiftValves.js` — the bellows force balance (IPO and PPO are the
+  same relation with casing and tubing swapped), the fixed-volume
+  real-gas nitrogen ratio between the 60 degF test rack and valve
+  temperature (not the linear rule of thumb, which drifts several
+  percent on a hot deep valve), test-rack opening, spread,
+  Thornhill-Craver port throughput with a continuous critical branch,
+  and port selection against a target gas rate.
+- `gasLiftDesign.js` — top-down spacing in both conventions
+  (decreasing surface pressure, constant pressure), per-valve settings,
+  the unloading sequence with multipointing detection, and the deepest
+  point of injection from a supplied flowing traverse.
+- `data/gasLiftValveCatalog.js` — the generic 1 in / 1.5 in bellows
+  geometry the literature works in. Deliberately NOT a vendor catalog;
+  the vendor spot-check is ARMED gate PL4.
+
+**Validation.** `packages/engines/tools/validation/production/oracle_gaslift.py`
+is an independent stdlib oracle written from the method spec (RK4 column
+at 20x the engine's resolution, bisection where the engine iterates a
+fixed point); goldens regenerate byte-identical. 39 engine gates, and
+`tools/validation/production-validation.ts` runs PA1-PA8 ACTIVE with
+PL1-PL4 ARMED (Takacs worked design, API Book 6 / NIST nitrogen, Guo
+and Brown worked example, vendor valve data book). PA5 cross-checks
+Thornhill-Craver against the validated nodal gas choke, which reaches
+the same orifice physics through separately rounded published
+constants.
+
+Writing the closed-form spread gate caught a real error in the first
+draft of the engine: spread is `R (P_open - P_other)`, not
+`R/(1-R) (P_open - P_other)`, which is the dome form. Engine and oracle
+both corrected before the goldens were committed.
+
+**Suite analytics** (`src/utils/production/gasLift.js`, 26 gates) — what
+needs the well itself:
+
+- **Injection at depth.** The NA3 screening in `utils/nodal/gasLift.js`
+  assumed the gas joined the stream at the node, so the whole string
+  flowed at the lifted ratio. Here the traverse is marched in two
+  segments, native gas-oil ratio below the injection point and the
+  lifted ratio above it, which is what actually happens and is why
+  injection depth is worth optimizing at all.
+- The point-of-injection construction (flowing gradient from the
+  wellhead against the real-gas injection line), the injection-depth
+  sweep, the performance curve at a fixed depth, the psig/psia boundary
+  (the engine works in absolute, the form in gauge), form validation
+  that refuses with reasons rather than defaulting, the valve sheet, and
+  the legacy Artificial Lift Designer import.
+
+**State** (`src/contexts/GasLiftDesignContext.jsx`, 19 gates): unlike
+P2/P3 this is a design app, so the well model and the design settings
+ARE the `saved_gaslift_projects` payload. Cheap derivation (spacing,
+injection point) recomputes as you type; the performance curve and the
+depth sweep solve a nodal point per sample and stay explicit runs with a
+stale flag, the Nodal Studio pattern. The `po_*` spine appears only as
+an optional identity link: name the well a design is for, and apply its
+latest valid test to the design rate, water cut, wellhead pressure and
+gas-oil ratio (the last two derived from the test's measured rates,
+since the spine stores rates rather than ratios).
+
+**UI** (`src/components/gaslift/`, studio kit shell, white chartTheme):
+Valve Design tab (pressure-depth plot with the injection line, kill
+fluid line, flowing gradient and valve markers; the valve sheet with
+CSV export; design checks), Unloading tab (stage by stage with the
+multipointing verdict per stage), Injection Point tab (the construction
+plus the four numbers that define it), Performance tab (the response
+curve with its maximum and economic points, and the rate-against-depth
+sweep), Well Model tab (the nodal model inputs, the spine link and the
+legacy import). Nine-section help guide. Page smoke test covers every
+tab.
+
+**Legacy import.** Old Artificial Lift Designer saves that still carry
+`design_data.gasLiftInputs` (kept deliberately at P0) load into the
+matching sections. The old spacing safety factor has no equivalent in a
+design with an explicit transfer differential and drop per valve, so it
+is reported as not carried rather than guessed at.
+
+**Migrations:**
+
+- `20260829200000_p4_saved_gaslift_projects.sql` — design persistence.
+  **NOT APPLIED** (session permission gate); owner runs
+  `supabase db query --linked --file supabase/migrations/20260829200000_p4_saved_gaslift_projects.sql`.
+- `20260829210000_seed_gas_lift_design_studio_tile.sql` — the Active
+  tile, HELD for the single P12 upload.
+
+**Also fixed here:** a P1 artefact in `src/lib/productionSpine.js` wrote
+a literal NUL character into an import de-duplication key, which made
+git treat the whole module as binary and hid it from grep. Replaced with
+its escape sequence; the runtime string is identical.
+
+**Verification:** 84 P4 gates (39 engine + 26 analytics + 19 context)
+plus the page smoke test; `production-validation` 8/8 active; full Suite
+jest 315/3968 and `npm run build` green.
+
+## Next: P5 — ESP Design Studio
+
+Correct total dynamic head from the IPR intake pressure through the
+nodal model, staging against real pump curves, affinity and variable
+speed, motor and cable sizing, and the gas separation check, per
+ROADMAP §3 app 5. Absorbs the ESP Performance Monitor tile as a
+diagnostics tab. The P4 pattern carries over: engine PR to
+`packages/engines/engines/production/` with a Python oracle and
+committed goldens first, then the studio.
+
+Two P4 follow-ons to fold in when they fit:
+
+- The nodal cross-check of well tests deferred at P3 needs a per-well
+  IPR/VLP model. P4 now builds one, but it lives in a gas-lift design
+  rather than on the spine; the natural home is a shared per-well model
+  record, which P5 should consider rather than duplicating.
+- Lift-gas allocation across a field (equal-slope allocation of a
+  limited gas supply) is real gas-lift optimization but is outside the
+  locked P4 scope of ROADMAP §3 app 4. It needs several wells' response
+  curves, so it belongs with the Advisor (P9) or the Network Studio
+  (P11).
 
 ## Gotchas for later phases
 
@@ -290,7 +413,10 @@ the first phase to need an engine PR to
   `flow_assurance_projects`, `production_surveillance_projects`) stay
   read-protected until the owner-gated post-P12 drop decision.
 - Old ALD saves may contain `gasLiftInputs`/`espInputs`/`rodPumpInputs`
-  in `design_data`; P4–P6 studios should offer to import them.
+  in `design_data`; P4–P6 studios should offer to import them. P4 does
+  this (`importLegacyGasLiftInputs` + the Well Model tab); P5 and P6
+  should follow the same shape, carrying only fields that mean the same
+  thing and reporting the rest.
 - `utils/anomalyDetection.js` and `hooks/usePhase5State.js` sound like
   the deleted anomaly detector but belong to a different (multi-well
   portfolio) tree; they were deliberately left alone.
