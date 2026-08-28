@@ -103,6 +103,12 @@
 //       assumed. Plus the RP 14E erosional limit with C as an input,
 //       and a Gilbert-family fit that recovers the coefficients it was
 //       generated from and refuses data that cannot pin them down
+//   PA25 the lift advisor (P9): the screening matrix lands on the right
+//       method for each archetype, the design pass runs all four
+//       engine-backed chains against ONE shared well record and reaches
+//       the same answers the studios do, a design that misses the
+//       target is a shortfall rather than a success, and where the
+//       screening and the design disagree the disagreement is named
 //
 // ARMED gates (pending owner literature PDFs):
 //   PL1 Takacs, Gas Lift Manual — worked continuous-lift installation
@@ -209,6 +215,10 @@ async function main() {
     beanForRate, testsToChokePoints, CRITICAL_RATIO_LIMIT,
   } = await import('../../src/utils/production/choke.js');
   const { CHOKE_COEFFS } = await import('../../src/utils/nodal/chokes.js');
+  const { LIFT_METHODS, screenLift } = await import('../../src/utils/production/liftScreening.js');
+  const {
+    runDesignPass, reconcile, designRodPump, RATE_TOLERANCE,
+  } = await import('../../src/utils/production/liftAdvisor.js');
   const { solveOperatingPoint } = await import('../../src/utils/nodal/system.js');
 
   const G = goldens('gaslift_cases.json');
@@ -1102,6 +1112,121 @@ async function main() {
     relClose(shaped[0].glr, (300 * 1000) / 500, 1e-9, 'the gas-liquid ratio is over liquid');
   });
 
+  gate('PA25', 'the lift advisor: one well, six screened, four designed', () => {
+    // Six methods screened, four of them backed by a validated engine.
+    // The two that are not carry no studio, which is what stops the UI
+    // offering a design that does not exist.
+    if (LIFT_METHODS.length !== 6) throw new Error('the advisor no longer screens six methods');
+    const backed = LIFT_METHODS.filter((m: any) => m.hasEngine).map((m: any) => m.id).sort();
+    if (backed.join(',') !== 'esp,gasLift,plunger,rodPump') {
+      throw new Error('the engine-backed method list changed');
+    }
+    LIFT_METHODS.filter((m: any) => !m.hasEngine).forEach((m: any) => {
+      if (m.studio) throw new Error(`${m.id} has no engine but offers a studio to design in`);
+    });
+
+    // The matrix has to land where an engineer would on the archetypes.
+    const top = (i: any) => screenLift(i)[0].id;
+    if (top({ targetRate: 60, depthFt: 4000, gor: 200, api: 30, bhtF: 130, gasAvailable: false }) !== 'rodPump') {
+      throw new Error('a shallow stripper did not screen to rod pumping');
+    }
+    if (top({ targetRate: 25, depthFt: 8000, gor: 20000, api: 50, bhtF: 200, gasAvailable: false, powerAvailable: false }) !== 'plunger') {
+      throw new Error('a gassy well making almost no liquid did not screen to plunger lift');
+    }
+    if (top({ targetRate: 300, depthFt: 3000, gor: 50, api: 14, bhtF: 120, hasSand: true, gasAvailable: false }) !== 'pcp') {
+      throw new Error('heavy viscous crude with sand did not screen to a progressing cavity pump');
+    }
+
+    // The design pass, against ONE shared well record. This is what
+    // P6.5 was for: four methods designed on the same trajectory,
+    // fluid, inflow and completion.
+    const lw = defaultWellInputs();
+    lw.well.depthFt = '7500';
+    lw.inflow.pr = '2200';
+    lw.inflow.pb = '1500';
+    lw.inflow.pi = '0.5';
+    lw.fluid.gor = '120';
+    lw.completion.idIn = '3.958';
+    const lwModel = buildSharedWell(lw);
+    const facility = {
+      injectionPsig: 900, injectionMscfd: 500, injGasSg: 0.65,
+      separatorEfficiencyPct: 70, casingPressurePsia: 600,
+      slugLengthFt: 150, plungerWeightLb: 6,
+    };
+    const pass = runDesignPass({
+      model: lwModel, targetRate: 300, wctPct: 90, gorScfStb: 120, whp: 200, facility,
+    });
+    if (!pass.ok) throw new Error(`the design pass did not run: ${pass.errors.join(' ')}`);
+    if (pass.results.length !== 4) throw new Error('the design pass did not run four methods');
+
+    // On a deep watered-out well with no gas, the ESP is the one that
+    // designs -- and its head is dominated by the net lift, which is
+    // the defect P5 existed to fix.
+    const esp = pass.results.find((r: any) => r.id === 'esp');
+    if (!esp.ok) throw new Error(`the ESP did not design on an ESP well: ${esp.reason}`);
+    if (!(esp.design.duty.breakdown.netLiftFt > 0.5 * esp.design.duty.tdhFt)) {
+      throw new Error('the net lift is not dominating the head on a well where it must');
+    }
+
+    // A ROD PUMP THAT DESIGNS BUT MISSES THE TARGET IS A SHORTFALL.
+    // Reporting a clean design that delivers a third of the asked-for
+    // rate as a workable method would be the most misleading thing this
+    // advisor could do.
+    const rod = designRodPump({
+      model: lwModel, targetRate: 300, wctPct: 90, gorScfStb: 120, whp: 200,
+    });
+    if (rod.ok) throw new Error('rod pumping was reported as working on a well it cannot reach');
+    if (!rod.shortfall || !(rod.shortfall.achievedBpd < rod.shortfall.targetBpd)) {
+      throw new Error('the rod pump shortfall was not reported with its numbers');
+    }
+    if (!(RATE_TOLERANCE > 0.5 && RATE_TOLERANCE <= 1)) {
+      throw new Error('the rate tolerance is not a sane fraction');
+    }
+
+    // No lift method makes a well give more than its inflow can deliver.
+    const impossible = runDesignPass({
+      model: lwModel, targetRate: 99999, wctPct: 90, gorScfStb: 120, whp: 200, facility,
+    });
+    if (impossible.ok) throw new Error('a target above the absolute open flow was accepted');
+    if (!/absolute open flow/.test(impossible.errors.join(' '))) {
+      throw new Error('the refusal did not say why');
+    }
+
+    // A gas-well record is refused: this pass designs lift for oil.
+    const gasRecord = defaultWellInputs();
+    gasRecord.well.phase = 'gas';
+    gasRecord.gasInflow = { ...gasRecord.gasInflow, model: 'backPressure', c: '0.0025', n: '0.87' };
+    if (runDesignPass({
+      model: buildSharedWell(gasRecord), targetRate: 300, wctPct: 50,
+      gorScfStb: 500, whp: 200, facility,
+    }).ok) {
+      throw new Error('a gas-well record was run through an oil-lift design pass');
+    }
+
+    // Where screening and design disagree, the disagreement is NAMED
+    // and the design outranks the score.
+    const rec = reconcile({
+      screening: [
+        { id: 'esp', label: 'ESP', hasEngine: true, score: 95, recommended: true, reasons: [] },
+        { id: 'rodPump', label: 'Rod pump', hasEngine: true, score: 30, recommended: false, reasons: [] },
+        { id: 'pcp', label: 'PCP', hasEngine: false, score: 70, recommended: true, reasons: [] },
+      ],
+      designPass: {
+        results: [
+          { id: 'esp', ok: false, reason: 'refused' },
+          { id: 'rodPump', ok: true, equipment: 'a unit' },
+        ],
+      },
+    });
+    if (rec.ranked[0].id !== 'rodPump') {
+      throw new Error('a method that demonstrably works did not outrank one that merely scores well');
+    }
+    if (rec.disagreements.length !== 2) throw new Error('the disagreements were not both named');
+    if (rec.rows.find((r: any) => r.id === 'pcp').verdict !== 'noEngine') {
+      throw new Error('a method with no engine was not marked as screened only');
+    }
+  });
+
   const armed: [string, string][] = [
     ['PL1', 'Takacs, Gas Lift Manual worked installation design (valve depths, domes, test-rack settings)'],
     ['PL2', 'API Gas Lift Manual Book 6 nitrogen Ct table / NIST nitrogen isotherm z values'],
@@ -1122,6 +1247,9 @@ async function main() {
     ['PL17', 'Sachdeva SPE 15657 subcritical two-phase choke equations (parked unarmed in NA3; would replace the critical-flow screening answer)'],
     ['PL18', 'API RP 14E worked erosional-velocity example and the C-factor guidance in full'],
     ['PL19', 'a composition-based hydrate curve (Fluid Studio EOS flash) against the Hammerschmidt screening'],
+    ['PL20', 'a published lift-selection matrix (Clegg/Bucaram/Heiser SPE 24834 or a comparable operator standard) against the screening rules'],
+    ['PL21', 'progressing cavity pump performance (published stator/rotor curves and elastomer temperature limits) — would move PCP from screened to designed'],
+    ['PL22', 'jet pump nozzle/throat performance (Petrie/Wilson charts) — would move jet pumps from screened to designed'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);

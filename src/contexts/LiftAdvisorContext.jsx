@@ -1,16 +1,15 @@
-// Gas Well Performance Studio state (Production P7,
-// Production-ROADMAP.md §3 app 7 — docs/scope/ProductionOperations-STATUS.md).
+// Artificial Lift Advisor state (Production P9,
+// Production-ROADMAP.md §3 app 9).
 //
-// The first studio built ON the shared well record from the start
-// rather than carrying its own copy, which is what P6.5 was for. The
-// well description, the phase and the gas inflow all come from
-// utils/production/wellModel and sync to the spine through
-// hooks/useWellModelSync.
+// The phase the shared well record (P6.5) existed for. Comparing lift
+// methods is meaningless if each studio holds its own description of
+// the well; with one record, the four engine-backed methods run against
+// exactly the same trajectory, fluid, inflow and completion.
 //
-// Live versus explicit run is decided the usual way. One analysis is
-// one nodal solve and one marched column, so it recomputes as you type.
-// The loading forecast is a solve and a column PER reservoir pressure,
-// so it is an explicit run with a stale flag.
+// Two layers, deliberately kept apart. Screening is a rules matrix and
+// is live, because it is arithmetic on a handful of numbers. The design
+// pass runs four real design chains -- a wave equation among them -- so
+// it is an explicit run with a stale flag.
 import React, {
   createContext, useContext, useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
@@ -19,20 +18,18 @@ import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import * as spine from '@/lib/productionSpine';
 import { num } from '@/utils/nodal/numerics';
-import {
-  defaultWellInputs, buildWellModel, mergeWellInputs,
-} from '@/utils/production/wellModel';
+import { defaultWellInputs, buildWellModel, mergeWellInputs } from '@/utils/production/wellModel';
 import { useWellModelSync } from '@/hooks/useWellModelSync';
 import { useWellDeepLink } from '@/hooks/useWellDeepLink';
 import {
-  runGasWellAnalysis, loadingForecast, tubingOptions, plungerScreen,
-  largestSlug, TURNER_FLUIDS, turnerFluid, recommendCorrelation,
-} from '@/utils/production/gasWell';
+  screenLift, screeningInputsFromModel, LIFT_METHODS,
+} from '@/utils/production/liftScreening';
+import { runDesignPass, reconcile } from '@/utils/production/liftAdvisor';
 
-const TABLE = 'saved_gaswell_projects';
+const TABLE = 'saved_liftadvisor_projects';
 
 export const service = createSavedProjectsService(TABLE, {
-  signInMessage: 'Sign in to save gas well analyses.',
+  signInMessage: 'Sign in to save lift studies.',
 });
 
 export const friendlyError = (error) => {
@@ -40,54 +37,46 @@ export const friendlyError = (error) => {
   const missingTable = error?.code === '42P01'
     || new RegExp(`relation[^\\n]*${TABLE}[^\\n]*does not exist`, 'i').test(msg);
   if (missingTable) {
-    return "Saving isn't set up yet. Run the p7_saved_gaswell_projects migration.";
+    return "Saving isn't set up yet. Run the p9_saved_liftadvisor_projects migration.";
   }
   return msg || 'Unexpected error.';
 };
 
 export const defaultInputs = () => {
-  // The well description comes from the SHARED shape (P6.5). This is a
-  // gas well, so the phase says so and the gas inflow is the one that
-  // gets built; the oil inflow section stays as it is, because a well
-  // re-described later should not have lost it.
   const w = defaultWellInputs();
   return {
-    well: { ...w.well, phase: 'gas', depthFt: '8000', whtF: '90', bhtF: '210' },
-    fluid: { ...w.fluid, gasSg: '0.65', gor: '100000' },
-    inflow: { ...w.inflow, pr: '2200', pb: '0' },
-    gasInflow: { ...w.gasInflow, model: 'backPressure', c: '0.0025', n: '0.87' },
-    completion: { ...w.completion, idIn: '2.441' },
-    conditions: {
-      whp: '400',
-      gasSg: '0.65',
-      fluidPreset: 'water',
-      sigmaDyneCm: '60',
-      rhoLiquidLbFt3: '67',
-      correlation: 'auto',
+    well: { ...w.well },
+    fluid: { ...w.fluid, gor: '400' },
+    inflow: { ...w.inflow, pr: '2400', pb: '1800', pi: '0.8' },
+    gasInflow: { ...w.gasInflow },
+    completion: { ...w.completion, idIn: '2.992' },
+    duty: {
+      targetRateStbd: '400',
+      wctPct: '60',
+      whp: '150',
     },
-    forecast: { prFrom: '2200', prTo: '800', nPoints: '8' },
-    plunger: {
-      casingPressurePsia: '900',
-      linePressurePsia: '400',
+    // Facility facts. They are not properties of the well, so they are
+    // never written to the shared record.
+    facility: {
+      powerAvailable: true,
+      gasAvailable: true,
+      isOffshore: false,
+      hasSand: false,
+      isHorizontal: false,
+      injectionPsig: '900',
+      injectionMscfd: '500',
+      injGasSg: '0.65',
+      separatorEfficiencyPct: '70',
+      casingPressurePsia: '600',
       slugLengthFt: '150',
-      liquidSg: '1.02',
       plungerWeightLb: '6',
-      wellGlrScfBbl: '20000',
-      frictionPsi: '0',
-      riseFtMin: '750',
-      fallInGasFtMin: '1000',
-      fallInLiquidFtMin: '172',
-      afterflowMin: '20',
-      shutInMin: '30',
-      scfPerBblPer1000ft: '400',
     },
     link: { fieldId: null, wellId: null, wellName: '' },
   };
 };
 
 const SECTIONS = [
-  'well', 'fluid', 'inflow', 'gasInflow', 'completion',
-  'conditions', 'forecast', 'plunger', 'link',
+  'well', 'fluid', 'inflow', 'gasInflow', 'completion', 'duty', 'facility', 'link',
 ];
 
 export const inputsFromPayload = (payload) => {
@@ -101,18 +90,34 @@ export const inputsFromPayload = (payload) => {
   return out;
 };
 
-const GasWellContext = createContext();
+const LiftAdvisorContext = createContext();
 
-export const useGasWell = () => {
-  const context = useContext(GasWellContext);
-  if (!context) throw new Error('useGasWell must be used within a GasWellPerformanceProvider');
+export const useLiftAdvisor = () => {
+  const context = useContext(LiftAdvisorContext);
+  if (!context) throw new Error('useLiftAdvisor must be used within a LiftAdvisorProvider');
   return context;
 };
 
-/** The flat form the analytics take. */
-export const analysisFormFrom = (inputs) => ({ ...inputs.conditions });
+/** Screening inputs: the well fills what it knows, the facility the rest. */
+export const screeningInputsFrom = (inputs, model) => ({
+  ...screeningInputsFromModel(model, {
+    targetRate: num(inputs.duty.targetRateStbd, 0),
+    wctPct: num(inputs.duty.wctPct, 0),
+  }),
+  gor: num(inputs.fluid.gor, 0),
+  api: num(inputs.fluid.api, 32),
+  isOffshore: !!inputs.facility.isOffshore,
+  hasSand: !!inputs.facility.hasSand,
+  isHorizontal: !!inputs.facility.isHorizontal,
+  powerAvailable: inputs.facility.powerAvailable !== false,
+  gasAvailable: inputs.facility.gasAvailable !== false,
+  // A well drawn down below a quarter of its own reservoir pressure to
+  // make the target is one the screening should call depleted.
+  reservoirPressureLow: !!model && num(inputs.duty.targetRateStbd, 0)
+    > 0.75 * (model.ipr?.qmax ?? 0),
+});
 
-export const GasWellPerformanceProvider = ({ children }) => {
+export const LiftAdvisorProvider = ({ children }) => {
   const { notifications, addNotification, removeNotification } = useStudioNotifications();
 
   const [inputs, setInputs] = useState(defaultInputs);
@@ -129,7 +134,7 @@ export const GasWellPerformanceProvider = ({ children }) => {
   const [wellTests, setWellTests] = useState([]);
   const [busyMessage, setBusyMessage] = useState(null);
 
-  const [forecast, setForecast] = useState(null);
+  const [designPass, setDesignPass] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
 
   const setSection = useCallback((section, key, value) => {
@@ -139,17 +144,7 @@ export const GasWellPerformanceProvider = ({ children }) => {
     setInputs((prev) => ({ ...prev, [section]: { ...prev[section], ...patch } }));
   }, []);
 
-  /** Picking a fluid fills its tension and density; both stay editable. */
-  const applyFluidPreset = useCallback((id) => {
-    const f = turnerFluid(id);
-    patchSection('conditions', {
-      fluidPreset: id,
-      sigmaDyneCm: String(f.sigmaDyneCm),
-      rhoLiquidLbFt3: String(f.densityLbFt3),
-    });
-  }, [patchSection]);
-
-  // --- Live derivations ---
+  // --- Live: the well and the screening matrix ---
   const model = useMemo(() => {
     try {
       return buildWellModel(inputs);
@@ -159,85 +154,55 @@ export const GasWellPerformanceProvider = ({ children }) => {
     }
   }, [inputs]);
 
-  const form = useMemo(() => analysisFormFrom(inputs), [inputs]);
-
-  const analysis = useMemo(() => {
-    try {
-      return runGasWellAnalysis({ form, model });
-    } catch (e) {
-      console.error(e);
-      return { ok: false, errors: [e.message], result: null };
-    }
-  }, [form, model]);
-
-  const result = analysis.result;
-
-  const tubing = useMemo(() => {
-    if (!result) return null;
-    try {
-      return tubingOptions({
-        result,
-        sigmaDyneCm: num(inputs.conditions.sigmaDyneCm, 60),
-        rhoLiquidLbFt3: num(inputs.conditions.rhoLiquidLbFt3, 67),
-        correlation: result.correlation,
-        gasSg: result.gasSg,
-      });
-    } catch (e) {
-      console.error(e);
-      return null;
-    }
-  }, [result, inputs.conditions.sigmaDyneCm, inputs.conditions.rhoLiquidLbFt3]);
-
-  const plunger = useMemo(() => {
-    if (!result) return null;
-    try {
-      const screen = plungerScreen({ model, result, form: inputs.plunger });
-      const maxSlugFt = largestSlug({ model, result, form: inputs.plunger });
-      return { ...screen, maxSlugFt };
-    } catch (e) {
-      console.error(e);
-      return null;
-    }
-  }, [model, result, inputs.plunger]);
-
-  const guidance = useMemo(
-    () => recommendCorrelation(num(inputs.conditions.whp, 0)),
-    [inputs.conditions.whp],
+  const screeningInputs = useMemo(
+    () => screeningInputsFrom(inputs, model),
+    [inputs, model],
   );
 
-  // --- The explicit run ---
-  const runSignature = useMemo(() => JSON.stringify(inputs), [inputs]);
-  const forecastStale = !!forecast && forecast.signature !== runSignature;
+  const screening = useMemo(() => screenLift(screeningInputs), [screeningInputs]);
 
-  const runForecast = useCallback(async () => {
-    if (!result) {
-      addNotification('Fix the analysis inputs first: the forecast declines this same well.', 'error');
+  // --- The explicit run: four real design chains ---
+  const runSignature = useMemo(() => JSON.stringify(inputs), [inputs]);
+  const designStale = !!designPass && designPass.signature !== runSignature;
+
+  const runDesigns = useCallback(async () => {
+    if (!model) {
+      addNotification('Enter a well model first.', 'error');
       return;
     }
     setIsRunning(true);
-    setBusyMessage('Solving the well at each reservoir pressure...');
+    setBusyMessage('Designing each lift method on this well...');
     // Yield a frame so the busy state paints before the solves block.
     await new Promise((resolve) => setTimeout(resolve, 0));
     try {
-      const out = loadingForecast({
+      const pass = runDesignPass({
         model,
-        inputs,
-        whp: result.whp,
-        gasSg: result.gasSg,
-        sigmaDyneCm: num(inputs.conditions.sigmaDyneCm, 60),
-        rhoLiquidLbFt3: num(inputs.conditions.rhoLiquidLbFt3, 67),
-        correlation: result.correlation,
-        prFrom: num(inputs.forecast.prFrom, 2200),
-        prTo: num(inputs.forecast.prTo, 800),
-        nPoints: num(inputs.forecast.nPoints, 8),
+        targetRate: num(inputs.duty.targetRateStbd, 0),
+        wctPct: num(inputs.duty.wctPct, 0),
+        gorScfStb: num(inputs.fluid.gor, 0),
+        whp: num(inputs.duty.whp, 0),
+        facility: {
+          injectionPsig: num(inputs.facility.injectionPsig, 900),
+          injectionMscfd: num(inputs.facility.injectionMscfd, 500),
+          injGasSg: num(inputs.facility.injGasSg, 0.65),
+          separatorEfficiencyPct: num(inputs.facility.separatorEfficiencyPct, 70),
+          casingPressurePsia: num(inputs.facility.casingPressurePsia, NaN),
+          slugLengthFt: num(inputs.facility.slugLengthFt, 150),
+          plungerWeightLb: num(inputs.facility.plungerWeightLb, 6),
+        },
       });
-      setForecast({ ...out, signature: runSignature });
-      addNotification(
-        out.crossingPrPsia
-          ? `This well starts loading at about ${Math.round(out.crossingPrPsia).toLocaleString()} psia reservoir pressure.`
-          : 'The well does not cross its critical rate anywhere in this pressure range.',
-        'info',
-      );
+      setDesignPass({ ...pass, signature: runSignature });
+      if (!pass.ok) {
+        addNotification(pass.errors[0], 'error');
+      } else {
+        const worked = pass.results.filter((r) => r.ok).length;
+        addNotification(
+          worked
+            ? `${worked} of ${pass.results.length} methods design on this well.`
+            : 'None of the four methods designs on this well at that target. The refusals say why.',
+          worked ? 'success' : 'info',
+        );
+      }
     } catch (e) {
       console.error(e);
       addNotification(e.message, 'error');
@@ -245,7 +210,23 @@ export const GasWellPerformanceProvider = ({ children }) => {
       setIsRunning(false);
       setBusyMessage(null);
     }
-  }, [result, model, inputs, runSignature, addNotification]);
+  }, [model, inputs, runSignature, addNotification]);
+
+  const comparison = useMemo(
+    () => reconcile({ screening, designPass: designPass?.ok ? designPass : null }),
+    [screening, designPass],
+  );
+
+  /** Where to send the user to design the winner properly. */
+  const studioLink = useCallback((methodId) => {
+    const method = LIFT_METHODS.find((m) => m.id === methodId);
+    if (!method?.studio) return null;
+    const params = new URLSearchParams();
+    if (inputs.link.fieldId) params.set('field', inputs.link.fieldId);
+    if (inputs.link.wellId) params.set('well', inputs.link.wellId);
+    const qs = params.toString();
+    return `/dashboard/apps/production/${method.studio}${qs ? `?${qs}` : ''}`;
+  }, [inputs.link]);
 
   // --- Optional spine link ---
   const reloadFields = useCallback(async () => {
@@ -293,31 +274,32 @@ export const GasWellPerformanceProvider = ({ children }) => {
       addNotification('That well has no valid test on the spine to apply.', 'info');
       return;
     }
+    const oil = num(t.oil_rate_stbd, 0);
+    const water = num(t.water_rate_stbd, 0);
+    const gas = num(t.gas_rate_mscfd, 0);
+    const liquid = oil + water;
     const applied = [];
     setInputs((prev) => {
       const next = { ...prev };
-      const conditions = { ...prev.conditions };
-      if (num(t.thp_psia, 0) > 0) {
-        conditions.whp = String(t.thp_psia);
-        applied.push('wellhead pressure');
+      const duty = { ...prev.duty };
+      if (oil > 0) { duty.targetRateStbd = String(oil); applied.push('target rate'); }
+      if (liquid > 0) { duty.wctPct = ((water / liquid) * 100).toFixed(1); applied.push('water cut'); }
+      if (num(t.thp_psia, 0) > 0) { duty.whp = String(t.thp_psia); applied.push('wellhead pressure'); }
+      next.duty = duty;
+      if (oil > 0 && gas > 0) {
+        next.fluid = { ...prev.fluid, gor: ((gas * 1000) / oil).toFixed(0) };
+        applied.push('gas-oil ratio');
       }
-      next.conditions = conditions;
-      // A gas well's test rate is the gas rate; it is a measurement to
-      // check the deliverability against, not an input to it, so it is
-      // reported rather than written into the inflow.
       return next;
     });
     addNotification(
       applied.length
-        ? `Applied the ${t.test_date} well test: ${applied.join(', ')}. Its ${Math.round(num(t.gas_rate_mscfd, 0)).toLocaleString()} Mscf/d is a measurement to compare the deliverability against.`
-        : `The ${t.test_date} well test has nothing this analysis takes as an input.`,
+        ? `Applied the ${t.test_date} well test: ${applied.join(', ')}. The target is what the well made then; change it to what you want it to make.`
+        : `The ${t.test_date} well test has no rates to apply.`,
       applied.length ? 'success' : 'info',
     );
   }, [latestTestForLinkedWell, addNotification]);
 
-  // The well's own description on the spine, shared with every other
-  // production studio (P6.5).
-  // The Advisor (P9) hands a well over in the URL; pick it up once.
   useWellDeepLink({ link: inputs.link, patchSection, spineWells });
 
   const {
@@ -328,7 +310,7 @@ export const GasWellPerformanceProvider = ({ children }) => {
     wellId: inputs.link.wellId,
     wellName: inputs.link.wellName,
     addNotification,
-    onLoaded: () => setForecast(null),
+    onLoaded: () => setDesignPass(null),
   });
 
   // --- Project lifecycle (the studio-kit recipe) ---
@@ -361,7 +343,7 @@ export const GasWellPerformanceProvider = ({ children }) => {
       setLastSaveTime(new Date());
       setSaveError(null);
       setProjects(await service.list());
-      addNotification(`Project "${name}" created`, 'success');
+      addNotification(`Study "${name}" created`, 'success');
     } catch (e) {
       console.error(e);
       addNotification(friendlyError(e), 'error');
@@ -373,13 +355,13 @@ export const GasWellPerformanceProvider = ({ children }) => {
       const payload = await service.load(id);
       const restored = inputsFromPayload(payload);
       if (!restored) {
-        addNotification('Project not found', 'error');
+        addNotification('Study not found', 'error');
         return;
       }
       setCurrentProjectId(id);
-      setProjectName(payload.name || projects.find((p) => p.id === id)?.name || 'Untitled analysis');
+      setProjectName(payload.name || projects.find((p) => p.id === id)?.name || 'Untitled study');
       setInputs(restored);
-      setForecast(null);
+      setDesignPass(null);
       setHydrated(true);
       setSaveError(null);
     } catch (e) {
@@ -398,7 +380,7 @@ export const GasWellPerformanceProvider = ({ children }) => {
         setLastSaveTime(null);
       }
       setProjects(await service.list());
-      addNotification('Analysis deleted', 'info');
+      addNotification('Study deleted', 'info');
     } catch (e) {
       console.error(e);
       addNotification(friendlyError(e), 'error');
@@ -407,7 +389,7 @@ export const GasWellPerformanceProvider = ({ children }) => {
 
   const manualSave = useCallback(async () => {
     if (!currentProjectId) {
-      addNotification('Create or open an analysis first', 'info');
+      addNotification('Create or open a study first', 'info');
       return;
     }
     setIsSaving(true);
@@ -447,19 +429,17 @@ export const GasWellPerformanceProvider = ({ children }) => {
     inputs,
     setSection,
     patchSection,
-    applyFluidPreset,
-    turnerFluids: TURNER_FLUIDS,
+    methods: LIFT_METHODS,
     // derived
     model,
-    analysis,
-    result,
-    tubing,
-    plunger,
-    guidance,
+    screeningInputs,
+    screening,
+    comparison,
+    studioLink,
     // explicit run
-    forecast,
-    forecastStale,
-    runForecast,
+    designPass,
+    designStale,
+    runDesigns,
     isRunning,
     busyMessage,
     // spine link
@@ -490,5 +470,5 @@ export const GasWellPerformanceProvider = ({ children }) => {
     removeNotification,
   };
 
-  return <GasWellContext.Provider value={value}>{children}</GasWellContext.Provider>;
+  return <LiftAdvisorContext.Provider value={value}>{children}</LiftAdvisorContext.Provider>;
 };
