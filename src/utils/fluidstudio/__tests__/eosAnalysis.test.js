@@ -12,7 +12,7 @@ import {
 import { flashPT } from '../eos/flash';
 import { separatorTrain } from '../eos/separator';
 import { degFtoR } from '../eos/units';
-import goldens from '../eos/__tests__/goldens.json';
+import goldens from '../../../../packages/engines/test-data/fluid/goldens.json';
 
 const charOilComposition = () => ({
   ...emptyComposition(),

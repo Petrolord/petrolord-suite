@@ -18,7 +18,7 @@ import {
   phaseBoundaries, saturationPressure, tracePhaseEnvelope, classifyBoundary, classifyByLiquidLikeness,
 } from '../envelope';
 import { mixtureWithPlusFraction } from '../characterization';
-import goldens from './goldens.json';
+import goldens from '../../../../../packages/engines/test-data/fluid/goldens.json';
 
 const envMix = (env) => (env.plus ? mixtureWithPlusFraction(env.keys, env.plus) : mixtureFromKeys(env.keys));
 

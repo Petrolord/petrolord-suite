@@ -16,7 +16,7 @@ import { mixtureFromKeys, phaseProps, purePsat } from '../pr78.js';
 import { COMPONENTS } from '../components';
 import { degFtoR } from '../units';
 import { wilsonK, solveRachfordRice, stabilityTest, flashPT } from '../flash';
-import goldens from './goldens.json';
+import goldens from '../../../../../packages/engines/test-data/fluid/goldens.json';
 
 const relErr = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
 

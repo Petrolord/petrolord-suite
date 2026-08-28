@@ -18,8 +18,8 @@ import { mixtureWithPlusFraction } from '../characterization';
 import {
   lbcViscosity, diluteComponentViscosity, diluteMixtureViscosity, weinaugKatzIFT, LBC_COEFFS,
 } from '../transport';
-import goldens from './goldens.json';
-import charRef from './characterizationReference.json';
+import goldens from '../../../../../packages/engines/test-data/fluid/goldens.json';
+import charRef from '../../../../../packages/engines/test-data/fluid/characterizationReference.json';
 
 const relErr = (a, b) => Math.abs(a - b) / Math.max(Math.abs(b), 1e-300);
 

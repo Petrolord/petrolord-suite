@@ -11,7 +11,7 @@
 
 import { COMPONENTS, COMPONENT_ORDER, PLUS_FRACTION_KEY, getBip, buildBipMatrix } from '../components';
 import { RtoK } from '../units';
-import reference from './componentReference.json';
+import reference from '../../../../../packages/engines/test-data/fluid/componentReference.json';
 
 const PROPS = ['mw', 'tcR', 'pcPsia', 'omega', 'vcFt3PerLbmol', 'parachor', 'shift'];
 
