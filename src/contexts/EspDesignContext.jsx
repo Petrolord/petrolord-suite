@@ -27,6 +27,7 @@ import {
   defaultWellInputs, buildWellModel, mergeWellInputs,
 } from '@/utils/production/wellModel';
 import { useWellModelSync } from '@/hooks/useWellModelSync';
+import { useWellDeepLink } from '@/hooks/useWellDeepLink';
 import {
   runEspDesign, buildStageCurve, pumpVsSystem, stackHeadCurve, solveEspOperatingPoint,
   diagnose, importLegacyEspInputs, rateLadder, mdAtTvd,
@@ -362,6 +363,9 @@ export const EspDesignProvider = ({ children }) => {
   // every other production studio. Loading and saving are deliberate:
   // a design may try a different inflow without rewriting the field's
   // record for everyone.
+  // The Advisor (P9) hands a well over in the URL; pick it up once.
+  useWellDeepLink({ link: inputs.link, patchSection, spineWells });
+
   const {
     savedWellModel, wellModelDirty, loadFromSpine, saveToSpine, wellModelBusy,
   } = useWellModelSync({

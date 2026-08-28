@@ -23,6 +23,7 @@ import {
   defaultWellInputs, buildWellModel, mergeWellInputs,
 } from '@/utils/production/wellModel';
 import { useWellModelSync } from '@/hooks/useWellModelSync';
+import { useWellDeepLink } from '@/hooks/useWellDeepLink';
 import {
   runDesign, speedSweep, parseMeasuredCard, diagnoseMeasured, suggestTaper,
   parseSections, liquidGravity, importLegacyRodInputs,
@@ -329,6 +330,9 @@ export const RodPumpDesignProvider = ({ children }) => {
 
   // The well's own description lives on the spine (P6.5), shared with
   // every other production studio.
+  // The Advisor (P9) hands a well over in the URL; pick it up once.
+  useWellDeepLink({ link: inputs.link, patchSection, spineWells });
+
   const {
     savedWellModel, wellModelDirty, loadFromSpine, saveToSpine, wellModelBusy,
   } = useWellModelSync({

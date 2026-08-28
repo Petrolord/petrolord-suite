@@ -1048,6 +1048,123 @@ smoke test; full Suite jest 331/4318 and `npm run build` green.
 - `20260829350000_seed_choke_performance_studio_tile.sql` — the Active
   tile, HELD for the single P12 upload.
 
+## P9 — Artificial Lift Advisor (BUILT 2026-08-28)
+
+Ships on `feat/production-p9` (stacked on the P8 branch). Route
+`apps/production/artificial-lift-designer`, with
+`artificial-lift-advisor` as a second route to the same page. Studio
+kit shell.
+
+**THE FIRST PHASE WITH NO ENGINE PR, and correctly so.** P9 adds no new
+physics. The screening matrix is operating guidance, not maths, and has
+no oracle-checkable content; the design pass reuses the four validated
+chains P4, P5, P6 and P7 already built. Opening an engine PR to move a
+rules table into a package whose whole purpose is oracle-validated
+mathematics would have been cargo cult.
+
+**THE SLUG DOES NOT CHANGE.** Every other P-phase tile migration seeds
+a fresh slug and leaves archived rows dead. This one RENAMES, because
+`artificial-lift-designer` is a live Active tile that entitlements and
+pricing already reference; seeding a new slug and archiving the old
+would break access for anyone holding it. The route keeps the old path
+and adds the new name as a second path to the same page.
+
+**Two layers, deliberately kept apart.**
+
+*Screening* (`utils/production/liftScreening.js`) — a rules matrix over
+SIX methods, up from the three the old app covered. Every deduction is
+a rule of thumb spelled out so it can be argued with rather than hidden
+inside a score, and the reasons are the output that matters more than
+the number. The score ranks; it does not measure. Anything within
+fifteen points of the leader that also clears fifty is marked worth
+designing, because a screening score cannot separate close candidates
+and pretending otherwise is the whole problem with scoring.
+
+*Design* (`utils/production/liftAdvisor.js`) — the four methods this
+Suite can actually design, run for real against the SAME shared well
+record. An ESP gets a reference stage picked for its in-situ duty and
+then a motor picked for the shaft load that produces. Gas lift gets the
+deepest injection point the available surface pressure can actually
+reach, then the well solved lifted at that point. A rod pump walks a
+ladder of six equipment combinations. A plunger is judged on the
+gas-liquid ratio a cycle really needs, computed rather than screened.
+
+**THIS IS THE PHASE P6.5 EXISTED FOR.** Comparing lift methods is
+meaningless if each studio holds its own description of the well. With
+one record, all four run against exactly the same trajectory, fluid,
+inflow and completion, and the comparison means something. The advisor
+was written against the shared record from the start and needed no
+adaptation to it.
+
+**When the two layers disagree, the design wins, and the disagreement
+is named.** A method the matrix likes that the engine refuses is a rule
+of thumb meeting a well it does not fit; a method the matrix was
+lukewarm about that designs cleanly is worth a second look. Both are
+called out by name rather than quietly resolved. This is the same
+discipline P7 uses when the plunger rule of thumb disagrees with the
+computed gas requirement.
+
+On the archetypes the two layers land where they should. A deep watered-
+out well: the ESP designs (184 stages, 4,177 ft of head, no free gas),
+rod pumping falls short at 212 bbl/d against a 300 target, plunger lift
+is refused at 12 scf/bbl against the 7,442 a cycle needs. A shallow
+stripper: rod pump, gas lift and ESP all design, and the cheapest ranks
+first. A gassy deep well with compression: gas lift lifts it to 1,459
+stb/d, and the ESP is refused because at 900 stb/d the well flows on
+its own.
+
+**Two defects found and fixed while building it:**
+
+1. `solveLiftedOperatingPoint` returns `{ q, pwf, status }`, not
+   `{ op }`. The advisor checked for `op` and so refused gas lift on
+   every well, silently and plausibly. Caught by the numbers looking
+   wrong on a well gas lift obviously suits.
+2. The rod pump ladder took the first combination that DESIGNED rather
+   than the one that met the target, and so reported 65 bbl/d against a
+   300 bbl/d target as a method that works. That is the single most
+   misleading thing this advisor could do, and it is now a reported
+   shortfall with both numbers. There is a gate on it, and a
+   `RATE_TOLERANCE` a design has to clear to count.
+
+**Two methods are screened only, and say so on their own cards.**
+Progressing cavity and jet pumps have no validated engine in this
+Suite. They are listed because leaving a genuine option out of a lift
+comparison would be worse than saying plainly what is known about it: a
+PCP is the best thing in the world in heavy viscous crude and the
+screening will say so, it just will not say how many stages. Both are
+armed as literature gates (PL21, PL22) so the gap is on the record.
+
+**Cross-links (`hooks/useWellDeepLink.js`).** Each engine-backed method
+links to the studio that designs it properly, carrying the linked well
+in the URL so the studio opens already pointed at the same well. The
+hook reads the query string directly rather than through the router's
+`useSearchParams`, deliberately: the parameter is read once and never
+reacted to, so router reactivity buys nothing, and taking it would mean
+every lift studio's PROVIDER could no longer be mounted outside a
+Router — which broke four context test suites the moment it was tried.
+
+**Deleted:** `pages/apps/ArtificialLiftDesigner.jsx`,
+`components/artificiallift/` (four files) and
+`utils/liftSystemScreening.js`. The legacy `artificial_lift_designs`
+table is untouched — the P4, P5 and P6 studios still read it for their
+legacy imports.
+
+**Validation:** `tools/validation/production-validation.ts` PA25 ACTIVE
++ PL20-PL22 ARMED (a published lift-selection matrix, PCP performance
+curves, jet pump nozzle/throat charts — the last two would move those
+methods from screened to designed). 25/25 active gates.
+
+**Verification:** 44 P9 gates (22 advisor + 22 across the touched
+studios) plus the page smoke test; full Suite jest 333/4341 and
+`npm run build` green.
+
+**Migrations:**
+
+- `20260829370000_p9_saved_liftadvisor_projects.sql` — study
+  persistence, owner-scoped RLS. Safe pre-deploy. **NOT APPLIED**.
+- `20260829380000_rename_artificial_lift_advisor_tile.sql` — the
+  rename, HELD for the single P12 upload.
+
 ## Gotchas for later phases
 
 - The retired apps' tables (`wellbore_flow_projects`,

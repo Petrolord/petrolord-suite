@@ -80,7 +80,7 @@ const ForecastScenarioHub = lazy(() => import('@/pages/apps/ForecastScenarioHub'
 const DeclineCurveAnalysis = lazy(() => import('@/pages/apps/DeclineCurveAnalysis'));
 const FluidSystemsStudio = lazy(() => import('@/pages/apps/FluidSystemsStudio'));
 const ReservoirBalance = lazy(() => import('@/pages/apps/reservoir-balance/ReservoirBalance'));
-const ArtificialLiftDesigner = lazy(() => import('@/pages/apps/ArtificialLiftDesigner'));
+const ArtificialLiftAdvisor = lazy(() => import('@/pages/apps/ArtificialLiftAdvisor'));
 const PorePressureStudio = lazy(() => import('@/pages/apps/PorePressureStudio/PorePressureStudio'));
 const BasinFlowGenesis = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowGenesis'));
 const Seismolord = lazy(() => import('@/pages/apps/Seismolord/Seismolord'));
@@ -591,7 +591,9 @@ function App() {
                                 <Route path="apps/production/nodal-performance-optimizer" element={<ProtectedAppRoute appId="nodal-analysis-engine" appName="Nodal Analysis Studio"><NodalAnalysisStudio /></ProtectedAppRoute>} />
                                 {/* P0: Wellbore Flow Simulator retired (Production-ROADMAP.md §6.3) — its "transient simulation" was a Math.random pressure walk; real traverses live in Nodal */}
                                 <Route path="apps/production/wellbore-flow-simulator" element={<Navigate to="/dashboard/apps/production/nodal-analysis-studio" replace />} />
-                                <Route path="apps/production/artificial-lift-designer" element={<ProtectedAppRoute appId="artificial-lift-designer" appName="Artificial Lift Designer"><ArtificialLiftDesigner /></ProtectedAppRoute>} />
+                                <Route path="apps/production/artificial-lift-designer" element={<ProtectedAppRoute appId="artificial-lift-designer" appName="Artificial Lift Advisor"><ArtificialLiftAdvisor /></ProtectedAppRoute>} />
+                                {/* P9 renamed the app; the slug stays so entitlements and pricing keep working, and the new name routes to the same page. */}
+                                <Route path="apps/production/artificial-lift-advisor" element={<ProtectedAppRoute appId="artificial-lift-designer" appName="Artificial Lift Advisor"><ArtificialLiftAdvisor /></ProtectedAppRoute>} />
                                 <Route path="apps/production/flow-assurance-monitor" element={<Navigate to="/dashboard/production" replace />} />
                                 <Route path="apps/production/integrated-asset-modeler" element={<Navigate to="/dashboard/apps/production/nodal-analysis-studio" replace />} />
                                 {/* D7: Well Schematic Designer absorbed by Completion Design Studio (Drilling-ROADMAP.md §2) */}
