@@ -35,6 +35,7 @@
 // Relative imports (not the @/ alias) so this module also loads outside
 // Vite: tools/validation/production-validation.ts exercises it directly.
 import { computeIpr } from '../nodal/ipr.js';
+import { darcyGasIpr, backPressureIpr, litIpr } from '../nodal/iprGas.js';
 import { buildFluidModel } from '../nodal/pvt.js';
 import { buildTrajectory } from '../nodal/trajectory.js';
 import { linearGeothermal } from '../nodal/temperature.js';
@@ -42,8 +43,24 @@ import { num } from '../nodal/numerics.js';
 
 export const WELL_MODEL_SCHEMA = 1;
 
-/** The sections a well model is made of. */
-export const WELL_MODEL_SECTIONS = ['well', 'fluid', 'inflow', 'completion'];
+/**
+ * The sections a well model is made of.
+ *
+ * `gasInflow` arrived with P7. A well is an oil well or a gas well, and
+ * the two are described by different inflow relationships: an oil well
+ * by a productivity index or Vogel, a gas well by Rawlins-Schellhardt,
+ * Houpeurt or a pseudo-pressure deliverability. The record carries
+ * `well.phase` to say which, and both sections so a well can be
+ * re-described without losing what was already entered. Everything
+ * else -- trajectory, temperatures, fluid, completion -- is shared,
+ * because those do not care what phase the well makes.
+ */
+export const WELL_MODEL_SECTIONS = ['well', 'fluid', 'inflow', 'gasInflow', 'completion'];
+
+/** Reservoir pressure, gas gravity and bottomhole temperature are the
+ * well's, not the inflow model's, so the gas IPR reads them from the
+ * sections that already hold them rather than asking twice. */
+export const WELL_PHASES = ['oil', 'gas'];
 
 /**
  * Default well description. Studios override the numbers for the kind
@@ -52,6 +69,7 @@ export const WELL_MODEL_SECTIONS = ['well', 'fluid', 'inflow', 'completion'];
  */
 export const defaultWellInputs = () => ({
   well: {
+    phase: 'oil',
     mode: 'vertical',
     depthFt: '7000',
     surveyText: '0, 0, 0\n2000, 0, 0\n3000, 30, 45\n8000, 30, 45',
@@ -73,6 +91,19 @@ export const defaultWellInputs = () => ({
     qmax: '1200',
     testQ: '',
     testPwf: '',
+  },
+  gasInflow: {
+    model: 'backPressure',
+    c: '0.01',
+    n: '0.85',
+    a: '',
+    b: '',
+    k: '5',
+    h: '40',
+    re: '1500',
+    rw: '0.35',
+    skin: '0',
+    dNonDarcy: '0',
   },
   completion: {
     idIn: '2.441',
@@ -157,6 +188,22 @@ export const buildWellModel = (inputs) => {
     bhtF: num(inputs.well.bhtF, 170),
     tvdMaxFt: tvdMax,
   });
+  const phase = inputs.well.phase === 'gas' ? 'gas' : 'oil';
+  if (phase === 'gas') {
+    const gasIpr = buildGasIpr(inputs);
+    if (!gasIpr || !(gasIpr.aof > 0)) return null;
+    return {
+      phase,
+      trajectory,
+      tvdMax,
+      fluidModel,
+      tAt,
+      ipr: null,
+      gasIpr,
+      vlp: buildVlp({ completion, fluidModel, trajectory, tAt, tvdMax }),
+    };
+  }
+
   const ipr = computeIpr({
     model: inputs.inflow?.model,
     pr: num(inputs.inflow?.pr, NaN),
@@ -175,24 +222,80 @@ export const buildWellModel = (inputs) => {
   if (!(ipr.qmax > 0)) return null;
 
   return {
+    phase,
     trajectory,
     tvdMax,
     fluidModel,
     tAt,
     ipr,
-    vlp: {
-      // Self-contained: spreadable straight into a traverse call.
-      fluidModel,
-      trajectory,
-      tAt,
-      idIn: num(completion.idIn, 2.441),
-      casingIdIn: num(completion.casingIdIn, NaN),
-      roughnessIn: num(completion.roughnessIn, 0.0006),
-      correlation: completion.correlation || 'beggsBrill',
-      stepFt: num(completion.stepFt, 100),
-      nodeMd: trajectory.mdMax || tvdMax,
-    },
+    gasIpr: null,
+    vlp: buildVlp({ completion, fluidModel, trajectory, tAt, tvdMax }),
   };
+};
+
+/** The completion half of the model, shared by both phases. */
+const buildVlp = ({ completion, fluidModel, trajectory, tAt, tvdMax }) => ({
+  // Self-contained: spreadable straight into a traverse call.
+  fluidModel,
+  trajectory,
+  tAt,
+  idIn: num(completion.idIn, 2.441),
+  casingIdIn: num(completion.casingIdIn, NaN),
+  roughnessIn: num(completion.roughnessIn, 0.0006),
+  correlation: completion.correlation || 'beggsBrill',
+  stepFt: num(completion.stepFt, 100),
+  nodeMd: trajectory.mdMax || tvdMax,
+});
+
+/**
+ * The gas inflow, by whichever route the record says.
+ *
+ * Reservoir pressure, gas gravity and bottomhole temperature come from
+ * the sections that already hold them, so a well described once is
+ * described once. All three routes are the validated nodal gas IPR.
+ */
+export const buildGasIpr = (inputs) => {
+  const g = inputs.gasInflow || {};
+  const pr = num(inputs.inflow?.pr, NaN);
+  if (!(pr > 0)) return null;
+  try {
+    if (g.model === 'lit') {
+      return litIpr({ pr, a: num(g.a, NaN), b: num(g.b, NaN) });
+    }
+    if (g.model === 'darcy') {
+      return darcyGasIpr({
+        pr,
+        tempF: num(inputs.well?.bhtF, NaN),
+        gasGravity: num(inputs.fluid?.gasSg, 0.65),
+        k: num(g.k, NaN),
+        h: num(g.h, NaN),
+        re: num(g.re, NaN),
+        rw: num(g.rw, NaN),
+        skin: num(g.skin, 0),
+        dNonDarcy: num(g.dNonDarcy, 0),
+      });
+    }
+    return backPressureIpr({ pr, c: num(g.c, NaN), n: num(g.n, NaN) });
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+};
+
+/**
+ * Whether a model is the phase a studio can work with.
+ *
+ * The lift studios design against an oil inflow and the gas-well studio
+ * against a gas one. Now that a well record is shared, loading the
+ * wrong phase into a studio is an ordinary thing to do by accident, and
+ * a clear sentence beats a page of NaN.
+ */
+export const wellPhaseProblem = (model, wanted) => {
+  if (!model) return null;
+  if (model.phase === wanted) return null;
+  return wanted === 'oil'
+    ? 'This well is described as a gas well. This studio designs against an oil inflow; change the phase on the Well Model tab, or pick a different well.'
+    : 'This well is described as an oil well. This studio works on a gas inflow; change the phase on the Well Model tab, or pick a different well.';
 };
 
 /**
