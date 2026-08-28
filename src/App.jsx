@@ -123,6 +123,7 @@ const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellData
 const AnalogFinder = lazy(() => import('@/pages/apps/AnalogFinder'));
 const WellTestAnalysisStudio = lazy(() => import('@/pages/apps/WellTestAnalysisStudio'));
 const NodalAnalysisStudio = lazy(() => import('@/pages/apps/NodalAnalysisStudio'));
+const ProductionSurveillanceStudio = lazy(() => import('@/pages/apps/ProductionSurveillanceStudio'));
 const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 const CasingTubingHelpGuide = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingHelpGuide'));
@@ -564,8 +565,10 @@ function App() {
                                 {/* Production Module routes (P0 hygiene 2026-08-27, Production-ROADMAP.md §5):
                                     archived mock apps redirect to the hub until their rebuild phase ships;
                                     every surviving app is entitlement-gated. */}
-                                <Route path="apps/production/production-surveillance-dashboard" element={<Navigate to="/dashboard/production" replace />} />
-                                <Route path="apps/production/surveillance-dashboard" element={<Navigate to="/dashboard/production" replace />} />
+                                {/* P2: Production Surveillance Studio — the rebuild of the retired dashboard, on the po_* spine */}
+                                <Route path="apps/production/production-surveillance-studio" element={<ProtectedAppRoute appId="production-surveillance-studio" appName="Production Surveillance Studio"><ProductionSurveillanceStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/production/production-surveillance-dashboard" element={<Navigate to="/dashboard/apps/production/production-surveillance-studio" replace />} />
+                                <Route path="apps/production/surveillance-dashboard" element={<Navigate to="/dashboard/apps/production/production-surveillance-studio" replace />} />
                                 <Route path="apps/production/well-test-analyzer" element={<Navigate to="/dashboard/apps/reservoir/well-test-analysis-studio" replace />} />
                                 {/* Production Forecasting tile archived at P0 — the real engine is DCA Studio */}
                                 <Route path="apps/production/production-forecasting" element={<Navigate to="/dashboard/apps/reservoir/decline-curve-analysis" replace />} />
