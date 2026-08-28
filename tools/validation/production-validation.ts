@@ -103,6 +103,21 @@
 //       assumed. Plus the RP 14E erosional limit with C as an input,
 //       and a Gilbert-family fit that recovers the coefficients it was
 //       generated from and refuses data that cannot pin them down
+//   PA27 the network (P11): a linear-resistance network has a closed
+//       form -- a weighted graph Laplacian -- and Newton has to
+//       reproduce the matrix inverse to machine precision, which is the
+//       one gate here with no tolerance chosen by anybody; Newton takes
+//       at most three steps on a linear system; conservation is checked
+//       on the answer rather than trusted from the method; series
+//       resistances reduce by the reciprocal rule; component rates add
+//       and the mixed water cut is nowhere near the average of the two;
+//       a stranded node is refused and named; a well's deliverability
+//       is built marching UP from its inflow with the unstable left
+//       branch of the tubing curve thrown away rather than offered as
+//       an operating point; the pipe relation is odd in the pressure
+//       drop so a looped network is solvable; every well in a real
+//       three-well field makes less than it would alone; and the pipe
+//       schedule catches its own transcription errors
 //   PA26 flow assurance (P10): the buried-pipe shape factor proves
 //       itself at H = D/2 where it must be exactly zero, the material
 //       lookups refuse an unknown id instead of falling back to steel,
@@ -245,6 +260,16 @@ async function main() {
   const {
     runFlowAssurance, marchLeg, legU, streamMass, scoreTrace,
   } = await import('../../src/utils/production/flowAssurance.js');
+  const {
+    buildNetwork, solveNetwork, solveLinearNetwork, propagateStreams,
+    checkConservation, diagnose, linearWell,
+  } = await import('../../packages/engines/engines/production/networkSolve.js');
+  const {
+    PIPE_SCHEDULE, equivalentLengthFt, barlowPressurePsi,
+  } = await import('../../packages/engines/engines/production/pipeSchedule.js');
+  const {
+    wellDeliverability, pipeCharacteristic, pipeFlowFrom, runNetwork,
+  } = await import('../../src/utils/production/network.js');
 
   const G = goldens('gaslift_cases.json');
   const E = goldens('esp_cases.json');
@@ -1442,6 +1467,221 @@ async function main() {
     }
   });
 
+  gate('PA27', 'the network: a closed form to hit, and the wells fighting each other', () => {
+    // --- THE GATE WITH NO TOLERANCE IN IT.
+    //
+    // Give the solver LINEAR branch resistances and the whole network
+    // collapses to a weighted graph Laplacian, whose solution is a
+    // matrix inverse. Newton iteration and Gaussian elimination share
+    // no code and no reasoning, so their agreeing is a statement about
+    // the assembly, the signs and the boundary handling all at once.
+    const nodes = [
+      { id: 'w1', kind: 'well', label: 'W-1' },
+      { id: 'w2', kind: 'well', label: 'W-2' },
+      { id: 'h', kind: 'junction', label: 'Header' },
+      { id: 's', kind: 'sink', label: 'Separator', pressurePsia: 150 },
+    ];
+    const branches = [
+      { id: 'b1', from: 'w1', to: 'h' },
+      { id: 'b2', from: 'w2', to: 'h' },
+      { id: 'b3', from: 'h', to: 's' },
+    ];
+    const net = buildNetwork({ nodes, branches });
+    if (!net.ok) throw new Error(net.error);
+    const K: any = { b1: 80, b2: 120, b3: 400 };
+    const W: any = { w1: { qmax: 60000, prPsia: 900 }, w2: { qmax: 40000, prPsia: 700 } };
+    const newton = solveNetwork({
+      network: net,
+      branchFlow: (b: any, pIn: number, pOut: number) => K[b.id] * (pIn - pOut),
+      wellInflow: (nd: any, p: number) => linearWell(W[nd.id])(nd, p),
+      tolerance: 1e-12,
+    });
+    const exact = solveLinearNetwork({
+      network: net, conductance: (b: any) => K[b.id], wellSlope: (nd: any) => W[nd.id],
+    });
+    if (!newton.converged) throw new Error('the linear network did not converge');
+    for (const id of Object.keys(exact.pressures)) {
+      relClose(newton.pressures[id], exact.pressures[id], 1e-12,
+        `Newton matches the matrix inverse at ${id}`);
+    }
+    // Newton is EXACT on a linear system. Needing many steps here would
+    // mean the Jacobian is wrong, not that the problem is hard.
+    if (newton.iterations > 3) {
+      throw new Error(`Newton took ${newton.iterations} steps on a linear system`);
+    }
+
+    // --- Conservation, checked on the answer rather than trusted from
+    // the method. A solver converged on a wrong residual function
+    // converges just as smugly as one that is right.
+    const cons = checkConservation({
+      network: net, flows: newton.flows, wellRates: newton.wellRates,
+    });
+    if (!(cons.relative < 1e-12)) {
+      throw new Error(`what the wells produced did not reach the separator: ${cons.relative}`);
+    }
+
+    // --- Series and parallel reduce the way resistances must.
+    const runK = (nds: any, brs: any, ks: any) => solveNetwork({
+      network: buildNetwork({ nodes: nds, branches: brs }),
+      branchFlow: (b: any, pIn: number, pOut: number) => ks[b.id] * (pIn - pOut),
+      wellInflow: () => 10000,
+      tolerance: 1e-12,
+    });
+    const series = runK(
+      [{ id: 'w', kind: 'well' }, { id: 'm', kind: 'junction' }, { id: 's', kind: 'sink', pressurePsia: 100 }],
+      [{ id: 'a', from: 'w', to: 'm' }, { id: 'b', from: 'm', to: 's' }],
+      { a: 200, b: 300 },
+    );
+    const combined = runK(
+      [{ id: 'w', kind: 'well' }, { id: 's', kind: 'sink', pressurePsia: 100 }],
+      [{ id: 'a', from: 'w', to: 's' }],
+      { a: 1 / (1 / 200 + 1 / 300) },
+    );
+    relClose(series.pressures.w, combined.pressures.w, 1e-9,
+      'two resistances in series behave as one by the reciprocal rule');
+
+    // --- Component rates ADD; ratios do not. A header fed by a well at
+    // 10 percent water and one at 80 is not at 45.
+    const mixNet = buildNetwork({ nodes, branches });
+    const mixed = propagateStreams({
+      network: mixNet,
+      flows: { b1: 30000, b2: 10000, b3: 40000 },
+      wellStreams: {
+        w1: { qoStbd: 2700, qwStbd: 300, qgMscfd: 1600, massLbD: 30000 },
+        w2: { qoStbd: 200, qwStbd: 800, qgMscfd: 90, massLbD: 10000 },
+      },
+    });
+    if (!mixed.ok) throw new Error(mixed.error);
+    const t = mixed.branchStreams.b3;
+    relClose(t.qwStbd, 1100, 1e-12, 'water rates add');
+    const wct = (100 * t.qwStbd) / (t.qoStbd + t.qwStbd);
+    relClose(wct, 27.5, 1e-9, 'the header water cut is the rate-weighted mix');
+    if (Math.abs(wct - 45) < 17) {
+      throw new Error('the mixed water cut is suspiciously close to the average of the two');
+    }
+
+    // --- A drawing mistake is refused, and named.
+    const stranded = buildNetwork({
+      nodes: [...nodes, { id: 'orphan', kind: 'junction', label: 'Manifold B' }],
+      branches,
+    });
+    if (stranded.ok) throw new Error('a node with no route to the delivery point was accepted');
+    if (!/Manifold B/.test(stranded.error)) throw new Error('the stranded node was not named');
+
+    // --- THE PETROLEUM. A well's deliverability is built by marching UP
+    // from its own inflow, and the unstable left branch of the tubing
+    // curve is thrown away rather than offered as an operating point.
+    const wi = defaultWellInputs();
+    wi.well.depthFt = '7500'; wi.well.whtF = '140'; wi.well.bhtF = '200';
+    wi.fluid.api = '34'; wi.fluid.gasSg = '0.7'; wi.fluid.gor = '500';
+    wi.inflow.pr = '3000'; wi.inflow.pb = '2100'; wi.inflow.calMode = 'pi'; wi.inflow.pi = '1.4';
+    wi.completion.idIn = '2.992';
+    const d = wellDeliverability({
+      model: buildSharedWell(wi), duty: { wctPct: '15', gor: '500' },
+    });
+    if (!d.ok) throw new Error(d.error);
+    if (!(d.unstablePoints.length > 0)) {
+      throw new Error('this well has no unstable branch, so the truncation is not being exercised');
+    }
+    const peak = Math.max(...d.allPoints.map((p: any) => p.whpPsia));
+    relClose(d.points[0].whpPsia, peak, 1e-12,
+      'the stable branch starts at the peak of the tubing curve');
+    for (let i = 1; i < d.points.length; i += 1) {
+      if (!(d.points[i].whpPsia < d.points[i - 1].whpPsia)) {
+        throw new Error('the stable branch is not monotone, so the network would have two answers');
+      }
+    }
+
+    // --- A pipe relation is ODD in the pressure drop. A pipe does not
+    // care which way it is pointed, and one that only flowed one way
+    // would make a looped network unsolvable.
+    const model = buildSharedWell(wi);
+    const chr = pipeCharacteristic({
+      pipe: { id: 'p', lengthFt: 8000, idIn: 4 },
+      fluidModel: model.fluidModel,
+      stream: { qoStbd: 900, qwStbd: 160, qgMscfd: 450, massLbD: 4.2e5 },
+      tempF: 115, pInPsia: 400,
+    });
+    if (!chr.ok) throw new Error(chr.error);
+    const pf = pipeFlowFrom(chr);
+    relClose(pf({}, 400, 500), -pf({}, 500, 400), 1e-6, 'the pipe relation is odd in the drop');
+
+    // --- AND THE ANSWER THE STUDIO EXISTS FOR. Every well makes less in
+    // the network than it would alone, and the standalone number is
+    // solved on the SAME network with the others shut in so that the
+    // difference is the other wells and nothing else.
+    const netInputs = {
+      nodes: [
+        { id: 'w1', kind: 'well', label: 'P-1', duty: { wctPct: '15', gor: '500' } },
+        { id: 'w2', kind: 'well', label: 'P-2', duty: { wctPct: '45', gor: '620' } },
+        { id: 'w3', kind: 'well', label: 'P-3', duty: { wctPct: '5', gor: '480' } },
+        { id: 'h', kind: 'junction', label: 'Header' },
+        { id: 's', kind: 'sink', label: 'Separator', pressurePsia: '180' },
+      ],
+      branches: [
+        { id: 'f1', from: 'w1', to: 'h', lengthFt: '3200', idIn: '3', tempF: '120' },
+        { id: 'f2', from: 'w2', to: 'h', lengthFt: '5400', idIn: '3', tempF: '115' },
+        { id: 'f3', from: 'w3', to: 'h', lengthFt: '2100', idIn: '3', tempF: '125' },
+        { id: 'trunk', from: 'h', to: 's', lengthFt: '12000', idIn: '6', tempF: '105' },
+      ],
+    };
+    const mk = (pr: number, pi: number) => {
+      const x = defaultWellInputs();
+      x.well.depthFt = '7500'; x.well.whtF = '140'; x.well.bhtF = '200';
+      x.fluid.api = '34'; x.fluid.gasSg = '0.7'; x.fluid.gor = '500';
+      x.inflow.pr = String(pr); x.inflow.pb = '2100';
+      x.inflow.calMode = 'pi'; x.inflow.pi = String(pi);
+      x.completion.idIn = '2.992';
+      return buildSharedWell(x);
+    };
+    const models = { w1: mk(3000, 1.4), w2: mk(2700, 0.9), w3: mk(3200, 1.8) };
+    const run = runNetwork({ inputs: netInputs, wellModels: models });
+    if (!run.ok) throw new Error(run.errors.join('; '));
+    if (!run.solution.converged) throw new Error('the field network did not converge');
+    if (!(run.conservation.relative < 1e-6)) throw new Error('the field network lost mass');
+    for (const w of run.wells) {
+      if (!(w.massLbD < w.massAloneLbD)) {
+        throw new Error(`${w.label} did not lose anything to the other wells`);
+      }
+    }
+    // Pressures fall from the wells to the separator, in that order.
+    for (const id of ['w1', 'w2', 'w3']) {
+      if (!(run.solution.pressures[id] > run.solution.pressures.h)) {
+        throw new Error(`${id} is not above the header`);
+      }
+    }
+    if (!(run.solution.pressures.h > 180)) throw new Error('the header is not above the separator');
+    // The trunk carries exactly what the flowlines bring it.
+    const trunk = run.branches.find((b: any) => b.id === 'trunk');
+    const feeders = run.branches.filter((b: any) => b.id !== 'trunk');
+    relClose(trunk.massLbD, feeders.reduce((a: number, b: any) => a + b.massLbD, 0), 1e-6,
+      'the trunk carries the sum of the flowlines');
+
+    // --- The pipe table catches its own transcription errors, because
+    // it carries all three of od, wall and bore.
+    for (const row of PIPE_SCHEDULE) {
+      relClose(row.od - 2 * row.wall, row.id, 1e-3,
+        `schedule ${row.nps} inch ${row.schedule} is self-consistent`);
+    }
+    // Equivalent length needs a friction factor, and a smoother line is
+    // worth MORE feet for the same fittings.
+    const rough = equivalentLengthFt({
+      fittings: [{ id: 'elbow90LR', count: 4 }], idIn: 6.065, frictionFactor: 0.018,
+    });
+    const smooth = equivalentLengthFt({
+      fittings: [{ id: 'elbow90LR', count: 4 }], idIn: 6.065, frictionFactor: 0.012,
+    });
+    if (!(smooth.lengthFt > rough.lengthFt)) {
+      throw new Error('the equivalent length did not respond to the friction factor');
+    }
+    // Barlow with no design factor is the bare hoop stress, not somebody
+    // else's jurisdiction.
+    relClose(
+      barlowPressurePsi({ odIn: 6.625, wallIn: 0.28, yieldPsi: 52000 }),
+      (2 * 52000 * 0.28) / 6.625, 1e-12, 'Barlow with no design factor is bare hoop stress',
+    );
+  });
+
   const armed: [string, string][] = [
     ['PL1', 'Takacs, Gas Lift Manual worked installation design (valve depths, domes, test-rack settings)'],
     ['PL2', 'API Gas Lift Manual Book 6 nitrogen Ct table / NIST nitrogen isotherm z values'],
@@ -1470,6 +1710,10 @@ async function main() {
     ['PL25', 'a measured hydrate dissociation curve for a gas with CO2 or H2S, against the Motiee sweet-gas screening'],
     ['PL26', 'Nielsen & Bucklin 1983 original methanol depression data, and glycol depression data for the range where their relation is used'],
     ['PL27', 'a measured wax appearance temperature with the fluid it came from — would let WAT be screened rather than only entered'],
+    ['PL28', 'the full ANSI B36.10 pipe schedule (the working subset carried here is what can be stated with confidence)'],
+    ['PL29', 'a field with metered per-well rates and a measured header pressure, against the solved network — the only real check on a gathering-system solve'],
+    ['PL30', 'Crane TP-410 resistance coefficients in full, against the round-number K values carried here'],
+    ['PL31', 'a published multi-well network benchmark (a PIPESIM or GAP worked case) against this solver end to end'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);
