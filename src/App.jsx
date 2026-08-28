@@ -130,6 +130,7 @@ const EspDesignStudio = lazy(() => import('@/pages/apps/EspDesignStudio'));
 const RodPumpDesignStudio = lazy(() => import('@/pages/apps/RodPumpDesignStudio'));
 const GasWellPerformanceStudio = lazy(() => import('@/pages/apps/GasWellPerformanceStudio'));
 const ChokePerformanceStudio = lazy(() => import('@/pages/apps/ChokePerformanceStudio'));
+const FlowAssuranceStudio = lazy(() => import('@/pages/apps/FlowAssuranceStudio'));
 const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 const CasingTubingHelpGuide = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingHelpGuide'));
@@ -594,6 +595,10 @@ function App() {
                                 <Route path="apps/production/artificial-lift-designer" element={<ProtectedAppRoute appId="artificial-lift-designer" appName="Artificial Lift Advisor"><ArtificialLiftAdvisor /></ProtectedAppRoute>} />
                                 {/* P9 renamed the app; the slug stays so entitlements and pricing keep working, and the new name routes to the same page. */}
                                 <Route path="apps/production/artificial-lift-advisor" element={<ProtectedAppRoute appId="artificial-lift-designer" appName="Artificial Lift Advisor"><ArtificialLiftAdvisor /></ProtectedAppRoute>} />
+                                <Route path="apps/production/flow-assurance-studio" element={<ProtectedAppRoute appId="flow-assurance-studio" appName="Flow Assurance Studio"><FlowAssuranceStudio /></ProtectedAppRoute>} />
+                                {/* The archived P0 app. Its slug stays a redirect: the
+                                    replacement is a different app with a different id, not
+                                    a revival of this one. */}
                                 <Route path="apps/production/flow-assurance-monitor" element={<Navigate to="/dashboard/production" replace />} />
                                 <Route path="apps/production/integrated-asset-modeler" element={<Navigate to="/dashboard/apps/production/nodal-analysis-studio" replace />} />
                                 {/* D7: Well Schematic Designer absorbed by Completion Design Studio (Drilling-ROADMAP.md §2) */}

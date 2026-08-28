@@ -1158,6 +1158,120 @@ methods from screened to designed). 25/25 active gates.
 studios) plus the page smoke test; full Suite jest 333/4341 and
 `npm run build` green.
 
+## P10 — Flow Assurance Studio (BUILT 2026-08-28)
+
+`feat/production-p10`, stacked on P9. Engines PR #68 (the domain's sixth
+family) and PR #70 (a defect the Suite layer found on first use).
+
+**What it is:** one continuous pressure and temperature trace from the
+perforations to the arrival point, with the hydrate and wax questions
+asked at every station along it. That is the whole idea. Hydrates do
+not form where an average says they might; they form at one particular
+place, usually just downstream of a choke or at the top of a riser, and
+naming that place is what a flow assurance study is for.
+
+**The four legs, and which of them is actually solved.** This
+distinction is stated in the UI rather than implied, because it is the
+difference between a tool and a claim:
+
+- **Wellbore** — the validated nodal traverse. Its TEMPERATURE is the
+  well record's linear flowing profile: an input, and deliberately the
+  same input every other production studio uses. A studio whose
+  traverse disagreed with the nodal studios about temperature would be
+  worse than useless.
+- **Choke** — one pressure step with Joule-Thomson cooling. The JT
+  coefficient is an INPUT with no default worth trusting: it is a flash
+  property, roughly 0.02 to 0.08 F/psi for gas and near zero for a
+  liquid, and on a 1,000 psi drop the difference between those two ends
+  is sixty degrees. Guessing it would be inventing the single number
+  that decides whether the wellhead sits inside the hydrate region.
+- **Flowline** and **Riser** — genuinely solved, from an energy balance
+  on the pipe with an overall U built out of the real coating stack.
+
+**Coupled, not overlaid.** At each flowline station the temperature
+comes from the thermal solution and the pressure gradient is then
+evaluated at that local pressure AND that local temperature, with the
+same Beggs-Brill implementation the wellbore uses. A study that solved
+the hydraulics at one temperature and painted a thermal profile on top
+would get a different pressure drop, and PA26 gates that the two are
+coupled by showing the drop moves when only the insulation changes.
+
+**The engine (PR #68) contains no correlation at all.** Everything in
+`flowlineThermal.js` is derived: the steady state is what
+`m_dot*Cp*dT/dx = -U*pi*D*(T - T_amb)` integrates to, the overall U is
+series resistances, the buried term is the classical conduction shape
+factor `acosh(2H/D)/(2*pi*k)` from the method of images, and the
+cooldown is lumped capacitance. The shape factor PROVES ITSELF: a pipe
+lying on the bottom is its `H = D/2` limit, where `acosh(1) = 0` and
+the ground adds exactly nothing. No tolerance is needed on that gate.
+
+**Hydrate inhibition reports BOTH relations and names the gap.**
+Hammerschmidt and Nielsen-Bucklin agree when dilute (0.2 F apart at 10
+wt% methanol) and separate badly when not (15.1 F at 50%), which is
+exactly the information an engineer needs at 35 wt%. Nielsen-Bucklin is
+used past the Hammerschmidt band only where it applies — it was
+developed for methanol — and a glycol pushed past that band is told it
+is being pushed rather than handed a second relation that does not fit
+it either. The oracle checks both in CELSIUS with the METRIC constants,
+which is the sharpest available check on two remembered field numbers:
+1297 x 1.8 = 2334.6 against the 2335 carried, and 72 x 1.8 = 129.6
+exactly.
+
+**The engine defect the Suite layer found (PR #70).**
+`conductivity(id)` and `filmCoefficient(id)` returned the whole catalog
+RECORD where their names promise a number, and fell back to the FIRST
+entry for an unknown id. The first entry is carbon steel, k = 26. A
+typo in an insulation id therefore turned aerogel (k = 0.012) into
+steel silently and made a line look two thousand times better
+insulated than it is — with no error anywhere: the U came back a
+plausible number, the profile arrived hot, and the study said no
+inhibitor was needed. The original engine gate had ASSERTED that
+fallback as if it were a feature. Both now return NaN, which propagates
+into `overallU`'s refusal, and the Suite layer refuses a coating whose
+material does not resolve rather than dropping it from the stack.
+
+**What it refuses to do.** There is no wax correlation: a WAT is a
+measurement, and inventing one from an API gravity would be exactly the
+fiction the archived app was retired for, so WAT is an input and a
+blank one leaves the wax question unanswered. No asphaltene onset, for
+the same reason. Subcooling that no practical concentration can kill is
+refused rather than answered with 96 wt% — the Hammerschmidt inverse is
+asymptotic to 100% so it would happily give that, which is
+arithmetically fine and physically absurd; a practical ceiling
+(`MAX_PRACTICAL_WT_PCT = 70`) refuses it and names the real problem.
+
+**Ranked by subcooling, not temperature.** The worst station is the one
+furthest INSIDE the hydrate region, not the coldest. A cold
+low-pressure arrival can be perfectly safe while a warmer
+high-pressure spool upstream is deep inside it, because the boundary
+moves with pressure, and ranking by temperature picks the wrong one.
+
+**Deleted:** `utils/flowAssuranceCalculations.js` and the whole old
+`components/flowassurance/` tree (6 files), plus
+`pages/apps/FlowAssuranceMonitor.jsx`. The old math was invented
+outright: a fixed 0.02 psi/ft gradient regardless of fluid, rate or
+diameter, and a hydrate temperature of `18*ln(P) - 100 + GOR/1000`,
+which is not a correlation from anywhere. Nothing from it survives. The
+new app takes a FRESH SLUG (`flow-assurance-studio`); per the program's
+no-revival doctrine `flow-assurance-monitor` stays archived and its
+route stays a redirect.
+
+**Migrations (both pending owner apply):**
+`20260829390000_p10_saved_flowassurance_projects.sql` (safe
+pre-deploy) and `20260829400000_seed_flow_assurance_studio_tile.sql`
+(HELD for the single P12 upload).
+
+**Validation:** `tools/validation/production-validation.ts` PA26 ACTIVE
++ PL23-PL27 ARMED (a measured subsea arrival temperature with its
+as-built coating stack, published JT coefficients for a real
+composition, a measured dissociation curve for sour gas, the original
+Nielsen-Bucklin data, a measured WAT with its fluid). 26/26 active
+gates.
+
+**Verification:** 33 engine gates + 43 Suite computation gates + 16
+context gates; full engines suite 72/1359, full Suite jest 336/4431,
+`npx vite build` green.
+
 **Migrations:**
 
 - `20260829370000_p9_saved_liftadvisor_projects.sql` — study
@@ -1179,6 +1293,6 @@ studios) plus the page smoke test; full Suite jest 333/4341 and
   the deleted anomaly detector but belong to a different (multi-well
   portfolio) tree; they were deliberately left alone.
 - Salvage for P11: `components/networkdiagram` (editor) +
-  `components/facilitynetworkhydraulics` (segment math). Salvage for
-  P10: nothing in `components/flowassurance` (fictional equations);
-  build on Fluid Studio EOS.
+  `components/facilitynetworkhydraulics` (segment math). P10 is done:
+  nothing was salvaged from `components/flowassurance` (the equations
+  were invented) and the whole tree was deleted.
