@@ -103,6 +103,24 @@
 //       assumed. Plus the RP 14E erosional limit with C as an input,
 //       and a Gilbert-family fit that recovers the coefficients it was
 //       generated from and refuses data that cannot pin them down
+//   PA28 intervention (P12): the log-log slope is exact on a power law;
+//       Chan reads channelling, coning AND ordinary displacement
+//       correctly on histories whose derivatives are analytic -- the
+//       last of those being the case that caught a real design error,
+//       since for any power law the ratio and its derivative share a
+//       slope and so cannot be separated by comparing them; the skin
+//       uplift is exactly one when nothing changes and is refused where
+//       the productivity index goes infinite; A SHUTOFF IS A CANDIDATE
+//       ON CHANNELLING, BLOCKED ON CONING AND BLOCKED WITH NO
+//       DIAGNOSIS AT ALL, with reducing drawdown taking its place on
+//       the coning well; shut-in days are dropped and the one-sided
+//       Bourdet endpoints set aside, which demonstrably improves the
+//       recovered exponent; the stimulation uplift is a nodal re-solve
+//       so the well gains less than the inflow did; a shutoff gains
+//       through the lighter column with the inflow held fixed; the
+//       economics are the canonical engine at its mid-year convention
+//       and refuse to run without a stated decline; and a treatment the
+//       diagnostic ruled out is never sized or valued
 //   PA27 the network (P11): a linear-resistance network has a closed
 //       form -- a weighted graph Laplacian -- and Newton has to
 //       reproduce the matrix inverse to machine precision, which is the
@@ -270,6 +288,14 @@ async function main() {
   const {
     wellDeliverability, pipeCharacteristic, pipeFlowFrom, runNetwork,
   } = await import('../../src/utils/production/network.js');
+  const {
+    logLogSlope, chanDiagnosis, skinPiMultiplier, minimumSkin,
+    pssDenominator, screenTreatments,
+  } = await import('../../packages/engines/engines/production/interventionDiagnostics.js');
+  const {
+    ratioHistory, differentiateRatio, diagnose: diagnoseWell, stimulationUplift,
+    shutoffUplift, valueIntervention, runIntervention,
+  } = await import('../../src/utils/production/intervention.js');
 
   const G = goldens('gaslift_cases.json');
   const E = goldens('esp_cases.json');
@@ -1682,6 +1708,235 @@ async function main() {
     );
   });
 
+  gate('PA28', 'intervention: the diagnosis gates the treatment, and the uplift is solved', () => {
+    // --- The slope estimator is exact on a power law. Everything the
+    // Chan reading says is a statement about a slope, so this is the
+    // measurement underneath all of it.
+    const pl = Array.from({ length: 11 }, (_, i) => {
+      const x = 2 ** i;
+      return { x, y: 3.7 * x ** 1.35 };
+    });
+    const fit = logLogSlope({ points: pl });
+    relClose(fit.slope, 1.35, 1e-12, 'the log-log slope is exact on a power law');
+    relClose(Math.exp(fit.intercept), 3.7, 1e-12, 'and so is its intercept');
+    relClose(fit.r2, 1, 1e-12, 'with an r-squared of one');
+
+    // --- Chan, on histories whose derivatives are ANALYTIC. WOR = a t^m
+    // has d(WOR)/d(ln t) = m a t^m, a power law with the SAME exponent,
+    // so nothing here is differenced and a wrong answer is a wrong
+    // classification rather than a noisy derivative.
+    const powerHistory = (m: number, a = 0.02) => Array.from({ length: 40 }, (_, i) => {
+      const t = 10 * (300 ** (i / 39));
+      const wor = a * t ** m;
+      return { t, ratio: wor, derivative: m * wor };
+    });
+    // A cone: WOR levels off, so its derivative FALLS.
+    const coneHistory = Array.from({ length: 40 }, (_, i) => {
+      const t = 10 * (300 ** (i / 39));
+      const tau = 200;
+      return {
+        t,
+        ratio: (4 * t) / (t + tau),
+        derivative: (4 * tau * t) / (t + tau) ** 2,
+      };
+    });
+    const channelling = chanDiagnosis({ series: powerHistory(1.8) });
+    const coning = chanDiagnosis({ series: coneHistory });
+    const displacement = chanDiagnosis({ series: powerHistory(1.0) });
+    if (channelling.mechanism.id !== 'channelling') {
+      throw new Error(`a steeply climbing derivative read as ${channelling.mechanism.id}`);
+    }
+    if (coning.mechanism.id !== 'coning') {
+      throw new Error(`a falling derivative read as ${coning.mechanism.id}`);
+    }
+    // THE ONE THE ORACLE CAUGHT. For any power law the ratio and its
+    // derivative have the SAME log-log slope, so the two pictures
+    // cannot be separated by comparing their slopes to each other. An
+    // earlier classifier called anything rising channelling and read
+    // ordinary displacement as a treatable water path.
+    if (displacement.mechanism.id !== 'displacement') {
+      throw new Error(`a proportional climb read as ${displacement.mechanism.id}, not displacement`);
+    }
+    if (channelling.mechanism.treatable !== true || coning.mechanism.treatable !== false) {
+      throw new Error('the treatability flags are the wrong way round');
+    }
+
+    // --- Skin. The ratio of two dimensionless groups, exactly one when
+    // nothing changes, and REFUSED where the group reaches zero.
+    const geom = { reFt: 2000, rwFt: 0.35 };
+    const identity = skinPiMultiplier({ ...geom, skinBefore: 5, skinAfter: 5 });
+    if (identity.multiplier !== 1) throw new Error('no change in skin was not exactly no change');
+    const lift = skinPiMultiplier({ ...geom, skinBefore: 8, skinAfter: 0 });
+    relClose(
+      lift.multiplier,
+      pssDenominator({ ...geom, skin: 8 }) / pssDenominator({ ...geom, skin: 0 }),
+      1e-12,
+      'the uplift is the ratio of the two denominators',
+    );
+    const floor = minimumSkin(geom);
+    relClose(pssDenominator({ ...geom, skin: floor }), 0, 1e-10,
+      'the floor is where the denominator reaches zero');
+    if (skinPiMultiplier({ ...geom, skinBefore: 2, skinAfter: floor - 1 }).ok) {
+      throw new Error('a skin past the point where the productivity index goes infinite was accepted');
+    }
+    // Worth far less on a well that was never damaged, which is what
+    // makes or breaks a stimulation screening.
+    const mild = skinPiMultiplier({ ...geom, skinBefore: 1, skinAfter: 0 }).multiplier;
+    const bad = skinPiMultiplier({ ...geom, skinBefore: 12, skinAfter: 0 }).multiplier;
+    if (!(mild < 1.15 && bad > 2.5)) {
+      throw new Error('removing all the damage is worth the same on a clean well as on a wrecked one');
+    }
+
+    // --- THE GATE. A shutoff is a candidate on channelling and BLOCKED
+    // on coning, and on coning the useless-everywhere-else treatment
+    // becomes the candidate.
+    const well = { skin: 1, wctPct: 62, flowing: true };
+    const onChannelling = screenTreatments({ well, diagnosis: channelling });
+    const onConing = screenTreatments({ well, diagnosis: coning });
+    const onNothing = screenTreatments({ well, diagnosis: null });
+    const pick = (rows: any[], id: string) => rows.find((r) => r.id === id);
+    if (pick(onChannelling, 'waterShutoff').verdict !== 'candidate') {
+      throw new Error('a shutoff was not a candidate on a channelling well');
+    }
+    if (!pick(onConing, 'waterShutoff').blocked) {
+      throw new Error('a shutoff was NOT blocked on a coning well, which is the whole point');
+    }
+    if (!pick(onNothing, 'waterShutoff').blocked) {
+      throw new Error('a shutoff was allowed with no diagnosis at all');
+    }
+    if (pick(onConing, 'rateReduction').verdict !== 'candidate') {
+      throw new Error('reducing drawdown was not the candidate on a coning well');
+    }
+    if (pick(onChannelling, 'rateReduction').verdict !== 'no') {
+      throw new Error('reducing drawdown was offered on a channelling well');
+    }
+
+    // --- The Suite half, end to end from spine-shaped rows.
+    const rows: any[] = [];
+    const start = new Date('2023-01-01').getTime();
+    for (let i = 0; i < 90; i += 1) {
+      const t = Math.max(1, i * 8);
+      const wor = 0.004 * t ** 1.8;
+      const qo = 900 / (1 + 0.006 * t);
+      rows.push({
+        prod_date: new Date(start + i * 8 * 86400000).toISOString().slice(0, 10),
+        oil_rate_stbd: i === 20 ? 0 : qo,
+        water_rate_stbd: i === 20 ? 0 : qo * wor,
+        gas_rate_mscfd: i === 20 ? 0 : (qo * 520) / 1000,
+      });
+    }
+    const hist = ratioHistory({ rows });
+    if (!hist.ok) throw new Error(hist.error);
+    if (hist.droppedShutInDays !== 1) {
+      throw new Error('the shut-in day was not dropped; an infinite ratio would poison the derivative');
+    }
+    const der = differentiateRatio({ series: hist.series });
+    if (der.edgesDropped !== 2) {
+      throw new Error('the one-sided Bourdet endpoints were not set aside');
+    }
+    // With the ends in, the recovered exponent collapses. This is the
+    // gate on the DECISION, not just on the outcome.
+    const withEnds = logLogSlope({
+      points: der.allPoints.filter((p: any) => p.derivative > 0), xKey: 't', yKey: 'derivative',
+    });
+    const withoutEnds = logLogSlope({
+      points: der.series.filter((p: any) => p.derivative > 0), xKey: 't', yKey: 'derivative',
+    });
+    if (!(withoutEnds.slope > withEnds.slope + 0.15)) {
+      throw new Error('dropping the Bourdet endpoints did not improve the recovered exponent');
+    }
+    const dx = diagnoseWell({ rows });
+    if (dx.mechanism.id !== 'channelling') {
+      throw new Error(`the end-to-end reading gave ${dx.mechanism.id}`);
+    }
+
+    // --- THE UPLIFT IS A NODAL RE-SOLVE. The inflow gains the full
+    // productivity multiplier; the WELL does not, because the extra
+    // rate costs more friction up the same tubing.
+    const wi = defaultWellInputs();
+    wi.well.depthFt = '7800'; wi.well.whtF = '140'; wi.well.bhtF = '205';
+    wi.fluid.api = '33'; wi.fluid.gasSg = '0.7'; wi.fluid.gor = '520';
+    wi.inflow.pr = '2900'; wi.inflow.pb = '2000';
+    wi.inflow.calMode = 'pi'; wi.inflow.pi = '0.9';
+    wi.completion.idIn = '2.441';
+    const wm = buildSharedWell(wi);
+    const duty = { wctPct: '35', gor: '520', whpPsia: '250' };
+    const stim = stimulationUplift({
+      model: wm,
+      inputs: { reFt: 1800, rwFt: 0.354, inflow: wi.inflow },
+      duty, skinBefore: 8, skinAfter: 0,
+    });
+    if (!stim.ok) throw new Error(stim.error);
+    if (!(stim.rateMultiplier < stim.piMultiplier)) {
+      throw new Error('the well gained as much as the inflow did, so the tubing is not being solved');
+    }
+    if (!(stim.overstatementStbd > 0)) {
+      throw new Error('a percentage-uplift spreadsheet would not have over-promised, which cannot be right');
+    }
+
+    // --- A SHUTOFF GAINS THROUGH THE COLUMN. The inflow is held fixed,
+    // so every barrel comes from the lighter column and the lower
+    // bottomhole pressure. No inflow calculation would find it.
+    const cut = shutoffUplift({ model: wm, duty, wctAfterPct: 10 });
+    if (!cut.ok) throw new Error(cut.error);
+    if (!(cut.upliftStbd > 0 && cut.pwfDropPsi > 0)) {
+      throw new Error('removing water did not lighten the column');
+    }
+
+    // --- The economics are the CANONICAL engine, and the decline is
+    // required. An intervention modelled as a permanent step change is
+    // an intervention that always pays.
+    if (valueIntervention({ upliftStbd: 180, costUsdMM: 1.2, oilPriceUsd: 70 }).ok) {
+      throw new Error('an uplift was valued with no decline stated');
+    }
+    const base = { upliftStbd: 180, oilPriceUsd: 70, declinePctPerYear: 25, projectLife: 8 };
+    const cheap = valueIntervention({ ...base, costUsdMM: 0.5 });
+    const dear = valueIntervention({ ...base, costUsdMM: 3.0 });
+    // The gap is 2.5 million DISCOUNTED, and the canonical engine
+    // discounts mid-year by documented convention. Landing on that is
+    // the proof the imported engine is doing the arithmetic.
+    relClose(
+      cheap.economics.metrics.npv - dear.economics.metrics.npv,
+      2.5 / (1.1 ** 0.5), 1e-9,
+      'the canonical mid-year discounting is in play',
+    );
+
+    // --- AND THE ORDER. A blocked treatment is never sized.
+    const coningRows: any[] = [];
+    for (let i = 0; i < 90; i += 1) {
+      const t = Math.max(1, i * 8);
+      const wor = (5 * t) / (t + 150);
+      const qo = 900 / (1 + 0.006 * t);
+      coningRows.push({
+        prod_date: new Date(start + i * 8 * 86400000).toISOString().slice(0, 10),
+        oil_rate_stbd: qo, water_rate_stbd: qo * wor, gas_rate_mscfd: 0.5 * qo,
+      });
+    }
+    const planned = runIntervention({
+      inputs: {
+        well: { skin: '7', reFt: '1800', rwFt: '0.354', flowing: true },
+        inflow: wi.inflow,
+        duty: { wctPct: '55', gor: '520', whpPsia: '250' },
+        diagnostic: { ratio: 'wor', lateFraction: 0.5 },
+        treatment: { kind: 'shutoff', skinAfter: '0', wctAfterPct: '15' },
+        economics: {
+          costUsdMM: '1.4', oilPriceUsd: '70', declinePctPerYear: '25', projectLife: '8',
+        },
+      },
+      model: wm,
+      rows: coningRows,
+    });
+    if (planned.diagnosis.mechanism.id !== 'coning') {
+      throw new Error('the levelling history did not read as coning end to end');
+    }
+    if (planned.shutoff !== null) {
+      throw new Error('a treatment the diagnostic ruled out was sized anyway');
+    }
+    if (planned.economics !== null) {
+      throw new Error('a treatment the diagnostic ruled out was valued anyway');
+    }
+  });
+
   const armed: [string, string][] = [
     ['PL1', 'Takacs, Gas Lift Manual worked installation design (valve depths, domes, test-rack settings)'],
     ['PL2', 'API Gas Lift Manual Book 6 nitrogen Ct table / NIST nitrogen isotherm z values'],
@@ -1714,6 +1969,9 @@ async function main() {
     ['PL29', 'a field with metered per-well rates and a measured header pressure, against the solved network — the only real check on a gathering-system solve'],
     ['PL30', 'Crane TP-410 resistance coefficients in full, against the round-number K values carried here'],
     ['PL31', 'a published multi-well network benchmark (a PIPESIM or GAP worked case) against this solver end to end'],
+    ['PL32', 'Chan SPE 30775 published WOR and WOR-derivative type curves, against the slope-based reading used here'],
+    ['PL33', 'a field water shutoff with its before-and-after rates and a production log confirming the mechanism — the only real check on the gate'],
+    ['PL34', 'measured before-and-after rates from a matrix acid job with a pressure transient skin either side'],
   ];
   for (const [id, name] of armed) {
     console.log(`ARMED ${id}  ${name} (pending owner literature; gate schema committed)`);

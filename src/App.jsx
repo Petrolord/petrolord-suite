@@ -132,6 +132,7 @@ const GasWellPerformanceStudio = lazy(() => import('@/pages/apps/GasWellPerforma
 const ChokePerformanceStudio = lazy(() => import('@/pages/apps/ChokePerformanceStudio'));
 const FlowAssuranceStudio = lazy(() => import('@/pages/apps/FlowAssuranceStudio'));
 const ProductionNetworkStudio = lazy(() => import('@/pages/apps/ProductionNetworkStudio'));
+const WellInterventionPlanner = lazy(() => import('@/pages/apps/WellInterventionPlanner'));
 const GeoscienceHub = lazy(() => import('@/pages/apps/GeoscienceHub'));
 const CasingTubingDesignPro = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingDesignPro'));
 const CasingTubingHelpGuide = lazy(() => import('@/pages/apps/CasingTubingDesignPro/CasingTubingHelpGuide'));
@@ -605,6 +606,13 @@ function App() {
                                 {/* D7: Well Schematic Designer absorbed by Completion Design Studio (Drilling-ROADMAP.md §2) */}
                                 <Route path="apps/production/well-schematic-designer" element={<Navigate to="/dashboard/apps/drilling/completion-design-studio" replace />} />
                                 {/* P0: Network Diagram Pro delisted (§6.4) — inert solver, no persistence; its editor folds into Production Network Studio at P11 */}
+                                <Route path="apps/production/well-intervention-planner" element={<ProtectedAppRoute appId="well-intervention-planner" appName="Well Intervention Planner"><WellInterventionPlanner /></ProtectedAppRoute>} />
+                                {/* The four shells this replaces were archived at P0 and are
+                                    never revived; these slugs stay redirects. */}
+                                <Route path="apps/production/stimulation-candidate-selector" element={<Navigate to="/dashboard/production/apps/production/well-intervention-planner" replace />} />
+                                <Route path="apps/production/water-gas-shutoff-planner" element={<Navigate to="/dashboard/production/apps/production/well-intervention-planner" replace />} />
+                                <Route path="apps/production/workover-planner" element={<Navigate to="/dashboard/production/apps/production/well-intervention-planner" replace />} />
+                                <Route path="apps/production/rigless-intervention-planner" element={<Navigate to="/dashboard/production/apps/production/well-intervention-planner" replace />} />
                                 <Route path="apps/production/production-network-studio" element={<ProtectedAppRoute appId="production-network-studio" appName="Production Network Studio"><ProductionNetworkStudio /></ProtectedAppRoute>} />
                                 {/* Network Diagram Pro was delisted at P0 (a canvas whose Solve
                                     button raised a toast). Its slug stays a redirect: the editor

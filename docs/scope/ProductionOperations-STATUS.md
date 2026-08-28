@@ -1401,6 +1401,191 @@ benchmark). 27/27 active gates.
 context gates; full engines suite 73/1395, full Suite jest 339/4522,
 `npx vite build` green.
 
+## P12 — Well Intervention Planner (BUILT 2026-08-28)
+
+`feat/production-p12`, stacked on P11. Engines PR #73 — the domain's
+eighth and final family.
+
+**Three questions in the order they actually come in.** What is wrong
+with this well? Which treatments could address *that*? What is the one
+you pick worth? The order matters more than any individual answer,
+because the second question is decided by the first and a plan that
+skips it recommends the wrong treatment about half the time.
+
+**THE DIAGNOSIS GATES THE TREATMENT.** Water channelling and water
+coning look identical on a water-cut plot and need **opposite**
+treatments. Channelling — behind pipe, a thief zone, a fracture — is a
+plumbing problem and a squeeze has something to seal. Coning is not:
+the water comes through the same rock as the oil, and a cone shut off
+at the bottom perforations re-forms above them. So the screening is
+gated by the diagnostic: on a coning well the shutoff is **ruled out
+with the reason**, and reducing drawdown — useless everywhere else —
+becomes the candidate. With no diagnosis at all the shutoff is ruled
+out too, because a treatment chosen by guesswork is worse than none.
+
+**The oracle caught a real design error.** The first classifier called
+any rising derivative channelling. But for *any* power-law history the
+ratio and its derivative have the **same** log-log slope, because
+`d(a·t^m)/d(ln t) = m·a·t^m` — so the two pictures cannot be separated
+by comparing their slopes to each other, and ordinary displacement was
+being read as a treatable water path. Only the *steepness* separates
+them; steady arrival sits around a slope of one. The boundary now sits
+just above it and anything close is reported as close rather than
+resolved. That soft boundary is stated in the code, the gates and the
+UI. A second error the same cases caught: a derivative of exactly zero
+was lumped with a negative one and read as coning, when it means
+nothing is happening at all.
+
+**Chan's published type curves are not transcribed.** What is here
+reads the same two things Chan reads — the trend of the ratio, and the
+sign and steepness of its derivative — with every threshold a named
+input. The type curves are ARMED as PL32.
+
+**The derivative is the well test module's Bourdet**, not a second
+implementation: a daily production history is exactly the noisy
+log-time series it was built for. Three things are discarded first.
+Shut-in days, because a day with no oil says nothing about the
+mechanism and an infinite ratio poisons the derivative either side.
+Outliers, counted rather than dropped silently. And the first and last
+few derivative points — Bourdet needs a neighbour on both sides, and at
+the ends it has one, so it falls back to a one-sided slope that on a
+curving response is badly biased. On the gated case the very first
+point reads a derivative-to-ratio ratio of **9.7** where the truth is
+1.6, and keeping the ends drags the recovered exponent from 1.56 to
+1.32 — which would put a genuinely steep channelling history right on
+the classifier's boundary.
+
+**THE UPLIFT IS A NODAL RE-SOLVE, NOT A MULTIPLIER.** Removing skin
+changes the inflow; it does not change the well by the same factor,
+because the extra rate goes up the same tubing and the friction loss
+rises with it. The studio shows the productivity multiplier, the rate
+multiplier, and the gap between them — which is always in the
+optimistic direction. Removing *water* is stranger: it barely touches
+the inflow and changes the outflow a great deal, because less water is
+a lighter column and a lighter column means a lower bottomhole pressure
+for the same wellhead pressure. That gain lives entirely in the tubing
+and no inflow calculation would find it.
+
+**Skin has a floor.** At `S = −(ln(re/rw) − 3/4)` the group reaches
+zero and the productivity index goes infinite. That is the equation
+running out, not an aggressive design, and it is refused rather than
+returned as a spectacular uplift.
+
+**The economics are the canonical engine.** `calculateEconomics` from
+`npvCalculations.js`, imported per the module rule, so an intervention
+discounts the same way every other screening number in the platform
+does. The uplift **declines**, and the rate is a required input with no
+default: an intervention modelled as a permanent step change always
+pays, which is the commonest way a workover case is oversold.
+
+**Absorbs** the four shells archived at P0 — Stimulation Candidate
+Selector, Water/Gas Shutoff Planner, Workover Planner, Rigless
+Intervention Planner. Their rows stay archived and their slugs redirect
+into this app.
+
+**Migrations (both pending owner apply):**
+`20260829430000_p12_saved_intervention_projects.sql` (safe pre-deploy)
+and `20260829440000_seed_well_intervention_planner_tile.sql` (HELD).
+
+**Validation:** PA28 ACTIVE + PL32-PL34 ARMED. 28/28 active gates.
+
+**Verification:** 34 engine gates + 27 Suite computation gates + 19
+context gates; full engines suite 74/1430, full Suite jest 342/4603,
+`npx vite build` green.
+
+## LAUNCH PACK — the owner runbook
+
+The Production Operations program is **code complete**: twelve apps
+plus the shared well record, P0 through P12, all on stacked branches.
+Nothing below has been done for you, deliberately, because it touches
+the shared production database and the live site.
+
+### 1. Merge the stack, in order
+
+Suite PRs merge oldest first. Each is based on the one before it:
+
+    P0 … P1 … #275 (P2) … #276 (P3) … #277 (P4) … #278 (P5)
+    … #279 (P6) … #280 (P6.5) … #281 (P7) … #282 (P8)
+    … #283 (P9) … #284 (P10) … #285 (P11) … #286 (P12)
+
+The engine PRs (#62-#68, #70-#73) are already merged and vendored.
+
+### 2. Apply the 14 SAFE migrations
+
+These create tables and add no tile, so they can go in before the
+upload. Each with
+`supabase db query --linked --file supabase/migrations/<file>`:
+
+| # | File | What |
+|---|---|---|
+| 1 | `20260829120000_p1_create_po_spine.sql` | the `po_*` spine |
+| 2 | `20260829140000_p2_saved_surveillance_projects.sql` | P2 saves |
+| 3 | `20260829160000_p3_create_po_field_totals.sql` | field totals |
+| 4 | `20260829170000_p3_saved_allocation_projects.sql` | P3 saves |
+| 5 | `20260829200000_p4_saved_gaslift_projects.sql` | P4 saves |
+| 6 | `20260829230000_p5_saved_esp_projects.sql` | P5 saves |
+| 7 | `20260829260000_p6_saved_rodpump_projects.sql` | P6 saves |
+| 8 | `20260829290000_p65_create_po_well_models.sql` | the shared well record |
+| 9 | `20260829310000_p7_saved_gaswell_projects.sql` | P7 saves |
+| 10 | `20260829340000_p8_saved_choke_projects.sql` | P8 saves |
+| 11 | `20260829370000_p9_saved_liftadvisor_projects.sql` | P9 saves |
+| 12 | `20260829390000_p10_saved_flowassurance_projects.sql` | P10 saves |
+| 13 | `20260829410000_p11_saved_network_projects.sql` | P11 saves |
+| 14 | `20260829430000_p12_saved_intervention_projects.sql` | P12 saves |
+
+Rollback-wrapped dry run first, as the conventions require.
+
+### 3. Recut and upload the production zip
+
+From merged `main`, per `hostinger-deploy-procedure`: source zip,
+exclude `.vite/`, upload, **purge the CDN cache**. This one upload also
+carries the drilling/completions work and the DCA Monte Carlo fixes
+that have been waiting behind the same hold.
+
+### 4. Only THEN apply the 11 HELD tile migrations
+
+Every one of these turns a tile Active. Applying any of them before the
+upload is live points a working tile at code that is not there yet.
+
+| # | File | Tile |
+|---|---|---|
+| 1 | `20260829150000_seed_production_surveillance_studio_tile.sql` | Surveillance Studio |
+| 2 | `20260829180000_seed_production_allocation_studio_tile.sql` | Allocation Studio |
+| 3 | `20260829210000_seed_gas_lift_design_studio_tile.sql` | Gas Lift Design Studio |
+| 4 | `20260829240000_seed_esp_design_studio_tile.sql` | ESP Design Studio |
+| 5 | `20260829270000_seed_rod_pump_design_studio_tile.sql` | Rod Pump Design Studio |
+| 6 | `20260829320000_seed_gas_well_performance_studio_tile.sql` | Gas Well Performance Studio |
+| 7 | `20260829350000_seed_choke_performance_studio_tile.sql` | Choke & Wellhead Studio |
+| 8 | `20260829380000_rename_artificial_lift_advisor_tile.sql` | Artificial Lift Advisor (**RENAME**, not a seed — the slug carries live entitlements) |
+| 9 | `20260829400000_seed_flow_assurance_studio_tile.sql` | Flow Assurance Studio |
+| 10 | `20260829420000_seed_production_network_studio_tile.sql` | Production Network Studio |
+| 11 | `20260829440000_seed_well_intervention_planner_tile.sql` | Well Intervention Planner |
+
+The hub itself needs no change: `ProductionOperationsHub` is fully
+database-driven through `ApplicationsGrid`, so the tiles appear as the
+migrations land.
+
+### 5. Staging end-to-end
+
+Still outstanding, and the one thing the gates cannot substitute for.
+The harness proves the maths; it does not prove that a user can get
+from the hub to an answer. Walk one well from the Surveillance Studio
+through the shared well record into two or three of the design studios.
+
+### What stays open after launch
+
+- **The armed literature gates**, PL1-PL34. Each is schema-complete and
+  waiting on a copyrighted source the owner would have to supply. None
+  of them is load-bearing for anything that ships; they would upgrade
+  screening answers to validated ones.
+- **PCP and jet pump design** (PL21, PL22) would move those two lift
+  methods from screened-only to designed in the Advisor.
+- **Subcritical two-phase choke** (PL17) would replace P8's
+  critical-flow screening answer.
+- The `wellbore_flow_projects`, `flow_assurance_projects` and
+  `production_surveillance_projects` tables from the retired apps stay
+  read-protected pending an owner-gated drop decision.
+
 **Migrations:**
 
 - `20260829370000_p9_saved_liftadvisor_projects.sql` — study
