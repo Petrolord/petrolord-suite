@@ -24,6 +24,7 @@ const GUIDES = {
   'EOR Screening': 'pages/apps/EorScreeningHelpGuide.jsx',
   'Forecast Scenario Hub': 'pages/apps/ForecastScenarioHubHelpGuide.jsx',
   'Risked Reserves Valuation': 'pages/apps/RiskedReservesHelpGuide.jsx',
+  'Well Spacing Optimizer': 'pages/apps/WellSpacingHelpGuide.jsx',
   'Help guide layout': 'components/helpguide/HelpGuideLayout.jsx',
 };
 
@@ -84,6 +85,15 @@ const COVERAGE = {
     /Time to limit is ambiguous/i,
     /no capex/i,
     /Import from Forecast Scenario Hub/i,
+  ],
+  'Well Spacing Optimizer': [
+    // The guide exists to stop users reading a spacing recommendation out of
+    // a model that has no interference physics to support one.
+    /no interference physics/i,
+    /does not nominate an optimum/i,
+    /Coverage/,
+    /fraction/,
+    /recorded and not used/i,
   ],
   'Risked Reserves Valuation': [
     /low bound/i,

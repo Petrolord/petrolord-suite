@@ -120,6 +120,7 @@ const GeomechanicsHelpGuide = lazy(() => import('@/pages/apps/GeomechanicsStudio
 const EorScreeningHelpGuide = lazy(() => import('@/pages/apps/EorScreeningHelpGuide'));
 const ForecastScenarioHubHelpGuide = lazy(() => import('@/pages/apps/ForecastScenarioHubHelpGuide'));
 const RiskedReservesHelpGuide = lazy(() => import('@/pages/apps/RiskedReservesHelpGuide'));
+const WellSpacingHelpGuide = lazy(() => import('@/pages/apps/WellSpacingHelpGuide'));
 const GeomechanicsHarness = lazy(() => import('@/pages/apps/GeomechanicsStudio/GeomechanicsHarness'));
 const WellDesignHelpGuide = lazy(() => import('@/pages/apps/well-planning/WellDesignHelpGuide'));
 const WellDataManager = lazy(() => import('@/pages/apps/WellDataManager/WellDataManager'));
@@ -576,6 +577,7 @@ function App() {
                                 {/* well-spacing-optimizer moved to the Reservoir module at D0 */}
                                 <Route path="apps/drilling/well-spacing-optimizer" element={<Navigate to="/dashboard/apps/reservoir/well-spacing-optimizer" replace />} />
                                 <Route path="apps/reservoir/well-spacing-optimizer" element={<ProtectedAppRoute appId="well-spacing-optimizer" appName="Well Spacing Optimizer"><WellSpacingOptimizer /></ProtectedAppRoute>} />
+                                <Route path="apps/reservoir/well-spacing-optimizer/help" element={<ProtectedAppRoute appId="well-spacing-optimizer" appName="Well Spacing Optimizer"><WellSpacingHelpGuide /></ProtectedAppRoute>} />
 
                                 {/* Production Module routes (P0 hygiene 2026-08-27, Production-ROADMAP.md §5):
                                     archived mock apps redirect to the hub until their rebuild phase ships;

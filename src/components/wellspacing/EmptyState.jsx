@@ -20,18 +20,18 @@ const EmptyState = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-8">
           <div className="bg-white/5 rounded-lg p-4">
             <Calculator className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-            <h3 className="text-white font-semibold mb-1">Advanced Calculations</h3>
-            <p className="text-lime-300 text-sm">Comprehensive reservoir modeling with economic optimization</p>
+            <h3 className="text-white font-semibold mb-1">Spacing economics</h3>
+            <p className="text-lime-300 text-sm">Capex, produced volume, cost per barrel and NPV for every spacing in your range</p>
           </div>
           <div className="bg-white/5 rounded-lg p-4">
             <TrendingUp className="w-8 h-8 text-green-400 mx-auto mb-2" />
             <h3 className="text-white font-semibold mb-1">Interactive Charts</h3>
-            <p className="text-lime-300 text-sm">Visual analysis of NPV, recovery, and cost relationships</p>
+            <p className="text-lime-300 text-sm">NPV, field recovery and cost per barrel plotted against spacing</p>
           </div>
           <div className="bg-white/5 rounded-lg p-4">
             <Zap className="w-8 h-8 text-orange-400 mx-auto mb-2" />
-            <h3 className="text-white font-semibold mb-1">Sensitivity Analysis</h3>
-            <p className="text-lime-300 text-sm">Real-time parameter sensitivity for robust decision making</p>
+            <h3 className="text-white font-semibold mb-1">Stated assumptions</h3>
+            <p className="text-lime-300 text-sm">A fixed recovery factor over the area each well drains, with no interference modelled</p>
           </div>
         </div>
         
