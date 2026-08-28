@@ -290,13 +290,22 @@ const WellDesignHelpGuide = () => {
                   ['Build and hold (J)', 'Replace', 'Vertical, one build at your rate, a hold that lands on the target.'],
                   ['S-profile', 'Replace', 'Build, hold, then drop toward a final inclination while hitting the target.'],
                   ['Curve to target', 'Append', 'One circular arc from the design end to the target, with the required DLS reported.'],
-                  ['Horizontal landing', 'Append', 'Curve-hold-curve arriving at a specified inclination and azimuth (typically 90 degrees) at the landing point.'],
+                  ['Horizontal landing', 'Append', 'Curve-hold-curve arriving horizontally at a heel target. Add a toe target and the landing azimuth comes from the heel-to-toe direction.'],
                   ['Nudge', 'Replace', 'A shallow deviation and return for slot separation on crowded pads.'],
                 ]}
               />
+              <Para>
+                The horizontal landing takes two targets, the way Compass builds a landing from a Final Target plus an
+                Align on Target. The heel is where the well lands. The toe sets the direction the lateral runs, and the
+                dialog shows the heel-to-toe azimuth before you solve. The azimuth field below it is an optional
+                override: leave it blank to use the heel-to-toe direction, or type a value to force one. With no toe
+                selected the landing aims at the heel from the current design end, which is how the method behaved
+                before the toe target existed.
+              </Para>
               <Callout tone="success" title="Infeasible is an answer">
-                When a target cannot be reached at the requested rates, the solver says so with the constraint that failed.
-                Raise the rate, move the kickoff, or rethink the target; the app will not invent a path.
+                When a target cannot be reached at the requested rates, the solver says so with the constraint that failed,
+                inline in the dialog next to the values that produced it. Raise the rate, move the kickoff, or rethink the
+                target; the app will not invent a path.
               </Callout>
             </Section>
 

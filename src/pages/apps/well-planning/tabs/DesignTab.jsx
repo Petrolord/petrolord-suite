@@ -403,8 +403,14 @@ const DesignTab = () => {
             totalMD: last.md,
             totalTVD: last.tvd,
             horizontalDisplacement: last.closureDist,
-            maxInclination: Math.max(...planRows.map((s) => s.inc)),
-            maxDLS: Math.max(...planRows.map((s) => (mdUnit === 'ft' ? s.dls100ft : s.dls30m))),
+            // reduce, not Math.max(...rows): the spread is a call with one
+            // argument per station, and a long plan overflows the stack
+            // (RangeError: Maximum call stack size exceeded).
+            maxInclination: planRows.reduce((m, s) => (s.inc > m ? s.inc : m), -Infinity),
+            maxDLS: planRows.reduce((m, s) => {
+                const d = mdUnit === 'ft' ? s.dls100ft : s.dls30m;
+                return d > m ? d : m;
+            }, -Infinity),
             bottomHole: bh,
         };
     }, [planRows, headX, headY, userToMeters, mdUnit, getGeoCoords]);
@@ -760,7 +766,6 @@ const DesignTab = () => {
                 wellbore={wellbore}
                 mdUnit={mdUnit}
                 kbM={wellbore?.kb_elev_m || 0}
-                metersToUser={metersToUser}
                 currentEnd={currentEnd}
                 onApply={handleSolverApply}
             />
