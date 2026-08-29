@@ -6,6 +6,8 @@ never hand-type DDL against production.
 
 | Date (UTC) | Migration file | Purpose | Applied to staging | Applied to production |
 |---|---|---|---|---|
+| 2026-08-29 | `20260829960000_ds6_fuel_pricing_persistence.sql` | **M&D DS6 — Fuel Pricing & Supply Chain Studio persistence**: `saved_fuel_pricing_projects` on the saved_<app>_projects convention. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (rollback-wrapped dry run first; probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
+| 2026-08-29 | `20260829970000_ds6_activate_fuel_pricing_tile.sql` | **M&D DS6 — tile goes Active (HELD).** Slug `fuel-pricing-supply-chain`, matching the DS0 seed. **DEPLOY GATE**: apply only with the prod upload that ships the DS6 build | HELD (not applied) | HELD (not applied) |
 | 2026-08-29 | `20260829940000_ds5_terminal_persistence.sql` | **M&D DS5 — Terminal & Depot Studio persistence**: `saved_terminal_projects` on the saved_<app>_projects convention. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
 | 2026-08-29 | `20260829950000_ds5_activate_terminal_tile.sql` | **M&D DS5 — tile goes Active (HELD).** **DEPLOY GATE**: apply only with the prod upload that ships the DS5 build | HELD (not applied) | HELD (not applied) |
 | 2026-08-29 | `20260829920000_ds4_modular_refinery_persistence.sql` | **M&D DS4 — Modular Refinery Feasibility persistence**: `saved_modular_refinery_projects` on the saved_<app>_projects convention. Results recomputed on load. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
