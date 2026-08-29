@@ -204,45 +204,44 @@ the Geoscience Pore Pressure Studio.
 ## 5. Economic & Project Management
 **Focus:** Evaluate project economics and manage oil & gas ventures effectively.
 
-### ✅ Complete Applications (10)
-*   **Project Management Pro**
-    *   *Description:* Plan, track, and manage oil and gas projects with Gantt charts and resource allocation.
-    *   *Key Features:* Gantt Charts, Resource Management, Critical Path Analysis, Progress Tracking.
-*   **AFE Cost Control Manager**
-    *   *Description:* Manage Authorization for Expenditure (AFE) and track costs against budget.
-    *   *Key Features:* Budget vs Actual, Cost Tracking, Invoice Management, Approval Workflows.
-*   **NPV Scenario Builder**
-    *   *Description:* Build and analyze Net Present Value (NPV) scenarios for investment decisions.
-    *   *Key Features:* DCF Analysis, Cash Flow Modeling, Sensitivity Parameters, Decision Trees.
-*   **Fiscal Regime Designer**
-    *   *Description:* Model various fiscal terms (royalties, taxes, PSCs) and assess their impact on project economics.
-    *   *Key Features:* PSC/Concession Modeling, Royalty/Tax Regimes, Government Take Analysis.
-*   **Capital Portfolio Studio**
-    *   *Description:* Optimize capital allocation across multiple projects to maximize portfolio value.
-    *   *Key Features:* Efficient Frontier, Portfolio Optimization, Risk-Return Analysis.
-*   **FDP Accelerator**
-    *   *Description:* Rapidly generate Field Development Plan (FDP) outlines and preliminary economics.
-    *   *Key Features:* Development Concept Selection, CAPEX/OPEX Estimation, Schedule Generation.
-*   **Technical Report Autopilot**
-    *   *Description:* Automate the generation of detailed technical reports from your project data.
-    *   *Key Features:* Template Management, Data Integration, Automated Formatting, Export to PDF/Word.
-*   **Value of Information Analyzer**
-    *   *Description:* Quantify the economic value of acquiring additional information before making decisions.
-    *   *Key Features:* Bayesian Inference, Decision Trees, VOI Calculation.
-*   **Probabilistic Breakeven Analyzer**
-    *   *Description:* Determine breakeven prices and volumes with probabilistic uncertainty.
-    *   *Key Features:* Monte Carlo Breakeven, Price Sensitivity, Cost Uncertainty.
-*   **EPE Suite**
-    *   *Description:* Economic Project Evaluation Suite for detailed cash flow and profitability analysis.
-    *   *Key Features:* Comprehensive Economic Modeling, Multi-Currency, Inflation/Escalation.
+### ✅ Complete Applications (12)
+*Verified against the live catalog and the routed code 2026-08-29 (Economics E0). All twelve tiles are Active, built, and gated.*
 
-### 🚧 Coming Soon (3)
-*   **Oil Block Bid Optimizer**
-    *   *Description:* Strategically optimize bids for oil and gas blocks considering various parameters.
-*   **Competitor Intelligence Hub**
-    *   *Description:* Gather and analyze intelligence on competitor activities and assets.
-*   **Deal Data Room Automator**
-    *   *Description:* Automate the creation and management of virtual data rooms for asset divestitures.
+*   **Petroleum Economics Studio** (slug `epe-suite`)
+    *   *Description:* Case-based petroleum economics: JV, PSC, PIA 2021 and NTA 2025 fiscal modeling with sensitivities, Monte Carlo and run comparison.
+    *   *Note:* The module flagship, and the canonical fiscal engine. Every economic number in the module is meant to trace back to it.
+*   **Decision Studio**
+    *   *Description:* The executive layer: a decision brief that carries provenance on every number, assembled from EPE, portfolio and tree results.
+*   **Decision Tree Builder**
+    *   *Description:* Multi-stage EMV decision analysis with chance and decision nodes, rollback, and payoffs linked to EPE Monte Carlo runs.
+*   **Capital Portfolio Studio**
+    *   *Description:* Risked EMV capital allocation under a budget constraint, with the efficient frontier and Monte Carlo linkage to EPE.
+*   **Value of Information Analyzer**
+    *   *Description:* Quantify what a measurement is worth before paying for it, on the shared decision-tree kernel.
+*   **NPV Scenario Builder**
+    *   *Description:* Quick NPV, IRR and payback screening across scenarios, on the documented mid-year discounting convention. The sanctioned screening tier, not a second fiscal truth.
+*   **Fiscal Regime Designer**
+    *   *Description:* Design and compare fiscal regimes: royalty, cost recovery, profit split and tax, with government take by term.
+*   **Probabilistic Breakeven Analyzer**
+    *   *Description:* Breakeven price and volume with the uncertainty carried through rather than assumed away.
+*   **FDP Accelerator**
+    *   *Description:* Field development plan build-up: concept screening, facility and well cost estimation, and development scenario comparison.
+*   **Project Management Pro**
+    *   *Description:* Portfolio, schedule, resource and document management for energy projects, on real project tables.
+*   **AFE Cost Control Manager**
+    *   *Description:* Authorization for Expenditure tracking: budget versus actual, invoices, change orders and approvals.
+*   **Technical Report Autopilot**
+    *   *Description:* Generate technical reports from project data with template management and export.
+
+### 🚧 Coming Soon (0)
+
+Economics E0 (2026-08-29) removed three entries that had been listed
+here as Coming Soon. **Oil Block Bid Optimizer** was deleted in the D0
+mock purge and has no code. **Competitor Intelligence Hub** and **Deal
+Data Room Automator** existed only as unrouted pages that returned
+invented competitor activity and fabricated document analytics; both
+trees were deleted rather than left as a promise the code could not
+keep.
 
 ---
 

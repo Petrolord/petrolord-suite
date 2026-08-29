@@ -124,6 +124,88 @@ export const applications = [
         route: '/dashboard/apps/economics-project-management/value-of-information-analyzer',
         icon: 'Target'
     },
+    // Economics E0 (2026-08-29): the seven routed economics apps that
+    // were never in this registry, backfilled. The registry feeds the
+    // quote, billing and module-access surfaces, so an app missing here
+    // is an app that cannot be quoted or licensed even though its tile
+    // is Active and its route is gated.
+    {
+        id: 'project-management-pro',
+        slug: 'project-management-pro',
+        name: 'Project Management Pro',
+        description: 'Portfolio, schedule, resource and document management for energy projects, on real project tables.',
+        module: 'economics-project-management',
+        category: 'economics',
+        path: '/dashboard/apps/economics/project-management-pro',
+        route: '/dashboard/apps/economics/project-management-pro',
+        icon: 'Briefcase'
+    },
+    {
+        id: 'npv-scenario-builder',
+        slug: 'npv-scenario-builder',
+        name: 'NPV Scenario Builder',
+        description: 'Quick NPV, IRR and payback screening across scenarios, on the documented mid-year discounting convention.',
+        module: 'economics-project-management',
+        category: 'economics',
+        path: '/dashboard/apps/economics/npv-scenario-builder',
+        route: '/dashboard/apps/economics/npv-scenario-builder',
+        icon: 'Calculator'
+    },
+    {
+        id: 'fiscal-regime-designer',
+        slug: 'fiscal-regime-designer',
+        name: 'Fiscal Regime Designer',
+        description: 'Design and compare fiscal regimes: royalty, cost recovery, profit split and tax, with government take by term.',
+        module: 'economics-project-management',
+        category: 'economics',
+        path: '/dashboard/apps/economics/fiscal-regime-designer',
+        route: '/dashboard/apps/economics/fiscal-regime-designer',
+        icon: 'Scale'
+    },
+    {
+        id: 'capital-portfolio-studio',
+        slug: 'capital-portfolio-studio',
+        name: 'Capital Portfolio Studio',
+        description: 'Risked EMV capital allocation under a budget constraint, with the efficient frontier and Monte Carlo linkage to EPE.',
+        module: 'economics-project-management',
+        category: 'economics',
+        path: '/dashboard/apps/economics/capital-portfolio-studio',
+        route: '/dashboard/apps/economics/capital-portfolio-studio',
+        icon: 'Layers'
+    },
+    {
+        id: 'fdp-accelerator',
+        slug: 'fdp-accelerator',
+        name: 'FDP Accelerator',
+        description: 'Field development plan build-up: concept screening, facility and well cost estimation, and development scenario comparison.',
+        module: 'economics-project-management',
+        category: 'economics',
+        path: '/dashboard/apps/economics/fdp-accelerator',
+        route: '/dashboard/apps/economics/fdp-accelerator',
+        icon: 'Rocket'
+    },
+    {
+        id: 'decision-tree-builder',
+        slug: 'decision-tree-builder',
+        name: 'Decision Tree Builder',
+        description: 'Multi-stage EMV decision analysis with chance and decision nodes, rollback, and payoffs linked to EPE Monte Carlo runs.',
+        module: 'economics-project-management',
+        category: 'economics',
+        path: '/dashboard/apps/economics/decision-tree-builder',
+        route: '/dashboard/apps/economics/decision-tree-builder',
+        icon: 'GitBranch'
+    },
+    {
+        id: 'decision-studio',
+        slug: 'decision-studio',
+        name: 'Decision Studio',
+        description: 'The executive layer: a decision brief that carries provenance on every number, assembled from EPE, portfolio and tree results.',
+        module: 'economics-project-management',
+        category: 'economics',
+        path: '/dashboard/apps/economics/decision-studio',
+        route: '/dashboard/apps/economics/decision-studio',
+        icon: 'Lightbulb'
+    },
     {
         // Renamed from "EPE Suite" 2026-08-16; the failed standalone
         // petroleum-economics-studio app was retired and EPE carries the
