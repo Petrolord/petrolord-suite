@@ -6,6 +6,8 @@ never hand-type DDL against production.
 
 | Date (UTC) | Migration file | Purpose | Applied to staging | Applied to production |
 |---|---|---|---|---|
+| 2026-08-29 | `20260830040000_ds10_flare_persistence.sql` | **M&D DS10 — Flare Gas to Value Studio persistence**: `saved_flare_projects` on the saved_<app>_projects convention. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (rollback-wrapped dry run first; probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
+| 2026-08-29 | `20260830050000_ds10_activate_flare_tile.sql` | **M&D DS10 — tile goes Active (HELD).** The module's tenth and last tile. Slug `flare-gas-to-value`. **With this, all 11 M&D tile migrations (DS0 seed + DS1-DS10) are HELD together on the one prod upload** | HELD (not applied) | HELD (not applied) |
 | 2026-08-29 | `20260830020000_ds9_carbon_persistence.sql` | **M&D DS9 — Carbon Footprint & Abatement Studio persistence**: `saved_carbon_projects` on the saved_<app>_projects convention. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (rollback-wrapped dry run first; probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
 | 2026-08-29 | `20260830030000_ds9_activate_carbon_tile.sql` | **M&D DS9 — tile goes Active (HELD).** Slug `carbon-footprint-abatement`, matching the DS0 seed (route guard green) | HELD (not applied) | HELD (not applied) |
 | 2026-08-29 | `20260830000000_ds8_energy_efficiency_persistence.sql` | **M&D DS8 — Energy & Utilities Efficiency Studio persistence**: `saved_energy_efficiency_projects` on the saved_<app>_projects convention. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (rollback-wrapped dry run first; probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
