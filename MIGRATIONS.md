@@ -6,6 +6,8 @@ never hand-type DDL against production.
 
 | Date (UTC) | Migration file | Purpose | Applied to staging | Applied to production |
 |---|---|---|---|---|
+| 2026-08-29 | `20260829980000_ds7_lpg_cng_persistence.sql` | **M&D DS7 — LPG & CNG Rollout Studio persistence**: `saved_lpg_cng_projects` on the saved_<app>_projects convention. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (rollback-wrapped dry run first; probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
+| 2026-08-29 | `20260829990000_ds7_activate_lpg_cng_tile.sql` | **M&D DS7 — tile goes Active (HELD).** Slug `lpg-cng-rollout-studio`, matching the DS0 seed (verified by the DS6 route guard) | HELD (not applied) | HELD (not applied) |
 | 2026-08-29 | `20260829960000_ds6_fuel_pricing_persistence.sql` | **M&D DS6 — Fuel Pricing & Supply Chain Studio persistence**: `saved_fuel_pricing_projects` on the saved_<app>_projects convention. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (rollback-wrapped dry run first; probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
 | 2026-08-29 | `20260829970000_ds6_activate_fuel_pricing_tile.sql` | **M&D DS6 — tile goes Active (HELD).** Slug `fuel-pricing-supply-chain`, matching the DS0 seed. **DEPLOY GATE**: apply only with the prod upload that ships the DS6 build | HELD (not applied) | HELD (not applied) |
 | 2026-08-29 | `20260829940000_ds5_terminal_persistence.sql` | **M&D DS5 — Terminal & Depot Studio persistence**: `saved_terminal_projects` on the saved_<app>_projects convention. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
