@@ -6,6 +6,8 @@ never hand-type DDL against production.
 
 | Date (UTC) | Migration file | Purpose | Applied to staging | Applied to production |
 |---|---|---|---|---|
+| 2026-08-29 | `20260830020000_ds9_carbon_persistence.sql` | **M&D DS9 — Carbon Footprint & Abatement Studio persistence**: `saved_carbon_projects` on the saved_<app>_projects convention. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (rollback-wrapped dry run first; probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
+| 2026-08-29 | `20260830030000_ds9_activate_carbon_tile.sql` | **M&D DS9 — tile goes Active (HELD).** Slug `carbon-footprint-abatement`, matching the DS0 seed (route guard green) | HELD (not applied) | HELD (not applied) |
 | 2026-08-29 | `20260830000000_ds8_energy_efficiency_persistence.sql` | **M&D DS8 — Energy & Utilities Efficiency Studio persistence**: `saved_energy_efficiency_projects` on the saved_<app>_projects convention. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (rollback-wrapped dry run first; probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
 | 2026-08-29 | `20260830010000_ds8_activate_energy_efficiency_tile.sql` | **M&D DS8 — tile goes Active (HELD).** Slug `energy-utilities-efficiency`, matching the DS0 seed (route guard green) | HELD (not applied) | HELD (not applied) |
 | 2026-08-29 | `20260829980000_ds7_lpg_cng_persistence.sql` | **M&D DS7 — LPG & CNG Rollout Studio persistence**: `saved_lpg_cng_projects` on the saved_<app>_projects convention. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (rollback-wrapped dry run first; probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
