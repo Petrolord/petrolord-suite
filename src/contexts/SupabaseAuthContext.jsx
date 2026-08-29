@@ -46,6 +46,7 @@ const AuthProviderContent = ({ children }) => {
     'voi-analyzer', 'breakeven-analyzer', 'epe', 'epe-suite', 'separator-slug-catcher-designer',
     'heat-exchanger-sizer', 'gas-treating-dehydration', 'relief-blowdown-sizer',
     'facility-layout-mapper', 'facility-network-hydraulics', 'corrosion-rate-predictor', 'produced-water-treatment',
+    'compressor-station-designer',
     'geomechanics-studio', 'well-log-analyzer'
   ], []);
 
