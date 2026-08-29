@@ -71,6 +71,7 @@ const CrudeAssayBlendingStudio = lazy(() => import('@/pages/apps/CrudeAssayBlend
 const ProductBlendingOptimizer = lazy(() => import('@/pages/apps/ProductBlendingOptimizer'));
 const RefineryPlanningStudio = lazy(() => import('@/pages/apps/RefineryPlanningStudio'));
 const ModularRefineryFeasibility = lazy(() => import('@/pages/apps/ModularRefineryFeasibility'));
+const TerminalDepotStudio = lazy(() => import('@/pages/apps/TerminalDepotStudio'));
 const FlowMeteringDesigner = lazy(() => import('@/pages/apps/FlowMeteringDesigner'));
 const HeatExchangerSizer = lazy(() => import('@/pages/apps/HeatExchangerSizer'));
 const GasTreatingDehydration = lazy(() => import('@/pages/apps/GasTreatingDehydration'));
@@ -718,6 +719,7 @@ function App() {
                                 <Route path="apps/midstream-downstream/product-blending-optimizer" element={<ProtectedAppRoute appId="product-blending-optimizer" appName="Product Blending Optimizer"><ProductBlendingOptimizer /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/refinery-planning-scheduling" element={<ProtectedAppRoute appId="refinery-planning-scheduling" appName="Refinery Planning & Scheduling Studio"><RefineryPlanningStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/modular-refinery-feasibility" element={<ProtectedAppRoute appId="modular-refinery-feasibility" appName="Modular Refinery Feasibility Studio"><ModularRefineryFeasibility /></ProtectedAppRoute>} />
+                                <Route path="apps/midstream-downstream/terminal-depot-studio" element={<ProtectedAppRoute appId="terminal-depot-studio" appName="Terminal & Depot Studio"><TerminalDepotStudio /></ProtectedAppRoute>} />
                                 {/* Facilities F4: the slug keeps its entitlements while the app becomes the
                                     Heat Exchanger & Cooling Studio (F computed, U assembled, hot-day derate). */}
                                 <Route path="apps/facilities/heat-exchanger-sizer" element={<ProtectedAppRoute appId="heat-exchanger-sizer" appName="Heat Exchanger & Cooling Studio"><HeatExchangerSizer /></ProtectedAppRoute>} />
