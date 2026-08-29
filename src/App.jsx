@@ -62,7 +62,6 @@ const ReliefBlowdownSizer = lazy(() => import('@/pages/apps/ReliefBlowdownSizer'
 const FacilityLayoutMapper = lazy(() => import('@/pages/apps/FacilityLayoutMapper'));
 const FacilityNetworkHydraulics = lazy(() => import('@/pages/apps/FacilityNetworkHydraulics'));
 const SeparatorSlugCatcherDesigner = lazy(() => import('@/pages/apps/SeparatorSlugCatcherDesigner'));
-const CompressorPumpPack = lazy(() => import('@/pages/apps/CompressorPumpPack'));
 const HeatExchangerSizer = lazy(() => import('@/pages/apps/HeatExchangerSizer'));
 const GasTreatingDehydration = lazy(() => import('@/pages/apps/GasTreatingDehydration'));
 const CorrosionRatePredictor = lazy(() => import('@/pages/apps/CorrosionRatePredictor'));
@@ -158,8 +157,6 @@ const WellCostTimeHelpGuide = lazy(() => import('@/pages/apps/WellCostTime/WellC
 const WellCostTimeHarness = lazy(() => import('@/pages/apps/WellCostTime/WellCostTimeHarness'));
 
 // Facilities newly added ones
-const PipelineDesigner = lazy(() => import('@/pages/apps/PipelineDesigner.jsx'));
-const PipelineSizer = lazy(() => import('@/pages/apps/PipelineSizer.jsx'));
 const ProducedWaterTreatment = lazy(() => import('@/pages/apps/ProducedWaterTreatment.jsx'));
 
 // Assurance
@@ -685,20 +682,25 @@ function App() {
                                 {/* compare without a caseId cannot query; land on the case list */}
                                 <Route path="apps/economics/epe/compare" element={<Navigate to="/dashboard/apps/economics/epe/cases" replace />} />
 
-                                <Route path="apps/facilities/separator-slug-catcher-designer" element={<SeparatorSlugCatcherDesigner />} />
-                                <Route path="apps/facilities/compressor-pump-pack" element={<CompressorPumpPack />} />
-                                <Route path="apps/facilities/heat-exchanger-sizer" element={<HeatExchangerSizer />} />
-                                <Route path="apps/facilities/gas-treating-dehydration" element={<GasTreatingDehydration />} />
-                                <Route path="apps/facilities/relief-blowdown-sizer" element={<ReliefBlowdownSizer />} />
+                                {/* Facilities F0 (Facilities-ROADMAP.md): every facilities route gated; three shell
+                                    apps retired. Compressor & Pump Pack printed hardcoded literals (real studios ship
+                                    at F9/F10); Pipeline Designer fabricated results behind a setTimeout; Pipeline
+                                    Sizer called a nonexistent edge function and always fell back to a hardcoded mock.
+                                    Single-line sizing lives in Facility Network Hydraulics until the F1 flagship. */}
+                                <Route path="apps/facilities/separator-slug-catcher-designer" element={<ProtectedAppRoute appId="separator-slug-catcher-designer" appName="Separator & Slug Catcher Designer"><SeparatorSlugCatcherDesigner /></ProtectedAppRoute>} />
+                                <Route path="apps/facilities/compressor-pump-pack" element={<Navigate to="/dashboard/facilities" replace />} />
+                                <Route path="apps/facilities/heat-exchanger-sizer" element={<ProtectedAppRoute appId="heat-exchanger-sizer" appName="Heat Exchanger Sizer"><HeatExchangerSizer /></ProtectedAppRoute>} />
+                                <Route path="apps/facilities/gas-treating-dehydration" element={<ProtectedAppRoute appId="gas-treating-dehydration" appName="Gas Treating & Dehydration"><GasTreatingDehydration /></ProtectedAppRoute>} />
+                                <Route path="apps/facilities/relief-blowdown-sizer" element={<ProtectedAppRoute appId="relief-blowdown-sizer" appName="Relief & Blowdown Sizer"><ReliefBlowdownSizer /></ProtectedAppRoute>} />
                                 {/* Production P0: this slug was hijacked to FacilityLayoutMapper, leaving 1,024 LOC of real
                                     hydraulics (Beggs & Brill, Swamee-Jain, Barlow) unreachable. Facilities keeps single-line
                                     sizing (Production-ROADMAP.md §6.2); the gathering-network solver ships as Production #11. */}
                                 <Route path="apps/facilities/facility-network-hydraulics" element={<ProtectedAppRoute appId="facility-network-hydraulics" appName="Facility Network Hydraulics"><FacilityNetworkHydraulics /></ProtectedAppRoute>} />
-                                <Route path="apps/facilities/facility-layout-mapper" element={<FacilityLayoutMapper />} />
-                                <Route path="apps/facilities/corrosion-rate-predictor" element={<CorrosionRatePredictor />} />
-                                <Route path="apps/facilities/pipeline-designer" element={<PipelineDesigner />} />
-                                <Route path="apps/facilities/pipeline-sizer" element={<ProtectedAppRoute appId="pipeline-sizer" appName="Pipeline Sizer"><PipelineSizer /></ProtectedAppRoute>} />
-                                <Route path="apps/facilities/produced-water-treatment" element={<ProducedWaterTreatment />} />
+                                <Route path="apps/facilities/facility-layout-mapper" element={<ProtectedAppRoute appId="facility-layout-mapper" appName="Facility Layout Mapper"><FacilityLayoutMapper /></ProtectedAppRoute>} />
+                                <Route path="apps/facilities/corrosion-rate-predictor" element={<ProtectedAppRoute appId="corrosion-rate-predictor" appName="Corrosion Rate Predictor"><CorrosionRatePredictor /></ProtectedAppRoute>} />
+                                <Route path="apps/facilities/pipeline-designer" element={<Navigate to="/dashboard/apps/facilities/facility-network-hydraulics" replace />} />
+                                <Route path="apps/facilities/pipeline-sizer" element={<Navigate to="/dashboard/apps/facilities/facility-network-hydraulics" replace />} />
+                                <Route path="apps/facilities/produced-water-treatment" element={<ProtectedAppRoute appId="produced-water-treatment" appName="Produced Water Treatment"><ProducedWaterTreatment /></ProtectedAppRoute>} />
                                 
                                 {/* Assurance routes */}
                                 <Route path="apps/assurance/risk-heatmap" element={<Navigate to="/dashboard/apps/assurance/risk-register?tab=heatmap" replace />} />

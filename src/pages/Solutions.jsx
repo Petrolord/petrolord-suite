@@ -53,9 +53,9 @@ const solutionCategories = [
     icon: Factory,
     color: 'from-blue-500 to-indigo-600',
     path: '/dashboard/facilities',
-    count: 9,
-    description: 'Size pipelines, separators, slug catchers, and relief and blowdown systems, model network hydraulics, and predict corrosion so surface infrastructure stays safe and efficient.',
-    apps: ['Pipeline Sizer', 'Separator & Slug Catcher Designer', 'Relief & Blowdown Sizer', 'Facility Network Hydraulics', 'Heat Exchanger Sizer', 'Corrosion Rate Predictor'],
+    count: 7,
+    description: 'Size lines, separators, slug catchers, and relief and blowdown systems, design gas treating and heat exchange, map facility layouts, and predict corrosion so surface infrastructure stays safe and efficient.',
+    apps: ['Facility Network Hydraulics', 'Separator & Slug Catcher Designer', 'Relief & Blowdown Sizer', 'Gas Treating & Dehydration', 'Heat Exchanger Sizer', 'Corrosion Rate Predictor'],
   },
   {
     name: 'Economics & Project Management',
