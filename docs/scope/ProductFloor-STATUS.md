@@ -172,9 +172,13 @@ The same dead host appeared in three other files:
   help-guide guard 27, fiscal designer 18, VOI 10. Full `src` sweep 278
   suites / 3179 tests green.
 - `npm run build` clean.
-- Migration `20260829810000` is **PENDING** apply. It is safe
-  pre-deploy: no tile changes, and the apps degrade to a stated "run
-  the migration" message without it.
+- Migration `20260829810000` **APPLIED 2026-08-29** after a
+  rollback-wrapped dry run that created all three tables and rolled
+  back. Post-apply probe: three tables, RLS enabled on each, one owner
+  policy each. Safe pre-deploy: no tile changes, and the apps degrade
+  to a stated "run the migration" message without it, so applying it
+  ahead of the upload only means saving works the moment the build
+  lands.
 
 ## Left for later phases
 
