@@ -46,11 +46,12 @@ describe('FluidStudioResults renders', () => {
     expect(screen.getByText(/black-oil staged-liberation approximation/i)).toBeInTheDocument();
   });
 
-  it('exposes no dead handoff buttons', () => {
+  it('exposes an enabled Line Sizing Studio handoff and no dead buttons', () => {
     renderResults();
-    // Facilities F0: the Pipeline Sizer handoff was removed with that app's
-    // retirement (it fed a mock engine). The F1 Pipeline & Line Sizing
-    // flagship restores a real backbone handoff (Facilities-ROADMAP.md).
+    // Facilities F1: the hand-off returned, now pointing at the Pipeline &
+    // Line Sizing Studio (the F0-retired Pipeline Sizer's mock is gone).
+    const btn = screen.getByRole('button', { name: /Send to Line Sizing Studio/i });
+    expect(btn).toBeEnabled();
     expect(screen.queryByRole('button', { name: /Send to Pipeline Sizer/i })).not.toBeInTheDocument();
     // The dead Nodal handoff was removed (Nodal Analysis is a separate unbuilt app).
     expect(screen.queryByRole('button', { name: /Nodal/i })).not.toBeInTheDocument();
