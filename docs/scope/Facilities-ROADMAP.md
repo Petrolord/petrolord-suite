@@ -197,5 +197,5 @@ applied and logged, staging E2E, one prod zip.
 
 | Phase | Status | Landed |
 |---|---|---|
-| F0 | not started | |
+| F0 | **SHIPPED 2026-08-29** (PR #295, branch feat/facilities-f0) | Three shells deleted (Compressor & Pump Pack, Pipeline Designer, Pipeline Sizer — retired routes redirect, pipeline slugs land on Facility Network Hydraulics); every facilities route gated + allApps synced (produced-water-treatment added, archived slugs dropped); Separator stale-render gas-velocity bug fixed (now computed from the vessel just sized); Fluid Studio's Send-to-Pipeline-Sizer hand-off removed (it fed the mock; F1 restores a real one); orphan hub pages + zero-importer hubApps.js (33 fictional tiles) + 4 dev-prompt stubs deleted; applications.js and Solutions.jsx made honest. Migrations BOTH APPLIED live 2026-08-29 and logged: 20260829500000 honest catalog (post-state verified 7 Active / 1 Coming Soon / 32 Archived — the first facilities catalog migration ever) + 20260829510000 DDL backfill for the four Horizons-era tables (all four verified live with RLS enabled + owner policies, so a pure no-op capture). Build clean; full jest 358 suites green (one render test updated to assert the F0 state). The orphaned real engine pipelineSizerCalculations.js deliberately kept for F1. |
 | F1-F12 | not started | |
