@@ -1,9 +1,44 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+// FDP Accelerator state (Economics E3 slim rebuild).
+//
+// What this context used to be. Its live state was SEEDED FROM MOCK DATA:
+// a mock team with mock comments and notifications, mock workflow tasks,
+// approvals and an audit log, mock training courses, mock FAQs and articles.
+// A user opening the app met other people's names and a project history that
+// never happened. Those slices, and the modules that displayed them, are
+// gone.
+//
+// What is left is the plan itself: field, subsurface, concepts, scenarios,
+// wells, facilities, schedule, costs and economics, HSE, community, risks and
+// the generated document.
+//
+// Persistence. The plan lived only in this browser's localStorage, so it was
+// lost with the cache and invisible from any other machine. Named plans now
+// save to Supabase (`saved_fdp_projects`, owner-scoped RLS) through the
+// shared studio-kit persistence. The localStorage draft is kept deliberately
+// as a scratch buffer, so a refresh does not lose work in progress even
+// before a plan has been named or while signed out.
+import React, {
+  createContext, useContext, useReducer, useEffect, useCallback, useMemo,
+} from 'react';
 import { DataValidator } from '@/services/fdp/DataValidator';
-import { mockTeam, mockComments, mockNotifications } from '@/data/fdp/mockCollaborationData';
-import { mockTasks, mockApprovals, mockAuditLog } from '@/data/fdp/mockWorkflowData';
-import { mockCourses } from '@/data/training/mockTrainingData';
-import { mockFAQs, mockArticles } from '@/data/help/mockHelpData';
+import { createSavedProjectsService } from '@/utils/savedProjects';
+import { useSavedProjects, missingTableMessage } from '@/hooks/useSavedProjects';
+import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
+
+const TABLE = 'saved_fdp_projects';
+export const service = createSavedProjectsService(TABLE, {
+  signInMessage: 'Sign in to save development plans.',
+});
+const describeError = (e) => missingTableMessage(e, TABLE, 'e3_fdp_persistence');
+
+/** The sections that make up a plan; everything else is UI state. */
+export const PLAN_SECTIONS = [
+  'meta', 'fieldData', 'subsurface', 'concepts', 'scenarios', 'wells',
+  'facilities', 'schedule', 'costs', 'economics', 'hseData', 'communityData',
+  'risks',
+];
+
+const DRAFT_KEY = 'fdp_project_temp';
 
 // Initial State
 const initialState = {
@@ -134,42 +169,6 @@ const initialState = {
         validationStatus: { isValid: true, errors: [], warnings: [] },
         syncHistory: []
     },
-    analytics: {
-        metadata: { performed: 0, insights: 0 },
-        results: []
-    },
-    optimization: {
-        metadata: { optimizations: 0, improvements: 0 },
-        results: []
-    },
-    collaboration: {
-        team: mockTeam,
-        comments: mockComments,
-        notifications: mockNotifications
-    },
-    workflow: {
-        tasks: mockTasks,
-        approvals: mockApprovals,
-        auditLog: mockAuditLog
-    },
-    mobileApp: {
-        status: 'Live',
-        version: '2.1.0',
-        users: 128,
-        downloads: 450
-    },
-    api: {
-        status: 'Healthy',
-        requests: 1200000,
-        endpoints: 15
-    },
-    helpGuide: {
-        faqs: mockFAQs,
-        articles: mockArticles
-    },
-    training: {
-        courses: mockCourses
-    },
     risks: [], 
     notifications: [],
     isLoading: false,
@@ -200,14 +199,6 @@ const ACTIONS = {
     SET_LOADING: 'SET_LOADING',
     SET_ERROR: 'SET_ERROR',
     SET_MODE: 'SET_MODE',
-    UPDATE_ANALYTICS: 'UPDATE_ANALYTICS',
-    UPDATE_OPTIMIZATION: 'UPDATE_OPTIMIZATION',
-    UPDATE_COLLABORATION: 'UPDATE_COLLABORATION',
-    UPDATE_WORKFLOW: 'UPDATE_WORKFLOW',
-    UPDATE_MOBILE_APP: 'UPDATE_MOBILE_APP',
-    UPDATE_API: 'UPDATE_API',
-    UPDATE_HELP_GUIDE: 'UPDATE_HELP_GUIDE',
-    UPDATE_TRAINING: 'UPDATE_TRAINING'
 };
 
 // Reducer
@@ -258,22 +249,6 @@ const fdpReducer = (state, action) => {
             return { ...state, risks: action.payload };
         case ACTIONS.ADD_RISK: 
             return { ...state, risks: [...state.risks, action.payload] };
-        case ACTIONS.UPDATE_ANALYTICS:
-            return { ...state, analytics: { ...state.analytics, ...action.payload } };
-        case ACTIONS.UPDATE_OPTIMIZATION:
-            return { ...state, optimization: { ...state.optimization, ...action.payload } };
-        case ACTIONS.UPDATE_COLLABORATION:
-            return { ...state, collaboration: { ...state.collaboration, ...action.payload } };
-        case ACTIONS.UPDATE_WORKFLOW:
-            return { ...state, workflow: { ...state.workflow, ...action.payload } };
-        case ACTIONS.UPDATE_MOBILE_APP:
-            return { ...state, mobileApp: { ...state.mobileApp, ...action.payload } };
-        case ACTIONS.UPDATE_API:
-            return { ...state, api: { ...state.api, ...action.payload } };
-        case ACTIONS.UPDATE_HELP_GUIDE:
-            return { ...state, helpGuide: { ...state.helpGuide, ...action.payload } };
-        case ACTIONS.UPDATE_TRAINING:
-            return { ...state, training: { ...state.training, ...action.payload } };
         case ACTIONS.SET_LOADING:
             return { ...state, isLoading: action.payload };
         case ACTIONS.SET_ERROR:
@@ -290,62 +265,82 @@ const FDPContext = createContext();
 export const FDPProvider = ({ children }) => {
     const [state, dispatch] = useReducer(fdpReducer, initialState);
 
-    // Persistence
-    useEffect(() => {
-        const saved = localStorage.getItem('fdp_project_temp');
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                dispatch({ type: ACTIONS.SET_PROJECT_META, payload: parsed.meta });
-                if(parsed.fieldData) dispatch({ type: ACTIONS.UPDATE_FIELD_DATA, payload: parsed.fieldData });
-                if(parsed.subsurface) dispatch({ type: ACTIONS.UPDATE_SUBSURFACE, payload: parsed.subsurface });
-                if(parsed.concepts) dispatch({ type: ACTIONS.UPDATE_CONCEPTS, payload: parsed.concepts });
-                if(parsed.scenarios) dispatch({ type: ACTIONS.UPDATE_SCENARIOS, payload: parsed.scenarios });
-                if(parsed.wells) dispatch({ type: ACTIONS.UPDATE_WELLS, payload: parsed.wells });
-                if(parsed.facilities) dispatch({ type: ACTIONS.UPDATE_FACILITIES, payload: parsed.facilities });
-                if(parsed.schedule) dispatch({ type: ACTIONS.UPDATE_SCHEDULE, payload: parsed.schedule });
-                if(parsed.costs) dispatch({ type: ACTIONS.UPDATE_COSTS, payload: parsed.costs }); 
-                if(parsed.hseData) dispatch({ type: ACTIONS.UPDATE_HSE, payload: parsed.hseData });
-                if(parsed.communityData) dispatch({ type: ACTIONS.UPDATE_COMMUNITY, payload: parsed.communityData });
-                if(parsed.risks) dispatch({ type: ACTIONS.UPDATE_RISKS, payload: parsed.risks });
-                if(parsed.analytics) dispatch({ type: ACTIONS.UPDATE_ANALYTICS, payload: parsed.analytics });
-                if(parsed.optimization) dispatch({ type: ACTIONS.UPDATE_OPTIMIZATION, payload: parsed.optimization });
-                if(parsed.collaboration) dispatch({ type: ACTIONS.UPDATE_COLLABORATION, payload: parsed.collaboration });
-                if(parsed.workflow) dispatch({ type: ACTIONS.UPDATE_WORKFLOW, payload: parsed.workflow });
-                if(parsed.mobileApp) dispatch({ type: ACTIONS.UPDATE_MOBILE_APP, payload: parsed.mobileApp });
-                if(parsed.api) dispatch({ type: ACTIONS.UPDATE_API, payload: parsed.api });
-                if(parsed.helpGuide) dispatch({ type: ACTIONS.UPDATE_HELP_GUIDE, payload: parsed.helpGuide });
-                if(parsed.training) dispatch({ type: ACTIONS.UPDATE_TRAINING, payload: parsed.training });
-            } catch (e) {
-                console.error("Failed to load saved FDP state", e);
+    const { notifications, addNotification, removeNotification } = useStudioNotifications();
+
+    // Apply a whole plan payload in one pass, so restoring a saved plan and
+    // restoring the local draft go through exactly the same path.
+    const applyPlan = useCallback((plan) => {
+        if (!plan || typeof plan !== 'object') return false;
+        const byType = {
+            meta: ACTIONS.SET_PROJECT_META,
+            fieldData: ACTIONS.UPDATE_FIELD_DATA,
+            subsurface: ACTIONS.UPDATE_SUBSURFACE,
+            concepts: ACTIONS.UPDATE_CONCEPTS,
+            scenarios: ACTIONS.UPDATE_SCENARIOS,
+            wells: ACTIONS.UPDATE_WELLS,
+            facilities: ACTIONS.UPDATE_FACILITIES,
+            schedule: ACTIONS.UPDATE_SCHEDULE,
+            costs: ACTIONS.UPDATE_COSTS,
+            economics: ACTIONS.UPDATE_ECONOMICS,
+            hseData: ACTIONS.UPDATE_HSE,
+            communityData: ACTIONS.UPDATE_COMMUNITY,
+            risks: ACTIONS.UPDATE_RISKS,
+        };
+        let applied = false;
+        PLAN_SECTIONS.forEach((section) => {
+            if (plan[section] !== undefined && byType[section]) {
+                dispatch({ type: byType[section], payload: plan[section] });
+                applied = true;
             }
-        }
+        });
+        return applied;
     }, []);
 
+    // The local draft: a scratch buffer so a refresh does not lose work in
+    // progress, including before a plan has been named or while signed out.
+    // It is NOT the plan's home; that is the saved-plan table.
     useEffect(() => {
-        localStorage.setItem('fdp_project_temp', JSON.stringify({
-            meta: state.meta,
-            fieldData: state.fieldData,
-            subsurface: state.subsurface,
-            concepts: state.concepts,
-            scenarios: state.scenarios,
-            wells: state.wells,
-            facilities: state.facilities,
-            schedule: state.schedule,
-            costs: state.costs,
-            hseData: state.hseData,
-            communityData: state.communityData,
-            risks: state.risks,
-            analytics: state.analytics,
-            optimization: state.optimization,
-            collaboration: state.collaboration,
-            workflow: state.workflow,
-            mobileApp: state.mobileApp,
-            api: state.api,
-            helpGuide: state.helpGuide,
-            training: state.training
-        }));
-    }, [state]);
+        try {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) applyPlan(JSON.parse(saved));
+        } catch (e) {
+            console.error('Failed to load the local FDP draft', e);
+        }
+    }, [applyPlan]);
+
+    const plan = useMemo(
+        () => PLAN_SECTIONS.reduce((acc, k) => ({ ...acc, [k]: state[k] }), {}),
+        [state],
+    );
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(DRAFT_KEY, JSON.stringify(plan));
+        } catch (e) {
+            // A full or blocked store must not take the app down with it.
+            console.error('Failed to write the local FDP draft', e);
+        }
+    }, [plan]);
+
+    const serialize = useCallback(
+        (name) => ({ name, schema: 1, plan, modified: new Date().toISOString() }),
+        [plan],
+    );
+
+    const restore = useCallback((payload) => {
+        const saved = payload?.plan && typeof payload.plan === 'object' ? payload.plan : payload;
+        return applyPlan(saved);
+    }, [applyPlan]);
+
+    const persistence = useSavedProjects({
+        service,
+        serialize,
+        restore,
+        addNotification,
+        describeError,
+        watch: plan,
+        noun: 'Plan',
+    });
 
     const setProjectName = (name) => dispatch({ type: ACTIONS.SET_PROJECT_META, payload: { name } });
     const setActiveTab = (tab) => dispatch({ type: ACTIONS.SET_ACTIVE_TAB, payload: tab });
@@ -367,19 +362,14 @@ export const FDPProvider = ({ children }) => {
     const updateCommunity = (data) => dispatch({ type: ACTIONS.UPDATE_COMMUNITY, payload: data });
     const updateDataManagement = (data) => dispatch({ type: ACTIONS.UPDATE_DATA_MANAGEMENT, payload: data });
     const updateRisks = (data) => dispatch({ type: ACTIONS.UPDATE_RISKS, payload: data });
-    const updateAnalytics = (data) => dispatch({ type: ACTIONS.UPDATE_ANALYTICS, payload: data });
-    const updateOptimization = (data) => dispatch({ type: ACTIONS.UPDATE_OPTIMIZATION, payload: data });
-    const updateCollaboration = (data) => dispatch({ type: ACTIONS.UPDATE_COLLABORATION, payload: data });
-    const updateWorkflow = (data) => dispatch({ type: ACTIONS.UPDATE_WORKFLOW, payload: data });
-    const updateMobileApp = (data) => dispatch({ type: ACTIONS.UPDATE_MOBILE_APP, payload: data });
-    const updateAPI = (data) => dispatch({ type: ACTIONS.UPDATE_API, payload: data });
-    const updateHelpGuide = (data) => dispatch({ type: ACTIONS.UPDATE_HELP_GUIDE, payload: data });
-    const updateTraining = (data) => dispatch({ type: ACTIONS.UPDATE_TRAINING, payload: data });
 
     return (
         <FDPContext.Provider value={{
             state,
             dispatch,
+            persistence,
+            notifications,
+            removeNotification,
             actions: {
                 setProjectName,
                 setActiveTab,
@@ -400,14 +390,6 @@ export const FDPProvider = ({ children }) => {
                 updateCommunity,
                 updateDataManagement,
                 updateRisks,
-                updateAnalytics,
-                updateOptimization,
-                updateCollaboration,
-                updateWorkflow,
-                updateMobileApp,
-                updateAPI,
-                updateHelpGuide,
-                updateTraining
             }
         }}>
             {children}

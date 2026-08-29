@@ -7,7 +7,7 @@ import PressureTemperature from './subsurface/PressureTemperature';
 import GeomechLimits from './subsurface/GeomechLimits';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Upload, CheckCircle2 } from 'lucide-react';
-import { SubsurfaceDataImporter } from '@/services/fdp/SubsurfaceDataImporter';
+import { exampleSubsurface, EXAMPLE_LABEL } from '@/services/fdp/exampleData';
 import { useToast } from '@/components/ui/use-toast';
 
 const SubsurfaceModule = () => {
@@ -20,36 +20,17 @@ const SubsurfaceModule = () => {
         actions.updateSubsurface({ [section]: data });
     };
 
-    const handleImport = async () => {
-        try {
-            toast({ title: "Importing Subsurface Data", description: "Connecting to reservoir engines..." });
-            
-            // Mock import
-            const ppfgData = await SubsurfaceDataImporter.importFromPPFG();
-            const reservesData = await SubsurfaceDataImporter.importFromReservoirSim();
-            const faciesData = await SubsurfaceDataImporter.importFromLogFacies();
-
-            // Merge
-            actions.updateSubsurface({
-                reserves: { ...subsurface.reserves, breakdown: reservesData.reserves },
-                properties: { ...subsurface.properties, zones: faciesData.zones },
-                geomech: ppfgData.geomech,
-                pressureTemp: ppfgData.pressure
-            });
-
-            actions.updateDataManagement({
-                importStatus: {
-                    ...dataManagement.importStatus,
-                    ppfg: { status: 'synced', lastSync: new Date().toISOString() },
-                    logFacies: { status: 'synced', lastSync: new Date().toISOString() }
-                }
-            });
-            
-            toast({ title: "Data Synced", description: "Subsurface model updated from external apps." });
-        } catch (e) {
-            console.error(e);
-            toast({ title: "Sync Failed", description: "Could not retrieve data.", variant: "destructive" });
-        }
+    const handleLoadExample = () => {
+        // Economics E3: this claimed to sync the user's own data from another
+    // Suite app and contacted nothing. It loads a labelled example now.
+        const ex = exampleSubsurface();
+        actions.updateSubsurface({
+            reserves: { ...subsurface.reserves, ...ex.reserves },
+            properties: ex.properties,
+            geomech: ex.geomech,
+            pressureTemp: ex.pressureTemp,
+        });
+        toast({ title: 'Example loaded', description: `${EXAMPLE_LABEL}. Illustrative figures, not your project's.` });
     };
 
     return (
@@ -61,8 +42,8 @@ const SubsurfaceModule = () => {
                     <p className="text-slate-400">Characterize the reservoir, estimate reserves, and define geomechanical constraints.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleImport} className="border-slate-700 text-slate-300">
-                        <RefreshCw className="w-4 h-4 mr-2" /> Sync Apps
+                    <Button variant="outline" onClick={handleLoadExample} className="border-slate-700 text-slate-300">
+                        <RefreshCw className="w-4 h-4 mr-2" /> Load example
                     </Button>
                     <Button variant="outline" className="border-slate-700 text-slate-300">
                         <Upload className="w-4 h-4 mr-2" /> Import LAS/Excel

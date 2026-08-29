@@ -8,7 +8,7 @@ import CostBreakdown from './cost/CostBreakdown';
 import CostForm from './cost/CostForm';
 import EconomicsAnalysis from './cost/EconomicsAnalysis';
 import SensitivityAnalysis from './cost/SensitivityAnalysis';
-import { CostDataImporter } from '@/services/fdp/CostDataImporter';
+import { exampleCosts, EXAMPLE_LABEL } from '@/services/fdp/exampleData';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const CostModule = () => {
@@ -55,20 +55,12 @@ const CostModule = () => {
         setView('list');
     };
 
-    const handleImport = async () => {
-        try {
-            toast({ title: "Syncing Costs", description: "Importing from AFE & Project Management..." });
-            const afeCosts = await CostDataImporter.importFromAFE();
-            const pmCosts = await CostDataImporter.importFromProjectManagement();
-            
-            // Merge unique IDs
-            const newItems = [...afeCosts, ...pmCosts];
-            actions.updateCosts({ items: [...costs.items, ...newItems] });
-            
-            toast({ title: "Success", description: `Imported ${newItems.length} cost items.` });
-        } catch (e) {
-            toast({ title: "Import Failed", description: "Could not sync cost data.", variant: "destructive" });
-        }
+    const handleLoadExample = () => {
+        // Economics E3: this claimed to sync the user's own data from another
+    // Suite app and contacted nothing. It loads a labelled example now.
+        const added = exampleCosts();
+        actions.updateCosts({ items: [...costs.items, ...added] });
+        toast({ title: 'Example loaded', description: `${added.length} example cost items. ${EXAMPLE_LABEL}.` });
     };
 
     return (
@@ -79,8 +71,8 @@ const CostModule = () => {
                     <p className="text-slate-400">Manage budget, estimate CAPEX/OPEX, and analyze economic viability.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleImport} className="border-slate-700 text-slate-300">
-                        <Download className="w-4 h-4 mr-2" /> Import Data
+                    <Button variant="outline" onClick={handleLoadExample} className="border-slate-700 text-slate-300">
+                        <Download className="w-4 h-4 mr-2" /> Load example
                     </Button>
                     <Button 
                         onClick={handleCreate} 
