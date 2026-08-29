@@ -1,7 +1,12 @@
 /**
- * Cost & Economics Calculations Utility
- * Handles aggregation of costs and calculation of economic indicators (NPV, IRR, etc.)
+ * FDP cost aggregation and economics.
+ *
+ * Economics E1: the economics here are computed by the sanctioned
+ * screening engine through `runFdpCase`, not by a private NPV. See
+ * src/utils/fdp/economics.js for what changed and why.
  */
+
+import { runFdpCase, DEFAULT_FISCAL } from '@/utils/fdp/economics';
 
 export const calculateTotalCAPEX = (costItems) => {
     if (!costItems) return 0;
@@ -27,90 +32,85 @@ export const calculateCostByPhase = (costItems) => {
     return phases;
 };
 
-export const calculateCashFlows = (capex, annualOpex, productionProfile, priceDeck, discountRate = 0.10) => {
-    const cashFlows = [];
-    const years = Math.max(productionProfile.length, priceDeck.length, 20);
-    let cumulativeCashFlow = 0;
-
-    // Year 0 (Development)
-    const year0CashFlow = -capex;
-    cumulativeCashFlow += year0CashFlow;
-    cashFlows.push({
-        year: 0,
-        revenue: 0,
-        capex: capex,
-        opex: 0,
-        netCashFlow: year0CashFlow,
-        cumulativeCashFlow: cumulativeCashFlow,
-        discountedCashFlow: year0CashFlow // Year 0 not discounted or factor 1
+/**
+ * Build an FDP cash flow.
+ *
+ * Economics E1: this used to compute revenue minus operating cost and
+ * call the result a cash flow. There was no royalty and no tax in it at
+ * all, so the NPV card above it was a pre-fiscal number roughly forty
+ * percent too high on ordinary Nigerian terms. It now runs through
+ * `runFdpCase` and the sanctioned screening engine.
+ *
+ * @param {number} capex total development capex, $MM
+ * @param {number} annualOpex fixed operating cost, $MM per year
+ * @param {number[]} productionProfile daily rate per producing year, kbpd
+ * @param {object[]} priceDeck rows carrying `oil_price_usd`
+ * @param {object} [fiscal] overrides for DEFAULT_FISCAL
+ * @returns {object[]} rows shaped for the economics charts
+ */
+export const calculateCashFlows = (capex, annualOpex, productionProfile, priceDeck, fiscal = {}) => {
+    const prices = productionProfile.map((_, i) => priceDeck[i]?.oil_price_usd ?? 70);
+    const result = runFdpCase({
+        capexMM: capex,
+        annualOpexMM: annualOpex,
+        productionKbpd: productionProfile,
+        pricesUsd: prices,
+        fiscal,
     });
-
-    // Production Years
-    for (let i = 1; i <= years; i++) {
-        const prod = productionProfile[i-1] || 0; // volume
-        const price = priceDeck[i-1]?.oil_price_usd || 70; // $/unit
-        const revenue = prod * price * 365 / 1000; // Assuming prod is daily kbbl, resulting in MM$
-        
-        // Simple Opex Model: Fixed + Variable
-        const variableOpex = prod * 5 * 365 / 1000; // $5/bbl variable
-        const totalOpex = annualOpex + variableOpex;
-
-        const netCashFlow = revenue - totalOpex;
-        const discountedCashFlow = netCashFlow / Math.pow(1 + discountRate, i);
-        
-        cumulativeCashFlow += netCashFlow;
-
-        cashFlows.push({
-            year: i,
-            revenue,
-            capex: 0,
-            opex: totalOpex,
-            netCashFlow,
-            cumulativeCashFlow,
-            discountedCashFlow
-        });
-    }
-
-    return cashFlows;
+    const rate = (fiscal.discountRate ?? DEFAULT_FISCAL.discountRate) / 100;
+    return result.cashflow.map((cf, i) => ({
+        year: i,
+        revenue: cf.grossRevenue,
+        royalty: cf.royalty,
+        tax: cf.tax,
+        capex: cf.capex,
+        opex: cf.opex,
+        netCashFlow: cf.ncf,
+        cumulativeCashFlow: cf.cumulativeNCF,
+        // Mid-year, matching the engine that produced the cash flow.
+        discountedCashFlow: cf.ncf / (1 + rate) ** (i + 0.5),
+    }));
 };
 
-export const calculateNPV = (cashFlows) => {
-    return cashFlows.reduce((sum, cf) => sum + cf.discountedCashFlow, 0);
-};
+/** NPV in $MM, post royalty and tax. */
+export const calculateNPV = (cashFlows) =>
+    cashFlows.reduce((sum, cf) => sum + cf.discountedCashFlow, 0);
 
+/**
+ * IRR in percent.
+ *
+ * The Newton-Raphson loop this replaces had no bracket and no guard: on a
+ * cash flow that never changes sign it walked off to whatever the
+ * derivative sent it to and returned that as an IRR. Bisection on the
+ * sign change cannot do that, and an IRR that does not exist is reported
+ * as null rather than invented.
+ */
 export const calculateIRR = (cashFlows) => {
-    const flows = cashFlows.map(cf => cf.netCashFlow);
-    let guess = 0.1;
-    
-    for (let i = 0; i < 50; i++) {
-        let npv = 0;
-        let d_npv = 0;
-        
-        for (let t = 0; t < flows.length; t++) {
-            npv += flows[t] / Math.pow(1 + guess, t);
-            d_npv -= t * flows[t] / Math.pow(1 + guess, t + 1);
-        }
-        
-        if (Math.abs(npv) < 0.0001) return guess * 100;
-        
-        const newGuess = guess - npv / d_npv;
-        if (Math.abs(newGuess - guess) < 0.00001) return newGuess * 100;
-        
-        guess = newGuess;
+    const flows = cashFlows.map((cf) => cf.netCashFlow);
+    const npvAt = (r) => flows.reduce((sum, f, t) => sum + f / (1 + r) ** (t + 0.5), 0);
+    if (!flows.some((f) => f < 0) || !flows.some((f) => f > 0)) return null;
+    if (npvAt(0) <= 0) return null;
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 20 && npvAt(hi) > 0; i += 1) hi *= 2;
+    if (npvAt(hi) > 0) return hi * 100;
+    for (let i = 0; i < 100; i += 1) {
+        const mid = (lo + hi) / 2;
+        if (npvAt(mid) > 0) lo = mid; else hi = mid;
     }
-    
-    return guess * 100;
+    return ((lo + hi) / 2) * 100;
 };
 
+/** Years to payback, or null when it never pays back. */
 export const calculatePaybackPeriod = (cashFlows) => {
-    for (let i = 0; i < cashFlows.length; i++) {
+    for (let i = 0; i < cashFlows.length; i += 1) {
         if (cashFlows[i].cumulativeCashFlow >= 0) {
-            // Interpolate
             if (i === 0) return 0;
-            const prevCum = cashFlows[i-1].cumulativeCashFlow;
-            const currFlow = cashFlows[i].netCashFlow;
-            return (i - 1) + (Math.abs(prevCum) / currFlow);
+            const prev = cashFlows[i - 1].cumulativeCashFlow;
+            const curr = cashFlows[i].netCashFlow;
+            // Part way THROUGH period i, so the count starts at i.
+            return curr > 0 ? i + Math.abs(prev) / curr : i;
         }
     }
-    return null; // Never pays back within timeframe
+    return null;
 };

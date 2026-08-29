@@ -196,13 +196,26 @@ export const calculateEconomics = (inputs) => {
     irr = isFinite(guess) ? guess * 100 : 0;
   }
 
-  // Payback
+  // Payback, in years from the start of the project.
+  //
+  // Index i covers the period from t = i to t = i + 1 (which is why the
+  // discount exponent is i + 0.5). So a project still negative at the end
+  // of period i - 1 and positive at the end of period i pays back part way
+  // THROUGH period i, at t = i + (shortfall carried in) / (that period's
+  // cash flow).
+  //
+  // E1 correction: this used to start the count at (firstPositiveIndex - 1)
+  // and so reported payback exactly ONE YEAR EARLY in every case. A project
+  // spending 100 in the first period and earning 150 in the second was
+  // reported as paying back in 0.67 years when it pays back in 1.67.
   let payback = 0;
-  const firstPositiveIndex = cashflow.findIndex(c => c.cumulativeNCF > 0);
+  const firstPositiveIndex = cashflow.findIndex(c => c.cumulativeNCF >= 0);
   if (firstPositiveIndex > 0) {
       const prev = cashflow[firstPositiveIndex - 1];
       const curr = cashflow[firstPositiveIndex];
-      payback = (firstPositiveIndex - 1) + Math.abs(prev.cumulativeNCF) / curr.ncf; 
+      payback = curr.ncf > 0
+        ? firstPositiveIndex + Math.abs(prev.cumulativeNCF) / curr.ncf
+        : firstPositiveIndex;
   } else if (firstPositiveIndex === 0) {
       payback = 0;
   } else {

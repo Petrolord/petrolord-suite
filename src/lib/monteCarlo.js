@@ -80,6 +80,102 @@ export function triInvCDF(u, a, c, b) {
   return b - Math.sqrt((1 - u) * (b - a) * (b - c));
 }
 
+// Seeded pseudo-random generator (mulberry32). Returns a function with
+// the same contract as Math.random, so it drops into any `rng` slot in
+// this module. An economics result that cannot be reproduced cannot be
+// defended in a review, so any app whose Monte Carlo output is shown to
+// a decision maker should seed it.
+export function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function next() {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Fit a triangular distribution to three stated PERCENTILES.
+ *
+ * People quote P10, P50 and P90. A triangular distribution is defined by
+ * its minimum, mode and maximum. Those are not the same thing, and
+ * feeding percentiles straight in as min/mode/max is a real error: it
+ * declares that nothing can fall below the stated P10 or above the
+ * stated P90, when by construction twenty percent of outcomes should.
+ * The tails vanish and every downside case is quietly understated.
+ *
+ * Solve it in the shape-then-scale form instead. Write the quantile
+ * function of a triangular in normalised coordinates, where m = (c-a)/(b-a)
+ * is the mode's position in the range:
+ *
+ *   x(u) = a + (b-a) * g(u, m),
+ *   g(u, m) = sqrt(u*m)                 for u <= m
+ *           = 1 - sqrt((1-u)(1-m))      for u >  m
+ *
+ * The mode position alone fixes the SHAPE, so the ratio
+ * (p50-p10)/(p90-p10) depends on m and nothing else. That ratio is
+ * monotone in m, so one bisection on m recovers the shape; the range and
+ * the origin then follow in closed form from the P10 and P90.
+ *
+ * The reachable ratio runs from about 0.382 (mode at the minimum) to
+ * about 0.618 (mode at the maximum). A median outside that band cannot be
+ * represented by ANY triangular, so the fit is clamped and says so in
+ * `exact`, rather than returning a shape that does not honour the inputs.
+ *
+ * @param {number} p10 tenth percentile
+ * @param {number} p50 median
+ * @param {number} p90 ninetieth percentile
+ * @returns {{min:number, mode:number, max:number, exact:boolean, note:(string|null)}}
+ */
+export function fitTriangularToPercentiles(p10, p50, p90) {
+  const lo = Number(p10);
+  const mid = Number(p50);
+  const hi = Number(p90);
+  if (!Number.isFinite(lo) || !Number.isFinite(mid) || !Number.isFinite(hi)) {
+    return { min: lo, mode: mid, max: hi, exact: false, note: 'non-numeric percentiles' };
+  }
+  if (!(hi > lo)) {
+    // Degenerate: no spread was stated, so there is nothing to fit.
+    return { min: lo, mode: mid, max: hi, exact: true, note: null };
+  }
+
+  const g = (u, m) => (u <= m ? Math.sqrt(u * m) : 1 - Math.sqrt((1 - u) * (1 - m)));
+  const ratioAt = (m) => (g(0.5, m) - g(0.1, m)) / (g(0.9, m) - g(0.1, m));
+
+  const target = (mid - lo) / (hi - lo);
+  const rMin = ratioAt(0);
+  const rMax = ratioAt(1);
+  let exact = true;
+  let note = null;
+  let clamped = target;
+  if (target <= rMin) {
+    clamped = rMin;
+    exact = false;
+    note = 'the stated median sits too near the P10 for any triangular to pass through all three points; the fit uses the most left-skewed triangular there is (mode at the minimum)';
+  } else if (target >= rMax) {
+    clamped = rMax;
+    exact = false;
+    note = 'the stated median sits too near the P90 for any triangular to pass through all three points; the fit uses the most right-skewed triangular there is (mode at the maximum)';
+  }
+
+  // ratioAt is monotone increasing in m, so bisection is safe.
+  let mLo = 0;
+  let mHi = 1;
+  for (let i = 0; i < 200; i += 1) {
+    const m = (mLo + mHi) / 2;
+    if (ratioAt(m) < clamped) mLo = m; else mHi = m;
+  }
+  const m = (mLo + mHi) / 2;
+
+  const range = (hi - lo) / (g(0.9, m) - g(0.1, m));
+  const min = lo - range * g(0.1, m);
+  const max = min + range;
+  const mode = min + m * range;
+  return { min, mode, max, exact, note };
+}
+
 // Does this input carry real uncertainty (vs. a constant / degenerate range)?
 export function isVariable(dist) {
   if (!dist || !SPREAD_TYPES.has(dist.type)) return false;

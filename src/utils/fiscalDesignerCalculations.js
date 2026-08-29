@@ -1,11 +1,44 @@
 // Client-side screening model for fiscal regime design: sliding-scale
 // royalty, R-factor profit splits, cost recovery with carryforward, CIT/RRT.
+//
+// This is a regime SANDBOX, not a second fiscal truth. It exists to
+// compare the shape of regimes against each other; full Nigerian fiscal
+// math lives in the EPE engine
+// (supabase/functions/_shared/epe-engine.ts), which stays the module's
+// single source of truth. Where this model and the canonical engines
+// overlap, they must agree, and that is now gated by tests.
+//
 // D1 (docs/scope/Economics-ROADMAP.md): IRR is a robust bisection solver
 // (no artificial cap), the tax base is the contractor profit share (costs
 // are compensated via cost recovery; the old opex/2 halving is gone), and
 // the RRT capital uplift is a regime parameter (tax.rrtUpliftPct, default
-// 20). Screening use only; full Nigerian fiscal math lives in the EPE
-// engine (supabase/functions/_shared/epe-engine.ts).
+// 20).
+//
+// E1 (2026-08-29) fixed two defects that survived D1, both found by
+// checking the ledger's mass balance against the canonical PSC semantics
+// in npvCalculations.js and epe-engine applyPSC:
+//
+//  1. COST OIL WAS NEVER PAID TO ANYONE. Recovered cost was subtracted
+//     from profit oil, and then dropped. It was not credited to the
+//     contractor and not counted to the government, so contractor take
+//     plus government take came to less than revenue minus costs by
+//     exactly the cost recovered. On a normal case that is hundreds of
+//     millions of dollars a year evaporating out of the comparison the
+//     whole app exists to make. Cost oil is now credited to the
+//     contractor, which is what a production sharing contract does and
+//     what both canonical engines already did.
+//
+//  2. OPEX WAS NEVER RECOVERABLE. The cost pool was seeded with capex
+//     and nothing was ever added to it, so operating cost was charged
+//     as cash but could never be recovered. Both canonical engines put
+//     the full cost outflow into the recoverable pool. This one now
+//     does too, with the unrecovered balance carried forward.
+//
+// CONVENTION: discounting here is YEAR-END (t = 1, 2, ...), matching the
+// EPE engine. The screening engine in npvCalculations.js discounts
+// MID-YEAR, so for identical cash flows its NPV is larger by a factor of
+// (1 + r)^0.5. That relation is gated by a test rather than left as a
+// surprise.
 
 const PROJECT_LIFE = 25; // years
 
@@ -96,7 +129,9 @@ export const calculateCashFlowForRegime = (regime, project, capexMultiplier = 1,
     const nglProd = generateProductionProfile(project.production.ngl.initial, project.production.ngl.decline);
 
     const totalCapex = (project.costs.capex.drilling + project.costs.capex.facilities + project.costs.capex.subsea) * capexMultiplier;
-    let cumulativeCostPool = totalCapex;
+    // Unrecovered cost carried forward. Costs enter the pool in the year
+    // they are incurred (capex AND opex), matching applyPSC.
+    let cumulativeCostPool = 0;
     let cumulativeRevenue = 0;
     let cumulativeCosts = 0;
     let cumulativeNCF = 0;
@@ -129,11 +164,12 @@ export const calculateCashFlowForRegime = (regime, project, capexMultiplier = 1,
         
         const revenueAfterRoyalty = grossRevenue - royalty;
         
+        const recoverablePool = cumulativeCostPool + capex + opex;
         const costRecoveryAllowed = revenueAfterRoyalty * (regime.costRecoveryLimit / 100);
-        const costRecovered = Math.min(cumulativeCostPool, costRecoveryAllowed);
-        cumulativeCostPool -= costRecovered;
-        
-        const profitOil = revenueAfterRoyalty - costRecovered;
+        const costRecovered = Math.min(recoverablePool, costRecoveryAllowed);
+        cumulativeCostPool = recoverablePool - costRecovered;
+
+        const profitOil = Math.max(0, revenueAfterRoyalty - costRecovered);
         
         const rFactor = cumulativeCosts > 0 ? cumulativeRevenue / cumulativeCosts : 0;
         const contractorProfitSplit = getTieredSplit(rFactor, regime.profitSplit);
@@ -154,13 +190,24 @@ export const calculateCashFlowForRegime = (regime, project, capexMultiplier = 1,
         const minTax = grossRevenue * (regime.tax.minTax / 100);
         const tax = Math.max(cit + rrt, minTax);
 
-        const contractorNCF = contractorProfitShare - tax - opex - capex;
+        // The contractor receives cost oil AND its profit share, and pays
+        // the costs and the tax. Dropping the cost-oil term (as this did
+        // before E1) makes revenue disappear from the ledger entirely.
+        const contractorNCF = costRecovered + contractorProfitShare - tax - opex - capex;
         const governmentTake = royalty + governmentProfitShare + tax;
         
         cumulativeNCF += contractorNCF;
 
         annualCashFlows.push({
             year,
+            grossRevenue,
+            royalty,
+            costRecovered,
+            unrecoveredCostPool: cumulativeCostPool,
+            profitOil,
+            tax,
+            opex,
+            capex,
             contractorNCF,
             governmentTake,
             cumulativeNCF,

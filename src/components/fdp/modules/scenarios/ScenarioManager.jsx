@@ -3,14 +3,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Edit2, Trash2, PlayCircle } from 'lucide-react';
-import { calculateNPV, calculateIRR, generateCashFlows } from '@/utils/fdp/scenarioCalculations';
+import { runScenario } from '@/utils/fdp/scenarioCalculations';
 
 const ScenarioCard = ({ scenario, concept, onEdit, onDelete, onSelect, isSelected }) => {
     if (!concept) return null; // Should not happen if data integrity is maintained
 
-    const cashFlows = generateCashFlows(scenario, concept);
-    const npv = calculateNPV(cashFlows, scenario.discountRate / 100);
-    const irr = calculateIRR(cashFlows);
+    // Economics E1: post royalty and tax, through the sanctioned engine.
+    const { metrics } = runScenario(scenario, concept);
+    const npv = metrics.npv;
+    const irr = metrics.irr;
 
     return (
         <Card 

@@ -187,6 +187,11 @@ const InputPanel = ({ onAnalyze, loading, initialInputs }) => {
                 <div><Label className="text-lime-300">Tax Rate (%)</Label><Input type="number" value={inputs.taxRate} onChange={(e) => handleInputChange('taxRate', Number(e.target.value))} className="bg-white/5 border-white/20" /></div>
                 <div><Label className="text-lime-300">Target NPV ($MM)</Label><Input type="number" value={inputs.targetNpv} onChange={(e) => handleInputChange('targetNpv', Number(e.target.value))} className="bg-white/5 border-white/20" /></div>
                 <div><Label className="text-lime-300">Monte Carlo Iterations</Label><Input type="number" value={inputs.iterations} onChange={(e) => handleInputChange('iterations', Number(e.target.value))} className="bg-white/5 border-white/20" /></div>
+                <div>
+                  <Label className="text-lime-300">Run Seed</Label>
+                  <Input type="number" value={inputs.seed} onChange={(e) => handleInputChange('seed', Number(e.target.value))} className="bg-white/5 border-white/20" />
+                  <p className="text-[11px] text-slate-400 mt-1">The same inputs and seed reproduce the same answer. Change it to draw a different sample.</p>
+                </div>
             </div>
         </CollapsibleSection>
       </div>

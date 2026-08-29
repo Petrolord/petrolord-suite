@@ -4,15 +4,28 @@ import { calculateCashFlows, calculateNPV, calculateIRR, calculatePaybackPeriod 
 import { BarChart, LineChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ComposedChart } from 'recharts';
 
 const EconomicsAnalysis = ({ costItems, economicsSettings }) => {
-    // Mock Data for demonstration if full model isn't connected yet
     const capex = costItems.filter(i => i.type === 'CAPEX').reduce((sum, i) => sum + (parseFloat(i.amount)||0), 0);
     const opex = costItems.filter(i => i.type === 'OPEX').reduce((sum, i) => sum + (parseFloat(i.amount)||0), 0);
-    
-    // Generate mock profile for visualization
-    const productionProfile = [10, 25, 45, 50, 48, 42, 35, 30, 25, 20, 18, 15, 12, 10, 8, 6, 5, 4, 3, 2]; // kbpd
-    const priceDeck = Array(20).fill({ oil_price_usd: 75 });
-    
-    const cashFlows = calculateCashFlows(capex, opex, productionProfile, priceDeck);
+
+    // The production profile and price deck below are ILLUSTRATIVE, not
+    // this project's. They are the last mock seam in this panel and the
+    // FDP slim rebuild (Economics-ROADMAP.md E3) replaces them with the
+    // plan's own profile. The economics run on them are real: Economics
+    // E1 put royalty and tax into this calculation, which previously had
+    // neither.
+    const productionProfile = economicsSettings?.productionProfileKbpd
+        ?? [10, 25, 45, 50, 48, 42, 35, 30, 25, 20, 18, 15, 12, 10, 8, 6, 5, 4, 3, 2];
+    const usesIllustrativeProfile = !economicsSettings?.productionProfileKbpd;
+    const price = economicsSettings?.oilPrice ?? 75;
+    const priceDeck = productionProfile.map(() => ({ oil_price_usd: price }));
+
+    const fiscal = {
+        discountRate: economicsSettings?.discountRate ?? 10,
+        royaltyRate: economicsSettings?.royaltyRate ?? 12.5,
+        taxRate: economicsSettings?.taxRate ?? 30,
+    };
+
+    const cashFlows = calculateCashFlows(capex, opex, productionProfile, priceDeck, fiscal);
     const npv = calculateNPV(cashFlows);
     const irr = calculateIRR(cashFlows);
     const payback = calculatePaybackPeriod(cashFlows);
@@ -31,8 +44,8 @@ const EconomicsAnalysis = ({ costItems, economicsSettings }) => {
                 <Card className="bg-slate-900 border-slate-800">
                     <div className="p-4 text-center">
                         <div className="text-xs text-slate-400 uppercase mb-1">IRR</div>
-                        <div className={`text-3xl font-bold ${irr >= 15 ? 'text-green-400' : 'text-yellow-400'}`}>
-                            {irr.toFixed(1)}%
+                        <div className={`text-3xl font-bold ${irr !== null && irr >= 15 ? 'text-green-400' : 'text-yellow-400'}`}>
+                            {irr === null ? 'n/a' : `${irr.toFixed(1)}%`}
                         </div>
                     </div>
                 </Card>
@@ -40,11 +53,19 @@ const EconomicsAnalysis = ({ costItems, economicsSettings }) => {
                     <div className="p-4 text-center">
                         <div className="text-xs text-slate-400 uppercase mb-1">Payback Period</div>
                         <div className="text-3xl font-bold text-blue-400">
-                            {payback ? `${payback.toFixed(1)} yrs` : '> 20 yrs'}
+                            {payback === null ? 'never' : `${payback.toFixed(1)} yrs`}
                         </div>
                     </div>
                 </Card>
             </div>
+
+            <p className="text-xs text-slate-400">
+                Post royalty ({fiscal.royaltyRate}%) and tax ({fiscal.taxRate}%), discounted mid year
+                at {fiscal.discountRate}%, through the Suite screening economics engine.
+                {usesIllustrativeProfile
+                    ? ' The production profile and price deck are illustrative placeholders, not this project\'s.'
+                    : ''}
+            </p>
 
             <Card className="bg-slate-900 border-slate-800">
                 <CardHeader>
