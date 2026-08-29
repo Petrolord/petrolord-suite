@@ -6,6 +6,7 @@ import ExportPanel from '@/components/facilitylayoutmapper/ExportPanel';
 import PropertiesEditor from '@/components/facilitylayoutmapper/PropertiesEditor';
 import ProjectPanel from '@/components/facilitylayoutmapper/ProjectPanel';
 import CustomIconManager from '@/components/facilitylayoutmapper/CustomIconManager';
+import SpacingPanel from '@/components/facilitylayoutmapper/SpacingPanel';
 
 const ControlPanel = ({ activeTool, setActiveTool, layers, setLayers, onPlaceItem, selectedLayer, onUpdateLayer, onLoadLayout, customIcons, onAddCustomIcon }) => {
 
@@ -39,6 +40,14 @@ const ControlPanel = ({ activeTool, setActiveTool, layers, setLayers, onPlaceIte
         <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-white">Properties</AccordionTrigger>
         <AccordionContent className="px-4 pt-2">
             <PropertiesEditor selectedLayer={selectedLayer} onUpdateLayer={onUpdateLayer} />
+        </AccordionContent>
+      </AccordionItem>
+      {/* Facilities F8: the safety distances the tile has always advertised,
+          finally computed (table spacings plus radiation setbacks from duty). */}
+      <AccordionItem value="item-spacing" className="border-slate-700">
+        <AccordionTrigger className="px-4 text-base font-semibold hover:no-underline text-white">Safety Spacing</AccordionTrigger>
+        <AccordionContent className="px-4 pt-2">
+          <SpacingPanel layers={layers} />
         </AccordionContent>
       </AccordionItem>
       <AccordionItem value="item-4" className="border-slate-700">
