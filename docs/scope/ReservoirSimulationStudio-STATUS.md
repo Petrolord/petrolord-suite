@@ -331,3 +331,67 @@ Runs already record `sim_runs.opm_version` and carry it in `summary.json`, so
 an answer remains traceable to the build that produced it. `sim_runs` is empty,
 confirming the worker has never been deployed, so there was no production
 version to reconcile against.
+
+## 2026-08-29 — LAUNCHED: worker deployed, gates passed, tile live
+
+The worker ran for the first time today. `sim_runs` is no longer empty and
+the Reservoir Simulation Studio tile is on the dashboard.
+
+Deployment: `./deploy.sh` on the studio VPS from the clean checkout
+`/root/petrolord-suite`. The image built against the pinned digest, the
+build-stage version assertion passed, and the deploy gate ran the full
+worker suite (26 passed, SPE1 golden included) inside the image about to
+serve before anything started. Container `plstudio-sim-worker`,
+`vps-sim-worker-1`, `flow 2026.04`.
+
+The three bring-up gate checks, all verified against `sim_runs` rather
+than the UI alone:
+
+1. Happy path. SPE1 queued 08:15:44, claimed 08:15:46 (1.5 s pickup),
+   complete 08:15:49: exit 0, 2.4 s, 123 report steps, 16098 result bytes.
+   `prt_excerpt.txt`, `summary.json` and `summary.csv` all landed under the
+   owner's storage prefix. SPE9 later ran in 15.9-16.3 s (93 steps,
+   26 wells) — the template blurb's "a few minutes" overstates it on the
+   2-core cap.
+2. Honest failure. Deck with a broken keyword: `failed`,
+   `failure_stage=sim_failed`, `error_message` carrying OPM's own text
+   ("Problem with keyword EQUIL"). No generic message.
+3. Crash recovery. Killed mid-run twice. First kill: heartbeat froze
+   08:33:38, sweep requeued at 08:36:46 as attempt 2, completed 08:37:03.
+   Second run killed on both attempts: requeued once, then `failed` /
+   `worker_lost` at 08:56:31 with "The worker crashed or was restarted
+   during this run." Stopped at attempt 2 — no third retry.
+
+Tile migration `20260826201000` applied after the gates passed, with the
+prod build already serving the route (`assets/ReservoirSimulationStudio-f6ca5656.js`,
+200). Post-apply: `reservoir-simulation-studio` Active, is_built and
+is_functional true, icon Cuboid, `module_id` inherited from `scal-studio`,
+display_order 41; `reservoir-simulation-connector` still Archived.
+MIGRATIONS.md now has no unapplied rows.
+
+### Defects found during bring-up (open, none blocking)
+
+- `sim_runs.active_cells` is never written. `grep` finds no writer in
+  `simworker/`; the column will be null on every run.
+- Failed runs lose their diagnostics. `main.py` builds `base_fields`
+  (`exit_code`, `elapsed_seconds`) but only writes it on the `cancelled`
+  path; `sim_failed`, `timeout` and `oom` all `raise SimFailure` and the
+  handler records status/stage/message without those fields. Confirmed in
+  the data: the broken-deck run has null `exit_code` and null
+  `elapsed_seconds`. The diagnostics are dropped exactly when they matter.
+- `_sim_error_text` duplicates its output: the stderr tail and the PRT
+  excerpt repeat the same lines, so the user sees each error twice.
+- Every run logs `TypeError: 'Event' object is not callable` under
+  "Exception ignored in: `_after_fork`" — the Python 3.12 fork-with-threads
+  interaction with `preexec_fn` at `runner.py:48` while the heartbeat
+  thread is alive. Swallowed by the interpreter and harmless, but it is
+  noise that will mislead during a real incident.
+- `restart: unless-stopped` did not restart the container after
+  `docker kill` (`RestartCount=0`, sat `Exited (137)` until
+  `docker compose up -d`). Docker treats an operator kill differently from
+  a crash, so unattended recovery from a genuine fault is probably fine —
+  but it is unproven, and worth confirming before relying on it.
+- Runbook correction: `SIM-WORKER-BRINGUP.md` step 4 calls
+  `supabase db query --linked -f <file>` a "dry run". It executes the file;
+  there is no dry-run flag. Pre-flight SELECTs against the guard conditions
+  are the real check.
