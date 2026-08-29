@@ -24,6 +24,13 @@ const STEPS = [
   { id: 4, title: 'Review', icon: CheckCircle }
 ];
 
+// Midstream & Downstream (DS0) is deliberately ABSENT here. The module is
+// registered for navigation and entitlements, but every one of its ten apps
+// is Coming Soon: pricing it now would let a customer buy a module with
+// nothing in it. It joins these tables when its first app ships (DS1).
+// The three module price tables in this repo (here, GetQuote.jsx and
+// admin/organizations/quotes/QuoteEditor.jsx) disagree with each other on
+// every module; reconciling them is an owner decision, flagged not taken.
 const MODULE_PRICING = {
   geoscience: 500,
   reservoir: 500,

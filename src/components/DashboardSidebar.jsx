@@ -13,6 +13,7 @@ import {
   Zap, 
   DollarSign, 
   Factory, 
+  Container,
   ShieldCheck, 
   Settings, 
   Users, 
@@ -136,6 +137,7 @@ const DashboardSidebar = () => {
           <SidebarItem icon={DollarSign} label="Economics" to="/dashboard/economics" />
           <SidebarItem icon={Factory} label="Facilities" to="/dashboard/facilities" />
           <SidebarItem icon={ShieldCheck} label="Assurance" to="/dashboard/assurance" />
+          <SidebarItem icon={Container} label="Midstream & Downstream" to="/dashboard/midstream-downstream" />
           
           <SidebarItem icon={HardHat} label="HSE Portal" to="/hse" />
 

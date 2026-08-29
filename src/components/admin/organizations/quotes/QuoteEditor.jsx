@@ -8,6 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { formatCurrency } from '@/utils/adminHelpers';
 
+// Midstream & Downstream (DS0) is deliberately ABSENT here. The module is
+// registered for navigation and entitlements, but every one of its ten apps
+// is Coming Soon: pricing it now would let a customer buy a module with
+// nothing in it. It joins these tables when its first app ships (DS1).
+// The three module price tables in this repo (here, GetQuote.jsx and
+// admin/organizations/quotes/QuoteEditor.jsx) disagree with each other on
+// every module; reconciling them is an owner decision, flagged not taken.
 const MODULES = [
   { id: 'geoscience', name: 'Geoscience', price: 500, description: 'Advanced geology & geophysics tools' },
   { id: 'reservoir', name: 'Reservoir', price: 400, description: 'Reservoir engineering & simulation' },

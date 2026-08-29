@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Layers3, Database, HardHat, Fuel, DollarSign, Factory, Shield, 
+  Layers3, Database, HardHat, Fuel, DollarSign, Factory, Shield, Container,
   ArrowRight, Lock, Box, RefreshCw, CheckCircle2, Users, ShieldCheck, CreditCard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ const modules = [
   { id: 'economics', name: 'Economics', icon: DollarSign, color: 'text-lime-400', bg: 'bg-lime-500/10' },
   { id: 'facilities', name: 'Facilities', icon: Factory, color: 'text-rose-400', bg: 'bg-rose-500/10' },
   { id: 'assurance', name: 'Assurance', icon: Shield, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+  { id: 'midstream-downstream', name: 'Midstream & Downstream', icon: Container, color: 'text-orange-400', bg: 'bg-orange-500/10' },
   { 
     id: 'hse', 
     name: 'HSE', 

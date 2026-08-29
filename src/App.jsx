@@ -33,6 +33,7 @@ const DrillingCompletionsHub = lazy(() => import('@/pages/dashboard/DrillingComp
 const ProductionOperationsHub = lazy(() => import('@/pages/dashboard/ProductionOperationsHub'));
 const EconomicsProjectManagementHub = lazy(() => import('@/pages/dashboard/EconomicsProjectManagementHub'));
 const FacilitiesEngineeringHub = lazy(() => import('@/pages/dashboard/FacilitiesEngineeringHub'));
+const MidstreamDownstreamHub = lazy(() => import('@/pages/dashboard/MidstreamDownstreamHub'));
 const GeoscienceAnalytics = lazy(() => import('@/pages/dashboard/GeoscienceAnalytics'));
 const ReservoirManagement = lazy(() => import('@/pages/dashboard/ReservoirManagement'));
 const Assurance = lazy(() => import('@/pages/dashboard/Assurance'));
@@ -440,6 +441,9 @@ function App() {
                                 <Route path="production" element={<AppRoute appName="production"><ProductionOperationsHub /></AppRoute>} />
                                 <Route path="economics" element={<AppRoute appName="economics"><EconomicsProjectManagementHub /></AppRoute>} />
                                 <Route path="facilities" element={<AppRoute appName="facilities"><FacilitiesEngineeringHub /></AppRoute>} />
+                                {/* DS0: the Suite's eighth module. Its apps are Coming Soon,
+                                    so the hub is the only route it owns for now. */}
+                                <Route path="midstream-downstream" element={<AppRoute appName="midstream-downstream"><MidstreamDownstreamHub /></AppRoute>} />
                                 <Route path="assurance" element={<AppRoute appName="assurance"><Assurance /></AppRoute>} />
                                 
                                 <Route path="hse" element={

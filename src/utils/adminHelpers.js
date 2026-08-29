@@ -46,6 +46,9 @@ export const normalizeModuleName = (name) => {
     if (lowerName.includes('economics')) return 'economics';
     if (lowerName.includes('facilities')) return 'facilities';
     if (lowerName.includes('assurance')) return 'assurance';
+    // DS0: check before the shorter words, since the module name contains both
+    // "midstream" and "downstream" and either alone should resolve to it.
+    if (lowerName.includes('midstream') || lowerName.includes('downstream')) return 'midstream-downstream';
     if (lowerName.includes('hse')) return 'hse';
     
     // Default fallback (returns original if no match, simplified)
@@ -62,7 +65,8 @@ export const getModuleList = () => {
     { id: 'production', name: 'Production Operations', description: 'Production monitoring and optimization', type: 'suite' },
     { id: 'drilling', name: 'Drilling & Completions', description: 'Well planning and drilling operations', type: 'suite' },
     { id: 'facilities', name: 'Facilities Engineering', description: 'Surface facilities design and management', type: 'suite' },
-    { id: 'economics', name: 'Economics & Planning', description: 'Asset valuation and portfolio management', type: 'suite' }
+    { id: 'economics', name: 'Economics & Planning', description: 'Asset valuation and portfolio management', type: 'suite' },
+    { id: 'midstream-downstream', name: 'Midstream & Downstream', description: 'Refining, terminals, fuel supply chain and the carbon ledger beside them', type: 'suite' }
   ];
 };
 
