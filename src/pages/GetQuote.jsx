@@ -24,10 +24,11 @@ const STEPS = [
   { id: 4, title: 'Review', icon: CheckCircle }
 ];
 
-// Midstream & Downstream (DS0) is deliberately ABSENT here. The module is
-// registered for navigation and entitlements, but every one of its ten apps
-// is Coming Soon: pricing it now would let a customer buy a module with
-// nothing in it. It joins these tables when its first app ships (DS1).
+// Midstream & Downstream joined here at DS1, when its first application
+// shipped. It was deliberately absent through DS0 because pricing a module
+// whose every app was Coming Soon would have let a customer buy nothing.
+// Its price sits at the bottom of each table's own range: one of ten apps is
+// built, and the module is priced as what it is today, not as what it will be.
 // The three module price tables in this repo (here, GetQuote.jsx and
 // admin/organizations/quotes/QuoteEditor.jsx) disagree with each other on
 // every module; reconciling them is an owner decision, flagged not taken.
@@ -38,6 +39,7 @@ const MODULE_PRICING = {
   production: 400,
   economics: 350,
   facilities: 400,
+  'midstream-downstream': 150,
   hse: 0
 };
 

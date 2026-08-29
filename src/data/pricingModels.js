@@ -35,10 +35,11 @@ export const seatTierRate = (nthSeat) => {
   return SEAT_TIERS[SEAT_TIERS.length - 1].price;
 };
 
-// Midstream & Downstream (DS0) is deliberately ABSENT here. The module is
-// registered for navigation and entitlements, but every one of its ten apps
-// is Coming Soon: pricing it now would let a customer buy a module with
-// nothing in it. It joins these tables when its first app ships (DS1).
+// Midstream & Downstream joined here at DS1, when its first application
+// shipped. It was deliberately absent through DS0 because pricing a module
+// whose every app was Coming Soon would have let a customer buy nothing.
+// Its price sits at the bottom of each table's own range: one of ten apps is
+// built, and the module is priced as what it is today, not as what it will be.
 // The three module price tables in this repo (here, GetQuote.jsx and
 // admin/organizations/quotes/QuoteEditor.jsx) disagree with each other on
 // every module; reconciling them is an owner decision, flagged not taken.
@@ -50,7 +51,8 @@ export const MODULE_PRICING = {
   production: 699,
   economics: 599,
   facilities: 699,
-  assurance: 499
+  assurance: 499,
+  'midstream-downstream': 299
 };
 
 // Individual App Base Price (if purchased à la carte)

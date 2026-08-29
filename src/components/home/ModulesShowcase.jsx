@@ -2,11 +2,16 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Layers, BarChart3, Anchor, Zap, Factory, Milestone, ShieldCheck, Container } from 'lucide-react';
 
-// App pills and counts mirror the live master_apps catalog (Active tiles only,
-// checked 2026-08-05: 73 apps across 7 modules). When the catalog changes,
-// update this list and the stats band in Home.jsx together.
+// App pills and counts mirror the live master_apps catalog (Active tiles
+// only). When the catalog changes, update this list and the stats band in
+// Home.jsx together.
+//
+// DS1 (2026-08-29): Midstream & Downstream joins as the eighth module, with a
+// count of 1 because exactly one of its ten apps is built. The count is the
+// number that WORKS, not the number planned; the other nine appear here as
+// each ships.
 const modules = [
   {
     name: 'Geoscience & Subsurface',
@@ -63,6 +68,14 @@ const modules = [
     count: 14,
     description: 'Quantify and manage risk across the portfolio, from prospect ranking and Monte Carlo analysis to compliance and audit trails.',
     apps: ['Risk Register', 'Monte Carlo Analyzer', 'Decision Tree Analyzer', 'Exploration Risk Analyzer', 'Audit Trail Manager'],
+  },
+  {
+    name: 'Midstream & Downstream',
+    icon: Container,
+    color: 'from-orange-400 to-amber-500',
+    count: 1,
+    description: 'Refining, terminals and the fuel supply chain, with the carbon ledger running beside the money one rather than bolted on afterwards. The module is being built; one application is live today.',
+    apps: ['Crude Assay & Blending Studio'],
   },
 ];
 

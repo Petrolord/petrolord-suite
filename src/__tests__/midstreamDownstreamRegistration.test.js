@@ -82,24 +82,37 @@ describe('admin surfaces', () => {
 });
 
 describe('pricing', () => {
-  // DS0 deliberately does NOT price the module: every app in it is Coming
-  // Soon, and a purchasable module with nothing in it is exactly the kind of
-  // thing the honest-catalog rule exists to prevent. Each table says so, so
-  // the absence reads as a decision rather than an oversight.
+  // DS0 deliberately did NOT price the module, because every app in it was
+  // Coming Soon and a purchasable module with nothing in it is what the
+  // honest-catalog rule exists to prevent. DS1 shipped the first app, so it
+  // is priced now, and each table records why it was absent before.
   const tables = [
     'data/pricingModels.js',
     'pages/GetQuote.jsx',
     'components/admin/organizations/quotes/QuoteEditor.jsx',
   ];
 
-  it.each(tables)('%s explains why the module is not listed', (rel) => {
-    expect(read(rel)).toMatch(/Midstream & Downstream \(DS0\) is deliberately ABSENT/);
+  it.each(tables)('%s records that the module was priced only once it had an app', (rel) => {
+    expect(read(rel)).toMatch(/joined here at DS1, when its first application/);
   });
 
-  it.each(tables)('%s does not price it', (rel) => {
-    // The comment names the module, so look for it as a priced key instead.
-    const src = read(rel);
-    expect(src).not.toMatch(new RegExp(`['"]?${SLUG}['"]?\\s*:\\s*\\d`));
+  it.each(tables)('%s now prices the module', (rel) => {
+    expect(read(rel)).toMatch(new RegExp(`['"]?${SLUG}['"]?\\s*:?[^\\n]*\\d`));
+  });
+});
+
+describe('marketing, which follows the catalog rather than leading it', () => {
+  it('counts eight modules now that the eighth has a working app', () => {
+    expect(read('pages/Home.jsx')).toMatch(/value: '8'/);
+    expect(read('pages/Solutions.jsx')).toContain('Eight modules');
+  });
+
+  it('shows the module with the number of apps that actually work', () => {
+    // One of ten. The count is what is built, not what is planned.
+    const showcase = read('components/home/ModulesShowcase.jsx');
+    expect(showcase).toContain('Midstream & Downstream');
+    expect(showcase).toMatch(/count: 1,/);
+    expect(showcase).toContain('Crude Assay & Blending Studio');
   });
 });
 

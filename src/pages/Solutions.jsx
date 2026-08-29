@@ -106,7 +106,7 @@ const Solutions = () => {
               Solutions
             </div>
             <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 leading-tight">
-              Seven modules. One workflow.
+              Eight modules. One workflow.
             </h1>
             <p className="text-xl text-slate-300 font-light">
               More than 70 live applications covering the E&P workflow from seismic to sales, sharing one project database.
