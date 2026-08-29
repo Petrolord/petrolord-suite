@@ -1,9 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  Droplets, Thermometer, Wind, Beaker, Gauge, Download, AlertTriangle, Layers,
+  Droplets, Thermometer, Wind, Beaker, Gauge, Zap, Share2, Download, AlertTriangle, Layers,
 } from 'lucide-react';
 import PvtChartsCard from '@/components/fluidstudio/PvtChartsCard';
 import SeparatorResultsCard from '@/components/fluidstudio/SeparatorResultsCard';
@@ -45,10 +46,41 @@ const exportPvtCsv = (table) => {
   URL.revokeObjectURL(url);
 };
 
-// Facilities F0: the "Send to Pipeline Sizer" hand-off was removed with the
-// Pipeline Sizer retirement (the receiving app fabricated its results, so the
-// integration fed a mock). The F1 Pipeline & Line Sizing flagship restores a
-// real backbone hand-off (Facilities-ROADMAP.md §5 F1).
+// Facilities F1: the hand-off returns, pointing at the Pipeline & Line
+// Sizing Studio (the F0-retired Pipeline Sizer's mock is gone; the studio
+// reads the backbone via location.state and prefills its multiphase fluid).
+const IntegrationSuite = ({ backbone }) => {
+  const navigate = useNavigate();
+  const ready = backbone
+    && ['oil_gravity', 'gas_gravity', 'inlet_temperature'].some((k) => Number.isFinite(backbone[k]));
+
+  const sendToLineSizing = () => {
+    if (!ready) return;
+    navigate('/dashboard/apps/facilities/facility-network-hydraulics', {
+      state: { fluidStudioData: backbone },
+    });
+  };
+
+  return (
+    <Card className="bg-slate-800/50 border-slate-700 text-white mt-6">
+      <CardHeader>
+        <CardTitle className="flex items-center"><Share2 className="mr-2 text-cyan-300" /> Integration Suite</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-slate-300">
+          Send this fluid backbone to other Petrolord applications.
+          {backbone?.source === 'eos' && ' The backbone carries the compositional surface numbers: stock tank API, surface gas gravity, separator-flash GOR and the EOS black-oil table.'}
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Button onClick={sendToLineSizing} disabled={!ready} className="flex-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-40">
+            <Zap className="w-4 h-4 mr-2" /> Send to Line Sizing Studio
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 /**
  * Phase-1 results: PVT analysis + separator train, computed client-side.
  * Single-run only (blending / flow-assurance / batch are deferred seams).
@@ -133,6 +165,8 @@ const FluidStudioResults = ({ results, eos, composition, sepStages, onUpdateTuni
           </TabsContent>
         )}
       </Tabs>
+
+      <IntegrationSuite backbone={eos?.pvtTable?.backbone ?? backbone} />
     </div>
   );
 };

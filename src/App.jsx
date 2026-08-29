@@ -60,7 +60,7 @@ const ContourMapDigitizer = lazy(() => import('@/pages/apps/ContourMapDigitizer'
 const WellPlanning = lazy(() => import('@/pages/apps/WellPlanning'));
 const ReliefBlowdownSizer = lazy(() => import('@/pages/apps/ReliefBlowdownSizer'));
 const FacilityLayoutMapper = lazy(() => import('@/pages/apps/FacilityLayoutMapper'));
-const FacilityNetworkHydraulics = lazy(() => import('@/pages/apps/FacilityNetworkHydraulics'));
+const PipelineLineSizingStudio = lazy(() => import('@/pages/apps/PipelineLineSizingStudio'));
 const SeparatorSlugCatcherDesigner = lazy(() => import('@/pages/apps/SeparatorSlugCatcherDesigner'));
 const HeatExchangerSizer = lazy(() => import('@/pages/apps/HeatExchangerSizer'));
 const GasTreatingDehydration = lazy(() => import('@/pages/apps/GasTreatingDehydration'));
@@ -692,10 +692,10 @@ function App() {
                                 <Route path="apps/facilities/heat-exchanger-sizer" element={<ProtectedAppRoute appId="heat-exchanger-sizer" appName="Heat Exchanger Sizer"><HeatExchangerSizer /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/gas-treating-dehydration" element={<ProtectedAppRoute appId="gas-treating-dehydration" appName="Gas Treating & Dehydration"><GasTreatingDehydration /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/relief-blowdown-sizer" element={<ProtectedAppRoute appId="relief-blowdown-sizer" appName="Relief & Blowdown Sizer"><ReliefBlowdownSizer /></ProtectedAppRoute>} />
-                                {/* Production P0: this slug was hijacked to FacilityLayoutMapper, leaving 1,024 LOC of real
-                                    hydraulics (Beggs & Brill, Swamee-Jain, Barlow) unreachable. Facilities keeps single-line
-                                    sizing (Production-ROADMAP.md §6.2); the gathering-network solver ships as Production #11. */}
-                                <Route path="apps/facilities/facility-network-hydraulics" element={<ProtectedAppRoute appId="facility-network-hydraulics" appName="Facility Network Hydraulics"><FacilityNetworkHydraulics /></ProtectedAppRoute>} />
+                                {/* Facilities F1: the slug keeps its entitlements while the app becomes the
+                                    Pipeline & Line Sizing Studio flagship (validated engines; single-line only per
+                                    Production-ROADMAP.md §6.2 — the gathering-network solver is Production #11). */}
+                                <Route path="apps/facilities/facility-network-hydraulics" element={<ProtectedAppRoute appId="facility-network-hydraulics" appName="Pipeline & Line Sizing Studio"><PipelineLineSizingStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/facility-layout-mapper" element={<ProtectedAppRoute appId="facility-layout-mapper" appName="Facility Layout Mapper"><FacilityLayoutMapper /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/corrosion-rate-predictor" element={<ProtectedAppRoute appId="corrosion-rate-predictor" appName="Corrosion Rate Predictor"><CorrosionRatePredictor /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/pipeline-designer" element={<Navigate to="/dashboard/apps/facilities/facility-network-hydraulics" replace />} />
