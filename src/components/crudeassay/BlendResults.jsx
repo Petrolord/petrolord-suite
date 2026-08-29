@@ -77,7 +77,7 @@ const BlendResults = () => {
         <div>
           <p className="font-semibold">
             Asphaltene stability screen
-            {stability.basis === 'cii' && Number.isFinite(stability.cii) && ` — CII ${stability.cii.toFixed(2)}`}
+            {stability.basis === 'cii' && Number.isFinite(stability.cii) && `, CII ${stability.cii.toFixed(2)}`}
           </p>
           <p className="text-sm mt-1 opacity-90">{stability.message}</p>
         </div>
