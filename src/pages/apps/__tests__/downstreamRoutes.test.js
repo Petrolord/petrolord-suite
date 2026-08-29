@@ -36,6 +36,13 @@ describe('Midstream & Downstream routing', () => {
     expect(routes.length).toBeGreaterThan(0);
   });
 
+  it('routes all ten apps the module set out to build', () => {
+    // DS1-DS10 are all shipped, so every seeded tile now has a route. If a
+    // future tile is seeded without one, the dashboard will show a card that
+    // goes nowhere, and this is where that gets caught.
+    expect([...routes.map((r) => r.path)].sort()).toEqual([...seededSlugs].sort());
+  });
+
   it('routes every app at the slug its tile was seeded with', () => {
     routes.forEach((r) => {
       // A mismatch here is a dashboard tile that links into a 404.
