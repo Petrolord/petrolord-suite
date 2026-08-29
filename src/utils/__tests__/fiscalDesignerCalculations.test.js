@@ -10,6 +10,7 @@ import {
   calculateCashFlowForRegime,
   calculateNPV,
   calculateIRR,
+  deriveInsights,
 } from '@/utils/fiscalDesignerCalculations';
 import { calculateEconomics } from '@/utils/npvCalculations';
 
@@ -188,5 +189,88 @@ describe('solvers', () => {
     // and the government correspondingly more
     const govOf = (r) => r.reduce((sum, cf) => sum + cf.governmentTake, 0);
     expect(govOf(harsh)).toBeGreaterThan(govOf(soft));
+  });
+});
+
+// Economics E2: the Insights tab used to state four conclusions of which
+// three were never computed. These pin the derived versions to the numbers.
+describe('deriveInsights', () => {
+  const sens = {
+    price: {
+      labels: [40, 120],
+      data: [
+        { regimeId: 'a', values: [30, 40] },   // +10 points
+        { regimeId: 'b', values: [35, 60] },   // +25 points, the progressive one
+      ],
+    },
+    capex: {
+      labels: ['0.8', '1.5'],
+      data: [
+        { regimeId: 'a', values: [200, 100] }, // gives up 100
+        { regimeId: 'b', values: [180, 150] }, // gives up 30, the resilient one
+      ],
+    },
+  };
+  const summary = [
+    { id: 'a', name: 'Alpha', npv: 150, irr: 22, paybackPeriod: 6, govTake: 400, effectiveTaxRate: 55 },
+    { id: 'b', name: 'Beta', npv: 120, irr: 18, paybackPeriod: 4, govTake: 900, effectiveTaxRate: 70 },
+  ];
+
+  it('names the top-NPV regime for the contractor', () => {
+    const out = deriveInsights(summary, sens);
+    expect(out.find((i) => i.key === 'npv').text).toContain('Alpha');
+  });
+
+  it('names the regime that actually pays back fastest, not the top-NPV one', () => {
+    // The old copy asserted the top-NPV regime also had the fastest payback.
+    // Here it does not: Beta pays back two years sooner.
+    const out = deriveInsights(summary, sens);
+    const payback = out.find((i) => i.key === 'payback');
+    expect(payback.text).toContain('Beta');
+    expect(payback.text).toContain('year 4');
+  });
+
+  it('names the regime that actually collects the most, not the runner-up by NPV', () => {
+    // The old copy always named summary[1]. Here that happens to be Beta, so
+    // flip the order to prove the claim follows the take and not the rank.
+    const flipped = [
+      { ...summary[1], npv: 300 },
+      { ...summary[0] },
+    ];
+    const out = deriveInsights(flipped, sens);
+    const gov = out.find((i) => i.key === 'government');
+    expect(gov.text).toContain('Beta');
+    expect(gov.text).toContain('900');
+  });
+
+  it('ranks capex resilience by NPV actually given up across the sweep', () => {
+    const out = deriveInsights(summary, sens);
+    const capex = out.find((i) => i.key === 'capex');
+    expect(capex.text).toMatch(/"Beta" gives up the least/);
+    expect(capex.text).toMatch(/"Alpha" the most/);
+  });
+
+  it('ranks price progressivity by the actual climb in government share', () => {
+    const out = deriveInsights(summary, sens);
+    expect(out.find((i) => i.key === 'price').text).toContain('Beta');
+  });
+
+  it('says so plainly when nothing pays back, rather than printing a null year', () => {
+    const never = summary.map((r) => ({ ...r, paybackPeriod: null }));
+    const out = deriveInsights(never, sens);
+    expect(out.find((i) => i.key === 'payback').text).toMatch(/No regime pays back/);
+  });
+
+  it('omits the sweep claims when there is only one regime to compare', () => {
+    const one = [summary[0]];
+    const oneSens = { price: { labels: [40, 120], data: [sens.price.data[0]] }, capex: { labels: ['0.8', '1.5'], data: [sens.capex.data[0]] } };
+    const out = deriveInsights(one, oneSens);
+    expect(out.some((i) => i.key === 'capex')).toBe(false);
+    expect(out.some((i) => i.key === 'price')).toBe(false);
+    expect(out.some((i) => i.key === 'npv')).toBe(true);
+  });
+
+  it('returns nothing at all rather than a conclusion about no regimes', () => {
+    expect(deriveInsights([], sens)).toEqual([]);
   });
 });

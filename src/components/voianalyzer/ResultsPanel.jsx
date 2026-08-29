@@ -7,7 +7,7 @@ import CollapsibleSection from './CollapsibleSection';
 import DecisionTreePlot from './DecisionTreePlot';
 
 const ResultsPanel = ({ results }) => {
-  const { kpis, plotData, insights } = results;
+  const { kpis, tree, insights } = results;
   const { toast } = useToast();
 
   const handleExport = () => {
@@ -56,7 +56,7 @@ const ResultsPanel = ({ results }) => {
       </CollapsibleSection>
 
       <CollapsibleSection title="Decision Tree Visualization" icon={<GitMerge />} defaultOpen>
-        <DecisionTreePlot data={plotData} />
+        <DecisionTreePlot tree={tree} />
       </CollapsibleSection>
       
       <CollapsibleSection title="Decision Guidance" icon={<BrainCircuit />} defaultOpen>

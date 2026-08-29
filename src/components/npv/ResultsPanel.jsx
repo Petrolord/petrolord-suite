@@ -145,7 +145,7 @@ const ResultsPanel = ({ results }) => {
                 </div>
                 <Card className="bg-slate-900 border-slate-800 flex-1 min-h-[400px]">
                     <CardHeader><CardTitle className="text-sm text-slate-300">Value Erosion Waterfall</CardTitle></CardHeader>
-                    <CardContent className="h-[350px]">
+                    <CardContent>
                         <WaterfallChart metrics={metrics} />
                     </CardContent>
                 </Card>
@@ -153,9 +153,9 @@ const ResultsPanel = ({ results }) => {
 
             {/* 2. Cashflow Tab */}
             <TabsContent value="cashflow" className="flex-1 overflow-y-auto space-y-4 mt-4">
-                <Card className="bg-slate-900 border-slate-800 h-[350px]">
+                <Card className="bg-slate-900 border-slate-800">
                     <CardHeader><CardTitle className="text-sm text-slate-300">Annual Cashflow Profile</CardTitle></CardHeader>
-                    <CardContent className="h-[300px]">
+                    <CardContent>
                         <StackedCashflowChart data={cashflow} />
                     </CardContent>
                 </Card>
@@ -239,16 +239,16 @@ const ResultsPanel = ({ results }) => {
 
             {/* 4. Sensitivity Tab */}
             <TabsContent value="sensitivity" className="flex-1 overflow-y-auto space-y-4 mt-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[450px]">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <Card className="bg-slate-900 border-slate-800">
                         <CardHeader><CardTitle className="text-sm text-slate-300">Tornado Chart (NPV Impact)</CardTitle></CardHeader>
-                        <CardContent className="h-[380px]">
+                        <CardContent>
                             {sensitivity && <TornadoChart data={sensitivity.map(s => ({ name: s.name, low: s.lowParamNPV, high: s.highParamNPV, base: s.baseNPV }))} />}
                         </CardContent>
                     </Card>
                     <Card className="bg-slate-900 border-slate-800">
                         <CardHeader><CardTitle className="text-sm text-slate-300">Spider Plot</CardTitle></CardHeader>
-                        <CardContent className="h-[380px]">
+                        <CardContent>
                             {sensitivity && <SpiderChart sensitivityData={sensitivity} />}
                         </CardContent>
                     </Card>
@@ -277,16 +277,16 @@ const ResultsPanel = ({ results }) => {
                         </div>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[400px]">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                      <Card className="bg-slate-900 border-slate-800">
                         <CardHeader><CardTitle className="text-sm text-slate-300">NPV Distribution</CardTitle></CardHeader>
-                        <CardContent className="h-[340px]">
+                        <CardContent>
                             {risk && <HistogramChart data={risk.histogram} p10={risk.p10} p50={risk.p50} p90={risk.p90} />}
                         </CardContent>
                     </Card>
                     <Card className="bg-slate-900 border-slate-800">
                         <CardHeader><CardTitle className="text-sm text-slate-300">Cumulative Probability (S-Curve)</CardTitle></CardHeader>
-                        <CardContent className="h-[340px]">
+                        <CardContent>
                             {risk && <SCurveChart data={risk.cdf} />}
                         </CardContent>
                     </Card>

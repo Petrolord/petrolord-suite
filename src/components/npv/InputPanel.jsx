@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -7,10 +7,17 @@ import QuickInput from './QuickInput';
 import ExpertInput from './ExpertInput';
 import { expandQuickInputs } from '@/utils/npvCalculations';
 
-const InputPanel = ({ onCalculate, loading }) => {
-  const [mode, setMode] = useState('Quick');
-  const [quickData, setQuickData] = useState({});
-  const [expertData, setExpertData] = useState({});
+// Economics E2: mode and both input sets live on the page now, so a scenario
+// can be saved and reopened. This panel edits what it is given.
+const InputPanel = ({ onCalculate, loading, state, setState }) => {
+  const { mode, quickData, expertData } = state;
+  const setMode = (val) => setState((prev) => ({ ...prev, mode: val }));
+  const setQuickData = (val) => setState((prev) => ({
+    ...prev, quickData: typeof val === 'function' ? val(prev.quickData) : val,
+  }));
+  const setExpertData = (val) => setState((prev) => ({
+    ...prev, expertData: typeof val === 'function' ? val(prev.expertData) : val,
+  }));
 
   const handleCalculate = () => {
       if (mode === 'Quick') {

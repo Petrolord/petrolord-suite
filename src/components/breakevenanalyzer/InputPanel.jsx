@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
@@ -10,8 +10,9 @@ import CollapsibleSection from './CollapsibleSection';
 import VariableCard from './VariableCard';
 import { Settings, SlidersHorizontal, BarChart2, Play, PlusCircle, UploadCloud, FileCheck2, Download } from 'lucide-react';
 
-const InputPanel = ({ onAnalyze, loading, initialInputs }) => {
-  const [inputs, setInputs] = useState(initialInputs);
+// Economics E2: the inputs live on the page now, not in here, so a study can
+// be saved, reopened and reproduced. This panel edits what it is given.
+const InputPanel = ({ onAnalyze, loading, inputs, setInputs }) => {
   const { toast } = useToast();
 
   const handleInputChange = (field, value) => {
@@ -104,7 +105,7 @@ const InputPanel = ({ onAnalyze, loading, initialInputs }) => {
         });
       }
     });
-  }, [toast]);
+  }, [toast, setInputs]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

@@ -126,3 +126,10 @@ with `Math.random()`.
 - The FDP economics panel still runs on an illustrative production
   profile and price deck; the panel now says so in the UI. E3 replaces
   it with the plan's own profile.
+
+## Follow-on
+
+Economics E2 (ProductFloor-STATUS.md) carries the product floor work
+and one finding that belongs to E4: Technical Report Autopilot's
+backend Heroku host no longer exists, so its whole generation path is
+unreachable on an Active tile.

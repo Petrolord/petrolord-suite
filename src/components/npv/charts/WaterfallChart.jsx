@@ -1,72 +1,75 @@
+// NPV waterfall (Economics E2: moved onto the Suite chart standard).
+//
+// Gross revenue on the left, each deduction stepping down, net cash on the
+// right. Floating bars are drawn the usual Recharts way, with a transparent
+// spacer bar carrying each step up to where its visible bar starts.
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, Cell, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import {
+  BarChart, Bar, XAxis, YAxis, Cell, CartesianGrid, Tooltip, ReferenceLine,
+} from 'recharts';
+import ChartFrame from '@/components/charts/ChartFrame';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 
-const WaterfallChart = ({ metrics }) => {
-    const data = [
-        { name: 'Gross Rev', value: metrics.totalRevenue, step: 'start' },
-        { name: 'Royalty', value: -metrics.totalRoyalty, step: 'sub' },
-        { name: 'OPEX', value: -metrics.totalOpex, step: 'sub' },
-        { name: 'CAPEX', value: -metrics.totalCapex, step: 'sub' },
-        { name: 'Tax', value: -metrics.totalTax, step: 'sub' },
-        { name: 'Net Cash', value: metrics.totalRevenue - metrics.totalRoyalty - metrics.totalOpex - metrics.totalCapex - metrics.totalTax, step: 'end' }
-    ];
+const mm = (v) => (Number.isFinite(v) ? (v / 1e6).toFixed(1) : '-');
 
-    // Transform for floating bars
-    let runningTotal = 0;
-    const processedData = data.map(item => {
-        const prevTotal = runningTotal;
-        if (item.step === 'start' || item.step === 'end') {
-            runningTotal = item.value;
-            return { ...item, y: 0, height: item.value, displayVal: item.value };
-        } else {
-            runningTotal += item.value;
-            return { ...item, y: prevTotal + item.value, height: Math.abs(item.value), displayVal: item.value };
-        }
-    });
+const WaterfallChart = ({ metrics, height = 340 }) => {
+  const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
 
-    // Custom shape could be used, but simple stacked bar logic works if we format data carefully. 
-    // For simplicity in Recharts Waterfall, we usually use a range [min, max]. 
-    // Let's use a simplified BarChart where we offset 'y' manually if needed, or use the 'stack' trick.
-    // Actually, standard Recharts bar with transparent stack is easier.
-    
-    const chartData = data.map((item, i) => {
-        let uv = 0; // invisible filler
-        let pv = 0; // visible bar
-        
-        if (i === 0) {
-            pv = item.value;
-        } else if (i === data.length - 1) {
-             pv = item.value;
-        } else {
-            // For intermediate negative steps
-            // Previous End
-            const prevSum = data.slice(0, i).reduce((acc, curr) => acc + curr.value, 0);
-            uv = prevSum + item.value; 
-            pv = Math.abs(item.value);
-        }
-        return { name: item.name, uv, pv, val: item.value, type: item.step };
-    });
+  const steps = [
+    { name: 'Gross revenue', value: metrics.totalRevenue, step: 'start' },
+    { name: 'Royalty', value: -metrics.totalRoyalty, step: 'sub' },
+    { name: 'OPEX', value: -metrics.totalOpex, step: 'sub' },
+    { name: 'CAPEX', value: -metrics.totalCapex, step: 'sub' },
+    { name: 'Tax', value: -metrics.totalTax, step: 'sub' },
+    {
+      name: 'Net cash',
+      value: metrics.totalRevenue - metrics.totalRoyalty - metrics.totalOpex
+        - metrics.totalCapex - metrics.totalTax,
+      step: 'end',
+    },
+  ];
 
-    return (
-        <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} />
-                <YAxis stroke="#94a3b8" fontSize={10} tickFormatter={(val) => `$${val/1e6}M`} />
-                <Tooltip 
-                    cursor={{fill: 'transparent'}}
-                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', color: '#fff' }}
-                    formatter={(val, name, props) => props.payload.type === 'sub' ? [`$${(props.payload.val/1e6).toFixed(1)}M`, 'Change'] : [`$${(props.payload.val/1e6).toFixed(1)}M`, 'Value']}
-                />
-                <Bar dataKey="uv" stackId="a" fill="transparent" />
-                <Bar dataKey="pv" stackId="a">
-                    {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.type === 'end' ? '#3b82f6' : entry.type === 'sub' ? '#ef4444' : '#10b981'} />
-                    ))}
-                </Bar>
-            </BarChart>
-        </ResponsiveContainer>
-    );
+  const chartData = steps.map((item, i) => {
+    if (i === 0 || i === steps.length - 1) {
+      return { name: item.name, spacer: 0, bar: item.value, val: item.value, type: item.step };
+    }
+    const runningTotal = steps.slice(0, i).reduce((acc, s) => acc + s.value, 0) + item.value;
+    return {
+      name: item.name,
+      spacer: runningTotal,
+      bar: Math.abs(item.value),
+      val: item.value,
+      type: item.step,
+    };
+  });
+
+  return (
+    <ChartFrame height={height} exportFilename="npv-waterfall">
+      <BarChart data={chartData} margin={{ top: 12, right: 24, left: 8, bottom: 24 }}>
+        <CartesianGrid {...GRID_STYLE} vertical={false} />
+        <XAxis dataKey="name" stroke={CHART_COLORS.axisLine} tick={{ ...tick, fontSize: 11 }} />
+        <YAxis stroke={CHART_COLORS.axisLine} tick={tick} tickFormatter={(v) => `$${mm(v)}MM`} />
+        <Tooltip
+          cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+          {...TOOLTIP_STYLE}
+          formatter={(v, name, props) => [
+            `$${mm(props.payload.val)}MM`,
+            props.payload.type === 'sub' ? 'Deduction' : 'Total',
+          ]}
+        />
+        <ReferenceLine y={0} stroke={CHART_COLORS.axisLine} />
+        <Bar dataKey="spacer" stackId="a" fill="transparent" isAnimationActive={false} />
+        <Bar dataKey="bar" stackId="a" name="Undiscounted cash">
+          {chartData.map((entry) => (
+            <Cell
+              key={entry.name}
+              fill={entry.type === 'end' ? '#2563eb' : entry.type === 'sub' ? '#dc2626' : '#059669'}
+            />
+          ))}
+        </Bar>
+      </BarChart>
+    </ChartFrame>
+  );
 };
 
 export default WaterfallChart;

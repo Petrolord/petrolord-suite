@@ -1,7 +1,9 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import ChartFrame from '@/components/charts/ChartFrame';
+import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 import { motion } from 'framer-motion';
 
 const formatCurrency = (value, unit = 'MM') => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value || 0) + (unit ? ` ${unit}` : '');
@@ -33,27 +35,18 @@ const PortfolioComparison = ({ isOpen, onClose, comparisonData }) => {
                 <CardTitle className="text-xl text-amber-300">Risked EMV vs. CAPEX</CardTitle>
               </CardHeader>
               <CardContent>
-                <div style={{ width: '100%', height: 300 }}>
-                  <ResponsiveContainer>
-                    <BarChart data={chartData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
-                      <XAxis dataKey="name" tick={{ fill: '#cbd5e1' }} />
-                      <YAxis yAxisId="left" orientation="left" stroke="#a3e635" tick={{ fill: '#cbd5e1' }} tickFormatter={(val) => formatCurrency(val, '')} />
-                      <YAxis yAxisId="right" orientation="right" stroke="#facc15" tick={{ fill: '#cbd5e1' }} tickFormatter={(val) => formatCurrency(val, '')} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'rgba(30, 41, 59, 0.8)',
-                          borderColor: '#475569',
-                          color: '#f8fafc',
-                        }}
-                        formatter={(value, name) => [formatCurrency(value), name]}
-                      />
-                      <Legend wrapperStyle={{ color: '#f8fafc' }} />
-                      <Bar yAxisId="left" dataKey="EMV" fill="#a3e635" name="Risked EMV" />
-                      <Bar yAxisId="right" dataKey="CAPEX" fill="#facc15" name="Total CAPEX" />
+                <ChartFrame height={300} exportFilename="portfolio-comparison">
+                    <BarChart data={chartData} margin={{ top: 8, right: 24, left: 16, bottom: 8 }}>
+                      <CartesianGrid {...GRID_STYLE} vertical={false} />
+                      <XAxis dataKey="name" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+                      <YAxis yAxisId="left" orientation="left" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} tickFormatter={(val) => formatCurrency(val, '')} />
+                      <YAxis yAxisId="right" orientation="right" stroke={CHART_COLORS.axisLine} tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} tickFormatter={(val) => formatCurrency(val, '')} />
+                      <Tooltip {...TOOLTIP_STYLE} formatter={(value, name) => [formatCurrency(value), name]} />
+                      <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
+                      <Bar yAxisId="left" dataKey="EMV" fill="#059669" name="Risked EMV" />
+                      <Bar yAxisId="right" dataKey="CAPEX" fill="#d97706" name="Total CAPEX" />
                     </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                </ChartFrame>
               </CardContent>
             </Card>
           </div>

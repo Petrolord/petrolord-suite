@@ -17,6 +17,7 @@ import PortfolioForm from '@/components/capitalportfoliostudio/PortfolioForm';
 import OptimizationResults from '@/components/capitalportfoliostudio/OptimizationResults';
 import PortfolioComparison from '@/components/capitalportfoliostudio/PortfolioComparison';
 import { optimizePortfolio, projectEmv } from '@/utils/portfolioOptimizer';
+import PortfolioHelpGuide from '@/components/capitalportfoliostudio/PortfolioHelpGuide';
 
 const CapitalPortfolioStudio = () => {
   const { user } = useAuth();
@@ -217,6 +218,7 @@ const CapitalPortfolioStudio = () => {
                 <h1 className="text-xl md:text-3xl font-bold">Capital Portfolio Studio</h1>
               </div>
             </div>
+            <PortfolioHelpGuide />
           </div>
         </header>
 

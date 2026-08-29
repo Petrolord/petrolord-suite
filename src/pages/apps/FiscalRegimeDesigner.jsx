@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import LoadProjectDialog from '@/components/fiscaldesigner/LoadProjectDialog';
+import FiscalDesignerHelpGuide from '@/components/fiscaldesigner/FiscalDesignerHelpGuide';
 
 const FiscalRegimeDesigner = () => {
   const { toast } = useToast();
@@ -145,6 +146,7 @@ const FiscalRegimeDesigner = () => {
                 </div>
             </div>
             <div className="flex items-center gap-2">
+                <FiscalDesignerHelpGuide />
                 <Button onClick={() => setIsLoadDialogOpen(true)} variant="outline" className="text-lime-300 border-lime-400/50 hover:bg-lime-500/20">
                     <FolderOpen className="w-4 h-4 mr-2" /> Load
                 </Button>

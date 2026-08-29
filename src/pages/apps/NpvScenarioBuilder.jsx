@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,12 +10,64 @@ import ResultsPanel from '@/components/npv/ResultsPanel';
 import EmptyState from '@/components/npv/EmptyState';
 import HelpSystem from '@/components/npv/help/HelpSystem';
 import { calculateEconomics, runMonteCarlo, generateScenarios, runSensitivityAnalysis } from '@/utils/npvCalculations';
+import { createSavedProjectsService } from '@/utils/savedProjects';
+import { useSavedProjects, missingTableMessage } from '@/hooks/useSavedProjects';
+import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
+import StudioProjectManager from '@/components/studio/StudioProjectManager';
+import StudioAutoSave from '@/components/studio/StudioAutoSave';
+import StudioNotifications from '@/components/studio/StudioNotifications';
+
+const TABLE = 'saved_npv_projects';
+export const service = createSavedProjectsService(TABLE, {
+  signInMessage: 'Sign in to save NPV scenarios.',
+});
+const describeError = (e) => missingTableMessage(e, TABLE, 'e2_economics_persistence');
+
+/** Mode plus both input sets, so switching modes never loses the other one. */
+export const defaultState = () => ({ mode: 'Quick', quickData: {}, expertData: {} });
+
+export const stateFromPayload = (payload) => {
+  if (!payload || typeof payload !== 'object') return null;
+  const raw = payload.state && typeof payload.state === 'object' ? payload.state : payload;
+  if (!raw.quickData && !raw.expertData) return null;
+  return {
+    mode: raw.mode === 'Expert' ? 'Expert' : 'Quick',
+    quickData: raw.quickData || {},
+    expertData: raw.expertData || {},
+  };
+};
 
 const NpvScenarioBuilder = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [state, setState] = useState(defaultState);
+  const { notifications, addNotification, removeNotification } = useStudioNotifications();
+
+  const serialize = useCallback((name) => ({
+    name, schema: 1, state, modified: new Date().toISOString(),
+  }), [state]);
+
+  const restore = useCallback((payload) => {
+    const restored = stateFromPayload(payload);
+    if (!restored) return false;
+    setState(restored);
+    // Results are a pure function of the inputs, so a reopened scenario waits
+    // to be recalculated rather than showing numbers from another case.
+    setResults(null);
+    return true;
+  }, []);
+
+  const persistence = useSavedProjects({
+    service,
+    serialize,
+    restore,
+    addNotification,
+    describeError,
+    watch: state,
+    noun: 'Scenario',
+  });
 
   const handleCalculate = async (inputs, mode) => {
     setLoading(true);
@@ -62,6 +114,7 @@ const NpvScenarioBuilder = () => {
         <meta name="description" content="Advanced economic modeling with Quick and Expert modes." />
       </Helmet>
       
+      <StudioNotifications notifications={notifications} onDismiss={removeNotification} />
       <div className="p-4 md:p-6 h-screen flex flex-col overflow-hidden bg-slate-950 text-white">
         {/* Header Section */}
         <div className="flex-shrink-0 mb-4 flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800 pb-4 gap-4">
@@ -84,7 +137,25 @@ const NpvScenarioBuilder = () => {
                 </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-end gap-3">
+                <div className="w-56">
+                    <StudioProjectManager
+                        label="Saved scenario"
+                        projects={persistence.projects}
+                        currentProjectId={persistence.currentProjectId}
+                        onCreate={persistence.createProject}
+                        onOpen={persistence.openProject}
+                        onDelete={persistence.deleteProject}
+                        confirmDeleteMessage="Delete this scenario and its saved inputs? This cannot be undone."
+                    />
+                </div>
+                <StudioAutoSave
+                    isSaving={persistence.isSaving}
+                    saveError={persistence.saveError}
+                    lastSaveTime={persistence.lastSaveTime}
+                    onSave={persistence.manualSave}
+                    disabled={!persistence.currentProjectId}
+                />
                 <Button variant="ghost" size="sm" onClick={() => setIsHelpOpen(true)} className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20">
                     <HelpCircle className="w-5 h-5 mr-2" /> Help & Training
                 </Button>
@@ -96,7 +167,7 @@ const NpvScenarioBuilder = () => {
             <div className="flex flex-col lg:flex-row gap-6 h-full">
                 {/* Left Input Panel */}
                 <div className="lg:w-1/3 xl:w-[30%] bg-slate-900 border border-slate-800 rounded-xl p-4 overflow-hidden flex flex-col shadow-xl">
-                    <InputPanel onCalculate={handleCalculate} loading={loading} />
+                    <InputPanel onCalculate={handleCalculate} loading={loading} state={state} setState={setState} />
                 </div>
 
                 {/* Right Results Panel */}

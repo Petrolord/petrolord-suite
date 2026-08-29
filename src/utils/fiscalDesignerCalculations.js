@@ -244,6 +244,113 @@ const runSensitivityAnalysis = (regimes, projectInputs) => {
     return { price: priceSens, capex: capexSens };
 };
 
+/**
+ * Derive the comparison's conclusions FROM the comparison (Economics E2).
+ *
+ * The Insights tab used to state four conclusions of which three were never
+ * computed. Because the summary is sorted by contractor NPV, it declared the
+ * top-NPV regime to also have the fastest payback, the SECOND-ranked regime
+ * to maximize government revenue "significantly higher than other options",
+ * and asserted a capex-resilience and a price-response ranking that nothing
+ * in the app had worked out. All four now come from the numbers, and any
+ * claim that cannot be supported is omitted rather than guessed.
+ *
+ * @param {object[]} summary per-regime results, sorted by NPV descending
+ * @param {object} sensitivityData the price and capex sweeps
+ * @returns {{key: string, label: string, text: string}[]}
+ */
+export const deriveInsights = (summary, sensitivityData) => {
+    const out = [];
+    if (!summary?.length) return out;
+
+    const fmt = (v, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : 'n/a');
+
+    const best = summary[0];
+    out.push({
+        key: 'npv',
+        label: 'Best for the contractor',
+        text: `"${best.name}" delivers the highest contractor NPV at $${fmt(best.npv)}MM, with an IRR of ${fmt(best.irr)}%.`,
+    });
+
+    // Fastest payback, over the regimes that pay back at all.
+    const paying = summary.filter((r) => Number.isFinite(r.paybackPeriod));
+    if (paying.length > 0) {
+        const fastest = paying.reduce((a, b) => (b.paybackPeriod < a.paybackPeriod ? b : a));
+        const rest = paying.filter((r) => r.id !== fastest.id);
+        const slowest = rest.length
+            ? rest.reduce((a, b) => (b.paybackPeriod > a.paybackPeriod ? b : a))
+            : null;
+        out.push({
+            key: 'payback',
+            label: 'Fastest capital recovery',
+            text: slowest
+                ? `"${fastest.name}" pays back in year ${fastest.paybackPeriod}, against year ${slowest.paybackPeriod} for "${slowest.name}".`
+                : `"${fastest.name}" pays back in year ${fastest.paybackPeriod}. No other regime pays back within the project life.`,
+        });
+    } else {
+        out.push({
+            key: 'payback',
+            label: 'Capital recovery',
+            text: 'No regime pays back within the project life on these inputs.',
+        });
+    }
+
+    // Highest total government take.
+    const topGov = summary.reduce((a, b) => (b.govTake > a.govTake ? b : a));
+    const others = summary.filter((r) => r.id !== topGov.id);
+    const nextGov = others.length
+        ? others.reduce((a, b) => (b.govTake > a.govTake ? b : a))
+        : null;
+    out.push({
+        key: 'government',
+        label: 'Best for the government',
+        text: nextGov
+            ? `"${topGov.name}" collects the most, $${fmt(topGov.govTake)}MM against $${fmt(nextGov.govTake)}MM for the next highest, "${nextGov.name}".`
+            : `"${topGov.name}" collects $${fmt(topGov.govTake)}MM in total government take.`,
+    });
+
+    // Capex resilience: how much NPV is lost across the swept multiplier range.
+    const capexSeries = sensitivityData?.capex?.data || [];
+    const losses = capexSeries
+        .map((d) => {
+            const v = d.values || [];
+            if (v.length < 2) return null;
+            const regime = summary.find((r) => r.id === d.regimeId);
+            return regime ? { name: regime.name, loss: v[0] - v[v.length - 1] } : null;
+        })
+        .filter(Boolean);
+    if (losses.length >= 2) {
+        const toughest = losses.reduce((a, b) => (b.loss < a.loss ? b : a));
+        const weakest = losses.reduce((a, b) => (b.loss > a.loss ? b : a));
+        out.push({
+            key: 'capex',
+            label: 'Resilience to cost overrun',
+            text: `Over the swept capex range, "${toughest.name}" gives up the least contractor NPV ($${fmt(toughest.loss)}MM) and "${weakest.name}" the most ($${fmt(weakest.loss)}MM).`,
+        });
+    }
+
+    // Price response: which regime's government share climbs fastest.
+    const priceSeries = sensitivityData?.price?.data || [];
+    const climbs = priceSeries
+        .map((d) => {
+            const v = d.values || [];
+            if (v.length < 2) return null;
+            const regime = summary.find((r) => r.id === d.regimeId);
+            return regime ? { name: regime.name, climb: v[v.length - 1] - v[0] } : null;
+        })
+        .filter(Boolean);
+    if (climbs.length >= 2) {
+        const steepest = climbs.reduce((a, b) => (b.climb > a.climb ? b : a));
+        out.push({
+            key: 'price',
+            label: 'Response to higher prices',
+            text: `"${steepest.name}" is the most progressive: its government share rises ${fmt(steepest.climb)} percentage points across the swept price range, so it captures upside fastest.`,
+        });
+    }
+
+    return out;
+};
+
 export const runFiscalComparison = async (inputs) => {
     const { projectInputs, regimes } = inputs;
     const summary = [];
@@ -284,5 +391,6 @@ export const runFiscalComparison = async (inputs) => {
         summary,
         annualCashFlows,
         sensitivityData,
+        insights: deriveInsights(summary, sensitivityData),
     };
 };
