@@ -100,7 +100,7 @@ const BuildUpResults = () => {
         </div>
         <p className="text-[11px] text-slate-500 mt-1">
           {`Outturn ${fmt(landed.outturn.litres, 0)} litres after ${fmt(landed.oceanLossPercent, 2)}% ocean loss`}
-          {landed.perLitreLocal !== null && ` — ${fmt(landed.perLitreLocal, 2)} per litre at ${fmt(landed.fxRate, 0)} to the dollar`}
+          {landed.perLitreLocal !== null && `, or ${fmt(landed.perLitreLocal, 2)} per litre at ${fmt(landed.fxRate, 0)} to the dollar`}
         </p>
       </div>
 
