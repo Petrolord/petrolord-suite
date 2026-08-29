@@ -114,7 +114,6 @@ const SeparatorSlugCatcherDesigner = () => {
     const V_terminal = K_separator * Math.sqrt((liquidDensity - gasDensity) / gasDensity);
     
     const Qg_acfs = (Qg_scfd / 86400) * (T_R / 520) * (14.7 / (P_psig + 14.7)) * Z;
-    const gasVelocity = Qg_acfs / (Math.PI * (results?.diameter / 2)**2 * 0.5) || 0;
 
     let diameter, seamToSeamLength;
 
@@ -147,6 +146,11 @@ const SeparatorSlugCatcherDesigner = () => {
     if (diameter < 2) diameter = 2;
     if (seamToSeamLength / diameter > 6) seamToSeamLength = 6 * diameter;
     if (seamToSeamLength / diameter < 1.5) seamToSeamLength = 1.5 * diameter;
+
+    // Actual gas velocity through the gas space (50% liquid level) of the
+    // vessel just sized. This previously read the PREVIOUS render's results,
+    // so the first calculation always reported 0 (fixed at Facilities F0).
+    const gasVelocity = Qg_acfs / ((Math.PI * (diameter / 2) ** 2) * 0.5);
 
     setResults({
         diameter: diameter.toFixed(2),

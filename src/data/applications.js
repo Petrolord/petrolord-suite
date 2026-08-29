@@ -138,17 +138,9 @@ export const applications = [
         route: '/dashboard/apps/economics/epe/cases',
         icon: 'Briefcase'
     },
-    {
-        id: 'pipeline-designer',
-        slug: 'pipeline-designer',
-        name: 'Pipeline Designer',
-        description: 'End-to-end pipeline hydraulics, sizing, and flow assurance.',
-        module: 'facilities',
-        category: 'facilities',
-        path: '/dashboard/apps/facilities/pipeline-designer',
-        route: '/dashboard/apps/facilities/pipeline-designer',
-        icon: 'Route'
-    },
+    // Facilities F0: the Pipeline Designer entry was removed with the app
+    // (setTimeout-fabricated results); line sizing lives in Facility Network
+    // Hydraulics until the F1 flagship (Facilities-ROADMAP.md).
     {
         id: 'produced-water-treatment',
         slug: 'produced-water-treatment',
