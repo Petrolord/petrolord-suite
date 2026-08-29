@@ -11,6 +11,7 @@ import { rollback } from '@/lib/decisionTree';
 import { TEMPLATES } from '@/components/decisiontree/templates';
 import TreeNodeEditor from '@/components/decisiontree/TreeNodeEditor';
 import TreeDiagram from '@/components/decisiontree/TreeDiagram';
+import DecisionTreeHelpGuide from '@/components/decisiontree/DecisionTreeHelpGuide';
 
 // Decision Tree Builder (D3, docs/scope/Economics-ROADMAP.md): multi-stage
 // EMV decision trees on the canonical src/lib/decisionTree.js engine. The
@@ -170,6 +171,7 @@ const DecisionTreeBuilder = () => {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <DecisionTreeHelpGuide />
               <select
                 onChange={(e) => { if (TEMPLATES[e.target.value]) { setTree(TEMPLATES[e.target.value].build()); } e.target.value = ''; }}
                 defaultValue=""

@@ -13,6 +13,7 @@ import {
   Tooltip as RTooltip, Legend as RLegend, ReferenceLine,
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
+import DecisionStudioHelpGuide from '@/components/decisionstudio/DecisionStudioHelpGuide';
 import {
   CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS, GRID_STYLE, TOOLTIP_STYLE,
 } from '@/utils/chartTheme';
@@ -157,14 +158,17 @@ const DecisionStudio = () => {
               <ArrowLeft className="w-4 h-4 mr-2" /> Back
             </Button>
           </Link>
-          <div className="flex items-center space-x-3">
-            <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-2 rounded-xl shadow-lg">
-              <Landmark className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center space-x-3">
+              <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-2 rounded-xl shadow-lg">
+                <Landmark className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight">Decision Studio</h1>
+                <p className="text-slate-400 text-xs">Boardroom view of the decision chain: probabilistic economics, decision trees, and capital allocation, with provenance on every number.</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">Decision Studio</h1>
-              <p className="text-slate-400 text-xs">Boardroom view of the decision chain: probabilistic economics, decision trees, and capital allocation, with provenance on every number.</p>
-            </div>
+            <DecisionStudioHelpGuide />
           </div>
         </div>
 
