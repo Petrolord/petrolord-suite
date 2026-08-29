@@ -19,7 +19,7 @@ const stats = [
     gradient: 'from-lime-400 to-green-400',
   },
   {
-    value: '7',
+    value: '8',
     label: 'Discipline Modules',
     gradient: 'from-orange-400 to-amber-400',
   },
