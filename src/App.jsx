@@ -64,6 +64,7 @@ const PipelineLineSizingStudio = lazy(() => import('@/pages/apps/PipelineLineSiz
 const SeparatorSlugCatcherDesigner = lazy(() => import('@/pages/apps/SeparatorSlugCatcherDesigner'));
 const CompressorStationDesigner = lazy(() => import('@/pages/apps/CompressorStationDesigner'));
 const PumpStationDesigner = lazy(() => import('@/pages/apps/PumpStationDesigner'));
+const ControlValveSizing = lazy(() => import('@/pages/apps/ControlValveSizing'));
 const HeatExchangerSizer = lazy(() => import('@/pages/apps/HeatExchangerSizer'));
 const GasTreatingDehydration = lazy(() => import('@/pages/apps/GasTreatingDehydration'));
 const CorrosionRatePredictor = lazy(() => import('@/pages/apps/CorrosionRatePredictor'));
@@ -698,6 +699,8 @@ function App() {
                                 <Route path="apps/facilities/compressor-station-designer" element={<ProtectedAppRoute appId="compressor-station-designer" appName="Compressor Station Designer"><CompressorStationDesigner /></ProtectedAppRoute>} />
                                 {/* Facilities F10: the other half of the retired pack, likewise on a fresh slug. */}
                                 <Route path="apps/facilities/pump-station-designer" element={<ProtectedAppRoute appId="pump-station-designer" appName="Pump Station Designer"><PumpStationDesigner /></ProtectedAppRoute>} />
+                                {/* Facilities F11: ISA 75.01 valve sizing on a fresh slug. */}
+                                <Route path="apps/facilities/control-valve-sizing" element={<ProtectedAppRoute appId="control-valve-sizing" appName="Control Valve & Choke Sizing"><ControlValveSizing /></ProtectedAppRoute>} />
                                 {/* Facilities F4: the slug keeps its entitlements while the app becomes the
                                     Heat Exchanger & Cooling Studio (F computed, U assembled, hot-day derate). */}
                                 <Route path="apps/facilities/heat-exchanger-sizer" element={<ProtectedAppRoute appId="heat-exchanger-sizer" appName="Heat Exchanger & Cooling Studio"><HeatExchangerSizer /></ProtectedAppRoute>} />
