@@ -101,8 +101,9 @@ hardcoded Heroku host that returns a 404 on every path, root included,
 so report generation, the report-type list and DOCX export are all
 unreachable.
 
-**The archive or rebuild decision remains the owner's** and is not taken
-here. What is fixed is the experience in the meantime. The app used to
+**Owner decision taken 2026-08-29: REBUILD onto Supabase edge
+functions.** Delivered the same day; see the section at the end of this
+document. What E4 fixed first was the experience in the meantime. The app used to
 dump the 404 page's HTML into a red box headed "Technical Report
 Autopilot crashed", which reads as though the user broke something.
 
@@ -133,3 +134,80 @@ error.
   the Suite's own saved artifacts rather than simulate a connection.
 - `src/utils/digitizerApi.js` still points at the same dead host and has
   zero importers; it belongs to Geoscience.
+
+---
+
+# The rebuild (owner decision, 2026-08-29)
+
+The owner's call on the finding above was to rebuild the generation
+path onto Supabase edge functions like the rest of the Suite, rather
+than archive the tile. Done.
+
+## Where each piece went
+
+The old app made four calls to the dead host. Only one of them ever
+needed a server.
+
+| Old call | Now |
+|---|---|
+| `GET /trp/templates` | **Client-side.** Report types and their sections are static configuration in `src/data/reportAutopilotTemplates.js`. They never needed a network call, and moving them means the app opens, the brief is fillable and a project is saveable even when the writer is down. |
+| `POST /trp/generate` | **Edge function `report-autopilot`.** The one thing that genuinely needs a server: it holds the model key. |
+| `GET /trp/export-docx` | **Client-side.** A .docx is a zip of OOXML parts and the Suite already ships JSZip, so the document is assembled in the browser from the sections on screen. No round trip, no download link into a service that can disappear, and what is exported is exactly what was reviewed. |
+| `POST /trp/upload` | **Client-side, and honest.** Text and CSV attachments are read in the browser and their contents travel with the brief, so an attachment now actually reaches the writer. Before, files were posted to the service, an id came back, and nothing was ever read. Anything the browser cannot read as text is refused by name rather than accepted and silently ignored, which is what "uploaded" used to mean. |
+
+## The generation prompt
+
+The standing hazard in a report generator is invention: a model asked
+for a drilling report will supply an ROP nobody measured. The system
+prompt is built around stopping that. It may use only the facts given;
+where the brief asks for something the inputs do not support it must
+say so in one plain sentence rather than fill the space; it may not
+restate a number to more precision than it was given; and where the
+inputs contradict each other it must name the two facts that conflict
+rather than choose one silently.
+
+Sections are written independently and in parallel, each with the whole
+context. A chained generator starts inventing continuity between
+sections that is not in the data.
+
+Each section carries a `brief` written as an instruction to a report
+author rather than as prose, so the model has something specific to
+answer. Temperature is 0.2, because a report is not a place for
+invention. Length is budgeted from the requested detail level and page
+count and capped, and the request is bounded at twelve sections and
+60,000 characters of context so it cannot be used as a bulk-completion
+proxy.
+
+## What is still honest about it
+
+The preview still says, in the app, that this is an AI-generated draft
+to be reviewed before distribution, and the exported document carries
+the same line in its footer. That is not boilerplate: the generator is
+constrained to the user's facts, but a draft assembled by a model is a
+draft.
+
+The outage panel E4 added is kept and now covers the case that remains:
+the function reachable but unconfigured, or the model call failing. A
+brief the user can fix, such as selecting no sections, gets a toast
+telling them what to change rather than an outage banner.
+
+## Verification
+
+- Jest **394 suites / 5575 tests green**, including 14 on the DOCX
+  writer (every OOXML part Word needs, XML escaping, empty reports) and
+  8 on the rebuild itself (the dead host is gone from the tree,
+  generation goes through the edge function, the app opens with no
+  network call at all).
+- `npm run build` clean.
+- `report-autopilot` deployed (script 64.59 kB) and smoke-tested live:
+  unauthenticated requests are refused 401 at the gateway.
+- `OPENAI_API_KEY` was already set as a function secret.
+
+## Still open
+
+- `src/utils/digitizerApi.js` is now the last reference to the dead
+  Heroku host in the repo. Zero importers, and Geoscience rather than
+  Economics, so it is left for whoever next touches that module.
+- PDF and spreadsheet attachments cannot be read in the browser. The
+  app says so and tells the user to paste the figures into the notes.
+  Server-side extraction would need a storage bucket and a parser.

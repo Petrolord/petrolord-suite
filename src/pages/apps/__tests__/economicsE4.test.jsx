@@ -141,6 +141,11 @@ describe('Technical Report Autopilot outage handling', () => {
     expect(isServiceUnavailable('Non-JSON response on /trp/templates\n<!DOCTYPE html>')).toBe(true);
     expect(isServiceUnavailable('TypeError: Failed to fetch')).toBe(true);
     expect(isServiceUnavailable('HTTP 503 on /trp/generate')).toBe(true);
+    // After the 2026-08-29 rebuild the same panel covers an edge function
+    // that is unreachable, unconfigured, or whose model call failed.
+    expect(isServiceUnavailable('Edge Function returned a non-2xx status code')).toBe(true);
+    expect(isServiceUnavailable('Report generation is not configured: set the OPENAI_API_KEY function secret.')).toBe(true);
+    expect(isServiceUnavailable('LLM request failed (429)')).toBe(true);
   });
 
   it('still treats a real application error as an error', () => {

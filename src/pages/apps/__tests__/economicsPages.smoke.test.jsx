@@ -104,13 +104,14 @@ describe('Economics pages mount', () => {
     expect(screen.getByRole('button', { name: /New AFE/i })).toBeInTheDocument();
   });
 
-  it('Technical Report Autopilot renders, and says its service is down rather than crashing', async () => {
+  it('Technical Report Autopilot renders straight into the brief', async () => {
     mount(TechnicalReportAutopilot);
-    expect(await screen.findByRole('heading', { name: 'Technical Report Autopilot' })).toBeInTheDocument();
-    // jsdom has no fetch, which is the same shape of failure as the app's
-    // real one: the backend host no longer exists. E4 made that state honest.
-    expect(await screen.findByText(/Report generation is unavailable/i)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Technical Report Autopilot' })).toBeInTheDocument();
+    // Rebuilt 2026-08-29: templates are client-side and generation runs on a
+    // Suite edge function, so the app no longer waits on a dead host to open.
+    // Its own suite (reportAutopilot.test.jsx) covers the rebuild in detail.
     expect(screen.queryByText(/Autopilot crashed/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Report generation is unavailable/i)).not.toBeInTheDocument();
   });
 
   it('Project Management Pro renders', async () => {

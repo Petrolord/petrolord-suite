@@ -9,13 +9,15 @@ per-phase record). All four E-series migrations are APPLIED and the
 `epe-monte-carlo` edge function is redeployed.
 
 Open after the E series:
-- **OWNER DECISION: Technical Report Autopilot's backend is gone.** It
-  calls a hardcoded Heroku host that returns "No such app" on every
-  path, root included, so report generation, the report-type list and
-  DOCX export are all unreachable on a tile the catalog carries as
-  Active. Archive it, or rebuild the generation path onto Supabase edge
-  functions like the rest of the Suite. E4 made the outage honest to the
-  user in the meantime.
+- ~~**OWNER DECISION: Technical Report Autopilot's backend is gone.**~~
+  **RESOLVED 2026-08-29: owner chose REBUILD, and it shipped the same
+  day.** Templates and the DOCX export moved client-side (they never
+  needed a server; the document is now assembled in the browser from
+  the sections on screen with JSZip). Generation moved to the new
+  `report-autopilot` edge function, deployed and smoke-tested, with a
+  prompt built around refusing to invent figures. The fake file upload
+  became real client-side reading of text and CSV attachments, which
+  now actually reach the writer. Detail: AssuranceApps-STATUS.md.
 - **Prod upload** of the E-series build (nothing is tile-gated; the
   migrations are applied and safe ahead of it).
 - Owner PDFs (Newendorp & Schuyler; Mian) for literature

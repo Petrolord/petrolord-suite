@@ -10,7 +10,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Settings, Bot, FileUp, ListChecks, PlusCircle, MinusCircle, FileText, SlidersHorizontal, Loader2 } from 'lucide-react';
 
-const API_URL = "https://petrolord-pvt-backend-2025-58b5441b2268.herokuapp.com";
+// Attachments are read in the browser and travel with the brief, so they are
+// bounded here rather than at the edge.
+const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024;
+const MAX_ATTACHMENT_CHARS = 20000;
 
 const InputPanel = ({ onGenerate, loading, templates, formState, setFormState }) => {
   const [currentSections, setCurrentSections] = useState([]);
@@ -74,28 +77,48 @@ const InputPanel = ({ onGenerate, loading, templates, formState, setFormState })
     handleInputChange('gpt4_sections', newGpt4Sections);
   };
 
+  /**
+   * Attach text-bearing files as context for the report (rebuild 2026-08-29).
+   *
+   * These used to be posted to a report service that no longer exists, which
+   * returned a file id the app then carried around; nothing was ever read.
+   * Text and CSV files are now read in the browser and their contents travel
+   * with the brief, so an attachment actually reaches the writer.
+   *
+   * Anything the browser cannot read as text is refused by name rather than
+   * accepted and silently ignored, which is what "uploaded" used to mean.
+   */
   const onDrop = async (acceptedFiles) => {
-    toast({ title: "Uploading files..." });
-    const newFileIds = [...formState.file_ids];
-    const newUploadedFiles = [...uploadedFiles];
-    
+    const attachments = [...(formState.attachments || [])];
+    const accepted = [...uploadedFiles];
+    const refused = [];
+
     for (const file of acceptedFiles) {
-        const formData = new FormData();
-        formData.append('file', file);
-        try {
-            const res = await fetch(`${API_URL}/trp/upload`, { method: 'POST', body: formData });
-            if (!res.ok) throw new Error('Upload failed for ' + file.name);
-            const { file_id } = await res.json();
-            newFileIds.push(file_id);
-            newUploadedFiles.push(file);
-        } catch(err) {
-            toast({ variant: 'destructive', title: 'Upload Error', description: err.message });
-        }
+      const readable = /\.(txt|csv|tsv|md|json|log)$/i.test(file.name)
+        || file.type.startsWith('text/');
+      if (!readable) { refused.push(file.name); continue; }
+      if (file.size > MAX_ATTACHMENT_BYTES) { refused.push(`${file.name} (too large)`); continue; }
+      try {
+        const text = await file.text();
+        attachments.push({ name: file.name, text: text.slice(0, MAX_ATTACHMENT_CHARS) });
+        accepted.push(file);
+      } catch (err) {
+        refused.push(file.name);
+      }
     }
-    
-    setFormState(prev => ({ ...prev, file_ids: newFileIds }));
-    setUploadedFiles(newUploadedFiles);
-    toast({ title: "Files uploaded!", description: `${newUploadedFiles.length} files are ready to be included in the report.` });
+
+    setFormState(prev => ({ ...prev, attachments }));
+    setUploadedFiles(accepted);
+    if (accepted.length > uploadedFiles.length) {
+      toast({ title: 'Attached', description: `${accepted.length - uploadedFiles.length} file(s) will be given to the writer as data.` });
+    }
+    if (refused.length > 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Not attached',
+        description: `${refused.join(', ')}. Text and CSV can be read here; PDFs and spreadsheets cannot yet, so paste the figures into the notes instead.`,
+      });
+    }
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
