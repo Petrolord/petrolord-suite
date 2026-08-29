@@ -691,7 +691,9 @@ function App() {
                                 <Route path="apps/facilities/compressor-pump-pack" element={<Navigate to="/dashboard/facilities" replace />} />
                                 <Route path="apps/facilities/heat-exchanger-sizer" element={<ProtectedAppRoute appId="heat-exchanger-sizer" appName="Heat Exchanger Sizer"><HeatExchangerSizer /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/gas-treating-dehydration" element={<ProtectedAppRoute appId="gas-treating-dehydration" appName="Gas Treating & Dehydration"><GasTreatingDehydration /></ProtectedAppRoute>} />
-                                <Route path="apps/facilities/relief-blowdown-sizer" element={<ProtectedAppRoute appId="relief-blowdown-sizer" appName="Relief & Blowdown Sizer"><ReliefBlowdownSizer /></ProtectedAppRoute>} />
+                                {/* Facilities F2: the slug keeps its entitlements while the app becomes the
+                                    Relief & Flare Studio (API 520/521 on the vendored engine). */}
+                                <Route path="apps/facilities/relief-blowdown-sizer" element={<ProtectedAppRoute appId="relief-blowdown-sizer" appName="Relief & Flare Studio"><ReliefBlowdownSizer /></ProtectedAppRoute>} />
                                 {/* Facilities F1: the slug keeps its entitlements while the app becomes the
                                     Pipeline & Line Sizing Studio flagship (validated engines; single-line only per
                                     Production-ROADMAP.md §6.2 — the gathering-network solver is Production #11). */}
