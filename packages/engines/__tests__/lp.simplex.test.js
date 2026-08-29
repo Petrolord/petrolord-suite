@@ -263,3 +263,48 @@ describe('input validation', () => {
     expect(() => solveLP({ c: [1], A: [[1], [1]], b: [1] })).toThrow(/same number of rows/);
   });
 });
+
+describe('shadow prices with bounded variables, which is where they went wrong', () => {
+  // The reader used to work out the artificial columns' offset from the count
+  // of constraint rows. Finite upper bounds add their own rows and those take
+  // slack columns too, so with any bounded variable the offset landed past
+  // the real column and every EQUALITY row priced at zero. It surfaced in the
+  // blending optimiser, where the total-volume row is an equality and every
+  // component is bounded, and it made the marginal cost of a barrel read as
+  // nothing. This pins it at the kernel.
+  const problem = {
+    c: [92, 84, 55],
+    A: [[1, 1, 1]],
+    b: [1000],
+    ops: ['='],
+    lo: [0, 0, 0],
+    hi: [1000, 1000, 100],
+  };
+
+  it('prices an equality row when the variables are bounded', () => {
+    const r = solveLP(problem);
+    expect(r.status).toBe(LP_STATUS.OPTIMAL);
+    expect(r.shadowPrices[0]).not.toBe(0);
+  });
+
+  it('matches the objective change from asking for one more unit', () => {
+    // The definition, checked by re-solving. Nothing else would have caught
+    // the offset bug.
+    const base = solveLP(problem);
+    const more = solveLP({ ...problem, b: [1001] });
+    close(more.objective - base.objective, base.shadowPrices[0], 6);
+  });
+
+  it('still prices inequality rows correctly alongside bounds', () => {
+    const mixed = solveLP({
+      c: [3, 5],
+      A: [[1, 0], [0, 2], [3, 2]],
+      b: [4, 12, 18],
+      ops: ['<=', '<=', '<='],
+      hi: [100, 100],
+      maximize: true,
+    });
+    close(mixed.shadowPrices[1], 1.5, 6);
+    close(mixed.shadowPrices[2], 1, 6);
+  });
+});

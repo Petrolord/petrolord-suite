@@ -113,23 +113,32 @@ const buildTableau = ({ c, A, b, ops, width, n }) => {
   let slackAt = n;
   let artificialAt = n + slackCount;
   const artificialCols = [];
+  // Each row's own slack and artificial column, recorded as they are
+  // assigned. Recomputing these offsets later is how the shadow prices went
+  // wrong once: the bound rows take slack columns too, so any arithmetic
+  // that walks only the constraint rows lands in the wrong place.
+  const rowCols = rows.map((row) => ({ op: row.op, slack: null, artificial: null }));
 
   rows.forEach((row, i) => {
     row.coeffs.forEach((v, j) => { tableau[i][j] = v; });
     tableau[i][total] = row.rhs;
     if (row.op === '<=') {
       tableau[i][slackAt] = 1;
+      rowCols[i].slack = slackAt;
       basis[i] = slackAt;
       slackAt += 1;
     } else if (row.op === '>=') {
       tableau[i][slackAt] = -1; // surplus
+      rowCols[i].slack = slackAt;
       slackAt += 1;
       tableau[i][artificialAt] = 1;
+      rowCols[i].artificial = artificialAt;
       artificialCols.push(artificialAt);
       basis[i] = artificialAt;
       artificialAt += 1;
     } else {
       tableau[i][artificialAt] = 1;
+      rowCols[i].artificial = artificialAt;
       artificialCols.push(artificialAt);
       basis[i] = artificialAt;
       artificialAt += 1;
@@ -139,7 +148,7 @@ const buildTableau = ({ c, A, b, ops, width, n }) => {
   const objective = new Array(total + 1).fill(0);
   c.forEach((cj, j) => { objective[j] = cj; });
 
-  return { tableau, basis, objective, total, m, artificialCols };
+  return { tableau, basis, objective, total, m, artificialCols, rowCols };
 };
 
 /** Pivot the tableau on (row, col), leaving the basis consistent. */
@@ -245,7 +254,7 @@ export const solveLP = ({ c, A, b, ops, lo, hi, maximize = false }) => {
 
   const { shiftedB, constant, width } = shiftToOrigin({ c: cost, A, b, lo: lower, hi: upper });
   const built = buildTableau({ c: cost, A, b: shiftedB, ops: operators, width, n });
-  const { tableau, basis, total, artificialCols } = built;
+  const { tableau, basis, total, artificialCols, rowCols } = built;
 
   // Phase one: minimise the sum of the artificials.
   const phaseOneCosts = new Array(total).fill(0);
@@ -291,7 +300,7 @@ export const solveLP = ({ c, A, b, ops, lo, hi, maximize = false }) => {
   // row's slack, which is the marginal value of relaxing it by one unit. Bound
   // rows are excluded, since a bound's shadow price is not a constraint price.
   const shadowPrices = readShadowPrices({
-    tableau, basis, costs: phaseTwoCosts, ops: operators, n, total, maximize,
+    tableau, basis, costs: phaseTwoCosts, rowCols, rowCount: operators.length, maximize,
   });
 
   return { status: LP_STATUS.OPTIMAL, x, objective, shadowPrices, iterations: 0, constant };
@@ -300,31 +309,37 @@ export const solveLP = ({ c, A, b, ops, lo, hi, maximize = false }) => {
 /**
  * Marginal value of each original constraint at the optimum.
  *
- * Formed from the reduced cost of the row's own slack or surplus column.
- * Rows that were equalities have no slack, so their price is read from the
- * artificial column, which is still in the tableau even though it is barred
- * from entering.
+ * Read from the reduced cost of the row's own slack, surplus or artificial
+ * column, using the column indices RECORDED when the tableau was built.
+ *
+ * They are recorded rather than recomputed because recomputing them was wrong:
+ * the earlier version worked out the artificial columns' offset from the
+ * count of constraint rows alone, but finite upper bounds add their own rows
+ * and those take slack columns too, so with any bounded variable the offset
+ * landed past the real column and every equality row priced at zero. It was
+ * caught by asserting a shadow price against the objective change from
+ * actually re-solving, which is the only check that would have caught it.
+ *
+ * Only the original constraint rows are priced. A bound's marginal value is
+ * not a constraint price and reporting it as one would invite it to be read
+ * as the value of relaxing a specification.
  */
-function readShadowPrices({ tableau, basis, costs, ops, n, total, maximize }) {
+function readShadowPrices({ tableau, basis, costs, rowCols, rowCount, maximize }) {
   const prices = [];
-  let slackAt = n;
-  const slackTotal = ops.filter((op) => op !== '=').length;
-  let artificialAt = n + slackTotal;
-  // The upper-bound rows come after the real ones and take slack columns too,
-  // so only the first ops.length rows are walked here.
-  ops.forEach((op) => {
-    let col;
-    let sign = 1;
-    if (op === '<=') { col = slackAt; slackAt += 1; }
-    else if (op === '>=') { col = slackAt; slackAt += 1; sign = -1; artificialAt += 1; }
-    else { col = artificialAt; artificialAt += 1; }
+  for (let i = 0; i < rowCount; i += 1) {
+    const meta = rowCols[i];
+    // A '>=' row's dual is carried by its surplus column with the opposite
+    // sign; '<=' by its slack; '=' by its artificial, which is still in the
+    // tableau even though phase two bars it from entering.
+    const col = meta.op === '=' ? meta.artificial : meta.slack;
+    if (col === null || col === undefined) { prices.push(0); continue; }
+    const sign = meta.op === '>=' ? -1 : 1;
     let value = costs[col] ?? 0;
-    for (let i = 0; i < basis.length; i += 1) {
-      value -= costs[basis[i]] * tableau[i][col];
+    for (let k = 0; k < basis.length; k += 1) {
+      value -= costs[basis[k]] * tableau[k][col];
     }
-    // The reduced cost of a slack is the negative of the row's dual.
     const dual = -value * sign;
     prices.push(maximize ? -dual : dual);
-  });
+  }
   return prices;
 }
