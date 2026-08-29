@@ -630,7 +630,7 @@ function App() {
                                     different app with a different id. */}
                                 <Route path="apps/production/network-diagram-pro" element={<Navigate to="/dashboard/production" replace />} />
 
-                                <Route path="apps/economics/project-management-pro" element={<ProjectManagementPro />} />
+                                <Route path="apps/economics/project-management-pro" element={<ProtectedAppRoute appId="project-management-pro" appName="Project Management Pro"><ProjectManagementPro /></ProtectedAppRoute>} />
                                 
                                 {/* AFE Cost Control Manager explicit robust routes matching the registry fix */}
                                 <Route path="apps/economics-project-management/afe-cost-control-manager" element={<ProtectedAppRoute appId="afe-cost-control-manager" appName="AFE Cost Control Manager"><AfeCostControlManager /></ProtectedAppRoute>} />
@@ -656,12 +656,12 @@ function App() {
                                 <Route path="apps/economic/value-of-information-analyzer" element={<ProtectedAppRoute appId="value-of-information-analyzer" appName="Value of Information Analyzer"><ValueOfInformationAnalyzer /></ProtectedAppRoute>} />
                                 <Route path="apps/economics/voi-analyzer" element={<ProtectedAppRoute appId="value-of-information-analyzer" appName="Value of Information Analyzer"><ValueOfInformationAnalyzer /></ProtectedAppRoute>} />
                                 
-                                <Route path="apps/economics/npv-scenario-builder" element={<NpvScenarioBuilder />} />
+                                <Route path="apps/economics/npv-scenario-builder" element={<ProtectedAppRoute appId="npv-scenario-builder" appName="NPV Scenario Builder"><NpvScenarioBuilder /></ProtectedAppRoute>} />
                                 <Route path="apps/economics/decision-tree-builder" element={<ProtectedAppRoute appId="decision-tree-builder" appName="Decision Tree Builder"><DecisionTreeBuilder /></ProtectedAppRoute>} />
                                 <Route path="apps/economics/decision-studio" element={<ProtectedAppRoute appId="decision-studio" appName="Decision Studio"><DecisionStudio /></ProtectedAppRoute>} />
-                                <Route path="apps/economics/fiscal-regime-designer" element={<FiscalRegimeDesigner />} />
-                                <Route path="apps/economics/capital-portfolio-studio" element={<CapitalPortfolioStudio />} />
-                                <Route path="apps/economics/fdp-accelerator" element={<FdpAccelerator />} />
+                                <Route path="apps/economics/fiscal-regime-designer" element={<ProtectedAppRoute appId="fiscal-regime-designer" appName="Fiscal Regime Designer"><FiscalRegimeDesigner /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/capital-portfolio-studio" element={<ProtectedAppRoute appId="capital-portfolio-studio" appName="Capital Portfolio Studio"><CapitalPortfolioStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/economics/fdp-accelerator" element={<ProtectedAppRoute appId="fdp-accelerator" appName="FDP Accelerator"><FdpAccelerator /></ProtectedAppRoute>} />
                                 
                                 {/* Petroleum Economics Studio: the legacy standalone app is retired
                                     (2026-08-16); EPE carries the name now. Old links land on it. */}
