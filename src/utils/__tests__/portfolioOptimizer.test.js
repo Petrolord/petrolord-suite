@@ -121,3 +121,83 @@ describe('optimizePortfolio (step-scaled knapsack)', () => {
     expect(r.risk.probLoss).toBe(0); // deterministic inputs, positive EMV
   });
 });
+
+// Economics E5 closes the D4 parked item: the roll-up used to treat projects
+// as strictly independent, which makes any portfolio look safer than it is.
+describe('portfolioRiskMetrics with correlation', () => {
+  const a = { npv_p50: 100, npv_p10: 160, npv_p90: 40, pos: 1 };
+  const b = { npv_p50: 80, npv_p10: 130, npv_p90: 30, pos: 1 };
+
+  it('defaults to independence, so the previous behaviour is unchanged', () => {
+    const explicit = portfolioRiskMetrics([a, b], 0);
+    const implicit = portfolioRiskMetrics([a, b]);
+    expect(implicit.stdDev).toBeCloseTo(explicit.stdDev, 12);
+    expect(implicit.correlation).toBe(0);
+  });
+
+  it('leaves the expected value alone', () => {
+    // Correlation moves the spread, never the mean.
+    const indep = portfolioRiskMetrics([a, b], 0);
+    const corr = portfolioRiskMetrics([a, b], 0.6);
+    expect(corr.emv).toBeCloseTo(indep.emv, 12);
+  });
+
+  it('widens the spread as correlation rises', () => {
+    const sd = [0, 0.25, 0.5, 0.75, 1].map((r) => portfolioRiskMetrics([a, b], r).stdDev);
+    for (let i = 1; i < sd.length; i += 1) {
+      expect(sd[i]).toBeGreaterThan(sd[i - 1]);
+    }
+  });
+
+  it('reaches the sum of the standard deviations at full correlation', () => {
+    // Perfectly correlated projects move as one, so diversification buys
+    // nothing and the portfolio spread is just the sum.
+    const sdA = Math.sqrt(projectMoments(a).variance);
+    const sdB = Math.sqrt(projectMoments(b).variance);
+    expect(portfolioRiskMetrics([a, b], 1).stdDev).toBeCloseTo(sdA + sdB, 8);
+  });
+
+  it('matches the independent root-sum-of-squares at zero correlation', () => {
+    const sdA = Math.sqrt(projectMoments(a).variance);
+    const sdB = Math.sqrt(projectMoments(b).variance);
+    expect(portfolioRiskMetrics([a, b], 0).stdDev)
+      .toBeCloseTo(Math.sqrt(sdA * sdA + sdB * sdB), 8);
+  });
+
+  it('raises the chance of a loss on a portfolio that is expected to profit', () => {
+    const indep = portfolioRiskMetrics([a, b], 0);
+    const corr = portfolioRiskMetrics([a, b], 0.8);
+    expect(corr.emv).toBeGreaterThan(0);
+    expect(corr.probLoss).toBeGreaterThan(indep.probLoss);
+  });
+
+  it('reports what independence would have said, so the assumption is visible', () => {
+    const corr = portfolioRiskMetrics([a, b], 0.5);
+    expect(corr.independentStdDev).toBeLessThan(corr.stdDev);
+    expect(corr.independentStdDev).toBeCloseTo(portfolioRiskMetrics([a, b], 0).stdDev, 12);
+  });
+
+  it('makes no difference to a single project, which has nothing to correlate with', () => {
+    const one = portfolioRiskMetrics([a], 0);
+    const oneCorr = portfolioRiskMetrics([a], 0.9);
+    expect(oneCorr.stdDev).toBeCloseTo(one.stdDev, 10);
+  });
+
+  it('clamps a nonsense correlation instead of producing a nonsense spread', () => {
+    expect(portfolioRiskMetrics([a, b], 5).correlation).toBe(1);
+    expect(portfolioRiskMetrics([a, b], -3).correlation).toBe(0);
+    expect(Number.isFinite(portfolioRiskMetrics([a, b], NaN).stdDev)).toBe(true);
+  });
+
+  it('is threaded through the optimizer', () => {
+    const projects = [
+      { id: 1, capex: 10, npv_p50: 100, npv_p10: 160, npv_p90: 40, pos: 1 },
+      { id: 2, capex: 10, npv_p50: 80, npv_p10: 130, npv_p90: 30, pos: 1 },
+    ];
+    const indep = optimizePortfolio({ projects, capexLimit: 20, correlation: 0 });
+    const corr = optimizePortfolio({ projects, capexLimit: 20, correlation: 0.7 });
+    expect(corr.optimalProjects).toHaveLength(indep.optimalProjects.length);
+    expect(corr.totalEmv).toBeCloseTo(indep.totalEmv, 10);
+    expect(corr.risk.stdDev).toBeGreaterThan(indep.risk.stdDev);
+  });
+});

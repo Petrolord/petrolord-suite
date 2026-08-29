@@ -44,7 +44,22 @@ const OptimizationResults = ({ result }) => {
             <Metric title="NPV P90 / P10" value={`${formatCurrency(risk.p90, '')} / ${formatCurrency(risk.p10, '')}`} />
           </div>
           <p className="text-xs text-slate-400 pt-1">
-            Risk metrics assume independent projects and a normal approximation of the summed NPV (screening basis). Risked EMV weights each NPV by its chance of success and charges the failure loss.
+            {risk.correlation > 0 ? (
+              <>
+                Risk metrics use an average pairwise correlation of {risk.correlation.toFixed(2)}
+                {' '}between projects and a normal approximation of the summed NPV (screening basis).
+                {' '}Assuming independence instead would report a spread of
+                {' '}{formatCurrency(risk.independentStdDev, '')} rather than {formatCurrency(risk.stdDev, '')},
+                {' '}so treat that difference as the cost of the assumption.
+              </>
+            ) : (
+              <>
+                Risk metrics assume independent projects and a normal approximation of the summed NPV
+                (screening basis). Independence is the friendliest assumption a portfolio can be given;
+                raise the correlation above to see what shared exposure does to the downside.
+              </>
+            )}
+            {' '}Risked EMV weights each NPV by its chance of success and charges the failure loss.
           </p>
         </CardHeader>
         <CardContent>

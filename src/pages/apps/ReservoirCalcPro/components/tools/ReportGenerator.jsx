@@ -1,19 +1,18 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { tornadoSwings } from '@/lib/monteCarlo';
+// Economics E5 closes the D5 parked item. This file carried its own copy of
+// the brand banner and the logo loader, which src/lib/pdfBrand.js was
+// extracted from; the fork was left in place at the time to avoid disturbing
+// this file's export test suite. One implementation now, so a change to the
+// Suite's report header reaches every report.
+import { loadPetrolordLogo, drawBrandHeader } from '@/lib/pdfBrand';
 
 // ── Text-fitting helpers ────────────────────────────────────────────────────
 // Long project/reservoir names used to be drawn at full length and collided
 // with the banner title; big KPI values could overflow their cards. Both are
 // now measured with jsPDF's own metrics and clipped/shrunk to fit.
 
-// Ellipsize `text` so it renders within `maxWidth` mm at the CURRENT doc font.
-function fitText(doc, text, maxWidth) {
-    if (!text || doc.getTextWidth(text) <= maxWidth) return text;
-    let t = String(text);
-    while (t.length > 1 && doc.getTextWidth(`${t}…`) > maxWidth) t = t.slice(0, -1);
-    return `${t}…`;
-}
 
 // Draw centred text shrunk (never enlarged) to fit `maxWidth` mm.
 function textFitted(doc, text, x, y, maxWidth, startSize, minSize = 7) {
@@ -27,83 +26,7 @@ function textFitted(doc, text, x, y, maxWidth, startSize, minSize = 7) {
     doc.setFontSize(startSize);
 }
 
-// Petrolord brand mark for report headers: the clean transparent-background
-// logo (petrolord-icon.png is a JPEG with a baked-in dark background — never
-// use it on report surfaces). Loaded once and cached as a data URL so jsPDF
-// can embed it. Resolves to null if the asset can't be fetched — reports
-// still generate, just without the logo.
-let _logoPromise;
-function loadPetrolordLogo() {
-    if (_logoPromise) return _logoPromise;
-    _logoPromise = (async () => {
-        try {
-            const resp = await fetch('/petrolord-chart-watermark.png');
-            if (!resp.ok) return null;
-            const blob = await resp.blob();
-            const dataUrl = await new Promise((res, rej) => {
-                const r = new FileReader();
-                r.onload = () => res(r.result);
-                r.onerror = rej;
-                r.readAsDataURL(blob);
-            });
-            const img = await new Promise((res, rej) => {
-                const im = new Image();
-                im.onload = () => res(im);
-                im.onerror = rej;
-                im.src = dataUrl;
-            });
-            const w = img.naturalWidth || 1;
-            const h = img.naturalHeight || 1;
-            // The source asset is ~3000px / 800 KB; downscale on a canvas (alpha
-            // preserved) so every report doesn't carry the full-resolution embed.
-            const targetH = 240;
-            if (h > targetH) {
-                try {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = Math.round((w / h) * targetH);
-                    canvas.height = targetH;
-                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-                    return { dataUrl: canvas.toDataURL('image/png'), w: canvas.width, h: canvas.height };
-                } catch { /* fall back to the original */ }
-            }
-            return { dataUrl, w, h };
-        } catch {
-            return null;
-        }
-    })();
-    return _logoPromise;
-}
 
-// Shared slate banner for both report types. Right-hand project/reservoir
-// strings are ellipsized to the space left of the banner title so long names
-// can no longer overlap it.
-function drawBrandHeader(doc, { logo, margin, pageWidth, subtitle, projectName, reservoirName }) {
-    doc.setFillColor(15, 23, 42); // Slate 900
-    doc.rect(0, 0, pageWidth, 30, 'F');
-    let titleX = margin;
-    if (logo) {
-        const h = 15;
-        const w = h * (logo.w / logo.h);
-        try { doc.addImage(logo.dataUrl, 'PNG', margin, 7.5, w, h); titleX = margin + w + 5; } catch { /* skip logo */ }
-    }
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    const title = 'Petrolord Suite - ReservoirCalc Pro';
-    doc.text(title, titleX, 13);
-    const titleEnd = titleX + doc.getTextWidth(title);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(200, 210, 225);
-    doc.text(subtitle, titleX, 21);
-    doc.setTextColor(255, 255, 255);
-    const rightMax = pageWidth - margin - titleEnd - 6;
-    doc.text(fitText(doc, `Project: ${projectName}`, rightMax), pageWidth - margin, 9, { align: 'right' });
-    if (reservoirName) {
-        doc.text(fitText(doc, `Reservoir: ${reservoirName}`, rightMax), pageWidth - margin, 16, { align: 'right' });
-    }
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - margin, 23, { align: 'right' });
-}
 
 // Report presets. Each successive tier is a superset of the previous one.
 //   executive  — one-page decision summary: KPI band + key stats + histogram.
@@ -138,9 +61,12 @@ export class ReportGenerator {
 
         const addHeader = () => drawBrandHeader(doc, {
             logo, margin, pageWidth,
+            appTitle: 'ReservoirCalc Pro',
             subtitle: `${templateLabel} · Probabilistic Volumetrics`,
-            projectName,
-            reservoirName: options.reservoirName,
+            rightLines: [
+                `Project: ${projectName}`,
+                options.reservoirName ? `Reservoir: ${options.reservoirName}` : null,
+            ].filter(Boolean),
         });
 
         const addFooter = (pageNo, totalPages) => {
@@ -387,9 +313,12 @@ export class ReportGenerator {
 
         const addHeader = () => drawBrandHeader(doc, {
             logo, margin, pageWidth,
+            appTitle: 'ReservoirCalc Pro',
             subtitle: 'Deterministic Volumetrics',
-            projectName,
-            reservoirName: options.reservoirName,
+            rightLines: [
+                `Project: ${projectName}`,
+                options.reservoirName ? `Reservoir: ${options.reservoirName}` : null,
+            ].filter(Boolean),
         });
 
         const addFooter = (pageNo, totalPages) => {

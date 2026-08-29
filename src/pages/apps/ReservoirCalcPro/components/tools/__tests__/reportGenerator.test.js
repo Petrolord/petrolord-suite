@@ -89,3 +89,30 @@ describe('ReportGenerator templates', () => {
         expect(texts().some((s) => s.includes('Bscf'))).toBe(true);
     });
 });
+
+// Economics E5: this file's brand banner and logo loader were a fork of
+// src/lib/pdfBrand.js, consolidated onto it. The banner is what a reader sees
+// first on every RC Pro report, so its text is pinned here: the shared module
+// may be changed, but not by accident.
+describe('the shared brand banner', () => {
+    it('still heads the report with the Suite and app name', async () => {
+        await run('executive');
+        expect(texts()).toContain('Petrolord Suite - ReservoirCalc Pro');
+    });
+
+    it('carries the project on the right of the banner', async () => {
+        await run('executive');
+        expect(texts().some((t) => t.startsWith('Project: North Field'))).toBe(true);
+    });
+
+    it('adds the reservoir line only when there is one', async () => {
+        await run('executive');
+        expect(texts().some((t) => t.startsWith('Reservoir:'))).toBe(false);
+
+        await ReportGenerator.generateProbabilisticReport(
+            'North Field', results, 'field', {},
+            { template: 'executive', fluidType: 'oil', reservoirName: 'Zone B' },
+        );
+        expect(texts().some((t) => t.startsWith('Reservoir: Zone B'))).toBe(true);
+    });
+});

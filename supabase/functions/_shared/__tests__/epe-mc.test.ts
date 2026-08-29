@@ -232,4 +232,62 @@ describe('runEpeMonteCarlo', () => {
     expect(Number.isFinite(res.npv.p50)).toBe(true);
     expect(res.npv.stdDev).toBeGreaterThan(0);
   });
+
+  // Economics E5: the per-iteration sample, parked since D2 as "raw-sample
+  // export for auditors". A percentile nobody can check is a claim.
+  describe('the raw per-iteration sample', () => {
+    const mcConfig = {
+      iterations: 120,
+      seed: 7,
+      variables: {
+        oil_price: { type: 'triangular', min: 50, mode: 70, max: 95 },
+        capex_scale: { type: 'triangular', min: 0.8, mode: 1.0, max: 1.3 },
+      },
+    };
+
+    it('has exactly one row per iteration', () => {
+      const res = runEpeMonteCarlo({ ...baseArgs, mcConfig });
+      expect(res.samples).toHaveLength(120);
+      expect(res.samples[0].i).toBe(1);
+      expect(res.samples[119].i).toBe(120);
+    });
+
+    it('records the drawn inputs and the KPIs they produced', () => {
+      const res = runEpeMonteCarlo({ ...baseArgs, mcConfig });
+      res.samples.forEach((row: any) => {
+        expect(Number.isFinite(row.inputs.oil_price)).toBe(true);
+        expect(row.inputs.oil_price).toBeGreaterThanOrEqual(50);
+        expect(row.inputs.oil_price).toBeLessThanOrEqual(95);
+        expect(Number.isFinite(row.npv)).toBe(true);
+      });
+    });
+
+    it('keeps the iterations where IRR or payback does not exist', () => {
+      // The percentile arrays drop those by design, which is right for a
+      // percentile and wrong for an audit trail: the count of undefined runs
+      // is itself a result.
+      const res = runEpeMonteCarlo({ ...baseArgs, mcConfig });
+      const undefinedIrr = res.samples.filter((r: any) => r.irr === null).length;
+      expect(undefinedIrr / res.iterations).toBeCloseTo(res.irr.nullShare, 10);
+      const neverPays = res.samples.filter((r: any) => r.payback === null).length;
+      expect(neverPays / res.iterations).toBeCloseTo(res.payback.neverShare, 10);
+    });
+
+    it('reproduces the reported percentiles from the sample itself', () => {
+      // The point of the export: an auditor can re-derive the headline
+      // numbers from the rows rather than taking them on trust.
+      const res = runEpeMonteCarlo({ ...baseArgs, mcConfig });
+      const npvs = res.samples.map((r: any) => r.npv).sort((a: number, b: number) => a - b);
+      const at = (p: number) => npvs[Math.min(Math.floor(p * npvs.length), npvs.length - 1)];
+      expect(at(0.1)).toBeCloseTo(res.npv.p90, 6);
+      expect(at(0.5)).toBeCloseTo(res.npv.p50, 6);
+      expect(at(0.9)).toBeCloseTo(res.npv.p10, 6);
+    });
+
+    it('is reproducible from the seed', () => {
+      const a = runEpeMonteCarlo({ ...baseArgs, mcConfig });
+      const b = runEpeMonteCarlo({ ...baseArgs, mcConfig });
+      expect(b.samples.map((r: any) => r.npv)).toEqual(a.samples.map((r: any) => r.npv));
+    });
+  });
 });

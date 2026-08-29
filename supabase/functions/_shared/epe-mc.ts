@@ -348,6 +348,19 @@ export function runEpeMonteCarlo({ cfg, prodRows, capexRows, opexRows, mcConfig 
   const perYearNcf: number[][] = years.map(() => []);
   const perYearCum: number[][] = years.map(() => []);
   const tornadoSamples: Array<{ targetVol: number; inputs: Record<string, number> }> = [];
+  // Economics E5: the per-iteration record, kept so a run can be audited
+  // rather than only summarised. Every iteration is one row, INCLUDING the
+  // ones where IRR or payback is undefined, which the `irrs` and `paybacks`
+  // arrays above deliberately drop for their percentiles. Returned alongside
+  // the results and NOT persisted with them: a five thousand row sample does
+  // not belong in every saved run.
+  const sampleRows: Array<{
+    i: number;
+    inputs: Record<string, number>;
+    npv: number;
+    irr: number | null;
+    payback: number | null;
+  }> = [];
   let truncationRejects = 0;
   const deckStreams = parsePriceDeck(cfg);  // Wave B: deck-aware price sampling
 
@@ -408,6 +421,13 @@ export function runEpeMonteCarlo({ cfg, prodRows, capexRows, opexRows, mcConfig 
     }
 
     tornadoSamples.push({ targetVol: kpis.npv, inputs: { ...v } });
+    sampleRows.push({
+      i: i + 1,
+      inputs: { ...v },
+      npv: kpis.npv,
+      irr: kpis.irr ?? null,
+      payback: kpis.payback_years ?? null,
+    });
   }
 
   const yearStats = (series: number[][]) => years.map((year: number, y: number) => {
@@ -431,5 +451,7 @@ export function runEpeMonteCarlo({ cfg, prodRows, capexRows, opexRows, mcConfig 
     fan: { ncf: yearStats(perYearNcf), cumulative: yearStats(perYearCum) },
     tornado: tornadoSwings(tornadoSamples),
     diagnostics: { truncationRejects },
+    // Stripped off before the run is persisted; see the edge function.
+    samples: sampleRows,
   };
 }

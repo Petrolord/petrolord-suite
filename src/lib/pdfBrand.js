@@ -1,9 +1,13 @@
 // Shared Petrolord PDF branding for jsPDF reports (D5,
 // docs/scope/Economics-ROADMAP.md). Extracted from ReservoirCalc Pro's
-// ReportGenerator banner so other apps can produce the same boardroom
-// header without forking it. RC Pro still carries its own copy inside
-// ReportGenerator.jsx (consolidating it onto this module without
-// disturbing its export test suite is parked follow-up work).
+// ReportGenerator banner so other apps can produce the same boardroom header
+// without forking it.
+//
+// Economics E5: RC Pro's fork is gone and it imports this module, so there is
+// one implementation of the Suite's report header. The consolidation was
+// parked at D5 to avoid disturbing RC Pro's export test suite; that suite
+// passes unchanged, and a test there now pins the banner text so the header
+// cannot drift silently when this file changes.
 
 // Ellipsize text to a width using jsPDF's own metrics (html2canvas-style
 // CSS truncation does not exist inside jsPDF).
