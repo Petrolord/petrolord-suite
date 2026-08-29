@@ -10,57 +10,6 @@ const PPFGIntegrationPanel = ({ project, onRefresh }) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   
-  const handleImportRisks = async () => {
-    setLoading(true);
-    // Simulate checking PPFG app for risks
-    // In a real scenario, we would query 'ppfg_risks' table or similar
-    
-    const newRisks = [
-        {
-            project_id: project.id,
-            title: 'PPFG: High Overpressure Zone Detected',
-            description: 'Significant ramp in pore pressure detected at 3200m based on Eaton calculation.',
-            category: 'Drilling',
-            probability: 4,
-            impact: 5,
-            risk_score: 20,
-            ppfg_source: true,
-            status: 'Open'
-        },
-        {
-            project_id: project.id,
-            title: 'PPFG: Narrow Drilling Window',
-            description: 'Fracture gradient and pore pressure convergence at reservoir top.',
-            category: 'Drilling',
-            probability: 5,
-            impact: 4,
-            risk_score: 20,
-            ppfg_source: true,
-            status: 'Open'
-        }
-    ];
-
-    const { error } = await supabase.from('risks').insert(newRisks);
-    
-    // Log integration
-    await supabase.from('pm_integration_logs').insert({
-        project_id: project.id,
-        app_name: 'PPFG',
-        action: 'Import Risks',
-        status: error ? 'Failed' : 'Success',
-        details: error ? error.message : 'Imported 2 critical risks'
-    });
-
-    setLoading(false);
-
-    if (error) {
-        toast({ variant: 'destructive', title: 'Import Failed', description: error.message });
-    } else {
-        toast({ title: 'Risks Imported', description: '2 high-priority risks added to register.' });
-        onRefresh();
-    }
-  };
-
   const handleCreateDeliverable = async () => {
       setLoading(true);
       const { error } = await supabase.from('pm_deliverables').insert({
@@ -86,7 +35,7 @@ const PPFGIntegrationPanel = ({ project, onRefresh }) => {
       const { error } = await supabase.from('tasks').insert(tasks);
       setLoading(false);
       if(!error) {
-          toast({ title: 'Tasks Created', description: 'Workflows generated from PPFG requirements.' });
+          toast({ title: 'Tasks Created', description: 'Two standard pore-pressure tasks added.' });
           onRefresh();
       }
   };
@@ -101,33 +50,24 @@ const PPFGIntegrationPanel = ({ project, onRefresh }) => {
                         Pore Pressure (PPFG) Integration
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                        Sync prognosis, risks, and drilling windows.
+                        Add pore-pressure planning items to this project. There is no live link to the app yet, so nothing is read from it.
                     </CardDescription>
                 </div>
-                <Badge variant="outline" className="bg-green-900/20 text-green-400 border-green-800 flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" /> Connected
+                <Badge variant="outline" className="text-slate-400 border-slate-700">
+                    Planning aid
                 </Badge>
             </div>
         </CardHeader>
         <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="p-3 bg-slate-800/50 rounded border border-slate-700 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-slate-300 font-medium text-sm">
-                        <AlertTriangle className="w-4 h-4 text-amber-400" /> Risk Management
-                    </div>
-                    <p className="text-xs text-slate-500">Auto-detect hazards from pre-risk charts.</p>
-                    <Button size="sm" variant="secondary" onClick={handleImportRisks} disabled={loading} className="w-full mt-auto">
-                        {loading ? <RefreshCw className="w-3 h-3 animate-spin" /> : 'Scan & Import Risks'}
-                    </Button>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
                 <div className="p-3 bg-slate-800/50 rounded border border-slate-700 flex flex-col gap-2">
                     <div className="flex items-center gap-2 text-slate-300 font-medium text-sm">
                         <FileText className="w-4 h-4 text-blue-400" /> Deliverables
                     </div>
-                    <p className="text-xs text-slate-500">Link prognosis reports to stage gates.</p>
+                    <p className="text-xs text-slate-500">Create a draft prognosis deliverable to fill in and track.</p>
                     <Button size="sm" variant="secondary" onClick={handleCreateDeliverable} disabled={loading} className="w-full mt-auto">
-                        Generate Prognosis
+                        Add draft deliverable
                     </Button>
                 </div>
 
@@ -135,7 +75,7 @@ const PPFGIntegrationPanel = ({ project, onRefresh }) => {
                     <div className="flex items-center gap-2 text-slate-300 font-medium text-sm">
                         <RefreshCw className="w-4 h-4 text-purple-400" /> Workflows
                     </div>
-                    <p className="text-xs text-slate-500">Generate calibration and update tasks.</p>
+                    <p className="text-xs text-slate-500">Add the standard calibration and update tasks.</p>
                     <Button size="sm" variant="secondary" onClick={handleCreateTasks} disabled={loading} className="w-full mt-auto">
                         Create Tasks
                     </Button>

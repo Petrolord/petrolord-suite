@@ -12,36 +12,34 @@ const GeomechIntegrationPanel = ({ project, onRefresh }) => {
 
   const handleUpdateGate = async () => {
     setLoading(true);
-    // Simulate verifying MEM completion
-    await new Promise(r => setTimeout(r, 500));
-
     const { error } = await supabase.from('pm_deliverables').insert({
         project_id: project.id,
-        name: `MEM Report - Well X-1`,
+        name: 'MEM Report',
         app_source: '1D Geomech',
-        status: 'Approved',
+        status: 'Draft',
         version: 'v1.0'
     });
 
     if(!error) {
-        toast({ title: 'Gate Updated', description: 'MEM Completed requirement met.' });
+        toast({ title: 'Deliverable added', description: 'Draft MEM report added; set its status when it is reviewed.' });
         onRefresh();
     }
     setLoading(false);
   };
 
+  // Economics E4: this used to insert a task carrying a mud window of
+  // "1.20 - 1.45 SG", a value that was written into the file rather than read
+  // from anyone's geomechanical model. The task is still useful; the number
+  // has to come from the engineer.
   const handlePushMudWindow = async () => {
       setLoading(true);
-      // Simulate fetching window
-      const safeWindow = "1.20 - 1.45 SG";
-      
       const tasks = [
-          { project_id: project.id, name: `Implement Mud Window: ${safeWindow}`, owner: 'Drilling Engineer', status: 'To Do', planned_start_date: new Date(), planned_end_date: new Date() }
+          { project_id: project.id, name: 'Set and implement the drilling mud window', owner: 'Drilling Engineer', status: 'To Do', planned_start_date: new Date(), planned_end_date: new Date() }
       ];
       const { error } = await supabase.from('tasks').insert(tasks);
       setLoading(false);
       if(!error) {
-          toast({ title: 'Drilling Task Added', description: `Mud window ${safeWindow} pushed to schedule.` });
+          toast({ title: 'Drilling Task Added', description: 'Add the window from your MEM when it is agreed.' });
           onRefresh();
       }
   };
@@ -56,11 +54,11 @@ const GeomechIntegrationPanel = ({ project, onRefresh }) => {
                         1D Geomechanics
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                        Sync geomechanical models (MEM) and drilling windows.
+                        Add geomechanics planning items to this project. There is no live link to the app yet, so nothing is read from it.
                     </CardDescription>
                 </div>
-                <Badge variant="outline" className="bg-green-900/20 text-green-400 border-green-800 flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" /> Connected
+                <Badge variant="outline" className="text-slate-400 border-slate-700">
+                    Planning aid
                 </Badge>
             </div>
         </CardHeader>

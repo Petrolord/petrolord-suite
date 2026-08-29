@@ -16,7 +16,7 @@ const VelocityIntegrationPanel = ({ project, onRefresh }) => {
         project_id: project.id,
         name: `Velocity Model - Phase 1`,
         app_source: 'Velocity Model',
-        status: 'Under Review',
+        status: 'Draft',
         version: 'v2.3'
     });
     setLoading(false);
@@ -50,11 +50,11 @@ const VelocityIntegrationPanel = ({ project, onRefresh }) => {
                         Velocity Model Builder
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                        Manage depth conversion models and sign-offs.
+                        Add depth-conversion planning items to this project. There is no live link to the app yet, so nothing is read from it.
                     </CardDescription>
                 </div>
-                <Badge variant="outline" className="bg-green-900/20 text-green-400 border-green-800 flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" /> Connected
+                <Badge variant="outline" className="text-slate-400 border-slate-700">
+                    Planning aid
                 </Badge>
             </div>
         </CardHeader>

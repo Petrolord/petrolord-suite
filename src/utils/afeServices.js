@@ -4,20 +4,45 @@ import * as XLSX from 'xlsx';
 
 // --- Partner Management Services ---
 
-export const calculatePartnerCosts = (totalCost, partners) => {
+/**
+ * Split a cost across joint-venture partners by working interest.
+ *
+ * The operator carries whatever the partners do not, so the operator share is
+ * 100 percent less the sum of the partner interests.
+ *
+ * Economics E4 added `valid` and `note`. Partner interests are typed in one
+ * at a time and nothing in the data model forces them to add up: a set
+ * summing to more than 100 gives the operator a NEGATIVE share, and one
+ * summing to less leaves the operator carrying a balance that may simply be a
+ * partner nobody entered. Either way the allocation is still returned, so the
+ * numbers are visible, but it is flagged rather than billed out quietly.
+ *
+ * @param {number} totalCost cost to allocate
+ * @param {{working_interest: number}[]} partners
+ */
+export const calculatePartnerCosts = (totalCost, partners = []) => {
   const result = partners.map(p => ({
     ...p,
-    shareAmount: totalCost * (p.working_interest / 100),
+    shareAmount: totalCost * (Number(p.working_interest) || 0) / 100,
     billingStatus: 'Pending'
   }));
-  
-  const operatorShare = 100 - partners.reduce((sum, p) => sum + p.working_interest, 0);
+
+  const partnerTotal = partners.reduce((sum, p) => sum + (Number(p.working_interest) || 0), 0);
+  const operatorShare = 100 - partnerTotal;
   const operatorAmount = totalCost * (operatorShare / 100);
+
+  let note = null;
+  if (operatorShare < 0) {
+    note = `Partner working interests total ${partnerTotal.toFixed(2)} percent, which is more than the whole. The operator share below is negative; correct the interests before billing.`;
+  }
 
   return {
     partnerAllocations: result,
     operatorShare,
-    operatorAmount
+    operatorAmount,
+    partnerTotal,
+    valid: operatorShare >= 0,
+    note
   };
 };
 

@@ -25,6 +25,53 @@ function ErrorPanel({err}) {
   );
 }
 
+/**
+ * The generation service is unreachable (Economics E4).
+ *
+ * This app does not use Supabase for report generation. It calls a separate
+ * report service, and as of the E2 audit that host no longer exists: every
+ * path returns a 404, the root included. Rather than dumping the 404 page's
+ * HTML into an error box headed "crashed", the app now says what is actually
+ * wrong, because a user cannot fix it and should not be left guessing whether
+ * their inputs caused it.
+ *
+ * Whether this app is rebuilt onto Supabase edge functions or retired is an
+ * owner decision recorded in docs/scope/ProductFloor-STATUS.md.
+ */
+export function ServiceUnavailablePanel({ detail }) {
+  return (
+    <div className="max-w-2xl mx-auto mt-10 rounded-lg border border-amber-800/60 bg-amber-950/30 p-6">
+      <h2 className="text-lg font-semibold text-amber-200">Report generation is unavailable</h2>
+      <p className="mt-3 text-sm text-amber-100/80">
+        This app generates reports through a separate service, and that service is not
+        responding. Nothing you entered caused this, and there is no setting that will work
+        around it.
+      </p>
+      <p className="mt-3 text-sm text-amber-100/80">
+        Everything else in the app still works: you can build up a report brief and save it as a
+        project, and it will be there when generation is restored. Exporting a document is not
+        possible in the meantime.
+      </p>
+      {detail && (
+        <details className="mt-4">
+          <summary className="text-xs text-amber-200/70 cursor-pointer">Technical detail</summary>
+          <pre className="mt-2 whitespace-pre-wrap text-[11px] text-amber-100/60">{String(detail)}</pre>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/** True when the failure is the service being absent rather than a bad reply. */
+export const isServiceUnavailable = (err) => {
+  const msg = String(err || '');
+  return /HTTP (404|502|503|504)/.test(msg)
+    || /Non-JSON response/.test(msg)
+    || /Failed to fetch/i.test(msg)
+    || /NetworkError/i.test(msg)
+    || /fetch is not defined/i.test(msg);
+};
+
 class ErrorBoundary extends React.Component {
   constructor(p){ super(p); this.state={err:null}; }
   static getDerivedStateFromError(err){ return {err}; }
@@ -209,7 +256,12 @@ function TechnicalReportAutopilotPageInner() {
       </div>
     </div>
   );
-  if (error) return <div className="p-4 bg-gradient-to-b from-slate-900 to-gray-900"><ErrorPanel err={error}/></div>;
+  // A service outage is not a crash. The brief is still editable and
+  // saveable; only generation and export are gone.
+  const serviceDown = isServiceUnavailable(error);
+  if (error && !serviceDown) {
+    return <div className="p-4 bg-gradient-to-b from-slate-900 to-gray-900"><ErrorPanel err={error}/></div>;
+  }
 
   return (
     <>
@@ -235,7 +287,7 @@ function TechnicalReportAutopilotPageInner() {
           <div className="w-full md:w-2/5 xl:w-1/3 p-4 bg-slate-900/50 backdrop-blur-lg border-r border-white/10 overflow-y-auto">
             <InputPanel 
               onGenerate={handleGenerate} 
-              loading={loading}
+              loading={loading || serviceDown}
               templates={templates}
               formState={formState}
               setFormState={setFormState}
@@ -243,7 +295,10 @@ function TechnicalReportAutopilotPageInner() {
           </div>
           <div className="flex-1 p-4 overflow-y-auto">
             <AnimatePresence>
-              {!reportData && !loading && (
+              {!reportData && !loading && serviceDown && (
+                <ServiceUnavailablePanel detail={error} />
+              )}
+              {!reportData && !loading && !serviceDown && (
                 <EmptyState />
               )}
             </AnimatePresence>
