@@ -69,6 +69,7 @@ const ControlValveSizing = lazy(() => import('@/pages/apps/ControlValveSizing'))
 const StorageTankDesigner = lazy(() => import('@/pages/apps/StorageTankDesigner'));
 const CrudeAssayBlendingStudio = lazy(() => import('@/pages/apps/CrudeAssayBlendingStudio'));
 const ProductBlendingOptimizer = lazy(() => import('@/pages/apps/ProductBlendingOptimizer'));
+const RefineryPlanningStudio = lazy(() => import('@/pages/apps/RefineryPlanningStudio'));
 const FlowMeteringDesigner = lazy(() => import('@/pages/apps/FlowMeteringDesigner'));
 const HeatExchangerSizer = lazy(() => import('@/pages/apps/HeatExchangerSizer'));
 const GasTreatingDehydration = lazy(() => import('@/pages/apps/GasTreatingDehydration'));
@@ -714,6 +715,7 @@ function App() {
                                 {/* Midstream & Downstream DS1: the module's first app. */}
                                 <Route path="apps/midstream-downstream/crude-assay-blending-studio" element={<ProtectedAppRoute appId="crude-assay-blending-studio" appName="Crude Assay & Blending Studio"><CrudeAssayBlendingStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/product-blending-optimizer" element={<ProtectedAppRoute appId="product-blending-optimizer" appName="Product Blending Optimizer"><ProductBlendingOptimizer /></ProtectedAppRoute>} />
+                                <Route path="apps/midstream-downstream/refinery-planning-scheduling" element={<ProtectedAppRoute appId="refinery-planning-scheduling" appName="Refinery Planning & Scheduling Studio"><RefineryPlanningStudio /></ProtectedAppRoute>} />
                                 {/* Facilities F4: the slug keeps its entitlements while the app becomes the
                                     Heat Exchanger & Cooling Studio (F computed, U assembled, hot-day derate). */}
                                 <Route path="apps/facilities/heat-exchanger-sizer" element={<ProtectedAppRoute appId="heat-exchanger-sizer" appName="Heat Exchanger & Cooling Studio"><HeatExchangerSizer /></ProtectedAppRoute>} />
