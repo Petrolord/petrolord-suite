@@ -210,3 +210,91 @@ applied and logged, staging E2E, one prod zip.
 | F10 | **SHIPPED 2026-08-29** (branch feat/facilities-f10) | Engines PR #86. The other half of the retired pack, on the fresh slug `pump-station-designer`. Organising idea: a pump has NO duty point until it is connected to something, so the system curve and pump curve are separate objects and the duty is SOLVED as their intersection — which is what keeps the follow-on questions honest when the system, trim or speed changes. Carried because they are where selections really fail: NPSHa from the real suction side judged against the customary margin (not bare equality, since NPSHr is itself measured at 3 percent head drop); HI viscosity corrections (a few hundred cSt costs a centrifugal ~47 percent of its efficiency, and past the correlation the engine says use a PD pump); preferred/allowable regions vs BEP with what each costs; and the fact that an impeller trim UNDER-delivers what the affinity laws promise. Two results the engine exists to show: two pumps in parallel on a friction-dominated system deliver far less than twice the flow, and a pump whose shutoff is below the system static head cannot start it at all (said plainly). Oracle: fit by Cramer AND by residual orthogonality (the defining least-squares property, unfakeable by matching arithmetic), duty by a 2-million-point scan vs bisection, power via SI watts vs the 3960 packaging, NPSH from a pascal balance. 17 gates, engines 1995 green. Suite: studio on the kit, 2 tabs, curve chart with the crossing marked, help guide, smoke test; saved_pump_projects APPLIED; tile SEED 20260829690000 HELD. Jest 379/5346 green; build clean. Detail: PumpStation-STATUS.md. |
 | F11 | **SHIPPED 2026-08-29** (branch feat/facilities-f11) | Engines PR #87. New app on the fresh slug `control-valve-sizing`. The organising idea: a control valve is the one item of process equipment whose ordinary sizing equation stops working exactly when the service gets difficult, so the CHOKING BOUNDARY comes first and the studio reports which side each flow case sits on. Liquid Cv against the allowable drop FL^2(P1 - FF Pv), so a stated drop past it does not silently undersize the valve; cavitation kept DISTINCT from flashing because an anti-cavitation trim cannot fix a flashing service; the cavitation index reported because damage starts well before choking. Gas with the expansion factor falling linearly to exactly 2/3 at the terminal ratio. Plus valve authority (which decides whether a loop can control at all) and the characteristic that follows from it, travel at three flows so a valve that cannot control at turndown is visible, an honest noise INDICATION labelled as screening, and the validated RP 14E outlet limit reused from the production engine. Oracle: the choking boundary located by BISECTION on the regime flag with Cv checked either side, the expansion factor checked against a MARCH past the terminal ratio, and equal-percentage travel by ROUND TRIP. 15 gates, engines 2011 green. Suite: studio on the kit, 2 tabs, help guide, smoke test; saved_valve_projects APPLIED; tile SEED 20260829710000 HELD. Jest 381/5363 green; build clean. Detail: ControlValve-STATUS.md. |
 | F12 | **SHIPPED 2026-08-29** (branch feat/facilities-f12) | Engines PR #88, two apps on fresh slugs. **Storage Tank & Venting Designer** (`storage-tank-designer`): three questions about one geometry, normally asked in three places and answered inconsistently. API 650 shell courses by the one-foot method with the HYDROSTATIC TEST CASE computed beside the product case and the governing one named, because water is heavier than most products and on a light product the test governs the shell. API 2000 normal venting worked in BOTH DIRECTIONS with the governing case named, the vacuum answer computed rather than assumed to follow the pressure one, since inbreathing is what actually collapses tanks. Fire venting from the wetted shell below thirty feet. Standing and working losses reported as both product and emissions from the same arithmetic. **Flow Metering Designer** (`flow-metering-designer`): the flow equation is the easy half, so the UNCERTAINTY BUDGET is its own tab. Reader-Harris/Gallagher discharge coefficient computed rather than assumed at 0.61 (it spans about seven percent across the practical range), plate bore solved for a target flow, permanent loss, straight run by beta and upstream fitting, and every input propagated with its own sensitivity, ranked by share of variance, with THE DOMINANT TERM NAMED. Plus the turndown effect: a transmitter accurate on span becomes proportionally worse as the reading falls, which is why an orifice run stops at about three to one. Oracles: the one-foot method re-derived ENTIRELY IN SI so the 2.6 constant is checked not repeated (4e-4); the orifice mass flow computed ENTIRELY IN SI against the field-unit form so the 32.174 and 144 packagings are checked (5e-7); and the root-sum-square uncertainty checked against a 200,000-sample MONTE CARLO propagation (within 0.2 percent, with the dominant term correctly flipping from Cd to differential pressure as DP uncertainty rose). 22 gates, engines 2035 green. Suite: both studios on the kit, help guides, smoke tests; `saved_tank_projects` and `saved_meter_projects` APPLIED; tile SEEDs 20260829730000 and 20260829750000 HELD. Build clean. Detail: StorageTank-STATUS.md, FlowMetering-STATUS.md. |
+
+## 8. LAUNCH PACK — the owner runbook
+
+All twelve build phases are merged (main `6abe23777`). What remains is
+the deploy, and it has a strict order because a tile must never go
+Active before its route is on the deploy target.
+
+### Step 1 — upload the zip
+
+`/root/suite-upload-20260829-6abe23777-slim.zip` (9.9 MB, 4,483 files,
+cut from main `6abe23777`). Source zip to the Hostinger deployment page,
+which runs the install and build itself. Do not upload a built dist.
+
+### Step 2 — purge the hPanel cache
+
+Assume it is required. Then check that the plain index and a
+cache-busted index serve the same asset hash; if they differ, the CDN
+still holds the old copy and visitors see the page as if the stylesheet
+were missing.
+
+### Step 3 — verify the chunks, not just the entry hash
+
+The entry hash legitimately differs from a local build because
+Hostinger's environment variables shift it. Verify by content instead.
+Markers to grep in the served chunks (every one of these was
+confirmed present in the clean-room build of this exact zip; note that
+engine identifiers that live only in code comments, such as Bowman, are
+minified away and make useless markers):
+
+| Chunk | Marker |
+|---|---|
+| `PipelineLineSizingStudio-*.js` | `erosional velocity` |
+| `ReliefBlowdownSizer-*.js` | `fire case` |
+| `GasTreatingDehydration-*.js` | `contactor` |
+| `HeatExchangerSizer-*.js` | `shell pass` |
+| `SeparatorSlugCatcherDesigner-*.js` | `slug catcher` |
+| `CorrosionRatePredictor-*.js` | `inhibitor availability` |
+| `ProducedWaterTreatment-*.js` | `droplet` |
+| `SpacingPanel-*.js` | `setback` |
+| `CompressorStationDesigner-*.js` | `polytropic` |
+| `PumpStationDesigner-*.js` | `duty point` |
+| `ControlValveSizing-*.js` | `erode its own body` |
+| `StorageTankDesigner-*.js` | `Water test (in)` |
+| `FlowMeteringDesigner-*.js` | `not a constant 0.61` |
+
+### Step 4 — only then, apply the twelve held tile migrations
+
+In timestamp order, via `supabase db query --linked -f <file>` (the
+`do $$` bodies work fine through `-f`):
+
+```
+20260829530000_f1_rename_pipeline_line_sizing_tile.sql
+20260829550000_f2_rename_relief_flare_tile.sql
+20260829570000_f3_rename_gas_processing_tile.sql
+20260829590000_f4_rename_heat_exchanger_tile.sql
+20260829610000_f5_rename_separator_studio_tile.sql
+20260829630000_f6_rename_corrosion_studio_tile.sql
+20260829650000_f7_activate_pwt_studio_tile.sql
+20260829670000_f9_seed_compressor_station_tile.sql
+20260829690000_f10_seed_pump_station_tile.sql
+20260829710000_f11_seed_control_valve_tile.sql
+20260829730000_f12_seed_storage_tank_tile.sql
+20260829750000_f12_seed_flow_metering_tile.sql
+```
+
+Seven are renames and descriptions on slugs that already exist; five are
+SEEDs on fresh slugs (`compressor-station-designer`,
+`pump-station-designer`, `control-valve-sizing`,
+`storage-tank-designer`, `flow-metering-designer`) built as `%ROWTYPE`
+sibling copies off a live Facilities row, so module, pricing and
+`module_id` come from a real neighbour rather than being typed. All are
+idempotent.
+
+Expected catalog afterwards: **13 Active** (the twelve studios plus the
+Facility Layout Mapper), **0 Coming Soon**, **32 Archived** — from the
+F0 baseline of 7 Active / 1 Coming Soon / 32 Archived, since F7
+activates Produced Water and the five SEEDs add five rows.
+
+### Step 5 — flip the MIGRATIONS.md rows
+
+Twelve rows move from `HELD (not applied)` to applied, with the date.
+
+### Then
+
+Staging E2E across the thirteen tiles is the remaining open item, and it
+is the same shape as the Drilling and Production launches: check the
+tile grid, hub filtering, and entitlement gating for a non-superadmin
+licensed org.
