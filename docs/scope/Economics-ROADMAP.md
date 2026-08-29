@@ -3,12 +3,28 @@
 Status: **D SERIES COMPLETE + LAUNCHED** (D0-D5 merged 2026-08-14, PRs
 #171-#176; prod upload + deploy-gated tile migrations applied
 2026-08-14/15). **EPE WAVES A-F COMPLETE 2026-08-21** (engine v3.9;
-recorded in §5 below, detail in EPE.md §3b-§3g). **E SERIES APPROVED
-2026-08-29** (owner sign-off; plan in §6 below) — the cleanup-completion
-program that closes what the D series left behind or never scoped.
-Still open from earlier programs: Newendorp & Schuyler / Mian PDFs for
-literature byte-verification (D3 gate note), and a staging browser E2E
-pass over the D-series surfaces with a logged-in user.
+recorded in §5 below, detail in EPE.md §3b-§3g). **E SERIES COMPLETE
+2026-08-29** (E0-E5 all merged, PRs #309-#315; §6 below carries the
+per-phase record). All four E-series migrations are APPLIED and the
+`epe-monte-carlo` edge function is redeployed.
+
+Open after the E series:
+- **OWNER DECISION: Technical Report Autopilot's backend is gone.** It
+  calls a hardcoded Heroku host that returns "No such app" on every
+  path, root included, so report generation, the report-type list and
+  DOCX export are all unreachable on a tile the catalog carries as
+  Active. Archive it, or rebuild the generation path onto Supabase edge
+  functions like the rest of the Suite. E4 made the outage honest to the
+  user in the meantime.
+- **Prod upload** of the E-series build (nothing is tile-gated; the
+  migrations are applied and safe ahead of it).
+- Owner PDFs (Newendorp & Schuyler; Mian) for literature
+  byte-verification, and a staging browser E2E pass with a logged-in
+  user.
+- The EPE engine items E5 left open with what each needs: DMO, carried
+  interests, monthly evaluation, in-app data editing.
+- `src/utils/digitizerApi.js` points at the same dead Heroku host and
+  has zero importers; it belongs to Geoscience.
 Owner directive: build a senior-management decision-analysis flagship
 ("Petrolord Decision Studio") that sets a mark in the industry, the way
 Geoscience-ROADMAP.md (G0-G8) and Reservoir-ROADMAP.md (R0-R5) did for
