@@ -26,8 +26,11 @@ const AuthProviderContent = ({ children }) => {
   const [organization, setOrganization] = useState(null);
   const [role, setRole] = useState(null);
 
+  // DS0: the Suite's eighth module. This list gates module-level access, so a
+  // module missing here cannot be granted however complete its catalog is.
   const allModules = useMemo(() => [
-    'geoscience', 'reservoir', 'drilling', 'production', 'economics', 'facilities', 'assurance'
+    'geoscience', 'reservoir', 'drilling', 'production', 'economics', 'facilities', 'assurance',
+    'midstream-downstream',
   ], []);
 
   const allApps = useMemo(() => [
@@ -48,7 +51,14 @@ const AuthProviderContent = ({ children }) => {
     'facility-layout-mapper', 'facility-network-hydraulics', 'corrosion-rate-predictor', 'produced-water-treatment',
     'compressor-station-designer', 'pump-station-designer', 'control-valve-sizing',
     'storage-tank-designer', 'flow-metering-designer',
-    'geomechanics-studio', 'well-log-analyzer'
+    'geomechanics-studio', 'well-log-analyzer',
+    // Midstream & Downstream (DS0). Registered here so the module can be
+    // quoted and licensed from the day its tiles exist; every one is Coming
+    // Soon until the phase that ships its build.
+    'crude-assay-blending-studio', 'product-blending-optimizer',
+    'refinery-planning-scheduling', 'modular-refinery-feasibility',
+    'terminal-depot-studio', 'fuel-pricing-supply-chain', 'lpg-cng-rollout-studio',
+    'energy-utilities-efficiency', 'carbon-footprint-abatement', 'flare-gas-to-value'
   ], []);
 
   const fetchUserOrgAndPermissions = useCallback(async (userId) => {

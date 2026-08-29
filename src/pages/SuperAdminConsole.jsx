@@ -74,6 +74,7 @@ const SuperAdminConsoleContent = () => {
                   { app_id: 'economics', name: 'Economics', module_id: 'economics' },
                   { app_id: 'facilities', name: 'Facilities', module_id: 'facilities' },
                   { app_id: 'assurance', name: 'Assurance', module_id: 'assurance' },
+                  { app_id: 'midstream-downstream', name: 'Midstream & Downstream', module_id: 'midstream-downstream' },
                   { app_id: 'hse', name: 'HSE', module_id: 'hse' }
               ];
               setMasterApps(fallbackApps);
