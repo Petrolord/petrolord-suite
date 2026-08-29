@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,8 +7,9 @@ import { useToast } from '@/components/ui/use-toast';
 import CollapsibleSection from './CollapsibleSection';
 import { Settings, GitMerge, HelpCircle, Play, Percent, DollarSign } from 'lucide-react';
 
-const InputPanel = ({ onAnalyze, loading, initialInputs }) => {
-  const [inputs, setInputs] = useState(initialInputs);
+// Economics E2: the inputs live on the page now, not in here, so a study can
+// be saved and reopened. This panel edits what it is given.
+const InputPanel = ({ onAnalyze, loading, inputs, setInputs }) => {
   const { toast } = useToast();
 
   const handleInputChange = (field, value) => {
