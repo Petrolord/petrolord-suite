@@ -17,7 +17,7 @@ import FacilitiesForm from './facilities/FacilitiesForm';
 import FacilitiesCapacityAnalysis from './facilities/FacilitiesCapacityAnalysis';
 import FlowAssuranceAnalysis from './facilities/FlowAssuranceAnalysis';
 import FacilitiesCostEstimation from './facilities/FacilitiesCostEstimation';
-import { FacilitiesDataImporter } from '@/services/fdp/FacilitiesDataImporter';
+import { exampleFacilities, EXAMPLE_LABEL } from '@/services/fdp/exampleData';
 import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 
 const FacilitiesModule = () => {
@@ -77,15 +77,12 @@ const FacilitiesModule = () => {
         actions.updateFacilities({ selectedId: id });
     };
 
-    const handleImport = async () => {
-        try {
-            toast({ title: "Importing Benchmarks", description: "Loading facility templates..." });
-            const imported = await FacilitiesDataImporter.importBenchmarks();
-            actions.updateFacilities({ list: [...facilities, ...imported] });
-            toast({ title: "Success", description: `Imported ${imported.length} facility options.` });
-        } catch (e) {
-            toast({ title: "Import Failed", description: "Could not load benchmarks.", variant: "destructive" });
-        }
+    const handleLoadExample = () => {
+        // Economics E3: this claimed to sync the user's own data from another
+    // Suite app and contacted nothing. It loads a labelled example now.
+        const added = exampleFacilities();
+        actions.updateFacilities({ list: [...facilities, ...added] });
+        toast({ title: 'Example loaded', description: `${added.length} example facility concepts, order-of-magnitude screening figures only.` });
     };
 
     return (
@@ -96,8 +93,8 @@ const FacilitiesModule = () => {
                     <p className="text-slate-400">Define processing capacity, cost estimations, and flow assurance strategies.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleImport} className="border-slate-700 text-slate-300">
-                        <Download className="w-4 h-4 mr-2" /> Benchmarks
+                    <Button variant="outline" onClick={handleLoadExample} className="border-slate-700 text-slate-300">
+                        <Download className="w-4 h-4 mr-2" /> Load example
                     </Button>
                     <Button 
                         onClick={handleCreate} 

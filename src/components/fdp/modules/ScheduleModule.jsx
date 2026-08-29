@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/components/ui/use-toast';
 import CollapsibleSection from '@/components/fdp/CollapsibleSection';
-import { ScheduleDataImporter } from '@/services/fdp/ScheduleDataImporter';
+import { exampleSchedule, EXAMPLE_LABEL } from '@/services/fdp/exampleData';
 
 import ProjectSchedule from './schedule/ProjectSchedule';
 import GanttChart from './schedule/GanttChart';
@@ -63,15 +63,12 @@ const ScheduleModule = () => {
         setView('list'); // Return to list after save
     };
 
-    const handleImport = async () => {
-        try {
-            toast({ title: "Importing Schedule", description: "Loading plan from Project Management Pro..." });
-            const imported = await ScheduleDataImporter.importFromProjectManagement();
-            actions.updateSchedule({ activities: imported });
-            toast({ title: "Success", description: `Imported ${imported.length} activities.` });
-        } catch (e) {
-            toast({ title: "Import Failed", description: "Could not load schedule.", variant: "destructive" });
-        }
+    const handleLoadExample = () => {
+        // Economics E3: this claimed to sync the user's own data from another
+    // Suite app and contacted nothing. It loads a labelled example now.
+        const added = exampleSchedule();
+        actions.updateSchedule({ activities: added });
+        toast({ title: 'Example loaded', description: `${added.length} example activities. ${EXAMPLE_LABEL}.` });
     };
 
     return (
@@ -82,8 +79,8 @@ const ScheduleModule = () => {
                     <p className="text-slate-400">Manage timeline, critical path, and milestones.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleImport} className="border-slate-700 text-slate-300">
-                        <Download className="w-4 h-4 mr-2" /> Import Plan
+                    <Button variant="outline" onClick={handleLoadExample} className="border-slate-700 text-slate-300">
+                        <Download className="w-4 h-4 mr-2" /> Load example
                     </Button>
                     <div className="flex bg-slate-800 rounded-md border border-slate-700 p-1">
                         <Button 

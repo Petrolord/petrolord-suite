@@ -9,7 +9,7 @@ import StrategicObjectives from './field-overview/StrategicObjectives';
 import FieldStatistics from './field-overview/FieldStatistics';
 import { Button } from '@/components/ui/button';
 import { Download, Upload, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { DataImporter } from '@/services/fdp/DataImporter';
+import { exampleFieldData, exampleSubsurface, EXAMPLE_LABEL } from '@/services/fdp/exampleData';
 import { useToast } from '@/components/ui/use-toast';
 
 const FieldOverviewModule = () => {
@@ -17,38 +17,16 @@ const FieldOverviewModule = () => {
     const { fieldData, subsurface, dataManagement } = state;
     const { toast } = useToast();
 
-    const handleImport = async () => {
-        try {
-            // Mock import from multiple sources
-            toast({ title: "Syncing Data", description: "Retrieving field data from connected apps..." });
-            
-            const geoData = await DataImporter.importFromApp('geoscience', 'PROJ-123');
-            const resData = await DataImporter.importFromApp('reservoir', 'PROJ-123');
-            
-            // Merge logic (simplified)
-            const updates = {
-                subsurface: {
-                    ...state.subsurface,
-                    fluidProps: { ...state.subsurface.fluidProps, ...geoData.data },
-                    reserves: { ...state.subsurface.reserves, p50: resData.data.stooip * resData.data.recovery_factor }
-                }
-            };
-            
-            actions.updateSubsurface(updates.subsurface);
-            actions.updateDataManagement({ 
-                importStatus: { 
-                    ...dataManagement.importStatus, 
-                    geoscience: { status: 'synced', lastSync: new Date().toISOString() },
-                    reservoir: { status: 'synced', lastSync: new Date().toISOString() }
-                }
-            });
-            
-            toast({ title: "Import Successful", description: "Field data updated from Geoscience & Reservoir apps." });
-
-        } catch (error) {
-            console.error(error);
-            toast({ title: "Import Failed", description: "Could not connect to external services.", variant: "destructive" });
-        }
+    // Economics E3: this button used to claim it had retrieved the user's own
+    // field data from the Geoscience and Reservoir apps. It contacted nothing;
+    // the numbers were hardcoded. It loads a clearly labelled example now.
+    const handleLoadExample = () => {
+        actions.updateFieldData(exampleFieldData());
+        actions.updateSubsurface({ ...state.subsurface, ...exampleSubsurface() });
+        toast({
+            title: 'Example loaded',
+            description: `${EXAMPLE_LABEL}. These are illustrative figures, not your project's.`,
+        });
     };
 
     return (
@@ -60,8 +38,8 @@ const FieldOverviewModule = () => {
                     <p className="text-slate-400">Define the core parameters and constraints of the development.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleImport} className="border-slate-700 text-slate-300">
-                        <RefreshCw className="w-4 h-4 mr-2" /> Sync Data
+                    <Button variant="outline" onClick={handleLoadExample} className="border-slate-700 text-slate-300">
+                        <RefreshCw className="w-4 h-4 mr-2" /> Load example
                     </Button>
                     <Button variant="outline" className="border-slate-700 text-slate-300">
                         <Upload className="w-4 h-4 mr-2" /> Import File

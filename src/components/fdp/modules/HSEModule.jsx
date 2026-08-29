@@ -7,7 +7,7 @@ import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 import HSEOverview from './hse/HSEOverview';
 import HSERiskRegister from './hse/HSERiskRegister';
 import HSERiskForm from './hse/HSERiskForm';
-import { HSEDataImporter } from '@/services/fdp/HSEDataImporter';
+import { exampleHseRisks, EXAMPLE_LABEL } from '@/services/fdp/exampleData';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import {
@@ -65,19 +65,13 @@ const HSEModule = () => {
         setView('list');
     };
 
-    const handleImport = async () => {
-        try {
-            toast({ title: "Importing HSE Data", description: "Syncing with HSE Management System..." });
-            const imported = await HSEDataImporter.importFromHSESystem();
-            // Merge imported
-            const currentIds = new Set(hseData.hazards.map(h => h.id));
-            const newRisks = imported.filter(h => !currentIds.has(h.id));
-            
-            actions.updateHSE({ hazards: [...hseData.hazards, ...newRisks] });
-            toast({ title: "Success", description: `Imported ${newRisks.length} new risks.` });
-        } catch (e) {
-            toast({ title: "Import Failed", description: "Could not load data.", variant: "destructive" });
-        }
+    const handleLoadExample = () => {
+        // Economics E3: this claimed to sync the user's own data from another
+    // Suite app and contacted nothing. It loads a labelled example now.
+        const currentIds = new Set(hseData.hazards.map((h) => h.id));
+        const added = exampleHseRisks().filter((h) => !currentIds.has(h.id));
+        actions.updateHSE({ hazards: [...hseData.hazards, ...added] });
+        toast({ title: 'Example loaded', description: `${added.length} example HSE risks. ${EXAMPLE_LABEL}.` });
     };
 
     return (
@@ -88,8 +82,8 @@ const HSEModule = () => {
                     <p className="text-slate-400">Manage health, safety, environment, and regulatory compliance.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleImport} className="border-slate-700 text-slate-300">
-                        <Download className="w-4 h-4 mr-2" /> Import System Data
+                    <Button variant="outline" onClick={handleLoadExample} className="border-slate-700 text-slate-300">
+                        <Download className="w-4 h-4 mr-2" /> Load example
                     </Button>
                     <Button onClick={handleCreate} className="bg-yellow-600 hover:bg-yellow-700">
                         <Plus className="w-4 h-4 mr-2" /> Add Risk

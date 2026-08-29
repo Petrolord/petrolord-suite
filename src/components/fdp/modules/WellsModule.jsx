@@ -16,7 +16,7 @@ import WellInventory from './wells/WellInventory';
 import WellForm from './wells/WellForm';
 import WellStrategy from './wells/WellStrategy';
 import DrillingRiskAssessment from './wells/DrillingRiskAssessment';
-import { WellDataImporter } from '@/services/fdp/WellDataImporter';
+import { exampleWells, EXAMPLE_LABEL } from '@/services/fdp/exampleData';
 import CollapsibleSection from '@/components/fdp/CollapsibleSection';
 
 const WellsModule = () => {
@@ -68,21 +68,14 @@ const WellsModule = () => {
         setView('list');
     };
 
-    const handleImport = async () => {
-        try {
-            toast({ title: "Importing Wells", description: "Connecting to Well Design Studio..." });
-            const importedWells = await WellDataImporter.importFromWellPlanning();
-            // Calculate estimated costs for imported wells since mock api might not have them
-            const processed = importedWells.map(w => ({
-                ...w,
-                days: 30, // default mock
-                cost: 7500000 // default mock
-            }));
-            actions.updateWells({ list: [...wells, ...processed] });
-            toast({ title: "Success", description: `Imported ${processed.length} wells.` });
-        } catch (e) {
-            toast({ title: "Import Failed", description: "Could not retrieve well data.", variant: "destructive" });
-        }
+    const handleLoadExample = () => {
+        // Economics E3: this claimed to sync the user's own data from another
+    // Suite app and contacted nothing. It loads a labelled example now.
+        // Days and cost per well are part of the example, stated rather than
+        // silently defaulted the way the old "imported" wells were.
+        const added = exampleWells().map((w) => ({ ...w, days: 30, cost: 7500000 }));
+        actions.updateWells({ list: [...wells, ...added] });
+        toast({ title: 'Example loaded', description: `${added.length} example wells. ${EXAMPLE_LABEL}.` });
     };
 
     return (
@@ -93,8 +86,8 @@ const WellsModule = () => {
                     <p className="text-slate-400">Design well trajectories, schedule drilling campaigns, and manage risks.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleImport} className="border-slate-700 text-slate-300">
-                        <Download className="w-4 h-4 mr-2" /> Import
+                    <Button variant="outline" onClick={handleLoadExample} className="border-slate-700 text-slate-300">
+                        <Download className="w-4 h-4 mr-2" /> Load example
                     </Button>
                     <Button 
                         onClick={handleCreate} 

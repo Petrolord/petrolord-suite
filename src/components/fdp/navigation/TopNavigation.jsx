@@ -1,21 +1,26 @@
+// FDP top bar (Economics E3).
+//
+// The Save and Export buttons here had no onClick at all, and the bell
+// carried a red unread dot that was a styled span, not a notification. Save
+// is the real studio-kit control now, Export goes to the tab that actually
+// exports, and the two ornaments are gone.
 import React from 'react';
 import { useFDP } from '@/contexts/FDPContext';
 import { Button } from '@/components/ui/button';
-import { 
-    ChevronLeft, 
-    Save, 
-    Download, 
-    Settings, 
-    Bell, 
+import {
+    ChevronLeft,
+    Download,
     Menu,
     PanelRightClose,
     PanelRightOpen,
-    UserCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import StudioProjectManager from '@/components/studio/StudioProjectManager';
+import StudioAutoSave from '@/components/studio/StudioAutoSave';
+import FdpHelpGuide from '@/components/fdp/FdpHelpGuide';
 
 const TopNavigation = () => {
-    const { state, actions } = useFDP();
+    const { state, actions, persistence } = useFDP();
     const navigate = useNavigate();
     const { sidebarCollapsed, rightPanelOpen } = state.navigation;
     const { name, mode } = state.meta;
@@ -71,22 +76,38 @@ const TopNavigation = () => {
                     </button>
                 </div>
 
-                <Button variant="outline" size="sm" className="hidden sm:flex border-slate-700 text-slate-300 hover:bg-slate-800">
-                    <Save className="w-4 h-4 mr-2" />
-                    Save
-                </Button>
-                
-                <Button variant="outline" size="sm" className="hidden sm:flex border-slate-700 text-slate-300 hover:bg-slate-800">
+                <div className="hidden lg:block w-52">
+                    <StudioProjectManager
+                        label="Saved plan"
+                        projects={persistence.projects}
+                        currentProjectId={persistence.currentProjectId}
+                        onCreate={persistence.createProject}
+                        onOpen={persistence.openProject}
+                        onDelete={persistence.deleteProject}
+                        confirmDeleteMessage="Delete this development plan and everything saved with it? This cannot be undone."
+                    />
+                </div>
+
+                <StudioAutoSave
+                    isSaving={persistence.isSaving}
+                    saveError={persistence.saveError}
+                    lastSaveTime={persistence.lastSaveTime}
+                    onSave={persistence.manualSave}
+                    disabled={!persistence.currentProjectId}
+                />
+
+                <Button
+                    variant="outline" size="sm"
+                    onClick={() => actions.setActiveTab('documents')}
+                    className="hidden sm:flex border-slate-700 text-slate-300 hover:bg-slate-800"
+                >
                     <Download className="w-4 h-4 mr-2" />
                     Export
                 </Button>
 
-                <div className="h-6 w-px bg-slate-700 mx-2"></div>
+                <FdpHelpGuide />
 
-                <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white relative">
-                    <Bell className="w-5 h-5" />
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
-                </Button>
+                <div className="h-6 w-px bg-slate-700 mx-2"></div>
                 
                 <Button 
                     variant="ghost" 
@@ -95,10 +116,6 @@ const TopNavigation = () => {
                     className={`text-slate-400 hover:text-white hover:bg-slate-800 ${rightPanelOpen ? 'bg-slate-800 text-white' : ''}`}
                 >
                     {rightPanelOpen ? <PanelRightClose className="w-5 h-5" /> : <PanelRightOpen className="w-5 h-5" />}
-                </Button>
-
-                <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
-                    <UserCircle className="w-6 h-6" />
                 </Button>
             </div>
         </header>

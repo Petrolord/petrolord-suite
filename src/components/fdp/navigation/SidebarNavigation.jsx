@@ -12,15 +12,7 @@ import {
     ShieldCheck,
     Users,
     AlertTriangle,
-    FileText,
-    BarChart2,
-    Target,
-    Share2,
-    Workflow,
-    Smartphone,
-    Webhook,
-    HelpCircle,
-    GraduationCap
+    FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -67,14 +59,7 @@ const SidebarNavigation = () => {
         { id: 'hse', label: 'HSE', icon: ShieldCheck },
         { id: 'community', label: 'Community', icon: Users },
         { id: 'risks', label: 'Risk Management', icon: AlertTriangle },
-        { id: 'optimization', label: 'Optimization', icon: Target },
-        { id: 'workflow', label: 'Workflow & Tasks', icon: Workflow },
-        { id: 'collaboration', label: 'Collaboration', icon: Share2 },
-        { id: 'mobile', label: 'Mobile App', icon: Smartphone },
-        { id: 'api', label: 'API Integration', icon: Webhook },
         { id: 'documents', label: 'Documents', icon: FileText },
-        { id: 'training', label: 'Training Academy', icon: GraduationCap },
-        { id: 'help', label: 'Help Center', icon: HelpCircle },
     ];
 
     return (
