@@ -687,7 +687,9 @@ function App() {
                                     at F9/F10); Pipeline Designer fabricated results behind a setTimeout; Pipeline
                                     Sizer called a nonexistent edge function and always fell back to a hardcoded mock.
                                     Single-line sizing lives in Facility Network Hydraulics until the F1 flagship. */}
-                                <Route path="apps/facilities/separator-slug-catcher-designer" element={<ProtectedAppRoute appId="separator-slug-catcher-designer" appName="Separator & Slug Catcher Designer"><SeparatorSlugCatcherDesigner /></ProtectedAppRoute>} />
+                                {/* Facilities F5: the slug keeps its entitlements while the app becomes the
+                                    Separator & Slug Catcher Studio (API 12J/GPSA on the vendored engine). */}
+                                <Route path="apps/facilities/separator-slug-catcher-designer" element={<ProtectedAppRoute appId="separator-slug-catcher-designer" appName="Separator & Slug Catcher Studio"><SeparatorSlugCatcherDesigner /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/compressor-pump-pack" element={<Navigate to="/dashboard/facilities" replace />} />
                                 {/* Facilities F4: the slug keeps its entitlements while the app becomes the
                                     Heat Exchanger & Cooling Studio (F computed, U assembled, hot-day derate). */}
