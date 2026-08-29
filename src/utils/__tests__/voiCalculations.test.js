@@ -65,4 +65,66 @@ describe('generateVoiData (delegating to the canonical decision engine)', () => 
     expect(r.consistency.consistent).toBe(false);
     expect(r.insights).toContain('Consistency warning');
   });
+  // Economics E2: the panel used to be a "Chart removed" placeholder, so the
+  // tree is new. It must not be a second, independent calculation: the
+  // picture and the KPI card have to be the same analysis.
+  describe('the decision tree behind the diagram', () => {
+    it('is built and rolled back by the canonical engine', () => {
+      expect(result.tree).toBeTruthy();
+      expect(result.tree.type).toBe('decision');
+      expect(result.tree.branches).toHaveLength(2);
+    });
+
+    it("values the acquire branch at exactly the reported EMV with information", () => {
+      const acquire = result.tree.branches[0];
+      expect(acquire.label).toMatch(/Acquire/);
+      // branchValue is the child EMV less the cost of information, which is
+      // the definition of the EMV-with-information KPI.
+      expect(acquire.branchValue).toBeCloseTo(Number(result.kpis.emvWithInfo), 8);
+    });
+
+    it('values the no-information branch at exactly the reported EMV without information', () => {
+      const noInfo = result.tree.branches[1];
+      expect(noInfo.branchValue).toBeCloseTo(Number(result.kpis.emvWithoutInfo), 8);
+    });
+
+    it('reproduces the indicator chances the user entered, not a re-derived set', () => {
+      // The builder wants P(indicator | outcome) and the user types
+      // P(outcome | indicator); the Bayes inversion has to round-trip or the
+      // diagram would show different odds than the inputs.
+      const signalNode = result.tree.branches[0].node;
+      expect(signalNode.type).toBe('chance');
+      const chances = signalNode.branches.map((b) => b.probability);
+      expect(chances[0]).toBeCloseTo(0.4, 10);
+      expect(chances[1]).toBeCloseTo(0.6, 10);
+    });
+
+    it('still draws when posteriors contradict the priors, and is not repaired', () => {
+      // Each indicator's outcome chances still sum to 100, so the tree is
+      // well formed; it simply implies different priors than the user stated.
+      // That is a warning, not a reason to withhold the picture, and the
+      // diagram must show the odds entered rather than the ones implied.
+      const contradicting = JSON.parse(JSON.stringify(DEFAULT_INPUTS));
+      contradicting.infoScenario.indicators[0].conditionalProbabilities[0].probability = 90;
+      contradicting.infoScenario.indicators[0].conditionalProbabilities[1].probability = 10;
+      const r = generateVoiData(contradicting);
+      expect(r.consistency.consistent).toBe(false);
+      expect(r.tree).toBeTruthy();
+      const chances = r.tree.branches[0].node.branches.map((b) => b.probability);
+      expect(chances[0]).toBeCloseTo(0.4, 10);
+      expect(r.tree.branches[0].branchValue).toBeCloseTo(Number(r.kpis.emvWithInfo), 8);
+    });
+
+    it('withholds the diagram when an indicator\'s outcome chances do not sum to 100', () => {
+      // 90 and 40 is not a probability distribution. No tree can be drawn
+      // from it, so none is: the KPIs still compute and the panel says why
+      // the picture is missing, rather than drawing a tree that is not the
+      // user's case.
+      const malformed = JSON.parse(JSON.stringify(DEFAULT_INPUTS));
+      malformed.infoScenario.indicators[0].conditionalProbabilities[0].probability = 90;
+      const r = generateVoiData(malformed);
+      expect(r.tree).toBeNull();
+      expect(Number(r.kpis.evpi)).toBeGreaterThan(0);
+    });
+  });
 });

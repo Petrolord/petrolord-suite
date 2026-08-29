@@ -5,8 +5,36 @@
 // marginals and posteriors contradict the stated outcome priors (the user
 // types those independently in this legacy input shape, so nothing forces
 // them to be Bayes-consistent).
+//
+// Economics E2 replaced the node/link "plot data" this used to return with a
+// real decision tree. Nothing rendered those nodes (the panel was a "Chart
+// removed" placeholder), and their link values were not a quantity: each was
+// the running EMV total multiplied by an indicator probability. The tree
+// below is built by the canonical builder and rolled back by the canonical
+// engine, so the picture and the KPIs cannot disagree.
 
-import { bestActionEmv, evpi as engineEvpi, impliedPriors } from '@/lib/decisionTree';
+import {
+  bestActionEmv, evpi as engineEvpi, impliedPriors, buildInformationTree, rollback,
+} from '@/lib/decisionTree';
+
+/**
+ * Turn the legacy VOI input shape into the signal likelihoods the canonical
+ * tree builder wants.
+ *
+ * Users type P(indicator) and P(outcome | indicator); the builder wants
+ * P(indicator | outcome). Bayes inverts one into the other:
+ *
+ *   P(s | o) = P(o | s) * P(s) / P(o)
+ *
+ * This is exact and it round-trips: rolling back the built tree reproduces
+ * the indicator chances and posteriors the user actually entered, whether or
+ * not those are Bayes-consistent with the stated priors. The consistency
+ * check stays a separate warning rather than something this quietly repairs.
+ * An outcome with a zero prior cannot be conditioned on, so its column is
+ * left at zero.
+ */
+const likelihoodsFromPosteriors = (priors, pIndicator, posteriors) =>
+  priors.map((prior, i) => (prior > 0 ? (posteriors[i] * pIndicator) / prior : 0));
 
 export const generateVoiData = (inputs) => {
     const { decisionCost, outcomes, infoScenario } = inputs;
@@ -21,15 +49,10 @@ export const generateVoiData = (inputs) => {
     const prior = bestActionEmv(engineOutcomes, engineActions);
     const emvWithoutInfo = prior.emv;
     const optimalActionWithoutInfo = engineActions[prior.actionIndex].label;
-    const emvDecision = engineOutcomes.reduce(
-        (acc, o, i) => acc + o.probability * outcomes[i].payoff, 0) - decisionCost;
 
     // --- With Information (legacy shape: user-entered indicator marginals
     // and posteriors, evaluated indicator by indicator) ---
     let emvWithInfoPreCost = 0;
-    const indicatorNodes = [];
-    const indicatorLinks = [];
-    let nodeCounter = 2; // 0: Initial, 1: Acquire, 2: No Acquire
 
     infoScenario.indicators.forEach(indicator => {
         const pIndicator = indicator.probability / 100;
@@ -39,43 +62,8 @@ export const generateVoiData = (inputs) => {
             return (cp?.probability ?? 0) / 100;
         });
         const conditional = bestActionEmv(engineOutcomes, engineActions, posterior);
-        const emvForIndicator = conditional.emv;
-        const emvDecisionGivenIndicator = posterior.reduce(
-            (acc, p, i) => acc + p * outcomes[i].payoff, 0) - decisionCost;
 
-        emvWithInfoPreCost += pIndicator * emvForIndicator;
-
-        // For Plotting
-        const indicatorNodeId = ++nodeCounter;
-        indicatorNodes.push({
-            id: indicatorNodeId,
-            label: `${indicator.name} (${indicator.probability}%)`,
-            color: '#f97316',
-            emv: emvForIndicator
-        });
-        indicatorLinks.push({
-            source: 1,
-            target: indicatorNodeId,
-            value: pIndicator * emvWithInfoPreCost,
-            label: `${indicator.name} (${indicator.probability}%)`,
-            color: 'rgba(249, 115, 22, 0.6)'
-        });
-
-        const decisionNodeId = ++nodeCounter;
-        const noDecisionNodeId = ++nodeCounter;
-
-        const optimalPathNodeId = conditional.actionIndex === 0 ? decisionNodeId : noDecisionNodeId;
-
-        indicatorNodes.push({ id: decisionNodeId, label: `${inputs.decisionName} (EMV $${emvDecisionGivenIndicator.toFixed(2)}M)`, color: '#10b981' });
-        indicatorNodes.push({ id: noDecisionNodeId, label: `Do Not ${inputs.decisionName} (EMV $0.00M)`, color: '#ef4444' });
-
-        indicatorLinks.push({
-            source: indicatorNodeId,
-            target: optimalPathNodeId,
-            value: pIndicator * emvWithInfoPreCost,
-            label: conditional.actionIndex === 0 ? inputs.decisionName : `Do Not ${inputs.decisionName}`,
-            color: conditional.actionIndex === 0 ? 'rgba(16, 185, 129, 0.6)' : 'rgba(239, 68, 68, 0.6)'
-        });
+        emvWithInfoPreCost += pIndicator * conditional.emv;
     });
 
     const emvWithInfo = emvWithInfoPreCost - infoScenario.cost;
@@ -106,23 +94,6 @@ export const generateVoiData = (inputs) => {
         evpi: evpi.toFixed(2),
     };
 
-    const plotData = {
-        nodes: [
-            { id: 0, label: 'Initial Decision', color: '#3b82f6', emv: emvWithInfo },
-            { id: 1, label: `Acquire ${infoScenario.name}`, color: '#8b5cf6', emv: emvWithInfo },
-            { id: 2, label: 'Do Not Acquire', color: '#8b5cf6', emv: emvWithoutInfo },
-            ...indicatorNodes,
-            { id: ++nodeCounter, label: `${inputs.decisionName} (EMV $${emvDecision.toFixed(2)}M)`, color: '#10b981' },
-            { id: ++nodeCounter, label: `Do Not ${inputs.decisionName} (EMV $0.00M)`, color: '#ef4444' },
-        ],
-        links: [
-            ...indicatorLinks,
-            { source: 0, target: 1, value: emvWithInfo, label: `Acquire Info (Cost $${infoScenario.cost}M)`, color: 'rgba(139, 92, 246, 0.6)' },
-            { source: 0, target: 2, value: emvWithoutInfo, label: 'No Info', color: 'rgba(139, 92, 246, 0.4)' },
-            { source: 2, target: optimalActionWithoutInfo === inputs.decisionName ? nodeCounter - 1 : nodeCounter, value: emvWithoutInfo, label: optimalActionWithoutInfo, color: optimalActionWithoutInfo === inputs.decisionName ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)' },
-        ].map((link, i) => ({ ...link, id: i }))
-    };
-
     const recommendation = netVoi > 0
         ? `Since this is positive, acquiring the information is financially advantageous.`
         : netVoi < 0
@@ -137,9 +108,40 @@ export const generateVoiData = (inputs) => {
         insights += ` Consistency warning: the indicator probabilities you entered imply different outcome chances than your stated ones (${impliedTxt}). The VOI figure is only as reliable as these inputs; consider adjusting them until they agree, or use the Decision Tree Builder, which derives them from reliabilities so they cannot disagree.`;
     }
 
+    // Economics E2: a real decision tree, drawn by the same component the
+    // Decision Tree Builder uses. This panel used to be a "Chart removed"
+    // placeholder, so the app computed a tree and then showed the user an
+    // empty box.
+    let tree = null;
+    try {
+        const priors = engineOutcomes.map((o) => o.probability);
+        tree = rollback(buildInformationTree({
+            outcomes: engineOutcomes,
+            actions: engineActions,
+            signals: infoScenario.indicators.map((ind) => ({
+                label: ind.name,
+                likelihoods: likelihoodsFromPosteriors(
+                    priors,
+                    ind.probability / 100,
+                    outcomes.map((o) => {
+                        const cp = ind.conditionalProbabilities.find((c) => c.outcomeId === o.id);
+                        return (cp?.probability ?? 0) / 100;
+                    }),
+                ),
+            })),
+            infoCost: infoScenario.cost,
+            infoLabel: `Acquire ${infoScenario.name}`,
+        }));
+    } catch (err) {
+        // A tree that cannot be built is reported as a missing diagram rather
+        // than taking the whole analysis down with it; the KPIs above do not
+        // depend on it.
+        tree = null;
+    }
+
     return {
         kpis,
-        plotData,
+        tree,
         insights,
         consistency,
     };
