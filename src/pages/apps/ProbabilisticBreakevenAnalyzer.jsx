@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
-import { generateBreakevenData } from '@/utils/breakevenCalculations';
+import { generateBreakevenData, DEFAULT_SEED } from '@/utils/breakevenCalculations';
 import InputPanel from '@/components/breakevenanalyzer/InputPanel';
 import ResultsPanel from '@/components/breakevenanalyzer/ResultsPanel';
 import EmptyState from '@/components/breakevenanalyzer/EmptyState';
@@ -16,6 +16,7 @@ const ProbabilisticBreakevenAnalyzer = () => {
     projectName: "Deepwater Block XYZ Development",
     breakevenTarget: 'Breakeven Oil Price',
     iterations: 5000,
+    seed: DEFAULT_SEED,
     discountRate: 10,
     targetNpv: 0,
     royaltyRate: 12.5,

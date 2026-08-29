@@ -18,6 +18,8 @@ import {
   rankCorrelationSensitivity,
   varianceDecomposition,
   tornadoSwings,
+  mulberry32,
+  fitTriangularToPercentiles,
 } from '@/lib/monteCarlo';
 
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
@@ -333,5 +335,116 @@ describe('tornadoSwings (symmetric tornado)', () => {
     const swings = tornadoSwings(samples);
     expect(swings.map((s) => s.parameter)).toEqual(['p']);
     expect(tornadoSwings(samples.slice(0, 10))).toEqual([]);
+  });
+});
+
+describe('mulberry32 (seeded rng)', () => {
+  test('same seed reproduces the same stream, different seeds do not', () => {
+    const a = mulberry32(1234);
+    const b = mulberry32(1234);
+    const c = mulberry32(1235);
+    const sa = Array.from({ length: 50 }, () => a());
+    const sb = Array.from({ length: 50 }, () => b());
+    const sc = Array.from({ length: 50 }, () => c());
+    expect(sa).toEqual(sb);
+    expect(sa).not.toEqual(sc);
+  });
+
+  test('draws stay in [0, 1) and look uniform enough to sample with', () => {
+    const rng = mulberry32(7);
+    const n = 200000;
+    let sum = 0;
+    const bins = new Array(10).fill(0);
+    for (let i = 0; i < n; i += 1) {
+      const u = rng();
+      expect(u).toBeGreaterThanOrEqual(0);
+      expect(u).toBeLessThan(1);
+      sum += u;
+      bins[Math.floor(u * 10)] += 1;
+    }
+    expect(sum / n).toBeCloseTo(0.5, 2);
+    // every decile within 2 percent of n/10
+    bins.forEach((count) => {
+      expect(Math.abs(count - n / 10) / (n / 10)).toBeLessThan(0.02);
+    });
+  });
+});
+
+describe('fitTriangularToPercentiles', () => {
+  // The whole point: the fitted CDF must pass through the three stated
+  // points. Checked by evaluating the triangular CDF directly, which is a
+  // different route from the quantile form the fit is derived in.
+  const cdf = (x, a, c, b) => {
+    if (x <= a) return 0;
+    if (x >= b) return 1;
+    if (x <= c) return ((x - a) * (x - a)) / ((b - a) * (c - a));
+    return 1 - ((b - x) * (b - x)) / ((b - a) * (b - c));
+  };
+
+  test.each([
+    [800, 1000, 1300],
+    [50, 60, 75],
+    [85, 90, 95],
+    [10, 22, 40],
+    [-5, 2, 12],
+  ])('CDF passes through P10/P50/P90 for (%p, %p, %p)', (p10, p50, p90) => {
+    const f = fitTriangularToPercentiles(p10, p50, p90);
+    expect(f.exact).toBe(true);
+    expect(cdf(p10, f.min, f.mode, f.max)).toBeCloseTo(0.1, 9);
+    expect(cdf(p50, f.min, f.mode, f.max)).toBeCloseTo(0.5, 9);
+    expect(cdf(p90, f.min, f.mode, f.max)).toBeCloseTo(0.9, 9);
+  });
+
+  test('the fitted range extends BEYOND the stated P10 and P90', () => {
+    // This is the defect being fixed. Treating the percentiles as
+    // min/mode/max makes twenty percent of the distribution vanish.
+    const f = fitTriangularToPercentiles(800, 1000, 1300);
+    expect(f.min).toBeLessThan(800);
+    expect(f.max).toBeGreaterThan(1300);
+  });
+
+  test('sampling the fit reproduces the stated percentiles', () => {
+    // Independent check: draw from the fitted triangular through the
+    // inverse CDF and measure the empirical percentiles.
+    const f = fitTriangularToPercentiles(800, 1000, 1300);
+    const rng = mulberry32(99);
+    const draws = [];
+    for (let i = 0; i < 200000; i += 1) {
+      draws.push(triInvCDF(rng(), f.min, f.mode, f.max));
+    }
+    draws.sort((x, y) => x - y);
+    const pct = (q) => draws[Math.floor(q * draws.length)];
+    expect(pct(0.1)).toBeGreaterThan(795);
+    expect(pct(0.1)).toBeLessThan(805);
+    expect(pct(0.5)).toBeGreaterThan(994);
+    expect(pct(0.5)).toBeLessThan(1006);
+    expect(pct(0.9)).toBeGreaterThan(1292);
+    expect(pct(0.9)).toBeLessThan(1308);
+  });
+
+  test('the reachable band is real, and a median outside it is clamped and SAID so', () => {
+    // A triangular's shape has only one free parameter, so the ratio
+    // (p50-p10)/(p90-p10) it can represent runs only from about 0.382
+    // (mode at the minimum) to about 0.618 (mode at the maximum). Three
+    // percentiles outside that band describe a distribution no triangular
+    // is, and the fit says so instead of pretending.
+    const tooLow = fitTriangularToPercentiles(0, 1, 100); // ratio 0.01
+    expect(tooLow.exact).toBe(false);
+    expect(tooLow.note).toMatch(/too near the P10/);
+
+    const tooHigh = fitTriangularToPercentiles(0, 99, 100); // ratio 0.99
+    expect(tooHigh.exact).toBe(false);
+    expect(tooHigh.note).toMatch(/too near the P90/);
+
+    // And just inside each edge the fit is exact again.
+    expect(fitTriangularToPercentiles(0, 39, 100).exact).toBe(true);
+    expect(fitTriangularToPercentiles(0, 61, 100).exact).toBe(true);
+  });
+
+  test('no stated spread degrades gracefully', () => {
+    const f = fitTriangularToPercentiles(5, 5, 5);
+    expect(f.exact).toBe(true);
+    expect(f.min).toBe(5);
+    expect(f.max).toBe(5);
   });
 });
