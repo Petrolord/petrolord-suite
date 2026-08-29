@@ -65,6 +65,8 @@ const SeparatorSlugCatcherDesigner = lazy(() => import('@/pages/apps/SeparatorSl
 const CompressorStationDesigner = lazy(() => import('@/pages/apps/CompressorStationDesigner'));
 const PumpStationDesigner = lazy(() => import('@/pages/apps/PumpStationDesigner'));
 const ControlValveSizing = lazy(() => import('@/pages/apps/ControlValveSizing'));
+const StorageTankDesigner = lazy(() => import('@/pages/apps/StorageTankDesigner'));
+const FlowMeteringDesigner = lazy(() => import('@/pages/apps/FlowMeteringDesigner'));
 const HeatExchangerSizer = lazy(() => import('@/pages/apps/HeatExchangerSizer'));
 const GasTreatingDehydration = lazy(() => import('@/pages/apps/GasTreatingDehydration'));
 const CorrosionRatePredictor = lazy(() => import('@/pages/apps/CorrosionRatePredictor'));
@@ -701,6 +703,8 @@ function App() {
                                 <Route path="apps/facilities/pump-station-designer" element={<ProtectedAppRoute appId="pump-station-designer" appName="Pump Station Designer"><PumpStationDesigner /></ProtectedAppRoute>} />
                                 {/* Facilities F11: ISA 75.01 valve sizing on a fresh slug. */}
                                 <Route path="apps/facilities/control-valve-sizing" element={<ProtectedAppRoute appId="control-valve-sizing" appName="Control Valve & Choke Sizing"><ControlValveSizing /></ProtectedAppRoute>} />
+                                <Route path="apps/facilities/storage-tank-designer" element={<ProtectedAppRoute appId="storage-tank-designer" appName="Storage Tank & Venting Designer"><StorageTankDesigner /></ProtectedAppRoute>} />
+                                <Route path="apps/facilities/flow-metering-designer" element={<ProtectedAppRoute appId="flow-metering-designer" appName="Flow Metering Designer"><FlowMeteringDesigner /></ProtectedAppRoute>} />
                                 {/* Facilities F4: the slug keeps its entitlements while the app becomes the
                                     Heat Exchanger & Cooling Studio (F computed, U assembled, hot-day derate). */}
                                 <Route path="apps/facilities/heat-exchanger-sizer" element={<ProtectedAppRoute appId="heat-exchanger-sizer" appName="Heat Exchanger & Cooling Studio"><HeatExchangerSizer /></ProtectedAppRoute>} />
