@@ -1,6 +1,14 @@
 # Petrolord Midstream & Downstream Module — Roadmap
 
-Status: **APPROVED — owner sign-off 2026-08-29** (decisions in §7)
+Status: **COMPLETE — DS0-DS10 ALL SHIPPED AND MERGED 2026-08-29**
+(approved with owner sign-off 2026-08-29; decisions in §7)
+
+All ten apps are built, tested and on main. **Eleven tile migrations**
+(the DS0 module seed plus the DS1-DS10 activations) are HELD together
+for the one prod upload that ships the module build; every persistence
+migration is applied and was safe pre-deploy. Remaining: the upload, the
+eleven held migrations, owner staging E2E, and the DS8 pinch literature
+gate.
 Scope: a NEW module — the Suite's 8th internal module (9th Dashboard
 tile counting the external HSE portal). Module value/slug:
 `midstream-downstream` (routes are built as
