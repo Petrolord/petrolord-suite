@@ -149,9 +149,11 @@ real and stay.
 
 - Jest 14 new tests green; full suite green.
 - `npm run build` clean.
-- Migration `20260829820000` is **PENDING** apply. Safe pre-deploy: no
-  tile changes, and the app keeps its local draft and shows a stated
-  "run the migration" message without the table.
+- Migration `20260829820000` **APPLIED 2026-08-29** after a
+  rollback-wrapped dry run. Post-apply probe: table present, RLS
+  enabled, one owner policy. Safe pre-deploy: no tile changes, and the
+  app keeps its local draft and shows a stated "run the migration"
+  message without the table.
 
 ## Left open
 
