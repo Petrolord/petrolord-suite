@@ -705,7 +705,10 @@ function App() {
                                     Production-ROADMAP.md §6.2 — the gathering-network solver is Production #11). */}
                                 <Route path="apps/facilities/facility-network-hydraulics" element={<ProtectedAppRoute appId="facility-network-hydraulics" appName="Pipeline & Line Sizing Studio"><PipelineLineSizingStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/facility-layout-mapper" element={<ProtectedAppRoute appId="facility-layout-mapper" appName="Facility Layout Mapper"><FacilityLayoutMapper /></ProtectedAppRoute>} />
-                                <Route path="apps/facilities/corrosion-rate-predictor" element={<ProtectedAppRoute appId="corrosion-rate-predictor" appName="Corrosion Rate Predictor"><CorrosionRatePredictor /></ProtectedAppRoute>} />
+                                {/* Facilities F6: the slug keeps its entitlements while the app becomes the
+                                    Corrosion & Integrity Studio (DWM 1995 with velocity, shear, inhibitor
+                                    availability, sour regions and remaining life). */}
+                                <Route path="apps/facilities/corrosion-rate-predictor" element={<ProtectedAppRoute appId="corrosion-rate-predictor" appName="Corrosion & Integrity Studio"><CorrosionRatePredictor /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/pipeline-designer" element={<Navigate to="/dashboard/apps/facilities/facility-network-hydraulics" replace />} />
                                 <Route path="apps/facilities/pipeline-sizer" element={<Navigate to="/dashboard/apps/facilities/facility-network-hydraulics" replace />} />
                                 <Route path="apps/facilities/produced-water-treatment" element={<ProtectedAppRoute appId="produced-water-treatment" appName="Produced Water Treatment"><ProducedWaterTreatment /></ProtectedAppRoute>} />
