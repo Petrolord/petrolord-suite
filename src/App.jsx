@@ -63,6 +63,7 @@ const FacilityLayoutMapper = lazy(() => import('@/pages/apps/FacilityLayoutMappe
 const PipelineLineSizingStudio = lazy(() => import('@/pages/apps/PipelineLineSizingStudio'));
 const SeparatorSlugCatcherDesigner = lazy(() => import('@/pages/apps/SeparatorSlugCatcherDesigner'));
 const CompressorStationDesigner = lazy(() => import('@/pages/apps/CompressorStationDesigner'));
+const PumpStationDesigner = lazy(() => import('@/pages/apps/PumpStationDesigner'));
 const HeatExchangerSizer = lazy(() => import('@/pages/apps/HeatExchangerSizer'));
 const GasTreatingDehydration = lazy(() => import('@/pages/apps/GasTreatingDehydration'));
 const CorrosionRatePredictor = lazy(() => import('@/pages/apps/CorrosionRatePredictor'));
@@ -695,6 +696,8 @@ function App() {
                                 {/* Facilities F9: the NEW compressor app on a fresh slug. The retired
                                     pack above stays archived and redirecting; this is a different app. */}
                                 <Route path="apps/facilities/compressor-station-designer" element={<ProtectedAppRoute appId="compressor-station-designer" appName="Compressor Station Designer"><CompressorStationDesigner /></ProtectedAppRoute>} />
+                                {/* Facilities F10: the other half of the retired pack, likewise on a fresh slug. */}
+                                <Route path="apps/facilities/pump-station-designer" element={<ProtectedAppRoute appId="pump-station-designer" appName="Pump Station Designer"><PumpStationDesigner /></ProtectedAppRoute>} />
                                 {/* Facilities F4: the slug keeps its entitlements while the app becomes the
                                     Heat Exchanger & Cooling Studio (F computed, U assembled, hot-day derate). */}
                                 <Route path="apps/facilities/heat-exchanger-sizer" element={<ProtectedAppRoute appId="heat-exchanger-sizer" appName="Heat Exchanger & Cooling Studio"><HeatExchangerSizer /></ProtectedAppRoute>} />
