@@ -6,6 +6,8 @@ never hand-type DDL against production.
 
 | Date (UTC) | Migration file | Purpose | Applied to staging | Applied to production |
 |---|---|---|---|---|
+| 2026-08-29 | `20260829940000_ds5_terminal_persistence.sql` | **M&D DS5 — Terminal & Depot Studio persistence**: `saved_terminal_projects` on the saved_<app>_projects convention. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
+| 2026-08-29 | `20260829950000_ds5_activate_terminal_tile.sql` | **M&D DS5 — tile goes Active (HELD).** **DEPLOY GATE**: apply only with the prod upload that ships the DS5 build | HELD (not applied) | HELD (not applied) |
 | 2026-08-29 | `20260829920000_ds4_modular_refinery_persistence.sql` | **M&D DS4 — Modular Refinery Feasibility persistence**: `saved_modular_refinery_projects` on the saved_<app>_projects convention. Results recomputed on load. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |
 | 2026-08-29 | `20260829930000_ds4_activate_modular_refinery_tile.sql` | **M&D DS4 — tile goes Active (HELD).** **DEPLOY GATE**: apply only with the prod upload that ships the DS4 build | HELD (not applied) | HELD (not applied) |
 | 2026-08-29 | `20260829900000_ds3_refinery_planning_persistence.sql` | **M&D DS3 — Refinery Planning & Scheduling persistence**: `saved_refinery_plan_projects` on the saved_<app>_projects convention. Only the configuration, period and recorded actuals are stored; the plan, schedule and reconciliation are recomputed on load. Safe pre-deploy, idempotent | **APPLIED 2026-08-29** (dry run first; probe: RLS enabled, 1 owner policy) | **APPLIED 2026-08-29** (shared project) |

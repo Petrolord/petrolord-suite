@@ -41,7 +41,17 @@
  * published correlation and this package does not guess at constants.
  */
 
+/**
+ * Numeric coercion that treats ABSENCE as absent.
+ *
+ * Number(null) is 0 and Number('') is 0, so the obvious implementation turns
+ * a missing value into a real zero. That is the exact failure this module
+ * family exists to avoid: a sulfur content nobody supplied is not zero
+ * sulfur, an emission factor nobody supplied is not zero carbon, and a dip
+ * nobody read is not an empty tank. Missing stays missing.
+ */
 const num = (v, fallback = NaN) => {
+  if (v === null || v === undefined || v === '') return fallback;
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
 };
