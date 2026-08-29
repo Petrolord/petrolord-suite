@@ -160,6 +160,9 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
   // exactly (the sampler is seeded end to end).
   const [seedInput, setSeedInput] = useState('');
   const [running, setRunning] = useState(false);
+  // Per-iteration sample of the most recent run in this session. Saved runs
+  // do not carry it, so this is null after reloading one.
+  const [samples, setSamples] = useState(null);
   const [mcRun, setMcRun] = useState(null); // { results, created_at, mc_config }
 
   // Load the run config (for distribution defaults) and the latest saved MC run.
@@ -189,7 +192,11 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
         .eq('run_config_id', runConfigId)
         .order('created_at', { ascending: false })
         .limit(1);
-      if (prior && prior.length > 0) setMcRun(prior[0]);
+      if (prior && prior.length > 0) {
+        setMcRun(prior[0]);
+        // A reloaded run carries its summary, not its sample.
+        setSamples(null);
+      }
     })();
   }, [runConfigId]);
 
@@ -238,6 +245,9 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
       if (error) throw new Error(error.message || 'Monte Carlo run failed.');
       if (data?.error) throw new Error(data.error);
       setMcRun({ results: data.results, mc_config: mcConfig, created_at: new Date().toISOString() });
+      // Economics E5: the per-iteration sample comes back with the run but is
+      // not stored with it, so it is available for this run only.
+      setSamples(Array.isArray(data.samples) ? data.samples : null);
       toast({ title: 'Simulation complete', description: `${data.results.iterations} iterations through the fiscal engine.` });
     } catch (err) {
       console.error('[EpeMonteCarloPanel]', err);
@@ -285,6 +295,47 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
     a.href = url;
     a.download = 'epe-mc-results.csv';
     a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  /**
+   * Export every iteration, so a result can be audited rather than believed.
+   *
+   * The summary CSV above gives percentiles and a hundred-point curve. This
+   * gives the sample those came from: one row per iteration with the values
+   * that were drawn and the NPV, IRR and payback the fiscal engine returned
+   * for them, including the iterations where IRR or payback does not exist,
+   * which the percentile arrays drop by design.
+   */
+  const downloadRawSample = () => {
+    if (!samples || samples.length === 0) return;
+    const inputKeys = Array.from(
+      samples.reduce((set, row) => {
+        Object.keys(row.inputs || {}).forEach((k) => set.add(k));
+        return set;
+      }, new Set()),
+    );
+    const header = ['iteration', ...inputKeys.map((k) => VAR_LABELS[k] || k), 'npv_usd', 'irr_pct', 'payback_years'];
+    const lines = [header.join(',')];
+    samples.forEach((row) => {
+      lines.push([
+        row.i,
+        ...inputKeys.map((k) => row.inputs?.[k]),
+        row.npv,
+        row.irr,
+        row.payback,
+      ].map(csvEscape).join(','));
+    });
+    lines.push('');
+    lines.push(`# seed,${csvEscape(results?.seed)}`);
+    lines.push(`# iterations,${csvEscape(results?.iterations)}`);
+    lines.push('# Re-running with this seed and the same configuration reproduces these rows exactly.');
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `epe-monte-carlo-sample-seed-${results?.seed ?? 'run'}.csv`;
+    link.click();
     URL.revokeObjectURL(url);
   };
 
@@ -413,6 +464,14 @@ const EpeMonteCarloPanel = ({ runConfigId }) => {
             {running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
             {running ? 'Running simulation...' : 'Run Monte Carlo'}
           </Button>
+          {results && samples && samples.length > 0 && (
+            <Button
+              type="button" variant="outline" onClick={downloadRawSample}
+              title="Every iteration: the values drawn and the NPV, IRR and payback they produced"
+            >
+              <Download className="w-4 h-4 mr-2" /> Raw sample (CSV)
+            </Button>
+          )}
           {results && (
             <Button type="button" variant="outline" onClick={downloadCsv} title="Percentiles, CDF points, and the yearly fan as a CSV">
               <Download className="w-4 h-4 mr-2" /> Download results (CSV)

@@ -61,17 +61,47 @@ export const projectMoments = (p) => {
 };
 
 /**
- * Normal-approximation risk summary for a set of (independent) projects.
+ * Normal-approximation risk summary for a set of projects.
+ *
+ * Economics E5 closes the D4 parked item. The roll-up used to treat projects
+ * as strictly independent, which is the same assumption ProspectRiskEngine
+ * makes and the same one that makes a portfolio look safer than it is: real
+ * projects sharing a basin, a partner, a rig contract or a price deck fail
+ * together, so the downside is fatter than independence implies.
+ *
+ * `correlation` is a single average pairwise correlation between project
+ * outcomes, which is what a screening tool can honestly ask for; a full
+ * matrix is more precision than anyone has at this stage. Under equal
+ * correlation the portfolio variance is
+ *
+ *   Var = sum_i var_i + rho * ( (sum_i sd_i)^2 - sum_i var_i )
+ *
+ * because the cross terms are rho * sd_i * sd_j over every ordered pair with
+ * i != j. At rho = 0 this collapses to the independent sum, so the previous
+ * behaviour is exactly the default. At rho = 1 it becomes (sum sd_i)^2, the
+ * case where every project moves together and diversification buys nothing.
+ *
+ * Means are unaffected: correlation moves the spread, never the expectation.
+ *
+ * @param {object[]} selected the funded projects
+ * @param {number} [correlation] average pairwise correlation, clamped to [0, 1]
  */
-export const portfolioRiskMetrics = (selected) => {
+export const portfolioRiskMetrics = (selected, correlation = 0) => {
+  const rho = Math.min(1, Math.max(0, Number(correlation) || 0));
   let mean = 0;
-  let variance = 0;
+  let varianceSum = 0;
+  let sdSum = 0;
   for (const p of selected) {
     const m = projectMoments(p);
     mean += m.mean;
-    variance += m.variance;
+    varianceSum += m.variance;
+    sdSum += Math.sqrt(m.variance);
   }
-  const sd = Math.sqrt(variance);
+  // The cross-term block is non-negative because sdSum^2 >= varianceSum by
+  // Cauchy-Schwarz, so a positive correlation can only widen the spread.
+  const crossTerms = Math.max(0, sdSum * sdSum - varianceSum);
+  const variance = varianceSum + rho * crossTerms;
+  const sd = Math.sqrt(Math.max(0, variance));
   const probLoss = sd > 0 ? normalCDF(-mean / sd) : (mean < 0 ? 1 : 0);
   return {
     emv: mean,
@@ -79,6 +109,10 @@ export const portfolioRiskMetrics = (selected) => {
     probLoss,
     p90: mean - 1.2816 * sd,
     p10: mean + 1.2816 * sd,
+    correlation: rho,
+    // The spread you would have reported assuming independence, so the effect
+    // of the assumption is visible rather than buried.
+    independentStdDev: Math.sqrt(varianceSum),
   };
 };
 
@@ -92,7 +126,7 @@ export const portfolioRiskMetrics = (selected) => {
  * Projects with EMV <= 0 are never forced in: leaving capital unspent is
  * always allowed.
  */
-export const optimizePortfolio = ({ projects, capexLimit }) => {
+export const optimizePortfolio = ({ projects, capexLimit, correlation = 0 }) => {
   const limit = Math.max(0, Number(capexLimit) || 0);
   const candidates = projects.filter((p) => Number(p.capex) > 0 || projectEmv(p) > 0);
 
@@ -144,6 +178,6 @@ export const optimizePortfolio = ({ projects, capexLimit }) => {
     totalNpvSuccess,
     frontierData,
     resolution,
-    risk: portfolioRiskMetrics(optimalProjects),
+    risk: portfolioRiskMetrics(optimalProjects, correlation),
   };
 };

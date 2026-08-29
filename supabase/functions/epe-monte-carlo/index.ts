@@ -78,7 +78,13 @@ Deno.serve(async (req) => {
     const capexRows = (capexRes.data || []).flatMap((r) => Array.isArray(r.data) ? r.data : []);
     const opexRows = (opexRes.data || []).flatMap((r) => Array.isArray(r.data) ? r.data : []);
 
-    const results = runEpeMonteCarlo({ cfg, prodRows, capexRows, opexRows, mcConfig: mc_config ?? {} });
+    // Economics E5: the per-iteration sample travels to the caller so a run
+    // can be audited, but it is NOT stored. Persisting five thousand rows on
+    // every saved run would bloat the table for a file most runs never need,
+    // and the run is reproducible from its seed regardless.
+    const { samples, ...results } = runEpeMonteCarlo({
+      cfg, prodRows, capexRows, opexRows, mcConfig: mc_config ?? {},
+    });
 
     const { data: runRow, error: insErr } = await supabase
       .from('epe_mc_runs')
@@ -93,7 +99,7 @@ Deno.serve(async (req) => {
     if (insErr) throw new Error(`MC run save failed: ${insErr.message}`);
 
     return new Response(
-      JSON.stringify({ success: true, mc_run_id: runRow.id, results }),
+      JSON.stringify({ success: true, mc_run_id: runRow.id, results, samples }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

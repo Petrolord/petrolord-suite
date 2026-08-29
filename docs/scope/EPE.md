@@ -361,7 +361,7 @@ Risk level: low (math is straightforward). But a future Reservoir Balance-style 
 
 ### 4.2 Schema present, engine math not implemented
 
-- **Minimum 15% effective tax rate (NTA Section 57)** — `pia_apply_minimum_etr` and `pia_minimum_etr_pct` columns exist in `epe_run_configs`. Engine does not apply the floor. Rationale: ETR check requires evaluating total taxes vs total profit across all years plus turnover threshold checks (NGN-denominated, company-level) that don't fit the project-level engine cleanly. Implementation requires further design. **2026-08-16: the Run Console controls were removed** (the checkbox shipped before the math and changed nothing — honesty rule); a one-line note remains in the PIA panel. Columns stay for forward compatibility.
+- ~~**Minimum 15% effective tax rate (NTA Section 57)**~~ — **CLOSED 2026-08-21 (Wave F)**, record corrected 2026-08-29 (E5). The engine applies the floor when `pia_apply_minimum_etr` is set: the top-up is `max(0, assessable profit x rate - taxes paid)`, reported on its own `min_etr_topup` line and in `total_min_etr_topup`, and gated by a jest case. It is a **project-level approximation**: the statutory test is company-level against NGN turnover thresholds a project model cannot see, which is why the top-up is reported separately and can be stripped by a reviewer. The Run Console controls, removed on 2026-08-16 because the checkbox shipped before the math, were restored with it. This section had continued to say the math was not implemented, and so had the app's own help guide; both are corrected.
 
 ### 4.2b Known structural debt (2026-08-16 audit)
 
@@ -432,7 +432,7 @@ contract no longer depends on database access.
 | Sensitivity (tornado) | Direction and magnitude sane; specific numbers not validated | ⚠ Sanity-checked, not validated |
 | Production allowance cap math | Mid-year crossing case (99→101 MMbbl over the shallow-water cap): eligible-bbl split, allowance, and exhaustion asserted exactly | ✓ Validated (closes §4.1) |
 | CPR cessation forfeiture | Single-year case with 8M unrecovered pool: final-row flag + KPI asserted | ✓ Validated (closes §4.1) |
-| Min ETR (NTA §57) | Schema only | ✗ Math not implemented |
+| Min ETR (NTA §57) | Project-level top-up gated by a jest case (`max(0, assessable x rate - taxes paid)`); the statutory company-level NGN turnover test is out of a project model's reach, so the top-up is reported on its own line | ⚠ Implemented as a stated approximation |
 | Monte Carlo layer (D2) | Harness Case 7 (degenerate = deterministic, seeded reproducibility, spread brackets base) + 13 jest tests incl. bit-identical anti-drift vs canonical `src/lib/monteCarlo.js` | ✓ Validated as a pure wrapper |
 
 Literature byte-verification of JV/PSC against published worked examples

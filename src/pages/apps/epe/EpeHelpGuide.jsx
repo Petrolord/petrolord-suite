@@ -186,14 +186,28 @@ const EpeHelpGuide = () => {
               </ul>
 
               <SubHeading>What the Studio does not do (yet)</SubHeading>
+              {/* Economics E5: three entries here were stale and understated the
+                  app. The minimum ETR top-up shipped in Wave F, per-year price
+                  decks in Wave B, and incremental economics in Wave F. Telling a
+                  user a feature is missing when it is on the screen beside them
+                  is the same failure as claiming one that is not there. */}
               <ul className="list-disc list-inside space-y-1 text-slate-200 ml-2">
                 <li>Generate the production forecast itself (use the Decline Curve Analysis module for that)</li>
-                <li>Apply the minimum effective tax rate (NTA section 57), which is not implemented in the engine</li>
-                <li>Support per-year price decks (pricing is a flat price plus per-stream escalators)</li>
-                <li>Run incremental (with versus without) economics</li>
                 <li>Model partner carry, promote, or back-in arrangements (planned)</li>
+                <li>Apply a domestic market obligation, or evaluate month by month rather than year by year (both planned)</li>
+                <li>Edit uploaded production and cost data in place; corrections are made by re-uploading</li>
                 <li>Provide legal or tax advice; outputs are best-interpretation forecasts that should be reviewed by your tax counsel</li>
               </ul>
+              <Para>
+                Two capabilities carry a caveat rather than an absence. The minimum effective tax
+                rate of NTA section 57 is applied when you switch it on in the Run Console, but as a
+                project-level approximation: the statutory test is company-level against NGN
+                turnover thresholds, which a project model cannot see, so the top-up is reported on
+                its own line and a reviewer can strip it. And the JV and PSC arithmetic is validated
+                against hand-derived closed-form cases rather than traced to a published worked
+                example, unlike the PIA 2021 math, which is checked byte for byte against its
+                published example.
+              </Para>
               <Para>
                 Abandonment costs and end-of-life handling are covered: the Run Console has a Field Life section where you can set an abandonment cost (applied as a post-tax outflow in a chosen year, not tax-deducted and not depreciated) and an economic limit toggle that trims trailing years whose revenue no longer covers opex.
               </Para>

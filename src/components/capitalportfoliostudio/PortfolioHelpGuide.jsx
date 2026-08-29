@@ -6,7 +6,7 @@
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
-  BookOpen, Package, Target, TrendingUp, Scale, AlertTriangle, Coins,
+  BookOpen, Package, Target, TrendingUp, Scale, AlertTriangle, Coins, Link2,
 } from 'lucide-react';
 import StudioHelp from '@/components/studio/StudioHelp';
 
@@ -51,14 +51,21 @@ const helpContent = [
     icon: Scale,
     title: 'The portfolio risk summary',
     content:
-      'Alongside the selection, the tool reports the mean and spread of the portfolio value and the chance the portfolio as a whole comes out below zero. Each project is treated as a mixture of its success and failure cases, which is exact, and the sum across projects is approximated as a normal distribution, which is reasonable when several independent projects are in play and rough when only one or two are.',
+      'Alongside the selection, the tool reports the mean and spread of the portfolio value and the chance the portfolio as a whole comes out below zero. Each project is treated as a mixture of its success and failure cases, which is exact, and the sum across projects is approximated as a normal distribution, which is reasonable when several projects are in play and rough when only one or two are.',
+  },
+  {
+    id: 'correlation',
+    icon: Link2,
+    title: 'Correlation, and why zero is the friendliest answer',
+    content:
+      'The correlation slider is the average correlation between project outcomes. At zero every project is independent, which is the most flattering assumption a portfolio can be given: independent risks cancel, so the spread narrows and the chance of an overall loss looks small. Real projects sharing a basin, a partner, a rig contract or a price deck move together and can lose together. Raise the slider and the expected value stays exactly where it was while the spread and the chance of a loss grow, because correlation moves the shape of the distribution and never its centre. At a correlation of one, diversification buys nothing and the portfolio spread is simply the sum of the project spreads. If you do not know the number, run it at zero and again at a half and see whether the decision survives both.',
   },
   {
     id: 'limits',
     icon: AlertTriangle,
     title: 'Assumptions and limits',
     content:
-      'Projects are treated as independent. Real portfolios are not: projects sharing a basin, a partner, a rig contract or a price deck fail together, and a correlated portfolio has a fatter downside than this summary shows. Treat the probability of a loss as a floor. Funding is all or nothing, so a project that could be phased or farmed down needs to be entered as separate candidates. Capital is the only constraint modelled, so rig availability, people and schedule are yours to check. The values you enter should come from a real valuation: build them in Petroleum Economics Studio or the NPV Scenario Builder rather than typing an estimate straight in.',
+      'Correlation is one average figure rather than a matrix, which is as much precision as a screening tool can honestly ask for; a portfolio whose projects are correlated in very different degrees needs more than this. The sum is approximated as a normal distribution, so a portfolio of one or two projects is roughly modelled. Funding is all or nothing, so a project that could be phased or farmed down needs to be entered as separate candidates. Capital is the only constraint, so rig availability, people and schedule are yours to check. The values you enter should come from a real valuation: build them in Petroleum Economics Studio or the NPV Scenario Builder rather than typing an estimate straight in.',
   },
 ];
 

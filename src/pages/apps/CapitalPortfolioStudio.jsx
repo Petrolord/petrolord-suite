@@ -31,6 +31,9 @@ const CapitalPortfolioStudio = () => {
   const [isPortfolioDialogOpen, setPortfolioDialogOpen] = useState(false);
   const [editingPortfolio, setEditingPortfolio] = useState(null);
   const [selectedProjectIds, setSelectedProjectIds] = useState(new Set());
+  // Economics E5: average pairwise correlation between project outcomes. Zero
+  // is the independence the roll-up used to assume unconditionally.
+  const [correlation, setCorrelation] = useState(0);
   const [optimizationResult, setOptimizationResult] = useState(null);
   const [comparisonIds, setComparisonIds] = useState(new Set());
   const [isComparisonOpen, setComparisonOpen] = useState(false);
@@ -160,7 +163,11 @@ const CapitalPortfolioStudio = () => {
   // portfolio risk summary. totalNpv is kept as an alias of totalEmv for
   // the comparison view's field names.
   const runSingleOptimization = (portfolio, candidateProjects) => {
-    const result = optimizePortfolio({ projects: candidateProjects, capexLimit: portfolio.capex_limit });
+    const result = optimizePortfolio({
+      projects: candidateProjects,
+      capexLimit: portfolio.capex_limit,
+      correlation,
+    });
     return { ...portfolio, ...result, totalNpv: result.totalEmv };
   };
 
@@ -295,6 +302,26 @@ const CapitalPortfolioStudio = () => {
                       </div>
                     </div>
                     <p className="text-slate-300">Select projects to include. The optimizer maximizes risked EMV under the CAPEX limit: <span className="font-bold text-amber-300">{formatCurrency(activePortfolio.capex_limit)}</span></p>
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <label htmlFor="portfolio-correlation" className="text-sm text-slate-300">
+                        Average correlation between projects
+                      </label>
+                      <input
+                        id="portfolio-correlation"
+                        type="range" min="0" max="0.9" step="0.05"
+                        value={correlation}
+                        onChange={(e) => setCorrelation(Number(e.target.value))}
+                        className="w-48 accent-amber-400"
+                      />
+                      <span className="text-sm font-mono text-amber-300">{correlation.toFixed(2)}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-400 max-w-2xl">
+                      Zero treats every project as independent, which is the friendliest assumption a
+                      portfolio can be given. Projects that share a basin, a partner, a rig contract
+                      or a price deck move together, and the loss they can produce at once is larger
+                      than independence implies. Correlation widens the spread and the chance of a
+                      loss; it does not change the expected value.
+                    </p>
                   </CardHeader>
                   <CardContent>
                     <div className="max-h-64 overflow-y-auto pr-2">
