@@ -1,14 +1,14 @@
-# Economics / Decision Analysis module — plan of record (D series)
+# Economics / Decision Analysis module — plan of record (D series + E series)
 
-Status: **PROGRAM COMPLETE 2026-08-14: D0 through D5 all landed** (PR
-stack #171 through #176, merge in order, retarget bases as each lands).
-Post-merge launch checklist: (1) prod upload from main; (2) apply the two
-deploy-gated tile migrations (decision-tree-builder flip 20260814220000,
-decision-studio seed 20260815000000) and mark them applied in
-MIGRATIONS.md; (3) owner decisions still open: Newendorp & Schuyler /
-Mian PDFs for literature byte-verification (D3 gate note), and a
-staging browser E2E pass over the new surfaces (EPE Risk tab, Decision
-Tree Builder, Decision Studio) with a logged-in user.
+Status: **D SERIES COMPLETE + LAUNCHED** (D0-D5 merged 2026-08-14, PRs
+#171-#176; prod upload + deploy-gated tile migrations applied
+2026-08-14/15). **EPE WAVES A-F COMPLETE 2026-08-21** (engine v3.9;
+recorded in §5 below, detail in EPE.md §3b-§3g). **E SERIES APPROVED
+2026-08-29** (owner sign-off; plan in §6 below) — the cleanup-completion
+program that closes what the D series left behind or never scoped.
+Still open from earlier programs: Newendorp & Schuyler / Mian PDFs for
+literature byte-verification (D3 gate note), and a staging browser E2E
+pass over the D-series surfaces with a logged-in user.
 Owner directive: build a senior-management decision-analysis flagship
 ("Petrolord Decision Studio") that sets a mark in the industry, the way
 Geoscience-ROADMAP.md (G0-G8) and Reservoir-ROADMAP.md (R0-R5) did for
@@ -237,3 +237,117 @@ fabricated numbers.
 | D3 decision trees / VOI | **DONE 2026-08-14** | branch feat/economics-d3-decision-trees (stacked on D2). src/lib/decisionTree.js is the canonical DA engine: EMV rollback over arbitrary decision/chance/terminal trees (branch costs, optimal-path marking, probability validation), EVPI, Bayes-derived EVII (posteriors from priors + likelihoods, inconsistency impossible by construction; 0≤EVII≤EVPI tested incl. useless-signal=0 and perfect-signal=EVPI), impliedPriors consistency check, buildInformationTree (tree rollback ≡ closed forms, tested). 16 hand-derived oracle tests. VOI Analyzer refactored to delegate to the engine (4 parity tests on its default inputs: EMV 15/VOI 33/EVPI 63) + now warns on Bayes-inconsistent entries. New Decision Tree Builder app (apps/economics/decision-tree-builder): outline editor + conventional SVG diagram (squares/circles/triangles, optimal path emerald, ChartLogo standard), templates (blank, drill-vs-farm-out, Bayes-consistent VOI), JSON export/import, saved_decision_tree_projects persistence (migration 20260814210000 APPLIED live), terminal payoffs linkable to saved EPE MC runs (mean NPV in $MM = EMV basis, closing the D2 integration bullet). Tile flip 20260814220000 is DEPLOY-GATED (NOT applied; also see gate note below). DEVIATION FROM PLAN, OWNER TO CONFIRM: the plan gated tile promotion on reproducing Newendorp & Schuyler / Mian published worked examples; those PDFs are not on hand, so validation is via exact hand-derived closed forms (same D1 approach as JV/PSC). Literature byte-verification stays an open gate; owner may either provide the references before the tile flips or accept the analytic gates. |
 | D4 computed portfolio | **DONE 2026-08-14** | branch feat/economics-d4-computed-portfolio (stacked on D3). Optimizer extracted to src/utils/portfolioOptimizer.js and upgraded: risked-EMV objective (EMV = pos·NPV − (1−pos)·fail_cost, ProspectRiskEngine convention of risked vs success-case kept separate), step-scaled knapsack DP (exact 1-$MM table for integer inputs, ~2000-cell quantization otherwise — the raw-dollar memory hazard is gone), efficient frontier, negative-EMV projects never forced in, and a portfolio risk summary (exact success/failure mixture moments per project, independent-normal approximation for the sum, P(portfolio NPV<0) via canonical normalCDF; assumption stated in the UI). 15 hand-derived tests. UI: Add Project button + per-row edit/delete finally wired (the dialog existed but NOTHING invoked it — users could not create projects at all), POS/EMV columns + EPE-MC provenance badges, ProjectForm links a saved EPE Monte Carlo run (percentiles + stdDev arrive in $MM, manual entry stays as fallback), results show risked EMV / success NPV / P(loss) / P90-P10 band and the frontier moved to the white ChartFrame standard with PNG export; comparison relabeled to risked EMV. Migrations both APPLIED live: 20260814230000 (additive risking/provenance columns) + 20260814235000 (archive absorbed stubs portfolio-optimization, efficient-frontier, monte-carlo-economics). Parked: correlation between projects (roll-up treats them as independent, as ProspectRiskEngine does; note shown in UI), Forecast Scenario Hub as a third valuation source. |
 | D5 executive layer | **DONE 2026-08-14** | branch feat/economics-d5-executive-layer (stacked on D4). New Decision Studio app (apps/economics/decision-studio): pulls the user's saved artifacts across the chain (epe_mc_runs with config names, saved_decision_tree_projects, portfolios + projects), side-by-side comparison of up to 4 Monte Carlo cases (percentiles, P(NPV>0), base, seed/iterations), and a one-page decision brief PDF where EVERY section carries a provenance line (source name + id + timestamp + seed/iterations + stated assumptions; screening-grade analyses labeled). Brief content built by a pure, tested model (briefModel.js, 7 tests reusing the D3/D4 hand-derived cases; decision EMV and portfolio optimization recomputed by the canonical engines at brief time) and rendered by briefPdf.js over the new shared src/lib/pdfBrand.js banner (extracted from RC Pro's ReportGenerator; RC Pro still carries its own copy, consolidation parked to avoid disturbing its export test suite). No new math anywhere in D5 by design. Tile seed 20260815000000 DEPLOY-GATED (NOT applied), %ROWTYPE sibling copy. Route/allApps wired. |
+
+## 5. Interim record: EPE Waves A-F (2026-08-16 to 2026-08-21)
+
+This roadmap previously carried no record of the EPE audit program that
+ran between the D series and the E series. Summary (full detail in
+EPE.md §3b-§3g and EPE-Industry-Audit.md):
+
+- **v3.3/v3.4 (PRs #183/#184, merged 2026-08-16):** ingestion
+  hardening (loud validation, header aliases), PES retirement + EPE
+  renamed "Petroleum Economics Studio" (slug `epe-suite` kept),
+  economic limit test, post-tax abandonment, decision KPIs, breakeven
+  bisection, exports, help guide. `econ_*` family dropped and `epe_*`
+  DDL backfilled (PR #185, 2026-08-17).
+- **Waves A-F (PRs #221-#226, merged 2026-08-21, engine v3.9):**
+  loss carryforward + HCT gas exclusion + audit trail (A); WI on
+  PSC/PIA, per-year price decks, mid-year discounting, valuation
+  year/sunk treatment (B); schedule shift, tornado ranges, MC payback +
+  correlations (C); NPV profile, submission one-pager PDF, waterfall,
+  comparison deltas (D); org sharing v1, locking, assumption library,
+  FSH import (E); PSC tranches, ITC carryforward, min-ETR top-up
+  approximation, decom sinking fund, 1P/2P/3P scenarios, NGN mirror
+  KPIs, incremental economics (F). All edge functions redeployed; prod
+  UI live at a4e7d6211 2026-08-21.
+- **Still open post-program:** §4.10 in-app data editing, DMO, carried
+  interests, monthly evaluation, literature cross-checks awaiting
+  owner PDFs. These fold into E5.
+
+Note: the §1 audit text above is the historical D0 record; figures
+like "epe-engine.ts, 820 LOC" describe 2026-08-14 (the engine is
+1,740 LOC at v3.9).
+
+## 6. The E series — cleanup completion (APPROVED 2026-08-29)
+
+Full-code re-audit 2026-08-29 (post D series, post Waves A-F): the 12
+routed economics apps are the right portfolio; no new apps are needed.
+The work is engine reconciliation, de-mocking, gating, and product
+floor. Findings the D series left behind or never scoped:
+
+- **A FIFTH fiscal engine the D series missed:**
+  `src/utils/breakevenCalculations.js` powers the gated, sold
+  Probabilistic Breakeven Analyzer with its own flat-royalty/flat-tax
+  NPV, an unseeded `Math.random()` triangular sampler
+  (non-reproducible results), and zero tests.
+- **A sixth de-facto NPV/IRR implementation** in
+  `src/utils/fdp/costCalculations.js` (+ `scenarioCalculations.js`),
+  untested, never audited.
+- **FDP Accelerator is the largest liability:** ~11k LOC,
+  localStorage-only persistence, zero tests, and still-reachable
+  fabrication (`OptimizationService.js` returns `Math.random()` well
+  counts + hardcoded "+15.4% NPV" behind a 2.5 s fake delay;
+  `CostOptimization.jsx` fully hardcoded; live state seeded from mock
+  collaboration/workflow data; ~1,639 LOC of product-theatre modules).
+- **PM Pro's IntegrationHub** still fakes PPFG/Geomech syncs — the D0
+  follow-up that was never done.
+- **Five unguarded routes:** project-management-pro,
+  npv-scenario-builder, fiscal-regime-designer,
+  capital-portfolio-studio, fdp-accelerator.
+- **Dead fabrication still in tree:** unrouted CompetitorIntelligenceHub
+  + DealDataRoomAutomator (~805 LOC), `hubApps.js` economicsApps (40
+  entries, 30 fictional, zero importers), the dead MC trio
+  (`monteCarloEngine.js`/`riskMetricsEngine.js`/
+  `portfolioRiskCalculator.js` held only by two zero-importer hooks),
+  `petroleumEconomicsValidation.js`.
+- **Product floor:** zero studio-kit adoption, zero page smoke tests,
+  help guides missing on 7 of 12 apps, no persistence at all on NPV
+  Scenario Builder / VOI / Breakeven.
+- **Stale records:** PETROLORD_APPLICATION_CATALOG.md §5 lists a
+  deleted app as Coming Soon and misses Decision Studio/Tree Builder;
+  `src/data/applications.js` (consumed by quote/billing surfaces) is
+  missing 7 routed economics apps; 5 tiles predate the migrations dir
+  with no in-repo catalog record.
+
+### E-series dispositions (all 12 apps kept)
+
+| App | Disposition |
+|---|---|
+| EPE | Flagship; parked engine items close as owner gates clear (E5). |
+| Decision Studio | Keep; pdfBrand consolidation with RC Pro (E5). |
+| Decision Tree Builder | Keep; help guide (E2). |
+| VOI Analyzer | KEPT STANDALONE (owner decision); persistence + ChartFrame + export + help (E2). |
+| Capital Portfolio Studio | Gate (E0); correlation parked item when feasible (E5). |
+| NPV Scenario Builder | Sanctioned quick-screening tier; gate + persistence + studio kit + ChartFrame (E0/E2). |
+| Fiscal Regime Designer | Re-platform onto epe-engine semantics or prove parity per case, becoming a regime sandbox that hands designed regimes to EPE (E1). |
+| Probabilistic Breakeven Analyzer | Engine REBUILT: retire the private NPV in favor of npvCalculations/epe primitives, seeded MC via src/lib/monteCarlo.js, tests, persistence (E1/E2). |
+| FDP Accelerator | SLIM REBUILD (owner decision): theatre modules + mock seams deleted, real cost/scenario core kept, Supabase persistence, economics wired to EPE, gated (E3). |
+| Project Management Pro | Fix or honestly remove the fake IntegrationHub; gate; smoke tests (E4). |
+| AFE Cost Control Manager | Tests + help guide (E4). |
+| Technical Report Autopilot | AUDIT THEN HARDEN (owner decision): verify the generation path is real first; archive decision returns to owner only if it proves a shell (E4). |
+
+Adjacent apps stay put: Risked Reserves Valuation + Forecast Scenario
+Hub (Reservoir), Risk Register (Assurance).
+
+### E-series phases
+
+| Phase | Delivers |
+|---|---|
+| **E0 — Truth & records** | Delete orphans/dead code/hubApps fiction; gate the 5 unguarded routes (+ entitlement slugs in allApps); backfill applications.js registry; catalog-doc refresh; in-repo catalog migration recording the 5 pre-migrations tiles. |
+| **E1 — Fiscal truth completion** | Breakeven engine rebuild (retires the 5th engine), Fiscal Regime Designer reconciliation, FDP economics onto EPE (retires the 6th), convention headers everywhere, D1-style parity tests. |
+| **E2 — Product floor** | Studio kit + persistence (NPV, VOI, Breakeven), help guides for the 7 apps missing one, ChartFrame adoption, page smoke tests module-wide (Production pattern). |
+| **E3 — FDP slim rebuild** | The biggest single phase (see disposition above). |
+| **E4 — PM Pro + AFE + Report Autopilot** | IntegrationHub fix, tests/help, Report Autopilot audit-then-harden. |
+| **E5 — Parked close-outs** | Raw MC sample export, portfolio correlation, pdfBrand consolidation; owner-gated literature checks when PDFs arrive; EPE parked engine items. |
+
+### E-series locked decisions (owner sign-off 2026-08-29)
+
+1. FDP Accelerator: SLIM REBUILD, not archived.
+2. VOI Analyzer: KEPT STANDALONE; product-floor work only.
+3. Technical Report Autopilot: AUDIT THEN HARDEN.
+
+### E-series phase status
+
+| Phase | Status | Landed |
+|---|---|---|
+| E0-E5 | not started (executes after the Facilities program, per the 2026-08-29 owner execution order) | |
