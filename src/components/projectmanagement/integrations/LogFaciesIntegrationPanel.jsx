@@ -16,12 +16,12 @@ const LogFaciesIntegrationPanel = ({ project, onRefresh }) => {
         project_id: project.id,
         name: `Facies Analysis Report`,
         app_source: 'Log Facies',
-        status: 'Approved',
+        status: 'Draft',
         version: 'Final'
     });
     setLoading(false);
     if(!error) {
-        toast({ title: 'Report Attached', description: 'Facies study linked to project.' });
+        toast({ title: 'Deliverable added', description: 'Draft facies report added; set its status when it is reviewed.' });
         onRefresh();
     }
   };
@@ -59,11 +59,11 @@ const LogFaciesIntegrationPanel = ({ project, onRefresh }) => {
                         Log Facies Analysis
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                        Integrate rock typing and facies classification.
+                        Add facies-study planning items to this project. There is no live link to the app yet, so nothing is read from it.
                     </CardDescription>
                 </div>
-                <Badge variant="outline" className="bg-green-900/20 text-green-400 border-green-800 flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" /> Connected
+                <Badge variant="outline" className="text-slate-400 border-slate-700">
+                    Planning aid
                 </Badge>
             </div>
         </CardHeader>

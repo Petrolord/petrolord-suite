@@ -41,7 +41,7 @@ const BasinFlowIntegrationPanel = ({ project, onRefresh }) => {
           project_id: project.id,
           name: `Basin Modeling Final Report`,
           app_source: 'BasinFlow',
-          status: 'Under Review',
+          status: 'Draft',
           version: 'v1.0'
       });
       setLoading(false);
@@ -61,11 +61,11 @@ const BasinFlowIntegrationPanel = ({ project, onRefresh }) => {
                         BasinFlow Genesis
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                        Link charge modeling and exploration risks.
+                        Add charge-modelling planning items to this project. There is no live link to the app yet, so nothing is read from it.
                     </CardDescription>
                 </div>
-                <Badge variant="outline" className="bg-green-900/20 text-green-400 border-green-800 flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" /> Connected
+                <Badge variant="outline" className="text-slate-400 border-slate-700">
+                    Planning aid
                 </Badge>
             </div>
         </CardHeader>

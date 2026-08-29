@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import CollapsibleSection from './CollapsibleSection';
-import { FolderPlus, ListTodo, PlusCircle, AlertTriangle, UserPlus, DollarSign, Flag, Settings, Copy, TrendingUp, AlertCircle, Globe, Activity, Factory, Wrench, Trash2, MoreHorizontal, PlugZap, HelpCircle } from 'lucide-react';
+import { FolderPlus, ListTodo, PlusCircle, AlertTriangle, UserPlus, DollarSign, Flag, Settings, Copy, TrendingUp, AlertCircle, Globe, Activity, Factory, Wrench, Trash2, MoreHorizontal, HelpCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -15,7 +15,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import TaskTemplateDialog from './TaskTemplateDialog';
 import ProgressUpdateForm from './ProgressUpdateForm';
 import RiskForm from './RiskForm';
-import IntegrationHub from './integrations/IntegrationHub';
 import HelpGuide from './help/HelpGuide';
 import TaskFormDialog from './TaskFormDialog';
 
@@ -55,7 +54,6 @@ const InputPanel = ({ projects, activeProject, tasks, onSelectProject, onProject
   const [isTemplateOpen, setTemplateOpen] = useState(false);
   const [isUpdateOpen, setUpdateOpen] = useState(false);
   const [isRiskOpen, setRiskOpen] = useState(false);
-  const [isIntegrationOpen, setIntegrationOpen] = useState(false);
   const [isHelpOpen, setHelpOpen] = useState(false);
   
   const [isTaskDialogOpen, setTaskDialogOpen] = useState(false);
@@ -140,9 +138,6 @@ const InputPanel = ({ projects, activeProject, tasks, onSelectProject, onProject
                     <AlertTriangle className="w-3 h-3 mr-1" /> Risk
                 </Button>
              </div>
-             <Button onClick={() => setIntegrationOpen(true)} className="w-full bg-slate-700 hover:bg-slate-600 text-white h-8 text-xs border border-slate-600">
-                <PlugZap className="w-3 h-3 mr-2 text-yellow-400" /> External Integrations
-             </Button>
           </div>
       )}
 
@@ -220,11 +215,6 @@ const InputPanel = ({ projects, activeProject, tasks, onSelectProject, onProject
       <ProgressUpdateForm open={isUpdateOpen} onOpenChange={setUpdateOpen} project={activeProject} kpis={evmKpis} onUpdateSaved={onDataChange} />
       <RiskForm open={isRiskOpen} onOpenChange={setRiskOpen} project={activeProject} onSaved={onDataChange} />
       
-      <Dialog open={isIntegrationOpen} onOpenChange={setIntegrationOpen}>
-        <DialogContent className="bg-slate-950 border-slate-800 text-white sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
-            <IntegrationHub project={activeProject} />
-        </DialogContent>
-      </Dialog>
 
       <HelpGuide open={isHelpOpen} onOpenChange={setHelpOpen} />
     </div>

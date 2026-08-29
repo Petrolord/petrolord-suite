@@ -20,6 +20,7 @@ import AFECreationWizard from '@/components/afe/AFECreationWizard';
 import JVPartnerManagement from '@/components/afe/JVPartnerManagement';
 import ReportingEngine from '@/components/afe/ReportingEngine';
 import IntegrationsTab from '@/components/afe/IntegrationsTab';
+import AfeHelpGuide from '@/components/afe/AfeHelpGuide';
 
 const AfeCostControlManager = () => {
   const { user } = useAuth();
@@ -102,9 +103,12 @@ const AfeCostControlManager = () => {
               AFE & Cost Control
             </h1>
           </div>
-          <Button onClick={() => setIsWizardOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-            <PlusCircle className="w-4 h-4 mr-2" /> New AFE
-          </Button>
+          <div className="flex items-center gap-2">
+            <AfeHelpGuide />
+            <Button onClick={() => setIsWizardOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+              <PlusCircle className="w-4 h-4 mr-2" /> New AFE
+            </Button>
+          </div>
         </div>
       </header>
 
