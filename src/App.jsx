@@ -711,7 +711,8 @@ function App() {
                                 <Route path="apps/facilities/corrosion-rate-predictor" element={<ProtectedAppRoute appId="corrosion-rate-predictor" appName="Corrosion & Integrity Studio"><CorrosionRatePredictor /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/pipeline-designer" element={<Navigate to="/dashboard/apps/facilities/facility-network-hydraulics" replace />} />
                                 <Route path="apps/facilities/pipeline-sizer" element={<Navigate to="/dashboard/apps/facilities/facility-network-hydraulics" replace />} />
-                                <Route path="apps/facilities/produced-water-treatment" element={<ProtectedAppRoute appId="produced-water-treatment" appName="Produced Water Treatment"><ProducedWaterTreatment /></ProtectedAppRoute>} />
+                                {/* Facilities F7: rebuilt on droplet physics; the slug keeps its entitlements. */}
+                                <Route path="apps/facilities/produced-water-treatment" element={<ProtectedAppRoute appId="produced-water-treatment" appName="Produced Water Treatment Studio"><ProducedWaterTreatment /></ProtectedAppRoute>} />
                                 
                                 {/* Assurance routes */}
                                 <Route path="apps/assurance/risk-heatmap" element={<Navigate to="/dashboard/apps/assurance/risk-register?tab=heatmap" replace />} />
