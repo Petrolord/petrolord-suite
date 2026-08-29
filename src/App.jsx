@@ -689,7 +689,9 @@ function App() {
                                     Single-line sizing lives in Facility Network Hydraulics until the F1 flagship. */}
                                 <Route path="apps/facilities/separator-slug-catcher-designer" element={<ProtectedAppRoute appId="separator-slug-catcher-designer" appName="Separator & Slug Catcher Designer"><SeparatorSlugCatcherDesigner /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/compressor-pump-pack" element={<Navigate to="/dashboard/facilities" replace />} />
-                                <Route path="apps/facilities/heat-exchanger-sizer" element={<ProtectedAppRoute appId="heat-exchanger-sizer" appName="Heat Exchanger Sizer"><HeatExchangerSizer /></ProtectedAppRoute>} />
+                                {/* Facilities F4: the slug keeps its entitlements while the app becomes the
+                                    Heat Exchanger & Cooling Studio (F computed, U assembled, hot-day derate). */}
+                                <Route path="apps/facilities/heat-exchanger-sizer" element={<ProtectedAppRoute appId="heat-exchanger-sizer" appName="Heat Exchanger & Cooling Studio"><HeatExchangerSizer /></ProtectedAppRoute>} />
                                 {/* Facilities F3: the slug keeps its entitlements while the app becomes the
                                     Gas Processing Studio (dehydration + sweetening + dew point, owner decision F#1). */}
                                 <Route path="apps/facilities/gas-treating-dehydration" element={<ProtectedAppRoute appId="gas-treating-dehydration" appName="Gas Processing Studio"><GasTreatingDehydration /></ProtectedAppRoute>} />
