@@ -10,6 +10,9 @@ import InputPanel from '@/components/reportautopilot/InputPanel';
 import PreviewPanel from '@/components/reportautopilot/PreviewPanel';
 import EmptyState from '@/components/reportautopilot/EmptyState';
 import { Bot, Loader2, ArrowLeft, Save } from 'lucide-react';
+import { REPORT_TEMPLATES, selectedSectionsFor } from '@/data/reportAutopilotTemplates';
+import { buildDocxBlob, docxFileName } from '@/utils/reportAutopilotDocx';
+import { saveAs } from 'file-saver';
 
 window.addEventListener("error", e => console.error("GlobalError:", e.error || e.message));
 window.addEventListener("unhandledrejection", e => {
@@ -26,26 +29,21 @@ function ErrorPanel({err}) {
 }
 
 /**
- * The generation service is unreachable (Economics E4).
+ * Generation is unavailable (E4, kept through the 2026-08-29 rebuild).
  *
- * This app does not use Supabase for report generation. It calls a separate
- * report service, and as of the E2 audit that host no longer exists: every
- * path returns a 404, the root included. Rather than dumping the 404 page's
- * HTML into an error box headed "crashed", the app now says what is actually
- * wrong, because a user cannot fix it and should not be left guessing whether
- * their inputs caused it.
- *
- * Whether this app is rebuilt onto Supabase edge functions or retired is an
- * owner decision recorded in docs/scope/ProductFloor-STATUS.md.
+ * The rebuild moved generation onto a Supabase edge function, so the dead
+ * Heroku host is gone. This panel stays for the case that remains: the
+ * function is reachable but not configured, or the model call fails. The
+ * point of it is unchanged. A user cannot fix either, and should not be left
+ * guessing whether their inputs caused it.
  */
 export function ServiceUnavailablePanel({ detail }) {
   return (
     <div className="max-w-2xl mx-auto mt-10 rounded-lg border border-amber-800/60 bg-amber-950/30 p-6">
       <h2 className="text-lg font-semibold text-amber-200">Report generation is unavailable</h2>
       <p className="mt-3 text-sm text-amber-100/80">
-        This app generates reports through a separate service, and that service is not
-        responding. Nothing you entered caused this, and there is no setting that will work
-        around it.
+        The report writer is not responding. Nothing you entered caused this, and there is
+        no setting that will work around it.
       </p>
       <p className="mt-3 text-sm text-amber-100/80">
         Everything else in the app still works: you can build up a report brief and save it as a
@@ -62,15 +60,31 @@ export function ServiceUnavailablePanel({ detail }) {
   );
 }
 
-/** True when the failure is the service being absent rather than a bad reply. */
+/**
+ * True when the failure is the writer being unreachable or unconfigured,
+ * rather than something the user can act on.
+ *
+ * The distinction matters because the two need opposite responses: an outage
+ * gets an explanation and a disabled button, a bad brief gets a toast telling
+ * the user what to change.
+ */
 export const isServiceUnavailable = (err) => {
   const msg = String(err || '');
   return /HTTP (404|502|503|504)/.test(msg)
     || /Non-JSON response/.test(msg)
     || /Failed to fetch/i.test(msg)
     || /NetworkError/i.test(msg)
-    || /fetch is not defined/i.test(msg);
+    || /fetch is not defined/i.test(msg)
+    // Supabase reports any non-2xx from a function with this phrasing, and
+    // the function's own not-configured and upstream-failure messages.
+    || /non-2xx status/i.test(msg)
+    || /not configured/i.test(msg)
+    || /LLM request failed/i.test(msg)
+    || /could not be reached/i.test(msg);
 };
+
+/** True when the user can fix it by changing the brief. */
+export const isUserFixable = (err) => /Select at least one section/i.test(String(err || ''));
 
 class ErrorBoundary extends React.Component {
   constructor(p){ super(p); this.state={err:null}; }
@@ -79,17 +93,6 @@ class ErrorBoundary extends React.Component {
   render(){ return this.state.err ? <div className="p-4"><ErrorPanel err={this.state.err}/></div> : this.props.children; }
 }
 
-const API_BASE = "https://petrolord-pvt-backend-2025-58b5441b2268.herokuapp.com";
-
-async function apiGetJSON(path){
-  const r = await fetch(API_BASE+path, {credentials:"omit"});
-  const txt = await r.text();
-  if (!r.ok) {
-    throw new Error(`HTTP ${r.status} on ${path}\n` + txt.slice(0,400));
-  }
-  try { return JSON.parse(txt); }
-  catch { throw new Error(`Non-JSON response on ${path}\n` + txt.slice(0,400)); }
-}
 
 function TechnicalReportAutopilotPageInner() {
   const [formState, setFormState] = useState({
@@ -103,7 +106,7 @@ function TechnicalReportAutopilotPageInner() {
     objectives: 'Evaluate the drilling performance of well A-21 and identify key areas for optimization in future wells.',
     kpis: [{ key: 'Average ROP', value: '150 ft/hr' }, { key: 'NPT', value: '5%' }],
     notes: 'Focus on the 8.5" section, compare bit performance against offset data.',
-    file_ids: [],
+    attachments: [],
     selected_sections: [],
     detail_level: 'standard',
     max_pages: 8,
@@ -112,7 +115,6 @@ function TechnicalReportAutopilotPageInner() {
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
-  const [downloadLink, setDownloadLink] = useState(null);
   const [templates, setTemplates] = useState({ types: [], sections: {} });
   const [error, setError] = useState("");
   const { toast } = useToast();
@@ -134,77 +136,85 @@ function TechnicalReportAutopilotPageInner() {
     }
   }, [location.state, toast]);
 
-  useEffect(()=>{ 
-    mounted.current=true; 
-    (async ()=>{
-      try{
-        const data = await apiGetJSON("/trp/templates");
-        if (!data || !Array.isArray(data.types) || typeof data.sections !== "object"){
-          throw new Error("Templates payload shape invalid");
-        }
-        if (mounted.current){ setTemplates(data); setLoading(false); }
-      } catch(e){
-        console.error(e);
-        if (mounted.current){ setError(String(e)); setLoading(false); }
-      }
-    })();
-    return ()=>{ mounted.current=false; };
-  },[]);
+  // Templates are static configuration and live in the client now, so the
+  // app opens with no network call at all: the brief is fillable and a
+  // project is saveable even if the report writer is down.
+  useEffect(() => {
+    mounted.current = true;
+    setTemplates(REPORT_TEMPLATES);
+    setLoading(false);
+    return () => { mounted.current = false; };
+  }, []);
 
   const handleGenerate = async (inputs) => {
     setFormState(inputs);
-    setError("");
+    setError('');
     setLoading(true);
     setReportData(null);
-    setDownloadLink(null);
-    toast({ title: 'Generating Report...', description: 'The AI is drafting your document. Please wait.' });
+    toast({ title: 'Writing the report', description: 'Each section is drafted from the brief you gave.' });
 
     try {
-        const response = await fetch(`${API_BASE}/trp/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(inputs)
-        });
-        const t = await response.text();
-        if (!response.ok) throw new Error(`HTTP ${response.status} on /trp/generate\n`+t.slice(0,400));
-        
-        const json = JSON.parse(t);
-        setReportData(json);
-        toast({ title: 'Report Generated!', description: 'Your report draft is ready for review.' });
-    } catch(e) {
-        console.error(e);
-        setError(String(e));
+      const chosen = selectedSectionsFor(inputs.report_type_id, inputs.selected_sections);
+      if (chosen.length === 0) throw new Error('Select at least one section to write.');
+      const typeName = REPORT_TEMPLATES.types.find((t) => t.id === inputs.report_type_id)?.name;
+
+      const { data, error: fnError } = await supabase.functions.invoke('report-autopilot', {
+        body: {
+          sections: chosen.map((s2) => ({ id: s2.id, name: s2.name, brief: s2.brief })),
+          input: { ...inputs, report_type_name: typeName },
+        },
+      });
+      if (fnError) throw new Error(fnError.message || 'The report writer could not be reached.');
+      if (data?.error) throw new Error(data.error);
+      if (!Array.isArray(data?.sections) || data.sections.length === 0) {
+        throw new Error('The report writer returned nothing.');
+      }
+
+      setReportData(data);
+      toast({ title: 'Draft ready', description: `${data.sections.length} sections written. Review before sending it anywhere.` });
+    } catch (e) {
+      console.error(e);
+      const message = String(e.message || e);
+      if (isUserFixable(message)) {
+        // Something the user can change; a toast, not an outage banner.
+        toast({ variant: 'destructive', title: 'Check the brief', description: message });
+      } else {
+        setError(message);
+      }
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
+  // The document is assembled here from the sections on screen, so what is
+  // exported is exactly what was reviewed. The old export asked a service for
+  // a download link into itself; the service is gone and the link with it.
   const handleExport = async () => {
-    if (!reportData?.report_id) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No report ID found. Please generate a report first.' });
+    if (!reportData?.sections?.length) {
+      toast({ variant: 'destructive', title: 'Nothing to export', description: 'Write the report first.' });
       return;
     }
     setExporting(true);
-    setDownloadLink(null);
-    toast({ title: 'Exporting Report...', description: 'Preparing DOCX file for download.' });
-    
     try {
-        const response = await fetch(`${API_BASE}/trp/export-docx?report_id=${reportData.report_id}&title=${encodeURIComponent(formState.project_name || 'report')}`);
-        if (!response.ok) {
-            throw new Error('Export failed');
-        }
-        const result = await response.json();
-        setDownloadLink(`${API_BASE}${result.download_path}`);
-        toast({ title: 'Export Ready!', description: 'Your DOCX file is ready for download.' });
-
+      const title = formState.project_name || 'Technical Report';
+      const blob = await buildDocxBlob({
+        title,
+        meta: [
+          formState.field_name && `Field: ${formState.field_name}`,
+          formState.well_name && `Well: ${formState.well_name}`,
+          (formState.date_start || formState.date_end) && `Period: ${formState.date_start || '?'} to ${formState.date_end || '?'}`,
+          formState.author && `Prepared by: ${formState.author}`,
+        ],
+        sections: reportData.sections,
+        footNote: `Drafted with Petrolord Technical Report Autopilot on ${new Date().toLocaleDateString()}. This is a draft: every figure and statement should be checked against source data before the document is issued.`,
+      });
+      saveAs(blob, docxFileName(title));
+      toast({ title: 'Document saved', description: 'Review it before issuing.' });
     } catch (err) {
-        toast({
-          variant: 'destructive',
-          title: 'Error exporting report',
-          description: err.message,
-        });
+      console.error(err);
+      toast({ variant: 'destructive', title: 'Export failed', description: err.message });
     } finally {
-        setExporting(false);
+      setExporting(false);
     }
   };
 
@@ -322,7 +332,6 @@ function TechnicalReportAutopilotPageInner() {
                   reportData={reportData} 
                   onExport={handleExport}
                   exporting={exporting}
-                  downloadLink={downloadLink}
                 />
               </motion.div>
             )}

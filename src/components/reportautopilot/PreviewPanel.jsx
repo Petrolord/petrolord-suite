@@ -10,24 +10,18 @@ import {
 } from "@/components/ui/accordion"
 
 
-const PreviewPanel = ({ reportData, onExport, exporting, downloadLink }) => {
+// Rebuild 2026-08-29: the DOCX is built in the browser and saved directly, so
+// there is no download link from a service to hold on to.
+const PreviewPanel = ({ reportData, onExport, exporting }) => {
   return (
     <div className="h-full flex flex-col bg-slate-900/50 rounded-xl border border-white/10 p-4">
       <div className="pb-4 border-b border-white/10 flex items-center justify-between">
         <h2 className="text-xl font-bold text-white">Generated Report Preview</h2>
         <div className="flex items-center gap-2">
-          {downloadLink ? (
-             <Button asChild className="bg-green-600 hover:bg-green-700">
-                <a href={downloadLink} download>
-                    <Download className="w-4 h-4 mr-2" /> Download DOCX
-                </a>
-             </Button>
-          ) : (
-            <Button onClick={onExport} disabled={exporting || !reportData} className="bg-blue-600 hover:bg-blue-700">
-              {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
-              Export DOCX
-            </Button>
-          )}
+          <Button onClick={onExport} disabled={exporting || !reportData} className="bg-blue-600 hover:bg-blue-700">
+            {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            Export DOCX
+          </Button>
         </div>
       </div>
       
