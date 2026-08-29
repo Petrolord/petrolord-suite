@@ -62,6 +62,7 @@ const ReliefBlowdownSizer = lazy(() => import('@/pages/apps/ReliefBlowdownSizer'
 const FacilityLayoutMapper = lazy(() => import('@/pages/apps/FacilityLayoutMapper'));
 const PipelineLineSizingStudio = lazy(() => import('@/pages/apps/PipelineLineSizingStudio'));
 const SeparatorSlugCatcherDesigner = lazy(() => import('@/pages/apps/SeparatorSlugCatcherDesigner'));
+const CompressorStationDesigner = lazy(() => import('@/pages/apps/CompressorStationDesigner'));
 const HeatExchangerSizer = lazy(() => import('@/pages/apps/HeatExchangerSizer'));
 const GasTreatingDehydration = lazy(() => import('@/pages/apps/GasTreatingDehydration'));
 const CorrosionRatePredictor = lazy(() => import('@/pages/apps/CorrosionRatePredictor'));
@@ -691,6 +692,9 @@ function App() {
                                     Separator & Slug Catcher Studio (API 12J/GPSA on the vendored engine). */}
                                 <Route path="apps/facilities/separator-slug-catcher-designer" element={<ProtectedAppRoute appId="separator-slug-catcher-designer" appName="Separator & Slug Catcher Studio"><SeparatorSlugCatcherDesigner /></ProtectedAppRoute>} />
                                 <Route path="apps/facilities/compressor-pump-pack" element={<Navigate to="/dashboard/facilities" replace />} />
+                                {/* Facilities F9: the NEW compressor app on a fresh slug. The retired
+                                    pack above stays archived and redirecting; this is a different app. */}
+                                <Route path="apps/facilities/compressor-station-designer" element={<ProtectedAppRoute appId="compressor-station-designer" appName="Compressor Station Designer"><CompressorStationDesigner /></ProtectedAppRoute>} />
                                 {/* Facilities F4: the slug keeps its entitlements while the app becomes the
                                     Heat Exchanger & Cooling Studio (F computed, U assembled, hot-day derate). */}
                                 <Route path="apps/facilities/heat-exchanger-sizer" element={<ProtectedAppRoute appId="heat-exchanger-sizer" appName="Heat Exchanger & Cooling Studio"><HeatExchangerSizer /></ProtectedAppRoute>} />
