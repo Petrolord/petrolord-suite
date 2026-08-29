@@ -24,6 +24,20 @@ const iconMap = {
 };
 
 
+/** Next free sequence number for an equipment type already on the map. */
+const nextTagNumber = (layers, typeName) => {
+  const used = new Set();
+  for (const l of layers || []) {
+    const m = typeof l?.tag === 'string' && l.tag.startsWith(`${typeName}-`)
+      ? parseInt(l.tag.slice(typeName.length + 1), 10)
+      : NaN;
+    if (Number.isFinite(m)) used.add(m);
+  }
+  let n = 1;
+  while (used.has(n)) n += 1;
+  return n;
+};
+
 const FacilityLayoutMapper = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -36,6 +50,9 @@ const FacilityLayoutMapper = () => {
     setCustomIcons(prev => [...prev, newIcon]);
     toast({ title: "Custom Icon Added", description: `"${newIcon.name}" is now available in the toolbar.` });
   };
+
+  const prevLayersRef = React.useRef(layers);
+  prevLayersRef.current = layers;
 
   const handlePlaceItem = (latlng, tool) => {
     if (!tool || !tool.name) {
@@ -51,7 +68,10 @@ const FacilityLayoutMapper = () => {
       type: 'icon',
       iconName: tool.name,
       latlng: { lat: latlng.lat, lng: latlng.lng },
-      tag: `${tool.name}-${Math.floor(Math.random() * 1000)}`,
+      // Sequential per type, not random: an equipment tag is an identity a
+      // drawing and a datasheet share, and a random suffix that changes on
+      // every placement is not one (Facilities F8).
+      tag: `${tool.name}-${String(nextTagNumber(prevLayersRef.current, tool.name)).padStart(3, '0')}`,
       isCustom: tool.isCustom || false,
       iconUrl: tool.iconUrl || null,
     };
