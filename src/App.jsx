@@ -74,6 +74,7 @@ const ModularRefineryFeasibility = lazy(() => import('@/pages/apps/ModularRefine
 const TerminalDepotStudio = lazy(() => import('@/pages/apps/TerminalDepotStudio'));
 const FuelPricingStudio = lazy(() => import('@/pages/apps/FuelPricingStudio'));
 const LpgCngRolloutStudio = lazy(() => import('@/pages/apps/LpgCngRolloutStudio'));
+const EnergyEfficiencyStudio = lazy(() => import('@/pages/apps/EnergyEfficiencyStudio'));
 const FlowMeteringDesigner = lazy(() => import('@/pages/apps/FlowMeteringDesigner'));
 const HeatExchangerSizer = lazy(() => import('@/pages/apps/HeatExchangerSizer'));
 const GasTreatingDehydration = lazy(() => import('@/pages/apps/GasTreatingDehydration'));
@@ -724,6 +725,7 @@ function App() {
                                 <Route path="apps/midstream-downstream/terminal-depot-studio" element={<ProtectedAppRoute appId="terminal-depot-studio" appName="Terminal & Depot Studio"><TerminalDepotStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/fuel-pricing-supply-chain" element={<ProtectedAppRoute appId="fuel-pricing-supply-chain" appName="Fuel Pricing & Supply Chain Studio"><FuelPricingStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/midstream-downstream/lpg-cng-rollout-studio" element={<ProtectedAppRoute appId="lpg-cng-rollout-studio" appName="LPG & CNG Rollout Studio"><LpgCngRolloutStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/midstream-downstream/energy-utilities-efficiency" element={<ProtectedAppRoute appId="energy-utilities-efficiency" appName="Energy & Utilities Efficiency Studio"><EnergyEfficiencyStudio /></ProtectedAppRoute>} />
                                 {/* Facilities F4: the slug keeps its entitlements while the app becomes the
                                     Heat Exchanger & Cooling Studio (F computed, U assembled, hot-day derate). */}
                                 <Route path="apps/facilities/heat-exchanger-sizer" element={<ProtectedAppRoute appId="heat-exchanger-sizer" appName="Heat Exchanger & Cooling Studio"><HeatExchangerSizer /></ProtectedAppRoute>} />
