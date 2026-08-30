@@ -35,24 +35,50 @@ export const seatTierRate = (nthSeat) => {
   return SEAT_TIERS[SEAT_TIERS.length - 1].price;
 };
 
-// Midstream & Downstream joined here at DS1, when its first application
-// shipped. It was deliberately absent through DS0 because pricing a module
-// whose every app was Coming Soon would have let a customer buy nothing.
-// Its price sits at the bottom of each table's own range: one of ten apps is
-// built, and the module is priced as what it is today, not as what it will be.
-// The three module price tables in this repo (here, GetQuote.jsx and
-// admin/organizations/quotes/QuoteEditor.jsx) disagree with each other on
-// every module; reconciling them is an owner decision, flagged not taken.
-// Module Pricing (Bundled Price)
+// MODULE PRICING - the client's copy of one table.
+//
+// THE SERVER IS AUTHORITATIVE. generate-quote reads
+// pricing_config.module_pricing from the database and re-prices every
+// quote; these values exist so the quote preview shows the same number,
+// and they must be kept in step with migration 20260830060000. Change the
+// price in pricing_config first: that takes effect without a deploy.
+//
+// There used to be four numbers for the same thing - this file, GetQuote,
+// QuoteEditor and a hardcoded 500 in the edge function - and they all
+// disagreed. The other two now import from here.
+//
+// A MODULE INCLUDES ALL OF ITS APPS. Buying a module grants every app whose
+// module_id matches, so a module's price REPLACES its apps' a la carte
+// prices rather than adding to them.
+//
+// The rule behind the numbers: a module costs about 3.3x its own per-app
+// price, so it costs roughly what three apps cost and delivers ten to
+// fourteen. That keeps the bundle the obvious purchase and keeps a la carte
+// an honest convenience premium for someone who wants two tools.
+//
+// HSE is not here: it is the separate external portal, billed in naira.
 export const MODULE_PRICING = {
-  geoscience: 899,
-  reservoir: 799,
-  drilling: 899,
-  production: 699,
-  economics: 599,
-  facilities: 699,
-  assurance: 499,
-  'midstream-downstream': 299
+  geoscience: 2999,
+  drilling: 3299,
+  reservoir: 3299,
+  facilities: 2499,
+  production: 2499,
+  economics: 1999,
+  'midstream-downstream': 1999,
+  assurance: 1499
+};
+
+// Display metadata for the quote screens, so a module's name and blurb are
+// not a fourth thing that can drift.
+export const MODULE_META = {
+  geoscience: { name: 'Geoscience', description: 'Seismic interpretation, petrophysics, mapping and basin analysis' },
+  drilling: { name: 'Drilling & Completion', description: 'Well planning, trajectory, casing, hydraulics and completions' },
+  reservoir: { name: 'Reservoir', description: 'Material balance, simulation, decline analysis and waterflood' },
+  facilities: { name: 'Facilities', description: 'Separation, relief, compression, pumping, metering and layout' },
+  production: { name: 'Production', description: 'Surveillance, nodal analysis, artificial lift and well testing' },
+  economics: { name: 'Economics & Project Management', description: 'Fiscal regimes, NPV, Monte Carlo, AFE and field development' },
+  'midstream-downstream': { name: 'Midstream & Downstream', description: 'Refining, blending, terminals, fuel supply chain, energy and carbon' },
+  assurance: { name: 'Assurance', description: 'Risk, compliance, competency and quality management' }
 };
 
 // Individual App Base Price (if purchased à la carte)

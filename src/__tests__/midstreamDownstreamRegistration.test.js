@@ -84,20 +84,28 @@ describe('admin surfaces', () => {
 describe('pricing', () => {
   // DS0 deliberately did NOT price the module, because every app in it was
   // Coming Soon and a purchasable module with nothing in it is what the
-  // honest-catalog rule exists to prevent. DS1 shipped the first app, so it
-  // is priced now, and each table records why it was absent before.
-  const tables = [
-    'data/pricingModels.js',
-    'pages/GetQuote.jsx',
-    'components/admin/organizations/quotes/QuoteEditor.jsx',
-  ];
+  // honest-catalog rule exists to prevent. DS1 shipped the first app and it
+  // was priced then.
+  //
+  // The three separate price tables this used to check were consolidated on
+  // 2026-08-30 into one shared table, because they had drifted apart and the
+  // server ignored all three anyway. The intent of these tests is unchanged
+  // - the module must be priced, and it must be priced exactly once - so
+  // they now check the one table rather than the three.
+  // See src/data/__tests__/modulePricing.test.js for the full guard.
 
-  it.each(tables)('%s records that the module was priced only once it had an app', (rel) => {
-    expect(read(rel)).toMatch(/joined here at DS1, when its first application/);
+  it('the module is priced in the one shared table', () => {
+    expect(read('data/pricingModels.js'))
+      .toMatch(new RegExp(`['"]?${SLUG}['"]?\\s*:\\s*\\d+`));
   });
 
-  it.each(tables)('%s now prices the module', (rel) => {
-    expect(read(rel)).toMatch(new RegExp(`['"]?${SLUG}['"]?\\s*:?[^\\n]*\\d`));
+  it('the consumers import that table rather than keeping their own', () => {
+    ['pages/GetQuote.jsx', 'components/admin/organizations/quotes/QuoteEditor.jsx']
+      .forEach((rel) => {
+        const src = read(rel);
+        expect(src).toMatch(/from '@\/data\/pricingModels'/);
+        expect(src).not.toMatch(/const MODULE_PRICING\s*=\s*\{/);
+      });
   });
 });
 

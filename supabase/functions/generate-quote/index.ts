@@ -113,11 +113,32 @@ Deno.serve(async (req)=>{
       { upTo: 40, price: 29 },
       { upTo: Infinity, price: 19 }
     ];
+    // pricing_config.value is JSONB, so supabase-js hands back an already
+    // parsed object. JSON.parse would throw on that and the catch below
+    // would silently keep the defaults, which is how this override came to
+    // do nothing at all. Accept either shape.
+    const asJson = (v)=>{
+      if (v === null || v === undefined) return null;
+      if (typeof v === 'string') { try { return JSON.parse(v); } catch (_e) { return null; } }
+      return v;
+    };
     try {
-      if (configMap['seat_tiers']) {
-        SEAT_TIERS = JSON.parse(configMap['seat_tiers']).map((t)=>({ upTo: t.upTo === null ? Infinity : t.upTo, price: t.price }));
+      const tiers = asJson(configMap['seat_tiers']);
+      if (Array.isArray(tiers) && tiers.length > 0) {
+        SEAT_TIERS = tiers.map((t)=>({ upTo: t.upTo === null ? Infinity : t.upTo, price: t.price }));
       }
     } catch (_e) { /* keep defaults */ }
+
+    // MODULE PRICING. One source of truth: pricing_config.module_pricing,
+    // seeded by 20260830060000. The fallback below exists only so a missing
+    // config row degrades to the same numbers rather than to a flat rate
+    // that undercharges by an order of magnitude, which is what the
+    // hardcoded 500 this replaces actually did.
+    const MODULE_PRICING_FALLBACK = {
+      geoscience: 2999, drilling: 3299, reservoir: 3299, facilities: 2499,
+      production: 2499, economics: 1999, 'midstream-downstream': 1999, assurance: 1499
+    };
+    const MODULE_PRICING = asJson(configMap['module_pricing']) || MODULE_PRICING_FALLBACK;
     const computeSeatCost = (n)=>{
       let remaining = Math.max(0, parseInt(n) || 0), prevCap = 0, cost = 0;
       for (const t of SEAT_TIERS) {
@@ -193,6 +214,22 @@ Deno.serve(async (req)=>{
     let promoableCost = 0; // monthly cost attributable to a module-scoped promo
     let bridgeableCost = 0; // monthly cost attributable to the certified module
     // Query master_apps for ACTIVE apps only
+    // Which modules the customer selected, resolved to module_id. A module
+    // grants every app whose module_id matches (see get-user-entitlements),
+    // so an app inside a selected module must NOT also be charged a la
+    // carte. master_apps.module is a display name and modules.name is a
+    // different string again, so the join is on module_id, never on text.
+    const selectedModuleSlugs = (modules || []).map((m)=> String(m).toLowerCase()).filter(Boolean);
+    const selectedModuleIds = new Set();
+    const moduleSlugById = {};
+    if (selectedModuleSlugs.length > 0) {
+      const { data: modRows } = await supabase.from('modules').select('id, slug, name');
+      (modRows || []).forEach((r)=>{
+        moduleSlugById[r.id] = r.slug;
+        if (selectedModuleSlugs.includes(String(r.slug).toLowerCase())) selectedModuleIds.add(r.id);
+      });
+    }
+
     if (appIds.length > 0) {
       console.log(`[Generate Quote] Requested apps: ${JSON.stringify(appEntries)}`);
       const { data: activeApps, error: appsError } = await supabase.from('master_apps').select('id, app_name, price, status, slug, module, module_id').in('id', appIds).ilike('status', 'active');
@@ -203,7 +240,11 @@ Deno.serve(async (req)=>{
       if (activeApps && activeApps.length > 0) {
         console.log(`[Generate Quote] Found ${activeApps.length} active apps from ${appIds.length} requested`);
         activeApps.forEach((app)=>{
-          const price = parseFloat(app.price || 0);
+          // Covered by a selected module: seats still apply, the licence does
+          // not. Charging both is the double-count the quote preview used to
+          // show and the server used to disagree with.
+          const coveredByModule = selectedModuleIds.has(app.module_id);
+          const price = coveredByModule ? 0 : parseFloat(app.price || 0);
           // Per-app seat count (the cap manual_verify_quote writes to seats_allocated).
           const appSeats = perAppSeatMode ? (seatsByApp[app.id] != null ? seatsByApp[app.id] : 1) : (Number(seats) || 1);
           const appSeatCost = computeSeatCost(appSeats); // graduated per-app tiers
@@ -219,7 +260,9 @@ Deno.serve(async (req)=>{
           });
           appNameMap[app.id] = app.app_name; // Map for PDF
           lineItems.push({
-            description: `App: ${app.app_name}`,
+            description: coveredByModule
+              ? `App: ${app.app_name} (included in the ${moduleSlugById[app.module_id]} module)`
+              : `App: ${app.app_name}`,
             amount: price
           });
           lineItems.push({
@@ -244,20 +287,30 @@ Deno.serve(async (req)=>{
         console.warn(`[Generate Quote] No active apps found from requested list`);
       }
     }
-    // Fallback module pricing (only if no apps selected)
-    if (modules.length > 0 && validatedApps.length === 0) {
+    // MODULE PRICING. This runs whether or not apps were also selected,
+    // because a module grants all of its apps and those apps have already
+    // been zeroed above. Previously this branch only ran when no apps were
+    // chosen and charged a flat 500 for any module, which bought 10-14 apps
+    // worth 5,990-11,988 a month a la carte.
+    if (modules.length > 0) {
       console.log(`[Generate Quote] Processing ${modules.length} modules`);
       modules.forEach((m)=>{
-        const modPrice = 500;
+        const key = String(m).toLowerCase();
+        const modPrice = parseFloat(MODULE_PRICING[key]);
+        if (!Number.isFinite(modPrice)) {
+          // An unpriced module is a configuration error. Fail the quote
+          // rather than quietly giving the module away.
+          throw new Error(`No price is configured for the ${m} module. Add it to pricing_config.module_pricing before quoting it.`);
+        }
         appsCost += modPrice;
-        if (bridge && String(m).toLowerCase() === String(bridge.suite_module).toLowerCase()) {
+        if (bridge && key === String(bridge.suite_module).toLowerCase()) {
           bridgeableCost += modPrice;
         }
-        if (promo && promo.scope !== 'all' && String(m).toLowerCase() === String(promo.scope).toLowerCase()) {
+        if (promo && promo.scope !== 'all' && key === String(promo.scope).toLowerCase()) {
           promoableCost += modPrice;
         }
         lineItems.push({
-          description: `Module Access: ${m}`,
+          description: `Module: ${m} (all applications included)`,
           amount: modPrice
         });
       });
