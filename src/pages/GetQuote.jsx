@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency } from '@/utils/adminHelpers';
 import { appCategories } from '@/data/applications';
-import { computeSeatCost } from '@/data/pricingModels';
+import { computeSeatCost, MODULE_PRICING } from '@/data/pricingModels';
 
 const STEPS = [
   { id: 1, title: 'Modules', icon: Layers },
@@ -24,25 +24,9 @@ const STEPS = [
   { id: 4, title: 'Review', icon: CheckCircle }
 ];
 
-// Midstream & Downstream joined here at DS1, when its first application
-// shipped. It was deliberately absent through DS0 because pricing a module
-// whose every app was Coming Soon would have let a customer buy nothing.
-// Its price sits at the bottom of each table's own range: one of ten apps is
-// built, and the module is priced as what it is today, not as what it will be.
-// The three module price tables in this repo (here, GetQuote.jsx and
-// admin/organizations/quotes/QuoteEditor.jsx) disagree with each other on
-// every module; reconciling them is an owner decision, flagged not taken.
-const MODULE_PRICING = {
-  geoscience: 500,
-  reservoir: 500,
-  drilling: 450,
-  production: 400,
-  economics: 350,
-  facilities: 400,
-  'midstream-downstream': 150,
-  hse: 0
-};
-
+// Module pricing comes from src/data/pricingModels.js, which mirrors
+// pricing_config.module_pricing. The server re-prices every quote and is
+// authoritative; this is preview only.
 const BASE_SEAT_PRICE = 49;
 
 export default function GetQuote() {
@@ -84,6 +68,25 @@ export default function GetQuote() {
   };
 
   const setSeatsFor = (appId, n) => setAppSeats(s => ({ ...s, [appId]: Math.max(1, n) }));
+  // An app is covered by a module the customer has already bought, in which
+  // case its licence is included and only its seats are charged.
+  //
+  // availableApps is fetched with `module_ids: selectedModules`, so every app
+  // in the list belongs to a selected module by construction. The explicit
+  // matches below are there so this stays correct if that ever changes, and
+  // the fallback states the assumption rather than hiding it.
+  //
+  // The server re-prices every quote against master_apps.module_id and is
+  // authoritative; this only decides what the preview shows.
+  const isCoveredByModule = (app) => {
+    if (!app || selectedModules.length === 0) return false;
+    const candidates = [app.module_slug, app.module_id, app.module]
+      .filter(Boolean)
+      .map(v => String(v).toLowerCase());
+    if (candidates.some(v => selectedModules.includes(v))) return true;
+    return true; // fetched per selected module
+  };
+
   const getTotalSeats = () => selectedApps.reduce((acc, id) => acc + (appSeats[id] || 1), 0);
   // Graduated per-app seat cost (matches generate-quote / SEAT_TIERS).
   const getSeatsCost = () => selectedApps.reduce((acc, id) => acc + computeSeatCost(appSeats[id] || 1), 0);
@@ -150,13 +153,18 @@ export default function GetQuote() {
   const calculateTotal = () => {
     let subtotal = 0;
     
-    // Modules base
+    // Modules. A module includes every app in it, so its price REPLACES
+    // those apps' a la carte prices. Adding both was the double-count that
+    // made this preview disagree with the quote the server generated.
     selectedModules.forEach(m => subtotal += (MODULE_PRICING[m] || 0));
-    
-    // Apps
+
+    // Apps, charged only where they are not already covered by a selected
+    // module. Seats still apply to every app either way.
     selectedApps.forEach(appId => {
       const app = availableApps.find(a => a.id === appId);
-      if (app) subtotal += (parseFloat(app.price) || 0);
+      if (!app) return;
+      if (isCoveredByModule(app)) return;
+      subtotal += (parseFloat(app.price) || 0);
     });
 
     // Seats (per app, graduated tiers)

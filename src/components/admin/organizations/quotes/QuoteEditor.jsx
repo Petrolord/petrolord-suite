@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { formatCurrency } from '@/utils/adminHelpers';
+import { MODULE_PRICING, MODULE_META } from '@/data/pricingModels';
 
 // Midstream & Downstream joined here at DS1, when its first application
 // shipped. It was deliberately absent through DS0 because pricing a module
@@ -16,16 +17,16 @@ import { formatCurrency } from '@/utils/adminHelpers';
 // The three module price tables in this repo (here, GetQuote.jsx and
 // admin/organizations/quotes/QuoteEditor.jsx) disagree with each other on
 // every module; reconciling them is an owner decision, flagged not taken.
-const MODULES = [
-  { id: 'geoscience', name: 'Geoscience', price: 500, description: 'Advanced geology & geophysics tools' },
-  { id: 'reservoir', name: 'Reservoir', price: 400, description: 'Reservoir engineering & simulation' },
-  { id: 'drilling', name: 'Drilling', price: 600, description: 'Well planning & drilling engineering' },
-  { id: 'production', name: 'Production', price: 400, description: 'Production surveillance & optimization' },
-  { id: 'economics', name: 'Economics', price: 300, description: 'Petroleum economics & asset valuation' },
-  { id: 'facilities', name: 'Facilities', price: 300, description: 'Surface facility design & network analysis' },
-  { id: 'assurance', name: 'Assurance', price: 200, description: 'Risk management & quality assurance' },
-  { id: 'midstream-downstream', name: 'Midstream & Downstream', price: 150, description: 'Refining, terminals and fuel supply chain (1 of 10 apps live)' },
-];
+// Built from the one shared table rather than a third hand-maintained copy.
+// This screen used to carry its own prices (geoscience 500, assurance 200,
+// midstream-downstream 150) which matched neither the public quote page nor
+// the server that actually bills.
+const MODULES = Object.entries(MODULE_PRICING).map(([id, price]) => ({
+  id,
+  price,
+  name: MODULE_META[id]?.name || id,
+  description: MODULE_META[id]?.description || ''
+}));
 
 const QuoteEditor = ({ initialQuote, onChange }) => {
   const quote = initialQuote || {};
