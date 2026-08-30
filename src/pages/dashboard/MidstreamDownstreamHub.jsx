@@ -1,10 +1,13 @@
-// Midstream & Downstream module hub (DS0).
+// Midstream & Downstream module hub.
 //
-// Follows the FacilitiesEngineeringHub pattern: the grid is driven from
-// master_apps, so a tile appears here when the catalog says it exists and
-// carries the status the catalog gives it. Every app in this module is Coming
-// Soon on the day this ships, and each goes Active in the migration that
-// ships its own build.
+// The grid is driven from master_apps, so a tile appears here when the
+// catalog says it exists and carries the status the catalog gives it. All
+// ten applications went Active on 2026-08-30.
+//
+// This hub deliberately holds no hand-written list of applications. It had
+// one - three "track" cards naming the ten apps as bullet points - and it
+// went stale the moment the apps shipped, while also looking clickable
+// without being clickable. The catalog is the only list.
 //
 // The module filter matches `master_apps.module`, which is the display name
 // rather than the slug (useAppsFromDatabase compares that column
@@ -16,30 +19,6 @@ import { Input } from '@/components/ui/input';
 import ApplicationsGrid from '@/components/ApplicationsGrid';
 
 export const MODULE_FILTER = 'Midstream & Downstream';
-
-// The three tracks, in the order the roadmap builds them. Stated here so the
-// hub explains the module's shape rather than presenting ten tiles as a flat
-// list of things that do not exist yet.
-const TRACKS = [
-  {
-    id: 'refining',
-    title: 'Refining core',
-    blurb: 'Crude in, products out: what a barrel becomes, what a blend must meet, what the plan says and what actually happened.',
-    apps: ['Crude Assay & Blending Studio', 'Product Blending Optimizer', 'Refinery Planning & Scheduling Studio', 'Modular Refinery Feasibility Studio'],
-  },
-  {
-    id: 'commercial',
-    title: 'Commercial and logistics',
-    blurb: 'Terminals, pricing and distribution, built for operations that run on a dip tape and a spreadsheet rather than full instrumentation.',
-    apps: ['Terminal & Depot Studio', 'Fuel Pricing & Supply Chain Studio', 'LPG & CNG Rollout Studio'],
-  },
-  {
-    id: 'transition',
-    title: 'Energy transition',
-    blurb: 'Energy waste found and priced, carbon accounted from the same data the rest of the module already holds, and flared gas turned into something.',
-    apps: ['Energy & Utilities Efficiency Studio', 'Carbon Footprint & Abatement Studio', 'Flare Gas to Value Studio'],
-  },
-];
 
 const MidstreamDownstreamHub = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -54,30 +33,6 @@ const MidstreamDownstreamHub = () => {
             money rather than bolted on afterwards.
           </p>
         </div>
-      </div>
-
-      <div className="rounded-xl border border-amber-800/50 bg-amber-950/20 p-4">
-        <p className="text-sm text-amber-100/90">
-          This module is being built. Every application below is listed as Coming Soon and each one
-          becomes available as it ships. Nothing here is sold before it works.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {TRACKS.map((track) => (
-          <div key={track.id} className="bg-slate-900/80 border border-slate-800 rounded-xl p-5">
-            <h2 className="text-lg font-semibold text-white">{track.title}</h2>
-            <p className="text-sm text-slate-400 mt-2">{track.blurb}</p>
-            <ul className="mt-4 space-y-1">
-              {track.apps.map((app) => (
-                <li key={app} className="text-sm text-slate-300 flex items-start gap-2">
-                  <span className="text-orange-400 mt-0.5">•</span>
-                  <span>{app}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
       </div>
 
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
