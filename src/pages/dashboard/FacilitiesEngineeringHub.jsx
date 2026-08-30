@@ -1,6 +1,18 @@
+// Facilities Engineering module hub.
+//
+// This hub promotes no individual application, and it should not. It
+// carried a single hand-written card for Produced Water Treatment,
+// linking to /apps/produced-water-treatment - a path that matches no route,
+// since the app lives at /dashboard/apps/facilities/produced-water-treatment.
+// So the one app it promoted was the one app on this page you could not
+// open.
+//
+// Produced Water Treatment was rebuilt at F7 and is Active, so it sits in
+// the catalog grid below with the other twelve. The catalog is the only
+// list: anything hand-written here goes stale the moment an app ships,
+// and it promotes by whoever edited the file last rather than by merit.
 import React, { useState, useEffect } from 'react';
-import { Share2, Search, Plus, Droplets, Activity } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Share2, Search, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ApplicationsGrid from '@/components/ApplicationsGrid';
@@ -31,26 +43,6 @@ const FacilitiesEngineeringHub = () => {
           <Button className="bg-amber-600 hover:bg-amber-500 text-white">
             <Plus className="w-4 h-4 mr-2" /> Add Custom App
           </Button>
-        </div>
-      </div>
-
-      {/* Featured Core Workflows */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-4 text-white flex items-center">
-          <Activity className="w-5 h-5 mr-2 text-amber-500" />
-          Featured Applications
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Link to="/apps/produced-water-treatment" className="block group">
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-6 hover:border-amber-500 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/10">
-              <div className="w-12 h-12 bg-amber-500/20 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <Droplets className="w-6 h-6 text-amber-400" />
-              </div>
-              <h3 className="text-lg font-medium text-white mb-2 group-hover:text-amber-400 transition-colors">Produced Water Treatment</h3>
-              <p className="text-slate-400 text-sm">Advanced design and modeling for produced water treatment facilities. Analyze separation trains, OPEX, and efficiency metrics.</p>
-            </div>
-          </Link>
-          {/* We can add more direct feature links here if needed */}
         </div>
       </div>
 
