@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { appRoutePath } from '@/utils/appRoute';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Lock, ArrowRight, Clock, Hammer, AlertTriangle } from 'lucide-react';
@@ -62,22 +63,16 @@ export default function ApplicationsGrid({ moduleFilter, searchQuery }) {
             onClick={() => {
               if (isComingSoon) return;
               if (hasAccess) {
-                // Ensure correct path format, gracefully fallback if module is missing.
-                //
-                // DS1: the module segment is SLUGIFIED. `master_apps.module` is a
-                // display name, and it was only ever usable in a URL because every
-                // module until now happened to be one lowercase word (React Router
-                // matches case-insensitively, so "Facilities" reached
-                // "facilities"). "Midstream & Downstream" is not, and would have
-                // produced a route with a space and an ampersand in it that matches
-                // nothing. Slugifying is a no-op for the existing seven.
-                const moduleSegment = app.module
-                  ? String(app.module).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-                  : null;
-                let targetRoute = app.route || app.path || (moduleSegment ? `/dashboard/apps/${moduleSegment}/${app.slug}` : `/dashboard/apps/${app.slug}`);
-                if (targetRoute && targetRoute.startsWith('/apps/')) {
+                // One computation, shared with useAppsFromDatabase. This
+                // block used to prefer `app.route`, which the hook built
+                // from the raw module display name; that beat the correct
+                // path computed here and broke every Midstream & Downstream
+                // card. app.path is still honoured as an explicit override.
+                let targetRoute = app.path || appRoutePath(app);
+                if (!targetRoute) return;
+                if (targetRoute.startsWith('/apps/')) {
                     targetRoute = `/dashboard${targetRoute}`;
-                } else if (targetRoute && !targetRoute.startsWith('/dashboard') && targetRoute.startsWith('/')) {
+                } else if (!targetRoute.startsWith('/dashboard') && targetRoute.startsWith('/')) {
                     targetRoute = `/dashboard${targetRoute}`;
                 }
                 navigate(targetRoute);

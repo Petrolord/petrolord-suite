@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { appRoutePath } from '@/utils/appRoute';
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 let globalCache = {
@@ -71,7 +72,12 @@ export const useAppsFromDatabase = (moduleFilter = null) => {
                 const processedApps = data.map(app => ({
                     ...app,
                     isComingSoon: !app.is_built || app.status === 'coming_soon' || app.status === 'Coming Soon',
-                    route: app.slug && app.module ? `/dashboard/apps/${app.module}/${app.slug}` : '#'
+                    // Slugified through the shared helper. This used to
+                    // interpolate the RAW module display name, which put a
+                    // space and an ampersand into the path for "Midstream &
+                    // Downstream" and sent every card in that module to the
+                    // homepage via the catch-all.
+                    route: appRoutePath(app) || '#'
                 }));
                 
                 return processedApps;
