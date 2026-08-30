@@ -346,3 +346,54 @@ Guide was frozen at WT9 and contradicted itself. Corrected:
 Also deleted `Well_Test_Analyzer_User_Guide.md` from the repo root: the
 mock app's guide, unreferenced anywhere, documenting an app removed in
 WT2 and claiming a Nodal integration the real studio does not have.
+
+## Flow-regime classifier: two ordering rules added (2026-08-30)
+
+Found while building the NextGen Well Test Analysis course, which runs
+this engine against ten planted-truth fixtures and reads its output
+against what is actually in them.
+
+`detectFlowRegimes` classified the LOCAL log-log slope of the derivative
+into bands and applied one ordering rule, that a unit slope is storage
+when it is first and a boundary when it is last. A slope band is
+necessary and not sufficient: a transition between two regimes has a
+well defined local slope and it usually falls inside one of the bands.
+
+The studio therefore reported, to users:
+
+- **"Constant-pressure boundary / recharge" before radial flow**, on
+  infinite-acting tests with no boundary of any kind, because the
+  wellbore storage hump falls steeply onto the radial plateau and a
+  steep fall sits inside the constant-pressure band. The same false
+  label appeared on a dual-porosity derivative dipping towards its
+  matrix minimum.
+- **"Bilinear flow" after radial flow**, on a well with no fracture,
+  because the slow climb from one plateau towards a sealing fault's
+  doubled plateau sits inside the bilinear band.
+
+Six of the seven pressure-transient fixtures got at least one regime
+that is not there, including the plain infinite-acting drawdown.
+
+**The fix.** Two rules, neither needing information the caller did not
+already give. A constant-pressure stretch with any regime AFTER it is a
+transition, because recharge does not recover: once a constant-pressure
+boundary is felt the derivative keeps falling. A bilinear stretch with
+radial or linear flow BEFORE it is a transition, because bilinear flow
+is near-well fracture geometry and precedes both. Both RELABEL rather
+than discard, to a new `transition` regime that renders with its extent
+like any other segment: a stretch that is not a regime is still part of
+the response, and hiding it would be worse than naming it wrongly.
+
+**Verified against genuine cases**, all generated from the model
+catalog: a real constant-pressure boundary is the last segment and
+survives; a finite-conductivity fracture's bilinear flow is the first
+segment and survives; a channel's late linear flow and a closed circle's
+pseudo-steady state are untouched.
+
+**What ordering still cannot catch.** On the sealing-fault fixture the
+first segment is labelled linear flow where it is really the roll-off of
+the storage unit slope. A fracture's linear flow legitimately comes
+first too, so nothing about the ORDER separates them; telling them apart
+needs the PRESSURE curve, because during storage the pressure and its
+derivative coincide, and `detectFlowRegimes` is given only the
+derivative. That check stays with the caller and the course teaches it.
