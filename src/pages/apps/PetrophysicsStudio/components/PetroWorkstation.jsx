@@ -10,7 +10,7 @@
 // ms). Publishing results to the registry is G2.5.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlaskConical, Loader2, UploadCloud, Save, Layers, PenLine } from 'lucide-react';
+import { FlaskConical, Loader2, UploadCloud, Save, Layers, PenLine, FileDown, Database } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import WellExplorer from './WellExplorer';
@@ -20,6 +20,7 @@ import TrackViewer from './TrackViewer';
 import CrossplotPanel from './CrossplotPanel';
 import BatchRunDialog from './BatchRunDialog';
 import DigitizerDialog from './DigitizerDialog';
+import ExportDialog from './ExportDialog';
 import {
   computeWell, zoneSummary, DEFAULT_PARAMS,
   preparePublishLogs, zonePropertiesSnapshot,
@@ -68,6 +69,8 @@ export default function PetroWorkstation({ backend }) {
   const [publishing, setPublishing] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
   const [digitizerOpen, setDigitizerOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [noDepthWell, setNoDepthWell] = useState(null); // {inventory} — C2 empty state
 
   useEffect(() => {
     let live = true;
@@ -107,12 +110,20 @@ export default function PetroWorkstation({ backend }) {
     setSelectedId(wellId);
     setLoadingId(wellId);
     setWellData(null);
+    setNoDepthWell(null);
     setZones([]);
     setFacies(faciesByWell[wellId] || []);
     try {
       const [logs, tops] = await Promise.all([backend.listLogs(wellId), backend.listTops(wellId)]);
       const mapped = mapLogs(logs);
-      if (!mapped.DEPT) throw new Error('This well has no depth curve — import LAS logs in Well Data Manager first.');
+      if (!mapped.DEPT) {
+        // C2: a registry well without a depth curve is an empty state,
+        // not an exception path — the center panel points at the
+        // single import door
+        setNoDepthWell({ inventory: Object.entries(mapped).map(([key, log]) => ({ key, log })) });
+        setStatus('This well has no depth curve yet.');
+        return;
+      }
       const curves = {};
       for (const [key, log] of Object.entries(mapped)) {
         if (log) curves[key] = await backend.downloadCurve(log);
@@ -364,6 +375,17 @@ export default function PetroWorkstation({ backend }) {
         </button>
         <button
           type="button"
+          data-testid="petro-export"
+          disabled={!wellData || !computed}
+          title="Export CSV, LAS or a PDF summary report"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          onClick={() => setExportOpen(true)}
+        >
+          <FileDown className="w-3.5 h-3.5" /> Export…
+        </button>
+        <button
+          type="button"
           data-testid="petro-batch"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border
             border-slate-700 text-slate-300 hover:bg-slate-800"
@@ -416,6 +438,18 @@ export default function PetroWorkstation({ backend }) {
     <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="petro-empty">
       Select a well to start interpreting.
     </div>
+  ) : noDepthWell ? (
+    <div className="h-full flex items-center justify-center" data-testid="petro-no-depth">
+      <div className="max-w-md text-center space-y-2 px-6">
+        <Database className="w-8 h-8 mx-auto text-slate-600" />
+        <p className="text-sm text-slate-300">{selected.name} has no depth curve yet.</p>
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Log curves enter the registry through Well Data Manager, the Suite&apos;s single
+          import door. Import an LAS file with a DEPT, DEPTH or MD curve there and this
+          well opens here ready to interpret.
+        </p>
+      </div>
+    </div>
   ) : !wellData ? (
     <div className="h-full flex items-center justify-center text-slate-500 text-sm">
       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading curves…
@@ -446,7 +480,7 @@ export default function PetroWorkstation({ backend }) {
           wells={wells || []}
           selectedId={selectedId}
           loadingId={loadingId}
-          curveInventory={wellData?.inventory}
+          curveInventory={wellData?.inventory || noDepthWell?.inventory}
           onSelect={select}
         />
       )}
@@ -483,6 +517,20 @@ export default function PetroWorkstation({ backend }) {
         onOpenChange={setDigitizerOpen}
         wellName={selected?.name}
         onSave={saveDigitized}
+      />
+    )}
+    {wellData && computed && (
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        wellName={selected?.name}
+        wellData={wellData}
+        outputs={computed.outputs}
+        params={params}
+        zones={zones}
+        summaries={summaries}
+        projectId={projectId}
+        onStatus={setStatus}
       />
     )}
     </>
