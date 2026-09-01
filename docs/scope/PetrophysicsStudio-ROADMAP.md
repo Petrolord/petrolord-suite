@@ -19,7 +19,7 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
 | Wave | Theme | Audit items | New math | DDL | Status |
 |---|---|---|---|---|---|
 | PS1 | Signature visuals: crossover + threshold track fills, per-curve scales (D-N overlay), z-colored crossplots w/ colorbar, zoom/pan, point identify, Buckles plot; retire the mock QC app | D1a | bucklesIsoBvwLine (engines PR #92) | no | **DONE 2026-09-01** |
-| PS2 | Deliverables: curves + zone CSV, LAS 2.0 writer (round-trip gated), branded PDF summary report; empty state instead of the no-depth hard error | A1, C2, C3 | LAS writer | no | queued |
+| PS2 | Deliverables: curves + zone CSV, LAS 2.0 writer (round-trip gated), branded PDF summary report; empty state instead of the no-depth hard error | A1, C2, C3 | LAS writer | no | **DONE 2026-09-01** |
 | PS3 | Named interpretations (list/open/save-as/rename/delete) + per-zone parameter overrides; zoned pipeline (`computeWellZoned`, PIPELINE_VERSION 2) | A2, B1 | zoned driver | **yes** (petro_projects) | queued |
 | PS4 | User track builder + named layout templates (petro_projects.layouts), ft display toggle, PNG export of the track view | — | no | no | queued |
 | PS5 | Formation temperature model + Waxman-Smits / dual-water / Modified Simandoux Sw + Rw quicklook tools wired (SP, Arps); PIPELINE_VERSION 3 | B5 partial | large | no | queued |
@@ -63,3 +63,21 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
   Tests: `__tests__/fills.test.js` (9 cases), Buckles engine cases in
   `crossplot.test.js`, new PS1 e2e (colorbar pixel probe, tooltip,
   zoom reset, Buckles); 69 jest + 6 e2e green.
+- **PS2 (2026-09-01):** engines PR #93 (`engines/welldata/lasWrite.js`
+  LAS 2.0 writer + `METHOD_CITATIONS` in the petrophysics pipeline,
+  stacked on #92) + Suite branch `feat/petrophysics-ps2-deliverables`
+  (stacked on PS1). The writer stays inside the parser's safe subset
+  (sanitised mnemonics/units/text, 9-significant-digit tokens, null
+  chosen to collide with no sample) and is gated by
+  `WellDataManager/__tests__/lasWrite.test.js`: parseLas(writeLas(x))
+  bit-for-bit after the float32 cast, including a committed parser
+  fixture re-written and re-parsed. Suite: `services/petroExport.js`
+  (curves CSV, zone CSV, LAS assembly with the parameter set and
+  provenance in ~Parameter), `services/petroReport.js` (jsPDF +
+  pdfBrand summary report: parameters, methods with the engines' own
+  citations, zone table, provenance), `components/ExportDialog.jsx` +
+  ribbon Export button. C2/C3: the no-depth hard error became an
+  empty-state panel pointing at Well Data Manager; harness gained an
+  EMPTY-3 well to exercise it. Tests: 177 jest across
+  PetrophysicsStudio + WellDataManager, 7/7 e2e (new PS2 spec asserts
+  all four downloads by filename and the empty state).

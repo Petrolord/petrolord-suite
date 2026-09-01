@@ -12,6 +12,9 @@ docs/scope/PetrophysicsStudio-ROADMAP.md. **PS1 (signature visuals)
 DONE 2026-09-01**: crossover/threshold track fills + density-neutron
 overlay track, z-colored interactive crossplots (colorbar, zoom/pan,
 identify), Buckles plot (engines PR #92), mock LogDataQCViz retired.
+**PS2 (deliverables) DONE 2026-09-01**: curves + zone CSV, round-trip
+gated LAS 2.0 writer (engines PR #93), branded PDF summary report with
+engine citations, no-depth empty state (audit A1/C2/C3 closed).
 
 Production note: **RESOLVED 2026-07-14** — prod is current (source zip
 from main `e84f8a181` uploaded to Hostinger); the tile, route and the
