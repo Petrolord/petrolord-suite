@@ -6,6 +6,13 @@ Geoscience-ROADMAP.md Phase G2 — the flagship. Slug `petrophysics-studio` — 
 Phase G2 complete (G2.0–G2.6). Live at
 `/dashboard/apps/geoscience/petrophysics-studio`.
 
+**Upgrade program PS1–PS10 approved 2026-09-01** (senior-petrophysicist
+parity vs Techlog/IP/PowerLog): see
+docs/scope/PetrophysicsStudio-ROADMAP.md. **PS1 (signature visuals)
+DONE 2026-09-01**: crossover/threshold track fills + density-neutron
+overlay track, z-colored interactive crossplots (colorbar, zoom/pan,
+identify), Buckles plot (engines PR #92), mock LogDataQCViz retired.
+
 Production note: **RESOLVED 2026-07-14** — prod is current (source zip
 from main `e84f8a181` uploaded to Hostinger); the tile, route and the
 five legacy-route redirects are all live on petrolord.com.
