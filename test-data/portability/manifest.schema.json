@@ -225,6 +225,11 @@
           },
           "content_type": {
             "type": "string"
+          },
+          "part": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "PP4: which part archive holds this file (absent = part 1)."
           }
         }
       }
@@ -315,6 +320,44 @@
       "type": "array",
       "items": {
         "type": "string"
+      }
+    },
+    "parts": {
+      "type": "array",
+      "minItems": 2,
+      "description": "PP4 multi-part packages: one entry per archive in order. Part 1 holds data/, open/, README and this manifest and cannot hash itself; later parts carry bytes and sha256.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "index"
+        ],
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
       }
     }
   },

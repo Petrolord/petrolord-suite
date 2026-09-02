@@ -73,12 +73,23 @@ async function utf8(bytes) {
  * @returns {Promise<{ manifest, tables: Record<string, object[]>, blobs: Array<{...manifestBlob, bytes: Uint8Array}>, open: object[], readme: string|null, integrity: {checked:number} }>}
  */
 export async function readPackage(data) {
-  let zip;
-  try { zip = await JSZip.loadAsync(data); } catch (e) {
-    throw new PackageReadError('not-zip', 'This file is not a Petrolord Project Package (it could not be opened as a zip archive).');
+  const inputs = Array.isArray(data) ? data : [data];
+  if (!inputs.length) throw new PackageReadError('no-file', 'Choose a package file.');
+  const zips = [];
+  for (const d of inputs) {
+    try { zips.push({ zip: await JSZip.loadAsync(d), bytes: d }); } catch (e) {
+      throw new PackageReadError('not-zip', 'This file is not a Petrolord Project Package (it could not be opened as a zip archive).');
+    }
   }
-  const mf = zip.file('manifest.json');
-  if (!mf) throw new PackageReadError('no-manifest', 'This file is not a Petrolord Project Package (no manifest.json at the root).');
+  const first = zips.find((z) => z.zip.file('manifest.json'));
+  if (!first) throw new PackageReadError('no-manifest', inputs.length > 1 ? 'None of the chosen files is part 1 of a package (no manifest.json at the root).' : 'This file is not a Petrolord Project Package (no manifest.json at the root).');
+  const mf = first.zip.file('manifest.json');
+  // a merged view over the parts: part 1 first, then the other archives (PP4)
+  const others = zips.filter((z) => z !== first);
+  const zip = {
+    file(name) { for (const z of [first, ...others]) { const f = z.zip.file(name); if (f) return f; } return null; },
+    get files() { const out = {}; for (const z of [first, ...others]) for (const [n, f] of Object.entries(z.zip.files)) if (!(n in out)) out[n] = f; return out; },
+  };
   let manifest;
   try { manifest = JSON.parse(await mf.async('string')); } catch (e) {
     throw new PackageReadError('bad-manifest', 'The package manifest is not valid JSON.');
@@ -96,6 +107,22 @@ export async function readPackage(data) {
       const label = tableKind(table) ? getStateKind(tableKind(table))?.label || table : table;
       throw new PackageReadError('newer-state', newerStateMessage(`package (${label} rows)`, max, reads), { table, found: max, reads });
     }
+  }
+
+  // multi-part: every later part present and matching its recorded hash
+  if (Array.isArray(manifest.parts)) {
+    const expectedOthers = manifest.parts.length - 1;
+    if (others.length < expectedOthers) throw new PackageReadError('missing-part', `This package has ${manifest.parts.length} parts and ${others.length + 1} ${others.length === 0 ? 'was' : 'were'} chosen. Choose all ${manifest.parts.length} part files together.`, { expected: manifest.parts.length, got: others.length + 1 });
+    const hashes = new Map();
+    for (const z of others) {
+      const u8 = z.bytes instanceof Uint8Array ? z.bytes : new Uint8Array(z.bytes instanceof ArrayBuffer ? z.bytes : await z.bytes.arrayBuffer());
+      hashes.set(await sha256Hex(u8), u8.byteLength);
+    }
+    for (const p of manifest.parts.slice(1)) {
+      if (!hashes.has(p.sha256)) throw new PackageReadError('tampered', `Part ${p.index}${p.file ? ` (${p.file})` : ''} is missing or does not match its checksum in the manifest.`, { part: p.index });
+    }
+  } else if (others.length) {
+    throw new PackageReadError('unexpected-part', 'This package is a single file, but more than one file was chosen.');
   }
 
   // integrity: every listed file present, right size, right hash; no unlisted data files

@@ -57,11 +57,24 @@ export function isBlobPathColumn(table, path) {
  * @param {{ name?: string, includeInterpretations?: boolean, includeSidecars?: boolean,
  *           onProgress?: (msg: string) => void, allowDangling?: boolean }} opts
  */
-export async function buildPackage(source, roots, {
-  name = null, includeInterpretations = true, includeSidecars = true, onProgress = () => {}, allowDangling = false,
+export async function buildPackage(source, roots, opts = {}) {
+  return buildPackageInto(new PackageWriter(), source, roots, opts);
+}
+
+/**
+ * Build into a writer-like: a PackageWriter (one archive) or a PackageSet
+ * (multi-part, PP4). Both expose addText/addBytes; a set also exposes
+ * manifestFiles() and partOf(path).
+ */
+export async function buildPackageInto(writer, source, roots, {
+  name = null, includeInterpretations = true, includeSidecars = true, onProgress = () => {}, allowDangling = false, dedupeRoots = false,
 } = {}) {
   const who = await source.currentUser();
   const user = { user_id: who.id, organization_id: who.organization_id ?? null, organization_name: who.organization_name ?? null };
+  if (dedupeRoots) {
+    const seen = new Set();
+    roots = roots.filter((r) => { const k = `${r.kind}:${r.table || ''}:${r.id}`; if (seen.has(k)) return false; seen.add(k); return true; });
+  }
   const col = await collectPackage(source, roots, { includeInterpretations, onProgress });
   const tables = collectionTables(col);
 
@@ -79,7 +92,6 @@ export async function buildPackage(source, roots, {
     );
   }
 
-  const writer = new PackageWriter();
   const notes = [...col.notes];
   const open = [];
   const blobs = [];
@@ -96,7 +108,8 @@ export async function buildPackage(source, roots, {
     const file = `blobs/${b.bucket}/${b.path}`;
     if (file in writer.files) continue;
     const entry = await writer.addBytes(file, b.bytes);
-    blobs.push({ bucket: b.bucket, path: b.path, file, bytes: entry.bytes, table: b.table, row_id: b.rowId, content_type: b.contentType });
+    const part = writer.partOf ? writer.partOf(file) : null;
+    blobs.push({ bucket: b.bucket, path: b.path, file, bytes: entry.bytes, table: b.table, row_id: b.rowId, content_type: b.contentType, ...(part && part > 1 ? { part } : {}) });
   }
 
   if (includeSidecars) {
@@ -115,11 +128,16 @@ export async function buildPackage(source, roots, {
 
   const manifest = buildManifest({
     name, packageId: draft.package_id, createdAt: draft.created_at, source: user, roots: col.roots,
-    tables: tableInfo, blobs, open, files: writer.files, notes,
+    tables: tableInfo, blobs, open, files: writer.manifestFiles ? writer.manifestFiles() : writer.files, notes,
   });
-  const check = validateManifest(manifest);
+  // a multi-part set fills `parts` in finish() once the later archives are hashed;
+  // validate the structure now without the part fields, and fully in finish()
+  const multi = writer.partCount > 1;
+  const toCheck = multi ? { ...manifest, blobs: manifest.blobs.map(({ part, ...b }) => b) } : manifest;
+  const check = validateManifest(toCheck);
   if (!check.ok) throw new Error(`Internal error: the manifest failed validation (${check.errors[0]}).`);
-  writer.addManifest(manifest);
+  // a single-archive writer takes the manifest now; a set takes it in finish() (parts are hashed first)
+  if (writer.addManifest) writer.addManifest(manifest);
   onProgress('Package assembled');
   return { writer, manifest, collection: col, refs, manifestFile: MANIFEST_FILE };
 }

@@ -90,12 +90,14 @@ export default function PackageImportDialog({ open, onOpenChange, onImported, on
   }, [sink]);
 
   const onFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setFileName(file.name);
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setFileName(files.length === 1 ? files[0].name : `${files.length} files (${files.map((f) => f.name).join(', ')})`);
     setSummary(null);
     try {
-      const data = await fileBytes(file);
+      // one or many: multi-part packages arrive as several files and travel as an array
+      const data = [];
+      for (const f of files) data.push(await fileBytes(f));
       setBytes(data);
       await runPreflight(data, shareWithOrg);
     } catch (err) {
@@ -172,6 +174,7 @@ export default function PackageImportDialog({ open, onOpenChange, onImported, on
               <input
                 type="file"
                 accept=".pld,.zip"
+                multiple
                 data-testid="pld-import-file"
                 disabled={busy}
                 onChange={onFile}
@@ -209,6 +212,9 @@ export default function PackageImportDialog({ open, onOpenChange, onImported, on
                 {' '}Source: {manifest.source?.organization_name || 'private account'}.
               </div>
               <div className="text-emerald-300/90">All {preflight.pkg.integrity?.checked ?? 0} files verified.</div>
+              {Array.isArray(manifest.parts) ? (
+                <div className="text-emerald-300/90" data-testid="pld-import-parts">{manifest.parts.length} parts, all present and verified.</div>
+              ) : null}
               <ul className="text-slate-400 grid grid-cols-2 gap-x-3">
                 {tableRows.map(([t, n]) => (
                   <li key={t}><span className="text-slate-500">{t}</span> {n}</li>
