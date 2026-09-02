@@ -803,6 +803,7 @@ export default function PetroWorkstation({ backend }) {
         zones={zones}
         summaries={summaries}
         projectId={projectId}
+        projectName={projectName}
         onStatus={setStatus}
       />
     )}

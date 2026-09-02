@@ -1,0 +1,90 @@
+// PP1 UI door: the export dialog lists registry items, preselects, builds the
+// package with the chosen roots and shows the manifest notes.
+
+import React from 'react';
+import '@testing-library/jest-dom';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+
+const W1 = '11111111-1111-4111-8111-111111111111';
+const W2 = '22222222-2222-4222-8222-222222222222';
+const S1 = '55555555-5555-4555-8555-555555555555';
+
+jest.mock('@/lib/wellsRegistry', () => ({
+  listWells: jest.fn(async () => [
+    { id: '11111111-1111-4111-8111-111111111111', name: 'KETA TYPE-1', uwi: 'K-1', is_own: true, organization_id: null },
+    { id: '22222222-2222-4222-8222-222222222222', name: 'AKOMA-2', uwi: 'A-2', is_own: false, organization_id: 'org' },
+  ]),
+}));
+jest.mock('@/lib/surfacesRegistry', () => ({
+  listSurfaces: jest.fn(async () => [{ id: '55555555-5555-4555-8555-555555555555', name: 'Top Sand A depth' }]),
+}));
+jest.mock('@/lib/cultureRegistry', () => ({ listCulture: jest.fn(async () => []) }));
+jest.mock('@/lib/portability/supabaseSource', () => ({ makeSupabaseSource: () => ({ tag: 'source' }) }));
+
+const mockBuild = jest.fn(async () => ({
+  writer: {},
+  manifest: { tables: { geo_wells: { rows: 1 }, geo_wells_logs: { rows: 6 } }, blobs: [{}, {}], notes: ['left out: Field interp'] },
+}));
+jest.mock('@/lib/portability/exportPackage', () => ({
+  buildGeosciencePackage: (...a) => mockBuild(...a),
+  PackageIntegrityError: class PackageIntegrityError extends Error {},
+}));
+const mockSave = jest.fn(async () => ({ method: 'download' }));
+jest.mock('@/lib/portability/zipWriter', () => ({
+  savePackage: (...a) => mockSave(...a),
+  packageFilename: (n) => `${n}.pld`,
+}));
+
+import PackageExportDialog from '@/components/portability/PackageExportDialog';
+
+beforeEach(() => { jest.clearAllMocks(); });
+
+test('preselects the well, exports with the chosen roots and shows the notes', async () => {
+  const onStatus = jest.fn();
+  render(<PackageExportDialog open onOpenChange={() => {}} preselect={{ wells: [W1] }} onStatus={onStatus} />);
+
+  const w1 = await screen.findByTestId(`pld-well-${W1}`);
+  expect(w1).toBeChecked();
+  expect(screen.getByTestId(`pld-well-${W2}`)).not.toBeChecked();
+  expect(screen.getByTestId('pld-name')).toHaveValue('KETA TYPE-1');
+
+  fireEvent.click(screen.getByTestId(`pld-surface-${S1}`));
+  fireEvent.click(screen.getByTestId('pld-export-run'));
+
+  await waitFor(() => expect(screen.getByTestId('pld-summary')).toBeInTheDocument());
+  expect(mockBuild).toHaveBeenCalledTimes(1);
+  const [source, roots, opts] = mockBuild.mock.calls[0];
+  expect(source).toEqual({ tag: 'source' });
+  expect(roots).toEqual(expect.arrayContaining([
+    { kind: 'well', id: W1, name: 'KETA TYPE-1' },
+    { kind: 'surface', id: S1, name: 'Top Sand A depth' },
+  ]));
+  expect(roots).toHaveLength(2);
+  expect(opts).toMatchObject({ name: 'KETA TYPE-1', includeInterpretations: true, includeSidecars: true });
+  expect(mockSave).toHaveBeenCalledWith({}, 'KETA TYPE-1.pld', expect.any(Function));
+  expect(screen.getByTestId('pld-summary')).toHaveTextContent('left out: Field interp');
+  expect(screen.getByTestId('pld-summary')).toHaveTextContent('7 rows across 2 tables, 2 binary files');
+  expect(onStatus).toHaveBeenCalledWith('Exported package "KETA TYPE-1".');
+  expect(document.body.textContent.includes('—')).toBe(false);
+});
+
+test('export is disabled with nothing selected and shows errors from the builder', async () => {
+  render(<PackageExportDialog open onOpenChange={() => {}} preselect={{ wells: [] }} />);
+  await screen.findByTestId(`pld-well-${W1}`);
+  expect(screen.getByTestId('pld-export-run')).toBeDisabled();
+
+  fireEvent.click(screen.getByTestId(`pld-well-${W1}`));
+  mockBuild.mockRejectedValueOnce(new Error('The package would carry 1 reference to data it does not contain.'));
+  fireEvent.click(screen.getByTestId('pld-export-run'));
+  await waitFor(() => expect(screen.getByTestId('pld-error')).toHaveTextContent(/1 reference to data it does not contain/));
+  expect(mockSave).not.toHaveBeenCalled();
+});
+
+test('a cancelled save is reported without a summary', async () => {
+  mockSave.mockResolvedValueOnce({ method: 'cancelled' });
+  render(<PackageExportDialog open onOpenChange={() => {}} preselect={{ wells: [W1] }} />);
+  await screen.findByTestId(`pld-well-${W1}`);
+  fireEvent.click(screen.getByTestId('pld-export-run'));
+  await waitFor(() => expect(screen.getByTestId('pld-progress')).toHaveTextContent('Save cancelled.'));
+  expect(screen.queryByTestId('pld-summary')).toBeNull();
+});

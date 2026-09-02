@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://petrolord.com/schemas/pld-manifest-1.json",
+  "title": "Petrolord Project Package manifest (package_version 1)",
+  "description": "manifest.json at the root of a .pld package (docs/scope/ProjectPortability-PLAN.md section 4.1). The importer (PP2) refuses any package whose package_version is above what it reads; per-table schema_version ranges are checked against the registered state kinds.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "package_version", "package_id", "created_at", "platform", "source", "scope", "tables", "blobs", "open", "files"],
+  "properties": {
+    "format": { "const": "pld" },
+    "package_version": { "type": "integer", "minimum": 1 },
+    "package_id": { "$ref": "#/definitions/uuid" },
+    "name": { "type": "string", "maxLength": 200 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "sha"],
+      "properties": {
+        "version": { "type": "string" },
+        "sha": { "type": "string" },
+        "builtAt": { "type": ["string", "null"] },
+        "source": { "type": "string" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_id"],
+      "properties": {
+        "user_id": { "$ref": "#/definitions/uuid" },
+        "organization_id": { "oneOf": [{ "$ref": "#/definitions/uuid" }, { "type": "null" }] },
+        "organization_name": { "type": ["string", "null"] }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["roots"],
+      "properties": {
+        "roots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "id"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["well", "surface", "culture", "petro_project", "pp_project", "rp_project", "correlation_section"] },
+              "id": { "$ref": "#/definitions/uuid" },
+              "name": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "tables": {
+      "type": "object",
+      "description": "One entry per dumped table; key is the table name, file is data/<table>.jsonl with one row per line.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rows", "file", "schema_version"],
+        "properties": {
+          "rows": { "type": "integer", "minimum": 0 },
+          "file": { "type": "string", "pattern": "^data/[a-z0-9_]+\\.jsonl$" },
+          "schema_version": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["min", "max"],
+            "properties": { "min": { "type": "integer", "minimum": 1 }, "max": { "type": "integer", "minimum": 1 } }
+          },
+          "pk": { "type": "string" }
+        }
+      }
+    },
+    "blobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["bucket", "path", "file", "bytes"],
+        "properties": {
+          "bucket": { "type": "string" },
+          "path": { "type": "string" },
+          "file": { "type": "string", "pattern": "^blobs/" },
+          "bytes": { "type": "integer", "minimum": 0 },
+          "table": { "type": "string" },
+          "row_id": { "$ref": "#/definitions/uuid" },
+          "content_type": { "type": "string" }
+        }
+      }
+    },
+    "open": {
+      "type": "array",
+      "description": "Open-format sidecars readable without Petrolord.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "file"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["las", "tops_csv", "zones_csv", "zmap", "csv", "readme"] },
+          "file": { "type": "string", "pattern": "^(open/|README)" },
+          "table": { "type": "string" },
+          "row_id": { "$ref": "#/definitions/uuid" },
+          "name": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "files": {
+      "type": "object",
+      "description": "Every file in the package except manifest.json itself, keyed by path, with size and sha256 (hex).",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["bytes", "sha256"],
+        "properties": {
+          "bytes": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        }
+      }
+    },
+    "signature": {
+      "type": ["object", "null"],
+      "description": "PP5: HMAC of the canonical manifest without this field. Absent or null in PP1.",
+      "additionalProperties": false,
+      "properties": { "alg": { "type": "string" }, "key_id": { "type": "string" }, "value": { "type": "string" } }
+    },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  },
+  "definitions": {
+    "uuid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" }
+  }
+}

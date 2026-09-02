@@ -5,20 +5,26 @@
 // only picks a deliverable and saves the blob, reporting per-item
 // failures instead of swallowing them.
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { saveAs } from 'file-saver';
-import { Loader2, FileText, FileSpreadsheet, FileType, FileImage } from 'lucide-react';
+import { Loader2, FileText, FileSpreadsheet, FileType, FileImage, Package } from 'lucide-react';
+import PackageExportDialog from '@/components/portability/PackageExportDialog';
 import { curvesCsv, zonesCsv, buildLas, exportBaseName, trackPlotPng } from '../services/petroExport';
 import { buildReport } from '../services/petroReport';
 
 export default function ExportDialog({
-  open, onOpenChange, wellName, wellData, outputs, params, zones, summaries, projectId, onStatus,
+  open, onOpenChange, wellName, wellData, outputs, params, zones, summaries, projectId, projectName, onStatus,
 }) {
   const [busy, setBusy] = useState(null); // which deliverable is building
+  const [packageOpen, setPackageOpen] = useState(false); // PP1 sibling dialog
+  const packagePreselect = useMemo(
+    () => ({ wells: wellData?.wellId ? [wellData.wellId] : [], name: projectName || wellName || '' }),
+    [wellData?.wellId, projectName, wellName],
+  );
 
   const base = exportBaseName(wellName);
   const run = (kind, build) => async () => {
@@ -84,6 +90,14 @@ export default function ExportDialog({
       },
     },
     {
+      kind: 'project package',
+      testid: 'petro-export-pld',
+      icon: Package,
+      label: 'Project package (.pld)',
+      note: 'This well, its curves, tops and zones, and this interpretation as a portable Petrolord package with LAS and CSV sidecars.',
+      build: async () => { setPackageOpen(true); },
+    },
+    {
       kind: 'PDF report',
       testid: 'petro-export-pdf',
       icon: FileText,
@@ -97,6 +111,13 @@ export default function ExportDialog({
   ];
 
   return (
+    <>
+    <PackageExportDialog
+      open={packageOpen}
+      onOpenChange={setPackageOpen}
+      preselect={packagePreselect}
+      onStatus={onStatus}
+    />
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md bg-slate-900 border-slate-700 text-slate-200" data-testid="petro-export-dialog">
         <DialogHeader>
@@ -135,5 +156,6 @@ export default function ExportDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
