@@ -1,9 +1,13 @@
 # Project Portability — Plan of Record (Petrolord Project Package)
 
-Status: **DRAFT FOR OWNER SIGN-OFF, 2026-09-02.** Nothing here is built.
-The eight design decisions in §4 and the open questions in §8 lock on
-owner approval; the waves in §6 then run in order, one PR per wave,
-staging-first for every migration, logged in MIGRATIONS.md.
+Status: **APPROVED, owner sign-off 2026-09-02.** §4 decisions locked
+as drafted with these answers to §8: (1) extension is **`.pld`**, not
+`.plpkg`; (2) Geoscience first; (3) seismic travels as bricks in v1;
+(4) **the backup door does NOT replace the offboarding zip**, the
+`org-export` dump stays as it is and PP4 adds backup alongside it;
+(5) imports private by default; (6) certificate wording reviewed as
+part of PP5. PP0 started 2026-09-02. Waves run in order, one PR per
+wave, staging-first for every migration, logged in MIGRATIONS.md.
 
 Drivers (owner, 2026-09-02): **consultant-to-client handover, offline
 archive and regulatory delivery, restorable backup.** Explicitly out of
@@ -122,7 +126,7 @@ hangs off.
 
 ## 4. Design decisions (proposed; owner sign-off locks these)
 
-1. **Format: `<name>.plpkg`, a plain zip.**
+1. **Format: `<name>.pld`, a plain zip.**
    ```
    manifest.json          package_version, platform build, source, time,
                           scope, inventory, per-table schema_version,
@@ -191,8 +195,8 @@ hangs off.
    blobs into the zip (fflate streaming to a File System Access handle,
    with a download fallback). This avoids the in-memory limit that
    caps `org-export` today and makes multi-GB seismic packages
-   possible. `org-export`'s offboarding flow switches to the same
-   writer in PP4 so there is one exporter.
+   possible. The `org-export` offboarding dump is unchanged by this
+   program (owner decision, §8.4); PP4 adds backup doors beside it.
 
 7. **Integrity and origin.** Every file has a sha256 in the manifest,
    and the manifest carries an HMAC signature from a platform key, so
@@ -235,7 +239,7 @@ are prerequisites for everything after.
 | **PP1 Package writer, Geoscience** | Manifest JSON Schema in `test-data/portability/`; soft-reference registry; `package-export` fn (closure + dump + small sidecars + signed URLs); browser streaming zip; roots = wells, surfaces, culture, petro/pp/rp projects, correlation sections; LAS/ZMAP/CSV sidecars | Round trip on the Petrophysics analytic type well: package → unzip → LAS sidecar parses to byte-identical curves; manifest validates; a dangling-reference detector finds zero uuids in dumped jsonb that are not in the package |
 | **PP2 Importer** | `package_import_jobs` / `_items` tables; `package-import` fn (remap, rescope, soft-ref rewrite, batches, resume); import UI (choose target scope, review inventory, warnings); refuse-if-newer end to end | Staging E2E: export from org A, import to org B; Petrophysics zone summaries on the imported well equal the oracle numbers (SAND A 18.0 m, SAND B 2.5 m); import twice gives two independent copies; a manifest edited to a higher `package_version` is refused; a tampered file is reported by hash |
 | **PP3 Coverage** | Seismolord (projects, volumes as bricks, horizons, faults, lines, picks, sessions), well planning `wp_*` hierarchy, `epe_*`, `po_*`, `sim_cases` decks, all 50 `saved_*`; add `culture` and `sim` to the pointer tables (fixes the same gap in `org-export`) | Per family: export → import → the app opens the copy and a recorded golden (existing harness fixtures) reproduces; Seismolord opens the imported volume and a horizon renders |
-| **PP4 Restorable backup** | "Back up my organization" and "Back up my work" doors on the Data Export page using the same writer with the largest root sets; multi-part packages; `org-export` offboarding switched to the writer; restore = import into a new or empty org by an admin | Staging: export a disposable org, purge it with the existing offboarding path, restore into a fresh org, manifest counts match the restored counts table by table, blobs byte-identical |
+| **PP4 Restorable backup** | "Back up my organization" and "Back up my work" doors on the Data Export page using the same writer with the largest root sets; multi-part packages; the offboarding dump stays untouched; restore = import into a new or empty org by an admin | Staging: export a disposable org, purge it with the existing offboarding path, restore into a fresh org, manifest counts match the restored counts table by table, blobs byte-identical |
 | **PP5 Regulatory delivery** | Manifest HMAC signature; Certificate of Export PDF + public verify page (`/legal/verify-export`); README wording for regulators; per-package inventory page in-app | Certificate round trip and verify page; legal review of certificate wording (owner); a signed package altered after export is flagged on import |
 
 Estimated size: roughly 12 to 15 Suite PRs and 2 to 3 engines PRs
@@ -270,25 +274,25 @@ rest.
   engineer's review per the database conventions, and both are
   additive with defaults.
 
-## 8. Open questions for the owner
+## 8. Open questions for the owner (RESOLVED 2026-09-02, see Status)
 
-1. Name and extension. Proposed **Petrolord Project Package**,
-   `.plpkg`.
-2. Coverage order. Proposed Geoscience first (PP1/PP2 on wells,
+1. Name and extension. **Petrolord Project Package, `.pld`.**
+2. Coverage order. **Geoscience first.** Proposed Geoscience first (PP1/PP2 on wells,
    surfaces, culture, Petrophysics) because wells are the hub and the
    oracle-verified type well is the ready-made acceptance case. The
    alternative is generic `saved_*` first, which is trivial but proves
    nothing hard.
 3. Seismic in v1 as bricks only (§4.8), or hold seismic until a SEG-Y
-   writer exists?
-4. Should the backup door replace the `org-export` zip outright (PP4 as
-   written), or should offboarding keep its own dump?
+   writer exists? **Bricks in v1.**
+4. Should the backup door replace the `org-export` zip outright, or
+   should offboarding keep its own dump? **Offboarding keeps its own
+   dump; PP4 adds backup beside it.**
 5. Should packages carry the importer's org scope choice as a hard
    default (private unless changed), or default to the target org?
    Proposed: private by default; sharing is a second, explicit step, as
-   it is today for imported LAS files.
+   it is today for imported LAS files. **Approved as proposed.**
 6. Certificate of Export wording and whether legal wants it reviewed
-   before PP5 or as part of it.
+   before PP5 or as part of it. **As part of PP5.**
 
 ## 9. References
 
