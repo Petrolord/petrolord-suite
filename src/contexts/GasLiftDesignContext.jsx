@@ -21,6 +21,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { supabase } from '@/lib/customSupabaseClient';
+import { registerStateKind, openStateRow } from '@/lib/stateVersion';
 import * as spine from '@/lib/productionSpine';
 import { linspace, num } from '@/utils/nodal/numerics';
 import {
@@ -35,6 +36,10 @@ import {
 } from '@/utils/production/gasLift';
 import { linearTemperature } from '@/utils/production/engine/gasLiftDesign';
 import { VALVE_FAMILIES } from '@/utils/production/engine/gasLiftValveCatalog';
+
+// PP0 state kind: the legacy Artificial Lift Designer rows this studio imports
+const LIFT_DESIGN_KIND = 'artificial-lift-design';
+registerStateKind(LIFT_DESIGN_KIND, { current: 1, label: 'lift design' });
 
 const TABLE = 'saved_gaslift_projects';
 
@@ -446,10 +451,11 @@ export const GasLiftDesignProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('artificial_lift_designs')
-        .select('id, design_name, design_data, updated_at')
+        .select('id, design_name, design_data, updated_at, schema_version')
         .order('updated_at', { ascending: false });
       if (error) throw error;
-      const withGasLift = (data || []).filter((d) => d.design_data?.gasLiftInputs);
+      const opened = (data || []).map((d) => openStateRow(LIFT_DESIGN_KIND, d));
+      const withGasLift = opened.filter((d) => d.design_data?.gasLiftInputs);
       setLegacyDesigns(withGasLift);
       if (!withGasLift.length) {
         addNotification('No old Artificial Lift Designer saves carry gas lift inputs.', 'info');

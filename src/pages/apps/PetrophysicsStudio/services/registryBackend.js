@@ -9,6 +9,7 @@
 // and org read-only sharing server-side.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 import {
   listWells, listLogs, downloadCurve, listTops,
   listZones, saveZone, updateZone, deleteZone,
@@ -47,11 +48,18 @@ async function saveDigitizedCurve(wellId, log) {
 // per-zone overrides, facies, layouts). loadProject() still opens the
 // most recent, so upgrade day changes nothing for existing users.
 
+// PP0 state kind: one row = one interpretation. Version 1 is the PS3 shape;
+// the layouts sub-document keeps its own LAYOUTS_VERSION inside layoutSchema
+// (migrateLayouts runs in the workstation on open). A future shape change
+// bumps `current` here and adds migrations[n].
+const PETRO_PROJECT_KIND = 'petro-project';
+registerStateKind(PETRO_PROJECT_KIND, { current: 1, label: 'interpretation' });
+
 async function loadProject() {
   const { data, error } = await supabase.from('petro_projects')
     .select('*').order('updated_at', { ascending: false }).limit(1);
   if (error) throw new Error(`Could not load the project: ${error.message}`);
-  return data?.[0] || null;
+  return openStateRow(PETRO_PROJECT_KIND, data?.[0] || null);
 }
 
 async function listProjects() {
@@ -66,7 +74,7 @@ async function openProject(id) {
   const { data, error } = await supabase.from('petro_projects')
     .select('*').eq('id', id).single();
   if (error) throw new Error(`Could not open the interpretation: ${error.message}`);
-  return data;
+  return openStateRow(PETRO_PROJECT_KIND, data);
 }
 
 async function currentUserId() {
@@ -78,16 +86,16 @@ async function currentUserId() {
 /** Update the OPEN interpretation (by id); first save creates it. */
 async function saveProject(patch, projectId = null) {
   if (projectId) {
-    const { data, error } = await supabase.from('petro_projects')
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq('id', projectId).select().single();
+    const { data, error } = await writeStamped(PETRO_PROJECT_KIND,
+      { ...patch, updated_at: new Date().toISOString() },
+      (row) => supabase.from('petro_projects').update(row).eq('id', projectId).select().single());
     if (error) throw new Error(`Could not save the interpretation: ${error.message}`);
     return data;
   }
   const userId = await currentUserId();
-  const { data, error } = await supabase.from('petro_projects')
-    .insert({ user_id: userId, name: 'Default interpretation', ...patch })
-    .select().single();
+  const { data, error } = await writeStamped(PETRO_PROJECT_KIND,
+    { user_id: userId, name: 'Default interpretation', ...patch },
+    (row) => supabase.from('petro_projects').insert(row).select().single());
   if (error) throw new Error(`Could not save the interpretation: ${error.message}`);
   return data;
 }
@@ -95,9 +103,9 @@ async function saveProject(patch, projectId = null) {
 /** Save-as: a NEW named interpretation from the current workspace state. */
 async function saveProjectAs(name, state) {
   const userId = await currentUserId();
-  const { data, error } = await supabase.from('petro_projects')
-    .insert({ user_id: userId, name, ...state })
-    .select().single();
+  const { data, error } = await writeStamped(PETRO_PROJECT_KIND,
+    { user_id: userId, name, ...state },
+    (row) => supabase.from('petro_projects').insert(row).select().single());
   if (error) throw new Error(`Could not create the interpretation: ${error.message}`);
   return data;
 }

@@ -144,3 +144,45 @@ describe('DCA delegation (dcaDataPersistence)', () => {
     await expect(dcaSave('dca-2', { name: 'X' })).rejects.toThrow('Sign in to save DCA projects.');
   });
 });
+
+// PP0: every row is stamped on write and opened through stateVersion on read.
+describe('PP0 state versioning', () => {
+  it('stamps schema_version and app_build on save', async () => {
+    await svc.save('proj-v', { name: 'V' });
+    const row = mockUpsert.mock.calls[0][0];
+    expect(row.schema_version).toBe(1);
+    expect(row.app_build).toBe('unknown');
+  });
+
+  it('retries the save without the stamp when the table lacks the PP0 columns', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockUpsert.mockResolvedValueOnce({ error: { code: 'PGRST204', message: "Could not find the 'schema_version' column of 'saved_test_projects' in the schema cache" } });
+    const res = await svc.save('proj-w', { name: 'W' });
+    expect(res).toEqual({ success: true });
+    expect(mockUpsert).toHaveBeenCalledTimes(2);
+    expect(mockUpsert.mock.calls[1][0]).not.toHaveProperty('schema_version');
+    expect(mockUpsert.mock.calls[1][0]).not.toHaveProperty('app_build');
+    warn.mockRestore();
+  });
+
+  it('opens a legacy row (no schema_version column) as version 1', async () => {
+    mockMaybeSingle.mockResolvedValueOnce({ data: { id: 'p', inputs_data: { name: 'legacy' } }, error: null });
+    await expect(svc.load('p')).resolves.toEqual({ name: 'legacy' });
+  });
+
+  it('refuses a row saved by a newer build, naming both versions', async () => {
+    mockMaybeSingle.mockResolvedValueOnce({ data: { id: 'p', schema_version: 7, inputs_data: { name: 'future' } }, error: null });
+    await expect(svc.load('p')).rejects.toThrow(/state version 7; this build reads up to version 1/);
+  });
+
+  it('runs a table-specific migration on load when the service declares a newer shape', async () => {
+    const v2 = createSavedProjectsService('saved_v2_projects', {
+      schemaVersion: 2,
+      migrations: { 1: (row) => ({ ...row, inputs_data: { ...row.inputs_data, units: 'field' } }) },
+    });
+    mockMaybeSingle.mockResolvedValueOnce({ data: { id: 'p', schema_version: 1, inputs_data: { name: 'old' } }, error: null });
+    await expect(v2.load('p')).resolves.toEqual({ name: 'old', units: 'field' });
+    await v2.save('p', { name: 'old', units: 'field' });
+    expect(mockUpsert.mock.calls.at(-1)[0].schema_version).toBe(2);
+  });
+});

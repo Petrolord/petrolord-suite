@@ -6,6 +6,7 @@
 // write paths are the sim_enqueue_run / sim_cancel_run RPCs — the OPM Flow
 // worker on the studio VPS does everything else (worker/sim-worker/).
 import { supabase } from '@/lib/customSupabaseClient';
+import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 
 const BUCKET = 'sim';
 
@@ -26,33 +27,32 @@ export const friendlyError = (error) => {
 
 // ------------------------------------------------------------------ cases ---
 
+// PP0 state kind (docs/scope/ProjectPortability-PLAN.md §4.3)
+const SIM_CASE_KIND = 'sim-case';
+registerStateKind(SIM_CASE_KIND, { current: 1, label: 'simulation case' });
+
 export async function listCases() {
   const { data, error } = await supabase
     .from('sim_cases')
     .select('*')
     .order('updated_at', { ascending: false });
   if (error) throw error;
-  return data || [];
+  return (data || []).map((row) => openStateRow(SIM_CASE_KIND, row));
 }
 
 export async function createCase(name, description = '') {
   const uid = await userId();
-  const { data, error } = await supabase
-    .from('sim_cases')
-    .insert({ user_id: uid, name, description })
-    .select()
-    .single();
+  const { data, error } = await writeStamped(SIM_CASE_KIND,
+    { user_id: uid, name, description },
+    (row) => supabase.from('sim_cases').insert(row).select().single());
   if (error) throw error;
   return data;
 }
 
 export async function updateCase(id, fields) {
-  const { data, error } = await supabase
-    .from('sim_cases')
-    .update({ ...fields, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single();
+  const { data, error } = await writeStamped(SIM_CASE_KIND,
+    { ...fields, updated_at: new Date().toISOString() },
+    (row) => supabase.from('sim_cases').update(row).eq('id', id).select().single());
   if (error) throw error;
   return data;
 }

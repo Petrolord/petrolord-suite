@@ -7,9 +7,23 @@
 // recomputed on load, never duplicated server-side. This module is the single
 // implementation of that convention — extracted verbatim from the DCA
 // persistence (`saved_dca_projects`, R1), which now delegates here.
+//
+// PP0 (docs/scope/ProjectPortability-PLAN.md §4.3): every row is opened through
+// src/lib/stateVersion.js and written with a version stamp. A table's payload
+// shape is a state kind `saved-project:<table>`; apps that change their
+// payload shape bump `schemaVersion` and pass step-wise `migrations`.
 import { supabase } from '@/lib/customSupabaseClient';
+import { registerStateKind, openState, writeStamped } from '@/lib/stateVersion';
 
-export function createSavedProjectsService(tableName, { signInMessage = 'Sign in to save projects.' } = {}) {
+export function createSavedProjectsService(tableName, {
+  signInMessage = 'Sign in to save projects.',
+  schemaVersion = 1,
+  migrations = {},
+  label = 'saved project',
+} = {}) {
+  const kind = `saved-project:${tableName}`;
+  registerStateKind(kind, { current: schemaVersion, migrations, label });
+
   const currentUserId = async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data?.user?.id) throw new Error(signInMessage);
@@ -35,26 +49,29 @@ export function createSavedProjectsService(tableName, { signInMessage = 'Sign in
     /** Upsert the full project payload under its stable project id. */
     async save(projectId, projectData) {
       const userId = await currentUserId();
-      const { error } = await supabase.from(tableName).upsert({
+      const { error } = await writeStamped(kind, {
         id: projectId,
         user_id: userId,
         project_name: projectData?.name || 'Untitled project',
         inputs_data: projectData,
         updated_at: new Date().toISOString(),
-      });
+      }, (row) => supabase.from(tableName).upsert(row));
       if (error) throw error;
       return { success: true };
     },
 
-    /** Load one project's payload (null when it does not exist). */
+    /** Load one project's payload (null when it does not exist). Migrates
+     *  older shapes up; refuses rows stamped by a newer build. */
     async load(projectId) {
       const { data, error } = await supabase
         .from(tableName)
-        .select('inputs_data')
+        .select('*')
         .eq('id', projectId)
         .maybeSingle();
       if (error) throw error;
-      return data?.inputs_data ?? null;
+      if (!data) return null;
+      const { row } = openState(kind, data);
+      return row?.inputs_data ?? null;
     },
 
     /** Delete one project. */

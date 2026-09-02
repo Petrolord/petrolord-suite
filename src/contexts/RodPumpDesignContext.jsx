@@ -17,6 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { supabase } from '@/lib/customSupabaseClient';
+import { registerStateKind, openStateRow } from '@/lib/stateVersion';
 import * as spine from '@/lib/productionSpine';
 import { linspace, num } from '@/utils/nodal/numerics';
 import {
@@ -29,6 +30,10 @@ import {
   parseSections, liquidGravity, importLegacyRodInputs,
 } from '@/utils/production/rodPump';
 import { ROD_SIZES, ROD_GRADES, PLUNGER_SIZES } from '@/utils/production/engine/rodCatalog';
+
+// PP0 state kind: the legacy Artificial Lift Designer rows this studio imports
+const LIFT_DESIGN_KIND = 'artificial-lift-design';
+registerStateKind(LIFT_DESIGN_KIND, { current: 1, label: 'lift design' });
 
 const TABLE = 'saved_rodpump_projects';
 
@@ -382,10 +387,11 @@ export const RodPumpDesignProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('artificial_lift_designs')
-        .select('id, design_name, design_data, updated_at')
+        .select('id, design_name, design_data, updated_at, schema_version')
         .order('updated_at', { ascending: false });
       if (error) throw error;
-      const withRod = (data || []).filter((d) => d.design_data?.rodPumpInputs);
+      const opened = (data || []).map((d) => openStateRow(LIFT_DESIGN_KIND, d));
+      const withRod = opened.filter((d) => d.design_data?.rodPumpInputs);
       setLegacyDesigns(withRod);
       if (!withRod.length) {
         addNotification('No old Artificial Lift Designer saves carry rod pump inputs.', 'info');

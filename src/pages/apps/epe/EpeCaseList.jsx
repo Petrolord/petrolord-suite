@@ -5,6 +5,11 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Briefcase, Plus, ChevronRight, ArrowLeft, HelpCircle, Sparkles, Search, Archive, ArchiveRestore, Copy, Users } from 'lucide-react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
+
+// PP0 state kind (docs/scope/ProjectPortability-PLAN.md §4.3)
+const EPE_CASE_KIND = 'epe-case';
+registerStateKind(EPE_CASE_KIND, { current: 1, label: 'economics case' });
 import { buildExampleCaseData } from '@/lib/epeExampleCase';
 import {
   Dialog,
@@ -61,8 +66,9 @@ const EpeCaseList = () => {
     if (error) {
       toast({ title: 'Error fetching cases', description: error.message, variant: 'destructive' });
     } else {
-      setCases(data);
-      fetchLastRunKpis(data);
+      const opened = (data || []).map((row) => openStateRow(EPE_CASE_KIND, row));
+      setCases(opened);
+      fetchLastRunKpis(opened);
     }
     setLoading(false);
   };
@@ -98,10 +104,9 @@ const EpeCaseList = () => {
 
   const handleToggleArchive = async (c) => {
     const archiving = !c.archived_at;
-    const { error } = await supabase
-      .from('epe_cases')
-      .update({ archived_at: archiving ? new Date().toISOString() : null })
-      .eq('id', c.id);
+    const { error } = await writeStamped(EPE_CASE_KIND,
+      { archived_at: archiving ? new Date().toISOString() : null },
+      (row) => supabase.from('epe_cases').update(row).eq('id', c.id));
     if (error) {
       toast({ title: archiving ? 'Archive failed' : 'Unarchive failed', description: error.message, variant: 'destructive' });
     } else {
@@ -115,11 +120,9 @@ const EpeCaseList = () => {
   const handleCloneCase = async (c) => {
     setCloningId(c.id);
     try {
-      const { data: newCase, error: caseErr } = await supabase
-        .from('epe_cases')
-        .insert([{ case_name: `${c.case_name} (copy)`, description: c.description, user_id: meId }])
-        .select()
-        .single();
+      const { data: newCase, error: caseErr } = await writeStamped(EPE_CASE_KIND,
+        { case_name: `${c.case_name} (copy)`, description: c.description, user_id: meId },
+        (row) => supabase.from('epe_cases').insert([row]).select().single());
       if (caseErr) throw new Error(`Creating the copy: ${caseErr.message}`);
       let copied = 0;
       for (const table of ['epe_production_volumes', 'epe_capex', 'epe_opex']) {
@@ -155,11 +158,9 @@ const EpeCaseList = () => {
     setIsSubmitting(true);
     const { data: { user } } = await supabase.auth.getUser();
 
-    const { data, error } = await supabase
-      .from('epe_cases')
-      .insert([{ case_name: newCaseName, description: newCaseDescription, user_id: user.id }])
-      .select()
-      .single();
+    const { data, error } = await writeStamped(EPE_CASE_KIND,
+      { case_name: newCaseName, description: newCaseDescription, user_id: user.id },
+      (row) => supabase.from('epe_cases').insert([row]).select().single());
 
     if (error) {
       toast({ title: 'Error creating case', description: error.message, variant: 'destructive' });
@@ -185,11 +186,9 @@ const EpeCaseList = () => {
 
       const example = buildExampleCaseData();
 
-      const { data: newCase, error: caseError } = await supabase
-        .from('epe_cases')
-        .insert([{ case_name: example.caseName, description: example.caseDescription, user_id: user.id }])
-        .select()
-        .single();
+      const { data: newCase, error: caseError } = await writeStamped(EPE_CASE_KIND,
+        { case_name: example.caseName, description: example.caseDescription, user_id: user.id },
+        (row) => supabase.from('epe_cases').insert([row]).select().single());
 
       if (caseError) throw new Error(`Creating case: ${caseError.message}`);
 

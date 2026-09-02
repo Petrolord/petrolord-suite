@@ -10,6 +10,7 @@
 // PP/FG/OBG curves to geo_wells_logs lands at P4 (plan Q4).
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 import {
   listWells, listLogs, downloadCurve, saveLogs, deleteLog,
 } from '@/lib/wellsRegistry';
@@ -59,27 +60,33 @@ async function publishCurves(wellId, preparedLogs, projectId) {
 // v1: one implicit project per user, created on first save (the
 // petro_projects convention).
 
+// PP0 state kind (docs/scope/ProjectPortability-PLAN.md §4.3): version 1 is
+// the current row shape; a future shape change bumps `current` and adds
+// migrations[n]. Rows open through openStateRow, writes go through writeStamped.
+const PP_PROJECT_KIND = 'pp-project';
+registerStateKind(PP_PROJECT_KIND, { current: 1, label: 'pore pressure project' });
+
 async function loadProject() {
   const { data, error } = await supabase.from('pp_projects')
     .select('*').order('updated_at', { ascending: false }).limit(1);
   if (error) throw new Error(`Could not load the project: ${error.message}`);
-  return data?.[0] || null;
+  return openStateRow(PP_PROJECT_KIND, data?.[0] || null);
 }
 
 async function saveProject(patch) {
   const existing = await loadProject();
   if (existing) {
-    const { data, error } = await supabase.from('pp_projects')
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq('id', existing.id).select().single();
+    const { data, error } = await writeStamped(PP_PROJECT_KIND,
+      { ...patch, updated_at: new Date().toISOString() },
+      (row) => supabase.from('pp_projects').update(row).eq('id', existing.id).select().single());
     if (error) throw new Error(`Could not save the project: ${error.message}`);
     return data;
   }
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error('You must be signed in to save projects.');
-  const { data, error } = await supabase.from('pp_projects')
-    .insert({ user_id: user.id, name: 'Default project', ...patch })
-    .select().single();
+  const { data, error } = await writeStamped(PP_PROJECT_KIND,
+    { user_id: user.id, name: 'Default project', ...patch },
+    (row) => supabase.from('pp_projects').insert(row).select().single());
   if (error) throw new Error(`Could not save the project: ${error.message}`);
   return data;
 }
