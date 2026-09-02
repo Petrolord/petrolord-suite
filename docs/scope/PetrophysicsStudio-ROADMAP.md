@@ -25,7 +25,7 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
 | PS5 | Formation temperature model + Waxman-Smits / dual-water / Modified Simandoux Sw + Rw quicklook tools wired (SP, Arps); PIPELINE_VERSION 3 | B5 partial | large | no | **DONE 2026-09-02** |
 | PS6 | Permeability (Timur, Tixier, Coates, Wyllie-Rose) + Buckles BVW analysis + zone k geometric mean; PIPELINE_VERSION 4 | B2 | yes | no | **DONE 2026-09-02** |
 | PS7 | Histogram panel: cumulative frequency, P10/P50/P90, zone filters, draggable cutoff lines writing back to parameters; multi-well GR overlay + normalization fit | — | normalize.js | no | **DONE 2026-09-02** |
-| PS8 | Log conditioning: Hampel despike, smoothing, block depth-shift, bad-hole flag/repair; conditioned curves published as new `_CND` registry curves, raw untouched | B3, D1b | yes | no | queued |
+| PS8 | Log conditioning: Hampel despike, smoothing, block depth-shift, bad-hole flag/repair; conditioned curves published as new `_CND` registry curves, raw untouched | B3, D1b | yes | no | **DONE 2026-09-02** |
 | PS9 | Multi-well field view: render refactor (static + overlay canvases, decimation), per-well columns, top-flattening, cross-well zone summary table | C1 | no | no | queued |
 | PS10 | Split view + linked brushing, Hingle plot, TVD axis labels (deviation-gated), zone boundary drag, matrix-ID quicklook + Thomas-Stieber | B4 recorded | small | no | queued |
 
@@ -181,3 +181,22 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
   degenerate-fit NaN); 106 jest, 12/12 e2e (new PS7 spec: dragging
   the GR clean line commits grClean = 45 from the plot geometry, the
   twin harness well fits the identity normalization).
+- **PS8 (2026-09-02):** engines PR #98 + Suite branch
+  `feat/petrophysics-ps8-conditioning`. Engines: `conditioning.js` —
+  Hampel 1974 despike (zero-MAD windows treat any deviation as a
+  spike; the fixture anchor caught the naive-guard miss in constant
+  clean sand), centred mean/median smoothing (NaN centre stays NaN),
+  constant block depth-shift (scope guard: NOT stretch/squeeze
+  correlation), caliper/DRHO bad-hole flag + null-or-bridge repair
+  with a visible gap cap. COND goldens derive inputs inside
+  genfixtures so the typewell never changes. Suite: CAL/DRHO/PEF
+  aliases, `ConditioningDialog` (preview of changed/nulled counts;
+  saves `KEY_CND` + BADHOLE via the overwrite-own publish path with
+  operation provenance; normalization apply prefilled from the PS7
+  fit), and the **explicit input picker** in the explorer — a
+  conditioned curve is never substituted silently; the user selects
+  it per input (curveMap `candidatesFor`). D1b noted satisfied:
+  conditioning lives in the Studio, no separate QC tile rebuild.
+  Tests: `conditioning.test.js` (COND goldens at 1e-12, spike-death
+  and cap-visibility invariants); 111 jest, 13/13 e2e (new PS8 spec:
+  save GR_CND, pick it in the explorer, pipeline recomputes clean).
