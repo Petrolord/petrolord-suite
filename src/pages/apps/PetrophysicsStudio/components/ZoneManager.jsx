@@ -87,6 +87,11 @@ export default function ZoneManager({
                 <span>φ {fmt(s.phi_avg, 3)}</span>
                 <span>Sw {fmt(s.sw_avg, 3)}</span>
                 <span>Vsh {fmt(s.vsh_avg, 3)}</span>
+                {s.k_gm_md !== undefined && (
+                  <span data-testid={`petro-zone-kgm-${z.name}`}>
+                    k gm <b className="text-slate-200">{fmt(s.k_gm_md, 1)}</b> mD
+                  </span>
+                )}
               </div>
             ) : (
               <div className="mt-1 text-[11px] text-slate-600">no computed curves yet</div>

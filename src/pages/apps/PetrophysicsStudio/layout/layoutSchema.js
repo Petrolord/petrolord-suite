@@ -24,7 +24,7 @@
 export const LAYOUTS_VERSION = 1;
 
 export const INPUT_SOURCES = ['input:GR', 'input:RHOB', 'input:NPHI', 'input:DT', 'input:RT'];
-export const OUTPUT_SOURCES = ['output:PHIE', 'output:VSH', 'output:SW', 'output:PAY', 'output:TEMP'];
+export const OUTPUT_SOURCES = ['output:PHIE', 'output:VSH', 'output:SW', 'output:PAY', 'output:TEMP', 'output:KPERM', 'output:BVW'];
 export const THRESHOLD_PARAMS = ['cutPhi', 'cutVsh', 'cutSw', 'grClean', 'grClay'];
 
 /** The PS1 default set, codified. */
@@ -66,6 +66,11 @@ export function buildDefaultTemplates() {
         {
           id: 't-sw', title: 'Sw (v/v)', type: 'curves', width: 1, scale: 'linear', min: 0, max: 1,
           curves: [{ source: 'output:SW', label: 'Sw', color: '#60a5fa' }],
+          fills: [],
+        },
+        {
+          id: 't-kperm', title: 'k (mD)', type: 'curves', width: 1, scale: 'log', min: 0.01, max: 10000,
+          curves: [{ source: 'output:KPERM', label: 'k', color: '#f472b6' }],
           fills: [],
         },
         {
