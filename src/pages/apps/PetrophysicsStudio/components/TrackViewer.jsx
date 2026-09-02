@@ -34,15 +34,21 @@ const ZONE_COLORS = ['rgba(34,211,238,0.10)', 'rgba(251,191,36,0.10)', 'rgba(52,
  * @param {Array} [p.tops] geo_wells_tops rows
  * @param {'m'|'ft'} [p.depthUnit] DISPLAY unit only — data stays metres
  * @param {(trackIndex: number) => void} [p.onTrackHeaderClick]
+ * @param {?Set<number>} [p.selection] crossplot-brushed sample indexes
+ * @param {?(md: number) => number} [p.tvdLookup] axis labels in TVD
+ * @param {boolean} [p.isOwn] zone edges drag only on owned wells
+ * @param {(zone, edge: 'top'|'base', newMd: number) => void} [p.onZoneEdge]
  */
 export default function TrackViewer({
   depth, tracks, zones = [], tops = [], depthUnit = 'm', onTrackHeaderClick,
+  selection = null, tvdLookup = null, isOwn = false, onZoneEdge,
 }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [view, setView] = useState(null);      // [dTop, dBase] or null = full
   const [cursor, setCursor] = useState(null);  // {y, depthM, idx}
+  const [zoneDrag, setZoneDrag] = useState(null); // {zone, edge, md}
   const dragRef = useRef(null);
   const movedRef = useRef(false);
 
@@ -126,14 +132,30 @@ export default function TrackViewer({
       ctx.lineTo(size.w, y);
       ctx.stroke();
       ctx.textAlign = 'right';
-      ctx.fillText(String(Math.round(dv)), AXIS_W - 4, y + 3);
+      // TVD mode swaps the LABELS only — spacing stays MD, and the
+      // axis title says so
+      const label = tvdLookup ? tvdLookup(dv / F) * F : dv;
+      ctx.fillText(Number.isFinite(label) ? String(Math.round(label)) : '—', AXIS_W - 4, y + 3);
     }
     ctx.save();
     ctx.translate(10, plotTop + plotH / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
-    ctx.fillText(depthUnit === 'ft' ? 'MD (ft)' : 'MD (m)', 0, 0);
+    const unitTxt = depthUnit === 'ft' ? 'ft' : 'm';
+    ctx.fillText(tvdLookup ? `TVD (${unitTxt}) on MD spacing` : `MD (${unitTxt})`, 0, 0);
     ctx.restore();
+
+    // crossplot-brushed selection: cyan ticks along the axis gutter
+    if (selection && selection.size) {
+      ctx.fillStyle = 'rgba(34,211,238,0.85)';
+      for (let i = 0; i < depth.length - 1; i++) {
+        if (!selection.has(i)) continue;
+        if (depth[i] > vBase || depth[i + 1] < vTop) continue;
+        const y = yOf(depth[i]);
+        const y2 = yOf(depth[i + 1]);
+        ctx.fillRect(AXIS_W - 3, y, 3, Math.max(1, y2 - y));
+      }
+    }
 
     // visible sample range
     let i0 = 0;
@@ -287,6 +309,22 @@ export default function TrackViewer({
       ctx.fillText(t.name, size.w - 4, y - 3);
     }
 
+    // zone-edge drag preview
+    if (zoneDrag) {
+      const y = yOf(zoneDrag.md);
+      ctx.strokeStyle = '#22d3ee';
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(AXIS_W, y);
+      ctx.lineTo(size.w, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#22d3ee';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${zoneDrag.zone.name} ${zoneDrag.edge} → ${zoneDrag.md.toFixed(1)} m`, AXIS_W + 4, y - 4);
+    }
+
     // crosshair
     if (cursor && cursor.y >= plotTop && cursor.y <= plotTop + plotH) {
       ctx.strokeStyle = 'rgba(148,163,184,0.7)';
@@ -297,9 +335,10 @@ export default function TrackViewer({
       ctx.fillStyle = '#e2e8f0';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText((cursor.depthM * F).toFixed(1), AXIS_W - 4, cursor.y - 4);
+      const cLabel = tvdLookup ? tvdLookup(cursor.depthM) * F : cursor.depthM * F;
+      ctx.fillText(Number.isFinite(cLabel) ? cLabel.toFixed(1) : '—', AXIS_W - 4, cursor.y - 4);
     }
-  }, [size, depth, tracks, zones, tops, vTop, vBase, cursor, yOf, plotTop, plotH, F, depthUnit]);
+  }, [size, depth, tracks, zones, tops, vTop, vBase, cursor, yOf, plotTop, plotH, F, depthUnit, selection, tvdLookup, zoneDrag]);
 
   const nearestIdx = (d) => {
     // depth ascending, uniformish: binary search
@@ -313,9 +352,27 @@ export default function TrackViewer({
     return d - depth[lo] < depth[hi] - d ? lo : hi;
   };
 
+  // zone-edge hit test (owned wells only): top/base line within 5px
+  const zoneEdgeAt = (y) => {
+    if (!isOwn || !onZoneEdge) return null;
+    for (const z of zones) {
+      if (Math.abs(yOf(z.top_md_m) - y) <= 5) return { zone: z, edge: 'top' };
+      if (Math.abs(yOf(z.base_md_m) - y) <= 5) return { zone: z, edge: 'base' };
+    }
+    return null;
+  };
+
   const onPointerMove = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
     const y = e.clientY - rect.top;
+    if (zoneDrag) {
+      const md = Math.min(dMax, Math.max(dMin, dOf(y)));
+      setZoneDrag((zd) => ({ ...zd, md }));
+      return;
+    }
+    if (!dragRef.current) {
+      canvasRef.current.style.cursor = zoneEdgeAt(y) ? 'row-resize' : 'crosshair';
+    }
     if (dragRef.current) {
       movedRef.current = true;
       const dd = dOf(dragRef.current.y) - dOf(y);
@@ -355,7 +412,14 @@ export default function TrackViewer({
         onPointerMove={onPointerMove}
         onPointerDown={(e) => {
           movedRef.current = false;
-          dragRef.current = { y: e.clientY - canvasRef.current.getBoundingClientRect().top, view: [vTop, vBase] };
+          const y = e.clientY - canvasRef.current.getBoundingClientRect().top;
+          const edge = zoneEdgeAt(y);
+          if (edge) {
+            setZoneDrag({ ...edge, md: edge.edge === 'top' ? edge.zone.top_md_m : edge.zone.base_md_m });
+            e.currentTarget.setPointerCapture(e.pointerId);
+            return;
+          }
+          dragRef.current = { y, view: [vTop, vBase] };
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
         onClick={(e) => {
@@ -372,7 +436,17 @@ export default function TrackViewer({
             if (x < acc) { onTrackHeaderClick(i); return; }
           }
         }}
-        onPointerUp={(e) => { dragRef.current = null; e.currentTarget.releasePointerCapture(e.pointerId); }}
+        onPointerUp={(e) => {
+          if (zoneDrag) {
+            const { zone, edge, md } = zoneDrag;
+            setZoneDrag(null);
+            e.currentTarget.releasePointerCapture(e.pointerId);
+            onZoneEdge(zone, edge, Number(md.toFixed(2)));
+            return;
+          }
+          dragRef.current = null;
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        }}
         onPointerLeave={() => { setCursor(null); }}
         onWheel={onWheel}
         onDoubleClick={() => setView(null)}

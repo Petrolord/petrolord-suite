@@ -28,7 +28,7 @@ export default function BatchRunDialog({ open, onOpenChange, wells, runBatch }) 
     setResults([]);
     const out = [];
     for (const w of ownWells.filter((x) => picked.has(x.id))) {
-      // eslint-disable-next-line no-await-in-loop
+       
       const r = await runBatch(w).then(
         (n) => ({ well: w, ok: true, message: `${n} curves published` }),
         (e) => ({ well: w, ok: false, message: e.message }),

@@ -27,7 +27,7 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
 | PS7 | Histogram panel: cumulative frequency, P10/P50/P90, zone filters, draggable cutoff lines writing back to parameters; multi-well GR overlay + normalization fit | — | normalize.js | no | **DONE 2026-09-02** |
 | PS8 | Log conditioning: Hampel despike, smoothing, block depth-shift, bad-hole flag/repair; conditioned curves published as new `_CND` registry curves, raw untouched | B3, D1b | yes | no | **DONE 2026-09-02** |
 | PS9 | Multi-well field view: render refactor (static + overlay canvases, decimation), per-well columns, top-flattening, cross-well zone summary table | C1 | no | no | **DONE 2026-09-02** |
-| PS10 | Split view + linked brushing, Hingle plot, TVD axis labels (deviation-gated), zone boundary drag, matrix-ID quicklook + Thomas-Stieber | B4 recorded | small | no | queued |
+| PS10 | Split view + linked brushing, Hingle plot, TVD axis labels (deviation-gated), zone boundary drag, matrix-ID quicklook + Thomas-Stieber | B4 recorded | small | no | **DONE 2026-09-02 — PROGRAM COMPLETE** |
 
 ## Recorded decisions
 
@@ -225,3 +225,49 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
   list. 111 jest, 14/14 e2e (new PS9 spec: golden SAND A net in the
   KETA cell, dashes for unmatched zones, flatten survives a missing
   datum top).
+- **PS10 (2026-09-02, program close-out):** engines PR #99 + Suite
+  branch `feat/petrophysics-ps10-closeout`. Engines: Hingle 1959
+  transform/water-line/through-origin fit (typewell water leg returns
+  the construction Rw exactly — anchored); `matrix.js` — Doveton 1994
+  rho_maa/U_maa (rho_maa round-trips the matrix density exactly on
+  the constructed RHOB), Thomas & Stieber 1975 end-members +
+  nearest-model classification, the exact unclamped 2-mineral D-N
+  solve. Suite: **Hingle plot** (fourth crossplot, fit window applies
+  Rw back), **Split view** (Tracks | Crossplot side by side) with the
+  **selection brush** — a polygon on any crossplot highlights those
+  samples as cyan ticks on the track depth axis and dims unselected
+  points; **TVD axis labels** gated on a deviation survey (drilling
+  surveyMath kernel; MD-linear spacing, honestly titled "TVD on MD
+  spacing"; harness KETA gained a build-and-hold survey); **zone
+  boundary dragging** on the tracks (owned wells; commit via
+  updateZone with top<base validation; tops stay read-only by
+  decision); crossplot config (plot + colorBy) now persists in
+  `petro_projects.crossplots`. Tests: `matrixHingle.test.js` (MATRIX
+  goldens, TVD lookup identity/deviation cases); 116 jest across the
+  app (219 with WellDataManager), 15/15 e2e (new PS10 spec: Hingle
+  Rw = 0.050000 applied, split-view brush, TVD toggle, dragging SAND
+  A's base to 2040 updates the zone card).
+  Trimmed within PS10, recorded: the split divider is fixed 60/40
+  (not draggable); hover cross-highlighting (track crosshair -> dot,
+  point -> depth tick) did not ship — the polygon brush is the linked
+  mechanism; TVD-linear resampling stays out of scope as planned.
+
+## Program close-out (2026-09-02)
+
+All ten waves are built and stacked as PRs: engines
+Petrolord/petrolord-engines #92 → #93 → #94 → #95 → #96 → #97 → #98 →
+#99; Suite #340 → #341 → #342 → #343 → #344 → #345 → #346 → #347 →
+#348 → #349 (merge in that order). Migration 20260901120000 is
+applied live. Audit items A1, A2, B1, B2, B3, C1, C2, C3, D1 are
+closed; B4 (Elan-class multi-mineral) is a recorded deferral; B5
+(Bateman-Konen) stays gated on a page-referenced source.
+
+Open items after the program:
+- Owner review + merge of the PR stacks; prod zip after Suite merge.
+- Owner staging E2E pass on suite.studio.petrolord.com.
+- Cleanup: extract `useProjectState` from PetroWorkstation (the
+  controller stands near 1000 lines; deferred from PS9/PS10 to avoid
+  a late-program refactor risk); retire `src/utils/trackUtils.js` and
+  `depthTrackUtils.js` (PS4 spec donors, now unused).
+- Optional nicities left on the table: draggable split divider, hover
+  cross-highlighting, per-view crossplot domain persistence.

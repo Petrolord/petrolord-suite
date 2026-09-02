@@ -36,6 +36,7 @@ import { faciesCurve } from '../engine/crossplot';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate } from '../layout/layoutSchema';
 import { resolveTracks } from '../layout/resolveTracks';
 import { mapLogs } from '../services/curveMap';
+import { makeTvdLookup } from '../viewer/depthModes';
 
 export default function PetroWorkstation({ backend }) {
   const [wells, setWells] = useState(null);
@@ -68,6 +69,9 @@ export default function PetroWorkstation({ backend }) {
   // PS8: explicit input picks — a conditioned curve is never
   // substituted silently; the user selects it per input key
   const curvePicksRef = useRef({ wellId: null, picks: {} });
+  const [selection, setSelection] = useState(null);            // PS10 crossplot brush (Set of sample idx)
+  const [depthMode, setDepthMode] = useState('md');            // 'md' | 'tvd' labels
+  const [crossplotCfg, setCrossplotCfg] = useState(null);      // persisted to petro_projects.crossplots
 
   useEffect(() => {
     let live = true;
@@ -83,6 +87,7 @@ export default function PetroWorkstation({ backend }) {
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.facies) setFaciesByWell(project.facies);
         if (project.zone_params) setZoneParams(project.zone_params);
+        if (project.crossplots && Object.keys(project.crossplots).length) setCrossplotCfg(project.crossplots);
         setLayouts(migrateLayouts(project.layouts));
         setStatus(`Restored ${project.name || 'saved project'}.`);
       } catch (e) {
@@ -111,6 +116,7 @@ export default function PetroWorkstation({ backend }) {
     setLoadingId(wellId);
     setWellData(null);
     setNoDepthWell(null);
+    setSelection(null);
     setZones([]);
     setFacies(faciesByWell[wellId] || []);
     try {
@@ -294,7 +300,29 @@ export default function PetroWorkstation({ backend }) {
     setStatus(`Digitized ${saved.mnemonic} added to ${name}.`);
   };
 
-  const workspaceState = () => ({ params, facies: faciesByWell, zone_params: zoneParams, layouts });
+  const workspaceState = () => ({
+    params, facies: faciesByWell, zone_params: zoneParams, layouts, crossplots: crossplotCfg || {},
+  });
+
+  // PS10: TVD axis labels, gated on a usable deviation survey
+  const tvdLookup = useMemo(() => {
+    if (depthMode !== 'tvd') return null;
+    return makeTvdLookup(selected?.deviation);
+  }, [depthMode, selected]);
+  const hasDeviation = Array.isArray(selected?.deviation) && selected.deviation.length >= 2;
+
+  const commitZoneEdge = async (zone, edge, newMd) => {
+    const top = edge === 'top' ? newMd : zone.top_md_m;
+    const base = edge === 'base' ? newMd : zone.base_md_m;
+    if (!(base > top)) { setStatus('Zone base must stay below its top.'); return; }
+    try {
+      await backend.updateZone(zone.id, edge === 'top' ? { top_md_m: newMd } : { base_md_m: newMd });
+      await refreshZones(zone.well_id);
+      setStatus(`Moved ${zone.name} ${edge} to ${newMd.toFixed(1)} m.`);
+    } catch (e) {
+      setStatus(e.message);
+    }
+  };
 
   const saveProject = async () => {
     try {
@@ -314,6 +342,7 @@ export default function PetroWorkstation({ backend }) {
     setParams({ ...DEFAULT_PARAMS, ...(project.params || {}) });
     setFaciesByWell(project.facies || {});
     setZoneParams(project.zone_params || {});
+    if (project.crossplots && Object.keys(project.crossplots).length) setCrossplotCfg(project.crossplots);
     setLayouts(migrateLayouts(project.layouts));
     if (selectedId) setFacies((project.facies || {})[selectedId] || []);
   };
@@ -419,6 +448,17 @@ export default function PetroWorkstation({ backend }) {
           onClick={() => setView('histogram')}
         >
           Histograms
+        </button>
+        <button
+          type="button"
+          data-testid="petro-view-split"
+          disabled={!wellData}
+          title="Tracks and crossplot side by side with linked selection"
+          className={`px-2 py-1 text-xs rounded border disabled:opacity-40
+            ${view === 'split' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+          onClick={() => setView('split')}
+        >
+          Split
         </button>
         <button
           type="button"
@@ -543,6 +583,17 @@ export default function PetroWorkstation({ backend }) {
       <span className="ml-auto whitespace-nowrap">
         {selected ? `${selected.name} · ${wellData?.curves.DEPT?.length ?? '…'} samples` : `${wells?.length ?? '…'} wells`}
       </span>
+      {hasDeviation && (
+        <button
+          type="button"
+          data-testid="petro-depth-mode"
+          title="Axis labels only: TVD values shown at MD spacing (the axis says so)"
+          className="whitespace-nowrap rounded border border-slate-800 px-1.5 text-slate-400 hover:text-slate-200"
+          onClick={() => setDepthMode((m) => (m === 'md' ? 'tvd' : 'md'))}
+        >
+          axis: {depthMode === 'tvd' ? 'TVD' : 'MD'}
+        </button>
+      )}
       <button
         type="button"
         data-testid="petro-depth-unit"
@@ -602,29 +653,50 @@ export default function PetroWorkstation({ backend }) {
       curvesCache={curvesCache}
       onFitResult={setLastNormFit}
     />
-  ) : view === 'crossplot' ? (
-    <CrossplotPanel
-      curves={wellData.curves}
-      outputs={computed?.outputs}
-      params={params}
-      facies={facies}
-      onFaciesChange={setFaciesForWell}
-      onApplyParams={(patch) => setParams((p) => ({ ...p, ...patch }))}
-      onStatus={setStatus}
-    />
-  ) : (
-    <TrackViewer
-      depth={wellData.curves.DEPT}
-      tracks={tracks}
-      zones={zones}
-      tops={wellData.tops}
-      depthUnit={depthUnit}
-      onTrackHeaderClick={(index) => {
-        setDockOpen(true);
-        setLayoutFocus({ index, nonce: Date.now() });
-      }}
-    />
-  );
+  ) : (() => {
+    const crossplotEl = (
+      <CrossplotPanel
+        curves={wellData.curves}
+        outputs={computed?.outputs}
+        params={params}
+        facies={facies}
+        onFaciesChange={setFaciesForWell}
+        onApplyParams={(patch) => setParams((p) => ({ ...p, ...patch }))}
+        onStatus={setStatus}
+        selection={selection}
+        onSelectionChange={setSelection}
+        initialConfig={crossplotCfg}
+        onConfigChange={setCrossplotCfg}
+      />
+    );
+    const tracksEl = (
+      <TrackViewer
+        depth={wellData.curves.DEPT}
+        tracks={tracks}
+        zones={zones}
+        tops={wellData.tops}
+        depthUnit={depthUnit}
+        selection={selection}
+        tvdLookup={tvdLookup}
+        isOwn={!!selected?.is_own}
+        onZoneEdge={commitZoneEdge}
+        onTrackHeaderClick={(index) => {
+          setDockOpen(true);
+          setLayoutFocus({ index, nonce: Date.now() });
+        }}
+      />
+    );
+    if (view === 'crossplot') return crossplotEl;
+    if (view === 'split') {
+      return (
+        <div className="h-full min-h-0 flex" data-testid="petro-split">
+          <div className="flex-[3] min-w-0 border-r border-slate-800/60">{tracksEl}</div>
+          <div className="flex-[2] min-w-0">{crossplotEl}</div>
+        </div>
+      );
+    }
+    return tracksEl;
+  })();
 
   return (
     <>

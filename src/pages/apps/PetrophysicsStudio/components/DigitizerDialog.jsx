@@ -83,7 +83,6 @@ export default function DigitizerDialog({ open, onOpenChange, wellName, onSave }
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     if (step === 'depth' && depthCal.length < 2) {
-      // eslint-disable-next-line no-alert
       const v = Number(window.prompt(`Depth (m MD) at this line? (point ${depthCal.length + 1} of 2)`));
       if (Number.isFinite(v)) {
         const next = [...depthCal, { pixel: y, value: v }];
@@ -91,7 +90,6 @@ export default function DigitizerDialog({ open, onOpenChange, wellName, onSave }
         if (next.length === 2) setStep('value');
       }
     } else if (step === 'value' && valueCal.length < 2) {
-      // eslint-disable-next-line no-alert
       const v = Number(window.prompt(`${meta.mnemonic} value at this line? (point ${valueCal.length + 1} of 2)`));
       if (Number.isFinite(v)) {
         const next = [...valueCal, { pixel: x, value: v }];

@@ -7,11 +7,12 @@
 // irreducible saturation). PS1 also adds z-coloring by any curve with
 // a colorbar, and zoom/pan owned here as per-plot domain state.
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Crossplot from './Crossplot';
 import {
   crossplotSamples, ND_LITHOLOGY_LINES, pickettIsoSwLine, pickettFitDepthWindow,
-  faciesCurve, bucklesIsoBvwLine,
+  faciesCurve, bucklesIsoBvwLine, hingleY, hingleWaterLine, hingleFitDepthWindow,
+  pointInPolygon,
 } from '../engine/crossplot';
 import { COLOR_MAPS } from '@/utils/colorMaps';
 
@@ -25,7 +26,9 @@ const DEFAULT_DOMAINS = {
   nd: { x: [-0.05, 0.5], y: [1.9, 3.0] },
   pickett: { x: [0.1, 1000], y: [0.01, 1] },
   buckles: { x: [0, 0.4], y: [0, 1] },
+  hingle: { x: [0, 0.4], y: [0, 2.5] },
 };
+const DIMMED = '#d8dde4';
 
 const viridisFn = COLOR_MAPS.viridis.fn;
 const mapFn = (t) => {
@@ -37,15 +40,22 @@ const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px
 
 export default function CrossplotPanel({
   curves, outputs, params, facies, onFaciesChange, onApplyParams, onStatus,
+  selection = null, onSelectionChange, initialConfig = null, onConfigChange,
 }) {
-  const [plot, setPlot] = useState('nd');            // 'nd' | 'pickett' | 'buckles'
+  const [plot, setPlot] = useState(initialConfig?.plot || 'nd'); // 'nd' | 'pickett' | 'buckles' | 'hingle'
   const [drawing, setDrawing] = useState(false);
   const [draft, setDraft] = useState([]);            // [[x, y]] in ND space
   const [faciesName, setFaciesName] = useState('');
   const [fitWin, setFitWin] = useState({ top: '', base: '' });
   const [fit, setFit] = useState(null);              // {m, aRw, nPoints}
-  const [colorBy, setColorBy] = useState('facies');  // 'facies' | 'none' | 'depth' | curve key
-  const [domains, setDomains] = useState({ nd: null, pickett: null, buckles: null });
+  const [hFit, setHFit] = useState(null);            // {rw, slope, nPoints}
+  const [colorBy, setColorBy] = useState(initialConfig?.colorBy || 'facies');
+  const [domains, setDomains] = useState({ nd: null, pickett: null, buckles: null, hingle: null });
+  const [selecting, setSelecting] = useState(false); // PS10 brush polygon
+  const [selDraft, setSelDraft] = useState([]);
+
+  // persisted crossplot config (petro_projects.crossplots)
+  useEffect(() => { onConfigChange?.({ plot, colorBy }); }, [plot, colorBy]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ndSamples = useMemo(() => (curves.NPHI && curves.RHOB
     ? crossplotSamples(curves.NPHI, curves.RHOB, curves.DEPT) : []), [curves]);
@@ -53,6 +63,10 @@ export default function CrossplotPanel({
     ? crossplotSamples(curves.RT, outputs.PHIE, curves.DEPT) : []), [curves, outputs]);
   const bucklesSamples = useMemo(() => (outputs?.PHIE && outputs?.SW
     ? crossplotSamples(outputs.PHIE, outputs.SW, curves.DEPT) : []), [curves, outputs]);
+  const hingleYCurve = useMemo(() => (curves.RT
+    ? Float64Array.from(curves.RT, (r) => hingleY(r, params.m)) : null), [curves, params.m]);
+  const hingleSamples = useMemo(() => (hingleYCurve && outputs?.PHIE
+    ? crossplotSamples(outputs.PHIE, hingleYCurve, curves.DEPT) : []), [hingleYCurve, outputs, curves]);
 
   const ndTags = useMemo(() => (curves.NPHI && curves.RHOB && facies.length
     ? faciesCurve(curves.NPHI, curves.RHOB, facies) : null), [curves, facies]);
@@ -99,12 +113,17 @@ export default function CrossplotPanel({
   }, [zInfo, colorBy, ndTags, facies]);
 
   const withZ = (s, color) => ({
-    x: s.x, y: s.y, color, depthM: s.depthM, zv: zInfo ? zInfo.data[s.i] : undefined,
+    x: s.x,
+    y: s.y,
+    // PS10 brush: unselected points dim when a selection exists
+    color: selection && !selection.has(s.i) ? DIMMED : color,
+    depthM: s.depthM,
+    zv: zInfo ? zInfo.data[s.i] : undefined,
   });
 
   const ndPoints = useMemo(
     () => ndSamples.map((s) => withZ(s, colorFor(s))),
-    [ndSamples, colorFor], // eslint-disable-line react-hooks/exhaustive-deps
+    [ndSamples, colorFor, selection], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const pickettPoints = useMemo(() => {
@@ -116,11 +135,11 @@ export default function CrossplotPanel({
         ? withZ(s, WINDOW_COLOR)
         : withZ(s, colorFor(s))
     ));
-  }, [pickettSamples, fitWin, colorFor]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pickettSamples, fitWin, colorFor, selection]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const bucklesPoints = useMemo(
     () => bucklesSamples.map((s) => withZ(s, colorFor(s))),
-    [bucklesSamples, colorFor], // eslint-disable-line react-hooks/exhaustive-deps
+    [bucklesSamples, colorFor, selection], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const pickettOverlays = useMemo(() => {
@@ -144,6 +163,54 @@ export default function CrossplotPanel({
     const l = bucklesIsoBvwLine(bvw, 0.005, 0.4, 1);
     return { name: `BVW ${bvw}`, pts: l.pts, color: '#2563eb', dash: [5, 4] };
   }), []);
+
+  const hinglePoints = useMemo(
+    () => hingleSamples.map((s) => withZ(s, colorFor(s))),
+    [hingleSamples, colorFor, selection], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const hingleOverlays = useMemo(() => {
+    const lines = [{
+      name: 'water line', ...hingleWaterLine(params, 0.4), color: '#2563eb', dash: [5, 4],
+    }];
+    if (hFit) {
+      lines.push({
+        name: 'fitted', pts: [{ x: 0, y: 0 }, { x: 0.4, y: hFit.slope * 0.4 }], color: '#dc2626', dash: [],
+      });
+    }
+    return lines;
+  }, [params, hFit]);
+
+  const runHingleFit = () => {
+    const top = Number(fitWin.top);
+    const base = Number(fitWin.base);
+    if (!Number.isFinite(top) || !Number.isFinite(base) || !(base > top)) {
+      onStatus('Enter the water-bearing interval as top/base metres MD.');
+      return;
+    }
+    try {
+      const r = hingleFitDepthWindow(curves.DEPT, outputs.PHIE, curves.RT, top, base, { a: params.a, m: params.m });
+      setHFit(r);
+      onStatus(`Hingle water line fit on ${r.nPoints} samples: Rw = ${r.rw.toFixed(6)} at m = ${params.m}.`);
+    } catch (e) {
+      setHFit(null);
+      onStatus(e.message);
+    }
+  };
+
+  // PS10 brush: the polygon selects sample INDICES on whichever plot
+  // is showing, so the selection follows the samples into the tracks
+  const samplesForPlot = { nd: ndSamples, pickett: pickettSamples, buckles: bucklesSamples, hingle: hingleSamples }[plot] || [];
+  const applySelection = () => {
+    if (selDraft.length < 3) { onStatus('A selection polygon needs at least three vertices.'); return; }
+    const picked = new Set();
+    for (const s of samplesForPlot) {
+      if (pointInPolygon(s.x, s.y, selDraft)) picked.add(s.i);
+    }
+    onSelectionChange?.(picked.size ? picked : null);
+    setSelecting(false);
+    setSelDraft([]);
+    onStatus(picked.size ? `Selected ${picked.size} samples — highlighted on the tracks.` : 'No samples inside the polygon.');
+  };
 
   const closePolygon = () => {
     if (draft.length < 3) { onStatus('A facies polygon needs at least three vertices.'); return; }
@@ -215,6 +282,7 @@ export default function CrossplotPanel({
         {plotBtn('nd', 'Density–Neutron', 'petro-plot-nd')}
         {plotBtn('pickett', 'Pickett', 'petro-plot-pickett')}
         {plotBtn('buckles', 'Buckles', 'petro-plot-buckles', !bucklesSamples.length)}
+        {plotBtn('hingle', 'Hingle', 'petro-plot-hingle', !hingleSamples.length)}
 
         <label className="ml-2 flex items-center gap-1 text-slate-500">
           Color by
@@ -238,6 +306,39 @@ export default function CrossplotPanel({
             onClick={() => setDom(plot)(null)}
           >
             Reset zoom
+          </button>
+        )}
+        {selecting ? (
+          <>
+            <span className="text-slate-500">{selDraft.length} pts</span>
+            <button type="button" data-testid="petro-select-apply"
+              className="px-2 py-0.5 rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
+              onClick={applySelection}
+            >
+              Apply selection
+            </button>
+            <button type="button"
+              className="px-2 py-0.5 rounded border border-slate-700 text-slate-400"
+              onClick={() => { setSelecting(false); setSelDraft([]); }}
+            >
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button type="button" data-testid="petro-select-start"
+            className="px-2 py-0.5 rounded border border-slate-700 text-slate-400 hover:text-slate-200"
+            title="Draw a polygon to highlight those samples on the tracks"
+            onClick={() => { setSelecting(true); setDrawing(false); setDraft([]); }}
+          >
+            Select…
+          </button>
+        )}
+        {selection && !selecting && (
+          <button type="button" data-testid="petro-select-clear"
+            className="px-2 py-0.5 rounded border border-slate-700 text-slate-400 hover:text-slate-200"
+            onClick={() => onSelectionChange?.(null)}
+          >
+            Clear selection
           </button>
         )}
 
@@ -291,6 +392,40 @@ export default function CrossplotPanel({
           </div>
         )}
 
+        {plot === 'hingle' && (
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="text-slate-500">Water zone (m MD)</span>
+            <input className={`${inputCls} w-16`} placeholder="top" value={fitWin.top}
+              data-testid="petro-hingle-top"
+              onChange={(e) => setFitWin((w) => ({ ...w, top: e.target.value }))} />
+            <input className={`${inputCls} w-16`} placeholder="base" value={fitWin.base}
+              data-testid="petro-hingle-base"
+              onChange={(e) => setFitWin((w) => ({ ...w, base: e.target.value }))} />
+            <button type="button" data-testid="petro-hingle-fit"
+              className="px-2 py-0.5 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10"
+              onClick={runHingleFit}
+            >
+              Fit water line
+            </button>
+            {hFit && (
+              <>
+                <span className="text-slate-300" data-testid="petro-hingle-result">
+                  Rw = {hFit.rw.toFixed(6)} at m = {params.m} · {hFit.nPoints} pts
+                </span>
+                <button type="button" data-testid="petro-hingle-apply"
+                  className="px-2 py-0.5 rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
+                  onClick={() => {
+                    onApplyParams({ rw: Number(hFit.rw.toFixed(6)) });
+                    onStatus(`Applied Rw = ${hFit.rw.toFixed(6)} from the Hingle fit.`);
+                  }}
+                >
+                  Apply Rw
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         {plot === 'pickett' && (
           <div className="ml-auto flex items-center gap-1.5">
             <span className="text-slate-500">Water zone (m MD)</span>
@@ -335,8 +470,10 @@ export default function CrossplotPanel({
               yReverse
               overlays={ND_LITHOLOGY_LINES.map((l) => ({ ...l, color: '#94a3b8' }))}
               polygons={facies}
-              draftPolygon={drawing ? draft : null}
-              onPlotClick={drawing ? ({ x, y }) => setDraft((d) => [...d, [x, y]]) : undefined}
+              draftPolygon={selecting ? selDraft : (drawing ? draft : null)}
+              onPlotClick={selecting
+                ? ({ x, y }) => setSelDraft((d) => [...d, [x, y]])
+                : (drawing ? ({ x, y }) => setDraft((d) => [...d, [x, y]]) : undefined)}
               colorbar={colorbar}
               onDomainsChange={setDom('nd')}
             />
@@ -354,6 +491,8 @@ export default function CrossplotPanel({
               yLog
               overlays={pickettOverlays}
               colorbar={colorbar}
+              draftPolygon={selecting ? selDraft : null}
+              onPlotClick={selecting ? ({ x, y }) => setSelDraft((d) => [...d, [x, y]]) : undefined}
               onDomainsChange={setDom('pickett')}
             />
           ) : <p className="p-4 text-xs text-slate-500">Needs RT and a computed φe.</p>
@@ -368,9 +507,27 @@ export default function CrossplotPanel({
               yDomain={dom('buckles').y}
               overlays={bucklesOverlays}
               colorbar={colorbar}
+              draftPolygon={selecting ? selDraft : null}
+              onPlotClick={selecting ? ({ x, y }) => setSelDraft((d) => [...d, [x, y]]) : undefined}
               onDomainsChange={setDom('buckles')}
             />
           ) : <p className="p-4 text-xs text-slate-500">Needs computed φe and Sw.</p>
+        )}
+        {plot === 'hingle' && (
+          hingleSamples.length ? (
+            <Crossplot
+              points={hinglePoints}
+              xLabel="φe (v/v)"
+              yLabel={`Rt^(-1/${params.m})`}
+              xDomain={dom('hingle').x}
+              yDomain={dom('hingle').y}
+              overlays={hingleOverlays}
+              colorbar={colorbar}
+              draftPolygon={selecting ? selDraft : null}
+              onPlotClick={selecting ? ({ x, y }) => setSelDraft((d) => [...d, [x, y]]) : undefined}
+              onDomainsChange={setDom('hingle')}
+            />
+          ) : <p className="p-4 text-xs text-slate-500">Needs RT and a computed φe.</p>
         )}
       </div>
     </div>
