@@ -42,8 +42,10 @@ async function saveDigitizedCurve(wellId, log) {
   return saved;
 }
 
-// ---- petro_projects (app-private workspace state) --------------------------
-// v1: one implicit project per user, created on first save.
+// ---- petro_projects (named interpretations, PS3) ---------------------------
+// Multi-row per user: each row is one named interpretation (params,
+// per-zone overrides, facies, layouts). loadProject() still opens the
+// most recent, so upgrade day changes nothing for existing users.
 
 async function loadProject() {
   const { data, error } = await supabase.from('petro_projects')
@@ -52,22 +54,65 @@ async function loadProject() {
   return data?.[0] || null;
 }
 
-async function saveProject(patch) {
-  const existing = await loadProject();
-  if (existing) {
+async function listProjects() {
+  const { data, error } = await supabase.from('petro_projects')
+    .select('id, name, description, updated_at')
+    .order('updated_at', { ascending: false });
+  if (error) throw new Error(`Could not list interpretations: ${error.message}`);
+  return data || [];
+}
+
+async function openProject(id) {
+  const { data, error } = await supabase.from('petro_projects')
+    .select('*').eq('id', id).single();
+  if (error) throw new Error(`Could not open the interpretation: ${error.message}`);
+  return data;
+}
+
+async function currentUserId() {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) throw new Error('You must be signed in to save interpretations.');
+  return user.id;
+}
+
+/** Update the OPEN interpretation (by id); first save creates it. */
+async function saveProject(patch, projectId = null) {
+  if (projectId) {
     const { data, error } = await supabase.from('petro_projects')
       .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq('id', existing.id).select().single();
-    if (error) throw new Error(`Could not save the project: ${error.message}`);
+      .eq('id', projectId).select().single();
+    if (error) throw new Error(`Could not save the interpretation: ${error.message}`);
     return data;
   }
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) throw new Error('You must be signed in to save projects.');
+  const userId = await currentUserId();
   const { data, error } = await supabase.from('petro_projects')
-    .insert({ user_id: user.id, name: 'Default project', ...patch })
+    .insert({ user_id: userId, name: 'Default interpretation', ...patch })
     .select().single();
-  if (error) throw new Error(`Could not save the project: ${error.message}`);
+  if (error) throw new Error(`Could not save the interpretation: ${error.message}`);
   return data;
+}
+
+/** Save-as: a NEW named interpretation from the current workspace state. */
+async function saveProjectAs(name, state) {
+  const userId = await currentUserId();
+  const { data, error } = await supabase.from('petro_projects')
+    .insert({ user_id: userId, name, ...state })
+    .select().single();
+  if (error) throw new Error(`Could not create the interpretation: ${error.message}`);
+  return data;
+}
+
+async function renameProject(id, name) {
+  const { data, error } = await supabase.from('petro_projects')
+    .update({ name, updated_at: new Date().toISOString() })
+    .eq('id', id).select().single();
+  if (error) throw new Error(`Could not rename the interpretation: ${error.message}`);
+  return data;
+}
+
+async function deleteProject(id) {
+  const { error } = await supabase.from('petro_projects').delete().eq('id', id);
+  if (error) throw new Error(`Could not delete the interpretation: ${error.message}`);
 }
 
 export function makeRegistryBackend() {
@@ -84,6 +129,11 @@ export function makeRegistryBackend() {
     publishZone,
     saveDigitizedCurve,
     loadProject,
+    listProjects,
+    openProject,
     saveProject,
+    saveProjectAs,
+    renameProject,
+    deleteProject,
   };
 }
