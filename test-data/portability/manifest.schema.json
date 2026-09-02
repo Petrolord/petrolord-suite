@@ -121,7 +121,8 @@
                   "po_field",
                   "epe_case",
                   "epe_assumption_set",
-                  "sim_case"
+                  "sim_case",
+                  "wp_site"
                 ]
               },
               "id": {

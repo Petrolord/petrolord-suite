@@ -11,7 +11,7 @@ kept, imports private by default, certificate wording in PP5).
 | PP0 Version foundations | **BUILT 2026-09-02**, app-state migration **APPLIED LIVE** same day, gate passed | PR #352 (feat/portability-pp0) |
 | PP1 Package writer, Geoscience | **BUILT 2026-09-02**, gate passed | PR (feat/portability-pp1) |
 | PP2 Importer | **BUILT 2026-09-02**, gate passed; jobs migration awaiting owner apply | PR (feat/portability-pp2) |
-| PP3 Coverage | **PP3a BUILT 2026-09-02** (engine generalised + 4 families); PP3b well planning and PP3c Seismolord to follow | PR (feat/portability-pp3) |
+| PP3 Coverage | **PP3a BUILT** (engine generalised + 4 families, PR #355); **PP3b well planning BUILT 2026-09-02**; PP3c Seismolord to follow | PRs feat/portability-pp3, feat/portability-pp3b |
 | PP4 Restorable backup | not started | |
 | PP5 Regulatory delivery | not started | |
 
@@ -276,6 +276,45 @@ row. The PP1 and PP2 gates run unchanged on the generalised engine.
 Not in PP3a: `wp_*` and `seismic_*` (PP3b/PP3c); `sim_runs`; the
 `epe_*` edge-function re-run of imported cases (the copy carries its
 results as history).
+
+### PP3b (well planning)
+
+- **Family `wellplanning`** (`familiesWellPlanning.js`), 30 tables: 8 core
+  (`wp_sites`, `wp_targets`, `wp_wellbores`, `wp_wellbore_geometry`,
+  `wp_surveys`, `wp_designs`, `wp_survey_programs`, `wp_ac_runs`) plus
+  eleven studio case/run pairs (ct, cd, ps, st, wi, wct, td, hyd, wc, cmt,
+  gm). The survey's count of 34 included `wp_ac_cases`, which does not
+  exist. Root kind `wp_site`: a site travels with its whole tree. Only
+  `wp_sites` carries `organization_id`; no storage blobs anywhere.
+- **References**: `wp_designs.target_ids` (required, targets are site
+  children), `published_geo_well_id` and `wp_wellbores.geo_well_id`
+  (optional, cleared when the registry well is absent), self links on
+  targets and wellbores, `design_id` on every case and run (optional),
+  cross-case links `cd.ct_case_id`, `ps.ct/cd_case_id`, `st.ps_case_id`,
+  `wi.ct/cd_case_id`, `wct.ct_case_id` (optional; insertion order puts ct
+  before cd before ps before st, wi and wct after), `wp_gm_cases.source.
+  geoWellId` and `wp_ct_cases.environment.ppfg.geoWellId` (optional).
+- **Prefixed ids** in anti-collision runs (`offsets`, `results`, `summary`
+  carry `wp:<wellbore id>` and `geo:<well id>`): the importer's `any`
+  form now rewrites known uuids as substrings, so `wp:` offsets follow the
+  new wellbore ids and unknown `geo:` offsets stay named for the app to
+  treat as unavailable.
+- **Stamped**: sites, targets, wellbores, designs, survey programs and the
+  eleven case tables (PP0 columns exist); runs carry `engine_version` only.
+- **Door**: the export dialog gains a Well planning sites picker.
+
+Gate (`__tests__/familiesWellPlanning.test.js`): a site with two targets
+(one parented), two wellbores (one sidetrack), geometry, a survey, a
+definitive design with a program, an anti-collision run with a `wp:` and a
+`geo:` offset, and a ct/cd/ps case chain with a ct run. After import every
+level is re-parented and rescoped, target ids and cross-case links
+re-linked, `wp:` offsets follow, `geo:` stays named, registry links
+cleared, stamped tables stamped, runs not, and no source id survives
+outside named external references and provenance.
+
+Not in PP3b: a wellbore-level root (a wellbore alone would lose its
+site's targets, so the site is the unit); re-running studio engines on
+import (runs travel as history).
 
 ## Program gotcha: one database, two builds
 

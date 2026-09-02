@@ -91,8 +91,8 @@ function makeSink() {
 const ids = (rows) => { const s = new Set(); for (const r of rows) { const { provenance, ...rest } = r; walkUuids(rest, (id) => s.add(id)); } return s; };
 
 describe('family registry', () => {
-  test('five families are registered in insertion order and every table has a spec', () => {
-    expect(listFamilies().map((f) => f.name)).toEqual(['geoscience', 'apps', 'production', 'economics', 'simulation']);
+  test('families are registered in insertion order and every table has a spec', () => {
+    expect(listFamilies().map((f) => f.name)).toEqual(['geoscience', 'apps', 'production', 'economics', 'simulation', 'wellplanning']);
     expect(SAVED_PROJECT_TABLES).toHaveLength(50);
     for (const t of SAVED_PROJECT_TABLES) expect(tableSpec(t)).toMatchObject({ family: 'apps', kind: `saved-project:${t}`, stamped: true });
     expect(rootTable('saved_project')).toEqual({ family: 'apps', table: '*' });

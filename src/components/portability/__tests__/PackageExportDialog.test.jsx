@@ -27,6 +27,7 @@ jest.mock('@/lib/portability/rootsCatalog', () => ({
   listRootCandidates: jest.fn(async (kind) => {
     if (kind === 'po_field') return [{ id: '77777777-7777-4777-8777-777777777777', name: 'Keta Field', organization_id: null }];
     if (kind === 'saved_project') return [{ id: '88888888-8888-4888-8888-888888888888', name: 'Choke KETA-1', table: 'saved_choke_projects', subtitle: 'choke' }];
+    if (kind === 'wp_site') return [{ id: '99999999-9999-4999-8999-999999999999', name: 'Keta pad', subtitle: 'private' }];
     return [];
   }),
 }));
@@ -120,6 +121,21 @@ test('PP3a sections: a production field and a saved project become roots, the sa
   expect(roots).toHaveLength(2);
   // no wells selected: the name falls back to the first selected item across sections
   expect(opts.name).toBe('Keta Field');
+  expect(document.body.textContent.includes('—')).toBe(false);
+});
+
+test('PP3b section: a well planning site becomes a wp_site root', async () => {
+  const S1 = '99999999-9999-4999-8999-999999999999';
+  render(<PackageExportDialog open onOpenChange={() => {}} preselect={{ wells: [] }} />);
+  await screen.findByTestId(`pld-well-${W1}`);
+  expect(screen.getByTestId('pld-section-wp_site')).toHaveTextContent('Well planning sites');
+  fireEvent.click(screen.getByTestId(`pld-wpsite-${S1}`));
+  expect(screen.getByTestId('pld-export-run')).toBeEnabled();
+  fireEvent.click(screen.getByTestId('pld-export-run'));
+  await waitFor(() => expect(screen.getByTestId('pld-summary')).toBeInTheDocument());
+  const [, roots, opts] = mockBuild.mock.calls[0];
+  expect(roots).toEqual([{ kind: 'wp_site', id: S1, name: 'Keta pad' }]);
+  expect(opts.name).toBe('Keta pad');
   expect(document.body.textContent.includes('—')).toBe(false);
 });
 

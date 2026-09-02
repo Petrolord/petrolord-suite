@@ -49,3 +49,13 @@ test('single-table kinds map their columns; errors yield an empty list', async (
   expect(await listRootCandidates('sim_case')).toEqual([]);
   expect(await listRootCandidates('nope')).toEqual([]);
 });
+
+test('wp_site lists sites with a sharing subtitle; errors yield an empty list', async () => {
+  canned.wp_sites = { data: [{ id: 's1', name: 'Keta pad', organization_id: null }, { id: 's2', name: null, organization_id: 'org' }], error: null };
+  expect(await listRootCandidates('wp_site')).toEqual([
+    { id: 's1', name: 'Keta pad', subtitle: 'private' },
+    { id: 's2', name: 'Site s2', subtitle: 'shared with organization' },
+  ]);
+  canned.wp_sites = { data: null, error: { message: 'boom' } };
+  expect(await listRootCandidates('wp_site')).toEqual([]);
+});
