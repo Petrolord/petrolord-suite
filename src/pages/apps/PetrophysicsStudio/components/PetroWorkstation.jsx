@@ -24,6 +24,8 @@ import ExportDialog from './ExportDialog';
 import InterpretationBar from './InterpretationBar';
 import LayoutPanel from './LayoutPanel';
 import RwToolsDialog from './RwToolsDialog';
+import HistogramPanel from './HistogramPanel';
+import { useWellCurvesCache } from '../hooks/useWellCurvesCache';
 import {
   computeWellZoned, zoneSummary, DEFAULT_PARAMS,
   preparePublishLogs, zonePropertiesSnapshot,
@@ -31,31 +33,7 @@ import {
 import { faciesCurve } from '../engine/crossplot';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate } from '../layout/layoutSchema';
 import { resolveTracks } from '../layout/resolveTracks';
-
-// standard pipeline inputs <- registry mnemonics (base name, ':n'
-// duplicate suffixes ignored; first match wins)
-const CURVE_ALIASES = {
-  DEPT: ['DEPT', 'DEPTH', 'MD'],
-  GR: ['GR', 'SGR', 'CGR', 'GRC'],
-  RHOB: ['RHOB', 'DEN', 'ZDEN'],
-  NPHI: ['NPHI', 'TNPH', 'CNC', 'NPOR'],
-  DT: ['DT', 'DTC', 'AC', 'DTCO'],
-  RT: ['RT', 'RES', 'ILD', 'LLD', 'RDEP', 'RD'],
-};
-
-function mapLogs(logs) {
-  const byBase = new Map();
-  for (const log of logs) {
-    const base = log.mnemonic.toUpperCase().split(':')[0];
-    if (!byBase.has(base)) byBase.set(base, log);
-  }
-  const mapped = {};
-  for (const [key, aliases] of Object.entries(CURVE_ALIASES)) {
-    const hit = aliases.find((a) => byBase.has(a));
-    mapped[key] = hit ? byBase.get(hit) : null;
-  }
-  return mapped;
-}
+import { mapLogs } from '../services/curveMap';
 
 export default function PetroWorkstation({ backend }) {
   const [wells, setWells] = useState(null);
@@ -82,6 +60,7 @@ export default function PetroWorkstation({ backend }) {
   const [layoutFocus, setLayoutFocus] = useState(null);        // {index, nonce}
   const [depthUnit, setDepthUnit] = useState('m');             // display only
   const [rwToolsOpen, setRwToolsOpen] = useState(false);       // PS5 quicklooks
+  const curvesCache = useWellCurvesCache(backend);             // PS7 cross-well curves
 
   useEffect(() => {
     let live = true;
@@ -408,6 +387,16 @@ export default function PetroWorkstation({ backend }) {
         >
           Crossplots
         </button>
+        <button
+          type="button"
+          data-testid="petro-view-histogram"
+          disabled={!wellData}
+          className={`px-2 py-1 text-xs rounded border disabled:opacity-40
+            ${view === 'histogram' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+          onClick={() => setView('histogram')}
+        >
+          Histograms
+        </button>
       </div>
       <div className="ml-4 flex items-center gap-1">
         <InterpretationBar
@@ -547,6 +536,18 @@ export default function PetroWorkstation({ backend }) {
     <div className="h-full flex items-center justify-center text-slate-500 text-sm">
       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading curves…
     </div>
+  ) : view === 'histogram' ? (
+    <HistogramPanel
+      curves={wellData.curves}
+      outputs={computed?.outputs}
+      params={params}
+      zones={zones}
+      onApplyParams={(patch) => setParams((p) => ({ ...p, ...patch }))}
+      onStatus={setStatus}
+      wells={wells || []}
+      currentWellId={wellData.wellId}
+      curvesCache={curvesCache}
+    />
   ) : view === 'crossplot' ? (
     <CrossplotPanel
       curves={wellData.curves}

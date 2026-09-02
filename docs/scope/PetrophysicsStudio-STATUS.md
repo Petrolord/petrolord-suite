@@ -32,6 +32,10 @@ stays gated (B5).
 Wyllie-Rose + Buckles BVW (engines PR #96, PIPELINE_VERSION 4, mD
 units exception documented), zone k geometric means, k log track,
 KPERM published (audit B2 closed).
+**PS7 (histograms) DONE 2026-09-02**: Histograms center view with
+cumulative frequency, P10/50/90, zone filters, draggable cutoffs
+writing back to params, multi-well overlays, GR normalization fits
+(engines PR #97; apply lands with PS8 conditioning).
 
 Production note: **RESOLVED 2026-07-14** — prod is current (source zip
 from main `e84f8a181` uploaded to Hostinger); the tile, route and the
