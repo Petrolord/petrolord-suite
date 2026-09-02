@@ -23,7 +23,7 @@ const netOf = async (page, zone) => parseFloat(await page.getByTestId(`petro-zon
 test('type well loads, tracks render, zone summaries match the oracle', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
 
-  await expect(page.getByTestId('petro-well-row')).toHaveCount(2);
+  await expect(page.getByTestId('petro-well-row')).toHaveCount(3);
   await page.locator('[data-well-name="KETA TYPE-1"]').click();
 
   // all six standard curves map
@@ -228,6 +228,38 @@ test('PS1: z-color with colorbar, point identify tooltip, Buckles plot, zoom res
   await expect(canvas).toBeVisible();
   const bbox = await canvas.boundingBox();
   expect(bbox.width).toBeGreaterThan(300);
+});
+
+test('PS2: export deliverables download; a well without logs shows the empty state', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+
+  // C2 empty state: a well with no depth curve is guidance, not an error
+  await page.locator('[data-well-name="EMPTY-3 (no logs)"]').click();
+  await expect(page.getByTestId('petro-no-depth')).toBeVisible();
+  await expect(page.getByTestId('petro-no-depth')).toContainText('Well Data Manager');
+  await expect(page.getByTestId('petro-export')).toBeDisabled();
+
+  // deliverables from the type well
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+  await page.getByTestId('petro-export').click();
+  await expect(page.getByTestId('petro-export-dialog')).toBeVisible();
+
+  const grab = async (testid) => {
+    const dl = page.waitForEvent('download');
+    await page.getByTestId(testid).click();
+    return dl;
+  };
+
+  const csv = await grab('petro-export-csv');
+  expect(csv.suggestedFilename()).toBe('KETA_TYPE-1_curves.csv');
+  const las = await grab('petro-export-las');
+  expect(las.suggestedFilename()).toBe('KETA_TYPE-1_interpretation.las');
+  const zones = await grab('petro-export-zones');
+  expect(zones.suggestedFilename()).toBe('KETA_TYPE-1_zones.csv');
+  const pdf = await grab('petro-export-pdf');
+  expect(pdf.suggestedFilename()).toBe('KETA_TYPE-1_petrophysics_report.pdf');
+  await expect(page.getByTestId('petro-status')).toContainText('Exported PDF report');
 });
 
 test('org-shared well is read-only for zones; invalid zone input errors', async ({ page }) => {

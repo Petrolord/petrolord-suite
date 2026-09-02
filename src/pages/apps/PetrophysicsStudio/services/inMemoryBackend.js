@@ -92,6 +92,9 @@ export function makeInMemoryBackend() {
     properties: {},
   }]);
 
+  // own well with NO logs yet — exercises the C2 no-depth empty state
+  addWell({ name: 'EMPTY-3 (no logs)', isOwn: true });
+
   // org-shared read-only well (same curves; zones locked)
   const sharedId = addWell({ name: 'AKOMA-2 (org shared)', isOwn: false, org: 'org-dev' });
   addLogs(sharedId);
