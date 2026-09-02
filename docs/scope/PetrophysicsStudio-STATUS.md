@@ -41,6 +41,10 @@ block depth-shift, bad-hole repair, normalization apply (engines PR
 #98); results save as KEY_CND with operation provenance, raw curves
 untouched, explicit input picker in the explorer (audit B3 closed,
 D1b satisfied in-app).
+**PS9 (field view) DONE 2026-09-02**: up to 8 wells side by side with
+per-well zoned compute, flatten-on-top datum (wellcorrelation
+engine), cross-well zone summary table, shared decimating curve
+renderer with a static + overlay canvas split (audit C1 closed).
 
 Production note: **RESOLVED 2026-07-14** — prod is current (source zip
 from main `e84f8a181` uploaded to Hostinger); the tile, route and the

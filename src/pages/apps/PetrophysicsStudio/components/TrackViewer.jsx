@@ -10,31 +10,13 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { crossoverPolys, thresholdPolys, fillPolys } from '../viewer/fills';
+import { drawCurve, xScaleFor } from '../viewer/trackRender';
 
 const AXIS_W = 56;        // depth axis gutter
 const HEADER_H = 50;      // track header (title + scale rows + readout)
 const PAD_TOP = 2;
 
 const ZONE_COLORS = ['rgba(34,211,238,0.10)', 'rgba(251,191,36,0.10)', 'rgba(52,211,153,0.10)', 'rgba(244,114,182,0.10)'];
-
-const DASHES = { dash: [6, 4], dot: [2, 3] };
-
-// curve overrides win over the track scale, so one track can overlay
-// differently-scaled curves (the classic density-neutron pair)
-function xScale(track, curve, x0, w) {
-  const pad = 4;
-  const min = curve?.min ?? track.min;
-  const max = curve?.max ?? track.max;
-  const scale = curve?.scale ?? track.scale;
-  if (scale === 'log') {
-    const lmin = Math.log10(min);
-    const lmax = Math.log10(max);
-    return (v) => (v > 0
-      ? x0 + pad + ((Math.log10(v) - lmin) / (lmax - lmin)) * (w - 2 * pad)
-      : NaN);
-  }
-  return (v) => x0 + pad + ((v - min) / (max - min)) * (w - 2 * pad);
-}
 
 /**
  * @param {Object} p
@@ -235,7 +217,7 @@ export default function TrackViewer({
       // curve through its own scale, then build device-space polygons
       if (track.fills?.length) {
         const proj = (curve) => {
-          const xsC = xScale(track, curve, x0, trackW);
+          const xsC = xScaleFor(track, curve, x0, trackW);
           const out = new Float64Array(i1 + 1).fill(NaN);
           for (let i = i0; i <= i1; i++) {
             const v = curve.data[i];
@@ -256,7 +238,7 @@ export default function TrackViewer({
             if (f.positiveColor) fillPolys(ctx, pos, `${f.positiveColor}${alpha}`);
             if (f.negativeColor) fillPolys(ctx, neg, `${f.negativeColor}${alpha}`);
           } else if (f.mode === 'threshold') {
-            const xt = xScale(track, ca, x0, trackW)(f.value);
+            const xt = xScaleFor(track, ca, x0, trackW)(f.value);
             if (!Number.isFinite(xt)) continue;
             fillPolys(
               ctx,
@@ -267,38 +249,9 @@ export default function TrackViewer({
         }
       }
 
-      // curves
+      // curves (shared renderer: decimates past 2 samples per pixel row)
       track.curves.forEach((curve, ci) => {
-        const xs = xScale(track, curve, x0, trackW);
-        ctx.strokeStyle = curve.color;
-        ctx.lineWidth = curve.lineWidth ?? 1.2;
-        ctx.setLineDash(DASHES[curve.style] || []);
-        ctx.beginPath();
-        let pen = false;
-        for (let i = i0; i <= i1; i++) {
-          const v = curve.data[i];
-          const x = Number.isFinite(v) ? xs(v) : NaN;
-          if (!Number.isFinite(x)) { pen = false; continue; }
-          const y = yOf(depth[i]);
-          const cx = clampX(x);
-          if (pen) ctx.lineTo(cx, y);
-          else { ctx.moveTo(cx, y); pen = true; }
-        }
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        if (curve.fillTo) {
-          const edge = curve.fillTo === 'left' ? x0 + 2 : x0 + trackW - 2;
-          ctx.fillStyle = `${curve.color}30`;
-          for (let i = i0; i < i1; i++) {
-            const v = curve.data[i];
-            if (!Number.isFinite(v)) continue;
-            const x = clampX(xs(v));
-            const y = yOf(depth[i]);
-            const y2 = yOf(depth[i + 1]);
-            ctx.fillRect(Math.min(edge, x), y, Math.abs(x - edge), Math.max(1, y2 - y));
-          }
-        }
+        drawCurve(ctx, { track, curve, depth, yOf, i0, i1, x0, trackW, plotH });
 
         // cursor readout in the header, spread across the track width
         // so overlaid curves never overprint each other

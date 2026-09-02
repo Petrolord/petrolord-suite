@@ -446,6 +446,29 @@ test('PS4: track builder forks the built-in, layout persists, ft toggle and PNG 
   expect((await dl).suggestedFilename()).toBe('KETA_TYPE-1_tracks.png');
 });
 
+test('PS9: field view compares wells side by side with the golden zone summaries', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.getByTestId('petro-view-field').click();
+  await expect(page.getByTestId('petro-field')).toBeVisible();
+
+  await page.getByTestId('petro-field-pick-KETA TYPE-1').check();
+  await page.getByTestId('petro-field-pick-AKOMA-2 (org shared)').check();
+  await expect(page.getByTestId('petro-field-canvas')).toBeVisible();
+
+  // the comparison table matches zones by name: SAND A only on KETA,
+  // MAIN only on AKOMA, and KETA's cell carries the golden net pay
+  const sandA = page.getByTestId('petro-field-zone-SAND A');
+  await expect(sandA).toBeVisible();
+  await expect(sandA).toContainText(`net ${goldenNet('SAND_A')} m`);
+  await expect(sandA).toContainText('—');
+  await expect(page.getByTestId('petro-field-zone-MAIN')).toContainText('net');
+
+  // flatten on a top only KETA carries; the view survives (AKOMA draws
+  // unflattened and flagged on the canvas)
+  await page.getByTestId('petro-field-datum').selectOption({ label: 'Flatten on Top Sand A' });
+  await expect(page.getByTestId('petro-field-canvas')).toBeVisible();
+});
+
 test('org-shared well is read-only for zones; invalid zone input errors', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
 
