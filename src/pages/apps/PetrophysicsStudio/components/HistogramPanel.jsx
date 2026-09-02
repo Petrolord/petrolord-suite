@@ -29,7 +29,7 @@ const THRESHOLDS = {
 
 export default function HistogramPanel({
   curves, outputs, params, zones, onApplyParams, onStatus,
-  wells, currentWellId, curvesCache,
+  wells, currentWellId, curvesCache, onFitResult,
 }) {
   const [curveKey, setCurveKey] = useState('GR');
   const [bins, setBins] = useState(40);
@@ -130,6 +130,7 @@ export default function HistogramPanel({
     if (!data || !tgt) { onStatus('Load the target well overlay first.'); return; }
     const result = fitNormalization(data, tgt, { method: normMethod });
     setFit({ targetId: normTarget, curveKey, result });
+    onFitResult?.({ targetId: normTarget, curveKey, result });
     onStatus(`Normalization fit: shift ${result.shift.toFixed(3)}, scale ${result.scale.toFixed(4)}. Applying to a curve lands with conditioning (PS8).`);
   };
 

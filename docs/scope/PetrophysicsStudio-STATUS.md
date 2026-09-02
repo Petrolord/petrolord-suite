@@ -36,6 +36,11 @@ KPERM published (audit B2 closed).
 cumulative frequency, P10/50/90, zone filters, draggable cutoffs
 writing back to params, multi-well overlays, GR normalization fits
 (engines PR #97; apply lands with PS8 conditioning).
+**PS8 (conditioning) DONE 2026-09-02**: Hampel despike, smoothing,
+block depth-shift, bad-hole repair, normalization apply (engines PR
+#98); results save as KEY_CND with operation provenance, raw curves
+untouched, explicit input picker in the explorer (audit B3 closed,
+D1b satisfied in-app).
 
 Production note: **RESOLVED 2026-07-14** — prod is current (source zip
 from main `e84f8a181` uploaded to Hostinger); the tile, route and the

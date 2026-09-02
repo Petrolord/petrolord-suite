@@ -9,7 +9,7 @@
 // the main thread (closed-form per-sample math; ~100k samples in low
 // ms). Publishing results to the registry is G2.5.
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlaskConical, Loader2, UploadCloud, Save, Layers, PenLine, FileDown, Database } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -25,6 +25,7 @@ import InterpretationBar from './InterpretationBar';
 import LayoutPanel from './LayoutPanel';
 import RwToolsDialog from './RwToolsDialog';
 import HistogramPanel from './HistogramPanel';
+import ConditioningDialog from './ConditioningDialog';
 import { useWellCurvesCache } from '../hooks/useWellCurvesCache';
 import {
   computeWellZoned, zoneSummary, DEFAULT_PARAMS,
@@ -61,6 +62,11 @@ export default function PetroWorkstation({ backend }) {
   const [depthUnit, setDepthUnit] = useState('m');             // display only
   const [rwToolsOpen, setRwToolsOpen] = useState(false);       // PS5 quicklooks
   const curvesCache = useWellCurvesCache(backend);             // PS7 cross-well curves
+  const [condOpen, setCondOpen] = useState(false);             // PS8 conditioning
+  const [lastNormFit, setLastNormFit] = useState(null);        // PS7 fit -> PS8 apply
+  // PS8: explicit input picks — a conditioned curve is never
+  // substituted silently; the user selects it per input key
+  const curvePicksRef = useRef({ wellId: null, picks: {} });
 
   useEffect(() => {
     let live = true;
@@ -108,7 +114,12 @@ export default function PetroWorkstation({ backend }) {
     setFacies(faciesByWell[wellId] || []);
     try {
       const [logs, tops] = await Promise.all([backend.listLogs(wellId), backend.listTops(wellId)]);
+      if (curvePicksRef.current.wellId !== wellId) curvePicksRef.current = { wellId, picks: {} };
       const mapped = mapLogs(logs);
+      for (const [key, logId] of Object.entries(curvePicksRef.current.picks)) {
+        const log = logs.find((l) => l.id === logId);
+        if (log) mapped[key] = log;
+      }
       if (!mapped.DEPT) {
         // C2: a registry well without a depth curve is an empty state,
         // not an exception path — the center panel points at the
@@ -126,6 +137,7 @@ export default function PetroWorkstation({ backend }) {
         curves,
         inventory: Object.entries(mapped).map(([key, log]) => ({ key, log })),
         tops,
+        allLogs: logs,
       });
       await refreshZones(wellId);
       setStatus(`Loaded ${Object.keys(curves).length} curves.`);
@@ -136,6 +148,16 @@ export default function PetroWorkstation({ backend }) {
       setLoadingId(null);
     }
   }, [backend, refreshZones, faciesByWell]);
+
+  // explicit input pick (PS8): remember the choice for this well and
+  // reload so every consumer sees the same mapping
+  const pickCurve = useCallback(async (key, logId) => {
+    curvePicksRef.current = {
+      wellId: selectedId,
+      picks: { ...curvePicksRef.current.picks, [key]: logId },
+    };
+    await select(selectedId);
+  }, [selectedId, select]);
 
   // keep the per-well facies map in sync with the live editor
   const setFaciesForWell = useCallback((next) => {
@@ -434,6 +456,17 @@ export default function PetroWorkstation({ backend }) {
         </button>
         <button
           type="button"
+          data-testid="petro-condition"
+          disabled={!wellData || !selected?.is_own}
+          title={selected && !selected.is_own ? 'Org-shared wells are read-only' : 'Despike, smooth, depth-shift, bad-hole repair, normalization'}
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          onClick={() => setCondOpen(true)}
+        >
+          Condition…
+        </button>
+        <button
+          type="button"
           data-testid="petro-rwtools"
           title="Rw quicklooks: SP and Arps temperature conversion"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border
@@ -547,6 +580,7 @@ export default function PetroWorkstation({ backend }) {
       wells={wells || []}
       currentWellId={wellData.wellId}
       curvesCache={curvesCache}
+      onFitResult={setLastNormFit}
     />
   ) : view === 'crossplot' ? (
     <CrossplotPanel
@@ -585,6 +619,8 @@ export default function PetroWorkstation({ backend }) {
           selectedId={selectedId}
           loadingId={loadingId}
           curveInventory={wellData?.inventory || noDepthWell?.inventory}
+          allLogs={wellData?.allLogs}
+          onPickCurve={selected?.is_own ? pickCurve : undefined}
           onSelect={select}
         />
       )}
@@ -634,6 +670,18 @@ export default function PetroWorkstation({ backend }) {
         onOpenChange={setDigitizerOpen}
         wellName={selected?.name}
         onSave={saveDigitized}
+      />
+    )}
+    {wellData && (
+      <ConditioningDialog
+        open={condOpen}
+        onOpenChange={setCondOpen}
+        wellData={wellData}
+        projectId={projectId}
+        backend={backend}
+        onSaved={() => select(wellData.wellId)}
+        onStatus={setStatus}
+        lastNormFit={lastNormFit}
       />
     )}
     <RwToolsDialog

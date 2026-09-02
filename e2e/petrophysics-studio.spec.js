@@ -379,6 +379,32 @@ test('PS7: histogram cutoff drag writes parameters; twin-well overlay fits ident
   await expect(page.getByTestId('petro-hist-fit-result')).toContainText('scale 1.0000');
 });
 
+test('PS8: conditioning saves a _CND curve; the explorer picker swaps it in explicitly', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  // no picker while GR has a single candidate
+  await expect(page.getByTestId('petro-pick-GR')).toHaveCount(0);
+
+  await page.getByTestId('petro-condition').click();
+  await expect(page.getByTestId('petro-cond-dialog')).toBeVisible();
+  await page.getByTestId('petro-cond-op').selectOption('smooth-mean');
+  await expect(page.getByTestId('petro-cond-preview')).toContainText('samples changed');
+  await page.getByTestId('petro-cond-save').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Saved GR_CND');
+
+  // the picker appears; choosing GR_CND swaps the input explicitly
+  const picker = page.getByTestId('petro-pick-GR');
+  await expect(picker).toBeVisible();
+  const val = await picker.locator('option', { hasText: 'GR_CND' }).getAttribute('value');
+  await picker.selectOption(val);
+  await expect(picker).toHaveValue(val);
+  // the pipeline still computes on the conditioned input
+  await expect(page.getByTestId('petro-missing')).toHaveCount(0);
+  await expect(page.getByTestId('petro-zone-net-SAND A')).toBeVisible();
+});
+
 test('PS4: track builder forks the built-in, layout persists, ft toggle and PNG export work', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
   await page.locator('[data-well-name="KETA TYPE-1"]').click();
