@@ -9,6 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { makeSupabaseSource } from '@/lib/portability/supabaseSource';
 import { buildBackup } from '@/lib/portability/backup';
 import { savePackageSet } from '@/lib/portability/packageSet';
+import { requestSignature } from '@/lib/portability/signClient';
+import { supabase } from '@/lib/customSupabaseClient';
+import SigningSummary from './SigningSummary';
+
+async function exporterEmail() {
+  try { const { data } = await supabase.auth.getUser(); return data?.user?.email || null; } catch (e) { return null; }
+}
 
 export default function BackupPanel() {
   const [hasOrg, setHasOrg] = useState(false);
@@ -37,6 +44,13 @@ export default function BackupPanel() {
       const source = makeSupabaseSource();
       const who = await source.currentUser();
       const b = await buildBackup(source, scope, { who: { userId: who.id }, onProgress: setProgress });
+      // PP5: sign before the set is finished (the manifest is written into part 1 then); never blocks
+      setProgress('Signing');
+      let signing = { signature: null, reason: 'signing service unavailable' };
+      try {
+        signing = await requestSignature(b.manifest, { exporterEmail: await exporterEmail() });
+        if (signing?.signature) b.manifest.signature = signing.signature;
+      } catch (e) { signing = { signature: null, reason: e?.message || 'signing service unavailable' }; }
       const res = await savePackageSet(b.set, b.manifest, b.manifest.name, (msg) => setProgress(msg));
       if (res.method === 'cancelled') {
         setProgress('');
@@ -51,6 +65,7 @@ export default function BackupPanel() {
         files: res.files,
         notes: b.manifest.notes || [],
         name: b.manifest.name,
+        signing,
       });
       setProgress('');
     } catch (e) {
@@ -126,6 +141,7 @@ export default function BackupPanel() {
                 <li key={t}><span className="text-slate-500">{t}</span> {n}</li>
               ))}
             </ul>
+            <SigningSummary result={summary.signing} />
             {summary.notes.length ? (
               <div>
                 <div className="text-slate-300">Notes</div>

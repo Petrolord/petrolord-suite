@@ -34,9 +34,21 @@ jest.mock('@/lib/portability/rootsCatalog', () => ({
   }),
 }));
 
+const mockAddManifest = jest.fn();
 const mockBuild = jest.fn(async () => ({
-  writer: {},
+  writer: { addManifest: (...a) => mockAddManifest(...a) },
   manifest: { tables: { geo_wells: { rows: 1 }, geo_wells_logs: { rows: 6 } }, blobs: [{}, {}], notes: ['left out: Field interp'] },
+}));
+const mockSign = jest.fn(async () => ({
+  signature: { alg: 'ECDSA-P256-SHA256', key_id: 'pld-test', value: 'AAAA' },
+  certificate: { certificate_no: 'PLD-EX-2026-12345678', verification_code: 'code-1', download_url: 'https://x/cert.pdf' },
+}));
+jest.mock('@/lib/portability/signClient', () => ({
+  requestSignature: (...a) => mockSign(...a),
+  signingNote: (r) => (r?.signature ? `Signed by Petrolord (key ${r.signature.key_id}). Certificate of Export ${r.certificate?.certificate_no || ''} issued.` : `This package is not signed (${r?.reason === 'unconfigured' ? 'signing is not set up on this platform yet' : r?.reason}).`),
+}));
+jest.mock('@/lib/customSupabaseClient', () => ({
+  supabase: { auth: { getUser: async () => ({ data: { user: { email: 'me@example.com' } } }) } },
 }));
 jest.mock('@/lib/portability/exportPackage', () => ({
   buildGeosciencePackage: (...a) => mockBuild(...a),
@@ -74,7 +86,7 @@ test('preselects the well, exports with the chosen roots and shows the notes', a
   ]));
   expect(roots).toHaveLength(2);
   expect(opts).toMatchObject({ name: 'KETA TYPE-1', includeInterpretations: true, includeSidecars: true });
-  expect(mockSave).toHaveBeenCalledWith({}, 'KETA TYPE-1.pld', expect.any(Function));
+  expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ addManifest: expect.any(Function) }), 'KETA TYPE-1.pld', expect.any(Function));
   expect(screen.getByTestId('pld-summary')).toHaveTextContent('left out: Field interp');
   expect(screen.getByTestId('pld-summary')).toHaveTextContent('7 rows across 2 tables, 2 binary files');
   expect(onStatus).toHaveBeenCalledWith('Exported package "KETA TYPE-1".');
@@ -166,4 +178,34 @@ test('preselect.roots preselects a case and names the package after it', async (
   expect(box).toBeChecked();
   expect(screen.getByTestId('pld-name')).toHaveValue('Keta Field');
   expect(screen.getByTestId('pld-export-run')).toBeEnabled();
+});
+
+test('signs the manifest before saving and shows the certificate, its link and the verification code', async () => {
+  render(<PackageExportDialog open onOpenChange={() => {}} preselect={{ wells: [W1] }} />);
+  await screen.findByTestId(`pld-well-${W1}`);
+  fireEvent.click(screen.getByTestId('pld-export-run'));
+  const note = await screen.findByTestId('pld-signing-note');
+  expect(note).toHaveTextContent('Signed by Petrolord (key pld-test)');
+  expect(mockSign).toHaveBeenCalledTimes(1);
+  expect(mockSign.mock.calls[0][1]).toEqual({ exporterEmail: 'me@example.com' });
+  expect(mockAddManifest).toHaveBeenCalledTimes(1);
+  expect(mockAddManifest.mock.calls[0][0].signature).toEqual({ alg: 'ECDSA-P256-SHA256', key_id: 'pld-test', value: 'AAAA' });
+  expect(screen.getByTestId('pld-certificate-link')).toHaveAttribute('href', 'https://x/cert.pdf');
+  expect(screen.getByTestId('pld-verification-code')).toHaveTextContent('code-1');
+  expect(screen.getByTestId('pld-verification-code')).toHaveTextContent('/legal/verify-export');
+  expect(screen.getByTestId('pld-summary').textContent).not.toContain('—');
+  // signing happens before saving
+  expect(mockSign.mock.invocationCallOrder[0]).toBeLessThan(mockSave.mock.invocationCallOrder[0]);
+});
+
+test('an unconfigured signing service leaves the package unsigned and says so; the export still saves', async () => {
+  mockSign.mockResolvedValueOnce({ signature: null, reason: 'unconfigured' });
+  render(<PackageExportDialog open onOpenChange={() => {}} preselect={{ wells: [W1] }} />);
+  await screen.findByTestId(`pld-well-${W1}`);
+  fireEvent.click(screen.getByTestId('pld-export-run'));
+  const note = await screen.findByTestId('pld-signing-note');
+  expect(note).toHaveTextContent('signing is not set up on this platform yet');
+  expect(mockAddManifest).not.toHaveBeenCalled();
+  expect(mockSave).toHaveBeenCalledTimes(1);
+  expect(screen.queryByTestId('pld-certificate-link')).toBeNull();
 });

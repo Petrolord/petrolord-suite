@@ -17,6 +17,17 @@ jest.mock('@/lib/portability/backup', () => ({
 jest.mock('@/lib/portability/packageSet', () => ({
   savePackageSet: (...a) => mockSave(...a),
 }));
+const mockSign = jest.fn(async () => ({
+  signature: { alg: 'ECDSA-P256-SHA256', key_id: 'pld-test', value: 'AAAA' },
+  certificate: { certificate_no: 'PLD-EX-2026-ABCDEF01', verification_code: 'code-9', download_url: 'https://x/backup-cert.pdf' },
+}));
+jest.mock('@/lib/portability/signClient', () => ({
+  requestSignature: (...a) => mockSign(...a),
+  signingNote: (r) => (r?.signature ? `Signed by Petrolord (key ${r.signature.key_id}). Certificate of Export ${r.certificate?.certificate_no || ''} issued.` : 'This package is not signed.'),
+}));
+jest.mock('@/lib/customSupabaseClient', () => ({
+  supabase: { auth: { getUser: async () => ({ data: { user: { email: 'me@example.com' } } }) } },
+}));
 
 import BackupPanel from '@/components/portability/BackupPanel';
 
@@ -68,5 +79,24 @@ describe('BackupPanel', () => {
     expect(summary).toHaveTextContent('1 item backed up');
     expect(summary).toHaveTextContent('Saved as organization-backup-20260902.pld');
     expect(mockBuildBackup).toHaveBeenCalledWith(expect.anything(), 'org', expect.anything());
+  });
+});
+
+describe('BackupPanel signing', () => {
+  test('the manifest is signed before the set is saved and the certificate line appears', async () => {
+    const manifest = { name: 'My Petrolord work', tables: {}, blobs: [], notes: [] };
+    mockBuildBackup.mockResolvedValue({ set: { partCount: 1 }, manifest, roots: [{}] });
+    mockSave.mockResolvedValue({ method: 'single', files: ['a.pld'] });
+    render(<BackupPanel />);
+    await waitFor(() => expect(screen.getByTestId('pld-backup-mine')).not.toBeDisabled());
+    fireEvent.click(screen.getByTestId('pld-backup-mine'));
+    const summary = await screen.findByTestId('pld-backup-summary');
+    expect(summary).toHaveTextContent('Certificate of Export PLD-EX-2026-ABCDEF01');
+    expect(screen.getByTestId('pld-certificate-link')).toHaveAttribute('href', 'https://x/backup-cert.pdf');
+    expect(screen.getByTestId('pld-verification-code')).toHaveTextContent('code-9');
+    // the signature was on the manifest handed to savePackageSet
+    expect(mockSave.mock.calls[0][1].signature).toEqual({ alg: 'ECDSA-P256-SHA256', key_id: 'pld-test', value: 'AAAA' });
+    expect(mockSign.mock.invocationCallOrder[0]).toBeLessThan(mockSave.mock.invocationCallOrder[0]);
+    expect(summary.textContent).not.toContain('—');
   });
 });

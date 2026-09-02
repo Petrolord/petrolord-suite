@@ -28,6 +28,7 @@ import './familiesSeismic';
 import { validateManifest, packageVersionCheck, UUID_RE, newPackageId } from './manifest';
 import { sha256Hex } from './zipWriter';
 import { walkUuids } from './danglingRefs';
+import { verifyManifestSignature } from './signing';
 import { getStateKind, openStateRow, stampState, readStateVersion, newerStateMessage } from '@/lib/stateVersion';
 import { PLATFORM_BUILD } from '@/lib/platformBuild';
 
@@ -72,7 +73,7 @@ async function utf8(bytes) {
  * @param {Uint8Array|ArrayBuffer|Blob} data
  * @returns {Promise<{ manifest, tables: Record<string, object[]>, blobs: Array<{...manifestBlob, bytes: Uint8Array}>, open: object[], readme: string|null, integrity: {checked:number} }>}
  */
-export async function readPackage(data) {
+export async function readPackage(data, opts = {}) {
   const inputs = Array.isArray(data) ? data : [data];
   if (!inputs.length) throw new PackageReadError('no-file', 'Choose a package file.');
   const zips = [];
@@ -141,6 +142,13 @@ export async function readPackage(data) {
     bytesOf[file] = bytes;
   }
 
+  // origin: a Petrolord signature that no longer matches means the manifest itself
+  // was edited after export (file hashes alone cannot show that); refused unless asked
+  const signature = await verifyManifestSignature(manifest);
+  if (signature.status === 'invalid' && !opts.allowInvalidSignature) {
+    throw new PackageReadError('bad-signature', 'This package carries a Petrolord signature that does not match its manifest. The manifest was changed after the package was signed.', { key_id: signature.key_id });
+  }
+
   const tables = {};
   for (const [table, info] of Object.entries(manifest.tables)) {
     const text = await utf8(bytesOf[info.file]);
@@ -151,7 +159,7 @@ export async function readPackage(data) {
   const blobs = manifest.blobs.map((b) => ({ ...b, bytes: bytesOf[b.file] }));
   const readmeEntry = manifest.open.find((o) => o.kind === 'readme');
   const readme = readmeEntry ? await utf8(bytesOf[readmeEntry.file]) : null;
-  return { manifest, tables, blobs, open: manifest.open, readme, integrity: { checked: Object.keys(manifest.files).length } };
+  return { manifest, tables, blobs, open: manifest.open, readme, integrity: { checked: Object.keys(manifest.files).length }, signature };
 }
 
 // ---- phase 2: plan ---------------------------------------------------------

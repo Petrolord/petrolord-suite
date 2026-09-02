@@ -12,6 +12,15 @@ import { Button } from '@/components/ui/button';
 import { Loader2, PackageOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import { makeSupabaseSink } from '@/lib/portability/supabaseSink';
 import { preflightPackage, executeImport, importPackage } from '@/lib/portability/importPackage';
+import { signatureMessage } from '@/lib/portability/signing';
+
+const SIGNATURE_TAG = {
+  valid: ['signed', 'bg-emerald-500/20 text-emerald-300'],
+  unsigned: ['unsigned', 'bg-slate-700/60 text-slate-300'],
+  'unknown-key': ['unknown key', 'bg-amber-500/20 text-amber-300'],
+  invalid: ['altered', 'bg-red-500/20 text-red-300'],
+  unsupported: ['unchecked', 'bg-amber-500/20 text-amber-300'],
+};
 
 async function fileBytes(file) {
   if (typeof file.arrayBuffer === 'function') return new Uint8Array(await file.arrayBuffer());
@@ -215,6 +224,16 @@ export default function PackageImportDialog({ open, onOpenChange, onImported, on
               {Array.isArray(manifest.parts) ? (
                 <div className="text-emerald-300/90" data-testid="pld-import-parts">{manifest.parts.length} parts, all present and verified.</div>
               ) : null}
+              {(() => {
+                const sig = preflight.pkg.signature || { status: 'unsigned', key_id: null };
+                const [label, cls] = SIGNATURE_TAG[sig.status] || SIGNATURE_TAG.unsigned;
+                return (
+                  <div className="text-slate-400 flex items-start gap-2" data-testid="pld-import-signature">
+                    <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide ${cls}`}>{label}</span>
+                    <span>{signatureMessage(sig)}</span>
+                  </div>
+                );
+              })()}
               <ul className="text-slate-400 grid grid-cols-2 gap-x-3">
                 {tableRows.map(([t, n]) => (
                   <li key={t}><span className="text-slate-500">{t}</span> {n}</li>

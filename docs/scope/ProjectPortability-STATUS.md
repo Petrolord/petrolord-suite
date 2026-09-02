@@ -13,7 +13,7 @@ kept, imports private by default, certificate wording in PP5).
 | PP2 Importer | **BUILT 2026-09-02**, gate passed; jobs migration awaiting owner apply | PR (feat/portability-pp2) |
 | PP3 Coverage | **PP3a BUILT** (PR #355), **PP3b BUILT** (PR #356), **PP3c Seismolord BUILT 2026-09-02** | PRs feat/portability-pp3, -pp3b, -pp3c |
 | PP4 Restorable backup | **BUILT 2026-09-02** (client-side, beside the offboarding dump) | PR (feat/portability-pp4) |
-| PP5 Regulatory delivery | not started | |
+| PP5 Regulatory delivery | **BUILT 2026-09-02**; needs key generation, secrets, function deploy and the ledger migration (owner) | PR (feat/portability-pp5) |
 
 ## PP0 (2026-09-02)
 
@@ -415,6 +415,56 @@ teammate's shared well too.
 The staging half of the gate (export a disposable organization, purge it
 through the offboarding path, restore into a fresh one) is an owner step.
 
+## PP5 (2026-09-02)
+
+- **Signature** (`signing.js`): ECDSA P-256 over SHA-256 of the canonical
+  manifest (keys sorted at every level, `signature` removed). The private
+  key lives only in the `pld-sign` edge function's secret; public keys ship
+  in `PUBLIC_KEYS` by key id so verification works offline, which is what
+  an archive or a regulator needs. Rotation adds a new key id and keeps the
+  old ones. The edge function's `helpers.js` canonicalises with the same
+  pure code, and a test pins both sides byte for byte.
+- **Import** (`readPackage`): reports `signature.status` as valid, unsigned,
+  unknown-key, unsupported or invalid. An invalid signature is refused
+  (`bad-signature`): every file hash may still match, but the manifest
+  itself was edited after signing. Unsigned packages import with a plain
+  note; unknown keys are reported, never trusted.
+- **Edge function `pld-sign`**: `sign` (caller JWT; canonicalise, sign,
+  record the export in `pld_exports`, render the Certificate of Export
+  PDF into `org-exports/pld-certificates/{package_id}.pdf`, return the
+  signature and certificate number, verification code and download link;
+  idempotent per package; unconfigured secrets yield `signature: null`),
+  `certificate` (a fresh link to the caller's own PDF),
+  `verify_certificate` (public: number + code, facts and a link).
+- **Certificate of Export**: number `PLD-EX-<year>-<id8 of the package id>`,
+  deterministic; the same pdf-lib page grammar as the Certificate of Data
+  Deletion; a Contents table of row counts, the manifest digest, the
+  signing key id, parts and binary files; a Verification section naming
+  `/legal/verify-export`.
+- **Public page** `/legal/verify-export` (`VerifyExport.jsx`), a sibling
+  of the deletion one.
+- **Doors**: the export dialog and the backup panel sign before saving
+  and show the signing note, the certificate number, the download link and
+  the verification code; the import review shows the signature status.
+  Signing never blocks an export: when the function is missing or
+  unconfigured the package stays unsigned and says so.
+- **Migration `20260902140000_pld_exports.sql`**: the ledger, owner read;
+  dry run clean; apply pending owner.
+
+Gate (`__tests__/signing.test.js`): canonical bytes stable under key order
+and identical to the edge helper; a signed manifest verifies and reads as
+valid; a manifest changed after signing is invalid; unsigned, unknown key,
+unsupported and garbage values are reported, never trusted; a signed
+package edited after signing is refused on read even though every file
+hash still matches; the certificate number is deterministic and the
+certificate fields never carry the verification code.
+
+Owner steps to switch signing on: run `node tools/portability/gen-signing-key.mjs`,
+set `PLD_SIGNING_PRIVATE_JWK` and `PLD_SIGNING_KEY_ID` with
+`supabase secrets set`, paste the public JWK into `PUBLIC_KEYS`, apply the
+migration, `supabase functions deploy pld-sign`. Certificate wording
+review sits with this wave (owner decision §8.6).
+
 ## Program gotcha: one database, two builds
 
 Staging (the dev worktree served by HMR) and production (petrolord.com)
@@ -429,7 +479,8 @@ the migrator in the same change.
 ## Open items
 
 - Second engineer reviews `20260902120500` (registries), then apply.
-- Owner applies `20260902130000` (import jobs), then flips its MIGRATIONS.md row.
+- Owner applies `20260902130000` (import jobs) and `20260902140000` (export ledger), then flips their MIGRATIONS.md rows.
+- Owner generates the signing key, sets the secrets, pastes the public key, deploys `pld-sign`, and redeploys `org-export` for the PP3a pointer tables.
 - Deploy procedure: write `build-info.json` `{ "sha": "<full sha>" }` at
   the clean-checkout root before zipping (untracked, gitignored) so the
   Hostinger build stamps the real sha.

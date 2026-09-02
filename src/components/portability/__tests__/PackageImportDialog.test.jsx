@@ -27,6 +27,7 @@ const goodPreflight = {
   pkg: {
     manifest: { name: 'Handover', created_at: '2026-09-02T00:00:00Z', platform: { sha: 'abc' }, source: { organization_name: 'Source Co' } },
     integrity: { checked: 12 },
+    signature: { status: 'unsigned', key_id: null },
   },
   plan: {
     counts: { rows: 10, blobs: 8, tables: { geo_wells: 1, geo_wells_logs: 7 } },
@@ -109,4 +110,14 @@ test('the history section lists nothing when there are no imports', async () => 
   render(<PackageImportDialog open onOpenChange={() => {}} />);
   fireEvent.click(screen.getByText('Import history'));
   await waitFor(() => expect(screen.getByTestId('pld-import-history')).toHaveTextContent('No imports yet.'));
+});
+
+test('the review shows the signature status line', async () => {
+  mockPreflight.mockResolvedValueOnce(goodPreflight);
+  render(<PackageImportDialog open onOpenChange={() => {}} />);
+  pickFile();
+  const line = await screen.findByTestId('pld-import-signature');
+  expect(line).toHaveTextContent('unsigned');
+  expect(line).toHaveTextContent('This package is not signed.');
+  expect(line.textContent).not.toContain('—');
 });
