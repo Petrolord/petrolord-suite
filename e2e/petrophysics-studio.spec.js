@@ -299,6 +299,47 @@ test('PS2: export deliverables download; a well without logs shows the empty sta
   await expect(page.getByTestId('petro-status')).toContainText('Exported PDF report');
 });
 
+test('PS4: track builder forks the built-in, layout persists, ft toggle and PNG export work', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  // header click on the first track opens its editor in the dock
+  const canvas = page.getByTestId('petro-tracks-canvas');
+  const box = await canvas.boundingBox();
+  await page.mouse.click(box.x + 70, box.y + 20); // inside the GR header, right of the axis gutter
+  await expect(page.getByTestId('petro-layout-track-title')).toBeVisible();
+  await expect(page.getByTestId('petro-layout-track-title')).toHaveValue('GR (API)');
+
+  // removing a track from the built-in forks it (clone-on-edit)
+  await page.getByTestId('petro-layout-remove-Pay').click();
+  await expect(page.getByTestId('petro-layout-template')).toContainText('Standard triple combo (edited)');
+  await expect(page.getByTestId('petro-layout-template').locator('option')).toHaveCount(3);
+
+  // the fork survives save + reload with the interpretation
+  await page.getByTestId('petro-save-project').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Saved');
+  await page.reload();
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+  const sel = page.getByTestId('petro-layout-template');
+  await expect(sel).toContainText('Standard triple combo (edited)');
+  const selected = await sel.inputValue();
+  const label = await sel.locator(`option[value="${selected}"]`).innerText();
+  expect(label).toContain('(edited)');
+
+  // display-unit toggle flips the badge (labels are display-only)
+  await expect(page.getByTestId('petro-depth-unit')).toContainText('depth: m');
+  await page.getByTestId('petro-depth-unit').click();
+  await expect(page.getByTestId('petro-depth-unit')).toContainText('depth: ft');
+
+  // PNG export of the rendered track view
+  await page.getByTestId('petro-export').click();
+  const dl = page.waitForEvent('download');
+  await page.getByTestId('petro-export-png').click();
+  expect((await dl).suggestedFilename()).toBe('KETA_TYPE-1_tracks.png');
+});
+
 test('org-shared well is read-only for zones; invalid zone input errors', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
 

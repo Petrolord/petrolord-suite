@@ -11,8 +11,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { saveAs } from 'file-saver';
-import { Loader2, FileText, FileSpreadsheet, FileType } from 'lucide-react';
-import { curvesCsv, zonesCsv, buildLas, exportBaseName } from '../services/petroExport';
+import { Loader2, FileText, FileSpreadsheet, FileType, FileImage } from 'lucide-react';
+import { curvesCsv, zonesCsv, buildLas, exportBaseName, trackPlotPng } from '../services/petroExport';
 import { buildReport } from '../services/petroReport';
 
 export default function ExportDialog({
@@ -66,6 +66,22 @@ export default function ExportDialog({
         new Blob([buildLas(wellData, outputs, params, { wellName, projectId })], { type: 'text/plain;charset=utf-8;' }),
         `${base}_interpretation.las`,
       ),
+    },
+    {
+      kind: 'track plot PNG',
+      testid: 'petro-export-png',
+      icon: FileImage,
+      label: 'Track plot PNG',
+      note: 'The track view exactly as rendered, with a branded title band.',
+      build: async () => {
+        const canvas = document.querySelector('[data-testid="petro-tracks-canvas"]');
+        if (!canvas) throw new Error('Open the Tracks view first, then export the plot.');
+        const blob = await trackPlotPng({
+          canvas,
+          title: `${wellName} · Petrophysics Studio · ${new Date().toISOString().slice(0, 10)}`,
+        });
+        saveAs(blob, `${base}_tracks.png`);
+      },
     },
     {
       kind: 'PDF report',
