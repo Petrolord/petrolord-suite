@@ -49,6 +49,22 @@ const FIELDS = [
   { key: 'bValue', label: 'B (manual)', show: (d) => d.swMethod === 'waxman-smits' && d.bMode === 'manual' },
   { key: 'rwb', label: 'Rwb (ohm·m)', show: (d) => d.swMethod === 'dual-water' },
   { key: 'swb', label: 'Swb (v/v)', show: (d) => d.swMethod === 'dual-water' },
+  { section: 'Permeability' },
+  { key: 'permMethod', label: 'Model', options: ['none', 'timur', 'tixier', 'coates', 'wyllie-rose'] },
+  {
+    hint: (d) => ({
+      timur: 'Timur 1968: k = 8581·φ^4.4/Swirr² (mD)',
+      tixier: 'Tixier 1949: k = (250·φ³/Swirr)² (mD)',
+      coates: 'Coates & Denoo 1981: k = (100·φ²(1−Swirr)/Swirr)² (mD)',
+      'wyllie-rose': 'Wyllie-Rose: k = (c·φ^q/Swirr)²; Morris & Biggs: oil c=250, gas c=79, q=3',
+    }[d.permMethod]),
+    show: (d) => d.permMethod !== 'none',
+  },
+  { key: 'swirrSource', label: 'Swirr source', options: ['buckles', 'manual'], show: (d) => d.permMethod !== 'none' },
+  { key: 'bucklesConst', label: 'Buckles const', show: (d) => d.permMethod !== 'none' && d.swirrSource === 'buckles' },
+  { key: 'swirrManual', label: 'Swirr (v/v)', show: (d) => d.permMethod !== 'none' && d.swirrSource === 'manual' },
+  { key: 'wrC', label: 'c (Wyllie-Rose)', show: (d) => d.permMethod === 'wyllie-rose' },
+  { key: 'wrQ', label: 'q (Wyllie-Rose)', show: (d) => d.permMethod === 'wyllie-rose' },
   { section: 'Cutoffs' },
   { key: 'cutPhi', label: 'φ ≥' },
   { key: 'cutVsh', label: 'Vsh ≤' },
@@ -127,6 +143,12 @@ export default function ParameterPanel({
         <div key={f.section} className={`text-[10px] uppercase tracking-wider text-slate-500 ${i ? 'pt-2' : ''}`}>
           {f.section}
         </div>
+      ) : f.hint ? (
+        visible(f) && f.hint(draft) ? (
+          <p key={`hint-${i}`} className="text-[10px] text-slate-500 leading-snug" data-testid="petro-param-hint">
+            {f.hint(draft)}
+          </p>
+        ) : null
       ) : !visible(f) ? null : (
         <label key={f.key} className="flex items-center gap-2">
           <span className={`w-28 shrink-0 ${overridden(f.key) ? 'text-cyan-300' : 'text-slate-400'}`}>

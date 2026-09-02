@@ -325,6 +325,27 @@ test('PS5: Rw tools apply through Arps; Waxman-Smits at Qv=0 reproduces the Arch
   await expect(page.getByTestId('petro-zone-net-SAND A')).toHaveText(goldenNet('SAND_A'));
 });
 
+test('PS6: Timur permeability lands the golden zone geometric mean and publishes as KPERM', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  // no perm by default
+  await expect(page.getByTestId('petro-zone-kgm-SAND A')).toHaveCount(0);
+
+  await page.getByTestId('petro-param-permMethod').selectOption('timur');
+  await expect(page.getByTestId('petro-param-hint')).toContainText('Timur 1968');
+  await page.getByTestId('petro-params-apply').click();
+
+  // the zone card reads the oracle's thickness-weighted geometric mean
+  const wantK = goldens.PERM.zones.SAND_A.k_gm_timur.toFixed(1);
+  await expect(page.getByTestId('petro-zone-kgm-SAND A')).toContainText(`${wantK} mD`);
+
+  // KPERM joins the published set
+  await page.getByTestId('petro-publish').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Published 5 curves');
+});
+
 test('PS4: track builder forks the built-in, layout persists, ft toggle and PNG export work', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
   await page.locator('[data-well-name="KETA TYPE-1"]').click();
