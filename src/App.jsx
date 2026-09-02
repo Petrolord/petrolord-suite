@@ -57,6 +57,7 @@ const ProjectManagementPro = lazy(() => import('@/pages/apps/ProjectManagementPr
 const TechnicalReportAutopilot = lazy(() => import('@/pages/apps/TechnicalReportAutopilot'));
 const WellCorrelation = lazy(() => import('@/pages/apps/WellCorrelation/WellCorrelation'));
 const PetrophysicsStudio = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudio'));
+const PetrophysicsHelpGuide = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsHelpGuide'));
 const ContourMapDigitizer = lazy(() => import('@/pages/apps/ContourMapDigitizer'));
 const WellPlanning = lazy(() => import('@/pages/apps/WellPlanning'));
 const ReliefBlowdownSizer = lazy(() => import('@/pages/apps/ReliefBlowdownSizer'));
@@ -484,6 +485,7 @@ function App() {
                                     and any in-flight entitlements land on the successor
                                     (roadmap G0: routes stay as aliases where a successor exists). */}
                                 <Route path="apps/geoscience/petrophysics-studio" element={<ProtectedAppRoute appId="petrophysics-studio" appName="Petrophysics Studio"><PetrophysicsStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/petrophysics-studio/help" element={<ProtectedAppRoute appId="petrophysics-studio" appName="Petrophysics Studio"><PetrophysicsHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/rock-physics-studio" element={<ProtectedAppRoute appId="rock-physics-studio" appName="Rock Physics Studio"><RockPhysicsStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/earth-modeling" element={<ProtectedAppRoute appId="earth-modeling" appName="Earth Modeling"><EarthModeling /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/pore-pressure-studio" element={<ProtectedAppRoute appId="pore-pressure-studio" appName="Pore Pressure Studio"><PorePressureStudio /></ProtectedAppRoute>} />

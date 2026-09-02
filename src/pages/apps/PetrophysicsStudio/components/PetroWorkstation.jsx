@@ -10,7 +10,8 @@
 // ms). Publishing results to the registry is G2.5.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlaskConical, Loader2, UploadCloud, Save, Layers, PenLine, FileDown, Database } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { FlaskConical, Loader2, UploadCloud, Save, Layers, PenLine, FileDown, Database, HelpCircle } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import WellExplorer from './WellExplorer';
@@ -555,10 +556,19 @@ export default function PetroWorkstation({ backend }) {
           <Save className="w-3.5 h-3.5" /> Save
         </button>
       </div>
+      <Link
+        to="/dashboard/apps/geoscience/petrophysics-studio/help"
+        data-testid="petro-help"
+        title="Open the Petrophysics Studio help guide"
+        className="ml-auto flex items-center gap-1 px-2 py-1 text-xs rounded border
+          border-slate-700 text-cyan-300 hover:bg-slate-800"
+      >
+        <HelpCircle className="w-3.5 h-3.5" /> Help
+      </Link>
       <button
         type="button"
         data-testid="petro-toggle-dock"
-        className={`ml-auto px-2 py-1 text-xs rounded border
+        className={`px-2 py-1 text-xs rounded border
           ${dockOpen ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
         onClick={() => setDockOpen((v) => !v)}
       >
