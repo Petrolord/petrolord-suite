@@ -299,6 +299,32 @@ test('PS2: export deliverables download; a well without logs shows the empty sta
   await expect(page.getByTestId('petro-status')).toContainText('Exported PDF report');
 });
 
+test('PS5: Rw tools apply through Arps; Waxman-Smits at Qv=0 reproduces the Archie net pay', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+  await expect(page.getByTestId('petro-zone-net-SAND A')).toHaveText(goldenNet('SAND_A'));
+
+  // Arps converter: 0.1 ohm.m at 25 C converted to 65 C, applied as Rw
+  const cToF = (c) => (c * 9) / 5 + 32;
+  const rw2 = (0.1 * (cToF(25) + 6.77)) / (cToF(65) + 6.77);
+  await page.getByTestId('petro-rwtools').click();
+  await expect(page.getByTestId('petro-rw-arps-result')).toContainText(String(Number(rw2.toFixed(6))));
+  await page.getByTestId('petro-rw-arps-apply').click();
+  await expect(page.getByTestId('petro-param-rw')).toHaveValue(String(Number(rw2.toFixed(6))));
+
+  // back to the construction Rw, then Waxman-Smits with Qv = 0 and a
+  // manual B: the exact Archie reduction must land the same net pay
+  await page.getByTestId('petro-param-rw').fill('0.05');
+  await page.getByTestId('petro-param-swMethod').selectOption('waxman-smits');
+  await expect(page.getByText('m* (shaly rock)')).toBeVisible();
+  await page.getByTestId('petro-param-qv').fill('0');
+  await page.getByTestId('petro-param-bMode').selectOption('manual');
+  await page.getByTestId('petro-param-bValue').fill('3');
+  await page.getByTestId('petro-params-apply').click();
+  await expect(page.getByTestId('petro-zone-net-SAND A')).toHaveText(goldenNet('SAND_A'));
+});
+
 test('PS4: track builder forks the built-in, layout persists, ft toggle and PNG export work', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
   await page.locator('[data-well-name="KETA TYPE-1"]').click();

@@ -29,13 +29,26 @@ const FIELDS = [
   { key: 'dtFl', label: 'Δt fluid (µs/m)' },
   { key: 'sonicMethod', label: 'Sonic model', options: ['wyllie', 'rhg'] },
   { key: 'ndMethod', label: 'N-D combine', options: ['avg', 'rms'] },
+  { section: 'Temperature' },
+  { key: 'tempMode', label: 'Model', options: ['none', 'linear'] },
+  { key: 'surfaceTempC', label: 'Surface T (°C)', show: (d) => d.tempMode === 'linear' },
+  { key: 'bhtC', label: 'BHT (°C)', show: (d) => d.tempMode === 'linear' },
+  { key: 'bhtDepthM', label: 'BHT depth (m)', show: (d) => d.tempMode === 'linear' },
   { section: 'Sw' },
-  { key: 'swMethod', label: 'Model', options: ['archie', 'simandoux', 'indonesia'] },
+  { key: 'swMethod', label: 'Model', options: ['archie', 'simandoux', 'indonesia', 'waxman-smits', 'dual-water', 'mod-simandoux'] },
   { key: 'a', label: 'a' },
-  { key: 'm', label: 'm' },
-  { key: 'n', label: 'n' },
-  { key: 'rw', label: 'Rw @ FT (ohm·m)' },
-  { key: 'rsh', label: 'Rsh (ohm·m)' },
+  // Waxman-Smits exponents are measured on SHALY rock and are not
+  // Archie's m/n — the labels say so whenever that model is selected
+  { key: 'm', label: (d) => (d.swMethod === 'waxman-smits' ? 'm* (shaly rock)' : 'm') },
+  { key: 'n', label: (d) => (d.swMethod === 'waxman-smits' ? 'n* (shaly rock)' : 'n') },
+  { key: 'rw', label: (d) => (d.tempMode === 'linear' ? 'Rw @ ref T (ohm·m)' : 'Rw @ FT (ohm·m)') },
+  { key: 'rwRefTempC', label: 'Rw ref T (°C)', show: (d) => d.tempMode === 'linear' || d.swMethod === 'waxman-smits' },
+  { key: 'rsh', label: 'Rsh (ohm·m)', show: (d) => ['simandoux', 'indonesia', 'mod-simandoux'].includes(d.swMethod) },
+  { key: 'qv', label: 'Qv (meq/cm³)', show: (d) => d.swMethod === 'waxman-smits' },
+  { key: 'bMode', label: 'B source', options: ['juhasz', 'manual'], show: (d) => d.swMethod === 'waxman-smits' },
+  { key: 'bValue', label: 'B (manual)', show: (d) => d.swMethod === 'waxman-smits' && d.bMode === 'manual' },
+  { key: 'rwb', label: 'Rwb (ohm·m)', show: (d) => d.swMethod === 'dual-water' },
+  { key: 'swb', label: 'Swb (v/v)', show: (d) => d.swMethod === 'dual-water' },
   { section: 'Cutoffs' },
   { key: 'cutPhi', label: 'φ ≥' },
   { key: 'cutVsh', label: 'Vsh ≤' },
@@ -56,13 +69,20 @@ export default function ParameterPanel({
   const [draft, setDraft] = useState(effective);
   useEffect(() => setDraft(effective), [effective]);
 
+  const visible = (f) => !f.show || f.show(draft);
   const dirty = JSON.stringify(draft) !== JSON.stringify(effective);
-  const invalid = FIELDS.some((f) => f.key && !f.options && !Number.isFinite(num(String(draft[f.key]))));
+  const invalid = FIELDS.some((f) => f.key && !f.options && visible(f)
+    && !Number.isFinite(num(String(draft[f.key]))));
 
   const apply = () => {
     if (invalid) return;
-    const next = { ...draft };
-    for (const f of FIELDS) if (f.key && !f.options) next[f.key] = num(String(next[f.key]));
+    // hidden fields keep their committed values, so stale text in a
+    // field the current model does not use can never poison params
+    const next = { ...effective };
+    for (const f of FIELDS) {
+      if (!f.key || !visible(f)) continue;
+      next[f.key] = f.options ? draft[f.key] : num(String(draft[f.key]));
+    }
     if (!zone) {
       onApply(next);
       return;
@@ -107,10 +127,10 @@ export default function ParameterPanel({
         <div key={f.section} className={`text-[10px] uppercase tracking-wider text-slate-500 ${i ? 'pt-2' : ''}`}>
           {f.section}
         </div>
-      ) : (
+      ) : !visible(f) ? null : (
         <label key={f.key} className="flex items-center gap-2">
           <span className={`w-28 shrink-0 ${overridden(f.key) ? 'text-cyan-300' : 'text-slate-400'}`}>
-            {f.label}
+            {typeof f.label === 'function' ? f.label(draft) : f.label}
             {overridden(f.key) && <span className="text-cyan-400"> •</span>}
           </span>
           {f.options ? (
