@@ -169,12 +169,49 @@ export default function PetroWorkstation({ backend }) {
     const c = wellData.curves;
     const o = computed.outputs;
     const t = [];
-    if (c.GR) t.push({ key: 'gr', title: 'GR (API)', min: 0, max: 150, curves: [{ name: 'GR', data: c.GR, color: '#34d399' }] });
+    if (c.GR) {
+      t.push({
+        key: 'gr',
+        title: 'GR (API)',
+        min: 0,
+        max: 150,
+        curves: [{ name: 'GR', data: c.GR, color: '#34d399' }],
+        // clay shading: GR hotter than the clean line reads as Vsh
+        fills: [{ mode: 'threshold', a: 0, value: params.grClean, side: 'above', color: '#a3a065', opacity: 0.22 }],
+      });
+    }
     if (c.RT) t.push({ key: 'rt', title: 'RT (ohm·m)', scale: 'log', min: 0.2, max: 2000, curves: [{ name: 'RT', data: c.RT, color: '#f87171' }] });
-    const phiCurves = [];
-    if (o.PHIE) phiCurves.push({ name: 'φe', data: o.PHIE, color: '#22d3ee' });
-    if (c.NPHI) phiCurves.push({ name: 'NPHI', data: c.NPHI, color: '#a78bfa' });
-    if (phiCurves.length) t.push({ key: 'phi', title: 'Porosity (v/v)', min: 0, max: 0.5, curves: phiCurves });
+    if (c.RHOB && c.NPHI) {
+      // classic density-neutron overlay: NPHI reversed onto the RHOB
+      // scale span; yellow crossover (NPHI right of RHOB) is the gas
+      // effect, gray is the shale/tight side
+      t.push({
+        key: 'dn',
+        title: 'Density–Neutron',
+        min: 1.95,
+        max: 2.95,
+        curves: [
+          { name: 'RHOB', data: c.RHOB, color: '#eab308', min: 1.95, max: 2.95 },
+          { name: 'NPHI', data: c.NPHI, color: '#3b82f6', min: 0.45, max: -0.15, style: 'dash' },
+        ],
+        fills: [{ mode: 'crossover', a: 1, b: 0, positiveColor: '#fbbf24', negativeColor: '#64748b', opacity: 0.3 }],
+      });
+    }
+    if (o.PHIE) {
+      const phiCurves = [{ name: 'φe', data: o.PHIE, color: '#22d3ee' }];
+      if (c.NPHI && !c.RHOB) phiCurves.push({ name: 'NPHI', data: c.NPHI, color: '#a78bfa' });
+      t.push({
+        key: 'phi',
+        title: 'Porosity (v/v)',
+        min: 0,
+        max: 0.5,
+        curves: phiCurves,
+        // reservoir-quality shading above the porosity cutoff
+        fills: [{ mode: 'threshold', a: 0, value: params.cutPhi, side: 'above', color: '#fde047', opacity: 0.25 }],
+      });
+    } else if (c.NPHI && !c.RHOB) {
+      t.push({ key: 'phi', title: 'Porosity (v/v)', min: 0, max: 0.5, curves: [{ name: 'NPHI', data: c.NPHI, color: '#a78bfa' }] });
+    }
     if (o.VSH) t.push({ key: 'vsh', title: 'Vsh (v/v)', min: 0, max: 1, curves: [{ name: 'Vsh', data: o.VSH, color: '#a3a065', fillTo: 'right' }] });
     if (o.SW) t.push({ key: 'sw', title: 'Sw (v/v)', min: 0, max: 1, curves: [{ name: 'Sw', data: o.SW, color: '#60a5fa' }] });
     if (o.PAY) t.push({ key: 'pay', title: 'Pay', min: 0, max: 1, curves: [{ name: 'pay', data: o.PAY, color: '#4ade80', fillTo: 'left' }] });
@@ -189,7 +226,7 @@ export default function PetroWorkstation({ backend }) {
       });
     }
     return t;
-  }, [wellData, computed, faciesData, facies]);
+  }, [wellData, computed, faciesData, facies, params]);
 
   const addZone = async (z) => {
     const zone = await backend.saveZone(wellData.wellId, z);

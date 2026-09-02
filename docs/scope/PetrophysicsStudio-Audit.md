@@ -9,8 +9,15 @@ program: the academy's petrophysics deep-course ladder (Associate,
 Professional, Expert) is live and anchors to the same central engines,
 so anything added here lands in the engines repo first and NextGen
 inherits it for future course tiers.
-**Status:** AUDIT ONLY. No wave is approved yet; waves are sized for the
-owner to pick, EPE-audit style.
+**Status:** SUPERSEDED as a wave plan 2026-09-01 — the owner approved
+the full PS1–PS10 upgrade program (see
+docs/scope/PetrophysicsStudio-ROADMAP.md), which absorbs every band
+below. This document remains the finding-by-finding evidence base.
+Corrections since first writing: **A3 is stale** — published curves DO
+stamp the full parameter set into provenance
+(`engine/pipeline.js` preparePublishLogs); **D1 resolved in PS1** —
+the mock LogDataQCViz tree was deleted (it had no route or tile, so no
+redirect was needed).
 
 ## Headline
 

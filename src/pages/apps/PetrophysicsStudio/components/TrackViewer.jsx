@@ -1,30 +1,39 @@
-// Multi-track log viewer (Petrophysics Studio G2.3): shared depth
-// axis, per-track linear/log scales, curve fills, zone bands, tops
-// markers, wheel zoom + drag pan, crosshair readout. Canvas,
-// fill-height, dark workstation viewport (a viewport, not an analytic
-// chart — crossplots are where the white chartTheme applies, G2.4).
+// Multi-track log viewer (Petrophysics Studio G2.3, fills PS1): shared
+// depth axis, per-track linear/log scales with per-curve overrides
+// (density-neutron overlay), two-color crossover + threshold fills,
+// zone bands, tops markers, wheel zoom + drag pan, crosshair readout.
+// Canvas, fill-height, dark workstation viewport (a viewport, not an
+// analytic chart — crossplots are where the white chartTheme applies).
 //
 // Presentational: tracks/zones/tops come prepared from the controller;
 // the viewer owns only its depth window and cursor.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { crossoverPolys, thresholdPolys, fillPolys } from '../viewer/fills';
 
 const AXIS_W = 56;        // depth axis gutter
-const HEADER_H = 40;      // track header (title + scale + readout)
+const HEADER_H = 50;      // track header (title + scale rows + readout)
 const PAD_TOP = 2;
 
 const ZONE_COLORS = ['rgba(34,211,238,0.10)', 'rgba(251,191,36,0.10)', 'rgba(52,211,153,0.10)', 'rgba(244,114,182,0.10)'];
 
-function xScale(track, x0, w) {
+const DASHES = { dash: [6, 4], dot: [2, 3] };
+
+// curve overrides win over the track scale, so one track can overlay
+// differently-scaled curves (the classic density-neutron pair)
+function xScale(track, curve, x0, w) {
   const pad = 4;
-  if (track.scale === 'log') {
-    const lmin = Math.log10(track.min);
-    const lmax = Math.log10(track.max);
+  const min = curve?.min ?? track.min;
+  const max = curve?.max ?? track.max;
+  const scale = curve?.scale ?? track.scale;
+  if (scale === 'log') {
+    const lmin = Math.log10(min);
+    const lmax = Math.log10(max);
     return (v) => (v > 0
       ? x0 + pad + ((Math.log10(v) - lmin) / (lmax - lmin)) * (w - 2 * pad)
       : NaN);
   }
-  return (v) => x0 + pad + ((v - track.min) / (track.max - track.min)) * (w - 2 * pad);
+  return (v) => x0 + pad + ((v - min) / (max - min)) * (w - 2 * pad);
 }
 
 /**
@@ -32,7 +41,13 @@ function xScale(track, x0, w) {
  * @param {ArrayLike<number>} p.depth MD metres, ascending
  * @param {Array<{key: string, title: string, scale?: 'linear'|'log',
  *   min: number, max: number, unit?: string,
- *   curves: Array<{name: string, data: ArrayLike<number>, color: string, fillTo?: 'left'|'right'}>}>} p.tracks
+ *   curves: Array<{name: string, data: ArrayLike<number>, color: string,
+ *     fillTo?: 'left'|'right', min?: number, max?: number,
+ *     scale?: 'linear'|'log', style?: 'solid'|'dash'|'dot', lineWidth?: number}>,
+ *   fills?: Array<{mode: 'crossover', a: number, b: number,
+ *     positiveColor?: string, negativeColor?: string, opacity?: number}
+ *     | {mode: 'threshold', a: number, value: number,
+ *       side?: 'above'|'below', color: string, opacity?: number}>}>} p.tracks
  * @param {Array} [p.zones] geo_wells_zones rows
  * @param {Array} [p.tops] geo_wells_tops rows
  */
@@ -128,7 +143,6 @@ export default function TrackViewer({ depth, tracks, zones = [], tops = [] }) {
 
     tracks.forEach((track, ti) => {
       const x0 = AXIS_W + ti * trackW;
-      const xs = xScale(track, x0, trackW);
 
       // header
       ctx.fillStyle = '#0b1220';
@@ -141,12 +155,32 @@ export default function TrackViewer({ depth, tracks, zones = [], tops = [] }) {
       ctx.fillStyle = '#cbd5e1';
       ctx.fillText(track.title, x0 + trackW / 2, 12);
       if (track.type !== 'strip') {
+        // one scale row per distinct curve range (max two rows), in the
+        // curve's color when it overrides the track scale
         ctx.font = '9px sans-serif';
-        ctx.fillStyle = '#64748b';
-        ctx.textAlign = 'left';
-        ctx.fillText(`${track.min}`, x0 + 4, 24);
-        ctx.textAlign = 'right';
-        ctx.fillText(`${track.max}${track.scale === 'log' ? ' log' : ''}`, x0 + trackW - 4, 24);
+        const rows = [];
+        const seen = new Set();
+        for (const curve of track.curves) {
+          const min = curve.min ?? track.min;
+          const max = curve.max ?? track.max;
+          const scale = curve.scale ?? track.scale;
+          const sig = `${min}|${max}|${scale}`;
+          if (seen.has(sig)) continue;
+          seen.add(sig);
+          rows.push({
+            min, max, scale,
+            color: curve.min != null || curve.max != null ? curve.color : '#64748b',
+          });
+          if (rows.length === 2) break;
+        }
+        rows.forEach((r, ri) => {
+          const y = 24 + ri * 9;
+          ctx.fillStyle = r.color;
+          ctx.textAlign = 'left';
+          ctx.fillText(`${r.min}`, x0 + 4, y);
+          ctx.textAlign = 'right';
+          ctx.fillText(`${r.max}${r.scale === 'log' ? ' log' : ''}`, x0 + trackW - 4, y);
+        });
       }
 
       // categorical strip track (facies): per-sample colored bands
@@ -168,16 +202,56 @@ export default function TrackViewer({ depth, tracks, zones = [], tops = [] }) {
           ctx.textAlign = 'center';
           ctx.fillText(
             Number.isFinite(v) ? track.labels?.[Math.round(v)] ?? String(v) : '—',
-            x0 + trackW / 2, 36,
+            x0 + trackW / 2, 46,
           );
         }
         return;
       }
 
+      const clampX = (x) => Math.min(x0 + trackW - 2, Math.max(x0 + 2, x));
+
+      // fills under the curve lines (PS1): project each referenced
+      // curve through its own scale, then build device-space polygons
+      if (track.fills?.length) {
+        const proj = (curve) => {
+          const xsC = xScale(track, curve, x0, trackW);
+          const out = new Float64Array(i1 + 1).fill(NaN);
+          for (let i = i0; i <= i1; i++) {
+            const v = curve.data[i];
+            if (!Number.isFinite(v)) continue;
+            const x = xsC(v);
+            if (Number.isFinite(x)) out[i] = clampX(x);
+          }
+          return out;
+        };
+        const ys = new Float64Array(i1 + 1).fill(NaN);
+        for (let i = i0; i <= i1; i++) ys[i] = yOf(depth[i]);
+        for (const f of track.fills) {
+          const ca = track.curves[f.a];
+          if (!ca) continue;
+          const alpha = Math.round((f.opacity ?? 0.3) * 255).toString(16).padStart(2, '0');
+          if (f.mode === 'crossover' && track.curves[f.b]) {
+            const { pos, neg } = crossoverPolys(proj(ca), proj(track.curves[f.b]), ys, i0, i1);
+            if (f.positiveColor) fillPolys(ctx, pos, `${f.positiveColor}${alpha}`);
+            if (f.negativeColor) fillPolys(ctx, neg, `${f.negativeColor}${alpha}`);
+          } else if (f.mode === 'threshold') {
+            const xt = xScale(track, ca, x0, trackW)(f.value);
+            if (!Number.isFinite(xt)) continue;
+            fillPolys(
+              ctx,
+              thresholdPolys(proj(ca), clampX(xt), ys, f.side || 'above', i0, i1),
+              `${f.color}${alpha}`,
+            );
+          }
+        }
+      }
+
       // curves
-      for (const curve of track.curves) {
+      track.curves.forEach((curve, ci) => {
+        const xs = xScale(track, curve, x0, trackW);
         ctx.strokeStyle = curve.color;
-        ctx.lineWidth = 1.2;
+        ctx.lineWidth = curve.lineWidth ?? 1.2;
+        ctx.setLineDash(DASHES[curve.style] || []);
         ctx.beginPath();
         let pen = false;
         for (let i = i0; i <= i1; i++) {
@@ -185,11 +259,12 @@ export default function TrackViewer({ depth, tracks, zones = [], tops = [] }) {
           const x = Number.isFinite(v) ? xs(v) : NaN;
           if (!Number.isFinite(x)) { pen = false; continue; }
           const y = yOf(depth[i]);
-          const cx = Math.min(x0 + trackW - 2, Math.max(x0 + 2, x));
+          const cx = clampX(x);
           if (pen) ctx.lineTo(cx, y);
           else { ctx.moveTo(cx, y); pen = true; }
         }
         ctx.stroke();
+        ctx.setLineDash([]);
 
         if (curve.fillTo) {
           const edge = curve.fillTo === 'left' ? x0 + 2 : x0 + trackW - 2;
@@ -197,25 +272,27 @@ export default function TrackViewer({ depth, tracks, zones = [], tops = [] }) {
           for (let i = i0; i < i1; i++) {
             const v = curve.data[i];
             if (!Number.isFinite(v)) continue;
-            const x = Math.min(x0 + trackW - 2, Math.max(x0 + 2, xs(v)));
+            const x = clampX(xs(v));
             const y = yOf(depth[i]);
             const y2 = yOf(depth[i + 1]);
             ctx.fillRect(Math.min(edge, x), y, Math.abs(x - edge), Math.max(1, y2 - y));
           }
         }
 
-        // cursor readout in the header
+        // cursor readout in the header, spread across the track width
+        // so overlaid curves never overprint each other
         if (cursor) {
           const v = curve.data[cursor.idx];
+          const n = track.curves.length;
           ctx.font = '10px sans-serif';
           ctx.fillStyle = curve.color;
           ctx.textAlign = 'center';
           ctx.fillText(
             Number.isFinite(v) ? `${curve.name} ${v.toPrecision(4)}` : `${curve.name} —`,
-            x0 + trackW / 2, 36,
+            x0 + ((ci + 0.5) / n) * trackW, 46,
           );
         }
-      }
+      });
       ctx.lineWidth = 1;
     });
 

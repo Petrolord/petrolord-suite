@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   pointInPolygon, crossplotSamples, faciesCurve,
-  ND_LITHOLOGY_LINES, pickettIsoSwLine, pickettFitDepthWindow,
+  ND_LITHOLOGY_LINES, pickettIsoSwLine, pickettFitDepthWindow, bucklesIsoBvwLine,
 } from '../engine/crossplot';
 import { computeWell, DEFAULT_PARAMS } from '../engine/pipeline';
 
@@ -82,4 +82,22 @@ test('depth-window Pickett fit recovers the type well water line exactly', () =>
 test('degenerate window throws the domain error', () => {
   expect(() => pickettFitDepthWindow([1, 2], [0.2, 0.2], [5, 5], 0, 10)).toThrow(/degenerate/);
   expect(() => pickettFitDepthWindow([1, 2], [0.2, 0.2], [5, 5], 100, 200)).toThrow(/at least two/);
+});
+
+test('bucklesIsoBvwLine samples satisfy phi*Sw = bvw exactly and respect swMax', () => {
+  const line = bucklesIsoBvwLine(0.04, 0.005, 0.4, 1);
+  expect(line.bvw).toBe(0.04);
+  expect(line.pts.length).toBeGreaterThan(10);
+  for (const { x: phi, y: sw } of line.pts) {
+    expect(close(phi * sw, 0.04)).toBe(true);
+    expect(sw).toBeLessThanOrEqual(1);
+    expect(phi).toBeGreaterThan(0);
+  }
+  // the locus enters the frame at phi = bvw/swMax: no point below it
+  expect(Math.min(...line.pts.map((p) => p.x))).toBeGreaterThanOrEqual(0.04 - 1e-12);
+});
+
+test('bucklesIsoBvwLine drops non-positive phi samples', () => {
+  const line = bucklesIsoBvwLine(0.05, -0.1, 0.4, 1);
+  for (const { x: phi } of line.pts) expect(phi).toBeGreaterThan(0);
 });

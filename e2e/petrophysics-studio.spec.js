@@ -175,6 +175,61 @@ test('digitizer wizard traces a curve from a scanned image and saves it', async 
   await expect(page.getByTestId('petro-status')).toContainText('Digitized PORB added');
 });
 
+test('PS1: z-color with colorbar, point identify tooltip, Buckles plot, zoom reset', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+  await page.getByTestId('petro-view-crossplot').click();
+  const canvas = page.getByTestId('petro-crossplot-canvas');
+  await expect(canvas).toBeVisible();
+
+  // colorbar pixel probe: the right gutter is white without z-color,
+  // painted once Color by = Depth
+  const gutterPixel = () => canvas.evaluate((el) => {
+    const dpr = window.devicePixelRatio || 1;
+    const px = el.getContext('2d').getImageData(
+      Math.round((el.clientWidth - 33) * dpr),
+      Math.round((el.clientHeight / 2) * dpr), 1, 1,
+    ).data;
+    return px[0] + px[1] + px[2];
+  });
+  const before = await gutterPixel();
+  expect(before).toBeGreaterThan(740); // white background
+  await page.getByTestId('petro-colorby').selectOption('depth');
+  await expect.poll(gutterPixel).toBeLessThan(700); // viridis ramp painted
+
+  // hover near a sample -> identify tooltip with depth and z value
+  const box = await canvas.boundingBox();
+  const probes = [];
+  for (let fx = 0.15; fx < 0.9; fx += 0.1) {
+    for (let fy = 0.15; fy < 0.9; fy += 0.1) probes.push([fx, fy]);
+  }
+  let seen = false;
+  for (const [fx, fy] of probes) {
+    await page.mouse.move(box.x + box.width * fx, box.y + box.height * fy);
+    if (await page.getByTestId('petro-crossplot-tooltip').isVisible().catch(() => false)) {
+      seen = true;
+      break;
+    }
+  }
+  expect(seen).toBe(true);
+  await expect(page.getByTestId('petro-crossplot-tooltip')).toContainText('m MD');
+  await expect(page.getByTestId('petro-crossplot-tooltip')).toContainText('Depth (m MD)');
+
+  // wheel zoom arms the reset button; reset clears it
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, -120);
+  await expect(page.getByTestId('petro-zoom-reset')).toBeVisible();
+  await page.getByTestId('petro-zoom-reset').click();
+  await expect(page.getByTestId('petro-zoom-reset')).toHaveCount(0);
+
+  // Buckles plot renders with iso-BVW overlays (canvas up and sized)
+  await page.getByTestId('petro-plot-buckles').click();
+  await expect(canvas).toBeVisible();
+  const bbox = await canvas.boundingBox();
+  expect(bbox.width).toBeGreaterThan(300);
+});
+
 test('org-shared well is read-only for zones; invalid zone input errors', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
 
