@@ -15,6 +15,10 @@ identify), Buckles plot (engines PR #92), mock LogDataQCViz retired.
 **PS2 (deliverables) DONE 2026-09-01**: curves + zone CSV, round-trip
 gated LAS 2.0 writer (engines PR #93), branded PDF summary report with
 engine citations, no-depth empty state (audit A1/C2/C3 closed).
+**PS3 (interpretations + per-zone params) DONE 2026-09-02**: named
+interpretations CRUD, per-zone override patches through the zoned
+pipeline (engines PR #94, PIPELINE_VERSION 2), migration
+20260901120000 applied live (audit A2/B1 closed).
 
 Production note: **RESOLVED 2026-07-14** — prod is current (source zip
 from main `e84f8a181` uploaded to Hostinger); the tile, route and the
