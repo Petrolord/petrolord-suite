@@ -197,6 +197,10 @@ hangs off.
    caps `org-export` today and makes multi-GB seismic packages
    possible. The `org-export` offboarding dump is unchanged by this
    program (owner decision, §8.4); PP4 adds backup doors beside it.
+   *PP1 note (2026-09-02): the Geoscience writer closes on the client
+   under the caller's own session and uses jszip, the declared
+   dependency; the server closure engine and any streaming-library swap
+   are PP4/PP3 work. See STATUS, PP1 deviations.*
 
 7. **Integrity and origin.** Every file has a sha256 in the manifest,
    and the manifest carries an HMAC signature from a platform key, so

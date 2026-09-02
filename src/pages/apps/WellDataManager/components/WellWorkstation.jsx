@@ -14,6 +14,7 @@ import WellDetail from './WellDetail';
 import LasImportDialog from './LasImportDialog';
 import AddWellDialog from './AddWellDialog';
 import DeleteWellDialog from './DeleteWellDialog';
+import PackageExportDialog from '@/components/portability/PackageExportDialog';
 
 export default function WellWorkstation({ backend }) {
   const [wells, setWells] = useState(null);       // null = first load
@@ -23,6 +24,7 @@ export default function WellWorkstation({ backend }) {
   const [view, setView] = useState('map');        // 'map' | 'detail'
   const [status, setStatus] = useState('Ready.');
   const [lasOpen, setLasOpen] = useState(false);
+  const [packageOpen, setPackageOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [deleting, setDeleting] = useState(null); // well pending delete confirm
   const [orgId, setOrgId] = useState(undefined);  // undefined = resolving
@@ -43,6 +45,11 @@ export default function WellWorkstation({ backend }) {
 
   const list = wells || [];
   const selected = list.find((w) => w.id === selectedId) || null;
+  const selectedName = selected?.name ?? null;
+  const packagePreselect = useMemo(
+    () => (selectedId ? { wells: [selectedId], name: selectedName } : { wells: [] }),
+    [selectedId, selectedName],
+  );
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return list;
@@ -57,7 +64,7 @@ export default function WellWorkstation({ backend }) {
 
   const shareToggle = async (well) => {
     if (orgId === null) {
-      setStatus('You belong to no organization — nothing to share with.');
+      setStatus('You belong to no organization, so there is nothing to share with.');
       return;
     }
     setBusyId(well.id);
@@ -181,6 +188,7 @@ export default function WellWorkstation({ backend }) {
             onDelete={setDeleting}
             onImportLas={() => setLasOpen(true)}
             onAddWell={() => setAddOpen(true)}
+            onExportPackage={() => setPackageOpen(true)}
           />
         )}
         center={center}
@@ -204,6 +212,12 @@ export default function WellWorkstation({ backend }) {
         backend={backend}
         onOpenChange={(v) => { if (!v) setDeleting(null); }}
         onDone={onDeleted}
+      />
+      <PackageExportDialog
+        open={packageOpen}
+        onOpenChange={setPackageOpen}
+        preselect={packagePreselect}
+        onStatus={setStatus}
       />
     </>
   );

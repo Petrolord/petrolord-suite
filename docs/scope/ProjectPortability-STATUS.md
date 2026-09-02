@@ -9,7 +9,7 @@ kept, imports private by default, certificate wording in PP5).
 | Wave | Status | Landed |
 |---|---|---|
 | PP0 Version foundations | **BUILT 2026-09-02**, app-state migration **APPLIED LIVE** same day, gate passed | PR #352 (feat/portability-pp0) |
-| PP1 Package writer, Geoscience | not started | |
+| PP1 Package writer, Geoscience | **BUILT 2026-09-02**, gate passed | PR (feat/portability-pp1) |
 | PP2 Importer | not started | |
 | PP3 Coverage | not started | |
 | PP4 Restorable backup | not started | |
@@ -72,6 +72,79 @@ Not in PP0, by design: `wp_*` case and run tables beyond `wp_designs`
 (they already carry `engine_version`; `schema_version` was added by the
 migration but their loaders stay untouched until PP3 packages them),
 `epe_*` result tables written by edge functions, `sim_runs`.
+
+## PP1 (2026-09-02)
+
+What shipped, all under `src/lib/portability/`:
+
+- **Manifest** (`manifest.js`, schema of record
+  `test-data/portability/manifest.schema.json`): `buildManifest`,
+  `validateManifest` (hand-written validator kept in step with the schema
+  by a test), `packageVersionCheck` (the Petrel rule at package level).
+  Format `pld`, `package_version 1`, per-table `schema_version` range,
+  every file with size and sha256, `signature: null` until PP5.
+- **Spec** (`geoscienceSpec.js`): the soft-reference registry for
+  `geo_wells`, `geo_wells_logs`, `geo_wells_tops`, `geo_wells_zones`,
+  `geo_surfaces`, `geo_culture`, the synthetic `geoscience_custom_crs`
+  (custom CRS definitions lifted out of `geoscience_settings`),
+  `petro_projects`, `pp_projects`, `rp_projects`,
+  `geo_correlation_sections`. Each reference is marked optional or not;
+  optional ones (a log's parent interpretation, a surface's isochore
+  parents, a pore-pressure project's seismic volume) may be nulled by the
+  importer, all others must resolve inside the package.
+- **Collector** (`collect.js`): roots are wells, surfaces, culture sets,
+  petro/pp/rp projects and correlation sections. Wells bring logs (with
+  float32 curves), tops and zones. Project and section roots bring all
+  their wells. With `includeInterpretations` the caller's own
+  interpretations that refer only to packaged wells come along; one that
+  also refers to a well outside the selection is left out and named in
+  the notes, never pulled in silently.
+- **Sidecars** (`sidecars.js`): LAS 2.0 per well through the Suite's
+  round-trip-gated `writeLas` (depth log first; a well with no DEPT/DEPTH/MD
+  gets a note instead), tops and zones CSV, ZMAP+ per surface through
+  `writeZMAP` (rotation is not representable in ZMAP+ and is noted),
+  README.txt.
+- **Writer** (`zipWriter.js`): `PackageWriter` on jszip (the declared
+  dependency; see deviation 1 below), sha256 per file, float32 stored
+  uncompressed, `savePackage` streams to a File System Access handle when
+  the browser offers one and falls back to a download.
+- **Detector** (`danglingRefs.js`): every uuid-shaped string in every
+  dumped row is classified internal, scope, allowed, external or dangling.
+  `buildGeosciencePackage` refuses to write a package with a dangling
+  reference and names the first one.
+- **Source** (`supabaseSource.js`): the registry under the caller's own
+  session, so row-level security decides what can be packaged.
+- **Doors**: Well Data Manager toolbar (Export package) and the
+  Petrophysics Export dialog (Project package), both opening the shared
+  `PackageExportDialog`.
+
+Gate (PLAN §6, PP1 row) in `__tests__/geosciencePackage.test.js` on the
+Petrophysics analytic type well plus a computed VSH curve, a custom CRS,
+two interpretations and a correlation section:
+
+- LAS sidecar parses back to byte-identical float32 curves (all 7 curves,
+  nulls included); float32 blobs byte-identical.
+- Manifest validates; every listed file present with matching sha256.
+- Zero dangling references; the one external reference is the optional
+  isochore parent.
+- The interpretation spanning a second well is left out and named; the
+  one inside travels. A project root pulls both wells and downloads each
+  curve exactly once.
+- ZMAP sidecar round-trips through `parseSurfaceFile` with nulls.
+
+Two scoped deviations from the PLAN text, recorded here for the owner:
+
+1. **jszip, not fflate.** PLAN §4.6 named fflate. jszip is the Suite's
+   declared zip dependency and node_modules is tracked, so adding fflate
+   would mean committing dependency changes. jszip's streaming generator
+   feeds the File System Access sink; `PackageWriter` is the seam to swap
+   the library when PP3 seismic packages need it.
+2. **PP1 closes on the client, not on a `package-export` edge function.**
+   The Geoscience root set is a small typed graph; walking it under the
+   caller's own session inherits row-level security instead of
+   re-implementing it in a service-role function. The server-side closure
+   engine over the org-export catalog RPCs is still the right tool for the
+   largest root sets and arrives with PP4.
 
 ## Program gotcha: one database, two builds
 

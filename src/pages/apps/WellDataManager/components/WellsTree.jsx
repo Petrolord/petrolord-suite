@@ -5,7 +5,7 @@
 
 import React from 'react';
 import {
-  CircleDot, Search, Building2, Lock, Loader2, Trash2, Share2, Upload, Plus,
+  CircleDot, Search, Building2, Lock, Loader2, Trash2, Share2, Upload, Plus, Package,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -73,7 +73,7 @@ function Row({ well, selected, busy, onSelect, onShareToggle, onDelete }) {
  */
 export default function WellsTree({
   wells, total, search, onSearch, selectedId, busyId,
-  onSelect, onShareToggle, onDelete, onImportLas, onAddWell,
+  onSelect, onShareToggle, onDelete, onImportLas, onAddWell, onExportPackage,
 }) {
   return (
     <div className="h-full min-h-0 flex flex-col bg-slate-900/60" data-testid="wdm-tree">
@@ -109,6 +109,16 @@ export default function WellsTree({
             onClick={onAddWell}
           >
             <Plus className="w-3.5 h-3.5" /> Add well…
+          </button>
+          <button
+            type="button"
+            data-testid="wdm-open-package"
+            title="Export the selected wells as a portable Petrolord Project Package (.pld)"
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-1 text-xs rounded
+              border border-slate-700 text-slate-300 hover:bg-slate-800"
+            onClick={onExportPackage}
+          >
+            <Package className="w-3.5 h-3.5" /> Export package
           </button>
         </div>
       </div>
