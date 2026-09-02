@@ -21,7 +21,7 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
 | PS1 | Signature visuals: crossover + threshold track fills, per-curve scales (D-N overlay), z-colored crossplots w/ colorbar, zoom/pan, point identify, Buckles plot; retire the mock QC app | D1a | bucklesIsoBvwLine (engines PR #92) | no | **DONE 2026-09-01** |
 | PS2 | Deliverables: curves + zone CSV, LAS 2.0 writer (round-trip gated), branded PDF summary report; empty state instead of the no-depth hard error | A1, C2, C3 | LAS writer | no | **DONE 2026-09-01** |
 | PS3 | Named interpretations (list/open/save-as/rename/delete) + per-zone parameter overrides; zoned pipeline (`computeWellZoned`, PIPELINE_VERSION 2) | A2, B1 | zoned driver | **yes** (petro_projects) | **DONE 2026-09-02** |
-| PS4 | User track builder + named layout templates (petro_projects.layouts), ft display toggle, PNG export of the track view | — | no | no | queued |
+| PS4 | User track builder + named layout templates (petro_projects.layouts), ft display toggle, PNG export of the track view | — | no | no | **DONE 2026-09-02** |
 | PS5 | Formation temperature model + Waxman-Smits / dual-water / Modified Simandoux Sw + Rw quicklook tools wired (SP, Arps); PIPELINE_VERSION 3 | B5 partial | large | no | queued |
 | PS6 | Permeability (Timur, Tixier, Coates, Wyllie-Rose) + Buckles BVW analysis + zone k geometric mean; PIPELINE_VERSION 4 | B2 | yes | no | queued |
 | PS7 | Histogram panel: cumulative frequency, P10/P50/P90, zone filters, draggable cutoff lines writing back to parameters; multi-well GR overlay + normalization fit | — | normalize.js | no | queued |
@@ -103,3 +103,23 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
   `interpretations.test.js` (CRUD + legacy migration); 81 jest, 8/8
   e2e (new PS3 spec: zone Rw override collapses SAND A net to 0,
   save-as/reopen round-trips zone_params).
+- **PS4 (2026-09-02):** Suite-only wave, branch
+  `feat/petrophysics-ps4-track-builder` (stacked on PS3). Versioned
+  layout schema (`layout/layoutSchema.js`): templates address curves
+  by `input:GR` / `output:PHIE` (portable across wells), param-bound
+  thresholds, built-ins fork on first edit (clone-on-edit), stored
+  layouts migrate + built-ins refresh from code;
+  `layout/resolveTracks.js` (pure) replaces the hardcoded tracks memo
+  — the PS1 set lives on as the `std-triple-combo` built-in beside a
+  `quicklook` raw template. `LayoutPanel` in the dock: template
+  select/save-as/rename/delete, add/remove/reorder tracks, per-track
+  curve editor (source, color, range override, style) and fill editor
+  (crossover, threshold). TrackViewer: proportional width ratios,
+  track-header click opens that track's editor, `depthUnit` display
+  toggle (ft grid chosen in display units, data stays SI). Layouts
+  persist in `petro_projects.layouts` with the interpretation
+  (column existed since G2, first written now). Track plot PNG export
+  (titled + logo band) joins the Export dialog. Tests:
+  `layout.test.js` (resolution tolerance, clone-on-edit, migration);
+  86 jest, 9/9 e2e (new PS4 spec: header-click editing, built-in
+  fork, save/reload persistence, ft toggle, PNG download).

@@ -50,14 +50,22 @@ function xScale(track, curve, x0, w) {
  *       side?: 'above'|'below', color: string, opacity?: number}>}>} p.tracks
  * @param {Array} [p.zones] geo_wells_zones rows
  * @param {Array} [p.tops] geo_wells_tops rows
+ * @param {'m'|'ft'} [p.depthUnit] DISPLAY unit only — data stays metres
+ * @param {(trackIndex: number) => void} [p.onTrackHeaderClick]
  */
-export default function TrackViewer({ depth, tracks, zones = [], tops = [] }) {
+export default function TrackViewer({
+  depth, tracks, zones = [], tops = [], depthUnit = 'm', onTrackHeaderClick,
+}) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [view, setView] = useState(null);      // [dTop, dBase] or null = full
   const [cursor, setCursor] = useState(null);  // {y, depthM, idx}
   const dragRef = useRef(null);
+  const movedRef = useRef(false);
+
+  // display-unit factor: every LABEL multiplies by F, no data changes
+  const F = depthUnit === 'ft' ? 1 / 0.3048 : 1;
 
   const dMin = depth.length ? depth[0] : 0;
   const dMax = depth.length ? depth[depth.length - 1] : 1;
@@ -95,7 +103,18 @@ export default function TrackViewer({ depth, tracks, zones = [], tops = [] }) {
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, size.w, size.h);
 
-    const trackW = (size.w - AXIS_W) / Math.max(1, tracks.length);
+    // proportional track widths from the layout ratios
+    const totalRatio = tracks.reduce((s, t) => s + (t.width || 1), 0) || 1;
+    const plotWTotal = size.w - AXIS_W;
+    const trackXs = [];
+    const trackWs = [];
+    let xAcc = AXIS_W;
+    for (const t of tracks) {
+      const w = ((t.width || 1) / totalRatio) * plotWTotal;
+      trackXs.push(xAcc);
+      trackWs.push(w);
+      xAcc += w;
+    }
 
     // zone bands under everything
     zones.forEach((z, zi) => {
@@ -110,27 +129,28 @@ export default function TrackViewer({ depth, tracks, zones = [], tops = [] }) {
       ctx.fillText(z.name, AXIS_W + 4, Math.max(plotTop + 10, y0 + 11));
     });
 
-    // depth axis + gridlines
+    // depth axis + gridlines — the grid is chosen in DISPLAY units so
+    // an ft axis lands on round feet
     ctx.strokeStyle = 'rgba(51,65,85,0.5)';
     ctx.fillStyle = '#64748b';
     ctx.font = '10px sans-serif';
-    const span = vBase - vTop;
+    const span = (vBase - vTop) * F;
     const step = 10 ** Math.floor(Math.log10(span / 6));
     const grid = span / step >= 30 ? step * 5 : span / step >= 12 ? step * 2 : step;
-    for (let d = Math.ceil(vTop / grid) * grid; d <= vBase; d += grid) {
-      const y = yOf(d);
+    for (let dv = Math.ceil((vTop * F) / grid) * grid; dv <= vBase * F; dv += grid) {
+      const y = yOf(dv / F);
       ctx.beginPath();
       ctx.moveTo(AXIS_W, y);
       ctx.lineTo(size.w, y);
       ctx.stroke();
       ctx.textAlign = 'right';
-      ctx.fillText(String(Math.round(d)), AXIS_W - 4, y + 3);
+      ctx.fillText(String(Math.round(dv)), AXIS_W - 4, y + 3);
     }
     ctx.save();
     ctx.translate(10, plotTop + plotH / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.textAlign = 'center';
-    ctx.fillText('MD (m)', 0, 0);
+    ctx.fillText(depthUnit === 'ft' ? 'MD (ft)' : 'MD (m)', 0, 0);
     ctx.restore();
 
     // visible sample range
@@ -142,7 +162,8 @@ export default function TrackViewer({ depth, tracks, zones = [], tops = [] }) {
     i1 = Math.min(depth.length - 1, i1 + 1);
 
     tracks.forEach((track, ti) => {
-      const x0 = AXIS_W + ti * trackW;
+      const x0 = trackXs[ti];
+      const trackW = trackWs[ti];
 
       // header
       ctx.fillStyle = '#0b1220';
@@ -323,9 +344,9 @@ export default function TrackViewer({ depth, tracks, zones = [], tops = [] }) {
       ctx.fillStyle = '#e2e8f0';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText(cursor.depthM.toFixed(1), AXIS_W - 4, cursor.y - 4);
+      ctx.fillText((cursor.depthM * F).toFixed(1), AXIS_W - 4, cursor.y - 4);
     }
-  }, [size, depth, tracks, zones, tops, vTop, vBase, cursor, yOf, plotTop, plotH]);
+  }, [size, depth, tracks, zones, tops, vTop, vBase, cursor, yOf, plotTop, plotH, F, depthUnit]);
 
   const nearestIdx = (d) => {
     // depth ascending, uniformish: binary search
@@ -343,6 +364,7 @@ export default function TrackViewer({ depth, tracks, zones = [], tops = [] }) {
     const rect = canvasRef.current.getBoundingClientRect();
     const y = e.clientY - rect.top;
     if (dragRef.current) {
+      movedRef.current = true;
       const dd = dOf(dragRef.current.y) - dOf(y);
       const [t0, b0] = dragRef.current.view;
       let nt = t0 + dd;
@@ -379,8 +401,23 @@ export default function TrackViewer({ depth, tracks, zones = [], tops = [] }) {
         data-testid="petro-tracks-canvas"
         onPointerMove={onPointerMove}
         onPointerDown={(e) => {
+          movedRef.current = false;
           dragRef.current = { y: e.clientY - canvasRef.current.getBoundingClientRect().top, view: [vTop, vBase] };
           e.currentTarget.setPointerCapture(e.pointerId);
+        }}
+        onClick={(e) => {
+          if (movedRef.current || !onTrackHeaderClick || !tracks.length) return;
+          const rect = canvasRef.current.getBoundingClientRect();
+          if (e.clientY - rect.top > HEADER_H) return;
+          const x = e.clientX - rect.left - AXIS_W;
+          if (x < 0) return;
+          const totalRatio = tracks.reduce((s, t) => s + (t.width || 1), 0) || 1;
+          const plotW = rect.width - AXIS_W;
+          let acc = 0;
+          for (let i = 0; i < tracks.length; i++) {
+            acc += ((tracks[i].width || 1) / totalRatio) * plotW;
+            if (x < acc) { onTrackHeaderClick(i); return; }
+          }
         }}
         onPointerUp={(e) => { dragRef.current = null; e.currentTarget.releasePointerCapture(e.pointerId); }}
         onPointerLeave={() => { setCursor(null); }}

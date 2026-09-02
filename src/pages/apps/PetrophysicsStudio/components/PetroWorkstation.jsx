@@ -22,11 +22,14 @@ import BatchRunDialog from './BatchRunDialog';
 import DigitizerDialog from './DigitizerDialog';
 import ExportDialog from './ExportDialog';
 import InterpretationBar from './InterpretationBar';
+import LayoutPanel from './LayoutPanel';
 import {
   computeWellZoned, zoneSummary, DEFAULT_PARAMS,
   preparePublishLogs, zonePropertiesSnapshot,
 } from '../engine/pipeline';
 import { faciesCurve } from '../engine/crossplot';
+import { buildDefaultLayouts, migrateLayouts, activeTemplate } from '../layout/layoutSchema';
+import { resolveTracks } from '../layout/resolveTracks';
 
 // standard pipeline inputs <- registry mnemonics (base name, ':n'
 // duplicate suffixes ignored; first match wins)
@@ -74,6 +77,9 @@ export default function PetroWorkstation({ backend }) {
   const [digitizerOpen, setDigitizerOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [noDepthWell, setNoDepthWell] = useState(null); // {inventory} — C2 empty state
+  const [layouts, setLayouts] = useState(buildDefaultLayouts); // PS4 templates
+  const [layoutFocus, setLayoutFocus] = useState(null);        // {index, nonce}
+  const [depthUnit, setDepthUnit] = useState('m');             // display only
 
   useEffect(() => {
     let live = true;
@@ -89,6 +95,7 @@ export default function PetroWorkstation({ backend }) {
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.facies) setFaciesByWell(project.facies);
         if (project.zone_params) setZoneParams(project.zone_params);
+        setLayouts(migrateLayouts(project.layouts));
         setStatus(`Restored ${project.name || 'saved project'}.`);
       } catch (e) {
         if (live) { setStatus(e.message); setWells((w) => w || []); }
@@ -212,69 +219,18 @@ export default function PetroWorkstation({ backend }) {
       : null
   ), [wellData, facies]);
 
+  // PS4: the track set comes from the active layout template — the
+  // PS1 hardcoded set lives on as the std-triple-combo built-in
   const tracks = useMemo(() => {
     if (!wellData || !computed) return [];
-    const c = wellData.curves;
-    const o = computed.outputs;
-    const t = [];
-    if (c.GR) {
-      t.push({
-        key: 'gr',
-        title: 'GR (API)',
-        min: 0,
-        max: 150,
-        curves: [{ name: 'GR', data: c.GR, color: '#34d399' }],
-        // clay shading: GR hotter than the clean line reads as Vsh
-        fills: [{ mode: 'threshold', a: 0, value: params.grClean, side: 'above', color: '#a3a065', opacity: 0.22 }],
-      });
-    }
-    if (c.RT) t.push({ key: 'rt', title: 'RT (ohm·m)', scale: 'log', min: 0.2, max: 2000, curves: [{ name: 'RT', data: c.RT, color: '#f87171' }] });
-    if (c.RHOB && c.NPHI) {
-      // classic density-neutron overlay: NPHI reversed onto the RHOB
-      // scale span; yellow crossover (NPHI right of RHOB) is the gas
-      // effect, gray is the shale/tight side
-      t.push({
-        key: 'dn',
-        title: 'Density–Neutron',
-        min: 1.95,
-        max: 2.95,
-        curves: [
-          { name: 'RHOB', data: c.RHOB, color: '#eab308', min: 1.95, max: 2.95 },
-          { name: 'NPHI', data: c.NPHI, color: '#3b82f6', min: 0.45, max: -0.15, style: 'dash' },
-        ],
-        fills: [{ mode: 'crossover', a: 1, b: 0, positiveColor: '#fbbf24', negativeColor: '#64748b', opacity: 0.3 }],
-      });
-    }
-    if (o.PHIE) {
-      const phiCurves = [{ name: 'φe', data: o.PHIE, color: '#22d3ee' }];
-      if (c.NPHI && !c.RHOB) phiCurves.push({ name: 'NPHI', data: c.NPHI, color: '#a78bfa' });
-      t.push({
-        key: 'phi',
-        title: 'Porosity (v/v)',
-        min: 0,
-        max: 0.5,
-        curves: phiCurves,
-        // reservoir-quality shading above the porosity cutoff
-        fills: [{ mode: 'threshold', a: 0, value: params.cutPhi, side: 'above', color: '#fde047', opacity: 0.25 }],
-      });
-    } else if (c.NPHI && !c.RHOB) {
-      t.push({ key: 'phi', title: 'Porosity (v/v)', min: 0, max: 0.5, curves: [{ name: 'NPHI', data: c.NPHI, color: '#a78bfa' }] });
-    }
-    if (o.VSH) t.push({ key: 'vsh', title: 'Vsh (v/v)', min: 0, max: 1, curves: [{ name: 'Vsh', data: o.VSH, color: '#a3a065', fillTo: 'right' }] });
-    if (o.SW) t.push({ key: 'sw', title: 'Sw (v/v)', min: 0, max: 1, curves: [{ name: 'Sw', data: o.SW, color: '#60a5fa' }] });
-    if (o.PAY) t.push({ key: 'pay', title: 'Pay', min: 0, max: 1, curves: [{ name: 'pay', data: o.PAY, color: '#4ade80', fillTo: 'left' }] });
-    if (faciesData) {
-      t.push({
-        key: 'facies',
-        title: 'Facies',
-        type: 'strip',
-        colors: facies.map((f) => f.color),
-        labels: facies.map((f) => f.name),
-        curves: [{ name: 'facies', data: faciesData }],
-      });
-    }
-    return t;
-  }, [wellData, computed, faciesData, facies, params]);
+    return resolveTracks(activeTemplate(layouts), {
+      curves: wellData.curves,
+      outputs: computed.outputs,
+      faciesData,
+      facies,
+      params,
+    });
+  }, [wellData, computed, faciesData, facies, params, layouts]);
 
   const addZone = async (z) => {
     const zone = await backend.saveZone(wellData.wellId, z);
@@ -334,7 +290,7 @@ export default function PetroWorkstation({ backend }) {
     setStatus(`Digitized ${saved.mnemonic} added to ${name}.`);
   };
 
-  const workspaceState = () => ({ params, facies: faciesByWell, zone_params: zoneParams });
+  const workspaceState = () => ({ params, facies: faciesByWell, zone_params: zoneParams, layouts });
 
   const saveProject = async () => {
     try {
@@ -354,6 +310,7 @@ export default function PetroWorkstation({ backend }) {
     setParams({ ...DEFAULT_PARAMS, ...(project.params || {}) });
     setFaciesByWell(project.facies || {});
     setZoneParams(project.zone_params || {});
+    setLayouts(migrateLayouts(project.layouts));
     if (selectedId) setFacies((project.facies || {})[selectedId] || []);
   };
 
@@ -542,7 +499,15 @@ export default function PetroWorkstation({ backend }) {
       <span className="ml-auto whitespace-nowrap">
         {selected ? `${selected.name} · ${wellData?.curves.DEPT?.length ?? '…'} samples` : `${wells?.length ?? '…'} wells`}
       </span>
-      <span className="whitespace-nowrap text-slate-600">SI internal (m)</span>
+      <button
+        type="button"
+        data-testid="petro-depth-unit"
+        title="Display unit for the depth axis. Internal storage stays SI metres."
+        className="whitespace-nowrap rounded border border-slate-800 px-1.5 text-slate-400 hover:text-slate-200"
+        onClick={() => setDepthUnit((u) => (u === 'm' ? 'ft' : 'm'))}
+      >
+        depth: {depthUnit} · SI internal
+      </button>
     </div>
   );
 
@@ -581,7 +546,17 @@ export default function PetroWorkstation({ backend }) {
       onStatus={setStatus}
     />
   ) : (
-    <TrackViewer depth={wellData.curves.DEPT} tracks={tracks} zones={zones} tops={wellData.tops} />
+    <TrackViewer
+      depth={wellData.curves.DEPT}
+      tracks={tracks}
+      zones={zones}
+      tops={wellData.tops}
+      depthUnit={depthUnit}
+      onTrackHeaderClick={(index) => {
+        setDockOpen(true);
+        setLayoutFocus({ index, nonce: Date.now() });
+      }}
+    />
   );
 
   return (
@@ -609,6 +584,12 @@ export default function PetroWorkstation({ backend }) {
             zones={zones}
             zoneParams={zoneParams}
             onApplyZone={applyZoneParams}
+          />
+          <LayoutPanel
+            layouts={layouts}
+            onLayoutsChange={setLayouts}
+            focusTrack={layoutFocus}
+            onStatus={setStatus}
           />
           {wellData && (
             <ZoneManager
