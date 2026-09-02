@@ -7,9 +7,10 @@
 import React from 'react';
 import { CircleDot, Building2, Lock, Loader2, Check, Minus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { candidatesFor } from '../services/curveMap';
 
 export default function WellExplorer({
-  wells, selectedId, loadingId, curveInventory, onSelect,
+  wells, selectedId, loadingId, curveInventory, allLogs, onPickCurve, onSelect,
 }) {
   return (
     <div className="h-full min-h-0 flex flex-col bg-slate-900/60" data-testid="petro-explorer">
@@ -46,17 +47,38 @@ export default function WellExplorer({
               </div>
               {selected && curveInventory && (
                 <div className="pl-7 pb-1" data-testid="petro-curve-inventory">
-                  {curveInventory.map(({ key, log }) => (
-                    <div key={key} className="flex items-center gap-1.5 text-[11px] py-px">
-                      {log
-                        ? <Check className="w-3 h-3 text-emerald-400" />
-                        : <Minus className="w-3 h-3 text-slate-600" />}
-                      <span className={log ? 'text-slate-300' : 'text-slate-600'}>
-                        {key}
-                        {log ? ` · ${log.mnemonic}${log.unit ? ` (${log.unit})` : ''}` : ' — not in this well'}
-                      </span>
-                    </div>
-                  ))}
+                  {curveInventory.map(({ key, log }) => {
+                    const candidates = allLogs && onPickCurve ? candidatesFor(key, allLogs) : [];
+                    return (
+                      <div key={key} className="flex items-center gap-1.5 text-[11px] py-px">
+                        {log
+                          ? <Check className="w-3 h-3 text-emerald-400" />
+                          : <Minus className="w-3 h-3 text-slate-600" />}
+                        <span className={log ? 'text-slate-300' : 'text-slate-600'}>
+                          {key}
+                        </span>
+                        {candidates.length > 1 ? (
+                          // PS8: explicit input pick — conditioned curves
+                          // are never substituted silently
+                          <select
+                            className="rounded bg-slate-950 border border-slate-700 text-slate-300 px-1 text-[10px]"
+                            data-testid={`petro-pick-${key}`}
+                            value={log?.id || ''}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => { e.stopPropagation(); onPickCurve(key, e.target.value); }}
+                          >
+                            {candidates.map((c) => (
+                              <option key={c.id} value={c.id}>{c.mnemonic}{c.unit ? ` (${c.unit})` : ''}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className={log ? 'text-slate-300' : 'text-slate-600'}>
+                            {log ? ` · ${log.mnemonic}${log.unit ? ` (${log.unit})` : ''}` : ' — not in this well'}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
