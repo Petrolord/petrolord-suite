@@ -1,16 +1,19 @@
-// The registry as a package `source` (Project Portability PP1, PLAN §4.6).
+// The registry as a package `source` (Project Portability PP1, generic since
+// PP3).
 //
 // Reads go through the caller's own session, so row-level security decides
 // what can be packaged: own rows and rows shared with the caller's
 // organization, nothing else. No service role, no edge function. The
 // server-side closure engine over the org-export catalog RPCs arrives with
 // PP4 (organization backups), where the largest root sets need it.
+//
+// Generic interface (collect.js): currentUser, getRow, listChildren,
+// downloadBlob, listBlobs. Geoscience hook methods: listStateRowsForWells,
+// getCustomCrs.
 
 import { supabase } from '@/lib/customSupabaseClient';
-import { getWell, listLogs, listTops, listZones, downloadCurve } from '@/lib/wellsRegistry';
-import { downloadSurfaceGrid } from '@/lib/surfacesRegistry';
-import { downloadCultureFeatures } from '@/lib/cultureRegistry';
 import { getUserOrgRow } from '@/lib/orgContext';
+import { tableSpec } from './familySpec';
 import { WELL_STATE_TABLES } from './geoscienceSpec';
 
 async function currentUserId() {
@@ -18,6 +21,8 @@ async function currentUserId() {
   if (error || !data?.user?.id) throw new Error('Sign in to export a package.');
   return data.user.id;
 }
+
+const LIST_PAGE = 1000;
 
 export function makeSupabaseSource() {
   let userCache = null;
@@ -39,34 +44,52 @@ export function makeSupabaseSource() {
       return userCache;
     },
 
-    getWell: (id) => getWell(id),
-    listLogs: (wellId) => listLogs(wellId),
-    listTops: (wellId) => listTops(wellId),
-    listZones: (wellId) => listZones(wellId),
-    downloadCurve: (log) => downloadCurve(log),
-
-    async getSurface(id) {
-      const { data, error } = await supabase.from('geo_surfaces').select('*').eq('id', id).maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    downloadSurfaceGrid: (surface) => downloadSurfaceGrid(surface),
-
-    async getCulture(id) {
-      const { data, error } = await supabase.from('geo_culture').select('*').eq('id', id).maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    downloadCultureFeatures: (row) => downloadCultureFeatures(row),
-
-    async getStateRow(table, id) {
-      if (!WELL_STATE_TABLES.includes(table)) throw new Error(`Not a packaged state table: ${table}`);
-      const { data, error } = await supabase.from(table).select('*').eq('id', id).maybeSingle();
+    async getRow(table, id) {
+      const spec = tableSpec(table);
+      if (!spec || spec.synthetic) throw new Error(`Not a packaged table: ${table}`);
+      const { data, error } = await supabase.from(table).select('*').eq(spec.pk || 'id', id).maybeSingle();
       if (error) throw error;
       return data;
     },
 
-    /** Own rows of `table` whose well_ids overlap the given wells. */
+    async listChildren(table, column, parentId) {
+      if (!tableSpec(table)) throw new Error(`Not a packaged table: ${table}`);
+      const out = [];
+      for (let from = 0; ; from += LIST_PAGE) {
+        const { data, error } = await supabase.from(table).select('*').eq(column, parentId).range(from, from + LIST_PAGE - 1);
+        if (error) throw error;
+        out.push(...(data || []));
+        if (!data || data.length < LIST_PAGE) break;
+      }
+      return out;
+    },
+
+    async downloadBlob(bucket, path) {
+      const { data, error } = await supabase.storage.from(bucket).download(path);
+      if (error) throw new Error(`Could not download ${bucket}/${path}: ${error.message}`);
+      return new Uint8Array(await data.arrayBuffer());
+    },
+
+    /** Every object under a prefix, recursively. */
+    async listBlobs(bucket, prefix) {
+      const out = [];
+      const walk = async (dir) => {
+        for (let offset = 0; ; offset += LIST_PAGE) {
+          const { data, error } = await supabase.storage.from(bucket).list(dir, { limit: LIST_PAGE, offset });
+          if (error) throw new Error(`Could not list ${bucket}/${dir}: ${error.message}`);
+          for (const e of data || []) {
+            const full = dir ? `${dir}/${e.name}` : e.name;
+            if (e.id === null || e.metadata == null) await walk(full); // folder
+            else out.push({ path: full, size: e.metadata?.size ?? null });
+          }
+          if (!data || data.length < LIST_PAGE) break;
+        }
+      };
+      await walk(prefix.replace(/\/$/, ''));
+      return out;
+    },
+
+    // ---- Geoscience hooks ----
     async listStateRowsForWells(table, wellIds) {
       if (!WELL_STATE_TABLES.includes(table)) throw new Error(`Not a packaged state table: ${table}`);
       if (!wellIds.length) return [];
@@ -75,7 +98,6 @@ export function makeSupabaseSource() {
       return data || [];
     },
 
-    /** A custom CRS definition from the caller's geoscience_settings.custom_defs. */
     async getCustomCrs(id) {
       const { data, error } = await supabase.from('geoscience_settings').select('custom_defs').maybeSingle();
       if (error || !data?.custom_defs) return null;

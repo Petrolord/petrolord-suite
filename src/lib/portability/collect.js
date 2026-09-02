@@ -1,164 +1,103 @@
-// Closure collector for a Geoscience .pld (Project Portability PP1, PLAN §4.2).
+// Closure collector for .pld packages (Project Portability PP1, generalised
+// over the family registry in PP3).
 //
-// Given a set of roots and a `source` (the registry, or an in-memory stand-in
-// in tests), gather every row and blob the package must carry:
+// Given roots and a `source`, gather every row and blob the package must
+// carry, driven entirely by the table specs (familySpec.js):
 //
-//   well root      -> the well, its logs (+ f32 curves), tops, zones, and the
-//                     caller's own interpretations that refer ONLY to wells in
-//                     the selection (petro/pp/rp projects, correlation sections)
-//   surface root   -> the surface row + grid
-//   culture root   -> the culture row + features JSON
-//   project root   -> the project + every well it lists (fully)
-//   section root   -> the section + every well it lists (fully)
+//   root          -> its row, then children by parent FK, recursively
+//   blob          -> one object per row (pathColumn) or every object under a
+//                    prefix (prefixOf), downloaded once
+//   family hooks  -> afterRoots(source, col, opts) for rules a spec cannot
+//                    express (Geoscience: interpretations that refer only to
+//                    packaged wells; custom CRS definitions)
 //
 // Rules the caller can rely on:
 //   - rows are dumped as returned by the source (all columns, ids untouched)
-//   - a project that also references a well outside the selection is NOT
-//     pulled in silently; it is skipped and named in `notes`
-//   - custom CRS definitions referenced through 'CUSTOM:<uuid>' are lifted
-//     into the synthetic table geoscience_custom_crs
 //   - nothing is fetched twice; nothing is written here (see exportPackage)
+//   - a row or blob that cannot be read is skipped and named in `notes`
 //
-// The `source` interface (all async):
-//   currentUser()                      -> { id, organization_id, organization_name }
-//   getWell(id)                        -> geo_wells row | null
-//   listLogs(wellId), listTops(wellId), listZones(wellId)
-//   downloadCurve(log)                 -> ArrayLike<number> (Float32Array in production)
-//   getSurface(id), downloadSurfaceGrid(surface) -> Float32Array
-//   getCulture(id), downloadCultureFeatures(row)  -> Array (features)
-//   getStateRow(table, id)             -> row | null       (petro/pp/rp/sections)
-//   listStateRowsForWells(table, wellIds) -> rows whose well_ids intersect
-//   getCustomCrs(id)                   -> definition object | null
+// The generic `source` interface (all async):
+//   currentUser()                        -> { id, organization_id, organization_name }
+//   getRow(table, id)                    -> row | null
+//   listChildren(table, column, parentId)-> rows
+//   downloadBlob(bucket, path)           -> Uint8Array
+//   listBlobs(bucket, prefix)            -> [{ path, size }]   (prefix blobs)
+// plus whatever a family's hooks ask for (Geoscience: listStateRowsForWells,
+// getCustomCrs).
 
-import { GEOSCIENCE_SPEC, WELL_STATE_TABLES, customCrsId } from './geoscienceSpec';
-
-const ROOT_TABLE = {
-  well: 'geo_wells',
-  surface: 'geo_surfaces',
-  culture: 'geo_culture',
-  petro_project: 'petro_projects',
-  pp_project: 'pp_projects',
-  rp_project: 'rp_projects',
-  correlation_section: 'geo_correlation_sections',
-};
+import { tableSpec, rootTable, listFamilies, getFamily } from './familySpec';
 
 export function newCollection() {
+  const tables = {};
+  for (const f of listFamilies()) for (const t of Object.keys(f.tables)) tables[t] = new Map();
   return {
     /** table -> Map<id, row> */
-    tables: Object.fromEntries(Object.keys(GEOSCIENCE_SPEC.tables).map((t) => [t, new Map()])),
+    tables,
     /** [{ table, rowId, bucket, path, contentType, bytes: Uint8Array }] */
     blobs: [],
-    /** wellId -> { logId -> ArrayLike samples } (kept for the LAS sidecar) */
-    curves: {},
-    /** surfaceId -> Float32Array */
-    grids: {},
+    /** table -> rowId -> [bytes] for hooks that need the data again (LAS sidecar) */
+    blobBytes: {},
     notes: [],
     roots: [],
+    families: new Set(),
   };
 }
 
-const f32Bytes = (arr) => {
-  const f = arr instanceof Float32Array ? arr : Float32Array.from(arr);
-  return new Uint8Array(f.buffer, f.byteOffset, f.byteLength);
-};
-
-async function addCustomCrs(source, col, crs) {
-  const id = customCrsId(crs);
-  if (!id || col.tables.geoscience_custom_crs.has(id)) return;
-  const def = await source.getCustomCrs(id);
-  if (def) col.tables.geoscience_custom_crs.set(id, { id, ...def });
-  else col.notes.push(`Custom CRS ${id} is referenced but its definition was not found in your settings; rows keep the CUSTOM: tag.`);
+function rememberBlob(col, table, rowId, bucket, path, contentType, bytes) {
+  col.blobs.push({ table, rowId, bucket, path, contentType, bytes });
+  col.blobBytes[table] = col.blobBytes[table] || {};
+  col.blobBytes[table][rowId] = col.blobBytes[table][rowId] || [];
+  col.blobBytes[table][rowId].push({ path, bytes });
 }
 
-async function collectWell(source, col, wellId, { reason } = {}) {
-  if (col.tables.geo_wells.has(wellId)) return true;
-  const well = await source.getWell(wellId);
-  if (!well) {
-    col.notes.push(`Well ${wellId}${reason ? ` (${reason})` : ''} could not be read and was skipped.`);
+async function collectBlobsFor(source, col, table, spec, row) {
+  const b = spec.blob;
+  if (!b) return;
+  const label = row.name || row.mnemonic || row[spec.pk];
+  try {
+    if (b.pathColumn) {
+      const path = row[b.pathColumn];
+      if (!path) return;
+      const bytes = await source.downloadBlob(b.bucket, path);
+      rememberBlob(col, table, row[spec.pk], b.bucket, path, b.contentType, bytes);
+    } else if (b.prefixOf) {
+      const prefix = b.prefixOf(row);
+      const objects = await source.listBlobs(b.bucket, prefix);
+      for (const o of objects) {
+        const bytes = await source.downloadBlob(b.bucket, o.path);
+        rememberBlob(col, table, row[spec.pk], b.bucket, o.path, b.contentType, bytes);
+      }
+      if (!objects.length) col.notes.push(`${table} "${label}" has no stored objects under ${prefix}; its row is included without data.`);
+    }
+  } catch (e) {
+    col.notes.push(`Binary data of ${table} "${label}" could not be downloaded (${e?.message || e}); its row is included without it.`);
+  }
+}
+
+/** Add one row (and everything below it). Returns true when added or already present. */
+export async function collectRow(source, col, table, id, { reason } = {}) {
+  const spec = tableSpec(table);
+  if (!spec) throw new Error(`collect: unknown table "${table}"`);
+  if (col.tables[table].has(id)) return true;
+  const row = await source.getRow(table, id);
+  if (!row) {
+    col.notes.push(`${table} ${id}${reason ? ` (${reason})` : ''} could not be read and was skipped.`);
     return false;
   }
-  col.tables.geo_wells.set(well.id, well);
-  await addCustomCrs(source, col, well.crs);
-
-  const [logs, tops, zones] = await Promise.all([source.listLogs(well.id), source.listTops(well.id), source.listZones(well.id)]);
-  col.curves[well.id] = {};
-  for (const log of logs) {
-    col.tables.geo_wells_logs.set(log.id, log);
-    try {
-      const samples = await source.downloadCurve(log);
-      col.curves[well.id][log.id] = samples;
-      if (log.storage_path) {
-        col.blobs.push({ table: 'geo_wells_logs', rowId: log.id, bucket: 'wells', path: log.storage_path, contentType: 'application/octet-stream', bytes: f32Bytes(samples) });
-      }
-    } catch (e) {
-      col.notes.push(`Curve ${log.mnemonic} of well "${well.name}" could not be downloaded (${e?.message || e}); its row is included without samples.`);
-    }
-  }
-  for (const t of tops) col.tables.geo_wells_tops.set(t.id, t);
-  for (const z of zones) col.tables.geo_wells_zones.set(z.id, z);
+  await addRow(source, col, table, spec, row);
   return true;
 }
 
-async function collectSurface(source, col, id) {
-  if (col.tables.geo_surfaces.has(id)) return;
-  const s = await source.getSurface(id);
-  if (!s) { col.notes.push(`Surface ${id} could not be read and was skipped.`); return; }
-  col.tables.geo_surfaces.set(s.id, s);
-  await addCustomCrs(source, col, s.crs);
-  try {
-    const grid = await source.downloadSurfaceGrid(s);
-    col.grids[s.id] = grid;
-    if (s.storage_path) col.blobs.push({ table: 'geo_surfaces', rowId: s.id, bucket: 'surfaces', path: s.storage_path, contentType: 'application/octet-stream', bytes: f32Bytes(grid) });
-  } catch (e) {
-    col.notes.push(`Grid of surface "${s.name}" could not be downloaded (${e?.message || e}); its row is included without the grid.`);
-  }
-}
-
-async function collectCulture(source, col, id) {
-  if (col.tables.geo_culture.has(id)) return;
-  const c = await source.getCulture(id);
-  if (!c) { col.notes.push(`Culture set ${id} could not be read and was skipped.`); return; }
-  col.tables.geo_culture.set(c.id, c);
-  await addCustomCrs(source, col, c.crs);
-  try {
-    const features = await source.downloadCultureFeatures(c);
-    const json = JSON.stringify({ v: 1, features });
-    if (c.storage_path) col.blobs.push({ table: 'geo_culture', rowId: c.id, bucket: 'culture', path: c.storage_path, contentType: 'application/json', bytes: new TextEncoder().encode(json) });
-  } catch (e) {
-    col.notes.push(`Features of culture set "${c.name}" could not be downloaded (${e?.message || e}); its row is included without features.`);
-  }
-}
-
-/** A project/section root: the row plus all of its wells. */
-async function collectStateRoot(source, col, table, id) {
+async function addRow(source, col, table, spec, row) {
+  const id = row[spec.pk];
   if (col.tables[table].has(id)) return;
-  const row = await source.getStateRow(table, id);
-  if (!row) { col.notes.push(`${table} ${id} could not be read and was skipped.`); return; }
-  col.tables[table].set(row.id, row);
-  const wellIds = Array.isArray(row.well_ids) ? row.well_ids : [];
-  for (const w of wellIds) await collectWell(source, col, w, { reason: `listed by ${table} "${row.name || row.id}"` });
-}
-
-/**
- * After all wells are in: pull the caller's own interpretations that refer
- * only to packaged wells. Others are named in notes and left out.
- */
-async function collectStateForWells(source, col) {
-  const wellIds = Array.from(col.tables.geo_wells.keys());
-  if (!wellIds.length) return;
-  const have = new Set(wellIds);
-  for (const table of WELL_STATE_TABLES) {
-    const rows = await source.listStateRowsForWells(table, wellIds);
-    for (const row of rows) {
-      if (col.tables[table].has(row.id)) continue;
-      const refs = Array.isArray(row.well_ids) ? row.well_ids : [];
-      const outside = refs.filter((w) => !have.has(w));
-      if (outside.length) {
-        col.notes.push(`${table} "${row.name || row.id}" also refers to ${outside.length} well${outside.length === 1 ? '' : 's'} outside this selection and was left out. Select those wells too, or export the project itself, to include it.`);
-        continue;
-      }
-      col.tables[table].set(row.id, row);
-    }
+  col.tables[table].set(id, row);
+  col.families.add(spec.family);
+  await collectBlobsFor(source, col, table, spec, row);
+  for (const child of spec.children || []) {
+    const childSpec = tableSpec(child.table);
+    const rows = await source.listChildren(child.table, child.column, id);
+    for (const r of rows) await addRow(source, col, child.table, childSpec, r);
   }
 }
 
@@ -167,29 +106,42 @@ async function collectStateForWells(source, col) {
  * @param {Array<{kind: string, id: string, name?: string}>} roots
  * @param {{ includeInterpretations?: boolean, onProgress?: (msg: string) => void }} opts
  */
-export async function collectGeoscience(source, roots, { includeInterpretations = true, onProgress = () => {} } = {}) {
+/** The table a root names: the family's fixed table, or the root's own `table` for wildcard kinds. */
+export function resolveRootTable(root) {
+  const rt = rootTable(root.kind);
+  if (!rt) throw new Error(`collectPackage: unknown root kind "${root.kind}"`);
+  if (rt.table !== '*') return rt;
+  const fam = getFamily(rt.family);
+  if (!root.table || !fam.tables[root.table]) throw new Error(`collectPackage: root kind "${root.kind}" needs a table from the ${rt.family} family (got "${root.table}")`);
+  return { family: rt.family, table: root.table };
+}
+
+export async function collectPackage(source, roots, { includeInterpretations = true, onProgress = () => {} } = {}) {
   const col = newCollection();
-  for (const r of roots) {
-    if (!ROOT_TABLE[r.kind]) throw new Error(`collectGeoscience: unknown root kind "${r.kind}"`);
+  const resolved = roots.map((r) => ({ root: r, ...resolveRootTable(r) }));
+  for (const { root, table } of resolved) {
+    onProgress(`Reading ${root.kind} ${root.name || root.id}`);
+    await collectRow(source, col, table, root.id);
   }
-  for (const r of roots) {
-    onProgress(`Reading ${r.kind} ${r.name || r.id}`);
-    if (r.kind === 'well') await collectWell(source, col, r.id);
-    else if (r.kind === 'surface') await collectSurface(source, col, r.id);
-    else if (r.kind === 'culture') await collectCulture(source, col, r.id);
-    else await collectStateRoot(source, col, ROOT_TABLE[r.kind], r.id);
+  for (const f of listFamilies()) {
+    if (!col.families.has(f.name) && !resolved.some((r) => r.family === f.name)) continue;
+    if (f.hooks?.afterRoots) {
+      onProgress(`Reading ${f.name} references`);
+      await f.hooks.afterRoots(source, col, { includeInterpretations, collectRow: (t, id, o) => collectRow(source, col, t, id, o) });
+    }
   }
-  if (includeInterpretations) {
-    onProgress('Reading interpretations');
-    await collectStateForWells(source, col);
-  }
-  // root names for the manifest
-  col.roots = roots.map((r) => {
-    const row = col.tables[ROOT_TABLE[r.kind]].get(r.id);
-    return { kind: r.kind, id: r.id, name: r.name ?? row?.name ?? null };
+  col.roots = resolved.map(({ root, table }) => {
+    const row = col.tables[table].get(root.id);
+    const nameCol = tableSpec(table)?.nameColumn;
+    const name = root.name ?? (nameCol ? row?.[nameCol] : null) ?? row?.name ?? row?.project_name ?? null;
+    const rt = rootTable(root.kind);
+    return { kind: root.kind, id: root.id, name, ...(rt.table === '*' ? { table } : {}) };
   });
   return col;
 }
+
+/** Backwards-compatible name from PP1. */
+export const collectGeoscience = collectPackage;
 
 /** Plain-object view of the collection's tables (for the detector and dumps). */
 export function collectionTables(col) {
@@ -197,3 +149,5 @@ export function collectionTables(col) {
   for (const [t, map] of Object.entries(col.tables)) if (map.size) out[t] = Array.from(map.values());
   return out;
 }
+
+export { getFamily };

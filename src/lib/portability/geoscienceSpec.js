@@ -37,12 +37,16 @@ export const GEOSCIENCE_SPEC = {
         { table: 'geo_wells_tops', column: 'well_id' },
         { table: 'geo_wells_zones', column: 'well_id' },
       ],
-      softRefs: [{ path: 'crs', form: 'custom-crs', table: 'geoscience_custom_crs', optional: false }],
+      softRefs: [
+        { path: 'crs', form: 'custom-crs', table: 'geoscience_custom_crs', optional: false },
+        // Seismolord stamps derived checkshots with the volume they came from
+        { path: 'checkshots_derived.provenance.volume_id', table: 'seismic_volumes', optional: true },
+      ],
     },
     geo_wells_logs: {
       pk: 'id',
       parent: { table: 'geo_wells', column: 'well_id' },
-      blob: { bucket: 'wells', pathColumn: 'storage_path', contentType: 'application/octet-stream' },
+      blob: { bucket: 'wells', pathColumn: 'storage_path', contentType: 'application/octet-stream', newPath: (userId, row) => `${userId}/${row.well_id}/logs/${row.id}.f32` },
       softRefs: [
         { path: 'provenance.input_log_ids[]', table: 'geo_wells_logs', optional: false },
         { path: 'provenance.project_id', table: 'petro_projects', optional: true },
@@ -53,16 +57,19 @@ export const GEOSCIENCE_SPEC = {
     geo_surfaces: {
       pk: 'id',
       scope: ['user_id', 'organization_id'],
-      blob: { bucket: 'surfaces', pathColumn: 'storage_path', contentType: 'application/octet-stream' },
+      blob: { bucket: 'surfaces', pathColumn: 'storage_path', contentType: 'application/octet-stream', newPath: (userId, row) => `${userId}/${row.id}/grid.f32` },
       softRefs: [
         { path: 'provenance.isochore[]', table: 'geo_surfaces', optional: true },
+        // surfaces saved from Seismolord record the volume and horizon they were cut from
+        { path: 'provenance.volume.id', table: 'seismic_volumes', optional: true },
+        { path: 'provenance.horizon.id', table: 'seismic_horizons', optional: true },
         { path: 'crs', form: 'custom-crs', table: 'geoscience_custom_crs', optional: false },
       ],
     },
     geo_culture: {
       pk: 'id',
       scope: ['user_id', 'organization_id'],
-      blob: { bucket: 'culture', pathColumn: 'storage_path', contentType: 'application/json' },
+      blob: { bucket: 'culture', pathColumn: 'storage_path', contentType: 'application/json', newPath: (userId, row) => `${userId}/${row.id}/features.json` },
       softRefs: [{ path: 'crs', form: 'custom-crs', table: 'geoscience_custom_crs', optional: false }],
     },
     // synthetic: the custom CRS definitions referenced by packaged rows,
@@ -70,6 +77,8 @@ export const GEOSCIENCE_SPEC = {
     geoscience_custom_crs: { pk: 'id', synthetic: true, softRefs: [] },
     petro_projects: {
       pk: 'id',
+      kind: 'petro-project',
+      stamped: true,
       scope: ['user_id'],
       wellIdsColumn: 'well_ids',
       softRefs: [
@@ -80,6 +89,8 @@ export const GEOSCIENCE_SPEC = {
     },
     pp_projects: {
       pk: 'id',
+      kind: 'pp-project',
+      stamped: true,
       scope: ['user_id'],
       wellIdsColumn: 'well_ids',
       softRefs: [
@@ -90,6 +101,8 @@ export const GEOSCIENCE_SPEC = {
     },
     rp_projects: {
       pk: 'id',
+      kind: 'rp-project',
+      stamped: true,
       scope: ['user_id'],
       wellIdsColumn: 'well_ids',
       softRefs: [
@@ -99,6 +112,8 @@ export const GEOSCIENCE_SPEC = {
     },
     geo_correlation_sections: {
       pk: 'id',
+      kind: 'correlation-section',
+      stamped: true,
       scope: ['user_id'],
       wellIdsColumn: 'well_ids',
       softRefs: [{ path: 'well_ids[]', table: 'geo_wells', optional: false }],

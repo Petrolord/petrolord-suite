@@ -20,7 +20,9 @@
 // Nothing existing is ever updated or deleted: importing is copying.
 
 import JSZip from 'jszip';
-import { GEOSCIENCE_SPEC, customCrsId } from './geoscienceSpec';
+import { customCrsId } from './geoscienceSpec';
+import { tableSpec, importOrder } from './familySpec';
+import './familiesCore';
 import { validateManifest, packageVersionCheck, UUID_RE, newPackageId } from './manifest';
 import { sha256Hex } from './zipWriter';
 import { walkUuids } from './danglingRefs';
@@ -34,29 +36,22 @@ export class PackagePlanError extends Error {
   constructor(message, details = {}) { super(message); this.name = 'PackagePlanError'; Object.assign(this, details); }
 }
 
-/** Which state kind (src/lib/stateVersion.js) reads a table, if any. Registry tables are version 1 in this build. */
-export const TABLE_KINDS = {
-  petro_projects: 'petro-project',
-  pp_projects: 'pp-project',
-  rp_projects: 'rp-project',
-  geo_correlation_sections: 'correlation-section',
-};
 const REGISTRY_READS_UP_TO = 1;
-
-/** Tables whose PP0 columns exist in the live schema (the registry half is HELD). */
-const STAMPED_TABLES = new Set(Object.keys(TABLE_KINDS));
 const STRIP_ON_INSERT = new Set(['created_at', 'updated_at']);
 const REGISTRY_STRIP = new Set(['schema_version', 'app_build', 'engine_version']);
 
-/** Insertion order: parents before children, registries before state. */
-export const IMPORT_ORDER = [
-  'geo_wells', 'geo_wells_logs', 'geo_wells_tops', 'geo_wells_zones',
-  'geo_surfaces', 'geo_culture',
-  'petro_projects', 'pp_projects', 'rp_projects', 'geo_correlation_sections',
-];
+/** State kind that reads a table (familySpec `kind`), or null for "version 1 in this build". */
+export const tableKind = (table) => tableSpec(table)?.kind || null;
+
+/** Insertion order across families: parents before children (synthetic tables excluded). */
+export const IMPORT_ORDER_OF = () => importOrder().filter((t) => !tableSpec(t)?.synthetic);
+/** PP2 name; evaluated at call sites through IMPORT_ORDER_OF(). */
+export const IMPORT_ORDER = new Proxy([], {
+  get(_, prop) { const arr = IMPORT_ORDER_OF(); const v = arr[prop]; return typeof v === 'function' ? v.bind(arr) : v; },
+});
 
 export function readsUpTo(table) {
-  const kind = TABLE_KINDS[table];
+  const kind = tableKind(table);
   if (!kind) return REGISTRY_READS_UP_TO;
   return getStateKind(kind)?.current ?? 1;
 }
@@ -96,7 +91,7 @@ export async function readPackage(data) {
     const max = info.schema_version?.max ?? 1;
     const reads = readsUpTo(table);
     if (max > reads) {
-      const label = TABLE_KINDS[table] ? getStateKind(TABLE_KINDS[table])?.label || table : table;
+      const label = tableKind(table) ? getStateKind(tableKind(table))?.label || table : table;
       throw new PackageReadError('newer-state', newerStateMessage(`package (${label} rows)`, max, reads), { table, found: max, reads });
     }
   }
@@ -193,12 +188,10 @@ function rewriteSoftRef(row, ref, idMap, table) {
   return problems;
 }
 
-/** New storage path under the importer's prefix, by table convention. */
+/** New storage path under the importer's prefix, from the table spec. */
 export function newStoragePath(table, userId, row) {
-  if (table === 'geo_wells_logs') return `${userId}/${row.well_id}/logs/${row.id}.f32`;
-  if (table === 'geo_surfaces') return `${userId}/${row.id}/grid.f32`;
-  if (table === 'geo_culture') return `${userId}/${row.id}/features.json`;
-  return null;
+  const b = tableSpec(table)?.blob;
+  return b?.newPath ? b.newPath(userId, row) : null;
 }
 
 /**
@@ -214,7 +207,7 @@ export function planImport(pkg, target) {
   // new id for every row of every table (custom CRS keeps its id)
   const idMap = new Map();
   for (const [table, rows] of Object.entries(tables)) {
-    const spec = GEOSCIENCE_SPEC.tables[table];
+    const spec = tableSpec(table);
     if (!spec) throw new PackagePlanError(`The package carries a table this build does not know how to import (${table}).`, { table });
     if (spec.synthetic) continue;
     for (const row of rows) {
@@ -241,14 +234,16 @@ export function planImport(pkg, target) {
   const items = [];   // { table, oldId, newId }
   const notes = [...(manifest.notes || [])];
 
-  for (const table of IMPORT_ORDER) {
+  for (const table of IMPORT_ORDER_OF()) {
     const rows = tables[table];
     if (!rows || !rows.length) continue;
-    const spec = GEOSCIENCE_SPEC.tables[table];
-    const kind = TABLE_KINDS[table];
+    const spec = tableSpec(table);
+    const kind = spec.kind || null;
     planned[table] = rows.map((original) => {
-      // migrate older shapes up first (the Petrel rule already refused newer ones)
-      const opened = kind ? openStateRow(kind, original) : original;
+      // migrate older shapes up first (the Petrel rule already refused newer ones);
+      // a kind this page never registered (its app is not loaded) opens as stored
+      const registered = kind && getStateKind(kind);
+      const opened = registered ? openStateRow(kind, original) : original;
       const row = JSON.parse(JSON.stringify(opened));
       const oldId = String(original[spec.pk]).toLowerCase();
       row[spec.pk] = idMap.get(oldId);
@@ -260,23 +255,30 @@ export function planImport(pkg, target) {
         else row[spec.parent.column] = to;
       }
       // soft refs through the spec
-      for (const ref of spec.softRefs) problems.push(...rewriteSoftRef(row, ref, idMap, table));
+      for (const ref of spec.softRefs || []) problems.push(...rewriteSoftRef(row, ref, idMap, table));
       // rescope
       if ('user_id' in row || (spec.scope && spec.scope.includes('user_id'))) row.user_id = target.userId;
       if ('organization_id' in row || (spec.scope && spec.scope.includes('organization_id'))) row.organization_id = orgId;
       for (const c of STRIP_ON_INSERT) delete row[c];
-      // blob path under the importer's prefix
-      if (spec.blob) {
-        const np = newStoragePath(table, target.userId, row);
+      // blob location under the importer's prefix
+      if (spec.blob?.pathColumn) {
         row.__oldStoragePath = original[spec.blob.pathColumn] || null;
-        row[spec.blob.pathColumn] = np;
+        row[spec.blob.pathColumn] = newStoragePath(table, target.userId, row);
+      } else if (spec.blob?.prefixOf) {
+        row.__oldPrefix = spec.blob.prefixOf(original);
+        row.__newPrefix = spec.blob.newPrefix(target.userId, row);
+        if (spec.blob.prefixColumn) row[spec.blob.prefixColumn] = row.__newPrefix;
+        for (const c of spec.blob.pathColumns || []) {
+          if (typeof row[c] === 'string' && row.__oldPrefix && row[c].startsWith(row.__oldPrefix)) row[c] = row.__newPrefix + row[c].slice(row.__oldPrefix.length);
+        }
       }
       // provenance stamp where the table has one
       if ('provenance' in row || spec.blob) {
         row.provenance = { ...(row.provenance && typeof row.provenance === 'object' ? row.provenance : {}), imported_from: { ...importedFrom, original_id: oldId } };
       }
-      // version stamp (app-state tables have the PP0 columns; registry ones do not yet)
-      if (STAMPED_TABLES.has(table)) Object.assign(row, stampState(kind, {}));
+      // version stamp (stamped tables have the PP0 columns; registry ones do not yet)
+      if (spec.stamped && registered) Object.assign(row, stampState(kind, {}));
+      else if (spec.stamped) Object.assign(row, { schema_version: readStateVersion(original), app_build: PLATFORM_BUILD.sha });
       else for (const c of REGISTRY_STRIP) delete row[c];
       return row;
     });
@@ -286,21 +288,38 @@ export function planImport(pkg, target) {
     throw new PackagePlanError(`The package refers to data it does not contain (${p.table}.${p.path} -> ${p.id}), so it cannot be imported. Export it again from the source.`, { problems });
   }
 
-  // blobs follow their rows
+  // blobs follow their rows: single objects by exact old path, prefix objects by old prefix
   const rowsByOldPath = new Map();
-  for (const [table, rows] of Object.entries(planned)) for (const r of rows) if (r.__oldStoragePath) rowsByOldPath.set(`${GEOSCIENCE_SPEC.tables[table].blob.bucket}/${r.__oldStoragePath}`, { table, row: r });
+  const prefixRows = [];
+  for (const [table, rows] of Object.entries(planned)) {
+    const spec = tableSpec(table);
+    for (const r of rows) {
+      if (r.__oldStoragePath) rowsByOldPath.set(`${spec.blob.bucket}/${r.__oldStoragePath}`, { table, row: r, spec });
+      if (r.__oldPrefix) prefixRows.push({ table, row: r, spec, key: `${spec.blob.bucket}/${r.__oldPrefix}` });
+    }
+  }
   const blobPlan = [];
   for (const b of blobs) {
-    const hit = rowsByOldPath.get(`${b.bucket}/${b.path}`);
-    if (!hit) { notes.push(`Binary file ${b.file} belongs to no row in the package and was not imported.`); continue; }
-    blobPlan.push({ bucket: b.bucket, path: hit.row[GEOSCIENCE_SPEC.tables[hit.table].blob.pathColumn], bytes: b.bytes, contentType: b.content_type || GEOSCIENCE_SPEC.tables[hit.table].blob.contentType, table: hit.table, rowId: hit.row.id });
+    const key = `${b.bucket}/${b.path}`;
+    const hit = rowsByOldPath.get(key);
+    if (hit) {
+      blobPlan.push({ bucket: b.bucket, path: hit.row[hit.spec.blob.pathColumn], bytes: b.bytes, contentType: b.content_type || hit.spec.blob.contentType, table: hit.table, rowId: hit.row[hit.spec.pk] });
+      continue;
+    }
+    const pre = prefixRows.find((p) => key.startsWith(p.key));
+    if (pre) {
+      const rest = b.path.slice(pre.row.__oldPrefix.length);
+      blobPlan.push({ bucket: b.bucket, path: `${pre.row.__newPrefix}${rest}`, bytes: b.bytes, contentType: b.content_type || pre.spec.blob.contentType, table: pre.table, rowId: pre.row[pre.spec.pk] });
+      continue;
+    }
+    notes.push(`Binary file ${b.file} belongs to no row in the package and was not imported.`);
   }
-  for (const rows of Object.values(planned)) for (const r of rows) delete r.__oldStoragePath;
+  for (const rows of Object.values(planned)) for (const r of rows) { delete r.__oldStoragePath; delete r.__oldPrefix; delete r.__newPrefix; }
   // rows with a blob column but no blob in the package: keep the row, note it
   for (const [table, rows] of Object.entries(planned)) {
-    const spec = GEOSCIENCE_SPEC.tables[table];
-    if (!spec.blob) continue;
-    for (const r of rows) if (!blobPlan.some((b) => b.rowId === r.id)) { r[spec.blob.pathColumn] = null; notes.push(`${table} row "${r.mnemonic || r.name || r.id}" arrived without its binary data; the row is imported with no file.`); }
+    const spec = tableSpec(table);
+    if (!spec.blob?.pathColumn) continue;
+    for (const r of rows) if (!blobPlan.some((b) => b.rowId === r[spec.pk])) { r[spec.blob.pathColumn] = null; notes.push(`${table} row "${r.mnemonic || r.name || r[spec.pk]}" arrived without its binary data; the row is imported with no file.`); }
   }
 
   // custom CRS definitions to merge (ids preserved)
@@ -375,7 +394,7 @@ export async function executeImport(plan, sink, { resumeJobId = null, onProgress
       if (jobId) await sink.updateJob(jobId, { blobs_written: summary.blobsWritten });
     }
 
-    for (const table of IMPORT_ORDER) {
+    for (const table of IMPORT_ORDER_OF()) {
       const rows = plan.planned[table];
       if (!rows || !rows.length) continue;
       const pending = rows.filter((r) => { const it = plan.items.find((i) => i.newId === r.id); return !(it && done.has(`${table}:${it.oldId}`)); });

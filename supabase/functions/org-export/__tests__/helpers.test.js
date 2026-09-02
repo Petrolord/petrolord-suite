@@ -94,9 +94,16 @@ describe('collectStorageTargets', () => {
 
   it('covers every bucket-backed registry we know about', () => {
     expect(Object.keys(POINTER_TABLES).sort()).toEqual([
-      'geo_surfaces', 'geo_wells_logs', 'seismic_exported_surfaces',
-      'seismic_horizons', 'seismic_volumes',
+      'geo_culture', 'geo_surfaces', 'geo_wells_logs', 'seismic_exported_surfaces',
+      'seismic_horizons', 'seismic_line_picks', 'seismic_lines', 'seismic_volumes', 'sim_cases',
     ]);
+  });
+
+  it('a dir pointer enumerates the folder around the named file (sim decks)', () => {
+    const store = new Map([['sim_cases', { rows: [{ id: 'c1', deck_path: 'user-1/c1/deck/SPE1.DATA' }] }]]);
+    const { objects, prefixes } = collectStorageTargets(store);
+    expect(objects).toEqual([]);
+    expect(prefixes).toEqual([{ bucket: 'sim', path: 'user-1/c1/deck', source_table: 'sim_cases', source_id: 'c1', owner_user_id: 'user-1' }]);
   });
 });
 

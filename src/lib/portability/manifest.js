@@ -9,12 +9,17 @@
 // read of the schema file over the same fixtures.
 
 import { PLATFORM_BUILD } from '@/lib/platformBuild';
+import { allRootKinds } from './familySpec';
+import './familiesCore';
 
 export const PACKAGE_FORMAT = 'pld';
 export const PACKAGE_VERSION = 1;
 export const MANIFEST_FILE = 'manifest.json';
 
-export const ROOT_KINDS = ['well', 'surface', 'culture', 'petro_project', 'pp_project', 'rp_project', 'correlation_section'];
+/** Root kinds come from the family registry; evaluated when read so late-registered families count. */
+export const ROOT_KINDS = new Proxy([], {
+  get(_, prop) { const arr = allRootKinds(); const v = arr[prop]; return typeof v === 'function' ? v.bind(arr) : v; },
+});
 export const OPEN_KINDS = ['las', 'tops_csv', 'zones_csv', 'zmap', 'csv', 'readme'];
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -61,7 +66,7 @@ export function buildManifest({
     created_at: createdAt,
     platform: { version: platform.version, sha: platform.sha, builtAt: platform.builtAt ?? null, source: platform.source },
     source: { user_id: source.user_id, organization_id: source.organization_id ?? null, organization_name: source.organization_name ?? null },
-    scope: { roots: roots.map((r) => ({ kind: r.kind, id: r.id, name: r.name ?? null })) },
+    scope: { roots: roots.map((r) => ({ kind: r.kind, id: r.id, name: r.name ?? null, ...(r.table ? { table: r.table } : {}) })) },
     tables: tableEntries,
     blobs,
     open,
@@ -119,8 +124,9 @@ export function validateManifest(m) {
     checkKeys(m.scope, ['roots'], ['roots'], 'scope', errors);
     m.scope.roots.forEach((r, i) => {
       if (!isObj(r)) { errors.push(`scope.roots[${i}]: object required`); return; }
-      checkKeys(r, ['kind', 'id', 'name'], ['kind', 'id'], `scope.roots[${i}]`, errors);
+      checkKeys(r, ['kind', 'id', 'name', 'table'], ['kind', 'id'], `scope.roots[${i}]`, errors);
       if (!ROOT_KINDS.includes(r.kind)) errors.push(`scope.roots[${i}].kind: one of ${ROOT_KINDS.join(', ')}`);
+      if ('table' in r && !(isStr(r.table) && /^[a-z0-9_]+$/.test(r.table))) errors.push(`scope.roots[${i}].table: table name`);
       if (!isStr(r.id) || !UUID_RE.test(r.id)) errors.push(`scope.roots[${i}].id: uuid required`);
     });
   } else errors.push('scope.roots: array required');

@@ -11,7 +11,7 @@ kept, imports private by default, certificate wording in PP5).
 | PP0 Version foundations | **BUILT 2026-09-02**, app-state migration **APPLIED LIVE** same day, gate passed | PR #352 (feat/portability-pp0) |
 | PP1 Package writer, Geoscience | **BUILT 2026-09-02**, gate passed | PR (feat/portability-pp1) |
 | PP2 Importer | **BUILT 2026-09-02**, gate passed; jobs migration awaiting owner apply | PR (feat/portability-pp2) |
-| PP3 Coverage | not started | |
+| PP3 Coverage | **PP3a BUILT 2026-09-02** (engine generalised + 4 families); PP3b well planning and PP3c Seismolord to follow | PR (feat/portability-pp3) |
 | PP4 Restorable backup | not started | |
 | PP5 Regulatory delivery | not started | |
 
@@ -210,6 +210,72 @@ in-process against an in-memory registry standing in for a second user:
 The staging half of the gate (export from org A, import to org B, open the
 copy in Petrophysics Studio and read the SAND A card) is an owner step
 after the jobs migration is applied.
+
+## PP3 (split into three PRs)
+
+PP3a (2026-09-02, this PR): the engine generalised and four families added.
+PP3b: well planning (`wp_*`, 34 tables, prefixed `wp:`/`geo:` ids in
+anti-collision runs, cross-case FKs). PP3c: Seismolord (brick prefixes,
+horizon and line objects, session payload references, member horizons
+stored under a non-owner prefix). Each has its own gate.
+
+### PP3a
+
+- **Family registry** (`familySpec.js`): tables, roots, insertion order and
+  optional hooks per family; the collector, exporter, importer and manifest
+  are generic over it. Geoscience is registered first with its PP1 rules
+  moved into `geoscienceHooks.js` (interpretations that refer only to
+  packaged wells; custom CRS lifting; LAS/ZMAP/CSV sidecars). Adding a
+  family is a spec, never a code path.
+- **Blob forms**: one object per row (`pathColumn` + `newPath`) or many
+  objects under a prefix (`prefixOf` + `newPrefix` + `pathColumns` to
+  rewrite columns that name a file inside the prefix). The production
+  source lists prefixes recursively through storage `list`.
+- **Wildcard roots**: a root kind may map to `*` and name its table
+  (`saved_project` with `table: 'saved_choke_projects'`); the manifest root
+  gains an optional `table` field (schema updated).
+- **Families added** (`familiesCore.js`):
+  - `apps`: the 50 `saved_<app>_projects` tables, one shape. The payload's
+    own `inputs_data.id` follows the new row id (found by the gate: a copy
+    would otherwise point at its old self). The production spine links some
+    contexts persist (`inputs.link.fieldId` / `wellId`, plus the legacy flat
+    and surveillance forms) are rewritten when the field travels and cleared
+    when it does not.
+  - `production`: `po_fields` root with wells, models, tests, deferments,
+    allocation factors, daily production and field totals. `po_wells.geo_well_id`
+    is cleared when the registry well is not in the package.
+  - `economics`: `epe_cases` root with configs, volumes, capex, opex, runs,
+    Monte Carlo runs, results, sensitivity runs and results; `run_config_id`
+    and `base_run_config_id` re-linked. `epe_assumption_sets` as its own root.
+    Results travel as data; the edge functions are not involved in an import.
+  - `simulation`: `sim_cases` root with every deck object under
+    `{uid}/{caseId}/deck/`; `deck_path` follows the new folder. `sim_runs`
+    are worker-owned results and never travel.
+- **Geoscience gaps from the survey** closed in the spec: `geo_surfaces.
+  provenance.volume.id` / `horizon.id` and `geo_wells.checkshots_derived.
+  provenance.volume_id` are declared optional references into Seismolord.
+- **Importer**: a kind the importing page never registered (its app is not
+  loaded) opens as stored and keeps its own `schema_version`; the Petrel
+  rule still applies through the manifest's per-table maximum.
+- **Offboarding dump** (`org-export/helpers.js`): pointer tables gain
+  `geo_culture` (object), `seismic_lines` (prefix), `seismic_line_picks`
+  (object) and `sim_cases` (new kind `dir`: the folder around `deck_path`);
+  `EXPORT_BUCKETS` gains `culture` and `sim`. This fixes the gap the PP1
+  survey found; the function needs a redeploy to pick it up.
+- **Door**: the export dialog gains pickers for production fields,
+  economics cases, simulation cases and saved projects by app.
+
+Gate (`__tests__/familiesCore.test.js`), in-process across two users:
+field hierarchy rewritten and rescoped with the geo link cleared; saved
+project payload intact with its link following the imported field and
+well, and cleared when exported alone; economics run chain re-linked
+including sensitivity results; every deck object lands in the importer's
+folder with `deck_path` following; no source id survives in any written
+row. The PP1 and PP2 gates run unchanged on the generalised engine.
+
+Not in PP3a: `wp_*` and `seismic_*` (PP3b/PP3c); `sim_runs`; the
+`epe_*` edge-function re-run of imported cases (the copy carries its
+results as history).
 
 ## Program gotcha: one database, two builds
 

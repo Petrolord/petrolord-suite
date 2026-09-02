@@ -1,19 +1,22 @@
-// Build a Geoscience .pld from a root set (Project Portability PP1).
+// Build a .pld from a root set (Project Portability PP1, generic over the
+// family registry since PP3).
 //
-//   collectGeoscience  -> rows, blobs, curves, grids, notes
+//   collectPackage     -> rows, blobs, notes (spec-driven, family hooks)
 //   detectDanglingRefs -> refuse to write a package with a dangling id
-//   PackageWriter      -> data/*.jsonl, blobs/**, open/** sidecars, README,
-//                         manifest.json last (with every file's sha256)
+//   PackageWriter      -> data/*.jsonl, blobs/**, open/** sidecars (family
+//                         hooks), README, manifest.json last (every file's sha256)
 //
 // Returns { writer, manifest, collection, refs } so a caller can save the
 // archive (savePackage) or, in tests, read it back with jszip.
 
-import { collectGeoscience, collectionTables } from './collect';
+import { collectPackage, collectionTables } from './collect';
 import { detectDanglingRefs } from './danglingRefs';
-import { isOptionalRefPath, GEOSCIENCE_SPEC } from './geoscienceSpec';
+import { tableSpec, listFamilies } from './familySpec';
+import './geoscienceHooks';
+import './familiesCore';
 import { buildManifest, validateManifest, MANIFEST_FILE } from './manifest';
 import { PackageWriter } from './zipWriter';
-import { wellLasText, topsCsv, zonesCsv, surfaceZmapText, readmeText, uniquePath } from './sidecars';
+import { readmeText } from './sidecars';
 import { readStateVersion } from '@/lib/stateVersion';
 import { PLATFORM_BUILD } from '@/lib/platformBuild';
 
@@ -27,25 +30,34 @@ export class PackageIntegrityError extends Error {
 
 const jsonl = (rows) => rows.map((r) => JSON.stringify(r)).join('\n') + (rows.length ? '\n' : '');
 
+/** True when `path` sits under an optional soft ref of `table` (any family). */
+export function isOptionalRefPath(table, path) {
+  const t = tableSpec(table);
+  if (!t) return false;
+  return (t.softRefs || []).some((r) => {
+    if (!r.optional) return false;
+    const base = r.path.replace(/\[\]$|\{keys\}$|\.\*$/, '');
+    return path === base || path.startsWith(`${base}.`) || path.startsWith(`${base}[`);
+  });
+}
+
 /**
  * @param {object} source          see collect.js
  * @param {Array<{kind, id, name?}>} roots
  * @param {{ name?: string, includeInterpretations?: boolean, includeSidecars?: boolean,
  *           onProgress?: (msg: string) => void, allowDangling?: boolean }} opts
  */
-export async function buildGeosciencePackage(source, roots, {
+export async function buildPackage(source, roots, {
   name = null, includeInterpretations = true, includeSidecars = true, onProgress = () => {}, allowDangling = false,
 } = {}) {
   const who = await source.currentUser();
   const user = { user_id: who.id, organization_id: who.organization_id ?? null, organization_name: who.organization_name ?? null };
-  const col = await collectGeoscience(source, roots, { includeInterpretations, onProgress });
+  const col = await collectPackage(source, roots, { includeInterpretations, onProgress });
   const tables = collectionTables(col);
 
-  // integrity gate: every id inside the dump must resolve inside the package,
-  // be a scope id, or sit at a path the spec declares optional
   onProgress('Checking references');
   const refs = detectDanglingRefs(tables, {
-    pkColumn: (t) => GEOSCIENCE_SPEC.tables[t]?.pk || 'id',
+    pkColumn: (t) => tableSpec(t)?.pk || 'id',
     scopeIds: [user.user_id, user.organization_id].filter(Boolean),
     external: isOptionalRefPath,
   });
@@ -66,7 +78,7 @@ export async function buildGeosciencePackage(source, roots, {
   onProgress('Writing rows');
   for (const [table, rows] of Object.entries(tables)) {
     await writer.addText(`data/${table}.jsonl`, jsonl(rows));
-    tableInfo[table] = { rows: rows.length, schemaVersions: rows.map(readStateVersion), pk: GEOSCIENCE_SPEC.tables[table]?.pk || 'id' };
+    tableInfo[table] = { rows: rows.length, schemaVersions: rows.map(readStateVersion), pk: tableSpec(table)?.pk || 'id' };
   }
 
   onProgress('Writing binary data');
@@ -80,49 +92,12 @@ export async function buildGeosciencePackage(source, roots, {
   if (includeSidecars) {
     onProgress('Writing open-format sidecars');
     const used = new Set();
-    for (const well of col.tables.geo_wells.values()) {
-      const logs = Array.from(col.tables.geo_wells_logs.values()).filter((l) => l.well_id === well.id);
-      const tops = Array.from(col.tables.geo_wells_tops.values()).filter((t) => t.well_id === well.id);
-      const zones = Array.from(col.tables.geo_wells_zones.values()).filter((z) => z.well_id === well.id);
-      const wellName = well.name || well.uwi || well.id;
-      let las = null;
-      try { las = wellLasText(well, logs, col.curves[well.id] || {}); } catch (e) { notes.push(`LAS sidecar for "${wellName}" was not written: ${e?.message || e}`); }
-      if (las) {
-        const file = uniquePath('open/wells', wellName, '.las', used, 'well');
-        await writer.addText(file, las);
-        open.push({ kind: 'las', file, table: 'geo_wells', row_id: well.id, name: wellName });
-      } else if (!logs.length) {
-        notes.push(`Well "${wellName}" has no logs, so no LAS sidecar was written.`);
-      } else if (las === null) {
-        notes.push(`Well "${wellName}" has no depth log (DEPT, DEPTH or MD), so no LAS sidecar was written; its curves are in blobs/wells as float32.`);
-      }
-      if (tops.length) {
-        const file = uniquePath('open/wells', `${wellName}-tops`, '.csv', used, 'well-tops');
-        await writer.addText(file, topsCsv(tops));
-        open.push({ kind: 'tops_csv', file, table: 'geo_wells', row_id: well.id, name: wellName });
-      }
-      if (zones.length) {
-        const file = uniquePath('open/wells', `${wellName}-zones`, '.csv', used, 'well-zones');
-        await writer.addText(file, zonesCsv(zones));
-        open.push({ kind: 'zones_csv', file, table: 'geo_wells', row_id: well.id, name: wellName });
-      }
-    }
-    for (const s of col.tables.geo_surfaces.values()) {
-      const grid = col.grids[s.id];
-      if (!grid) continue;
-      try {
-        const { text, note } = surfaceZmapText(s, grid);
-        const file = uniquePath('open/surfaces', s.name, '.zmap', used, 'surface');
-        await writer.addText(file, text);
-        open.push({ kind: 'zmap', file, table: 'geo_surfaces', row_id: s.id, name: s.name || null });
-        if (note) notes.push(note);
-      } catch (e) {
-        notes.push(`ZMAP sidecar for surface "${s.name}" was not written: ${e?.message || e}`);
-      }
+    for (const f of listFamilies()) {
+      if (!col.families.has(f.name) || !f.hooks?.sidecars) continue;
+      await f.hooks.sidecars({ col, writer, notes, open, used });
     }
   }
 
-  // manifest (README needs the summary, so build it in two passes)
   const draft = buildManifest({ name, source: user, roots: col.roots, tables: tableInfo, blobs, open, files: {}, notes });
   const readme = readmeText({ manifestSummary: draft, platform: PLATFORM_BUILD, roots: col.roots, notes });
   await writer.addText('README.txt', readme);
@@ -138,3 +113,6 @@ export async function buildGeosciencePackage(source, roots, {
   onProgress('Package assembled');
   return { writer, manifest, collection: col, refs, manifestFile: MANIFEST_FILE };
 }
+
+/** PP1 name, kept for callers and tests. */
+export const buildGeosciencePackage = buildPackage;
