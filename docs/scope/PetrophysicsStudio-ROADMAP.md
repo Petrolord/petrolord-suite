@@ -23,7 +23,7 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
 | PS3 | Named interpretations (list/open/save-as/rename/delete) + per-zone parameter overrides; zoned pipeline (`computeWellZoned`, PIPELINE_VERSION 2) | A2, B1 | zoned driver | **yes** (petro_projects) | **DONE 2026-09-02** |
 | PS4 | User track builder + named layout templates (petro_projects.layouts), ft display toggle, PNG export of the track view | — | no | no | **DONE 2026-09-02** |
 | PS5 | Formation temperature model + Waxman-Smits / dual-water / Modified Simandoux Sw + Rw quicklook tools wired (SP, Arps); PIPELINE_VERSION 3 | B5 partial | large | no | **DONE 2026-09-02** |
-| PS6 | Permeability (Timur, Tixier, Coates, Wyllie-Rose) + Buckles BVW analysis + zone k geometric mean; PIPELINE_VERSION 4 | B2 | yes | no | queued |
+| PS6 | Permeability (Timur, Tixier, Coates, Wyllie-Rose) + Buckles BVW analysis + zone k geometric mean; PIPELINE_VERSION 4 | B2 | yes | no | **DONE 2026-09-02** |
 | PS7 | Histogram panel: cumulative frequency, P10/P50/P90, zone filters, draggable cutoff lines writing back to parameters; multi-well GR overlay + normalization fit | — | normalize.js | no | queued |
 | PS8 | Log conditioning: Hampel despike, smoothing, block depth-shift, bad-hole flag/repair; conditioned curves published as new `_CND` registry curves, raw untouched | B3, D1b | yes | no | queued |
 | PS9 | Multi-well field view: render refactor (static + overlay canvases, decimation), per-well columns, top-flattening, cross-well zone summary table | C1 | no | no | queued |
@@ -144,3 +144,21 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
   jest, 10/10 e2e (new PS5 spec: Arps apply lands the computed value
   in the panel, WS at Qv=0 reproduces the golden Archie net pay
   through the whole UI).
+- **PS6 (2026-09-02):** engines PR #96 + Suite branch
+  `feat/petrophysics-ps6-permeability`. Engines: `perm.js` — Timur
+  1968 (k = 8581·φ^4.4/Swirr², the fraction/mD form pinned by
+  goldens), Tixier 1949, Coates & Denoo 1981, Wyllie-Rose 1950
+  generalized with Morris & Biggs 1967 presets; `bvw`,
+  `swirrFromBuckles` (clamped to 1, documented), `kGeomMean`
+  (thickness-weighted over pay flags). **Units exception recorded: k
+  in mD** (beside the degF-inside-Arps precedent). Pipeline:
+  `permMethod: 'none'` default keeps existing recipes byte-identical;
+  KPERM (published, unit MD) + BVW outputs; zone summaries gain
+  `k_gm_md`; `PIPELINE_VERSION` 4. Suite: Permeability parameter
+  section with the formula shown per method, k log track in the
+  default template (drops when perm is off), KPERM/BVW chartable in
+  the builder, zone cards show k gm. Tests: `perm.test.js` (5 cases:
+  PERM goldens at 1e-12, pipeline + zone gm, none-default invariant,
+  constant anchors incl. Tixier ≡ Wyllie-Rose oil preset); 98 jest,
+  11/11 e2e (new PS6 spec: golden zone k gm on the card, publish
+  grows to 5 curves).
