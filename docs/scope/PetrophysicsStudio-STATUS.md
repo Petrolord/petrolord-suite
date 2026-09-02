@@ -45,6 +45,11 @@ D1b satisfied in-app).
 per-well zoned compute, flatten-on-top datum (wellcorrelation
 engine), cross-well zone summary table, shared decimating curve
 renderer with a static + overlay canvas split (audit C1 closed).
+**PS10 (close-out) DONE 2026-09-02 — PROGRAM COMPLETE**: Hingle plot
+with Rw fit, split view + selection brush, TVD axis labels
+(deviation-gated), zone boundary drag, matrix-ID quicklooks +
+Thomas-Stieber (engines PR #99); Elan-class solver stays a recorded
+deferral. See the ROADMAP close-out for merge order and open items.
 
 Production note: **RESOLVED 2026-07-14** — prod is current (source zip
 from main `e84f8a181` uploaded to Hostinger); the tile, route and the
