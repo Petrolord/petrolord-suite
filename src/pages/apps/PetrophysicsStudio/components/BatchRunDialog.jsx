@@ -45,7 +45,7 @@ export default function BatchRunDialog({ open, onOpenChange, wells, runBatch }) 
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="max-w-lg bg-slate-900 border-slate-700 text-slate-200" data-testid="petro-batch-dialog">
         <DialogHeader>
-          <DialogTitle>Batch run — current parameters</DialogTitle>
+          <DialogTitle>Batch run with current parameters</DialogTitle>
           <DialogDescription className="text-slate-400">
             Computes and publishes with the parameter set now applied. Only wells you own can be written.
           </DialogDescription>

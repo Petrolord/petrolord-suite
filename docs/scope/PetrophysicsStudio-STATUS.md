@@ -50,6 +50,15 @@ with Rw fit, split view + selection brush, TVD axis labels
 (deviation-gated), zone boundary drag, matrix-ID quicklooks +
 Thomas-Stieber (engines PR #99); Elan-class solver stays a recorded
 deferral. See the ROADMAP close-out for merge order and open items.
+**Help guide DONE 2026-09-02**: full-page in-app guide on the shared
+HelpGuideLayout shell at `/dashboard/apps/geoscience/petrophysics-studio/help`
+(19 sections: workspace, quick start, curve mapping, tracks + layouts,
+every Vsh/porosity/Sw/permeability method with defaults, zones, interpretations,
+crossplots, histograms, conditioning, Rw tools, field view, publish/batch/
+digitize, exports, units/provenance, validation basis, pitfalls, glossary).
+Ribbon Help link added; guard test pins section anchors, the live curve
+alias table, the recorded deferrals and the no-em-dash copy rule (which also
+caught and fixed the Batch dialog title).
 
 Production note: **RESOLVED 2026-07-14** — prod is current (source zip
 from main `e84f8a181` uploaded to Hostinger); the tile, route and the
