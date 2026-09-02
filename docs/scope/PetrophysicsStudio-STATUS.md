@@ -23,6 +23,11 @@ pipeline (engines PR #94, PIPELINE_VERSION 2), migration
 petro_projects.layouts (clone-on-edit built-ins, portable curve
 addresses), LayoutPanel editor, header-click editing, ft display
 toggle, track plot PNG export.
+**PS5 (temperature + shaly-sand Sw) DONE 2026-09-02**: linear
+BHT temperature model with Rw(T), Waxman-Smits/dual-water/modified
+Simandoux (engines PR #95, PIPELINE_VERSION 3, oracle-gated with
+exact Archie reductions), SP + Arps Rw tools wired; Bateman-Konen
+stays gated (B5).
 
 Production note: **RESOLVED 2026-07-14** — prod is current (source zip
 from main `e84f8a181` uploaded to Hostinger); the tile, route and the

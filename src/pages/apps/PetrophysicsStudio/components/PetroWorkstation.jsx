@@ -23,6 +23,7 @@ import DigitizerDialog from './DigitizerDialog';
 import ExportDialog from './ExportDialog';
 import InterpretationBar from './InterpretationBar';
 import LayoutPanel from './LayoutPanel';
+import RwToolsDialog from './RwToolsDialog';
 import {
   computeWellZoned, zoneSummary, DEFAULT_PARAMS,
   preparePublishLogs, zonePropertiesSnapshot,
@@ -80,6 +81,7 @@ export default function PetroWorkstation({ backend }) {
   const [layouts, setLayouts] = useState(buildDefaultLayouts); // PS4 templates
   const [layoutFocus, setLayoutFocus] = useState(null);        // {index, nonce}
   const [depthUnit, setDepthUnit] = useState('m');             // display only
+  const [rwToolsOpen, setRwToolsOpen] = useState(false);       // PS5 quicklooks
 
   useEffect(() => {
     let live = true;
@@ -443,6 +445,16 @@ export default function PetroWorkstation({ backend }) {
         </button>
         <button
           type="button"
+          data-testid="petro-rwtools"
+          title="Rw quicklooks: SP and Arps temperature conversion"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-slate-700 text-slate-300 hover:bg-slate-800"
+          onClick={() => setRwToolsOpen(true)}
+        >
+          Rw tools…
+        </button>
+        <button
+          type="button"
           data-testid="petro-export"
           disabled={!wellData || !computed}
           title="Export CSV, LAS or a PDF summary report"
@@ -623,6 +635,12 @@ export default function PetroWorkstation({ backend }) {
         onSave={saveDigitized}
       />
     )}
+    <RwToolsDialog
+      open={rwToolsOpen}
+      onOpenChange={setRwToolsOpen}
+      onApplyParams={(patch) => setParams((p) => ({ ...p, ...patch }))}
+      onStatus={setStatus}
+    />
     {wellData && computed && (
       <ExportDialog
         open={exportOpen}

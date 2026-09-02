@@ -22,7 +22,7 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
 | PS2 | Deliverables: curves + zone CSV, LAS 2.0 writer (round-trip gated), branded PDF summary report; empty state instead of the no-depth hard error | A1, C2, C3 | LAS writer | no | **DONE 2026-09-01** |
 | PS3 | Named interpretations (list/open/save-as/rename/delete) + per-zone parameter overrides; zoned pipeline (`computeWellZoned`, PIPELINE_VERSION 2) | A2, B1 | zoned driver | **yes** (petro_projects) | **DONE 2026-09-02** |
 | PS4 | User track builder + named layout templates (petro_projects.layouts), ft display toggle, PNG export of the track view | — | no | no | **DONE 2026-09-02** |
-| PS5 | Formation temperature model + Waxman-Smits / dual-water / Modified Simandoux Sw + Rw quicklook tools wired (SP, Arps); PIPELINE_VERSION 3 | B5 partial | large | no | queued |
+| PS5 | Formation temperature model + Waxman-Smits / dual-water / Modified Simandoux Sw + Rw quicklook tools wired (SP, Arps); PIPELINE_VERSION 3 | B5 partial | large | no | **DONE 2026-09-02** |
 | PS6 | Permeability (Timur, Tixier, Coates, Wyllie-Rose) + Buckles BVW analysis + zone k geometric mean; PIPELINE_VERSION 4 | B2 | yes | no | queued |
 | PS7 | Histogram panel: cumulative frequency, P10/P50/P90, zone filters, draggable cutoff lines writing back to parameters; multi-well GR overlay + normalization fit | — | normalize.js | no | queued |
 | PS8 | Log conditioning: Hampel despike, smoothing, block depth-shift, bad-hole flag/repair; conditioned curves published as new `_CND` registry curves, raw untouched | B3, D1b | yes | no | queued |
@@ -123,3 +123,24 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
   `layout.test.js` (resolution tolerance, clone-on-edit, migration);
   86 jest, 9/9 e2e (new PS4 spec: header-click editing, built-in
   fork, save/reload persistence, ft toggle, PNG download).
+- **PS5 (2026-09-02):** engines PR #95 + Suite branch
+  `feat/petrophysics-ps5-shaly-sw`. Engines: `temperature.js` (linear
+  surface+BHT profile, Rw(T) via the existing Arps chain — degC in,
+  degF inside the module) and `swClay.js` (Waxman & Smits 1968 with
+  B(T) per Juhász 1981 or manual, `qvFromCec`;
+  Clavier-Coates-Dumanoir 1984 dual-water returning total Swt; Bardon
+  & Pied 1969 modified Simandoux). Independent numerics: JS Newton
+  w/ bisection fallback at 1e-14 vs the oracle's pure bisection;
+  anchors assert exact Archie reduction (Qv=0, Swb=0, Vsh=0). New
+  CLAY + TEMP goldens (existing keys byte-identical);
+  `PIPELINE_VERSION` 3; per-sample Sw dispatch with per-depth Rw when
+  tempMode is linear; TEMP output curve (chartable via
+  `output:TEMP`). Suite: ParameterPanel gains Temperature section and
+  model-conditional Sw fields with **m*/n* labeled as shaly-rock
+  exponents**; `RwToolsDialog` wires the dormant SP quicklook + Arps
+  converter (°C in, °F inside; the Rwe≈Rw caveat shown; Bateman-Konen
+  stays gated per B5). Tests: `swClay.test.js` (7 cases: goldens at
+  1e-12, coupled pipeline paths, reductions, NaN discipline); 93
+  jest, 10/10 e2e (new PS5 spec: Arps apply lands the computed value
+  in the panel, WS at Qv=0 reproduces the golden Archie net pay
+  through the whole UI).
