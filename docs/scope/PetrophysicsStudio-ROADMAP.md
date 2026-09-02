@@ -24,7 +24,7 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
 | PS4 | User track builder + named layout templates (petro_projects.layouts), ft display toggle, PNG export of the track view | — | no | no | **DONE 2026-09-02** |
 | PS5 | Formation temperature model + Waxman-Smits / dual-water / Modified Simandoux Sw + Rw quicklook tools wired (SP, Arps); PIPELINE_VERSION 3 | B5 partial | large | no | **DONE 2026-09-02** |
 | PS6 | Permeability (Timur, Tixier, Coates, Wyllie-Rose) + Buckles BVW analysis + zone k geometric mean; PIPELINE_VERSION 4 | B2 | yes | no | **DONE 2026-09-02** |
-| PS7 | Histogram panel: cumulative frequency, P10/P50/P90, zone filters, draggable cutoff lines writing back to parameters; multi-well GR overlay + normalization fit | — | normalize.js | no | queued |
+| PS7 | Histogram panel: cumulative frequency, P10/P50/P90, zone filters, draggable cutoff lines writing back to parameters; multi-well GR overlay + normalization fit | — | normalize.js | no | **DONE 2026-09-02** |
 | PS8 | Log conditioning: Hampel despike, smoothing, block depth-shift, bad-hole flag/repair; conditioned curves published as new `_CND` registry curves, raw untouched | B3, D1b | yes | no | queued |
 | PS9 | Multi-well field view: render refactor (static + overlay canvases, decimation), per-well columns, top-flattening, cross-well zone summary table | C1 | no | no | queued |
 | PS10 | Split view + linked brushing, Hingle plot, TVD axis labels (deviation-gated), zone boundary drag, matrix-ID quicklook + Thomas-Stieber | B4 recorded | small | no | queued |
@@ -162,3 +162,22 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
   constant anchors incl. Tixier ≡ Wyllie-Rose oil preset); 98 jest,
   11/11 e2e (new PS6 spec: golden zone k gm on the card, publish
   grows to 5 curves).
+- **PS7 (2026-09-02):** engines PR #97 + Suite branch
+  `feat/petrophysics-ps7-histograms`. Engines: `normalize.js` —
+  percentile (numpy-linear), two-point P5/P95 and mean-std fits,
+  applyNormalization; anchor: an exact affine distortion of GR
+  restores to 1e-9 under both fits; NORM golden. Suite: third center
+  view (Histograms) — `viewer/stats.js` (client-side binning,
+  cumulative, masks, passing fraction — presentation math by
+  decision), `HistogramChart` (white chartTheme canvas: bars, overlay
+  outlines, cumulative on the right axis, P10/50/90 markers,
+  **draggable cutoff lines** committing to params on release) +
+  `HistogramPanel` (curve/bins/zone-interval controls, passing-cutoff
+  readout, multi-well overlays via the new `useWellCurvesCache` LRU
+  hook — built here, reused by PS9 — and the GR normalization fit
+  with a dashed normalized preview; applying lands with PS8).
+  `curveMap.js` extracted from the controller for cross-well reuse.
+  Tests: `histogramStats.test.js` (binning edge rules, NORM goldens,
+  degenerate-fit NaN); 106 jest, 12/12 e2e (new PS7 spec: dragging
+  the GR clean line commits grClean = 45 from the plot geometry, the
+  twin harness well fits the identity normalization).
