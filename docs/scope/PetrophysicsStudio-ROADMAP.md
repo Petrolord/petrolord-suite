@@ -26,7 +26,7 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
 | PS6 | Permeability (Timur, Tixier, Coates, Wyllie-Rose) + Buckles BVW analysis + zone k geometric mean; PIPELINE_VERSION 4 | B2 | yes | no | **DONE 2026-09-02** |
 | PS7 | Histogram panel: cumulative frequency, P10/P50/P90, zone filters, draggable cutoff lines writing back to parameters; multi-well GR overlay + normalization fit | — | normalize.js | no | **DONE 2026-09-02** |
 | PS8 | Log conditioning: Hampel despike, smoothing, block depth-shift, bad-hole flag/repair; conditioned curves published as new `_CND` registry curves, raw untouched | B3, D1b | yes | no | **DONE 2026-09-02** |
-| PS9 | Multi-well field view: render refactor (static + overlay canvases, decimation), per-well columns, top-flattening, cross-well zone summary table | C1 | no | no | queued |
+| PS9 | Multi-well field view: render refactor (static + overlay canvases, decimation), per-well columns, top-flattening, cross-well zone summary table | C1 | no | no | **DONE 2026-09-02** |
 | PS10 | Split view + linked brushing, Hingle plot, TVD axis labels (deviation-gated), zone boundary drag, matrix-ID quicklook + Thomas-Stieber | B4 recorded | small | no | queued |
 
 ## Recorded decisions
@@ -200,3 +200,28 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
   Tests: `conditioning.test.js` (COND goldens at 1e-12, spike-death
   and cap-visibility invariants); 111 jest, 13/13 e2e (new PS8 spec:
   save GR_CND, pick it in the explorer, pipeline recomputes clean).
+- **PS9 (2026-09-02):** Suite-only wave, branch
+  `feat/petrophysics-ps9-field-view`. `viewer/trackRender.js` extracts
+  the shared curve pass (per-curve scales, dash, clamp, NaN pen,
+  baseline fills) with **min/max per-pixel-row decimation** past 2
+  samples per row — used by the single-well TrackViewer and the new
+  field columns alike. Fourth center view (**Field**):
+  `FieldViewPanel` + `MultiWellTracks` — up to 8 wells side by side on
+  a shared displayed-depth axis, per-well compute through the PS7
+  cache with each well's own zones + the interpretation's overrides,
+  compact columns from the active template filtered to
+  GR/PHIE/SW/PAY, structural or **flatten-on-top** datum via the
+  vendored wellcorrelation engine (wells lacking the top draw
+  unflattened and flagged), tops markers per column, and the
+  cross-well zone summary table (case-insensitive name matching,
+  dashes never guesses). MultiWellTracks uses the static + overlay
+  two-canvas split so the crosshair never redraws the columns.
+  Plan deviations recorded: field well selection lives in the field
+  header rather than a WellExplorer checkbox column; the summary
+  table sits under the columns rather than in the dock; the
+  single-well TrackViewer keeps its one-canvas architecture (the
+  layering ships where well-count multiplies the cost) — and the
+  useProjectState controller extraction moves to the PS10 close-out
+  list. 111 jest, 14/14 e2e (new PS9 spec: golden SAND A net in the
+  KETA cell, dashes for unmatched zones, flatten survives a missing
+  datum top).
