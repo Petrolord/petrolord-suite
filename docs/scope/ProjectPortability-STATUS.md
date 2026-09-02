@@ -10,7 +10,7 @@ kept, imports private by default, certificate wording in PP5).
 |---|---|---|
 | PP0 Version foundations | **BUILT 2026-09-02**, app-state migration **APPLIED LIVE** same day, gate passed | PR #352 (feat/portability-pp0) |
 | PP1 Package writer, Geoscience | **BUILT 2026-09-02**, gate passed | PR (feat/portability-pp1) |
-| PP2 Importer | not started | |
+| PP2 Importer | **BUILT 2026-09-02**, gate passed; jobs migration awaiting owner apply | PR (feat/portability-pp2) |
 | PP3 Coverage | not started | |
 | PP4 Restorable backup | not started | |
 | PP5 Regulatory delivery | not started | |
@@ -146,6 +146,71 @@ Two scoped deviations from the PLAN text, recorded here for the owner:
    engine over the org-export catalog RPCs is still the right tool for the
    largest root sets and arrives with PP4.
 
+## PP2 (2026-09-02)
+
+What shipped:
+
+- **`importPackage.js`**, three phases that each fail without touching the
+  importer's data:
+  - `readPackage`: unzip, parse and validate the manifest, the Petrel rule
+    on `package_version` and on every table's `schema_version.max` against
+    what this build reads (`readsUpTo`: the registered state kind's
+    `current`, or 1 for registry tables), then size and sha256 of every
+    listed file. Unlisted files, missing files, wrong sizes and wrong
+    hashes are all refused with a message naming the file.
+  - `planImport`: a new uuid for every row; parent FKs and every soft
+    reference in the spec rewritten (required ones must map, optional ones
+    are nulled or dropped when unmapped); rows rescoped to the importer
+    (private by default, or the importer's organization); blob paths
+    rewritten under the importer's storage prefix; `provenance.imported_from`
+    stamped with the package id, source user and organization, export
+    time and build, and the original id; older app-state rows migrated up
+    through `openStateRow`; app-state rows version-stamped; registry rows
+    stripped of the PP0 columns because that migration is still HELD.
+    Duplicate wells (same UWI or name) produce a warning, never a merge.
+  - `executeImport`: job row (best effort), custom CRS definitions merged
+    into the importer's settings under their original ids, **blobs first**
+    to the importer's own paths, then rows in dependency order in batches
+    of 200 with the id ledger written as it goes. A failure marks the job
+    failed, cleans up orphaned blobs from that run, and the error carries
+    the job id; a resume by job id skips every item already written.
+- **`supabaseSink.js`**: the registry as the sink, under the caller's own
+  session (storage RLS proves tenancy by the uid prefix; row RLS decides
+  what the caller may create). `listJobs` feeds the import history.
+- **Migration `20260902130000_pld_import_jobs.sql`**: `pld_import_jobs` and
+  `pld_import_items`, owner-scoped RLS. Dry run clean; apply pending
+  owner. Named `pld_*` for the product-prefix convention (the PLAN text
+  said `package_import_*`).
+- **Door**: Well Data Manager toolbar (Import package) opening
+  `PackageImportDialog`: pick, review (integrity line, tables, warnings,
+  notes, scope choice), run, done, with retry-by-job on failure and an
+  import history list.
+
+Gate (PLAN §6, PP2 row) in `__tests__/importPackage.test.js`, run
+in-process against an in-memory registry standing in for a second user:
+
+- Export from user A, import to user B: every id new, no package id
+  survives outside `provenance.imported_from`, owner and scope rewritten,
+  blobs byte-identical under B's prefix at the paths the rows point to,
+  uploaded before any row is inserted.
+- **Petrophysics on the imported curves reproduces the oracle zone
+  summary** (SAND A net 18.0 m, gross 20.5 m, NTG 0.878 from
+  goldens.json; averages to single precision because curves are float32).
+- Importing twice gives two independent copies.
+- Refusals, nothing written: manifest edited to `package_version 2` (names
+  both versions), tampered data file and tampered binary of identical
+  size (refused by hash), unlisted file, missing listed file, table
+  `schema_version` above what the build reads, not a zip, no manifest,
+  required reference the package cannot resolve, share-with-org without
+  an organization.
+- Resume: a simulated failure mid-way leaves a failed job; resuming by job
+  id skips the 8 rows already written and finishes. Without the job tables
+  the import completes and says resume is unavailable.
+
+The staging half of the gate (export from org A, import to org B, open the
+copy in Petrophysics Studio and read the SAND A card) is an owner step
+after the jobs migration is applied.
+
 ## Program gotcha: one database, two builds
 
 Staging (the dev worktree served by HMR) and production (petrolord.com)
@@ -160,6 +225,7 @@ the migrator in the same change.
 ## Open items
 
 - Second engineer reviews `20260902120500` (registries), then apply.
+- Owner applies `20260902130000` (import jobs), then flips its MIGRATIONS.md row.
 - Deploy procedure: write `build-info.json` `{ "sha": "<full sha>" }` at
   the clean-checkout root before zipping (untracked, gitignored) so the
   Hostinger build stamps the real sha.
