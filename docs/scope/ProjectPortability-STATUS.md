@@ -8,7 +8,7 @@ kept, imports private by default, certificate wording in PP5).
 
 | Wave | Status | Landed |
 |---|---|---|
-| PP0 Version foundations | **BUILT 2026-09-02**, migration awaiting owner apply | this branch (feat/portability-pp0) |
+| PP0 Version foundations | **BUILT 2026-09-02**, app-state migration **APPLIED LIVE** same day, gate passed | PR #352 (feat/portability-pp0) |
 | PP1 Package writer, Geoscience | not started | |
 | PP2 Importer | not started | |
 | PP3 Coverage | not started | |
@@ -40,10 +40,13 @@ What shipped:
   `engine_version text` to 86 app-state tables (IF NOT EXISTS, fast
   defaults). Rollback-wrapped dry run on the linked project: 84 columns
   added (two listed tables are absent in the live schema), clean.
-  **Apply was blocked by the session's permission classifier**; the
-  owner applies it. Until then every writer saves without the stamp
-  (one console warning per kind) and every reader treats rows as
-  version 1, so nothing breaks in either order.
+  The session's own apply was blocked by the permission classifier; the
+  **owner applied it 2026-09-02** with `supabase db query --linked -f`.
+  Live gate the same day: 84 tables carry `schema_version` and
+  `app_build`, 0 present tables missing the column; `saved_waterflood_projects`
+  and `wp_ac_cases` are the two listed names absent from the live schema.
+  (Had the order been reversed, every writer saves without the stamp and
+  every reader treats rows as version 1, so nothing breaks either way.)
 - **Migration `20260902120500_pp0_registry_state_versions.sql`** (shared
   registries) is **HELD** for the second-engineer review.
 - **Loaders retrofitted** through the helper: the `savedProjects.js`
@@ -83,7 +86,6 @@ the migrator in the same change.
 
 ## Open items
 
-- Owner applies `20260902120000` and flips its MIGRATIONS.md row.
 - Second engineer reviews `20260902120500` (registries), then apply.
 - Deploy procedure: write `build-info.json` `{ "sha": "<full sha>" }` at
   the clean-checkout root before zipping (untracked, gitignored) so the
