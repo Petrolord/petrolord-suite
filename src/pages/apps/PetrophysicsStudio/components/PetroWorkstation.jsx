@@ -26,6 +26,7 @@ import LayoutPanel from './LayoutPanel';
 import RwToolsDialog from './RwToolsDialog';
 import HistogramPanel from './HistogramPanel';
 import ConditioningDialog from './ConditioningDialog';
+import FieldViewPanel from './FieldViewPanel';
 import { useWellCurvesCache } from '../hooks/useWellCurvesCache';
 import {
   computeWellZoned, zoneSummary, DEFAULT_PARAMS,
@@ -419,6 +420,15 @@ export default function PetroWorkstation({ backend }) {
         >
           Histograms
         </button>
+        <button
+          type="button"
+          data-testid="petro-view-field"
+          className={`px-2 py-1 text-xs rounded border
+            ${view === 'field' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+          onClick={() => setView('field')}
+        >
+          Field
+        </button>
       </div>
       <div className="ml-4 flex items-center gap-1">
         <InterpretationBar
@@ -549,6 +559,16 @@ export default function PetroWorkstation({ backend }) {
     <div className="h-full flex items-center justify-center text-slate-500 text-sm">
       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry wells…
     </div>
+  ) : view === 'field' ? (
+    <FieldViewPanel
+      wells={wells}
+      params={params}
+      zoneParams={zoneParams}
+      layouts={layouts}
+      backend={backend}
+      curvesCache={curvesCache}
+      onStatus={setStatus}
+    />
   ) : !selected ? (
     <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="petro-empty">
       Select a well to start interpreting.
