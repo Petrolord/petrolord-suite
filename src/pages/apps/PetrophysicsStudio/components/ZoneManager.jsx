@@ -11,7 +11,7 @@ const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px
 const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toFixed(d));
 
 export default function ZoneManager({
-  zones, summaries, isOwn, busy, onAdd, onDelete, onPublish,
+  zones, summaries, isOwn, busy, onAdd, onDelete, onPublish, zoneParams = {},
 }) {
   const [draft, setDraft] = useState({ name: '', top: '', base: '' });
   const [error, setError] = useState(null);
@@ -46,6 +46,15 @@ export default function ZoneManager({
             <div className="flex items-center gap-1">
               <span className="text-slate-200 font-medium">{z.name}</span>
               <span className="text-slate-500">{fmt(z.top_md_m, 1)}–{fmt(z.base_md_m, 1)} m</span>
+              {Object.keys(zoneParams[z.id] || {}).length > 0 && (
+                <span
+                  className="rounded px-1 text-[10px] bg-cyan-500/15 text-cyan-300"
+                  title={`Parameter overrides: ${Object.keys(zoneParams[z.id]).join(', ')}`}
+                  data-testid={`petro-zone-overrides-${z.name}`}
+                >
+                  {Object.keys(zoneParams[z.id]).length} override{Object.keys(zoneParams[z.id]).length > 1 ? 's' : ''}
+                </span>
+              )}
               {isOwn && (
                 <div className="ml-auto flex items-center gap-1.5">
                   <button

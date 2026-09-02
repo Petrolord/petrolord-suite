@@ -21,8 +21,9 @@ import CrossplotPanel from './CrossplotPanel';
 import BatchRunDialog from './BatchRunDialog';
 import DigitizerDialog from './DigitizerDialog';
 import ExportDialog from './ExportDialog';
+import InterpretationBar from './InterpretationBar';
 import {
-  computeWell, zoneSummary, DEFAULT_PARAMS,
+  computeWellZoned, zoneSummary, DEFAULT_PARAMS,
   preparePublishLogs, zonePropertiesSnapshot,
 } from '../engine/pipeline';
 import { faciesCurve } from '../engine/crossplot';
@@ -65,7 +66,9 @@ export default function PetroWorkstation({ backend }) {
   const [view, setView] = useState('tracks');     // 'tracks' | 'crossplot'
   const [facies, setFacies] = useState([]);       // ND-space polygons for the selected well
   const [faciesByWell, setFaciesByWell] = useState({}); // persisted per-well workspace state
+  const [zoneParams, setZoneParams] = useState({});     // zoneId -> override patch (PS3)
   const [projectId, setProjectId] = useState('project-dev');
+  const [projectName, setProjectName] = useState(null);
   const [publishing, setPublishing] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
   const [digitizerOpen, setDigitizerOpen] = useState(false);
@@ -82,9 +85,11 @@ export default function PetroWorkstation({ backend }) {
         const project = await backend.loadProject();
         if (!live || !project) return;
         setProjectId(project.id || 'project-dev');
+        setProjectName(project.name || null);
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.facies) setFaciesByWell(project.facies);
-        setStatus('Restored saved project.');
+        if (project.zone_params) setZoneParams(project.zone_params);
+        setStatus(`Restored ${project.name || 'saved project'}.`);
       } catch (e) {
         if (live) { setStatus(e.message); setWells((w) => w || []); }
       }
@@ -150,24 +155,56 @@ export default function PetroWorkstation({ backend }) {
     if (selectedId) setFaciesByWell((m) => ({ ...m, [selectedId]: next }));
   }, [selectedId]);
 
+  // per-zone override patches -> the zoned pipeline's window list;
+  // zones sorted by top, first match wins (engine contract)
+  const zoneParamList = useMemo(() => zones
+    .filter((z) => zoneParams[z.id] && Object.keys(zoneParams[z.id]).length)
+    .map((z) => ({ top: z.top_md_m, base: z.base_md_m, params: zoneParams[z.id] }))
+    .sort((a, b) => a.top - b.top), [zones, zoneParams]);
+
+  const overlapWarning = useMemo(() => {
+    const zs = zones.filter((z) => zoneParams[z.id] && Object.keys(zoneParams[z.id]).length)
+      .sort((a, b) => a.top_md_m - b.top_md_m);
+    for (let i = 1; i < zs.length; i++) {
+      if (zs[i].top_md_m <= zs[i - 1].base_md_m) {
+        return `zones ${zs[i - 1].name} and ${zs[i].name} overlap — the shallower zone's overrides win in the overlap`;
+      }
+    }
+    return null;
+  }, [zones, zoneParams]);
+
   const computed = useMemo(() => {
     if (!wellData) return null;
     try {
-      return computeWell(wellData.curves, params);
+      return computeWellZoned(wellData.curves, params, zoneParamList);
     } catch (e) {
       setStatus(e.message);
       return null;
     }
-  }, [wellData, params]);
+  }, [wellData, params, zoneParamList]);
 
   const summaries = useMemo(() => {
     if (!wellData || !computed) return {};
     const out = {};
     for (const z of zones) {
-      out[z.id] = zoneSummary(wellData.curves, computed.outputs, params, z);
+      const merged = { ...params, ...(zoneParams[z.id] || {}) };
+      out[z.id] = zoneSummary(wellData.curves, computed.outputs, merged, z);
     }
     return out;
-  }, [wellData, computed, params, zones]);
+  }, [wellData, computed, params, zones, zoneParams]);
+
+  const applyZoneParams = useCallback((zoneId, patch) => {
+    setZoneParams((m) => {
+      const next = { ...m };
+      if (Object.keys(patch).length) next[zoneId] = patch;
+      else delete next[zoneId];
+      return next;
+    });
+    const zone = zones.find((z) => z.id === zoneId);
+    setStatus(Object.keys(patch).length
+      ? `Applied ${Object.keys(patch).length} override(s) for ${zone?.name || 'zone'}.`
+      : `Cleared overrides for ${zone?.name || 'zone'}.`);
+  }, [zones]);
 
   const faciesData = useMemo(() => (
     wellData?.curves.NPHI && wellData?.curves.RHOB && facies.length
@@ -262,7 +299,9 @@ export default function PetroWorkstation({ backend }) {
     if (!wellData || !computed) return;
     setPublishing(true);
     try {
-      const prepared = preparePublishLogs(wellData, computed.outputs, params, { projectId });
+      const prepared = preparePublishLogs(wellData, computed.outputs, params, {
+        projectId, interpretationName: projectName, zoneParams,
+      });
       const saved = await backend.publishCurves(wellData.wellId, prepared, projectId);
       setStatus(`Published ${saved.length} curves to ${selected.name}.`);
     } catch (e) {
@@ -276,7 +315,9 @@ export default function PetroWorkstation({ backend }) {
     try {
       const summary = zoneSummary(wellData.curves, computed.outputs, params, zone);
       if (!summary) { setStatus('Compute curves before publishing a zone summary.'); return; }
-      const props = zonePropertiesSnapshot(summary, params, { projectId, publishedAt: new Date().toISOString() });
+      const props = zonePropertiesSnapshot(summary, { ...params, ...(zoneParams[zone.id] || {}) }, {
+        projectId, interpretationName: projectName, publishedAt: new Date().toISOString(),
+      });
       await backend.publishZone(zone, props);
       setStatus(`Published ${zone.name} summary.`);
       await refreshZones(zone.well_id);
@@ -293,11 +334,62 @@ export default function PetroWorkstation({ backend }) {
     setStatus(`Digitized ${saved.mnemonic} added to ${name}.`);
   };
 
+  const workspaceState = () => ({ params, facies: faciesByWell, zone_params: zoneParams });
+
   const saveProject = async () => {
     try {
-      const project = await backend.saveProject({ params, facies: faciesByWell });
+      const realId = projectId && projectId !== 'project-dev' ? projectId : null;
+      const project = await backend.saveProject(workspaceState(), realId);
       if (project?.id) setProjectId(project.id);
-      setStatus('Project saved.');
+      if (project?.name) setProjectName(project.name);
+      setStatus(`Saved ${project?.name || 'project'}.`);
+    } catch (e) {
+      setStatus(e.message);
+    }
+  };
+
+  const applyProjectRow = (project) => {
+    setProjectId(project.id);
+    setProjectName(project.name || null);
+    setParams({ ...DEFAULT_PARAMS, ...(project.params || {}) });
+    setFaciesByWell(project.facies || {});
+    setZoneParams(project.zone_params || {});
+    if (selectedId) setFacies((project.facies || {})[selectedId] || []);
+  };
+
+  const openInterpretation = async (id) => {
+    try {
+      const project = await backend.openProject(id);
+      applyProjectRow(project);
+      setStatus(`Opened ${project.name}.`);
+    } catch (e) {
+      setStatus(e.message);
+    }
+  };
+
+  const saveInterpretationAs = async (name) => {
+    try {
+      const project = await backend.saveProjectAs(name, workspaceState());
+      setProjectId(project.id);
+      setProjectName(project.name);
+      setStatus(`Saved as ${project.name}.`);
+    } catch (e) {
+      setStatus(e.message);
+    }
+  };
+
+  const onInterpretationDeleted = async () => {
+    try {
+      const latest = await backend.loadProject();
+      if (latest) applyProjectRow(latest);
+      else {
+        setProjectId('project-dev');
+        setProjectName(null);
+        setParams(DEFAULT_PARAMS);
+        setZoneParams({});
+        setFaciesByWell({});
+        setFacies([]);
+      }
     } catch (e) {
       setStatus(e.message);
     }
@@ -315,8 +407,17 @@ export default function PetroWorkstation({ backend }) {
       if (log) curves[key] = await backend.downloadCurve(log);
       inventory.push({ key, log });
     }
-    const { outputs } = computeWell(curves, params);
-    const prepared = preparePublishLogs({ curves, inventory }, outputs, params, { projectId });
+    // each well's OWN zones drive the overrides (patches are keyed by
+    // zone id, so any well's zones the user has overridden apply here)
+    const wellZones = await backend.listZones(well.id);
+    const wellZoneList = wellZones
+      .filter((z) => zoneParams[z.id] && Object.keys(zoneParams[z.id]).length)
+      .map((z) => ({ top: z.top_md_m, base: z.base_md_m, params: zoneParams[z.id] }))
+      .sort((a, b) => a.top - b.top);
+    const { outputs } = computeWellZoned(curves, params, wellZoneList);
+    const prepared = preparePublishLogs({ curves, inventory }, outputs, params, {
+      projectId, interpretationName: projectName, zoneParams,
+    });
     if (!prepared.length) throw new Error('nothing to publish (missing inputs)');
     const saved = await backend.publishCurves(well.id, prepared, projectId);
     if (well.id === selectedId) await select(well.id);
@@ -350,6 +451,16 @@ export default function PetroWorkstation({ backend }) {
         </button>
       </div>
       <div className="ml-4 flex items-center gap-1">
+        <InterpretationBar
+          backend={backend}
+          projectId={projectId !== 'project-dev' ? projectId : null}
+          projectName={projectName}
+          onOpen={openInterpretation}
+          onSaveAs={saveInterpretationAs}
+          onRenamed={(p) => setProjectName(p.name)}
+          onDeleted={onInterpretationDeleted}
+          onStatus={setStatus}
+        />
         <button
           type="button"
           data-testid="petro-publish"
@@ -423,6 +534,11 @@ export default function PetroWorkstation({ backend }) {
           missing: {computed.missing.join(', ')}
         </span>
       ) : null}
+      {overlapWarning ? (
+        <span className="text-amber-400/90" data-testid="petro-overlap">
+          {overlapWarning}
+        </span>
+      ) : null}
       <span className="ml-auto whitespace-nowrap">
         {selected ? `${selected.name} · ${wellData?.curves.DEPT?.length ?? '…'} samples` : `${wells?.length ?? '…'} wells`}
       </span>
@@ -487,10 +603,17 @@ export default function PetroWorkstation({ backend }) {
       center={center}
       dock={(
         <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
-          <ParameterPanel params={params} onApply={(p) => { setParams(p); setStatus('Parameters applied.'); }} />
+          <ParameterPanel
+            params={params}
+            onApply={(p) => { setParams(p); setStatus('Parameters applied.'); }}
+            zones={zones}
+            zoneParams={zoneParams}
+            onApplyZone={applyZoneParams}
+          />
           {wellData && (
             <ZoneManager
               zones={zones}
+              zoneParams={zoneParams}
               summaries={summaries}
               isOwn={!!selected?.is_own}
               busy={zonesBusy}

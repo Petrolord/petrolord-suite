@@ -129,11 +129,11 @@ test('publish curves + zone, batch run, and project persistence across reload', 
   await page.getByTestId('petro-param-cutSw').fill('0.55');
   await page.getByTestId('petro-params-apply').click();
   await page.getByTestId('petro-save-project').click();
-  await expect(page.getByTestId('petro-status')).toContainText('Project saved');
+  await expect(page.getByTestId('petro-status')).toContainText('Saved Default interpretation');
 
   // reload: the saved project restores the parameter (sessionStorage)
   await page.reload();
-  await expect(page.getByTestId('petro-status')).toContainText('Restored saved project');
+  await expect(page.getByTestId('petro-status')).toContainText('Restored Default interpretation');
   await page.locator('[data-well-name="KETA TYPE-1"]').click();
   await page.getByTestId('petro-toggle-dock');
   await expect(page.getByTestId('petro-param-cutSw')).toHaveValue('0.55');
@@ -228,6 +228,43 @@ test('PS1: z-color with colorbar, point identify tooltip, Buckles plot, zoom res
   await expect(canvas).toBeVisible();
   const bbox = await canvas.boundingBox();
   expect(bbox.width).toBeGreaterThan(300);
+});
+
+test('PS3: per-zone overrides drive the summary; named interpretations round-trip them', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  // baseline: the seeded SAND A zone reads the golden net pay
+  await expect(page.getByTestId('petro-zone-net-SAND A')).toHaveText(goldenNet('SAND_A'));
+
+  // zone scope: override Rw for SAND A only — Sw blows past the cutoff
+  // and the zone's net pay collapses, while global Rw stays 0.05
+  await page.getByTestId('petro-param-scope').selectOption({ label: 'Zone: SAND A' });
+  await page.getByTestId('petro-param-rw').fill('0.5');
+  await page.getByTestId('petro-params-apply').click();
+  await expect(page.getByTestId('petro-zone-overrides-SAND A')).toBeVisible();
+  await expect(page.getByTestId('petro-zone-net-SAND A')).toHaveText('0.0');
+  await page.getByTestId('petro-param-scope').selectOption({ label: 'Global' });
+  await expect(page.getByTestId('petro-param-rw')).toHaveValue('0.05');
+
+  // save the state as a named interpretation
+  page.once('dialog', (d) => d.accept('Case B'));
+  await page.getByTestId('petro-interp').click();
+  await page.getByTestId('petro-interp-saveas').click();
+  await expect(page.getByTestId('petro-interp-name')).toHaveText('Case B');
+
+  // clear the override live — golden net returns
+  await page.getByTestId('petro-param-scope').selectOption({ label: 'Zone: SAND A •' });
+  await page.getByTestId('petro-params-clear-zone').click();
+  await expect(page.getByTestId('petro-zone-overrides-SAND A')).toHaveCount(0);
+  await expect(page.getByTestId('petro-zone-net-SAND A')).toHaveText(goldenNet('SAND_A'));
+
+  // reopen Case B — the zone override comes back from zone_params
+  await page.getByTestId('petro-interp').click();
+  await page.getByTestId('petro-interp-open-Case B').click();
+  await expect(page.getByTestId('petro-zone-overrides-SAND A')).toBeVisible();
+  await expect(page.getByTestId('petro-zone-net-SAND A')).toHaveText('0.0');
 });
 
 test('PS2: export deliverables download; a well without logs shows the empty state', async ({ page }) => {

@@ -234,22 +234,80 @@ export function makeInMemoryBackend() {
       return z;
     },
 
-    async loadProject() {
+    // ---- named interpretations (PS3): a list in sessionStorage, the
+    // registryBackend contract mirrored exactly; a pre-PS3 single-object
+    // payload migrates to a one-entry list on first read
+    _readProjects() {
       try {
         const raw = window.sessionStorage.getItem(PROJECT_KEY);
-        return raw ? JSON.parse(raw) : null;
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [parsed];
       } catch {
-        return null;
+        return this._mem || [];
       }
     },
 
-    async saveProject(patch) {
-      const prev = (await this.loadProject()) || { id: 'project-dev', name: 'Default project' };
-      const next = { ...prev, ...patch, updated_at: new Date().toISOString() };
+    _writeProjects(list) {
+      this._mem = list;
       try {
-        window.sessionStorage.setItem(PROJECT_KEY, JSON.stringify(next));
+        window.sessionStorage.setItem(PROJECT_KEY, JSON.stringify(list));
       } catch { /* jsdom without storage — keep in-memory only */ }
+    },
+
+    async loadProject() {
+      const list = this._readProjects();
+      if (!list.length) return null;
+      return [...list].sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))[0];
+    },
+
+    async listProjects() {
+      return this._readProjects()
+        .map(({ id, name, description, updated_at }) => ({ id, name, description, updated_at }))
+        .sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+    },
+
+    async openProject(id) {
+      const p = this._readProjects().find((x) => x.id === id);
+      if (!p) throw new Error('Could not open the interpretation: not found.');
+      return p;
+    },
+
+    async saveProject(patch, projectId = null) {
+      const list = this._readProjects();
+      if (projectId) {
+        const i = list.findIndex((x) => x.id === projectId);
+        if (i < 0) throw new Error('Could not save the interpretation: not found.');
+        list[i] = { ...list[i], ...patch, updated_at: new Date().toISOString() };
+        this._writeProjects(list);
+        return list[i];
+      }
+      const next = {
+        id: nextId('project'), name: 'Default interpretation', ...patch,
+        updated_at: new Date().toISOString(),
+      };
+      this._writeProjects([...list, next]);
       return next;
+    },
+
+    async saveProjectAs(name, state) {
+      const list = this._readProjects();
+      const next = { id: nextId('project'), name, ...state, updated_at: new Date().toISOString() };
+      this._writeProjects([...list, next]);
+      return next;
+    },
+
+    async renameProject(id, name) {
+      const list = this._readProjects();
+      const i = list.findIndex((x) => x.id === id);
+      if (i < 0) throw new Error('Could not rename the interpretation: not found.');
+      list[i] = { ...list[i], name, updated_at: new Date().toISOString() };
+      this._writeProjects(list);
+      return list[i];
+    },
+
+    async deleteProject(id) {
+      this._writeProjects(this._readProjects().filter((x) => x.id !== id));
     },
   };
 }
