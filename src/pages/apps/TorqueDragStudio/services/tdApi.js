@@ -5,6 +5,11 @@
 // Units: SI metres in storage; UI converts at the boundary.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { registerStateKind, openStateRow } from '@/lib/stateVersion';
+
+// PP0: same kind as wpApi (idempotent registration) so reads here open identically
+const WP_DESIGN_KIND = 'wp-design';
+registerStateKind(WP_DESIGN_KIND, { current: 1, label: 'well design' });
 
 const one = ({ data, error }) => {
   if (error) throw error;
@@ -80,7 +85,8 @@ export async function getDefinitiveTrajectory(wellboreId) {
   const wellbore = one(await supabase.from('wp_wellbores').select('*')
     .eq('id', wellboreId).single());
   const designs = many(await supabase.from('wp_designs').select('*')
-    .eq('wellbore_id', wellboreId).eq('status', 'definitive'));
+    .eq('wellbore_id', wellboreId).eq('status', 'definitive'))
+    .map((row) => openStateRow(WP_DESIGN_KIND, row));
   const design = designs[0] || null;
   return {
     wellbore,

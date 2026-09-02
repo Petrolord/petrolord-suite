@@ -15,6 +15,7 @@ import { Helmet } from 'react-helmet';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, BookOpen } from 'lucide-react';
+import { buildLabel } from '@/lib/platformBuild';
 import { Button } from '@/components/ui/button';
 
 export const SectionHeading = ({ icon: Icon, children }) => (
@@ -186,6 +187,9 @@ export const HelpGuideShell = ({
 
           <main className="col-span-12 lg:col-span-9 space-y-10">{children}</main>
         </div>
+        <footer className="mt-10 border-t border-white/10 pt-4 text-xs text-slate-500" data-testid="helpguide-build">
+          {buildLabel()}. This guide describes the build you are running.
+        </footer>
       </div>
     </>
   );

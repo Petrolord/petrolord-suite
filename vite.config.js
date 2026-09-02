@@ -1,4 +1,6 @@
 import path from 'node:path';
+import { execSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import react from '@vitejs/plugin-react';
 import { createLogger, defineConfig } from 'vite';
 import inlineEditPlugin from './plugins/visual-editor/vite-plugin-react-inline-editor.js';
@@ -7,6 +9,42 @@ import iframeRouteRestorationPlugin from './plugins/vite-plugin-iframe-route-res
 import selectionModePlugin from './plugins/selection-mode/vite-plugin-selection-mode.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
+
+// Platform build stamp (Project Portability PP0, docs/scope/ProjectPortability-PLAN.md §4.4).
+// Injected as __PLATFORM_BUILD__ and read through src/lib/platformBuild.js.
+// Sha source, in order: VITE_BUILD_SHA env, git (dev server, CI), then
+// build-info.json at the repo root, which the production zip-cut step writes
+// because the Hostinger build runs from a source zip with no .git.
+function platformBuild() {
+	const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'));
+	let sha = process.env.VITE_BUILD_SHA || null;
+	let source = sha ? 'env' : null;
+	if (!sha) {
+		try {
+			sha = execSync('git rev-parse --short=9 HEAD', { cwd: __dirname, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() || null;
+			if (sha) source = 'git';
+		} catch (e) { /* no git in this build environment */ }
+	}
+	if (!sha) {
+		// no git binary (the staging container) but a plain .git directory: read HEAD by hand
+		try {
+			const head = readFileSync(path.resolve(__dirname, '.git/HEAD'), 'utf8').trim();
+			const ref = head.startsWith('ref: ') ? head.slice(5) : null;
+			const full = ref ? readFileSync(path.resolve(__dirname, '.git', ref), 'utf8').trim() : head;
+			if (/^[0-9a-f]{40}$/.test(full)) { sha = full.slice(0, 9); source = 'git-head'; }
+		} catch (e) { /* not a plain checkout (worktree gitdir file, or no .git at all) */ }
+	}
+	if (!sha) {
+		const infoPath = path.resolve(__dirname, 'build-info.json');
+		if (existsSync(infoPath)) {
+			try {
+				const info = JSON.parse(readFileSync(infoPath, 'utf8'));
+				if (info && typeof info.sha === 'string' && info.sha) { sha = info.sha; source = 'build-info.json'; }
+			} catch (e) { /* unreadable build-info.json: fall through to unknown */ }
+		}
+	}
+	return { version: pkg.version, sha: sha || 'unknown', builtAt: new Date().toISOString(), source: source || 'none' };
+}
 
 const configHorizonsViteErrorHandler = `
 const observer = new MutationObserver((mutations) => {
@@ -279,6 +317,9 @@ logger.error = (msg, options) => {
 
 export default defineConfig({
 	customLogger: logger,
+	define: {
+		__PLATFORM_BUILD__: JSON.stringify(platformBuild()),
+	},
 	plugins: [
 		...(isDev ? [inlineEditPlugin(), editModeDevPlugin(), iframeRouteRestorationPlugin(), selectionModePlugin()] : []),
 		react(),

@@ -8,6 +8,7 @@
 // conversion for ft wellbores happens in the UI at the boundary.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 
 const one = ({ data, error }) => {
   if (error) throw error;
@@ -71,19 +72,25 @@ export async function deleteWellbore(id) {
 
 // ---- designs --------------------------------------------------------------
 
+// PP0 state kind (docs/scope/ProjectPortability-PLAN.md §4.3): designs are
+// the well-planning state root; wp_* case/run tables keep their engine_version.
+export const WP_DESIGN_KIND = 'wp-design';
+registerStateKind(WP_DESIGN_KIND, { current: 1, label: 'well design' });
+
 export async function listDesigns(wellboreId) {
   return many(await supabase.from('wp_designs').select('*')
-    .eq('wellbore_id', wellboreId).order('revision', { ascending: true }));
+    .eq('wellbore_id', wellboreId).order('revision', { ascending: true }))
+    .map((row) => openStateRow(WP_DESIGN_KIND, row));
 }
 
 export async function saveDesign(design, userId) {
-  return one(await supabase.from('wp_designs').insert({ ...design, user_id: userId }).select().single());
+  return one(await writeStamped(WP_DESIGN_KIND, { ...design, user_id: userId },
+    (row) => supabase.from('wp_designs').insert(row).select().single()));
 }
 
 export async function updateDesign(id, patch) {
-  return one(await supabase.from('wp_designs')
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq('id', id).select().single());
+  return one(await writeStamped(WP_DESIGN_KIND, { ...patch, updated_at: new Date().toISOString() },
+    (row) => supabase.from('wp_designs').update(row).eq('id', id).select().single()));
 }
 
 export async function deleteDesign(id) {
@@ -108,13 +115,13 @@ export async function saveDesignRevision(design, userId) {
 /** Set a design definitive. The partial unique index enforces one
  *  definitive per wellbore; any current definitive is archived first. */
 export async function setDefinitiveDesign(designId, wellboreId) {
-  const { error: demoteError } = await supabase.from('wp_designs')
-    .update({ status: 'archived', updated_at: new Date().toISOString() })
-    .eq('wellbore_id', wellboreId).eq('status', 'definitive');
+  const { error: demoteError } = await writeStamped(WP_DESIGN_KIND,
+    { status: 'archived', updated_at: new Date().toISOString() },
+    (row) => supabase.from('wp_designs').update(row).eq('wellbore_id', wellboreId).eq('status', 'definitive'));
   if (demoteError) throw demoteError;
-  return one(await supabase.from('wp_designs')
-    .update({ status: 'definitive', updated_at: new Date().toISOString() })
-    .eq('id', designId).select().single());
+  return one(await writeStamped(WP_DESIGN_KIND,
+    { status: 'definitive', updated_at: new Date().toISOString() },
+    (row) => supabase.from('wp_designs').update(row).eq('id', designId).select().single()));
 }
 
 // ---- targets --------------------------------------------------------------

@@ -9,6 +9,11 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
     import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
     import { ArrowLeft, Upload, FileText, BarChart, Play, Plus, Loader2, Trash2, FileSpreadsheet, FileJson, Contrast as Compare, Users, Lock, Unlock, BadgeCheck, GitBranch } from 'lucide-react';
     import { supabase } from '@/lib/customSupabaseClient';
+    import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
+
+    // PP0 state kind, same registration as EpeCaseList (idempotent)
+    const EPE_CASE_KIND = 'epe-case';
+    registerStateKind(EPE_CASE_KIND, { current: 1, label: 'economics case' });
     import { useAuth } from '@/contexts/SupabaseAuthContext';
     import { useDropzone } from 'react-dropzone';
     import Papa from 'papaparse';
@@ -91,10 +96,9 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
         const sharing = !caseDetails.organization_id;
         if (sharing && !myOrgId) return;
         setShareBusy(true);
-        const { error } = await supabase
-          .from('epe_cases')
-          .update({ organization_id: sharing ? myOrgId : null })
-          .eq('id', caseId);
+        const { error } = await writeStamped(EPE_CASE_KIND,
+          { organization_id: sharing ? myOrgId : null },
+          (row) => supabase.from('epe_cases').update(row).eq('id', caseId));
         if (error) {
           toast({ variant: 'destructive', title: sharing ? 'Share failed' : 'Unshare failed', description: error.message });
         } else {
@@ -230,7 +234,7 @@ import EpeDataFileCard from '@/components/epe/EpeDataFileCard';
           ]);
 
           if (caseRes.error) throw caseRes.error;
-          setCaseDetails(caseRes.data);
+          setCaseDetails(openStateRow(EPE_CASE_KIND, caseRes.data));
 
           if (prodRes.error) throw prodRes.error;
           setProductionVolumes(prodRes.data);

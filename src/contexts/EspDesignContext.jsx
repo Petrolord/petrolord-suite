@@ -20,6 +20,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
 import { supabase } from '@/lib/customSupabaseClient';
+import { registerStateKind, openStateRow } from '@/lib/stateVersion';
 import * as spine from '@/lib/productionSpine';
 import { rateAtPwf } from '@/utils/nodal/ipr';
 import { num } from '@/utils/nodal/numerics';
@@ -33,6 +34,10 @@ import {
   diagnose, importLegacyEspInputs, rateLadder, mdAtTvd,
 } from '@/utils/production/esp';
 import { REFERENCE_STAGES, MOTOR_FRAMES, CABLE_SIZES } from '@/utils/production/engine/espCatalog';
+
+// PP0 state kind: the legacy Artificial Lift Designer rows this studio imports
+const LIFT_DESIGN_KIND = 'artificial-lift-design';
+registerStateKind(LIFT_DESIGN_KIND, { current: 1, label: 'lift design' });
 
 const TABLE = 'saved_esp_projects';
 
@@ -418,10 +423,11 @@ export const EspDesignProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('artificial_lift_designs')
-        .select('id, design_name, design_data, updated_at')
+        .select('id, design_name, design_data, updated_at, schema_version')
         .order('updated_at', { ascending: false });
       if (error) throw error;
-      const withEsp = (data || []).filter((d) => d.design_data?.espInputs);
+      const opened = (data || []).map((d) => openStateRow(LIFT_DESIGN_KIND, d));
+      const withEsp = opened.filter((d) => d.design_data?.espInputs);
       setLegacyDesigns(withEsp);
       if (!withEsp.length) {
         addNotification('No old Artificial Lift Designer saves carry ESP inputs.', 'info');

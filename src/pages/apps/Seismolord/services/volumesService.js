@@ -3,6 +3,7 @@
 // owner-path objects so no orphan bricks accumulate.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 import { SEISMIC_BUCKET } from './seismicStorage';
 import { gateManifest } from './manifestGate';
 import { myOrgId } from './surfacesService';
@@ -84,29 +85,33 @@ export async function deleteVolume(volume) {
 
 // ---- W4.2 projects (explorer grouping) -----------------------------------
 
+// PP0 state kind for seismic_projects only (docs/scope/ProjectPortability-PLAN.md
+// §4.3); the registry tables in this file (seismic_volumes etc.) are HELD.
+const SEISMIC_PROJECT_KIND = 'seismic-project';
+registerStateKind(SEISMIC_PROJECT_KIND, { current: 1, label: 'seismic project' });
+
 export async function listProjects() {
   const { data, error } = await supabase.from('seismic_projects')
     .select('*')
     .order('created_at', { ascending: false });
   if (error) throw new Error(`Could not load projects: ${error.message}`);
-  return data || [];
+  return (data || []).map((row) => openStateRow(SEISMIC_PROJECT_KIND, row));
 }
 
 export async function createProject(name, description = null) {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error('You must be signed in to create projects.');
-  const { data, error } = await supabase.from('seismic_projects')
-    .insert({ user_id: user.id, name, description })
-    .select().single();
+  const { data, error } = await writeStamped(SEISMIC_PROJECT_KIND,
+    { user_id: user.id, name, description },
+    (row) => supabase.from('seismic_projects').insert(row).select().single());
   if (error) throw new Error(`Could not create project: ${error.message}`);
   return data;
 }
 
 export async function renameProject(project, name) {
-  const { data, error } = await supabase.from('seismic_projects')
-    .update({ name, updated_at: new Date().toISOString() })
-    .eq('id', project.id)
-    .select().single();
+  const { data, error } = await writeStamped(SEISMIC_PROJECT_KIND,
+    { name, updated_at: new Date().toISOString() },
+    (row) => supabase.from('seismic_projects').update(row).eq('id', project.id).select().single());
   if (error) throw new Error(`Could not rename project: ${error.message}`);
   return data;
 }

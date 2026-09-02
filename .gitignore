@@ -49,3 +49,6 @@ test-results/
 playwright-report/
 __pycache__/
 tools/validation/wells/.venv/
+
+# PP0 platform build stamp written by the prod zip-cut step (vite.config.js platformBuild)
+build-info.json
