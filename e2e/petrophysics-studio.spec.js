@@ -346,6 +346,39 @@ test('PS6: Timur permeability lands the golden zone geometric mean and publishes
   await expect(page.getByTestId('petro-status')).toContainText('Published 5 curves');
 });
 
+test('PS7: histogram cutoff drag writes parameters; twin-well overlay fits identity normalization', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  await page.getByTestId('petro-view-histogram').click();
+  const canvas = page.getByTestId('petro-histogram-canvas');
+  await expect(canvas).toBeVisible();
+  await expect(page.getByTestId('petro-hist-pcts')).toContainText('P50');
+
+  // drag the GR clean line from the left edge to 25% across the plot:
+  // the type well's GR spans exactly 20..120 API, so the committed
+  // value is 20 + 0.25*100 = 45
+  const box = await canvas.boundingBox();
+  const M = { l: 46, r: 44 }; // HistogramChart margins
+  const plotW = box.width - M.l - M.r;
+  const midY = box.y + box.height / 2;
+  await page.mouse.move(box.x + M.l, midY);
+  await page.mouse.down();
+  await page.mouse.move(box.x + M.l + plotW * 0.25, midY, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.getByTestId('petro-param-grClean')).toHaveValue('45');
+  await expect(page.getByTestId('petro-status')).toContainText('grClean = 45');
+
+  // overlay the org-shared twin (same analytic curves) and fit the
+  // normalization: an identical well must fit the identity
+  await page.getByTestId('petro-hist-overlay-AKOMA-2 (org shared)').check();
+  await page.getByTestId('petro-hist-norm-target').selectOption({ index: 1 });
+  await page.getByTestId('petro-hist-fit').click();
+  await expect(page.getByTestId('petro-hist-fit-result')).toContainText('shift 0.000');
+  await expect(page.getByTestId('petro-hist-fit-result')).toContainText('scale 1.0000');
+});
+
 test('PS4: track builder forks the built-in, layout persists, ft toggle and PNG export work', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
   await page.locator('[data-well-name="KETA TYPE-1"]').click();
