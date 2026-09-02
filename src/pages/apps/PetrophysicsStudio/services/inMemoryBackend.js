@@ -75,8 +75,14 @@ export function makeInMemoryBackend() {
     }
   };
 
-  // own well: the analytic type well, one zone pre-seeded
+  // own well: the analytic type well, one zone pre-seeded; a simple
+  // build-and-hold deviation survey exercises the PS10 TVD axis labels
   const ownId = addWell({ name: 'KETA TYPE-1', isOwn: true });
+  wells.find((w) => w.id === ownId).deviation = [
+    { md: 0, inc: 0, azi: 0 },
+    { md: 1500, inc: 0, azi: 0 },
+    { md: 2100, inc: 25, azi: 45 },
+  ];
   addLogs(ownId);
   topsByWell.set(ownId, [
     { id: nextId('top'), well_id: ownId, name: 'Top Sand A', md_m: 2010 },

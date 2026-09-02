@@ -469,6 +469,65 @@ test('PS9: field view compares wells side by side with the golden zone summaries
   await expect(page.getByTestId('petro-field-canvas')).toBeVisible();
 });
 
+test('PS10: Hingle fit recovers Rw; split view brushes selection; TVD toggle; zone edge drag', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  // Hingle water-leg fit lands the construction Rw exactly
+  await page.getByTestId('petro-view-crossplot').click();
+  await page.getByTestId('petro-plot-hingle').click();
+  await page.getByTestId('petro-hingle-top').fill('2075');
+  await page.getByTestId('petro-hingle-base').fill('2078');
+  await page.getByTestId('petro-hingle-fit').click();
+  await expect(page.getByTestId('petro-hingle-result')).toContainText('Rw = 0.050000');
+  await page.getByTestId('petro-param-rw').fill('0.06'); // distort, then apply the fit back
+  await page.getByTestId('petro-hingle-apply').click();
+  await expect(page.getByTestId('petro-param-rw')).toHaveValue('0.05');
+
+  // split view: brush a selection polygon on the crossplot, ticks land
+  // on the tracks side (both canvases visible at once)
+  await page.getByTestId('petro-view-split').click();
+  await expect(page.getByTestId('petro-split')).toBeVisible();
+  await expect(page.getByTestId('petro-tracks-canvas')).toBeVisible();
+  const cp = page.getByTestId('petro-crossplot-canvas');
+  await expect(cp).toBeVisible();
+  await page.getByTestId('petro-select-start').click();
+  const box = await cp.boundingBox();
+  const M = { l: 52, r: 12, t: 12, b: 34 };
+  const pw = box.width - M.l - M.r;
+  const ph = box.height - M.t - M.b;
+  const click = (fx, fy) => page.mouse.click(box.x + M.l + fx * pw, box.y + M.t + fy * ph);
+  await click(0.05, 0.05);
+  await click(0.95, 0.05);
+  await click(0.95, 0.95);
+  await click(0.05, 0.95);
+  await page.getByTestId('petro-select-apply').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Selected');
+  await expect(page.getByTestId('petro-select-clear')).toBeVisible();
+  await page.getByTestId('petro-select-clear').click();
+
+  // TVD axis labels toggle (KETA carries a deviation survey)
+  await page.getByTestId('petro-view-tracks').click();
+  await expect(page.getByTestId('petro-depth-mode')).toContainText('axis: MD');
+  await page.getByTestId('petro-depth-mode').click();
+  await expect(page.getByTestId('petro-depth-mode')).toContainText('axis: TVD');
+  await page.getByTestId('petro-depth-mode').click();
+
+  // drag SAND A's base edge from 2030 to ~2040: the zone card updates
+  const tc = page.getByTestId('petro-tracks-canvas');
+  const tb = await tc.boundingBox();
+  const plotTop = 52;
+  const plotH = tb.height - plotTop - 4;
+  const yOf = (d) => tb.y + plotTop + ((d - 2000) / 100) * plotH;
+  await page.mouse.move(tb.x + tb.width / 2, yOf(2030));
+  await page.mouse.down();
+  await page.mouse.move(tb.x + tb.width / 2, yOf(2040), { steps: 5 });
+  await page.mouse.up();
+  await expect(page.getByTestId('petro-status')).toContainText('Moved SAND A base');
+  await expect(page.locator('[data-zone-name="SAND A"]')).toContainText('2040');
+});
+
 test('org-shared well is read-only for zones; invalid zone input errors', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
 
