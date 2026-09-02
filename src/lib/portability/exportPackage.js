@@ -15,6 +15,7 @@ import { tableSpec, listFamilies } from './familySpec';
 import './geoscienceHooks';
 import './familiesCore';
 import './familiesWellPlanning';
+import './familiesSeismic';
 import { buildManifest, validateManifest, MANIFEST_FILE } from './manifest';
 import { PackageWriter } from './zipWriter';
 import { readmeText } from './sidecars';
@@ -42,6 +43,14 @@ export function isOptionalRefPath(table, path) {
   });
 }
 
+/** Storage path columns carry owner prefixes (uids) that the importer rewrites; they are not references. */
+export function isBlobPathColumn(table, path) {
+  const b = tableSpec(table)?.blob;
+  if (!b) return false;
+  const cols = [b.pathColumn, b.prefixColumn, ...(b.pathColumns || [])].filter(Boolean);
+  return cols.includes(path);
+}
+
 /**
  * @param {object} source          see collect.js
  * @param {Array<{kind, id, name?}>} roots
@@ -60,7 +69,7 @@ export async function buildPackage(source, roots, {
   const refs = detectDanglingRefs(tables, {
     pkColumn: (t) => tableSpec(t)?.pk || 'id',
     scopeIds: [user.user_id, user.organization_id].filter(Boolean),
-    external: isOptionalRefPath,
+    external: (table, path) => isOptionalRefPath(table, path) || isBlobPathColumn(table, path),
   });
   if (refs.dangling.length && !allowDangling) {
     const first = refs.dangling[0];

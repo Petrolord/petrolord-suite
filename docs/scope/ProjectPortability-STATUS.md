@@ -11,7 +11,7 @@ kept, imports private by default, certificate wording in PP5).
 | PP0 Version foundations | **BUILT 2026-09-02**, app-state migration **APPLIED LIVE** same day, gate passed | PR #352 (feat/portability-pp0) |
 | PP1 Package writer, Geoscience | **BUILT 2026-09-02**, gate passed | PR (feat/portability-pp1) |
 | PP2 Importer | **BUILT 2026-09-02**, gate passed; jobs migration awaiting owner apply | PR (feat/portability-pp2) |
-| PP3 Coverage | **PP3a BUILT** (engine generalised + 4 families, PR #355); **PP3b well planning BUILT 2026-09-02**; PP3c Seismolord to follow | PRs feat/portability-pp3, feat/portability-pp3b |
+| PP3 Coverage | **PP3a BUILT** (PR #355), **PP3b BUILT** (PR #356), **PP3c Seismolord BUILT 2026-09-02** | PRs feat/portability-pp3, -pp3b, -pp3c |
 | PP4 Restorable backup | not started | |
 | PP5 Regulatory delivery | not started | |
 
@@ -315,6 +315,56 @@ outside named external references and provenance.
 Not in PP3b: a wellbore-level root (a wellbore alone would lose its
 site's targets, so the site is the unit); re-running studio engines on
 import (runs travel as history).
+
+### PP3c (Seismolord)
+
+- **Family `seismic`** (`familiesSeismic.js`): `seismic_projects` (root)
+  with volumes and 2D lines under it; `seismic_volumes` (root) with
+  horizons, faults and exported surfaces; `seismic_lines` (root) with
+  picks; `seismic_sessions` through a hook. `seismic_wells` is dropped
+  and not packaged.
+- **Bucket layout handled by two engine additions**: `prefixExclude` on a
+  prefix blob (a volume's `horizons/` and a line's `picks/` objects belong
+  to child rows and travel with them, so they are not doubled under the
+  old ids), and `companions` on an object blob (a horizon's `.conf.f32`
+  confidence grid is derived from its path and follows the horizon's new
+  path). Volumes land under `{importer}/{newVolumeId}` with bricks and
+  manifest; horizons under `.../horizons/{newId}.f32`; exported surfaces
+  under `{importer}/exports/{newId}.xyz`; lines under `{importer}/{newLineId}`
+  with picks under `picks/`.
+- **Member horizons** on a shared volume live under the member's own
+  prefix in the source; the row's exact `storage_path` carries them and
+  the importer places them under the importer's volume folder. Storage
+  path columns are now exempt from the dangling-reference check, since the
+  uids they embed are owner prefixes the importer rewrites, not references
+  (found by the gate).
+- **Sessions and bookmarks** come along when their `payload.volume_id`
+  is packaged (required reference); `visibleIds`, `visibleFaultIds` and
+  `visibleSurfaceIds` follow when mapped and are dropped when not. A
+  bookmark for a volume outside the package stays behind.
+- **Optional references**: `project_id`, `parent_volume_id` (attribute
+  volumes), `parent_version_id` (horizon and fault versions),
+  `horizon_id` and provenance ids on exported surfaces.
+- **Stamped**: `seismic_projects`, `seismic_sessions`. Registry tables
+  await migration 20260902120500.
+- **Door**: a Seismic picker (projects, volumes, lines in one list) in the
+  export dialog.
+- **Size**: volumes are many bricks and can reach gigabytes; the in-memory
+  jszip writer is the known limit (STATUS PP1 deviation 1). Real volumes
+  should be tried on staging before this door is advertised; the writer is
+  the seam for a streaming replacement.
+
+Gate (`__tests__/familiesSeismic.test.js`): a project with a volume
+(manifest, two bricks), an owner horizon with confidence companion, a
+member horizon under the member prefix, a fault, an exported surface, a
+2D line with manifest, nav and a pick, one session opening the volume and
+one bookmark for another volume. Every object exported exactly once and
+attributed to its row; after import the volume, horizons, companion,
+exported surface, line and picks land under the importer's paths;
+faults, surface, line and picks re-link; the session follows its volume,
+horizons and fault with the unknown surface dropped; the other bookmark
+stays behind; no source id survives outside provenance. A volume root
+alone brings its horizons, faults and sessions and clears `project_id`.
 
 ## Program gotcha: one database, two builds
 

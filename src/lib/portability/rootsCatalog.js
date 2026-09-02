@@ -32,11 +32,23 @@ async function listSavedProjects() {
 }
 
 /**
- * @param {'wp_site'|'po_field'|'epe_case'|'epe_assumption_set'|'sim_case'|'saved_project'} kind
+ * @param {'seismic_project'|'seismic_volume'|'seismic_line'|'wp_site'|'po_field'|'epe_case'|'epe_assumption_set'|'sim_case'|'saved_project'} kind
  * @returns {Promise<Array<{ id: string, name: string, table?: string, subtitle?: string, organization_id?: string|null }>>}
  */
 export async function listRootCandidates(kind) {
   switch (kind) {
+    case 'seismic_project': {
+      const rows = await rowsOf(supabase.from('seismic_projects').select('id, name').order('name'));
+      return rows.map((r) => ({ id: r.id, name: r.name || `Project ${String(r.id).slice(0, 8)}` }));
+    }
+    case 'seismic_volume': {
+      const rows = await rowsOf(supabase.from('seismic_volumes').select('id, name, kind, organization_id').order('name'));
+      return rows.map((r) => ({ id: r.id, name: r.name || `Volume ${String(r.id).slice(0, 8)}`, subtitle: [r.kind, r.organization_id ? 'shared with organization' : 'private'].filter(Boolean).join(', ') }));
+    }
+    case 'seismic_line': {
+      const rows = await rowsOf(supabase.from('seismic_lines').select('id, name, organization_id').order('name'));
+      return rows.map((r) => ({ id: r.id, name: r.name || `Line ${String(r.id).slice(0, 8)}`, subtitle: r.organization_id ? 'shared with organization' : 'private' }));
+    }
     case 'wp_site': {
       const rows = await rowsOf(supabase.from('wp_sites').select('id, name, organization_id').order('name'));
       return rows.map((r) => ({ id: r.id, name: r.name || `Site ${String(r.id).slice(0, 8)}`, subtitle: r.organization_id ? 'shared with organization' : 'private' }));

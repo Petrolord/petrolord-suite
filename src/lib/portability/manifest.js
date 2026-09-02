@@ -12,6 +12,7 @@ import { PLATFORM_BUILD } from '@/lib/platformBuild';
 import { allRootKinds } from './familySpec';
 import './familiesCore';
 import './familiesWellPlanning';
+import './familiesSeismic';
 
 export const PACKAGE_FORMAT = 'pld';
 export const PACKAGE_VERSION = 1;

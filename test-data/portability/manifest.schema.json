@@ -122,7 +122,10 @@
                   "epe_case",
                   "epe_assumption_set",
                   "sim_case",
-                  "wp_site"
+                  "wp_site",
+                  "seismic_project",
+                  "seismic_volume",
+                  "seismic_line"
                 ]
               },
               "id": {

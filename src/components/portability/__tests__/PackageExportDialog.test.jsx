@@ -28,6 +28,8 @@ jest.mock('@/lib/portability/rootsCatalog', () => ({
     if (kind === 'po_field') return [{ id: '77777777-7777-4777-8777-777777777777', name: 'Keta Field', organization_id: null }];
     if (kind === 'saved_project') return [{ id: '88888888-8888-4888-8888-888888888888', name: 'Choke KETA-1', table: 'saved_choke_projects', subtitle: 'choke' }];
     if (kind === 'wp_site') return [{ id: '99999999-9999-4999-8999-999999999999', name: 'Keta pad', subtitle: 'private' }];
+    if (kind === 'seismic_project') return [{ id: '66666666-6666-4666-8666-666666666666', name: 'Keta 3D' }];
+    if (kind === 'seismic_volume') return [{ id: '55555555-5555-4555-8555-555555555555', name: 'KETA PSTM', subtitle: 'seismic, private' }];
     return [];
   }),
 }));
@@ -136,6 +138,25 @@ test('PP3b section: a well planning site becomes a wp_site root', async () => {
   const [, roots, opts] = mockBuild.mock.calls[0];
   expect(roots).toEqual([{ kind: 'wp_site', id: S1, name: 'Keta pad' }]);
   expect(opts.name).toBe('Keta pad');
+  expect(document.body.textContent.includes('—')).toBe(false);
+});
+
+test('PP3c section: projects and volumes share the Seismic list; a volume becomes a seismic_volume root', async () => {
+  const V1 = '55555555-5555-4555-8555-555555555555';
+  const PJ = '66666666-6666-4666-8666-666666666666';
+  render(<PackageExportDialog open onOpenChange={() => {}} preselect={{ wells: [] }} />);
+  await screen.findByTestId(`pld-well-${W1}`);
+  expect(screen.getByTestId('pld-section-seismic')).toHaveTextContent('Seismic');
+  expect(screen.getByTestId(`pld-seismic-${PJ}`)).toBeInTheDocument();
+  expect(screen.getByText('project')).toBeInTheDocument();
+  expect(screen.getByText('volume: seismic, private')).toBeInTheDocument();
+  fireEvent.click(screen.getByTestId(`pld-seismic-${V1}`));
+  expect(screen.getByTestId('pld-export-run')).toBeEnabled();
+  fireEvent.click(screen.getByTestId('pld-export-run'));
+  await waitFor(() => expect(screen.getByTestId('pld-summary')).toBeInTheDocument());
+  const [, roots, opts] = mockBuild.mock.calls[0];
+  expect(roots).toEqual([{ kind: 'seismic_volume', id: V1, name: 'KETA PSTM' }]);
+  expect(opts.name).toBe('KETA PSTM');
   expect(document.body.textContent.includes('—')).toBe(false);
 });
 

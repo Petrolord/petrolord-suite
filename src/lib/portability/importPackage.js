@@ -24,6 +24,7 @@ import { customCrsId } from './geoscienceSpec';
 import { tableSpec, importOrder } from './familySpec';
 import './familiesCore';
 import './familiesWellPlanning';
+import './familiesSeismic';
 import { validateManifest, packageVersionCheck, UUID_RE, newPackageId } from './manifest';
 import { sha256Hex } from './zipWriter';
 import { walkUuids } from './danglingRefs';
@@ -301,12 +302,31 @@ export function planImport(pkg, target) {
       if (r.__oldPrefix) prefixRows.push({ table, row: r, spec, key: `${spec.blob.bucket}/${r.__oldPrefix}` });
     }
   }
+  // companion objects (derived from a row's main path) map through the same derivation on the new path
+  const companionsByOldPath = new Map();
+  for (const [table, rows] of Object.entries(planned)) {
+    const spec = tableSpec(table);
+    if (!spec.blob?.pathColumn || !spec.blob.companions) continue;
+    for (const r of rows) {
+      if (!r.__oldStoragePath) continue;
+      for (const fn of spec.blob.companions) {
+        const oldAlt = fn(r.__oldStoragePath);
+        const newAlt = fn(r[spec.blob.pathColumn]);
+        if (oldAlt && newAlt) companionsByOldPath.set(`${spec.blob.bucket}/${oldAlt}`, { table, row: r, spec, newPath: newAlt });
+      }
+    }
+  }
   const blobPlan = [];
   for (const b of blobs) {
     const key = `${b.bucket}/${b.path}`;
     const hit = rowsByOldPath.get(key);
     if (hit) {
       blobPlan.push({ bucket: b.bucket, path: hit.row[hit.spec.blob.pathColumn], bytes: b.bytes, contentType: b.content_type || hit.spec.blob.contentType, table: hit.table, rowId: hit.row[hit.spec.pk] });
+      continue;
+    }
+    const comp = companionsByOldPath.get(key);
+    if (comp) {
+      blobPlan.push({ bucket: b.bucket, path: comp.newPath, bytes: b.bytes, contentType: b.content_type || comp.spec.blob.contentType, table: comp.table, rowId: comp.row[comp.spec.pk], companion: true });
       continue;
     }
     const pre = prefixRows.find((p) => key.startsWith(p.key));
@@ -322,7 +342,7 @@ export function planImport(pkg, target) {
   for (const [table, rows] of Object.entries(planned)) {
     const spec = tableSpec(table);
     if (!spec.blob?.pathColumn) continue;
-    for (const r of rows) if (!blobPlan.some((b) => b.rowId === r[spec.pk])) { r[spec.blob.pathColumn] = null; notes.push(`${table} row "${r.mnemonic || r.name || r[spec.pk]}" arrived without its binary data; the row is imported with no file.`); }
+    for (const r of rows) if (!blobPlan.some((b) => b.rowId === r[spec.pk] && !b.companion)) { r[spec.blob.pathColumn] = null; notes.push(`${table} row "${r.mnemonic || r.name || r[spec.pk]}" arrived without its binary data; the row is imported with no file.`); }
   }
 
   // custom CRS definitions to merge (ids preserved)

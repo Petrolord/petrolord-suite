@@ -60,9 +60,20 @@ async function collectBlobsFor(source, col, table, spec, row) {
       if (!path) return;
       const bytes = await source.downloadBlob(b.bucket, path);
       rememberBlob(col, table, row[spec.pk], b.bucket, path, b.contentType, bytes);
+      // companion objects derived from the main path (e.g. a horizon's .conf.f32); missing ones are fine
+      for (const fn of b.companions || []) {
+        const alt = fn(path);
+        if (!alt || alt === path) continue;
+        try {
+          const more = await source.downloadBlob(b.bucket, alt);
+          rememberBlob(col, table, row[spec.pk], b.bucket, alt, b.contentType, more);
+        } catch (e) { /* no companion stored */ }
+      }
     } else if (b.prefixOf) {
       const prefix = b.prefixOf(row);
-      const objects = await source.listBlobs(b.bucket, prefix);
+      const all = await source.listBlobs(b.bucket, prefix);
+      // objects that belong to child rows (a volume's horizons/, a line's picks/) travel with those rows
+      const objects = b.prefixExclude ? all.filter((o) => !b.prefixExclude(o.path.slice(prefix.length).replace(/^\//, ''))) : all;
       for (const o of objects) {
         const bytes = await source.downloadBlob(b.bucket, o.path);
         rememberBlob(col, table, row[spec.pk], b.bucket, o.path, b.contentType, bytes);

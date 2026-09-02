@@ -59,3 +59,17 @@ test('wp_site lists sites with a sharing subtitle; errors yield an empty list', 
   canned.wp_sites = { data: null, error: { message: 'boom' } };
   expect(await listRootCandidates('wp_site')).toEqual([]);
 });
+
+test('seismic kinds: projects, volumes (kind + sharing subtitle) and lines; errors yield an empty list', async () => {
+  canned.seismic_projects = { data: [{ id: 'p1', name: 'Keta 3D' }, { id: 'p2', name: null }], error: null };
+  canned.seismic_volumes = { data: [{ id: 'v1', name: 'KETA PSTM', kind: 'seismic', organization_id: null }, { id: 'v2', name: 'RMS', kind: 'attribute', organization_id: 'org' }], error: null };
+  canned.seismic_lines = { data: null, error: { message: 'boom' } };
+  expect(await listRootCandidates('seismic_project')).toEqual([{ id: 'p1', name: 'Keta 3D' }, { id: 'p2', name: 'Project p2' }]);
+  expect(await listRootCandidates('seismic_volume')).toEqual([
+    { id: 'v1', name: 'KETA PSTM', subtitle: 'seismic, private' },
+    { id: 'v2', name: 'RMS', subtitle: 'attribute, shared with organization' },
+  ]);
+  expect(await listRootCandidates('seismic_line')).toEqual([]);
+  canned.seismic_lines = { data: [{ id: 'l1', name: 'L-01', organization_id: null }], error: null };
+  expect(await listRootCandidates('seismic_line')).toEqual([{ id: 'l1', name: 'L-01', subtitle: 'private' }]);
+});
