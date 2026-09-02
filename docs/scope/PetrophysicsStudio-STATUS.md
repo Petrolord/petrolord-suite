@@ -19,6 +19,10 @@ engine citations, no-depth empty state (audit A1/C2/C3 closed).
 interpretations CRUD, per-zone override patches through the zoned
 pipeline (engines PR #94, PIPELINE_VERSION 2), migration
 20260901120000 applied live (audit A2/B1 closed).
+**PS4 (track builder) DONE 2026-09-02**: layout templates in
+petro_projects.layouts (clone-on-edit built-ins, portable curve
+addresses), LayoutPanel editor, header-click editing, ft display
+toggle, track plot PNG export.
 
 Production note: **RESOLVED 2026-07-14** — prod is current (source zip
 from main `e84f8a181` uploaded to Hostinger); the tile, route and the
