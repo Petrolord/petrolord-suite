@@ -99,7 +99,7 @@ export function validateManifest(m) {
   if (!isObj(m)) return { ok: false, errors: ['manifest: not an object'] };
 
   checkKeys(m,
-    ['format', 'package_version', 'package_id', 'name', 'created_at', 'platform', 'source', 'scope', 'tables', 'blobs', 'open', 'files', 'signature', 'notes'],
+    ['format', 'package_version', 'package_id', 'name', 'created_at', 'platform', 'source', 'scope', 'tables', 'blobs', 'open', 'files', 'signature', 'notes', 'parts'],
     ['format', 'package_version', 'package_id', 'created_at', 'platform', 'source', 'scope', 'tables', 'blobs', 'open', 'files'],
     'manifest', errors);
 
@@ -150,7 +150,8 @@ export function validateManifest(m) {
   if (Array.isArray(m.blobs)) {
     m.blobs.forEach((b, i) => {
       if (!isObj(b)) { errors.push(`blobs[${i}]: object required`); return; }
-      checkKeys(b, ['bucket', 'path', 'file', 'bytes', 'table', 'row_id', 'content_type'], ['bucket', 'path', 'file', 'bytes'], `blobs[${i}]`, errors);
+      checkKeys(b, ['bucket', 'path', 'file', 'bytes', 'table', 'row_id', 'content_type', 'part'], ['bucket', 'path', 'file', 'bytes'], `blobs[${i}]`, errors);
+      if ('part' in b && !isInt(b.part, 1)) errors.push(`blobs[${i}].part: integer >= 1`);
       if (!isStr(b.file) || !b.file.startsWith('blobs/')) errors.push(`blobs[${i}].file: must start with blobs/`);
       if (!isInt(b.bytes, 0)) errors.push(`blobs[${i}].bytes: integer >= 0`);
     });
@@ -183,6 +184,19 @@ export function validateManifest(m) {
     else checkKeys(m.signature, ['alg', 'key_id', 'value'], [], 'signature', errors);
   }
   if ('notes' in m && !(Array.isArray(m.notes) && m.notes.every(isStr))) errors.push('notes: array of strings');
+  if ('parts' in m) {
+    if (!Array.isArray(m.parts) || m.parts.length < 2) errors.push('parts: array of at least two parts');
+    else m.parts.forEach((p, i) => {
+      if (!isObj(p)) { errors.push(`parts[${i}]: object required`); return; }
+      checkKeys(p, ['index', 'file', 'bytes', 'sha256'], ['index'], `parts[${i}]`, errors);
+      if (p.index !== i + 1) errors.push(`parts[${i}].index: expected ${i + 1}`);
+      if (i > 0) {
+        if (!isInt(p.bytes, 0)) errors.push(`parts[${i}].bytes: integer >= 0`);
+        if (!isStr(p.sha256) || !SHA256_RE.test(p.sha256)) errors.push(`parts[${i}].sha256: 64 hex chars`);
+      }
+    });
+    if (Array.isArray(m.blobs) && Array.isArray(m.parts)) for (const b of m.blobs) if (isObj(b) && 'part' in b && !(b.part >= 1 && b.part <= m.parts.length)) errors.push(`blobs: part ${b.part} not in parts`);
+  } else if (Array.isArray(m.blobs) && m.blobs.some((b) => isObj(b) && b.part > 1)) errors.push('blobs: a part above 1 needs a parts list');
 
   return { ok: errors.length === 0, errors };
 }

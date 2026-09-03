@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
+import BackupPanel from '@/components/portability/BackupPanel';
+import RestorePanel from '@/components/portability/RestorePanel';
 
 const MAX_LISTED_FILES = 300;
 
@@ -370,6 +372,9 @@ export default function DataExport() {
             </Table>
           </CardContent>
         </Card>
+
+        <BackupPanel />
+        <RestorePanel />
 
         <Card className="bg-slate-900 border-red-900/60">
           <CardHeader>

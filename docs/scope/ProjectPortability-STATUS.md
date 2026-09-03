@@ -12,7 +12,7 @@ kept, imports private by default, certificate wording in PP5).
 | PP1 Package writer, Geoscience | **BUILT 2026-09-02**, gate passed | PR (feat/portability-pp1) |
 | PP2 Importer | **BUILT 2026-09-02**, gate passed; jobs migration awaiting owner apply | PR (feat/portability-pp2) |
 | PP3 Coverage | **PP3a BUILT** (PR #355), **PP3b BUILT** (PR #356), **PP3c Seismolord BUILT 2026-09-02** | PRs feat/portability-pp3, -pp3b, -pp3c |
-| PP4 Restorable backup | not started | |
+| PP4 Restorable backup | **BUILT 2026-09-02** (client-side, beside the offboarding dump) | PR (feat/portability-pp4) |
 | PP5 Regulatory delivery | not started | |
 
 ## PP0 (2026-09-02)
@@ -365,6 +365,55 @@ faults, surface, line and picks re-link; the session follows its volume,
 horizons and fault with the unknown surface dropped; the other bookmark
 stays behind; no source id survives outside provenance. A volume root
 alone brings its horizons, faults and sessions and clears `project_id`.
+
+## PP4 (2026-09-02)
+
+Owner decision (§8.4): the offboarding dump stays untouched. PP4 adds
+backup and restore doors beside it, on the same `.pld` engine.
+
+- **Multi-part packages** (`packageSet.js`): one logical package over N
+  archives. Part 1 holds rows, sidecars and the manifest; blobs fill parts
+  up to the part size (1.5 GB of input by default). The manifest gains
+  `parts` (index, file, bytes, sha256 of every part after the first) and
+  each blob names its `part`; the schema is updated. A single-part set is
+  exactly the PP1 package. The importer accepts all parts together in any
+  order, verifies every later part by hash before touching anything, and
+  refuses a missing part, an altered part, or extra files on a single-part
+  package.
+- **Backup** (`backup.js`): `discoverBackupRoots('mine' | 'org')` lists
+  every root the caller can read across all families (wells, surfaces,
+  culture, interpretations, seismic projects, volumes and lines, sites,
+  fields, economics cases and assumption sets, simulation cases, saved
+  projects by table); `'mine'` keeps rows the caller owns, `'org'` adds
+  rows teammates shared with the organization. `buildBackup` runs the
+  generic exporter over that root set into a `PackageSet`.
+- **Doors** on the Data Export page: "Back up my work", "Back up what my
+  organization shares", and "Restore from a package" (the import dialog,
+  which now takes several files for multi-part sets).
+- **What a client-side backup cannot contain**: other members' private
+  rows. Row-level security hides them from everyone but their owner,
+  admin or not; the offboarding dump (service role) is the tool for that,
+  and restoring members' private rows into another organization would
+  change their ownership anyway. Each member backs up their own work.
+  The PLAN's server-side closure engine for the largest root sets is
+  therefore not built: with the offboarding dump kept as is, there is no
+  remaining client need for it.
+- `rootsCatalog` now returns `user_id` on every candidate and lists
+  interpretation kinds, so backups can tell mine from shared.
+
+Gate (`__tests__/packageSet.test.js`, `__tests__/backup.test.js`): blobs
+over the part size spill into numbered parts with hashes; the importer
+opens all parts together in any order and restores every blob byte for
+byte; missing, altered and extra parts refused. Backup of my work across
+wells, a surface, a production field with its well linked to the
+registry well, a saved choke project linked to both, and a simulation
+case: the world is wiped, the package restores into an empty account,
+every table's row count matches the manifest, blobs are byte-identical,
+and the links follow the restored rows. An `'org'` backup carries the
+teammate's shared well too.
+
+The staging half of the gate (export a disposable organization, purge it
+through the offboarding path, restore into a fresh one) is an owner step.
 
 ## Program gotcha: one database, two builds
 

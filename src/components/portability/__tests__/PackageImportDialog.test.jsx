@@ -57,7 +57,9 @@ test('picks a file, reviews the plan, imports and reports', async () => {
   expect(review).toHaveTextContent('You already have a well named "KETA TYPE-1".');
   expect(review).toHaveTextContent('Source Co');
   expect(mockPreflight).toHaveBeenCalledTimes(1);
-  expect(mockPreflight.mock.calls[0][0]).toBeInstanceOf(Uint8Array);
+  // files travel as an array so multi-part packages can be chosen together
+  expect(Array.isArray(mockPreflight.mock.calls[0][0])).toBe(true);
+  expect(mockPreflight.mock.calls[0][0][0]).toBeInstanceOf(Uint8Array);
   expect(mockPreflight.mock.calls[0][2]).toEqual({ shareWithOrg: false });
   expect(screen.getByTestId('pld-import-scope-org')).toBeDisabled();
   expect(screen.getByTestId('pld-import-scope-private')).toBeChecked();
