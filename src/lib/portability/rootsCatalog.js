@@ -32,11 +32,15 @@ async function listSavedProjects() {
 }
 
 /**
- * @param {'po_field'|'epe_case'|'epe_assumption_set'|'sim_case'|'saved_project'} kind
+ * @param {'wp_site'|'po_field'|'epe_case'|'epe_assumption_set'|'sim_case'|'saved_project'} kind
  * @returns {Promise<Array<{ id: string, name: string, table?: string, subtitle?: string, organization_id?: string|null }>>}
  */
 export async function listRootCandidates(kind) {
   switch (kind) {
+    case 'wp_site': {
+      const rows = await rowsOf(supabase.from('wp_sites').select('id, name, organization_id').order('name'));
+      return rows.map((r) => ({ id: r.id, name: r.name || `Site ${String(r.id).slice(0, 8)}`, subtitle: r.organization_id ? 'shared with organization' : 'private' }));
+    }
     case 'po_field': {
       const rows = await rowsOf(supabase.from('po_fields').select('id, name, organization_id').order('name'));
       return rows.map((r) => ({ id: r.id, name: r.name, organization_id: r.organization_id ?? null }));

@@ -19,8 +19,10 @@ import { buildGeosciencePackage, PackageIntegrityError } from '@/lib/portability
 import { savePackage, packageFilename } from '@/lib/portability/zipWriter';
 import { listRootCandidates } from '@/lib/portability/rootsCatalog';
 
-// PP3a sections: key -> the root kinds listed under it
+// PP3a/PP3b sections: key -> the root kinds listed under it
 const EXTRA_SECTIONS = [
+  // PP3b
+  { key: 'wp_site', title: 'Well planning sites', kinds: ['wp_site'], testPrefix: 'pld-wpsite', emptyText: 'No well planning sites.' },
   { key: 'fields', title: 'Production fields', kinds: ['po_field'], testPrefix: 'pld-field', emptyText: 'No production fields.' },
   { key: 'cases', title: 'Economics cases', kinds: ['epe_case', 'epe_assumption_set'], testPrefix: 'pld-case', emptyText: 'No economics cases or assumption sets.' },
   { key: 'sim', title: 'Simulation cases', kinds: ['sim_case'], testPrefix: 'pld-sim', emptyText: 'No simulation cases.' },

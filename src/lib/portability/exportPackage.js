@@ -14,6 +14,7 @@ import { detectDanglingRefs } from './danglingRefs';
 import { tableSpec, listFamilies } from './familySpec';
 import './geoscienceHooks';
 import './familiesCore';
+import './familiesWellPlanning';
 import { buildManifest, validateManifest, MANIFEST_FILE } from './manifest';
 import { PackageWriter } from './zipWriter';
 import { readmeText } from './sidecars';

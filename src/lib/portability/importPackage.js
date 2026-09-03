@@ -23,6 +23,7 @@ import JSZip from 'jszip';
 import { customCrsId } from './geoscienceSpec';
 import { tableSpec, importOrder } from './familySpec';
 import './familiesCore';
+import './familiesWellPlanning';
 import { validateManifest, packageVersionCheck, UUID_RE, newPackageId } from './manifest';
 import { sha256Hex } from './zipWriter';
 import { walkUuids } from './danglingRefs';
@@ -177,9 +178,11 @@ function rewriteSoftRef(row, ref, idMap, table) {
     setPath(row, basePath, out);
     return problems;
   }
-  // 'any': rewrite every uuid-shaped string under the path that we know; leave others
+  // 'any': rewrite every known uuid under the path, including uuids embedded inside
+  // longer strings ('wp:<uuid>', 'geo:<uuid>'); unknown ones stay as they are
+  const UUID_IN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
   const rewriteAny = (v) => {
-    if (typeof v === 'string') { const to = map(v); return to || v; }
+    if (typeof v === 'string') { const to = map(v); return to || v.replace(UUID_IN, (m) => map(m) || m); }
     if (Array.isArray(v)) return v.map(rewriteAny);
     if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [map(k) || k, rewriteAny(x)]));
     return v;
