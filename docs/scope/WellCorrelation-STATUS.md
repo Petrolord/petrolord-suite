@@ -41,3 +41,10 @@ redirect are live on petrolord.com.
 depth navigator) and uses the shared `depthNavMath` zoom/pan, which adds
 data-extent clamping to the wheel and pan. Tops will share the
 `src/components/wells/topColors.js` palette from PT3.
+
+## 2026-09-03: tops are also edited in Petrophysics Studio (PT3)
+
+Petrophysics now creates, moves, renames and deletes `geo_wells_tops`
+rows on own wells (same rows this app draws and propagates). Reload a
+section to see changes made there. Top colours come from the shared
+`topColors.js` palette from PT5 onwards.

@@ -167,3 +167,19 @@ panel types and shows depths in the display unit, and the field-view net
 line and zone statuses follow it. Tests: `petroExport.test.js` (feet CSV,
 TVD from the survey, LAS feet round trip, TVD primary, zone CSV columns,
 defaults byte-identical); e2e PS2 downloads a feet + TVDSS CSV.
+
+## PT3 tops in the Studio (2026-09-03)
+
+Tops uploaded in Well Data Manager were drawn but could not be toggled,
+coloured or edited here. Now: a Tops dock panel (show all, per-top
+visibility and colour, depths in the display unit), deterministic colours
+by name shared with Well Correlation (`src/components/wells/topColors.js`),
+and on own wells a pick mode (click in the log area, name it inline),
+drag on the right-edge name tag, rename and delete. The rows are the
+registry's `geo_wells_tops`, so Well Correlation sees every change. The
+harness seeds Top Shale exactly on the SAND A zone base; zone edges keep
+winning mid-plot, tops are only hit inside their tag (`viewer/hitTest.js`).
+Preferences persist with the interpretation in `layouts.topStyles` (no
+migration). The Field view honours the same visibility and colours and
+has its own Tops checkbox. This amends the PS-era recorded decision that
+tops were read-only here.

@@ -566,3 +566,50 @@ test('PT1: an own well offers the Edit well data link into Well Data Manager on 
   await page.locator('[data-well-name="AKOMA-2 (org shared)"]').click();
   await expect(page.getByTestId('petro-edit-well-data')).toHaveCount(0);
 });
+
+test('PT3: pick, rename, hide, drag and delete a top; shared wells stay read-only', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  const canvas = page.getByTestId('petro-tracks-canvas');
+  await expect(canvas).toBeVisible();
+  const box = await canvas.boundingBox();
+  const plotTop = 52;
+  const plotH = box.height - plotTop - 4;
+  const yOf = (d) => box.y + plotTop + ((d - 2000) / 100) * plotH;
+
+  // pick a top mid-plot at 2065 m
+  await page.getByTestId('petro-top-pick').click();
+  await page.mouse.click(box.x + box.width / 2, yOf(2065));
+  await page.getByTestId('petro-top-name').fill('Top Sand C');
+  await page.getByTestId('petro-top-confirm').click();
+  await expect(page.getByTestId('petro-top-md-Top Sand C')).toContainText('2065');
+  await expect(page.getByTestId('petro-status')).toContainText('Added top Top Sand C');
+  // finish picking
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('petro-tracks')).toHaveAttribute('data-pick-mode', '');
+
+  // rename inline
+  await page.getByTestId('petro-top-rename-Top Sand C').click();
+  await page.getByTestId('petro-top-rename-input').fill('Top Sand C2');
+  await page.getByTestId('petro-top-rename-input').press('Enter');
+  await expect(page.getByTestId('petro-top-row-Top Sand C2')).toBeVisible();
+
+  // drag the tag at the right edge from 2065 to 2075
+  await page.mouse.move(box.x + box.width - 30, yOf(2065));
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 30, yOf(2070));
+  await page.mouse.move(box.x + box.width - 30, yOf(2075));
+  await page.mouse.up();
+  await expect(page.getByTestId('petro-top-md-Top Sand C2')).toContainText('2075');
+
+  // hide it, then delete it
+  await page.getByTestId('petro-top-visible-Top Sand C2').uncheck();
+  page.once('dialog', (d) => d.accept());
+  await page.getByTestId('petro-top-delete-Top Sand C2').click();
+  await expect(page.getByTestId('petro-top-row-Top Sand C2')).toHaveCount(0);
+
+  // the org-shared well is read-only: no pick button, footer says so
+  await page.locator('[data-well-name="AKOMA-2 (org shared)"]').click();
+  await expect(page.getByTestId('petro-tops')).toContainText('read-only');
+  await expect(page.getByTestId('petro-top-pick')).toHaveCount(0);
+});
