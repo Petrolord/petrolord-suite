@@ -8,23 +8,18 @@
 // cheap (the Seismolord annotations pattern).
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { drawCurve } from '../viewer/trackRender';
+import { PALETTES, paintTrackBody, paintDepthAxis } from '@/components/wells/trackPainter';
 import { displayedDepth } from '../engine/section';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 import { topColor, topKey } from '@/components/wells/topColors';
 import DepthNavigator from '@/components/wells/DepthNavigator';
 
 // Light palette (Suite chart standard, src/utils/chartTheme.js): white
-// plot with slate grid and axes, so tracks read like a printed log.
-const BG = '#ffffff';
-const HEADER_BG = '#f1f5f9';           // slate-100
-const FRAME = 'rgba(148,163,184,0.9)'; // slate-400
-const GRID = 'rgba(203,213,225,0.9)';  // slate-300
-const AXIS_TEXT = '#475569';           // slate-600
-const TEXT = '#1e293b';                // slate-800
-const TEXT_STRONG = '#0f172a';         // slate-900
-const CROSSHAIR = 'rgba(71,85,105,0.7)';
-const TOP_LINE = '#d97706';            // amber-600
+// plot with slate grid and axes, so tracks read like a printed log; the
+// track bodies come from the shared painter (fills included, 2026-09-03).
+const {
+  bg: BG, headerBg: HEADER_BG, frame: FRAME, axisText: AXIS_TEXT, text: TEXT, textStrong: TEXT_STRONG, crosshair: CROSSHAIR,
+} = PALETTES.light;
 const TOP_TEXT = '#b45309';            // amber-700
 const AXIS_W = 56;
 const HEADER_H = 34;
@@ -99,24 +94,9 @@ export default function MultiWellTracks({ wells, view: viewProp, onViewChange, t
     ctx.fillRect(0, 0, size.w, size.h);
 
     // depth axis
-    ctx.strokeStyle = GRID;
-    ctx.fillStyle = AXIS_TEXT;
-    ctx.font = '10px sans-serif';
-    const span = vBase - vTop;
-    const step = 10 ** Math.floor(Math.log10(span / 6));
-    const grid = span / step >= 30 ? step * 5 : span / step >= 12 ? step * 2 : step;
-    for (let d = Math.ceil(vTop / grid) * grid; d <= vBase; d += grid) {
-      const y = yOf(d);
-      ctx.beginPath(); ctx.moveTo(AXIS_W, y); ctx.lineTo(size.w, y); ctx.stroke();
-      ctx.textAlign = 'right';
-      ctx.fillText(String(Math.round(d)), AXIS_W - 4, y + 3);
-    }
-    ctx.save();
-    ctx.translate(10, plotTop + plotH / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = 'center';
-    ctx.fillText('Displayed depth (m)', 0, 0);
-    ctx.restore();
+    paintDepthAxis(ctx, {
+      axisW: AXIS_W, plotTop, plotH, plotRight: size.w, vTop, vBase, yOf, title: 'Displayed depth (m)',
+    });
 
     const colW = (size.w - AXIS_W) / wells.length;
     wells.forEach((well, wi) => {
@@ -153,18 +133,14 @@ export default function MultiWellTracks({ wells, view: viewProp, onViewChange, t
       let tx = cx0;
       for (const track of well.tracks) {
         const tw = ((track.width || 1) / totalRatio) * colW;
-        ctx.strokeStyle = FRAME;
-        ctx.strokeRect(tx + 0.5, plotTop + 0.5, tw - 1, plotH - 1);
+        // frame, fills and curves from the shared painter (no per-track
+        // header here: the column header is the well name)
+        paintTrackBody(ctx, { track, depth, yOf: yOfWell, i0, i1, x0: tx, w: tw, plotTop, plotH });
         // tiny track label
         ctx.font = '9px sans-serif';
         ctx.fillStyle = AXIS_TEXT;
         ctx.textAlign = 'center';
         ctx.fillText(track.title, tx + tw / 2, plotTop + 9, tw - 4);
-        for (const curve of track.curves) {
-          drawCurve(ctx, {
-            track, curve, depth, yOf: yOfWell, i0, i1, x0: tx, trackW: tw, plotH,
-          });
-        }
         tx += tw;
       }
 

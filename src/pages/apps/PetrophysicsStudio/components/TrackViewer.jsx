@@ -9,13 +9,15 @@
 // the viewer owns only its depth window and cursor.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { crossoverPolys, thresholdPolys, fillPolys, makeRamp, rampStrips } from '../viewer/fills';
-import { drawCurve, xScaleFor, trackGeometry } from '../viewer/trackRender';
-import { hitZoneEdgeAt, hitTopAt } from '../viewer/hitTest';
+import { trackGeometry } from '@/components/wells/trackRender';
+import {
+  PALETTES, visibleRange, paintDepthAxis, paintTrackColumn, paintReadouts, paintTopMarker,
+} from '@/components/wells/trackPainter';
+import { hitZoneEdgeAt, hitTopAt } from '@/components/wells/hitTest';
 import { topColor } from '@/components/wells/topColors';
 import TopNamePopover from '@/components/wells/TopNamePopover';
 import DepthNavigator from '@/components/wells/DepthNavigator';
-import { depthLabel } from '../viewer/depthModes';
+import { depthLabel } from '@/components/wells/depthModes';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 
 const AXIS_W = 56;        // depth axis gutter
@@ -23,15 +25,10 @@ const HEADER_H = 50;      // track header (title + scale rows + readout)
 const PAD_TOP = 2;
 
 // Light palette (Suite chart standard, src/utils/chartTheme.js): white
-// plot with slate grid and axes, so tracks read like a printed log.
-const BG = '#ffffff';
-const HEADER_BG = '#f1f5f9';           // slate-100
-const FRAME = 'rgba(148,163,184,0.9)'; // slate-400
-const GRID = 'rgba(203,213,225,0.9)';  // slate-300
-const AXIS_TEXT = '#475569';           // slate-600
-const TEXT = '#1e293b';                // slate-800
-const TEXT_STRONG = '#0f172a';         // slate-900
-const CROSSHAIR = 'rgba(71,85,105,0.7)';
+// plot with slate grid and axes, so tracks read like a printed log. The
+// track primitives live in the shared painter (trackPainter.js) since
+// 2026-09-03, so Well Correlation paints the same picture.
+const { bg: BG, textStrong: TEXT_STRONG, crosshair: CROSSHAIR } = PALETTES.light;
 const TOP_LINE = '#d97706';            // amber-600
 const TOP_TEXT = '#b45309';            // amber-700
 const ZONE_COLORS = ['rgba(14,116,144,0.10)', 'rgba(217,119,6,0.10)', 'rgba(5,150,105,0.10)', 'rgba(190,24,93,0.10)'];
@@ -156,9 +153,6 @@ export default function TrackViewer({
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, size.w, size.h);
 
-    const trackXs = geom.map((g) => g.x0);
-    const trackWs = geom.map((g) => g.w);
-
     // zone bands under everything
     zones.forEach((z, zi) => {
       const y0 = yOf(Math.max(z.top_md_m, vTop));
@@ -172,33 +166,15 @@ export default function TrackViewer({
       ctx.fillText(z.name, AXIS_W + 4, Math.max(plotTop + 10, y0 + 11));
     });
 
-    // depth axis + gridlines — the grid is chosen in DISPLAY units so
-    // an ft axis lands on round feet
-    ctx.strokeStyle = GRID;
-    ctx.fillStyle = AXIS_TEXT;
-    ctx.font = '10px sans-serif';
-    const span = (vBase - vTop) * F;
-    const step = 10 ** Math.floor(Math.log10(span / 6));
-    const grid = span / step >= 30 ? step * 5 : span / step >= 12 ? step * 2 : step;
-    for (let dv = Math.ceil((vTop * F) / grid) * grid; dv <= vBase * F; dv += grid) {
-      const y = yOf(dv / F);
-      ctx.beginPath();
-      ctx.moveTo(AXIS_W, y);
-      ctx.lineTo(size.w, y);
-      ctx.stroke();
-      ctx.textAlign = 'right';
-      // TVD mode swaps the LABELS only — spacing stays MD, and the
-      // axis title says so
-      const label = tvdLookup ? tvdLookup(dv / F) * F : dv;
-      ctx.fillText(Number.isFinite(label) ? String(Math.round(label)) : '—', AXIS_W - 4, y + 3);
-    }
-    ctx.save();
-    ctx.translate(10, plotTop + plotH / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = 'center';
+    // depth axis + gridlines — the grid is chosen in DISPLAY units so an
+    // ft axis lands on round feet. TVD mode swaps the LABELS only —
+    // spacing stays MD, and the axis title says so
     const unitTxt = depthUnit === 'ft' ? 'ft' : 'm';
-    ctx.fillText(tvdLookup ? `TVD (${unitTxt}) on MD spacing` : `MD (${unitTxt})`, 0, 0);
-    ctx.restore();
+    paintDepthAxis(ctx, {
+      axisW: AXIS_W, plotTop, plotH, plotRight: size.w, vTop, vBase, yOf, F,
+      labelOf: tvdLookup ? (d) => tvdLookup(d) * F : undefined,
+      title: tvdLookup ? `TVD (${unitTxt}) on MD spacing` : `MD (${unitTxt})`,
+    });
 
     // crossplot-brushed selection: cyan ticks along the axis gutter
     if (selection && selection.size) {
@@ -212,168 +188,16 @@ export default function TrackViewer({
       }
     }
 
-    // visible sample range
-    let i0 = 0;
-    while (i0 < depth.length - 1 && depth[i0] < vTop) i0++;
-    let i1 = depth.length - 1;
-    while (i1 > 0 && depth[i1] > vBase) i1--;
-    i0 = Math.max(0, i0 - 1);
-    i1 = Math.min(depth.length - 1, i1 + 1);
-
-    tracks.forEach((track, ti) => {
-      const x0 = trackXs[ti];
-      const trackW = trackWs[ti];
-
-      // header
-      ctx.fillStyle = HEADER_BG;
-      ctx.fillRect(x0, 0, trackW, HEADER_H);
-      ctx.strokeStyle = FRAME;
-      ctx.strokeRect(x0 + 0.5, 0.5, trackW - 1, HEADER_H - 1);
-      ctx.strokeRect(x0 + 0.5, plotTop + 0.5, trackW - 1, plotH - 1);
-      ctx.font = '11px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = TEXT;
-      ctx.fillText(track.title, x0 + trackW / 2, 12);
-      if (track.type !== 'strip') {
-        // one scale row per distinct curve range (max two rows), in the
-        // curve's color when it overrides the track scale
-        ctx.font = '9px sans-serif';
-        const rows = [];
-        const seen = new Set();
-        for (const curve of track.curves) {
-          const min = curve.min ?? track.min;
-          const max = curve.max ?? track.max;
-          const scale = curve.scale ?? track.scale;
-          const sig = `${min}|${max}|${scale}`;
-          if (seen.has(sig)) continue;
-          seen.add(sig);
-          rows.push({
-            min, max, scale,
-            color: curve.min != null || curve.max != null ? curve.color : AXIS_TEXT,
-          });
-          if (rows.length === 2) break;
-        }
-        rows.forEach((r, ri) => {
-          const y = 24 + ri * 9;
-          ctx.fillStyle = r.color;
-          ctx.textAlign = 'left';
-          ctx.fillText(`${r.min}`, x0 + 4, y);
-          ctx.textAlign = 'right';
-          ctx.fillText(`${r.max}${r.scale === 'log' ? ' log' : ''}`, x0 + trackW - 4, y);
-        });
-      }
-
-      // categorical strip track (facies): per-sample colored bands
-      if (track.type === 'strip') {
-        const data = track.curves[0].data;
-        for (let i = i0; i < i1; i++) {
-          const v = data[i];
-          if (!Number.isFinite(v)) continue;
-          const color = track.colors[Math.round(v) % track.colors.length];
-          ctx.fillStyle = `${color}cc`;
-          const y = yOf(depth[i]);
-          const y2 = yOf(depth[i + 1]);
-          ctx.fillRect(x0 + 2, y, trackW - 4, Math.max(1, y2 - y));
-        }
-        return;
-      }
-
-      const clampX = (x) => Math.min(x0 + trackW - 2, Math.max(x0 + 2, x));
-
-      // fills under the curve lines (PS1): project each referenced
-      // curve through its own scale, then build device-space polygons
-      if (track.fills?.length) {
-        const proj = (curve) => {
-          const xsC = xScaleFor(track, curve, x0, trackW);
-          const out = new Float64Array(i1 + 1).fill(NaN);
-          for (let i = i0; i <= i1; i++) {
-            const v = curve.data[i];
-            if (!Number.isFinite(v)) continue;
-            const x = xsC(v);
-            if (Number.isFinite(x)) out[i] = clampX(x);
-          }
-          return out;
-        };
-        const ys = new Float64Array(i1 + 1).fill(NaN);
-        for (let i = i0; i <= i1; i++) ys[i] = yOf(depth[i]);
-        for (const f of track.fills) {
-          const ca = track.curves[f.a];
-          if (!ca) continue;
-          const alpha = Math.round((f.opacity ?? 0.3) * 255).toString(16).padStart(2, '0');
-          if (f.mode === 'crossover' && track.curves[f.b]) {
-            const { pos, neg } = crossoverPolys(proj(ca), proj(track.curves[f.b]), ys, i0, i1);
-            if (f.positiveColor) fillPolys(ctx, pos, `${f.positiveColor}${alpha}`);
-            if (f.negativeColor) fillPolys(ctx, neg, `${f.negativeColor}${alpha}`);
-          } else if (f.mode === 'threshold') {
-            const xt = xScaleFor(track, ca, x0, trackW)(f.value);
-            if (!Number.isFinite(xt)) continue;
-            const pa = proj(ca);
-            const side = f.side || 'above';
-            if (f.color) fillPolys(ctx, thresholdPolys(pa, clampX(xt), ys, side, i0, i1), `${f.color}${alpha}`);
-            // PT6: the other side in color2 (GR cut-off: sand one colour, shale the other)
-            if (f.color2) fillPolys(ctx, thresholdPolys(pa, clampX(xt), ys, side === 'above' ? 'below' : 'above', i0, i1), `${f.color2}${alpha}`);
-          } else if (f.mode === 'ramp') {
-            // PT6: strips coloured by the curve's own value
-            const ramp = makeRamp(f.stops);
-            if (!ramp) continue;
-            const pa = proj(ca);
-            const strips = rampStrips(pa, ys, i0, i1, plotH, ca.data, f.fillTo);
-            const left = x0 + 2;
-            const right = x0 + trackW - 2;
-            ctx.save();
-            ctx.globalAlpha = f.opacity ?? 0.85;
-            for (const st of strips) {
-              const c = ramp(st.v);
-              if (!c) continue;
-              ctx.fillStyle = c;
-              // a hair of overlap hides antialiased seams between strips
-              const h = Math.max(1, st.y1 - st.y0) + 0.7;
-              if (f.fillTo === 'track') ctx.fillRect(left, st.y0, right - left, h);
-              else if (f.fillTo === 'right') ctx.fillRect(st.xCurve, st.y0, Math.max(0, right - st.xCurve), h);
-              else ctx.fillRect(left, st.y0, Math.max(0, st.xCurve - left), h);
-            }
-            ctx.restore();
-            // legend bar under the header scale rows: min colour to max colour
-            const g = ctx.createLinearGradient(x0 + 4, 0, x0 + trackW - 4, 0);
-            for (const st of f.stops) g.addColorStop(Math.min(1, Math.max(0, (st.value - ramp.lo) / (ramp.hi - ramp.lo))), st.color);
-            ctx.fillStyle = g;
-            ctx.fillRect(x0 + 4, HEADER_H - 4, trackW - 8, 3);
-          }
-        }
-      }
-
-      // curves (shared renderer: decimates past 2 samples per pixel row)
-      track.curves.forEach((curve) => {
-        drawCurve(ctx, { track, curve, depth, yOf, i0, i1, x0, trackW, plotH });
-      });
-      ctx.lineWidth = 1;
-    });
+    const { i0, i1 } = visibleRange(depth, vTop, vBase);
+    paintTrackColumn(ctx, { tracks, geom, depth, yOf, i0, i1, headerH: HEADER_H, plotTop, plotH });
 
     // tops markers across all tracks: a dashed line in the top's colour and
     // a name tag at the right edge (the tag is the drag handle on own wells)
-    ctx.font = '10px sans-serif';
     for (const t of shownTops) {
       if (t.md_m < vTop || t.md_m > vBase) continue;
-      const y = yOf(t.md_m);
-      ctx.strokeStyle = t.color;
-      ctx.setLineDash([5, 3]);
-      ctx.beginPath();
-      ctx.moveTo(AXIS_W, y);
-      ctx.lineTo(size.w, y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      const tw = ctx.measureText(t.name).width;
-      const tagW = Math.min(TAG_MAX, tw + 18);
-      const tx = size.w - tagW - 2;
-      ctx.fillStyle = `${t.color}2e`;
-      ctx.fillRect(tx, y - 13, tagW, 12);
-      ctx.fillStyle = t.color;
-      ctx.textAlign = 'left';
-      if (isOwn && onTopMove) {
-        // grip glyph
-        for (let k = 0; k < 3; k++) ctx.fillRect(tx + 3, y - 11 + k * 3, 4, 1);
-      }
-      ctx.fillText(t.name, tx + (isOwn && onTopMove ? 10 : 4), y - 3, tagW - 12);
+      paintTopMarker(ctx, {
+        name: t.name, color: t.color, y: yOf(t.md_m), xLeft: AXIS_W, xRight: size.w, tagMax: TAG_MAX, grip: isOwn && !!onTopMove,
+      });
     }
 
     setTick((t) => t + 1);
@@ -399,25 +223,7 @@ export default function TrackViewer({
 
     // per-track readout row in the header, spread across the track width
     // so overlaid curves never overprint each other
-    if (cursor) {
-      tracks.forEach((track, ti) => {
-        const { x0, w: trackW } = geom[ti];
-        ctx.font = '10px sans-serif';
-        ctx.textAlign = 'center';
-        if (track.type === 'strip') {
-          const v = track.curves[0].data[cursor.idx];
-          ctx.fillStyle = TEXT;
-          ctx.fillText(Number.isFinite(v) ? track.labels?.[Math.round(v)] ?? String(v) : '—', x0 + trackW / 2, 46);
-          return;
-        }
-        const n = track.curves.length;
-        track.curves.forEach((curve, ci) => {
-          const v = curve.data[cursor.idx];
-          ctx.fillStyle = curve.color;
-          ctx.fillText(Number.isFinite(v) ? `${curve.name} ${v.toPrecision(4)}` : `${curve.name} —`, x0 + ((ci + 0.5) / n) * trackW, 46);
-        });
-      });
-    }
+    if (cursor) paintReadouts(ctx, { tracks, geom, idx: cursor.idx });
 
     // zone-edge drag preview
     if (zoneDrag) {

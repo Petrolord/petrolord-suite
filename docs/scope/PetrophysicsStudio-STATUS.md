@@ -308,3 +308,18 @@ scenarios in PetrophysicsStudio-ROADMAP.md (PT series, verification).
   (`petro-open-correlation`, `?wells=<id>`) beside "Edit well data";
   the harness routes both to `/dev/*`.
 - e2e: `petrophysics-studio.spec.js` "cross-app" test.
+
+## 2026-09-03: shared track painter (WC series, wave 1)
+
+The pure viewer modules moved to the shared wells kit so Well Correlation
+and Well Data Manager paint logs the way this studio does:
+`src/components/wells/{fills,trackRender,hitTest,depthModes,curveMap,
+useWellCurvesCache,plotPng}.js` and `layout/{layoutSchema,resolveTracks}.js`.
+One-line re-export shims stay at the old paths, so nothing here changed
+its imports. New `src/components/wells/trackPainter.js` holds the track
+primitives extracted from `TrackViewer` (depth axis, header scale rows,
+strip tracks, fills, curves, cursor readouts, top tags) with the same
+constants and draw order; `TrackViewer` and the Field view's
+`MultiWellTracks` delegate to it, and the Field view gains the fills it
+never had. Petrophysics e2e: 23 passed unchanged, PT6 pixel samples
+included.
