@@ -19,7 +19,7 @@ import path from 'node:path';
 import { TextEncoder as NodeTextEncoder, TextDecoder as NodeTextDecoder } from 'node:util';
 import JSZip from 'jszip';
 import { buildGeosciencePackage } from '@/lib/portability/exportPackage';
-import { readPackage, planImport, executeImport, importPackage, PackageReadError, PackagePlanError, IMPORT_ORDER } from '@/lib/portability/importPackage';
+import { readPackage, planImport, executeImport, importPackage, preflightPackage, PackageReadError, PackagePlanError, IMPORT_ORDER } from '@/lib/portability/importPackage';
 import { sha256Hex } from '@/lib/portability/zipWriter';
 import { walkUuids } from '@/lib/portability/danglingRefs';
 import { computeWell, zoneSummary, DEFAULT_PARAMS } from '@/pages/apps/PetrophysicsStudio/engine/pipeline';
@@ -256,11 +256,32 @@ describe('PP2 import: the type well arrives as an independent copy', () => {
     expect(sink3.store.rows.petro_projects[0]).not.toHaveProperty('organization_id');
   });
 
-  test('duplicate wells are warned about, never merged', async () => {
-    const sink4 = makeSink({ existingWells: [{ id: uid(1), name: 'KETA TYPE-1', uwi: 'KETA-1' }] });
+  test('a well whose name is taken lands under a free "(imported)" name, never merged, never a unique violation', async () => {
+    // geo_wells_owner_name_uniq (live 2026-09-03) and the client rule both
+    // forbid a second "KETA TYPE-1"; the importer must pick the name first
+    const sink4 = makeSink({ existingWells: [{ id: uid(1), name: ' keta  type-1 ', uwi: 'KETA-1', user_id: DST_USER }] });
     const r = await importPackage(bytes, sink4);
-    expect(r.summary.warnings.join('\n')).toMatch(/already have a well named "KETA TYPE-1"/);
     expect(sink4.store.rows.geo_wells).toHaveLength(1);
+    const w = sink4.store.rows.geo_wells[0];
+    expect(w.name).toBe('KETA TYPE-1 (imported)');
+    expect(w.provenance.imported_from.original_name).toBe('KETA TYPE-1');
+    expect(r.summary.notes.join('\n')).toMatch(/Well "KETA TYPE-1" is already in your registry; this copy is imported as "KETA TYPE-1 \(imported\)"/);
+    expect(r.summary.warnings.join('\n')).toMatch(/UWI KETA-1/);
+    // the review screen sees the same rename before anything is written
+    const pre = await preflightPackage(bytes, sink4);
+    expect(pre.plan.planned.geo_wells[0].name).toBe('KETA TYPE-1 (imported)');
+    expect(pre.plan.notes.join('\n')).toMatch(/imported as "KETA TYPE-1 \(imported\)"/);
+  });
+
+  test('a repeat restore of the same package counts up; a teammate\'s shared name is worded as such', async () => {
+    const existing = [
+      { id: uid(1), name: 'KETA TYPE-1', user_id: 'someone-else' },
+      { id: uid(2), name: 'KETA TYPE-1 (imported)', user_id: DST_USER },
+    ];
+    const sink5 = makeSink({ existingWells: existing });
+    const r = await importPackage(bytes, sink5);
+    expect(sink5.store.rows.geo_wells[0].name).toBe('KETA TYPE-1 (imported 2)');
+    expect(r.summary.notes.join('\n')).toMatch(/is shared with you by a teammate; this copy is imported as "KETA TYPE-1 \(imported 2\)"/);
   });
 });
 

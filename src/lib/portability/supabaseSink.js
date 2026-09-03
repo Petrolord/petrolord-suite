@@ -28,9 +28,11 @@ export function makeSupabaseSink() {
     },
 
     /** Own wells for duplicate warnings. */
+    /** Every well the importer can see (RLS: own + org-shared), with the
+     *  owner id so planImport can word a clash correctly. The name rule
+     *  spans all of them; the database index covers the own half. */
     async listMyWells() {
-      const who = await this.currentUser();
-      const { data, error } = await supabase.from('geo_wells').select('id, name, uwi').eq('user_id', who.id);
+      const { data, error } = await supabase.from('geo_wells').select('id, name, uwi, user_id');
       if (error) return [];
       return data || [];
     },

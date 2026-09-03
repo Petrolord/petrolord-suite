@@ -172,10 +172,9 @@ create, rename and the shared-well case. Server backstop for the
 same-owner half: `20260903120000_geo_wells_unique_name_per_owner.sql`,
 **applied 2026-09-03** after the owner took the shared-table review
 (0 duplicates existed; probe insert of a case/space variant rejected).
-Open consequence: the .pld importer inserts geo_wells rows by name, so a
-second restore of the same package into one account now fails on the
-well row with a unique-violation; it should learn to say "well already
-present" (portability follow-up).
+The .pld importer was taught the same rule the same day: a packaged
+well whose name is taken is imported as "<name> (imported)" with the
+original kept in provenance (ProjectPortability-STATUS).
 
 ## 2026-09-03: LAS lands in the selected well
 
