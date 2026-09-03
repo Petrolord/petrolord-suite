@@ -18,6 +18,14 @@ import { makeSupabaseSource } from '@/lib/portability/supabaseSource';
 import { buildGeosciencePackage, PackageIntegrityError } from '@/lib/portability/exportPackage';
 import { savePackage, packageFilename } from '@/lib/portability/zipWriter';
 import { listRootCandidates } from '@/lib/portability/rootsCatalog';
+import { requestSignature } from '@/lib/portability/signClient';
+import { supabase } from '@/lib/customSupabaseClient';
+import SigningSummary from './SigningSummary';
+
+/** The signed-in user's email for the certificate, or null; never throws. */
+async function exporterEmail() {
+  try { const { data } = await supabase.auth.getUser(); return data?.user?.email || null; } catch (e) { return null; }
+}
 
 // PP3a/PP3b sections: key -> the root kinds listed under it
 const SEISMIC_KIND_LABEL = { seismic_project: 'project', seismic_volume: 'volume', seismic_line: 'line' };
@@ -190,6 +198,13 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
       const { writer, manifest } = await buildGeosciencePackage(source, roots, {
         name: pkgName, includeInterpretations, includeSidecars, onProgress: setProgress,
       });
+      // PP5: sign the manifest and issue the certificate; never blocks the export
+      setProgress('Signing');
+      let signing = { signature: null, reason: 'signing service unavailable' };
+      try {
+        signing = await requestSignature(manifest, { exporterEmail: await exporterEmail() });
+        if (signing?.signature) { manifest.signature = signing.signature; writer.addManifest?.(manifest); }
+      } catch (e) { signing = { signature: null, reason: e?.message || 'signing service unavailable' }; }
       setProgress('Saving');
       const res = await savePackage(writer, packageFilename(pkgName), setPercent);
       if (res.method === 'cancelled') {
@@ -197,7 +212,7 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
         onStatus?.('Package save cancelled.');
         return;
       }
-      setSummary({ manifest, method: res.method });
+      setSummary({ manifest, method: res.method, signing });
       setProgress('Done.');
       onStatus?.(`Exported package "${pkgName}".`);
     } catch (e) {
@@ -310,6 +325,7 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
                   </ul>
                 </div>
               )}
+              <SigningSummary result={summary.signing} />
             </div>
           )}
         </div>
