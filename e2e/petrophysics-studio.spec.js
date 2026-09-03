@@ -429,7 +429,7 @@ test('PS4: track builder forks the built-in, layout persists, ft toggle and PNG 
   // removing a track from the built-in forks it (clone-on-edit)
   await page.getByTestId('petro-layout-remove-Pay').click();
   await expect(page.getByTestId('petro-layout-template')).toContainText('Standard triple combo (edited)');
-  await expect(page.getByTestId('petro-layout-template').locator('option')).toHaveCount(3);
+  await expect(page.getByTestId('petro-layout-template').locator('option')).toHaveCount(4); // 3 built-ins + the fork (PT6 added Lithology quicklook)
 
   // the fork survives save + reload with the interpretation
   await page.getByTestId('petro-save-project').click();
@@ -718,4 +718,41 @@ test('PT5: the depth navigator scrolls, rescales and refits the track window', a
   await page.getByTestId('petro-depth-nav-canvas').dblclick();
   await expect(nav).toHaveAttribute('data-view-top', '2000.0');
   await expect(nav).toHaveAttribute('data-view-base', '2100.0');
+});
+
+test('PT6: the lithology quicklook paints a GR ramp and a two-colour cut-off; editing a fill colour forks the built-in', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  const canvas = page.getByTestId('petro-tracks-canvas');
+  await expect(canvas).toBeVisible();
+  await page.getByTestId('petro-layout-template').selectOption('lithology-quicklook');
+  await page.waitForTimeout(400);
+  // sample the lithology track (second of four): shale at 2040 m is brownish, clean sand at 2020 m is pale
+  const rgbAt = (fx, d) => page.evaluate(([fx, d]) => {
+    const c = document.querySelector('[data-testid="petro-tracks-canvas"]');
+    const rect = c.getBoundingClientRect();
+    const scale = c.width / rect.width;
+    const plotTop = 52;
+    const plotH = rect.height - plotTop - 4;
+    const x = Math.round((56 + (rect.width - 56) * fx) * scale);
+    const y = Math.round((plotTop + ((d - 2000) / 100) * plotH) * scale);
+    return Array.from(c.getContext('2d').getImageData(x, y, 1, 1).data);
+  }, [fx, d]);
+  // track widths 1 : 0.6 : 1 : 1.2 -> the lithology track spans 26% to 42% of the plot; sample its middle
+  const shale = await rgbAt(0.34, 2040);
+  const sand = await rgbAt(0.34, 2020);
+  expect(shale[0]).toBeGreaterThan(shale[2]);          // brown: red above blue
+  expect(shale[0]).toBeLessThan(200);
+  expect(sand[0]).toBeGreaterThan(220);                // pale yellow
+  expect(sand[2]).toBeLessThan(215);
+  // the GR track's cut-off fill: sand side yellowish at 2020, shale side gray at 2040
+  const grSand = await rgbAt(0.05, 2020);
+  const grShale = await rgbAt(0.05, 2040);
+  expect(grSand[2]).toBeLessThan(grSand[0]);
+  expect(Math.abs(grShale[0] - grShale[2])).toBeLessThan(25);
+  // change the cut-off colour: the built-in forks
+  await page.getByTestId('petro-layout-expand-GR (API)').click();
+  await page.getByTestId('petro-layout-fill-color-0').fill('#ff0000');
+  await expect(page.getByTestId('petro-layout-template')).toContainText('(edited)');
+  await expect(page.getByTestId('petro-layout-template').locator('option')).toHaveCount(4);
 });

@@ -25,7 +25,16 @@
 // Built-in templates are immutable: editing one forks it (the
 // clone-on-edit rule lives in updateTemplate).
 
-export const LAYOUTS_VERSION = 1;
+// v2 (PT6, 2026-09-03): fills gain `ramp` (colour by the curve's own value
+// between stops) and threshold gains an optional `color2` for the other
+// side; both additive, so v1 templates resolve unchanged. Built-ins:
+// density-neutron crossover in the standard colours (gas yellow, shale
+// gray) and a new Lithology quicklook.
+export const LAYOUTS_VERSION = 2;
+export const FILL_MODES = ['threshold', 'crossover', 'ramp'];
+export const RAMP_PRESETS = {
+  lithology: { label: 'Lithology (clean sand to shale)', stops: [{ value: 15, color: '#f5e6a8' }, { value: 150, color: '#5c3a1e' }] },
+};
 
 export const INPUT_SOURCES = ['input:GR', 'input:RHOB', 'input:NPHI', 'input:DT', 'input:RT'];
 export const OUTPUT_SOURCES = ['output:PHIE', 'output:VSH', 'output:SW', 'output:PAY', 'output:TEMP', 'output:KPERM', 'output:BVW'];
@@ -55,7 +64,11 @@ export function buildDefaultTemplates() {
             { source: 'input:RHOB', label: 'RHOB', color: '#dc2626', min: 1.95, max: 2.95 },
             { source: 'input:NPHI', label: 'NPHI', color: '#3b82f6', min: 0.45, max: -0.15, style: 'dash' },
           ],
-          fills: [{ mode: 'crossover', a: 'input:NPHI', b: 'input:RHOB', positiveColor: '#fbbf24', negativeColor: '#64748b', opacity: 0.3 }],
+          // crossoverPolys.pos = NPHI plotted right of RHOB = gas (yellow);
+          // neg = neutron left of density = shale (gray). The global
+          // standard scales (1.95-2.95, 0.45 to -0.15) overlay in water-
+          // filled limestone; the fills read the separation.
+          fills: [{ mode: 'crossover', a: 'input:NPHI', b: 'input:RHOB', positiveColor: '#facc15', negativeColor: '#9ca3af', opacity: 0.35 }],
         },
         {
           id: 't-phi', title: 'Porosity (v/v)', type: 'curves', width: 1, scale: 'linear', min: 0, max: 0.5,
@@ -104,11 +117,46 @@ export function buildDefaultTemplates() {
             { source: 'input:RHOB', label: 'RHOB', color: '#dc2626', min: 1.95, max: 2.95 },
             { source: 'input:NPHI', label: 'NPHI', color: '#3b82f6', min: 0.45, max: -0.15, style: 'dash' },
           ],
-          fills: [],
+          fills: [{ mode: 'crossover', a: 'input:NPHI', b: 'input:RHOB', positiveColor: '#facc15', negativeColor: '#9ca3af', opacity: 0.35 }],
         },
         {
           id: 'q-dt', title: 'DT (µs/m)', type: 'curves', width: 1, scale: 'linear', min: 650, max: 150,
           curves: [{ source: 'input:DT', label: 'DT', color: '#7c3aed' }], fills: [],
+        },
+      ],
+    },
+    {
+      id: 'lithology-quicklook',
+      name: 'Lithology quicklook',
+      builtin: true,
+      tracks: [
+        {
+          // GR with a two-colour cut-off: below the cut-off is sand (yellow),
+          // above is shale (gray). The cut-off is a fixed value the user edits
+          // in the fill row (75 API by default).
+          id: 'l-gr', title: 'GR (API)', type: 'curves', width: 1, scale: 'linear', min: 0, max: 150,
+          curves: [{ source: 'input:GR', label: 'GR', color: '#059669' }],
+          fills: [{ mode: 'threshold', a: 'input:GR', threshold: { value: 75 }, side: 'below', color: '#fde047', color2: '#9ca3af', opacity: 0.35 }],
+        },
+        {
+          // lithology ramp: the whole track coloured by GR from clean sand
+          // (pale yellow) to shale (dark brown)
+          id: 'l-litho', title: 'Lithology', type: 'curves', width: 0.6, scale: 'linear', min: 0, max: 150,
+          curves: [{ source: 'input:GR', label: 'GR', color: '#475569', lineWidth: 0.8 }],
+          fills: [{ mode: 'ramp', a: 'input:GR', fillTo: 'track', stops: RAMP_PRESETS.lithology.stops, opacity: 0.9 }],
+        },
+        {
+          id: 'l-rt', title: 'RT (ohm·m)', type: 'curves', width: 1, scale: 'log', min: 0.2, max: 2000,
+          curves: [{ source: 'input:RT', label: 'RT', color: '#dc2626' }],
+          fills: [],
+        },
+        {
+          id: 'l-dn', title: 'Density–Neutron', type: 'curves', width: 1.2, scale: 'linear', min: 1.95, max: 2.95,
+          curves: [
+            { source: 'input:RHOB', label: 'RHOB', color: '#dc2626', min: 1.95, max: 2.95 },
+            { source: 'input:NPHI', label: 'NPHI', color: '#3b82f6', min: 0.45, max: -0.15, style: 'dash' },
+          ],
+          fills: [{ mode: 'crossover', a: 'input:NPHI', b: 'input:RHOB', positiveColor: '#facc15', negativeColor: '#9ca3af', opacity: 0.35 }],
         },
       ],
     },
@@ -130,8 +178,9 @@ export function migrateLayouts(stored) {
     return buildDefaultLayouts();
   }
   const layouts = { ...stored };
-  if (!layouts.version) layouts.version = LAYOUTS_VERSION;
-  // future versions migrate step-by-step here
+  if (!layouts.version) layouts.version = 1;
+  // v1 -> v2 (PT6): additive fill fields only; a stamp is the whole step
+  if (layouts.version < 2) layouts.version = 2;
   // built-ins refresh from code so template fixes reach saved rows;
   // user copies are untouched
   const defaults = buildDefaultTemplates();

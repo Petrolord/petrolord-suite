@@ -98,3 +98,98 @@ export function fillPolys(ctx, polys, fillStyle) {
   }
   ctx.fill();
 }
+
+// ---- ramp fills (PT6, 2026-09-03) -----------------------------------------
+// Colour by the curve's own value between stops (clean sand pale yellow to
+// shale dark brown for GR), painted as horizontal strips between the
+// curve and a track edge. Geometry in device coordinates like the
+// polygons above; colours through src/utils/colorMaps.js interpolate.
+
+import { interpolate } from '@/utils/colorMaps';
+
+const hexToRgb = (hex) => {
+  const h = String(hex || '').replace('#', '');
+  const v = h.length === 3 ? h.split('').map((c) => c + c).join('') : h.padEnd(6, '0').slice(0, 6);
+  const n = parseInt(v, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+
+/**
+ * Colour function for a ramp: stops [{value, color}] (any order, >= 2
+ * distinct values) -> (v) => 'rgb(r,g,b)' clamped at the ends. Memoised
+ * on 64 levels so a redraw builds at most 64 strings.
+ */
+export function makeRamp(stops, levels = 64) {
+  const sorted = (stops || [])
+    .filter((st) => Number.isFinite(Number(st.value)) && st.color)
+    .map((st) => ({ value: Number(st.value), color: st.color }))
+    .sort((a, b) => a.value - b.value);
+  if (sorted.length < 2 || !(sorted[sorted.length - 1].value > sorted[0].value)) return null;
+  const lo = sorted[0].value;
+  const hi = sorted[sorted.length - 1].value;
+  const points = sorted.map((st) => [(st.value - lo) / (hi - lo), hexToRgb(st.color)]);
+  const cache = new Array(levels + 1);
+  const fn = (v) => {
+    if (!Number.isFinite(v)) return null;
+    const t = Math.min(1, Math.max(0, (v - lo) / (hi - lo)));
+    const k = Math.round(t * levels);
+    if (!cache[k]) {
+      const [r, g, b] = interpolate(k / levels, points);
+      cache[k] = `rgb(${r},${g},${b})`;
+    }
+    return cache[k];
+  };
+  fn.lo = lo;
+  fn.hi = hi;
+  fn.rgbAt = (v) => interpolate(Math.min(1, Math.max(0, (v - lo) / (hi - lo))), points);
+  return fn;
+}
+
+/**
+ * Strips to paint for a ramp fill: one per visible sample interval while
+ * the samples are sparser than two per pixel row, otherwise one per pixel
+ * row (value = mean of the finite samples in the row, xCurve = the row's
+ * extreme x on the fill side), mirroring drawCurve's decimation so the
+ * cost caps at O(plotH). NaN rows are skipped, never bridged.
+ * @param {Float64Array} x   projected curve x per sample (NaN where absent)
+ * @param {Float64Array} y   projected y per sample
+ * @param {number} i0 first visible sample; @param {number} i1 last
+ * @param {number} plotH plot height in px
+ * @param {ArrayLike<number>} values curve values (for the colour)
+ * @param {'left'|'right'|'track'} fillTo
+ * @returns {Array<{y0:number, y1:number, xCurve:number, v:number}>}
+ */
+export function rampStrips(x, y, i0, i1, plotH, values, fillTo = 'left') {
+  const out = [];
+  const n = i1 - i0 + 1;
+  if (n <= 0) return out;
+  if (!(plotH > 0) || n <= 2 * plotH) {
+    for (let i = i0; i < i1; i++) {
+      const v = values[i];
+      if (!Number.isFinite(v) || !Number.isFinite(x[i]) || !Number.isFinite(y[i]) || !Number.isFinite(y[i + 1])) continue;
+      out.push({ y0: y[i], y1: y[i + 1], xCurve: x[i], v });
+    }
+    return out;
+  }
+  const rows = Math.max(1, Math.round(plotH));
+  const yTop = y[i0];
+  const yBot = y[i1];
+  const span = (yBot - yTop) || 1;
+  const sum = new Float64Array(rows);
+  const cnt = new Uint32Array(rows);
+  const xe = new Float64Array(rows).fill(NaN);
+  for (let i = i0; i <= i1; i++) {
+    const v = values[i];
+    if (!Number.isFinite(v) || !Number.isFinite(x[i]) || !Number.isFinite(y[i])) continue;
+    const r = Math.min(rows - 1, Math.max(0, Math.floor(((y[i] - yTop) / span) * rows)));
+    sum[r] += v; cnt[r] += 1;
+    if (Number.isNaN(xe[r])) xe[r] = x[i];
+    else xe[r] = fillTo === 'right' ? Math.min(xe[r], x[i]) : Math.max(xe[r], x[i]);
+  }
+  const rowH = span / rows;
+  for (let r = 0; r < rows; r++) {
+    if (!cnt[r]) continue;
+    out.push({ y0: yTop + r * rowH, y1: yTop + (r + 1) * rowH, xCurve: xe[r], v: sum[r] / cnt[r] });
+  }
+  return out;
+}

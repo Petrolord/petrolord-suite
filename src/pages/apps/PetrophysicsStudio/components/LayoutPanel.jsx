@@ -257,18 +257,21 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                   <div className="text-[10px] text-slate-500 pt-0.5">Fills</div>
                   {(tr.fills || []).map((f, fi) => (
                     <div key={`${tr.id}-f${fi}`} className="flex items-center gap-1 flex-wrap">
-                      <select className={miniCls} value={f.mode}
+                      <select className={miniCls} value={f.mode} data-testid={`petro-layout-fill-mode-${fi}`}
                         onChange={(e) => editTrack(tr.id, (x) => ({
                           ...x,
                           fills: x.fills.map((y, yi) => (yi === fi
                             ? (e.target.value === 'crossover'
-                              ? { mode: 'crossover', a: y.a, b: y.b || x.curves[0]?.source, positiveColor: '#fbbf24', negativeColor: '#64748b', opacity: 0.3 }
-                              : { mode: 'threshold', a: y.a, threshold: { param: 'cutPhi' }, side: 'above', color: '#fde047', opacity: 0.25 })
+                              ? { mode: 'crossover', a: y.a, b: y.b || x.curves[0]?.source, positiveColor: '#facc15', negativeColor: '#9ca3af', opacity: 0.35 }
+                              : e.target.value === 'ramp'
+                                ? { mode: 'ramp', a: y.a, fillTo: 'left', stops: [{ value: x.min, color: '#f5e6a8' }, { value: x.max, color: '#5c3a1e' }], opacity: 0.85 }
+                                : { mode: 'threshold', a: y.a, threshold: { param: 'cutPhi' }, side: 'above', color: '#fde047', opacity: 0.25 })
                             : y)),
                         }))}
                       >
                         <option value="threshold">threshold</option>
                         <option value="crossover">crossover</option>
+                        <option value="ramp">ramp (colour by value)</option>
                       </select>
                       <select className={miniCls} value={f.a}
                         title="Curve A"
@@ -317,6 +320,73 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                           </select>
                         </>
                       )}
+                      {f.mode === 'crossover' && (
+                        <>
+                          <input type="color" className="w-6 h-5 rounded border border-slate-700 bg-transparent" value={f.positiveColor || '#facc15'}
+                            title="A right of B (density-neutron: gas)" data-testid={`petro-layout-fill-pos-${fi}`}
+                            onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, positiveColor: e.target.value } : y)) }))} />
+                          <input type="color" className="w-6 h-5 rounded border border-slate-700 bg-transparent" value={f.negativeColor || '#9ca3af'}
+                            title="A left of B (density-neutron: shale)" data-testid={`petro-layout-fill-neg-${fi}`}
+                            onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, negativeColor: e.target.value } : y)) }))} />
+                        </>
+                      )}
+                      {f.mode === 'threshold' && (
+                        <>
+                          <input type="color" className="w-6 h-5 rounded border border-slate-700 bg-transparent" value={f.color || '#fde047'}
+                            title="Colour on the chosen side" data-testid={`petro-layout-fill-color-${fi}`}
+                            onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, color: e.target.value } : y)) }))} />
+                          <label className="flex items-center gap-0.5 text-slate-500" title="Also colour the other side">
+                            <input type="checkbox" checked={!!f.color2} data-testid={`petro-layout-fill-color2-on-${fi}`}
+                              onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, color2: e.target.checked ? (y.color2 || '#9ca3af') : undefined } : y)) }))} />
+                            other side
+                          </label>
+                          {f.color2 && (
+                            <input type="color" className="w-6 h-5 rounded border border-slate-700 bg-transparent" value={f.color2}
+                              title="Colour on the other side" data-testid={`petro-layout-fill-color2-${fi}`}
+                              onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, color2: e.target.value } : y)) }))} />
+                          )}
+                        </>
+                      )}
+                      {f.mode === 'ramp' && (
+                        <>
+                          <select className={miniCls} value={f.fillTo || 'left'} title="Fill between the curve and this edge, or the whole track"
+                            data-testid={`petro-layout-fill-to-${fi}`}
+                            onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, fillTo: e.target.value } : y)) }))}>
+                            <option value="left">to left edge</option>
+                            <option value="right">to right edge</option>
+                            <option value="track">whole track</option>
+                          </select>
+                          {(f.stops || []).map((st, si) => (
+                            // stops are positional in the editor
+                             
+                            <span key={si} className="flex items-center gap-0.5">
+                              <input className={miniCls} style={{ width: 44 }} value={String(st.value)} title="Stop value"
+                                data-testid={`petro-layout-ramp-value-${fi}-${si}`}
+                                onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, stops: y.stops.map((z, zi) => (zi === si ? { ...z, value: numOr(e.target.value, z.value) } : z)) } : y)) }))} />
+                              <input type="color" className="w-6 h-5 rounded border border-slate-700 bg-transparent" value={st.color}
+                                data-testid={`petro-layout-ramp-color-${fi}-${si}`}
+                                onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, stops: y.stops.map((z, zi) => (zi === si ? { ...z, color: e.target.value } : z)) } : y)) }))} />
+                              {(f.stops || []).length > 2 && (
+                                <button type="button" className="text-slate-500 hover:text-red-400" title="Remove stop"
+                                  onClick={() => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, stops: y.stops.filter((_, zi) => zi !== si) } : y)) }))}>×</button>
+                              )}
+                            </span>
+                          ))}
+                          <button type="button" className="text-slate-400 hover:text-slate-200" title="Add a stop" data-testid={`petro-layout-ramp-add-${fi}`}
+                            onClick={() => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => {
+                              if (yi !== fi) return y;
+                              const st = [...(y.stops || [])].sort((p, q) => p.value - q.value);
+                              const mid = st.length ? (st[0].value + st[st.length - 1].value) / 2 : 0;
+                              return { ...y, stops: [...(y.stops || []), { value: mid, color: '#c8a76a' }] };
+                            }) }))}>+ stop</button>
+                        </>
+                      )}
+                      <label className="flex items-center gap-0.5 text-slate-500" title="Opacity">
+                        <input type="range" min="0" max="1" step="0.05" value={f.opacity ?? 0.3} className="w-14"
+                          data-testid={`petro-layout-fill-opacity-${fi}`}
+                          onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, opacity: Number(e.target.value) } : y)) }))} />
+                        {Math.round((f.opacity ?? 0.3) * 100)}%
+                      </label>
                       <button type="button" className="text-slate-500 hover:text-red-400" title="Remove fill"
                         onClick={() => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.filter((_, yi) => yi !== fi) }))}
                       >

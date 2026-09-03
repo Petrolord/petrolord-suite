@@ -357,3 +357,6 @@ saves a new curve.
   Between tops (pair + bulk), Pick on track (two clicks).
 - **PT5 built 2026-09-03:** shared DepthNavigator in TrackViewer, Field
   view and Well Correlation; Correlation tops on the shared palette.
+- **PT6 built 2026-09-03:** layout schema v2 (ramp fills, two-sided
+  threshold, colour and opacity editors), standard density-neutron
+  colours, Lithology quicklook built-in.
