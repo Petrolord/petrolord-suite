@@ -478,7 +478,15 @@ the migrator in the same change.
 
 ## Open items
 
-- Second engineer reviews `20260902120500` (registries), then apply.
+- DONE 2026-09-03: `20260902120500` (registries) applied after the owner
+  took the shared-table review; the portability specs now mark every
+  registry table `stamped` (geo_wells family, geo_surfaces, geo_culture,
+  seismic volumes/horizons/faults/lines/picks/exported surfaces), so
+  imported registry rows carry `schema_version` and `app_build`.
+  Follow-up: the registry writers in `src/lib/wellsRegistry.js`,
+  `surfacesRegistry.js` and Seismolord's services still write without
+  `app_build` (the column defaults are correct; stamping them is a
+  retrofit like PP0's app-state loaders).
 - DONE 2026-09-03: `20260902130000` (import jobs) and `20260902140000`
   (export ledger) applied (gate: three tables, RLS on, owner policies);
   signing key `pld-2026-09` generated, secrets set, public half pasted into

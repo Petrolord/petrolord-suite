@@ -315,7 +315,8 @@ export function planImport(pkg, target) {
       if ('provenance' in row || spec.blob) {
         row.provenance = { ...(row.provenance && typeof row.provenance === 'object' ? row.provenance : {}), imported_from: { ...importedFrom, original_id: oldId } };
       }
-      // version stamp (stamped tables have the PP0 columns; registry ones do not yet)
+      // version stamp (every stamped table has the PP0 columns; kinds without a
+      // registered reader travel at the version the package recorded)
       if (spec.stamped && registered) Object.assign(row, stampState(kind, {}));
       else if (spec.stamped) Object.assign(row, { schema_version: readStateVersion(original), app_build: PLATFORM_BUILD.sha });
       else for (const c of REGISTRY_STRIP) delete row[c];
