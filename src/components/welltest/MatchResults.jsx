@@ -3,7 +3,7 @@
 // intervals.
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { evaluateModelTest } from '@/utils/welltest/models/modelCatalog';
 import { unitLabel, fromOilfield, kindForCatalogUnit } from '@/utils/welltest/units';
@@ -12,7 +12,7 @@ import LogLogChart from './LogLogChart';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
 const tooltipProps = { contentStyle: TOOLTIP_STYLE, labelStyle: { color: CHART_COLORS.tooltipText }, itemStyle: { color: CHART_COLORS.tooltipText } };
-const legendProps = { wrapperStyle: { fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText } };
+const legendProps = LEGEND_PROPS;
 
 const ci = (pair, digits = 3) =>
   Array.isArray(pair) && pair.every(Number.isFinite)
@@ -96,10 +96,10 @@ const MatchResults = () => {
       </ChartCard>
 
       <ChartCard title="Pressure history overlay" height={240}>
-        <LineChart data={historyOverlay} margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
+        <LineChart data={historyOverlay} margin={{ top: 10, right: 20, bottom: 8, left: 10 }}>
           <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-          <XAxis dataKey="time" type="number" domain={['auto', 'auto']} {...axisProps}
-            label={{ value: xLabel.replace('Agarwal equivalent', 'Shut-in'), position: 'insideBottom', offset: -10, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+          <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="time" type="number" domain={['auto', 'auto']} {...axisProps}
+            label={{ value: xLabel.replace('Agarwal equivalent', 'Shut-in'), position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
           <YAxis domain={['auto', 'auto']} {...axisProps}
             label={{ value: `Pressure (${unitLabel('pressure', unitSystem)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
           <Tooltip {...tooltipProps} />

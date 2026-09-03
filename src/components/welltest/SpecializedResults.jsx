@@ -3,7 +3,7 @@
 // PSS for drawdowns).
 import React, { useMemo } from 'react';
 import { ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { hornerTime } from '@/utils/welltest/superposition';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
@@ -11,7 +11,7 @@ import { ChartCard, Kpi, LINE, WarningBanner, fmt, fmtU, logTicks, logTickFormat
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
 const tooltipProps = { contentStyle: TOOLTIP_STYLE, labelStyle: { color: CHART_COLORS.tooltipText }, itemStyle: { color: CHART_COLORS.tooltipText } };
-const legendProps = { wrapperStyle: { fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText } };
+const legendProps = LEGEND_PROPS;
 
 const SpecializedResults = () => {
   const {
@@ -83,12 +83,12 @@ const SpecializedResults = () => {
       </div>
 
       <ChartCard title={isBuildup ? 'Horner plot' : 'MDH semilog plot'} height={320}>
-        <ComposedChart data={semilogData} margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
+        <ComposedChart data={semilogData} margin={{ top: 10, right: 20, bottom: 8, left: 10 }}>
           <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-          <XAxis
+          <XAxis height={XAXIS_LABEL_HEIGHT}
             dataKey="x" type="number" scale="log" domain={['auto', 'auto']} reversed={isBuildup}
             ticks={logTicks(semilogData.map((d) => d.x))} tickFormatter={logTickFormatter} {...axisProps}
-            label={{ value: isBuildup ? 'Horner time ratio (tp + Δt)/Δt' : 'Elapsed time (hr)', position: 'insideBottom', offset: -10, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+            label={{ value: isBuildup ? 'Horner time ratio (tp + Δt)/Δt' : 'Elapsed time (hr)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
           />
           <YAxis domain={['auto', 'auto']} {...axisProps}
             label={{ value: `Pressure (${unitLabel('pressure', unitSystem)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
@@ -100,10 +100,10 @@ const SpecializedResults = () => {
       </ChartCard>
 
       <ChartCard title={`Linear flow: ${isGas ? 'Δm(p)' : 'Δp'} vs sqrt(t)`} height={260}>
-        <ComposedChart data={sqrtData} margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
+        <ComposedChart data={sqrtData} margin={{ top: 10, right: 20, bottom: 8, left: 10 }}>
           <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-          <XAxis dataKey="x" type="number" domain={['auto', 'auto']} {...axisProps}
-            label={{ value: 'sqrt(t) (hr^0.5)', position: 'insideBottom', offset: -10, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+          <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="x" type="number" domain={['auto', 'auto']} {...axisProps}
+            label={{ value: 'sqrt(t) (hr^0.5)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
           <YAxis domain={['auto', 'auto']} {...axisProps}
             label={{ value: `${isGas ? 'Δm(p)' : 'Δp'} (${dpUnit})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
           <Tooltip {...tooltipProps} />

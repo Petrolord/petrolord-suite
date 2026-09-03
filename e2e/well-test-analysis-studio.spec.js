@@ -142,3 +142,64 @@ test('RTA tab computes the flowing material balance from a production CSV', asyn
 // that the /dev harness pattern deliberately avoids; the sender payload and
 // both receiver intakes share the wellTestData contract in this PR and the
 // Report-tab buttons' enablement is asserted above.
+
+// Tester round 2026-09-03: the log-log plots rendered as a blank white card
+// (LogLogChart dropped the width/height ResponsiveContainer injects) and the
+// legend overprinted the X-axis title on every chart. Real-browser geometry,
+// because jsdom cannot measure the legend band.
+test('every chart draws, and the legend stays clear of the X-axis title', async ({ page }) => {
+  await openWithSample(page);
+  const frames = page.locator('.relative.bg-white');
+  const inspect = async () => {
+    const n = await frames.count();
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      out.push(await frames.nth(i).evaluate((f) => {
+        const box = (el) => (el ? el.getBoundingClientRect().toJSON() : null);
+        return {
+          symbols: f.querySelectorAll('.recharts-scatter-symbol').length,
+          lines: f.querySelectorAll('.recharts-line-curve').length,
+          title: box(f.querySelector('.recharts-xAxis .recharts-label')),
+          ticks: box(f.querySelector('.recharts-xAxis .recharts-cartesian-axis-ticks')),
+          legend: box(f.querySelector('.recharts-legend-wrapper ul')),
+        };
+      }));
+    }
+    return out;
+  };
+  const expectClear = (g) => {
+    expect(g.title).toBeTruthy();
+    expect(g.title.top).toBeGreaterThanOrEqual(g.ticks.bottom);
+    if (g.legend) expect(g.legend.top).toBeGreaterThanOrEqual(g.title.bottom);
+  };
+
+  // Data: "Gauge pressure" legend under the "Shut-in time (hr)" title
+  let geo = await inspect();
+  expect(geo.length).toBe(2);
+  expectClear(geo[0]);
+
+  // Diagnostics: Δp and derivative scatter on the log-log plot
+  await page.getByRole('tab', { name: 'Diagnostics' }).click();
+  await expect(page.getByText(/Log-log diagnostic plot/i)).toBeVisible();
+  geo = await inspect();
+  expect(geo.length).toBe(1);
+  expect(geo[0].symbols).toBeGreaterThan(40);
+  expectClear(geo[0]);
+
+  // Match: scatter plus the two model overlay curves
+  await page.getByRole('tab', { name: 'Match' }).click();
+  await expect(page.getByText(/Log-log match/i).first()).toBeVisible();
+  geo = await inspect();
+  expect(geo.length).toBe(2);
+  expect(geo[0].symbols).toBeGreaterThan(40);
+  expect(geo[0].lines).toBe(2);
+  geo.forEach(expectClear);
+
+  // Specialized: Horner and sqrt(t)
+  await page.getByRole('tab', { name: 'Specialized' }).click();
+  await expect(page.getByText(/Horner plot/i).first()).toBeVisible();
+  geo = await inspect();
+  expect(geo.length).toBe(2);
+  geo.forEach((g) => expect(g.symbols).toBeGreaterThan(0));
+  geo.forEach(expectClear);
+});

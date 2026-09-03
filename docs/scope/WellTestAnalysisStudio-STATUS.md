@@ -397,3 +397,41 @@ first too, so nothing about the ORDER separates them; telling them apart
 needs the PRESSURE curve, because during storage the pressure and its
 derivative coincide, and `detectFlowRegimes` is given only the
 derivative. That check stays with the caller and the course teaches it.
+
+## Tester round: blank log-log plots and legend over axis titles (2026-09-03)
+
+Four findings from the tester, all chart rendering, all reproduced and
+fixed on branch `fix/welltest-loglog-render-axis-labels`.
+
+**Findings 2 and 3 (log-log diagnostic plot and log-log match plain
+white).** `LogLogChart` wraps the Recharts `ComposedChart` and sits as the
+direct child of `ChartFrame`'s `ResponsiveContainer`. The container
+measures itself and hands `width` and `height` to that child; the wrapper
+dropped them, so the chart inside had no size and drew nothing. The other
+charts in the studio put the Recharts chart directly in the frame, which is
+why only the two log-log cards were blank. The wrapper now forwards the
+rest of its props to the chart. The jest smoke test could not see this
+because jsdom gives `ResponsiveContainer` zero size and every chart renders
+empty there; the new `wellTestCharts.render.test.jsx` replaces the
+container with a fixed sizer so Recharts lays out for real.
+
+**Findings 1 and 4 (legend covering the X-axis title on every chart).**
+The charts used an auto-height bottom legend and an axis title pushed 10 px
+below the axis box, which is exactly where the legend sits. All eight
+charts (pressure and rate history, both log-log plots, history overlay,
+Horner/MDH, sqrt(t), both RTA plots) now use the chart theme's reserved
+bands: `LEGEND_PROPS` (fixed 36 px legend band) and `XAXIS_LABEL_HEIGHT`
+(axis tall enough for ticks plus title, title at offset 0 inside it), with
+the bottom margin reduced to 8 px. Browser geometry on the sample buildup:
+tick text ends at 506 px, title spans 523 to 536, legend starts at 541.
+
+**Also hardened.** `logTicks` used `Math.min(...values)`; a high-frequency
+gauge can exceed the spread argument limit (the same RangeError class fixed
+in Well Design Studio on 2026-08-28) and would have taken the plot down.
+It now loops.
+
+**Guards.** jest `wellTestCharts.render.test.jsx` (every card holds a live
+chart, log-log plots have scatter symbols and decade ticks, legend band and
+axis height are the theme values); Playwright spec extended with a real
+geometry check (title below ticks, legend below title, log-log symbol and
+model-curve counts) across Data, Diagnostics, Match and Specialized.
