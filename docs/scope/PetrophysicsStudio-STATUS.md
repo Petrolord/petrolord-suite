@@ -285,3 +285,14 @@ values 30 to 120 within 1.5, save `GR_DIG` then `GR_DIG:2`).
 Follow-ups (not in PT7): wrapped or backup-scale curves, black curves on
 black grids, skewed scans, a per-user daily cap on AI reads, an ROI that
 follows the proposal's scale ends instead of the image edges.
+
+## PT series close-out (2026-09-03)
+
+All eight waves merged to main in order (#364 PT0, #365 PT1, #366 PT2,
+#367 PT3, #368 PT4, #369 PT5, #370 PT6, #371 PT7), plus the .pld importer
+clash fix #363. Held migration `20260904090000_geo_wells_checkshots_provenance`
+APPLIED live (dry run, apply, probe). Edge function `petro-scan-read`
+DEPLOYED (v1 ACTIVE; unauthenticated call returns 401). Prod zip cut from
+main e3cf0195a with build-info.json: `/root/suite-upload-20260903-e3cf0195a-slim.zip`.
+Remaining: owner upload + cache purge, staging walk of the tester
+scenarios in PetrophysicsStudio-ROADMAP.md (PT series, verification).
