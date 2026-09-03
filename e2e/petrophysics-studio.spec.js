@@ -9,6 +9,8 @@ import { test, expect } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
+import { writeSyntheticScan, expectedValueAt, SCAN } from './helpers/syntheticScan.js';
 
 // expected zone numbers come from the committed goldens, not hardcoded
 // literals — fixture regeneration cannot silently drift past this spec
@@ -145,12 +147,8 @@ test('publish curves + zone, batch run, and project persistence across reload', 
   await expect(page.getByTestId('petro-batch-result-KETA TYPE-1')).toContainText('curves published');
 });
 
-test('digitizer wizard traces a curve from a scanned image and saves it', async ({ page }) => {
+test('digitizer by hand: inline calibration, clicked trace, review, saved as a new _DIG curve', async ({ page }) => {
   const IMG = path.join(here, '..', 'packages', 'engines', 'test-data', 'petrophysics', 'log_scan.png');
-  // calibration prompts answered in order: 2 depths then 2 values
-  const answers = ['2000', '2100', '0', '100'];
-  page.on('dialog', (d) => d.accept(answers.shift()));
-
   await page.goto('/dev/petrophysics-studio');
   await page.locator('[data-well-name="KETA TYPE-1"]').click();
   await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
@@ -162,17 +160,80 @@ test('digitizer wizard traces a curve from a scanned image and saves it', async 
   const box = await canvas.boundingBox();
   const at = (fx, fy) => page.mouse.click(box.x + fx * box.width, box.y + fy * box.height);
 
-  // depth axis: two horizontal reference lines
+  // calibration: the armed row advances depth 1 -> depth 2 -> value 1 -> value 2
   await at(0.5, 0.15); await at(0.5, 0.85);
-  // value axis: two vertical reference lines
   await at(0.2, 0.5); await at(0.8, 0.5);
-  // trace: distinct depths (different y) so the curve has >=2 samples
+  await page.getByTestId('petro-digitizer-cal-depth-0').fill('2000');
+  await page.getByTestId('petro-digitizer-cal-depth-1').fill('2100');
+  await page.getByTestId('petro-digitizer-cal-value-0').fill('0');
+  await page.getByTestId('petro-digitizer-cal-value-1').fill('100');
   await page.getByTestId('petro-digitizer-mnemonic').fill('PORB');
   await page.getByTestId('petro-digitizer-step').fill('1');
+  await expect(page.getByTestId('petro-digitizer-savename')).toHaveText('PORB_DIG');
+  await page.getByTestId('petro-digitizer-to-trace').click();
+
+  // by hand: distinct depths (different y) so the curve has >= 2 samples
+  await page.getByTestId('petro-digitizer-mode-manual').click();
   await at(0.4, 0.2); await at(0.5, 0.4); await at(0.45, 0.6); await at(0.6, 0.8);
+  await page.getByTestId('petro-digitizer-to-review').click();
+  await expect(page.getByTestId('petro-digitizer-preview')).toContainText('4 points');
 
   await page.getByTestId('petro-digitizer-save').click();
-  await expect(page.getByTestId('petro-status')).toContainText('Digitized PORB added');
+  await expect(page.getByTestId('petro-status')).toContainText('Digitized PORB_DIG added');
+  await expect(page.getByTestId('petro-digitizer-saved')).toContainText('Saved PORB_DIG');
+  // the scan and calibration stay for the next curve; a second save gets :2
+  await expect(page.getByTestId('petro-digitizer-savename')).toHaveText('PORB_DIG:2');
+});
+
+test('PT7: automatic digitizer, AI-read proposal accepted into the form, colour trace of a synthetic scan, saved twice as GR_DIG then GR_DIG:2', async ({ page }) => {
+  const IMG = writeSyntheticScan(path.join(os.tmpdir(), `petro-synthetic-scan-${process.pid}.png`));
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  await page.getByTestId('petro-digitize').click();
+  await page.getByTestId('petro-digitizer-file').setInputFiles(IMG);
+  await expect(page.getByTestId('petro-digitizer-canvas')).toBeVisible();
+
+  // AI read -> proposal card -> accept fills the form (edges assumed, so a note shows)
+  await page.getByTestId('petro-digitizer-ai-read').click();
+  await expect(page.getByTestId('petro-digitizer-proposal')).toBeVisible();
+  await expect(page.getByTestId('petro-digitizer-proposal-mnemonic')).toHaveValue('GR');
+  await expect(page.getByTestId('petro-digitizer-proposal-value-right')).toHaveValue('150');
+  await page.getByTestId('petro-digitizer-proposal-accept').click();
+  await expect(page.getByTestId('petro-digitizer-proposal')).toHaveCount(0);
+  await expect(page.getByTestId('petro-digitizer-cal-depth-0')).toHaveValue('2000');
+  await expect(page.getByTestId('petro-digitizer-cal-depth-1')).toHaveValue('2100');
+  await expect(page.getByTestId('petro-digitizer-cal-value-1')).toHaveValue('150');
+  await expect(page.getByTestId('petro-digitizer-assumed')).toBeVisible();
+  await expect(page.getByTestId('petro-digitizer-savename')).toHaveText('GR_DIG');
+  await page.getByTestId('petro-digitizer-step').fill('1');
+  await page.getByTestId('petro-digitizer-to-trace').click();
+
+  // automatic trace over the whole image: the proposal's colour seeds the mask
+  await page.getByTestId('petro-digitizer-roi-all').click();
+  await page.getByTestId('petro-digitizer-trace').click();
+  await expect(page.getByTestId('petro-digitizer-preview')).toBeVisible();
+  const preview = await page.getByTestId('petro-digitizer-preview').textContent();
+  const m = /Values ([\d.]+) to ([\d.]+)/.exec(preview);
+  expect(m).not.toBeNull();
+  expect(Math.abs(Number(m[1]) - expectedValueAt(0))).toBeLessThan(1.5);
+  expect(Math.abs(Number(m[2]) - expectedValueAt(SCAN.height - 1))).toBeLessThan(1.5);
+  expect(preview).toContain('2000 to 2100 m MD');
+  await expect(page.getByTestId('petro-digitizer-trace-stats')).toContainText('300 of 300 rows hit');
+
+  await page.getByTestId('petro-digitizer-save').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Digitized GR_DIG added');
+  // second curve on the same scan: name advances, calibration kept
+  await expect(page.getByTestId('petro-digitizer-savename')).toHaveText('GR_DIG:2');
+  await page.getByTestId('petro-digitizer-roi-all').click();
+  await page.getByTestId('petro-digitizer-trace').click();
+  await page.getByTestId('petro-digitizer-save').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Digitized GR_DIG:2 added');
+  await page.keyboard.press('Escape');
+  // both rows are in the inventory, the original GR untouched
+  await expect(page.getByTestId('petro-curve-inventory')).toContainText('GR_DIG');
+  await expect(page.getByTestId('petro-curve-inventory')).toContainText('GR_DIG:2');
 });
 
 test('PS1: z-color with colorbar, point identify tooltip, Buckles plot, zoom reset', async ({ page }) => {

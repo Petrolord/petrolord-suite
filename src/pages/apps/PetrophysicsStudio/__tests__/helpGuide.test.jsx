@@ -50,6 +50,10 @@ describe('PetrophysicsHelpGuide', () => {
     expect(text).toMatch(/never substituted silently/i);
     // the LAS export carries only the four core outputs
     expect(text).toMatch(/VSH, PHIE, SW and PAY/);
+    // PT7: digitized curves are always new rows and the AI only proposes
+    expect(text).toMatch(/MNEMONIC_DIG/);
+    expect(text).toMatch(/always a new curve/i);
+    expect(text).toMatch(/reader proposes, it never traces and never saves/i);
   });
 
   test('copy carries no em dashes (owner rule)', () => {

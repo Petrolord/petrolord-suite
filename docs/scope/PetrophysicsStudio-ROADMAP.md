@@ -360,3 +360,6 @@ saves a new curve.
 - **PT6 built 2026-09-03:** layout schema v2 (ramp fills, two-sided
   threshold, colour and opacity editors), standard density-neutron
   colours, Lithology quicklook built-in.
+- **PT7 built 2026-09-03:** digitizer automatic mode (engines scanTrace
+  PR #103), inline calibration, review editing, `_DIG` naming, and the
+  `petro-scan-read` edge function (owner deploys after merge).
