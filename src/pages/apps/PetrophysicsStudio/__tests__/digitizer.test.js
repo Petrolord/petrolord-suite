@@ -90,3 +90,17 @@ test('digitizeCurve: full payload with digitized provenance', () => {
   expect(log.data[8]).toBeCloseTo(60, 4);
   expect(log.data[4]).toBeCloseTo(40, 4); // midpoint
 });
+
+test('PT7: caller provenance merges in but can never drop digitized:true', () => {
+  const log = digitizeCurve({
+    points: [{ x: 10, y: 0 }, { x: 20, y: 100 }],
+    depthCal: [{ pixel: 0, value: 2000 }, { pixel: 100, value: 2100 }],
+    valueCal: [{ pixel: 0, value: 0 }, { pixel: 100, value: 150 }],
+    step: 50, mnemonic: 'GR_DIG',
+    provenance: { mode: 'auto', digitized: false, ai_calibration: { model: 'harness', accepted: true } },
+  });
+  expect(log.provenance.mode).toBe('auto');
+  expect(log.provenance.ai_calibration.model).toBe('harness');
+  expect(log.provenance.digitized).toBe(true);
+  expect(log.provenance.engine).toBe('petrophysics-studio');
+});

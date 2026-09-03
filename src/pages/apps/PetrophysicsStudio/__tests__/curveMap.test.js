@@ -32,3 +32,10 @@ test('alias lists have no duplicates across keys', () => {
     }
   }
 });
+
+test('PT7: a digitized KEY_DIG curve is offered as a candidate but never auto-mapped', () => {
+  const logs = [{ id: 1, mnemonic: 'GR_DIG' }, { id: 2, mnemonic: 'GR_DIG:2' }, { id: 3, mnemonic: 'NPHI' }];
+  expect(candidatesFor('GR', logs).map((l) => l.id)).toEqual([1, 2]);
+  expect(mapLogs(logs).GR).toBeNull();
+  expect(mapLogs(logs).NPHI.id).toBe(3);
+});

@@ -48,15 +48,16 @@ export const DESCRIPTION_HINTS = {
 const base = (mnemonic) => String(mnemonic || '').toUpperCase().split(':')[0];
 
 /** All logs that could serve as this input: alias matches, description
- *  hints, plus this app's own conditioned outputs (KEY_CND). The
- *  EXPLICIT picker rule: a conditioned or description-matched curve is
- *  never substituted silently — the user selects it in the explorer. */
+ *  hints, plus this app's own conditioned outputs (KEY_CND) and
+ *  digitized curves (KEY_DIG, PT7). The EXPLICIT picker rule: a
+ *  conditioned, digitized or description-matched curve is never
+ *  substituted silently; the user selects it in the explorer. */
 export function candidatesFor(key, logs) {
   const aliases = CURVE_ALIASES[key] || [];
   const hint = DESCRIPTION_HINTS[key];
   return logs.filter((log) => {
     const b = base(log.mnemonic);
-    if (aliases.includes(b) || b === `${key}_CND`) return true;
+    if (aliases.includes(b) || b === `${key}_CND` || b === `${key}_DIG`) return true;
     return !!(hint && log.description && hint.test(String(log.description)));
   });
 }
