@@ -3,15 +3,15 @@
 // S, nudge) REPLACE the segment list from a vertical tie-on; curve to
 // target and horizontal landing APPEND from the current design end.
 //
-// Unit rule (WD2 fix): targets are stored in metres and grid metres,
-// while the KOP, hold lengths and rates the designer types are in the
-// wellbore's own depth unit at its own rate interval (deg/30m or
-// deg/100ft). This dialog is the single place that crosses that
-// boundary, so the conversion is derived from `mdUnit` here and nowhere
-// else. It used to come in as a `metersToUser` prop, which let a caller
-// pass a depth unit and a conversion that disagreed: metre target
-// depths solved against feet kickoffs and deg/100ft build rates, which
-// is geometry no arc reaches.
+// Unit rule (WD2 fix, moved to services/targetFrame.js 2026-09-03):
+// targets are stored in absolute site-CRS metres, while the KOP, hold
+// lengths and rates the designer types are in the wellbore's own depth
+// unit at its own rate interval (deg/30m or deg/100ft). targetToLocal is
+// the single conversion to wellhead-relative offsets in that unit, shared
+// with the charts; assertLocalDelta re-checks the tag at the solver
+// boundary so a mismatch is an inline message, never degenerate
+// geometry. It used to come in as a `metersToUser` prop, which let a
+// caller pass a depth unit and a conversion that disagreed.
 //
 // Nothing in this dialog throws. Every problem the designer can create
 // is a validation message rendered inline, next to the field that
@@ -26,7 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { M_TO_FT } from '../engine/surveyMath';
+import { resolveWellhead, targetToLocal, assertLocalDelta } from '../services/targetFrame';
 import {
   solveSlant, solveSProfile, solveContinuousBuild,
   solveHorizontalLanding, solveNudge, solveNudgeInverse, landingFromTargets,
@@ -81,7 +81,7 @@ const num = (v) => {
 const fmt = (v, dp = 1) => (Number.isFinite(v) ? v.toFixed(dp) : '--');
 
 const SolverDialog = ({
-  open, onOpenChange, targets = [], wellbore, mdUnit, kbM = 0,
+  open, onOpenChange, targets = [], wellbore, site = null, mdUnit, kbM = 0,
   currentEnd, onApply,
 }) => {
   const { toast } = useToast();
@@ -108,43 +108,27 @@ const SolverDialog = ({
   const target = targets.find((t) => t.id === targetId) || null;
   const toeTarget = targets.find((t) => t.id === toeTargetId) || null;
 
-  // The one metres-to-depth-unit conversion in this dialog. Derived
-  // from mdUnit so the target displacement and the typed kickoff, hold
-  // and rates are always in the same unit and interval.
-  const fromMetres = useMemo(
-    () => (v) => (mdUnit === 'ft' ? v * M_TO_FT : v),
-    [mdUnit],
-  );
+  // Wellhead in site-CRS metres (explicit head, else slot on a pad with
+  // an origin). Without it no target can be placed, and the dialog says
+  // so instead of solving against 0/0.
+  const wellhead = useMemo(() => resolveWellhead(wellbore, site), [wellbore, site]);
 
-  // Target displacement in the wellbore's depth unit, relative either
-  // to the wellhead (replace modes) or to the current design end
-  // (append modes). Returns null rather than throwing: this runs during
+  // Target displacement in the wellbore's depth unit, relative either to
+  // the wellhead (replace modes) or to the current design end (append
+  // modes). {ok:false, error} rather than a throw: this runs during
   // render, so a throw here would reach the error boundary.
   const deltaFor = useMemo(() => (t) => {
     if (!t || !wellbore) return null;
-    const cx = num(t.center_x);
-    const cy = num(t.center_y);
-    const tvdss = num(t.tvdss_m);
-    const hx = num(wellbore.head_x) ?? 0;
-    const hy = num(wellbore.head_y) ?? 0;
-    if (cx == null || cy == null || tvdss == null) return null;
-    const base = {
-      dE: fromMetres(cx - hx),
-      dN: fromMetres(cy - hy),
-      dTvd: fromMetres(tvdss + (num(kbM) ?? 0)), // below KB
-    };
-    if (methodDef.mode === 'append' && currentEnd) {
-      return {
-        dE: base.dE - (num(currentEnd.e) ?? 0),
-        dN: base.dN - (num(currentEnd.n) ?? 0),
-        dTvd: base.dTvd - (num(currentEnd.tvd) ?? 0),
-      };
-    }
-    return base;
-  }, [wellbore, kbM, fromMetres, methodDef.mode, currentEnd]);
+    return targetToLocal(t, {
+      wellhead, mdUnit, kbM,
+      from: methodDef.mode === 'append' && currentEnd ? currentEnd : null,
+    });
+  }, [wellbore, wellhead, kbM, mdUnit, methodDef.mode, currentEnd]);
 
-  const delta = useMemo(() => deltaFor(target), [deltaFor, target]);
-  const toeDelta = useMemo(() => deltaFor(toeTarget), [deltaFor, toeTarget]);
+  const deltaResult = useMemo(() => deltaFor(target), [deltaFor, target]);
+  const toeDeltaResult = useMemo(() => deltaFor(toeTarget), [deltaFor, toeTarget]);
+  const delta = deltaResult?.ok ? deltaResult : null;
+  const toeDelta = toeDeltaResult?.ok ? toeDeltaResult : null;
 
   // Heel-to-toe alignment, the way Compass derives a landing from
   // "Final Target" plus "Align on Target". Shown live so the designer
@@ -186,7 +170,7 @@ const SolverDialog = ({
   const fieldProblem = useMemo(() => {
     if (needsTarget && !target) return 'Select a target first.';
     if (needsTarget && !delta) {
-      return 'That target has no usable position. Give it an easting, a northing and a TVDSS on the Targets tab.';
+      return deltaResult?.error || 'That target has no usable position. Give it an easting, a northing and a TVDSS on the Targets tab.';
     }
     if (methodDef.mode === 'append' && !currentEnd) {
       return method === 'continuous'
@@ -212,7 +196,7 @@ const SolverDialog = ({
         return 'The heel and toe must be different targets. Pick another alignment target or clear it.';
       }
       if (toeTarget && !toeDelta) {
-        return 'That alignment target has no usable position. Give it an easting, a northing and a TVDSS on the Targets tab.';
+        return toeDeltaResult?.error || 'That alignment target has no usable position. Give it an easting, a northing and a TVDSS on the Targets tab.';
       }
       if (alignment && !alignment.ok) return alignment.error;
       if (manualAzi == null && p.landAzi !== '') return 'Landing azimuth must be a number, or blank to derive it.';
@@ -238,14 +222,19 @@ const SolverDialog = ({
     }
     return null;
   }, [
-    needsTarget, target, delta, methodDef.mode, currentEnd, method, isHorizontal,
-    p, mdUnit, intervalLabel, toeTargetId, targetId, toeTarget, toeDelta,
+    needsTarget, target, delta, deltaResult, methodDef.mode, currentEnd, method, isHorizontal,
+    p, mdUnit, intervalLabel, toeTargetId, targetId, toeTarget, toeDelta, toeDeltaResult,
     alignment, manualAzi, effectiveLandAzi, manualInc,
   ]);
 
   const runSolver = () => {
     let kickoffAzi = null;
     const mode = methodDef.mode;
+    // Boundary assertion: whatever enters a solver is tagged local and in
+    // the solver's unit. A mismatch here is a defect in the conversion
+    // above, reported inline by handleSolve's catch.
+    if (needsTarget) assertLocalDelta(delta, mdUnit, 'Target');
+    if (isHorizontal && toeDelta) assertLocalDelta(toeDelta, mdUnit, 'Alignment target');
 
     if (method === 'slant') {
       const kop = num(p.kop) ?? 0;

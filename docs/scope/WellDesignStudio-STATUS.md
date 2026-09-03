@@ -449,3 +449,39 @@ Still open: owner staging E2E on the two-target landing.
 - WD5 WebGL2 3D + geo_wells publish bridge (Seismolord co-render) +
   PPFG overlay + trajectory contract + DXF exports [DONE]
 - WD6 wall-plot report pack + literature gates + launch [DONE]
+
+## Tester fix pack (2026-09-03): target frame, survey file import, station listing
+
+- **Target coordinate frame.** wp_targets hold absolute site-CRS metres;
+  the plan view and the solvers work in wellhead-relative offsets in the
+  wellbore depth unit. The conversion now lives in ONE place,
+  `services/targetFrame.js` (`resolveWellhead` explicit head else slot +
+  pad origin, `targetToLocal`, `targetsToChart`, `assertLocalDelta`),
+  used by DesignTab (charts, slots, lease lines) and SolverDialog. No
+  more `head_x ?? 0`: a wellbore without a wellhead location, or a target
+  farther than 50 km from it (local pad grid against UTM, feet typed into
+  a metre field, a registry borrow in another CRS), is refused with a
+  message naming both positions and is not drawn. The engine solvers
+  (`profileDesign.targetFrameError`, engines PR #104) also refuse a
+  displacement tagged with another unit or frame, or beyond
+  `MAX_TARGET_REACH_M`, so a mismatch fails at the boundary instead of
+  surfacing as the 800,000 ft plan view and the "750,253 ft of hole"
+  refusal the testers saw. Displacements now carry `{unit, frame:'local'}`.
+- **Survey run file import.** `src/lib/tabularFile.js`: file type by
+  extension (delimited text or Excel workbook via the existing `xlsx`
+  dependency; anything else refused with a message), explicit delimiter
+  choice, sheet picker, header detection shared with `wellImport`
+  (`parseDelimited` now delegates and takes `{delimiter}`), and a preview
+  of the first five parsed rows before column mapping. `imported_from`
+  records `file_kind` plus `sheet` or `delimiter`.
+- **Station listing.** The survey table container was `h-full` inside a
+  flex column with `overflow-hidden`, so it clipped after the first rows
+  instead of scrolling; it is now absolutely positioned and scrolls. The
+  listing interval is a Design Setting (`Station every`, default 30 m or
+  100 ft, persisted in the trajectory draft) passed to the compiler as
+  `subdivideMd`; the trajectory itself is unchanged, only the emitted
+  station density.
+- Tests: `targetFrame.test.js` (5), `solverDialog.test.jsx` (+3: no
+  wellhead, wrong frame, slot-resolved head), `tabularFile.test.js` (4,
+  real xlsx bytes written by SheetJS), engines profileDesign (+3);
+  e2e: wrong-frame target refused inline and the plan view still draws.

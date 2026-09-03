@@ -20,6 +20,7 @@ import WellpathCubeView from './components/WellpathCubeView';
 import { buildTrajectoryContract, contractToCsv, contractToDxf } from './services/trajectoryContract';
 import { preparePublishPayload } from './services/publishPayload';
 import { generateSurveyListing } from './services/reportPack';
+import { resolveWellhead, targetsToChart } from './services/targetFrame';
 
 const WELLBORE = {
   id: 'harness-wb', name: 'HAR-1', head_x: 500000, head_y: 6800000,
@@ -78,6 +79,13 @@ const TARGETS = [
     id: 'harness-t2', name: 'Landing', kind: 'point', category: 'drillers',
     center_x: 501400, center_y: 6801650, tvdss_m: 2600,
   },
+  // A target in another coordinate frame (a local pad grid easting
+  // against this UTM wellhead). targetsToChart must leave it out of the
+  // plan view and the solver must refuse it by name (2026-09-03 fix).
+  {
+    id: 'harness-t3', name: 'Wrong frame pick', kind: 'point', category: 'geological',
+    center_x: 25000, center_y: 21000, tvdss_m: 5000,
+  },
 ];
 
 const WellDesignHarness = () => {
@@ -111,12 +119,10 @@ const WellDesignHarness = () => {
   const last = rows?.[rows.length - 1];
   const currentEnd = last ? { inc: last.inc, azi: last.azi, n: last.n, e: last.e, tvd: last.tvd } : null;
 
-  const chartTargets = TARGETS.map((t) => ({
-    ...t,
-    e: t.center_x - WELLBORE.head_x,
-    n: t.center_y - WELLBORE.head_y,
-    geometry: t.geometry || {},
-  }));
+  const targetFrame = targetsToChart(TARGETS, {
+    wellhead: resolveWellhead(WELLBORE), mdUnit: 'm', kbM: 0,
+  });
+  const chartTargets = targetFrame.rows;
 
   const applySolution = ({ segments: solved, kickoffAzi: azi, mode }) => {
     setSegments((prev) => (mode === 'append' ? [...prev, ...solved] : solved));
@@ -213,6 +219,7 @@ const WellDesignHarness = () => {
         <div>E <span data-testid="wd-e" className="font-mono text-lime-400">{last ? last.e.toFixed(1) : '--'}</span></div>
         <div>Inc <span data-testid="wd-inc" className="font-mono text-lime-400">{last ? last.inc.toFixed(2) : '--'}</span></div>
         <div>Segs <span data-testid="wd-segcount" className="font-mono text-lime-400">{segments.length}</span></div>
+        <div>Tgt skip <span data-testid="wd-target-problems" className="font-mono text-lime-400">{targetFrame.problems.length}</span></div>
         <div>Decl <span data-testid="wd-decl" className="font-mono text-lime-400">{declinationAt(MAG_PROBE).declinationDeg.toFixed(3)}</span></div>
         <div>AC SF <span data-testid="wd-acsf" className="font-mono text-lime-400">{acProbe ? acProbe.summary.minSf.toFixed(4) : '--'}</span></div>
         <div>CSV <span data-testid="wd-csvlines" className="font-mono text-lime-400">{wd5 ? wd5.csvLines : '--'}</span></div>

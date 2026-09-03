@@ -10,46 +10,18 @@
 //
 // Pure functions, worker-safe, no I/O.
 
+import { parseDelimitedText } from './tabularFile';
+
 /** Split delimited text into rows. Detects the delimiter per file
- *  (comma / semicolon / tab / whitespace), skips blank and #-comment
- *  lines, and detects a header row (any non-numeric cell).
+ *  (comma / semicolon / tab / whitespace) unless one is given, skips
+ *  blank and #-comment lines, and detects a header row.
+ *  @param {{delimiter?: ','|';'|'\t'|'whitespace'|'auto'}} [opts]
  *  @returns {{header: ?string[], rows: string[][], delimiter: string}} */
-export function parseDelimited(text) {
-  const lines = String(text || '').split(/\r\n|\r|\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length && !l.startsWith('#') && !l.startsWith('//'));
-  if (!lines.length) return { header: null, rows: [], delimiter: 'whitespace' };
-  const counts = {
-    ',': (lines[0].match(/,/g) || []).length,
-    ';': (lines[0].match(/;/g) || []).length,
-    '\t': (lines[0].match(/\t/g) || []).length,
-  };
-  const best = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-  const delimiter = best[1] > 0 ? best[0] : 'whitespace';
-  const split = (l) => (delimiter === 'whitespace'
-    ? l.split(/\s+/) : l.split(delimiter).map((c) => c.trim()));
-  const rows = lines.map(split);
-  // Header detection: the first row is a header only when it is
-  // non-numeric AND its per-column numeric pattern differs from the
-  // second row's. The pattern comparison keeps text-bearing DATA rows
-  // (tops have a name column in every row; some files carry trailing
-  // comment columns) from being eaten as headers — a single-row tops
-  // file is data, and 'NAME,MD' over 'TopA,100' is a header.
-  const isNum = (c) => c === '' || Number.isFinite(Number(c));
-  const isNumericRow = (r) => r.every(isNum);
-  let header = null;
-  if (rows.length && !isNumericRow(rows[0])) {
-    if (rows.length > 1) {
-      const n = Math.max(rows[0].length, rows[1].length);
-      for (let c = 0; c < n; c++) {
-        if (isNum(rows[0][c] ?? '') !== isNum(rows[1][c] ?? '')) {
-          header = rows[0];
-          break;
-        }
-      }
-    }
-  }
-  return { header, rows: header ? rows.slice(1) : rows, delimiter };
+export function parseDelimited(text, opts = {}) {
+  // Shared with the workbook path (src/lib/tabularFile.js): delimiter
+  // auto-detected unless `opts.delimiter` names one of ',', ';', '\t',
+  // 'whitespace'; header detection unchanged from the original.
+  return parseDelimitedText(text, opts);
 }
 
 /** Column-name heuristics per field, matched case-insensitively against

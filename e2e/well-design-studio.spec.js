@@ -191,3 +191,27 @@ test('charts render for the solved design', async ({ page }) => {
   await expect(page.locator('[data-testid="plan-view-chart"] svg path')).toHaveCount(1);
   await expect(page.locator('[data-testid="plan-view-chart"] svg circle')).not.toHaveCount(0);
 });
+
+test('a target in another coordinate frame is refused by name and left off the plan view (2026-09-03 fix)', async ({ page }) => {
+  await page.goto('/dev/well-design');
+  // the harness carries one wrong-frame target: it is skipped, not drawn at 475 km west
+  await expect(page.getByTestId('wd-target-problems')).toHaveText('1');
+  await page.getByTestId('wd-open-solver').click();
+  await page.getByTestId('solver-target-trigger').click();
+  await page.getByRole('option', { name: /Wrong frame pick/ }).click();
+  await page.getByTestId('solver-kop').fill('300');
+  await page.getByTestId('solver-apply').click();
+  const problem = page.getByTestId('solver-problem');
+  await expect(problem).toContainText('not in the same coordinate frame');
+  await expect(problem).toContainText('500,000 E, 6,800,000 N');
+  await expect(problem).not.toContainText('of hole, past the');
+  // the design did not change
+  await expect(page.getByTestId('wd-md')).toHaveText('500.0');
+  // and the good target still solves afterwards
+  await page.getByTestId('solver-target-trigger').click();
+  await page.getByRole('option', { name: /Amber sand/ }).click();
+  await page.getByTestId('solver-buildrate').fill('3');
+  await page.getByTestId('solver-apply').click();
+  await expect(page.getByTestId('wd-md')).not.toHaveText('500.0');
+  await expect(page.getByTestId('plan-view-chart')).toBeVisible();
+});

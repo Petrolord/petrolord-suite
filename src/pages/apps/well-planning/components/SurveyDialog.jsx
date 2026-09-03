@@ -1,4 +1,6 @@
-// Actual-survey import dialog (WD3): manual paste, CSV file (via the
+// Actual-survey import dialog (WD3): manual paste, delimited text or
+// Excel file (src/lib/tabularFile.js: explicit delimiter, sheet picker,
+// parsed preview before mapping, unsupported types refused), CSV (via the
 // shared wellImport mapping helpers) or a geo_wells registry deviation.
 // Stations are stored in METRES with the azimuths as entered plus the
 // run's azimuth reference; the grid-converted station cache is written
@@ -14,14 +16,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { Upload } from 'lucide-react';
-import { parseDelimited, guessMapping, buildDeviation } from '@/lib/wellImport';
+import { guessMapping, buildDeviation } from '@/lib/wellImport';
+import {
+  readTabularFile, parseDelimitedText, tableFromRows, DELIMITERS,
+} from '@/lib/tabularFile';
 import { listWells } from '@/lib/wellsRegistry';
 import { parseManualStations, toGridSurvey } from '../services/surveyUtils';
 import { M_TO_FT } from '../engine/surveyMath';
 
 const SOURCES = [
   { id: 'manual', label: 'Paste stations' },
-  { id: 'csv', label: 'CSV file' },
+  { id: 'csv', label: 'CSV / Excel file' },
   { id: 'geo_wells', label: 'From wells registry' },
 ];
 
@@ -36,7 +41,8 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
   const [aziRef, setAziRef] = useState('grid');
   const [unit, setUnit] = useState('m');
   const [text, setText] = useState('');
-  const [csv, setCsv] = useState(null); // {fileName, header, rows, map}
+  // {fileName, kind, text|sheets, sheetIndex, delimiter, header, rows, map}
+  const [csv, setCsv] = useState(null);
   const [geoWells, setGeoWells] = useState(null);
   const [geoWellId, setGeoWellId] = useState('');
   const [saving, setSaving] = useState(false);
@@ -70,23 +76,45 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
       .catch((e) => toast({ variant: 'destructive', title: 'Wells registry', description: e.message }));
   }, [open, source, geoWells, toast]);
 
+  // Table for the current source choices (sheet or delimiter), plus a
+  // fresh column guess. Called on load and whenever the user changes
+  // the sheet or the delimiter, so the preview always shows the split
+  // the mapping will use.
+  const tableFor = (loaded, { sheetIndex, delimiter }) => {
+    if (loaded.kind === 'workbook') {
+      const sheet = loaded.sheets[sheetIndex] || loaded.sheets[0];
+      return { ...tableFromRows(sheet.rows), delimiter: null };
+    }
+    return parseDelimitedText(loaded.text, { delimiter });
+  };
+  const withTable = (loaded, choices) => {
+    const table = tableFor(loaded, choices);
+    const width = Math.max(0, ...table.rows.map((r) => r.length), table.header ? table.header.length : 0);
+    const columns = table.header || Array.from({ length: width }, (_, i) => `Column ${i + 1}`);
+    const map = table.header
+      ? guessMapping(table.header, ['md', 'inc', 'azi'])
+      : { md: width > 0 ? 0 : -1, inc: width > 1 ? 1 : -1, azi: width > 2 ? 2 : -1 };
+    return { ...loaded, ...choices, header: table.header, columns, rows: table.rows, usedDelimiter: table.delimiter, map };
+  };
+
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const content = await file.text();
-      const parsed = parseDelimited(content);
-      if (!parsed.rows.length) throw new Error('The file has no data rows.');
-      const map = parsed.header
-        ? guessMapping(parsed.header, ['md', 'inc', 'azi'])
-        : { md: 0, inc: 1, azi: 2 };
-      setCsv({ fileName: file.name, header: parsed.header, rows: parsed.rows, map });
+      const loaded = await readTabularFile(file);
+      const next = withTable({ fileName: file.name, kind: loaded.kind, text: loaded.text, sheets: loaded.sheets },
+        { sheetIndex: 0, delimiter: 'auto' });
+      if (!next.rows.length) throw new Error(loaded.kind === 'workbook' ? 'The first sheet has no data rows. Pick another sheet.' : 'The file has no data rows.');
+      setCsv(next);
     } catch (err) {
-      toast({ variant: 'destructive', title: 'CSV import', description: err.message });
+      setCsv(null);
+      toast({ variant: 'destructive', title: 'File import', description: err.message });
     } finally {
       e.target.value = '';
     }
   };
+  const setSheet = (v) => setCsv((c) => (c ? withTable(c, { sheetIndex: Number(v), delimiter: c.delimiter }) : c));
+  const setDelimiter = (v) => setCsv((c) => (c ? withTable(c, { sheetIndex: c.sheetIndex, delimiter: v }) : c));
 
   const setCsvMap = (field) => (v) => setCsv((c) => ({ ...c, map: { ...c.map, [field]: Number(v) } }));
 
@@ -144,7 +172,11 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
           ...(editing ? (survey.imported_from || {}) : {}),
           azimuth_reference: effectiveAziRef,
           entered_unit: effectiveUnit,
-          ...(source === 'csv' && csv ? { file_name: csv.fileName } : {}),
+          ...(source === 'csv' && csv ? {
+            file_name: csv.fileName,
+            file_kind: csv.kind,
+            ...(csv.kind === 'workbook' ? { sheet: csv.sheets[csv.sheetIndex]?.name } : { delimiter: csv.usedDelimiter }),
+          } : {}),
           ...(source === 'geo_wells' && geoWell ? { geo_well_id: geoWell.id, geo_well_name: geoWell.name } : {}),
         },
       });
@@ -224,20 +256,75 @@ const SurveyDialog = ({ open, onOpenChange, wellbore, survey, onSave }) => {
 
           {source === 'csv' && (
             <div className="space-y-2">
-              <input ref={fileRef} type="file" accept=".csv,.txt,.tsv" className="hidden" onChange={handleFile} />
+              <input ref={fileRef} type="file" accept=".csv,.txt,.tsv,.dat,.prn,.asc,.xlsx,.xlsm,.xls" className="hidden" onChange={handleFile} data-testid="survey-file" />
               <Button variant="outline" onClick={() => fileRef.current?.click()} className="w-full border-slate-600 text-slate-300 h-9">
-                <Upload className="mr-2 h-4 w-4" /> {csv ? csv.fileName : 'Choose a CSV / text file'}
+                <Upload className="mr-2 h-4 w-4" /> {csv ? csv.fileName : 'Choose a CSV, text or Excel file'}
               </Button>
-              {csv?.header && (
+              {csv && (
+                <div className="grid grid-cols-2 gap-2">
+                  {csv.kind === 'workbook' ? (
+                    <div>
+                      <Label className="text-[10px] uppercase">Sheet</Label>
+                      <Select value={String(csv.sheetIndex)} onValueChange={setSheet}>
+                        <SelectTrigger className="bg-slate-800 border-slate-700 h-8 text-xs" data-testid="survey-sheet"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-slate-700">
+                          {csv.sheets.map((sh, i) => <SelectItem key={sh.name + i} value={String(i)}>{sh.name} ({sh.rows.length} rows)</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div>
+                      <Label className="text-[10px] uppercase">Delimiter</Label>
+                      <Select value={csv.delimiter} onValueChange={setDelimiter}>
+                        <SelectTrigger className="bg-slate-800 border-slate-700 h-8 text-xs" data-testid="survey-delimiter"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-slate-700">
+                          {DELIMITERS.map((d) => (
+                            <SelectItem key={d.id} value={d.id}>
+                              {d.label}{d.id === 'auto' && csv.usedDelimiter ? ` (${DELIMITERS.find((x) => x.id === csv.usedDelimiter)?.label.toLowerCase()})` : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  <div className="text-[11px] text-slate-400 self-end pb-1">
+                    {csv.rows.length} data rows, {csv.columns.length} columns{csv.header ? ', header detected' : ', no header'}
+                  </div>
+                </div>
+              )}
+              {csv && (
+                <div className="rounded border border-slate-700 bg-slate-950 overflow-auto max-h-32" data-testid="survey-preview">
+                  <table className="text-[11px] font-mono w-full">
+                    <thead>
+                      <tr>
+                        {csv.columns.map((h, i) => (
+                          <th key={h + i} className="px-2 py-1 text-left text-slate-400 font-normal whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csv.rows.slice(0, 5).map((r, ri) => (
+                        <tr key={ri} className="border-t border-slate-800">
+                          {csv.columns.map((_, ci) => (
+                            <td key={ci} className="px-2 py-0.5 text-slate-300 whitespace-nowrap">{r[ci] ?? ''}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {csv.rows.length > 5 && <div className="px-2 py-1 text-[10px] text-slate-500">and {csv.rows.length - 5} more rows</div>}
+                </div>
+              )}
+              {csv && (
                 <div className="grid grid-cols-3 gap-2">
                   {['md', 'inc', 'azi'].map((f) => (
                     <div key={f}>
                       <Label className="text-[10px] uppercase">{f} column</Label>
                       <Select value={String(csv.map[f])} onValueChange={setCsvMap(f)}>
-                        <SelectTrigger className="bg-slate-800 border-slate-700 h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="bg-slate-800 border-slate-700 h-8 text-xs" data-testid={`survey-map-${f}`}><SelectValue /></SelectTrigger>
                         <SelectContent className="bg-slate-800 border-slate-700">
                           <SelectItem value="-1">Not mapped</SelectItem>
-                          {csv.header.map((h, i) => <SelectItem key={h + i} value={String(i)}>{h}</SelectItem>)}
+                          {csv.columns.map((h, i) => <SelectItem key={h + i} value={String(i)}>{h}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
