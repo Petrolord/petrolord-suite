@@ -27,7 +27,7 @@ const NAN = Number.NaN;
 
 const base = (m) => String(m || '').toUpperCase().split(':')[0];
 const isDepthMnemonic = (m) => ['DEPT', 'DEPTH', 'MD'].includes(base(m));
-const nameKey = (m) => String(m || '').trim().toUpperCase();
+import { nextFreeName, nameKey } from '@/lib/curveNames';
 
 /** Linear resample of (depthSrc, data) onto depthDst; both ascending MD in
  *  metres. Returns Float32Array(depthDst.length). */
@@ -63,16 +63,9 @@ export function sameGrid(a, b) {
 
 const countNulls = (arr) => { let c = 0; for (let i = 0; i < arr.length; i++) if (!Number.isFinite(arr[i])) c++; return c; };
 
-/** Next free ':n' suffix for `name` among existing mnemonics. */
-export function nextFreeName(name, existingNames) {
-  const taken = new Set(existingNames.map(nameKey));
-  if (!taken.has(nameKey(name))) return name;
-  for (let n = 2; n < 1000; n++) {
-    const cand = `${name}:${n}`;
-    if (!taken.has(nameKey(cand))) return cand;
-  }
-  return `${name}:${Date.now()}`;
-}
+// Naming lives in src/lib/curveNames.js (shared with the digitizer); kept
+// exported here for existing callers and tests.
+export { nextFreeName };
 
 /**
  * @param {Object} p

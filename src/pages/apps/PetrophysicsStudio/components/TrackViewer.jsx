@@ -8,9 +8,12 @@
 // Presentational: tracks/zones/tops come prepared from the controller;
 // the viewer owns only its depth window and cursor.
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { crossoverPolys, thresholdPolys, fillPolys } from '../viewer/fills';
-import { drawCurve, xScaleFor } from '../viewer/trackRender';
+import { drawCurve, xScaleFor, trackGeometry } from '../viewer/trackRender';
+import { hitZoneEdgeAt } from '../viewer/hitTest';
+import { depthLabel } from '../viewer/depthModes';
+import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 
 const AXIS_W = 56;        // depth axis gutter
 const HEADER_H = 50;      // track header (title + scale rows + readout)
@@ -54,11 +57,23 @@ const ZONE_COLORS = ['rgba(14,116,144,0.10)', 'rgba(217,119,6,0.10)', 'rgba(5,15
 export default function TrackViewer({
   depth, tracks, zones = [], tops = [], depthUnit = 'm', onTrackHeaderClick,
   selection = null, tvdLookup = null, isOwn = false, onZoneEdge,
+  view: viewProp, onViewChange,
 }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
+  const staticRef = useRef(null);              // offscreen cache of everything but the cursor layer
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const [view, setView] = useState(null);      // [dTop, dBase] or null = full
+  // depth window [dTop, dBase] or null = full well; controlled when the
+  // parent passes `view` (PT0: lets a navigator or a linked view drive it),
+  // otherwise owned here exactly as before
+  const [viewState, setViewState] = useState(null);
+  const controlled = viewProp !== undefined;
+  const view = controlled ? viewProp : viewState;
+  const setView = useCallback((next) => {
+    if (!controlled) setViewState(next);
+    if (onViewChange) onViewChange(next);
+  }, [controlled, onViewChange]);
+  const [tick, setTick] = useState(0);         // bumps when the static layer was redrawn
   const [cursor, setCursor] = useState(null);  // {y, depthM, idx}
   const [zoneDrag, setZoneDrag] = useState(null); // {zone, edge, md}
   const dragRef = useRef(null);
@@ -71,7 +86,7 @@ export default function TrackViewer({
   const dMax = depth.length ? depth[depth.length - 1] : 1;
   const [vTop, vBase] = view || [dMin, dMax];
 
-  useEffect(() => { setView(null); setCursor(null); }, [depth]);
+  useEffect(() => { setView(null); setCursor(null); }, [depth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -90,31 +105,25 @@ export default function TrackViewer({
   );
   const dOf = (y) => vTop + ((y - plotTop) / plotH) * (vBase - vTop);
 
+  const geom = useMemo(() => trackGeometry(tracks, size.w), [tracks, size.w]);
+
+  // STATIC layer (PT0): zones, axis, curves, fills and tops are drawn once
+  // per data/view change into an offscreen canvas; the cursor layer below
+  // composites it, so pointer moves no longer redraw every curve.
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !size.w || !size.h || !depth.length) return;
+    if (!size.w || !size.h || !depth.length) return;
     const dpr = window.devicePixelRatio || 1;
+    if (!staticRef.current) staticRef.current = document.createElement('canvas');
+    const canvas = staticRef.current;
     canvas.width = Math.round(size.w * dpr);
     canvas.height = Math.round(size.h * dpr);
-    canvas.style.width = `${size.w}px`;
-    canvas.style.height = `${size.h}px`;
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, size.w, size.h);
 
-    // proportional track widths from the layout ratios
-    const totalRatio = tracks.reduce((s, t) => s + (t.width || 1), 0) || 1;
-    const plotWTotal = size.w - AXIS_W;
-    const trackXs = [];
-    const trackWs = [];
-    let xAcc = AXIS_W;
-    for (const t of tracks) {
-      const w = ((t.width || 1) / totalRatio) * plotWTotal;
-      trackXs.push(xAcc);
-      trackWs.push(w);
-      xAcc += w;
-    }
+    const trackXs = geom.map((g) => g.x0);
+    const trackWs = geom.map((g) => g.w);
 
     // zone bands under everything
     zones.forEach((z, zi) => {
@@ -232,16 +241,6 @@ export default function TrackViewer({
           const y2 = yOf(depth[i + 1]);
           ctx.fillRect(x0 + 2, y, trackW - 4, Math.max(1, y2 - y));
         }
-        if (cursor) {
-          const v = data[cursor.idx];
-          ctx.font = '10px sans-serif';
-          ctx.fillStyle = TEXT;
-          ctx.textAlign = 'center';
-          ctx.fillText(
-            Number.isFinite(v) ? track.labels?.[Math.round(v)] ?? String(v) : '—',
-            x0 + trackW / 2, 46,
-          );
-        }
         return;
       }
 
@@ -284,22 +283,8 @@ export default function TrackViewer({
       }
 
       // curves (shared renderer: decimates past 2 samples per pixel row)
-      track.curves.forEach((curve, ci) => {
+      track.curves.forEach((curve) => {
         drawCurve(ctx, { track, curve, depth, yOf, i0, i1, x0, trackW, plotH });
-
-        // cursor readout in the header, spread across the track width
-        // so overlaid curves never overprint each other
-        if (cursor) {
-          const v = curve.data[cursor.idx];
-          const n = track.curves.length;
-          ctx.font = '10px sans-serif';
-          ctx.fillStyle = curve.color;
-          ctx.textAlign = 'center';
-          ctx.fillText(
-            Number.isFinite(v) ? `${curve.name} ${v.toPrecision(4)}` : `${curve.name} —`,
-            x0 + ((ci + 0.5) / n) * trackW, 46,
-          );
-        }
       });
       ctx.lineWidth = 1;
     });
@@ -321,6 +306,49 @@ export default function TrackViewer({
       ctx.fillText(t.name, size.w - 4, y - 3);
     }
 
+    setTick((t) => t + 1);
+  }, [size, depth, tracks, geom, zones, tops, vTop, vBase, yOf, plotTop, plotH, F, depthUnit, selection, tvdLookup]);
+
+  // CURSOR layer: composite the static picture, then the header readouts,
+  // the zone-edge drag preview and the crosshair (cheap on every move).
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const stat = staticRef.current;
+    if (!canvas || !stat || !size.w || !size.h || !depth.length) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (canvas.width !== stat.width || canvas.height !== stat.height) {
+      canvas.width = stat.width;
+      canvas.height = stat.height;
+      canvas.style.width = `${size.w}px`;
+      canvas.style.height = `${size.h}px`;
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(stat, 0, 0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // per-track readout row in the header, spread across the track width
+    // so overlaid curves never overprint each other
+    if (cursor) {
+      tracks.forEach((track, ti) => {
+        const { x0, w: trackW } = geom[ti];
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        if (track.type === 'strip') {
+          const v = track.curves[0].data[cursor.idx];
+          ctx.fillStyle = TEXT;
+          ctx.fillText(Number.isFinite(v) ? track.labels?.[Math.round(v)] ?? String(v) : '—', x0 + trackW / 2, 46);
+          return;
+        }
+        const n = track.curves.length;
+        track.curves.forEach((curve, ci) => {
+          const v = curve.data[cursor.idx];
+          ctx.fillStyle = curve.color;
+          ctx.fillText(Number.isFinite(v) ? `${curve.name} ${v.toPrecision(4)}` : `${curve.name} —`, x0 + ((ci + 0.5) / n) * trackW, 46);
+        });
+      });
+    }
+
     // zone-edge drag preview
     if (zoneDrag) {
       const y = yOf(zoneDrag.md);
@@ -334,7 +362,7 @@ export default function TrackViewer({
       ctx.fillStyle = '#0e7490';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(`${zoneDrag.zone.name} ${zoneDrag.edge} → ${zoneDrag.md.toFixed(1)} m`, AXIS_W + 4, y - 4);
+      ctx.fillText(`${zoneDrag.zone.name} ${zoneDrag.edge} → ${depthLabel(zoneDrag.md, depthUnit)}`, AXIS_W + 4, y - 4);
     }
 
     // crosshair
@@ -350,7 +378,7 @@ export default function TrackViewer({
       const cLabel = tvdLookup ? tvdLookup(cursor.depthM) * F : cursor.depthM * F;
       ctx.fillText(Number.isFinite(cLabel) ? cLabel.toFixed(1) : '—', AXIS_W - 4, cursor.y - 4);
     }
-  }, [size, depth, tracks, zones, tops, vTop, vBase, cursor, yOf, plotTop, plotH, F, depthUnit, selection, tvdLookup, zoneDrag]);
+  }, [tick, size, depth, tracks, geom, cursor, zoneDrag, yOf, plotTop, plotH, F, depthUnit, tvdLookup]);
 
   const nearestIdx = (d) => {
     // depth ascending, uniformish: binary search
@@ -365,14 +393,7 @@ export default function TrackViewer({
   };
 
   // zone-edge hit test (owned wells only): top/base line within 5px
-  const zoneEdgeAt = (y) => {
-    if (!isOwn || !onZoneEdge) return null;
-    for (const z of zones) {
-      if (Math.abs(yOf(z.top_md_m) - y) <= 5) return { zone: z, edge: 'top' };
-      if (Math.abs(yOf(z.base_md_m) - y) <= 5) return { zone: z, edge: 'base' };
-    }
-    return null;
-  };
+  const zoneEdgeAt = (y) => (isOwn && onZoneEdge ? hitZoneEdgeAt(y, zones, yOf) : null);
 
   const onPointerMove = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
@@ -388,12 +409,7 @@ export default function TrackViewer({
     if (dragRef.current) {
       movedRef.current = true;
       const dd = dOf(dragRef.current.y) - dOf(y);
-      const [t0, b0] = dragRef.current.view;
-      let nt = t0 + dd;
-      let nb = b0 + dd;
-      if (nt < dMin) { nb += dMin - nt; nt = dMin; }
-      if (nb > dMax) { nt -= nb - dMax; nb = dMax; }
-      setView([nt, nb]);
+      setView(panBy(dragRef.current.view, dd, [dMin, dMax]));
       return;
     }
     const d = dOf(y);
@@ -407,12 +423,9 @@ export default function TrackViewer({
     const rect = canvasRef.current.getBoundingClientRect();
     const d = dOf(e.clientY - rect.top);
     const factor = e.deltaY > 0 ? 1.25 : 0.8;
-    let nt = d - (d - vTop) * factor;
-    let nb = d + (vBase - d) * factor;
-    nt = Math.max(dMin, nt);
-    nb = Math.min(dMax, nb);
-    if (nb - nt < 2) return; // 2 m floor
-    setView(nb - nt >= dMax - dMin ? null : [nt, nb]);
+    const next = zoomAbout([vTop, vBase], d, factor, [dMin, dMax]);
+    if (next !== null && next[0] === vTop && next[1] === vBase) return; // 2 m floor
+    setView(next);
   };
 
   return (
@@ -438,14 +451,11 @@ export default function TrackViewer({
           if (movedRef.current || !onTrackHeaderClick || !tracks.length) return;
           const rect = canvasRef.current.getBoundingClientRect();
           if (e.clientY - rect.top > HEADER_H) return;
-          const x = e.clientX - rect.left - AXIS_W;
-          if (x < 0) return;
-          const totalRatio = tracks.reduce((s, t) => s + (t.width || 1), 0) || 1;
-          const plotW = rect.width - AXIS_W;
-          let acc = 0;
-          for (let i = 0; i < tracks.length; i++) {
-            acc += ((tracks[i].width || 1) / totalRatio) * plotW;
-            if (x < acc) { onTrackHeaderClick(i); return; }
+          const x = e.clientX - rect.left;
+          if (x < AXIS_W) return;
+          const g = trackGeometry(tracks, rect.width);
+          for (let i = 0; i < g.length; i++) {
+            if (x < g[i].x0 + g[i].w) { onTrackHeaderClick(i); return; }
           }
         }}
         onPointerUp={(e) => {

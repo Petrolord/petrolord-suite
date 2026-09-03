@@ -37,7 +37,7 @@ import { faciesCurve } from '../engine/crossplot';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate } from '../layout/layoutSchema';
 import { resolveTracks } from '../layout/resolveTracks';
 import { mapLogs } from '../services/curveMap';
-import { makeTvdLookup } from '../viewer/depthModes';
+import { makeTvdLookup, depthLabel } from '../viewer/depthModes';
 
 export default function PetroWorkstation({ backend }) {
   const [wells, setWells] = useState(null);
@@ -326,7 +326,7 @@ export default function PetroWorkstation({ backend }) {
     try {
       await backend.updateZone(zone.id, edge === 'top' ? { top_md_m: newMd } : { base_md_m: newMd });
       await refreshZones(zone.well_id);
-      setStatus(`Moved ${zone.name} ${edge} to ${newMd.toFixed(1)} m.`);
+      setStatus(`Moved ${zone.name} ${edge} to ${depthLabel(newMd, depthUnit)}.`);
     } catch (e) {
       setStatus(e.message);
     }

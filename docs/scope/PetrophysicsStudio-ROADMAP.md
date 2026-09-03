@@ -271,3 +271,72 @@ Open items after the program:
   `depthTrackUtils.js` (PS4 spec donors, now unused).
 - Optional nicities left on the table: draggable split divider, hover
   cross-highlighting, per-view crossplot domain persistence.
+
+## PT series (tester findings, 2026-09)
+
+Approved 2026-09-03 after the first tester pass (Petrel users on staging).
+Plan of record for the program: the owner-approved plan in the session
+that opened it; this table is the durable copy. Each wave is one branch
+and one PR with base `main`, merged in order; engine work lands in
+Petrolord/petrolord-engines first, then the subtree copy. PT7 is
+independent after PT0.
+
+| Wave | Findings | Engine PR? | One line |
+|---|---|---|---|
+| PT0 Foundations | (all) | yes | Checkshot/depth-frame engine + goldens; viewer math, palette, hit-test, redraw cache, controlled view; curve-name helper; depth display helpers |
+| PT1 Well data like Petrel | 1, 3 | no | MD/OWT/ft at the door, provenance column, editable deviation/checkshots/tops/KB in Well Data Manager, deep link from Petrophysics |
+| PT2 Exports honour units | 7 | no | m/ft + MD/TVD/TVDSS columns in CSV, zone CSV, LAS, report; unit-aware zone panel and statuses |
+| PT3 Tops in the Studio | 4, 6 | no | Tops panel, toggle/colours, pick by click, drag on the name tag, rename, delete; Field parity |
+| PT4 Zones from tops or clicks | 5 | no | Zone planner, three creation modes |
+| PT5 Depth navigator | 2 | no | Shared DepthNavigator in TrackViewer, Field view and Well Correlation |
+| PT6 Fills and density-neutron | 8, 9 | no | Layout schema v2: ramp fill, two-sided threshold, colour/opacity editors, Lithology quicklook built-in, standard D-N colours |
+| PT7 Digitizer automatic mode | 10 | yes + edge fn deploy | Pure-JS colour tracer, ROI box, AI proposal card, editable points, always `_DIG` new curve |
+
+Findings, in the owner's words: (1) checkshots as MD + one-way time with
+unit options, (2) a scroll picker beside the track to scroll and to
+squeeze or stretch the vertical scale, (3) checkshots editable after a
+well is created, (4) tops uploaded in Well Data Manager visible and
+togglable here, (5) zones from tops or by clicking in the log area, (6)
+new tops picked here, (7) exports honouring feet with MD, TVD and TVDSS,
+(8) lithology colour fills and GR cut-off fills, (9) the standard
+density-neutron presentation, (10) an automatic digitizer that always
+saves a new curve.
+
+### Recorded decisions (PT)
+
+- **Checkshots convert at the door.** Storage stays `{tvdss_m, twt_ms}`
+  (Seismolord, synthetics, well tie, Well Planning and portability read
+  it). Users enter MD | TVD | TVDSS, OWT | TWT, m | ft; Petrel defaults
+  MD + OWT. The entered MD is kept per row (`md_m`) and the convention,
+  KB and survey used are kept in `geo_wells.checkshots_provenance` (PT1
+  column), so tables display as entered and re-derive after KB or survey
+  edits. Flat or uphill laterals are refused with a message naming the MD
+  interval. Engine: `packages/engines/engines/welldata/checkshots.js`,
+  goldens from closed-form trajectories.
+- **Tops are edited in Petrophysics from PT3** (create by click, drag on
+  the name tag, rename, delete; owner-only; the same `geo_wells_tops` rows
+  Well Correlation uses). This replaces the PS-era line "tops remain
+  read-only here". Top drags live on a right-edge name tag because the
+  harness seeds a top exactly on a zone base and zone edges keep winning
+  mid-plot.
+- **Digitized curves are always new rows** named `<MNEM>_DIG` with `:n`
+  de-duplication; the tracer is pure JS (a port of the dormant OpenCV
+  routine, jest-tested), and an AI read only proposes calibration, which
+  the user confirms; the acceptance is recorded in provenance.
+- A `grCutoff` pipeline parameter is out of scope (`DEFAULT_PARAMS` is in
+  the vendored engine); the GR cut-off fill binds to a fixed, editable
+  value.
+
+### Wave log (PT)
+
+- **PT0 built 2026-09-03.** Engines PR #102 (merged): checkshot
+  conventions engine, 13 closed-form golden cases at 1e-6 m, `digitizeCurve`
+  provenance merge. Suite: `src/lib/curveNames.js` (`nextFreeName` moved
+  from mergeImport, `digitizedCurveName`), `src/components/wells/depthNavMath.js`
+  and `topColors.js`, `viewer/hitTest.js`, `viewer/trackRender.js
+  trackGeometry`, `viewer/depthModes.js` display helpers, TrackViewer
+  split into a cached static layer plus a cursor layer (single visible
+  canvas kept for PNG export), controlled `view`/`onViewChange` in
+  TrackViewer, MultiWellTracks and Well Correlation CrossSection (which
+  gains data clamping), zone statuses in display units. No visible change
+  by design; all existing e2e unchanged.

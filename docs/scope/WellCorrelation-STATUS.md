@@ -34,3 +34,10 @@ redirect are live on petrolord.com.
   src/pages/apps/WellCorrelation/services/README.md).
 - Top propagation v1 is MANUAL (same-MD seed + user drag); auto-
   correlation is out of v1 scope.
+
+## 2026-09-03: PT0 groundwork
+
+`CrossSection` accepts a controlled `view`/`onViewChange` (for the PT5
+depth navigator) and uses the shared `depthNavMath` zoom/pan, which adds
+data-extent clamping to the wheel and pan. Tops will share the
+`src/components/wells/topColors.js` palette from PT3.

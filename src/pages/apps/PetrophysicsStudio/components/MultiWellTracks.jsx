@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { drawCurve } from '../viewer/trackRender';
 import { displayedDepth } from '../engine/section';
+import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 
 // Light palette (Suite chart standard, src/utils/chartTheme.js): white
 // plot with slate grid and axes, so tracks read like a printed log.
@@ -33,12 +34,20 @@ const PAD_TOP = 2;
  *   tracks = resolved TrackViewer-shape tracks per well; shift from
  *   computeFlattening (null draws unflattened)
  */
-export default function MultiWellTracks({ wells }) {
+export default function MultiWellTracks({ wells, view: viewProp, onViewChange }) {
   const wrapRef = useRef(null);
   const staticRef = useRef(null);
   const overlayRef = useRef(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const [view, setView] = useState(null); // [top, base] displayed depth
+  // [top, base] displayed depth or null = full; controlled when the parent
+  // passes `view` (PT0), otherwise owned here as before
+  const [viewState, setViewState] = useState(null);
+  const controlled = viewProp !== undefined;
+  const view = controlled ? viewProp : viewState;
+  const setView = useCallback((next) => {
+    if (!controlled) setViewState(next);
+    if (onViewChange) onViewChange(next);
+  }, [controlled, onViewChange]);
   const dragRef = useRef(null);
 
   useEffect(() => {
@@ -199,12 +208,7 @@ export default function MultiWellTracks({ wells }) {
     const y = e.clientY - rect.top;
     if (dragRef.current) {
       const dd = dOf(dragRef.current.y) - dOf(y);
-      const [t0, b0] = dragRef.current.view;
-      let nt = t0 + dd;
-      let nb = b0 + dd;
-      if (nt < dMin) { nb += dMin - nt; nt = dMin; }
-      if (nb > dMax) { nt -= nb - dMax; nb = dMax; }
-      setView([nt, nb]);
+      setView(panBy(dragRef.current.view, dd, [dMin, dMax]));
       return;
     }
     drawOverlay(y);
@@ -215,12 +219,9 @@ export default function MultiWellTracks({ wells }) {
     const rect = overlayRef.current.getBoundingClientRect();
     const d = dOf(e.clientY - rect.top);
     const factor = e.deltaY > 0 ? 1.25 : 0.8;
-    let nt = d - (d - vTop) * factor;
-    let nb = d + (vBase - d) * factor;
-    nt = Math.max(dMin, nt);
-    nb = Math.min(dMax, nb);
-    if (nb - nt < 2) return;
-    setView(nb - nt >= dMax - dMin ? null : [nt, nb]);
+    const next = zoomAbout([vTop, vBase], d, factor, [dMin, dMax]);
+    if (next !== null && next[0] === vTop && next[1] === vBase) return;
+    setView(next);
   };
 
   return (

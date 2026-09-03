@@ -21,3 +21,17 @@ export function makeTvdLookup(deviation) {
   const path = computeWellPath(stations);
   return (md) => positionAtMd(stations, path, md)?.tvd ?? NaN;
 }
+
+// ---- display units (PT0, 2026-09-03) -------------------------------------
+// Internal depths are metres MD; only labels and typed values convert.
+
+export const M_PER_FT = 0.3048;
+
+/** Metres -> display unit. */
+export const toDisplay = (mdM, unit) => (unit === 'ft' ? mdM / M_PER_FT : mdM);
+/** Display unit -> metres. */
+export const fromDisplay = (v, unit) => (unit === 'ft' ? v * M_PER_FT : v);
+/** "2040.0 m" / "6692.9 ft". */
+export const depthLabel = (mdM, unit = 'm', digits = 1) => (
+  Number.isFinite(mdM) ? `${toDisplay(mdM, unit).toFixed(digits)} ${unit === 'ft' ? 'ft' : 'm'}` : '—'
+);

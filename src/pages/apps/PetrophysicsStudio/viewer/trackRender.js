@@ -97,3 +97,26 @@ export function drawCurve(ctx, {
   }
   ctx.lineWidth = 1;
 }
+
+/**
+ * Proportional track columns from the layout width ratios over the plot
+ * area to the right of the depth gutter (PT0: one helper for the draw
+ * loop, the header click and the cursor readouts).
+ * @param {Array<{width?: number}>} tracks
+ * @param {number} totalWidth canvas width in CSS px
+ * @param {number} [axisW=56]
+ * @returns {Array<{x0: number, w: number}>}
+ */
+export function trackGeometry(tracks, totalWidth, axisW = 56) {
+  const list = tracks || [];
+  const totalRatio = list.reduce((s, t) => s + (t.width || 1), 0) || 1;
+  const plotW = Math.max(0, (totalWidth || 0) - axisW);
+  const out = [];
+  let x = axisW;
+  for (const t of list) {
+    const w = ((t.width || 1) / totalRatio) * plotW;
+    out.push({ x0: x, w });
+    x += w;
+  }
+  return out;
+}
