@@ -30,7 +30,7 @@ export const SIGNATURE_ALG = 'ECDSA-P256-SHA256';
  * is pasted here). Until then every package is reported as unsigned.
  */
 export const PUBLIC_KEYS = {
-  // 'pld-2026-09': { kty: 'EC', crv: 'P-256', x: '...', y: '...' },
+  'pld-2026-09': { kty: 'EC', crv: 'P-256', x: 'TZqFYA8zYyylW5VJmgEN7PesD--hUsKdJ1701sUdlnc', y: '9E6_QXSvPPfa-PDmHIpJ1UXzslaMHhmLZLQvdGFEPb4' },
 };
 
 function sortKeys(value) {

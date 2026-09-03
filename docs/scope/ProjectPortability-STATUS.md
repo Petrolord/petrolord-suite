@@ -479,8 +479,18 @@ the migrator in the same change.
 ## Open items
 
 - Second engineer reviews `20260902120500` (registries), then apply.
-- Owner applies `20260902130000` (import jobs) and `20260902140000` (export ledger), then flips their MIGRATIONS.md rows.
-- Owner generates the signing key, sets the secrets, pastes the public key, deploys `pld-sign`, and redeploys `org-export` for the PP3a pointer tables.
+- DONE 2026-09-03: `20260902130000` (import jobs) and `20260902140000`
+  (export ledger) applied (gate: three tables, RLS on, owner policies);
+  signing key `pld-2026-09` generated, secrets set, public half pasted into
+  `PUBLIC_KEYS`, `pld-sign` deployed (v1) and `org-export` redeployed (v4)
+  with the PP3a pointer tables. Private JWK backup sits outside the repo
+  at `/root/.pld-signing/secrets.env` (mode 600); delete it once the owner
+  has their own copy, or rotate.
+- The public key must reach production in the same upload as PP5; until
+  then the production build reports staging-signed packages as unknown-key.
+- Owner: certificate wording review (PLAN §8.6) and the staging E2E (export
+  from Well Data Manager, confirm signature + PLD-EX- number, re-import
+  reads signature valid).
 - Deploy procedure: write `build-info.json` `{ "sha": "<full sha>" }` at
   the clean-checkout root before zipping (untracked, gitignored) so the
   Hostinger build stamps the real sha.
