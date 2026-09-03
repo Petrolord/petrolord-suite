@@ -353,3 +353,5 @@ saves a new curve.
   pick by click with an inline name, drag on the right-edge tag, rename,
   delete; `layouts.topStyles`; Field view parity. Recorded decision
   amended (tops editable here).
+- **PT4 built 2026-09-03:** zone planner; Zones panel modes Typed,
+  Between tops (pair + bulk), Pick on track (two clicks).
