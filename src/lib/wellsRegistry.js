@@ -38,6 +38,45 @@ export const curvePath = (userId, wellId, logId) => `${userId}/${wellId}/logs/${
 
 // ---- wells ---------------------------------------------------------------
 
+/** Normalised key for well-name uniqueness: trimmed, inner whitespace
+ *  collapsed, case-folded. "Well 1", "well  1" and " WELL 1 " collide. */
+export const wellNameKey = (name) => String(name ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+/**
+ * One name per registry (owner rule, 2026-09-03): two wells the caller
+ * can see must never share a name, because every app that reads the
+ * registry (Petrophysics, Correlation, Seismolord, Well Planning) lists
+ * wells by name and the user cannot tell them apart. Pure so the
+ * in-memory backends and tests share the exact rule.
+ *
+ * @param {string} name        candidate name
+ * @param {Array<{id: string, name: string, user_id?: string}>} wells
+ *   the wells visible to the caller (own + shared)
+ * @param {{exceptId?: ?string, userId?: ?string}} [opts]
+ *   exceptId: the well being renamed (its own row is not a clash);
+ *   userId: caller id, used only to word the message
+ * @returns {?string} a user-facing error message, or null when free
+ */
+export function wellNameClashMessage(name, wells, { exceptId = null, userId = null } = {}) {
+  const key = wellNameKey(name);
+  if (!key) return 'The well needs a name.';
+  const clash = (wells || []).find((w) => w && w.id !== exceptId && wellNameKey(w.name) === key);
+  if (!clash) return null;
+  const own = !userId || !clash.user_id || clash.user_id === userId;
+  return own
+    ? `A well named "${clash.name}" already exists in your registry. Give this well a different name, or add the data to the existing well.`
+    : `A well named "${clash.name}" is already shared with you by a teammate. Give this well a different name so the two can be told apart.`;
+}
+
+/** Server-backed check used by saveWell and updateWell: reads the wells
+ *  the caller can see (RLS: own + org-shared) and applies the rule. */
+export async function assertWellNameFree(name, { exceptId = null, userId = null } = {}) {
+  const { data, error } = await supabase.from('geo_wells').select('id, name, user_id');
+  if (error) throw new Error(`Could not check well names: ${error.message}`);
+  const msg = wellNameClashMessage(name, data || [], { exceptId, userId });
+  if (msg) throw new Error(msg);
+}
+
 /**
  * @param {{name: string, uwi?: ?string, surfaceX: number, surfaceY: number,
  *   kbM?: number, tdMdM?: ?number, crs?: ?string, xyUnit?: ?string,
@@ -50,10 +89,11 @@ export const curvePath = (userId, wellId, logId) => `${userId}/${wellId}/logs/${
  */
 export async function saveWell(w) {
   const user = await requireUser();
+  await assertWellNameFree(w.name, { userId: user.id });
   const { data, error } = await supabase.from('geo_wells')
     .insert({
       user_id: user.id,
-      name: w.name,
+      name: String(w.name).trim(),
       uwi: w.uwi || null,
       surface_x: w.surfaceX,
       surface_y: w.surfaceY,
@@ -110,6 +150,11 @@ export async function getWell(wellId) {
 
 /** Owner-only header/survey updates (RLS rejects everyone else). */
 export async function updateWell(wellId, patch) {
+  if (patch && patch.name !== undefined) {
+    const user = await requireUser();
+    await assertWellNameFree(patch.name, { exceptId: wellId, userId: user.id });
+    patch = { ...patch, name: String(patch.name).trim() };
+  }
   const { data, error } = await supabase.from('geo_wells')
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('id', wellId).select().single();

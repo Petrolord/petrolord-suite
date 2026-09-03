@@ -160,3 +160,14 @@ retirement) is gone with the old bundle.
   exact equality.
 - numpy `sum` is pairwise; never assert the engine's sequential f64 sum
   equals the golden JSON figure exactly.
+
+## 2026-09-03: one well name per registry
+
+`saveWell` and a rename through `updateWell` now refuse a name that
+matches, case- and whitespace-insensitively, any well the caller can see
+(own or shared by a teammate); the message names the clash. The
+in-memory harness backend mirrors the rule through the same pure
+function (`wellNameClashMessage`) and `inMemoryBackend.test.js` covers
+create, rename and the shared-well case. Server backstop for the
+same-owner half: `20260903120000_geo_wells_unique_name_per_owner.sql`,
+HELD for the shared-table review.

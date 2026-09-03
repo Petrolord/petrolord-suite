@@ -113,3 +113,27 @@ describe('in-memory backend (harness contract)', () => {
     await expect(b.parseLasFile(bad)).rejects.toThrow(/~Curve|section/i);
   });
 });
+
+describe('one name per registry (owner rule 2026-09-03)', () => {
+  test('a second well with the same name is refused, in any case or spacing', async () => {
+    const b = makeInMemoryBackend();
+    const first = await b.saveWell({ ...HEADER, name: 'Dup Test-1' });
+    expect(first.name).toBe('Dup Test-1');
+    await expect(b.saveWell({ ...HEADER, name: 'Dup Test-1' })).rejects.toThrow(/already exists in your registry/);
+    await expect(b.saveWell({ ...HEADER, name: '  dup   test-1 ' })).rejects.toThrow(/already exists in your registry/);
+    expect((await b.listWells()).filter((w) => w.name === 'Dup Test-1')).toHaveLength(1);
+  });
+  test('a name matching the org-shared well is refused too', async () => {
+    const b = makeInMemoryBackend();
+    const shared = (await b.listWells()).find((w) => !w.is_own);
+    await expect(b.saveWell({ ...HEADER, name: shared.name.toUpperCase() })).rejects.toThrow(/shared with you by a teammate/);
+  });
+  test('renaming onto another well is refused; renaming to itself is fine', async () => {
+    const b = makeInMemoryBackend();
+    const a = await b.saveWell({ ...HEADER, name: 'Rename A' });
+    await b.saveWell({ ...HEADER, name: 'Rename B' });
+    await expect(b.updateWell(a.id, { name: 'rename b' })).rejects.toThrow(/already exists/);
+    const same = await b.updateWell(a.id, { name: ' Rename A ' });
+    expect(same.name).toBe('Rename A');
+  });
+});
