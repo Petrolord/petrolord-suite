@@ -110,8 +110,8 @@ five legacy-route redirects are all live on petrolord.com.
   Planning publish. Match is case- and whitespace-insensitive across the
   wells the caller can see (own + teammates' shared); rename to itself is
   allowed. Server backstop `20260903120000_geo_wells_unique_name_per_owner.sql`
-  (same-owner half) is HELD for the shared-table review; duplicate probe
-  was 0 groups on 2026-09-03.
+  (same-owner half) applied 2026-09-03 after the owner took the
+  shared-table review; duplicate probe was 0 groups.
 - **Any mnemonic on a track; several of one type together.** Owner
   finding: only alias-recognised curves displayed. Three changes.
   (1) `services/curveMap.js` alias table widened (resistivity now covers
