@@ -46,6 +46,7 @@ export async function saveWell(w) {
     unitsNote: w.unitsNote,
     deviation: w.deviation || [],
     checkshots: w.checkshots || [],
+    checkshotsProvenance: w.checkshotsProvenance || null,
   });
   const tops = w.tops?.length ? await replaceTops(well.id, w.tops) : [];
   return { ...well, tops: legacyTops(tops) };

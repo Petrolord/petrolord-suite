@@ -137,3 +137,44 @@ describe('one name per registry (owner rule 2026-09-03)', () => {
     expect(same.name).toBe('Rename A');
   });
 });
+
+describe('PT1: well data edits (mirror of the registry rules)', () => {
+  test('updateWellData rejects a non-monotonic checkshot table and a one-station survey', async () => {
+    const b = makeInMemoryBackend();
+    const w = await b.saveWell({ ...HEADER, name: 'EDIT-1' });
+    await expect(b.updateWellData(w.id, { checkshots: [{ tvdss_m: 100, twt_ms: 200 }, { tvdss_m: 90, twt_ms: 260 }] })).rejects.toThrow(/strictly increase/);
+    await expect(b.updateWellData(w.id, { deviation: [{ md: 0, inc: 0, azi: 0 }] })).rejects.toThrow(/at least 2 stations/);
+    await expect(b.updateWellData(w.id, {})).rejects.toThrow(/Nothing to update/);
+  });
+  test('updateWellData is owner-only; a valid edit lands with its provenance', async () => {
+    const b = makeInMemoryBackend();
+    const shared = (await b.listWells()).find((w) => !w.is_own);
+    await expect(b.updateWellData(shared.id, { kbM: 30 })).rejects.toThrow(/Only the owner/);
+    const w = await b.saveWell({ ...HEADER, name: 'EDIT-2' });
+    const prov = { units_in: { depth_ref: 'md', time: 'owt', depth_unit: 'm' }, source: 'wdm-edit', kb_m_used: 31.2 };
+    const out = await b.updateWellData(w.id, { checkshots: [{ tvdss_m: 100, twt_ms: 200, md_m: 131.2 }, { tvdss_m: 200, twt_ms: 300, md_m: 231.2 }], checkshotsProvenance: prov, kbM: 31.2 });
+    expect(out.checkshots).toHaveLength(2);
+    expect(out.checkshots[0].md_m).toBe(131.2);
+    expect(out.checkshots_provenance).toEqual(prov);
+    expect(out.kb_m).toBe(31.2);
+  });
+  test('tops can be added, moved, renamed and deleted by the owner and stay MD-sorted', async () => {
+    const b = makeInMemoryBackend();
+    const w = await b.saveWell({ ...HEADER, name: 'TOPS-1' });
+    const a = await b.saveTop(w.id, { name: 'Top B', mdM: 1500 });
+    await b.saveTop(w.id, { name: 'Top A', mdM: 1400 });
+    expect((await b.listTops(w.id)).map((t) => t.name)).toEqual(['Top A', 'Top B']);
+    await b.updateTop(a.id, { mdM: 1300, name: 'Top B2' });
+    expect((await b.listTops(w.id)).map((t) => t.name)).toEqual(['Top B2', 'Top A']);
+    await b.deleteTop(a);
+    expect(await b.listTops(w.id)).toHaveLength(1);
+    const shared = (await b.listWells()).find((x) => !x.is_own);
+    await expect(b.saveTop(shared.id, { name: 'X', mdM: 1 })).rejects.toThrow(/Only the owner/);
+  });
+  test('the seeded shared well carries a Petrel-entered checkshot table with provenance', async () => {
+    const b = makeInMemoryBackend();
+    const shared = (await b.listWells()).find((w) => !w.is_own);
+    expect(shared.checkshots_provenance.units_in).toEqual({ depth_ref: 'md', time: 'owt', depth_unit: 'ft' });
+    expect(shared.checkshots[0].md_m).toBe(304.8);
+  });
+});

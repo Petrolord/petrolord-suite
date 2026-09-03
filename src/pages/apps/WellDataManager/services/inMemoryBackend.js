@@ -8,7 +8,7 @@
 // (is_own=false rows hide the owner-only actions, like RLS would
 // reject them server-side).
 
-import { wellNameClashMessage } from '@/lib/wellsRegistry';
+import { wellNameClashMessage, validateStoredCheckshotsShape } from '@/lib/wellsRegistry';
 import { parseLas } from '../engine/lasParse';
 import { prepareLogs, suggestWellHeader } from '../engine/lasImport';
 
@@ -42,7 +42,17 @@ export function makeInMemoryBackend(opts = {}) {
       crs_note: 'EPSG:32630 (demo)',
       units_note: 'SI',
       deviation: [],
-      checkshots: [],
+      // entered as MD ft + OWT (Petrel style); stored core TVDSS/TWT with md_m
+      checkshots: [
+        { tvdss_m: 276.8, twt_ms: 240, md_m: 304.8 },
+        { tvdss_m: 581.6, twt_ms: 440, md_m: 609.6 },
+        { tvdss_m: 1191.2, twt_ms: 800, md_m: 1219.2 },
+      ],
+      checkshots_provenance: {
+        units_in: { depth_ref: 'md', time: 'owt', depth_unit: 'ft' },
+        source: 'well-import', kb_m_used: 28, deviation_stations_used: 0,
+        edited_at: new Date(2026, 0, 15).toISOString(),
+      },
       created_at: new Date(2026, 0, 15).toISOString(),
       updated_at: new Date(2026, 0, 15).toISOString(),
       is_own: false,
@@ -95,6 +105,7 @@ export function makeInMemoryBackend(opts = {}) {
         units_note: w.unitsNote || null,
         deviation: w.deviation || [],
         checkshots: w.checkshots || [],
+        checkshots_provenance: w.checkshotsProvenance || null,
         created_at: new Date(2026, 6, 13, 0, 0, seq).toISOString(),
         updated_at: new Date(2026, 6, 13, 0, 0, seq).toISOString(),
         is_own: true,
@@ -106,6 +117,63 @@ export function makeInMemoryBackend(opts = {}) {
     },
 
     updateWell: update,
+
+    /** Owner edit of KB / TD / deviation / checkshots with the registry's
+     *  validation rules (PT1). */
+    async updateWellData(wellId, { kbM, tdMdM, deviation, checkshots, checkshotsProvenance } = {}) {
+      const w = ownWell(wellId, 'edit');
+      const patch = {};
+      if (kbM !== undefined) {
+        if (!Number.isFinite(Number(kbM))) throw new Error('KB must be a number (metres above datum).');
+        patch.kb_m = Number(kbM);
+      }
+      if (tdMdM !== undefined) {
+        if (tdMdM !== null && !(Number(tdMdM) > 0)) throw new Error('TD must be a positive number (m MD).');
+        patch.td_md_m = tdMdM === null ? null : Number(tdMdM);
+      }
+      if (deviation !== undefined) {
+        const st = (deviation || []).map((d) => ({ md: Number(d.md), inc: Number(d.inc), azi: Number(d.azi) }));
+        if (st.length === 1) throw new Error('A deviation survey needs at least 2 stations (or none for a vertical well).');
+        for (let i = 0; i < st.length; i++) {
+          if (![st[i].md, st[i].inc, st[i].azi].every(Number.isFinite)) throw new Error(`Station ${i + 1}: MD, inclination and azimuth must be numbers.`);
+          if (i && !(st[i].md > st[i - 1].md)) throw new Error(`Station ${i + 1}: MD ${st[i].md} does not increase (previous station is at ${st[i - 1].md}).`);
+        }
+        patch.deviation = st;
+      }
+      if (checkshots !== undefined) patch.checkshots = validateStoredCheckshotsShape(checkshots);
+      if (checkshotsProvenance !== undefined) patch.checkshots_provenance = checkshotsProvenance;
+      if (!Object.keys(patch).length) throw new Error('Nothing to update.');
+      Object.assign(w, patch, { updated_at: new Date(2026, 6, 13, 3, 0, seq++).toISOString() });
+      return w;
+    },
+
+    async saveTop(wellId, { name, mdM, interpreter = null }) {
+      ownWell(wellId, 'add tops to');
+      const row = { id: nextId('top'), well_id: wellId, name, md_m: Number(mdM), interpreter };
+      topsByWell.get(wellId).push(row);
+      topsByWell.get(wellId).sort((a, b) => a.md_m - b.md_m);
+      return row;
+    },
+    async updateTop(topId, patch) {
+      for (const [wellId, list] of topsByWell) {
+        const t = list.find((x) => x.id === topId);
+        if (t) {
+          ownWell(wellId, 'edit tops of');
+          if (patch.mdM !== undefined) t.md_m = Number(patch.mdM);
+          if (patch.name !== undefined) t.name = patch.name;
+          if (patch.interpreter !== undefined) t.interpreter = patch.interpreter;
+          list.sort((a, b) => a.md_m - b.md_m);
+          return t;
+        }
+      }
+      throw new Error('Top not found.');
+    },
+    async deleteTop(top) {
+      ownWell(top.well_id, 'delete tops of');
+      const list = topsByWell.get(top.well_id) || [];
+      const i = list.findIndex((x) => x.id === top.id);
+      if (i >= 0) list.splice(i, 1);
+    },
 
     async deleteWell(well) {
       ownWell(well.id, 'delete');

@@ -24,6 +24,8 @@ export default function AddWellDialog({ open, onOpenChange, backend, onDone }) {
       crsProvenance: draft.crsProvenance,
       deviation: draft.deviation,
       checkshots: draft.checkshots,
+      checkshotsProvenance: draft.checkshotsProvenance || null,
+      unitsNote: draft.unitsNote || null,
     });
     if (draft.tops.length) await backend.replaceTops(well.id, draft.tops);
     await commitAutoSetProject(draft.autoSetProject);

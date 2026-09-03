@@ -117,3 +117,79 @@ test('map shows wells and click-selects; manual add-well flow', async ({ page })
   await expect(page.getByTestId('wdm-map')).toBeVisible();
   await expect(page.getByTestId('wdm-well-count')).toHaveText('2');
 });
+
+test('PT1: Petrel checkshots (MD ft + OWT) convert at the door, read back as entered, and stay editable', async ({ page }) => {
+  await page.goto('/dev/well-data-manager');
+  await page.getByTestId('wdm-open-manual').click();
+  await page.getByTestId('well-import-name').fill('PETREL-1');
+  await page.getByTestId('well-import-x').fill('501700');
+  await page.getByTestId('well-import-y').fill('6700700');
+  await page.getByTestId('well-import-kb').fill('30');
+  await page.getByTestId('well-import-td').fill('3000');
+  await page.getByTestId('well-tab-checkshots').click();
+  // header words set the convention once: MD in feet, one-way time
+  await page.getByTestId('well-import-text').fill('MD_ft,OWT_ms\n1000,100\n2000,180\n3000,250');
+  await expect(page.getByTestId('well-import-cs-depthref')).toHaveValue('md');
+  await expect(page.getByTestId('well-import-cs-unit')).toHaveValue('ft');
+  await expect(page.getByTestId('well-import-cs-time')).toHaveValue('owt');
+  // preview: 1000 ft = 304.8 m MD, vertical well, KB 30 -> TVDSS 274.80; OWT 100 -> TWT 200
+  await expect(page.getByTestId('well-import-preview-stored').first()).toHaveText('274.80 / 200.0');
+  await expect(page.getByTestId('well-import-cs-note')).toContainText('vertical');
+  await page.getByTestId('well-import-save').click();
+  await expect(page.getByTestId('wdm-detail-name')).toHaveText('PETREL-1');
+
+  // read back as entered, stored columns beside
+  await page.getByTestId('wdm-detail-tab-checkshots').click();
+  const rows = page.getByTestId('wdm-cs-row');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.first()).toContainText('1000.00');
+  await expect(rows.first()).toContainText('274.80');
+  await page.getByTestId('wdm-cs-view-time').selectOption('twt');
+  await expect(rows.first()).toContainText('200.0');
+
+  // edit a row in place (still MD ft / OWT)
+  await page.getByTestId('wdm-edit-checkshots').click();
+  await page.getByTestId('wdm-checkshots-cell-1-time').fill('190');
+  await page.getByTestId('wdm-checkshots-save').click();
+  // the view is still set to TWT, so the edited 190 ms OWT reads as 380.0
+  await expect(rows.nth(1)).toContainText('380.0');
+
+  // a KB change re-derives the MD-referenced table and says so
+  await page.getByTestId('wdm-detail-tab-header').click();
+  await page.getByTestId('wdm-edit-header').click();
+  await page.getByTestId('wdm-header-kb').fill('45');
+  await page.getByTestId('wdm-header-save').click();
+  await expect(page.getByTestId('wdm-status')).toContainText('re-derived');
+  await page.getByTestId('wdm-detail-tab-checkshots').click();
+  await expect(rows.first()).toContainText('259.80');
+
+  // tops: add one through the grid, ids kept for the others
+  await page.getByTestId('wdm-detail-tab-tops').click();
+  await page.getByTestId('wdm-edit-tops').click();
+  await page.getByTestId('wdm-tops-add').click();
+  await page.getByTestId('wdm-tops-cell-0-name').fill('Top X');
+  await page.getByTestId('wdm-tops-cell-0-md').fill('1500');
+  await page.getByTestId('wdm-tops-save').click();
+  await expect(page.getByTestId('wdm-top-row')).toHaveCount(1);
+
+  // non-monotonic paste is refused with the domain message
+  await page.getByTestId('wdm-detail-tab-checkshots').click();
+  await page.getByTestId('wdm-edit-checkshots').click();
+  await page.getByTestId('wdm-checkshots-paste-toggle').click();
+  await page.getByTestId('wdm-checkshots-paste-text').fill('0,0\n50,55\n40,60');
+  await page.getByTestId('wdm-checkshots-save').click();
+  await expect(page.getByTestId('wdm-checkshots-error')).toContainText('strictly increase');
+});
+
+test('PT1: deep link opens the well on the requested tab and shows the table as entered', async ({ page }) => {
+  // the harness seeds the org-shared well first, so its id is stable
+  await page.goto('/dev/well-data-manager?well=well-1&tab=checkshots');
+  await expect(page.getByTestId('wdm-detail-name')).toHaveText('AKOMA-2 (org shared)');
+  const rows = page.getByTestId('wdm-cs-row');
+  await expect(rows).toHaveCount(3);
+  // seeded as MD ft + OWT: 304.8 m reads back as 1000.00 ft, 240 ms TWT as 120.0 OWT
+  await expect(rows.first()).toContainText('1000.00');
+  await expect(rows.first()).toContainText('120.0');
+  // read-only for a shared well: no edit button
+  await expect(page.getByTestId('wdm-edit-checkshots')).toHaveCount(0);
+});

@@ -5,7 +5,8 @@
 // backend so the /dev harness runs the identical app on
 // makeInMemoryBackend with no auth or DB (the harness philosophy).
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Database, Loader2, Map as MapIcon, CircleDot } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import WellsTree from './WellsTree';
@@ -18,6 +19,10 @@ import PackageExportDialog from '@/components/portability/PackageExportDialog';
 import PackageImportDialog from '@/components/portability/PackageImportDialog';
 
 export default function WellWorkstation({ backend }) {
+  // deep link (PT1): ?well=<id>&tab=<header|logs|tops|deviation|checkshots>
+  // selects the well once the list has loaded (Petrophysics links here)
+  const [searchParams] = useSearchParams();
+  const deepLinkRef = useRef({ well: searchParams.get('well'), tab: searchParams.get('tab'), done: false });
   const [wells, setWells] = useState(null);       // null = first load
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
@@ -42,6 +47,19 @@ export default function WellWorkstation({ backend }) {
   }, [backend]);
 
   useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    const dl = deepLinkRef.current;
+    if (dl.done || !dl.well || !wells) return;
+    dl.done = true;
+    if (wells.some((w) => w.id === dl.well)) { setSelectedId(dl.well); setView('detail'); }
+  }, [wells]);  
+
+  // PT1: the detail view edited the well row; reload the list so the row
+  // it renders is fresh, and bump the detail so its children reload too
+  const onWellChanged = useCallback(async () => {
+    await refresh();
+    setDetailNonce((n) => n + 1);
+  }, [refresh]);
   useEffect(() => {
     backend.myOrgId().then(setOrgId).catch(() => setOrgId(null));
   }, [backend]);
@@ -173,7 +191,8 @@ export default function WellWorkstation({ backend }) {
           <WellsMap wells={list} selectedId={selectedId} onSelect={select} />
         </div>
       ) : (
-        <WellDetail backend={backend} well={selected} onStatus={setStatus} refreshNonce={detailNonce} />
+        <WellDetail backend={backend} well={selected} onStatus={setStatus} refreshNonce={detailNonce}
+          onWellChanged={onWellChanged} initialTab={deepLinkRef.current.well === selected.id ? deepLinkRef.current.tab : null} />
       )}
     </div>
   );

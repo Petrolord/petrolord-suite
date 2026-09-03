@@ -87,29 +87,111 @@ export async function assertWellNameFree(name, { exceptId = null, userId = null 
  *   unknown placement (legacy behavior, badge in the UI). crs_note
  *   stays free-text context.
  */
+const isMissingColumn = (error) => error && (error.code === 'PGRST204' || /column .* does not exist|schema cache/i.test(error.message || ''));
+
 export async function saveWell(w) {
   const user = await requireUser();
   await assertWellNameFree(w.name, { userId: user.id });
-  const { data, error } = await supabase.from('geo_wells')
-    .insert({
-      user_id: user.id,
-      name: String(w.name).trim(),
-      uwi: w.uwi || null,
-      surface_x: w.surfaceX,
-      surface_y: w.surfaceY,
-      kb_m: w.kbM ?? 0,
-      td_md_m: w.tdMdM ?? null,
-      crs: w.crs || null,
-      xy_unit: w.xyUnit || null,
-      crs_provenance: w.crsProvenance || null,
-      crs_note: w.crsNote || null,
-      units_note: w.unitsNote || null,
-      deviation: w.deviation || [],
-      checkshots: w.checkshots || [],
-    })
-    .select().single();
+  const row = {
+    user_id: user.id,
+    name: String(w.name).trim(),
+    uwi: w.uwi || null,
+    surface_x: w.surfaceX,
+    surface_y: w.surfaceY,
+    kb_m: w.kbM ?? 0,
+    td_md_m: w.tdMdM ?? null,
+    crs: w.crs || null,
+    xy_unit: w.xyUnit || null,
+    crs_provenance: w.crsProvenance || null,
+    crs_note: w.crsNote || null,
+    units_note: w.unitsNote || null,
+    deviation: w.deviation || [],
+    checkshots: w.checkshots || [],
+  };
+  // PT1: how the checkshots were entered (convention, KB and survey used).
+  // The column arrives with migration 20260904090000; until it is applied
+  // the insert retries without it so well creation never breaks.
+  if (w.checkshotsProvenance) row.checkshots_provenance = w.checkshotsProvenance;
+  let { data, error } = await supabase.from('geo_wells').insert(row).select().single();
+  if (error && row.checkshots_provenance && isMissingColumn(error)) {
+    delete row.checkshots_provenance;
+    ({ data, error } = await supabase.from('geo_wells').insert(row).select().single());
+  }
   if (error) throw new Error(`Could not save well: ${error.message}`);
   return data;
+}
+
+/**
+ * Owner edit of the well's own data after creation (PT1): KB, TD, the
+ * deviation survey and the checkshot table, validated BEFORE the patch
+ * (the registry's only guard, since updateWell is a raw patch).
+ * Callers convert typed checkshots through the welldata engine first and
+ * pass the stored rows plus their provenance.
+ */
+export async function updateWellData(wellId, { kbM, tdMdM, deviation, checkshots, checkshotsProvenance } = {}) {
+  const patch = {};
+  if (kbM !== undefined) {
+    const v = Number(kbM);
+    if (!Number.isFinite(v)) throw new Error('KB must be a number (metres above datum).');
+    patch.kb_m = v;
+  }
+  if (tdMdM !== undefined) {
+    if (tdMdM === null) patch.td_md_m = null;
+    else {
+      const v = Number(tdMdM);
+      if (!(v > 0)) throw new Error('TD must be a positive number (m MD).');
+      patch.td_md_m = v;
+    }
+  }
+  if (deviation !== undefined) {
+    const stations = (deviation || []).map((d) => ({ md: Number(d.md), inc: Number(d.inc), azi: Number(d.azi) }));
+    if (stations.length === 1) throw new Error('A deviation survey needs at least 2 stations (or none for a vertical well).');
+    for (let i = 0; i < stations.length; i++) {
+      const st = stations[i];
+      if (![st.md, st.inc, st.azi].every(Number.isFinite)) throw new Error(`Station ${i + 1}: MD, inclination and azimuth must be numbers.`);
+      if (st.inc < 0 || st.inc > 180) throw new Error(`Station ${i + 1}: inclination ${st.inc}° is outside 0–180°.`);
+      if (i && !(st.md > stations[i - 1].md)) throw new Error(`Station ${i + 1}: MD ${st.md} does not increase (previous station is at ${stations[i - 1].md}).`);
+    }
+    patch.deviation = stations;
+  }
+  if (checkshots !== undefined) {
+    const rows = validateStoredCheckshotsShape(checkshots);
+    patch.checkshots = rows;
+  }
+  if (checkshotsProvenance !== undefined) patch.checkshots_provenance = checkshotsProvenance;
+  if (!Object.keys(patch).length) throw new Error('Nothing to update.');
+  let { data, error } = await supabase.from('geo_wells')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', wellId).select().single();
+  if (error && 'checkshots_provenance' in patch && isMissingColumn(error)) {
+    delete patch.checkshots_provenance;
+    ({ data, error } = await supabase.from('geo_wells')
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq('id', wellId).select().single());
+  }
+  if (error) throw new Error(`Could not update well data: ${error.message}`);
+  return data;
+}
+
+/** Stored-core shape check shared with the harness backend (the full
+ *  conversion lives in the welldata checkshots engine). */
+export function validateStoredCheckshotsShape(rows) {
+  if (!Array.isArray(rows)) throw new Error('Checkshots must be a list of rows.');
+  if (rows.length === 1) throw new Error('A checkshot table needs at least 2 rows (or none).');
+  const out = rows.map((r, i) => {
+    const tvdss = Number(r?.tvdss_m);
+    const twt = Number(r?.twt_ms);
+    if (!Number.isFinite(tvdss) || !Number.isFinite(twt)) throw new Error(`Row ${i + 1}: checkshot depth and time must be numbers.`);
+    const o = { tvdss_m: tvdss, twt_ms: twt };
+    if (r.md_m !== undefined && r.md_m !== null && Number.isFinite(Number(r.md_m))) o.md_m = Number(r.md_m);
+    return o;
+  });
+  for (let i = 1; i < out.length; i++) {
+    if (!(out[i].tvdss_m > out[i - 1].tvdss_m) || !(out[i].twt_ms > out[i - 1].twt_ms)) {
+      throw new Error(`Row ${i + 1}: checkshots must strictly increase in depth and time. Fix the table rather than let the app re-sort it.`);
+    }
+  }
+  return out;
 }
 
 /** Own wells + wells shared with the caller's organizations (RLS does

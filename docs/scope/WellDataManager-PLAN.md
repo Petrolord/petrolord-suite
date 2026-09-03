@@ -24,6 +24,15 @@ tomorrow. After G1 there are no app-private well tables in the suite.
      **compact jsonb** on the well row, byte-compatible with the proven
      `seismic_wells` shapes (a deviation survey is a few KB, always
      consumed whole — the fault-sticks precedent).
+     **Amendment 2026-09-03 (PT1):** the stored checkshot core stays
+     `[{tvdss_m, twt_ms}]`; the door now accepts MD | TVD | TVDSS,
+     OWT | TWT and m | ft (Petrel defaults MD + OWT) and converts through
+     the survey and KB (`packages/engines/engines/welldata/checkshots.js`).
+     The entered MD travels per row as `md_m`, and
+     `geo_wells.checkshots_provenance` (migration 20260904090000) records
+     the convention, KB and survey used so the table displays as entered
+     and re-derives after KB or survey edits. Deviation, checkshots, tops,
+     KB and TD are editable after creation in the detail view.
    - `wells_tops` — **normalized table** (well_id FK, name, md_m,
      interpreter, updated_at). Deviation from the roadmap's sketch, on
      purpose: Well Correlation (G3) picks and propagates tops *across*
