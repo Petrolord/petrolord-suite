@@ -260,6 +260,21 @@ export function makeInMemoryBackend() {
       return row;
     },
 
+    /** PT7 harness stand-in for the scan reader: a deterministic
+     *  proposal shaped like the edge function's reply (no model call).
+     *  The e2e synthetic scan is built to these numbers. */
+    async readScan({ image, hints = {} } = {}) {
+      if (!image || !String(image).startsWith('data:image/')) throw new Error('Load an image first.');
+      return {
+        proposal: {
+          mnemonic: hints.mnemonic || 'GR', unit: hints.unit || 'GAPI', depth_unit: 'm',
+          depth_top: 2000, depth_bottom: 2100, value_left: 0, value_right: 150, value_log: false,
+          curve_color_hex: '#ff0000', confidence: 0.8, notes: 'Harness proposal, no model was called.',
+        },
+        model: 'harness', prompt_version: 1, usage: null,
+      };
+    },
+
     async publishZone(zone, properties) {
       ownZoneWell(zone.well_id);
       const z = (zonesByWell.get(zone.well_id) || []).find((x) => x.id === zone.id);

@@ -234,3 +234,54 @@ ramp drop rules, v1 threshold without color2, migrate stamps v2 and keeps
 a fork byte-identical, t-dn colours) and fills.test (makeRamp,
 rampStrips, density-neutron pos/neg semantics); e2e PS4 template count
 moved from 3 to 4 and a PT6 pixel test on the lithology track.
+
+## PT7 digitizer automatic mode (2026-09-03)
+
+Finding 10. The digitizer is rebuilt around a natural-pixel frame:
+calibrate (four Pick rows with inline values in the session depth unit;
+no more window.prompt), trace (automatic colour trace inside a dragged
+box via the new engine `petrophysics/scanTrace.js`, engines PR #103, a
+pure JS port of the retired OpenCV routine with an achromatic path for
+black curves; Shift-click seeds the colour, tolerance 0.5 to 3; or by
+hand), review (drag, add, Alt-click or right-click remove, undo, live
+preview of samples, depth range and value range), save. Every save is a
+NEW row named `<MNEM>_DIG`, `_DIG:2`... (`digitizedCurveName`, derived
+again in the workstation against the registry's current mnemonics), and
+the scan plus calibration stay open for the next curve. Provenance:
+`{mode, roi, tolerance, seed_color_hex, trace_stats, edited_points,
+ai_calibration, image_px, calibration, depth_unit_entered}` merged under
+`digitized:true`.
+
+`Read this scan (AI)` calls the new edge function
+`supabase/functions/petro-scan-read` (seismolord-ai skeleton: user JWT,
+OPENAI_API_KEY project-wide, OPENAI_MODEL default gpt-4o-mini, vision
+`image_url` detail high, `response_format json_object`, temperature 0,
+413 over 1600 px or ~1.5 MB, versioned prompt `PROMPT_VERSION 1` whose
+key list is mirrored in `services/scanProposal.js PROPOSAL_KEYS`). The
+reply is a PROPOSAL card (editable); Accept fills the form with pixels
+assumed at the image edges and says so; the reader never traces or
+saves. Client: `services/scanImage.js` (downscale to 1600 px, PNG then
+JPEG under 1.5 MB), `services/scanRead.js` (status to kind mapping),
+backends `readScan` (registry: the function; harness: a canned proposal
+the e2e synthetic scan is built to). `curveMap.candidatesFor` offers
+`KEY_DIG` explicitly, never auto-mapped. Retired dead files:
+`src/lib/autoDigitizeSafe.js`, `src/hooks/useLogDigitizer.jsx`,
+`src/utils/digitizerApi.js` (`src/utils/digitizerOpenCv.js` stays: the
+Contour Map Digitizer still imports it).
+
+**Owner deploy after merge:** `supabase functions deploy petro-scan-read`
+(secrets already project-wide). Cost note: one gpt-4o-mini vision call
+per press of the button, high detail, about 1 to 3k tokens; there is no
+per-user cap yet (follow-up if testers lean on it).
+
+Tests: engines `petrophysics.scanTrace.test` (18, hand-built images),
+Suite `scanProposal` (3), `scanImage` (2), `scanRead` (3), `curveMap`
+(+1 `_DIG` candidate), `digitizer` (+1 provenance merge), `helpGuide`
+(+3 pins); e2e: the manual digitizer scenario rewritten without
+`page.on('dialog')` and a PT7 scenario on a synthetic PNG written by
+`e2e/helpers/syntheticScan.js` (AI read, accept, whole-image trace,
+values 30 to 120 within 1.5, save `GR_DIG` then `GR_DIG:2`).
+
+Follow-ups (not in PT7): wrapped or backup-scale curves, black curves on
+black grids, skewed scans, a per-user daily cap on AI reads, an ROI that
+follows the proposal's scale ends instead of the image edges.

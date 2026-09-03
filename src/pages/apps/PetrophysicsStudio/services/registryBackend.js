@@ -9,6 +9,7 @@
 // and org read-only sharing server-side.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { readScan as readScanViaFunction } from './scanRead';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 import {
   listWells, listLogs, downloadCurve, listTops, saveTop, updateTop, deleteTop,
@@ -41,6 +42,13 @@ async function publishZone(zone, properties) {
 async function saveDigitizedCurve(wellId, log) {
   const [saved] = await saveLogs(wellId, [log]);
   return saved;
+}
+
+/** PT7: ask the petro-scan-read edge function what is printed on a scan.
+ *  Returns a PROPOSAL the digitizer shows for confirmation; nothing is
+ *  traced or saved here. */
+async function readScan(req) {
+  return readScanViaFunction(supabase, req);
 }
 
 // ---- petro_projects (named interpretations, PS3) ---------------------------
@@ -139,6 +147,7 @@ export function makeRegistryBackend() {
     publishCurves,
     publishZone,
     saveDigitizedCurve,
+    readScan,
     loadProject,
     listProjects,
     openProject,

@@ -725,11 +725,33 @@ const PetrophysicsHelpGuide = () => (
       </Para>
       <SubHeading>Digitize</SubHeading>
       <Para>
-        <Code>Digitize…</Code> is a wizard for a scanned log image. Load the image, click two depth
-        reference lines and enter their depths in metres MD, click two value reference lines for
-        the curve, then click along the trace. Name the mnemonic, give a unit and a depth step in
-        metres, and Save adds the curve to the well in the registry. It needs at least two traced
-        points and a positive step.
+        <Code>Digitize…</Code> turns a scanned log image into a new curve on the selected well.
+        Load the image, then calibrate: click the two depth reference lines and type their
+        depths in the session unit, click two value reference lines and type their values, and
+        tick the logarithmic box for a resistivity scale. <Code>Read this scan (AI)</Code> asks
+        the scan reader what is printed on the header (curve name, unit, depth labels, scale
+        ends, curve colour) and shows it as a proposal you can edit; Accept only fills the form,
+        with the reference pixels assumed at the image edges until you pick the real lines. The
+        reader proposes, it never traces and never saves, and it is only offered where the server
+        has it configured.
+      </Para>
+      <Para>
+        Trace automatically by dragging a box around the curve (or use the whole image) and
+        pressing Trace: the tracer follows the curve colour inside the box, one point per image
+        row, ignoring grid lines and neighbouring curves of another colour. Shift-click a point
+        on the curve to pick its colour when the box centre is not on it, and widen the tolerance
+        for faded scans. Or trace by hand, click by click. Review shows the red trace over the
+        scan: drag a point to move it, click empty space to add one, Alt-click or right-click to
+        remove one, Undo reverts. The preview states the sample count, the depth range and the
+        value range before you save.
+      </Para>
+      <Para>
+        A digitized curve is always a new curve: it is saved as <Code>MNEMONIC_DIG</Code>, then
+        <Code>_DIG:2</Code> and so on, never over an existing log, and its provenance records the
+        mode, the box, the colour, the number of edited points and any AI reading you accepted.
+        Digitized curves appear in the explorer picker as candidates for their input but are never
+        mapped automatically; choose one explicitly when you mean it. After a save the scan and
+        its calibration stay open so a second curve on the same image is one more trace.
       </Para>
     </GuideSection>
 

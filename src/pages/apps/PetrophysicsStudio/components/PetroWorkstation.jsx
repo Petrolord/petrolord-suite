@@ -37,7 +37,7 @@ import { faciesCurve } from '../engine/crossplot';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate, getTopStyles, setTopStyle, setShowAllTops } from '../layout/layoutSchema';
 import TopsPanel from './TopsPanel';
 import { validateZoneWindow } from '../services/zonePlanner';
-import { nameKey } from '@/lib/curveNames';
+import { nameKey, digitizedCurveName } from '@/lib/curveNames';
 import { resolveTracks } from '../layout/resolveTracks';
 import { mapLogs } from '../services/curveMap';
 import { makeTvdLookup, depthLabel } from '../viewer/depthModes';
@@ -330,13 +330,21 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
     }
   };
 
+  // PT7: a digitized curve is ALWAYS a new row named <MNEM>_DIG (:n). The
+  // dialog shows the name live; the registry's current mnemonics decide
+  // it again here so two dialogs cannot race to one name.
   const saveDigitized = async (log) => {
     const wellId = wellData.wellId;
     const name = selected.name;
-    const saved = await backend.saveDigitizedCurve(wellId, log);
+    const existing = (wellData.allLogs || []).map((l) => l.mnemonic);
+    const finalName = digitizedCurveName(log.mnemonic, existing);
+    const saved = await backend.saveDigitizedCurve(wellId, { ...log, mnemonic: finalName });
     await select(wellId); // refresh inventory (resets status), then report
     setStatus(`Digitized ${saved.mnemonic} added to ${name}.`);
+    return saved;
   };
+  const canReadScan = typeof backend.readScan === 'function';
+  const readScan = (req) => backend.readScan(req);
 
   const workspaceState = () => ({
     params, facies: faciesByWell, zone_params: zoneParams, layouts, crossplots: crossplotCfg || {},
@@ -887,14 +895,16 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
       wells={wells || []}
       runBatch={runBatchWell}
     />
-    {wellData && (
-      <DigitizerDialog
-        open={digitizerOpen}
-        onOpenChange={setDigitizerOpen}
-        wellName={selected?.name}
-        onSave={saveDigitized}
-      />
-    )}
+    <DigitizerDialog
+      open={digitizerOpen && !!wellData}
+      onOpenChange={setDigitizerOpen}
+      wellName={selected?.name}
+      onSave={saveDigitized}
+      existingMnemonics={(wellData?.allLogs || []).map((l) => l.mnemonic)}
+      depthUnit={depthUnit}
+      canReadScan={canReadScan}
+      onReadScan={readScan}
+    />
     {wellData && (
       <ConditioningDialog
         open={condOpen}
