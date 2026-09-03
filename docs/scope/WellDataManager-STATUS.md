@@ -189,3 +189,21 @@ planning in `engine/mergeImport.js` (`planMerge`, `resampleToGrid`) with
 import into the same well (`refreshNonce`). e2e extended: second import
 of the same file into KETA G1-1 → still 2 wells, 9 logs, GR renamed
 GR_RUN2, RHOB kept as RHOB:2.
+
+## 2026-09-03: LAS 3.0 import
+
+Testers could not load LAS 3.0 files (the reader refused them by design
+in v1). `packages/engines/engines/welldata/lasParse.js` now reads 3.0:
+DLM SPACE/COMMA/TAB with quote-aware rows, one row per depth step,
+`~Log_Definition`/`~Log_Parameter`/`~Log_Data` (2.0 names still
+accepted), `{FORMAT}` and `| association` tails peeled from
+descriptions, empty fields as nulls, array channels as ordinary curves.
+Text columns ({S}/{D}/{DT}/{T} or undeclared non-numeric) are skipped
+and named in `skippedCurves`; every other `*_Definition/*_Data` pair
+(Core, Tops, ...) is ignored and named in `ignoredSections`; the import
+dialog shows both. The 1.2/2.0 path is byte-identical (its lasio goldens
+unchanged). Oracle note: lasio 0.32 misreads LAS 3.0, so the two `*_30`
+fixtures carry goldens written by `genfixtures.py` from its own
+closed-form arrays; `lasGoldens.test.js` runs them bit-for-bit and
+`lasParse30.test.js` covers the rules and the domain errors. Engines PR
+lands first, then the subtree copy here.

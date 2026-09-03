@@ -102,7 +102,7 @@ const PetrophysicsHelpGuide = () => (
         sessions.
       </Para>
       <Callout tone="info" title="Where this app sits in the Geoscience module">
-        Curves enter the registry only through Well Data Manager, and every well name in your
+        Curves enter the registry only through Well Data Manager (LAS 1.2, 2.0 and 3.0), and every well name in your
         registry is unique (a second well with the same name is refused, whatever its case or
         spacing), so the Explorer list is never ambiguous. Tops are read here but edited in
         Well Correlation. Zones are this app&apos;s own artifact. Computed curves and zone summaries

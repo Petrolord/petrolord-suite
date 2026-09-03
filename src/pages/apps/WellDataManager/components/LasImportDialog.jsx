@@ -228,7 +228,7 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         <DialogHeader>
           <DialogTitle>Import LAS logs</DialogTitle>
           <DialogDescription className="text-slate-400">
-            LAS 1.2 / 2.0 — curves convert to SI on import (factors recorded in provenance).
+            LAS 1.2, 2.0 and 3.0 — curves convert to SI on import (factors recorded in provenance).
           </DialogDescription>
         </DialogHeader>
 
@@ -300,12 +300,23 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
               </div>
 
               <p className="text-xs text-slate-400" data-testid="wdm-las-summary">
-                LAS {parsed.meta.version}{parsed.meta.wrap ? ', wrapped' : ''} · depth in{' '}
+                LAS {parsed.meta.version}{String(parsed.meta.wrap).toUpperCase() === 'YES' ? ', wrapped' : ''} · depth in{' '}
                 {prep.depthUnit}{prep.depthFactor !== 1 ? ` → m (×${prep.depthFactor})` : ' (m)'} ·{' '}
                 {prep.startMdM?.toFixed(1)}–{prep.stopMdM?.toFixed(1)} m ·{' '}
                 {prep.stepM == null ? 'irregular step' : `step ${prep.stepM.toFixed(3)} m`} ·{' '}
                 {prep.logs.length - 1} curves
+                {parsed.meta.version >= 3 && parsed.meta.delimiter && parsed.meta.delimiter !== 'space' ? ` · ${parsed.meta.delimiter}-delimited` : ''}
               </p>
+              {(parsed.meta.skippedCurves?.length > 0 || parsed.meta.ignoredSections?.length > 0) && (
+                <p className="text-xs text-amber-300/90" data-testid="wdm-las-las3-note">
+                  {parsed.meta.skippedCurves?.length > 0 && (
+                    <>Not imported (text columns): {parsed.meta.skippedCurves.map((c) => `${c.mnemonic}${c.format ? ` {${c.format}}` : ''}`).join(', ')}. </>
+                  )}
+                  {parsed.meta.ignoredSections?.length > 0 && (
+                    <>Other LAS 3.0 data blocks left out: {parsed.meta.ignoredSections.join(', ')} (only ~Log_Data imports as curves).</>
+                  )}
+                </p>
+              )}
 
               <div className="max-h-48 overflow-auto border border-slate-800 rounded p-2">
                 <table className="text-xs w-full" data-testid="wdm-las-curves">
