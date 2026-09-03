@@ -75,6 +75,29 @@ test('sanding CDP profile matches the oracle sweep, both geometries', () => {
   }
 });
 
+test('the Sanding tab step never drops the interval bottom', () => {
+  // The Step input on the Sanding tab is a free number, and a step that does
+  // not divide the interval used to truncate the sweep: 2450 to 2550 at 30 m
+  // stopped at 2540 and never screened the deepest ten metres. On a base that
+  // is the weak rock, that row is the one that governs.
+  const doc = buildGoldenCaseDoc(golden, completionGolden);
+  const rg = golden.sanding.cdpRagged;
+  doc.params.sanding.geometry = rg.geometry;
+  doc.params.sanding.stepMdM = rg.stepMdM;
+  const res = runAll({ caseDoc: doc, stations: golden.stations, curves });
+  expect(res.sanding.rows).toHaveLength(rg.rows.length);
+  res.sanding.rows.forEach((row, i) => {
+    expectClose(row.mdM, rg.rows[i].mdM, 1e-9);
+    expectClose(row.cdpPa, rg.rows[i].cdpPa, 1e-9);
+  });
+  for (const stepMdM of [7, 13, 25, 30, 40, 99, 150]) {
+    doc.params.sanding.stepMdM = stepMdM;
+    const r = runAll({ caseDoc: doc, stations: golden.stations, curves });
+    expectClose(r.sanding.rows[0].mdM, doc.interval.topMdM, 1e-9);
+    expectClose(r.sanding.rows[r.sanding.rows.length - 1].mdM, doc.interval.bottomMdM, 1e-9);
+  }
+});
+
 test('through-tubing clearance flips with the gun choice against the D7 stack', async () => {
   const { cases, cdCases } = await backendPieces();
   const doc = cases[0];
