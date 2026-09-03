@@ -9,7 +9,7 @@
 // the viewer owns only its depth window and cursor.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { crossoverPolys, thresholdPolys, fillPolys } from '../viewer/fills';
+import { crossoverPolys, thresholdPolys, fillPolys, makeRamp, rampStrips } from '../viewer/fills';
 import { drawCurve, xScaleFor, trackGeometry } from '../viewer/trackRender';
 import { hitZoneEdgeAt, hitTopAt } from '../viewer/hitTest';
 import { topColor } from '@/components/wells/topColors';
@@ -307,11 +307,37 @@ export default function TrackViewer({
           } else if (f.mode === 'threshold') {
             const xt = xScaleFor(track, ca, x0, trackW)(f.value);
             if (!Number.isFinite(xt)) continue;
-            fillPolys(
-              ctx,
-              thresholdPolys(proj(ca), clampX(xt), ys, f.side || 'above', i0, i1),
-              `${f.color}${alpha}`,
-            );
+            const pa = proj(ca);
+            const side = f.side || 'above';
+            if (f.color) fillPolys(ctx, thresholdPolys(pa, clampX(xt), ys, side, i0, i1), `${f.color}${alpha}`);
+            // PT6: the other side in color2 (GR cut-off: sand one colour, shale the other)
+            if (f.color2) fillPolys(ctx, thresholdPolys(pa, clampX(xt), ys, side === 'above' ? 'below' : 'above', i0, i1), `${f.color2}${alpha}`);
+          } else if (f.mode === 'ramp') {
+            // PT6: strips coloured by the curve's own value
+            const ramp = makeRamp(f.stops);
+            if (!ramp) continue;
+            const pa = proj(ca);
+            const strips = rampStrips(pa, ys, i0, i1, plotH, ca.data, f.fillTo);
+            const left = x0 + 2;
+            const right = x0 + trackW - 2;
+            ctx.save();
+            ctx.globalAlpha = f.opacity ?? 0.85;
+            for (const st of strips) {
+              const c = ramp(st.v);
+              if (!c) continue;
+              ctx.fillStyle = c;
+              // a hair of overlap hides antialiased seams between strips
+              const h = Math.max(1, st.y1 - st.y0) + 0.7;
+              if (f.fillTo === 'track') ctx.fillRect(left, st.y0, right - left, h);
+              else if (f.fillTo === 'right') ctx.fillRect(st.xCurve, st.y0, Math.max(0, right - st.xCurve), h);
+              else ctx.fillRect(left, st.y0, Math.max(0, st.xCurve - left), h);
+            }
+            ctx.restore();
+            // legend bar under the header scale rows: min colour to max colour
+            const g = ctx.createLinearGradient(x0 + 4, 0, x0 + trackW - 4, 0);
+            for (const st of f.stops) g.addColorStop(Math.min(1, Math.max(0, (st.value - ramp.lo) / (ramp.hi - ramp.lo))), st.color);
+            ctx.fillStyle = g;
+            ctx.fillRect(x0 + 4, HEADER_H - 4, trackW - 8, 3);
           }
         }
       }

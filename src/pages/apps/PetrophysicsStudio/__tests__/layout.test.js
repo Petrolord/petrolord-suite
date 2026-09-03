@@ -114,3 +114,44 @@ test('topStyles ride in layouts without a migration: show-all, per-name colour a
   // migrateLayouts keeps the preferences
   expect(getTopStyles(migrateLayouts(JSON.parse(JSON.stringify(l)))).showAll).toBe(false);
 });
+
+// ---- PT6: fills v2 ------------------------------------------------------------
+test('lithology quicklook resolves a two-colour cutoff and a GR ramp; t-dn keeps its leg order with the standard colours', () => {
+  const layouts = buildDefaultLayouts();
+  expect(layouts.version).toBe(2);
+  expect(layouts.templates.map((t) => t.id)).toEqual(['std-triple-combo', 'quicklook', 'lithology-quicklook']);
+  const litho = layouts.templates.find((t) => t.id === 'lithology-quicklook');
+  const tracks = resolveTracks(litho, fullCtx);
+  expect(tracks.map((t) => t.key)).toEqual(['l-gr', 'l-litho', 'l-rt', 'l-dn']);
+  expect(tracks[0].fills[0]).toMatchObject({ mode: 'threshold', value: 75, side: 'below', color: '#fde047', color2: '#9ca3af' });
+  expect(tracks[1].fills[0]).toMatchObject({ mode: 'ramp', a: 0, fillTo: 'track' });
+  expect(tracks[1].fills[0].stops).toHaveLength(2);
+  const dn = resolveTracks(activeTemplate(layouts), fullCtx).find((t) => t.key === 't-dn');
+  expect(dn.fills[0]).toMatchObject({ mode: 'crossover', a: 1, b: 0, positiveColor: '#facc15', negativeColor: '#9ca3af' });
+});
+
+test('ramp fills drop when the leg is missing or fewer than two distinct stops remain; v1 thresholds keep resolving without color2', () => {
+  const tpl = { id: 't', name: 't', tracks: [{
+    id: 'x', title: 'x', type: 'curves', scale: 'linear', min: 0, max: 150,
+    curves: [{ source: 'input:GR', color: '#000' }, { source: 'input:RT', color: '#111' }],
+    fills: [
+      { mode: 'ramp', a: 'input:RT', stops: [{ value: 0, color: '#000' }, { value: 1, color: '#fff' }] },
+      { mode: 'ramp', a: 'input:GR', stops: [{ value: 5, color: '#000' }, { value: 5, color: '#fff' }] },
+      { mode: 'ramp', a: 'input:GR', stops: [{ value: 150, color: '#fff' }, { value: 0, color: '#000' }] },
+      { mode: 'threshold', a: 'input:GR', threshold: { value: 75 }, side: 'above', color: '#abc', opacity: 0.2 },
+    ],
+  }] };
+  const out = resolveTracks(tpl, { curves: { GR: d }, outputs: {}, params: {} });
+  expect(out[0].fills).toHaveLength(2);
+  expect(out[0].fills[0].stops.map((s) => s.value)).toEqual([0, 150]);
+  expect(out[0].fills[1].color2).toBeUndefined();
+});
+
+test('migrateLayouts stamps version 2, keeps a v1 user fork byte-identical and adds the lithology built-in', () => {
+  const fork = { id: 'mine', name: 'Mine', builtin: false, tracks: [{ id: 'a', title: 'a', type: 'curves', width: 1, scale: 'linear', min: 0, max: 1, curves: [{ source: 'input:GR', color: '#000' }], fills: [{ mode: 'threshold', a: 'input:GR', threshold: { param: 'grClean' }, side: 'above', color: '#a3a065', opacity: 0.22 }] }] };
+  const m = migrateLayouts({ version: 1, activeTemplateId: 'mine', templates: [JSON.parse(JSON.stringify(fork))] });
+  expect(m.version).toBe(2);
+  expect(m.templates.map((t) => t.id)).toEqual(['std-triple-combo', 'quicklook', 'lithology-quicklook', 'mine']);
+  expect(m.templates.find((t) => t.id === 'mine')).toEqual(fork);
+  expect(m.activeTemplateId).toBe('mine');
+});

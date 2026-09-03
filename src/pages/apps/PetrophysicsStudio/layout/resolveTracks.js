@@ -82,7 +82,16 @@ export function resolveTracks(template, ctx) {
         if (a == null) continue;
         const value = f.threshold?.param != null ? ctx.params?.[f.threshold.param] : f.threshold?.value;
         if (!Number.isFinite(value)) continue;
-        fills.push({ mode: 'threshold', a, value, side: f.side || 'above', color: f.color, opacity: f.opacity });
+        // color2 (PT6): the other side of the threshold, absent = unfilled
+        fills.push({ mode: 'threshold', a, value, side: f.side || 'above', color: f.color, color2: f.color2 || undefined, opacity: f.opacity });
+      } else if (f.mode === 'ramp') {
+        // PT6: colour by the curve's own value between >= 2 distinct stops
+        const a = indexBySource.get(f.a);
+        if (a == null) continue;
+        const stops = (f.stops || []).filter((st) => Number.isFinite(Number(st.value)) && st.color)
+          .map((st) => ({ value: Number(st.value), color: st.color })).sort((p, q) => p.value - q.value);
+        if (stops.length < 2 || !(stops[stops.length - 1].value > stops[0].value)) continue;
+        fills.push({ mode: 'ramp', a, fillTo: f.fillTo || 'left', stops, opacity: f.opacity ?? 0.85 });
       }
     }
 

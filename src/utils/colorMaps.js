@@ -7,7 +7,7 @@ import React from 'react';
  *   e.g., [[0, [0, 0, 255]], [0.5, [255, 255, 255]], [1, [255, 0, 0]]]
  * @returns {Array<number>} The interpolated [r, g, b] value.
  */
-function interpolate(t, points) {
+export function interpolate(t, points) {
     let p1, p2;
     for (let i = 0; i < points.length - 1; i++) {
         if (t >= points[i][0] && t <= points[i + 1][0]) {
