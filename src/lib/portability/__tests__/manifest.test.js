@@ -42,8 +42,8 @@ function goodManifest(extra = {}) {
 describe('manifest schema of record', () => {
   test('the validator and the JSON Schema agree on root keys and enums', () => {
     expect(schema.required.sort()).toEqual(['blobs', 'created_at', 'files', 'format', 'open', 'package_id', 'package_version', 'platform', 'scope', 'source', 'tables'].sort());
-    expect(schema.properties.scope.properties.roots.items.properties.kind.enum).toEqual(ROOT_KINDS);
-    expect(schema.properties.open.items.properties.kind.enum).toEqual(OPEN_KINDS);
+    expect(schema.properties.scope.properties.roots.items.properties.kind.enum).toEqual([...ROOT_KINDS]);
+    expect(schema.properties.open.items.properties.kind.enum).toEqual([...OPEN_KINDS]);
     expect(schema.properties.format.const).toBe('pld');
   });
 });

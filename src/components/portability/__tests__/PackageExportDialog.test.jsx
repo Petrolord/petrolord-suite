@@ -21,6 +21,16 @@ jest.mock('@/lib/surfacesRegistry', () => ({
 jest.mock('@/lib/cultureRegistry', () => ({ listCulture: jest.fn(async () => []) }));
 jest.mock('@/lib/portability/supabaseSource', () => ({ makeSupabaseSource: () => ({ tag: 'source' }) }));
 
+const F1 = '77777777-7777-4777-8777-777777777777';
+const P1 = '88888888-8888-4888-8888-888888888888';
+jest.mock('@/lib/portability/rootsCatalog', () => ({
+  listRootCandidates: jest.fn(async (kind) => {
+    if (kind === 'po_field') return [{ id: '77777777-7777-4777-8777-777777777777', name: 'Keta Field', organization_id: null }];
+    if (kind === 'saved_project') return [{ id: '88888888-8888-4888-8888-888888888888', name: 'Choke KETA-1', table: 'saved_choke_projects', subtitle: 'choke' }];
+    return [];
+  }),
+}));
+
 const mockBuild = jest.fn(async () => ({
   writer: {},
   manifest: { tables: { geo_wells: { rows: 1 }, geo_wells_logs: { rows: 6 } }, blobs: [{}, {}], notes: ['left out: Field interp'] },
@@ -87,4 +97,36 @@ test('a cancelled save is reported without a summary', async () => {
   fireEvent.click(screen.getByTestId('pld-export-run'));
   await waitFor(() => expect(screen.getByTestId('pld-progress')).toHaveTextContent('Save cancelled.'));
   expect(screen.queryByTestId('pld-summary')).toBeNull();
+});
+
+test('PP3a sections: a production field and a saved project become roots, the saved one naming its table', async () => {
+  render(<PackageExportDialog open onOpenChange={() => {}} preselect={{ wells: [] }} />);
+  await screen.findByTestId(`pld-well-${W1}`);
+  expect(screen.getByTestId('pld-section-fields')).toBeInTheDocument();
+  expect(screen.getByTestId('pld-section-saved')).toHaveTextContent('Saved projects');
+  expect(screen.getByTestId('pld-export-run')).toBeDisabled();
+
+  fireEvent.click(screen.getByTestId(`pld-field-${F1}`));
+  fireEvent.click(screen.getByTestId(`pld-saved-saved_choke_projects-${P1}`));
+  expect(screen.getByTestId('pld-export-run')).toBeEnabled();
+  fireEvent.click(screen.getByTestId('pld-export-run'));
+
+  await waitFor(() => expect(screen.getByTestId('pld-summary')).toBeInTheDocument());
+  const [, roots, opts] = mockBuild.mock.calls[0];
+  expect(roots).toEqual(expect.arrayContaining([
+    { kind: 'po_field', id: F1, name: 'Keta Field' },
+    { kind: 'saved_project', id: P1, name: 'Choke KETA-1', table: 'saved_choke_projects' },
+  ]));
+  expect(roots).toHaveLength(2);
+  // no wells selected: the name falls back to the first selected item across sections
+  expect(opts.name).toBe('Keta Field');
+  expect(document.body.textContent.includes('—')).toBe(false);
+});
+
+test('preselect.roots preselects a case and names the package after it', async () => {
+  render(<PackageExportDialog open onOpenChange={() => {}} preselect={{ roots: [{ kind: 'po_field', id: F1, name: 'Keta Field' }] }} />);
+  const box = await screen.findByTestId(`pld-field-${F1}`);
+  expect(box).toBeChecked();
+  expect(screen.getByTestId('pld-name')).toHaveValue('Keta Field');
+  expect(screen.getByTestId('pld-export-run')).toBeEnabled();
 });

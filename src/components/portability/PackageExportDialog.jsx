@@ -1,8 +1,9 @@
-// Export a Geoscience Petrolord Project Package (.pld) (Project Portability
-// PP1, docs/scope/ProjectPortability-PLAN.md). Pick wells, surfaces and
-// culture sets from the registry, name the package, and save it. Assembly
-// lives in src/lib/portability; this dialog only chooses roots, reports
-// progress and shows what went in and what was left out.
+// Export a Petrolord Project Package (.pld) (Project Portability PP1 door,
+// PP3a families, docs/scope/ProjectPortability-PLAN.md). Pick wells,
+// surfaces and culture sets from the registry, production fields, economics
+// cases, simulation cases and saved projects, name the package, and save it.
+// Assembly lives in src/lib/portability; this dialog only chooses roots,
+// reports progress and shows what went in and what was left out.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -16,34 +17,53 @@ import { listCulture } from '@/lib/cultureRegistry';
 import { makeSupabaseSource } from '@/lib/portability/supabaseSource';
 import { buildGeosciencePackage, PackageIntegrityError } from '@/lib/portability/exportPackage';
 import { savePackage, packageFilename } from '@/lib/portability/zipWriter';
+import { listRootCandidates } from '@/lib/portability/rootsCatalog';
+
+// PP3a sections: key -> the root kinds listed under it
+const EXTRA_SECTIONS = [
+  { key: 'fields', title: 'Production fields', kinds: ['po_field'], testPrefix: 'pld-field', emptyText: 'No production fields.' },
+  { key: 'cases', title: 'Economics cases', kinds: ['epe_case', 'epe_assumption_set'], testPrefix: 'pld-case', emptyText: 'No economics cases or assumption sets.' },
+  { key: 'sim', title: 'Simulation cases', kinds: ['sim_case'], testPrefix: 'pld-sim', emptyText: 'No simulation cases.' },
+  { key: 'saved', title: 'Saved projects', kinds: ['saved_project'], testPrefix: 'pld-saved', emptyText: 'No saved projects.' },
+];
+const itemKey = (it) => (it.table ? `${it.table}-${it.id}` : it.id);
 
 const norm = (s) => String(s || '').toLowerCase();
 
-function PickList({ title, items, selected, onToggle, testPrefix, search, emptyText }) {
-  const shown = items.filter((it) => !search || norm(it.name).includes(norm(search)) || norm(it.uwi).includes(norm(search)));
+function PickList({ title, items, selected, onToggle, testPrefix, search, emptyText, sectionKey, keyOf = (it) => it.id, collapsible = false }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const shown = items.filter((it) => !search || norm(it.name).includes(norm(search)) || norm(it.uwi).includes(norm(search)) || norm(it.subtitle).includes(norm(search)));
   return (
     <div className="rounded border border-slate-700 bg-slate-950/40">
-      <div className="px-2 py-1 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800">
-        {title} <span className="text-slate-600">({selected.size} of {items.length})</span>
+      <div
+        className={`px-2 py-1 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-800 flex items-center ${collapsible ? 'cursor-pointer select-none' : ''}`}
+        data-testid={sectionKey ? `pld-section-${sectionKey}` : undefined}
+        onClick={collapsible ? () => setCollapsed((c) => !c) : undefined}
+      >
+        <span>{title} <span className="text-slate-600">({selected.size} of {items.length})</span></span>
+        {collapsible ? <span className="ml-auto text-slate-600">{collapsed ? 'show' : 'hide'}</span> : null}
       </div>
-      <div className="max-h-36 overflow-y-auto">
-        {shown.length === 0 && (
-          <div className="px-2 py-2 text-xs text-slate-500">{emptyText}</div>
-        )}
-        {shown.map((it) => (
-          <label key={it.id} className="flex items-center gap-2 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800 cursor-pointer">
-            <input
-              type="checkbox"
-              data-testid={`${testPrefix}-${it.id}`}
-              checked={selected.has(it.id)}
-              onChange={() => onToggle(it.id)}
-              className="accent-cyan-500"
-            />
-            <span className="truncate">{it.name || it.uwi || it.id}</span>
-            {it.organization_id ? <span className="ml-auto text-[10px] text-slate-500">shared</span> : null}
-          </label>
-        ))}
-      </div>
+      {!collapsed && (
+        <div className="max-h-36 overflow-y-auto">
+          {shown.length === 0 && (
+            <div className="px-2 py-2 text-xs text-slate-500">{emptyText}</div>
+          )}
+          {shown.map((it) => (
+            <label key={keyOf(it)} className="flex items-center gap-2 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800 cursor-pointer">
+              <input
+                type="checkbox"
+                data-testid={`${testPrefix}-${keyOf(it)}`}
+                checked={selected.has(keyOf(it))}
+                onChange={() => onToggle(keyOf(it))}
+                className="accent-cyan-500"
+              />
+              <span className="truncate">{it.name || it.uwi || it.id}</span>
+              {it.subtitle ? <span className="ml-auto text-[10px] text-slate-500 truncate max-w-[40%]">{it.subtitle}</span> : null}
+              {!it.subtitle && it.organization_id ? <span className="ml-auto text-[10px] text-slate-500">shared</span> : null}
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -57,6 +77,10 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
   const [selWells, setSelWells] = useState(new Set());
   const [selSurfaces, setSelSurfaces] = useState(new Set());
   const [selCulture, setSelCulture] = useState(new Set());
+  // PP3a: section key -> candidate items (each { kind, id, name, table?, subtitle? })
+  const [extraItems, setExtraItems] = useState({});
+  // section key -> Set of item keys (id, or table-id for saved projects)
+  const [selExtra, setSelExtra] = useState({});
   const [name, setName] = useState('');
   const [includeInterpretations, setIncludeInterpretations] = useState(true);
   const [includeSidecars, setIncludeSidecars] = useState(true);
@@ -76,21 +100,36 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
     setLoading(true);
     (async () => {
       try {
-        const [w, s, c] = await Promise.all([
+        const [w, s, c, ...extra] = await Promise.all([
           listWells().catch(() => []),
           listSurfaces().catch(() => []),
           listCulture().catch(() => []),
+          ...EXTRA_SECTIONS.map((sec) => Promise.all(sec.kinds.map((k) => listRootCandidates(k).then((items) => (items || []).map((it) => ({ ...it, kind: k }))).catch(() => [])))
+            .then((lists) => lists.flat())),
         ]);
         if (cancelled) return;
         setWells(w || []);
         setSurfaces(s || []);
         setCulture(c || []);
+        const items = Object.fromEntries(EXTRA_SECTIONS.map((sec, i) => [sec.key, extra[i] || []]));
+        setExtraItems(items);
         const pw = new Set(preselect?.wells || []);
         setSelWells(pw);
         setSelSurfaces(new Set(preselect?.surfaces || []));
         setSelCulture(new Set(preselect?.culture || []));
+        // preselected roots for the PP3a sections
+        const pre = {};
+        let firstExtraName = null;
+        for (const r of preselect?.roots || []) {
+          const sec = EXTRA_SECTIONS.find((x) => x.kinds.includes(r.kind));
+          if (!sec) continue;
+          pre[sec.key] = pre[sec.key] || new Set();
+          pre[sec.key].add(itemKey(r));
+          if (!firstExtraName) firstExtraName = r.name || items[sec.key].find((it) => itemKey(it) === itemKey(r))?.name || null;
+        }
+        setSelExtra(pre);
         const first = (w || []).find((x) => pw.has(x.id));
-        setName(preselect?.name || first?.name || '');
+        setName(preselect?.name || first?.name || firstExtraName || '');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -104,16 +143,33 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
     return next;
   });
 
-  const totalSelected = selWells.size + selSurfaces.size + selCulture.size;
+  const toggleExtra = (key) => (itemK) => setSelExtra((prev) => {
+    const next = new Set(prev[key] || []);
+    if (next.has(itemK)) next.delete(itemK); else next.add(itemK);
+    return { ...prev, [key]: next };
+  });
+
+  const extraSelectedCount = Object.values(selExtra).reduce((n, set) => n + set.size, 0);
+  const totalSelected = selWells.size + selSurfaces.size + selCulture.size + extraSelectedCount;
 
   const roots = useMemo(() => {
     const nameOf = (list, id) => list.find((x) => x.id === id)?.name || null;
+    const extraRoots = [];
+    for (const sec of EXTRA_SECTIONS) {
+      const sel = selExtra[sec.key];
+      if (!sel || !sel.size) continue;
+      for (const it of extraItems[sec.key] || []) {
+        if (!sel.has(itemKey(it))) continue;
+        extraRoots.push({ kind: it.kind, id: it.id, name: it.name || null, ...(it.table ? { table: it.table } : {}) });
+      }
+    }
     return [
       ...Array.from(selWells).map((id) => ({ kind: 'well', id, name: nameOf(wells, id) })),
       ...Array.from(selSurfaces).map((id) => ({ kind: 'surface', id, name: nameOf(surfaces, id) })),
       ...Array.from(selCulture).map((id) => ({ kind: 'culture', id, name: nameOf(culture, id) })),
+      ...extraRoots,
     ];
-  }, [selWells, selSurfaces, selCulture, wells, surfaces, culture]);
+  }, [selWells, selSurfaces, selCulture, wells, surfaces, culture, selExtra, extraItems]);
 
   const run = async () => {
     setRunning(true);
@@ -154,7 +210,7 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Package className="w-4 h-4 text-cyan-400" /> Export project package</DialogTitle>
           <DialogDescription className="text-slate-400">
-            A portable .pld file with the selected wells, surfaces and culture sets, their data, and open-format sidecars. Import it into any Petrolord account for an independent copy.
+            A portable .pld file with the selected items, their data, and open-format sidecars where a format exists. Import it into any Petrolord account for an independent copy.
           </DialogDescription>
         </DialogHeader>
 
@@ -188,6 +244,21 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
               <PickList title="Wells" items={wells} selected={selWells} onToggle={toggle(setSelWells)} testPrefix="pld-well" search={search} emptyText="No wells in your registry." />
               <PickList title="Surfaces" items={surfaces} selected={selSurfaces} onToggle={toggle(setSelSurfaces)} testPrefix="pld-surface" search={search} emptyText="No surfaces in your registry." />
               <PickList title="Culture" items={culture} selected={selCulture} onToggle={toggle(setSelCulture)} testPrefix="pld-culture" search={search} emptyText="No culture sets in your registry." />
+              {EXTRA_SECTIONS.map((sec) => (
+                <PickList
+                  key={sec.key}
+                  sectionKey={sec.key}
+                  collapsible
+                  title={sec.title}
+                  items={extraItems[sec.key] || []}
+                  selected={selExtra[sec.key] || new Set()}
+                  onToggle={toggleExtra(sec.key)}
+                  keyOf={itemKey}
+                  testPrefix={sec.testPrefix}
+                  search={search}
+                  emptyText={sec.emptyText}
+                />
+              ))}
             </div>
           )}
 

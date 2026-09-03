@@ -12,9 +12,15 @@ export const POINTER_TABLES = {
   seismic_exported_surfaces: { bucket: 'seismic',  column: 'storage_path', kind: 'object' },
   geo_wells_logs:            { bucket: 'wells',    column: 'storage_path', kind: 'object' },
   geo_surfaces:              { bucket: 'surfaces', column: 'storage_path', kind: 'object' },
+  // PP3 (2026-09-02): the buckets the offboarding dump used to miss
+  geo_culture:               { bucket: 'culture',  column: 'storage_path', kind: 'object' },
+  seismic_lines:             { bucket: 'seismic',  column: 'storage_path', kind: 'prefix' },
+  seismic_line_picks:        { bucket: 'seismic',  column: 'storage_path', kind: 'object' },
+  // deck_path names the main .DATA file; the whole deck folder around it travels
+  sim_cases:                 { bucket: 'sim',      column: 'deck_path',    kind: 'dir' },
 };
 
-export const EXPORT_BUCKETS = ['seismic', 'wells', 'surfaces'];
+export const EXPORT_BUCKETS = ['seismic', 'wells', 'surfaces', 'culture', 'sim'];
 
 export function chunk(arr, size) {
   const out = [];
@@ -100,7 +106,8 @@ export function collectStorageTargets(store) {
     for (const row of entry.rows) {
       const path = row[cfg.column];
       if (!path || typeof path !== 'string') continue;
-      const normalized = path.replace(/^\/+/, '').replace(/\/+$/, '');
+      let normalized = path.replace(/^\/+/, '').replace(/\/+$/, '');
+      if (cfg.kind === 'dir') normalized = normalized.includes('/') ? normalized.slice(0, normalized.lastIndexOf('/')) : normalized;
       const key = `${cfg.bucket}:${normalized}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -111,7 +118,7 @@ export function collectStorageTargets(store) {
         source_id: row.id ?? null,
         owner_user_id: normalized.split('/')[0] || null,
       };
-      (cfg.kind === 'prefix' ? prefixes : objects).push(target);
+      (cfg.kind === 'prefix' || cfg.kind === 'dir' ? prefixes : objects).push(target);
     }
   }
   return { objects, prefixes };

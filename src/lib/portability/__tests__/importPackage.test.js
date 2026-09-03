@@ -64,14 +64,19 @@ function makeSource() {
   const grid = Float32Array.from({ length: 6 }, (_, i) => 1000 + i);
   const surface = { id: SURF, user_id: SRC_USER, organization_id: null, name: 'Top Sand A depth', kind: 'depth', origin_x: 0, origin_y: 0, nx: 3, ny: 2, dx: 10, dy: 10, rotation_deg: 0, z_domain: 'depth', z_unit: 'm', null_value: 1e30, crs: 'EPSG:32631', provenance: { isochore: [SURF, uid(900)] }, storage_path: `${SRC_USER}/${SURF}/grid.f32` };
   const petro = { id: PETRO, user_id: SRC_USER, name: 'Type well interp', well_ids: [WELL], params: { grClean: 20 }, layouts: { version: 1, templates: [] }, facies: { [WELL]: [{ name: 'sand' }] }, zone_params: { [uid(400)]: { grClay: 110 } }, schema_version: 1 };
+  const wells = { [WELL]: well }; const topsMap = { [WELL]: tops }; const zonesMap = { [WELL]: zones };
+  const state = { petro_projects: [petro], pp_projects: [], rp_projects: [], geo_correlation_sections: [] };
+  const TABLES = { geo_wells: Object.values(wells), geo_wells_logs: logRows, geo_wells_tops: Object.values(topsMap).flat(), geo_wells_zones: Object.values(zonesMap).flat(), geo_surfaces: [surface], geo_culture: [], ...state };
+  const f32bytes = (arr) => { const f = arr instanceof Float32Array ? arr : Float32Array.from(arr); return new Uint8Array(f.buffer, f.byteOffset, f.byteLength); };
+  const BLOBS = new Map();
+  for (const l of logRows) BLOBS.set(`wells/${l.storage_path}`, f32bytes(samples[l.id]));
+  BLOBS.set(`surfaces/${surface.storage_path}`, f32bytes(grid));
   return {
     async currentUser() { return { id: SRC_USER, organization_id: SRC_ORG, organization_name: 'Source Co' }; },
-    async getWell(id) { return id === WELL ? well : null; },
-    async listLogs() { return logRows; }, async listTops() { return tops; }, async listZones() { return zones; },
-    async downloadCurve(log) { return samples[log.id]; },
-    async getSurface(id) { return id === SURF ? surface : null; }, async downloadSurfaceGrid() { return grid; },
-    async getCulture() { return null; }, async downloadCultureFeatures() { return []; },
-    async getStateRow(table, id) { return table === 'petro_projects' && id === PETRO ? petro : null; },
+    async getRow(table, id) { return (TABLES[table] || []).find((r) => r.id === id) || null; },
+    async listChildren(table, column, parentId) { return (TABLES[table] || []).filter((r) => r[column] === parentId); },
+    async downloadBlob(bucket, path) { const b = BLOBS.get(`${bucket}/${path}`); if (!b) throw new Error(`no blob ${bucket}/${path}`); return b; },
+    async listBlobs() { return []; },
     async listStateRowsForWells(table) { return table === 'petro_projects' ? [petro] : []; },
     async getCustomCrs(id) { return id === CRS_ID ? { name: 'Keta TM', proj4: '+proj=tmerc' } : null; },
     _samples: samples, _logRows: logRows, _grid: grid,

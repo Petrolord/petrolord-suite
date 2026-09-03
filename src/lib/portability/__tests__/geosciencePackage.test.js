@@ -73,19 +73,23 @@ function makeSource() {
     pp_projects: [], rp_projects: [],
     geo_correlation_sections: [{ id: uid(500), user_id: USER, name: 'A-B section', well_ids: [WELL, WELL2], datum: { mode: 'top', topName: 'Top Sand A' }, track_layout: {} }],
   };
+
+  // generic collector interface (PP3): rows by table, children by FK, blobs by path
+  const TABLES = {
+    geo_wells: Object.values(wells), geo_wells_logs: logRows, geo_wells_tops: Object.values(tops).flat(), geo_wells_zones: Object.values(zones).flat(),
+    geo_surfaces: [surface], geo_culture: [], ...state,
+  };
+  const f32bytes = (arr) => { const f = arr instanceof Float32Array ? arr : Float32Array.from(arr); return new Uint8Array(f.buffer, f.byteOffset, f.byteLength); };
+  const BLOBS = new Map();
+  for (const l of logRows) BLOBS.set(`wells/${l.storage_path}`, f32bytes(samples[l.id]));
+  BLOBS.set(`surfaces/${surface.storage_path}`, f32bytes(grid));
   return {
     calls: { downloads: 0 },
     async currentUser() { return { id: USER, organization_id: ORG, organization_name: 'Lordsway' }; },
-    async getWell(id) { return wells[id] || null; },
-    async listLogs(wellId) { return logRows.filter((l) => l.well_id === wellId); },
-    async listTops(wellId) { return tops[wellId] || []; },
-    async listZones(wellId) { return zones[wellId] || []; },
-    async downloadCurve(log) { this.calls.downloads += 1; return samples[log.id]; },
-    async getSurface(id) { return id === SURF ? surface : null; },
-    async downloadSurfaceGrid() { return grid; },
-    async getCulture() { return null; },
-    async downloadCultureFeatures() { return []; },
-    async getStateRow(table, id) { return (state[table] || []).find((r) => r.id === id) || null; },
+    async getRow(table, id) { return (TABLES[table] || []).find((r) => r.id === id) || null; },
+    async listChildren(table, column, parentId) { return (TABLES[table] || []).filter((r) => r[column] === parentId); },
+    async downloadBlob(bucket, path) { this.calls.downloads += 1; const b = BLOBS.get(`${bucket}/${path}`); if (!b) throw new Error(`no blob ${bucket}/${path}`); return b; },
+    async listBlobs() { return []; },
     async listStateRowsForWells(table, wellIds) { return (state[table] || []).filter((r) => r.well_ids.some((w) => wellIds.includes(w))); },
     async getCustomCrs(id) { return id === CRS_ID ? { name: 'Keta local TM', proj4: '+proj=tmerc +lat_0=0 +lon_0=1 +k=0.9996 +x_0=500000 +y_0=0 +ellps=WGS84 +units=m +no_defs' } : null; },
     _samples: samples, _logRows: logRows, _grid: grid, _surface: surface,
