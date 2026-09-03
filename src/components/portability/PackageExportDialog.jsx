@@ -20,7 +20,13 @@ import { savePackage, packageFilename } from '@/lib/portability/zipWriter';
 import { listRootCandidates } from '@/lib/portability/rootsCatalog';
 
 // PP3a/PP3b sections: key -> the root kinds listed under it
+const SEISMIC_KIND_LABEL = { seismic_project: 'project', seismic_volume: 'volume', seismic_line: 'line' };
 const EXTRA_SECTIONS = [
+  // PP3c: projects, volumes and lines share one list; the subtitle names the kind
+  {
+    key: 'seismic', title: 'Seismic', kinds: ['seismic_project', 'seismic_volume', 'seismic_line'], testPrefix: 'pld-seismic', emptyText: 'No seismic projects, volumes or lines.',
+    decorate: (it, kind) => ({ ...it, subtitle: it.subtitle ? `${SEISMIC_KIND_LABEL[kind]}: ${it.subtitle}` : SEISMIC_KIND_LABEL[kind] }),
+  },
   // PP3b
   { key: 'wp_site', title: 'Well planning sites', kinds: ['wp_site'], testPrefix: 'pld-wpsite', emptyText: 'No well planning sites.' },
   { key: 'fields', title: 'Production fields', kinds: ['po_field'], testPrefix: 'pld-field', emptyText: 'No production fields.' },
@@ -106,7 +112,7 @@ export default function PackageExportDialog({ open, onOpenChange, preselect, onS
           listWells().catch(() => []),
           listSurfaces().catch(() => []),
           listCulture().catch(() => []),
-          ...EXTRA_SECTIONS.map((sec) => Promise.all(sec.kinds.map((k) => listRootCandidates(k).then((items) => (items || []).map((it) => ({ ...it, kind: k }))).catch(() => [])))
+          ...EXTRA_SECTIONS.map((sec) => Promise.all(sec.kinds.map((k) => listRootCandidates(k).then((items) => (items || []).map((it) => ({ ...(sec.decorate ? sec.decorate(it, k) : it), kind: k }))).catch(() => [])))
             .then((lists) => lists.flat())),
         ]);
         if (cancelled) return;

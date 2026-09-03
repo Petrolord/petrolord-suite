@@ -98,6 +98,15 @@ export function makeSupabaseSource() {
       return data || [];
     },
 
+    // ---- Seismolord hooks ----
+    /** Own sessions and bookmarks whose payload names one of the packaged volumes. */
+    async listSessionsForVolumes(volumeIds) {
+      if (!volumeIds.length) return [];
+      const { data, error } = await supabase.from('seismic_sessions').select('*').in('payload->>volume_id', volumeIds);
+      if (error) throw error;
+      return data || [];
+    },
+
     async getCustomCrs(id) {
       const { data, error } = await supabase.from('geoscience_settings').select('custom_defs').maybeSingle();
       if (error || !data?.custom_defs) return null;
