@@ -12,6 +12,7 @@ import { drawCurve } from '../viewer/trackRender';
 import { displayedDepth } from '../engine/section';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 import { topColor, topKey } from '@/components/wells/topColors';
+import DepthNavigator from '@/components/wells/DepthNavigator';
 
 // Light palette (Suite chart standard, src/utils/chartTheme.js): white
 // plot with slate grid and axes, so tracks read like a printed log.
@@ -228,8 +229,23 @@ export default function MultiWellTracks({ wells, view: viewProp, onViewChange, t
     setView(next);
   };
 
+  // PT5 navigator: first well's first track curve in displayed depth; every
+  // shown top as a tick
+  const navProfile = (() => {
+    const w = wells.find((x) => x.curves?.DEPT?.length && x.tracks?.length && x.tracks[0].curves?.length);
+    if (!w) return null;
+    const s = w.shift || 0;
+    const c = w.tracks[0].curves[0];
+    return { depth: Float64Array.from(w.curves.DEPT, (d) => d + s), values: c.data, min: c.min ?? w.tracks[0].min, max: c.max ?? w.tracks[0].max };
+  })();
+  const st = topStyles || { showAll: true, byName: {} };
+  const navTops = st.showAll === false ? [] : wells.flatMap((w) => (w.tops || [])
+    .filter((t) => !st.byName?.[topKey(t.name)]?.hidden)
+    .map((t) => ({ d: displayedDepth(t.md_m, w.shift || 0), name: t.name, color: topColor(t.name, { overrides: st.byName || {} }) })));
+
   return (
-    <div ref={wrapRef} className="h-full min-h-0 w-full relative overflow-hidden" data-testid="petro-field-tracks">
+    <div className="h-full min-h-0 w-full flex" data-testid="petro-field-tracks">
+    <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden">
       <canvas ref={staticRef} className="absolute inset-0" />
       <canvas
         ref={overlayRef}
@@ -248,6 +264,20 @@ export default function MultiWellTracks({ wells, view: viewProp, onViewChange, t
       <span className="absolute bottom-1 right-2 text-[10px] text-slate-600 pointer-events-none">
         wheel: zoom · drag: pan · double-click: full extent
       </span>
+    </div>
+    {size.w >= 460 && Number.isFinite(dMin) && dMax > dMin && (
+      <DepthNavigator
+        extent={[dMin, dMax]}
+        view={view}
+        onViewChange={setView}
+        profile={navProfile}
+        tops={navTops}
+        headerOffset={plotTop}
+        bottomPad={4}
+        theme="light"
+        testId="petro-field-depth-nav"
+      />
+    )}
     </div>
   );
 }

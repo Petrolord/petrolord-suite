@@ -14,6 +14,7 @@ import { drawCurve, xScaleFor, trackGeometry } from '../viewer/trackRender';
 import { hitZoneEdgeAt, hitTopAt } from '../viewer/hitTest';
 import { topColor } from '@/components/wells/topColors';
 import TopNamePopover from '@/components/wells/TopNamePopover';
+import DepthNavigator from '@/components/wells/DepthNavigator';
 import { depthLabel } from '../viewer/depthModes';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 
@@ -127,6 +128,18 @@ export default function TrackViewer({
   }, [tops, topStyles]);
   const TAG_MAX = 120;
   const tagLeft = Math.max(AXIS_W, size.w - TAG_MAX - 4);
+
+  // PT5 depth navigator: miniature of the first track's first curve, the
+  // tops as ticks and the zones as bands; hidden when the plot is narrow
+  const navProfile = useMemo(() => {
+    const t = (tracks || []).find((x) => x.type !== 'strip' && x.curves?.length) || null;
+    if (!t) return null;
+    const c = t.curves[0];
+    return { depth, values: c.data, min: c.min ?? t.min, max: c.max ?? t.max };
+  }, [tracks, depth]);
+  const navTops = useMemo(() => shownTops.map((t) => ({ d: t.md_m, name: t.name, color: t.color })), [shownTops]);
+  const navZones = useMemo(() => (zones || []).map((z, i) => ({ top: z.top_md_m, base: z.base_md_m, color: ZONE_COLORS[i % ZONE_COLORS.length] })), [zones]);
+  const showNav = size.w >= 460;
 
   // STATIC layer (PT0): zones, axis, curves, fills and tops are drawn once
   // per data/view change into an offscreen canvas; the cursor layer below
@@ -590,7 +603,8 @@ export default function TrackViewer({
   };
 
   return (
-    <div ref={wrapRef} className="h-full min-h-0 w-full relative overflow-hidden" data-testid="petro-tracks" data-pick-mode={pickMode || ''}>
+    <div className="h-full min-h-0 w-full flex" data-testid="petro-tracks" data-pick-mode={pickMode || ''}>
+    <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden">
       <canvas
         ref={canvasRef}
         className="cursor-crosshair"
@@ -633,6 +647,23 @@ export default function TrackViewer({
           : pickMode === 'zone' ? 'click the zone top, then its base · Esc: finish'
             : 'wheel: zoom · drag: pan · double-click: full well'}
       </span>
+    </div>
+    {showNav && depth.length > 0 && (
+      <DepthNavigator
+        extent={[dMin, dMax]}
+        view={view}
+        onViewChange={setView}
+        profile={navProfile}
+        tops={navTops}
+        zones={navZones}
+        depthUnit={depthUnit}
+        tvdLookup={tvdLookup}
+        headerOffset={plotTop}
+        bottomPad={4}
+        theme="light"
+        testId="petro-depth-nav"
+      />
+    )}
     </div>
   );
 }

@@ -12,13 +12,14 @@ import {
   displayedRange, depthToY, allTopNames,
 } from '../engine/section';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
+import { topColor } from '@/components/wells/topColors';
+import DepthNavigator from '@/components/wells/DepthNavigator';
 
 const AXIS_W = 52;
 const HEADER_H = 34;
 const HANDLE_R = 5;            // top-marker grab handle radius
 const GR_MIN = 0;
 const GR_MAX = 150;
-const TOP_COLORS = ['#22d3ee', '#fbbf24', '#34d399', '#f472b6', '#a78bfa', '#f87171', '#38bdf8'];
 
 /**
  * @param {Object} p
@@ -59,7 +60,8 @@ export default function CrossSection({ wells, datum, shownTops, zonePair, onTopD
   useEffect(() => { setView(null); }, [datum, setView]); // refit when the datum changes
 
   const topNames = useMemo(() => allTopNames(wells), [wells]);
-  const colorOf = (name) => TOP_COLORS[topNames.indexOf(name) % TOP_COLORS.length];
+  // PT5: the same deterministic palette Petrophysics uses (dark variant)
+  const colorOf = (name) => topColor(name, { theme: 'dark' });
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -277,8 +279,20 @@ export default function CrossSection({ wells, datum, shownTops, zonePair, onTopD
     setView(next);
   };
 
+  // PT5 navigator: first well's GR in displayed depth, shown tops as ticks
+  const navProfile = (() => {
+    const w = wells.find((x) => x.depth?.length && x.gr?.length);
+    if (!w) return null;
+    const s = shiftOf(w.id) || 0;
+    return { depth: Float64Array.from(w.depth, (d) => d + s), values: w.gr, min: GR_MIN, max: GR_MAX };
+  })();
+  const navTops = wells.flatMap((w) => (w.tops || [])
+    .filter((t) => !shownTops || shownTops.includes(t.name))
+    .map((t) => ({ d: displayedDepth(t.md_m, shiftOf(w.id)), name: t.name, color: colorOf(t.name) })));
+
   return (
-    <div ref={wrapRef} className="h-full min-h-0 w-full relative overflow-hidden" data-testid="corr-section">
+    <div className="h-full min-h-0 w-full flex" data-testid="corr-section">
+    <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden">
       <canvas
         ref={canvasRef}
         data-testid="corr-section-canvas"
@@ -292,6 +306,20 @@ export default function CrossSection({ wells, datum, shownTops, zonePair, onTopD
       <span className="absolute bottom-1 right-2 text-[10px] text-slate-600 pointer-events-none">
         drag a handle to move a top · drag background to pan · wheel zoom · double-click fit
       </span>
+    </div>
+    {size.w >= 460 && (
+      <DepthNavigator
+        extent={autoRange}
+        view={view}
+        onViewChange={setView}
+        profile={navProfile}
+        tops={navTops}
+        headerOffset={plotTop}
+        bottomPad={6}
+        theme="dark"
+        testId="corr-depth-nav"
+      />
+    )}
     </div>
   );
 }
