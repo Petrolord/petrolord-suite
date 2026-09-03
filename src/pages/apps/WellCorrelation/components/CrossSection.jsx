@@ -11,6 +11,7 @@ import {
   computeFlattening, displayedDepth, correlationPolyline, zoneSpan,
   displayedRange, depthToY, allTopNames,
 } from '../engine/section';
+import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 
 const AXIS_W = 52;
 const HEADER_H = 34;
@@ -27,11 +28,19 @@ const TOP_COLORS = ['#22d3ee', '#fbbf24', '#34d399', '#f472b6', '#a78bfa', '#f87
  * @param {?[string,string]} p.zonePair [topName, baseName] fill, or null
  * @param {(top: Object, newMdM: number) => void} p.onTopDrag  own-well only
  */
-export default function CrossSection({ wells, datum, shownTops, zonePair, onTopDrag }) {
+export default function CrossSection({ wells, datum, shownTops, zonePair, onTopDrag, view: viewProp, onViewChange }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const [view, setView] = useState(null); // [dispTop, dispBase] | null = auto
+  // [dispTop, dispBase] | null = auto fit; controlled when the parent
+  // passes `view` (PT0), otherwise owned here as before
+  const [viewState, setViewState] = useState(null);
+  const controlled = viewProp !== undefined;
+  const view = controlled ? viewProp : viewState;
+  const setView = useCallback((next) => {
+    if (!controlled) setViewState(next);
+    if (onViewChange) onViewChange(next);
+  }, [controlled, onViewChange]);
   const dragRef = useRef(null);           // {top, wellIndex} | {pan:true,...}
   const [drag, setDrag] = useState(null); // preview {topId, displayed}
 
@@ -47,7 +56,7 @@ export default function CrossSection({ wells, datum, shownTops, zonePair, onTopD
     return displayedRange(wells, flattening, logRanges) || [0, 1];
   }, [wells, flattening]);
   const [vTop, vBase] = view || autoRange;
-  useEffect(() => { setView(null); }, [datum]); // refit when the datum changes
+  useEffect(() => { setView(null); }, [datum, setView]); // refit when the datum changes
 
   const topNames = useMemo(() => allTopNames(wells), [wells]);
   const colorOf = (name) => TOP_COLORS[topNames.indexOf(name) % TOP_COLORS.length];
@@ -240,9 +249,8 @@ export default function CrossSection({ wells, datum, shownTops, zonePair, onTopD
     if (dragRef.current.kind === 'top') {
       setDrag({ topId: dragRef.current.top.id, displayed: yToDisp(y) });
     } else {
-      const [t0, b0] = dragRef.current.view;
       const dd = yToDisp(dragRef.current.startY) - yToDisp(y);
-      setView([t0 + dd, b0 + dd]);
+      setView(panBy(dragRef.current.view, dd, autoRange));
     }
   };
 
@@ -264,10 +272,9 @@ export default function CrossSection({ wells, datum, shownTops, zonePair, onTopD
     const rect = canvasRef.current.getBoundingClientRect();
     const d = yToDisp(e.clientY - rect.top);
     const factor = e.deltaY > 0 ? 1.25 : 0.8;
-    const nt = d - (d - vTop) * factor;
-    const nb = d + (vBase - d) * factor;
-    if (nb - nt < 2) return;
-    setView([nt, nb]);
+    const next = zoomAbout([vTop, vBase], d, factor, autoRange);
+    if (next !== null && next[0] === vTop && next[1] === vBase) return;
+    setView(next);
   };
 
   return (

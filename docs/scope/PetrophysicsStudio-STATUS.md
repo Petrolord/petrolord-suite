@@ -127,3 +127,17 @@ five legacy-route redirects are all live on petrolord.com.
   Help guide's alias table now renders from the live list (the test
   that pins it caught the stale hand-written copy). Tests: curveMap.test.js,
   layout.test.js (log: addresses + crossover fill on two raw curves).
+
+## PT0 foundations (2026-09-03)
+
+The tester-findings program (ROADMAP "PT series") starts with a
+no-visible-change wave: the checkshot conventions engine and its
+closed-form goldens (engines PR #102), shared viewer math
+(`src/components/wells/depthNavMath.js`), a deterministic top palette
+shared with Well Correlation (`topColors.js`), pure hit tests
+(`viewer/hitTest.js`: a top is only hit in its right-edge tag zone, zone
+edges anywhere), `trackGeometry`, display-unit helpers, and the
+TrackViewer redraw split (static picture cached offscreen, cursor layer
+composited per move). All three vertical viewers accept a controlled
+`view` prop for the PT5 navigator. Zone drag and move statuses now print
+in the display unit.
