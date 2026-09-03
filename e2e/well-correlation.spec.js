@@ -96,3 +96,18 @@ test('PT5: the section has a depth navigator that pans the window', async ({ pag
   await page.mouse.up();
   expect(Number(await nav.getAttribute('data-view-top'))).toBeGreaterThan(top1);
 });
+
+// Cross-app navigation (2026-09-03): ?wells=<id,id> from Well Data Manager
+// or Petrophysics builds the section on arrival; own wells link to Well
+// Data Manager for editing; the ribbon links back to the dashboard.
+test('cross-app: a ?wells= deep link adds the wells to the section; edit and home links', async ({ page }) => {
+  await page.goto('/dev/well-correlation?wells=corr-w1,corr-w3,corr-w1,no-such-well');
+  await expect(page.getByTestId('corr-order-count')).toHaveText('2');
+  await expect(page.getByTestId('corr-status')).toContainText('Added 2 linked wells');
+  await expect(page.getByTestId('corr-section-canvas')).toBeVisible();
+  await expect(page.getByTestId('corr-home')).toHaveAttribute('href', '/dashboard/geoscience');
+  // KETA-1 is owned: it links to Well Data Manager on its tops tab; KETA-3 is
+  // org-shared and read-only, so it offers no edit link
+  await expect(page.getByTestId('corr-edit-well-data-KETA-1')).toHaveAttribute('href', '/dev/well-data-manager?well=corr-w1&tab=tops');
+  await expect(page.getByTestId('corr-edit-well-data-KETA-3')).toHaveCount(0);
+});

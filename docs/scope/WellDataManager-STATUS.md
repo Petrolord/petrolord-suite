@@ -247,3 +247,26 @@ lands first, then the subtree copy here.
   Petrophysics Studio's explorer offers "Edit well data" on own wells.
 
 **2026-09-03:** `geo_wells.checkshots_provenance` migration (PT1) applied live; writers no longer hit the missing-column retry.
+
+## 2026-09-03: cross-app navigation (Open in, home link)
+
+Tester ask: after loading wells here, open Petrophysics Studio or any
+other app that uses them without going back through the dashboard, and
+have a way back to the Geoscience dashboard at all (the dashboard
+sidebar is hidden on every app route, so the ribbon was a dead end).
+
+- The ribbon starts with a shared `ModuleHomeLink` (`wdm-home`) to
+  `/dashboard/geoscience`; Petrophysics Studio, Well Correlation,
+  Mapping & Surface, Rock Physics, Pore Pressure and Earth Modeling got
+  the same link.
+- "Open in" launchers (`src/components/wells/OpenInAppMenu.jsx` on the
+  pure table `src/components/wells/appLinks.js`) sit in the ribbon for
+  the selected well (`wdm-open-in`), in every tree row's right-click
+  menu (`wdm-row-open-in`, read-only wells included) and in the well
+  detail header (`wdm-detail-open-in`). Petrophysics Studio opens on
+  `?well=<id>`, Well Correlation on `?wells=<id,...>`; the other
+  Geoscience apps open on their explorer. The harness passes
+  `DEV_APP_PATHS` so links stay inside `/dev/*`.
+- Log quick-view tracks (`LogTracks.jsx`) moved to the white printed-log
+  palette Petrophysics uses, so a log looks the same in all three apps.
+- e2e: `well-data-manager.spec.js` "cross-app" test.

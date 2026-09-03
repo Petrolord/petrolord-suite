@@ -296,3 +296,15 @@ DEPLOYED (v1 ACTIVE; unauthenticated call returns 401). Prod zip cut from
 main e3cf0195a with build-info.json: `/root/suite-upload-20260903-e3cf0195a-slim.zip`.
 Remaining: owner upload + cache purge, staging walk of the tester
 scenarios in PetrophysicsStudio-ROADMAP.md (PT series, verification).
+
+## 2026-09-03: cross-app navigation
+
+- Ribbon starts with the shared `ModuleHomeLink` to the Geoscience
+  dashboard (`petro-home`).
+- `?well=<id>` (from Well Data Manager's "Open in" launchers) selects the
+  well once the registry list has loaded; an unknown id reports "The
+  linked well is not in your registry."
+- The explorer's inventory block gained "Open in Well Correlation"
+  (`petro-open-correlation`, `?wells=<id>`) beside "Edit well data";
+  the harness routes both to `/dev/*`.
+- e2e: `petrophysics-studio.spec.js` "cross-app" test.

@@ -8,9 +8,12 @@
 // Tops are the SHARED geo_wells_tops rows: pick/drag/propagate writes
 // the registry so Seismolord and Mapping see edits immediately.
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { GitCompare, Loader2, Save } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
+import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
+import { parseWellsParam } from '@/components/wells/appLinks';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import SectionExplorer from './SectionExplorer';
 import SectionControls from './SectionControls';
@@ -19,7 +22,14 @@ import { allTopNames } from '../engine/section';
 
 const GR_ALIASES = ['GR', 'SGR', 'CGR', 'GRC'];
 
-export default function CorrelationWorkstation({ backend }) {
+/** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
+ *  the explorer's "Edit well data" links open (harness override) */
+export default function CorrelationWorkstation({ backend, wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager' }) {
+  // deep link (cross-app navigation, 2026-09-03): ?wells=<id,id> appends
+  // those wells to the section once the wells and any saved section loaded
+  const [searchParams] = useSearchParams();
+  const deepLinkRef = useRef({ wells: parseWellsParam(searchParams.get('wells')), done: false });
+  const [sectionLoaded, setSectionLoaded] = useState(false);
   const [wells, setWells] = useState(null);
   const [order, setOrder] = useState([]);              // ordered well ids
   const [wellData, setWellData] = useState({});        // id -> {tops, depth, gr}
@@ -44,6 +54,7 @@ export default function CorrelationWorkstation({ backend }) {
           setStatus('Restored saved section.');
         }
       } catch (e) { if (live) { setStatus(e.message); setWells([]); } }
+      if (live) setSectionLoaded(true);
     })();
     return () => { live = false; };
   }, [backend]);
@@ -68,6 +79,19 @@ export default function CorrelationWorkstation({ backend }) {
       setLoading(false);
     }
   }, [backend, wellData]);
+
+  useEffect(() => {
+    const dl = deepLinkRef.current;
+    if (dl.done || !dl.wells.length || !wells || !sectionLoaded) return;
+    dl.done = true;
+    const ids = dl.wells.filter((id) => wells.some((w) => w.id === id));
+    if (!ids.length) { setStatus('The linked wells are not in your registry.'); return; }
+    (async () => {
+      for (const id of ids) await ensureWellData(id); // sequential: ensureWellData closes over wellData
+      setOrder((o) => [...o, ...ids.filter((id) => !o.includes(id))]);
+      setStatus(`Added ${ids.length} linked well${ids.length === 1 ? '' : 's'} to the section.`);
+    })();
+  }, [wells, sectionLoaded, ensureWellData]);
 
   const refreshTops = useCallback(async (wellId) => {
     const tops = await backend.listTops(wellId);
@@ -148,6 +172,7 @@ export default function CorrelationWorkstation({ backend }) {
 
   const ribbon = (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+      <ModuleHomeLink module="geoscience" testId="corr-home" />
       <GitCompare className="w-4 h-4 text-cyan-400" />
       <span className="text-sm font-semibold text-slate-100">Well Correlation</span>
       <span className="text-[11px] text-slate-500">cross-sections on the shared well registry</span>
@@ -187,6 +212,7 @@ export default function CorrelationWorkstation({ backend }) {
         <SectionExplorer
           wells={wells || []}
           order={order}
+          wellDataManagerPath={wellDataManagerPath}
           onToggle={toggleWell}
           onMove={moveWell}
           onRemove={(id) => setOrder((o) => o.filter((x) => x !== id))}

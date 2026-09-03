@@ -12,8 +12,9 @@ import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem,
   ContextMenuSeparator,
 } from '@/components/ui/context-menu';
+import { OpenInAppSubmenu } from '@/components/wells/OpenInAppMenu';
 
-function Row({ well, selected, busy, onSelect, onShareToggle, onDelete }) {
+function Row({ well, selected, busy, appPaths, onSelect, onShareToggle, onDelete }) {
   const shared = !!well.organization_id;
   const row = (
     <div
@@ -47,20 +48,27 @@ function Row({ well, selected, busy, onSelect, onShareToggle, onDelete }) {
       </span>
     </div>
   );
-  if (!well.is_own) return row; // read-only: no owner actions to offer
+  // every well can be opened in the other Geoscience apps (read-only
+  // wells included); the owner actions stay owner-only
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{row}</ContextMenuTrigger>
       <ContextMenuContent className="w-56">
-        <ContextMenuItem onSelect={() => onShareToggle(well)}>
-          <Share2 className="w-4 h-4 mr-2" />
-          {shared ? 'Stop sharing with organization' : 'Share with organization'}
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem className="text-red-400" onSelect={() => onDelete(well)}>
-          <Trash2 className="w-4 h-4 mr-2" />
-          Delete well…
-        </ContextMenuItem>
+        <OpenInAppSubmenu wellIds={[well.id]} paths={appPaths} testIdPrefix="wdm-row" />
+        {well.is_own && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem onSelect={() => onShareToggle(well)}>
+              <Share2 className="w-4 h-4 mr-2" />
+              {shared ? 'Stop sharing with organization' : 'Share with organization'}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem className="text-red-400" onSelect={() => onDelete(well)}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete well…
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );
@@ -72,7 +80,7 @@ function Row({ well, selected, busy, onSelect, onShareToggle, onDelete }) {
  * @param {string} p.search
  */
 export default function WellsTree({
-  wells, total, search, onSearch, selectedId, busyId,
+  wells, total, search, onSearch, selectedId, busyId, appPaths,
   onSelect, onShareToggle, onDelete, onImportLas, onAddWell, onExportPackage, onImportPackage,
 }) {
   return (
@@ -143,6 +151,7 @@ export default function WellsTree({
             well={w}
             selected={w.id === selectedId}
             busy={w.id === busyId}
+            appPaths={appPaths}
             onSelect={onSelect}
             onShareToggle={onShareToggle}
             onDelete={onDelete}

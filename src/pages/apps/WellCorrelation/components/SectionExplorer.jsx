@@ -5,12 +5,17 @@
 // controller.
 
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Building2, Lock, ArrowUp, ArrowDown, X, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Building2, Lock, ArrowUp, ArrowDown, X, Plus, Pencil } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { wellDataManagerHref } from '@/components/wells/appLinks';
 
 const PAD = 26;
 
-export default function SectionExplorer({ wells, order, onToggle, onMove, onRemove, height = 200 }) {
+export default function SectionExplorer({
+  wells, order, onToggle, onMove, onRemove, height = 200,
+  wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager',
+}) {
   const canvasRef = useRef(null);
   const placed = useRef([]);
 
@@ -111,6 +116,16 @@ export default function SectionExplorer({ wells, order, onToggle, onMove, onRemo
             {w.organization_id ? <Building2 className="w-3 h-3 text-emerald-300" /> : <Lock className="w-3 h-3 text-slate-500" />}
             <span className="truncate">{w.name}</span>
             <div className="ml-auto flex items-center gap-0.5 text-slate-500">
+              {w.is_own && (
+                <Link
+                  to={wellDataManagerHref(w.id, 'tops', wellDataManagerPath)}
+                  title="Edit this well's header, survey, checkshots and tops in Well Data Manager"
+                  data-testid={`corr-edit-well-data-${w.name}`}
+                  className="hover:text-cyan-300"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </Link>
+              )}
               <button type="button" title="Move up" disabled={i === 0} className="disabled:opacity-30 hover:text-slate-200" onClick={() => onMove(w.id, -1)}><ArrowUp className="w-3.5 h-3.5" /></button>
               <button type="button" title="Move down" disabled={i === orderedWells.length - 1} className="disabled:opacity-30 hover:text-slate-200" onClick={() => onMove(w.id, 1)}><ArrowDown className="w-3.5 h-3.5" /></button>
               <button type="button" title="Remove" className="hover:text-red-400" data-testid={`corr-remove-${w.name}`} onClick={() => onRemove(w.id)}><X className="w-3.5 h-3.5" /></button>
