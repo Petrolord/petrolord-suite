@@ -1,9 +1,13 @@
 // Layout templates (Petrophysics Studio PS4): the versioned JSON that
 // lives in petro_projects.layouts. A template describes tracks by
 // CURVE ADDRESS (input:GR through the controller's alias mapping,
-// output:PHIE from the pipeline, facies for the strip), never by raw
-// mnemonic, so one template works across wells with different
-// inventories — resolveTracks drops what a well cannot supply.
+// output:PHIE from the pipeline, facies for the strip), so one template
+// works across wells with different inventories — resolveTracks drops
+// what a well cannot supply. Since 2026-09-03 a curve may also be
+// addressed by raw registry mnemonic, `log:A34H`, for measurements the
+// alias table does not know or when several logs of one type (say five
+// resistivity depths) belong on one track; such curves resolve only on
+// wells that carry that mnemonic.
 //
 // Data shape (version 1):
 //   { version, activeTemplateId, templates: [{ id, name, builtin,

@@ -112,3 +112,18 @@ five legacy-route redirects are all live on petrolord.com.
   allowed. Server backstop `20260903120000_geo_wells_unique_name_per_owner.sql`
   (same-owner half) is HELD for the shared-table review; duplicate probe
   was 0 groups on 2026-09-03.
+- **Any mnemonic on a track; several of one type together.** Owner
+  finding: only alias-recognised curves displayed. Three changes.
+  (1) `services/curveMap.js` alias table widened (resistivity now covers
+  RES/RESD/ILD/LLD/RLA*/AT*/AF*/A16H…A40H/P16H…P40H/M2R*/HLLD…; GR, RHOB,
+  NPHI, DT, CAL, DRHO, PEF likewise) and `candidatesFor` also offers
+  curves whose LAS description names the measurement (`DESCRIPTION_HINTS`),
+  picker only, never auto-bound. (2) New layout address `log:<MNEMONIC>`
+  (`layout/resolveTracks.js`): the workstation and the field-view cache
+  now download EVERY curve of a well (`wellData.logs` keyed by mnemonic,
+  inputs are views onto them), so Track layout's curve picker lists every
+  mnemonic in the selected well and a track can hold any number of them.
+  (3) Explorer shows "Also in this well: …" for curves no input took.
+  Help guide's alias table now renders from the live list (the test
+  that pins it caught the stale hand-written copy). Tests: curveMap.test.js,
+  layout.test.js (log: addresses + crossover fill on two raw curves).

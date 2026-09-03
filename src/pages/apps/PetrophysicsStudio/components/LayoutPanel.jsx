@@ -6,7 +6,7 @@
 // owns the single layouts object. Persisted with the interpretation
 // (petro_projects.layouts).
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Trash2, Plus } from 'lucide-react';
 import {
   activeTemplate, updateTemplate, newId,
@@ -18,7 +18,15 @@ const miniCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-
 const SOURCES = [...INPUT_SOURCES, ...OUTPUT_SOURCES];
 const numOr = (v, fallback) => (Number.isFinite(Number(v)) && v !== '' ? Number(v) : fallback);
 
-export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onStatus }) {
+/**
+ * @param {string[]} [p.logSources] mnemonics of the selected well; each is
+ *   offered as a `log:<MNEMONIC>` curve address so any service-company
+ *   curve can go on a track, several of one type together if wanted
+ */
+export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onStatus, logSources = [] }) {
+  const rawSources = useMemo(() => Array.from(new Set(logSources || []))
+    .filter((m) => m && !/^(DEPT|DEPTH|MD)(:\d+)?$/i.test(m))
+    .map((m) => `log:${m}`), [logSources]);
   const tpl = activeTemplate(layouts);
   const [openTrack, setOpenTrack] = useState(null); // track id
 
@@ -190,10 +198,20 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                       <select className={miniCls} style={{ flex: 1 }} value={c.source}
                         data-testid={`petro-layout-curve-source-${ci}`}
                         onChange={(e) => editTrack(tr.id, (x) => ({
-                          ...x, curves: x.curves.map((y, yi) => (yi === ci ? { ...y, source: e.target.value, label: e.target.value.split(':')[1] } : y)),
+                          ...x, curves: x.curves.map((y, yi) => (yi === ci ? { ...y, source: e.target.value, label: e.target.value.slice(e.target.value.indexOf(':') + 1) } : y)),
                         }))}
                       >
-                        {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                        <optgroup label="Pipeline inputs and outputs">
+                          {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </optgroup>
+                        {rawSources.length > 0 && (
+                          <optgroup label="Curves in this well (by mnemonic)">
+                            {rawSources.map((s) => <option key={s} value={s}>{s}</option>)}
+                          </optgroup>
+                        )}
+                        {!SOURCES.includes(c.source) && !rawSources.includes(c.source) && (
+                          <option value={c.source}>{c.source} (not in this well)</option>
+                        )}
                       </select>
                       <input type="color" className="w-6 h-5 rounded border border-slate-700 bg-transparent" value={c.color || '#0891b2'}
                         title="Curve color"

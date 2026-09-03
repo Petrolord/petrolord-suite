@@ -1,5 +1,6 @@
 // Cross-well curve cache (Petrophysics Studio PS7, reused by the PS9
-// field view): download-once storage of mapped input curves per well,
+// field view): download-once storage of every curve per well (mapped
+// inputs plus raw mnemonics for `log:` layout addresses),
 // keyed by well id, with a small LRU cap. Deliberately outside React
 // state — callers await getCurves and set their own state; the cache
 // only saves repeat downloads.
@@ -16,19 +17,24 @@ export function useWellCurvesCache(backend) {
     const fetchWell = async (wellId) => {
       const logs = await backend.listLogs(wellId);
       const mapped = mapLogs(logs);
+      const raw = {};
+      for (const log of logs) {
+         
+        raw[log.mnemonic] = await backend.downloadCurve(log);
+      }
       const curves = {};
       for (const [key, log] of Object.entries(mapped)) {
-         
-        if (log) curves[key] = await backend.downloadCurve(log);
+        if (log) curves[key] = raw[log.mnemonic];
       }
       return {
         curves,
+        logs: raw,
         inventory: Object.entries(mapped).map(([key, log]) => ({ key, log })),
       };
     };
 
     return {
-      /** @returns {Promise<{curves: Object, inventory: Array}>} */
+      /** @returns {Promise<{curves: Object, logs: Object, inventory: Array}>} */
       getCurves(wellId) {
         if (cache.has(wellId)) {
           const hit = cache.get(wellId);

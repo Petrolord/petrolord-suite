@@ -45,7 +45,7 @@ export default function FieldViewPanel({
         if (loaded[id]) continue;
         try {
            
-          const [{ curves }, tops, zones] = await Promise.all([
+          const [{ curves, logs }, tops, zones] = await Promise.all([
             curvesCache.getCurves(id), backend.listTops(id), backend.listZones(id),
           ]);
           if (!live) return;
@@ -54,7 +54,7 @@ export default function FieldViewPanel({
             setPickedIds((ids) => ids.filter((x) => x !== id));
             continue;
           }
-          setLoaded((m) => ({ ...m, [id]: { curves, tops, zones } }));
+          setLoaded((m) => ({ ...m, [id]: { curves, logs, tops, zones } }));
         } catch (e) {
           if (live) onStatus(e.message);
         }
@@ -70,7 +70,7 @@ export default function FieldViewPanel({
     return {
       ...tpl,
       tracks: tpl.tracks.filter((t) => t.type !== 'strip'
-        && (t.curves || []).some((c) => FIELD_SOURCES.has(c.source))),
+        && (t.curves || []).some((c) => FIELD_SOURCES.has(c.source) || String(c.source).startsWith('log:'))),
     };
   }, [layouts]);
 
@@ -78,7 +78,7 @@ export default function FieldViewPanel({
   const fieldWells = useMemo(() => pickedIds
     .filter((id) => loaded[id])
     .map((id) => {
-      const { curves, tops, zones } = loaded[id];
+      const { curves, logs, tops, zones } = loaded[id];
       const zoneList = zones
         .filter((z) => zoneParams[z.id] && Object.keys(zoneParams[z.id]).length)
         .map((z) => ({ top: z.top_md_m, base: z.base_md_m, params: zoneParams[z.id] }))
@@ -91,7 +91,7 @@ export default function FieldViewPanel({
         outputs,
         tops,
         zones,
-        tracks: resolveTracks(fieldTemplate, { curves, outputs, faciesData: null, facies: [], params }),
+        tracks: resolveTracks(fieldTemplate, { curves, outputs, logs, faciesData: null, facies: [], params }),
       };
     }), [pickedIds, loaded, params, zoneParams, wells, fieldTemplate]);
 

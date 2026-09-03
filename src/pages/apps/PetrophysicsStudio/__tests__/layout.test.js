@@ -77,3 +77,23 @@ test('migrateLayouts: garbage falls back to defaults; user templates survive; bu
   // the stored stale built-in was replaced by the code's copy
   expect(m.templates.find((t) => t.id === 'std-triple-combo').name).toBe('Standard triple combo');
 });
+
+test('log:<MNEMONIC> addresses draw raw registry curves; several of one type share a track', () => {
+  const tpl = {
+    id: 't', name: 't', tracks: [{
+      id: 't-res', title: 'Resistivity', type: 'curves', scale: 'log', min: 0.2, max: 2000,
+      curves: [
+        { source: 'log:A16H', color: '#111' },
+        { source: 'log:A34H', color: '#222', label: 'deep' },
+        { source: 'log:P40H:2', color: '#333' },
+        { source: 'log:MISSING', color: '#444' },
+        { source: 'input:RT', color: '#555' },
+      ],
+      fills: [{ mode: 'crossover', a: 'log:A16H', b: 'log:A34H', positiveColor: '#0f0', negativeColor: '#f00', opacity: 0.2 }],
+    }],
+  };
+  const tracks = resolveTracks(tpl, { curves: {}, outputs: {}, logs: { A16H: d, A34H: d, 'P40H:2': d }, params: {} });
+  expect(tracks).toHaveLength(1);
+  expect(tracks[0].curves.map((c) => c.name)).toEqual(['A16H', 'deep', 'P40H:2']);
+  expect(tracks[0].fills[0]).toMatchObject({ mode: 'crossover', a: 0, b: 1 });
+});

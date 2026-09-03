@@ -7,7 +7,7 @@
 import React from 'react';
 import { CircleDot, Building2, Lock, Loader2, Check, Minus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { candidatesFor } from '../services/curveMap';
+import { candidatesFor, unmappedLogs } from '../services/curveMap';
 
 export default function WellExplorer({
   wells, selectedId, loadingId, curveInventory, allLogs, onPickCurve, onSelect,
@@ -47,6 +47,16 @@ export default function WellExplorer({
               </div>
               {selected && curveInventory && (
                 <div className="pl-7 pb-1" data-testid="petro-curve-inventory">
+                  {(() => {
+                    const mapped = Object.fromEntries(curveInventory.map(({ key, log }) => [key, log]));
+                    const others = allLogs ? unmappedLogs(allLogs, mapped) : [];
+                    return others.length ? (
+                      <div className="text-[10px] text-slate-500 pb-1" data-testid="petro-other-curves"
+                        title="Curves no pipeline input took. Put any of them on a track from Track layout (curve address log:<MNEMONIC>), or bind one to an input with the pickers below where offered.">
+                        Also in this well: <span className="text-slate-400">{others.map((l) => l.mnemonic).join(', ')}</span>
+                      </div>
+                    ) : null;
+                  })()}
                   {curveInventory.map(({ key, log }) => {
                     const candidates = allLogs && onPickCurve ? candidatesFor(key, allLogs) : [];
                     return (
