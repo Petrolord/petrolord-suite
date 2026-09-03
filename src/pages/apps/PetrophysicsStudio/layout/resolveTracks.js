@@ -6,17 +6,30 @@
 // parameter-bound thresholds into live values.
 
 /** Resolve one curve address against the workspace. */
-function resolveSource(source, { curves, outputs }) {
+function resolveSource(source, { curves, outputs, logs }) {
   if (typeof source !== 'string') return null;
-  const [kind, key] = source.split(':');
+  const i = source.indexOf(':');
+  if (i < 0) return null;
+  const kind = source.slice(0, i);
+  const key = source.slice(i + 1);
   if (kind === 'input') return curves?.[key] || null;
   if (kind === 'output') return outputs?.[key] || null;
+  // raw registry curve by exact mnemonic (owner finding 2026-09-03: any
+  // service-company mnemonic must be displayable, and several of them
+  // can share one track); ':n' duplicate suffixes are part of the key
+  if (kind === 'log') return logs?.[key] || logs?.[key.toUpperCase()] || null;
   return null;
 }
 
+/** Address for a raw registry curve. */
+export const logSource = (mnemonic) => `log:${mnemonic}`;
+/** Display label for any address. */
+export const sourceLabel = (source) => (typeof source === 'string' ? source.slice(source.indexOf(':') + 1) : '');
+
 /**
  * @param {Object} template a layoutSchema template
- * @param {Object} ctx {curves, outputs, faciesData, facies, params}
+ * @param {Object} ctx {curves, outputs, logs, faciesData, facies, params}
+ *   logs: raw registry curves keyed by mnemonic (for `log:` addresses)
  * @returns {Array} the TrackViewer `tracks` prop
  */
 export function resolveTracks(template, ctx) {
@@ -44,7 +57,7 @@ export function resolveTracks(template, ctx) {
       if (!data) continue;
       indexBySource.set(c.source, kept.length);
       kept.push({
-        name: c.label || c.source.split(':')[1],
+        name: c.label || sourceLabel(c.source),
         data,
         color: c.color,
         min: c.min,

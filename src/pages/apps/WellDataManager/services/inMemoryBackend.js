@@ -8,6 +8,7 @@
 // (is_own=false rows hide the owner-only actions, like RLS would
 // reject them server-side).
 
+import { wellNameClashMessage } from '@/lib/wellsRegistry';
 import { parseLas } from '../engine/lasParse';
 import { prepareLogs, suggestWellHeader } from '../engine/lasImport';
 
@@ -62,6 +63,11 @@ export function makeInMemoryBackend(opts = {}) {
 
   const update = async (wellId, patch) => {
     const w = ownWell(wellId, 'edit');
+    if (patch && patch.name !== undefined) {
+      const msg = wellNameClashMessage(patch.name, wells, { exceptId: wellId, userId: DEV_USER });
+      if (msg) throw new Error(msg);
+      patch = { ...patch, name: String(patch.name).trim() };
+    }
     Object.assign(w, patch, { updated_at: new Date(2026, 6, 13, 1, 0, seq).toISOString() });
     return w;
   };
@@ -72,11 +78,14 @@ export function makeInMemoryBackend(opts = {}) {
     },
 
     async saveWell(w) {
+      // same one-name-per-registry rule as the live registry
+      const msg = wellNameClashMessage(w.name, wells, { userId: DEV_USER });
+      if (msg) throw new Error(msg);
       const well = {
         id: nextId('well'),
         user_id: DEV_USER,
         organization_id: null,
-        name: w.name,
+        name: String(w.name).trim(),
         uwi: w.uwi || null,
         surface_x: w.surfaceX,
         surface_y: w.surfaceY,
@@ -189,6 +198,10 @@ export function makeInMemoryBackend(opts = {}) {
           params: parsed.params,
           depthUnit: parsed.depthUnit,
           suggestedHeader: suggestWellHeader(parsed),
+          // LAS 3.0 (2026-09-03): what the reader left out, for the import preview
+          delimiter: parsed.delimiter || 'space',
+          skippedCurves: parsed.skippedCurves || [],
+          ignoredSections: parsed.ignoredSections || [],
           curves: parsed.curves.map(({ data, ...rest }) => rest),
         },
         prep,

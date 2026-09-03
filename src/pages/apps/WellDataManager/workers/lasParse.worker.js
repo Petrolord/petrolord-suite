@@ -27,6 +27,10 @@ function run(id, text, sourceFile) {
     params: parsed.params,
     depthUnit: parsed.depthUnit,
     suggestedHeader: suggestWellHeader(parsed),
+    // LAS 3.0 (2026-09-03): what the reader left out, for the import preview
+    delimiter: parsed.delimiter || 'space',
+    skippedCurves: parsed.skippedCurves || [],
+    ignoredSections: parsed.ignoredSections || [],
     curves: parsed.curves.map(({ data, ...rest }) => rest),
   };
   const transfers = prep.logs.map((l) => l.data.buffer);

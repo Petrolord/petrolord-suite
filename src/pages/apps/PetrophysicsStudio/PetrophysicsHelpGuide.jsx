@@ -12,6 +12,7 @@
 // Guard: __tests__/helpGuide.test.jsx.
 
 import React from 'react';
+import { CURVE_ALIASES } from './services/curveMap';
 import {
   BookOpen, Zap, Database, Layers, LayoutTemplate, Sliders, Rows, Save,
   ScatterChart, BarChart3, Wand2, Droplets, Columns, UploadCloud, FileDown,
@@ -45,6 +46,18 @@ const sections = [
   { id: 'pitfalls', icon: AlertTriangle, title: 'Pitfalls and FAQ' },
   { id: 'glossary', icon: BookMarked, title: 'Glossary' },
 ];
+
+const ALIAS_USE = {
+  DEPT: 'Depth reference (metres MD). Required.',
+  GR: 'Vsh, the clay shading, facies, normalization',
+  RHOB: 'Density porosity, density-neutron combination and crossplot',
+  NPHI: 'Neutron-density combination and crossplot',
+  DT: 'Sonic porosity',
+  RT: 'Water saturation, Pickett and Hingle plots',
+  CAL: 'Bad-hole flagging in Condition (never in the pipeline math)',
+  DRHO: 'Bad-hole flagging in Condition',
+  PEF: 'Recognised for charting; not consumed by the pipeline',
+};
 
 const PetrophysicsHelpGuide = () => (
   <HelpGuideShell
@@ -89,7 +102,9 @@ const PetrophysicsHelpGuide = () => (
         sessions.
       </Para>
       <Callout tone="info" title="Where this app sits in the Geoscience module">
-        Curves enter the registry only through Well Data Manager. Tops are read here but edited in
+        Curves enter the registry only through Well Data Manager (LAS 1.2, 2.0 and 3.0), and every well name in your
+        registry is unique (a second well with the same name is refused, whatever its case or
+        spacing), so the Explorer list is never ambiguous. Tops are read here but edited in
         Well Correlation. Zones are this app&apos;s own artifact. Computed curves and zone summaries
         published from here are ordinary registry logs with provenance, visible to every other app.
       </Callout>
@@ -162,22 +177,24 @@ const PetrophysicsHelpGuide = () => (
       <Para>
         The pipeline consumes six standard inputs. The Studio maps registry mnemonics to them by
         base name (a <Code>:2</Code> duplicate suffix is ignored) using this alias table, first
-        match wins:
+        match wins. The table is read from the live alias list, so it is always current:
       </Para>
       <Table
         headers={['Input', 'Accepted mnemonics', 'Used for']}
-        rows={[
-          ['DEPT', 'DEPT, DEPTH, MD', 'Depth reference (metres MD). Required.'],
-          ['GR', 'GR, SGR, CGR, GRC', 'Vsh, the clay shading, facies, normalization'],
-          ['RHOB', 'RHOB, DEN, ZDEN', 'Density porosity, density-neutron combination and crossplot'],
-          ['NPHI', 'NPHI, TNPH, CNC, NPOR', 'Neutron-density combination and crossplot'],
-          ['DT', 'DT, DTC, AC, DTCO', 'Sonic porosity'],
-          ['RT', 'RT, RES, ILD, LLD, RDEP, RD', 'Water saturation, Pickett and Hingle plots'],
-          ['CAL', 'CAL, CALI, HCAL, CALX', 'Bad-hole flagging in Condition (never in the pipeline math)'],
-          ['DRHO', 'DRHO, ZCOR, HDRA', 'Bad-hole flagging in Condition'],
-          ['PEF', 'PEF, PE, PEFZ', 'Recognised for charting; not consumed by the pipeline'],
-        ]}
+        rows={Object.entries(CURVE_ALIASES).map(([key, aliases]) => [key, aliases.join(', '), ALIAS_USE[key] || ''])}
       />
+      <Para>
+        Service companies name the same measurement many ways, and no list is complete. Two doors
+        cover the rest. First, a curve whose LAS description names the measurement (say
+        &quot;deep laterolog resistivity&quot; under an unfamiliar mnemonic) is offered in the
+        explorer picker as a candidate; you bind it to the input explicitly and it is never
+        substituted silently. Second, any curve at all can be drawn: in Track layout the curve
+        address list includes every mnemonic in the selected well as <Code>log:MNEMONIC</Code>, so
+        five resistivity depths can sit together on one track, or a tension or SP curve can have
+        its own. Such curves draw on wells that carry that mnemonic and are skipped elsewhere,
+        like any other missing curve. The explorer lists the curves no input took under
+        &quot;Also in this well&quot;.
+      </Para>
       <Para>
         Outputs only appear when their inputs exist. A well without RT still gets VSH and PHIE but
         no SW or PAY, and the zone cards say <Code>no computed curves yet</Code> until porosity,

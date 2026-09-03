@@ -14,8 +14,9 @@
 //   kind          registered state kind (src/lib/stateVersion.js) that reads
 //                 rows of this table; absent means "version 1 in this build"
 //   stamped       true when the table carries the PP0 columns in the live
-//                 schema (schema_version, app_build); registry tables are not
-//                 stamped until migration 20260902120500 is applied
+//                 schema (schema_version, app_build); every app-state table
+//                 (20260902120000) and every shared registry table
+//                 (20260902120500, applied 2026-09-03) is stamped
 //   scope         columns rescoped to the importer: ['user_id', 'organization_id']
 //   parent        { table, column }  FK to the parent row
 //   children      [{ table, column }] child tables keyed by this row's pk

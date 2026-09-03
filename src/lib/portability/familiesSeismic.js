@@ -20,9 +20,10 @@
 // horizons, visibleFaultIds -> faults, visibleSurfaceIds -> geo_surfaces are
 // optional and dropped when unmapped).
 //
-// Stamped (PP0 columns): seismic_projects, seismic_sessions. The registry
-// tables (volumes, horizons, faults, lines, picks, exported surfaces) are not
-// stamped until 20260902120500 is applied.
+// Stamped (PP0 columns): every table here. seismic_projects and
+// seismic_sessions carry a registered kind; the registry tables (volumes,
+// horizons, faults, lines, picks, exported surfaces) gained the columns with
+// 20260902120500 (applied 2026-09-03) and travel at schema_version 1.
 //
 // Size note: volumes are many bricks and can reach gigabytes. The PackageWriter
 // is in-memory jszip; that is the seam to swap for a streaming writer when
@@ -41,7 +42,7 @@ registerFamily('seismic', {
       softRefs: [],
     },
     seismic_volumes: {
-      pk: 'id', scope: ['user_id', 'organization_id'],
+      pk: 'id', stamped: true, scope: ['user_id', 'organization_id'],
       children: [
         { table: 'seismic_horizons', column: 'volume_id' },
         { table: 'seismic_faults', column: 'volume_id' },
@@ -60,7 +61,7 @@ registerFamily('seismic', {
       ],
     },
     seismic_horizons: {
-      pk: 'id', scope: ['user_id'], parent: { table: 'seismic_volumes', column: 'volume_id' },
+      pk: 'id', stamped: true, scope: ['user_id'], parent: { table: 'seismic_volumes', column: 'volume_id' },
       blob: {
         bucket: 'seismic', pathColumn: 'storage_path', contentType: 'application/octet-stream',
         newPath: (userId, row) => `${userId}/${row.volume_id}/horizons/${row.id}.f32`,
@@ -69,11 +70,11 @@ registerFamily('seismic', {
       softRefs: [{ path: 'parent_version_id', table: 'seismic_horizons', optional: true }],
     },
     seismic_faults: {
-      pk: 'id', scope: ['user_id'], parent: { table: 'seismic_volumes', column: 'volume_id' },
+      pk: 'id', stamped: true, scope: ['user_id'], parent: { table: 'seismic_volumes', column: 'volume_id' },
       softRefs: [{ path: 'parent_version_id', table: 'seismic_faults', optional: true }],
     },
     seismic_exported_surfaces: {
-      pk: 'id', scope: ['user_id'], parent: { table: 'seismic_volumes', column: 'volume_id' },
+      pk: 'id', stamped: true, scope: ['user_id'], parent: { table: 'seismic_volumes', column: 'volume_id' },
       blob: {
         bucket: 'seismic', pathColumn: 'storage_path', contentType: 'text/plain',
         newPath: (userId, row) => `${userId}/exports/${row.id}.xyz`,
@@ -85,7 +86,7 @@ registerFamily('seismic', {
       ],
     },
     seismic_lines: {
-      pk: 'id', scope: ['user_id', 'organization_id'],
+      pk: 'id', stamped: true, scope: ['user_id', 'organization_id'],
       children: [{ table: 'seismic_line_picks', column: 'line_id' }],
       blob: {
         bucket: 'seismic', contentType: 'application/octet-stream',
@@ -97,7 +98,7 @@ registerFamily('seismic', {
       softRefs: [{ path: 'project_id', table: 'seismic_projects', optional: true }],
     },
     seismic_line_picks: {
-      pk: 'id', scope: ['user_id'], parent: { table: 'seismic_lines', column: 'line_id' },
+      pk: 'id', stamped: true, scope: ['user_id'], parent: { table: 'seismic_lines', column: 'line_id' },
       blob: {
         bucket: 'seismic', pathColumn: 'storage_path', contentType: 'application/octet-stream',
         newPath: (userId, row) => `${userId}/${row.line_id}/picks/${row.id}.f32`,

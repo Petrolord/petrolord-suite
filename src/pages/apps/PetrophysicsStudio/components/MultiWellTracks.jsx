@@ -11,6 +11,18 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { drawCurve } from '../viewer/trackRender';
 import { displayedDepth } from '../engine/section';
 
+// Light palette (Suite chart standard, src/utils/chartTheme.js): white
+// plot with slate grid and axes, so tracks read like a printed log.
+const BG = '#ffffff';
+const HEADER_BG = '#f1f5f9';           // slate-100
+const FRAME = 'rgba(148,163,184,0.9)'; // slate-400
+const GRID = 'rgba(203,213,225,0.9)';  // slate-300
+const AXIS_TEXT = '#475569';           // slate-600
+const TEXT = '#1e293b';                // slate-800
+const TEXT_STRONG = '#0f172a';         // slate-900
+const CROSSHAIR = 'rgba(71,85,105,0.7)';
+const TOP_LINE = '#d97706';            // amber-600
+const TOP_TEXT = '#b45309';            // amber-700
 const AXIS_W = 56;
 const HEADER_H = 34;
 const PAD_TOP = 2;
@@ -72,12 +84,12 @@ export default function MultiWellTracks({ wells }) {
     canvas.style.height = `${size.h}px`;
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = BG;
     ctx.fillRect(0, 0, size.w, size.h);
 
     // depth axis
-    ctx.strokeStyle = 'rgba(51,65,85,0.5)';
-    ctx.fillStyle = '#64748b';
+    ctx.strokeStyle = GRID;
+    ctx.fillStyle = AXIS_TEXT;
     ctx.font = '10px sans-serif';
     const span = vBase - vTop;
     const step = 10 ** Math.floor(Math.log10(span / 6));
@@ -99,17 +111,17 @@ export default function MultiWellTracks({ wells }) {
     wells.forEach((well, wi) => {
       const cx0 = AXIS_W + wi * colW;
       // column header
-      ctx.fillStyle = '#0b1220';
+      ctx.fillStyle = HEADER_BG;
       ctx.fillRect(cx0, 0, colW, HEADER_H);
-      ctx.strokeStyle = 'rgba(51,65,85,0.9)';
+      ctx.strokeStyle = FRAME;
       ctx.strokeRect(cx0 + 0.5, 0.5, colW - 1, HEADER_H - 1);
       ctx.font = 'bold 11px sans-serif';
-      ctx.fillStyle = '#cbd5e1';
+      ctx.fillStyle = TEXT;
       ctx.textAlign = 'center';
       ctx.fillText(well.name, cx0 + colW / 2, 13, colW - 8);
       if (well.shift === null) {
         ctx.font = '9px sans-serif';
-        ctx.fillStyle = '#f59e0b';
+        ctx.fillStyle = TOP_TEXT;
         ctx.fillText('no datum top — unflattened', cx0 + colW / 2, 26, colW - 8);
       }
 
@@ -130,11 +142,11 @@ export default function MultiWellTracks({ wells }) {
       let tx = cx0;
       for (const track of well.tracks) {
         const tw = ((track.width || 1) / totalRatio) * colW;
-        ctx.strokeStyle = 'rgba(51,65,85,0.6)';
+        ctx.strokeStyle = FRAME;
         ctx.strokeRect(tx + 0.5, plotTop + 0.5, tw - 1, plotH - 1);
         // tiny track label
         ctx.font = '9px sans-serif';
-        ctx.fillStyle = '#64748b';
+        ctx.fillStyle = AXIS_TEXT;
         ctx.textAlign = 'center';
         ctx.fillText(track.title, tx + tw / 2, plotTop + 9, tw - 4);
         for (const curve of track.curves) {
@@ -150,11 +162,11 @@ export default function MultiWellTracks({ wells }) {
         const dd = displayedDepth(t.md_m, s);
         if (dd < vTop || dd > vBase) continue;
         const y = yOf(dd);
-        ctx.strokeStyle = '#f59e0b';
+        ctx.strokeStyle = TOP_LINE;
         ctx.setLineDash([4, 3]);
         ctx.beginPath(); ctx.moveTo(cx0, y); ctx.lineTo(cx0 + colW, y); ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = '#fbbf24';
+        ctx.fillStyle = TOP_TEXT;
         ctx.font = '9px sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText(t.name, cx0 + 3, y - 2, colW - 6);
@@ -174,9 +186,9 @@ export default function MultiWellTracks({ wells }) {
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (cursorY === null || cursorY < plotTop || cursorY > plotTop + plotH) return;
-    ctx.strokeStyle = 'rgba(148,163,184,0.7)';
+    ctx.strokeStyle = CROSSHAIR;
     ctx.beginPath(); ctx.moveTo(AXIS_W, cursorY); ctx.lineTo(size.w, cursorY); ctx.stroke();
-    ctx.fillStyle = '#e2e8f0';
+    ctx.fillStyle = TEXT_STRONG;
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'right';
     ctx.fillText(dOf(cursorY).toFixed(1), AXIS_W - 4, cursorY - 4);

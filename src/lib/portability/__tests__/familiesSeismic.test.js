@@ -100,7 +100,7 @@ describe('seismic family', () => {
     expect(tableSpec('seismic_volumes').blob.prefixExclude('bricks/0-0-0.f32')).toBe(false);
     expect(horizonConfidencePath('u/v/horizons/h.f32')).toBe('u/v/horizons/h.conf.f32');
     expect(tableSpec('seismic_sessions')).toMatchObject({ kind: 'seismic-session', stamped: true });
-    expect(tableSpec('seismic_volumes').stamped).toBeUndefined();
+    expect(tableSpec('seismic_volumes').stamped).toBe(true); // registry half applied 2026-09-03
   });
 
   describe('a project round trip', () => {

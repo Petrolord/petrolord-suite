@@ -212,7 +212,7 @@ describe('PP2 import: the type well arrives as an independent copy', () => {
     expect(sink.store.crs[CRS_ID]).toMatchObject({ name: 'Keta TM' });
   });
 
-  test('provenance.imported_from is stamped on rows that carry provenance; app-state rows carry the version stamp; registry rows carry no PP0 columns yet', () => {
+  test('provenance.imported_from is stamped on rows that carry provenance; app-state and registry rows both carry the version stamp (20260902120500 applied 2026-09-03)', () => {
     const vsh = sink.store.rows.geo_wells_logs.find((l) => l.mnemonic === 'VSH');
     expect(vsh.provenance.imported_from).toMatchObject({ package_id: manifest.package_id, source_user_id: SRC_USER, source_organization_name: 'Source Co', original_id: uid(200) });
     expect(vsh.provenance.computed).toBe(true);
@@ -220,8 +220,9 @@ describe('PP2 import: the type well arrives as an independent copy', () => {
     expect(petro.schema_version).toBe(1);
     expect(petro.app_build).toBe('unknown');
     const well = sink.store.rows.geo_wells[0];
-    expect(well).not.toHaveProperty('schema_version');
-    expect(well).not.toHaveProperty('app_build');
+    expect(well.schema_version).toBe(1);
+    expect(well.app_build).toBe('unknown');
+    expect(vsh.schema_version).toBe(1);
   });
 
   test('the job and its ledger record every row', () => {

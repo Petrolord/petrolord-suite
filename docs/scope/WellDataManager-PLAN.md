@@ -54,8 +54,11 @@ tomorrow. After G1 there are no app-private well tables in the suite.
    **lasio oracle** (`tools/validation/wells/`) generates committed
    goldens in `test-data/wells/`; jest asserts bit-level curve equality.
    Malformed-file fuzz suite (the wellImportFuzz pattern: plain
-   row-numbered domain errors). LAS 3.0 is read-rejected with a clear
-   message (out of v1 scope).
+   row-numbered domain errors). LAS 3.0 was read-rejected in v1; since
+   2026-09-03 it parses (DLM SPACE/COMMA/TAB, ~Log_* sections, {FORMAT}
+   tails, text columns skipped and reported, other data blocks ignored
+   and reported). Its goldens are generator-written because lasio 0.32
+   misreads LAS 3.0 (test-data/wells/README.md).
 5. **Seismolord migrates onto the registry, shape-preserving**: a data
    migration copies `seismic_wells` rows into `wells` (+ tops into
    `wells_tops`); Seismolord's `useWells` re-points to the new service

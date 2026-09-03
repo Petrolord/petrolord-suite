@@ -136,19 +136,25 @@ export default function PetroWorkstation({ backend }) {
         setStatus('This well has no depth curve yet.');
         return;
       }
+      // every registry curve comes down once, keyed by exact mnemonic;
+      // the pipeline inputs are views onto the same arrays, and any
+      // other mnemonic can be drawn through a `log:` layout address
+      const rawLogs = {};
+      for (const log of logs) rawLogs[log.mnemonic] = await backend.downloadCurve(log);
       const curves = {};
       for (const [key, log] of Object.entries(mapped)) {
-        if (log) curves[key] = await backend.downloadCurve(log);
+        if (log) curves[key] = rawLogs[log.mnemonic];
       }
       setWellData({
         wellId,
         curves,
+        logs: rawLogs,
         inventory: Object.entries(mapped).map(([key, log]) => ({ key, log })),
         tops,
         allLogs: logs,
       });
       await refreshZones(wellId);
-      setStatus(`Loaded ${Object.keys(curves).length} curves.`);
+      setStatus(`Loaded ${logs.length} curves (${Object.keys(curves).length} mapped to pipeline inputs).`);
     } catch (e) {
       setStatus(e.message);
       setWellData(null);
@@ -236,6 +242,7 @@ export default function PetroWorkstation({ backend }) {
     if (!wellData || !computed) return [];
     return resolveTracks(activeTemplate(layouts), {
       curves: wellData.curves,
+      logs: wellData.logs,
       outputs: computed.outputs,
       faciesData,
       facies,
@@ -737,6 +744,7 @@ export default function PetroWorkstation({ backend }) {
             onApplyZone={applyZoneParams}
           />
           <LayoutPanel
+            logSources={(wellData?.allLogs || []).map((l) => l.mnemonic)}
             layouts={layouts}
             onLayoutsChange={setLayouts}
             focusTrack={layoutFocus}

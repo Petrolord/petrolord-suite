@@ -31,6 +31,7 @@ export const GEOSCIENCE_SPEC = {
   tables: {
     geo_wells: {
       pk: 'id',
+      stamped: true,
       scope: ['user_id', 'organization_id'],
       children: [
         { table: 'geo_wells_logs', column: 'well_id' },
@@ -45,6 +46,7 @@ export const GEOSCIENCE_SPEC = {
     },
     geo_wells_logs: {
       pk: 'id',
+      stamped: true,
       parent: { table: 'geo_wells', column: 'well_id' },
       blob: { bucket: 'wells', pathColumn: 'storage_path', contentType: 'application/octet-stream', newPath: (userId, row) => `${userId}/${row.well_id}/logs/${row.id}.f32` },
       softRefs: [
@@ -52,10 +54,11 @@ export const GEOSCIENCE_SPEC = {
         { path: 'provenance.project_id', table: 'petro_projects', optional: true },
       ],
     },
-    geo_wells_tops: { pk: 'id', parent: { table: 'geo_wells', column: 'well_id' }, softRefs: [] },
-    geo_wells_zones: { pk: 'id', parent: { table: 'geo_wells', column: 'well_id' }, softRefs: [] },
+    geo_wells_tops: { pk: 'id', stamped: true, parent: { table: 'geo_wells', column: 'well_id' }, softRefs: [] },
+    geo_wells_zones: { pk: 'id', stamped: true, parent: { table: 'geo_wells', column: 'well_id' }, softRefs: [] },
     geo_surfaces: {
       pk: 'id',
+      stamped: true,
       scope: ['user_id', 'organization_id'],
       blob: { bucket: 'surfaces', pathColumn: 'storage_path', contentType: 'application/octet-stream', newPath: (userId, row) => `${userId}/${row.id}/grid.f32` },
       softRefs: [
@@ -68,6 +71,7 @@ export const GEOSCIENCE_SPEC = {
     },
     geo_culture: {
       pk: 'id',
+      stamped: true,
       scope: ['user_id', 'organization_id'],
       blob: { bucket: 'culture', pathColumn: 'storage_path', contentType: 'application/json', newPath: (userId, row) => `${userId}/${row.id}/features.json` },
       softRefs: [{ path: 'crs', form: 'custom-crs', table: 'geoscience_custom_crs', optional: false }],

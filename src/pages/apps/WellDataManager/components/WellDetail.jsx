@@ -27,7 +27,9 @@ function Field({ label, children }) {
 
 const fmt = (v, digits = 1) => (Number.isFinite(v) ? Number(v).toFixed(digits) : '—');
 
-export default function WellDetail({ backend, well, onStatus }) {
+/** @param {number} [p.refreshNonce] bump to reload tops/logs for the SAME
+ *  well (a LAS import into the selected well, 2026-09-03) */
+export default function WellDetail({ backend, well, onStatus, refreshNonce = 0 }) {
   const [tab, setTab] = useState('Header');
   const [tops, setTops] = useState(null);       // null = loading
   const [logs, setLogs] = useState(null);
@@ -60,7 +62,7 @@ export default function WellDetail({ backend, well, onStatus }) {
     setTracks([]);
     curveCache.current = new Map();
     refreshChildren();
-  }, [refreshChildren]);
+  }, [refreshChildren, refreshNonce]);
 
   // resolve ticked ids to curve data (cache-first, download the rest)
   useEffect(() => {

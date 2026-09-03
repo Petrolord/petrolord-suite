@@ -18,7 +18,9 @@ import { parseLas } from '@/pages/apps/WellDataManager/engine/lasParse';
 
 const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'wells');
 
-const FIXTURES = ['basic_20', 'feet_20', 'irregular_20', 'nullheavy_20', 'quirks_20', 'wrapped_12'];
+// *_30 = LAS 3.0; their goldens are written by genfixtures.py from its own
+// closed-form arrays (lasio 0.32 misreads LAS 3.0), see the README.
+const FIXTURES = ['basic_20', 'feet_20', 'irregular_20', 'nullheavy_20', 'quirks_20', 'wrapped_12', 'las3_comma_30', 'las3_space_30'];
 
 const loadGolden = (name) =>
   JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'goldens', `${name}.json`), 'utf8'));

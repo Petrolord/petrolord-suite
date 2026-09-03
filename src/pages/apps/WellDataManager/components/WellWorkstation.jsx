@@ -28,6 +28,7 @@ export default function WellWorkstation({ backend }) {
   const [packageOpen, setPackageOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [detailNonce, setDetailNonce] = useState(0); // reload the detail view after an import into the selected well
   const [deleting, setDeleting] = useState(null); // well pending delete confirm
   const [orgId, setOrgId] = useState(undefined);  // undefined = resolving
 
@@ -86,10 +87,11 @@ export default function WellWorkstation({ backend }) {
     }
   };
 
-  const onImported = async ({ wellId, nLogs, fileName }) => {
-    setStatus(`Imported ${nLogs} log${nLogs === 1 ? '' : 's'} from ${fileName}.`);
+  const onImported = async ({ wellId, nLogs, fileName, note }) => {
+    setStatus(`Imported ${nLogs} log${nLogs === 1 ? '' : 's'} from ${fileName}${note ? ` (${note})` : ''}.`);
     await refresh();
     select(wellId);
+    setDetailNonce((n) => n + 1);
   };
 
   const onPackageImported = async (summary) => {
@@ -171,7 +173,7 @@ export default function WellWorkstation({ backend }) {
           <WellsMap wells={list} selectedId={selectedId} onSelect={select} />
         </div>
       ) : (
-        <WellDetail backend={backend} well={selected} onStatus={setStatus} />
+        <WellDetail backend={backend} well={selected} onStatus={setStatus} refreshNonce={detailNonce} />
       )}
     </div>
   );
@@ -207,6 +209,7 @@ export default function WellWorkstation({ backend }) {
         onOpenChange={setLasOpen}
         backend={backend}
         wells={list}
+        initialTargetId={selectedId}
         onDone={onImported}
       />
       <AddWellDialog
