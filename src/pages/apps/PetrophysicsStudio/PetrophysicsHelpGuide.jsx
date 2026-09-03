@@ -285,9 +285,11 @@ const PetrophysicsHelpGuide = () => (
     <GuideSection id="layouts">
       <SectionHeading icon={LayoutTemplate}>Track layouts</SectionHeading>
       <Para>
-        The <Code>Track layout</Code> panel in the dock is a template editor. Two templates are
-        built in: <Code>Standard triple combo</Code> (the table above) and <Code>Raw quicklook</Code>
-        (GR, RT, Density-Neutron, DT with no computed curves). Built-in templates are marked in the
+        The <Code>Track layout</Code> panel in the dock is a template editor. Three templates are
+        built in: <Code>Standard triple combo</Code> (the table above), <Code>Raw quicklook</Code>
+        (GR, RT, Density-Neutron, DT with no computed curves) and <Code>Lithology quicklook</Code>
+        (GR with a sand-or-shale cut-off fill, a lithology ramp track coloured from pale clean sand
+        to dark brown shale, RT and Density-Neutron). Built-in templates are marked in the
         dropdown, and the panel reminds you that any edit forks a built-in into your own copy, so
         the originals are always there to come back to.
       </Para>
@@ -302,8 +304,10 @@ const PetrophysicsHelpGuide = () => (
           ['Title, Width, Scale, Range', 'Per track. Width is a proportion (1.2 draws 20 percent wider than a width-1 track). Scale is linear or log. Range is the track min and max.'],
           ['Curves: source', 'input:GR, input:RHOB, input:NPHI, input:DT, input:RT, output:PHIE, output:VSH, output:SW, output:PAY, output:TEMP, output:KPERM, output:BVW. Addresses are portable: the same template works on any well.'],
           ['Curves: colour, min, max, style', 'Colour picker; an optional min and max that override the track range for that one curve (this is how NPHI sits reversed over RHOB); line style solid, dash or dot.'],
-          ['Fills: threshold', 'Shade one curve above or below a threshold. The threshold can be bound to a parameter (cutPhi, cutVsh, cutSw, grClean, grClay) so it follows the parameter set, or a fixed value.'],
-          ['Fills: crossover', 'Shade between two curves of the same track, one colour for each sign of the crossing.'],
+          ['Fills: threshold', 'Shade one curve above or below a threshold. The threshold can be bound to a parameter (cutPhi, cutVsh, cutSw, grClean, grClay) so it follows the parameter set, or a fixed value such as 75 API. Tick other side to colour the far side too: this is the GR cut-off fill, sand one colour below the number you choose and shale another above it.'],
+          ['Fills: crossover', 'Shade between two curves of the same track, one colour for each sign of the crossing. On the Density-Neutron track, with RHOB 1.95 to 2.95 and NPHI 0.45 to -0.15, density left of neutron is gas or light hydrocarbon (yellow by default) and neutron left of density is shale or wet rock (gray by default).'],
+          ['Fills: ramp', 'Colour the track by the value of one curve between stops you set, each with its own colour, filled to the left edge, the right edge or across the whole track. The lithology preset runs from pale yellow at 15 API to dark brown at 150 API; add stops for intermediate shades. A small colour bar under the track header shows the ramp.'],
+          ['Fill colour and opacity', 'Every fill row has colour pickers and an opacity slider, so the defaults are a starting point, not a rule.'],
         ]}
       />
       <Para>

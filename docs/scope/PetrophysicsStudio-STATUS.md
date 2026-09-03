@@ -210,3 +210,27 @@ every canvas-relative e2e coordinate still holds (the canvas only narrows
 by 64 px; hidden under 460 px). Root exposes `data-view-top/base` in the
 display unit for tests. Well Correlation now colours tops from the shared
 palette. All view arithmetic is `depthNavMath.js` (unit-tested in PT0).
+
+## PT6 fills and the density-neutron presentation (2026-09-03)
+
+Layout schema v2 (stamp-only migration; v1 templates resolve unchanged):
+`threshold` fills gain an optional `color2` for the other side (the GR
+cut-off: sand one colour below a number the user picks, shale another
+above it), and a new `ramp` mode colours a track by one curve's value
+between stops (`viewer/fills.js makeRamp` on the exported
+`colorMaps.interpolate`, `rampStrips` decimated per pixel row like the
+curves). The Layout panel gets colour pickers on every fill, an opacity
+slider, `fillTo` and stop editors for ramps, and a `ramp` mode. Built-ins:
+the density-neutron crossover now uses the global standard colours (gas
+yellow `#facc15` where density plots left of neutron, shale gray
+`#9ca3af` where neutron plots left of density, opacity 0.35; the scales
+1.95 to 2.95 and 0.45 to -0.15 were already standard) on both existing
+templates; a third built-in, Lithology quicklook, carries the GR cut-off
+fill at 75 API and a lithology ramp from pale yellow (15 API) to dark
+brown (150 API). A `grCutoff` pipeline parameter is out of scope
+(DEFAULT_PARAMS is in the vendored engine), so the cut-off is a fixed,
+editable value in the fill row. Tests: layout.test (lithology resolves,
+ramp drop rules, v1 threshold without color2, migrate stamps v2 and keeps
+a fork byte-identical, t-dn colours) and fills.test (makeRamp,
+rampStrips, density-neutron pos/neg semantics); e2e PS4 template count
+moved from 3 to 4 and a PT6 pixel test on the lithology track.
