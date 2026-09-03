@@ -12,9 +12,9 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { resolveUserOrgId } from '@/lib/orgContext';
 import {
-  saveWell, listWells, updateWell, deleteWell,
+  saveWell, listWells, updateWell, updateWellData, deleteWell,
   shareWell, unshareWell,
-  listTops, replaceTops,
+  listTops, replaceTops, saveTop, updateTop, deleteTop,
   listLogs, saveLogs, deleteLog, downloadCurve,
 } from '@/lib/wellsRegistry';
 import { parseLasFile } from './lasImportService';
@@ -33,9 +33,13 @@ export function makeRegistryBackend() {
     listWells,
     saveWell,
     updateWell,
+    updateWellData,
     deleteWell,
     listTops,
     replaceTops,
+    saveTop,
+    updateTop,
+    deleteTop,
     listLogs,
     saveLogs,
     deleteLog,

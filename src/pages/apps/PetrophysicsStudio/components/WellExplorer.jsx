@@ -5,12 +5,14 @@
 // NPHI/DT/RT). Presentational — state lives in PetroWorkstation.
 
 import React from 'react';
-import { CircleDot, Building2, Lock, Loader2, Check, Minus } from 'lucide-react';
+import { CircleDot, Building2, Lock, Loader2, Check, Minus, Pencil } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { candidatesFor, unmappedLogs } from '../services/curveMap';
 
 export default function WellExplorer({
   wells, selectedId, loadingId, curveInventory, allLogs, onPickCurve, onSelect,
+  wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager',
 }) {
   return (
     <div className="h-full min-h-0 flex flex-col bg-slate-900/60" data-testid="petro-explorer">
@@ -47,6 +49,17 @@ export default function WellExplorer({
               </div>
               {selected && curveInventory && (
                 <div className="pl-7 pb-1" data-testid="petro-curve-inventory">
+                  {w.is_own && (
+                    <Link
+                      to={`${wellDataManagerPath}?well=${w.id}&tab=checkshots`}
+                      className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:underline pb-1"
+                      data-testid="petro-edit-well-data"
+                      title="Open this well in Well Data Manager to edit its header, survey, checkshots and tops"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Pencil className="w-3 h-3" /> Edit well data
+                    </Link>
+                  )}
                   {(() => {
                     const mapped = Object.fromEntries(curveInventory.map(({ key, log }) => [key, log]));
                     const others = allLogs ? unmappedLogs(allLogs, mapped) : [];

@@ -39,7 +39,10 @@ import { resolveTracks } from '../layout/resolveTracks';
 import { mapLogs } from '../services/curveMap';
 import { makeTvdLookup, depthLabel } from '../viewer/depthModes';
 
-export default function PetroWorkstation({ backend }) {
+/** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
+ *  the explorer's "Edit well data" link opens (the harness points at its
+ *  own harness route) */
+export default function PetroWorkstation({ backend, wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager' }) {
   const [wells, setWells] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
@@ -727,6 +730,7 @@ export default function PetroWorkstation({ backend }) {
           wells={wells || []}
           selectedId={selectedId}
           loadingId={loadingId}
+          wellDataManagerPath={wellDataManagerPath}
           curveInventory={wellData?.inventory || noDepthWell?.inventory}
           allLogs={wellData?.allLogs}
           onPickCurve={selected?.is_own ? pickCurve : undefined}
