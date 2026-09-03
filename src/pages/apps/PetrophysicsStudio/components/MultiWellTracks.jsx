@@ -11,6 +11,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { drawCurve } from '../viewer/trackRender';
 import { displayedDepth } from '../engine/section';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
+import { topColor, topKey } from '@/components/wells/topColors';
 
 // Light palette (Suite chart standard, src/utils/chartTheme.js): white
 // plot with slate grid and axes, so tracks read like a printed log.
@@ -34,7 +35,7 @@ const PAD_TOP = 2;
  *   tracks = resolved TrackViewer-shape tracks per well; shift from
  *   computeFlattening (null draws unflattened)
  */
-export default function MultiWellTracks({ wells, view: viewProp, onViewChange }) {
+export default function MultiWellTracks({ wells, view: viewProp, onViewChange, topStyles = null }) {
   const wrapRef = useRef(null);
   const staticRef = useRef(null);
   const overlayRef = useRef(null);
@@ -166,22 +167,25 @@ export default function MultiWellTracks({ wells, view: viewProp, onViewChange })
         tx += tw;
       }
 
-      // tops markers within this column
-      for (const t of well.tops || []) {
+      // tops markers within this column (PT3: colour by name, hidden per topStyles)
+      const st = topStyles || { showAll: true, byName: {} };
+      for (const t of (st.showAll === false ? [] : (well.tops || []))) {
+        if (st.byName?.[topKey(t.name)]?.hidden) continue;
         const dd = displayedDepth(t.md_m, s);
         if (dd < vTop || dd > vBase) continue;
         const y = yOf(dd);
-        ctx.strokeStyle = TOP_LINE;
+        const color = topColor(t.name, { overrides: st.byName || {} });
+        ctx.strokeStyle = color;
         ctx.setLineDash([4, 3]);
         ctx.beginPath(); ctx.moveTo(cx0, y); ctx.lineTo(cx0 + colW, y); ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = TOP_TEXT;
+        ctx.fillStyle = color;
         ctx.font = '9px sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText(t.name, cx0 + 3, y - 2, colW - 6);
       }
     });
-  }, [size, wells, vTop, vBase, yOf, plotTop, plotH]);
+  }, [size, wells, vTop, vBase, yOf, plotTop, plotH, topStyles]);
 
   // OVERLAY layer: crosshair only — cheap on every pointer move
   const drawOverlay = useCallback((cursorY) => {

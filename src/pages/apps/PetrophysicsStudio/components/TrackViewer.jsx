@@ -11,7 +11,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { crossoverPolys, thresholdPolys, fillPolys } from '../viewer/fills';
 import { drawCurve, xScaleFor, trackGeometry } from '../viewer/trackRender';
-import { hitZoneEdgeAt } from '../viewer/hitTest';
+import { hitZoneEdgeAt, hitTopAt } from '../viewer/hitTest';
+import { topColor } from '@/components/wells/topColors';
+import TopNamePopover from '@/components/wells/TopNamePopover';
 import { depthLabel } from '../viewer/depthModes';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 
@@ -58,6 +60,10 @@ export default function TrackViewer({
   depth, tracks, zones = [], tops = [], depthUnit = 'm', onTrackHeaderClick,
   selection = null, tvdLookup = null, isOwn = false, onZoneEdge,
   view: viewProp, onViewChange,
+  // PT3: tops are shown by name with a colour and can be picked, dragged
+  // (on the right-edge name tag) and named here; pickMode 'top' | 'zone'
+  // is owned by the controller (Esc clears it through onPickCancel)
+  topStyles = null, pickMode = null, onTopCreate, onTopMove, onZonePick, onPickCancel, topNames = [],
 }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -76,6 +82,9 @@ export default function TrackViewer({
   const [tick, setTick] = useState(0);         // bumps when the static layer was redrawn
   const [cursor, setCursor] = useState(null);  // {y, depthM, idx}
   const [zoneDrag, setZoneDrag] = useState(null); // {zone, edge, md}
+  const [topDrag, setTopDrag] = useState(null);   // {top, md}
+  const [pick, setPick] = useState(null);         // zone pick: {top: md}
+  const [popover, setPopover] = useState(null);   // {x, y, kind, mdM | topMdM/baseMdM, defaultName}
   const dragRef = useRef(null);
   const movedRef = useRef(false);
 
@@ -106,6 +115,18 @@ export default function TrackViewer({
   const dOf = (y) => vTop + ((y - plotTop) / plotH) * (vBase - vTop);
 
   const geom = useMemo(() => trackGeometry(tracks, size.w), [tracks, size.w]);
+
+  // tops to draw: visibility and colour by name (topStyles), else all tops
+  // in the deterministic palette
+  const shownTops = useMemo(() => {
+    const st = topStyles || { showAll: true, byName: {} };
+    if (st.showAll === false) return [];
+    return (tops || [])
+      .filter((t) => !st.byName?.[String(t.name).trim().replace(/\s+/g, ' ').toLowerCase()]?.hidden)
+      .map((t) => ({ ...t, color: topColor(t.name, { overrides: st.byName || {} }) }));
+  }, [tops, topStyles]);
+  const TAG_MAX = 120;
+  const tagLeft = Math.max(AXIS_W, size.w - TAG_MAX - 4);
 
   // STATIC layer (PT0): zones, axis, curves, fills and tops are drawn once
   // per data/view change into an offscreen canvas; the cursor layer below
@@ -289,25 +310,35 @@ export default function TrackViewer({
       ctx.lineWidth = 1;
     });
 
-    // tops markers across all tracks
-    for (const t of tops) {
+    // tops markers across all tracks: a dashed line in the top's colour and
+    // a name tag at the right edge (the tag is the drag handle on own wells)
+    ctx.font = '10px sans-serif';
+    for (const t of shownTops) {
       if (t.md_m < vTop || t.md_m > vBase) continue;
       const y = yOf(t.md_m);
-      ctx.strokeStyle = TOP_LINE;
+      ctx.strokeStyle = t.color;
       ctx.setLineDash([5, 3]);
       ctx.beginPath();
       ctx.moveTo(AXIS_W, y);
       ctx.lineTo(size.w, y);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = TOP_TEXT;
-      ctx.font = '10px sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText(t.name, size.w - 4, y - 3);
+      const tw = ctx.measureText(t.name).width;
+      const tagW = Math.min(TAG_MAX, tw + 18);
+      const tx = size.w - tagW - 2;
+      ctx.fillStyle = `${t.color}2e`;
+      ctx.fillRect(tx, y - 13, tagW, 12);
+      ctx.fillStyle = t.color;
+      ctx.textAlign = 'left';
+      if (isOwn && onTopMove) {
+        // grip glyph
+        for (let k = 0; k < 3; k++) ctx.fillRect(tx + 3, y - 11 + k * 3, 4, 1);
+      }
+      ctx.fillText(t.name, tx + (isOwn && onTopMove ? 10 : 4), y - 3, tagW - 12);
     }
 
     setTick((t) => t + 1);
-  }, [size, depth, tracks, geom, zones, tops, vTop, vBase, yOf, plotTop, plotH, F, depthUnit, selection, tvdLookup]);
+  }, [size, depth, tracks, geom, zones, shownTops, vTop, vBase, yOf, plotTop, plotH, F, depthUnit, selection, tvdLookup, isOwn, onTopMove]);
 
   // CURSOR layer: composite the static picture, then the header readouts,
   // the zone-edge drag preview and the crosshair (cheap on every move).
@@ -365,6 +396,41 @@ export default function TrackViewer({
       ctx.fillText(`${zoneDrag.zone.name} ${zoneDrag.edge} → ${depthLabel(zoneDrag.md, depthUnit)}`, AXIS_W + 4, y - 4);
     }
 
+    // top drag preview
+    if (topDrag) {
+      const y = yOf(topDrag.md);
+      ctx.strokeStyle = topDrag.top.color || TOP_LINE;
+      ctx.setLineDash([5, 3]);
+      ctx.beginPath();
+      ctx.moveTo(AXIS_W, y);
+      ctx.lineTo(size.w, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = topDrag.top.color || TOP_TEXT;
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${topDrag.top.name} → ${depthLabel(topDrag.md, depthUnit)}`, AXIS_W + 4, y - 4);
+    }
+
+    // pick previews: a new top at the cursor, or the zone band being picked
+    if (pickMode && cursor && cursor.y >= plotTop && cursor.y <= plotTop + plotH) {
+      ctx.strokeStyle = '#0e7490';
+      ctx.setLineDash([4, 3]);
+      if (pickMode === 'zone' && pick) {
+        const y0 = Math.min(yOf(pick.top), cursor.y);
+        const y1 = Math.max(yOf(pick.top), cursor.y);
+        ctx.fillStyle = 'rgba(14,116,144,0.10)';
+        ctx.fillRect(AXIS_W, y0, size.w - AXIS_W, Math.max(1, y1 - y0));
+        ctx.beginPath(); ctx.moveTo(AXIS_W, yOf(pick.top)); ctx.lineTo(size.w, yOf(pick.top)); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.moveTo(AXIS_W, cursor.y); ctx.lineTo(size.w, cursor.y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#0e7490';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(pickMode === 'zone' ? (pick ? 'click to set the zone base' : 'click to set the zone top') : 'click to place a top', AXIS_W + 4, cursor.y - 4);
+    }
+
     // crosshair
     if (cursor && cursor.y >= plotTop && cursor.y <= plotTop + plotH) {
       ctx.strokeStyle = CROSSHAIR;
@@ -378,7 +444,21 @@ export default function TrackViewer({
       const cLabel = tvdLookup ? tvdLookup(cursor.depthM) * F : cursor.depthM * F;
       ctx.fillText(Number.isFinite(cLabel) ? cLabel.toFixed(1) : '—', AXIS_W - 4, cursor.y - 4);
     }
-  }, [tick, size, depth, tracks, geom, cursor, zoneDrag, yOf, plotTop, plotH, F, depthUnit, tvdLookup]);
+  }, [tick, size, depth, tracks, geom, cursor, zoneDrag, topDrag, pick, pickMode, yOf, plotTop, plotH, F, depthUnit, tvdLookup]);
+
+  // Esc leaves a pick mode / closes the name popover
+  useEffect(() => {
+    if (!pickMode && !popover) return undefined;
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      if (popover) { setPopover(null); if (pickMode === 'zone') setPick(null); return; }
+      setPick(null);
+      if (onPickCancel) onPickCancel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pickMode, popover, onPickCancel]);
+  useEffect(() => { if (!pickMode) { setPick(null); setPopover(null); } }, [pickMode]);
 
   const nearestIdx = (d) => {
     // depth ascending, uniformish: binary search
@@ -392,19 +472,31 @@ export default function TrackViewer({
     return d - depth[lo] < depth[hi] - d ? lo : hi;
   };
 
-  // zone-edge hit test (owned wells only): top/base line within 5px
+  // hit tests: a top only in its right-edge tag zone, a zone edge anywhere
   const zoneEdgeAt = (y) => (isOwn && onZoneEdge ? hitZoneEdgeAt(y, zones, yOf) : null);
+  const topAt = (x, y) => (isOwn && onTopMove && !pickMode ? hitTopAt({ x, y }, shownTops, yOf, { tagLeft, tol: 5 }) : null);
+  const clampMd = (md) => Math.min(dMax, Math.max(dMin, md));
+  const nearestTopAbove = (mdM) => {
+    let best = null;
+    for (const t of shownTops) if (t.md_m <= mdM + 1e-9 && (!best || t.md_m > best.md_m)) best = t;
+    return best;
+  };
 
   const onPointerMove = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    if (topDrag) {
+      setTopDrag((td) => ({ ...td, md: clampMd(dOf(y)) }));
+      return;
+    }
     if (zoneDrag) {
-      const md = Math.min(dMax, Math.max(dMin, dOf(y)));
+      const md = clampMd(dOf(y));
       setZoneDrag((zd) => ({ ...zd, md }));
       return;
     }
     if (!dragRef.current) {
-      canvasRef.current.style.cursor = zoneEdgeAt(y) ? 'row-resize' : 'crosshair';
+      canvasRef.current.style.cursor = pickMode ? 'copy' : topAt(x, y) ? 'grab' : zoneEdgeAt(y) ? 'row-resize' : 'crosshair';
     }
     if (dragRef.current) {
       movedRef.current = true;
@@ -428,27 +520,85 @@ export default function TrackViewer({
     setView(next);
   };
 
+  const onPointerDown = (e) => {
+    movedRef.current = false;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    if (popover) setPopover(null);
+    if (!pickMode) {
+      const top = topAt(x, y);
+      if (top) {
+        setTopDrag({ top, md: top.md_m });
+        e.currentTarget.setPointerCapture(e.pointerId);
+        return;
+      }
+      const edge = zoneEdgeAt(y);
+      if (edge) {
+        setZoneDrag({ ...edge, md: edge.edge === 'top' ? edge.zone.top_md_m : edge.zone.base_md_m });
+        e.currentTarget.setPointerCapture(e.pointerId);
+        return;
+      }
+    }
+    dragRef.current = { y, view: [vTop, vBase] };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const onPointerUp = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    if (topDrag) {
+      const { top, md } = topDrag;
+      setTopDrag(null);
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      if (Math.abs(md - top.md_m) > 1e-9) onTopMove(top, Number(md.toFixed(2)));
+      return;
+    }
+    if (zoneDrag) {
+      const { zone, edge, md } = zoneDrag;
+      setZoneDrag(null);
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      onZoneEdge(zone, edge, Number(md.toFixed(2)));
+      return;
+    }
+    dragRef.current = null;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    // pick modes act on a click (not a pan) inside the plot
+    if (pickMode && !movedRef.current && y > plotTop && y <= plotTop + plotH) {
+      const mdM = Number(clampMd(dOf(y)).toFixed(2));
+      const px = Math.min(Math.max(8, x + 8), Math.max(8, size.w - 236));
+      const py = Math.min(Math.max(8, y + 8), Math.max(8, size.h - 110));
+      if (pickMode === 'top') {
+        setPopover({ x: px, y: py, kind: 'top', mdM, defaultName: '' });
+      } else if (pickMode === 'zone') {
+        if (!pick) { setPick({ top: mdM }); return; }
+        const topMdM = Math.min(pick.top, mdM);
+        const baseMdM = Math.max(pick.top, mdM);
+        const above = nearestTopAbove(topMdM);
+        setPopover({ x: px, y: py, kind: 'zone', topMdM, baseMdM, defaultName: above ? above.name : `Zone ${(zones || []).length + 1}` });
+      }
+    }
+  };
+
+  const onPopoverConfirm = (name) => {
+    const pv = popover;
+    setPopover(null);
+    if (!pv) return;
+    if (pv.kind === 'top' && onTopCreate) onTopCreate(pv.mdM, name);
+    if (pv.kind === 'zone' && onZonePick) { onZonePick(pv.topMdM, pv.baseMdM, name); setPick(null); }
+  };
+
   return (
-    <div ref={wrapRef} className="h-full min-h-0 w-full relative overflow-hidden" data-testid="petro-tracks">
+    <div ref={wrapRef} className="h-full min-h-0 w-full relative overflow-hidden" data-testid="petro-tracks" data-pick-mode={pickMode || ''}>
       <canvas
         ref={canvasRef}
         className="cursor-crosshair"
         data-testid="petro-tracks-canvas"
         onPointerMove={onPointerMove}
-        onPointerDown={(e) => {
-          movedRef.current = false;
-          const y = e.clientY - canvasRef.current.getBoundingClientRect().top;
-          const edge = zoneEdgeAt(y);
-          if (edge) {
-            setZoneDrag({ ...edge, md: edge.edge === 'top' ? edge.zone.top_md_m : edge.zone.base_md_m });
-            e.currentTarget.setPointerCapture(e.pointerId);
-            return;
-          }
-          dragRef.current = { y, view: [vTop, vBase] };
-          e.currentTarget.setPointerCapture(e.pointerId);
-        }}
+        onPointerDown={onPointerDown}
         onClick={(e) => {
-          if (movedRef.current || !onTrackHeaderClick || !tracks.length) return;
+          if (movedRef.current || !onTrackHeaderClick || !tracks.length || pickMode) return;
           const rect = canvasRef.current.getBoundingClientRect();
           if (e.clientY - rect.top > HEADER_H) return;
           const x = e.clientX - rect.left;
@@ -458,23 +608,30 @@ export default function TrackViewer({
             if (x < g[i].x0 + g[i].w) { onTrackHeaderClick(i); return; }
           }
         }}
-        onPointerUp={(e) => {
-          if (zoneDrag) {
-            const { zone, edge, md } = zoneDrag;
-            setZoneDrag(null);
-            e.currentTarget.releasePointerCapture(e.pointerId);
-            onZoneEdge(zone, edge, Number(md.toFixed(2)));
-            return;
-          }
-          dragRef.current = null;
-          e.currentTarget.releasePointerCapture(e.pointerId);
-        }}
+        onPointerUp={onPointerUp}
         onPointerLeave={() => { setCursor(null); }}
         onWheel={onWheel}
-        onDoubleClick={() => setView(null)}
+        onDoubleClick={() => { if (!pickMode) setView(null); }}
       />
+      {popover && (
+        <TopNamePopover
+          x={popover.x}
+          y={popover.y}
+          title={popover.kind === 'top'
+            ? `New top at ${depthLabel(popover.mdM, depthUnit)}`
+            : `New zone ${depthLabel(popover.topMdM, depthUnit)} to ${depthLabel(popover.baseMdM, depthUnit)}`}
+          defaultValue={popover.defaultName}
+          names={popover.kind === 'top' ? topNames : shownTops.map((t) => t.name)}
+          placeholder={popover.kind === 'top' ? 'Top name' : 'Zone name'}
+          onConfirm={onPopoverConfirm}
+          onCancel={() => { setPopover(null); if (pickMode === 'zone') setPick(null); }}
+          testIdPrefix={popover.kind === 'top' ? 'petro-top' : 'petro-zone-pick'}
+        />
+      )}
       <span className="absolute bottom-1 right-2 text-[10px] text-slate-600 pointer-events-none">
-        wheel: zoom · drag: pan · double-click: full well
+        {pickMode === 'top' ? 'click: place a top · Esc: finish'
+          : pickMode === 'zone' ? 'click the zone top, then its base · Esc: finish'
+            : 'wheel: zoom · drag: pan · double-click: full well'}
       </span>
     </div>
   );

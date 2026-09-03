@@ -176,3 +176,40 @@ export function updateTemplate(layouts, templateId, updater) {
     templates: layouts.templates.map((x) => (x.id === templateId ? updater(cloneTemplate(x)) : x)),
   };
 }
+
+// ---- top (marker) display preferences (PT3, 2026-09-03) --------------------
+// Ride inside the layouts object as an optional sibling of `templates`
+// (migrateLayouts spreads unknown keys, so no migration): which tops show
+// and any colour a user picked, keyed by normalised name so the choice
+// applies to every well.
+//   topStyles?: { showAll?: boolean, byName?: { [topKey]: { color?, hidden? } } }
+
+import { topKey } from '@/components/wells/topColors';
+
+export function getTopStyles(layouts) {
+  const t = layouts?.topStyles || {};
+  return { showAll: t.showAll !== false, byName: t.byName || {} };
+}
+
+export function setTopStyle(layouts, name, patch) {
+  const cur = getTopStyles(layouts);
+  const k = topKey(name);
+  const next = { ...(cur.byName[k] || {}), ...patch };
+  if (next.hidden === false) delete next.hidden;
+  if (!next.color) delete next.color;
+  const byName = { ...cur.byName };
+  if (Object.keys(next).length) byName[k] = next; else delete byName[k];
+  return { ...layouts, topStyles: { showAll: cur.showAll, byName } };
+}
+
+export function setShowAllTops(layouts, showAll) {
+  const cur = getTopStyles(layouts);
+  return { ...layouts, topStyles: { showAll: !!showAll, byName: cur.byName } };
+}
+
+/** Tops the viewer draws, with their colour; hidden ones are dropped. */
+export function visibleTops(tops, layouts, theme = 'light') {
+  const st = getTopStyles(layouts);
+  if (!st.showAll) return [];
+  return (tops || []).filter((t) => !st.byName[topKey(t.name)]?.hidden);
+}

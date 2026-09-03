@@ -11,7 +11,7 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 import {
-  listWells, listLogs, downloadCurve, listTops,
+  listWells, listLogs, downloadCurve, listTops, saveTop, updateTop, deleteTop,
   listZones, saveZone, updateZone, deleteZone,
   saveLogs, deleteLog,
 } from '@/lib/wellsRegistry';
@@ -129,6 +129,9 @@ export function makeRegistryBackend() {
     listLogs,
     downloadCurve,
     listTops,
+    saveTop,
+    updateTop,
+    deleteTop,
     listZones,
     saveZone,
     updateZone,

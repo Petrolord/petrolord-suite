@@ -23,6 +23,8 @@ const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? 'â
 
 export default function FieldViewPanel({
   depthUnit = 'm',
+  topStyles = null,
+  onShowAllTops = null,
   wells, params, zoneParams, layouts, backend, curvesCache, onStatus,
 }) {
   const [pickedIds, setPickedIds] = useState([]);
@@ -158,13 +160,19 @@ export default function FieldViewPanel({
             <option value="">Structural (MD)</option>
             {topNames.map((n) => <option key={n} value={n}>Flatten on {n}</option>)}
           </select>
+        {onShowAllTops && (
+          <label className="flex items-center gap-1 text-xs text-slate-400 ml-2">
+            <input type="checkbox" checked={topStyles?.showAll !== false} onChange={(e) => onShowAllTops(e.target.checked)} data-testid="petro-field-tops" />
+            Tops
+          </label>
+        )}
         </label>
         {busy && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />}
       </div>
 
       <div className="flex-1 min-h-0">
         {tracksWells.length ? (
-          <MultiWellTracks wells={tracksWells} />
+          <MultiWellTracks topStyles={topStyles} wells={tracksWells} />
         ) : (
           <div className="h-full flex items-center justify-center text-slate-500 text-sm">
             Pick wells above to compare them side by side.

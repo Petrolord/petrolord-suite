@@ -104,8 +104,9 @@ const PetrophysicsHelpGuide = () => (
       <Callout tone="info" title="Where this app sits in the Geoscience module">
         Curves enter the registry only through Well Data Manager (LAS 1.2, 2.0 and 3.0), and every well name in your
         registry is unique (a second well with the same name is refused, whatever its case or
-        spacing), so the Explorer list is never ambiguous. Tops are read here but edited in
-        Well Correlation. Zones are this app&apos;s own artifact. Computed curves and zone summaries
+        spacing), so the Explorer list is never ambiguous. Tops are the registry&apos;s markers: you can
+        pick, move, rename and delete them here on wells you own, and Well Correlation sees the same
+        rows. Zones are this app&apos;s own artifact. Computed curves and zone summaries
         published from here are ordinary registry logs with provenance, visible to every other app.
       </Callout>
     </GuideSection>
@@ -244,11 +245,17 @@ const PetrophysicsHelpGuide = () => (
       </Para>
       <SubHeading>Zones, tops and dragging</SubHeading>
       <Para>
-        Zones draw as translucent bands with their names. Tops from the registry draw as labelled
-        lines and are read-only here. On a well you own, hover a zone edge until the cursor changes,
-        then drag: a preview reads <Code>ZONE top → 2040.0 m</Code> while you move, and releasing
-        commits the edge. A base dragged above its top is rejected with <Code>Zone base must stay
-        below its top</Code>.
+        Zones draw as translucent bands with their names. Tops draw as dashed lines in a colour
+        fixed by their name (the same colour in Well Correlation) with a name tag at the right edge.
+        The Tops panel in the dock shows or hides them, all at once or one by one, and lets you pick
+        a colour; those choices are saved with the interpretation and apply to every well. On a well
+        you own, <Code>Pick top</Code> in that panel turns the cursor into a picker: click in the log
+        area, type the name, press Enter. Drag a top by its name tag to move it, rename or delete it
+        from the panel. Hover a zone edge until the cursor changes, then drag: a preview reads
+        <Code>ZONE top → 2040.0 m</Code> while you move, and releasing commits the edge. A base
+        dragged above its top is rejected with <Code>Zone base must stay below its top</Code>. Zone
+        edges win in the middle of the plot; tops are picked up only on their tag, so a top sitting
+        on a zone base never steals the drag.
       </Para>
       <SubHeading>Axis toggles</SubHeading>
       <Table
@@ -468,8 +475,8 @@ const PetrophysicsHelpGuide = () => (
         overlap. Samples outside every zone use the global set.
       </Para>
       <Callout tone="info" title="Tops versus zones">
-        Registry tops are drawn on the tracks but never edited here; Well Correlation owns them.
-        Zones are the Studio&apos;s own intervals: draggable on the tracks for wells you own,
+        Registry tops are markers shared by every app: picked, moved, renamed and deleted here or
+        in Well Correlation, always the same rows. Zones are the Studio&apos;s own intervals: draggable on the tracks for wells you own,
         summarised on the cards, exported in the zone CSV and the PDF, and compared across wells in
         the Field view by name.
       </Callout>
@@ -847,7 +854,7 @@ const PetrophysicsHelpGuide = () => (
         There is no probabilistic multi-mineral solver: porosity comes from one chosen source and
         lithology is a judgement you make on the Density-Neutron plot. Depth shifting is a block
         shift, with no stretch and squeeze. Rwe from the SP is applied as Rw without a Bateman-Konen
-        correction. Tops are read-only. The split divider is fixed. None of these are hidden
+        correction. The split divider is fixed. None of these are hidden
         behind a setting.
       </Para>
     </GuideSection>

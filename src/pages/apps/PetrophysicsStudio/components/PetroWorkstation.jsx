@@ -34,7 +34,9 @@ import {
   preparePublishLogs, zonePropertiesSnapshot,
 } from '../engine/pipeline';
 import { faciesCurve } from '../engine/crossplot';
-import { buildDefaultLayouts, migrateLayouts, activeTemplate } from '../layout/layoutSchema';
+import { buildDefaultLayouts, migrateLayouts, activeTemplate, getTopStyles, setTopStyle, setShowAllTops } from '../layout/layoutSchema';
+import TopsPanel from './TopsPanel';
+import { nameKey } from '@/lib/curveNames';
 import { resolveTracks } from '../layout/resolveTracks';
 import { mapLogs } from '../services/curveMap';
 import { makeTvdLookup, depthLabel } from '../viewer/depthModes';
@@ -64,6 +66,8 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
   const [exportOpen, setExportOpen] = useState(false);
   const [noDepthWell, setNoDepthWell] = useState(null); // {inventory} — C2 empty state
   const [layouts, setLayouts] = useState(buildDefaultLayouts); // PS4 templates
+  const [pickMode, setPickMode] = useState(null);                // PT3: 'top' | 'zone' | null
+  const [topsBusy, setTopsBusy] = useState(false);
   const [layoutFocus, setLayoutFocus] = useState(null);        // {index, nonce}
   const [depthUnit, setDepthUnit] = useState('m');             // display only
   const [rwToolsOpen, setRwToolsOpen] = useState(false);       // PS5 quicklooks
@@ -117,6 +121,7 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
 
   const select = useCallback(async (wellId) => {
     setSelectedId(wellId);
+    setPickMode(null);
     setLoadingId(wellId);
     setWellData(null);
     setNoDepthWell(null);
@@ -321,6 +326,57 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
     return makeTvdLookup(selected?.deviation);
   }, [depthMode, selected]);
   const hasDeviation = Array.isArray(selected?.deviation) && selected.deviation.length >= 2;
+
+  // ---- tops (PT3): the same geo_wells_tops rows Well Correlation uses ----
+  const topStyles = useMemo(() => getTopStyles(layouts), [layouts]);
+  const refreshTops = useCallback(async (wellId) => {
+    const tops = await backend.listTops(wellId);
+    setWellData((d) => (d && d.wellId === wellId ? { ...d, tops } : d));
+    return tops;
+  }, [backend]);
+  const topNameTaken = (name, exceptId = null) => (wellData?.tops || [])
+    .some((t) => t.id !== exceptId && nameKey(t.name).replace(/\s+/g, ' ') === nameKey(name).replace(/\s+/g, ' '));
+  const createTop = async (mdM, name) => {
+    if (!wellData) return;
+    if (topNameTaken(name)) { setStatus(`A top named ${name} already exists on this well.`); return; }
+    setTopsBusy(true);
+    try {
+      await backend.saveTop(wellData.wellId, { name, mdM });
+      await refreshTops(wellData.wellId);
+      setStatus(`Added top ${name} at ${depthLabel(mdM, depthUnit)}.`);
+    } catch (e) { setStatus(e.message); } finally { setTopsBusy(false); }
+  };
+  const moveTop = async (top, mdM) => {
+    setTopsBusy(true);
+    try {
+      await backend.updateTop(top.id, { mdM });
+      await refreshTops(top.well_id || wellData.wellId);
+      setStatus(`Moved ${top.name} to ${depthLabel(mdM, depthUnit)}.`);
+    } catch (e) { setStatus(e.message); await refreshTops(wellData.wellId); } finally { setTopsBusy(false); }
+  };
+  const renameTop = async (top, name) => {
+    if (topNameTaken(name, top.id)) { setStatus(`A top named ${name} already exists on this well.`); return; }
+    setTopsBusy(true);
+    try {
+      await backend.updateTop(top.id, { name });
+      await refreshTops(top.well_id || wellData.wellId);
+      setStatus(`Renamed ${top.name} to ${name}.`);
+    } catch (e) { setStatus(e.message); } finally { setTopsBusy(false); }
+  };
+  const removeTop = async (top) => {
+    if (!window.confirm(`Delete top ${top.name} from this well?`)) return;
+    setTopsBusy(true);
+    try {
+      await backend.deleteTop(top);
+      await refreshTops(top.well_id || wellData.wellId);
+      setStatus(`Deleted top ${top.name}.`);
+    } catch (e) { setStatus(e.message); } finally { setTopsBusy(false); }
+  };
+  const setPick = (mode) => {
+    setPickMode(mode);
+    if (mode === 'top') setStatus('Pick top: click in the log area, Esc to finish.');
+    else if (mode === 'zone') setStatus('Pick zone: click the top, then the base. Esc to finish.');
+  };
 
   const commitZoneEdge = async (zone, edge, newMd) => {
     const top = edge === 'top' ? newMd : zone.top_md_m;
@@ -633,6 +689,8 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
   ) : view === 'field' ? (
     <FieldViewPanel
       depthUnit={depthUnit}
+      topStyles={topStyles}
+      onShowAllTops={(v) => setLayouts((l) => setShowAllTops(l, v))}
       wells={wells}
       params={params}
       zoneParams={zoneParams}
@@ -696,6 +754,12 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
         tracks={tracks}
         zones={zones}
         tops={wellData.tops}
+        topStyles={topStyles}
+        topNames={Array.from(new Set((wellData.tops || []).map((t) => t.name)))}
+        pickMode={pickMode}
+        onTopCreate={createTop}
+        onTopMove={moveTop}
+        onPickCancel={() => { setPickMode(null); setStatus('Pick finished.'); }}
         depthUnit={depthUnit}
         selection={selection}
         tvdLookup={tvdLookup}
@@ -755,6 +819,21 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
             focusTrack={layoutFocus}
             onStatus={setStatus}
           />
+          {wellData && (
+            <TopsPanel
+              tops={wellData.tops}
+              topStyles={topStyles}
+              onShowAll={(v) => setLayouts((l) => setShowAllTops(l, v))}
+              onStyle={(name, patch) => setLayouts((l) => setTopStyle(l, name, patch))}
+              isOwn={!!selected?.is_own}
+              busy={topsBusy}
+              pickMode={pickMode}
+              onPick={setPick}
+              onRename={renameTop}
+              onDelete={removeTop}
+              depthUnit={depthUnit}
+            />
+          )}
           {wellData && (
             <ZoneManager
               depthUnit={depthUnit}

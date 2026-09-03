@@ -349,3 +349,7 @@ saves a new curve.
   primary column) across CSV, zone CSV, LAS (`F` unit, DEPTREF/EKB/
   DEPTHSRC parameters) and the PDF report; zone panel, field view and
   statuses in the display unit. Defaults byte-identical.
+- **PT3 built 2026-09-03:** Tops panel, colours by name (shared palette),
+  pick by click with an inline name, drag on the right-edge tag, rename,
+  delete; `layouts.topStyles`; Field view parity. Recorded decision
+  amended (tops editable here).

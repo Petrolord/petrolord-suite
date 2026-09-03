@@ -97,3 +97,20 @@ test('log:<MNEMONIC> addresses draw raw registry curves; several of one type sha
   expect(tracks[0].curves.map((c) => c.name)).toEqual(['A16H', 'deep', 'P40H:2']);
   expect(tracks[0].fills[0]).toMatchObject({ mode: 'crossover', a: 0, b: 1 });
 });
+
+test('topStyles ride in layouts without a migration: show-all, per-name colour and hidden, visibleTops', async () => {
+  const { getTopStyles, setTopStyle, setShowAllTops, visibleTops } = await import('../layout/layoutSchema');
+  let l = buildDefaultLayouts();
+  expect(getTopStyles(l)).toEqual({ showAll: true, byName: {} });
+  l = setTopStyle(l, ' Top  Sand A ', { color: '#123456' });
+  l = setTopStyle(l, 'Top Shale', { hidden: true });
+  expect(getTopStyles(l).byName).toEqual({ 'top sand a': { color: '#123456' }, 'top shale': { hidden: true } });
+  const tops = [{ id: 1, name: 'Top Sand A', md_m: 2010 }, { id: 2, name: 'top shale', md_m: 2030 }];
+  expect(visibleTops(tops, l).map((t) => t.id)).toEqual([1]);
+  l = setTopStyle(l, 'Top Shale', { hidden: false });
+  expect(visibleTops(tops, l)).toHaveLength(2);
+  l = setShowAllTops(l, false);
+  expect(visibleTops(tops, l)).toEqual([]);
+  // migrateLayouts keeps the preferences
+  expect(getTopStyles(migrateLayouts(JSON.parse(JSON.stringify(l)))).showAll).toBe(false);
+});
