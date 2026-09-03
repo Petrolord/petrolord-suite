@@ -335,3 +335,50 @@ describe('horizontal landing takes a heel and a toe', () => {
     expect(onApply).not.toHaveBeenCalled();
   });
 });
+
+// ---- target frame (2026-09-03 fix) --------------------------------------
+describe('target frame at the solver boundary', () => {
+  test('a wellbore with no wellhead location refuses inline instead of solving against 0/0', () => {
+    const { onApply, pick, solve, problem } = setup({
+      wellbore: { ...wellboreIn('ft'), head_x: null, head_y: null }, mdUnit: 'ft',
+    });
+    pick(TARGET, 't-heel');
+    solve();
+    expect(problem()).toHaveTextContent(/no wellhead location/);
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
+  test('a target in another coordinate frame is named as a frame mismatch, not degenerate geometry', () => {
+    // the tester's case: local pad wellhead, target with a UTM easting
+    const targets = [
+      ...TARGETS,
+      { id: 't-utm', name: 'UTM pick', center_x: 269000, center_y: 4700000, tvdss_m: 5000 },
+    ];
+    const { onApply, pick, solve, problem } = setup({
+      targets, wellbore: { ...wellboreIn('ft'), head_x: 25000, head_y: 21000 }, mdUnit: 'ft',
+    });
+    pick(TARGET, 't-utm');
+    fireEvent.change(screen.getByTestId('solver-kop'), { target: { value: '1000' } });
+    solve();
+    expect(problem()).toHaveTextContent(/not in the same coordinate frame/);
+    expect(problem()).toHaveTextContent(/25,000 E, 21,000 N/);
+    expect(problem()).not.toHaveTextContent(/of hole, past the/);
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
+  test('a wellhead resolved from a slot on a pad with an origin solves like an explicit head', () => {
+    const site = { origin_x: HEAD_X - 10, origin_y: HEAD_Y + 5, slots: [{ name: 'S1', dx_m: 10, dy_m: -5 }] };
+    const { onApply, pick, solve } = setup({
+      wellbore: { ...wellboreIn('m'), head_x: null, head_y: null, slot_name: 'S1' }, site,
+    });
+    pick(TARGET, 't-heel');
+    fireEvent.change(screen.getByTestId('solver-kop'), { target: { value: '300' } });
+    solve();
+    expect(onApply).toHaveBeenCalledTimes(1);
+    const expected = solveSlant({
+      target: { dE: 300, dN: 300, dTvd: (2500 + KB_M) - 300 },
+      buildRate: 3, mdUnit: 'm',
+    });
+    expect(onApply.mock.calls[0][0].report.holdIncDeg).toBeCloseTo(expected.report.holdIncDeg, 9);
+  });
+});
