@@ -6,6 +6,7 @@
 // summaries, provenance block. Returns the jsPDF doc; the caller saves.
 
 import { jsPDF } from 'jspdf';
+import { makeDepthFrame } from '../../WellDataManager/engine/checkshots';
 import 'jspdf-autotable';
 import { loadPetrolordLogo, drawBrandHeader } from '@/lib/pdfBrand';
 import { METHOD_CITATIONS, PIPELINE_VERSION } from '../engine/pipeline';
@@ -50,7 +51,7 @@ export function methodLines(params) {
  * @returns {Promise<jsPDF>}
  */
 export async function buildReport({
-  wellName, wellData, params, zones, summaries, projectId,
+  wellName, wellData, params, zones, summaries, projectId, depthUnit = 'm', well = null, columns = ['md'],
 }) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -75,8 +76,17 @@ export async function buildReport({
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(60, 70, 90);
+  const uTxt = depthUnit === 'ft' ? 'ft' : 'm';
+  const toU = (v) => (depthUnit === 'ft' ? v / 0.3048 : v);
+  const frame = makeDepthFrame({ deviation: well?.deviation, kbM: well?.kb_m ?? 0, tdMdM: well?.td_md_m });
+  const depthIn = (md, key) => {
+    if (key === 'md') return toU(md);
+    try { const r = frame.mdToTvdss(md); return toU(key === 'tvd' ? r.tvd : r.tvdss); } catch (e) { return NaN; }
+  };
+  const extraKeys = (columns || []).filter((k) => k === 'tvd' || k === 'tvdss');
   doc.text(
-    `Interval ${num(depth[0], 1)} to ${num(depth[depth.length - 1], 1)} m MD · ${depth.length} samples · inputs: ${mapped.join(', ')}`,
+    `Interval ${num(toU(depth[0]), 1)} to ${num(toU(depth[depth.length - 1]), 1)} ${uTxt} MD · ${depth.length} samples · inputs: ${mapped.join(', ')}`
+    + (extraKeys.length ? ` · TVD from ${frame.isVertical ? 'a vertical assumption' : 'the deviation survey'}, KB ${num(well?.kb_m ?? 0, 2)} m` : ''),
     margin, y,
   );
   y += 8;
@@ -126,12 +136,15 @@ export async function buildReport({
     doc.autoTable({
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Zone', 'Top (m)', 'Base (m)', 'Gross (m)', 'Net (m)', 'N/G', 'phi avg', 'Vsh avg', 'Sw avg']],
+      head: [['Zone', `Top MD (${uTxt})`, `Base MD (${uTxt})`,
+        ...extraKeys.flatMap((k) => [`Top ${k.toUpperCase()} (${uTxt})`, `Base ${k.toUpperCase()} (${uTxt})`]),
+        `Gross (${uTxt})`, `Net (${uTxt})`, 'N/G', 'phi avg', 'Vsh avg', 'Sw avg']],
       body: zoneRows.map((z) => {
         const s = summaries[z.id];
         return [
-          z.name, num(z.top_md_m, 1), num(z.base_md_m, 1),
-          num(s.gross_m, 2), num(s.net_m, 2), num(s.ntg),
+          z.name, num(toU(z.top_md_m), 1), num(toU(z.base_md_m), 1),
+          ...extraKeys.flatMap((k) => [num(depthIn(z.top_md_m, k), 1), num(depthIn(z.base_md_m, k), 1)]),
+          num(toU(s.gross_m), 2), num(toU(s.net_m), 2), num(s.ntg),
           num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg),
         ];
       }),
