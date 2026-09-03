@@ -18,6 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { compileSegments } from '../engine/segmentCompiler';
 import { M_TO_FT } from '../engine/surveyMath';
+import { resolveWellhead, targetsToChart } from '../services/targetFrame';
 import { gridAzimuthDelta } from '../services/surveyUtils';
 import {
   resolveMagReference, computeStationUncertainty, eouPlanEllipses, eouSectionBand,
@@ -80,9 +81,21 @@ const DesignTab = () => {
     const depthUnitLabel = mdUnit;
     const metersToUser = useCallback((v) => (mdUnit === 'ft' ? v * M_TO_FT : v), [mdUnit]);
     const userToMeters = useCallback((v) => (mdUnit === 'ft' ? v / M_TO_FT : v), [mdUnit]);
-    const headX = wellbore?.head_x ?? 0;
-    const headY = wellbore?.head_y ?? 0;
+    // Wellhead in site-CRS metres (explicit head, else slot + pad
+    // origin). No fallback to 0/0: without it targets, slots and lease
+    // lines are not drawn and the banner below says why (they used to be
+    // drawn at their absolute coordinates, autoscaling the plan view to
+    // hundreds of thousands of feet).
+    const wellhead = useMemo(() => resolveWellhead(wellbore, site), [wellbore, site]);
+    const headX = wellhead?.x ?? 0;
+    const headY = wellhead?.y ?? 0;
     const kbUser = metersToUser(wellbore?.kb_elev_m || 0);
+    // Survey listing interval in the wellbore unit (stations every N).
+    const defaultStationInterval = mdUnit === 'ft' ? 100 : 30;
+    const stationInterval = (() => {
+        const v = parseFloat(constraints.stationInterval);
+        return Number.isFinite(v) && v > 0 ? v : defaultStationInterval;
+    })();
 
     // Load the design payload once per design; the localStorage draft
     // (unsaved work) wins over the saved row.
@@ -266,6 +279,7 @@ const DesignTab = () => {
                 mdUnit,
                 tieOn: { md: 0, inc: 0, azi: (parseFloat(kickoffAzi) || 0) + (aziDelta || 0) },
                 maxDls: parseFloat(constraints.maxDLS) || null,
+                subdivideMd: stationInterval,
                 segments: segments.map((s) => {
                     const type = (s.type || 'Hold').toLowerCase();
                     const length = parseFloat(s.length || 0);
@@ -292,7 +306,7 @@ const DesignTab = () => {
             setQaResult(null);
             setCompileError(e.message);
         }
-    }, [segments, kickoffAzi, kbUser, constraints.maxDLS, mdUnit, aziDelta]);
+    }, [segments, kickoffAzi, kbUser, constraints.maxDLS, stationInterval, mdUnit, aziDelta]);
 
     useEffect(() => {
         const timer = setTimeout(calculateTrajectory, 300);
@@ -415,52 +429,36 @@ const DesignTab = () => {
         };
     }, [planRows, headX, headY, userToMeters, mdUnit, getGeoCoords]);
 
-    const chartTargets = useMemo(() => (siteTargets || []).map((t) => {
-        const g = t.geometry || {};
-        const geometry = {};
-        if (g.radius_m) geometry.radius_m = metersToUser(g.radius_m);
-        if (g.semi_major_m) {
-            geometry.semi_major_m = metersToUser(g.semi_major_m);
-            geometry.semi_minor_m = metersToUser(g.semi_minor_m || g.semi_major_m);
-            geometry.rotation_deg = g.rotation_deg || 0;
-        }
-        if (Array.isArray(g.points)) {
-            geometry.points = g.points.map(([px, py]) => [
-                metersToUser(px - headX), metersToUser(py - headY),
-            ]);
-        }
-        return {
-            id: t.id,
-            name: t.name,
-            kind: t.kind,
-            color: t.color,
-            geometry,
-            e: metersToUser((t.center_x || 0) - headX),
-            n: metersToUser((t.center_y || 0) - headY),
-            // TVD below KB in the user's unit, for the section view.
-            tvd: Number.isFinite(t.tvdss_m) ? kbUser + metersToUser(t.tvdss_m) : null,
-        };
-    }), [siteTargets, headX, headY, metersToUser, kbUser]);
+    // Targets in wellhead-relative offsets in the wellbore unit, through
+    // the one conversion the solver uses too (services/targetFrame.js).
+    // Targets that cannot be placed are listed, never drawn.
+    const targetFrame = useMemo(
+        () => targetsToChart(siteTargets || [], { wellhead, mdUnit, kbM: wellbore?.kb_elev_m || 0 }),
+        [siteTargets, wellhead, mdUnit, wellbore],
+    );
+    const chartTargets = targetFrame.rows;
+    const targetProblems = targetFrame.problems;
 
     const chartSlots = useMemo(() => {
         const slots = Array.isArray(site?.slots) ? site.slots : [];
-        if (site?.origin_x == null) return [];
+        if (site?.origin_x == null || !wellhead) return [];
         return slots.map((s) => ({
             name: s.name,
             e: metersToUser(site.origin_x + (s.dx_m || 0) - headX),
             n: metersToUser(site.origin_y + (s.dy_m || 0) - headY),
         }));
-    }, [site, headX, headY, metersToUser]);
+    }, [site, wellhead, headX, headY, metersToUser]);
 
     const chartLeaseLines = useMemo(() => {
         const lines = Array.isArray(site?.lease_lines) ? site.lease_lines : [];
+        if (!wellhead) return [];
         return lines.map((l) => ({
             kind: l.kind,
             points: (l.points || []).map(([px, py]) => [
                 metersToUser(px - headX), metersToUser(py - headY),
             ]),
         }));
-    }, [site, headX, headY, metersToUser]);
+    }, [site, wellhead, headX, headY, metersToUser]);
 
     const vsAzimuthDeg = planRows && planRows.length > 1
         ? planRows[planRows.length - 1].closureAzi : null;
@@ -515,7 +513,8 @@ const DesignTab = () => {
                         )}
                         <div className="space-y-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
                             <Label className="text-slate-400 text-xs uppercase font-bold">Design Settings</Label>
-                            <div className="grid grid-cols-3 gap-2 mt-2">
+                            <div className="grid grid-cols-4 gap-2 mt-2">
+                                <div><Label className="text-[10px]">Station every ({mdUnit})</Label><Input type="number" min="1" step="1" value={constraints.stationInterval ?? defaultStationInterval} data-testid="design-station-interval" title="Survey listing interval: a station is emitted every this many depth units along holds and curves (the trajectory itself does not change)" onChange={e => { setConstraints({ ...constraints, stationInterval: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, stationInterval: e.target.value } }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
                                 <div><Label className="text-[10px]">Max DLS (/{mdUnit === 'ft' ? '100ft' : '30m'})</Label><Input type="number" value={constraints.maxDLS} onChange={e => { setConstraints({ ...constraints, maxDLS: e.target.value }); updateTrajectoryDraft({ constraints: { ...constraints, maxDLS: e.target.value } }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
                                 <div><Label className="text-[10px]">KO Azi (deg {aziRef})</Label><Input type="number" value={kickoffAzi} onChange={e => { setKickoffAzi(e.target.value); updateTrajectoryDraft({ kickoffAzi: parseFloat(e.target.value) || 0 }); }} className="h-7 bg-slate-900 text-xs" disabled={readOnly} /></div>
                                 <div className="flex items-end">
@@ -607,6 +606,22 @@ const DesignTab = () => {
                 {compileError && (
                     <div className="flex items-center gap-2 rounded-lg border border-red-900/40 bg-red-900/15 px-3 py-2 text-xs text-red-300">
                         <AlertCircle className="h-4 w-4 shrink-0" /> {compileError}
+                    </div>
+                )}
+                {showTargets && targetProblems.length > 0 && (
+                    <div className="rounded-lg border border-amber-800/50 bg-amber-900/15 px-3 py-2 text-xs text-amber-300" data-testid="design-target-problems">
+                        <div className="flex items-center gap-2 font-medium">
+                            <AlertCircle className="h-4 w-4 shrink-0" />
+                            {targetProblems.length === (siteTargets || []).length
+                                ? 'No target can be placed relative to this wellhead.'
+                                : `${targetProblems.length} of ${(siteTargets || []).length} targets cannot be placed and are not drawn.`}
+                        </div>
+                        <ul className="mt-1 space-y-0.5 pl-6 list-disc">
+                            {targetProblems.slice(0, 4).map((p) => (
+                                <li key={p.id || p.name}>{p.error}</li>
+                            ))}
+                            {targetProblems.length > 4 && <li>and {targetProblems.length - 4} more.</li>}
+                        </ul>
                     </div>
                 )}
 
@@ -703,7 +718,7 @@ const DesignTab = () => {
                         )}
 
                         {viewMode === 'table' && planRows && (
-                            <div className="h-full overflow-auto bg-slate-900">
+                            <div className="absolute inset-0 top-12 overflow-auto bg-slate-900" data-testid="design-survey-table">
                                 <Table>
                                     <TableHeader className="bg-slate-800 sticky top-0">
                                         <TableRow className="border-slate-700">
@@ -764,6 +779,7 @@ const DesignTab = () => {
                 onOpenChange={setSolverOpen}
                 targets={siteTargets || []}
                 wellbore={wellbore}
+                site={site}
                 mdUnit={mdUnit}
                 kbM={wellbore?.kb_elev_m || 0}
                 currentEnd={currentEnd}

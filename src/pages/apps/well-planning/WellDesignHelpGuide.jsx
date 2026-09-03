@@ -204,7 +204,11 @@ const WellDesignHelpGuide = () => {
               </Step>
               <Step n={3} title="Add a target">
                 Targets tab, New target. For example a circle of radius 120 m at a depth of 2470 m TVDSS. Or create one from
-                a registry formation top or a mapped surface with From registry.
+                a registry formation top or a mapped surface with From registry. Target eastings and northings are
+                absolute site-CRS metres, the same frame as the wellhead: the plan view and the solvers convert them to
+                wellhead-relative offsets in the wellbore unit. A target farther than 50 km from the wellhead, or a
+                wellbore with no wellhead location, is called out on the Design tab and in Design methods instead of being
+                drawn or solved.
               </Step>
               <Step n={4} title="Solve the trajectory">
                 Design tab, Design methods. Pick Build and hold (J), the target, a kickoff depth and a build rate, then
@@ -266,7 +270,10 @@ const WellDesignHelpGuide = () => {
               />
               <SubHeading>Design settings</SubHeading>
               <Para>
-                <Code>Max DLS</Code> is the design constraint; violations flag in the KPI strip. <Code>KO Azi</Code> is
+                <Code>Station every</Code> is the survey listing interval in the wellbore unit (default 30 m or 100 ft):
+                a station is emitted every that many depth units along holds and curves, so a 2,500 ft hold lists 26 rows
+                at 100 ft or 251 at 10 ft. It changes only the listing density, never the trajectory. <Code>Max DLS</Code>{' '}
+                is the design constraint; violations flag in the KPI strip. <Code>KO Azi</Code> is
                 entered in the wellbore's azimuth reference (the label says which); the compile runs in grid north through
                 the cached chain. <Code>Survey program</Code> assigns instruments per interval for uncertainty.{' '}
                 <Code>EOU</Code> toggles the 2-sigma uncertainty overlays.
@@ -382,9 +389,13 @@ const WellDesignHelpGuide = () => {
               <SubHeading>Importing runs</SubHeading>
               <Para>
                 New survey imports stations manually (paste MD, inclination, azimuth lines; strict, line-numbered
-                validation), from a CSV with column mapping, or from a registry well's deviation. Each run records its MD
-                unit and azimuth reference; stations are stored in metres with a grid-converted cache, so nothing downstream
-                re-guesses what the numbers meant.
+                validation), from a file with column mapping, or from a registry well's deviation. Files can be delimited
+                text (CSV, TSV, TXT, DAT, PRN) or an Excel workbook (XLSX, XLSM, XLS). For text you choose the delimiter
+                (auto-detect, comma, tab, semicolon or whitespace); for a workbook you pick the sheet. A preview of the
+                first parsed rows shows the split before you map the MD, inclination and azimuth columns, and any other file
+                type is refused by name rather than read as text. Each run records its MD unit, azimuth reference and the
+                file, sheet or delimiter it came from; stations are stored in metres with a grid-converted cache, so nothing
+                downstream re-guesses what the numbers meant.
               </Para>
               <SubHeading>The definitive composite</SubHeading>
               <Para>
