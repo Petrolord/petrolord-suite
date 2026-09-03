@@ -438,9 +438,15 @@ const PetrophysicsHelpGuide = () => (
     <GuideSection id="zones">
       <SectionHeading icon={Rows}>Zones and net pay</SectionHeading>
       <Para>
-        Zones are depth intervals you define in the <Code>Zones</Code> panel: a name, a top and a
-        base in metres MD, then <Code>Add</Code>. The panel refuses an empty name and a base that is
-        not below the top. Each zone card shows the live summary at the current parameters:
+        Zones are depth intervals you define in the <Code>Zones</Code> panel, three ways.
+        <Code>Typed</Code>: a name, a top and a base in the display unit, then <Code>Add</Code>.
+        <Code>Between tops</Code>: choose a top and a base from the well&apos;s tops (the name
+        defaults to the upper top), or press <Code>Zones between consecutive tops</Code> to create
+        one zone per pair in one go; pairs that already have a zone of that name are skipped.
+        <Code>Pick on track</Code>: click the zone top in the log area, then its base, and name it
+        in the box that opens (the nearest top above is suggested). The panel refuses an empty name
+        and a base that is not below the top. Each zone card shows the live summary at the current
+        parameters:
       </Para>
       <Table
         headers={['Readout', 'Definition']}

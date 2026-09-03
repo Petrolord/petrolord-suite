@@ -36,6 +36,7 @@ import {
 import { faciesCurve } from '../engine/crossplot';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate, getTopStyles, setTopStyle, setShowAllTops } from '../layout/layoutSchema';
 import TopsPanel from './TopsPanel';
+import { validateZoneWindow } from '../services/zonePlanner';
 import { nameKey } from '@/lib/curveNames';
 import { resolveTracks } from '../layout/resolveTracks';
 import { mapLogs } from '../services/curveMap';
@@ -260,8 +261,29 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
 
   const addZone = async (z) => {
     const zone = await backend.saveZone(wellData.wellId, z);
-    setStatus(`Added zone ${zone.name}.`);
+    setStatus(`Added zone ${zone.name} (${depthLabel(zone.top_md_m ?? z.topMdM, depthUnit)} to ${depthLabel(zone.base_md_m ?? z.baseMdM, depthUnit)}).`);
     await refreshZones(wellData.wellId);
+  };
+  // PT4: several zones at once (between consecutive tops), sequential saves
+  const addZonesMany = async (list) => {
+    if (!wellData || !list.length) return;
+    setZonesBusy(true);
+    let n = 0;
+    try {
+      for (const z of list) { await backend.saveZone(wellData.wellId, z); n++; }
+      setStatus(`Created ${n} zone${n === 1 ? '' : 's'} from tops.`);
+    } catch (e) {
+      setStatus(`Created ${n} zone${n === 1 ? '' : 's'}, then: ${e.message}`);
+    } finally {
+      await refreshZones(wellData.wellId);
+    }
+  };
+  // PT4: two-click pick on the track (TrackViewer pickMode 'zone')
+  const onZonePick = async (topMdM, baseMdM, name) => {
+    const bad = validateZoneWindow(topMdM, baseMdM, depthUnit);
+    if (bad) { setStatus(bad); return; }
+    try { await addZone({ name, topMdM, baseMdM }); } catch (e) { setStatus(e.message); }
+    setPickMode(null);
   };
 
   const deleteZone = async (zone) => {
@@ -759,6 +781,7 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
         pickMode={pickMode}
         onTopCreate={createTop}
         onTopMove={moveTop}
+        onZonePick={onZonePick}
         onPickCancel={() => { setPickMode(null); setStatus('Pick finished.'); }}
         depthUnit={depthUnit}
         selection={selection}
@@ -843,6 +866,11 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
               isOwn={!!selected?.is_own}
               busy={zonesBusy}
               onAdd={addZone}
+              onAddMany={addZonesMany}
+              onStartPick={() => setPick(pickMode === 'zone' ? null : 'zone')}
+              pickActive={pickMode === 'zone'}
+              tops={wellData.tops}
+              tdM={selected?.td_md_m ?? null}
               onDelete={deleteZone}
               onPublish={publishZone}
             />

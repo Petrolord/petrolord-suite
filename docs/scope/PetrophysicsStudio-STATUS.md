@@ -183,3 +183,15 @@ Preferences persist with the interpretation in `layouts.topStyles` (no
 migration). The Field view honours the same visibility and colours and
 has its own Tops checkbox. This amends the PS-era recorded decision that
 tops were read-only here.
+
+## PT4 zones from tops or clicks (2026-09-03)
+
+Zones were typed only. The Zones panel now has three modes: Typed
+(unit-aware since PT2), Between tops (a pair picker naming after the
+upper top, plus "Zones between consecutive tops" that creates one zone per
+adjacent pair and skips names that already have a zone), and Pick on
+track (two clicks in the log area through the PT3 pick machinery, name
+box suggests the nearest top above). Pure planning in
+`services/zonePlanner.js` (`validateZoneWindow`, `planZoneFromTops`,
+`planZonesBetweenConsecutiveTops`, `defaultZoneNameAt`) with tests;
+statuses print in the display unit.

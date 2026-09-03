@@ -613,3 +613,60 @@ test('PT3: pick, rename, hide, drag and delete a top; shared wells stay read-onl
   await expect(page.getByTestId('petro-tops')).toContainText('read-only');
   await expect(page.getByTestId('petro-top-pick')).toHaveCount(0);
 });
+
+test('PT4: zones between tops, bulk creation, and a two-click pick on the track', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  const canvas = page.getByTestId('petro-tracks-canvas');
+  await expect(canvas).toBeVisible();
+
+  // between two named tops
+  await page.getByTestId('petro-zone-mode-tops').click();
+  await page.getByTestId('petro-zone-from-top').selectOption({ label: 'Top Sand A 2010.0 m' });
+  await page.getByTestId('petro-zone-to-top').selectOption({ label: 'Top Shale 2030.0 m' });
+  await expect(page.getByTestId('petro-zone-name')).toHaveValue('Top Sand A');
+  await page.getByTestId('petro-zone-add-from-tops').click();
+  const card = page.locator('[data-testid="petro-zone-card"][data-zone-name="Top Sand A"]');
+  await expect(card).toContainText('2010.0');
+  await expect(card).toContainText('2030.0');
+
+  // bulk: only the Top Shale -> Top Sand B pair is new (Top Sand A now exists)
+  await page.getByTestId('petro-zone-fill-between-tops').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Created 1 zone');
+  await expect(page.locator('[data-testid="petro-zone-card"][data-zone-name="Top Shale"]')).toBeVisible();
+
+  // two-click pick: 2060 to 2080, default name is the nearest top above (Top Sand B)
+  const box = await canvas.boundingBox();
+  const plotTop = 52;
+  const plotH = box.height - plotTop - 4;
+  const yOf = (d) => box.y + plotTop + ((d - 2000) / 100) * plotH;
+  await page.getByTestId('petro-zone-mode-pick').click();
+  await page.getByTestId('petro-zone-pick').click();
+  await page.mouse.click(box.x + box.width * 0.4, yOf(2060));
+  await page.mouse.click(box.x + box.width * 0.4, yOf(2080));
+  await expect(page.getByTestId('petro-zone-pick-name')).toHaveValue('Top Sand B');
+  await page.getByTestId('petro-zone-pick-name').fill('Picked');
+  await page.getByTestId('petro-zone-pick-confirm').click();
+  const picked = page.locator('[data-testid="petro-zone-card"][data-zone-name="Picked"]');
+  await expect(picked).toContainText('2060.0');
+  await expect(picked).toContainText('2080.0');
+  await expect(page.getByTestId('petro-tracks')).toHaveAttribute('data-pick-mode', '');
+});
+
+test('PT5-prep: a zone typed in feet converts to metres and reads back in the chosen unit', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-tracks-canvas')).toBeVisible();
+  await page.getByTestId('petro-depth-unit').click();
+  await expect(page.getByTestId('petro-depth-unit')).toContainText('ft');
+  await page.getByTestId('petro-zone-name').fill('FEET');
+  await page.getByTestId('petro-zone-top').fill('6726');   // 2050.1 m
+  await page.getByTestId('petro-zone-base').fill('6823.5');  // 2079.8 m
+  await page.getByTestId('petro-zone-add').click();
+  const card = page.locator('[data-testid="petro-zone-card"][data-zone-name="FEET"]');
+  await expect(card).toContainText('6726.0');
+  await expect(card).toContainText('ft');
+  await page.getByTestId('petro-depth-unit').click();
+  await expect(card).toContainText('2050.1');
+  await expect(card).toContainText('2079.8');
+});
