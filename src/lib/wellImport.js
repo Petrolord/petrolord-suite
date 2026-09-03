@@ -59,9 +59,39 @@ const GUESSES = {
   inc: ['inc', 'incl', 'inclination', 'dev', 'angle'],
   azi: ['azi', 'azim', 'azimuth', 'az'],
   name: ['name', 'top', 'formation', 'surface', 'marker', 'horizon'],
+  // checkshots (PT1, 2026-09-03): the column is a DEPTH in whatever
+  // reference the user declares (MD | TVD | TVDSS) and a TIME in whatever
+  // kind (OWT | TWT); the convention itself is guessed separately by
+  // guessCheckshotConvention, so an "owt" header is never read as TWT
+  depth: ['md', 'measured', 'tvdss', 'tvd_ss', 'tvd', 'depth', 'z'],
+  time: ['owt', 'twt', 'time', 't_ms', 'ms'],
+  // legacy field names kept for the buildCheckshots wrapper
   tvdss: ['tvdss', 'tvd_ss', 'tvd', 'z', 'depth'],
   twt: ['twt', 'time', 'owt', 't_ms', 'ms'],
 };
+
+/**
+ * Convention hints read off a checkshot header row: only the keys the
+ * header states clearly are returned, so the form applies them once and
+ * never overrides a user's choice.
+ * @returns {{depthRef?: 'md'|'tvd'|'tvdss', time?: 'owt'|'twt', depthUnit?: 'm'|'ft'}}
+ */
+export function guessCheckshotConvention(header) {
+  const out = {};
+  // underscores, dashes and brackets are separators in header words
+  const joined = ` ${(header || []).map((h) => String(h).toLowerCase()).join(' ').replace(/[_\-()[\]/]/g, ' ')} `;
+  if (/\bowt\b|\bone\s?way/.test(joined)) out.time = 'owt';
+  else if (/\btwt\b|\btwo\s?way/.test(joined)) out.time = 'twt';
+  if (/\btvd\s?ss\b|\btvdss\b|\bss\b|subsea/.test(joined)) out.depthRef = 'tvdss';
+  else if (/\btvd\b/.test(joined)) out.depthRef = 'tvd';
+  else if (/\bmd\b|measured/.test(joined)) out.depthRef = 'md';
+  if (/\bft\b|\bfeet\b|\bf\b/.test(joined)) out.depthUnit = 'ft';
+  else if (/\bm\b|metre|meter/.test(joined)) out.depthUnit = 'm';
+  return out;
+}
+
+const M_PER_FT = 0.3048;
+const toM = (v, unit) => (unit === 'ft' ? v * M_PER_FT : v);
 
 /** Best-guess column index per requested field, or -1. */
 export function guessMapping(header, fields) {
@@ -88,18 +118,20 @@ const num = (rows, r, col, what) => {
 };
 
 /**
- * Deviation stations from mapped columns.
+ * Deviation stations from mapped columns. MD converts to metres at the
+ * door when `mdUnit` is 'ft'.
  * @param {string[][]} rows data rows (no header)
  * @param {{md:number, inc:number, azi:number}} map column indices
+ * @param {{mdUnit?: 'm'|'ft'}} [opts]
  * @returns {{md:number, inc:number, azi:number}[]}
  */
-export function buildDeviation(rows, map) {
+export function buildDeviation(rows, map, { mdUnit = 'm' } = {}) {
   if (map.md < 0 || map.inc < 0 || map.azi < 0) {
     throw new Error('Map the MD, inclination and azimuth columns first.');
   }
   const out = [];
   for (let r = 0; r < rows.length; r++) {
-    const md = num(rows, r, map.md, 'MD');
+    const md = toM(num(rows, r, map.md, 'MD'), mdUnit);
     const inc = num(rows, r, map.inc, 'inclination');
     const azi = num(rows, r, map.azi, 'azimuth');
     if (inc < 0 || inc > 180) {
@@ -123,7 +155,7 @@ export function buildDeviation(rows, map) {
  * @param {{name:number, md:number}} map
  * @returns {{name:string, md:number}[]}
  */
-export function buildTops(rows, map) {
+export function buildTops(rows, map, { mdUnit = 'm' } = {}) {
   if (map.name < 0 || map.md < 0) {
     throw new Error('Map the top-name and MD columns first.');
   }
@@ -131,15 +163,36 @@ export function buildTops(rows, map) {
   for (let r = 0; r < rows.length; r++) {
     const name = String(rows[r][map.name] ?? '').trim();
     if (!name) throw new Error(`Row ${r + 1}: the top has no name.`);
-    out.push({ name, md: num(rows, r, map.md, 'MD') });
+    out.push({ name, md: toM(num(rows, r, map.md, 'MD'), mdUnit) });
   }
   if (!out.length) throw new Error('No tops found in the pasted data.');
   return out;
 }
 
 /**
- * Checkshots from mapped columns — strictly monotonic in BOTH depth
- * and time (domain rule: reject, never sort silently).
+ * Checkshot INPUT rows from mapped columns, as typed: `[{depth, time}]`.
+ * The convention (MD | TVD | TVDSS, OWT | TWT, m | ft) and the conversion
+ * to the stored TVDSS/TWT core happen in the welldata checkshots engine
+ * (toStoredCheckshots), where the monotonicity error can name the
+ * entered domain. Only numeric parsing lives here.
+ * @param {{depth:number, time:number}} map
+ */
+export function buildCheckshotInputs(rows, map) {
+  if (map.depth < 0 || map.time < 0) {
+    throw new Error('Map the depth and time columns first.');
+  }
+  const out = [];
+  for (let r = 0; r < rows.length; r++) {
+    out.push({ depth: num(rows, r, map.depth, 'depth'), time: num(rows, r, map.time, 'time') });
+  }
+  if (out.length < 2) throw new Error('A checkshot table needs at least 2 rows.');
+  return out;
+}
+
+/**
+ * Legacy wrapper: checkshots already in the stored convention (TVDss m,
+ * TWT ms) from mapped columns — strictly monotonic in BOTH depth and
+ * time (domain rule: reject, never sort silently).
  * @param {{tvdss:number, twt:number}} map
  * @returns {{tvdss_m:number, twt_ms:number}[]}
  */
