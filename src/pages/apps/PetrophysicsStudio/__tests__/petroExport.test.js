@@ -4,7 +4,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { curvesCsv, zonesCsv, buildLas, exportBaseName, exportColumns } from '../services/petroExport';
+import { curvesCsv, zonesCsv, buildLas, exportBaseName, exportColumns, depthColumns } from '../services/petroExport';
 import { methodLines } from '../services/petroReport';
 import { computeWell, zoneSummary, DEFAULT_PARAMS } from '../engine/pipeline';
 import { parseLas } from '../../WellDataManager/engine/lasParse';
@@ -95,4 +95,77 @@ test('method lines cite the applied models', () => {
   expect(lines).toContain('Archie (1942)');
   const sonic = methodLines({ ...DEFAULT_PARAMS, phiSource: 'sonic', sonicMethod: 'rhg' }).join(' ');
   expect(sonic).toContain('Raymer, Hunt & Gardner');
+});
+
+// ---- PT2: depth unit and MD / TVD / TVDSS columns ----------------------------
+const bhWell = {
+  kb_m: 30,
+  td_md_m: 2100,
+  deviation: [{ md: 0, inc: 0, azi: 0 }, { md: 1500, inc: 0, azi: 90 }, { md: 1800, inc: 30, azi: 90 }, { md: 2100, inc: 30, azi: 90 }],
+};
+
+test('defaults reproduce the legacy metres output byte for byte', () => {
+  expect(curvesCsv(wellData, outputs, null)).toBe(curvesCsv(wellData, outputs));
+  expect(buildLas(wellData, outputs, DEFAULT_PARAMS, { wellName: 'W', projectId: 'p' }))
+    .toBe(buildLas(wellData, outputs, DEFAULT_PARAMS, { wellName: 'W', projectId: 'p', well: null }));
+});
+
+test('curves CSV in feet carries DEPT, TVD and TVDSS in F, scaled by 1/0.3048', () => {
+  const text = curvesCsv(wellData, outputs, { well: bhWell, depthUnit: 'ft', columns: ['md', 'tvd', 'tvdss'], primary: 'md' });
+  const lines = text.trim().split('\n');
+  expect(lines[0].split(',').slice(0, 3)).toEqual(['DEPT (F)', 'TVD (F)', 'TVDSS (F)']);
+  const first = lines[1].split(',').map(Number);
+  expect(first[0]).toBeCloseTo(curves.DEPT[0] / 0.3048, 3);
+  // 2000 m MD is 200 m into the 30 deg hold: TVD = 1500 + R sin30 + 200 cos30, TVDSS = TVD - 30
+  const R = 300 / (Math.PI / 6);
+  const tvd2000 = 1500 + R * 0.5 + 200 * Math.cos(Math.PI / 6);
+  expect(first[1]).toBeCloseTo(tvd2000 / 0.3048, 2);
+  expect(first[2]).toBeCloseTo((tvd2000 - 30) / 0.3048, 2);
+});
+
+test('TVD below the kick-off follows the survey; a vertical well notes the assumption', () => {
+  const { ordered, notes } = depthColumns(Float64Array.from([1000, 2100]), { well: bhWell, depthUnit: 'm', columns: ['md', 'tvd'], primary: 'md' });
+  expect(ordered.map((c) => c.key)).toEqual(['DEPT', 'TVD']);
+  expect(ordered[1].data[0]).toBeCloseTo(1000, 9);
+  // 300 m build to 30 deg then 300 m hold: TVD(2100) = 1500 + R sin30 + 300 cos30, R = 300 / (pi/6)
+  const R = 300 / (Math.PI / 6);
+  expect(ordered[1].data[1]).toBeCloseTo(1500 + R * 0.5 + 300 * Math.cos(Math.PI / 6), 6);
+  expect(notes.join(' ')).not.toMatch(/vertical/);
+  const v = depthColumns(Float64Array.from([1000]), { well: { kb_m: 0, deviation: [] }, columns: ['md', 'tvd'] });
+  expect(v.notes.join(' ')).toMatch(/vertical/);
+});
+
+test('LAS in feet round-trips: unit F, DEPT = fround(md / 0.3048), TVDSS present, EKB and DEPTREF in ~P', () => {
+  const text = buildLas(wellData, outputs, DEFAULT_PARAMS, { wellName: 'W', projectId: 'p', well: bhWell, depthUnit: 'ft', columns: ['md', 'tvdss'], primary: 'md' });
+  const parsed = parseLas(text);
+  const mnems = parsed.curves.map((c) => c.mnemonic);
+  expect(mnems.slice(0, 2)).toEqual(['DEPT', 'TVDSS']);
+  expect(parsed.depthUnit).toBe('F');
+  expect(parsed.curves[0].data[0]).toBe(Math.fround(curves.DEPT[0] / 0.3048));
+  expect(parsed.params.DEPTREF.value).toBe('MD');
+  expect(parsed.params.EKB.value).toBeCloseTo(30 / 0.3048, 3);
+  expect(parsed.params.DEPTHSRC.value).toMatch(/deviation survey/);
+});
+
+test('LAS with TVD primary writes DEPT = TVD and MD as a curve', () => {
+  const text = buildLas(wellData, outputs, DEFAULT_PARAMS, { wellName: 'W', projectId: 'p', well: bhWell, depthUnit: 'm', columns: ['md', 'tvd'], primary: 'tvd' });
+  const parsed = parseLas(text);
+  const mnems = parsed.curves.map((c) => c.mnemonic);
+  expect(mnems.slice(0, 2)).toEqual(['DEPT', 'MD']);
+  expect(parsed.params.DEPTREF.value).toBe('TVD');
+  expect(parsed.curves[1].data[0]).toBe(Math.fround(curves.DEPT[0]));
+});
+
+test('zone CSV with TVD/TVDSS columns matches the depth frame and converts thicknesses', () => {
+  const zones = [{ id: 'z1', name: 'Deep', top_md_m: 1900, base_md_m: 2000 }];
+  const summaries = { z1: zoneSummary(curves, outputs, 1900, 2000, DEFAULT_PARAMS) };
+  const text = zonesCsv(zones, summaries, { well: bhWell, depthUnit: 'ft', columns: ['md', 'tvdss'] });
+  const [header, row] = text.trim().split('\n');
+  expect(header).toBe('zone,top_md_ft,base_md_ft,top_tvdss_ft,base_tvdss_ft,gross_ft,net_ft,ntg,phi_avg,vsh_avg,sw_avg');
+  const cells = row.split(',').map((c, i) => (i ? Number(c) : c));
+  expect(cells[1]).toBeCloseTo(1900 / 0.3048, 3);
+  const R = 300 / (Math.PI / 6);
+  const tvd1900 = 1500 + R * 0.5 + 100 * Math.cos(Math.PI / 6); // 100 m into the 30 deg hold
+  expect(cells[3]).toBeCloseTo((tvd1900 - 30) / 0.3048, 2); // CSV keeps 7 significant digits
+  expect(cells[5]).toBeCloseTo(summaries.z1.gross_m / 0.3048, 2);
 });

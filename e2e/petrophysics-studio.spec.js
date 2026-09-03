@@ -288,6 +288,15 @@ test('PS2: export deliverables download; a well without logs shows the empty sta
     return dl;
   };
 
+  // PT2: depths follow the export options; feet + TVDSS column
+  await page.getByTestId('petro-export-unit').click();
+  await page.getByTestId('petro-export-col-tvdss').check();
+  await expect(page.getByTestId('petro-export-depth-note')).toContainText('TVDSS uses KB');
+  const ftCsv = await grab('petro-export-csv');
+  const ftText = fs.readFileSync(await ftCsv.path(), 'utf8');
+  expect(ftText.split('\n')[0].split(',').slice(0, 2)).toEqual(['DEPT (F)', 'TVDSS (F)']);
+  await page.getByTestId('petro-export-unit').click();
+  await page.getByTestId('petro-export-col-tvdss').uncheck();
   const csv = await grab('petro-export-csv');
   expect(csv.suggestedFilename()).toBe('KETA_TYPE-1_curves.csv');
   const las = await grab('petro-export-las');

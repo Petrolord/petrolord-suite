@@ -632,6 +632,7 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
     </div>
   ) : view === 'field' ? (
     <FieldViewPanel
+      depthUnit={depthUnit}
       wells={wells}
       params={params}
       zoneParams={zoneParams}
@@ -756,6 +757,7 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
           />
           {wellData && (
             <ZoneManager
+              depthUnit={depthUnit}
               zones={zones}
               zoneParams={zoneParams}
               summaries={summaries}
@@ -809,6 +811,8 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
         open={exportOpen}
         onOpenChange={setExportOpen}
         wellName={selected?.name}
+        well={selected}
+        depthUnit={depthUnit}
         wellData={wellData}
         outputs={computed.outputs}
         params={params}

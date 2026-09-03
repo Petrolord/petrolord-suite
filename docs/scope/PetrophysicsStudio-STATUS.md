@@ -149,3 +149,21 @@ data (see WellDataManager-STATUS). In this app: the explorer's selected
 own well shows an "Edit well data" link into Well Data Manager
 (`?well=<id>&tab=checkshots`; the harness points at its own harness
 route).
+
+## PT2 exports honour units (2026-09-03)
+
+Testers saw metres in files exported from a feet session. The Export
+dialog now has a depth options strip: unit (metres or feet, initialised
+from the workstation toggle), which depth columns travel (MD, TVD,
+TVDSS) and which one is `DEPT`. Curves CSV, zone CSV, LAS and the PDF
+report all follow it; defaults reproduce the previous bytes exactly. TVD
+is below KB (the axis label's definition), TVDSS = TVD minus `kb_m`,
+both through the same depth frame the checkshot door uses
+(`makeDepthFrame`: minimum curvature on the survey, vertical when there
+is none, final tangent past the last station, each noted in the dialog
+and in the LAS `~Parameter` block as `DEPTREF`, `EKB`, `DEPTHSRC`). Feet
+write the LAS unit `F`, which the reader maps back to metres. The zone
+panel types and shows depths in the display unit, and the field-view net
+line and zone statuses follow it. Tests: `petroExport.test.js` (feet CSV,
+TVD from the survey, LAS feet round trip, TVD primary, zone CSV columns,
+defaults byte-identical); e2e PS2 downloads a feet + TVDSS CSV.

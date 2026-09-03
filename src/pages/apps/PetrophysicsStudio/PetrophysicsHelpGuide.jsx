@@ -710,14 +710,19 @@ const PetrophysicsHelpGuide = () => (
     <GuideSection id="export">
       <SectionHeading icon={FileDown}>Export deliverables</SectionHeading>
       <Para>
-        <Code>Export…</Code> is enabled once a well has computed outputs and offers five downloads:
+        <Code>Export…</Code> is enabled once a well has computed outputs and offers five downloads.
+        A depth options strip at the top of the dialog sets the unit (metres or feet, starting from
+        the workstation toggle), which depth columns travel (MD, TVD, TVDSS) and which of them is
+        <Code>DEPT</Code>. TVD is below KB, TVDSS is TVD minus the well&apos;s KB, both derived
+        through the deviation survey by minimum curvature; a well without a survey is treated as
+        vertical and the dialog says so. Every deliverable below follows the same options.
       </Para>
       <Table
         headers={['Deliverable', 'Contents']}
         rows={[
-          ['Curves CSV', 'Depth, the mapped inputs and the four core outputs VSH, PHIE, SW and PAY; blank cells for nulls.'],
+          ['Curves CSV', 'The chosen depth columns, the mapped inputs and the four core outputs VSH, PHIE, SW and PAY; blank cells for nulls.'],
           ['Zone summary CSV', 'Gross, net, N/G and net-weighted averages per zone at the current parameters.'],
-          ['LAS 2.0', 'Inputs plus VSH, PHIE, SW and PAY, with the parameter set in the ~Parameter block. The writer is round-trip gated: what it writes parses back bit for bit.'],
+          ['LAS 2.0', 'DEPT plus any extra depth columns as curves, inputs plus VSH, PHIE, SW and PAY, with the parameter set in the ~Parameter block (DEPTREF, EKB and DEPTHSRC record the depth choice). Feet write the unit F. The writer is round-trip gated: what it writes parses back bit for bit.'],
           ['Track plot PNG', 'The track view exactly as rendered, with a branded title band. Open the Tracks view first; the other views have no track canvas to capture.'],
           ['PDF summary report', 'Well and interpretation, the parameter table, the methods in use with their literature citations, the zone table (top, base, gross, net, N/G, φ avg, Vsh avg, Sw avg) and provenance.'],
         ]}
@@ -730,7 +735,7 @@ const PetrophysicsHelpGuide = () => (
       <Table
         headers={['Quantity', 'Unit in the Studio']}
         rows={[
-          ['Depth', 'Metres MD in storage, every dialog and every zone. The ft toggle changes display only.'],
+          ['Depth', 'Metres MD in storage. The ft toggle changes what you see and type (tracks, zone panel, statuses) and is the starting unit of the Export dialog, whose options also add TVD and TVDSS columns.'],
           ['Slowness', 'µs/m'],
           ['Density', 'g/cc'],
           ['Resistivity', 'ohm·m'],
