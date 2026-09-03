@@ -10,7 +10,8 @@
 // ms). Publishing results to the registry is G2.5.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { FlaskConical, Loader2, UploadCloud, Save, Layers, PenLine, FileDown, Database, HelpCircle } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -44,8 +45,18 @@ import { makeTvdLookup, depthLabel } from '../viewer/depthModes';
 
 /** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
  *  the explorer's "Edit well data" link opens (the harness points at its
- *  own harness route) */
-export default function PetroWorkstation({ backend, wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager' }) {
+ *  own harness route)
+ *  @param {string} [p.wellCorrelationPath] route of Well Correlation for the
+ *  explorer's "Open in Well Correlation" link */
+export default function PetroWorkstation({
+  backend,
+  wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager',
+  wellCorrelationPath = '/dashboard/apps/geoscience/well-correlation',
+}) {
+  // deep link (cross-app navigation, 2026-09-03): ?well=<id> selects the
+  // well once the registry list has loaded (Well Data Manager links here)
+  const [searchParams] = useSearchParams();
+  const deepLinkRef = useRef({ well: searchParams.get('well'), done: false });
   const [wells, setWells] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
@@ -171,6 +182,14 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
       setLoadingId(null);
     }
   }, [backend, refreshZones, faciesByWell]);
+
+  useEffect(() => {
+    const dl = deepLinkRef.current;
+    if (dl.done || !dl.well || !wells) return;
+    dl.done = true;
+    if (wells.some((w) => w.id === dl.well)) select(dl.well);
+    else setStatus('The linked well is not in your registry.');
+  }, [wells, select]);
 
   // explicit input pick (PS8): remember the choice for this well and
   // reload so every consumer sees the same mapping
@@ -513,6 +532,7 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
 
   const ribbon = (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+      <ModuleHomeLink module="geoscience" testId="petro-home" />
       <FlaskConical className="w-4 h-4 text-cyan-400" />
       <span className="text-sm font-semibold text-slate-100">Petrophysics Studio</span>
       <span className="text-[11px] text-slate-500">log analysis on the shared well registry</span>
@@ -827,6 +847,7 @@ export default function PetroWorkstation({ backend, wellDataManagerPath = '/dash
           selectedId={selectedId}
           loadingId={loadingId}
           wellDataManagerPath={wellDataManagerPath}
+          wellCorrelationPath={wellCorrelationPath}
           curveInventory={wellData?.inventory || noDepthWell?.inventory}
           allLogs={wellData?.allLogs}
           onPickCurve={selected?.is_own ? pickCurve : undefined}

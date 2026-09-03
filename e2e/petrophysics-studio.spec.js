@@ -817,3 +817,23 @@ test('PT6: the lithology quicklook paints a GR ramp and a two-colour cut-off; ed
   await expect(page.getByTestId('petro-layout-template')).toContainText('(edited)');
   await expect(page.getByTestId('petro-layout-template').locator('option')).toHaveCount(4);
 });
+
+// Cross-app navigation (2026-09-03): ?well=<id> from Well Data Manager
+// selects the well on arrival; the explorer links on to Well Correlation
+// and the ribbon links back to the Geoscience dashboard.
+test('cross-app: a ?well= deep link selects the well; Open in Well Correlation and home links', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await expect(page.getByTestId('petro-home')).toHaveAttribute('href', '/dashboard/geoscience');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  const corr = page.getByTestId('petro-open-correlation');
+  await expect(corr).toHaveAttribute('href', /\/dev\/well-correlation\?wells=.+/);
+  const wellId = decodeURIComponent((await corr.getAttribute('href')).split('wells=')[1]);
+
+  await page.goto(`/dev/petrophysics-studio?well=${encodeURIComponent(wellId)}`);
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+  await expect(page.getByTestId('petro-tracks-canvas')).toBeVisible();
+  await expect(page.locator('[data-well-name="KETA TYPE-1"]')).toHaveClass(/text-cyan-200/);
+
+  await page.goto('/dev/petrophysics-studio?well=no-such-well');
+  await expect(page.getByTestId('petro-status')).toContainText('not in your registry');
+});

@@ -9,12 +9,13 @@
 import React, { useMemo } from 'react';
 import WellWorkstation from './components/WellWorkstation';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
+import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 
 export default function WellDataManagerHarness() {
   const backend = useMemo(() => makeInMemoryBackend({ worker: true }), []);
   return (
     <div className="h-screen w-full overflow-hidden">
-      <WellWorkstation backend={backend} />
+      <WellWorkstation backend={backend} appPaths={DEV_APP_PATHS} />
     </div>
   );
 }

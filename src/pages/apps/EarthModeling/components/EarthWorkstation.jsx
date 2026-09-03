@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
+import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import ModelExplorer from './ModelExplorer';
 import BuilderDock from './BuilderDock';
 import MapView from './MapView';
@@ -217,6 +218,7 @@ export default function EarthWorkstation({ backend }) {
 
   const ribbon = (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+      <ModuleHomeLink module="geoscience" />
       <Mountain className="w-4 h-4 text-cyan-400" />
       <span className="text-sm font-semibold text-slate-100">Earth Modeling</span>
       <span className="text-[11px] text-slate-500">layer-cake framework on the shared registry</span>

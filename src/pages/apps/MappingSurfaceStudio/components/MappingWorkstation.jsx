@@ -13,6 +13,7 @@ import {
   Map as MapIcon, Loader2, UploadCloud, Sigma, Globe2,
 } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
+import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import SurfacesExplorer from './SurfacesExplorer';
 import MapCanvas from './MapCanvas';
@@ -229,6 +230,7 @@ export default function MappingWorkstation({ backend }) {
 
   const ribbon = (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+      <ModuleHomeLink module="geoscience" />
       <MapIcon className="w-4 h-4 text-cyan-400" />
       <span className="text-sm font-semibold text-slate-100">Mapping &amp; Surface Studio</span>
       <span className="text-[11px] text-slate-500">gridding &amp; contouring on the shared registry</span>

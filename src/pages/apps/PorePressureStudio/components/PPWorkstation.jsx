@@ -13,6 +13,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Gauge, Loader2, Save, Upload } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
+import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import WellExplorer from './WellExplorer';
 import ParamsPanel from './ParamsPanel';
@@ -233,6 +234,7 @@ export default function PPWorkstation({ backend }) {
 
   const ribbon = (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+      <ModuleHomeLink module="geoscience" />
       <Gauge className="w-4 h-4 text-cyan-400" />
       <span className="text-sm font-semibold text-slate-100">Pore Pressure Studio</span>
       <span className="text-[11px] text-slate-500">Eaton / Bowers prognosis on the shared well registry</span>

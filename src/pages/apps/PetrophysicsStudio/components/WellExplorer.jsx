@@ -5,7 +5,7 @@
 // NPHI/DT/RT). Presentational — state lives in PetroWorkstation.
 
 import React from 'react';
-import { CircleDot, Building2, Lock, Loader2, Check, Minus, Pencil } from 'lucide-react';
+import { CircleDot, Building2, Lock, Loader2, Check, Minus, Pencil, GitCompare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { candidatesFor, unmappedLogs } from '../services/curveMap';
@@ -13,6 +13,7 @@ import { candidatesFor, unmappedLogs } from '../services/curveMap';
 export default function WellExplorer({
   wells, selectedId, loadingId, curveInventory, allLogs, onPickCurve, onSelect,
   wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager',
+  wellCorrelationPath = '/dashboard/apps/geoscience/well-correlation',
 }) {
   return (
     <div className="h-full min-h-0 flex flex-col bg-slate-900/60" data-testid="petro-explorer">
@@ -60,6 +61,15 @@ export default function WellExplorer({
                       <Pencil className="w-3 h-3" /> Edit well data
                     </Link>
                   )}
+                  <Link
+                    to={`${wellCorrelationPath}?wells=${encodeURIComponent(w.id)}`}
+                    className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:underline pb-1 ml-2"
+                    data-testid="petro-open-correlation"
+                    title="Open this well on a cross-section in Well Correlation"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <GitCompare className="w-3 h-3" /> Open in Well Correlation
+                  </Link>
                   {(() => {
                     const mapped = Object.fromEntries(curveInventory.map(({ key, log }) => [key, log]));
                     const others = allLogs ? unmappedLogs(allLogs, mapped) : [];

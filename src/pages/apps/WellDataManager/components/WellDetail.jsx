@@ -8,6 +8,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Trash2, Building2, Lock, Pencil } from 'lucide-react';
 import LogTracks from './LogTracks';
+import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import CrsBadge from '@/components/crs/CrsBadge';
 import CrsPicker from '@/components/crs/CrsPicker';
 import RowGridEditor from '@/components/wells/RowGridEditor';
@@ -49,8 +50,9 @@ const conventionOf = (well) => {
  *  well (a LAS import into the selected well, 2026-09-03)
  *  @param {(row: Object) => void} [p.onWellChanged] the well row was edited
  *  here (PT1); the workstation reloads its list
- *  @param {string} [p.initialTab] tab to open with (deep link) */
-export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, onWellChanged, initialTab = null }) {
+ *  @param {string} [p.initialTab] tab to open with (deep link)
+ *  @param {Object} [p.appPaths] route overrides for the "Open in" launcher */
+export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, onWellChanged, initialTab = null, appPaths = {} }) {
   const [tab, setTab] = useState(() => TABS.find((t) => t.toLowerCase() === String(initialTab || '').toLowerCase()) || 'Header');
   // PT1 edit modes: one tab edits at a time; `editor` holds the draft
   const [editor, setEditor] = useState(null); // {tab, rows|fields, conv, mode:'grid'|'paste', pasted, error, busy}
@@ -310,6 +312,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
           {shared ? <Building2 className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
           {shared ? (well.is_own ? 'shared with org' : 'org well (read-only)') : 'private'}
         </span>
+        <OpenInAppMenu wellIds={[well.id]} paths={appPaths} testIdPrefix="wdm-detail" className="ml-auto" />
       </div>
 
       <div className="flex items-center gap-1 px-3 pt-2 border-b border-slate-800/60">

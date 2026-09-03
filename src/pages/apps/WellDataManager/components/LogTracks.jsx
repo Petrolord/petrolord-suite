@@ -1,7 +1,8 @@
 // Log quick-view tracks: side-by-side canvas strips, depth down, one
-// curve per track (Petrel-style QC view). Dark workstation viewport —
-// like WellsMap this is a navigation/QC view inside the workstation,
-// not an analytic chart, so the white chartTheme does not apply.
+// curve per track (Petrel-style QC view). White plot with slate grid
+// and axes (the Petrophysics TrackViewer palette, tester finding
+// 2026-09-03) so a log reads the same here, in Petrophysics Studio and
+// in Well Correlation.
 //
 // Depth axis: start_md_m + i*step_m when the log is regular; for
 // irregular logs (step_m null) samples plot by index and the axis says
@@ -12,6 +13,13 @@ import React, { useEffect, useRef } from 'react';
 const TRACK_W = 130;
 const GUTTER = 54;      // left depth-axis gutter
 const HEADER_H = 34;
+
+const BG = '#ffffff';
+const HEADER_BG = '#f1f5f9';           // slate-100
+const FRAME = 'rgba(148,163,184,0.9)'; // slate-400
+const GRID = 'rgba(203,213,225,0.9)';  // slate-300
+const AXIS_TEXT = '#475569';           // slate-600
+const COLORS = ['#0e7490', '#d97706', '#059669', '#db2777', '#7c3aed', '#dc2626'];
 
 function finiteRange(data) {
   let min = Infinity;
@@ -50,10 +58,10 @@ export default function LogTracks({ tracks, height = 420 }) {
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = BG;
     ctx.fillRect(0, 0, cssW, cssH);
     if (!tracks.length) {
-      ctx.fillStyle = '#475569';
+      ctx.fillStyle = AXIS_TEXT;
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('Tick curves in the table to plot them', cssW / 2, cssH / 2);
@@ -74,8 +82,8 @@ export default function LogTracks({ tracks, height = 420 }) {
     const yOf = (d) => plotTop + ((d - axisMin) / (axisMax - axisMin || 1)) * plotH;
 
     // depth gridlines + labels
-    ctx.strokeStyle = 'rgba(51, 65, 85, 0.5)';
-    ctx.fillStyle = '#64748b';
+    ctx.strokeStyle = GRID;
+    ctx.fillStyle = AXIS_TEXT;
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'right';
     const nTicks = 8;
@@ -95,11 +103,13 @@ export default function LogTracks({ tracks, height = 420 }) {
     ctx.fillText(regular ? 'MD (m)' : 'sample index', 0, 0);
     ctx.restore();
 
-    const COLORS = ['#22d3ee', '#fbbf24', '#34d399', '#f472b6', '#a78bfa', '#f87171'];
     tracks.forEach((t, ti) => {
       const x0 = GUTTER + ti * TRACK_W;
       const color = COLORS[ti % COLORS.length];
-      ctx.strokeStyle = 'rgba(51, 65, 85, 0.9)';
+      ctx.fillStyle = HEADER_BG;
+      ctx.fillRect(x0, 0, TRACK_W, HEADER_H);
+      ctx.strokeStyle = FRAME;
+      ctx.strokeRect(x0 + 0.5, 0.5, TRACK_W - 1, HEADER_H - 1);
       ctx.strokeRect(x0 + 0.5, plotTop + 0.5, TRACK_W - 1, plotH - 1);
 
       const range = finiteRange(t.data);
@@ -107,7 +117,7 @@ export default function LogTracks({ tracks, height = 420 }) {
       ctx.font = '11px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(`${t.log.mnemonic}${t.log.unit ? ` (${t.log.unit})` : ''}`, x0 + TRACK_W / 2, 13);
-      ctx.fillStyle = '#64748b';
+      ctx.fillStyle = AXIS_TEXT;
       ctx.font = '9px sans-serif';
       if (range) {
         ctx.textAlign = 'left';
@@ -138,7 +148,7 @@ export default function LogTracks({ tracks, height = 420 }) {
 
   return (
     <div className="overflow-x-auto">
-      <canvas ref={canvasRef} data-testid="wdm-log-tracks" className="rounded border border-slate-800" />
+      <canvas ref={canvasRef} data-testid="wdm-log-tracks" className="rounded border border-slate-300 bg-white" />
     </div>
   );
 }

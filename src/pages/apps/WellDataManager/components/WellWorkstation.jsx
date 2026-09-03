@@ -9,6 +9,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom';
 import { Database, Loader2, Map as MapIcon, CircleDot } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
+import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
+import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
 import WellsTree from './WellsTree';
 import WellsMap from './WellsMap';
 import WellDetail from './WellDetail';
@@ -18,7 +20,9 @@ import DeleteWellDialog from './DeleteWellDialog';
 import PackageExportDialog from '@/components/portability/PackageExportDialog';
 import PackageImportDialog from '@/components/portability/PackageImportDialog';
 
-export default function WellWorkstation({ backend }) {
+/** @param {Object} [p.appPaths] route overrides for the "Open in" launchers
+ *  (the harness points them at the other /dev harnesses) */
+export default function WellWorkstation({ backend, appPaths = {} }) {
   // deep link (PT1): ?well=<id>&tab=<header|logs|tops|deviation|checkshots>
   // selects the well once the list has loaded (Petrophysics links here)
   const [searchParams] = useSearchParams();
@@ -134,6 +138,7 @@ export default function WellWorkstation({ backend }) {
 
   const ribbon = (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+      <ModuleHomeLink module="geoscience" testId="wdm-home" />
       <Database className="w-4 h-4 text-cyan-400" />
       <span className="text-sm font-semibold text-slate-100">Well Data Manager</span>
       <span className="text-[11px] text-slate-500">shared subsurface well registry</span>
@@ -161,6 +166,7 @@ export default function WellWorkstation({ backend }) {
         >
           <CircleDot className="w-3.5 h-3.5" /> {selected ? selected.name : 'Well'}
         </button>
+        <OpenInAppMenu wellIds={selectedId ? [selectedId] : []} paths={appPaths} testIdPrefix="wdm" disabled={!selected} />
       </div>
     </div>
   );
@@ -192,7 +198,7 @@ export default function WellWorkstation({ backend }) {
         </div>
       ) : (
         <WellDetail backend={backend} well={selected} onStatus={setStatus} refreshNonce={detailNonce}
-          onWellChanged={onWellChanged} initialTab={deepLinkRef.current.well === selected.id ? deepLinkRef.current.tab : null} />
+          onWellChanged={onWellChanged} appPaths={appPaths} initialTab={deepLinkRef.current.well === selected.id ? deepLinkRef.current.tab : null} />
       )}
     </div>
   );
@@ -211,6 +217,7 @@ export default function WellWorkstation({ backend }) {
             onSearch={setSearch}
             selectedId={selectedId}
             busyId={busyId}
+            appPaths={appPaths}
             onSelect={select}
             onShareToggle={shareToggle}
             onDelete={setDeleting}

@@ -15,7 +15,7 @@ export default function PetrophysicsStudioHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
     <div className="h-screen w-full overflow-hidden">
-      <PetroWorkstation backend={backend} wellDataManagerPath="/dev/well-data-manager" />
+      <PetroWorkstation backend={backend} wellDataManagerPath="/dev/well-data-manager" wellCorrelationPath="/dev/well-correlation" />
     </div>
   );
 }

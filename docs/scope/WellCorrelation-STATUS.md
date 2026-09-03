@@ -55,3 +55,20 @@ The section gets the same DepthNavigator strip as Petrophysics (drag to
 scroll, handles to rescale, wheel, double-click fit) and its top colours
 now come from `src/components/wells/topColors.js`, so a top has the same
 hue here (dark variant) and in Petrophysics.
+
+## 2026-09-03: cross-app navigation (WC series, wave 0)
+
+Petrel testers take this app on 2026-09-04; the WC series
+(`/root/.claude/plans/kind-sniffing-frog.md`, waves 0 to 4) brings it up
+to the Petrophysics Studio tester fixes and Petrel Well Section Window
+expectations. Wave 0:
+
+- Ribbon starts with the shared `ModuleHomeLink` to the Geoscience
+  dashboard (`corr-home`).
+- `?wells=<id,id,...>` (from Well Data Manager's "Open in" launcher or
+  Petrophysics' "Open in Well Correlation") appends those wells to the
+  section after any saved section is restored; unknown ids are skipped
+  and reported.
+- Own wells in the ordered list link to Well Data Manager on the tops
+  tab (`corr-edit-well-data-<name>`), the Petrophysics parity link.
+- e2e: `well-correlation.spec.js` "cross-app" test.

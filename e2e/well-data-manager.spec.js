@@ -193,3 +193,38 @@ test('PT1: deep link opens the well on the requested tab and shows the table as 
   // read-only for a shared well: no edit button
   await expect(page.getByTestId('wdm-edit-checkshots')).toHaveCount(0);
 });
+
+// Cross-app navigation (2026-09-03): a loaded well opens straight into the
+// other Geoscience apps from the ribbon, the tree row menu and the detail
+// header, and the ribbon links back to the Geoscience dashboard.
+test('cross-app: Open in launchers carry the well into Petrophysics and Well Correlation; home link', async ({ page }) => {
+  await page.goto('/dev/well-data-manager');
+  await expect(page.getByTestId('wdm-home')).toHaveAttribute('href', '/dashboard/geoscience');
+
+  // nothing selected: the ribbon launcher waits for a selection
+  await expect(page.getByTestId('wdm-open-in')).toBeDisabled();
+
+  // right-click menu on a read-only (org shared) well still offers Open in
+  const row = page.getByTestId('wdm-well-row').first();
+  await row.click({ button: 'right' });
+  await page.getByTestId('wdm-row-open-in').hover();
+  const rowLink = page.getByTestId('wdm-row-open-in-well-correlation');
+  await expect(rowLink).toBeVisible();
+  await expect(rowLink).toHaveAttribute('href', /\/dev\/well-correlation\?wells=.+/);
+  await page.keyboard.press('Escape');
+
+  // select the well: ribbon launcher lists the apps with the well preselected
+  await row.click();
+  await expect(page.getByTestId('wdm-detail-name')).toBeVisible();
+  await page.getByTestId('wdm-open-in').click();
+  await expect(page.getByTestId('wdm-open-in-petrophysics-studio')).toHaveAttribute('href', /\/dev\/petrophysics-studio\?well=.+/);
+  await expect(page.getByTestId('wdm-open-in-well-correlation')).toHaveAttribute('href', /\/dev\/well-correlation\?wells=.+/);
+  await expect(page.getByTestId('wdm-open-in-rock-physics-studio')).toHaveAttribute('href', '/dev/rock-physics-studio');
+  await expect(page.getByTestId('wdm-open-in-seismolord')).toHaveAttribute('href', '/dashboard/apps/geoscience/seismolord');
+  await page.keyboard.press('Escape');
+
+  // the detail header carries the same launcher
+  await page.getByTestId('wdm-detail-open-in').click();
+  await expect(page.getByTestId('wdm-detail-open-in-petrophysics-studio')).toBeVisible();
+  await page.keyboard.press('Escape');
+});

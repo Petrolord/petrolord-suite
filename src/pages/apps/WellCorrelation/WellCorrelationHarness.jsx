@@ -14,7 +14,7 @@ export default function WellCorrelationHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
     <div className="h-screen w-full overflow-hidden">
-      <CorrelationWorkstation backend={backend} />
+      <CorrelationWorkstation backend={backend} wellDataManagerPath="/dev/well-data-manager" />
     </div>
   );
 }
