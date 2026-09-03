@@ -245,3 +245,5 @@ lands first, then the subtree copy here.
   appears when Seismolord's tie-derived set is active.
 - **Deep link.** `?well=<id>&tab=<tab>` selects a well on load;
   Petrophysics Studio's explorer offers "Edit well data" on own wells.
+
+**2026-09-03:** `geo_wells.checkshots_provenance` migration (PT1) applied live; writers no longer hit the missing-column retry.
