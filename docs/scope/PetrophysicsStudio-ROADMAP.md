@@ -340,3 +340,12 @@ saves a new curve.
   TrackViewer, MultiWellTracks and Well Correlation CrossSection (which
   gains data clamping), zone statuses in display units. No visible change
   by design; all existing e2e unchanged.
+- **PT1 built 2026-09-03** (PR #365, stacked on #364): Petrel-style
+  checkshot entry (MD | TVD | TVDSS, OWT | TWT, m | ft; preview of the
+  stored table), `checkshots_provenance` migration 20260904090000 (HELD),
+  editable header, deviation, checkshots and tops in Well Data Manager,
+  deep link from the Petrophysics explorer.
+- **PT2 built 2026-09-03:** export depth options (m/ft, MD/TVD/TVDSS,
+  primary column) across CSV, zone CSV, LAS (`F` unit, DEPTREF/EKB/
+  DEPTHSRC parameters) and the PDF report; zone panel, field view and
+  statuses in the display unit. Defaults byte-identical.

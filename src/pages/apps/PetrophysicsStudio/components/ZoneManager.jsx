@@ -6,22 +6,26 @@
 
 import React, { useState } from 'react';
 import { Trash2, Plus, Loader2, UploadCloud } from 'lucide-react';
+import { toDisplay, fromDisplay } from '../viewer/depthModes';
 
 const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
 const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toFixed(d));
 
+/** @param {'m'|'ft'} [p.depthUnit] display unit for depths typed and shown
+ *  here (PT2); storage stays metres MD */
 export default function ZoneManager({
-  zones, summaries, isOwn, busy, onAdd, onDelete, onPublish, zoneParams = {},
+  zones, summaries, isOwn, busy, onAdd, onDelete, onPublish, zoneParams = {}, depthUnit = 'm',
 }) {
   const [draft, setDraft] = useState({ name: '', top: '', base: '' });
   const [error, setError] = useState(null);
+  const u = depthUnit === 'ft' ? 'ft' : 'm';
 
   const add = async () => {
-    const top = Number(draft.top);
-    const base = Number(draft.base);
+    const top = fromDisplay(Number(draft.top), depthUnit);
+    const base = fromDisplay(Number(draft.base), depthUnit);
     if (!draft.name.trim()) { setError('The zone needs a name.'); return; }
     if (!Number.isFinite(top) || !Number.isFinite(base) || !(base > top)) {
-      setError('Top and base must be numbers with base below top (m MD).');
+      setError(`Top and base must be numbers with base below top (${u} MD).`);
       return;
     }
     setError(null);
@@ -45,7 +49,7 @@ export default function ZoneManager({
           <div key={z.id} className="rounded border border-slate-800 p-1.5" data-testid="petro-zone-card" data-zone-name={z.name}>
             <div className="flex items-center gap-1">
               <span className="text-slate-200 font-medium">{z.name}</span>
-              <span className="text-slate-500">{fmt(z.top_md_m, 1)}–{fmt(z.base_md_m, 1)} m</span>
+              <span className="text-slate-500">{fmt(toDisplay(z.top_md_m, depthUnit), 1)}–{fmt(toDisplay(z.base_md_m, depthUnit), 1)} {u}</span>
               {Object.keys(zoneParams[z.id] || {}).length > 0 && (
                 <span
                   className="rounded px-1 text-[10px] bg-cyan-500/15 text-cyan-300"
@@ -81,8 +85,8 @@ export default function ZoneManager({
             </div>
             {s ? (
               <div className="grid grid-cols-3 gap-x-2 mt-1 text-[11px] text-slate-400" data-testid={`petro-zone-summary-${z.name}`}>
-                <span>net <b className="text-slate-200" data-testid={`petro-zone-net-${z.name}`}>{fmt(s.net_m, 1)}</b> m</span>
-                <span>gross {fmt(s.gross_m, 1)} m</span>
+                <span>net <b className="text-slate-200" data-testid={`petro-zone-net-${z.name}`}>{fmt(toDisplay(s.net_m, depthUnit), 1)}</b> {u}</span>
+                <span>gross {fmt(toDisplay(s.gross_m, depthUnit), 1)} {u}</span>
                 <span>NTG {fmt(s.ntg, 3)}</span>
                 <span>φ {fmt(s.phi_avg, 3)}</span>
                 <span>Sw {fmt(s.sw_avg, 3)}</span>
@@ -112,10 +116,10 @@ export default function ZoneManager({
               onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))} />
           </div>
           <div className="flex items-center gap-1">
-            <input className={`${inputCls} w-20`} placeholder="Top m" value={draft.top}
+            <input className={`${inputCls} w-20`} placeholder={`Top ${u}`} value={draft.top}
               data-testid="petro-zone-top"
               onChange={(e) => setDraft((d) => ({ ...d, top: e.target.value }))} />
-            <input className={`${inputCls} w-20`} placeholder="Base m" value={draft.base}
+            <input className={`${inputCls} w-20`} placeholder={`Base ${u}`} value={draft.base}
               data-testid="petro-zone-base"
               onChange={(e) => setDraft((d) => ({ ...d, base: e.target.value }))} />
             <button

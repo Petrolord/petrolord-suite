@@ -12,6 +12,7 @@ import { Loader2 } from 'lucide-react';
 import MultiWellTracks from './MultiWellTracks';
 import { computeWellZoned, zoneSummary } from '../engine/pipeline';
 import { computeFlattening, allTopNames } from '../engine/section';
+import { depthLabel } from '../viewer/depthModes';
 import { activeTemplate } from '../layout/layoutSchema';
 import { resolveTracks } from '../layout/resolveTracks';
 
@@ -21,6 +22,7 @@ const FIELD_SOURCES = new Set(['input:GR', 'output:PHIE', 'output:SW', 'output:P
 const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toFixed(d));
 
 export default function FieldViewPanel({
+  depthUnit = 'm',
   wells, params, zoneParams, layouts, backend, curvesCache, onStatus,
 }) {
   const [pickedIds, setPickedIds] = useState([]);
@@ -188,7 +190,7 @@ export default function FieldViewPanel({
                   {row.cells.map((s, i) => (
                     <td key={fieldWells[i].id} className="px-2 py-1">
                       {s
-                        ? `net ${fmt(s.net_m, 1)} m · N/G ${fmt(s.ntg, 2)} · φ ${fmt(s.phi_avg, 3)} · Sw ${fmt(s.sw_avg, 3)}`
+                        ? `net ${depthLabel(s.net_m, depthUnit)} · N/G ${fmt(s.ntg, 2)} · φ ${fmt(s.phi_avg, 3)} · Sw ${fmt(s.sw_avg, 3)}`
                         : '—'}
                     </td>
                   ))}
