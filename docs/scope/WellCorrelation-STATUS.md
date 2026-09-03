@@ -48,3 +48,10 @@ Petrophysics now creates, moves, renames and deletes `geo_wells_tops`
 rows on own wells (same rows this app draws and propagates). Reload a
 section to see changes made there. Top colours come from the shared
 `topColors.js` palette from PT5 onwards.
+
+## 2026-09-03: depth navigator and shared top colours (PT5)
+
+The section gets the same DepthNavigator strip as Petrophysics (drag to
+scroll, handles to rescale, wheel, double-click fit) and its top colours
+now come from `src/components/wells/topColors.js`, so a top has the same
+hue here (dark variant) and in Petrophysics.

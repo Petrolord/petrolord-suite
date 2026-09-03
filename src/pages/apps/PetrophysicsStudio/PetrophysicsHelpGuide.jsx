@@ -243,6 +243,16 @@ const PetrophysicsHelpGuide = () => (
         Every track header shows two rows of scale labels, one per curve, in the curve&apos;s colour.
         Clicking a track header opens that track in the Track layout panel of the dock.
       </Para>
+      <SubHeading>The depth navigator</SubHeading>
+      <Para>
+        A narrow strip beside the tracks shows the whole well in miniature (the first curve of the
+        first track), the tops as coloured ticks and the zones as bands, with the visible window as
+        a highlighted band. Drag the band to scroll, drag either end of it to squeeze or stretch the
+        vertical scale, click outside it to jump there, roll the wheel to zoom, double-click for the
+        full well. With the strip focused, the arrow keys scroll a tenth of the window, PageUp and
+        PageDown a full window, plus and minus zoom, Home shows everything. The same strip sits on
+        the Field view and on the Well Correlation section.
+      </Para>
       <SubHeading>Zones, tops and dragging</SubHeading>
       <Para>
         Zones draw as translucent bands with their names. Tops draw as dashed lines in a colour

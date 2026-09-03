@@ -670,3 +670,52 @@ test('PT5-prep: a zone typed in feet converts to metres and reads back in the ch
   await expect(card).toContainText('2050.1');
   await expect(card).toContainText('2079.8');
 });
+
+test('PT5: the depth navigator scrolls, rescales and refits the track window', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-tracks-canvas')).toBeVisible();
+  const nav = page.getByTestId('petro-depth-nav');
+  await expect(nav).toBeVisible();
+  await expect(nav).toHaveAttribute('data-view-top', '2000.0');
+  await expect(nav).toHaveAttribute('data-view-base', '2100.0');
+  const nb = await nav.boundingBox();
+  const plotTop = 52;
+  const plotH = nb.height - plotTop - 4;
+  const yOf = (d) => nb.y + plotTop + ((d - 2000) / 100) * plotH;
+  const cx = nb.x + nb.width / 2;
+
+  // zoom in with the wheel on the track, then scroll the band down
+  const canvas = page.getByTestId('petro-tracks-canvas');
+  const cb = await canvas.boundingBox();
+  await page.mouse.move(cb.x + cb.width / 2, cb.y + 52 + (cb.height - 56) * 0.3);
+  await page.mouse.wheel(0, -400);
+  await expect.poll(async () => Number(await nav.getAttribute('data-view-base')) - Number(await nav.getAttribute('data-view-top'))).toBeLessThan(100);
+  const top1 = Number(await nav.getAttribute('data-view-top'));
+  const base1 = Number(await nav.getAttribute('data-view-base'));
+  const mid = (top1 + base1) / 2;
+  await page.mouse.move(cx, yOf(mid));
+  await page.mouse.down();
+  await page.mouse.move(cx, yOf(mid + 10));
+  await page.mouse.move(cx, yOf(mid + 20));
+  await page.mouse.up();
+  const top2 = Number(await nav.getAttribute('data-view-top'));
+  expect(top2).toBeGreaterThan(top1 + 5);
+  expect(Number(await nav.getAttribute('data-view-base')) - top2).toBeCloseTo(base1 - top1, 0);
+
+  // stretch: drag the top handle up, the span grows and the base stays
+  const base2 = Number(await nav.getAttribute('data-view-base'));
+  await page.mouse.move(cx, yOf(top2));
+  await page.mouse.down();
+  await page.mouse.move(cx, yOf(top2 - 5));
+  await page.mouse.move(cx, yOf(top2 - 10));
+  await page.mouse.up();
+  const top3 = Number(await nav.getAttribute('data-view-top'));
+  expect(top3).toBeLessThan(top2 - 5);
+  expect(Number(await nav.getAttribute('data-view-base'))).toBeCloseTo(base2, 0);
+
+  // double-click refits the whole well
+  await page.getByTestId('petro-depth-nav-canvas').dblclick();
+  await expect(nav).toHaveAttribute('data-view-top', '2000.0');
+  await expect(nav).toHaveAttribute('data-view-base', '2100.0');
+});

@@ -195,3 +195,18 @@ box suggests the nearest top above). Pure planning in
 `services/zonePlanner.js` (`validateZoneWindow`, `planZoneFromTops`,
 `planZonesBetweenConsecutiveTops`, `defaultZoneNameAt`) with tests;
 statuses print in the display unit.
+
+## PT5 depth navigator (2026-09-03)
+
+Testers asked for a scroll picker beside the track to scroll and to
+squeeze or stretch the vertical scale. `src/components/wells/DepthNavigator.jsx`
+(two canvases, ~64 px) shows the whole well in miniature with tops ticks
+and zone bands and the visible window as a band with handles: drag the
+band to scroll, drag a handle to change the scale, click outside to jump,
+wheel to zoom, double-click for the full well, keyboard when focused. It
+is mounted as a flex sibling of the canvas in TrackViewer, MultiWellTracks
+and Well Correlation's CrossSection through the PT0 controlled `view`, so
+every canvas-relative e2e coordinate still holds (the canvas only narrows
+by 64 px; hidden under 460 px). Root exposes `data-view-top/base` in the
+display unit for tests. Well Correlation now colours tops from the shared
+palette. All view arithmetic is `depthNavMath.js` (unit-tested in PT0).

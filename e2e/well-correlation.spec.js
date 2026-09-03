@@ -66,3 +66,33 @@ test('well-correlation app route loads its chunk and gates on auth', async ({ pa
   expect(errors).toEqual([]);
   expect(page.url()).not.toContain('well-correlation'); // redirected by the auth gate
 });
+
+test('PT5: the section has a depth navigator that pans the window', async ({ page }) => {
+  await page.goto('/dev/well-correlation');
+  for (const name of ['KETA-1', 'KETA-2', 'KETA-3']) await page.getByTestId(`corr-add-${name}`).click();
+  const canvas = page.getByTestId('corr-section-canvas');
+  await expect(canvas).toBeVisible();
+  const nav = page.getByTestId('corr-depth-nav');
+  await expect(nav).toBeVisible();
+  const top0 = Number(await nav.getAttribute('data-view-top'));
+  const base0 = Number(await nav.getAttribute('data-view-base'));
+  expect(base0).toBeGreaterThan(top0);
+  // zoom in on the section, then drag the band on the navigator
+  const cb = await canvas.boundingBox();
+  await page.mouse.move(cb.x + cb.width / 2, cb.y + cb.height / 2);
+  await page.mouse.wheel(0, -400);
+  await expect.poll(async () => Number(await nav.getAttribute('data-view-base')) - Number(await nav.getAttribute('data-view-top'))).toBeLessThan(base0 - top0);
+  const top1 = Number(await nav.getAttribute('data-view-top'));
+  const base1 = Number(await nav.getAttribute('data-view-base'));
+  const nb = await nav.boundingBox();
+  const plotH = nb.height - 34 - 6;
+  const yOf = (d) => nb.y + 34 + ((d - top0) / (base0 - top0)) * plotH;
+  const cx = nb.x + nb.width / 2;
+  const mid = (top1 + base1) / 2;
+  await page.mouse.move(cx, yOf(mid));
+  await page.mouse.down();
+  await page.mouse.move(cx, yOf(mid + (base0 - top0) * 0.05));
+  await page.mouse.move(cx, yOf(mid + (base0 - top0) * 0.1));
+  await page.mouse.up();
+  expect(Number(await nav.getAttribute('data-view-top'))).toBeGreaterThan(top1);
+});
