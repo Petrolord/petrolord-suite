@@ -355,3 +355,5 @@ saves a new curve.
   amended (tops editable here).
 - **PT4 built 2026-09-03:** zone planner; Zones panel modes Typed,
   Between tops (pair + bulk), Pick on track (two clicks).
+- **PT5 built 2026-09-03:** shared DepthNavigator in TrackViewer, Field
+  view and Well Correlation; Correlation tops on the shared palette.
