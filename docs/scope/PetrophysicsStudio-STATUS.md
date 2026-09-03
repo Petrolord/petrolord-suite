@@ -323,3 +323,6 @@ constants and draw order; `TrackViewer` and the Field view's
 `MultiWellTracks` delegate to it, and the Field view gains the fills it
 never had. Petrophysics e2e: 23 passed unchanged, PT6 pixel samples
 included.
+- Wave 2 of the WC series moved `LayoutPanel.jsx` to
+  `src/components/wells/LayoutPanel.jsx` (shim left in place) so Well
+  Correlation offers the same track layout editor.
