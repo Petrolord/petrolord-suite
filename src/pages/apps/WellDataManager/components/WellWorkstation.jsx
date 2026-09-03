@@ -15,6 +15,7 @@ import LasImportDialog from './LasImportDialog';
 import AddWellDialog from './AddWellDialog';
 import DeleteWellDialog from './DeleteWellDialog';
 import PackageExportDialog from '@/components/portability/PackageExportDialog';
+import PackageImportDialog from '@/components/portability/PackageImportDialog';
 
 export default function WellWorkstation({ backend }) {
   const [wells, setWells] = useState(null);       // null = first load
@@ -25,6 +26,7 @@ export default function WellWorkstation({ backend }) {
   const [status, setStatus] = useState('Ready.');
   const [lasOpen, setLasOpen] = useState(false);
   const [packageOpen, setPackageOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [deleting, setDeleting] = useState(null); // well pending delete confirm
   const [orgId, setOrgId] = useState(undefined);  // undefined = resolving
@@ -88,6 +90,11 @@ export default function WellWorkstation({ backend }) {
     setStatus(`Imported ${nLogs} log${nLogs === 1 ? '' : 's'} from ${fileName}.`);
     await refresh();
     select(wellId);
+  };
+
+  const onPackageImported = async (summary) => {
+    setStatus(`Imported ${summary.rowsWritten} rows and ${summary.blobsWritten} files.`);
+    await refresh();
   };
 
   const onAdded = async (well) => {
@@ -189,6 +196,7 @@ export default function WellWorkstation({ backend }) {
             onImportLas={() => setLasOpen(true)}
             onAddWell={() => setAddOpen(true)}
             onExportPackage={() => setPackageOpen(true)}
+            onImportPackage={() => setImportOpen(true)}
           />
         )}
         center={center}
@@ -217,6 +225,12 @@ export default function WellWorkstation({ backend }) {
         open={packageOpen}
         onOpenChange={setPackageOpen}
         preselect={packagePreselect}
+        onStatus={setStatus}
+      />
+      <PackageImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={onPackageImported}
         onStatus={setStatus}
       />
     </>
