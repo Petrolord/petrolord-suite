@@ -94,10 +94,19 @@ export const WarningBanner = ({ warnings }) => {
 
 // Log-cycle ticks for Recharts log axes: powers of ten spanning the data.
 export const logTicks = (values) => {
-  const finite = values.filter((v) => Number.isFinite(v) && v > 0);
-  if (!finite.length) return undefined;
-  const lo = Math.floor(Math.log10(Math.min(...finite)));
-  const hi = Math.ceil(Math.log10(Math.max(...finite)));
+  // A loop, not Math.min(...values): a high-frequency gauge can carry more
+  // points than the argument spread allows (RangeError), and that would take
+  // the whole plot down.
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of values) {
+    if (!(Number.isFinite(v) && v > 0)) continue;
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  if (!(min <= max)) return undefined;
+  const lo = Math.floor(Math.log10(min));
+  const hi = Math.ceil(Math.log10(max));
   return Array.from({ length: hi - lo + 1 }, (_, i) => Math.pow(10, lo + i));
 };
 

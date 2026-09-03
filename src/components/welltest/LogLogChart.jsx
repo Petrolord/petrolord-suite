@@ -4,19 +4,24 @@
 // caller's ChartCard.
 import React, { useMemo } from 'react';
 import { ComposedChart, Scatter, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { LINE, logTicks, logTickFormatter } from './primitives';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
 const tooltipProps = { contentStyle: TOOLTIP_STYLE, labelStyle: { color: CHART_COLORS.tooltipText }, itemStyle: { color: CHART_COLORS.tooltipText } };
-const legendProps = { wrapperStyle: { fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText } };
+const legendProps = LEGEND_PROPS;
 
 /**
  * @param {Array} loglog observed [{x, dp, derivative}]
  * @param {Array} [modelSeries] model overlay [{x, modelDp, modelDerivative}]
  * @param {string} [xLabel]
+ *
+ * Rendered as the direct child of a ChartFrame / ResponsiveContainer, which
+ * measures itself and hands `width` and `height` to that child. A wrapper
+ * component must pass them on to the chart, or the chart has no size and
+ * draws nothing (the "plain white log-log plot" tester finding, 2026-09-03).
  */
-const LogLogChart = ({ loglog, modelSeries, xLabel = 'Equivalent time (hr)', yLabel = 'Δp and derivative (psi)' }) => {
+const LogLogChart = ({ loglog, modelSeries, xLabel = 'Equivalent time (hr)', yLabel = 'Δp and derivative (psi)', ...chartProps }) => {
   const data = useMemo(() => {
     const byX = new Map();
     for (const p of loglog || []) {
@@ -41,12 +46,12 @@ const LogLogChart = ({ loglog, modelSeries, xLabel = 'Equivalent time (hr)', yLa
   const yValues = data.flatMap((d) => [d.dp, d.derivative, d.modelDp, d.modelDerivative]).filter((v) => v > 0);
 
   return (
-    <ComposedChart data={data} margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
+    <ComposedChart {...chartProps} data={data} margin={{ top: 10, right: 20, bottom: 8, left: 10 }}>
       <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
       <XAxis
-        dataKey="x" type="number" scale="log" domain={['auto', 'auto']}
+        dataKey="x" type="number" scale="log" domain={['auto', 'auto']} height={XAXIS_LABEL_HEIGHT}
         ticks={logTicks(data.map((d) => d.x))} tickFormatter={logTickFormatter} {...axisProps}
-        label={{ value: xLabel, position: 'insideBottom', offset: -10, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
+        label={{ value: xLabel, position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
       />
       <YAxis
         type="number" scale="log" domain={['auto', 'auto']}

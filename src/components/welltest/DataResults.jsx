@@ -1,14 +1,14 @@
 // Main area for the Data tab: pressure history, rate steps and QC summary.
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { CHART_COLORS, CHART_TYPOGRAPHY, TOOLTIP_STYLE, LEGEND_PROPS, XAXIS_LABEL_HEIGHT } from '@/utils/chartTheme';
 import { useWellTestStudio } from '@/contexts/WellTestStudioContext';
 import { unitLabel, fromOilfield } from '@/utils/welltest/units';
 import { ChartCard, Kpi, LINE, WarningBanner, fmt, fmtU } from './primitives';
 
 const axisProps = { stroke: CHART_COLORS.axisLine, tick: { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize } };
 const tooltipProps = { contentStyle: TOOLTIP_STYLE, labelStyle: { color: CHART_COLORS.tooltipText }, itemStyle: { color: CHART_COLORS.tooltipText } };
-const legendProps = { wrapperStyle: { fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText } };
+const legendProps = LEGEND_PROPS;
 
 const DataResults = () => {
   const { gaugeRows, prepared, configSpec, reservoirSpec, flowPeriods, unitSystem } = useWellTestStudio();
@@ -62,10 +62,10 @@ const DataResults = () => {
       </div>
 
       <ChartCard title="Pressure history">
-        <LineChart data={historyData} margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
+        <LineChart data={historyData} margin={{ top: 10, right: 20, bottom: 8, left: 10 }}>
           <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-          <XAxis dataKey="time" type="number" domain={['auto', 'auto']} {...axisProps}
-            label={{ value: timeLabel, position: 'insideBottom', offset: -10, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+          <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="time" type="number" domain={['auto', 'auto']} {...axisProps}
+            label={{ value: timeLabel, position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
           <YAxis domain={['auto', 'auto']} {...axisProps}
             label={{ value: `Pressure (${unitLabel('pressure', unitSystem)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
           <Tooltip {...tooltipProps} />
@@ -76,10 +76,10 @@ const DataResults = () => {
 
       {rateData.length > 0 && (
         <ChartCard title="Rate history" height={200}>
-          <LineChart data={rateData} margin={{ top: 10, right: 20, bottom: 20, left: 10 }}>
+          <LineChart data={rateData} margin={{ top: 10, right: 20, bottom: 8, left: 10 }}>
             <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
-            <XAxis dataKey="time" type="number" domain={['auto', 'auto']} {...axisProps}
-              label={{ value: 'Time (hr)', position: 'insideBottom', offset: -10, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
+            <XAxis height={XAXIS_LABEL_HEIGHT} dataKey="time" type="number" domain={['auto', 'auto']} {...axisProps}
+              label={{ value: 'Time (hr)', position: 'insideBottom', offset: 0, fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <YAxis domain={[0, 'auto']} {...axisProps}
               label={{ value: `Rate (${unitLabel(rateKind, unitSystem)})`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }} />
             <Tooltip {...tooltipProps} />
