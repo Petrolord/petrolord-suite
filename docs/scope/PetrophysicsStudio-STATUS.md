@@ -141,3 +141,11 @@ TrackViewer redraw split (static picture cached offscreen, cursor layer
 composited per move). All three vertical viewers accept a controlled
 `view` prop for the PT5 navigator. Zone drag and move statuses now print
 in the display unit.
+
+## PT1 (2026-09-03)
+
+Well Data Manager gained Petrel-style checkshot entry and editable well
+data (see WellDataManager-STATUS). In this app: the explorer's selected
+own well shows an "Edit well data" link into Well Data Manager
+(`?well=<id>&tab=checkshots`; the harness points at its own harness
+route).

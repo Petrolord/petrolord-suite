@@ -212,3 +212,37 @@ fixtures carry goldens written by `genfixtures.py` from its own
 closed-form arrays; `lasGoldens.test.js` runs them bit-for-bit and
 `lasParse30.test.js` covers the rules and the domain errors. Engines PR
 lands first, then the subtree copy here.
+
+## 2026-09-03: checkshots as Petrel enters them; editable well data (PT1)
+
+- **At the door.** The add-well Checkshots tab has reference (MD | TVD |
+  TVDSS), unit (m | ft) and time (one-way | two-way) selectors, defaulting
+  to MD + OWT like a Petrel export; header words (`OWT`, `TVDSS`, `ft`)
+  set them once and never override a choice. The preview shows the
+  stored TVDSS / TWT beside the entered values through the pasted survey
+  and KB, with a note saying which frame was used. Deviation MD, tops MD,
+  KB and TD accept feet. Column ids for checkshots are now
+  `well-map-depth` / `well-map-time`. The converter is the welldata
+  checkshots engine (closed-form goldens, engines PR #102); a flat or
+  uphill lateral is refused with a message naming the MD interval.
+- **Stored.** Core unchanged (`{tvdss_m, twt_ms}`) plus `md_m` per row
+  and `checkshots_provenance` (migration 20260904090000, HELD for the
+  shared-table review; the writers retry without the column until it is
+  applied). Well Planning's borrowed tables strip `md_m` and record
+  `source: well-planning-borrow`.
+- **Editable after creation.** Every tab but Logs has an owner-only Edit
+  button: Header (KB, TD, in m or ft; a KB change re-derives an
+  MD- or TVD-referenced checkshot table and says so; legacy tables are
+  left alone and labelled), Deviation (grid or replace-from-paste;
+  MD-referenced checkshots re-derive through the new survey), Checkshots
+  (grid in the entered convention with a live convention switch, or
+  replace-from-paste; saved through the same converter), Tops (row edits
+  keep ids for Well Correlation; replace-from-paste warns that ids
+  regenerate). Validation lives in `wellsRegistry.updateWellData` and is
+  mirrored by the harness backend.
+- **Reading.** The Checkshots tab shows the table as entered with a
+  view-as selector (MD / TVD / TVDSS, m / ft, OWT / TWT) beside the stored
+  columns; ambiguous (uphill) and extrapolated rows are marked; a note
+  appears when Seismolord's tie-derived set is active.
+- **Deep link.** `?well=<id>&tab=<tab>` selects a well on load;
+  Petrophysics Studio's explorer offers "Edit well data" on own wells.

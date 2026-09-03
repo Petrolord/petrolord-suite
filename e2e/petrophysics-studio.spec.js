@@ -546,3 +546,14 @@ test('org-shared well is read-only for zones; invalid zone input errors', async 
   await page.getByTestId('petro-zone-add').click();
   await expect(page.getByTestId('petro-zone-error')).toContainText('base below top');
 });
+
+test('PT1: an own well offers the Edit well data link into Well Data Manager on its checkshots tab', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  const link = page.getByTestId('petro-edit-well-data');
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute('href', /\/dev\/well-data-manager\?well=.+&tab=checkshots/);
+  // shared wells are read-only: no link
+  await page.locator('[data-well-name="AKOMA-2 (org shared)"]').click();
+  await expect(page.getByTestId('petro-edit-well-data')).toHaveCount(0);
+});
