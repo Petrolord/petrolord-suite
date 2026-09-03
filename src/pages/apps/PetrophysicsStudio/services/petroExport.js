@@ -115,9 +115,12 @@ export function trackPlotPng({ canvas, title }) {
     out.width = canvas.width;
     out.height = canvas.height + headerH;
     const ctx = out.getContext('2d');
-    ctx.fillStyle = '#0f172a';
+    // white header band with a slate rule, matching the white track canvas
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, out.width, headerH);
-    ctx.fillStyle = '#e2e8f0';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(0, headerH - Math.max(1, Math.round(scale)), out.width, Math.max(1, Math.round(scale)));
+    ctx.fillStyle = '#0f172a';
     ctx.font = `bold ${Math.round(12 * scale)}px sans-serif`;
     ctx.fillText(title, Math.round(10 * scale), Math.round(22 * scale));
     ctx.drawImage(canvas, 0, headerH);

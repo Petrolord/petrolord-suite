@@ -195,7 +195,7 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                       >
                         {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
                       </select>
-                      <input type="color" className="w-6 h-5 rounded border border-slate-700 bg-transparent" value={c.color || '#22d3ee'}
+                      <input type="color" className="w-6 h-5 rounded border border-slate-700 bg-transparent" value={c.color || '#0891b2'}
                         title="Curve color"
                         onChange={(e) => editTrack(tr.id, (x) => ({
                           ...x, curves: x.curves.map((y, yi) => (yi === ci ? { ...y, color: e.target.value } : y)),
@@ -230,7 +230,7 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                   <button type="button" data-testid="petro-layout-add-curve"
                     className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 hover:bg-slate-800"
                     onClick={() => editTrack(tr.id, (x) => ({
-                      ...x, curves: [...x.curves, { source: 'input:GR', label: 'GR', color: '#34d399' }],
+                      ...x, curves: [...x.curves, { source: 'input:GR', label: 'GR', color: '#059669' }],
                     }))}
                   >
                     <Plus className="w-3 h-3" /> Curve

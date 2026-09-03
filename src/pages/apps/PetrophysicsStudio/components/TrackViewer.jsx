@@ -16,7 +16,19 @@ const AXIS_W = 56;        // depth axis gutter
 const HEADER_H = 50;      // track header (title + scale rows + readout)
 const PAD_TOP = 2;
 
-const ZONE_COLORS = ['rgba(34,211,238,0.10)', 'rgba(251,191,36,0.10)', 'rgba(52,211,153,0.10)', 'rgba(244,114,182,0.10)'];
+// Light palette (Suite chart standard, src/utils/chartTheme.js): white
+// plot with slate grid and axes, so tracks read like a printed log.
+const BG = '#ffffff';
+const HEADER_BG = '#f1f5f9';           // slate-100
+const FRAME = 'rgba(148,163,184,0.9)'; // slate-400
+const GRID = 'rgba(203,213,225,0.9)';  // slate-300
+const AXIS_TEXT = '#475569';           // slate-600
+const TEXT = '#1e293b';                // slate-800
+const TEXT_STRONG = '#0f172a';         // slate-900
+const CROSSHAIR = 'rgba(71,85,105,0.7)';
+const TOP_LINE = '#d97706';            // amber-600
+const TOP_TEXT = '#b45309';            // amber-700
+const ZONE_COLORS = ['rgba(14,116,144,0.10)', 'rgba(217,119,6,0.10)', 'rgba(5,150,105,0.10)', 'rgba(190,24,93,0.10)'];
 
 /**
  * @param {Object} p
@@ -88,7 +100,7 @@ export default function TrackViewer({
     canvas.style.height = `${size.h}px`;
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = BG;
     ctx.fillRect(0, 0, size.w, size.h);
 
     // proportional track widths from the layout ratios
@@ -111,7 +123,7 @@ export default function TrackViewer({
       if (y1 < plotTop || y0 > plotTop + plotH) return;
       ctx.fillStyle = ZONE_COLORS[zi % ZONE_COLORS.length];
       ctx.fillRect(AXIS_W, Math.max(plotTop, y0), size.w - AXIS_W, Math.min(plotTop + plotH, y1) - Math.max(plotTop, y0));
-      ctx.fillStyle = '#7dd3fc';
+      ctx.fillStyle = '#0369a1';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
       ctx.fillText(z.name, AXIS_W + 4, Math.max(plotTop + 10, y0 + 11));
@@ -119,8 +131,8 @@ export default function TrackViewer({
 
     // depth axis + gridlines — the grid is chosen in DISPLAY units so
     // an ft axis lands on round feet
-    ctx.strokeStyle = 'rgba(51,65,85,0.5)';
-    ctx.fillStyle = '#64748b';
+    ctx.strokeStyle = GRID;
+    ctx.fillStyle = AXIS_TEXT;
     ctx.font = '10px sans-serif';
     const span = (vBase - vTop) * F;
     const step = 10 ** Math.floor(Math.log10(span / 6));
@@ -147,7 +159,7 @@ export default function TrackViewer({
 
     // crossplot-brushed selection: cyan ticks along the axis gutter
     if (selection && selection.size) {
-      ctx.fillStyle = 'rgba(34,211,238,0.85)';
+      ctx.fillStyle = 'rgba(14,116,144,0.85)';
       for (let i = 0; i < depth.length - 1; i++) {
         if (!selection.has(i)) continue;
         if (depth[i] > vBase || depth[i + 1] < vTop) continue;
@@ -170,14 +182,14 @@ export default function TrackViewer({
       const trackW = trackWs[ti];
 
       // header
-      ctx.fillStyle = '#0b1220';
+      ctx.fillStyle = HEADER_BG;
       ctx.fillRect(x0, 0, trackW, HEADER_H);
-      ctx.strokeStyle = 'rgba(51,65,85,0.9)';
+      ctx.strokeStyle = FRAME;
       ctx.strokeRect(x0 + 0.5, 0.5, trackW - 1, HEADER_H - 1);
       ctx.strokeRect(x0 + 0.5, plotTop + 0.5, trackW - 1, plotH - 1);
       ctx.font = '11px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#cbd5e1';
+      ctx.fillStyle = TEXT;
       ctx.fillText(track.title, x0 + trackW / 2, 12);
       if (track.type !== 'strip') {
         // one scale row per distinct curve range (max two rows), in the
@@ -194,7 +206,7 @@ export default function TrackViewer({
           seen.add(sig);
           rows.push({
             min, max, scale,
-            color: curve.min != null || curve.max != null ? curve.color : '#64748b',
+            color: curve.min != null || curve.max != null ? curve.color : AXIS_TEXT,
           });
           if (rows.length === 2) break;
         }
@@ -223,7 +235,7 @@ export default function TrackViewer({
         if (cursor) {
           const v = data[cursor.idx];
           ctx.font = '10px sans-serif';
-          ctx.fillStyle = '#cbd5e1';
+          ctx.fillStyle = TEXT;
           ctx.textAlign = 'center';
           ctx.fillText(
             Number.isFinite(v) ? track.labels?.[Math.round(v)] ?? String(v) : '—',
@@ -296,14 +308,14 @@ export default function TrackViewer({
     for (const t of tops) {
       if (t.md_m < vTop || t.md_m > vBase) continue;
       const y = yOf(t.md_m);
-      ctx.strokeStyle = '#f59e0b';
+      ctx.strokeStyle = TOP_LINE;
       ctx.setLineDash([5, 3]);
       ctx.beginPath();
       ctx.moveTo(AXIS_W, y);
       ctx.lineTo(size.w, y);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = '#fbbf24';
+      ctx.fillStyle = TOP_TEXT;
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'right';
       ctx.fillText(t.name, size.w - 4, y - 3);
@@ -312,14 +324,14 @@ export default function TrackViewer({
     // zone-edge drag preview
     if (zoneDrag) {
       const y = yOf(zoneDrag.md);
-      ctx.strokeStyle = '#22d3ee';
+      ctx.strokeStyle = '#0e7490';
       ctx.setLineDash([4, 3]);
       ctx.beginPath();
       ctx.moveTo(AXIS_W, y);
       ctx.lineTo(size.w, y);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = '#22d3ee';
+      ctx.fillStyle = '#0e7490';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
       ctx.fillText(`${zoneDrag.zone.name} ${zoneDrag.edge} → ${zoneDrag.md.toFixed(1)} m`, AXIS_W + 4, y - 4);
@@ -327,12 +339,12 @@ export default function TrackViewer({
 
     // crosshair
     if (cursor && cursor.y >= plotTop && cursor.y <= plotTop + plotH) {
-      ctx.strokeStyle = 'rgba(148,163,184,0.7)';
+      ctx.strokeStyle = CROSSHAIR;
       ctx.beginPath();
       ctx.moveTo(AXIS_W, cursor.y);
       ctx.lineTo(size.w, cursor.y);
       ctx.stroke();
-      ctx.fillStyle = '#e2e8f0';
+      ctx.fillStyle = TEXT_STRONG;
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'right';
       const cLabel = tvdLookup ? tvdLookup(cursor.depthM) * F : cursor.depthM * F;

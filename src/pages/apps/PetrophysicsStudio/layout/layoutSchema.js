@@ -37,25 +37,25 @@ export function buildDefaultTemplates() {
       tracks: [
         {
           id: 't-gr', title: 'GR (API)', type: 'curves', width: 1, scale: 'linear', min: 0, max: 150,
-          curves: [{ source: 'input:GR', label: 'GR', color: '#34d399' }],
+          curves: [{ source: 'input:GR', label: 'GR', color: '#059669' }],
           fills: [{ mode: 'threshold', a: 'input:GR', threshold: { param: 'grClean' }, side: 'above', color: '#a3a065', opacity: 0.22 }],
         },
         {
           id: 't-rt', title: 'RT (ohm·m)', type: 'curves', width: 1, scale: 'log', min: 0.2, max: 2000,
-          curves: [{ source: 'input:RT', label: 'RT', color: '#f87171' }],
+          curves: [{ source: 'input:RT', label: 'RT', color: '#dc2626' }],
           fills: [],
         },
         {
           id: 't-dn', title: 'Density–Neutron', type: 'curves', width: 1.2, scale: 'linear', min: 1.95, max: 2.95,
           curves: [
-            { source: 'input:RHOB', label: 'RHOB', color: '#eab308', min: 1.95, max: 2.95 },
+            { source: 'input:RHOB', label: 'RHOB', color: '#dc2626', min: 1.95, max: 2.95 },
             { source: 'input:NPHI', label: 'NPHI', color: '#3b82f6', min: 0.45, max: -0.15, style: 'dash' },
           ],
           fills: [{ mode: 'crossover', a: 'input:NPHI', b: 'input:RHOB', positiveColor: '#fbbf24', negativeColor: '#64748b', opacity: 0.3 }],
         },
         {
           id: 't-phi', title: 'Porosity (v/v)', type: 'curves', width: 1, scale: 'linear', min: 0, max: 0.5,
-          curves: [{ source: 'output:PHIE', label: 'φe', color: '#22d3ee' }],
+          curves: [{ source: 'output:PHIE', label: 'φe', color: '#0891b2' }],
           fills: [{ mode: 'threshold', a: 'output:PHIE', threshold: { param: 'cutPhi' }, side: 'above', color: '#fde047', opacity: 0.25 }],
         },
         {
@@ -65,17 +65,17 @@ export function buildDefaultTemplates() {
         },
         {
           id: 't-sw', title: 'Sw (v/v)', type: 'curves', width: 1, scale: 'linear', min: 0, max: 1,
-          curves: [{ source: 'output:SW', label: 'Sw', color: '#60a5fa' }],
+          curves: [{ source: 'output:SW', label: 'Sw', color: '#2563eb' }],
           fills: [],
         },
         {
           id: 't-kperm', title: 'k (mD)', type: 'curves', width: 1, scale: 'log', min: 0.01, max: 10000,
-          curves: [{ source: 'output:KPERM', label: 'k', color: '#f472b6' }],
+          curves: [{ source: 'output:KPERM', label: 'k', color: '#db2777' }],
           fills: [],
         },
         {
           id: 't-pay', title: 'Pay', type: 'curves', width: 0.7, scale: 'linear', min: 0, max: 1,
-          curves: [{ source: 'output:PAY', label: 'pay', color: '#4ade80', fillTo: 'left' }],
+          curves: [{ source: 'output:PAY', label: 'pay', color: '#16a34a', fillTo: 'left' }],
           fills: [],
         },
         { id: 't-facies', title: 'Facies', type: 'strip', width: 0.5, source: 'facies' },
@@ -88,23 +88,23 @@ export function buildDefaultTemplates() {
       tracks: [
         {
           id: 'q-gr', title: 'GR (API)', type: 'curves', width: 1, scale: 'linear', min: 0, max: 150,
-          curves: [{ source: 'input:GR', label: 'GR', color: '#34d399' }], fills: [],
+          curves: [{ source: 'input:GR', label: 'GR', color: '#059669' }], fills: [],
         },
         {
           id: 'q-rt', title: 'RT (ohm·m)', type: 'curves', width: 1, scale: 'log', min: 0.2, max: 2000,
-          curves: [{ source: 'input:RT', label: 'RT', color: '#f87171' }], fills: [],
+          curves: [{ source: 'input:RT', label: 'RT', color: '#dc2626' }], fills: [],
         },
         {
           id: 'q-dn', title: 'Density–Neutron', type: 'curves', width: 1.2, scale: 'linear', min: 1.95, max: 2.95,
           curves: [
-            { source: 'input:RHOB', label: 'RHOB', color: '#eab308', min: 1.95, max: 2.95 },
+            { source: 'input:RHOB', label: 'RHOB', color: '#dc2626', min: 1.95, max: 2.95 },
             { source: 'input:NPHI', label: 'NPHI', color: '#3b82f6', min: 0.45, max: -0.15, style: 'dash' },
           ],
           fills: [],
         },
         {
           id: 'q-dt', title: 'DT (µs/m)', type: 'curves', width: 1, scale: 'linear', min: 650, max: 150,
-          curves: [{ source: 'input:DT', label: 'DT', color: '#a78bfa' }], fills: [],
+          curves: [{ source: 'input:DT', label: 'DT', color: '#7c3aed' }], fills: [],
         },
       ],
     },

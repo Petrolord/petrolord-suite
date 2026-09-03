@@ -89,3 +89,26 @@ five legacy-route redirects are all live on petrolord.com.
   quicklook approximation.
 - The legacy `src/utils/petrophysicsCalculations.js` stays untouched
   until its consumers die at G2.6 (PetrophysicsEstimator still uses it).
+
+## 2026-09-03 owner findings from the staging E2E
+
+- **White tracks.** `TrackViewer` (single well and Split), `MultiWellTracks`
+  (Field) and the PNG export header now paint on white with slate grid,
+  frames and axis text (the Suite chart standard in
+  `src/utils/chartTheme.js`); tops, zone bands, crosshair and scale
+  labels moved to darker members of the same hues. The built-in layout
+  defaults (`layout/layoutSchema.js`) and the Layout panel's new-curve
+  colours were darkened to carry on white (GR emerald-600, RT/RHOB
+  red-600, NPHI blue-500 dashed, φe cyan-600, Sw blue-600, k pink-600,
+  pay green-600, DT violet-600). Layouts users already saved keep their
+  own colours. Verified on the staging harness (canvas centre pixel
+  255,255,255; Tracks and Field screenshots).
+- **One well name per registry.** Raised here because the explorer lists
+  wells by name; the rule lives in the shared registry
+  (`src/lib/wellsRegistry.js` saveWell/updateWell) so every door obeys it:
+  Well Data Manager add and LAS import, Seismolord well creation, Well
+  Planning publish. Match is case- and whitespace-insensitive across the
+  wells the caller can see (own + teammates' shared); rename to itself is
+  allowed. Server backstop `20260903120000_geo_wells_unique_name_per_owner.sql`
+  (same-owner half) is HELD for the shared-table review; duplicate probe
+  was 0 groups on 2026-09-03.
