@@ -1,14 +1,20 @@
 // LAS import wizard: pick a file → parse off-thread (backend facade) →
-// review the curve mapping and unit preview → confirm the well header
-// (suggested from ~Well/~Params; surface X/Y stay manual — most LAS
-// files don't carry them) or target an existing well → persist.
+// choose the TARGET (the selected well by default — owner finding
+// 2026-09-03: a well built from survey + checkshots must receive its LAS
+// without a second well appearing) → review curves, rename any mnemonic,
+// settle clashes with curves the well already has → persist. Into an
+// existing well the LAS depth is not written twice: curves are resampled
+// onto the well's depth grid (engine/mergeImport.js, pure and tested).
+// For a new well the header is suggested from ~Well/~Params; surface X/Y
+// stay manual — most LAS files don't carry them.
 //
 // The unit column shows exactly what the SI layer decided: converted
 // curves display source → SI with the factor recorded in provenance;
 // unrecognised units stay as-is and are marked, never guessed
 // (engine/lasImport.js contract).
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { planMerge, findDepthLog, clashFor } from '../engine/mergeImport';
 import { Loader2, Upload, FileText } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -27,7 +33,11 @@ const KNOWN_SI = new Set(['M', 'US/M', 'MS', 'S', 'GAPI', 'API', 'G/C3', 'G/CM3'
 
 const emptyHeader = { name: '', uwi: '', x: '', y: '', kb: '', td: '', crs: '' };
 
-export default function LasImportDialog({ open, onOpenChange, backend, wells, onDone }) {
+/**
+ * @param {?string} [p.initialTargetId] well selected in the tree; when it
+ *   is one of the caller's own wells the wizard targets it by default
+ */
+export default function LasImportDialog({ open, onOpenChange, backend, wells, onDone, initialTargetId = null }) {
   const { crsContext, commitAutoSetProject } = useCrsContext();
   const [crsTag, setCrsTag] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -37,8 +47,37 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
   const [keep, setKeep] = useState({});             // mnemonic -> bool
   const [target, setTarget] = useState('new');      // 'new' | existing well id
   const [head, setHead] = useState(emptyHeader);
+  const [names, setNames] = useState({});           // mnemonic -> save-as name
+  const [onClash, setOnClash] = useState({});       // mnemonic -> 'suffix' | 'replace'
+  const [existing, setExisting] = useState({ wellId: null, logs: [], depth: null, busy: false });
 
   const ownWells = useMemo(() => (wells || []).filter((w) => w.is_own), [wells]);
+
+  // default target: the selected own well, else a new well
+  useEffect(() => {
+    if (!open) return;
+    const own = ownWells.find((w) => w.id === initialTargetId);
+    setTarget(own ? own.id : 'new');
+  }, [open, initialTargetId, ownWells]);
+
+  // what the target well already holds (names to clash against, depth
+  // grid to resample onto)
+  useEffect(() => {
+    if (!open || target === 'new') { setExisting({ wellId: null, logs: [], depth: null, busy: false }); return; }
+    let live = true;
+    setExisting((e) => ({ ...e, wellId: target, busy: true }));
+    (async () => {
+      try {
+        const logs = await backend.listLogs(target);
+        const depthLog = findDepthLog(logs);
+        const depth = depthLog ? { log: depthLog, data: await backend.downloadCurve(depthLog) } : null;
+        if (live) setExisting({ wellId: target, logs, depth, busy: false });
+      } catch (e) {
+        if (live) { setExisting({ wellId: target, logs: [], depth: null, busy: false }); setError(e.message); }
+      }
+    })();
+    return () => { live = false; };
+  }, [open, target, backend]);
 
   const reset = () => {
     setBusy(false);
@@ -46,6 +85,8 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
     setFileName(null);
     setParsed(null);
     setKeep({});
+    setNames({});
+    setOnClash({});
     setTarget('new');
     setHead(emptyHeader);
   };
@@ -71,6 +112,8 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
       // irregular logs) — it has no checkbox below
       result.prep.logs.forEach((l) => { keepAll[l.mnemonic] = true; });
       setKeep(keepAll);
+      setNames({});
+      setOnClash({});
       const s = result.meta.suggestedHeader;
       setHead({
         name: s.name || '',
@@ -141,9 +184,33 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         await commitAutoSetProject(placed.autoSetProject);
         wellId = well.id;
       }
-      const saved = await backend.saveLogs(wellId, logs);
+      let toSave = logs;
+      let note = '';
+      if (target !== 'new') {
+        if (existing.busy || existing.wellId !== target) throw new Error('Still reading the target well — try again in a moment.');
+        const plan = planMerge({
+          prepLogs: parsed.prep.logs, keep, names, onClash,
+          existingLogs: existing.logs, existingDepth: existing.depth,
+        });
+        if (plan.errors.length) throw new Error(plan.errors[0]);
+        if (!plan.logs.length) throw new Error('Keep at least one curve to add.');
+        for (const old of plan.deletions) await backend.deleteLog(old);
+        toSave = plan.logs;
+        const parts = [];
+        if (plan.depthReused) parts.push(plan.resampled ? `${plan.resampled} curve${plan.resampled === 1 ? '' : 's'} resampled onto the well's depth grid` : 'same depth grid, samples kept');
+        if (plan.deletions.length) parts.push(`${plan.deletions.length} replaced`);
+        const suffixed = plan.report.filter((r) => r.action === 'add-suffixed').length;
+        if (suffixed) parts.push(`${suffixed} kept alongside with a :n suffix`);
+        note = parts.join(' · ');
+      } else {
+        // new well: names still apply (rename before first save)
+        const plan = planMerge({ prepLogs: parsed.prep.logs, keep, names });
+        if (plan.errors.length) throw new Error(plan.errors[0]);
+        toSave = plan.logs;
+      }
+      const saved = await backend.saveLogs(wellId, toSave);
       close(false);
-      onDone({ wellId, well, nLogs: saved.length, fileName });
+      onDone({ wellId, well, nLogs: saved.length, fileName, note });
     } catch (err) {
       setError(err.message);
       setBusy(false);
@@ -187,6 +254,51 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
 
           {parsed && (
             <>
+              <div className="flex items-center gap-4 text-xs rounded border border-slate-800 bg-slate-950/40 px-2 py-1.5"
+                data-testid="wdm-las-target"
+              >
+                <span className="text-slate-500">Load into</span>
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="wdm-las-target"
+                    disabled={!ownWells.length}
+                    checked={target !== 'new'}
+                    onChange={() => setTarget(ownWells.find((w) => w.id === initialTargetId)?.id || ownWells[0]?.id)}
+                    data-testid="wdm-las-target-existing"
+                  />
+                  an existing well
+                </label>
+                {target !== 'new' && (
+                  <select
+                    className="rounded-md bg-slate-950 border border-slate-700 px-1.5 py-1 text-xs"
+                    value={target}
+                    onChange={(e) => setTarget(e.target.value)}
+                    data-testid="wdm-las-target-well"
+                  >
+                    {ownWells.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                )}
+                <label className="flex items-center gap-1.5">
+                  <input
+                    type="radio"
+                    name="wdm-las-target"
+                    checked={target === 'new'}
+                    onChange={() => setTarget('new')}
+                    data-testid="wdm-las-target-new"
+                  />
+                  a new well
+                </label>
+                {target !== 'new' && (
+                  <span className="ml-auto text-slate-500" data-testid="wdm-las-target-note">
+                    {existing.busy ? 'reading well…'
+                      : existing.depth
+                        ? `well depth grid ${existing.depth.log.start_md_m ?? '?'}–${existing.depth.log.stop_md_m ?? '?'} m${existing.depth.log.step_m != null ? ` step ${existing.depth.log.step_m}` : ''}; curves resample onto it`
+                        : 'no depth curve yet; this file\'s depth becomes the well\'s grid'}
+                  </span>
+                )}
+              </div>
+
               <p className="text-xs text-slate-400" data-testid="wdm-las-summary">
                 LAS {parsed.meta.version}{parsed.meta.wrap ? ', wrapped' : ''} · depth in{' '}
                 {prep.depthUnit}{prep.depthFactor !== 1 ? ` → m (×${prep.depthFactor})` : ' (m)'} ·{' '}
@@ -201,6 +313,8 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                     <tr>
                       <th className={thCls}>Keep</th>
                       <th className={thCls}>Mnemonic</th>
+                      <th className={thCls}>Save as</th>
+                      {target !== 'new' && <th className={thCls}>In well</th>}
                       <th className={thCls}>Description</th>
                       <th className={thCls}>Unit</th>
                       <th className={thCls}>Kind</th>
@@ -226,6 +340,39 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                             )}
                           </td>
                           <td className={`${tdCls} text-slate-100`}>{l.mnemonic}</td>
+                          <td className={tdCls}>
+                            {i === 0 ? (
+                              <span className="text-slate-500">{target !== 'new' && existing.depth ? `${existing.depth.log.mnemonic} (well)` : l.mnemonic}</span>
+                            ) : (
+                              <input
+                                className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-xs w-24"
+                                value={names[l.mnemonic] ?? l.mnemonic}
+                                title="Mnemonic to save this curve under (keep the file's name or type your own)"
+                                data-testid={`wdm-las-name-${l.mnemonic}`}
+                                onChange={(e) => setNames((n) => ({ ...n, [l.mnemonic]: e.target.value }))}
+                              />
+                            )}
+                          </td>
+                          {target !== 'new' && (
+                            <td className={tdCls}>
+                              {i === 0 ? '—' : (() => {
+                                const clash = clashFor(names[l.mnemonic] ?? l.mnemonic, existing.logs);
+                                if (!clash) return <span className="text-slate-600">new</span>;
+                                return (
+                                  <select
+                                    className="rounded bg-slate-950 border border-amber-700/60 text-amber-200 px-1 py-0.5 text-[11px]"
+                                    value={onClash[l.mnemonic] || 'suffix'}
+                                    title={`The well already has ${clash.mnemonic}`}
+                                    data-testid={`wdm-las-clash-${l.mnemonic}`}
+                                    onChange={(e) => setOnClash((c) => ({ ...c, [l.mnemonic]: e.target.value }))}
+                                  >
+                                    <option value="suffix">exists · keep both (:n)</option>
+                                    <option value="replace">exists · replace</option>
+                                  </select>
+                                );
+                              })()}
+                            </td>
+                          )}
                           <td className={`${tdCls} text-slate-400 max-w-[180px] truncate`}>{l.description}</td>
                           <td className={tdCls}>
                             {l.converted
@@ -247,39 +394,6 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                     })}
                   </tbody>
                 </table>
-              </div>
-
-              <div className="flex items-center gap-4 text-xs">
-                <label className="flex items-center gap-1.5">
-                  <input
-                    type="radio"
-                    name="wdm-las-target"
-                    checked={target === 'new'}
-                    onChange={() => setTarget('new')}
-                    data-testid="wdm-las-target-new"
-                  />
-                  Create a new well
-                </label>
-                <label className="flex items-center gap-1.5">
-                  <input
-                    type="radio"
-                    name="wdm-las-target"
-                    disabled={!ownWells.length}
-                    checked={target !== 'new'}
-                    onChange={() => setTarget(ownWells[0]?.id)}
-                  />
-                  Add logs to one of my wells
-                </label>
-                {target !== 'new' && (
-                  <select
-                    className="rounded-md bg-slate-950 border border-slate-700 px-1.5 py-1 text-xs"
-                    value={target}
-                    onChange={(e) => setTarget(e.target.value)}
-                    data-testid="wdm-las-target-well"
-                  >
-                    {ownWells.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-                  </select>
-                )}
               </div>
 
               {target === 'new' && (

@@ -41,6 +41,25 @@ test('full LAS import → view → share → delete flow in the harness', async 
   await page.getByTestId('wdm-plot-GR').check();
   await expect(page.getByTestId('wdm-log-tracks')).toBeVisible();
 
+  // 2026-09-03: a second LAS lands IN the selected well, not in a new one.
+  // The wizard defaults to the selected own well; same-name curves are
+  // kept alongside with a :n suffix, one of them renamed on the way in.
+  await page.getByTestId('wdm-open-las').click();
+  await page.getByTestId('wdm-las-file').setInputFiles(LAS);
+  await expect(page.getByTestId('wdm-las-target-existing')).toBeChecked();
+  await expect(page.getByTestId('wdm-las-target-well')).toHaveValue(/.+/);
+  await expect(page.getByTestId('wdm-las-target-note')).toContainText('depth grid');
+  await expect(page.getByTestId('wdm-las-clash-GR')).toBeVisible();
+  await page.getByTestId('wdm-las-name-GR').fill('GR_RUN2');
+  await expect(page.getByTestId('wdm-las-clash-GR')).toHaveCount(0);
+  await page.getByTestId('wdm-las-import').click();
+  await expect(rows).toHaveCount(2);
+  await expect(page.getByTestId('wdm-detail-name')).toHaveText('KETA G1-1');
+  await page.getByTestId('wdm-detail-tab-logs').click();
+  await expect(page.getByTestId('wdm-log-row')).toHaveCount(9);
+  await expect(page.locator('[data-testid=wdm-log-row][data-mnemonic="GR_RUN2"]')).toHaveCount(1);
+  await expect(page.locator('[data-testid=wdm-log-row][data-mnemonic="RHOB:2"]')).toHaveCount(1);
+
   // share via the tree context menu; badge flips to org
   const ownRow = page.locator('[data-well-name="KETA G1-1"]');
   await ownRow.click({ button: 'right' });
@@ -57,7 +76,7 @@ test('full LAS import → view → share → delete flow in the harness', async 
   // delete with the dependent-data warning
   await ownRow.click({ button: 'right' });
   await page.getByText('Delete well…').click();
-  await expect(page.getByTestId('wdm-delete-warning')).toContainText('5 logs');
+  await expect(page.getByTestId('wdm-delete-warning')).toContainText('9 logs');
   await page.getByTestId('wdm-delete-confirm').click();
   await expect(rows).toHaveCount(1);
 });

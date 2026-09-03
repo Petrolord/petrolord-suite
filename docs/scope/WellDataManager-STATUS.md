@@ -171,3 +171,21 @@ function (`wellNameClashMessage`) and `inMemoryBackend.test.js` covers
 create, rename and the shared-well case. Server backstop for the
 same-owner half: `20260903120000_geo_wells_unique_name_per_owner.sql`,
 HELD for the shared-table review.
+
+## 2026-09-03: LAS lands in the selected well
+
+Owner finding: a well built from survey + checkshots received its LAS
+as a NEW well. The wizard now (a) targets the selected own well by
+default, target block first, (b) lets every curve be renamed ("Save as")
+before it is written, (c) shows "In well" for the target's existing
+curves with a per-curve choice, keep both (next `:n` suffix) or replace
+(old row deleted first), and (d) never writes a second depth curve: when
+the well already has one, incoming curves are RESAMPLED onto the well's
+depth grid (linear between finite neighbours, NaN across nulls and
+outside the LAS interval; same grid passes through). All of it is pure
+planning in `engine/mergeImport.js` (`planMerge`, `resampleToGrid`) with
+`__tests__/mergeImport.test.js`; provenance records `source_mnemonic`,
+`resampled_from`, `replaced_log_id`. The detail view reloads after an
+import into the same well (`refreshNonce`). e2e extended: second import
+of the same file into KETA G1-1 → still 2 wells, 9 logs, GR renamed
+GR_RUN2, RHOB kept as RHOB:2.
