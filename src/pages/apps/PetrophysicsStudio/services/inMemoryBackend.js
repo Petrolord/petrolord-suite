@@ -140,6 +140,34 @@ export function makeInMemoryBackend() {
       return data;
     },
     async listTops(wellId) { return [...(topsByWell.get(wellId) || [])]; },
+    // PT3: tops are edited here too (same rows Well Correlation uses)
+    async saveTop(wellId, { name, mdM, interpreter = null }) {
+      ownWell(wellId, 'add tops to this well');
+      const row = { id: nextId('top'), well_id: wellId, name, md_m: Number(mdM), interpreter };
+      if (!topsByWell.has(wellId)) topsByWell.set(wellId, []);
+      topsByWell.get(wellId).push(row);
+      topsByWell.get(wellId).sort((a, b) => a.md_m - b.md_m);
+      return row;
+    },
+    async updateTop(topId, patch) {
+      for (const [wellId, list] of topsByWell) {
+        const t = list.find((x) => x.id === topId);
+        if (t) {
+          ownWell(wellId, 'edit tops of this well');
+          if (patch.mdM !== undefined) t.md_m = Number(patch.mdM);
+          if (patch.name !== undefined) t.name = patch.name;
+          list.sort((a, b) => a.md_m - b.md_m);
+          return t;
+        }
+      }
+      throw new Error('Top not found.');
+    },
+    async deleteTop(top) {
+      ownWell(top.well_id, 'delete tops of this well');
+      const list = topsByWell.get(top.well_id) || [];
+      const i = list.findIndex((x) => x.id === top.id);
+      if (i >= 0) list.splice(i, 1);
+    },
 
     async listZones(wellId) {
       return [...(zonesByWell.get(wellId) || [])].sort((a, b) => a.top_md_m - b.top_md_m);
