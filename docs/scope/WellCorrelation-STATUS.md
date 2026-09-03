@@ -72,3 +72,61 @@ expectations. Wave 0:
 - Own wells in the ordered list link to Well Data Manager on the tops
   tab (`corr-edit-well-data-<name>`), the Petrophysics parity link.
 - e2e: `well-correlation.spec.js` "cross-app" test.
+
+## WC series (Petrel tester readiness, 2026-09-03)
+
+Petrel-expert testers take this app on 2026-09-04. The PT series fixed
+their Petrophysics findings inside Petrophysics Studio; this app would
+have re-triggered most of them on the first click (dark GR-only strip,
+four GR aliases, metres MD only, tops created by typing an MD, one zone
+band, no export). Plan of record: `/root/.claude/plans/kind-sniffing-frog.md`.
+
+| Wave | PR | What |
+|---|---|---|
+| 0 navigation | #375 | Geoscience home link in every Geoscience ribbon; Well Data Manager "Open in" launchers; `?well=` / `?wells=` deep links; reverse links; white Well Data Manager log tracks |
+| 1 shared painter | #376 | Petrophysics viewer modules moved to `src/components/wells` with shims; `trackPainter.js` extracted from TrackViewer; Field view gains fills |
+| 2 multi-track section | this PR | everything below |
+| 3 follow-ups | later | named sections, tops/zones CSV with MD/TVD/TVDSS, ghost curve, horizon flattening, TWT reference, fixed-width columns with horizontal scroll under proportional spacing, upstream `sectionFrame.js` to petrolord-engines, legacy doc cleanup |
+
+**The section now (wave 2).**
+- One real multi-track column per well from the active layout template
+  (`src/components/wells/layout`), resolved against every curve of the
+  well through the Petrophysics curves cache and alias table, so GR,
+  resistivity (log scale), density-neutron with the standard gas/shale
+  crossover, the lithology quicklook ramp and GR cut-off, and any raw
+  mnemonic (`log:<MNEMONIC>`) all draw. Parameter-bound fills read fixed
+  values (`CORR_PARAMS`: GR clean 30, clay 120, porosity 0.08, Vsh 0.4,
+  Sw 0.6). Template picker and the shared track layout editor sit in the
+  dock; the layout persists in `geo_correlation_sections.track_layout`
+  with unit, reference, spacing, zone mode and shown tops (no migration,
+  the column existed unused).
+- White printed-log palette, header scale rows, synchronized crosshair
+  with per-track readouts and each well's own MD (and TVDSS) at the
+  cursor, m or ft display.
+- Depth reference MD, TVD or TVDSS plotted (not label-swapped) through
+  the registry depth frame (`welldata/checkshots.js makeDepthFrame`); tops
+  and the datum follow. A well whose reference is not monotonic (a
+  horizontal reach) falls back to MD and says so in its header.
+- Spacing equal or proportional to surface distance along the path, the
+  distance printed in each gap.
+- Tops: dragged on the right-edge name tag, picked by click with the
+  shared name popover, renamed and deleted from the tops list (every own
+  well carrying the name; shared wells stay and the status says so),
+  propagated as before, reloaded on demand after edits in Petrophysics
+  or Well Data Manager. Same `geo_wells_tops` rows, owner-only.
+- Zones: bands between consecutive shown tops (coloured by the upper
+  top), one chosen pair, or none.
+- PNG export of the section with the title band and watermark.
+- Geometry: `engine/sectionFrame.js` (pure, analytic tests) beside the
+  untouched vendored `engine/section.js`; the sample section carries RT,
+  RHOB and NPHI and KETA-2 builds 0 to 30 degrees below 1400 m.
+- e2e reads geometry from the section's data attributes
+  (`data-axis-w`, `data-plot-top`, `data-plot-h`, `data-col-x`,
+  `data-col-w`, `data-view-top/base`) instead of hard-coded constants.
+
+**Known limits.** Proportional spacing narrows columns to 70% of the
+equal width, so four-track templates get tight on three or more wells
+(fixed-width columns with horizontal scroll are a follow-up). Rename and
+delete act by name across the section's own wells, not per well (drag
+for per-well edits). TVD-referenced picks on an uphill well are refused
+with a message.

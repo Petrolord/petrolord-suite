@@ -27,6 +27,7 @@ export function makeInMemoryBackend() {
   const publicWell = (w) => ({
     id: w.id, user_id: w.user_id, organization_id: w.organization_id, is_own: w.is_own,
     name: w.name, surface_x: w.surface_x, surface_y: w.surface_y, kb_m: w.kb_m,
+    td_md_m: w.td_md_m ?? null, deviation: w.deviation ?? null, uwi: w.uwi ?? null,
   });
 
   return {
@@ -39,7 +40,7 @@ export function makeInMemoryBackend() {
     async listLogs(wellId) {
       const meta = logMeta.get(wellId) || {};
       const curves = curvesByWell.get(wellId) || {};
-      // a log row per curve present (DEPT + GR), meta where declared
+      // a log row per curve present (DEPT, GR, RT, RHOB, NPHI), meta where declared
       return Object.keys(curves).map((mnemonic) => ({
         id: `${wellId}-log-${mnemonic}`,
         well_id: wellId,

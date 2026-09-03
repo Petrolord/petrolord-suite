@@ -109,7 +109,7 @@ export function paintTrackHeader(ctx, { track, x0, w, headerH, palette = PALETTE
   ctx.font = '11px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillStyle = palette.text;
-  ctx.fillText(track.title, x0 + w / 2, 12);
+  ctx.fillText(track.title, x0 + w / 2, 12, Math.max(8, w - 4));
   if (track.type === 'strip') return;
   ctx.font = '9px sans-serif';
   const rows = [];
