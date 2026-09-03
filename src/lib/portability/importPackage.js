@@ -30,6 +30,7 @@ import { sha256Hex } from './zipWriter';
 import { walkUuids } from './danglingRefs';
 import { verifyManifestSignature } from './signing';
 import { getStateKind, openStateRow, stampState, readStateVersion, newerStateMessage } from '@/lib/stateVersion';
+import { wellNameKey, freeWellName } from '@/lib/wellNames';
 import { PLATFORM_BUILD } from '@/lib/platformBuild';
 
 export class PackageReadError extends Error {
@@ -387,12 +388,32 @@ export function planImport(pkg, target) {
   for (const rows of Object.values(planned)) for (const r of rows) { const id = customCrsId(r.crs); if (id) referencedCrs.add(id); }
   for (const id of referencedCrs) if (!customCrs.some((d) => d.id === id)) notes.push(`Custom CRS ${id} is referenced but its definition is not in the package; rows keep the CUSTOM: tag.`);
 
-  // duplicate warnings (v1: by uwi / name only)
+  // well names: one name per registry (geo_wells_owner_name_uniq, live
+  // 2026-09-03, plus the client rule that also covers teammates' shared
+  // wells). A packaged well whose name is already taken, or that repeats
+  // a name inside the package, is imported under the first free
+  // "<name> (imported)" variant; the original name is kept in
+  // provenance.imported_from.original_name and the rename is a note the
+  // review screen shows before anything is written. UWI matches stay a
+  // warning: the copy is still independent data.
   const warnings = [];
   const existingWells = target.existing?.wells || [];
+  const taken = new Set(existingWells.map((e) => wellNameKey(e.name)).filter(Boolean));
   for (const w of planned.geo_wells || []) {
-    const dup = existingWells.find((e) => (w.uwi && e.uwi && e.uwi === w.uwi) || (e.name && e.name === w.name));
-    if (dup) warnings.push(`You already have a well named "${dup.name}"${dup.uwi ? ` (UWI ${dup.uwi})` : ''}. The import creates a second, independent copy.`);
+    const wanted = String(w.name ?? '').trim().replace(/\s+/g, ' ');
+    const free = freeWellName(wanted, taken);
+    if (free !== wanted) {
+      const clash = existingWells.find((e) => wellNameKey(e.name) === wellNameKey(wanted));
+      const who = clash ? (clash.user_id && target.userId && clash.user_id !== target.userId ? 'is shared with you by a teammate' : 'is already in your registry') : 'appears twice in the package';
+      notes.push(`Well "${wanted}" ${who}; this copy is imported as "${free}".`);
+      w.provenance = { ...(w.provenance || {}), imported_from: { ...(w.provenance?.imported_from || {}), original_name: wanted } };
+      w.name = free;
+    } else if (w.name !== wanted) {
+      w.name = wanted;
+    }
+    taken.add(wellNameKey(w.name));
+    const uwiDup = w.uwi && existingWells.find((e) => e.uwi && e.uwi === w.uwi);
+    if (uwiDup) warnings.push(`You already have a well with UWI ${w.uwi} ("${uwiDup.name}"). The import creates a second, independent copy${free !== wanted ? ` named "${free}"` : ''}.`);
   }
 
   const rowsPlanned = Object.values(planned).reduce((n, r) => n + r.length, 0);

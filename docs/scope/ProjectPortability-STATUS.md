@@ -478,10 +478,16 @@ the migrator in the same change.
 
 ## Open items
 
-- Importer vs `geo_wells_owner_name_uniq` (applied 2026-09-03): a second
-  restore of the same package into one account fails on the well insert
-  with a unique violation; readPackage/planImport should detect the clash
-  and report "well already present" (or offer a suffix) instead.
+- DONE 2026-09-03: importer vs `geo_wells_owner_name_uniq`. `planImport`
+  now picks a free name before anything is written: a packaged well whose
+  name is taken (own or a teammate's shared well, the same rule the
+  registry enforces) or repeated inside the package lands as
+  "<name> (imported)", then "(imported 2)" and so on; the original name
+  is kept in `provenance.imported_from.original_name`, the rename is a
+  plan note the review screen shows first, and UWI matches stay a
+  warning. The sink lists every visible well (RLS) with its owner so the
+  note can say whose name it was. Pure helpers in `src/lib/wellNames.js`
+  (shared with the registry and the harness backends).
 
 - DONE 2026-09-03: `20260902120500` (registries) applied after the owner
   took the shared-table review; the portability specs now mark every
