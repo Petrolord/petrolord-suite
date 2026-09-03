@@ -1,7 +1,7 @@
 -- One well name per owner (owner rule 2026-09-03).
 --
--- **HELD: shared table (geo_wells), needs a second engineer's review
--- before apply (database conventions).**
+-- Shared table (geo_wells): the owner took the second-engineer review and
+-- authorised the apply; APPLIED 2026-09-03 (gate: index unique + valid).
 --
 -- The client rule lives in src/lib/wellsRegistry.js (saveWell/updateWell
 -- refuse a name that matches, case- and whitespace-insensitively, any well

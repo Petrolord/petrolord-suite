@@ -478,6 +478,11 @@ the migrator in the same change.
 
 ## Open items
 
+- Importer vs `geo_wells_owner_name_uniq` (applied 2026-09-03): a second
+  restore of the same package into one account fails on the well insert
+  with a unique violation; readPackage/planImport should detect the clash
+  and report "well already present" (or offer a suffix) instead.
+
 - DONE 2026-09-03: `20260902120500` (registries) applied after the owner
   took the shared-table review; the portability specs now mark every
   registry table `stamped` (geo_wells family, geo_surfaces, geo_culture,
