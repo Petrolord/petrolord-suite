@@ -62,7 +62,7 @@ Checked against the central repo at `254c470`:
 | module | engine in central repo | goldens | oracles | gate |
 |---|---|---|---|---|
 | Drilling | 25 modules | 23 | yes | OPEN |
-| Production | 18 modules | 8 | 9 | OPEN for 8 of 12 apps |
+| Production | 19 modules | 9 | 9 | OPEN for 9 of 12 apps |
 | Facilities | 13 modules | 12 | 12 | OPEN |
 | Midstream & Downstream | none | 0 | none | CLOSED |
 | Economics | none | 0 | none | CLOSED |
@@ -83,12 +83,28 @@ oracle for any of it. Fixing this is the whole extraction gate for
 Midstream & Downstream, and it should be corrected on hygiene grounds
 whether or not the courses get built.
 
-**Four Production apps are not extracted.** Nodal Analysis Studio,
-Production Allocation Studio, Production Surveillance Studio and
-Artificial Lift Advisor keep their math in `src/utils/production` and
-`src/utils/nodalAnalysisCalculations.js`, about 1,600 lines with no
-golden coverage. The other eight Production apps are fully extracted
-with a golden and an oracle each.
+**Three Production apps are not extracted.** Production Allocation
+Studio, Production Surveillance Studio and Artificial Lift Advisor keep
+their math in `src/utils/production`, with no golden coverage. The other
+nine Production apps are fully extracted with a golden and an oracle
+each.
+
+CORRECTED 2026-09-04. This paragraph originally said FOUR, and named
+Nodal Analysis Studio among them. Nodal was extracted on 2026-09-03 in
+petrolord-engines PR #106, which landed `engines/production/nodal.js`,
+`test-data/production/goldens/nodal_cases.json` and a standard-library
+oracle at `tools/validation/production/oracle_nodal.py`. That closes the
+gate for PD1, which is why PD1 could start immediately after DR12 rather
+than waiting on an extraction wave. The Production row in the gate table
+is corrected with it: nine goldens against nine oracles, open for nine of
+twelve apps.
+
+A note on how the error was nearly repeated. On 2026-09-04 a local check
+of the engines repo reported the nodal extraction branch as unmerged,
+because the local `main` ref was stale, and a duplicate PR (#108) was
+opened and merged as a result. It was a no-op and did no damage, but the
+check that would have caught it is fetching before comparing, not reading
+`origin/main..HEAD` against a ref that has not been updated.
 
 **Economics has no engine directory anywhere.** The cash flow engine and
 its Monte Carlo companion live in the Suite's edge function shared
@@ -221,10 +237,22 @@ suggests, and it is deliberate.
 
 ## 10. Programme size
 
+PROGRESS, updated 2026-09-04. The Drilling close-out block is DONE: DR9
+Perforation & Sand Control, DR10 Stimulation Design, DR11 Well Integrity
+& P&A and DR12 Well Cost & Time all merged (nextgen PRs #92, #93, #94,
+#95), which completes the Drilling & Completions module at twelve
+courses and takes the academy to twenty-nine. Production is under way,
+PD1 first. Every course built in this programme ships with its go-live
+HELD, so the count of courses BUILT and the count RELEASED are different
+numbers until a NextGen production upload happens.
+
+The table below is the plan as first written and is left as it was.
+
+
 | block | courses | gate |
 |---|---|---|
 | Drilling close-out | 4 | open |
-| Production | 9 | open for 7 |
+| Production | 9 | open for 8 |
 | Facilities | 9 | open |
 | Midstream & Downstream | 5 | closed |
 | Economics | 6 | closed |
