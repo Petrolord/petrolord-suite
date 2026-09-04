@@ -107,3 +107,65 @@ Plan of record: `NodalAnalysisStudio-PLAN.md`.
 - Unarmed fixtures: Takacs mHB low-X1 chart anchor (needs the original
   Hagedorn & Brown 1965 figure, SPE 940-PA) and Guo Table 5.4 Sachdeva
   subcritical choke (needs SPE 15657 primary text).
+
+## 2026-09-04 — engine extraction to @petrolord/engines (branch `refactor/nodal-engine-extraction`)
+
+Nodal analysis is the path root of the Production course series, and
+course authoring in that programme is extraction-gated: the math lands in
+the central repo with goldens and an independent Python oracle before any
+lesson is written.
+
+- **Engines PR:** `Petrolord/petrolord-engines#106` —
+  `engines/production/nodal.js`,
+  `test-data/production/goldens/nodal_cases.json`,
+  `tools/validation/production/oracle_nodal.py`,
+  `__tests__/production.nodal.test.js` (35 gates; full engines suite
+  2270 passing).
+- Suite side is shims only, no behaviour change. `src/utils/nodal/ipr.js`
+  re-exports the oil IPR family; `iprGas.js` re-exports Rawlins-Schellhardt
+  and Houpeurt and keeps the pseudo-pressure route (m(p) is a welltest
+  table); `cullenderSmith.js` re-exports the march with the Suite's Papay
+  z injected; `system.js` re-exports `solveNodeCore`/`gasPwfAtRate` and
+  keeps the two wrappers that bind the NA2 multiphase traverse, which is
+  a Suite-side engine and was not extracted. Verified bit-identical
+  across every extracted function before the swap.
+- `src/utils/nodalAnalysisCalculations.js` deleted. It had no importers
+  anywhere in the app and was never wired to this studio: a 62-line stub
+  with a hardcoded 500 + 0.1q "VLP", a hardcoded $80/bbl and a hardcoded
+  60% choke. Extracting it would have put fake physics in the course
+  path.
+
+### What the oracle found
+
+The oracle is written from the published method statements, not from the
+JS: closed-form IPR inverses against the engine's Brent root find, the
+Cullender and Smith defining integral marched as an ODE in depth by RK4
+against the engine's two-half-step trapezoid and Simpson, a 300-to-4000
+point crossing scan with bisection against the engine's 40-point scan,
+and analytic residual slopes against the engine's central difference.
+Everything agreed to machine precision except two things, and both are
+real:
+
+1. **The two-station Cullender and Smith march is 11.6 psi low on a
+   friction-dominated gas well** (1.3 psi at 9 MMscf/d, 11.6 psi at
+   13.3 MMscf/d on an 8000 ft, 2.441 in string), which moves that well's
+   nodal operating rate by about half a per cent. The published method
+   assumes the integrand is near-linear over the whole column and that
+   stops holding when friction rivals gravity. The engine now takes a
+   `steps` input; the error falls with its square. **The studio still
+   runs the published default of two stations** — raising it is a
+   behaviour change and is a follow-on with its own gate.
+2. **A 40-point crossing scan loses a well whose two intersections have
+   pinched to less than one grid interval apart**, which is exactly the
+   shape a well takes as it approaches loading up. Gated in the engine as
+   a documented resolution requirement.
+
+Also fixed in the extracted copy: the crossing scan only ever treated a
+sample as the LEFT end of a bracket, so an exact zero residual landing on
+the last sample was dropped.
+
+### Follow-ons
+- Raise the studio's Cullender-Smith `steps` off the published two (needs
+  a re-verified staging pass; it moves displayed BHP).
+- Switch `solveGasOperatingPoint` to `gasPwfAtRateExact` for the
+  empirical families (worth about 0.6 Mscf/d in 11,000 on the gated well).
