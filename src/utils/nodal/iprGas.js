@@ -8,17 +8,28 @@
  *    - 0.75 + s + D q)), with the m(p) table built by the harness-validated
  *    Well Test Studio gas layer (buildGasPvtTable + makePseudoPressure).
  *    The optional non-Darcy coefficient D makes the equation implicit in q;
- *    solved by damped fixed-point iteration.
+ *    solved by damped fixed-point iteration. This one STAYS HERE: m(p) is
+ *    a table owned by the welltest gas layer, and it is the one route
+ *    with no closed-form inverse.
  *
- *  - backPressureIpr: Rawlins-Schellhardt q = C (pr^2 - pwf^2)^n from fitted
- *    or entered C and n (fit route reuses welltest backPressureFit).
+ *  - backPressureIpr: Rawlins-Schellhardt q = C (pr^2 - pwf^2)^n
+ *  - litIpr: Houpeurt/LIT delta = a q + b q^2 on pressure-squared
  *
- *  - litIpr: Houpeurt/LIT delta = a q + b q^2 on pressure-squared, from
- *    fitted or entered a and b.
+ * Those last two are RE-EXPORTED from the central @petrolord/engines
+ * repo (`engines/production/nodal.js`, vendored at packages/engines),
+ * where they are gated against an independent Python oracle. They now
+ * also carry `pwfAt(q)` and `qAt(pwf)`, the closed-form inverse and
+ * forward the empirical families admit, which is strictly more than
+ * this module used to return.
+ *
+ * Never edit the vendored copy from the Suite; changes go to
+ * Petrolord/petrolord-engines and are subtree-pulled back.
  */
 
 import { buildGasPvtTable, makePseudoPressure } from '../welltest/gas.js';
 import { linspace, num } from './numerics.js';
+
+export { backPressureIpr, litIpr } from '../production/engine/nodal.js';
 
 /** Sample a gas IPR curve from a q(pwf) evaluator. */
 const sampleCurve = (pr, qOf, nPoints) =>
@@ -73,44 +84,4 @@ export const darcyGasIpr = (inputs) => {
 
   const curve = sampleCurve(pr, qOf, inputs.nPoints || 40);
   return { curve, aof: qOf(0), mOfP, warnings };
-};
-
-/**
- * Rawlins-Schellhardt back-pressure IPR from coefficients.
- * inputs: { pr, c, n, nPoints }. Returns { curve, aof, warnings }.
- */
-export const backPressureIpr = ({ pr, c, n, nPoints = 40 }) => {
-  const prv = num(pr, NaN);
-  const C = num(c, NaN);
-  const nv = num(n, 1);
-  const warnings = [];
-  if (!(prv > 0) || !(C > 0)) {
-    return { curve: [], aof: NaN, warnings: ['Back-pressure IPR needs positive pr and C.'] };
-  }
-  if (nv < 0.5 || nv > 1.05) warnings.push('Deliverability exponent n outside the physical 0.5 to 1.0 band.');
-  const qOf = (pwf) => {
-    const delta = prv * prv - pwf * pwf;
-    return delta > 0 ? C * Math.pow(delta, nv) : 0;
-  };
-  return { curve: sampleCurve(prv, qOf, nPoints), aof: qOf(0), warnings };
-};
-
-/**
- * Houpeurt / LIT IPR on pressure-squared from coefficients.
- * inputs: { pr, a, b, nPoints }. Returns { curve, aof, warnings }.
- */
-export const litIpr = ({ pr, a, b, nPoints = 40 }) => {
-  const prv = num(pr, NaN);
-  const av = num(a, NaN);
-  const bv = num(b, 0);
-  if (!(prv > 0) || !(av > 0) && !(bv > 0)) {
-    return { curve: [], aof: NaN, warnings: ['LIT IPR needs positive pr and at least one positive coefficient.'] };
-  }
-  const qOf = (pwf) => {
-    const delta = prv * prv - pwf * pwf;
-    if (!(delta > 0)) return 0;
-    if (!(bv > 0)) return av > 0 ? delta / av : 0;
-    return (-av + Math.sqrt(av * av + 4 * bv * delta)) / (2 * bv);
-  };
-  return { curve: sampleCurve(prv, qOf, nPoints), aof: qOf(0), warnings: [] };
 };

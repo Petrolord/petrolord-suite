@@ -3,77 +3,41 @@
  * operating point at the bottomhole node, with stability classification
  * and sensitivity sweeps.
  *
- * The core works on injected functions (iprPwfAt(q), vlpBhpAt(q)) so the
- * closed-form validation gates exercise the exact solver used in
- * production; wrappers wire the NA1 IPR family and the NA2 traverse.
+ * WHAT MOVED AND WHAT DID NOT. The solver itself -- the crossing scan,
+ * the Brent refinement, the stability slope and the choice of the
+ * rightmost stable crossing -- now lives in the central
+ * @petrolord/engines repo at `engines/production/nodal.js`, vendored
+ * here at packages/engines (git subtree) and gated there against an
+ * independent Python oracle that scans four thousand points and
+ * bisects, and differentiates the residual analytically, where the
+ * engine scans forty and takes a central difference.
  *
- * Physics of the classification: the VLP curve is J-shaped (gravity
- * dominated and falling at low rate, friction dominated and rising at
- * high rate) while the IPR falls monotonically. Where both curves cross,
- * the node is STABLE only if the VLP slope exceeds the IPR slope
- * (d(bhp_vlp - pwf_ipr)/dq > 0): a rate perturbation then self-corrects.
- * The left-branch intersection, when present, is the unstable heading
- * point. The reported operating point is the rightmost stable crossing.
+ * What stays here is the WIRING, and it stays because of what it wires
+ * to: `solveOperatingPoint` binds the NA2 multiphase traverse
+ * (Beggs-Brill, Hagedorn-Brown, Gray, Fancher-Brown through the Suite's
+ * PVT model), which is a Suite-side engine and not an extracted one.
+ * The shared solver takes its two curves as functions precisely so that
+ * this file can hand it that traverse.
+ *
+ * Physics of the classification, unchanged: the VLP curve is J-shaped
+ * (gravity dominated and falling at low rate, friction dominated and
+ * rising at high rate) while the IPR falls monotonically. Where both
+ * curves cross, the node is STABLE only if the VLP slope exceeds the
+ * IPR slope (d(bhp_vlp - pwf_ipr)/dq > 0): a rate perturbation then
+ * self-corrects. The left-branch intersection, when present, is the
+ * unstable heading point. The reported operating point is the rightmost
+ * stable crossing.
+ *
+ * Never edit the vendored copy from the Suite; changes go to
+ * Petrolord/petrolord-engines and are subtree-pulled back.
  */
 
-import { brentSolve, linspace } from './numerics.js';
 import { pwfAtRate, rateAtPwf } from './ipr.js';
 import { bhpFromWhp } from './traverse.js';
 import { cullenderSmithBhp } from './cullenderSmith.js';
+import { gasPwfAtRate, solveNodeCore } from '../production/engine/nodal.js';
 
-const REL_SLOPE_DQ = 5e-3; // central-difference step as a fraction of qMax
-
-/**
- * Generic operating-point solve.
- * inputs: {
- *   iprPwfAt  (q) -> node inflow pressure (psia), monotone decreasing
- *   vlpBhpAt  (q) -> node outflow (required bottomhole) pressure (psia)
- *   qMax      upper rate bound (AOF or model qmax)
- *   nGrid     scan resolution (default 40)
- * }
- * returns { intersections: [{ q, pwf, stable }], op, status, curve }
- *   status: 'flowing' (stable op found) | 'dead' (outflow above inflow
- *   everywhere) | 'no-stable-solution' (crossings exist, none stable)
- */
-export const solveNodeCore = ({ iprPwfAt, vlpBhpAt, qMax, nGrid = 40 }) => {
-  if (!(qMax > 0)) return { intersections: [], op: null, status: 'dead', curve: [] };
-
-  const qs = linspace(qMax * 1e-3, qMax * 0.999, nGrid);
-  const resid = (q) => vlpBhpAt(q) - iprPwfAt(q);
-  const curve = qs.map((q) => {
-    const vlp = vlpBhpAt(q);
-    const ipr = iprPwfAt(q);
-    return { q, vlp, ipr, g: vlp - ipr };
-  });
-
-  const intersections = [];
-  for (let i = 1; i < curve.length; i += 1) {
-    const a = curve[i - 1];
-    const b = curve[i];
-    if (!Number.isFinite(a.g) || !Number.isFinite(b.g)) continue;
-    if (a.g === 0) intersections.push(refine(a.q, resid, iprPwfAt, qMax));
-    if (a.g * b.g < 0) {
-      const solved = brentSolve(resid, a.q, b.q, { tol: Math.max(qMax * 1e-8, 1e-8) });
-      if (solved.converged) intersections.push(refine(solved.root, resid, iprPwfAt, qMax));
-    }
-  }
-
-  const stable = intersections.filter((x) => x.stable);
-  const op = stable.length > 0 ? stable[stable.length - 1] : null;
-  const status = op
-    ? 'flowing'
-    : intersections.length > 0
-      ? 'no-stable-solution'
-      : 'dead';
-  return { intersections, op, status, curve };
-};
-
-const refine = (q, resid, iprPwfAt, qMax) => {
-  const dq = qMax * REL_SLOPE_DQ;
-  const gPlus = resid(Math.min(q + dq, qMax));
-  const gMinus = resid(Math.max(q - dq, qMax * 1e-6));
-  return { q, pwf: iprPwfAt(q), stable: gPlus > gMinus };
-};
+export { solveNodeCore, gasPwfAtRate } from '../production/engine/nodal.js';
 
 /**
  * Oil-well operating point: NA1 IPR model x NA2 traverse.
@@ -89,28 +53,20 @@ export const solveOperatingPoint = ({ ipr, vlp, nGrid = 40 }) => {
   return { ...solveNodeCore({ iprPwfAt, vlpBhpAt, qMax, nGrid }), qMax };
 };
 
-/** Interpolated pwf(q) over a sampled gas IPR curve ({ pwf, q } points). */
-export const gasPwfAtRate = (iprResult, q) => {
-  const pts = [...iprResult.curve].sort((a, b) => a.q - b.q);
-  if (pts.length === 0) return NaN;
-  if (q <= pts[0].q) return pts[0].pwf;
-  for (let i = 1; i < pts.length; i += 1) {
-    if (q <= pts[i].q) {
-      const a = pts[i - 1];
-      const b = pts[i];
-      const t = b.q === a.q ? 0 : (q - a.q) / (b.q - a.q);
-      return a.pwf + t * (b.pwf - a.pwf);
-    }
-  }
-  return 0;
-};
-
 /**
  * Gas-well operating point: sampled gas IPR (darcy/back-pressure/LIT) x
  * a gas column. outflow: 'cullenderSmith' (dry gas, vlp holds the
  * cullenderSmithBhp inputs sans rate) or 'gray' (wet gas via the
  * traverse; vlp holds bhpFromWhp inputs with rates { wgr, cgr }).
  * Rates in Mscf/d throughout.
+ *
+ * The inflow is read off the SAMPLED curve rather than inverted, because
+ * the pseudo-pressure route has no inverse to invert: m(p) is a table.
+ * The engine now exposes `gasPwfAtRateExact`, which uses the closed form
+ * where the empirical families admit one; switching to it moves the
+ * operating rate of a gated well by about half a Mscf/d in eleven
+ * thousand and is a studio behaviour change, so it is a follow-on rather
+ * than part of the extraction.
  */
 export const solveGasOperatingPoint = ({ iprResult, outflow = 'cullenderSmith', vlp, nGrid = 40 }) => {
   const qMax = iprResult.aof;
