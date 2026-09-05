@@ -1,4 +1,5 @@
 import { describeGridResult, reportableSkips } from '../services/gridStatus';
+import { contourPlan } from '../components/MapCanvas';
 
 const spec = { nx: 31, ny: 21 };
 
@@ -23,4 +24,27 @@ test('lists only the wells the engine could not place, with the reason text, and
 test('attribute maps have no depth reference', () => {
   const result = { points: [1, 2, 3], skipped: [], extrapolated: 0, depthRef: null };
   expect(describeGridResult({ name: 'phi_avg attribute', result, spec })).toContain('(attribute)');
+});
+
+describe('contourPlan (MapCanvas)', () => {
+  const grid = Float32Array.from([-1500, -1480, -1460, -1440]); // 60 m span = 196.9 ft
+  test('automatic step is nice in the display unit and labels are integers', () => {
+    const ft = contourPlan({ grid, typed: '', unit: 'ft' });
+    expect(ft.stepDisp).toBe(20); // 196.9 ft / ~10 levels
+    expect(ft.stepM).toBeCloseTo(20 * 0.3048, 9);
+    expect(ft.format(-1500)).toBe('-4921');
+    const m = contourPlan({ grid, typed: '', unit: 'm' });
+    expect(m.stepDisp).toBe(10); // contourLevels rounds the 60 m span up to a 10 m step
+    expect(m.format(-1480)).toBe('-1480');
+  });
+  test('a typed interval wins and converts to metres', () => {
+    const p = contourPlan({ grid, typed: '25', unit: 'ft' });
+    expect(p.stepM).toBeCloseTo(7.62, 9);
+    expect(p.stepDisp).toBe(25);
+  });
+  test('attributes ignore the unit', () => {
+    const p = contourPlan({ grid: Float32Array.from([0.1, 0.2, 0.3]), typed: '', unit: 'ft', isLength: false });
+    expect(p.stepDisp).toBeCloseTo(0.05, 9);
+    expect(p.format(0.2)).toBe('0.20');
+  });
 });

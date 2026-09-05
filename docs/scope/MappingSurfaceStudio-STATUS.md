@@ -114,3 +114,38 @@ e2e never saw it.
   convention `elevation`), `src/lib/__tests__/surfaceConvention.test.js`;
   e2e: TVDSS and ft in the status and z-range, unit toggle, zone select,
   top-to-base isochore.
+
+## 2026-09-05: MS1, the Map Window (MS series)
+
+The fixed 460 px canvas is replaced by the shared map viewport
+(`src/components/maps/MapViewport`, see MappingSurfaceStudio-ROADMAP.md
+MS1): fill-height, wheel zoom at the cursor, drag to pan, double-click
+or `0` to fit, `+`/`-`, zoom buttons, a cursor readout (world X/Y and
+the value under the pointer in the display unit), labelled contours
+with the major levels heavier, wells with their posted control value and
+a marker at the borehole position when it differs from the wellhead,
+a colour bar with nice ticks and the contour interval, a scale bar, a
+north arrow and optional Easting/Northing axes.
+
+- Display section in the dock (`map-contour-interval` in the display
+  unit, `map-colormap` over the structure ramp plus every shared colour
+  map, `map-show-reverse|labels|names|posted|legend|scaleBar|north|axes`);
+  the settings publish with the surface in `provenance.display` and
+  restore on select. Published rows also carry `provenance.points`
+  (well, x, y, z, md, extrapolated), so posted values come back on a
+  saved surface.
+- `map-export-png` in the ribbon downloads a titled, captioned,
+  logo-stamped PNG (`mapPlotPng`, offscreen re-paint at 2x).
+- The canvas exposes `data-scale`, `data-fit-scale`, `data-cx`,
+  `data-cy`, `data-vw`, `data-vh`, `data-fit-pad`, `data-contour-step`
+  for e2e; `map-readout` is the cursor readout.
+- Defect fixed in passing: the raster was drawn with grid row 0 at the
+  top of the map while row 0 is the southern edge, so the colour fill
+  was mirrored north-south against the contours and the wells (both
+  here and in Earth Modeling since G4/G8). `paintRaster` now flips the
+  bitmap and its test pins the anchor and the negative y scale.
+- Tests: `src/components/maps/__tests__/{mapTransform,contourLabels,
+  mapPainter,MapViewport,shims}.test.js(x)`; e2e: wheel zoom changes
+  `data-scale`, double-click restores the fit, the readout shows an
+  elevation in ft, a typed interval sets `data-contour-step`, the PNG
+  download. Earth Modeling and Seismolord specs unchanged.

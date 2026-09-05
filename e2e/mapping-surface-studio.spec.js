@@ -30,6 +30,33 @@ test('grid a top, render the map, publish, isochore, delete', async ({ page }) =
   await expect(page.getByTestId('map-zrange')).toContainText('z -');
   const box = await page.getByTestId('map-canvas').boundingBox();
   expect(box.width).toBeGreaterThan(300);
+  // MS1 map window: wheel zoom changes the scale, double-click restores
+  // the fit, the readout samples under the cursor, the contour interval
+  // is typed in the display unit, a titled PNG downloads
+  const canvas = page.getByTestId('map-canvas');
+  const fitScale = Number(await canvas.getAttribute('data-scale'));
+  expect(Number(await canvas.getAttribute('data-fit-scale'))).toBeCloseTo(fitScale, 9);
+  await canvas.hover({ position: { x: box.width / 2, y: box.height / 2 } });
+  await expect(page.getByTestId('map-readout')).toContainText('z -');
+  await expect(page.getByTestId('map-readout')).toContainText('ft');
+  await page.mouse.wheel(0, -300);
+  await expect.poll(async () => Number(await canvas.getAttribute('data-scale'))).toBeGreaterThan(fitScale * 1.2);
+  await canvas.dblclick({ position: { x: box.width / 2, y: box.height / 2 } });
+  await expect.poll(async () => Number(await canvas.getAttribute('data-scale'))).toBeCloseTo(fitScale, 6);
+  const autoStep = Number(await canvas.getAttribute('data-contour-step'));
+  await page.getByTestId('map-contour-interval').fill('25');
+  await expect.poll(async () => Number(await canvas.getAttribute('data-contour-step'))).toBeCloseTo(25 * 0.3048, 6);
+  expect(autoStep).not.toBeCloseTo(25 * 0.3048, 6);
+  await page.getByTestId('map-contour-interval').fill('');
+  await page.getByTestId('map-colormap').selectOption('structure');
+  await page.getByTestId('map-show-axes').check();
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('map-export-png').click(),
+  ]);
+  expect(download.suggestedFilename()).toContain('map.png');
+  await expect(page.getByTestId('map-status')).toContainText('Exported');
+
   // metres on demand, and back
   await page.getByTestId('map-depth-unit').click();
   await expect(page.getByTestId('map-zrange')).toContainText(' m ');

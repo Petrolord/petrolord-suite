@@ -324,7 +324,7 @@ export default function EarthWorkstation({ backend }) {
         drawing={drawing}
         onMapClick={({ x, y }) => setPending((p) => [...p, [x, y]])}
         contours={layer !== 'blocks'}
-        label={`${zoneName} — ${layerLabel}`}
+        label={`${zoneName} · ${layerLabel}`}
       />
     </div>
   );
