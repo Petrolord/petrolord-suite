@@ -270,3 +270,28 @@ sidebar is hidden on every app route, so the ribbon was a dead end).
 - Log quick-view tracks (`LogTracks.jsx`) moved to the white printed-log
   palette Petrophysics uses, so a log looks the same in all three apps.
 - e2e: `well-data-manager.spec.js` "cross-app" test.
+
+## 2026-09-05: PT8, the surface location is editable
+
+Filed as Petrophysics tester feedback, but the well Header tab is this
+app's — Petrophysics links here to edit a header.
+
+- Surface X and Y were static text on the Header tab while KB, TD and
+  CRS were editable, so a well imported with the wrong location could
+  only be fixed by deleting and re-importing it. Both are now inputs in
+  the same Header edit mode (`wdm-header-x`, `wdm-header-y`), validated
+  as finite numbers and carried in the same Save header payload.
+- They are world coordinates already expressed in the well's CRS, so
+  nothing is transformed and the m/ft selector — a depth unit for KB and
+  TD — does not touch them. The field labels name the frame the numbers
+  are in (`Surface X (m, <CRS>)`, or "CRS not assigned").
+- `updateWellData` accepts `surfaceX` / `surfaceY` in both
+  `lib/wellsRegistry.js` and the harness backend, rejecting anything
+  non-finite with the message the panel shows; `null` clears a
+  coordinate.
+- A cleared coordinate is a state a well could already reach, so
+  `WellsMap` now fits its extent over the wells that have a location
+  (exported `mappable`) instead of reading a null as zero and dragging
+  the extent to the origin.
+- e2e: the PT1 checkshots test now also edits the location and asserts
+  the non-finite rejection.
