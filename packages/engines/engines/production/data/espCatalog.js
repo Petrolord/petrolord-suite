@@ -75,6 +75,19 @@ export const referenceStage = (id) =>
  * Copper conductor resistance, ohms per 1000 ft at 77 degF (standard
  * AWG table values for stranded copper). Ampacity is intentionally
  * absent: it is a manufacturer and temperature number.
+ *
+ * The consequence, stated here so it is not discovered downstream:
+ * `espMotorCable.selectCable` cannot check ampacity against a candidate
+ * that carries no `ampacityA`, so run against THIS table every size
+ * comes back `ampacityChecked: false` and the pick is made on voltage
+ * drop alone. Supply `ampacityA` from the manufacturer's chart at the
+ * conductor temperature to get the second half of the check.
+ *
+ * The field used to be called `ampacityOk` and used to read TRUE here,
+ * which is the reverse of the truth: no check had run. Item 4 of the
+ * owner's 4 September 2026 decisions renamed it, on the rule that a
+ * quality signal which does not measure what its name says is worse
+ * than no field at all.
  */
 export const CABLE_SIZES = [
   { awg: '6', label: '6 AWG', ohmsPer1000FtAt77F: 0.4028 },
