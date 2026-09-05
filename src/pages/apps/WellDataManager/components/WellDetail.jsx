@@ -94,6 +94,11 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
   // PT1: leave any edit mode when the well changes
   useEffect(() => { setEditor(null); setCsView(null); }, [well.id]);
 
+  // PT8: the frame the surface coordinates are already in. Editing them
+  // never transforms anything, so the label states the frame plainly.
+  const crsTag = crsPatch?.crs ?? well.crs;
+  const crsLabel = crsTag || 'CRS not assigned';
+
   const entered = useMemo(() => conventionOf(well), [well]);
   const csDisplay = csView || entered;
   const frame = useMemo(() => makeDepthFrame({ deviation: well.deviation, kbM: well.kb_m ?? 0, tdMdM: well.td_md_m }), [well.deviation, well.kb_m, well.td_md_m]);
@@ -118,7 +123,18 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
 
   const startEdit = (which) => {
     if (which === 'Header') {
-      setEditor({ tab: 'Header', fields: { kb: numCell(well.kb_m ?? 0, 3), td: well.td_md_m == null ? '' : numCell(well.td_md_m, 2), unit: 'm' }, error: null, busy: false });
+      setEditor({ tab: 'Header',
+        fields: {
+          // PT8: surface coordinates are CRS world coordinates, so they are
+          // NOT touched by the m/ft selector below (that is a depth unit).
+          x: well.surface_x == null ? '' : numCell(Number(well.surface_x), 3),
+          y: well.surface_y == null ? '' : numCell(Number(well.surface_y), 3),
+          kb: numCell(well.kb_m ?? 0, 3),
+          td: well.td_md_m == null ? '' : numCell(well.td_md_m, 2),
+          unit: 'm',
+        },
+        error: null,
+        busy: false });
     } else if (which === 'Tops') {
       setEditor({ tab: 'Tops', mode: 'grid', conv: { mdUnit: 'm' }, pasted: null, error: null, busy: false,
         rows: (tops || []).map((t) => ({ id: t.id, name: t.name, md: numCell(t.md_m, 2), interpreter: t.interpreter || '' })) });
@@ -145,13 +161,23 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
     try {
       if (editor.tab === 'Header') {
         const f = editor.fields;
+        // PT8: a blank coordinate clears it; anything else must be finite.
+        // The value is stored as typed — it is already in the well's CRS.
+        const coord = (raw, label) => {
+          if (String(raw).trim() === '') return null;
+          const v = Number(raw);
+          if (!Number.isFinite(v)) throw new Error(`${label} must be a number in the well's CRS (${crsLabel}).`);
+          return v;
+        };
+        const surfaceX = coord(f.x, 'Surface X');
+        const surfaceY = coord(f.y, 'Surface Y');
         const kbRaw = Number(f.kb);
         if (!Number.isFinite(kbRaw)) throw new Error(`KB must be a number (${f.unit} above datum).`);
         const kbM = f.unit === 'ft' ? kbRaw * M_PER_FT : kbRaw;
         let tdMdM = f.td.trim() === '' ? null : Number(f.td);
         if (tdMdM !== null && !(tdMdM > 0)) throw new Error(`TD must be a positive number (${f.unit} MD).`);
         if (tdMdM !== null && f.unit === 'ft') tdMdM *= M_PER_FT;
-        const patch = { kbM, tdMdM };
+        const patch = { surfaceX, surfaceY, kbM, tdMdM };
         let note = '';
         if ((well.checkshots || []).length && Math.abs(kbM - (well.kb_m ?? 0)) > 1e-9) {
           if (well.checkshots_provenance) {
@@ -349,8 +375,20 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
         {tab === 'Header' && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-3 max-w-2xl">
             <Field label="UWI">{well.uwi}</Field>
-            <Field label="Surface X (m)">{fmt(well.surface_x)}</Field>
-            <Field label="Surface Y (m)">{fmt(well.surface_y)}</Field>
+            <Field label={`Surface X (m, ${crsLabel})`}>
+              {editor?.tab === 'Header' ? (
+                <input className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-32"
+                  value={editor.fields.x} onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, x: e.target.value } }))}
+                  data-testid="wdm-header-x" placeholder="blank = not set" />
+              ) : fmt(well.surface_x)}
+            </Field>
+            <Field label={`Surface Y (m, ${crsLabel})`}>
+              {editor?.tab === 'Header' ? (
+                <input className="rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-32"
+                  value={editor.fields.y} onChange={(e) => setEditor((ed) => ({ ...ed, fields: { ...ed.fields, y: e.target.value } }))}
+                  data-testid="wdm-header-y" placeholder="blank = not set" />
+              ) : fmt(well.surface_y)}
+            </Field>
             <Field label="KB (m)">
               {editor?.tab === 'Header' ? (
                 <span className="flex items-center gap-1">
@@ -374,8 +412,8 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
             </Field>
             <Field label="CRS">
               <span className="flex items-center gap-2 flex-wrap">
-                <CrsBadge tag={crsPatch?.crs ?? well.crs} />
-                {(crsPatch?.crs ?? well.crs) == null && (
+                <CrsBadge tag={crsTag} />
+                {crsTag == null && (
                   <button
                     type="button"
                     className="text-cyan-400 hover:underline"

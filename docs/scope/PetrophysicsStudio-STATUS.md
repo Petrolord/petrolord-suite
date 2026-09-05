@@ -326,3 +326,80 @@ included.
 - Wave 2 of the WC series moved `LayoutPanel.jsx` to
   `src/components/wells/LayoutPanel.jsx` (shim left in place) so Well
   Correlation offers the same track layout editor.
+
+## 2026-09-05: PT8, five tester findings
+
+Branch `pt8/tester-fixes` off main 8362af800. Jest 395 pass across
+`components/wells`, Petrophysics, Well Correlation and Well Data
+Manager; e2e 37 pass against the dev harness on 8201.
+
+**1. Surface X and Y editable (Well Data Manager).** The finding was
+filed against Petrophysics but the well Header tab is Well Data
+Manager's — Petrophysics links there to edit a header. `WellDetail`'s
+Header edit mode now includes both coordinates beside KB and TD,
+validated as finite numbers and carried in the same Save payload
+(`updateWellData` in `lib/wellsRegistry.js` and the harness backend).
+They are world coordinates already in the well's CRS, so nothing is
+transformed and the m/ft selector — a depth unit — does not touch them;
+the field labels name the frame. A blank coordinate clears it, so
+`WellsMap` now fits its extent over wells that have a location rather
+than reading a null as zero.
+
+**2. Top depths editable, and zones follow.** Two doors onto one move:
+an editable depth field in the Tops panel, and dragging a top anywhere
+along its line on the track (PT3 could only drag the name tag at the far
+right edge, which no tester found). Optional snap to the nearest logged
+sample. `hitTest.hitTrackDragAt` states the precedence in one
+unit-tested place: the tag grabs its top, a zone edge wins mid-plot, and
+past both the top's line is a handle.
+
+Moving a top re-cuts every zone that references it, so net, gross, NTG
+and the average porosity, Sw and Vsh recompute against the new interval.
+"References" is `zonePlanner.planZonesAfterTopMove`: by recorded
+provenance where a zone was created from tops (zones now store which
+tops drew their edges in `properties.from_tops`), else by an edge
+sitting on the top's old depth, which carries zones that predate the
+link. A zone that records provenance is judged by that alone. A move
+that would put a base above its top is reported and skipped. The
+publish path carries `from_tops` forward instead of replacing it with
+the summary snapshot.
+
+**3. PNG button in the toolbar.** Exports the visible depth window and
+current track set at a fixed 2x, captioned with the well, that range and
+the datum. Reuses the Well Correlation composer
+(`components/wells/plotPng.js`), which gained the caption line and an
+explicit `scale` — an offscreen canvas reports `clientWidth` 0 and would
+otherwise band a 2x image at 1x. `TrackViewer`'s static layer is now one
+function painting in CSS coordinates with the caller setting the
+transform, so screen and export draw the same picture at different
+scales. The Export dialog's entry asks the viewer for that same render
+instead of reaching into the DOM, so there is one composer, not two.
+
+**4. Pickett zone filter.** A multi-select over the well's zones,
+defaulting to all of them; two or more selected colours the points by
+zone with a swatch key. Rules in pure `services/zoneFilter.js`: "all
+zones" means every sample including depths in no zone, overlaps resolve
+first-by-top as the zoned pipeline does, and a selection naming only
+deleted zones falls back to no filter rather than blanking the plot. The
+brush now acts on the filtered points. Every crossplot gained a PNG
+button — the filter had to be carried into an image export and there was
+none — and the Pickett caption records the zones.
+
+**5. Depth navigator left; MD/TVD/TVDSS columns.** The PT5 navigator
+moved from the far right to the left, against the depth scale it
+scrolls. The gutter takes one column per depth reference, picked in the
+status bar, through the canonical welldata frame (`makeDepthFrame`) the
+checkshot door and the LAS/CSV depth columns already use. Plotting stays
+MD-linear; the columns label the same rows in their own reference.
+`paintDepthAxis` gained `drawGrid`/`gridLeft`, defaults unchanged, so
+Well Correlation and the Field view paint exactly as before.
+
+**Retired.** The PS10 `axis: MD/TVD` toggle (TVD values on MD spacing,
+caveated in its own axis title) and its `makeTvdLookup` helper — real
+side-by-side columns replace them.
+
+**Also.** The ribbon now wraps as a whole: eleven controls plus the new
+PNG button had pushed Help and Parameters off the right edge at 1440 and
+wrapped the subtitle to five lines.
+
+Open: owner staging walk, prod zip + upload.

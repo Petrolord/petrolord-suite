@@ -12,7 +12,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
-import { FlaskConical, Loader2, UploadCloud, Save, Layers, PenLine, FileDown, Database, HelpCircle } from 'lucide-react';
+import {
+  FlaskConical, Loader2, UploadCloud, Save, Layers, PenLine, FileDown, Database, HelpCircle, ImageDown,
+} from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import WellExplorer from './WellExplorer';
@@ -37,11 +39,11 @@ import {
 import { faciesCurve } from '../engine/crossplot';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate, getTopStyles, setTopStyle, setShowAllTops } from '../layout/layoutSchema';
 import TopsPanel from './TopsPanel';
-import { validateZoneWindow } from '../services/zonePlanner';
+import { validateZoneWindow, planZonesAfterTopMove } from '../services/zonePlanner';
 import { nameKey, digitizedCurveName } from '@/lib/curveNames';
 import { resolveTracks } from '../layout/resolveTracks';
 import { mapLogs } from '../services/curveMap';
-import { makeTvdLookup, depthLabel } from '../viewer/depthModes';
+import { depthLabel, DEPTH_TRACK_KEYS, DEPTH_TRACK_TITLE } from '../viewer/depthModes';
 
 /** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
  *  the explorer's "Edit well data" link opens (the harness points at its
@@ -90,7 +92,12 @@ export default function PetroWorkstation({
   // substituted silently; the user selects it per input key
   const curvePicksRef = useRef({ wellId: null, picks: {} });
   const [selection, setSelection] = useState(null);            // PS10 crossplot brush (Set of sample idx)
-  const [depthMode, setDepthMode] = useState('md');            // 'md' | 'tvd' labels
+  // PT8: which depth references get their own gutter column. Replaces the
+  // PS10 axis-label swap, which showed TVD values on MD spacing and had to
+  // caveat itself in the axis title.
+  const [depthTracks, setDepthTracks] = useState(['md']);
+  const [snapSamples, setSnapSamples] = useState(false);       // PT8 drag snapping
+  const trackExportRef = useRef(null);                         // PT8 track PNG
   const [crossplotCfg, setCrossplotCfg] = useState(null);      // persisted to petro_projects.crossplots
 
   useEffect(() => {
@@ -341,6 +348,9 @@ export default function PetroWorkstation({
       const props = zonePropertiesSnapshot(summary, { ...params, ...(zoneParams[zone.id] || {}) }, {
         projectId, interpretationName: projectName, publishedAt: new Date().toISOString(),
       });
+      // publishZone REPLACES properties, so carry the PT8 top provenance
+      // forward or the zone stops following the tops it was cut from
+      if (zone.properties?.from_tops) props.from_tops = zone.properties.from_tops;
       await backend.publishZone(zone, props);
       setStatus(`Published ${zone.name} summary.`);
       await refreshZones(zone.well_id);
@@ -365,16 +375,50 @@ export default function PetroWorkstation({
   const canReadScan = typeof backend.readScan === 'function';
   const readScan = (req) => backend.readScan(req);
 
+  // PT8: one-click PNG of the log display as it stands — the visible depth
+  // window and the current track set, at 2x, captioned with the well, that
+  // depth range and the datum the depths are measured from. Same composer
+  // as Well Correlation's PNG button.
+  const trackPngBlob = useCallback(async () => {
+    if (!trackExportRef.current) throw new Error('Open the Tracks view first, then export the plot.');
+    const [top, base] = trackExportRef.current.visibleRange();
+    const kb = Number(selected?.kb_m);
+    const datum = Number.isFinite(kb) ? `datum KB ${depthLabel(kb, depthUnit)}` : 'datum: KB not recorded';
+    const blob = await trackExportRef.current.toPng({
+      title: `${selected.name} · Petrophysics Studio`,
+      caption: `${depthLabel(top, depthUnit)} to ${depthLabel(base, depthUnit)} MD · ${datum}`
+        + `${projectName ? ` · ${projectName}` : ''}`,
+    });
+    return { blob, top, base };
+  }, [selected, depthUnit, projectName]);
+
+  const exportTrackPng = async () => {
+    try {
+      const { blob, top, base } = await trackPngBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${String(selected.name).replace(/[^\w.-]+/g, '_')}_tracks.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStatus(`Exported the log display as PNG (${depthLabel(top, depthUnit)} to ${depthLabel(base, depthUnit)}).`);
+    } catch (e) {
+      setStatus(e.message);
+    }
+  };
+
   const workspaceState = () => ({
     params, facies: faciesByWell, zone_params: zoneParams, layouts, crossplots: crossplotCfg || {},
   });
 
-  // PS10: TVD axis labels, gated on a usable deviation survey
-  const tvdLookup = useMemo(() => {
-    if (depthMode !== 'tvd') return null;
-    return makeTvdLookup(selected?.deviation);
-  }, [depthMode, selected]);
   const hasDeviation = Array.isArray(selected?.deviation) && selected.deviation.length >= 2;
+  const toggleDepthTrack = (key) => setDepthTracks((cols) => {
+    const next = DEPTH_TRACK_KEYS.filter((k) => (k === key ? !cols.includes(k) : cols.includes(k)));
+    // the gutter always keeps one column; MD is the one that needs no survey
+    return next.length ? next : ['md'];
+  });
 
   // ---- tops (PT3): the same geo_wells_tops rows Well Correlation uses ----
   const topStyles = useMemo(() => getTopStyles(layouts), [layouts]);
@@ -395,13 +439,34 @@ export default function PetroWorkstation({
       setStatus(`Added top ${name} at ${depthLabel(mdM, depthUnit)}.`);
     } catch (e) { setStatus(e.message); } finally { setTopsBusy(false); }
   };
+  // PT8: a top is a zone boundary, so moving one re-cuts every zone that
+  // references it (by recorded provenance, else by sitting on its old
+  // depth) and the zone summaries recompute off the new window. The zone
+  // rows are what publish, so the re-cut travels with the interpretation.
   const moveTop = async (top, mdM) => {
+    if (!Number.isFinite(mdM)) { setStatus('A top depth must be a number.'); return; }
+    if (Math.abs(mdM - top.md_m) < 1e-9) return;
+    const wellId = top.well_id || wellData.wellId;
     setTopsBusy(true);
     try {
       await backend.updateTop(top.id, { mdM });
-      await refreshTops(top.well_id || wellData.wellId);
-      setStatus(`Moved ${top.name} to ${depthLabel(mdM, depthUnit)}.`);
-    } catch (e) { setStatus(e.message); await refreshTops(wellData.wellId); } finally { setTopsBusy(false); }
+      const { moves, blocked } = planZonesAfterTopMove(zones, { id: top.id, fromMdM: top.md_m, toMdM: mdM });
+      let recut = 0;
+      for (const m of moves) {
+        await backend.updateZone(m.zone.id, m.patch);
+        recut++;
+      }
+      await refreshTops(wellId);
+      if (recut) await refreshZones(wellId);
+      const parts = [`Moved ${top.name} to ${depthLabel(mdM, depthUnit)}.`];
+      if (recut) parts.push(`Re-cut ${recut} zone${recut === 1 ? '' : 's'} (${moves.map((m) => m.zone.name).join(', ')}).`);
+      for (const b of blocked) parts.push(`${b.reason} — left as it was.`);
+      setStatus(parts.join(' '));
+    } catch (e) {
+      setStatus(e.message);
+      await refreshTops(wellId);
+      await refreshZones(wellId);
+    } finally { setTopsBusy(false); }
   };
   const renameTop = async (top, name) => {
     if (topNameTaken(name, top.id)) { setStatus(`A top named ${name} already exists on this well.`); return; }
@@ -531,11 +596,17 @@ export default function PetroWorkstation({
   };
 
   const ribbon = (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
       <ModuleHomeLink module="geoscience" testId="petro-home" />
       <FlaskConical className="w-4 h-4 text-cyan-400" />
-      <span className="text-sm font-semibold text-slate-100">Petrophysics Studio</span>
-      <span className="text-[11px] text-slate-500">log analysis on the shared well registry</span>
+      <span className="text-sm font-semibold text-slate-100 whitespace-nowrap">Petrophysics Studio</span>
+      {/* decorative, and the first thing to go: this ribbon carries eleven
+          controls, so below a genuinely wide viewport the subtitle drops
+          out rather than wrapping and pushing the toolbar onto a second
+          row (PT8 added the PNG button) */}
+      <span className="hidden min-[1750px]:inline text-[11px] text-slate-500 whitespace-nowrap">
+        log analysis on the shared well registry
+      </span>
       <div className="ml-4 flex items-center gap-1">
         <button
           type="button"
@@ -644,6 +715,19 @@ export default function PetroWorkstation({
         </button>
         <button
           type="button"
+          data-testid="petro-export-png-toolbar"
+          disabled={!wellData || view === 'crossplot' || view === 'histogram' || view === 'field'}
+          title={wellData && (view === 'crossplot' || view === 'histogram' || view === 'field')
+            ? 'Switch to Tracks or Split to export the log display'
+            : 'Download the log display as a PNG image'}
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          onClick={exportTrackPng}
+        >
+          <ImageDown className="w-3.5 h-3.5" /> PNG
+        </button>
+        <button
+          type="button"
           data-testid="petro-export"
           disabled={!wellData || !computed}
           title="Export CSV, LAS or a PDF summary report"
@@ -709,17 +793,27 @@ export default function PetroWorkstation({
       <span className="ml-auto whitespace-nowrap">
         {selected ? `${selected.name} · ${wellData?.curves.DEPT?.length ?? '…'} samples` : `${wells?.length ?? '…'} wells`}
       </span>
-      {hasDeviation && (
-        <button
-          type="button"
-          data-testid="petro-depth-mode"
-          title="Axis labels only: TVD values shown at MD spacing (the axis says so)"
-          className="whitespace-nowrap rounded border border-slate-800 px-1.5 text-slate-400 hover:text-slate-200"
-          onClick={() => setDepthMode((m) => (m === 'md' ? 'tvd' : 'md'))}
-        >
-          axis: {depthMode === 'tvd' ? 'TVD' : 'MD'}
-        </button>
-      )}
+      <span className="flex items-center gap-1.5 whitespace-nowrap" data-testid="petro-depth-tracks">
+        <span className="text-slate-500">depth tracks</span>
+        {DEPTH_TRACK_KEYS.map((k) => (
+          <label
+            key={k}
+            className={`flex items-center gap-0.5 ${k !== 'md' && !hasDeviation ? 'text-slate-600' : 'text-slate-400'}`}
+            title={k === 'md' ? 'Measured depth below KB'
+              : hasDeviation
+                ? `${DEPTH_TRACK_TITLE[k]} through this well's survey and KB`
+                : `No deviation survey: ${DEPTH_TRACK_TITLE[k]} treats the well as vertical`}
+          >
+            <input
+              type="checkbox"
+              data-testid={`petro-depth-track-${k}`}
+              checked={depthTracks.includes(k)}
+              onChange={() => toggleDepthTrack(k)}
+            />
+            {DEPTH_TRACK_TITLE[k]}
+          </label>
+        ))}
+      </span>
       <button
         type="button"
         data-testid="petro-depth-unit"
@@ -796,10 +890,13 @@ export default function PetroWorkstation({
         onSelectionChange={setSelection}
         initialConfig={crossplotCfg}
         onConfigChange={setCrossplotCfg}
+        zones={zones}
+        wellName={selected?.name}
       />
     );
     const tracksEl = (
       <TrackViewer
+        ref={trackExportRef}
         depth={wellData.curves.DEPT}
         tracks={tracks}
         zones={zones}
@@ -813,9 +910,11 @@ export default function PetroWorkstation({
         onPickCancel={() => { setPickMode(null); setStatus('Pick finished.'); }}
         depthUnit={depthUnit}
         selection={selection}
-        tvdLookup={tvdLookup}
+        depthTracks={depthTracks}
+        well={selected}
         isOwn={!!selected?.is_own}
         onZoneEdge={commitZoneEdge}
+        snapSamples={snapSamples}
         onTrackHeaderClick={(index) => {
           setDockOpen(true);
           setLayoutFocus({ index, nonce: Date.now() });
@@ -882,8 +981,11 @@ export default function PetroWorkstation({
               pickMode={pickMode}
               onPick={setPick}
               onRename={renameTop}
+              onMove={moveTop}
               onDelete={removeTop}
               depthUnit={depthUnit}
+              snapSamples={snapSamples}
+              onSnapSamples={setSnapSamples}
             />
           )}
           {wellData && (
@@ -958,6 +1060,7 @@ export default function PetroWorkstation({
         summaries={summaries}
         projectId={projectId}
         projectName={projectName}
+        trackPng={trackPngBlob}
         onStatus={setStatus}
       />
     )}
