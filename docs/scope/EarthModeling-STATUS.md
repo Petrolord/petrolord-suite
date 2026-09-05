@@ -97,3 +97,8 @@ contours, scale bar, north arrow come with it; polygon drawing and the
 with grid row 0 at the top while row 0 is the southern edge, mirroring
 the colour fill against the contours and wells; the shared painter
 flips it. The map label reads `zone · layer` (no em dash).
+
+## 2026-09-05: surface deep link (Mapping MS4)
+`?surface=<id>` (Mapping's "Open in Earth Modeling") stacks the surface
+on arrival and the status says `Added <name> from the link`; an unknown
+id reports it is not in the registry. e2e covers both.

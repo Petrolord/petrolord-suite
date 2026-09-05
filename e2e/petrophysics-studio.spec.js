@@ -836,4 +836,11 @@ test('cross-app: a ?well= deep link selects the well; Open in Well Correlation a
 
   await page.goto('/dev/petrophysics-studio?well=no-such-well');
   await expect(page.getByTestId('petro-status')).toContainText('not in your registry');
+
+  // MS4: a top row links to Mapping & Surface Studio on that top
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-tops')).toBeVisible();
+  const mapLink = page.locator('[data-testid^="petro-map-top-"]').first();
+  await expect(mapLink).toHaveAttribute('href', /\/dev\/mapping-surface-studio\?top=.+/);
 });

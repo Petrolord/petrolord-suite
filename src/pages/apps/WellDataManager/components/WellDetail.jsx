@@ -5,10 +5,12 @@
 // actions hide on org-shared read-only wells, mirroring what RLS would
 // reject server-side.
 
+import { Link } from 'react-router-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Trash2, Building2, Lock, Pencil } from 'lucide-react';
 import LogTracks from './LogTracks';
 import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
+import { mapTopHref, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import CrsBadge from '@/components/crs/CrsBadge';
 import CrsPicker from '@/components/crs/CrsPicker';
 import RowGridEditor from '@/components/wells/RowGridEditor';
@@ -539,6 +541,7 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                     <th className={thCls}>Top</th>
                     <th className={thCls}>MD (m)</th>
                     <th className={thCls}>Interpreter</th>
+                    <th className={thCls}>Map</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -547,6 +550,12 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                       <td className={`${tdCls} text-slate-100`}>{t.name}</td>
                       <td className={tdCls}>{fmt(t.md_m)}</td>
                       <td className={tdCls}>{t.interpreter || '—'}</td>
+                      <td className={tdCls}>
+                        <Link to={mapTopHref(t.name, [], appPath(MAPPING_ID, appPaths))} className="text-cyan-300 hover:text-amber-300"
+                          title="Map this top in Mapping & Surface Studio (TVDSS structure map across every well carrying it)" data-testid={`wdm-map-top-${t.name}`}>
+                          Map this top
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -130,3 +130,10 @@ equal width, so four-track templates get tight on three or more wells
 delete act by name across the section's own wells, not per well (drag
 for per-well edits). TVD-referenced picks on an uphill well are refused
 with a message.
+
+## 2026-09-05: Map this top (Mapping MS4)
+Each top row in the dock carries a map icon (`corr-map-top-<name>`)
+linking to Mapping & Surface Studio with the top and the section wells
+that carry it (`mapTopHref`); the map grids it in TVDSS on arrival.
+`CorrelationWorkstation` takes `mappingPath` (harness:
+`/dev/mapping-surface-studio`).
