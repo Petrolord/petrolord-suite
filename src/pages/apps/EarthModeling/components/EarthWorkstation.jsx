@@ -7,7 +7,8 @@
 // is cheap state, the computed model is derived, deterministic, and
 // recomputed on demand (plan decision 2).
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
@@ -48,6 +49,8 @@ export default function EarthWorkstation({ backend }) {
   const [zoneIdx, setZoneIdx] = useState(0);
   const [layer, setLayer] = useState('top');
   const [drawing, setDrawing] = useState(false);
+  const [searchParams] = useSearchParams();
+  const deepLinkRef = useRef({ surface: searchParams.get('surface'), done: false });
   const [pending, setPending] = useState([]);
   const [sectionWells, setSectionWells] = useState({ a: '', b: '' });
   const [status, setStatus] = useState('Ready.');
@@ -107,6 +110,18 @@ export default function EarthWorkstation({ backend }) {
   }, [normalizeDefinition]);
 
   const addSurface = (id) => setDef({ ...definition, surfaceIds: [...definition.surfaceIds, id] });
+
+  // ?surface=<id> (Mapping's "Open in Earth Modeling", MS4): stack it once
+  // the registry list is in
+  useEffect(() => {
+    const dl = deepLinkRef.current;
+    if (dl.done || !dl.surface || !wells) return;
+    dl.done = true;
+    const hit = surfaces.find((x) => x.id === dl.surface);
+    if (!hit) { setStatus('The linked surface is not in your registry.'); return; }
+    if (!definition.surfaceIds.includes(hit.id)) setDef({ ...definition, surfaceIds: [...definition.surfaceIds, hit.id] });
+    setStatus(`Added ${hit.name} from the link. Stack a second surface, then Build model.`);
+  }, [wells, surfaces, definition, setDef]);
   const removeSurface = (id) => {
     const i = definition.surfaceIds.indexOf(id);
     const surfaceIds = definition.surfaceIds.filter((x) => x !== id);

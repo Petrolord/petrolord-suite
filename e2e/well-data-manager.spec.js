@@ -226,5 +226,10 @@ test('cross-app: Open in launchers carry the well into Petrophysics and Well Cor
   // the detail header carries the same launcher
   await page.getByTestId('wdm-detail-open-in').click();
   await expect(page.getByTestId('wdm-detail-open-in-petrophysics-studio')).toBeVisible();
+  await expect(page.getByTestId('wdm-detail-open-in-mapping-surface-studio')).toHaveAttribute('href', /\/dev\/mapping-surface-studio\?wells=.+/);
   await page.keyboard.press('Escape');
+  // MS4: the Tops tab links each top to Mapping & Surface Studio
+  await page.getByTestId('wdm-detail-tab-tops').click();
+  const mapTop = page.locator('[data-testid^="wdm-map-top-"]').first();
+  await expect(mapTop).toHaveAttribute('href', /\/dev\/mapping-surface-studio\?top=.+/);
 });

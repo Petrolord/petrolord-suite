@@ -124,3 +124,26 @@ out of the map.
   a TWT surface through a Seismolord volume's linear velocity model,
   output elevation in feet by default (`services/timeDepth.js`; layer
   cakes refused with a message naming Seismolord). No migrations.
+- **MS4 built 2026-09-05.** Integration and help: deep links into the
+  map (`?surface=<id>` selects, `?top=<name>&wells=<ids>` grids on
+  arrival from those wells, `?wells=<ids>` posts only those wells),
+  "Map this top" launchers on Well Correlation's top rows, Petrophysics
+  Studio's Tops panel and Well Data Manager's Tops tab, the Mapping
+  entry of the Open-in menus now carries the wells, launchers out of a
+  surface row (ReservoirCalc Pro, Earth Modeling with a `?surface=`
+  consumer that stacks it on arrival, Seismolord) and a wells list in
+  the explorer with the Open-in submenu, and the in-app help guide
+  (`MappingHelpGuide.jsx`, 15 sections, no em dashes, guarded by
+  `helpGuide.test.jsx`). Builders in `src/components/wells/appLinks.js`
+  (`mapTopHref`, `mapSurfaceHref`, `earthModelingSurfaceHref`).
+
+## Series close-out (2026-09-05)
+
+MS0 (#383), MS1 (#384), MS2 (#385), MS3 (#386) and MS4 are stacked PRs
+on #381 (the Wave 4 engine re-sync this branch's subtree pull built
+on). Merge order: #381, then #383, #384, #385, #386, MS4, retargeting
+each to `main` as its parent merges. No migrations in the series. One
+zip after the last merge. Follow-ups are MS5 in the plan of record
+(Seismolord MapView on the kit, digitizer to geo_surfaces, Earth
+Modeling reading fault polygons from geo_culture, contour editing,
+kriging, per-user depth unit, Well Correlation help guide).

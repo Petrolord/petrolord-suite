@@ -326,3 +326,8 @@ included.
 - Wave 2 of the WC series moved `LayoutPanel.jsx` to
   `src/components/wells/LayoutPanel.jsx` (shim left in place) so Well
   Correlation offers the same track layout editor.
+
+## 2026-09-05: Map this top (Mapping MS4)
+The Tops panel rows carry a map icon (`petro-map-top-<name>`) linking to
+Mapping & Surface Studio, which grids the top across every well carrying
+it on arrival. `PetroWorkstation` takes `mappingPath`.

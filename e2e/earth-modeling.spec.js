@@ -130,3 +130,11 @@ test('earth-modeling app route loads its chunk and gates on auth', async ({ page
   expect(errors).toEqual([]);
   expect(page.url()).not.toContain('earth-modeling'); // redirected by the auth gate
 });
+
+test('MS4: ?surface= from Mapping stacks the surface on arrival', async ({ page }) => {
+  await page.goto('/dev/earth-modeling?surface=surf-2');
+  await expect(page.getByTestId('em-status')).toContainText('Added TopB from the link');
+  await expect(page.getByTestId('em-explorer')).toContainText('TopB');
+  await page.goto('/dev/earth-modeling?surface=no-such-surface');
+  await expect(page.getByTestId('em-status')).toContainText('not in your registry');
+});

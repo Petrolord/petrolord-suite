@@ -270,3 +270,8 @@ sidebar is hidden on every app route, so the ribbon was a dead end).
 - Log quick-view tracks (`LogTracks.jsx`) moved to the white printed-log
   palette Petrophysics uses, so a log looks the same in all three apps.
 - e2e: `well-data-manager.spec.js` "cross-app" test.
+
+## 2026-09-05: Map this top (Mapping MS4)
+The Tops tab table gains a Map column (`wdm-map-top-<name>`) linking to
+Mapping & Surface Studio on that top; the Open-in menus' Mapping entry
+now opens the map posting the chosen wells (`?wells=`).
