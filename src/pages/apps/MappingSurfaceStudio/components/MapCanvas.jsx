@@ -9,10 +9,11 @@
 // x = origin_x + c*dx, y = origin_y + r*dy. Contour points are
 // [col, row] (mapContours emits x=column, y=row).
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   contourLevels, contourPolylines, buildMapPixels, gridRange,
 } from '@/lib/gridding/mapContours';
+import { toDisplay } from '@/components/wells/depthModes';
 
 const PAD = 44;
 
@@ -41,10 +42,16 @@ function makeLut() {
 
 export default function MapCanvas({
   surface, grid, wells = [], height = 460, cultureLayers = [],
+  display = { unit: 'm', isLength: true },
 }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const lut = useMemo(makeLut, []);
+  // z labels: lengths (depth elevation, thickness) in the display unit,
+  // attributes raw
+  const { unit: dispUnit, isLength } = display;
+  const fmt = useCallback((v, d = 1) => (isLength ? `${toDisplay(v, dispUnit).toFixed(d)}` : v.toFixed(d === 1 ? 3 : d)), [isLength, dispUnit]);
+  const unitTxt = isLength ? ` ${dispUnit}` : '';
 
   const range = useMemo(() => (grid ? gridRange(grid) : null), [grid]);
 
@@ -176,16 +183,16 @@ export default function MapCanvas({
     ctx.fillStyle = '#94a3b8';
     ctx.font = '9px sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(zMax.toFixed(0), cbX - 2, cbY + 8);
-    ctx.fillText(zMin.toFixed(0), cbX - 2, cbY + cbH);
-  }, [surface, grid, wells, range, lut, height, cultureLayers]);
+    ctx.fillText(fmt(zMax, 0), cbX - 2, cbY + 8);
+    ctx.fillText(fmt(zMin, 0), cbX - 2, cbY + cbH);
+  }, [surface, grid, wells, range, lut, height, cultureLayers, fmt]);
 
   return (
     <div ref={wrapRef} className="w-full" data-testid="map-canvas-wrap">
       <canvas ref={canvasRef} data-testid="map-canvas" className="rounded border border-slate-800" />
       {range && (
         <p className="mt-1 text-[11px] text-slate-500" data-testid="map-zrange">
-          z {range.zMin.toFixed(1)} – {range.zMax.toFixed(1)} · {surface?.nx}×{surface?.ny} grid
+          z {fmt(range.zMin)} to {fmt(range.zMax)}{unitTxt} · {surface?.nx}×{surface?.ny} grid
         </p>
       )}
     </div>

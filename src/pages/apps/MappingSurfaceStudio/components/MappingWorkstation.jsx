@@ -7,6 +7,12 @@
 //
 // Gridding uses the shared byte-golden engine (src/lib/gridding); the
 // app glue (registry points, resample, surface math) is engine/surface.js.
+//
+// Depth convention (MS0, 2026-09-05): structure maps are gridded on
+// TVDSS ELEVATION (negative below datum) at the borehole position
+// through each well's survey and KB; every depth surface published here
+// is elevation in metres (the registry convention) and is DISPLAYED in
+// the user's unit (feet by default, persisted per browser).
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -20,14 +26,25 @@ import MapCanvas from './MapCanvas';
 import CultureImportDialog from '@/components/culture/CultureImportDialog';
 import { gridSurface } from '@/lib/gridding/gridding';
 import {
-  topsToPoints, zoneAttrToPoints, specForPoints, gridObject,
-  resampleTo, isochore, surfaceStats,
+  topsToControlPoints, zoneAttrToPoints, specForPoints,
+  resampleTo, thickness, surfaceStats,
 } from '../engine/surface';
+import { describeGridResult } from '../services/gridStatus';
+import { toDisplay } from '@/components/wells/depthModes';
 import { consensusTag } from '@/lib/crs/tags';
 import { crsUnit } from '@/lib/crs';
 import { placeWellsForHost } from '@/lib/crs/guards';
 
 const selCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
+
+export const DEPTH_UNIT_KEY = 'mapping.depthUnit';
+const readDepthUnit = () => {
+  try { return localStorage.getItem(DEPTH_UNIT_KEY) === 'm' ? 'm' : 'ft'; } catch { return 'ft'; }
+};
+
+/** Is this surface's z a length (depth or thickness) that follows the
+ *  display unit, or a raw attribute? */
+export const isLengthSurface = (s) => !!s && s.kind !== 'attribute' && s.z_domain !== 'attribute' && s.z_domain !== 'time';
 
 export default function MappingWorkstation({ backend }) {
   const [wells, setWells] = useState(null);
@@ -37,6 +54,8 @@ export default function MappingWorkstation({ backend }) {
   const [displaySurface, setDisplaySurface] = useState(null); // meta shown (saved or preview)
   const [preview, setPreview] = useState(null);           // {spec, grid, name, kind, provenance} unsaved
   const [source, setSource] = useState({ type: 'top', key: '' });
+  const [depthRef, setDepthRef] = useState('tvdss');
+  const [depthUnit, setDepthUnit] = useState(readDepthUnit);
   const [cellM, setCellM] = useState('150');
   const [gridding, setGridding] = useState(false);
   const [isoPair, setIsoPair] = useState({ a: '', b: '' });
@@ -49,6 +68,15 @@ export default function MappingWorkstation({ backend }) {
   const [visibleCultureIds, setVisibleCultureIds] = useState(new Set());
   const [cultureFeatures, setCultureFeatures] = useState(new Map());
   const [cultureImportOpen, setCultureImportOpen] = useState(false);
+
+  useEffect(() => {
+    try { localStorage.setItem(DEPTH_UNIT_KEY, depthUnit); } catch { /* private mode */ }
+  }, [depthUnit]);
+
+  const fmtZ = useCallback((v, s = displaySurface) => {
+    if (!Number.isFinite(v)) return '—';
+    return isLengthSurface(s) ? `${toDisplay(v, depthUnit).toFixed(1)} ${depthUnit}` : v.toFixed(3);
+  }, [depthUnit, displaySurface]);
 
   const refresh = useCallback(async () => {
     try { setSurfaces(await backend.listSurfaces()); }
@@ -105,6 +133,11 @@ export default function MappingWorkstation({ backend }) {
     for (const w of wells || []) for (const t of w.tops || []) if (!seen.includes(t.name)) seen.push(t.name);
     return seen;
   }, [wells]);
+  const zoneNames = useMemo(() => {
+    const seen = [];
+    for (const w of wells || []) for (const z of w.zones || []) if (z.name && !seen.includes(z.name)) seen.push(z.name);
+    return seen;
+  }, [wells]);
   const zoneKeys = useMemo(() => {
     const keys = new Set();
     for (const w of wells || []) for (const z of w.zones || []) {
@@ -122,27 +155,48 @@ export default function MappingWorkstation({ backend }) {
     if (!(cell > 0)) { setStatus('Cell size must be a positive number of metres.'); return; }
     setGridding(true);
     try {
-      const points = source.type === 'top'
-        ? topsToPoints(wells, source.key)
-        : zoneAttrToPoints(wells, source.zoneName || 'Reservoir', source.key);
+      let result;
+      let name;
+      let kind;
+      if (source.type === 'top') {
+        result = topsToControlPoints(wells, source.key, { depthRef, placement: 'borehole' });
+        name = `${source.key} structure`;
+        kind = 'structure';
+      } else {
+        const zoneName = source.zoneName || zoneNames[0];
+        result = { points: zoneAttrToPoints(wells, zoneName, source.key), skipped: [], extrapolated: 0, depthRef: null };
+        name = `${source.key} attribute`;
+        kind = 'attribute';
+      }
+      const { points } = result;
       if (points.length < 3) throw new Error('Need at least 3 control points — this source has too few wells.');
       const spec = specForPoints(points, cell, 2);
       if (spec.nx * spec.ny > 4_000_000) throw new Error('Grid too large — increase the cell size.');
-      const g = gridSurface(points, spec);
-      const name = source.type === 'top' ? `${source.key} structure` : `${source.key} attribute`;
+      // Fill the whole convex hull of the control points: the engine's
+      // default extrapolation limit (2 cells) is a seismic-pick-density
+      // setting and leaves a well-spaced map in patches. A distance
+      // control belongs to the MS3 gridding form.
+      const g = gridSurface(points, spec, { maxExtrapolation: 1e9 });
       // The map inherits its CRS from the wells it was gridded from:
       // any disagreement or unknown well leaves the map unverified
       // (null tag, amber badge) instead of guessing.
       const contributing = (wells || []).filter((w) => points.some((p) => p.well === w.name));
       const crs = consensusTag(contributing.map((w) => w.crs));
+      const zDomain = kind === 'attribute' ? 'attribute' : 'depth';
       setPreview({
-        spec, grid: g.z, name, kind: source.type === 'top' ? 'structure' : 'attribute', crs,
-        provenance: { source: source, control_points: points.length, cell_m: cell, engine: 'mapping-surface-studio' },
+        spec, grid: g.z, name, kind, crs, zDomain,
+        provenance: {
+          source, engine: 'mapping-surface-studio', cell_m: cell,
+          control_points: points.length,
+          depth_ref: result.depthRef, placement: kind === 'structure' ? 'borehole' : null,
+          skipped: result.skipped, extrapolated: result.extrapolated,
+          z_convention: kind === 'structure' ? 'elevation' : 'raw',
+        },
       });
-      setDisplaySurface({ origin_x: spec.x0, origin_y: spec.y0, nx: spec.nx, ny: spec.ny, dx: spec.dx, dy: spec.dy, name, kind: preview?.kind, crs });
+      setDisplaySurface({ origin_x: spec.x0, origin_y: spec.y0, nx: spec.nx, ny: spec.ny, dx: spec.dx, dy: spec.dy, name, kind, z_domain: zDomain, crs });
       setDisplayGrid(g.z);
       setSelectedId(null);
-      setStatus(`Gridded ${name} from ${points.length} wells (${spec.nx}×${spec.ny}). Review, then Publish.`);
+      setStatus(describeGridResult({ name, result, spec, depthUnit }));
     } catch (e) {
       setStatus(e.message);
     } finally {
@@ -160,7 +214,7 @@ export default function MappingWorkstation({ backend }) {
       setDisplaySurface(s);
       setDisplayGrid(grid);
       const st = surfaceStats(grid);
-      setStatus(`${s.name}: ${st.count} live nodes, z ${st.min?.toFixed(1)}–${st.max?.toFixed(1)}.`);
+      setStatus(`${s.name}: ${st.count} live nodes, z ${fmtZ(st.min, s)} to ${fmtZ(st.max, s)}.`);
     } catch (e) { setStatus(e.message); }
   };
 
@@ -169,12 +223,12 @@ export default function MappingWorkstation({ backend }) {
     try {
       const saved = await backend.saveSurface({
         name: preview.name, kind: preview.kind, spec: preview.spec,
-        zDomain: preview.kind === 'attribute' ? 'attribute' : 'depth',
+        zDomain: preview.zDomain || (preview.kind === 'attribute' ? 'attribute' : 'depth'),
         zUnit: preview.kind === 'attribute' ? null : 'm',
         crs: preview.crs || null,
         xyUnit: preview.crs ? crsUnit(preview.crs) : null,
         crsProvenance: preview.crs
-          ? { derived_from: preview.provenance?.isochore ? 'surfaces' : 'wells' }
+          ? { derived_from: preview.provenance?.thickness ? 'surfaces' : 'wells' }
           : null,
         provenance: preview.provenance, grid: preview.grid,
       });
@@ -185,26 +239,26 @@ export default function MappingWorkstation({ backend }) {
     } catch (e) { setStatus(e.message); }
   };
 
-  const runIsochore = async () => {
-    const a = surfaces.find((s) => s.id === isoPair.a);
-    const b = surfaces.find((s) => s.id === isoPair.b);
-    if (!a || !b) { setStatus('Pick two surfaces for the isochore.'); return; }
+  const runThickness = async () => {
+    const top = surfaces.find((s) => s.id === isoPair.a);
+    const base = surfaces.find((s) => s.id === isoPair.b);
+    if (!top || !base) { setStatus('Pick a top and a base surface for the isochore.'); return; }
     try {
-      const [ga, gb] = await Promise.all([backend.downloadSurfaceGrid(a), backend.downloadSurfaceGrid(b)]);
-      const specA = { x0: a.origin_x, y0: a.origin_y, dx: a.dx, dy: a.dy, nx: a.nx, ny: a.ny };
-      const specB = { x0: b.origin_x, y0: b.origin_y, dx: b.dx, dy: b.dy, nx: b.nx, ny: b.ny };
-      const gbOnA = resampleTo(gb, specB, specA);
-      const iso = isochore(ga, gbOnA); // a(deep) - b(shallow)
-      const name = `${a.name} − ${b.name} isochore`;
+      const [gt, gb] = await Promise.all([backend.downloadSurfaceGrid(top), backend.downloadSurfaceGrid(base)]);
+      const specT = { x0: top.origin_x, y0: top.origin_y, dx: top.dx, dy: top.dy, nx: top.nx, ny: top.ny };
+      const specB = { x0: base.origin_x, y0: base.origin_y, dx: base.dx, dy: base.dy, nx: base.nx, ny: base.ny };
+      const gbOnT = resampleTo(gb, specB, specT);
+      const iso = thickness(gt, gbOnT); // elevation top − elevation base, positive when the base is deeper
+      const name = `${top.name} to ${base.name} isochore`;
       setPreview({
-        spec: specA, grid: iso, name, kind: 'isochore',
-        crs: consensusTag([a.crs, b.crs]),
-        provenance: { isochore: [a.id, b.id], engine: 'mapping-surface-studio' },
+        spec: specT, grid: iso, name, kind: 'isochore', zDomain: 'depth',
+        crs: consensusTag([top.crs, base.crs]),
+        provenance: { thickness: { top: top.id, base: base.id }, engine: 'mapping-surface-studio', z_convention: 'thickness' },
       });
-      setDisplaySurface({ ...specA, origin_x: specA.x0, origin_y: specA.y0, name, kind: 'isochore' });
+      setDisplaySurface({ ...specT, origin_x: specT.x0, origin_y: specT.y0, name, kind: 'isochore', z_domain: 'depth' });
       setDisplayGrid(iso);
       setSelectedId(null);
-      setStatus(`Isochore ${name} — review, then Publish.`);
+      setStatus(`Isochore ${name} (${depthUnit}): review, then Publish.`);
     } catch (e) { setStatus(e.message); }
   };
 
@@ -229,11 +283,17 @@ export default function MappingWorkstation({ backend }) {
   };
 
   const ribbon = (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
       <ModuleHomeLink module="geoscience" />
       <MapIcon className="w-4 h-4 text-cyan-400" />
       <span className="text-sm font-semibold text-slate-100">Mapping &amp; Surface Studio</span>
       <span className="text-[11px] text-slate-500">gridding &amp; contouring on the shared registry</span>
+      <button type="button" data-testid="map-depth-unit"
+        className="ml-2 px-2 py-0.5 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
+        title="Depth display unit (feet or metres). Surfaces are stored in metres."
+        onClick={() => setDepthUnit((u) => (u === 'ft' ? 'm' : 'ft'))}>
+        depth: {depthUnit}
+      </button>
       {preview && (
         <button type="button" data-testid="map-publish"
           className="ml-auto flex items-center gap-1 px-2 py-1 text-xs rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
@@ -248,7 +308,7 @@ export default function MappingWorkstation({ backend }) {
     <div className="flex items-center gap-3 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">
       <span data-testid="map-status" className="truncate">{status}</span>
       <span className="ml-auto whitespace-nowrap">{surfaces.length} surfaces{preview ? ' · unsaved preview' : ''}</span>
-      <span className="whitespace-nowrap text-slate-600">SI internal (m)</span>
+      <span className="whitespace-nowrap text-slate-600" data-testid="map-status-unit">depth: {depthUnit} · elevation, negative down</span>
     </div>
   );
 
@@ -277,6 +337,7 @@ export default function MappingWorkstation({ backend }) {
         grid={displayGrid}
         wells={displayWells}
         cultureLayers={cultureLayers}
+        display={{ unit: depthUnit, isLength: isLengthSurface(displaySurface) }}
       />
     </div>
   );
@@ -297,9 +358,12 @@ export default function MappingWorkstation({ backend }) {
           onToggleShare={toggleShare}
           sharingId={sharingId}
           topNames={topNames}
+          zoneNames={zoneNames}
           zoneKeys={zoneKeys}
           source={source}
           onSource={setSource}
+          depthRef={depthRef}
+          onDepthRef={setDepthRef}
           cellM={cellM}
           onCellM={setCellM}
           onGrid={runGrid}
@@ -310,21 +374,21 @@ export default function MappingWorkstation({ backend }) {
       dock={(
         <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
           <div className="p-2 space-y-2 text-xs" data-testid="map-controls">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><Sigma className="w-3 h-3" /> Isochore (A − B)</div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><Sigma className="w-3 h-3" /> Isochore (top to base)</div>
             <select className={selCls} value={isoPair.a} data-testid="map-iso-a" onChange={(e) => setIsoPair((p) => ({ ...p, a: e.target.value }))}>
-              <option value="">deeper surface…</option>
+              <option value="">top surface (shallower)…</option>
               {surfaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             <select className={selCls} value={isoPair.b} data-testid="map-iso-b" onChange={(e) => setIsoPair((p) => ({ ...p, b: e.target.value }))}>
-              <option value="">shallower surface…</option>
+              <option value="">base surface (deeper)…</option>
               {surfaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             <button type="button" data-testid="map-iso-run"
               className="w-full px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40"
-              disabled={!isoPair.a || !isoPair.b || isoPair.a === isoPair.b} onClick={runIsochore}>
+              disabled={!isoPair.a || !isoPair.b || isoPair.a === isoPair.b} onClick={runThickness}>
               Compute isochore
             </button>
-            <p className="text-[10px] text-slate-600">Resamples B onto A's frame, subtracts, and previews the thickness map. Publish to save.</p>
+            <p className="text-[10px] text-slate-600">Resamples the base onto the top's frame and subtracts the elevations, so the thickness is positive where the base is deeper. Publish to save.</p>
 
             <div className="pt-2 border-t border-slate-800/60">
               <div className="text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1 mb-1">

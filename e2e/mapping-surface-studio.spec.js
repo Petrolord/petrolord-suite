@@ -1,6 +1,7 @@
 // Mapping & Surface Studio G4.3 acceptance: the workstation drives on
-// the /dev harness without auth. Seeded 4 wells with tops let the flow
-// grid a top across them, contour + raster it on the map canvas,
+// the /dev harness without auth. Seeded 5 wells with tops (two deviated)
+// let the flow grid a top across them in TVDSS elevation, contour +
+// raster it on the map canvas,
 // publish it to the registry, and run an isochore — with the seeded
 // org-shared surface read-only.
 
@@ -13,21 +14,40 @@ test('grid a top, render the map, publish, isochore, delete', async ({ page }) =
   await expect(page.getByTestId('map-surface-row')).toHaveCount(1);
   await expect(page.getByTestId('map-delete-Regional Top (org shared)')).toHaveCount(0);
 
-  // grid Top Dome across the 4 wells
+  // grid Top Dome across the 5 wells: TVDSS elevation at the borehole,
+  // displayed in feet by default (MS0)
   await page.getByTestId('map-source').selectOption('top:Top Dome');
+  await expect(page.getByTestId('map-depth-ref')).toHaveValue('tvdss');
   await page.getByTestId('map-cell').fill('150');
   await page.getByTestId('map-grid-run').click();
   await expect(page.getByTestId('map-status')).toContainText('Gridded');
-  // the map canvas renders with a z-range readout
+  await expect(page.getByTestId('map-status')).toContainText('TVDSS elevation, ft');
+  await expect(page.getByTestId('map-status')).toContainText('from 5 wells');
+  // the map canvas renders with a z-range readout in feet, negative down
   await expect(page.getByTestId('map-canvas')).toBeVisible();
   await expect(page.getByTestId('map-zrange')).toContainText('grid');
+  await expect(page.getByTestId('map-zrange')).toContainText('ft');
+  await expect(page.getByTestId('map-zrange')).toContainText('z -');
   const box = await page.getByTestId('map-canvas').boundingBox();
   expect(box.width).toBeGreaterThan(300);
+  // metres on demand, and back
+  await page.getByTestId('map-depth-unit').click();
+  await expect(page.getByTestId('map-zrange')).toContainText(' m ');
+  await expect(page.getByTestId('map-status-unit')).toContainText('depth: m');
+  await page.getByTestId('map-depth-unit').click();
+  await expect(page.getByTestId('map-zrange')).toContainText('ft');
 
   // publish -> appears in the registry list
   await page.getByTestId('map-publish').click();
   await expect(page.getByTestId('map-status')).toContainText('Published');
   await expect(page.getByTestId('map-surface-count')).toHaveText('2');
+
+  // an attribute map picks its zone (named after the top, the PT4 way)
+  await page.getByTestId('map-source').selectOption('zone:phi_avg');
+  await expect(page.getByTestId('map-zone')).toHaveValue('Top Dome');
+  await expect(page.getByTestId('map-depth-ref')).toHaveCount(0);
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Gridded phi_avg attribute (attribute)');
 
   // grid Base Sand too, publish
   await page.getByTestId('map-source').selectOption('top:Base Sand');
@@ -35,11 +55,11 @@ test('grid a top, render the map, publish, isochore, delete', async ({ page }) =
   await page.getByTestId('map-publish').click();
   await expect(page.getByTestId('map-surface-count')).toHaveText('3');
 
-  // isochore Base Sand − Top Dome
-  await page.getByTestId('map-iso-a').selectOption({ label: 'Base Sand structure' });
-  await page.getByTestId('map-iso-b').selectOption({ label: 'Top Dome structure' });
+  // isochore: top surface Top Dome to base surface Base Sand
+  await page.getByTestId('map-iso-a').selectOption({ label: 'Top Dome structure' });
+  await page.getByTestId('map-iso-b').selectOption({ label: 'Base Sand structure' });
   await page.getByTestId('map-iso-run').click();
-  await expect(page.getByTestId('map-status')).toContainText('isochore');
+  await expect(page.getByTestId('map-status')).toContainText('Isochore');
   await page.getByTestId('map-publish').click();
   await expect(page.getByTestId('map-surface-count')).toHaveText('4');
 

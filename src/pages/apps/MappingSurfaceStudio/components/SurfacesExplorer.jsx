@@ -15,7 +15,8 @@ const selCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-2
 
 export default function SurfacesExplorer({
   surfaces, selectedId, onSelect, onDelete, onToggleShare, sharingId,
-  topNames, zoneKeys, source, onSource, cellM, onCellM, onGrid, gridding,
+  topNames, zoneNames = [], zoneKeys, source, onSource,
+  depthRef = 'tvdss', onDepthRef, cellM, onCellM, onGrid, gridding,
 }) {
   return (
     <div className="h-full min-h-0 flex flex-col bg-slate-900/60" data-testid="map-explorer">
@@ -26,15 +27,32 @@ export default function SurfacesExplorer({
             const [type, key] = e.target.value.split(':');
             onSource(type === 'top'
               ? { type: 'top', key }
-              : { type: 'zone', zoneName: 'Reservoir', key });
+              : { type: 'zone', zoneName: source.zoneName || zoneNames[0] || '', key });
           }}>
-          <optgroup label="Structure — top across wells">
+          <optgroup label="Structure: top across wells">
             {topNames.map((n) => <option key={`top:${n}`} value={`top:${n}`}>Top: {n}</option>)}
           </optgroup>
-          <optgroup label="Attribute — zone property">
+          <optgroup label="Attribute: zone property">
             {zoneKeys.map((k) => <option key={`zone:${k}`} value={`zone:${k}`}>Zone: {k}</option>)}
           </optgroup>
         </select>
+        {source.type === 'top' && (
+          <select className={selCls} value={depthRef} data-testid="map-depth-ref"
+            title="Depth reference of the structure map. TVDSS and TVD grid elevations at the borehole position through each well's survey and KB; MD is the raw measured depth."
+            onChange={(e) => onDepthRef?.(e.target.value)}>
+            <option value="tvdss">TVDSS (elevation, below datum)</option>
+            <option value="tvd">TVD (below KB)</option>
+            <option value="md">MD (measured, raw)</option>
+          </select>
+        )}
+        {source.type === 'zone' && (
+          <select className={selCls} value={source.zoneName || ''} data-testid="map-zone"
+            title="Zone whose property is mapped"
+            onChange={(e) => onSource({ ...source, zoneName: e.target.value })}>
+            {zoneNames.map((n) => <option key={n} value={n}>{n}</option>)}
+            {!zoneNames.length && <option value="">no zones in the registry</option>}
+          </select>
+        )}
         <div className="flex items-center gap-1">
           <input className={`${selCls} flex-1`} value={cellM} data-testid="map-cell"
             onChange={(e) => onCellM(e.target.value)} placeholder="cell m" title="Grid cell size (m)" />
