@@ -198,7 +198,8 @@ test('MS3: fault-block and boundary polygons, a guide point, arithmetic, quick G
   await page.getByTestId('map-fault-use-West block').check();
   await page.getByTestId('map-clip-use-Lease').check();
   await page.getByTestId('map-grid-run').click();
-  await expect(page.getByTestId('map-status')).toContainText('With 1 fault-block polygon, clipped to Lease');
+  // the west block holds two control points (KETA-1 and KETA-5's borehole); a TPS needs three, and the status says so
+  await expect(page.getByTestId('map-status')).toContainText('With 1 fault-block polygon, 1 block with fewer than 3 control points left empty, clipped to Lease');
 
   // a guide point: click, type an elevation in feet, grid again
   await page.getByTestId('map-guide-point').click();
@@ -252,4 +253,38 @@ test('mapping app route loads its chunk and gates on auth', async ({ page }) => 
   await page.waitForLoadState('networkidle');
   expect(errors).toEqual([]);
   expect(page.url()).not.toContain('mapping-surface-studio');
+});
+
+test('MS4: deep links in, launchers out, help', async ({ page }) => {
+  // ?top=&wells= grids on arrival from the named wells only
+  await page.goto('/dev/mapping-surface-studio?top=Top%20Dome&wells=map-w1,map-w3,map-w4');
+  await expect(page.getByTestId('map-status')).toContainText('Opened on top Top Dome from a link. Gridded Top Dome structure');
+  await expect(page.getByTestId('map-status')).toContainText('from 3 wells');
+  await expect(page.getByTestId('map-well-count')).toHaveText('3');
+  await page.getByTestId('map-linked-clear').click();
+  await expect(page.getByTestId('map-well-count')).toHaveText('5');
+
+  // ?surface= selects a surface; an unknown one says so
+  await page.goto('/dev/mapping-surface-studio?surface=surf-1'); // the seeded Dome TWT
+  await expect(page.getByTestId('map-status')).toContainText('Dome TWT');
+  await expect(page.getByTestId('map-canvas')).toBeVisible();
+  await page.goto('/dev/mapping-surface-studio?surface=no-such-surface');
+  await expect(page.getByTestId('map-status')).toContainText('not in your registry');
+
+  // launchers out of the surface row menu and the wells list; help; home
+  await expect(page.getByTestId('map-help')).toHaveAttribute('href', '/dashboard/apps/geoscience/mapping-surface-studio/help');
+  await expect(page.getByTestId('module-home-geoscience')).toHaveAttribute('href', '/dashboard/geoscience');
+  const twt = page.locator('[data-testid="map-surface-row"][data-surface-name="Dome TWT"]');
+  await twt.click({ button: 'right' });
+  await expect(page.getByTestId('map-row-open-earth-modeling')).toHaveAttribute('href', /\/dev\/earth-modeling\?surface=surf-\d+/);
+  await expect(page.getByTestId('map-row-open-reservoircalc-pro')).toHaveAttribute('href', '/dashboard/apps/geoscience/reservoircalc-pro');
+  await expect(page.getByTestId('map-row-open-seismolord')).toHaveAttribute('href', '/dashboard/apps/geoscience/seismolord');
+  await page.keyboard.press('Escape');
+  const well = page.locator('[data-testid="map-well-row"][data-well-name="KETA-2"]');
+  await well.click({ button: 'right' });
+  await page.getByTestId('map-well-open-in').hover();
+  await expect(page.getByTestId('map-well-open-in-well-correlation')).toHaveAttribute('href', '/dev/well-correlation?wells=map-w2');
+  await expect(page.getByTestId('map-well-open-in-petrophysics-studio')).toHaveAttribute('href', '/dev/petrophysics-studio?well=map-w2');
+  await expect(page.getByTestId('map-well-open-in-mapping-surface-studio')).toHaveCount(0);
+  await page.keyboard.press('Escape');
 });
