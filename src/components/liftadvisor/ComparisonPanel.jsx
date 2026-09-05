@@ -139,10 +139,20 @@ const MethodCard = ({ row, studioLink }) => {
 const ComparisonPanel = () => {
   const {
     comparison, designPass, designStale, runDesigns, isRunning, studioLink, model,
+    screeningRefusal,
   } = useLiftAdvisor();
 
   return (
     <div className="space-y-4">
+      {screeningRefusal && (
+        <Card className="bg-slate-900 border-amber-700/60">
+          <CardContent className="pt-4">
+            <p className="text-xs text-amber-300 leading-relaxed">
+              {screeningRefusal.error}
+            </p>
+          </CardContent>
+        </Card>
+      )}
       <Card className="bg-slate-900 border-slate-800">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">
