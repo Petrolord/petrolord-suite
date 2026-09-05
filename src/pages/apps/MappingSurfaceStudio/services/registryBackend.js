@@ -9,7 +9,11 @@ import {
   listSurfaces, saveSurface, downloadSurfaceGrid, deleteSurface,
   shareSurface, unshareSurface, updateSurface, replaceSurfaceGrid,
 } from '@/lib/surfacesRegistry';
-import { listCulture, downloadCultureFeatures } from '@/lib/cultureRegistry';
+import {
+  listCulture, downloadCultureFeatures, saveCulture, updateCulture, deleteCulture,
+} from '@/lib/cultureRegistry';
+import { listVolumes, getManifest } from '@/pages/apps/Seismolord/services/volumesService';
+import { normalizeVelocity } from '@/pages/apps/Seismolord/engine/velocityModel';
 import { resolveUserOrgId } from '@/lib/orgContext';
 import { supabase } from '@/lib/customSupabaseClient';
 
@@ -53,9 +57,30 @@ export function makeRegistryBackend() {
       if (!org) throw new Error('You belong to no organization — nothing to share with.');
       return shareSurface(surface.id, org);
     },
-    // culture / GIS layers (W1.3): shared geo_culture registry
+    // culture / GIS layers (W1.3): shared geo_culture registry; MS3 draws
+    // fault-block and boundary polygons into it
     listCulture,
     downloadCultureFeatures,
+    saveCulture,
+    updateCulture,
+    deleteCulture,
     canImportCulture: true,
+    // MS3 time-to-depth: Seismolord volumes' velocity models (linear
+    // usable here; layer cakes listed so the refusal can name them)
+    async listVelocityModels() {
+      const out = [];
+      let volumes = [];
+      try { volumes = await listVolumes(); } catch { return out; }
+      for (const v of volumes) {
+        if (v.kind === 'attribute') continue;
+        try {
+          const manifest = await getManifest(v);
+          const m = normalizeVelocity(manifest?.velocity);
+          if (!m) continue;
+          out.push({ id: v.id, name: v.name, kind: m.kind, velocity: manifest.velocity });
+        } catch { /* a volume without a readable manifest has no model to offer */ }
+      }
+      return out;
+    },
   };
 }

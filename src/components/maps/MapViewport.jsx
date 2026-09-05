@@ -24,7 +24,7 @@ import { MapTransform, FIT_PAD } from './mapTransform';
 import { lutOf } from './lut';
 import {
   MAP_BG, nodeExtent, rasterBitmap, paintRaster, contourPaths, paintContours, paintWells,
-  paintPolygons, paintCulture, paintColorbar, paintScaleBar, paintNorthArrow, paintAxes, sampleAtScreen,
+  paintPolygons, paintCulture, paintMarkers, paintColorbar, paintScaleBar, paintNorthArrow, paintAxes, sampleAtScreen,
 } from './mapPainter';
 import { mapPlotPng } from './mapPng';
 
@@ -33,7 +33,7 @@ const ZOOM_STEP = 1.25;
 
 const MapViewport = forwardRef(function MapViewport({
   spec, grid, wells = [], polygons = [], pendingVertices = [], drawing = false, onMapClick,
-  cultureLayers = [], contours = true, contourStep = null, contourLabels = true,
+  cultureLayers = [], markers = [], contours = true, contourStep = null, contourLabels = true,
   colormap = 'structure', reverse = false, showNames = true, posted = null,
   showLegend = true, showScaleBar = true, showNorth = true, showAxes = false,
   height = 'fill', testIdPrefix = 'map', zFormat = (v) => v.toFixed(1), zUnit = '',
@@ -99,6 +99,7 @@ const MapViewport = forwardRef(function MapViewport({
     if (cultureLayers.length) paintCulture(ctx, { layers: cultureLayers, transform: t });
     paintPolygons(ctx, { polygons, pending: pendingVertices, transform: t });
     paintWells(ctx, { wells, transform: t, showNames, posted, fmt: zFormat });
+    if (markers.length) paintMarkers(ctx, { markers, transform: t });
     if (showAxes) paintAxes(ctx, { transform: t, pad: FIT_PAD });
     if (showLegend) {
       const cbH = Math.max(40, h - 2 * FIT_PAD);
@@ -118,7 +119,7 @@ const MapViewport = forwardRef(function MapViewport({
       ctx.fillText(label, showNorth ? 48 : 8, 6);
       ctx.restore();
     }
-  }, [spec, grid, range, bitmap, contourData, contourLabels, zFormat, contourFormat, cultureLayers, polygons, pendingVertices, wells, showNames, posted, showAxes, showLegend, lut, zUnit, showScaleBar, showNorth, label]);
+  }, [spec, grid, range, bitmap, contourData, contourLabels, zFormat, contourFormat, cultureLayers, polygons, pendingVertices, wells, showNames, posted, markers, showAxes, showLegend, lut, zUnit, showScaleBar, showNorth, label]);
 
   // paint the live canvas
   useLayoutEffect(() => {
@@ -244,7 +245,7 @@ const MapViewport = forwardRef(function MapViewport({
           onDoubleClick={onDoubleClick}
           onKeyDown={onKeyDown}
         />
-        <div className={`absolute left-2 ${showNorth ? 'top-14' : 'top-2'} flex flex-col gap-1`}>
+        <div className={`absolute left-2 ${showNorth ? 'top-14' : 'top-2'} flex flex-col gap-1 ${drawing ? 'pointer-events-none opacity-30' : ''}`}>
           <button type="button" className={btn} title="Zoom in (+)" data-testid={`${p}-zoom-in`} onClick={() => zoomBy(ZOOM_STEP)}><ZoomIn className="w-3.5 h-3.5" /></button>
           <button type="button" className={btn} title="Zoom out (-)" data-testid={`${p}-zoom-out`} onClick={() => zoomBy(1 / ZOOM_STEP)}><ZoomOut className="w-3.5 h-3.5" /></button>
           <button type="button" className={btn} title="Fit (0, double-click)" data-testid={`${p}-fit`} onClick={() => { tRef.current.fit(); bump(); }}><Maximize2 className="w-3.5 h-3.5" /></button>
