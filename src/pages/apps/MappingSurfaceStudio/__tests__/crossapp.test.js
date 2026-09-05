@@ -8,7 +8,7 @@
 import { makeInMemoryBackend } from '../services/inMemoryBackend';
 import { topsToPoints, specForPoints } from '../engine/surface';
 import { gridSurface } from '@/lib/gridding/gridding';
-import { surfaceToXyzText } from '@/lib/surfacesRegistry';
+import { surfaceToXyzText, zConventionForImport } from '@/lib/surfacesRegistry';
 import { SurfaceParser } from '@/pages/apps/ReservoirCalcPro/services/SurfaceParser';
 
 test('grid a top -> surfaceToXyzText -> RCP SurfaceParser yields the live points', async () => {
@@ -33,8 +33,9 @@ test('grid a top -> surfaceToXyzText -> RCP SurfaceParser yields the live points
   const liveNodes = Array.from(grid).filter((v) => Number.isFinite(v) && Math.abs(v) < 1e29).length;
   expect(parsed.points.length).toBe(liveNodes);
   expect(parsed.points.length).toBeGreaterThan(0);
-  // z values land in the well-top range
+  // z values land in the well-top range, as elevation (negative down)
   const zs = parsed.points.map((p) => p.z);
-  expect(Math.min(...zs)).toBeGreaterThan(1400);
-  expect(Math.max(...zs)).toBeLessThan(1700);
+  expect(Math.min(...zs)).toBeGreaterThan(-1700);
+  expect(Math.max(...zs)).toBeLessThan(-1400);
+  expect(zConventionForImport(saved)).toBe('elevation');
 });

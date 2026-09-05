@@ -77,3 +77,14 @@ modelBuild refuses stacking surfaces in different known CRSs and stamps
 em_models.crs from the input consensus; the Project CRS reproject flow
 transforms fault polygons and retags models (grids recompute from
 surfaces). See Seismolord-PLAYBOOK.md CRS model.
+
+## 2026-09-05: registry surfaces are elevation (Mapping MS0)
+Every depth surface in `geo_surfaces` is now stored as elevation
+(negative below datum, m or ft per `z_unit`; owner decision, see
+MappingSurfaceStudio-ROADMAP.md). The engine keeps working in metres
+positive-down: `services/modelBuild.js` converts each stacked grid
+through `surfaceZToDepthDown` at the door and `EarthWorkstation`
+publishes structure layers back through `depthDownToSurfaceZ`
+(thickness and attributes are raw). The harness seeds the fixture
+planes converted the same way, so the oracle numbers still come out off
+the UI (`modelBuild.test.js`, e2e unchanged).
