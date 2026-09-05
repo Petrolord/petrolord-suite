@@ -20,9 +20,10 @@ test('seeds wells with tops (two deviated) + one org-shared read-only elevation 
   expect(pts).toHaveLength(5);
   expect(pts.every((p) => p.z < 0)).toBe(true); // elevation
   const surfaces = await b.listSurfaces();
-  expect(surfaces).toHaveLength(1);
-  expect(surfaces[0].is_own).toBe(false);
-  expect((await b.downloadSurfaceGrid(surfaces[0]))[0]).toBe(-1550);
+  expect(surfaces).toHaveLength(2); // the org-shared regional top and the seeded TWT dome (MS3)
+  const shared = surfaces.find((s) => !s.is_own);
+  expect(shared.name).toBe('Regional Top (org shared)');
+  expect((await b.downloadSurfaceGrid(shared))[0]).toBe(-1550);
 });
 
 test('grid a top → publish → appears in the registry, grid re-downloads', async () => {
@@ -51,7 +52,7 @@ test('grid a top → publish → appears in the registry, grid re-downloads', as
 
 test('owner-only: deleting the org-shared surface is rejected (mirrors RLS)', async () => {
   const b = makeInMemoryBackend();
-  const shared = (await b.listSurfaces())[0];
+  const shared = (await b.listSurfaces()).find((s) => !s.is_own);
   await expect(b.deleteSurface(shared)).rejects.toThrow(/Only the owner/);
   // reads stay open
   const grid = await b.downloadSurfaceGrid(shared);
@@ -120,4 +121,19 @@ test('MS2: rename and re-grid in place keep the id; teammate rows are refused', 
   const teammate = (await b.listSurfaces()).find((s) => !s.is_own);
   await expect(b.updateSurface(teammate.id, { name: 'x' })).rejects.toThrow(/Only the owner/);
   await expect(b.replaceSurfaceGrid(teammate, { spec: spec2, grid: new Float32Array(spec2.nx * spec2.ny) })).rejects.toThrow(/Only the owner/);
+});
+
+test('MS3: drawn polygons save to the culture store, velocity models list, a TWT surface is seeded', async () => {
+  const b = makeInMemoryBackend();
+  const twt = (await b.listSurfaces()).find((s) => s.z_domain === 'time');
+  expect(twt.name).toBe('Dome TWT');
+  const g = await b.downloadSurfaceGrid(twt);
+  expect(Math.min(...g)).toBeGreaterThanOrEqual(1400);
+  const row = await b.saveCulture({ name: 'Block A', kind: 'fault_polygon', geometryType: 'polygon', features: [{ type: 'polygon', rings: [[[0, 0], [1, 0], [1, 1], [0, 0]]] }], style: {} });
+  expect((await b.listCulture()).map((c) => c.name)).toEqual(['Demo license block', 'Block A']);
+  expect((await b.downloadCultureFeatures(row))[0].rings[0]).toHaveLength(4);
+  await b.deleteCulture(row);
+  expect((await b.listCulture())).toHaveLength(1);
+  const models = await b.listVelocityModels();
+  expect(models.map((m) => m.kind)).toEqual(['linear', 'layercake']);
 });

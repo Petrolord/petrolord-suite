@@ -44,14 +44,18 @@ export function contourPlan({ grid, typed, unit = 'ft', isLength = true, target 
 }
 
 const MapCanvas = forwardRef(function MapCanvas({
-  surface, grid, wells = [], cultureLayers = [], posted = null,
+  surface, grid, wells = [], cultureLayers = [], posted = null, markers = [],
+  pendingVertices = [], drawing = false, onMapClick,
   display = { unit: 'ft', isLength: true }, settings = DEFAULT_MAP_DISPLAY,
 }, ref) {
   const spec = surface ? {
     x0: surface.origin_x, y0: surface.origin_y, dx: surface.dx, dy: surface.dy, nx: surface.nx, ny: surface.ny,
   } : null;
   const isLength = display.isLength;
-  const zFormat = (v) => (isLength ? toDisplay(v, display.unit).toFixed(1) : v.toFixed(3));
+  const isTime = surface?.z_domain === 'time';
+  // lengths in the display unit, time in ms, attributes raw
+  const zFormat = (v) => (isLength ? toDisplay(v, display.unit).toFixed(1) : isTime ? v.toFixed(1) : v.toFixed(3));
+  const zUnit = isLength ? display.unit : isTime ? 'ms' : '';
   const plan = useMemo(
     () => contourPlan({ grid, typed: settings.contourStep, unit: display.unit, isLength }),
     [grid, settings.contourStep, display.unit, isLength],
@@ -64,6 +68,10 @@ const MapCanvas = forwardRef(function MapCanvas({
       grid={grid}
       wells={wells}
       cultureLayers={cultureLayers}
+      markers={markers}
+      pendingVertices={pendingVertices}
+      drawing={drawing}
+      onMapClick={onMapClick}
       posted={settings.posted ? posted : null}
       contourStep={plan.stepM}
       contourFormat={plan.format}
@@ -77,7 +85,7 @@ const MapCanvas = forwardRef(function MapCanvas({
       showAxes={settings.axes}
       height="fill"
       zFormat={zFormat}
-      zUnit={isLength ? display.unit : ''}
+      zUnit={zUnit}
       label={surface?.name || ''}
     />
   );

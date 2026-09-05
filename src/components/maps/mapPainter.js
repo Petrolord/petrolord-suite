@@ -252,6 +252,35 @@ export function paintPolygons(ctx, {
   ctx.restore();
 }
 
+/** Point markers (guide points, picks): a triangle with a label. */
+export function paintMarkers(ctx, { markers = [], transform, color = '#f472b6', halo = 'rgba(2, 6, 23, 0.8)' }) {
+  if (!markers.length) return;
+  ctx.save();
+  ctx.font = LABEL_FONT;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.lineJoin = 'round';
+  for (const m of markers) {
+    if (!Number.isFinite(m.x) || !Number.isFinite(m.y)) continue;
+    const s = transform.worldToScreen(m.x, m.y);
+    ctx.fillStyle = m.color || color;
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y - 5);
+    ctx.lineTo(s.x + 4.5, s.y + 3);
+    ctx.lineTo(s.x - 4.5, s.y + 3);
+    ctx.closePath();
+    ctx.fill();
+    if (m.label) {
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = halo;
+      ctx.strokeText(m.label, s.x + 6, s.y + 3);
+      ctx.fillStyle = '#fbcfe8';
+      ctx.fillText(m.label, s.x + 6, s.y + 3);
+    }
+  }
+  ctx.restore();
+}
+
 /** Culture / GIS layers (geo_culture features in the map's frame). */
 export function paintCulture(ctx, { layers = [], transform }) {
   ctx.save();
