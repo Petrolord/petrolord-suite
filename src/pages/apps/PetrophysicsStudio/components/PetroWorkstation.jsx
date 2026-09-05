@@ -871,6 +871,8 @@ export default function PetroWorkstation({
         onSelectionChange={setSelection}
         initialConfig={crossplotCfg}
         onConfigChange={setCrossplotCfg}
+        zones={zones}
+        wellName={selected?.name}
       />
     );
     const tracksEl = (

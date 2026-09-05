@@ -64,6 +64,8 @@ const fmtTick = (v) => (Math.abs(v) >= 1000 ? String(v) : String(Number(v.toPrec
  * @param {Array<[number, number]>} [p.draftPolygon] in-progress facies outline
  * @param {(xy: {x: number, y: number}) => void} [p.onPlotClick]
  * @param {{title: string, domain: [number, number], mapFn: (t: number) => string}} [p.colorbar]
+ * @param {Array<{name: string, color: string}>} [p.legend] swatch key drawn
+ *   inside the plot (PT8: which zone each colour is)
  * @param {(next: {x: [number, number], y: [number, number]} | null) => void} [p.onDomainsChange]
  *   enables wheel zoom + drag pan; null means reset to defaults
  */
@@ -71,7 +73,7 @@ export default function Crossplot({
   points, xLabel, yLabel, xDomain, yDomain,
   xLog = false, yLog = false, yReverse = false,
   overlays = [], polygons = [], draftPolygon = null, onPlotClick,
-  colorbar = null, onDomainsChange,
+  colorbar = null, legend = [], onDomainsChange,
 }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -245,7 +247,33 @@ export default function Crossplot({
     }
     screenPtsRef.current = screenPts;
     ctx.restore();
-  }, [size, points, overlays, polygons, draftPolygon, xDomain, yDomain, xLog, yLog, yReverse, xLabel, yLabel, sx, sy, plotW, plotH, colorbar]);
+
+    // swatch key, top-left inside the plot, on a panel so it stays legible
+    // over dense point clouds (PT8)
+    if (legend.length) {
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'left';
+      const rowH = 13;
+      const w = Math.min(
+        plotW - 12,
+        16 + Math.max(...legend.map((l) => ctx.measureText(l.name).width)),
+      );
+      const h = legend.length * rowH + 6;
+      const lx = M.l + 8;
+      const ly = M.t + 8;
+      ctx.fillStyle = 'rgba(255,255,255,0.88)';
+      ctx.fillRect(lx, ly, w, h);
+      ctx.strokeStyle = CHART_COLORS.axisLine;
+      ctx.strokeRect(lx + 0.5, ly + 0.5, w - 1, h - 1);
+      legend.forEach((l, i) => {
+        const ry = ly + 4 + i * rowH;
+        ctx.fillStyle = l.color;
+        ctx.fillRect(lx + 4, ry + 2, 7, 7);
+        ctx.fillStyle = CHART_COLORS.axisText;
+        ctx.fillText(l.name, lx + 15, ry + 9, w - 19);
+      });
+    }
+  }, [size, points, overlays, polygons, draftPolygon, xDomain, yDomain, xLog, yLog, yReverse, xLabel, yLabel, sx, sy, plotW, plotH, colorbar, legend]);
 
   // domain transform helpers: express pan/zoom as pixel-space maps and
   // pull the new endpoints back through the CURRENT scales, so linear,
