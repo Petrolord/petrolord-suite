@@ -101,3 +101,23 @@ test('isochore of two published elevation surfaces resamples + subtracts top min
   expect(st.mean).toBeGreaterThan(0);
   expect(st.mean).toBeGreaterThan(50); // well tops differ by ~120-160 m
 });
+
+test('MS2: rename and re-grid in place keep the id; teammate rows are refused', async () => {
+  const b = makeInMemoryBackend();
+  const wells = await b.listWells();
+  const pts = topsToPoints(wells, 'Top Dome');
+  const spec = specForPoints(pts, 150, 2);
+  const saved = await b.saveSurface({ name: 'Top Dome structure', spec, grid: gridSurface(pts, spec).z, provenance: { cell_m: 150 } });
+  const renamed = await b.updateSurface(saved.id, { name: 'Top Dome (v2)' });
+  expect(renamed.id).toBe(saved.id);
+  expect((await b.listSurfaces()).find((s) => s.id === saved.id).name).toBe('Top Dome (v2)');
+  const spec2 = specForPoints(pts, 100, 2);
+  const replaced = await b.replaceSurfaceGrid(saved, { spec: spec2, grid: gridSurface(pts, spec2).z, provenance: { cell_m: 100, history: [{ previous: { nx: spec.nx } }] } });
+  expect(replaced.id).toBe(saved.id);
+  expect(replaced.nx).toBe(spec2.nx);
+  expect(replaced.provenance.history).toHaveLength(1);
+  expect((await b.downloadSurfaceGrid(replaced)).length).toBe(spec2.nx * spec2.ny);
+  const teammate = (await b.listSurfaces()).find((s) => !s.is_own);
+  await expect(b.updateSurface(teammate.id, { name: 'x' })).rejects.toThrow(/Only the owner/);
+  await expect(b.replaceSurfaceGrid(teammate, { spec: spec2, grid: new Float32Array(spec2.nx * spec2.ny) })).rejects.toThrow(/Only the owner/);
+});

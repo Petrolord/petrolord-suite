@@ -97,3 +97,16 @@ out of the map.
   colour map, reverse, labels, names, posted values, legend, scale
   bar, north arrow, axes), saved with a surface in
   `provenance.display`, and a titled PNG export.
+- **MS2 built 2026-09-05.** Surfaces in and out: an import dialog on
+  the shared registry (`parseSurfaceFile` for XYZ, CPS-3, ZMAP+, Irap;
+  domain depth | time | attribute; depth unit; sign detected from the
+  data and overridable; file CRS through `CrsPicker`, converted into the
+  Project CRS when both are known; pure `services/importPlan.js`), a
+  row context menu (export as XYZ / CPS-3 / ZMAP+ / Irap in the display
+  unit through the byte-golden writers with a CRS label on ZMAP+,
+  control points CSV from `provenance.points`, rename inline, re-grid
+  in place, share, delete), domain/unit and CRS badges with a
+  provenance tooltip, and `surfacesRegistry.replaceSurfaceGrid` (same
+  id and storage path, previous frame in `provenance.history`) so
+  Earth Modeling stacks and ReservoirCalc imports keep pointing at a
+  re-gridded surface.
