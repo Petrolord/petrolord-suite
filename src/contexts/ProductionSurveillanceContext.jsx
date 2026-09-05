@@ -167,10 +167,40 @@ export const ProductionSurveillanceProvider = ({ children }) => {
     [wellSeries, activeSettings],
   );
   const kpis = useMemo(() => computeKpis(wellSeries, fieldSeries, {}), [wellSeries, fieldSeries]);
-  const defermentSummary = useMemo(
-    () => summarizeDeferments(deferments, surveillance.asOf || undefined),
-    [deferments, surveillance.asOf],
-  );
+  // Item 76. `summarizeDeferments` reads no wall clock: an open
+  // deferment accrues days up to an anchor the CALLER names, and it
+  // refuses without one rather than quietly dating itself to today.
+  // `surveillance.asOf` is null when the field has no wells with ledger
+  // rows, and passing `undefined` there used to hand the engine a
+  // silent "now". The panel gets an empty summary in that case, which
+  // is the truth: there is no ledger to accrue against.
+  const defermentSummary = useMemo(() => {
+    if (!surveillance.asOf) {
+      return {
+        ok: false,
+        code: 'noLedgerDate',
+        byCategory: [],
+        totals: {
+          events: 0, days: 0, oil: 0, water: 0, gas: 0,
+        },
+        openCount: 0,
+        note: 'This field has no production ledger yet, so there is no date for an open deferment to accrue days up to.',
+      };
+    }
+    const summary = summarizeDeferments(deferments, surveillance.asOf);
+    if (summary.ok === false) {
+      return {
+        ...summary,
+        byCategory: [],
+        totals: {
+          events: 0, days: 0, oil: 0, water: 0, gas: 0,
+        },
+        openCount: 0,
+        note: summary.error,
+      };
+    }
+    return summary;
+  }, [deferments, surveillance.asOf]);
   const registrySuggestions = useMemo(
     () => suggestRegistryLinks(wells, geoWells),
     [wells, geoWells],

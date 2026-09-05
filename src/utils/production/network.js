@@ -472,6 +472,10 @@ export const runNetwork = ({ inputs, wellModels, samples = CURVE_SAMPLES }) => {
   let passes = 0;
   let settled = false;
   let characteristics = {};
+  // The last pass's refusal, when the pressure solve did not converge.
+  // Cleared by any pass that does converge, so it only survives if the
+  // loop ENDS on one.
+  let lastRefusal = null;
 
   while (passes < MAX_COMPOSITION_PASSES && !settled) {
     passes += 1;
@@ -502,8 +506,30 @@ export const runNetwork = ({ inputs, wellModels, samples = CURVE_SAMPLES }) => {
       wellInflow,
       initialPressures: solution?.pressures,
     });
-    if (!solution.ok) return { ok: false, errors: [solution.error], network };
-    solution.warnings.forEach((w) => warnings.push(w));
+    // ITEM 47, AND WHAT IT MEANS INSIDE THIS LOOP. The engine says
+    // `ok: false` on a solve that did not converge, where it used to
+    // come back `ok: true` with a warning nobody read. That is right,
+    // and it is NOT the same statement as "this run failed".
+    //
+    // This loop exists because a branch's pressure drop depends on the
+    // mixture it carries, and the first pass guesses that mixture. A
+    // pass that stalls on a guessed composition is an ordinary event:
+    // the published three-well case with a 4 inch trunk stalls on pass
+    // one at 3,823 lb/d and converges to 8e-9 once the compositions have
+    // settled. Aborting on the first pass throws away a run that solves.
+    //
+    // So a non-converged pass carries its pressures forward as the next
+    // guess and the loop goes round again. What is NOT allowed is
+    // finishing the loop on one: the check after it refuses then, with
+    // the engine's own reason.
+    // The pressures a stalled pass reached are still what the NEXT
+    // pass's characteristics have to be built from, which is how this
+    // loop got out of the stall before: the mixtures move, the branch
+    // relations change with them, and the solve that stalled on a
+    // guessed composition converges on a real one. So a stalled pass is
+    // recorded and then used, exactly like a converged one.
+    lastRefusal = solution.ok ? null : solution;
+    if (solution.ok) solution.warnings.forEach((w) => warnings.push(w));
 
     // Push each well's own composition down the solved directions.
     const wellStreams = {};
@@ -521,7 +547,25 @@ export const runNetwork = ({ inputs, wellModels, samples = CURVE_SAMPLES }) => {
       };
     }
     const prop = propagateStreams({ network, flows: solution.flows, wellStreams });
-    if (!prop.ok) return { ok: false, errors: [prop.error], network, solution };
+    if (!prop.ok && !lastRefusal) {
+      // On a CONVERGED pass this is a real disagreement between the
+      // flows and the streams built from them, and it stands (item 47).
+      return { ok: false, errors: [prop.error], network, solution };
+    }
+    if (!prop.ok) {
+      // On a pass that did NOT converge the flows do not conserve, so
+      // the reconciliation refusing is a symptom of that and not a
+      // finding of its own. The streams still have to move, or every
+      // pass rebuilds the same characteristics and the loop stalls in
+      // exactly the place the pressure solve did. They are carried
+      // along the solved directions without the reconciliation, which
+      // is what this loop did before item 47 gave the check teeth.
+      const carried = propagateStreams({
+        network, flows: solution.flows, wellStreams, tolerance: Infinity,
+      });
+      if (!carried.ok) { continue; }
+      Object.assign(prop, carried);
+    }
 
     // Settled when no branch's water cut has moved.
     let moved = 0;
@@ -547,6 +591,19 @@ export const runNetwork = ({ inputs, wellModels, samples = CURVE_SAMPLES }) => {
     }));
     streams = prop;
     settled = moved < COMPOSITION_TOLERANCE;
+  }
+
+  // The loop ended on a solve that did not converge, so there is no
+  // answer to show. The pressures it reached go out with the refusal,
+  // because they are what says which leg is the problem.
+  if (lastRefusal) {
+    return {
+      ok: false,
+      errors: [lastRefusal.error],
+      network,
+      solution: lastRefusal,
+      characteristics,
+    };
   }
 
   if (!settled) {

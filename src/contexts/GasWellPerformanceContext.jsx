@@ -192,8 +192,11 @@ export const GasWellPerformanceProvider = ({ children }) => {
     if (!result) return null;
     try {
       const screen = plungerScreen({ model, result, form: inputs.plunger });
-      const maxSlugFt = largestSlug({ model, result, form: inputs.plunger });
-      return { ...screen, maxSlugFt };
+      // `{ ok, ft, reason }` since item 34: a casing pressure that cannot
+      // lift a bare plunger, or a balance that puts the slug past the
+      // shoe, is a refusal with a sentence and not a length.
+      const maxSlug = largestSlug({ model, result, form: inputs.plunger });
+      return { ...screen, maxSlug, maxSlugFt: maxSlug.ok ? maxSlug.ft : null };
     } catch (e) {
       console.error(e);
       return null;

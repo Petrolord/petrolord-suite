@@ -1651,3 +1651,55 @@ through the shared well record into two or three of the design studios.
   The FNH app itself is untouched and still routed. P10 is done:
   nothing was salvaged from `components/flowassurance` (the equations
   were invented) and the whole tree was deleted.
+
+## Wave 4, 5 September 2026: the engine re-sync and the four missing shims
+
+The Suite's production math is the central `@petrolord/engines` repo,
+vendored at `packages/engines` by git subtree and reached through
+two-line re-export shims under `src/utils/production/engine/`. That was
+true of nineteen engines. It was NOT true of four.
+
+`surveillance`, `allocation`, `liftScreening` and `liftAdvisor` had no
+shim, so the studios imported the Suite's OWN older implementations at
+`src/utils/production/*.js`. Fifteen of the owner's 4 September
+decisions were correct in the engine and invisible to users the whole
+time: items 19, 20, 21 and 74 to 80 from Wave 1, and 18, 22, 73 and 79
+from Wave 2. Twenty-two shims for twenty-two engines looked complete.
+
+What Wave 4 did, in order:
+
+1. **Subtree pull to engines `fcaf736`**, which is Wave 1 and Wave 2 in
+   one step, and which brought the four missing engines into the tree.
+   The subtree had been at `3df532734`, i.e. before Wave 1.
+2. **The paired call sites** the re-synced engines need: the ESP cable
+   sized on `motorSizingHp` (item 2), the pump line broken outside the
+   tested curve (item 5), the longest slug unwrapped from its refusal
+   (item 34), and the network composition loop taught the difference
+   between "this pass did not converge" and "this run failed" (item 47).
+3. **The four ports.** Three are bare re-exports. `liftAdvisor` is an
+   adapter, because the engine takes its four design chains as an
+   injected dependency and a pure engine cannot import the Suite's
+   form-and-model wrappers: `SUITE_CHAIN` assembles them once.
+4. **Engines PR #136**, found by the port: the advisor probes on one
+   arbitrary reference stage to learn the duty, and item 5's refusal
+   made that probe fatal on any well far from the probe stage. A chain
+   that reports its duty alongside a refusal now gets its stage picked
+   from it.
+5. **The R6 gate**, `src/utils/production/__tests__/vendoredEngines.test.js`:
+   every engine in the subtree has a shim, and every shim is a shim.
+   Absence fails as loudly as divergence, which is what N4 asked for and
+   what a drift-only check would have missed for two whole waves.
+
+Whole Suite: 490 suites, 7412 tests green.
+
+### Gotchas
+
+- **Do not `git stash` in this worktree.** `node_modules/.vite` is
+  tracked and the dev server rewrites it continuously, so a stash and
+  pop collide on generated files. Commit or use a scratch copy instead.
+- The four ported modules are doors, not implementations. A fix to
+  surveillance, allocation, lift screening or the lift advisor goes to
+  `Petrolord/petrolord-engines` and comes back by subtree pull.
+- The lift advisor's duty field is a LIQUID rate (item 19). The engine
+  derives the oil each chain designs on from it and the water cut; the
+  absolute open flow it is compared against is an OIL rate.

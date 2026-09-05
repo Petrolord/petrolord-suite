@@ -62,30 +62,30 @@ describe('the screening matrix', () => {
     const top = (inputs) => screenLift(inputs)[0].id;
     // Deep, high rate, power and gas available.
     expect(['esp', 'gasLift']).toContain(top({
-      targetRate: 3000, depthFt: 9000, gor: 800, api: 35, bhtF: 210,
+      targetLiquidRateBpd: 3000, depthFt: 9000, gor: 800, api: 35, bhtF: 210,
       powerAvailable: true, gasAvailable: true,
     }));
     // Shallow stripper with no gas: rod pumping, which is what most of
     // the world's wells actually run.
     expect(top({
-      targetRate: 60, depthFt: 4000, gor: 200, api: 30, bhtF: 130,
+      targetLiquidRateBpd: 60, depthFt: 4000, gor: 200, api: 30, bhtF: 130,
       powerAvailable: true, gasAvailable: false,
     })).toBe('rodPump');
     // A gassy well making almost no liquid is a plunger well.
     expect(top({
-      targetRate: 25, depthFt: 8000, gor: 20000, api: 50, bhtF: 200,
+      targetLiquidRateBpd: 25, depthFt: 8000, gor: 20000, api: 50, bhtF: 200,
       powerAvailable: false, gasAvailable: false,
     })).toBe('plunger');
     // Heavy viscous crude with sand is what a PCP is best in the world at.
     expect(top({
-      targetRate: 300, depthFt: 3000, gor: 50, api: 14, bhtF: 120,
+      targetLiquidRateBpd: 300, depthFt: 3000, gor: 50, api: 14, bhtF: 120,
       hasSand: true, powerAvailable: true, gasAvailable: false,
     })).toBe('pcp');
   });
 
   it('a missing facility is decisive, because it should be', () => {
     const base = {
-      targetRate: 2000, depthFt: 8000, gor: 400, api: 33, bhtF: 200,
+      targetLiquidRateBpd: 2000, depthFt: 8000, gor: 400, api: 33, bhtF: 200,
       powerAvailable: true, gasAvailable: true,
     };
     const withPower = screenLift(base).find((r) => r.id === 'esp').score;
@@ -103,16 +103,16 @@ describe('the screening matrix', () => {
     // a screening that looked at rate alone would pass deep wells it
     // should not.
     const shallowFast = screenLift({
-      targetRate: 800, depthFt: 2000, gor: 100, api: 30, bhtF: 130,
+      targetLiquidRateBpd: 800, depthFt: 2000, gor: 100, api: 30, bhtF: 130,
     }).find((r) => r.id === 'rodPump').score;
     const deepSlow = screenLift({
-      targetRate: 800, depthFt: 11000, gor: 100, api: 30, bhtF: 130,
+      targetLiquidRateBpd: 800, depthFt: 11000, gor: 100, api: 30, bhtF: 130,
     }).find((r) => r.id === 'rodPump').score;
     expect(deepSlow).toBeLessThan(shallowFast);
   });
 
   it('every reason is typed and spelled out, because the score is not the output', () => {
-    screenLift({ targetRate: 500, depthFt: 6000, gor: 300, api: 30, bhtF: 180 })
+    screenLift({ targetLiquidRateBpd: 500, depthFt: 6000, gor: 300, api: 30, bhtF: 180 })
       .forEach((r) => {
         expect(r.reasons.length).toBeGreaterThan(1);
         r.reasons.forEach((x) => {
@@ -124,7 +124,7 @@ describe('the screening matrix', () => {
 
   it('recommends a band rather than a winner, because a score cannot separate close candidates', () => {
     const rows = screenLift({
-      targetRate: 3000, depthFt: 9000, gor: 800, api: 35, bhtF: 210,
+      targetLiquidRateBpd: 3000, depthFt: 9000, gor: 800, api: 35, bhtF: 210,
       powerAvailable: true, gasAvailable: true,
     });
     const recommended = rows.filter((r) => r.recommended);
@@ -134,7 +134,7 @@ describe('the screening matrix', () => {
 
   it('reads what it can from the well model rather than asking twice', () => {
     const { model } = espWell();
-    const derived = screeningInputsFromModel(model, { targetRate: 300, wctPct: 90 });
+    const derived = screeningInputsFromModel(model, { targetLiquidRateBpd: 300, wctPct: 90 });
     expect(derived.depthFt).toBe(7500);
     expect(derived.api).toBeCloseTo(32, 6);
     expect(derived.bhtF).toBeGreaterThan(100);
@@ -177,10 +177,16 @@ describe('the design pass', () => {
     slugLengthFt: 150, plungerWeightLb: 6,
   };
 
+  // ITEM 19. The duty at the door is LIQUID, and the chains design on
+  // the oil derived from it. A classic ESP candidate is a well making
+  // thousands of barrels of liquid: 3,000 bbl/d at 90 per cent water cut
+  // is 300 stb/d of oil, which is the number this case used to pass as
+  // the "rate" and design 3,000 bbl/d of liquid on. Same well, same
+  // physical duty, stated in the units the parameter names.
   it('designs an ESP on a classic ESP candidate, with real numbers', () => {
     const { model } = espWell();
     const r = designEsp({
-      model, targetRate: 300, wctPct: 90, gorScfStb: 120, whp: 200, facility,
+      model, targetLiquidRateBpd: 3000, wctPct: 90, gorScfStb: 120, whp: 200, facility,
     });
     expect(r.ok).toBe(true);
     expect(r.id).toBe('esp');
@@ -204,7 +210,7 @@ describe('the design pass', () => {
       i.completion.idIn = '2.992';
     });
     const r = designEsp({
-      model, targetRate: 900, wctPct: 40, gorScfStb: 900, whp: 200, facility,
+      model, targetLiquidRateBpd: 900, wctPct: 40, gorScfStb: 900, whp: 200, facility,
     });
     expect(r.ok).toBe(false);
     expect(r.reason).toMatch(/flows on its own/);
@@ -213,7 +219,7 @@ describe('the design pass', () => {
   it('gas lift finds a real injection point and lifts the well', () => {
     const { model } = stripperWell();
     const r = designGasLift({
-      model, targetRate: 60, wctPct: 85, gorScfStb: 150, whp: 60,
+      model, targetLiquidRateBpd: 60, wctPct: 85, gorScfStb: 150, whp: 60,
       facility: { ...facility, injectionPsig: 600, injectionMscfd: 150 },
     });
     expect(r.ok).toBe(true);
@@ -225,7 +231,7 @@ describe('the design pass', () => {
   it('gas lift refuses honestly when the pressure cannot reach', () => {
     const { model } = espWell();
     const r = designGasLift({
-      model, targetRate: 300, wctPct: 90, gorScfStb: 120, whp: 200,
+      model, targetLiquidRateBpd: 300, wctPct: 90, gorScfStb: 120, whp: 200,
       facility: { ...facility, injectionPsig: 120, injectionMscfd: 50 },
     });
     expect(r.ok).toBe(false);
@@ -236,9 +242,11 @@ describe('the design pass', () => {
     // The single most misleading thing this advisor could do is report
     // a clean design that delivers a third of the asked-for rate as a
     // method that works.
+    // 3,000 bbl/d of liquid at 90 per cent water cut, which is 300 stb/d
+    // of oil: far past what a rod pump swings at this depth.
     const { model } = espWell();
     const r = designRodPump({
-      model, targetRate: 300, wctPct: 90, gorScfStb: 120, whp: 200,
+      model, targetLiquidRateBpd: 3000, wctPct: 90, gorScfStb: 120, whp: 200,
     });
     expect(r.ok).toBe(false);
     expect(r.shortfall).toBeDefined();
@@ -249,7 +257,11 @@ describe('the design pass', () => {
 
   it('a rod pump that meets the target reports the smallest unit that does', () => {
     const { model } = stripperWell();
-    const r = designRodPump({ model, targetRate: 60, wctPct: 85, gorScfStb: 150, whp: 60 });
+    // 400 bbl/d of liquid at 85 per cent water cut is 60 stb/d of oil,
+    // which is the duty this case has always been about.
+    const r = designRodPump({
+      model, targetLiquidRateBpd: 400, wctPct: 85, gorScfStb: 150, whp: 60,
+    });
     expect(r.ok).toBe(true);
     expect(r.rateStbd).toBeGreaterThanOrEqual(60 * RATE_TOLERANCE);
     expect(r.design.worstSection.loadingPct).toBeLessThanOrEqual(100);
@@ -258,7 +270,7 @@ describe('the design pass', () => {
   it('plunger lift is judged on the gas a cycle really needs', () => {
     const { model } = espWell();
     const r = designPlunger({
-      model, targetRate: 300, wctPct: 90, gorScfStb: 120, whp: 200, facility,
+      model, targetLiquidRateBpd: 300, wctPct: 90, gorScfStb: 120, whp: 200, facility,
     });
     expect(r.ok).toBe(false);
     // The refusal quotes both the computed requirement and what the
@@ -269,14 +281,14 @@ describe('the design pass', () => {
   it('runs all four against one well and refuses an impossible target', () => {
     const { model } = espWell();
     const pass = runDesignPass({
-      model, targetRate: 300, wctPct: 90, gorScfStb: 120, whp: 200, facility,
+      model, targetLiquidRateBpd: 300, wctPct: 90, gorScfStb: 120, whp: 200, facility,
     });
     expect(pass.ok).toBe(true);
     expect(pass.results).toHaveLength(4);
     expect(pass.results.every((r) => r.hasEngine)).toBe(true);
 
     const tooMuch = runDesignPass({
-      model, targetRate: 99999, wctPct: 90, gorScfStb: 120, whp: 200, facility,
+      model, targetLiquidRateBpd: 99999, wctPct: 90, gorScfStb: 120, whp: 200, facility,
     });
     expect(tooMuch.ok).toBe(false);
     expect(tooMuch.errors.join(' ')).toMatch(/absolute open flow/);
@@ -287,7 +299,7 @@ describe('the design pass', () => {
     gas.well.phase = 'gas';
     gas.gasInflow = { ...gas.gasInflow, model: 'backPressure', c: '0.0025', n: '0.87' };
     const pass = runDesignPass({
-      model: buildWellModel(gas), targetRate: 300, wctPct: 50, gorScfStb: 500, whp: 200, facility,
+      model: buildWellModel(gas), targetLiquidRateBpd: 300, wctPct: 50, gorScfStb: 500, whp: 200, facility,
     });
     expect(pass.ok).toBe(false);
     expect(pass.errors.join(' ')).toMatch(/gas/i);

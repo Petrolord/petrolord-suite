@@ -98,14 +98,31 @@ export const useLiftAdvisor = () => {
   return context;
 };
 
-/** Screening inputs: the well fills what it knows, the facility the rest. */
+/**
+ * Screening inputs: the well fills what it knows, the facility the rest.
+ *
+ * ITEM 19. The duty rate is LIQUID, oil plus water, which is what the
+ * studio's one rate field has always been and what the engine's
+ * parameter now says: `targetLiquidRateBpd`. ITEM 20: a missing input
+ * is not a zero one, so an absent gravity or gas-oil ratio is left OUT
+ * rather than defaulted here, and the engine skips the rules that read
+ * it and says so in the reasons.
+ */
+/** A field the user has not filled in is ABSENT, not zero: item 20. */
+const numOrAbsent = (v) => {
+  if (v === '' || v === null || v === undefined) return undefined;
+  const n = typeof v === 'number' ? v : parseFloat(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+
 export const screeningInputsFrom = (inputs, model) => ({
   ...screeningInputsFromModel(model, {
-    targetRate: num(inputs.duty.targetRateStbd, 0),
+    targetLiquidRateBpd: num(inputs.duty.targetRateStbd, 0),
     wctPct: num(inputs.duty.wctPct, 0),
   }),
-  gor: num(inputs.fluid.gor, 0),
-  api: num(inputs.fluid.api, 32),
+  targetLiquidRateBpd: num(inputs.duty.targetRateStbd, 0),
+  gor: numOrAbsent(inputs.fluid.gor),
+  api: numOrAbsent(inputs.fluid.api),
   isOffshore: !!inputs.facility.isOffshore,
   hasSand: !!inputs.facility.hasSand,
   isHorizontal: !!inputs.facility.isHorizontal,
@@ -159,7 +176,17 @@ export const LiftAdvisorProvider = ({ children }) => {
     [inputs, model],
   );
 
-  const screening = useMemo(() => screenLift(screeningInputs), [screeningInputs]);
+  // ITEM 20. Screening refuses rather than ranking a well on inputs it
+  // was never given: a missing target rate or depth, or a field that
+  // cannot be read as a number, comes back as `{ ok: false, code,
+  // error }` instead of a ranked list built on zeros. The list stays a
+  // list for every consumer, and the refusal travels beside it.
+  const screeningResult = useMemo(() => screenLift(screeningInputs), [screeningInputs]);
+  const screening = useMemo(
+    () => (Array.isArray(screeningResult) ? screeningResult : []),
+    [screeningResult],
+  );
+  const screeningRefusal = Array.isArray(screeningResult) ? null : screeningResult;
 
   // --- The explicit run: four real design chains ---
   const runSignature = useMemo(() => JSON.stringify(inputs), [inputs]);
@@ -177,7 +204,14 @@ export const LiftAdvisorProvider = ({ children }) => {
     try {
       const pass = runDesignPass({
         model,
-        targetRate: num(inputs.duty.targetRateStbd, 0),
+        // ITEM 19. The studio's one rate field is the LIQUID rate, oil
+        // plus water, which is what the screening half has always read
+        // it as. The engine derives the oil each chain designs on from
+        // it and the water cut; handing it over as `targetRate` left the
+        // whole design pass reading a liquid rate as an oil one, which
+        // on this studio's default 40 per cent water cut is one number
+        // standing for one and two thirds the liquid.
+        targetLiquidRateBpd: num(inputs.duty.targetRateStbd, 0),
         wctPct: num(inputs.duty.wctPct, 0),
         gorScfStb: num(inputs.fluid.gor, 0),
         whp: num(inputs.duty.whp, 0),
@@ -434,6 +468,7 @@ export const LiftAdvisorProvider = ({ children }) => {
     model,
     screeningInputs,
     screening,
+    screeningRefusal,
     comparison,
     studioLink,
     // explicit run

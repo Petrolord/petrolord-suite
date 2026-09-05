@@ -92,9 +92,11 @@ const PlungerPanel = () => {
                 />
                 <Stat
                   label="Longest slug"
-                  value={fmt(plunger.maxSlugFt)}
-                  unit="ft"
-                  hint="that this casing pressure could lift"
+                  value={plunger.maxSlug.ok ? fmt(plunger.maxSlug.ft) : 'no answer'}
+                  unit={plunger.maxSlug.ok ? 'ft' : ''}
+                  hint={plunger.maxSlug.ok
+                    ? 'that this casing pressure could lift'
+                    : plunger.maxSlug.reason}
                 />
               </div>
 

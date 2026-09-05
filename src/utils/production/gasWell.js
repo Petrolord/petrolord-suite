@@ -343,9 +343,19 @@ export const plungerScreen = ({ model, result, form }) => {
 };
 
 /** The longest slug this well's casing pressure could lift. */
+/**
+ * The longest slug this casing pressure can lift, or a refusal.
+ *
+ * Item 34 gave `maxSlugLengthFt` the refusal contract: it returns
+ * `{ ok: true, maxSlugLengthFt }` or `{ ok: false, code, error }`, where
+ * it used to clamp to zero or to the well depth and hand back a bare
+ * number that read like an ordinary answer. This unwraps it into the
+ * shape the studio renders, `{ ft, ok, reason }`, so a refusal reaches
+ * the panel as a sentence rather than as a length nobody can act on.
+ */
 export const largestSlug = ({ model, result, form }) => {
   const bottom = result.profile.stations[result.profile.stations.length - 1];
-  return maxSlugLengthFt({
+  const solved = maxSlugLengthFt({
     casingPressurePsia: num(form.casingPressurePsia, NaN),
     linePressurePsia: num(form.linePressurePsia, result.whp),
     liquidSg: num(form.liquidSg, 1.02),
@@ -357,6 +367,8 @@ export const largestSlug = ({ model, result, form }) => {
     z: bottom.z,
     frictionPsi: num(form.frictionPsi, 0),
   });
+  if (solved.ok) return { ok: true, ft: solved.maxSlugLengthFt, reason: null };
+  return { ok: false, ft: null, code: solved.code, reason: solved.error };
 };
 
 export {

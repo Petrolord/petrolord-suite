@@ -46,6 +46,47 @@
  *
  * Pressures psia, depths ft TVD, temperatures degF, gradients psi/ft,
  * gas rates Mscf/d.
+ *
+ * DECISIONS THIS MODULE MAKES, stated here because a reader of the
+ * numbers cannot see them in the numbers.
+ *
+ * 1. The closing test in the unloading walk uses `>=`, so a valve
+ *    sitting EXACTLY at its closing pressure is treated as OPEN. The
+ *    equality is a knife edge on which nothing physical can be decided,
+ *    and the consequence of the two readings is not symmetric: calling
+ *    such a valve shut hides a multipointing string, calling it open
+ *    shows a design with no margin as the marginal design it is. A
+ *    design that wants a verdict of shut has to earn it with a margin.
+ *    See `unloadingSequence`.
+ * 2. A valve with no closing pressure at all, which is the bottom
+ *    orifice, is SKIPPED by that test rather than compared. It has no
+ *    dome charge, so there is no pressure at which it closes, and a
+ *    missing closing pressure is not a closing pressure of zero.
+ * 3. THE CLOSING TEST IS TAKEN IN THE FLUID THAT ACTS ON THE BELLOWS.
+ *    An injection-pressure-operated valve is closed by the casing and
+ *    is tested against the casing column at its own depth; a
+ *    production-pressure-operated valve is closed by the tubing and is
+ *    tested against the tubing pressure at its own depth. The casing
+ *    does not enter a PPO valve's closing test, so no casing surface
+ *    closing pressure and no operating-pressure verdict is reported for
+ *    one.
+ *
+ *    A consequence a PPO design has to be read with: the transfer
+ *    production pressure this module carries is one unloading traverse,
+ *    the same line at every stage, and each PPO valve is set to open at
+ *    that line at its own depth. Its tubing-side margin is therefore its
+ *    own spread at every stage, and a clean unloading verdict on a PPO
+ *    string is a property of the setting rule rather than a measurement
+ *    of the design. Warning `ppoClosingStageInvariant` says so on every
+ *    such design. Resolving it needs the tubing traverse per stage,
+ *    which is a flowing multiphase model and is out of this module's
+ *    scope by the note above.
+ * 4. This module reports NO RESIDUAL for the deepest injection point.
+ *    A residual formed from what `deepestInjectionPoint` returns is
+ *    evaluated against the module's own straight line between two
+ *    tabulated traverse rows, so it measures whether two chords agree
+ *    with each other and never how far the crossing is from the
+ *    answer. See `deepestInjectionPoint`.
  */
 
 import { gasColumnPressure, gasColumnSurfacePressure } from './gasProperties.js';
@@ -116,10 +157,29 @@ export const topValveDepth = ({
  * inputs: {
  *   prodTraverse [{ tvdFt, pPsia }] ascending in depth (from a nodal
  *     flowing traverse of the lifted well),
- *   pSurfPsia, gasSg, tempAtDepthF, dpTransferPsi, maxDepthFt }
+ *   pSurfPsia, gasSg, tempAtDepthF, dpTransferPsi, maxDepthFt,
+ *   steps (injection curve samples, default 40) }
+ *
+ * The injection line is sampled `steps` times over the depth of interest
+ * and read between samples by linear interpolation, so the answer is a
+ * property of that sample count as much as of the traverse. It is an
+ * input rather than a constant for that reason, and 40 is what the
+ * published case is gated at.
  * returns { depthFt, pInjPsia, pProdPsia, limitedBy }
  *   limitedBy: 'pressure' (the lines cross above the target depth) |
  *              'depth' (gas still wins at the deepest traverse point)
+ *
+ * NO RESIDUAL IS REPORTED, and none should be formed from this return.
+ * The crossing is located on the straight line drawn between the two
+ * traverse rows the caller happened to tabulate, and `pProdPsia` is read
+ * off that same line, so `pInjPsia - dpTransferPsi - pProdPsia` is zero
+ * to rounding by construction whatever the tabulation. It stays small
+ * while the crossing itself moves tens of feet with the row spacing, so
+ * it is anti-correlated with accuracy and not monotone in it: no
+ * threshold on it separates a good run from a bad one, and a caller
+ * ranking runs by it ranks them close to backwards. Accuracy here is a
+ * property of the TABULATION, so the honest measure of it is the
+ * crossing under refinement, not any quantity read off one tabulation.
  */
 export const deepestInjectionPoint = ({
   prodTraverse, pSurfPsia, gasSg, tempAtDepthF, dpTransferPsi = 0,
@@ -156,6 +216,11 @@ export const deepestInjectionPoint = ({
   };
 };
 
+/** Passes allowed to the per-valve spacing fixed point, and the depth
+ *  tolerance that counts as settled. */
+export const SPACING_MAX_ITER = 50;
+export const SPACING_TOL_FT = 0.01;
+
 /**
  * Valve depths, top down.
  *
@@ -174,7 +239,24 @@ export const deepestInjectionPoint = ({
  *   targetDepthFt         deepest injection point, when one is known
  *   minSpacingFt, maxValves
  * }
- * returns { depths: [ft], stopReason, surfacePressures: [psia] }
+ * returns { depths: [ft], stopReason, surfacePressures: [psia],
+ *           warnings: [{ code, message, ... }] }
+ *
+ * Each valve below the first is placed by a fixed point on the weak
+ * depth dependence of the injection gas column, run for at most
+ * SPACING_MAX_ITER passes. When it does not settle the last iterate is
+ * kept, because the checks below it still decide whether that depth is
+ * usable, and a `spacingNotConverged` warning carrying the iteration
+ * count says so rather than letting an unsettled depth pass as a
+ * settled one.
+ *
+ * `minSpacingFt` stops the recursion when two valves come closer than it
+ * (`stopReason: 'minSpacing'`), with ONE exception: the valve that lands
+ * at or below the target depth is placed AT the target depth, and its
+ * spacing from the valve above can be short of the minimum. That
+ * placement is deliberate, a design that reaches target depth is worth
+ * having, and it carries a `minSpacingViolated` warning naming the
+ * spacing achieved and the minimum stated.
  */
 export const spaceValves = ({
   pKickoffPsia, pOperatingPsia, method = 'surfaceClose', dpPerValvePsi = 25,
@@ -186,6 +268,7 @@ export const spaceValves = ({
   const decrement = method === 'constantPressure' ? 0 : Math.max(dpPerValvePsi, 0);
   const depths = [];
   const surfacePressures = [];
+  const warnings = [];
   let stopReason = 'maxValves';
 
   const d1 = topValveDepth({
@@ -195,7 +278,7 @@ export const spaceValves = ({
   depths.push(d1);
   surfacePressures.push(pKickoffPsia);
   if (d1 >= floor - 1e-6) {
-    return { depths, surfacePressures, stopReason: 'targetDepth' };
+    return { depths, surfacePressures, warnings, stopReason: 'targetDepth' };
   }
 
   for (let n = 2; n <= maxValves; n += 1) {
@@ -206,22 +289,52 @@ export const spaceValves = ({
 
     let d = dPrev + minSpacingFt;
     let converged = false;
-    for (let i = 0; i < 50; i += 1) {
+    let iterations = 0;
+    for (let i = 0; i < SPACING_MAX_ITER; i += 1) {
+      iterations = i + 1;
       const pInj = gasColumnPressure({
         pSurfPsia: pSurfN, tvdFt: d, gasSg, tempAtDepthF, steps: 20,
       }).pBottomPsia;
       const next = dPrev + (pInj - dpTransferPsi - pProdPrev) / killGradPsiPerFt;
-      if (Math.abs(next - d) < 0.01) { d = next; converged = true; break; }
+      if (Math.abs(next - d) < SPACING_TOL_FT) { d = next; converged = true; break; }
       d = next;
     }
-    if (!converged) { /* keep the last iterate; the checks below still apply */ }
+    if (!converged) {
+      // The last iterate is kept, because the checks below still decide
+      // whether it can be used, but it is an unsettled depth and the
+      // caller is told so with the count of passes it was given.
+      warnings.push({
+        code: 'spacingNotConverged',
+        valve: n,
+        iterations,
+        toleranceFt: SPACING_TOL_FT,
+        message: `Valve ${n} depth did not settle within ${SPACING_TOL_FT} ft after ${iterations} passes of the spacing fixed point. The last pass was kept, so this depth and every depth below it are approximate.`,
+      });
+    }
 
     if (!(d > dPrev + 1e-6)) { stopReason = 'injectionPressure'; break; }
     const increment = d - dPrev;
     if (d >= floor) {
+      // The solve wants this valve below the floor, so the mandrel goes ON
+      // the floor. That placement is the one case the minimum spacing test
+      // below never sees, because it breaks out first, and the achieved
+      // spacing floor - dPrev can be a fraction of the stated minimum. The
+      // mandrel is still placed, per item 9: a design that reaches target
+      // depth with a tight last space is a real design and refusing it
+      // would throw away the answer. It is placed and SAID.
+      const achievedFt = floor - dPrev;
       depths.push(floor);
       surfacePressures.push(pSurfN);
       stopReason = 'targetDepth';
+      if (achievedFt < minSpacingFt) {
+        warnings.push({
+          code: 'minSpacingViolated',
+          valve: n,
+          spacingFt: achievedFt,
+          minSpacingFt,
+          message: `Valve ${n} is placed at the target depth, ${achievedFt.toFixed(1)} ft below valve ${n - 1}, which is closer than the ${minSpacingFt} ft minimum spacing this design states. The mandrel is placed where it was asked for; the spacing is not what was asked for.`,
+        });
+      }
       break;
     }
     if (increment < minSpacingFt) { stopReason = 'minSpacing'; break; }
@@ -229,7 +342,7 @@ export const spaceValves = ({
     surfacePressures.push(pSurfN);
   }
 
-  return { depths, surfacePressures, stopReason, pOperatingPsia };
+  return { depths, surfacePressures, warnings, stopReason, pOperatingPsia };
 };
 
 /**
@@ -262,10 +375,19 @@ export const valveSetting = ({
     r,
   });
 
-  // The valve closes when the pressure on its bellows falls back to the
-  // dome pressure; expressed at surface that is the casing pressure
-  // whose column reads pdT at this depth.
-  const pCloseSurfPsia = gasColumnSurfacePressure({
+  // The valve closes when the pressure acting on the FULL bellows area
+  // falls back to the dome pressure at valve temperature. WHICH pressure
+  // that is follows from the family: an injection-pressure-operated
+  // valve is held open by the casing, a production-pressure-operated
+  // valve by the tubing. The closing pressure at valve depth is pdT for
+  // both; it is read in a different fluid.
+  const isPpo = valveType === 'PPO';
+  const closingActsOn = isPpo ? 'production' : 'injection';
+  // Only a casing-operated valve has a casing SURFACE pressure that
+  // closes it. Inverting the injection gas column for a tubing-operated
+  // valve returns a casing pressure the valve is not closed by, so none
+  // is reported for it.
+  const pCloseSurfPsia = isPpo ? null : gasColumnSurfacePressure({
     pAtDepthPsia: pdT, tvdFt: depthFt, gasSg, tempAtDepthF, steps: 20,
   });
 
@@ -291,8 +413,16 @@ export const valveSetting = ({
     dome60Psia: pd60,
     testRackOpeningPsia: tro,
     spreadPsi: spread,
+    closingActsOn,
+    closingPressureAtDepthPsia: pdT,
     closingSurfacePressurePsia: pCloseSurfPsia,
-    closesAtOperating: pOperAtDepth === null ? null : pOperAtDepth < pdT,
+    // `pOperatingSurfPsia` is a CASING pressure, so it can only answer
+    // this question for a casing-operated valve. The tubing pressure at
+    // depth once the well is on its operating point comes from a flowing
+    // traverse, which this module does not model, so a production
+    // operated valve gets no operating verdict rather than one taken on
+    // the wrong fluid.
+    closesAtOperating: (isPpo || pOperAtDepth === null) ? null : pOperAtDepth < pdT,
     throughputMscfd: throughput.qMscfd,
     throughputRegime: throughput.regime,
     passesTarget: qgiTargetMscfd === undefined ? null : throughput.qMscfd >= qgiTargetMscfd,
@@ -309,6 +439,22 @@ export const valveSetting = ({
  * gas splits between two depths, the lift gas is wasted and the well
  * never reaches its design injection depth. It is reported per stage,
  * never silently smoothed over.
+ *
+ * A bellows valve closes when the pressure acting on the FULL bellows
+ * area falls back to its dome charge at valve temperature, so the test
+ * is a comparison at valve depth, in the fluid that acts on that
+ * valve's bellows:
+ *
+ *   IPO   the casing column at that valve's depth, taken from THIS
+ *         stage's surface injection pressure, against its dome
+ *   PPO   the tubing pressure at that valve's depth against its dome;
+ *         the casing does not enter the test at all
+ *
+ * `closingMargins` publishes that comparison per upper valve: the fluid
+ * it was taken in, the acting pressure, the dome, the margin, and for a
+ * casing-operated valve the casing drop the stage has achieved at that
+ * depth. The margin is the valve's own spread less that drop, which is
+ * why a design decrements the surface pressure per valve at all.
  */
 export const unloadingSequence = ({ valves, gasSg, tempAtDepthF, qgiTargetMscfd }) => {
   const stages = [];
@@ -316,11 +462,60 @@ export const unloadingSequence = ({ valves, gasSg, tempAtDepthF, qgiTargetMscfd 
     const v = valves[i];
     const pSurf = v.pSurfOpenPsia;
     const upperOpen = [];
+    const closingMargins = [];
     for (let j = 0; j < i; j += 1) {
       const u = valves[j];
-      // upper valve j is still open if the casing pressure at this stage
-      // is above the pressure that closes it
-      if (pSurf >= u.closingSurfacePressurePsia) upperOpen.push(j + 1);
+      // A valve with no dome charge has no pressure at which it shuts,
+      // so the test cannot be evaluated on it and it is SKIPPED; see
+      // decision 2 in the module header. Its row is still published, so
+      // a reader can see that it was not tested rather than infer a
+      // verdict from a valve missing out of the list.
+      if (!Number.isFinite(u.domeAtTempPsia)) {
+        closingMargins.push({
+          valve: j + 1,
+          family: u.valveType,
+          actingOn: 'none',
+          actingPressurePsia: null,
+          domeAtTempPsia: null,
+          marginPsi: null,
+          spreadPsi: null,
+          casingDropPsi: null,
+          open: null,
+        });
+        continue;
+      }
+      // The closing test, in the fluid that acts on the bellows of THIS
+      // valve, at ITS depth, against ITS dome charge. See decision 4.
+      const isPpo = u.valveType === 'PPO';
+      let actingPsia;
+      let casingDropPsi = null;
+      if (isPpo) {
+        actingPsia = u.pProdAtDepthPsia;
+      } else {
+        actingPsia = gasColumnPressure({
+          pSurfPsia: pSurf, tvdFt: u.depthFt, gasSg, tempAtDepthF, steps: 20,
+        }).pBottomPsia;
+        // how far this stage has taken the casing off the pressure the
+        // valve was set to open on, the quantity a decrement per valve
+        // is chosen to make bigger than the spread
+        casingDropPsi = u.pInjAtDepthPsia - actingPsia;
+      }
+      const marginPsi = actingPsia - u.domeAtTempPsia;
+      // `>=`, so a valve exactly at its closing pressure is treated as
+      // OPEN; see decision 1 in the module header.
+      const open = marginPsi >= 0;
+      closingMargins.push({
+        valve: j + 1,
+        family: u.valveType,
+        actingOn: isPpo ? 'production' : 'injection',
+        actingPressurePsia: actingPsia,
+        domeAtTempPsia: u.domeAtTempPsia,
+        marginPsi,
+        spreadPsi: u.spreadPsi,
+        casingDropPsi,
+        open,
+      });
+      if (open) upperOpen.push(j + 1);
     }
     stages.push({
       stage: i + 1,
@@ -334,6 +529,9 @@ export const unloadingSequence = ({ valves, gasSg, tempAtDepthF, qgiTargetMscfd 
       passesTarget: qgiTargetMscfd === undefined ? null : v.throughputMscfd >= qgiTargetMscfd,
       upperValvesOpen: upperOpen,
       multipointing: upperOpen.length > 0,
+      // the number every verdict above turns on, published so a reader
+      // can see how much margin a clean stage had
+      closingMargins,
     });
   }
   return stages;
@@ -360,7 +558,9 @@ export const designGasLift = (inputs) => {
   const pOperatingPsia = inputs.pOperatingPsia ?? pKickoffPsia - 100;
 
   const spacing = spaceValves(inputs);
-  const warnings = [];
+  // The spacing solve's own warnings are the design's warnings; a depth
+  // that did not settle is not a detail of a sub-call.
+  const warnings = [...(spacing.warnings || [])];
   if (spacing.stopReason === 'injectionPressure') {
     warnings.push({
       code: 'shallowTarget',
@@ -394,7 +594,13 @@ export const designGasLift = (inputs) => {
     if (!pick.port) {
       warnings.push({
         code: 'portTooSmall',
-        message: `Valve ${i + 1} at ${Math.round(depthFt)} ft: the largest port in the catalog passes ${Math.round(pick.qMscfd)} Mscf/d, short of the ${qgiTargetMscfd} Mscf/d target.`,
+        // `selectPort` returns no port only when every candidate passes
+        // STRICTLY less than the target, and the target is printed in
+        // the same sentence, so rounding the port rate whole let the two
+        // render equal: "passes 1000 Mscf/d, short of the 1000 Mscf/d
+        // target". The depth stays whole; it is a location, not a
+        // quantity being compared with anything.
+        message: `Valve ${i + 1} at ${Math.round(depthFt)} ft: the largest port in the catalog passes ${pick.qMscfd.toFixed(1)} Mscf/d, short of the ${qgiTargetMscfd} Mscf/d target.`,
       });
     }
     const portIdIn = (isBottom && bottomOrifice && orificeIdIn)
@@ -420,8 +626,16 @@ export const designGasLift = (inputs) => {
         dome60Psia: null,
         testRackOpeningPsia: null,
         spreadPsi: null,
+        // No bellows and no dome charge, so there is no pressure at which
+        // it closes and no fluid the closing test acts in.
+        closingActsOn: null,
+        closingPressureAtDepthPsia: null,
         closingSurfacePressurePsia: null,
-        closesAtOperating: false,
+        // An orifice has no dome charge, so there is no operating
+        // pressure at which it closes and the question does not apply.
+        // `false` here read as "it stays open", which is a different
+        // claim and one this record cannot make.
+        closesAtOperating: null,
         throughputMscfd: throughput.qMscfd,
         throughputRegime: throughput.regime,
         passesTarget: throughput.qMscfd >= qgiTargetMscfd,
@@ -435,6 +649,12 @@ export const designGasLift = (inputs) => {
   });
 
   const unloading = unloadingSequence({ valves, gasSg, tempAtDepthF, qgiTargetMscfd });
+  if (valves.some((v) => v.valveType === 'PPO')) {
+    warnings.push({
+      code: 'ppoClosingStageInvariant',
+      message: 'Production operated valves close on the tubing pressure, and this module carries a single unloading production traverse, so each upper valve is compared with the same tubing pressure at every stage and its closing margin is its own spread throughout. The unloading verdict on this design is therefore a property of the setting rule and not a measurement of the design. Testing a production operated string for multipointing needs the tubing traverse stage by stage, from a flowing model this module does not solve.',
+    });
+  }
   unloading.filter((s) => s.multipointing).forEach((s) => {
     warnings.push({
       code: 'multipointing',
