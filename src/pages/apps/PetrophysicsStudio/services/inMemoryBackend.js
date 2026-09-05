@@ -177,7 +177,9 @@ export function makeInMemoryBackend() {
       if (!(z.baseMdM > z.topMdM)) throw new Error('Zone base must be below its top.');
       const zone = {
         id: nextId('zone'), well_id: wellId, name: z.name,
-        top_md_m: z.topMdM, base_md_m: z.baseMdM, properties: {},
+        top_md_m: z.topMdM, base_md_m: z.baseMdM,
+        // PT8: which tops drew the edges, when the zone came from tops
+        properties: z.fromTops ? { from_tops: z.fromTops } : {},
       };
       zonesByWell.get(wellId).push(zone);
       return zone;

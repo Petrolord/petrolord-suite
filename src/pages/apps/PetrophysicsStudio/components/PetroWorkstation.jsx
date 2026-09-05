@@ -37,7 +37,7 @@ import {
 import { faciesCurve } from '../engine/crossplot';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate, getTopStyles, setTopStyle, setShowAllTops } from '../layout/layoutSchema';
 import TopsPanel from './TopsPanel';
-import { validateZoneWindow } from '../services/zonePlanner';
+import { validateZoneWindow, planZonesAfterTopMove } from '../services/zonePlanner';
 import { nameKey, digitizedCurveName } from '@/lib/curveNames';
 import { resolveTracks } from '../layout/resolveTracks';
 import { mapLogs } from '../services/curveMap';
@@ -91,6 +91,7 @@ export default function PetroWorkstation({
   const curvePicksRef = useRef({ wellId: null, picks: {} });
   const [selection, setSelection] = useState(null);            // PS10 crossplot brush (Set of sample idx)
   const [depthMode, setDepthMode] = useState('md');            // 'md' | 'tvd' labels
+  const [snapSamples, setSnapSamples] = useState(false);       // PT8 drag snapping
   const [crossplotCfg, setCrossplotCfg] = useState(null);      // persisted to petro_projects.crossplots
 
   useEffect(() => {
@@ -341,6 +342,9 @@ export default function PetroWorkstation({
       const props = zonePropertiesSnapshot(summary, { ...params, ...(zoneParams[zone.id] || {}) }, {
         projectId, interpretationName: projectName, publishedAt: new Date().toISOString(),
       });
+      // publishZone REPLACES properties, so carry the PT8 top provenance
+      // forward or the zone stops following the tops it was cut from
+      if (zone.properties?.from_tops) props.from_tops = zone.properties.from_tops;
       await backend.publishZone(zone, props);
       setStatus(`Published ${zone.name} summary.`);
       await refreshZones(zone.well_id);
@@ -395,13 +399,34 @@ export default function PetroWorkstation({
       setStatus(`Added top ${name} at ${depthLabel(mdM, depthUnit)}.`);
     } catch (e) { setStatus(e.message); } finally { setTopsBusy(false); }
   };
+  // PT8: a top is a zone boundary, so moving one re-cuts every zone that
+  // references it (by recorded provenance, else by sitting on its old
+  // depth) and the zone summaries recompute off the new window. The zone
+  // rows are what publish, so the re-cut travels with the interpretation.
   const moveTop = async (top, mdM) => {
+    if (!Number.isFinite(mdM)) { setStatus('A top depth must be a number.'); return; }
+    if (Math.abs(mdM - top.md_m) < 1e-9) return;
+    const wellId = top.well_id || wellData.wellId;
     setTopsBusy(true);
     try {
       await backend.updateTop(top.id, { mdM });
-      await refreshTops(top.well_id || wellData.wellId);
-      setStatus(`Moved ${top.name} to ${depthLabel(mdM, depthUnit)}.`);
-    } catch (e) { setStatus(e.message); await refreshTops(wellData.wellId); } finally { setTopsBusy(false); }
+      const { moves, blocked } = planZonesAfterTopMove(zones, { id: top.id, fromMdM: top.md_m, toMdM: mdM });
+      let recut = 0;
+      for (const m of moves) {
+        await backend.updateZone(m.zone.id, m.patch);
+        recut++;
+      }
+      await refreshTops(wellId);
+      if (recut) await refreshZones(wellId);
+      const parts = [`Moved ${top.name} to ${depthLabel(mdM, depthUnit)}.`];
+      if (recut) parts.push(`Re-cut ${recut} zone${recut === 1 ? '' : 's'} (${moves.map((m) => m.zone.name).join(', ')}).`);
+      for (const b of blocked) parts.push(`${b.reason} — left as it was.`);
+      setStatus(parts.join(' '));
+    } catch (e) {
+      setStatus(e.message);
+      await refreshTops(wellId);
+      await refreshZones(wellId);
+    } finally { setTopsBusy(false); }
   };
   const renameTop = async (top, name) => {
     if (topNameTaken(name, top.id)) { setStatus(`A top named ${name} already exists on this well.`); return; }
@@ -816,6 +841,7 @@ export default function PetroWorkstation({
         tvdLookup={tvdLookup}
         isOwn={!!selected?.is_own}
         onZoneEdge={commitZoneEdge}
+        snapSamples={snapSamples}
         onTrackHeaderClick={(index) => {
           setDockOpen(true);
           setLayoutFocus({ index, nonce: Date.now() });
@@ -882,8 +908,11 @@ export default function PetroWorkstation({
               pickMode={pickMode}
               onPick={setPick}
               onRename={renameTop}
+              onMove={moveTop}
               onDelete={removeTop}
               depthUnit={depthUnit}
+              snapSamples={snapSamples}
+              onSnapSamples={setSnapSamples}
             />
           )}
           {wellData && (

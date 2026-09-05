@@ -35,3 +35,23 @@ export const fromDisplay = (v, unit) => (unit === 'ft' ? v * M_PER_FT : v);
 export const depthLabel = (mdM, unit = 'm', digits = 1) => (
   Number.isFinite(mdM) ? `${toDisplay(mdM, unit).toFixed(digits)} ${unit === 'ft' ? 'ft' : 'm'}` : '—'
 );
+
+/**
+ * Nearest logged depth to `mdM`, for snap-to-sample when a top or a zone
+ * edge is dragged (PT8, 2026-09-05). `depth` is the ascending sample
+ * array; returns `mdM` unchanged when there is nothing to snap to, so a
+ * caller can hand it any well.
+ */
+export function snapToSample(mdM, depth) {
+  if (!Number.isFinite(mdM) || !depth || depth.length === 0) return mdM;
+  if (depth.length === 1) return depth[0];
+  let lo = 0;
+  let hi = depth.length - 1;
+  if (mdM <= depth[lo]) return depth[lo];
+  if (mdM >= depth[hi]) return depth[hi];
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (depth[mid] < mdM) lo = mid; else hi = mid;
+  }
+  return mdM - depth[lo] <= depth[hi] - mdM ? depth[lo] : depth[hi];
+}

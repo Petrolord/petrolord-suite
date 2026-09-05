@@ -1,20 +1,35 @@
 // Tops (markers) dock panel (PT3, 2026-09-03): show/hide all, per-top
 // visibility and colour (view state, works on shared wells too), and on
-// own wells the pick mode plus rename and delete. Depths print in the
-// display unit. Colours and visibility persist with the interpretation
+// own wells the pick mode plus rename, an editable depth (PT8) and
+// delete. Depths print and are typed in the display unit. Colours and visibility persist with the interpretation
 // through layouts.topStyles; the rows are the registry's geo_wells_tops.
 
 import React, { useState } from 'react';
 import { Crosshair, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { topColor, topKey } from '@/components/wells/topColors';
-import { depthLabel } from '../viewer/depthModes';
+import { depthLabel, toDisplay, fromDisplay } from '../viewer/depthModes';
 
 const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
 
 export default function TopsPanel({
-  tops, topStyles, onShowAll, onStyle, isOwn, busy, pickMode, onPick, onRename, onDelete, depthUnit = 'm',
+  tops, topStyles, onShowAll, onStyle, isOwn, busy, pickMode, onPick, onRename, onMove, onDelete, depthUnit = 'm',
+  snapSamples = false, onSnapSamples,
 }) {
   const [renaming, setRenaming] = useState(null); // {id, value}
+  // PT8: the depth is editable in place next to the name. The draft is
+  // held per row so a half-typed number never reaches the registry, and
+  // it is entered in the DISPLAY unit like every other depth in this app.
+  const [editingMd, setEditingMd] = useState(null); // {id, value}
+  const commitMd = async (t) => {
+    const draft = editingMd;
+    setEditingMd(null);
+    if (!draft || draft.id !== t.id) return;
+    const typed = Number(String(draft.value).trim());
+    if (!Number.isFinite(typed)) return;
+    const mdM = Number(fromDisplay(typed, depthUnit).toFixed(2));
+    if (Math.abs(mdM - t.md_m) < 1e-9) return;
+    await onMove(t, mdM);
+  };
   const byName = topStyles?.byName || {};
   const showAll = topStyles?.showAll !== false;
   return (
@@ -27,6 +42,12 @@ export default function TopsPanel({
           <input type="checkbox" checked={showAll} onChange={(e) => onShowAll(e.target.checked)} data-testid="petro-tops-show-all" />
           Show tops
         </label>
+        {isOwn && onSnapSamples && (
+          <label className="flex items-center gap-1 text-slate-400" title="Dragging a top or a zone edge lands on the nearest logged sample">
+            <input type="checkbox" checked={snapSamples} onChange={(e) => onSnapSamples(e.target.checked)} data-testid="petro-top-snap" />
+            Snap
+          </label>
+        )}
         {isOwn && onPick && (
           <button
             type="button"
@@ -67,7 +88,25 @@ export default function TopsPanel({
             ) : (
               <span className="flex-1 truncate text-slate-200" style={{ color }}>{t.name}</span>
             )}
-            <span className="text-slate-500 font-mono" data-testid={`petro-top-md-${t.name}`}>{depthLabel(t.md_m, depthUnit)}</span>
+            {isOwn && onMove ? (
+              <span className="flex items-center gap-0.5 shrink-0">
+                <input
+                  className={`${inputCls} w-20 text-right font-mono`}
+                  value={editingMd?.id === t.id ? editingMd.value : toDisplay(t.md_m, depthUnit).toFixed(2)}
+                  data-testid={`petro-top-md-${t.name}`}
+                  title={`Depth of ${t.name} in ${depthUnit === 'ft' ? 'feet' : 'metres'} MD — press Enter to move it`}
+                  onChange={(e) => setEditingMd({ id: t.id, value: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.currentTarget.blur(); }
+                    if (e.key === 'Escape') { setEditingMd(null); e.currentTarget.blur(); }
+                  }}
+                  onBlur={() => commitMd(t)}
+                />
+                <span className="text-slate-600">{depthUnit === 'ft' ? 'ft' : 'm'}</span>
+              </span>
+            ) : (
+              <span className="text-slate-500 font-mono" data-testid={`petro-top-md-${t.name}`}>{depthLabel(t.md_m, depthUnit)}</span>
+            )}
             {isOwn && (
               <>
                 <button type="button" className="text-slate-500 hover:text-cyan-300" title="Rename"

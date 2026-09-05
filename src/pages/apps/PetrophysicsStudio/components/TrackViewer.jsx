@@ -13,11 +13,11 @@ import { trackGeometry } from '@/components/wells/trackRender';
 import {
   PALETTES, visibleRange, paintDepthAxis, paintTrackColumn, paintReadouts, paintTopMarker,
 } from '@/components/wells/trackPainter';
-import { hitZoneEdgeAt, hitTopAt } from '@/components/wells/hitTest';
+import { hitTrackDragAt, hitZoneEdgeAt } from '@/components/wells/hitTest';
 import { topColor } from '@/components/wells/topColors';
 import TopNamePopover from '@/components/wells/TopNamePopover';
 import DepthNavigator from '@/components/wells/DepthNavigator';
-import { depthLabel } from '@/components/wells/depthModes';
+import { depthLabel, snapToSample } from '@/components/wells/depthModes';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 
 const AXIS_W = 56;        // depth axis gutter
@@ -53,6 +53,7 @@ const ZONE_COLORS = ['rgba(14,116,144,0.10)', 'rgba(217,119,6,0.10)', 'rgba(5,15
  * @param {?(md: number) => number} [p.tvdLookup] axis labels in TVD
  * @param {boolean} [p.isOwn] zone edges drag only on owned wells
  * @param {(zone, edge: 'top'|'base', newMd: number) => void} [p.onZoneEdge]
+ * @param {boolean} [p.snapSamples] snap top and zone-edge drags to samples
  */
 export default function TrackViewer({
   depth, tracks, zones = [], tops = [], depthUnit = 'm', onTrackHeaderClick,
@@ -62,6 +63,9 @@ export default function TrackViewer({
   // (on the right-edge name tag) and named here; pickMode 'top' | 'zone'
   // is owned by the controller (Esc clears it through onPickCancel)
   topStyles = null, pickMode = null, onTopCreate, onTopMove, onZonePick, onPickCancel, topNames = [],
+  // PT8: drags land on the nearest logged sample instead of anywhere
+  // between two, which is what makes a top a usable net-pay boundary
+  snapSamples = false,
 }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -238,7 +242,10 @@ export default function TrackViewer({
       ctx.fillStyle = '#0e7490';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(`${zoneDrag.zone.name} ${zoneDrag.edge} → ${depthLabel(zoneDrag.md, depthUnit)}`, AXIS_W + 4, y - 4);
+      ctx.fillText(
+        `${zoneDrag.zone.name} ${zoneDrag.edge} → ${depthLabel(zoneDrag.md, depthUnit, 2)}${snapSamples ? ' (sample)' : ''}`,
+        AXIS_W + 4, y - 4,
+      );
     }
 
     // top drag preview
@@ -254,7 +261,10 @@ export default function TrackViewer({
       ctx.fillStyle = topDrag.top.color || TOP_TEXT;
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(`${topDrag.top.name} → ${depthLabel(topDrag.md, depthUnit)}`, AXIS_W + 4, y - 4);
+      ctx.fillText(
+        `${topDrag.top.name} → ${depthLabel(topDrag.md, depthUnit, 2)}${snapSamples ? ' (sample)' : ''}`,
+        AXIS_W + 4, y - 4,
+      );
     }
 
     // pick previews: a new top at the cursor, or the zone band being picked
@@ -289,7 +299,7 @@ export default function TrackViewer({
       const cLabel = tvdLookup ? tvdLookup(cursor.depthM) * F : cursor.depthM * F;
       ctx.fillText(Number.isFinite(cLabel) ? cLabel.toFixed(1) : '—', AXIS_W - 4, cursor.y - 4);
     }
-  }, [tick, size, depth, tracks, geom, cursor, zoneDrag, topDrag, pick, pickMode, yOf, plotTop, plotH, F, depthUnit, tvdLookup]);
+  }, [tick, size, depth, tracks, geom, cursor, zoneDrag, topDrag, pick, pickMode, yOf, plotTop, plotH, F, depthUnit, tvdLookup, snapSamples]);
 
   // Esc leaves a pick mode / closes the name popover
   useEffect(() => {
@@ -317,10 +327,25 @@ export default function TrackViewer({
     return d - depth[lo] < depth[hi] - d ? lo : hi;
   };
 
-  // hit tests: a top only in its right-edge tag zone, a zone edge anywhere
+  // hit tests: the tag grabs its top, a zone edge wins mid-plot, and past
+  // both the top's own line is a handle too (hitTest.hitTrackDragAt)
   const zoneEdgeAt = (y) => (isOwn && onZoneEdge ? hitZoneEdgeAt(y, zones, yOf) : null);
-  const topAt = (x, y) => (isOwn && onTopMove && !pickMode ? hitTopAt({ x, y }, shownTops, yOf, { tagLeft, tol: 5 }) : null);
+  const grabAt = (x, y) => {
+    if (pickMode || !isOwn) return null;
+    return hitTrackDragAt({ x, y }, {
+      zones: onZoneEdge ? zones : [],
+      tops: onTopMove ? shownTops : [],
+      yOf,
+      tagLeft,
+      tol: 5,
+    });
+  };
   const clampMd = (md) => Math.min(dMax, Math.max(dMin, md));
+  // PT8: a drag reads a continuous depth; snapping lands it on a sample
+  const dragMd = (y) => {
+    const md = clampMd(dOf(y));
+    return snapSamples ? snapToSample(md, depth) : md;
+  };
   const nearestTopAbove = (mdM) => {
     let best = null;
     for (const t of shownTops) if (t.md_m <= mdM + 1e-9 && (!best || t.md_m > best.md_m)) best = t;
@@ -332,16 +357,18 @@ export default function TrackViewer({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     if (topDrag) {
-      setTopDrag((td) => ({ ...td, md: clampMd(dOf(y)) }));
+      setTopDrag((td) => ({ ...td, md: dragMd(y) }));
       return;
     }
     if (zoneDrag) {
-      const md = clampMd(dOf(y));
-      setZoneDrag((zd) => ({ ...zd, md }));
+      setZoneDrag((zd) => ({ ...zd, md: dragMd(y) }));
       return;
     }
     if (!dragRef.current) {
-      canvasRef.current.style.cursor = pickMode ? 'copy' : topAt(x, y) ? 'grab' : zoneEdgeAt(y) ? 'row-resize' : 'crosshair';
+      const grab = grabAt(x, y);
+      canvasRef.current.style.cursor = pickMode ? 'copy'
+        : grab?.kind === 'top' ? 'grab'
+          : grab?.kind === 'zone-edge' ? 'row-resize' : 'crosshair';
     }
     if (dragRef.current) {
       movedRef.current = true;
@@ -371,19 +398,16 @@ export default function TrackViewer({
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     if (popover) setPopover(null);
-    if (!pickMode) {
-      const top = topAt(x, y);
-      if (top) {
-        setTopDrag({ top, md: top.md_m });
-        e.currentTarget.setPointerCapture(e.pointerId);
-        return;
-      }
-      const edge = zoneEdgeAt(y);
-      if (edge) {
-        setZoneDrag({ ...edge, md: edge.edge === 'top' ? edge.zone.top_md_m : edge.zone.base_md_m });
-        e.currentTarget.setPointerCapture(e.pointerId);
-        return;
-      }
+    const grab = grabAt(x, y);
+    if (grab?.kind === 'top') {
+      setTopDrag({ top: grab.top, md: grab.top.md_m });
+      e.currentTarget.setPointerCapture(e.pointerId);
+      return;
+    }
+    if (grab?.kind === 'zone-edge') {
+      setZoneDrag({ zone: grab.zone, edge: grab.edge, md: grab.edge === 'top' ? grab.zone.top_md_m : grab.zone.base_md_m });
+      e.currentTarget.setPointerCapture(e.pointerId);
+      return;
     }
     dragRef.current = { y, view: [vTop, vBase] };
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -477,7 +501,8 @@ export default function TrackViewer({
       <span className="absolute bottom-1 right-2 text-[10px] text-slate-600 pointer-events-none">
         {pickMode === 'top' ? 'click: place a top · Esc: finish'
           : pickMode === 'zone' ? 'click the zone top, then its base · Esc: finish'
-            : 'wheel: zoom · drag: pan · double-click: full well'}
+            : isOwn && onTopMove ? `drag a top to move it${snapSamples ? ' (snapping to samples)' : ''} · wheel: zoom · double-click: full well`
+              : 'wheel: zoom · drag: pan · double-click: full well'}
       </span>
     </div>
     {showNav && depth.length > 0 && (

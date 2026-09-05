@@ -286,8 +286,12 @@ export async function listZones(wellId) {
 
 /** @param {{name: string, topMdM: number, baseMdM: number}} z */
 export async function saveZone(wellId, z) {
+  // PT8: `fromTops` records which tops drew the edges, so a later top move
+  // re-cuts exactly this zone. It rides in properties, which the publish
+  // path merges rather than replaces.
+  const properties = z.fromTops ? { from_tops: z.fromTops } : {};
   const { data, error } = await supabase.from('geo_wells_zones')
-    .insert({ well_id: wellId, name: z.name, top_md_m: z.topMdM, base_md_m: z.baseMdM })
+    .insert({ well_id: wellId, name: z.name, top_md_m: z.topMdM, base_md_m: z.baseMdM, properties })
     .select().single();
   if (error) throw new Error(`Could not save zone: ${error.message}`);
   return data;
