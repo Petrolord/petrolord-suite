@@ -98,14 +98,29 @@ export async function saveWell(w) {
 }
 
 /**
- * Owner edit of the well's own data after creation (PT1): KB, TD, the
- * deviation survey and the checkshot table, validated BEFORE the patch
- * (the registry's only guard, since updateWell is a raw patch).
- * Callers convert typed checkshots through the welldata engine first and
- * pass the stored rows plus their provenance.
+ * Owner edit of the well's own data after creation (PT1): the surface
+ * location, KB, TD, the deviation survey and the checkshot table,
+ * validated BEFORE the patch (the registry's only guard, since
+ * updateWell is a raw patch). Callers convert typed checkshots through
+ * the welldata engine first and pass the stored rows plus their
+ * provenance.
+ *
+ * PT8 (2026-09-05): surfaceX / surfaceY join the editable set. They are
+ * world coordinates already expressed in the well's own CRS, so nothing
+ * is transformed here — the guard is only that a value is a finite
+ * number; null clears the coordinate.
  */
-export async function updateWellData(wellId, { kbM, tdMdM, deviation, checkshots, checkshotsProvenance } = {}) {
+export async function updateWellData(wellId, {
+  surfaceX, surfaceY, kbM, tdMdM, deviation, checkshots, checkshotsProvenance,
+} = {}) {
   const patch = {};
+  for (const [name, value, col] of [['Surface X', surfaceX, 'surface_x'], ['Surface Y', surfaceY, 'surface_y']]) {
+    if (value === undefined) continue;
+    if (value === null) { patch[col] = null; continue; }
+    const v = Number(value);
+    if (!Number.isFinite(v)) throw new Error(`${name} must be a number in the well's CRS.`);
+    patch[col] = v;
+  }
   if (kbM !== undefined) {
     const v = Number(kbM);
     if (!Number.isFinite(v)) throw new Error('KB must be a number (metres above datum).');
