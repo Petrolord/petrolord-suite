@@ -8,7 +8,9 @@
 // Presentational: tracks/zones/tops come prepared from the controller;
 // the viewer owns only its depth window and cursor.
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
+} from 'react';
 import { trackGeometry } from '@/components/wells/trackRender';
 import {
   PALETTES, visibleRange, paintDepthAxis, paintTrackColumn, paintReadouts, paintTopMarker,
@@ -19,6 +21,7 @@ import TopNamePopover from '@/components/wells/TopNamePopover';
 import DepthNavigator from '@/components/wells/DepthNavigator';
 import { depthLabel, snapToSample } from '@/components/wells/depthModes';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
+import { trackPlotPng } from '@/components/wells/plotPng';
 
 const AXIS_W = 56;        // depth axis gutter
 const HEADER_H = 50;      // track header (title + scale rows + readout)
@@ -55,7 +58,7 @@ const ZONE_COLORS = ['rgba(14,116,144,0.10)', 'rgba(217,119,6,0.10)', 'rgba(5,15
  * @param {(zone, edge: 'top'|'base', newMd: number) => void} [p.onZoneEdge]
  * @param {boolean} [p.snapSamples] snap top and zone-edge drags to samples
  */
-export default function TrackViewer({
+const TrackViewer = forwardRef(function TrackViewer({
   depth, tracks, zones = [], tops = [], depthUnit = 'm', onTrackHeaderClick,
   selection = null, tvdLookup = null, isOwn = false, onZoneEdge,
   view: viewProp, onViewChange,
@@ -66,7 +69,7 @@ export default function TrackViewer({
   // PT8: drags land on the nearest logged sample instead of anywhere
   // between two, which is what makes a top a usable net-pay boundary
   snapSamples = false,
-}) {
+}, exportRef) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
   const staticRef = useRef(null);              // offscreen cache of everything but the cursor layer
@@ -145,15 +148,11 @@ export default function TrackViewer({
   // STATIC layer (PT0): zones, axis, curves, fills and tops are drawn once
   // per data/view change into an offscreen canvas; the cursor layer below
   // composites it, so pointer moves no longer redraw every curve.
-  useEffect(() => {
-    if (!size.w || !size.h || !depth.length) return;
-    const dpr = window.devicePixelRatio || 1;
-    if (!staticRef.current) staticRef.current = document.createElement('canvas');
-    const canvas = staticRef.current;
-    canvas.width = Math.round(size.w * dpr);
-    canvas.height = Math.round(size.h * dpr);
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  //
+  // The picture is painted in CSS coordinates and the caller sets the
+  // transform, so the on-screen layer and the PT8 image export draw the
+  // SAME picture at different scales.
+  const paintStatic = useCallback((ctx) => {
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, size.w, size.h);
 
@@ -204,8 +203,43 @@ export default function TrackViewer({
       });
     }
 
-    setTick((t) => t + 1);
   }, [size, depth, tracks, geom, zones, shownTops, vTop, vBase, yOf, plotTop, plotH, F, depthUnit, selection, tvdLookup, isOwn, onTopMove]);
+
+  useEffect(() => {
+    if (!size.w || !size.h || !depth.length) return;
+    const dpr = window.devicePixelRatio || 1;
+    if (!staticRef.current) staticRef.current = document.createElement('canvas');
+    const canvas = staticRef.current;
+    canvas.width = Math.round(size.w * dpr);
+    canvas.height = Math.round(size.h * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    paintStatic(ctx);
+    setTick((t) => t + 1);
+  }, [paintStatic, size, depth.length]);
+
+  // PT8 image export: re-render the CURRENT depth window and track set
+  // offscreen at a fixed 2x, so a saved plot does not inherit whatever
+  // devicePixelRatio the screen happens to have (usually 1). The cursor,
+  // the drag previews and the pick guides are on the other layer, so the
+  // exported picture is the plot alone. Same composer as Well
+  // Correlation's PNG button (components/wells/plotPng.js).
+  useImperativeHandle(exportRef, () => ({
+    toPng: ({ title, caption, scale = 2 } = {}) => {
+      if (!size.w || !size.h || !depth.length) {
+        return Promise.reject(new Error('Nothing to export: open a well in the Tracks view first.'));
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(size.w * scale);
+      canvas.height = Math.round(size.h * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      paintStatic(ctx);
+      return trackPlotPng({ canvas, title, caption, scale });
+    },
+    /** The depth window the export would capture, for its caption. */
+    visibleRange: () => [vTop, vBase],
+  }), [paintStatic, size, depth.length, vTop, vBase]);
 
   // CURSOR layer: composite the static picture, then the header readouts,
   // the zone-edge drag preview and the crosshair (cheap on every move).
@@ -523,4 +557,6 @@ export default function TrackViewer({
     )}
     </div>
   );
-}
+});
+
+export default TrackViewer;

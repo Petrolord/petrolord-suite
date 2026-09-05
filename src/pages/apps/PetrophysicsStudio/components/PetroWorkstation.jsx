@@ -12,7 +12,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
-import { FlaskConical, Loader2, UploadCloud, Save, Layers, PenLine, FileDown, Database, HelpCircle } from 'lucide-react';
+import {
+  FlaskConical, Loader2, UploadCloud, Save, Layers, PenLine, FileDown, Database, HelpCircle, ImageDown,
+} from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import WellExplorer from './WellExplorer';
@@ -92,6 +94,7 @@ export default function PetroWorkstation({
   const [selection, setSelection] = useState(null);            // PS10 crossplot brush (Set of sample idx)
   const [depthMode, setDepthMode] = useState('md');            // 'md' | 'tvd' labels
   const [snapSamples, setSnapSamples] = useState(false);       // PT8 drag snapping
+  const trackExportRef = useRef(null);                         // PT8 track PNG
   const [crossplotCfg, setCrossplotCfg] = useState(null);      // persisted to petro_projects.crossplots
 
   useEffect(() => {
@@ -368,6 +371,40 @@ export default function PetroWorkstation({
   };
   const canReadScan = typeof backend.readScan === 'function';
   const readScan = (req) => backend.readScan(req);
+
+  // PT8: one-click PNG of the log display as it stands — the visible depth
+  // window and the current track set, at 2x, captioned with the well, that
+  // depth range and the datum the depths are measured from. Same composer
+  // as Well Correlation's PNG button.
+  const trackPngBlob = useCallback(async () => {
+    if (!trackExportRef.current) throw new Error('Open the Tracks view first, then export the plot.');
+    const [top, base] = trackExportRef.current.visibleRange();
+    const kb = Number(selected?.kb_m);
+    const datum = Number.isFinite(kb) ? `datum KB ${depthLabel(kb, depthUnit)}` : 'datum: KB not recorded';
+    const blob = await trackExportRef.current.toPng({
+      title: `${selected.name} · Petrophysics Studio`,
+      caption: `${depthLabel(top, depthUnit)} to ${depthLabel(base, depthUnit)} MD · ${datum}`
+        + `${projectName ? ` · ${projectName}` : ''}`,
+    });
+    return { blob, top, base };
+  }, [selected, depthUnit, projectName]);
+
+  const exportTrackPng = async () => {
+    try {
+      const { blob, top, base } = await trackPngBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${String(selected.name).replace(/[^\w.-]+/g, '_')}_tracks.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStatus(`Exported the log display as PNG (${depthLabel(top, depthUnit)} to ${depthLabel(base, depthUnit)}).`);
+    } catch (e) {
+      setStatus(e.message);
+    }
+  };
 
   const workspaceState = () => ({
     params, facies: faciesByWell, zone_params: zoneParams, layouts, crossplots: crossplotCfg || {},
@@ -669,6 +706,19 @@ export default function PetroWorkstation({
         </button>
         <button
           type="button"
+          data-testid="petro-export-png-toolbar"
+          disabled={!wellData || view === 'crossplot' || view === 'histogram' || view === 'field'}
+          title={wellData && (view === 'crossplot' || view === 'histogram' || view === 'field')
+            ? 'Switch to Tracks or Split to export the log display'
+            : 'Download the log display as a PNG image'}
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          onClick={exportTrackPng}
+        >
+          <ImageDown className="w-3.5 h-3.5" /> PNG
+        </button>
+        <button
+          type="button"
           data-testid="petro-export"
           disabled={!wellData || !computed}
           title="Export CSV, LAS or a PDF summary report"
@@ -825,6 +875,7 @@ export default function PetroWorkstation({
     );
     const tracksEl = (
       <TrackViewer
+        ref={trackExportRef}
         depth={wellData.curves.DEPT}
         tracks={tracks}
         zones={zones}
@@ -987,6 +1038,7 @@ export default function PetroWorkstation({
         summaries={summaries}
         projectId={projectId}
         projectName={projectName}
+        trackPng={trackPngBlob}
         onStatus={setStatus}
       />
     )}
