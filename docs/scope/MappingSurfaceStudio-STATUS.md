@@ -192,3 +192,56 @@ north arrow and optional Easting/Northing axes.
   `backend.test.js` (rename and replace keep the id, owner-only). e2e:
   import the golden CPS-3 and read its z range in feet, export ZMAP+,
   control points CSV, rename, re-grid Base Sand in place at 100 m.
+
+## 2026-09-05: MS3, geology on the map (MS series)
+
+- **Polygons** (dock, Polygons): Fault block and Boundary draw tools
+  place vertices by clicking the map (the zoom overlay lets clicks
+  through while drawing), Undo / Cancel, a name, Save. Saved to the
+  shared `geo_culture` registry as kind `fault_polygon` or `boundary`
+  (owner decision: no new table), `geometry_type` polygon, ring closed,
+  the map's CRS, `provenance.drawn_on` = the surface it was drawn over;
+  pure `services/polygonTools.js` (`polygonPayload` validates through
+  Earth Modeling's `validatePolygon`: 3+ finite vertices, non-degenerate,
+  no self-intersection). Listed with visibility, a `grid` checkbox on
+  fault blocks and a `clip` radio on boundaries, owner delete.
+- **Gridding honours them**: fault blocks the Earth Modeling way (the
+  surface is gridded independently inside and outside each polygon
+  through `labelBlocks` -> `gridSurfaceBlocked`, so a throw shows as a
+  step at the polygon edge; control points get their block by
+  `pointInPolygon`), a boundary nulls every node outside it
+  (`maskOutsidePolygon`). The status says `With 1 fault-block polygon,
+  clipped to Lease`; provenance records `faults`, `boundary`,
+  `guide_points`; a re-grid restores all three.
+- **Guide points**: click the map, type the value in the display unit
+  (elevation), Add; drawn as pink triangles with their value; they grid
+  with the wells (`well` = `G1`, `guide: true` in the control points and
+  the CSV). Hand editing, v1; contour dragging is a follow-up.
+- **Surface arithmetic** replaces the isochore-only block
+  (`services/arithmetic.js`): isochore (top minus base), A + B, A minus
+  B, A × B (net thickness = isochore × NTG), shallower / deeper of A and
+  B, A + k, A × k, clip A to the boundary marked clip. Two-surface ops
+  resample B onto A's frame; lengths stay lengths for additive ops,
+  products become attributes. The isochore test ids (`map-iso-a/b/run`)
+  are unchanged; `map-arith-op` picks the operation.
+- **Quick GRV** (`services/quickGrv.js`): contact typed as an elevation
+  in the display unit, the byte-golden `grvAcreFt` on the feet grid,
+  plus the area above the contact; a read-out (ReservoirCalc Pro stays
+  the volumetrics home). The dome golden reproduces its oracle GRV
+  within 3% on the 20 m grid.
+- **Time to depth** (dock section on a time surface):
+  `backend.listVelocityModels()` lists Seismolord volumes' velocity
+  models (registry: `listVolumes` + `getManifest`, the Pore Pressure
+  pattern; harness: one linear model and one layer cake); linear
+  V(z) = v0 + k·z converts per node (`services/timeDepth.js` on the
+  Seismolord engine's `twtMsToDepthM`); output elevation in feet by
+  default (owner decision) or metres, published as `structure` / depth
+  with `z_unit` and `provenance.time_depth`; a layer cake is refused with
+  a message naming Seismolord. The harness seeds `Dome TWT`.
+- Tests: `__tests__/ms3services.test.js` (polygon payloads and blocks,
+  arithmetic semantics, the dome GRV, the time-depth closed form and
+  the layer-cake refusal), `backend.test.js` (culture save/delete,
+  models, the TWT seed). e2e: draw a fault block and a boundary by world
+  coordinates, grid with both, a guide point in feet, publish, GRV
+  above a contact, A + k, layer-cake refusal, linear conversion of the
+  TWT dome to feet and publish.
