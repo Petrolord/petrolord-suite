@@ -32,6 +32,14 @@ the Map window via lattice resampling.
 ## Domain rules (violating these = bug, even if code "works")
 - Z convention: depth/time increases downward; exported surfaces use
   NEGATIVE Z in feet for depth (matches ReservoirCalc Pro test data).
+  **Registry rule (owner decision 2026-09-05, MS0):** every DEPTH
+  surface in `geo_surfaces`, whichever app publishes it, is stored as
+  ELEVATION (negative below datum, TVDSS) in metres or feet per
+  `z_unit`; readers honour `z_unit` and convert at the door
+  (`src/lib/surfaceConvention.js`). Time surfaces stay positive TWT ms,
+  isochores positive thickness, attributes raw. Seismolord writes feet,
+  Mapping and Earth Modeling write metres; the display unit is the
+  user's choice in each app.
 - Null value everywhere: 1.0E+30. Nulls must propagate through gridding and
   never enter volume/statistics sums.
 - SEG-Y reality: trace samples may be IBM float (format code 1) or IEEE

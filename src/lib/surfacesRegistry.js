@@ -12,6 +12,14 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { writeXYZ } from '@/lib/gridding/surfaceExport';
 
+// Depth convention of every row here: elevation (negative below datum)
+// in metres or feet per z_unit. Helpers live in a pure module so
+// consumers without a Supabase client can test against them.
+export {
+  SURFACE_Z_CONVENTION, surfaceZSign, surfaceZUnitToM, zConventionForImport,
+  surfaceZToDepthDown, depthDownToSurfaceZ,
+} from '@/lib/surfaceConvention';
+
 const BUCKET = 'surfaces';
 
 /**
@@ -19,8 +27,8 @@ const BUCKET = 'surfaces';
  * Pro's SurfaceParser reads reliably. Reuses the byte-golden writeXYZ.
  * This is the in-DB handoff: Mapping Studio publishes a surface, RCP
  * imports it for GRV without any filesystem round-trip. z is passed
- * through in the surface's own unit (structure maps are metres; the
- * dialog records the convention).
+ * through as stored: elevation (negative below datum) in the row's
+ * z_unit; the dialog reads the convention through zConventionForImport.
  * @param {{origin_x,origin_y,nx,ny,dx,dy}} surface @param {Float32Array} grid
  */
 export function surfaceToXyzText(surface, grid) {

@@ -100,6 +100,11 @@ row.
 - **Chart standard**: analytic charts (crossplots, histograms) use the
   shared white chartTheme + ChartLogo watermark. Log tracks, seismic and
   maps are canvas/WebGL workstation surfaces and exempt.
+- **Depth convention (owner decision 2026-09-05)**: every depth surface
+  in `geo_surfaces` is elevation, negative below datum (TVDSS), in m or
+  ft per `z_unit`; structure maps are gridded on TVDSS at the borehole
+  position through each well's survey and KB. Helpers in
+  `src/lib/surfaceConvention.js`; rule text in Seismolord-PLAYBOOK.md.
 - **DB conventions**: migrations staging-first, logged in MIGRATIONS.md.
   New cross-app tables use the `wells_*` / `geo_*` prefixes and — being
   shared across products — carry the same second-engineer review bar as
