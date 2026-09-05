@@ -287,6 +287,7 @@ export default function MappingWorkstation({ backend }) {
       setSelectedId(null);
       const extras = [
         faults.length ? `${faults.length} fault-block polygon${faults.length === 1 ? '' : 's'}` : null,
+        g.skippedBlocks ? `${g.skippedBlocks} block${g.skippedBlocks === 1 ? '' : 's'} with fewer than 3 control points left empty` : null,
         boundary ? `clipped to ${boundary.name}` : null,
         guides.length ? `${guides.length} guide point${guides.length === 1 ? '' : 's'}` : null,
       ].filter(Boolean);

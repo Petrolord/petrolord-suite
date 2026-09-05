@@ -211,8 +211,10 @@ north arrow and optional Easting/Northing axes.
   step at the polygon edge; control points get their block by
   `pointInPolygon`), a boundary nulls every node outside it
   (`maskOutsidePolygon`). The status says `With 1 fault-block polygon,
-  clipped to Lease`; provenance records `faults`, `boundary`,
-  `guide_points`; a re-grid restores all three.
+  clipped to Lease` and names blocks the engine left empty because they
+  hold fewer than 3 control points (a TPS needs three); provenance
+  records `faults`, `boundary`, `guide_points`; a re-grid restores all
+  three.
 - **Guide points**: click the map, type the value in the display unit
   (elevation), Add; drawn as pink triangles with their value; they grid
   with the wells (`well` = `G1`, `guide: true` in the control points and
