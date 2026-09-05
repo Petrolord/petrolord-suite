@@ -19,11 +19,11 @@ import { hitTrackDragAt, hitZoneEdgeAt } from '@/components/wells/hitTest';
 import { topColor } from '@/components/wells/topColors';
 import TopNamePopover from '@/components/wells/TopNamePopover';
 import DepthNavigator from '@/components/wells/DepthNavigator';
-import { depthLabel, snapToSample } from '@/components/wells/depthModes';
+import { depthLabel, snapToSample, makeDepthAxes } from '@/components/wells/depthModes';
 import { zoomAbout, panBy } from '@/components/wells/depthNavMath';
 import { trackPlotPng } from '@/components/wells/plotPng';
 
-const AXIS_W = 56;        // depth axis gutter
+const AXIS_COL_W = 56;    // width of ONE depth column (MD, TVD, TVDSS)
 const HEADER_H = 50;      // track header (title + scale rows + readout)
 const PAD_TOP = 2;
 
@@ -53,14 +53,15 @@ const ZONE_COLORS = ['rgba(14,116,144,0.10)', 'rgba(217,119,6,0.10)', 'rgba(5,15
  * @param {'m'|'ft'} [p.depthUnit] DISPLAY unit only — data stays metres
  * @param {(trackIndex: number) => void} [p.onTrackHeaderClick]
  * @param {?Set<number>} [p.selection] crossplot-brushed sample indexes
- * @param {?(md: number) => number} [p.tvdLookup] axis labels in TVD
  * @param {boolean} [p.isOwn] zone edges drag only on owned wells
  * @param {(zone, edge: 'top'|'base', newMd: number) => void} [p.onZoneEdge]
  * @param {boolean} [p.snapSamples] snap top and zone-edge drags to samples
+ * @param {Array<'md'|'tvd'|'tvdss'>} [p.depthTracks] gutter columns
+ * @param {Object} [p.well] registry row (deviation + kb_m) for TVD/TVDSS
  */
 const TrackViewer = forwardRef(function TrackViewer({
   depth, tracks, zones = [], tops = [], depthUnit = 'm', onTrackHeaderClick,
-  selection = null, tvdLookup = null, isOwn = false, onZoneEdge,
+  selection = null, isOwn = false, onZoneEdge,
   view: viewProp, onViewChange,
   // PT3: tops are shown by name with a colour and can be picked, dragged
   // (on the right-edge name tag) and named here; pickMode 'top' | 'zone'
@@ -69,6 +70,9 @@ const TrackViewer = forwardRef(function TrackViewer({
   // PT8: drags land on the nearest logged sample instead of anywhere
   // between two, which is what makes a top a usable net-pay boundary
   snapSamples = false,
+  // PT8: which depth references get their own gutter column, and the well
+  // whose survey and KB convert them
+  depthTracks = ['md'], well = null,
 }, exportRef) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -96,6 +100,17 @@ const TrackViewer = forwardRef(function TrackViewer({
   // display-unit factor: every LABEL multiplies by F, no data changes
   const F = depthUnit === 'ft' ? 1 / 0.3048 : 1;
 
+  // PT8: one gutter column per depth reference. Plotting stays MD-linear;
+  // the extra columns label the same rows in TVD and TVDSS.
+  const depthAxes = useMemo(
+    () => makeDepthAxes(depthTracks, { well, unit: depthUnit }),
+    [depthTracks, well, depthUnit],
+  );
+  const axisW = AXIS_COL_W * depthAxes.length;
+  // the navigator labels in whichever reference leads the gutter, in
+  // metres — it applies the display factor itself
+  const navLookup = depthAxes[0].key === 'md' ? null : depthAxes[0].valueOf;
+
   const dMin = depth.length ? depth[0] : 0;
   const dMax = depth.length ? depth[depth.length - 1] : 1;
   const [vTop, vBase] = view || [dMin, dMax];
@@ -119,7 +134,7 @@ const TrackViewer = forwardRef(function TrackViewer({
   );
   const dOf = (y) => vTop + ((y - plotTop) / plotH) * (vBase - vTop);
 
-  const geom = useMemo(() => trackGeometry(tracks, size.w), [tracks, size.w]);
+  const geom = useMemo(() => trackGeometry(tracks, size.w, axisW), [tracks, size.w, axisW]);
 
   // tops to draw: visibility and colour by name (topStyles), else all tops
   // in the deterministic palette
@@ -131,10 +146,12 @@ const TrackViewer = forwardRef(function TrackViewer({
       .map((t) => ({ ...t, color: topColor(t.name, { overrides: st.byName || {} }) }));
   }, [tops, topStyles]);
   const TAG_MAX = 120;
-  const tagLeft = Math.max(AXIS_W, size.w - TAG_MAX - 4);
+  const tagLeft = Math.max(axisW, size.w - TAG_MAX - 4);
 
   // PT5 depth navigator: miniature of the first track's first curve, the
-  // tops as ticks and the zones as bands; hidden when the plot is narrow
+  // tops as ticks and the zones as bands; hidden when the plot is narrow.
+  // PT8 moved it to the LEFT, against the depth columns, so the depth
+  // scale and the control that moves it read as one thing.
   const navProfile = useMemo(() => {
     const t = (tracks || []).find((x) => x.type !== 'strip' && x.curves?.length) || null;
     if (!t) return null;
@@ -162,21 +179,41 @@ const TrackViewer = forwardRef(function TrackViewer({
       const y1 = yOf(Math.min(z.base_md_m, vBase));
       if (y1 < plotTop || y0 > plotTop + plotH) return;
       ctx.fillStyle = ZONE_COLORS[zi % ZONE_COLORS.length];
-      ctx.fillRect(AXIS_W, Math.max(plotTop, y0), size.w - AXIS_W, Math.min(plotTop + plotH, y1) - Math.max(plotTop, y0));
+      ctx.fillRect(axisW, Math.max(plotTop, y0), size.w - axisW, Math.min(plotTop + plotH, y1) - Math.max(plotTop, y0));
       ctx.fillStyle = '#0369a1';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(z.name, AXIS_W + 4, Math.max(plotTop + 10, y0 + 11));
+      ctx.fillText(z.name, axisW + 4, Math.max(plotTop + 10, y0 + 11));
     });
 
-    // depth axis + gridlines — the grid is chosen in DISPLAY units so an
-    // ft axis lands on round feet. TVD mode swaps the LABELS only —
-    // spacing stays MD, and the axis title says so
-    const unitTxt = depthUnit === 'ft' ? 'ft' : 'm';
-    paintDepthAxis(ctx, {
-      axisW: AXIS_W, plotTop, plotH, plotRight: size.w, vTop, vBase, yOf, F,
-      labelOf: tvdLookup ? (d) => tvdLookup(d) * F : undefined,
-      title: tvdLookup ? `TVD (${unitTxt}) on MD spacing` : `MD (${unitTxt})`,
+    // depth columns + gridlines — the grid is chosen in DISPLAY units so an
+    // ft axis lands on round feet. Every column labels the SAME rows in its
+    // own reference (PT8), so only the first draws the rules and they start
+    // at the plot, past the whole gutter.
+    depthAxes.forEach((ax, i) => {
+      paintDepthAxis(ctx, {
+        axisW: AXIS_COL_W * (i + 1),
+        plotTop,
+        plotH,
+        plotRight: size.w,
+        gridLeft: axisW,
+        drawGrid: i === 0,
+        vTop,
+        vBase,
+        yOf,
+        F,
+        labelOf: ax.labelOf,
+        title: ax.title,
+        titleX: AXIS_COL_W * i + 10,
+      });
+      // hairline between columns, so three numbers do not read as one
+      if (i) {
+        ctx.strokeStyle = PALETTES.light.grid;
+        ctx.beginPath();
+        ctx.moveTo(AXIS_COL_W * i + 0.5, plotTop);
+        ctx.lineTo(AXIS_COL_W * i + 0.5, plotTop + plotH);
+        ctx.stroke();
+      }
     });
 
     // crossplot-brushed selection: cyan ticks along the axis gutter
@@ -187,7 +224,7 @@ const TrackViewer = forwardRef(function TrackViewer({
         if (depth[i] > vBase || depth[i + 1] < vTop) continue;
         const y = yOf(depth[i]);
         const y2 = yOf(depth[i + 1]);
-        ctx.fillRect(AXIS_W - 3, y, 3, Math.max(1, y2 - y));
+        ctx.fillRect(axisW - 3, y, 3, Math.max(1, y2 - y));
       }
     }
 
@@ -199,11 +236,11 @@ const TrackViewer = forwardRef(function TrackViewer({
     for (const t of shownTops) {
       if (t.md_m < vTop || t.md_m > vBase) continue;
       paintTopMarker(ctx, {
-        name: t.name, color: t.color, y: yOf(t.md_m), xLeft: AXIS_W, xRight: size.w, tagMax: TAG_MAX, grip: isOwn && !!onTopMove,
+        name: t.name, color: t.color, y: yOf(t.md_m), xLeft: axisW, xRight: size.w, tagMax: TAG_MAX, grip: isOwn && !!onTopMove,
       });
     }
 
-  }, [size, depth, tracks, geom, zones, shownTops, vTop, vBase, yOf, plotTop, plotH, F, depthUnit, selection, tvdLookup, isOwn, onTopMove]);
+  }, [size, depth, tracks, geom, zones, shownTops, vTop, vBase, yOf, plotTop, plotH, F, depthUnit, selection, depthAxes, axisW, isOwn, onTopMove]);
 
   useEffect(() => {
     if (!size.w || !size.h || !depth.length) return;
@@ -269,7 +306,7 @@ const TrackViewer = forwardRef(function TrackViewer({
       ctx.strokeStyle = '#0e7490';
       ctx.setLineDash([4, 3]);
       ctx.beginPath();
-      ctx.moveTo(AXIS_W, y);
+      ctx.moveTo(axisW, y);
       ctx.lineTo(size.w, y);
       ctx.stroke();
       ctx.setLineDash([]);
@@ -278,7 +315,7 @@ const TrackViewer = forwardRef(function TrackViewer({
       ctx.textAlign = 'left';
       ctx.fillText(
         `${zoneDrag.zone.name} ${zoneDrag.edge} → ${depthLabel(zoneDrag.md, depthUnit, 2)}${snapSamples ? ' (sample)' : ''}`,
-        AXIS_W + 4, y - 4,
+        axisW + 4, y - 4,
       );
     }
 
@@ -288,7 +325,7 @@ const TrackViewer = forwardRef(function TrackViewer({
       ctx.strokeStyle = topDrag.top.color || TOP_LINE;
       ctx.setLineDash([5, 3]);
       ctx.beginPath();
-      ctx.moveTo(AXIS_W, y);
+      ctx.moveTo(axisW, y);
       ctx.lineTo(size.w, y);
       ctx.stroke();
       ctx.setLineDash([]);
@@ -297,7 +334,7 @@ const TrackViewer = forwardRef(function TrackViewer({
       ctx.textAlign = 'left';
       ctx.fillText(
         `${topDrag.top.name} → ${depthLabel(topDrag.md, depthUnit, 2)}${snapSamples ? ' (sample)' : ''}`,
-        AXIS_W + 4, y - 4,
+        axisW + 4, y - 4,
       );
     }
 
@@ -309,31 +346,34 @@ const TrackViewer = forwardRef(function TrackViewer({
         const y0 = Math.min(yOf(pick.top), cursor.y);
         const y1 = Math.max(yOf(pick.top), cursor.y);
         ctx.fillStyle = 'rgba(14,116,144,0.10)';
-        ctx.fillRect(AXIS_W, y0, size.w - AXIS_W, Math.max(1, y1 - y0));
-        ctx.beginPath(); ctx.moveTo(AXIS_W, yOf(pick.top)); ctx.lineTo(size.w, yOf(pick.top)); ctx.stroke();
+        ctx.fillRect(axisW, y0, size.w - axisW, Math.max(1, y1 - y0));
+        ctx.beginPath(); ctx.moveTo(axisW, yOf(pick.top)); ctx.lineTo(size.w, yOf(pick.top)); ctx.stroke();
       }
-      ctx.beginPath(); ctx.moveTo(AXIS_W, cursor.y); ctx.lineTo(size.w, cursor.y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(axisW, cursor.y); ctx.lineTo(size.w, cursor.y); ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = '#0e7490';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(pickMode === 'zone' ? (pick ? 'click to set the zone base' : 'click to set the zone top') : 'click to place a top', AXIS_W + 4, cursor.y - 4);
+      ctx.fillText(pickMode === 'zone' ? (pick ? 'click to set the zone base' : 'click to set the zone top') : 'click to place a top', axisW + 4, cursor.y - 4);
     }
 
     // crosshair
     if (cursor && cursor.y >= plotTop && cursor.y <= plotTop + plotH) {
       ctx.strokeStyle = CROSSHAIR;
       ctx.beginPath();
-      ctx.moveTo(AXIS_W, cursor.y);
+      ctx.moveTo(axisW, cursor.y);
       ctx.lineTo(size.w, cursor.y);
       ctx.stroke();
       ctx.fillStyle = TEXT_STRONG;
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'right';
-      const cLabel = tvdLookup ? tvdLookup(cursor.depthM) * F : cursor.depthM * F;
-      ctx.fillText(Number.isFinite(cLabel) ? cLabel.toFixed(1) : '—', AXIS_W - 4, cursor.y - 4);
+      // one readout per depth column, each in its own gutter (PT8)
+      depthAxes.forEach((ax, i) => {
+        const v = ax.labelOf(cursor.depthM);
+        ctx.fillText(Number.isFinite(v) ? v.toFixed(1) : '—', AXIS_COL_W * (i + 1) - 4, cursor.y - 4);
+      });
     }
-  }, [tick, size, depth, tracks, geom, cursor, zoneDrag, topDrag, pick, pickMode, yOf, plotTop, plotH, F, depthUnit, tvdLookup, snapSamples]);
+  }, [tick, size, depth, tracks, geom, cursor, zoneDrag, topDrag, pick, pickMode, yOf, plotTop, plotH, F, depthUnit, depthAxes, axisW, snapSamples]);
 
   // Esc leaves a pick mode / closes the name popover
   useEffect(() => {
@@ -494,6 +534,22 @@ const TrackViewer = forwardRef(function TrackViewer({
 
   return (
     <div className="h-full min-h-0 w-full flex" data-testid="petro-tracks" data-pick-mode={pickMode || ''}>
+    {showNav && depth.length > 0 && (
+      <DepthNavigator
+        extent={[dMin, dMax]}
+        view={view}
+        onViewChange={setView}
+        profile={navProfile}
+        tops={navTops}
+        zones={navZones}
+        depthUnit={depthUnit}
+        tvdLookup={navLookup}
+        headerOffset={plotTop}
+        bottomPad={4}
+        theme="light"
+        testId="petro-depth-nav"
+      />
+    )}
     <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden">
       <canvas
         ref={canvasRef}
@@ -506,8 +562,8 @@ const TrackViewer = forwardRef(function TrackViewer({
           const rect = canvasRef.current.getBoundingClientRect();
           if (e.clientY - rect.top > HEADER_H) return;
           const x = e.clientX - rect.left;
-          if (x < AXIS_W) return;
-          const g = trackGeometry(tracks, rect.width);
+          if (x < axisW) return;
+          const g = trackGeometry(tracks, rect.width, axisW);
           for (let i = 0; i < g.length; i++) {
             if (x < g[i].x0 + g[i].w) { onTrackHeaderClick(i); return; }
           }
@@ -539,22 +595,6 @@ const TrackViewer = forwardRef(function TrackViewer({
               : 'wheel: zoom · drag: pan · double-click: full well'}
       </span>
     </div>
-    {showNav && depth.length > 0 && (
-      <DepthNavigator
-        extent={[dMin, dMax]}
-        view={view}
-        onViewChange={setView}
-        profile={navProfile}
-        tops={navTops}
-        zones={navZones}
-        depthUnit={depthUnit}
-        tvdLookup={tvdLookup}
-        headerOffset={plotTop}
-        bottomPad={4}
-        theme="light"
-        testId="petro-depth-nav"
-      />
-    )}
     </div>
   );
 });

@@ -43,7 +43,7 @@ import { validateZoneWindow, planZonesAfterTopMove } from '../services/zonePlann
 import { nameKey, digitizedCurveName } from '@/lib/curveNames';
 import { resolveTracks } from '../layout/resolveTracks';
 import { mapLogs } from '../services/curveMap';
-import { makeTvdLookup, depthLabel } from '../viewer/depthModes';
+import { depthLabel, DEPTH_TRACK_KEYS, DEPTH_TRACK_TITLE } from '../viewer/depthModes';
 
 /** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
  *  the explorer's "Edit well data" link opens (the harness points at its
@@ -92,7 +92,10 @@ export default function PetroWorkstation({
   // substituted silently; the user selects it per input key
   const curvePicksRef = useRef({ wellId: null, picks: {} });
   const [selection, setSelection] = useState(null);            // PS10 crossplot brush (Set of sample idx)
-  const [depthMode, setDepthMode] = useState('md');            // 'md' | 'tvd' labels
+  // PT8: which depth references get their own gutter column. Replaces the
+  // PS10 axis-label swap, which showed TVD values on MD spacing and had to
+  // caveat itself in the axis title.
+  const [depthTracks, setDepthTracks] = useState(['md']);
   const [snapSamples, setSnapSamples] = useState(false);       // PT8 drag snapping
   const trackExportRef = useRef(null);                         // PT8 track PNG
   const [crossplotCfg, setCrossplotCfg] = useState(null);      // persisted to petro_projects.crossplots
@@ -410,12 +413,12 @@ export default function PetroWorkstation({
     params, facies: faciesByWell, zone_params: zoneParams, layouts, crossplots: crossplotCfg || {},
   });
 
-  // PS10: TVD axis labels, gated on a usable deviation survey
-  const tvdLookup = useMemo(() => {
-    if (depthMode !== 'tvd') return null;
-    return makeTvdLookup(selected?.deviation);
-  }, [depthMode, selected]);
   const hasDeviation = Array.isArray(selected?.deviation) && selected.deviation.length >= 2;
+  const toggleDepthTrack = (key) => setDepthTracks((cols) => {
+    const next = DEPTH_TRACK_KEYS.filter((k) => (k === key ? !cols.includes(k) : cols.includes(k)));
+    // the gutter always keeps one column; MD is the one that needs no survey
+    return next.length ? next : ['md'];
+  });
 
   // ---- tops (PT3): the same geo_wells_tops rows Well Correlation uses ----
   const topStyles = useMemo(() => getTopStyles(layouts), [layouts]);
@@ -784,17 +787,27 @@ export default function PetroWorkstation({
       <span className="ml-auto whitespace-nowrap">
         {selected ? `${selected.name} · ${wellData?.curves.DEPT?.length ?? '…'} samples` : `${wells?.length ?? '…'} wells`}
       </span>
-      {hasDeviation && (
-        <button
-          type="button"
-          data-testid="petro-depth-mode"
-          title="Axis labels only: TVD values shown at MD spacing (the axis says so)"
-          className="whitespace-nowrap rounded border border-slate-800 px-1.5 text-slate-400 hover:text-slate-200"
-          onClick={() => setDepthMode((m) => (m === 'md' ? 'tvd' : 'md'))}
-        >
-          axis: {depthMode === 'tvd' ? 'TVD' : 'MD'}
-        </button>
-      )}
+      <span className="flex items-center gap-1.5 whitespace-nowrap" data-testid="petro-depth-tracks">
+        <span className="text-slate-500">depth tracks</span>
+        {DEPTH_TRACK_KEYS.map((k) => (
+          <label
+            key={k}
+            className={`flex items-center gap-0.5 ${k !== 'md' && !hasDeviation ? 'text-slate-600' : 'text-slate-400'}`}
+            title={k === 'md' ? 'Measured depth below KB'
+              : hasDeviation
+                ? `${DEPTH_TRACK_TITLE[k]} through this well's survey and KB`
+                : `No deviation survey: ${DEPTH_TRACK_TITLE[k]} treats the well as vertical`}
+          >
+            <input
+              type="checkbox"
+              data-testid={`petro-depth-track-${k}`}
+              checked={depthTracks.includes(k)}
+              onChange={() => toggleDepthTrack(k)}
+            />
+            {DEPTH_TRACK_TITLE[k]}
+          </label>
+        ))}
+      </span>
       <button
         type="button"
         data-testid="petro-depth-unit"
@@ -891,7 +904,8 @@ export default function PetroWorkstation({
         onPickCancel={() => { setPickMode(null); setStatus('Pick finished.'); }}
         depthUnit={depthUnit}
         selection={selection}
-        tvdLookup={tvdLookup}
+        depthTracks={depthTracks}
+        well={selected}
         isOwn={!!selected?.is_own}
         onZoneEdge={commitZoneEdge}
         snapSamples={snapSamples}
