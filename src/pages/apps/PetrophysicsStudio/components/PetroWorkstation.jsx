@@ -596,11 +596,17 @@ export default function PetroWorkstation({
   };
 
   const ribbon = (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
+    <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
       <ModuleHomeLink module="geoscience" testId="petro-home" />
       <FlaskConical className="w-4 h-4 text-cyan-400" />
-      <span className="text-sm font-semibold text-slate-100">Petrophysics Studio</span>
-      <span className="text-[11px] text-slate-500">log analysis on the shared well registry</span>
+      <span className="text-sm font-semibold text-slate-100 whitespace-nowrap">Petrophysics Studio</span>
+      {/* decorative, and the first thing to go: this ribbon carries eleven
+          controls, so below a genuinely wide viewport the subtitle drops
+          out rather than wrapping and pushing the toolbar onto a second
+          row (PT8 added the PNG button) */}
+      <span className="hidden min-[1750px]:inline text-[11px] text-slate-500 whitespace-nowrap">
+        log analysis on the shared well registry
+      </span>
       <div className="ml-4 flex items-center gap-1">
         <button
           type="button"
