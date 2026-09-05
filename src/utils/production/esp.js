@@ -418,7 +418,14 @@ export const runEspDesign = ({ form, model }) => {
   const electrical = selectCable({
     cables: CABLE_SIZES,
     maxDropPct,
-    shaftHp: sized.shaftHp,
+    // Item 2. The electrical chain is sized on the power the pump
+    // ABSORBS at the stage count selected, `motorSizingHp`, which is
+    // the published sizing power. It used to be handed `shaftHp`, the
+    // brake power at the head the duty requires, which is smaller by
+    // the stage rounding margin and understates the amps, the cable
+    // drop and the cable size in the non conservative direction. The
+    // parameter is named `motorHp` in the engine for that reason.
+    motorHp: sized.motorSizingHp,
     nameplateHp,
     nameplateAmps,
     nameplateVolts,
@@ -501,7 +508,23 @@ export const pumpVsSystem = ({ design, curve, model, form, rates }) => {
       hz: design.hz,
       specificGravity: design.duty.intake.specificGravity,
     });
-    return { ...row, pumpHeadFt: stack.headFt, region: stack.region };
+    // Item 5. Past a tenth of the tested rate span the stage curve has
+    // no head to report, and a cubic fit outside the points it was
+    // fitted to is not a pump. The row still carries the SYSTEM head,
+    // which is a property of the well, and the pump line breaks there
+    // rather than being drawn through an extrapolation.
+    if (stack.ok === false) {
+      return {
+        ...row,
+        pumpHeadFt: null,
+        region: stack.region,
+        pumpOutsideCurve: true,
+        pumpRefusal: stack.code,
+      };
+    }
+    return {
+      ...row, pumpHeadFt: stack.headFt, region: stack.region, pumpOutsideCurve: false,
+    };
   });
 };
 

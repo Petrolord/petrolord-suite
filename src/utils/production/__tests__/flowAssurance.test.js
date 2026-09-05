@@ -393,7 +393,9 @@ describe('the whole analysis', () => {
   it('an unreachable target is refused with the reason that applies', () => {
     const r = run((f) => { f.thermal.targetArrivalF = '30'; });
     expect(r.insulationTarget.ok).toBe(false);
-    expect(r.insulationTarget.reason).toMatch(/cannot arrive above ambient/);
+    // the engine's wording since Wave 1: a target BELOW ambient is the
+    // one no insulation can hold, and the sentence says which way round
+    expect(r.insulationTarget.reason).toMatch(/cannot arrive below ambient/);
   });
 
   it('cooldown gives a no-touch time and counts the steel', () => {
