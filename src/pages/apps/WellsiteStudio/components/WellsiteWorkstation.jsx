@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat } from 'lucide-react';
+import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,10 +19,13 @@ import { readUnits, writeUnits, fmtDepth, DEPTH_UNITS } from '../services/units'
 import { currentObservations } from '@/lib/wellsite/records';
 import LiveWellView from './LiveWellView';
 import ConfigView from './ConfigView';
+import DescribeView from './DescribeView';
+import { DESCRIPTION_SUBTYPE } from '../services/describe';
 import WellSetup from './WellSetup';
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
+  { id: 'describe', label: 'Describe', icon: PenLine },
   { id: 'config', label: 'Config', icon: Settings },
 ];
 
@@ -34,6 +37,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const [bitDepths, setBitDepths] = useState([]);
   const [pumpEvents, setPumpEvents] = useState([]);
   const [rigConfig, setRigConfig] = useState(null);
+  const [descriptions, setDescriptions] = useState([]);
   const [sync, setSync] = useState({ state: 'offline', pending: 0, online: false });
   const [status, setStatus] = useState('Ready.');
   const [loading, setLoading] = useState(0);
@@ -76,14 +80,16 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   useEffect(() => { if (!selectedId && wells && wells.length) setSelectedId(wells[0].id); }, [wells, selectedId]);
 
   const refreshWellData = useCallback(async () => {
-    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); return; }
-    const [bits, pumps, cfg] = await Promise.all([
+    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); return; }
+    const [bits, pumps, cfg, descs] = await Promise.all([
       backend.listRecords(well.id, { subtype: 'bit_depth' }),
       backend.listRecords(well.id, { subtype: 'pump_rate' }),
       backend.latestRecord(well.id, 'rig_config'),
+      backend.listRecords(well.id, { subtype: DESCRIPTION_SUBTYPE }),
     ]);
     setBitDepths(currentObservations(bits));
     setPumpEvents(currentObservations(pumps));
+    setDescriptions(currentObservations(descs).sort((a, b) => (a.md_calc_m ?? 0) - (b.md_calc_m ?? 0)));
     setRigConfig(cfg ? cfg.payload : null);
     setSync(await backend.syncStatus(well.id));
   }, [backend, well]);
@@ -160,6 +166,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     center = <WellSetup backend={backend} onStatus={setStatus} onCreated={async (w) => { await refreshWells(); setSelectedId(w.id); setView('live'); }} />;
   } else if (!well) {
     center = <div className="p-4 text-xs text-slate-500" data-testid="ws-need-well">Choose a live well in the explorer.</div>;
+  } else if (view === 'describe') {
+    center = <DescribeView backend={backend} well={well} ctx={ctx} descriptions={descriptions} defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'config') {
     center = <ConfigView backend={backend} well={well} rigConfig={rigConfig} canAdmin={isMember} onStatus={setStatus} onSaved={() => { refreshWells(); setTick((t) => t + 1); }} />;
   } else {
