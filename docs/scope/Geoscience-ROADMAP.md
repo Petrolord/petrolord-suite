@@ -280,7 +280,7 @@ time depends on review cadence.
   EarthModel shells are deleted; legacy slugs redirect. Plan + status:
   docs/scope/EarthModeling-{PLAN,STATUS}.md.
 
-### Phase G9 — Stratigraphy, the ST series *(ST0 small-medium, ST1 medium, ST2 medium-large, ST3 small, ST4 small-medium, ST5 medium)* — **APPROVED 2026-09-06**
+### Phase G9 — Stratigraphy, the ST series *(ST0 small-medium, ST1 medium, ST2 medium-large, ST3 small, ST4 small-medium, ST5 medium)* — **APPROVED 2026-09-06; ALL SIX PHASES MERGED 2026-09-06 (Suite #412 to #417, engines #140 to #145); tile seed deploy-gated on the next production upload**
 - Gap: the module serves the lithostratigraphic loop but a specialist
   stratigrapher has nothing beyond a named top at a depth. Plan of
   record: **docs/scope/Stratigraphy-PLAN.md** (approved as recommended,

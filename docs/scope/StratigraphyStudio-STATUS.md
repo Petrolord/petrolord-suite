@@ -2,7 +2,8 @@
 
 Plan of record: docs/scope/Stratigraphy-PLAN.md (approved as recommended
 2026-09-06, PR #411). Roadmap slot: Geoscience-ROADMAP.md Phase G9, the
-eleventh Geoscience tile. Slug `stratigraphy-studio`, route
+eleventh Geoscience tile. **SERIES COMPLETE 2026-09-06: ST0 to ST5 merged;
+close-out (tile seed, help guide, Open-in launcher) in this PR.** Slug `stratigraphy-studio`, route
 `/dashboard/apps/geoscience/stratigraphy-studio`, harness
 `/dev/stratigraphy-studio`. Engines: `packages/engines/engines/stratigraphy/`
 (central repo Petrolord/petrolord-engines, subtree-vendored).
@@ -16,7 +17,7 @@ eleventh Geoscience tile. Slug `stratigraphy-studio`, route
 | ST2 sequence stratigraphy + Wheeler | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #414 merged** | engines #142 (age-depth model, Wheeler cells, stratigraphic stretch, tracts from surfaces; hand-derived three-well golden); Suite branch `feat/st2-sequence-wheeler`: migration 20260906220000 (strat_projects + tops.hiatus_to_ma), CrossSection and the section frame moved to `src/components/wells/section/` with the section state as `useSectionWells`, stretch datum + tract and motif bands + ghost curve in the shared painter, Stratigraphy Studio Section and Wheeler views, hiatus end in Tops typing, systems tracts in the interval editor, e2e |
 | ST3 biozones and ages | **COMPLETE 2026-09-06: PR #415 merged (no migration)** | engines #143 (basin layers from dated tops); Suite branch `feat/st3-biozones-ages`: Ages view (age-depth plot with rates and hiatuses, ICS stage per surface), biozone ranges in the interval editor and biozone datum tops, Send to Basin & Charge Modeling |
 | ST4 stratigraphic maps | **COMPLETE 2026-09-06: PR #416 merged (no migration)** | engines #144 (thickness and environment control points between two tops); Suite branch `feat/st4-strat-maps`: net sand / gross / net-to-gross grids in Mapping, facies and paleogeography polygons, the environment table, the `?net=` deep link, Mapping launchers from the studio's section (per tract) and column (per unit) |
-| ST5 seismic stratigraphy | **BUILT 2026-09-06, PR open (no migration)** | engines #145 (proportional stratal slice, section flatten offsets); Suite branch `feat/st5-seismic-stratigraphy`: flatten on a horizon in the Seismolord section (shader chunk + overlays + pick inverse, Home tab select, saved with the session), the stratal slice attribute in the export dialog, termination markers (Interpretation tab, section overlay, session) |
+| ST5 seismic stratigraphy | **COMPLETE 2026-09-06: PR #417 merged (no migration)** | engines #145 (proportional stratal slice, section flatten offsets); Suite branch `feat/st5-seismic-stratigraphy`: flatten on a horizon in the Seismolord section (shader chunk + overlays + pick inverse, Home tab select, saved with the session), the stratal slice attribute in the export dialog, termination markers (Interpretation tab, section overlay, session) |
 
 ## ST0, what shipped
 
@@ -402,6 +403,24 @@ dialog and the registry, not as a live map-window attribute mode; the
 traverse window does not flatten in this version (the section window
 does, for inlines and crosslines); markers are per session, not shared
 rows.
+
+## Close-out (2026-09-06)
+
+- Tile seed `20260906230000_seed_stratigraphy_studio_app.sql` (the
+  well-correlation %ROWTYPE template-copy pattern, Active, icon Layers).
+  DEPLOY-GATED: applied after the production upload that carries the
+  routes is verified, never before (the deploy lesson).
+- Help guide `StratigraphyHelpGuide.jsx` on the shared HelpGuideLayout at
+  `/dashboard/apps/geoscience/stratigraphy-studio/help` (14 sections:
+  overview, quick start, column, typed surfaces, interval logs, core,
+  section, Wheeler, ages and Basin, maps, seismic, links, pitfalls,
+  glossary in both schemes), ribbon Help link (`strat-help`). The guard
+  test quotes the live vocabulary from the engine, so the guide cannot
+  drift from what the app stores, and pins the no-em-dash rule.
+- Well Data Manager's Open in menu (`WELL_APPS`) gains Stratigraphy
+  Studio on `?well=`.
+- Not yet in any production zip: ST0 to ST5 ship with the next Suite
+  upload (recut from main after this PR).
 
 ## Deviations from the plan
 

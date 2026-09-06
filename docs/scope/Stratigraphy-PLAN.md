@@ -1,6 +1,6 @@
 # Stratigraphy Studio, the ST series. Plan of record
 
-Status: **APPROVED AS RECOMMENDED, owner sign-off 2026-09-06.** The
+Status: **APPROVED AS RECOMMENDED, owner sign-off 2026-09-06. BUILT: ST0 to ST5 all merged 2026-09-06 (Suite PRs #412 to #417, engines #140 to #145); status in docs/scope/StratigraphyStudio-STATUS.md.** The
 three §3.1 decisions were locked earlier the same day; the five §11
 questions were all approved as recommended (resolutions in §11).
 Roadmap slot: Geoscience-ROADMAP.md **Phase G9, Stratigraphy** (the
