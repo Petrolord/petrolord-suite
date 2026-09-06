@@ -77,6 +77,23 @@ export function mapTopHref(topName, wellIds = [], path = appPath(MAPPING_ID)) {
   return `${path}?${q.toString()}`;
 }
 
+/** Mapping & Surface Studio deep link that grids a thickness between two
+ *  tops on arrival (Stratigraphy ST4): `?net=<upper>|<lower>&measure=net|gross|ratio&wells=`. */
+export function mapNetHref(upperName, lowerName, wellIds = [], { measure = 'net', path = appPath(MAPPING_ID) } = {}) {
+  const q = new URLSearchParams();
+  q.set('net', `${upperName}|${lowerName}`);
+  q.set('measure', measure);
+  const ids = [].concat(wellIds || []).filter(Boolean);
+  if (ids.length) q.set('wells', ids.join(','));
+  return `${path}?${q.toString()}`;
+}
+
+/** Parse the `net` deep-link parameter: {upper, lower} or null. */
+export function parseNetParam(value) {
+  const [upper, lower] = String(value || '').split('|');
+  return upper && lower ? { upper, lower } : null;
+}
+
 /** Mapping & Surface Studio deep link that selects a surface. */
 export function mapSurfaceHref(surfaceId, path = appPath(MAPPING_ID)) {
   return `${path}?surface=${encodeURIComponent(surfaceId)}`;

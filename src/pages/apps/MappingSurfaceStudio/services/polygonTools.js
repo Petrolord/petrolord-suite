@@ -9,14 +9,20 @@
 
 import { labelBlocks, pointInPolygon, validatePolygon } from '@/pages/apps/EarthModeling/engine/blocks';
 
-export const POLYGON_KINDS = Object.freeze({ fault: 'fault_polygon', boundary: 'boundary' });
+export const POLYGON_KINDS = Object.freeze({ fault: 'fault_polygon', boundary: 'boundary', facies: 'facies', paleo: 'paleogeography' });
 export const POLYGON_STYLE = Object.freeze({
   fault_polygon: { color: '#eab308', weight: 1.5 },
   boundary: { color: '#22d3ee', weight: 1.5 },
+  // Stratigraphy ST4: facies and paleogeography polygons fill in their own colour
+  facies: { color: '#f59e0b', weight: 1, fill_opacity: 0.35 },
+  paleogeography: { color: '#38bdf8', weight: 1, fill_opacity: 0.25 },
 });
+export const POLYGON_KIND_LABEL = Object.freeze({ fault_polygon: 'fault', boundary: 'boundary', facies: 'facies', paleogeography: 'paleogeography' });
+/** Kinds a stratigrapher draws: the facies legend lists these. */
+export const STRAT_POLYGON_KINDS = Object.freeze([POLYGON_KINDS.facies, POLYGON_KINDS.paleo]);
 
 /** A culture row that the map treats as a drawn polygon. */
-export const isPolygonLayer = (row) => row?.kind === POLYGON_KINDS.fault || row?.kind === POLYGON_KINDS.boundary;
+export const isPolygonLayer = (row) => Object.values(POLYGON_KINDS).includes(row?.kind);
 
 /** First ring of a normalized polygon feature as [x, y] pairs (open). */
 export function ringOf(feature) {
@@ -43,7 +49,7 @@ export function bboxOf(vertices) {
  * (>= 3 finite vertices, non-degenerate, no self-intersection), the
  * ring closed, the style by kind, the frame the map was in.
  */
-export function polygonPayload({ name, kind, vertices, crs = null, xyUnit = null, drawnOn = null }) {
+export function polygonPayload({ name, kind, vertices, crs = null, xyUnit = null, drawnOn = null, color = null }) {
   if (!Object.values(POLYGON_KINDS).includes(kind)) throw new Error(`Unknown polygon kind "${kind}".`);
   const label = String(name || '').trim();
   if (!label) throw new Error('Give the polygon a name.');
@@ -54,7 +60,7 @@ export function polygonPayload({ name, kind, vertices, crs = null, xyUnit = null
     kind,
     geometryType: 'polygon',
     features: [{ type: 'polygon', rings: [ring], props: { NAME: label, KIND: kind }, label }],
-    style: { ...POLYGON_STYLE[kind] },
+    style: { ...POLYGON_STYLE[kind], ...(color ? { color } : {}) },
     crs,
     xyUnit,
     bbox: bboxOf(pts),

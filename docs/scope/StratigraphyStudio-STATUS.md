@@ -14,8 +14,8 @@ eleventh Geoscience tile. Slug `stratigraphy-studio`, route
 | ST0 stratigraphic framework | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #412 merged** | engines #140 (vocabulary, ICS 2023/09 timescale, column tree; 66 tests); Suite branch `feat/st0-stratigraphic-framework`: migration 20260906180000 (geo_strat_units + typed-top columns), stratRegistry.js, typed tops through wellsRegistry, typed markers in Well Correlation and Petrophysics, Type/Unit/Confidence/Age in the Well Data Manager tops tab, the Stratigraphy Studio app (Column editor, Tops typing, Glossary, terminology display option), portability spec + hook, guard test, pentest SQL, e2e |
 | ST1 lithology, core and facies | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #413 merged** | engines #141 (lithology vocabulary, interval arithmetic, LAS 3.0 blocks to intervals; 66 tests, fixture las3_intervals_30); Suite branch `feat/st1-intervals-core-images`: migration 20260906200000 (geo_wells_intervals + geo_wells_core_images), stratRegistry intervals + core photo services, `intervals:<kind>` strip in the shared track layout, Petrophysics facies publish, Well Correlation lithology strip, Well Data Manager Intervals + Core tabs and LAS 3.0 block import, Stratigraphy Studio Intervals + Core views, portability, e2e |
 | ST2 sequence stratigraphy + Wheeler | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #414 merged** | engines #142 (age-depth model, Wheeler cells, stratigraphic stretch, tracts from surfaces; hand-derived three-well golden); Suite branch `feat/st2-sequence-wheeler`: migration 20260906220000 (strat_projects + tops.hiatus_to_ma), CrossSection and the section frame moved to `src/components/wells/section/` with the section state as `useSectionWells`, stretch datum + tract and motif bands + ghost curve in the shared painter, Stratigraphy Studio Section and Wheeler views, hiatus end in Tops typing, systems tracts in the interval editor, e2e |
-| ST3 biozones and ages | **BUILT 2026-09-06, PR open (no migration)** | engines #143 (basin layers from dated tops); Suite branch `feat/st3-biozones-ages`: Ages view (age-depth plot with rates and hiatuses, ICS stage per surface), biozone ranges in the interval editor and biozone datum tops, Send to Basin & Charge Modeling |
-| ST4 stratigraphic maps | not started | |
+| ST3 biozones and ages | **COMPLETE 2026-09-06: PR #415 merged (no migration)** | engines #143 (basin layers from dated tops); Suite branch `feat/st3-biozones-ages`: Ages view (age-depth plot with rates and hiatuses, ICS stage per surface), biozone ranges in the interval editor and biozone datum tops, Send to Basin & Charge Modeling |
+| ST4 stratigraphic maps | **BUILT 2026-09-06, PR open (no migration)** | engines #144 (thickness and environment control points between two tops); Suite branch `feat/st4-strat-maps`: net sand / gross / net-to-gross grids in Mapping, facies and paleogeography polygons, the environment table, the `?net=` deep link, Mapping launchers from the studio's section (per tract) and column (per unit) |
 | ST5 seismic stratigraphy | not started | |
 
 ## ST0, what shipped
@@ -282,6 +282,53 @@ between Mid Shale and Base Sand) and the 10 to 14 Ma hiatus; a biozone
 range NN12 (5.6 to 8.3 Ma) becomes two dated biozone tops; Send to Basin
 creates "KETA-1 stratigraphy" with 4 layers, 1 dated, 1 erosion event.
 
+## ST4, what shipped
+
+**Engines (petrolord-engines PR #144, merged, subtree 51cfe76).**
+`stratMaps.js`: `thicknessPoints(wells, upper, lower, {intervalsByWell,
+measure, codes})` gives one control point per well carrying both tops
+and a location: gross thickness, net thickness of a lithology family
+(the sand family by default, abbreviations resolved through the
+vocabulary) from the well's lithology log, or the net-to-gross ratio;
+every skipped well is named by reason (no upper, no lower, inverted, no
+location, no lithology). `environmentPoints` posts the environment that
+dominates the interval by thickness (environment intervals, and a core
+description's environment). Thicknesses are measured-depth thicknesses
+and the provenance says so (`thickness_basis: 'md'`); true vertical
+thickness is a later correction.
+
+**No migration.** Facies and paleogeography polygons are `geo_culture`
+rows with `kind` `facies` or `paleogeography` (the column is free text);
+the grids are `geo_surfaces` rows of kind `isochore` (net and gross) or
+`attribute` (ratio).
+
+**Mapping & Surface Studio.** The source picker gains "Stratigraphy:
+between two tops" (net sand, gross, net to gross) with upper and lower
+top selects and the lithology codes counted as net; the environment
+between the tops is listed per well with its colour. Gridding, kriging,
+fault blocks and clipping work unchanged on the new source; the published
+row's provenance names the two surfaces, the measure, the codes and the
+thickness basis. Two new polygon buttons, Facies and Paleogeography: a
+polygon named after a lithology or an environment takes the vocabulary
+colour, fills at its own opacity (the shared culture painter now honours
+`style.fill_opacity`), and is listed with its kind. The `?net=upper|lower
+&measure=&wells=` deep link grids on arrival like `?top=` does. The
+backends carry each well's interval rows; the harness seeds a lithology
+log (sand between the tops at the seeded net-to-gross) and an environment
+per well.
+
+**Stratigraphy Studio launchers.** The section's controls list the
+distinct surface pairs its tracts run between and open Mapping on the net
+sand between them across the section wells; a unit in the column maps
+through the top that names it.
+
+**Acceptance.** On the harness, net sand between Top Dome and Base Sand
+grids from the five wells (each well's net equals its seeded net-to-gross
+times its gross) and publishes as a thickness surface whose provenance
+names the two surfaces; a facies polygon named "sandstone" saves in the
+sand colour; the environment table posts shoreface and shelf per well;
+the deep link grids on arrival.
+
 ## Deviations from the plan
 
 - The tile is NOT seeded Archived in ST0 (plan section 7 said it would
@@ -307,8 +354,10 @@ creates "KETA-1 stratigraphy" with 4 layers, 1 dated, 1 erosion event.
   the studio with stretch datum, implied tracts, ghost curve, recorded
   tracts and saved view, and the LST / TST / HST typing with its Wheeler
   chart (ST2); the Ages view with its rates and hiatus, biozone datums
-  from a range, and the Basin handoff (ST3). Regression specs for Well
-  Data Manager, Petrophysics and Well Correlation green.
+  from a range, and the Basin handoff (ST3); the tract and unit launchers
+  (ST4). `mapping-surface-studio.spec.js`: net sand grid and publish,
+  facies polygon, environment table, the net deep link (ST4). Regression
+  specs for Well Data Manager, Petrophysics and Well Correlation green.
 - Live RLS pentest 2026-09-06: all four blocks as expected (see MIGRATIONS.md row), zero residue.
 
 ## Close-out (ST0 acceptance, plan section 7)

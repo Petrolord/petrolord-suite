@@ -321,7 +321,7 @@ export function paintCulture(ctx, { layers = [], transform }) {
         if (f.type === 'polygon') {
           ctx.closePath();
           ctx.save();
-          ctx.globalAlpha = 0.08;
+          ctx.globalAlpha = Number.isFinite(layer.style?.fill_opacity) ? layer.style.fill_opacity : 0.08;   // facies / paleogeography polygons fill stronger (Stratigraphy ST4)
           ctx.fill();
           ctx.restore();
         }

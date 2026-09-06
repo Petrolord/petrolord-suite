@@ -248,3 +248,20 @@ test('ST3: the Ages view shows the two rates and the hiatus, a biozone range bec
   await expect(page.getByTestId('strat-status')).toContainText('Basin model "KETA-1 stratigraphy" created');
   await expect(page.getByTestId('strat-open-basin')).toHaveAttribute('href', '/dev/basinflow-genesis');
 });
+
+test('ST4: the section offers a Mapping launcher for each tract and the column maps a unit through its top', async ({ page }) => {
+  await openStudio(page);
+  await page.getByTestId('strat-well-KETA-1').click();
+  await page.getByTestId('strat-top-type-Top Dome').selectOption('MFS');
+  await page.getByTestId('strat-top-unit-Top Dome').selectOption('unit-agbada-upper');
+  await page.getByTestId('strat-tops-save').click();
+  await expect(page.getByTestId('strat-status')).toHaveText('1 top typed on KETA-1.');
+  // the unit that Top Dome names now maps through that top
+  await expect(page.getByTestId('strat-map-unit-Upper Agbada')).toHaveAttribute('href', '/dev/mapping-surface-studio?top=Top+Dome');
+  await page.getByTestId('strat-view-section').click();
+  const controls = page.getByTestId('strat-section-controls');
+  await expect(controls).toBeVisible();
+  // Top Marker (BSFR) over Top Dome (MFS) implies a highstand: its launcher grids net sand between them across the section wells
+  await expect(controls).toHaveAttribute('data-tract-links', /net=Top\+Marker%7CTop\+Dome&measure=net&wells=corr-w1%2Ccorr-w2%2Ccorr-w3/);
+  await expect(page.getByTestId('strat-map-tract')).toBeVisible();
+});

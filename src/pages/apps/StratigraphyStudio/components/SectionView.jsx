@@ -17,7 +17,7 @@ import { useSectionWells } from '@/components/wells/section/useSectionWells';
 import { tractsWithStacking } from '@/lib/stratigraphy/sequence';
 import { SYSTEMS_TRACTS, displayLabel, normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
 import { motif as motifOf } from '@/lib/stratigraphy/vocabulary';
-import { appPath } from '@/components/wells/appLinks';
+import { appPath, mapNetHref, MAPPING_ID } from '@/components/wells/appLinks';
 
 const TRACT_COLOUR = Object.fromEntries(SYSTEMS_TRACTS.map((t) => [t.code, t.colour]));
 const selCls = 'bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100';
@@ -78,6 +78,22 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
     return out;
   }, [sectionWells, intervalsByWell, impliedTracts, showTracts, showMotifs, scheme]);
 
+  // the distinct (upper, lower) surface pairs the tracts run between, for the Mapping launcher
+  const tractPairs = useMemo(() => {
+    const seen = new Map();
+    for (const w of sectionWells) {
+      const recorded = (intervalsByWell[w.id] || []).filter((r) => r.kind === 'systems_tract');
+      const rows = recorded.length ? recorded : impliedTracts[w.id] || [];
+      for (const r of rows) {
+        const up = r.properties?.upper_surface; const lo = r.properties?.lower_surface;
+        if (!up || !lo) continue;
+        const key = `${up}|${lo}`;
+        if (!seen.has(key)) seen.set(key, { key, upper: up, lower: lo, label: displayLabel(r.code, scheme, { kind: 'tract', short: true }).label, href: mapNetHref(up, lo, order, { path: appPath(MAPPING_ID, appPaths) }) });
+      }
+    }
+    return Array.from(seen.values());
+  }, [sectionWells, intervalsByWell, impliedTracts, order, scheme, appPaths]);
+
   const recordTracts = async () => {
     setBusy(true);
     let n = 0; let wellsDone = 0;
@@ -124,7 +140,7 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
   }
 
   const controls = (
-    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-800 text-xs flex-wrap" data-testid="strat-section-controls">
+    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-800 text-xs flex-wrap" data-testid="strat-section-controls" data-tract-links={tractPairs.map((x) => x.href).join(' ')}>
       <label className="flex items-center gap-1 text-slate-400">Datum
         <select className={selCls} value={datum.mode} data-testid="strat-datum-mode"
           onChange={(e) => {
@@ -174,6 +190,15 @@ export default function SectionView({ backend, mode, scheme, onStatus, appPaths 
           <input type="range" min={-200} max={200} step={1} value={ghost.shiftM || 0} data-testid="strat-ghost-shift" onChange={(e) => setGhost({ ...ghost, shiftM: Number(e.target.value) })} />
           <span className="text-slate-400 w-12" data-testid="strat-ghost-shift-value">{ghost.shiftM >= 0 ? '+' : ''}{ghost.shiftM || 0} m</span>
         </>
+      )}
+      {tractPairs.length > 0 && (
+        <label className="flex items-center gap-1 text-slate-400 ml-2">Map net sand
+          <select className={selCls} value="" data-testid="strat-map-tract" title="Open Mapping & Surface Studio on the net sand between a tract's surfaces across the section wells"
+            onChange={(e) => { const pair = tractPairs.find((x) => x.key === e.target.value); if (pair) window.location.assign(mapNetHref(pair.upper, pair.lower, order, { path: appPath(MAPPING_ID, appPaths) })); }}>
+            <option value="">choose a tract</option>
+            {tractPairs.map((x) => <option key={x.key} value={x.key}>{x.label}: {x.upper} to {x.lower}</option>)}
+          </select>
+        </label>
       )}
       <span className="ml-auto text-slate-500" data-testid="strat-section-summary">{sectionWells.length} wells · {typedCount} typed surfaces</span>
       <button type="button" className={btnCls} onClick={saveView} data-testid="strat-save-view" title="Save the datum and ghost with your stratigraphy project"><Save className="w-3.5 h-3.5" /> Save view</button>

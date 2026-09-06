@@ -44,6 +44,14 @@ export function makeInMemoryBackend() {
     td_md_m: w.td,
     deviation: w.deviation || [],
     tops: Object.entries(w.tops).map(([name, md], ti) => ({ id: `map-w${i + 1}-t${ti}`, name, md_m: md })),
+    // ST4: a lithology log per well (shale above Top Dome, sand with a shale
+    // break between the tops, shale below) and an environment interval
+    intervals: [
+      { id: `map-w${i + 1}-i0`, well_id: `map-w${i + 1}`, kind: 'lithology', top_md_m: w.tops['Top Dome'] - 100, base_md_m: w.tops['Top Dome'], code: 'shale', label: null, properties: {}, source: 'cuttings' },
+      { id: `map-w${i + 1}-i1`, well_id: `map-w${i + 1}`, kind: 'lithology', top_md_m: w.tops['Top Dome'], base_md_m: w.tops['Top Dome'] + Math.round((w.tops['Base Sand'] - w.tops['Top Dome']) * w.ntg), code: 'sandstone', label: null, properties: {}, source: 'cuttings' },
+      { id: `map-w${i + 1}-i2`, well_id: `map-w${i + 1}`, kind: 'lithology', top_md_m: w.tops['Top Dome'] + Math.round((w.tops['Base Sand'] - w.tops['Top Dome']) * w.ntg), base_md_m: w.tops['Base Sand'], code: 'shale', label: null, properties: {}, source: 'cuttings' },
+      { id: `map-w${i + 1}-i3`, well_id: `map-w${i + 1}`, kind: 'environment', top_md_m: w.tops['Top Dome'], base_md_m: w.tops['Base Sand'], code: i < 3 ? 'shoreface' : 'shelf', label: null, properties: {}, source: 'interpretation' },
+    ],
     // zones named after their top, the PT4 default
     zones: [{ name: 'Top Dome', top_md_m: w.tops['Top Dome'], base_md_m: w.tops['Base Sand'], properties: { phi_avg: w.phi, ntg: w.ntg } }],
   }));
