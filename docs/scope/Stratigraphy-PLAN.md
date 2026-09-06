@@ -1,10 +1,10 @@
 # Stratigraphy Studio, the ST series. Plan of record
 
-Status: **DRAFT for owner sign-off (2026-09-06).** Three decisions are
-already locked by the owner on 2026-09-06 and are not open for
-re-litigation here (§3.1). The remaining questions are in §11.
-Roadmap slot: to be added to Geoscience-ROADMAP.md as **Phase G9,
-Stratigraphy** on sign-off (the module currently ends at G8, ten tiles).
+Status: **APPROVED AS RECOMMENDED, owner sign-off 2026-09-06.** The
+three §3.1 decisions were locked earlier the same day; the five §11
+questions were all approved as recommended (resolutions in §11).
+Roadmap slot: Geoscience-ROADMAP.md **Phase G9, Stratigraphy** (the
+module's eleventh tile; §2 and §6 of the roadmap updated on sign-off).
 App name **Stratigraphy Studio**, slug `stratigraphy-studio`, an eleventh
 Geoscience tile. Builds on the G1 to G4 registry: wells, curves, tops,
 zones, surfaces and culture. Engines go to the central
@@ -65,7 +65,7 @@ Nothing existing needs to be replaced. This is additive.
    the section, the track painter, the tops CRUD or the map. It imports
    them. §4 fixes the split so this stays true.
 
-### 3.2 Proposed (sign-off locks these)
+### 3.2 Locked at sign-off (2026-09-06)
 
 4. **All data through the registry.** Units, typed tops, intervals and
    core images are shared `geo_*` rows read by every Geoscience app.
@@ -384,19 +384,16 @@ automatic motif or tract detection.
 - **Storage quota.** Core photos are the first user images in the wells
   bucket. Cap at a stated size per image and per well in v1 (§11.2).
 
-## 11. Open questions for sign-off
+## 11. Sign-off resolutions (owner, 2026-09-06, all as recommended)
 
-1. **Systems tracts and motifs as shared intervals** (§3.2 decision 6,
-   recommended, so Mapping and Well Correlation can draw them) vs
-   app-private jsonb in `strat_projects`. Confirm intervals.
-2. **Core photos in v1.** Recommended: yes, capped at 5 MB per image and
-   200 MB per well, in the existing wells bucket. Or defer photos to a
-   later phase and ship core description only.
-3. **Well Data Manager editing the new tops fields** (type, unit,
-   confidence, age) on its tops tab, recommended for parity with the
-   PT-series "full tops CRUD" decision, vs Stratigraphy Studio being the
-   only editor.
-4. **Basin launcher in ST3** (build Basin & Charge Modeling layers from
-   the column) is a nice-to-have. Keep it in ST3 or drop it.
-5. **Roadmap placement.** Add as Phase G9 in Geoscience-ROADMAP.md with
-   the eleventh tile in §2, on sign-off.
+1. **Systems tracts and motifs are shared `geo_wells_intervals` rows**,
+   not app-private jsonb. Mapping and Well Correlation draw them.
+2. **Core photos ship in ST1**, capped at 5 MB per image and 200 MB per
+   well, in the existing wells bucket.
+3. **Well Data Manager edits the new tops fields** (type, unit,
+   confidence, age) on its tops tab, for parity with the PT-series
+   full tops CRUD. Stratigraphy Studio is not the only editor.
+4. **The Basin launcher stays in ST3** (build Basin & Charge Modeling
+   layers from the column and tops).
+5. **Roadmap placement is Phase G9**, the eleventh Geoscience tile
+   (Geoscience-ROADMAP.md §2, §4 and §6 updated in the same PR).
