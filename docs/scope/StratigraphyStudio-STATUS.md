@@ -409,7 +409,9 @@ rows.
 - Tile seed `20260906230000_seed_stratigraphy_studio_app.sql` (the
   well-correlation %ROWTYPE template-copy pattern, Active, icon Layers).
   DEPLOY-GATED: applied after the production upload that carries the
-  routes is verified, never before (the deploy lesson).
+  routes is verified, never before (the deploy lesson). APPLIED
+  2026-09-06 once petrolord.com served build 1ffc8a8c9 (verified by chunk
+  content); the row landed as Geoscience, Active, display_order 56.
 - Help guide `StratigraphyHelpGuide.jsx` on the shared HelpGuideLayout at
   `/dashboard/apps/geoscience/stratigraphy-studio/help` (14 sections:
   overview, quick start, column, typed surfaces, interval logs, core,
@@ -419,8 +421,10 @@ rows.
   drift from what the app stores, and pins the no-em-dash rule.
 - Well Data Manager's Open in menu (`WELL_APPS`) gains Stratigraphy
   Studio on `?well=`.
-- Not yet in any production zip: ST0 to ST5 ship with the next Suite
-  upload (recut from main after this PR).
+- PRODUCTION LIVE 2026-09-06: the 1ffc8a8c9 upload carries ST0 to ST5
+  and this close-out; served chunks verified by content (Stratigraphy
+  Studio, Wheeler chart, the flatten shader uniform, the stratal export
+  mode, the Mapping net-thickness source) and the build stamp matched.
 
 ## Deviations from the plan
 
