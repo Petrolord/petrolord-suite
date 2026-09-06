@@ -180,3 +180,25 @@ test('RP1: the substituted case publishes to the well as VP_SUB / VS_SUB / RHOB_
   // the engine inputs are untouched by the publish (exact-name mapping)
   await expect(page.getByTestId('rp-sub-after-vp')).toHaveText(LOG.vp.toFixed(2));
 });
+
+test('RP2: launchers open the selected well in the other apps and the ribbon links the help guide', async ({ page }) => {
+  await page.goto('/dev/rock-physics-studio');
+  await expect(page.getByTestId('rp-help')).toHaveAttribute('href', '/dev/rock-physics-studio/help');
+  // nothing selected: no Well data link, Open in disabled
+  await expect(page.getByTestId('rp-open-wdm')).toHaveCount(0);
+  await expect(page.getByTestId('rp-open-in')).toBeDisabled();
+
+  await page.locator('[data-well-name="KETA RP-1"]').click();
+  await expect(page.getByTestId('rp-curve-inventory')).toBeVisible();
+  await expect(page.getByTestId('rp-open-wdm')).toHaveAttribute('href', /^\/dev\/well-data-manager\?well=well-\d+&tab=logs$/);
+  await page.getByTestId('rp-open-in').click();
+  await expect(page.getByTestId('rp-open-in-petrophysics-studio')).toHaveAttribute('href', /^\/dev\/petrophysics-studio\?well=well-\d+$/);
+  await expect(page.getByTestId('rp-open-in-well-correlation')).toHaveAttribute('href', /^\/dev\/well-correlation\?wells=well-\d+$/);
+  await expect(page.getByTestId('rp-open-in-rock-physics-studio')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // the help route is a real page on the app path
+  await page.goto('/dashboard/apps/geoscience/rock-physics-studio/help');
+  await page.waitForLoadState('networkidle');
+  expect(page.url()).not.toContain('/help'); // gated by auth like the app itself
+});

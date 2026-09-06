@@ -60,3 +60,21 @@ Petrel user meets is at the edges:
   engine inputs untouched (exact-name mapping ignores the *_SUB curves).
   Found while wiring: the first draft of the publish description printed
   the hydrocarbon spec object; the scenario side carries `hc.kind`.
+- **RP2 (2026-09-06), branch `feat/rp2-links-help`.** Launchers in the
+  ribbon: Well data opens the selected well in Well Data Manager on its
+  logs (where the published curves are listed), Open in lists the other
+  Geoscience apps for the well through the shared `OpenInAppMenu`
+  (Petrophysics Studio and Well Correlation open on that well), and
+  Help opens the new full-page guide
+  (`RockPhysicsStudioHelpGuide.jsx` on the shared HelpGuideLayout,
+  route `/dashboard/apps/geoscience/rock-physics-studio/help`) that
+  quotes the live curve aliases, unit choices and AVO and wedge
+  defaults, guarded by `__tests__/helpGuide.test.jsx` including the
+  no-em-dash rule. `appPaths` on the workstation lets the harness point
+  the launchers at the /dev/* apps. The AVO and wedge defaults moved
+  to `services/defaults.js` so the guide does not pull the workstation
+  chunk in.
+
+**RP0 to RP2 CLOSED 2026-09-06.** Open for Rock Physics Studio: a
+tester walk on staging; a Seismolord export of the substituted case as
+a synthetic stays unscheduled until a tester asks.

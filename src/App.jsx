@@ -119,6 +119,7 @@ const ReservoirCalcProHarness = lazy(() => import('@/pages/apps/ReservoirCalcPro
 const RockPhysicsStudioHarness = lazy(() => import('@/pages/apps/RockPhysicsStudio/RockPhysicsStudioHarness'));
 const MappingSurfaceStudio = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingSurfaceStudio'));
 const RockPhysicsStudio = lazy(() => import('@/pages/apps/RockPhysicsStudio/RockPhysicsStudio'));
+const RockPhysicsStudioHelpGuide = lazy(() => import('@/pages/apps/RockPhysicsStudio/RockPhysicsStudioHelpGuide'));
 const EarthModeling = lazy(() => import('@/pages/apps/EarthModeling/EarthModeling'));
 const EarthModelingHarness = lazy(() => import('@/pages/apps/EarthModeling/EarthModelingHarness'));
 const PorePressureStudioHarness = lazy(() => import('@/pages/apps/PorePressureStudio/PorePressureStudioHarness'));
@@ -494,6 +495,7 @@ function App() {
                                 <Route path="apps/geoscience/petrophysics-studio" element={<ProtectedAppRoute appId="petrophysics-studio" appName="Petrophysics Studio"><PetrophysicsStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/petrophysics-studio/help" element={<ProtectedAppRoute appId="petrophysics-studio" appName="Petrophysics Studio"><PetrophysicsHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/rock-physics-studio" element={<ProtectedAppRoute appId="rock-physics-studio" appName="Rock Physics Studio"><RockPhysicsStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/rock-physics-studio/help" element={<ProtectedAppRoute appId="rock-physics-studio" appName="Rock Physics Studio"><RockPhysicsStudioHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/earth-modeling" element={<ProtectedAppRoute appId="earth-modeling" appName="Earth Modeling"><EarthModeling /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/earth-modeling/help" element={<ProtectedAppRoute appId="earth-modeling" appName="Earth Modeling"><EarthModelingHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/pore-pressure-studio" element={<ProtectedAppRoute appId="pore-pressure-studio" appName="Pore Pressure Studio"><PorePressureStudio /></ProtectedAppRoute>} />

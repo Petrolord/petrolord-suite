@@ -11,12 +11,13 @@
 import React, { useMemo } from 'react';
 import RockWorkstation from './components/RockWorkstation';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
+import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 
 export default function RockPhysicsStudioHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
     <div className="h-screen w-full overflow-hidden">
-      <RockWorkstation backend={backend} />
+      <RockWorkstation backend={backend} appPaths={DEV_APP_PATHS} />
     </div>
   );
 }
