@@ -26,22 +26,11 @@ const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
         setLogs(['Initializing simulation engine...', 'Validating input parameters...']);
 
         try {
-            // Simulate stages for better UX
-            await new Promise(r => setTimeout(r, 500));
-            addLog('Compacting layers...');
+            // BF0: the run is the only wait; the staged delays that used
+            // to pad this dialog were theatre
+            addLog('Decompacting, solving heat and kinetics...');
             setProgress(20);
-            
-            // Actual run
-            await runSimulation(); // This updates context progress too, but we might want local control or sync
-            
-            addLog('Calculating thermal history...');
-            setProgress(60);
-            await new Promise(r => setTimeout(r, 800));
-            
-            addLog('Solving reaction kinetics...');
-            setProgress(90);
-            await new Promise(r => setTimeout(r, 500));
-            
+            await runSimulation();
             addLog('Finalizing results...');
             setProgress(100);
             setStatus('success');
@@ -88,7 +77,7 @@ const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
                     {/* Progress Bar */}
                     <div className="space-y-2">
                         <div className="flex justify-between text-xs text-slate-400">
-                            <span>{status === 'running' ? 'Processing...' : status === 'success' ? 'Complete' : 'Failed'}</span>
+                            <span data-testid="bf-sim-status">{status === 'running' ? 'Processing...' : status === 'success' ? 'Complete' : 'Failed'}</span>
                             <span>{Math.round(progress)}%</span>
                         </div>
                         <Progress value={progress} className={status === 'error' ? "bg-red-900/20" : ""} indicatorClassName={status === 'success' ? "bg-emerald-500" : status === 'error' ? "bg-red-500" : "bg-indigo-500"} />
@@ -110,9 +99,9 @@ const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
                         <Button variant="ghost" onClick={onCancel} className="text-slate-400 hover:text-white">Run in Background</Button>
                     ) : (
                         <div className="flex gap-2 w-full justify-end">
-                            <Button variant="ghost" onClick={onClose}>Close</Button>
+                            <Button variant="ghost" onClick={onClose} data-testid="bf-sim-close">Close</Button>
                             {status === 'success' && (
-                                <Button onClick={onClose} className="bg-emerald-600 hover:bg-emerald-700">
+                                <Button onClick={onClose} className="bg-emerald-600 hover:bg-emerald-700" data-testid="bf-sim-view">
                                     <BarChart2 className="w-4 h-4 mr-2" /> View Results
                                 </Button>
                             )}

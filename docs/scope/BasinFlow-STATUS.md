@@ -78,3 +78,18 @@ Active (migration `20260714120000`, applied live).
 - ~~Prod build upload to petrolord.com pending (covers G1–G7).~~
   **DONE 2026-07-14** — prod is current (source zip from main
   `e84f8a181`, Hostinger upload confirmed by owner).
+
+## 2026-09-06: BF series (Petrel and PetroMod tester readiness) BF0
+
+Plan of record: docs/scope/BasinFlow-ROADMAP.md, drafted from a walk
+through the shell that found it far behind the oracle-locked engines
+(erosion dropped by the wizard and never persisted, Expert-mode "Phase
+2" placeholders for heat-flow history and erosion, no way to enter
+calibration points, a mock Import that fabricates data, no harness).
+BF0 built the backend pair and the `/dev/basinflow-genesis` harness
+seeded with the reference basin, fixed the persistence of erosion
+events and the surface temperature (bf_wells columns added, migration
+20260906150000 applied), removed the run dialog's fake delays, and
+added the present-day table to the summary. e2e reproduces the golden.
+BF1 (history editors), BF2 (calibration and import), BF3 (units, links,
+help) follow.

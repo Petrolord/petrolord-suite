@@ -20,6 +20,8 @@ const LayerCard = ({ layer, index, dispatch, readOnly = false }) => {
                     {...provided.draggableProps}
                     className="mb-2"
                     style={{ ...provided.draggableProps.style }}
+                    data-testid="bf-layer-card"
+                    data-layer-name={layer.name}
                 >
                     <Card className={`bg-slate-900 border-slate-800 hover:border-slate-700 transition-colors ${snapshot.isDragging ? 'border-indigo-500 ring-1 ring-indigo-500/50' : ''}`}>
                         <CardContent className="p-4">

@@ -148,10 +148,14 @@ export const GuidedModeProvider = ({ children }) => {
         const simulationInput = WizardDataConverter.convertWizardDataToSimulationInput(wizardData);
         
         // 2. Update Global Context
-        dispatch({ type: 'LOAD_PROJECT', payload: { 
+        // BF0: erosion events and the settings were dropped here, so the
+        // wizard's Erosion step never reached the engine
+        dispatch({ type: 'LOAD_PROJECT', payload: {
             name: `Guided Run - ${new Date().toLocaleTimeString()}`,
             stratigraphy: simulationInput.stratigraphy,
-            heatFlow: simulationInput.heatFlow
+            heatFlow: simulationInput.heatFlow,
+            erosionEvents: simulationInput.erosionEvents,
+            settings: simulationInput.settings,
         }});
         
         // 3. Run

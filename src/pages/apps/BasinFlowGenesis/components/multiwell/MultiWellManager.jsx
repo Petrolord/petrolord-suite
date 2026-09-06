@@ -80,6 +80,8 @@ const MultiWellManager = () => {
             const currentData = {
                 stratigraphy: bfState.stratigraphy,
                 heatFlow: bfState.heatFlow,
+                erosionEvents: bfState.erosionEvents,
+                settings: bfState.settings,
                 calibration: bfState.calibration,
             };
             saveWellData(mwState.activeWellId, currentData);
@@ -93,6 +95,8 @@ const MultiWellManager = () => {
                 name: targetWellData.name,
                 stratigraphy: targetWellData.stratigraphy || [],
                 heatFlow: targetWellData.heatFlow || { type: 'constant', value: 60, history: [] },
+                erosionEvents: targetWellData.erosionEvents || [],
+                settings: targetWellData.settings || {},
                 calibration: targetWellData.calibration || { ro: [], temp: [] }
             }});
             toast({ description: `Switched to ${targetWellData.name}` });
@@ -198,6 +202,9 @@ const MultiWellManager = () => {
                         <div 
                             key={well.id}
                             onClick={() => handleSwitchWell(well.id)}
+                            data-testid="bf-well-row"
+                            data-well-name={well.name}
+                            data-active={well.id === mwState.activeWellId ? 'true' : 'false'}
                             className={`group p-3 rounded-lg border cursor-pointer transition-all relative ${
                                 mwState.activeWellId === well.id 
                                 ? 'bg-indigo-950/40 border-indigo-500/50 shadow-sm shadow-indigo-900/20' 

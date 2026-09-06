@@ -33,6 +33,8 @@ const initialState = {
     updated_at: new Date().toISOString(),
     settings: { unitSystem: 'metric' }
   },
+  // model settings the engine reads (BF0: persisted with the well)
+  settings: { surfaceTemp: 20 },
   mode: null, // null | 'guided' | 'expert'
   stratigraphy: [createSafeLayer({ name: 'Layer 1' })],
   heatFlow: {
@@ -77,11 +79,15 @@ function reducer(state, action) {
           return layer;
       });
       
-      return { 
-          ...state, 
-          ...action.payload, 
-          stratigraphy: sanitizedStratigraphy 
-      }; 
+      return {
+          ...state,
+          ...action.payload,
+          stratigraphy: sanitizedStratigraphy,
+          // BF0: a well without these keeps the defaults (they used to
+          // leak from the previous well)
+          erosionEvents: Array.isArray(action.payload.erosionEvents) ? action.payload.erosionEvents : (action.payload.stratigraphy ? [] : state.erosionEvents),
+          settings: action.payload.settings ? { ...initialState.settings, ...action.payload.settings } : (action.payload.stratigraphy ? { ...initialState.settings } : state.settings),
+      };
     case 'ADD_LAYER':
       const newLayer = createSafeLayer({ name: `Layer ${state.stratigraphy.length + 1}` });
       return { ...state, stratigraphy: [newLayer, ...state.stratigraphy] };
@@ -114,6 +120,10 @@ function reducer(state, action) {
         return { ...state, stratigraphy: action.payload };
     case 'UPDATE_HEAT_FLOW':
         return { ...state, heatFlow: { ...state.heatFlow, ...action.payload } };
+    case 'SET_EROSION_EVENTS':
+        return { ...state, erosionEvents: Array.isArray(action.payload) ? action.payload : [] };
+    case 'UPDATE_SETTINGS':
+        return { ...state, settings: { ...state.settings, ...action.payload } };
     case 'SET_RESULTS':
         return { ...state, results: action.payload };
     case 'SAVE_SCENARIO':
@@ -187,6 +197,8 @@ export const BasinFlowProvider = ({ children }) => {
               const updates = {
                   stratigraphy: state.stratigraphy,
                   heatFlow: state.heatFlow,
+                  erosionEvents: state.erosionEvents,
+                  settings: state.settings,
                   calibration: state.calibration,
                   scenarios: state.scenarios,
                   // Auto-update status to in-progress if we are editing properties
@@ -199,7 +211,7 @@ export const BasinFlowProvider = ({ children }) => {
       }
       
       return () => clearTimeout(saveTimeoutRef.current);
-  }, [state.stratigraphy, state.heatFlow, state.calibration, state.scenarios, mwState.activeWellId, updateWell]);
+  }, [state.stratigraphy, state.heatFlow, state.erosionEvents, state.settings, state.calibration, state.scenarios, mwState.activeWellId, updateWell]);
 
 
   const runSimulation = async () => {
