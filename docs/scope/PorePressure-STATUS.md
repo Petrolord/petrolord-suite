@@ -86,5 +86,7 @@ Geoscience unit with sonic and the compaction constant following it)
 convert at the UI edge, and Prognosis CSV carries the profile in those
 units with EMW columns for the well plan. The engine, the goldens, the
 project and the published curves stay SI. This closes the "EMW/ppg
-display units for the Drilling handoff" follow-on above. PP1
-(launchers, help guide) follows.
+display units for the Drilling handoff" follow-on above. PP1 adds the
+Well data and Open in launchers for the selected well and the in-app
+help guide at `/dashboard/apps/geoscience/pore-pressure-studio/help`.
+PP0 and PP1 are merged; the series is closed.

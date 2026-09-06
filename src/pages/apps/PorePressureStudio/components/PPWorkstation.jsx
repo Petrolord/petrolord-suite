@@ -14,10 +14,14 @@
 // an equivalent mud weight in ppg or sg; depth in the account's
 // Geoscience unit) and convert at the edge; the engine, the project
 // and the published curves stay SI. Prognosis CSV is the display-unit
-// deliverable for the well plan.
+// deliverable for the well plan. PP1: Well data, Open in and Help
+// launchers; `appPaths` lets the harness point them at the /dev/* apps.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Gauge, Loader2, Save, Upload, Download } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Gauge, Loader2, Save, Upload, Download, HelpCircle, Database } from 'lucide-react';
+import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
+import { appPath, wellDataManagerHref, WELL_DATA_MANAGER_ID } from '@/components/wells/appLinks';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -48,7 +52,10 @@ export const DEFAULT_PARAMS = {
   nu: 0.4,
 };
 
-export default function PPWorkstation({ backend }) {
+const PP_ID = 'pore-pressure-studio';
+
+/** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
+export default function PPWorkstation({ backend, appPaths = {} }) {
   const [wells, setWells] = useState(null);
   const [velocityModels, setVelocityModels] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -356,6 +363,26 @@ export default function PPWorkstation({ backend }) {
         </span>
       )}
       <div className="ml-auto flex items-center gap-1">
+        {selected && (
+          <Link
+            to={wellDataManagerHref(selected.id, 'logs', appPath(WELL_DATA_MANAGER_ID, appPaths))}
+            data-testid="pp-open-wdm"
+            title="Open this well in Well Data Manager on its logs (published curves are listed there)"
+            className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-800"
+          >
+            <Database className="w-3.5 h-3.5" /> Well data
+          </Link>
+        )}
+        <OpenInAppMenu wellIds={selected ? [selected.id] : []} paths={appPaths} exclude={[PP_ID]} testIdPrefix="pp" />
+        <Link
+          to={`${appPath(PP_ID, appPaths)}/help`}
+          data-testid="pp-help"
+          title="Open the Pore Pressure Studio help guide"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-800"
+        >
+          <HelpCircle className="w-3.5 h-3.5" /> Help
+        </Link>
+        <span className="w-px h-4 bg-slate-800 mx-1" />
         <span className="text-[11px] text-slate-500 mr-1">Units</span>
         {unitSelect('pressure', PRESSURE_UNITS, 'Pressure display unit, or an equivalent mud weight (the engine stays in Pa)')}
         {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; defaults to your Geoscience depth setting. Sonic and the compaction constant follow it')}
