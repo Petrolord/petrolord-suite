@@ -2033,3 +2033,16 @@ kit has its own metre-world `MapTransform`); `annotations`, `colormaps`,
 `shadeAmpPixels`, `displayUpgrades`, `viewTransform`, `sessionSnapshot`
 and `mapContours` suites and the viewer/workspace e2e are the tripwire,
 plus `src/components/maps/__tests__/shims.test.js` (identity).
+
+## 2026-09-06: Stratigraphy ST5 (seismic stratigraphy)
+
+Flatten on a horizon in the Section window (Home tab "Flatten": every
+trace shifts in the shader so the horizon sits on its median pick;
+overlays and the pick inverse follow; saved with the session), the
+proportional stratal slice as an export-dialog attribute between two
+horizons (engines `extractStratalSlice`, PR #145), and termination
+markers (Interpretation tab, onlap / downlap / toplap / truncation) on
+sections, saved with the session. `viewer/shaderChunks.js` gained
+`FLATTEN_GLSL`; `SliceRenderer.setFlatten`; `SliceView` `flatten` prop and
+`data-flatten` / `data-terminations` on its wrapper; `RibbonButton` takes
+a `testId`. Details: docs/scope/StratigraphyStudio-STATUS.md, ST5.

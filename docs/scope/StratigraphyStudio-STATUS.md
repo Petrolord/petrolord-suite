@@ -15,8 +15,8 @@ eleventh Geoscience tile. Slug `stratigraphy-studio`, route
 | ST1 lithology, core and facies | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #413 merged** | engines #141 (lithology vocabulary, interval arithmetic, LAS 3.0 blocks to intervals; 66 tests, fixture las3_intervals_30); Suite branch `feat/st1-intervals-core-images`: migration 20260906200000 (geo_wells_intervals + geo_wells_core_images), stratRegistry intervals + core photo services, `intervals:<kind>` strip in the shared track layout, Petrophysics facies publish, Well Correlation lithology strip, Well Data Manager Intervals + Core tabs and LAS 3.0 block import, Stratigraphy Studio Intervals + Core views, portability, e2e |
 | ST2 sequence stratigraphy + Wheeler | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #414 merged** | engines #142 (age-depth model, Wheeler cells, stratigraphic stretch, tracts from surfaces; hand-derived three-well golden); Suite branch `feat/st2-sequence-wheeler`: migration 20260906220000 (strat_projects + tops.hiatus_to_ma), CrossSection and the section frame moved to `src/components/wells/section/` with the section state as `useSectionWells`, stretch datum + tract and motif bands + ghost curve in the shared painter, Stratigraphy Studio Section and Wheeler views, hiatus end in Tops typing, systems tracts in the interval editor, e2e |
 | ST3 biozones and ages | **COMPLETE 2026-09-06: PR #415 merged (no migration)** | engines #143 (basin layers from dated tops); Suite branch `feat/st3-biozones-ages`: Ages view (age-depth plot with rates and hiatuses, ICS stage per surface), biozone ranges in the interval editor and biozone datum tops, Send to Basin & Charge Modeling |
-| ST4 stratigraphic maps | **BUILT 2026-09-06, PR open (no migration)** | engines #144 (thickness and environment control points between two tops); Suite branch `feat/st4-strat-maps`: net sand / gross / net-to-gross grids in Mapping, facies and paleogeography polygons, the environment table, the `?net=` deep link, Mapping launchers from the studio's section (per tract) and column (per unit) |
-| ST5 seismic stratigraphy | not started | |
+| ST4 stratigraphic maps | **COMPLETE 2026-09-06: PR #416 merged (no migration)** | engines #144 (thickness and environment control points between two tops); Suite branch `feat/st4-strat-maps`: net sand / gross / net-to-gross grids in Mapping, facies and paleogeography polygons, the environment table, the `?net=` deep link, Mapping launchers from the studio's section (per tract) and column (per unit) |
+| ST5 seismic stratigraphy | **BUILT 2026-09-06, PR open (no migration)** | engines #145 (proportional stratal slice, section flatten offsets); Suite branch `feat/st5-seismic-stratigraphy`: flatten on a horizon in the Seismolord section (shader chunk + overlays + pick inverse, Home tab select, saved with the session), the stratal slice attribute in the export dialog, termination markers (Interpretation tab, section overlay, session) |
 
 ## ST0, what shipped
 
@@ -328,6 +328,80 @@ times its gross) and publishes as a thickness surface whose provenance
 names the two surfaces; a facies polygon named "sandstone" saves in the
 sand colour; the environment table posts shoreface and shelf per well;
 the deep link grids on arrival.
+
+## ST5, what shipped
+
+**Engines (petrolord-engines PR #145, merged, subtree 53981f0).**
+- `seismolord/horizonAmplitude.js` `extractStratalSlice(getBrick, geom,
+  picksA, picksB, {fraction})`: the amplitude at z = zA + f (zB - zA) per
+  cell through the parabolic `amplitudeAt`; fraction 0 and 1 reproduce
+  the single-horizon value extraction bit for bit; the interval
+  attribute's span walker, so the preflight is `bricksForStratalSlice`
+  (identical to `bricksForIntervalAttribute`). Tested on a synthetic
+  brick store whose amplitude is linear in sample, where fractional
+  picks have exact answers.
+- `seismolord/flatten.js`: `flattenOffsets(grid, geom, ori, idx, datum,
+  positions)` gives the per-trace vertical offset (samples, NaN where
+  untracked) that hangs an inline, crossline or traverse section on a
+  horizon; `datumForHorizon` (the median tracked pick on the section);
+  `sectionCell`; `shiftedSample`.
+
+**No migration.** The flatten choice and the termination markers ride
+in the session snapshot (`seismic_sessions.payload`, restored with the
+volume); the stratal slice publishes through the existing amplitude
+surface path (`geo_surfaces`, kind attribute, provenance carries the
+second horizon and the fraction).
+
+**Seismolord section flattening.** `viewer/shaderChunks.js` gains
+`FLATTEN_GLSL` (uniforms `u_offset`, `u_flattenOn`, `u_offsetScale`; `flattenT`
+shifts the sample coordinate per trace in data space before any
+sampling, so gain, AGC, interpolation and co-render see the flattened
+frame; untracked traces stay unshifted; shifted-out rows paint the null
+colour). This is the only place the display math lives, the playbook
+rule. `SliceRenderer.setFlatten(offsets)` uploads the offsets as a 1-D
+R32F texture (unit 8), re-applied after context restore. `SliceView`
+takes a `flatten` prop: the renderer receives it with the display params,
+every overlay (horizons, registry surfaces, per-trace picks, fault
+sticks, wells and tops, the seed pick, the ghost preview) shifts through
+`shiftedSample`, and the pick inverse subtracts the trace's offset so a
+pick made on a flattened section lands in true time. The wrapper exposes
+`data-flatten`. In the panel, the Home tab's "Flatten" select lists the
+visible horizons; the offsets are recomputed per displayed section from
+the horizon's grid with the median pick as datum; the choice is saved
+with the session and restored. Depth-domain sections and time slices do
+not flatten.
+
+**Stratal slices.** The export dialog's "Between two horizons" group
+gains "Stratal slice (proportional)" with a fraction (0 on this horizon,
+1 on the second); the panel's extraction dispatcher routes it to
+`extractStratalSlice` with the same brick preflight as the interval
+attributes, and the result exports or publishes as a registry surface
+named with the fraction and the second horizon. The map window then
+shows it like any attribute surface.
+
+**Terminations.** The Interpretation tab gains a Terminations group: a
+kind (onlap, downlap, toplap, truncation) and a Mark tool; a click on
+the section places a marker at the lattice cell and sample, Alt+click
+removes the nearest, Clear empties the list. Markers draw as a coloured
+ring with the kind's initial on the sections and traverses that pass
+through their cell, shifted with the flatten, and save with the session.
+The kinds live in `InterpretationTab.jsx` (`TERMINATION_KINDS`), a
+vocabulary rather than math, so not an engine.
+
+**Verification.** Engines: 5 analytic tests. Suite jest: the flatten chunk
+declares its uniforms and degrades to identity, the shims resolve, the
+kinds are fixed (3 tests); the Seismolord suites stay green (577).
+e2e on the section harness (`?flatten=1&term=1`): the section reports the
+flatten and two markers with a clean console (WebGL pixels are not
+readable in e2e, the playbook's known limit); the workspace harness shows
+the Flatten select and the Terminations group. The full Seismolord
+regression (24 tests across six specs) is green.
+
+**Limits recorded.** The stratal slice is reachable through the export
+dialog and the registry, not as a live map-window attribute mode; the
+traverse window does not flatten in this version (the section window
+does, for inlines and crosslines); markers are per session, not shared
+rows.
 
 ## Deviations from the plan
 

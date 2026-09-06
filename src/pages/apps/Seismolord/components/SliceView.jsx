@@ -25,6 +25,7 @@ import {
 import { SliceRenderer } from '../viewer/SliceRenderer';
 import { agcGainMap, wiggleDeviations, varAreaRuns } from '../engine/displayEnhance';
 import { snapPick } from '../engine/horizonTrack';
+import { shiftedSample } from '../engine/flatten';
 import { projectStickToTraverse } from '../engine/traverse';
 import { projectWellToSection } from '../engine/wellSection';
 import { ViewTransform, MIN_ZOOM, MAX_ZOOM } from '../viewer/viewTransform';
@@ -114,13 +115,17 @@ const gutters = (showAxes) => (showAxes ? { left: 52, top: 24 } : { left: 0, top
  * @param {number} [p.vexag] controlled vertical exaggeration (shared with
  *   the 3D window); omit for the legacy uncontrolled behavior
  * @param {(v:number) => void} [p.onVexagChange]
+ * @param {?{offsets: Float32Array, name: string, datum: number}} [p.flatten]
+ *   ST5 flatten on a horizon: per-trace offsets in samples (NaN =
+ *   untracked, unshifted). The renderer shifts the image in the shader;
+ *   every overlay and the pick inverse apply the same offsets here.
  */
 function SliceView({
   slice, geom, manifest, orientation, sliceIndex, display, overlays,
   pickMode, ghost, loading, onPick, onPickEnd, onStepSlice, height = 520,
   vexag: vexagProp, onVexagChange, emptyHint, depthConv = null, onCursor = null,
   cameraApi = null, overlaySlice = null, overlayDisplay = null,
-  depthAxisInfo = null,
+  depthAxisInfo = null, flatten = null,
 }) {
   const wrapRef = useRef(null);        // fullscreen target (toolbar + view)
   const viewportRef = useRef(null);    // the canvas container
@@ -182,6 +187,7 @@ function SliceView({
 
   // Latest props snapshot so rAF/pointer handlers never see stale closures.
   propsRef.current = {
+    flatten,
     slice, geom, manifest, orientation, sliceIndex, display, overlays,
     pickMode, ghost, prefs, gutter: g, depthConv, onCursor, agcMap, depthAxisInfo,
   };
@@ -310,6 +316,10 @@ function SliceView({
       }
     }
 
+    // ST5 flatten: every overlay sample shifts by its trace's offset
+    const flatOff = (ori !== 'time' && p.flatten?.offsets) ? p.flatten.offsets : null;
+    const sh = (z, tr) => (flatOff ? shiftedSample(z, flatOff[tr]) : z);
+
     // stored surfaces share the horizon overlay contract (sample-index
     // lattice grids) and draw in the same loop, dashed so a registry
     // surface never reads as an editable pick lattice
@@ -336,7 +346,7 @@ function SliceView({
               : posn[tr].il * gm.nXl + posn[tr].xl;
           const z = grid[cell];
           if (z === NULL_F32) { pen = false; continue; }
-          const s = t.worldToScreen(tr + 0.5, z + 0.5);
+          const s = t.worldToScreen(tr + 0.5, sh(z, tr) + 0.5);
           if (pen) ctx.lineTo(s.x, s.y);
           else { ctx.moveTo(s.x, s.y); pen = true; }
         }
@@ -389,7 +399,7 @@ function SliceView({
         for (let tr = tr0; tr <= tr1; tr++) {
           const z = tp.picks[tr];
           if (z === NULL_F32 || !Number.isFinite(z)) { pen = false; continue; }
-          const s = t.worldToScreen(tr + 0.5, z + 0.5);
+          const s = t.worldToScreen(tr + 0.5, sh(z, tr) + 0.5);
           if (pen) ctx.lineTo(s.x, s.y);
           else { ctx.moveTo(s.x, s.y); pen = true; }
           if (tp.markers) ctx.fillRect(s.x - mk2 / 2, s.y - mk2 / 2, mk2, mk2);
@@ -425,7 +435,7 @@ function SliceView({
           let drawn = 0;
           for (const q of c.proj) {
             if (!q) { pen = false; continue; }
-            const s = t.worldToScreen(q.trace + 0.5, q.s + 0.5);
+            const s = t.worldToScreen(q.trace + 0.5, sh(q.s, q.trace) + 0.5);
             if (pen) ctx.lineTo(s.x, s.y);
             else { ctx.moveTo(s.x, s.y); pen = true; }
             ctx.fillRect(s.x - mk / 2, s.y - mk / 2, mk, mk);
@@ -441,7 +451,7 @@ function SliceView({
           ctx.beginPath();
           near.forEach((q, i) => {
             const tr = ori === 'inline' ? q.xl : q.il;
-            const s = t.worldToScreen(tr + 0.5, q.s + 0.5);
+            const s = t.worldToScreen(tr + 0.5, sh(q.s, tr) + 0.5);
             if (i === 0) ctx.moveTo(s.x, s.y);
             else ctx.lineTo(s.x, s.y);
             ctx.fillRect(s.x - mk / 2, s.y - mk / 2, mk, mk);
@@ -501,7 +511,7 @@ function SliceView({
           let pen = false;
           for (const q of proj) {
             if (!q || q.s == null) { pen = false; continue; }
-            const s = t.worldToScreen(q.trace + 0.5, q.s + 0.5);
+            const s = t.worldToScreen(q.trace + 0.5, sh(q.s, q.trace) + 0.5);
             if (pen) ctx.lineTo(s.x, s.y);
             else { ctx.moveTo(s.x, s.y); pen = true; }
           }
@@ -513,7 +523,7 @@ function SliceView({
             : projectWellToSection([tp], ori, idx);
           const at = tv && tv[0];
           if (!at || at.s == null) continue;
-          const s = t.worldToScreen(at.trace + 0.5, at.s + 0.5);
+          const s = t.worldToScreen(at.trace + 0.5, sh(at.s, at.trace) + 0.5);
           const h = 5 * dpr;
           ctx.beginPath();
           ctx.moveTo(s.x - h, s.y);
@@ -529,12 +539,39 @@ function SliceView({
       }
     }
 
+    // ST5 termination markers (onlap, downlap, toplap, truncation) on the
+    // cells of this section: a coloured ring with the kind's initial,
+    // shifted with the flatten like every other overlay
+    if (ov.terminations?.length && ori !== 'time') {
+      const posn = ori === 'traverse' ? p.slice?.positions : null;
+      const KIND_COLOUR = { onlap: '#22d3ee', downlap: '#f59e0b', toplap: '#a78bfa', truncation: '#f87171' };
+      ctx.font = `bold ${Math.round(9 * dpr)}px ui-monospace, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const m of ov.terminations) {
+        let tr = -1;
+        if (ori === 'inline') { if (m.il !== idx) continue; tr = m.xl; }
+        else if (ori === 'xline') { if (m.xl !== idx) continue; tr = m.il; }
+        else if (posn) { tr = posn.findIndex((q) => q.il === m.il && q.xl === m.xl); if (tr < 0) continue; }
+        else continue;
+        const s = t.worldToScreen(tr + 0.5, sh(m.sample, tr) + 0.5);
+        const r = 7 * dpr;
+        ctx.strokeStyle = KIND_COLOUR[m.kind] || '#e2e8f0';
+        ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+        ctx.lineWidth = 2 * dpr;
+        ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = KIND_COLOUR[m.kind] || '#e2e8f0';
+        ctx.fillText((m.kind || '?')[0].toUpperCase(), s.x, s.y + 0.5);
+      }
+      ctx.textBaseline = 'alphabetic';
+    }
+
     if (ov.seedPick && ori !== 'time' && ori !== 'traverse') {
       const onSlice = ori === 'inline'
         ? ov.seedPick.ilIdx === idx : ov.seedPick.xlIdx === idx;
       if (onSlice) {
         const tr = ori === 'inline' ? ov.seedPick.xlIdx : ov.seedPick.ilIdx;
-        const s = t.worldToScreen(tr + 0.5, ov.seedPick.sample + 0.5);
+        const s = t.worldToScreen(tr + 0.5, sh(ov.seedPick.sample, tr) + 0.5);
         ctx.strokeStyle = '#facc15';
         ctx.lineWidth = 2 * dpr;
         ctx.beginPath();
@@ -556,14 +593,16 @@ function SliceView({
       const nTraces = ori === 'inline' ? gm.nXl
         : ori === 'xline' ? gm.nIl : p.slice.positions.length;
       const trace = Math.floor(w.x);
-      if (trace >= 0 && trace < nTraces && w.y >= 0 && w.y < gm.ns) {
+      const offG = flatOff ? flatOff[trace] : NaN;
+      const wy = Number.isFinite(offG) ? w.y - offG : w.y;   // data sample under the cursor
+      if (trace >= 0 && trace < nTraces && wy >= 0 && wy < gm.ns) {
         const trData = p.slice.data.subarray(trace * gm.ns, (trace + 1) * gm.ns);
-        const hit = snapPick(trData, w.y, p.ghost);
-        const sSnap = t.worldToScreen(trace + 0.5, (hit ? hit.sample : w.y) + 0.5);
+        const hit = snapPick(trData, wy, p.ghost);
+        const sSnap = t.worldToScreen(trace + 0.5, sh(hit ? hit.sample : wy, trace) + 0.5);
         ctx.strokeStyle = 'rgba(250, 204, 21, 0.9)';
         ctx.lineWidth = 1.5 * dpr;
-        if (hit && Math.abs(hit.sample - w.y) > 0.05) {
-          const sRaw = t.worldToScreen(trace + 0.5, w.y + 0.5);
+        if (hit && Math.abs(hit.sample - wy) > 0.05) {
+          const sRaw = t.worldToScreen(trace + 0.5, sh(wy, trace) + 0.5);
           ctx.setLineDash([3 * dpr, 3 * dpr]);
           ctx.beginPath();
           ctx.moveTo(sRaw.x, sRaw.y);
@@ -865,8 +904,10 @@ function SliceView({
     });
     // AGC re-applies after every slice upload (setSlice clears the map)
     r.setAgc(agcMap);
+    // ST5 flatten: per-trace offsets ride with the display params (shader-only)
+    r.setFlatten(isSection && flatten?.offsets ? flatten.offsets : null);
     scheduleView();
-  }, [slice, display, agcMap, prefs.interpolate, scheduleView]);
+  }, [slice, display, agcMap, prefs.interpolate, scheduleView, flatten, isSection]);
 
   // W2.4 co-render: the overlay volume's matching slice + its display
   // params. Kept out of the effect above so an opacity tweak never
@@ -984,7 +1025,8 @@ function SliceView({
       const posn = p.slice?.positions;
       if (!posn) return null;
       const trace = Math.floor(w.x);
-      const sample = w.y;
+      const offT = p.flatten?.offsets?.[trace];
+      const sample = Number.isFinite(offT) ? w.y - offT : w.y;   // ST5: undo the flatten shift
       const nsV = p.slice?.width ?? gm.ns;
       const inData = trace >= 0 && trace < posn.length && sample >= 0 && sample < nsV;
       const cl = Math.min(Math.max(trace, 0), posn.length - 1);
@@ -999,7 +1041,8 @@ function SliceView({
     if (p.orientation !== 'time') {
       const nTraces = p.orientation === 'inline' ? gm.nXl : gm.nIl;
       const trace = Math.floor(w.x);
-      const sample = w.y;
+      const offS = p.flatten?.offsets?.[trace];
+      const sample = Number.isFinite(offS) ? w.y - offS : w.y;   // ST5: undo the flatten shift
       const nsV = p.slice?.width ?? gm.ns;
       const inData = trace >= 0 && trace < nTraces && sample >= 0 && sample < nsV;
       return {
@@ -1262,6 +1305,8 @@ function SliceView({
       ref={wrapRef}
       className={`flex flex-col ${isFullscreen ? 'h-screen bg-slate-950 p-2'
         : fillHeight ? 'h-full min-h-0' : ''}`}
+      data-flatten={isSection && flatten?.offsets ? (flatten.name || 'on') : ''}
+      data-terminations={overlays?.terminations?.length || 0}
     >
       <div className="flex flex-wrap items-center gap-1 mb-1">
         <Button variant="outline" size="sm" title="Zoom in (+ / wheel)"

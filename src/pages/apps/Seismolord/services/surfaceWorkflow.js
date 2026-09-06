@@ -211,7 +211,7 @@ export async function gridHorizonSurface({
  */
 export async function gridHorizonAmplitude({
   manifest, horizon, horizonB = null, extract, mode = 'value', window: w = 0,
-  freqHz = null, cellM = 0, signal = null,
+  freqHz = null, fraction = null, cellM = 0, signal = null,
 }) {
   if (signal?.aborted) throw new Error('Export cancelled');
   const geom = geomFromManifest(manifest);
@@ -224,7 +224,7 @@ export async function gridHorizonAmplitude({
   if (!affine) throw new Error('Volume has no usable survey coordinates for gridding.');
 
   const values = await extract(picks, {
-    mode, window: w, ...(picksB ? { picksB } : {}), ...(freqHz ? { freqHz } : {}),
+    mode, window: w, ...(picksB ? { picksB } : {}), ...(freqHz ? { freqHz } : {}), ...(fraction != null ? { fraction } : {}),
   });
   if (signal?.aborted) throw new Error('Export cancelled');
 

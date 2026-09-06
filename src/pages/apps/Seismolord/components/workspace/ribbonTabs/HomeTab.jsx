@@ -28,6 +28,7 @@ export default function HomeTab({
   overlayBlend, setOverlayBlend,
   onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel, onOpenSessions,
   sectionDomain, setSectionDomain, depthReady, depthUnit = 'm', setDepthUnit = null,
+  flattenHorizonId = null, setFlattenHorizonId = null, flattenChoices = [], flattenInfo = null,
 }) {
   const isTimeSlice = orientation === 'time';
   return (
@@ -97,6 +98,21 @@ export default function HomeTab({
           <option value="twt">Time (TWT)</option>
           <option value="depth">Depth</option>
         </RibbonSelect>
+        {setFlattenHorizonId && (
+          <RibbonSelect
+            label="Flatten"
+            testId="sl-section-flatten"
+            value={flattenHorizonId || ''}
+            onChange={(e) => setFlattenHorizonId(e.target.value || null)}
+            disabled={!manifest || isTimeSlice || sectionDomain === 'depth' || !flattenChoices.length}
+            title={flattenChoices.length
+              ? `Hang the section on a horizon: every trace shifts so the pick sits on one datum (display only; picks land in true time)${flattenInfo ? `. ${flattenInfo.tracked} of ${flattenInfo.nTraces} traces tracked, datum sample ${flattenInfo.datum.toFixed(1)}` : ''}`
+              : 'Show a horizon in the explorer to flatten on it'}
+          >
+            <option value="">Structural</option>
+            {flattenChoices.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
+          </RibbonSelect>
+        )}
         <RibbonSelect
           label="Depth unit"
           value={depthUnit}
