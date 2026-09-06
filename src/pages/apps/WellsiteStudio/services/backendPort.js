@@ -19,7 +19,7 @@ export const PORT = Object.freeze([
   // tops and prognosis (WS5)
   'listTops', 'addTop', 'addTopVersion', 'listPrognosis', 'addPrognosis', 'loadPrognosisSources',
   // sync surface (WS6 fills in)
-  'syncStatus', 'subscribeSync', 'flush',
+  'syncStatus', 'subscribeSync', 'flush', 'setCurrentWell', 'retryRejected', 'listConflicts',
   // storage
   'storageInfo',
 ]);

@@ -11,6 +11,9 @@ import { canAdvance, statusConfig, DEFAULT_MANDATORY } from '@/lib/wellsite/samp
 import { derivePhotoVariants } from '@/lib/wellsite/photos/derive';
 import { buildPhotoRows, localPhotoUrl } from '@/lib/wellsite/photos/store';
 import { fromMetres } from '@/lib/wellsite/depth';
+import { makeSyncEngine } from '@/lib/wellsite/sync/engine';
+import { getSyncState, subscribeSyncState, syncHeadline } from '@/lib/wellsite/sync/syncStore';
+import { detectConflicts } from '@/lib/wellsite/sync/conflicts';
 import { wellContext, offsetMinOf } from './wellContext';
 import { newId } from '@/lib/wellsite/ids';
 
@@ -21,10 +24,15 @@ export const WS_ENGINE_VERSION = 'wellsite-0.1.0';
  * @param {Object} p.transport { currentUser(), online(), listRegistryWells(), createWsWell(row), pullWell(id) }
  * @param {Object} [p.db] Dexie instance (tests)
  */
-export function makeLocalBackend({ transport, db = wellsiteDb() }) {
+export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true }) {
   let user = null;
+  let currentWellId = null;
   const listeners = new Set();
-  const notify = () => { for (const l of listeners) { try { l(); } catch { /* listener error is not ours */ } } };
+  const engine = makeSyncEngine({ db, transport, wellIdOf: () => currentWellId });
+  const notify = () => {
+    for (const l of listeners) { try { l(); } catch { /* listener error is not ours */ } }
+    if (autoSync) engine.touch();
+  };
 
   async function currentUser() {
     if (!user) user = await transport.currentUser();
@@ -299,12 +307,32 @@ export function makeLocalBackend({ transport, db = wellsiteDb() }) {
     },
 
     // ---- sync surface (WS6) ----
-    async syncStatus(wellId) {
-      const pending = wellId ? await pendingCount(db, wellId) : await db.outbox.where('status').equals('pending').count();
-      return { online: transport.online(), pending, state: transport.online() ? (pending ? 'pending' : 'synchronised') : 'offline', lastSyncUtc: null };
+    /** The well the engine pushes and pulls for; starts the engine on first use. */
+    setCurrentWell(wellId) {
+      const changed = wellId !== currentWellId;
+      currentWellId = wellId || null;
+      if (autoSync) { engine.start(); if (changed) engine.flush('well'); }
+      else engine.refreshCounts(currentWellId).catch(() => {});
     },
-    subscribeSync(cb) { listeners.add(cb); return () => listeners.delete(cb); },
-    async flush() { return { pushed: 0 }; },
+    async syncStatus(wellId) {
+      await engine.refreshCounts(wellId || currentWellId);
+      const st = getSyncState();
+      const pending = wellId ? await pendingCount(db, wellId) : st.pending;
+      return { ...st, pending, ...syncHeadline({ ...st, pending }), lastSyncUtc: st.lastSyncUtc };
+    },
+    /** Fires on every local commit and whenever a sync cycle completed (new rows may have arrived), not on every counter tick. */
+    subscribeSync(cb) {
+      listeners.add(cb);
+      let lastSync = getSyncState().lastSyncUtc;
+      const off = subscribeSyncState((st) => { if (st.lastSyncUtc !== lastSync) { lastSync = st.lastSyncUtc; cb(); } });
+      return () => { listeners.delete(cb); off(); };
+    },
+    flush: (reason) => engine.flush(reason),
+    retryRejected: (wellId) => engine.retryRejected(wellId || currentWellId),
+    detectConflicts: (wellId) => detectConflicts(db, wellId || currentWellId),
+    listConflicts: (wellId) => db.conflicts.where('well_id').equals(wellId || currentWellId).toArray(),
+    stopSync: () => engine.stop(),
+    engine,
     async storageInfo() { return storageEstimate(); },
     notify,
     RecordError,

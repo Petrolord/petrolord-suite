@@ -7,6 +7,21 @@ import { newId } from '@/lib/wellsite/ids';
 export function makeFakeTransport({ user, registryWells = [], online = true, prognosisSources = null } = {}) {
   const wsWells = new Map();
   let isOnline = online;
+  // the fake server: tables of rows keyed by id with a server sequence, blobs by path, auth listeners,
+  // and knobs the tests turn (fail the next call, refuse the next call, expire the token)
+  const tables = new Map();
+  const blobs = new Map();
+  const authListeners = new Set();
+  let seq = 0;
+  const knobs = { failNext: 0, rejectNext: 0, authNext: 0 };
+  const tableOf = (name) => { if (!tables.has(name)) tables.set(name, new Map()); return tables.get(name); };
+  const netError = () => { const e = new Error('Failed to fetch'); e.status = 0; return e; };
+  const check = () => {
+    if (!isOnline) throw netError();
+    if (knobs.failNext > 0) { knobs.failNext -= 1; throw netError(); }
+    if (knobs.authNext > 0) { knobs.authNext -= 1; const e = new Error('JWT expired'); e.status = 401; throw e; }
+    if (knobs.rejectNext > 0) { knobs.rejectNext -= 1; const e = new Error('new row violates row-level security policy for table'); e.code = '42501'; throw e; }
+  };
   const u = user || { id: 'user-a', email: 'geologist@example.com', name: 'A. Geologist', organization_id: 'org-1', role: 'wellsite_geologist' };
   return {
     kind: 'fake',
@@ -23,7 +38,41 @@ export function makeFakeTransport({ user, registryWells = [], online = true, pro
       wsWells.set(well.id, entry);
       return entry;
     },
-    async pullWell(id) { return wsWells.get(id) || null; },
+    async pullWell(id) { check(); return wsWells.get(id) || null; },
+    // ---- sync (WS6) ----
+    async insertRows(table, rows) {
+      check();
+      const t = tableOf(table);
+      const serverSeqById = {};
+      for (const r of rows) {
+        if (t.has(r.id)) { serverSeqById[r.id] = t.get(r.id).server_seq; continue; }  // on conflict (id) do nothing
+        if (r.status === 'final' && table === 'ws_tops' && knobs.refuseFinal) { const e = new Error('new row violates row-level security policy for table "ws_tops"'); e.code = '42501'; throw e; }
+        seq += 1;
+        const stored = { ...r, server_seq: seq, received_at: new Date().toISOString() };
+        t.set(r.id, stored);
+        serverSeqById[r.id] = seq;
+      }
+      return { ids: rows.map((r) => r.id), serverSeqById };
+    },
+    async updateWell(id, patch) {
+      check();
+      const entry = wsWells.get(id);
+      if (!entry) throw Object.assign(new Error('Only a well administrator can change the well settings.'), { code: '42501' });
+      entry.well = { ...entry.well, ...patch, updated_at: new Date().toISOString() };
+      return entry.well;
+    },
+    async pullRows(table, wellId, afterSeq, limit = 500) {
+      check();
+      return [...tableOf(table).values()].filter((r) => r.well_id === wellId && r.server_seq > afterSeq).sort((a, b) => a.server_seq - b.server_seq).slice(0, limit);
+    },
+    async pullSignoffs(wellId) { check(); return [...tableOf('ws_signoffs').values()].filter((r) => r.well_id === wellId); },
+    async uploadBlob(path, blob, contentType) { check(); blobs.set(path, { size: blob.size, contentType }); return { path }; },
+    onAuthEvent(cb) { authListeners.add(cb); return () => authListeners.delete(cb); },
+    // ---- test knobs ----
+    _server: { tables, blobs, wsWells, knobs, nextSeq: () => { seq += 1; return seq; } },
+    /** Plant a row on the server as if another device had pushed it. */
+    plant(table, row) { seq += 1; const stored = { ...row, server_seq: seq, received_at: new Date().toISOString() }; tableOf(table).set(row.id, stored); return stored; },
+    emitAuth(event) { for (const cb of authListeners) cb(event); },
     async loadPrognosisSources(geoWellId, { offsetWellIds = [] } = {}) {
       const geoWell = registryWells.find((w) => w.id === geoWellId) || null;
       const src = prognosisSources ? prognosisSources(geoWellId) : {};

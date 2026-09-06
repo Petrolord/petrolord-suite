@@ -16,7 +16,9 @@ const ProtectedAppRoute = ({ children, appId, appName }) => {
   const { 
     loading: entLoading, 
     hasAccessToApp, 
-    refetch 
+    refetch,
+    stale,
+    stampedAt,
   } = useUserEntitlements();
 
   // Ensure fresh data on mount
@@ -44,6 +46,18 @@ const ProtectedAppRoute = ({ children, appId, appName }) => {
   }
 
   const hasAccess = hasAccessToApp(appId);
+
+  if (hasAccess && stale) {
+    // offline boot on a cached licence (Wellsite Studio WS6): the app opens, the banner says so
+    return (
+      <>
+        <div className="bg-amber-500/10 border-b border-amber-500/40 text-amber-200 text-[11px] px-3 py-1" data-testid="entitlement-stale">
+          Working from the licence last verified {stampedAt ? new Date(stampedAt).toLocaleDateString() : 'earlier'}; it is checked again when a connection returns.
+        </div>
+        {children}
+      </>
+    );
+  }
 
   if (!hasAccess) {
     return (

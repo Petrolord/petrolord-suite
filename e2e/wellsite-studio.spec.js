@@ -39,7 +39,7 @@ test('a depth is refused until every attribute is present, then stored with TVD 
   await page.getByTestId('ws-bit-save').click();
   await expect(page.getByTestId('ws-status')).toHaveText('Bit depth recorded.');
   await expect(page.getByTestId('ws-status-bit')).toHaveText('Bit 10100 ft');
-  await expect(page.getByTestId('ws-sync-state')).toHaveText(/\d+ to share/);
+  await expect(page.getByTestId('ws-sync-state')).toHaveText(/\d+ to share|shared|sharing|receiving/);
   // a TVD entry on the deviated well resolves through the survey
   await page.getByTestId('ws-bit-ref').selectOption('TVD');
   await page.getByTestId('ws-bit-value').fill('9000');
@@ -342,4 +342,39 @@ test('WS5: the approach panel, an interpretation then a call through its lifecyc
   await page.getByTestId('ws-prog-add').click();
   await expect(page.getByTestId('ws-status')).toHaveText('Prognosis version 2: Top Benin added by hand.');
   await expect(page.getByTestId('ws-top-row-top_benin')).toBeVisible();
+});
+
+// ---- WS6: offline first, then shared ------------------------------------------------
+
+test('WS6: records made offline wait, share automatically when the link returns, and the office row arrives by pull; the drawer explains', async ({ page }) => {
+  // start with the link down: everything waits
+  await page.goto('/dev/wellsite-studio?reset=1&offline=1');
+  await expect(page.getByTestId('ws-status-bit')).toHaveText('Bit 10000 ft');
+  await expect(page.getByTestId('ws-sync-state')).toHaveAttribute('data-sync', 'offline');
+  await page.getByTestId('ws-event-connection').click();
+  await expect(page.getByTestId('ws-status')).toHaveText(/Connection started/);
+  await page.getByTestId('ws-sync-state').click();
+  await expect(page.getByTestId('ws-sync-drawer')).toBeVisible();
+  await expect(page.getByTestId('ws-sync-summary')).toContainText('No connection. Everything is saved on this device and shares when one returns.');
+  const waiting = Number(await page.getByTestId('ws-sync-pending').textContent());
+  expect(waiting).toBeGreaterThan(5);
+  await expect(page.getByTestId('ws-sync-storage')).toContainText('Storage used');
+  // the link returns (the fake transport comes back online through the engine's own trigger)
+  await page.evaluate(() => { window.__wsBackend && window.__wsBackend.transport.setOnline(true); window.dispatchEvent(new Event('online')); });
+  await expect(page.getByTestId('ws-sync-state')).toHaveAttribute('data-sync', 'synchronised', { timeout: 15000 });
+  await expect(page.getByTestId('ws-sync-pending')).toHaveText('0');
+  await expect(page.getByTestId('ws-sync-summary')).toContainText('Connected. Last shared');
+  // an office row planted on the server arrives on the next cycle
+  await page.evaluate(() => {
+    const b = window.__wsBackend;
+    b.transport.plant('ws_records', { id: 'office-note-e2e', well_id: b.__wellId, kind: 'observation', subtype: 'note', chain_id: 'office-note-e2e', version_no: 1, occurred_at: new Date().toISOString(), local_offset_min: 0, payload: { text: 'Office note: LWD shows a GR drop at 10,150 ft', source: 'external' }, evidence_ids: [], created_by: 'user-office', client_created_at: new Date().toISOString(), schema_version: 1 });
+  });
+  await page.getByTestId('ws-sync-flush').click();
+  await page.getByTestId('ws-nav-observations').click();
+  await expect(page.getByTestId('ws-obs-row-office-note-e2e')).toContainText('Office note: LWD shows a GR drop at 10,150 ft');
+  await expect(page.getByTestId('ws-obs-row-office-note-e2e')).toContainText('externally observed');
+  // keep offline caches the app's chunks
+  await page.getByTestId('ws-sync-state').click();
+  await page.getByTestId('ws-sync-keep-offline').click();
+  await expect(page.getByTestId('ws-status')).toContainText('This app is cached for use without a connection');
 });

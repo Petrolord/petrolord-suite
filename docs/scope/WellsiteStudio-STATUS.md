@@ -18,7 +18,7 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 | WS3 lag and sample scheduler | **COMPLETE 2026-09-07: engines #149 merged, Suite PR merged** | engines #149 (`lag.js`, `sampleProgram.js`, oracle goldens G1 to G4); Suite branch `feat/ws3-lag-samples`: lag panel in the dock (strokes, time at the current rate, lagged depth, bottoms up, pump log), Samples view (authorised versioned programme as a decision record, schedule three samples ahead of the bit, predicted arrivals, catch and the stage chain with the mandatory guard, overdue for review), Live view next-sample and catch prompt, describing from a sample records the described stage |
 | WS4 shows, observations, photos | **COMPLETE 2026-09-07: engines #150 merged, Suite PR merged** | engines #150 (`shows.js`, hand-derived golden); Suite branch `feat/ws4-shows-photos`: Shows view (controlled values, derived quality read-only, on a sample or a depth), Observations view (the ten manual types with value, unit, text, source and the depth they refer to), Photos (on-device thumbnail and working WebP, SHA-256, local blob store, attached once with depth, user, both times, optional original per well, photographed stage), explorer counts |
 | WS5 tops, prognosis, conflicts | **COMPLETE 2026-09-07: engines #151 + #152 merged, Suite PR merged** | engines #151 (`tops.js`), #152 (two fresh calls of one formation on different chains are a conflict, found by the Suite test); Suite branch `feat/ws5-tops-prognosis`: prognosis snapshot versions (registry tops, offset wells' tops through their own surveys, Well Design hole sections and definitive trajectory; manual tops as a new version), Tops view (interpretation and official call as separate chains, lifecycle, history with the evidence chain, approver-only final), approach panel in the dock, conflicts (two heads, two finals) with approver resolution citing both, top_called events, harness `?conflict=1` |
-| WS6 offline shell and sync | not started | |
+| WS6 offline shell and sync | **COMPLETE 2026-09-07: Suite PR merged (Suite-wide)** | Suite branch `feat/ws6-offline-sync`: installable PWA (vite-plugin-pwa 0.19 on Vite 4, prompt semantics, shell precache, hashed assets cached as fetched, Supabase never cached, real 192/512 icons, update prompt), dead offline files removed, per-user entitlement snapshot with a stale fallback in the auth context, the entitlements hook and ProtectedAppRoute, the sync engine (idempotent push with backoff, auth wait and refused-row isolation, photo row then blobs, pull by cursor, conflict detection), sync pill and drawer with storage and keep-offline, fake server with knobs, 6 sync tests, e2e offline to online round trip with a pulled office row |
 | WS7 shift handover | not started | |
 | WS8 daily report and countersignature | not started | |
 | WS9 close-out (help, publish, portability, perf, tile) | not started | |
@@ -26,6 +26,37 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 ## Decisions taken in auto mode
 
 Recorded per phase below as they are taken, with the reason.
+
+### WS6
+
+- The PWA precaches only the shell (index and the entry chunk) and
+  caches hashed assets as they are fetched; Wellsite Studio's own lazy
+  chunks are fetched on demand by Keep offline. Nothing under the
+  Supabase paths is ever cached or falls back to index.html.
+- `registerType: 'prompt'`: a new build waits for the person to reload;
+  never swapped under a user mid-shift.
+- The entitlement snapshot is per user (the old single key leaked one
+  person's licence to the next on a shared laptop) and is used only when
+  the failure is the network's; a genuine empty answer still locks out.
+  ProtectedAppRoute shows a banner while working from it, with a 30 day
+  ceiling.
+- Push is `upsert(..., { onConflict: 'id', ignoreDuplicates: true })`, so
+  a retried batch is harmless; a refused batch is retried row by row and
+  only the offending row stays local and visible. Pull is by the
+  server-assigned `server_seq` per table; own rows come back and merely
+  confirm.
+- Conflicts are recomputed after every pull with the same rule as the
+  server's `ws_conflicts` view (two heads on a chain, two open calls or
+  two finals for one formation).
+- The sync subscription fires on local commits and completed cycles, not
+  on every counter tick: the first cut re-read the well fourteen ways per
+  tick and slowed the screens.
+- The PostgREST `ignoreDuplicates` path is exercised against the real
+  backend only by a signed-in session; the fake server mirrors the
+  semantics. The live round trip is on the owner's staging walk list.
+- `packages/engines/__tests__/dca.montecarlo.test.js` failed once under
+  full-suite load during WS5 and passes alone: a load flake, not a
+  regression.
 
 ### WS5
 

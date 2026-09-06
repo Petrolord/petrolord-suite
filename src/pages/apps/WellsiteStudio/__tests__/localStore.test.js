@@ -16,7 +16,7 @@ let n = 0;
 function fresh() {
   const db = openWellsiteDb(`ws-test-${n += 1}`);
   const transport = makeFakeTransport({ user: SEED_USER, registryWells: SEED_REGISTRY_WELLS });
-  return { db, transport, backend: makeLocalBackend({ transport, db }) };
+  return { db, transport, backend: makeLocalBackend({ transport, db, autoSync: false }) };
 }
 
 test('the backend satisfies the port', () => {

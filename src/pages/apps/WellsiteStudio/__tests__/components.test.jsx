@@ -51,7 +51,7 @@ describe('WellsiteWorkstation on the seeded harness backend', () => {
   async function setup() {
     const db = openWellsiteDb(`ws-ui-${n += 1}`);
     const transport = makeFakeTransport({ user: SEED_USER, registryWells: SEED_REGISTRY_WELLS });
-    const backend = makeLocalBackend({ transport, db });
+    const backend = makeLocalBackend({ transport, db, autoSync: false });
     await seedWellsite(backend);
     return backend;
   }
@@ -66,7 +66,7 @@ describe('WellsiteWorkstation on the seeded harness backend', () => {
     await act(async () => { fireEvent.click(screen.getByTestId('ws-bit-save')); });
     await waitFor(() => expect(screen.getByTestId('ws-status-bit')).toHaveTextContent('Bit 10050 ft'));
     expect(screen.getByTestId('ws-status')).toHaveTextContent('Bit depth recorded.');
-    expect(screen.getByTestId('ws-sync-state')).toHaveTextContent(/to share/);
+    expect(screen.getByTestId('ws-sync-state')).toHaveTextContent(/to share|shared|sharing/);
     // metres display
     fireEvent.change(screen.getByTestId('ws-unit'), { target: { value: 'm' } });
     expect(screen.getByTestId('ws-status-bit')).toHaveTextContent('Bit 3063.2 m');
@@ -74,7 +74,7 @@ describe('WellsiteWorkstation on the seeded harness backend', () => {
   test('a well with no live record shows the setup screen and creates one online', async () => {
     const db = openWellsiteDb(`ws-ui-empty-${n += 1}`);
     const transport = makeFakeTransport({ user: SEED_USER, registryWells: SEED_REGISTRY_WELLS });
-    const backend = makeLocalBackend({ transport, db });
+    const backend = makeLocalBackend({ transport, db, autoSync: false });
     render(<MemoryRouter><WellsiteWorkstation backend={backend} /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('ws-no-wells')).toBeInTheDocument());
     await waitFor(() => expect(screen.getByTestId('ws-setup-well').querySelectorAll('option').length).toBe(3));
