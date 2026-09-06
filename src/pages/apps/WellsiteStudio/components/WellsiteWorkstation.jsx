@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags } from 'lucide-react';
+import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags, ClipboardList, FileText } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -33,6 +33,9 @@ import { SHOW_SUBTYPE } from '../services/shows';
 import { OBSERVATION_CODES } from '../services/observations';
 import TopsView from './TopsView';
 import SyncStatusPill, { useSyncState } from './SyncStatusPill';
+import ReportScreen from './ReportScreen';
+import { narrativeParams, currentNarrative } from '../services/reports';
+import { memberRole } from '../services/tops';
 import SyncDrawer from './SyncDrawer';
 import { persistStorage } from '@/lib/wellsite/db';
 import ApproachPanel from './ApproachPanel';
@@ -51,6 +54,8 @@ export const VIEWS = [
   { id: 'photos', label: 'Photos', icon: Camera },
   { id: 'tops', label: 'Tops', icon: Tags },
   { id: 'timeline', label: 'Timeline', icon: ListOrdered },
+  { id: 'handover', label: 'Handover', icon: ClipboardList },
+  { id: 'report', label: 'Report', icon: FileText },
   { id: 'config', label: 'Config', icon: Settings },
 ];
 
@@ -73,6 +78,9 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const [photos, setPhotos] = useState([]);
   const [photoSampleId, setPhotoSampleId] = useState('');
   const [tops, setTops] = useState([]);
+  const [narratives, setNarratives] = useState([]);
+  const [reports, setReports] = useState([]);
+  const [signoffs, setSignoffs] = useState([]);
   const [prognoses, setPrognoses] = useState([]);
   const [members, setMembers] = useState([]);
   const [dockOpen, setDockOpen] = useState(true);
@@ -120,8 +128,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   useEffect(() => { if (!selectedId && wells && wells.length) setSelectedId(wells[0].id); }, [wells, selectedId]);
 
   const refreshWellData = useCallback(async () => {
-    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setShows([]); setObservations([]); setPhotos([]); setTops([]); setPrognoses([]); setMembers([]); return; }
-    const [bits, pumps, cfg, descs, evs, smp, stg, prog, shw, obs, pho, tps, prg, mem] = await Promise.all([
+    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setShows([]); setObservations([]); setPhotos([]); setTops([]); setPrognoses([]); setMembers([]); setNarratives([]); setReports([]); setSignoffs([]); return; }
+    const [bits, pumps, cfg, descs, evs, smp, stg, prog, shw, obs, pho, tps, prg, mem, nar, rep, sgn] = await Promise.all([
       backend.listRecords(well.id, { subtype: 'bit_depth' }),
       backend.listRecords(well.id, { subtype: 'pump_rate' }),
       backend.latestRecord(well.id, 'rig_config'),
@@ -136,7 +144,13 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       backend.listTops(well.id),
       backend.listPrognosis(well.id),
       backend.listMembers(well.id),
+      backend.listRecords(well.id, { kind: 'narrative' }),
+      backend.listReports(well.id),
+      backend.listSignoffs(well.id),
     ]);
+    setNarratives(nar);
+    setReports(rep);
+    setSignoffs(sgn);
     setTops(tps);
     setPrognoses(prg);
     setMembers(mem);
@@ -255,6 +269,21 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setStatus(`Prognosis version ${row.version}: ${name.trim()} added by hand.`);
     setTick((t) => t + 1);
   }, [backend, well, ctx, prognosis]);
+  const myRole = useMemo(() => memberRole(user, members), [user, members]);
+  const reportData = useMemo(() => ({
+    records: [...observations, ...descriptions, ...shows, ...bitDepths, ...pumpEvents, ...narratives, ...eventRecords],
+    samples, stages, tops, photos, events, lag,
+  }), [observations, descriptions, shows, bitDepths, pumpEvents, narratives, eventRecords, samples, stages, tops, photos, events, lag]);
+  const saveNarrative = useCallback(async (key, text, periodStartIso) => {
+    try {
+      const prev = currentNarrative(narratives, key, periodStartIso);
+      const p = narrativeParams(key, text, periodStartIso);
+      if (prev) await backend.addVersion(prev, { payload: p.payload });
+      else await backend.addRecord(well.id, p);
+      setStatus(`${key.replace(/_/g, ' ')} saved as a record; the report regenerates.`);
+      setTick((t) => t + 1);
+    } catch (e) { setStatus(e.message); }
+  }, [backend, well, narratives]);
   const keepOffline = useCallback(async () => {
     try {
       // fetch this app's lazy chunks so the service worker holds them; the shell itself is precached
@@ -369,6 +398,9 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   } else if (view === 'tops') {
     center = <TopsView board={topsBoard} tops={tops} records={allObservationRecords} prognosis={prognosis} ctx={ctx} defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin}
       approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} onAddPrognosisTop={addPrognosisTop} onStatus={setStatus} userName={user ? user.name || user.email : ''} />;
+  } else if (view === 'handover' || view === 'report') {
+    center = <ReportScreen key={view} kind={view === 'handover' ? 'handover' : 'daily'} backend={backend} well={well} data={reportData} tourCfg={tourConfigOf(well)} nowMs={nowForLag} unit={units.depth} offsetMin={offsetMin}
+      role={myRole} userName={user ? user.name || user.email : ''} reports={reports} signoffs={signoffs} onNarrativeSave={saveNarrative} onStatus={setStatus} onChanged={() => setTick((t) => t + 1)} />;
   } else if (view === 'timeline') {
     center = <TimelineView events={events} onStart={startEvent} onEnd={endEvent} tourCfg={tourConfigOf(well)} offsetMin={offsetMin} unit={units.depth} nowMs={nowMs} currentUserName={user ? user.name || user.email : ''} />;
   } else if (view === 'config') {
