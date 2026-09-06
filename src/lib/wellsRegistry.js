@@ -352,14 +352,14 @@ export async function replaceTops(wellId, tops) {
 // notes. Absent fields are left to the column defaults, so every caller
 // that never heard of them keeps working unchanged.
 
-export const STRAT_TOP_FIELDS = ['surface_type', 'unit_id', 'confidence', 'age_ma', 'notes'];
+export const STRAT_TOP_FIELDS = ['surface_type', 'unit_id', 'confidence', 'age_ma', 'notes', 'hiatus_to_ma'];
 
 /** The insert row of a top: name, md_m, interpreter plus any typed-surface field given. */
 export function topRow(wellId, top) {
   const row = { well_id: wellId, name: top.name, md_m: top.mdM, interpreter: top.interpreter || null };
   for (const k of STRAT_TOP_FIELDS) {
     if (top[k] === undefined) continue;
-    if (k === 'age_ma') row.age_ma = top.age_ma === '' || top.age_ma === null ? null : Number(top.age_ma);
+    if (k === 'age_ma' || k === 'hiatus_to_ma') row[k] = top[k] === '' || top[k] === null ? null : Number(top[k]);
     else row[k] = top[k] === '' ? null : top[k];
   }
   return row;
@@ -377,7 +377,7 @@ export async function saveTop(wellId, top) {
 export async function updateTop(topId, patch) {
   const row = { ...patch, updated_at: new Date().toISOString() };
   if (patch.mdM !== undefined) { row.md_m = patch.mdM; delete row.mdM; }
-  if (patch.age_ma !== undefined) row.age_ma = patch.age_ma === '' || patch.age_ma === null ? null : Number(patch.age_ma);
+  for (const k of ['age_ma', 'hiatus_to_ma']) if (patch[k] !== undefined) row[k] = patch[k] === '' || patch[k] === null ? null : Number(patch[k]);
   for (const k of ['unit_id', 'confidence', 'notes']) if (row[k] === '') row[k] = null;
   const { data, error } = await supabase.from('geo_wells_tops')
     .update(row).eq('id', topId).select();

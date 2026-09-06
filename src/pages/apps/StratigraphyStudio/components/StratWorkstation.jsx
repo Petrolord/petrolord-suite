@@ -7,9 +7,10 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Layers, Loader2, PanelRight, BookOpen, ListTree, Tags, Rows as RowsIcon, Image } from 'lucide-react';
+import { Layers, Loader2, PanelRight, BookOpen, ListTree, Tags, Rows as RowsIcon, Image, GitCompare, Hourglass } from 'lucide-react';
 import IntervalsEditor from '@/components/wells/IntervalsEditor';
 import CoreImagesPanel from '@/components/wells/CoreImagesPanel';
+import SectionView from './SectionView';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -26,6 +27,8 @@ const VIEWS = [
   { id: 'tops', label: 'Tops', icon: Tags },
   { id: 'intervals', label: 'Intervals', icon: RowsIcon },
   { id: 'core', label: 'Core', icon: Image },
+  { id: 'section', label: 'Section', icon: GitCompare },
+  { id: 'wheeler', label: 'Wheeler', icon: Hourglass },
   { id: 'glossary', label: 'Glossary', icon: BookOpen },
 ];
 
@@ -44,6 +47,7 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   const [tops, setTops] = useState([]);
   const [intervals, setIntervals] = useState([]);     // ST1 interval logs of the selected well
   const [coreImages, setCoreImages] = useState([]);   // ST1 core photos of the selected well
+  const [project, setProject] = useState(null);       // ST2 app-private view state (strat_projects)
   const [view, setView] = useState('column');
   const [scheme, setScheme] = useScheme();
   const [dockOpen, setDockOpen] = useState(true);
@@ -63,9 +67,10 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
     let alive = true;
     track(async () => {
       try {
-        const [w] = await Promise.all([backend.listWells(), refreshUnits()]);
+        const [w, , proj] = await Promise.all([backend.listWells(), refreshUnits(), backend.loadStratProject ? backend.loadStratProject().catch(() => null) : Promise.resolve(null)]);
         if (!alive) return;
         setWells(w);
+        setProject(proj || null);
       } catch (e) {
         if (alive) { setWells([]); setStatus(e.message); }
       }
@@ -86,7 +91,9 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
       setTops(t); setIntervals(iv || []); setCoreImages(ci || []);
     } catch (e) { setStatus(e.message); }
   }, [backend, selectedId]);
-  useEffect(() => { refreshTops(); }, [refreshTops]);
+  // reload the selected well's tops, intervals and photos on every view change too: the
+  // Section view records tracts through its own section state (ST2)
+  useEffect(() => { refreshTops(); }, [refreshTops, view]);
 
   const selectWell = (id) => { setSelectedId(id); setView((v) => (v === 'intervals' || v === 'core' ? v : 'tops')); };
 
@@ -191,8 +198,10 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   );
 
   const needWell = <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="strat-need-well">Pick a well on the left.</div>;
+  const saveProject = async (patch) => { const row = await backend.saveStratProject({ ...patch, scheme }); setProject(row); };
   const center = view === 'glossary' ? <ScrollArea className="h-full min-h-0"><Glossary scheme={scheme} /></ScrollArea>
     : view === 'tops' ? <ScrollArea className="h-full min-h-0"><TopsTyping well={well} tops={tops} units={units} scheme={scheme} onSaveTop={saveTop} onStatus={setStatus} /></ScrollArea>
+      : view === 'section' || view === 'wheeler' ? <SectionView backend={backend} mode={view} scheme={scheme} onStatus={setStatus} appPaths={appPaths} saved={project} onSaveProject={saveProject} />
       : view === 'intervals' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><IntervalsEditor well={well} intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} testIdPrefix="strat-intervals" /></div></ScrollArea> : needWell)
         : view === 'core' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><CoreImagesPanel well={well} images={coreImages} canEdit={!!well.is_own} onStatus={setStatus} testIdPrefix="strat-core" {...coreOps} /></div></ScrollArea> : needWell)
           : <ScrollArea className="h-full min-h-0"><ColumnEditor units={units} onSave={saveColumn} onStatus={setStatus} /></ScrollArea>;

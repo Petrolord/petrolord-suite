@@ -177,7 +177,7 @@ export function makeInMemoryBackend(opts = {}) {
           if (patch.surface_type !== undefined) t.surface_type = patch.surface_type;
           if (patch.unit_id !== undefined) t.unit_id = patch.unit_id || null;
           if (patch.confidence !== undefined) t.confidence = patch.confidence || null;
-          if (patch.age_ma !== undefined) t.age_ma = patch.age_ma == null || patch.age_ma === '' ? null : Number(patch.age_ma);
+          for (const k of ['age_ma', 'hiatus_to_ma']) if (patch[k] !== undefined) t[k] = patch[k] == null || patch[k] === '' ? null : Number(patch[k]);
           if (patch.notes !== undefined) t.notes = patch.notes || null;
           list.sort((a, b) => a.md_m - b.md_m);
           return t;

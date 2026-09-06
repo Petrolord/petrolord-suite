@@ -13,7 +13,7 @@ import {
   INTERVAL_KINDS, INTERVAL_SOURCES, LITHOLOGIES, GRAIN_SIZES, ENVIRONMENTS, resolveLithology, intervalColour,
 } from '@/lib/stratigraphy/lithology';
 import { validateIntervals, sortIntervals, thicknessByCode } from '@/lib/stratigraphy/intervals';
-import { MOTIFS } from '@/lib/stratigraphy/vocabulary';
+import { MOTIFS, SYSTEMS_TRACTS, STACKING_PATTERNS } from '@/lib/stratigraphy/vocabulary';
 import { buildIntervals } from '@/lib/wellImport';
 import PasteReplacePanel from './PasteReplacePanel';
 
@@ -21,13 +21,13 @@ const cellCls = 'bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-x
 const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40';
 
 /** Kinds this editor offers (systems tracts and biozones arrive with ST2 and ST3). */
-export const EDITABLE_KINDS = INTERVAL_KINDS.filter((k) => ['lithology', 'core_description', 'facies', 'electrofacies', 'environment', 'motif'].includes(k.code));
+export const EDITABLE_KINDS = INTERVAL_KINDS.filter((k) => ['lithology', 'core_description', 'facies', 'electrofacies', 'environment', 'motif', 'systems_tract'].includes(k.code));
 
 const toRow = (r) => ({
   id: r.id, top: r.top_md_m == null ? '' : String(r.top_md_m), base: r.base_md_m == null ? '' : String(r.base_md_m),
   code: r.code || '', label: r.label || '', source: r.source || 'interpretation',
   grain_size: r.properties?.grain_size || '', environment: r.properties?.environment || '',
-  description: r.properties?.description || '', colour: r.properties?.colour || '',
+  description: r.properties?.description || '', colour: r.properties?.colour || '', stacking: r.properties?.stacking || '',
   properties: r.properties || {}, is_new: false,
 });
 
@@ -38,7 +38,7 @@ const PASTE_FIELDS = ['top', 'base', 'code', 'label', 'description'];
 
 const toInterval = (r, kind) => {
   const properties = { ...(r.properties || {}) };
-  for (const k of ['grain_size', 'environment', 'description', 'colour']) {
+  for (const k of ['grain_size', 'environment', 'description', 'colour', 'stacking']) {
     if (r[k]) properties[k] = r[k]; else delete properties[k];
   }
   return {
@@ -74,6 +74,7 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
     if (kind === 'lithology' || kind === 'core_description') return LITHOLOGIES.map((l) => ({ value: l.code, label: l.name }));
     if (kind === 'environment') return ENVIRONMENTS.map((e) => ({ value: e.code, label: e.name }));
     if (kind === 'motif') return MOTIFS.map((m) => ({ value: m.code, label: m.name }));
+    if (kind === 'systems_tract') return SYSTEMS_TRACTS.map((t) => ({ value: t.code, label: t.name }));
     return null;   // facies and electrofacies are free names
   }, [kind]);
 
@@ -81,7 +82,7 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
   const addRow = () => {
     tmp += 1;
     const last = rows[rows.length - 1];
-    setRows((rs) => [...rs, { id: `new-${tmp}`, top: last?.base || '', base: '', code: codeOptions ? codeOptions[0].value : '', label: '', source: 'interpretation', grain_size: '', environment: '', description: '', colour: '', properties: {}, is_new: true }]);
+    setRows((rs) => [...rs, { id: `new-${tmp}`, top: last?.base || '', base: '', code: codeOptions ? codeOptions[0].value : '', label: '', source: 'interpretation', grain_size: '', environment: '', description: '', colour: '', stacking: '', properties: {}, is_new: true }]);
     setDirty(true);
   };
   const delRow = (i) => { setRows((rs) => rs.filter((_, ri) => ri !== i)); setDirty(true); };
@@ -160,7 +161,7 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
           <table className="text-xs min-w-[860px]">
             <thead>
               <tr>
-                {['', 'Top (m)', 'Base (m)', isLith ? 'Lithology' : kind === 'environment' ? 'Environment' : kind === 'motif' ? 'Motif' : 'Code', 'Label', ...(isLith ? ['Grain size'] : []), ...(kind === 'core_description' ? ['Environment'] : []), 'Description', 'Source', ''].map((h, i) => (
+                {['', 'Top (m)', 'Base (m)', isLith ? 'Lithology' : kind === 'environment' ? 'Environment' : kind === 'motif' ? 'Motif' : kind === 'systems_tract' ? 'Tract' : 'Code', 'Label', ...(isLith ? ['Grain size'] : []), ...(kind === 'core_description' ? ['Environment'] : []), ...(kind === 'systems_tract' ? ['Stacking'] : []), 'Description', 'Source', ''].map((h, i) => (
                   <th key={`${h}-${i}`} className="text-left font-medium text-slate-500 pr-3 pb-1">{h}</th>
                 ))}
               </tr>
@@ -195,6 +196,14 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
                       <select className={cellCls} value={r.environment} disabled={!canEdit} onChange={(e) => setCell(i, 'environment', e.target.value)} data-testid={`${testIdPrefix}-env-${i}`}>
                         <option value="">none</option>
                         {ENVIRONMENTS.map((g) => <option key={g.code} value={g.code}>{g.name}</option>)}
+                      </select>
+                    </td>
+                  )}
+                  {kind === 'systems_tract' && (
+                    <td className="pr-3 py-0.5">
+                      <select className={cellCls} value={r.stacking} disabled={!canEdit} onChange={(e) => setCell(i, 'stacking', e.target.value)} data-testid={`${testIdPrefix}-stacking-${i}`}>
+                        <option value="">not read</option>
+                        {STACKING_PATTERNS.map((g) => <option key={g.code} value={g.code}>{g.name}</option>)}
                       </select>
                     </td>
                   )}

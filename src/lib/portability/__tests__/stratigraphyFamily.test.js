@@ -12,7 +12,10 @@ test('the geoscience family carries the stratigraphy tables in dependency order'
   expect(order.indexOf('geo_strat_units')).toBeLessThan(order.indexOf('geo_wells_tops'));
   expect(order.indexOf('geo_wells')).toBeLessThan(order.indexOf('geo_wells_intervals'));
   expect(order.indexOf('geo_wells')).toBeLessThan(order.indexOf('geo_wells_core_images'));
-  expect(importOrder()).toEqual(expect.arrayContaining(['geo_strat_units', 'geo_wells_intervals', 'geo_wells_core_images']));
+  expect(importOrder()).toEqual(expect.arrayContaining(['geo_strat_units', 'geo_wells_intervals', 'geo_wells_core_images', 'strat_projects']));
+  expect(order.indexOf('geo_correlation_sections')).toBeLessThan(order.indexOf('strat_projects'));
+  expect(fam.roots.strat_project).toBe('strat_projects');
+  expect(tableSpec('strat_projects').softRefs).toEqual([{ path: 'section_id', table: 'geo_correlation_sections', optional: true }]);
 });
 
 test('intervals and core images are children of the well; a typed top references its unit optionally', () => {

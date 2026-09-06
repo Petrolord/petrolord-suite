@@ -18,6 +18,7 @@ const toRow = (t) => ({
   id: t.id, name: t.name, md_m: t.md_m,
   surface_type: normalizeSurfaceType(t.surface_type), unit_id: t.unit_id || '', confidence: t.confidence || '',
   age_ma: t.age_ma == null ? '' : String(t.age_ma),
+  hiatus_to_ma: t.hiatus_to_ma == null ? '' : String(t.hiatus_to_ma),
 });
 
 /**
@@ -45,7 +46,7 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
     const before = new Map(tops.map((t) => [t.id, toRow(t)]));
     return rows.filter((r) => {
       const o = before.get(r.id);
-      return o && (o.surface_type !== r.surface_type || o.unit_id !== r.unit_id || o.confidence !== r.confidence || o.age_ma !== r.age_ma);
+      return o && (o.surface_type !== r.surface_type || o.unit_id !== r.unit_id || o.confidence !== r.confidence || o.age_ma !== r.age_ma || o.hiatus_to_ma !== r.hiatus_to_ma);
     });
   }, [rows, tops]);
 
@@ -55,9 +56,12 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
     try {
       for (const r of changed) {
         if (r.age_ma !== '' && !Number.isFinite(Number(r.age_ma))) throw new Error(`"${r.name}": the age "${r.age_ma}" is not a number.`);
+        if (r.hiatus_to_ma !== '' && !Number.isFinite(Number(r.hiatus_to_ma))) throw new Error(`"${r.name}": the hiatus end "${r.hiatus_to_ma}" is not a number.`);
+        if (r.hiatus_to_ma !== '' && r.age_ma !== '' && !(Number(r.hiatus_to_ma) > Number(r.age_ma))) throw new Error(`"${r.name}": the hiatus must end older than the surface age.`);
         await onSaveTop(r.id, {
           surface_type: r.surface_type, unit_id: r.unit_id || null, confidence: r.confidence || null,
           age_ma: r.age_ma === '' ? null : Number(r.age_ma),
+          hiatus_to_ma: r.hiatus_to_ma === '' ? null : Number(r.hiatus_to_ma),
         });
         n += 1;
       }
@@ -100,7 +104,7 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
         <table className="text-xs">
           <thead>
             <tr>
-              {['Top', 'MD (m)', 'Marker', 'Surface type', 'Unit', 'Confidence', 'Age (Ma)', 'Tract below'].map((h) => (
+              {['Top', 'MD (m)', 'Marker', 'Surface type', 'Unit', 'Confidence', 'Age (Ma)', 'Hiatus to (Ma)', 'Tract below'].map((h) => (
                 <th key={h} className="text-left font-medium text-slate-500 pr-3 pb-1">{h}</th>
               ))}
             </tr>
@@ -135,6 +139,11 @@ export default function TopsTyping({ well, tops, units, scheme, onSaveTop, onSta
                     </select>
                   </td>
                   <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 72 }} value={r.age_ma} disabled={!canEdit} inputMode="decimal" onChange={(e) => setCell(r.id, 'age_ma', e.target.value)} data-testid={`strat-top-age-${r.name}`} /></td>
+                  <td className="pr-3 py-0.5">
+                    {(r.surface_type === 'SU' || r.surface_type === 'unconformity') ? (
+                      <input className={cellCls} style={{ width: 72 }} value={r.hiatus_to_ma} disabled={!canEdit} inputMode="decimal" title="Age of the youngest rock below the unconformity" onChange={(e) => setCell(r.id, 'hiatus_to_ma', e.target.value)} data-testid={`strat-top-hiatus-${r.name}`} />
+                    ) : <span className="text-slate-600">n/a</span>}
+                  </td>
                   <td className="py-0.5 text-slate-400" data-testid={`strat-top-tract-${r.name}`}>
                     {tract ? <>{displayLabel(tract.code, scheme, { kind: 'tract', short: true }).label}{!tract.certain ? ' ?' : ''}{displayLabel(tract.code, scheme, { kind: 'tract' }).fallback && <FallbackBadge code={tract.code} />}</> : ''}
                   </td>

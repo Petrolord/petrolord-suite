@@ -13,7 +13,7 @@ eleventh Geoscience tile. Slug `stratigraphy-studio`, route
 |---|---|---|
 | ST0 stratigraphic framework | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #412 merged** | engines #140 (vocabulary, ICS 2023/09 timescale, column tree; 66 tests); Suite branch `feat/st0-stratigraphic-framework`: migration 20260906180000 (geo_strat_units + typed-top columns), stratRegistry.js, typed tops through wellsRegistry, typed markers in Well Correlation and Petrophysics, Type/Unit/Confidence/Age in the Well Data Manager tops tab, the Stratigraphy Studio app (Column editor, Tops typing, Glossary, terminology display option), portability spec + hook, guard test, pentest SQL, e2e |
 | ST1 lithology, core and facies | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #413 merged** | engines #141 (lithology vocabulary, interval arithmetic, LAS 3.0 blocks to intervals; 66 tests, fixture las3_intervals_30); Suite branch `feat/st1-intervals-core-images`: migration 20260906200000 (geo_wells_intervals + geo_wells_core_images), stratRegistry intervals + core photo services, `intervals:<kind>` strip in the shared track layout, Petrophysics facies publish, Well Correlation lithology strip, Well Data Manager Intervals + Core tabs and LAS 3.0 block import, Stratigraphy Studio Intervals + Core views, portability, e2e |
-| ST2 sequence stratigraphy + Wheeler | not started | |
+| ST2 sequence stratigraphy + Wheeler | **BUILT 2026-09-06, PR open, migration HELD** | engines #142 (age-depth model, Wheeler cells, stratigraphic stretch, tracts from surfaces; hand-derived three-well golden); Suite branch `feat/st2-sequence-wheeler`: migration 20260906220000 (strat_projects + tops.hiatus_to_ma), CrossSection and the section frame moved to `src/components/wells/section/` with the section state as `useSectionWells`, stretch datum + tract and motif bands + ghost curve in the shared painter, Stratigraphy Studio Section and Wheeler views, hiatus end in Tops typing, systems tracts in the interval editor, e2e |
 | ST3 biozones and ages | not started | |
 | ST4 stratigraphic maps | not started | |
 | ST5 seismic stratigraphy | not started | |
@@ -172,6 +172,75 @@ children of the well; a core image's blob keeps its own content type
 `fields` array; a host that passes a fresh literal per render re-parses
 and re-emits forever (a hung jest, a hung page). Pass a hoisted constant.
 
+## ST2, what shipped
+
+**Engines (petrolord-engines PR #142, merged, subtree 6fc8e91).**
+- `ageDepth.js`: piecewise-linear age-depth between dated surfaces with a
+  hiatus where a surface carries `hiatus_to_ma`; inversions, bad hiatus
+  bounds and duplicates refused by name; `ageAt` / `depthAt` exact
+  inverses; accumulation rates; an event bed gets a null rate.
+- `wheeler.js`: deposition and hiatus cells per well with the systems
+  tract the bounding surfaces imply (`expectedTract`), certainty carried,
+  age axis and boundaries, skipped wells named, `cellAt` (a hiatus wins
+  over the cells touching it).
+- `stretch.js`: `makeStretch` (two surfaces onto two datum lines, rigid
+  outside, exact inverse) and `computeStretch` (a well with one surface
+  shifts rigidly and is flagged partial; with neither it is drawn true
+  and flagged). `wellcorrelation/section.js` `displayedDepth` accepts a
+  mapping, so every painter that used a numeric shift now takes either.
+- `sequence.js`: `tractsFromSurfaces` (rows for `geo_wells_intervals`
+  kind `systems_tract`, uncertain ones flagged), `stackingFromMotifs`.
+- Golden: `test-data/stratigraphy/wheeler-synthetic.json`, a three-well
+  clinoform with an SU whose hiatus differs per well and a CC at the
+  distal well; the README derives every cell and rate by hand. 52 tests.
+
+**Migration 20260906220000 (HELD).** `strat_projects` (app-private view
+state) and `geo_wells_tops.hiatus_to_ma` with its check. Pentest in
+`tools/validation/stratigraphy/rls-pentest-st2.sql` (six blocks).
+
+**The second consumer.** `CrossSection.jsx` and `sectionFrame.js` moved
+to `src/components/wells/section/` (re-export shims at the old paths),
+and the section state that CorrelationWorkstation assembled (registry
+wells, order, per-well tops / curves / intervals, the saved section's
+datum, template layouts, unit, reference, spacing, zones, shown tops,
+the resolved section wells) moved unchanged into
+`useSectionWells(backend, {deepLinkWells, onStatus})`. Well Correlation
+and Stratigraphy Studio call the same hook over the same
+`geo_correlation_sections` row (`src/lib/sectionsRegistry.js`, lifted
+out of the Well Correlation backend). The Well Correlation e2e is
+unchanged and green on the refactor.
+
+**The shared painter gained three things.** A `stretch` datum mode
+(`{mode: 'stretch', upperName, lowerName}`, two datum lines, per-well
+notes when only one surface is present); `bands` (fills under the
+tracks in each well's own MD, hatched for uncertain tracts, outline
+form for motifs); `ghost` (the source well's first track drawn
+translucent on the target column at a shift). The section wrapper
+exposes `data-datum-mode`, `data-band-count` and `data-ghost`. Well
+Correlation's controls offer the stretch datum and a ghost curve, which
+closes two of its wave 3 follow-ups.
+
+**Stratigraphy Studio.** Section view: the shared section with every top
+drawn by type, the implied systems tracts as fills (recorded ones win
+once "Record tracts" writes them to the own wells' shared intervals),
+motifs outlined, ghost curve, stretch datum, "Save view" into
+`strat_projects`. Wheeler view: `WheelerChart` (SVG, ICS stages behind
+the columns, cells coloured by tract, hiatus hatched, labels in the
+display scheme). Tops typing gains "Hiatus to (Ma)" for SU and
+unconformity picks, refused unless older than the age. The interval
+editor gains the systems-tract kind with a stacking column. The sample
+section gained a fourth top (Top Marker, BSFR, 4 Ma) and ages so the
+harness draws a Wheeler chart without typing.
+
+**Acceptance.** The synthetic reproduces its golden cells (engines). On
+the harness, typing Top Dome MFS and Mid Shale MRS on KETA-1 (Base Sand
+is already SU, Top Marker BSFR) gives HST, TST and LST fills on the
+section and a Wheeler column of HST, TST, LST and the hiatus, with the
+Exxon display relabelling and the stored codes unchanged. Note: HST
+needs a surface above the MFS (a BSFR or a formation top over a CC); SU,
+MRS and MFS alone give LST and TST, as the plan's wording implied but
+did not say.
+
 ## Deviations from the plan
 
 - The tile is NOT seeded Archived in ST0 (plan section 7 said it would
@@ -193,8 +262,11 @@ and re-emits forever (a hung jest, a hung page). Pass a hoisted constant.
   Well Correlation typed markers (ST0); seeded lithology log edited and
   saved with an overlap refused, a core photo uploaded into the depth
   strip, and a LAS 3.0 file with core and lithology blocks imported in
-  Well Data Manager with its six intervals (ST1). Regression specs for
-  Well Data Manager, Petrophysics and Well Correlation green.
+  Well Data Manager with its six intervals (ST1); the shared section in
+  the studio with stretch datum, implied tracts, ghost curve, recorded
+  tracts and saved view, and the LST / TST / HST typing with its Wheeler
+  chart (ST2). Regression specs for Well Data Manager, Petrophysics and
+  Well Correlation green.
 - Live RLS pentest 2026-09-06: all four blocks as expected (see MIGRATIONS.md row), zero residue.
 
 ## Close-out (ST0 acceptance, plan section 7)

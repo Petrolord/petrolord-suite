@@ -11,12 +11,12 @@
 // well_id -> { name, surface, tops:[{name, md_m}], curves:{GR:[...]} }
 const TOPS = {
   'corr-w1': { name: 'KETA-1', surface: [501000, 6700200], tops: [
-    { name: 'Top Dome', md_m: 1500 }, { name: 'Mid Shale', md_m: 1580 }, { name: 'Base Sand', md_m: 1660 },
+    { name: 'Top Marker', md_m: 1440 }, { name: 'Top Dome', md_m: 1500 }, { name: 'Mid Shale', md_m: 1580 }, { name: 'Base Sand', md_m: 1660 },
   ] },
   // KETA-2 builds angle below 1400 m (0 to 30 deg over 350 m), so TVD and
   // TVDSS differ from MD there: the depth-reference path has a real case
   'corr-w2': { name: 'KETA-2', surface: [502200, 6700600], deviation: [{ md: 0, inc: 0, azi: 0 }, { md: 1400, inc: 0, azi: 0 }, { md: 1750, inc: 30, azi: 90 }], tops: [
-    { name: 'Top Dome', md_m: 1540 }, { name: 'Mid Shale', md_m: 1610 }, { name: 'Base Sand', md_m: 1705 },
+    { name: 'Top Marker', md_m: 1470 }, { name: 'Top Dome', md_m: 1540 }, { name: 'Mid Shale', md_m: 1610 }, { name: 'Base Sand', md_m: 1705 },
   ] },
   'corr-w3': { name: 'KETA-3', surface: [503500, 6700400], tops: [
     // deliberately MISSING 'Mid Shale' -> exercises the flag path
@@ -27,7 +27,12 @@ const TOPS = {
 // typed surfaces (Stratigraphy ST0): Mid Shale is a maximum flooding surface and
 // Base Sand a subaerial unconformity in the harness, so the section draws two
 // typed markers beside the plain formation top (the e2e reads data-top-types)
-const SAMPLE_SURFACE_TYPES = { 'Mid Shale': 'MFS', 'Base Sand': 'SU' };
+const SAMPLE_SURFACE_TYPES = { 'Top Marker': 'BSFR', 'Mid Shale': 'MFS', 'Base Sand': 'SU' };
+// ST2: ages (Ma) for the Wheeler view; Base Sand is a subaerial unconformity
+// whose hiatus lasts to 14 Ma at KETA-1 and 12 Ma at KETA-2 (KETA-3 too);
+// Top Dome is a plain formation top and stays undated
+const SAMPLE_AGES = { 'Top Marker': 4, 'Mid Shale': 5, 'Base Sand': 10 };
+const SAMPLE_HIATUS = { 'corr-w1': 14, 'corr-w2': 12, 'corr-w3': 12 };
 
 // ST1: a lithology log per well, cut at its own tops so the strip lines up
 // with the correlation (sand above Top Dome, shale to Base Sand, sand below)
@@ -109,7 +114,7 @@ export function sampleWells() {
       kb_m: 30,
       td_md_m: BOT_MD,
       deviation: w.deviation || null,
-      tops: w.tops.map((t, ti) => ({ id: `${id}-top-${ti}`, well_id: id, name: t.name, md_m: t.md_m, surface_type: SAMPLE_SURFACE_TYPES[t.name] || 'formation_top', unit_id: null, confidence: null, age_ma: null, notes: null })),
+      tops: w.tops.map((t, ti) => ({ id: `${id}-top-${ti}`, well_id: id, name: t.name, md_m: t.md_m, surface_type: SAMPLE_SURFACE_TYPES[t.name] || 'formation_top', unit_id: null, confidence: null, age_ma: SAMPLE_AGES[t.name] ?? null, hiatus_to_ma: t.name === 'Base Sand' ? SAMPLE_HIATUS[id] : null, notes: null })),
       intervals: sampleIntervals(id, w.tops),
       curves: { DEPT: depth, GR: gr, RT: rt, RHOB: rhob, NPHI: nphi },
       logMeta: { DEPT: meta('M'), GR: meta('GAPI'), RT: meta('OHMM'), RHOB: meta('G/C3'), NPHI: meta('V/V') },

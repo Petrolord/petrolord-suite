@@ -66,9 +66,9 @@ describe('TopsTyping', () => {
     expect(screen.getByTestId('strat-tops-save').textContent).toContain('Save (1)');
     fireEvent.click(screen.getByTestId('strat-tops-save'));
     await waitFor(() => expect(onStatus).toHaveBeenCalledWith('1 top typed on KETA-1.'));
-    expect(onSaveTop).toHaveBeenCalledWith(expect.any(String), { surface_type: 'MRS', unit_id: 'unit-agbada-upper', confidence: 'high', age_ma: 5.333 });
+    expect(onSaveTop).toHaveBeenCalledWith(expect.any(String), { surface_type: 'MRS', unit_id: 'unit-agbada-upper', confidence: 'high', age_ma: 5.333, hiatus_to_ma: null });
     const tops = await backend.listTops('corr-w1');
-    expect(tops[0]).toMatchObject({ name: 'Top Dome', surface_type: 'MRS', unit_id: 'unit-agbada-upper' });
+    expect(tops.find((t) => t.name === 'Top Dome')).toMatchObject({ surface_type: 'MRS', unit_id: 'unit-agbada-upper' });
     // the Exxon option labels MRS as the transgressive surface but never stores it
     const opt = Array.from(screen.getByTestId('strat-top-type-Top Dome').options).find((o) => o.value === 'MRS');
     expect(opt.textContent).toContain('Transgressive surface (TS)');

@@ -15,7 +15,8 @@
 // rationale). Suite-local for now; upstream to petrolord-engines once the
 // API settles (see WellCorrelation-STATUS.md).
 
-import { zoneSpan, displayedDepth, topMd } from './section';
+import { zoneSpan, displayedDepth, topMd } from '@/pages/apps/WellCorrelation/engine/section';
+import { invertShift } from '@/lib/stratigraphy/stretch';
 
 export const DEPTH_REFS = ['md', 'tvd', 'tvdss'];
 export const DEPTH_REF_LABEL = { md: 'MD', tvd: 'TVD', tvdss: 'TVDSS' };
@@ -84,7 +85,7 @@ export function isMonotonic(arr) {
  * @returns {{md: number, ambiguous: boolean, extrapolated: boolean} | null}
  */
 export function mdFromDisplayed(displayed, shift, well, depthRef = 'md') {
-  const ref = displayed - (shift || 0);
+  const ref = invertShift(displayed, shift);
   if (!Number.isFinite(ref)) return null;
   if (depthRef === 'md' || !well?.frame) return { md: ref, ambiguous: false, extrapolated: false };
   const tvdss = depthRef === 'tvd' ? ref - (well.frame.kbM || 0) : ref;

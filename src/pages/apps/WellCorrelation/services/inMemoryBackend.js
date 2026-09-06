@@ -78,7 +78,7 @@ export function makeInMemoryBackend() {
           own(wellId, 'edit tops of this well');
           if (patch.mdM !== undefined) t.md_m = patch.mdM;
           if (patch.name !== undefined) t.name = patch.name;
-          for (const k of ['surface_type', 'unit_id', 'confidence', 'age_ma', 'notes']) if (patch[k] !== undefined) t[k] = patch[k] === '' ? null : patch[k];
+          for (const k of ['surface_type', 'unit_id', 'confidence', 'age_ma', 'notes', 'hiatus_to_ma']) if (patch[k] !== undefined) t[k] = patch[k] === '' ? null : patch[k];
           return t;
         }
       }

@@ -16,16 +16,17 @@
 import React, {
   forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
 } from 'react';
-import { computeFlattening, correlationPolyline, displayedRange, displayedDepth } from '../engine/section';
+import { computeFlattening, correlationPolyline, displayedRange, displayedDepth } from '@/pages/apps/WellCorrelation/engine/section';
 import {
   toReferenceFrame, depthOfFor, displayedArray, isMonotonic, mdFromDisplayed, columnLayout, zoneBands, DEPTH_REF_LABEL,
-} from '../engine/sectionFrame';
+} from './sectionFrame';
 import { trackGeometry } from '@/components/wells/trackRender';
 import {
   PALETTES, visibleRange, paintDepthAxis, paintTrackHeader, paintTrackBody, paintReadouts, paintTopMarker,
 } from '@/components/wells/trackPainter';
 import { surfaceLineStyle, displayLabel, normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
 import { useScheme } from '@/lib/stratigraphy/scheme';
+import { computeStretch, invertShift } from '@/lib/stratigraphy/stretch';
 import { hitTopAt } from '@/components/wells/hitTest';
 import { topColor } from '@/components/wells/topColors';
 import { depthLabel } from '@/components/wells/depthModes';
@@ -67,7 +68,9 @@ const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.roun
 /**
  * @param {Object} p
  * @param {Array} p.wells section order: {id, name, is_own, tops, depth (MD), tracks, frame, surface_x, surface_y, kb_m}
- * @param {{mode, topName?, datumM?}} p.datum datumM in the reference depth (metres)
+ * @param {{mode, topName?, datumM?, upperName?, lowerName?}} p.datum datumM in the reference depth (metres); mode 'stretch' (ST2) hangs each well on upperName and lowerName
+ * @param {?Array<{wellId, top_md_m, base_md_m, colour?, label?, hatched?, outline?}>} [p.bands] ST2 fills under the tracks in each well's own MD (systems tracts, motifs)
+ * @param {?{sourceWellId, targetWellId, shiftM}} [p.ghost] ST2 ghost curve: the source well's first track drawn on the target column
  * @param {'m'|'ft'} [p.depthUnit] display unit, data stays metres
  * @param {'md'|'tvd'|'tvdss'} [p.depthRef] plotted depth reference
  * @param {'equal'|'proportional'} [p.spacing]
@@ -83,6 +86,7 @@ const fmtDist = (m) => (m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.roun
 const CrossSection = forwardRef(function CrossSection({
   wells, datum, depthUnit = 'm', depthRef = 'md', spacing = 'equal', zoneMode = 'consecutive', zonePair = null,
   shownTops, pickMode = null, onTopMove, onTopCreate, onPickCancel, onNotice, topNames = [],
+  bands = null, ghost = null,
   view: viewProp, onViewChange,
 }, exportRef) {
   const wrapRef = useRef(null);
@@ -128,7 +132,8 @@ const CrossSection = forwardRef(function CrossSection({
     const frameWells = wells.map((w, i) => (fallback.has(w.id) ? w : refAll[i]));
     let flattening;
     try {
-      flattening = computeFlattening(frameWells, datum);
+      // ST2: a stretch datum hangs each well on two surfaces (stratigraphy/stretch.js)
+      flattening = datum.mode === 'stretch' ? computeStretch(frameWells, datum) : computeFlattening(frameWells, datum);
     } catch {
       flattening = frameWells.map((w) => ({ id: w.id, shift: 0, hasDatumTop: true }));
     }
@@ -218,7 +223,54 @@ const CrossSection = forwardRef(function CrossSection({
 
     paintDepthAxis(ctx, { axisW: AXIS_W, plotTop, plotH, plotRight: size.w, vTop, vBase, yOf, F, title: axisTitle });
 
-    // datum line
+    // ST2 bands (systems tracts, motifs ...): under the tracks, in each well's own frame
+    if (bands?.length) {
+      columns.forEach((c, i) => {
+        const box = boxes[i];
+        for (const b of bands) {
+          if (b.wellId !== c.well.id) continue;
+          const d0 = displayedDepth(b.top_md_m, c.shift); const d1 = displayedDepth(b.base_md_m, c.shift);
+          const y0 = yOf(Math.max(Math.min(d0, d1), vTop)); const y1 = yOf(Math.min(Math.max(d0, d1), vBase));
+          if (y1 <= y0) continue;
+          if (b.outline) {
+            ctx.strokeStyle = b.colour || '#94a3b8'; ctx.setLineDash([3, 2]);
+            ctx.strokeRect(box.x0 + 1.5, y0 + 0.5, Math.max(4, box.w * 0.18), y1 - y0 - 1);
+            ctx.setLineDash([]);
+          } else {
+            ctx.fillStyle = `${b.colour || '#94a3b8'}${b.hatched ? '22' : '40'}`;
+            ctx.fillRect(box.x0, y0, box.w, y1 - y0);
+            if (b.hatched) {
+              ctx.strokeStyle = `${b.colour || '#94a3b8'}88`;
+              ctx.beginPath();
+              for (let yy = y0 - box.w; yy < y1; yy += 8) { ctx.moveTo(box.x0, yy + box.w); ctx.lineTo(box.x0 + box.w, yy); }
+              ctx.save(); ctx.beginPath(); ctx.rect(box.x0, y0, box.w, y1 - y0); ctx.clip();
+              ctx.beginPath();
+              for (let yy = y0 - box.w; yy < y1; yy += 8) { ctx.moveTo(box.x0, yy + box.w); ctx.lineTo(box.x0 + box.w, yy); }
+              ctx.stroke(); ctx.restore();
+            }
+          }
+          if (b.label) {
+            ctx.fillStyle = b.colour || '#94a3b8'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'left';
+            ctx.fillText(b.label, box.x0 + 3, Math.min(y1 - 3, y0 + 11), box.w - 6);
+          }
+        }
+      });
+    }
+
+    // datum lines: one for flatten-on-top, two for a stretch between surfaces
+    if (datum.mode === 'stretch') {
+      const st = flattening.find((f) => f.shift && typeof f.shift === 'object')?.shift;
+      if (st) {
+        for (const [d, name] of [[st.frameTop, datum.upperName], [st.frameBase, datum.lowerName]]) {
+          const y = yOf(d);
+          ctx.strokeStyle = DATUM; ctx.setLineDash([2, 3]);
+          ctx.beginPath(); ctx.moveTo(AXIS_W, y); ctx.lineTo(size.w, y); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = DATUM; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+          ctx.fillText(`datum ${name}`, AXIS_W + 4, y - 3);
+        }
+      }
+    }
     if (datum.mode === 'flatten' && Number.isFinite(datum.datumM)) {
       const y = yOf(datum.datumM);
       ctx.strokeStyle = DATUM;
@@ -246,6 +298,7 @@ const CrossSection = forwardRef(function CrossSection({
       ctx.fillText(`${w.name}${w.is_own ? '' : ' (shared)'}`, box.x0 + box.w / 2, 13, box.w - 8);
       const notes = [];
       if (datum.mode === 'flatten' && !c.hasDatumTop) notes.push('no datum top: true depth');
+      if (datum.mode === 'stretch' && flattening[i]?.partial) notes.push(c.hasDatumTop ? 'one surface: shifted, not stretched' : 'neither surface: true depth');
       if (c.fallback) notes.push(`${DEPTH_REF_LABEL[depthRef]} not monotonic: MD shown`);
       if (notes.length) {
         ctx.font = '9px sans-serif';
@@ -281,6 +334,27 @@ const CrossSection = forwardRef(function CrossSection({
       }));
     });
 
+    // ST2 ghost curve: the source well's first track drawn translucent on the
+    // target column (same track slot), shifted by the ghost offset, so a log
+    // shape can be dragged across wells to correlate by eye
+    if (ghost?.sourceWellId && ghost?.targetWellId && ghost.sourceWellId !== ghost.targetWellId) {
+      const si = columns.findIndex((c) => c.well.id === ghost.sourceWellId);
+      const ti = columns.findIndex((c) => c.well.id === ghost.targetWellId);
+      const src = columns[si]; const dst = columns[ti];
+      if (src?.disp && dst && src.tracks.length && dst.tracks.length && geoms[ti]?.[0]) {
+        const shifted = new Float64Array(src.disp.length);
+        for (let k = 0; k < shifted.length; k++) shifted[k] = src.disp[k] + (ghost.shiftM || 0);
+        const { i0, i1 } = visibleRange(shifted, vTop, vBase);
+        const g = geoms[ti][0];
+        ctx.save();
+        ctx.globalAlpha = 0.45;
+        paintTrackBody(ctx, { track: { ...src.tracks[0], fills: [] }, depth: shifted, yOf, i0, i1, x0: g.x0, w: g.w, plotTop, plotH, headerH: WELL_H + HEADER_H });
+        ctx.restore();
+        ctx.fillStyle = AMBER; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+        ctx.fillText(`ghost: ${src.well.name} ${ghost.shiftM >= 0 ? '+' : ''}${Math.round(ghost.shiftM || 0)} m`, g.x0 + 3, plotTop + 12, g.w - 6);
+      }
+    }
+
     // correlation lines between same-named tops, column centre to centre
     for (const name of shownTops) {
       const line = correlationPolyline(frameWells, flattening, name);
@@ -313,7 +387,7 @@ const CrossSection = forwardRef(function CrossSection({
     });
 
     setTick((t) => t + 1);
-  }, [size, wells, columns, boxes, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme]);
+  }, [size, wells, columns, boxes, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme, bands, ghost]);
 
   // ---- CURSOR layer -------------------------------------------------------
   useEffect(() => {
@@ -350,7 +424,7 @@ const CrossSection = forwardRef(function CrossSection({
         const inv = mdFromDisplayed(cursor.disp, c.shift, c.well, c.refForWell);
         if (inv && Number.isFinite(inv.md)) {
           const parts = [`MD ${depthLabel(inv.md, depthUnit)}`];
-          if (c.refForWell !== 'md') parts.push(`${DEPTH_REF_LABEL[c.refForWell]} ${depthLabel(cursor.disp - (c.shift || 0), depthUnit)}`);
+          if (c.refForWell !== 'md') parts.push(`${DEPTH_REF_LABEL[c.refForWell]} ${depthLabel(invertShift(cursor.disp, c.shift), depthUnit)}`);
           ctx.fillStyle = P.textStrong;
           ctx.font = '9px sans-serif';
           ctx.textAlign = 'right';
@@ -539,6 +613,9 @@ const CrossSection = forwardRef(function CrossSection({
       data-view-base={vBase}
       data-pick-mode={pickMode || ''}
       data-top-types={topTypes}
+      data-datum-mode={datum.mode}
+      data-band-count={bands ? bands.length : 0}
+      data-ghost={ghost?.sourceWellId ? `${ghost.sourceWellId}>${ghost.targetWellId}:${ghost.shiftM || 0}` : ''}
       data-scheme={scheme}
     >
       <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden bg-white">

@@ -147,3 +147,16 @@ datum, tops, zones, propagate, export and save, links, pitfalls,
 glossary). Ribbon Help link (`corr-help`). Guard test pins the section
 ids, the live depth reference labels and section parameters, and the
 no-em-dash rule. Wave 3 follow-ups are otherwise unchanged.
+
+## 2026-09-06: Stratigraphy ST2, the second consumer
+
+`CrossSection.jsx` and `engine/sectionFrame.js` now live in
+`src/components/wells/section/` (shims at the old paths), and the section
+state moved unchanged into `useSectionWells` there; this app and
+Stratigraphy Studio run the same hook over the same saved section
+(`src/lib/sectionsRegistry.js`). The painter gained a stretch datum
+(two tops onto two datum lines), bands and a ghost curve, so the Datum
+control offers "Stretch between two tops" and a Ghost curve section
+draws one well's first track on another column at a chosen shift. Two
+wave 3 follow-ups (ghost curve, a second flattening) are closed by ST2;
+horizon flattening and the TWT reference stay open.
