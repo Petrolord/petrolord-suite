@@ -9,7 +9,7 @@ import { CircleDot, Building2, Lock, Loader2, Check, Minus } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function WellExplorer({
-  wells, selectedId, loadingId, curveInventory, onSelect,
+  wells, selectedId, loadingId, curveInventory, published = [], onSelect,
 }) {
   return (
     <div className="h-full min-h-0 flex flex-col bg-slate-900/60" data-testid="rp-explorer">
@@ -57,6 +57,11 @@ export default function WellExplorer({
                       </span>
                     </div>
                   ))}
+                  {published.length > 0 && (
+                    <div className="mt-1 text-[11px] text-emerald-300/90" data-testid="rp-published-curves" title="Curves this app has written to the well (fluid-substituted case)">
+                      published: {published.map((l) => l.mnemonic).join(', ')}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

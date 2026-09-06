@@ -121,3 +121,62 @@ test('rock-physics-studio app route loads its chunk and gates on auth', async ({
   expect(errors).toEqual([]);
   expect(page.url()).not.toContain('rock-physics-studio'); // redirected by the auth gate
 });
+
+const FT = 0.3048;
+
+test('RP0: display units convert the tables, the zone and top labels and the manual halfspaces, and are remembered', async ({ page }) => {
+  await page.goto('/dev/rock-physics-studio');
+  await page.locator('[data-well-name="KETA RP-1"]').click();
+  await expect(page.getByTestId('rp-sub-after-vp')).toHaveText(LOG.vp.toFixed(2));
+
+  // velocity in ft/s, then as sonic slowness; density in g/cc; the
+  // expectations derive from the golden, never literals
+  await page.getByTestId('rp-unit-velocity').selectOption('ft/s');
+  await expect(page.getByTestId('rp-sub-after-vp')).toHaveText((LOG.vp / FT).toFixed(0));
+  await page.getByTestId('rp-unit-velocity').selectOption('us/ft');
+  await expect(page.getByTestId('rp-sub-after-vp')).toHaveText((1e6 / (LOG.vp / FT)).toFixed(2));
+  await expect(page.getByTestId('rp-fluids-panel')).toContainText('DTp (us/ft)');
+  await page.getByTestId('rp-unit-density').selectOption('g/cc');
+  await expect(page.getByTestId('rp-sub-after-rho')).toHaveText((LOG.rho / 1000).toFixed(3));
+
+  // depth in feet relabels the zone (the fixture's account unit is m)
+  await page.getByTestId('rp-unit-depth').selectOption('ft');
+  await expect(page.getByTestId('rp-zone-select')).toContainText('BRINE SAND (6627.3–6692.9 ft)');
+
+  // AVO: tops, the mean table and the manual halfspaces follow
+  await page.getByTestId('rp-unit-velocity').selectOption('ft/s');
+  await page.getByTestId('rp-view-avo').click();
+  await page.getByTestId('rp-avo-top-select').selectOption({ label: 'Top GAS SAND (6758.5 ft)' });
+  await expect(page.getByTestId('rp-avo-upper-mean-vp')).toHaveText((CLASS3.upper.vp / FT).toFixed(0));
+  await expect(page.getByTestId('rp-avo-a')).toHaveText(CLASS3.A.toFixed(4));
+  await page.getByTestId('rp-avo-mode-manual').click();
+  await expect(page.getByTestId('rp-avo-upper-vp')).toHaveValue((CLASS3.upper.vp / FT).toFixed(0));
+  // typing a display value stores SI: 10000 ft/s upper Vp changes the intercept
+  await page.getByTestId('rp-avo-upper-vp').fill('10000');
+  await expect(page.getByTestId('rp-avo-a')).not.toHaveText(CLASS3.A.toFixed(4));
+
+  // the choice survives a reload
+  await page.reload();
+  await expect(page.getByTestId('rp-unit-velocity')).toHaveValue('ft/s');
+  await expect(page.getByTestId('rp-unit-density')).toHaveValue('g/cc');
+  await expect(page.getByTestId('rp-unit-depth')).toHaveValue('ft');
+});
+
+test('RP1: the substituted case publishes to the well as VP_SUB / VS_SUB / RHOB_SUB with overwrite-own', async ({ page }) => {
+  await page.goto('/dev/rock-physics-studio');
+  await page.locator('[data-well-name="KETA RP-1"]').click();
+  await expect(page.getByTestId('rp-sub-after-vp')).toHaveText(LOG.vp.toFixed(2));
+  await expect(page.getByTestId('rp-published-curves')).toHaveCount(0);
+
+  await page.getByTestId('rp-publish').click();
+  await expect(page.getByTestId('rp-status')).toHaveText('Published VP_SUB/VS_SUB/RHOB_SUB to the well registry.');
+  await expect(page.getByTestId('rp-published-curves')).toHaveText('published: VP_SUB, VS_SUB, RHOB_SUB');
+
+  // republish replaces this project's curves rather than adding a second set
+  await page.getByTestId('rp-publish').click();
+  await expect(page.getByTestId('rp-status')).toHaveText('Published VP_SUB/VS_SUB/RHOB_SUB to the well registry.');
+  await expect(page.getByTestId('rp-published-curves')).toHaveText('published: VP_SUB, VS_SUB, RHOB_SUB');
+
+  // the engine inputs are untouched by the publish (exact-name mapping)
+  await expect(page.getByTestId('rp-sub-after-vp')).toHaveText(LOG.vp.toFixed(2));
+});

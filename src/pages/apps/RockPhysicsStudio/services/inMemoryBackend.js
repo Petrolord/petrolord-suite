@@ -141,6 +141,46 @@ export function makeInMemoryBackend() {
       return data;
     },
     async listTops(wellId) { return [...(topsByWell.get(wellId) || [])]; },
+
+    // RP0: the account's Geoscience depth unit (the Mapping setting);
+    // the fixture is SI so the oracle-anchored labels stay in metres
+    async getDepthUnit() { return 'm'; },
+
+    // RP1: overwrite-own publish against the in-memory log list, so
+    // the e2e can drive publish + republish without a DB
+    async publishCurves(wellId, preparedLogs, projectId) {
+      const logs = logsByWell.get(wellId);
+      if (!logs) throw new Error('Unknown well.');
+      const { staleOwnCurves } = await import('./publish');
+      for (const stale of staleOwnCurves(logs, preparedLogs, projectId)) {
+        const at = logs.findIndex((l) => l.id === stale.id);
+        if (at >= 0) { curveStore.delete(stale.id); logs.splice(at, 1); }
+      }
+      const saved = [];
+      for (const log of preparedLogs) {
+        const logId = nextId('log');
+        curveStore.set(logId, Float64Array.from(log.data));
+        const row = {
+          id: logId,
+          well_id: wellId,
+          mnemonic: log.mnemonic,
+          description: log.description,
+          unit: log.unit,
+          start_md_m: log.startMdM,
+          stop_md_m: log.stopMdM,
+          step_m: log.stepM,
+          n_samples: log.nSamples,
+          null_count: log.nullCount,
+          source_file: null,
+          provenance: log.provenance,
+          storage_path: `dev/${wellId}/${logId}.f32`,
+          created_at: new Date().toISOString(),
+        };
+        logs.push(row);
+        saved.push(row);
+      }
+      return saved;
+    },
     async listZones(wellId) {
       return [...(zonesByWell.get(wellId) || [])].sort((a, b) => a.top_md_m - b.top_md_m);
     },

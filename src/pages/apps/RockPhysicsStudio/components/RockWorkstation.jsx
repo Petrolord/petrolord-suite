@@ -10,6 +10,11 @@
 // halfspaces / pure wedge parameters); Fluids & Gassmann needs curves.
 // Estimated Vs is badged app-wide (plan decision 2 — provenance never
 // silently mixed).
+//
+// RP0 (2026-09-06): display units live here (velocity or slowness,
+// density, depth) and convert at the edge; the depth default is the
+// account's Geoscience depth unit through the backend. RP1: the
+// substituted case publishes to the well as VP_SUB / VS_SUB / RHOB_SUB.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Waves, Loader2, Save } from 'lucide-react';
@@ -23,6 +28,13 @@ import AvoPanel from './AvoPanel';
 import WedgePanel from './WedgePanel';
 import { mapLogs, buildModel } from '../services/prep';
 import { DEFAULT_SCENARIO, DEFAULT_ROCK } from '../services/scenario';
+import {
+  UNITS_KEY, VELOCITY_UNITS, DENSITY_UNITS, DEPTH_UNITS, readUnits,
+} from '../services/units';
+import { preparePublishLogs, ENGINE } from '../services/publish';
+
+const storage = () => { try { return window.localStorage; } catch { return null; } };
+const publishedBy = (logs) => logs.filter((l) => l.provenance?.computed && l.provenance?.engine === ENGINE);
 
 // manual-halfspace defaults = the class-III gas-sand oracle fixture
 // (shale over gas sand), so the AVO panel lands on a verifiable case
@@ -54,6 +66,30 @@ export default function RockWorkstation({ backend }) {
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [projectId, setProjectId] = useState(null);
+  const [units, setUnits] = useState(() => readUnits(storage()));
+
+  // the depth unit defaults to the account's Geoscience setting (the
+  // Mapping and Earth Modeling one) until the user picks one here
+  useEffect(() => {
+    let live = true;
+    let chosen = false;
+    try { chosen = !!JSON.parse(storage()?.getItem(UNITS_KEY) || 'null')?.depth; } catch { /* fresh browser */ }
+    if (chosen || !backend.getDepthUnit) return undefined;
+    backend.getDepthUnit().then((u) => {
+      if (live && DEPTH_UNITS.includes(u)) setUnits((prev) => ({ ...prev, depth: u }));
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [backend]);
+
+  const setUnit = (key, value) => {
+    setUnits((prev) => {
+      const next = { ...prev, [key]: value };
+      try { storage()?.setItem(UNITS_KEY, JSON.stringify(next)); } catch { /* private mode */ }
+      return next;
+    });
+  };
 
   useEffect(() => {
     let live = true;
@@ -64,6 +100,7 @@ export default function RockWorkstation({ backend }) {
         setWells(list);
         const project = await backend.loadProject();
         if (!live || !project) return;
+        setProjectId(project.id || null);
         if (project.scenario) setScenario((s) => ({ ...s, ...project.scenario }));
         if (project.rock) setRock((r) => ({ ...r, ...project.rock }));
         if (project.avo) setAvo((a) => ({ ...a, ...project.avo }));
@@ -97,6 +134,7 @@ export default function RockWorkstation({ backend }) {
         wellId,
         model,
         inventory: Object.entries(mapped).map(([key, log]) => ({ key, log })),
+        published: publishedBy(logs),
         tops,
       });
       setZones(zoneList);
@@ -122,7 +160,8 @@ export default function RockWorkstation({ backend }) {
   const saveProject = async () => {
     setSaving(true);
     try {
-      await backend.saveProject({ scenario, rock, avo, wedge });
+      const saved = await backend.saveProject({ scenario, rock, avo, wedge });
+      if (saved?.id) setProjectId(saved.id);
       setStatus('Project saved.');
     } catch (e) {
       setStatus(e.message);
@@ -130,6 +169,41 @@ export default function RockWorkstation({ backend }) {
       setSaving(false);
     }
   };
+
+  // RP1: the substituted case (the Fluids panel's live result over its
+  // zone) becomes VP_SUB / VS_SUB / RHOB_SUB on the well, overwrite-own
+  const publish = async ({ sub, indices, kmin }, zone) => {
+    if (!wellData || !backend.publishCurves) return;
+    setPublishing(true);
+    try {
+      const prepared = preparePublishLogs(wellData.model, sub, indices, zone, {
+        scenario, rock, kmin, projectId,
+        inputLogIds: wellData.inventory.map(({ log }) => log?.id).filter(Boolean),
+      });
+      const saved = await backend.publishCurves(wellData.wellId, prepared, projectId);
+      const logs = await backend.listLogs(wellData.wellId);
+      setWellData((d) => (d && d.wellId === wellData.wellId ? { ...d, published: publishedBy(logs) } : d));
+      setStatus(`Published ${saved.map((l) => l.mnemonic).join('/')} to the well registry.`);
+    } catch (e) {
+      setStatus(e.message);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const unitSelect = (key, options, title) => (
+    <select
+      data-testid={`rp-unit-${key}`}
+      title={title}
+      value={units[key]}
+      onChange={(e) => setUnit(key, e.target.value)}
+      className="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-[11px] text-slate-200"
+    >
+      {options.map((o) => (typeof o === 'string'
+        ? <option key={o} value={o}>{o}</option>
+        : <option key={o.key} value={o.key}>{o.label}</option>))}
+    </select>
+  );
 
   const viewButton = (key, label, disabled = false) => (
     <button
@@ -165,6 +239,11 @@ export default function RockWorkstation({ backend }) {
         </span>
       )}
       <div className="ml-auto flex items-center gap-1">
+        <span className="text-[11px] text-slate-500 mr-1">Units</span>
+        {unitSelect('velocity', VELOCITY_UNITS, 'Velocity or sonic slowness display unit (the engine stays in m/s)')}
+        {unitSelect('density', DENSITY_UNITS, 'Density display unit (the engine stays in kg/m3)')}
+        {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; defaults to your Geoscience depth setting')}
+        <span className="w-px h-4 bg-slate-800 mx-1" />
         <button
           type="button"
           data-testid="rp-save-project"
@@ -194,7 +273,7 @@ export default function RockWorkstation({ backend }) {
       <span className="ml-auto whitespace-nowrap">
         {selected ? `${selected.name} · ${model ? `${model.n} samples` : '…'}` : `${wells?.length ?? '…'} wells`}
       </span>
-      <span className="whitespace-nowrap text-slate-600">SI internal (m/s · kg/m³ · Pa)</span>
+      <span className="whitespace-nowrap text-slate-600" title="Every stored and computed value is SI; the unit selectors only change the display">SI internal (m/s · kg/m³ · Pa)</span>
     </div>
   );
 
@@ -214,11 +293,19 @@ export default function RockWorkstation({ backend }) {
     <WedgePanel wedge={wedge} onWedgeChange={setWedge} />
   ) : view === 'avo' ? (
     (avo.mode === 'manual' || model) ? (
-      <AvoPanel model={model} tops={wellData?.tops || []} avo={avo} onAvoChange={setAvo} />
+      <AvoPanel model={model} tops={wellData?.tops || []} avo={avo} onAvoChange={setAvo} units={units} />
     ) : needsWell
   ) : (
     model ? (
-      <FluidsPanel model={model} zones={zones} scenario={scenario} rock={rock} />
+      <FluidsPanel
+        model={model}
+        zones={zones}
+        scenario={scenario}
+        rock={rock}
+        units={units}
+        onPublish={backend.publishCurves ? publish : null}
+        publishing={publishing}
+      />
     ) : needsWell
   );
 
@@ -234,6 +321,7 @@ export default function RockWorkstation({ backend }) {
           selectedId={selectedId}
           loadingId={loadingId}
           curveInventory={wellData?.inventory}
+          published={wellData?.published}
           onSelect={select}
         />
       )}

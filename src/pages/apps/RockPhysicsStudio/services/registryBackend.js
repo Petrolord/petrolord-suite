@@ -6,14 +6,29 @@
 // Reads go straight to the shared registry (src/lib/wellsRegistry.js:
 // geo_wells, geo_wells_logs + f32 curve objects, geo_wells_tops,
 // geo_wells_zones — RLS enforces ownership/org sharing server-side).
-// The ONLY write surface is rp_projects (plan decision 4: app-private,
-// owner-only, no publish-back in v1).
+// Writes: rp_projects (app-private, owner-only) and, since RP1, the
+// fluid-substituted curves published back to geo_wells_logs with the
+// overwrite-own contract Pore Pressure Studio uses.
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 import {
-  listWells, listLogs, downloadCurve, listTops, listZones,
+  listWells, listLogs, downloadCurve, listTops, listZones, saveLogs, deleteLog,
 } from '@/lib/wellsRegistry';
+import { getDepthUnit } from '@/lib/crs/settingsService';
+import { staleOwnCurves } from './publish';
+
+// ---- publish (RP1) -----------------------------------------------------------
+// Overwrite-own: republish replaces only this engine's curves for the
+// same well + mnemonic + project (the Petrophysics Studio contract).
+
+async function publishCurves(wellId, preparedLogs, projectId) {
+  const existing = await listLogs(wellId);
+  for (const log of staleOwnCurves(existing, preparedLogs, projectId)) {
+    await deleteLog(log);
+  }
+  return saveLogs(wellId, preparedLogs);
+}
 
 // ---- rp_projects (app-private workspace state) ------------------------------
 // v1: one implicit project per user, created on first save (the
@@ -57,6 +72,8 @@ export function makeRegistryBackend() {
     downloadCurve,
     listTops,
     listZones,
+    getDepthUnit,
+    publishCurves,
     loadProject,
     saveProject,
   };
