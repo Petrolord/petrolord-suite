@@ -110,3 +110,17 @@ out of the map.
   id and storage path, previous frame in `provenance.history`) so
   Earth Modeling stacks and ReservoirCalc imports keep pointing at a
   re-gridded surface.
+- **MS3 built 2026-09-05.** Geology on the map: fault-block and
+  boundary polygons drawn by clicking (saved to `geo_culture` as
+  `fault_polygon` / `boundary` in the map's frame; pure
+  `services/polygonTools.js`), gridding that honours them (fault blocks
+  through Earth Modeling's `labelBlocks` into `gridSurfaceBlocked`, a
+  boundary through `maskOutsidePolygon`), guide points (hand-placed
+  control values that grid with the wells, hand editing v1), a surface
+  arithmetic section (isochore, add, subtract, multiply, min, max,
+  scalar add and multiply, clip; `services/arithmetic.js`), a quick GRV
+  read-out on the byte-golden `grvAcreFt` (`services/quickGrv.js`,
+  within 3% of the dome oracle on its 20 m grid), and time-to-depth of
+  a TWT surface through a Seismolord volume's linear velocity model,
+  output elevation in feet by default (`services/timeDepth.js`; layer
+  cakes refused with a message naming Seismolord). No migrations.

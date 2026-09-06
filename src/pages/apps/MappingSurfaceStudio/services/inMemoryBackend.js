@@ -50,6 +50,29 @@ export function makeInMemoryBackend() {
 
   const surfaces = [];
   const gridStore = new Map(); // surface id -> Float32Array
+  const culture = [];
+  const featureStore = new Map(); // culture id -> features
+
+  // MS3: one own TWT surface to convert (a dome in time, positive ms)
+  const twtId = nid('surf');
+  const twtSpec = { x0: 500600, y0: 6699200, nx: 16, ny: 11, dx: 200, dy: 200 };
+  const twt = new Float32Array(twtSpec.nx * twtSpec.ny);
+  for (let r = 0; r < twtSpec.ny; r++) {
+    for (let c = 0; c < twtSpec.nx; c++) {
+      const x = twtSpec.x0 + c * twtSpec.dx - 502100;
+      const y = twtSpec.y0 + r * twtSpec.dy - 6700200;
+      twt[r * twtSpec.nx + c] = 1400 + 0.00012 * (x * x + y * y); // ms, crest 1400 at the centre
+    }
+  }
+  gridStore.set(twtId, twt);
+  surfaces.push({
+    id: twtId, user_id: 'user-dev', organization_id: null, is_own: true,
+    name: 'Dome TWT', kind: 'structure',
+    origin_x: twtSpec.x0, origin_y: twtSpec.y0, nx: twtSpec.nx, ny: twtSpec.ny, dx: twtSpec.dx, dy: twtSpec.dy,
+    z_domain: 'time', z_unit: 'ms', provenance: { app: 'seismolord', horizon: { name: 'Dome' }, domain: 'twt_ms' },
+    storage_path: `user-dev/${twtId}/grid.f32`,
+    created_at: new Date(2026, 0, 12).toISOString(),
+  });
 
   // seed one org-shared read-only surface (flat-ish grid, elevation)
   const sharedId = nid('surf');
@@ -128,7 +151,8 @@ export function makeInMemoryBackend() {
       return { ...s };
     },
     // culture / GIS layers (W1.3): one demo block so the harness can
-    // exercise the overlay without auth/DB; import stays registry-only
+    // exercise the overlay without auth/DB; file import stays
+    // registry-only, drawn polygons (MS3) save here
     async listCulture() {
       return [{
         id: 'cult-dev',
@@ -140,9 +164,10 @@ export function makeInMemoryBackend() {
         crs: null,
         is_own: true,
         organization_id: null,
-      }];
+      }, ...culture.map((c) => ({ ...c }))];
     },
-    async downloadCultureFeatures() {
+    async downloadCultureFeatures(row) {
+      if (row?.id && featureStore.has(row.id)) return featureStore.get(row.id);
       return [{
         type: 'polygon',
         rings: [[[500600, 6699000], [503600, 6699000], [503600, 6701000], [500600, 6701000], [500600, 6699000]]],
@@ -150,6 +175,38 @@ export function makeInMemoryBackend() {
         label: 'OML-DEV',
       }];
     },
+    async saveCulture(c) {
+      const id = nid('cult');
+      featureStore.set(id, c.features);
+      const row = {
+        id, user_id: 'user-dev', organization_id: null, is_own: true,
+        name: c.name, kind: c.kind || 'other', geometry_type: c.geometryType || 'mixed',
+        feature_count: c.features.length, style: c.style || {}, crs: c.crs || null, xy_unit: c.xyUnit || null,
+        bbox: c.bbox || null, provenance: c.provenance || {}, storage_path: `user-dev/${id}/features.json`,
+        created_at: new Date(2026, 6, 13, 15, 0, seq).toISOString(),
+      };
+      culture.push(row);
+      return { ...row };
+    },
+    async updateCulture(id, patch) {
+      const c = culture.find((x) => x.id === id);
+      if (!c) throw new Error('Polygon not found.');
+      Object.assign(c, patch);
+      return { ...c };
+    },
+    async deleteCulture(row) {
+      const i = culture.findIndex((x) => x.id === row.id);
+      if (i < 0) throw new Error('Only the owner can delete this layer (org sharing is read-only).');
+      culture.splice(i, 1);
+      featureStore.delete(row.id);
+    },
     canImportCulture: false,
+    // MS3 time-to-depth: a linear model and a layer cake (refused)
+    async listVelocityModels() {
+      return [
+        { id: 'vol-dev', name: 'KETA 3D (v0 2000, k 0.3)', kind: 'linear', velocity: { v0: 2000, k: 0.3 } },
+        { id: 'vol-lc', name: 'KETA 3D layer cake', kind: 'layercake', velocity: { type: 'layercake', layers: [{ v0: 1800, k: 0.2, base_horizon_id: 'h1' }, { v0: 2400, k: 0.1 }] } },
+      ];
+    },
   };
 }
