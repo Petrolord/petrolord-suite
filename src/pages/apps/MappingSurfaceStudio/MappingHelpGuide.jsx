@@ -140,7 +140,17 @@ export default function MappingHelpGuide() {
           their posted values, the skipped wells, any fault blocks, boundary and guide points, and the display
           settings, so a re-grid can reproduce it and a tooltip on its row can describe it.
         </Para>
-      </GuideSection>
+        <SubHeading>Thin-plate spline or kriging</SubHeading>
+        <Para>
+          The method select offers two engines. The thin-plate spline passes exactly through every control point and
+          is the default. Ordinary kriging weights the wells by a variogram (spherical, exponential or gaussian, with
+          a range in metres, a sill and a nugget); Fit reads range and sill off the experimental semivariogram of the
+          control points, and Grid fits them itself when the fields are empty. Remove the trend first fits a plane
+          through the wells and kriges the residuals, so a regional dip is honoured. A kriged surface carries a
+          variance map (metres squared), low where the wells constrain it and high where it is guessed; show the
+          variance map swaps it onto the map. Kriging grids without fault blocks in this version.
+        </Para>
+</GuideSection>
 
       <GuideSection id="mapwindow">
         <SectionHeading icon={MapIcon}>The map window</SectionHeading>
@@ -205,7 +215,15 @@ export default function MappingHelpGuide() {
           converted on import; a file on a local grid cannot be placed on a georeferenced project and is refused.
           With no Project CRS, the surface keeps the declared CRS or an unknown placement (the amber no CRS badge).
         </Para>
-      </GuideSection>
+        <SubHeading>Rotated grids</SubHeading>
+        <Para>
+          An Irap classic grid may be rotated (Petrel writes the angle on its third header line). It imports with its
+          rotation, the preview says so, and the map, readout, arithmetic and contours honour the frame. Such a grid
+          exports to Irap classic only; CPS-3, ZMAP+ and XYZ have no rotation field and refuse it with a message, so
+          resample it onto an unrotated frame first (surface arithmetic, A plus 0, onto another surface's frame is one
+          way). A rotated grid is imported in the project CRS only.
+        </Para>
+</GuideSection>
 
       <GuideSection id="export">
         <SectionHeading icon={FileDown}>Exporting</SectionHeading>

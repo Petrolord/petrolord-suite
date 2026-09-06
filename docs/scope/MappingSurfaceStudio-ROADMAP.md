@@ -209,5 +209,29 @@ Suite PR (contour editing and the depth unit):
   wins over the browser default) and writes it on toggle, keeping the
   localStorage copy as the fallback.
 
-Remaining MS5 items (next PR): kriging in the workstation and rotated
-grids in the viewport (engines #138 is merged, subtree pull pending).
+Suite PR (kriging and rotated frames), subtree pull of engines e35f061:
+
+- **Kriging in the workstation.** A method select in the explorer
+  (thin-plate spline or ordinary kriging); the variogram dock (model,
+  range m, sill, nugget, remove the trend first) with Fit reading range
+  and sill off the experimental semivariogram of the control points
+  (`services/krigingPlan.js`: lag = median nearest-neighbour spacing),
+  and Grid fitting them itself when the fields are empty. The status
+  says "Kriged" and names the variogram; provenance records method and
+  variogram; the preview carries the variance grid and "show the
+  variance map" swaps it onto the map as an attribute display. Kriging
+  refuses fault blocks in this version with a plain message.
+- **Rotated frames in the viewport.** `rotation_deg` rides on every
+  spec built from a geo_surfaces row (registry save/replace write it,
+  `specOfSurface`, MapCanvas, Earth Modeling `specOf`); the painter
+  draws the raster through one affine (rotation included), contours and
+  the readout go through `gridXY` / `worldToGridIndex`, the fit uses the
+  corner bounding box. A rotated Irap classic file imports with its
+  rotation (preview says "rotated N deg"); it exports to Irap only, the
+  other writers refuse with a message; a rotated grid is imported in the
+  project CRS only (no reprojection of rotated frames). Fixture
+  `test-data/mapping/irap_rotated_30.dat` from the engines golden.
+
+**MS5 CLOSED 2026-09-06.** Every follow-up listed at the series
+close-out is built. What remains open for Mapping is a tester walk on
+staging.

@@ -18,7 +18,7 @@ function makeCtx() {
     lineTo: rec('lineTo'), closePath: rec('closePath'), arc: rec('arc'),
     stroke: () => { calls.push(['stroke', ctx.strokeStyle, ctx.lineWidth]); },
     fill: () => { calls.push(['fill', ctx.fillStyle]); },
-    save: rec('save'), restore: rec('restore'), translate: rec('translate'), rotate: rec('rotate'), scale: rec('scale'),
+    save: rec('save'), restore: rec('restore'), translate: rec('translate'), rotate: rec('rotate'), scale: rec('scale'), transform: rec('transform'),
     setLineDash: rec('setLineDash'), drawImage: rec('drawImage'), putImageData: rec('putImageData'),
     fillText: (...a) => { calls.push(['fillText', ...a, { fillStyle: ctx.fillStyle, align: ctx.textAlign }]); },
     strokeText: rec('strokeText'),
@@ -49,13 +49,16 @@ test('rasterBitmap draws nx x ny pixels; paintRaster anchors at the south-west c
   paintRaster(ctx, { bitmap, spec, transform: t });
   const sw = t.worldToScreen(-50, -50);   // cell extent: half a cell beyond the nodes
   const ne = t.worldToScreen(450, 350);
-  const tl = of(ctx, 'translate')[0];
-  expect(tl[1]).toBeCloseTo(sw.x, 9);
-  expect(tl[2]).toBeCloseTo(sw.y, 9);
-  const sc = of(ctx, 'scale')[0];
-  expect(sc[1]).toBeCloseTo((ne.x - sw.x) / 5, 9);
-  expect(sc[2]).toBeCloseTo((ne.y - sw.y) / 4, 9);
-  expect(sc[2]).toBeLessThan(0); // the flip: bitmap row 0 (south) lands at the bottom
+  // one affine (MS5: rotation-ready): a, b, c, d, e, f; an unrotated
+  // frame is a pure translate + scale with a negative d (the y flip)
+  const [, a, b, c, d, e, f] = of(ctx, 'transform')[0];
+  expect(e).toBeCloseTo(sw.x, 9);
+  expect(f).toBeCloseTo(sw.y, 9);
+  expect(a).toBeCloseTo((ne.x - sw.x) / 5, 9);
+  expect(d).toBeCloseTo((ne.y - sw.y) / 4, 9);
+  expect(b).toBeCloseTo(0, 9);
+  expect(c).toBeCloseTo(0, 9);
+  expect(d).toBeLessThan(0); // the flip: bitmap row 0 (south) lands at the bottom
   expect(of(ctx, 'drawImage')[0][1]).toBe(bitmap);
 });
 
@@ -161,4 +164,60 @@ test('sampleAtScreen reads the node under the pointer and reports null off the g
   expect(hit.x).toBeCloseTo(200, 6);
   const miss = sampleAtScreen(grid, spec, t, 1, 1);
   expect(miss.z).toBeNull();
+});
+
+describe('rotated frames (MS5)', () => {
+  const { gridXY } = require('@/lib/gridding/gridmath');
+  const spec = { x0: 1000, y0: 2000, dx: 100, dy: 50, nx: 4, ny: 3, rotation_deg: 30 };
+
+  test('nodeExtent of a rotated spec is the bounding box of its corners', () => {
+    const e = nodeExtent(spec);
+    const c30 = Math.cos(Math.PI / 6); const s30 = Math.sin(Math.PI / 6);
+    expect(e.x0).toBeCloseTo(1000 - 100 * s30, 9);
+    expect(e.x1).toBeCloseTo(1000 + 300 * c30, 9);
+    expect(e.y0).toBeCloseTo(2000, 9);
+    expect(e.y1).toBeCloseTo(2000 + 300 * s30 + 100 * c30, 9);
+  });
+
+  test('contour paths of a rotated plane run along the rotated local axis', () => {
+    // z = local column index: the -0.5 .. level contours are lines of constant local X, i.e. tilted 30 deg + 90
+    const z = new Float32Array(spec.nx * spec.ny);
+    for (let r = 0; r < spec.ny; r++) for (let c = 0; c < spec.nx; c++) z[r * spec.nx + c] = c;
+    const cp = contourPaths(z, spec, { step: 1 });
+    const lvl = cp.levels.indexOf(1);
+    expect(lvl).toBeGreaterThanOrEqual(0);
+    const path = cp.paths[lvl][0];
+    // direction of the polyline equals local Y direction (-sin30, cos30)
+    const dx = path[path.length - 2] - path[0]; const dy = path[path.length - 1] - path[1];
+    const len = Math.hypot(dx, dy);
+    expect(Math.abs(dx / len)).toBeCloseTo(Math.sin(Math.PI / 6), 6);
+    expect(Math.abs(dy / len)).toBeCloseTo(Math.cos(Math.PI / 6), 6);
+    const start = gridXY(spec, 0, 1);
+    expect(Math.min(Math.hypot(path[0] - start.x, path[1] - start.y), Math.hypot(path[path.length - 2] - start.x, path[path.length - 1] - start.y))).toBeLessThan(1e-6);
+  });
+
+  test('paintRaster of a rotated frame carries the rotation in the affine', () => {
+    const off = makeCtx();
+    const z = new Float32Array(spec.nx * spec.ny).fill(-1000);
+    const bitmap = rasterBitmap({ grid: z, spec, lut: STRUCTURE_LUT, zMin: -1000, zMax: -999, makeCanvas: () => ({ getContext: () => off }) });
+    const ctx = makeCtx();
+    const t = { worldToScreen: (x, y) => ({ x, y: -y }) };
+    paintRaster(ctx, { bitmap, spec, transform: t });
+    const [, a, b, c, d] = of(ctx, 'transform')[0];
+    // local X per pixel = dx along (cos30, sin30) in world, y flipped on screen
+    expect(a).toBeCloseTo(100 * Math.cos(Math.PI / 6), 9);
+    expect(b).toBeCloseTo(-100 * Math.sin(Math.PI / 6), 9);
+    expect(c).toBeCloseTo(-50 * Math.sin(Math.PI / 6), 9);
+    expect(d).toBeCloseTo(-50 * Math.cos(Math.PI / 6), 9);
+  });
+
+  test('sampleAtScreen reads through the rotated frame', () => {
+    const z = new Float32Array(spec.nx * spec.ny);
+    for (let r = 0; r < spec.ny; r++) for (let c = 0; c < spec.nx; c++) z[r * spec.nx + c] = 10 * r + c;
+    const t = { screenToWorld: (x, y) => ({ x, y }) };
+    const w = gridXY(spec, 2, 3);
+    expect(sampleAtScreen(z, spec, t, w.x, w.y).z).toBe(23);
+    const outside = gridXY(spec, 2, 5);
+    expect(sampleAtScreen(z, spec, t, outside.x, outside.y).z).toBeNull();
+  });
 });

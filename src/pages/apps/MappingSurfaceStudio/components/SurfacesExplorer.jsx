@@ -22,6 +22,7 @@ import {
 import { Link } from 'react-router-dom';
 import { normalizeTag, isTransformableTag } from '@/lib/crs/tags';
 import { EXPORT_FORMATS, describeSurface, isLengthSurface } from '../services/surfaceExport';
+import { GRID_METHODS, VARIOGRAM_MODELS } from '../services/krigingPlan';
 import { OpenInAppSubmenu } from '@/components/wells/OpenInAppMenu';
 import { appPath, earthModelingSurfaceHref, MAPPING_ID } from '@/components/wells/appLinks';
 
@@ -163,6 +164,7 @@ export default function SurfacesExplorer({
   surfaces, selectedId, onSelect, onDelete, onToggleShare, sharingId,
   topNames, zoneNames = [], zoneKeys, source, onSource,
   depthRef = 'tvdss', onDepthRef, cellM, onCellM, onGrid, gridding,
+  gridMethod = 'tps', onGridMethod, variogram, onVariogram, onFitVariogram, variance = null,
   onImport, onExport, onPointsCsv, onRename, onRegrid, replaceId = null, appPaths = {}, wells = [],
 }) {
   return (
@@ -199,6 +201,39 @@ export default function SurfacesExplorer({
             {zoneNames.map((n) => <option key={n} value={n}>{n}</option>)}
             {!zoneNames.length && <option value="">no zones in the registry</option>}
           </select>
+        )}
+        <select className={selCls} value={gridMethod} data-testid="map-grid-method"
+          title="Gridding method. The thin-plate spline passes exactly through the wells; ordinary kriging weights them by a variogram and reports a variance map."
+          onChange={(e) => onGridMethod?.(e.target.value)}>
+          {GRID_METHODS.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+        </select>
+        {gridMethod === 'kriging' && variogram && (
+          <div className="space-y-1 rounded border border-slate-800 p-1.5" data-testid="map-variogram">
+            <div className="flex items-center gap-1">
+              <select className={`${selCls} flex-1`} value={variogram.model} data-testid="map-vg-model" title="Variogram model"
+                onChange={(e) => onVariogram({ ...variogram, model: e.target.value })}>
+                {VARIOGRAM_MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <button type="button" data-testid="map-vg-fit" title="Fit range and sill from the experimental variogram of the control points"
+                className="px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800" onClick={onFitVariogram}>Fit</button>
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              <input className={selCls} value={variogram.range} data-testid="map-vg-range" placeholder="range m" title="Range (m): beyond it wells no longer correlate"
+                onChange={(e) => onVariogram({ ...variogram, range: e.target.value })} />
+              <input className={selCls} value={variogram.sill} data-testid="map-vg-sill" placeholder="sill" title="Sill: the variance of the field (metres squared)"
+                onChange={(e) => onVariogram({ ...variogram, sill: e.target.value })} />
+              <input className={selCls} value={variogram.nugget} data-testid="map-vg-nugget" placeholder="nugget" title="Nugget: measurement noise at zero distance"
+                onChange={(e) => onVariogram({ ...variogram, nugget: e.target.value })} />
+            </div>
+            <label className="flex items-center gap-1 text-[10px] text-slate-400" title="Fit a plane through the wells first and krige the residuals, so a regional dip is honoured">
+              <input type="checkbox" data-testid="map-vg-detrend" checked={variogram.detrend !== false} onChange={(e) => onVariogram({ ...variogram, detrend: e.target.checked })} /> remove the trend first
+            </label>
+            {variance && (
+              <label className="flex items-center gap-1 text-[10px] text-slate-400" title="Show the kriging variance instead of the surface">
+                <input type="checkbox" data-testid="map-vg-variance" checked={variance.shown} onChange={(e) => variance.onToggle(e.target.checked)} /> show the variance map
+              </label>
+            )}
+          </div>
         )}
         <div className="flex items-center gap-1">
           <input className={`${selCls} flex-1`} value={cellM} data-testid="map-cell"

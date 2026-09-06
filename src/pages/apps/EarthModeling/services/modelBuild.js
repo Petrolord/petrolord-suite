@@ -29,7 +29,7 @@ export const emptyDefinition = () => ({
   krige: { ...DEFAULT_KRIGE },
 });
 
-export const specOf = (s) => ({ x0: s.origin_x, y0: s.origin_y, dx: s.dx, dy: s.dy, nx: s.nx, ny: s.ny });
+export const specOf = (s) => ({ x0: s.origin_x, y0: s.origin_y, dx: s.dx, dy: s.dy, nx: s.nx, ny: s.ny, ...(s.rotation_deg ? { rotation_deg: s.rotation_deg } : {}) });
 
 /** Engine well shape from a registry row (with tops + zones embedded). */
 export const engineWell = (w) => ({

@@ -282,3 +282,14 @@ north arrow and optional Easting/Northing axes.
   and home hrefs); `earth-modeling` (`?surface=` stacks TopB);
   `well-correlation`, `petrophysics-studio`, `well-data-manager`
   cross-app tests assert the Map-this-top hrefs.
+
+## 2026-09-06: MS5 follow-ups CLOSED
+
+See MappingSurfaceStudio-ROADMAP.md "MS5 follow-ups (2026-09-06)":
+Seismolord Map window labels on the shared kit, the Contour Map
+Digitizer revived and publishing to geo_surfaces, Earth Modeling reading
+fault polygons from geo_culture, a Well Correlation help guide, contour
+hand-editing (drag a contour, re-grid through it), a per-user depth unit
+(migration 20260906120000, applied), ordinary kriging with variogram
+fitting and a variance map, and rotated grid frames end to end (engines
+#138). No tester date; one prod zip after the three Suite PRs merge.

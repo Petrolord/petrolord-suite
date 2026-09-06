@@ -35,6 +35,8 @@ import {
   exportSurfaceText, controlPointsCsv, downloadText, specOfSurface, gridInUnit, isLengthSurface,
 } from '../services/surfaceExport';
 import { gridSurface, gridSurfaceBlocked } from '@/lib/gridding/gridding';
+import { krigeSurface } from '@/lib/gridding/kriging';
+import { GRID_METHODS, fitVariogramFromPoints, krigingOptions, describeVariogram } from '../services/krigingPlan';
 import {
   polygonPayload, blocksForPoints, nodeBlocksFor, ringOf, isPolygonLayer, POLYGON_KINDS,
 } from '../services/polygonTools';
@@ -87,6 +89,11 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   const [depthRef, setDepthRef] = useState('tvdss');
   const [depthUnit, setDepthUnit] = useState(readDepthUnit);
   const [cellM, setCellM] = useState('150');
+  // MS5 kriging: method and variogram fields (range in metres, sill in
+  // metres squared for a structure map); fitted from the wells on demand
+  const [gridMethod, setGridMethod] = useState('tps');
+  const [variogram, setVariogram] = useState({ model: 'spherical', range: '', sill: '', nugget: '0', detrend: true });
+  const [showVariance, setShowVariance] = useState(false);
   const [gridding, setGridding] = useState(false);
   const [isoPair, setIsoPair] = useState({ a: '', b: '' });
   const [status, setStatus] = useState('Ready.');
@@ -279,6 +286,23 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wells, surfaces, topNames]);
 
+  // the control points the current source would grid (MS5, for the
+  // variogram fit); same placement rules as runGrid
+  const currentControlPoints = (opts = {}) => {
+    const src = opts.source || source;
+    const sourceWells = opts.wellIds?.length ? (wells || []).filter((w) => opts.wellIds.includes(w.id)) : wells;
+    if (src.type === 'top') return topsToControlPoints(sourceWells, src.key, { depthRef, placement: 'borehole' }).points;
+    return zoneAttrToPoints(sourceWells, src.zoneName || zoneNames[0], src.key);
+  };
+  const fitVariogramFromWells = () => {
+    try {
+      const pts = [...currentControlPoints(), ...guidePoints.map((gp) => ({ x: gp.x, y: gp.y, z: gp.z }))];
+      const fit = fitVariogramFromPoints(pts, { model: variogram.model, nugget: Number(variogram.nugget || 0) });
+      setVariogram((v) => ({ ...v, range: fit.range.toFixed(0), sill: fit.sill.toFixed(2) }));
+      setStatus(`Fitted a ${fit.model} variogram from ${pts.length} control points: range ${fit.range.toFixed(0)} m, sill ${fit.sill.toFixed(2)} (${fit.bins} lag bins of ${fit.lag.toFixed(0)} m, rmse ${fit.rmse.toFixed(3)}).`);
+    } catch (e) { setStatus(e.message); }
+  };
+
   const runGrid = async (opts = {}) => {
     const src = opts.source || source;
     const cell = Number(cellM);
@@ -316,7 +340,20 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       const faults = faultRows.filter((r) => gridFaultIds.has(r.id));
       const rings = await Promise.all(faults.map(ringFor));
       let g;
-      if (rings.length) {
+      let kriged = null;
+      if (gridMethod === 'kriging') {
+        // MS5: ordinary kriging with the dock's variogram; fault blocks
+        // stay a thin-plate spline feature in v1
+        if (rings.length) throw new Error('Kriging grids without fault blocks in this version. Untick the fault polygons or grid with the thin-plate spline.');
+        let v = variogram;
+        if (!(Number(v.range) > 0) || !(Number(v.sill) > 0)) {
+          const fit = fitVariogramFromPoints(points, { model: v.model, nugget: Number(v.nugget || 0) });
+          v = { ...v, range: fit.range.toFixed(0), sill: fit.sill.toFixed(2) };
+          setVariogram(v);
+        }
+        kriged = krigingOptions(v);
+        g = krigeSurface(points, spec, { ...kriged, maxExtrapolation: 1e9 });
+      } else if (rings.length) {
         g = gridSurfaceBlocked(blocksForPoints(points, rings), spec, { nodeBlocks: nodeBlocksFor(spec, rings), maxExtrapolation: 1e9 });
       } else {
         g = gridSurface(points, spec, { maxExtrapolation: 1e9 });
@@ -332,10 +369,13 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       const crs = consensusTag(contributing.map((w) => w.crs));
       const zDomain = kind === 'attribute' ? 'attribute' : 'depth';
       const postedNow = Object.fromEntries(points.map((p) => [p.well, { z: p.z, x: p.x, y: p.y }]));
+      setShowVariance(false);
       setPreview({
-        spec, grid: g.z, name, kind, crs, zDomain,
+        spec, grid: g.z, name, kind, crs, zDomain, variance: g.variance || null,
         provenance: {
           source: src, engine: 'mapping-surface-studio', cell_m: cell,
+          method: kriged ? 'kriging' : (rings.length ? 'tps-blocked' : 'tps'),
+          variogram: kriged ? { model: kriged.model, range_m: kriged.range, sill: kriged.sill, nugget: kriged.nugget, detrend: kriged.detrend, neighbourhood: g.neighbourhood } : null,
           control_points: points.length,
           points: points.map((p) => ({ well: p.well, x: p.x, y: p.y, z: p.z, md: p.md ?? null, extrapolated: !!p.extrapolated })),
           depth_ref: result.depthRef, placement: kind === 'structure' ? 'borehole' : null,
@@ -351,12 +391,14 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       setDisplayGrid(g.z);
       setSelectedId(null);
       const extras = [
+        kriged ? describeVariogram(kriged) : null,
+        kriged && g.merged ? `${g.merged} duplicate location${g.merged === 1 ? '' : 's'} averaged` : null,
         faults.length ? `${faults.length} fault-block polygon${faults.length === 1 ? '' : 's'}` : null,
         g.skippedBlocks ? `${g.skippedBlocks} block${g.skippedBlocks === 1 ? '' : 's'} with fewer than 3 control points left empty` : null,
         boundary ? `clipped to ${boundary.name}` : null,
         guides.length ? `${guides.length} guide point${guides.length === 1 ? '' : 's'}` : null,
       ].filter(Boolean);
-      setStatus(`${opts.prefix || ''}${describeGridResult({ name, result: { ...result, points }, spec, depthUnit })}${extras.length ? ` With ${extras.join(', ')}.` : ''}`);
+      setStatus(`${opts.prefix || ''}${describeGridResult({ name, result: { ...result, points }, spec, depthUnit, method: kriged ? 'kriging' : 'tps' })}${extras.length ? ` With ${extras.join(', ')}.` : ''}`);
     } catch (e) {
       setStatus(e.message);
     } finally {
@@ -598,6 +640,20 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       }
     } catch (e) { setStatus(e.message); }
   };
+  // MS5: swap the map between the kriged surface and its variance
+  const toggleVariance = (on) => {
+    if (!preview?.variance) return;
+    setShowVariance(on);
+    if (on) {
+      setDisplaySurface({ ...displaySurface, kind: 'attribute', z_domain: 'attribute', name: `${preview.name} kriging variance` });
+      setDisplayGrid(preview.variance);
+      setStatus('Showing the kriging variance (metres squared): low where the wells constrain the surface, high where it is guessed. Untick to return to the surface.');
+    } else {
+      setDisplaySurface({ ...displaySurface, kind: preview.kind, z_domain: preview.zDomain, name: preview.name });
+      setDisplayGrid(preview.grid);
+      setStatus(`Showing ${preview.name}.`);
+    }
+  };
   const editOverlays = contourDrag ? [
     { points: contourDrag.path, color: 'rgba(244, 114, 182, 0.5)', width: 1.5, dash: [4, 3] },
     { points: translatePath(contourDrag.path, contourDrag.to.x - contourDrag.from.x, contourDrag.to.y - contourDrag.from.y), color: '#f472b6', width: 2.5 },
@@ -795,6 +851,12 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
           onCellM={setCellM}
           onGrid={runGrid}
           gridding={gridding}
+          gridMethod={gridMethod}
+          onGridMethod={setGridMethod}
+          variogram={variogram}
+          onVariogram={setVariogram}
+          onFitVariogram={fitVariogramFromWells}
+          variance={preview?.variance ? { shown: showVariance, onToggle: toggleVariance } : null}
           onImport={() => setImportOpen(true)}
           onExport={exportAs}
           onPointsCsv={pointsCsv}

@@ -13,7 +13,7 @@
 import {
   contourLevels, contourPolylines, buildMapPixels, gridRange,
 } from '@/lib/gridding/mapContours';
-import { isNull } from '@/lib/gridding/gridmath';
+import { isNull, gridXY, gridRotation, gridBBox, worldToGridIndex } from '@/lib/gridding/gridmath';
 import {
   niceStepUp, fmtTick, drawScaleBar, INK, INK_DIM, FONT,
 } from './annotations';
@@ -26,11 +26,16 @@ const MAX_CONTOUR_LEVELS = 400;
 
 /** World extent of the grid NODES. */
 export function nodeExtent(spec) {
-  return {
-    x0: spec.x0, y0: spec.y0,
-    x1: spec.x0 + (spec.nx - 1) * spec.dx,
-    y1: spec.y0 + (spec.ny - 1) * spec.dy,
-  };
+  if (!gridRotation(spec)) {
+    return {
+      x0: spec.x0, y0: spec.y0,
+      x1: spec.x0 + (spec.nx - 1) * spec.dx,
+      y1: spec.y0 + (spec.ny - 1) * spec.dy,
+    };
+  }
+  // a rotated frame (MS5): the world bounding box of its node corners
+  const b = gridBBox(spec);
+  return { x0: b.xmin, y0: b.ymin, x1: b.xmax, y1: b.ymax };
 }
 
 /** Offscreen bitmap of the grid through the LUT (row 0 = south). */
@@ -49,13 +54,18 @@ export function rasterBitmap({ grid, spec, lut, zMin, zMax, makeCanvas = () => d
  * node), y flipped so bitmap row 0 lands on the southern edge.
  */
 export function paintRaster(ctx, { bitmap, spec, transform, smoothing = true }) {
-  const e = nodeExtent(spec);
-  const a = transform.worldToScreen(e.x0 - spec.dx / 2, e.y0 - spec.dy / 2); // south-west corner
-  const b = transform.worldToScreen(e.x1 + spec.dx / 2, e.y1 + spec.dy / 2); // north-east corner
+  // the bitmap's pixel (c, r) covers node (r, c); map its corners through
+  // the grid frame (rotation included) with one affine: origin at the
+  // south-west cell corner, one pixel along local X and local Y
+  const o = gridXY(spec, -0.5, -0.5);
+  const ex = gridXY(spec, -0.5, spec.nx - 0.5);
+  const ey = gridXY(spec, spec.ny - 0.5, -0.5);
+  const a = transform.worldToScreen(o.x, o.y);
+  const bx = transform.worldToScreen(ex.x, ex.y);
+  const by = transform.worldToScreen(ey.x, ey.y);
   ctx.save();
   ctx.imageSmoothingEnabled = smoothing;
-  ctx.translate(a.x, a.y);
-  ctx.scale((b.x - a.x) / spec.nx, (b.y - a.y) / spec.ny); // negative y: flip
+  ctx.transform((bx.x - a.x) / spec.nx, (bx.y - a.y) / spec.nx, (by.x - a.x) / spec.ny, (by.y - a.y) / spec.ny, a.x, a.y);
   ctx.drawImage(bitmap, 0, 0);
   ctx.restore();
 }
@@ -83,8 +93,9 @@ export function contourPaths(grid, spec, { target = 10, step = null } = {}) {
   const paths = levels.map((lvl) => contourPolylines(grid, spec.ny, spec.nx, lvl).map((poly) => {
     const out = new Float64Array(poly.length);
     for (let k = 0; k < poly.length; k += 2) {
-      out[k] = spec.x0 + poly[k] * spec.dx;
-      out[k + 1] = spec.y0 + poly[k + 1] * spec.dy;
+      const w = gridXY(spec, poly[k + 1], poly[k]); // fractional (row, col) through the frame
+      out[k] = w.x;
+      out[k + 1] = w.y;
     }
     return out;
   }));
@@ -426,10 +437,8 @@ export function paintAxes(ctx, { transform, pad = FIT_PAD, targetPx = 90 }) {
 /** Value under a screen point, null-aware. */
 export function sampleAtScreen(grid, spec, transform, sx, sy) {
   const w = transform.screenToWorld(sx, sy);
-  const e = nodeExtent(spec);
-  if (w.x < e.x0 || w.x > e.x1 || w.y < e.y0 || w.y > e.y1) return { ...w, z: null };
-  const fx = (w.x - spec.x0) / spec.dx;
-  const fy = (w.y - spec.y0) / spec.dy;
+  const { fx, fy } = worldToGridIndex(spec, w.x, w.y);
+  if (fx < 0 || fy < 0 || fx > spec.nx - 1 || fy > spec.ny - 1) return { ...w, z: null };
   const c = Math.round(fx);
   const r = Math.round(fy);
   const v = grid[r * spec.nx + c];

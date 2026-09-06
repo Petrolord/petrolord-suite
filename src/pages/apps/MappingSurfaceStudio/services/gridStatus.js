@@ -17,9 +17,10 @@ export function reportableSkips(skipped) {
 /**
  * @param {{name, result:{points, skipped, extrapolated, depthRef}, spec, depthUnit}} p
  */
-export function describeGridResult({ name, result, spec, depthUnit = 'ft' }) {
+export function describeGridResult({ name, result, spec, depthUnit = 'ft', method = 'tps' }) {
   const ref = result.depthRef ? `${DEPTH_REF_LABEL[result.depthRef]} elevation, ${depthUnit}` : 'attribute';
-  const parts = [`Gridded ${name} (${ref}) from ${result.points.length} wells (${spec.nx}×${spec.ny}).`];
+  const verb = method === 'kriging' ? 'Kriged' : 'Gridded';
+  const parts = [`${verb} ${name} (${ref}) from ${result.points.length} wells (${spec.nx}×${spec.ny}).`];
   const skips = reportableSkips(result.skipped);
   if (skips.length) {
     parts.push(`Skipped ${skips.length}: ${skips.map((s) => `${s.well} (${CONTROL_POINT_SKIP_REASONS[s.reason] || s.reason})`).join(', ')}.`);

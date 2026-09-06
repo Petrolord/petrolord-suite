@@ -75,7 +75,7 @@ export function planImport({
     if (effSign === 'negative') z = flipped(z);          // TWT is positive
   }
 
-  let spec = { x0: g.x0, y0: g.y0, dx: g.dx, dy: g.dy, nx: g.nx, ny: g.ny };
+  let spec = { x0: g.x0, y0: g.y0, dx: g.dx, dy: g.dy, nx: g.nx, ny: g.ny, ...(g.rotation_deg ? { rotation_deg: g.rotation_deg } : {}) };
   const declared = declaredTag ? normalizeTag(declaredTag) : null;
   const project = projectTag ? normalizeTag(projectTag) : null;
   let tag = declared && declared !== UNKNOWN ? declared : null;
@@ -83,6 +83,7 @@ export function planImport({
   if (declared && project && declared !== project) {
     const rel = compareTags(declared, project);
     if (rel === 'transformable') {
+      if (spec.rotation_deg) throw new Error('A rotated grid can be imported in the project CRS only. Declare the project CRS for this file, or export it from Petrel in the project CRS.');
       const r = reprojectSurfaceGrid({ spec, z, fromTag: declared, toTag: project, customDefs });
       spec = { ...r.spec };
       z = r.z;
