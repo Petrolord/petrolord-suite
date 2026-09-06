@@ -18,6 +18,8 @@ import MapView from './MapView';
 import SectionView from './SectionView';
 import QcPanel from './QcPanel';
 import { buildModel, emptyDefinition } from '../services/modelBuild';
+import { DEPTH_UNIT_KEY, VOLUME_UNITS_KEY, VOLUME_UNIT_SETS, readSetting, fmtDepth } from '../services/units';
+import { toDisplay } from '@/components/wells/depthModes';
 import { validatePolygon } from '../engine/blocks';
 import { surfaceStats } from '@/lib/gridding/gridmath';
 import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
@@ -56,6 +58,24 @@ export default function EarthWorkstation({ backend }) {
   const [sectionWells, setSectionWells] = useState({ a: '', b: '' });
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
+  // EM0: display units. Depth follows the account's Geoscience depth
+  // unit (the Mapping setting) once known, browser fallback, ft default;
+  // volumes are a display choice of this app
+  const [depthUnit, setDepthUnit] = useState(() => readSetting(DEPTH_UNIT_KEY, ['m', 'ft'], 'ft'));
+  const [volumeUnits, setVolumeUnits] = useState(() => readSetting(VOLUME_UNITS_KEY, Object.keys(VOLUME_UNIT_SETS), 'metric'));
+  const [boundaries, setBoundaries] = useState([]);
+  useEffect(() => { try { localStorage.setItem(DEPTH_UNIT_KEY, depthUnit); } catch { /* private mode */ } }, [depthUnit]);
+  useEffect(() => { try { localStorage.setItem(VOLUME_UNITS_KEY, volumeUnits); } catch { /* private mode */ } }, [volumeUnits]);
+  useEffect(() => {
+    let live = true;
+    if (backend.getDepthUnit) backend.getDepthUnit().then((u) => { if (live && (u === 'm' || u === 'ft')) setDepthUnit(u); }).catch(() => {});
+    if (backend.listBoundaries) backend.listBoundaries().then((b) => { if (live) setBoundaries(b); }).catch(() => {});
+    return () => { live = false; };
+  }, [backend]);
+  const changeDepthUnit = (u) => {
+    setDepthUnit(u);
+    if (backend.setDepthUnit) backend.setDepthUnit(u).catch((e) => setStatus(e.message));
+  };
 
   const refreshSurfaces = useCallback(async () => {
     try { setSurfaces(await backend.listSurfaces()); } catch (e) { setStatus(e.message); }
@@ -148,7 +168,7 @@ export default function EarthWorkstation({ backend }) {
       setZoneIdx(0);
       const blocks = Object.keys(result.census).length;
       const clamps = result.counts.reduce((a, b) => a + b, 0);
-      setStatus(`Built ${definition.name}: ${result.spec.nx}×${result.spec.ny} frame, ${result.zones.length} zones, ${blocks} block${blocks > 1 ? 's' : ''}, ${clamps} clamped nodes.`);
+      setStatus(`Built ${definition.name}: ${result.spec.nx}×${result.spec.ny} frame at ${result.spec.dx} m, ${result.zones.length} zones, ${blocks} block${blocks > 1 ? 's' : ''}, ${clamps} clamped nodes${result.boundary ? `, clipped to ${result.boundary.name}` : ''}.`);
     } catch (e) {
       setStatus(e.message);
     } finally {
@@ -267,6 +287,16 @@ export default function EarthWorkstation({ backend }) {
         </button>
       </div>
       <div className="ml-auto flex items-center gap-1">
+        <button type="button" data-testid="em-depth-unit"
+          className="px-2 py-1 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
+          title="Depth display unit (feet or metres), the account's Geoscience setting. The model computes in metres."
+          onClick={() => changeDepthUnit(depthUnit === 'ft' ? 'm' : 'ft')}>
+          depth: {depthUnit}
+        </button>
+        <select className={selCls} data-testid="em-volume-units" value={volumeUnits} title="Volume display units"
+          onChange={(e) => setVolumeUnits(e.target.value)}>
+          {Object.values(VOLUME_UNIT_SETS).map((u) => <option key={u.key} value={u.key}>{u.label}</option>)}
+        </select>
         <button type="button" data-testid="em-build"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40"
           disabled={building || definition.surfaceIds.length < 2} onClick={build}>
@@ -287,7 +317,7 @@ export default function EarthWorkstation({ backend }) {
       <span className="ml-auto whitespace-nowrap" data-testid="em-frame">
         {built ? `${built.spec.nx}×${built.spec.ny} @ ${built.spec.dx} m` : `${definition.surfaceIds.length} surfaces stacked`}
       </span>
-      <span className="whitespace-nowrap text-slate-600">TVDSS m, SI internal</span>
+      <span className="whitespace-nowrap text-slate-600">TVDSS {depthUnit}, SI internal</span>
     </div>
   );
 
@@ -324,7 +354,7 @@ export default function EarthWorkstation({ backend }) {
       <Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry…
     </div>
   ) : view === 'qc' ? (
-    <QcPanel built={built} surfaceNames={surfaceNames} />
+    <QcPanel built={built} surfaceNames={surfaceNames} depthUnit={depthUnit} volumeUnits={volumeUnits} />
   ) : view === 'section' ? (
     <div className="p-3">
       {sectionToolbar}
@@ -336,6 +366,7 @@ export default function EarthWorkstation({ backend }) {
         wellA={wellById(sectionWells.a)}
         wellB={wellById(sectionWells.b)}
         ties={built?.ties || []}
+        depthUnit={depthUnit}
       />
     </div>
   ) : !built ? (
@@ -354,7 +385,8 @@ export default function EarthWorkstation({ backend }) {
         drawing={drawing}
         onMapClick={({ x, y }) => setPending((p) => [...p, [x, y]])}
         contours={layer !== 'blocks'}
-        label={`${zoneName} · ${layerLabel}`}
+        label={`${zoneName} · ${layerLabel}${['top', 'base', 'thickness'].includes(layer) ? ` (${depthUnit})` : ''}`}
+        zFormat={['top', 'base', 'thickness'].includes(layer) ? (v) => toDisplay(v, depthUnit).toFixed(1) : (v) => v.toFixed(3)}
       />
     </div>
   );
@@ -394,6 +426,7 @@ export default function EarthWorkstation({ backend }) {
           projects={projects}
           onSaveProject={saveProject}
           onLoadProject={loadProject}
+          boundaries={boundaries}
         />
       )}
       dockOpen={dockOpen}

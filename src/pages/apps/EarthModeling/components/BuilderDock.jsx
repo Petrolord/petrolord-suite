@@ -15,7 +15,7 @@ const btnCls = 'w-full px-2 py-1 rounded border text-xs disabled:opacity-40';
 export default function BuilderDock({
   definition, onDefinition, surfaces, topNames, zoneNames,
   drawing, pendingCount, onStartDraw, onFinishDraw, onCancelDraw,
-  projects, onSaveProject, onLoadProject,
+  projects, onSaveProject, onLoadProject, boundaries = [],
 }) {
   const stackRows = definition.surfaceIds.map((id) => surfaces.find((s) => s.id === id)).filter(Boolean);
   const patch = (p) => onDefinition({ ...definition, ...p });
@@ -32,6 +32,24 @@ export default function BuilderDock({
         <div className={secCls}>Model</div>
         <input className={inCls} data-testid="em-model-name" value={definition.name}
           onChange={(e) => patch({ name: e.target.value })} placeholder="Model name" />
+
+        <div className={secCls}>Model frame (EM0)</div>
+        <div className="flex items-center gap-1">
+          <span className="w-24 text-slate-400">cell size</span>
+          <input className={inCls} data-testid="em-frame-cell" type="number" min="1" step="any" value={definition.frame?.cellM ?? ''}
+            placeholder="top surface's cell" title="Model cell size in metres; empty keeps the top surface's cell"
+            onChange={(e) => patch({ frame: { ...(definition.frame || {}), cellM: e.target.value } })} />
+          <span className="text-slate-500">m</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-24 text-slate-400">boundary</span>
+          <select className={selCls} data-testid="em-frame-boundary" value={definition.frame?.boundaryId || ''}
+            title="Clip the model to a boundary polygon drawn in Mapping & Surface Studio"
+            onChange={(e) => patch({ frame: { ...(definition.frame || {}), boundaryId: e.target.value } })}>
+            <option value="">none (whole frame)</option>
+            {boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </select>
+        </div>
 
         <div className={secCls}>Tie tops (per stacked surface)</div>
         {stackRows.map((s, i) => (

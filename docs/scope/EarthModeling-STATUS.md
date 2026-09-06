@@ -114,3 +114,10 @@ backend: `listCultureFaultPolygons` (first ring of the layer's first
 feature; unreadable layers are skipped). Harness: the fixture fault is
 offered as "Fixture fault (Mapping)". The model's own drawn polygons are
 unchanged.
+
+## 2026-09-06: EM series (Petrel tester readiness) started
+
+Plan of record: docs/scope/EarthModeling-ROADMAP.md. EM0 (units and
+frame) built: account depth unit shared with Mapping, volume units
+(metric or field), model cell size, boundary clip from a Mapping
+boundary polygon. Wave log in the roadmap.

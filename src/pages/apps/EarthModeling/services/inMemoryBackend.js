@@ -16,6 +16,7 @@ export function makeInMemoryBackend() {
   const surfaces = [];
   const gridStore = new Map();
   const projects = [];
+  let depthUnit = null; // EM0: unset in the harness, the app falls back to its default
 
   for (const name of ['TopA', 'TopB', 'BaseB']) {
     const id = nid('surf');
@@ -62,6 +63,16 @@ export function makeInMemoryBackend() {
     async listFaultPolygons() {
       return [{ id: 'cult-fault-dev', name: 'Fixture fault (Mapping)', vertices: FAULT_POLYGON.map(([x, y]) => [x, y]), is_own: true, source: 'geo_culture' }];
     },
+    // EM0: a boundary polygon (geo_culture kind boundary) over the
+    // western 60% of the frame, so clipping changes the census
+    async listBoundaries() {
+      const { x0, y0, dx, dy, nx, ny } = MODEL_SPEC;
+      const xw = x0 + 0.6 * (nx - 1) * dx;
+      const yn = y0 + (ny - 1) * dy;
+      return [{ id: 'cult-lease-dev', name: 'Fixture lease (Mapping)', vertices: [[x0 - 1, y0 - 1], [xw, y0 - 1], [xw, yn + 1], [x0 - 1, yn + 1]], is_own: true, source: 'geo_culture' }];
+    },
+    async getDepthUnit() { return depthUnit; },
+    async setDepthUnit(u) { if (!['m', 'ft'].includes(u)) throw new Error(`Depth unit must be m or ft, got "${u}".`); depthUnit = u; return u; },
     async listProjects() { return projects.map((p) => ({ ...p })); },
     async saveProject(p) {
       const row = { id: nid('emp'), name: p.name, definition: p.definition, updated_at: new Date(2026, 6, 14, 12, 0, seq).toISOString() };

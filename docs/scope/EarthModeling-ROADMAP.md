@@ -64,4 +64,19 @@ e2e) against what a Petrel user expects of a structural framework:
 
 ## Wave log
 
-(filled per wave)
+- **EM0 (2026-09-06), branch `feat/em0-units-frame`.** Depth displays in
+  the account's Geoscience unit (`geoscience_settings.depth_unit`, ft
+  default, browser fallback `em.depthUnit`; ribbon toggle `em-depth-unit`
+  writes it back): map labels and readout for depth layers, the section
+  axis, the tie table (MD, TVDSS, surface z, residual). Volume units are
+  a display choice (`em-volume-units`: metric 10^6 m3, or field acre-ft
+  for bulk and net and MMbbl for pore and HCPV; `services/units.js`,
+  tested), the table headers carry the unit. The definition gains
+  `frame: {cellM, boundaryId}`: `frameSpec` keeps the top surface's
+  origin and extent and recounts nodes for the cell; a boundary polygon
+  from Mapping (geo_culture kind boundary, both backends'
+  `listBoundaries`) nulls every node outside it on every surface and
+  thickness, so map, section and volumes stop at the lease line and the
+  status says "clipped to". e2e: unit toggle changes the residuals,
+  field units change the headers and the bulk value, a 25 m cell gives
+  the expected frame, the fixture lease shrinks the cell count.

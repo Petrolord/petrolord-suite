@@ -12,6 +12,7 @@ import { populateZoneProperty } from '../engine/properties';
 import { zoneVolumes } from '../engine/volumes';
 import { normalizeTag, isTransformableTag, consensusTag } from '@/lib/crs/tags';
 import { surfaceZToDepthDown } from '@/lib/surfaceConvention';
+import { maskOutsidePolygon } from '@/lib/gridding/gridmath';
 
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
@@ -27,7 +28,26 @@ export const emptyDefinition = () => ({
   faultPolygons: [],
   methods: { phi: 'constant', sw: 'constant', ntg: 'constant' },
   krige: { ...DEFAULT_KRIGE },
+  // EM0: the model frame; cellM empty = the top surface's cell, boundaryId
+  // = a geo_culture boundary polygon the model is clipped to
+  frame: { cellM: '', boundaryId: '' },
 });
+
+/**
+ * The model frame from the top surface's frame and an optional cell
+ * size (EM0): same origin and extent, nodes recounted for the new cell
+ * (at least 2 x 2, at most four million nodes).
+ */
+export function frameSpec(topSpec, cellM) {
+  const cell = Number(cellM);
+  if (!(cell > 0)) return { ...topSpec };
+  const extX = (topSpec.nx - 1) * topSpec.dx;
+  const extY = (topSpec.ny - 1) * topSpec.dy;
+  const nx = Math.max(2, Math.floor(extX / cell) + 1);
+  const ny = Math.max(2, Math.floor(extY / cell) + 1);
+  if (nx * ny > 4_000_000) throw new Error('That cell size makes more than four million nodes. Use a larger cell.');
+  return { ...topSpec, dx: cell, dy: cell, nx, ny };
+}
 
 export const specOf = (s) => ({ x0: s.origin_x, y0: s.origin_y, dx: s.dx, dy: s.dy, nx: s.nx, ny: s.ny, ...(s.rotation_deg ? { rotation_deg: s.rotation_deg } : {}) });
 
@@ -71,8 +91,23 @@ export async function buildModel(definition, wells, surfaces, backend) {
   // Registry surfaces are elevation (negative below datum, m or ft);
   // the engine works in metres positive-down, so convert at the door.
   const grids = await Promise.all(stack.map(async (s) => surfaceZToDepthDown(s, await backend.downloadSurfaceGrid(s))));
-  const spec = specOf(stack[0]); // v1: the model frame is the TOP surface's frame
+  // the model frame is the TOP surface's frame, at its cell or the one
+  // the definition asks for (EM0)
+  const spec = frameSpec(specOf(stack[0]), definition.frame?.cellM);
   const framework = buildFramework(grids.map((z, i) => ({ z, spec: specOf(stack[i]) })), spec);
+
+  // EM0: a boundary polygon (geo_culture kind boundary) clips the model:
+  // nodes outside it are null on every surface and thickness, so the
+  // map, the section and the volumes all stop at the lease line
+  let boundary = null;
+  if (definition.frame?.boundaryId && backend.listBoundaries) {
+    const rows = await backend.listBoundaries();
+    const hit = rows.find((b) => b.id === definition.frame.boundaryId);
+    if (!hit) throw new Error('The boundary polygon the model is clipped to is no longer in the registry. Clear it in the dock.');
+    boundary = { id: hit.id, name: hit.name };
+    framework.clamped = framework.clamped.map((z) => maskOutsidePolygon(z, spec, hit.vertices));
+    framework.thickness = framework.thickness.map((z) => maskOutsidePolygon(z, spec, hit.vertices));
+  }
 
   const polygons = (definition.faultPolygons || []).map((p) => p.vertices);
   const labels = polygons.length ? labelBlocks(spec, polygons) : null;
@@ -115,5 +150,5 @@ export async function buildModel(definition, wells, surfaces, backend) {
     return { name: zdef.name, registryZone: zdef.registryZone, thickness, props, provenance, volumes };
   });
 
-  return { spec, crs, ...framework, labels, census, ties, zones };
+  return { spec, crs, ...framework, labels, census, ties, zones, boundary };
 }

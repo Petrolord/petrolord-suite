@@ -93,6 +93,12 @@ test('well ties table shows the oracle residuals and the section cuts between we
   await stackAndBuild(page);
   await page.getByTestId('em-view-qc').click();
 
+  // EM0: depth displays in the account's unit (ft by default); metres on toggle
+  for (const tie of goldens.well_ties.filter((t) => t.residual_m !== null).slice(0, 4)) {
+    await expect(page.getByTestId(`em-tie-${tie.well}-${tie.top}`)).toHaveText((tie.residual_m / 0.3048).toFixed(2));
+  }
+  await page.getByTestId('em-depth-unit').click();
+  await expect(page.getByTestId('em-ties-unit')).toHaveText('Residual (m)');
   for (const tie of goldens.well_ties.filter((t) => t.residual_m !== null).slice(0, 4)) {
     await expect(page.getByTestId(`em-tie-${tie.well}-${tie.top}`)).toHaveText(tie.residual_m.toFixed(2));
   }
@@ -149,4 +155,35 @@ test('MS5: a fault polygon drawn in Mapping (geo_culture) joins the model from t
   await page.getByTestId('em-view-qc').click();
   await expect(page.getByTestId('em-census-0')).toHaveText(String(goldens.blocks.census['0']));
   await expect(page.getByTestId('em-census-1')).toHaveText(String(goldens.blocks.census['1']));
+});
+
+test('EM0: volume units, a model cell size and a boundary clip from Mapping', async ({ page }) => {
+  await stackAndBuild(page);
+  await page.getByTestId('em-view-qc').click();
+  const goldBulk = goldens.volumes.zone_a.total.bulk_m3;
+  await expect(page.getByTestId('em-vol-zone-1-total-bulk')).toHaveText(fmtM(goldBulk));
+  await page.getByTestId('em-volume-units').selectOption('field');
+  await expect(page.getByTestId('em-vol-unit-bulk').first()).toHaveText('Bulk (acre-ft)');
+  await expect(page.getByTestId('em-vol-unit-hcpv').first()).toHaveText('HCPV (MMbbl)');
+  await expect(page.getByTestId('em-vol-zone-1-total-bulk')).toHaveText((goldBulk / 1233.48183754752).toFixed(1));
+  await page.getByTestId('em-volume-units').selectOption('metric');
+
+  // a finer frame: the top surface's extent at 25 m gives (nx-1)*dx/25+1 nodes a side
+  const { dx, dy, nx, ny } = goldens.model_spec;
+  await page.getByTestId('em-frame-cell').fill('25');
+  await page.getByTestId('em-build').click();
+  const fnx = Math.floor((nx - 1) * dx / 25) + 1;
+  const fny = Math.floor((ny - 1) * dy / 25) + 1;
+  await expect(page.getByTestId('em-status')).toContainText(`${fnx}×${fny} frame at 25 m`);
+  await expect(page.getByTestId('em-frame')).toHaveText(`${fnx}×${fny} @ 25 m`);
+  await page.getByTestId('em-frame-cell').fill('');
+
+  // a boundary drawn in Mapping clips the model: fewer live cells, the status says so
+  await page.getByTestId('em-frame-boundary').selectOption({ label: 'Fixture lease (Mapping)' });
+  await page.getByTestId('em-build').click();
+  await expect(page.getByTestId('em-status')).toContainText('clipped to Fixture lease (Mapping)');
+  await page.getByTestId('em-view-qc').click();
+  const cells = Number(await page.locator('[data-testid="em-vol-zone-1"] tr').last().locator('td').nth(1).textContent());
+  expect(cells).toBeLessThan(nx * ny);
+  expect(cells).toBeGreaterThan(0);
 });
