@@ -238,3 +238,56 @@ test('WS3: the seeded rig reproduces the G4 lag; the schedule runs ahead of the 
   await expect(page.getByTestId('ws-lag-note')).toHaveText('Pumps are off, lag time is undefined until circulation restarts.');
   await expect(page.locator('body')).not.toContainText(/missed/i);
 });
+
+// ---- WS4: shows, observations, photographs ----------------------------------------
+
+const PNG_1x1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+
+test('WS4: a show is derived from controlled values; an observation carries type, unit, source and depth; a photo derives on the device and attaches once', async ({ page }) => {
+  await openStudio(page);
+  // shows
+  await page.getByTestId('ws-nav-shows').click();
+  await expect(page.getByTestId('ws-show-summary')).toHaveText('No hydrocarbon indicators observed.');
+  await page.getByTestId('ws-show-fluorescence-colour').selectOption('gold');
+  await page.getByTestId('ws-show-fluorescence-intensity').selectOption('moderate');
+  await page.getByTestId('ws-show-fluorescence-distribution').selectOption('25');
+  await page.getByTestId('ws-show-cut-speed').selectOption('moderate');
+  await page.getByTestId('ws-show-cut-type').selectOption('instant');
+  await page.getByTestId('ws-show-cut-colour').selectOption('amber');
+  await page.getByTestId('ws-show-stain').selectOption('even');
+  await page.getByTestId('ws-show-odour').selectOption('strong');
+  await page.getByTestId('ws-show-residue').selectOption('moderate');
+  await expect(page.getByTestId('ws-show-summary')).toHaveAttribute('data-quality', 'good');
+  await expect(page.getByTestId('ws-show-summary')).toContainText('Assessed as a good show.');
+  await typeField(page, 'ws-show-depth-value', '9990');
+  await page.getByTestId('ws-show-save').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Show recorded: good show.');
+  await expect(page.getByTestId(/^ws-show-row-/)).toHaveCount(1);
+  await expect(page.getByTestId(/^ws-show-row-/).first()).toHaveAttribute('data-quality', 'good');
+  // observations
+  await page.getByTestId('ws-nav-observations').click();
+  await page.getByTestId('ws-obs-depth-mode').selectOption('bit');
+  await page.getByTestId('ws-obs-value').fill('3.1');
+  await page.getByTestId('ws-obs-unit').selectOption('ppm');
+  await page.getByTestId('ws-obs-save').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Total gas 3.1 ppm recorded at 10000 ft.');
+  await page.getByTestId('ws-obs-type-cavings').click();
+  await page.getByTestId('ws-obs-text').fill('Splintery, 2 cm, increasing');
+  await page.getByTestId('ws-obs-save').click();
+  await expect(page.getByTestId('ws-status')).toContainText('Cavings: Splintery, 2 cm, increasing recorded');
+  await expect(page.getByTestId(/^ws-obs-row-/)).toHaveCount(2);
+  // photos: the derive pipeline runs for real in the browser
+  await page.getByTestId('ws-nav-photos').click();
+  await expect(page.getByTestId('ws-photos-empty')).toBeVisible();
+  await page.getByTestId('ws-photo-caption').fill('Tray under UV');
+  await page.getByTestId('ws-photo-file').setInputFiles({ name: 'tray.png', mimeType: 'image/png', buffer: PNG_1x1 });
+  await expect(page.getByTestId('ws-status')).toHaveText('Photo attached at 10000 ft.');
+  await expect(page.getByTestId(/^ws-photo-[0-9a-f-]{36}$/)).toHaveCount(1);
+  await expect(page.getByTestId(/^ws-photo-[0-9a-f-]{36}$/).first()).toHaveAttribute('data-upload', 'local');
+  await expect(page.getByTestId(/^ws-photo-[0-9a-f-]{36}$/).first().locator('img')).toHaveAttribute('src', /^blob:/);
+  await expect(page.getByTestId('ws-explorer-counts')).toContainText('1 show(s), 1 photo(s)');
+  // and it is still there after a reload (local blob store)
+  await page.goto('/dev/wellsite-studio');
+  await page.getByTestId('ws-nav-photos').click();
+  await expect(page.getByTestId(/^ws-photo-[0-9a-f-]{36}$/).first().locator('img')).toHaveAttribute('src', /^blob:/);
+});

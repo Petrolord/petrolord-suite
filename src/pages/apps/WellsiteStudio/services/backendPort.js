@@ -14,6 +14,8 @@ export const PORT = Object.freeze([
   'addRecord', 'addRecords', 'listRecords', 'latestRecord', 'getRecord', 'addVersion', 'correctObservation',
   // samples (WS3)
   'listSamples', 'addSamples', 'listStages', 'addStage',
+  // photos (WS4)
+  'listPhotos', 'addPhoto', 'photoUrl',
   // sync surface (WS6 fills in)
   'syncStatus', 'subscribeSync', 'flush',
   // storage

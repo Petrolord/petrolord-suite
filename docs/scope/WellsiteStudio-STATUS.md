@@ -16,7 +16,7 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 | WS1 description prototype | **COMPLETE 2026-09-07: engines #147 + #148 merged, Suite PR merged** | engines #147 (`descriptionVocabulary.js`, `abbreviations.js`, hand-derived golden); Suite branch `feat/ws1-description`: Describe view (quick and full modes, keyboard first, vocabulary typeahead per attribute, Copy previous with changed-field highlight, live abbreviation and narrative), operator profile paste in Config with validation, descriptions as `cuttings_description` observations with top and base depths, jest keystroke test, timed e2e (full description and repeat) |
 | WS2 live well workspace and timeline | **COMPLETE 2026-09-07: engines #149 (with the WS3 engines) merged, Suite PR merged** | engines #149 (`events.js`); Suite branch `feat/ws2-live-timeline`: event quick bar on the Live view (one click, time, user and bit depth captured; user-defined asks a label), open events with End, Timeline view (report day, tour, whole well; durations by type), current operation and current lithology cards, explorer counts |
 | WS3 lag and sample scheduler | **COMPLETE 2026-09-07: engines #149 merged, Suite PR merged** | engines #149 (`lag.js`, `sampleProgram.js`, oracle goldens G1 to G4); Suite branch `feat/ws3-lag-samples`: lag panel in the dock (strokes, time at the current rate, lagged depth, bottoms up, pump log), Samples view (authorised versioned programme as a decision record, schedule three samples ahead of the bit, predicted arrivals, catch and the stage chain with the mandatory guard, overdue for review), Live view next-sample and catch prompt, describing from a sample records the described stage |
-| WS4 shows, observations, photos | not started | |
+| WS4 shows, observations, photos | **COMPLETE 2026-09-07: engines #150 merged, Suite PR merged** | engines #150 (`shows.js`, hand-derived golden); Suite branch `feat/ws4-shows-photos`: Shows view (controlled values, derived quality read-only, on a sample or a depth), Observations view (the ten manual types with value, unit, text, source and the depth they refer to), Photos (on-device thumbnail and working WebP, SHA-256, local blob store, attached once with depth, user, both times, optional original per well, photographed stage), explorer counts |
 | WS5 tops, prognosis, conflicts | not started | |
 | WS6 offline shell and sync | not started | |
 | WS7 shift handover | not started | |
@@ -26,6 +26,25 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 ## Decisions taken in auto mode
 
 Recorded per phase below as they are taken, with the reason.
+
+### WS4
+
+- The show quality is derived at render from the stored controlled
+  values and never written to the record (spec section 20).
+- Photo variants are made on the main thread with `createImageBitmap`
+  (decoding is already off-thread in the browser) rather than a worker:
+  one 2048 px resize is well under the interaction budget and a worker
+  would have needed its own jest factory mapping. Revisit if a rugged
+  tablet shows jank.
+- Photos live in the local blob store and display by object URL; nothing
+  is fetched, so the grid works offline and after a reload. The outbox
+  carries one entry per photo; the sync engine (WS6) uploads the
+  variants behind it.
+- A photo on a sample records the `photographed` stage when the
+  mandatory chain allows it, otherwise silently waits (the guard is the
+  authority).
+- Observations default their depth to the lagged sample depth now; the
+  geologist can pick the bit depth, type one, or record none.
 
 ### WS3
 

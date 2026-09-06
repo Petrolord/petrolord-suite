@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight } from 'lucide-react';
+import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -26,12 +26,20 @@ import { eventsFromRecords, startEventParams } from '../services/events';
 import SamplesView from './SamplesView';
 import LagPanel from './LagPanel';
 import { lagNow, sampleBoard, currentProgramme, programmeChange, samplesToSchedule, scheduleHorizonM, PROGRAMME_SUBTYPE } from '../services/samples';
+import ShowsView from './ShowsView';
+import ObservationsView from './ObservationsView';
+import PhotosPanel from './PhotosPanel';
+import { SHOW_SUBTYPE } from '../services/shows';
+import { OBSERVATION_CODES } from '../services/observations';
 import WellSetup from './WellSetup';
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
   { id: 'samples', label: 'Samples', icon: FlaskConical },
   { id: 'describe', label: 'Describe', icon: PenLine },
+  { id: 'shows', label: 'Shows', icon: Droplets },
+  { id: 'observations', label: 'Observations', icon: Eye },
+  { id: 'photos', label: 'Photos', icon: Camera },
   { id: 'timeline', label: 'Timeline', icon: ListOrdered },
   { id: 'config', label: 'Config', icon: Settings },
 ];
@@ -50,6 +58,10 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const [stages, setStages] = useState([]);
   const [programmeRecords, setProgrammeRecords] = useState([]);
   const [describeSample, setDescribeSample] = useState(null);
+  const [shows, setShows] = useState([]);
+  const [observations, setObservations] = useState([]);
+  const [photos, setPhotos] = useState([]);
+  const [photoSampleId, setPhotoSampleId] = useState('');
   const [dockOpen, setDockOpen] = useState(true);
   const [sync, setSync] = useState({ state: 'offline', pending: 0, online: false });
   const [status, setStatus] = useState('Ready.');
@@ -93,8 +105,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   useEffect(() => { if (!selectedId && wells && wells.length) setSelectedId(wells[0].id); }, [wells, selectedId]);
 
   const refreshWellData = useCallback(async () => {
-    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); return; }
-    const [bits, pumps, cfg, descs, evs, smp, stg, prog] = await Promise.all([
+    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setShows([]); setObservations([]); setPhotos([]); return; }
+    const [bits, pumps, cfg, descs, evs, smp, stg, prog, shw, obs, pho] = await Promise.all([
       backend.listRecords(well.id, { subtype: 'bit_depth' }),
       backend.listRecords(well.id, { subtype: 'pump_rate' }),
       backend.latestRecord(well.id, 'rig_config'),
@@ -103,8 +115,14 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       backend.listSamples(well.id),
       backend.listStages(well.id),
       backend.listRecords(well.id, { subtype: PROGRAMME_SUBTYPE }),
+      backend.listRecords(well.id, { subtype: SHOW_SUBTYPE }),
+      backend.listRecords(well.id, { kind: 'observation' }),
+      backend.listPhotos(well.id),
     ]);
     setEventRecords(evs);
+    setShows(currentObservations(shw));
+    setObservations(currentObservations(obs.filter((r) => OBSERVATION_CODES.includes(r.subtype))));
+    setPhotos(pho);
     setSamples(smp);
     setStages(stg);
     setProgrammeRecords(prog);
@@ -241,7 +259,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
             {w.name}
             <div className="text-[10px] text-slate-500">{w.header?.field || ''}{w.header?.rig ? `, ${w.header.rig}` : ''}</div>
             {w.id === selectedId && (
-              <div className="text-[10px] text-slate-500 mt-0.5" data-testid="ws-explorer-counts">{descriptions.length} description(s), {events.length} event(s){events.some((e) => e.duration && e.endUtcMs == null) ? ', one open' : ''}</div>
+              <div className="text-[10px] text-slate-500 mt-0.5" data-testid="ws-explorer-counts">{descriptions.length} description(s), {events.length} event(s){events.some((e) => e.duration && e.endUtcMs == null) ? ', one open' : ''}, {shows.length} show(s), {photos.length} photo(s)</div>
             )}
           </button>
         ))}
@@ -260,6 +278,12 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   } else if (view === 'describe') {
     center = <DescribeView backend={backend} well={well} ctx={ctx} descriptions={descriptions} sample={describeSample} onSampleDone={async (smp) => { try { await backend.addStage(well.id, smp.id, 'described'); } catch (e) { setStatus(e.message); } setDescribeSample(null); }}
       defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+  } else if (view === 'shows') {
+    center = <ShowsView backend={backend} well={well} ctx={ctx} shows={shows} samples={samples} defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+  } else if (view === 'observations') {
+    center = <ObservationsView backend={backend} well={well} ctx={ctx} observations={observations} latestBit={latestBit} lag={lag} defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin} tourCfg={tourConfigOf(well)} nowMs={nowForLag} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+  } else if (view === 'photos') {
+    center = <PhotosPanel backend={backend} well={well} photos={photos} samples={samples} sampleId={photoSampleId} onSampleChange={setPhotoSampleId} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'timeline') {
     center = <TimelineView events={events} onStart={startEvent} onEnd={endEvent} tourCfg={tourConfigOf(well)} offsetMin={offsetMin} unit={units.depth} nowMs={nowMs} currentUserName={user ? user.name || user.email : ''} />;
   } else if (view === 'config') {

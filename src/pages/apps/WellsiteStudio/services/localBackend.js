@@ -8,6 +8,9 @@ import { wellsiteDb, persistStorage, storageEstimate } from '@/lib/wellsite/db';
 import { commitRow, commitMany, commitWellPatch, pendingCount } from '@/lib/wellsite/commit';
 import { buildRecord, nextVersion, correction, buildSampleRow, buildStageRow, RecordError } from '@/lib/wellsite/records';
 import { canAdvance, statusConfig, DEFAULT_MANDATORY } from '@/lib/wellsite/sampleProgram';
+import { derivePhotoVariants } from '@/lib/wellsite/photos/derive';
+import { buildPhotoRows, localPhotoUrl } from '@/lib/wellsite/photos/store';
+import { fromMetres } from '@/lib/wellsite/depth';
 import { wellContext, offsetMinOf } from './wellContext';
 import { newId } from '@/lib/wellsite/ids';
 
@@ -204,6 +207,46 @@ export function makeLocalBackend({ transport, db = wellsiteDb() }) {
       notify();
       return row;
     },
+
+    // ---- photos (WS4) ----
+    async listPhotos(wellId, { sampleId = null } = {}) {
+      const rows = await db.photos.where('[well_id+captured_at]').between([wellId, ''], [wellId, '￿']).toArray();
+      return sampleId ? rows.filter((p) => p.sample_id === sampleId) : rows;
+    },
+    /**
+     * Attach a photo: derive the variants on the device, store the row and blobs together, queue the uploads.
+     * meta: { sampleId, recordId, caption, tags, depthEntry (entered), depthKind }
+     */
+    async addPhoto(wellId, file, meta = {}) {
+      const well = await requireWell(wellId);
+      const u = await currentUser();
+      const keepOriginal = !!(well.settings && well.settings.keep_originals);
+      const derived = await derivePhotoVariants(file, { keepOriginal });
+      let depth = meta.depthEntry || null;
+      let depthKind = meta.depthKind || 'lagged_sample';
+      if (!depth && meta.sampleId) {
+        const smp = await db.samples.get(meta.sampleId);
+        if (smp) depth = { value: fromMetres(smp.md_calc_m, 'm'), unit: 'm', reference: 'MD', datum: 'KB' };
+      }
+      if (!depth) {
+        const bit = await this.latestRecord(wellId, 'bit_depth');
+        if (bit) { depth = { value: bit.depth_value, unit: bit.depth_unit, reference: bit.depth_ref, datum: bit.depth_datum }; depthKind = 'bit_depth'; }
+      }
+      const { row, blobs, warnings } = buildPhotoRows({
+        wellId, organizationId: well.organization_id, sampleId: meta.sampleId || null, recordId: meta.recordId || null, holeSection: meta.holeSection || null,
+        depth: depth ? { ...depth, kind: depthKind } : null, ctx: wellContext(well), caption: meta.caption || null, tags: meta.tags || [],
+        capturedAt: meta.capturedAt || (file.lastModified ? new Date(file.lastModified).toISOString() : null), offsetMin: offsetMinOf(well), userId: u.id, derived,
+      });
+      row.engine_version = WS_ENGINE_VERSION;
+      await commitMany(db, [{ store: 'photos', row, blobs }]);
+      // a photographed sample advances when the mandatory chain allows it
+      if (meta.sampleId) {
+        try { await this.addStage(wellId, meta.sampleId, 'photographed'); } catch { /* the stage waits for its predecessors */ }
+      }
+      notify();
+      return { row, warnings };
+    },
+    photoUrl: (photo, variant = 'thumb') => localPhotoUrl(db, photo.id, variant),
 
     // ---- sync surface (WS6) ----
     async syncStatus(wellId) {
