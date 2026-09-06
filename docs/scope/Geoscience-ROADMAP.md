@@ -85,6 +85,18 @@ row.
     tracts and log motifs, Wheeler view, biozones and ages. Plan of
     record: docs/scope/Stratigraphy-PLAN.md.
 
+**Twelfth tile (added 2026-09-06):**
+
+12. **Wellsite Studio** (`wellsite-studio`) *(Phase G10, the WS
+    series)*: the geological command centre for a live well. Lag and
+    sample scheduling, structured cuttings descriptions, shows, manual
+    gas and drilling observations, photographs, formation tops with an
+    interpretation, decision and version lifecycle, the operational
+    event timeline, shift handover and daily geological report generated
+    from records, offline-first as an installable PWA with a
+    conflict-preserving sync. Plan of record:
+    docs/scope/WellsiteStudio-PLAN.md.
+
 ## 3. Architecture principles (carried from Seismolord — locked unless owner overrides)
 
 - **Shared data first.** The module's moat is the shared project tree,
@@ -298,6 +310,23 @@ time depends on review cadence.
   duplicated components, services or vocabularies (plan §4).
 - Out of scope, and not separate apps: automatic correlation,
   chemostratigraphy, any biostratigraphic reference database.
+
+### Phase G10 — Wellsite Studio, the WS series *(WS0 medium, WS1 medium, WS2 small-medium, WS3 medium, WS4 small-medium, WS5 medium, WS6 medium-large, WS7 small-medium, WS8 medium, WS9 medium)* — **APPROVED 2026-09-06 (owner, auto mode WS0 to WS9)**
+- Gap: nothing in the Suite serves the wellsite geologist during
+  drilling. No lag, sample, description, show, handover, daily report,
+  sign-off or offline concept exists anywhere. Plan of record:
+  **docs/scope/WellsiteStudio-PLAN.md**.
+- Owner decisions: installable PWA inside the Suite (no packaged app in
+  Release 1), device disk encryption, a generic daily report template
+  swapped for a real operator template later, Geoscience module.
+- Engines first (`engines/wellsite/`: depth, time, pumps, lag with a
+  Python oracle and hand-derived goldens, sample programme, description
+  vocabulary and abbreviation profiles, shows, tops, events, reports).
+  App-private `ws_*` tables, multi-writer within a well through per-well
+  membership roles, append-only with version chains; registry writes
+  only through an explicit Publish under the owner-only rule.
+- Twelfth tile **Wellsite Studio**, seeded deploy-gated at close-out
+  (WS9), Open in launcher from Well Data Manager.
 
 ## 5. Sequencing logic (why this order)
 
