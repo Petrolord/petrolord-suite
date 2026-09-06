@@ -9,9 +9,15 @@
 // parameters, so the depth readout reproduces the goldens' pressures
 // and fitting the NCT on hydrostatic-section picks recovers the
 // generating (dt_ml, c) — the e2e suite asserts both off the screen.
+//
+// PP0 (2026-09-06): display units live here (pressure as MPa, psi or
+// an equivalent mud weight in ppg or sg; depth in the account's
+// Geoscience unit) and convert at the edge; the engine, the project
+// and the published curves stay SI. Prognosis CSV is the display-unit
+// deliverable for the well plan.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Gauge, Loader2, Save, Upload } from 'lucide-react';
+import { Gauge, Loader2, Save, Upload, Download } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,8 +29,12 @@ import { mapLogs, buildProfileInput } from '../services/prep';
 import { computeProfile } from '../engine/profile';
 import { pseudoSonicFromLinearVelocity } from '../engine/velocitySource';
 import { preparePublishLogs } from '../services/publish';
+import {
+  UNITS_KEY, PRESSURE_UNITS, DEPTH_UNITS, readUnits, depthFromDisplay, tidyDepth,
+  fmtPressure, emwReferenceDepthM, emwDatumLabel, isEmw, prognosisCsv,
+} from '../services/units';
 
-const MPA = 1e6;
+const storage = () => { try { return window.localStorage; } catch { return null; } };
 
 export const DEFAULT_PARAMS = {
   waterDepthM: 100,
@@ -51,10 +61,36 @@ export default function PPWorkstation({ backend }) {
   const [picks, setPicks] = useState([]);
   const [calibration, setCalibration] = useState([]);
   const [view, setView] = useState('prognosis'); // 'prognosis' | 'nct'
-  const [readoutDepth, setReadoutDepth] = useState('3500');
+  const [readoutDepthM, setReadoutDepthM] = useState(3500); // SI; the text below is its display
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [units, setUnits] = useState(() => readUnits(storage()));
+  const [readoutText, setReadoutText] = useState(() => tidyDepth(3500, readUnits(storage()).depth));
+
+  // the depth unit defaults to the account's Geoscience setting (the
+  // Mapping and Earth Modeling one) until the user picks one here
+  useEffect(() => {
+    let live = true;
+    let chosen = false;
+    try { chosen = !!JSON.parse(storage()?.getItem(UNITS_KEY) || 'null')?.depth; } catch { /* fresh browser */ }
+    if (chosen || !backend.getDepthUnit) return undefined;
+    backend.getDepthUnit().then((u) => {
+      if (live && DEPTH_UNITS.includes(u)) setUnits((prev) => ({ ...prev, depth: u }));
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [backend]);
+
+  // the readout text follows the depth unit; typing edits the SI depth
+  useEffect(() => { setReadoutText(tidyDepth(readoutDepthM, units.depth)); }, [units.depth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setUnit = (key, value) => {
+    setUnits((prev) => {
+      const next = { ...prev, [key]: value };
+      try { storage()?.setItem(UNITS_KEY, JSON.stringify(next)); } catch { /* private mode */ }
+      return next;
+    });
+  };
 
   useEffect(() => {
     let live = true;
@@ -154,20 +190,54 @@ export default function PPWorkstation({ backend }) {
 
   const readout = useMemo(() => {
     if (!result || !input) return null;
-    const z = Number(readoutDepth);
+    const z = readoutDepthM;
     if (!Number.isFinite(z)) return null;
     let best = 0;
     for (let i = 1; i < input.zBmlM.length; i++) {
       if (Math.abs(input.zBmlM[i] - z) < Math.abs(input.zBmlM[best] - z)) best = i;
     }
+    const zM = input.zBmlM[best];
+    const ref = emwReferenceDepthM(zM, params);
+    const u = units.pressure;
     return {
-      z: input.zBmlM[best],
-      obg: result.overburdenPa[best] / MPA,
-      ph: result.hydrostaticPa[best] / MPA,
-      pp: result.porePressurePa[best] / MPA,
-      fg: result.fracPressurePa[best] / MPA,
+      z: zM,
+      ref,
+      obg: fmtPressure(result.overburdenPa[best], u, ref),
+      ph: fmtPressure(result.hydrostaticPa[best], u, ref),
+      pp: fmtPressure(result.porePressurePa[best], u, ref),
+      fg: fmtPressure(result.fracPressurePa[best], u, ref),
     };
-  }, [result, input, readoutDepth]);
+  }, [result, input, readoutDepthM, units.pressure, params]);
+
+  const exportCsv = () => {
+    if (!result || !input) return;
+    const source = seismicModel ? seismicModel.name : (selected?.name || 'well');
+    const csv = prognosisCsv(input, result, params, units, { source });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `prognosis-${source.replace(/[^\w.-]+/g, '_')}-${units.pressure}-${units.depth}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus(`Prognosis CSV in ${units.pressure} and ${units.depth} downloaded.`);
+  };
+
+  const unitSelect = (key, options, title) => (
+    <select
+      data-testid={`pp-unit-${key}`}
+      title={title}
+      value={units[key]}
+      onChange={(e) => setUnit(key, e.target.value)}
+      className="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-[11px] text-slate-200"
+    >
+      {options.map((o) => (typeof o === 'string'
+        ? <option key={o} value={o}>{o}</option>
+        : <option key={o.key} value={o.key}>{o.label}</option>))}
+    </select>
+  );
 
   const applyDock = ({ params: p, calibration: cal }) => {
     setParams(p);
@@ -248,18 +318,30 @@ export default function PPWorkstation({ backend }) {
           <input
             id="pp-readout-depth"
             data-testid="pp-readout-depth"
-            className="w-16 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-200 text-right"
-            value={readoutDepth}
-            onChange={(e) => setReadoutDepth(e.target.value)}
+            className="w-20 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-200 text-right"
+            value={readoutText}
+            onChange={(e) => {
+              setReadoutText(e.target.value);
+              const d = Number(e.target.value);
+              if (Number.isFinite(d)) setReadoutDepthM(depthFromDisplay(d, units.depth));
+            }}
           />
-          <span>m bml:</span>
+          <span>{units.depth} bml:</span>
           {readout && (
             <>
-              <span data-testid="pp-readout-obg">OBG {readout.obg.toFixed(2)}</span>
-              <span data-testid="pp-readout-ph">Ph {readout.ph.toFixed(2)}</span>
-              <span data-testid="pp-readout-pp" className="text-rose-300">PP {readout.pp.toFixed(2)}</span>
-              <span data-testid="pp-readout-fg">FG {readout.fg.toFixed(2)}</span>
-              <span className="text-slate-600">MPa</span>
+              <span data-testid="pp-readout-obg">OBG {readout.obg}</span>
+              <span data-testid="pp-readout-ph">Ph {readout.ph}</span>
+              <span data-testid="pp-readout-pp" className="text-rose-300">PP {readout.pp}</span>
+              <span data-testid="pp-readout-fg">FG {readout.fg}</span>
+              <span
+                data-testid="pp-readout-unit"
+                className="text-slate-600"
+                title={isEmw(units.pressure)
+                  ? `Equivalent mud weight at ${tidyDepth(readout.ref, units.depth)} ${units.depth} below ${emwDatumLabel(params)} (depth below mudline plus ${params.mudlineMdM > 0 ? 'the mudline MD' : 'the water depth'}); set the mudline MD in the dock to reference the rotary table`
+                  : 'Pressure; choose ppg or sg for an equivalent mud weight'}
+              >
+                {units.pressure}
+              </span>
             </>
           )}
         </div>
@@ -274,6 +356,22 @@ export default function PPWorkstation({ backend }) {
         </span>
       )}
       <div className="ml-auto flex items-center gap-1">
+        <span className="text-[11px] text-slate-500 mr-1">Units</span>
+        {unitSelect('pressure', PRESSURE_UNITS, 'Pressure display unit, or an equivalent mud weight (the engine stays in Pa)')}
+        {unitSelect('depth', DEPTH_UNITS, 'Depth display unit; defaults to your Geoscience depth setting. Sonic and the compaction constant follow it')}
+        <span className="w-px h-4 bg-slate-800 mx-1" />
+        {result && (
+          <button
+            type="button"
+            data-testid="pp-export-csv"
+            title="Download the prognosis against depth in the chosen units, with EMW columns, for the well plan"
+            className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+              border-slate-700 text-slate-300 hover:bg-slate-800"
+            onClick={exportCsv}
+          >
+            <Download className="w-3.5 h-3.5" /> Prognosis CSV
+          </button>
+        )}
         {result && selectedId && backend.publishCurves && (
           <button
             type="button"
@@ -320,7 +418,7 @@ export default function PPWorkstation({ backend }) {
             ? `${selected.name} · ${input && !input.error ? `${input.zBmlM.length} samples` : '…'}`
             : `${wells?.length ?? '…'} wells`}
       </span>
-      <span className="whitespace-nowrap text-slate-600">SI internal (Pa · m · m/s) · display MPa</span>
+      <span className="whitespace-nowrap text-slate-600" title="Every stored, computed and published value is SI; the unit selectors only change the display">SI internal (Pa · m · m/s) · display {units.pressure} · {units.depth}</span>
     </div>
   );
 
@@ -344,10 +442,11 @@ export default function PPWorkstation({ backend }) {
       picks={picks}
       onPicksChange={setPicks}
       onNctFitted={onNctFitted}
+      depthUnit={units.depth}
     />
   ) : (
     <div className="h-full p-2">
-      <PrognosisChart profile={result} zBmlM={input.zBmlM} calibration={calibration} />
+      <PrognosisChart profile={result} zBmlM={input.zBmlM} calibration={calibration} units={units} params={params} />
     </div>
   );
 
@@ -372,7 +471,7 @@ export default function PPWorkstation({ backend }) {
       center={center}
       dock={(
         <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
-          <ParamsPanel params={params} calibration={calibration} onApply={applyDock} />
+          <ParamsPanel params={params} calibration={calibration} onApply={applyDock} units={units} />
         </ScrollArea>
       )}
       dockOpen={dockOpen}

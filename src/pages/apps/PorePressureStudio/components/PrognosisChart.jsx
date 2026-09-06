@@ -12,8 +12,9 @@ import {
 } from 'recharts';
 import ChartLogo from '@/components/charts/ChartLogo';
 import { CHART_COLORS, CHART_TYPOGRAPHY, CHART_MARGINS } from '@/utils/chartTheme';
-
-const MPA = 1e6;
+import {
+  DEFAULT_UNITS, depthToDisplay, pressureToDisplay, pressureDigits, pressureLabel, emwReferenceDepthM, emwDatumLabel, isEmw,
+} from '../services/units';
 
 const SERIES = [
   { key: 'obg', name: 'Overburden', color: '#31363b' },
@@ -22,24 +23,28 @@ const SERIES = [
   { key: 'fg', name: 'Fracture pressure', color: '#456990' },
 ];
 
-export default function PrognosisChart({ profile, zBmlM, calibration }) {
+export default function PrognosisChart({ profile, zBmlM, calibration, units = DEFAULT_UNITS, params = null }) {
+  const pU = units.pressure;
+  const zU = units.depth;
   const data = useMemo(() => {
     if (!profile) return [];
+    const conv = (pa, zM) => { const v = pressureToDisplay(pa, pU, emwReferenceDepthM(zM, params)); return Number.isFinite(v) ? v : null; };
     const rows = zBmlM.map((z, i) => ({
-      z,
-      obg: profile.overburdenPa[i] / MPA,
-      ph: profile.hydrostaticPa[i] / MPA,
-      pp: profile.porePressurePa[i] / MPA,
-      fg: profile.fracPressurePa[i] / MPA,
+      z: depthToDisplay(z, zU),
+      obg: conv(profile.overburdenPa[i], z),
+      ph: conv(profile.hydrostaticPa[i], z),
+      pp: conv(profile.porePressurePa[i], z),
+      fg: conv(profile.fracPressurePa[i], z),
     }));
     for (const c of calibration || []) {
       if (Number.isFinite(c.z) && Number.isFinite(c.pMpa)) {
-        rows.push({ z: c.z, cal: c.pMpa });
+        rows.push({ z: depthToDisplay(c.z, zU), cal: conv(c.pMpa * 1e6, c.z) });
       }
     }
     rows.sort((a, b) => a.z - b.z);
     return rows;
-  }, [profile, zBmlM, calibration]);
+  }, [profile, zBmlM, calibration, pU, zU, params]);
+  const digits = pressureDigits(pU);
 
   if (!profile) return null;
 
@@ -57,7 +62,7 @@ export default function PrognosisChart({ profile, zBmlM, calibration }) {
               domain={['auto', 'auto']}
               stroke={CHART_COLORS.axisLine}
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-              label={{ value: 'Pressure (MPa)', position: 'bottom', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
+              label={{ value: isEmw(pU) ? `${pressureLabel(pU)} below ${emwDatumLabel(params)}` : pressureLabel(pU), position: 'bottom', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
             />
             <YAxis
               type="number"
@@ -66,9 +71,13 @@ export default function PrognosisChart({ profile, zBmlM, calibration }) {
               domain={['auto', 'auto']}
               stroke={CHART_COLORS.axisLine}
               tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-              label={{ value: 'Depth (m below mudline)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
+              label={{ value: `Depth (${zU} below mudline)`, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: CHART_TYPOGRAPHY.labelFontSize }}
             />
-            <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
+            <Tooltip
+              contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }}
+              formatter={(v) => (Number.isFinite(v) ? `${v.toFixed(digits)} ${pU}` : '—')}
+              labelFormatter={(v) => `${Number.isFinite(v) ? v.toFixed(zU === 'ft' ? 0 : 1) : v} ${zU} bml`}
+            />
             <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize, color: CHART_COLORS.legendText }} />
             {SERIES.map((s) => (
               <Line

@@ -124,3 +124,54 @@ test('method switch to Bowers recomputes; parameters survive save + reload', asy
   await expect(page.getByTestId('pp-prognosis-chart')).toBeVisible();
   await expect(page.getByTestId('pp-param-eatonn')).toHaveValue('1');
 });
+
+const PA_PER_PSI = 6894.757293168361;
+const FT = 0.3048;
+
+test('PP0: pressure and depth display units convert the readout, the NCT, the dock and the prognosis CSV, and are remembered', async ({ page }) => {
+  await openWell(page);
+  const i = idxAt(3500);
+  const pp = W.pore_pressure_pa[i];
+  await expect(page.getByTestId('pp-readout-pp')).toHaveText(`PP ${mpa(pp)}`);
+
+  // psi, then equivalent mud weight: mudline MD is 0 so the datum is
+  // sea level and the reference depth is 3500 m + the water depth
+  await page.getByTestId('pp-unit-pressure').selectOption('psi');
+  await expect(page.getByTestId('pp-readout-pp')).toHaveText(`PP ${(pp / PA_PER_PSI).toFixed(0)}`);
+  await page.getByTestId('pp-unit-pressure').selectOption('ppg');
+  const ref = 3500 + P.water_depth_m;
+  const ppg = (pp / PA_PER_PSI) / (0.052 * (ref / FT));
+  await expect(page.getByTestId('pp-readout-pp')).toHaveText(`PP ${ppg.toFixed(2)}`);
+  await expect(page.getByTestId('pp-readout-unit')).toHaveText('ppg');
+  await expect(page.getByTestId('pp-readout-unit')).toHaveAttribute('title', /below sea level/);
+
+  // depth in feet: the readout keeps its sample, the text converts
+  await page.getByTestId('pp-unit-depth').selectOption('ft');
+  await expect(page.getByTestId('pp-readout-depth')).toHaveValue('11482.9');
+  await expect(page.getByTestId('pp-readout-pp')).toHaveText(`PP ${ppg.toFixed(2)}`);
+  await expect(page.getByTestId('pp-param-wd')).toHaveValue(String(Number((P.water_depth_m / FT).toFixed(2))));
+  await expect(page.getByTestId('pp-param-rhosw')).toHaveValue(String(Number(((P.rho_seawater / 1000) * 8.345404).toFixed(3))));
+
+  // the NCT follows the depth unit (us/ft, 1/ft)
+  await page.getByTestId('pp-view-nct').click();
+  await expect(page.getByTestId('pp-nct-current')).toHaveText(
+    `dt_ml ${(P.dt_ml_us_per_m * FT).toFixed(2)} us/ft · c ${(P.c_nct_per_m * FT).toExponential(3)} 1/ft`,
+  );
+
+  // the CSV carries the chosen units and the EMW columns; the 3500 m row is the golden
+  await page.getByTestId('pp-unit-pressure').selectOption('MPa');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('pp-export-csv').click()]);
+  const csv = fs.readFileSync(await download.path(), 'utf8');
+  expect(csv).toContain('Depth bml (ft),Depth below sea level (ft),OBG (MPa),Ph (MPa),PP (MPa),FP (MPa),OBG EMW (ppg),PP EMW (ppg),FP EMW (ppg),PP EMW (sg),FP EMW (sg)');
+  const row = csv.split('\n').find((l) => l.startsWith('11482.94,'));
+  expect(row).toBeTruthy();
+  const cols = row.split(',');
+  expect(cols[4]).toBe(mpa(pp));
+  expect(Number(cols[7])).toBeCloseTo(ppg, 2);
+  await expect(page.getByTestId('pp-status')).toHaveText('Prognosis CSV in MPa and ft downloaded.');
+
+  // remembered across a reload
+  await page.reload();
+  await expect(page.getByTestId('pp-unit-depth')).toHaveValue('ft');
+  await expect(page.getByTestId('pp-unit-pressure')).toHaveValue('MPa');
+});
