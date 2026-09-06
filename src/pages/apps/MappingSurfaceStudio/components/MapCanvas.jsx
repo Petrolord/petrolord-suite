@@ -1,200 +1,86 @@
-// Surface map viewport (Mapping & Surface Studio G4.3): a geo_surfaces
-// grid drawn as a color raster with labeled contours and posted wells.
-// Reuses the shared, byte-golden contour/raster math
-// (src/lib/gridding/mapContours). Dark map viewport (like Seismolord's
-// MapView — a map, not an analytic chart; the white chartTheme applies
-// only to stats side-panels). Canvas.
-//
-// Grid convention (src/lib/gridding): row-major z[r*nx+c], world
-// x = origin_x + c*dx, y = origin_y + r*dy. Contour points are
-// [col, row] (mapContours emits x=column, y=row).
+// Surface map viewport (Mapping & Surface Studio): since MS1
+// (2026-09-05) a thin adapter over the shared map viewport
+// (src/components/maps/MapViewport). A geo_surfaces row becomes the
+// grid spec; z labels print in the display unit for lengths (depth
+// elevation, thickness) and raw for attributes.
 
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import {
-  contourLevels, contourPolylines, buildMapPixels, gridRange,
-} from '@/lib/gridding/mapContours';
-import { toDisplay } from '@/components/wells/depthModes';
+import React, { forwardRef, useMemo } from 'react';
+import MapViewport from '@/components/maps/MapViewport';
+import { fmtTick } from '@/components/maps/annotations';
+import { contourLevels, gridRange } from '@/lib/gridding/mapContours';
+import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
 
-const PAD = 44;
+export const DEFAULT_MAP_DISPLAY = Object.freeze({
+  contourStep: '',   // display-unit interval; '' = automatic
+  labels: true,
+  colormap: 'structure',
+  reverse: false,
+  names: true,
+  posted: true,
+  legend: true,
+  scaleBar: true,
+  north: true,
+  axes: false,
+});
 
-// 256-entry RGBA ramp (blue -> cyan -> green -> yellow -> red), the
-// classic structure-map colouring; shallow = warm by convention, so
-// callers pass reversed z when mapping depth. Kept simple + inline.
-function makeLut() {
-  const stops = [
-    [0.0, [40, 60, 160]], [0.25, [40, 180, 200]], [0.5, [60, 190, 90]],
-    [0.75, [230, 210, 70]], [1.0, [210, 60, 50]],
-  ];
-  const lut = new Uint8ClampedArray(256 * 4);
-  for (let i = 0; i < 256; i++) {
-    const f = i / 255;
-    let a = stops[0];
-    let b = stops[stops.length - 1];
-    for (let s = 0; s < stops.length - 1; s++) {
-      if (f >= stops[s][0] && f <= stops[s + 1][0]) { a = stops[s]; b = stops[s + 1]; break; }
-    }
-    const t = (f - a[0]) / (b[0] - a[0] || 1);
-    for (let k = 0; k < 3; k++) lut[i * 4 + k] = Math.round(a[1][k] + t * (b[1][k] - a[1][k]));
-    lut[i * 4 + 3] = 255;
-  }
-  return lut;
+/**
+ * Contour step in metres plus a label formatter, from a typed interval
+ * (display unit) or an automatic nice step chosen IN THE DISPLAY UNIT,
+ * so a feet session contours at 50 ft, not at 32.8 ft (10 m).
+ */
+export function contourPlan({ grid, typed, unit = 'ft', isLength = true, target = 10 }) {
+  const toDisp = (v) => (isLength ? toDisplay(v, unit) : v);
+  const fromDisp = (v) => (isLength ? fromDisplay(v, unit) : v);
+  const t = Number(typed);
+  let stepDisp;
+  if (t > 0) stepDisp = t;
+  else if (grid) {
+    const { zMin, zMax } = gridRange(grid);
+    stepDisp = zMax > zMin ? contourLevels(toDisp(zMin), toDisp(zMax), target).step : 0;
+  } else stepDisp = 0;
+  const stepM = stepDisp > 0 ? fromDisp(stepDisp) : null;
+  const format = (v) => fmtTick(toDisp(v), stepDisp > 0 ? stepDisp : 1);
+  return { stepM, stepDisp, format };
 }
 
-export default function MapCanvas({
-  surface, grid, wells = [], height = 460, cultureLayers = [],
-  display = { unit: 'm', isLength: true },
-}) {
-  const wrapRef = useRef(null);
-  const canvasRef = useRef(null);
-  const lut = useMemo(makeLut, []);
-  // z labels: lengths (depth elevation, thickness) in the display unit,
-  // attributes raw
-  const { unit: dispUnit, isLength } = display;
-  const fmt = useCallback((v, d = 1) => (isLength ? `${toDisplay(v, dispUnit).toFixed(d)}` : v.toFixed(d === 1 ? 3 : d)), [isLength, dispUnit]);
-  const unitTxt = isLength ? ` ${dispUnit}` : '';
-
-  const range = useMemo(() => (grid ? gridRange(grid) : null), [grid]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const wrap = wrapRef.current;
-    if (!canvas || !wrap || !surface || !grid) return;
-    const cssW = wrap.clientWidth || 640;
-    const cssH = height;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
-    canvas.style.width = `${cssW}px`;
-    canvas.style.height = `${cssH}px`;
-    const ctx = canvas.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#0f172a';
-    ctx.fillRect(0, 0, cssW, cssH);
-
-    const { origin_x: x0, origin_y: y0, nx, ny, dx, dy } = surface;
-    const wMinX = x0;
-    const wMaxX = x0 + (nx - 1) * dx;
-    const wMinY = y0;
-    const wMaxY = y0 + (ny - 1) * dy;
-    const scale = Math.min((cssW - 2 * PAD) / (wMaxX - wMinX || 1), (cssH - 2 * PAD) / (wMaxY - wMinY || 1));
-    const cx = (wMinX + wMaxX) / 2;
-    const cy = (wMinY + wMaxY) / 2;
-    const toPx = (x, y) => ({ px: cssW / 2 + (x - cx) * scale, py: cssH / 2 - (y - cy) * scale });
-    // grid col/row -> world
-    const colToX = (c) => x0 + c * dx;
-    const rowToY = (r) => y0 + r * dy;
-
-    if (!range) return;
-    const { zMin, zMax } = range;
-
-    // raster: build at grid resolution, blit scaled + Y-flipped
-    const rgba = buildMapPixels(grid, ny, nx, lut, zMin, zMax);
-    const off = document.createElement('canvas');
-    off.width = nx; off.height = ny;
-    off.getContext('2d').putImageData(new ImageData(rgba, nx, ny), 0, 0);
-    const tl = toPx(colToX(0), rowToY(ny - 1)); // world top-left = min x, max y
-    const br = toPx(colToX(nx - 1), rowToY(0));
-    ctx.imageSmoothingEnabled = true;
-    ctx.save();
-    // image row 0 = min y (bottom); destination expects row 0 at top,
-    // so flip vertically about the raster's screen box
-    ctx.translate(tl.px, tl.py);
-    ctx.scale((br.px - tl.px) / nx, (br.py - tl.py) / ny);
-    ctx.drawImage(off, 0, 0);
-    ctx.restore();
-
-    // contours
-    const { levels } = contourLevels(zMin, zMax, 10);
-    ctx.lineWidth = 1;
-    ctx.font = '9px sans-serif';
-    for (const lvl of levels) {
-      const polys = contourPolylines(grid, ny, nx, lvl);
-      ctx.strokeStyle = 'rgba(15,23,42,0.55)';
-      for (const poly of polys) {
-        ctx.beginPath();
-        for (let k = 0; k < poly.length; k += 2) {
-          const { px, py } = toPx(colToX(poly[k]), rowToY(poly[k + 1]));
-          if (k) ctx.lineTo(px, py); else ctx.moveTo(px, py);
-        }
-        ctx.stroke();
-      }
-    }
-
-    // culture / GIS layers (W1.3): normalized geo_culture features in
-    // the same world frame as the surface (both stored in the Project
-    // CRS at import; frames are not reconciled per-layer here)
-    for (const layer of cultureLayers) {
-      const color = layer.style?.color || '#f59e0b';
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
-      ctx.lineWidth = Math.max(1, layer.style?.weight || 1);
-      ctx.font = '10px sans-serif';
-      ctx.textAlign = 'left';
-      for (const f of layer.features) {
-        if (f.type === 'point') {
-          const { px, py } = toPx(f.x, f.y);
-          ctx.fillRect(px - 2.5, py - 2.5, 5, 5);
-          if (f.label) ctx.fillText(f.label, px + 5, py + 3);
-          continue;
-        }
-        const rings = f.type === 'polygon' ? f.rings : f.paths;
-        let first = null;
-        for (const ring of rings) {
-          if (ring.length < 2) continue;
-          ctx.beginPath();
-          ring.forEach((v, i) => {
-            const { px, py } = toPx(v[0], v[1]);
-            if (i === 0) { ctx.moveTo(px, py); if (!first) first = { px, py }; } else ctx.lineTo(px, py);
-          });
-          if (f.type === 'polygon') {
-            ctx.closePath();
-            ctx.save();
-            ctx.globalAlpha = 0.08;
-            ctx.fill();
-            ctx.restore();
-          }
-          ctx.stroke();
-        }
-        if (first && f.label) ctx.fillText(f.label, first.px + 5, first.py + 3);
-      }
-    }
-
-    // posted wells
-    for (const w of wells) {
-      if (!Number.isFinite(w.surface_x)) continue;
-      const { px, py } = toPx(w.surface_x, w.surface_y);
-      ctx.fillStyle = '#e2e8f0';
-      ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#cbd5e1';
-      ctx.font = '10px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(w.name, px + 5, py + 3);
-    }
-
-    // colorbar
-    const cbX = cssW - 16;
-    const cbY = PAD;
-    const cbH = cssH - 2 * PAD;
-    for (let i = 0; i < cbH; i++) {
-      const li = Math.round((1 - i / cbH) * 255) * 4;
-      ctx.fillStyle = `rgb(${lut[li]},${lut[li + 1]},${lut[li + 2]})`;
-      ctx.fillRect(cbX, cbY + i, 8, 1);
-    }
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '9px sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(fmt(zMax, 0), cbX - 2, cbY + 8);
-    ctx.fillText(fmt(zMin, 0), cbX - 2, cbY + cbH);
-  }, [surface, grid, wells, range, lut, height, cultureLayers, fmt]);
-
-  return (
-    <div ref={wrapRef} className="w-full" data-testid="map-canvas-wrap">
-      <canvas ref={canvasRef} data-testid="map-canvas" className="rounded border border-slate-800" />
-      {range && (
-        <p className="mt-1 text-[11px] text-slate-500" data-testid="map-zrange">
-          z {fmt(range.zMin)} to {fmt(range.zMax)}{unitTxt} · {surface?.nx}×{surface?.ny} grid
-        </p>
-      )}
-    </div>
+const MapCanvas = forwardRef(function MapCanvas({
+  surface, grid, wells = [], cultureLayers = [], posted = null,
+  display = { unit: 'ft', isLength: true }, settings = DEFAULT_MAP_DISPLAY,
+}, ref) {
+  const spec = surface ? {
+    x0: surface.origin_x, y0: surface.origin_y, dx: surface.dx, dy: surface.dy, nx: surface.nx, ny: surface.ny,
+  } : null;
+  const isLength = display.isLength;
+  const zFormat = (v) => (isLength ? toDisplay(v, display.unit).toFixed(1) : v.toFixed(3));
+  const plan = useMemo(
+    () => contourPlan({ grid, typed: settings.contourStep, unit: display.unit, isLength }),
+    [grid, settings.contourStep, display.unit, isLength],
   );
-}
+  return (
+    <MapViewport
+      ref={ref}
+      testIdPrefix="map"
+      spec={spec}
+      grid={grid}
+      wells={wells}
+      cultureLayers={cultureLayers}
+      posted={settings.posted ? posted : null}
+      contourStep={plan.stepM}
+      contourFormat={plan.format}
+      contourLabels={settings.labels}
+      colormap={settings.colormap}
+      reverse={settings.reverse}
+      showNames={settings.names}
+      showLegend={settings.legend}
+      showScaleBar={settings.scaleBar}
+      showNorth={settings.north}
+      showAxes={settings.axes}
+      height="fill"
+      zFormat={zFormat}
+      zUnit={isLength ? display.unit : ''}
+      label={surface?.name || ''}
+    />
+  );
+});
+
+export default MapCanvas;

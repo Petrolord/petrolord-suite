@@ -76,3 +76,24 @@ out of the map.
   thickness on elevations, ReservoirCalc Pro's import reads the
   convention from the registry, Earth Modeling converts at read and
   publish, harness wells carry KB, TD and two surveys (KETA-2, KETA-5).
+- **MS1 built 2026-09-05.** New shared map kit `src/components/maps/`:
+  `mapTransform.js` (metre-world camera, y up, PAD-44 fit, zoom about
+  the cursor, pan, clamp; Seismolord's cell-index `ViewTransform` stays
+  put), `annotations.js` (the generic half of Seismolord's, moved with
+  identity re-exports: nice steps, tick format, scale bar, north arrow),
+  `lut.js` (`buildLut` moved from shaderChunks, the structure ramp,
+  `MAP_COLORMAPS`), `contourLabels.js` (a pure port of Seismolord's
+  label loop, parity-tested), `mapPainter.js` (raster, contours with
+  labels, wells with posted values and borehole markers, polygons,
+  culture, colour bar with ticks and interval, scale bar, north arrow,
+  axes, cursor sampling), `mapPng.js`, `MapViewport.jsx` (wheel zoom,
+  drag pan, double-click fit, keyboard, readout, click-to-digitise,
+  data attributes for e2e, `toPng`). Earth Modeling's `MapView` and
+  Mapping's `MapCanvas` are adapters over it. Found and fixed: both map
+  twins drew the raster with grid row 0 at the top while row 0 is the
+  southern edge, so every raster was mirrored north-south against its
+  own contours and wells (pinned by `paintRaster`'s test). Mapping
+  gains a Display section (contour interval in the display unit,
+  colour map, reverse, labels, names, posted values, legend, scale
+  bar, north arrow, axes), saved with a surface in
+  `provenance.display`, and a titled PNG export.

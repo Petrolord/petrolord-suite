@@ -1978,3 +1978,16 @@ along line), Misties -> Analyze shows the crossing dt and RMS, Apply ->
 both lines carry statics and the section reloads shifted; with the 3D
 volume open (same dt) confirm 3D horizons/wells draw on the line;
 share a line -> teammate sees it read-only with picks.
+
+## 2026-09-05: generic map annotations lifted to the shared kit (Mapping MS1)
+`viewer/annotations.js` re-exports `niceStepDown`, `niceStepUp`,
+`fmtTick`, `scaleBarSpec`, `drawScaleBar`, `drawNorthArrow` (and
+`FONT`/`INK`) from `src/components/maps/annotations.js`, and
+`viewer/shaderChunks.js` re-exports `buildLut` from
+`src/components/maps/lut.js`; the survey-bound `axisTicks`, `drawAxes`,
+`drawColorbar`, `surveySpacing`, `northLocalDir` stay here. No behaviour
+change: `MapView.jsx` and `viewer/viewTransform.js` are untouched (the
+kit has its own metre-world `MapTransform`); `annotations`, `colormaps`,
+`shadeAmpPixels`, `displayUpgrades`, `viewTransform`, `sessionSnapshot`
+and `mapContours` suites and the viewer/workspace e2e are the tripwire,
+plus `src/components/maps/__tests__/shims.test.js` (identity).

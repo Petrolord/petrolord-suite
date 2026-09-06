@@ -3,7 +3,6 @@
 // display math never touches stored data), so the sampling and colormap
 // code lives here once.
 
-import { COLOR_MAPS } from '@/utils/colorMaps';
 
 /**
  * Amplitude sampling chunk, suffix-parameterized (W2.4 co-rendering):
@@ -151,22 +150,9 @@ vec4 blendOverlay(vec2 t, vec4 base) {
 }
 `;
 
-/** Build the 256x1 RGBA LUT bytes for a suite colormap key; `reverse`
- *  flips the map end-for-end (LUT-level, so every consumer — shaders,
- *  colorbars, the map raster mirror — reverses identically). */
-export function buildLut(key, reverse = false) {
-  const map = COLOR_MAPS[key];
-  if (!map) throw new Error(`Unknown colormap: ${key}`);
-  const lut = new Uint8Array(256 * 4);
-  for (let i = 0; i < 256; i++) {
-    const [r, g, b] = map.fn((reverse ? 255 - i : i) / 255);
-    lut[i * 4] = r;
-    lut[i * 4 + 1] = g;
-    lut[i * 4 + 2] = b;
-    lut[i * 4 + 3] = 255;
-  }
-  return lut;
-}
+// buildLut lives in the shared map kit since Mapping MS1 (2026-09-05);
+// re-exported here by identity for the renderers and their tests.
+export { buildLut } from '@/components/maps/lut';
 
 /**
  * CPU mirror of DISPLAY_GLSL's shadeAmp for canvas-2D consumers (the Map

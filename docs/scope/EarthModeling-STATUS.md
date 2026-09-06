@@ -88,3 +88,12 @@ publishes structure layers back through `depthDownToSurfaceZ`
 (thickness and attributes are raw). The harness seeds the fixture
 planes converted the same way, so the oracle numbers still come out off
 the UI (`modelBuild.test.js`, e2e unchanged).
+
+## 2026-09-05: map on the shared viewport (Mapping MS1)
+`components/MapView.jsx` is a thin adapter over
+`src/components/maps/MapViewport` (zoom, pan, readout, labelled
+contours, scale bar, north arrow come with it; polygon drawing and the
+`em-map-*` test ids are unchanged, e2e 6/6). The raster used to be drawn
+with grid row 0 at the top while row 0 is the southern edge, mirroring
+the colour fill against the contours and wells; the shared painter
+flips it. The map label reads `zone · layer` (no em dash).

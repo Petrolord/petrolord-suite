@@ -14,15 +14,17 @@
 // is elevation in metres (the registry convention) and is DISPLAYED in
 // the user's unit (feet by default, persisted per browser).
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Map as MapIcon, Loader2, UploadCloud, Sigma, Globe2,
+  Map as MapIcon, Loader2, UploadCloud, Sigma, Globe2, Image as ImageIcon, SlidersHorizontal,
 } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import SurfacesExplorer from './SurfacesExplorer';
-import MapCanvas from './MapCanvas';
+import MapCanvas, { DEFAULT_MAP_DISPLAY } from './MapCanvas';
+import { MAP_COLORMAPS } from '@/components/maps/lut';
+import { downloadBlob } from '@/components/maps/mapPng';
 import CultureImportDialog from '@/components/culture/CultureImportDialog';
 import { gridSurface } from '@/lib/gridding/gridding';
 import {
@@ -68,10 +70,18 @@ export default function MappingWorkstation({ backend }) {
   const [visibleCultureIds, setVisibleCultureIds] = useState(new Set());
   const [cultureFeatures, setCultureFeatures] = useState(new Map());
   const [cultureImportOpen, setCultureImportOpen] = useState(false);
+  // map display settings (MS1): contour interval, labels, colour map,
+  // posting, legend, scale bar, north arrow, axes; saved with a surface
+  // in provenance.display and restored on select
+  const [mapSettings, setMapSettings] = useState(DEFAULT_MAP_DISPLAY);
+  const [posted, setPosted] = useState(null); // well -> {z, x, y} of the preview's control points
+  const viewRef = useRef(null);
 
   useEffect(() => {
     try { localStorage.setItem(DEPTH_UNIT_KEY, depthUnit); } catch { /* private mode */ }
   }, [depthUnit]);
+
+  const setSetting = (key, value) => setMapSettings((m) => ({ ...m, [key]: value }));
 
   const fmtZ = useCallback((v, s = displaySurface) => {
     if (!Number.isFinite(v)) return '—';
@@ -183,16 +193,19 @@ export default function MappingWorkstation({ backend }) {
       const contributing = (wells || []).filter((w) => points.some((p) => p.well === w.name));
       const crs = consensusTag(contributing.map((w) => w.crs));
       const zDomain = kind === 'attribute' ? 'attribute' : 'depth';
+      const postedNow = Object.fromEntries(points.map((p) => [p.well, { z: p.z, x: p.x, y: p.y }]));
       setPreview({
         spec, grid: g.z, name, kind, crs, zDomain,
         provenance: {
           source, engine: 'mapping-surface-studio', cell_m: cell,
           control_points: points.length,
+          points: points.map((p) => ({ well: p.well, x: p.x, y: p.y, z: p.z, md: p.md ?? null, extrapolated: !!p.extrapolated })),
           depth_ref: result.depthRef, placement: kind === 'structure' ? 'borehole' : null,
           skipped: result.skipped, extrapolated: result.extrapolated,
           z_convention: kind === 'structure' ? 'elevation' : 'raw',
         },
       });
+      setPosted(postedNow);
       setDisplaySurface({ origin_x: spec.x0, origin_y: spec.y0, nx: spec.nx, ny: spec.ny, dx: spec.dx, dy: spec.dy, name, kind, z_domain: zDomain, crs });
       setDisplayGrid(g.z);
       setSelectedId(null);
@@ -213,6 +226,9 @@ export default function MappingWorkstation({ backend }) {
       const grid = await backend.downloadSurfaceGrid(s);
       setDisplaySurface(s);
       setDisplayGrid(grid);
+      const pts = s.provenance?.points;
+      setPosted(Array.isArray(pts) ? Object.fromEntries(pts.map((p) => [p.well, { z: p.z, x: p.x, y: p.y }])) : null);
+      if (s.provenance?.display) setMapSettings({ ...DEFAULT_MAP_DISPLAY, ...s.provenance.display });
       const st = surfaceStats(grid);
       setStatus(`${s.name}: ${st.count} live nodes, z ${fmtZ(st.min, s)} to ${fmtZ(st.max, s)}.`);
     } catch (e) { setStatus(e.message); }
@@ -230,7 +246,7 @@ export default function MappingWorkstation({ backend }) {
         crsProvenance: preview.crs
           ? { derived_from: preview.provenance?.thickness ? 'surfaces' : 'wells' }
           : null,
-        provenance: preview.provenance, grid: preview.grid,
+        provenance: { ...preview.provenance, display: mapSettings }, grid: preview.grid,
       });
       setStatus(`Published ${saved.name} to the registry.`);
       setPreview(null);
@@ -257,13 +273,14 @@ export default function MappingWorkstation({ backend }) {
       });
       setDisplaySurface({ ...specT, origin_x: specT.x0, origin_y: specT.y0, name, kind: 'isochore', z_domain: 'depth' });
       setDisplayGrid(iso);
+      setPosted(null);
       setSelectedId(null);
       setStatus(`Isochore ${name} (${depthUnit}): review, then Publish.`);
     } catch (e) { setStatus(e.message); }
   };
 
   const del = async (surface) => {
-    try { await backend.deleteSurface(surface); setStatus(`Deleted ${surface.name}.`); if (selectedId === surface.id) { setDisplayGrid(null); setDisplaySurface(null); } await refresh(); }
+    try { await backend.deleteSurface(surface); setStatus(`Deleted ${surface.name}.`); if (selectedId === surface.id) { setDisplayGrid(null); setDisplaySurface(null); setPosted(null); } await refresh(); }
     catch (e) { setStatus(e.message); }
   };
 
@@ -282,6 +299,20 @@ export default function MappingWorkstation({ backend }) {
     }
   };
 
+  const exportPng = async () => {
+    if (!viewRef.current || !displaySurface) return;
+    try {
+      const crsTxt = displaySurface.crs ? ` · ${displaySurface.crs}` : '';
+      const unitTxt = isLengthSurface(displaySurface) ? `${depthUnit}, elevation negative down` : 'attribute';
+      const blob = await viewRef.current.toPng({
+        title: displaySurface.name,
+        caption: `${displaySurface.kind || 'surface'} · ${unitTxt}${crsTxt} · ${new Date().toISOString().slice(0, 10)}`,
+      });
+      downloadBlob(blob, `${String(displaySurface.name).replace(/[^\w-]+/g, '_')}-map.png`);
+      setStatus(`Exported ${displaySurface.name} as PNG.`);
+    } catch (e) { setStatus(e.message); }
+  };
+
   const ribbon = (
     <div className="flex flex-wrap items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
       <ModuleHomeLink module="geoscience" />
@@ -293,6 +324,11 @@ export default function MappingWorkstation({ backend }) {
         title="Depth display unit (feet or metres). Surfaces are stored in metres."
         onClick={() => setDepthUnit((u) => (u === 'ft' ? 'm' : 'ft'))}>
         depth: {depthUnit}
+      </button>
+      <button type="button" data-testid="map-export-png"
+        className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+        disabled={!displayGrid} title="Download the map as a titled PNG" onClick={exportPng}>
+        <ImageIcon className="w-3.5 h-3.5" /> PNG
       </button>
       {preview && (
         <button type="button" data-testid="map-publish"
@@ -331,13 +367,16 @@ export default function MappingWorkstation({ backend }) {
       Grid a top from the left, or select a surface.
     </div>
   ) : (
-    <div className="p-3">
+    <div className="h-full min-h-0 p-3 flex flex-col">
       <MapCanvas
+        ref={viewRef}
         surface={displaySurface}
         grid={displayGrid}
         wells={displayWells}
         cultureLayers={cultureLayers}
+        posted={posted}
         display={{ unit: depthUnit, isLength: isLengthSurface(displaySurface) }}
+        settings={mapSettings}
       />
     </div>
   );
@@ -374,7 +413,35 @@ export default function MappingWorkstation({ backend }) {
       dock={(
         <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
           <div className="p-2 space-y-2 text-xs" data-testid="map-controls">
-            <div className="text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><Sigma className="w-3 h-3" /> Isochore (top to base)</div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><SlidersHorizontal className="w-3 h-3" /> Display</div>
+            <label className="flex items-center gap-2 text-slate-300">
+              <span className="w-24 shrink-0">Contour interval</span>
+              <input className={`${selCls} flex-1`} data-testid="map-contour-interval" value={mapSettings.contourStep}
+                placeholder="auto" title={`Contour interval in ${isLengthSurface(displaySurface) ? depthUnit : 'attribute units'}; blank = automatic`}
+                onChange={(e) => setSetting('contourStep', e.target.value)} />
+            </label>
+            <label className="flex items-center gap-2 text-slate-300">
+              <span className="w-24 shrink-0">Colour map</span>
+              <select className={`${selCls} flex-1 min-w-0`} data-testid="map-colormap" value={mapSettings.colormap}
+                onChange={(e) => setSetting('colormap', e.target.value)}>
+                {MAP_COLORMAPS.map((c) => <option key={c.key} value={c.key}>{c.name}</option>)}
+              </select>
+            </label>
+            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-slate-300">
+              {[
+                ['reverse', 'Reverse colours'], ['labels', 'Contour labels'], ['names', 'Well names'],
+                ['posted', 'Posted values'], ['legend', 'Legend'], ['scaleBar', 'Scale bar'],
+                ['north', 'North arrow'], ['axes', 'Axes'],
+              ].map(([key, text]) => (
+                <label key={key} className="flex items-center gap-1.5 cursor-pointer">
+                  <input type="checkbox" data-testid={`map-show-${key}`} checked={!!mapSettings[key]}
+                    onChange={(e) => setSetting(key, e.target.checked)} />
+                  <span>{text}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="pt-2 border-t border-slate-800/60 text-[10px] uppercase tracking-wider text-slate-500 flex items-center gap-1"><Sigma className="w-3 h-3" /> Isochore (top to base)</div>
             <select className={selCls} value={isoPair.a} data-testid="map-iso-a" onChange={(e) => setIsoPair((p) => ({ ...p, a: e.target.value }))}>
               <option value="">top surface (shallower)…</option>
               {surfaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
