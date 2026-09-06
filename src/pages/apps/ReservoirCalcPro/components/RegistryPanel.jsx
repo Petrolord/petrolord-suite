@@ -10,7 +10,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Database, Loader2 } from 'lucide-react';
+import { Database, Loader2, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { wellDataManagerHref, appPath, WELL_DATA_MANAGER_ID } from '@/components/wells/appLinks';
 import { useReservoirCalc } from '../contexts/ReservoirCalcContext';
 import {
   zoneCatalog, registryPatchForZone, areaPatchForSurface, aoiFromBoundary, isBoundaryLayer, describePatch,
@@ -19,7 +21,7 @@ import {
 const selCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
 
 export default function RegistryPanel() {
-  const { state, backend, updateInputs, addAOI, logEvent } = useReservoirCalc();
+  const { state, backend, appPaths, updateInputs, addAOI, logEvent } = useReservoirCalc();
   const [wells, setWells] = useState(null);
   const [surfaces, setSurfaces] = useState([]);
   const [boundaries, setBoundaries] = useState([]);
@@ -104,6 +106,16 @@ export default function RegistryPanel() {
         )}
         {preview && !preview.error && (
           <div className="text-slate-300" data-testid="rcp-reg-preview">{describePatch(preview.patch, state.unitSystem)} from {preview.wellNames.join(', ')}</div>
+        )}
+        {zone && wells && (
+          <div className="flex flex-wrap gap-1">
+            {wells.filter((w) => (w.zones || []).some((z) => z.name === zone)).map((w) => (
+              <Link key={w.id} to={wellDataManagerHref(w.id, 'tops', appPath(WELL_DATA_MANAGER_ID, appPaths))} data-testid={`rcp-reg-well-${w.name}`} title={`Open ${w.name} in Well Data Manager`}
+                className="inline-flex items-center gap-0.5 rounded border border-slate-700 px-1 py-0.5 text-[10px] text-slate-300 hover:bg-slate-800">
+                <ExternalLink className="w-2.5 h-2.5" /> {w.name}
+              </Link>
+            ))}
+          </div>
         )}
         {preview?.error && <div className="text-amber-400">{preview.error}</div>}
         <Button size="sm" className="h-7 text-xs w-full" data-testid="rcp-reg-apply-zone" disabled={!preview || !!preview.error} onClick={applyZone}>Apply zone averages</Button>

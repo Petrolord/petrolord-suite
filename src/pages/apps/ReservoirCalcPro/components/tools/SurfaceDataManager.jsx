@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { mapSurfaceHref, earthModelingSurfaceHref, appPath, MAPPING_ID, EARTH_MODELING_ID } from '@/components/wells/appLinks';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +10,7 @@ import SurfaceImportDialog from './SurfaceImportDialog';
 import { useToast } from '@/components/ui/use-toast';
 
 const SurfaceDataManager = ({ preselectSurfaceId = null }) => {
-    const { state, addSurface, deleteSurface, updateInputs } = useReservoirCalc();
+    const { state, appPaths, addSurface, deleteSurface, updateInputs } = useReservoirCalc();
     const { toast } = useToast();
     const [importOpen, setImportOpen] = useState(false);
     // EM5: a linked registry surface opens the import dialog on arrival
@@ -82,6 +84,12 @@ const SurfaceDataManager = ({ preselectSurfaceId = null }) => {
                                             {surface.pointCount?.toLocaleString() || 0} pts • {surface.format || 'Grid'}
                                             {surface.crs ? ` • ${surface.crs}` : ''}
                                         </div>
+                                        {surface.registryId && (
+                                            <div className="flex gap-2 mt-1">
+                                                <Link to={mapSurfaceHref(surface.registryId, appPath(MAPPING_ID, appPaths))} data-testid={`rcp-open-mapping-${surface.name}`} title="Open this surface in Mapping & Surface Studio" className="text-[10px] text-cyan-300 hover:underline">Open in Mapping</Link>
+                                                <Link to={earthModelingSurfaceHref(surface.registryId, appPath(EARTH_MODELING_ID, appPaths))} data-testid={`rcp-open-earth-${surface.name}`} title="Stack this surface in Earth Modeling" className="text-[10px] text-cyan-300 hover:underline">Open in Earth Modeling</Link>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex gap-1">
                                         {isTop && <Badge className="text-[10px] px-1 h-4 bg-blue-900 text-blue-200 hover:bg-blue-800">TOP</Badge>}
