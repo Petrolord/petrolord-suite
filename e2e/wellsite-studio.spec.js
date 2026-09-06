@@ -88,3 +88,82 @@ test('a fresh device with no live well is walked through setup and becomes the a
   await expect(page.getByTestId('ws-well-KETA-1')).toBeVisible();
   await expect(page.getByTestId('ws-status-bit')).toHaveText('Bit n/a');
 });
+
+// ---- WS1: the description screen ------------------------------------------
+
+async function typeField(page, id, text) {
+  const el = page.getByTestId(id);
+  await el.fill(text);
+  await el.press('Tab');
+}
+
+test('WS1: a full description in under 90 s, the golden abbreviation on screen, 90 percent refused, copy previous in under 10 s', async ({ page }) => {
+  await openStudio(page);
+  await page.getByTestId('ws-nav-describe').click();
+  await expect(page.getByTestId('ws-describe')).toBeVisible();
+  await page.getByTestId('ws-desc-mode-full').click();
+  const t0 = Date.now();
+  await typeField(page, 'ws-desc-top-value', '10000');
+  await typeField(page, 'ws-desc-base-value', '10010');
+  await typeField(page, 'ws-desc-comp-0-lithology', 'sst');
+  await typeField(page, 'ws-desc-comp-0-percent', '60');
+  await typeField(page, 'ws-desc-comp-0-colour', 'lt gy');
+  await typeField(page, 'ws-desc-comp-0-grainSize', 'f-m');
+  await typeField(page, 'ws-desc-comp-0-sorting', 'mod');
+  await typeField(page, 'ws-desc-comp-0-rounding', 'sbang-sbrnd');
+  await typeField(page, 'ws-desc-comp-0-cement', 'calc');
+  await typeField(page, 'ws-desc-comp-0-accessories', 'tr pyr');
+  await typeField(page, 'ws-desc-comp-0-porosity', 'fr');
+  await page.getByTestId('ws-desc-comp-0-porosity').press('Control+Enter');
+  await expect(page.getByTestId('ws-desc-comp-1-lithology')).toBeFocused();
+  await typeField(page, 'ws-desc-comp-1-lithology', 'sh');
+  await typeField(page, 'ws-desc-comp-1-percent', '30');
+  await typeField(page, 'ws-desc-comp-1-colour', 'dk gy');
+  await typeField(page, 'ws-desc-comp-1-hardness', 'frm');
+  await typeField(page, 'ws-desc-comp-1-texture', 'fis');
+  await expect(page.getByTestId('ws-desc-sum')).toHaveText('90% of 100');
+  await page.getByTestId('ws-desc-save').click();
+  await expect(page.getByTestId('ws-desc-error')).toHaveText('Component percentages sum to 90, expected 100 within 5.');
+  await typeField(page, 'ws-desc-comp-1-percent', '40');
+  await expect(page.getByTestId('ws-desc-abbrev')).toHaveText('60% SST: lt gy, f-m gr, mod srt, sbang-sbrnd, calc cmt, tr pyr, fr vis por; 40% SH: dk gy, frm, fis');
+  await page.getByTestId('ws-desc-comp-1-percent').press('Control+s');
+  await expect(page.getByTestId('ws-status')).toHaveText('Description saved for 10000 ft to 10010 ft.');
+  const fullMs = Date.now() - t0;
+  expect(fullMs).toBeLessThan(90000);
+  // the page text never claims a determination (spec section 41)
+  await expect(page.locator('body')).not.toContainText(/oil determined|kick detected|missed sample/i);
+  // repeat sample: copy previous, change the percentages, save
+  const t1 = Date.now();
+  await expect(page.getByTestId('ws-desc-top-value')).toHaveValue('10010');
+  await page.getByTestId('ws-desc-comp-0-lithology').press('Control+d');
+  await expect(page.getByTestId('ws-desc-copied')).toContainText('0 field(s) changed');
+  await expect(page.getByTestId('ws-desc-comp-0-percent')).toBeFocused();
+  await typeField(page, 'ws-desc-comp-0-percent', '90');
+  await typeField(page, 'ws-desc-comp-1-percent', '10');
+  await expect(page.getByTestId('ws-desc-copied')).toContainText('2 field(s) changed');
+  await page.getByTestId('ws-desc-comp-1-percent').press('Control+s');
+  await expect(page.getByTestId('ws-status')).toHaveText('Description saved for 10010 ft to 10020 ft.');
+  const repeatMs = Date.now() - t1;
+  expect(repeatMs).toBeLessThan(10000);
+  test.info().annotations.push({ type: 'timing', description: `full ${fullMs} ms, repeat ${repeatMs} ms` });
+  await expect(page.getByTestId(/^ws-desc-row-/)).toHaveCount(2);
+});
+
+test('WS1: an operator abbreviation profile changes the display and reports its fallbacks; a bad profile is refused', async ({ page }) => {
+  await openStudio(page);
+  await page.getByTestId('ws-nav-config').click();
+  await page.getByTestId('ws-config-profile').fill('{"id": "acme", "name": "Acme house style", "terms": {"colourHue": {"mauve": "mv"}}}');
+  await page.getByTestId('ws-config-save-settings').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Profile table colourHue names an unknown code mauve.');
+  await page.getByTestId('ws-config-profile').fill('{"id": "acme", "name": "Acme house style", "terms": {"colourHue": {"grey": "gry"}}, "format": {"percentStyle": "suffix"}}');
+  await page.getByTestId('ws-config-save-settings').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Well settings saved.');
+  await page.getByTestId('ws-nav-describe').click();
+  await typeField(page, 'ws-desc-top-value', '10000');
+  await typeField(page, 'ws-desc-base-value', '10010');
+  await typeField(page, 'ws-desc-comp-0-lithology', 'sh');
+  await typeField(page, 'ws-desc-comp-0-percent', '100');
+  await typeField(page, 'ws-desc-comp-0-colour', 'lt gy');
+  await expect(page.getByTestId('ws-desc-abbrev')).toHaveText('SH (100%): lt gry');
+  await expect(page.getByTestId('ws-desc-fallbacks')).toContainText('2 term(s) shown from the Petrolord default');
+});

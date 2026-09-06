@@ -101,8 +101,8 @@ describe('DescribeView', () => {
 
   test('an unknown term keeps its text, turns amber and names itself', async () => {
     await setup();
-    type('ws-desc-comp-0-lithology', 'granite');
-    expect(screen.getByTestId('ws-desc-comp-0-error')).toHaveTextContent('Lithology granite is not in the vocabulary.');
+    type('ws-desc-comp-0-lithology', 'zzz');
+    expect(screen.getByTestId('ws-desc-comp-0-error')).toHaveTextContent('Lithology zzz is not in the vocabulary.');
     type('ws-desc-comp-0-lithology', 'lst');
     expect(screen.queryByTestId('ws-desc-comp-0-error')).toBeNull();
     expect(screen.getByTestId('ws-desc-comp-0-lithology')).toHaveValue('LST');

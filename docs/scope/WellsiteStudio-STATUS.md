@@ -13,7 +13,7 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 |---|---|---|
 | WS-PLAN | plan of record, roadmap Phase G10, this file | this PR |
 | WS0 foundation (depth, time, pumps; schema; local store; shell) | **COMPLETE 2026-09-07: migration APPLIED, pentest green, engines #146 merged** | engines #146 (`engines/wellsite/depth.js`, `time.js`, `pumps.js`, stdlib oracle goldens; 27 tests); Suite branch `feat/ws0-foundation`: migration 20260907090000 (`ws_*` schema, membership helpers, stage guard, conflicts view, `wellsite` bucket), the Dexie local store (`src/lib/wellsite/db.js`, `records.js`, `commit.js`, `ids.js`), the backend port and local backend over the fake and Supabase transports, the workstation shell with Live and Config views, DepthEntry, WellSetup, the harness `/dev/wellsite-studio` (seeded KETA-2), copy-lint test, 12 jest tests, 5 e2e |
-| WS1 description prototype | not started | |
+| WS1 description prototype | **COMPLETE 2026-09-07: engines #147 + #148 merged, Suite PR merged** | engines #147 (`descriptionVocabulary.js`, `abbreviations.js`, hand-derived golden); Suite branch `feat/ws1-description`: Describe view (quick and full modes, keyboard first, vocabulary typeahead per attribute, Copy previous with changed-field highlight, live abbreviation and narrative), operator profile paste in Config with validation, descriptions as `cuttings_description` observations with top and base depths, jest keystroke test, timed e2e (full description and repeat) |
 | WS2 live well workspace and timeline | not started | |
 | WS3 lag and sample scheduler | not started | |
 | WS4 shows, observations, photos | not started | |
@@ -26,6 +26,26 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 ## Decisions taken in auto mode
 
 Recorded per phase below as they are taken, with the reason.
+
+### WS1
+
+- A cuttings description is an observation (`subtype cuttings_description`)
+  with the top and base as the record's two depths and the structured
+  components in the payload; the abbreviation and the narrative are never
+  stored (only the profile id used), so the record cannot drift from its
+  rendering.
+- The description screen's fields resolve typed text on leaving the
+  field (Tab, Enter) rather than on every keystroke, so a geologist can
+  type "lt gy" or "f-m" in one go; an unresolved entry keeps its text and
+  goes amber with the engine message.
+- The next description defaults its top to the previous base and its
+  base to top plus the sample interval (setting `sample_interval_m`,
+  default 10 ft), matching the sampling programme WS3 formalises.
+- Engine defect found by the screen: rendering a draft component with no
+  lithology threw; both renderers now skip such rows (engines #148).
+- Field text is read from a ref on commit: a blur fired by a
+  programmatic focus change (Copy previous) was committing stale empty
+  text over the copied codes.
 
 ### WS0
 

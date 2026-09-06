@@ -21,20 +21,24 @@ import { parseField, fieldText } from '../services/describe';
  */
 export default function ComponentRow({ index, component, onChange, mode, profile, changed, onKey, focusKey, onRemove, testIdPrefix = 'ws-desc' }) {
   const fields = ATTRIBUTES.filter((a) => (mode === 'full' ? true : a.quick));
-  const [texts, setTexts] = useState(() => Object.fromEntries(ATTRIBUTES.map((a) => [a.key, fieldText(a.key, component[a.key], profile)])));
+  const [texts, setTextsState] = useState(() => Object.fromEntries(ATTRIBUTES.map((a) => [a.key, fieldText(a.key, component[a.key], profile)])));
   const [errors, setErrors] = useState({});
   const refs = useRef({});
+  // the latest texts, readable synchronously: a blur fired by a programmatic focus change must
+  // not commit stale text over codes that arrived from outside (Copy previous)
+  const textsRef = useRef(texts);
+  const setTexts = (updater) => { const next = typeof updater === 'function' ? updater(textsRef.current) : updater; textsRef.current = next; setTextsState(next); };
 
   // stored codes changed from outside (copy previous, mode switch): re-render the texts
   useEffect(() => {
     setTexts(Object.fromEntries(ATTRIBUTES.map((a) => [a.key, fieldText(a.key, component[a.key], profile)])));
     setErrors({});
-  }, [component, profile]);
+  }, [component, profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (focusKey && refs.current[focusKey]) refs.current[focusKey].focus(); }, [focusKey]);
 
   const commit = (key) => {
-    const r = parseField(key, texts[key]);
+    const r = parseField(key, textsRef.current[key]);
     if (r.ok) {
       setErrors((e) => ({ ...e, [key]: null }));
       if (JSON.stringify(r.value) !== JSON.stringify(component[key] ?? (ATTRIBUTES.find((a) => a.key === key).multi ? [] : null))) onChange({ [key]: r.value });

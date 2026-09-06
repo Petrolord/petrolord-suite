@@ -40,7 +40,11 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
   const [profileText, setProfileText] = useState(() => (well.settings && well.settings.abbreviation_profile ? JSON.stringify(well.settings.abbreviation_profile, null, 2) : ''));
   const [profileErrors, setProfileErrors] = useState([]);
 
-  useEffect(() => { setSettings({ ...(well.settings || {}) }); setHeader({ ...(well.header || {}) }); }, [well]);
+  // reset the editors only when the well's settings or header actually change (a refresh hands over a
+  // new object with the same content, and must not wipe what the user is typing)
+  const settingsKey = JSON.stringify(well.settings || {});
+  const headerKey = JSON.stringify(well.header || {});
+  useEffect(() => { setSettings(JSON.parse(settingsKey)); setHeader(JSON.parse(headerKey)); }, [settingsKey, headerKey]);
   useEffect(() => {
     if (!rigConfig) return;
     setSections(sectionsToRows(rigConfig.hole_sections)); setBha(bhaToRows(rigConfig.bha));
