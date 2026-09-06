@@ -8,15 +8,19 @@
 // stratigraphic column from src/lib/stratRegistry.js (geo_strat_units).
 // No app-local Supabase calls against registry tables (plan section 4).
 
-import { listWells, listTops, updateTop } from '@/lib/wellsRegistry';
+import { listWells, listTops, updateTop, listLogs, downloadCurve } from '@/lib/wellsRegistry';
+import { loadSection, saveSection } from '@/lib/sectionsRegistry';
 import {
   listUnits, saveUnit, updateUnit, deleteUnit,
   listIntervals, replaceIntervals, listCoreImages, uploadCoreImage, updateCoreImage, deleteCoreImage, coreImageUrl,
+  loadStratProject, saveStratProject,
 } from '@/lib/stratRegistry';
 
 export function makeRegistryBackend() {
   return {
-    listWells, listTops, updateTop, listUnits, saveUnit, updateUnit, deleteUnit,
+    listWells, listTops, updateTop, listLogs, downloadCurve, listUnits, saveUnit, updateUnit, deleteUnit,
     listIntervals, replaceIntervals, listCoreImages, uploadCoreImage, updateCoreImage, deleteCoreImage, coreImageUrl,
+    // ST2: the shared section (same rows as Well Correlation) and the app-private view state
+    loadSection, saveSection, loadStratProject, saveStratProject,
   };
 }

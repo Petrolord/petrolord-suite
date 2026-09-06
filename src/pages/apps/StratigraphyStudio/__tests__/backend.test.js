@@ -15,12 +15,12 @@ describe('in-memory backend', () => {
     const wells = await b.listWells();
     expect(wells.map((w) => w.name)).toEqual(['KETA-1', 'KETA-2', 'KETA-3']);
     const tops = await b.listTops('corr-w1');
-    expect(tops.map((t) => `${t.name}:${t.surface_type}`)).toEqual(['Top Dome:formation_top', 'Mid Shale:MFS', 'Base Sand:SU']);
+    expect(tops.map((t) => `${t.name}:${t.surface_type}`)).toEqual(['Top Marker:BSFR', 'Top Dome:formation_top', 'Mid Shale:MFS', 'Base Sand:SU']);
   });
 
   test('typing a top writes the typed fields and keeps the rest', async () => {
     const b = makeInMemoryBackend();
-    const [dome] = await b.listTops('corr-w1');
+    const dome = (await b.listTops('corr-w1')).find((t) => t.name === 'Top Dome');
     const row = await b.updateTop(dome.id, { surface_type: 'MRS', unit_id: 'unit-agbada-upper', confidence: 'high', age_ma: '5.333' });
     expect(row).toMatchObject({ name: 'Top Dome', md_m: 1500, surface_type: 'MRS', unit_id: 'unit-agbada-upper', confidence: 'high', age_ma: 5.333 });
     const again = await b.updateTop(dome.id, { unit_id: '', age_ma: '' });
@@ -49,13 +49,13 @@ describe('in-memory backend', () => {
     expect(member).toMatchObject({ rank: 'member', parent_id: 'unit-agbada-upper', age_top_ma: 5.333 });
     await b.updateUnit(member.id, { colour: '#123456', order_index: '0' });
     expect((await b.listUnits()).find((u) => u.id === member.id)).toMatchObject({ colour: '#123456', order_index: 0 });
-    const [dome] = await b.listTops('corr-w1');
+    const dome = (await b.listTops('corr-w1')).find((t) => t.name === 'Top Dome');
     await b.updateTop(dome.id, { unit_id: 'unit-agbada-upper' });
     await b.deleteUnit({ id: 'unit-agbada-upper' });
     const units = await b.listUnits();
     expect(units.find((u) => u.id === 'unit-agbada-upper')).toBeUndefined();
     expect(units.find((u) => u.id === member.id).parent_id).toBeNull();
-    expect((await b.listTops('corr-w1'))[0].unit_id).toBeNull();
+    expect((await b.listTops('corr-w1')).find((t) => t.name === 'Top Dome').unit_id).toBeNull();
     await expect(b.saveUnit({ name: '  ' })).rejects.toThrow(/needs a name/);
     await expect(b.deleteUnit({ id: 'nope' })).rejects.toThrow(/Only the owner/);
   });

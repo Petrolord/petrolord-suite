@@ -237,3 +237,39 @@ export async function coreImageUrl(image, expiresSeconds = 3600) {
   if (error) throw new Error(`Could not open the core photo: ${error.message}`);
   return data.signedUrl;
 }
+
+// ---- Stratigraphy Studio view state (ST2) --------------------------------------
+//
+// strat_projects: app-private, owner-only (the geo_correlation_sections
+// pattern): the open shared section, the terminology scheme, the
+// stratigraphic flattening and the Wheeler settings. One row per user is
+// enough for v1 (the latest is the project); interpretation products are
+// registry rows, never here.
+
+export const STRAT_PROJECT_KIND = 'strat-project';
+registerStateKind(STRAT_PROJECT_KIND, { current: 1, label: 'stratigraphy project' });
+
+export async function loadStratProject() {
+  const { data, error } = await supabase.from('strat_projects')
+    .select('*').order('updated_at', { ascending: false }).limit(1);
+  if (error) throw new Error(`Could not load the stratigraphy project: ${error.message}`);
+  return openStateRow(STRAT_PROJECT_KIND, data?.[0] || null);
+}
+
+export async function saveStratProject(patch) {
+  const existing = await loadStratProject();
+  if (existing) {
+    const { data, error } = await writeStamped(STRAT_PROJECT_KIND,
+      { ...patch, updated_at: new Date().toISOString() },
+      (row) => supabase.from('strat_projects').update(row).eq('id', existing.id).select().single());
+    if (error) throw new Error(`Could not save the stratigraphy project: ${error.message}`);
+    return data;
+  }
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error('You must be signed in to save.');
+  const { data, error } = await writeStamped(STRAT_PROJECT_KIND,
+    { user_id: user.id, name: 'Default', ...patch },
+    (row) => supabase.from('strat_projects').insert(row).select().single());
+  if (error) throw new Error(`Could not save the stratigraphy project: ${error.message}`);
+  return data;
+}

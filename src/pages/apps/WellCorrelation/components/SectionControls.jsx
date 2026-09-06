@@ -91,6 +91,7 @@ export default function SectionControls({
   zoneMode, onZoneMode, zonePair, onZonePair,
   onPropagate, canEdit,
   mapHrefFor = null,
+  ghost = null, onGhost = null, sectionWells = [],
 }) {
   const [propName, setPropName] = useState(topNames[0] || '');
   const [propMd, setPropMd] = useState('');
@@ -103,10 +104,24 @@ export default function SectionControls({
           <select className={selCls} value={datum.mode} data-testid="corr-datum-mode"
             onChange={(e) => onDatum(e.target.value === 'flatten'
               ? { mode: 'flatten', topName: datum.topName || topNames[0], datumM: datum.datumM ?? 1500 }
-              : { mode: 'structural' })}>
+              : e.target.value === 'stretch'
+                ? { mode: 'stretch', upperName: datum.upperName || topNames[0], lowerName: datum.lowerName || topNames[topNames.length - 1] }
+                : { mode: 'structural' })}>
             <option value="structural">Structural (true depth)</option>
             <option value="flatten">Flatten on top</option>
+            <option value="stretch">Stretch between two tops</option>
           </select>
+          {datum.mode === 'stretch' && (
+            <>
+              <select className={selCls} value={datum.upperName} data-testid="corr-datum-upper" onChange={(e) => onDatum({ ...datum, upperName: e.target.value })}>
+                {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <span className="text-slate-500">to</span>
+              <select className={selCls} value={datum.lowerName} data-testid="corr-datum-lower" onChange={(e) => onDatum({ ...datum, lowerName: e.target.value })}>
+                {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </>
+          )}
           {datum.mode === 'flatten' && (
             <>
               <select className={selCls} value={datum.topName} data-testid="corr-datum-top"
@@ -120,6 +135,28 @@ export default function SectionControls({
           )}
         </div>
       </Section>
+
+      {onGhost && (
+        <Section title="Ghost curve">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <select className={selCls} value={ghost?.sourceWellId || ''} data-testid="corr-ghost-source" title="Draw this well's first track on another column"
+              onChange={(e) => onGhost(e.target.value ? { sourceWellId: e.target.value, targetWellId: ghost?.targetWellId || sectionWells.find((w) => w.id !== e.target.value)?.id, shiftM: ghost?.shiftM || 0 } : null)}>
+              <option value="">off</option>
+              {sectionWells.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+            {ghost && (
+              <>
+                <span className="text-slate-500">on</span>
+                <select className={selCls} value={ghost.targetWellId || ''} data-testid="corr-ghost-target" onChange={(e) => onGhost({ ...ghost, targetWellId: e.target.value })}>
+                  {sectionWells.filter((w) => w.id !== ghost.sourceWellId).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+                <input type="range" min={-200} max={200} step={1} value={ghost.shiftM || 0} data-testid="corr-ghost-shift" onChange={(e) => onGhost({ ...ghost, shiftM: Number(e.target.value) })} />
+                <span className="text-slate-400" data-testid="corr-ghost-shift-value">{ghost.shiftM >= 0 ? '+' : ''}{ghost.shiftM || 0} m</span>
+              </>
+            )}
+          </div>
+        </Section>
+      )}
 
       <Section title="View">
         <div className="grid grid-cols-2 gap-1.5">

@@ -26,6 +26,11 @@ export function makeInMemoryBackend() {
   const coreImagesByWell = new Map();
   const imgSeq = { n: 0 };
   let units = seededUnits();
+  const curvesByWell = new Map(wells.map((w) => [w.id, w.curves]));
+  const logMeta = new Map(wells.map((w) => [w.id, w.logMeta]));
+  // ST2: the shared section (Well Correlation's rows) seeded over all three wells, and the view state
+  let section = { id: 'section-1', well_ids: wells.map((w) => w.id), datum: { mode: 'structural' }, track_layout: {} };
+  let project = null;
 
   const own = (wellId, what) => {
     const w = wells.find((x) => x.id === wellId);
@@ -54,7 +59,7 @@ export function makeInMemoryBackend() {
           if (patch.mdM !== undefined) t.md_m = Number(patch.mdM);
           if (patch.name !== undefined) t.name = patch.name;
           for (const k of ['surface_type', 'unit_id', 'confidence', 'notes']) if (patch[k] !== undefined) t[k] = patch[k] === '' ? null : patch[k];
-          if (patch.age_ma !== undefined) t.age_ma = patch.age_ma === '' || patch.age_ma == null ? null : Number(patch.age_ma);
+          for (const k of ['age_ma', 'hiatus_to_ma']) if (patch[k] !== undefined) t[k] = patch[k] === '' || patch[k] == null ? null : Number(patch[k]);
           if (!t.surface_type) t.surface_type = 'formation_top';
           return { ...t };
         }
@@ -110,6 +115,21 @@ export function makeInMemoryBackend() {
     async coreImageUrl(image) {
       return (coreImagesByWell.get(image.well_id) || []).find((x) => x.id === image.id)?._url || null;
     },
+
+    // ---- ST2: curves, the shared section, the view state ----
+    async listLogs(wellId) {
+      const meta = logMeta.get(wellId) || {};
+      return Object.keys(curvesByWell.get(wellId) || {}).map((mnemonic) => ({ id: `${wellId}-log-${mnemonic}`, well_id: wellId, mnemonic, unit: meta[mnemonic]?.unit || '', description: '', n_samples: (curvesByWell.get(wellId)[mnemonic] || []).length }));
+    },
+    async downloadCurve(log) {
+      const c = (curvesByWell.get(log.well_id) || {})[log.mnemonic];
+      if (!c) throw new Error('Curve not found.');
+      return c instanceof Float32Array ? c : Float32Array.from(c);
+    },
+    async loadSection() { return section ? { ...section } : null; },
+    async saveSection(patch) { section = { ...(section || { id: 'section-1' }), ...patch }; return { ...section }; },
+    async loadStratProject() { return project ? { ...project } : null; },
+    async saveStratProject(patch) { project = { ...(project || { id: 'strat-1', name: 'Default' }), ...patch }; return { ...project }; },
 
     async listUnits() { return units.map((u) => ({ ...u })); },
 

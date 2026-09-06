@@ -145,6 +145,14 @@ export const GEOSCIENCE_SPEC = {
       wellIdsColumn: 'well_ids',
       softRefs: [{ path: 'well_ids[]', table: 'geo_wells', optional: false }],
     },
+    // Stratigraphy Studio view state (ST2): the open shared section is optional on import
+    strat_projects: {
+      pk: 'id',
+      kind: 'strat-project',
+      stamped: true,
+      scope: ['user_id'],
+      softRefs: [{ path: 'section_id', table: 'geo_correlation_sections', optional: true }],
+    },
   },
 };
 

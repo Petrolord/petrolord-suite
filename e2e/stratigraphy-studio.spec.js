@@ -148,3 +148,70 @@ test('ST1: a LAS 3.0 file with core and lithology blocks imports its intervals i
   await expect(page.getByTestId('wdm-intervals-top-0')).toHaveValue(/^1500\.0/);
   await expect(page.getByTestId('wdm-intervals-grain-0')).toHaveValue('f_sand');
 });
+
+test('ST2: the shared section opens in the studio; stretch datum, implied tracts, ghost curve, record tracts', async ({ page }) => {
+  await openStudio(page);
+  // the sample's Top Dome is a plain formation top between the BSFR and the MFS, so no tract is implied yet;
+  // type it MFS on KETA-1 and the BSFR above it bounds a highstand
+  await page.getByTestId('strat-well-KETA-1').click();
+  await page.getByTestId('strat-top-type-Top Dome').selectOption('MFS');
+  await page.getByTestId('strat-tops-save').click();
+  await expect(page.getByTestId('strat-status')).toHaveText('1 top typed on KETA-1.');
+  await page.getByTestId('strat-view-section').click();
+  const sec = page.getByTestId('corr-section');
+  await expect(sec).toBeVisible();
+  await expect(page.getByTestId('strat-section-summary')).toContainText('3 wells');
+  await expect(sec).toHaveAttribute('data-band-count', '1');
+  // stratigraphic flattening between two surfaces
+  await page.getByTestId('strat-datum-mode').selectOption('stretch');
+  await page.getByTestId('strat-datum-upper').selectOption('Top Dome');
+  await page.getByTestId('strat-datum-lower').selectOption('Base Sand');
+  await expect(sec).toHaveAttribute('data-datum-mode', 'stretch');
+  // ghost curve: KETA-1's first track on KETA-2, shifted
+  await page.getByTestId('strat-ghost-source').selectOption('corr-w1');
+  await page.getByTestId('strat-ghost-target').selectOption('corr-w2');
+  await page.getByTestId('strat-ghost-shift').fill('40');
+  await expect(sec).toHaveAttribute('data-ghost', 'corr-w1>corr-w2:40');
+  await expect(page.getByTestId('strat-ghost-shift-value')).toHaveText('+40 m');
+  // record the implied tracts as shared intervals on the own wells
+  await page.getByTestId('strat-record-tracts').click();
+  await expect(page.getByTestId('strat-status')).toHaveText('Recorded 1 systems tract on 2 wells.');
+  await page.getByTestId('strat-save-view').click();
+  await expect(page.getByTestId('strat-status')).toHaveText('Stratigraphy view saved.');
+  // the recorded tracts are visible in the Intervals view of KETA-1
+  await page.getByTestId('strat-well-KETA-1').click();
+  await page.getByTestId('strat-view-intervals').click();
+  await page.getByTestId('strat-intervals-kind').selectOption('systems_tract');
+  await expect(page.getByTestId(/^strat-intervals-row-/)).toHaveCount(1);
+});
+
+test('ST2: typing SU, MRS and MFS on a well gives LST, TST and HST fills and a Wheeler chart', async ({ page }) => {
+  await openStudio(page);
+  // KETA-1 today: Top Marker BSFR (4 Ma), Top Dome plain, Mid Shale MFS (5 Ma), Base Sand SU (10 Ma, hiatus to 14)
+  await page.getByTestId('strat-well-KETA-1').click();
+  await page.getByTestId('strat-top-type-Top Dome').selectOption('MFS');
+  await page.getByTestId('strat-top-age-Top Dome').fill('5');
+  await page.getByTestId('strat-top-type-Mid Shale').selectOption('MRS');
+  await page.getByTestId('strat-top-age-Mid Shale').fill('8');
+  await page.getByTestId('strat-tops-save').click();
+  await expect(page.getByTestId('strat-status')).toHaveText('2 tops typed on KETA-1.');
+  await expect(page.getByTestId('strat-top-tract-Top Marker')).toHaveText('HST');
+  await expect(page.getByTestId('strat-top-tract-Top Dome')).toHaveText('TST');
+  await expect(page.getByTestId('strat-top-tract-Mid Shale')).toHaveText('LST');
+  // the section fills the three tracts on KETA-1 (KETA-2's Top Dome is still untyped, so nothing there)
+  await page.getByTestId('strat-view-section').click();
+  await expect(page.getByTestId('corr-section')).toHaveAttribute('data-band-count', '3');
+  // Wheeler: KETA-1 now has HST (4 to 5), TST (5 to 8), LST (8 to 10), hiatus (10 to 14)
+  await page.getByTestId('strat-view-wheeler').click();
+  const chart = page.getByTestId('strat-wheeler-chart');
+  await expect(chart).toBeVisible();
+  await expect(chart).toHaveAttribute('data-age-max', '14');
+  await expect(page.getByTestId('strat-wheeler-cell-KETA-1-0')).toHaveAttribute('data-tract', 'HST');
+  await expect(page.getByTestId('strat-wheeler-cell-KETA-1-1')).toHaveAttribute('data-tract', 'TST');
+  await expect(page.getByTestId('strat-wheeler-cell-KETA-1-2')).toHaveAttribute('data-tract', 'LST');
+  await expect(page.getByTestId('strat-wheeler-cell-KETA-1-3')).toHaveAttribute('data-kind', 'hiatus');
+  // the Exxon display relabels the cells without changing what is stored
+  await page.getByTestId('strat-scheme').selectOption('exxon');
+  await expect(page.getByTestId('strat-wheeler-cell-KETA-1-1')).toContainText('TST');
+  await expect(page.getByTestId('strat-wheeler-cell-KETA-1-1')).toHaveAttribute('data-tract', 'TST');
+});

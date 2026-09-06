@@ -35,9 +35,8 @@ import { DEPTH_REF_LABEL } from '../engine/sectionFrame';
 // Fixed values for the parameter-bound fills of the Petrophysics
 // templates (GR clean/clay lines, porosity and saturation cut-offs): the
 // section has no petrophysical pipeline, so the templates read these.
-export const CORR_PARAMS = { grClean: 30, grClay: 120, cutPhi: 0.08, cutVsh: 0.4, cutSw: 0.6 };
-const DEFAULT_TEMPLATE = 'quicklook';
-const defaultLayouts = () => ({ ...buildDefaultLayouts(), activeTemplateId: DEFAULT_TEMPLATE });
+import { useSectionWells, CORR_PARAMS } from '@/components/wells/section/useSectionWells';
+export { CORR_PARAMS };
 
 /** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
  *  the explorer's "Edit well data" links open (harness override) */
@@ -46,153 +45,18 @@ export default function CorrelationWorkstation({
   wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager',
   mappingPath = '/dashboard/apps/geoscience/mapping-surface-studio',
 }) {
-  // deep link (cross-app navigation, 2026-09-03): ?wells=<id,id> appends
-  // those wells to the section once the wells and any saved section loaded
   const [searchParams] = useSearchParams();
-  const deepLinkRef = useRef({ wells: parseWellsParam(searchParams.get('wells')), done: false });
-  const [sectionLoaded, setSectionLoaded] = useState(false);
-  const [wells, setWells] = useState(null);
-  const [order, setOrder] = useState([]);              // ordered well ids
-  const [wellData, setWellData] = useState({});        // id -> {tops, curves, logs, inventory}
-  const [loading, setLoading] = useState(0);           // wells with curves in flight
-  const [datum, setDatum] = useState({ mode: 'structural' });
-  const [shownTops, setShownTops] = useState([]);
-  const [zoneMode, setZoneMode] = useState('consecutive');
-  const [zonePair, setZonePair] = useState(null);
-  const [depthUnit, setDepthUnit] = useState('m');
-  const [depthRef, setDepthRef] = useState('md');
-  const [spacing, setSpacing] = useState('equal');
-  const [layouts, setLayouts] = useState(defaultLayouts);
   const [pickMode, setPickMode] = useState(null);
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
-  const curvesCache = useWellCurvesCache(backend);
   const exportRef = useRef(null);
-  const wellDataRef = useRef({});
-  const pendingRef = useRef(new Set());
-  useEffect(() => { wellDataRef.current = wellData; }, [wellData]);
-
-  const applySaved = useCallback((section) => {
-    setOrder(section.well_ids || []);
-    if (section.datum) setDatum(section.datum);
-    const tl = section.track_layout || {};
-    if (tl.layouts) setLayouts({ ...migrateLayouts(tl.layouts), activeTemplateId: tl.layouts.activeTemplateId || DEFAULT_TEMPLATE });
-    if (tl.depthUnit === 'm' || tl.depthUnit === 'ft') setDepthUnit(tl.depthUnit);
-    if (['md', 'tvd', 'tvdss'].includes(tl.depthRef)) setDepthRef(tl.depthRef);
-    if (tl.spacing === 'equal' || tl.spacing === 'proportional') setSpacing(tl.spacing);
-    if (['none', 'consecutive', 'pair'].includes(tl.zoneMode)) setZoneMode(tl.zoneMode);
-    if (Array.isArray(tl.shownTops)) setShownTops(tl.shownTops);
-    if (Array.isArray(tl.zonePair) && tl.zonePair.length === 2) setZonePair(tl.zonePair);
-  }, []);
-
-  useEffect(() => {
-    let live = true;
-    (async () => {
-      try {
-        const list = await backend.listWells();
-        if (!live) return;
-        setWells(list);
-        const section = await backend.loadSection();
-        if (section && live) {
-          applySaved(section);
-          setStatus('Restored saved section.');
-        }
-      } catch (e) { if (live) { setStatus(e.message); setWells([]); } }
-      if (live) setSectionLoaded(true);
-    })();
-    return () => { live = false; };
-  }, [backend, applySaved]);
-
-  // load tops + every curve for a well the first time it enters the section
-  const ensureWellData = useCallback(async (wellId) => {
-    if (wellDataRef.current[wellId] || pendingRef.current.has(wellId)) return;
-    pendingRef.current.add(wellId);
-    setLoading((n) => n + 1);
-    try {
-      const [tops, cw, intervals] = await Promise.all([backend.listTops(wellId), curvesCache.getCurves(wellId), backend.listIntervals ? backend.listIntervals(wellId).catch(() => []) : Promise.resolve([])]);
-      setWellData((m) => ({ ...m, [wellId]: { tops, intervals: intervals || [], curves: cw.curves, logs: cw.logs, inventory: cw.inventory } }));
-    } catch (e) {
-      setStatus(e.message);
-    } finally {
-      pendingRef.current.delete(wellId);
-      setLoading((n) => n - 1);
-    }
-  }, [backend, curvesCache]);
-
-  useEffect(() => {
-    const dl = deepLinkRef.current;
-    if (dl.done || !dl.wells.length || !wells || !sectionLoaded) return;
-    dl.done = true;
-    const ids = dl.wells.filter((id) => wells.some((w) => w.id === id));
-    if (!ids.length) { setStatus('The linked wells are not in your registry.'); return; }
-    (async () => {
-      for (const id of ids) await ensureWellData(id);
-      setOrder((o) => [...o, ...ids.filter((id) => !o.includes(id))]);
-      setStatus(`Added ${ids.length} linked well${ids.length === 1 ? '' : 's'} to the section.`);
-    })();
-  }, [wells, sectionLoaded, ensureWellData]);
-
-  // wells restored from a saved section need their data too
-  useEffect(() => { for (const id of order) ensureWellData(id); }, [order, ensureWellData]);
-
-  const refreshTops = useCallback(async (wellId) => {
-    const tops = await backend.listTops(wellId);
-    setWellData((m) => ({ ...m, [wellId]: { ...(m[wellId] || {}), tops } }));
-  }, [backend]);
-
-  const toggleWell = async (wellId) => {
-    if (order.includes(wellId)) {
-      setOrder((o) => o.filter((x) => x !== wellId));
-    } else {
-      await ensureWellData(wellId);
-      setOrder((o) => (o.includes(wellId) ? o : [...o, wellId]));
-    }
-  };
-
-  const moveWell = (wellId, dir) => setOrder((o) => {
-    const i = o.indexOf(wellId);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= o.length) return o;
-    const next = [...o];
-    [next[i], next[j]] = [next[j], next[i]];
-    return next;
-  });
-
-  // section wells in order with tops, curves and the template resolved
-  // against each well's own inventory (missing curves drop out per well)
-  const template = useMemo(() => activeTemplate(layouts), [layouts]);
-  const sectionWells = useMemo(() => order
-    .map((id) => {
-      const w = (wells || []).find((x) => x.id === id);
-      const d = wellData[id];
-      if (!w || !d) return null;
-      let frame = null;
-      try {
-        frame = makeDepthFrame({ deviation: w.deviation, kbM: w.kb_m, tdMdM: w.td_md_m });
-      } catch { frame = null; }
-      const tracks = resolveTracks(template, {
-        curves: d.curves || {}, logs: d.logs || {}, outputs: {}, faciesData: null, facies: [], params: CORR_PARAMS,
-        intervals: d.intervals || [], depth: d.curves?.DEPT || null,
-      });
-      return {
-        id: w.id, name: w.name, uwi: w.uwi, is_own: w.is_own, organization_id: w.organization_id,
-        surface_x: w.surface_x, surface_y: w.surface_y, kb_m: w.kb_m,
-        tops: d.tops || [], depth: d.curves?.DEPT || null, tracks, frame,
-      };
-    })
-    .filter(Boolean), [order, wells, wellData, template]);
-
-  const topNames = useMemo(() => allTopNames(sectionWells), [sectionWells]);
-  // default-show every top the first time the section has any; keep the
-  // user's choice afterwards, dropping names that left the section
-  useEffect(() => {
-    setShownTops((prev) => (prev.length ? prev.filter((n) => topNames.includes(n)) : topNames));
-  }, [topNames]);
-  const logSources = useMemo(() => {
-    const s = new Set();
-    for (const id of order) for (const m of Object.keys(wellData[id]?.logs || {})) s.add(m);
-    return [...s].sort();
-  }, [order, wellData]);
+  const {
+    wells, order, setOrder, wellData, loading, datum, setDatum, shownTops, setShownTops, zoneMode, setZoneMode, zonePair, setZonePair,
+    depthUnit, setDepthUnit, depthRef, setDepthRef, spacing, setSpacing, layouts, setLayouts,
+    template, sectionWells, topNames, logSources, ensureWellData, refreshTops, toggleWell, moveWell,
+  } = useSectionWells(backend, { deepLinkWells: parseWellsParam(searchParams.get('wells')), onStatus: setStatus });
+  // ST2 ghost curve (shared painter): {sourceWellId, targetWellId, shiftM}
+  const [ghost, setGhost] = useState(null);
 
   const wellName = (id) => (wells || []).find((w) => w.id === id)?.name || 'well';
   const canEdit = sectionWells.some((w) => w.is_own);
@@ -375,6 +239,7 @@ export default function CorrelationWorkstation({
       onTopCreate={createTop}
       onPickCancel={() => setPickMode(null)}
       onNotice={setStatus}
+      ghost={ghost}
     />
   );
 
@@ -401,6 +266,9 @@ export default function CorrelationWorkstation({
             topNames={topNames}
             datum={datum}
             onDatum={setDatum}
+            ghost={ghost}
+            onGhost={setGhost}
+            sectionWells={sectionWells}
             depthUnit={depthUnit}
             onDepthUnit={setDepthUnit}
             depthRef={depthRef}

@@ -21,7 +21,7 @@ test('topMd looks up by name; missing -> null', () => {
 });
 
 test('allTopNames = union in first-seen order', () => {
-  expect(allTopNames(wells)).toEqual(['Top Dome', 'Mid Shale', 'Base Sand']);
+  expect(allTopNames(wells)).toEqual(['Top Marker', 'Top Dome', 'Mid Shale', 'Base Sand']);
 });
 
 describe('computeFlattening', () => {
@@ -94,8 +94,8 @@ describe('zoneSpan', () => {
 
 test('displayedRange spans tops (+ optional log ranges) under flattening', () => {
   const f = computeFlattening(wells, { mode: 'structural' });
-  // tops only: min = W3 Top Dome 1470, max = W2 Base Sand 1705
-  expect(displayedRange(wells, f)).toEqual([1470, 1705]);
+  // tops only: min = W1 Top Marker 1440, max = W2 Base Sand 1705
+  expect(displayedRange(wells, f)).toEqual([1440, 1705]);
   // with a log range that exceeds the tops
   const r = displayedRange(wells, f, { 'corr-w1': [1400, 1750] });
   expect(r).toEqual([1400, 1750]);
