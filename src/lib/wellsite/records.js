@@ -183,6 +183,53 @@ export function buildStageRow({ wellId, sampleId, stage, note = null, atUtc = nu
   return { row: stamp(row, { userId, offsetMin, nowMs }) };
 }
 
+/** A ws_tops row (interpretation or official call). p.depth is the entered depth; p.rangeBase the entered base of an interpretation range. */
+export function buildTopRow(p) {
+  const errors = [];
+  if (!p.wellId) errors.push('A well is required.');
+  if (!p.userId) errors.push('A signed-in user is required.');
+  if (!Number.isInteger(p.offsetMin)) errors.push('The rig offset is not set on this well.');
+  if (!['interpretation', 'official'].includes(p.role)) errors.push('A top is an interpretation or an official call.');
+  if (!(p.name && p.name.trim())) errors.push('A formation name is required.');
+  if (!p.depth) errors.push('A top needs a depth.');
+  if (errors.length) throw new RecordError(errors);
+  const nowMs = p.nowMs ?? Date.now();
+  const id = p.id || newId();
+  const occurredAt = p.occurredAt || new Date(nowMs).toISOString();
+  const d = depthColumns(p.depth, p.ctx, { atUtc: occurredAt });
+  const row = {
+    id, well_id: p.wellId, formation_key: p.formationKey, name: p.name.trim(), unit_id: p.unitId || null,
+    chain_id: p.chainId || id, version_no: p.versionNo || 1, previous_version_id: p.previousVersionId || null,
+    resolves_ids: p.resolvesIds && p.resolvesIds.length ? p.resolvesIds : null,
+    role: p.role, status: p.status, confidence: p.confidence || null, basis: p.basis || null, evidence_ids: p.evidenceIds || [],
+    ...d.columns, range_top_md_m: null, range_base_md_m: null,
+    occurred_at: occurredAt, local_offset_min: p.offsetMin,
+  };
+  const warnings = [...d.warnings];
+  if (p.role === 'interpretation') {
+    if (!p.rangeBase) throw new RecordError(['An interpretation needs the base of its depth range.']);
+    const b = depthColumns(p.rangeBase, p.ctx, { atUtc: occurredAt });
+    row.range_top_md_m = d.columns.md_calc_m;
+    row.range_base_md_m = b.columns.md_calc_m;
+    if (row.range_base_md_m < row.range_top_md_m) throw new RecordError(['The range base must be at or below its top.']);
+    warnings.push(...b.warnings);
+  }
+  return { row: stamp(row, { userId: p.userId, offsetMin: p.offsetMin, nowMs }), warnings };
+}
+
+/** A ws_prognosis row. */
+export function buildPrognosisRow(p) {
+  if (!p.wellId) throw new RecordError(['A well is required.']);
+  if (!p.userId) throw new RecordError(['A signed-in user is required.']);
+  const nowMs = p.nowMs ?? Date.now();
+  const row = {
+    id: p.id || newId(), well_id: p.wellId, version: p.version, loaded_at: new Date(nowMs).toISOString(), local_offset_min: p.offsetMin,
+    source: p.source || {}, tops: p.tops || [], offset_tops: p.offset_tops || [], casing_points: p.casing_points || [], hole_sections: p.hole_sections || [],
+    planned_trajectory: p.planned_trajectory || null, pressure_curves: p.pressure_curves || null, notes: p.notes || null,
+  };
+  return { row: stamp(row, { userId: p.userId, offsetMin: p.offsetMin, nowMs }) };
+}
+
 /** Heads of a chain among a list of records (nothing names them as previous and no resolver cites them). */
 export function chainHeads(records) {
   const prev = new Set();

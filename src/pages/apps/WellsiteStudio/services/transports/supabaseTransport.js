@@ -4,7 +4,7 @@
 // record sync (push, pull) arrives in WS6 on the same object.
 
 import { supabase } from '@/lib/customSupabaseClient';
-import { listWells as listRegistry } from '@/lib/wellsRegistry';
+import { listWells as listRegistry, listTops as listRegistryTops, getWell as getRegistryWell } from '@/lib/wellsRegistry';
 import { writeStamped, registerStateKind } from '@/lib/stateVersion';
 
 export const WS_WELL_KIND = 'ws-well';
@@ -44,6 +44,28 @@ export function makeSupabaseTransport() {
       if (error) throw new Error(error.message);
       if (!data || !data.length) throw new Error('Only a well administrator can change the well settings.');
       return data[0];
+    },
+    /** The registry sources of a prognosis: the well's own tops, offset wells' tops and surveys, Well Design geometry and trajectory. */
+    async loadPrognosisSources(geoWellId, { offsetWellIds = [] } = {}) {
+      const geoWell = await getRegistryWell(geoWellId);
+      const tops = await listRegistryTops(geoWellId);
+      const offsetWells = [];
+      for (const id of offsetWellIds) {
+        const w = await getRegistryWell(id).catch(() => null);
+        if (!w) continue;
+        offsetWells.push({ id: w.id, name: w.name, kb_m: w.kb_m, deviation: w.deviation, tops: await listRegistryTops(id).catch(() => []) });
+      }
+      let holeSections = [];
+      let plannedTrajectory = null;
+      let design = null;
+      const { data: wb } = await supabase.from('wp_wellbores').select('id').eq('geo_well_id', geoWellId).limit(1).maybeSingle();
+      if (wb) {
+        const { data: geom } = await supabase.from('wp_wellbore_geometry').select('hole_sections').eq('wellbore_id', wb.id).maybeSingle();
+        holeSections = (geom && geom.hole_sections) || [];
+        const { data: d } = await supabase.from('wp_designs').select('id, stations, revision').eq('wellbore_id', wb.id).eq('status', 'definitive').limit(1).maybeSingle();
+        if (d) { design = { id: d.id, revision: d.revision }; plannedTrajectory = d.stations || null; }
+      }
+      return { geoWell, tops, offsetWells, holeSections, casingPoints: holeSections.filter((h) => h.cased).map((h) => ({ md_m: h.to_md_m, description: h.description || null })), plannedTrajectory, pressureCurves: null, design, loadedFrom: 'registry' };
     },
     async pullWell(id) {
       const { data: well, error } = await supabase.from('ws_wells').select('*').eq('id', id).maybeSingle();

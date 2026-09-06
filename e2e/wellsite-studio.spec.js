@@ -291,3 +291,55 @@ test('WS4: a show is derived from controlled values; an observation carries type
   await page.getByTestId('ws-nav-photos').click();
   await expect(page.getByTestId(/^ws-photo-[0-9a-f-]{36}$/).first().locator('img')).toHaveAttribute('src', /^blob:/);
 });
+
+// ---- WS5: tops, prognosis, conflicts ---------------------------------------------
+
+test('WS5: the approach panel, an interpretation then a call through its lifecycle with every version kept, and a competing office version resolved by the approver', async ({ page }) => {
+  await openStudio(page, '?reset=1&conflict=0');
+  await expect(page.getByTestId('ws-approach')).toHaveAttribute('data-formation', 'top_agbada');
+  await expect(page.getByTestId('ws-approach-distance')).toHaveText('171 ft');
+  await expect(page.getByTestId('ws-approach-text')).toContainText('above the prognosed Top Agbada');
+  await page.getByTestId('ws-nav-tops').click();
+  await expect(page.getByTestId('ws-prognosis-version')).toContainText('Prognosis version 1');
+  await page.getByTestId('ws-top-interpret-top_agbada').click();
+  await typeField(page, 'ws-top-depth-value', '10160');
+  await typeField(page, 'ws-top-base-value', '10180');
+  await page.getByTestId('ws-top-confidence').selectOption('high');
+  await page.getByTestId('ws-top-basis').fill('Evidence consistent with the top between 10160 and 10180 ft');
+  await page.getByTestId('ws-top-submit').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Top Agbada interpretation recorded, high confidence.');
+  await page.getByTestId('ws-top-callbtn-top_agbada').click();
+  await typeField(page, 'ws-top-depth-value', '10168');
+  await page.getByTestId('ws-top-basis').fill('GR drop and sand at 10168 ft');
+  await page.getByTestId('ws-top-submit').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Top Agbada called at 10168 ft, preliminary.');
+  await page.getByTestId('ws-top-callbtn-top_agbada').click();
+  await page.getByTestId('ws-top-status').selectOption('confirmed');
+  await page.getByTestId('ws-top-basis').fill('Cuttings confirm sand');
+  await page.getByTestId('ws-top-submit').click();
+  await expect(page.getByTestId('ws-status')).toContainText('confirmed (version 2)');
+  await page.getByTestId('ws-top-chain-top_agbada').click();
+  await expect(page.getByTestId('ws-top-history-top_agbada')).toContainText('v1 official preliminary');
+  await expect(page.getByTestId('ws-top-history-top_agbada')).toContainText('v2 official confirmed');
+  await expect(page.getByTestId('ws-approach-call')).toContainText('confirmed');
+  await page.getByTestId('ws-nav-timeline').click();
+  await expect(page.getByTestId('ws-timeline-row-0')).toContainText('Top Agbada called at 10168 ft (confirmed)');
+  // a competing office version
+  await page.goto('/dev/wellsite-studio?conflict=1');
+  await page.getByTestId('ws-nav-tops').click();
+  await expect(page.getByTestId('ws-tops-conflicts')).toHaveText('1 conflict(s)');
+  await expect(page.getByTestId('ws-approach-conflict')).toBeVisible();
+  await expect(page.getByTestId('ws-conflict-resolve')).toBeVisible();
+  await page.getByTestId('ws-conflict-basis').fill('Rig pick stands; the office pick was a shifted GR');
+  await page.getByTestId('ws-conflict-resolve').click();
+  await expect(page.getByTestId('ws-status')).toContainText('competing versions resolved');
+  await expect(page.getByTestId('ws-tops-conflicts')).toHaveCount(0);
+  await page.getByTestId('ws-top-chain-top_agbada').click();
+  await expect(page.getByTestId('ws-top-history-top_agbada')).toContainText('resolves 2 competing versions');
+  // a manual prognosis top is a new prognosis version
+  await page.getByTestId('ws-prog-name').fill('Top Benin');
+  await typeField(page, 'ws-prog-depth-value', '9500');
+  await page.getByTestId('ws-prog-add').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Prognosis version 2: Top Benin added by hand.');
+  await expect(page.getByTestId('ws-top-row-top_benin')).toBeVisible();
+});

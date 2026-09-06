@@ -4,7 +4,7 @@
 
 import { newId } from '@/lib/wellsite/ids';
 
-export function makeFakeTransport({ user, registryWells = [], online = true } = {}) {
+export function makeFakeTransport({ user, registryWells = [], online = true, prognosisSources = null } = {}) {
   const wsWells = new Map();
   let isOnline = online;
   const u = user || { id: 'user-a', email: 'geologist@example.com', name: 'A. Geologist', organization_id: 'org-1', role: 'wellsite_geologist' };
@@ -24,6 +24,12 @@ export function makeFakeTransport({ user, registryWells = [], online = true } = 
       return entry;
     },
     async pullWell(id) { return wsWells.get(id) || null; },
+    async loadPrognosisSources(geoWellId, { offsetWellIds = [] } = {}) {
+      const geoWell = registryWells.find((w) => w.id === geoWellId) || null;
+      const src = prognosisSources ? prognosisSources(geoWellId) : {};
+      const offsets = registryWells.filter((w) => offsetWellIds.includes(w.id) || (!offsetWellIds.length && w.id !== geoWellId)).map((w) => ({ id: w.id, name: w.name, kb_m: w.kb_m, deviation: w.deviation, tops: w.tops || [] }));
+      return { geoWell, tops: (geoWell && geoWell.tops) || [], offsetWells: offsets, holeSections: src.holeSections || [], casingPoints: src.casingPoints || [], plannedTrajectory: src.plannedTrajectory || null, pressureCurves: null, loadedFrom: 'fake-registry' };
+    },
     _wells: wsWells,
   };
 }

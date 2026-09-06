@@ -6,7 +6,7 @@
 import { liveQuery } from 'dexie';
 import { wellsiteDb, persistStorage, storageEstimate } from '@/lib/wellsite/db';
 import { commitRow, commitMany, commitWellPatch, pendingCount } from '@/lib/wellsite/commit';
-import { buildRecord, nextVersion, correction, buildSampleRow, buildStageRow, RecordError } from '@/lib/wellsite/records';
+import { buildRecord, nextVersion, correction, buildSampleRow, buildStageRow, buildTopRow, buildPrognosisRow, RecordError } from '@/lib/wellsite/records';
 import { canAdvance, statusConfig, DEFAULT_MANDATORY } from '@/lib/wellsite/sampleProgram';
 import { derivePhotoVariants } from '@/lib/wellsite/photos/derive';
 import { buildPhotoRows, localPhotoUrl } from '@/lib/wellsite/photos/store';
@@ -247,6 +247,56 @@ export function makeLocalBackend({ transport, db = wellsiteDb() }) {
       return { row, warnings };
     },
     photoUrl: (photo, variant = 'thumb') => localPhotoUrl(db, photo.id, variant),
+
+    // ---- tops and prognosis (WS5) ----
+    async listTops(wellId) { return db.tops.where('[well_id+formation_key]').between([wellId, ''], [wellId, '￿']).toArray(); },
+    /** p: { role, status, name, formationKey, confidence, basis, evidenceIds, unitId, depth, rangeBase } */
+    async addTop(wellId, p) {
+      const well = await requireWell(wellId);
+      const u = await currentUser();
+      const { row, warnings } = buildTopRow({ ...p, wellId, ctx: wellContext(well), offsetMin: offsetMinOf(well), userId: u.id });
+      row.engine_version = WS_ENGINE_VERSION;
+      await commitRow(db, 'tops', row);
+      notify();
+      return { row, warnings };
+    },
+    /** A new version on the same chain (revise, confirm, withdraw, finalise, or resolve competing heads). */
+    async addTopVersion(prev, p) {
+      const well = await requireWell(prev.well_id);
+      const u = await currentUser();
+      const { row, warnings } = buildTopRow({
+        role: prev.role, name: prev.name, formationKey: prev.formation_key, unitId: prev.unit_id, ...p,
+        wellId: prev.well_id, chainId: prev.chain_id, versionNo: (prev.version_no || 1) + 1, previousVersionId: prev.id,
+        ctx: wellContext(well), offsetMin: offsetMinOf(well), userId: u.id,
+      });
+      row.engine_version = WS_ENGINE_VERSION;
+      await commitRow(db, 'tops', row);
+      notify();
+      return { row, warnings };
+    },
+    async listPrognosis(wellId) { return db.prognosis.where('[well_id+version]').between([wellId, -Infinity], [wellId, Infinity]).toArray(); },
+    async addPrognosis(wellId, p) {
+      const well = await requireWell(wellId);
+      const u = await currentUser();
+      const existing = await this.listPrognosis(wellId);
+      const version = existing.reduce((m, r) => Math.max(m, r.version || 0), 0) + 1;
+      const { row } = buildPrognosisRow({ ...p, version, wellId, offsetMin: offsetMinOf(well), userId: u.id });
+      row.engine_version = WS_ENGINE_VERSION;
+      await commitRow(db, 'prognosis', row);
+      notify();
+      return row;
+    },
+    /** Online: the registry sources of a prognosis for this well. */
+    async loadPrognosisSources(wellId, { offsetWellIds = [] } = {}) {
+      if (!transport.online()) throw new Error('Loading the prognosis needs a connection.');
+      const well = await requireWell(wellId);
+      return transport.loadPrognosisSources(well.geo_well_id, { offsetWellIds });
+    },
+    /** Rows arriving from elsewhere (the sync engine, or a test standing in for the office): stored as synced, no outbox. */
+    async _pullRows(store, rows) {
+      await db[store].bulkPut(rows.map((r) => ({ ...r, sync_state: 'synced' })));
+      notify();
+    },
 
     // ---- sync surface (WS6) ----
     async syncStatus(wellId) {

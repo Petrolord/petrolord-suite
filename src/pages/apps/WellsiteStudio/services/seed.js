@@ -6,6 +6,7 @@
 // The bit is at 10,000 ft MD below RT when the harness opens.
 
 import { M_PER_FT } from '@/lib/wellsite/depth';
+import { buildPrognosis } from './prognosis';
 
 export const SEED_USER = { id: 'user-a', email: 'geologist@example.com', name: 'A. Geologist', organization_id: 'org-1', role: 'wellsite_geologist' };
 
@@ -14,8 +15,13 @@ export const SEED_REGISTRY_WELLS = [
     id: 'geo-keta-2', user_id: SEED_USER.id, organization_id: 'org-1', name: 'KETA-2', uwi: null,
     surface_x: 500000, surface_y: 6700000, kb_m: 25, td_md_m: 3200,
     deviation: [{ md: 0, inc: 0, azi: 0 }, { md: 1400, inc: 0, azi: 0 }, { md: 1750, inc: 30, azi: 90 }, { md: 3200, inc: 30, azi: 90 }],
+    tops: [
+      { id: 'top-keta2-agbada', name: 'Top Agbada', md_m: 3100, uncertainty_m: 20, surface_type: 'formation_top' },
+      { id: 'top-keta2-akata', name: 'Top Akata', md_m: 3300, uncertainty_m: 30, surface_type: 'formation_top' },
+    ],
   },
-  { id: 'geo-keta-1', user_id: SEED_USER.id, organization_id: 'org-1', name: 'KETA-1', surface_x: 501000, surface_y: 6700500, kb_m: 24, td_md_m: 3100, deviation: null },
+  { id: 'geo-keta-1', user_id: SEED_USER.id, organization_id: 'org-1', name: 'KETA-1', surface_x: 501000, surface_y: 6700500, kb_m: 24, td_md_m: 3100, deviation: null,
+    tops: [{ id: 'top-keta1-agbada', name: 'Top Agbada', md_m: 2690, surface_type: 'formation_top' }, { id: 'top-keta1-akata', name: 'Top Akata', md_m: 2880, surface_type: 'formation_top' }] },
 ];
 
 export const SEED_RIG_CONFIG = {
@@ -65,5 +71,30 @@ export async function seedWellsite(backend, { now = Date.now() } = {}) {
       version: 1, rows: [{ fromMdM: 9800 * M_PER_FT, toMdM: null, intervalM: 10 * M_PER_FT }], authorisedBy: 'Operations geologist', authorisedAtUtc: iso(-600), reason: 'Section programme',
       basis: 'Section programme', statement: 'Sampling programme version 1', person: 'Operations geologist', communication: null } },
   ]);
+  // the prognosis, version 1, from the fake registry (own tops, KETA-1 as the offset)
+  const sources = await backend.loadPrognosisSources(well.id, { offsetWellIds: ['geo-keta-1'] });
+  await backend.addPrognosis(well.id, buildPrognosis({ wellId: well.id, version: 1, sources, offsetWells: sources.offsetWells, offsetMin: SEED_SETTINGS.rig_offset_min, notes: 'Pre-drill prognosis' }));
   return well;
+}
+
+/**
+ * Stand in for the office: a competing version of the current Agbada call (or interpretation),
+ * arriving as if pulled by the sync engine. Returns the branch row. Used by the harness (?conflict=1) and tests.
+ */
+export async function seedCompetingTop(backend, well) {
+  const tops = await backend.listTops(well.id);
+  const heads = tops.filter((t) => t.formation_key === 'top_agbada' && t.role === 'official' && !tops.some((n) => n.previous_version_id === t.id));
+  const base = heads.find((h) => h.version_no >= 1) || null;
+  if (!base) return null;
+  // with two or more versions the office branches from the head's parent (two heads on one chain);
+  // with a single version the office called the top fresh (two chains for one formation)
+  const prev = base.previous_version_id ? tops.find((t) => t.id === base.previous_version_id) : null;
+  const branch = {
+    ...base, id: `office-${base.id}`, chain_id: prev ? base.chain_id : `office-chain-${base.id}`,
+    previous_version_id: prev ? prev.id : null, version_no: prev ? (prev.version_no || 1) + 1 : 1, resolves_ids: null,
+    status: 'confirmed', basis: 'Office pick on the LWD gamma ray', md_calc_m: base.md_calc_m + 1.5, tvd_calc_m: (base.tvd_calc_m || 0) + 1.3, depth_value: base.depth_value + 5,
+    created_by: 'user-office', device_id: 'office-desk', occurred_at: new Date(Date.parse(base.occurred_at) + 60000).toISOString(), client_created_at: new Date().toISOString(),
+  };
+  await backend._pullRows('tops', [branch]);
+  return branch;
 }

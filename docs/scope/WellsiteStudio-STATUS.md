@@ -17,7 +17,7 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 | WS2 live well workspace and timeline | **COMPLETE 2026-09-07: engines #149 (with the WS3 engines) merged, Suite PR merged** | engines #149 (`events.js`); Suite branch `feat/ws2-live-timeline`: event quick bar on the Live view (one click, time, user and bit depth captured; user-defined asks a label), open events with End, Timeline view (report day, tour, whole well; durations by type), current operation and current lithology cards, explorer counts |
 | WS3 lag and sample scheduler | **COMPLETE 2026-09-07: engines #149 merged, Suite PR merged** | engines #149 (`lag.js`, `sampleProgram.js`, oracle goldens G1 to G4); Suite branch `feat/ws3-lag-samples`: lag panel in the dock (strokes, time at the current rate, lagged depth, bottoms up, pump log), Samples view (authorised versioned programme as a decision record, schedule three samples ahead of the bit, predicted arrivals, catch and the stage chain with the mandatory guard, overdue for review), Live view next-sample and catch prompt, describing from a sample records the described stage |
 | WS4 shows, observations, photos | **COMPLETE 2026-09-07: engines #150 merged, Suite PR merged** | engines #150 (`shows.js`, hand-derived golden); Suite branch `feat/ws4-shows-photos`: Shows view (controlled values, derived quality read-only, on a sample or a depth), Observations view (the ten manual types with value, unit, text, source and the depth they refer to), Photos (on-device thumbnail and working WebP, SHA-256, local blob store, attached once with depth, user, both times, optional original per well, photographed stage), explorer counts |
-| WS5 tops, prognosis, conflicts | not started | |
+| WS5 tops, prognosis, conflicts | **COMPLETE 2026-09-07: engines #151 + #152 merged, Suite PR merged** | engines #151 (`tops.js`), #152 (two fresh calls of one formation on different chains are a conflict, found by the Suite test); Suite branch `feat/ws5-tops-prognosis`: prognosis snapshot versions (registry tops, offset wells' tops through their own surveys, Well Design hole sections and definitive trajectory; manual tops as a new version), Tops view (interpretation and official call as separate chains, lifecycle, history with the evidence chain, approver-only final), approach panel in the dock, conflicts (two heads, two finals) with approver resolution citing both, top_called events, harness `?conflict=1` |
 | WS6 offline shell and sync | not started | |
 | WS7 shift handover | not started | |
 | WS8 daily report and countersignature | not started | |
@@ -26,6 +26,25 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 ## Decisions taken in auto mode
 
 Recorded per phase below as they are taken, with the reason.
+
+### WS5
+
+- The prognosis is a versioned snapshot row (`ws_prognosis`), loaded
+  online by an administrator or edited by hand (a new version each
+  time), so the rig knows which version and date it works from.
+- Offset tops carry a subsea depth computed through the offset well's
+  own registry survey at load time; the approach panel compares subsea
+  depths, never MD across wells.
+- A first official call is preliminary or confirmed; final needs an
+  approver role on the well; a withdrawn call is not current and never
+  publishes. Every change is a new version on the chain.
+- Calling a top records a `top_called` event citing the call, and the
+  call cites the interpretation and the observations chosen as evidence,
+  so a reviewer walks Event to Decision to Interpretation to
+  Observations (spec section 35).
+- Rows arriving from elsewhere are stored through `_pullRows` with no
+  outbox entry; the harness `?conflict=1` uses it to stand in for the
+  office until the sync engine lands in WS6.
 
 ### WS4
 
