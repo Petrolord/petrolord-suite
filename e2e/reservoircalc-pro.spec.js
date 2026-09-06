@@ -62,3 +62,34 @@ test('RC1: the Wells tab pulls zone averages, a surface footprint and a Mapping 
   await page.getByTestId('rcp-tab-aoi').click();
   await expect(page.getByTestId('rcp-aoi-row-Demo license block')).toBeVisible();
 });
+
+test('RC2: contacts are TVDSS elevations in a chosen unit and the viewers label a metre surface in metres', async ({ page }) => {
+  await page.goto('/dev/reservoircalc-pro');
+  await page.getByTestId('rcp-tab-surfaces').click();
+  await page.getByTestId('rcp-import-open').click();
+  await page.getByTestId('rcp-registry-use-Harness Dome').click();
+  await page.getByTestId('rcp-import-confirm').click();
+  const anyway = page.getByTestId('rcp-import-anyway');
+  await Promise.race([
+    anyway.waitFor({ state: 'visible', timeout: 15000 }).then(() => anyway.click()).catch(() => {}),
+    page.locator('[role="dialog"]').waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {}),
+  ]);
+  await expect(page.locator('[role="dialog"]')).toHaveCount(0, { timeout: 15000 });
+  // the 3D viewer labels the metre surface in metres although the workspace is field
+  await expect(page.getByText(/Depth \(m\)/i).first()).toBeVisible({ timeout: 15000 });
+
+  await page.getByTestId('rcp-tab-geometry').click();
+  await page.locator('label[for="im-hybrid"]').click();
+  await expect(page.getByTestId('rcp-contact-note')).toContainText('Elevation below the datum');
+  await page.locator('#owc-input').fill('-5249.34');
+  await page.locator('#owc-input').blur();
+  const stooip = page.getByTestId('rcp-stooip');
+  await expect.poll(async () => Number(await stooip.getAttribute('data-value')), { timeout: 20000 }).toBeGreaterThan(0);
+  const feet = Number(await stooip.getAttribute('data-value'));
+  // the same contact typed in metres gives the same volume
+  await page.getByTestId('rcp-contact-unit').selectOption('m');
+  await expect(page.locator('#owc-input')).toHaveValue(/-1599\.99|-1600/);
+  await page.locator('#owc-input').fill('-1600');
+  await page.locator('#owc-input').blur();
+  await expect.poll(async () => Math.abs(Number(await stooip.getAttribute('data-value')) - feet) / feet, { timeout: 20000 }).toBeLessThan(0.005);
+});

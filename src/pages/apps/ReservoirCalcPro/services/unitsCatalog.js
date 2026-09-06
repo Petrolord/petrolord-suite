@@ -21,6 +21,11 @@ export const INPUT_UNIT_OPTIONS = {
         { value: 'ft', label: 'ft' },
         { value: 'm', label: 'm' }
     ],
+    // RC2: fluid contacts (OWC/GOC) as TVDSS elevation, negative below datum
+    contact: [
+        { value: 'ft', label: 'ft' },
+        { value: 'm', label: 'm' }
+    ],
     bg: [
         { value: 'rcf_scf', label: 'rcf/scf (= rm³/sm³)' },
         { value: 'rb_scf', label: 'rb/scf' },
@@ -43,6 +48,7 @@ export const INPUT_UNIT_OPTIONS = {
 const FIELD_TYPE = {
     area: 'area',
     thickness: 'length',
+    contact: 'length',
     bg: 'gasFVF',
     pressure: 'pressure',
     temperature: 'temperature'
@@ -54,6 +60,7 @@ export function canonicalUnitFor(field, unitSystem) {
     switch (field) {
         case 'area': return isField ? 'acre' : 'km2';
         case 'thickness': return isField ? 'ft' : 'm';
+        case 'contact': return isField ? 'ft' : 'm';
         case 'bg': return 'rcf_scf'; // ≡ rm³/sm³, system-independent
         case 'pressure': return 'psi';
         case 'temperature': return 'F';
@@ -67,6 +74,7 @@ export function defaultInputUnits(unitSystem) {
     return {
         area: isField ? 'acre' : 'km2',
         thickness: isField ? 'ft' : 'm',
+        contact: isField ? 'ft' : 'm',
         bg: 'rcf_scf',
         pressure: isField ? 'psi' : 'bar',
         temperature: isField ? 'F' : 'C'

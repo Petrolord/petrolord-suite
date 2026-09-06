@@ -12,6 +12,7 @@ import { listExportedSurfaces, downloadExportedSurface } from '@/pages/apps/Seis
 import { listWellsWithTops, listZones } from '@/lib/wellsRegistry';
 import { listCulture, downloadCultureFeatures } from '@/lib/cultureRegistry';
 import { makeRegistryProspectsBackend, makeInMemoryProspectsBackend } from './prospectsService';
+import { getDepthUnit } from '@/lib/crs/settingsService';
 import { makeInMemoryBackend as makeMappingInMemoryBackend } from '@/pages/apps/MappingSurfaceStudio/services/inMemoryBackend';
 
 export function makeRegistryRcpBackend() {
@@ -22,6 +23,8 @@ export function makeRegistryRcpBackend() {
     wells: { listWellsWithTops, listZones },
     culture: { listCulture, downloadCultureFeatures },
     prospects: makeRegistryProspectsBackend(),
+    // RC2: the account's Geoscience depth unit (the Mapping setting)
+    getDepthUnit,
   };
 }
 
@@ -99,5 +102,6 @@ export function makeInMemoryRcpBackend() {
     },
     culture: { listCulture: () => mapping.listCulture(), downloadCultureFeatures: (row) => mapping.downloadCultureFeatures(row) },
     prospects: makeInMemoryProspectsBackend([]),
+    async getDepthUnit() { return null; },
   };
 }

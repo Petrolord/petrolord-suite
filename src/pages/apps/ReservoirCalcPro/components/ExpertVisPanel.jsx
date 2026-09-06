@@ -64,7 +64,9 @@ const ExpertVisPanel = () => {
     // Robust Data Extraction
     const activeSurface = getActiveSurface ? getActiveSurface() : null;
     const unitSystem = state.unitSystem || 'field';
-    const depthUnit = unitSystem === 'field' ? 'ft' : 'm';
+    // RC2: the surface's own depth unit labels the viewers (a metre grid
+    // imported into a field workspace stays labelled in metres)
+    const depthUnit = activeSurface?.depthUnit || (unitSystem === 'field' ? 'ft' : 'm');
 
     const surfaceGrid = useMemo(() => {
         if (!activeSurface) return null;

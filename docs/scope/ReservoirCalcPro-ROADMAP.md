@@ -74,3 +74,15 @@ still meets, against the apps the testers just walked:
   `addAOI` dispatched UPDATE_AOI, which only edits an existing AOI, so
   adding a new one was a silent no-op (new ADD_AOI action). The G5.1
   `registryInputs.js` mapping finally has a UI consumer.
+- **RC2 (2026-09-06), branch `feat/rc2-contacts-depth-unit`.** Fluid
+  contacts get a display unit (ft or m, `inputUnits.contact`, remembered
+  with the project) that defaults to the account's Geoscience depth unit
+  through the backend (`getDepthUnit`, the Mapping setting) on a fresh
+  workspace; the canonical value stays the unit system's length unit and
+  the system toggle converts it as before. The contact note now states
+  the registry convention (TVDSS elevation, negative below datum,
+  deeper is more negative); the old note claimed positive-down and
+  contradicted the Geo tab. The map and 3D viewers label depth with the
+  surface's own unit, so a metre grid in a field workspace reads "Depth
+  (m)". e2e: the same contact typed in feet and in metres gives the same
+  STOOIP within 0.5%.
