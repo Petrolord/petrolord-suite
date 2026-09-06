@@ -13,7 +13,7 @@ eleventh Geoscience tile. Slug `stratigraphy-studio`, route
 |---|---|---|
 | ST0 stratigraphic framework | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #412 merged** | engines #140 (vocabulary, ICS 2023/09 timescale, column tree; 66 tests); Suite branch `feat/st0-stratigraphic-framework`: migration 20260906180000 (geo_strat_units + typed-top columns), stratRegistry.js, typed tops through wellsRegistry, typed markers in Well Correlation and Petrophysics, Type/Unit/Confidence/Age in the Well Data Manager tops tab, the Stratigraphy Studio app (Column editor, Tops typing, Glossary, terminology display option), portability spec + hook, guard test, pentest SQL, e2e |
 | ST1 lithology, core and facies | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #413 merged** | engines #141 (lithology vocabulary, interval arithmetic, LAS 3.0 blocks to intervals; 66 tests, fixture las3_intervals_30); Suite branch `feat/st1-intervals-core-images`: migration 20260906200000 (geo_wells_intervals + geo_wells_core_images), stratRegistry intervals + core photo services, `intervals:<kind>` strip in the shared track layout, Petrophysics facies publish, Well Correlation lithology strip, Well Data Manager Intervals + Core tabs and LAS 3.0 block import, Stratigraphy Studio Intervals + Core views, portability, e2e |
-| ST2 sequence stratigraphy + Wheeler | **BUILT 2026-09-06, PR open, migration HELD** | engines #142 (age-depth model, Wheeler cells, stratigraphic stretch, tracts from surfaces; hand-derived three-well golden); Suite branch `feat/st2-sequence-wheeler`: migration 20260906220000 (strat_projects + tops.hiatus_to_ma), CrossSection and the section frame moved to `src/components/wells/section/` with the section state as `useSectionWells`, stretch datum + tract and motif bands + ghost curve in the shared painter, Stratigraphy Studio Section and Wheeler views, hiatus end in Tops typing, systems tracts in the interval editor, e2e |
+| ST2 sequence stratigraphy + Wheeler | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #414 merged** | engines #142 (age-depth model, Wheeler cells, stratigraphic stretch, tracts from surfaces; hand-derived three-well golden); Suite branch `feat/st2-sequence-wheeler`: migration 20260906220000 (strat_projects + tops.hiatus_to_ma), CrossSection and the section frame moved to `src/components/wells/section/` with the section state as `useSectionWells`, stretch datum + tract and motif bands + ghost curve in the shared painter, Stratigraphy Studio Section and Wheeler views, hiatus end in Tops typing, systems tracts in the interval editor, e2e |
 | ST3 biozones and ages | not started | |
 | ST4 stratigraphic maps | not started | |
 | ST5 seismic stratigraphy | not started | |
@@ -194,7 +194,7 @@ and re-emits forever (a hung jest, a hung page). Pass a hoisted constant.
   clinoform with an SU whose hiatus differs per well and a CC at the
   distal well; the README derives every cell and rate by hand. 52 tests.
 
-**Migration 20260906220000 (HELD).** `strat_projects` (app-private view
+**Migration 20260906220000 (APPLIED 2026-09-06 by the owner, pentest green).** `strat_projects` (app-private view
 state) and `geo_wells_tops.hiatus_to_ma` with its check. Pentest in
 `tools/validation/stratigraphy/rls-pentest-st2.sql` (six blocks).
 
