@@ -17,6 +17,7 @@ import {
 import { listVolumes, getManifest } from '@/pages/apps/Seismolord/services/volumesService';
 import { isLinearVelocityModel } from '../engine/velocitySource';
 import { staleOwnCurves } from './publish';
+import { getDepthUnit } from '@/lib/crs/settingsService';
 
 // ---- Seismolord velocity models (P4) -----------------------------------------
 // Per-volume manifest.velocity, well-tie calibrated in Seismolord.
@@ -97,6 +98,7 @@ export function makeRegistryBackend() {
     listLogs,
     downloadCurve,
     listVelocityModels,
+    getDepthUnit,
     publishCurves,
     loadProject,
     saveProject,

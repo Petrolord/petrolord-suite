@@ -114,6 +114,9 @@ export function makeInMemoryBackend() {
       return data;
     },
     async listVelocityModels() { return [...VELOCITY_MODELS]; },
+    // PP0: the account's Geoscience depth unit (the Mapping setting);
+    // the fixture is SI so the oracle-anchored readout stays in metres
+    async getDepthUnit() { return 'm'; },
 
     // overwrite-own publish against the in-memory log list, so the
     // e2e can drive publish + republish without a DB

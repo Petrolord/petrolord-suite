@@ -77,3 +77,14 @@ App: `apps/geoscience/pore-pressure-studio` (tile Active, migration
 - ~~Prod upload: tile + route reach petrolord.com at the next build
   upload.~~ **DONE 2026-07-14** — prod is current (source zip from
   main `e84f8a181`, uploaded same day the PR merged).
+
+## 2026-09-06: PP series (Petrel and Drilling tester readiness) PP0
+
+Plan of record: docs/scope/PorePressure-ROADMAP.md. PP0 display units
+(pressure as MPa, psi, ppg EMW or sg EMW; depth in the account's
+Geoscience unit with sonic and the compaction constant following it)
+convert at the UI edge, and Prognosis CSV carries the profile in those
+units with EMW columns for the well plan. The engine, the goldens, the
+project and the published curves stay SI. This closes the "EMW/ppg
+display units for the Drilling handoff" follow-on above. PP1
+(launchers, help guide) follows.
