@@ -105,3 +105,35 @@ Petrel user meets is the shell around them, and a walk through it on
   a file with a bad row previews 2 + 2 points and one problem and
   replaces the table; a tops file makes 3 flagged layers; KETA-1 makes 4
   and ties the model.
+- **BF3 (2026-09-06), branch `feat/bf3-units-links-help`.** Display
+  units (`services/units.js`, pure): depth m or ft with the account's
+  Geoscience unit as the default through `backend.getDepthUnit`,
+  temperature C or F, chosen in a Units bar in the Expert header and
+  the wizard and remembered in the browser. They convert the layer
+  thickness cards and total (both modes), the erosion amounts, the
+  surface temperature, the calibration point tables, the profile and
+  residual plots, the calibration CSV and PDF, the summary table and
+  its maximum temperature, the burial and temperature history plots
+  and the import previews; the import tabs take the file's depth unit.
+  The results CSV keeps its SI columns and adds display-unit columns.
+  Launchers: Well data (the tied registry well on its tops) and Open
+  in appear once a model is built from a registry well; Help (and F1)
+  opens the new full-page guide (`BasinFlowHelpGuide.jsx` on the
+  shared HelpGuideLayout, route
+  `/dashboard/apps/geoscience/basinflow-genesis/help`, guarded by
+  `__tests__/helpGuide.test.jsx` including the no-em-dash rule); the
+  in-app help sheet and its articles (lithology mixing the engine
+  ignores, an API, keyboard shortcuts) are deleted with the dead
+  VisualizationPanel. Two dead buttons were wired or removed: the
+  guided dashboard's Export opens the export dialog (Share is gone)
+  and the results panel's Download Data downloads the CSV. e2e: 1600 m
+  reads 5249.34 ft, 15 C reads 59 F, the erosion amount 1968.5 ft, the
+  summary row converts the golden's present-day values, a point typed
+  in ft and F reads back 1000 m and 100 C, KETA-1 brings the launchers,
+  the choice survives a reload, the guide route is gated.
+
+**BF0 to BF3 CLOSED 2026-09-06.** Open for Basin & Charge Modeling: a
+tester walk on staging; the G7 follow-ons in BasinFlow-STATUS.md
+(max-burial hysteresis, layer-cake velocity, orphan bf_* tables) stay
+unscheduled. The wizard's PetroleumSystem step still names lithology
+mixing the engine ignores; a follow-on may remove it.

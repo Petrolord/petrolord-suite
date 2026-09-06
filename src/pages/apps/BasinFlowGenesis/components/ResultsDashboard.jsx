@@ -3,12 +3,14 @@ import { useBasinFlow } from '../contexts/BasinFlowContext';
 import ResultsPanel from './ResultsPanel';
 import GuidedResultsSummaryPanel from './GuidedResultsSummaryPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Download, Share2, ArrowLeft } from 'lucide-react';
+import { Download, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import ExportDialog from './common/ExportDialog';
 
 const ResultsDashboard = ({ onBack }) => {
     const { state } = useBasinFlow();
     const { results } = state;
+    const [exportOpen, setExportOpen] = React.useState(false);
 
     return (
         <div className="h-full flex flex-col bg-slate-950">
@@ -27,13 +29,11 @@ const ResultsDashboard = ({ onBack }) => {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="border-slate-700 text-slate-300">
-                        <Share2 className="w-4 h-4 mr-2" /> Share
-                    </Button>
-                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" size="sm">
-                        <Download className="w-4 h-4 mr-2" /> Export Report
+                    <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" size="sm" data-testid="bf-dashboard-export" onClick={() => setExportOpen(true)}>
+                        <Download className="w-4 h-4 mr-2" /> Export
                     </Button>
                 </div>
+                <ExportDialog isOpen={exportOpen} onClose={() => setExportOpen(false)} />
             </div>
 
             <div className="flex-1 overflow-hidden">

@@ -8,8 +8,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Trash2, GripVertical, Layers, AlertCircle } from 'lucide-react';
 import { useBasinFlow } from '../contexts/BasinFlowContext';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
+import { depthToDisplay, depthFromDisplay, tidy, fmtDepth } from '../services/units';
 
-const LayerCard = ({ layer, index, dispatch, readOnly = false }) => {
+const LayerCard = ({ layer, index, dispatch, readOnly = false, depthUnit = 'm' }) => {
     if (!layer) return null;
 
     return (
@@ -77,11 +78,13 @@ const LayerCard = ({ layer, index, dispatch, readOnly = false }) => {
                                             />
                                         </div>
                                          <div>
-                                            <Label className="text-[10px] text-slate-400">Thick (m)</Label>
+                                            <Label className="text-[10px] text-slate-400">Thick ({depthUnit})</Label>
                                             <Input 
                                                 type="number" 
-                                                value={layer.thickness || 0} 
-                                                onChange={(e) => dispatch({ type: 'UPDATE_LAYER', id: layer.id, payload: { thickness: parseFloat(e.target.value) } })}
+                                                step="any"
+                                                data-testid="bf-layer-thickness"
+                                                value={tidy(depthToDisplay(layer.thickness || 0, depthUnit))} 
+                                                onChange={(e) => dispatch({ type: 'UPDATE_LAYER', id: layer.id, payload: { thickness: depthFromDisplay(parseFloat(e.target.value), depthUnit) } })}
                                                 className="h-7 bg-slate-950 text-xs"
                                                 readOnly={readOnly}
                                             />
@@ -132,7 +135,7 @@ const LayerCard = ({ layer, index, dispatch, readOnly = false }) => {
 };
 
 const StratigraphyPanel = () => {
-    const { state, dispatch } = useBasinFlow();
+    const { state, dispatch, units } = useBasinFlow();
 
     // Safety check for state
     if (!state || !state.stratigraphy) return <div className="p-4 text-slate-500">Loading stratigraphy...</div>;
@@ -165,7 +168,7 @@ const StratigraphyPanel = () => {
                                     </div>
                                 ) : (
                                     state.stratigraphy.map((layer, index) => (
-                                        <LayerCard key={layer.id || index} layer={layer} index={index} dispatch={dispatch} />
+                                        <LayerCard key={layer.id || index} layer={layer} index={index} dispatch={dispatch} depthUnit={units.depth} />
                                     ))
                                 )}
                                 {provided.placeholder}
@@ -178,8 +181,8 @@ const StratigraphyPanel = () => {
             <div className="p-4 border-t border-slate-800 bg-slate-900/50 text-xs text-slate-400">
                 <div className="flex justify-between mb-1">
                     <span>Total Thickness:</span>
-                    <span className="text-white font-mono">
-                        {state.stratigraphy.reduce((acc, l) => acc + (l.thickness || 0), 0).toLocaleString()} m
+                    <span className="text-white font-mono" data-testid="bf-total-thickness">
+                        {fmtDepth(state.stratigraphy.reduce((acc, l) => acc + (l.thickness || 0), 0), units.depth)} {units.depth}
                     </span>
                 </div>
                 <div className="flex justify-between">

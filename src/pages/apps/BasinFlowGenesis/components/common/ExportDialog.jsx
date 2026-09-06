@@ -9,7 +9,7 @@ import { useBasinFlow } from '../../contexts/BasinFlowContext';
 import { useToast } from '@/components/ui/use-toast';
 
 const ExportDialog = ({ isOpen, onClose, chartRefs = [] }) => {
-    const { state } = useBasinFlow();
+    const { state, units } = useBasinFlow();
     const { toast } = useToast();
     const [isExporting, setIsExporting] = useState(false);
     const [options, setOptions] = useState({
@@ -23,7 +23,7 @@ const ExportDialog = ({ isOpen, onClose, chartRefs = [] }) => {
         setIsExporting(true);
         try {
             if (options.csv) {
-                ExportEngine.generateCSV(state.results);
+                ExportEngine.generateCSV(state.results, units);
             }
             
             if (options.json) {

@@ -23,6 +23,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
 import { useMultiWell } from '@/pages/apps/BasinFlowGenesis/contexts/MultiWellContext';
 import { parseCalibrationText, parseTopsText, layersFromTops } from '../../services/calibrationImport';
+import { depthFromDisplay, fmtDepth, DEPTH_UNITS } from '../../services/units';
 
 const ACCEPT = { 'text/csv': ['.csv'], 'text/plain': ['.txt', '.dat', '.prn', '.asc'], 'text/tab-separated-values': ['.tsv'] };
 
@@ -60,8 +61,11 @@ function Problems({ items, kind }) {
 }
 
 const AdvancedDataImport = () => {
-  const { state, dispatch } = useBasinFlow();
+  const { state, dispatch, units } = useBasinFlow();
   const { backend } = useMultiWell();
+  const [fileUnit, setFileUnit] = useState(units.depth); // depths in the files
+  useEffect(() => { setFileUnit(units.depth); }, [units.depth]);
+  const toM = (v) => depthFromDisplay(v, fileUnit);
   const { toast } = useToast();
   const [cal, setCal] = useState(null); // { name, ro, temp, problems }
   const [tops, setTops] = useState(null); // { name, tops, problems }
@@ -76,8 +80,21 @@ const AdvancedDataImport = () => {
     return () => { live = false; };
   }, [backend]);
 
-  const readCalibration = (text, name) => setCal({ name, ...parseCalibrationText(text) });
-  const readTops = (text, name) => setTops({ name, ...parseTopsText(text) });
+  const readCalibration = (text, name) => {
+    const r = parseCalibrationText(text);
+    setCal({ name, ...r, ro: r.ro.map((p) => ({ ...p, depth: toM(p.depth) })), temp: r.temp.map((p) => ({ ...p, depth: toM(p.depth) })) });
+  };
+  const readTops = (text, name) => {
+    const r = parseTopsText(text);
+    setTops({ name, ...r, tops: r.tops.map((t) => ({ ...t, depth: toM(t.depth) })) });
+  };
+  const fileUnitSelect = (
+    <label className="flex items-center gap-2 text-xs text-slate-400">Depths in the file are in
+      <select data-testid="bf-import-file-unit" value={fileUnit} onChange={(e) => setFileUnit(e.target.value)} className="bg-slate-800 border border-slate-700 rounded px-1 py-0.5 text-xs text-slate-100">
+        {DEPTH_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+      </select>
+    </label>
+  );
 
   const applyCalibration = (mode) => {
     if (!cal) return;
@@ -93,7 +110,7 @@ const AdvancedDataImport = () => {
 
   const previewLayers = useMemo(() => {
     if (!tops?.tops?.length) return [];
-    const bd = parseFloat(baseDepth);
+    const bd = toM(parseFloat(baseDepth));
     return layersFromTops(tops.tops, { baseDepth: Number.isFinite(bd) ? bd : null, idFor: (i) => `import-${Date.now()}-${i}` });
   }, [tops, baseDepth]);
 
@@ -120,12 +137,12 @@ const AdvancedDataImport = () => {
 
   const LayerPreview = ({ layers, testid }) => (
     <table className="w-full text-xs text-slate-200" data-testid={testid}>
-      <thead><tr className="text-slate-500 text-left"><th className="font-normal">Layer</th><th className="font-normal text-right">Thickness (m)</th><th className="font-normal">Lithology guess</th><th className="font-normal text-right">Ages (placeholder)</th></tr></thead>
+      <thead><tr className="text-slate-500 text-left"><th className="font-normal">Layer</th><th className="font-normal text-right">Thickness ({units.depth})</th><th className="font-normal">Lithology guess</th><th className="font-normal text-right">Ages (placeholder)</th></tr></thead>
       <tbody>
         {layers.map((l) => (
           <tr key={l.id} className="border-t border-slate-800">
             <td className="py-0.5">{l.name}</td>
-            <td className="py-0.5 text-right font-mono">{l.thickness.toFixed(0)}</td>
+            <td className="py-0.5 text-right font-mono">{fmtDepth(l.thickness, units.depth)}</td>
             <td className="py-0.5 capitalize">{l.lithology}</td>
             <td className="py-0.5 text-right font-mono">{l.ageStart} to {l.ageEnd} Ma</td>
           </tr>
@@ -149,8 +166,9 @@ const AdvancedDataImport = () => {
 
         <TabsContent value="calibration" className="space-y-4">
           {!cal && <ImportZone kind="calibration" label="Drop a calibration file: depth with Ro and/or temperature columns" onText={readCalibration} />}
-          <div className="bg-slate-900/50 p-3 rounded border border-slate-800 text-xs text-slate-400">
-            Columns: <span className="font-mono">depth</span> (m), <span className="font-mono">Ro</span> (%), <span className="font-mono">temperature</span> (°C). A row may carry one or both values.
+          <div className="bg-slate-900/50 p-3 rounded border border-slate-800 text-xs text-slate-400 flex flex-wrap items-center gap-3">
+            <span>Columns: <span className="font-mono">depth</span>, <span className="font-mono">Ro</span> (%), <span className="font-mono">temperature</span> (°C). A row may carry one or both values.</span>
+            {fileUnitSelect}
           </div>
           {cal && (
             <Card className="bg-slate-900 border-slate-800">
@@ -171,8 +189,9 @@ const AdvancedDataImport = () => {
 
         <TabsContent value="tops" className="space-y-4">
           {!tops && <ImportZone kind="tops" label="Drop a formation tops file: name and depth per row" onText={readTops} />}
-          <div className="bg-slate-900/50 p-3 rounded border border-slate-800 text-xs text-slate-400">
-            Columns: <span className="font-mono">name</span>, <span className="font-mono">depth</span> (m, top of the layer). Thickness is the gap to the next top; give a total depth for the last layer.
+          <div className="bg-slate-900/50 p-3 rounded border border-slate-800 text-xs text-slate-400 flex flex-wrap items-center gap-3">
+            <span>Columns: <span className="font-mono">name</span>, <span className="font-mono">depth</span> (top of the layer). Thickness is the gap to the next top; give a total depth for the last layer.</span>
+            {fileUnitSelect}
           </div>
           {tops && (
             <Card className="bg-slate-900 border-slate-800">
@@ -180,7 +199,7 @@ const AdvancedDataImport = () => {
                 <div className="flex items-center gap-2 text-sm text-white"><FileText className="w-4 h-4 text-indigo-400" /> {tops.name}
                   <Button variant="ghost" size="icon" className="ml-auto h-6 w-6 text-slate-500" data-testid="bf-import-clear-tops" onClick={() => setTops(null)}><X className="w-4 h-4" /></Button>
                 </div>
-                <label className="flex items-center gap-2 text-xs text-slate-400">Total depth of the last layer (m)
+                <label className="flex items-center gap-2 text-xs text-slate-400">Total depth of the last layer ({fileUnit})
                   <Input type="number" step="any" data-testid="bf-import-tops-td" value={baseDepth} onChange={(e) => setBaseDepth(e.target.value)} className="h-7 w-28 bg-slate-950 text-xs" placeholder="optional" />
                 </label>
                 <Problems items={tops.problems} kind="tops" />

@@ -14,9 +14,10 @@ import { History, Thermometer, TrendingUp } from 'lucide-react';
 import { useBasinFlow } from '../contexts/BasinFlowContext';
 import HeatFlowHistoryEditor from './history/HeatFlowHistoryEditor';
 import ErosionEventsEditor from './history/ErosionEventsEditor';
+import { tempToDisplay, tempFromDisplay, tidy, tempSymbol } from '../services/units';
 
 const GlobalHistoryPanel = () => {
-    const { state, dispatch, stats } = useBasinFlow();
+    const { state, dispatch, stats, units } = useBasinFlow();
     const { heatFlow, erosionEvents, settings } = state;
 
     return (
@@ -53,13 +54,13 @@ const GlobalHistoryPanel = () => {
                             <div className="space-y-2">
                                 <h3 className="text-xs font-semibold text-slate-300">Surface temperature</h3>
                                 <div className="bg-slate-900 p-3 rounded border border-slate-800">
-                                    <Label className="text-xs text-slate-400">Present day and through time (°C)</Label>
+                                    <Label className="text-xs text-slate-400">Present day and through time ({tempSymbol(units.temp)})</Label>
                                     <Input
                                         type="number"
                                         step="any"
                                         data-testid="bf-surface-temp"
-                                        value={settings?.surfaceTemp ?? 20}
-                                        onChange={(e) => dispatch({ type: 'UPDATE_SETTINGS', payload: { surfaceTemp: parseFloat(e.target.value) } })}
+                                        value={tidy(tempToDisplay(settings?.surfaceTemp ?? 20, units.temp))}
+                                        onChange={(e) => dispatch({ type: 'UPDATE_SETTINGS', payload: { surfaceTemp: tempFromDisplay(parseFloat(e.target.value), units.temp) } })}
                                         className="mt-1 bg-slate-950 h-8"
                                     />
                                     <p className="text-[11px] text-slate-500 mt-1">The upper boundary of the heat solution, held constant through the burial history.</p>
@@ -75,6 +76,7 @@ const GlobalHistoryPanel = () => {
                             <ErosionEventsEditor
                                 events={erosionEvents}
                                 maxAge={stats.maxAge}
+                                depthUnit={units.depth}
                                 onChange={(events) => dispatch({ type: 'SET_EROSION_EVENTS', payload: events })}
                             />
                         </div>

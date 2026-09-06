@@ -2,8 +2,10 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, AlertTriangle, Droplet, Flame } from 'lucide-react';
 import { finalDepthProfile } from '../services/resultsView';
+import { fmtDepth, fmtTemp, depthLabel, tempLabel, tempSymbol } from '../services/units';
 
-const ResultsSummaryTab = ({ results }) => {
+const ResultsSummaryTab = ({ results, units = { depth: 'm', temp: 'C' } }) => {
+    const zU = units.depth; const tU = units.temp;
     if (!results?.data || !results?.meta) {
         return <div className="h-full flex items-center justify-center text-slate-500">Run a simulation to see the summary.</div>;
     }
@@ -53,7 +55,7 @@ const ResultsSummaryTab = ({ results }) => {
                             <div>
                                 <h4 className="text-sm font-medium text-white">Thermal Maximum</h4>
                                 <p className="text-xs text-slate-400 mt-1">
-                                    Basin reached a maximum temperature of <span className="text-white font-mono">{maxTemp.toFixed(1)}°C</span>.
+                                    Basin reached a maximum temperature of <span className="text-white font-mono">{fmtTemp(maxTemp, tU)}{tempSymbol(tU)}</span>.
                                     Max maturity: <span className="text-white font-mono">{maxMaturity.toFixed(2)} %Ro</span>.
                                 </p>
                             </div>
@@ -91,9 +93,9 @@ const ResultsSummaryTab = ({ results }) => {
                         <thead>
                             <tr className="text-slate-500 text-left">
                                 <th className="font-normal">Layer</th>
-                                <th className="font-normal text-right">Top (m)</th>
-                                <th className="font-normal text-right">Base (m)</th>
-                                <th className="font-normal text-right">Temperature (°C)</th>
+                                <th className="font-normal text-right">{depthLabel(zU, 'Top')}</th>
+                                <th className="font-normal text-right">{depthLabel(zU, 'Base')}</th>
+                                <th className="font-normal text-right">{tempLabel(tU)}</th>
                                 <th className="font-normal text-right">Ro (%)</th>
                             </tr>
                         </thead>
@@ -101,9 +103,9 @@ const ResultsSummaryTab = ({ results }) => {
                             {present.map((row) => (
                                 <tr key={row.id} className="border-t border-slate-800">
                                     <td className="py-1">{row.name}</td>
-                                    <td className="py-1 text-right font-mono">{row.top.toFixed(0)}</td>
-                                    <td className="py-1 text-right font-mono">{row.bottom.toFixed(0)}</td>
-                                    <td className="py-1 text-right font-mono">{row.temp.toFixed(1)}</td>
+                                    <td className="py-1 text-right font-mono" data-testid={`bf-present-top-${row.id}`}>{fmtDepth(row.top, zU)}</td>
+                                    <td className="py-1 text-right font-mono">{fmtDepth(row.bottom, zU)}</td>
+                                    <td className="py-1 text-right font-mono" data-testid={`bf-present-temp-${row.id}`}>{fmtTemp(row.temp, tU)}</td>
                                     <td className="py-1 text-right font-mono" data-testid={`bf-present-ro-${row.id}`}>{row.ro.toFixed(3)}</td>
                                 </tr>
                             ))}

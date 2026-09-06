@@ -7,9 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Trash2, GripVertical, Layers, AlertCircle } from 'lucide-react';
 import { useGuidedMode } from '../../contexts/GuidedModeContext';
+import { useBasinFlow } from '../../contexts/BasinFlowContext';
+import { depthToDisplay, depthFromDisplay, tidy } from '../../services/units';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 
 const LayerCard = ({ layer, index, updateLayer, removeLayer }) => {
+    const { units } = useBasinFlow();
+    const depthUnit = units.depth;
     if (!layer) return null;
 
     return (
@@ -69,11 +73,12 @@ const LayerCard = ({ layer, index, updateLayer, removeLayer }) => {
                                             />
                                         </div>
                                          <div>
-                                            <Label className="text-[10px] text-slate-400">Thick (m)</Label>
+                                            <Label className="text-[10px] text-slate-400">Thick ({depthUnit})</Label>
                                             <Input 
                                                 type="number" 
-                                                value={layer.thickness || 0} 
-                                                onChange={(e) => updateLayer(layer.id, { thickness: parseFloat(e.target.value) })}
+                                                step="any"
+                                                value={tidy(depthToDisplay(layer.thickness || 0, depthUnit))} 
+                                                onChange={(e) => updateLayer(layer.id, { thickness: depthFromDisplay(parseFloat(e.target.value), depthUnit) })}
                                                 className="h-7 bg-slate-950 text-xs"
                                             />
                                         </div>

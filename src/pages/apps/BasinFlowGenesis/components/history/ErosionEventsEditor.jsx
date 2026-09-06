@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
 import { erosionProblems } from '../../services/history';
+import { depthToDisplay, depthFromDisplay, tidy } from '../../services/units';
 
-export default function ErosionEventsEditor({ events, maxAge, onChange }) {
+export default function ErosionEventsEditor({ events, maxAge, onChange, depthUnit = 'm' }) {
   const list = Array.isArray(events) ? events : [];
   const setEvent = (i, patch) => onChange(list.map((e, k) => (k === i ? { ...e, ...patch } : e)));
   const add = () => onChange([...list, { age: 10, amount: 500 }]);
@@ -26,7 +27,7 @@ export default function ErosionEventsEditor({ events, maxAge, onChange }) {
           <thead>
             <tr className="text-slate-500 text-left">
               <th className="font-normal">Age (Ma)</th>
-              <th className="font-normal">Removed (m)</th>
+              <th className="font-normal">Removed ({depthUnit})</th>
               <th />
             </tr>
           </thead>
@@ -37,7 +38,7 @@ export default function ErosionEventsEditor({ events, maxAge, onChange }) {
                   <Input type="number" step="any" data-testid={`bf-erosion-age-${i}`} value={e.age} onChange={(ev) => setEvent(i, { age: parseFloat(ev.target.value) })} className="h-7 bg-slate-950 text-xs" />
                 </td>
                 <td className="py-1 pr-2">
-                  <Input type="number" step="any" data-testid={`bf-erosion-amount-${i}`} value={e.amount} onChange={(ev) => setEvent(i, { amount: parseFloat(ev.target.value) })} className="h-7 bg-slate-950 text-xs" />
+                  <Input type="number" step="any" data-testid={`bf-erosion-amount-${i}`} value={tidy(depthToDisplay(e.amount, depthUnit))} onChange={(ev) => setEvent(i, { amount: depthFromDisplay(parseFloat(ev.target.value), depthUnit) })} className="h-7 bg-slate-950 text-xs" />
                 </td>
                 <td className="py-1 text-right">
                   <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-red-400" data-testid={`bf-erosion-remove-${i}`} onClick={() => remove(i)}>

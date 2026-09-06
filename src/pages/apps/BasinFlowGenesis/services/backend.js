@@ -8,6 +8,7 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { listWellsWithTops } from '@/lib/wellsRegistry';
+import { getDepthUnit } from '@/lib/crs/settingsService';
 
 const nowIso = () => new Date().toISOString();
 
@@ -41,6 +42,8 @@ export function makeRegistryBackend() {
     },
     // BF2: the shared registry's wells with their tops (the stratigraphy door)
     listRegistryWells: listWellsWithTops,
+    // BF3: the account's Geoscience depth unit (the Mapping setting)
+    getDepthUnit,
   };
 }
 
@@ -124,6 +127,8 @@ export function makeInMemoryBackend({ persist = true } = {}) {
     },
     async deleteWell(id) { rows = rows.filter((r) => r.id !== id); save(); },
     async listRegistryWells() { return REGISTRY_WELLS_DEV.map((w) => ({ ...w, tops: w.tops.map((t) => ({ ...t })) })); },
+    // the fixture is SI so the oracle-anchored e2e reads metres by default
+    async getDepthUnit() { return 'm'; },
     /** test seam: the stored rows */
     _rows: () => rows,
   };

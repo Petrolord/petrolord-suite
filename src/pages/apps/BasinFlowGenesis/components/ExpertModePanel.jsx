@@ -3,12 +3,17 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Layers, Database, GitBranch, Play, Activity, Upload, ChevronLeft, ChevronRight, BarChart2, BookOpen, Layout, Download, HelpCircle } from 'lucide-react';
 import { DragDropContext } from 'react-beautiful-dnd';
+import { Link, useNavigate } from 'react-router-dom';
 import { useBasinFlow } from '@/pages/apps/BasinFlowGenesis/contexts/BasinFlowContext';
 import { ValidationEngine } from '../services/ValidationEngine';
 import SimulationRunDialog from './common/SimulationRunDialog';
 import ExportDialog from './common/ExportDialog'; 
-import HelpCenter from './help/HelpCenter'; // Added
+import UnitsBar from './common/UnitsBar';
 import { useToast } from '@/components/ui/use-toast';
+import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
+import { appPath, wellDataManagerHref, WELL_DATA_MANAGER_ID } from '@/components/wells/appLinks';
+
+const BF_ID = 'basinflow-genesis';
 
 import LayerPropertyEditor from './expert/LayerPropertyEditor';
 import CalibrationView from './expert/CalibrationView';
@@ -21,15 +26,17 @@ import SensitivityAnalysisView from './sensitivity/SensitivityAnalysisView';
 import AdvancedDataImport from './import/AdvancedDataImport';
 
 const ExpertModePanel = () => {
-    const { dispatch, runSimulation, state } = useBasinFlow();
+    const { dispatch, runSimulation, state, appPaths } = useBasinFlow();
     const { toast } = useToast();
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('properties');
     const [showMultiWell, setShowMultiWell] = useState(true);
     const [isDndReady, setIsDndReady] = useState(false);
     
     const [isSimDialogOpen, setIsSimDialogOpen] = useState(false);
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false); 
-    const [isHelpOpen, setIsHelpOpen] = useState(false); // Added
+    const helpHref = `${appPath(BF_ID, appPaths)}/help`;
+    const tiedWellId = state.settings?.registryWellId || null;
 
     // Fix for React StrictMode with react-beautiful-dnd
     useEffect(() => {
@@ -40,17 +47,17 @@ const ExpertModePanel = () => {
         };
     }, []);
 
-    // Global Keyboard Shortcut for Help
+    // F1 opens the help guide
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'F1') {
                 e.preventDefault();
-                setIsHelpOpen(true);
+                navigate(helpHref);
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+    }, [navigate, helpHref]);
 
     const handleRunClick = () => {
         // Validate Project
@@ -112,10 +119,27 @@ const ExpertModePanel = () => {
                         <h1 className="font-semibold text-white truncate hidden md:block">Expert Mode Workspace</h1>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                        {/* Help Button */}
-                        <Button variant="ghost" size="icon" onClick={() => setIsHelpOpen(true)} className="text-slate-400 hover:text-white mr-1" title="Help Center (F1)" data-testid="bf-help">
-                            <HelpCircle className="w-5 h-5" />
-                        </Button>
+                        <UnitsBar className="hidden md:flex" />
+                        <div className="h-6 w-px bg-slate-700 hidden md:block" />
+                        {tiedWellId && (
+                            <Link
+                                to={wellDataManagerHref(tiedWellId, 'tops', appPath(WELL_DATA_MANAGER_ID, appPaths))}
+                                data-testid="bf-open-wdm"
+                                title={`Open ${state.settings?.registryWellName || 'the tied well'} in Well Data Manager on its tops`}
+                                className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-800"
+                            >
+                                <Database className="w-3.5 h-3.5" /> Well data
+                            </Link>
+                        )}
+                        <OpenInAppMenu wellIds={tiedWellId ? [tiedWellId] : []} paths={appPaths} testIdPrefix="bf" />
+                        <Link
+                            to={helpHref}
+                            data-testid="bf-help"
+                            title="Open the help guide (F1)"
+                            className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-800 mr-1"
+                        >
+                            <HelpCircle className="w-3.5 h-3.5" /> Help
+                        </Link>
 
                         <Button variant="ghost" size="sm" onClick={() => setShowMultiWell(!showMultiWell)} className={`hidden md:flex ${showMultiWell ? 'bg-slate-800' : ''}`}>
                             {showMultiWell ? <ChevronLeft className="w-4 h-4 mr-2"/> : <ChevronRight className="w-4 h-4 mr-2"/>}
@@ -238,12 +262,6 @@ const ExpertModePanel = () => {
             <ExportDialog 
                 isOpen={isExportDialogOpen}
                 onClose={() => setIsExportDialogOpen(false)}
-            />
-
-            {/* Help System Integration */}
-            <HelpCenter
-                isOpen={isHelpOpen}
-                onClose={() => setIsHelpOpen(false)}
             />
         </>
     );
