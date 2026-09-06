@@ -110,7 +110,8 @@ export default function MappingHelpGuide() {
         <Para>
           The depth display unit in the ribbon (depth: ft or depth: m) sets what you see and type: the z-range
           line, the colour bar, contour labels and interval, posted values, guide values, the GRV contact, and the
-          unit of exported files. It defaults to feet and is remembered in this browser. Storage never changes.
+          unit of exported files. It defaults to feet and is remembered with your account (and in this browser as a
+          fallback). Storage never changes.
         </Para>
         <Para>
           The depth reference select offers TVDSS (default, elevation below datum), TVD (below KB, also stored as
@@ -181,7 +182,14 @@ export default function MappingHelpGuide() {
           them to hold a surface where you know it from seismic or from an offset well the registry does not
           have yet.
         </Para>
-      </GuideSection>
+        <SubHeading>Moving a contour</SubHeading>
+        <Para>
+          Move a contour arms the map: press on a contour line, drag it to where the geology says it belongs and
+          release. The moved line becomes guide points at that value, spaced two cells apart, and the surface
+          re-grids through them at once. The picked line shows dashed and the moved line solid while you drag.
+          Clear all guide points removes them and the next Grid returns to the wells alone.
+        </Para>
+</GuideSection>
 
       <GuideSection id="import">
         <SectionHeading icon={FileUp}>Importing a grid</SectionHeading>

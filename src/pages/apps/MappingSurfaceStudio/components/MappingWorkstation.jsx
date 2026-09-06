@@ -18,13 +18,15 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Map as MapIcon, Loader2, UploadCloud, Sigma, Globe2, Image as ImageIcon, SlidersHorizontal,
-  Pentagon, Square, MapPin, Calculator, Clock, Trash2, Eye, EyeOff, HelpCircle,
+  Pentagon, Square, MapPin, Calculator, Clock, Trash2, Eye, EyeOff, HelpCircle, Spline,
 } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import SurfacesExplorer from './SurfacesExplorer';
-import MapCanvas, { DEFAULT_MAP_DISPLAY } from './MapCanvas';
+import MapCanvas, { DEFAULT_MAP_DISPLAY, contourPlan } from './MapCanvas';
+import { contourPaths } from '@/components/maps/mapPainter';
+import { contourEditPlan, translatePath } from '../services/contourEdit';
 import { MAP_COLORMAPS } from '@/components/maps/lut';
 import { downloadBlob } from '@/components/maps/mapPng';
 import CultureImportDialog from '@/components/culture/CultureImportDialog';
@@ -121,10 +123,27 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   const [velocityModels, setVelocityModels] = useState([]);
   const [tdModelId, setTdModelId] = useState('');
   const [tdUnit, setTdUnit] = useState('ft');
+  // MS5 contour editing: the contour picked up on pointer-down and the
+  // drag vector so far; the moved line is painted as an overlay
+  const [contourDrag, setContourDrag] = useState(null); // {level, path, from, to}
+  const contourCounter = useRef(0);
 
   useEffect(() => {
     try { localStorage.setItem(DEPTH_UNIT_KEY, depthUnit); } catch { /* private mode */ }
   }, [depthUnit]);
+  // MS5: the per-user setting (geoscience_settings.depth_unit) wins over
+  // the browser default once it is known; a toggle writes it back and the
+  // browser copy stays as the fallback when the column is not there yet
+  useEffect(() => {
+    let live = true;
+    if (!backend.getDepthUnit) return undefined;
+    backend.getDepthUnit().then((u) => { if (live && (u === 'm' || u === 'ft')) setDepthUnit(u); }).catch(() => {});
+    return () => { live = false; };
+  }, [backend]);
+  const changeDepthUnit = (u) => {
+    setDepthUnit(u);
+    if (backend.setDepthUnit) backend.setDepthUnit(u).catch((e) => setStatus(e.message));
+  };
 
   const setSetting = (key, value) => setMapSettings((m) => ({ ...m, [key]: value }));
 
@@ -282,7 +301,8 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         kind = 'attribute';
       }
       // guide points (MS3) grid with the wells, tagged so the CSV says so
-      const guides = kind === 'structure' ? guidePoints.map((gp) => ({ x: gp.x, y: gp.y, z: gp.z, well: gp.label, md: null, extrapolated: false, guide: true })) : [];
+      const guideList = opts.guides || guidePoints;
+      const guides = kind === 'structure' ? guideList.map((gp) => ({ x: gp.x, y: gp.y, z: gp.z, well: gp.label, md: null, extrapolated: false, guide: true })) : [];
       const points = [...result.points, ...guides];
       if (points.length < 3) throw new Error('Need at least 3 control points: this source has too few wells.');
       const spec = specForPoints(points, cell, 2);
@@ -528,8 +548,60 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   };
 
   // drawing (MS3)
-  const startDraw = (mode) => { setDrawMode(mode); setPending([]); setGuideAt(null); setPolyName(''); setStatus(mode === 'guide' ? 'Click the map where the guide point goes, then type its value.' : `Click the map to place ${mode === 'fault' ? 'fault-block' : 'boundary'} polygon vertices (3 or more), then name it and Save.`); };
-  const cancelDraw = () => { setDrawMode(null); setPending([]); setGuideAt(null); setStatus('Drawing cancelled.'); };
+  const startDraw = (mode) => {
+    setDrawMode(mode); setPending([]); setGuideAt(null); setPolyName(''); setContourDrag(null);
+    setStatus(mode === 'guide' ? 'Click the map where the guide point goes, then type its value.'
+      : mode === 'contour' ? 'Press on a contour line, drag it to where it belongs and release. The moved line becomes guide points and the surface re-grids through them.'
+        : `Click the map to place ${mode === 'fault' ? 'fault-block' : 'boundary'} polygon vertices (3 or more), then name it and Save.`);
+  };
+  const cancelDraw = () => { setDrawMode(null); setPending([]); setGuideAt(null); setContourDrag(null); setStatus('Drawing cancelled.'); };
+
+  // MS5 contour editing on the displayed grid: the contours the map is
+  // drawing (same interval rule as MapCanvas), a pick tolerance of two
+  // cells, guide spacing of two cells along the moved line
+  const displaySpec = displaySurface ? { x0: displaySurface.origin_x, y0: displaySurface.origin_y, dx: displaySurface.dx, dy: displaySurface.dy, nx: displaySurface.nx, ny: displaySurface.ny } : null;
+  const contoursForEdit = () => {
+    if (!displayGrid || !displaySpec) return null;
+    const plan = contourPlan({ grid: displayGrid, typed: mapSettings.contourStep, unit: depthUnit, isLength: isLengthSurface(displaySurface) });
+    return contourPaths(displayGrid, displaySpec, { step: plan.stepM });
+  };
+  const onDragStart = (world) => {
+    if (drawMode !== 'contour' || !displaySpec) return false;
+    const contours = contoursForEdit();
+    const tol = 2 * Math.max(displaySpec.dx, displaySpec.dy);
+    try {
+      const plan = contourEditPlan(contours, world, world, { tolerance: tol, spacing: tol });
+      setContourDrag({ level: plan.level, path: plan.path, from: world, to: world });
+      setStatus(`Picked the ${fmtZ(plan.level)} contour. Drag it to where it belongs and release.`);
+      return true;
+    } catch (e) { setStatus(e.message); return false; }
+  };
+  const onDrag = (world) => setContourDrag((d) => (d ? { ...d, to: world } : d));
+  const onDragEnd = async (world, { moved } = {}) => {
+    const d = contourDrag;
+    setContourDrag(null);
+    if (!d) return;
+    if (!moved) { setStatus('The contour was not moved. Press on it and drag to a new position.'); return; }
+    const spacing = 2 * Math.max(displaySpec.dx, displaySpec.dy);
+    contourCounter.current += 1;
+    const prefix = `C${contourCounter.current}`;
+    try {
+      const plan = contourEditPlan({ levels: [d.level], paths: [[d.path]] }, d.from, world, { tolerance: Infinity, spacing, prefix });
+      const guides = [...guidePoints, ...plan.guides];
+      setGuidePoints(guides);
+      setDrawMode(null);
+      if (source.type === 'top' && source.key) {
+        setStatus(`Moved the ${fmtZ(d.level)} contour: ${plan.guides.length} guide points added. Re-gridding through them.`);
+        await runGrid({ guides, prefix: `Moved the ${fmtZ(d.level)} contour (${plan.guides.length} guide points). ` });
+      } else {
+        setStatus(`Moved the ${fmtZ(d.level)} contour: ${plan.guides.length} guide points added. Grid a top to apply them.`);
+      }
+    } catch (e) { setStatus(e.message); }
+  };
+  const editOverlays = contourDrag ? [
+    { points: contourDrag.path, color: 'rgba(244, 114, 182, 0.5)', width: 1.5, dash: [4, 3] },
+    { points: translatePath(contourDrag.path, contourDrag.to.x - contourDrag.from.x, contourDrag.to.y - contourDrag.from.y), color: '#f472b6', width: 2.5 },
+  ] : [];
   const onMapClick = ({ x, y }) => {
     if (drawMode === 'guide') { setGuideAt({ x, y }); return; }
     if (drawMode) setPending((p) => [...p, [x, y]]);
@@ -616,7 +688,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       <button type="button" data-testid="map-depth-unit"
         className="ml-2 px-2 py-0.5 text-[11px] rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
         title="Depth display unit (feet or metres). Surfaces are stored in metres."
-        onClick={() => setDepthUnit((u) => (u === 'ft' ? 'm' : 'ft'))}>
+        onClick={() => changeDepthUnit(depthUnit === 'ft' ? 'm' : 'ft')}>
         depth: {depthUnit}
       </button>
       <button type="button" data-testid="map-export-png"
@@ -687,6 +759,10 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         pendingVertices={pending}
         drawing={!!drawMode}
         onMapClick={onMapClick}
+        onDragStart={onDragStart}
+        onDrag={onDrag}
+        onDragEnd={onDragEnd}
+        overlays={editOverlays}
         display={{ unit: depthUnit, isLength: isLengthSurface(displaySurface) }}
         settings={mapSettings}
       />
@@ -830,6 +906,21 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
                 className="w-full px-2 py-1 rounded border border-pink-700/60 text-pink-300 hover:bg-pink-500/10 disabled:opacity-40" onClick={() => startDraw('guide')}>
                 <MapPin className="w-3.5 h-3.5 inline mr-1" />Add a guide point
               </button>
+            )}
+            {drawMode === 'contour' ? (
+              <div className="space-y-1 rounded border border-pink-700/40 p-1.5" data-testid="map-contour-form">
+                <div className="text-slate-300">{contourDrag ? `Moving the ${fmtZ(contourDrag.level)} contour` : 'Press on a contour, drag, release'}</div>
+                <button type="button" data-testid="map-contour-cancel" className="px-2 py-1 rounded border border-slate-700 text-slate-300" onClick={cancelDraw}>Cancel</button>
+              </div>
+            ) : (
+              <button type="button" data-testid="map-contour-edit" disabled={!displayGrid || !isLengthSurface(displaySurface)}
+                title="Drag a contour to a new position; it becomes guide points at its value and the surface re-grids through them"
+                className="w-full px-2 py-1 rounded border border-pink-700/60 text-pink-300 hover:bg-pink-500/10 disabled:opacity-40" onClick={() => startDraw('contour')}>
+                <Spline className="w-3.5 h-3.5 inline mr-1" />Move a contour
+              </button>
+            )}
+            {guidePoints.length > 0 && (
+              <button type="button" data-testid="map-guide-clear" className="w-full px-2 py-0.5 text-[10px] rounded border border-slate-800 text-slate-500 hover:text-slate-300" onClick={() => setGuidePoints([])}>Clear all guide points</button>
             )}
             {guidePoints.map((gp, i) => (
               <div key={gp.label} className="flex items-center gap-1.5 text-slate-300" data-testid={`map-guide-row-${gp.label}`}>

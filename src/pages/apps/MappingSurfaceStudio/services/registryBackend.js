@@ -15,6 +15,7 @@ import {
 import { listVolumes, getManifest } from '@/pages/apps/Seismolord/services/volumesService';
 import { normalizeVelocity } from '@/pages/apps/Seismolord/engine/velocityModel';
 import { resolveUserOrgId } from '@/lib/orgContext';
+import { getDepthUnit, setDepthUnit } from '@/lib/crs/settingsService';
 import { supabase } from '@/lib/customSupabaseClient';
 
 /** The caller's organization id, resolved once per session; null when
@@ -65,6 +66,9 @@ export function makeRegistryBackend() {
     updateCulture,
     deleteCulture,
     canImportCulture: true,
+    // MS5: per-user depth display unit (geoscience_settings.depth_unit)
+    getDepthUnit,
+    setDepthUnit,
     // MS3 time-to-depth: Seismolord volumes' velocity models (linear
     // usable here; layer cakes listed so the refusal can name them)
     async listVelocityModels() {

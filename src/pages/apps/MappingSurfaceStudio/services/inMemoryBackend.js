@@ -52,6 +52,7 @@ export function makeInMemoryBackend() {
   const gridStore = new Map(); // surface id -> Float32Array
   const culture = [];
   const featureStore = new Map(); // culture id -> features
+  let depthUnit = null;           // MS5: per-user setting, unset in the harness
 
   // MS3: one own TWT surface to convert (a dome in time, positive ms)
   const twtId = nid('surf');
@@ -153,6 +154,9 @@ export function makeInMemoryBackend() {
     // culture / GIS layers (W1.3): one demo block so the harness can
     // exercise the overlay without auth/DB; file import stays
     // registry-only, drawn polygons (MS3) save here
+    // MS5: per-user depth unit, kept for the session
+    async getDepthUnit() { return depthUnit; },
+    async setDepthUnit(u) { if (!['m', 'ft'].includes(u)) throw new Error(`Depth unit must be m or ft, got "${u}".`); depthUnit = u; return u; },
     async listCulture() {
       return [{
         id: 'cult-dev',

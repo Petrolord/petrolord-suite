@@ -189,5 +189,25 @@ Suite PR (kit and links), Suite-only:
   Help link (`corr-help`), guard test (section ids, live depth references
   and section parameters, no em dashes).
 
-Remaining MS5 items (next PRs): contour hand-editing, kriging in the
-workstation, rotated grids in the viewport, per-user depth unit.
+Suite PR (contour editing and the depth unit):
+
+- **Move a contour.** Under Guide points, "Move a contour" arms the map:
+  press on a contour line (within two cells), drag, release. The moved
+  line becomes guide points at its value every two cells
+  (`services/contourEdit.js`: nearest contour, translate, resample by arc
+  length; five analytic tests including a re-grid that bends the surface
+  toward the moved line) and, for a top source, the surface re-grids
+  through them at once; the status names the level and the count. The
+  shared viewport gained drag capture (`onDragStart` returning true takes
+  the gesture from the pan, `onDrag`, `onDragEnd`) and `overlays` (world
+  polylines painted over the contours: the picked line dashed, the moved
+  line solid). "Clear all guide points" resets.
+- **Per-user depth unit.** Migration `20260906120000` adds
+  `geoscience_settings.depth_unit` (m | ft, default ft), APPLIED
+  2026-09-06. `settingsService.getDepthUnit/setDepthUnit`; both Mapping
+  backends expose them; the workstation reads the setting on open (it
+  wins over the browser default) and writes it on toggle, keeping the
+  localStorage copy as the fallback.
+
+Remaining MS5 items (next PR): kriging in the workstation and rotated
+grids in the viewport (engines #138 is merged, subtree pull pending).

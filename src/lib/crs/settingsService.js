@@ -127,3 +127,32 @@ export async function addCustomDef({ name, proj4: proj4Def, wkt = null, unit = '
   if (error) throw new Error(`Could not save the custom CRS: ${error.message}`);
   return `CUSTOM:${id}`;
 }
+
+// ---- depth display unit (Mapping MS5, 2026-09-06) ----------------------
+// Column geoscience_settings.depth_unit (migration 20260906120000). Until
+// it is applied the getter returns null and the setter reports the
+// absence in plain words; Mapping keeps its localStorage fallback.
+
+export const DEPTH_UNITS = Object.freeze(['m', 'ft']);
+
+/** The caller's saved depth unit, or null when unset or not yet supported. */
+export async function getDepthUnit() {
+  const row = await getSettings();
+  const u = row?.depth_unit;
+  return DEPTH_UNITS.includes(u) ? u : null;
+}
+
+/** Save the depth unit for the caller. */
+export async function setDepthUnit(unit) {
+  if (!DEPTH_UNITS.includes(unit)) throw new Error(`Depth unit must be m or ft, got "${unit}".`);
+  const user = await requireUser();
+  await getSettings(); // make sure the row exists
+  const { error } = await supabase.from('geoscience_settings')
+    .update({ depth_unit: unit, updated_at: new Date().toISOString() })
+    .eq('user_id', user.id);
+  if (error) {
+    if (/depth_unit/.test(error.message)) throw new Error('The depth unit setting is not available on this database yet; the choice stays in this browser.');
+    throw new Error(`Could not save the depth unit: ${error.message}`);
+  }
+  return unit;
+}
