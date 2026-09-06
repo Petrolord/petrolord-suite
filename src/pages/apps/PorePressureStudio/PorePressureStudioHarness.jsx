@@ -11,12 +11,13 @@
 import React, { useMemo } from 'react';
 import PPWorkstation from './components/PPWorkstation';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
+import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 
 export default function PorePressureStudioHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
     <div className="h-screen w-full overflow-hidden">
-      <PPWorkstation backend={backend} />
+      <PPWorkstation backend={backend} appPaths={DEV_APP_PATHS} />
     </div>
   );
 }

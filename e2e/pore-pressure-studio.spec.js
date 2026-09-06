@@ -175,3 +175,28 @@ test('PP0: pressure and depth display units convert the readout, the NCT, the do
   await expect(page.getByTestId('pp-unit-depth')).toHaveValue('ft');
   await expect(page.getByTestId('pp-unit-pressure')).toHaveValue('MPa');
 });
+
+test('PP1: launchers open the selected well in the other apps and the ribbon links the help guide', async ({ page }) => {
+  await page.goto('/dev/pore-pressure-studio');
+  await expect(page.getByTestId('pp-help')).toHaveAttribute('href', '/dev/pore-pressure-studio/help');
+  await expect(page.getByTestId('pp-open-wdm')).toHaveCount(0);
+  await expect(page.getByTestId('pp-open-in')).toBeDisabled();
+
+  await page.getByTestId('pp-well-row').click();
+  await expect(page.getByTestId('pp-prognosis-chart')).toBeVisible();
+  await expect(page.getByTestId('pp-open-wdm')).toHaveAttribute('href', /^\/dev\/well-data-manager\?well=.+&tab=logs$/);
+  await page.getByTestId('pp-open-in').click();
+  await expect(page.getByTestId('pp-open-in-petrophysics-studio')).toHaveAttribute('href', /^\/dev\/petrophysics-studio\?well=.+$/);
+  await expect(page.getByTestId('pp-open-in-well-correlation')).toHaveAttribute('href', /^\/dev\/well-correlation\?wells=.+$/);
+  await expect(page.getByTestId('pp-open-in-pore-pressure-studio')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // a velocity trend has no well: Well data disappears, Open in disables
+  await page.getByTestId('pp-velocity-row').click();
+  await expect(page.getByTestId('pp-open-wdm')).toHaveCount(0);
+  await expect(page.getByTestId('pp-open-in')).toBeDisabled();
+
+  await page.goto('/dashboard/apps/geoscience/pore-pressure-studio/help');
+  await page.waitForLoadState('networkidle');
+  expect(page.url()).not.toContain('/help'); // gated by auth like the app itself
+});

@@ -72,3 +72,19 @@ Drilling handoff".
   remembered in localStorage. e2e: psi and ppg expectations derived
   from the goldens, the NCT in us/ft and 1/ft, the dock in ft and ppg,
   the 3500 m row of the CSV equals the golden.
+- **PP1 (2026-09-06), branch `feat/pp1-links-help`.** Launchers in the
+  ribbon: Well data opens the selected well in Well Data Manager on its
+  logs (where the published PP, FP and OBG are listed), Open in lists
+  the other Geoscience apps for the well through the shared
+  `OpenInAppMenu` (both vanish or disable on a seismic velocity trend,
+  which has no well), and Help opens the new full-page guide
+  (`PorePressureStudioHelpGuide.jsx` on the shared HelpGuideLayout,
+  route `/dashboard/apps/geoscience/pore-pressure-studio/help`) that
+  quotes the live unit choices and states the EMW datum rule, guarded
+  by `__tests__/helpGuide.test.jsx` including the no-em-dash rule.
+  `appPaths` on the workstation lets the harness point the launchers at
+  the /dev/* apps.
+
+**PP0 to PP1 CLOSED 2026-09-06.** Open for Pore Pressure Studio: a
+tester walk on staging; the follow-ons in PorePressure-STATUS.md
+(layer-cake velocity sampling, resistivity Eaton) stay unscheduled.
