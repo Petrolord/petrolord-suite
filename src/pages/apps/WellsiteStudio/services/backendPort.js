@@ -18,6 +18,8 @@ export const PORT = Object.freeze([
   'listPhotos', 'addPhoto', 'photoUrl',
   // tops and prognosis (WS5)
   'listTops', 'addTop', 'addTopVersion', 'listPrognosis', 'addPrognosis', 'loadPrognosisSources',
+  // reports and sign-off (WS7, WS8)
+  'listReports', 'saveReport', 'listSignoffs', 'addSignoff', 'memberRole',
   // sync surface (WS6 fills in)
   'syncStatus', 'subscribeSync', 'flush', 'setCurrentWell', 'retryRejected', 'listConflicts',
   // storage

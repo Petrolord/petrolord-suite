@@ -6,7 +6,7 @@
 import { liveQuery } from 'dexie';
 import { wellsiteDb, persistStorage, storageEstimate } from '@/lib/wellsite/db';
 import { commitRow, commitMany, commitWellPatch, pendingCount } from '@/lib/wellsite/commit';
-import { buildRecord, nextVersion, correction, buildSampleRow, buildStageRow, buildTopRow, buildPrognosisRow, RecordError } from '@/lib/wellsite/records';
+import { buildRecord, nextVersion, correction, buildSampleRow, buildStageRow, buildTopRow, buildPrognosisRow, buildReportRow, buildSignoffRow, RecordError } from '@/lib/wellsite/records';
 import { canAdvance, statusConfig, DEFAULT_MANDATORY } from '@/lib/wellsite/sampleProgram';
 import { derivePhotoVariants } from '@/lib/wellsite/photos/derive';
 import { buildPhotoRows, localPhotoUrl } from '@/lib/wellsite/photos/store';
@@ -304,6 +304,36 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
     async _pullRows(store, rows) {
       await db[store].bulkPut(rows.map((r) => ({ ...r, sync_state: 'synced' })));
       notify();
+    },
+
+    // ---- reports and sign-off (WS7, WS8) ----
+    async listReports(wellId) { return db.reports.where('[well_id+chain_id]').between([wellId, ''], [wellId, '￿']).toArray(); },
+    /** A new version of the report for its kind and period (chains on `previous` when given). */
+    async saveReport(wellId, params, previous = null) {
+      const well = await requireWell(wellId);
+      const u = await currentUser();
+      const { row } = buildReportRow({ ...params, wellId, chainId: previous ? previous.chain_id : null, versionNo: previous ? (previous.version_no || 1) + 1 : 1, previousVersionId: previous ? previous.id : null, offsetMin: offsetMinOf(well), userId: u.id });
+      row.engine_version = WS_ENGINE_VERSION;
+      await commitRow(db, 'reports', row);
+      notify();
+      return row;
+    },
+    async listSignoffs(wellId) { return db.signoffs.where('[well_id+signed_at]').between([wellId, ''], [wellId, '￿']).toArray(); },
+    /** The current user's role on the well (null when not an active member). */
+    async memberRole(wellId) {
+      const u = await currentUser();
+      const m = (await db.members.where('well_id').equals(wellId).toArray()).find((x) => x.user_id === u.id && x.status === 'active');
+      return m ? m.role : null;
+    },
+    async addSignoff(wellId, report, { role = null, statement }) {
+      const well = await requireWell(wellId);
+      const u = await currentUser();
+      const r = role || (await this.memberRole(wellId));
+      const { row } = buildSignoffRow({ wellId, report, role: r, statement, offsetMin: offsetMinOf(well), userId: u.id });
+      row.engine_version = WS_ENGINE_VERSION;
+      await commitRow(db, 'signoffs', row);
+      notify();
+      return row;
     },
 
     // ---- sync surface (WS6) ----

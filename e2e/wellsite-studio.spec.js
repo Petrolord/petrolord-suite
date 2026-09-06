@@ -378,3 +378,39 @@ test('WS6: records made offline wait, share automatically when the link returns,
   await page.getByTestId('ws-sync-keep-offline').click();
   await expect(page.getByTestId('ws-status')).toContainText('This app is cached for use without a connection');
 });
+
+// ---- WS7: the shift handover ---------------------------------------------------------
+
+test('WS7: the handover generates in one action, a narrative is a record and the report regenerates, a fact is corrected only at its source, the sign-off records version and hash', async ({ page }) => {
+  await openStudio(page);
+  await page.getByTestId('ws-event-connection').click();
+  await expect(page.getByTestId('ws-status')).toHaveText(/Connection started/);
+  await page.getByTestId('ws-nav-handover').click();
+  await page.getByTestId('ws-handover-period-current').click();
+  await expect(page.getByTestId('ws-report-section-status')).toContainText('10000 ft');
+  await expect(page.getByTestId('ws-report-section-events')).toContainText('Connection');
+  await expect(page.getByTestId('ws-report-section-events').locator('input')).toHaveCount(0);
+  await page.getByTestId('ws-report-narrative-edit-geological_summary').click();
+  await page.getByTestId('ws-report-narrative-input-geological_summary').fill('Drilling ahead in sand and shale; gas quiet.');
+  await page.getByTestId('ws-report-narrative-save-geological_summary').click();
+  await expect(page.getByTestId('ws-status')).toContainText('geological summary saved as a record');
+  await expect(page.getByTestId('ws-report-narrative-text-geological_summary')).toHaveText('Drilling ahead in sand and shale; gas quiet.');
+  // correcting a generated fact means correcting its source: end the connection on the Live view, the handover follows
+  await page.getByTestId('ws-nav-live').click();
+  await page.getByTestId('ws-event-end-connection').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Connection ended.');
+  await page.getByTestId('ws-nav-handover').click();
+  await page.getByTestId('ws-handover-period-current').click();
+  await expect(page.getByTestId('ws-report-section-status')).toContainText('Current operationnone open');
+  await page.getByTestId('ws-handover-sources').check();
+  await expect(page.getByTestId('ws-report-section-events').locator('[data-refs]').first()).toBeVisible();
+  await page.getByTestId('ws-signoff-sign').click();
+  await expect(page.getByTestId('ws-status')).toContainText('Signed as A. Geologist, administrator. Platform countersignature pending until synchronised.');
+  await expect(page.getByTestId(/^ws-signoff-row-/)).toHaveCount(1);
+  await expect(page.getByTestId(/^ws-signoff-row-/).first()).toContainText(/report version 1, hash sha256:/);
+  await expect(page.getByTestId('ws-handover-meta')).toContainText('Recorded version 1, signed 1 time(s).');
+  // the export builders run in the browser (the download itself is a browser action)
+  const download = page.waitForEvent('download');
+  await page.getByTestId('ws-handover-pdf').click();
+  expect((await download).suggestedFilename()).toMatch(/shift-handover-keta-2-.*\.pdf$/);
+});

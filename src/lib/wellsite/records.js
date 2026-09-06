@@ -230,6 +230,38 @@ export function buildPrognosisRow(p) {
   return { row: stamp(row, { userId: p.userId, offsetMin: p.offsetMin, nowMs }) };
 }
 
+/** A ws_reports row (a version on the chain of one kind and period). */
+export function buildReportRow(p) {
+  if (!p.wellId) throw new RecordError(['A well is required.']);
+  if (!p.userId) throw new RecordError(['A signed-in user is required.']);
+  if (!['daily', 'handover'].includes(p.kind)) throw new RecordError(['A report is daily or a handover.']);
+  if (!p.canonical || !p.contentHash) throw new RecordError(['A report needs its canonical content and hash.']);
+  const nowMs = p.nowMs ?? Date.now();
+  const id = p.id || newId();
+  const row = {
+    id, well_id: p.wellId, kind: p.kind, report_date: p.reportDate, period_start: p.periodStart, period_end: p.periodEnd,
+    chain_id: p.chainId || id, version_no: p.versionNo || 1, previous_version_id: p.previousVersionId || null,
+    template_id: p.templateId || null, canonical: p.canonical, content_hash: p.contentHash,
+    generated_at: p.generatedAt || new Date(nowMs).toISOString(), local_offset_min: p.offsetMin,
+  };
+  return { row: stamp(row, { userId: p.userId, offsetMin: p.offsetMin, nowMs }) };
+}
+
+/** A ws_signoffs row: who signed which report version and the hash they signed. */
+export function buildSignoffRow(p) {
+  if (!p.wellId || !p.report) throw new RecordError(['A report is required.']);
+  if (!p.userId) throw new RecordError(['A signed-in user is required.']);
+  if (!p.role) throw new RecordError(['Only a member of the well can sign; your role on it is not set.']);
+  if (!(p.statement && p.statement.trim())) throw new RecordError(['A sign-off needs a statement.']);
+  const nowMs = p.nowMs ?? Date.now();
+  const row = {
+    id: p.id || newId(), well_id: p.wellId, report_id: p.report.id, user_id: p.userId, role: p.role,
+    signed_at: new Date(nowMs).toISOString(), local_offset_min: p.offsetMin, report_version: p.report.version_no || 1,
+    content_hash: p.report.content_hash, statement: p.statement.trim(), countersignature: null, countersigned_at: null,
+  };
+  return { row: stamp(row, { userId: p.userId, offsetMin: p.offsetMin, nowMs }) };
+}
+
 /** Heads of a chain among a list of records (nothing names them as previous and no resolver cites them). */
 export function chainHeads(records) {
   const prev = new Set();

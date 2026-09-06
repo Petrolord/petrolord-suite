@@ -19,13 +19,40 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 | WS4 shows, observations, photos | **COMPLETE 2026-09-07: engines #150 merged, Suite PR merged** | engines #150 (`shows.js`, hand-derived golden); Suite branch `feat/ws4-shows-photos`: Shows view (controlled values, derived quality read-only, on a sample or a depth), Observations view (the ten manual types with value, unit, text, source and the depth they refer to), Photos (on-device thumbnail and working WebP, SHA-256, local blob store, attached once with depth, user, both times, optional original per well, photographed stage), explorer counts |
 | WS5 tops, prognosis, conflicts | **COMPLETE 2026-09-07: engines #151 + #152 merged, Suite PR merged** | engines #151 (`tops.js`), #152 (two fresh calls of one formation on different chains are a conflict, found by the Suite test); Suite branch `feat/ws5-tops-prognosis`: prognosis snapshot versions (registry tops, offset wells' tops through their own surveys, Well Design hole sections and definitive trajectory; manual tops as a new version), Tops view (interpretation and official call as separate chains, lifecycle, history with the evidence chain, approver-only final), approach panel in the dock, conflicts (two heads, two finals) with approver resolution citing both, top_called events, harness `?conflict=1` |
 | WS6 offline shell and sync | **COMPLETE 2026-09-07: Suite PR merged (Suite-wide)** | Suite branch `feat/ws6-offline-sync`: installable PWA (vite-plugin-pwa 0.19 on Vite 4, prompt semantics, shell precache, hashed assets cached as fetched, Supabase never cached, real 192/512 icons, update prompt), dead offline files removed, per-user entitlement snapshot with a stale fallback in the auth context, the entitlements hook and ProtectedAppRoute, the sync engine (idempotent push with backoff, auth wait and refused-row isolation, photo row then blobs, pull by cursor, conflict detection), sync pill and drawer with storage and keep-offline, fake server with knobs, 6 sync tests, e2e offline to online round trip with a pulled office row |
-| WS7 shift handover | not started | |
+| WS7 shift handover | **COMPLETE 2026-09-07: engines #153 (with the WS8 model) merged, Suite PR merged** | engines #153 (`reports.js`: handover and daily models from records on JSON templates, every fact cites its records, synthetic report day golden); Suite branch `feat/ws7-handover`: the report screen shared by handover and daily (period picker, generated sections read-only with sources on demand, narratives as versioned records that regenerate the report, record this version with the SHA-256 of the canonical model, sign-off row with role and hash, PDF via the brand header and DOCX via the OOXML writer) |
 | WS8 daily report and countersignature | not started | |
 | WS9 close-out (help, publish, portability, perf, tile) | not started | |
 
 ## Decisions taken in auto mode
 
 Recorded per phase below as they are taken, with the reason.
+
+### WS7
+
+- One `ReportScreen` serves the handover and the daily report; only
+  the template and the period differ, so the editing rule (spec section
+  30) is enforced once: generated sections render with no inputs, the
+  narratives edit their own record, and the report regenerates.
+- A narrative is a `ws_records` row of kind `narrative` keyed by its
+  section and the period start; a later edit is a new version on the
+  chain and the report cites the head.
+- Recording a report stores the whole model as `canonical` with
+  `sha256:` of its canonical JSON; signing records that version first
+  if the model changed since the last record, so a sign-off always names
+  the hash of what was on screen.
+- The WS7 and WS8 engine work shipped together (#153): both reports are
+  one model builder with two templates.
+- `src/lib/wellsite/reports.js` (the engine shim) and a `reports/`
+  directory cannot coexist under jest's mapper (nor under Vite's
+  resolver until the dev server restarts); the hash helper lives at
+  `reportHash.js`.
+- Importing jsPDF into the workstation's mount graph broke every Dexie
+  transaction under jsdom ("Transaction has already completed or
+  failed"): jsPDF does not replace Promise but patches enough of the
+  environment to break Dexie's zone. The PDF and DOCX writers load on
+  demand from the export buttons (`import('../services/wsExport')`),
+  which also keeps jsPDF out of the app's first chunk; the builders have
+  their own store-free test on the engine golden.
 
 ### WS6
 
