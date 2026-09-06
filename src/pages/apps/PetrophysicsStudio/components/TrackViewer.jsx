@@ -15,6 +15,8 @@ import { trackGeometry } from '@/components/wells/trackRender';
 import {
   PALETTES, visibleRange, paintDepthAxis, paintTrackColumn, paintReadouts, paintTopMarker,
 } from '@/components/wells/trackPainter';
+import { surfaceLineStyle, displayLabel, normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
+import { useScheme } from '@/lib/stratigraphy/scheme';
 import { hitTrackDragAt, hitZoneEdgeAt } from '@/components/wells/hitTest';
 import { topColor } from '@/components/wells/topColors';
 import TopNamePopover from '@/components/wells/TopNamePopover';
@@ -147,6 +149,7 @@ const TrackViewer = forwardRef(function TrackViewer({
   }, [tops, topStyles]);
   const TAG_MAX = 120;
   const tagLeft = Math.max(axisW, size.w - TAG_MAX - 4);
+  const [scheme] = useScheme();   // typed surfaces (ST0): tag label in the display scheme
 
   // PT5 depth navigator: miniature of the first track's first curve, the
   // tops as ticks and the zones as bands; hidden when the plot is narrow.
@@ -235,12 +238,16 @@ const TrackViewer = forwardRef(function TrackViewer({
     // a name tag at the right edge (the tag is the drag handle on own wells)
     for (const t of shownTops) {
       if (t.md_m < vTop || t.md_m > vBase) continue;
+      const code = normalizeSurfaceType(t.surface_type);
       paintTopMarker(ctx, {
-        name: t.name, color: t.color, y: yOf(t.md_m), xLeft: axisW, xRight: size.w, tagMax: TAG_MAX, grip: isOwn && !!onTopMove,
+        name: t.name,
+        label: code === 'formation_top' ? t.name : `${displayLabel(code, scheme, { kind: 'surface', short: true }).label} ${t.name}`,
+        color: t.color, y: yOf(t.md_m), xLeft: axisW, xRight: size.w, tagMax: TAG_MAX, grip: isOwn && !!onTopMove,
+        style: surfaceLineStyle(code),
       });
     }
 
-  }, [size, depth, tracks, geom, zones, shownTops, vTop, vBase, yOf, plotTop, plotH, F, depthUnit, selection, depthAxes, axisW, isOwn, onTopMove]);
+  }, [size, depth, tracks, geom, zones, shownTops, vTop, vBase, yOf, plotTop, plotH, F, depthUnit, selection, depthAxes, axisW, isOwn, onTopMove, scheme]);
 
   useEffect(() => {
     if (!size.w || !size.h || !depth.length) return;

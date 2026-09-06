@@ -40,7 +40,7 @@ describe('appLinks', () => {
   test('harness overrides swap the route but keep the query', () => {
     expect(buildOpenInHref(byId('well-correlation'), ['corr-w1', 'corr-w2'], DEV_APP_PATHS))
       .toBe('/dev/well-correlation?wells=corr-w1,corr-w2');
-    expect(buildOpenInHref(byId('seismolord'), ['w-1'], DEV_APP_PATHS)).toBe('/dashboard/apps/geoscience/seismolord');
+    expect(buildOpenInHref(byId('seismolord'), ['w-1'], DEV_APP_PATHS)).toBe('/dev/seismolord-workspace');   // SL0 gave Seismolord a harness path
   });
 
   test('well ids are URL-encoded', () => {

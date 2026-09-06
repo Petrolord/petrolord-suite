@@ -294,16 +294,27 @@ export function paintReadouts(ctx, { tracks, geom, idx, y = 46, palette = PALETT
  * a name tag at the right edge (the tag is the drag handle on own wells,
  * shown by a grip glyph). Returns the tag box for hit tests.
  */
-export function paintTopMarker(ctx, { name, color, y, xLeft, xRight, tagMax = 120, grip = false }) {
+/**
+ * A top marker across the plot: a line in the top's colour and a name tag
+ * at the right edge (the drag handle on own wells). `style` is the surface
+ * type's line style from the stratigraphy vocabulary ({dash, width});
+ * absent, the historic dashed formation-top marker. `label` replaces the
+ * tag text (the typed abbreviation in front of the name); the hit-test
+ * rectangle returned is the same either way.
+ */
+export function paintTopMarker(ctx, { name, label, color, y, xLeft, xRight, tagMax = 120, grip = false, style = null }) {
+  const text = label || name;
   ctx.font = '10px sans-serif';
   ctx.strokeStyle = color;
-  ctx.setLineDash([5, 3]);
+  ctx.lineWidth = style?.width || 1;
+  ctx.setLineDash(style ? style.dash : [5, 3]);
   ctx.beginPath();
   ctx.moveTo(xLeft, y);
   ctx.lineTo(xRight, y);
   ctx.stroke();
   ctx.setLineDash([]);
-  const tw = ctx.measureText(name).width;
+  ctx.lineWidth = 1;
+  const tw = ctx.measureText(text).width;
   const tagW = Math.min(tagMax, tw + 18);
   const tx = xRight - tagW - 2;
   ctx.fillStyle = `${color}2e`;
@@ -313,6 +324,6 @@ export function paintTopMarker(ctx, { name, color, y, xLeft, xRight, tagMax = 12
   if (grip) {
     for (let k = 0; k < 3; k++) ctx.fillRect(tx + 3, y - 11 + k * 3, 4, 1);
   }
-  ctx.fillText(name, tx + (grip ? 10 : 4), y - 3, tagW - 12);
+  ctx.fillText(text, tx + (grip ? 10 : 4), y - 3, tagW - 12);
   return { tagLeft: tx, tagW, top: y - 13, height: 12 };
 }

@@ -60,7 +60,8 @@ export function makeInMemoryBackend() {
 
     async saveTop(wellId, top) {
       own(wellId, 'add tops to this well');
-      const row = { id: nid('top'), well_id: wellId, name: top.name, md_m: top.mdM, interpreter: top.interpreter || null };
+      const row = { id: nid('top'), well_id: wellId, name: top.name, md_m: top.mdM, interpreter: top.interpreter || null,
+        surface_type: top.surface_type || 'formation_top', unit_id: top.unit_id || null, confidence: top.confidence || null, age_ma: top.age_ma ?? null, notes: top.notes || null };
       topsByWell.get(wellId).push(row);
       return row;
     },
@@ -72,6 +73,7 @@ export function makeInMemoryBackend() {
           own(wellId, 'edit tops of this well');
           if (patch.mdM !== undefined) t.md_m = patch.mdM;
           if (patch.name !== undefined) t.name = patch.name;
+          for (const k of ['surface_type', 'unit_id', 'confidence', 'age_ma', 'notes']) if (patch[k] !== undefined) t[k] = patch[k] === '' ? null : patch[k];
           return t;
         }
       }

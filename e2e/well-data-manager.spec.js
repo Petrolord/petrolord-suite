@@ -235,7 +235,7 @@ test('cross-app: Open in launchers carry the well into Petrophysics and Well Cor
   await expect(page.getByTestId('wdm-open-in-petrophysics-studio')).toHaveAttribute('href', /\/dev\/petrophysics-studio\?well=.+/);
   await expect(page.getByTestId('wdm-open-in-well-correlation')).toHaveAttribute('href', /\/dev\/well-correlation\?wells=.+/);
   await expect(page.getByTestId('wdm-open-in-rock-physics-studio')).toHaveAttribute('href', '/dev/rock-physics-studio');
-  await expect(page.getByTestId('wdm-open-in-seismolord')).toHaveAttribute('href', '/dashboard/apps/geoscience/seismolord');
+  await expect(page.getByTestId('wdm-open-in-seismolord')).toHaveAttribute('href', '/dev/seismolord-workspace');   // SL0 gave Seismolord a harness path
   await page.keyboard.press('Escape');
 
   // the detail header carries the same launcher

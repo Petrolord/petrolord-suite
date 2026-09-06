@@ -334,12 +334,7 @@ export async function replaceTops(wellId, tops) {
   if (delError) throw new Error(`Could not clear existing tops: ${delError.message}`);
   if (!tops.length) return [];
   const { data, error } = await supabase.from('geo_wells_tops')
-    .insert(tops.map((t) => ({
-      well_id: wellId,
-      name: t.name,
-      md_m: t.md ?? t.md_m,
-      interpreter: t.interpreter || null,
-    })))
+    .insert(tops.map((t) => topRow(wellId, { ...t, mdM: t.md ?? t.md_m ?? t.mdM })))
     .select();
   if (error) throw new Error(`Could not save tops: ${error.message}`);
   return data;
@@ -350,11 +345,30 @@ export async function replaceTops(wellId, tops) {
 // owner-only via the existing geo_wells_tops RLS (no policy change); a
 // 0-row write surfaces as an owner-only error instead of a silent
 // no-op, exactly like deleteWell.
+//
+// Typed surfaces (Stratigraphy Studio ST0, migration 20260906180000): a
+// top may also carry surface_type (Catuneanu code, default formation_top),
+// unit_id (geo_strat_units), confidence (high|medium|low), age_ma and
+// notes. Absent fields are left to the column defaults, so every caller
+// that never heard of them keeps working unchanged.
 
-/** @param {{name: string, mdM: number, interpreter?: ?string}} top */
+export const STRAT_TOP_FIELDS = ['surface_type', 'unit_id', 'confidence', 'age_ma', 'notes'];
+
+/** The insert row of a top: name, md_m, interpreter plus any typed-surface field given. */
+export function topRow(wellId, top) {
+  const row = { well_id: wellId, name: top.name, md_m: top.mdM, interpreter: top.interpreter || null };
+  for (const k of STRAT_TOP_FIELDS) {
+    if (top[k] === undefined) continue;
+    if (k === 'age_ma') row.age_ma = top.age_ma === '' || top.age_ma === null ? null : Number(top.age_ma);
+    else row[k] = top[k] === '' ? null : top[k];
+  }
+  return row;
+}
+
+/** @param {{name: string, mdM: number, interpreter?: ?string, surface_type?: string, unit_id?: ?string, confidence?: ?string, age_ma?: ?number, notes?: ?string}} top */
 export async function saveTop(wellId, top) {
   const { data, error } = await supabase.from('geo_wells_tops')
-    .insert({ well_id: wellId, name: top.name, md_m: top.mdM, interpreter: top.interpreter || null })
+    .insert(topRow(wellId, top))
     .select().single();
   if (error) throw new Error(`Could not add top: ${error.message}`);
   return data;
@@ -363,6 +377,8 @@ export async function saveTop(wellId, top) {
 export async function updateTop(topId, patch) {
   const row = { ...patch, updated_at: new Date().toISOString() };
   if (patch.mdM !== undefined) { row.md_m = patch.mdM; delete row.mdM; }
+  if (patch.age_ma !== undefined) row.age_ma = patch.age_ma === '' || patch.age_ma === null ? null : Number(patch.age_ma);
+  for (const k of ['unit_id', 'confidence', 'notes']) if (row[k] === '') row[k] = null;
   const { data, error } = await supabase.from('geo_wells_tops')
     .update(row).eq('id', topId).select();
   if (error) throw new Error(`Could not update top: ${error.message}`);

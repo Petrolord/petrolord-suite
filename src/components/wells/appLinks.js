@@ -43,6 +43,7 @@ export const DEV_APP_PATHS = {
   'earth-modeling': '/dev/earth-modeling',
   'basinflow-genesis': '/dev/basinflow-genesis',
   'seismolord': '/dev/seismolord-workspace',
+  'stratigraphy-studio': '/dev/stratigraphy-studio',
 };
 
 /** Route of an app, honouring an override map (harness paths). */

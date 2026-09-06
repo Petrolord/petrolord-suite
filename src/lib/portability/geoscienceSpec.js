@@ -16,6 +16,7 @@
 //   pp_projects.well_ids uuid[]; source.{wellId | volumeId}
 //   rp_projects.well_ids uuid[]; avo may hold zone/top ids
 //   geo_correlation_sections.well_ids uuid[]; datum by top NAME
+//   geo_wells_tops.unit_id -> geo_strat_units (ST0); geo_strat_units.parent_id self reference
 
 /**
  * softRefs entries:
@@ -54,7 +55,17 @@ export const GEOSCIENCE_SPEC = {
         { path: 'provenance.project_id', table: 'petro_projects', optional: true },
       ],
     },
-    geo_wells_tops: { pk: 'id', stamped: true, parent: { table: 'geo_wells', column: 'well_id' }, softRefs: [] },
+    // typed surfaces (Stratigraphy ST0): a top may name a stratigraphic unit;
+    // the unit travels when packaged (afterRoots pulls it), else the importer clears the reference
+    geo_wells_tops: { pk: 'id', stamped: true, parent: { table: 'geo_wells', column: 'well_id' }, softRefs: [{ path: 'unit_id', table: 'geo_strat_units', optional: true }] },
+    // the stratigraphic column (Stratigraphy ST0): per user, org-shareable; parent chain inside the same table
+    geo_strat_units: {
+      pk: 'id',
+      kind: 'strat-unit',
+      stamped: true,
+      scope: ['user_id', 'organization_id'],
+      softRefs: [{ path: 'parent_id', table: 'geo_strat_units', optional: true }],
+    },
     geo_wells_zones: { pk: 'id', stamped: true, parent: { table: 'geo_wells', column: 'well_id' }, softRefs: [] },
     geo_surfaces: {
       pk: 'id',

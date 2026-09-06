@@ -141,9 +141,9 @@ export function makeInMemoryBackend() {
     },
     async listTops(wellId) { return [...(topsByWell.get(wellId) || [])]; },
     // PT3: tops are edited here too (same rows Well Correlation uses)
-    async saveTop(wellId, { name, mdM, interpreter = null }) {
+    async saveTop(wellId, { name, mdM, interpreter = null, surface_type = 'formation_top', unit_id = null, confidence = null, age_ma = null, notes = null }) {
       ownWell(wellId, 'add tops to this well');
-      const row = { id: nextId('top'), well_id: wellId, name, md_m: Number(mdM), interpreter };
+      const row = { id: nextId('top'), well_id: wellId, name, md_m: Number(mdM), interpreter, surface_type, unit_id, confidence, age_ma, notes };
       if (!topsByWell.has(wellId)) topsByWell.set(wellId, []);
       topsByWell.get(wellId).push(row);
       topsByWell.get(wellId).sort((a, b) => a.md_m - b.md_m);
@@ -156,6 +156,7 @@ export function makeInMemoryBackend() {
           ownWell(wellId, 'edit tops of this well');
           if (patch.mdM !== undefined) t.md_m = Number(patch.mdM);
           if (patch.name !== undefined) t.name = patch.name;
+          for (const k of ['surface_type', 'unit_id', 'confidence', 'age_ma', 'notes']) if (patch[k] !== undefined) t[k] = patch[k] === '' ? null : patch[k];
           list.sort((a, b) => a.md_m - b.md_m);
           return t;
         }

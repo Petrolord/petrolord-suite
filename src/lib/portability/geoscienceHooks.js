@@ -56,9 +56,29 @@ async function interpretationsForWells(source, col) {
   }
 }
 
+/** Typed tops (Stratigraphy ST0) name units of the stratigraphic column;
+ *  the named units come along, and so do their ancestors, so a top's
+ *  lineage reads the same after import. */
+async function unitsOfTops(col, collectRow) {
+  if (!col.tables.geo_strat_units || !col.tables.geo_wells_tops) return;
+  const wanted = new Set();
+  for (const t of col.tables.geo_wells_tops.values()) if (t.unit_id) wanted.add(t.unit_id);
+  const seen = new Set();
+  while (wanted.size) {
+    const id = wanted.values().next().value;
+    wanted.delete(id);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    await collectRow('geo_strat_units', id, { reason: 'named by a typed top' });
+    const row = col.tables.geo_strat_units.get(id);
+    if (row?.parent_id && !seen.has(row.parent_id)) wanted.add(row.parent_id);
+  }
+}
+
 async function afterRoots(source, col, { includeInterpretations, collectRow }) {
   await wellsOfStateRoots(col, collectRow);
   if (includeInterpretations) await interpretationsForWells(source, col);
+  await unitsOfTops(col, collectRow);
   await liftCustomCrs(source, col);
 }
 
