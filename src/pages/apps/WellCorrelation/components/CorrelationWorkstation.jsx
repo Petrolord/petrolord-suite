@@ -109,8 +109,8 @@ export default function CorrelationWorkstation({
     pendingRef.current.add(wellId);
     setLoading((n) => n + 1);
     try {
-      const [tops, cw] = await Promise.all([backend.listTops(wellId), curvesCache.getCurves(wellId)]);
-      setWellData((m) => ({ ...m, [wellId]: { tops, curves: cw.curves, logs: cw.logs, inventory: cw.inventory } }));
+      const [tops, cw, intervals] = await Promise.all([backend.listTops(wellId), curvesCache.getCurves(wellId), backend.listIntervals ? backend.listIntervals(wellId).catch(() => []) : Promise.resolve([])]);
+      setWellData((m) => ({ ...m, [wellId]: { tops, intervals: intervals || [], curves: cw.curves, logs: cw.logs, inventory: cw.inventory } }));
     } catch (e) {
       setStatus(e.message);
     } finally {
@@ -172,6 +172,7 @@ export default function CorrelationWorkstation({
       } catch { frame = null; }
       const tracks = resolveTracks(template, {
         curves: d.curves || {}, logs: d.logs || {}, outputs: {}, faciesData: null, facies: [], params: CORR_PARAMS,
+        intervals: d.intervals || [], depth: d.curves?.DEPT || null,
       });
       return {
         id: w.id, name: w.name, uwi: w.uwi, is_own: w.is_own, organization_id: w.organization_id,

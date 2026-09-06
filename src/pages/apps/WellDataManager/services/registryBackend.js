@@ -18,7 +18,10 @@ import {
   listLogs, saveLogs, deleteLog, downloadCurve,
 } from '@/lib/wellsRegistry';
 import { parseLasFile } from './lasImportService';
-import { listUnits } from '@/lib/stratRegistry';
+import {
+  listUnits, listIntervals, replaceIntervals,
+  listCoreImages, uploadCoreImage, updateCoreImage, deleteCoreImage, coreImageUrl,
+} from '@/lib/stratRegistry';
 
 export function makeRegistryBackend() {
   let orgId; // resolved once per session (undefined = not yet)
@@ -42,6 +45,13 @@ export function makeRegistryBackend() {
     updateTop,
     deleteTop,
     listUnits,
+    listIntervals,
+    replaceIntervals,
+    listCoreImages,
+    uploadCoreImage,
+    updateCoreImage,
+    deleteCoreImage,
+    coreImageUrl,
     listLogs,
     saveLogs,
     deleteLog,

@@ -17,13 +17,15 @@ import RowGridEditor from '@/components/wells/RowGridEditor';
 import PasteReplacePanel, { CheckshotConventionRow } from '@/components/wells/PasteReplacePanel';
 import { buildDeviation, buildTops, buildCheckshotInputs } from '@/lib/wellImport';
 import { SURFACE_TYPES, displayLabel, normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
+import IntervalsEditor from '@/components/wells/IntervalsEditor';
+import CoreImagesPanel from '@/components/wells/CoreImagesPanel';
 import { useScheme } from '@/lib/stratigraphy/scheme';
 import {
   makeDepthFrame, toStoredCheckshots, fromStoredCheckshots, rebaseStoredCheckshots,
   makeCheckshotProvenance, LEGACY_CHECKSHOT_PROVENANCE, PETREL_CHECKSHOT_CONVENTION, M_PER_FT,
 } from '../engine/checkshots';
 
-const TABS = ['Header', 'Logs', 'Tops', 'Deviation', 'Checkshots'];
+const TABS = ['Header', 'Logs', 'Tops', 'Intervals', 'Core', 'Deviation', 'Checkshots'];
 
 const thCls = 'text-left font-medium text-slate-500 pr-4 pb-1';
 const tdCls = 'pr-4 py-0.5 text-slate-300 whitespace-nowrap';
@@ -64,6 +66,8 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
   const canEdit = !!well.is_own && typeof backend.updateWellData === 'function';
   const [tops, setTops] = useState(null);       // null = loading
   const [units, setUnits] = useState([]);       // stratigraphic column (ST0), for the Unit column
+  const [intervals, setIntervals] = useState([]);   // ST1 interval logs of the well
+  const [coreImages, setCoreImages] = useState([]); // ST1 core photos of the well
   const [scheme] = useScheme();
   const [logs, setLogs] = useState(null);
   // Legacy wells carry no structured CRS; Assign CRS patches the row
@@ -80,9 +84,16 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
     setTops(null);
     setLogs(null);
     try {
-      const [t, l, u] = await Promise.all([backend.listTops(well.id), backend.listLogs(well.id), backend.listUnits ? backend.listUnits().catch(() => []) : Promise.resolve([])]);
+      const [t, l, u, iv, ci] = await Promise.all([
+        backend.listTops(well.id), backend.listLogs(well.id),
+        backend.listUnits ? backend.listUnits().catch(() => []) : Promise.resolve([]),
+        backend.listIntervals ? backend.listIntervals(well.id).catch(() => []) : Promise.resolve([]),
+        backend.listCoreImages ? backend.listCoreImages(well.id).catch(() => []) : Promise.resolve([]),
+      ]);
       setTops(t);
       setUnits(u || []);
+      setIntervals(iv || []);
+      setCoreImages(ci || []);
       setLogs(l);
     } catch (e) {
       onStatus(e.message);
@@ -373,9 +384,11 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
             {t}
             {t === 'Logs' && logs ? ` (${logs.length})` : ''}
             {t === 'Tops' && tops ? ` (${tops.length})` : ''}
+            {t === 'Intervals' && intervals.length ? ` (${intervals.length})` : ''}
+            {t === 'Core' && coreImages.length ? ` (${coreImages.length})` : ''}
           </button>
         ))}
-        {canEdit && tab !== 'Logs' && !editor && (
+        {canEdit && tab !== 'Logs' && tab !== 'Intervals' && tab !== 'Core' && !editor && (
           <button
             type="button"
             className="ml-auto mr-2 flex items-center gap-1 px-2 py-0.5 rounded border border-slate-700 text-xs text-slate-300 hover:bg-slate-800"
@@ -633,6 +646,23 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
               </table>
             ) : <p className="text-xs text-slate-500">No tops on this well.</p>
           )
+        )}
+
+        {tab === 'Intervals' && (
+          <div className="max-w-5xl" data-testid="wdm-intervals-tab">
+            <IntervalsEditor well={well} intervals={intervals} canEdit={!!well.is_own} testIdPrefix="wdm-intervals" onStatus={onStatus}
+              onReplace={async (kind, rows) => { await backend.replaceIntervals(well.id, kind, rows); setIntervals(await backend.listIntervals(well.id)); }} />
+          </div>
+        )}
+
+        {tab === 'Core' && (
+          <div className="max-w-5xl" data-testid="wdm-core-tab">
+            <CoreImagesPanel well={well} images={coreImages} canEdit={!!well.is_own} testIdPrefix="wdm-core" onStatus={onStatus}
+              urlOf={(img) => backend.coreImageUrl(img)}
+              onUpload={async (file, meta) => { await backend.uploadCoreImage(well.id, file, meta); setCoreImages(await backend.listCoreImages(well.id)); }}
+              onUpdate={async (img, patch) => { await backend.updateCoreImage(img.id, patch); setCoreImages(await backend.listCoreImages(well.id)); }}
+              onDelete={async (img) => { await backend.deleteCoreImage(img); setCoreImages(await backend.listCoreImages(well.id)); }} />
+          </div>
         )}
 
         {tab === 'Deviation' && editor?.tab === 'Deviation' && (

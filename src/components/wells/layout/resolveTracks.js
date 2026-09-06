@@ -5,6 +5,8 @@
 // wells), rebinds fill references to kept-curve indexes, and turns
 // parameter-bound thresholds into live values.
 
+import { rasterizeIntervals } from '@/lib/stratigraphy/intervals';
+
 /** Resolve one curve address against the workspace. */
 function resolveSource(source, { curves, outputs, logs }) {
   if (typeof source !== 'string') return null;
@@ -28,8 +30,9 @@ export const sourceLabel = (source) => (typeof source === 'string' ? source.slic
 
 /**
  * @param {Object} template a layoutSchema template
- * @param {Object} ctx {curves, outputs, logs, faciesData, facies, params}
+ * @param {Object} ctx {curves, outputs, logs, faciesData, facies, params, intervals, depth}
  *   logs: raw registry curves keyed by mnemonic (for `log:` addresses)
+ *   intervals: registry interval rows of the well (for `intervals:<kind>` strips), depth: its MD vector
  * @returns {Array} the TrackViewer `tracks` prop
  */
 export function resolveTracks(template, ctx) {
@@ -46,6 +49,23 @@ export function resolveTracks(template, ctx) {
           labels: ctx.facies.map((f) => f.name),
           curves: [{ name: 'facies', data: ctx.faciesData }],
         });
+      } else if (typeof track.source === 'string' && track.source.startsWith('intervals:') && ctx.intervals && ctx.depth) {
+        // ST1: registry interval logs (lithology, core description, facies ...)
+        // rasterized onto the well's depth vector; absent kinds draw nothing
+        const kind = track.source.slice('intervals:'.length);
+        const rows = (ctx.intervals || []).filter((r) => r.kind === kind);
+        if (rows.length) {
+          const { data, categories } = rasterizeIntervals(rows, kind, ctx.depth);
+          out.push({
+            key: track.id,
+            title: track.title,
+            type: 'strip',
+            width: track.width || 0.5,
+            colors: categories.map((c) => c.colour),
+            labels: categories.map((c) => c.label),
+            curves: [{ name: kind, data }],
+          });
+        }
       }
       continue;
     }

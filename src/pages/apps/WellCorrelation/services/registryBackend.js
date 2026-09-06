@@ -14,6 +14,7 @@ import {
   listWells, listLogs, downloadCurve, listTops,
   saveTop, updateTop, deleteTop, propagateTop,
 } from '@/lib/wellsRegistry';
+import { listIntervals } from '@/lib/stratRegistry';
 
 // PP0 state kind (docs/scope/ProjectPortability-PLAN.md §4.3): version 1 is
 // the current row shape; a future shape change bumps `current` and adds
@@ -48,7 +49,7 @@ async function saveSection(patch) {
 
 export function makeRegistryBackend() {
   return {
-    listWells, listLogs, downloadCurve, listTops,
+    listWells, listLogs, downloadCurve, listTops, listIntervals,
     saveTop, updateTop, deleteTop, propagateTop,
     loadSection, saveSection,
   };

@@ -16,6 +16,7 @@ import {
   listZones, saveZone, updateZone, deleteZone,
   saveLogs, deleteLog,
 } from '@/lib/wellsRegistry';
+import { listIntervals, replaceIntervals } from '@/lib/stratRegistry';
 
 /** The overwrite-own-output rule (plan decision 1): a publish replaces
  *  ONLY curves this app previously published for the same well +
@@ -137,6 +138,8 @@ export function makeRegistryBackend() {
     listLogs,
     downloadCurve,
     listTops,
+    listIntervals,
+    replaceIntervals,
     saveTop,
     updateTop,
     deleteTop,

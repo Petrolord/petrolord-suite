@@ -9,8 +9,14 @@
 // No app-local Supabase calls against registry tables (plan section 4).
 
 import { listWells, listTops, updateTop } from '@/lib/wellsRegistry';
-import { listUnits, saveUnit, updateUnit, deleteUnit } from '@/lib/stratRegistry';
+import {
+  listUnits, saveUnit, updateUnit, deleteUnit,
+  listIntervals, replaceIntervals, listCoreImages, uploadCoreImage, updateCoreImage, deleteCoreImage, coreImageUrl,
+} from '@/lib/stratRegistry';
 
 export function makeRegistryBackend() {
-  return { listWells, listTops, updateTop, listUnits, saveUnit, updateUnit, deleteUnit };
+  return {
+    listWells, listTops, updateTop, listUnits, saveUnit, updateUnit, deleteUnit,
+    listIntervals, replaceIntervals, listCoreImages, uploadCoreImage, updateCoreImage, deleteCoreImage, coreImageUrl,
+  };
 }

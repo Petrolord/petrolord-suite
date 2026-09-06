@@ -3,7 +3,7 @@
 // feet converted for deviation and tops, legacy wrapper unchanged.
 import {
   parseDelimited, guessMapping, guessCheckshotConvention, buildCheckshotInputs,
-  buildCheckshots, buildDeviation, buildTops,
+  buildCheckshots, buildDeviation, buildTops, buildIntervals,
 } from '@/lib/wellImport';
 import { makeDepthFrame, toStoredCheckshots } from '@/pages/apps/WellDataManager/engine/checkshots';
 
@@ -40,4 +40,19 @@ test('deviation and tops MD in feet are stored in metres', () => {
 test('checkshot inputs need two rows and numbers', () => {
   expect(() => buildCheckshotInputs([['1', '2']], { depth: 0, time: 1 })).toThrow(/at least 2 rows/);
   expect(() => buildCheckshotInputs([['1', 'x'], ['2', '3']], { depth: 0, time: 1 })).toThrow(/Row 1: time "x" is not a number/);
+});
+
+// Stratigraphy ST1: interval rows from a pasted table
+test('buildIntervals maps top, base and code, converts feet, refuses an inverted row and a missing code', () => {
+  const { header, rows } = parseDelimited('top,base,code,description\n1000,1100,SST,clean sand\n1100,1200,SH,');
+  const map = guessMapping(header, ['top', 'base', 'code', 'label', 'description']);
+  expect(map.top).toBe(0); expect(map.base).toBe(1); expect(map.code).toBe(2); expect(map.description).toBe(3);
+  const out = buildIntervals(rows, map, { mdUnit: 'ft' });
+  expect(out[0].top_md_m).toBeCloseTo(304.8, 6);
+  expect(out[0].base_md_m).toBeCloseTo(335.28, 6);
+  expect(out[0]).toMatchObject({ code: 'SST', label: null, properties: { description: 'clean sand' } });
+  expect(out[1].properties).toEqual({});
+  expect(() => buildIntervals([['1200', '1100', 'SST']], { top: 0, base: 1, code: 2, label: -1, description: -1 })).toThrow(/not below the top/);
+  expect(() => buildIntervals([['1000', '1100', '']], { top: 0, base: 1, code: 2, label: -1, description: -1 })).toThrow(/has no code/);
+  expect(() => buildIntervals([], { top: -1, base: 1, code: 2 })).toThrow(/Map the top, base and code/);
 });

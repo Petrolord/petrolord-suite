@@ -7,7 +7,9 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Layers, Loader2, PanelRight, BookOpen, ListTree, Tags } from 'lucide-react';
+import { Layers, Loader2, PanelRight, BookOpen, ListTree, Tags, Rows as RowsIcon, Image } from 'lucide-react';
+import IntervalsEditor from '@/components/wells/IntervalsEditor';
+import CoreImagesPanel from '@/components/wells/CoreImagesPanel';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -22,6 +24,8 @@ import Glossary from './Glossary';
 const VIEWS = [
   { id: 'column', label: 'Column', icon: ListTree },
   { id: 'tops', label: 'Tops', icon: Tags },
+  { id: 'intervals', label: 'Intervals', icon: RowsIcon },
+  { id: 'core', label: 'Core', icon: Image },
   { id: 'glossary', label: 'Glossary', icon: BookOpen },
 ];
 
@@ -38,6 +42,8 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   const [units, setUnits] = useState([]);
   const [selectedId, setSelectedId] = useState(() => searchParams.get('well') || null);
   const [tops, setTops] = useState([]);
+  const [intervals, setIntervals] = useState([]);     // ST1 interval logs of the selected well
+  const [coreImages, setCoreImages] = useState([]);   // ST1 core photos of the selected well
   const [view, setView] = useState('column');
   const [scheme, setScheme] = useScheme();
   const [dockOpen, setDockOpen] = useState(true);
@@ -70,12 +76,30 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   const well = useMemo(() => (wells || []).find((w) => w.id === selectedId) || null, [wells, selectedId]);
 
   const refreshTops = useCallback(async () => {
-    if (!selectedId) { setTops([]); return; }
-    try { setTops(await backend.listTops(selectedId)); } catch (e) { setStatus(e.message); }
+    if (!selectedId) { setTops([]); setIntervals([]); setCoreImages([]); return; }
+    try {
+      const [t, iv, ci] = await Promise.all([
+        backend.listTops(selectedId),
+        backend.listIntervals ? backend.listIntervals(selectedId).catch(() => []) : Promise.resolve([]),
+        backend.listCoreImages ? backend.listCoreImages(selectedId).catch(() => []) : Promise.resolve([]),
+      ]);
+      setTops(t); setIntervals(iv || []); setCoreImages(ci || []);
+    } catch (e) { setStatus(e.message); }
   }, [backend, selectedId]);
   useEffect(() => { refreshTops(); }, [refreshTops]);
 
-  const selectWell = (id) => { setSelectedId(id); setView('tops'); };
+  const selectWell = (id) => { setSelectedId(id); setView((v) => (v === 'intervals' || v === 'core' ? v : 'tops')); };
+
+  const replaceIntervals = async (kind, rows) => {
+    await backend.replaceIntervals(selectedId, kind, rows);
+    setIntervals(await backend.listIntervals(selectedId));
+  };
+  const coreOps = {
+    urlOf: (img) => backend.coreImageUrl(img),
+    onUpload: async (file, meta) => { await backend.uploadCoreImage(selectedId, file, meta); setCoreImages(await backend.listCoreImages(selectedId)); },
+    onUpdate: async (img, patch) => { await backend.updateCoreImage(img.id, patch); setCoreImages(await backend.listCoreImages(selectedId)); },
+    onDelete: async (img) => { await backend.deleteCoreImage(img); setCoreImages(await backend.listCoreImages(selectedId)); },
+  };
 
   const saveColumn = async ({ create, update, remove }) => {
     const idMap = new Map();
@@ -166,9 +190,12 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
     </ScrollArea>
   );
 
+  const needWell = <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="strat-need-well">Pick a well on the left.</div>;
   const center = view === 'glossary' ? <ScrollArea className="h-full min-h-0"><Glossary scheme={scheme} /></ScrollArea>
     : view === 'tops' ? <ScrollArea className="h-full min-h-0"><TopsTyping well={well} tops={tops} units={units} scheme={scheme} onSaveTop={saveTop} onStatus={setStatus} /></ScrollArea>
-      : <ScrollArea className="h-full min-h-0"><ColumnEditor units={units} onSave={saveColumn} onStatus={setStatus} /></ScrollArea>;
+      : view === 'intervals' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><IntervalsEditor well={well} intervals={intervals} canEdit={!!well.is_own} onReplace={replaceIntervals} onStatus={setStatus} testIdPrefix="strat-intervals" /></div></ScrollArea> : needWell)
+        : view === 'core' ? (well ? <ScrollArea className="h-full min-h-0"><div className="p-3"><CoreImagesPanel well={well} images={coreImages} canEdit={!!well.is_own} onStatus={setStatus} testIdPrefix="strat-core" {...coreOps} /></div></ScrollArea> : needWell)
+          : <ScrollArea className="h-full min-h-0"><ColumnEditor units={units} onSave={saveColumn} onStatus={setStatus} /></ScrollArea>;
 
   const statusBar = (
     <div className="flex items-center gap-3 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">

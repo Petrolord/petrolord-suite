@@ -193,3 +193,32 @@ describe('PT1: well data edits (mirror of the registry rules)', () => {
     expect(shared.checkshots[0].md_m).toBe(304.8);
   });
 });
+
+describe('ST1 intervals and core photos (harness contract)', () => {
+  const png = (bytes) => ({ name: 'core.png', type: 'image/png', size: bytes });
+  test('replaceIntervals is per kind and owner-only; listIntervals filters by kind', async () => {
+    const b = makeInMemoryBackend();
+    const own = await b.saveWell({ ...HEADER, name: 'ST1-OWN' });
+    const shared = (await b.listWells()).find((w) => !w.is_own);
+    await b.replaceIntervals(own.id, 'lithology', [{ top_md_m: 100, base_md_m: 200, code: 'shale' }, { top_md_m: 200, base_md_m: 300, code: 'sandstone' }]);
+    await b.replaceIntervals(own.id, 'facies', [{ top_md_m: 150, base_md_m: 250, code: 'Channel', properties: { colour: '#123456' } }]);
+    expect((await b.listIntervals(own.id)).map((r) => `${r.kind}:${r.code}`)).toEqual(['lithology:shale', 'facies:Channel', 'lithology:sandstone']);
+    expect((await b.listIntervals(own.id, 'facies'))).toHaveLength(1);
+    await b.replaceIntervals(own.id, 'lithology', []);
+    expect((await b.listIntervals(own.id)).map((r) => r.kind)).toEqual(['facies']);
+    await expect(b.replaceIntervals(shared.id, 'lithology', [])).rejects.toThrow(/Only the owner/);
+  });
+  test('core photos: type and size caps, depths required, edit and delete', async () => {
+    const b = makeInMemoryBackend();
+    const own = await b.saveWell({ ...HEADER, name: 'ST1-OWN-2' });
+    await expect(b.uploadCoreImage(own.id, { name: 'x.gif', type: 'image/gif', size: 10 }, { top_md_m: 1, base_md_m: 2 })).rejects.toThrow(/JPEG, PNG or WebP/);
+    await expect(b.uploadCoreImage(own.id, png(6 * 1024 * 1024), { top_md_m: 1, base_md_m: 2 })).rejects.toThrow(/5 MB per image/);
+    await expect(b.uploadCoreImage(own.id, png(10), { top_md_m: 2, base_md_m: 1 })).rejects.toThrow(/base below top/);
+    const img = await b.uploadCoreImage(own.id, png(10), { top_md_m: 1500, base_md_m: 1503, caption: 'box 1' });
+    expect(img).toMatchObject({ well_id: own.id, top_md_m: 1500, base_md_m: 1503, caption: 'box 1', bytes: 10, content_type: 'image/png' });
+    await b.updateCoreImage(img.id, { caption: 'box 1 of 4', base_md_m: '1504' });
+    expect((await b.listCoreImages(own.id))[0]).toMatchObject({ caption: 'box 1 of 4', base_md_m: 1504 });
+    await b.deleteCoreImage(img);
+    expect(await b.listCoreImages(own.id)).toEqual([]);
+  });
+});

@@ -31,6 +31,7 @@ function run(id, text, sourceFile) {
     delimiter: parsed.delimiter || 'space',
     skippedCurves: parsed.skippedCurves || [],
     ignoredSections: parsed.ignoredSections || [],
+    blocks: parsed.blocks || {},      // ST1: LAS 3.0 core / lithology blocks for the intervals import
     curves: parsed.curves.map(({ data, ...rest }) => rest),
   };
   const transfers = prep.logs.map((l) => l.data.buffer);

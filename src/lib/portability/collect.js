@@ -59,14 +59,16 @@ async function collectBlobsFor(source, col, table, spec, row) {
       const path = row[b.pathColumn];
       if (!path) return;
       const bytes = await source.downloadBlob(b.bucket, path);
-      rememberBlob(col, table, row[spec.pk], b.bucket, path, b.contentType, bytes);
+      // contentType may depend on the row (core images: jpeg, png or webp per row)
+      const ctype = typeof b.contentType === 'function' ? b.contentType(row) : b.contentType;
+      rememberBlob(col, table, row[spec.pk], b.bucket, path, ctype, bytes);
       // companion objects derived from the main path (e.g. a horizon's .conf.f32); missing ones are fine
       for (const fn of b.companions || []) {
         const alt = fn(path);
         if (!alt || alt === path) continue;
         try {
           const more = await source.downloadBlob(b.bucket, alt);
-          rememberBlob(col, table, row[spec.pk], b.bucket, alt, b.contentType, more);
+          rememberBlob(col, table, row[spec.pk], b.bucket, alt, ctype, more);
         } catch (e) { /* no companion stored */ }
       }
     } else if (b.prefixOf) {
