@@ -31,6 +31,13 @@ const GUESSES = {
   inc: ['inc', 'incl', 'inclination', 'dev', 'angle'],
   azi: ['azi', 'azim', 'azimuth', 'az'],
   name: ['name', 'top', 'formation', 'surface', 'marker', 'horizon'],
+  // interval logs (Stratigraphy ST1): a top and a base depth, a code
+  // (lithology, facies ...), an optional label and description
+  top: ['top', 'from', 'start', 'top_md', 'md_top', 'cort'],
+  base: ['base', 'bottom', 'bot', 'to', 'end', 'stop', 'base_md', 'md_base', 'corb'],
+  code: ['code', 'lith', 'lithology', 'rock', 'facies', 'environment', 'env', 'motif', 'class'],
+  label: ['label', 'name'],
+  description: ['desc', 'description', 'remark', 'comment', 'notes'],
   // checkshots (PT1, 2026-09-03): the column is a DEPTH in whatever
   // reference the user declares (MD | TVD | TVDSS) and a TIME in whatever
   // kind (OWT | TWT); the convention itself is guessed separately by
@@ -138,6 +145,31 @@ export function buildTops(rows, map, { mdUnit = 'm' } = {}) {
     out.push({ name, md: toM(num(rows, r, map.md, 'MD'), mdUnit) });
   }
   if (!out.length) throw new Error('No tops found in the pasted data.');
+  return out;
+}
+
+/**
+ * Interval rows from mapped columns (Stratigraphy ST1): top, base and a
+ * code (lithology, facies name ...) with optional label and description.
+ * @param {{top:number, base:number, code:number, label?:number, description?:number}} map
+ * @returns {{top_md_m:number, base_md_m:number, code:string, label:?string, properties:Object}[]}
+ */
+export function buildIntervals(rows, map, { mdUnit = 'm' } = {}) {
+  if (map.top < 0 || map.base < 0 || map.code < 0) {
+    throw new Error('Map the top, base and code columns first.');
+  }
+  const out = [];
+  for (let r = 0; r < rows.length; r++) {
+    const code = String(rows[r][map.code] ?? '').trim();
+    if (!code) throw new Error(`Row ${r + 1}: the interval has no code.`);
+    const top = toM(num(rows, r, map.top, 'top'), mdUnit);
+    const base = toM(num(rows, r, map.base, 'base'), mdUnit);
+    if (!(base > top)) throw new Error(`Row ${r + 1}: the base (${base} m) is not below the top (${top} m).`);
+    const label = map.label >= 0 ? String(rows[r][map.label] ?? '').trim() || null : null;
+    const description = map.description >= 0 ? String(rows[r][map.description] ?? '').trim() : '';
+    out.push({ top_md_m: top, base_md_m: base, code, label, properties: description ? { description } : {} });
+  }
+  if (!out.length) throw new Error('No intervals found in the pasted data.');
   return out;
 }
 

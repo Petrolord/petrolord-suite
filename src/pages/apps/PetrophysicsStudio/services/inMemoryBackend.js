@@ -22,6 +22,7 @@ export function makeInMemoryBackend() {
   const curveStore = new Map();   // log id -> Float64Array
   const logsByWell = new Map();
   const topsByWell = new Map();
+  const intervalsByWell = new Map();   // ST1 interval logs per well
   const zonesByWell = new Map();
   const wells = [];
 
@@ -140,6 +141,17 @@ export function makeInMemoryBackend() {
       return data;
     },
     async listTops(wellId) { return [...(topsByWell.get(wellId) || [])]; },
+    async listIntervals(wellId, kind = null) {
+      const rows = intervalsByWell.get(wellId) || [];
+      return rows.filter((r) => !kind || r.kind === kind).map((r) => ({ ...r }));
+    },
+    async replaceIntervals(wellId, kind, rows) {
+      ownWell(wellId, 'publish intervals on this well');
+      const keep = (intervalsByWell.get(wellId) || []).filter((r) => r.kind !== kind);
+      const added = rows.map((r) => ({ id: nextId('int'), well_id: wellId, kind, top_md_m: Number(r.top_md_m), base_md_m: Number(r.base_md_m), code: String(r.code), label: r.label || null, properties: r.properties || {}, source: r.source || 'interpretation', interpreter: null }));
+      intervalsByWell.set(wellId, [...keep, ...added].sort((a, b) => a.top_md_m - b.top_md_m));
+      return added;
+    },
     // PT3: tops are edited here too (same rows Well Correlation uses)
     async saveTop(wellId, { name, mdM, interpreter = null, surface_type = 'formation_top', unit_id = null, confidence = null, age_ma = null, notes = null }) {
       ownWell(wellId, 'add tops to this well');

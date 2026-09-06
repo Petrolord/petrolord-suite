@@ -38,6 +38,7 @@ import {
   preparePublishLogs, zonePropertiesSnapshot,
 } from '../engine/pipeline';
 import { faciesCurve } from '../engine/crossplot';
+import { intervalsFromRuns } from '@/lib/stratigraphy/intervals';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate, getTopStyles, setTopStyle, setShowAllTops } from '../layout/layoutSchema';
 import TopsPanel from './TopsPanel';
 import { validateZoneWindow, planZonesAfterTopMove } from '../services/zonePlanner';
@@ -150,7 +151,7 @@ export default function PetroWorkstation({
     setZones([]);
     setFacies(faciesByWell[wellId] || []);
     try {
-      const [logs, tops] = await Promise.all([backend.listLogs(wellId), backend.listTops(wellId)]);
+      const [logs, tops, intervals] = await Promise.all([backend.listLogs(wellId), backend.listTops(wellId), backend.listIntervals ? backend.listIntervals(wellId).catch(() => []) : Promise.resolve([])]);
       if (curvePicksRef.current.wellId !== wellId) curvePicksRef.current = { wellId, picks: {} };
       const mapped = mapLogs(logs);
       for (const [key, logId] of Object.entries(curvePicksRef.current.picks)) {
@@ -180,6 +181,7 @@ export default function PetroWorkstation({
         logs: rawLogs,
         inventory: Object.entries(mapped).map(([key, log]) => ({ key, log })),
         tops,
+        intervals: intervals || [],   // ST1 interval logs (lithology, core, facies ...) for the strip tracks
         allLogs: logs,
       });
       await refreshZones(wellId);
@@ -284,6 +286,8 @@ export default function PetroWorkstation({
       faciesData,
       facies,
       params,
+      intervals: wellData.intervals || [],
+      depth: wellData.curves?.DEPT || null,
     });
   }, [wellData, computed, faciesData, facies, params, layouts]);
 
@@ -336,6 +340,24 @@ export default function PetroWorkstation({
       });
       const saved = await backend.publishCurves(wellData.wellId, prepared, projectId);
       setStatus(`Published ${saved.length} curves to ${selected.name}.`);
+    } catch (e) {
+      setStatus(e.message);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  // ST1: crossplot facies polygons become registry facies intervals on the
+  // well (run-length encoded over the depth vector), so Well Correlation,
+  // Well Data Manager and Stratigraphy Studio draw the same facies column
+  const publishFacies = async () => {
+    if (!wellData || !faciesData || !facies.length) { setStatus('Draw facies polygons on the crossplot first.'); return; }
+    setPublishing(true);
+    try {
+      const rows = intervalsFromRuns(wellData.curves.DEPT, faciesData, facies.map((f) => f.name), { kind: 'facies', colours: facies.map((f) => f.color), source: 'log' });
+      const saved = await backend.replaceIntervals(wellData.wellId, 'facies', rows);
+      setWellData((d) => (d ? { ...d, intervals: [...(d.intervals || []).filter((r) => r.kind !== 'facies'), ...saved] } : d));
+      setStatus(`Published ${saved.length} facies interval${saved.length === 1 ? '' : 's'} to ${selected.name}.`);
     } catch (e) {
       setStatus(e.message);
     } finally {
@@ -682,6 +704,18 @@ export default function PetroWorkstation({
         >
           {publishing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UploadCloud className="w-3.5 h-3.5" />}
           Publish
+        </button>
+        <button
+          type="button"
+          data-testid="petro-publish-facies"
+          disabled={!wellData || !selected?.is_own || publishing || !facies.length}
+          title={selected && !selected.is_own ? 'Org-shared wells are read-only' : 'Publish the crossplot facies as registry facies intervals'}
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-40"
+          onClick={publishFacies}
+        >
+          <UploadCloud className="w-3.5 h-3.5" />
+          Facies
         </button>
         <button
           type="button"

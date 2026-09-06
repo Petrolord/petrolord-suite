@@ -24,6 +24,7 @@ import CrsPicker from '@/components/crs/CrsPicker';
 import useCrsContext from '@/components/crs/useCrsContext';
 import { placeWellLocation } from '@/lib/crs/wellPlacement';
 import { UNKNOWN } from '@/lib/crs/tags';
+import { intervalsFromLasBlocks } from '../engine/lasBlocks';
 
 const inputCls = 'rounded-md bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs w-full';
 const thCls = 'text-left font-medium text-slate-500 pr-3 pb-1';
@@ -40,6 +41,8 @@ const emptyHeader = { name: '', uwi: '', x: '', y: '', kb: '', td: '', crs: '' }
 export default function LasImportDialog({ open, onOpenChange, backend, wells, onDone, initialTargetId = null }) {
   const { crsContext, commitAutoSetProject } = useCrsContext();
   const [crsTag, setCrsTag] = useState(null);
+  const [lasIntervals, setLasIntervals] = useState(null);      // ST1 {intervals, skipped} from the LAS 3.0 blocks
+  const [importIntervals, setImportIntervals] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [fileName, setFileName] = useState(null);
@@ -114,6 +117,10 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
       setKeep(keepAll);
       setNames({});
       setOnClash({});
+      // ST1: LAS 3.0 core / lithology blocks become interval logs, on by default
+      const found = intervalsFromLasBlocks(result.meta.blocks || {});
+      setLasIntervals(found);
+      setImportIntervals(found.intervals.length > 0);
       const s = result.meta.suggestedHeader;
       setHead({
         name: s.name || '',
@@ -209,8 +216,14 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
         toSave = plan.logs;
       }
       const saved = await backend.saveLogs(wellId, toSave);
+      let nIntervals = 0;
+      if (importIntervals && lasIntervals?.intervals?.length && backend.replaceIntervals) {
+        const byKind = new Map();
+        for (const r of lasIntervals.intervals) { if (!byKind.has(r.kind)) byKind.set(r.kind, []); byKind.get(r.kind).push(r); }
+        for (const [kind, rows] of byKind) { await backend.replaceIntervals(wellId, kind, rows); nIntervals += rows.length; }
+      }
       close(false);
-      onDone({ wellId, well, nLogs: saved.length, fileName, note });
+      onDone({ wellId, well, nLogs: saved.length, nIntervals, fileName, note: nIntervals ? `${note ? `${note} ` : ''}${nIntervals} interval${nIntervals === 1 ? '' : 's'} imported from the LAS 3.0 blocks.` : note });
     } catch (err) {
       setError(err.message);
       setBusy(false);
@@ -313,8 +326,17 @@ export default function LasImportDialog({ open, onOpenChange, backend, wells, on
                     <>Not imported (text columns): {parsed.meta.skippedCurves.map((c) => `${c.mnemonic}${c.format ? ` {${c.format}}` : ''}`).join(', ')}. </>
                   )}
                   {parsed.meta.ignoredSections?.length > 0 && (
-                    <>Other LAS 3.0 data blocks left out: {parsed.meta.ignoredSections.join(', ')} (only ~Log_Data imports as curves).</>
+                    <>Other LAS 3.0 data blocks: {parsed.meta.ignoredSections.join(', ')} (only ~Log_Data imports as curves).</>
                   )}
+                  {lasIntervals?.intervals?.length > 0 && (
+                    <label className="flex items-center gap-1 mt-1 text-slate-300" data-testid="wdm-las-intervals">
+                      <input type="checkbox" checked={importIntervals} onChange={(e) => setImportIntervals(e.target.checked)} data-testid="wdm-las-intervals-check" />
+                      Import {lasIntervals.intervals.length} interval{lasIntervals.intervals.length === 1 ? '' : 's'} from the {Array.from(new Set(lasIntervals.intervals.map((r) => r.kind))).map((k) => k.replace(/_/g, ' ')).join(' and ')} block{new Set(lasIntervals.intervals.map((r) => r.kind)).size === 1 ? '' : 's'} (replaces those kinds on the well)
+                    </label>
+                  )}
+                  {lasIntervals?.skipped?.filter((x) => /dropped/.test(x.reason)).map((x) => (
+                    <div key={x.block} className="text-amber-300">{x.block}: {x.reason}.</div>
+                  ))}
                 </p>
               )}
 

@@ -14,6 +14,7 @@ export function makeInMemoryBackend() {
   const wells = sampleWells().map((w) => ({ ...w }));
   const curvesByWell = new Map(wells.map((w) => [w.id, w.curves]));
   const topsByWell = new Map(wells.map((w) => [w.id, [...w.tops]]));
+  const intervalsByWell = new Map(wells.map((w) => [w.id, [...(w.intervals || [])]]));   // ST1 seeded lithology
   const logMeta = new Map(wells.map((w) => [w.id, w.logMeta]));
   let section = null; // single implicit section (persisted in-memory)
 
@@ -32,6 +33,10 @@ export function makeInMemoryBackend() {
 
   return {
     async listWells() { return wells.map(publicWell); },
+
+    async listIntervals(wellId, kind = null) {
+      return (intervalsByWell.get(wellId) || []).filter((r) => !kind || r.kind === kind).map((r) => ({ ...r }));
+    },
 
     async listTops(wellId) {
       return [...(topsByWell.get(wellId) || [])].sort((a, b) => a.md_m - b.md_m);

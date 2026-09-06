@@ -5,6 +5,13 @@
 // (read from its data-top-types attribute) and relabels them under Exxon.
 
 import { test, expect } from '@playwright/test';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const LAS3 = path.join(HERE, '..', 'packages', 'engines', 'test-data', 'wells', 'las', 'las3_intervals_30.las');
+// a 1x1 PNG, enough for the core photo door
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
 
 async function openStudio(page, query = '') {
   await page.goto(`/dev/stratigraphy-studio${query}`);
@@ -85,4 +92,59 @@ test('Well Correlation draws the sample tops by surface type and follows the dis
   await expect(page.getByText('Well Correlation').first()).toBeVisible();
   for (const name of ['KETA-1', 'KETA-2', 'KETA-3']) await page.getByTestId(`corr-add-${name}`).click();
   await expect(page.getByTestId('corr-section')).toHaveAttribute('data-scheme', 'exxon');
+});
+
+test('ST1: the seeded lithology log edits and saves; a core photo uploads into the depth strip', async ({ page }) => {
+  await openStudio(page);
+  await page.getByTestId('strat-well-KETA-1').click();
+  await page.getByTestId('strat-view-intervals').click();
+  await expect(page.getByTestId('strat-intervals-editor')).toBeVisible();
+  await expect(page.getByTestId(/^strat-intervals-row-/)).toHaveCount(3);
+  await expect(page.getByTestId('strat-intervals-code-1')).toHaveValue('sandstone');
+  await expect(page.getByTestId('strat-intervals-thickness')).toContainText('Sandstone 160.0 m');
+  // split the lower shale: add a limestone below 1700
+  await page.getByTestId('strat-intervals-base-2').fill('1700');
+  await page.getByTestId('strat-intervals-add').click();
+  await page.getByTestId('strat-intervals-base-3').fill('1750');
+  await page.getByTestId('strat-intervals-code-3').selectOption('limestone');
+  await page.getByTestId('strat-intervals-save').click();
+  await expect(page.getByTestId('strat-status')).toHaveText('4 lithology intervals saved on KETA-1.');
+  await expect(page.getByTestId('strat-intervals-thickness')).toContainText('Limestone 50.0 m');
+  // an overlap is refused with the engine message
+  await page.getByTestId('strat-intervals-top-3').fill('1690');
+  await page.getByTestId('strat-intervals-save').click();
+  await expect(page.getByTestId('strat-intervals-problems')).toContainText('overlaps');
+
+  // core photos
+  await page.getByTestId('strat-view-core').click();
+  await expect(page.getByTestId('strat-core-empty')).toBeVisible();
+  await page.getByTestId('strat-core-file').setInputFiles({ name: 'box1.png', mimeType: 'image/png', buffer: PNG });
+  await page.getByTestId('strat-core-top').fill('1500');
+  await page.getByTestId('strat-core-base').fill('1503');
+  await page.getByTestId('strat-core-caption').fill('Box 1');
+  await page.getByTestId('strat-core-upload').click();
+  await expect(page.getByTestId('strat-status')).toHaveText('Core photo added to KETA-1 (1500 to 1503 m).');
+  await expect(page.getByTestId(/^strat-core-row-/)).toHaveCount(1);
+  await expect(page.getByTestId('strat-core-strip')).toBeVisible();
+  await expect(page.getByTestId(/^strat-core-strip-img-/)).toHaveCount(1);
+});
+
+test('ST1: a LAS 3.0 file with core and lithology blocks imports its intervals in Well Data Manager', async ({ page }) => {
+  await page.goto('/dev/well-data-manager');
+  await expect(page.getByTestId('wdm-well-row')).toHaveCount(1);   // the seeded shared well: the harness is up
+  await page.getByTestId('wdm-open-las').click();
+  await page.getByTestId('wdm-las-file').setInputFiles(LAS3);
+  await expect(page.getByTestId('wdm-las-intervals')).toContainText('Import 6 intervals from the core description and lithology blocks');
+  await expect(page.getByTestId('wdm-las-intervals-check')).toBeChecked();
+  await page.getByTestId('wdm-las-x').fill('501000');
+  await page.getByTestId('wdm-las-y').fill('6700200');
+  await page.getByTestId('wdm-las-import').click();
+  await expect(page.getByTestId('wdm-detail-name')).toHaveText('KETA L3-2');
+  await page.getByTestId('wdm-detail-tab-intervals').click();
+  await expect(page.getByTestId(/^wdm-intervals-row-/)).toHaveCount(3);          // lithology: limestone, dolomite, MARBLE
+  await expect(page.getByTestId('wdm-intervals-code-0')).toHaveValue('limestone');
+  await page.getByTestId('wdm-intervals-kind').selectOption('core_description');
+  await expect(page.getByTestId(/^wdm-intervals-row-/)).toHaveCount(3);          // core: feet converted to metres
+  await expect(page.getByTestId('wdm-intervals-top-0')).toHaveValue(/^1500\.0/);
+  await expect(page.getByTestId('wdm-intervals-grain-0')).toHaveValue('f_sand');
 });

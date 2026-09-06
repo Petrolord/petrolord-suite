@@ -85,3 +85,155 @@ export async function shareColumn(organizationId) {
     .eq('user_id', user.id);
   if (error) throw new Error(`Could not ${organizationId ? 'share' : 'unshare'} the column: ${error.message}`);
 }
+
+// ---- interval logs (ST1) ------------------------------------------------------
+//
+// geo_wells_intervals: one row per "named thing between two depths" on a
+// well, keyed by kind (lithology, core_description, facies, electrofacies,
+// environment, motif, systems_tract, biozone_interval). Registry child of
+// geo_wells: visibility follows the well, writes are owner-only through
+// RLS, a 0-row write surfaces as an owner-only error.
+
+export const INTERVAL_COLUMNS = ['kind', 'top_md_m', 'base_md_m', 'code', 'label', 'properties', 'source', 'interpreter'];
+
+/** Pick the writable columns of an interval and coerce numbers. */
+export function intervalRow(wellId, r) {
+  const row = { well_id: wellId };
+  for (const k of INTERVAL_COLUMNS) if (r[k] !== undefined) row[k] = r[k];
+  if (r.topMdM !== undefined) row.top_md_m = r.topMdM;
+  if (r.baseMdM !== undefined) row.base_md_m = r.baseMdM;
+  if ('top_md_m' in row) row.top_md_m = Number(row.top_md_m);
+  if ('base_md_m' in row) row.base_md_m = Number(row.base_md_m);
+  if ('code' in row) row.code = String(row.code ?? '').trim();
+  if ('label' in row && !row.label) row.label = null;
+  if ('properties' in row && (row.properties == null || typeof row.properties !== 'object')) row.properties = {};
+  if ('interpreter' in row && !row.interpreter) row.interpreter = null;
+  return row;
+}
+
+/** Every interval of a well (all kinds, or one), shallow to deep. */
+export async function listIntervals(wellId, kind = null) {
+  let q = supabase.from('geo_wells_intervals').select('*').eq('well_id', wellId);
+  if (kind) q = q.eq('kind', kind);
+  const { data, error } = await q.order('top_md_m', { ascending: true });
+  if (error) throw new Error(`Could not load intervals: ${error.message}`);
+  return data || [];
+}
+
+/** Replace every interval of ONE kind on a well (imports and publishes are all-or-nothing per kind). */
+export async function replaceIntervals(wellId, kind, rows) {
+  const { error: delError } = await supabase.from('geo_wells_intervals').delete().eq('well_id', wellId).eq('kind', kind);
+  if (delError) throw new Error(`Could not clear existing ${kind} intervals: ${delError.message}`);
+  if (!rows.length) return [];
+  const { data, error } = await supabase.from('geo_wells_intervals')
+    .insert(rows.map((r) => intervalRow(wellId, { ...r, kind })))
+    .select();
+  if (error) throw new Error(`Could not save ${kind} intervals: ${error.message}`);
+  return data;
+}
+
+export async function saveInterval(wellId, r) {
+  const row = intervalRow(wellId, r);
+  const { data, error } = await supabase.from('geo_wells_intervals').insert(row).select().single();
+  if (error) throw new Error(`Could not add the interval: ${error.message}`);
+  return data;
+}
+
+export async function updateInterval(intervalId, patch) {
+  const row = { ...intervalRow('x', patch), updated_at: new Date().toISOString() };
+  delete row.well_id;
+  const { data, error } = await supabase.from('geo_wells_intervals').update(row).eq('id', intervalId).select();
+  if (error) throw new Error(`Could not update the interval: ${error.message}`);
+  if (!data || !data.length) throw new Error('Only the owner can edit intervals (org sharing is read-only).');
+  return data[0];
+}
+
+export async function deleteInterval(interval) {
+  const { data, error } = await supabase.from('geo_wells_intervals').delete().eq('id', interval.id).select('id');
+  if (error) throw new Error(`Could not delete the interval: ${error.message}`);
+  if (!data || !data.length) throw new Error('Only the owner can delete intervals (org sharing is read-only).');
+}
+
+// ---- core images (ST1) --------------------------------------------------------
+//
+// Depth-registered core photographs in the private `wells` bucket under
+// the owner path {user_id}/{well_id}/core/{id}.{ext}; metadata rows in
+// geo_wells_core_images. Caps (owner decision 2026-09-06): 5 MB per image
+// (also a check constraint), 200 MB per well (enforced here).
+
+export const CORE_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+export const CORE_IMAGES_MAX_BYTES_PER_WELL = 200 * 1024 * 1024;
+const WELLS_BUCKET = 'wells';
+const IMAGE_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+
+export const coreImagePath = (userId, wellId, imageId, ext) => `${userId}/${wellId}/core/${imageId}.${ext}`;
+
+export async function listCoreImages(wellId) {
+  const { data, error } = await supabase.from('geo_wells_core_images')
+    .select('*').eq('well_id', wellId).order('top_md_m', { ascending: true });
+  if (error) throw new Error(`Could not load core images: ${error.message}`);
+  return data || [];
+}
+
+/** Refuse before touching storage: type, size, and the per-well cap. */
+export function checkCoreImage(file, existing = []) {
+  if (!file) throw new Error('Choose an image first.');
+  if (!IMAGE_EXT[file.type]) throw new Error(`"${file.name}" is ${file.type || 'of unknown type'}; core photos must be JPEG, PNG or WebP.`);
+  if (file.size > CORE_IMAGE_MAX_BYTES) throw new Error(`"${file.name}" is ${(file.size / 1048576).toFixed(1)} MB; the limit is 5 MB per image.`);
+  const used = existing.reduce((s, r) => s + (r.bytes || 0), 0);
+  if (used + file.size > CORE_IMAGES_MAX_BYTES_PER_WELL) {
+    throw new Error(`This well already holds ${(used / 1048576).toFixed(1)} MB of core photos; the limit is 200 MB per well.`);
+  }
+  return IMAGE_EXT[file.type];
+}
+
+/**
+ * Upload one core photo and insert its row. `meta` = {top_md_m, base_md_m,
+ * caption, width, height}. The storage object is removed again if the
+ * row insert fails, so a refused row never leaves an orphan object.
+ */
+export async function uploadCoreImage(wellId, file, meta) {
+  const existing = await listCoreImages(wellId);
+  const ext = checkCoreImage(file, existing);
+  const top = Number(meta.top_md_m); const base = Number(meta.base_md_m);
+  if (!Number.isFinite(top) || !Number.isFinite(base) || !(base > top)) throw new Error('Give the photo a top and a base depth, base below top.');
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error('You must be signed in to upload core photos.');
+  const id = (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const path = coreImagePath(user.id, wellId, id, ext);
+  const { error: upError } = await supabase.storage.from(WELLS_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+  if (upError) throw new Error(`Could not upload "${file.name}": ${upError.message}`);
+  const { data, error } = await supabase.from('geo_wells_core_images').insert({
+    id, well_id: wellId, top_md_m: top, base_md_m: base, storage_path: path, content_type: file.type,
+    caption: meta.caption || null, width: meta.width || null, height: meta.height || null, bytes: file.size,
+  }).select().single();
+  if (error) {
+    await supabase.storage.from(WELLS_BUCKET).remove([path]).catch(() => {});
+    throw new Error(`Could not save the core photo: ${error.message}`);
+  }
+  return data;
+}
+
+export async function updateCoreImage(imageId, patch) {
+  const row = { updated_at: new Date().toISOString() };
+  for (const k of ['top_md_m', 'base_md_m', 'caption']) if (patch[k] !== undefined) row[k] = k === 'caption' ? (patch[k] || null) : Number(patch[k]);
+  const { data, error } = await supabase.from('geo_wells_core_images').update(row).eq('id', imageId).select();
+  if (error) throw new Error(`Could not update the core photo: ${error.message}`);
+  if (!data || !data.length) throw new Error('Only the owner can edit core photos (org sharing is read-only).');
+  return data[0];
+}
+
+export async function deleteCoreImage(image) {
+  const { error: rmError } = await supabase.storage.from(WELLS_BUCKET).remove([image.storage_path]);
+  if (rmError) throw new Error(`Could not remove the photo object: ${rmError.message}`);
+  const { data, error } = await supabase.from('geo_wells_core_images').delete().eq('id', image.id).select('id');
+  if (error) throw new Error(`Could not delete the core photo: ${error.message}`);
+  if (!data || !data.length) throw new Error('Only the owner can delete core photos (org sharing is read-only).');
+}
+
+/** A short-lived URL to display a photo (the bucket is private; the read policy resolves the owning well from the path). */
+export async function coreImageUrl(image, expiresSeconds = 3600) {
+  const { data, error } = await supabase.storage.from(WELLS_BUCKET).createSignedUrl(image.storage_path, expiresSeconds);
+  if (error) throw new Error(`Could not open the core photo: ${error.message}`);
+  return data.signedUrl;
+}

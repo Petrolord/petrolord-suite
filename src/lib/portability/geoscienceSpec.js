@@ -38,6 +38,8 @@ export const GEOSCIENCE_SPEC = {
         { table: 'geo_wells_logs', column: 'well_id' },
         { table: 'geo_wells_tops', column: 'well_id' },
         { table: 'geo_wells_zones', column: 'well_id' },
+        { table: 'geo_wells_intervals', column: 'well_id' },
+        { table: 'geo_wells_core_images', column: 'well_id' },
       ],
       softRefs: [
         { path: 'crs', form: 'custom-crs', table: 'geoscience_custom_crs', optional: false },
@@ -67,6 +69,16 @@ export const GEOSCIENCE_SPEC = {
       softRefs: [{ path: 'parent_id', table: 'geo_strat_units', optional: true }],
     },
     geo_wells_zones: { pk: 'id', stamped: true, parent: { table: 'geo_wells', column: 'well_id' }, softRefs: [] },
+    // interval logs (Stratigraphy ST1): lithology, core description, facies ... per well
+    geo_wells_intervals: { pk: 'id', stamped: true, parent: { table: 'geo_wells', column: 'well_id' }, softRefs: [] },
+    // depth-registered core photographs (Stratigraphy ST1): one object per row in the wells bucket
+    geo_wells_core_images: {
+      pk: 'id',
+      stamped: true,
+      parent: { table: 'geo_wells', column: 'well_id' },
+      blob: { bucket: 'wells', pathColumn: 'storage_path', contentType: (row) => row.content_type || 'image/jpeg', newPath: (userId, row) => `${userId}/${row.well_id}/core/${row.id}.${(/\.([a-z0-9]+)$/i.exec(String(row.storage_path || '')) || [null, 'jpg'])[1]}` },
+      softRefs: [],
+    },
     geo_surfaces: {
       pk: 'id',
       stamped: true,

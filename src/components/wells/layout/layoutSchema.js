@@ -39,6 +39,17 @@ export const RAMP_PRESETS = {
 export const INPUT_SOURCES = ['input:GR', 'input:RHOB', 'input:NPHI', 'input:DT', 'input:RT'];
 export const OUTPUT_SOURCES = ['output:PHIE', 'output:VSH', 'output:SW', 'output:PAY', 'output:TEMP', 'output:KPERM', 'output:BVW'];
 export const THRESHOLD_PARAMS = ['cutPhi', 'cutVsh', 'cutSw', 'grClean', 'grClay'];
+/** Strip (categorical) track sources: crossplot facies, or a registry interval kind (ST1). */
+export const STRIP_SOURCES = [
+  { value: 'facies', label: 'Crossplot facies (this session)' },
+  { value: 'intervals:lithology', label: 'Lithology (registry)' },
+  { value: 'intervals:core_description', label: 'Core description (registry)' },
+  { value: 'intervals:facies', label: 'Facies (registry)' },
+  { value: 'intervals:electrofacies', label: 'Electrofacies (registry)' },
+  { value: 'intervals:environment', label: 'Environment (registry)' },
+  { value: 'intervals:motif', label: 'Log motif (registry)' },
+  { value: 'intervals:systems_tract', label: 'Systems tract (registry)' },
+];
 
 /** The PS1 default set, codified. */
 export function buildDefaultTemplates() {
@@ -141,7 +152,10 @@ export function buildDefaultTemplates() {
         {
           // lithology ramp: the whole track coloured by GR from clean sand
           // (pale yellow) to shale (dark brown)
-          id: 'l-litho', title: 'Lithology', type: 'curves', width: 0.6, scale: 'linear', min: 0, max: 150,
+          id: 'l-lith-strip', title: 'Lithology', type: 'strip', width: 0.45, source: 'intervals:lithology',
+        },
+        {
+          id: 'l-litho', title: 'GR lithology', type: 'curves', width: 0.6, scale: 'linear', min: 0, max: 150,
           curves: [{ source: 'input:GR', label: 'GR', color: '#475569', lineWidth: 0.8 }],
           fills: [{ mode: 'ramp', a: 'input:GR', fillTo: 'track', stops: RAMP_PRESETS.lithology.stops, opacity: 0.9 }],
         },

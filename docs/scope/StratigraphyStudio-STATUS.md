@@ -12,7 +12,7 @@ eleventh Geoscience tile. Slug `stratigraphy-studio`, route
 | Phase | Status | Landed |
 |---|---|---|
 | ST0 stratigraphic framework | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #412 merged** | engines #140 (vocabulary, ICS 2023/09 timescale, column tree; 66 tests); Suite branch `feat/st0-stratigraphic-framework`: migration 20260906180000 (geo_strat_units + typed-top columns), stratRegistry.js, typed tops through wellsRegistry, typed markers in Well Correlation and Petrophysics, Type/Unit/Confidence/Age in the Well Data Manager tops tab, the Stratigraphy Studio app (Column editor, Tops typing, Glossary, terminology display option), portability spec + hook, guard test, pentest SQL, e2e |
-| ST1 lithology, core and facies | not started | |
+| ST1 lithology, core and facies | **BUILT 2026-09-06, PR open, migration HELD** | engines #141 (lithology vocabulary, interval arithmetic, LAS 3.0 blocks to intervals; 66 tests, fixture las3_intervals_30); Suite branch `feat/st1-intervals-core-images`: migration 20260906200000 (geo_wells_intervals + geo_wells_core_images), stratRegistry intervals + core photo services, `intervals:<kind>` strip in the shared track layout, Petrophysics facies publish, Well Correlation lithology strip, Well Data Manager Intervals + Core tabs and LAS 3.0 block import, Stratigraphy Studio Intervals + Core views, portability, e2e |
 | ST2 sequence stratigraphy + Wheeler | not started | |
 | ST3 biozones and ages | not started | |
 | ST4 stratigraphic maps | not started | |
@@ -92,6 +92,86 @@ user/org, stamped, optional self reference) and the optional
 packaged top names, with their ancestors; import order puts units before
 tops.
 
+## ST1, what shipped
+
+**Engines (petrolord-engines PR #141, merged, subtree cc7ef4c).**
+- `stratigraphy/lithology.js`: sixteen lithologies with industry colours
+  and the abbreviations mud logs write (SST, SH, LS, DOL, ANH, SALT ...),
+  Wentworth grain sizes, twenty depositional environments, the eight
+  interval kinds and five sources. `resolveLithology` takes the first
+  recognised token ("SST W/ SH STRINGERS" is sandstone) and returns null
+  for anything unknown, never a guess.
+- `stratigraphy/intervals.js`: `validateIntervals` (overlaps per kind,
+  base below top, kind, code), gaps, `intervalAt`, `mergeAdjacent`,
+  `rasterizeIntervals` (per-sample category index on a depth vector, top
+  inclusive), `intervalsFromRuns` (run-length encode a categorical curve;
+  NaN breaks a run; the last sample covers one median step),
+  `thicknessByCode`.
+- `welldata/lasParse.js` now returns every non-log LAS 3.0 block as
+  `blocks` (definition columns, parameters, text rows), still listed in
+  `ignoredSections` for the import preview. `welldata/lasBlocks.js` maps
+  Core / Lithology / Facies / Env blocks with a top and base column to
+  interval rows (feet to metres, codes resolved, bad rows named, point
+  blocks such as core plugs and tops skipped). Fixture
+  `las3_intervals_30.las` and golden `las3_intervals_30.intervals.json`
+  from `genfixtures.py`, answers derived by hand.
+
+**Migration 20260906200000 (HELD).** `geo_wells_intervals` and
+`geo_wells_core_images`, registry children of the well. Pentest in
+`tools/validation/stratigraphy/rls-pentest-st1.sql` (seven blocks).
+
+**Services.** `stratRegistry.js` gains `listIntervals`,
+`replaceIntervals` (per kind, all-or-nothing), `saveInterval`,
+`updateInterval`, `deleteInterval`, `listCoreImages`, `uploadCoreImage`
+(type, 5 MB and 200 MB per well refused before storage; the object is
+removed again if the row insert fails), `updateCoreImage`,
+`deleteCoreImage`, `coreImageUrl` (signed URL). `wellImport.js` gains
+`buildIntervals` and header synonyms for top, base, code, label,
+description.
+
+**One painter, four hosts.** A strip track may now name
+`intervals:<kind>`; `resolveTracks` rasterizes the well's interval rows
+onto its depth vector with the vocabulary colours (facies rows use their
+own colour). The lithology quicklook template carries a registry
+lithology strip and reaches saved layouts through the built-in refresh;
+the layout editor offers strip sources and an "Add strip" button.
+Petrophysics, Well Correlation, Well Data Manager (through the shared
+layouts) and Stratigraphy Studio all draw from it.
+
+**Petrophysics.** Wells load their intervals; the ribbon gains "Facies"
+(`petro-publish-facies`): the crossplot polygons become registry facies
+intervals on the well through `intervalsFromRuns` (the polygons stay in
+`petro_projects`).
+
+**Well Correlation.** Section wells load their intervals; the sample
+section seeds a lithology log per well cut at its tops, so the harness
+draws a lithology strip under the lithology quicklook template.
+
+**Well Data Manager.** LAS import: a LAS 3.0 file with interval blocks
+shows "Import N intervals from the ... blocks" (on by default, replaces
+those kinds on the well) and names dropped rows. Two new tabs on the
+detail view, Intervals (`IntervalsEditor`) and Core (`CoreImagesPanel`),
+both shared components in `src/components/wells/` hosted here and in
+Stratigraphy Studio. The backends expose the interval and core photo
+services.
+
+**Stratigraphy Studio.** Intervals view (one kind at a time: table with
+lithology, grain size, environment and description pickers, paste-replace
+door with feet conversion and abbreviation resolution, engine validation,
+thickness by code) and Core view (upload with depths and caption, list,
+edit, delete, depth-registered strip).
+
+**Deleted.** `src/pages/apps/CoreImageAnnotator.jsx`, the 84-line shell
+with no route or importer.
+
+**Portability.** `geo_wells_intervals` and `geo_wells_core_images` as
+children of the well; a core image's blob keeps its own content type
+(the collector and importer accept a per-row content type function).
+
+**Gotcha recorded.** `PasteReplacePanel` memoizes its parsed state on the
+`fields` array; a host that passes a fresh literal per render re-parses
+and re-emits forever (a hung jest, a hung page). Pass a hoisted constant.
+
 ## Deviations from the plan
 
 - The tile is NOT seeded Archived in ST0 (plan section 7 said it would
@@ -110,7 +190,11 @@ tops.
   portability).
 - e2e `stratigraphy-studio.spec.js` on the staging harness: column save,
   typed top, scheme toggle with fallback badge, read-only shared well,
-  Well Correlation typed markers. See the PR for the run.
+  Well Correlation typed markers (ST0); seeded lithology log edited and
+  saved with an overlap refused, a core photo uploaded into the depth
+  strip, and a LAS 3.0 file with core and lithology blocks imported in
+  Well Data Manager with its six intervals (ST1). Regression specs for
+  Well Data Manager, Petrophysics and Well Correlation green.
 - Live RLS pentest 2026-09-06: all four blocks as expected (see MIGRATIONS.md row), zero residue.
 
 ## Close-out (ST0 acceptance, plan section 7)

@@ -29,6 +29,20 @@ const TOPS = {
 // typed markers beside the plain formation top (the e2e reads data-top-types)
 const SAMPLE_SURFACE_TYPES = { 'Mid Shale': 'MFS', 'Base Sand': 'SU' };
 
+// ST1: a lithology log per well, cut at its own tops so the strip lines up
+// with the correlation (sand above Top Dome, shale to Base Sand, sand below)
+function sampleIntervals(wellId, tops) {
+  const md = (name) => tops.find((t) => t.name === name)?.md_m;
+  const dome = md('Top Dome'); const base = md('Base Sand');
+  if (!Number.isFinite(dome) || !Number.isFinite(base)) return [];
+  const rows = [
+    { top_md_m: TOP_MD, base_md_m: dome, code: 'shale' },
+    { top_md_m: dome, base_md_m: base, code: 'sandstone' },
+    { top_md_m: base, base_md_m: BOT_MD, code: 'shale' },
+  ];
+  return rows.map((r, i) => ({ id: `${wellId}-int-${i}`, well_id: wellId, kind: 'lithology', ...r, label: null, properties: {}, source: 'cuttings', interpreter: null }));
+}
+
 const STEP = 0.5;
 const TOP_MD = 1400;
 const BOT_MD = 1750;
@@ -96,6 +110,7 @@ export function sampleWells() {
       td_md_m: BOT_MD,
       deviation: w.deviation || null,
       tops: w.tops.map((t, ti) => ({ id: `${id}-top-${ti}`, well_id: id, name: t.name, md_m: t.md_m, surface_type: SAMPLE_SURFACE_TYPES[t.name] || 'formation_top', unit_id: null, confidence: null, age_ma: null, notes: null })),
+      intervals: sampleIntervals(id, w.tops),
       curves: { DEPT: depth, GR: gr, RT: rt, RHOB: rhob, NPHI: nphi },
       logMeta: { DEPT: meta('M'), GR: meta('GAPI'), RT: meta('OHMM'), RHOB: meta('G/C3'), NPHI: meta('V/V') },
     };

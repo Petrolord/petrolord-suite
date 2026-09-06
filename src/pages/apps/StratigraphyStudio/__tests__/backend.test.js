@@ -69,3 +69,23 @@ describe('wellsRegistry.topRow (the insert row of a top)', () => {
     expect(topRow('w', { name: 'A', mdM: 10, age_ma: null }).age_ma).toBeNull();
   });
 });
+
+describe('ST1: intervals and core photos', () => {
+  test('the sample section seeds a lithology log cut at the tops; replace is per kind and owner-only', async () => {
+    const b = makeInMemoryBackend();
+    const lith = await b.listIntervals('corr-w1', 'lithology');
+    expect(lith.map((r) => [r.top_md_m, r.base_md_m, r.code])).toEqual([[1400, 1500, 'shale'], [1500, 1660, 'sandstone'], [1660, 1750, 'shale']]);
+    await b.replaceIntervals('corr-w1', 'facies', [{ top_md_m: 1500, base_md_m: 1520, code: 'Channel' }]);
+    expect((await b.listIntervals('corr-w1')).map((r) => r.kind)).toEqual(['lithology', 'lithology', 'facies', 'lithology']);
+    await expect(b.replaceIntervals('corr-w3', 'lithology', [])).rejects.toThrow(/Only the owner/);
+  });
+  test('core photo caps and lifecycle', async () => {
+    const b = makeInMemoryBackend();
+    await expect(b.uploadCoreImage('corr-w1', { name: 'x.png', type: 'image/png', size: 6 * 1024 * 1024 }, { top_md_m: 1, base_md_m: 2 })).rejects.toThrow(/5 MB per image/);
+    const img = await b.uploadCoreImage('corr-w1', { name: 'x.png', type: 'image/png', size: 100 }, { top_md_m: 1500, base_md_m: 1502 });
+    expect((await b.listCoreImages('corr-w1'))).toHaveLength(1);
+    await b.deleteCoreImage(img);
+    expect((await b.listCoreImages('corr-w1'))).toHaveLength(0);
+    await expect(b.uploadCoreImage('corr-w3', { name: 'x.png', type: 'image/png', size: 100 }, { top_md_m: 1, base_md_m: 2 })).rejects.toThrow(/Only the owner/);
+  });
+});

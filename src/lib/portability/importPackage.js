@@ -358,7 +358,7 @@ export function planImport(pkg, target) {
     const key = `${b.bucket}/${b.path}`;
     const hit = rowsByOldPath.get(key);
     if (hit) {
-      blobPlan.push({ bucket: b.bucket, path: hit.row[hit.spec.blob.pathColumn], bytes: b.bytes, contentType: b.content_type || hit.spec.blob.contentType, table: hit.table, rowId: hit.row[hit.spec.pk] });
+      blobPlan.push({ bucket: b.bucket, path: hit.row[hit.spec.blob.pathColumn], bytes: b.bytes, contentType: b.content_type || (typeof hit.spec.blob.contentType === 'function' ? hit.spec.blob.contentType(hit.row) : hit.spec.blob.contentType), table: hit.table, rowId: hit.row[hit.spec.pk] });
       continue;
     }
     const comp = companionsByOldPath.get(key);

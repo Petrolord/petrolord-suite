@@ -24,6 +24,8 @@ const nextId = (p) => { seq += 1; return `${p}-${seq}`; };
 export function makeInMemoryBackend(opts = {}) {
   const wells = [];
   const topsByWell = new Map();
+  const intervalsByWell = new Map();   // ST1 interval logs
+  const coreImagesByWell = new Map();  // ST1 core photos (metadata only; the harness shows a placeholder)
   const logsByWell = new Map();
   const curveStore = new Map(); // storage_path -> Float32Array
 
@@ -183,6 +185,55 @@ export function makeInMemoryBackend(opts = {}) {
       }
       throw new Error('Top not found.');
     },
+    // ---- ST1 interval logs + core photos (same contract as stratRegistry) ----
+    async listIntervals(wellId, kind = null) {
+      return (intervalsByWell.get(wellId) || []).filter((r) => !kind || r.kind === kind).map((r) => ({ ...r }));
+    },
+    async replaceIntervals(wellId, kind, rows) {
+      ownWell(wellId, 'edit intervals of');
+      const keep = (intervalsByWell.get(wellId) || []).filter((r) => r.kind !== kind);
+      const added = rows.map((r) => ({ id: nextId('int'), well_id: wellId, kind, top_md_m: Number(r.top_md_m), base_md_m: Number(r.base_md_m), code: String(r.code), label: r.label || null, properties: r.properties || {}, source: r.source || 'interpretation', interpreter: r.interpreter || null }));
+      intervalsByWell.set(wellId, [...keep, ...added].sort((a, b) => a.top_md_m - b.top_md_m));
+      return added;
+    },
+    async listCoreImages(wellId) { return (coreImagesByWell.get(wellId) || []).map((r) => ({ ...r })); },
+    async uploadCoreImage(wellId, file, meta) {
+      ownWell(wellId, 'add core photos to');
+      if (!file) throw new Error('Choose an image first.');
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error(`"${file.name}" is ${file.type || 'of unknown type'}; core photos must be JPEG, PNG or WebP.`);
+      if (file.size > 5 * 1024 * 1024) throw new Error(`"${file.name}" is ${(file.size / 1048576).toFixed(1)} MB; the limit is 5 MB per image.`);
+      const top = Number(meta.top_md_m); const base = Number(meta.base_md_m);
+      if (!Number.isFinite(top) || !Number.isFinite(base) || !(base > top)) throw new Error('Give the photo a top and a base depth, base below top.');
+      const id = nextId('img');
+      const row = { id, well_id: wellId, top_md_m: top, base_md_m: base, storage_path: `dev/${wellId}/core/${id}`, content_type: file.type, caption: meta.caption || null, width: meta.width || null, height: meta.height || null, bytes: file.size, _url: typeof URL !== 'undefined' && URL.createObjectURL ? URL.createObjectURL(file) : null };
+      if (!coreImagesByWell.has(wellId)) coreImagesByWell.set(wellId, []);
+      coreImagesByWell.get(wellId).push(row);
+      return { ...row };
+    },
+    async updateCoreImage(imageId, patch) {
+      for (const [wellId, list] of coreImagesByWell) {
+        const img = list.find((x) => x.id === imageId);
+        if (img) {
+          ownWell(wellId, 'edit core photos of');
+          if (patch.top_md_m !== undefined) img.top_md_m = Number(patch.top_md_m);
+          if (patch.base_md_m !== undefined) img.base_md_m = Number(patch.base_md_m);
+          if (patch.caption !== undefined) img.caption = patch.caption || null;
+          return { ...img };
+        }
+      }
+      throw new Error('Core photo not found.');
+    },
+    async deleteCoreImage(image) {
+      ownWell(image.well_id, 'delete core photos of');
+      const list = coreImagesByWell.get(image.well_id) || [];
+      const i = list.findIndex((x) => x.id === image.id);
+      if (i >= 0) list.splice(i, 1);
+    },
+    async coreImageUrl(image) {
+      const list = coreImagesByWell.get(image.well_id) || [];
+      return list.find((x) => x.id === image.id)?._url || null;
+    },
+
     /** Stratigraphic column (ST0): a seeded two-unit column for the Unit column of the tops tab. */
     async listUnits() {
       return [

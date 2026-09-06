@@ -10,7 +10,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Trash2, Plus } from 'lucide-react';
 import {
   activeTemplate, updateTemplate, newId,
-  INPUT_SOURCES, OUTPUT_SOURCES, THRESHOLD_PARAMS,
+  INPUT_SOURCES, OUTPUT_SOURCES, THRESHOLD_PARAMS, STRIP_SOURCES,
 } from './layout/layoutSchema';
 
 const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-full';
@@ -168,6 +168,16 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                   <input className={miniCls} style={{ width: '100%' }} value={String(tr.width ?? 1)}
                     onChange={(e) => editTrack(tr.id, (x) => ({ ...x, width: numOr(e.target.value, x.width) }))} />
                 </label>
+                {tr.type === 'strip' && (
+                  <label className="flex items-center gap-1 col-span-2">
+                    <span className="text-slate-500 w-9">Source</span>
+                    <select className={miniCls} style={{ width: '100%' }} value={tr.source || 'facies'}
+                      data-testid="petro-layout-strip-source"
+                      onChange={(e) => editTrack(tr.id, (x) => ({ ...x, source: e.target.value }))}>
+                      {STRIP_SOURCES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </label>
+                )}
                 {tr.type !== 'strip' && (
                   <>
                     <label className="flex items-center gap-1">
@@ -410,12 +420,20 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
         </div>
       ))}
 
-      <button type="button" data-testid="petro-layout-add-track"
-        className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
-        onClick={addTrack}
-      >
-        <Plus className="w-3.5 h-3.5" /> Add track
-      </button>
+      <div className="flex gap-1">
+        <button type="button" data-testid="petro-layout-add-track"
+          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
+          onClick={addTrack}
+        >
+          <Plus className="w-3.5 h-3.5" /> Add track
+        </button>
+        <button type="button" data-testid="petro-layout-add-strip" title="Add a categorical strip: registry lithology, core, facies or a crossplot facies"
+          className="flex-1 flex items-center justify-center gap-1 px-2 py-1 rounded border border-slate-700 text-slate-300 hover:bg-slate-800"
+          onClick={() => edit((t) => ({ ...t, tracks: [...t.tracks, { id: newId('trk'), title: 'Lithology', type: 'strip', width: 0.45, source: 'intervals:lithology' }] }))}
+        >
+          <Plus className="w-3.5 h-3.5" /> Add strip
+        </button>
+      </div>
     </div>
   );
 }
