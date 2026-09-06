@@ -12,7 +12,7 @@ eleventh Geoscience tile. Slug `stratigraphy-studio`, route
 | Phase | Status | Landed |
 |---|---|---|
 | ST0 stratigraphic framework | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #412 merged** | engines #140 (vocabulary, ICS 2023/09 timescale, column tree; 66 tests); Suite branch `feat/st0-stratigraphic-framework`: migration 20260906180000 (geo_strat_units + typed-top columns), stratRegistry.js, typed tops through wellsRegistry, typed markers in Well Correlation and Petrophysics, Type/Unit/Confidence/Age in the Well Data Manager tops tab, the Stratigraphy Studio app (Column editor, Tops typing, Glossary, terminology display option), portability spec + hook, guard test, pentest SQL, e2e |
-| ST1 lithology, core and facies | **BUILT 2026-09-06, PR open, migration HELD** | engines #141 (lithology vocabulary, interval arithmetic, LAS 3.0 blocks to intervals; 66 tests, fixture las3_intervals_30); Suite branch `feat/st1-intervals-core-images`: migration 20260906200000 (geo_wells_intervals + geo_wells_core_images), stratRegistry intervals + core photo services, `intervals:<kind>` strip in the shared track layout, Petrophysics facies publish, Well Correlation lithology strip, Well Data Manager Intervals + Core tabs and LAS 3.0 block import, Stratigraphy Studio Intervals + Core views, portability, e2e |
+| ST1 lithology, core and facies | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #413 merged** | engines #141 (lithology vocabulary, interval arithmetic, LAS 3.0 blocks to intervals; 66 tests, fixture las3_intervals_30); Suite branch `feat/st1-intervals-core-images`: migration 20260906200000 (geo_wells_intervals + geo_wells_core_images), stratRegistry intervals + core photo services, `intervals:<kind>` strip in the shared track layout, Petrophysics facies publish, Well Correlation lithology strip, Well Data Manager Intervals + Core tabs and LAS 3.0 block import, Stratigraphy Studio Intervals + Core views, portability, e2e |
 | ST2 sequence stratigraphy + Wheeler | not started | |
 | ST3 biozones and ages | not started | |
 | ST4 stratigraphic maps | not started | |
@@ -116,7 +116,7 @@ tops.
   `las3_intervals_30.las` and golden `las3_intervals_30.intervals.json`
   from `genfixtures.py`, answers derived by hand.
 
-**Migration 20260906200000 (HELD).** `geo_wells_intervals` and
+**Migration 20260906200000 (APPLIED 2026-09-06 by the owner, pentest green).** `geo_wells_intervals` and
 `geo_wells_core_images`, registry children of the well. Pentest in
 `tools/validation/stratigraphy/rls-pentest-st1.sql` (seven blocks).
 
