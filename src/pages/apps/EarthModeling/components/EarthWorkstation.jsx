@@ -9,7 +9,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck } from 'lucide-react';
+import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck, ImageDown, Route } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import ModelExplorer from './ModelExplorer';
@@ -20,6 +20,10 @@ import QcPanel from './QcPanel';
 import { buildModel, emptyDefinition } from '../services/modelBuild';
 import { DEPTH_UNIT_KEY, VOLUME_UNITS_KEY, VOLUME_UNIT_SETS, readSetting, fmtDepth } from '../services/units';
 import { allSurfaceRows, makeDerivedEntry, describeDerived } from '../services/derivedSurfaces';
+import { projectWells, VE_OPTIONS } from '../services/sectionPath';
+import { minCurvature, positionAtMd } from '../engine/wellties';
+import { useWellCurvesCache } from '@/components/wells/useWellCurvesCache';
+import { downloadBlob } from '@/components/maps/mapPng';
 import { toDisplay } from '@/components/wells/depthModes';
 import { validatePolygon } from '../engine/blocks';
 import { surfaceStats } from '@/lib/gridding/gridmath';
@@ -57,6 +61,15 @@ export default function EarthWorkstation({ backend }) {
   const deepLinkRef = useRef({ surface: searchParams.get('surface'), done: false });
   const [pending, setPending] = useState([]);
   const [sectionWells, setSectionWells] = useState({ a: '', b: '' });
+  // EM3 section window: a polyline drawn on the map (or the well pair),
+  // vertical exaggeration, projection distance, and GR curves per well
+  const [sectionPath, setSectionPath] = useState(null);       // [[x, y], ...] world
+  const [sectionDrawing, setSectionDrawing] = useState(false);
+  const [sectionPending, setSectionPending] = useState([]);
+  const [ve, setVe] = useState(2);
+  const [wellCurves, setWellCurves] = useState({});           // wellId -> {tvdss, values} | null
+  const sectionRef = useRef(null);
+  const curvesCache = useWellCurvesCache(backend);
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
   // EM0: display units. Depth follows the account's Geoscience depth
@@ -351,6 +364,13 @@ export default function EarthWorkstation({ backend }) {
 
   const mapToolbar = built && (
     <div className="flex items-center gap-2 mb-2">
+      {sectionDrawing && (
+        <>
+          <span className="text-[11px] text-cyan-300" data-testid="em-sec-pending">{sectionPending.length} section vertices</span>
+          <button type="button" data-testid="em-sec-finish" className={viewBtn(true)} disabled={sectionPending.length < 2} onClick={() => finishSection()}>Finish section line</button>
+          <button type="button" data-testid="em-sec-cancel" className={viewBtn(false)} onClick={() => cancelSection()}>Cancel</button>
+        </>
+      )}
       <select className={selCls} data-testid="em-map-zone" value={zoneIdx}
         onChange={(e) => setZoneIdx(Number(e.target.value))}>
         {built.zones.map((z, i) => <option key={z.name} value={i}>{z.name}</option>)}
@@ -363,6 +383,70 @@ export default function EarthWorkstation({ backend }) {
   );
 
   const wellById = (id) => (wells || []).find((w) => w.id === id);
+  const sectionVertices = useMemo(() => {
+    if (sectionPath && sectionPath.length >= 2) return sectionPath;
+    const a = wellById(sectionWells.a); const b = wellById(sectionWells.b);
+    if (a && b && a.id !== b.id && Number.isFinite(a.surface_x) && Number.isFinite(b.surface_x)) return [[a.surface_x, a.surface_y], [b.surface_x, b.surface_y]];
+    return null;
+  }, [sectionPath, sectionWells, wells]); // eslint-disable-line react-hooks/exhaustive-deps
+  const projectionM = built ? 2 * Math.max(built.spec.dx, built.spec.dy) : 100;
+  const projected = useMemo(() => {
+    if (!sectionVertices || !built) return [];
+    return projectWells(wells || [], sectionVertices, projectionM).map((p) => {
+      const traj = minCurvature(p.well.deviation || [], p.well.kb_m || 0, p.well.surface_x, p.well.surface_y);
+      const tops = (p.well.tops || []).map((t) => {
+        const tie = built.ties.find((r) => r.well === p.well.name && r.top === t.name);
+        return { name: t.name, tvdss: positionAtMd(traj, t.md_m).tvdss, residualM: tie?.residualM ?? null };
+      });
+      const c = wellCurves[p.well.id];
+      let gr = null;
+      if (c?.GR && c?.DEPT) {
+        const tvdss = new Float64Array(c.DEPT.length);
+        for (let i = 0; i < c.DEPT.length; i++) tvdss[i] = positionAtMd(traj, c.DEPT[i]).tvdss;
+        gr = { tvdss, values: c.GR };
+      }
+      return { ...p, tops, gr };
+    });
+  }, [sectionVertices, built, wells, wellCurves, projectionM]);
+  // load GR (and DEPT) for the wells on the section once
+  useEffect(() => {
+    if (!backend.listLogs) return;
+    for (const p of projected) {
+      const id = p.well.id;
+      if (id in wellCurves) continue;
+      setWellCurves((m) => ({ ...m, [id]: null }));
+      curvesCache.getCurves(id).then((d) => {
+        const gr = d.curves?.GR || d.logs?.GR || null;
+        const dept = d.curves?.DEPT || d.logs?.DEPT || null;
+        setWellCurves((m) => ({ ...m, [id]: gr && dept ? { GR: gr, DEPT: dept } : null }));
+      }).catch(() => setWellCurves((m) => ({ ...m, [id]: null })));
+    }
+  }, [projected, backend, curvesCache]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const startSection = () => {
+    if (!built) { setStatus('Build the model first; the map is the drawing surface.'); return; }
+    setView('map'); setSectionDrawing(true); setSectionPending([]);
+    setStatus('Click the map to place the section line vertices (2 or more), then Finish section line.');
+  };
+  const finishSection = () => {
+    if (sectionPending.length < 2) { setStatus('A section line needs at least two vertices.'); return; }
+    setSectionPath(sectionPending); setSectionDrawing(false); setSectionPending([]); setView('section');
+    const total = sectionPending.slice(1).reduce((acc, [x, y], i) => acc + Math.hypot(x - sectionPending[i][0], y - sectionPending[i][1]), 0);
+    setStatus(`Section line set: ${sectionPending.length} vertices, ${total.toFixed(0)} m. Wells within ${projectionM.toFixed(0)} m project onto it.`);
+  };
+  const cancelSection = () => { setSectionDrawing(false); setSectionPending([]); setStatus('Section drawing cancelled.'); };
+  const exportSectionPng = async () => {
+    try {
+      const blob = await sectionRef.current?.toBlob();
+      if (!blob) throw new Error('Nothing to export yet.');
+      downloadBlob(blob, `${definition.name.replace(/[^\w-]+/g, '_') || 'earth-model'}-section.png`);
+      setStatus('Section exported as PNG.');
+    } catch (e) { setStatus(e.message); }
+  };
+  const sectionOverlays = [
+    ...(sectionPath ? [{ points: Float64Array.from(sectionPath.flat()), color: '#22d3ee', width: 2 }] : []),
+    ...(sectionPending.length >= 2 ? [{ points: Float64Array.from(sectionPending.flat()), color: '#67e8f9', width: 1.5, dash: [4, 3] }] : []),
+  ];
   const sectionToolbar = (
     <div className="flex items-center gap-2 mb-2">
       <select className={selCls} data-testid="em-sec-a" value={sectionWells.a}
@@ -371,9 +455,22 @@ export default function EarthWorkstation({ backend }) {
       </select>
       <span className="text-[11px] text-slate-500">→</span>
       <select className={selCls} data-testid="em-sec-b" value={sectionWells.b}
-        onChange={(e) => setSectionWells((p) => ({ ...p, b: e.target.value }))}>
+        onChange={(e) => { setSectionWells((p) => ({ ...p, b: e.target.value })); setSectionPath(null); }}>
         {(wells || []).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
       </select>
+      <button type="button" data-testid="em-sec-draw" className={viewBtn(false)} title="Draw the section line on the map" onClick={startSection}>
+        <Route className="w-3.5 h-3.5" /> {sectionPath ? 'Redraw line' : 'Draw line on map'}
+      </button>
+      {sectionPath && <button type="button" data-testid="em-sec-clear" className={viewBtn(false)} onClick={() => { setSectionPath(null); setStatus('Section back to the well pair.'); }}>Well pair</button>}
+      <label className="flex items-center gap-1 text-[11px] text-slate-400">VE
+        <select className={selCls} data-testid="em-sec-ve" value={ve} onChange={(e) => setVe(Number(e.target.value))}>
+          {VE_OPTIONS.map((v) => <option key={v} value={v}>{v}x</option>)}
+        </select>
+      </label>
+      <span className="text-[11px] text-slate-500" data-testid="em-sec-wells">{projected.length} well{projected.length === 1 ? '' : 's'} on the line</span>
+      <button type="button" data-testid="em-sec-png" className={`${viewBtn(false)} ml-auto`} title="Download the section as a PNG" onClick={exportSectionPng}>
+        <ImageDown className="w-3.5 h-3.5" /> PNG
+      </button>
     </div>
   );
 
@@ -387,14 +484,16 @@ export default function EarthWorkstation({ backend }) {
     <div className="p-3">
       {sectionToolbar}
       <SectionView
+        ref={sectionRef}
         spec={built?.spec}
         clamped={built?.clamped || []}
         surfaceNames={surfaceNames}
         zoneNames={(built?.zones || []).map((z) => z.name)}
-        wellA={wellById(sectionWells.a)}
-        wellB={wellById(sectionWells.b)}
+        vertices={sectionVertices}
         ties={built?.ties || []}
+        projected={projected}
         depthUnit={depthUnit}
+        ve={ve}
       />
     </div>
   ) : !built ? (
@@ -410,8 +509,9 @@ export default function EarthWorkstation({ backend }) {
         wells={wells}
         polygons={definition.faultPolygons || []}
         pendingVertices={pending}
-        drawing={drawing}
-        onMapClick={({ x, y }) => setPending((p) => [...p, [x, y]])}
+        drawing={drawing || sectionDrawing}
+        onMapClick={({ x, y }) => (sectionDrawing ? setSectionPending((p) => [...p, [x, y]]) : setPending((p) => [...p, [x, y]]))}
+        overlays={sectionOverlays}
         contours={layer !== 'blocks'}
         label={`${zoneName} · ${layerLabel}${['top', 'base', 'thickness'].includes(layer) ? ` (${depthUnit})` : ''}`}
         zFormat={['top', 'base', 'thickness'].includes(layer) ? (v) => toDisplay(v, depthUnit).toFixed(1) : (v) => v.toFixed(3)}

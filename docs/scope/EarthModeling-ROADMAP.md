@@ -104,3 +104,16 @@ e2e) against what a Petrel user expects of a structural framework:
   (`em-derived-*`), status names the recipe, remove drops it from the
   stack. Fixture: TopA + 50 m gives a 50 m zone and the closed-form
   bulk volume; midway between TopA and TopB halves the zone.
+- **EM3 (2026-09-06), branch `feat/em3-section-window`.** The section
+  is a polyline drawn on the map (Draw line on map, click vertices,
+  Finish; the line stays as a cyan overlay) or the well pair. The
+  framework is sampled by arc length (`services/sectionPath.js`,
+  tested: arc lengths, samples, nearest point, projection, scale);
+  wells within two cells of the line draw at their projection with a GR
+  column through the shared track painter (sand below 75 API filled),
+  top ticks with the tie residual, and the offset named; the depth axis
+  follows the display unit; VE (1, 2, 5, 10x) sets the plot height
+  against the horizontal scale (the footer prints the exaggeration
+  achieved after clamping); PNG export. Both backends carry
+  `listLogs`/`downloadCurve` (the harness synthesises a GR per fixture
+  well with a sand body below 1500 m MD).

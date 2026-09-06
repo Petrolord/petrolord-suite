@@ -13,7 +13,7 @@ import MapViewport from '@/components/maps/MapViewport';
 export default function MapView({
   spec, grid, wells = [], polygons = [], pendingVertices = [],
   drawing = false, onMapClick, contours = true, height = 480, label = '',
-  zFormat = (v) => v.toFixed(2),
+  zFormat = (v) => v.toFixed(2), overlays = [],
 }) {
   return (
     <MapViewport
@@ -29,7 +29,8 @@ export default function MapView({
       height={height}
       label={label}
       zFormat={zFormat}
-      hint={drawing ? 'click to add fault-polygon vertices' : ''}
+      overlays={overlays}
+      hint={drawing ? 'click to add vertices' : ''}
     />
   );
 }

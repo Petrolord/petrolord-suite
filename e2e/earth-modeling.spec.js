@@ -221,3 +221,38 @@ test('EM2: a horizon parallel to TopA at 50 m joins the stack and builds a 50 m 
   await expect(page.getByTestId('em-vol-zone-1-total-bulk')).toHaveText(fmtM(50 * nx * ny * dx * dy));
   await expect(page.getByTestId('em-derived-row-TopA plus 50 m')).toBeVisible();
 });
+
+test('EM3: a section line drawn on the map cuts the model, projects the wells with GR, exaggerates and exports', async ({ page }) => {
+  await stackAndBuild(page);
+  await page.getByTestId('em-view-section').click();
+  await expect(page.getByTestId('em-sec-wells')).toContainText(/\d+ wells? on the line/);
+  await page.getByTestId('em-sec-ve').selectOption('1');
+  const before = await page.getByTestId('em-section-canvas').getAttribute('data-plot-h');
+  await page.getByTestId('em-sec-ve').selectOption('10');
+  const after = await page.getByTestId('em-section-canvas').getAttribute('data-plot-h');
+  expect(Number(after)).toBeGreaterThan(Number(before));
+
+  // draw a line across the model through W1 and W4 on the map
+  await page.getByTestId('em-sec-draw').click();
+  await expect(page.getByTestId('em-sec-pending')).toHaveText('0 section vertices');
+  const canvas = page.getByTestId('em-map-canvas');
+  const box = await canvas.boundingBox();
+  const { x0, y0, dx, dy, nx, ny } = goldens.model_spec;
+  const [wMinX, wMaxX] = [x0, x0 + (nx - 1) * dx];
+  const [wMinY, wMaxY] = [y0, y0 + (ny - 1) * dy];
+  const PAD = 44;
+  const scale = Math.min((box.width - 2 * PAD) / (wMaxX - wMinX), (box.height - 2 * PAD) / (wMaxY - wMinY));
+  const [cx, cy] = [(wMinX + wMaxX) / 2, (wMinY + wMaxY) / 2];
+  for (const [wx, wy] of [[1100, 2100], [2050, 2150]]) {
+    await canvas.click({ position: { x: box.width / 2 + (wx - cx) * scale, y: box.height / 2 - (wy - cy) * scale } });
+  }
+  await expect(page.getByTestId('em-sec-pending')).toHaveText('2 section vertices');
+  await page.getByTestId('em-sec-finish').click();
+  await expect(page.getByTestId('em-status')).toContainText(/Section line set: 2 vertices, \d+ m/);
+  await expect(page.getByTestId('em-section-canvas')).toBeVisible();
+  await expect(page.getByTestId('em-sec-wells')).toContainText(/[2-3] wells on the line/);
+  const dl = page.waitForEvent('download');
+  await page.getByTestId('em-sec-png').click();
+  expect((await dl).suggestedFilename()).toMatch(/section\.png$/);
+  await expect(page.getByTestId('em-status')).toContainText('Section exported as PNG');
+});
