@@ -288,3 +288,36 @@ test('MS4: deep links in, launchers out, help', async ({ page }) => {
   await expect(page.getByTestId('map-well-open-in-mapping-surface-studio')).toHaveCount(0);
   await page.keyboard.press('Escape');
 });
+
+test('MS5: a contour dragged on the map becomes guide points at its value and the surface re-grids through them; the depth unit persists', async ({ page }) => {
+  await page.goto('/dev/mapping-surface-studio');
+  await page.getByTestId('map-source').selectOption('top:Top Dome');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Gridded');
+  const canvas = page.getByTestId('map-canvas');
+  const box = await canvas.boundingBox();
+
+  await page.getByTestId('map-contour-edit').click();
+  await expect(page.getByTestId('map-contour-form')).toBeVisible();
+  // press near the map centre (the dome's contours ring it, so one is within two cells), drag east, release
+  const sx = box.x + box.width / 2 + 30;
+  const sy = box.y + box.height / 2 + 24;
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  await expect(page.getByTestId('map-status')).toContainText(/Picked the -?\d+\.\d ft contour/);
+  for (let k = 1; k <= 8; k++) await page.mouse.move(sx + k * 6, sy, { steps: 2 });
+  await page.mouse.up();
+  await expect(page.getByTestId('map-status')).toContainText(/Moved the -?\d+\.\d ft contour \(\d+ guide points\)/);
+  await expect(page.getByTestId('map-status')).toContainText('Gridded');
+  await expect(page.getByTestId('map-guide-row-C1.1')).toBeVisible();
+  await expect(page.getByTestId('map-contour-form')).toHaveCount(0);
+  const statusText = await page.getByTestId('map-status').textContent();
+  const level = statusText.match(/Moved the (-?\d+\.\d) ft contour/)[1];
+  await expect(page.getByTestId('map-guide-row-C1.1')).toContainText(`${level} ft`);
+
+  // the depth unit is a per-user setting once the backend carries it
+  await page.getByTestId('map-depth-unit').click();
+  await expect(page.getByTestId('map-depth-unit')).toHaveText('depth: m');
+  await page.getByTestId('map-guide-clear').click();
+  await expect(page.getByTestId('map-guide-row-C1.1')).toHaveCount(0);
+});

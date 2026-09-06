@@ -28,6 +28,25 @@ import {
 } from './mapPainter';
 import { mapPlotPng } from './mapPng';
 
+/** Extra world polylines over the map (a contour being moved, a preview). */
+function paintOverlays(ctx, { overlays, transform }) {
+  ctx.save();
+  for (const o of overlays) {
+    const pts = o?.points;
+    if (!pts || pts.length < 4) continue;
+    ctx.strokeStyle = o.color || '#f472b6';
+    ctx.lineWidth = o.width || 2;
+    ctx.setLineDash(o.dash || []);
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i += 2) {
+      const s = transform.worldToScreen(pts[i], pts[i + 1]);
+      if (i) ctx.lineTo(s.x, s.y); else ctx.moveTo(s.x, s.y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 const DRAG_PX = 3;
 const ZOOM_STEP = 1.25;
 
@@ -38,6 +57,11 @@ const MapViewport = forwardRef(function MapViewport({
   showLegend = true, showScaleBar = true, showNorth = true, showAxes = false,
   height = 'fill', testIdPrefix = 'map', zFormat = (v) => v.toFixed(1), zUnit = '',
   contourFormat = null, label = '', hint = '', onCameraChange,
+  // MS5 contour editing: a consumer may capture a drag. onDragStart(world)
+  // returning true takes the gesture (no pan); onDrag / onDragEnd follow
+  // with world points. `overlays` are extra world polylines painted over
+  // the contours ([{points: flat [x, y, ...], color, width, dash}]).
+  onDragStart = null, onDrag = null, onDragEnd = null, overlays = [],
 }, ref) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -96,6 +120,7 @@ const MapViewport = forwardRef(function MapViewport({
     if (!spec || !grid || !range) return;
     if (bitmap) paintRaster(ctx, { bitmap, spec, transform: t });
     if (contourData) paintContours(ctx, { contours: contourData, transform: t, labels: contourLabels, fmt: contourFormat || zFormat });
+    if (overlays.length) paintOverlays(ctx, { overlays, transform: t });
     if (cultureLayers.length) paintCulture(ctx, { layers: cultureLayers, transform: t });
     paintPolygons(ctx, { polygons, pending: pendingVertices, transform: t });
     paintWells(ctx, { wells, transform: t, showNames, posted, fmt: zFormat });
@@ -119,7 +144,7 @@ const MapViewport = forwardRef(function MapViewport({
       ctx.fillText(label, showNorth ? 48 : 8, 6);
       ctx.restore();
     }
-  }, [spec, grid, range, bitmap, contourData, contourLabels, zFormat, contourFormat, cultureLayers, polygons, pendingVertices, wells, showNames, posted, markers, showAxes, showLegend, lut, zUnit, showScaleBar, showNorth, label]);
+  }, [spec, grid, range, bitmap, contourData, contourLabels, zFormat, contourFormat, cultureLayers, polygons, pendingVertices, wells, showNames, posted, markers, showAxes, showLegend, lut, zUnit, showScaleBar, showNorth, label, overlays]);
 
   // paint the live canvas
   useLayoutEffect(() => {
@@ -183,7 +208,11 @@ const MapViewport = forwardRef(function MapViewport({
   const onPointerDown = (e) => {
     if (e.button !== 0 && e.button !== 1) return;
     const p = local(e);
-    pointerRef.current = { x: p.x, y: p.y, lastX: p.x, lastY: p.y, moved: false, id: e.pointerId };
+    let captured = false;
+    if (e.button === 0 && onDragStart) {
+      try { captured = Boolean(onDragStart(tRef.current.screenToWorld(p.x, p.y))); } catch { captured = false; }
+    }
+    pointerRef.current = { x: p.x, y: p.y, lastX: p.x, lastY: p.y, moved: false, id: e.pointerId, captured };
     canvasRef.current.setPointerCapture?.(e.pointerId);
   };
   const onPointerMove = (e) => {
@@ -191,6 +220,10 @@ const MapViewport = forwardRef(function MapViewport({
     const d = pointerRef.current;
     if (d) {
       if (!d.moved && Math.hypot(p.x - d.x, p.y - d.y) > DRAG_PX) d.moved = true;
+      if (d.captured) {
+        if (d.moved && onDrag) onDrag(tRef.current.screenToWorld(p.x, p.y));
+        return;
+      }
       if (d.moved) {
         tRef.current.panBy(p.x - d.lastX, p.y - d.lastY);
         d.lastX = p.x; d.lastY = p.y;
@@ -204,7 +237,13 @@ const MapViewport = forwardRef(function MapViewport({
     const d = pointerRef.current;
     pointerRef.current = null;
     canvasRef.current?.releasePointerCapture?.(e.pointerId);
-    if (!d || d.moved) return;
+    if (!d) return;
+    if (d.captured) {
+      const p = local(e);
+      if (onDragEnd) onDragEnd(tRef.current.screenToWorld(p.x, p.y), { moved: d.moved });
+      return;
+    }
+    if (d.moved) return;
     if (drawing && onMapClick) {
       const p = local(e);
       onMapClick(tRef.current.screenToWorld(p.x, p.y));

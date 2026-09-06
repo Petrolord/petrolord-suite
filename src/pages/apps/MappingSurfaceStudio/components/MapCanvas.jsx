@@ -46,6 +46,7 @@ export function contourPlan({ grid, typed, unit = 'ft', isLength = true, target 
 const MapCanvas = forwardRef(function MapCanvas({
   surface, grid, wells = [], cultureLayers = [], posted = null, markers = [],
   pendingVertices = [], drawing = false, onMapClick,
+  onDragStart = null, onDrag = null, onDragEnd = null, overlays = [],
   display = { unit: 'ft', isLength: true }, settings = DEFAULT_MAP_DISPLAY,
 }, ref) {
   const spec = surface ? {
@@ -72,6 +73,10 @@ const MapCanvas = forwardRef(function MapCanvas({
       pendingVertices={pendingVertices}
       drawing={drawing}
       onMapClick={onMapClick}
+      onDragStart={onDragStart}
+      onDrag={onDrag}
+      onDragEnd={onDragEnd}
+      overlays={overlays}
       posted={settings.posted ? posted : null}
       contourStep={plan.stepM}
       contourFormat={plan.format}
