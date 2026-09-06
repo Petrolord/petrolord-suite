@@ -5,15 +5,16 @@
 // internal; fluids/contacts stay in ReservoirCalc Pro).
 
 import React from 'react';
+import { fmtVolume, volumeUnitLabel, fmtDepth } from '../services/units';
 
 const th = 'px-2 py-1 text-left text-[10px] uppercase tracking-wider text-slate-500 font-medium';
 const td = 'px-2 py-1 text-xs text-slate-300 whitespace-nowrap';
 const card = 'rounded border border-slate-800 bg-slate-900/60';
 
-const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : '—');
-const fmtM = (v) => (Number.isFinite(v) ? (v / 1e6).toFixed(3) : '—');
 
-export default function QcPanel({ built, surfaceNames = [] }) {
+export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', volumeUnits = 'metric' }) {
+  const u = depthUnit;
+  const vu = (col) => volumeUnitLabel(col, volumeUnits);
   if (!built) {
     return (
       <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="em-qc-empty">
@@ -59,13 +60,13 @@ export default function QcPanel({ built, surfaceNames = [] }) {
 
       <div className={card}>
         <div className="px-2 py-1.5 text-xs font-semibold text-slate-200 border-b border-slate-800">
-          Well ties — residual = pick TVDSS − surface (m); positive ⇒ pick deeper than surface
+          Well ties: residual = pick TVDSS minus surface ({u}); positive means the pick is deeper than the surface
         </div>
         <table className="w-full">
           <thead>
             <tr>
-              <th className={th}>Well</th><th className={th}>Top</th><th className={th}>MD (m)</th>
-              <th className={th}>TVDSS (m)</th><th className={th}>Surface z (m)</th><th className={th}>Residual (m)</th>
+              <th className={th}>Well</th><th className={th}>Top</th><th className={th}>MD ({u})</th>
+              <th className={th}>TVDSS ({u})</th><th className={th}>Surface z ({u})</th><th className={th} data-testid="em-ties-unit">Residual ({u})</th>
             </tr>
           </thead>
           <tbody data-testid="em-ties">
@@ -73,12 +74,12 @@ export default function QcPanel({ built, surfaceNames = [] }) {
               <tr key={`${t.well}-${t.top}`} className="border-t border-slate-800/60">
                 <td className={td}>{t.well}</td>
                 <td className={td}>{t.top}</td>
-                <td className={td}>{fmt(t.md, 1)}</td>
-                <td className={td}>{fmt(t.tvdss, 2)}</td>
-                <td className={td}>{t.surfaceZ === null ? 'off grid' : fmt(t.surfaceZ, 2)}</td>
+                <td className={td}>{fmtDepth(t.md, u, 1)}</td>
+                <td className={td}>{fmtDepth(t.tvdss, u, 2)}</td>
+                <td className={td}>{t.surfaceZ === null ? 'off grid' : fmtDepth(t.surfaceZ, u, 2)}</td>
                 <td className={`${td} ${t.residualM !== null && Math.abs(t.residualM) > 10 ? 'text-amber-400' : ''}`}
                   data-testid={`em-tie-${t.well}-${t.top}`}>
-                  {t.residualM === null ? '—' : fmt(t.residualM, 2)}
+                  {t.residualM === null ? '—' : fmtDepth(t.residualM, u, 2)}
                 </td>
               </tr>
             ))}
@@ -89,13 +90,13 @@ export default function QcPanel({ built, surfaceNames = [] }) {
       {built.zones.map((zone) => (
         <div className={card} key={zone.name}>
           <div className="px-2 py-1.5 text-xs font-semibold text-slate-200 border-b border-slate-800">
-            {zone.name} — volumes (×10⁶ m³) and population provenance
+            {zone.name}: volumes and population provenance
           </div>
           <table className="w-full">
             <thead>
               <tr>
-                <th className={th}>Block</th><th className={th}>Cells</th><th className={th}>Bulk</th>
-                <th className={th}>Net</th><th className={th}>Pore</th><th className={th}>HCPV</th>
+                <th className={th}>Block</th><th className={th}>Cells</th><th className={th} data-testid="em-vol-unit-bulk">Bulk ({vu('bulk_m3')})</th>
+                <th className={th}>Net ({vu('net_m3')})</th><th className={th}>Pore ({vu('pore_m3')})</th><th className={th} data-testid="em-vol-unit-hcpv">HCPV ({vu('hcpv_m3')})</th>
               </tr>
             </thead>
             <tbody data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}`}>
@@ -103,10 +104,10 @@ export default function QcPanel({ built, surfaceNames = [] }) {
                 <tr key={k} className={`border-t border-slate-800/60 ${k === 'total' ? 'font-semibold text-slate-100' : ''}`}>
                   <td className={td}>{k === 'total' ? 'TOTAL' : `Block ${k}`}</td>
                   <td className={td}>{zone.volumes[k].cells}</td>
-                  <td className={td} data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${k}-bulk`}>{fmtM(zone.volumes[k].bulk_m3)}</td>
-                  <td className={td}>{fmtM(zone.volumes[k].net_m3)}</td>
-                  <td className={td}>{fmtM(zone.volumes[k].pore_m3)}</td>
-                  <td className={td} data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${k}-hcpv`}>{fmtM(zone.volumes[k].hcpv_m3)}</td>
+                  <td className={td} data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${k}-bulk`}>{fmtVolume(zone.volumes[k].bulk_m3, 'bulk_m3', volumeUnits)}</td>
+                  <td className={td}>{fmtVolume(zone.volumes[k].net_m3, 'net_m3', volumeUnits)}</td>
+                  <td className={td}>{fmtVolume(zone.volumes[k].pore_m3, 'pore_m3', volumeUnits)}</td>
+                  <td className={td} data-testid={`em-vol-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${k}-hcpv`}>{fmtVolume(zone.volumes[k].hcpv_m3, 'hcpv_m3', volumeUnits)}</td>
                 </tr>
               ))}
             </tbody>

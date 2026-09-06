@@ -10,7 +10,7 @@
 import fs from 'fs';
 import path from 'path';
 import { makeInMemoryBackend } from '../services/inMemoryBackend';
-import { buildModel, emptyDefinition } from '../services/modelBuild';
+import { buildModel, emptyDefinition, frameSpec } from '../services/modelBuild';
 import { FAULT_POLYGON } from '../services/fixture';
 
 const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'earthmodel');
@@ -95,5 +95,36 @@ describe('buildModel on the harness fixture', () => {
       .rejects.toThrow(/at least 2 surfaces/);
     await expect(buildModel({ ...emptyDefinition(), surfaceIds: ['gone', surfaces[0].id] }, wells, surfaces, backend))
       .rejects.toThrow(/no longer in the registry/);
+  });
+});
+
+
+describe('EM0: model frame and boundary clip', () => {
+  test('frameSpec keeps the origin and extent and recounts the nodes for the cell', () => {
+    const top = { x0: 1000, y0: 2000, dx: 100, dy: 100, nx: 11, ny: 6 };
+    expect(frameSpec(top, '')).toEqual(top);
+    expect(frameSpec(top, 25)).toEqual({ x0: 1000, y0: 2000, dx: 25, dy: 25, nx: 41, ny: 21 });
+    expect(frameSpec(top, 300)).toEqual({ x0: 1000, y0: 2000, dx: 300, dy: 300, nx: 4, ny: 2 });
+    expect(() => frameSpec({ ...top, nx: 2001, ny: 2001 }, 0.5)).toThrow(/four million/);
+  });
+
+  test('a boundary from the backend nulls every node outside it, so the census of live thickness shrinks', async () => {
+    const backend = makeInMemoryBackend();
+    const wells = await backend.listWells();
+    const surfaces = await backend.listSurfaces();
+    const byName = Object.fromEntries(surfaces.map((s) => [s.name, s]));
+    const base = {
+      ...emptyDefinition(),
+      surfaceIds: [byName.TopA.id, byName.TopB.id],
+      topNames: ['TopA', 'TopB'],
+      zones: [{ name: 'Zone A', registryZone: 'A' }],
+    };
+    const whole = await buildModel(base, wells, surfaces, backend);
+    const [lease] = await backend.listBoundaries();
+    const clipped = await buildModel({ ...base, frame: { cellM: '', boundaryId: lease.id } }, wells, surfaces, backend);
+    expect(clipped.boundary).toEqual({ id: lease.id, name: lease.name });
+    expect(clipped.zones[0].volumes.total.cells).toBeLessThan(whole.zones[0].volumes.total.cells);
+    expect(clipped.zones[0].volumes.total.cells).toBeGreaterThan(0.5 * whole.zones[0].volumes.total.cells);
+    await expect(buildModel({ ...base, frame: { cellM: '', boundaryId: 'gone' } }, wells, surfaces, backend)).rejects.toThrow(/no longer in the registry/);
   });
 });

@@ -5,6 +5,7 @@
 // posted at the ends. Dark workstation surface (a section, not an
 // analytic chart). Canvas.
 
+import { toDisplay } from '@/components/wells/depthModes';
 import React, { useEffect, useRef } from 'react';
 import { sampleAtXY, isNull } from '@/lib/gridding/gridmath';
 
@@ -14,7 +15,7 @@ const PAD = { l: 56, r: 24, t: 20, b: 28 };
 const N_SAMPLES = 200;
 
 export default function SectionView({
-  spec, clamped = [], surfaceNames = [], zoneNames = [], wellA, wellB, ties = [], height = 480,
+  spec, clamped = [], surfaceNames = [], zoneNames = [], wellA, wellB, ties = [], height = 480, depthUnit = 'm',
 }) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -174,7 +175,7 @@ export default function SectionView({
     const nTicks = 6;
     for (let i = 0; i <= nTicks; i++) {
       const z = zMin + (i / nTicks) * (zMax - zMin);
-      ctx.fillText(z.toFixed(0), PAD.l - 6, yPx(z) + 3);
+      ctx.fillText(toDisplay(z, depthUnit).toFixed(0), PAD.l - 6, yPx(z) + 3);
       ctx.strokeStyle = 'rgba(148,163,184,0.15)';
       ctx.beginPath();
       ctx.moveTo(PAD.l, yPx(z));
@@ -186,9 +187,9 @@ export default function SectionView({
     ctx.save();
     ctx.translate(12, cssH / 2);
     ctx.rotate(-Math.PI / 2);
-    ctx.fillText('TVDSS (m)', 0, 0);
+    ctx.fillText(`TVDSS (${depthUnit})`, 0, 0);
     ctx.restore();
-  }, [spec, clamped, surfaceNames, zoneNames, wellA, wellB, ties, height]);
+  }, [spec, clamped, surfaceNames, zoneNames, wellA, wellB, ties, height, depthUnit]);
 
   return (
     <div ref={wrapRef} className="w-full" data-testid="em-section-wrap">
