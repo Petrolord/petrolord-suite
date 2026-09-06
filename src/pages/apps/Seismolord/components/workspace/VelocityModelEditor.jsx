@@ -67,10 +67,11 @@ export default function VelocityModelEditor({
           variant="outline" size="sm"
           onClick={saveVelocity}
           disabled={velBusy || readOnly}
-          title={readOnly ? 'Shared by a teammate — the velocity model is owner-only' : undefined}
-          title={velMode === 'linear'
-            ? 'Persist V(z) = V0 + k·z on this volume (clear V0 to remove)'
-            : 'Persist the layer cake on this volume (remove all layers to clear)'}
+          title={readOnly
+            ? 'Shared by a teammate: the velocity model is owner-only'
+            : velMode === 'linear'
+              ? 'Persist V(z) = V0 + k·z on this volume (clear V0 to remove)'
+              : 'Persist the layer cake on this volume (remove all layers to clear)'}
         >
           {velBusy
             ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />

@@ -15,6 +15,8 @@ import {
   Activity, Folder, FolderPlus, History, Spline,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { OpenInAppSubmenu } from '@/components/wells/OpenInAppMenu';
+import { wellDataManagerHref, appPath, WELL_DATA_MANAGER_ID } from '@/components/wells/appLinks';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem,
@@ -152,6 +154,7 @@ export default function SeismicExplorer({ tree, actions }) {
     wells, visibleWellIds, wellBusyId, wellsError,
     savedTraverses, traverseSavedId,
     slicePlanes, horizonColorById,
+    appPaths = {},
   } = tree;
 
   return (
@@ -797,6 +800,14 @@ export default function SeismicExplorer({ tree, actions }) {
                   <ContextMenuItem onSelect={() => actions.toggleWell(w)}>
                     {visibleWellIds.has(w.id) ? 'Hide' : 'Show'}
                   </ContextMenuItem>
+                  <ContextMenuSeparator />
+                  {/* SL0: the registry well in the other Geoscience apps */}
+                  <ContextMenuItem asChild>
+                    <Link to={wellDataManagerHref(w.id, 'tops', appPath(WELL_DATA_MANAGER_ID, appPaths))} data-testid={`sl-well-data-${w.id}`} className="cursor-pointer">
+                      Well data
+                    </Link>
+                  </ContextMenuItem>
+                  <OpenInAppSubmenu wellIds={[w.id]} paths={appPaths} exclude={['seismolord']} testIdPrefix={`sl-well-${w.id}`} />
                   <ContextMenuSeparator />
                   <ContextMenuItem
                     className="text-red-400 focus:text-red-300"

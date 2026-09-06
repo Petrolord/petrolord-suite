@@ -1,3 +1,7 @@
+import { Link as RouterLink } from 'react-router-dom';
+import { HelpCircle as HelpIcon } from 'lucide-react';
+import { getDepthUnit as getAccountDepthUnit } from '@/lib/crs/settingsService';
+import { appPath as appRoutePath } from '@/components/wells/appLinks';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Loader2, Route, Box, ScanLine, Save, Map as MapIcon, X, Bot, Waves, Spline,
@@ -147,7 +151,8 @@ const cacheGrid = (map, id, grid) => {
 // interpretation and registry state and renders the workstation layout
 // (WorkspaceShell: ribbon strip / explorer tree / viewport windows /
 // status bar). Presentational pieces receive grouped props from here.
-export default function ViewerPanel() {
+/** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
+export default function ViewerPanel({ appPaths = {} } = {}) {
   const { toast } = useToast();
   const cacheRef = useRef(null);
   const requestRef = useRef(0);
@@ -2531,6 +2536,22 @@ export default function ViewerPanel() {
   // exactly "per slice keyed on velocityKey" from the plan. Overlays
   // convert through the SAME converter closure; wells plot native TVD.
   const [sectionDomain, setSectionDomain] = useState('twt');
+  // SL0: depth display unit for sections, the map and the cursor; the
+  // account's Geoscience depth unit is the default until chosen here
+  const [depthUnitChoice, setDepthUnitChoice] = useState(() => {
+    try { const u = localStorage.getItem('seismolord.depthUnit.v1'); return u === 'ft' || u === 'm' ? u : null; } catch { return null; }
+  });
+  const [accountDepthUnit, setAccountDepthUnit] = useState(null);
+  useEffect(() => {
+    let live = true;
+    getAccountDepthUnit().then((u) => { if (live && (u === 'm' || u === 'ft')) setAccountDepthUnit(u); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  const depthUnit = depthUnitChoice || accountDepthUnit || 'm';
+  const setDepthUnit = useCallback((u) => {
+    setDepthUnitChoice(u);
+    try { localStorage.setItem('seismolord.depthUnit.v1', u); } catch { /* private mode */ }
+  }, []);
   const isDepthSection = sectionDomain === 'depth'
     && (orientation === 'inline' || orientation === 'xline');
 
@@ -2864,6 +2885,7 @@ export default function ViewerPanel() {
 
   // ---- workspace tree model + actions (explorer props) -------------------
   const tree = {
+    appPaths,
     slicePlanes,
     horizonColorById,
     volumes: allVolumes,
@@ -2953,6 +2975,15 @@ export default function ViewerPanel() {
         <span className="text-sm font-bold text-white mr-3 pb-0.5">Seismolord</span>
       )}
       trailing={(
+        <>
+        <RouterLink
+          to={`${appRoutePath('seismolord', appPaths)}/help`}
+          data-testid="sl-help"
+          title="Open the Seismolord help guide"
+          className="flex items-center gap-1 px-1.5 py-1 text-xs rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+        >
+          <HelpIcon className="w-4 h-4" /> Help
+        </RouterLink>
         <button
           type="button"
           title="Toggle the interpretation copilot dock"
@@ -2962,6 +2993,7 @@ export default function ViewerPanel() {
         >
           <Bot className="w-4 h-4" />
         </button>
+        </>
       )}
       tabs={[
         {
@@ -2975,6 +3007,8 @@ export default function ViewerPanel() {
               manifest={manifest}
               sectionDomain={sectionDomain}
               setSectionDomain={setSectionDomain}
+              depthUnit={depthUnit}
+              setDepthUnit={setDepthUnit}
               depthReady={Boolean(depthConv)}
               orientation={orientation}
               setOrientation={setOrientation}
@@ -3145,6 +3179,7 @@ export default function ViewerPanel() {
             error={error}
             backend={backend}
             registerCursorSink={registerCursorSink}
+            depthUnit={depthUnit}
           />
         )}
         center={(
@@ -3184,7 +3219,7 @@ export default function ViewerPanel() {
                   loading={loading}
                   depthConv={depthSection ? null : depthConv}
                   depthAxisInfo={depthSection
-                    ? { z0: depthSection.axis.z0, dz: depthSection.axis.dz } : null}
+                    ? { z0: depthSection.axis.z0, dz: depthSection.axis.dz, unit: depthUnit } : null}
                   onPick={handlePick}
                   onPickEnd={commitStroke}
                   onStepSlice={stepSlice}
@@ -3339,6 +3374,7 @@ export default function ViewerPanel() {
               icon: MapIcon,
               content: (
                 <MapView
+                  depthUnit={depthUnit}
                   manifest={manifest}
                   geom={geom}
                   horizons={resolvedHorizons}

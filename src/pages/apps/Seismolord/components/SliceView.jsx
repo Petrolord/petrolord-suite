@@ -194,8 +194,10 @@ function SliceView({
     const xl = { title: 'XL', valueAtZero: gm.xl.min, valuePerCell: gm.xl.step };
     // W3.4 depth mode: the section rows ARE depth (engine stretch) —
     // the vertical axis reads metres from the shared depth axis
+    // SL0: the axis reads the display depth unit; rows stay metres
+    const zScale = depthAxisInfo?.unit === 'ft' ? 1 / 0.3048 : 1;
     const twt = depthAxisInfo
-      ? { title: 'm TVD', valueAtZero: depthAxisInfo.z0, valuePerCell: depthAxisInfo.dz }
+      ? { title: `${depthAxisInfo.unit === 'ft' ? 'ft' : 'm'} TVD`, valueAtZero: depthAxisInfo.z0 * zScale, valuePerCell: depthAxisInfo.dz * zScale }
       : { title: 'ms', valueAtZero: 0, valuePerCell: gm.dt_us / 1000 };
     if (orientation === 'inline') return { x: xl, y: twt };
     if (orientation === 'xline') return { x: il, y: twt };

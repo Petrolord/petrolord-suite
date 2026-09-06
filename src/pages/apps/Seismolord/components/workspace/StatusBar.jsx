@@ -58,7 +58,7 @@ function ProjectCrsChip() {
  *   into the DOM (Phase 6 wiring; optional until then)
  */
 export default function StatusBar({
-  volumeName, lineLabel, sliceMs, tracking, error, backend, registerCursorSink,
+  volumeName, lineLabel, sliceMs, tracking, error, backend, registerCursorSink, depthUnit = 'm',
 }) {
   const cursorRef = useRef(null);
 
@@ -72,13 +72,13 @@ export default function StatusBar({
       if (info.il != null) parts.push(`IL ${info.il}`);
       if (info.xl != null) parts.push(`XL ${info.xl}`);
       if (info.ms != null) parts.push(`${info.ms.toFixed(1)} ms`);
-      if (info.z != null) parts.push(`${info.z.toFixed(1)} m TVDSS`);
+      if (info.z != null) parts.push(depthUnit === 'ft' ? `${(info.z / 0.3048).toFixed(1)} ft TVDSS` : `${info.z.toFixed(1)} m TVDSS`);
       if (info.amp != null) parts.push(`amp ${info.amp.toPrecision(3)}`);
       el.textContent = parts.join('  ·  ');
     };
     registerCursorSink(sink);
     return () => registerCursorSink(null);
-  }, [registerCursorSink]);
+  }, [registerCursorSink, depthUnit]);
 
   return (
     <div

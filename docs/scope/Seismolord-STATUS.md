@@ -1,6 +1,27 @@
 # Seismolord — STATUS
 
-Last updated: 2026-09-06 (Map window contour labels on the shared map kit)
+Last updated: 2026-09-06 (SL0 tester readiness: depth unit, launchers, help guide)
+
+## 2026-09-06: SL0, Petrel tester readiness (units, launchers, help)
+
+The last app of the Geoscience tester-readiness program (owner's
+standing instruction, see the RC, RP, PP and BF series). Seismolord
+already had the domain switch and a metres-or-feet map; SL0 adds what
+the other apps got: a **Depth unit** selector in the Home tab (m or ft,
+defaulting to the account's Geoscience depth setting, remembered in the
+browser) that drives the depth section's axis (`depthAxisInfo.unit`,
+rows stay metres), the map's depth domain and the status-bar cursor
+readout; **Well data** and **Open in** on a well's context menu in the
+explorer (Well Data Manager on its tops; the other Geoscience apps
+through the shared OpenInAppSubmenu; the harness points them at
+/dev/*); and a **Help** link in the ribbon to the new full-page guide
+`SeismolordHelpGuide.jsx` on the shared HelpGuideLayout (route
+`/dashboard/apps/geoscience/seismolord/help`, the condensed companion
+of the nine handbooks; guarded by `__tests__/helpGuide.test.jsx`
+including the no-em-dash rule). Found and fixed: the velocity model
+editor's Save button had two `title` props, so the read-only tooltip
+never showed. Tests: explorer launcher test, guide test, workspace e2e
+(help href, depth unit remembered).
 
 ## 2026-09-06: 3D viewer core lifted to src/components/viewer3d (Earth Modeling EM6)
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import ViewerPanel from './components/ViewerPanel';
+import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 
 // Dev-only harness route (/dev/seismolord-workspace, DEV builds only):
 // mounts the full workspace (tool strip / explorer tree / viewport
@@ -9,7 +10,7 @@ import ViewerPanel from './components/ViewerPanel';
 export default function SeismolordWorkspaceHarness() {
   return (
     <div className="h-screen w-full overflow-hidden bg-slate-950 text-white">
-      <ViewerPanel />
+      <ViewerPanel appPaths={DEV_APP_PATHS} />
     </div>
   );
 }
