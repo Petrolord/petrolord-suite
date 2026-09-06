@@ -44,3 +44,21 @@ test('RC0: import a registry surface, compute with a contact, run Monte Carlo, s
   await expect(page.getByTestId('rcp-project-name')).toHaveText('Harness volumetrics');
   expect(errors).toEqual([]);
 });
+
+test('RC1: the Wells tab pulls zone averages, a surface footprint and a Mapping boundary from the registry', async ({ page }) => {
+  await page.goto('/dev/reservoircalc-pro');
+  await page.getByTestId('rcp-tab-registry').click();
+  await page.getByTestId('rcp-reg-zone').selectOption('Top Dome');
+  await expect(page.getByTestId('rcp-reg-preview')).toContainText(/porosity 0\.\d+, NTG 0\.\d+ from/);
+  await page.getByTestId('rcp-reg-apply-zone').click();
+  await expect(page.getByTestId('rcp-reg-note')).toContainText(/Applied porosity/);
+  await page.getByTestId('rcp-reg-surface').selectOption({ label: 'Harness Dome (16x11)' });
+  await page.getByTestId('rcp-reg-apply-area').click();
+  await expect(page.getByTestId('rcp-reg-note')).toContainText(/Applied area \d+\.\d acres from the live footprint of Harness Dome/);
+  await page.getByTestId('rcp-reg-boundary').selectOption({ label: 'Demo license block (license_block)' });
+  await page.getByTestId('rcp-reg-add-aoi').click();
+  await expect(page.getByTestId('rcp-reg-note')).toContainText('Added Demo license block as an AOI (4 vertices)');
+  // the AOI is listed in the AOI tab
+  await page.getByTestId('rcp-tab-aoi').click();
+  await expect(page.getByTestId('rcp-aoi-row-Demo license block')).toBeVisible();
+});

@@ -113,7 +113,7 @@ const AOIPanel = () => {
                                     <div className="flex items-center justify-between mb-1">
                                         <div className="flex items-center gap-2">
                                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: aoi.color }}></div>
-                                            <span className="text-xs font-medium text-slate-200">{aoi.name}</span>
+                                            <span className="text-xs font-medium text-slate-200" data-testid={`rcp-aoi-row-${aoi.name}`}>{aoi.name}</span>
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <Button 

@@ -13,6 +13,7 @@ import FluidContactManager from './tools/FluidContactManager';
 import MapGenerationPanel from './tools/MapGenerationPanel';
 import SurfaceDataManager from './tools/SurfaceDataManager';
 import AOIPanel from './AOIPanel';
+import RegistryPanel from './RegistryPanel';
 import ProbabilisticPanel from './probabilistic/ProbabilisticPanel';
 import { FLUID_PRESETS, FluidPropertyCalculator } from '../services/FluidPropertyLibrary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -199,11 +200,12 @@ const ExpertInputPanel = () => {
             </Collapsible>
 
             <Tabs defaultValue={linkedSurfaceId ? 'surfaces' : 'geometry'} className="flex-1 flex flex-col min-h-0">
-                <TabsList className="w-full bg-slate-900 border border-slate-800 rounded-md p-0.5 h-auto grid grid-cols-5 mb-2">
+                <TabsList className="w-full bg-slate-900 border border-slate-800 rounded-md p-0.5 h-auto grid grid-cols-6 mb-2">
                     <TabsTrigger value="geometry" className="text-[10px] h-7 px-0" data-testid="rcp-tab-geometry">Geo</TabsTrigger>
                     <TabsTrigger value="fluid" className="text-[10px] h-7 px-0">Fluid</TabsTrigger>
                     <TabsTrigger value="surfaces" className="text-[10px] h-7 px-0" data-testid="rcp-tab-surfaces">Surf</TabsTrigger>
-                    <TabsTrigger value="aoi" className="text-[10px] h-7 px-0"><ScanLine className="w-3 h-3" /></TabsTrigger>
+                    <TabsTrigger value="registry" className="text-[10px] h-7 px-0" data-testid="rcp-tab-registry" title="Wells, zones, surfaces and polygons from the shared registry">Wells</TabsTrigger>
+                    <TabsTrigger value="aoi" className="text-[10px] h-7 px-0" data-testid="rcp-tab-aoi" title="Areas of interest"><ScanLine className="w-3 h-3" /></TabsTrigger>
                     <TabsTrigger value="mapping" className="text-[10px] h-7 px-0">Maps</TabsTrigger>
                 </TabsList>
 
@@ -334,6 +336,9 @@ const ExpertInputPanel = () => {
                         )}
                     </TabsContent>
 
+                    <TabsContent value="registry" className="mt-0">
+                        <RegistryPanel />
+                    </TabsContent>
                     <TabsContent value="surfaces" className="mt-0 h-full">
                         <SurfaceDataManager preselectSurfaceId={linkedSurfaceId} />
                     </TabsContent>

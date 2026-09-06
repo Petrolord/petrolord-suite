@@ -61,3 +61,16 @@ still meets, against the apps the testers just walked:
   dialog body scrolls within 92vh). Noted for RC2: the map and 3D
   viewers label depth in the unit system's unit ("DEPTH (FT)") for a
   surface imported in metres.
+- **RC1 (2026-09-06), branch `feat/rc1-registry-door`.** A Wells tab
+  (`components/RegistryPanel.jsx`) on the app backend: pick a registry
+  zone and see the averages Petrophysics Studio published across the
+  wells that carry it (porosity, Sw, NTG, net thickness converted to
+  the system's length unit; `services/registryDoor.js`, tested), Apply
+  patches the inputs and records the source in `inputs.registryProvenance`
+  and the audit trail; Apply footprint area takes a registry surface's
+  live-node area in the canonical area unit; a boundary polygon drawn in
+  Mapping (geo_culture kinds boundary, license_block, lease, aoi,
+  prospect) becomes an AOI with its source recorded. Found and fixed:
+  `addAOI` dispatched UPDATE_AOI, which only edits an existing AOI, so
+  adding a new one was a silent no-op (new ADD_AOI action). The G5.1
+  `registryInputs.js` mapping finally has a UI consumer.
