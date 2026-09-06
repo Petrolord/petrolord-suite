@@ -271,3 +271,26 @@ test('EM4: ordinary kriging with a fitted variogram populates porosity and offer
   await expect(page.getByTestId('em-prov-zone-1-phi')).toContainText('okrige(4w) gaussian');
   await expect(page.getByTestId('em-prov-zone-1-phi')).toContainText('fitted');
 });
+
+test('EM5: volumes CSV in the chosen units, launchers into ReservoirCalc Pro and Mapping after a publish, help', async ({ page }) => {
+  await stackAndBuild(page);
+  await page.getByTestId('em-volume-units').selectOption('field');
+  const dl = page.waitForEvent('download');
+  await page.getByTestId('em-volumes-csv').click();
+  const file = await dl;
+  expect(file.suggestedFilename()).toMatch(/-volumes-field\.csv$/);
+  const text = await (await file.createReadStream()).toArray().then((c) => Buffer.concat(c).toString('utf8'));
+  expect(text).toContain('bulk (acre-ft)');
+  expect(text).toContain('hcpv (MMbbl)');
+  expect(text).toContain('Zone 1,A,TOTAL');
+  await expect(page.getByTestId('em-status')).toContainText('Volumes exported as');
+
+  await expect(page.getByTestId('em-open-rcp')).toHaveCount(0);
+  await page.getByTestId('em-map-layer').selectOption('thickness');
+  await page.getByTestId('em-publish').click();
+  await expect(page.getByTestId('em-status')).toContainText('Published');
+  await expect(page.getByTestId('em-open-rcp')).toHaveAttribute('href', /reservoircalc-pro\?surface=surf-/);
+  await expect(page.getByTestId('em-open-mapping')).toHaveAttribute('href', /\/dev\/mapping-surface-studio\?surface=surf-/);
+  await expect(page.getByTestId('em-map-TopA')).toHaveCount(0); // stacked rows carry no map link
+  await expect(page.getByTestId('em-help')).toHaveAttribute('href', '/dev/earth-modeling/help');
+});

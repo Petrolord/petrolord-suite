@@ -9,7 +9,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck, ImageDown, Route } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck, ImageDown, Route, FileDown, ExternalLink, HelpCircle } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import ModelExplorer from './ModelExplorer';
@@ -24,6 +25,8 @@ import { projectWells, VE_OPTIONS } from '../services/sectionPath';
 import { minCurvature, positionAtMd } from '../engine/wellties';
 import { useWellCurvesCache } from '@/components/wells/useWellCurvesCache';
 import { downloadBlob } from '@/components/maps/mapPng';
+import { volumesCsv } from '../services/volumesCsv';
+import { appPath, mapSurfaceHref, reservoirCalcSurfaceHref, MAPPING_ID, RESERVOIRCALC_ID, EARTH_MODELING_ID } from '@/components/wells/appLinks';
 import { toDisplay } from '@/components/wells/depthModes';
 import { validatePolygon } from '../engine/blocks';
 import { surfaceStats } from '@/lib/gridding/gridmath';
@@ -48,7 +51,8 @@ const LAYERS = [
   { key: 'blocks', label: 'Fault blocks' },
 ];
 
-export default function EarthWorkstation({ backend }) {
+/** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
+export default function EarthWorkstation({ backend, appPaths = {} }) {
   const [wells, setWells] = useState(null);
   const [surfaces, setSurfaces] = useState([]);
   const [culturePolygons, setCulturePolygons] = useState([]);
@@ -72,6 +76,7 @@ export default function EarthWorkstation({ backend }) {
   const [ve, setVe] = useState(2);
   const [wellCurves, setWellCurves] = useState({});           // wellId -> {tvdss, values} | null
   const sectionRef = useRef(null);
+  const [lastPublished, setLastPublished] = useState(null); // EM5: the row the launchers point at
   const curvesCache = useWellCurvesCache(backend);
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
@@ -258,7 +263,8 @@ export default function EarthWorkstation({ backend }) {
         // datum, metres); thickness and attributes are raw
         grid: kind === 'structure' ? depthDownToSurfaceZ(mapGrid) : Float32Array.from(mapGrid),
       });
-      setStatus(`Published ${saved.name} to the registry. ReservoirCalc Pro can import it now.`);
+      setLastPublished(saved);
+      setStatus(`Published ${saved.name} to the registry. Open it in ReservoirCalc Pro or Mapping from the ribbon.`);
       await refreshSurfaces();
     } catch (e) { setStatus(e.message); }
   };
@@ -352,6 +358,29 @@ export default function EarthWorkstation({ backend }) {
           disabled={!built || !mapGrid || layer === 'blocks'} onClick={publish}>
           <UploadCloud className="w-3.5 h-3.5" /> Publish layer
         </button>
+        <button type="button" data-testid="em-volumes-csv" title="Download the volume tables as CSV in the chosen units"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          disabled={!built} onClick={() => exportVolumesCsv()}>
+          <FileDown className="w-3.5 h-3.5" /> Volumes CSV
+        </button>
+        {lastPublished && (
+          <>
+            <Link to={reservoirCalcSurfaceHref(lastPublished.id, appPath(RESERVOIRCALC_ID, appPaths))} data-testid="em-open-rcp"
+              title={`Open ReservoirCalc Pro's Surface import on ${lastPublished.name}`}
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-amber-700/60 text-amber-300 hover:bg-amber-500/10">
+              <ExternalLink className="w-3.5 h-3.5" /> Open in ReservoirCalc Pro
+            </Link>
+            <Link to={mapSurfaceHref(lastPublished.id, appPath(MAPPING_ID, appPaths))} data-testid="em-open-mapping"
+              title={`Open ${lastPublished.name} in Mapping & Surface Studio`}
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10">
+              <MapIcon className="w-3.5 h-3.5" /> Open in Mapping
+            </Link>
+          </>
+        )}
+        <Link to={`${appPath(EARTH_MODELING_ID, appPaths)}/help`} data-testid="em-help" title="Open the Earth Modeling help guide"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800">
+          <HelpCircle className="w-3.5 h-3.5" /> Help
+        </Link>
       </div>
     </div>
   );
@@ -440,6 +469,13 @@ export default function EarthWorkstation({ backend }) {
     setStatus(`Section line set: ${sectionPending.length} vertices, ${total.toFixed(0)} m. Wells within ${projectionM.toFixed(0)} m project onto it.`);
   };
   const cancelSection = () => { setSectionDrawing(false); setSectionPending([]); setStatus('Section drawing cancelled.'); };
+  const exportVolumesCsv = () => {
+    try {
+      const { text, fileName } = volumesCsv(built, { name: definition.name, volumeUnits });
+      downloadBlob(new Blob([text], { type: 'text/csv' }), fileName);
+      setStatus(`Volumes exported as ${fileName}.`);
+    } catch (e) { setStatus(e.message); }
+  };
   const exportSectionPng = async () => {
     try {
       const blob = await sectionRef.current?.toBlob();
@@ -533,6 +569,7 @@ export default function EarthWorkstation({ backend }) {
       explorer={(
         <ModelExplorer
           surfaces={rows}
+          mappingPath={appPath(MAPPING_ID, appPaths)}
           wells={wells || []}
           definition={definition}
           onAddSurface={addSurface}

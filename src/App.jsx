@@ -60,6 +60,7 @@ const CorrelationHelpGuide = lazy(() => import('@/pages/apps/WellCorrelation/Cor
 const PetrophysicsStudio = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudio'));
 const PetrophysicsHelpGuide = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsHelpGuide'));
 const MappingHelpGuide = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingHelpGuide'));
+const EarthModelingHelpGuide = lazy(() => import('@/pages/apps/EarthModeling/EarthModelingHelpGuide'));
 const ContourMapDigitizer = lazy(() => import('@/pages/apps/ContourMapDigitizer'));
 const WellPlanning = lazy(() => import('@/pages/apps/WellPlanning'));
 const ReliefBlowdownSizer = lazy(() => import('@/pages/apps/ReliefBlowdownSizer'));
@@ -493,6 +494,7 @@ function App() {
                                 <Route path="apps/geoscience/petrophysics-studio/help" element={<ProtectedAppRoute appId="petrophysics-studio" appName="Petrophysics Studio"><PetrophysicsHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/rock-physics-studio" element={<ProtectedAppRoute appId="rock-physics-studio" appName="Rock Physics Studio"><RockPhysicsStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/earth-modeling" element={<ProtectedAppRoute appId="earth-modeling" appName="Earth Modeling"><EarthModeling /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/earth-modeling/help" element={<ProtectedAppRoute appId="earth-modeling" appName="Earth Modeling"><EarthModelingHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/pore-pressure-studio" element={<ProtectedAppRoute appId="pore-pressure-studio" appName="Pore Pressure Studio"><PorePressureStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/crossplot-generator" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />
                                 <Route path="apps/geoscience/petrophysics-estimator" element={<Navigate to="/dashboard/apps/geoscience/petrophysics-studio" replace />} />

@@ -16,7 +16,7 @@ export default function EarthModelingHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
     <div className="h-screen w-full overflow-hidden">
-      <EarthWorkstation backend={backend} />
+      <EarthWorkstation backend={backend} appPaths={{ 'mapping-surface-studio': '/dev/mapping-surface-studio', 'reservoircalc-pro': '/dashboard/apps/geoscience/reservoircalc-pro', 'earth-modeling': '/dev/earth-modeling' }} />
     </div>
   );
 }

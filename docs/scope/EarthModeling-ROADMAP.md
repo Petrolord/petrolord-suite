@@ -127,3 +127,19 @@ e2e) against what a Petrel user expects of a structural framework:
   Map layers gain "Porosity/Sw/NTG kriging variance" (listed only when
   kriged; publishable as an attribute); QC provenance names the model,
   range, sill and whether it was fitted.
+- **EM5 (2026-09-06), branch `feat/em5-deliverables`.** Volumes CSV
+  (`services/volumesCsv.js`, tested): every zone's table per block in
+  the chosen units with the frame, clip, CRS and population provenance
+  in the header. Launchers: after a publish the ribbon offers Open in
+  ReservoirCalc Pro (`?surface=<id>`, and RCP's Surfaces tab now opens
+  its import dialog on that row: `ExpertInputPanel` reads the param,
+  `SurfaceDataManager` opens the dialog, `SurfaceImportDialog` loads the
+  row once it is listed) and Open in Mapping; registry rows in the
+  explorer carry a map icon into Mapping. Help guide
+  (`EarthModelingHelpGuide.jsx`, 14 sections quoting the live methods,
+  derived kinds, unit sets and VE options; no em dashes) at
+  `/dashboard/apps/geoscience/earth-modeling/help` with a ribbon Help
+  link. The harness passes app paths for the launchers.
+
+**EM0 to EM5 CLOSED 2026-09-06.** EM6 (3D window) is the remaining
+stretch; see the decision at the end of the wave log.

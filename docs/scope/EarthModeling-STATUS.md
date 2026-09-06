@@ -117,7 +117,11 @@ unchanged.
 
 ## 2026-09-06: EM series (Petrel tester readiness) started
 
-Plan of record: docs/scope/EarthModeling-ROADMAP.md. EM0 (units and
-frame) built: account depth unit shared with Mapping, volume units
-(metric or field), model cell size, boundary clip from a Mapping
-boundary polygon. Wave log in the roadmap.
+Plan of record: docs/scope/EarthModeling-ROADMAP.md. EM0 to EM5 built
+and merged the same day: account depth unit and volume units, model
+cell size and boundary clip; well adjustment (engines #139); derived
+horizons; the section window along a drawn line with GR columns, VE
+and PNG; ordinary kriging with fitted variograms and variance maps;
+volumes CSV, launchers into ReservoirCalc Pro (which now consumes
+`?surface=`) and Mapping, and the in-app help guide. Wave log in the
+roadmap.

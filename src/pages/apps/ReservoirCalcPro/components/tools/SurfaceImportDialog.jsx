@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,9 @@ import { listExportedSurfaces, downloadExportedSurface } from '@/pages/apps/Seis
 // then parsed on the same path — no filesystem round-trip.
 import { listSurfaces, downloadSurfaceGrid, surfaceToXyzText, zConventionForImport } from '@/lib/surfacesRegistry';
 
-const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
+const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null }) => {
+    // EM5: the registry row a deep link asked for is loaded once it is listed
+    const preselectedRef = useRef(null);
     const { toast } = useToast();
     const [step, setStep] = useState(1);
     const [importData, setImportData] = useState({
@@ -52,6 +54,14 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
             .then(setMappingSurfaces)
             .catch(() => setMappingSurfaces([]));
     }, [open]);
+
+    useEffect(() => {
+        if (!open || !preselectId || !mappingSurfaces || preselectedRef.current === preselectId) return;
+        const row = mappingSurfaces.find((s) => s.id === preselectId);
+        if (!row) return;
+        preselectedRef.current = preselectId;
+        loadMappingSurface(row);
+    }, [open, preselectId, mappingSurfaces]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // geo_surfaces grid -> XYZ (byte-golden writeXYZ) -> the same parse
     // path as a manual XYZ upload. The registry now records what the
