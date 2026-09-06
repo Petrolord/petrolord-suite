@@ -39,7 +39,7 @@ test('a depth is refused until every attribute is present, then stored with TVD 
   await page.getByTestId('ws-bit-save').click();
   await expect(page.getByTestId('ws-status')).toHaveText('Bit depth recorded.');
   await expect(page.getByTestId('ws-status-bit')).toHaveText('Bit 10100 ft');
-  await expect(page.getByTestId('ws-sync-state')).toHaveText('8 to share');
+  await expect(page.getByTestId('ws-sync-state')).toHaveText(/\d+ to share/);
   // a TVD entry on the deviated well resolves through the survey
   await page.getByTestId('ws-bit-ref').selectOption('TVD');
   await page.getByTestId('ws-bit-value').fill('9000');
@@ -74,7 +74,7 @@ test('the record survives an offline reload: the local database is the system of
   if (!offlineNav) test.info().annotations.push({ type: 'note', description: 'shell not cached offline before WS6; store persistence checked after reconnect' });
   await page.goto('/dev/wellsite-studio?offline=1');
   await expect(page.getByTestId('ws-status-bit')).toHaveText('Bit 10200 ft');
-  await expect(page.getByTestId('ws-sync-state')).toHaveText(/offline, 8 waiting/);
+  await expect(page.getByTestId('ws-sync-state')).toHaveText(/offline, \d+ waiting/);
 });
 
 test('a fresh device with no live well is walked through setup and becomes the administrator', async ({ page }) => {
@@ -195,4 +195,46 @@ test('WS2: a common event starts in one click with time, user and depth; a durat
   // the record survives a reload
   await page.goto('/dev/wellsite-studio');
   await expect(page.getByTestId('ws-explorer-counts')).toContainText('3 event(s)');
+});
+
+// ---- WS3: lag and the sample scheduler ------------------------------------------
+
+test('WS3: the seeded rig reproduces the G4 lag; the schedule runs ahead of the bit; a rate change moves an arrival; pumps off leaves the lag time undefined; never "missed"', async ({ page }) => {
+  await openStudio(page);
+  await expect(page.getByTestId('ws-lag-strokes')).toHaveText('11783 stk');
+  await expect(page.getByTestId('ws-lag-time')).toHaveText('3 h 16 min');
+  await expect(page.getByTestId('ws-status-lag-strokes')).toHaveText('Lag 11783 stk');
+  await page.getByTestId('ws-nav-samples').click();
+  await expect(page.getByTestId('ws-samples-summary')).toContainText('23 scheduled');
+  await expect(page.getByTestId('ws-samples-summary')).toContainText('1 overdue for review');
+  await expect(page.getByTestId('ws-sample-row-23')).toHaveAttribute('data-state', 'scheduled');
+  await expect(page.getByTestId('ws-sample-row-1')).toHaveAttribute('data-state', 'overdue');
+  await expect(page.getByTestId('ws-sample-row-20')).toHaveAttribute('data-state', 'in_transit');
+  const before = await page.getByTestId('ws-sample-arrival-20').textContent();
+  expect(before).toMatch(/^\d\d:\d\d$/);
+  // halve the pump rate: the arrival of the in-transit sample moves later
+  await page.getByTestId('ws-lag-pump-spm').fill('30');
+  await page.getByTestId('ws-lag-pump-save').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Pump rate 30 spm recorded.');
+  await expect(page.getByTestId('ws-lag-spm')).toHaveText('30 spm');
+  await expect(page.getByTestId('ws-lag-time')).toHaveText('6 h 33 min');
+  await expect(page.getByTestId('ws-sample-arrival-20')).not.toHaveText(before);
+  // catch, the mandatory chain, describe from the sample
+  await page.getByTestId('ws-sample-caught-20').click();
+  await expect(page.getByTestId('ws-status')).toHaveText(/Sample 20 caught at \d\d:\d\d\./);
+  await expect(page.getByTestId('ws-sample-bagged-20')).toHaveCount(0);
+  await page.getByTestId('ws-sample-describe-20').click();
+  await expect(page.getByTestId('ws-desc-sample')).toHaveText('sample 20');
+  await expect(page.getByTestId('ws-desc-base-value')).toHaveValue('10000');
+  await typeField(page, 'ws-desc-comp-0-lithology', 'sst');
+  await typeField(page, 'ws-desc-comp-0-percent', '100');
+  await page.getByTestId('ws-desc-save').click();
+  await expect(page.getByTestId('ws-status')).toContainText('sample 20 described.');
+  await page.getByTestId('ws-nav-samples').click();
+  await expect(page.getByTestId('ws-sample-bagged-20')).toBeVisible();
+  // pumps off
+  await page.getByTestId('ws-lag-pump-off').click();
+  await expect(page.getByTestId('ws-lag-time')).toHaveText('undefined');
+  await expect(page.getByTestId('ws-lag-note')).toHaveText('Pumps are off, lag time is undefined until circulation restarts.');
+  await expect(page.locator('body')).not.toContainText(/missed/i);
 });

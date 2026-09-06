@@ -157,6 +157,32 @@ export function correction(prev, p) {
   return buildRecord({ ...p, wellId: prev.well_id, kind: 'observation', subtype: p.subtype ?? prev.subtype, supersedesId: prev.id });
 }
 
+/** A ws_samples row from a scheduled depth (metres MD below KB). */
+export function buildSampleRow({ wellId, sampleNo, mdM, intervalM = null, programmeVersion = null, sampleType = 'cuttings', holeSection = null, ctx, offsetMin, userId, nowMs = Date.now(), id = null }) {
+  const errors = [];
+  if (!wellId) errors.push('A well is required.');
+  if (!Number.isInteger(sampleNo) || sampleNo < 1) errors.push('A sample number is required.');
+  if (!(mdM > 0)) errors.push('A sample depth is required.');
+  if (!userId) errors.push('A signed-in user is required.');
+  if (!Number.isInteger(offsetMin)) errors.push('The rig offset is not set on this well.');
+  if (errors.length) throw new RecordError(errors);
+  const d = depthColumns({ value: mdM, unit: 'm', reference: 'MD', datum: 'KB', kind: 'lagged_sample' }, ctx);
+  const row = {
+    id: id || newId(), well_id: wellId, sample_no: sampleNo, sample_type: sampleType, hole_section: holeSection, programme_version: programmeVersion,
+    ...d.columns, interval_m: intervalM, scheduled_at: new Date(nowMs).toISOString(), local_offset_min: offsetMin,
+  };
+  return { row: stamp(row, { userId, offsetMin, nowMs }), warnings: d.warnings };
+}
+
+/** A ws_sample_stages row. */
+export function buildStageRow({ wellId, sampleId, stage, note = null, atUtc = null, offsetMin, userId, nowMs = Date.now(), id = null }) {
+  if (!wellId || !sampleId) throw new RecordError(['A sample is required.']);
+  if (!userId) throw new RecordError(['A signed-in user is required.']);
+  if (!Number.isInteger(offsetMin)) throw new RecordError(['The rig offset is not set on this well.']);
+  const row = { id: id || newId(), well_id: wellId, sample_id: sampleId, stage, at_utc: atUtc || new Date(nowMs).toISOString(), local_offset_min: offsetMin, note };
+  return { row: stamp(row, { userId, offsetMin, nowMs }) };
+}
+
 /** Heads of a chain among a list of records (nothing names them as previous and no resolver cites them). */
 export function chainHeads(records) {
   const prev = new Set();

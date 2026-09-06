@@ -6,9 +6,9 @@
 // Timeline, Handover, Report arrive with their phases) and a status bar
 // with the bit depth, pumps, tour, rig time and the sync state.
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered } from 'lucide-react';
+import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,10 +23,14 @@ import DescribeView from './DescribeView';
 import { DESCRIPTION_SUBTYPE } from '../services/describe';
 import TimelineView from './TimelineView';
 import { eventsFromRecords, startEventParams } from '../services/events';
+import SamplesView from './SamplesView';
+import LagPanel from './LagPanel';
+import { lagNow, sampleBoard, currentProgramme, programmeChange, samplesToSchedule, scheduleHorizonM, PROGRAMME_SUBTYPE } from '../services/samples';
 import WellSetup from './WellSetup';
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
+  { id: 'samples', label: 'Samples', icon: FlaskConical },
   { id: 'describe', label: 'Describe', icon: PenLine },
   { id: 'timeline', label: 'Timeline', icon: ListOrdered },
   { id: 'config', label: 'Config', icon: Settings },
@@ -42,6 +46,11 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const [rigConfig, setRigConfig] = useState(null);
   const [descriptions, setDescriptions] = useState([]);
   const [eventRecords, setEventRecords] = useState([]);
+  const [samples, setSamples] = useState([]);
+  const [stages, setStages] = useState([]);
+  const [programmeRecords, setProgrammeRecords] = useState([]);
+  const [describeSample, setDescribeSample] = useState(null);
+  const [dockOpen, setDockOpen] = useState(true);
   const [sync, setSync] = useState({ state: 'offline', pending: 0, online: false });
   const [status, setStatus] = useState('Ready.');
   const [loading, setLoading] = useState(0);
@@ -84,15 +93,21 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   useEffect(() => { if (!selectedId && wells && wells.length) setSelectedId(wells[0].id); }, [wells, selectedId]);
 
   const refreshWellData = useCallback(async () => {
-    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); return; }
-    const [bits, pumps, cfg, descs, evs] = await Promise.all([
+    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); return; }
+    const [bits, pumps, cfg, descs, evs, smp, stg, prog] = await Promise.all([
       backend.listRecords(well.id, { subtype: 'bit_depth' }),
       backend.listRecords(well.id, { subtype: 'pump_rate' }),
       backend.latestRecord(well.id, 'rig_config'),
       backend.listRecords(well.id, { subtype: DESCRIPTION_SUBTYPE }),
       backend.listRecords(well.id, { kind: 'event' }),
+      backend.listSamples(well.id),
+      backend.listStages(well.id),
+      backend.listRecords(well.id, { subtype: PROGRAMME_SUBTYPE }),
     ]);
     setEventRecords(evs);
+    setSamples(smp);
+    setStages(stg);
+    setProgrammeRecords(prog);
     setBitDepths(currentObservations(bits));
     setPumpEvents(currentObservations(pumps));
     setDescriptions(currentObservations(descs).sort((a, b) => (a.md_calc_m ?? 0) - (b.md_calc_m ?? 0)));
@@ -104,6 +119,47 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   useEffect(() => { const id = setInterval(() => setTick((t) => t + 1), 30000); return () => clearInterval(id); }, []);
 
   const ctx = useMemo(() => (well ? wellContext(well) : null), [well]);
+  const nowForLag = Date.now() + tick * 0;
+  const lag = useMemo(() => (well ? lagNow({ well, rigConfig, bitDepths, pumpEvents, nowUtcMs: nowForLag }) : { available: false, note: '' }), [well, rigConfig, bitDepths, pumpEvents, nowForLag]);
+  const programme = useMemo(() => currentProgramme(programmeRecords), [programmeRecords]);
+  const board = useMemo(() => (well ? sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpEvents, nowUtcMs: nowForLag }) : null), [well, samples, stages, rigConfig, bitDepths, pumpEvents, nowForLag]);
+  const scheduling = useRef(false);
+  const scheduleAhead = useCallback(async () => {
+    if (!well || !programme || scheduling.current) return 0;
+    const latest = bitDepths[bitDepths.length - 1];
+    if (!latest) return 0;
+    const todo = samplesToSchedule(programme, samples, { toMdM: scheduleHorizonM(programme, latest.md_calc_m) });
+    if (!todo.length) return 0;
+    scheduling.current = true;
+    try {
+      await backend.addSamples(well.id, todo.map((t) => ({ sampleNo: t.sample_no, mdM: t.mdM, intervalM: t.intervalM, programmeVersion: t.programmeVersion })));
+      setTick((t) => t + 1);
+      return todo.length;
+    } finally { scheduling.current = false; }
+  }, [backend, well, programme, samples, bitDepths]);
+  // keep the schedule ahead of the bit as bit depths arrive
+  useEffect(() => { scheduleAhead().catch((e) => setStatus(e.message)); }, [scheduleAhead]);
+  const saveProgramme = useCallback(async (rows, { authorisedBy, reason }) => {
+    const p = programmeChange(programme, rows, { authorisedBy, atUtc: new Date().toISOString(), reason });
+    if (programme) await backend.addVersion(programme.record, { payload: p.payload });
+    else await backend.addRecord(well.id, p);
+    setStatus(`Sampling programme version ${p.payload.version} recorded, authorised by ${authorisedBy}.`);
+    setTick((t) => t + 1);
+  }, [backend, well, programme]);
+  const recordStage = useCallback(async (sample, stage) => {
+    try {
+      await backend.addStage(well.id, sample.id, stage);
+      setStatus(`Sample ${sample.sample_no} ${stage} at ${toRigLocal(Date.now(), offsetMinOf(well)).hhmm}.`);
+      setTick((t) => t + 1);
+    } catch (e) { setStatus(e.message); }
+  }, [backend, well]);
+  const recordPump = useCallback(async (spm, note) => {
+    try {
+      await backend.addRecord(well.id, { kind: 'observation', subtype: 'pump_rate', payload: { spm, note: note || null, source: 'manual' } });
+      setStatus(spm === 0 ? 'Pumps off recorded.' : `Pump rate ${spm} spm recorded.`);
+      setTick((t) => t + 1);
+    } catch (e) { setStatus(e.message); }
+  }, [backend, well]);
   const events = useMemo(() => eventsFromRecords(eventRecords), [eventRecords]);
   const startEvent = useCallback(async ({ type, label = null, note = null }) => {
     if (!well) return;
@@ -164,6 +220,11 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800">
           <HelpCircle className="w-3.5 h-3.5" /> Help
         </Link>
+        <button type="button" data-testid="ws-toggle-dock" title="Show or hide the lag panel"
+          className={`px-2 py-1 text-xs rounded border ${dockOpen ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
+          onClick={() => setDockOpen((v) => !v)}>
+          <PanelRight className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );
@@ -193,20 +254,26 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     center = <WellSetup backend={backend} onStatus={setStatus} onCreated={async (w) => { await refreshWells(); setSelectedId(w.id); setView('live'); }} />;
   } else if (!well) {
     center = <div className="p-4 text-xs text-slate-500" data-testid="ws-need-well">Choose a live well in the explorer.</div>;
+  } else if (view === 'samples') {
+    center = <SamplesView board={board} programme={programme} onProgrammeSave={saveProgramme} onStage={recordStage} onSchedule={async () => { const n = await scheduleAhead(); setStatus(n ? `${n} sample(s) scheduled ahead of the bit.` : 'The schedule already reaches ahead of the bit.'); }}
+      onDescribe={(smp) => { setDescribeSample(smp); setView('describe'); }} unit={units.depth} offsetMin={offsetMin} nowMs={nowForLag} onStatus={setStatus} />;
   } else if (view === 'describe') {
-    center = <DescribeView backend={backend} well={well} ctx={ctx} descriptions={descriptions} defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+    center = <DescribeView backend={backend} well={well} ctx={ctx} descriptions={descriptions} sample={describeSample} onSampleDone={async (smp) => { try { await backend.addStage(well.id, smp.id, 'described'); } catch (e) { setStatus(e.message); } setDescribeSample(null); }}
+      defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'timeline') {
     center = <TimelineView events={events} onStart={startEvent} onEnd={endEvent} tourCfg={tourConfigOf(well)} offsetMin={offsetMin} unit={units.depth} nowMs={nowMs} currentUserName={user ? user.name || user.email : ''} />;
   } else if (view === 'config') {
     center = <ConfigView backend={backend} well={well} rigConfig={rigConfig} canAdmin={isMember} onStatus={setStatus} onSaved={() => { refreshWells(); setTick((t) => t + 1); }} />;
   } else {
-    center = <LiveWellView backend={backend} well={well} ctx={ctx} bitDepths={bitDepths} pumpEvents={pumpEvents} events={events} onStartEvent={startEvent} onEndEvent={endEvent} descriptions={descriptions} defaults={defaultDepthEntry(well)} offsetMin={offsetMin} unit={units.depth} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+    center = <LiveWellView backend={backend} well={well} ctx={ctx} bitDepths={bitDepths} pumpEvents={pumpEvents} events={events} onStartEvent={startEvent} onEndEvent={endEvent} descriptions={descriptions} lag={lag} board={board} onStage={recordStage} defaults={defaultDepthEntry(well)} offsetMin={offsetMin} unit={units.depth} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   }
 
   const statusBar = (
     <div className="flex items-center gap-4 px-3 py-1 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400">
       <span data-testid="ws-status" className="truncate">{loading ? <Loader2 className="inline w-3 h-3 animate-spin mr-1" /> : null}{status}</span>
       <span className="ml-auto" data-testid="ws-status-bit">Bit {latestBit ? fmtDepth(latestBit.md_calc_m, units.depth) : 'n/a'}</span>
+      <span data-testid="ws-status-lagged">Lagged {lag.available && Number.isFinite(lag.laggedMdM) ? fmtDepth(lag.laggedMdM, units.depth) : 'n/a'}</span>
+      <span data-testid="ws-status-lag-strokes">Lag {lag.available && Number.isFinite(lag.lagStrokes) ? `${Math.round(lag.lagStrokes)} stk` : 'n/a'}</span>
       <span data-testid="ws-status-spm">Pumps {lastPump ? (lastPump.payload.spm > 0 ? `${lastPump.payload.spm} spm` : 'off') : 'n/a'}</span>
       <span data-testid="ws-status-tour">{tour ? `${tour.label} tour` : ''}</span>
       <span data-testid="ws-status-rigtime">{well ? `${rigNow.hhmm} rig (${offsetLabel(offsetMin)})` : ''}</span>
@@ -215,7 +282,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   );
 
   return (
-    <WorkspaceShell autoSaveId="wellsite.workspace.v1" minWidth={1000} dockDefaultSize={0}
-      ribbon={ribbon} explorer={explorer} center={<ScrollArea className="h-full min-h-0 bg-slate-950">{center}</ScrollArea>} statusBar={statusBar} />
+    <WorkspaceShell autoSaveId="wellsite.workspace.v2" minWidth={1000} dockDefaultSize={22} dockOpen={dockOpen} onDockOpenChange={setDockOpen}
+      ribbon={ribbon} explorer={explorer} center={<ScrollArea className="h-full min-h-0 bg-slate-950">{center}</ScrollArea>} statusBar={statusBar}
+      dock={well ? <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60"><LagPanel lag={lag} pumpEvents={pumpEvents} onPump={recordPump} unit={units.depth} offsetMin={offsetMin} nowMs={nowForLag} /></ScrollArea> : null} />
   );
 }

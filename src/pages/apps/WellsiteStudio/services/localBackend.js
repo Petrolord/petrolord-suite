@@ -6,7 +6,8 @@
 import { liveQuery } from 'dexie';
 import { wellsiteDb, persistStorage, storageEstimate } from '@/lib/wellsite/db';
 import { commitRow, commitMany, commitWellPatch, pendingCount } from '@/lib/wellsite/commit';
-import { buildRecord, nextVersion, correction, RecordError } from '@/lib/wellsite/records';
+import { buildRecord, nextVersion, correction, buildSampleRow, buildStageRow, RecordError } from '@/lib/wellsite/records';
+import { canAdvance, statusConfig, DEFAULT_MANDATORY } from '@/lib/wellsite/sampleProgram';
 import { wellContext, offsetMinOf } from './wellContext';
 import { newId } from '@/lib/wellsite/ids';
 
@@ -174,6 +175,34 @@ export function makeLocalBackend({ transport, db = wellsiteDb() }) {
     /** Live query of records by subtype (the screens subscribe). */
     liveRecords(wellId, subtype) {
       return liveQuery(() => db.records.where('[well_id+subtype+occurred_at]').between([wellId, subtype, ''], [wellId, subtype, '￿']).toArray());
+    },
+
+    // ---- samples (WS3) ----
+    async listSamples(wellId) { return db.samples.where('[well_id+md_calc_m]').between([wellId, -Infinity], [wellId, Infinity]).toArray(); },
+    /** rows: [{ sampleNo, mdM, intervalM, programmeVersion }] */
+    async addSamples(wellId, rows) {
+      const well = await requireWell(wellId);
+      const u = await currentUser();
+      const built = rows.map((r) => buildSampleRow({ ...r, wellId, ctx: wellContext(well), offsetMin: offsetMinOf(well), userId: u.id }));
+      for (const b of built) b.row.engine_version = WS_ENGINE_VERSION;
+      await commitMany(db, built.map((b) => ({ store: 'samples', row: b.row })));
+      notify();
+      return built.map((b) => b.row);
+    },
+    async listStages(wellId) { return db.sample_stages.where('[well_id+at_utc]').between([wellId, ''], [wellId, '￿']).toArray(); },
+    /** Records a stage; the mandatory order of the well's settings is enforced here as on the server. */
+    async addStage(wellId, sampleId, stage, { note = null } = {}) {
+      const well = await requireWell(wellId);
+      const u = await currentUser();
+      const have = await db.sample_stages.where('sample_id').equals(sampleId).toArray();
+      const cfg = statusConfig({ mandatory: (well.settings && well.settings.mandatory_sample_stages) || DEFAULT_MANDATORY });
+      const c = canAdvance(have, stage, cfg);
+      if (!c.ok) throw new Error(c.reason);
+      const { row } = buildStageRow({ wellId, sampleId, stage, note, offsetMin: offsetMinOf(well), userId: u.id });
+      row.engine_version = WS_ENGINE_VERSION;
+      await commitRow(db, 'sample_stages', row);
+      notify();
+      return row;
     },
 
     // ---- sync surface (WS6) ----
