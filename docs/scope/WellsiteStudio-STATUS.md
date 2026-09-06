@@ -14,7 +14,7 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 | WS-PLAN | plan of record, roadmap Phase G10, this file | this PR |
 | WS0 foundation (depth, time, pumps; schema; local store; shell) | **COMPLETE 2026-09-07: migration APPLIED, pentest green, engines #146 merged** | engines #146 (`engines/wellsite/depth.js`, `time.js`, `pumps.js`, stdlib oracle goldens; 27 tests); Suite branch `feat/ws0-foundation`: migration 20260907090000 (`ws_*` schema, membership helpers, stage guard, conflicts view, `wellsite` bucket), the Dexie local store (`src/lib/wellsite/db.js`, `records.js`, `commit.js`, `ids.js`), the backend port and local backend over the fake and Supabase transports, the workstation shell with Live and Config views, DepthEntry, WellSetup, the harness `/dev/wellsite-studio` (seeded KETA-2), copy-lint test, 12 jest tests, 5 e2e |
 | WS1 description prototype | **COMPLETE 2026-09-07: engines #147 + #148 merged, Suite PR merged** | engines #147 (`descriptionVocabulary.js`, `abbreviations.js`, hand-derived golden); Suite branch `feat/ws1-description`: Describe view (quick and full modes, keyboard first, vocabulary typeahead per attribute, Copy previous with changed-field highlight, live abbreviation and narrative), operator profile paste in Config with validation, descriptions as `cuttings_description` observations with top and base depths, jest keystroke test, timed e2e (full description and repeat) |
-| WS2 live well workspace and timeline | not started | |
+| WS2 live well workspace and timeline | **COMPLETE 2026-09-07: engines #149 (with the WS3 engines) merged, Suite PR merged** | engines #149 (`events.js`); Suite branch `feat/ws2-live-timeline`: event quick bar on the Live view (one click, time, user and bit depth captured; user-defined asks a label), open events with End, Timeline view (report day, tour, whole well; durations by type), current operation and current lithology cards, explorer counts |
 | WS3 lag and sample scheduler | not started | |
 | WS4 shows, observations, photos | not started | |
 | WS5 tops, prognosis, conflicts | not started | |
@@ -26,6 +26,19 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 ## Decisions taken in auto mode
 
 Recorded per phase below as they are taken, with the reason.
+
+### WS2
+
+- An event is a `ws_records` row of kind `event` with the type as its
+  subtype; ending a duration event is version 2 on the same chain with
+  `ended_at`, never an update. The current state of an event is the head
+  of its chain (`eventsFromRecords`).
+- The WS2 and WS3 engine modules shipped in one engines PR (#149): the
+  event vocabulary is tiny and the lag engine was ready; the Suite phases
+  stay separate.
+- A point event (bottoms up, cavings, top called) starts and ends at the
+  same instant; the first cut computed the end a millisecond before the
+  start and the record refused itself.
 
 ### WS1
 
