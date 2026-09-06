@@ -168,7 +168,14 @@ export default function EarthWorkstation({ backend }) {
       setZoneIdx(0);
       const blocks = Object.keys(result.census).length;
       const clamps = result.counts.reduce((a, b) => a + b, 0);
-      setStatus(`Built ${definition.name}: ${result.spec.nx}×${result.spec.ny} frame at ${result.spec.dx} m, ${result.zones.length} zones, ${blocks} block${blocks > 1 ? 's' : ''}, ${clamps} clamped nodes${result.boundary ? `, clipped to ${result.boundary.name}` : ''}.`);
+      const adj = result.adjustment;
+      const adjText = adj ? (() => {
+        const rows = adj.report.filter((r) => r.adjusted);
+        const before = Math.max(0, ...rows.map((r) => r.before ?? 0));
+        const after = Math.max(0, ...rows.map((r) => r.after ?? 0));
+        return rows.length ? `, ${rows.length} surface${rows.length === 1 ? '' : 's'} adjusted to the wells (max residual ${fmtDepth(before, depthUnit, 1)} to ${fmtDepth(after, depthUnit, 1)} ${depthUnit})` : ', no tied surface to adjust';
+      })() : '';
+      setStatus(`Built ${definition.name}: ${result.spec.nx}×${result.spec.ny} frame at ${result.spec.dx} m, ${result.zones.length} zones, ${blocks} block${blocks > 1 ? 's' : ''}, ${clamps} clamped nodes${result.boundary ? `, clipped to ${result.boundary.name}` : ''}${adjText}.`);
     } catch (e) {
       setStatus(e.message);
     } finally {

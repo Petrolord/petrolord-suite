@@ -68,6 +68,21 @@ export default function BuilderDock({
         ))}
         {!stackRows.length && <p className="text-[10px] text-slate-600">Stack surfaces first (explorer).</p>}
 
+        <div className={secCls}>Well adjustment (EM1)</div>
+        <label className="flex items-center gap-1 text-slate-400" title="Warp each tied surface through its tie residuals so it passes through the well tops (Franke-Little correction field, zero beyond the radius)">
+          <input type="checkbox" data-testid="em-adjust-on" checked={!!definition.adjust?.enabled}
+            onChange={(e) => patch({ adjust: { ...(definition.adjust || {}), enabled: e.target.checked } })} />
+          adjust surfaces to the well tops
+        </label>
+        <div className="flex items-center gap-1">
+          <span className="w-24 text-slate-400">radius</span>
+          <input className={inCls} data-testid="em-adjust-radius" type="number" min="1" step="any" value={definition.adjust?.radiusM ?? ''}
+            placeholder="3 x median tie spacing" title="Influence radius in metres; empty = three times the median spacing between ties"
+            disabled={!definition.adjust?.enabled}
+            onChange={(e) => patch({ adjust: { ...(definition.adjust || {}), radiusM: e.target.value } })} />
+          <span className="text-slate-500">m</span>
+        </div>
+
         <div className={secCls}>Zones (between consecutive surfaces)</div>
         {definition.zones.map((z, i) => (
           <div key={i} className="flex items-center gap-1">

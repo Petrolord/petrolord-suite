@@ -5,7 +5,8 @@
 // recomputed on load, never blobbed (plan decision 2). Pure except for
 // backend.downloadSurfaceGrid.
 
-import { buildFramework } from '../engine/framework';
+import { resampleStack, clampStack, zoneThickness } from '../engine/framework';
+import { adjustSurfaces, defaultRadius } from '../engine/adjust';
 import { labelBlocks, blockCensus, pointInPolygon, validatePolygon } from '../engine/blocks';
 import { wellTies, zoneControlPoints } from '../engine/wellties';
 import { populateZoneProperty } from '../engine/properties';
@@ -31,6 +32,8 @@ export const emptyDefinition = () => ({
   // EM0: the model frame; cellM empty = the top surface's cell, boundaryId
   // = a geo_culture boundary polygon the model is clipped to
   frame: { cellM: '', boundaryId: '' },
+  // EM1: well adjustment; radiusM empty = three times the median tie spacing
+  adjust: { enabled: false, radiusM: '' },
 });
 
 /**
@@ -94,7 +97,29 @@ export async function buildModel(definition, wells, surfaces, backend) {
   // the model frame is the TOP surface's frame, at its cell or the one
   // the definition asks for (EM0)
   const spec = frameSpec(specOf(stack[0]), definition.frame?.cellM);
-  const framework = buildFramework(grids.map((z, i) => ({ z, spec: specOf(stack[i]) })), spec);
+  const eWells = wells.map(engineWell);
+  const surfIndexByTop = {};
+  (definition.topNames || []).forEach((topName, i) => {
+    if (topName) surfIndexByTop[topName] = i;
+  });
+
+  // resample, then (EM1) adjust each tied surface through its tie
+  // residuals, then clamp: the adjustment is a geometric correction of
+  // the input surfaces, the clamp stays the stacking rule
+  let resampled = resampleStack(grids.map((z, i) => ({ z, spec: specOf(stack[i]) })), spec);
+  let adjustment = null;
+  if (definition.adjust?.enabled) {
+    const tiesBefore = wellTies(eWells, resampled, spec, surfIndexByTop)
+      .map((t) => ({ ...t, surfaceIndex: surfIndexByTop[t.top] }));
+    const radius = Number(definition.adjust.radiusM) > 0 ? Number(definition.adjust.radiusM) : defaultRadius(tiesBefore);
+    const a = adjustSurfaces(resampled, spec, tiesBefore, { radius });
+    resampled = a.grids;
+    adjustment = { radius, report: a.report, tiesBefore };
+  }
+  const { clamped, counts } = clampStack(resampled);
+  const thickness = [];
+  for (let i = 0; i + 1 < clamped.length; i++) thickness.push(zoneThickness(clamped[i], clamped[i + 1]));
+  const framework = { grids: resampled, clamped, counts, thickness };
 
   // EM0: a boundary polygon (geo_culture kind boundary) clips the model:
   // nodes outside it are null on every surface and thickness, so the
@@ -113,12 +138,10 @@ export async function buildModel(definition, wells, surfaces, backend) {
   const labels = polygons.length ? labelBlocks(spec, polygons) : null;
   const census = labels ? blockCensus(labels) : { 0: spec.nx * spec.ny };
 
-  const eWells = wells.map(engineWell);
-  const surfIndexByTop = {};
-  (definition.topNames || []).forEach((topName, i) => {
-    if (topName) surfIndexByTop[topName] = i;
+  const ties = wellTies(eWells, framework.clamped, spec, surfIndexByTop).map((t) => {
+    const before = adjustment?.tiesBefore.find((b) => b.well === t.well && b.top === t.top);
+    return before ? { ...t, residualBeforeM: before.residualM } : t;
   });
-  const ties = wellTies(eWells, framework.clamped, spec, surfIndexByTop);
 
   const zones = (definition.zones || []).map((zdef, i) => {
     const thickness = framework.thickness[i];
@@ -150,5 +173,5 @@ export async function buildModel(definition, wells, surfaces, backend) {
     return { name: zdef.name, registryZone: zdef.registryZone, thickness, props, provenance, volumes };
   });
 
-  return { spec, crs, ...framework, labels, census, ties, zones, boundary };
+  return { spec, crs, ...framework, labels, census, ties, zones, boundary, adjustment };
 }

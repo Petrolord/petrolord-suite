@@ -58,6 +58,27 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
         </div>
       </div>
 
+      {built.adjustment && (
+        <div className={card} data-testid="em-adjust-report">
+          <div className="px-2 py-1.5 text-xs font-semibold text-slate-200 border-b border-slate-800">
+            Well adjustment: radius {fmtDepth(built.adjustment.radius, u, 0)} {u}
+          </div>
+          <table className="w-full">
+            <thead><tr><th className={th}>Surface</th><th className={th}>Ties</th><th className={th}>Max residual before ({u})</th><th className={th}>After ({u})</th></tr></thead>
+            <tbody>
+              {built.adjustment.report.map((r) => (
+                <tr key={r.surface} className="border-t border-slate-800/60">
+                  <td className={td}>{surfaceNames[r.surface] || `Surface ${r.surface + 1}`}</td>
+                  <td className={td}>{r.ties}</td>
+                  <td className={td}>{fmtDepth(r.before, u, 2)}</td>
+                  <td className={td} data-testid={`em-adjust-after-${r.surface}`}>{r.adjusted ? fmtDepth(r.after, u, 2) : 'not adjusted'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <div className={card}>
         <div className="px-2 py-1.5 text-xs font-semibold text-slate-200 border-b border-slate-800">
           Well ties: residual = pick TVDSS minus surface ({u}); positive means the pick is deeper than the surface
@@ -66,7 +87,9 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
           <thead>
             <tr>
               <th className={th}>Well</th><th className={th}>Top</th><th className={th}>MD ({u})</th>
-              <th className={th}>TVDSS ({u})</th><th className={th}>Surface z ({u})</th><th className={th} data-testid="em-ties-unit">Residual ({u})</th>
+              <th className={th}>TVDSS ({u})</th><th className={th}>Surface z ({u})</th>
+              {built.adjustment && <th className={th}>Before ({u})</th>}
+              <th className={th} data-testid="em-ties-unit">Residual ({u})</th>
             </tr>
           </thead>
           <tbody data-testid="em-ties">
@@ -77,6 +100,7 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
                 <td className={td}>{fmtDepth(t.md, u, 1)}</td>
                 <td className={td}>{fmtDepth(t.tvdss, u, 2)}</td>
                 <td className={td}>{t.surfaceZ === null ? 'off grid' : fmtDepth(t.surfaceZ, u, 2)}</td>
+                {built.adjustment && <td className={td}>{t.residualBeforeM === undefined || t.residualBeforeM === null ? '—' : fmtDepth(t.residualBeforeM, u, 2)}</td>}
                 <td className={`${td} ${t.residualM !== null && Math.abs(t.residualM) > 10 ? 'text-amber-400' : ''}`}
                   data-testid={`em-tie-${t.well}-${t.top}`}>
                   {t.residualM === null ? '—' : fmtDepth(t.residualM, u, 2)}

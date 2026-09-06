@@ -80,3 +80,14 @@ e2e) against what a Petrel user expects of a structural framework:
   status says "clipped to". e2e: unit toggle changes the residuals,
   field units change the headers and the bulk value, a 25 m cell gives
   the expected frame, the fixture lease shrinks the cell count.
+- **EM1 (2026-09-06), branch `feat/em1-well-adjustment`, engines PR #139
+  (906e456, subtree pulled).** "Adjust surfaces to the well tops" in the
+  dock (`em-adjust-on`, radius `em-adjust-radius`, empty = three times
+  the median tie spacing). The build resamples, computes the tie
+  residuals on the raw surfaces, adds a Franke-Little correction field
+  per tied surface (exact at the tie, zero beyond the radius; a
+  background weight 1/R^2 the oracle forced, see the engine header),
+  then clamps as before. QC gains a "Well adjustment" card (per surface
+  ties, max residual before and after) and a Before column in the tie
+  table; the build status names the surfaces adjusted and the residual
+  range. Fixture: the worst tie (W2 TopA, 35.8 m) drops under 0.3 m.
