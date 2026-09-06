@@ -128,3 +128,38 @@ describe('EM0: model frame and boundary clip', () => {
     await expect(buildModel({ ...base, frame: { cellM: '', boundaryId: 'gone' } }, wells, surfaces, backend)).rejects.toThrow(/no longer in the registry/);
   });
 });
+
+
+describe('EM1: well adjustment', () => {
+  test('adjusting to the wells shrinks every tie residual and reports before and after', async () => {
+    const backend = makeInMemoryBackend();
+    const wells = await backend.listWells();
+    const surfaces = await backend.listSurfaces();
+    const byName = Object.fromEntries(surfaces.map((s) => [s.name, s]));
+    const base = {
+      ...emptyDefinition(),
+      surfaceIds: [byName.TopA.id, byName.TopB.id, byName.BaseB.id],
+      topNames: ['TopA', 'TopB', 'BaseB'],
+      zones: [{ name: 'Zone A', registryZone: 'A' }, { name: 'Zone B', registryZone: 'B' }],
+    };
+    const plain = await buildModel(base, wells, surfaces, backend);
+    expect(plain.adjustment).toBeNull();
+    const adjusted = await buildModel({ ...base, adjust: { enabled: true, radiusM: '' } }, wells, surfaces, backend);
+    expect(adjusted.adjustment.radius).toBeGreaterThan(0);
+    expect(adjusted.adjustment.report).toHaveLength(3);
+    for (const r of adjusted.adjustment.report) {
+      expect(r.adjusted).toBe(true);
+      expect(r.after).toBeLessThan(r.before);
+    }
+    const worstBefore = Math.max(...plain.ties.filter((t) => t.residualM !== null).map((t) => Math.abs(t.residualM)));
+    const worstAfter = Math.max(...adjusted.ties.filter((t) => t.residualM !== null).map((t) => Math.abs(t.residualM)));
+    expect(worstBefore).toBeGreaterThan(30);
+    expect(worstAfter).toBeLessThan(0.1 * worstBefore);
+    // the ties carry their pre-adjustment residual for the QC table
+    const w2 = adjusted.ties.find((t) => t.well === 'W2' && t.top === 'TopA');
+    expect(Math.abs(w2.residualBeforeM - (-35.75883821136131))).toBeLessThan(5e-4);
+    // a typed radius is honoured
+    const r50 = await buildModel({ ...base, adjust: { enabled: true, radiusM: '50' } }, wells, surfaces, backend);
+    expect(r50.adjustment.radius).toBe(50);
+  });
+});

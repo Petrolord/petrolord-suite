@@ -187,3 +187,19 @@ test('EM0: volume units, a model cell size and a boundary clip from Mapping', as
   expect(cells).toBeLessThan(nx * ny);
   expect(cells).toBeGreaterThan(0);
 });
+
+test('EM1: adjusting the surfaces to the well tops shrinks the residuals and the QC reports before and after', async ({ page }) => {
+  await stackAndBuild(page);
+  await page.getByTestId('em-adjust-on').check();
+  await page.getByTestId('em-build').click();
+  await expect(page.getByTestId('em-status')).toContainText(/3 surfaces adjusted to the wells \(max residual \d+\.\d to \d+\.\d ft\)/);
+  await page.getByTestId('em-view-qc').click();
+  await expect(page.getByTestId('em-adjust-report')).toBeVisible();
+  for (let i = 0; i < 3; i++) {
+    const after = Number(await page.getByTestId(`em-adjust-after-${i}`).textContent());
+    expect(after).toBeLessThan(2);
+  }
+  // W2 TopA had the largest residual (-35.8 m); adjusted it sits under a foot
+  const w2 = Number(await page.getByTestId('em-tie-W2-TopA').textContent());
+  expect(Math.abs(w2)).toBeLessThan(1);
+});
