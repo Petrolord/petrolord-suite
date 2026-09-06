@@ -2,7 +2,8 @@
 // Wellsite Studio on the real local database with the fake transport (no
 // auth, no Supabase). Seeds KETA-2 with its rig configuration, bit depths
 // and a pump log so Playwright can work the well, go offline, and reload.
-// `?reset=1` clears the local database first; `?empty=1` skips the seed.
+// `?reset=1` clears the local database first; `?empty=1` skips the seed;
+// `?conflict=1` adds a competing office version of the Agbada call.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -10,7 +11,7 @@ import Dexie from 'dexie';
 import WellsiteWorkstation from './components/WellsiteWorkstation';
 import { makeLocalBackend } from './services/localBackend';
 import { makeFakeTransport } from './services/transports/fakeTransport';
-import { seedWellsite, SEED_REGISTRY_WELLS, SEED_USER } from './services/seed';
+import { seedWellsite, seedCompetingTop, SEED_REGISTRY_WELLS, SEED_USER } from './services/seed';
 import { openWellsiteDb } from '@/lib/wellsite/db';
 import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 
@@ -27,7 +28,10 @@ export default function WellsiteStudioHarness() {
     let alive = true;
     (async () => {
       if (searchParams.get('reset') === '1') { backend.db.close(); await Dexie.delete(HARNESS_DB); backend.db.open(); }
-      if (searchParams.get('empty') !== '1') await seedWellsite(backend);
+      if (searchParams.get('empty') !== '1') {
+        const well = await seedWellsite(backend);
+        if (searchParams.get('conflict') === '1') await seedCompetingTop(backend, well);
+      }
       if (alive) setReady(true);
     })();
     return () => { alive = false; };

@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera } from 'lucide-react';
+import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered, FlaskConical, PanelRight, Droplets, Eye, Camera, Tags } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -31,6 +31,12 @@ import ObservationsView from './ObservationsView';
 import PhotosPanel from './PhotosPanel';
 import { SHOW_SUBTYPE } from '../services/shows';
 import { OBSERVATION_CODES } from '../services/observations';
+import TopsView from './TopsView';
+import ApproachPanel from './ApproachPanel';
+import { formationBoard, currentPrognosis, canApprove, formationKey } from '../services/tops';
+import { buildPrognosis, editedPrognosis } from '../services/prognosis';
+import { depthFromDisplay } from '../services/units';
+import { toCanonicalMd } from '@/lib/wellsite/depth';
 import WellSetup from './WellSetup';
 
 export const VIEWS = [
@@ -40,6 +46,7 @@ export const VIEWS = [
   { id: 'shows', label: 'Shows', icon: Droplets },
   { id: 'observations', label: 'Observations', icon: Eye },
   { id: 'photos', label: 'Photos', icon: Camera },
+  { id: 'tops', label: 'Tops', icon: Tags },
   { id: 'timeline', label: 'Timeline', icon: ListOrdered },
   { id: 'config', label: 'Config', icon: Settings },
 ];
@@ -62,6 +69,9 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const [observations, setObservations] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [photoSampleId, setPhotoSampleId] = useState('');
+  const [tops, setTops] = useState([]);
+  const [prognoses, setPrognoses] = useState([]);
+  const [members, setMembers] = useState([]);
   const [dockOpen, setDockOpen] = useState(true);
   const [sync, setSync] = useState({ state: 'offline', pending: 0, online: false });
   const [status, setStatus] = useState('Ready.');
@@ -105,8 +115,8 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   useEffect(() => { if (!selectedId && wells && wells.length) setSelectedId(wells[0].id); }, [wells, selectedId]);
 
   const refreshWellData = useCallback(async () => {
-    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setShows([]); setObservations([]); setPhotos([]); return; }
-    const [bits, pumps, cfg, descs, evs, smp, stg, prog, shw, obs, pho] = await Promise.all([
+    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); setSamples([]); setStages([]); setProgrammeRecords([]); setShows([]); setObservations([]); setPhotos([]); setTops([]); setPrognoses([]); setMembers([]); return; }
+    const [bits, pumps, cfg, descs, evs, smp, stg, prog, shw, obs, pho, tps, prg, mem] = await Promise.all([
       backend.listRecords(well.id, { subtype: 'bit_depth' }),
       backend.listRecords(well.id, { subtype: 'pump_rate' }),
       backend.latestRecord(well.id, 'rig_config'),
@@ -118,7 +128,13 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       backend.listRecords(well.id, { subtype: SHOW_SUBTYPE }),
       backend.listRecords(well.id, { kind: 'observation' }),
       backend.listPhotos(well.id),
+      backend.listTops(well.id),
+      backend.listPrognosis(well.id),
+      backend.listMembers(well.id),
     ]);
+    setTops(tps);
+    setPrognoses(prg);
+    setMembers(mem);
     setEventRecords(evs);
     setShows(currentObservations(shw));
     setObservations(currentObservations(obs.filter((r) => OBSERVATION_CODES.includes(r.subtype))));
@@ -179,6 +195,61 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     } catch (e) { setStatus(e.message); }
   }, [backend, well]);
   const events = useMemo(() => eventsFromRecords(eventRecords), [eventRecords]);
+  const prognosis = useMemo(() => currentPrognosis(prognoses), [prognoses]);
+  const latestBitMd = bitDepths.length ? bitDepths[bitDepths.length - 1].md_calc_m : null;
+  const topsBoard = useMemo(() => (well && ctx ? formationBoard({ tops, prognosis, bitMdM: latestBitMd, ctx }) : { rows: [], next: null, conflicts: [] }), [well, ctx, tops, prognosis, latestBitMd]);
+  const approver = useMemo(() => canApprove(user, members, well), [user, members, well]);
+  const isAdmin = useMemo(() => !!(user && members.some((m) => m.user_id === user.id && m.role === 'administrator' && m.status === 'active')), [user, members]);
+  const allObservationRecords = useMemo(() => [...observations, ...descriptions, ...shows].sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at)), [observations, descriptions, shows]);
+  const approachEvidence = useMemo(() => {
+    const n = topsBoard.next;
+    if (!n || !n.panel.window) return allObservationRecords.slice(0, 6);
+    const lo = n.panel.window.fromMdM - 30;
+    return allObservationRecords.filter((r) => Number.isFinite(r.md_calc_m) && r.md_calc_m >= lo);
+  }, [topsBoard, allObservationRecords]);
+  const interpretTop = useCallback(async (p) => {
+    const { row, warnings } = await backend.addTop(well.id, p);
+    setStatus(warnings.length ? warnings[0] : `${row.name} interpretation recorded, ${row.confidence} confidence.`);
+    setTick((t) => t + 1);
+  }, [backend, well]);
+  const callTop = useCallback(async (p, row) => {
+    const prev = row && row.call ? row.call : null;
+    const res = prev ? await backend.addTopVersion(prev, p) : await backend.addTop(well.id, p);
+    // the event on the timeline that a top was called, citing the decision (the evidence chain of spec section 35)
+    await backend.addRecord(well.id, { kind: 'event', subtype: 'top_called', occurredAt: res.row.occurred_at, endedAt: res.row.occurred_at, evidenceIds: [res.row.id],
+      depth: { ...p.depth, kind: 'event' }, payload: { label: `${res.row.name} called at ${fmtDepth(res.row.md_calc_m, units.depth)} (${res.row.status})`, family: 'geology', duration: false, top_id: res.row.id } });
+    setStatus(`${res.row.name} called at ${fmtDepth(res.row.md_calc_m, units.depth)}, ${res.row.status}${prev ? ` (version ${res.row.version_no})` : ''}.`);
+    setTick((t) => t + 1);
+  }, [backend, well, units.depth]);
+  const resolveTop = useCallback(async (chosen, why, heads) => {
+    try {
+      await backend.addTopVersion(chosen, {
+        status: chosen.status, confidence: chosen.confidence, basis: why, evidenceIds: chosen.evidence_ids || [], resolvesIds: heads.map((h) => h.id),
+        depth: { value: chosen.depth_value, unit: chosen.depth_unit, reference: chosen.depth_ref, datum: chosen.depth_datum, kind: chosen.depth_kind },
+        rangeBase: chosen.role === 'interpretation' ? { value: chosen.range_base_md_m, unit: 'm', reference: 'MD', datum: 'KB', kind: 'logged' } : undefined,
+      });
+      setStatus(`${chosen.name}: competing versions resolved, the ${fmtDepth(chosen.md_calc_m, units.depth)} version stands.`);
+      setTick((t) => t + 1);
+    } catch (e) { setStatus(e.message); }
+  }, [backend, units.depth]);
+  const loadPrognosis = useCallback(async () => {
+    try {
+      const sources = await backend.loadPrognosisSources(well.id, { offsetWellIds: (prognosis && prognosis.source && prognosis.source.offset_well_ids) || [] });
+      const row = await backend.addPrognosis(well.id, buildPrognosis({ wellId: well.id, version: 0, sources, offsetWells: sources.offsetWells, offsetMin: offsetMinOf(well) }));
+      setStatus(`Prognosis version ${row.version} loaded: ${row.tops.length} top(s), ${row.offset_tops.length} offset top(s).`);
+      setTick((t) => t + 1);
+    } catch (e) { setStatus(e.message); }
+  }, [backend, well, prognosis]);
+  const addPrognosisTop = useCallback(async ({ name, depth, uncertaintyDisplay }) => {
+    if (!(name && name.trim())) throw new Error('A formation name is required.');
+    const c = toCanonicalMd({ ...depth, kind: 'prognosis' }, ctx);
+    if (!c.ok) throw new Error(c.errors[0]);
+    const base = prognosis || { tops: [], offset_tops: [], casing_points: [], hole_sections: [], source: {} };
+    const next = editedPrognosis(base, [...(base.tops || []), { name: name.trim(), formation_key: formationKey(name), md_m: c.mdM, uncertainty_m: depthFromDisplay(uncertaintyDisplay, depth.unit) || 0, source: 'manual' }]);
+    const row = await backend.addPrognosis(well.id, { ...next, wellId: well.id });
+    setStatus(`Prognosis version ${row.version}: ${name.trim()} added by hand.`);
+    setTick((t) => t + 1);
+  }, [backend, well, ctx, prognosis]);
   const startEvent = useCallback(async ({ type, label = null, note = null }) => {
     if (!well) return;
     try {
@@ -259,7 +330,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
             {w.name}
             <div className="text-[10px] text-slate-500">{w.header?.field || ''}{w.header?.rig ? `, ${w.header.rig}` : ''}</div>
             {w.id === selectedId && (
-              <div className="text-[10px] text-slate-500 mt-0.5" data-testid="ws-explorer-counts">{descriptions.length} description(s), {events.length} event(s){events.some((e) => e.duration && e.endUtcMs == null) ? ', one open' : ''}, {shows.length} show(s), {photos.length} photo(s)</div>
+              <div className="text-[10px] text-slate-500 mt-0.5" data-testid="ws-explorer-counts">{descriptions.length} description(s), {events.length} event(s){events.some((e) => e.duration && e.endUtcMs == null) ? ', one open' : ''}, {shows.length} show(s), {photos.length} photo(s), {topsBoard.rows.filter((r) => r.call).length} top(s) called{topsBoard.conflicts.length ? `, ${topsBoard.conflicts.length} conflict(s)` : ''}</div>
             )}
           </button>
         ))}
@@ -284,6 +355,9 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     center = <ObservationsView backend={backend} well={well} ctx={ctx} observations={observations} latestBit={latestBit} lag={lag} defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin} tourCfg={tourConfigOf(well)} nowMs={nowForLag} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'photos') {
     center = <PhotosPanel backend={backend} well={well} photos={photos} samples={samples} sampleId={photoSampleId} onSampleChange={setPhotoSampleId} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+  } else if (view === 'tops') {
+    center = <TopsView board={topsBoard} tops={tops} records={allObservationRecords} prognosis={prognosis} ctx={ctx} defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin}
+      approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} onAddPrognosisTop={addPrognosisTop} onStatus={setStatus} userName={user ? user.name || user.email : ''} />;
   } else if (view === 'timeline') {
     center = <TimelineView events={events} onStart={startEvent} onEnd={endEvent} tourCfg={tourConfigOf(well)} offsetMin={offsetMin} unit={units.depth} nowMs={nowMs} currentUserName={user ? user.name || user.email : ''} />;
   } else if (view === 'config') {
@@ -308,6 +382,12 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   return (
     <WorkspaceShell autoSaveId="wellsite.workspace.v2" minWidth={1000} dockDefaultSize={22} dockOpen={dockOpen} onDockOpenChange={setDockOpen}
       ribbon={ribbon} explorer={explorer} center={<ScrollArea className="h-full min-h-0 bg-slate-950">{center}</ScrollArea>} statusBar={statusBar}
-      dock={well ? <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60"><LagPanel lag={lag} pumpEvents={pumpEvents} onPump={recordPump} unit={units.depth} offsetMin={offsetMin} nowMs={nowForLag} /></ScrollArea> : null} />
+      dock={well ? (
+        <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
+          <LagPanel lag={lag} pumpEvents={pumpEvents} onPump={recordPump} unit={units.depth} offsetMin={offsetMin} nowMs={nowForLag} />
+          <div className="border-t border-slate-800/60" />
+          <ApproachPanel next={topsBoard.next} evidence={approachEvidence} unit={units.depth} offsetMin={offsetMin} onOpenTops={() => setView('tops')} />
+        </ScrollArea>
+      ) : null} />
   );
 }
