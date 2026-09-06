@@ -25,6 +25,7 @@ const ContourMapDigitizer = () => {
     handleDeleteLine,
     handleSetLineValue,
     handleGrid,
+    handlePublishSurface,
     handleSaveProject,
     handleLoadProject,
     handleExport,
@@ -68,6 +69,7 @@ const ContourMapDigitizer = () => {
               onDeleteLine={handleDeleteLine}
               onSetLineValue={handleSetLineValue}
               onGrid={handleGrid}
+              onPublishSurface={handlePublishSurface}
               onSaveProject={handleSaveProject}
               onLoadProject={handleLoadProject}
               onExport={handleExport}

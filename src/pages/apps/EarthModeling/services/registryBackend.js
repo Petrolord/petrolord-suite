@@ -14,6 +14,26 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
 import { listWellsWithTops, listZones } from '@/lib/wellsRegistry';
 import { listSurfaces, saveSurface, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
+import { listCulture, downloadCultureFeatures } from '@/lib/cultureRegistry';
+import { POLYGON_KINDS, ringOf } from '@/pages/apps/MappingSurfaceStudio/services/polygonTools';
+
+/**
+ * Fault polygons drawn in Mapping & Surface Studio (geo_culture kind
+ * fault_polygon; MS5, 2026-09-06), as vertex lists the block engine
+ * takes. A layer whose features cannot be read is skipped, not fatal.
+ */
+export async function listCultureFaultPolygons() {
+  const rows = (await listCulture()).filter((c) => c.kind === POLYGON_KINDS.fault);
+  const out = [];
+  for (const row of rows) {
+    try {
+      const feats = await downloadCultureFeatures(row);
+      const ring = ringOf(feats?.[0]);
+      if (ring.length >= 3) out.push({ id: row.id, name: row.name, vertices: ring, is_own: !!row.is_own, source: 'geo_culture' });
+    } catch { /* unreadable layer: leave it out */ }
+  }
+  return out;
+}
 
 // PP0 state kind (docs/scope/ProjectPortability-PLAN.md §4.3): version 1 is
 // the current row shape; a future shape change bumps `current` and adds
@@ -63,6 +83,7 @@ export function makeRegistryBackend() {
     listSurfaces,
     downloadSurfaceGrid,
     saveSurface,
+    listFaultPolygons: listCultureFaultPolygons,
     listProjects,
     saveProject,
     updateProject,

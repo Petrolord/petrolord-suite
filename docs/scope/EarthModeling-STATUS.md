@@ -102,3 +102,15 @@ flips it. The map label reads `zone · layer` (no em dash).
 `?surface=<id>` (Mapping's "Open in Earth Modeling") stacks the surface
 on arrival and the status says `Added <name> from the link`; an unknown
 id reports it is not in the registry. e2e covers both.
+
+## 2026-09-06: fault polygons from Mapping (MS5)
+
+Fault polygons drawn in Mapping & Surface Studio (geo_culture kind
+`fault_polygon`) are listed in the explorer under "Fault polygons from
+Mapping" and join the model with one click (`em-culture-add-<name>`);
+the model keeps `cultureId` and `source: 'geo_culture'` on the polygon so
+it is not added twice and the provenance survives a save. Registry
+backend: `listCultureFaultPolygons` (first ring of the layer's first
+feature; unreadable layers are skipped). Harness: the fixture fault is
+offered as "Fixture fault (Mapping)". The model's own drawn polygons are
+unchanged.

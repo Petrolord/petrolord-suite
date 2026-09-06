@@ -41,6 +41,7 @@ const LAYERS = [
 export default function EarthWorkstation({ backend }) {
   const [wells, setWells] = useState(null);
   const [surfaces, setSurfaces] = useState([]);
+  const [culturePolygons, setCulturePolygons] = useState([]);
   const [projects, setProjects] = useState([]);
   const [definition, setDefinition] = useState(emptyDefinition);
   const [built, setBuilt] = useState(null);
@@ -64,15 +65,17 @@ export default function EarthWorkstation({ backend }) {
     let live = true;
     (async () => {
       try {
-        const [w, s, p] = await Promise.all([
+        const [w, s, p, cp] = await Promise.all([
           backend.listWells(),
           backend.listSurfaces(),
           backend.listProjects().catch(() => []),
+          backend.listFaultPolygons ? backend.listFaultPolygons().catch(() => []) : Promise.resolve([]),
         ]);
         if (!live) return;
         setWells(w);
         setSurfaces(s);
         setProjects(p);
+        setCulturePolygons(cp);
         if (w.length >= 2) setSectionWells({ a: w[0].id, b: w[1].id });
       } catch (e) { if (live) { setStatus(e.message); setWells([]); } }
     })();
@@ -215,6 +218,18 @@ export default function EarthWorkstation({ backend }) {
   const cancelDraw = () => { setDrawing(false); setPending([]); };
   const deletePolygon = (i) => {
     setDef({ ...definition, faultPolygons: definition.faultPolygons.filter((_, pi) => pi !== i) });
+  };
+  // a fault polygon drawn in Mapping & Surface Studio (geo_culture, MS5)
+  // joins the model's own list; the culture id is kept so it is not
+  // added twice and the provenance survives a save
+  const addCulturePolygon = (cp) => {
+    if ((definition.faultPolygons || []).some((p) => p.cultureId === cp.id)) { setStatus(`${cp.name} is already in the model.`); return; }
+    try {
+      validatePolygon(cp.vertices);
+      const faultPolygons = [...(definition.faultPolygons || []), { name: cp.name, vertices: cp.vertices.map(([x, y]) => [x, y]), cultureId: cp.id, source: 'geo_culture' }];
+      setDef({ ...definition, faultPolygons });
+      setStatus(`Added fault polygon ${cp.name} from Mapping & Surface Studio. Rebuild to apply blocks.`);
+    } catch (e) { setStatus(e.message); }
   };
 
   const saveProject = async () => {
@@ -359,6 +374,8 @@ export default function EarthWorkstation({ backend }) {
           onRemoveSurface={removeSurface}
           onMoveSurface={moveSurface}
           onDeletePolygon={deletePolygon}
+          culturePolygons={culturePolygons}
+          onAddCulturePolygon={addCulturePolygon}
         />
       )}
       center={center}

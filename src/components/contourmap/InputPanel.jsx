@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UploadCloud, MapPin, Bot, Pencil, Grid, Save, FolderOpen, Trash2, Download, Layers, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Link } from 'react-router-dom';
+import { VALUE_CONVENTIONS, Z_UNITS } from '@/lib/digitizer/contoursToSurface';
 
 const CollapsibleSection = ({ title, icon, children, defaultOpen = false }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -33,9 +35,9 @@ const CollapsibleSection = ({ title, icon, children, defaultOpen = false }) => {
   );
 };
 
-const InputPanel = ({ state, setState, onFileUpload, onGeoref, onAutoTrace, onDeleteLine, onSetLineValue, onGrid, onSaveProject, onLoadProject, onExport, isProcessing, isCvReady }) => {
+const InputPanel = ({ state, setState, onFileUpload, onGeoref, onAutoTrace, onDeleteLine, onSetLineValue, onGrid, onPublishSurface, onSaveProject, onLoadProject, onExport, isProcessing, isCvReady, mappingPath = '/dashboard/apps/geoscience/mapping-surface-studio' }) => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop: onFileUpload, accept: { 'image/*': ['.jpeg', '.jpg', '.png'] }, multiple: false });
-  const { projectName, projects, controlPoints, layers, activeLayer, drawMode, gridCellSize, griddingMethod, results } = state;
+  const { projectName, projects, controlPoints, layers, activeLayer, drawMode, gridCellSize, valuesAre, zUnit, surfaceName, results, publishedSurface, pixelToWorld } = state;
 
   return (
     <div className="space-y-4 h-full flex flex-col">
@@ -123,30 +125,56 @@ const InputPanel = ({ state, setState, onFileUpload, onGeoref, onAutoTrace, onDe
           </div>
         </CollapsibleSection>
 
-        <CollapsibleSection title="Grid & Export" icon={<Grid />} defaultOpen>
-          <div className="space-y-2">
-            <Label htmlFor="gridding-method">Gridding Algorithm</Label>
-            <Select value={griddingMethod} onValueChange={v => setState(p => ({...p, griddingMethod: v}))}>
-                <SelectTrigger id="gridding-method" className="w-full bg-white/5 border-white/20">
-                    <SelectValue placeholder="Select algorithm" />
-                </SelectTrigger>
+        <CollapsibleSection title="Grid & Publish" icon={<Grid />} defaultOpen>
+          <p className="text-xs text-gray-400">The contours are gridded with the shared thin-plate spline in the georeferenced frame and can be published to the surface registry, where Mapping & Surface Studio, ReservoirCalc Pro and Earth Modeling read them.</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="values-are">Contour values are</Label>
+              <Select value={valuesAre} onValueChange={v => setState(p => ({ ...p, valuesAre: v, results: null }))}>
+                <SelectTrigger id="values-are" data-testid="digitizer-values-are" className="w-full bg-white/5 border-white/20"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="idw">Inverse Distance Weighting</SelectItem>
-                    <SelectItem value="kriging">Kriging</SelectItem>
-                    <SelectItem value="min_curvature">Minimum Curvature</SelectItem>
+                  {VALUE_CONVENTIONS.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
                 </SelectContent>
-            </Select>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="z-unit">Depth unit</Label>
+              <Select value={zUnit} onValueChange={v => setState(p => ({ ...p, zUnit: v }))}>
+                <SelectTrigger id="z-unit" data-testid="digitizer-z-unit" className="w-full bg-white/5 border-white/20"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Z_UNITS.map(u => <SelectItem key={u} value={u}>{u === 'm' ? 'metres' : 'feet'}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="grid-cell-size">Grid Cell Size (pixels)</Label>
-            <Input id="grid-cell-size" type="number" value={gridCellSize} onChange={e => setState(p => ({...p, gridCellSize: parseInt(e.target.value, 10) || 50}))} className="bg-white/5 border-white/20" />
+          <div className="space-y-1">
+            <Label htmlFor="grid-cell-size">Cell size (map units)</Label>
+            <Input id="grid-cell-size" data-testid="digitizer-cell" type="number" value={gridCellSize} onChange={e => setState(p => ({ ...p, gridCellSize: parseFloat(e.target.value) || 50, results: null }))} className="bg-white/5 border-white/20" />
           </div>
-          <Button onClick={onGrid} disabled={isProcessing || layers.contours.filter(l => l.value !== null).length < 2} className="w-full">Generate 3D Grid</Button>
+          {!pixelToWorld && <p className="text-xs text-amber-300">Set the georeference before gridding.</p>}
+          <Button onClick={onGrid} data-testid="digitizer-grid" disabled={isProcessing || !pixelToWorld || layers.contours.filter(l => l.value !== null).length < 2} className="w-full">Grid the contours</Button>
+          {results && (
+            <div className="text-xs text-gray-300 space-y-1 p-2 rounded bg-gray-700/40" data-testid="digitizer-grid-summary">
+              <div>{results.spec.nx} x {results.spec.ny} nodes, cell {results.spec.dx}, {results.stats.count} live</div>
+              <div>Elevation {results.stats.min?.toFixed(1)} to {results.stats.max?.toFixed(1)} {zUnit} (negative below datum)</div>
+              <div>{results.controlCount} control points from {results.lines} contour lines{results.skipped ? `, ${results.skipped} without a value skipped` : ''}</div>
+            </div>
+          )}
+          <div className="space-y-1">
+            <Label htmlFor="surface-name">Surface name</Label>
+            <Input id="surface-name" data-testid="digitizer-surface-name" value={surfaceName} placeholder={projectName || 'Digitized surface'} onChange={e => setState(p => ({ ...p, surfaceName: e.target.value }))} className="bg-white/5 border-white/20" />
+          </div>
+          <Button onClick={onPublishSurface} data-testid="digitizer-publish" disabled={isProcessing || !results} className="w-full" variant="secondary"><UploadCloud className="w-4 h-4 mr-2" />Publish to the surface registry</Button>
+          {publishedSurface && (
+            <Link to={`${mappingPath}?surface=${publishedSurface.id}`} data-testid="digitizer-open-mapping" className="block text-center text-xs text-lime-300 hover:text-lime-200 underline">
+              Open {publishedSurface.name} in Mapping & Surface Studio
+            </Link>
+          )}
           <div className="grid grid-cols-2 gap-2 mt-2">
             <Button onClick={() => onExport('geojson')} variant="outline" disabled={isProcessing || (layers.contours.length === 0 && layers.faults.length === 0)} className="w-full"><Download className="w-4 h-4 mr-2" />GeoJSON</Button>
             <Button onClick={() => onExport('dxf')} variant="outline" disabled={isProcessing || (layers.contours.length === 0 && layers.faults.length === 0)} className="w-full"><Download className="w-4 h-4 mr-2" />DXF</Button>
           </div>
-          <Button onClick={() => onExport('csv')} variant="outline" disabled={isProcessing || !results?.grid} className="w-full mt-2"><Download className="w-4 h-4 mr-2" />Export Grid CSV</Button>
+          <Button onClick={() => onExport('csv')} variant="outline" disabled={isProcessing || layers.contours.length === 0} className="w-full mt-2"><Download className="w-4 h-4 mr-2" />Contour points CSV</Button>
         </CollapsibleSection>
       </div>
     </div>

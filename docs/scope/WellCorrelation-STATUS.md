@@ -137,3 +137,13 @@ linking to Mapping & Surface Studio with the top and the section wells
 that carry it (`mapTopHref`); the map grids it in TVDSS on arrival.
 `CorrelationWorkstation` takes `mappingPath` (harness:
 `/dev/mapping-surface-studio`).
+
+## 2026-09-06: help guide (MS5 follow-up)
+
+Full-page in-app guide on the shared HelpGuideLayout shell at
+`/dashboard/apps/geoscience/well-correlation/help` (13 sections: overview,
+quick start, wells, tracks and templates, depth reference and spacing,
+datum, tops, zones, propagate, export and save, links, pitfalls,
+glossary). Ribbon Help link (`corr-help`). Guard test pins the section
+ids, the live depth reference labels and section parameters, and the
+no-em-dash rule. Wave 3 follow-ups are otherwise unchanged.

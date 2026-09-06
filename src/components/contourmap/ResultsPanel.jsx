@@ -192,10 +192,20 @@ const ResultsPanel = ({ state, setState, imgCanvasRef, ovrCanvasRef, onManualDra
   };
 
   const renderGridPlot = () => {
-    if (!results?.grid) return <div className="text-center p-8 text-gray-400">3D Grid will be displayed here after generation.</div>;
+    if (!results?.grid) return <div className="text-center p-8 text-gray-400">Grid the contours to see the surface summary here. The map itself is drawn in Mapping & Surface Studio after publishing.</div>;
+    const { spec, stats } = results;
     return (
-      <div className="w-full h-full flex items-center justify-center text-slate-400">
-        Chart removed
+      <div className="w-full h-full p-4 text-sm text-slate-200 space-y-2" data-testid="digitizer-grid-tab">
+        <div className="text-base font-semibold">Gridded surface</div>
+        <table className="text-xs">
+          <tbody>
+            <tr><td className="pr-4 text-slate-400">Frame</td><td>{spec.nx} x {spec.ny} nodes, cell {spec.dx} map units, origin ({spec.x0.toFixed(1)}, {spec.y0.toFixed(1)})</td></tr>
+            <tr><td className="pr-4 text-slate-400">Live nodes</td><td>{stats.count} of {spec.nx * spec.ny}</td></tr>
+            <tr><td className="pr-4 text-slate-400">Elevation range</td><td>{stats.min?.toFixed(1)} to {stats.max?.toFixed(1)} (negative below datum)</td></tr>
+            <tr><td className="pr-4 text-slate-400">Control points</td><td>{results.controlCount} on {results.lines} contour lines</td></tr>
+          </tbody>
+        </table>
+        <p className="text-xs text-slate-400">Publish from the left panel to contour, edit and export this surface in Mapping & Surface Studio.</p>
       </div>
     );
   };

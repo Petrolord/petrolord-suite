@@ -1,6 +1,16 @@
 # Seismolord — STATUS
 
-Last updated: 2026-08-21 (manual-findings fix pack)
+Last updated: 2026-09-06 (Map window contour labels on the shared map kit)
+
+## 2026-09-06: contour labels on the shared map kit (Mapping MS5)
+
+The Map window's contour label placement and major-level rule now come
+from `src/components/maps/contourLabels.js` (`contourLabelPositions`,
+`isMajorLevel`), the kit Mapping & Surface Studio and Earth Modeling
+paint with, so the three maps label alike. The kit was written as a
+verbatim port of this loop in MS1 (parity test in the kit), so the
+picture is unchanged. The raster, annotations and the cell-index
+`ViewTransform` stay Seismolord's own. No engine change.
 
 ## Manual-findings fix pack: DONE (2026-08-21)
 

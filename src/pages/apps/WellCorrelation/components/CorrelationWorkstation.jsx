@@ -15,8 +15,8 @@
 // Petrophysics, Seismolord and Mapping see edits immediately.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { GitCompare, Loader2, Save, ImageDown, PanelRight } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { GitCompare, Loader2, Save, ImageDown, PanelRight, HelpCircle } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -316,6 +316,10 @@ export default function CorrelationWorkstation({
       <span className="text-sm font-semibold text-slate-100">Well Correlation</span>
       <span className="text-[11px] text-slate-500">cross-sections on the shared well registry</span>
       <div className="ml-auto flex items-center gap-1">
+        <Link to="/dashboard/apps/geoscience/well-correlation/help" data-testid="corr-help" title="Open the Well Correlation help guide"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800">
+          <HelpCircle className="w-3.5 h-3.5" /> Help
+        </Link>
         <button type="button" data-testid="corr-export-png" disabled={!sectionWells.length}
           title="Download the section as a PNG image"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
