@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { UploadCloud, FileText, Check, AlertCircle, AlertTriangle, XCircle, Waves, Loader2, Layers } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { SurfaceParser, SurfaceParseError } from '../../services/SurfaceParser';
+import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 // Cross-app handoff: surfaces Seismolord published to seismic_exported_surfaces
 // (XYZ text in Storage). Same parse path as a manual upload from here on.
 import { listExportedSurfaces, downloadExportedSurface } from '@/pages/apps/Seismolord/services/exportsService';
@@ -45,15 +46,19 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
 
     const resetFeedback = () => { setError(null); setPending(null); };
 
+    // RC0: the registry reads go through the app backend (the harness
+    // injects in-memory stores)
+    const { backend } = useReservoirCalc();
+    const surfacesApi = backend?.surfaces || { listSurfaces, downloadSurfaceGrid, listExportedSurfaces, downloadExportedSurface };
     useEffect(() => {
         if (!open) return;
-        listExportedSurfaces()
+        surfacesApi.listExportedSurfaces()
             .then(setSeismolordSurfaces)
             .catch(() => setSeismolordSurfaces([]));   // table empty/unreachable: hide the section
-        listSurfaces()
+        surfacesApi.listSurfaces()
             .then(setMappingSurfaces)
             .catch(() => setMappingSurfaces([]));
-    }, [open]);
+    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (!open || !preselectId || !mappingSurfaces || preselectedRef.current === preselectId) return;
@@ -74,7 +79,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
         setFetchingHandoffId(row.id);
         resetFeedback();
         try {
-            const grid = await downloadSurfaceGrid(row);
+            const grid = await surfacesApi.downloadSurfaceGrid(row);
             let text = surfaceToXyzText(row, grid);
             let xyUnit = 'm';
             if (row.z_unit === 'ft') {
@@ -140,7 +145,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
         setFetchingHandoffId(row.id);
         resetFeedback();
         try {
-            const raw = await downloadExportedSurface(row);
+            const raw = await surfacesApi.downloadExportedSurface(row);
             const { text, xyUnit, warning } = normalizeHandoff(raw, row.domain);
             const file = new File([text], `${row.name.replace(/[^\w-]+/g, '_')}.xyz`, { type: 'text/plain' });
             setImportData(prev => ({
@@ -415,6 +420,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                                             size="sm" variant="outline"
                                             className="shrink-0 border-amber-700/60 text-amber-300"
                                             disabled={fetchingHandoffId === s.id}
+                                            data-testid={`rcp-registry-use-${s.name}`}
                                             onClick={() => loadMappingSurface(s)}
                                         >
                                             {fetchingHandoffId === s.id
@@ -526,7 +532,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="bg-slate-900 border-slate-800 text-white sm:max-w-[425px]">
+            <DialogContent className="bg-slate-900 border-slate-800 text-white sm:max-w-[425px] max-h-[92vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Import Surface</DialogTitle>
                 </DialogHeader>
@@ -534,9 +540,10 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                 {renderStepContent()}
 
                 <DialogFooter>
-                    <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+                    <Button variant="ghost" data-testid="rcp-import-cancel" onClick={() => onOpenChange(false)}>Cancel</Button>
                     {pending ? (
                         <Button
+                            data-testid="rcp-import-anyway"
                             onClick={() => finalizeImport(pending.surface)}
                             className="bg-amber-600 hover:bg-amber-700"
                         >
@@ -544,6 +551,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                         </Button>
                     ) : (
                         <Button
+                            data-testid="rcp-import-confirm"
                             onClick={parseData}
                             disabled={!importData.file || !importData.name || isParsing}
                             className="bg-blue-600 hover:bg-blue-700"

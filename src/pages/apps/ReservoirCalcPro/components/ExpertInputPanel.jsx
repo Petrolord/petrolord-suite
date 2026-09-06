@@ -200,9 +200,9 @@ const ExpertInputPanel = () => {
 
             <Tabs defaultValue={linkedSurfaceId ? 'surfaces' : 'geometry'} className="flex-1 flex flex-col min-h-0">
                 <TabsList className="w-full bg-slate-900 border border-slate-800 rounded-md p-0.5 h-auto grid grid-cols-5 mb-2">
-                    <TabsTrigger value="geometry" className="text-[10px] h-7 px-0">Geo</TabsTrigger>
+                    <TabsTrigger value="geometry" className="text-[10px] h-7 px-0" data-testid="rcp-tab-geometry">Geo</TabsTrigger>
                     <TabsTrigger value="fluid" className="text-[10px] h-7 px-0">Fluid</TabsTrigger>
-                    <TabsTrigger value="surfaces" className="text-[10px] h-7 px-0">Surf</TabsTrigger>
+                    <TabsTrigger value="surfaces" className="text-[10px] h-7 px-0" data-testid="rcp-tab-surfaces">Surf</TabsTrigger>
                     <TabsTrigger value="aoi" className="text-[10px] h-7 px-0"><ScanLine className="w-3 h-3" /></TabsTrigger>
                     <TabsTrigger value="mapping" className="text-[10px] h-7 px-0">Maps</TabsTrigger>
                 </TabsList>

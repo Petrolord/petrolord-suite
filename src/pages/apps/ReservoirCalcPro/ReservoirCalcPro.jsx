@@ -24,7 +24,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOpen }) => {
     const { state, saveCurrentProject } = useReservoirCalc();
-    const { user } = useAuth();
+    const { user: authUser } = useAuth();
+    const { backend } = useReservoirCalc();
+    // the harness backend carries a dev user so Save works without auth (RC0)
+    const user = backend?.devUser || authUser;
     const { toast } = useToast();
     const navigate = useNavigate();
     const [saveOpen, setSaveOpen] = useState(false);
@@ -127,7 +130,7 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
 
                 <div className="flex flex-col justify-center ml-2">
                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-slate-300 max-w-[200px] truncate hidden lg:inline-block">
+                        <span className="text-xs font-medium text-slate-300 max-w-[200px] truncate hidden lg:inline-block" data-testid="rcp-project-name">
                             {state.currentProjectMeta?.name || 'Unsaved Workspace'}
                         </span>
                         {state.isDirty && <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 text-amber-400 border-amber-500/30">Modified</Badge>}
@@ -166,7 +169,7 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
 
                 <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
                     <DialogTrigger asChild>
-                        <Button size="sm" onClick={handleSaveClick} className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/10">
+                        <Button size="sm" data-testid="rcp-save" onClick={handleSaveClick} className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/10">
                             Save
                         </Button>
                     </DialogTrigger>
@@ -175,7 +178,7 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                             <h3 className="text-lg font-bold">Save Project</h3>
                             <div className="space-y-2">
                                 <Label>Project Name</Label>
-                                <Input value={meta.name} onChange={e => setMeta({...meta, name: e.target.value})} className="bg-slate-950 border-slate-700" />
+                                <Input data-testid="rcp-save-name" value={meta.name} onChange={e => setMeta({...meta, name: e.target.value})} className="bg-slate-950 border-slate-700" />
                             </div>
                             <div className="space-y-2">
                                 <Label>Description</Label>
@@ -188,7 +191,7 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
                             )}
                             <div className="flex justify-end gap-2 mt-4">
                                 <Button variant="ghost" onClick={() => setSaveOpen(false)} disabled={saving}>Cancel</Button>
-                                <Button onClick={performSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">{saving ? 'Saving…' : 'Save'}</Button>
+                                <Button data-testid="rcp-save-confirm" onClick={performSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">{saving ? 'Saving…' : 'Save'}</Button>
                             </div>
                         </div>
                     </DialogContent>
@@ -214,7 +217,7 @@ const Header = ({ onOpenDocs, onToggleLeft, onToggleRight, isLeftOpen, isRightOp
     );
 };
 
-const ReservoirCalcProContent = () => {
+export const ReservoirCalcProContent = () => {
     const [isDocsOpen, setIsDocsOpen] = useState(false);
     
     // Panel States (Persisted)

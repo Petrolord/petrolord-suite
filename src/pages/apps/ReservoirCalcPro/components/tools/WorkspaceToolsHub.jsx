@@ -21,7 +21,8 @@ function pickUnrisked(pr) {
 // Prospect Risking wraps the shared panel with the real rcp_prospects
 // backend and the latest MC result (unrisked volume) from RCP context.
 const ProspectRiskingTool = () => {
-    const backend = useMemo(() => makeRegistryProspectsBackend(), []);
+    const { backend: rcp } = useReservoirCalc();
+    const backend = useMemo(() => rcp?.prospects || makeRegistryProspectsBackend(), [rcp]);
     const { state } = useReservoirCalc();
     const unrisked = pickUnrisked(state?.probResults);
     return <ProspectRiskingPanel backend={backend} unrisked={unrisked} />;

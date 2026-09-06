@@ -20,7 +20,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 const ProjectManager = ({ onClose }) => {
     const { state, loadProjects, loadProject, createNewProject } = useReservoirCalc();
-    const { user } = useAuth();
+    const { user: authUser } = useAuth();
+    const { backend } = useReservoirCalc();
+    const user = backend?.devUser || authUser;
+    const projects = backend?.projects || ProjectService;
     const { toast } = useToast();
 
     // UI State
@@ -69,7 +72,7 @@ const ProjectManager = ({ onClose }) => {
         if (!selectedProject) return;
         if (window.confirm(`Are you sure you want to delete "${selectedProject.name}"? This action cannot be undone.`)) {
             try {
-                await ProjectService.deleteProject(selectedProject.id);
+                await projects.deleteProject(selectedProject.id);
                 await loadProjects();
                 setSelectedProject(null);
                 setView('list');
@@ -82,7 +85,7 @@ const ProjectManager = ({ onClose }) => {
 
     const handleExport = () => {
         if (selectedProject) {
-            ProjectService.exportToJSON(selectedProject);
+            projects.exportToJSON(selectedProject);
             toast({ title: "Export Started", description: "Your project JSON is downloading." });
         }
     };
@@ -91,7 +94,7 @@ const ProjectManager = ({ onClose }) => {
         const file = e.target.files[0];
         if (!file) return;
         try {
-            await ProjectService.importFromJSON(file, user?.id);
+            await projects.importFromJSON(file, user?.id);
             await loadProjects();
             toast({ title: "Import Successful", description: "Project added to your list." });
         } catch (err) {

@@ -124,7 +124,7 @@ const ExpertResultsPanel = () => {
                     <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                         {state.inputs?.fluidType === 'gas' ? 'GIIP' : 'STOOIP'}
                     </div>
-                    <div className="text-3xl font-black text-white mb-1 tracking-tight">
+                    <div className="text-3xl font-black text-white mb-1 tracking-tight" data-testid="rcp-stooip" data-value={results ? (state.inputs?.fluidType === 'gas' ? results.giip : results.stooip) : ''}>
                         {results ? (
                             state.inputs?.fluidType === 'gas' ? (
                                 ((results.giip || 0) / 1e9).toFixed(3) + " B"

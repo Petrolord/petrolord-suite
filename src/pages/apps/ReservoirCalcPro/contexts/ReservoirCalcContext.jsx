@@ -3,6 +3,7 @@ import { VolumeCalculationEngine } from '../services/VolumeCalculationEngine';
 import { ContactVolumetricsEngine } from '../services/ContactVolumetricsEngine';
 import { MonteCarloEngine } from '../services/MonteCarloEngine';
 import { ProjectService } from '../services/ProjectService';
+import { makeRegistryRcpBackend } from '../services/rcpBackend';
 import { AOIManager } from '../services/AOIManager';
 import { loadSettings } from '../hooks/useReservoirSettings';
 import { defaultInputUnits, convertInputsOnSystemChange } from '../services/unitsCatalog';
@@ -476,7 +477,11 @@ const reducer = (state, action) => {
 
 const ReservoirCalcContext = createContext();
 
-export const ReservoirCalcProvider = ({ children }) => {
+export const ReservoirCalcProvider = ({ children, backend = null }) => {
+    // RC0: every read or write outside the app's own state goes through
+    // one backend object (registry by default; the harness injects an
+    // in-memory pair) so the whole app runs without auth or DB in e2e
+    const be = useMemo(() => backend || makeRegistryRcpBackend(), [backend]);
     const [state, dispatch] = useReducer(reducer, initialState);
 
     // Append a real event to the audit trail.
@@ -560,12 +565,12 @@ export const ReservoirCalcProvider = ({ children }) => {
     const saveCurrentProject = async (userId, meta) => {
         if (!userId) throw new Error('Sign in to save projects.');
         const projectData = buildProjectData(userId, meta);
-        const saved = await ProjectService.saveProject(projectData, !projectData.id);
+        const saved = await be.projects.saveProject(projectData, !projectData.id);
         dispatch({
             type: ACTIONS.SET_PROJECT,
             payload: { id: saved.id, version: saved.version, meta: { name: saved.name, description: saved.description } }
         });
-        const projects = await ProjectService.getProjects();
+        const projects = await be.projects.getProjects();
         dispatch({ type: ACTIONS.SET_PROJECTS, payload: projects });
         logEvent('Project saved', `${saved.name} (v${saved.version})`);
         return saved;
@@ -573,11 +578,11 @@ export const ReservoirCalcProvider = ({ children }) => {
 
     // Export the current workspace (inputs, surfaces, results, audit) as a shareable
     // JSON file — the real handoff mechanism for collaborating with a colleague.
-    const exportWorkspace = () => ProjectService.exportToJSON(buildProjectData(null, null));
+    const exportWorkspace = () => be.projects.exportToJSON(buildProjectData(null, null));
 
     const loadProjects = async () => {
         try {
-            const projects = await ProjectService.getProjects();
+            const projects = await be.projects.getProjects();
             dispatch({ type: ACTIONS.SET_PROJECTS, payload: projects });
             return { ok: true };
         } catch (e) {
@@ -699,6 +704,7 @@ export const ReservoirCalcProvider = ({ children }) => {
     };
 
     const value = useMemo(() => ({
+        backend: be,
         state,
         dispatch,
         updateInputs,

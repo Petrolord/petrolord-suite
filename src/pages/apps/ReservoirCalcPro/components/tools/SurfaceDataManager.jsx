@@ -56,7 +56,7 @@ const SurfaceDataManager = ({ preselectSurfaceId = null }) => {
                 <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
                     <Layers className="w-4 h-4" /> Surfaces Library
                 </h3>
-                <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="h-7 text-xs gap-1">
+                <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="h-7 text-xs gap-1" data-testid="rcp-import-open">
                     <UploadCloud className="w-3 h-3" /> Import
                 </Button>
             </div>

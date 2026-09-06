@@ -91,7 +91,7 @@ const DeterministicResultsDisplay = () => {
                             <h3 className="text-sm uppercase text-emerald-500 font-bold">STOOIP</h3>
                             <ResultUnitSelect value={oilUnit} onChange={setOilUnit} options={OIL_RESULT_UNITS} />
                         </div>
-                        <div className="text-4xl font-bold text-white tracking-tight">
+                        <div className="text-4xl font-bold text-white tracking-tight" data-testid="rcp-stooip-full" data-value={results.stooip}>
                             {oilVol(results.stooip)} <span className="text-lg text-slate-500 font-normal">{resultUnitLabel(oilUnit, 'oil')}</span>
                         </div>
                         <p className="text-slate-400 text-sm mt-2">Recoverable: {oilVol(results.recoverableOil)} {resultUnitLabel(oilUnit, 'oil')}</p>
