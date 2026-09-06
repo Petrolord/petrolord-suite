@@ -60,6 +60,10 @@ export async function seedWellsite(backend, { now = Date.now() } = {}) {
     { kind: 'observation', subtype: 'pump_rate', occurredAt: iso(-240), payload: { spm: 60, note: 'Drilling ahead' } },
     { kind: 'observation', subtype: 'pump_rate', occurredAt: iso(-130), payload: { spm: 0, note: 'Connection' } },
     { kind: 'observation', subtype: 'pump_rate', occurredAt: iso(-120), payload: { spm: 60, note: 'Back on bottom' } },
+    // the sampling programme: every 10 ft from 9,800 ft, authorised by the operations geologist
+    { kind: 'decision', subtype: 'sample_programme', occurredAt: iso(-600), payload: {
+      version: 1, rows: [{ fromMdM: 9800 * M_PER_FT, toMdM: null, intervalM: 10 * M_PER_FT }], authorisedBy: 'Operations geologist', authorisedAtUtc: iso(-600), reason: 'Section programme',
+      basis: 'Section programme', statement: 'Sampling programme version 1', person: 'Operations geologist', communication: null } },
   ]);
   return well;
 }

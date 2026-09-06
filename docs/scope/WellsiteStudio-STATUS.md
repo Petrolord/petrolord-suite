@@ -15,7 +15,7 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 | WS0 foundation (depth, time, pumps; schema; local store; shell) | **COMPLETE 2026-09-07: migration APPLIED, pentest green, engines #146 merged** | engines #146 (`engines/wellsite/depth.js`, `time.js`, `pumps.js`, stdlib oracle goldens; 27 tests); Suite branch `feat/ws0-foundation`: migration 20260907090000 (`ws_*` schema, membership helpers, stage guard, conflicts view, `wellsite` bucket), the Dexie local store (`src/lib/wellsite/db.js`, `records.js`, `commit.js`, `ids.js`), the backend port and local backend over the fake and Supabase transports, the workstation shell with Live and Config views, DepthEntry, WellSetup, the harness `/dev/wellsite-studio` (seeded KETA-2), copy-lint test, 12 jest tests, 5 e2e |
 | WS1 description prototype | **COMPLETE 2026-09-07: engines #147 + #148 merged, Suite PR merged** | engines #147 (`descriptionVocabulary.js`, `abbreviations.js`, hand-derived golden); Suite branch `feat/ws1-description`: Describe view (quick and full modes, keyboard first, vocabulary typeahead per attribute, Copy previous with changed-field highlight, live abbreviation and narrative), operator profile paste in Config with validation, descriptions as `cuttings_description` observations with top and base depths, jest keystroke test, timed e2e (full description and repeat) |
 | WS2 live well workspace and timeline | **COMPLETE 2026-09-07: engines #149 (with the WS3 engines) merged, Suite PR merged** | engines #149 (`events.js`); Suite branch `feat/ws2-live-timeline`: event quick bar on the Live view (one click, time, user and bit depth captured; user-defined asks a label), open events with End, Timeline view (report day, tour, whole well; durations by type), current operation and current lithology cards, explorer counts |
-| WS3 lag and sample scheduler | not started | |
+| WS3 lag and sample scheduler | **COMPLETE 2026-09-07: engines #149 merged, Suite PR merged** | engines #149 (`lag.js`, `sampleProgram.js`, oracle goldens G1 to G4); Suite branch `feat/ws3-lag-samples`: lag panel in the dock (strokes, time at the current rate, lagged depth, bottoms up, pump log), Samples view (authorised versioned programme as a decision record, schedule three samples ahead of the bit, predicted arrivals, catch and the stage chain with the mandatory guard, overdue for review), Live view next-sample and catch prompt, describing from a sample records the described stage |
 | WS4 shows, observations, photos | not started | |
 | WS5 tops, prognosis, conflicts | not started | |
 | WS6 offline shell and sync | not started | |
@@ -26,6 +26,22 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 ## Decisions taken in auto mode
 
 Recorded per phase below as they are taken, with the reason.
+
+### WS3
+
+- The sampling programme is a Decision record (`subtype sample_programme`,
+  spec section 33.4 lists a programme change as a decision); a change is
+  a new version on the chain and needs an authoriser.
+- Samples are scheduled automatically three programme intervals ahead
+  of the latest bit depth, so the next sample is always visible without
+  a thousand rows being minted at once.
+- A cuttings sample at depth D represents the interval (D minus one
+  interval, D]; Describe from a sample prefills that interval and records
+  the `described` stage on save.
+- The mandatory-stage guard runs in the local backend as well as in the
+  server trigger, so the refusal is immediate offline.
+- The board derives `scheduled` and `due` from lag and time; only the
+  stages a person records (caught onwards) are offered as buttons.
 
 ### WS2
 

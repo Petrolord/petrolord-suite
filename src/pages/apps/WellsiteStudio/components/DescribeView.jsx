@@ -19,7 +19,7 @@ import { toRigLocal } from '@/lib/wellsite/time';
 const MODE_KEY = 'ws.describe.mode';
 const readMode = () => { try { return localStorage.getItem(MODE_KEY) === 'full' ? 'full' : 'quick'; } catch { return 'quick'; } };
 
-export default function DescribeView({ backend, well, ctx, descriptions, defaults, unit, offsetMin, onChanged, onStatus }) {
+export default function DescribeView({ backend, well, ctx, descriptions, sample = null, onSampleDone, defaults, unit, offsetMin, onChanged, onStatus }) {
   const profile = useMemo(() => {
     const op = well.settings && well.settings.abbreviation_profile;
     return op && validateProfile(op).length === 0 ? mergeProfile(op) : mergeProfile(null);
@@ -38,6 +38,14 @@ export default function DescribeView({ backend, well, ctx, descriptions, default
   const [focus, setFocus] = useState({ index: 0, key: 'lithology', n: 0 });
   const [saveError, setSaveError] = useState(null);
 
+  // describing a sample: the interval is the sample's depth back one interval
+  useEffect(() => {
+    if (!sample) return;
+    const base = depthToDisplay(sample.md_calc_m, defaults.unit);
+    const iv = depthToDisplay(sample.interval_m || intervalM, defaults.unit);
+    setTop({ value: base - iv, unit: defaults.unit, reference: 'MD', datum: 'KB' });
+    setBase({ value: base, unit: defaults.unit, reference: 'MD', datum: 'KB' });
+  }, [sample, defaults.unit, intervalM]);
   // the previous description's stored depths are metres below KB: entries default to KB in the well's unit
   useEffect(() => {
     if (!Number.isFinite(top.value) && prevDesc) {
@@ -97,12 +105,13 @@ export default function DescribeView({ backend, well, ctx, descriptions, default
     if (!v.ok) { setSaveError(v.errors[0]); onStatus?.(v.errors[0]); return; }
     try {
       const { row, warnings } = await backend.addRecord(well.id, {
-        kind: 'observation', subtype: DESCRIPTION_SUBTYPE,
+        kind: 'observation', subtype: DESCRIPTION_SUBTYPE, sampleId: sample ? sample.id : null,
         depth: { ...top, kind: 'lagged_sample' }, depth2: { ...base, kind: 'lagged_sample' },
         payload: descriptionPayload({ components, comment, mode, copiedFrom, changedFields: changed, profileId: profile.id }),
       });
       setSaveError(null);
-      onStatus?.(warnings.length ? warnings[0] : `Description saved for ${fmtDepth(row.md_calc_m, unit)} to ${fmtDepth(row.md2_calc_m, unit)}.`);
+      onStatus?.(warnings.length ? warnings[0] : `Description saved for ${fmtDepth(row.md_calc_m, unit)} to ${fmtDepth(row.md2_calc_m, unit)}${sample ? `, sample ${sample.sample_no} described` : ''}.`);
+      if (sample && onSampleDone) await onSampleDone(sample);
       onChanged?.();
       // next interval starts where this one ended
       const t = depthToDisplay(row.md2_calc_m, defaults.unit);
@@ -113,7 +122,7 @@ export default function DescribeView({ backend, well, ctx, descriptions, default
       setCopiedFrom(null);
       setFocus((f) => ({ index: 0, key: 'lithology', n: f.n + 1 }));
     } catch (e) { setSaveError(e.message); onStatus?.(e.message); }
-  }, [draft, backend, well.id, top, base, components, comment, mode, copiedFrom, changed, profile.id, onStatus, onChanged, unit, defaults.unit, intervalM]);
+  }, [draft, backend, well.id, top, base, components, comment, mode, copiedFrom, changed, profile.id, onStatus, onChanged, unit, defaults.unit, intervalM, sample, onSampleDone]);
 
   // screen-level keys (only while the pointer is inside this view)
   const onKey = useCallback((ev, where) => {
@@ -133,7 +142,7 @@ export default function DescribeView({ backend, well, ctx, descriptions, default
   return (
     <div className="p-4 space-y-4" data-testid="ws-describe" onKeyDown={(e) => { if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && onKey(e, null)) e.preventDefault(); }}>
       <div className="flex items-center gap-3 flex-wrap">
-        <h2 className="text-sm font-semibold text-slate-100">Describe cuttings</h2>
+        <h2 className="text-sm font-semibold text-slate-100">Describe cuttings{sample ? <span className="text-cyan-300" data-testid="ws-desc-sample"> sample {sample.sample_no}</span> : null}</h2>
         <div className="flex items-center gap-1 text-[11px]">
           {['quick', 'full'].map((m) => (
             <button key={m} type="button" data-testid={`ws-desc-mode-${m}`} onClick={() => setMode2(m)} className={`px-2 py-0.5 rounded border ${mode === m ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}>{m}</button>

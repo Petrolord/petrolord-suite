@@ -10,7 +10,7 @@ import { fmtDepth } from '../services/units';
 import EventBar from './EventBar';
 import { abbreviate, descriptionOf, mergeProfile } from '../services/describe';
 
-export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents, events = [], onStartEvent, onEndEvent, descriptions = [], defaults, offsetMin, unit, onChanged, onStatus }) {
+export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents, events = [], onStartEvent, onEndEvent, descriptions = [], lag = { available: false }, board = null, onStage, defaults, offsetMin, unit, onChanged, onStatus }) {
   const openEvent = events.filter((e) => e.duration && e.endUtcMs == null).slice(-1)[0] || null;
   const lastDesc = descriptions[descriptions.length - 1] || null;
   const profile = mergeProfile(well.settings && well.settings.abbreviation_profile ? well.settings.abbreviation_profile : null);
@@ -47,10 +47,20 @@ export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents
         <Card label="Bit depth" testId="ws-live-bit" value={latest ? fmtDepth(latest.md_calc_m, unit) : 'not recorded'} sub={latest ? `${local(latest.occurred_at)} rig time, entered ${latest.depth_value} ${latest.depth_unit} ${latest.depth_ref} ${latest.depth_datum}` : ''} />
         <Card label="TVD" testId="ws-live-tvd" value={latest && Number.isFinite(latest.tvd_calc_m) ? fmtDepth(latest.tvd_calc_m, unit) : ''} sub={latest ? `${latest.calc_method.replace(/_/g, ' ')}${latest.survey_version ? `, survey ${latest.survey_version}` : ''}` : ''} />
         <Card label="Pumps" testId="ws-live-spm" value={lastPump ? (lastPump.payload.spm > 0 ? `${lastPump.payload.spm} spm` : 'off') : 'unknown'} sub={lastPump ? `since ${local(lastPump.occurred_at)}${lastPump.payload.note ? `, ${lastPump.payload.note}` : ''}` : ''} />
-        <Card label="Lagged sample depth" testId="ws-live-lagged" value="lag engine arrives in WS3" sub="" />
+        <Card label="Lagged sample depth" testId="ws-live-lagged" value={lag.available && Number.isFinite(lag.laggedMdM) ? fmtDepth(lag.laggedMdM, unit) : (lag.available ? 'not yet at surface' : 'no lag yet')}
+          sub={lag.available ? `${Math.round(lag.lagStrokes)} strokes, ${lag.lagTimeMin == null ? 'pumps off' : `${Math.round(lag.lagTimeMin)} min at ${lag.spmNow} spm`}` : lag.note} />
+        <Card label="Next sample" testId="ws-live-next-sample" value={board && board.nextDue ? `No ${board.nextDue.sample.sample_no}, ${fmtDepth(board.nextDue.sample.md_calc_m, unit)}` : (board && board.nextScheduled ? `No ${board.nextScheduled.sample.sample_no} at ${fmtDepth(board.nextScheduled.sample.md_calc_m, unit)}` : 'none scheduled')}
+          sub={board && board.nextDue ? (board.nextDue.arrival && board.nextDue.arrival.arrivalUtcMs ? `arrives ${toRigLocal(board.nextDue.arrival.arrivalUtcMs, offsetMin).hhmm}` : 'in transit') : ''} />
+        <Card label="Samples" testId="ws-live-samples" value={board ? `${board.inTransit.length} in transit${board.overdue.length ? `, ${board.overdue.length} overdue for review` : ''}` : ''} sub="" />
         <Card label="Current operation" testId="ws-live-event" value={openEvent ? openEvent.label : 'none open'} sub={openEvent ? `since ${local(new Date(openEvent.startUtcMs).toISOString())}` : ''} />
         <Card label="Current lithology" testId="ws-live-lithology" value={lastDesc ? abbreviate(descriptionOf(lastDesc), profile).text : 'not described'} sub={lastDesc ? `${fmtDepth(lastDesc.md_calc_m, unit)} to ${fmtDepth(lastDesc.md2_calc_m, unit)}` : ''} />
       </div>
+      {board && board.nextDue && onStage && (board.nextDue.state === 'due' || board.nextDue.state === 'overdue') && (
+        <div className="flex items-center gap-2 text-xs" data-testid="ws-live-catch">
+          <span className={board.nextDue.state === 'overdue' ? 'text-amber-300' : 'text-cyan-200'}>Sample {board.nextDue.sample.sample_no} at {fmtDepth(board.nextDue.sample.md_calc_m, unit)} is {board.nextDue.state === 'overdue' ? 'overdue for review' : 'due at surface'}.</span>
+          <Button size="sm" onClick={() => onStage(board.nextDue.sample, 'caught')} data-testid="ws-live-catch-btn">Catch</Button>
+        </div>
+      )}
       <section className="space-y-2">
         <h3 className="text-xs font-semibold text-slate-200">Events</h3>
         <EventBar events={events} onStart={onStartEvent} onEnd={onEndEvent} offsetMin={offsetMin} compact />

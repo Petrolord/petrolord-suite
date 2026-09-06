@@ -11,7 +11,9 @@ export const PORT = Object.freeze([
   'listWells', 'getWell', 'refreshWells', 'listRegistryWells', 'createWell', 'updateWellSettings', 'updateWellHeader',
   'listMembers',
   // records (WS0 generic; later phases add typed helpers on top)
-  'addRecord', 'addRecords', 'listRecords', 'latestRecord', 'getRecord',
+  'addRecord', 'addRecords', 'listRecords', 'latestRecord', 'getRecord', 'addVersion', 'correctObservation',
+  // samples (WS3)
+  'listSamples', 'addSamples', 'listStages', 'addStage',
   // sync surface (WS6 fills in)
   'syncStatus', 'subscribeSync', 'flush',
   // storage
