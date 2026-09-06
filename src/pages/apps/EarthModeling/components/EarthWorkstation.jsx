@@ -42,6 +42,9 @@ const LAYERS = [
   { key: 'phi', label: 'Porosity' },
   { key: 'sw', label: 'Sw' },
   { key: 'ntg', label: 'NTG' },
+  { key: 'phi_var', label: 'Porosity kriging variance' },
+  { key: 'sw_var', label: 'Sw kriging variance' },
+  { key: 'ntg_var', label: 'NTG kriging variance' },
   { key: 'blocks', label: 'Fault blocks' },
 ];
 
@@ -206,6 +209,7 @@ export default function EarthWorkstation({ backend }) {
     if (layer === 'top') return built.clamped[zoneIdx] || null;
     if (layer === 'base') return built.clamped[zoneIdx + 1] || null;
     if (layer === 'thickness') return built.thickness[zoneIdx] || null;
+    if (layer.endsWith('_var')) return built.zones[zoneIdx]?.variance?.[layer.slice(0, -4)] || null;
     return built.zones[zoneIdx]?.props?.[layer] || null;
   }, [built, layer, zoneIdx]);
 
@@ -236,7 +240,7 @@ export default function EarthWorkstation({ backend }) {
     try {
       const kind = layer === 'thickness' ? 'isochore'
         : (layer === 'top' || layer === 'base') ? 'structure' : 'attribute';
-      const name = `${definition.name} · ${zoneName} ${layer}`;
+      const name = `${definition.name} · ${zoneName} ${layer.endsWith('_var') ? `${layer.slice(0, -4)} variance` : layer}`;
       const saved = await backend.saveSurface({
         name,
         kind,
@@ -376,9 +380,10 @@ export default function EarthWorkstation({ backend }) {
         {built.zones.map((z, i) => <option key={z.name} value={i}>{z.name}</option>)}
       </select>
       <select className={selCls} data-testid="em-map-layer" value={layer} onChange={(e) => setLayer(e.target.value)}>
-        {LAYERS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
+        {LAYERS.filter((l) => !l.key.endsWith('_var') || built.zones[zoneIdx]?.variance?.[l.key.slice(0, -4)]).map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}
       </select>
       {layer === 'blocks' && !built.labels && <span className="text-[11px] text-slate-500">no fault polygons — single block</span>}
+      {layer.endsWith('_var') && <span className="text-[11px] text-slate-500" data-testid="em-map-variance-note">low near the wells, high where the property is guessed</span>}
     </div>
   );
 

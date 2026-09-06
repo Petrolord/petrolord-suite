@@ -207,3 +207,31 @@ describe('EM2: derived horizons', () => {
     expect(() => makeDerivedEntry({ kind: 'cubic', sourceId: 'a' }, rows)).toThrow(/Unknown/);
   });
 });
+
+
+describe('EM4: property population by ordinary kriging', () => {
+  test('okrige populates from the zone control points with a fitted variogram and a variance grid; the legacy simple kriging still runs', async () => {
+    const backend = makeInMemoryBackend();
+    const wells = await backend.listWells();
+    const surfaces = await backend.listSurfaces();
+    const byName = Object.fromEntries(surfaces.map((s) => [s.name, s]));
+    const base = {
+      ...emptyDefinition(),
+      surfaceIds: [byName.TopA.id, byName.TopB.id],
+      topNames: ['TopA', 'TopB'],
+      zones: [{ name: 'Zone A', registryZone: 'A' }],
+      methods: { phi: 'okrige', sw: 'krige', ntg: 'constant' },
+    };
+    const built = await buildModel(base, wells, surfaces, backend);
+    const z = built.zones[0];
+    expect(z.provenance.phi[0].methodUsed).toBe('okrige');
+    expect(z.provenance.phi[0].variogram.fitted).toBe(true);
+    expect(z.variance.phi).toBeInstanceOf(Float64Array);
+    expect(z.variance.sw).toBeUndefined();
+    expect(z.provenance.sw[0].methodUsed).toBe('krige');
+    const live = Array.from(z.props.phi).filter((v) => !isNull(v));
+    expect(live.length).toBe(built.spec.nx * built.spec.ny);
+    expect(Math.min(...live)).toBeGreaterThan(0.1);
+    expect(Math.max(...live)).toBeLessThan(0.5);
+  });
+});

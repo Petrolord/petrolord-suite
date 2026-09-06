@@ -256,3 +256,18 @@ test('EM3: a section line drawn on the map cuts the model, projects the wells wi
   expect((await dl).suggestedFilename()).toMatch(/section\.png$/);
   await expect(page.getByTestId('em-status')).toContainText('Section exported as PNG');
 });
+
+test('EM4: ordinary kriging with a fitted variogram populates porosity and offers its variance map', async ({ page }) => {
+  await stackAndBuild(page);
+  await page.getByTestId('em-method-phi').selectOption('okrige');
+  await expect(page.getByTestId('em-vg-fit')).toBeChecked();
+  await page.getByTestId('em-vg-model').selectOption('gaussian');
+  await page.getByTestId('em-build').click();
+  await expect(page.getByTestId('em-status')).toContainText('Built');
+  await page.getByTestId('em-map-layer').selectOption('phi_var');
+  await expect(page.getByTestId('em-map-variance-note')).toBeVisible();
+  await expect(page.getByTestId('em-map-canvas')).toBeVisible();
+  await page.getByTestId('em-view-qc').click();
+  await expect(page.getByTestId('em-prov-zone-1-phi')).toContainText('okrige(4w) gaussian');
+  await expect(page.getByTestId('em-prov-zone-1-phi')).toContainText('fitted');
+});

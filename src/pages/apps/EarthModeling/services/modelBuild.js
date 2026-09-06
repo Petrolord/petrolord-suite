@@ -8,6 +8,7 @@
 import { resampleStack, clampStack, zoneThickness } from '../engine/framework';
 import { adjustSurfaces, defaultRadius } from '../engine/adjust';
 import { computeDerivedGrid, allSurfaceRows } from './derivedSurfaces';
+import { populateZonePropertyOk } from './propertyKriging';
 import { labelBlocks, blockCensus, pointInPolygon, validatePolygon } from '../engine/blocks';
 import { wellTies, zoneControlPoints } from '../engine/wellties';
 import { populateZoneProperty } from '../engine/properties';
@@ -19,7 +20,13 @@ import { maskOutsidePolygon } from '@/lib/gridding/gridmath';
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
 
-export const DEFAULT_KRIGE = { model: 'spherical', range: 900, sill: 0.0025, nugget: 0.00025 };
+export const DEFAULT_KRIGE = { model: 'spherical', range: 900, sill: 0.0025, nugget: 0.00025, fit: true, detrend: true };
+export const POPULATION_METHODS = Object.freeze([
+  { key: 'constant', label: 'constant (weighted mean)' },
+  { key: 'trend', label: 'trend (LSQ plane)' },
+  { key: 'okrige', label: 'ordinary kriging (fitted variogram)' },
+  { key: 'krige', label: 'simple kriging (typed variogram, legacy)' },
+]);
 
 /** A fresh, empty model definition. */
 export const emptyDefinition = () => ({
@@ -159,6 +166,7 @@ export async function buildModel(definition, wells, surfaces, backend) {
   const zones = (definition.zones || []).map((zdef, i) => {
     const thickness = framework.thickness[i];
     const props = {};
+    const variance = {};
     const provenance = {};
     for (const [prop, key] of Object.entries(PROP_KEYS)) {
       const base = zoneControlPoints(eWells, zdef.registryZone);
@@ -178,12 +186,16 @@ export async function buildModel(definition, wells, surfaces, backend) {
         (byBlock[lab] = byBlock[lab] || []).push(p);
       }
       const method = definition.methods?.[prop] || 'constant';
-      const out = populateZoneProperty(spec, labels, byBlock, all, method, definition.krige || DEFAULT_KRIGE);
+      // EM4: ordinary kriging with a fitted variogram and a variance grid
+      const out = method === 'okrige'
+        ? populateZonePropertyOk(spec, labels, byBlock, all, definition.krige || DEFAULT_KRIGE)
+        : populateZoneProperty(spec, labels, byBlock, all, method, definition.krige || DEFAULT_KRIGE);
       props[prop] = out.z;
+      if (out.variance) variance[prop] = out.variance;
       provenance[prop] = out.provenance;
     }
     const volumes = zoneVolumes(spec, thickness, labels, props);
-    return { name: zdef.name, registryZone: zdef.registryZone, thickness, props, provenance, volumes };
+    return { name: zdef.name, registryZone: zdef.registryZone, thickness, props, variance, provenance, volumes };
   });
 
   return { spec, crs, ...framework, labels, census, ties, zones, boundary, adjustment };
