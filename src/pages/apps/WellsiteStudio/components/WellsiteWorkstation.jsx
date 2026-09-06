@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine } from 'lucide-react';
+import { Activity, Settings, HelpCircle, Loader2, Plus, HardHat, PenLine, ListOrdered } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,11 +21,14 @@ import LiveWellView from './LiveWellView';
 import ConfigView from './ConfigView';
 import DescribeView from './DescribeView';
 import { DESCRIPTION_SUBTYPE } from '../services/describe';
+import TimelineView from './TimelineView';
+import { eventsFromRecords, startEventParams } from '../services/events';
 import WellSetup from './WellSetup';
 
 export const VIEWS = [
   { id: 'live', label: 'Live', icon: Activity },
   { id: 'describe', label: 'Describe', icon: PenLine },
+  { id: 'timeline', label: 'Timeline', icon: ListOrdered },
   { id: 'config', label: 'Config', icon: Settings },
 ];
 
@@ -38,6 +41,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const [pumpEvents, setPumpEvents] = useState([]);
   const [rigConfig, setRigConfig] = useState(null);
   const [descriptions, setDescriptions] = useState([]);
+  const [eventRecords, setEventRecords] = useState([]);
   const [sync, setSync] = useState({ state: 'offline', pending: 0, online: false });
   const [status, setStatus] = useState('Ready.');
   const [loading, setLoading] = useState(0);
@@ -80,13 +84,15 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   useEffect(() => { if (!selectedId && wells && wells.length) setSelectedId(wells[0].id); }, [wells, selectedId]);
 
   const refreshWellData = useCallback(async () => {
-    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); return; }
-    const [bits, pumps, cfg, descs] = await Promise.all([
+    if (!well) { setBitDepths([]); setPumpEvents([]); setRigConfig(null); setDescriptions([]); setEventRecords([]); return; }
+    const [bits, pumps, cfg, descs, evs] = await Promise.all([
       backend.listRecords(well.id, { subtype: 'bit_depth' }),
       backend.listRecords(well.id, { subtype: 'pump_rate' }),
       backend.latestRecord(well.id, 'rig_config'),
       backend.listRecords(well.id, { subtype: DESCRIPTION_SUBTYPE }),
+      backend.listRecords(well.id, { kind: 'event' }),
     ]);
+    setEventRecords(evs);
     setBitDepths(currentObservations(bits));
     setPumpEvents(currentObservations(pumps));
     setDescriptions(currentObservations(descs).sort((a, b) => (a.md_calc_m ?? 0) - (b.md_calc_m ?? 0)));
@@ -98,6 +104,24 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   useEffect(() => { const id = setInterval(() => setTick((t) => t + 1), 30000); return () => clearInterval(id); }, []);
 
   const ctx = useMemo(() => (well ? wellContext(well) : null), [well]);
+  const events = useMemo(() => eventsFromRecords(eventRecords), [eventRecords]);
+  const startEvent = useCallback(async ({ type, label = null, note = null }) => {
+    if (!well) return;
+    try {
+      const bit = bitDepths[bitDepths.length - 1] || null;
+      const { row } = await backend.addRecord(well.id, startEventParams({ type, label, note, bit }));
+      setStatus(`${row.payload.label} started at ${toRigLocal(Date.parse(row.occurred_at), offsetMinOf(well)).hhmm}${bit ? ` at ${fmtDepth(bit.md_calc_m, units.depth)}` : ''}.`);
+      setTick((t) => t + 1);
+    } catch (e) { setStatus(e.message); }
+  }, [backend, well, bitDepths, units.depth]);
+  const endEvent = useCallback(async (ev) => {
+    if (!well) return;
+    try {
+      await backend.addVersion(ev.record, { endedAt: new Date().toISOString(), payload: ev.record.payload, occurredAt: ev.record.occurred_at });
+      setStatus(`${ev.label} ended.`);
+      setTick((t) => t + 1);
+    } catch (e) { setStatus(e.message); }
+  }, [backend, well]);
   const offsetMin = well ? offsetMinOf(well) : 0;
   const latestBit = bitDepths[bitDepths.length - 1] || null;
   const lastPump = pumpEvents[pumpEvents.length - 1] || null;
@@ -155,6 +179,9 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
             className={`w-full text-left px-2 py-1 text-xs rounded ${w.id === selectedId ? 'bg-cyan-500/10 text-cyan-200' : 'text-slate-300 hover:bg-slate-800'}`}>
             {w.name}
             <div className="text-[10px] text-slate-500">{w.header?.field || ''}{w.header?.rig ? `, ${w.header.rig}` : ''}</div>
+            {w.id === selectedId && (
+              <div className="text-[10px] text-slate-500 mt-0.5" data-testid="ws-explorer-counts">{descriptions.length} description(s), {events.length} event(s){events.some((e) => e.duration && e.endUtcMs == null) ? ', one open' : ''}</div>
+            )}
           </button>
         ))}
       </div>
@@ -168,10 +195,12 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     center = <div className="p-4 text-xs text-slate-500" data-testid="ws-need-well">Choose a live well in the explorer.</div>;
   } else if (view === 'describe') {
     center = <DescribeView backend={backend} well={well} ctx={ctx} descriptions={descriptions} defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+  } else if (view === 'timeline') {
+    center = <TimelineView events={events} onStart={startEvent} onEnd={endEvent} tourCfg={tourConfigOf(well)} offsetMin={offsetMin} unit={units.depth} nowMs={nowMs} currentUserName={user ? user.name || user.email : ''} />;
   } else if (view === 'config') {
     center = <ConfigView backend={backend} well={well} rigConfig={rigConfig} canAdmin={isMember} onStatus={setStatus} onSaved={() => { refreshWells(); setTick((t) => t + 1); }} />;
   } else {
-    center = <LiveWellView backend={backend} well={well} ctx={ctx} bitDepths={bitDepths} pumpEvents={pumpEvents} defaults={defaultDepthEntry(well)} offsetMin={offsetMin} unit={units.depth} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+    center = <LiveWellView backend={backend} well={well} ctx={ctx} bitDepths={bitDepths} pumpEvents={pumpEvents} events={events} onStartEvent={startEvent} onEndEvent={endEvent} descriptions={descriptions} defaults={defaultDepthEntry(well)} offsetMin={offsetMin} unit={units.depth} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   }
 
   const statusBar = (

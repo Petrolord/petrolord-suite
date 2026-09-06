@@ -167,3 +167,32 @@ test('WS1: an operator abbreviation profile changes the display and reports its 
   await expect(page.getByTestId('ws-desc-abbrev')).toHaveText('SH (100%): lt gry');
   await expect(page.getByTestId('ws-desc-fallbacks')).toContainText('2 term(s) shown from the Petrolord default');
 });
+
+// ---- WS2: the live workspace and the timeline --------------------------------
+
+test('WS2: a common event starts in one click with time, user and depth; a duration event ends later; the timeline sums it', async ({ page }) => {
+  await openStudio(page);
+  await page.getByTestId('ws-event-connection').click();
+  await expect(page.getByTestId('ws-status')).toHaveText(/Connection started at \d\d:\d\d at 10000 ft\./);
+  await expect(page.getByTestId('ws-live-event')).toHaveText('Connection');
+  await page.getByTestId('ws-event-bottoms_up').click();
+  await expect(page.getByTestId('ws-status')).toHaveText(/Bottoms up started/);
+  await page.getByTestId('ws-event-user_defined').click();
+  await page.getByTestId('ws-event-label').fill('Wiper trip to the shoe');
+  await page.getByTestId('ws-event-label-start').click();
+  await expect(page.getByTestId('ws-event-open-user_defined')).toContainText('Wiper trip to the shoe');
+  await page.getByTestId('ws-event-end-connection').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Connection ended.');
+  await expect(page.getByTestId('ws-live-event')).toHaveText('Wiper trip to the shoe');
+  await page.getByTestId('ws-nav-timeline').click();
+  await expect(page.getByTestId(/^ws-timeline-row-/)).toHaveCount(3);
+  await expect(page.getByTestId('ws-timeline-bytype')).toContainText('Connection 0 min');
+  await expect(page.getByTestId('ws-timeline-row-0')).toHaveAttribute('data-type', 'user_defined');
+  await expect(page.getByTestId('ws-timeline-row-0')).toContainText('open');
+  await page.getByTestId('ws-event-end-user_defined').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Wiper trip to the shoe ended.');
+  await expect(page.getByTestId('ws-explorer-counts')).toContainText('3 event(s)');
+  // the record survives a reload
+  await page.goto('/dev/wellsite-studio');
+  await expect(page.getByTestId('ws-explorer-counts')).toContainText('3 event(s)');
+});
