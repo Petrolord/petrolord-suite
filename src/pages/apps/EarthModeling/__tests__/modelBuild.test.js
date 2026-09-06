@@ -11,6 +11,8 @@ import fs from 'fs';
 import path from 'path';
 import { makeInMemoryBackend } from '../services/inMemoryBackend';
 import { buildModel, emptyDefinition, frameSpec } from '../services/modelBuild';
+import { makeDerivedEntry, allSurfaceRows, describeDerived } from '../services/derivedSurfaces';
+import { isNull } from '@/lib/gridding/gridmath';
 import { FAULT_POLYGON } from '../services/fixture';
 
 const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'earthmodel');
@@ -161,5 +163,47 @@ describe('EM1: well adjustment', () => {
     // a typed radius is honoured
     const r50 = await buildModel({ ...base, adjust: { enabled: true, radiusM: '50' } }, wells, surfaces, backend);
     expect(r50.adjustment.radius).toBe(50);
+  });
+});
+
+
+describe('EM2: derived horizons', () => {
+  test('a parallel horizon at 50 m below TopA makes a zone of exactly 50 m everywhere; proportional sits midway', async () => {
+    const backend = makeInMemoryBackend();
+    const wells = await backend.listWells();
+    const surfaces = await backend.listSurfaces();
+    const byName = Object.fromEntries(surfaces.map((s) => [s.name, s]));
+    const def0 = { ...emptyDefinition(), surfaceIds: [byName.TopA.id], topNames: ['TopA'], zones: [] };
+    const par = makeDerivedEntry({ kind: 'parallel', sourceId: byName.TopA.id, thickness: '164.04199475', name: '' }, allSurfaceRows(surfaces, def0), 'ft');
+    expect(par.thicknessM).toBeCloseTo(50, 6);
+    expect(par.name).toMatch(/TopA \+ 164/);
+    const def = { ...def0, derived: [par], surfaceIds: [byName.TopA.id, par.id], topNames: ['TopA', ''], zones: [{ name: 'Zone A', registryZone: 'A' }] };
+    const built = await buildModel(def, wells, surfaces, backend);
+    const t = built.thickness[0];
+    let live = 0;
+    for (let i = 0; i < t.length; i++) { if (isNull(t[i])) continue; live += 1; expect(Math.abs(t[i] - 50)).toBeLessThan(1e-3); }
+    expect(live).toBe(built.spec.nx * built.spec.ny);
+    expect(built.zones[0].volumes.total.bulk_m3).toBeCloseTo(50 * live * built.spec.dx * built.spec.dy, 0);
+    expect(describeDerived(par, allSurfaceRows(surfaces, def), 'm')).toBe('parallel to TopA at 50.0 m');
+
+    const prop = makeDerivedEntry({ kind: 'proportional', sourceId: byName.TopA.id, baseId: byName.TopB.id, fraction: '0.5' }, surfaces, 'm');
+    const def2 = { ...emptyDefinition(), derived: [prop], surfaceIds: [byName.TopA.id, prop.id, byName.TopB.id], topNames: ['TopA', '', 'TopB'], zones: [{ name: 'upper', registryZone: 'A' }, { name: 'lower', registryZone: 'A' }] };
+    const b2 = await buildModel(def2, wells, surfaces, backend);
+    for (let i = 0; i < b2.thickness[0].length; i++) {
+      if (isNull(b2.thickness[0][i]) || isNull(b2.thickness[1][i])) continue;
+      expect(Math.abs(b2.thickness[0][i] - b2.thickness[1][i])).toBeLessThan(1e-3);
+    }
+    expect(describeDerived(prop, surfaces)).toBe('50% of the way from TopA to TopB');
+  });
+
+  test('the form is validated in plain words', () => {
+    const rows = [{ id: 'a', name: 'A', kind: 'structure' }, { id: 'b', name: 'B', kind: 'structure' }, { id: 'i', name: 'Iso', kind: 'isochore' }];
+    expect(() => makeDerivedEntry({ kind: 'parallel', sourceId: '', thickness: '5' }, rows)).toThrow(/derives from/);
+    expect(() => makeDerivedEntry({ kind: 'parallel', sourceId: 'a', thickness: '' }, rows, 'ft')).toThrow(/thickness in ft/);
+    expect(() => makeDerivedEntry({ kind: 'parallel', sourceId: 'a', isochoreId: 'b' }, rows)).toThrow(/not a thickness/);
+    expect(makeDerivedEntry({ kind: 'parallel', sourceId: 'a', isochoreId: 'i' }, rows).name).toBe('A + Iso');
+    expect(() => makeDerivedEntry({ kind: 'proportional', sourceId: 'a', baseId: 'a', fraction: '0.5' }, rows)).toThrow(/different/);
+    expect(() => makeDerivedEntry({ kind: 'proportional', sourceId: 'a', baseId: 'b', fraction: '1.5' }, rows)).toThrow(/between 0 and 1/);
+    expect(() => makeDerivedEntry({ kind: 'cubic', sourceId: 'a' }, rows)).toThrow(/Unknown/);
   });
 });

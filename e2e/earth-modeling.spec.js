@@ -203,3 +203,21 @@ test('EM1: adjusting the surfaces to the well tops shrinks the residuals and the
   const w2 = Number(await page.getByTestId('em-tie-W2-TopA').textContent());
   expect(Math.abs(w2)).toBeLessThan(1);
 });
+
+test('EM2: a horizon parallel to TopA at 50 m joins the stack and builds a 50 m zone with the closed-form bulk volume', async ({ page }) => {
+  await page.goto('/dev/earth-modeling');
+  await expect(page.getByTestId('em-explorer')).toBeVisible();
+  await page.getByTestId('em-add-TopA').click();
+  await page.getByTestId('em-derived-source').selectOption({ label: 'TopA' });
+  await page.getByTestId('em-derived-thickness').fill('164.042');
+  await page.getByTestId('em-derived-name').fill('TopA plus 50 m');
+  await page.getByTestId('em-derived-add').click();
+  await expect(page.getByTestId('em-status')).toContainText('Added derived horizon TopA plus 50 m (parallel to TopA at 164.0 ft)');
+  await expect(page.getByTestId('em-explorer')).toContainText('TopA plus 50 m');
+  await page.getByTestId('em-build').click();
+  await expect(page.getByTestId('em-status')).toContainText('1 zones');
+  await page.getByTestId('em-view-qc').click();
+  const { dx, dy, nx, ny } = goldens.model_spec;
+  await expect(page.getByTestId('em-vol-zone-1-total-bulk')).toHaveText(fmtM(50 * nx * ny * dx * dy));
+  await expect(page.getByTestId('em-derived-row-TopA plus 50 m')).toBeVisible();
+});

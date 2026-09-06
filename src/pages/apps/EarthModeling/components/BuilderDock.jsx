@@ -4,8 +4,9 @@
 // model save/load. The definition is small persistable state; grids
 // are recomputed, never stored (plan decision 2).
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DERIVED_KINDS, describeDerived } from '../services/derivedSurfaces';
 
 const selCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
 const inCls = selCls;
@@ -16,7 +17,11 @@ export default function BuilderDock({
   definition, onDefinition, surfaces, topNames, zoneNames,
   drawing, pendingCount, onStartDraw, onFinishDraw, onCancelDraw,
   projects, onSaveProject, onLoadProject, boundaries = [],
+  registrySurfaces = null, depthUnit = 'm', onAddDerived, onRemoveDerived,
 }) {
+  // EM2 derived-horizon form (thickness typed in the display unit)
+  const [dv, setDv] = useState({ kind: 'parallel', sourceId: '', thickness: '', isochoreId: '', baseId: '', fraction: '0.5', name: '' });
+  const isochores = (registrySurfaces || surfaces).filter((s) => s.kind === 'isochore');
   const stackRows = definition.surfaceIds.map((id) => surfaces.find((s) => s.id === id)).filter(Boolean);
   const patch = (p) => onDefinition({ ...definition, ...p });
   const patchZone = (i, p) => {
@@ -67,6 +72,46 @@ export default function BuilderDock({
           </div>
         ))}
         {!stackRows.length && <p className="text-[10px] text-slate-600">Stack surfaces first (explorer).</p>}
+
+        <div className={secCls}>Derived horizons (EM2)</div>
+        {(definition.derived || []).map((d) => (
+          <div key={d.id} className="flex items-center gap-1" data-testid={`em-derived-row-${d.name}`}>
+            <span className="truncate flex-1 text-slate-300" title={describeDerived(d, surfaces, depthUnit)}>{d.name}</span>
+            <button type="button" className="px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 hover:text-red-400" title="Remove from the model" onClick={() => onRemoveDerived?.(d.id)}>x</button>
+          </div>
+        ))}
+        <div className="space-y-1 rounded border border-slate-800 p-1.5">
+          <select className={selCls} data-testid="em-derived-kind" value={dv.kind} onChange={(e) => setDv({ ...dv, kind: e.target.value })}>
+            {DERIVED_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
+          </select>
+          <select className={selCls} data-testid="em-derived-source" value={dv.sourceId} title="The surface the horizon derives from" onChange={(e) => setDv({ ...dv, sourceId: e.target.value })}>
+            <option value="">source surface…</option>
+            {surfaces.filter((s) => s.kind === 'structure').map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          {dv.kind === 'parallel' ? (
+            <div className="flex items-center gap-1">
+              <input className={inCls} data-testid="em-derived-thickness" type="number" step="any" value={dv.thickness} placeholder={`thickness ${depthUnit}`}
+                title={`Thickness below the source in ${depthUnit}; negative places the horizon above`} onChange={(e) => setDv({ ...dv, thickness: e.target.value, isochoreId: '' })} />
+              <select className={selCls} data-testid="em-derived-isochore" value={dv.isochoreId} title="Or a thickness (isochore) surface from the registry" onChange={(e) => setDv({ ...dv, isochoreId: e.target.value, thickness: '' })}>
+                <option value="">or isochore…</option>
+                {isochores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <select className={selCls} data-testid="em-derived-base" value={dv.baseId} title="The base surface" onChange={(e) => setDv({ ...dv, baseId: e.target.value })}>
+                <option value="">base surface…</option>
+                {surfaces.filter((s) => s.kind === 'structure').map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <input className={`${inCls} w-16`} data-testid="em-derived-fraction" type="number" step="0.05" min="0.05" max="0.95" value={dv.fraction} title="Fraction of the way from source to base (0.5 = midway)" onChange={(e) => setDv({ ...dv, fraction: e.target.value })} />
+            </div>
+          )}
+          <div className="flex items-center gap-1">
+            <input className={inCls} data-testid="em-derived-name" value={dv.name} placeholder="name (optional)" onChange={(e) => setDv({ ...dv, name: e.target.value })} />
+            <button type="button" data-testid="em-derived-add" className="px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-40"
+              disabled={!dv.sourceId} onClick={() => { onAddDerived?.(dv); setDv({ ...dv, name: '' }); }}>Add</button>
+          </div>
+        </div>
 
         <div className={secCls}>Well adjustment (EM1)</div>
         <label className="flex items-center gap-1 text-slate-400" title="Warp each tied surface through its tie residuals so it passes through the well tops (Franke-Little correction field, zero beyond the radius)">
