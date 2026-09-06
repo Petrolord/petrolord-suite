@@ -14,7 +14,7 @@ eleventh Geoscience tile. Slug `stratigraphy-studio`, route
 | ST0 stratigraphic framework | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #412 merged** | engines #140 (vocabulary, ICS 2023/09 timescale, column tree; 66 tests); Suite branch `feat/st0-stratigraphic-framework`: migration 20260906180000 (geo_strat_units + typed-top columns), stratRegistry.js, typed tops through wellsRegistry, typed markers in Well Correlation and Petrophysics, Type/Unit/Confidence/Age in the Well Data Manager tops tab, the Stratigraphy Studio app (Column editor, Tops typing, Glossary, terminology display option), portability spec + hook, guard test, pentest SQL, e2e |
 | ST1 lithology, core and facies | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #413 merged** | engines #141 (lithology vocabulary, interval arithmetic, LAS 3.0 blocks to intervals; 66 tests, fixture las3_intervals_30); Suite branch `feat/st1-intervals-core-images`: migration 20260906200000 (geo_wells_intervals + geo_wells_core_images), stratRegistry intervals + core photo services, `intervals:<kind>` strip in the shared track layout, Petrophysics facies publish, Well Correlation lithology strip, Well Data Manager Intervals + Core tabs and LAS 3.0 block import, Stratigraphy Studio Intervals + Core views, portability, e2e |
 | ST2 sequence stratigraphy + Wheeler | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #414 merged** | engines #142 (age-depth model, Wheeler cells, stratigraphic stretch, tracts from surfaces; hand-derived three-well golden); Suite branch `feat/st2-sequence-wheeler`: migration 20260906220000 (strat_projects + tops.hiatus_to_ma), CrossSection and the section frame moved to `src/components/wells/section/` with the section state as `useSectionWells`, stretch datum + tract and motif bands + ghost curve in the shared painter, Stratigraphy Studio Section and Wheeler views, hiatus end in Tops typing, systems tracts in the interval editor, e2e |
-| ST3 biozones and ages | not started | |
+| ST3 biozones and ages | **BUILT 2026-09-06, PR open (no migration)** | engines #143 (basin layers from dated tops); Suite branch `feat/st3-biozones-ages`: Ages view (age-depth plot with rates and hiatuses, ICS stage per surface), biozone ranges in the interval editor and biozone datum tops, Send to Basin & Charge Modeling |
 | ST4 stratigraphic maps | not started | |
 | ST5 seismic stratigraphy | not started | |
 
@@ -241,6 +241,47 @@ needs a surface above the MFS (a BSFR or a formation top over a CC); SU,
 MRS and MFS alone give LST and TST, as the plan's wording implied but
 did not say.
 
+## ST3, what shipped
+
+**Engines (petrolord-engines PR #143, merged, subtree 76e04d8).**
+`basinLayers.js`: a Basin & Charge Modeling layer table from a well's
+dated, typed tops and its lithology log: youngest first, Basin's own
+lithology list (sandstone, shale, limestone, salt, coal) with the
+registry classes mapped onto it, deposition ages from the bounding
+surfaces (an unconformity above a layer ends its deposition at the older
+bound of the hiatus), the dominant lithology by thickness from the
+interval log, and every unconformity with a known hiatus as an erosion
+event whose amount is declared unknown. Undated layers keep the Basin
+importer's placeholders and the `agesGuessed` flag. Tested on the
+Wheeler synthetic's W1 with a lithology log.
+
+**No migration.** A biozone datum is a top of type `biozone` with its
+age and confidence, the zonation scheme and zone in `notes`. A biozone
+range is an interval of kind `biozone_interval` with `properties`
+{scheme, age_top_ma, age_base_ma}. A Basin model is a `bf_wells` row
+written through Basin's own backend.
+
+**Ages view** (`AgesView`, `AgeDepthPlot` in `src/components/wells/
+section/`): the selected well's dated surfaces as an age-depth plot with
+the constant rate of each segment written on it and a hiatus bar at every
+dated unconformity; a rates table; the ICS stage of each dated surface
+(`unitAt`); the biozone ranges of the well turned into two typed datum
+tops each ("Biozone datums"); "Send to Basin" builds the model row
+(`src/lib/basinHandoff.js`) and writes it through Basin's backend, with
+the registry well remembered as the model's tie and the problems (unknown
+erosion amounts, placeholder ages) in the status; "Open Basin" link.
+
+**Editors.** Tops typing gains "Scheme / notes" (the biozone scheme and
+zone for `biozone` picks). The shared interval editor gains the biozone
+kind with scheme and age columns; its status names the kind properly
+("1 biozone interval saved").
+
+**Acceptance.** On the harness, KETA-1's plot shows the two rates the
+tests derive by hand (140 m/Ma between Top Marker and Mid Shale, 16 m/Ma
+between Mid Shale and Base Sand) and the 10 to 14 Ma hiatus; a biozone
+range NN12 (5.6 to 8.3 Ma) becomes two dated biozone tops; Send to Basin
+creates "KETA-1 stratigraphy" with 4 layers, 1 dated, 1 erosion event.
+
 ## Deviations from the plan
 
 - The tile is NOT seeded Archived in ST0 (plan section 7 said it would
@@ -265,8 +306,9 @@ did not say.
   Well Data Manager with its six intervals (ST1); the shared section in
   the studio with stretch datum, implied tracts, ghost curve, recorded
   tracts and saved view, and the LST / TST / HST typing with its Wheeler
-  chart (ST2). Regression specs for Well Data Manager, Petrophysics and
-  Well Correlation green.
+  chart (ST2); the Ages view with its rates and hiatus, biozone datums
+  from a range, and the Basin handoff (ST3). Regression specs for Well
+  Data Manager, Petrophysics and Well Correlation green.
 - Live RLS pentest 2026-09-06: all four blocks as expected (see MIGRATIONS.md row), zero residue.
 
 ## Close-out (ST0 acceptance, plan section 7)

@@ -215,3 +215,36 @@ test('ST2: typing SU, MRS and MFS on a well gives LST, TST and HST fills and a W
   await expect(page.getByTestId('strat-wheeler-cell-KETA-1-1')).toContainText('TST');
   await expect(page.getByTestId('strat-wheeler-cell-KETA-1-1')).toHaveAttribute('data-tract', 'TST');
 });
+
+test('ST3: the Ages view shows the two rates and the hiatus, a biozone range becomes datums, Send to Basin builds a model', async ({ page }) => {
+  await openStudio(page);
+  await page.getByTestId('strat-well-KETA-1').click();
+  await page.getByTestId('strat-view-ages').click();
+  await expect(page.getByTestId('strat-ages-view')).toBeVisible();
+  // Top Marker (4 Ma) to Mid Shale (5 Ma): 140 m in 1 Ma; Mid Shale to Base Sand (10 Ma): 80 m in 5 Ma; hiatus 10 to 14
+  await expect(page.getByTestId('strat-agedepth-plot')).toHaveAttribute('data-segments', '2');
+  await expect(page.getByTestId('strat-agedepth-segment-0')).toHaveAttribute('data-rate', '140.000');
+  await expect(page.getByTestId('strat-agedepth-segment-1')).toHaveAttribute('data-rate', '16.000');
+  await expect(page.getByTestId('strat-hiatus-0')).toContainText('10 to 14');
+  await expect(page.getByTestId('strat-stage-Mid Shale')).toContainText('Zanclean');
+  // a biozone range in the Intervals view, then datums from it
+  await page.getByTestId('strat-view-intervals').click();
+  await page.getByTestId('strat-intervals-kind').selectOption('biozone_interval');
+  await page.getByTestId('strat-intervals-add').click();
+  await page.getByTestId('strat-intervals-top-0').fill('1500');
+  await page.getByTestId('strat-intervals-base-0').fill('1560');
+  await page.getByTestId('strat-intervals-code-0').fill('NN12');
+  await page.getByTestId('strat-intervals-scheme-0').fill('NN');
+  await page.getByTestId('strat-intervals-agetop-0').fill('5.6');
+  await page.getByTestId('strat-intervals-agebase-0').fill('8.3');
+  await page.getByTestId('strat-intervals-save').click();
+  await expect(page.getByTestId('strat-status')).toHaveText('1 biozone interval saved on KETA-1.');
+  await page.getByTestId('strat-view-ages').click();
+  await page.getByTestId('strat-biozone-datums').click();
+  await expect(page.getByTestId('strat-status')).toHaveText('2 biozone datums added as typed tops on KETA-1.');
+  await expect(page.getByTestId('strat-stage-NN12 top')).toContainText('biozone');
+  // the handoff
+  await page.getByTestId('strat-send-basin').click();
+  await expect(page.getByTestId('strat-status')).toContainText('Basin model "KETA-1 stratigraphy" created');
+  await expect(page.getByTestId('strat-open-basin')).toHaveAttribute('href', '/dev/basinflow-genesis');
+});
