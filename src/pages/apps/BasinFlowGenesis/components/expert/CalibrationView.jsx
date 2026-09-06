@@ -10,6 +10,7 @@ import { CalibrationCalculator } from '@/pages/apps/BasinFlowGenesis/services/Ca
 import { HeatFlowFitter } from '@/pages/apps/BasinFlowGenesis/services/HeatFlowFitter';
 import { SimulationEngine } from '@/pages/apps/BasinFlowGenesis/services/SimulationEngine';
 import { finalDepthProfile } from '@/pages/apps/BasinFlowGenesis/services/resultsView';
+import { presentDayHeatFlow } from '@/pages/apps/BasinFlowGenesis/services/history';
 import { Save, Download, TrendingUp, FileText, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import ResidualPlot from '../plots/ResidualPlot';
@@ -77,8 +78,14 @@ const CalibrationView = () => {
         };
     }, [modelProfiles, roPoints, bhtPoints]);
 
+    // the slider edits the present-day value; a history is shifted so its
+    // youngest point lands on the slider (the shape is kept)
     const handleParameterChange = (param, value) => {
-        if (param === 'heatFlow') {
+        if (param !== 'heatFlow') return;
+        if (state.heatFlow?.type === 'variable' && state.heatFlow.history?.length) {
+            const shift = value - presentDayHeatFlow(state.heatFlow);
+            dispatch({ type: 'UPDATE_HEAT_FLOW', payload: { value, history: state.heatFlow.history.map((p) => ({ ...p, value: p.value + shift })) } });
+        } else {
             dispatch({ type: 'UPDATE_HEAT_FLOW', payload: { value } });
         }
     };
@@ -194,10 +201,10 @@ const CalibrationView = () => {
                         <div className="space-y-2">
                             <div className="flex justify-between">
                                 <Label className="text-xs text-slate-400">Basal Heat Flow (mW/m²)</Label>
-                                <span className="text-xs font-mono text-indigo-400">{state.heatFlow?.value || 0}</span>
+                                <span className="text-xs font-mono text-indigo-400">{presentDayHeatFlow(state.heatFlow).toFixed(0)}</span>
                             </div>
                             <Slider
-                                value={[state.heatFlow?.value || 60]}
+                                value={[presentDayHeatFlow(state.heatFlow) || 60]}
                                 min={30} max={150} step={1}
                                 onValueChange={(v) => handleParameterChange('heatFlow', v[0])}
                                 onValueCommit={() => runSimulation()}

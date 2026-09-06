@@ -68,3 +68,22 @@ Petrel user meets is the shell around them, and a walk through it on
   engine (the commit passed stratigraphy and heat flow only); erosion
   and the surface temperature were dropped on every save; a canned
   recommendation was shown regardless of the result.
+- **BF1 (2026-09-06), branch `feat/bf1-history-editors`.** Expert
+  mode's Global History dock is real: the heat-flow model is constant
+  or a piecewise history edited as an age/value table with a chart
+  (`components/history/`, helpers in `services/history.js`, tested),
+  the surface temperature is an input, and erosion events are a table
+  (age, metres removed) with problems flagged against the basin age.
+  The unused Subsidence tab and the two "coming in Phase 2" notes are
+  gone. The wizard's Heat Flow step previews the chosen model on the
+  same chart (it read "Chart removed") and its custom erosion has age
+  and amount inputs (it said "not fully implemented" and could only
+  fail validation). Three dead wizard files deleted
+  (HeatFlowTemplateStep, ErosionOptionStep, ReviewStep). The
+  calibration slider edits the present-day value of a history by
+  shifting it. e2e: removing the seeded event gives the golden's
+  no-erosion Ro; a constant 60 mW/m2 gives the constant-Q golden; the
+  surface temperature changes the answer.
+  Found and fixed: the run dialog started a run only from its idle
+  state, so every Simulate after the first showed the stale "Complete"
+  and never recomputed the edited model.

@@ -72,3 +72,37 @@ test('BF0: erosion events and the surface temperature survive a reload (they wer
   // the no-erosion golden differs, so the value above proves the event was applied
   expect(withErosion).not.toBe(REF.final_source_ro_no_erosion.toFixed(3));
 });
+
+test('BF1: Expert mode edits the erosion events and the heat-flow model, and the engine answers with the golden controls', async ({ page }) => {
+  await openExpert(page);
+  // remove the seeded erosion event: the no-erosion control
+  await page.getByTestId('bf-history-tab-erosion').click();
+  await expect(page.getByTestId('bf-erosion-amount-0')).toHaveValue('600');
+  await page.getByTestId('bf-erosion-remove-0').click();
+  await expect(page.getByTestId('bf-erosion-empty')).toBeVisible();
+  await simulate(page);
+  await expect(page.getByTestId('bf-present-ro-source_shale')).toHaveText(REF.final_source_ro_no_erosion.toFixed(3));
+
+  // put the event back and switch the heat flow to a constant 60: the constant-Q control
+  await page.getByTestId('bf-tab-properties').click();
+  await page.getByTestId('bf-history-tab-erosion').click();
+  await page.getByTestId('bf-erosion-add').click();
+  await page.getByTestId('bf-erosion-age-0').fill('10');
+  await page.getByTestId('bf-erosion-amount-0').fill('600');
+  await page.getByTestId('bf-history-tab-thermal').click();
+  await expect(page.getByTestId('bf-heatflow-table')).toBeVisible(); // the seeded history is editable
+  await expect(page.getByTestId('bf-heatflow-q-0')).toHaveValue('80');
+  await page.getByTestId('bf-heatflow-type-constant').click();
+  await page.getByTestId('bf-heatflow-value').fill('60');
+  await expect(page.getByTestId('bf-heatflow-chart')).toBeVisible();
+  await simulate(page);
+  await expect(page.getByTestId('bf-present-ro-source_shale')).toHaveText(REF.final_source_ro_constant_q.toFixed(3));
+
+  // the surface temperature is an input now and it changes the answer
+  await page.getByTestId('bf-tab-properties').click();
+  await page.getByTestId('bf-history-tab-thermal').click();
+  await expect(page.getByTestId('bf-surface-temp')).toHaveValue('15');
+  await page.getByTestId('bf-surface-temp').fill('25');
+  await simulate(page);
+  await expect(page.getByTestId('bf-present-ro-source_shale')).not.toHaveText(REF.final_source_ro_constant_q.toFixed(3));
+});

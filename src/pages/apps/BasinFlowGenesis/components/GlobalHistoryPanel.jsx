@@ -1,15 +1,23 @@
+// Expert-mode global history dock (BF1): the heat-flow model (constant
+// or a piecewise history), the surface temperature and the erosion
+// events, all live state the engine reads. The previous version showed
+// a constant heat-flow field and two "coming in Phase 2" placeholders
+// while the engine already took a history and erosion events.
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { History, Thermometer, TrendingDown, TrendingUp } from 'lucide-react';
+import { History, Thermometer, TrendingUp } from 'lucide-react';
 import { useBasinFlow } from '../contexts/BasinFlowContext';
+import HeatFlowHistoryEditor from './history/HeatFlowHistoryEditor';
+import ErosionEventsEditor from './history/ErosionEventsEditor';
 
 const GlobalHistoryPanel = () => {
-    const { state, dispatch } = useBasinFlow();
-    const { heatFlow } = state;
+    const { state, dispatch, stats } = useBasinFlow();
+    const { heatFlow, erosionEvents, settings } = state;
 
     return (
         <Card className="h-full bg-slate-950 border-l border-slate-800 rounded-none w-full max-w-sm">
@@ -22,58 +30,55 @@ const GlobalHistoryPanel = () => {
             <Tabs defaultValue="thermal" className="h-[calc(100%-50px)] flex flex-col">
                 <div className="px-4 pt-2 bg-slate-900">
                     <TabsList className="w-full justify-start h-8 bg-transparent border-b border-slate-800 rounded-none p-0">
-                        <TabsTrigger value="thermal" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-purple-500 rounded-none h-full px-2">Thermal</TabsTrigger>
-                        <TabsTrigger value="subsidence" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-none h-full px-2">Subsidence</TabsTrigger>
-                        <TabsTrigger value="erosion" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-orange-500 rounded-none h-full px-2">Erosion</TabsTrigger>
+                        <TabsTrigger value="thermal" data-testid="bf-history-tab-thermal" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-purple-500 rounded-none h-full px-3">
+                            <Thermometer className="w-3 h-3 mr-1" /> Thermal
+                        </TabsTrigger>
+                        <TabsTrigger value="erosion" data-testid="bf-history-tab-erosion" className="text-xs data-[state=active]:border-b-2 data-[state=active]:border-orange-500 rounded-none h-full px-3">
+                            <TrendingUp className="w-3 h-3 mr-1" /> Erosion{erosionEvents?.length ? ` (${erosionEvents.length})` : ''}
+                        </TabsTrigger>
                     </TabsList>
                 </div>
 
-                <TabsContent value="thermal" className="flex-1 p-4 mt-0">
-                    <div className="space-y-6">
-                        <div className="space-y-3">
-                            <h3 className="text-xs font-semibold text-slate-300 flex items-center gap-2">
-                                <Thermometer className="w-3 h-3" /> Heat Flow Model
-                            </h3>
-                            <div className="bg-slate-900 p-3 rounded border border-slate-800">
-                                <div className="mb-3">
-                                    <Label className="text-xs text-slate-400">Base Heat Flow (mW/m²)</Label>
-                                    <Input 
-                                        type="number" 
-                                        value={heatFlow.value}
-                                        onChange={(e) => dispatch({ type: 'UPDATE_HEAT_FLOW', payload: { value: parseFloat(e.target.value) } })}
+                <TabsContent value="thermal" className="flex-1 min-h-0 mt-0">
+                    <ScrollArea className="h-full">
+                        <div className="p-4 space-y-5">
+                            <div className="space-y-2">
+                                <h3 className="text-xs font-semibold text-slate-300">Basal heat flow</h3>
+                                <HeatFlowHistoryEditor
+                                    heatFlow={heatFlow}
+                                    maxAge={stats.maxAge}
+                                    onChange={(patch) => dispatch({ type: 'UPDATE_HEAT_FLOW', payload: patch })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <h3 className="text-xs font-semibold text-slate-300">Surface temperature</h3>
+                                <div className="bg-slate-900 p-3 rounded border border-slate-800">
+                                    <Label className="text-xs text-slate-400">Present day and through time (°C)</Label>
+                                    <Input
+                                        type="number"
+                                        step="any"
+                                        data-testid="bf-surface-temp"
+                                        value={settings?.surfaceTemp ?? 20}
+                                        onChange={(e) => dispatch({ type: 'UPDATE_SETTINGS', payload: { surfaceTemp: parseFloat(e.target.value) } })}
                                         className="mt-1 bg-slate-950 h-8"
                                     />
-                                </div>
-                                <div className="text-xs text-slate-500 italic">
-                                    Constant heat flow applied at base of model. Future updates will allow time-variant heat flow.
+                                    <p className="text-[11px] text-slate-500 mt-1">The upper boundary of the heat solution, held constant through the burial history.</p>
                                 </div>
                             </div>
                         </div>
-                        
-                        <div className="space-y-3">
-                            <h3 className="text-xs font-semibold text-slate-300">Surface Temperature</h3>
-                            <div className="bg-slate-900 p-3 rounded border border-slate-800">
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-xs text-slate-400">Present Day:</span>
-                                    <span className="text-xs text-white">20°C</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs text-slate-400">Gradient:</span>
-                                    <span className="text-xs text-white">Auto-calculated</span>
-                                </div>
-                            </div>
+                    </ScrollArea>
+                </TabsContent>
+
+                <TabsContent value="erosion" className="flex-1 min-h-0 mt-0">
+                    <ScrollArea className="h-full">
+                        <div className="p-4">
+                            <ErosionEventsEditor
+                                events={erosionEvents}
+                                maxAge={stats.maxAge}
+                                onChange={(events) => dispatch({ type: 'SET_EROSION_EVENTS', payload: events })}
+                            />
                         </div>
-                    </div>
-                </TabsContent>
-
-                <TabsContent value="subsidence" className="flex-1 p-4 mt-0 text-slate-400 text-sm text-center">
-                    <TrendingDown className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                    <p>Subsidence history controls coming in Phase 2</p>
-                </TabsContent>
-
-                <TabsContent value="erosion" className="flex-1 p-4 mt-0 text-slate-400 text-sm text-center">
-                    <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                    <p>Erosion event manager coming in Phase 2</p>
+                    </ScrollArea>
                 </TabsContent>
             </Tabs>
         </Card>

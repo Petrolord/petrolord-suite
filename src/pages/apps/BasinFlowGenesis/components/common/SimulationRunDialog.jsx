@@ -13,12 +13,12 @@ const SimulationRunDialog = ({ isOpen, onClose, onComplete, onCancel }) => {
 
     const addLog = (msg) => setLogs(prev => [...prev, msg]);
 
-    // Reset state when opened
+    // BF1: every open is a fresh run. The dialog used to start only from
+    // 'idle', so after the first success a second Simulate showed the
+    // stale "Complete" and never recomputed the edited model.
     useEffect(() => {
-        if (isOpen && status === 'idle') {
-            startSimulation();
-        }
-    }, [isOpen]);
+        if (isOpen) startSimulation();
+    }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const startSimulation = async () => {
         setStatus('running');
