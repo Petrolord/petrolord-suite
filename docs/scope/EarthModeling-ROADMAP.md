@@ -91,3 +91,16 @@ e2e) against what a Petrel user expects of a structural framework:
   ties, max residual before and after) and a Before column in the tie
   table; the build status names the surfaces adjusted and the residual
   range. Fixture: the worst tie (W2 TopA, 35.8 m) drops under 0.3 m.
+- **EM2 (2026-09-06), branch `feat/em2-derived-horizons`.** Derived
+  horizons in the definition (`derived: [{id, name, kind, sourceId,
+  thicknessM | isochoreId, baseId, fraction}]`): parallel to a surface
+  at a thickness typed in the display unit (negative places it above)
+  or at a registry isochore, and proportional between two surfaces. A
+  derived horizon is a virtual row (`services/derivedSurfaces.js`,
+  `allSurfaceRows`) the explorer stacks, orders and ties like a registry
+  surface; its grid is computed at build time on the source's frame from
+  the registry grids (engines `derived.js`) and resampled with the
+  stack; publishing a layer built on it works as before. Dock form
+  (`em-derived-*`), status names the recipe, remove drops it from the
+  stack. Fixture: TopA + 50 m gives a 50 m zone and the closed-form
+  bulk volume; midway between TopA and TopB halves the zone.

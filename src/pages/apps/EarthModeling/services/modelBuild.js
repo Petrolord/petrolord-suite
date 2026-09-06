@@ -7,6 +7,7 @@
 
 import { resampleStack, clampStack, zoneThickness } from '../engine/framework';
 import { adjustSurfaces, defaultRadius } from '../engine/adjust';
+import { computeDerivedGrid, allSurfaceRows } from './derivedSurfaces';
 import { labelBlocks, blockCensus, pointInPolygon, validatePolygon } from '../engine/blocks';
 import { wellTies, zoneControlPoints } from '../engine/wellties';
 import { populateZoneProperty } from '../engine/properties';
@@ -34,6 +35,8 @@ export const emptyDefinition = () => ({
   frame: { cellM: '', boundaryId: '' },
   // EM1: well adjustment; radiusM empty = three times the median tie spacing
   adjust: { enabled: false, radiusM: '' },
+  // EM2: derived horizons (parallel-to, proportional) that can join the stack
+  derived: [],
 });
 
 /**
@@ -72,8 +75,10 @@ export const engineWell = (w) => ({
  * @returns {{spec, clamped, counts, thickness, labels, census, ties, zones}}
  */
 export async function buildModel(definition, wells, surfaces, backend) {
+  // registry rows plus the definition's derived horizons (EM2)
+  const rows = allSurfaceRows(surfaces, definition);
   const stack = definition.surfaceIds.map((id) => {
-    const s = surfaces.find((x) => x.id === id);
+    const s = rows.find((x) => x.id === id);
     if (!s) throw new Error('A stacked surface is no longer in the registry — remove it from the stack.');
     return s;
   });
@@ -93,7 +98,15 @@ export async function buildModel(definition, wells, surfaces, backend) {
 
   // Registry surfaces are elevation (negative below datum, m or ft);
   // the engine works in metres positive-down, so convert at the door.
-  const grids = await Promise.all(stack.map(async (s) => surfaceZToDepthDown(s, await backend.downloadSurfaceGrid(s))));
+  // registry depth surfaces convert at the door; isochores are raw
+  // thickness; derived horizons compute from their sources (EM2)
+  const loadDepthDown = async (s) => {
+    const g = await backend.downloadSurfaceGrid(s);
+    return s.kind === 'isochore' ? g : surfaceZToDepthDown(s, g);
+  };
+  const grids = await Promise.all(stack.map(async (s) => (s.derived
+    ? computeDerivedGrid(s.provenance.derived, rows, loadDepthDown)
+    : loadDepthDown(s))));
   // the model frame is the TOP surface's frame, at its cell or the one
   // the definition asks for (EM0)
   const spec = frameSpec(specOf(stack[0]), definition.frame?.cellM);

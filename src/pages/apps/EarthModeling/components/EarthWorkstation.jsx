@@ -19,6 +19,7 @@ import SectionView from './SectionView';
 import QcPanel from './QcPanel';
 import { buildModel, emptyDefinition } from '../services/modelBuild';
 import { DEPTH_UNIT_KEY, VOLUME_UNITS_KEY, VOLUME_UNIT_SETS, readSetting, fmtDepth } from '../services/units';
+import { allSurfaceRows, makeDerivedEntry, describeDerived } from '../services/derivedSurfaces';
 import { toDisplay } from '@/components/wells/depthModes';
 import { validatePolygon } from '../engine/blocks';
 import { surfaceStats } from '@/lib/gridding/gridmath';
@@ -107,6 +108,9 @@ export default function EarthWorkstation({ backend }) {
     for (const w of wells || []) for (const t of w.tops || []) if (!seen.includes(t.name)) seen.push(t.name);
     return seen;
   }, [wells]);
+  // EM2: registry surfaces plus the definition's derived horizons, the
+  // list every stack lookup uses
+  const rows = useMemo(() => allSurfaceRows(surfaces, definition), [surfaces, definition]);
   const zoneNames = useMemo(() => {
     const seen = [];
     for (const w of wells || []) for (const z of w.zones || []) if (!seen.includes(z.name)) seen.push(z.name);
@@ -119,7 +123,7 @@ export default function EarthWorkstation({ backend }) {
     const k = def.surfaceIds.length;
     const tn = def.surfaceIds.map((id, i) => {
       if (def.topNames[i]) return def.topNames[i];
-      const s = surfaces.find((x) => x.id === id);
+      const s = allSurfaceRows(surfaces, def).find((x) => x.id === id);
       return s && topNames.includes(s.name) ? s.name : '';
     });
     const zones = Array.from({ length: Math.max(0, k - 1) }, (_, i) =>
@@ -193,7 +197,24 @@ export default function EarthWorkstation({ backend }) {
   }, [built, layer, zoneIdx]);
 
   const surfaceNames = definition.surfaceIds
-    .map((id) => surfaces.find((s) => s.id === id)?.name || '?');
+    .map((id) => rows.find((s) => s.id === id)?.name || '?');
+  // EM2: derived horizons
+  const addDerived = (form) => {
+    try {
+      const entry = makeDerivedEntry(form, rows, depthUnit);
+      setDef({ ...definition, derived: [...(definition.derived || []), entry], surfaceIds: [...definition.surfaceIds, entry.id] });
+      setStatus(`Added derived horizon ${entry.name} (${describeDerived(entry, rows, depthUnit)}) to the stack. Order it, then Build.`);
+    } catch (e) { setStatus(e.message); }
+  };
+  const removeDerived = (id) => {
+    const i = definition.surfaceIds.indexOf(id);
+    setDef({
+      ...definition,
+      derived: (definition.derived || []).filter((d) => d.id !== id),
+      surfaceIds: definition.surfaceIds.filter((x) => x !== id),
+      topNames: i >= 0 ? definition.topNames.filter((_, ti) => ti !== i) : definition.topNames,
+    });
+  };
   const zoneName = built?.zones?.[zoneIdx]?.name || definition.zones[zoneIdx]?.name || '';
   const layerLabel = LAYERS.find((l) => l.key === layer)?.label || layer;
 
@@ -406,7 +427,7 @@ export default function EarthWorkstation({ backend }) {
       ribbon={ribbon}
       explorer={(
         <ModelExplorer
-          surfaces={surfaces}
+          surfaces={rows}
           wells={wells || []}
           definition={definition}
           onAddSurface={addSurface}
@@ -422,7 +443,11 @@ export default function EarthWorkstation({ backend }) {
         <BuilderDock
           definition={definition}
           onDefinition={setDef}
-          surfaces={surfaces}
+          surfaces={rows}
+          registrySurfaces={surfaces}
+          depthUnit={depthUnit}
+          onAddDerived={addDerived}
+          onRemoveDerived={removeDerived}
           topNames={topNames}
           zoneNames={zoneNames}
           drawing={drawing}
