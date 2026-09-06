@@ -18,7 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { SCHEMES } from '@/lib/stratigraphy/vocabulary';
 import { useScheme } from '@/lib/stratigraphy/scheme';
 import { orderedUnits } from '@/lib/stratigraphy/column';
-import { wellDataManagerHref, appPath, WELL_DATA_MANAGER_ID } from '@/components/wells/appLinks';
+import { wellDataManagerHref, appPath, WELL_DATA_MANAGER_ID, MAPPING_ID, mapTopHref } from '@/components/wells/appLinks';
 import ColumnEditor from './ColumnEditor';
 import TopsTyping from './TopsTyping';
 import Glossary from './Glossary';
@@ -132,6 +132,8 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
   };
 
   const ordered = useMemo(() => orderedUnits(units), [units]);
+  // ST4: a unit maps through the top that names it (the selected well's tops first, else none)
+  const unitTopName = (unitId) => tops.find((t) => t.unit_id === unitId)?.name || null;
 
   const ribbon = (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border-b border-slate-800">
@@ -187,6 +189,9 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
               <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: u.colour || '#94a3b8' }} />
               <span className="truncate">{u.name}</span>
               <span className="text-slate-500">{u.rank}</span>
+              {unitTopName(u.id) && (
+                <Link to={mapTopHref(unitTopName(u.id), [], appPath(MAPPING_ID, appPaths))} className="ml-auto text-cyan-300 hover:text-amber-300 text-[10px]" title={`Map the structure of ${unitTopName(u.id)} in Mapping & Surface Studio`} data-testid={`strat-map-unit-${u.name}`}>map</Link>
+              )}
             </div>
           ))}
         </div>

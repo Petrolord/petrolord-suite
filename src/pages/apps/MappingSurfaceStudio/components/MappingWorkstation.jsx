@@ -38,7 +38,7 @@ import { gridSurface, gridSurfaceBlocked } from '@/lib/gridding/gridding';
 import { krigeSurface } from '@/lib/gridding/kriging';
 import { GRID_METHODS, fitVariogramFromPoints, krigingOptions, describeVariogram } from '../services/krigingPlan';
 import {
-  polygonPayload, blocksForPoints, nodeBlocksFor, ringOf, isPolygonLayer, POLYGON_KINDS,
+  polygonPayload, blocksForPoints, nodeBlocksFor, ringOf, isPolygonLayer, POLYGON_KINDS, POLYGON_KIND_LABEL, STRAT_POLYGON_KINDS,
 } from '../services/polygonTools';
 import { runArithmetic, ARITH_OPS } from '../services/arithmetic';
 import { quickGrv, describeGrv } from '../services/quickGrv';
@@ -47,7 +47,9 @@ import {
   topsToControlPoints, zoneAttrToPoints, specForPoints, surfaceStats, maskOutsidePolygon,
 } from '../engine/surface';
 import { describeGridResult } from '../services/gridStatus';
-import { parseWellsParam, appPath, MAPPING_ID } from '@/components/wells/appLinks';
+import { parseWellsParam, parseNetParam, appPath, MAPPING_ID } from '@/components/wells/appLinks';
+import { thicknessPoints, environmentPoints } from '@/lib/stratigraphy/stratMaps';
+import { resolveEnvironment, resolveLithology } from '@/lib/stratigraphy/lithology';
 import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
 import { consensusTag } from '@/lib/crs/tags';
 import { crsUnit } from '@/lib/crs';
@@ -76,6 +78,8 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   const deepLinkRef = useRef({
     surface: searchParams.get('surface'),
     top: searchParams.get('top'),
+    net: parseNetParam(searchParams.get('net')),           // ST4: ?net=upper|lower&measure=
+    measure: searchParams.get('measure') || 'net',
     wells: parseWellsParam(searchParams.get('wells')),
     done: false,
   });
@@ -261,7 +265,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   useEffect(() => {
     const dl = deepLinkRef.current;
     if (dl.done || !wells) return;
-    if (!dl.surface && !dl.top && !dl.wells.length) { dl.done = true; return; }
+    if (!dl.surface && !dl.top && !dl.net && !dl.wells.length) { dl.done = true; return; }
     dl.done = true;
     if (dl.surface) {
       if (surfaces.some((x) => x.id === dl.surface)) selectSurface(dl.surface);
@@ -269,6 +273,15 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       return;
     }
     const known = dl.wells.filter((id) => wells.some((w) => w.id === id));
+    if (dl.net) {
+      const missing = [dl.net.upper, dl.net.lower].filter((n) => !topNames.includes(n));
+      if (missing.length) { setStatus(`The linked top "${missing[0]}" is on none of your wells.`); return; }
+      const src = { type: 'net', key: dl.measure, measure: ['gross', 'net', 'ratio'].includes(dl.measure) ? dl.measure : 'net', upper: dl.net.upper, lower: dl.net.lower, codes: ['sandstone', 'siltstone', 'conglomerate'] };
+      setSource(src);
+      if (known.length) setLinkedWellIds(known);
+      runGrid({ source: src, wellIds: known, prefix: `Opened on ${dl.net.upper} to ${dl.net.lower} from a link. ` });
+      return;
+    }
     if (dl.top) {
       if (!topNames.includes(dl.top)) { setStatus(`The linked top "${dl.top}" is on none of your wells.`); return; }
       const src = { type: 'top', key: dl.top };
@@ -292,8 +305,15 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
     const src = opts.source || source;
     const sourceWells = opts.wellIds?.length ? (wells || []).filter((w) => opts.wellIds.includes(w.id)) : wells;
     if (src.type === 'top') return topsToControlPoints(sourceWells, src.key, { depthRef, placement: 'borehole' }).points;
+    if (src.type === 'net') return thicknessPoints(sourceWells, src.upper, src.lower, { intervalsByWell: intervalsByWell(sourceWells), measure: src.measure, codes: src.codes }).points;
     return zoneAttrToPoints(sourceWells, src.zoneName || zoneNames[0], src.key);
   };
+  // ST4: each well's interval rows keyed by id (the backends embed them)
+  const intervalsByWell = (list) => Object.fromEntries((list || []).map((w) => [w.id, w.intervals || []]));
+  const environmentRows = useMemo(() => {
+    if (source.type !== 'net' || !source.upper || !source.lower || source.upper === source.lower) return [];
+    try { return environmentPoints(wells || [], source.upper, source.lower, { intervalsByWell: intervalsByWell(wells) }).points; } catch { return []; }
+  }, [source, wells]);
   const fitVariogramFromWells = () => {
     try {
       const pts = [...currentControlPoints(), ...guidePoints.map((gp) => ({ x: gp.x, y: gp.y, z: gp.z }))];
@@ -318,6 +338,12 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
         result = topsToControlPoints(sourceWells, src.key, { depthRef, placement: 'borehole' });
         name = `${src.key} structure`;
         kind = 'structure';
+      } else if (src.type === 'net') {
+        // ST4: thickness between two tops from the lithology log (measured-depth thickness)
+        const r = thicknessPoints(sourceWells, src.upper, src.lower, { intervalsByWell: intervalsByWell(sourceWells), measure: src.measure, codes: src.codes });
+        result = { points: r.points, skipped: r.skipped, extrapolated: 0, depthRef: null };
+        name = `${src.measure === 'gross' ? 'Gross thickness' : src.measure === 'net' ? 'Net sand' : 'Net to gross'} ${src.upper} to ${src.lower}`;
+        kind = src.measure === 'ratio' ? 'attribute' : 'isochore';
       } else {
         const zoneName = src.zoneName || zoneNames[0];
         result = { points: zoneAttrToPoints(sourceWells, zoneName, src.key), skipped: [], extrapolated: 0, depthRef: null };
@@ -367,7 +393,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       // (null tag, amber badge) instead of guessing.
       const contributing = (wells || []).filter((w) => points.some((p) => p.well === w.name));
       const crs = consensusTag(contributing.map((w) => w.crs));
-      const zDomain = kind === 'attribute' ? 'attribute' : 'depth';
+      const zDomain = kind === 'attribute' ? 'attribute' : 'depth';   // an isochore is a length in the depth domain
       const postedNow = Object.fromEntries(points.map((p) => [p.well, { z: p.z, x: p.x, y: p.y }]));
       setShowVariance(false);
       setPreview({
@@ -379,6 +405,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
           control_points: points.length,
           points: points.map((p) => ({ well: p.well, x: p.x, y: p.y, z: p.z, md: p.md ?? null, extrapolated: !!p.extrapolated })),
           depth_ref: result.depthRef, placement: kind === 'structure' ? 'borehole' : null,
+          ...(src.type === 'net' ? { surfaces: [src.upper, src.lower], measure: src.measure, codes: src.codes, thickness_basis: 'md' } : {}),
           skipped: result.skipped, extrapolated: result.extrapolated,
           z_convention: kind === 'structure' ? 'elevation' : 'raw',
           faults: faults.map((f) => ({ id: f.id, name: f.name })),
@@ -594,7 +621,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
     setDrawMode(mode); setPending([]); setGuideAt(null); setPolyName(''); setContourDrag(null);
     setStatus(mode === 'guide' ? 'Click the map where the guide point goes, then type its value.'
       : mode === 'contour' ? 'Press on a contour line, drag it to where it belongs and release. The moved line becomes guide points and the surface re-grids through them.'
-        : `Click the map to place ${mode === 'fault' ? 'fault-block' : 'boundary'} polygon vertices (3 or more), then name it and Save.`);
+        : `Click the map to place ${mode === 'fault' ? 'fault-block' : mode === 'facies' ? 'facies' : mode === 'paleo' ? 'paleogeography' : 'boundary'} polygon vertices (3 or more), then name it${mode === 'facies' ? ' (a lithology name colours it)' : mode === 'paleo' ? ' (an environment name colours it)' : ''} and Save.`);
   };
   const cancelDraw = () => { setDrawMode(null); setPending([]); setGuideAt(null); setContourDrag(null); setStatus('Drawing cancelled.'); };
 
@@ -664,11 +691,14 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
   };
   const savePolygon = async () => {
     try {
-      const kind = drawMode === 'fault' ? POLYGON_KINDS.fault : POLYGON_KINDS.boundary;
+      const kind = drawMode === 'fault' ? POLYGON_KINDS.fault : drawMode === 'facies' ? POLYGON_KINDS.facies : drawMode === 'paleo' ? POLYGON_KINDS.paleo : POLYGON_KINDS.boundary;
+      // ST4: a facies or paleogeography polygon takes the vocabulary colour of its name when the name resolves
+      const named = kind === POLYGON_KINDS.facies ? resolveLithology(polyName) : kind === POLYGON_KINDS.paleo ? resolveEnvironment(polyName) : null;
       const payload = polygonPayload({
         name: polyName, kind, vertices: pending,
         crs: displaySurface?.crs || null, xyUnit: displaySurface?.crs ? crsUnit(displaySurface.crs) : null,
         drawnOn: displaySurface?.id || null,
+        color: named?.colour || null,
       });
       const row = await backend.saveCulture(payload);
       setCultureFeatures((m) => new Map(m).set(row.id, payload.features));
@@ -677,7 +707,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
       setDrawMode(null);
       setPending([]);
       setPolyName('');
-      setStatus(`Saved ${kind === POLYGON_KINDS.fault ? 'fault-block polygon' : 'boundary'} ${row.name} (${payload.provenance.vertices} vertices).`);
+      setStatus(`Saved ${kind === POLYGON_KINDS.fault ? 'fault-block polygon' : POLYGON_KIND_LABEL[kind]} ${row.name} (${payload.provenance.vertices} vertices).`);
     } catch (e) { setStatus(e.message); }
   };
   const addGuide = () => {
@@ -845,6 +875,7 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
           zoneKeys={zoneKeys}
           source={source}
           onSource={setSource}
+          environmentRows={environmentRows}
           depthRef={depthRef}
           onDepthRef={setDepthRef}
           cellM={cellM}
@@ -911,9 +942,21 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
                   <Square className="w-3.5 h-3.5 inline mr-1" />Boundary
                 </button>
               </div>
+            ) : null}
+            {!drawMode ? (
+              <div className="flex gap-1">
+                <button type="button" data-testid="map-draw-facies" disabled={!displayGrid} title="Draw a facies polygon (Stratigraphy ST4): name it after a lithology to colour it"
+                  className="flex-1 px-2 py-1 rounded border border-orange-700/60 text-orange-300 hover:bg-orange-500/10 disabled:opacity-40" onClick={() => startDraw('facies')}>
+                  <Pentagon className="w-3.5 h-3.5 inline mr-1" />Facies
+                </button>
+                <button type="button" data-testid="map-draw-paleo" disabled={!displayGrid} title="Draw a paleogeography polygon (Stratigraphy ST4): name it after an environment to colour it"
+                  className="flex-1 px-2 py-1 rounded border border-sky-700/60 text-sky-300 hover:bg-sky-500/10 disabled:opacity-40" onClick={() => startDraw('paleo')}>
+                  <Pentagon className="w-3.5 h-3.5 inline mr-1" />Paleogeography
+                </button>
+              </div>
             ) : drawMode !== 'guide' ? (
               <div className="space-y-1 rounded border border-amber-700/40 p-1.5" data-testid="map-draw-form">
-                <div className="text-slate-300"><span data-testid="map-draw-count">{pending.length}</span> vertices on the map ({drawMode === 'fault' ? 'fault block' : 'boundary'})</div>
+                <div className="text-slate-300"><span data-testid="map-draw-count">{pending.length}</span> vertices on the map ({drawMode === 'fault' ? 'fault block' : drawMode === 'facies' ? 'facies' : drawMode === 'paleo' ? 'paleogeography' : 'boundary'})</div>
                 <input className={selCls} data-testid="map-polygon-name" placeholder="Polygon name" value={polyName} onChange={(e) => setPolyName(e.target.value)} />
                 <div className="flex gap-1">
                   <button type="button" data-testid="map-polygon-save" disabled={pending.length < 3 || !polyName.trim()}
@@ -930,8 +973,10 @@ export default function MappingWorkstation({ backend, appPaths = {} }) {
                 </button>
                 <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: c.style?.color || '#eab308' }} />
                 <span className="truncate">{c.name}</span>
-                <span className="text-[10px] text-slate-500">{c.kind === POLYGON_KINDS.fault ? 'fault' : 'boundary'}</span>
-                {c.kind === POLYGON_KINDS.fault ? (
+                <span className="text-[10px] text-slate-500">{POLYGON_KIND_LABEL[c.kind] || c.kind}</span>
+                {STRAT_POLYGON_KINDS.includes(c.kind) ? (
+                  <span className="ml-auto text-[10px] text-slate-500" data-testid={`map-facies-legend-${c.name}`}>legend</span>
+                ) : c.kind === POLYGON_KINDS.fault ? (
                   <label className="ml-auto flex items-center gap-1 text-[10px] cursor-pointer" title="Use as a fault block when gridding">
                     <input type="checkbox" data-testid={`map-fault-use-${c.name}`} checked={gridFaultIds.has(c.id)}
                       onChange={(e) => setGridFaultIds((set) => { const n = new Set(set); if (e.target.checked) n.add(c.id); else n.delete(c.id); return n; })} />

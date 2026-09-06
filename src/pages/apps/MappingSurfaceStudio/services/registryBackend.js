@@ -5,6 +5,7 @@
 // surfaces from the new geo_surfaces registry.
 
 import { listWellsWithTops, listZones } from '@/lib/wellsRegistry';
+import { listIntervals } from '@/lib/stratRegistry';
 import {
   listSurfaces, saveSurface, downloadSurfaceGrid, deleteSurface,
   shareSurface, unshareSurface, updateSurface, replaceSurfaceGrid,
@@ -40,6 +41,8 @@ export function makeRegistryBackend() {
       return Promise.all(wells.map(async (w) => ({
         ...w,
         zones: w.is_own || w.organization_id ? await listZones(w.id).catch(() => []) : [],
+        // ST4: lithology and environment intervals for thickness and environment maps
+        intervals: w.is_own || w.organization_id ? await listIntervals(w.id).catch(() => []) : [],
       })));
     },
     listSurfaces,

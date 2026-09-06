@@ -11,6 +11,8 @@
 // passive badge.
 
 import React, { useState } from 'react';
+import { SAND_FAMILY } from '@/lib/stratigraphy/stratMaps';
+import { LITHOLOGIES } from '@/lib/stratigraphy/lithology';
 import {
   Layers, Building2, Lock, Trash2, Grid3x3, Loader2, FileUp, Download, Pencil, RefreshCw, Table2, Share2, ExternalLink,
 } from 'lucide-react';
@@ -160,12 +162,15 @@ function SurfaceRow({
   );
 }
 
+const NET_CODES = LITHOLOGIES.filter((l) => ['sandstone', 'siltstone', 'conglomerate', 'limestone', 'dolomite', 'chalk', 'coal'].includes(l.code));
+
 export default function SurfacesExplorer({
   surfaces, selectedId, onSelect, onDelete, onToggleShare, sharingId,
   topNames, zoneNames = [], zoneKeys, source, onSource,
   depthRef = 'tvdss', onDepthRef, cellM, onCellM, onGrid, gridding,
   gridMethod = 'tps', onGridMethod, variogram, onVariogram, onFitVariogram, variance = null,
   onImport, onExport, onPointsCsv, onRename, onRegrid, replaceId = null, appPaths = {}, wells = [],
+  environmentRows = [],
 }) {
   return (
     <div className="h-full min-h-0 flex flex-col bg-slate-900/60" data-testid="map-explorer">
@@ -176,7 +181,9 @@ export default function SurfacesExplorer({
             const [type, key] = e.target.value.split(':');
             onSource(type === 'top'
               ? { type: 'top', key }
-              : { type: 'zone', zoneName: source.zoneName || zoneNames[0] || '', key });
+              : type === 'net'
+                ? { type: 'net', key, measure: key, upper: source.upper || topNames[0] || '', lower: source.lower || topNames[topNames.length - 1] || '', codes: source.codes || [...SAND_FAMILY] }
+                : { type: 'zone', zoneName: source.zoneName || zoneNames[0] || '', key });
           }}>
           <optgroup label="Structure: top across wells">
             {topNames.map((n) => <option key={`top:${n}`} value={`top:${n}`}>Top: {n}</option>)}
@@ -184,7 +191,50 @@ export default function SurfacesExplorer({
           <optgroup label="Attribute: zone property">
             {zoneKeys.map((k) => <option key={`zone:${k}`} value={`zone:${k}`}>Zone: {k}</option>)}
           </optgroup>
+          <optgroup label="Stratigraphy: between two tops">
+            <option value="net:net">Net sand thickness</option>
+            <option value="net:gross">Gross thickness</option>
+            <option value="net:ratio">Net to gross</option>
+          </optgroup>
         </select>
+        {source.type === 'net' && (
+          <div className="space-y-1 rounded border border-slate-800 p-1.5" data-testid="map-net-form">
+            <div className="flex items-center gap-1">
+              <select className={`${selCls} flex-1`} value={source.upper} data-testid="map-net-upper" title="Upper surface" onChange={(e) => onSource({ ...source, upper: e.target.value })}>
+                {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <span className="text-slate-500">to</span>
+              <select className={`${selCls} flex-1`} value={source.lower} data-testid="map-net-lower" title="Lower surface" onChange={(e) => onSource({ ...source, lower: e.target.value })}>
+                {topNames.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+            {source.measure !== 'gross' && (
+              <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-slate-400" data-testid="map-net-codes" title="Lithologies counted as net">
+                {NET_CODES.map((c) => (
+                  <label key={c.code} className="flex items-center gap-1">
+                    <input type="checkbox" checked={(source.codes || []).includes(c.code)} data-testid={`map-net-code-${c.code}`}
+                      onChange={(e) => onSource({ ...source, codes: e.target.checked ? [...(source.codes || []), c.code] : (source.codes || []).filter((x) => x !== c.code) })} />
+                    {c.name}
+                  </label>
+                ))}
+              </div>
+            )}
+            <div className="text-[10px] text-slate-500">Measured-depth thickness between the two picks; net from each well's lithology log.</div>
+            {environmentRows.length > 0 && (
+              <div className="space-y-0.5" data-testid="map-env-table">
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">Environment between the tops</div>
+                {environmentRows.map((r) => (
+                  <div key={r.well} className="flex items-center gap-1 text-[11px] text-slate-300" data-testid={`map-env-${r.well}`}>
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: r.colour }} />
+                    <span className="w-16 truncate">{r.well}</span>
+                    <span className="text-slate-400 truncate">{r.label}</span>
+                    <span className="ml-auto text-slate-500">{Math.round(r.thickness_m)} m</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {source.type === 'top' && (
           <select className={selCls} value={depthRef} data-testid="map-depth-ref"
             title="Depth reference of the structure map. TVDSS and TVD grid elevations at the borehole position through each well's survey and KB; MD is the raw measured depth."

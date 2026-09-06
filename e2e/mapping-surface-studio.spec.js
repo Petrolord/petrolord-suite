@@ -278,7 +278,7 @@ test('MS4: deep links in, launchers out, help', async ({ page }) => {
   await twt.click({ button: 'right' });
   await expect(page.getByTestId('map-row-open-earth-modeling')).toHaveAttribute('href', /\/dev\/earth-modeling\?surface=surf-\d+/);
   await expect(page.getByTestId('map-row-open-reservoircalc-pro')).toHaveAttribute('href', '/dashboard/apps/geoscience/reservoircalc-pro');
-  await expect(page.getByTestId('map-row-open-seismolord')).toHaveAttribute('href', '/dashboard/apps/geoscience/seismolord');
+  await expect(page.getByTestId('map-row-open-seismolord')).toHaveAttribute('href', '/dev/seismolord-workspace');   // SL0 gave Seismolord a harness path
   await page.keyboard.press('Escape');
   const well = page.locator('[data-testid="map-well-row"][data-well-name="KETA-2"]');
   await well.click({ button: 'right' });
@@ -356,4 +356,40 @@ test('MS5: kriging with a fitted variogram, the variance map, and a rotated Irap
   await page.locator('[data-testid="map-surface-row"][data-surface-name="Tilted grid"]').click();
   await expect(page.getByTestId('map-status')).toContainText('Tilted grid: 12 live nodes');
   await expect(page.getByTestId('map-canvas')).toBeVisible();
+});
+
+test('ST4: net sand between two tops grids and publishes as an isochore; a facies polygon fills; the environment table posts', async ({ page }) => {
+  await page.goto('/dev/mapping-surface-studio');
+  await page.getByTestId('map-source').selectOption('net:net');
+  await expect(page.getByTestId('map-net-form')).toBeVisible();
+  await page.getByTestId('map-net-upper').selectOption('Top Dome');
+  await page.getByTestId('map-net-lower').selectOption('Base Sand');
+  await expect(page.getByTestId('map-net-code-sandstone')).toBeChecked();
+  // the dominant environment between the tops, per well
+  await expect(page.getByTestId('map-env-KETA-1')).toContainText('Shoreface');
+  await expect(page.getByTestId('map-env-KETA-4')).toContainText('Shelf');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Net sand Top Dome to Base Sand');
+  await page.getByTestId('map-publish').click();
+  await expect(page.getByTestId('map-status')).toContainText('Published Net sand Top Dome to Base Sand');
+  const row = page.getByTestId('map-surface-row').filter({ hasText: 'Net sand Top Dome to Base Sand' });
+  await expect(row).toHaveCount(1);
+  await expect(row).toContainText('thick');
+  // a facies polygon named after a lithology takes its colour and shows in the polygon list with the facies kind
+  await page.getByTestId('map-draw-facies').click();
+  const canvas = page.getByTestId('map-canvas');
+  const box = await canvas.boundingBox();
+  for (const [fx, fy] of [[0.3, 0.3], [0.6, 0.3], [0.6, 0.6], [0.3, 0.6]]) await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
+  await expect(page.getByTestId('map-draw-count')).toHaveText('4');
+  await page.getByTestId('map-polygon-name').fill('sandstone');
+  await page.getByTestId('map-polygon-save').click();
+  await expect(page.getByTestId('map-status')).toContainText('Saved facies sandstone (4 vertices)');
+  await expect(page.getByTestId('map-polygon-row-sandstone')).toContainText('facies');
+  await expect(page.getByTestId('map-facies-legend-sandstone')).toBeVisible();
+});
+
+test('ST4: the net deep link grids on arrival', async ({ page }) => {
+  await page.goto('/dev/mapping-surface-studio?net=Top+Dome%7CBase+Sand&measure=gross');
+  await expect(page.getByTestId('map-status')).toContainText('Opened on Top Dome to Base Sand from a link.');
+  await expect(page.getByTestId('map-status')).toContainText('Gross thickness Top Dome to Base Sand');
 });
