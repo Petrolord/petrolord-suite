@@ -67,6 +67,35 @@ export function makeSupabaseTransport() {
       }
       return { geoWell, tops, offsetWells, holeSections, casingPoints: holeSections.filter((h) => h.cased).map((h) => ({ md_m: h.to_md_m, description: h.description || null })), plannedTrajectory, pressureCurves: null, design, loadedFrom: 'registry' };
     },
+    // ---- sync (WS6) ----
+    /** Idempotent batch insert: on conflict (id) do nothing (PostgREST resolution=ignore-duplicates). */
+    async insertRows(table, rows) {
+      const { data, error } = await supabase.from(table).upsert(rows, { onConflict: 'id', ignoreDuplicates: true }).select('id, server_seq');
+      if (error) throw error;
+      const serverSeqById = {};
+      for (const r of data || []) serverSeqById[r.id] = r.server_seq;
+      return { ids: rows.map((r) => r.id), serverSeqById };
+    },
+    async updateWell(id, patch) { return this.updateWsWell(id, patch); },
+    async pullRows(table, wellId, afterSeq, limit = 500) {
+      const { data, error } = await supabase.from(table).select('*').eq('well_id', wellId).gt('server_seq', afterSeq).order('server_seq', { ascending: true }).limit(limit);
+      if (error) throw error;
+      return data || [];
+    },
+    async pullSignoffs(wellId) {
+      const { data, error } = await supabase.from('ws_signoffs').select('*').eq('well_id', wellId);
+      if (error) throw error;
+      return data || [];
+    },
+    async uploadBlob(path, blob, contentType) {
+      const { error } = await supabase.storage.from('wellsite').upload(path, blob, { upsert: true, contentType });
+      if (error) throw error;
+      return { path };
+    },
+    onAuthEvent(cb) {
+      const { data } = supabase.auth.onAuthStateChange((event) => cb(event));
+      return () => { try { data.subscription.unsubscribe(); } catch { /* already gone */ } };
+    },
     async pullWell(id) {
       const { data: well, error } = await supabase.from('ws_wells').select('*').eq('id', id).maybeSingle();
       if (error) throw error;

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
+import { readSnapshot, writeSnapshot, isTransientError } from '@/lib/entitlementCache';
 import { ImpersonationProvider, useImpersonation } from '@/contexts/ImpersonationContext';
 
 const AuthContext = createContext(undefined);
@@ -95,15 +96,21 @@ const AuthProviderContent = ({ children }) => {
         .eq('organization_id', selectedRecord.organization_id);
       const activeApps = (orgApps || []).filter(a => (a.status || '').toLowerCase() === 'active');
 
-      return {
+      const result = {
         modules: [...new Set(activeApps.map(a => a.module_id).filter(Boolean))],
         apps: [...new Set(activeApps.map(a => a.app_id).filter(Boolean))],
         org: selectedRecord.organizations || { id: selectedRecord.organization_id },
         role: selectedRecord.role || null,
         isProfileSetup: true
       };
+      // last-known entitlements for an offline boot (Wellsite Studio WS6)
+      writeSnapshot(userId, result);
+      return result;
     } catch (error) {
       console.error("Error fetching user organization and permissions:", error);
+      // no network (a rig laptop, a tunnel): the last successful answer for this user, marked stale
+      const snap = isTransientError(error) ? readSnapshot(userId) : null;
+      if (snap && snap.data) return { ...snap.data, stale: true, stampedAt: snap.stamp };
       return { modules: [], apps: [], org: null, role: null, isProfileSetup: false };
     }
   }, []);

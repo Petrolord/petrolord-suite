@@ -14,6 +14,7 @@ import { Toaster } from '@/components/ui/sonner';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AdminOrgProvider } from '@/contexts/AdminOrganizationContext';
 import ProtectedAppRoute from '@/components/ProtectedAppRoute';
+import PwaUpdatePrompt from '@/components/pwa/PwaUpdatePrompt';
 import { runAccessDiagnostics } from '@/utils/debugAccess';
 import { SUITE_PERMISSIONS, HSE_PERMISSIONS } from '@/constants/permissions';
 
@@ -314,6 +315,7 @@ function App() {
     <AuthProvider>
       <HSEProvider> 
           <AuthGuard>
+            <PwaUpdatePrompt />
             <ErrorBoundary>
               <ReservoirProvider>
                     <AdminOrgProvider>

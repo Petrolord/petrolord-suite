@@ -45,7 +45,7 @@ describe('DescribeView', () => {
   async function setup() {
     const db = openWellsiteDb(`ws-desc-${n += 1}`);
     const transport = makeFakeTransport({ user: SEED_USER, registryWells: SEED_REGISTRY_WELLS });
-    const backend = makeLocalBackend({ transport, db });
+    const backend = makeLocalBackend({ transport, db, autoSync: false });
     await seedWellsite(backend);
     render(<MemoryRouter><WellsiteWorkstation backend={backend} /></MemoryRouter>);
     await waitFor(() => expect(screen.getByTestId('ws-status-bit')).toHaveTextContent('Bit 10000 ft'));
@@ -85,6 +85,7 @@ describe('DescribeView', () => {
     expect(screen.getByTestId('ws-desc-top-value')).toHaveValue(10010);
     expect(screen.getByTestId('ws-desc-base-value')).toHaveValue(10020);
     // copy previous with Ctrl+D, change one percent pair, the diff names the two fields
+    await waitFor(() => expect(screen.getAllByTestId(/^ws-desc-row-/)).toHaveLength(1));
     fireEvent.keyDown(screen.getByTestId('ws-desc-comp-0-lithology'), { key: 'd', ctrlKey: true });
     await waitFor(() => expect(screen.getByTestId('ws-desc-copied')).toHaveTextContent('0 field(s) changed'));
     expect(screen.getByTestId('ws-desc-comp-0-lithology')).toHaveValue('SST');

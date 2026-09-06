@@ -32,6 +32,9 @@ import PhotosPanel from './PhotosPanel';
 import { SHOW_SUBTYPE } from '../services/shows';
 import { OBSERVATION_CODES } from '../services/observations';
 import TopsView from './TopsView';
+import SyncStatusPill, { useSyncState } from './SyncStatusPill';
+import SyncDrawer from './SyncDrawer';
+import { persistStorage } from '@/lib/wellsite/db';
 import ApproachPanel from './ApproachPanel';
 import { formationBoard, currentPrognosis, canApprove, formationKey } from '../services/tops';
 import { buildPrognosis, editedPrognosis } from '../services/prognosis';
@@ -73,7 +76,9 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const [prognoses, setPrognoses] = useState([]);
   const [members, setMembers] = useState([]);
   const [dockOpen, setDockOpen] = useState(true);
-  const [sync, setSync] = useState({ state: 'offline', pending: 0, online: false });
+  const [dockView, setDockView] = useState('panels'); // panels | sync
+  const [offlineReady, setOfflineReady] = useState(null);
+  const syncState = useSyncState();
   const [status, setStatus] = useState('Ready.');
   const [loading, setLoading] = useState(0);
   const [units, setUnits] = useState(() => readUnits(typeof localStorage !== 'undefined' ? localStorage : null));
@@ -146,9 +151,9 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setPumpEvents(currentObservations(pumps));
     setDescriptions(currentObservations(descs).sort((a, b) => (a.md_calc_m ?? 0) - (b.md_calc_m ?? 0)));
     setRigConfig(cfg ? cfg.payload : null);
-    setSync(await backend.syncStatus(well.id));
   }, [backend, well]);
   useEffect(() => { refreshWellData(); }, [refreshWellData, tick]);
+  useEffect(() => { if (well && backend.setCurrentWell) backend.setCurrentWell(well.id); }, [backend, well]);
   useEffect(() => backend.subscribeSync(() => setTick((t) => t + 1)), [backend]);
   useEffect(() => { const id = setInterval(() => setTick((t) => t + 1), 30000); return () => clearInterval(id); }, []);
 
@@ -250,6 +255,15 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     setStatus(`Prognosis version ${row.version}: ${name.trim()} added by hand.`);
     setTick((t) => t + 1);
   }, [backend, well, ctx, prognosis]);
+  const keepOffline = useCallback(async () => {
+    try {
+      // fetch this app's lazy chunks so the service worker holds them; the shell itself is precached
+      await Promise.all([import('../WellsiteStudio'), import('./ConfigView'), import('./DescribeView'), import('./SamplesView'), import('./TopsView'), import('./TimelineView'), import('./ShowsView'), import('./ObservationsView'), import('./PhotosPanel')]);
+      const persisted = await persistStorage();
+      setOfflineReady(true);
+      setStatus(persisted ? 'This app is cached for use without a connection and its storage is protected.' : 'This app is cached for use without a connection.');
+    } catch (e) { setOfflineReady(false); setStatus(`Could not cache the app: ${e.message}`); }
+  }, []);
   const startEvent = useCallback(async ({ type, label = null, note = null }) => {
     if (!well) return;
     try {
@@ -301,10 +315,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
             {DEPTH_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </label>
-        <span data-testid="ws-sync-state" data-sync={sync.state} title="Every entry is saved on this device first, then shared when a connection exists"
-          className={`px-2 py-0.5 text-[11px] rounded border ${sync.state === 'offline' ? 'border-amber-500/60 text-amber-300' : sync.pending ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}>
-          {sync.state === 'offline' ? `offline, ${sync.pending} waiting` : sync.pending ? `${sync.pending} to share` : 'shared'}
-        </span>
+        <SyncStatusPill onClick={() => { setDockView('sync'); setDockOpen(true); }} />
         <Link to="/dashboard/apps/geoscience/wellsite-studio/help" data-testid="ws-help" title="Open the Wellsite Studio help guide"
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800">
           <HelpCircle className="w-3.5 h-3.5" /> Help
@@ -330,7 +341,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
             {w.name}
             <div className="text-[10px] text-slate-500">{w.header?.field || ''}{w.header?.rig ? `, ${w.header.rig}` : ''}</div>
             {w.id === selectedId && (
-              <div className="text-[10px] text-slate-500 mt-0.5" data-testid="ws-explorer-counts">{descriptions.length} description(s), {events.length} event(s){events.some((e) => e.duration && e.endUtcMs == null) ? ', one open' : ''}, {shows.length} show(s), {photos.length} photo(s), {topsBoard.rows.filter((r) => r.call).length} top(s) called{topsBoard.conflicts.length ? `, ${topsBoard.conflicts.length} conflict(s)` : ''}</div>
+              <div className="text-[10px] text-slate-500 mt-0.5" data-testid="ws-explorer-counts">{descriptions.length} description(s), {events.length} event(s){events.some((e) => e.duration && e.endUtcMs == null) ? ', one open' : ''}, {shows.length} show(s), {photos.length} photo(s), {topsBoard.rows.filter((r) => r.call).length} top(s) called{Math.max(topsBoard.conflicts.length, syncState.conflicts) ? `, ${Math.max(topsBoard.conflicts.length, syncState.conflicts)} conflict(s)` : ''}</div>
             )}
           </button>
         ))}
@@ -382,12 +393,18 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   return (
     <WorkspaceShell autoSaveId="wellsite.workspace.v2" minWidth={1000} dockDefaultSize={22} dockOpen={dockOpen} onDockOpenChange={setDockOpen}
       ribbon={ribbon} explorer={explorer} center={<ScrollArea className="h-full min-h-0 bg-slate-950">{center}</ScrollArea>} statusBar={statusBar}
-      dock={well ? (
+      dock={(
         <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
-          <LagPanel lag={lag} pumpEvents={pumpEvents} onPump={recordPump} unit={units.depth} offsetMin={offsetMin} nowMs={nowForLag} />
-          <div className="border-t border-slate-800/60" />
-          <ApproachPanel next={topsBoard.next} evidence={approachEvidence} unit={units.depth} offsetMin={offsetMin} onOpenTops={() => setView('tops')} />
+          {dockView === 'sync' ? (
+            <SyncDrawer backend={backend} wellId={well ? well.id : null} offsetMin={offsetMin} onClose={() => setDockView('panels')} onOpenConflicts={() => { setView('tops'); setDockView('panels'); }} onKeepOffline={keepOffline} offlineReady={offlineReady} />
+          ) : well ? (
+            <>
+              <LagPanel lag={lag} pumpEvents={pumpEvents} onPump={recordPump} unit={units.depth} offsetMin={offsetMin} nowMs={nowForLag} />
+              <div className="border-t border-slate-800/60" />
+              <ApproachPanel next={topsBoard.next} evidence={approachEvidence} unit={units.depth} offsetMin={offsetMin} onOpenTops={() => setView('tops')} />
+            </>
+          ) : null}
         </ScrollArea>
-      ) : null} />
+      )} />
   );
 }

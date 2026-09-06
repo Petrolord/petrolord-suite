@@ -29,7 +29,7 @@ let n = 0;
 async function setup() {
   const db = openWellsiteDb(`ws-sp-${n += 1}`);
   const transport = makeFakeTransport({ user: SEED_USER, registryWells: SEED_REGISTRY_WELLS });
-  const backend = makeLocalBackend({ transport, db });
+  const backend = makeLocalBackend({ transport, db, autoSync: false });
   await seedWellsite(backend);
   render(<MemoryRouter><WellsiteWorkstation backend={backend} /></MemoryRouter>);
   await waitFor(() => expect(screen.getByTestId('ws-status-bit')).toHaveTextContent('Bit 10000 ft'));

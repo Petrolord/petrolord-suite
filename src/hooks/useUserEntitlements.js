@@ -1,15 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { isTransientError, usableSnapshot, readSnapshot, writeSnapshot } from '@/lib/entitlementCache';
+import { readOnline } from '@/hooks/useOnlineStatus';
 
-const CACHE_KEY = 'user_entitlements_v1';
+// Per-user cache (Wellsite Studio WS6): the old single global key leaked one user's licence to the next on a
+// shared laptop, and a failed fetch left nothing to fall back on. The snapshot lives in entitlementCache.
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const snapshotKey = (user) => `ent:${user.id}`;
 
 export function useUserEntitlements() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [stale, setStale] = useState(false);
+  const [stampedAt, setStampedAt] = useState(null);
 
   const fetchEntitlements = useCallback(async (force = false) => {
     if (!user) {
@@ -17,23 +23,16 @@ export function useUserEntitlements() {
       return;
     }
 
-    // 1. Check Cache
-    if (!force) {
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          if (Date.now() - parsed.timestamp < CACHE_DURATION) {
-            console.log('Using cached entitlements');
-            setData(parsed.data);
-            setLoading(false);
-            return;
-          }
-        } catch (e) {
-          console.error('Cache parse error', e);
-          localStorage.removeItem(CACHE_KEY);
-        }
-      }
+    // 1. The cache: fresh enough, or the only thing we have while offline
+    const snap = readSnapshot(snapshotKey(user));
+    const fresh = snap && Date.now() - snap.stamp < CACHE_DURATION;
+    if ((!force || !readOnline()) && snap && (fresh || !readOnline())) {
+      setData(snap.data);
+      setStale(!fresh);
+      setStampedAt(snap.stamp);
+      setLoading(false);
+      if (!readOnline()) return;
+      if (!force) return;
     }
 
     setLoading(true);
@@ -45,14 +44,22 @@ export function useUserEntitlements() {
 
       // 3. Cache & Set
       setData(responseData);
-      localStorage.setItem(CACHE_KEY, JSON.stringify({
-        timestamp: Date.now(),
-        data: responseData
-      }));
+      writeSnapshot(snapshotKey(user), responseData);
+      setStale(false);
+      setStampedAt(Date.now());
       setError(null);
     } catch (err) {
       console.error('Failed to fetch entitlements:', err);
-      setError(err);
+      // the network's fault: the last successful answer for this user, marked stale
+      const usable = isTransientError(err) ? usableSnapshot(snapshotKey(user)) : null;
+      if (usable && !usable.expired) {
+        setData(usable.data);
+        setStale(true);
+        setStampedAt(usable.stampedAt);
+        setError(null);
+      } else {
+        setError(err);
+      }
     } finally {
       setLoading(false);
     }
@@ -126,6 +133,8 @@ export function useUserEntitlements() {
     entitlements: data, // raw data
     loading,
     error,
+    stale,        // served from the last-known snapshot because the network failed
+    stampedAt,    // when that snapshot was verified
     refetch: () => fetchEntitlements(true),
     refresh: () => fetchEntitlements(true), // Alias
     hasAccessToApp,

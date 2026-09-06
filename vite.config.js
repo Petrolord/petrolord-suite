@@ -2,6 +2,7 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 import { createLogger, defineConfig } from 'vite';
 import inlineEditPlugin from './plugins/visual-editor/vite-plugin-react-inline-editor.js';
 import editModeDevPlugin from './plugins/visual-editor/vite-plugin-edit-mode.js';
@@ -323,7 +324,43 @@ export default defineConfig({
 	plugins: [
 		...(isDev ? [inlineEditPlugin(), editModeDevPlugin(), iframeRouteRestorationPlugin(), selectionModePlugin()] : []),
 		react(),
-		addTransformIndexHtml
+		addTransformIndexHtml,
+		// Installable PWA (Wellsite Studio WS6, docs/scope/WellsiteStudio-PLAN.md section 4 "Offline boot").
+		// Prompt semantics: a new build never swaps under a user mid-shift. Only the shell is precached;
+		// hashed assets are cached as they are fetched; Supabase is never cached and never falls back to
+		// index.html. Disabled on the dev server so the /dev harnesses and HMR stay as they are.
+		VitePWA({
+			registerType: 'prompt',
+			injectRegister: null,
+			includeAssets: ['favicon.ico', 'favicon.png', 'petrolord-icon.png', 'icons/*.png'],
+			manifest: {
+				name: 'Petrolord Suite',
+				short_name: 'Petrolord',
+				description: 'Petrolord Suite: subsurface, drilling, production and economics applications, with Wellsite Studio for the live well.',
+				start_url: '/',
+				scope: '/',
+				display: 'standalone',
+				background_color: '#020617',
+				theme_color: '#020617',
+				icons: [
+					{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+					{ src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+					{ src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+				],
+			},
+			workbox: {
+				globPatterns: ['index.html', 'assets/index-*.{js,css}', 'icons/*.png', 'favicon.ico', 'favicon.png'],
+				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+				navigateFallback: '/index.html',
+				navigateFallbackDenylist: [/^\/dev\//, /\/rest\/v1\//, /\/auth\/v1\//, /\/storage\/v1\//, /\/functions\/v1\//, /\/realtime\/v1\//],
+				runtimeCaching: [
+					{ urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/assets/'), handler: 'CacheFirst', options: { cacheName: 'suite-assets', expiration: { maxEntries: 600, maxAgeSeconds: 60 * 24 * 3600 } } },
+					{ urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\//, handler: 'StaleWhileRevalidate', options: { cacheName: 'suite-fonts', expiration: { maxEntries: 30, maxAgeSeconds: 180 * 24 * 3600 } } },
+				],
+				cleanupOutdatedCaches: true,
+			},
+			devOptions: { enabled: false },
+		}),
 	],
 	server: {
 		cors: true,

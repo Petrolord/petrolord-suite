@@ -23,7 +23,7 @@ let n = 0;
 async function setup(user = SEED_USER) {
   const db = openWellsiteDb(`ws-tops-${n += 1}`);
   const transport = makeFakeTransport({ user, registryWells: SEED_REGISTRY_WELLS });
-  const backend = makeLocalBackend({ transport, db });
+  const backend = makeLocalBackend({ transport, db, autoSync: false });
   const well = await seedWellsite(backend);
   render(<MemoryRouter><WellsiteWorkstation backend={backend} /></MemoryRouter>);
   await waitFor(() => expect(screen.getByTestId('ws-status-bit')).toHaveTextContent('Bit 10000 ft'));
@@ -88,7 +88,7 @@ test('a competing office version is a conflict; a non-approver only sees it; the
   // seed as the administrator, then look at it as a wellsite geologist member
   const db = openWellsiteDb(`ws-tops-conf-${n += 1}`);
   const transport = makeFakeTransport({ user: SEED_USER, registryWells: SEED_REGISTRY_WELLS });
-  const backend = makeLocalBackend({ transport, db });
+  const backend = makeLocalBackend({ transport, db, autoSync: false });
   const well = await seedWellsite(backend);
   await backend.addTop(well.id, { role: 'official', status: 'preliminary', name: 'Top Agbada', formationKey: 'top_agbada', basis: 'rig pick', depth: { value: 10168, unit: 'ft', reference: 'MD', datum: 'RT', kind: 'logged' } });
   const branch = await seedCompetingTop(backend, well);
@@ -96,7 +96,7 @@ test('a competing office version is a conflict; a non-approver only sees it; the
   await db.members.add({ id: 'm-b', well_id: well.id, user_id: 'user-b', role: 'wellsite_geologist', status: 'active' });
   // as the geologist
   const t2 = makeFakeTransport({ user: geologist, registryWells: SEED_REGISTRY_WELLS });
-  const b2 = makeLocalBackend({ transport: t2, db });
+  const b2 = makeLocalBackend({ transport: t2, db, autoSync: false });
   const { unmount } = render(<MemoryRouter><WellsiteWorkstation backend={b2} /></MemoryRouter>);
   await waitFor(() => expect(screen.getByTestId('ws-status-bit')).toHaveTextContent('Bit 10000 ft'));
   fireEvent.click(screen.getByTestId('ws-nav-tops'));

@@ -28,6 +28,8 @@ export default {
     'attributeWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/attributeWorkerFactoryMock.js',
     // same story for the 2D line worker (W5)
     'lineWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/lineWorkerFactoryMock.js',
+    // the PWA register hook is a Vite virtual module (WS6)
+    '^virtual:pwa-register/react$': '<rootDir>/src/__mocks__/pwaRegisterMock.js',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$':
       '<rootDir>/src/__mocks__/fileMock.js',
