@@ -7,7 +7,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Layers, Loader2, PanelRight, BookOpen, ListTree, Tags, Rows as RowsIcon, Image, GitCompare, Hourglass, Clock } from 'lucide-react';
+import { Layers, Loader2, PanelRight, BookOpen, ListTree, Tags, Rows as RowsIcon, Image, GitCompare, Hourglass, Clock, HelpCircle } from 'lucide-react';
 import IntervalsEditor from '@/components/wells/IntervalsEditor';
 import CoreImagesPanel from '@/components/wells/CoreImagesPanel';
 import SectionView from './SectionView';
@@ -158,6 +158,10 @@ export default function StratWorkstation({ backend, appPaths = {} }) {
             {SCHEMES.map((s) => <option key={s} value={s}>{SCHEME_LABEL[s]}</option>)}
           </select>
         </label>
+        <Link to="/dashboard/apps/geoscience/stratigraphy-studio/help" data-testid="strat-help" title="Open the Stratigraphy Studio help guide"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800">
+          <HelpCircle className="w-3.5 h-3.5" /> Help
+        </Link>
         <button type="button" data-testid="strat-toggle-dock" title="Show or hide the legend"
           className={`px-2 py-1 text-xs rounded border ${dockOpen ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400'}`}
           onClick={() => setDockOpen((v) => !v)}>
