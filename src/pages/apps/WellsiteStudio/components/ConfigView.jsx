@@ -9,6 +9,7 @@ import RowGridEditor from '@/components/wells/RowGridEditor';
 import { Button } from '@/components/ui/button';
 import { displacementFromField } from '@/lib/wellsite/pumps';
 import { SAMPLE_STAGE_NAMES, WS_ROLES } from '../services/vocab';
+import { validateProfile, PETROLORD_PROFILE } from '@/lib/wellsite/abbreviations';
 
 const IN = 0.0254;
 const num = (v) => (v === '' || v == null ? NaN : Number(v));
@@ -36,8 +37,14 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
   const [pump, setPump] = useState(() => ({ type: 'triplex', linerIn: '6', strokeIn: '12', rodIn: '0', efficiency: '0.97', ...(rigConfig?.pump ? Object.fromEntries(Object.entries(rigConfig.pump).map(([k, v]) => [k, String(v)])) : {}) }));
   const [settings, setSettings] = useState(() => ({ ...(well.settings || {}) }));
   const [header, setHeader] = useState(() => ({ ...(well.header || {}) }));
+  const [profileText, setProfileText] = useState(() => (well.settings && well.settings.abbreviation_profile ? JSON.stringify(well.settings.abbreviation_profile, null, 2) : ''));
+  const [profileErrors, setProfileErrors] = useState([]);
 
-  useEffect(() => { setSettings({ ...(well.settings || {}) }); setHeader({ ...(well.header || {}) }); }, [well]);
+  // reset the editors only when the well's settings or header actually change (a refresh hands over a
+  // new object with the same content, and must not wipe what the user is typing)
+  const settingsKey = JSON.stringify(well.settings || {});
+  const headerKey = JSON.stringify(well.header || {});
+  useEffect(() => { setSettings(JSON.parse(settingsKey)); setHeader(JSON.parse(headerKey)); }, [settingsKey, headerKey]);
   useEffect(() => {
     if (!rigConfig) return;
     setSections(sectionsToRows(rigConfig.hole_sections)); setBha(bhaToRows(rigConfig.bha));
@@ -68,6 +75,14 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
   const saveSettings = async () => {
     try {
       const s = { ...settings, rig_offset_min: Number(settings.rig_offset_min) || 0, overdue_tolerance_min: Number(settings.overdue_tolerance_min) || 0 };
+      if (profileText.trim()) {
+        let parsed;
+        try { parsed = JSON.parse(profileText); } catch { throw new Error('The abbreviation profile is not valid JSON.'); }
+        const errs = validateProfile(parsed);
+        setProfileErrors(errs);
+        if (errs.length) throw new Error(errs[0]);
+        s.abbreviation_profile = parsed;
+      } else { s.abbreviation_profile = null; setProfileErrors([]); }
       await backend.updateWellSettings(well.id, s);
       await backend.updateWellHeader(well.id, { ...header, gl_elev_m: header.gl_elev_m === '' || header.gl_elev_m == null ? undefined : Number(header.gl_elev_m), rt_offset_m: Number(header.rt_offset_m) || 0 });
       onStatus?.('Well settings saved.');
@@ -151,6 +166,11 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
             <label key={r.code} className="flex items-center gap-1 text-xs text-slate-300"><input type="checkbox" data-testid={`ws-config-approver-${r.code}`} checked={(settings.approver_roles || []).includes(r.code)} onChange={() => toggleRole(r.code)} />{r.name}</label>
           ))}
         </div>
+        <h3 className="text-xs font-semibold text-slate-200 pt-2">Abbreviation profile (operator house style)</h3>
+        <p className="text-[11px] text-slate-400">JSON with `terms` per table over the Petrolord default ({PETROLORD_PROFILE.name}); any term it does not define falls back to the default and the Describe screen says so. Leave empty for the default.</p>
+        <textarea value={profileText} onChange={(e) => setProfileText(e.target.value)} data-testid="ws-config-profile" rows={5} spellCheck={false}
+          className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] font-mono text-slate-100" placeholder='{"id": "acme", "name": "Acme", "terms": {"colourHue": {"grey": "gry"}}, "format": {"percentStyle": "suffix"}}' />
+        {profileErrors.length > 0 && <div className="text-[11px] text-amber-400" data-testid="ws-config-profile-error">{profileErrors[0]}</div>}
         <h3 className="text-xs font-semibold text-slate-200 pt-2">Header</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {[['field', 'Field'], ['operator', 'Operator'], ['rig', 'Rig'], ['country', 'Country']].map(([k, label]) => (
