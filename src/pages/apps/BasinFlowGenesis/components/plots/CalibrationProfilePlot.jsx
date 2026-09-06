@@ -8,7 +8,7 @@ import { CHART_COLORS, CHART_TYPOGRAPHY } from '@/utils/chartTheme';
  * modeled = line through the final-state per-layer values,
  * measured = calibration points.
  */
-const CalibrationProfilePlot = ({ title, xLabel, modeled, measured, color }) => {
+const CalibrationProfilePlot = ({ title, xLabel, modeled, measured, color, depthLabel = 'Depth (m)' }) => {
     const data = [
         ...modeled.map(p => ({ depth: p.depth, modeled: p.value })),
         ...measured.map(p => ({ depth: p.depth, measured: p.value })),
@@ -35,7 +35,7 @@ const CalibrationProfilePlot = ({ title, xLabel, modeled, measured, color }) => 
                             domain={['auto', 'auto']}
                             stroke={CHART_COLORS.axisLine}
                             tick={{ fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize }}
-                            label={{ value: 'Depth (m)', angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }}
+                            label={{ value: depthLabel, angle: -90, position: 'insideLeft', fill: CHART_COLORS.axisLabel, fontSize: 10 }}
                         />
                         <Tooltip contentStyle={{ backgroundColor: CHART_COLORS.tooltipBg, borderColor: CHART_COLORS.tooltipBorder, color: CHART_COLORS.tooltipText }} />
                         <Legend verticalAlign="top" wrapperStyle={{ fontSize: CHART_TYPOGRAPHY.legendFontSize }} />

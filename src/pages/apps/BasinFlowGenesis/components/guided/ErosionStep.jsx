@@ -5,9 +5,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Mountain, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useBasinFlow } from '../../contexts/BasinFlowContext';
+import { depthToDisplay, depthFromDisplay, tidy } from '../../services/units';
 
 const ErosionStep = () => {
     const { wizardData, setWizardData } = useGuidedMode();
+    const { units } = useBasinFlow();
     const custom = wizardData.erosionEvent || { age: 10, amount: 500 };
     const setCustom = (patch) => setWizardData((prev) => ({ ...prev, erosionEvent: { ...(prev.erosionEvent || { age: 10, amount: 500 }), ...patch } }));
 
@@ -51,8 +54,8 @@ const ErosionStep = () => {
                                             <Input type="number" step="any" data-testid="bf-wizard-erosion-age" value={custom.age} onChange={(e) => setCustom({ age: parseFloat(e.target.value) })} className="mt-1 h-8 bg-slate-900" />
                                         </label>
                                         <label className="text-slate-400">
-                                            Section removed (m)
-                                            <Input type="number" step="any" data-testid="bf-wizard-erosion-amount" value={custom.amount} onChange={(e) => setCustom({ amount: parseFloat(e.target.value) })} className="mt-1 h-8 bg-slate-900" />
+                                            Section removed ({units.depth})
+                                            <Input type="number" step="any" data-testid="bf-wizard-erosion-amount" value={tidy(depthToDisplay(custom.amount, units.depth))} onChange={(e) => setCustom({ amount: depthFromDisplay(parseFloat(e.target.value), units.depth) })} className="mt-1 h-8 bg-slate-900" />
                                         </label>
                                     </div>
                                 )}

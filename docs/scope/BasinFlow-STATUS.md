@@ -97,4 +97,8 @@ the wizard a working custom erosion and its preview chart back, and
 fixed the run dialog that never re-ran after its first success. BF2
 gave the Calibration tab its points editor and replaced the mock
 Import with real calibration and tops parsers plus a registry-well
-door for the stratigraphy. BF3 (units, links, help) follows.
+door for the stratigraphy. BF3 added display units (depth in the
+account's unit, temperature C or F) across both modes, the Well data
+and Open in launchers for a registry-tied model, and the help guide at
+`/dashboard/apps/geoscience/basinflow-genesis/help` in place of the
+legacy help sheet. BF0 to BF3 are merged; the series is closed.

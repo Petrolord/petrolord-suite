@@ -41,6 +41,7 @@ export const DEV_APP_PATHS = {
   'rock-physics-studio': '/dev/rock-physics-studio',
   'pore-pressure-studio': '/dev/pore-pressure-studio',
   'earth-modeling': '/dev/earth-modeling',
+  'basinflow-genesis': '/dev/basinflow-genesis',
 };
 
 /** Route of an app, honouring an override map (harness paths). */

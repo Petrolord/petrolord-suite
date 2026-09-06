@@ -1,10 +1,13 @@
-import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { SimulationEngine } from '@/pages/apps/BasinFlowGenesis/services/SimulationEngine';
 import { getThermalProps } from '@/pages/apps/BasinFlowGenesis/services/ThermalPropertiesLibrary';
 import { getCompactionParams } from '@/pages/apps/BasinFlowGenesis/services/CompactionModelLibrary';
 import { useMultiWell } from './MultiWellContext';
 import { useToast } from '@/components/ui/use-toast';
+import { UNITS_KEY, DEPTH_UNITS, readUnits } from '../services/units';
+
+const storage = () => { try { return window.localStorage; } catch { return null; } };
 
 const BasinFlowContext = createContext(null);
 
@@ -164,10 +167,32 @@ function reducer(state, action) {
   }
 }
 
-export const BasinFlowProvider = ({ children }) => {
+export const BasinFlowProvider = ({ children, appPaths = {} }) => {
   const [state, dispatch] = useReducer(reducer, initialState);
-  const { updateWell, state: mwState } = useMultiWell();
+  const { updateWell, state: mwState, backend } = useMultiWell();
   const { toast } = useToast();
+
+  // BF3: display units (depth m|ft, temperature C|F) convert at the UI
+  // edge; the depth default is the account's Geoscience unit until the
+  // user picks one here. Every stored value stays SI.
+  const [units, setUnits] = useState(() => readUnits(storage()));
+  useEffect(() => {
+    let live = true;
+    let chosen = false;
+    try { chosen = !!JSON.parse(storage()?.getItem(UNITS_KEY) || 'null')?.depth; } catch { /* fresh browser */ }
+    if (chosen || !backend?.getDepthUnit) return undefined;
+    backend.getDepthUnit().then((u) => {
+      if (live && DEPTH_UNITS.includes(u)) setUnits((prev) => ({ ...prev, depth: u }));
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [backend]);
+  const setUnit = (key, value) => {
+    setUnits((prev) => {
+      const next = { ...prev, [key]: value };
+      try { storage()?.setItem(UNITS_KEY, JSON.stringify(next)); } catch { /* private mode */ }
+      return next;
+    });
+  };
   
   // Auto-save Debounce Ref
   const saveTimeoutRef = useRef(null);
@@ -242,7 +267,7 @@ export const BasinFlowProvider = ({ children }) => {
   };
 
   return (
-    <BasinFlowContext.Provider value={{ state, dispatch, runSimulation, stats: { totalThickness, maxAge } }}>
+    <BasinFlowContext.Provider value={{ state, dispatch, runSimulation, stats: { totalThickness, maxAge }, units, setUnit, appPaths }}>
       {children}
     </BasinFlowContext.Provider>
   );

@@ -9,12 +9,13 @@
 import React, { useMemo } from 'react';
 import { BasinFlowShell } from './BasinFlowGenesis';
 import { makeInMemoryBackend } from './services/backend';
+import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 
 export default function BasinFlowGenesisHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
     <div className="h-screen w-full overflow-hidden" data-testid="bf-harness">
-      <BasinFlowShell backend={backend} />
+      <BasinFlowShell backend={backend} appPaths={DEV_APP_PATHS} />
     </div>
   );
 }

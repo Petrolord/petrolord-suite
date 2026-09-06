@@ -1,8 +1,11 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, AlertTriangle, Droplet, Flame, TrendingUp } from 'lucide-react';
+import { useBasinFlow } from '../contexts/BasinFlowContext';
+import { fmtTemp, tempSymbol } from '../services/units';
 
 const GuidedResultsSummaryPanel = ({ results }) => {
+    const { units } = useBasinFlow();
     if (!results?.data || !results?.meta) {
         return <div className="h-full flex items-center justify-center text-slate-500">Run a simulation to see the summary.</div>;
     }
@@ -31,7 +34,7 @@ const GuidedResultsSummaryPanel = ({ results }) => {
                             <Flame className="w-8 h-8" />
                         </div>
                         <div>
-                            <div className="text-2xl font-bold text-white">{maxTemp.toFixed(0)}°C</div>
+                            <div className="text-2xl font-bold text-white">{fmtTemp(maxTemp, units.temp, 0)}{tempSymbol(units.temp)}</div>
                             <div className="text-xs text-slate-400">Max Temperature</div>
                         </div>
                     </CardContent>

@@ -16,11 +16,15 @@ import { useToast } from '@/components/ui/use-toast';
 import ResidualPlot from '../plots/ResidualPlot';
 import CalibrationProfilePlot from '../plots/CalibrationProfilePlot';
 import CalibrationPointsEditor from './CalibrationPointsEditor';
+import { depthToDisplay, tempToDisplay, tempDeltaToDisplay, depthLabel, tempLabel, tempSymbol } from '@/pages/apps/BasinFlowGenesis/services/units';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 const CalibrationView = () => {
-    const { state, dispatch, runSimulation } = useBasinFlow();
+    const { state, dispatch, runSimulation, units } = useBasinFlow();
+    const zU = units.depth; const tU = units.temp;
+    const zD = (m) => depthToDisplay(m, zU);
+    const tD = (c) => tempToDisplay(c, tU);
     const { updateWell, state: mwState } = useMultiWell();
     const { toast } = useToast();
 
@@ -143,15 +147,15 @@ const CalibrationView = () => {
     };
 
     const exportToCSV = () => {
-        const headers = "Depth_m,Measured_Ro,Modeled_Ro,Residual_Ro,Measured_Temp_C,Modeled_Temp_C,Residual_Temp_C\n";
+        const headers = `Depth_${zU},Measured_Ro,Modeled_Ro,Residual_Ro,Measured_Temp_${tU},Modeled_Temp_${tU},Residual_Temp_${tU}\n`;
         const roRows = roPoints.map(p => {
             const mod = CalibrationCalculator.interpolateToMeasured(modelProfiles.depths, modelProfiles.ro, [p.depth])[0];
-            return `${p.depth},${p.value},${mod?.toFixed(2)||''},${(p.value-(mod||0)).toFixed(2)},,,`;
+            return `${zD(p.depth).toFixed(2)},${p.value},${mod?.toFixed(2)||''},${(p.value-(mod||0)).toFixed(2)},,,`;
         }).join("\n");
 
         const tempRows = bhtPoints.map(p => {
             const mod = CalibrationCalculator.interpolateToMeasured(modelProfiles.depths, modelProfiles.temp, [p.depth])[0];
-            return `${p.depth},,,${p.value},${mod?.toFixed(1)||''},${(p.value-(mod||0)).toFixed(1)}`;
+            return `${zD(p.depth).toFixed(2)},,,${tD(p.value).toFixed(1)},${Number.isFinite(mod) ? tD(mod).toFixed(1) : ''},${tempDeltaToDisplay(p.value-(mod||0), tU).toFixed(1)}`;
         }).join("\n");
 
         const csvContent = "data:text/csv;charset=utf-8," + headers + roRows + "\n" + tempRows;
@@ -172,12 +176,12 @@ const CalibrationView = () => {
         doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 28);
         doc.text("Statistics:", 14, 35);
         doc.text(`Ro RMS: ${stats.roRMS.toFixed(3)}%`, 20, 40);
-        doc.text(`Temp RMS: ${stats.tempRMS.toFixed(1)}C`, 20, 45);
+        doc.text(`Temp RMS: ${tempDeltaToDisplay(stats.tempRMS, tU).toFixed(1)} ${tU}`, 20, 45);
 
-        const roData = roPoints.map(p => [p.depth, p.value]);
+        const roData = roPoints.map(p => [zD(p.depth).toFixed(1), p.value]);
         doc.autoTable({
             startY: 50,
-            head: [['Depth (m)', 'Measured Ro (%)']],
+            head: [[`Depth (${zU})`, 'Measured Ro (%)']],
             body: roData,
             theme: 'striped'
         });
@@ -190,8 +194,15 @@ const CalibrationView = () => {
         return num.toFixed(digits);
     };
 
-    const modeledRoProfile = modelProfiles.depths.map((d, i) => ({ depth: d, value: modelProfiles.ro[i] }));
-    const modeledTempProfile = modelProfiles.depths.map((d, i) => ({ depth: d, value: modelProfiles.temp[i] }));
+    // plots in the display units (the stats above stay SI)
+    const modeledRoProfile = modelProfiles.depths.map((d, i) => ({ depth: zD(d), value: modelProfiles.ro[i] }));
+    const modeledTempProfile = modelProfiles.depths.map((d, i) => ({ depth: zD(d), value: tD(modelProfiles.temp[i]) }));
+    const roPointsD = roPoints.map((p) => ({ ...p, depth: zD(p.depth) }));
+    const bhtPointsD = bhtPoints.map((p) => ({ ...p, depth: zD(p.depth), value: tD(p.value) }));
+    const residualsD = {
+        ro: stats.residualsRo.map((r) => ({ ...r, depth: zD(r.depth) })),
+        temp: stats.residualsTemp.map((r) => ({ ...r, depth: zD(r.depth), residual: tempDeltaToDisplay(r.residual, tU) })),
+    };
 
     return (
         <div className="h-full grid grid-cols-12 gap-4 p-4 overflow-y-auto">
@@ -228,6 +239,7 @@ const CalibrationView = () => {
                         <CalibrationPointsEditor
                             ro={roPoints}
                             temp={bhtPoints}
+                            units={units}
                             onChange={({ ro, temp }) => dispatch({ type: 'SET_CALIBRATION_DATA', payload: { ro, temp } })}
                         />
                     </CardContent>
@@ -244,7 +256,7 @@ const CalibrationView = () => {
                         <div className="flex justify-between items-center p-2 bg-slate-950 rounded border border-slate-800">
                             <span className="text-xs text-slate-400">Temp RMS Error</span>
                              <span className={`font-mono text-sm ${stats.tempRMS < 5 ? 'text-emerald-400' : 'text-amber-400'}`} data-testid="bf-cal-temp-rms">
-                                {safeFixed(stats.tempRMS, 1)} °C
+                                {safeFixed(tempDeltaToDisplay(stats.tempRMS, tU), 1)} {tempSymbol(tU)}
                             </span>
                         </div>
                          <div className="flex justify-between items-center p-2 bg-slate-950 rounded border border-slate-800">
@@ -272,21 +284,23 @@ const CalibrationView = () => {
                     <CalibrationProfilePlot
                         title="Vitrinite Reflectance vs Depth"
                         xLabel="%Ro"
+                        depthLabel={depthLabel(zU)}
                         modeled={modeledRoProfile}
-                        measured={roPoints}
+                        measured={roPointsD}
                         color="#db2777"
                     />
                     <CalibrationProfilePlot
                         title="Temperature vs Depth"
-                        xLabel="Temperature (°C)"
+                        xLabel={tempLabel(tU)}
+                        depthLabel={depthLabel(zU)}
                         modeled={modeledTempProfile}
-                        measured={bhtPoints}
+                        measured={bhtPointsD}
                         color="#d97706"
                     />
                 </div>
 
                 <div className="h-[250px]">
-                    <ResidualPlot roStats={stats.residualsRo} tempStats={stats.residualsTemp} />
+                    <ResidualPlot roStats={residualsD.ro} tempStats={residualsD.temp} depthLabel={depthLabel(zU)} tempUnit={tempSymbol(tU)} />
                 </div>
             </div>
         </div>

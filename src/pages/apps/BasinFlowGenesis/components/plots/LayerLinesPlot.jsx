@@ -8,13 +8,14 @@ import { alignSeriesByAge, seriesColor } from '../../services/resultsView';
  * Shared per-layer-lines-vs-age plot on the suite white chartTheme.
  * `children` may add extras (e.g. maturity-window ReferenceAreas).
  */
-const LayerLinesPlot = ({ results, field, title, yLabel, yDomain, children }) => {
+const LayerLinesPlot = ({ results, field, title, yLabel, yDomain, children, yConvert = null }) => {
     const { data, meta } = results;
 
     const chartData = useMemo(() => {
         if (!data?.timeSteps?.length || !data[field]) return [];
-        return alignSeriesByAge(data.timeSteps, data[field], meta.layers);
-    }, [data, field, meta]);
+        const pick = yConvert ? (e) => yConvert(e.value) : undefined;
+        return alignSeriesByAge(data.timeSteps, data[field], meta.layers, pick);
+    }, [data, field, meta, yConvert]);
 
     return (
         <div className="w-full h-full min-h-[400px] bg-white rounded-lg border border-slate-300 flex flex-col p-4 relative">

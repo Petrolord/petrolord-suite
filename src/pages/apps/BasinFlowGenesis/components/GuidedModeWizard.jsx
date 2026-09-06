@@ -15,7 +15,10 @@ import { ValidationFeedback } from './common/ValidationFeedback';
 import { ValidationEngine } from '../services/ValidationEngine';
 import SimulationRunDialog from './common/SimulationRunDialog';
 import ResultsDashboard from './ResultsDashboard';
-import HelpCenter from './help/HelpCenter'; // Added
+import UnitsBar from './common/UnitsBar';
+import { Link } from 'react-router-dom';
+import { useBasinFlow } from '../contexts/BasinFlowContext';
+import { appPath } from '@/components/wells/appLinks';
 
 const StepContent = ({ step }) => {
     switch(step) {
@@ -34,7 +37,8 @@ const GuidedModeWizard = () => {
     const [isDndReady, setIsDndReady] = useState(false);
     const [validationStatus, setValidationStatus] = useState({});
     const [showResults, setShowResults] = useState(false);
-    const [isHelpOpen, setIsHelpOpen] = useState(false); // Added help state
+    const { appPaths } = useBasinFlow();
+    const helpHref = `${appPath('basinflow-genesis', appPaths)}/help`;
 
     // Progress calc
     const progressPercentage = ((currentStep - 1) / (totalSteps - 1)) * 100;
@@ -83,10 +87,11 @@ const GuidedModeWizard = () => {
     return (
         <div className="flex flex-col lg:flex-row h-full bg-slate-950 text-slate-200 overflow-hidden relative">
              {/* Help Button Floating or Fixed */}
-            <div className="absolute top-4 right-4 z-50">
-                <Button variant="ghost" size="icon" onClick={() => setIsHelpOpen(true)} className="text-slate-400 hover:text-white bg-slate-900/50 backdrop-blur">
+            <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+                <UnitsBar />
+                <Link to={helpHref} data-testid="bf-wizard-help" title="Open the help guide" className="text-slate-400 hover:text-white bg-slate-900/50 backdrop-blur">
                     <HelpCircle className="w-5 h-5" />
-                </Button>
+                </Link>
             </div>
 
             {/* Sidebar */}
@@ -160,11 +165,6 @@ const GuidedModeWizard = () => {
                 </div>
             </div>
             
-            {/* Help Center Sheet */}
-            <HelpCenter 
-                isOpen={isHelpOpen} 
-                onClose={() => setIsHelpOpen(false)} 
-            />
         </div>
     );
 };

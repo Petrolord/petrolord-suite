@@ -156,3 +156,57 @@ test('BF2: calibration points are typed or imported from a file, tops files and 
   await page.getByTestId('bf-tab-properties').click();
   await expect(page.locator('[data-testid="bf-layer-card"]')).toHaveCount(4);
 });
+
+test('BF3: display units convert the cards, editors, summary and calibration; launchers appear for a tied registry well; the help guide is linked', async ({ page }) => {
+  await openExpert(page);
+  await expect(page.getByTestId('bf-help')).toHaveAttribute('href', '/dev/basinflow-genesis/help');
+  await expect(page.getByTestId('bf-open-wdm')).toHaveCount(0);
+  await expect(page.getByTestId('bf-open-in')).toBeDisabled();
+
+  // feet: the first layer (1600 m) reads 5249.34 ft, the total 15420 ft; Fahrenheit: 15 C reads 59
+  await page.getByTestId('bf-unit-depth').selectOption('ft');
+  await expect(page.getByTestId('bf-layer-thickness').first()).toHaveValue('5249.34');
+  await expect(page.getByTestId('bf-total-thickness')).toHaveText('15420 ft');
+  await page.getByTestId('bf-unit-temp').selectOption('F');
+  await expect(page.getByTestId('bf-surface-temp')).toHaveValue('59');
+  await page.getByTestId('bf-history-tab-erosion').click();
+  await expect(page.getByTestId('bf-erosion-amount-0')).toHaveValue('1968.5');
+
+  // the summary table follows: the golden's present-day values converted
+  await simulate(page);
+  const src = REF.series.source_shale;
+  await expect(page.getByTestId('bf-present-top-source_shale')).toHaveText((lastOf(src.top) / 0.3048).toFixed(0));
+  await expect(page.getByTestId('bf-present-temp-source_shale')).toHaveText((lastOf(src.temp_c) * 1.8 + 32).toFixed(1));
+  await expect(page.getByTestId('bf-present-ro-source_shale')).toHaveText(lastOf(src.ro).toFixed(3)); // Ro has no unit
+
+  // a typed calibration point in feet and Fahrenheit is stored in SI: switch back and read it in metres
+  await page.getByTestId('bf-tab-calibration').click();
+  await page.getByTestId('bf-cal-temp-add').click();
+  await page.getByTestId('bf-cal-temp-depth-0').fill('3280.84');
+  await page.getByTestId('bf-cal-temp-value-0').fill('212');
+  await page.getByTestId('bf-unit-depth').selectOption('m');
+  await page.getByTestId('bf-unit-temp').selectOption('C');
+  await expect(page.getByTestId('bf-cal-temp-depth-0')).toHaveValue('1000');
+  await expect(page.getByTestId('bf-cal-temp-value-0')).toHaveValue('100');
+
+  // tying the model to a registry well brings the launchers
+  await page.getByTestId('bf-tab-import').click();
+  await page.getByTestId('bf-import-tab-registry').click();
+  await page.getByTestId('bf-registry-well').selectOption({ label: 'KETA-1 (4 tops)' });
+  await page.getByTestId('bf-registry-apply').click();
+  await expect(page.getByTestId('bf-open-wdm')).toHaveAttribute('href', '/dev/well-data-manager?well=reg-well-1&tab=tops');
+  await page.getByTestId('bf-open-in').click();
+  await expect(page.getByTestId('bf-open-in-petrophysics-studio')).toHaveAttribute('href', '/dev/petrophysics-studio?well=reg-well-1');
+  await page.keyboard.press('Escape');
+
+  // the units are remembered
+  await page.getByTestId('bf-unit-depth').selectOption('ft');
+  await page.reload();
+  await page.getByTestId('bf-mode-expert').click();
+  await expect(page.getByTestId('bf-unit-depth')).toHaveValue('ft');
+
+  // the guide route is gated like the app
+  await page.goto('/dashboard/apps/geoscience/basinflow-genesis/help');
+  await page.waitForLoadState('networkidle');
+  expect(page.url()).not.toContain('/help');
+});

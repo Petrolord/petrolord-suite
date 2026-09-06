@@ -125,6 +125,7 @@ const EarthModeling = lazy(() => import('@/pages/apps/EarthModeling/EarthModelin
 const EarthModelingHarness = lazy(() => import('@/pages/apps/EarthModeling/EarthModelingHarness'));
 const PorePressureStudioHarness = lazy(() => import('@/pages/apps/PorePressureStudio/PorePressureStudioHarness'));
 const BasinFlowGenesisHarness = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowGenesisHarness'));
+const BasinFlowHelpGuide = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowHelpGuide'));
 const WellDesignHarness = lazy(() => import('@/pages/apps/well-planning/WellDesignHarness'));
 const TorqueDragStudio = lazy(() => import('@/pages/apps/TorqueDragStudio/TorqueDragStudio'));
 const TorqueDragHelpGuide = lazy(() => import('@/pages/apps/TorqueDragStudio/TorqueDragHelpGuide'));
@@ -518,6 +519,7 @@ function App() {
                                 <Route path="apps/geoscience/earth-model-pro" element={<Navigate to="/dashboard/apps/geoscience/earth-modeling" replace />} />
                                 <Route path="apps/geoscience/earth-model-studio/projects" element={<Navigate to="/dashboard/apps/geoscience/earth-modeling" replace />} />
                                 <Route path="apps/geoscience/basinflow-genesis" element={<BasinFlowGenesis />} />
+                                <Route path="apps/geoscience/basinflow-genesis/help" element={<BasinFlowHelpGuide />} />
                                 <Route path="apps/geoscience/seismolord" element={<ProtectedAppRoute appId="seismolord" appName="Seismolord"><Seismolord /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/well-data-manager" element={<ProtectedAppRoute appId="well-data-manager" appName="Well Data Manager"><WellDataManager /></ProtectedAppRoute>} />
 

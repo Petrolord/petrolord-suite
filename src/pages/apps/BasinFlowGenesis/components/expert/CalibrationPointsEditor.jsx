@@ -7,8 +7,9 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
+import { depthToDisplay, depthFromDisplay, tempToDisplay, tempFromDisplay, tidy, tempSymbol } from '../../services/units';
 
-function PointTable({ kind, label, unit, points, onChange, defaults }) {
+function PointTable({ kind, label, unit, points, onChange, defaults, depthUnit, toDisp, fromDisp }) {
   const set = (i, patch) => onChange(points.map((p, k) => (k === i ? { ...p, ...patch } : p)));
   const add = () => onChange([...points, { id: Date.now(), ...defaults }]);
   const remove = (i) => onChange(points.filter((_, k) => k !== i));
@@ -26,7 +27,7 @@ function PointTable({ kind, label, unit, points, onChange, defaults }) {
         <table className="w-full text-xs text-slate-200">
           <thead>
             <tr className="text-slate-500 text-left">
-              <th className="font-normal">Depth (m)</th>
+              <th className="font-normal">Depth ({depthUnit})</th>
               <th className="font-normal">{unit}</th>
               <th />
             </tr>
@@ -34,8 +35,8 @@ function PointTable({ kind, label, unit, points, onChange, defaults }) {
           <tbody>
             {points.map((p, i) => (
               <tr key={p.id ?? i} className="border-t border-slate-800">
-                <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-depth-${i}`} value={p.depth} onChange={(e) => set(i, { depth: parseFloat(e.target.value) })} className="h-7 bg-slate-950 text-xs" /></td>
-                <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-value-${i}`} value={p.value} onChange={(e) => set(i, { value: parseFloat(e.target.value) })} className="h-7 bg-slate-950 text-xs" /></td>
+                <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-depth-${i}`} value={tidy(depthToDisplay(p.depth, depthUnit))} onChange={(e) => set(i, { depth: depthFromDisplay(parseFloat(e.target.value), depthUnit) })} className="h-7 bg-slate-950 text-xs" /></td>
+                <td className="py-0.5 pr-1"><Input type="number" step="any" data-testid={`bf-cal-${kind}-value-${i}`} value={tidy(toDisp(p.value), 3)} onChange={(e) => set(i, { value: fromDisp(parseFloat(e.target.value)) })} className="h-7 bg-slate-950 text-xs" /></td>
                 <td className="py-0.5 text-right"><Button variant="ghost" size="icon" className="h-6 w-6 text-slate-500 hover:text-red-400" data-testid={`bf-cal-${kind}-remove-${i}`} onClick={() => remove(i)}><Trash2 className="w-3 h-3" /></Button></td>
               </tr>
             ))}
@@ -46,11 +47,12 @@ function PointTable({ kind, label, unit, points, onChange, defaults }) {
   );
 }
 
-export default function CalibrationPointsEditor({ ro, temp, onChange }) {
+export default function CalibrationPointsEditor({ ro, temp, onChange, units = { depth: 'm', temp: 'C' } }) {
+  const id = (v) => v;
   return (
     <div className="space-y-3">
-      <PointTable kind="ro" label="Vitrinite reflectance" unit="Ro (%)" points={ro} onChange={(pts) => onChange({ ro: pts, temp })} defaults={{ depth: 2000, value: 0.6 }} />
-      <PointTable kind="temp" label="Temperature (BHT, DST)" unit="T (°C)" points={temp} onChange={(pts) => onChange({ ro, temp: pts })} defaults={{ depth: 2000, value: 80 }} />
+      <PointTable kind="ro" label="Vitrinite reflectance" unit="Ro (%)" points={ro} onChange={(pts) => onChange({ ro: pts, temp })} defaults={{ depth: 2000, value: 0.6 }} depthUnit={units.depth} toDisp={id} fromDisp={id} />
+      <PointTable kind="temp" label="Temperature (BHT, DST)" unit={`T (${tempSymbol(units.temp)})`} points={temp} onChange={(pts) => onChange({ ro, temp: pts })} defaults={{ depth: 2000, value: 80 }} depthUnit={units.depth} toDisp={(v) => tempToDisplay(v, units.temp)} fromDisp={(v) => tempFromDisplay(v, units.temp)} />
     </div>
   );
 }

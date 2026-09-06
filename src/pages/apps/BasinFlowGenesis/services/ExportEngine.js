@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { saveAs } from 'file-saver';
+import { depthToDisplay, tempToDisplay } from './units';
 
 export class ExportEngine {
     /**
@@ -105,10 +106,14 @@ export class ExportEngine {
     /**
      * Generate CSV export of Time-Depth-Temp-Ro data
      */
-    static generateCSV(results) {
+    static generateCSV(results, units = null) {
         if (!results || !results.data) return;
 
-        const headers = ['Age_Ma', 'Layer_ID', 'Layer_Name', 'Depth_Top_m', 'Depth_Bottom_m', 'Temp_C', 'Ro_Percent'];
+        // SI columns always; the display units (BF3) as extra columns when they differ
+        const zU = units?.depth && units.depth !== 'm' ? units.depth : null;
+        const tU = units?.temp && units.temp !== 'C' ? units.temp : null;
+        const headers = ['Age_Ma', 'Layer_ID', 'Layer_Name', 'Depth_Top_m', 'Depth_Bottom_m', 'Temp_C', 'Ro_Percent',
+            ...(zU ? [`Depth_Top_${zU}`, `Depth_Bottom_${zU}`] : []), ...(tU ? [`Temp_${tU}`] : [])];
         const rows = [];
 
         // Layer series start at deposition (shorter than timeSteps) —
@@ -132,7 +137,9 @@ export class ExportEngine {
                         burial.top.toFixed(2),
                         burial.bottom.toFixed(2),
                         temp.value.toFixed(2),
-                        mat.value.toFixed(3)
+                        mat.value.toFixed(3),
+                        ...(zU ? [depthToDisplay(burial.top, zU).toFixed(2), depthToDisplay(burial.bottom, zU).toFixed(2)] : []),
+                        ...(tU ? [tempToDisplay(temp.value, tU).toFixed(2)] : []),
                     ].join(','));
                 }
             });

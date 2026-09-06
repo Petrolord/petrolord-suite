@@ -66,10 +66,10 @@ export const BasinFlowApp = () => {
 
 /** The whole app on a backend (BF0): the page mounts it on bf_wells,
  *  the /dev harness on the in-memory twin. */
-export const BasinFlowShell = ({ backend }) => (
+export const BasinFlowShell = ({ backend, appPaths = {} }) => (
   <ErrorBoundary FallbackComponent={ErrorFallback}>
     <MultiWellProvider backend={backend}>
-      <BasinFlowProvider>
+      <BasinFlowProvider appPaths={appPaths}>
         <BasinFlowApp />
       </BasinFlowProvider>
     </MultiWellProvider>

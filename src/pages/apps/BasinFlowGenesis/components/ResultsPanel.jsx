@@ -10,11 +10,12 @@ import GenerationExpulsionPlot from './plots/GenerationExpulsionPlot';
 import ChargeTimingPlot from './plots/ChargeTimingPlot';
 import ResultsSummaryTab from './ResultsSummaryTab';
 import { useBasinFlow } from '../contexts/BasinFlowContext';
+import { ExportEngine } from '../services/ExportEngine';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 const ResultsPanel = () => {
-    const { state } = useBasinFlow();
+    const { state, units } = useBasinFlow();
     const { results } = state;
     const [activeTab, setActiveTab] = useState('burial');
     const printRef = useRef(null);
@@ -53,7 +54,7 @@ const ResultsPanel = () => {
                     <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleDownloadImage('png')} title="Download PNG">
                         <Camera className="w-3 h-3" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Download Data">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Download the results CSV (SI columns plus the display units)" data-testid="bf-results-csv" onClick={() => ExportEngine.generateCSV(results, units)}>
                         <Download className="w-3 h-3" />
                     </Button>
                 </div>
@@ -73,9 +74,9 @@ const ResultsPanel = () => {
 
                 <div className="flex-1 overflow-y-auto bg-slate-950 p-4 relative w-full" ref={printRef}>
                      <div className="h-full w-full min-h-[400px]">
-                         <TabsContent value="summary" className="h-full m-0"><ResultsSummaryTab results={results} /></TabsContent>
-                         <TabsContent value="burial" className="h-full m-0"><BurialHistoryPlot results={results} /></TabsContent>
-                         <TabsContent value="temperature" className="h-full m-0"><TemperatureHistoryPlot results={results} /></TabsContent>
+                         <TabsContent value="summary" className="h-full m-0"><ResultsSummaryTab results={results} units={units} /></TabsContent>
+                         <TabsContent value="burial" className="h-full m-0"><BurialHistoryPlot results={results} units={units} /></TabsContent>
+                         <TabsContent value="temperature" className="h-full m-0"><TemperatureHistoryPlot results={results} units={units} /></TabsContent>
                          <TabsContent value="maturity" className="h-full m-0"><MaturityPlot results={results} /></TabsContent>
                          <TabsContent value="generation" className="h-full m-0"><GenerationExpulsionPlot results={results} /></TabsContent>
                          <TabsContent value="timing" className="h-full m-0"><ChargeTimingPlot results={results} /></TabsContent>
