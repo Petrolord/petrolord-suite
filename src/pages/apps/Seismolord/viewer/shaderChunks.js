@@ -90,6 +90,32 @@ float sampleBalanced${S}(vec2 t, out bool isNull) {
 export const SAMPLING_GLSL = makeSamplingGlsl('');
 
 /**
+ * Flatten chunk (Stratigraphy ST5): hang every trace on a horizon. The
+ * per-trace offsets (samples, positive = down) sit in a 1-D R32F texture
+ * indexed by trace; a null offset (>= 1e29, an untracked trace) leaves the
+ * trace unshifted. The shift happens in data space BEFORE sampling, so
+ * gain, AGC, interpolation and co-render all see the flattened frame and
+ * nothing is baked into stored data (the playbook rule).
+ *   vec2 flattenT(vec2 t, out bool outside)  t = (sample frac, trace frac)
+ */
+export const FLATTEN_GLSL = `
+uniform sampler2D u_offset;      // R32F per-trace offset in samples, x = trace
+uniform int   u_flattenOn;       // 1 = apply the offsets
+uniform float u_offsetScale;     // 1 / samples per trace
+vec2 flattenT(vec2 t, out bool outside) {
+  outside = false;
+  if (u_flattenOn == 0) return t;
+  int n = textureSize(u_offset, 0).x;
+  int tr = clamp(int(t.y * float(n)), 0, n - 1);
+  float o = texelFetch(u_offset, ivec2(tr, 0), 0).r;
+  if (abs(o) > 1.0e29) return t;
+  float x = t.x - o * u_offsetScale;
+  if (x < 0.0 || x > 1.0) outside = true;
+  return vec2(x, t.y);
+}
+`;
+
+/**
  * Display chunk on top of SAMPLING_GLSL: symmetric clip around zero into
  * the 256x1 LUT (playbook display default).
  *   vec4 shadeAmp(vec2 t)

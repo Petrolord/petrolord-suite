@@ -6,8 +6,7 @@
 import React from 'react';
 import {
   Crosshair, Route, Spline, Ban, Loader2, Pencil, Eraser, Undo2, Save,
-  Wand2, PaintBucket, Ruler, Slash, CheckCheck, Trash2, Waves, Sprout,
-} from 'lucide-react';
+  Wand2, PaintBucket, Ruler, Slash, CheckCheck, Trash2, Waves, Sprout, MapPin } from 'lucide-react';
 import { RibbonGroup, RibbonButton, RibbonSelect } from '../Ribbon';
 import { describeVelocity } from '../../../engine/velocityModel';
 
@@ -34,6 +33,14 @@ const BRUSH_OPTIONS = [
   { radius: 10, label: '21' },
 ];
 
+/** Seismic-stratigraphic terminations (Mitchum et al. 1977): how reflections end against a surface. */
+export const TERMINATION_KINDS = [
+  { key: 'onlap', label: 'Onlap', colour: '#22d3ee' },
+  { key: 'downlap', label: 'Downlap', colour: '#f59e0b' },
+  { key: 'toplap', label: 'Toplap', colour: '#a78bfa' },
+  { key: 'truncation', label: 'Truncation', colour: '#f87171' },
+];
+
 export default function InterpretationTab({
   manifest, orientation, slice,
   pickMode, setPickMode, seedPick, snapMode, setSnapMode, snapWindow, setSnapWindow,
@@ -44,6 +51,7 @@ export default function InterpretationTab({
   smoothEdits, smoothMethod, setSmoothMethod, smoothRadius, setSmoothRadius, fillHoles,
   draftSticks, endStick, saveDraftFault, discardDraft, editingFaultName = null,
   openVelocity, velocityModel, openAttribute,
+  terminations = [], terminationKind = 'onlap', setTerminationKind = null, clearTerminations = null,
 }) {
   const noSection = !manifest || orientation === 'time';
 
@@ -313,6 +321,33 @@ export default function InterpretationTab({
             : 'Not set — depth maps and model-based exports unavailable'}
         />
       </RibbonGroup>
+      {setTerminationKind && (
+        <RibbonGroup label="Terminations">
+          <RibbonSelect
+            label="Kind"
+            testId="sl-term-kind"
+            value={terminationKind}
+            onChange={(e) => setTerminationKind(e.target.value)}
+            disabled={noSection}
+            title="Seismic-stratigraphic termination to mark on the section (Stratigraphy ST5)"
+          >
+            {TERMINATION_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
+          </RibbonSelect>
+          <RibbonButton
+            icon={MapPin}
+            label={pickMode === 'termination' ? 'Marking…' : 'Mark'}
+            active={pickMode === 'termination'}
+            testId="sl-tool-termination"
+            onClick={() => setPickMode((p) => (p === 'termination' ? null : 'termination'))}
+            disabled={noSection}
+            title="Click the section to place a termination marker; Alt+click removes the nearest one. Markers save with the session."
+          />
+          <span className="text-[11px] text-slate-400 self-center" data-testid="sl-term-count">{terminations.length}</span>
+          {terminations.length > 0 && clearTerminations && (
+            <RibbonButton icon={Ban} label="Clear" onClick={clearTerminations} title="Remove every termination marker" />
+          )}
+        </RibbonGroup>
+      )}
     </>
   );
 }

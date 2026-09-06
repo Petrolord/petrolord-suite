@@ -275,3 +275,20 @@ test('depth axis + TVD readout appear with a velocity model and toggle off', asy
   await expect(page.getByRole('menuitemcheckbox', { name: /Depth axis/ }))
     .toBeDisabled();
 });
+
+test('ST5: the section flattens on the synthetic horizon and draws termination markers without GL errors', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(String(e.message)));
+  await page.goto('/dev/seismolord-sliceview?flatten=1&term=1');
+  const wrap = page.locator('[data-flatten]').first();
+  await expect(wrap).toHaveAttribute('data-flatten', 'Synthetic horizon');
+  await expect(wrap).toHaveAttribute('data-terminations', '2');
+  // the canvas is alive and repaints under the flatten (WebGL pixels are not readable here; the attribute and a clean console are the gate)
+  await expect(page.locator('canvas').first()).toBeVisible();
+  await page.waitForTimeout(400);
+  expect(errors).toEqual([]);
+  // without the flag the section is structural
+  await page.goto('/dev/seismolord-sliceview');
+  await expect(page.locator('[data-flatten]').first()).toHaveAttribute('data-flatten', '');
+  await expect(page.locator('[data-flatten]').first()).toHaveAttribute('data-terminations', '0');
+});

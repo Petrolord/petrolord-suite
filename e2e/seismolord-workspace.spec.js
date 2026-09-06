@@ -62,3 +62,18 @@ test('SL0: the ribbon links the help guide and the depth unit selector is rememb
   await expect(page.getByTestId('sl-depth-unit')).toHaveValue('ft');
   await expect(page.getByTestId('sl-section-domain').locator('option[value="depth"]')).toHaveText('Depth');
 });
+
+test('ST5: the Home tab offers Flatten and the Interpretation tab a Terminations group', async ({ page }) => {
+  await page.goto('/dev/seismolord-workspace');
+  await expect(page.locator('[data-testid="viewer-windows"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Home', exact: true }).click();
+  const flatten = page.getByTestId('sl-section-flatten');
+  await expect(flatten).toBeVisible();
+  await expect(flatten.locator('option').first()).toHaveText('Structural');
+  await page.getByRole('button', { name: 'Interpretation', exact: true }).click();
+  await expect(page.getByText('Terminations')).toBeVisible();
+  await expect(page.getByTestId('sl-term-kind')).toBeVisible();
+  await expect(page.getByTestId('sl-term-kind').locator('option')).toHaveCount(4);
+  await expect(page.getByTestId('sl-tool-termination')).toBeVisible();
+  await expect(page.getByTestId('sl-term-count')).toHaveText('0');
+});

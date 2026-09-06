@@ -6,7 +6,7 @@
 
 import {
   SAMPLING_GLSL, DISPLAY_GLSL, OVERLAY_GLSL, makeSamplingGlsl, buildLut, linkProgram,
-} from './shaderChunks';
+ FLATTEN_GLSL } from './shaderChunks';
 
 /**
  * Colormaps offered by Seismolord (playbook defaults first). Keys resolve
@@ -53,6 +53,7 @@ ${SAMPLING_GLSL}
 ${makeSamplingGlsl('B')}
 ${DISPLAY_GLSL}
 ${OVERLAY_GLSL}
+${FLATTEN_GLSL}
 void main() {
   // screen-oriented coords: x left->right, y top->down, then the camera
   // rect maps screen onto the visible part of the data (zoom/pan/vexag).
@@ -64,6 +65,10 @@ void main() {
   }
   // sections: horizontal = trace, vertical = time increasing DOWNWARD
   vec2 t = u_transpose == 1 ? vec2(wuv.y, wuv.x) : wuv;
+  // ST5 flatten: shift the sample coordinate per trace before any sampling
+  bool outside = false;
+  t = flattenT(t, outside);
+  if (outside) { outColor = u_nullColor; return; }
   vec4 c = shadeAmp(t);
   // W2.4 co-render: blend the overlay volume over live primary pixels
   // only (null primary keeps the null color, null overlay changes nothing)
@@ -94,6 +99,7 @@ export class SliceRenderer {
     // silently waits rather than smearing mismatched geometry.
     this.overlay = null;        // {gain, polarity, clip, traceBalance, opacity, mode}
     this.lastSliceB = null;
+    this.lastOffsets = null;    // ST5 flatten offsets (samples per trace), re-applied after context restore
     this.colormapKeyB = 'viridis';
     this.reverseB = false;
     this.contextLost = false;
@@ -148,6 +154,8 @@ export class SliceRenderer {
     for (const name of ['u_data', 'u_lut', 'u_traceRms', 'u_agc', 'u_gain',
       'u_polarity', 'u_clip', 'u_traceBalance', 'u_useAgc', 'u_transpose',
       'u_interp', 'u_nullColor', 'u_view', 'u_bgColor',
+      // ST5 flatten
+      'u_offset', 'u_flattenOn', 'u_offsetScale',
       // W2.4 overlay family
       'u_dataB', 'u_lutB', 'u_traceRmsB', 'u_agcB', 'u_traceBalanceB',
       'u_useAgcB', 'u_interpB', 'u_gainB', 'u_polarityB', 'u_clipB',
@@ -162,6 +170,10 @@ export class SliceRenderer {
     gl.uniform1i(this.u.u_lutB, 5);
     gl.uniform1i(this.u.u_traceRmsB, 6);
     gl.uniform1i(this.u.u_agcB, 7);
+    gl.uniform1i(this.u.u_offset, 8);
+    gl.uniform1i(this.u.u_flattenOn, 0);
+    this.offsetTex = this.#makeTex(gl.NEAREST);
+    if (this.lastOffsets) this.setFlatten(this.lastOffsets);
     gl.uniform4f(this.u.u_nullColor, 0.25, 0.25, 0.28, 1.0);
     // matches BG_RGBA below and the panel's slate background
     gl.uniform4f(this.u.u_bgColor, 2 / 255, 6 / 255, 23 / 255, 1.0);
@@ -327,6 +339,30 @@ export class SliceRenderer {
    * (texelFetch-based — no float-linear extension needed). Off = exact
    * NEAREST texels, which is what referenceRender() models.
    */
+  /**
+   * Flatten on a horizon (Stratigraphy ST5): per-trace offsets in samples
+   * (NaN = untracked, drawn unshifted), or null to switch flattening off.
+   * Display-only: the data texture is untouched.
+   * @param {?Float32Array} offsets
+   */
+  setFlatten(offsets) {
+    const { gl } = this;
+    this.lastOffsets = offsets || null;
+    if (!this.u || this.contextLost) return;
+    if (!offsets || !offsets.length) {
+      gl.uniform1i(this.u.u_flattenOn, 0);
+      return;
+    }
+    const tex = new Float32Array(offsets.length);
+    for (let i = 0; i < offsets.length; i++) tex[i] = Number.isFinite(offsets[i]) ? offsets[i] : 1.0e30;
+    gl.activeTexture(gl.TEXTURE8);
+    gl.bindTexture(gl.TEXTURE_2D, this.offsetTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, tex.length, 1, 0, gl.RED, gl.FLOAT, tex);
+    const ns = this.lastSlice ? (this.lastIsSection ? this.lastSlice.width : this.lastSlice.height) : 1;
+    gl.uniform1f(this.u.u_offsetScale, 1 / Math.max(1, ns));
+    gl.uniform1i(this.u.u_flattenOn, 1);
+  }
+
   setParams(p) {
     Object.assign(this.params, p);
     this.#applyParams();

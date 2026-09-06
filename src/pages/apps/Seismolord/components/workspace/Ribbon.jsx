@@ -23,8 +23,7 @@ export function RibbonGroup({ label, children }) {
 
 /** Icon-over-label ribbon tool button. `accent` tints an armed tool. */
 export function RibbonButton({
-  icon: Icon, label, onClick, active, disabled, title, accent = 'cyan', busy,
-}) {
+  icon: Icon, label, onClick, active, disabled, title, accent = 'cyan', busy, testId }) {
   const ACCENTS = {
     cyan: 'border-cyan-500/60 bg-cyan-500/10 text-cyan-300',
     yellow: 'border-yellow-500/60 bg-yellow-500/10 text-yellow-300',
@@ -33,7 +32,7 @@ export function RibbonButton({
     emerald: 'border-emerald-500/60 bg-emerald-500/10 text-emerald-300',
   };
   return (
-    <button
+    <button data-testid={testId}
       type="button"
       title={title}
       disabled={disabled}

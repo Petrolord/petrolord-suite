@@ -53,7 +53,9 @@ import {
 import {
   extractHorizonAmplitude, bricksForHorizonAmplitude,
   extractIntervalAttribute, bricksForIntervalAttribute, extractHorizonIsofrequency,
+  extractStratalSlice, bricksForStratalSlice,
 } from '../engine/horizonAmplitude';
+import { flattenOffsets, datumForHorizon } from '../engine/flatten';
 import { makeTvdssToTwt, buildWellLatticePath } from '../engine/wellSection';
 import {
   depthAxisFor, depthStretchSlice, depthRowGrid, depthRowOfSample,
@@ -275,6 +277,13 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const [sliceMs, setSliceMs] = useState(null);
   const [slice, setSlice] = useState(null);              // assembled slice for SliceView
   const [resolvedHorizons, setResolvedHorizons] = useState([]);
+  // ST5 flatten on a horizon: the horizon id the Section window hangs on
+  // (null = structural). Offsets are recomputed per slice from its grid.
+  const [flattenHorizonId, setFlattenHorizonId] = useState(null);
+  // ST5 seismic-stratigraphic terminations: section markers (lattice cell +
+  // sample) of kind onlap | downlap | toplap | truncation, session-scoped
+  const [terminations, setTerminations] = useState([]);
+  const [terminationKind, setTerminationKind] = useState('onlap');
 
   // traverse: a map-drawn polyline shown as a section in its own window.
   // Assembled ONCE on draw (independent of orientation/sliceIndex); a
@@ -799,6 +808,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     visibleIds: [...visibleIds],
     visibleFaultIds: [...visibleFaultIds],
     visibleSurfaceIds: [...visibleSurfaceIds],
+    flattenHorizonId,
+    terminations,
     sliceVis,
     local: captureLocal(window.localStorage),
   });
@@ -928,6 +939,8 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
         }
         if (pr.sliceVis) setSliceVis(pr.sliceVis);
         if (Number.isFinite(pr.vexag)) setVexag(pr.vexag);
+        setFlattenHorizonId(pr.flattenHorizonId && hz.some((h) => h.id === pr.flattenHorizonId) ? pr.flattenHorizonId : null);
+        setTerminations(Array.isArray(pr.terminations) ? pr.terminations.filter((m) => Number.isFinite(m.il) && Number.isFinite(m.xl) && Number.isFinite(m.sample)) : []);
       } else {
         setOrientation('inline');
         setIndices({
@@ -1326,6 +1339,21 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
   const handlePick = useCallback(async ({ ilIdx, xlIdx, sample, altKey }) => {
     if (!pickMode || !geom || !volume || orientation === 'time') return;
 
+    if (pickMode === 'termination') {
+      // ST5: click places a termination marker; Alt+click removes the nearest one
+      if (altKey) {
+        let best = null;
+        terminations.forEach((m, i) => {
+          const d = Math.abs(m.il - ilIdx) + Math.abs(m.xl - xlIdx) + Math.abs(m.sample - sample) / 4;
+          if (d <= 6 && (!best || d < best.d)) best = { i, d };
+        });
+        if (best) setTerminations((list) => list.filter((_, i) => i !== best.i));
+        return;
+      }
+      setTerminations((list) => [...list, { id: `term-${Date.now()}-${list.length}`, il: ilIdx, xl: xlIdx, sample, kind: terminationKind }]);
+      return;
+    }
+
     if (pickMode === 'fault') {
       const prev = draftSticksRef.current;
       // Alt+click deletes the nearest draft point (a few traces / samples
@@ -1409,7 +1437,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
       setError(err.message);
     }
   }, [pickMode, geom, volume, orientation, getBrick, toast, snapMode, snapWindow, applyOp,
-    eraseSize, undoStack]);
+    eraseSize, undoStack, terminations, terminationKind]);
 
   // ---- fault stick editing ----------------------------------------------
   const endStick = () => {
@@ -2526,8 +2554,24 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     draftSticks,
     seedPick,
     wells: wellSections,
+    terminations,
   }), [resolvedHorizons, sectionSurfaces, faults, visibleFaultIds, draftSticks, seedPick,
-    wellSections]);
+    wellSections, terminations]);
+
+  // ST5: per-trace flatten offsets for the displayed section (inline,
+  // crossline or the traverse), from the chosen horizon's pick lattice,
+  // hung on the horizon's median pick on this section
+  const flatten = useMemo(() => {
+    if (!flattenHorizonId || !geom || !slice || orientation === 'time') return null;
+    const h = resolvedHorizons.find((x) => x.id === flattenHorizonId);
+    if (!h?.grid) return null;
+    const positions = orientation === 'traverse' ? slice.positions : null;
+    const idx = orientation === 'traverse' ? 0 : slice.index;
+    const datum = datumForHorizon(h.grid, geom, orientation, idx, positions);
+    if (datum === null) return null;
+    const { offsets, tracked, nTraces } = flattenOffsets(h.grid, geom, orientation, idx, datum, positions);
+    return { offsets, datum, name: h.name, tracked, nTraces, id: h.id };
+  }, [flattenHorizonId, resolvedHorizons, geom, slice, orientation]);
 
   // ---- W3.4 depth section display ---------------------------------------
   // CPU per-column stretch of the section through the velocity model
@@ -2745,7 +2789,11 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
     }
     let preflight;
     let run;
-    if (opts.picksB) {
+    if (opts.mode === 'stratal' && opts.picksB) {
+      // ST5 proportional stratal slice between two horizons
+      preflight = bricksForStratalSlice(geom, grid, opts.picksB);
+      run = () => extractStratalSlice(getBrick, geom, grid, opts.picksB, { fraction: opts.fraction ?? 0.5 });
+    } else if (opts.picksB) {
       preflight = bricksForIntervalAttribute(geom, grid, opts.picksB);
       run = () => extractIntervalAttribute(getBrick, geom, grid, opts.picksB, { mode: opts.mode });
     } else if (opts.freqHz) {
@@ -3007,6 +3055,10 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               manifest={manifest}
               sectionDomain={sectionDomain}
               setSectionDomain={setSectionDomain}
+              flattenHorizonId={flattenHorizonId}
+              setFlattenHorizonId={setFlattenHorizonId}
+              flattenChoices={resolvedHorizons.filter((h) => h.id !== '__draft' && h.grid)}
+              flattenInfo={flatten}
               depthUnit={depthUnit}
               setDepthUnit={setDepthUnit}
               depthReady={Boolean(depthConv)}
@@ -3069,6 +3121,10 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
               slice={slice}
               pickMode={pickMode}
               setPickMode={setPickMode}
+              terminations={terminations}
+              terminationKind={terminationKind}
+              setTerminationKind={setTerminationKind}
+              clearTerminations={() => setTerminations([])}
               seedPick={seedPick}
               snapMode={snapMode}
               setSnapMode={setSnapMode}
@@ -3228,6 +3284,7 @@ export default function ViewerPanel({ appPaths = {} } = {}) {
                   vexag={vexag}
                   onVexagChange={setVexag}
                   cameraApi={sectionCameraApi}
+                  flatten={depthSection ? null : flatten}
                 />
               ),
             },

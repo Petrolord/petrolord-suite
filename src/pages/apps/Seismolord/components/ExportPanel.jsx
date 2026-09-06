@@ -78,6 +78,7 @@ export default function ExportPanel({
   const [ampWindow, setAmpWindow] = useState(4);      // half-width, samples
   const [horizonBId, setHorizonBId] = useState('');   // W2.5 interval: second horizon
   const [freqHz, setFreqHz] = useState(30);           // W2.5 isofrequency
+  const [fraction, setFraction] = useState(0.5);      // ST5 stratal slice: 0 = on this horizon, 1 = on the second
   const [domain, setDomain] = useState('depth');      // 'depth' | 'twt'
   const [velocity, setVelocity] = useState(10000);    // ft/s
   const [cell, setCell] = useState(0);                // m, 0 -> default bin
@@ -124,15 +125,16 @@ export default function ExportPanel({
   const isAmp = objectKind === 'amplitude';
   const isInterval = ampMode.startsWith('interval_');
   const isIso = ampMode === 'isofreq';
+  const isStratal = ampMode === 'stratal';            // ST5: proportional slice between two horizons
   const ampMeta = AMP_MODES.find((m) => m.key === ampMode) || null;
 
   const runAmplitudeExport = async (horizon, destination, signal) => {
-    const horizonB = isInterval ? horizons.find((h) => h.id === horizonBId) : null;
-    if (isInterval && !horizonB) {
-      throw new Error('Pick the second horizon for an interval attribute.');
+    const horizonB = (isInterval || isStratal) ? horizons.find((h) => h.id === horizonBId) : null;
+    if ((isInterval || isStratal) && !horizonB) {
+      throw new Error(isStratal ? 'Pick the second horizon for a stratal slice.' : 'Pick the second horizon for an interval attribute.');
     }
-    if (isInterval && horizonB.id === horizon.id) {
-      throw new Error('Interval attributes need two different horizons.');
+    if ((isInterval || isStratal) && horizonB.id === horizon.id) {
+      throw new Error('Two different horizons are needed.');
     }
     const win = isIso ? Math.max(2, Math.round(ampWindow))
       : ampMeta?.windowed ? Math.max(0, Math.round(ampWindow)) : 0;
@@ -144,6 +146,7 @@ export default function ExportPanel({
       mode: isInterval ? ampMode.slice('interval_'.length) : ampMode,
       window: win,
       freqHz: isIso ? freqHz : null,
+      fraction: isStratal ? fraction : null,
       cellM: cell,
       signal,
     });
@@ -157,13 +160,15 @@ export default function ExportPanel({
     const fileName = `${safeName}_${ampMode}.${fmt.ext}`;
 
     const modeLabel = isIso ? `Isofrequency ${freqHz} Hz`
-      : isInterval
-        ? INTERVAL_MODES.find((m) => `interval_${m.key}` === ampMode).label
-        : ampMeta.label;
+      : isStratal ? `Stratal slice ${Math.round(fraction * 100)}% towards ${horizonB.name}`
+        : isInterval
+          ? INTERVAL_MODES.find((m) => `interval_${m.key}` === ampMode).label
+          : ampMeta.label;
     const params = {
       attribute: ampMode,
       window_samples: ampMeta?.windowed || isIso ? win : null,
       ...(isIso ? { freq_hz: freqHz } : {}),
+      ...(isStratal ? { fraction } : {}),
       ...(horizonB ? { horizon_b: horizonB.name, horizon_b_id: horizonB.id } : {}),
       cell_m: spec.dx,
       survey_geometry: affine.legacyAxisAligned ? 'corners_axis_aligned' : 'measured_affine',
@@ -401,6 +406,7 @@ export default function ExportPanel({
                       {INTERVAL_MODES.map((m) => (
                         <option key={m.key} value={`interval_${m.key}`}>{m.label}</option>
                       ))}
+                      <option value="stratal">Stratal slice (proportional)</option>
                     </optgroup>
                     <optgroup label="Spectral">
                       <option value="isofreq">Isofrequency</option>
@@ -408,9 +414,9 @@ export default function ExportPanel({
                   </select>
                 </div>
               )}
-              {isAmp && isInterval && (
+              {isAmp && (isInterval || isStratal) && (
                 <div>
-                  <Label className="text-slate-300" title="The statistic runs from this horizon to the one picked above, whichever is shallower">
+                  <Label className="text-slate-300" title={isStratal ? 'The slice sits a fraction of the way from this horizon to the one picked above' : 'The statistic runs from this horizon to the one picked above, whichever is shallower'}>
                     Second horizon
                   </Label>
                   <select
@@ -423,6 +429,19 @@ export default function ExportPanel({
                       <option key={h.id} value={h.id}>{h.name}</option>
                     ))}
                   </select>
+                </div>
+              )}
+              {isAmp && isStratal && (
+                <div>
+                  <Label className="text-slate-300" title="0 reads the amplitude on this horizon, 1 on the second horizon, 0.5 halfway between them at every trace (proportional slicing)">
+                    Fraction towards the second horizon
+                  </Label>
+                  <Input
+                    type="number" value={fraction} min="0" max="1" step="0.05"
+                    data-testid="sl-export-fraction"
+                    className="mt-1 bg-slate-950 border-slate-700 text-slate-200"
+                    onChange={(e) => setFraction(Math.min(1, Math.max(0, Number(e.target.value) || 0)))}
+                  />
                 </div>
               )}
               {isAmp && isIso && (

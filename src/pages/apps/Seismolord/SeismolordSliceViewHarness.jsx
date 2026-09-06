@@ -4,6 +4,7 @@ import { assembleSlice } from './engine/sliceAssembly';
 import { resampleTraverse, assembleTraverse } from './engine/traverse';
 import { makeDepthConverter } from './engine/velocityModel';
 import SliceView from './components/SliceView';
+import { flattenOffsets, datumForHorizon } from './engine/flatten';
 
 // Dev-only harness route (/dev/seismolord-sliceview, DEV builds only):
 // mounts the real SliceView on the deterministic synthetic volume so the
@@ -18,6 +19,9 @@ import SliceView from './components/SliceView';
 const q = new URLSearchParams(window.location.search);
 const DIM = Math.min(320, Math.max(32, Number(q.get('dim')) || 128));
 const WITH_HORIZON = q.get('horizon') !== '0';
+// ST5 e2e hooks: ?flatten=1 hangs the section on the synthetic horizon, ?term=1 adds two termination markers
+const WITH_FLATTEN = q.get('flatten') === '1';
+const WITH_TERMS = q.get('term') === '1';
 const VIEW_W = Math.min(3000, Math.max(300, Number(q.get('w')) || 760));
 const VIEW_H = Math.min(2000, Math.max(200, Number(q.get('h')) || 420));
 // ?vel=v0[,k] mounts a linear velocity model so the depth-axis /
@@ -107,6 +111,11 @@ export default function SeismolordSliceViewHarness() {
       wellPts.push({ il: DIM * 0.5, xl: DIM * 0.7, s });
     }
     return {
+      grid,
+      terminations: WITH_TERMS ? [
+        { id: 't1', il: Math.round(DIM * 0.5), xl: Math.round(DIM * 0.3), sample: Math.round(DIM * 0.4), kind: 'onlap' },
+        { id: 't2', il: Math.round(DIM * 0.5), xl: Math.round(DIM * 0.6), sample: Math.round(DIM * 0.55), kind: 'truncation' },
+      ] : [],
       horizons: WITH_HORIZON ? [{ grid, color: '#4ade80' }] : [],
       faults: [{ sticks: [{ points: stick }], color: '#f97316' }],
       draftSticks: [],
@@ -120,6 +129,16 @@ export default function SeismolordSliceViewHarness() {
       }],
     };
   }, []);
+
+  // ST5: flatten on the synthetic horizon for the e2e (inline sections only)
+  const flatten = useMemo(() => {
+    if (!WITH_FLATTEN || orientation !== 'inline') return null;
+    const geom = { nIl: DIM, nXl: DIM, ns: DIM };
+    const datum = datumForHorizon(overlays.grid, geom, 'inline', sliceIndex);
+    if (datum === null) return null;
+    const { offsets, tracked, nTraces } = flattenOffsets(overlays.grid, geom, 'inline', sliceIndex, datum);
+    return { offsets, datum, name: 'Synthetic horizon', tracked, nTraces };
+  }, [overlays, orientation, sliceIndex]);
 
   const display = DISPLAY_CYCLE[displayIdx % DISPLAY_CYCLE.length];
 
@@ -187,6 +206,7 @@ export default function SeismolordSliceViewHarness() {
           sliceIndex={sliceIndex}
           display={display}
           overlays={overlays}
+          flatten={flatten}
           // traverses take PAINT modes only (like ViewerPanel): manual
           // picks resolve through slice.positions; seed stays section-only
           pickMode={orientation === 'traverse'
