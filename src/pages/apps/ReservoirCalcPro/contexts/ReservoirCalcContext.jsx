@@ -155,6 +155,7 @@ const ACTIONS = {
     SET_TOP_SURFACE: 'SET_TOP_SURFACE',
     SET_BASE_SURFACE: 'SET_BASE_SURFACE',
     SET_RESULTS: 'SET_RESULTS',
+    ADD_AOI: 'ADD_AOI',
     SET_PROB_RESULTS: 'SET_PROB_RESULTS',
     SET_CALCULATING: 'SET_CALCULATING',
     SET_ERROR: 'SET_ERROR',
@@ -440,6 +441,8 @@ const reducer = (state, action) => {
                 isDirty: true
             };
         }
+        case ACTIONS.ADD_AOI:
+            return { ...state, aois: [...(state.aois || []), action.payload], activeAoiId: action.payload.id, isDirty: true };
         case ACTIONS.UPDATE_AOI:
             return {
                 ...state,
@@ -513,7 +516,9 @@ export const ReservoirCalcProvider = ({ children, backend = null }) => {
         dispatch({ type: ACTIONS.FINISH_DRAWING, payload: name });
         logEvent('AOI created', name || `AOI ${(state.aois?.length || 0) + 1}`);
     };
-    const addAOI = (aoi) => dispatch({ type: ACTIONS.UPDATE_AOI, payload: { id: aoi.id, changes: aoi } });
+    // RC1: UPDATE_AOI only edits an existing AOI, so this used to be a
+    // silent no-op for a new one; ADD_AOI appends it and makes it active
+    const addAOI = (aoi) => dispatch({ type: ACTIONS.ADD_AOI, payload: aoi });
     const updateAOI = (id, changes) => dispatch({ type: ACTIONS.UPDATE_AOI, payload: { id, changes } });
     const deleteAOI = (id) => dispatch({ type: ACTIONS.DELETE_AOI, payload: id });
     const setActiveAOI = (id) => dispatch({ type: ACTIONS.SET_ACTIVE_AOI, payload: id });
