@@ -321,3 +321,39 @@ test('MS5: a contour dragged on the map becomes guide points at its value and th
   await page.getByTestId('map-guide-clear').click();
   await expect(page.getByTestId('map-guide-row-C1.1')).toHaveCount(0);
 });
+
+test('MS5: kriging with a fitted variogram, the variance map, and a rotated Irap grid imported and displayed', async ({ page }) => {
+  await page.goto('/dev/mapping-surface-studio');
+  await page.getByTestId('map-source').selectOption('top:Top Dome');
+  await page.getByTestId('map-grid-method').selectOption('kriging');
+  await expect(page.getByTestId('map-variogram')).toBeVisible();
+  await page.getByTestId('map-vg-model').selectOption('gaussian');
+  await page.getByTestId('map-vg-fit').click();
+  await expect(page.getByTestId('map-status')).toContainText(/Fitted a gaussian variogram from \d+ control points: range \d+ m, sill/);
+  await expect(page.getByTestId('map-vg-range')).not.toHaveValue('');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText(/Kriged Top Dome structure \(TVDSS elevation, ft\) from \d+ wells/);
+  await expect(page.getByTestId('map-status')).toContainText('gaussian variogram, range');
+  await expect(page.getByTestId('map-status')).toContainText('trend removed');
+  await expect(page.getByTestId('map-zrange')).toContainText('ft');
+  // the variance map swaps in as an attribute display and back
+  await page.getByTestId('map-vg-variance').check();
+  await expect(page.getByTestId('map-status')).toContainText('Showing the kriging variance');
+  await page.getByTestId('map-vg-variance').uncheck();
+  await expect(page.getByTestId('map-status')).toContainText('Showing Top Dome structure');
+  await page.getByTestId('map-publish').click();
+  await expect(page.getByTestId('map-status')).toContainText('Published');
+
+  // a rotated Irap classic grid imports with its rotation and displays
+  await page.getByTestId('map-import').click();
+  await page.getByTestId('map-import-file').setInputFiles('test-data/mapping/irap_rotated_30.dat');
+  await expect(page.getByTestId('map-import-preview')).toContainText('4×3');
+  await expect(page.getByTestId('map-import-preview')).toContainText('rotated 30 deg');
+  await page.getByTestId('map-import-name').fill('Tilted grid');
+  await page.getByTestId('map-import-unit').selectOption('m');
+  await page.getByTestId('map-import-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Imported Tilted grid');
+  await page.locator('[data-testid="map-surface-row"][data-surface-name="Tilted grid"]').click();
+  await expect(page.getByTestId('map-status')).toContainText('Tilted grid: 12 live nodes');
+  await expect(page.getByTestId('map-canvas')).toBeVisible();
+});

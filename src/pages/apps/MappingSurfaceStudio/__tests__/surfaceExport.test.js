@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { parseSurfaceFile } from '@/lib/gridding/surfaceImport';
-import { exportSurfaceText, controlPointsCsv, describeSurface, gridInUnit } from '../services/surfaceExport';
+import { exportSurfaceText, controlPointsCsv, describeSurface, gridInUnit, specOfSurface } from '../services/surfaceExport';
 
 const GOLD = path.join(__dirname, '..', '..', '..', '..', '..', 'test-data', 'seismolord', 'surfaces');
 const read = (n) => fs.readFileSync(path.join(GOLD, n), 'utf8');
@@ -81,4 +81,22 @@ test('gridInUnit brings a feet-stored surface into metres for the workstation (t
   const g = Float32Array.from([-1500]);
   expect(gridInUnit({ kind: 'structure', z_domain: 'depth', z_unit: 'm' }, g, 'm')).toBe(g);
   expect(gridInUnit({ kind: 'structure', z_domain: 'depth', z_unit: null }, g, 'm')).toBe(g);
+});
+
+describe('rotated frames (MS5)', () => {
+  const rot = { name: 'Tilted', kind: 'structure', z_domain: 'depth', z_unit: 'm', origin_x: 1000, origin_y: 2000, dx: 100, dy: 50, nx: 4, ny: 3, rotation_deg: 30, crs: null };
+  const grid = Float32Array.from({ length: 12 }, (_, i) => -(1000 + i));
+
+  test('specOfSurface carries rotation_deg and Irap export writes it', () => {
+    expect(specOfSurface(rot).rotation_deg).toBe(30);
+    expect(specOfSurface({ ...rot, rotation_deg: 0 }).rotation_deg).toBeUndefined();
+    const { text } = exportSurfaceText(rot, grid, 'irap', { unit: 'm' });
+    expect(text.split('\n')[2]).toBe('4 30.000000 1000.000000 2000.000000');
+  });
+
+  test('CPS-3, ZMAP+ and XYZ refuse a rotated grid with a plain message', () => {
+    for (const f of ['cps3', 'zmap', 'xyz']) {
+      expect(() => exportSurfaceText(rot, grid, f, { unit: 'm' })).toThrow(/no rotation field/);
+    }
+  });
 });

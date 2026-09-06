@@ -71,6 +71,7 @@ export default function SurfaceImportDialog({
     if (!parsed) return null;
     const { g, stats } = parsed;
     return `${SURFACE_FORMAT_LABELS[g.format] || g.format}: ${g.nx}×${g.ny} nodes, cell ${g.dx.toFixed(1)}×${g.dy.toFixed(1)}, `
+      + `${g.rotation_deg ? `rotated ${g.rotation_deg} deg, ` : ''}`
       + `${stats.live.toLocaleString()} live, z ${stats.zMin?.toFixed(1)} to ${stats.zMax?.toFixed(1)}`;
   }, [parsed]);
 

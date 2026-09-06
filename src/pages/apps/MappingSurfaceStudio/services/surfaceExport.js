@@ -17,7 +17,7 @@ export const EXPORT_FORMATS = [
   { key: 'irap', label: 'Irap classic grid (.dat)', ext: 'irap.dat' },
 ];
 
-export const specOfSurface = (s) => ({ x0: s.origin_x, y0: s.origin_y, dx: s.dx, dy: s.dy, nx: s.nx, ny: s.ny });
+export const specOfSurface = (s) => ({ x0: s.origin_x, y0: s.origin_y, dx: s.dx, dy: s.dy, nx: s.nx, ny: s.ny, ...(s.rotation_deg ? { rotation_deg: s.rotation_deg } : {}) });
 
 /** A length surface (depth elevation, thickness) follows the display unit. */
 export const isLengthSurface = (s) => !!s && s.kind !== 'attribute' && s.z_domain !== 'attribute' && s.z_domain !== 'time';
@@ -41,7 +41,10 @@ export function exportSurfaceText(surface, grid, formatKey, { unit = 'm' } = {})
   if (!fmt) throw new Error(`Unknown surface export format: ${formatKey}`);
   const length = isLengthSurface(surface);
   const z = gridInUnit(surface, grid, unit);
-  const g = gridObject(specOfSurface(surface), z);
+  const spec = specOfSurface(surface);
+  // a rotated frame (MS5) rides on the writer: Irap carries it, the
+  // others refuse with a plain message
+  const g = { ...gridObject(spec, z), x0: spec.x0, y0: spec.y0, rotation_deg: spec.rotation_deg || 0 };
   const name = safeName(surface.name);
   const crsLabel = isTransformableTag(surface.crs) ? normalizeTag(surface.crs) : null;
   let text;

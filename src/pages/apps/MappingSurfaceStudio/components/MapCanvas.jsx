@@ -51,6 +51,7 @@ const MapCanvas = forwardRef(function MapCanvas({
 }, ref) {
   const spec = surface ? {
     x0: surface.origin_x, y0: surface.origin_y, dx: surface.dx, dy: surface.dy, nx: surface.nx, ny: surface.ny,
+    ...(surface.rotation_deg ? { rotation_deg: surface.rotation_deg } : {}),
   } : null;
   const isLength = display.isLength;
   const isTime = surface?.z_domain === 'time';

@@ -113,6 +113,7 @@ export function makeInMemoryBackend() {
         id, user_id: 'user-dev', organization_id: null, is_own: true,
         name: s.name, kind: s.kind || 'structure',
         origin_x: s.spec.x0, origin_y: s.spec.y0, nx: s.spec.nx, ny: s.spec.ny, dx: s.spec.dx, dy: s.spec.dy,
+        rotation_deg: s.spec.rotation_deg || 0,
         z_domain: s.zDomain || 'depth', z_unit: s.zUnit || null, crs_note: s.crsNote || null,
         crs: s.crs || null, xy_unit: s.xyUnit || null,
         provenance: s.provenance || {}, storage_path: `user-dev/${id}/grid.f32`,
@@ -133,6 +134,7 @@ export function makeInMemoryBackend() {
       Object.assign(s, {
         kind: p.kind || s.kind,
         origin_x: p.spec.x0, origin_y: p.spec.y0, nx: p.spec.nx, ny: p.spec.ny, dx: p.spec.dx, dy: p.spec.dy,
+        rotation_deg: p.spec.rotation_deg || 0,
         z_domain: p.zDomain || s.z_domain, z_unit: p.zUnit === undefined ? s.z_unit : p.zUnit,
         crs: p.crs === undefined ? s.crs : p.crs, xy_unit: p.xyUnit === undefined ? s.xy_unit : p.xyUnit,
         provenance: p.provenance || s.provenance,
