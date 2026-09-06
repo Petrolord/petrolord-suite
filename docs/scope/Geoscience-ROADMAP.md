@@ -77,6 +77,14 @@ row.
     consolidates/deletes both EarthModel shells + the subsurface-studio
     tree)*. Full 3D geostatistics stays out of scope.
 
+**Eleventh tile (added 2026-09-06):**
+
+11. **Stratigraphy Studio** (`stratigraphy-studio`) *(Phase G9, the ST
+    series)*: stratigraphic column, typed sequence-stratigraphic surfaces
+    on the shared tops, lithology / core / facies interval logs, systems
+    tracts and log motifs, Wheeler view, biozones and ages. Plan of
+    record: docs/scope/Stratigraphy-PLAN.md.
+
 ## 3. Architecture principles (carried from Seismolord — locked unless owner overrides)
 
 - **Shared data first.** The module's moat is the shared project tree,
@@ -272,6 +280,25 @@ time depends on review cadence.
   EarthModel shells are deleted; legacy slugs redirect. Plan + status:
   docs/scope/EarthModeling-{PLAN,STATUS}.md.
 
+### Phase G9 — Stratigraphy, the ST series *(ST0 small-medium, ST1 medium, ST2 medium-large, ST3 small, ST4 small-medium, ST5 medium)* — **APPROVED 2026-09-06**
+- Gap: the module serves the lithostratigraphic loop but a specialist
+  stratigrapher has nothing beyond a named top at a depth. Plan of
+  record: **docs/scope/Stratigraphy-PLAN.md** (approved as recommended,
+  all decisions locked).
+- Registry first: ST0 typed tops (additive nullable columns on
+  `geo_wells_tops`, second-engineer review) + `geo_strat_units`; ST1
+  `geo_wells_intervals` (lithology, core description, facies,
+  environment, motif, systems tract, biozone interval) + core images in
+  the wells bucket. Then ST2 sequence stratigraphy + Wheeler view, ST3
+  biozones and ages on the ICS timescale, ST4 stratigraphic maps in
+  Mapping, ST5 horizon flattening + stratal slices in Seismolord.
+- Eleventh tile **Stratigraphy Studio** hosts the specialist
+  interpretation and imports Well Correlation's section components
+  (extracted to `src/components/wells/` at the second consumer). No
+  duplicated components, services or vocabularies (plan §4).
+- Out of scope, and not separate apps: automatic correlation,
+  chemostratigraphy, any biostratigraphic reference database.
+
 ## 5. Sequencing logic (why this order)
 
 G1 unlocks everything — logs, tops and checkshots feed G2/G3/G5 and
@@ -337,6 +364,16 @@ and is the biggest build risk in the domain.
    core apps fly.
 5. **Archive list** — confirmed in full; nothing on the §4 G0 list stays
    alive.
+6. **Stratigraphy (2026-09-06)** — surface-type and systems-tract
+   vocabulary is **Catuneanu** (stored); **Exxon terminology is a
+   display-only option** (one label map, nothing stored twice).
+   **Stratigraphy Studio is its own tile** (`stratigraphy-studio`) but
+   must not duplicate Well Correlation, the track painter, the tops
+   service or the map. Interpretation products (tracts, motifs,
+   lithology, facies, biozones) are shared `geo_wells_intervals` rows.
+   Core photos ship in ST1 capped at 5 MB per image and 200 MB per
+   well. Well Data Manager also edits the typed-top fields. The Basin
+   layer launcher stays in ST3. Details: Stratigraphy-PLAN.md §3, §11.
 
 ## 7. Risks
 
