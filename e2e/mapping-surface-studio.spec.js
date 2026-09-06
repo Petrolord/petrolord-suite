@@ -101,6 +101,60 @@ test('grid a top, render the map, publish, isochore, delete', async ({ page }) =
   // delete an owned surface
   await page.getByTestId('map-delete-Top Dome structure').click();
   await expect(page.getByTestId('map-surface-count')).toHaveText('3');
+
+  // MS2: import a Petrel-style CPS-3 grid (the Seismolord golden: feet,
+  // negative down), which draws at once in feet
+  await page.getByTestId('map-import').click();
+  await page.getByTestId('map-import-file').setInputFiles('test-data/seismolord/surfaces/dome_surface_cps3.dat');
+  await expect(page.getByTestId('map-import-preview')).toContainText('50×40');
+  await expect(page.getByTestId('map-import-preview')).toContainText('1,376 live');
+  await page.getByTestId('map-import-unit').selectOption('ft');
+  await page.getByTestId('map-import-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Imported dome_surface_cps3');
+  await expect(page.getByTestId('map-surface-count')).toHaveText('4');
+  await expect(page.getByTestId('map-zrange')).toContainText('-7114.4');
+  await expect(page.getByTestId('map-zrange')).toContainText('-5002.4 ft');
+
+  // row menu: export ZMAP+ in the display unit, control points CSV of a
+  // gridded surface, rename inline
+  const dome = page.locator('[data-testid="map-surface-row"][data-surface-name="dome_surface_cps3"]');
+  await expect(dome.getByTestId('map-row-badge')).toHaveText('depth · ft');
+  await dome.click({ button: 'right' });
+  await page.getByTestId('map-row-export-sub').hover(); // Radix mounts the submenu on hover
+  await expect(page.getByTestId('map-row-export-zmap')).toBeVisible();
+  const [zmap] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('map-row-export-zmap').click(),
+  ]);
+  expect(zmap.suggestedFilename()).toBe('dome_surface_cps3-ft.zmap.dat');
+  const baseSand = page.locator('[data-testid="map-surface-row"][data-surface-name="Base Sand structure"]');
+  await baseSand.click({ button: 'right' });
+  const [csv] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId('map-row-points-csv').click(),
+  ]);
+  expect(csv.suggestedFilename()).toBe('base_sand_structure-control-points.csv');
+  await dome.click({ button: 'right' });
+  await page.getByTestId('map-row-rename').click();
+  await page.getByTestId('map-rename-input').fill('Dome import');
+  await page.getByTestId('map-rename-input').press('Enter');
+  await expect(page.locator('[data-testid="map-surface-row"][data-surface-name="Dome import"]')).toHaveCount(1);
+  await expect(page.getByTestId('map-status')).toContainText('Renamed to Dome import');
+
+  // re-grid Base Sand in place at 100 m: same row, finer frame
+  await baseSand.click({ button: 'right' });
+  await page.getByTestId('map-row-regrid').click();
+  await expect(page.getByTestId('map-status')).toContainText('Re-gridding Base Sand structure');
+  await expect(page.getByTestId('map-row-replacing')).toHaveCount(1);
+  await expect(page.getByTestId('map-cell')).toHaveValue('150');
+  await page.getByTestId('map-cell').fill('100');
+  await page.getByTestId('map-grid-run').click();
+  await expect(page.getByTestId('map-status')).toContainText('Gridded');
+  await expect(page.getByTestId('map-publish')).toHaveText(/Replace surface/);
+  await page.getByTestId('map-publish').click();
+  await expect(page.getByTestId('map-status')).toContainText('Replaced Base Sand structure in place');
+  await expect(page.getByTestId('map-surface-count')).toHaveText('4');
+  await expect(page.getByTestId('map-row-replacing')).toHaveCount(0);
 });
 
 test('mapping app route loads its chunk and gates on auth', async ({ page }) => {

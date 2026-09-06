@@ -122,6 +122,45 @@ export async function downloadSurfaceGrid(surface) {
   return new Float32Array(buf);
 }
 
+/**
+ * Replace a surface's grid IN PLACE (a re-grid, Mapping MS2): the f32
+ * object is overwritten at the same storage path and the row's frame
+ * and provenance are updated, so consumers holding the id (Earth
+ * Modeling stacks, ReservoirCalc imports) keep pointing at it.
+ * Owner-only: the path prefix is the caller's id.
+ * @param {{id, storage_path, name}} surface
+ * @param {{spec:{x0,y0,dx,dy,nx,ny}, grid:Float32Array, kind?, zDomain?, zUnit?,
+ *   crs?, xyUnit?, crsProvenance?, provenance?}} s
+ */
+export async function replaceSurfaceGrid(surface, s) {
+  const user = await requireUser();
+  if (!surface?.storage_path?.startsWith(`${user.id}/`)) {
+    throw new Error('Only the owner can re-grid this surface (org sharing is read-only).');
+  }
+  const { spec } = s;
+  if (s.grid.length !== spec.nx * spec.ny) throw new Error('Grid length does not match nx*ny.');
+  const { error: upError } = await supabase.storage.from(BUCKET)
+    .upload(surface.storage_path, new Blob([s.grid.buffer], { type: 'application/octet-stream' }), {
+      contentType: 'application/octet-stream', upsert: true,
+    });
+  if (upError) throw new Error(`Could not replace the surface grid: ${upError.message}`);
+  return updateSurface(surface.id, {
+    kind: s.kind || surface.kind || 'structure',
+    origin_x: spec.x0,
+    origin_y: spec.y0,
+    nx: spec.nx,
+    ny: spec.ny,
+    dx: spec.dx,
+    dy: spec.dy,
+    z_domain: s.zDomain || surface.z_domain || 'depth',
+    z_unit: s.zUnit === undefined ? surface.z_unit : s.zUnit,
+    crs: s.crs === undefined ? surface.crs : s.crs,
+    xy_unit: s.xyUnit === undefined ? surface.xy_unit : s.xyUnit,
+    crs_provenance: s.crsProvenance === undefined ? surface.crs_provenance : s.crsProvenance,
+    provenance: s.provenance || surface.provenance || {},
+  });
+}
+
 /** Owner-only metadata update (RLS re-checks; org readers get no row
  *  back and that surfaces as an error, not a silent no-op). */
 export async function updateSurface(surfaceId, patch) {

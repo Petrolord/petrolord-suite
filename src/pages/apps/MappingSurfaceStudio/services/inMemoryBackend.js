@@ -97,6 +97,25 @@ export function makeInMemoryBackend() {
       surfaces.push(row);
       return row;
     },
+    async updateSurface(id, patch) {
+      const s = ownSurface({ id }, 'edit');
+      Object.assign(s, patch, { updated_at: new Date(2026, 6, 13, 13, 0, seq).toISOString() });
+      return { ...s };
+    },
+    async replaceSurfaceGrid(surface, p) {
+      const s = ownSurface(surface, 're-grid');
+      if (p.grid.length !== p.spec.nx * p.spec.ny) throw new Error('Grid length does not match nx*ny.');
+      gridStore.set(s.id, p.grid);
+      Object.assign(s, {
+        kind: p.kind || s.kind,
+        origin_x: p.spec.x0, origin_y: p.spec.y0, nx: p.spec.nx, ny: p.spec.ny, dx: p.spec.dx, dy: p.spec.dy,
+        z_domain: p.zDomain || s.z_domain, z_unit: p.zUnit === undefined ? s.z_unit : p.zUnit,
+        crs: p.crs === undefined ? s.crs : p.crs, xy_unit: p.xyUnit === undefined ? s.xy_unit : p.xyUnit,
+        provenance: p.provenance || s.provenance,
+        updated_at: new Date(2026, 6, 13, 14, 0, seq).toISOString(),
+      });
+      return { ...s };
+    },
     async deleteSurface(surface) {
       ownSurface(surface, 'delete');
       const i = surfaces.findIndex((x) => x.id === surface.id);

@@ -26,6 +26,10 @@ import MapCanvas, { DEFAULT_MAP_DISPLAY } from './MapCanvas';
 import { MAP_COLORMAPS } from '@/components/maps/lut';
 import { downloadBlob } from '@/components/maps/mapPng';
 import CultureImportDialog from '@/components/culture/CultureImportDialog';
+import SurfaceImportDialog from './SurfaceImportDialog';
+import {
+  exportSurfaceText, controlPointsCsv, downloadText, specOfSurface, gridInUnit, isLengthSurface,
+} from '../services/surfaceExport';
 import { gridSurface } from '@/lib/gridding/gridding';
 import {
   topsToControlPoints, zoneAttrToPoints, specForPoints,
@@ -44,9 +48,12 @@ const readDepthUnit = () => {
   try { return localStorage.getItem(DEPTH_UNIT_KEY) === 'm' ? 'm' : 'ft'; } catch { return 'ft'; }
 };
 
-/** Is this surface's z a length (depth or thickness) that follows the
- *  display unit, or a raw attribute? */
-export const isLengthSurface = (s) => !!s && s.kind !== 'attribute' && s.z_domain !== 'attribute' && s.z_domain !== 'time';
+export { isLengthSurface };
+
+/** Registry grids arrive in the row's z_unit (Seismolord and imports
+ *  write feet); the workstation works in METRES internally, so every
+ *  load converts here and the display converts back to the user's unit. */
+const loadGridM = async (backend, surface) => gridInUnit(surface, await backend.downloadSurfaceGrid(surface), 'm');
 
 export default function MappingWorkstation({ backend }) {
   const [wells, setWells] = useState(null);
@@ -76,6 +83,9 @@ export default function MappingWorkstation({ backend }) {
   const [mapSettings, setMapSettings] = useState(DEFAULT_MAP_DISPLAY);
   const [posted, setPosted] = useState(null); // well -> {z, x, y} of the preview's control points
   const viewRef = useRef(null);
+  // MS2: import dialog and the in-place re-grid target
+  const [importOpen, setImportOpen] = useState(false);
+  const [replaceId, setReplaceId] = useState(null);
 
   useEffect(() => {
     try { localStorage.setItem(DEPTH_UNIT_KEY, depthUnit); } catch { /* private mode */ }
@@ -220,10 +230,11 @@ export default function MappingWorkstation({ backend }) {
   const selectSurface = async (id) => {
     setSelectedId(id);
     setPreview(null);
+    setReplaceId(null);
     const s = surfaces.find((x) => x.id === id);
     if (!s) return;
     try {
-      const grid = await backend.downloadSurfaceGrid(s);
+      const grid = await loadGridM(backend, s);
       setDisplaySurface(s);
       setDisplayGrid(grid);
       const pts = s.provenance?.points;
@@ -237,7 +248,7 @@ export default function MappingWorkstation({ backend }) {
   const publish = async () => {
     if (!preview) return;
     try {
-      const saved = await backend.saveSurface({
+      const payload = {
         name: preview.name, kind: preview.kind, spec: preview.spec,
         zDomain: preview.zDomain || (preview.kind === 'attribute' ? 'attribute' : 'depth'),
         zUnit: preview.kind === 'attribute' ? null : 'm',
@@ -247,7 +258,25 @@ export default function MappingWorkstation({ backend }) {
           ? { derived_from: preview.provenance?.thickness ? 'surfaces' : 'wells' }
           : null,
         provenance: { ...preview.provenance, display: mapSettings }, grid: preview.grid,
-      });
+      };
+      const target = replaceId ? surfaces.find((x) => x.id === replaceId) : null;
+      if (target) {
+        // re-grid in place: same id and storage path, the previous frame
+        // recorded in provenance.history so the change is auditable
+        const prev = target.provenance || {};
+        const history = [...(Array.isArray(prev.history) ? prev.history : []), {
+          replaced_at: new Date().toISOString(),
+          previous: { nx: target.nx, ny: target.ny, dx: target.dx, dy: target.dy, cell_m: prev.cell_m ?? null, depth_ref: prev.depth_ref ?? null, control_points: prev.control_points ?? null },
+        }];
+        const saved = await backend.replaceSurfaceGrid(target, { ...payload, name: target.name, provenance: { ...payload.provenance, history } });
+        setStatus(`Replaced ${saved.name} in place (${payload.spec.nx}×${payload.spec.ny}).`);
+        setPreview(null);
+        setReplaceId(null);
+        await refresh();
+        setSelectedId(saved.id);
+        return;
+      }
+      const saved = await backend.saveSurface(payload);
       setStatus(`Published ${saved.name} to the registry.`);
       setPreview(null);
       await refresh();
@@ -255,14 +284,66 @@ export default function MappingWorkstation({ backend }) {
     } catch (e) { setStatus(e.message); }
   };
 
+  /** Re-grid a surface with its recorded source: the form is set from
+   *  provenance and the next Publish replaces the row in place. */
+  const regrid = (surface) => {
+    const p = surface.provenance || {};
+    if (!p.source?.type) { setStatus('This surface has no recorded gridding source (imported or computed), so it cannot be re-gridded here.'); return; }
+    setSource(p.source);
+    if (p.depth_ref) setDepthRef(p.depth_ref);
+    if (p.cell_m) setCellM(String(p.cell_m));
+    if (p.display) setMapSettings({ ...DEFAULT_MAP_DISPLAY, ...p.display });
+    setReplaceId(surface.id);
+    setSelectedId(surface.id);
+    setStatus(`Re-gridding ${surface.name}: adjust the source, reference or cell size, Grid, then Publish to replace it in place.`);
+  };
+
+  const rename = async (surface, name) => {
+    try {
+      await backend.updateSurface(surface.id, { name });
+      setStatus(`Renamed to ${name}.`);
+      await refresh();
+    } catch (e) { setStatus(e.message); }
+  };
+
+  const exportAs = async (surface, formatKey) => {
+    try {
+      const grid = await backend.downloadSurfaceGrid(surface);
+      const { text, fileName, unit } = exportSurfaceText(surface, grid, formatKey, { unit: depthUnit });
+      downloadText(text, fileName);
+      setStatus(`Exported ${surface.name} as ${fileName}${unit ? ` (${unit}, elevation negative down)` : ''}.`);
+    } catch (e) { setStatus(e.message); }
+  };
+
+  const pointsCsv = (surface) => {
+    try {
+      const { text, fileName } = controlPointsCsv(surface, { unit: depthUnit });
+      downloadText(text, fileName, 'text/csv');
+      setStatus(`Exported the control points of ${surface.name} as ${fileName}.`);
+    } catch (e) { setStatus(e.message); }
+  };
+
+  const onImported = async (saved) => {
+    setStatus(`Imported ${saved.name} (${saved.nx}×${saved.ny}) into the registry.`);
+    await refresh();
+    const grid = await loadGridM(backend, saved).catch(() => null);
+    if (grid) {
+      setDisplaySurface(saved);
+      setDisplayGrid(grid);
+      setPosted(null);
+      setPreview(null);
+      setSelectedId(saved.id);
+    }
+  };
+
   const runThickness = async () => {
     const top = surfaces.find((s) => s.id === isoPair.a);
     const base = surfaces.find((s) => s.id === isoPair.b);
     if (!top || !base) { setStatus('Pick a top and a base surface for the isochore.'); return; }
     try {
-      const [gt, gb] = await Promise.all([backend.downloadSurfaceGrid(top), backend.downloadSurfaceGrid(base)]);
-      const specT = { x0: top.origin_x, y0: top.origin_y, dx: top.dx, dy: top.dy, nx: top.nx, ny: top.ny };
-      const specB = { x0: base.origin_x, y0: base.origin_y, dx: base.dx, dy: base.dy, nx: base.nx, ny: base.ny };
+      const [gt, gb] = await Promise.all([loadGridM(backend, top), loadGridM(backend, base)]);
+      const specT = specOfSurface(top);
+      const specB = specOfSurface(base);
       const gbOnT = resampleTo(gb, specB, specT);
       const iso = thickness(gt, gbOnT); // elevation top − elevation base, positive when the base is deeper
       const name = `${top.name} to ${base.name} isochore`;
@@ -334,7 +415,7 @@ export default function MappingWorkstation({ backend }) {
         <button type="button" data-testid="map-publish"
           className="ml-auto flex items-center gap-1 px-2 py-1 text-xs rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
           onClick={publish}>
-          <UploadCloud className="w-3.5 h-3.5" /> Publish surface
+          <UploadCloud className="w-3.5 h-3.5" /> {replaceId ? 'Replace surface' : 'Publish surface'}
         </button>
       )}
     </div>
@@ -407,6 +488,12 @@ export default function MappingWorkstation({ backend }) {
           onCellM={setCellM}
           onGrid={runGrid}
           gridding={gridding}
+          onImport={() => setImportOpen(true)}
+          onExport={exportAs}
+          onPointsCsv={pointsCsv}
+          onRename={rename}
+          onRegrid={regrid}
+          replaceId={replaceId}
         />
       )}
       center={center}
@@ -503,6 +590,13 @@ export default function MappingWorkstation({ backend }) {
         open={cultureImportOpen}
         onOpenChange={setCultureImportOpen}
         onImported={() => setCultureTick((k) => k + 1)}
+      />
+      <SurfaceImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        backend={backend}
+        depthUnit={depthUnit}
+        onImported={onImported}
       />
     </>
   );

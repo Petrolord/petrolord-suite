@@ -7,7 +7,7 @@
 import { listWellsWithTops, listZones } from '@/lib/wellsRegistry';
 import {
   listSurfaces, saveSurface, downloadSurfaceGrid, deleteSurface,
-  shareSurface, unshareSurface,
+  shareSurface, unshareSurface, updateSurface, replaceSurfaceGrid,
 } from '@/lib/surfacesRegistry';
 import { listCulture, downloadCultureFeatures } from '@/lib/cultureRegistry';
 import { resolveUserOrgId } from '@/lib/orgContext';
@@ -41,6 +41,9 @@ export function makeRegistryBackend() {
     saveSurface,
     downloadSurfaceGrid,
     deleteSurface,
+    // MS2: rename and re-grid in place (owner-only, RLS re-checks)
+    updateSurface,
+    replaceSurfaceGrid,
     /** Share/unshare an OWN surface with the caller's organization
      *  (read-only for members — the geo_wells model; RLS + storage
      *  policies have existed since G4). Returns the updated row. */

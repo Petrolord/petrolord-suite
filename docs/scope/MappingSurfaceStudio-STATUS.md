@@ -149,3 +149,46 @@ north arrow and optional Easting/Northing axes.
   `data-scale`, double-click restores the fit, the readout shows an
   elevation in ft, a typed interval sets `data-contour-step`, the PNG
   download. Earth Modeling and Seismolord specs unchanged.
+
+## 2026-09-05: MS2, surfaces in and out (MS series)
+
+- **Import** (`map-import` in the explorer header, `components/
+  SurfaceImportDialog.jsx`): XYZ points on a regular grid, CPS-3, ZMAP+
+  or Irap classic, auto-detected by `lib/gridding/surfaceImport`; the
+  user names the surface, says what the values are (depth, TWT ms, or
+  an attribute), the depth unit of the file and its sign convention
+  (detected from the data, overridable), and declares the file CRS
+  (`CrsPicker` + `useCrsContext`; a transformable declaration converts
+  into the Project CRS through `reprojectSurfaceGrid`, a local-grid
+  mismatch is refused). Depth files land as elevation in the file's
+  unit (`z_unit` m or ft), time positive, attributes raw. Pure planning
+  in `services/importPlan.js` (`planImport`, `detectSign`) with tests
+  on the Seismolord dome golden. The imported surface is selected and
+  drawn at once.
+- **Row menu** (right-click a surface): Export as XYZ / CPS-3 / ZMAP+ /
+  Irap classic in the DISPLAY unit (`services/surfaceExport.js
+  exportSurfaceText` converts lengths through `convertZUnit`, then the
+  byte-golden writers; ZMAP+ carries the CRS tag; file names carry the
+  unit), Control points CSV (well, x, y, z in the display unit, md,
+  extrapolated; from `provenance.points`), Rename (inline input, Enter
+  saves, Esc cancels; `updateSurface`), Re-grid in place (own surfaces
+  with a recorded source), Share, Delete. The existing share and delete
+  buttons keep their test ids.
+- **Re-grid in place**: the form is set from the surface's provenance
+  (source, depth reference, cell size, display), the row is marked
+  `re-gridding`, and Publish becomes Replace surface:
+  `surfacesRegistry.replaceSurfaceGrid` overwrites the f32 object at the
+  same storage path (upsert) and updates the frame, so the id every
+  consumer holds stays valid; the previous frame is appended to
+  `provenance.history`. Selecting another surface cancels the target.
+- **Badges**: domain/unit (`depth · m`, `thick · m`, `TWT ms`, `attr`)
+  and the CRS tag (amber `no CRS` when placement is unverified); the row
+  tooltip is `describeSurface` (kind, domain, CRS, origin, re-grid
+  count).
+- Tests: `__tests__/importPlan.test.js` (dome golden imports unchanged as
+  ft elevation, positive-down files flip, forced sign, time, attribute,
+  CRS kept / converted / refused), `surfaceExport.test.js` (every
+  writer round-trips, metres conversion, CRS label, CSV, tooltip),
+  `backend.test.js` (rename and replace keep the id, owner-only). e2e:
+  import the golden CPS-3 and read its z range in feet, export ZMAP+,
+  control points CSV, rename, re-grid Base Sand in place at 100 m.
