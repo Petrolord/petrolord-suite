@@ -113,7 +113,7 @@ const ExpertModePanel = () => {
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         {/* Help Button */}
-                        <Button variant="ghost" size="icon" onClick={() => setIsHelpOpen(true)} className="text-slate-400 hover:text-white mr-1" title="Help Center (F1)">
+                        <Button variant="ghost" size="icon" onClick={() => setIsHelpOpen(true)} className="text-slate-400 hover:text-white mr-1" title="Help Center (F1)" data-testid="bf-help">
                             <HelpCircle className="w-5 h-5" />
                         </Button>
 
@@ -123,7 +123,7 @@ const ExpertModePanel = () => {
                         </Button>
                         <div className="h-6 w-px bg-slate-700 mx-2 hidden md:block" />
                         
-                        <Button variant="outline" size="sm" onClick={() => setIsExportDialogOpen(true)} className="hidden sm:flex">
+                        <Button variant="outline" size="sm" onClick={() => setIsExportDialogOpen(true)} className="hidden sm:flex" data-testid="bf-export">
                             <Download className="w-4 h-4 mr-2" /> Export
                         </Button>
 
@@ -132,12 +132,14 @@ const ExpertModePanel = () => {
                             size="sm"
                             onClick={() => dispatch({ type: 'SAVE_SCENARIO', payload: { name: `Run ${new Date().toLocaleTimeString()}` } })}
                             className="hidden sm:flex"
+                            data-testid="bf-save-scenario"
                         >
                             Save Scenario
                         </Button>
                         <Button 
                             onClick={handleRunClick} 
                             className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[100px]"
+                            data-testid="bf-simulate"
                         >
                             <Play className="w-4 h-4 mr-2" /> Simulate
                         </Button>
@@ -158,28 +160,28 @@ const ExpertModePanel = () => {
                             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col h-full overflow-hidden min-w-0 w-full">
                                 <div className="px-0 md:px-4 bg-slate-900 border-b border-slate-800 shrink-0">
                                     <TabsList className="h-10 bg-transparent w-full justify-start overflow-x-auto no-scrollbar rounded-none">
-                                        <TabsTrigger value="properties" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
+                                        <TabsTrigger value="properties" data-testid="bf-tab-properties" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
                                             <Layers className="w-4 h-4 mr-2" /> Properties
                                         </TabsTrigger>
-                                        <TabsTrigger value="calibration" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
+                                        <TabsTrigger value="calibration" data-testid="bf-tab-calibration" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
                                             <Database className="w-4 h-4 mr-2" /> Calibration
                                         </TabsTrigger>
-                                        <TabsTrigger value="scenarios" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
+                                        <TabsTrigger value="scenarios" data-testid="bf-tab-scenarios" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
                                             <GitBranch className="w-4 h-4 mr-2" /> Scenarios
                                         </TabsTrigger>
-                                        <TabsTrigger value="sensitivity" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
+                                        <TabsTrigger value="sensitivity" data-testid="bf-tab-sensitivity" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
                                             <Activity className="w-4 h-4 mr-2" /> Sensitivity
                                         </TabsTrigger>
-                                        <TabsTrigger value="results" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
+                                        <TabsTrigger value="results" data-testid="bf-tab-results" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
                                             <BarChart2 className="w-4 h-4 mr-2" /> Analysis
                                         </TabsTrigger>
-                                        <TabsTrigger value="templates" className="data-[state=active]:border-b-2 data-[state=active]:border-teal-500 rounded-none px-3 md:px-4 flex-shrink-0 text-teal-400">
+                                        <TabsTrigger value="templates" data-testid="bf-tab-templates" className="data-[state=active]:border-b-2 data-[state=active]:border-teal-500 rounded-none px-3 md:px-4 flex-shrink-0 text-teal-400">
                                             <BookOpen className="w-4 h-4 mr-2" /> Templates
                                         </TabsTrigger>
-                                        <TabsTrigger value="batch" className="data-[state=active]:border-b-2 data-[state=active]:border-pink-500 rounded-none px-3 md:px-4 flex-shrink-0 text-pink-400">
+                                        <TabsTrigger value="batch" data-testid="bf-tab-batch" className="data-[state=active]:border-b-2 data-[state=active]:border-pink-500 rounded-none px-3 md:px-4 flex-shrink-0 text-pink-400">
                                             <Layout className="w-4 h-4 mr-2" /> Batch
                                         </TabsTrigger>
-                                        <TabsTrigger value="import" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
+                                        <TabsTrigger value="import" data-testid="bf-tab-import" className="data-[state=active]:border-b-2 data-[state=active]:border-indigo-500 rounded-none px-3 md:px-4 flex-shrink-0">
                                             <Upload className="w-4 h-4 mr-2" /> Import
                                         </TabsTrigger>
                                     </TabsList>

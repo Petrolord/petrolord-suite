@@ -124,6 +124,7 @@ const RockPhysicsStudioHelpGuide = lazy(() => import('@/pages/apps/RockPhysicsSt
 const EarthModeling = lazy(() => import('@/pages/apps/EarthModeling/EarthModeling'));
 const EarthModelingHarness = lazy(() => import('@/pages/apps/EarthModeling/EarthModelingHarness'));
 const PorePressureStudioHarness = lazy(() => import('@/pages/apps/PorePressureStudio/PorePressureStudioHarness'));
+const BasinFlowGenesisHarness = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowGenesisHarness'));
 const WellDesignHarness = lazy(() => import('@/pages/apps/well-planning/WellDesignHarness'));
 const TorqueDragStudio = lazy(() => import('@/pages/apps/TorqueDragStudio/TorqueDragStudio'));
 const TorqueDragHelpGuide = lazy(() => import('@/pages/apps/TorqueDragStudio/TorqueDragHelpGuide'));
@@ -854,6 +855,7 @@ function App() {
                                   <Route path="/dev/rock-physics-studio" element={<RockPhysicsStudioHarness />} />
                                   <Route path="/dev/earth-modeling" element={<EarthModelingHarness />} />
                                   <Route path="/dev/pore-pressure-studio" element={<PorePressureStudioHarness />} />
+                                  <Route path="/dev/basinflow-genesis" element={<BasinFlowGenesisHarness />} />
                                   <Route path="/dev/well-design" element={<WellDesignHarness />} />
                                   <Route path="/dev/torque-drag" element={<TorqueDragHarness />} />
                                   <Route path="/dev/hydraulics" element={<HydraulicsHarness />} />

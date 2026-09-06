@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Helmet } from 'react-helmet';
+import { makeRegistryBackend } from './services/backend';
 import { BasinFlowProvider, useBasinFlow } from './contexts/BasinFlowContext';
 import { MultiWellProvider } from './contexts/MultiWellContext';
 import { GuidedModeProvider } from './contexts/GuidedModeContext';
@@ -30,7 +31,7 @@ const ErrorFallback = ({ error, resetErrorBoundary }) => {
   );
 };
 
-const BasinFlowApp = () => {
+export const BasinFlowApp = () => {
     const { state, dispatch } = useBasinFlow();
 
     const handleSelectMode = (mode) => {
@@ -63,20 +64,27 @@ const BasinFlowApp = () => {
     );
 };
 
+/** The whole app on a backend (BF0): the page mounts it on bf_wells,
+ *  the /dev harness on the in-memory twin. */
+export const BasinFlowShell = ({ backend }) => (
+  <ErrorBoundary FallbackComponent={ErrorFallback}>
+    <MultiWellProvider backend={backend}>
+      <BasinFlowProvider>
+        <BasinFlowApp />
+      </BasinFlowProvider>
+    </MultiWellProvider>
+  </ErrorBoundary>
+);
+
 const BasinFlowGenesis = () => {
+  const backend = useMemo(() => makeRegistryBackend(), []);
   return (
     <>
       <Helmet>
-        <title>BasinFlow Genesis | PetroLord</title>
-        <meta name="description" content="Advanced petroleum systems modeling and simulation platform." />
+        <title>Basin & Charge Modeling | Petrolord</title>
+        <meta name="description" content="1D burial, thermal, maturity and charge modeling on oracle-validated engines." />
       </Helmet>
-      <ErrorBoundary FallbackComponent={ErrorFallback}>
-        <MultiWellProvider>
-            <BasinFlowProvider>
-                <BasinFlowApp />
-            </BasinFlowProvider>
-        </MultiWellProvider>
-      </ErrorBoundary>
+      <BasinFlowShell backend={backend} />
     </>
   );
 };

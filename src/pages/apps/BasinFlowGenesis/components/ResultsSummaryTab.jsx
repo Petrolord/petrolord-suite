@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle2, AlertTriangle, Droplet, Flame } from 'lucide-react';
+import { finalDepthProfile } from '../services/resultsView';
 
 const ResultsSummaryTab = ({ results }) => {
     if (!results?.data || !results?.meta) {
@@ -17,6 +18,12 @@ const ResultsSummaryTab = ({ results }) => {
     
     const maxTemp = Math.max(...data.temperature.flat().map(t => t.value));
     const maxMaturity = Math.max(...data.maturity.flat().map(t => t.value));
+    // present-day state per layer, shallow to deep (BF0: the number a
+    // tester compares with a measured Ro profile)
+    const present = finalDepthProfile(results).map((row) => ({
+        ...row,
+        id: meta.layers.find((l) => l.name === row.name)?.id || row.name,
+    }));
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-full overflow-y-auto pb-10">
@@ -77,13 +84,44 @@ const ResultsSummaryTab = ({ results }) => {
 
             <Card className="bg-slate-900 border-slate-800 col-span-1 md:col-span-2">
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-400">Recommendations</CardTitle>
+                    <CardTitle className="text-sm font-medium text-slate-400">Present day by layer</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <table className="w-full text-xs text-slate-200" data-testid="bf-present-table">
+                        <thead>
+                            <tr className="text-slate-500 text-left">
+                                <th className="font-normal">Layer</th>
+                                <th className="font-normal text-right">Top (m)</th>
+                                <th className="font-normal text-right">Base (m)</th>
+                                <th className="font-normal text-right">Temperature (°C)</th>
+                                <th className="font-normal text-right">Ro (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {present.map((row) => (
+                                <tr key={row.id} className="border-t border-slate-800">
+                                    <td className="py-1">{row.name}</td>
+                                    <td className="py-1 text-right font-mono">{row.top.toFixed(0)}</td>
+                                    <td className="py-1 text-right font-mono">{row.bottom.toFixed(0)}</td>
+                                    <td className="py-1 text-right font-mono">{row.temp.toFixed(1)}</td>
+                                    <td className="py-1 text-right font-mono" data-testid={`bf-present-ro-${row.id}`}>{row.ro.toFixed(3)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </CardContent>
+            </Card>
+            <Card className="bg-slate-900 border-slate-800 col-span-1 md:col-span-2">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-slate-400">Reading the result</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="flex gap-3 items-start p-3 bg-blue-900/10 border border-blue-900/30 rounded">
                         <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
                         <div className="text-xs text-slate-300">
-                            Model indicates a working petroleum system. Consider refining heat flow history using measured BHT data calibration in Phase 4 to reduce uncertainty on timing.
+                            {sourceLayers.length > 0
+                                ? `${sourceLayers.length} source layer(s) passed 10% transformation. Compare the present-day Ro column with measured vitrinite data in the Calibration tab, then fit the heat flow.`
+                                : 'No source layer passed 10% transformation. Check the source rock TOC, HI and kerogen, the heat-flow history and the burial depth before reading charge from this model.'}
                         </div>
                     </div>
                 </CardContent>

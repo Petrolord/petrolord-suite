@@ -24,6 +24,7 @@ const ModeSelector = ({ onSelectMode }) => {
                     <Card 
                         className="bg-slate-900/50 border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-900/10 transition-all cursor-pointer group relative overflow-hidden h-auto min-h-[320px] flex flex-col animate-in slide-in-from-left-10 fade-in duration-700 delay-100 shadow-xl"
                         onClick={() => onSelectMode('guided')}
+                        data-testid="bf-mode-guided"
                     >
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-teal-400" />
                         <div className="p-6 lg:p-8 flex flex-col h-full">
@@ -55,6 +56,7 @@ const ModeSelector = ({ onSelectMode }) => {
                     <Card 
                         className="bg-slate-900/50 border-slate-800 hover:border-indigo-500/50 hover:bg-indigo-900/10 transition-all cursor-pointer group relative overflow-hidden h-auto min-h-[320px] flex flex-col animate-in slide-in-from-right-10 fade-in duration-700 delay-100 shadow-xl"
                         onClick={() => onSelectMode('expert')}
+                        data-testid="bf-mode-expert"
                     >
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-blue-400" />
                         <div className="p-6 lg:p-8 flex flex-col h-full">
