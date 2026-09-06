@@ -25,6 +25,7 @@ import { tableSpec, importOrder } from './familySpec';
 import './familiesCore';
 import './familiesWellPlanning';
 import './familiesSeismic';
+import './familyWellsite';
 import { validateManifest, packageVersionCheck, UUID_RE, newPackageId } from './manifest';
 import { sha256Hex } from './zipWriter';
 import { walkUuids } from './danglingRefs';

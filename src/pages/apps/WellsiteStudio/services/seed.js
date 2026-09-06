@@ -47,7 +47,7 @@ export const SEED_SETTINGS = {
 
 /** Seed the local store through the backend: the well plus its opening records. Idempotent per backend.
  *  Times are relative to `now` (the bit reached 10,000 ft at `now`) so a record made a moment later sorts after them. */
-export async function seedWellsite(backend, { now = Date.now() } = {}) {
+export async function seedWellsite(backend, { now = Date.now(), openingRecords = true } = {}) {
   const existing = await backend.listWells();
   if (existing.length) return existing[0];
   const iso = (min) => new Date(now + min * 60000).toISOString();
@@ -58,7 +58,7 @@ export async function seedWellsite(backend, { now = Date.now() } = {}) {
     settings: SEED_SETTINGS,
   });
   const ft = (v) => ({ value: v, unit: 'ft', reference: 'MD', datum: 'RT', kind: 'bit_depth' });
-  await backend.addRecords(well.id, [
+  if (openingRecords) await backend.addRecords(well.id, [
     { kind: 'observation', subtype: 'rig_config', occurredAt: iso(-600), payload: SEED_RIG_CONFIG },
     { kind: 'observation', subtype: 'bit_depth', occurredAt: iso(-240), depth: ft(9800), payload: { source: 'manual' } },
     { kind: 'observation', subtype: 'bit_depth', occurredAt: iso(-120), depth: ft(9900), payload: { source: 'manual' } },

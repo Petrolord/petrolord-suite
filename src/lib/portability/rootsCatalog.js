@@ -42,6 +42,10 @@ export async function listRootCandidates(kind) {
       const rows = await rowsOf(supabase.from(table).select('id, name, user_id').order('name'));
       return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `${kind.replace('_', ' ')} ${String(r.id).slice(0, 8)}`, user_id: r.user_id }));
     }
+    case 'ws_well': {
+      const rows = await rowsOf(supabase.from('ws_wells').select('id, name, organization_id, header, updated_at').order('updated_at', { ascending: false }));
+      return rows.map((r) => ({ id: r.id, name: r.name || `Live well ${String(r.id).slice(0, 8)}`, organization_id: r.organization_id, subtitle: [r.header && r.header.field, r.header && r.header.rig].filter(Boolean).join(', ') }));
+    }
     case 'seismic_project': {
       const rows = await rowsOf(supabase.from('seismic_projects').select('id, name, user_id').order('name'));
       return rows.map((r) => ({ id: r.id, user_id: r.user_id, name: r.name || `Project ${String(r.id).slice(0, 8)}` }));

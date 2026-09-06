@@ -61,6 +61,7 @@ const CorrelationHelpGuide = lazy(() => import('@/pages/apps/WellCorrelation/Cor
 const StratigraphyStudio = lazy(() => import('@/pages/apps/StratigraphyStudio/StratigraphyStudio'));
 const StratigraphyHelpGuide = lazy(() => import('@/pages/apps/StratigraphyStudio/StratigraphyHelpGuide'));
 const WellsiteStudio = lazy(() => import('@/pages/apps/WellsiteStudio/WellsiteStudio'));
+const WellsiteHelpGuide = lazy(() => import('@/pages/apps/WellsiteStudio/WellsiteHelpGuide'));
 const PetrophysicsStudio = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudio'));
 const PetrophysicsHelpGuide = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsHelpGuide'));
 const MappingHelpGuide = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingHelpGuide'));
@@ -498,6 +499,7 @@ function App() {
                                 <Route path="apps/geoscience/stratigraphy-studio" element={<ProtectedAppRoute appId="stratigraphy-studio" appName="Stratigraphy Studio"><StratigraphyStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/stratigraphy-studio/help" element={<ProtectedAppRoute appId="stratigraphy-studio" appName="Stratigraphy Studio"><StratigraphyHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/wellsite-studio" element={<ProtectedAppRoute appId="wellsite-studio" appName="Wellsite Studio"><WellsiteStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/wellsite-studio/help" element={<ProtectedAppRoute appId="wellsite-studio" appName="Wellsite Studio"><WellsiteHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/mapping-surface-studio" element={<ProtectedAppRoute appId="mapping-surface-studio" appName="Mapping & Surface Studio"><MappingSurfaceStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/mapping-surface-studio/help" element={<ProtectedAppRoute appId="mapping-surface-studio" appName="Mapping & Surface Studio"><MappingHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/well-correlation-tool" element={<Navigate to="/dashboard/apps/geoscience/well-correlation" replace />} />

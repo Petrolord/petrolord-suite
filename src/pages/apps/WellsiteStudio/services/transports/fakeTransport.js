@@ -68,6 +68,23 @@ export function makeFakeTransport({ user, registryWells = [], online = true, pro
     async pullSignoffs(wellId) { check(); return [...tableOf('ws_signoffs').values()].filter((r) => r.well_id === wellId); },
     async uploadBlob(path, blob, contentType) { check(); blobs.set(path, { size: blob.size, contentType }); return { path }; },
     onAuthEvent(cb) { authListeners.add(cb); return () => authListeners.delete(cb); },
+    // ---- registry publish (WS9): the fake registry lives in memory ----
+    async registryState(geoWellId) {
+      check();
+      const geo = registryWells.find((w) => w.id === geoWellId);
+      const t = tableOf('registry_tops'); const i = tableOf('registry_intervals');
+      return { ownedByMe: !!(geo && geo.user_id === u.id), tops: [...t.values()].filter((r) => r.well_id === geoWellId), intervals: [...i.values()].filter((r) => r.well_id === geoWellId), coreImages: [...tableOf('registry_core').values()].filter((r) => r.well_id === geoWellId) };
+    },
+    async publishToRegistry(geoWellId, { tops, replaceTopIds, intervals, replaceIntervalIds, photos }) {
+      check();
+      const t = tableOf('registry_tops'); const i = tableOf('registry_intervals'); const c = tableOf('registry_core');
+      for (const id of replaceTopIds) t.delete(id);
+      for (const id of replaceIntervalIds) i.delete(id);
+      const topIds = tops.map((row) => { const id = newId(); t.set(id, { id, well_id: geoWellId, ...row }); return id; });
+      const intervalIds = intervals.map((row) => { const id = newId(); i.set(id, { id, well_id: geoWellId, ...row }); return id; });
+      const photoIds = photos.map(({ photo }) => { const id = newId(); c.set(id, { id, well_id: geoWellId, top_md_m: photo.md_calc_m, base_md_m: photo.md_calc_m, caption: photo.caption, storage_path: `${u.id}/${geoWellId}/core/${photo.id}.webp` }); return id; });
+      return { tops: { ids: topIds, replaced: replaceTopIds.length }, intervals: { ids: intervalIds, replaced: replaceIntervalIds.length }, photos: { ids: photoIds } };
+    },
     /** The fake platform countersigns anything it holds (a synthetic signature; verification is the client's business). */
     async countersign(signoffId) {
       check();

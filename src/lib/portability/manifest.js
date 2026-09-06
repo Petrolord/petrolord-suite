@@ -13,6 +13,7 @@ import { allRootKinds } from './familySpec';
 import './familiesCore';
 import './familiesWellPlanning';
 import './familiesSeismic';
+import './familyWellsite';
 
 export const PACKAGE_FORMAT = 'pld';
 export const PACKAGE_VERSION = 1;

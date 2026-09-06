@@ -284,6 +284,13 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, well, narratives]);
+  const publishToRegistry = useCallback(async () => {
+    try {
+      const { plan, result } = await backend.publishToRegistry(well.id);
+      setStatus(`Published to the registry: ${result.tops.ids.length} final top(s) (${result.tops.replaced} replaced), ${result.intervals.ids.length} lithology interval(s) (${result.intervals.replaced} replaced); ${plan.untouchedTops + plan.untouchedIntervals} row(s) from other sources untouched.`);
+      setTick((t) => t + 1);
+    } catch (e) { setStatus(e.message); }
+  }, [backend, well]);
   const keepOffline = useCallback(async () => {
     try {
       // fetch this app's lazy chunks so the service worker holds them; the shell itself is precached
@@ -397,7 +404,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
     center = <PhotosPanel backend={backend} well={well} photos={photos} samples={samples} sampleId={photoSampleId} onSampleChange={setPhotoSampleId} unit={units.depth} offsetMin={offsetMin} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   } else if (view === 'tops') {
     center = <TopsView board={topsBoard} tops={tops} records={allObservationRecords} prognosis={prognosis} ctx={ctx} defaults={defaultDepthEntry(well)} unit={units.depth} offsetMin={offsetMin}
-      approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} onAddPrognosisTop={addPrognosisTop} onStatus={setStatus} userName={user ? user.name || user.email : ''} />;
+      approver={approver} online={backend.online()} canAdmin={isAdmin} onInterpret={interpretTop} onCall={callTop} onResolve={resolveTop} onLoadPrognosis={loadPrognosis} onAddPrognosisTop={addPrognosisTop} onPublish={publishToRegistry} onStatus={setStatus} userName={user ? user.name || user.email : ''} />;
   } else if (view === 'handover' || view === 'report') {
     center = <ReportScreen key={view} kind={view === 'handover' ? 'handover' : 'daily'} backend={backend} well={well} data={reportData} tourCfg={tourConfigOf(well)} nowMs={nowForLag} unit={units.depth} offsetMin={offsetMin}
       role={myRole} userName={user ? user.name || user.email : ''} reports={reports} signoffs={signoffs} onNarrativeSave={saveNarrative} onStatus={setStatus} onChanged={() => setTick((t) => t + 1)} />;
