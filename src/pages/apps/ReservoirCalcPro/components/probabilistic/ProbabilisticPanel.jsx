@@ -342,7 +342,7 @@ const ProbabilisticPanel = () => {
                             <h5 className="text-sm font-medium text-white">{state.isCalculating ? 'Simulating...' : 'Ready to Simulate'}</h5>
                             <p className="text-[10px] text-slate-500 mt-1">{iterations.toLocaleString()} Iterations • Correlated Variables • Rejection Handled</p>
                         </div>
-                        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white w-full" onClick={runSimulation} disabled={state.isCalculating}>
+                        <Button className="bg-emerald-600 hover:bg-emerald-700 text-white w-full" data-testid="rcp-mc-run" onClick={runSimulation} disabled={state.isCalculating}>
                             {state.isCalculating ? "Processing..." : "Run Monte Carlo"}
                         </Button>
                     </div>

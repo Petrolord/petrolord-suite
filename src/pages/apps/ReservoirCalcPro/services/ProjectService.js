@@ -29,7 +29,7 @@ export const friendlyError = (error) => {
 };
 
 // Map a DB row → the project object the UI/context expect.
-const fromRow = (row) => {
+export const fromRow = (row) => {
     const blob = row.inputs_data || {};
     return {
         id: row.id,
@@ -55,7 +55,7 @@ const fromRow = (row) => {
 };
 
 // Build the `inputs_data` blob from a project object.
-const toBlob = (project, version) => ({
+export const toBlob = (project, version) => ({
     description: project.description || '',
     version,
     inputs: project.inputs || { deterministic: {}, surfaces: [], polygons: [] },
