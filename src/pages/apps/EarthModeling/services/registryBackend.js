@@ -12,7 +12,7 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
-import { listWellsWithTops, listZones } from '@/lib/wellsRegistry';
+import { listWellsWithTops, listZones, listLogs, downloadCurve } from '@/lib/wellsRegistry';
 import { listSurfaces, saveSurface, downloadSurfaceGrid } from '@/lib/surfacesRegistry';
 import { listCulture, downloadCultureFeatures } from '@/lib/cultureRegistry';
 import { POLYGON_KINDS, ringOf } from '@/pages/apps/MappingSurfaceStudio/services/polygonTools';
@@ -87,6 +87,9 @@ export function makeRegistryBackend() {
     listSurfaces,
     downloadSurfaceGrid,
     saveSurface,
+    // EM3: curves for the section window's GR columns
+    listLogs,
+    downloadCurve,
     listFaultPolygons: listCultureFaultPolygons,
     listBoundaries: listCultureBoundaries,
     // EM0: the account's Geoscience depth unit (geoscience_settings.depth_unit)

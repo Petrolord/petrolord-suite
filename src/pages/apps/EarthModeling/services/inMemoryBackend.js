@@ -34,8 +34,32 @@ export function makeInMemoryBackend() {
     });
   }
 
+  // EM3: a synthetic GR per fixture well (10 m samples to TD), a sand
+  // body below 1500 m MD so the section's cut-off fill has something to show
+  const grOf = (w) => {
+    const td = Math.max(...(w.deviation || []).map((d) => d.md), 1500);
+    const n = Math.floor(td / 10) + 1;
+    const dept = new Float32Array(n); const gr = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const md = i * 10;
+      dept[i] = md;
+      gr[i] = md > 1500 && md < 1620 ? 35 + 10 * Math.sin(md / 15) : 95 + 20 * Math.sin(md / 40);
+    }
+    return { DEPT: dept, GR: gr };
+  };
+  const curvesByWell = new Map(wells.map((w) => [w.id, grOf(w)]));
+
   return {
     async listWells() { return wells.map((w) => ({ ...w })); },
+    async listLogs(wellId) {
+      const c = curvesByWell.get(wellId) || {};
+      return Object.keys(c).map((mnemonic) => ({ id: `${wellId}-log-${mnemonic}`, well_id: wellId, mnemonic, unit: mnemonic === 'GR' ? 'API' : 'm', n_samples: c[mnemonic].length, storage_path: `dev/${wellId}/${mnemonic}.f32` }));
+    },
+    async downloadCurve(log) {
+      const c = curvesByWell.get(log.well_id);
+      if (!c?.[log.mnemonic]) throw new Error(`No curve data for ${log.mnemonic}.`);
+      return c[log.mnemonic];
+    },
     async listSurfaces() { return [...surfaces]; },
     async downloadSurfaceGrid(surface) {
       const g = gridStore.get(surface.id);
