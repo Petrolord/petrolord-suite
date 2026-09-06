@@ -8,9 +8,16 @@ import React, { useEffect, useMemo, useRef } from 'react';
 const PAD = 40;           // px inside the canvas
 const HIT_RADIUS = 14;    // px pick tolerance
 
+/** Wells with a usable surface location. A well may carry none (never
+ *  imported with coordinates, or the Header tab cleared them, PT8), and
+ *  Math.min would read a null as 0 and drag the extent to the origin. */
+export const mappable = (wells) => (wells || []).filter(
+  (w) => Number.isFinite(Number(w.surface_x)) && Number.isFinite(Number(w.surface_y)),
+);
+
 function fitExtent(wells) {
-  const xs = wells.map((w) => w.surface_x);
-  const ys = wells.map((w) => w.surface_y);
+  const xs = wells.map((w) => Number(w.surface_x));
+  const ys = wells.map((w) => Number(w.surface_y));
   let minX = Math.min(...xs);
   let maxX = Math.max(...xs);
   let minY = Math.min(...ys);
@@ -26,7 +33,8 @@ export default function WellsMap({ wells, selectedId, onSelect, height = 480 }) 
   const wrapRef = useRef(null);
   const placedRef = useRef([]); // [{id, px, py}] for hit-testing
 
-  const extent = useMemo(() => (wells.length ? fitExtent(wells) : null), [wells]);
+  const placed = useMemo(() => mappable(wells), [wells]);
+  const extent = useMemo(() => (placed.length ? fitExtent(placed) : null), [placed]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -84,8 +92,8 @@ export default function WellsMap({ wells, selectedId, onSelect, height = 480 }) 
       ctx.fillText(String(Math.round(gy)), 4, py - 2);
     }
 
-    for (const w of wells) {
-      const { px, py } = toPx(w.surface_x, w.surface_y);
+    for (const w of placed) {
+      const { px, py } = toPx(Number(w.surface_x), Number(w.surface_y));
       placedRef.current.push({ id: w.id, px, py });
       const sel = w.id === selectedId;
       ctx.beginPath();
@@ -102,7 +110,7 @@ export default function WellsMap({ wells, selectedId, onSelect, height = 480 }) 
       ctx.textAlign = 'left';
       ctx.fillText(w.name, px + 8, py + 4);
     }
-  }, [wells, selectedId, extent, height]);
+  }, [placed, selectedId, extent, height]);
 
   const pick = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();

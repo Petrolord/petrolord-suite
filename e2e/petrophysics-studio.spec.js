@@ -539,7 +539,7 @@ test('PS9: field view compares wells side by side with the golden zone summaries
   await expect(page.getByTestId('petro-field-canvas')).toBeVisible();
 });
 
-test('PS10: Hingle fit recovers Rw; split view brushes selection; TVD toggle; zone edge drag', async ({ page }) => {
+test('PS10: Hingle fit recovers Rw; split view brushes selection; depth columns; zone edge drag', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
   await page.locator('[data-well-name="KETA TYPE-1"]').click();
   await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
@@ -577,12 +577,19 @@ test('PS10: Hingle fit recovers Rw; split view brushes selection; TVD toggle; zo
   await expect(page.getByTestId('petro-select-clear')).toBeVisible();
   await page.getByTestId('petro-select-clear').click();
 
-  // TVD axis labels toggle (KETA carries a deviation survey)
+  // PT8 depth columns: MD alone by default, TVD and TVDSS join it as
+  // their own gutter columns (KETA carries a deviation survey)
   await page.getByTestId('petro-view-tracks').click();
-  await expect(page.getByTestId('petro-depth-mode')).toContainText('axis: MD');
-  await page.getByTestId('petro-depth-mode').click();
-  await expect(page.getByTestId('petro-depth-mode')).toContainText('axis: TVD');
-  await page.getByTestId('petro-depth-mode').click();
+  await expect(page.getByTestId('petro-depth-track-md')).toBeChecked();
+  await expect(page.getByTestId('petro-depth-track-tvd')).not.toBeChecked();
+  await page.getByTestId('petro-depth-track-tvd').check();
+  await page.getByTestId('petro-depth-track-tvdss').check();
+  await expect(page.getByTestId('petro-depth-track-tvdss')).toBeChecked();
+  // unticking every column leaves MD, so the gutter is never empty
+  await page.getByTestId('petro-depth-track-tvd').uncheck();
+  await page.getByTestId('petro-depth-track-tvdss').uncheck();
+  await page.getByTestId('petro-depth-track-md').click();
+  await expect(page.getByTestId('petro-depth-track-md')).toBeChecked();
 
   // drag SAND A's base edge from 2030 to ~2040: the zone card updates
   const tc = page.getByTestId('petro-tracks-canvas');
@@ -643,7 +650,7 @@ test('PT3: pick, rename, hide, drag and delete a top; shared wells stay read-onl
   await page.mouse.click(box.x + box.width / 2, yOf(2065));
   await page.getByTestId('petro-top-name').fill('Top Sand C');
   await page.getByTestId('petro-top-confirm').click();
-  await expect(page.getByTestId('petro-top-md-Top Sand C')).toContainText('2065');
+  await expect(page.getByTestId('petro-top-md-Top Sand C')).toHaveValue('2065.00');
   await expect(page.getByTestId('petro-status')).toContainText('Added top Top Sand C');
   // finish picking
   await page.keyboard.press('Escape');
@@ -661,7 +668,7 @@ test('PT3: pick, rename, hide, drag and delete a top; shared wells stay read-onl
   await page.mouse.move(box.x + box.width - 30, yOf(2070));
   await page.mouse.move(box.x + box.width - 30, yOf(2075));
   await page.mouse.up();
-  await expect(page.getByTestId('petro-top-md-Top Sand C2')).toContainText('2075');
+  await expect(page.getByTestId('petro-top-md-Top Sand C2')).toHaveValue('2075.00');
 
   // hide it, then delete it
   await page.getByTestId('petro-top-visible-Top Sand C2').uncheck();
@@ -673,6 +680,85 @@ test('PT3: pick, rename, hide, drag and delete a top; shared wells stay read-onl
   await page.locator('[data-well-name="AKOMA-2 (org shared)"]').click();
   await expect(page.getByTestId('petro-tops')).toContainText('read-only');
   await expect(page.getByTestId('petro-top-pick')).toHaveCount(0);
+});
+
+test('PT8: a top depth is editable in the panel and draggable mid-plot, and its zones follow', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  const canvas = page.getByTestId('petro-tracks-canvas');
+  await expect(canvas).toBeVisible();
+  const box = await canvas.boundingBox();
+  const plotTop = 52;
+  const plotH = box.height - plotTop - 4;
+  const yOf = (d) => box.y + plotTop + ((d - 2000) / 100) * plotH;
+
+  // a top away from every zone edge, to drag from the MIDDLE of the plot —
+  // the thing PT3 could only do inside the name tag at the right edge
+  await page.getByTestId('petro-top-pick').click();
+  await page.mouse.click(box.x + box.width / 2, yOf(2062));
+  await page.getByTestId('petro-top-name').fill('PT8 Marker');
+  await page.getByTestId('petro-top-confirm').click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('petro-top-md-PT8 Marker')).toHaveValue('2062.00');
+
+  await page.mouse.move(box.x + box.width / 2, yOf(2062));
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, yOf(2068), { steps: 5 });
+  await page.mouse.up();
+  await expect(page.getByTestId('petro-status')).toContainText('Moved PT8 Marker');
+  await expect(page.getByTestId('petro-top-md-PT8 Marker')).toHaveValue('2068.00');
+
+  // and typed in the panel, which is the other door onto the same move
+  await page.getByTestId('petro-top-md-PT8 Marker').fill('2072');
+  await page.getByTestId('petro-top-md-PT8 Marker').press('Enter');
+  await expect(page.getByTestId('petro-top-md-PT8 Marker')).toHaveValue('2072.00');
+
+  // zones cut from tops follow the top they were cut from. PT8 Marker is
+  // the deepest top, so it is the BASE of the zone under Top Sand B.
+  await page.getByTestId('petro-zone-mode-tops').click();
+  await page.getByTestId('petro-zone-fill-between-tops').click();
+  const zone = page.locator('[data-zone-name="Top Sand B"]');
+  await expect(zone).toContainText('2072.0');
+  await page.getByTestId('petro-top-md-PT8 Marker').fill('2076');
+  await page.getByTestId('petro-top-md-PT8 Marker').press('Enter');
+  await expect(page.getByTestId('petro-status')).toContainText('Re-cut');
+  await expect(zone).toContainText('2076.0');
+  // and the summary recomputed off the new interval, not the old one
+  await expect(page.getByTestId('petro-zone-net-Top Sand B')).toBeVisible();
+
+  page.once('dialog', (d) => d.accept());
+  await page.getByTestId('petro-top-delete-PT8 Marker').click();
+});
+
+test('PT8: the toolbar PNG button downloads the log display', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-tracks-canvas')).toBeVisible();
+  const download = page.waitForEvent('download');
+  await page.getByTestId('petro-export-png-toolbar').click();
+  expect((await download).suggestedFilename()).toMatch(/\.png$/);
+  await expect(page.getByTestId('petro-status')).toContainText('Exported the log display');
+});
+
+test('PT8: the Pickett plot filters by zone and colours by zone when several are picked', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await page.getByTestId('petro-view-crossplot').click();
+  await page.getByTestId('petro-plot-pickett').click();
+
+  // defaults to every zone, so nothing is hidden until a zone is picked
+  await expect(page.getByTestId('petro-pickett-zone-all')).toBeVisible();
+  await page.getByTestId('petro-pickett-zone-SAND A').click();
+  await expect(page.getByTestId('petro-pickett-zone-SAND A')).toHaveAttribute('aria-pressed', 'true');
+
+  // the filter travels into the image export's caption
+  const download = page.waitForEvent('download');
+  await page.getByTestId('petro-crossplot-png').click();
+  expect((await download).suggestedFilename()).toMatch(/pickett\.png$/);
+  await expect(page.getByTestId('petro-status')).toContainText('zones: SAND A');
+
+  await page.getByTestId('petro-pickett-zone-all').click();
+  await expect(page.getByTestId('petro-pickett-zone-SAND A')).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('PT4: zones between tops, bulk creation, and a two-click pick on the track', async ({ page }) => {

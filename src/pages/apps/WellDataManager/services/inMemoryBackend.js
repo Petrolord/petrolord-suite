@@ -120,9 +120,19 @@ export function makeInMemoryBackend(opts = {}) {
 
     /** Owner edit of KB / TD / deviation / checkshots with the registry's
      *  validation rules (PT1). */
-    async updateWellData(wellId, { kbM, tdMdM, deviation, checkshots, checkshotsProvenance } = {}) {
+    async updateWellData(wellId, {
+      surfaceX, surfaceY, kbM, tdMdM, deviation, checkshots, checkshotsProvenance,
+    } = {}) {
       const w = ownWell(wellId, 'edit');
       const patch = {};
+      // PT8: surface coordinates are already in the well's CRS — validate
+      // that they are finite, transform nothing.
+      for (const [name, value, col] of [['Surface X', surfaceX, 'surface_x'], ['Surface Y', surfaceY, 'surface_y']]) {
+        if (value === undefined) continue;
+        if (value === null) { patch[col] = null; continue; }
+        if (!Number.isFinite(Number(value))) throw new Error(`${name} must be a number in the well's CRS.`);
+        patch[col] = Number(value);
+      }
       if (kbM !== undefined) {
         if (!Number.isFinite(Number(kbM))) throw new Error('KB must be a number (metres above datum).');
         patch.kb_m = Number(kbM);

@@ -61,15 +61,27 @@ export function visibleRange(depth, vTop, vBase) {
 /**
  * Depth axis gutter: gridlines across the plot at round DISPLAY-unit
  * steps, labels right-aligned in the gutter, rotated title.
+ *
+ * The gridline SPACING is always chosen on the plotted depth, so several
+ * columns (PT8: MD beside TVD and TVDSS) label the same rows in their own
+ * reference — only the first draws the lines.
+ *
  * @param {Object} p
+ * @param {number} p.axisW right edge of THIS column: labels end here
  * @param {number} p.F display factor applied to labels (ft: 1 / 0.3048)
  * @param {(dM: number) => number} [p.labelOf] label value for a plotted depth
  *   (default dM * F; a TVD label swap passes its own)
+ * @param {boolean} [p.drawGrid] draw the horizontal rules (false for the
+ *   second and later depth columns, which would overdraw the first)
+ * @param {number} [p.gridLeft] where the rules start (default this
+ *   column's right edge; several columns pass the plot's left edge)
  */
 export function paintDepthAxis(ctx, {
   axisW, plotTop, plotH, plotRight, vTop, vBase, yOf, F = 1, labelOf, title, palette = PALETTES.light, titleX = 10,
+  drawGrid = true, gridLeft,
 }) {
   const label = labelOf || ((d) => d * F);
+  const x0 = gridLeft === undefined ? axisW : gridLeft;
   ctx.strokeStyle = palette.grid;
   ctx.fillStyle = palette.axisText;
   ctx.font = '10px sans-serif';
@@ -78,10 +90,12 @@ export function paintDepthAxis(ctx, {
   const grid = span / step >= 30 ? step * 5 : span / step >= 12 ? step * 2 : step;
   for (let dv = Math.ceil((vTop * F) / grid) * grid; dv <= vBase * F; dv += grid) {
     const y = yOf(dv / F);
-    ctx.beginPath();
-    ctx.moveTo(axisW, y);
-    ctx.lineTo(plotRight, y);
-    ctx.stroke();
+    if (drawGrid) {
+      ctx.beginPath();
+      ctx.moveTo(x0, y);
+      ctx.lineTo(plotRight, y);
+      ctx.stroke();
+    }
     ctx.textAlign = 'right';
     const v = label(dv / F);
     ctx.fillText(Number.isFinite(v) ? String(Math.round(v)) : '—', axisW - 4, y + 3);

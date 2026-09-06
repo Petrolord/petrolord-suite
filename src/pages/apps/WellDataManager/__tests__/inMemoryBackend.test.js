@@ -158,6 +158,21 @@ describe('PT1: well data edits (mirror of the registry rules)', () => {
     expect(out.checkshots_provenance).toEqual(prov);
     expect(out.kb_m).toBe(31.2);
   });
+  test('PT8: surface coordinates are editable, validated as finite, and clearable', async () => {
+    const b = makeInMemoryBackend();
+    const w = await b.saveWell({ ...HEADER, name: 'XY-1' });
+    const moved = await b.updateWellData(w.id, { surfaceX: 501234.5, surfaceY: 712345.25 });
+    expect(moved.surface_x).toBe(501234.5);
+    expect(moved.surface_y).toBe(712345.25);
+    // stored as typed: the coordinates are already in the well's CRS
+    await expect(b.updateWellData(w.id, { surfaceX: 'not a number' })).rejects.toThrow(/Surface X must be a number/);
+    await expect(b.updateWellData(w.id, { surfaceY: NaN })).rejects.toThrow(/Surface Y must be a number/);
+    // the rejected edits left the row alone
+    expect((await b.listWells()).find((x) => x.id === w.id).surface_x).toBe(501234.5);
+    const cleared = await b.updateWellData(w.id, { surfaceX: null, surfaceY: null });
+    expect(cleared.surface_x).toBeNull();
+    expect(cleared.surface_y).toBeNull();
+  });
   test('tops can be added, moved, renamed and deleted by the owner and stay MD-sorted', async () => {
     const b = makeInMemoryBackend();
     const w = await b.saveWell({ ...HEADER, name: 'TOPS-1' });

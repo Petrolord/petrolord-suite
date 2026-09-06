@@ -172,6 +172,21 @@ test('PT1: Petrel checkshots (MD ft + OWT) convert at the door, read back as ent
   await page.getByTestId('wdm-tops-save').click();
   await expect(page.getByTestId('wdm-top-row')).toHaveCount(1);
 
+  // PT8: the surface location is editable in the same Header edit mode,
+  // validated as a finite number in the well's own CRS
+  await page.getByTestId('wdm-detail-tab-header').click();
+  await page.getByTestId('wdm-edit-header').click();
+  await expect(page.getByTestId('wdm-header-x')).toBeVisible();
+  await page.getByTestId('wdm-header-x').fill('not a number');
+  await page.getByTestId('wdm-header-save').click();
+  await expect(page.getByTestId('wdm-header-error')).toContainText('Surface X must be a number');
+  await page.getByTestId('wdm-header-x').fill('501300.5');
+  await page.getByTestId('wdm-header-y').fill('712400.25');
+  await page.getByTestId('wdm-header-save').click();
+  await expect(page.getByTestId('wdm-status')).toContainText('Header saved');
+  await expect(page.getByTestId('wdm-detail')).toContainText('501300.5');
+  await expect(page.getByTestId('wdm-detail')).toContainText('712400.3');
+
   // non-monotonic paste is refused with the domain message
   await page.getByTestId('wdm-detail-tab-checkshots').click();
   await page.getByTestId('wdm-edit-checkshots').click();

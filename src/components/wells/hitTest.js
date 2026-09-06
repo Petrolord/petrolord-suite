@@ -29,3 +29,26 @@ export function hitTopAt({ x, y }, tops, yOf, { tagLeft, tol = 5 } = {}) {
   }
   return best;
 }
+
+/**
+ * What a pointer press on the plot grabs, in one place so the precedence
+ * is unit-tested rather than re-derived per viewer (PT8, 2026-09-05).
+ *
+ * Order matters and encodes the rule a top sitting exactly on a zone edge
+ * needs. The name tag at the right edge is the top's dedicated handle, so
+ * it wins outright; mid-plot a zone edge wins, because a zone edge can
+ * only ever be grabbed mid-plot while the top still has its tag; and
+ * anywhere else along its line the top is grabbable, which is what makes
+ * a top movable on the track at all rather than only in that tag.
+ *
+ * @returns {{kind: 'top', top} | {kind: 'zone-edge', zone, edge} | null}
+ */
+export function hitTrackDragAt({ x, y }, { zones = [], tops = [], yOf, tagLeft, tol = 5 } = {}) {
+  const tagged = hitTopAt({ x, y }, tops, yOf, { tagLeft, tol });
+  if (tagged) return { kind: 'top', top: tagged };
+  const edge = hitZoneEdgeAt(y, zones, yOf, tol);
+  if (edge) return { kind: 'zone-edge', ...edge };
+  // -Infinity: past the tag and the zone edges, the whole line is a handle
+  const onLine = hitTopAt({ x, y }, tops, yOf, { tagLeft: -Infinity, tol });
+  return onLine ? { kind: 'top', top: onLine } : null;
+}

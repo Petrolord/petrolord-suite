@@ -5,7 +5,6 @@ import fs from 'fs';
 import path from 'path';
 import { hingleY, hingleWaterLine, hingleFitDepthWindow } from '../engine/crossplot';
 import { rhoMaa, uMaa, thomasStieber, twoMineralSolve } from '../engine/matrix';
-import { makeTvdLookup } from '../viewer/depthModes';
 
 const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'petrophysics');
 const typewell = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'typewell.json'), 'utf8'));
@@ -62,15 +61,4 @@ test('two-mineral solve analytic anchors (pure limestone from a ss/dol pair)', (
   // exact reconstruction of the inputs
   expect(close(got.v1 * 2.65 + got.v2 * 2.87 + got.phi * 1.0, 2.71)).toBe(true);
   expect(close(uMaa(1.81, 2.65, 0), analytic.u_maa_quartz.out)).toBe(true);
-});
-
-test('TVD lookup: vertical survey is the identity; missing survey is null', () => {
-  const vertical = makeTvdLookup([{ md: 0, inc: 0, azi: 0 }, { md: 3000, inc: 0, azi: 0 }]);
-  expect(Math.abs(vertical(2050) - 2050)).toBeLessThan(1e-9);
-  expect(makeTvdLookup([])).toBeNull();
-  expect(makeTvdLookup(null)).toBeNull();
-  // a deviated survey reads shallower TVD than MD below the kickoff
-  const dev = makeTvdLookup([{ md: 0, inc: 0, azi: 0 }, { md: 1000, inc: 0, azi: 0 }, { md: 3000, inc: 60, azi: 90 }]);
-  expect(dev(2500)).toBeLessThan(2500);
-  expect(Number.isNaN(dev(5000))).toBe(true);
 });

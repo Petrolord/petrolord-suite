@@ -145,6 +145,51 @@ describe('paintTrackColumn and paintReadouts', () => {
   });
 });
 
+describe('paintDepthAxis: PT8 multiple depth columns', () => {
+  const args = { plotTop: 52, plotH: 400, plotRight: 500, vTop: 2000, vBase: 2100, yOf };
+  const moves = (ctx) => ctx.calls.filter((c) => c[0] === 'moveTo');
+
+  test('only the first column draws the rules, and they start past the whole gutter', () => {
+    const first = makeCtx();
+    paintDepthAxis(first, { ...args, axisW: 56, gridLeft: 168, drawGrid: true, title: 'MD (m)' });
+    // every rule starts at the plot edge, not at this column's own edge
+    expect(moves(first).length).toBeGreaterThan(0);
+    for (const m of moves(first)) expect(m[1]).toBe(168);
+
+    const second = makeCtx();
+    paintDepthAxis(second, { ...args, axisW: 112, gridLeft: 168, drawGrid: false, title: 'TVD (m)', titleX: 66 });
+    expect(moves(second)).toHaveLength(0);
+    expect(second.calls.filter((c) => c[0] === 'stroke')).toHaveLength(0);
+  });
+
+  test('each column right-aligns its labels in its own gutter', () => {
+    const ctx = makeCtx();
+    paintDepthAxis(ctx, { ...args, axisW: 112, gridLeft: 168, drawGrid: false, labelOf: (d) => d - 30, title: 'TVDSS (m)' });
+    const nums = texts(ctx).filter((c) => c[1] !== 'TVDSS (m)');
+    expect(nums.length).toBeGreaterThan(0);
+    for (const n of nums) {
+      expect(n[2]).toBe(112 - 4);              // x = this column's right edge
+      expect(n[4].align).toBe('right');
+    }
+    // the labelOf shift is what makes this column a different reference
+    expect(nums.map((n) => Number(n[1]))).toContain(2000 - 30);
+  });
+
+  test('a column whose reference cannot place a depth prints a dash, not a guess', () => {
+    const ctx = makeCtx();
+    paintDepthAxis(ctx, { ...args, axisW: 56, labelOf: () => NaN, title: 'TVD (m)' });
+    const nums = texts(ctx).filter((c) => c[1] !== 'TVD (m)');
+    expect(nums.length).toBeGreaterThan(0);
+    for (const n of nums) expect(n[1]).toBe('—');
+  });
+
+  test('the default is unchanged: rules start at the single gutter and are drawn', () => {
+    const ctx = makeCtx();
+    paintDepthAxis(ctx, { ...args, axisW: 56, title: 'MD (m)' });
+    for (const m of moves(ctx)) expect(m[1]).toBe(56);
+  });
+});
+
 describe('paintDepthAxis', () => {
   test('gridlines land on round display units and labels use the unit factor', () => {
     const ctx = makeCtx();

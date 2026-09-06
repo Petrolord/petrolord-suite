@@ -13,15 +13,17 @@ import { Button } from '@/components/ui/button';
 import { saveAs } from 'file-saver';
 import { Loader2, FileText, FileSpreadsheet, FileType, FileImage, Package } from 'lucide-react';
 import PackageExportDialog from '@/components/portability/PackageExportDialog';
-import { curvesCsv, zonesCsv, buildLas, exportBaseName, trackPlotPng } from '../services/petroExport';
+import { curvesCsv, zonesCsv, buildLas, exportBaseName } from '../services/petroExport';
 import { buildReport } from '../services/petroReport';
 
 /** @param {Object} [p.well] the registry well row (survey + KB) for TVD /
  *  TVDSS columns; @param {'m'|'ft'} [p.depthUnit] the workstation's display
- *  unit, the export's initial unit (PT2) */
+ *  unit, the export's initial unit (PT2)
+ *  @param {() => Promise<{blob: Blob}>} p.trackPng the live viewer's 2x
+ *  render (PT8) — the same one the toolbar's PNG button downloads */
 export default function ExportDialog({
   open, onOpenChange, wellName, wellData, outputs, params, zones, summaries, projectId, projectName, onStatus,
-  well = null, depthUnit = 'm',
+  trackPng, well = null, depthUnit = 'm',
 }) {
   const [busy, setBusy] = useState(null); // which deliverable is building
   // depth options (PT2): unit, which depth columns travel, which is DEPT
@@ -95,14 +97,11 @@ export default function ExportDialog({
       testid: 'petro-export-png',
       icon: FileImage,
       label: 'Track plot PNG',
-      note: 'The track view exactly as rendered, with a branded title band.',
+      note: 'The visible depth window and track set at 2x, captioned with the well, that range and the datum.',
       build: async () => {
-        const canvas = document.querySelector('[data-testid="petro-tracks-canvas"]');
-        if (!canvas) throw new Error('Open the Tracks view first, then export the plot.');
-        const blob = await trackPlotPng({
-          canvas,
-          title: `${wellName} · Petrophysics Studio · ${new Date().toISOString().slice(0, 10)}`,
-        });
+        // PT8: one composer for both doors — the toolbar PNG button and
+        // this entry ask the live viewer for the same 2x render.
+        const { blob } = await trackPng();
         saveAs(blob, `${base}_tracks.png`);
       },
     },
