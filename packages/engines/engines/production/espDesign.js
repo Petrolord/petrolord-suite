@@ -35,12 +35,42 @@
 
 import {
   stagePerformance, stackPerformance, hydraulicHp, brakeHp, bepOf,
+  WATER_LBF_PER_FT3,
 } from './espPump.js';
 
-/** psi per ft per unit specific gravity (a 1.0 SG column). */
-export const PSI_PER_FT_SG = 0.433;
+/**
+ * psi per ft per unit specific gravity (a 1.0 SG column).
+ *
+ * ONE CONVERSION, DERIVED. It is `WATER_LBF_PER_FT3 / 144`, the same
+ * 62.4 lbf/ft3 over 144 square inches that `gradientFromDensity` uses
+ * and that the hydraulic power constant `HP_HEAD_DIVISOR` is built
+ * from, which makes it 0.43333... rather than the rounded field
+ * constant 0.433.
+ *
+ * It used to be the rounded 0.433, and the two forms were 0.077 percent
+ * apart in one package. The design chain took its gradient from
+ * `gradientFromDensity(mixture density)` and `diagnoseOperation` built
+ * its gradient as `PSI_PER_FT_SG * specificGravity`, so the same well
+ * read through the two routes gave heads 0.077 percent apart, about 2.8
+ * ft on a 3,700 ft total dynamic head. The rule for keeping them apart
+ * was to LAUNDER the specific gravity through the rounded constant,
+ * `specificGravity = gradientPsiPerFt / PSI_PER_FT_SG`, which is a
+ * convention every consumer had to know and none of them could see.
+ *
+ * With one constant that convention is not needed: a TRUE specific
+ * gravity, density / 62.4, now makes `PSI_PER_FT_SG * specificGravity`
+ * identically equal to `gradientFromDensity(density)`, and the design
+ * chain and the diagnostics chain agree to the last bit without anyone
+ * laundering anything. Item 3.
+ */
+export const PSI_PER_FT_SG = WATER_LBF_PER_FT3 / 144;
 
-/** Pressure gradient of a fluid, psi/ft, from its in-situ density. */
+/**
+ * Pressure gradient of a fluid, psi/ft, from its in-situ density.
+ * The same conversion as `PSI_PER_FT_SG` above, taken from a density
+ * instead of from a specific gravity: 144 square inches per square
+ * foot.
+ */
 export const gradientFromDensity = (densityLbFt3) => densityLbFt3 / 144;
 
 /**
@@ -193,6 +223,39 @@ export const stageCount = ({ tdhFt, headPerStageFt }) => {
  * }
  * returns { stages, stage, stack, hydraulicHp, shaftHp, motorLoad,
  *           warnings }
+ *
+ * TWO POWERS COME BACK, and they are not the same question.
+ *
+ *   `shaftHp`         brake power at the head the duty REQUIRES, that
+ *                     is at tdhFt, at the stage efficiency at this
+ *                     duty. It is what the well asks for.
+ *   `stack.bhpTotal`  brake power per stage times the stage count,
+ *                     which is brake power at the head the stack
+ *                     ACTUALLY MAKES (`headMadeFt`). It is what the
+ *                     pump on the string will absorb at this rate.
+ *
+ * Because `stageCount` rounds up, headMadeFt >= tdhFt always, so
+ * bhpTotal >= shaftHp always, and the two differ by exactly the
+ * rounding margin: bhpTotal / shaftHp = headMadeFt / tdhFt, bounded by
+ * one stage in `stages`. On a 166 stage design whose head requirement
+ * lands 99 percent of the way through the last stage the gap is 0.6
+ * percent (0.81 hp on 134.6); on a short stack it is larger.
+ *
+ * THE ELECTRICAL CHAIN RUNS ON THE SECOND OF THE TWO. The published
+ * motor sizing method takes it: PetroWiki, ESP system selection and
+ * performance calculations, gives BHP = total stages x (BHP/stage) x
+ * SG, the power of the stage count actually selected. `motorLoad`, the
+ * amps, the cable drop and `espMotorCable.selectCable` were all built
+ * on `shaftHp` instead, so every one of them understated the load by
+ * the rounding margin, in the non conservative direction, and a cable
+ * chosen that way can be a size light. Item 2.
+ *
+ * `motorSizingHp` is the number the chain is now taken at, and it is
+ * `stack.bhpTotal`. `shaftHp` is still returned, because the power the
+ * duty asks for is a real quantity and the head margin is read from the
+ * gap between the two, but nothing electrical is taken from it and
+ * `espMotorCable`'s functions name their input `motorHp` so a caller
+ * cannot hand them the wrong one without noticing.
  */
 export const sizePump = ({
   curve, qBpd, tdhFt, hz = 60, specificGravity, nameplateHp,
@@ -200,10 +263,23 @@ export const sizePump = ({
 }) => {
   const warnings = [];
   const stage = stagePerformance({ curve, qBpd, hz, specificGravity });
+  // Item 5. Past the band there is no head and no efficiency, so there
+  // is no stage count and no design: the refusal travels rather than
+  // being turned into a stack of a stage nobody can read.
+  if (stage.ok === false) {
+    return { ok: false, code: stage.code, error: stage.error, stage };
+  }
   if (!stage.inRange) {
     warnings.push({
       code: 'outsideCurve',
-      message: `At ${Math.round(qBpd)} bbl/d and ${hz} Hz the pump runs outside its published range (${Math.round(curve.qMin)} to ${Math.round(curve.qMax)} bbl/d at ${curve.refHz} Hz). Head and efficiency here are an extrapolation.`,
+      // The rate is said to be OUTSIDE the range printed next to it, so
+      // rounded whole a rate a fraction past `qMax` read as the bound
+      // itself: "At 2500 bbl/d ... outside its published range (1200 to
+      // 2500 bbl/d)". One decimal on the rate; the bounds read exactly
+      // as they did before, because they are the published range and
+      // not a number this well is being measured to a fraction of.
+      // copy-lint-allow: the bounds are the published range, decided in 2ed47d5.
+      message: `At ${qBpd.toFixed(1)} bbl/d and ${hz} Hz the pump runs outside its published range (${Math.round(curve.qMin)} to ${Math.round(curve.qMax)} bbl/d at ${curve.refHz} Hz). Head and efficiency here are an extrapolation.`,
     });
   }
   if (stage.region === 'downthrust' || stage.region === 'upthrust') {
@@ -222,35 +298,87 @@ export const sizePump = ({
     ? brakeHp({ qBpd, headFt: tdhFt, specificGravity, efficiency: stage.efficiency })
     : stack.bhpTotal;
 
+  // motorLoad.loadFraction is a UTILISATION against the motor's usable
+  // rating: the derate reduces how much shaft power this motor may
+  // legally carry, so a derated 150 hp motor is judged as a 132 hp one
+  // and the flag fires accordingly. That is the selection question, and
+  // it is the same arithmetic as the published rule that required motor
+  // horsepower is the pump horsepower divided by the derating factor.
+  //
+  // It is NOT the same quantity as `espMotorCable.motorCurrent`'s field
+  // of the same name, which is the ELECTRICAL load fraction, shaft hp
+  // over nameplate hp with no derate, because the current a motor draws
+  // at a given shaft load is a property of the machine and does not
+  // move when its permissible load is cut for heat, thrust or voltage
+  // unbalance (PetroWiki, ESP motors: the motor current is nearly
+  // linear with HP loading). Both are right; sharing one field name is
+  // the trap. The two differ by loadFraction * (1/derate - 1), which on
+  // a 12 percent derate and a motor at 0.897 of plate is 12.2 points.
+  // The power the electrical chain is sized on: what the stack absorbs
+  // at the stage count actually selected, not what the duty asks for.
+  const motorSizingHp = stack.bhpTotal;
   let motorLoad = null;
   if (nameplateHp > 0) {
+    // A DERATE THAT CANNOT BE READ IS NOT NO DERATE. `thrustDeratePct ?
+    // ... : 1` sent a NaN, a null and an unentered field down the same
+    // path as a deliberate zero, so a percentage the user meant to
+    // supply and got wrong silently became a motor at full rating, in
+    // the non conservative direction, and the string "12" silently
+    // worked. Not one of the 80; R2's door rule.
+    if (thrustDeratePct !== undefined && thrustDeratePct !== null
+      && !Number.isFinite(thrustDeratePct)) {
+      return {
+        ok: false,
+        code: 'unreadableDerate',
+        error: `The thrust derate could not be read as a number, so how much of this motor may be used cannot be said and no load fraction is reported. Hand a numeric derate in percent, or leave it out for no derate.`,
+      };
+    }
     const derate = thrustDeratePct ? 1 - thrustDeratePct / 100 : 1;
     motorLoad = {
       nameplateHp,
       derate,
-      loadFraction: shaftHp / (nameplateHp * derate),
+      sizingHp: motorSizingHp,
+      loadFraction: motorSizingHp / (nameplateHp * derate),
       motorEfficiency,
-      inputKw: (shaftHp * 0.7457) / motorEfficiency,
+      inputKw: (motorSizingHp * 0.7457) / motorEfficiency,
     };
+    // Both of these fire on `loadFraction`, which is measured against
+    // the DERATED rating, so the derate has to appear in the message
+    // or the numbers argue against the warning they are attached to:
+    // 95.4 hp against a 100 hp motor reads as comfortably inside
+    // rating, while what tripped the flag is 95.4 / (100 x 0.88) =
+    // 1.084 at a 12 percent thrust derate. The usable rating and the
+    // load fraction are both named for the same reason, and the
+    // underload message names them too rather than asserting a
+    // condition a reader cannot check.
+    const usableHp = nameplateHp * motorLoad.derate;
+    const plate = motorLoad.derate < 1
+      ? `a ${nameplateHp} hp motor derated ${thrustDeratePct} percent for thrust, a usable ${usableHp.toFixed(1)} hp`
+      : `a ${nameplateHp} hp motor`;
+    const carried = `${(motorLoad.loadFraction * 100).toFixed(1)} percent of what it may carry`;
     if (motorLoad.loadFraction > 1) {
       warnings.push({
         code: 'motorOverloaded',
-        message: `The shaft needs ${shaftHp.toFixed(1)} hp against a ${nameplateHp} hp motor. Move up a motor or take stages out.`,
+        message: `The ${stages} stages absorb ${motorSizingHp.toFixed(1)} hp against ${plate}, ${carried}. Move up a motor or take stages out.`,
       });
     } else if (motorLoad.loadFraction < 0.5) {
       warnings.push({
         code: 'motorUnderloaded',
-        message: 'The motor is loaded below half its nameplate: it will run cool but the power factor and the cost both suffer.',
+        message: `The ${stages} stages absorb ${motorSizingHp.toFixed(1)} hp against ${plate}, ${carried}: it will run cool but the power factor and the cost both suffer.`,
       });
     }
   }
 
   return {
+    ok: true,
     stages,
     stage,
     stack,
     hydraulicHp: hydraulic,
     shaftHp,
+    // the power everything electrical is taken at, published so a
+    // consumer does not have to know that it is stack.bhpTotal
+    motorSizingHp,
     motorLoad,
     headMadeFt: stack.headFt,
     headMarginFt: stack.headFt - tdhFt,
@@ -272,6 +400,16 @@ export const sizePump = ({
  * making. A pump making 80 percent of its curve is worn, gas locked or
  * running on a wrong stage count, and the number says so without
  * guessing which.
+ *
+ * Message precision. All three ratio flags below fire on a strict
+ * inequality against a threshold and then PRINT the ratio, so the
+ * printed number must be able to sit off the threshold. Rounded to
+ * whole percent, a head ratio of 0.8461 renders as "85 percent" under a
+ * flag that only fires below 85, which reads as a false alarm and
+ * invites a reader to dismiss a real warning. One decimal place is
+ * therefore the format for every ratio printed here, and the gate
+ * `boundary bands print a value off the threshold` in
+ * __tests__/production.esp.test.js pins each of the three bands.
  */
 export const diagnoseOperation = ({
   curve, stages, hz = 60, specificGravity, measured, nameplateAmps,
@@ -285,6 +423,9 @@ export const diagnoseOperation = ({
       : NaN);
 
   const expected = stackPerformance({ curve, stages, qBpd, hz, specificGravity });
+  if (expected.ok === false) {
+    return { ok: false, code: expected.code, error: expected.error };
+  }
   const headRatio = Number.isFinite(actualHeadFt) && expected.headFt > 0
     ? actualHeadFt / expected.headFt
     : NaN;
@@ -297,7 +438,7 @@ export const diagnoseOperation = ({
     if (headRatio < 0.85) {
       flags.push({
         code: 'underCurve',
-        message: `The stack is making ${(headRatio * 100).toFixed(0)} percent of the head its curve says it should at this rate. Wear, free gas through the stages or a wrong stage count all look like this.`,
+        message: `The stack is making ${(headRatio * 100).toFixed(1)} percent of the head its curve says it should at this rate. Wear, free gas through the stages or a wrong stage count all look like this.`,
       });
     } else if (headRatio > 1.15) {
       flags.push({
@@ -315,13 +456,14 @@ export const diagnoseOperation = ({
   if (nameplateAmps > 0 && Number.isFinite(amps)) {
     const load = amps / nameplateAmps;
     if (load > 1.05) {
-      flags.push({ code: 'ampsHigh', message: `Motor amps are ${(load * 100).toFixed(0)} percent of nameplate.` });
+      flags.push({ code: 'ampsHigh', message: `Motor amps are ${(load * 100).toFixed(1)} percent of nameplate.` });
     } else if (load < 0.4) {
-      flags.push({ code: 'ampsLow', message: `Motor amps are ${(load * 100).toFixed(0)} percent of nameplate, which is where a gas-locked or pumped-off well sits.` });
+      flags.push({ code: 'ampsLow', message: `Motor amps are ${(load * 100).toFixed(1)} percent of nameplate, which is where a gas-locked or pumped-off well sits.` });
     }
   }
 
   return {
+    ok: true,
     actualHeadFt,
     expectedHeadFt: expected.headFt,
     headRatio,

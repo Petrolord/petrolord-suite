@@ -21,6 +21,7 @@
  */
 
 import { predictCard, polishedRodHp, cardArea } from './rodDynamics.js';
+import { balanceUnit } from './pumpingUnit.js';
 import { rodArea } from './data/rodCatalog.js';
 
 /**
@@ -31,6 +32,15 @@ import { rodArea } from './data/rodCatalog.js';
  *   to barrels        = / 9702                  (42 gal x 231 in^3/gal)
  *
  * which gives 0.11657, the 0.1166 every rod-pump text quotes.
+ *
+ * UNITS, spelled out because the square inches in them are the whole
+ * trap: bbl per day, per SQUARED PLUNGER DIAMETER in square inches,
+ * per inch of stroke, per stroke a minute. The squared diameter is not
+ * an area. The pi over four is already INCLUDED in the constant, so a
+ * caller who reads that in2 as an area and multiplies by pi d^2 / 4
+ * applies the pi over four twice. That is the predecessor's error
+ * recorded on `displacementBpd` below, and it understated
+ * displacement by 21 percent.
  */
 export const IN3_PER_BBL = 42 * 231;
 export const PUMP_CONSTANT = (Math.PI / 4) * (1440 / IN3_PER_BBL);
@@ -132,7 +142,13 @@ export const dimensionlessGroups = ({
     spOverS: plungerStrokeIn / strokeIn,
     f1OverSkr: (pprlLb - weightFluidLb) / skr,
     f2OverSkr: (weightFluidLb - mprlLb) / skr,
-    torqueGroup: (2 * peakTorqueInLb) / (strokeIn * strokeIn * krLbPerIn),
+    // ITEM 50. Null, not zero, when there is no counterbalance solve
+    // behind it. A torque group of 0 reads as a unit that sees no
+    // gearbox torque, which is a claim; `torquePct` beside it has
+    // always said null in the same case.
+    torqueGroup: Number.isFinite(peakTorqueInLb)
+      ? (2 * peakTorqueInLb) / (strokeIn * strokeIn * krLbPerIn)
+      : null,
     skrLb: skr,
   };
 };
@@ -152,6 +168,15 @@ export const dimensionlessGroups = ({
  *   dampingRatio
  *   serviceFactor, structuralUnbalanceLb, crankOffsetDeg
  *   unitRating      parseUnitDesignation result, or null
+ *
+ *   ADVANCED, both optional and both handed straight to
+ *   rodDynamics.predictCard. Omit them and the march runs exactly as
+ *   it always has; they exist so a march that does not settle can be
+ *   re-run at a finer resolution or given more strokes to settle in,
+ *   which is a real lever on the `notPeriodic` warning.
+ *   nodes           spatial nodes on the string, at least 8. Default 120.
+ *   maxCycles       strokes marched before periodicity is given up on.
+ *                   Default 20.
  * }
  *
  * returns { ok, errors, design }
@@ -160,10 +185,21 @@ export const runRodPumpDesign = ({
   string, frequency, kin, surfacePosition, strokeIn, spm,
   plungerDIn, pDischargePsi, pIntakePsi, fillage = 1, pumpEfficiency = 1,
   dampingRatio, serviceFactor = 1, structuralUnbalanceLb = 0, crankOffsetDeg = 0,
-  unitRating = null, balance,
+  unitRating = null, balance, nodes, maxCycles,
 }) => {
   const errors = [];
   const warnings = [];
+  // The two advanced inputs are optional, so ABSENT means the default
+  // and is not an error. Present and unreadable is an error: a node
+  // count that is not a number marches a grid of NaN and returns
+  // confident nonsense, so it is refused here rather than coerced.
+  const asGiven = (v) => (typeof v === 'string' ? JSON.stringify(v) : String(v));
+  if (nodes !== undefined && !(Number.isFinite(nodes) && nodes >= 8)) {
+    errors.push(`The node count must be a number of at least 8 spatial nodes. It was given as ${asGiven(nodes)}.`);
+  }
+  if (maxCycles !== undefined && !(Number.isFinite(maxCycles) && maxCycles >= 1)) {
+    errors.push(`The cycle limit must be a number of at least 1 stroke. It was given as ${asGiven(maxCycles)}.`);
+  }
   const fo = fluidLoadLb({ plungerDIn, pDischargePsi, pIntakePsi });
   if (!(fo > 0)) {
     errors.push('The plunger has no fluid to lift: the discharge pressure does not exceed the intake pressure. Check the fluid level, the tubing pressure and the inflow.');
@@ -193,6 +229,11 @@ export const runRodPumpDesign = ({
     fluidLoadLb: fo,
     fillage,
     dampingRatio,
+    // Undefined here is what predictCard's own defaults are written
+    // against, so an omitted advanced input marches exactly the grid
+    // and the cycle limit it always did.
+    nodes,
+    maxCycles,
   });
   if (!dyn.ok) return { ok: false, errors: [dyn.error], design: null };
 
@@ -205,6 +246,27 @@ export const runRodPumpDesign = ({
   const sweptBpd = displacementBpd({ plungerDIn, strokeIn: dyn.plungerStrokeIn, spm });
   const producedBpd = sweptBpd * fillage * pumpEfficiency;
 
+  // ITEMS 15 AND 37. `kin`, `structuralUnbalanceLb` and `crankOffsetDeg`
+  // were accepted at this door and never read: the design took whatever
+  // `balance` the CALLER had already solved, so a unit's crank offset
+  // and structural unbalance reached the torque numbers only if the
+  // caller had remembered to pass them to `balanceUnit` itself. Three
+  // inputs that a design silently ignores are three inputs a user will
+  // set and believe in.
+  //
+  // The balance is solved here now, from the kinematics and the card
+  // this design just produced, unless the caller supplied one. The card
+  // is read off the FULL march (items 14 and 38), so the gearbox
+  // numbers are not taken from the 180 point plotting subsample either.
+  const solvedBalance = balance || (kin
+    ? balanceUnit({
+      kin,
+      cardLoadAt: dyn.surfaceLoadAt,
+      structuralUnbalanceLb,
+      crankOffsetDeg,
+    })
+    : null);
+
   const groups = dimensionlessGroups({
     spm,
     n0Spm: frequency.n0Spm,
@@ -216,7 +278,7 @@ export const runRodPumpDesign = ({
     pprlLb: dyn.prlPeakLb,
     mprlLb: dyn.prlMinLb,
     weightFluidLb: string.weightFluidLb,
-    peakTorqueInLb: balance ? balance.peakTorqueInLb : 0,
+    peakTorqueInLb: solvedBalance ? solvedBalance.peakTorqueInLb : null,
   });
 
   // Rod stress, section by section, against the modified Goodman line.
@@ -236,10 +298,23 @@ export const runRodPumpDesign = ({
   const worst = stresses.reduce(
     (a, s) => (s.loadingPct > a.loadingPct ? s : a), stresses[0],
   );
+  // MESSAGE PRECISION, for every warning below. Each fires on a strict
+  // inequality against a threshold and then prints the value it fired
+  // on, so the printed number has to be able to sit OFF the threshold.
+  // Printed to whole units, a loading of 100.2 percent rendered as
+  // "100 percent" under a flag that only fires above 100, and a peak
+  // load a fifth of a pound over the structure rendered as the
+  // structure's own rating in the same sentence: a real warning that
+  // reads as a false alarm, which invites a reader to dismiss it. The
+  // rounding errs upward as readily as downward (100.55 printed whole
+  // reads as 101). One decimal place does not remove the collision, it
+  // narrows it by ten: a value within 0.05 of the threshold still
+  // prints as the threshold. Gated by `warnings print a value that is
+  // off their own threshold` in __tests__/production.rodpump.test.js.
   if (worst && worst.loadingPct > 100) {
     warnings.push({
       code: 'rodOverstressed',
-      message: `The ${worst.label} section runs at ${worst.loadingPct.toFixed(0)} percent of its modified Goodman allowable. Move up a rod size, change grade, shorten the stroke or slow the unit.`,
+      message: `The ${worst.label} section runs at ${worst.loadingPct.toFixed(1)} percent of its modified Goodman allowable. Move up a rod size, change grade, shorten the stroke or slow the unit.`,
     });
   }
 
@@ -247,20 +322,20 @@ export const runRodPumpDesign = ({
   const rating = {};
   if (unitRating) {
     rating.structuralPct = (dyn.prlPeakLb / unitRating.structuralCapacityLb) * 100;
-    rating.torquePct = balance
-      ? (balance.peakTorqueInLb / unitRating.torqueRatingInLb) * 100
+    rating.torquePct = solvedBalance
+      ? (solvedBalance.peakTorqueInLb / unitRating.torqueRatingInLb) * 100
       : null;
     rating.strokePct = (strokeIn / unitRating.strokeIn) * 100;
     if (rating.structuralPct > 100) {
       warnings.push({
         code: 'structuralOverload',
-        message: `Peak polished rod load is ${Math.round(dyn.prlPeakLb)} lb against a ${unitRating.structuralCapacityLb} lb structure.`,
+        message: `Peak polished rod load is ${dyn.prlPeakLb.toFixed(1)} lb against a ${unitRating.structuralCapacityLb} lb structure.`,
       });
     }
     if (rating.torquePct != null && rating.torquePct > 100) {
       warnings.push({
         code: 'torqueOverload',
-        message: `Peak gearbox torque is ${Math.round(balance.peakTorqueInLb)} in-lb against a ${unitRating.torqueRatingInLb} in-lb rating.`,
+        message: `Peak gearbox torque is ${solvedBalance.peakTorqueInLb.toFixed(1)} in-lb against a ${unitRating.torqueRatingInLb} in-lb rating.`,
       });
     }
     if (rating.strokePct > 100) {
@@ -274,7 +349,7 @@ export const runRodPumpDesign = ({
   if (fillage < 0.85) {
     warnings.push({
       code: 'incompleteFillage',
-      message: `The barrel fills only ${(fillage * 100).toFixed(0)} percent. The load stays on the rods into the downstroke and the unit is pumping air for part of every stroke; slow it down, shorten the stroke or fit a smaller plunger.`,
+      message: `The barrel fills only ${(fillage * 100).toFixed(1)} percent. The load stays on the rods into the downstroke and the unit is pumping air for part of every stroke; slow it down, shorten the stroke or fit a smaller plunger.`,
     });
   }
   dyn.warnings.forEach((w) => warnings.push(w));
@@ -298,7 +373,7 @@ export const runRodPumpDesign = ({
       stresses,
       worstSection: worst,
       rating,
-      balance,
+      balance: solvedBalance,
       warnings,
     },
   };

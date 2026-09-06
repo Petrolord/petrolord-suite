@@ -16,6 +16,18 @@ a valve depth the oracle brackets and bisects the same residual. Two
 different discretizations of the same physics agreeing to 1e-6 is the
 evidence; identical code agreeing with itself would be none.
 
+The unloading verdict, the boolean that says the string will inject at
+two depths at once, is derived here from the published closing rule and
+evaluated AT VALVE DEPTH off the forward column, in the fluid that acts
+on that valve's bellows. The engine used to evaluate it at SURFACE for
+every family, by inverting a column to turn each dome charge into the
+casing surface pressure that would produce it: the same test for a
+casing-operated valve, the column being monotone in its surface
+pressure, and not the same test at all for a tubing-operated one. That
+was item 7 and the engine now takes the test at depth per family, so
+this file and the engine meet on the rule and still not on the
+arithmetic: RK4 at 20x the resolution against a 20-step trapezoid.
+
 stdlib only. Regenerate:
     python3 tools/validation/production/oracle_gaslift.py
 """
@@ -246,8 +258,16 @@ def space_valves(cfg):
     depths = [top_valve_depth(pko, pwh, kill, sg, temp_at, floor)]
     surfs = [pko]
     stop = 'maxValves'
+    # The valve that lands at or below the target depth is placed AT the
+    # target depth, and that placement is the one the minimum spacing test
+    # never sees: it breaks out first. The spacing it achieves can be a
+    # fraction of the stated minimum, and until item 27 this file broke out
+    # in the same order and published nothing, so the golden agreed with the
+    # engine's silence and covered neither. It is detected and published
+    # here, so the golden gates the warning the engine owes the user.
+    violation = None
     if depths[0] >= floor - 1e-6:
-        return depths, surfs, 'targetDepth'
+        return depths, surfs, 'targetDepth', violation
 
     for n in range(2, max_v + 1):
         p_surf = pko - (n - 1) * dec
@@ -278,16 +298,19 @@ def space_valves(cfg):
         d = 0.5 * (lo + hi)
 
         if d >= floor:
+            achieved = floor - d_prev
             depths.append(floor)
             surfs.append(p_surf)
             stop = 'targetDepth'
+            if achieved < min_sp:
+                violation = {'valve': n, 'spacingFt': achieved, 'minSpacingFt': min_sp}
             break
         if d - d_prev < min_sp:
             stop = 'minSpacing'
             break
         depths.append(d)
         surfs.append(p_surf)
-    return depths, surfs, stop
+    return depths, surfs, stop, violation
 
 
 def valve_settings(cfg, depths, surfs):
@@ -323,7 +346,9 @@ def valve_settings(cfg, depths, surfs):
                 'depthFt': d, 'tempF': t_f, 'valveType': 'orifice', 'portIdIn': chosen,
                 'pInjAtDepthPsia': p_inj, 'pProdAtDepthPsia': p_prod,
                 'domeAtTempPsia': None, 'dome60Psia': None, 'testRackOpeningPsia': None,
-                'spreadPsi': None, 'closingSurfacePressurePsia': None,
+                'spreadPsi': None, 'closingActsOn': None,
+                'closingPressureAtDepthPsia': None,
+                'closingSurfacePressurePsia': None,
                 'throughputMscfd': q,
             })
             continue
@@ -340,27 +365,179 @@ def valve_settings(cfg, depths, surfs):
             'testRackOpeningPsia': tro_from_dome(pd60, r),
             'spreadPsi': (spread(p_prod, p_inj, r) if vtype == 'PPO'
                           else spread(p_inj, p_prod, r)),
-            'closingSurfacePressurePsia': column_surface(pd_t, d, sg, temp_at),
+            # The valve closes when the pressure acting on the full
+            # bellows falls back to the dome, so the closing pressure AT
+            # DEPTH is pd_t for both families. Only a casing-operated
+            # valve has a casing SURFACE pressure that closes it;
+            # inverting the injection column for a tubing-operated valve
+            # returns a casing pressure the valve is not closed by, and
+            # publishing it invites the comparison item 7 was about.
+            'closingActsOn': 'production' if vtype == 'PPO' else 'injection',
+            'closingPressureAtDepthPsia': pd_t,
+            'closingSurfacePressurePsia': (None if vtype == 'PPO'
+                                           else column_surface(pd_t, d, sg, temp_at)),
             'throughputMscfd': q,
         })
     return out
 
 
-def unloading(valves):
+def unloading(cfg, surfs, valves):
+    """The unloading sequence, and which upper valves are still open.
+
+    THE PUBLISHED METHOD. Unloading a gas-lift string is a top-down
+    sequence. At stage i the point of injection is valve i: the surface
+    injection pressure has been decremented (i - 1) times, the fluid
+    level has been U-tubed down to valve i, and every valve above it is
+    meant to be shut. An upper valve that has not shut is multipointing,
+    the gas splits between two depths and the well never reaches its
+    design injection depth.
+
+    Which of them are shut follows from ONE published statement, the
+    same one the valve-mechanics texts give for the closing pressure
+    (Takacs, Gas Lift Manual, ch. 3; Brown, The Technology of Artificial
+    Lift Methods, vol. 2a; API Gas Lift Manual Book 6): a bellows valve
+    closes when the pressure acting on the FULL bellows area falls back
+    to the dome charge pressure at valve temperature. WHICH pressure
+    that is depends on the family, because the two force balances are
+    the same relation with the casing and the tubing swapped:
+
+      IPO   shut, the casing acts on Ab - Ap and the tubing on Ap; open,
+            injection gas fills the port and the casing acts on all of
+            Ab. So it closes at Pc(valve depth) = Pd_T, and upper valve
+            j is still open at stage i when
+
+                Pc(d_j ; p_surf_i) > Pd_T,j
+
+      PPO   shut, the tubing acts on Ab - Ap and the casing on Ap; open,
+            the port discharges into the tubing and the TUBING acts on
+            all of Ab. So it closes at Pt(valve depth) = Pd_T. That is a
+            condition on the PRODUCTION pressure and not on the casing
+            at all.
+
+      orifice   has no bellows and no dome charge, so it never closes.
+
+    The design-rule form of the same statement, the one every text
+    states as the reason a spacing design decrements the surface
+    pressure at all, is that the casing pressure at a valve's own depth
+    must fall by more than THAT VALVE'S OWN SPREAD
+
+        S_j = Pc,open_j - Pd_T,j = R_j (Pc,open_j - Pt_j)
+
+    before it will shut. The two forms are identical, since
+
+        margin_j(i) = Pc(d_j ; p_surf_i) - Pd_T,j
+                    = S_j - [Pc(d_j ; p_surf_j) - Pc(d_j ; p_surf_i)]
+                    = spread - casing drop at depth
+
+    and both are emitted per stage, so the golden pins the number the
+    verdict turns on and not only the boolean it produced.
+
+    INDEPENDENCE. This is evaluated AT DEPTH, from the forward RK4 gas
+    column, and since item 7 the engine evaluates the same rule at depth
+    off its own 20-step trapezoid column, so the agreement is still two
+    discretizations of one physics meeting. Until item 7 the engine went
+    the other way for BOTH families: it inverted a 20-step column to turn
+    each dome pressure into the surface casing pressure that would
+    produce it and compared surface pressures. For a casing-operated
+    valve that is the same test, the column being monotone in its
+    surface pressure. For a tubing-operated valve it is not the same
+    test, and that disagreement was the item.
+    """
+    sg = cfg['gasSg']
+    temp_at = cfg['tempAt']
+    target = cfg.get('qgiTargetMscfd')
     stages = []
     for i, v in enumerate(valves):
-        p_surf = None
+        p_surf = surfs[i]
         upper = []
-        stages.append({'stage': i + 1, 'upperValvesOpen': upper})
+        margins = []
+        for j in range(i):
+            u = valves[j]
+            pd = u['domeAtTempPsia']
+            if pd is None:
+                # an orifice has no dome charge and never closes
+                margins.append({
+                    'valve': j + 1, 'family': u['valveType'], 'actingOn': 'none',
+                    'actingPressurePsia': None, 'domeAtTempPsia': None,
+                    'marginPsi': None, 'spreadPsi': None, 'casingDropPsi': None,
+                    'open': True,
+                })
+                upper.append(j + 1)
+                continue
+            if u['valveType'] == 'PPO':
+                acting_on = 'production'
+                acting = u['pProdAtDepthPsia']
+                drop = None
+            else:
+                acting_on = 'injection'
+                acting = column(p_surf, u['depthFt'], sg, temp_at)
+                drop = u['pInjAtDepthPsia'] - acting
+            margin = acting - pd
+            is_open = margin > 0
+            margins.append({
+                'valve': j + 1, 'family': u['valveType'], 'actingOn': acting_on,
+                'actingPressurePsia': acting, 'domeAtTempPsia': pd,
+                'marginPsi': margin, 'spreadPsi': u['spreadPsi'],
+                'casingDropPsi': drop, 'open': is_open,
+            })
+            if is_open:
+                upper.append(j + 1)
+        stages.append({
+            'stage': i + 1,
+            'valve': i + 1,
+            'depthFt': v['depthFt'],
+            'surfaceInjectionPsia': p_surf,
+            'injectionAtDepthPsia': v['pInjAtDepthPsia'],
+            'productionAtDepthPsia': v['pProdAtDepthPsia'],
+            'fluidLevelFt': v['depthFt'],
+            'gasRateMscfd': v['throughputMscfd'],
+            'passesTarget': None if target is None else v['throughputMscfd'] >= target,
+            'upperValvesOpen': upper,
+            'multipointing': len(upper) > 0,
+            'closingMargins': margins,
+        })
     return stages
 
 
-def injection_point(traverse, p_surf, sg, temp_at, dp_transfer, max_depth):
+def injection_curve(p_surf, sg, temp_at, max_depth, samples):
+    """The injection line AS THE ENGINE SHIPS IT: `samples` intervals of
+    the column, read between them by linear interpolation.
+
+    Item 30. This oracle used to evaluate the column exactly at every
+    depth the crossing search asked for, so the golden gated a path the
+    engine does not run: `deepestInjectionPoint` builds a 40-sample curve
+    once and interpolates it, and the chord between two samples is below
+    the curve it cuts. The sample VALUES are still this file's own RK4 at
+    400 steps against the engine's 20-step trapezoid, so the independence
+    is intact; what is shared is the discretization that the shipped
+    answer is a property of.
+    """
+    h = max_depth / samples
+    depths = [i * h for i in range(samples + 1)]
+    pressures = [column(p_surf, d, sg, temp_at) for d in depths]
+
+    def at(d):
+        if d <= 0:
+            return pressures[0]
+        if d >= depths[-1]:
+            return pressures[-1]
+        i = 1
+        while i < len(depths) and depths[i] < d:
+            i += 1
+        f = (d - depths[i - 1]) / (depths[i] - depths[i - 1])
+        return pressures[i - 1] + f * (pressures[i] - pressures[i - 1])
+
+    return at
+
+
+def injection_point(traverse, p_surf, sg, temp_at, dp_transfer, max_depth,
+                    samples=40):
     rows = sorted(traverse, key=lambda r: r[0])
     deepest = min(max_depth, rows[-1][0])
+    inj = injection_curve(p_surf, sg, temp_at, deepest, samples)
 
     def margin(d, p):
-        return column(p_surf, d, sg, temp_at) - dp_transfer - p
+        return inj(d) - dp_transfer - p
 
     prev = (rows[0][0], rows[0][1], margin(rows[0][0], rows[0][1]))
     for d, p in rows[1:]:
@@ -371,10 +548,10 @@ def injection_point(traverse, p_surf, sg, temp_at, dp_transfer, max_depth):
             f = prev[2] / (prev[2] - m)
             depth = prev[0] + f * (d - prev[0])
             pp = prev[1] + f * (p - prev[1])
-            return {'depthFt': depth, 'pInjPsia': column(p_surf, depth, sg, temp_at),
+            return {'depthFt': depth, 'pInjPsia': inj(depth),
                     'pProdPsia': pp, 'limitedBy': 'pressure'}
         prev = (d, p, m)
-    return {'depthFt': prev[0], 'pInjPsia': column(p_surf, prev[0], sg, temp_at),
+    return {'depthFt': prev[0], 'pInjPsia': inj(prev[0]),
             'pProdPsia': prev[1], 'limitedBy': 'depth'}
 
 
@@ -421,6 +598,24 @@ CASES = [
         'bellowsAreaIn2': 0.77, 'ports': PORTS_15IN, 'qgiTargetMscfd': 800.0,
         'bottomOrifice': False, 'orificeIdIn': None,
     },
+    {
+        'id': 'midDecrementKnifeEdge',
+        'note': ('9000 ft, 1150 psig kickoff, 26.75 psi per valve: a decrement '
+                 'in the middle of the usual 20-50 psi band, where the unloading '
+                 'verdict is neither all-open nor all-shut. Valves 1 to 3 stay '
+                 'open one stage each and the string is clean from stage 6 down, '
+                 'and the stage-5 verdict on valve 4 hangs on a fraction of a psi '
+                 'of closing margin. It is here because the two extremes (a '
+                 'decrement far below every spread, and one far above) only test '
+                 'the direction of the rule, not the rule.'),
+        'pKickoffPsia': 1164.7, 'pOperatingPsia': 1064.7, 'method': 'surfaceClose',
+        'dpPerValvePsi': 26.75, 'dpTransferPsi': 60.0, 'killGradPsiPerFt': 0.46,
+        'unloadGradPsiPerFt': 0.09, 'pWhUnloadPsia': 154.7, 'gasSg': 0.68,
+        'wht': 105.0, 'bht': 215.0, 'refDepth': 9600.0, 'maxDepthFt': 9000.0,
+        'minSpacingFt': 275.0, 'maxValves': 12, 'valveType': 'IPO',
+        'bellowsAreaIn2': 0.77, 'ports': PORTS_15IN, 'qgiTargetMscfd': 600.0,
+        'bottomOrifice': True, 'orificeIdIn': 0.3125,
+    },
 ]
 
 TRAVERSE = [
@@ -436,7 +631,8 @@ def build():
             '(RK4 column, bisection roots) against the engine method spec: '
             'gas properties, nitrogen dome charge, valve force balance, '
             'Thornhill-Craver throughput, spacing recursion, valve '
-            'settings and the deepest injection point.'
+            'settings, the unloading verdict with the closing margin it '
+            'turns on, and the deepest injection point.'
         ),
         'generator': 'tools/validation/production/oracle_gaslift.py',
         'gasProperties': [],
@@ -493,15 +689,25 @@ def build():
     for c in CASES:
         cfg = dict(c)
         cfg['tempAt'] = linear_temp(c['wht'], c['bht'], c['refDepth'])
-        depths, surfs, stop = space_valves(cfg)
+        depths, surfs, stop, min_spacing_violation = space_valves(cfg)
         valves = valve_settings(cfg, depths, surfs)
+        stages = unloading(cfg, surfs, valves)
+        # margin = spread - casing drop at depth is an identity of the force
+        # balance, so it is checked here rather than trusted.
+        for st in stages:
+            for m in st['closingMargins']:
+                if m['casingDropPsi'] is None:
+                    continue
+                assert abs(m['marginPsi'] - (m['spreadPsi'] - m['casingDropPsi'])) < 1e-9
         out['designs'].append({
             'id': c['id'], 'note': c['note'],
             'inputs': {k: v for k, v in c.items() if k not in ('note',)},
             'stopReason': stop,
+            'minSpacingViolation': min_spacing_violation,
             'depths': depths,
             'surfacePressures': surfs,
             'valves': valves,
+            'unloading': stages,
         })
 
     temp_at = linear_temp(100.0, 190.0, 8000.0)
@@ -509,7 +715,11 @@ def build():
         'traverse': [{'tvdFt': d, 'pPsia': p} for d, p in TRAVERSE],
         'pSurfPsia': 1014.7, 'gasSg': 0.65, 'whtF': 100.0, 'bhtF': 190.0,
         'refDepthFt': 8000.0, 'dpTransferPsi': 100.0, 'maxDepthFt': 8000.0,
-        'expected': injection_point(TRAVERSE, 1014.7, 0.65, temp_at, 100.0, 8000.0),
+        # a published condition of the answer, not a detail: the crossing
+        # is a property of this sample count, and the engine ships 40
+        'injectionSamples': 40,
+        'expected': injection_point(TRAVERSE, 1014.7, 0.65, temp_at, 100.0, 8000.0,
+                                    samples=40),
     }
     return out
 

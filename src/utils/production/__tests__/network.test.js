@@ -331,6 +331,14 @@ describe('what a bigger trunk buys', () => {
     const a = runNetwork({ inputs: tight, wellModels: models });
     const b = runNetwork({ inputs: loose, wellModels: models });
     expect(a.ok && b.ok).toBe(true);
+    // Item 47. Both of these solve, and the tight one only gets there
+    // through a first pass that stalls: the composition loop moves the
+    // mixtures, the branch relations move with them, and the solve that
+    // could not converge on a guessed composition converges on a real
+    // one. A run is refused when the LAST pass fails, not when a pass
+    // does.
+    expect(a.solution.converged).toBe(true);
+    expect(b.solution.converged).toBe(true);
     expect(b.solution.pressures.h).toBeLessThan(a.solution.pressures.h);
     expect(b.totals.qoStbd).toBeGreaterThan(a.totals.qoStbd);
     b.wells.forEach((w) => {

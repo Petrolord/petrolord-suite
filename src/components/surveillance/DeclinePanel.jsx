@@ -20,12 +20,13 @@ const fmt = (v, digits = 0) => (Number.isFinite(v)
   ? v.toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })
   : '--');
 
-const Stat = ({ label, value, unit }) => (
-  <div className="bg-slate-800/60 border border-slate-700/60 rounded px-3 py-2">
+const Stat = ({ label, value, unit, hint }) => (
+  <div className="bg-slate-800/60 border border-slate-700/60 rounded px-3 py-2" title={hint}>
     <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
     <div className="text-base font-semibold text-slate-100">
       {value} {unit && <span className="text-xs font-normal text-slate-500">{unit}</span>}
     </div>
+    {hint && <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">{hint}</div>}
   </div>
 );
 
@@ -61,7 +62,18 @@ const DeclinePanel = () => {
   }
 
   const params = dcaResult?.fit?.parameters;
-  const effective = params ? annualEffectiveDecline(params.Di, params.b, params.modelType) : null;
+  // Item 74. A broken decline exponent is REFUSED, not treated as
+  // exponential: `annualEffectiveDecline` returns `{ ok: false, code,
+  // error }` for a hyperbolic fit whose b is not a finite positive
+  // number, where it used to fall through and report the exponential
+  // decline of a well that is not declining exponentially. A refusal is
+  // an object, so a bare null check would render "[object Object]".
+  const effectiveRaw = params
+    ? annualEffectiveDecline(params.Di, params.b, params.modelType)
+    : null;
+  const effectiveRefused = effectiveRaw !== null && typeof effectiveRaw === 'object';
+  const effective = effectiveRefused ? null : effectiveRaw;
+  const effectiveNote = effectiveRefused ? effectiveRaw.error : null;
 
   return (
     <div className="space-y-4">
@@ -139,7 +151,12 @@ const DeclinePanel = () => {
               <Stat label="qi" value={fmt(params.qi)} unit={streamDef.unit} />
               <Stat label="b" value={fmt(params.b, 2)} />
               <Stat label="Di (nominal)" value={fmt(params.Di, 5)} unit="1/day" />
-              <Stat label="First-year effective decline" value={effective == null ? '--' : fmt(effective, 1)} unit="%" />
+              <Stat
+                label="First-year effective decline"
+                value={effective == null ? '--' : fmt(effective, 1)}
+                unit={effective == null ? '' : '%'}
+                hint={effectiveNote || undefined}
+              />
               <Stat label="R squared" value={fmt(dcaResult.fit.R2, 3)} />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">

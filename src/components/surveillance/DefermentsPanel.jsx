@@ -218,6 +218,10 @@ const DefermentsPanel = () => {
         </CardContent>
       </Card>
 
+      {defermentSummary.ok === false && defermentSummary.note && (
+        <p className="text-[11px] text-slate-500">{defermentSummary.note}</p>
+      )}
+
       {defermentSummary.byCategory.length > 0 && (
         <Card className="bg-slate-900 border-slate-800">
           <CardHeader className="pb-2">
@@ -261,7 +265,7 @@ const DefermentsPanel = () => {
             <p className="mt-3 text-[11px] text-slate-500 flex items-center gap-1.5">
               <CircleDot size={12} className="text-amber-400" />
               {defermentSummary.openCount} open event{defermentSummary.openCount === 1 ? '' : 's'} accrue days to
-              {' '}{surveillance.asOf || 'today'}, the latest date in the ledger.
+              {' '}{surveillance.asOf}, the latest date in the ledger.
             </p>
           </CardContent>
         </Card>

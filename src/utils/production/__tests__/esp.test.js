@@ -354,9 +354,19 @@ describe('the design run', () => {
     });
     expect(rows).toHaveLength(4);
     rows.forEach((r) => {
+      // the system head is a property of the well and is there on every
+      // row; the PUMP head is only there where the stage curve can be
+      // read, and past a tenth of its tested span it cannot be (item 5)
       expect(r.tdhFt).toBeGreaterThan(0);
-      expect(r.pumpHeadFt).toBeGreaterThan(0);
+      if (r.pumpOutsideCurve) {
+        expect(r.pumpHeadFt).toBeNull();
+        expect(r.pumpRefusal).toBe('outsideCurve');
+      } else {
+        expect(r.pumpHeadFt).toBeGreaterThan(0);
+      }
     });
+    // and the plot is not all refusals: the duty itself is on the curve
+    expect(rows.some((r) => !r.pumpOutsideCurve)).toBe(true);
     const stack = stackHeadCurve({
       curve, stages: design.sized.stages, hz: 60,
       specificGravity: design.duty.intake.specificGravity, nPoints: 6,

@@ -139,10 +139,75 @@ and its consumers.
   deepest point of gas injection). The flowing production traverse it
   needs is passed in as a depth-pressure table, so the well's inflow and
   multiphase outflow stay with the consumer's validated nodal model.
-- Cross-directory imports: `engines/* -> ../../lib/*`, plus ONE
-  sanctioned cross-domain edge: `engines/waterflood/patternForecast.js
+  And nodal analysis itself (2026-09-04), which is the root the other
+  seven hang off: oil inflow (straight-line PI, Vogel, the Standing
+  composite, Fetkovich, Jones-Blount-Glaze, with calibration from a
+  production test and the published depletion rule for each family),
+  gas deliverability (Rawlins-Schellhardt and Houpeurt, both with the
+  closed-form inverse the empirical families admit), the dry-gas
+  Cullender and Smith column, and the operating point where inflow and
+  outflow cross. The solver takes the two curves as FUNCTIONS and knows
+  nothing about what made them, which is what lets a consumer hand it a
+  Beggs-Brill or Hagedorn-Brown traverse from its own PVT stack and what
+  lets the gates hand it curves whose crossing is closed-form algebra.
+  It returns EVERY crossing with its stability, because a J-shaped
+  outflow can cross a falling inflow twice and only the right-hand
+  crossing is a well that stays put; the reported operating point is the
+  rightmost stable one and is gated as its own value. Two results worth
+  knowing came out of the oracle: the published two-station Cullender
+  and Smith construction is 11.6 psi low on a friction-dominated gas
+  well (so `steps` is an input, defaulting to the published two), and a
+  40-point crossing scan stops seeing a well whose two crossings have
+  pinched together as it approaches loading up.
+  And the SURVEILLANCE AND ALLOCATION half of the domain (2026-09-04),
+  which is what an operations engineer actually spends the day in.
+  BACK ALLOCATION: a facility meters one commingled stream, so what is
+  booked against each well is an arithmetic split, not a measurement.
+  The metered total is distributed in proportion to what each well was
+  CAPABLE of producing -- its latest valid test scaled by the hours it
+  was on -- and the factor that falls out is the OUTPUT, never
+  normalised to one and never clamped into its warning band, because a
+  persistently high or low factor is the disagreement between the
+  tests, the meter and the uptime record that the engineer is looking
+  for. A date with no metered total is not allocated, and a well with no
+  test in force takes no share rather than a guessed rate. The gate that
+  matters is CLOSURE: the allocated volumes sum back to the meter
+  exactly, every day and every phase. Plus well-test data QC against the
+  well's own history and the ledger on the test date, and the nodal
+  cross-check of a test against what its own well model says it should
+  have made at that wellhead pressure. SURVEILLANCE: the discipline of
+  saying which wells to go and look at today -- a recent window against
+  a baseline window on the same well, every window anchored on the
+  FIELD's own latest ledger date rather than the wall clock (so an old
+  dataset surveils honestly) and WIDENED when the ledger is coarse, so a
+  monthly ledger is not silently compared one month against nothing.
+  Zero hours on stream is a null producing-day rate and never Infinity.
+  Decline overlays call the canonical Arps engine rather than re-deriving
+  it. ARTIFICIAL LIFT SCREENING AND THE DESIGN PASS: the six-method
+  rules matrix is labelled as operating guidance and nothing in it is
+  derived from anything, while the design pass runs each method's real
+  chain against ONE shared well record and reports the equipment each
+  would cost; where the two disagree the DESIGN wins, and the
+  disagreement is surfaced rather than resolved. A design that reaches a
+  third of the target is a SHORTFALL with its achieved rate stated, never
+  a success. Six results came out of these oracles and all are open owner
+  decisions: the module reads a period water cut and GOR two
+  incompatible ways in two of its own functions (a mean of daily ratios
+  in the exception detector, volumetrically in the KPIs) and on the
+  golden well the gap changes the SEVERITY a studio prints; the same
+  target rate is documented as liquid by the screening and used as oil by
+  the design pass; a missing API is coerced to zero and read as heavier
+  than any real crude; the ESP reference-stage ranges overlap so the pick
+  is decided by catalog order; the motor pick falls back to a frame that
+  does not meet its own headroom rule; and the rod-loading guard fails
+  open on an unknown loading.
+- Cross-directory imports: `engines/* -> ../../lib/*`, plus TWO
+  sanctioned cross-domain edges: `engines/waterflood/patternForecast.js
   -> ../scal/fractionalFlow.js` (Buckley-Leverett displacement is the
-  shared physics between the two domains).
+  shared physics between the two domains) and
+  `engines/production/surveillance.js -> ../dca/arps.js` (the decline
+  overlay calls the CANONICAL Arps engine; a second decline
+  implementation would be a second thing to be wrong).
 - `lib/` — shared math the engines depend on (`waveform.js`,
   `gridding/`, `welltest/` — Stehfest inversion, radial Laplace
   models, and Levenberg-Marquardt fitting used by the aquifer and scal

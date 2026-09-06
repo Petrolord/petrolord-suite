@@ -31,14 +31,17 @@ const Toggle = ({ id, label, hint }) => {
 const DutyPanel = () => {
   const { model, inputs } = useLiftAdvisor();
   const aof = model?.ipr?.qmax;
+  // The rate at this door is LIQUID and the open flow is OIL (item 19),
+  // so the two are only comparable through the water cut.
+  const wctPct = Math.min(Math.max(parseFloat(inputs.duty.wctPct) || 0, 0), 99.9);
 
   return (
     <div className="space-y-4">
       <Field
-        label="Target liquid rate (stb/d)"
+        label="Target liquid rate (bbl/d)"
         hint={Number.isFinite(aof)
-          ? `This inflow's absolute open flow is ${fmt(aof)} stb/d. No lift method makes a well give more than it can deliver.`
-          : 'What you want the well to make.'}
+          ? `Oil plus water. This inflow's absolute open flow is ${fmt(aof)} stb/d of OIL, so at ${fmt(wctPct, 0)} percent water cut the most liquid it can deliver is about ${fmt(aof / Math.max(1 - wctPct / 100, 1e-6))} bbl/d. No lift method makes a well give more than it can deliver.`
+          : 'Oil plus water: what you want the well to make.'}
       >
         <NumberInput section="duty" name="targetRateStbd" />
       </Field>

@@ -415,10 +415,36 @@ export const runEspDesign = ({ form, model }) => {
     motorEfficiency: num(form.motorEfficiencyPct, 85) / 100,
   });
 
+  // ITEMS 5 AND N10. `sizePump` refuses now, where it used to return a
+  // design whatever it was handed: a duty more than a tenth of the
+  // tested rate span past the end of the stage curve has no head and no
+  // efficiency to stack, and a thrust derate that is not a number is
+  // not "no derate". A refusal here is the design refusing, with the
+  // engine's own sentence.
+  if (sized.ok === false) {
+    // THE DUTY TRAVELS WITH THE REFUSAL. The lift advisor runs this
+    // chain once on an arbitrary reference stage purely to learn the
+    // in-situ duty, and a duty is a property of the well and the fluid,
+    // not of the stage. Handing it back here is what lets the advisor
+    // pick the stage the duty actually calls for instead of reporting
+    // the whole method undesignable because the probe stage could not
+    // be read (engines PR #136).
+    return {
+      ok: false, errors: [sized.error], code: sized.code, design: null, duty,
+    };
+  }
+
   const electrical = selectCable({
     cables: CABLE_SIZES,
     maxDropPct,
-    shaftHp: sized.shaftHp,
+    // Item 2. The electrical chain is sized on the power the pump
+    // ABSORBS at the stage count selected, `motorSizingHp`, which is
+    // the published sizing power. It used to be handed `shaftHp`, the
+    // brake power at the head the duty requires, which is smaller by
+    // the stage rounding margin and understates the amps, the cable
+    // drop and the cable size in the non conservative direction. The
+    // parameter is named `motorHp` in the engine for that reason.
+    motorHp: sized.motorSizingHp,
     nameplateHp,
     nameplateAmps,
     nameplateVolts,
@@ -501,7 +527,23 @@ export const pumpVsSystem = ({ design, curve, model, form, rates }) => {
       hz: design.hz,
       specificGravity: design.duty.intake.specificGravity,
     });
-    return { ...row, pumpHeadFt: stack.headFt, region: stack.region };
+    // Item 5. Past a tenth of the tested rate span the stage curve has
+    // no head to report, and a cubic fit outside the points it was
+    // fitted to is not a pump. The row still carries the SYSTEM head,
+    // which is a property of the well, and the pump line breaks there
+    // rather than being drawn through an extrapolation.
+    if (stack.ok === false) {
+      return {
+        ...row,
+        pumpHeadFt: null,
+        region: stack.region,
+        pumpOutsideCurve: true,
+        pumpRefusal: stack.code,
+      };
+    }
+    return {
+      ...row, pumpHeadFt: stack.headFt, region: stack.region, pumpOutsideCurve: false,
+    };
   });
 };
 

@@ -291,7 +291,16 @@ describe('plunger screening on this well', () => {
     const model = gasModel();
     const r = runGasWellAnalysis({ form: form(), model });
     const max = largestSlug({ model, result: r.result, form: plungerForm });
-    expect(max).toBeGreaterThan(0);
-    expect(max).toBeLessThanOrEqual(model.tvdMax);
+    expect(max.ok).toBe(true);
+    expect(max.ft).toBeGreaterThan(0);
+    expect(max.ft).toBeLessThanOrEqual(model.tvdMax);
+    // item 34: a casing pressure that cannot lift a bare plunger is a
+    // refusal with a reason, not a slug of zero feet
+    const none = largestSlug({
+      model, result: r.result, form: { ...plungerForm, casingPressurePsia: '200' },
+    });
+    expect(none.ok).toBe(false);
+    expect(none.ft).toBeNull();
+    expect(none.reason).toMatch(/no slug this well can lift/);
   });
 });

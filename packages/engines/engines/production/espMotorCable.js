@@ -44,10 +44,37 @@ export const conductorResistance = ({ ohmsPer1000FtAt77F, tempF }) =>
  * factor curve. Below about half load the real current flattens out
  * toward the magnetising current, so the estimate is flagged there
  * rather than quietly extrapolated to zero.
+ *
+ * `motorHp` IS THE POWER THE PUMP ABSORBS AT THE STAGE COUNT SELECTED,
+ * `espDesign.sizePump`'s `motorSizingHp`, which is `stack.bhpTotal`. It
+ * is not the brake power at the head the duty requires: that is smaller
+ * by the stage rounding margin, and sizing the electrical chain on it
+ * understates the amps, the cable drop and the cable size in the non
+ * conservative direction. The parameter is named `motorHp` rather than
+ * `shaftHp` for exactly that reason, since both are shaft powers and
+ * only one of them is the one the motor carries. Item 2.
+ *
+ * `loadFraction` here is the ELECTRICAL load fraction, motor hp over
+ * NAMEPLATE hp, and it deliberately carries no derate. A derate for
+ * heat, for low fluid velocity past the motor, for voltage unbalance or
+ * for a thrust rating cuts the shaft power the motor may legally carry;
+ * it does not change the current the machine draws at a shaft load it
+ * is actually carrying, and the published relation for reading load off
+ * measured amps is against the plate (PetroWiki, ESP motors: the motor
+ * current is nearly linear with HP loading, which is why amps are the
+ * usual measure of actual loading).
+ *
+ * `espDesign.sizePump` returns a field of the same name that answers
+ * the OTHER question: shaft hp over the DERATED rating, which is the
+ * selection check. The two are different quantities and can sit many
+ * points apart (12.2 points on a 12 percent derate). Read the field
+ * name with the module it came from.
  */
-export const motorCurrent = ({ shaftHp, nameplateHp, nameplateAmps }) => {
-  if (!(nameplateHp > 0) || !(nameplateAmps > 0)) return { amps: NaN, loadFraction: NaN };
-  const loadFraction = shaftHp / nameplateHp;
+export const motorCurrent = ({ motorHp, nameplateHp, nameplateAmps }) => {
+  if (!(nameplateHp > 0) || !(nameplateAmps > 0) || !Number.isFinite(motorHp)) {
+    return { amps: NaN, loadFraction: NaN };
+  }
+  const loadFraction = motorHp / nameplateHp;
   return {
     amps: nameplateAmps * loadFraction,
     loadFraction,
@@ -79,10 +106,10 @@ export const cablePowerLossKw = ({ amps, lengthFt, ohmsPer1000FtAt77F, cableTemp
  * is the number a cable is actually selected on.
  */
 export const surfaceRequirement = ({
-  shaftHp, nameplateHp, nameplateAmps, nameplateVolts, powerFactor = 0.85,
+  motorHp, nameplateHp, nameplateAmps, nameplateVolts, powerFactor = 0.85,
   lengthFt, ohmsPer1000FtAt77F, cableTempF,
 }) => {
-  const current = motorCurrent({ shaftHp, nameplateHp, nameplateAmps });
+  const current = motorCurrent({ motorHp, nameplateHp, nameplateAmps });
   const { dropV, resistanceOhmsPer1000Ft } = cableVoltageDrop({
     amps: current.amps, lengthFt, ohmsPer1000FtAt77F, cableTempF,
   });
@@ -104,14 +131,39 @@ export const surfaceRequirement = ({
 
 /**
  * Pick a cable: the smallest conductor whose voltage drop stays inside
- * `maxDropPct` and whose ampacity (a manufacturer number, passed in
- * with the candidate) covers the current.
+ * `maxDropPct` and, ONLY where the candidate carries an ampacity (a
+ * manufacturer number, passed in with the candidate), whose rating
+ * covers the current.
  *
  * Returns { cable, requirement, candidates } with `cable` null when
  * none qualifies, rather than returning the least bad one silently.
+ *
+ * WHAT `ampacityChecked` MEANS. It is true on a candidate that carries
+ * an `ampacityA`, that is on a candidate whose current was actually
+ * compared against a rating, and false on one that does not, because
+ * ampacity belongs to the insulation system and the well temperature
+ * and this package refuses to invent one (see data/espCatalog.js). The
+ * shipped CABLE_SIZES carry conductor resistance only, so on that table
+ * `ampacityChecked` is false for every candidate and the selection runs
+ * on voltage drop alone. That is a real half of the published method
+ * going unchecked: PetroWiki, ESP power cable, selects on voltage drop
+ * AND on the ampacity chart at the conductor temperature. A caller that
+ * wants both halves must pass `ampacityA` on each candidate, and a
+ * caller that does not should not describe the result as a cable that
+ * carries the current, only as one that keeps the drop inside the
+ * limit.
+ *
+ * The field this replaces was `ampacityOk`, which was TRUE on a
+ * candidate with no rating to check against, so on the shipped table
+ * every size reported a passed ampacity check that had never run. A
+ * signal named for a verdict has to carry a verdict; this one reports
+ * only whether the test was performed, and no ampacity column is
+ * invented to make it say more. Where a rating IS supplied, the verdict
+ * remains in `ok`: a candidate with `dropOk` true and `ok` false is one
+ * the ampacity rejected.
  */
 export const selectCable = ({
-  cables, maxDropPct = 5, shaftHp, nameplateHp, nameplateAmps, nameplateVolts,
+  cables, maxDropPct = 5, motorHp, nameplateHp, nameplateAmps, nameplateVolts,
   powerFactor, lengthFt, cableTempF,
 }) => {
   const candidates = [...(cables || [])]
@@ -119,16 +171,23 @@ export const selectCable = ({
     .reverse() // smallest conductor first: try the cheapest that works
     .map((cable) => {
       const requirement = surfaceRequirement({
-        shaftHp, nameplateHp, nameplateAmps, nameplateVolts, powerFactor,
+        motorHp, nameplateHp, nameplateAmps, nameplateVolts, powerFactor,
         lengthFt, ohmsPer1000FtAt77F: cable.ohmsPer1000FtAt77F, cableTempF,
       });
-      const ampacityOk = !(cable.ampacityA > 0) || requirement.amps <= cable.ampacityA;
+      // Two different statements, and the old field ran them together.
+      // `ampacityChecked` says whether a rating was there to test
+      // against; `ampacityPass` is the test itself, and a candidate
+      // with no rating cannot fail a test that did not happen, so it
+      // stays selectable on drop alone exactly as before. Only the
+      // reported field changes here, never the pick.
+      const ampacityChecked = cable.ampacityA > 0;
+      const ampacityPass = !ampacityChecked || requirement.amps <= cable.ampacityA;
       return {
         cable,
         requirement,
-        ampacityOk,
+        ampacityChecked,
         dropOk: requirement.dropPct <= maxDropPct,
-        ok: ampacityOk && requirement.dropPct <= maxDropPct,
+        ok: ampacityPass && requirement.dropPct <= maxDropPct,
       };
     });
   const hit = candidates.find((c) => c.ok) || null;
