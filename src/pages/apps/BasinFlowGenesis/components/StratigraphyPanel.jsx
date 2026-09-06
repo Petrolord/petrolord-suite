@@ -61,7 +61,7 @@ const LayerCard = ({ layer, index, dispatch, readOnly = false }) => {
                                             <Input 
                                                 type="number" 
                                                 value={layer.ageStart || 0} 
-                                                onChange={(e) => dispatch({ type: 'UPDATE_LAYER', id: layer.id, payload: { ageStart: parseFloat(e.target.value) } })}
+                                                onChange={(e) => dispatch({ type: 'UPDATE_LAYER', id: layer.id, payload: { ageStart: parseFloat(e.target.value), agesGuessed: false } })}
                                                 className="h-7 bg-slate-950 text-xs"
                                                 readOnly={readOnly}
                                             />
@@ -71,7 +71,7 @@ const LayerCard = ({ layer, index, dispatch, readOnly = false }) => {
                                             <Input 
                                                 type="number" 
                                                 value={layer.ageEnd || 0} 
-                                                onChange={(e) => dispatch({ type: 'UPDATE_LAYER', id: layer.id, payload: { ageEnd: parseFloat(e.target.value) } })}
+                                                onChange={(e) => dispatch({ type: 'UPDATE_LAYER', id: layer.id, payload: { ageEnd: parseFloat(e.target.value), agesGuessed: false } })}
                                                 className="h-7 bg-slate-950 text-xs"
                                                 readOnly={readOnly}
                                             />
@@ -111,6 +111,9 @@ const LayerCard = ({ layer, index, dispatch, readOnly = false }) => {
                                         </Select>
                                     </div>
 
+                                    {layer.agesGuessed && (
+                                        <div className="text-[11px] text-amber-400" data-testid="bf-layer-ages-guessed">Ages are placeholders from the tops import. Type the deposition ages.</div>
+                                    )}
                                     {/* Safety Check for sourceRock object using optional chaining */}
                                     {layer.sourceRock?.isSource && (
                                          <div className="flex items-center gap-2 p-2 bg-green-900/20 rounded border border-green-900/50">

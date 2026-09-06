@@ -106,3 +106,53 @@ test('BF1: Expert mode edits the erosion events and the heat-flow model, and the
   await simulate(page);
   await expect(page.getByTestId('bf-present-ro-source_shale')).not.toHaveText(REF.final_source_ro_constant_q.toFixed(3));
 });
+
+test('BF2: calibration points are typed or imported from a file, tops files and registry wells become the stratigraphy', async ({ page }) => {
+  await openExpert(page);
+  await simulate(page);
+
+  // type two Ro points: the misfit is live
+  await page.getByTestId('bf-tab-calibration').click();
+  await page.getByTestId('bf-cal-ro-add').click();
+  await page.getByTestId('bf-cal-ro-depth-0').fill('3000');
+  await page.getByTestId('bf-cal-ro-value-0').fill('0.8');
+  await expect(page.getByTestId('bf-cal-ro-rms')).not.toHaveText('0.000 %');
+
+  // import a calibration file: preview, problems for the bad row, replace
+  await page.getByTestId('bf-tab-import').click();
+  await page.getByTestId('bf-import-input-calibration').setInputFiles({
+    name: 'cal.csv', mimeType: 'text/csv',
+    buffer: Buffer.from('depth,Ro,temp\n1500,0.55,65\n3000,1.15,110\n3500,abc,\n'),
+  });
+  await expect(page.getByTestId('bf-import-preview-calibration')).toHaveText('2 Ro points, 2 temperature points read.');
+  await expect(page.getByTestId('bf-import-problems-calibration')).toContainText('Row 4');
+  await page.getByTestId('bf-import-apply-calibration').click();
+  await page.getByTestId('bf-tab-calibration').click();
+  await expect(page.getByTestId('bf-cal-ro-depth-1')).toHaveValue('3000');
+  await expect(page.getByTestId('bf-cal-temp-value-1')).toHaveValue('110');
+  await expect(page.getByTestId('bf-cal-ro-depth-2')).toHaveCount(0); // replaced, not appended
+
+  // a tops file replaces the stratigraphy with placeholder ages flagged
+  await page.getByTestId('bf-tab-import').click();
+  await page.getByTestId('bf-import-tab-tops').click();
+  await page.getByTestId('bf-import-input-tops').setInputFiles({
+    name: 'tops.csv', mimeType: 'text/csv',
+    buffer: Buffer.from('Formation,MD\nUpper,0\nMiddle,1000\nLower,2500\n'),
+  });
+  await page.getByTestId('bf-import-tops-td').fill('4000');
+  await expect(page.getByTestId('bf-import-preview-tops')).toContainText('1500');
+  await page.getByTestId('bf-import-apply-tops').click();
+  await page.getByTestId('bf-tab-properties').click();
+  await expect(page.locator('[data-testid="bf-layer-card"]')).toHaveCount(3);
+  await expect(page.getByTestId('bf-layer-ages-guessed').first()).toBeVisible();
+
+  // a registry well's tops do the same and tie the model to the well
+  await page.getByTestId('bf-tab-import').click();
+  await page.getByTestId('bf-import-tab-registry').click();
+  await page.getByTestId('bf-registry-well').selectOption({ label: 'KETA-1 (4 tops)' });
+  await expect(page.getByTestId('bf-registry-preview')).toContainText('Top Source Shale');
+  await page.getByTestId('bf-registry-apply').click();
+  await expect(page.getByTestId('bf-registry-tied')).toHaveText('Tied to KETA-1.');
+  await page.getByTestId('bf-tab-properties').click();
+  await expect(page.locator('[data-testid="bf-layer-card"]')).toHaveCount(4);
+});
