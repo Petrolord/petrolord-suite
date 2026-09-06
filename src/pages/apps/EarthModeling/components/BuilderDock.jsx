@@ -7,6 +7,8 @@
 import React, { useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DERIVED_KINDS, describeDerived } from '../services/derivedSurfaces';
+import { POPULATION_METHODS } from '../services/modelBuild';
+import { VARIOGRAM_MODELS } from '../services/propertyKriging';
 
 const selCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
 const inCls = selCls;
@@ -147,22 +149,29 @@ export default function BuilderDock({
             <span className="w-10 text-slate-400">{prop}</span>
             <select className={selCls} data-testid={`em-method-${prop}`} value={definition.methods[prop]}
               onChange={(e) => patch({ methods: { ...definition.methods, [prop]: e.target.value } })}>
-              <option value="constant">constant (weighted mean)</option>
-              <option value="trend">trend (LSQ plane)</option>
-              <option value="krige">simple kriging</option>
+              {POPULATION_METHODS.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
           </div>
         ))}
-        <p className="text-[10px] text-slate-600">Per fault block; short blocks fall back krige → trend → constant (recorded in QC).</p>
+        <p className="text-[10px] text-slate-600">Per fault block; short blocks fall back kriging to trend to constant (recorded in QC).</p>
 
-        {Object.values(definition.methods).includes('krige') && (
+        {(Object.values(definition.methods).includes('krige') || Object.values(definition.methods).includes('okrige')) && (
           <>
-            <div className={secCls}>Variogram (simple kriging)</div>
+            <div className={secCls}>Variogram</div>
+            {Object.values(definition.methods).includes('okrige') && (
+              <>
+                <label className="flex items-center gap-1 text-slate-400" title="Fit range and sill from the experimental semivariogram of each property's control points (per block)">
+                  <input type="checkbox" data-testid="em-vg-fit" checked={definition.krige.fit !== false} onChange={(e) => patchKrige({ fit: e.target.checked })} /> fit from the wells
+                </label>
+                <label className="flex items-center gap-1 text-slate-400" title="Fit a plane first and krige the residuals, so a regional trend is honoured">
+                  <input type="checkbox" data-testid="em-vg-detrend" checked={definition.krige.detrend !== false} onChange={(e) => patchKrige({ detrend: e.target.checked })} /> remove the trend first
+                </label>
+              </>
+            )}
             <div className="grid grid-cols-2 gap-1">
               <select className={selCls} data-testid="em-vg-model" value={definition.krige.model}
                 onChange={(e) => patchKrige({ model: e.target.value })}>
-                <option value="spherical">spherical</option>
-                <option value="exponential">exponential</option>
+                {VARIOGRAM_MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
               </select>
               <input className={inCls} data-testid="em-vg-range" type="number" value={definition.krige.range}
                 onChange={(e) => patchKrige({ range: num(e.target.value) })} placeholder="range m" title="range (m)" />

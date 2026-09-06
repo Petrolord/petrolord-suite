@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { fmtVolume, volumeUnitLabel, fmtDepth } from '../services/units';
+import { describeProvenance } from '../services/propertyKriging';
 
 const th = 'px-2 py-1 text-left text-[10px] uppercase tracking-wider text-slate-500 font-medium';
 const td = 'px-2 py-1 text-xs text-slate-300 whitespace-nowrap';
@@ -138,8 +139,8 @@ export default function QcPanel({ built, surfaceNames = [], depthUnit = 'm', vol
           </table>
           <div className="px-2 py-1.5 text-[11px] text-slate-500 border-t border-slate-800/60">
             {Object.entries(zone.provenance).map(([prop, rows]) => (
-              <span key={prop} className="mr-3">
-                {prop}: {rows.map((r) => `block ${r.block} ${r.methodUsed}(${r.wells}w)${r.fellBack ? ' FELL BACK' : ''}`).join(', ')}
+              <span key={prop} className="mr-3" data-testid={`em-prov-${zone.name.replace(/\s+/g, '-').toLowerCase()}-${prop}`}>
+                {prop}: {describeProvenance(rows)}
               </span>
             ))}
           </div>

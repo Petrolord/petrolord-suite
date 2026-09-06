@@ -117,3 +117,13 @@ e2e) against what a Petrel user expects of a structural framework:
   achieved after clamping); PNG export. Both backends carry
   `listLogs`/`downloadCurve` (the harness synthesises a GR per fixture
   well with a sand body below 1500 m MD).
+- **EM4 (2026-09-06), branch `feat/em4-property-kriging`.** Population
+  method "ordinary kriging (fitted variogram)" beside constant, trend
+  and the legacy simple kriging: `services/propertyKriging.js` runs the
+  Mapping kriging module per fault block on the zone control points
+  (variogram fitted from the wells per property, or typed; trend removal
+  on by default; four points minimum, else the ladder falls to trend
+  then constant and says why) and returns a variance grid per property.
+  Map layers gain "Porosity/Sw/NTG kriging variance" (listed only when
+  kriged; publishable as an attribute); QC provenance names the model,
+  range, sill and whether it was fitted.
