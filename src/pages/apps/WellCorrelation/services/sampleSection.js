@@ -24,6 +24,11 @@ const TOPS = {
   ] },
 };
 
+// typed surfaces (Stratigraphy ST0): Mid Shale is a maximum flooding surface and
+// Base Sand a subaerial unconformity in the harness, so the section draws two
+// typed markers beside the plain formation top (the e2e reads data-top-types)
+const SAMPLE_SURFACE_TYPES = { 'Mid Shale': 'MFS', 'Base Sand': 'SU' };
+
 const STEP = 0.5;
 const TOP_MD = 1400;
 const BOT_MD = 1750;
@@ -90,7 +95,7 @@ export function sampleWells() {
       kb_m: 30,
       td_md_m: BOT_MD,
       deviation: w.deviation || null,
-      tops: w.tops.map((t, ti) => ({ id: `${id}-top-${ti}`, well_id: id, name: t.name, md_m: t.md_m })),
+      tops: w.tops.map((t, ti) => ({ id: `${id}-top-${ti}`, well_id: id, name: t.name, md_m: t.md_m, surface_type: SAMPLE_SURFACE_TYPES[t.name] || 'formation_top', unit_id: null, confidence: null, age_ma: null, notes: null })),
       curves: { DEPT: depth, GR: gr, RT: rt, RHOB: rhob, NPHI: nphi },
       logMeta: { DEPT: meta('M'), GR: meta('GAPI'), RT: meta('OHMM'), RHOB: meta('G/C3'), NPHI: meta('V/V') },
     };

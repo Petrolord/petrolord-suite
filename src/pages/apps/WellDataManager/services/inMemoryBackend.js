@@ -157,9 +157,9 @@ export function makeInMemoryBackend(opts = {}) {
       return w;
     },
 
-    async saveTop(wellId, { name, mdM, interpreter = null }) {
+    async saveTop(wellId, { name, mdM, interpreter = null, surface_type = 'formation_top', unit_id = null, confidence = null, age_ma = null, notes = null }) {
       ownWell(wellId, 'add tops to');
-      const row = { id: nextId('top'), well_id: wellId, name, md_m: Number(mdM), interpreter };
+      const row = { id: nextId('top'), well_id: wellId, name, md_m: Number(mdM), interpreter, surface_type, unit_id, confidence, age_ma: age_ma == null || age_ma === '' ? null : Number(age_ma), notes };
       topsByWell.get(wellId).push(row);
       topsByWell.get(wellId).sort((a, b) => a.md_m - b.md_m);
       return row;
@@ -172,11 +172,23 @@ export function makeInMemoryBackend(opts = {}) {
           if (patch.mdM !== undefined) t.md_m = Number(patch.mdM);
           if (patch.name !== undefined) t.name = patch.name;
           if (patch.interpreter !== undefined) t.interpreter = patch.interpreter;
+          if (patch.surface_type !== undefined) t.surface_type = patch.surface_type;
+          if (patch.unit_id !== undefined) t.unit_id = patch.unit_id || null;
+          if (patch.confidence !== undefined) t.confidence = patch.confidence || null;
+          if (patch.age_ma !== undefined) t.age_ma = patch.age_ma == null || patch.age_ma === '' ? null : Number(patch.age_ma);
+          if (patch.notes !== undefined) t.notes = patch.notes || null;
           list.sort((a, b) => a.md_m - b.md_m);
           return t;
         }
       }
       throw new Error('Top not found.');
+    },
+    /** Stratigraphic column (ST0): a seeded two-unit column for the Unit column of the tops tab. */
+    async listUnits() {
+      return [
+        { id: 'unit-agbada', user_id: 'user-a', organization_id: null, name: 'Agbada', rank: 'formation', parent_id: null, order_index: 0, age_top_ma: 2.58, age_base_ma: 33.9, colour: '#f59e0b', lithology: null, notes: null },
+        { id: 'unit-akata', user_id: 'user-a', organization_id: null, name: 'Akata', rank: 'formation', parent_id: null, order_index: 1, age_top_ma: 33.9, age_base_ma: 56.0, colour: '#64748b', lithology: null, notes: null },
+      ];
     },
     async deleteTop(top) {
       ownWell(top.well_id, 'delete tops of');

@@ -10,7 +10,8 @@ const cellCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-
 
 /**
  * @param {Object} p
- * @param {Array<{key: string, label: string, type?: 'number'|'text', readOnly?: boolean, width?: number}>} p.columns
+ * @param {Array<{key: string, label: string, type?: 'number'|'text'|'select', options?: Array<{value: string, label: string}>, readOnly?: boolean, width?: number}>} p.columns
+ *   a `select` column renders a dropdown of `options` (an empty value row is added when the current value is empty)
  * @param {Array<Object>} p.rows  plain objects keyed by column key (strings while editing)
  * @param {(rows: Array<Object>) => void} p.onChange
  * @param {string} p.testIdPrefix
@@ -38,6 +39,17 @@ export default function RowGridEditor({ columns, rows, onChange, testIdPrefix, c
                 <td key={c.key} className="pr-3 py-0.5">
                   {c.readOnly ? (
                     <span className="text-slate-500 font-mono" data-testid={`${testIdPrefix}-cell-${ri}-${c.key}`}>{r[c.key] ?? '—'}</span>
+                  ) : c.type === 'select' ? (
+                    <select
+                      className={cellCls}
+                      style={c.width ? { width: c.width } : undefined}
+                      value={r[c.key] ?? ''}
+                      onChange={(e) => setCell(ri, c.key, e.target.value)}
+                      data-testid={`${testIdPrefix}-cell-${ri}-${c.key}`}
+                    >
+                      {(c.options || []).some((o) => o.value === (r[c.key] ?? '')) ? null : <option value="">{c.placeholder || ''}</option>}
+                      {(c.options || []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
                   ) : (
                     <input
                       className={cellCls}

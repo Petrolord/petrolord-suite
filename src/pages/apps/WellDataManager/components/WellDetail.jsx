@@ -16,6 +16,8 @@ import CrsPicker from '@/components/crs/CrsPicker';
 import RowGridEditor from '@/components/wells/RowGridEditor';
 import PasteReplacePanel, { CheckshotConventionRow } from '@/components/wells/PasteReplacePanel';
 import { buildDeviation, buildTops, buildCheckshotInputs } from '@/lib/wellImport';
+import { SURFACE_TYPES, displayLabel, normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
+import { useScheme } from '@/lib/stratigraphy/scheme';
 import {
   makeDepthFrame, toStoredCheckshots, fromStoredCheckshots, rebaseStoredCheckshots,
   makeCheckshotProvenance, LEGACY_CHECKSHOT_PROVENANCE, PETREL_CHECKSHOT_CONVENTION, M_PER_FT,
@@ -61,6 +63,8 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
   const [csView, setCsView] = useState(null); // display convention for the checkshot tab (null = as entered)
   const canEdit = !!well.is_own && typeof backend.updateWellData === 'function';
   const [tops, setTops] = useState(null);       // null = loading
+  const [units, setUnits] = useState([]);       // stratigraphic column (ST0), for the Unit column
+  const [scheme] = useScheme();
   const [logs, setLogs] = useState(null);
   // Legacy wells carry no structured CRS; Assign CRS patches the row
   // in place (declares what the stored coordinates already are — it
@@ -76,8 +80,9 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
     setTops(null);
     setLogs(null);
     try {
-      const [t, l] = await Promise.all([backend.listTops(well.id), backend.listLogs(well.id)]);
+      const [t, l, u] = await Promise.all([backend.listTops(well.id), backend.listLogs(well.id), backend.listUnits ? backend.listUnits().catch(() => []) : Promise.resolve([])]);
       setTops(t);
+      setUnits(u || []);
       setLogs(l);
     } catch (e) {
       onStatus(e.message);
@@ -139,7 +144,8 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
         busy: false });
     } else if (which === 'Tops') {
       setEditor({ tab: 'Tops', mode: 'grid', conv: { mdUnit: 'm' }, pasted: null, error: null, busy: false,
-        rows: (tops || []).map((t) => ({ id: t.id, name: t.name, md: numCell(t.md_m, 2), interpreter: t.interpreter || '' })) });
+        rows: (tops || []).map((t) => ({ id: t.id, name: t.name, md: numCell(t.md_m, 2), interpreter: t.interpreter || '',
+          surface_type: normalizeSurfaceType(t.surface_type), unit_id: t.unit_id || '', confidence: t.confidence || '', age_ma: t.age_ma == null ? '' : String(t.age_ma) })) });
     } else if (which === 'Deviation') {
       setEditor({ tab: 'Deviation', mode: 'grid', conv: { mdUnit: 'm' }, pasted: null, error: null, busy: false,
         rows: (well.deviation || []).map((d) => ({ md: numCell(d.md, 2), inc: numCell(d.inc, 2), azi: numCell(d.azi, 2) })) });
@@ -263,14 +269,23 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
         for (const r of wanted) {
           const md = Number(r.md);
           const interpreter = String(r.interpreter || '').trim() || null;
+          if (r.age_ma !== '' && r.age_ma != null && !Number.isFinite(Number(r.age_ma))) throw new Error(`"${r.name}": the age "${r.age_ma}" is not a number.`);
+          const typed = {
+            surface_type: normalizeSurfaceType(r.surface_type),
+            unit_id: r.unit_id || null,
+            confidence: r.confidence || null,
+            age_ma: r.age_ma === '' || r.age_ma == null ? null : Number(r.age_ma),
+          };
           if (r.id) {
             const orig = before.find((t) => t.id === r.id);
-            if (orig && (orig.name !== r.name.trim() || Math.abs(orig.md_m - md) > 1e-9 || (orig.interpreter || null) !== interpreter)) {
-              await backend.updateTop(r.id, { name: r.name.trim(), mdM: md, interpreter });
+            const typedChanged = orig && (normalizeSurfaceType(orig.surface_type) !== typed.surface_type || (orig.unit_id || null) !== typed.unit_id
+              || (orig.confidence || null) !== typed.confidence || (orig.age_ma ?? null) !== typed.age_ma);
+            if (orig && (orig.name !== r.name.trim() || Math.abs(orig.md_m - md) > 1e-9 || (orig.interpreter || null) !== interpreter || typedChanged)) {
+              await backend.updateTop(r.id, { name: r.name.trim(), mdM: md, interpreter, ...typed });
               changed++;
             }
           } else {
-            await backend.saveTop(well.id, { name: r.name.trim(), mdM: md, interpreter });
+            await backend.saveTop(well.id, { name: r.name.trim(), mdM: md, interpreter, ...typed });
             changed++;
           }
         }
@@ -557,7 +572,14 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
             {editor.mode === 'grid' ? (
               <RowGridEditor testIdPrefix="wdm-tops" rows={editor.rows}
                 onChange={(rows) => setEditor((ed) => ({ ...ed, rows }))}
-                columns={[{ key: 'name', label: 'Top', type: 'text', width: 160 }, { key: 'md', label: 'MD (m)', type: 'number' }, { key: 'interpreter', label: 'Interpreter', type: 'text' }]} />
+                columns={[
+                  { key: 'name', label: 'Top', type: 'text', width: 160 }, { key: 'md', label: 'MD (m)', type: 'number' },
+                  { key: 'surface_type', label: 'Type', type: 'select', width: 150, options: SURFACE_TYPES.map((t) => ({ value: t.code, label: displayLabel(t.code, scheme, { kind: 'surface', short: true }).label + (displayLabel(t.code, scheme, { kind: 'surface' }).fallback ? ' (Catuneanu)' : '') })) },
+                  { key: 'unit_id', label: 'Unit', type: 'select', width: 150, placeholder: 'none', options: units.map((u) => ({ value: u.id, label: `${u.name} (${u.rank})` })) },
+                  { key: 'confidence', label: 'Confidence', type: 'select', width: 90, placeholder: 'not stated', options: [{ value: 'high', label: 'high' }, { value: 'medium', label: 'medium' }, { value: 'low', label: 'low' }] },
+                  { key: 'age_ma', label: 'Age (Ma)', type: 'number', width: 80 },
+                  { key: 'interpreter', label: 'Interpreter', type: 'text' },
+                ]} />
             ) : (
               <PasteReplacePanel kind="tops" fields={['name', 'md']} labels={{ name: 'Top name', md: `MD (${editor.conv.mdUnit})` }}
                 convention={editor.conv} onConvention={(c) => setEditor((ed) => ({ ...ed, conv: c }))}
@@ -578,6 +600,10 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                   <tr>
                     <th className={thCls}>Top</th>
                     <th className={thCls}>MD (m)</th>
+                    <th className={thCls}>Type</th>
+                    <th className={thCls}>Unit</th>
+                    <th className={thCls}>Confidence</th>
+                    <th className={thCls}>Age (Ma)</th>
                     <th className={thCls}>Interpreter</th>
                     <th className={thCls}>Map</th>
                   </tr>
@@ -587,6 +613,13 @@ export default function WellDetail({ backend, well, onStatus, refreshNonce = 0, 
                     <tr key={t.id} data-testid="wdm-top-row">
                       <td className={`${tdCls} text-slate-100`}>{t.name}</td>
                       <td className={tdCls}>{fmt(t.md_m)}</td>
+                      <td className={tdCls} data-testid={`wdm-top-type-${t.name}`} title={displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface' }).label}>
+                        {displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface', short: true }).label}
+                        {displayLabel(normalizeSurfaceType(t.surface_type), scheme, { kind: 'surface' }).fallback ? <span className="ml-1 text-[10px] text-amber-300" title="No Exxon term; Catuneanu name shown">C</span> : null}
+                      </td>
+                      <td className={tdCls}>{units.find((u) => u.id === t.unit_id)?.name || '—'}</td>
+                      <td className={tdCls}>{t.confidence || '—'}</td>
+                      <td className={tdCls}>{t.age_ma == null ? '—' : t.age_ma}</td>
                       <td className={tdCls}>{t.interpreter || '—'}</td>
                       <td className={tdCls}>
                         <Link to={mapTopHref(t.name, [], appPath(MAPPING_ID, appPaths))} className="text-cyan-300 hover:text-amber-300"

@@ -24,6 +24,8 @@ import { trackGeometry } from '@/components/wells/trackRender';
 import {
   PALETTES, visibleRange, paintDepthAxis, paintTrackHeader, paintTrackBody, paintReadouts, paintTopMarker,
 } from '@/components/wells/trackPainter';
+import { surfaceLineStyle, displayLabel, normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
+import { useScheme } from '@/lib/stratigraphy/scheme';
 import { hitTopAt } from '@/components/wells/hitTest';
 import { topColor } from '@/components/wells/topColors';
 import { depthLabel } from '@/components/wells/depthModes';
@@ -38,6 +40,13 @@ export const HEADER_H = 50;    // track header (title + scale rows + readout)
 const PAD_TOP = 2;
 const PAD_BOTTOM = 4;
 const TAG_MAX = 120;
+
+/** Tag text of a top: the typed abbreviation in the display scheme in front of the name; plain name for formation tops. */
+function topLabel(t, scheme) {
+  const code = normalizeSurfaceType(t.row?.surface_type ?? t.surface_type);
+  if (code === 'formation_top') return t.name;
+  return `${displayLabel(code, scheme, { kind: 'surface', short: true }).label} ${t.name}`;
+}
 const MIN_READOUT_W = 60;
 const P = PALETTES.light;
 const AMBER = '#b45309';
@@ -170,6 +179,9 @@ const CrossSection = forwardRef(function CrossSection({
     .filter((t) => shownTops.includes(t.name))
     .map((t) => ({ ...t, md_m: displayedDepth(t.md_m, c.shift), row: c.well.tops.find((r) => r.id === t.id) || t }))),
   [columns, shownTops]);
+  // typed surfaces (ST0): marker style per Catuneanu code, tag label in the display scheme
+  const [scheme] = useScheme();
+  const topTypes = useMemo(() => columnTops.flat().map((t) => `${t.name}:${normalizeSurfaceType(t.row?.surface_type ?? t.surface_type)}`).join(';'), [columnTops]);
 
   const unitTxt = depthUnit === 'ft' ? 'ft' : 'm';
   const axisTitle = datum.mode === 'flatten'
@@ -293,14 +305,15 @@ const CrossSection = forwardRef(function CrossSection({
         if (topDrag && topDrag.top.id === t.id) continue; // drawn by the cursor layer while dragging
         if (t.md_m < vTop || t.md_m > vBase) continue;
         paintTopMarker(ctx, {
-          name: t.name, color: colorOf(t.name), y: yOf(t.md_m), xLeft: box.x0, xRight: box.x0 + box.w,
+          name: t.name, label: topLabel(t, scheme), color: colorOf(t.name), y: yOf(t.md_m), xLeft: box.x0, xRight: box.x0 + box.w,
           tagMax: Math.min(TAG_MAX, box.w - 4), grip: !!(c.well.is_own && onTopMove),
+          style: surfaceLineStyle(t.row?.surface_type ?? t.surface_type),
         });
       }
     });
 
     setTick((t) => t + 1);
-  }, [size, wells, columns, boxes, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove]);
+  }, [size, wells, columns, boxes, geoms, frameWells, flattening, columnTops, shownTops, zoneMode, zonePair, datum, depthRef, F, axisTitle, vTop, vBase, yOf, plotTop, plotH, topDrag, onTopMove, scheme]);
 
   // ---- CURSOR layer -------------------------------------------------------
   useEffect(() => {
@@ -525,6 +538,8 @@ const CrossSection = forwardRef(function CrossSection({
       data-view-top={vTop}
       data-view-base={vBase}
       data-pick-mode={pickMode || ''}
+      data-top-types={topTypes}
+      data-scheme={scheme}
     >
       <div ref={wrapRef} className="flex-1 min-w-0 h-full relative overflow-hidden bg-white">
         <canvas
