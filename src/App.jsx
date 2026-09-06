@@ -59,6 +59,7 @@ const WellCorrelation = lazy(() => import('@/pages/apps/WellCorrelation/WellCorr
 const CorrelationHelpGuide = lazy(() => import('@/pages/apps/WellCorrelation/CorrelationHelpGuide'));
 const StratigraphyStudio = lazy(() => import('@/pages/apps/StratigraphyStudio/StratigraphyStudio'));
 const StratigraphyHelpGuide = lazy(() => import('@/pages/apps/StratigraphyStudio/StratigraphyHelpGuide'));
+const WellsiteStudio = lazy(() => import('@/pages/apps/WellsiteStudio/WellsiteStudio'));
 const PetrophysicsStudio = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudio'));
 const PetrophysicsHelpGuide = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsHelpGuide'));
 const MappingHelpGuide = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingHelpGuide'));
@@ -118,6 +119,7 @@ const WellDataManagerHarness = lazy(() => import('@/pages/apps/WellDataManager/W
 const PetrophysicsStudioHarness = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudioHarness'));
 const WellCorrelationHarness = lazy(() => import('@/pages/apps/WellCorrelation/WellCorrelationHarness'));
 const StratigraphyStudioHarness = lazy(() => import('@/pages/apps/StratigraphyStudio/StratigraphyStudioHarness'));
+const WellsiteStudioHarness = lazy(() => import('@/pages/apps/WellsiteStudio/WellsiteStudioHarness'));
 const MappingSurfaceStudioHarness = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingSurfaceStudioHarness'));
 const ProspectRiskingHarness = lazy(() => import('@/pages/apps/ReservoirCalcPro/ProspectRiskingHarness'));
 const ReservoirCalcProHarness = lazy(() => import('@/pages/apps/ReservoirCalcPro/ReservoirCalcProHarness'));
@@ -493,6 +495,7 @@ function App() {
                                 <Route path="apps/geoscience/well-correlation/help" element={<ProtectedAppRoute appId="well-correlation" appName="Well Correlation"><CorrelationHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/stratigraphy-studio" element={<ProtectedAppRoute appId="stratigraphy-studio" appName="Stratigraphy Studio"><StratigraphyStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/stratigraphy-studio/help" element={<ProtectedAppRoute appId="stratigraphy-studio" appName="Stratigraphy Studio"><StratigraphyHelpGuide /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/wellsite-studio" element={<ProtectedAppRoute appId="wellsite-studio" appName="Wellsite Studio"><WellsiteStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/mapping-surface-studio" element={<ProtectedAppRoute appId="mapping-surface-studio" appName="Mapping & Surface Studio"><MappingSurfaceStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/mapping-surface-studio/help" element={<ProtectedAppRoute appId="mapping-surface-studio" appName="Mapping & Surface Studio"><MappingHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/well-correlation-tool" element={<Navigate to="/dashboard/apps/geoscience/well-correlation" replace />} />
@@ -859,6 +862,7 @@ function App() {
                                   <Route path="/dev/petrophysics-studio" element={<PetrophysicsStudioHarness />} />
                                   <Route path="/dev/well-correlation" element={<WellCorrelationHarness />} />
                                   <Route path="/dev/stratigraphy-studio" element={<StratigraphyStudioHarness />} />
+                                  <Route path="/dev/wellsite-studio" element={<WellsiteStudioHarness />} />
                                   <Route path="/dev/mapping-surface-studio" element={<MappingSurfaceStudioHarness />} />
                                   <Route path="/dev/prospect-risking" element={<ProspectRiskingHarness />} />
                                   <Route path="/dev/reservoircalc-pro" element={<ReservoirCalcProHarness />} />
