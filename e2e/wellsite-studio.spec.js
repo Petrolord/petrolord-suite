@@ -414,3 +414,38 @@ test('WS7: the handover generates in one action, a narrative is a record and the
   await page.getByTestId('ws-handover-pdf').click();
   expect((await download).suggestedFilename()).toMatch(/shift-handover-keta-2-.*\.pdf$/);
 });
+
+// ---- WS8: the daily report, the operator template, the countersignature -------------
+
+test('WS8: the daily report follows the operator template pasted in Config, every fact traces to a record, and the sign-off is countersigned after sharing', async ({ page }) => {
+  await openStudio(page);
+  await page.getByTestId('ws-nav-report').click();
+  await expect(page.getByTestId('ws-daily-meta')).toContainText('template Generic daily geological report v1');
+  await expect(page.getByTestId(/^ws-report-section-/)).toHaveCount(12);
+  // an operator template with three sections, reordered, replaces the generic one without code
+  await page.getByTestId('ws-nav-config').click();
+  await page.getByTestId('ws-config-template').fill('{"id": "acme-dgr", "name": "Acme DGR", "version": 2, "sections": [{"id": "tops", "title": "Tops", "source": "tops"}, {"id": "status", "title": "Status", "source": "status"}, {"id": "summary", "title": "Summary", "source": "narrative", "narrative": "geological_summary"}]}');
+  await page.getByTestId('ws-config-save-settings').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Well settings saved.');
+  await page.getByTestId('ws-nav-report').click();
+  await expect(page.getByTestId('ws-daily-meta')).toContainText('template Acme DGR v2');
+  await expect(page.getByTestId(/^ws-report-section-/)).toHaveCount(3);
+  await expect(page.getByTestId(/^ws-report-section-/).first()).toHaveAttribute('data-testid', 'ws-report-section-tops');
+  // a bad template is refused with the engine's words
+  await page.getByTestId('ws-nav-config').click();
+  await page.getByTestId('ws-config-template').fill('{"id": "x", "sections": [{"id": "a", "title": "A", "source": "weather"}]}');
+  await page.getByTestId('ws-config-save-settings').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Section a has an unknown source weather.');
+  // every fact traces: sources on, refs present; sign and share, the countersignature arrives
+  await page.getByTestId('ws-nav-report').click();
+  await page.getByTestId('ws-daily-sources').check();
+  await expect(page.getByTestId('ws-report-section-status').locator('[data-refs]').first()).toBeVisible();
+  await page.getByTestId('ws-signoff-sign').click();
+  await expect(page.getByTestId('ws-status')).toContainText('Signed as A. Geologist, administrator.');
+  await expect(page.getByTestId(/^ws-signoff-counter-/).first()).toHaveAttribute('data-verified', 'unknown-key', { timeout: 15000 });
+  await expect(page.getByTestId(/^ws-signoff-counter-/).first()).toContainText('Countersigned with a key this build does not carry (fake-key)');
+  await page.goto('/dev/wellsite-studio');
+  await page.getByTestId('ws-nav-report').click();
+  await expect(page.getByTestId(/^ws-signoff-row-/)).toHaveCount(1);
+  await expect(page.getByTestId('ws-daily-meta')).toContainText('Recorded version 1, signed 1 time(s).');
+});

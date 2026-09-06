@@ -332,9 +332,13 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
       const { row } = buildSignoffRow({ wellId, report, role: r, statement, offsetMin: offsetMinOf(well), userId: u.id });
       row.engine_version = WS_ENGINE_VERSION;
       await commitRow(db, 'signoffs', row);
+      // the platform countersigns once the row is on the server (an outbox op behind the insert)
+      await db.outbox.add({ well_id: wellId, store: 'signoffs', table: 'ws_signoffs', op: 'countersign', entity_id: row.id, status: 'pending', attempts: 0, next_attempt_at: 0, last_error: null, queued_at: Date.now() });
       notify();
       return row;
     },
+    /** Ask the platform to verify a countersignature (online); the client verifies offline through signClient. */
+    verifyCountersign: (signoffId) => (transport.verifyCountersign ? transport.verifyCountersign(signoffId) : Promise.resolve({ valid: false, reason: 'no transport' })),
 
     // ---- sync surface (WS6) ----
     /** The well the engine pushes and pulls for; starts the engine on first use. */

@@ -92,6 +92,17 @@ export function makeSupabaseTransport() {
       if (error) throw error;
       return { path };
     },
+    /** The platform countersignature of a sign-off (edge function ws-sign). Never throws for a plain refusal. */
+    async countersign(signoffId) {
+      const { data, error } = await supabase.functions.invoke('ws-sign', { body: { action: 'countersign', signoff_id: signoffId } });
+      if (error) throw error;
+      return data;
+    },
+    async verifyCountersign(signoffId) {
+      const { data, error } = await supabase.functions.invoke('ws-sign', { body: { action: 'verify', signoff_id: signoffId } });
+      if (error) throw error;
+      return data;
+    },
     onAuthEvent(cb) {
       const { data } = supabase.auth.onAuthStateChange((event) => cb(event));
       return () => { try { data.subscription.unsubscribe(); } catch { /* already gone */ } };

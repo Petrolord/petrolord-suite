@@ -162,3 +162,27 @@ test('the engine: offline it counts and waits; online it pushes, pulls and publi
   expect(syncHeadline(getSyncState()).state).toBe('synchronised');
   engine.stop();
 });
+
+test('WS8: a sign-off pushes its row, then the platform countersigns it on the next pass; unconfigured is stated, never blocking', async () => {
+  const { db, transport, backend, well } = await fresh();
+  await drainOutbox({ db, transport, wellId: well.id });
+  const report = await backend.saveReport(well.id, { kind: 'handover', reportDate: '2026-09-07', periodStart: '2026-09-07T05:00:00.000Z', periodEnd: '2026-09-07T17:00:00.000Z', templateId: 'petrolord-handover', canonical: { kind: 'handover', sections: [] }, contentHash: 'sha256:abc', generatedAt: '2026-09-07T17:00:00.000Z' });
+  const so = await backend.addSignoff(well.id, report, { role: 'administrator', statement: 'ok' });
+  expect((await db.outbox.where('entity_id').equals(so.id).toArray()).map((e) => e.op).sort()).toEqual(['countersign', 'insert']);
+  const r1 = await drainOutbox({ db, transport, wellId: well.id });
+  // the insert lands in this pass; the countersign op ran after it in the same pass
+  expect(r1.pushed).toBeGreaterThanOrEqual(2);
+  const signed = await db.signoffs.get(so.id);
+  expect(signed.sync_state).toBe('synced');
+  expect(signed.countersignature).toMatchObject({ key_id: 'fake-key', certificate_no: expect.stringMatching(/^WS-SO-2026-[0-9A-F]{8}$/) });
+  expect(signed.countersigned_at).toBeTruthy();
+  expect(await db.outbox.where('[well_id+status]').equals([well.id, 'pending']).count()).toBe(0);
+  // unconfigured platform: the sign-off stands, the op completes with the reason
+  transport._server.knobs.unconfigured = true;
+  const so2 = await backend.addSignoff(well.id, report, { role: 'administrator', statement: 'again' });
+  await drainOutbox({ db, transport, wellId: well.id });
+  const e2 = (await db.outbox.where('entity_id').equals(so2.id).toArray()).find((e) => e.op === 'countersign');
+  expect(e2.status).toBe('done');
+  expect(e2.last_error).toBe('platform countersignature not configured');
+  expect((await db.signoffs.get(so2.id)).countersignature).toBeNull();
+});
