@@ -123,5 +123,6 @@ cell size and boundary clip; well adjustment (engines #139); derived
 horizons; the section window along a drawn line with GR columns, VE
 and PNG; ordinary kriging with fitted variograms and variance maps;
 volumes CSV, launchers into ReservoirCalc Pro (which now consumes
-`?surface=`) and Mapping, and the in-app help guide. Wave log in the
-roadmap.
+`?surface=`) and Mapping, and the in-app help guide; EM6 added the 3D
+window on the shared viewer core (the G8.5 stretch, done). Wave log in
+the roadmap.

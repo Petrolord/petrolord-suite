@@ -11,27 +11,16 @@
 // so a vexag / extent change is a uniform update, never a re-upload.
 
 import { NULL_VALUE } from '../engine/manifest';
+import { gridMesh } from '@/components/viewer3d/gridMesh';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
 
-/** '#rrggbb' -> [r, g, b] in 0..1 (renderer color uniforms). */
-export function hexToRgb(hex) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
-  if (!m) return [1, 1, 1];
-  const v = parseInt(m[1], 16);
-  return [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255];
-}
+export { hexToRgb } from '@/components/viewer3d/gridMesh';
 
 /**
- * Triangulate a horizon pick grid into a surface mesh. Null picks make
- * holes: a triangle is emitted only when all three corners are live, and
- * the quad diagonal is chosen so a single null corner still yields the
- * one valid triangle.
- *
- * Large grids are decimated by an integer stride per axis so the vertex
- * lattice stays at most maxDim x maxDim (last row/column always kept, so
- * the mesh reaches the survey edge).
- *
+ * Triangulate a horizon pick grid into a surface mesh (the shared
+ * gridMesh with this window's texel-centre mapping; null picks make
+ * holes, large grids decimate to maxDim x maxDim).
  * @param {Float32Array} grid nIl x nXl sample indices, 1e30 nulls
  * @param {{nIl:number, nXl:number, ns:number}} geom
  * @param {{maxDim?: number}} [opts]
@@ -40,58 +29,10 @@ export function hexToRgb(hex) {
  */
 export function horizonMesh(grid, geom, opts = {}) {
   const { nIl, nXl, ns } = geom;
-  const maxDim = opts.maxDim || 512;
-  const stepIl = Math.max(1, Math.ceil(nIl / maxDim));
-  const stepXl = Math.max(1, Math.ceil(nXl / maxDim));
-
-  // decimated lattice rows/cols (last real line always included)
-  const rows = [];
-  for (let i = 0; i < nIl; i += stepIl) rows.push(i);
-  if (rows[rows.length - 1] !== nIl - 1) rows.push(nIl - 1);
-  const cols = [];
-  for (let x = 0; x < nXl; x += stepXl) cols.push(x);
-  if (cols[cols.length - 1] !== nXl - 1) cols.push(nXl - 1);
-
-  const nR = rows.length;
-  const nC = cols.length;
-  const positions = new Float32Array(nR * nC * 3);
-  const live = new Uint8Array(nR * nC);
-  for (let r = 0; r < nR; r++) {
-    const il = rows[r];
-    for (let c = 0; c < nC; c++) {
-      const xl = cols[c];
-      const s = grid[il * nXl + xl];
-      const v = r * nC + c;
-      if (s === NULL_F32 || !Number.isFinite(s)) continue;
-      live[v] = 1;
-      positions[v * 3] = (xl + 0.5) / nXl;
-      positions[v * 3 + 1] = -(s + 0.5) / ns;
-      positions[v * 3 + 2] = (il + 0.5) / nIl;
-    }
-  }
-
-  const idx = [];
-  for (let r = 0; r < nR - 1; r++) {
-    for (let c = 0; c < nC - 1; c++) {
-      const a = r * nC + c;          // (r, c)
-      const b = r * nC + c + 1;      // (r, c+1)
-      const d = (r + 1) * nC + c;    // (r+1, c)
-      const e = (r + 1) * nC + c + 1; // (r+1, c+1)
-      // try both diagonals independently so one null corner keeps the
-      // other triangle
-      if (live[a] && live[b] && live[e]) idx.push(a, b, e);
-      if (live[a] && live[e] && live[d]) idx.push(a, e, d);
-      else if (!live[e] && live[a] && live[b] && live[d]) idx.push(a, b, d);
-      else if (!live[a] && live[b] && live[e] && live[d]) idx.push(b, e, d);
-    }
-  }
-
-  return {
-    positions,
-    indices: Uint32Array.from(idx),
-    vertexCount: nR * nC,
-    triangleCount: idx.length / 3,
-  };
+  const { positions, indices, vertexCount, triangleCount } = gridMesh(grid, nIl, nXl, (il, xl, s) => (
+    (s === NULL_F32 || !Number.isFinite(s)) ? null : [(xl + 0.5) / nXl, -(s + 0.5) / ns, (il + 0.5) / nIl]
+  ), { maxDim: opts.maxDim || 512 });
+  return { positions, indices, vertexCount, triangleCount };
 }
 
 /** One fault pick -> normalized cube-space [x, y, z]. */

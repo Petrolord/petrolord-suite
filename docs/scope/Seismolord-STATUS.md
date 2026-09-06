@@ -2,6 +2,17 @@
 
 Last updated: 2026-09-06 (Map window contour labels on the shared map kit)
 
+## 2026-09-06: 3D viewer core lifted to src/components/viewer3d (Earth Modeling EM6)
+
+`viewer/cube3d.js` keeps the survey-specific extents and slice quads and
+re-exports the generic math (mat4 helpers, OrbitCamera, cubeEdges,
+intersectQuad, niceTicks, transformPoint) from the shared
+`src/components/viewer3d/math3d.js`; `viewer/interpMesh.js` builds
+`horizonMesh` on the shared `gridMesh` (same loops, byte-identical
+positions; `interpMesh.test.js` is the gate) and re-exports `hexToRgb`.
+CubeRenderer is unchanged. Earth Modeling is the third consumer (Well
+Design Studio was the second and now imports the shared camera).
+
 ## 2026-09-06: contour labels on the shared map kit (Mapping MS5)
 
 The Map window's contour label placement and major-level rule now come
