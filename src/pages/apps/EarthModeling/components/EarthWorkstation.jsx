@@ -19,6 +19,7 @@ import QcPanel from './QcPanel';
 import { buildModel, emptyDefinition } from '../services/modelBuild';
 import { validatePolygon } from '../engine/blocks';
 import { surfaceStats } from '@/lib/gridding/gridmath';
+import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
 
 const selCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
 const viewBtn = (active) =>
@@ -170,9 +171,11 @@ export default function EarthWorkstation({ backend }) {
           layer,
           methods: definition.methods,
         },
-        grid: Float32Array.from(mapGrid),
+        // structure layers leave as registry elevation (negative below
+        // datum, metres); thickness and attributes are raw
+        grid: kind === 'structure' ? depthDownToSurfaceZ(mapGrid) : Float32Array.from(mapGrid),
       });
-      setStatus(`Published ${saved.name} to the registry — ReservoirCalc Pro can import it now.`);
+      setStatus(`Published ${saved.name} to the registry. ReservoirCalc Pro can import it now.`);
       await refreshSurfaces();
     } catch (e) { setStatus(e.message); }
   };

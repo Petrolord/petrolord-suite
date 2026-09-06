@@ -6,6 +6,7 @@
 // the rendered UI. Same interface as registryBackend.
 
 import { MODEL_SPEC, planeGrid, fixtureWells } from './fixture';
+import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
 
 let seq = 0;
 const nid = (p) => { seq += 1; return `${p}-${seq}`; };
@@ -18,7 +19,9 @@ export function makeInMemoryBackend() {
 
   for (const name of ['TopA', 'TopB', 'BaseB']) {
     const id = nid('surf');
-    gridStore.set(id, planeGrid(name));
+    // the fixture planes are positive-down like the engine; the registry
+    // stores elevation, so the seed converts the way a publish would
+    gridStore.set(id, depthDownToSurfaceZ(planeGrid(name)));
     surfaces.push({
       id, user_id: 'user-dev', organization_id: null, is_own: true,
       name, kind: 'structure',

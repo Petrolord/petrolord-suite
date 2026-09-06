@@ -4,15 +4,20 @@
  * with exact analytic cases (bilinear reproduces linear fields exactly;
  * isochore/stats are exact arithmetic) and confirm the REUSED
  * gridSurface + grvAcreFt still produce sane numbers end-to-end.
+ *
+ * MS0 (2026-09-05): structure control points are TVDSS ELEVATION at the
+ * borehole position (the engines golden mapping.structurepoints is the
+ * authority; these cases are hand-derived through the same depth frame).
  */
 
 import {
-  topsToPoints, zoneAttrToPoints, specForPoints, gridObject,
-  resampleTo, combine, isochore, scalarAdd, surfaceStats,
+  topsToPoints, topsToControlPoints, zoneAttrToPoints, specForPoints, gridObject,
+  resampleTo, combine, isochore, thickness, scalarAdd, surfaceStats, convertZUnit,
 } from '../engine/surface';
 import { gridSurface } from '@/lib/gridding/gridding';
 import { grvAcreFt } from '@/lib/gridding/surfaceExport';
 import { NULL_VALUE } from '@/lib/gridding/numeric';
+import { makeDepthFrame } from '@/pages/apps/WellDataManager/engine/checkshots';
 
 const close = (a, b, t = 1e-6) => Math.abs(a - b) <= t * Math.max(1, Math.abs(a), Math.abs(b));
 // NULL_VALUE (1e30) rounds when stored in a Float32Array, so compare
@@ -27,10 +32,48 @@ const WELLS = [
   { name: 'W4', surface_x: 500, surface_y: 500, tops: [], zones: [{ name: 'Z', properties: { phi_avg: 0.3 } }] },
 ];
 
-test('topsToPoints keeps only wells with the top; z = MD', () => {
+test('topsToPoints keeps only wells with the top; z = TVDSS elevation (= -MD for a vertical well with KB 0)', () => {
   const pts = topsToPoints(WELLS, 'Top A');
   expect(pts.map((p) => p.well)).toEqual(['W1', 'W2', 'W3']); // W4 lacks it
-  expect(pts.find((p) => p.well === 'W2')).toMatchObject({ x: 1000, y: 0, z: 1560 });
+  expect(pts.find((p) => p.well === 'W2')).toMatchObject({ x: 1000, y: 0, z: -1560, md: 1560, extrapolated: false });
+});
+
+test('KB shifts vertical tops (z = -(md - kb)); depthRef md reproduces the raw MD; tvd is below KB', () => {
+  const wells = WELLS.map((w) => ({ ...w, kb_m: 30 }));
+  expect(topsToPoints(wells, 'Top A')[0].z).toBe(-(1500 - 30));
+  expect(topsToPoints(wells, 'Top A', { depthRef: 'md' })[0].z).toBe(1500);
+  expect(topsToPoints(wells, 'Top A', { depthRef: 'tvd' })[0].z).toBe(-1500);
+});
+
+test('a deviated well places its control at the borehole position (matches the depth frame)', () => {
+  const deviation = [{ md: 0, inc: 0, azi: 0 }, { md: 1400, inc: 0, azi: 0 }, { md: 1750, inc: 30, azi: 90 }];
+  const w = { name: 'D', surface_x: 502200, surface_y: 6700600, kb_m: 30, td_md_m: 1750, deviation, tops: [{ name: 'Top A', md_m: 1600 }] };
+  const p = topsToControlPoints([w], 'Top A');
+  const f = makeDepthFrame({ deviation, kbM: 30, tdMdM: 1750 });
+  const pos = f.mdToPosition(1600);
+  expect(p.points[0].x).toBeCloseTo(502200 + pos.x, 9);
+  expect(p.points[0].y).toBeCloseTo(6700600 + pos.y, 9);
+  expect(p.points[0].z).toBeCloseTo(-pos.tvdss, 9);
+  expect(pos.x).toBeGreaterThan(1); // it really kicked off east
+  expect(p.skipped).toEqual([]);
+  const atSurface = topsToControlPoints([w], 'Top A', { placement: 'surface' }).points[0];
+  expect(atSurface.x).toBe(502200);
+  expect(atSurface.z).toBe(p.points[0].z);
+});
+
+test('skipped wells carry a reason; wells without the top are listed as no_top', () => {
+  const wells = [
+    ...WELLS,
+    { name: 'NoLoc', surface_x: null, surface_y: 0, tops: [{ name: 'Top A', md_m: 1500 }] },
+    { name: 'BadMd', surface_x: 0, surface_y: 0, tops: [{ name: 'Top A', md_m: 'n/a' }] },
+  ];
+  const r = topsToControlPoints(wells, 'Top A');
+  expect(r.points).toHaveLength(3);
+  expect(r.skipped).toEqual([
+    { well: 'W4', reason: 'no_top' },
+    { well: 'NoLoc', reason: 'no_location' },
+    { well: 'BadMd', reason: 'bad_md', detail: 'n/a' },
+  ]);
 });
 
 test('zoneAttrToPoints reads properties[key] for the named zone', () => {
@@ -74,11 +117,20 @@ describe('bilinear resample reproduces a linear field exactly', () => {
 });
 
 describe('surface math', () => {
-  test('isochore = deep - shallow, null-aware', () => {
+  test('isochore = deep - shallow (positive-down inputs), null-aware', () => {
     const deep = Float32Array.from([1660, 1705, NULL_VALUE]);
     const shal = Float32Array.from([1500, 1560, 1540]);
     const iso = isochore(deep, shal);
     expect(norm(iso)).toEqual([160, 145, 'NULL']);
+  });
+  test('thickness = top - base on ELEVATION inputs (the registry convention), positive when the base is deeper', () => {
+    const top = Float32Array.from([-1500, -1560, -1540]);
+    const base = Float32Array.from([-1660, -1705, NULL_VALUE]);
+    expect(norm(thickness(top, base))).toEqual([160, 145, 'NULL']);
+  });
+  test('convertZUnit m <-> ft keeps nulls', () => {
+    // Float64 in, Float64 out (Float32 would round -304.8 m to -999.99994 ft)
+    expect(norm(convertZUnit(Float64Array.from([-304.8, NULL_VALUE]), 'm', 'ft'))).toEqual([-1000, 'NULL']);
   });
   test('combine rejects mismatched frames + unknown op', () => {
     expect(() => combine(new Float32Array(2), new Float32Array(3), 'add')).toThrow(/share a grid frame/);
@@ -93,19 +145,20 @@ describe('surface math', () => {
   });
 });
 
-test('end-to-end: registry tops -> gridSurface -> honors controls; GRV sane', () => {
+test('end-to-end: registry tops -> gridSurface -> honors controls; GRV sane on the elevation grid', () => {
   const pts = topsToPoints(WELLS, 'Top A');
   const spec = specForPoints(pts, 100, 2);
   const g = gridSurface(pts, spec, { maxExtrapolation: 1e9 }); // no extrap mask for the test
   expect(g.controlCount).toBe(3);
-  // TPS interpolates controls exactly — the grid node nearest each well
-  // matches its MD closely
+  // TPS interpolates controls exactly: the surface z-range brackets the
+  // well tops, now as elevation
   const obj = gridObject(spec, g.z);
   const stats = surfaceStats(g.z);
-  expect(stats.min).toBeGreaterThan(1400);
-  expect(stats.max).toBeLessThan(1700);
-  // GRV above a contact deeper than the whole surface is 0; above a
-  // shallow contact it is positive (reused byte-golden GRV routine)
-  expect(grvAcreFt(obj, spec.dx, spec.dy, 2000)).toBe(0);
-  expect(grvAcreFt(obj, spec.dx, spec.dy, 1450)).toBeGreaterThan(0);
+  expect(stats.min).toBeGreaterThan(-1700);
+  expect(stats.max).toBeLessThan(-1400);
+  // GRV above a contact deeper than the whole surface is positive; a
+  // contact above it gives 0 (grvAcreFt expects negative-down, which
+  // is exactly the registry convention)
+  expect(grvAcreFt(obj, spec.dx, spec.dy, -1400)).toBe(0);
+  expect(grvAcreFt(obj, spec.dx, spec.dy, -2000)).toBeGreaterThan(0);
 });

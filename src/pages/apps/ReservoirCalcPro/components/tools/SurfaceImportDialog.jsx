@@ -14,7 +14,7 @@ import { listExportedSurfaces, downloadExportedSurface } from '@/pages/apps/Seis
 // Cross-app handoff (G4): surfaces Mapping & Surface Studio published to
 // geo_surfaces (f32 grids). Bridged to XYZ via the byte-golden writeXYZ,
 // then parsed on the same path — no filesystem round-trip.
-import { listSurfaces, downloadSurfaceGrid, surfaceToXyzText } from '@/lib/surfacesRegistry';
+import { listSurfaces, downloadSurfaceGrid, surfaceToXyzText, zConventionForImport } from '@/lib/surfacesRegistry';
 
 const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
     const { toast } = useToast();
@@ -57,7 +57,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
     // path as a manual XYZ upload. The registry now records what the
     // row actually is (CRS program): z_unit is honored instead of the
     // old hard 'm' (Seismolord publishes depth in feet into the same
-    // registry), the z sign convention follows the producing app, and
+    // registry), the z sign convention is the registry's (elevation), and
     // the row's structured CRS lands in the provenance field instead of
     // whatever CRS string a previous manual import left behind.
     const loadMappingSurface = async (row) => {
@@ -81,9 +81,10 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport }) => {
                 name: row.name,
                 format: 'xyz',
                 xyUnit,
-                // Seismolord rows are negative-down; Mapping Studio grids
-                // (MD-based structure) are positive-down.
-                zConvention: row.provenance?.app === 'seismolord' ? 'elevation' : 'depth',
+                // Every depth surface in the registry is elevation
+                // (negative below datum) since 2026-09-05, whichever app
+                // published it; attribute rows pass through unchanged.
+                zConvention: zConventionForImport(row),
                 crs: xyUnit === 'ft'
                     ? ''    // rescaled XY are no longer coordinates in any CRS
                     : (row.crs || ''),

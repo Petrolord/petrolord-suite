@@ -182,3 +182,13 @@ Symmetric tornado:
   variance-share bars.
 - Tests: tornadoSwings unit tests (monteCarlo.test.js), TornadoChart render
   tests, reportGenerator mock extended with getTextWidth/getImageProperties.
+
+## 2026-09-05: surface handoff reads the registry convention (Mapping MS0)
+`SurfaceImportDialog` no longer guesses the z sign of a registry
+surface from `provenance.app`. Every depth surface in `geo_surfaces` is
+elevation (negative below datum, m or ft per `z_unit`; owner decision,
+see MappingSurfaceStudio-ROADMAP.md), so `loadMappingSurface` sets
+`zConvention` through `zConventionForImport(row)` from
+`src/lib/surfaceConvention.js`: `elevation` for depth rows, pass-through
+for attributes. Mapping and Earth Modeling surfaces now import with the
+same sign as Seismolord's.

@@ -11,6 +11,7 @@ import { wellTies, zoneControlPoints } from '../engine/wellties';
 import { populateZoneProperty } from '../engine/properties';
 import { zoneVolumes } from '../engine/volumes';
 import { normalizeTag, isTransformableTag, consensusTag } from '@/lib/crs/tags';
+import { surfaceZToDepthDown } from '@/lib/surfaceConvention';
 
 /** Registry property keys for the three populated properties. */
 export const PROP_KEYS = { phi: 'phi_avg', sw: 'sw_avg', ntg: 'ntg' };
@@ -67,7 +68,9 @@ export async function buildModel(definition, wells, surfaces, backend) {
   }
   const crs = consensusTag(stack.map((s) => s.crs));
 
-  const grids = await Promise.all(stack.map((s) => backend.downloadSurfaceGrid(s)));
+  // Registry surfaces are elevation (negative below datum, m or ft);
+  // the engine works in metres positive-down, so convert at the door.
+  const grids = await Promise.all(stack.map(async (s) => surfaceZToDepthDown(s, await backend.downloadSurfaceGrid(s))));
   const spec = specOf(stack[0]); // v1: the model frame is the TOP surface's frame
   const framework = buildFramework(grids.map((z, i) => ({ z, spec: specOf(stack[i]) })), spec);
 
