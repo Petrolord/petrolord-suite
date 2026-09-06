@@ -47,3 +47,18 @@ test('workspace shell: ribbon, explorer, status bar, dock', async ({ page }) => 
   ));
   expect(marker).toBe('alive');
 });
+
+test('SL0: the ribbon links the help guide and the depth unit selector is remembered', async ({ page }) => {
+  await page.goto('/dev/seismolord-workspace');
+  await expect(page.locator('[data-testid="viewer-windows"]')).toBeVisible();
+  await expect(page.getByTestId('sl-help')).toHaveAttribute('href', '/dev/seismolord-workspace/help');
+  await page.getByRole('button', { name: 'Home', exact: true }).click();
+  // no account setting in the authless harness: metres, then the choice sticks
+  await expect(page.getByTestId('sl-depth-unit')).toHaveValue('m');
+  await page.getByTestId('sl-depth-unit').selectOption('ft');
+  await page.reload();
+  await expect(page.locator('[data-testid="viewer-windows"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Home', exact: true }).click();
+  await expect(page.getByTestId('sl-depth-unit')).toHaveValue('ft');
+  await expect(page.getByTestId('sl-section-domain').locator('option[value="depth"]')).toHaveText('Depth');
+});

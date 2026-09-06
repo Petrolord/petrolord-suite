@@ -184,7 +184,7 @@ function MapView({
   onAmplitude, wells, height = 560, onCursor = null, lines2d = null,
   timeSlice = null, sliceVis = null, indices = null, display = null,
   onHorizonSettings = null, onToggleHorizon = null, surfaces = null,
-  cameraApi = null, cultureLayers = null,
+  cameraApi = null, cultureLayers = null, depthUnit = null,
 }) {
   const wrapRef = useRef(null);
   const viewportRef = useRef(null);
@@ -207,6 +207,11 @@ function MapView({
   const [activeId, setActiveId] = useState(null);
   const [vsId, setVsId] = useState('');       // isochron second horizon ('' = structure)
   const [domain, setDomain] = useState('twt'); // 'twt' | 'depth_m' | 'depth_ft'
+  // SL0: the workspace depth unit steers which depth domain the map uses
+  useEffect(() => {
+    if (!depthUnit) return;
+    setDomain((d) => (d.startsWith('depth_') && d !== `depth_${depthUnit}` ? `depth_${depthUnit}` : d));
+  }, [depthUnit]);
   // attribute layer: 'structure' maps the horizon surface (TWT/depth);
   // an AMP_MODES key maps the extracted seismic amplitude along it
   const [attr, setAttr] = useState('structure');

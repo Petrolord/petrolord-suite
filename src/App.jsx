@@ -104,6 +104,7 @@ const PorePressureStudio = lazy(() => import('@/pages/apps/PorePressureStudio/Po
 const PorePressureStudioHelpGuide = lazy(() => import('@/pages/apps/PorePressureStudio/PorePressureStudioHelpGuide'));
 const BasinFlowGenesis = lazy(() => import('@/pages/apps/BasinFlowGenesis/BasinFlowGenesis'));
 const Seismolord = lazy(() => import('@/pages/apps/Seismolord/Seismolord'));
+const SeismolordHelpGuide = lazy(() => import('@/pages/apps/Seismolord/SeismolordHelpGuide'));
 const SeismolordSelfTest = lazy(() => import('@/pages/apps/Seismolord/SeismolordSelfTest'));
 const SeismolordSliceViewHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordSliceViewHarness'));
 const SeismolordWellsHarness = lazy(() => import('@/pages/apps/Seismolord/SeismolordWellsHarness'));
@@ -521,6 +522,7 @@ function App() {
                                 <Route path="apps/geoscience/basinflow-genesis" element={<BasinFlowGenesis />} />
                                 <Route path="apps/geoscience/basinflow-genesis/help" element={<BasinFlowHelpGuide />} />
                                 <Route path="apps/geoscience/seismolord" element={<ProtectedAppRoute appId="seismolord" appName="Seismolord"><Seismolord /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/seismolord/help" element={<ProtectedAppRoute appId="seismolord" appName="Seismolord"><SeismolordHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/well-data-manager" element={<ProtectedAppRoute appId="well-data-manager" appName="Well Data Manager"><WellDataManager /></ProtectedAppRoute>} />
 
                                 {/* Legacy MEM aliases — the 1D MEM rebuilt under Drilling at D5 (Drilling-ROADMAP.md); the legacy tree is deleted */}

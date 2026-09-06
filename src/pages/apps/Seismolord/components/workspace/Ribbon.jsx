@@ -50,7 +50,7 @@ export function RibbonButton({
   );
 }
 
-export function RibbonSelect({ label, value, onChange, children, disabled, title, className }) {
+export function RibbonSelect({ label, value, onChange, children, disabled, title, className, testId }) {
   return (
     <label className="flex flex-col gap-0.5 text-[10px] text-slate-500" title={title}>
       {label}
@@ -60,6 +60,7 @@ export function RibbonSelect({ label, value, onChange, children, disabled, title
         value={value}
         onChange={onChange}
         disabled={disabled}
+        data-testid={testId}
       >
         {children}
       </select>

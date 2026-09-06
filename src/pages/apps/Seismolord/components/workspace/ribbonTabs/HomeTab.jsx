@@ -27,7 +27,7 @@ export default function HomeTab({
   overlayColormap, setOverlayColormap, overlayOpacity, setOverlayOpacity,
   overlayBlend, setOverlayBlend,
   onUndo, onRedo, canUndo, canRedo, undoLabel, redoLabel, onOpenSessions,
-  sectionDomain, setSectionDomain, depthReady,
+  sectionDomain, setSectionDomain, depthReady, depthUnit = 'm', setDepthUnit = null,
 }) {
   const isTimeSlice = orientation === 'time';
   return (
@@ -86,6 +86,7 @@ export default function HomeTab({
         />
         <RibbonSelect
           label="Domain"
+          testId="sl-section-domain"
           value={sectionDomain}
           onChange={(e) => setSectionDomain(e.target.value)}
           disabled={!manifest || isTimeSlice || orientation === 'traverse' || !depthReady}
@@ -94,7 +95,18 @@ export default function HomeTab({
             : 'Depth needs a velocity model (layer cakes also need their boundary horizons loaded)'}
         >
           <option value="twt">Time (TWT)</option>
-          <option value="depth">Depth (m)</option>
+          <option value="depth">Depth</option>
+        </RibbonSelect>
+        <RibbonSelect
+          label="Depth unit"
+          value={depthUnit}
+          onChange={(e) => setDepthUnit && setDepthUnit(e.target.value)}
+          disabled={!setDepthUnit}
+          testId="sl-depth-unit"
+          title="Depth display unit for sections, the map and the cursor readout; defaults to your Geoscience depth setting"
+        >
+          <option value="m">m</option>
+          <option value="ft">ft</option>
         </RibbonSelect>
       </RibbonGroup>
 
