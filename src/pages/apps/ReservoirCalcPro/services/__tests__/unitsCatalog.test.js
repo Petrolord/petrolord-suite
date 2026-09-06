@@ -120,3 +120,18 @@ describe('result display volumes', () => {
         expect(defaultResultUnits('metric')).toEqual({ oil: 'sm3', gas: 'Bsm3' });
     });
 });
+
+
+describe('RC2: fluid contacts carry a display unit', () => {
+  const { toCanonical, fromCanonical, canonicalUnitFor, defaultInputUnits, INPUT_UNIT_OPTIONS } = require('../unitsCatalog');
+  test('contacts convert like lengths against the system canonical', () => {
+    expect(canonicalUnitFor('contact', 'field')).toBe('ft');
+    expect(canonicalUnitFor('contact', 'metric')).toBe('m');
+    expect(toCanonical('contact', -1600, 'm', 'field')).toBeCloseTo(-1600 / 0.3048, 6);
+    expect(fromCanonical('contact', -5249.3438, 'm', 'field')).toBeCloseTo(-1600, 3);
+    expect(toCanonical('contact', -8000, 'ft', 'field')).toBe(-8000);
+    expect(defaultInputUnits('field').contact).toBe('ft');
+    expect(defaultInputUnits('metric').contact).toBe('m');
+    expect(INPUT_UNIT_OPTIONS.contact.map((o) => o.value)).toEqual(['ft', 'm']);
+  });
+});
