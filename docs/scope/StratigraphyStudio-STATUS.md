@@ -11,7 +11,7 @@ eleventh Geoscience tile. Slug `stratigraphy-studio`, route
 
 | Phase | Status | Landed |
 |---|---|---|
-| ST0 stratigraphic framework | **BUILT 2026-09-06, PR open, migration HELD** | engines #140 (vocabulary, ICS 2023/09 timescale, column tree; 66 tests); Suite branch `feat/st0-stratigraphic-framework`: migration 20260906180000 (geo_strat_units + typed-top columns), stratRegistry.js, typed tops through wellsRegistry, typed markers in Well Correlation and Petrophysics, Type/Unit/Confidence/Age in the Well Data Manager tops tab, the Stratigraphy Studio app (Column editor, Tops typing, Glossary, terminology display option), portability spec + hook, guard test, pentest SQL, e2e |
+| ST0 stratigraphic framework | **COMPLETE 2026-09-06: migration APPLIED, pentest green, PR #412 merged** | engines #140 (vocabulary, ICS 2023/09 timescale, column tree; 66 tests); Suite branch `feat/st0-stratigraphic-framework`: migration 20260906180000 (geo_strat_units + typed-top columns), stratRegistry.js, typed tops through wellsRegistry, typed markers in Well Correlation and Petrophysics, Type/Unit/Confidence/Age in the Well Data Manager tops tab, the Stratigraphy Studio app (Column editor, Tops typing, Glossary, terminology display option), portability spec + hook, guard test, pentest SQL, e2e |
 | ST1 lithology, core and facies | not started | |
 | ST2 sequence stratigraphy + Wheeler | not started | |
 | ST3 biozones and ages | not started | |
@@ -40,7 +40,7 @@ eleventh Geoscience tile. Slug `stratigraphy-studio`, route
   `validateColumn` (orphans, cycles, rank order, age order, ages outside
   the parent), `inheritedTopAge`.
 
-**Migration 20260906180000 (HELD, second-engineer review).** New
+**Migration 20260906180000 (APPLIED 2026-09-06 by the owner, the second-engineer review).** New
 `geo_strat_units`; additive `surface_type`, `unit_id`, `confidence`,
 `age_ma`, `notes` on `geo_wells_tops` with check constraints. A jest
 guard reads the migration and compares the check list with the engine's
@@ -111,13 +111,12 @@ tops.
 - e2e `stratigraphy-studio.spec.js` on the staging harness: column save,
   typed top, scheme toggle with fallback badge, read-only shared well,
   Well Correlation typed markers. See the PR for the run.
-- Live RLS pentest: after the owner applies the migration.
+- Live RLS pentest 2026-09-06: all four blocks as expected (see MIGRATIONS.md row), zero residue.
 
 ## Close-out (ST0 acceptance, plan section 7)
 
 Done in this build: a top typed MFS in Stratigraphy Studio draws as an MFS
 in Well Correlation (same rows, typed marker) with the existing tops
 reload; the Exxon toggle relabels it "Maximum flooding surface (MFS)";
-FSST shows the fallback badge in the glossary. Remaining for the owner:
-apply the migration (second-engineer review), run the pentest, merge the
-PR, walk the app on staging.
+FSST shows the fallback badge in the glossary. Migration applied and pentest run 2026-09-06; PR #412 merged. Remaining
+for the owner: walk the app on staging.
