@@ -59,4 +59,7 @@ Geoscience depth unit) convert at the UI edge; the engine, the goldens
 and every stored value stay SI. RP1 publishes the substituted case back
 to the well registry as VP_SUB / VS_SUB / RHOB_SUB with the overwrite-own
 contract Pore Pressure Studio uses, on both backends, and the explorer
-shows what this app has written. RP2 (launchers, help guide) follows.
+shows what this app has written. RP2 adds the Well data and Open in
+launchers for the selected well, and the in-app help guide at
+`/dashboard/apps/geoscience/rock-physics-studio/help`. RP0 to RP2 are
+merged; the series is closed.

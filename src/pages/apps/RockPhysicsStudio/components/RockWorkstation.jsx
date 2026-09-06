@@ -15,9 +15,15 @@
 // density, depth) and convert at the edge; the depth default is the
 // account's Geoscience depth unit through the backend. RP1: the
 // substituted case publishes to the well as VP_SUB / VS_SUB / RHOB_SUB.
+// RP2: Open-in launchers for the selected well, Well data (Well Data
+// Manager on the logs tab) and the help guide; `appPaths` lets the
+// harness point them at the /dev/* apps.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Waves, Loader2, Save } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Waves, Loader2, Save, HelpCircle, Database } from 'lucide-react';
+import { OpenInAppMenu } from '@/components/wells/OpenInAppMenu';
+import { appPath, wellDataManagerHref, WELL_DATA_MANAGER_ID } from '@/components/wells/appLinks';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -28,6 +34,7 @@ import AvoPanel from './AvoPanel';
 import WedgePanel from './WedgePanel';
 import { mapLogs, buildModel } from '../services/prep';
 import { DEFAULT_SCENARIO, DEFAULT_ROCK } from '../services/scenario';
+import { DEFAULT_AVO, DEFAULT_WEDGE } from '../services/defaults';
 import {
   UNITS_KEY, VELOCITY_UNITS, DENSITY_UNITS, DEPTH_UNITS, readUnits,
 } from '../services/units';
@@ -36,23 +43,14 @@ import { preparePublishLogs, ENGINE } from '../services/publish';
 const storage = () => { try { return window.localStorage; } catch { return null; } };
 const publishedBy = (logs) => logs.filter((l) => l.provenance?.computed && l.provenance?.engine === ENGINE);
 
-// manual-halfspace defaults = the class-III gas-sand oracle fixture
-// (shale over gas sand), so the AVO panel lands on a verifiable case
-export const DEFAULT_AVO = {
-  mode: 'top',
-  topId: '',
-  windowM: 10,
-  maxTheta: 40,
-  upper: { vp: 2900, vs: 1330, rho: 2290 },
-  lower: { vp: 2540, vs: 1620, rho: 2090 },
-};
+// the AVO and wedge defaults live in services/defaults.js (the help
+// guide quotes them without pulling the workstation chunk in)
+export { DEFAULT_AVO, DEFAULT_WEDGE } from '../services/defaults';
 
-// the oracle wedge golden's parameters (tuning thickness 16 ms)
-export const DEFAULT_WEDGE = {
-  rcTop: 0.1, rcBase: -0.1, freqHz: 25, dtMs: 1, maxThicknessMs: 60,
-};
+const RP_ID = 'rock-physics-studio';
 
-export default function RockWorkstation({ backend }) {
+/** @param {Object<string,string>} [p.appPaths] route overrides for the launchers (harness) */
+export default function RockWorkstation({ backend, appPaths = {} }) {
   const [wells, setWells] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
@@ -239,6 +237,26 @@ export default function RockWorkstation({ backend }) {
         </span>
       )}
       <div className="ml-auto flex items-center gap-1">
+        {selected && (
+          <Link
+            to={wellDataManagerHref(selected.id, 'logs', appPath(WELL_DATA_MANAGER_ID, appPaths))}
+            data-testid="rp-open-wdm"
+            title="Open this well in Well Data Manager on its logs (published curves are listed there)"
+            className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-800"
+          >
+            <Database className="w-3.5 h-3.5" /> Well data
+          </Link>
+        )}
+        <OpenInAppMenu wellIds={selected ? [selected.id] : []} paths={appPaths} exclude={[RP_ID]} testIdPrefix="rp" />
+        <Link
+          to={`${appPath(RP_ID, appPaths)}/help`}
+          data-testid="rp-help"
+          title="Open the Rock Physics Studio help guide"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:text-slate-100 hover:bg-slate-800"
+        >
+          <HelpCircle className="w-3.5 h-3.5" /> Help
+        </Link>
+        <span className="w-px h-4 bg-slate-800 mx-1" />
         <span className="text-[11px] text-slate-500 mr-1">Units</span>
         {unitSelect('velocity', VELOCITY_UNITS, 'Velocity or sonic slowness display unit (the engine stays in m/s)')}
         {unitSelect('density', DENSITY_UNITS, 'Density display unit (the engine stays in kg/m3)')}
