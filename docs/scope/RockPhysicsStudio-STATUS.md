@@ -34,9 +34,10 @@ Prod build upload: **DONE 2026-07-14** — prod is current (main
 - Fluids are full Batzle-Wang 1992 (decision 1); mixed saturations via
   Wood/Reuss; manual K_fl/ρ_fl override remains available in the
   scenario panel (type over the pre-fill).
-- Outputs are display + `rp_projects` save only (decision 3): no
-  Seismolord export, no geo_* writes in v1 — revisit when a concrete
-  consumer exists.
+- Outputs: display, `rp_projects` save, and since RP1 (2026-09-06) the
+  fluid-substituted case published to the well as VP_SUB / VS_SUB /
+  RHOB_SUB in `geo_wells_logs` (overwrite-own per project, full
+  provenance). No Seismolord export yet.
 - The harness wells ARE the goldens' anchor cases: the brine sand
   substitutes to the gassmann `log_domain` numbers, the shale/gas-sand
   interface is the `class3_gas_sand` AVO case, and the default wedge
@@ -49,3 +50,13 @@ Prod build upload: **DONE 2026-07-14** — prod is current (main
 - `rp_projects` is app-private (owner-only RLS) — no shared-table
   review bar was triggered; v1 keeps one implicit project per user
   (first save creates it).
+
+## 2026-09-06: RP series (Petrel tester readiness) RP0 + RP1
+
+Plan of record: docs/scope/RockPhysicsStudio-ROADMAP.md. RP0 display
+units (velocity or slowness, density, depth defaulting to the account's
+Geoscience depth unit) convert at the UI edge; the engine, the goldens
+and every stored value stay SI. RP1 publishes the substituted case back
+to the well registry as VP_SUB / VS_SUB / RHOB_SUB with the overwrite-own
+contract Pore Pressure Studio uses, on both backends, and the explorer
+shows what this app has written. RP2 (launchers, help guide) follows.

@@ -2,7 +2,9 @@
 // over an averaging window) or manual halfspaces; exact Zoeppritz vs
 // Shuey/Aki-Richards angle curves and the intercept-gradient
 // crossplot with Rutherford-Williams class bands. White Recharts
-// cards + ChartLogo (suite chart standard).
+// cards + ChartLogo (suite chart standard). RP0: halfspaces, tops and
+// the window show in the workstation's display units; avo state and
+// the engine stay SI.
 
 import React, { useMemo } from 'react';
 import {
@@ -15,8 +17,13 @@ import {
 } from '@/utils/chartTheme';
 import { zoeppritzRpp, akiRichards, shuey, avoClass } from '../engine/avo';
 import { meanAt } from '../services/prep';
+import UnitInput from './UnitInput';
+import {
+  DEFAULT_UNITS, velocityToDisplay, velocityFromDisplay, densityToDisplay, densityFromDisplay,
+  depthToDisplay, depthFromDisplay, velocityDigits, densityDigits, velocityLabel, densityLabel,
+  fmtVelocity, fmtDensity, tidyDepth,
+} from '../services/units';
 
-const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : '—');
 const f4 = (v) => (Number.isFinite(v) ? v.toFixed(4) : '—');
 
 const AXIS_TICK = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
@@ -42,29 +49,41 @@ function halfspaceFromWindow(model, from, to) {
   };
 }
 
-function HalfspaceInputs({ side, hs, onChange }) {
+const INPUT_CLS = `w-20 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-right
+  text-slate-100 focus:outline-none focus:border-cyan-600`;
+
+function HalfspaceInputs({ side, hs, onChange, units }) {
+  const isVel = (k) => k !== 'rho';
   return (
     <div className="flex items-center gap-2 text-[12px] text-slate-300">
       <span className="w-12">{side}</span>
       {['vp', 'vs', 'rho'].map((k) => (
-        <input
+        <UnitInput
           key={k}
-          data-testid={`rp-avo-${side.toLowerCase()}-${k}`}
-          type="number"
-          step="any"
+          testid={`rp-avo-${side.toLowerCase()}-${k}`}
           value={hs[k]}
-          onChange={(e) => onChange({ ...hs, [k]: parseFloat(e.target.value) })}
-          className="w-20 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-right
-            text-slate-100 focus:outline-none focus:border-cyan-600"
-          title={`${side} ${k} (SI)`}
+          unit={isVel(k) ? units.velocity : units.density}
+          toDisplay={isVel(k) ? velocityToDisplay : densityToDisplay}
+          fromDisplay={isVel(k) ? velocityFromDisplay : densityFromDisplay}
+          digits={isVel(k) ? velocityDigits(units.velocity, 1) : densityDigits(units.density, 1)}
+          onChange={(si) => onChange({ ...hs, [k]: si })}
+          className={INPUT_CLS}
+          title={`${side} ${k} in ${isVel(k) ? units.velocity : units.density} (stored in SI)`}
         />
       ))}
     </div>
   );
 }
 
-export default function AvoPanel({ model, tops, avo, onAvoChange }) {
+const velHead = (which, unit) => velocityLabel(unit).replace('Velocity', which).replace('Slowness', which === 'Vp' ? 'DTp' : 'DTs');
+
+export default function AvoPanel({ model, tops, avo, onAvoChange, units = DEFAULT_UNITS }) {
   const patch = (p) => onAvoChange({ ...avo, ...p });
+  const vU = units.velocity;
+  const dU = units.density;
+  const zU = units.depth;
+  const fv = (v) => fmtVelocity(v, vU, 1);
+  const fd = (v) => fmtDensity(v, dU, 1);
 
   const top = tops.find((t) => t.id === avo.topId) || tops[0] || null;
 
@@ -126,20 +145,23 @@ export default function AvoPanel({ model, tops, avo, onAvoChange }) {
               className="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-slate-100"
             >
               {tops.map((t) => (
-                <option key={t.id} value={t.id}>{`${t.name} (${t.md_m} m)`}</option>
+                <option key={t.id} value={t.id}>{`${t.name} (${tidyDepth(t.md_m, zU)} ${zU})`}</option>
               ))}
             </select>
             <label className="flex items-center gap-1">
               window ±
-              <input
-                data-testid="rp-avo-window"
-                type="number"
-                step="any"
+              <UnitInput
+                testid="rp-avo-window"
                 value={avo.windowM}
-                onChange={(e) => patch({ windowM: parseFloat(e.target.value) || 0 })}
-                className="w-14 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-right text-slate-100"
+                unit={zU}
+                toDisplay={depthToDisplay}
+                fromDisplay={depthFromDisplay}
+                digits={1}
+                onChange={(si) => patch({ windowM: Number.isFinite(si) ? si : 0 })}
+                className="w-16 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-right text-slate-100"
+                title="Averaging window either side of the top"
               />
-              m
+              {zU}
             </label>
             {!tops.length && <span className="text-slate-500">no tops on this well</span>}
           </>
@@ -160,12 +182,12 @@ export default function AvoPanel({ model, tops, avo, onAvoChange }) {
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-[11px] text-slate-500">
             <span className="w-12" />
-            <span className="w-20 text-right">Vp (m/s)</span>
-            <span className="w-20 text-right">Vs (m/s)</span>
-            <span className="w-20 text-right">ρ (kg/m³)</span>
+            <span className="w-20 text-right">{velHead('Vp', vU)}</span>
+            <span className="w-20 text-right">{velHead('Vs', vU)}</span>
+            <span className="w-20 text-right">{densityLabel(dU)}</span>
           </div>
-          <HalfspaceInputs side="Upper" hs={avo.upper} onChange={(hs) => patch({ upper: hs })} />
-          <HalfspaceInputs side="Lower" hs={avo.lower} onChange={(hs) => patch({ lower: hs })} />
+          <HalfspaceInputs side="Upper" hs={avo.upper} onChange={(hs) => patch({ upper: hs })} units={units} />
+          <HalfspaceInputs side="Lower" hs={avo.lower} onChange={(hs) => patch({ lower: hs })} units={units} />
         </div>
       )}
 
@@ -174,23 +196,23 @@ export default function AvoPanel({ model, tops, avo, onAvoChange }) {
           <thead>
             <tr className="text-slate-500 text-left">
               <th className="font-normal pr-3">Halfspace</th>
-              <th className="font-normal pr-3 text-right">Vp (m/s)</th>
-              <th className="font-normal pr-3 text-right">Vs (m/s)</th>
-              <th className="font-normal text-right">ρ (kg/m³)</th>
+              <th className="font-normal pr-3 text-right">{velHead('Vp', vU)}</th>
+              <th className="font-normal pr-3 text-right">{velHead('Vs', vU)}</th>
+              <th className="font-normal text-right">{densityLabel(dU)}</th>
             </tr>
           </thead>
           <tbody>
             <tr className="border-t border-slate-800">
               <td className="py-0.5 pr-3 text-slate-300">upper mean</td>
-              <td className="py-0.5 pr-3 text-right" data-testid="rp-avo-upper-mean-vp">{f1(halfspaces.upper.vp)}</td>
-              <td className="py-0.5 pr-3 text-right">{f1(halfspaces.upper.vs)}</td>
-              <td className="py-0.5 text-right">{f1(halfspaces.upper.rho)}</td>
+              <td className="py-0.5 pr-3 text-right" data-testid="rp-avo-upper-mean-vp">{fv(halfspaces.upper.vp)}</td>
+              <td className="py-0.5 pr-3 text-right">{fv(halfspaces.upper.vs)}</td>
+              <td className="py-0.5 text-right">{fd(halfspaces.upper.rho)}</td>
             </tr>
             <tr className="border-t border-slate-800">
               <td className="py-0.5 pr-3 text-slate-300">lower mean</td>
-              <td className="py-0.5 pr-3 text-right" data-testid="rp-avo-lower-mean-vp">{f1(halfspaces.lower.vp)}</td>
-              <td className="py-0.5 pr-3 text-right">{f1(halfspaces.lower.vs)}</td>
-              <td className="py-0.5 text-right">{f1(halfspaces.lower.rho)}</td>
+              <td className="py-0.5 pr-3 text-right" data-testid="rp-avo-lower-mean-vp">{fv(halfspaces.lower.vp)}</td>
+              <td className="py-0.5 pr-3 text-right">{fv(halfspaces.lower.vs)}</td>
+              <td className="py-0.5 text-right">{fd(halfspaces.lower.rho)}</td>
             </tr>
           </tbody>
         </table>
