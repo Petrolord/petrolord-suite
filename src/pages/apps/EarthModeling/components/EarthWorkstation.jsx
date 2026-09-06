@@ -10,13 +10,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck, ImageDown, Route, FileDown, ExternalLink, HelpCircle } from 'lucide-react';
+import { Mountain, Loader2, Hammer, UploadCloud, Map as MapIcon, Rows, ClipboardCheck, ImageDown, Route, FileDown, ExternalLink, HelpCircle, Box } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import ModelExplorer from './ModelExplorer';
 import BuilderDock from './BuilderDock';
 import MapView from './MapView';
 import SectionView from './SectionView';
+import FrameworkView3D from './FrameworkView3D';
 import QcPanel from './QcPanel';
 import { buildModel, emptyDefinition } from '../services/modelBuild';
 import { DEPTH_UNIT_KEY, VOLUME_UNITS_KEY, VOLUME_UNIT_SETS, readSetting, fmtDepth } from '../services/units';
@@ -336,6 +337,9 @@ export default function EarthWorkstation({ backend, appPaths = {} }) {
         <button type="button" data-testid="em-view-qc" className={viewBtn(view === 'qc')} onClick={() => setView('qc')}>
           <ClipboardCheck className="w-3.5 h-3.5" /> QC &amp; volumes
         </button>
+        <button type="button" data-testid="em-view-3d" className={viewBtn(view === '3d')} onClick={() => setView('3d')} title="The framework in 3D">
+          <Box className="w-3.5 h-3.5" /> 3D
+        </button>
       </div>
       <div className="ml-auto flex items-center gap-1">
         <button type="button" data-testid="em-depth-unit"
@@ -521,6 +525,14 @@ export default function EarthWorkstation({ backend, appPaths = {} }) {
     </div>
   ) : view === 'qc' ? (
     <QcPanel built={built} surfaceNames={surfaceNames} depthUnit={depthUnit} volumeUnits={volumeUnits} />
+  ) : view === '3d' ? (
+    <div className="p-3 h-full min-h-0">
+      {built ? (
+        <FrameworkView3D built={built} wells={wells} surfaceNames={surfaceNames} faultPolygons={definition.faultPolygons || []} depthUnit={depthUnit} onStatus={setStatus} />
+      ) : (
+        <div className="h-full flex items-center justify-center text-slate-500 text-sm" data-testid="em-3d-empty">Build the model to see it in 3D.</div>
+      )}
+    </div>
   ) : view === 'section' ? (
     <div className="p-3">
       {sectionToolbar}

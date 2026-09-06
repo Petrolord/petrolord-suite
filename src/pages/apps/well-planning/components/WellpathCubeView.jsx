@@ -11,7 +11,7 @@ import React, {
 } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera } from 'lucide-react';
-import { OrbitCamera } from '../../Seismolord/viewer/cube3d';
+import { OrbitCamera } from '@/components/viewer3d/math3d';
 import { WpCubeRenderer, cssColorToRgb } from '../viewer3d/WpCubeRenderer';
 import { buildScene } from '../services/wpMesh';
 

@@ -294,3 +294,29 @@ test('EM5: volumes CSV in the chosen units, launchers into ReservoirCalc Pro and
   await expect(page.getByTestId('em-map-TopA')).toHaveCount(0); // stacked rows carry no map link
   await expect(page.getByTestId('em-help')).toHaveAttribute('href', '/dev/earth-modeling/help');
 });
+
+test('EM6: the 3D window draws the framework, orbits, exaggerates, hides a surface and labels the wells', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await stackAndBuild(page);
+  await page.getByTestId('em-view-3d').click();
+  const view = page.getByTestId('em-3d-view');
+  await expect(view).toBeVisible();
+  await expect(view).toHaveAttribute('data-surfaces', '3');
+  await expect(page.getByTestId('em-3d-label-well')).toHaveCount(4);
+  const yaw0 = await view.getAttribute('data-yaw');
+  const canvas = page.getByTestId('em-3d-canvas');
+  const box = await canvas.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(async () => view.getAttribute('data-yaw')).not.toBe(yaw0);
+  await page.getByTestId('em-3d-ve-5').click();
+  await expect(view).toHaveAttribute('data-ve', '5');
+  await page.getByTestId('em-3d-surface-1').uncheck();
+  await expect(view).toHaveAttribute('data-surfaces', '2');
+  await page.getByTestId('em-3d-colorby').click();
+  await expect(page.getByTestId('em-3d-colorby')).toHaveText('colour: surface');
+  expect(errors).toEqual([]);
+});

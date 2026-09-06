@@ -141,5 +141,22 @@ e2e) against what a Petrel user expects of a structural framework:
   `/dashboard/apps/geoscience/earth-modeling/help` with a ribbon Help
   link. The harness passes app paths for the launchers.
 
-**EM0 to EM5 CLOSED 2026-09-06.** EM6 (3D window) is the remaining
-stretch; see the decision at the end of the wave log.
+- **EM6 (2026-09-06), branch `feat/em6-3d-window`.** The framework in
+  3D on a shared viewer core lifted out of Seismolord at the third
+  consumer (Well Design Studio was the second): `src/components/viewer3d/
+  math3d.js` (matrices, orbit camera, cube edges, picking, ticks),
+  `gridMesh.js` (null-hole triangulation with optional vertex colours;
+  Seismolord's horizonMesh now calls it, byte-identical positions, its
+  tests are the gate) and `SceneRenderer.js` (raw WebGL2 line sets and
+  vertex-coloured meshes, faceted shading, no textures). Seismolord's
+  cube3d.js and interpMesh.js re-export by identity; Well Design Studio
+  imports the shared camera. `services/framework3d.js` (tested) turns the
+  built model into a scene: surfaces coloured by depth (or one colour
+  each), wells as sticks clipped to the window, tops as crosses, fault
+  polygons draped on the top surface, cube edges and ticks in the display
+  unit. `FrameworkView3D` (ribbon 3D view): orbit, shift-drag pan, wheel
+  zoom, VE 1/2/5/10x, colour mode, surface toggles, fit, PNG; camera
+  and counts on data attributes for e2e (WebGL pixels cannot be read).
+
+**EM0 to EM6 CLOSED 2026-09-06.** Open for Earth Modeling: a tester walk
+on staging.
