@@ -8,7 +8,9 @@
 // stratigraphic column from src/lib/stratRegistry.js (geo_strat_units).
 // No app-local Supabase calls against registry tables (plan section 4).
 
-import { listWells, listTops, updateTop, listLogs, downloadCurve } from '@/lib/wellsRegistry';
+import { listWells, listTops, updateTop, saveTop, listLogs, downloadCurve } from '@/lib/wellsRegistry';
+import { supabase } from '@/lib/customSupabaseClient';
+import { makeRegistryBackend as makeBasinBackend } from '@/pages/apps/BasinFlowGenesis/services/backend';
 import { loadSection, saveSection } from '@/lib/sectionsRegistry';
 import {
   listUnits, saveUnit, updateUnit, deleteUnit,
@@ -17,8 +19,12 @@ import {
 } from '@/lib/stratRegistry';
 
 export function makeRegistryBackend() {
+  const basin = makeBasinBackend();
   return {
-    listWells, listTops, updateTop, listLogs, downloadCurve, listUnits, saveUnit, updateUnit, deleteUnit,
+    listWells, listTops, updateTop, saveTop, listLogs, downloadCurve, listUnits, saveUnit, updateUnit, deleteUnit,
+    // ST3: the Basin handoff writes a bf_wells row through Basin's own backend
+    async currentUserId() { const { data: { user } } = await supabase.auth.getUser(); return user?.id || null; },
+    createBasinModel: (row) => basin.insertWell(row),
     listIntervals, replaceIntervals, listCoreImages, uploadCoreImage, updateCoreImage, deleteCoreImage, coreImageUrl,
     // ST2: the shared section (same rows as Well Correlation) and the app-private view state
     loadSection, saveSection, loadStratProject, saveStratProject,

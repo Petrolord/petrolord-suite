@@ -31,6 +31,7 @@ export function makeInMemoryBackend() {
   // ST2: the shared section (Well Correlation's rows) seeded over all three wells, and the view state
   let section = { id: 'section-1', well_ids: wells.map((w) => w.id), datum: { mode: 'structural' }, track_layout: {} };
   let project = null;
+  const basinModels = [];   // ST3 handoff target (the harness has no Basin store)
 
   const own = (wellId, what) => {
     const w = wells.find((x) => x.id === wellId);
@@ -130,6 +131,19 @@ export function makeInMemoryBackend() {
     async saveSection(patch) { section = { ...(section || { id: 'section-1' }), ...patch }; return { ...section }; },
     async loadStratProject() { return project ? { ...project } : null; },
     async saveStratProject(patch) { project = { ...(project || { id: 'strat-1', name: 'Default' }), ...patch }; return { ...project }; },
+
+    async saveTop(wellId, top) {
+      own(wellId, 'add tops to this well');
+      const row = { id: nid('top'), well_id: wellId, name: top.name, md_m: Number(top.mdM), interpreter: top.interpreter || null,
+        surface_type: top.surface_type || 'formation_top', unit_id: top.unit_id || null, confidence: top.confidence || null,
+        age_ma: top.age_ma == null || top.age_ma === '' ? null : Number(top.age_ma), hiatus_to_ma: top.hiatus_to_ma == null ? null : Number(top.hiatus_to_ma), notes: top.notes || null };
+      topsByWell.get(wellId).push(row);
+      topsByWell.get(wellId).sort((a, b) => a.md_m - b.md_m);
+      return { ...row };
+    },
+    async currentUserId() { return 'user-a'; },
+    async createBasinModel(row) { basinModels.push({ ...row }); return { ...row }; },
+    _basinModels: () => basinModels,
 
     async listUnits() { return units.map((u) => ({ ...u })); },
 

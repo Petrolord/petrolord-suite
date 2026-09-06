@@ -21,13 +21,14 @@ const cellCls = 'bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-x
 const btnCls = 'flex items-center gap-1 px-2 py-1 text-xs rounded border border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40';
 
 /** Kinds this editor offers (systems tracts and biozones arrive with ST2 and ST3). */
-export const EDITABLE_KINDS = INTERVAL_KINDS.filter((k) => ['lithology', 'core_description', 'facies', 'electrofacies', 'environment', 'motif', 'systems_tract'].includes(k.code));
+export const EDITABLE_KINDS = INTERVAL_KINDS.filter((k) => ['lithology', 'core_description', 'facies', 'electrofacies', 'environment', 'motif', 'systems_tract', 'biozone_interval'].includes(k.code));
 
 const toRow = (r) => ({
   id: r.id, top: r.top_md_m == null ? '' : String(r.top_md_m), base: r.base_md_m == null ? '' : String(r.base_md_m),
   code: r.code || '', label: r.label || '', source: r.source || 'interpretation',
   grain_size: r.properties?.grain_size || '', environment: r.properties?.environment || '',
   description: r.properties?.description || '', colour: r.properties?.colour || '', stacking: r.properties?.stacking || '',
+  scheme: r.properties?.scheme || '', age_top_ma: r.properties?.age_top_ma ?? '', age_base_ma: r.properties?.age_base_ma ?? '',
   properties: r.properties || {}, is_new: false,
 });
 
@@ -38,8 +39,11 @@ const PASTE_FIELDS = ['top', 'base', 'code', 'label', 'description'];
 
 const toInterval = (r, kind) => {
   const properties = { ...(r.properties || {}) };
-  for (const k of ['grain_size', 'environment', 'description', 'colour', 'stacking']) {
+  for (const k of ['grain_size', 'environment', 'description', 'colour', 'stacking', 'scheme']) {
     if (r[k]) properties[k] = r[k]; else delete properties[k];
+  }
+  for (const k of ['age_top_ma', 'age_base_ma']) {
+    if (r[k] !== '' && r[k] != null && Number.isFinite(Number(r[k]))) properties[k] = Number(r[k]); else delete properties[k];
   }
   return {
     id: r.id, kind, top_md_m: r.top === '' ? NaN : Number(r.top), base_md_m: r.base === '' ? NaN : Number(r.base),
@@ -82,7 +86,7 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
   const addRow = () => {
     tmp += 1;
     const last = rows[rows.length - 1];
-    setRows((rs) => [...rs, { id: `new-${tmp}`, top: last?.base || '', base: '', code: codeOptions ? codeOptions[0].value : '', label: '', source: 'interpretation', grain_size: '', environment: '', description: '', colour: '', stacking: '', properties: {}, is_new: true }]);
+    setRows((rs) => [...rs, { id: `new-${tmp}`, top: last?.base || '', base: '', code: codeOptions ? codeOptions[0].value : '', label: '', source: 'interpretation', grain_size: '', environment: '', description: '', colour: '', stacking: '', scheme: '', age_top_ma: '', age_base_ma: '', properties: {}, is_new: true }]);
     setDirty(true);
   };
   const delRow = (i) => { setRows((rs) => rs.filter((_, ri) => ri !== i)); setDirty(true); };
@@ -106,7 +110,8 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
     setBusy(true);
     try {
       await onReplace(kind, list);
-      onStatus?.(`${list.length} ${kind.replace(/_/g, ' ')} interval${list.length === 1 ? '' : 's'} saved on ${well.name}.`);
+      const kindName = (INTERVAL_KINDS.find((k) => k.code === kind)?.name || kind.replace(/_/g, ' ')).toLowerCase();
+      onStatus?.(`${list.length} ${kindName} interval${list.length === 1 ? '' : 's'} saved on ${well.name}.`);
       setDirty(false);
       setMode('grid');
       setPasted(null);
@@ -161,7 +166,7 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
           <table className="text-xs min-w-[860px]">
             <thead>
               <tr>
-                {['', 'Top (m)', 'Base (m)', isLith ? 'Lithology' : kind === 'environment' ? 'Environment' : kind === 'motif' ? 'Motif' : kind === 'systems_tract' ? 'Tract' : 'Code', 'Label', ...(isLith ? ['Grain size'] : []), ...(kind === 'core_description' ? ['Environment'] : []), ...(kind === 'systems_tract' ? ['Stacking'] : []), 'Description', 'Source', ''].map((h, i) => (
+                {['', 'Top (m)', 'Base (m)', isLith ? 'Lithology' : kind === 'environment' ? 'Environment' : kind === 'motif' ? 'Motif' : kind === 'systems_tract' ? 'Tract' : kind === 'biozone_interval' ? 'Biozone' : 'Code', 'Label', ...(isLith ? ['Grain size'] : []), ...(kind === 'core_description' ? ['Environment'] : []), ...(kind === 'systems_tract' ? ['Stacking'] : []), ...(kind === 'biozone_interval' ? ['Scheme', 'Age top (Ma)', 'Age base (Ma)'] : []), 'Description', 'Source', ''].map((h, i) => (
                   <th key={`${h}-${i}`} className="text-left font-medium text-slate-500 pr-3 pb-1">{h}</th>
                 ))}
               </tr>
@@ -179,7 +184,7 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
                         {codeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     ) : (
-                      <input className={cellCls} style={{ width: 150 }} value={r.code} disabled={!canEdit} placeholder="Facies name" onChange={(e) => setCell(i, 'code', e.target.value)} data-testid={`${testIdPrefix}-code-${i}`} />
+                      <input className={cellCls} style={{ width: 150 }} value={r.code} disabled={!canEdit} placeholder={kind === 'biozone_interval' ? 'Zone name' : 'Facies name'} onChange={(e) => setCell(i, 'code', e.target.value)} data-testid={`${testIdPrefix}-code-${i}`} />
                     )}
                   </td>
                   <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 120 }} value={r.label} disabled={!canEdit} onChange={(e) => setCell(i, 'label', e.target.value)} data-testid={`${testIdPrefix}-label-${i}`} /></td>
@@ -198,6 +203,13 @@ export default function IntervalsEditor({ well, intervals, canEdit = true, onRep
                         {ENVIRONMENTS.map((g) => <option key={g.code} value={g.code}>{g.name}</option>)}
                       </select>
                     </td>
+                  )}
+                  {kind === 'biozone_interval' && (
+                    <>
+                      <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 110 }} value={r.scheme} disabled={!canEdit} placeholder="e.g. NN, planktonic forams" onChange={(e) => setCell(i, 'scheme', e.target.value)} data-testid={`${testIdPrefix}-scheme-${i}`} /></td>
+                      <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 72 }} value={r.age_top_ma} disabled={!canEdit} inputMode="decimal" onChange={(e) => setCell(i, 'age_top_ma', e.target.value)} data-testid={`${testIdPrefix}-agetop-${i}`} /></td>
+                      <td className="pr-3 py-0.5"><input className={cellCls} style={{ width: 72 }} value={r.age_base_ma} disabled={!canEdit} inputMode="decimal" onChange={(e) => setCell(i, 'age_base_ma', e.target.value)} data-testid={`${testIdPrefix}-agebase-${i}`} /></td>
+                    </>
                   )}
                   {kind === 'systems_tract' && (
                     <td className="pr-3 py-0.5">
