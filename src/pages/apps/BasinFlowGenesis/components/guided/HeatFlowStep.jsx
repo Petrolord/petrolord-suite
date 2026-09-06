@@ -5,9 +5,12 @@ import { HeatFlowPresets } from '../../data/HeatFlowPresets';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Thermometer, Activity } from 'lucide-react';
+import HeatFlowChart from '../history/HeatFlowChart';
 
 const HeatFlowStep = () => {
     const { wizardData, setWizardData } = useGuidedMode();
+    const preset = HeatFlowPresets.find((p) => p.id === wizardData.heatFlowId);
+    const maxAge = Math.max(1, ...(wizardData.layers || []).map((l) => Number(l.ageStart) || 0));
 
     return (
         <div className="h-full flex gap-6">
@@ -50,9 +53,17 @@ const HeatFlowStep = () => {
                     <Activity className="w-4 h-4" /> Thermal History Preview
                 </h3>
                 
-                <div className="flex-1 bg-slate-900/50 rounded-lg border border-slate-800 p-2 flex items-center justify-center text-slate-500">
-                    Chart removed
-                </div>
+                {preset ? (
+                    <HeatFlowChart
+                        heatFlow={preset.type === 'constant' ? { type: 'constant', value: preset.value } : { type: 'variable', history: preset.history }}
+                        maxAge={Math.max(maxAge, 200)}
+                        height={260}
+                    />
+                ) : (
+                    <div className="flex-1 bg-slate-900/50 rounded-lg border border-slate-800 p-2 flex items-center justify-center text-slate-500">
+                        Choose a model to preview it.
+                    </div>
+                )}
             </div>
         </div>
     );

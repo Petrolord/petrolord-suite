@@ -4,9 +4,12 @@ import { ErosionPresets } from '../../data/ErosionPresets';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Mountain, AlertTriangle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 const ErosionStep = () => {
     const { wizardData, setWizardData } = useGuidedMode();
+    const custom = wizardData.erosionEvent || { age: 10, amount: 500 };
+    const setCustom = (patch) => setWizardData((prev) => ({ ...prev, erosionEvent: { ...(prev.erosionEvent || { age: 10, amount: 500 }), ...patch } }));
 
     return (
         <div className="h-full flex gap-6">
@@ -42,9 +45,15 @@ const ErosionStep = () => {
                                 <p className="text-sm text-slate-400">{opt.description}</p>
                                 
                                 {opt.id === 'custom' && wizardData.erosionOption === 'custom' && (
-                                    <div className="mt-4 p-3 bg-slate-950 rounded border border-slate-800 text-center text-sm text-slate-500">
-                                        Custom erosion configuration not fully implemented in this wizard version. 
-                                        Using default placeholder (500m @ 10Ma).
+                                    <div className="mt-4 p-3 bg-slate-950 rounded border border-slate-800 grid grid-cols-2 gap-3 text-xs" onClick={(e) => e.preventDefault()}>
+                                        <label className="text-slate-400">
+                                            Age of the uplift (Ma)
+                                            <Input type="number" step="any" data-testid="bf-wizard-erosion-age" value={custom.age} onChange={(e) => setCustom({ age: parseFloat(e.target.value) })} className="mt-1 h-8 bg-slate-900" />
+                                        </label>
+                                        <label className="text-slate-400">
+                                            Section removed (m)
+                                            <Input type="number" step="any" data-testid="bf-wizard-erosion-amount" value={custom.amount} onChange={(e) => setCustom({ amount: parseFloat(e.target.value) })} className="mt-1 h-8 bg-slate-900" />
+                                        </label>
                                     </div>
                                 )}
                             </Label>

@@ -21,7 +21,7 @@ export const GuidedModeProvider = ({ children }) => {
         layers: [],
         heatFlowId: 'continental_stable',
         erosionOption: 'none',
-        erosionEvent: null // { age: 10, amount: 500 } if custom
+        erosionEvent: { age: 10, amount: 500 } // edited in the Erosion step when the option is custom
     });
 
     const steps = [

@@ -91,5 +91,8 @@ seeded with the reference basin, fixed the persistence of erosion
 events and the surface temperature (bf_wells columns added, migration
 20260906150000 applied), removed the run dialog's fake delays, and
 added the present-day table to the summary. e2e reproduces the golden.
-BF1 (history editors), BF2 (calibration and import), BF3 (units, links,
-help) follow.
+BF1 made Expert mode's heat-flow history, surface temperature and
+erosion events real editors (the "Phase 2" placeholders are gone), gave
+the wizard a working custom erosion and its preview chart back, and
+fixed the run dialog that never re-ran after its first success. BF2
+(calibration and import), BF3 (units, links, help) follow.
