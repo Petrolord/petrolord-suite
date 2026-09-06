@@ -58,6 +58,7 @@ const TechnicalReportAutopilot = lazy(() => import('@/pages/apps/TechnicalReport
 const WellCorrelation = lazy(() => import('@/pages/apps/WellCorrelation/WellCorrelation'));
 const PetrophysicsStudio = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudio'));
 const PetrophysicsHelpGuide = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsHelpGuide'));
+const MappingHelpGuide = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingHelpGuide'));
 const ContourMapDigitizer = lazy(() => import('@/pages/apps/ContourMapDigitizer'));
 const WellPlanning = lazy(() => import('@/pages/apps/WellPlanning'));
 const ReliefBlowdownSizer = lazy(() => import('@/pages/apps/ReliefBlowdownSizer'));
@@ -479,6 +480,7 @@ function App() {
                                     the legacy slug redirects to the successor (roadmap G0 alias rule). */}
                                 <Route path="apps/geoscience/well-correlation" element={<ProtectedAppRoute appId="well-correlation" appName="Well Correlation"><WellCorrelation /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/mapping-surface-studio" element={<ProtectedAppRoute appId="mapping-surface-studio" appName="Mapping & Surface Studio"><MappingSurfaceStudio /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/mapping-surface-studio/help" element={<ProtectedAppRoute appId="mapping-surface-studio" appName="Mapping & Surface Studio"><MappingHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/well-correlation-tool" element={<Navigate to="/dashboard/apps/geoscience/well-correlation" replace />} />
                                 
                                 {/* Petrophysics Studio (G2) supersedes five shallow tiles;

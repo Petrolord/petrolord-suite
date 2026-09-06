@@ -12,15 +12,18 @@
 
 import React, { useState } from 'react';
 import {
-  Layers, Building2, Lock, Trash2, Grid3x3, Loader2, FileUp, Download, Pencil, RefreshCw, Table2, Share2,
+  Layers, Building2, Lock, Trash2, Grid3x3, Loader2, FileUp, Download, Pencil, RefreshCw, Table2, Share2, ExternalLink,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem,
   ContextMenuSeparator, ContextMenuSub, ContextMenuSubTrigger, ContextMenuSubContent,
 } from '@/components/ui/context-menu';
+import { Link } from 'react-router-dom';
 import { normalizeTag, isTransformableTag } from '@/lib/crs/tags';
 import { EXPORT_FORMATS, describeSurface, isLengthSurface } from '../services/surfaceExport';
+import { OpenInAppSubmenu } from '@/components/wells/OpenInAppMenu';
+import { appPath, earthModelingSurfaceHref, MAPPING_ID } from '@/components/wells/appLinks';
 
 const selCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-1 text-xs';
 
@@ -33,7 +36,7 @@ export function domainBadge(s) {
 }
 
 function SurfaceRow({
-  s, selected, onSelect, onDelete, onToggleShare, sharingId, onExport, onPointsCsv, onRename, onRegrid, replacing,
+  s, selected, onSelect, onDelete, onToggleShare, sharingId, onExport, onPointsCsv, onRename, onRegrid, replacing, appPaths = {},
 }) {
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(s.name);
@@ -123,6 +126,16 @@ function SurfaceRow({
         <ContextMenuItem data-testid="map-row-points-csv" disabled={!hasPoints} onSelect={() => onPointsCsv(s)}>
           <Table2 className="w-4 h-4 mr-2" /> Control points CSV
         </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem asChild>
+          <Link to={appPath('reservoircalc-pro', appPaths)} data-testid="map-row-open-reservoircalc-pro" title="Volumetrics: the surface is listed in its Surface import"><ExternalLink className="w-4 h-4 mr-2" /> Open in ReservoirCalc Pro</Link>
+        </ContextMenuItem>
+        <ContextMenuItem asChild>
+          <Link to={earthModelingSurfaceHref(s.id, appPath('earth-modeling', appPaths))} data-testid="map-row-open-earth-modeling" title="Stack this surface in an Earth Modeling framework"><ExternalLink className="w-4 h-4 mr-2" /> Open in Earth Modeling</Link>
+        </ContextMenuItem>
+        <ContextMenuItem asChild>
+          <Link to={appPath('seismolord', appPaths)} data-testid="map-row-open-seismolord" title="Seismolord lists registry surfaces in its Surfaces section"><ExternalLink className="w-4 h-4 mr-2" /> Show in Seismolord</Link>
+        </ContextMenuItem>
         {s.is_own && (
           <>
             <ContextMenuSeparator />
@@ -150,7 +163,7 @@ export default function SurfacesExplorer({
   surfaces, selectedId, onSelect, onDelete, onToggleShare, sharingId,
   topNames, zoneNames = [], zoneKeys, source, onSource,
   depthRef = 'tvdss', onDepthRef, cellM, onCellM, onGrid, gridding,
-  onImport, onExport, onPointsCsv, onRename, onRegrid, replaceId = null,
+  onImport, onExport, onPointsCsv, onRename, onRegrid, replaceId = null, appPaths = {}, wells = [],
 }) {
   return (
     <div className="h-full min-h-0 flex flex-col bg-slate-900/60" data-testid="map-explorer">
@@ -212,9 +225,28 @@ export default function SurfacesExplorer({
         {surfaces.map((s) => (
           <SurfaceRow key={s.id} s={s} selected={s.id === selectedId} onSelect={onSelect} onDelete={onDelete}
             onToggleShare={onToggleShare} sharingId={sharingId} onExport={onExport} onPointsCsv={onPointsCsv}
-            onRename={onRename} onRegrid={onRegrid} replacing={replaceId === s.id} />
+            onRename={onRename} onRegrid={onRegrid} replacing={replaceId === s.id} appPaths={appPaths} />
         ))}
         {!surfaces.length && <p className="px-3 py-2 text-xs text-slate-600 leading-snug">No surfaces yet: grid a top above, import a file, then publish.</p>}
+        <div className="px-2.5 pt-2 pb-1 text-[11px] uppercase tracking-wider text-slate-500 border-t border-slate-800/60 mt-1">
+          Wells <span data-testid="map-well-count">{wells.length}</span>
+        </div>
+        {wells.map((w) => (
+          <ContextMenu key={w.id}>
+            <ContextMenuTrigger asChild>
+              <div role="button" tabIndex={0} data-testid="map-well-row" data-well-name={w.name}
+                title="Right-click to open this well in another Geoscience app"
+                className="flex items-center gap-1.5 pl-2.5 pr-2 py-[2px] text-[12px] text-slate-400 hover:bg-slate-800/70 cursor-context-menu select-none">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                <span className="truncate">{w.name}</span>
+                <span className="ml-auto text-[10px] text-slate-600">{(w.tops || []).length} tops</span>
+              </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent className="w-56">
+              <OpenInAppSubmenu wellIds={[w.id]} paths={appPaths} testIdPrefix="map-well" exclude={[MAPPING_ID]} />
+            </ContextMenuContent>
+          </ContextMenu>
+        ))}
       </ScrollArea>
     </div>
   );

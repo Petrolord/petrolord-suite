@@ -5,7 +5,8 @@
 // persistence.
 
 import React, { useState } from 'react';
-import { Crosshair, RefreshCw, Pencil, Trash2, Check, X } from 'lucide-react';
+import { Crosshair, RefreshCw, Pencil, Trash2, Check, X, Map as MapIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import LayoutPanel from '@/components/wells/LayoutPanel';
 import { topColor } from '@/components/wells/topColors';
 import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
@@ -24,7 +25,7 @@ const Section = ({ title, children, testId }) => (
 const unitTxt = (u) => (u === 'ft' ? 'ft' : 'm');
 const fmtDisplay = (mdM, unit) => (Number.isFinite(mdM) ? String(Number(toDisplay(mdM, unit).toFixed(1))) : '');
 
-function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete }) {
+function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete, mapHref }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const [confirming, setConfirming] = useState(false);
@@ -53,6 +54,11 @@ function TopRow({ name, shown, onToggle, canEdit, onRename, onDelete }) {
           />
         ) : <span className="text-slate-300 truncate">{name}</span>}
       </label>
+      {mapHref && !editing && (
+        <Link to={mapHref} className="text-slate-500 hover:text-amber-300" title="Map this top in Mapping & Surface Studio (TVDSS structure map from the section wells)" data-testid={`corr-map-top-${name}`}>
+          <MapIcon className="w-3.5 h-3.5" />
+        </Link>
+      )}
       {canEdit && (editing ? (
         <>
           <button type="button" className="text-emerald-300 hover:text-emerald-200" title="Apply the new name" data-testid={`corr-top-rename-ok-${name}`} onClick={commit}><Check className="w-3.5 h-3.5" /></button>
@@ -84,6 +90,7 @@ export default function SectionControls({
   pickMode, onPickMode, onReloadTops, onRenameTop, onDeleteTop,
   zoneMode, onZoneMode, zonePair, onZonePair,
   onPropagate, canEdit,
+  mapHrefFor = null,
 }) {
   const [propName, setPropName] = useState(topNames[0] || '');
   const [propMd, setPropMd] = useState('');
@@ -163,7 +170,8 @@ export default function SectionControls({
         <div className="space-y-0.5">
           {topNames.map((n) => (
             <TopRow key={n} name={n} shown={shownTops.includes(n)} onToggle={() => onToggleTop(n)}
-              canEdit={canEdit} onRename={onRenameTop} onDelete={onDeleteTop} />
+              canEdit={canEdit} onRename={onRenameTop} onDelete={onDeleteTop}
+              mapHref={mapHrefFor ? mapHrefFor(n) : null} />
           ))}
           {!topNames.length && <p className="text-slate-600">No tops in the section yet. Pick one on a column, or propagate a top below.</p>}
         </div>

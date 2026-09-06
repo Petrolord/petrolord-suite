@@ -128,6 +128,8 @@ test('cross-app: a ?wells= deep link adds the wells to the section; edit and hom
   // org-shared and read-only, so it offers no edit link
   await expect(page.getByTestId('corr-edit-well-data-KETA-1')).toHaveAttribute('href', '/dev/well-data-manager?well=corr-w1&tab=tops');
   await expect(page.getByTestId('corr-edit-well-data-KETA-3')).toHaveCount(0);
+  // MS4: Map this top carries the top and the section wells that have it
+  await expect(page.getByTestId('corr-map-top-Top Dome')).toHaveAttribute('href', '/dev/mapping-surface-studio?top=Top+Dome&wells=corr-w1%2Ccorr-w3');
 });
 
 // WC series (Petrel tester readiness, 2026-09-03): tops picked by click,

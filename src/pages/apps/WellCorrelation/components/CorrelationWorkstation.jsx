@@ -20,7 +20,7 @@ import { GitCompare, Loader2, Save, ImageDown, PanelRight } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { parseWellsParam } from '@/components/wells/appLinks';
+import { parseWellsParam, mapTopHref } from '@/components/wells/appLinks';
 import { useWellCurvesCache } from '@/components/wells/useWellCurvesCache';
 import { resolveTracks } from '@/components/wells/layout/resolveTracks';
 import { buildDefaultLayouts, migrateLayouts, activeTemplate } from '@/components/wells/layout/layoutSchema';
@@ -41,7 +41,11 @@ const defaultLayouts = () => ({ ...buildDefaultLayouts(), activeTemplateId: DEFA
 
 /** @param {string} [p.wellDataManagerPath] route of the Well Data Manager
  *  the explorer's "Edit well data" links open (harness override) */
-export default function CorrelationWorkstation({ backend, wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager' }) {
+export default function CorrelationWorkstation({
+  backend,
+  wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager',
+  mappingPath = '/dashboard/apps/geoscience/mapping-surface-studio',
+}) {
   // deep link (cross-app navigation, 2026-09-03): ?wells=<id,id> appends
   // those wells to the section once the wells and any saved section loaded
   const [searchParams] = useSearchParams();
@@ -409,6 +413,7 @@ export default function CorrelationWorkstation({ backend, wellDataManagerPath = 
             onReloadTops={reloadTops}
             onRenameTop={renameTop}
             onDeleteTop={deleteTop}
+            mapHrefFor={(name) => mapTopHref(name, order.filter((id) => (wellData[id]?.tops || []).some((t) => t.name === name)), mappingPath)}
             zoneMode={zoneMode}
             onZoneMode={setZoneMode}
             zonePair={zonePair}

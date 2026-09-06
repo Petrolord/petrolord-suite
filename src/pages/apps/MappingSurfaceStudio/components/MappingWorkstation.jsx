@@ -15,9 +15,10 @@
 // the user's unit (feet by default, persisted per browser).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Map as MapIcon, Loader2, UploadCloud, Sigma, Globe2, Image as ImageIcon, SlidersHorizontal,
-  Pentagon, Square, MapPin, Calculator, Clock, Trash2, Eye, EyeOff,
+  Pentagon, Square, MapPin, Calculator, Clock, Trash2, Eye, EyeOff, HelpCircle,
 } from 'lucide-react';
 import WorkspaceShell from '@/components/workstation/WorkspaceShell';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
@@ -42,6 +43,7 @@ import {
   topsToControlPoints, zoneAttrToPoints, specForPoints, surfaceStats, maskOutsidePolygon,
 } from '../engine/surface';
 import { describeGridResult } from '../services/gridStatus';
+import { parseWellsParam, appPath, MAPPING_ID } from '@/components/wells/appLinks';
 import { toDisplay, fromDisplay } from '@/components/wells/depthModes';
 import { consensusTag } from '@/lib/crs/tags';
 import { crsUnit } from '@/lib/crs';
@@ -61,8 +63,19 @@ export { isLengthSurface };
  *  load converts here and the display converts back to the user's unit. */
 const loadGridM = async (backend, surface) => gridInUnit(surface, await backend.downloadSurfaceGrid(surface), 'm');
 
-export default function MappingWorkstation({ backend }) {
+/** @param {Object} [p.appPaths] route overrides for the launchers (harness) */
+export default function MappingWorkstation({ backend, appPaths = {} }) {
   const [wells, setWells] = useState(null);
+  // deep links (MS4): ?surface= selects, ?top=&wells= grids on arrival,
+  // ?wells= alone posts only those wells; read once, consumed after load
+  const [searchParams] = useSearchParams();
+  const deepLinkRef = useRef({
+    surface: searchParams.get('surface'),
+    top: searchParams.get('top'),
+    wells: parseWellsParam(searchParams.get('wells')),
+    done: false,
+  });
+  const [linkedWellIds, setLinkedWellIds] = useState(null); // ?wells= filter for posting
   const [surfaces, setSurfaces] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [displayGrid, setDisplayGrid] = useState(null);   // Float32Array shown
@@ -218,22 +231,54 @@ export default function MappingWorkstation({ backend }) {
     if (!source.key && topNames.length) setSource({ type: 'top', key: topNames[0] });
   }, [topNames, source.key]);
 
-  const runGrid = async () => {
+  // consume the deep link once the registry is in
+  useEffect(() => {
+    const dl = deepLinkRef.current;
+    if (dl.done || !wells) return;
+    if (!dl.surface && !dl.top && !dl.wells.length) { dl.done = true; return; }
+    dl.done = true;
+    if (dl.surface) {
+      if (surfaces.some((x) => x.id === dl.surface)) selectSurface(dl.surface);
+      else setStatus('The linked surface is not in your registry.');
+      return;
+    }
+    const known = dl.wells.filter((id) => wells.some((w) => w.id === id));
+    if (dl.top) {
+      if (!topNames.includes(dl.top)) { setStatus(`The linked top "${dl.top}" is on none of your wells.`); return; }
+      const src = { type: 'top', key: dl.top };
+      setSource(src);
+      if (known.length) setLinkedWellIds(known);
+      runGrid({ source: src, wellIds: known, prefix: `Opened on top ${dl.top} from a link. ` });
+      return;
+    }
+    if (known.length) {
+      setLinkedWellIds(known);
+      setStatus(`Posting the ${known.length} linked well${known.length === 1 ? '' : 's'} only. Grid a top to map them.`);
+    } else {
+      setStatus('The linked wells are not in your registry.');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wells, surfaces, topNames]);
+
+  const runGrid = async (opts = {}) => {
+    const src = opts.source || source;
     const cell = Number(cellM);
     if (!(cell > 0)) { setStatus('Cell size must be a positive number of metres.'); return; }
     setGridding(true);
     try {
+      // a ?wells= list from a launcher restricts the control points
+      const sourceWells = opts.wellIds?.length ? (wells || []).filter((w) => opts.wellIds.includes(w.id)) : wells;
       let result;
       let name;
       let kind;
-      if (source.type === 'top') {
-        result = topsToControlPoints(wells, source.key, { depthRef, placement: 'borehole' });
-        name = `${source.key} structure`;
+      if (src.type === 'top') {
+        result = topsToControlPoints(sourceWells, src.key, { depthRef, placement: 'borehole' });
+        name = `${src.key} structure`;
         kind = 'structure';
       } else {
-        const zoneName = source.zoneName || zoneNames[0];
-        result = { points: zoneAttrToPoints(wells, zoneName, source.key), skipped: [], extrapolated: 0, depthRef: null };
-        name = `${source.key} attribute`;
+        const zoneName = src.zoneName || zoneNames[0];
+        result = { points: zoneAttrToPoints(sourceWells, zoneName, src.key), skipped: [], extrapolated: 0, depthRef: null };
+        name = `${src.key} attribute`;
         kind = 'attribute';
       }
       // guide points (MS3) grid with the wells, tagged so the CSV says so
@@ -270,7 +315,7 @@ export default function MappingWorkstation({ backend }) {
       setPreview({
         spec, grid: g.z, name, kind, crs, zDomain,
         provenance: {
-          source, engine: 'mapping-surface-studio', cell_m: cell,
+          source: src, engine: 'mapping-surface-studio', cell_m: cell,
           control_points: points.length,
           points: points.map((p) => ({ well: p.well, x: p.x, y: p.y, z: p.z, md: p.md ?? null, extrapolated: !!p.extrapolated })),
           depth_ref: result.depthRef, placement: kind === 'structure' ? 'borehole' : null,
@@ -291,7 +336,7 @@ export default function MappingWorkstation({ backend }) {
         boundary ? `clipped to ${boundary.name}` : null,
         guides.length ? `${guides.length} guide point${guides.length === 1 ? '' : 's'}` : null,
       ].filter(Boolean);
-      setStatus(`${describeGridResult({ name, result: { ...result, points }, spec, depthUnit })}${extras.length ? ` With ${extras.join(', ')}.` : ''}`);
+      setStatus(`${opts.prefix || ''}${describeGridResult({ name, result: { ...result, points }, spec, depthUnit })}${extras.length ? ` With ${extras.join(', ')}.` : ''}`);
     } catch (e) {
       setStatus(e.message);
     } finally {
@@ -579,6 +624,16 @@ export default function MappingWorkstation({ backend }) {
         disabled={!displayGrid} title="Download the map as a titled PNG" onClick={exportPng}>
         <ImageIcon className="w-3.5 h-3.5" /> PNG
       </button>
+      <Link to={`${appPath(MAPPING_ID)}/help`} data-testid="map-help" title="Open the Mapping & Surface Studio help guide"
+        className="flex items-center gap-1 px-2 py-0.5 text-[11px] rounded border border-slate-700 text-cyan-300 hover:bg-slate-800">
+        <HelpCircle className="w-3.5 h-3.5" /> Help
+      </Link>
+      {linkedWellIds && (
+        <button type="button" data-testid="map-linked-clear" className="px-2 py-0.5 text-[11px] rounded border border-amber-700/60 text-amber-300 hover:bg-amber-500/10"
+          title="The link posted only some wells; show every well again" onClick={() => setLinkedWellIds(null)}>
+          {linkedWellIds.length} linked wells · show all
+        </button>
+      )}
       {preview && (
         <button type="button" data-testid="map-publish"
           className="ml-auto flex items-center gap-1 px-2 py-1 text-xs rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
@@ -601,13 +656,14 @@ export default function MappingWorkstation({ backend }) {
   // both tags are known; local-grid wells drop from a georeferenced
   // map. Unknown tags render as before (legacy behavior).
   const displayWells = useMemo(() => {
-    if (!wells || !displaySurface || displaySurface.crs === undefined) return wells;
+    const base = linkedWellIds ? (wells || []).filter((w) => linkedWellIds.includes(w.id)) : wells;
+    if (!base || !displaySurface || displaySurface.crs === undefined) return base;
     const r = placeWellsForHost(
-      wells.map((w) => ({ ...w, surfaceX: w.surface_x, surfaceY: w.surface_y })),
+      base.map((w) => ({ ...w, surfaceX: w.surface_x, surfaceY: w.surface_y })),
       displaySurface.crs,
     );
     return r.wells.map((w) => ({ ...w, surface_x: w.surfaceX, surface_y: w.surfaceY }));
-  }, [wells, displaySurface]);
+  }, [wells, displaySurface, linkedWellIds]);
 
   const center = !wells ? (
     <div className="h-full flex items-center justify-center text-slate-500 text-sm"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Loading registry…</div>
@@ -669,6 +725,8 @@ export default function MappingWorkstation({ backend }) {
           onRename={rename}
           onRegrid={regrid}
           replaceId={replaceId}
+          appPaths={appPaths}
+          wells={displayWells || []}
         />
       )}
       center={center}

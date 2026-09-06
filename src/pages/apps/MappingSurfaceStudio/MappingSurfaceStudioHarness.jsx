@@ -7,13 +7,14 @@
 
 import React, { useMemo } from 'react';
 import MappingWorkstation from './components/MappingWorkstation';
+import { DEV_APP_PATHS } from '@/components/wells/appLinks';
 import { makeInMemoryBackend } from './services/inMemoryBackend';
 
 export default function MappingSurfaceStudioHarness() {
   const backend = useMemo(() => makeInMemoryBackend(), []);
   return (
     <div className="h-screen w-full overflow-hidden">
-      <MappingWorkstation backend={backend} />
+      <MappingWorkstation backend={backend} appPaths={DEV_APP_PATHS} />
     </div>
   );
 }

@@ -12,6 +12,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import ModuleHomeLink from '@/components/workstation/ModuleHomeLink';
+import { mapTopHref } from '@/components/wells/appLinks';
 import {
   FlaskConical, Loader2, UploadCloud, Save, Layers, PenLine, FileDown, Database, HelpCircle, ImageDown,
 } from 'lucide-react';
@@ -54,6 +55,7 @@ export default function PetroWorkstation({
   backend,
   wellDataManagerPath = '/dashboard/apps/geoscience/well-data-manager',
   wellCorrelationPath = '/dashboard/apps/geoscience/well-correlation',
+  mappingPath = '/dashboard/apps/geoscience/mapping-surface-studio',
 }) {
   // deep link (cross-app navigation, 2026-09-03): ?well=<id> selects the
   // well once the registry list has loaded (Well Data Manager links here)
@@ -986,6 +988,7 @@ export default function PetroWorkstation({
               depthUnit={depthUnit}
               snapSamples={snapSamples}
               onSnapSamples={setSnapSamples}
+              mapHrefFor={(t) => mapTopHref(t.name, [], mappingPath)}
             />
           )}
           {wellData && (

@@ -295,3 +295,8 @@ app's — Petrophysics links here to edit a header.
   the extent to the origin.
 - e2e: the PT1 checkshots test now also edits the location and asserts
   the non-finite rejection.
+
+## 2026-09-05: Map this top (Mapping MS4)
+The Tops tab table gains a Map column (`wdm-map-top-<name>`) linking to
+Mapping & Surface Studio on that top; the Open-in menus' Mapping entry
+now opens the map posting the chosen wells (`?wells=`).

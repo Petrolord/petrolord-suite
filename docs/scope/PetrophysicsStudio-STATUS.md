@@ -403,3 +403,8 @@ PNG button had pushed Help and Parameters off the right edge at 1440 and
 wrapped the subtitle to five lines.
 
 Open: owner staging walk, prod zip + upload.
+
+## 2026-09-05: Map this top (Mapping MS4)
+The Tops panel rows carry a map icon (`petro-map-top-<name>`) linking to
+Mapping & Surface Studio, which grids the top across every well carrying
+it on arrival. `PetroWorkstation` takes `mappingPath`.

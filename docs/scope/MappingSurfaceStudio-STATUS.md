@@ -247,3 +247,38 @@ north arrow and optional Easting/Northing axes.
   coordinates, grid with both, a guide point in feet, publish, GRV
   above a contact, A + k, layer-cake refusal, linear conversion of the
   TWT dome to feet and publish.
+
+## 2026-09-05: MS4, integration and help (MS series)
+
+- **Deep links in** (`MappingWorkstation`, read once through
+  `useSearchParams`, consumed after the registry loads): `?surface=<id>`
+  selects and draws a surface (or says it is not in your registry);
+  `?top=<name>&wells=<ids>` sets the source and grids on arrival from
+  those wells only, the status starting `Opened on top X from a link`;
+  `?wells=<ids>` alone posts only those wells (a ribbon chip
+  `map-linked-clear` shows all again).
+- **Launchers in**: Well Correlation top rows (`corr-map-top-<name>`,
+  the section wells carrying the top), Petrophysics Studio Tops panel
+  (`petro-map-top-<name>`, every well carrying it), Well Data Manager
+  Tops tab (`wdm-map-top-<name>`); the Mapping entry of every Open-in
+  menu now carries `?wells=`. Builders `mapTopHref`, `mapSurfaceHref`,
+  `earthModelingSurfaceHref` in `src/components/wells/appLinks.js`
+  (tested); workstations take a `mappingPath` prop (harnesses point at
+  `/dev/mapping-surface-studio`).
+- **Launchers out**: surface row menu gains Open in ReservoirCalc Pro
+  (plain route; its Surface import lists the surface), Open in Earth
+  Modeling (`?surface=<id>`; `EarthWorkstation` stacks it on arrival and
+  says so), Show in Seismolord; a Wells list at the bottom of the
+  explorer with the shared Open-in submenu (`map-well-open-in-<app>`,
+  Mapping excluded). `MappingWorkstation` takes `appPaths` (harness:
+  `DEV_APP_PATHS`).
+- **Help**: `MappingHelpGuide.jsx` on `HelpGuideShell` at
+  `apps/geoscience/mapping-surface-studio/help` (ribbon `map-help`), 15
+  sections quoting the live export formats, arithmetic operations and
+  skip reasons; `__tests__/helpGuide.test.jsx` (sections, live lists,
+  honesty phrases, no em dash).
+- e2e: `mapping-surface-studio` MS4 test (grid on arrival from three
+  wells, `?surface=`, unknown ids, row and well launcher hrefs, help
+  and home hrefs); `earth-modeling` (`?surface=` stacks TopB);
+  `well-correlation`, `petrophysics-studio`, `well-data-manager`
+  cross-app tests assert the Map-this-top hrefs.

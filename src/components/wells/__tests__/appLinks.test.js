@@ -1,5 +1,6 @@
 import {
   WELL_APPS, DEV_APP_PATHS, appPath, buildOpenInHref, wellDataManagerHref, parseWellsParam, moduleHomePath,
+  mapTopHref, mapSurfaceHref, earthModelingSurfaceHref,
 } from '../appLinks';
 
 const byId = (id) => WELL_APPS.find((a) => a.id === id);
@@ -15,6 +16,19 @@ describe('appLinks', () => {
     expect(buildOpenInHref(byId('petrophysics-studio'), ['w-1'])).toBe('/dashboard/apps/geoscience/petrophysics-studio?well=w-1');
     expect(buildOpenInHref(byId('petrophysics-studio'), ['w-1', 'w-2'])).toBe('/dashboard/apps/geoscience/petrophysics-studio?well=w-1');
     expect(buildOpenInHref(byId('well-correlation'), ['w-1', 'w-2'])).toBe('/dashboard/apps/geoscience/well-correlation?wells=w-1,w-2');
+  });
+
+  test('Mapping opens on the wells to post (MS4)', () => {
+    expect(buildOpenInHref(byId('mapping-surface-studio'), ['w-1', 'w-2'])).toBe('/dashboard/apps/geoscience/mapping-surface-studio?wells=w-1,w-2');
+    expect(buildOpenInHref(byId('mapping-surface-studio'), ['w-1'], DEV_APP_PATHS)).toBe('/dev/mapping-surface-studio?wells=w-1');
+  });
+
+  test('Map this top and surface deep links (MS4)', () => {
+    expect(mapTopHref('Top Dome', ['w-1', 'w-2'])).toBe('/dashboard/apps/geoscience/mapping-surface-studio?top=Top+Dome&wells=w-1%2Cw-2');
+    expect(mapTopHref('Top A', [], '/dev/mapping-surface-studio')).toBe('/dev/mapping-surface-studio?top=Top+A');
+    expect(mapSurfaceHref('s 1', '/dev/mapping-surface-studio')).toBe('/dev/mapping-surface-studio?surface=s%201');
+    expect(earthModelingSurfaceHref('surf-2')).toBe('/dashboard/apps/geoscience/earth-modeling?surface=surf-2');
+    expect(earthModelingSurfaceHref('surf-2', DEV_APP_PATHS['earth-modeling'])).toBe('/dev/earth-modeling?surface=surf-2');
   });
 
   test('apps without a preselection open on their plain route, and no wells means the plain route everywhere', () => {

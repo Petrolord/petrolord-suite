@@ -5,7 +5,8 @@
 // through layouts.topStyles; the rows are the registry's geo_wells_tops.
 
 import React, { useState } from 'react';
-import { Crosshair, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Crosshair, Loader2, Pencil, Trash2, Map as MapIcon } from 'lucide-react';
 import { topColor, topKey } from '@/components/wells/topColors';
 import { depthLabel, toDisplay, fromDisplay } from '../viewer/depthModes';
 
@@ -13,7 +14,7 @@ const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px
 
 export default function TopsPanel({
   tops, topStyles, onShowAll, onStyle, isOwn, busy, pickMode, onPick, onRename, onMove, onDelete, depthUnit = 'm',
-  snapSamples = false, onSnapSamples,
+  snapSamples = false, onSnapSamples, mapHrefFor = null,
 }) {
   const [renaming, setRenaming] = useState(null); // {id, value}
   // PT8: the depth is editable in place next to the name. The draft is
@@ -106,6 +107,12 @@ export default function TopsPanel({
               </span>
             ) : (
               <span className="text-slate-500 font-mono" data-testid={`petro-top-md-${t.name}`}>{depthLabel(t.md_m, depthUnit)}</span>
+            )}
+            {mapHrefFor && (
+              <Link to={mapHrefFor(t)} className="text-slate-500 hover:text-amber-300" title="Map this top in Mapping & Surface Studio (TVDSS structure map across the wells carrying it)"
+                data-testid={`petro-map-top-${t.name}`}>
+                <MapIcon className="w-3 h-3" />
+              </Link>
             )}
             {isOwn && (
               <>
