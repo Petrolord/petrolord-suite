@@ -4,7 +4,9 @@
 // the builder dock.
 
 import React from 'react';
-import { Layers3, ArrowUp, ArrowDown, X, Plus, CircleDot, Spline } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Layers3, ArrowUp, ArrowDown, X, Plus, CircleDot, Spline, Map as MapIcon } from 'lucide-react';
+import { mapSurfaceHref } from '@/components/wells/appLinks';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const secCls = 'text-[10px] uppercase tracking-wider text-slate-500 px-2 pt-3 pb-1';
@@ -13,7 +15,7 @@ const btnCls = 'p-0.5 rounded hover:bg-slate-700/60 text-slate-500 hover:text-sl
 
 export default function ModelExplorer({
   surfaces, wells, definition, onAddSurface, onRemoveSurface, onMoveSurface,
-  onDeletePolygon, culturePolygons = [], onAddCulturePolygon,
+  onDeletePolygon, culturePolygons = [], onAddCulturePolygon, mappingPath = undefined,
 }) {
   const inModel = new Set((definition.faultPolygons || []).map((p) => p.cultureId).filter(Boolean));
   const inStack = new Set(definition.surfaceIds);
@@ -39,6 +41,11 @@ export default function ModelExplorer({
           <div className={rowCls} key={s.id}>
             <span className="truncate flex-1" title={`${s.kind} · ${s.nx}×${s.ny}`}>{s.name}</span>
             <span className="text-[10px] text-slate-600">{s.kind}</span>
+            {!s.derived && (
+              <Link to={mapSurfaceHref(s.id, mappingPath)} className={btnCls} data-testid={`em-map-${s.name}`} title="Open in Mapping & Surface Studio">
+                <MapIcon className="w-3 h-3" />
+              </Link>
+            )}
             <button type="button" className={btnCls} data-testid={`em-add-${s.name}`} onClick={() => onAddSurface(s.id)} title="Add to stack">
               <Plus className="w-3 h-3" />
             </button>

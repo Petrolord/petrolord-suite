@@ -79,6 +79,13 @@ export function mapSurfaceHref(surfaceId, path = appPath(MAPPING_ID)) {
   return `${path}?surface=${encodeURIComponent(surfaceId)}`;
 }
 
+/** ReservoirCalc Pro deep link that opens its Surface import on a
+ *  registry surface (EM5). */
+export const RESERVOIRCALC_ID = 'reservoircalc-pro';
+export function reservoirCalcSurfaceHref(surfaceId, path = appPath(RESERVOIRCALC_ID)) {
+  return `${path}?surface=${encodeURIComponent(surfaceId)}`;
+}
+
 /** Earth Modeling deep link that stacks a surface on arrival. */
 export function earthModelingSurfaceHref(surfaceId, path = appPath(EARTH_MODELING_ID)) {
   return `${path}?surface=${encodeURIComponent(surfaceId)}`;

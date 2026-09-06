@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useReservoirCalc } from '../../contexts/ReservoirCalcContext';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,10 +7,12 @@ import { Layers, Trash2, UploadCloud, Check } from 'lucide-react';
 import SurfaceImportDialog from './SurfaceImportDialog';
 import { useToast } from '@/components/ui/use-toast';
 
-const SurfaceDataManager = () => {
+const SurfaceDataManager = ({ preselectSurfaceId = null }) => {
     const { state, addSurface, deleteSurface, updateInputs } = useReservoirCalc();
     const { toast } = useToast();
     const [importOpen, setImportOpen] = useState(false);
+    // EM5: a linked registry surface opens the import dialog on arrival
+    useEffect(() => { if (preselectSurfaceId) setImportOpen(true); }, [preselectSurfaceId]);
 
     // FIX: Safely convert surfaces object to array
     // Handles both array (legacy) and object (new) structures safely
@@ -130,6 +132,7 @@ const SurfaceDataManager = () => {
             <SurfaceImportDialog 
                 open={importOpen} 
                 onOpenChange={setImportOpen} 
+                preselectId={preselectSurfaceId} 
                 onImport={handleSurfaceImport}
             />
         </div>

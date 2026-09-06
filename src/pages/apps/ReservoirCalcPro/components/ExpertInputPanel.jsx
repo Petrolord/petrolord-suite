@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { useReservoirCalc } from '../contexts/ReservoirCalcContext';
 import { Label } from '@/components/ui/label';
@@ -27,6 +28,10 @@ const ExpertInputPanel = () => {
     } = useReservoirCalc();
     
     const [isCalcOpen, setCalcOpen] = useState(false);
+    // Earth Modeling / Mapping deep link (EM5): ?surface=<geo_surfaces id>
+    // opens the Surfaces tab with the import dialog on that row
+    const [searchParams] = useSearchParams();
+    const linkedSurfaceId = searchParams.get('surface');
     const [calcParams, setCalcParams] = useState({ api: 35, gasGrav: 0.7, rs: 500, temp: 160 });
     const [isSettingsOpen, setSettingsOpen] = useState(true);
 
@@ -193,7 +198,7 @@ const ExpertInputPanel = () => {
                 </Card>
             </Collapsible>
 
-            <Tabs defaultValue="geometry" className="flex-1 flex flex-col min-h-0">
+            <Tabs defaultValue={linkedSurfaceId ? 'surfaces' : 'geometry'} className="flex-1 flex flex-col min-h-0">
                 <TabsList className="w-full bg-slate-900 border border-slate-800 rounded-md p-0.5 h-auto grid grid-cols-5 mb-2">
                     <TabsTrigger value="geometry" className="text-[10px] h-7 px-0">Geo</TabsTrigger>
                     <TabsTrigger value="fluid" className="text-[10px] h-7 px-0">Fluid</TabsTrigger>
@@ -330,7 +335,7 @@ const ExpertInputPanel = () => {
                     </TabsContent>
 
                     <TabsContent value="surfaces" className="mt-0 h-full">
-                        <SurfaceDataManager />
+                        <SurfaceDataManager preselectSurfaceId={linkedSurfaceId} />
                     </TabsContent>
 
                     <TabsContent value="aoi" className="mt-0 h-full">
