@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import {
   Search, Book, FileText, Play, Settings, HelpCircle, Layout, Calculator,
   Layers, Dices, Activity, Map, Shapes, Ruler, FolderOpen, Boxes, ShieldCheck,
-  History, Share2, FileOutput,
+  History, Share2, FileOutput, Database,
 } from 'lucide-react';
 
 import GettingStartedGuide from './GettingStartedGuide';
@@ -25,6 +25,7 @@ import InputMethodsGuide from './InputMethodsGuide';
 import ProjectsGuide from './ProjectsGuide';
 import MultiReservoirGuide from './MultiReservoirGuide';
 import SurfaceImportGuide from './SurfaceImportGuide';
+import RegistryGuide from './RegistryGuide';
 import FluidPropertiesGuide from './FluidPropertiesGuide';
 import UnitsGuide from './UnitsGuide';
 import SettingsGriddingGuide from './SettingsGriddingGuide';
@@ -52,6 +53,7 @@ const SECTIONS = [
   // Projects and data
   { id: 'projects', label: 'Projects and Saving', category: 'Projects and data', icon: FolderOpen, component: ProjectsGuide, keywords: 'save load delete version autosave export import json modified badge' },
   { id: 'multi-reservoir', label: 'Multiple Reservoirs', category: 'Projects and data', icon: Boxes, component: MultiReservoirGuide, keywords: 'reservoir switcher multi tank cases snapshot fold' },
+  { id: 'registry', label: 'The Shared Registry', category: 'Projects and data', icon: Database, component: RegistryGuide, keywords: 'registry wells zones petrophysics averages footprint area boundary polygon aoi mapping earth modeling well data manager launchers tvdss contact unit' },
   { id: 'surface-import', label: 'Surface Import', category: 'Projects and data', icon: FileText, component: SurfaceImportGuide, keywords: 'xyz csv dat esri ascii zmap cps-3 geojson crs epsg zconvention xyunit seismolord mapping studio twt null sentinel' },
   { id: 'fluid-properties', label: 'Fluid Properties', category: 'Projects and data', icon: Settings, component: FluidPropertiesGuide, keywords: 'oil gas condensate bo bg standing presets gas cap fraction owc goc gwc contacts' },
   { id: 'units', label: 'Units and Conversion', category: 'Projects and data', icon: Ruler, component: UnitsGuide, keywords: 'field metric acres km2 feet metres psi bar celsius fahrenheit rcf scf rb mscf conversion canonical' },
@@ -135,6 +137,7 @@ const DocumentationHub = ({ open, onOpenChange }) => {
                     {items.map((section) => (
                       <Button
                         key={section.id}
+                        data-testid={`rcp-doc-${section.id}`}
                         variant={activeSection === section.id ? 'secondary' : 'ghost'}
                         className={`w-full justify-start text-sm ${activeSection === section.id ? 'bg-blue-900/20 text-blue-400' : 'text-slate-400 hover:text-white'}`}
                         onClick={() => setActiveSection(section.id)}

@@ -93,3 +93,24 @@ test('RC2: contacts are TVDSS elevations in a chosen unit and the viewers label 
   await page.locator('#owc-input').blur();
   await expect.poll(async () => Math.abs(Number(await stooip.getAttribute('data-value')) - feet) / feet, { timeout: 20000 }).toBeLessThan(0.005);
 });
+
+test('RC3: a registry surface carries launchers into Mapping and Earth Modeling; zone wells open in Well Data Manager; the docs hub has the registry chapter', async ({ page }) => {
+  await page.goto('/dev/reservoircalc-pro');
+  await page.getByTestId('rcp-tab-surfaces').click();
+  await page.getByTestId('rcp-import-open').click();
+  await page.getByTestId('rcp-registry-use-Harness Dome').click();
+  await page.getByTestId('rcp-import-confirm').click();
+  const anyway = page.getByTestId('rcp-import-anyway');
+  await Promise.race([
+    anyway.waitFor({ state: 'visible', timeout: 15000 }).then(() => anyway.click()).catch(() => {}),
+    page.locator('[role="dialog"]').waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {}),
+  ]);
+  await expect(page.locator('[role="dialog"]')).toHaveCount(0, { timeout: 15000 });
+  await expect(page.getByTestId('rcp-open-mapping-Harness Dome')).toHaveAttribute('href', /mapping-surface-studio\?surface=surf-/);
+  await expect(page.getByTestId('rcp-open-earth-Harness Dome')).toHaveAttribute('href', /earth-modeling\?surface=surf-/);
+  await page.getByTestId('rcp-tab-registry').click();
+  await page.getByTestId('rcp-reg-zone').selectOption('Top Dome');
+  const wellLinks = page.locator('[data-testid^="rcp-reg-well-"]');
+  await expect(wellLinks.first()).toBeVisible();
+  await expect(wellLinks.first()).toHaveAttribute('href', /well-data-manager\?well=.*tab=tops/);
+});

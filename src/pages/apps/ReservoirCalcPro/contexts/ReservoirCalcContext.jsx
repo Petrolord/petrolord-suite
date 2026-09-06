@@ -480,7 +480,7 @@ const reducer = (state, action) => {
 
 const ReservoirCalcContext = createContext();
 
-export const ReservoirCalcProvider = ({ children, backend = null }) => {
+export const ReservoirCalcProvider = ({ children, backend = null, appPaths = {} }) => {
     // RC0: every read or write outside the app's own state goes through
     // one backend object (registry by default; the harness injects an
     // in-memory pair) so the whole app runs without auth or DB in e2e
@@ -710,6 +710,9 @@ export const ReservoirCalcProvider = ({ children, backend = null }) => {
 
     const value = useMemo(() => ({
         backend: be,
+        // RC3: route overrides for the launchers out (the harness points
+        // them at the /dev/* apps so e2e stays in the authless world)
+        appPaths,
         state,
         dispatch,
         updateInputs,

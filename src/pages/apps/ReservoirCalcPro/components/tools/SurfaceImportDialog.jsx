@@ -95,6 +95,10 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
                 rawData: text,
                 name: row.name,
                 format: 'xyz',
+                // RC3: remember the registry row so the surface card can open
+                // it in Mapping and Earth Modeling
+                registryId: row.id,
+                registryName: row.name,
                 xyUnit,
                 // Every depth surface in the registry is elevation
                 // (negative below datum) since 2026-09-05, whichever app
@@ -176,7 +180,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
         const file = e.target.files[0];
         if (file) {
             resetFeedback();
-            setImportData({ ...importData, file, name: file.name.split('.')[0] });
+            setImportData({ ...importData, file, name: file.name.split('.')[0], registryId: null, registryName: null });
             const ext = file.name.split('.').pop().toLowerCase();
             const reader = new FileReader();
             reader.onload = (ev) => {
@@ -242,6 +246,8 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
             // Coordinate reference system (optional). Carried for provenance and
             // cross-app hand-off; a blank value means "unspecified / local grid".
             crs: (importData.crs || '').trim() || null,
+            registryId: importData.registryId || null,
+            registryName: importData.registryName || null,
             createdAt: new Date().toISOString()
         };
     };
@@ -251,7 +257,7 @@ const SurfaceImportDialog = ({ open, onOpenChange, onImport, preselectId = null 
         onOpenChange(false);
         setStep(1);
         resetFeedback();
-        setImportData(prev => ({ name: '', format: 'xyz', rawData: '', file: null, xyUnit: prev.xyUnit, zConvention: prev.zConvention, crs: '' }));
+        setImportData(prev => ({ name: '', format: 'xyz', rawData: '', file: null, xyUnit: prev.xyUnit, zConvention: prev.zConvention, crs: '', registryId: null, registryName: null }));
     };
 
     const parseData = async () => {

@@ -86,3 +86,15 @@ still meets, against the apps the testers just walked:
   surface's own unit, so a metre grid in a field workspace reads "Depth
   (m)". e2e: the same contact typed in feet and in metres gives the same
   STOOIP within 0.5%.
+- **RC3 (2026-09-06), branch `feat/rc3-links-docs`.** Launchers out: a
+  surface imported from the registry keeps its row id (`registryId`) and
+  its card in the Surf tab offers Open in Mapping and Open in Earth
+  Modeling; the wells behind a registry zone link into Well Data Manager
+  on their tops tab. DocumentationHub gains "The Shared Registry"
+  chapter (Wells tab, what each pull sets and where it comes from, the
+  TVDSS contact convention and unit, launchers, how to verify). STATUS
+  updated.
+
+**RC0 to RC3 CLOSED 2026-09-06.** Open for ReservoirCalc Pro: a tester
+walk on staging; the analytic-mode gas-cap fraction as a distribution
+and condensate yield stay unscheduled (see STATUS).

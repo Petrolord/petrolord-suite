@@ -192,3 +192,17 @@ see MappingSurfaceStudio-ROADMAP.md), so `loadMappingSurface` sets
 `src/lib/surfaceConvention.js`: `elevation` for depth rows, pass-through
 for attributes. Mapping and Earth Modeling surfaces now import with the
 same sign as Seismolord's.
+
+## 2026-09-06: RC series (Petrel tester readiness) RC0 to RC3
+
+Plan of record: docs/scope/ReservoirCalcPro-ROADMAP.md. Built and merged
+the same day: one backend object and the `/dev/reservoircalc-pro`
+harness (RC0; found the import dialog unreachable on a 720 px viewport),
+the Wells tab registry door for zone averages, surface footprint area
+and Mapping boundary polygons (RC1; found `addAOI` never inserted a new
+AOI; the G5.1 `registryInputs.js` mapping finally has a consumer), fluid
+contacts in a chosen depth unit defaulting to the account setting with
+the convention note corrected and viewers labelled in the surface's unit
+(RC2), launchers into Mapping, Earth Modeling and Well Data Manager plus
+the registry chapter in the docs hub (RC3). ReservoirCalc Pro also
+consumes `?surface=` from Mapping and Earth Modeling (EM5).
