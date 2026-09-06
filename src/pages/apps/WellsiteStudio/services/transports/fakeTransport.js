@@ -68,6 +68,18 @@ export function makeFakeTransport({ user, registryWells = [], online = true, pro
     async pullSignoffs(wellId) { check(); return [...tableOf('ws_signoffs').values()].filter((r) => r.well_id === wellId); },
     async uploadBlob(path, blob, contentType) { check(); blobs.set(path, { size: blob.size, contentType }); return { path }; },
     onAuthEvent(cb) { authListeners.add(cb); return () => authListeners.delete(cb); },
+    /** The fake platform countersigns anything it holds (a synthetic signature; verification is the client's business). */
+    async countersign(signoffId) {
+      check();
+      const so = tableOf('ws_signoffs').get(signoffId);
+      if (!so) return { countersigned: false, reason: 'not_found' };
+      if (knobs.unconfigured) return { countersigned: false, reason: 'unconfigured' };
+      const countersignature = { alg: 'ECDSA-P256-SHA256', key_id: 'fake-key', value: 'ZmFrZQ==', digest: 'fake', certificate_no: `WS-SO-${String(so.signed_at).slice(0, 4)}-${String(so.id).replace(/-/g, '').slice(0, 8).toUpperCase()}`, countersigned_by: 'fake-platform' };
+      const countersigned_at = new Date().toISOString();
+      tableOf('ws_signoffs').set(signoffId, { ...so, countersignature, countersigned_at });
+      return { countersigned: true, countersignature, countersigned_at };
+    },
+    async verifyCountersign(signoffId) { check(); const so = tableOf('ws_signoffs').get(signoffId); return { valid: !!(so && so.countersignature), hash_ok: true, key_id: so && so.countersignature ? so.countersignature.key_id : null }; },
     // ---- test knobs ----
     _server: { tables, blobs, wsWells, knobs, nextSeq: () => { seq += 1; return seq; } },
     /** Plant a row on the server as if another device had pushed it. */

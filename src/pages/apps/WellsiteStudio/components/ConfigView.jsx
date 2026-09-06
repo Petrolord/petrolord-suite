@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { displacementFromField } from '@/lib/wellsite/pumps';
 import { SAMPLE_STAGE_NAMES, WS_ROLES } from '../services/vocab';
 import { validateProfile, PETROLORD_PROFILE } from '@/lib/wellsite/abbreviations';
+import { validateTemplate, DEFAULT_DAILY_TEMPLATE } from '@/lib/wellsite/reports';
 
 const IN = 0.0254;
 const num = (v) => (v === '' || v == null ? NaN : Number(v));
@@ -39,6 +40,8 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
   const [header, setHeader] = useState(() => ({ ...(well.header || {}) }));
   const [profileText, setProfileText] = useState(() => (well.settings && well.settings.abbreviation_profile ? JSON.stringify(well.settings.abbreviation_profile, null, 2) : ''));
   const [profileErrors, setProfileErrors] = useState([]);
+  const [templateText, setTemplateText] = useState(() => (well.settings && well.settings.daily_template ? JSON.stringify(well.settings.daily_template, null, 2) : ''));
+  const [templateErrors, setTemplateErrors] = useState([]);
 
   // reset the editors only when the well's settings or header actually change (a refresh hands over a
   // new object with the same content, and must not wipe what the user is typing)
@@ -83,6 +86,14 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
         if (errs.length) throw new Error(errs[0]);
         s.abbreviation_profile = parsed;
       } else { s.abbreviation_profile = null; setProfileErrors([]); }
+      if (templateText.trim()) {
+        let parsed;
+        try { parsed = JSON.parse(templateText); } catch { throw new Error('The daily report template is not valid JSON.'); }
+        const errs = validateTemplate(parsed);
+        setTemplateErrors(errs);
+        if (errs.length) throw new Error(errs[0]);
+        s.daily_template = parsed;
+      } else { s.daily_template = null; setTemplateErrors([]); }
       await backend.updateWellSettings(well.id, s);
       await backend.updateWellHeader(well.id, { ...header, gl_elev_m: header.gl_elev_m === '' || header.gl_elev_m == null ? undefined : Number(header.gl_elev_m), rt_offset_m: Number(header.rt_offset_m) || 0 });
       onStatus?.('Well settings saved.');
@@ -171,6 +182,11 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
         <textarea value={profileText} onChange={(e) => setProfileText(e.target.value)} data-testid="ws-config-profile" rows={5} spellCheck={false}
           className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] font-mono text-slate-100" placeholder='{"id": "acme", "name": "Acme", "terms": {"colourHue": {"grey": "gry"}}, "format": {"percentStyle": "suffix"}}' />
         {profileErrors.length > 0 && <div className="text-[11px] text-amber-400" data-testid="ws-config-profile-error">{profileErrors[0]}</div>}
+        <h3 className="text-xs font-semibold text-slate-200 pt-2">Daily report template (operator)</h3>
+        <p className="text-[11px] text-slate-400">JSON with an id and a list of sections, each with an id, a title and a source ({DEFAULT_DAILY_TEMPLATE.sections.map((x) => x.source).filter((v, i, a) => a.indexOf(v) === i).join(', ')}; narrative sections name the text they edit). Leave empty for the generic template ({DEFAULT_DAILY_TEMPLATE.name}). A real operator report replaces this without code.</p>
+        <textarea value={templateText} onChange={(e) => setTemplateText(e.target.value)} data-testid="ws-config-template" rows={5} spellCheck={false}
+          className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-[11px] font-mono text-slate-100" placeholder='{"id": "acme-dgr", "name": "Acme DGR", "version": 1, "sections": [{"id": "status", "title": "Well status", "source": "status"}]}' />
+        {templateErrors.length > 0 && <div className="text-[11px] text-amber-400" data-testid="ws-config-template-error">{templateErrors[0]}</div>}
         <h3 className="text-xs font-semibold text-slate-200 pt-2">Header</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {[['field', 'Field'], ['operator', 'Operator'], ['rig', 'Rig'], ['country', 'Country']].map(([k, label]) => (

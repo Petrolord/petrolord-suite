@@ -20,12 +20,33 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 | WS5 tops, prognosis, conflicts | **COMPLETE 2026-09-07: engines #151 + #152 merged, Suite PR merged** | engines #151 (`tops.js`), #152 (two fresh calls of one formation on different chains are a conflict, found by the Suite test); Suite branch `feat/ws5-tops-prognosis`: prognosis snapshot versions (registry tops, offset wells' tops through their own surveys, Well Design hole sections and definitive trajectory; manual tops as a new version), Tops view (interpretation and official call as separate chains, lifecycle, history with the evidence chain, approver-only final), approach panel in the dock, conflicts (two heads, two finals) with approver resolution citing both, top_called events, harness `?conflict=1` |
 | WS6 offline shell and sync | **COMPLETE 2026-09-07: Suite PR merged (Suite-wide)** | Suite branch `feat/ws6-offline-sync`: installable PWA (vite-plugin-pwa 0.19 on Vite 4, prompt semantics, shell precache, hashed assets cached as fetched, Supabase never cached, real 192/512 icons, update prompt), dead offline files removed, per-user entitlement snapshot with a stale fallback in the auth context, the entitlements hook and ProtectedAppRoute, the sync engine (idempotent push with backoff, auth wait and refused-row isolation, photo row then blobs, pull by cursor, conflict detection), sync pill and drawer with storage and keep-offline, fake server with knobs, 6 sync tests, e2e offline to online round trip with a pulled office row |
 | WS7 shift handover | **COMPLETE 2026-09-07: engines #153 (with the WS8 model) merged, Suite PR merged** | engines #153 (`reports.js`: handover and daily models from records on JSON templates, every fact cites its records, synthetic report day golden); Suite branch `feat/ws7-handover`: the report screen shared by handover and daily (period picker, generated sections read-only with sources on demand, narratives as versioned records that regenerate the report, record this version with the SHA-256 of the canonical model, sign-off row with role and hash, PDF via the brand header and DOCX via the OOXML writer) |
-| WS8 daily report and countersignature | not started | |
+| WS8 daily report and countersignature | **COMPLETE 2026-09-07: Suite PR merged; `ws-sign` DEPLOYED** | Suite branch `feat/ws8-daily-countersign`: the daily report on the generic template with the operator template pasted in Config (validated, swapped without code), the `ws-sign` edge function (countersign and verify on the pld-sign conventions, same platform key, hash recomputed from the stored model, refused on mismatch, unconfigured never blocks), the countersign outbox op behind the sign-off insert, offline verification against the shipped public keys with plain words for every state |
 | WS9 close-out (help, publish, portability, perf, tile) | not started | |
 
 ## Decisions taken in auto mode
 
 Recorded per phase below as they are taken, with the reason.
+
+### WS8
+
+- The countersignature is over the sign-off's identity plus the hash it
+  attests (signoff id, report id, well, kind, version, content hash,
+  user, role, signed at, statement), not over the report itself: the
+  report's hash is already what the person signed, and the function
+  recomputes it from the stored model before signing anything.
+- One platform key serves both `.pld` exports and Wellsite sign-offs
+  (`PLD_SIGNING_PRIVATE_JWK` / `PLD_SIGNING_KEY_ID`); the public keys
+  shipped in `src/lib/portability/signing.js` verify a countersignature
+  offline on the rig. The fake transport signs with a key the build does
+  not carry, and the screen says so in plain words; that is the state
+  the e2e asserts.
+- `ws-sign` was deployed 2026-09-07 from this branch. A countersignature
+  against the real backend needs a signed-in session and is on the
+  owner's staging walk list with the live sync round trip.
+- The countersign op is a second outbox entry queued behind the
+  sign-off insert; push handles it after the tables, so a sign-off made
+  offline is shared and countersigned in the same pass when the link
+  returns.
 
 ### WS7
 

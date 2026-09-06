@@ -73,7 +73,7 @@ export default function ReportScreen({ kind, backend, well, data, tourCfg, nowMs
         {' '}Facts here come from the well record; to change one, correct its record and this regenerates.
       </div>
       <ReportRenderer model={model} unit={unit} onNarrativeSave={(key, text) => onNarrativeSave(key, text, model.period.start)} showSources={showSources} />
-      <ReportSignoff signoffs={signoffRows} role={role} userName={userName} onSign={sign} offsetMin={offsetMin} reportVersion={latest ? latest.version_no : null} contentHash={latest ? latest.content_hash : null} />
+      <ReportSignoff signoffs={signoffRows} reportsById={Object.fromEntries(chainReports.map((r) => [r.id, r]))} role={role} userName={userName} onSign={sign} offsetMin={offsetMin} reportVersion={latest ? latest.version_no : null} contentHash={latest ? latest.content_hash : null} />
       <div className="flex items-center gap-2">
         <Button size="sm" variant="outline" onClick={() => record().catch((e) => onStatus?.(e.message))} data-testid={`ws-${kind}-record`}>Record this version</Button>
         <Button size="sm" variant="outline" onClick={exportPdf} data-testid={`ws-${kind}-pdf`}>PDF</Button>

@@ -135,6 +135,29 @@ export async function drainOutbox({ db, transport, wellId = null, limit = 200, n
     }
     if (onProgress) onProgress(result);
   }
+  // countersignatures: ask the platform once the sign-off row is on the server (WS8)
+  for (const e of inflight.filter((x) => x.op === 'countersign')) {
+    try {
+      const so = await db.signoffs.get(e.entity_id);
+      if (!so) { await db.outbox.update(e.seq, { status: 'done', done_at: Date.now() }); continue; }
+      if (so.sync_state !== 'synced') { await db.outbox.update(e.seq, { status: 'pending', next_attempt_at: now + 2000 }); continue; }
+      if (!transport.countersign) { await db.outbox.update(e.seq, { status: 'done', done_at: Date.now(), last_error: 'no countersign transport' }); continue; }
+      const res = await transport.countersign(so.id);
+      if (res && res.countersigned) {
+        await db.signoffs.update(so.id, { countersignature: res.countersignature, countersigned_at: res.countersigned_at });
+        await db.outbox.update(e.seq, { status: 'done', done_at: Date.now(), last_error: null });
+        result.pushed += 1;
+      } else if (res && res.reason === 'unconfigured') {
+        await db.outbox.update(e.seq, { status: 'done', done_at: Date.now(), last_error: 'platform countersignature not configured' });
+      } else {
+        await db.outbox.update(e.seq, { status: 'rejected', last_error: (res && res.reason) || 'refused', error_kind: 'rejected' });
+        result.rejected += 1;
+      }
+    } catch (err) {
+      const k = await markRetry(db, [e], err, now);
+      if (k === 'rejected') result.rejected += 1; else result.retried += 1;
+    }
+  }
   // pending blob uploads from earlier partial pushes
   for (const e of inflight.filter((x) => x.op === 'upload')) {
     try {
