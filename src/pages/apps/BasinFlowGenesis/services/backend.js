@@ -7,6 +7,7 @@
 // the context maps it to app state.
 
 import { supabase } from '@/lib/customSupabaseClient';
+import { listWellsWithTops } from '@/lib/wellsRegistry';
 
 const nowIso = () => new Date().toISOString();
 
@@ -38,8 +39,21 @@ export function makeRegistryBackend() {
       const { error } = await supabase.from('bf_wells').delete().eq('id', id);
       if (error) throw new Error(`Could not delete the well: ${error.message}`);
     },
+    // BF2: the shared registry's wells with their tops (the stratigraphy door)
+    listRegistryWells: listWellsWithTops,
   };
 }
+
+/** One registry well with tops for the harness (BF2). */
+export const REGISTRY_WELLS_DEV = [{
+  id: 'reg-well-1', name: 'KETA-1', td_md_m: 4700, user_id: 'user-dev', organization_id: null, is_own: true,
+  tops: [
+    { id: 't1', name: 'Top Upper Shale', md_m: 0 },
+    { id: 't2', name: 'Top Mid Sand', md_m: 1600 },
+    { id: 't3', name: 'Top Source Shale', md_m: 2800 },
+    { id: 't4', name: 'Top Base Sand', md_m: 3200 },
+  ],
+}];
 
 // ---- in-memory (harness, jest) -------------------------------------------------
 /** The oracle's reference basin (test-data/basinflow/goldens.json
@@ -109,6 +123,7 @@ export function makeInMemoryBackend({ persist = true } = {}) {
       save();
     },
     async deleteWell(id) { rows = rows.filter((r) => r.id !== id); save(); },
+    async listRegistryWells() { return REGISTRY_WELLS_DEV.map((w) => ({ ...w, tops: w.tops.map((t) => ({ ...t })) })); },
     /** test seam: the stored rows */
     _rows: () => rows,
   };

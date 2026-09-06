@@ -15,6 +15,7 @@ import { Save, Download, TrendingUp, FileText, RefreshCw } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import ResidualPlot from '../plots/ResidualPlot';
 import CalibrationProfilePlot from '../plots/CalibrationProfilePlot';
+import CalibrationPointsEditor from './CalibrationPointsEditor';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -211,7 +212,7 @@ const CalibrationView = () => {
                             />
                         </div>
                         <div className="pt-2">
-                            <Button size="sm" variant="outline" className="w-full text-xs" onClick={handleAutoCalibrate} disabled={isFitting}>
+                            <Button size="sm" variant="outline" className="w-full text-xs" onClick={handleAutoCalibrate} disabled={isFitting} data-testid="bf-cal-autofit">
                                 {isFitting
                                     ? <RefreshCw className="w-3 h-3 mr-2 animate-spin" />
                                     : <TrendingUp className="w-3 h-3 mr-2" />}
@@ -222,17 +223,27 @@ const CalibrationView = () => {
                 </Card>
 
                 <Card className="bg-slate-900 border-slate-800">
+                    <CardHeader className="pb-2"><CardTitle className="text-sm text-white">Calibration points</CardTitle></CardHeader>
+                    <CardContent>
+                        <CalibrationPointsEditor
+                            ro={roPoints}
+                            temp={bhtPoints}
+                            onChange={({ ro, temp }) => dispatch({ type: 'SET_CALIBRATION_DATA', payload: { ro, temp } })}
+                        />
+                    </CardContent>
+                </Card>
+                <Card className="bg-slate-900 border-slate-800">
                     <CardHeader className="pb-2"><CardTitle className="text-sm text-white">Misfit Statistics</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
                         <div className="flex justify-between items-center p-2 bg-slate-950 rounded border border-slate-800">
                             <span className="text-xs text-slate-400">Ro RMS Error</span>
-                            <span className={`font-mono text-sm ${stats.roRMS < 0.2 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            <span className={`font-mono text-sm ${stats.roRMS < 0.2 ? 'text-emerald-400' : 'text-amber-400'}`} data-testid="bf-cal-ro-rms">
                                 {safeFixed(stats.roRMS, 3)} %
                             </span>
                         </div>
                         <div className="flex justify-between items-center p-2 bg-slate-950 rounded border border-slate-800">
                             <span className="text-xs text-slate-400">Temp RMS Error</span>
-                             <span className={`font-mono text-sm ${stats.tempRMS < 5 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                             <span className={`font-mono text-sm ${stats.tempRMS < 5 ? 'text-emerald-400' : 'text-amber-400'}`} data-testid="bf-cal-temp-rms">
                                 {safeFixed(stats.tempRMS, 1)} °C
                             </span>
                         </div>

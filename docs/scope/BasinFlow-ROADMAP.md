@@ -87,3 +87,21 @@ Petrel user meets is the shell around them, and a walk through it on
   Found and fixed: the run dialog started a run only from its idle
   state, so every Simulate after the first showed the stale "Complete"
   and never recomputed the edited model.
+- **BF2 (2026-09-06), branch `feat/bf2-calibration-import`.** The
+  Calibration tab has a points editor (Ro and temperature tables, typed,
+  dispatched to state so the auto-save keeps them; misfit live). The
+  Import tab is real (`services/calibrationImport.js`, pure and
+  tested, on the shared delimited-text reader): a calibration file
+  (depth with Ro and/or temperature columns) previews with the rows it
+  could not read and applies by replace or append; a formation-tops
+  file (name, depth) previews the layers it would make (thickness from
+  the gaps, an optional total depth for the last, a lithology guess
+  from the name, placeholder ages flagged on the layer cards until
+  typed) and replaces the stratigraphy; a registry well (Well Data
+  Manager tops, `backend.listRegistryWells`, seeded KETA-1 in the
+  harness) does the same and is remembered in `settings.registryWellId`
+  as the model's tie. The LAS and checkshot mocks are gone (a 1D basin
+  model has no consumer for them). e2e: typed points move the misfit;
+  a file with a bad row previews 2 + 2 points and one problem and
+  replaces the table; a tops file makes 3 flagged layers; KETA-1 makes 4
+  and ties the model.

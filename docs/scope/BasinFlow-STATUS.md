@@ -95,4 +95,6 @@ BF1 made Expert mode's heat-flow history, surface temperature and
 erosion events real editors (the "Phase 2" placeholders are gone), gave
 the wizard a working custom erosion and its preview chart back, and
 fixed the run dialog that never re-ran after its first success. BF2
-(calibration and import), BF3 (units, links, help) follow.
+gave the Calibration tab its points editor and replaced the mock
+Import with real calibration and tops parsers plus a registry-well
+door for the stratigraphy. BF3 (units, links, help) follows.
