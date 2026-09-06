@@ -138,3 +138,15 @@ test('MS4: ?surface= from Mapping stacks the surface on arrival', async ({ page 
   await page.goto('/dev/earth-modeling?surface=no-such-surface');
   await expect(page.getByTestId('em-status')).toContainText('not in your registry');
 });
+
+test('MS5: a fault polygon drawn in Mapping (geo_culture) joins the model from the explorer and reproduces the two-block census', async ({ page }) => {
+  await stackAndBuild(page);
+  await page.getByTestId('em-culture-add-Fixture fault (Mapping)').click();
+  await expect(page.getByTestId('em-status')).toContainText('Added fault polygon Fixture fault (Mapping)');
+  await expect(page.getByTestId('em-culture-add-Fixture fault (Mapping)')).toBeDisabled();
+  await page.getByTestId('em-build').click();
+  await expect(page.getByTestId('em-status')).toContainText('2 blocks');
+  await page.getByTestId('em-view-qc').click();
+  await expect(page.getByTestId('em-census-0')).toHaveText(String(goldens.blocks.census['0']));
+  await expect(page.getByTestId('em-census-1')).toHaveText(String(goldens.blocks.census['1']));
+});

@@ -46,6 +46,7 @@ import { wellColor } from './workspace/interpretationColors';
 import { ilxlToWorld, worldToIlxl, surveyAffine } from '../engine/surveyGeometry';
 import { NULL_VALUE } from '../engine/manifest';
 import { projectorFor } from '@/lib/crs';
+import { contourLabelPositions, isMajorLevel } from '@/components/maps/contourLabels';
 import { isTransformableTag } from '@/lib/crs/tags';
 
 const NULL_F32 = Math.fround(NULL_VALUE);
@@ -578,7 +579,7 @@ function MapView({
         ? `rgba(15, 23, 42, ${major ? 0.85 : 0.5})`
         : `rgba(148, 163, 184, ${major ? 0.95 : 0.55})`);
       for (let k = 0; k < layer.levels.length; k++) {
-        const major = Math.round(layer.levels[k] / layer.step) % 5 === 0;
+        const major = isMajorLevel(layer.levels[k], layer.step);
         ctx.strokeStyle = inkFor(major);
         ctx.lineWidth = (major ? 1.6 : 1) * dpr;
         ctx.beginPath();
@@ -593,7 +594,9 @@ function MapView({
       }
 
       // value labels riding the MAJOR contours, spaced in screen pixels,
-      // kept upright, with a halo so they read over fill or dark ground
+      // kept upright, with a halo so they read over fill or dark ground.
+      // Placement is the shared map kit's (Mapping MS5): Mapping and
+      // Earth Modeling label the same way.
       if (p.prefs.contourLabels) {
         ctx.font = `${Math.round(10 * dpr)}px ui-monospace, monospace`;
         ctx.textAlign = 'center';
@@ -603,30 +606,23 @@ function MapView({
         ctx.strokeStyle = p.prefs.fill
           ? 'rgba(255, 255, 255, 0.75)' : 'rgba(2, 6, 23, 0.9)';
         for (let k = 0; k < layer.levels.length; k++) {
-          if (Math.round(layer.levels[k] / layer.step) % 5 !== 0) continue;
+          if (!isMajorLevel(layer.levels[k], layer.step)) continue;
           ctx.fillStyle = inkFor(true);
           const text = fmtZ(layer.levels[k], layer.step);
           for (const path of layer.paths[k]) {
-            let acc = 0;
-            let next = 90 * dpr;                 // first label ~90px in
-            for (let i = 2; i < path.length; i += 2) {
-              const a = t.worldToScreen(path[i - 2] + 0.5, path[i - 1] + 0.5);
-              const b = t.worldToScreen(path[i] + 0.5, path[i + 1] + 0.5);
-              const d = Math.hypot(b.x - a.x, b.y - a.y);
-              while (d > 0 && acc + d >= next) {
-                const f = (next - acc) / d;
-                let ang = Math.atan2(b.y - a.y, b.x - a.x);
-                if (ang > Math.PI / 2) ang -= Math.PI;
-                if (ang < -Math.PI / 2) ang += Math.PI;
-                ctx.save();
-                ctx.translate(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f);
-                ctx.rotate(ang);
-                ctx.strokeText(text, 0, 0);
-                ctx.fillText(text, 0, 0);
-                ctx.restore();
-                next += 280 * dpr;               // then every ~280px
-              }
-              acc += d;
+            const pts = new Array(path.length);
+            for (let i = 0; i < path.length; i += 2) {
+              const s = t.worldToScreen(path[i] + 0.5, path[i + 1] + 0.5);
+              pts[i] = s.x;
+              pts[i + 1] = s.y;
+            }
+            for (const l of contourLabelPositions(pts, { firstPx: 90 * dpr, spacingPx: 280 * dpr })) {
+              ctx.save();
+              ctx.translate(l.x, l.y);
+              ctx.rotate(l.angle);
+              ctx.strokeText(text, 0, 0);
+              ctx.fillText(text, 0, 0);
+              ctx.restore();
             }
           }
         }

@@ -147,3 +147,47 @@ zip after the last merge. Follow-ups are MS5 in the plan of record
 (Seismolord MapView on the kit, digitizer to geo_surfaces, Earth
 Modeling reading fault polygons from geo_culture, contour editing,
 kriging, per-user depth unit, Well Correlation help guide).
+
+## MS5 follow-ups (2026-09-06)
+
+Engines PR #138 (merged, e35f061): ordinary kriging with variogram
+fitting and trend removal (`lib/gridding/kriging.js`, oracle
+`tools/validation/mapping/oracle_kriging.py`, 10 golden cases) and
+rotated grid frames (`rotation_deg` through gridmath, Irap classic read
+and write; CPS-3, ZMAP+ and XYZ refuse a rotated grid with a plain
+message). The oracle corrected the plan: ordinary kriging reproduces a
+constant, not a dipping plane, so `detrend` kriges the residuals of a
+least-squares plane and the plane anchor tests that path.
+
+Suite PR (kit and links), Suite-only:
+
+- **Seismolord MapView on the kit.** The contour label loop and the
+  major-level rule in `Seismolord/components/MapView.jsx` now call
+  `contourLabelPositions` and `isMajorLevel` from `src/components/maps`;
+  the raster and the cell-index transform stay Seismolord's own (the kit's
+  `MapTransform` is a world transform and the seismic map is indexed by
+  inline and crossline).
+- **Contour Map Digitizer to geo_surfaces.** Found broken: its manual
+  draw, value, delete, grid and load handlers had been dropped in the
+  first import cleanup (`d019c482c`), so the page called undefined and
+  only AI trace worked. Restored, and the grid now runs on the shared
+  thin-plate spline in the georeferenced frame
+  (`src/lib/digitizer/contoursToSurface.js`, pure planning with tests)
+  with a value convention selector (depth positive down, or elevation)
+  and a unit; Publish writes the surface to `geo_surfaces` under the
+  registry convention with provenance, and a link opens it in Mapping
+  (`?surface=`). The legacy IDW and kriging in `src/utils/gridding.js`
+  were deleted (their only consumer was this hook).
+- **Earth Modeling reads fault polygons from geo_culture.** Both backends
+  gain `listFaultPolygons` (kind `fault_polygon`, first ring as vertices);
+  the explorer lists them under "Fault polygons from Mapping" with an add
+  button that keeps the culture id so a polygon is not added twice; e2e
+  adds the fixture fault from the registry and reproduces the two-block
+  census.
+- **Well Correlation help guide.** `CorrelationHelpGuide.jsx` on the shared
+  shell at `/dashboard/apps/geoscience/well-correlation/help`, ribbon
+  Help link (`corr-help`), guard test (section ids, live depth references
+  and section parameters, no em dashes).
+
+Remaining MS5 items (next PRs): contour hand-editing, kriging in the
+workstation, rotated grids in the viewport, per-user depth unit.

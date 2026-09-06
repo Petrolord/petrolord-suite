@@ -5,7 +5,7 @@
 // planar properties — so Playwright asserts the oracle's numbers off
 // the rendered UI. Same interface as registryBackend.
 
-import { MODEL_SPEC, planeGrid, fixtureWells } from './fixture';
+import { MODEL_SPEC, planeGrid, fixtureWells, FAULT_POLYGON } from './fixture';
 import { depthDownToSurfaceZ } from '@/lib/surfaceConvention';
 
 let seq = 0;
@@ -55,6 +55,12 @@ export function makeInMemoryBackend() {
       };
       surfaces.push(row);
       return row;
+    },
+    // fault polygons drawn in Mapping (geo_culture kind fault_polygon,
+    // MS5): the fixture's L-shaped fault, so adding it reproduces the
+    // goldens' two-block census without drawing
+    async listFaultPolygons() {
+      return [{ id: 'cult-fault-dev', name: 'Fixture fault (Mapping)', vertices: FAULT_POLYGON.map(([x, y]) => [x, y]), is_own: true, source: 'geo_culture' }];
     },
     async listProjects() { return projects.map((p) => ({ ...p })); },
     async saveProject(p) {

@@ -56,6 +56,7 @@ const FdpAccelerator = lazy(() => import('@/pages/apps/FDPAccelerator'));
 const ProjectManagementPro = lazy(() => import('@/pages/apps/ProjectManagementPro'));
 const TechnicalReportAutopilot = lazy(() => import('@/pages/apps/TechnicalReportAutopilot'));
 const WellCorrelation = lazy(() => import('@/pages/apps/WellCorrelation/WellCorrelation'));
+const CorrelationHelpGuide = lazy(() => import('@/pages/apps/WellCorrelation/CorrelationHelpGuide'));
 const PetrophysicsStudio = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsStudio'));
 const PetrophysicsHelpGuide = lazy(() => import('@/pages/apps/PetrophysicsStudio/PetrophysicsHelpGuide'));
 const MappingHelpGuide = lazy(() => import('@/pages/apps/MappingSurfaceStudio/MappingHelpGuide'));
@@ -479,6 +480,7 @@ function App() {
                                 {/* Well Correlation (G3) replaces the mock Well Correlation Tool;
                                     the legacy slug redirects to the successor (roadmap G0 alias rule). */}
                                 <Route path="apps/geoscience/well-correlation" element={<ProtectedAppRoute appId="well-correlation" appName="Well Correlation"><WellCorrelation /></ProtectedAppRoute>} />
+                                <Route path="apps/geoscience/well-correlation/help" element={<ProtectedAppRoute appId="well-correlation" appName="Well Correlation"><CorrelationHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/mapping-surface-studio" element={<ProtectedAppRoute appId="mapping-surface-studio" appName="Mapping & Surface Studio"><MappingSurfaceStudio /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/mapping-surface-studio/help" element={<ProtectedAppRoute appId="mapping-surface-studio" appName="Mapping & Surface Studio"><MappingHelpGuide /></ProtectedAppRoute>} />
                                 <Route path="apps/geoscience/well-correlation-tool" element={<Navigate to="/dashboard/apps/geoscience/well-correlation" replace />} />
