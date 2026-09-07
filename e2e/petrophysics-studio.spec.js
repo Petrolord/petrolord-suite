@@ -814,6 +814,34 @@ test('PT9c: the zone parameter table edits every zone at once and writes the sam
   await expect(page.getByTestId('petro-zone-overrides-SAND A')).toHaveCount(0);
 });
 
+test('PT9e: facies by rules preview, apply as a strip and publish as electrofacies intervals', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  await page.getByTestId('petro-rule-facies').click();
+  await expect(page.getByTestId('petro-rule-facies-dialog')).toBeVisible();
+  // the type well has two clean sands: the default Pay sand class takes thickness
+  const pay = await page.getByTestId('petro-rf-thickness-Pay sand').innerText();
+  expect(parseFloat(pay)).toBeGreaterThan(5);
+  const shale = await page.getByTestId('petro-rf-thickness-Shale').innerText();
+  expect(parseFloat(shale)).toBeGreaterThan(5);
+
+  // a bad number is refused before it can classify
+  await page.getByTestId('petro-rf-value-0-0').fill('abc');
+  await expect(page.getByTestId('petro-rf-problems')).toContainText('needs a number');
+  await expect(page.getByTestId('petro-rule-facies-apply')).toBeDisabled();
+  await page.getByTestId('petro-rf-value-0-0').fill('0.35');
+
+  await page.getByTestId('petro-rule-facies-apply').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Rule facies strip is on the active layout');
+
+  // publish writes electrofacies intervals to the registry
+  await page.getByTestId('petro-rule-facies').click();
+  await page.getByTestId('petro-rule-facies-publish').click();
+  await expect(page.getByTestId('petro-status')).toContainText(/Published \d+ electrofacies intervals/);
+});
+
 test('PT4: zones between tops, bulk creation, and a two-click pick on the track', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
   await page.locator('[data-well-name="KETA TYPE-1"]').click();
