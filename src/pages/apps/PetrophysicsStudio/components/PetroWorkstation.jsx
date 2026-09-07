@@ -32,13 +32,15 @@ import RwToolsDialog from './RwToolsDialog';
 import ZoneParamTable from './ZoneParamTable';
 import RuleFaciesDialog from './RuleFaciesDialog';
 import CurveCalculatorDialog from './CurveCalculatorDialog';
+import ScenariosDialog from './ScenariosDialog';
+import { runScenarios, scenarioOutputs, ensureScenarioTemplate, SCENARIO_CURVES } from '../services/scenarios';
 import { classifyRules } from '../services/ruleFacies';
 import HistogramPanel from './HistogramPanel';
 import ConditioningDialog from './ConditioningDialog';
 import FieldViewPanel from './FieldViewPanel';
 import { useWellCurvesCache } from '../hooks/useWellCurvesCache';
 import {
-  computeWellZoned, zoneSummary, DEFAULT_PARAMS,
+  computeWellZoned, zoneSummary, DEFAULT_PARAMS, PIPELINE_VERSION,
   preparePublishLogs, zonePropertiesSnapshot,
 } from '../engine/pipeline';
 import { faciesCurve } from '../engine/crossplot';
@@ -82,6 +84,8 @@ export default function PetroWorkstation({
   const [ruleFacies, setRuleFacies] = useState(null);   // PT9e: cutoff-rule classes (per interpretation)
   const [ruleFaciesOpen, setRuleFaciesOpen] = useState(false);
   const [calcOpen, setCalcOpen] = useState(false);            // PT9f
+  const [scenarios, setScenarios] = useState(null);           // PT9g: {low: patch, high: patch}
+  const [scenariosOpen, setScenariosOpen] = useState(false);
   const [zoneParams, setZoneParams] = useState({});     // zoneId -> override patch (PS3)
   const [projectId, setProjectId] = useState('project-dev');
   const [projectName, setProjectName] = useState(null);
@@ -124,9 +128,10 @@ export default function PetroWorkstation({
         setProjectName(project.name || null);
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.facies) {
-          const { _rules, ...byWell } = project.facies;
+          const { _rules, _scenarios, ...byWell } = project.facies;
           setFaciesByWell(byWell);
           setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
+          setScenarios(_scenarios && (_scenarios.low || _scenarios.high) ? _scenarios : null);
         }
         if (project.zone_params) setZoneParams(project.zone_params);
         if (project.crossplots && Object.keys(project.crossplots).length) setCrossplotCfg(project.crossplots);
@@ -258,6 +263,50 @@ export default function PetroWorkstation({
     }
   }, [wellData, params, zoneParamList]);
 
+  // PT9g: the _LOW / _HIGH twins of the outputs, drawn beside the mid curves
+  const scenarioTwins = useMemo(() => {
+    if (!wellData || !computed || !scenarios) return {};
+    try { return scenarioOutputs(runScenarios(wellData.curves, params, zoneParamList, scenarios)); } catch (e) { return {}; }
+  }, [wellData, computed, params, zoneParamList, scenarios]);
+  const applyScenarios = useCallback((patches) => {
+    setScenarios(patches);
+    setLayouts((l) => ensureScenarioTemplate(l));
+  }, []);
+  const publishScenarios = async (patches) => {
+    if (!wellData || !computed) return;
+    setPublishing(true);
+    try {
+      const twins = scenarioOutputs(runScenarios(wellData.curves, params, zoneParamList, patches));
+      const depth = wellData.curves.DEPT;
+      const depthLog = wellData.inventory.find((e) => e.key === 'DEPT')?.log;
+      const logs = [];
+      for (const [mnemonic, src] of Object.entries(twins)) {
+        const base = mnemonic.replace(/_(LOW|HIGH)$/, '');
+        if (!SCENARIO_CURVES.includes(base)) continue;
+        const c = mnemonic.endsWith('_LOW') ? 'low' : 'high';
+        const data = new Float32Array(src.length);
+        let nullCount = 0;
+        for (let i = 0; i < src.length; i++) { data[i] = src[i]; if (!Number.isFinite(src[i])) nullCount += 1; }
+        logs.push({
+          mnemonic, description: `${base} (${c} case)`, unit: base === 'KPERM' ? 'MD' : base === 'PAY' ? 'FLAG' : 'V/V', data,
+          startMdM: depth[0], stopMdM: depth[depth.length - 1], stepM: depthLog?.step_m ?? null, nSamples: data.length, nullCount,
+          provenance: {
+            computed: true, engine: 'petrophysics-studio', operation: 'scenario', scenario: c, scenario_patch: { ...(patches[c] || {}) },
+            pipeline_version: PIPELINE_VERSION, project_id: projectId, interpretation_name: projectName, params: { ...params }, zone_params: zoneParams,
+            input_log_ids: wellData.inventory.filter((e) => e.log).map((e) => e.log.id),
+          },
+        });
+      }
+      const saved = await backend.publishCurves(wellData.wellId, logs, projectId);
+      applyScenarios(patches);
+      setStatus(`Published ${saved.length} scenario curves (_LOW and _HIGH) to ${selected.name}.`);
+    } catch (e) {
+      setStatus(e.message);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const summaries = useMemo(() => {
     if (!wellData || !computed) return {};
     const out = {};
@@ -338,7 +387,7 @@ export default function PetroWorkstation({
     return resolveTracks(activeTemplate(layouts), {
       curves: wellData.curves,
       logs: wellData.logs,
-      outputs: computed.outputs,
+      outputs: { ...computed.outputs, ...scenarioTwins },
       faciesData,
       facies,
       ruleFacies,
@@ -347,7 +396,7 @@ export default function PetroWorkstation({
       intervals: wellData.intervals || [],
       depth: wellData.curves?.DEPT || null,
     });
-  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, params, layouts]);
+  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, params, layouts]);
 
   const addZone = async (z) => {
     const zone = await backend.saveZone(wellData.wellId, z);
@@ -492,7 +541,7 @@ export default function PetroWorkstation({
   };
 
   const workspaceState = () => ({
-    params, facies: { ...faciesByWell, ...(ruleFacies ? { _rules: ruleFacies } : {}) }, zone_params: zoneParams, layouts, crossplots: crossplotCfg || {},
+    params, facies: { ...faciesByWell, ...(ruleFacies ? { _rules: ruleFacies } : {}), ...(scenarios ? { _scenarios: scenarios } : {}) }, zone_params: zoneParams, layouts, crossplots: crossplotCfg || {},
   });
 
   const hasDeviation = Array.isArray(selected?.deviation) && selected.deviation.length >= 2;
@@ -604,9 +653,10 @@ export default function PetroWorkstation({
     setProjectName(project.name || null);
     setParams({ ...DEFAULT_PARAMS, ...(project.params || {}) });
     {
-      const { _rules, ...byWell } = project.facies || {};
+      const { _rules, _scenarios, ...byWell } = project.facies || {};
       setFaciesByWell(byWell);
       setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
+      setScenarios(_scenarios && (_scenarios.low || _scenarios.high) ? _scenarios : null);
     }
     setZoneParams(project.zone_params || {});
     if (project.crossplots && Object.keys(project.crossplots).length) setCrossplotCfg(project.crossplots);
@@ -790,6 +840,17 @@ export default function PetroWorkstation({
         >
           <Layers className="w-3.5 h-3.5" />
           Rules…
+        </button>
+        <button
+          type="button"
+          data-testid="petro-scenarios"
+          disabled={!wellData || !computed}
+          title="Low, mid and high parameter cases: bands on the tracks, a zone summary per case, publishable curves"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          onClick={() => setScenariosOpen(true)}
+        >
+          <Layers className="w-3.5 h-3.5" /> Low/High…
         </button>
         <button
           type="button"
@@ -1165,6 +1226,24 @@ export default function PetroWorkstation({
         onSaved={() => select(wellData.wellId)}
         onStatus={setStatus}
         lastNormFit={lastNormFit}
+      />
+    )}
+    {wellData && (
+      <ScenariosDialog
+        open={scenariosOpen}
+        onOpenChange={setScenariosOpen}
+        params={params}
+        scenarios={scenarios}
+        curves={wellData.curves}
+        zoneParamList={zoneParamList}
+        zones={zones}
+        zoneParams={zoneParams}
+        depthUnit={depthUnit}
+        wellName={selected?.name}
+        canPublish={!!selected?.is_own && !publishing}
+        onApply={applyScenarios}
+        onPublish={publishScenarios}
+        onStatus={setStatus}
       />
     )}
     {wellData && (
