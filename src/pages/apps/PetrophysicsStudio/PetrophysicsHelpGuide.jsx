@@ -682,7 +682,7 @@ const PetrophysicsHelpGuide = () => (
     <GuideSection id="rwtools">
       <SectionHeading icon={Droplets}>Rw quicklook tools</SectionHeading>
       <Para>
-        <Code>Rw tools…</Code> opens two calculators. Each has an <Code>Apply as Rw</Code> button
+        <Code>Rw tools…</Code> opens three calculators. Each has an <Code>Apply as Rw</Code> button
         that writes the result into the Rw parameter, sets Rw ref T to the temperature it applies
         at, closes the dialog and quotes what was applied in the status bar. You type Celsius; the
         SP and Arps formulas run in Fahrenheit inside.
@@ -692,8 +692,20 @@ const PetrophysicsHelpGuide = () => (
         rows={[
           ['SP quicklook', 'SSP (mV) -100, Rmf (ohm·m) 0.5, Formation T (°C) 65', 'K at that temperature and Rwe, the equivalent water resistivity from the static SP'],
           ['Arps temperature converter', 'Rw 0.1, at T (°C) 25, to T (°C) 65', 'Rw at the second temperature'],
+          ['Rw from salinity', 'NaCl (ppm) 30000, Formation T (°C) 65', 'Rw at that temperature through the Bateman and Konen (1977) fit to the Gen-9 chart, plus the salinity your current Rw implies'],
         ]}
       />
+      <SubHeading>What salinity does in the Studio</SubHeading>
+      <Para>
+        Salinity enters every saturation model only through Rw. There is no salinity parameter in
+        the pipeline: Rw is typed, fitted on a Pickett or Hingle water line, derived from the SP, or
+        now computed from an NaCl salinity and temperature. The Arps temperature model assumes an
+        NaCl water, and the Waxman-Smits B factor is a function of temperature alone (Juhasz). The
+        salinity route is a chart fit, within about 10 percent of the Gen-9 chart from 1,000 to
+        300,000 ppm; for a water that is not NaCl, convert to an NaCl-equivalent salinity first.
+        When you know the water analysis, this route and a Pickett fit should agree; if they do
+        not, the water leg you fitted is probably not fully water bearing.
+      </Para>
       <Callout tone="warn" title="Rwe is applied as Rw">
         The SP tool treats the equivalent resistivity Rwe as Rw. The Bateman-Konen correction from
         Rwe to Rw is deliberately not included until a page-referenced source for its coefficients

@@ -920,6 +920,8 @@ export default function PetroWorkstation({
       params={params}
       zones={zones}
       onApplyParams={(patch) => setParams((p) => ({ ...p, ...patch }))}
+      currentRw={params.rw}
+      currentRwTempC={params.rwRefTempC}
       onStatus={setStatus}
       wells={wells || []}
       currentWellId={wellData.wellId}
@@ -935,6 +937,8 @@ export default function PetroWorkstation({
         facies={facies}
         onFaciesChange={setFaciesForWell}
         onApplyParams={(patch) => setParams((p) => ({ ...p, ...patch }))}
+      currentRw={params.rw}
+      currentRwTempC={params.rwRefTempC}
         onStatus={setStatus}
         selection={selection}
         onSelectionChange={setSelection}
@@ -1105,6 +1109,8 @@ export default function PetroWorkstation({
       open={rwToolsOpen}
       onOpenChange={setRwToolsOpen}
       onApplyParams={(patch) => setParams((p) => ({ ...p, ...patch }))}
+      currentRw={params.rw}
+      currentRwTempC={params.rwRefTempC}
       onStatus={setStatus}
     />
     {wellData && computed && (

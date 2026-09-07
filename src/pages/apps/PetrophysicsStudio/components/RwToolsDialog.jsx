@@ -11,16 +11,34 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { rwArps, spK, rweFromSsp } from '../engine/rw';
+import { rwArps, spK, rweFromSsp, rwFromSalinity, salinityFromRw } from '../engine/rw';
 import { cToF } from '../engine/temperature';
 
 const inputCls = 'w-24 rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
 const num = (v) => Number(v);
 const fmt = (v, d = 6) => (Number.isFinite(v) ? String(Number(v.toFixed(d))) : '—');
 
-export default function RwToolsDialog({ open, onOpenChange, onApplyParams, onStatus }) {
+export default function RwToolsDialog({
+  open, onOpenChange, onApplyParams, onStatus, currentRw = null, currentRwTempC = null,
+}) {
   const [sp, setSp] = useState({ ssp: '-100', rmf: '0.5', tempC: '65' });
   const [arps, setArps] = useState({ rw1: '0.1', t1C: '25', t2C: '65' });
+  // PT9d: salinity route (Bateman-Konen fit to the Gen-9 chart)
+  const [sal, setSal] = useState({ ppm: '30000', tempC: '65' });
+
+  const salOut = useMemo(() => {
+    const ppm = num(sal.ppm);
+    const tC = num(sal.tempC);
+    if (!(ppm > 0) || !Number.isFinite(tC)) return null;
+    return { rw: rwFromSalinity(ppm, cToF(tC)), tC, ppm };
+  }, [sal]);
+
+  // what the CURRENT Rw parameter implies, so the user sees where their
+  // number sits on the salinity scale
+  const impliedPpm = useMemo(() => {
+    if (!(currentRw > 0) || !Number.isFinite(currentRwTempC)) return NaN;
+    return salinityFromRw(currentRw, cToF(currentRwTempC));
+  }, [currentRw, currentRwTempC]);
 
   const spOut = useMemo(() => {
     const ssp = num(sp.ssp);
@@ -120,8 +138,43 @@ export default function RwToolsDialog({ open, onOpenChange, onApplyParams, onSta
             )}
           </div>
 
+          <div className="rounded border border-slate-800 p-2 space-y-1.5" data-testid="petro-rw-salinity-card">
+            <div className="text-[10px] uppercase tracking-wider text-slate-500">Rw from salinity</div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="flex items-center gap-1">NaCl (ppm)
+                <input className={inputCls} data-testid="petro-rw-sal-ppm" value={sal.ppm}
+                  onChange={(e) => setSal((s) => ({ ...s, ppm: e.target.value }))} />
+              </label>
+              <label className="flex items-center gap-1">Formation T (°C)
+                <input className={inputCls} data-testid="petro-rw-sal-tempc" value={sal.tempC}
+                  onChange={(e) => setSal((s) => ({ ...s, tempC: e.target.value }))} />
+              </label>
+            </div>
+            {salOut && Number.isFinite(salOut.rw) && (
+              <div className="flex items-center gap-3">
+                <span className="text-slate-200" data-testid="petro-rw-sal-result">Rw = {fmt(salOut.rw)} at {salOut.tC} °C</span>
+                <button type="button" data-testid="petro-rw-sal-apply"
+                  className="ml-auto px-2 py-0.5 rounded border border-emerald-700/60 text-emerald-300 hover:bg-emerald-500/10"
+                  onClick={() => applyRw(salOut.rw, salOut.tC, `salinity of ${salOut.ppm} ppm NaCl`)}
+                >
+                  Apply as Rw
+                </button>
+              </div>
+            )}
+            {Number.isFinite(impliedPpm) && (
+              <p className="text-[10px] text-slate-400" data-testid="petro-rw-sal-implied">
+                Your current Rw of {fmt(currentRw)} at {currentRwTempC} °C implies about {Math.round(impliedPpm / 100) * 100} ppm NaCl.
+              </p>
+            )}
+            <p className="text-[10px] text-slate-500 leading-snug">
+              Bateman and Konen (1977) fit to the Gen-9 chart, Rw at 75 °F = 0.0123 + 3647.5 / ppm^0.955,
+              then Arps to the formation temperature: within about 10 percent of the chart from 1,000 to
+              300,000 ppm. For waters that are not NaCl, enter the NaCl-equivalent salinity.
+            </p>
+          </div>
+
           <p className="text-[10px] text-slate-500">
-            A third route: fit the water line on the Pickett plot (Crossplots view) and
+            A fourth route: fit the water line on the Pickett plot (Crossplots view) and
             apply m and Rw from the fit.
           </p>
         </div>
