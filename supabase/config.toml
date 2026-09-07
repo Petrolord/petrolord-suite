@@ -1,1 +1,10 @@
 project_id = "petrolord-suite"
+
+# Provider webhooks authenticate by signature (Paystack HMAC-SHA512,
+# Stripe signing secret), never by a Supabase JWT. Deploying without this
+# flips verify_jwt back on and every webhook answers 401 (2026-09-07).
+[functions.paystack-webhook]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
