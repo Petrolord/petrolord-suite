@@ -473,3 +473,12 @@ time and testers did not find it. The new Zone parameter table (Parameters
 panel, "Zone parameter table…") shows every parameter by every zone on one
 screen, edits in place (models included), copies between zones, and
 applies through the same override model, so the two views never disagree.
+
+## 2026-09-07: PT9d, Rw from salinity
+
+"What role does salinity play?" None directly, until now: Rw was typed,
+fitted or taken from the SP. Rw tools gained a third card, Rw from NaCl
+ppm and temperature (Bateman and Konen 1977 fit to the Gen-9 chart, a
+labelled approximation within about 10 percent), with the inverse shown
+for the current Rw. The help guide now answers the question in one
+paragraph. The Rwe to Rw (SP) Bateman-Konen conversion stays deferred.

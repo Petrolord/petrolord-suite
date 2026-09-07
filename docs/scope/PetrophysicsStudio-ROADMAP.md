@@ -431,3 +431,9 @@ Petrolord/petrolord-engines first, then the subtree copy.
   the PS3 override model. Opened from the Parameters panel
   (`petro-zone-table-open`). e2e PT9c round-trips an override into the
   scope picker and clears it by copying Global.
+- **PT9d built 2026-09-07.** Engines PR #156 (merged): `rwFromSalinity`
+  / `salinityFromRw` (Bateman & Konen 1977 fit to the Gen-9 chart, Arps to
+  formation temperature), oracle + analytic cases + 10 percent chart
+  anchors at regeneration, goldens byte-identical. Suite: third card in
+  Rw tools (`petro-rw-sal-*`) with Apply as Rw and the salinity the
+  current Rw implies; help guide "What salinity does in the Studio".

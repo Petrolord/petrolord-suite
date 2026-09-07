@@ -381,8 +381,21 @@ test('PS5: Rw tools apply through Arps; Waxman-Smits at Qv=0 reproduces the Arch
   const rw2 = (0.1 * (cToF(25) + 6.77)) / (cToF(65) + 6.77);
   await page.getByTestId('petro-rwtools').click();
   await expect(page.getByTestId('petro-rw-arps-result')).toContainText(String(Number(rw2.toFixed(6))));
+  // PT9d: the salinity card reads the current Rw back as an NaCl salinity
+  await expect(page.getByTestId('petro-rw-sal-implied')).toContainText('implies about');
   await page.getByTestId('petro-rw-arps-apply').click();
   await expect(page.getByTestId('petro-param-rw')).toHaveValue(String(Number(rw2.toFixed(6))));
+
+  // PT9d: Rw from 30,000 ppm NaCl at 65 C through the Bateman-Konen fit + Arps
+  const rw75 = 0.0123 + 3647.5 / 30000 ** 0.955;
+  const rwSal = (rw75 * (75 + 6.77)) / (cToF(65) + 6.77);
+  await page.getByTestId('petro-rwtools').click();
+  await page.getByTestId('petro-rw-sal-ppm').fill('30000');
+  await page.getByTestId('petro-rw-sal-tempc').fill('65');
+  await expect(page.getByTestId('petro-rw-sal-result')).toContainText(String(Number(rwSal.toFixed(6))));
+  await page.getByTestId('petro-rw-sal-apply').click();
+  await expect(page.getByTestId('petro-param-rw')).toHaveValue(String(Number(rwSal.toFixed(6))));
+  await expect(page.getByTestId('petro-status')).toContainText('30000 ppm NaCl');
 
   // back to the construction Rw, then Waxman-Smits with Qv = 0 and a
   // manual B: the exact Archie reduction must land the same net pay

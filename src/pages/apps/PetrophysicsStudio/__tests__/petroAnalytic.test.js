@@ -8,7 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { igr, vshLarionovTertiary, vshLarionovOlder, vshClavier, vshSteiber, vshFromGr } from '../engine/vsh';
 import { phiDensity, phiSonicWyllie, phiSonicRhg, phiNd, phiShaleCorrected, clampDisplay } from '../engine/porosity';
-import { rwArps, spK, rweFromSsp, pickettFit } from '../engine/rw';
+import { rwArps, spK, rweFromSsp, pickettFit, rwFromSalinity, salinityFromRw } from '../engine/rw';
 import { swArchie, swSimandoux, swIndonesia, swCurve } from '../engine/sw';
 import { netPay, sampleThickness } from '../engine/netpay';
 
@@ -41,6 +41,12 @@ describe('analytic scalar cases', () => {
     expect(close(rwArps(0.1, 75, 150), AC.arps_75_to_150.out)).toBe(true);
     expect(close(spK(150), 80.95)).toBe(true);
     expect(close(rweFromSsp(-100, 0.5, 150), AC.sp_quicklook.out)).toBe(true);
+  });
+
+  test('Rw from salinity (PT9d) and its inverse match the oracle cases', () => {
+    expect(close(rwFromSalinity(30000, 75), AC.rw_salinity_30000_75f.out)).toBe(true);
+    expect(close(rwFromSalinity(100000, 150), AC.rw_salinity_100000_150f.out)).toBe(true);
+    expect(close(salinityFromRw(rwFromSalinity(30000, 120), 120), AC.salinity_from_rw_roundtrip.out)).toBe(true);
   });
 });
 
