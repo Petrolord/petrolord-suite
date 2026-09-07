@@ -448,3 +448,13 @@ Petrolord/petrolord-engines first, then the subtree copy.
   Rules persist inside the interpretation's `facies` jsonb under `_rules`
   (no migration). e2e PT9e previews, refuses a bad number, applies and
   publishes.
+- **PT9f built 2026-09-07.** `services/curveCalc.js`: a tokenizer, a
+  precedence-climbing parser and a per-sample evaluator (no eval) over
+  any curve the well carries, with comparisons and logic as 1/0, `if`,
+  `clip`, `nvl`, `isnan`, and null-propagating arithmetic; 4 jest gates.
+  `components/CurveCalculatorDialog.jsx` (ribbon `Calc…`): name, unit,
+  expression, curve and function chips, example picker, live preview
+  (valid count, min, mean, max), Save as a new registry row through
+  `publishCurves` with the expression in provenance and `nextFreeName`
+  de-duplication. e2e PT9f previews, names a syntax error and an unknown
+  curve, saves HCPV and sees it in the explorer.

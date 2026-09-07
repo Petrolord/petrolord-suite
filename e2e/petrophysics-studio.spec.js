@@ -842,6 +842,31 @@ test('PT9e: facies by rules preview, apply as a strip and publish as electrofaci
   await expect(page.getByTestId('petro-status')).toContainText(/Published \d+ electrofacies intervals/);
 });
 
+test('PT9f: the curve calculator previews an expression and saves a new registry curve', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  await page.getByTestId('petro-calc').click();
+  await expect(page.getByTestId('petro-calc-dialog')).toBeVisible();
+  // the default example previews on the computed outputs
+  await expect(page.getByTestId('petro-calc-preview')).toContainText('uses PHIE, SW');
+  // a syntax error is named, and blocks saving
+  await page.getByTestId('petro-calc-expr').fill('PHIE * (1 - SW');
+  await expect(page.getByTestId('petro-calc-error')).toContainText('Expected ")"');
+  await expect(page.getByTestId('petro-calc-save')).toBeDisabled();
+  // an unknown curve is named too
+  await page.getByTestId('petro-calc-expr').fill('PHIE * NOPE');
+  await expect(page.getByTestId('petro-calc-error')).toContainText('Unknown curve: NOPE');
+
+  await page.getByTestId('petro-calc-expr').fill('PHIE * (1 - SW)');
+  await page.getByTestId('petro-calc-name').fill('HCPV');
+  await page.getByTestId('petro-calc-save').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Saved HCPV');
+  // the new curve is in the well, offered to the layouts as log:HCPV
+  await expect(page.getByTestId('petro-other-curves')).toContainText('HCPV');
+});
+
 test('PT4: zones between tops, bulk creation, and a two-click pick on the track', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
   await page.locator('[data-well-name="KETA TYPE-1"]').click();
