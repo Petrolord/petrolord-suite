@@ -15,6 +15,10 @@ const typewell = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'typewell.json')
 const goldens = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'goldens.json'), 'utf8'));
 
 const close = (a, b) => Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(a), Math.abs(b));
+// PT9: the goldens' shale point is the type well's EXACT density shale
+// point; DEFAULT_PARAMS carries the rounded 0.06 the panel shows
+const PARAMS = { ...DEFAULT_PARAMS, phiShale: typewell.params.phi_shale };
+const E = goldens.EFFECTIVE;
 
 async function loadCurvesViaBackend(backend, wellName) {
   const wells = await backend.listWells();
@@ -35,12 +39,14 @@ test('DEFAULT_PARAMS mirror the type well construction params', () => {
   expect(DEFAULT_PARAMS.rsh).toBe(p.rsh);
   expect([DEFAULT_PARAMS.cutPhi, DEFAULT_PARAMS.cutVsh, DEFAULT_PARAMS.cutSw])
     .toEqual([p.cut_phi, p.cut_vsh, p.cut_sw]);
+  expect(Math.abs(DEFAULT_PARAMS.phiShale - p.phi_shale) < 1e-3).toBe(true);
+  expect(DEFAULT_PARAMS.permMethod).toBe('timur');
 });
 
 test('backend curves -> pipeline -> oracle golden curves', async () => {
   const backend = makeInMemoryBackend();
   const { curves } = await loadCurvesViaBackend(backend, 'KETA TYPE-1');
-  const { outputs, missing } = computeWell(curves, DEFAULT_PARAMS);
+  const { outputs, missing } = computeWell(curves, PARAMS);
   expect(missing).toEqual([]);
 
   const check = (arr, golden, label) => {
@@ -54,14 +60,17 @@ test('backend curves -> pipeline -> oracle golden curves', async () => {
     }
   };
   check(outputs.VSH, goldens.VSH_LARIONOV_TERTIARY, 'VSH');
-  check(outputs.PHIE, goldens.PHID, 'PHIE(density)');
-  check(outputs.SW, goldens.SW_ARCHIE, 'SW');
+  check(outputs.PHIT, goldens.PHID, 'PHIT(density, as read)');
+  check(outputs.PHIE, E.PHIE, 'PHIE(shale-corrected)');
+  check(outputs.SW, E.SW_ARCHIE, 'SW');
+  check(outputs.KPERM, E.K_TIMUR, 'KPERM(default timur)');
+  check(outputs.BVW, E.BVW, 'BVW');
 });
 
 test('zone summaries reproduce the oracle zone goldens through the backend', async () => {
   const backend = makeInMemoryBackend();
   const { well, curves } = await loadCurvesViaBackend(backend, 'KETA TYPE-1');
-  const { outputs } = computeWell(curves, DEFAULT_PARAMS);
+  const { outputs } = computeWell(curves, PARAMS);
 
   // seeded SAND A + an added SAND B, matching the golden zone windows
   const [top, base] = typewell.params.zones.SAND_B;
@@ -70,9 +79,9 @@ test('zone summaries reproduce the oracle zone goldens through the backend', asy
   expect(zones.map((z) => z.name)).toEqual(['SAND A', 'SAND B']);
 
   const expectSummary = (zone, goldenKey) => {
-    const s = zoneSummary(curves, outputs, DEFAULT_PARAMS, zone);
-    for (const [k, gv] of Object.entries(goldens.ZONES[goldenKey].summary)) {
-      if (gv === null) expect(s[k]).toBeNull();
+    const s = zoneSummary(curves, outputs, PARAMS, zone);
+    for (const [k, gv] of Object.entries(E.ZONES[goldenKey].summary)) {
+      if (gv === null) expect(s[k] === null || Number.isNaN(s[k])).toBe(true);
       else if (!close(s[k], gv)) throw new Error(`${goldenKey}.${k}: ${s[k]} !== ${gv}`);
     }
   };
@@ -84,6 +93,7 @@ test('missing inputs are reported, never fabricated', () => {
   const depth = Float64Array.from({ length: 5 }, (_, i) => 2000 + i * 0.5);
   const { outputs, missing } = computeWell({ DEPT: depth, GR: depth.map(() => 60) }, DEFAULT_PARAMS);
   expect(outputs.VSH).toBeDefined();
+  expect(outputs.PHIT).toBeUndefined();
   expect(outputs.PHIE).toBeUndefined();
   expect(outputs.SW).toBeUndefined();
   expect(missing).toContain('density porosity inputs');

@@ -117,7 +117,12 @@ export default function ZoneManager({
                 <span>Sw {fmt(s.sw_avg, 3)}</span>
                 <span>Vsh {fmt(s.vsh_avg, 3)}</span>
                 {s.k_gm_md !== undefined && (
-                  <span data-testid={`petro-zone-kgm-${z.name}`}>
+                  <span
+                    data-testid={`petro-zone-kgm-${z.name}`}
+                    title={Number.isFinite(s.k_gm_md)
+                      ? 'Thickness-weighted geometric mean of KPERM over the pay samples'
+                      : 'No pay sample in this zone carries a positive permeability'}
+                  >
                     k gm <b className="text-slate-200">{fmt(s.k_gm_md, 1)}</b> mD
                   </span>
                 )}

@@ -18,7 +18,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const goldens = JSON.parse(fs.readFileSync(
   path.join(here, '..', 'packages', 'engines', 'test-data', 'petrophysics', 'goldens.json'), 'utf8',
 ));
-const goldenNet = (zone) => goldens.ZONES[zone].summary.net_m.toFixed(1);
+// PT9: the pipeline runs on shale-corrected PHIE, whose goldens live in EFFECTIVE
+const goldenNet = (zone) => goldens.EFFECTIVE.ZONES[zone].summary.net_m.toFixed(1);
 
 const netOf = async (page, zone) => parseFloat(await page.getByTestId(`petro-zone-net-${zone}`).innerText());
 
@@ -118,9 +119,9 @@ test('publish curves + zone, batch run, and project persistence across reload', 
   await page.locator('[data-well-name="KETA TYPE-1"]').click();
   await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
 
-  // publish computed curves -> the 4 outputs appear as mapped inputs
+  // publish computed curves -> the 6 outputs (VSH, PHIT, PHIE, SW, PAY, KPERM) appear as mapped inputs
   await page.getByTestId('petro-publish').click();
-  await expect(page.getByTestId('petro-status')).toContainText('Published 4 curves');
+  await expect(page.getByTestId('petro-status')).toContainText('Published 6 curves');
 
   // publish the seeded SAND A zone summary -> "on record" marker
   await page.getByTestId('petro-zone-publish-SAND A').click();
@@ -395,23 +396,21 @@ test('PS5: Rw tools apply through Arps; Waxman-Smits at Qv=0 reproduces the Arch
   await expect(page.getByTestId('petro-zone-net-SAND A')).toHaveText(goldenNet('SAND_A'));
 });
 
-test('PS6: Timur permeability lands the golden zone geometric mean and publishes as KPERM', async ({ page }) => {
+test('PS6/PT9: Timur permeability is on by default, lands the effective-porosity golden, and none switches it off', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
   await page.locator('[data-well-name="KETA TYPE-1"]').click();
   await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
 
-  // no perm by default
-  await expect(page.getByTestId('petro-zone-kgm-SAND A')).toHaveCount(0);
-
-  await page.getByTestId('petro-param-permMethod').selectOption('timur');
+  // PT9: Timur by default; the zone card reads the oracle's
+  // thickness-weighted geometric mean on shale-corrected PHIE
   await expect(page.getByTestId('petro-param-hint')).toContainText('Timur 1968');
-  await page.getByTestId('petro-params-apply').click();
-
-  // the zone card reads the oracle's thickness-weighted geometric mean
-  const wantK = goldens.PERM.zones.SAND_A.k_gm_timur.toFixed(1);
+  const wantK = goldens.EFFECTIVE.ZONES.SAND_A.summary.k_gm_md.toFixed(1);
   await expect(page.getByTestId('petro-zone-kgm-SAND A')).toContainText(`${wantK} mD`);
 
-  // KPERM joins the published set
+  // none is an explicit choice: the readout goes and KPERM leaves the published set
+  await page.getByTestId('petro-param-permMethod').selectOption('none');
+  await page.getByTestId('petro-params-apply').click();
+  await expect(page.getByTestId('petro-zone-kgm-SAND A')).toHaveCount(0);
   await page.getByTestId('petro-publish').click();
   await expect(page.getByTestId('petro-status')).toContainText('Published 5 curves');
 });

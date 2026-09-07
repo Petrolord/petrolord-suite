@@ -138,14 +138,14 @@ export async function buildReport({
       margin: { left: margin, right: margin },
       head: [['Zone', `Top MD (${uTxt})`, `Base MD (${uTxt})`,
         ...extraKeys.flatMap((k) => [`Top ${k.toUpperCase()} (${uTxt})`, `Base ${k.toUpperCase()} (${uTxt})`]),
-        `Gross (${uTxt})`, `Net (${uTxt})`, 'N/G', 'phi avg', 'Vsh avg', 'Sw avg']],
+        `Gross (${uTxt})`, `Net (${uTxt})`, 'N/G', 'phi avg', 'Vsh avg', 'Sw avg', 'k gm (mD)']],
       body: zoneRows.map((z) => {
         const s = summaries[z.id];
         return [
           z.name, num(toU(z.top_md_m), 1), num(toU(z.base_md_m), 1),
           ...extraKeys.flatMap((k) => [num(depthIn(z.top_md_m, k), 1), num(depthIn(z.base_md_m, k), 1)]),
           num(toU(s.gross_m), 2), num(toU(s.net_m), 2), num(s.ntg),
-          num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg),
+          num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg), num(s.k_gm_md, 1),
         ];
       }),
       styles: { fontSize: 8, cellPadding: 1.5 },

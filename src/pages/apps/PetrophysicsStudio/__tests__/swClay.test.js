@@ -66,9 +66,10 @@ test('temperature model matches the TEMP goldens (TEMP, Rw(T), B(T), Archie(T))'
 
 test('the pipeline couples temperature into every Sw method (Archie(T) end-to-end)', () => {
   const tp = goldens.TEMP.params;
-  const { outputs } = computeWell(curves, { ...DEFAULT_PARAMS, tempMode: 'linear', ...tp });
+  // PT9: the pipeline runs Archie on shale-corrected PHIE (EFFECTIVE block)
+  const { outputs } = computeWell(curves, { ...DEFAULT_PARAMS, phiShale: P.phi_shale, tempMode: 'linear', ...tp });
   expectCurve(outputs.TEMP, goldens.TEMP.TEMP);
-  expectCurve(outputs.SW, goldens.TEMP.SW_ARCHIE_T);
+  expectCurve(outputs.SW, goldens.EFFECTIVE.SW_ARCHIE_T);
 });
 
 test('pipeline dispatch reproduces the CLAY goldens through computeWell', () => {
@@ -79,8 +80,10 @@ test('pipeline dispatch reproduces the CLAY goldens through computeWell', () => 
   expectCurve(ws.outputs.SW, goldens.CLAY.SW_WS);
   const dw = computeWell(curves, { ...DEFAULT_PARAMS, swMethod: 'dual-water', rwb: cp.rwb, swb: cp.swb });
   expectCurve(dw.outputs.SW, goldens.CLAY.SW_DW);
-  const ms = computeWell(curves, { ...DEFAULT_PARAMS, swMethod: 'mod-simandoux' });
-  expectCurve(ms.outputs.SW, goldens.CLAY.SW_MS);
+  // modified Simandoux is an effective-porosity model: PHIE (EFFECTIVE block);
+  // Waxman-Smits and dual-water above stay on total porosity (PHIT = PHID)
+  const ms = computeWell(curves, { ...DEFAULT_PARAMS, phiShale: P.phi_shale, swMethod: 'mod-simandoux' });
+  expectCurve(ms.outputs.SW, goldens.EFFECTIVE.SW_MOD_SIMANDOUX);
 });
 
 test('exact Archie reductions: Qv=0, Swb=0, Vsh=0', () => {

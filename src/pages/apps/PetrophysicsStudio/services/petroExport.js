@@ -14,11 +14,14 @@ import { PIPELINE_VERSION } from '../engine/pipeline';
 // the published outputs — used when the inventory has no unit string
 const CANONICAL_UNITS = {
   DEPT: 'M', GR: 'API', RHOB: 'G/CC', NPHI: 'V/V', DT: 'US/M', RT: 'OHM.M',
-  VSH: 'V/V', PHIE: 'V/V', SW: 'V/V', PAY: 'FLAG',
+  VSH: 'V/V', PHIT: 'V/V', PHIE: 'V/V', SW: 'V/V', PAY: 'FLAG', KPERM: 'MD', BVW: 'V/V',
 };
-const OUTPUT_KEYS = ['VSH', 'PHIE', 'SW', 'PAY'];
+// PT9: every pipeline product a well can carry, in log order; absent
+// ones (no GR, permeability off) are simply skipped
+const OUTPUT_KEYS = ['VSH', 'PHIT', 'PHIE', 'SW', 'BVW', 'KPERM', 'PAY'];
 const OUTPUT_DESCR = {
-  VSH: 'Shale volume', PHIE: 'Effective porosity', SW: 'Water saturation', PAY: 'Net-pay flag (1 = pay)',
+  VSH: 'Shale volume', PHIT: 'Total porosity (as read)', PHIE: 'Effective porosity (shale-corrected)',
+  SW: 'Water saturation', BVW: 'Bulk volume water', KPERM: 'Permeability (mD)', PAY: 'Net-pay flag (1 = pay)',
 };
 
 const num = (v) => (Number.isFinite(v) ? String(Number(v.toPrecision(7))) : '');
@@ -140,14 +143,14 @@ export function zonesCsv(zones, summaries, opts = null) {
   if (!rows.length) throw new Error('No zone summaries to export — add a zone first.');
   const o = normOpts(opts);
   if (!o) {
-    const lines = ['zone,top_m,base_m,gross_m,net_m,ntg,phi_avg,vsh_avg,sw_avg'];
+    const lines = ['zone,top_m,base_m,gross_m,net_m,ntg,phi_avg,vsh_avg,sw_avg,k_gm_md'];
     for (const z of rows) {
       const s = summaries[z.id];
       lines.push([
         `"${String(z.name).replace(/"/g, '""')}"`,
         num(z.top_md_m), num(z.base_md_m),
         num(s.gross_m), num(s.net_m), num(s.ntg),
-        num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg),
+        num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg), num(s.k_gm_md),
       ].join(','));
     }
     return `${lines.join('\n')}\n`;
@@ -163,13 +166,13 @@ export function zonesCsv(zones, summaries, opts = null) {
   };
   const header = ['zone'];
   for (const key of o.columns) header.push(`top_${key}_${u}`, `base_${key}_${u}`);
-  header.push(`gross_${u}`, `net_${u}`, 'ntg', 'phi_avg', 'vsh_avg', 'sw_avg');
+  header.push(`gross_${u}`, `net_${u}`, 'ntg', 'phi_avg', 'vsh_avg', 'sw_avg', 'k_gm_md');
   const lines = [header.join(',')];
   for (const z of rows) {
     const s = summaries[z.id];
     const cells = [`"${String(z.name).replace(/"/g, '""')}"`];
     for (const key of o.columns) cells.push(num(depthOf(z.top_md_m, key)), num(depthOf(z.base_md_m, key)));
-    cells.push(num(conv(s.gross_m, o.depthUnit)), num(conv(s.net_m, o.depthUnit)), num(s.ntg), num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg));
+    cells.push(num(conv(s.gross_m, o.depthUnit)), num(conv(s.net_m, o.depthUnit)), num(s.ntg), num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg), num(s.k_gm_md));
     lines.push(cells.join(','));
   }
   return `${lines.join('\n')}\n`;

@@ -10,6 +10,9 @@ import { computeWell, computeWellZoned, zoneSummary, DEFAULT_PARAMS } from '../e
 const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'petrophysics');
 const typewell = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'typewell.json'), 'utf8'));
 const goldens = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'goldens.json'), 'utf8'));
+// PT9: the zoned golden the v5 pipeline lands is the one on shale-corrected PHIE
+const ZONED = goldens.EFFECTIVE.ZONED;
+const PARAMS = { ...DEFAULT_PARAMS, phiShale: typewell.params.phi_shale };
 const curve = (name) => Float64Array.from(typewell.curves[name], (v) => (v === null ? NaN : v));
 
 const curves = {
@@ -19,7 +22,7 @@ const curves = {
 const close = (a, b) => Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(a), Math.abs(b));
 
 const zoneList = () => {
-  const zp = goldens.ZONED.zone_params;
+  const zp = ZONED.zone_params;
   return Object.entries(typewell.params.zones)
     .filter(([name]) => zp[name])
     .map(([name, [top, base]]) => ({ top, base, params: zp[name] }));
@@ -41,9 +44,9 @@ test('empty override list reproduces computeWell exactly (sample-for-sample)', (
 });
 
 test('zoned SW and PAY match the oracle golden at 1e-12', () => {
-  const { outputs } = computeWellZoned(curves, DEFAULT_PARAMS, zoneList());
-  const wantSw = goldens.ZONED.SW;
-  const wantPay = goldens.ZONED.PAY;
+  const { outputs } = computeWellZoned(curves, PARAMS, zoneList());
+  const wantSw = ZONED.SW;
+  const wantPay = ZONED.PAY;
   for (let i = 0; i < wantSw.length; i++) {
     if (wantSw[i] === null) expect(Number.isNaN(outputs.SW[i])).toBe(true);
     else expect(close(outputs.SW[i], wantSw[i])).toBe(true);
@@ -53,10 +56,10 @@ test('zoned SW and PAY match the oracle golden at 1e-12', () => {
 });
 
 test('per-zone summaries with merged params match the golden', () => {
-  const { outputs } = computeWellZoned(curves, DEFAULT_PARAMS, zoneList());
-  for (const [name, want] of Object.entries(goldens.ZONED.zones)) {
+  const { outputs } = computeWellZoned(curves, PARAMS, zoneList());
+  for (const [name, want] of Object.entries(ZONED.zones)) {
     const [top, base] = typewell.params.zones[name];
-    const merged = { ...DEFAULT_PARAMS, ...goldens.ZONED.zone_params[name] };
+    const merged = { ...PARAMS, ...ZONED.zone_params[name] };
     const s = zoneSummary(curves, outputs, merged, { top_md_m: top, base_md_m: base });
     for (const key of Object.keys(want.summary)) {
       const w = want.summary[key];

@@ -159,8 +159,8 @@ const PetrophysicsHelpGuide = () => (
         zone overrides, layouts, facies and crossplot settings all travel with it.
       </Step>
       <Step n={10} title="Publish and export">
-        Publish writes VSH, PHIE, SW, PAY (and KPERM when permeability is on) to the registry
-        with full provenance. Export gives you curves CSV, zone CSV, LAS 2.0, the track PNG and a
+        Publish writes VSH, PHIT, PHIE, SW, BVW, KPERM and PAY to the registry with full
+        provenance (KPERM only while a permeability model is selected; it is on by default). Export gives you curves CSV, zone CSV, LAS 2.0, the track PNG and a
         PDF summary report.
       </Step>
     </GuideSection>
@@ -231,10 +231,10 @@ const PetrophysicsHelpGuide = () => (
           ['GR (API)', 'GR, 0 to 150 linear', 'Threshold fill above GR clean (clay shading)'],
           ['RT (ohm·m)', 'RT, 0.2 to 2000 log', 'none'],
           ['Density-Neutron', 'RHOB 1.95 to 2.95 with NPHI overlaid reversed and dashed', 'Crossover fill: yellow where neutron reads left of density (gas), grey the other way (shale)'],
-          ['Porosity (v/v)', 'PHIE, 0 to 0.5', 'Threshold fill above the φ cutoff'],
+          ['Porosity (v/v)', 'PHIE (solid) with PHIT dashed behind it, 0 to 0.5', 'Threshold fill above the φ cutoff on PHIE'],
           ['Vsh (v/v)', 'VSH, 0 to 1, filled to the right', 'none'],
           ['Sw (v/v)', 'SW, 0 to 1', 'none'],
-          ['k (mD)', 'KPERM, 0.01 to 10000 log. Present only while a permeability model is selected.', 'none'],
+          ['k (mD)', 'KPERM, 0.01 to 10000 log. Timur by default; the track disappears only if you set the permeability model to none.', 'none'],
           ['Pay', 'PAY flag, filled to the left', 'none'],
           ['Facies', 'Colour strip from the crossplot facies polygons', 'strip'],
         ]}
@@ -302,7 +302,7 @@ const PetrophysicsHelpGuide = () => (
           ['Add track', 'Appends a track titled New track (linear, 0 to 1) and opens its editor. Inside a track, Curve and Fill add a curve row or a fill row.'],
           ['Move up / Move down / Remove track', 'Reorder or drop a track. The arrow buttons sit on each track header in the panel.'],
           ['Title, Width, Scale, Range', 'Per track. Width is a proportion (1.2 draws 20 percent wider than a width-1 track). Scale is linear or log. Range is the track min and max.'],
-          ['Curves: source', 'input:GR, input:RHOB, input:NPHI, input:DT, input:RT, output:PHIE, output:VSH, output:SW, output:PAY, output:TEMP, output:KPERM, output:BVW. Addresses are portable: the same template works on any well.'],
+          ['Curves: source', 'input:GR, input:RHOB, input:NPHI, input:DT, input:RT, output:PHIE, output:PHIT, output:VSH, output:SW, output:PAY, output:TEMP, output:KPERM, output:BVW. Addresses are portable: the same template works on any well.'],
           ['Curves: colour, min, max, style', 'Colour picker; an optional min and max that override the track range for that one curve (this is how NPHI sits reversed over RHOB); line style solid, dash or dot.'],
           ['Fills: threshold', 'Shade one curve above or below a threshold. The threshold can be bound to a parameter (cutPhi, cutVsh, cutSw, grClean, grClay) so it follows the parameter set, or a fixed value such as 75 API. Tick other side to colour the far side too: this is the GR cut-off fill, sand one colour below the number you choose and shale another above it.'],
           ['Fills: crossover', 'Shade between two curves of the same track, one colour for each sign of the crossing. On the Density-Neutron track, with RHOB 1.95 to 2.95 and NPHI 0.45 to -0.15, density left of neutron is gas or light hydrocarbon (yellow by default) and neutron left of density is shale or wet rock (gray by default).'],
@@ -347,7 +347,8 @@ const PetrophysicsHelpGuide = () => (
       <Table
         headers={['Field', 'Options or meaning', 'Default']}
         rows={[
-          ['φe source', 'density, sonic, nd. This choice is what PHIE means for the whole run.', 'density'],
+          ['φt source', 'density, sonic, nd. The chosen transform, as read, is PHIT (total porosity).', 'density'],
+          ['φ shale (v/v)', 'The chosen tool\'s apparent porosity in 100 percent shale. Read it on the porosity track in a clean shale. PHIE = PHIT minus Vsh times this value.', '0.06 (a 2.55 g/cc shale on density with a 2.65 matrix)'],
           ['ρ matrix (g/cc)', 'Matrix density for density porosity', '2.65'],
           ['ρ fluid (g/cc)', 'Fluid density for density porosity', '1.0'],
           ['Δt matrix (µs/m)', 'Matrix slowness for sonic porosity, in µs per metre', '182'],
@@ -356,7 +357,21 @@ const PetrophysicsHelpGuide = () => (
           ['N-D combine', 'avg (arithmetic mean of density and neutron porosity) or rms (the gas form, root-mean-square)', 'avg'],
         ]}
       />
-      <Formula>Density: φ = (ρma - ρb) / (ρma - ρfl)</Formula>
+      <Formula>Density: φt = (ρma - ρb) / (ρma - ρfl)</Formula>
+      <Formula>Effective: φe = φt - Vsh × φshale</Formula>
+      <Para>
+        Two porosity curves come out of every run. PHIT is the transform as read, which in shaly
+        rock includes the shale&apos;s own bound water. PHIE removes the shale contribution through
+        Vsh and the shale point. Sw (Archie, Simandoux, Indonesia, modified Simandoux), the
+        cutoffs, permeability and BVW all run on PHIE. Waxman-Smits and dual water are total
+        porosity models and run on PHIT. Without GR there is no Vsh and therefore no PHIE; the
+        status bar then says that Sw, cutoffs and k fell back to PHIT.
+      </Para>
+      <Callout tone="info" title="Before pipeline version 5 the curve named PHIE was the transform as read">
+        Interpretations published before September 2026 carry a PHIE that is really PHIT.
+        Re-running Publish replaces that curve with the shale-corrected PHIE and adds PHIT beside
+        it; the provenance pipeline_version tells the two generations apart.
+      </Callout>
       <Callout tone="warn" title="Slowness is in microseconds per metre">
         The registry stores SI. A chart-book Δt matrix of 55.5 µs/ft is 182 µs/m, and a fluid
         value of 200 µs/ft is 656 µs/m, which is why those are the defaults. Entering feet-based
@@ -408,10 +423,12 @@ const PetrophysicsHelpGuide = () => (
 
       <SubHeading>Permeability</SubHeading>
       <Para>
-        The default model is <Code>none</Code>, which computes no permeability and leaves every
-        existing recipe unchanged. Selecting a model shows its formula in the panel, adds the k
-        track and a BVW output, and adds a thickness-weighted geometric-mean permeability over the
-        pay flags to every zone card.
+        The default model is <Code>timur</Code>, so every run carries a KPERM curve, the k track
+        and a thickness-weighted geometric-mean permeability over the pay flags on every zone card.
+        Selecting another model shows its formula in the panel. Choose <Code>none</Code> only to
+        switch permeability off; the k track and the k gm readout then disappear. A zone whose pay
+        samples carry no positive k shows a dash for k gm (hover it for the reason). BVW is
+        independent of this choice: it exists whenever porosity and Sw do.
       </Para>
       <Table
         headers={['Model option', 'Formula (φ and Swirr as fractions, k in mD)']}
@@ -469,7 +486,7 @@ const PetrophysicsHelpGuide = () => (
           ['gross', 'Metres of rock in the zone, including samples with a missing input'],
           ['NTG', 'net divided by gross'],
           ['φ avg, Sw avg, Vsh avg', 'Net-thickness-weighted averages over the pay samples; blank when net is zero'],
-          ['k gm', 'Thickness-weighted geometric mean of KPERM over the pay samples, in mD. Shown only when a permeability model is on.'],
+          ['k gm', 'Thickness-weighted geometric mean of KPERM over the pay samples, in mD. Shown while a permeability model is on (Timur by default); a dash means no pay sample carries a positive k.'],
         ]}
       />
       <Para>
@@ -705,10 +722,11 @@ const PetrophysicsHelpGuide = () => (
         headers={['Published curve', 'Unit', 'Description recorded']}
         rows={[
           ['VSH', 'V/V', 'Shale volume (model name)'],
-          ['PHIE', 'V/V', 'Effective porosity (source)'],
+          ['PHIT', 'V/V', 'Total porosity (source, as read)'],
+          ['PHIE', 'V/V', 'Effective porosity (source, shale-corrected, phi_sh)'],
           ['SW', 'V/V', 'Water saturation (model name)'],
           ['PAY', 'FLAG', 'Net-pay flag (1 = pay)'],
-          ['KPERM', 'MD', 'Permeability (model, mD); only when a permeability model is on'],
+          ['KPERM', 'MD', 'Permeability (model, mD); Timur unless the model is set to none'],
         ]}
       />
       <Callout tone="info" title="The overwrite-own contract">
@@ -769,9 +787,9 @@ const PetrophysicsHelpGuide = () => (
       <Table
         headers={['Deliverable', 'Contents']}
         rows={[
-          ['Curves CSV', 'The chosen depth columns, the mapped inputs and the four core outputs VSH, PHIE, SW and PAY; blank cells for nulls.'],
+          ['Curves CSV', 'The chosen depth columns, the mapped inputs and every computed output present: VSH, PHIT, PHIE, SW, BVW, KPERM and PAY; blank cells for nulls.'],
           ['Zone summary CSV', 'Gross, net, N/G and net-weighted averages per zone at the current parameters.'],
-          ['LAS 2.0', 'DEPT plus any extra depth columns as curves, inputs plus VSH, PHIE, SW and PAY, with the parameter set in the ~Parameter block (DEPTREF, EKB and DEPTHSRC record the depth choice). Feet write the unit F. The writer is round-trip gated: what it writes parses back bit for bit.'],
+          ['LAS 2.0', 'DEPT plus any extra depth columns as curves, inputs plus VSH, PHIT, PHIE, SW, BVW, KPERM and PAY, with the parameter set in the ~Parameter block (DEPTREF, EKB and DEPTHSRC record the depth choice). Feet write the unit F. The writer is round-trip gated: what it writes parses back bit for bit.'],
           ['Track plot PNG', 'The track view exactly as rendered, with a branded title band. Open the Tracks view first; the other views have no track canvas to capture.'],
           ['PDF summary report', 'Well and interpretation, the parameter table, the methods in use with their literature citations, the zone table (top, base, gross, net, N/G, φ avg, Vsh avg, Sw avg) and provenance.'],
         ]}
@@ -799,16 +817,17 @@ const PetrophysicsHelpGuide = () => (
         headers={['Curve', 'Available when', 'Chartable as']}
         rows={[
           ['VSH', 'GR present', 'output:VSH'],
-          ['PHIE (with PHID, PHIS, PHIND behind it)', 'The chosen source\'s inputs present', 'output:PHIE'],
-          ['SW', 'PHIE and RT present', 'output:SW'],
+          ['PHIT (with PHID, PHIS, PHIND behind it)', 'The chosen source\'s inputs present', 'output:PHIT'],
+          ['PHIE', 'PHIT and VSH present (φt minus Vsh × φshale)', 'output:PHIE'],
+          ['SW', 'Porosity and RT present (PHIE, or PHIT without GR)', 'output:SW'],
           ['PAY', 'PHIE, VSH and SW present', 'output:PAY'],
           ['TEMP', 'Temperature model linear', 'output:TEMP'],
-          ['KPERM', 'Permeability model not none', 'output:KPERM'],
-          ['BVW', 'Permeability model not none (φe × Sw)', 'output:BVW'],
+          ['KPERM', 'Permeability model not none (Timur by default)', 'output:KPERM'],
+          ['BVW', 'Porosity and SW present (φe × Sw)', 'output:BVW'],
         ]}
       />
       <Para>
-        Every published curve and zone summary carries <Code>pipeline_version</Code> (currently 4),
+        Every published curve and zone summary carries <Code>pipeline_version</Code> (currently 5),
         the method keys, the parameter set, the input log ids and the interpretation name, so a
         number in Well Correlation or a map can always be traced back to how it was made.
       </Para>
@@ -909,7 +928,9 @@ const PetrophysicsHelpGuide = () => (
         rows={[
           ['IGR', 'Gamma-ray index, the linear position of GR between the clean and clay lines'],
           ['Vsh', 'Shale volume fraction'],
-          ['PHIE', 'Effective porosity, whichever source was chosen'],
+          ['PHIT', 'Total porosity: the chosen transform as read, shale bound water included'],
+          ['PHIE', 'Effective porosity: PHIT minus Vsh times the shale point'],
+          ['φ shale', 'The porosity tool\'s apparent porosity in 100 percent shale'],
           ['Sw, Swt', 'Water saturation; Swt is total water saturation as returned by dual water'],
           ['Swirr', 'Irreducible water saturation, the input to every permeability correlation'],
           ['BVW', 'Bulk volume water, φe × Sw; constant along a Buckles hyperbola at irreducible conditions'],

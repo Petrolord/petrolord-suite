@@ -363,3 +363,55 @@ saves a new curve.
 - **PT7 built 2026-09-03:** digitizer automatic mode (engines scanTrace
   PR #103), inline calibration, review editing, `_DIG` naming, and the
   `petro-scan-read` edge function (owner deploys after merge).
+
+## PT9 series (second tester pass, 2026-09-07)
+
+Triage of the 2026-09-07 tester notes (per-zone workflow manager,
+derived logs, permeability not showing, crossplots by zone, low/mid/high
+logs, facies logs, PHIT from PHIE, the role of salinity). Owner decisions
+2026-09-07: **permeability is never off by default**; **the curve the
+Studio called PHIE was the transform as read and is renamed PHIT; a
+shale-corrected PHIE is added and drives Sw, cutoffs, k and BVW**. Each
+wave is one branch and one PR with base `main`; engine work lands in
+Petrolord/petrolord-engines first, then the subtree copy.
+
+| Wave | Tester note | Engine PR? | One line |
+|---|---|---|---|
+| PT9a Porosity and permeability defaults | k not showing; PHIT/PHIE | engines #155 | Pipeline v5: PHIT as read, PHIE = PHIT minus Vsh x phi shale, Timur by default; KPERM/BVW/PHIT in every deliverable; k gm in zone CSV and PDF |
+| PT9b Crossplots by zone | all crossplots by zone | no | The PT8 Pickett zone filter and colour-by-zone on Density-Neutron, Buckles and Hingle too |
+| PT9c Zone parameter table | workflow manager per zone | no | One zones-by-parameters view of the PS3 overrides, copy between zones |
+| PT9d Rw from salinity | role of salinity | yes | Rw from NaCl ppm and temperature in Rw tools |
+| PT9e Rule-based facies | facies logs | no | Cutoff classes on computed curves, published as registry facies intervals |
+| PT9f Curve calculator | derived logs | no | Expression over inputs and outputs, saved as a new curve with provenance |
+| PT9g Low, mid, high | low/mid/high logs and summary | no | Three named parameter sets through the zoned compute, suffixed curves and a scenario summary |
+
+### Recorded decisions (PT9)
+
+- **PHIE was PHIT.** `computeWell` never called the engine's
+  `phiShaleCorrected`; the curve published as PHIE was the density,
+  sonic or neutron-density transform as read. From pipeline version 5
+  that curve is PHIT and PHIE = PHIT - Vsh * phiShale, `phiShale` being
+  the selected tool's apparent porosity in 100 percent shale (default
+  0.06, a 2.55 g/cc shale on density with a 2.65 matrix). Archie-family
+  Sw, cutoffs, k and BVW run on PHIE; Waxman-Smits and dual water stay on
+  PHIT (total-porosity models). Without GR there is no PHIE and `missing`
+  says Sw, cutoffs and k fell back to PHIT. Re-publishing overwrites the
+  old PHIE with the corrected one and adds PHIT; no migration.
+- **Permeability defaults to Timur.** `none` remains an explicit choice.
+- **Goldens.** Every pre-existing golden key stays on PHID and is
+  byte-identical; the v5 recipe is pinned by `goldens.json.EFFECTIVE`
+  (fixture v3), whose linear-Vsh anchor recovers the construction
+  porosity exactly because GR = 20 + 100 s makes IGR equal s.
+
+### Wave log (PT9)
+
+- **PT9a built 2026-09-07.** Engines PR #155 (merged, d8ce2c0): pipeline
+  v5, fixture v3, engines-side jest pinning the contract (7 tests).
+  Suite: parameter panel gains phi shale; the Standard triple combo
+  porosity track draws PHIT dashed behind PHIE; curves CSV and LAS carry
+  VSH, PHIT, PHIE, SW, BVW, KPERM, PAY; zone CSV and the PDF report gain
+  k gm; the zone card explains a blank k gm; crossplots and fits use PHIE
+  (PHIT without GR); histograms and Field view accept PHIT; help guide
+  rewritten for the two porosities and the new default. Petrophysics +
+  Well Data Manager + shared wells jest 41 suites green; e2e 26/26 on the
+  dev harness.

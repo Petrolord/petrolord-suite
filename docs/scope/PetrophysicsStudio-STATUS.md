@@ -421,3 +421,38 @@ commits the parsed value only when the text is a complete number (an empty
 curve override clears back to the track range); the box resyncs from the
 layout on blur. Well Correlation shares the panel and gets the same fix.
 Jest: `src/components/wells/__tests__/layoutPanelNumeric.test.jsx` (3 gates).
+
+## 2026-09-07: PT9a, PHIT as read, shale-corrected PHIE, permeability on by default
+
+Second tester pass triage (see ROADMAP "PT9 series"). Two findings were
+defects in what the Studio already had.
+
+**Permeability "not showing".** The model defaulted to `none`, which
+computed no KPERM, hid the k track of the built-in template outright and
+left the zone card without a k line, with nothing on screen saying why.
+Once a model was picked the track and the golden zone mean were correct.
+Owner decision: permeability is never off by default. Timur is now the
+default; `none` is an explicit choice. The curves CSV and LAS had also
+hard-coded their outputs to VSH, PHIE, SW, PAY, so KPERM and BVW never
+exported; the zone CSV and PDF had no k column. All fixed.
+
+**PHIE was PHIT.** The pipeline never applied the engine's shale
+correction; the curve published as "Effective porosity" was the transform
+as read. Owner decision: rename it PHIT, add a real PHIE. Pipeline v5
+(engines #155): PHIE = PHIT - Vsh * phi shale with a new `phiShale`
+parameter (Porosity section, default 0.06); Archie-family Sw, cutoffs, k
+and BVW run on PHIE, Waxman-Smits and dual water on PHIT; without GR the
+Studio says Sw, cutoffs and k fell back to PHIT. Fixture v3 adds the
+EFFECTIVE golden block (pre-existing keys byte-identical) with an exact
+linear-Vsh anchor. Publish now writes six curves (VSH, PHIT, PHIE, SW,
+PAY, KPERM). Old published PHIE rows are overwritten by the corrected
+curve on the next Publish; the help guide carries the note.
+
+Also from the triage: per-zone parameters already exist (Scope selector,
+every parameter including methods); only Pickett has the zone filter;
+facies exist as crossplot polygons only; there is no curve calculator,
+no low/mid/high, and salinity plays no direct role (Rw is typed, fitted
+or from SP; Arps assumes NaCl). Those are PT9b to PT9g in the ROADMAP.
+
+Jest: 41 suites (Petrophysics, Well Data Manager, shared wells) green;
+engines `__tests__/petrophysics.pipeline.test.js` 7 green; e2e 26/26.

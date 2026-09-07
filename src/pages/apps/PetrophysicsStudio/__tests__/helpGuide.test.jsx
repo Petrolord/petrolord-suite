@@ -49,7 +49,7 @@ describe('PetrophysicsHelpGuide', () => {
     // conditioned curves are never substituted silently
     expect(text).toMatch(/never substituted silently/i);
     // the LAS export carries only the four core outputs
-    expect(text).toMatch(/VSH, PHIE, SW and PAY/);
+    expect(text).toMatch(/VSH, PHIT, PHIE, SW, BVW, KPERM and PAY/);
     // PT7: digitized curves are always new rows and the AI only proposes
     expect(text).toMatch(/MNEMONIC_DIG/);
     expect(text).toMatch(/always a new curve/i);

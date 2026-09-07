@@ -57,7 +57,7 @@ test('LAS export round-trips through parseLas with parameters preserved', () => 
   expect(parsed.well.WELL.value).toBe('KETA TYPE-1');
   const mnems = parsed.curves.map((c) => c.mnemonic);
   expect(mnems[0]).toBe('DEPT');
-  for (const key of ['GR', 'RHOB', 'NPHI', 'DT', 'RT', 'VSH', 'PHIE', 'SW', 'PAY']) {
+  for (const key of ['GR', 'RHOB', 'NPHI', 'DT', 'RT', 'VSH', 'PHIT', 'PHIE', 'SW', 'BVW', 'KPERM', 'PAY']) {
     expect(mnems).toContain(key);
   }
   // provenance parameters in ~P
@@ -161,7 +161,7 @@ test('zone CSV with TVD/TVDSS columns matches the depth frame and converts thick
   const summaries = { z1: zoneSummary(curves, outputs, 1900, 2000, DEFAULT_PARAMS) };
   const text = zonesCsv(zones, summaries, { well: bhWell, depthUnit: 'ft', columns: ['md', 'tvdss'] });
   const [header, row] = text.trim().split('\n');
-  expect(header).toBe('zone,top_md_ft,base_md_ft,top_tvdss_ft,base_tvdss_ft,gross_ft,net_ft,ntg,phi_avg,vsh_avg,sw_avg');
+  expect(header).toBe('zone,top_md_ft,base_md_ft,top_tvdss_ft,base_tvdss_ft,gross_ft,net_ft,ntg,phi_avg,vsh_avg,sw_avg,k_gm_md');
   const cells = row.split(',').map((c, i) => (i ? Number(c) : c));
   expect(cells[1]).toBeCloseTo(1900 / 0.3048, 3);
   const R = 300 / (Math.PI / 6);

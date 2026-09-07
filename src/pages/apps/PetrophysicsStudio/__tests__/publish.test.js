@@ -27,7 +27,8 @@ test('preparePublishLogs: f32 samples + full provenance for each output', () => 
   return loadWell(backend, 'KETA TYPE-1').then(({ curves, inventory }) => {
     const { outputs } = computeWell(curves, DEFAULT_PARAMS);
     const logs = preparePublishLogs({ curves, inventory }, outputs, DEFAULT_PARAMS, { projectId: 'p1' });
-    expect(logs.map((l) => l.mnemonic).sort()).toEqual(['PAY', 'PHIE', 'SW', 'VSH']);
+    // PT9: PHIT (as read) and PHIE (shale-corrected) both publish; k is on by default
+    expect(logs.map((l) => l.mnemonic).sort()).toEqual(['KPERM', 'PAY', 'PHIE', 'PHIT', 'SW', 'VSH']);
     for (const l of logs) {
       expect(l.data).toBeInstanceOf(Float32Array);
       expect(l.data.length).toBe(curves.DEPT.length);
@@ -52,19 +53,19 @@ test('publishCurves overwrites only its OWN prior output, never imported curves'
 
   const prep = preparePublishLogs({ curves, inventory }, outputs, DEFAULT_PARAMS, { projectId: 'p1' });
   const first = await backend.publishCurves(well.id, prep, 'p1');
-  expect(first).toHaveLength(4);
-  expect((await backend.listLogs(well.id)).length).toBe(before + 4);
+  expect(first).toHaveLength(6);
+  expect((await backend.listLogs(well.id)).length).toBe(before + 6);
 
-  // republish same project -> replaces its 4, not the 6 imports
+  // republish same project -> replaces its 6, not the 6 imports
   const again = await backend.publishCurves(well.id, prep, 'p1');
-  expect(again).toHaveLength(4);
+  expect(again).toHaveLength(6);
   const after = await backend.listLogs(well.id);
-  expect(after.length).toBe(before + 4);
+  expect(after.length).toBe(before + 6);
   expect(after.filter((l) => !l.provenance?.computed)).toHaveLength(before);
 
   // a DIFFERENT project's curves coexist (no clobber across projects)
   await backend.publishCurves(well.id, preparePublishLogs({ curves, inventory }, outputs, DEFAULT_PARAMS, { projectId: 'p2' }), 'p2');
-  expect((await backend.listLogs(well.id)).length).toBe(before + 8);
+  expect((await backend.listLogs(well.id)).length).toBe(before + 12);
 });
 
 test('published curves become mappable registry inputs (VSH/PHIE/SW round-trip)', async () => {

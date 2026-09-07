@@ -83,14 +83,17 @@ export default function CrossplotPanel({
 
   const ndSamples = useMemo(() => (curves.NPHI && curves.RHOB
     ? crossplotSamples(curves.NPHI, curves.RHOB, curves.DEPT) : []), [curves]);
-  const pickettSamples = useMemo(() => (curves.RT && outputs?.PHIE
-    ? crossplotSamples(curves.RT, outputs.PHIE, curves.DEPT) : []), [curves, outputs]);
-  const bucklesSamples = useMemo(() => (outputs?.PHIE && outputs?.SW
-    ? crossplotSamples(outputs.PHIE, outputs.SW, curves.DEPT) : []), [curves, outputs]);
+  // PT9: the porosity the plots use is the effective one the pipeline
+  // ran Sw on; without GR that is PHIT (the pipeline's own fallback)
+  const phiEff = outputs?.PHIE || outputs?.PHIT || null;
+  const pickettSamples = useMemo(() => (curves.RT && phiEff
+    ? crossplotSamples(curves.RT, phiEff, curves.DEPT) : []), [curves, phiEff]);
+  const bucklesSamples = useMemo(() => (phiEff && outputs?.SW
+    ? crossplotSamples(phiEff, outputs.SW, curves.DEPT) : []), [curves, outputs, phiEff]);
   const hingleYCurve = useMemo(() => (curves.RT
     ? Float64Array.from(curves.RT, (r) => hingleY(r, params.m)) : null), [curves, params.m]);
-  const hingleSamples = useMemo(() => (hingleYCurve && outputs?.PHIE
-    ? crossplotSamples(outputs.PHIE, hingleYCurve, curves.DEPT) : []), [hingleYCurve, outputs, curves]);
+  const hingleSamples = useMemo(() => (hingleYCurve && phiEff
+    ? crossplotSamples(phiEff, hingleYCurve, curves.DEPT) : []), [hingleYCurve, phiEff, curves]);
 
   const ndTags = useMemo(() => (curves.NPHI && curves.RHOB && facies.length
     ? faciesCurve(curves.NPHI, curves.RHOB, facies) : null), [curves, facies]);
@@ -101,7 +104,7 @@ export default function CrossplotPanel({
     for (const key of ['GR', 'RHOB', 'NPHI', 'DT', 'RT']) {
       if (curves[key]) out.push({ key, data: curves[key] });
     }
-    for (const key of ['PHIE', 'VSH', 'SW']) {
+    for (const key of ['PHIE', 'PHIT', 'VSH', 'SW', 'KPERM']) {
       if (outputs?.[key]) out.push({ key, data: outputs[key] });
     }
     return out;
@@ -222,7 +225,7 @@ export default function CrossplotPanel({
       return;
     }
     try {
-      const r = hingleFitDepthWindow(curves.DEPT, outputs.PHIE, curves.RT, top, base, { a: params.a, m: params.m });
+      const r = hingleFitDepthWindow(curves.DEPT, phiEff, curves.RT, top, base, { a: params.a, m: params.m });
       setHFit(r);
       onStatus(`Hingle water line fit on ${r.nPoints} samples: Rw = ${r.rw.toFixed(6)} at m = ${params.m}.`);
     } catch (e) {
@@ -269,7 +272,7 @@ export default function CrossplotPanel({
       return;
     }
     try {
-      const r = pickettFitDepthWindow(curves.DEPT, outputs.PHIE, curves.RT, top, base);
+      const r = pickettFitDepthWindow(curves.DEPT, phiEff, curves.RT, top, base);
       setFit(r);
       onStatus(`Water line fit on ${r.nPoints} samples.`);
     } catch (e) {
