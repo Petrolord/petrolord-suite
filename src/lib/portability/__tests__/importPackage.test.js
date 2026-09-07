@@ -182,10 +182,13 @@ describe('PP2 import: the type well arrives as an independent copy', () => {
     const logs = sink.store.rows.geo_wells_logs;
     const curve = (mn) => { const l = logs.find((x) => x.mnemonic === mn); const b = sink.store.blobs.get(`wells/${l.storage_path}`).bytes; return new Float32Array(b.buffer, b.byteOffset, b.byteLength / 4); };
     const curves = { DEPT: curve('DEPT'), GR: curve('GR'), RHOB: curve('RHOB'), NPHI: curve('NPHI'), DT: curve('DT'), RT: curve('RT') };
-    const { outputs } = computeWell(curves, DEFAULT_PARAMS);
+    // PT9a: the pipeline runs on shale-corrected PHIE, whose goldens live in
+    // EFFECTIVE (the type well's exact shale point, not the panel's rounded default)
+    const P = { ...DEFAULT_PARAMS, phiShale: goldens.EFFECTIVE.params.phiShale };
+    const { outputs } = computeWell(curves, P);
     const zone = sink.store.rows.geo_wells_zones[0];
-    const s = zoneSummary(curves, outputs, DEFAULT_PARAMS, { top_md_m: zone.top_md_m, base_md_m: zone.base_md_m });
-    const g = goldens.ZONES.SAND_A.summary;
+    const s = zoneSummary(curves, outputs, P, { top_md_m: zone.top_md_m, base_md_m: zone.base_md_m });
+    const g = goldens.EFFECTIVE.ZONES.SAND_A.summary;
     expect(s.net_m).toBeCloseTo(g.net_m, 6);
     expect(s.gross_m).toBeCloseTo(g.gross_m, 6);
     expect(s.ntg).toBeCloseTo(g.ntg, 6);
