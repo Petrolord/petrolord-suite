@@ -23,7 +23,7 @@ const LeftPanel = () => {
     wellbores, selectedWellbore, selectWellbore,
     trajectory, caseRows, selectedCase, selectCase,
     createCase, saveCase, duplicateCase, deleteCase,
-    dirty, busy, results,
+    dirty, busy, results, draftInfo, discardDraft,
   } = useCasingTubingDesign();
 
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -199,6 +199,22 @@ const LeftPanel = () => {
             >
               <Save className="w-4 h-4 mr-2" /> {dirty ? 'Save Design' : 'Saved'}
             </Button>
+            {draftInfo && (
+              <div className="rounded border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-200" data-testid="ct-draft-restored">
+                Unsaved changes restored from {new Date(draftInfo.savedAt).toLocaleTimeString()}. Save keeps them.
+                <button
+                  type="button"
+                  data-testid="ct-discard-draft"
+                  className="ml-2 underline hover:text-white"
+                  onClick={discardDraft}
+                >
+                  Discard
+                </button>
+              </div>
+            )}
+            {dirty && !draftInfo && (
+              <p className="text-[10px] text-slate-500" data-testid="ct-draft-note">Unsaved edits are kept in this browser until you save.</p>
+            )}
             <Button
               data-testid="ct-duplicate-case"
               variant="outline"

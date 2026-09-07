@@ -137,3 +137,43 @@ in the log.
 - Run error strings no longer demand a definitive design; the C&T
   environment card is titled Trajectory with the source badge; Well Design
   Studio's Save design toast says how to promote a draft.
+
+## Tester fix: schematic and unsaved work (2026-09-07)
+
+The Drilling tester's four notes on Casing & Tubing Design Studio:
+
+1. **White schematic with the Petrolord mark.** `components/visualizer/WellboreVisualization.jsx`
+   is now the one schematic (the Casing Design card and the Tubing Design
+   card wrap it in compact form): white background, light grid, dark text,
+   the shared `ChartLogo` watermark, a depth axis at round steps in the
+   wellbore's unit (`depthTickStep`).
+2. **Vertical exaggeration.** A `Vertical` control (squeeze, slider,
+   stretch, fit; 0.5 to 8 in steps of 0.5) scales measured depth while
+   diameters stay to scale; the schematic scrolls when stretched; the
+   factor is remembered per schematic in browser storage
+   (`ct-viz-vex:<key>`); the footer states pixels per unit and the factor.
+3. **Casing shoe with depth.** Every casing string ends in the paired-wedge
+   shoe symbol with a bold `Shoe <depth> <unit>` label
+   (`ct-viz-shoe-<string>`); the string name and OD sit at its top; tubing
+   and packer labels carry their depths too.
+4. **Unsaved work survives leaving the page.** `services/draftStore.js`
+   (pure, 3 jest gates) mirrors the dirty case document to browser storage
+   (debounced 400 ms, key `ct-draft:<wellbore>:<case>`); opening a case
+   restores a draft that is newer than the saved row and differs from it,
+   marks the case dirty, logs the time and shows an amber note under Save
+   with a Discard link (`ct-draft-restored`, `ct-discard-draft`). Save,
+   Discard, delete and create clear the draft; a reload or tab close with
+   unsaved work gets the browser's leave prompt. `saveCase` now stamps
+   `updated_at` so the newer-than check holds on the in-memory backend too.
+
+Found on the way: the five tab panels in `CenterContent.jsx` carried a
+`flex` class that overrode Radix's `hidden` attribute, so the four
+inactive panels rendered as empty boxes above the active one and the
+Visualizer tab got 132 px. Panels are now `flex-col
+data-[state=active]:flex flex-1 min-h-0`; every tab fills its space.
+The in-memory harness trajectory now carries `source` and `label` like the
+registry backend (the log said "Trajectory loaded: undefined").
+
+e2e: two new tests (draft survives reload and Discard; white schematic,
+shoe label, x2 stretch). The suite clears browser storage before each
+test so one test's draft never restores into the next.

@@ -317,6 +317,25 @@ const CasingTubingHelpGuide = () => {
 
             <Section id="pitfalls">
               <SectionHeading icon={AlertTriangle}>Pitfalls & FAQ</SectionHeading>
+              <SubHeading>I left the page and my casing design was gone</SubHeading>
+              <p className="text-slate-300 leading-relaxed">
+                Not any more. While a design case has unsaved edits, the Studio mirrors them to
+                this browser and restores them the next time the case opens, with an amber note
+                under the Save button and a Discard link. A reload or a closed tab also asks
+                before leaving. Saving still writes the case to the database, which is what other
+                devices and teammates see; the mirror is a safety net, not the record.
+              </p>
+              <SubHeading>Reading the schematic</SubHeading>
+              <p className="text-slate-300 leading-relaxed">
+                The schematic (Casing Design, Tubing Design and the Visualizer tab) draws on white
+                with the Petrolord mark, diameters to scale across and measured depth down a
+                round-stepped axis in the wellbore&apos;s unit. Every casing string ends in a shoe
+                symbol labelled with its shoe depth; the tubing and the packer are labelled the
+                same way. The Vertical control at the top right stretches or squeezes the depth
+                scale (0.5 to 8 times) without touching the diameters, so a deep well with thin
+                strings can be read section by section; the schematic scrolls when stretched, and
+                Fit returns to one to one. The setting is remembered per schematic.
+              </p>
               <SubHeading>Why does my shallow section govern burst?</SubHeading>
               <Para>
                 Gas-filled casing puts the biggest differential at surface because the gas

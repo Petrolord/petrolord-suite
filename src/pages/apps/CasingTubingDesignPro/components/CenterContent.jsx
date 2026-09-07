@@ -86,27 +86,27 @@ const CenterContent = () => {
                 </div>
 
                 <div className="flex-1 flex flex-col overflow-hidden bg-slate-950 p-0 m-0">
-                    <TabsContent value="well-loads" className="m-0 p-0 h-full flex flex-col data-[state=active]:flex">
+                    <TabsContent value="well-loads" className="m-0 p-0 h-full flex-1 min-h-0 flex-col data-[state=active]:flex">
                         <div className="flex-1 p-4 overflow-hidden">
                             <WellEnvironmentTab />
                         </div>
                     </TabsContent>
                     
-                    <TabsContent value="load-cases" className="m-0 p-0 h-full flex flex-col data-[state=active]:flex">
+                    <TabsContent value="load-cases" className="m-0 p-0 h-full flex-1 min-h-0 flex-col data-[state=active]:flex">
                         <div className="flex-1 p-4 overflow-hidden">
                             <LoadCasesTab />
                         </div>
                     </TabsContent>
                     
-                    <TabsContent value="casing-design" className="m-0 p-0 h-full flex flex-col data-[state=active]:flex">
+                    <TabsContent value="casing-design" className="m-0 p-0 h-full flex-1 min-h-0 flex-col data-[state=active]:flex">
                         <CasingDesignTab />
                     </TabsContent>
 
-                    <TabsContent value="tubing-design" className="m-0 p-0 h-full flex flex-col data-[state=active]:flex">
+                    <TabsContent value="tubing-design" className="m-0 p-0 h-full flex-1 min-h-0 flex-col data-[state=active]:flex">
                         <TubingDesignTab />
                     </TabsContent>
 
-                    <TabsContent value="visualizer" className="m-0 p-0 h-full flex flex-col data-[state=active]:flex">
+                    <TabsContent value="visualizer" className="m-0 p-0 h-full flex-1 min-h-0 flex-col data-[state=active]:flex">
                         <StringVisualizerTab />
                     </TabsContent>
                 </div>

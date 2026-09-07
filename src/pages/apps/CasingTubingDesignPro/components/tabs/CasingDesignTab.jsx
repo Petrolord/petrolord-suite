@@ -118,7 +118,7 @@ const CasingDesignTab = () => {
                 <CardTitle className="text-xs font-bold text-slate-400 uppercase tracking-wider">String Schematic</CardTitle>
               </CardHeader>
               <CardContent className="flex-1 p-0 relative">
-                <CasingVisualizer activeString={activeString} />
+                <CasingVisualizer activeString={activeString} depthUnit={depthUnit} />
               </CardContent>
             </Card>
           </div>
