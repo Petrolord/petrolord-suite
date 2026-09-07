@@ -456,3 +456,11 @@ or from SP; Arps assumes NaCl). Those are PT9b to PT9g in the ROADMAP.
 
 Jest: 41 suites (Petrophysics, Well Data Manager, shared wells) green;
 engines `__tests__/petrophysics.pipeline.test.js` 7 green; e2e 26/26.
+
+## 2026-09-07: PT9b, zones on every crossplot
+
+"Let all crossplots display by zone": the PT8 filter was Pickett-only.
+One zone selection now filters and colours Density-Neutron, Buckles and
+Hingle as well, is shared across the four plots, travels into every PNG
+caption and saves with the interpretation as `crossplots.zones`. Help
+guide gained "Zones on every crossplot".

@@ -739,25 +739,35 @@ test('PT8: the toolbar PNG button downloads the log display', async ({ page }) =
   await expect(page.getByTestId('petro-status')).toContainText('Exported the log display');
 });
 
-test('PT8: the Pickett plot filters by zone and colours by zone when several are picked', async ({ page }) => {
+test('PT8/PT9b: every crossplot filters by zone, one selection shared across plots', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
   await page.locator('[data-well-name="KETA TYPE-1"]').click();
   await page.getByTestId('petro-view-crossplot').click();
+
+  // PT9b: the chips sit on the Density-Neutron plot too, defaulting to
+  // every zone, so nothing is hidden until a zone is picked
+  await expect(page.getByTestId('petro-xplot-zone-all')).toBeVisible();
+  await page.getByTestId('petro-xplot-zone-SAND A').click();
+  await expect(page.getByTestId('petro-xplot-zone-SAND A')).toHaveAttribute('aria-pressed', 'true');
+
+  // the filter travels into the ND image export's caption
+  const ndDownload = page.waitForEvent('download');
+  await page.getByTestId('petro-crossplot-png').click();
+  expect((await ndDownload).suggestedFilename()).toMatch(/nd\.png$/);
+  await expect(page.getByTestId('petro-status')).toContainText('zones: SAND A');
+
+  // switching plot keeps the selection (Pickett, Buckles, Hingle share it)
   await page.getByTestId('petro-plot-pickett').click();
-
-  // defaults to every zone, so nothing is hidden until a zone is picked
-  await expect(page.getByTestId('petro-pickett-zone-all')).toBeVisible();
-  await page.getByTestId('petro-pickett-zone-SAND A').click();
-  await expect(page.getByTestId('petro-pickett-zone-SAND A')).toHaveAttribute('aria-pressed', 'true');
-
-  // the filter travels into the image export's caption
+  await expect(page.getByTestId('petro-xplot-zone-SAND A')).toHaveAttribute('aria-pressed', 'true');
   const download = page.waitForEvent('download');
   await page.getByTestId('petro-crossplot-png').click();
   expect((await download).suggestedFilename()).toMatch(/pickett\.png$/);
   await expect(page.getByTestId('petro-status')).toContainText('zones: SAND A');
+  await page.getByTestId('petro-plot-buckles').click();
+  await expect(page.getByTestId('petro-xplot-zone-SAND A')).toHaveAttribute('aria-pressed', 'true');
 
-  await page.getByTestId('petro-pickett-zone-all').click();
-  await expect(page.getByTestId('petro-pickett-zone-SAND A')).toHaveAttribute('aria-pressed', 'false');
+  await page.getByTestId('petro-xplot-zone-all').click();
+  await expect(page.getByTestId('petro-xplot-zone-SAND A')).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('PT4: zones between tops, bulk creation, and a two-click pick on the track', async ({ page }) => {

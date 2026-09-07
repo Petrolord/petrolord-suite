@@ -415,3 +415,10 @@ Petrolord/petrolord-engines first, then the subtree copy.
   rewritten for the two porosities and the new default. Petrophysics +
   Well Data Manager + shared wells jest 41 suites green; e2e 26/26 on the
   dev harness.
+- **PT9b built 2026-09-07.** The PT8 zone filter (`services/zoneFilter.js`,
+  unchanged) now drives all four crossplots from one shared selection:
+  chips on every plot (`petro-xplot-zone-*`), colour-by-zone with a
+  legend on Density-Neutron, Buckles and Hingle as on Pickett, the same
+  empty state, the PNG caption naming the zones on every plot. Saved as
+  `crossplots.zones` (the PT8 `pickettZones` key still reads). e2e
+  PT8/PT9b walks ND, Pickett and Buckles on one selection.
