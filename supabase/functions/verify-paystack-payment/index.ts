@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
 import { redeemBridgeForQuote } from "../_shared/nextgen-bridge.ts";
 import { redeemPromoForQuote } from "../_shared/promo-codes.ts";
-import { isHseQuote, provisionPaidQuote } from "../_shared/provision-quote.ts";
+import { isHseQuote, provisionPaidQuote, grantHseWithSuite, suiteSubscriptionModules } from "../_shared/provision-quote.ts";
+import { subscriptionWindow } from "../_shared/billing-term.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 
 // Coerce the quote's jsonb `modules` (strings or objects) into a plain text[]
@@ -296,19 +297,14 @@ serve(async (req)=>{
       if (orgId && quoteRow) {
         try {
           const term = quoteRow.billing_term || 'annual';
-          const billingPeriod = quoteRow.billing_period || (/month/i.test(term) ? 'monthly' : 'annual');
           const userLimit = quoteRow.user_seats || quoteRow.seats || 1;
-          const start = new Date(paymentDate);
-          const end = new Date(start);
-          if (billingPeriod === 'monthly') end.setMonth(end.getMonth() + 1);
-          else end.setFullYear(end.getFullYear() + 1);
-          const startDate = start.toISOString().slice(0, 10);
-          const endDate = end.toISOString().slice(0, 10);
+          // The term paid for is the term granted (quarterly = 3 months): shared table.
+          const { billingPeriod, end, startDate, endDate } = subscriptionWindow(paymentDate, term, quoteRow.billing_period);
 
           const subRow = {
             organization_id: orgId,
             quote_id: quoteRow.id, // subscriptions.quote_id is uuid -> quotes.id
-            modules: toModuleSlugs(quoteRow.modules),
+            modules: suiteSubscriptionModules(quoteRow.modules),
             user_limit: userLimit,
             term,
             billing_period: billingPeriod,
@@ -347,6 +343,9 @@ serve(async (req)=>{
             .update({ expiry_date: end.toISOString() })
             .eq('organization_id', orgId)
             .eq('quote_id', quoteRow.id);
+
+          // HSE rides with the Suite subscription for the same window.
+          await grantHseWithSuite(supabase, orgId, userLimit, '[verify-paystack]');
         } catch (subErr) {
           console.error('Subscription/expiry sync failed (non-fatal):', subErr.message);
         }

@@ -3,6 +3,7 @@ import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 import { corsHeaders } from './cors.ts';
 import { bridgeVerifyConfigured, verifyBridgeCode } from '../_shared/nextgen-bridge.ts';
 import { validatePromoCode } from '../_shared/promo-codes.ts';
+import { billingPeriodOf } from '../_shared/billing-term.ts';
 // Logo URLs
 const LORDSWAY_LOGO_URL = 'https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/b55e5cb03a1912f6a06152592ab58d1c.png';
 const PETROLORD_LOGO_URL = 'https://horizons-cdn.hostinger.com/43fa5c4b-d185-4d6d-9ff4-a1d78861fb87/b7bb1181c53d21d5cae68a1a79fddaa7.png';
@@ -457,6 +458,8 @@ Deno.serve(async (req)=>{
       seats: totalSeats,
       user_seats: totalSeats,
       billing_term: billing_term,
+      // Stored so provisioning grants exactly the months priced above (quarterly = 3).
+      billing_period: billingPeriodOf(billing_term),
       add_ons: add_ons,
       total_amount: totalAmount,
       currency: 'USD',
