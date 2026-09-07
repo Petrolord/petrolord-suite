@@ -3,6 +3,11 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { webcrypto as nodeWebcrypto } from 'node:crypto';
+
+// workbox-build's dependency serialize-javascript reads a global `crypto` at load time; Node 19+ has it,
+// Node 18 (the clean-room builds) does not. The service worker build must not depend on the Node version.
+if (typeof globalThis.crypto === 'undefined') globalThis.crypto = nodeWebcrypto;
 import { createLogger, defineConfig } from 'vite';
 import inlineEditPlugin from './plugins/visual-editor/vite-plugin-react-inline-editor.js';
 import editModeDevPlugin from './plugins/visual-editor/vite-plugin-edit-mode.js';
