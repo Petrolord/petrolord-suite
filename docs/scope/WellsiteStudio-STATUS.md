@@ -297,3 +297,25 @@ for a chunk that is gone. `src/lib/pwa/preloadRecovery.js` (wired in
 waiting worker to take over, reloads once, and guards against a loop. The
 prompt semantics are unchanged: a working shell is never swapped under a
 person mid-shift; only a broken one repairs itself.
+
+## Tester note: floating rigs, marine riser and booster pump (2026-09-07)
+
+The tester noted that lag on a drillship or semi-submersible differs from
+a land rig: returns travel up the marine riser above the BOP and a booster
+pump adds flow at the riser base. The engine modelled one annulus on one
+pump. Now (engines PR #154, `engines/wellsite/lag.js`): the lag runs in
+two legs, bit to BOP on the main-pump flow and the riser on main plus
+booster; the riser is one geometry row above the hole sections (sections
+inside or across it are clipped and reported); the pump log carries
+`boosterSpm`; lag strokes stay counted on the main-pump counter, with
+the riser leg taking fewer of them at the current booster ratio. A land
+rig is the floater with neither, so G1 to G4 are byte-identical; G5
+(steady, arrival 393.27 min against 482.70 min without the booster on
+the reference floater) and G6 (booster switched on mid-lag) come from the
+stdlib oracle. Suite: `rig_config` gains `rig_type`, `riser
+{to_md_m, id_m}` and `booster` (Config: rig type, BOP depth below RT,
+riser ID, booster pump with its displacement; hole sections start at the
+BOP on a floater and the save refuses sections above it); `pump_rate`
+payload gains `boosterSpm` (Live and the lag panel take it; status bar,
+cards and pump log show it); the lag panel shows the booster rate and
+the riser leg's strokes. Help guide and user manual updated.

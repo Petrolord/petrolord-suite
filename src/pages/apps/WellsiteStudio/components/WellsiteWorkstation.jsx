@@ -25,7 +25,7 @@ import TimelineView from './TimelineView';
 import { eventsFromRecords, startEventParams } from '../services/events';
 import SamplesView from './SamplesView';
 import LagPanel from './LagPanel';
-import { lagNow, sampleBoard, currentProgramme, programmeChange, samplesToSchedule, scheduleHorizonM, PROGRAMME_SUBTYPE } from '../services/samples';
+import { lagNow, sampleBoard, currentProgramme, programmeChange, samplesToSchedule, scheduleHorizonM, PROGRAMME_SUBTYPE, isFloater } from '../services/samples';
 import ShowsView from './ShowsView';
 import ObservationsView from './ObservationsView';
 import PhotosPanel from './PhotosPanel';
@@ -174,6 +174,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   const ctx = useMemo(() => (well ? wellContext(well) : null), [well]);
   const nowForLag = Date.now() + tick * 0;
   const lag = useMemo(() => (well ? lagNow({ well, rigConfig, bitDepths, pumpEvents, nowUtcMs: nowForLag }) : { available: false, note: '' }), [well, rigConfig, bitDepths, pumpEvents, nowForLag]);
+  const floater = isFloater(rigConfig);
   const programme = useMemo(() => currentProgramme(programmeRecords), [programmeRecords]);
   const board = useMemo(() => (well ? sampleBoard({ samples, stages, well, rigConfig, bitDepths, pumpEvents, nowUtcMs: nowForLag }) : null), [well, samples, stages, rigConfig, bitDepths, pumpEvents, nowForLag]);
   const scheduling = useRef(false);
@@ -206,10 +207,11 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, well]);
-  const recordPump = useCallback(async (spm, note) => {
+  const recordPump = useCallback(async (spm, note, boosterSpm = 0) => {
     try {
-      await backend.addRecord(well.id, { kind: 'observation', subtype: 'pump_rate', payload: { spm, note: note || null, source: 'manual' } });
-      setStatus(spm === 0 ? 'Pumps off recorded.' : `Pump rate ${spm} spm recorded.`);
+      const b = Number(boosterSpm) || 0;
+      await backend.addRecord(well.id, { kind: 'observation', subtype: 'pump_rate', payload: { spm, boosterSpm: b, note: note || null, source: 'manual' } });
+      setStatus(spm === 0 ? 'Pumps off recorded.' : `Pump rate ${spm} spm${b > 0 ? ` and booster ${b} spm` : ''} recorded.`);
       setTick((t) => t + 1);
     } catch (e) { setStatus(e.message); }
   }, [backend, well]);
@@ -413,7 +415,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
   } else if (view === 'config') {
     center = <ConfigView backend={backend} well={well} rigConfig={rigConfig} canAdmin={isMember} onStatus={setStatus} onSaved={() => { refreshWells(); setTick((t) => t + 1); }} />;
   } else {
-    center = <LiveWellView backend={backend} well={well} ctx={ctx} bitDepths={bitDepths} pumpEvents={pumpEvents} events={events} onStartEvent={startEvent} onEndEvent={endEvent} descriptions={descriptions} lag={lag} board={board} onStage={recordStage} defaults={defaultDepthEntry(well)} offsetMin={offsetMin} unit={units.depth} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
+    center = <LiveWellView backend={backend} well={well} ctx={ctx} bitDepths={bitDepths} pumpEvents={pumpEvents} events={events} onStartEvent={startEvent} onEndEvent={endEvent} descriptions={descriptions} lag={lag} board={board} onStage={recordStage} defaults={defaultDepthEntry(well)} offsetMin={offsetMin} unit={units.depth} floater={floater} onChanged={() => setTick((t) => t + 1)} onStatus={setStatus} />;
   }
 
   const statusBar = (
@@ -422,7 +424,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
       <span className="ml-auto" data-testid="ws-status-bit">Bit {latestBit ? fmtDepth(latestBit.md_calc_m, units.depth) : 'n/a'}</span>
       <span data-testid="ws-status-lagged">Lagged {lag.available && Number.isFinite(lag.laggedMdM) ? fmtDepth(lag.laggedMdM, units.depth) : 'n/a'}</span>
       <span data-testid="ws-status-lag-strokes">Lag {lag.available && Number.isFinite(lag.lagStrokes) ? `${Math.round(lag.lagStrokes)} stk` : 'n/a'}</span>
-      <span data-testid="ws-status-spm">Pumps {lastPump ? (lastPump.payload.spm > 0 ? `${lastPump.payload.spm} spm` : 'off') : 'n/a'}</span>
+      <span data-testid="ws-status-spm">Pumps {lastPump ? (lastPump.payload.spm > 0 ? `${lastPump.payload.spm} spm${lastPump.payload.boosterSpm > 0 ? ` + ${lastPump.payload.boosterSpm} booster` : ''}` : 'off') : 'n/a'}</span>
       <span data-testid="ws-status-tour">{tour ? `${tour.label} tour` : ''}</span>
       <span data-testid="ws-status-rigtime">{well ? `${rigNow.hhmm} rig (${offsetLabel(offsetMin)})` : ''}</span>
       <span data-testid="ws-status-user">{user ? user.name || user.email : ''}</span>
@@ -438,7 +440,7 @@ export default function WellsiteWorkstation({ backend, appPaths = {} }) {
             <SyncDrawer backend={backend} wellId={well ? well.id : null} offsetMin={offsetMin} onClose={() => setDockView('panels')} onOpenConflicts={() => { setView('tops'); setDockView('panels'); }} onKeepOffline={keepOffline} offlineReady={offlineReady} />
           ) : well ? (
             <>
-              <LagPanel lag={lag} pumpEvents={pumpEvents} onPump={recordPump} unit={units.depth} offsetMin={offsetMin} nowMs={nowForLag} />
+              <LagPanel lag={lag} pumpEvents={pumpEvents} onPump={recordPump} unit={units.depth} offsetMin={offsetMin} nowMs={nowForLag} floater={floater} />
               <div className="border-t border-slate-800/60" />
               <ApproachPanel next={topsBoard.next} evidence={approachEvidence} unit={units.depth} offsetMin={offsetMin} onOpenTops={() => setView('tops')} />
             </>

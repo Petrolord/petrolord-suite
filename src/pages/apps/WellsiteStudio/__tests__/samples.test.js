@@ -3,7 +3,7 @@
 // arrival (G2), a shutdown makes the lag time undefined (G3), the board
 // states never say missed, and scheduling fills only the gaps.
 import g from '../../../../../packages/engines/test-data/wellsite/lag-goldens.json';
-import { lagContextOf, lagNow, sampleBoard, samplesToSchedule, programmeChange, currentProgramme, scheduleHorizonM, bitHistoryOf, pumpLogOf } from '../services/samples';
+import { lagContextOf, lagNow, sampleBoard, samplesToSchedule, programmeChange, currentProgramme, scheduleHorizonM, bitHistoryOf, pumpLogOf, isFloater } from '../services/samples';
 import { SEED_RIG_CONFIG } from '../services/seed';
 import { arrivalPrediction } from '@/lib/wellsite/lag';
 
@@ -84,4 +84,35 @@ test('the sample board: in transit, due, overdue after tolerance, caught; next s
   expect(JSON.stringify(much.rows.map((r) => r.state))).not.toMatch(/missed/);
   expect(b.nextScheduled.sample.id).toBe('s4');
   expect(bitHistoryOf(bitDepths)).toHaveLength(4);
+});
+
+test('a floating rig (tester note): the riser and the booster reach the engine and G5 comes out (two legs)', () => {
+  const IN = 0.0254;
+  const floaterConfig = {
+    ...SEED_RIG_CONFIG, rig_type: 'drillship', bha: [],
+    hole_sections: [
+      { from_md_m: 5000 * FT, to_md_m: 8000 * FT, cased: true, casing_id_m: 12.347 * IN, hole_id_m: 17.5 * IN },
+      { from_md_m: 8000 * FT, to_md_m: 5000, cased: false, hole_id_m: 12.25 * IN },
+    ],
+    riser: { to_md_m: 5000 * FT, id_m: 19.5 * IN },
+    booster: { type: 'triplex', linerIn: 5, strokeIn: 12, rodIn: 0, efficiency: 0.97 },
+  };
+  expect(isFloater(floaterConfig)).toBe(true);
+  expect(isFloater(SEED_RIG_CONFIG)).toBe(false);
+  const ctx = lagContextOf(well, floaterConfig);
+  expect(ctx.riser).toEqual({ toMd: 5000 * FT, idM: 19.5 * IN });
+  expect(ctx.boosterM3PerStroke).toBeCloseTo(g.G5.boosterM3PerStroke, 9);
+  const log = pumpLogOf([{ occurred_at: iso(-600), payload: { spm: 60, boosterSpm: 40 } }]);
+  expect(log[0].boosterSpm).toBe(40);
+  const p = arrivalPrediction({ cutUtcMs: T0, cutMdM: 15000 * FT, lagCtx: ctx, pumpLog: log, nowUtcMs: T0 });
+  expect((p.arrivalUtcMs - T0) / MIN).toBeCloseTo(g.G5.arrivalMin, 4);
+  expect(p.lagStrokes).toBeCloseTo(g.G5.lagStrokesAtRatio, 3);
+  const r = lagNow({ well, rigConfig: floaterConfig, bitDepths: [bit(-600, 14700), bit(0, 15000)], pumpEvents: [{ occurred_at: iso(-600), payload: { spm: 60, boosterSpm: 40 } }], nowUtcMs: T0 });
+  expect(r.boosterSpmNow).toBe(40);
+  expect(r.lagTimeMin).toBeCloseTo(g.G5.arrivalMin, 3);
+  expect(r.riserM3).toBeCloseTo(g.G5.volRiserM3, 4);
+  // a land rig ignores riser and booster fields even if present
+  const land = lagContextOf(well, { ...floaterConfig, rig_type: 'land' });
+  expect(land.riser).toBeNull();
+  expect(land.boosterM3PerStroke).toBe(0);
 });

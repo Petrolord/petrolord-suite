@@ -13,17 +13,30 @@ export { SAMPLE_STAGES, DEFAULT_MANDATORY, validateProgramme, canAdvance, status
 export const PROGRAMME_SUBTYPE = 'sample_programme';
 export const LOOKAHEAD_SAMPLES = 3;
 
+import { FLOATER_TYPES } from './vocab';
+
+/** A floating rig returns through a marine riser and runs a booster pump (tester note 2026-09-07). */
+export const isFloater = (rigConfig) => !!(rigConfig && FLOATER_TYPES.includes(rigConfig.rig_type));
+
 /** The engine lag context from the well and its latest rig configuration (null when it cannot be built). */
 export function lagContextOf(well, rigConfig) {
   if (!rigConfig || !rigConfig.pump || !rigConfig.drillpipe || !(rigConfig.hole_sections || []).length) return null;
   let m3PerStroke;
   try { m3PerStroke = displacementFromField(rigConfig.pump).m3PerStroke; } catch { return null; }
   const survey = well && well.survey && Array.isArray(well.survey.stations) && well.survey.stations.length >= 2 ? well.survey.stations : null;
-  return { geometry: rigConfig.hole_sections, bha: rigConfig.bha || [], drillpipe: rigConfig.drillpipe, stations: survey, m3PerStroke };
+  // The riser and the booster exist only on a floater; the engine treats a land rig as a floater with neither.
+  let riser = null;
+  let boosterM3PerStroke = 0;
+  if (isFloater(rigConfig)) {
+    const r = rigConfig.riser || {};
+    if (r.to_md_m > 0 && r.id_m > 0) riser = { toMd: r.to_md_m, idM: r.id_m };
+    if (rigConfig.booster) { try { boosterM3PerStroke = displacementFromField(rigConfig.booster).m3PerStroke; } catch { boosterM3PerStroke = 0; } }
+  }
+  return { geometry: rigConfig.hole_sections, bha: rigConfig.bha || [], drillpipe: rigConfig.drillpipe, stations: survey, riser, m3PerStroke, boosterM3PerStroke };
 }
 
 export const bitHistoryOf = (bitDepths) => bitDepths.map((r) => ({ utcMs: Date.parse(r.occurred_at), mdM: r.md_calc_m })).sort((a, b) => a.utcMs - b.utcMs);
-export const pumpLogOf = (pumpEvents) => pumpEvents.map((r) => ({ utcMs: Date.parse(r.occurred_at), spm: Number(r.payload && r.payload.spm) || 0 })).sort((a, b) => a.utcMs - b.utcMs);
+export const pumpLogOf = (pumpEvents) => pumpEvents.map((r) => ({ utcMs: Date.parse(r.occurred_at), spm: Number(r.payload && r.payload.spm) || 0, boosterSpm: Number(r.payload && r.payload.boosterSpm) || 0 })).sort((a, b) => a.utcMs - b.utcMs);
 
 /** The status-bar lag readout, or a reason it is unavailable. */
 export function lagNow({ well, rigConfig, bitDepths, pumpEvents, nowUtcMs }) {

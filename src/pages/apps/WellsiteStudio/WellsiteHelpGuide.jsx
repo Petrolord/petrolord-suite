@@ -161,6 +161,13 @@ export default function WellsiteHelpGuide() {
           the lagged sample depth now, and the bottoms-up time. With the pumps off the lag time is undefined and the panel says so.
         </Para>
         <Para>
+          On a drillship or a semi-submersible the returns travel up the marine riser above the BOP, and the booster pump adds mud at
+          the riser base, so the lag runs in two legs: bit to BOP on the main pump alone, riser to surface on main plus booster. Set the
+          rig type in Config, enter the BOP depth below the rotary table and the riser inside diameter, describe the booster pump, and
+          enter the hole sections from the BOP down. Record the booster rate beside the main rate on every pump change; the panel shows
+          the riser leg's share of the lag. A land rig, jack-up or platform has neither and the lag is the single leg it always was.
+        </Para>
+        <Para>
           The sampling programme (an interval per depth range) is an authorised decision; changing it needs the person who authorised
           it and makes a new version. Samples are scheduled three intervals ahead of the bit, with their predicted arrival. A sample not
           confirmed within the tolerance of its predicted arrival is highlighted as overdue for review; the app never says it was missed,
