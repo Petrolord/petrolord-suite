@@ -161,8 +161,11 @@ const TorqueDragHelpGuide = () => {
               </Para>
               <Callout tone="info" title="Where the trajectory comes from">
                 The Studio uses the station cache saved on the wellbore's definitive design.
-                If the explorer says there is no definitive design, open Well Design Studio,
-                solve and save a design, and mark it definitive.
+                When no design is definitive it falls back, in order, to the actual survey
+                composite (runs flagged definitive on the Surveys tab), the latest saved
+                draft design, then the deviation survey of the linked registry well, and the
+                explorer says which one is in use. Set definitive (design menu in the Well
+                Design Studio tree) makes a design the plan of record.
               </Callout>
             </Section>
 
@@ -316,9 +319,10 @@ const TorqueDragHelpGuide = () => {
               <SectionHeading icon={AlertTriangle}>Pitfalls & FAQ</SectionHeading>
               <SubHeading>The Run button says there is no trajectory</SubHeading>
               <Para>
-                The wellbore has no definitive design with saved stations. Open Well Design
-                Studio, save the design (saving writes the station cache) and set it
-                definitive.
+                The wellbore has no design, survey run or registry survey with at least two
+                stations. Open Well Design Studio, solve the design and click Save design
+                (saving writes the station cache), then Set definitive. The explorer's
+                wellbore details name the missing step.
               </Para>
               <SubHeading>Hookload looks the same for trip in and trip out</SubHeading>
               <Para>

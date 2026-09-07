@@ -153,7 +153,7 @@ export function runAll({ caseDoc, stations = null }) {
     };
   });
   if (!stations?.length && (caseDoc.annulus.annuli || []).some((a) => a.elements?.length)) {
-    warnings.push('No definitive trajectory: annulus element TVDs taken as MD.');
+    warnings.push('No trajectory on the wellbore: annulus element TVDs taken as MD.');
   }
 
   const program = abandonmentProgram({

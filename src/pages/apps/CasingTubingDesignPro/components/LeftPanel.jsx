@@ -15,6 +15,7 @@ import {
   DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import WellboreDetails from '../../TorqueDragStudio/components/WellboreDetails';
 
 const LeftPanel = () => {
   const {
@@ -120,10 +121,8 @@ const LeftPanel = () => {
                 ))}
               </SelectContent>
             </Select>
-            {selectedWellbore && trajectory && !trajectory.stations.length && (
-              <p className="text-[10px] text-amber-400">
-                No definitive design with saved stations. Save one in Well Design Studio first.
-              </p>
+            {selectedWellbore && trajectory && (
+              <WellboreDetails trajectory={trajectory} wellbore={selectedWellbore} testPrefix="ct" />
             )}
           </div>
 

@@ -248,7 +248,7 @@ export function runCasingString({ str, loadCases, environment, safetyFactors, st
   const shoeMdM = Math.max(...resolved.map((s) => s.bottomMdM));
   const tdMdM = stations[stations.length - 1].md;
   if (shoeMdM > tdMdM + 1e-6) {
-    throw new Error(`Casing shoe at ${Math.round(shoeMdM)} m MD is beyond the definitive trajectory (TD ${Math.round(tdMdM)} m).`);
+    throw new Error(`Casing shoe at ${Math.round(shoeMdM)} m MD is beyond the wellbore trajectory (TD ${Math.round(tdMdM)} m).`);
   }
   const shoeTvdM = tvdAt(stations, shoeMdM);
   const totalLen = resolved.reduce((a, s) => a + (s.bottomMdM - s.topMdM), 0);
@@ -322,7 +322,7 @@ export function runTubing({ caseDoc, stations }) {
   const resolved = tubingStr.sections.map((s) => resolveSection({ ...s, kind: 'tubing' }));
   const tdMdM = stations[stations.length - 1].md;
   if (packer.depthMdM > tdMdM + 1e-6) {
-    throw new Error(`Packer at ${Math.round(packer.depthMdM)} m MD is beyond the definitive trajectory (TD ${Math.round(tdMdM)} m).`);
+    throw new Error(`Packer at ${Math.round(packer.depthMdM)} m MD is beyond the wellbore trajectory (TD ${Math.round(tdMdM)} m).`);
   }
   const packerTvdM = tvdAt(stations, packer.depthMdM);
   // Deepest tubing section carries the packer datum.

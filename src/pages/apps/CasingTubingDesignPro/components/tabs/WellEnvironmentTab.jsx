@@ -60,13 +60,13 @@ const WellEnvironmentTab = () => {
 
   return (
     <div className="grid grid-cols-12 gap-4 h-full p-1 overflow-hidden">
-      {/* Left: trajectory from the definitive design */}
+      {/* Left: the wellbore's working trajectory (definitive design, else actual composite, draft, or registry survey) */}
       <div className="col-span-12 lg:col-span-4 flex flex-col space-y-4 h-full overflow-y-auto pr-2 custom-scrollbar">
         <Card className="bg-slate-900 border-slate-800 shadow-sm">
           <CardHeader className="py-3 px-4 border-b border-slate-800 flex flex-row items-center justify-between bg-slate-950/30">
-            <CardTitle className="text-sm font-semibold text-slate-200">Definitive Trajectory</CardTitle>
-            <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-              {trajectory?.design?.name || 'no design'}
+            <CardTitle className="text-sm font-semibold text-slate-200">Trajectory</CardTitle>
+            <span className={`text-[10px] px-2 py-0.5 rounded border ${trajectory?.source === 'definitive' ? 'text-slate-500 bg-slate-800 border-slate-700' : 'text-amber-300 bg-amber-500/10 border-amber-500/40'}`} title={trajectory?.note || ''} data-testid="ct-traj-source">
+              {trajectory?.label || trajectory?.design?.name || 'no design'}
             </span>
           </CardHeader>
           <CardContent className="p-0">

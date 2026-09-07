@@ -157,8 +157,10 @@ const CasingTubingHelpGuide = () => {
             <Section id="quickstart">
               <SectionHeading icon={Zap}>Quick Start (10 min)</SectionHeading>
               <Step n={1} title="Pick site, wellbore and case">
-                Use the left panel. The wellbore needs a definitive design with saved
-                stations; create one in Well Design Studio if the picker warns you.
+                Use the left panel. The wellbore needs a saved trajectory: its definitive
+                design, else the actual survey composite, the latest draft design or the
+                linked registry survey, and the panel says which is in use. Create and save
+                a design in Well Design Studio if the panel says there is none.
                 Create a new design case and it seeds sensible defaults.
               </Step>
               <Step n={2} title="Set the environment">

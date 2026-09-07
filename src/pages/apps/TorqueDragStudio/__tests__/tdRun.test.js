@@ -93,7 +93,7 @@ test('unit helpers: SI ↔ display for m and ft wellbores', () => {
 test('runCase surfaces actionable errors', async () => {
   const { caseRow, geometryRow } = await seeded();
   expect(() => runCase({ stations: [], caseRow, geometryRow }))
-    .toThrow(/definitive design/);
+    .toThrow(/No trajectory on this wellbore/);
   expect(() => runCase({
     stations: horizontal.stations, caseRow: { ...caseRow, string: [] }, geometryRow,
   })).toThrow(/drillstring is empty/);

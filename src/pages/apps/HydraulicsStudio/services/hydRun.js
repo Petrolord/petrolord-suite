@@ -50,7 +50,7 @@ export function mudModel(mudCfg) {
 
 function engineArgs({ stations, caseRow, geometryRow }) {
   if (!Array.isArray(stations) || stations.length < 2) {
-    throw new Error('No trajectory: the wellbore needs a definitive design with saved stations.');
+    throw new Error('No trajectory on this wellbore: in Well Design Studio solve and save a design (Set definitive makes it the plan of record), or flag actual survey runs as definitive.');
   }
   if (!caseRow.string?.length) throw new Error('The drillstring is empty.');
   const geometry = buildEngineGeometry(geometryRow?.hole_sections, {});

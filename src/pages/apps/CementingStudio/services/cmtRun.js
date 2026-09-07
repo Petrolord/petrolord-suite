@@ -46,7 +46,7 @@ export function fluidModel(f) {
 
 function baseInputs({ stations, caseRow, geometryRow }) {
   if (!Array.isArray(stations) || stations.length < 2) {
-    throw new Error('No trajectory: the wellbore needs a definitive design with saved stations.');
+    throw new Error('No trajectory on this wellbore: in Well Design Studio solve and save a design (Set definitive makes it the plan of record), or flag actual survey runs as definitive.');
   }
   const holeSections = geometryRow?.hole_sections || [];
   if (!holeSections.length) throw new Error('No hole sections defined for this wellbore.');

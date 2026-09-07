@@ -104,9 +104,9 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
         if (!live) return;
         setTrajectory(traj);
         if (!traj.stations.length) {
-          addLog('No definitive design with saved stations on this wellbore — save one in Well Design Studio first.', 'error');
+          addLog(traj.note || 'No trajectory on this wellbore. Solve and save a design in Well Design Studio first.', 'error');
         } else {
-          addLog(`Definitive trajectory loaded: ${traj.design?.name || 'design'} (${traj.stations.length} stations).`);
+          addLog(`Trajectory loaded: ${traj.label}.${traj.note ? ` ${traj.note}` : ''}`, traj.source === 'definitive' ? 'info' : 'warn');
         }
         const rows = await backend.listCases(selectedWellboreId);
         if (!live) return;
@@ -149,7 +149,7 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
 
   const createCase = useCallback(async (name) => {
     if (!selectedWellboreId || !stations.length) {
-      toast({ title: 'No trajectory', description: 'Select a wellbore with a definitive design first.', variant: 'destructive' });
+      toast({ title: 'No trajectory', description: trajectory?.note || 'Select a wellbore with a saved design first.', variant: 'destructive' });
       return;
     }
     setBusy(true);

@@ -78,7 +78,7 @@ test('fluid model resolution and unit helpers', () => {
 
 test('actionable errors', async () => {
   const { stations, caseRow, geometryRow } = await seeded();
-  expect(() => runVolumes({ stations: [], caseRow, geometryRow })).toThrow(/definitive design/);
+  expect(() => runVolumes({ stations: [], caseRow, geometryRow })).toThrow(/No trajectory on this wellbore/);
   expect(() => runVolumes({
     stations, caseRow: { ...caseRow, casing: {} }, geometryRow,
   })).toThrow(/casing/);

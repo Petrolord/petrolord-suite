@@ -485,3 +485,15 @@ Still open: owner staging E2E on the two-target landing.
   wellhead, wrong frame, slot-resolved head), `tabularFile.test.js` (4,
   real xlsx bytes written by SheetJS), engines profileDesign (+3);
   e2e: wrong-frame target refused inline and the plan view still draws.
+
+## Tester fix: downstream trajectory fallback (2026-09-07)
+
+Testers saved a design (Plan A, 220 stations) and never used Set definitive,
+so Torque & Drag, Casing & Tubing and the other nine Drilling studios showed
+the well's name and nothing else. The downstream lookup now falls back to the
+actual survey composite, the latest saved draft, then the bridged registry
+survey, and labels the source (see TorqueDragStudio-STATUS.md). In this app
+the Save design toast now says, when the wellbore has no definitive design,
+that the draft is used downstream as the latest plan and that Set definitive
+(design menu in the tree) makes it the plan of record. Set definitive itself
+is unchanged.
