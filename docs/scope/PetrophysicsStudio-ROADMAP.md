@@ -437,3 +437,14 @@ Petrolord/petrolord-engines first, then the subtree copy.
   anchors at regeneration, goldens byte-identical. Suite: third card in
   Rw tools (`petro-rw-sal-*`) with Apply as Rw and the salinity the
   current Rw implies; help guide "What salinity does in the Studio".
+- **PT9e built 2026-09-07.** `services/ruleFacies.js` (ordered cutoff
+  classes on any input or output curve, first match wins, conditionless
+  fallthrough; validate, classify, thickness; 4 jest gates),
+  `components/RuleFaciesDialog.jsx` (ribbon `Rules…`: editable classes and
+  conditions, live thickness preview, Apply to tracks, Publish as
+  electrofacies), layout strip source `rulefacies` + `ensureStripTrack`,
+  `resolveTracks` draws it like the polygon facies, publish through
+  `intervalsFromRuns` as kind `electrofacies` source `interpretation`.
+  Rules persist inside the interpretation's `facies` jsonb under `_rules`
+  (no migration). e2e PT9e previews, refuses a bad number, applies and
+  publishes.

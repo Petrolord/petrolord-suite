@@ -42,6 +42,7 @@ export const THRESHOLD_PARAMS = ['cutPhi', 'cutVsh', 'cutSw', 'grClean', 'grClay
 /** Strip (categorical) track sources: crossplot facies, or a registry interval kind (ST1). */
 export const STRIP_SOURCES = [
   { value: 'facies', label: 'Crossplot facies (this session)' },
+  { value: 'rulefacies', label: 'Rule facies (this interpretation)' },
   { value: 'intervals:lithology', label: 'Lithology (registry)' },
   { value: 'intervals:core_description', label: 'Core description (registry)' },
   { value: 'intervals:facies', label: 'Facies (registry)' },
@@ -246,6 +247,20 @@ export function updateTemplate(layouts, templateId, updater) {
 }
 
 // ---- top (marker) display preferences (PT3, 2026-09-03) --------------------
+/**
+ * PT9e: make sure the active template carries a strip track of the given
+ * source (a built-in forks per the clone-on-edit rule). Returns the same
+ * object when nothing had to change.
+ */
+export function ensureStripTrack(layouts, source, title, width = 0.5) {
+  const t = activeTemplate(layouts);
+  if (!t || (t.tracks || []).some((x) => x.type === 'strip' && x.source === source)) return layouts;
+  return updateTemplate(layouts, t.id, (tpl) => ({
+    ...tpl,
+    tracks: [...(tpl.tracks || []), { id: newId('trk'), title, type: 'strip', width, source }],
+  }));
+}
+
 // Ride inside the layouts object as an optional sibling of `templates`
 // (migrateLayouts spreads unknown keys, so no migration): which tops show
 // and any colour a user picked, keyed by normalised name so the choice

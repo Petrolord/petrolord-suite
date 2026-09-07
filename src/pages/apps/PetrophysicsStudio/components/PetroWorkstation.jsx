@@ -30,6 +30,8 @@ import InterpretationBar from './InterpretationBar';
 import LayoutPanel from './LayoutPanel';
 import RwToolsDialog from './RwToolsDialog';
 import ZoneParamTable from './ZoneParamTable';
+import RuleFaciesDialog from './RuleFaciesDialog';
+import { classifyRules } from '../services/ruleFacies';
 import HistogramPanel from './HistogramPanel';
 import ConditioningDialog from './ConditioningDialog';
 import FieldViewPanel from './FieldViewPanel';
@@ -40,7 +42,7 @@ import {
 } from '../engine/pipeline';
 import { faciesCurve } from '../engine/crossplot';
 import { intervalsFromRuns } from '@/lib/stratigraphy/intervals';
-import { buildDefaultLayouts, migrateLayouts, activeTemplate, getTopStyles, setTopStyle, setShowAllTops } from '../layout/layoutSchema';
+import { buildDefaultLayouts, migrateLayouts, activeTemplate, getTopStyles, setTopStyle, setShowAllTops, ensureStripTrack } from '../layout/layoutSchema';
 import TopsPanel from './TopsPanel';
 import { validateZoneWindow, planZonesAfterTopMove } from '../services/zonePlanner';
 import { nameKey, digitizedCurveName } from '@/lib/curveNames';
@@ -76,6 +78,8 @@ export default function PetroWorkstation({
   const [view, setView] = useState('tracks');     // 'tracks' | 'crossplot'
   const [facies, setFacies] = useState([]);       // ND-space polygons for the selected well
   const [faciesByWell, setFaciesByWell] = useState({}); // persisted per-well workspace state
+  const [ruleFacies, setRuleFacies] = useState(null);   // PT9e: cutoff-rule classes (per interpretation)
+  const [ruleFaciesOpen, setRuleFaciesOpen] = useState(false);
   const [zoneParams, setZoneParams] = useState({});     // zoneId -> override patch (PS3)
   const [projectId, setProjectId] = useState('project-dev');
   const [projectName, setProjectName] = useState(null);
@@ -117,7 +121,11 @@ export default function PetroWorkstation({
         setProjectId(project.id || 'project-dev');
         setProjectName(project.name || null);
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
-        if (project.facies) setFaciesByWell(project.facies);
+        if (project.facies) {
+          const { _rules, ...byWell } = project.facies;
+          setFaciesByWell(byWell);
+          setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
+        }
         if (project.zone_params) setZoneParams(project.zone_params);
         if (project.crossplots && Object.keys(project.crossplots).length) setCrossplotCfg(project.crossplots);
         setLayouts(migrateLayouts(project.layouts));
@@ -289,6 +297,38 @@ export default function PetroWorkstation({
       : null
   ), [wellData, facies]);
 
+  // PT9e: every curve a facies rule may reference (inputs + outputs)
+  const ruleCurves = useMemo(() => (wellData && computed ? { ...wellData.curves, ...computed.outputs } : null), [wellData, computed]);
+  const ruleFaciesData = useMemo(() => (
+    ruleCurves && ruleFacies?.length && wellData?.curves.DEPT
+      ? classifyRules(ruleCurves, ruleFacies, wellData.curves.DEPT.length).data
+      : null
+  ), [ruleCurves, ruleFacies, wellData]);
+
+  const applyRuleFacies = useCallback((rules) => {
+    setRuleFacies(rules);
+    setLayouts((l) => ensureStripTrack(l, 'rulefacies', 'Rule facies'));
+  }, []);
+
+  // PT9e: the classes become registry ELECTROFACIES intervals on the well,
+  // beside (never replacing) the crossplot-polygon facies
+  const publishRuleFacies = async (rules) => {
+    if (!wellData || !ruleCurves) { setStatus('Load a well and compute curves first.'); return; }
+    setPublishing(true);
+    try {
+      const data = classifyRules(ruleCurves, rules, wellData.curves.DEPT.length).data;
+      const rows = intervalsFromRuns(wellData.curves.DEPT, data, rules.map((r) => r.name), { kind: 'electrofacies', colours: rules.map((r) => r.color), source: 'interpretation' });
+      const saved = await backend.replaceIntervals(wellData.wellId, 'electrofacies', rows);
+      setWellData((d) => (d ? { ...d, intervals: [...(d.intervals || []).filter((r) => r.kind !== 'electrofacies'), ...saved] } : d));
+      applyRuleFacies(rules);
+      setStatus(`Published ${saved.length} electrofacies interval${saved.length === 1 ? '' : 's'} to ${selected.name}.`);
+    } catch (e) {
+      setStatus(e.message);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   // PS4: the track set comes from the active layout template — the
   // PS1 hardcoded set lives on as the std-triple-combo built-in
   const tracks = useMemo(() => {
@@ -299,11 +339,13 @@ export default function PetroWorkstation({
       outputs: computed.outputs,
       faciesData,
       facies,
+      ruleFacies,
+      ruleFaciesData,
       params,
       intervals: wellData.intervals || [],
       depth: wellData.curves?.DEPT || null,
     });
-  }, [wellData, computed, faciesData, facies, params, layouts]);
+  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, params, layouts]);
 
   const addZone = async (z) => {
     const zone = await backend.saveZone(wellData.wellId, z);
@@ -448,7 +490,7 @@ export default function PetroWorkstation({
   };
 
   const workspaceState = () => ({
-    params, facies: faciesByWell, zone_params: zoneParams, layouts, crossplots: crossplotCfg || {},
+    params, facies: { ...faciesByWell, ...(ruleFacies ? { _rules: ruleFacies } : {}) }, zone_params: zoneParams, layouts, crossplots: crossplotCfg || {},
   });
 
   const hasDeviation = Array.isArray(selected?.deviation) && selected.deviation.length >= 2;
@@ -559,7 +601,11 @@ export default function PetroWorkstation({
     setProjectId(project.id);
     setProjectName(project.name || null);
     setParams({ ...DEFAULT_PARAMS, ...(project.params || {}) });
-    setFaciesByWell(project.facies || {});
+    {
+      const { _rules, ...byWell } = project.facies || {};
+      setFaciesByWell(byWell);
+      setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
+    }
     setZoneParams(project.zone_params || {});
     if (project.crossplots && Object.keys(project.crossplots).length) setCrossplotCfg(project.crossplots);
     setLayouts(migrateLayouts(project.layouts));
@@ -730,6 +776,18 @@ export default function PetroWorkstation({
         >
           <UploadCloud className="w-3.5 h-3.5" />
           Facies
+        </button>
+        <button
+          type="button"
+          data-testid="petro-rule-facies"
+          disabled={!wellData || !computed}
+          title="Facies by cutoff rules on any curve: a strip track, and publish as electrofacies intervals"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          onClick={() => setRuleFaciesOpen(true)}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          Rules…
         </button>
         <button
           type="button"
@@ -1096,6 +1154,18 @@ export default function PetroWorkstation({
         lastNormFit={lastNormFit}
       />
     )}
+    <RuleFaciesDialog
+      open={ruleFaciesOpen}
+      onOpenChange={setRuleFaciesOpen}
+      rules={ruleFacies}
+      curvesByKey={ruleCurves}
+      depth={wellData?.curves.DEPT || null}
+      depthUnit={depthUnit}
+      canPublish={!!wellData && !!selected?.is_own && !publishing}
+      onApply={applyRuleFacies}
+      onPublish={publishRuleFacies}
+      onStatus={setStatus}
+    />
     <ZoneParamTable
       open={zoneTableOpen}
       onOpenChange={setZoneTableOpen}

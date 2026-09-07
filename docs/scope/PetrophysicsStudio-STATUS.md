@@ -482,3 +482,13 @@ ppm and temperature (Bateman and Konen 1977 fit to the Gen-9 chart, a
 labelled approximation within about 10 percent), with the inverse shown
 for the current Rw. The help guide now answers the question in one
 paragraph. The Rwe to Rw (SP) Bateman-Konen conversion stays deferred.
+
+## 2026-09-07: PT9e, facies by rules
+
+"We need to generate facies logs too": until now facies came only from
+polygons drawn on the density-neutron crossplot. The ribbon's Rules…
+dialog classifies every sample by an ordered list of cutoff classes on
+any curve (Vsh, PHIE, Sw, k, GR, RT, ...), previews the thickness each
+class takes, draws the result as a Rule facies strip on the active
+layout and publishes it as electrofacies intervals in the registry. The
+rules save with the interpretation.

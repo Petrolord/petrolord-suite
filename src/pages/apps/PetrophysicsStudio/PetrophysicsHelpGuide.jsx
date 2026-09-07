@@ -604,6 +604,19 @@ const PetrophysicsHelpGuide = () => (
         FACIES strip track, and can colour any plot through Color by Facies. Delete a facies from
         its chip in the toolbar. Polygons save with the interpretation.
       </Para>
+      <SubHeading>Facies by rules</SubHeading>
+      <Para>
+        <Code>Rules…</Code> in the ribbon opens a second way to make a facies log: an ordered list
+        of classes, each a set of cutoff conditions on any curve the well carries, inputs and
+        computed outputs alike (Vsh below 0.35 and φe at or above 0.10 and Sw at or below 0.6 is
+        the default Pay sand). Classes are tried top to bottom, the first whose conditions all hold
+        names the sample, and a class with no conditions catches everything left. The dialog shows
+        the thickness each class would take before you commit. <Code>Apply to tracks</Code> adds a
+        Rule facies strip to the active layout; <Code>Publish as electrofacies</Code> writes the
+        classes to the registry as electrofacies intervals, beside the polygon facies, where Well
+        Correlation, Well Data Manager and Stratigraphy Studio draw them. The rules save with the
+        interpretation.
+      </Para>
       <SubHeading>Selection brush and Split view</SubHeading>
       <Para>
         <Code>Select…</Code> draws a polygon on any plot and <Code>Apply selection</Code> highlights

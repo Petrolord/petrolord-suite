@@ -49,6 +49,17 @@ export function resolveTracks(template, ctx) {
           labels: ctx.facies.map((f) => f.name),
           curves: [{ name: 'facies', data: ctx.faciesData }],
         });
+      } else if (track.source === 'rulefacies' && ctx.ruleFaciesData && ctx.ruleFacies?.length) {
+        // PT9e: cutoff-rule facies (this interpretation), same shape as the polygon facies
+        out.push({
+          key: track.id,
+          title: track.title,
+          type: 'strip',
+          width: track.width || 0.5,
+          colors: ctx.ruleFacies.map((r) => r.color),
+          labels: ctx.ruleFacies.map((r) => r.name),
+          curves: [{ name: 'rulefacies', data: ctx.ruleFaciesData }],
+        });
       } else if (typeof track.source === 'string' && track.source.startsWith('intervals:') && ctx.intervals && ctx.depth) {
         // ST1: registry interval logs (lithology, core description, facies ...)
         // rasterized onto the well's depth vector; absent kinds draw nothing
