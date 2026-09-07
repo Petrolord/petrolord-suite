@@ -422,3 +422,12 @@ Petrolord/petrolord-engines first, then the subtree copy.
   empty state, the PNG caption naming the zones on every plot. Saved as
   `crossplots.zones` (the PT8 `pickettZones` key still reads). e2e
   PT8/PT9b walks ND, Pickett and Buckles on one selection.
+- **PT9c built 2026-09-07.** `services/paramFields.js` now owns the
+  parameter field list (moved out of ParameterPanel), `services/zoneParamTable.js`
+  the pure rows/patches/copy logic (4 jest gates), `components/ZoneParamTable.jsx`
+  the dialog: Global plus one column per zone, in-place edits including
+  model selectors, highlighted overrides, greyed not-applicable cells,
+  Copy from (zone or Global), one Apply writing every zone's patch through
+  the PS3 override model. Opened from the Parameters panel
+  (`petro-zone-table-open`). e2e PT9c round-trips an override into the
+  scope picker and clears it by copying Global.

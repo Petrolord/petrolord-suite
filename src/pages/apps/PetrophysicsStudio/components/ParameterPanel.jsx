@@ -11,71 +11,15 @@
 // its override).
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { FIELDS } from '../services/paramFields';
 
 const num = (v) => (v === '' || v === '-' ? NaN : Number(v));
 const inputCls = 'w-full rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
 const selCls = inputCls;
 
-const FIELDS = [
-  { section: 'Vsh (GR)' },
-  { key: 'grClean', label: 'GR clean (API)' },
-  { key: 'grClay', label: 'GR clay (API)' },
-  { key: 'vshMethod', label: 'Model', options: ['linear', 'larionov-tertiary', 'larionov-older', 'clavier', 'steiber'] },
-  { section: 'Porosity' },
-  { key: 'phiSource', label: 'φt source', options: ['density', 'sonic', 'nd'] },
-  // PT9: the selected tool's apparent porosity in 100 percent shale;
-  // PHIE = PHIT - Vsh * φ shale feeds Sw, cutoffs, k and BVW
-  { key: 'phiShale', label: 'φ shale (v/v)' },
-  { key: 'rhoMa', label: 'ρ matrix (g/cc)' },
-  { key: 'rhoFl', label: 'ρ fluid (g/cc)' },
-  { key: 'dtMa', label: 'Δt matrix (µs/m)' },
-  { key: 'dtFl', label: 'Δt fluid (µs/m)' },
-  { key: 'sonicMethod', label: 'Sonic model', options: ['wyllie', 'rhg'] },
-  { key: 'ndMethod', label: 'N-D combine', options: ['avg', 'rms'] },
-  { section: 'Temperature' },
-  { key: 'tempMode', label: 'Model', options: ['none', 'linear'] },
-  { key: 'surfaceTempC', label: 'Surface T (°C)', show: (d) => d.tempMode === 'linear' },
-  { key: 'bhtC', label: 'BHT (°C)', show: (d) => d.tempMode === 'linear' },
-  { key: 'bhtDepthM', label: 'BHT depth (m)', show: (d) => d.tempMode === 'linear' },
-  { section: 'Sw' },
-  { key: 'swMethod', label: 'Model', options: ['archie', 'simandoux', 'indonesia', 'waxman-smits', 'dual-water', 'mod-simandoux'] },
-  { key: 'a', label: 'a' },
-  // Waxman-Smits exponents are measured on SHALY rock and are not
-  // Archie's m/n — the labels say so whenever that model is selected
-  { key: 'm', label: (d) => (d.swMethod === 'waxman-smits' ? 'm* (shaly rock)' : 'm') },
-  { key: 'n', label: (d) => (d.swMethod === 'waxman-smits' ? 'n* (shaly rock)' : 'n') },
-  { key: 'rw', label: (d) => (d.tempMode === 'linear' ? 'Rw @ ref T (ohm·m)' : 'Rw @ FT (ohm·m)') },
-  { key: 'rwRefTempC', label: 'Rw ref T (°C)', show: (d) => d.tempMode === 'linear' || d.swMethod === 'waxman-smits' },
-  { key: 'rsh', label: 'Rsh (ohm·m)', show: (d) => ['simandoux', 'indonesia', 'mod-simandoux'].includes(d.swMethod) },
-  { key: 'qv', label: 'Qv (meq/cm³)', show: (d) => d.swMethod === 'waxman-smits' },
-  { key: 'bMode', label: 'B source', options: ['juhasz', 'manual'], show: (d) => d.swMethod === 'waxman-smits' },
-  { key: 'bValue', label: 'B (manual)', show: (d) => d.swMethod === 'waxman-smits' && d.bMode === 'manual' },
-  { key: 'rwb', label: 'Rwb (ohm·m)', show: (d) => d.swMethod === 'dual-water' },
-  { key: 'swb', label: 'Swb (v/v)', show: (d) => d.swMethod === 'dual-water' },
-  { section: 'Permeability' },
-  { key: 'permMethod', label: 'Model', options: ['none', 'timur', 'tixier', 'coates', 'wyllie-rose'] },
-  {
-    hint: (d) => ({
-      timur: 'Timur 1968: k = 8581·φ^4.4/Swirr² (mD)',
-      tixier: 'Tixier 1949: k = (250·φ³/Swirr)² (mD)',
-      coates: 'Coates & Denoo 1981: k = (100·φ²(1−Swirr)/Swirr)² (mD)',
-      'wyllie-rose': 'Wyllie-Rose: k = (c·φ^q/Swirr)²; Morris & Biggs: oil c=250, gas c=79, q=3',
-    }[d.permMethod]),
-    show: (d) => d.permMethod !== 'none',
-  },
-  { key: 'swirrSource', label: 'Swirr source', options: ['buckles', 'manual'], show: (d) => d.permMethod !== 'none' },
-  { key: 'bucklesConst', label: 'Buckles const', show: (d) => d.permMethod !== 'none' && d.swirrSource === 'buckles' },
-  { key: 'swirrManual', label: 'Swirr (v/v)', show: (d) => d.permMethod !== 'none' && d.swirrSource === 'manual' },
-  { key: 'wrC', label: 'c (Wyllie-Rose)', show: (d) => d.permMethod === 'wyllie-rose' },
-  { key: 'wrQ', label: 'q (Wyllie-Rose)', show: (d) => d.permMethod === 'wyllie-rose' },
-  { section: 'Cutoffs' },
-  { key: 'cutPhi', label: 'φ ≥' },
-  { key: 'cutVsh', label: 'Vsh ≤' },
-  { key: 'cutSw', label: 'Sw ≤' },
-];
 
 export default function ParameterPanel({
-  params, onApply, zones = [], zoneParams = {}, onApplyZone,
+  params, onApply, zones = [], zoneParams = {}, onApplyZone, onOpenZoneTable = null,
 }) {
   const [scope, setScope] = useState('global'); // 'global' | zone id
   const zone = zones.find((z) => z.id === scope) || null;
@@ -135,6 +79,17 @@ export default function ParameterPanel({
           ))}
         </select>
       </label>
+      {onOpenZoneTable && zones.length > 0 && (
+        <button
+          type="button"
+          data-testid="petro-zone-table-open"
+          className="w-full px-2 py-0.5 rounded border text-[11px] border-slate-700 text-slate-300 hover:bg-slate-800"
+          title="Every parameter by every zone on one screen"
+          onClick={onOpenZoneTable}
+        >
+          Zone parameter table…
+        </button>
+      )}
       {zone && (
         <p className="text-[10px] text-slate-500 leading-snug">
           Editing overrides for {zone.name}. Fields marked

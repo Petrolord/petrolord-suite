@@ -496,6 +496,17 @@ const PetrophysicsHelpGuide = () => (
         button on the card does that, and it is disabled until curves exist.
       </Para>
 
+      <SubHeading>The zone parameter table</SubHeading>
+      <Para>
+        <Code>Zone parameter table…</Code> at the top of the Parameters panel opens every parameter
+        by every zone on one screen: Global down the second column, one column per zone after it.
+        Edit any cell, including the model selectors, so one zone can run Simandoux while another
+        runs Archie. A highlighted cell differs from Global and becomes that zone&apos;s override
+        on <Code>Apply to zones</Code>; setting it back to the global value removes the override.
+        Greyed cells do not apply under that zone&apos;s models. <Code>Copy from…</Code> in a column
+        header takes another zone&apos;s values, or Global to clear the column. The table and the
+        scope picker below edit the same overrides.
+      </Para>
       <SubHeading>Per-zone parameter overrides</SubHeading>
       <Para>
         Change the <Code>Scope</Code> selector at the top of the parameter panel from Global to a

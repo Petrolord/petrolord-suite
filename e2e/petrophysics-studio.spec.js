@@ -770,6 +770,37 @@ test('PT8/PT9b: every crossplot filters by zone, one selection shared across plo
   await expect(page.getByTestId('petro-xplot-zone-SAND A')).toHaveAttribute('aria-pressed', 'false');
 });
 
+test('PT9c: the zone parameter table edits every zone at once and writes the same overrides', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  await page.getByTestId('petro-zone-table-open').click();
+  await expect(page.getByTestId('petro-zone-table')).toBeVisible();
+  await expect(page.getByTestId('petro-zt-global-rw')).toHaveText('0.05');
+
+  // a cell set away from Global becomes an override; a model switch shows
+  // the fields that model uses (Rsh appears for Simandoux)
+  await page.getByTestId('petro-zt-SAND A-rw').fill('0.03');
+  await page.getByTestId('petro-zt-SAND A-swMethod').selectOption('simandoux');
+  await expect(page.getByTestId('petro-zt-SAND A-rsh')).toBeVisible();
+  await expect(page.getByTestId('petro-zone-table-summary')).toContainText('2 override(s) on Apply');
+  await page.getByTestId('petro-zone-table-apply').click();
+  await expect(page.getByTestId('petro-zone-overrides-SAND A')).toHaveText('2 overrides');
+
+  // the scope picker sees the same overrides
+  await page.getByTestId('petro-param-scope').selectOption({ label: 'Zone: SAND A •' });
+  await expect(page.getByTestId('petro-param-rw')).toHaveValue('0.03');
+  await expect(page.getByTestId('petro-param-swMethod')).toHaveValue('simandoux');
+
+  // Copy from Global clears the column
+  await page.getByTestId('petro-zone-table-open').click();
+  await page.getByTestId('petro-zt-copy-SAND A').selectOption('global');
+  await expect(page.getByTestId('petro-zone-table-summary')).toContainText('0 override(s) on Apply');
+  await page.getByTestId('petro-zone-table-apply').click();
+  await expect(page.getByTestId('petro-zone-overrides-SAND A')).toHaveCount(0);
+});
+
 test('PT4: zones between tops, bulk creation, and a two-click pick on the track', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
   await page.locator('[data-well-name="KETA TYPE-1"]').click();

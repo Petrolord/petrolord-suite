@@ -29,6 +29,7 @@ import ExportDialog from './ExportDialog';
 import InterpretationBar from './InterpretationBar';
 import LayoutPanel from './LayoutPanel';
 import RwToolsDialog from './RwToolsDialog';
+import ZoneParamTable from './ZoneParamTable';
 import HistogramPanel from './HistogramPanel';
 import ConditioningDialog from './ConditioningDialog';
 import FieldViewPanel from './FieldViewPanel';
@@ -71,6 +72,7 @@ export default function PetroWorkstation({
   const [params, setParams] = useState(DEFAULT_PARAMS);
   const [status, setStatus] = useState('Ready.');
   const [dockOpen, setDockOpen] = useState(true);
+  const [zoneTableOpen, setZoneTableOpen] = useState(false); // PT9c
   const [view, setView] = useState('tracks');     // 'tracks' | 'crossplot'
   const [facies, setFacies] = useState([]);       // ND-space polygons for the selected well
   const [faciesByWell, setFaciesByWell] = useState({}); // persisted per-well workspace state
@@ -255,6 +257,18 @@ export default function PetroWorkstation({
     }
     return out;
   }, [wellData, computed, params, zones, zoneParams]);
+
+  // PT9c: every zone's patch at once (the zone table's Apply)
+  const applyZonePatches = useCallback((patches) => {
+    setZoneParams((m) => {
+      const next = { ...m };
+      for (const [zoneId, patch] of Object.entries(patches)) {
+        if (Object.keys(patch).length) next[zoneId] = patch;
+        else delete next[zoneId];
+      }
+      return next;
+    });
+  }, []);
 
   const applyZoneParams = useCallback((zoneId, patch) => {
     setZoneParams((m) => {
@@ -998,6 +1012,7 @@ export default function PetroWorkstation({
             zones={zones}
             zoneParams={zoneParams}
             onApplyZone={applyZoneParams}
+            onOpenZoneTable={() => setZoneTableOpen(true)}
           />
           <LayoutPanel
             logSources={(wellData?.allLogs || []).map((l) => l.mnemonic)}
@@ -1077,6 +1092,15 @@ export default function PetroWorkstation({
         lastNormFit={lastNormFit}
       />
     )}
+    <ZoneParamTable
+      open={zoneTableOpen}
+      onOpenChange={setZoneTableOpen}
+      params={params}
+      zones={zones}
+      zoneParams={zoneParams}
+      onApply={applyZonePatches}
+      onStatus={setStatus}
+    />
     <RwToolsDialog
       open={rwToolsOpen}
       onOpenChange={setRwToolsOpen}
