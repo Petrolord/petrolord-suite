@@ -458,3 +458,14 @@ Petrolord/petrolord-engines first, then the subtree copy.
   `publishCurves` with the expression in provenance and `nextFreeName`
   de-duplication. e2e PT9f previews, names a syntax error and an unknown
   curve, saves HCPV and sees it in the explorer.
+- **PT9g built 2026-09-07.** `services/scenarios.js` (three cases through
+  `computeWellZoned`, a case patch winning in every zone, `_LOW`/`_HIGH`
+  twins of PHIT, PHIE, SW, BVW, KPERM, PAY, per-zone-per-case summaries,
+  CSV, the `Low, mid, high` user template with shaded bands; 4 jest
+  gates), `components/ScenariosDialog.jsx` (ribbon `Low/High…`: the shared
+  `ParamGrid` with Low and High columns around Mid, a live zone table,
+  Apply to tracks, Export summary CSV, Publish low/high curves with the
+  case patch in provenance). `ParamGrid.jsx` was extracted from the PT9c
+  zone table so both share one cell renderer. Cases persist in the
+  interpretation's `facies` jsonb under `_scenarios`. No Monte Carlo: the
+  Suite's sampler stays in ReservoirCalc Pro (CLAUDE.md rule).

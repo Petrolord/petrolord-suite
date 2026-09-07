@@ -502,3 +502,21 @@ Calc… dialog evaluates an expression over any curve on the well
 registry row with the expression in provenance. The tester's own example
 (PHIT from PHIE) is one of the picker's examples, and after PT9a both
 porosities come out of the pipeline anyway.
+
+## 2026-09-07: PT9g, low, mid, high cases
+
+"We need to generate low, mid and high petrophysical logs and summary":
+the ribbon's Low/High… dialog runs three deterministic parameter cases
+(mid = current; low and high edited in a grid, defaults pessimistic and
+optimistic), shows net, NTG, porosity, Sw and k per zone and case as you
+type, draws the band between the cases around the mid curve on a "Low,
+mid, high" layout, exports the summary CSV and publishes the twelve
+_LOW/_HIGH twins with the case patch in provenance. Deterministic by
+design; the Suite's Monte Carlo is not duplicated here.
+
+## PT9 series close-out (2026-09-07)
+
+Seven waves for the second tester pass, all as stacked PRs with base
+main: PT9a #439, PT9b #440, PT9c #441, PT9d #442, PT9e #443, PT9f #444,
+PT9g (this). Engines #155 and #156 merged and subtree-pulled. Every wave
+carries its jest gates and an e2e walk on the dev harness.

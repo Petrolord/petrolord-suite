@@ -867,6 +867,31 @@ test('PT9f: the curve calculator previews an expression and saves a new registry
   await expect(page.getByTestId('petro-other-curves')).toContainText('HCPV');
 });
 
+test('PT9g: low, mid, high cases summarise per zone, draw as bands and publish twins', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  await page.getByTestId('petro-scenarios').click();
+  await expect(page.getByTestId('petro-scenarios-dialog')).toBeVisible();
+  await expect(page.getByTestId('petro-sc-global-rw')).toHaveText('0.05');
+  // the default low case is pessimistic on the gas sand: less net or the same, never more
+  const net = async (c) => parseFloat(await page.getByTestId(`petro-sc-net-SAND A-${c}`).innerText());
+  expect(await net('low')).toBeLessThanOrEqual(await net('mid'));
+  expect(await net('mid')).toBeLessThanOrEqual(await net('high'));
+  // an edit re-runs the case: a much saltier low water leaves SAND A with less pay than mid
+  await page.getByTestId('petro-sc-Low-rw').fill('0.2');
+  await expect.poll(() => net('low')).toBeLessThan(await net('mid'));
+
+  await page.getByTestId('petro-scenarios-apply').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Low, mid, high layout is active');
+  await expect(page.getByTestId('petro-layout-template')).toContainText('Low, mid, high');
+
+  await page.getByTestId('petro-scenarios').click();
+  await page.getByTestId('petro-scenarios-publish').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Published 12 scenario curves');
+});
+
 test('PT4: zones between tops, bulk creation, and a two-click pick on the track', async ({ page }) => {
   await page.goto('/dev/petrophysics-studio');
   await page.locator('[data-well-name="KETA TYPE-1"]').click();

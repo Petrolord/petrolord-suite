@@ -787,6 +787,21 @@ const PetrophysicsHelpGuide = () => (
         own zones are used for overrides, and the dialog reports the result per well; a well with
         missing inputs reports <Code>nothing to publish</Code>.
       </Para>
+      <SubHeading>Low, mid, high cases</SubHeading>
+      <Para>
+        <Code>Low/High…</Code> in the ribbon runs three deterministic cases of the whole
+        interpretation. Mid is the current parameter set; Low and High are edits over it in two
+        columns of the same parameter grid the zone table uses (the defaults move matrix density,
+        Rw, m, n, the shale point and the GR clean line the pessimistic and the optimistic way), and a
+        changed cell overrides that parameter in every zone. The zone table on the right updates as
+        you type: net, NTG, φe, Sw and k gm per zone and case. <Code>Apply to tracks</Code> adds
+        PHIT, PHIE, Sw, BVW, k and pay twins named <Code>_LOW</Code> and <Code>_HIGH</Code> and
+        switches to a <Code>Low, mid, high</Code> layout that shades the band between them around
+        the mid curve; <Code>Export summary CSV</Code> writes the table; <Code>Publish low/high
+        curves</Code> saves the twelve twins to the registry with the case and its parameter patch in
+        provenance. The cases save with the interpretation. There is no sampling: each case is one
+        ordinary run, so every number can be traced to a column of the grid.
+      </Para>
       <SubHeading>Calculator: a new curve from an expression</SubHeading>
       <Para>
         <Code>Calc…</Code> in the ribbon makes a derived curve. Give it a name and a unit, type an
