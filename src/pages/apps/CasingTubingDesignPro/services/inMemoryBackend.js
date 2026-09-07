@@ -73,7 +73,7 @@ export function makeInMemoryBackend() {
     kind: 'memory',
     listSites: async () => [SITE],
     listWellbores: async () => [WELLBORE],
-    getDefinitiveTrajectory: async () => ({ wellbore: WELLBORE, design: DESIGN, stations: STATIONS }),
+    getDefinitiveTrajectory: async () => ({ wellbore: WELLBORE, design: DESIGN, stations: STATIONS, source: 'definitive', label: `${DESIGN.name || 'Plan A'} (definitive)`, note: null }),
     listCases: async () => cases,
     saveCase: async (row) => {
       seqN += 1;

@@ -34,6 +34,13 @@ for (const c of results.tubing.cases) {
   if (sf != null && (worstPackerSF == null || sf < worstPackerSF)) worstPackerSF = sf;
 }
 
+// unsaved-work drafts live in browser storage; start every test clean so a
+// dirty edit left by one test never restores into the next
+test.beforeEach(async ({ page }) => {
+  await page.goto('/dev/casing-tubing');
+  await page.evaluate(() => localStorage.clear());
+});
+
 test('harness reproduces the engine casing results off the UI', async ({ page }) => {
   await page.goto('/dev/casing-tubing');
 
@@ -104,6 +111,61 @@ test('save, duplicate and dirty-state flow through the backend', async ({ page }
   await page.getByTestId('ct-case-picker').click();
   await page.getByRole('option', { name: /copy/ }).click();
   await expect(page.getByTestId('ct-mud-density')).toHaveValue('1500');
+});
+
+test('tester fix: unsaved edits survive leaving and reloading, and Discard returns to the saved case', async ({ page }) => {
+  await page.goto('/dev/casing-tubing');
+  await expect(page.getByTestId('ct-shoe-tvd')).toBeVisible({ timeout: 20000 });
+  const before = await page.getByTestId('ct-mud-density').inputValue();
+  expect(before).not.toBe('1234');
+
+  await page.getByTestId('ct-mud-density').fill('1234');
+  await expect(page.getByTestId('ct-save-case')).toBeEnabled();
+  await expect(page.getByTestId('ct-draft-note')).toBeVisible();
+  await page.waitForTimeout(600); // the draft mirror is debounced
+
+  // leaving the page (a reload is the harshest version) keeps the edit
+  page.once('dialog', (d) => d.accept());
+  await page.reload();
+  await expect(page.getByTestId('ct-shoe-tvd')).toBeVisible({ timeout: 20000 });
+  await expect(page.getByTestId('ct-mud-density')).toHaveValue('1234');
+  await expect(page.getByTestId('ct-draft-restored')).toContainText('Unsaved changes restored');
+  await expect(page.getByTestId('ct-save-case')).toBeEnabled();
+
+  // Discard goes back to the saved case and forgets the draft
+  await page.getByTestId('ct-discard-draft').click();
+  await expect(page.getByTestId('ct-mud-density')).toHaveValue(before);
+  await expect(page.getByTestId('ct-save-case')).toBeDisabled();
+  await page.reload();
+  await expect(page.getByTestId('ct-shoe-tvd')).toBeVisible({ timeout: 20000 });
+  await expect(page.getByTestId('ct-mud-density')).toHaveValue(before);
+  await expect(page.getByTestId('ct-draft-restored')).toHaveCount(0);
+});
+
+test('tester fix: white schematic with shoe depths and a vertical exaggeration control', async ({ page }) => {
+  await page.goto('/dev/casing-tubing');
+  await expect(page.getByTestId('ct-shoe-tvd')).toBeVisible({ timeout: 20000 });
+  await page.getByRole('tab', { name: /Visualizer/ }).click();
+
+  const viz = page.getByTestId('ct-viz');
+  await expect(viz).toBeVisible();
+  await expect(viz).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(viz.locator('img[alt="Petrolord"]')).toBeVisible();
+
+  // every casing string carries a shoe label with its depth in the display unit
+  const casing = doc.strings.casingStrings[0];
+  const shoeMd = Math.max(...casing.sections.map((s) => s.bottomMdM));
+  await expect(page.getByTestId(`ct-viz-shoe-${casing.name}`)).toContainText(`Shoe ${Math.round(shoeMd)} m`);
+
+  // stretch doubles the drawn height at x2; fit returns to x1
+  const h1 = Number(await page.getByTestId('ct-viz-svg').getAttribute('height'));
+  await page.getByTestId('ct-viz-stretch').click();
+  await page.getByTestId('ct-viz-stretch').click();
+  await expect(page.getByTestId('ct-viz-vex')).toHaveText('×2');
+  const h2 = Number(await page.getByTestId('ct-viz-svg').getAttribute('height'));
+  expect(h2 - 24).toBeCloseTo((h1 - 24) * 2, 0);
+  await page.getByTestId('ct-viz-fit').click();
+  await expect(page.getByTestId('ct-viz-vex')).toHaveText('×1');
 });
 
 test('manual PPFG edit switches provenance to manual', async ({ page }) => {

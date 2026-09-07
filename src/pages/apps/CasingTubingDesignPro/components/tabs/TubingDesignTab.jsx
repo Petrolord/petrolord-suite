@@ -87,10 +87,10 @@ const TubingDesignTab = () => {
           <div className="flex-1 overflow-y-auto pt-0 px-4 pb-0 custom-scrollbar">
             {viewMode === 'forces' && (
               <div className="grid grid-cols-12 gap-4 h-full pt-4 pb-4">
-                <div className="col-span-3 h-full border border-slate-800 rounded-lg overflow-hidden bg-slate-900">
+                <div className="col-span-4 h-full border border-slate-800 rounded-lg overflow-hidden bg-white">
                   <TubingVisualizer activeString={activeString} packer={caseDoc?.packer} depthUnit={depthUnit} />
                 </div>
-                <div className="col-span-9 h-full min-h-[300px]">
+                <div className="col-span-8 h-full min-h-[300px]">
                   <TubingForcesChart cases={tubingCases} />
                 </div>
               </div>

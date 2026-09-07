@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 import {
   runAll, defaultCaseDoc, defaultEnvironment, emwKgM3, ENGINE_VERSION,
 } from '../services/ctRun';
+import { writeDraft, readDraft, clearDraft, draftSupersedes } from '../services/draftStore';
 
 const CasingTubingDesignContext = createContext();
 
@@ -46,6 +47,9 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
   const [selectedCaseId, setSelectedCaseId] = useState(null);
   const [caseDoc, setCaseDoc] = useState(null);
   const [dirty, setDirty] = useState(false);
+  // tester fix 2026-09-07: unsaved edits mirror to browser storage while
+  // dirty and come back when the case is next opened (null = nothing restored)
+  const [draftInfo, setDraftInfo] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const [activeTab, setActiveTab] = useState('well-loads');
@@ -56,6 +60,25 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
     setLogs((prev) => [{ timestamp: new Date(), message, type }, ...prev].slice(0, 200));
   }, []);
   const toggleHelp = () => setIsHelpOpen((prev) => !prev);
+
+  const storage = typeof window !== 'undefined' ? window.localStorage : null;
+
+  // open a saved row; a newer, different draft in browser storage wins and
+  // the case opens dirty with a note saying where it came from
+  const openRow = useCallback((row, wellboreId) => {
+    const saved = docFromRow(row);
+    const draft = readDraft(storage, wellboreId, row.id);
+    if (draftSupersedes(draft, row, saved)) {
+      setCaseDoc(draft.doc);
+      setDirty(true);
+      setDraftInfo({ savedAt: draft.savedAt });
+      addLog(`Restored unsaved changes to ${row.name} from ${new Date(draft.savedAt).toLocaleString()}. Save to keep them, or Discard.`, 'warn');
+    } else {
+      setCaseDoc(saved);
+      setDirty(false);
+      setDraftInfo(null);
+    }
+  }, [storage, addLog]);
 
   // ---- spine loading -------------------------------------------------------
 
@@ -113,8 +136,7 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
         setCaseRows(rows);
         if (rows.length) {
           setSelectedCaseId(rows[0].id);
-          setCaseDoc(docFromRow(rows[0]));
-          setDirty(false);
+          openRow(rows[0], selectedWellboreId);
         } else {
           setSelectedCaseId(null);
           setCaseDoc(null);
@@ -132,7 +154,7 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
       }
     })();
     return () => { live = false; };
-  }, [backend, selectedWellboreId, addLog]);
+  }, [backend, selectedWellboreId, addLog, openRow]);
 
   // ---- case CRUD -----------------------------------------------------------
 
@@ -143,9 +165,34 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
     const row = caseRows.find((r) => r.id === id);
     if (!row) return;
     setSelectedCaseId(id);
+    openRow(row, selectedWellboreId);
+  }, [caseRows, selectedWellboreId, openRow]);
+
+  // mirror the dirty document to storage (debounced), so leaving the page,
+  // switching wellbore or reloading never loses work
+  useEffect(() => {
+    if (!dirty || !caseDoc || !selectedCaseId || !selectedWellboreId) return undefined;
+    const t = setTimeout(() => { writeDraft(storage, selectedWellboreId, selectedCaseId, caseDoc); }, 400);
+    return () => clearTimeout(t);
+  }, [dirty, caseDoc, selectedCaseId, selectedWellboreId, storage]);
+
+  // a hard reload or tab close with unsaved work gets the browser's prompt
+  useEffect(() => {
+    if (!dirty || typeof window === 'undefined') return undefined;
+    const onUnload = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', onUnload);
+    return () => window.removeEventListener('beforeunload', onUnload);
+  }, [dirty]);
+
+  const discardDraft = useCallback(() => {
+    const row = caseRows.find((r) => r.id === selectedCaseId);
+    if (!row) return;
+    clearDraft(storage, selectedWellboreId, selectedCaseId);
     setCaseDoc(docFromRow(row));
     setDirty(false);
-  }, [caseRows]);
+    setDraftInfo(null);
+    addLog(`Discarded the unsaved changes to ${row.name}.`);
+  }, [caseRows, selectedCaseId, selectedWellboreId, storage, addLog]);
 
   const createCase = useCallback(async (name) => {
     if (!selectedWellboreId || !stations.length) {
@@ -166,6 +213,7 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
       setSelectedCaseId(created.id);
       setCaseDoc(docFromRow(created));
       setDirty(false);
+      setDraftInfo(null);
       addLog(`Created design case: ${created.name}`);
       toast({ title: 'Case created', description: created.name });
     } catch (e) {
@@ -179,9 +227,11 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
     if (!selectedCaseId || !caseDoc) return;
     setBusy(true);
     try {
-      const updated = await backend.updateCase(selectedCaseId, rowFromDoc(caseDoc));
+      const updated = await backend.updateCase(selectedCaseId, { ...rowFromDoc(caseDoc), updated_at: new Date().toISOString() });
       setCaseRows((prev) => prev.map((r) => (r.id === selectedCaseId ? updated : r)));
       setDirty(false);
+      clearDraft(storage, selectedWellboreId, selectedCaseId);
+      setDraftInfo(null);
       if (resultsSummary) {
         await backend.saveRun({
           case_id: selectedCaseId,
@@ -199,7 +249,7 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
     } finally {
       setBusy(false);
     }
-  }, [backend, selectedCaseId, caseDoc, trajectory, toast, addLog]);
+  }, [backend, selectedCaseId, selectedWellboreId, caseDoc, trajectory, toast, addLog, storage]);
 
   const duplicateCase = useCallback(async () => {
     const row = caseRows.find((r) => r.id === selectedCaseId);
@@ -216,6 +266,7 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
       setSelectedCaseId(created.id);
       setCaseDoc(docFromRow(created));
       setDirty(false);
+      setDraftInfo(null);
       toast({ title: 'Duplicated', description: created.name });
     } catch (e) {
       toast({ title: 'Duplicate failed', description: e.message, variant: 'destructive' });
@@ -228,6 +279,7 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
     setBusy(true);
     try {
       await backend.deleteCase(id);
+      clearDraft(storage, selectedWellboreId, id);
       setCaseRows((prev) => prev.filter((r) => r.id !== id));
       if (selectedCaseId === id) {
         setSelectedCaseId(null);
@@ -239,7 +291,7 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
     } finally {
       setBusy(false);
     }
-  }, [backend, selectedCaseId, toast]);
+  }, [backend, selectedCaseId, selectedWellboreId, toast, storage]);
 
   // ---- doc updaters --------------------------------------------------------
 
@@ -348,6 +400,8 @@ export const CasingTubingDesignProvider = ({ backend, children }) => {
     deleteCase,
     dirty,
     busy,
+    draftInfo,
+    discardDraft,
     // doc + updaters
     caseDoc,
     patchDoc,
