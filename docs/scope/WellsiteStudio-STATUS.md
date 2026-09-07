@@ -283,3 +283,17 @@ Recorded per phase below as they are taken, with the reason.
 - WS9: the simulated shift on staging (the readiness gate above). The
   production upload (82e391c0e) and the deploy-gated tile seed
   `20260907230000_seed_wellsite_studio_app.sql` are both DONE 2026-09-07.
+
+## PWA follow-up: stale shell after a deploy (2026-09-07)
+
+The first upload made on top of the service worker (e45286a53 over
+82e391c0e) produced "Failed to fetch dynamically imported module:
+/assets/EmployeeManagement-77aac070.js" for a user whose browser still ran
+the previous shell: Hostinger replaces every hashed chunk on each build,
+and the worker's prompt semantics keep the old shell until the person
+accepts the update, so the first lazy route opened from the old shell asks
+for a chunk that is gone. `src/lib/pwa/preloadRecovery.js` (wired in
+`main.jsx`, 9 jest gates) listens for Vite's `vite:preloadError`, asks a
+waiting worker to take over, reloads once, and guards against a loop. The
+prompt semantics are unchanged: a working shell is never swapped under a
+person mid-shift; only a broken one repairs itself.
