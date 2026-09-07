@@ -22,7 +22,7 @@ const CenterContent = () => {
                         <Layers className="w-12 h-12 text-slate-600" />
                     </div>
                     <h3 className="text-xl font-bold text-white mb-2">Ready to Design</h3>
-                    <p className="text-slate-400 mb-6">Pick a site and wellbore with a definitive well design, then create or choose a design case from the left panel to begin the casing and tubing analysis.</p>
+                    <p className="text-slate-400 mb-6">Pick a site and wellbore with a saved well design (definitive, or the latest draft), then create or choose a design case from the left panel to begin the casing and tubing analysis.</p>
                     <div className="flex justify-center gap-4 text-xs text-slate-600">
                         <span className="flex items-center"><Activity className="w-3 h-3 mr-1" /> Load Cases</span>
                         <span className="flex items-center"><Ruler className="w-3 h-3 mr-1" /> API 5C3 Ratings</span>

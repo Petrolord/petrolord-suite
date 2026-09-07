@@ -6,6 +6,7 @@
 
 import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openStateRow } from '@/lib/stateVersion';
+import { resolveTrajectory } from '../../well-planning/services/trajectorySource';
 
 // PP0: same kind as wpApi (idempotent registration) so reads here open identically
 const WP_DESIGN_KIND = 'wp-design';
@@ -78,19 +79,28 @@ export async function deleteRun(id) {
 
 // ---- trajectory -----------------------------------------------------------
 
-// The definitive design's saved station cache (metres/grid) + wellbore row.
-// Returns { wellbore, design, stations } — stations may be [] when the design
-// was never saved with stations (the UI surfaces that as an actionable error).
+// The wellbore's working trajectory (metres, grid azimuths) + wellbore row.
+// Tester fix 2026-09-07: this used to read ONLY the definitive design, so a
+// design saved but never promoted with Set definitive left every Drilling
+// studio showing the well's name and nothing else. The resolver keeps the
+// definitive design first and falls back to the actual survey composite,
+// the latest saved draft, then the bridged registry survey, and says which
+// in `source`, `label` and `note`. Returns { wellbore, design, stations,
+// source, label, note }; stations is [] only when nothing usable exists.
 export async function getDefinitiveTrajectory(wellboreId) {
   const wellbore = one(await supabase.from('wp_wellbores').select('*')
     .eq('id', wellboreId).single());
-  const designs = many(await supabase.from('wp_designs').select('*')
-    .eq('wellbore_id', wellboreId).eq('status', 'definitive'))
-    .map((row) => openStateRow(WP_DESIGN_KIND, row));
-  const design = designs[0] || null;
-  return {
-    wellbore,
-    design,
-    stations: Array.isArray(design?.stations) ? design.stations : [],
-  };
+  const [designs, surveys] = await Promise.all([
+    supabase.from('wp_designs').select('*').eq('wellbore_id', wellboreId)
+      .then((r) => many(r).map((row) => openStateRow(WP_DESIGN_KIND, row))),
+    supabase.from('wp_surveys').select('id, name, is_in_definitive, stations, computed').eq('wellbore_id', wellboreId)
+      .then((r) => many(r)),
+  ]);
+  let geoWell = null;
+  if (wellbore.geo_well_id && !designs.some((d) => Array.isArray(d.stations) && d.stations.length >= 2) && !surveys.some((s) => s.is_in_definitive)) {
+    const { data } = await supabase.from('geo_wells').select('id, name, deviation').eq('id', wellbore.geo_well_id).maybeSingle();
+    geoWell = data || null;
+  }
+  const resolved = resolveTrajectory({ wellbore, designs, surveys, geoWell });
+  return { wellbore, ...resolved };
 }

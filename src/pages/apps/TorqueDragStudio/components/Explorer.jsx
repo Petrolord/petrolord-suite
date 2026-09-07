@@ -1,9 +1,11 @@
 // Explorer: wp sites → wellbores → T&D cases. Read-only over the WDS data
-// spine; case CRUD lives here.
+// spine; case CRUD lives here. The wellbore details block (trajectory
+// source, header, survey listing) is shared with the other studios.
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, MapPin, CircleDot, FlaskConical } from 'lucide-react';
+import WellboreDetails from './WellboreDetails';
 
 export default function Explorer({
   sites, selectedSiteId, onSelectSite,
@@ -57,11 +59,7 @@ export default function Explorer({
               </Button>
             </div>
           ))}
-          <div className="mt-3 border-t border-slate-800 pt-2 text-[10px] text-slate-500" data-testid={`${testPrefix}-traj-info`}>
-            {trajectory?.design
-              ? `Trajectory: ${trajectory.design.name} r${trajectory.design.revision} (definitive), ${trajectory.stations.length} stations`
-              : 'No definitive design on this wellbore.'}
-          </div>
+          <WellboreDetails trajectory={trajectory} wellbore={(wellbores || []).find((w) => w.id === selectedWellboreId) || null} testPrefix={testPrefix} />
         </>
       )}
     </div>

@@ -108,3 +108,32 @@ one Suite PR + engines PRs #43/#45).
 4. Tubing Design: set the packer, check the stimulation case flags the
    seal stroke, and the erosional card reacts to the mixture density.
 5. Save, duplicate, reload; confirm the case round-trips.
+
+## Tester fix: trajectory fallback and wellbore details (2026-09-07)
+
+Drilling and Completions testers reported that a well created in Well Design
+Studio showed only its name in Torque & Drag Studio and Casing & Tubing Design
+Studio, with no survey or other details. Cause: every Drilling studio read the
+trajectory through `tdApi.getDefinitiveTrajectory`, which returned the station
+cache of a design with `status = 'definitive'` and nothing else. The tester's
+wellbore (Lad, design Plan A, 220 stations) was saved as a draft and never
+promoted with Set definitive, so eleven studios showed the name and an error
+in the log.
+
+- `well-planning/services/trajectorySource.js` (pure, 9 jest gates): the
+  working trajectory is resolved in order definitive design, actual survey
+  composite (runs flagged `is_in_definitive`), latest saved draft design,
+  the linked registry well's deviation, else none; the result carries
+  `source`, `label` and an actionable `note`.
+- `tdApi.getDefinitiveTrajectory` (shared by all eleven studios) now
+  returns `{ wellbore, design, stations, source, label, note }`. The name
+  and the `stations` contract are unchanged, so no consumer changed.
+- `components/WellboreDetails.jsx` (shared by the T&D explorer and the
+  Casing & Tubing left panel; 3 jest gates): trajectory source line with the
+  note, wellbore header (depth unit, KB, GL, water depth, azimuth reference,
+  wellhead, UWI, status, registry link, TD MD and TVD, max inclination,
+  station count) and a survey listing (MD, inc, azi, TVD, DLS) in the
+  wellbore's depth unit.
+- Run error strings no longer demand a definitive design; the C&T
+  environment card is titled Trajectory with the source badge; Well Design
+  Studio's Save design toast says how to promote a draft.

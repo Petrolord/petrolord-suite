@@ -53,7 +53,7 @@ import {
 const ENGINE_VERSION = 'drilling-wd2';
 
 const DesignTab = () => {
-    const { user, site, wellbore, design, targets: siteTargets, wellbores, refreshDesigns, refreshWellbores } = useWellPlanningStore();
+    const { user, site, wellbore, design, designs, targets: siteTargets, wellbores, refreshDesigns, refreshWellbores } = useWellPlanningStore();
     const { trajectoryDraft, updateTrajectoryDraft } = useWellPlanning();
     const { toast } = useToast();
 
@@ -326,8 +326,17 @@ const DesignTab = () => {
                 })),
                 engine_version: ENGINE_VERSION,
             });
-            await refreshDesigns(wellbore.id);
-            toast({ title: 'Design saved', description: `${design.name} r${design.revision} updated.`, className: 'bg-green-600 text-white' });
+            const after = await refreshDesigns(wellbore.id);
+            // Tester fix 2026-09-07: the other Drilling studios read the definitive design first;
+            // a saved draft now works there as the latest plan, but say how to promote it.
+            const hasDefinitive = (Array.isArray(after) ? after : designs || []).some((d) => d.status === 'definitive');
+            toast({
+                title: 'Design saved',
+                description: hasDefinitive
+                    ? `${design.name} r${design.revision} updated.`
+                    : `${design.name} r${design.revision} updated. It is a draft: the other Drilling studios will use it as the latest plan; Set definitive (design menu in the tree) makes it the plan of record.`,
+                className: 'bg-green-600 text-white',
+            });
         } catch (e) {
             toast({ variant: 'destructive', title: 'Save failed', description: e.message });
         } finally {

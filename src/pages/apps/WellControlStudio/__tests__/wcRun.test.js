@@ -77,7 +77,7 @@ test('unit helpers', () => {
 
 test('actionable errors', async () => {
   const { stations, caseRow, geometryRow } = await seeded();
-  expect(() => runKillSheet({ stations: [], caseRow, geometryRow })).toThrow(/definitive design/);
+  expect(() => runKillSheet({ stations: [], caseRow, geometryRow })).toThrow(/No trajectory on this wellbore/);
   expect(() => runKillSheet({
     stations, caseRow: { ...caseRow, shoe: {} }, geometryRow,
   })).toThrow(/shoe MD/);

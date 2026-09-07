@@ -159,7 +159,7 @@ describe('doc + helpers', () => {
   test('shoe beyond the trajectory throws an actionable error', () => {
     const doc = defaultCaseDoc({ shoeMdM: 9000 });
     expect(() => runAll({ caseDoc: doc, stations: HARNESS_STATIONS }))
-      .toThrow(/beyond the definitive trajectory/);
+      .toThrow(/beyond the wellbore trajectory/);
   });
 
   test('unit and formatting helpers', () => {

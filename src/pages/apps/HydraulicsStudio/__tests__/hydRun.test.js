@@ -83,7 +83,7 @@ test('unit helpers', () => {
 
 test('actionable errors', async () => {
   const { caseRow, geometryRow } = await seeded();
-  expect(() => runHydraulics({ stations: [], caseRow, geometryRow })).toThrow(/definitive design/);
+  expect(() => runHydraulics({ stations: [], caseRow, geometryRow })).toThrow(/No trajectory on this wellbore/);
   expect(() => runHydraulics({
     stations: CASE.stations,
     caseRow: { ...caseRow, flow: { flowRateM3s: 0 } },
