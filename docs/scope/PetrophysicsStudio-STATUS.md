@@ -408,3 +408,16 @@ Open: owner staging walk, prod zip + upload.
 The Tops panel rows carry a map icon (`petro-map-top-<name>`) linking to
 Mapping & Surface Studio, which grids the top across every well carrying
 it on arrival. `PetroWorkstation` takes `mappingPath`.
+
+## Tester fix: range boxes accept a minus sign and decimals (2026-09-07)
+
+A tester setting a log scale range in the Layout panel could not type a
+negative number or a decimal: the Range, Width, curve min/max, threshold
+and ramp-stop boxes in the shared `src/components/wells/LayoutPanel.jsx`
+were controlled inputs that parsed every keystroke and fell back to the old
+value, so a lone "-" or a trailing "." was discarded before the next digit
+arrived. They are now a `NumText` box that keeps the text while typing and
+commits the parsed value only when the text is a complete number (an empty
+curve override clears back to the track range); the box resyncs from the
+layout on blur. Well Correlation shares the panel and gets the same fix.
+Jest: `src/components/wells/__tests__/layoutPanelNumeric.test.jsx` (3 gates).
