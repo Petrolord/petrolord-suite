@@ -464,3 +464,12 @@ One zone selection now filters and colours Density-Neutron, Buckles and
 Hingle as well, is shared across the four plots, travels into every PNG
 caption and saves with the interpretation as `crossplots.zones`. Help
 guide gained "Zones on every crossplot".
+
+## 2026-09-07: PT9c, zone parameter table
+
+"A workflow manager for each zone so we can vary the parameters used in
+different zones": the PS3 scope picker already did this one zone at a
+time and testers did not find it. The new Zone parameter table (Parameters
+panel, "Zone parameter table…") shows every parameter by every zone on one
+screen, edits in place (models included), copies between zones, and
+applies through the same override model, so the two views never disagree.
