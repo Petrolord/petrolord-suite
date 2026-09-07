@@ -9,6 +9,7 @@
 //
 // PT8 (2026-09-05): the Pickett plot takes a zone filter — the defined
 // zones as a multi-select defaulting to all of them — so the plot can be
+// (PT9b, 2026-09-07: the same selection now drives all four plots)
 // read on the reservoir intervals alone; picking more than one colours
 // the points by zone. Every plot gains a PNG button, and the Pickett
 // caption records which zones the image was made from.
@@ -63,12 +64,14 @@ export default function CrossplotPanel({
   const [domains, setDomains] = useState({ nd: null, pickett: null, buckles: null, hingle: null });
   const [selecting, setSelecting] = useState(false); // PS10 brush polygon
   const [selDraft, setSelDraft] = useState([]);
-  // PT8: which zones the Pickett plot shows. [] = every zone, which is
-  // also "no filter" — samples outside every zone still plot.
-  const [zoneIds, setZoneIds] = useState(initialConfig?.pickettZones || []);
+  // PT8/PT9b: which zones the plots show — ONE selection shared by all
+  // four, so switching plot keeps the interval in view. [] = every zone,
+  // which is also "no filter" — samples outside every zone still plot.
+  // (`pickettZones` is the PT8 key an older interpretation may carry.)
+  const [zoneIds, setZoneIds] = useState(initialConfig?.zones || initialConfig?.pickettZones || []);
 
   // persisted crossplot config (petro_projects.crossplots)
-  useEffect(() => { onConfigChange?.({ plot, colorBy, pickettZones: zoneIds }); }, [plot, colorBy, zoneIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onConfigChange?.({ plot, colorBy, zones: zoneIds }); }, [plot, colorBy, zoneIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // drop ids of zones that no longer exist, so a deleted zone cannot
   // leave the plot filtered to nothing the user can see or clear
@@ -148,20 +151,21 @@ export default function CrossplotPanel({
     zv: zInfo ? zInfo.data[s.i] : undefined,
   });
 
+  // PT8/PT9b: every plot shows only the selected zones, and colours by
+  // zone once more than one is selected. An explicit z-colour (a curve or
+  // depth) still wins, because a colorbar and zone colours cannot both
+  // drive the same dot; facies colouring loses to zone colouring, and
+  // comes back as soon as a single zone (or all) is shown.
+  const shownOf = (samples) => (zoneFilter.filtering ? samples.filter((s) => zoneFilter.inFilter(s.depthM)) : samples);
+  const zoneOrDefault = (s) => (zInfo ? null : zoneFilter.colorOf(s.depthM)) || colorFor(s);
+
+  const ndShown = useMemo(() => shownOf(ndSamples), [ndSamples, zoneFilter]); // eslint-disable-line react-hooks/exhaustive-deps
   const ndPoints = useMemo(
-    () => ndSamples.map((s) => withZ(s, colorFor(s))),
-    [ndSamples, colorFor, selection], // eslint-disable-line react-hooks/exhaustive-deps
+    () => ndShown.map((s) => withZ(s, zoneOrDefault(s))),
+    [ndShown, colorFor, selection, zoneFilter, zInfo], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
-  // PT8: the plot shows only the selected zones, and colours by zone once
-  // more than one is selected. An explicit z-colour (a curve or depth)
-  // still wins, because a colorbar and zone colours cannot both drive the
-  // same dot; facies colouring does not, since facies are ND-space tags
-  // that say nothing about a Pickett point.
-  const pickettShown = useMemo(
-    () => (zoneFilter.filtering ? pickettSamples.filter((s) => zoneFilter.inFilter(s.depthM)) : pickettSamples),
-    [pickettSamples, zoneFilter],
-  );
+  const pickettShown = useMemo(() => shownOf(pickettSamples), [pickettSamples, zoneFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pickettPoints = useMemo(() => {
     const top = Number(fitWin.top);
@@ -169,14 +173,14 @@ export default function CrossplotPanel({
     const winValid = Number.isFinite(top) && Number.isFinite(base) && base > top;
     return pickettShown.map((s) => {
       if (winValid && s.depthM >= top && s.depthM <= base) return withZ(s, WINDOW_COLOR);
-      const zc = zInfo ? null : zoneFilter.colorOf(s.depthM);
-      return withZ(s, zc || colorFor(s));
+      return withZ(s, zoneOrDefault(s));
     });
   }, [pickettShown, fitWin, colorFor, selection, zoneFilter, zInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const bucklesShown = useMemo(() => shownOf(bucklesSamples), [bucklesSamples, zoneFilter]); // eslint-disable-line react-hooks/exhaustive-deps
   const bucklesPoints = useMemo(
-    () => bucklesSamples.map((s) => withZ(s, colorFor(s))),
-    [bucklesSamples, colorFor, selection], // eslint-disable-line react-hooks/exhaustive-deps
+    () => bucklesShown.map((s) => withZ(s, zoneOrDefault(s))),
+    [bucklesShown, colorFor, selection, zoneFilter, zInfo], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const pickettOverlays = useMemo(() => {
@@ -201,9 +205,10 @@ export default function CrossplotPanel({
     return { name: `BVW ${bvw}`, pts: l.pts, color: '#2563eb', dash: [5, 4] };
   }), []);
 
+  const hingleShown = useMemo(() => shownOf(hingleSamples), [hingleSamples, zoneFilter]); // eslint-disable-line react-hooks/exhaustive-deps
   const hinglePoints = useMemo(
-    () => hingleSamples.map((s) => withZ(s, colorFor(s))),
-    [hingleSamples, colorFor, selection], // eslint-disable-line react-hooks/exhaustive-deps
+    () => hingleShown.map((s) => withZ(s, zoneOrDefault(s))),
+    [hingleShown, colorFor, selection, zoneFilter, zInfo], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const hingleOverlays = useMemo(() => {
     const lines = [{
@@ -307,9 +312,9 @@ export default function CrossplotPanel({
       if (!canvas) { onStatus('Nothing to export: this plot needs its curves first.'); return; }
       const shown = { nd: ndPoints, pickett: pickettPoints, buckles: bucklesPoints, hingle: hinglePoints }[plot] || [];
       const caption = `${shown.length} points`
-        + (plot === 'pickett' ? ` · zones: ${zoneFilter.label}` : '')
+        + ` · zones: ${zoneFilter.label}`
         + (colorBy !== 'facies' && colorBy !== 'none' ? ` · coloured by ${colorBy}` : '')
-        + (plot === 'pickett' && zoneFilter.colouring ? ' · coloured by zone' : '');
+        + (!zInfo && zoneFilter.colouring ? ' · coloured by zone' : '');
       const blob = await trackPlotPng({
         canvas,
         title: `${wellName} · ${PLOT_TITLES[plot]} · Petrophysics Studio`,
@@ -331,6 +336,7 @@ export default function CrossplotPanel({
 
   const toggleZone = (id) => setZoneIds((ids) => (
     ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  const noSamplesMsg = `No samples in ${zoneFilter.label}. Pick other zones, or All zones.`;
 
   const dom = (key) => domains[key] || DEFAULT_DOMAINS[key];
   const setDom = (key) => (next) => setDomains((d) => ({ ...d, [key]: next }));
@@ -507,12 +513,12 @@ export default function CrossplotPanel({
           </div>
         )}
 
-        {plot === 'pickett' && zones.length > 0 && (
-          <div className="flex items-center gap-1 flex-wrap max-w-[45%]" data-testid="petro-pickett-zones">
+        {zones.length > 0 && (
+          <div className="flex items-center gap-1 flex-wrap max-w-[45%]" data-testid="petro-xplot-zones">
             <span className="text-slate-500">Zones</span>
             <button
               type="button"
-              data-testid="petro-pickett-zone-all"
+              data-testid="petro-xplot-zone-all"
               title="Show every sample, including depths outside all zones"
               className={`px-1.5 py-0.5 rounded border ${zoneFilter.filtering
                 ? 'border-slate-700 text-slate-400 hover:text-slate-200' : 'border-cyan-500/60 text-cyan-300'}`}
@@ -527,7 +533,7 @@ export default function CrossplotPanel({
                 <button
                   key={z.id}
                   type="button"
-                  data-testid={`petro-pickett-zone-${z.name}`}
+                  data-testid={`petro-xplot-zone-${z.name}`}
                   aria-pressed={on}
                   title={`${z.name}: ${z.top_md_m} to ${z.base_md_m} m MD`}
                   className={`flex items-center gap-1 px-1.5 py-0.5 rounded border ${on
@@ -576,7 +582,7 @@ export default function CrossplotPanel({
 
       <div className="flex-1 min-h-0">
         {plot === 'nd' && (
-          ndSamples.length ? (
+          ndShown.length ? (
             <Crossplot
               points={ndPoints}
               xLabel="NPHI (v/v)"
@@ -585,6 +591,7 @@ export default function CrossplotPanel({
               yDomain={dom('nd').y}
               yReverse
               overlays={ND_LITHOLOGY_LINES.map((l) => ({ ...l, color: '#94a3b8' }))}
+              legend={zInfo ? [] : zoneFilter.legend}
               polygons={facies}
               draftPolygon={selecting ? selDraft : (drawing ? draft : null)}
               onPlotClick={selecting
@@ -593,7 +600,11 @@ export default function CrossplotPanel({
               colorbar={colorbar}
               onDomainsChange={setDom('nd')}
             />
-          ) : <p className="p-4 text-xs text-slate-500">Needs NPHI and RHOB curves.</p>
+          ) : (
+            <p className="p-4 text-xs text-slate-500">
+              {ndSamples.length ? noSamplesMsg : 'Needs NPHI and RHOB curves.'}
+            </p>
+          )
         )}
         {plot === 'pickett' && (
           pickettShown.length ? (
@@ -614,14 +625,12 @@ export default function CrossplotPanel({
             />
           ) : (
             <p className="p-4 text-xs text-slate-500">
-              {pickettSamples.length
-                ? `No samples in ${zoneFilter.label}. Pick other zones, or All zones.`
-                : 'Needs RT and a computed φe.'}
+              {pickettSamples.length ? noSamplesMsg : 'Needs RT and a computed φe.'}
             </p>
           )
         )}
         {plot === 'buckles' && (
-          bucklesSamples.length ? (
+          bucklesShown.length ? (
             <Crossplot
               points={bucklesPoints}
               xLabel="φe (v/v)"
@@ -630,14 +639,19 @@ export default function CrossplotPanel({
               yDomain={dom('buckles').y}
               overlays={bucklesOverlays}
               colorbar={colorbar}
+              legend={zInfo ? [] : zoneFilter.legend}
               draftPolygon={selecting ? selDraft : null}
               onPlotClick={selecting ? ({ x, y }) => setSelDraft((d) => [...d, [x, y]]) : undefined}
               onDomainsChange={setDom('buckles')}
             />
-          ) : <p className="p-4 text-xs text-slate-500">Needs computed φe and Sw.</p>
+          ) : (
+            <p className="p-4 text-xs text-slate-500">
+              {bucklesSamples.length ? noSamplesMsg : 'Needs computed φe and Sw.'}
+            </p>
+          )
         )}
         {plot === 'hingle' && (
-          hingleSamples.length ? (
+          hingleShown.length ? (
             <Crossplot
               points={hinglePoints}
               xLabel="φe (v/v)"
@@ -646,11 +660,16 @@ export default function CrossplotPanel({
               yDomain={dom('hingle').y}
               overlays={hingleOverlays}
               colorbar={colorbar}
+              legend={zInfo ? [] : zoneFilter.legend}
               draftPolygon={selecting ? selDraft : null}
               onPlotClick={selecting ? ({ x, y }) => setSelDraft((d) => [...d, [x, y]]) : undefined}
               onDomainsChange={setDom('hingle')}
             />
-          ) : <p className="p-4 text-xs text-slate-500">Needs RT and a computed φe.</p>
+          ) : (
+            <p className="p-4 text-xs text-slate-500">
+              {hingleSamples.length ? noSamplesMsg : 'Needs RT and a computed φe.'}
+            </p>
+          )
         )}
       </div>
     </div>

@@ -537,7 +537,7 @@ const PetrophysicsHelpGuide = () => (
           ['Per-zone override patches', 'Zones themselves (they belong to the well, shared by all its interpretations)'],
           ['Track layout templates', 'Registry tops'],
           ['Facies polygons and the FACIES strip', ''],
-          ['Crossplot choice and colour-by setting', ''],
+          ['Crossplot choice, colour-by setting and zone selection', ''],
         ]}
       />
       <Para>
@@ -565,6 +565,16 @@ const PetrophysicsHelpGuide = () => (
           ['Hingle', 'φe against the Hingle resistivity transform (Rt to the power of minus 1/m); the water line passes through the origin.', 'RT and a computed φe'],
         ]}
       />
+      <SubHeading>Zones on every crossplot</SubHeading>
+      <Para>
+        When the well has zones, a row of zone chips sits in the toolbar. Pick one zone and every
+        plot shows only its samples; pick two or more and the samples take one colour per zone with
+        a legend, so two sands can be compared on one Pickett or Buckles plot. <Code>All zones</Code>
+        shows every sample again, including depths outside any zone. The selection is one setting
+        shared by the four plots, it travels into the PNG caption, and it is saved with the
+        interpretation. An explicit <Code>Color by</Code> curve still wins over zone colours, and
+        facies colours come back as soon as a single zone or all zones are shown.
+      </Para>
       <SubHeading>Fitting the water line</SubHeading>
       <Para>
         On Pickett or Hingle, type the <Code>Water zone (m MD)</Code> top and base of an interval
