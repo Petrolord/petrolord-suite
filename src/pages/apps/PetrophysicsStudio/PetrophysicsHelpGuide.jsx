@@ -787,6 +787,33 @@ const PetrophysicsHelpGuide = () => (
         own zones are used for overrides, and the dialog reports the result per well; a well with
         missing inputs reports <Code>nothing to publish</Code>.
       </Para>
+      <SubHeading>Calculator: a new curve from an expression</SubHeading>
+      <Para>
+        <Code>Calc…</Code> in the ribbon makes a derived curve. Give it a name and a unit, type an
+        expression over any curve the well carries (the mapped inputs, every pipeline output, and
+        any other registry curve by its mnemonic; the chips insert them), and watch the preview
+        line count the valid samples and quote min, mean and max. <Code>Save</Code> writes a NEW
+        registry row with the expression in its provenance; nothing existing is changed, and a name
+        already on the well gets the next free :n suffix. Draw the curve from Track layout as
+        <Code>log:NAME</Code>, map it as an input in the explorer, export it, or use it in the
+        facies rules. The example picker holds the common ones: hydrocarbon pore volume
+        <Code>PHIE * (1 - SW)</Code>, a total porosity rebuilt from PHIE and a shale point, a net
+        flag by cutoffs with <Code>if(PHIE &gt;= 0.08 &amp;&amp; VSH &lt;= 0.5, 1, 0)</Code>.
+      </Para>
+      <Table
+        headers={['Language', 'Meaning']}
+        rows={[
+          ['+ - * / ^ ( )', 'Arithmetic with the usual precedence; ^ is right-associative'],
+          ['< <= > >= == !=', 'Comparisons, giving 1 or 0'],
+          ['&& || !', 'Logic on 1/0 values'],
+          ['abs sqrt exp ln log10 min max pow', 'The usual functions'],
+          ['clip(x, lo, hi)', 'Bound x to [lo, hi]'],
+          ['if(cond, a, b)', 'a where cond is true, b otherwise'],
+          ['isnan(x), nvl(x, alt)', 'Test for a null, or replace a null by alt'],
+          ['pi, e', 'Constants'],
+          ['Nulls', 'Any operation on a null gives a null, so gaps stay gaps unless you use nvl or isnan'],
+        ]}
+      />
       <SubHeading>Digitize</SubHeading>
       <Para>
         <Code>Digitize…</Code> turns a scanned log image into a new curve on the selected well.

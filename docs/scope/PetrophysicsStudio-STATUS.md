@@ -492,3 +492,13 @@ any curve (Vsh, PHIE, Sw, k, GR, RT, ...), previews the thickness each
 class takes, draws the result as a Rule facies strip on the active
 layout and publishes it as electrofacies intervals in the registry. The
 rules save with the interpretation.
+
+## 2026-09-07: PT9f, curve calculator
+
+"How does one create a new derived log?" Until now only the pipeline,
+conditioning, the digitizer and LAS import made curves. The ribbon's
+Calc… dialog evaluates an expression over any curve on the well
+(inputs, outputs, registry curves), previews it, and saves it as a new
+registry row with the expression in provenance. The tester's own example
+(PHIT from PHIE) is one of the picker's examples, and after PT9a both
+porosities come out of the pipeline anyway.

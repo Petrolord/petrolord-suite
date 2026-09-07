@@ -31,6 +31,7 @@ import LayoutPanel from './LayoutPanel';
 import RwToolsDialog from './RwToolsDialog';
 import ZoneParamTable from './ZoneParamTable';
 import RuleFaciesDialog from './RuleFaciesDialog';
+import CurveCalculatorDialog from './CurveCalculatorDialog';
 import { classifyRules } from '../services/ruleFacies';
 import HistogramPanel from './HistogramPanel';
 import ConditioningDialog from './ConditioningDialog';
@@ -80,6 +81,7 @@ export default function PetroWorkstation({
   const [faciesByWell, setFaciesByWell] = useState({}); // persisted per-well workspace state
   const [ruleFacies, setRuleFacies] = useState(null);   // PT9e: cutoff-rule classes (per interpretation)
   const [ruleFaciesOpen, setRuleFaciesOpen] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);            // PT9f
   const [zoneParams, setZoneParams] = useState({});     // zoneId -> override patch (PS3)
   const [projectId, setProjectId] = useState('project-dev');
   const [projectName, setProjectName] = useState(null);
@@ -791,6 +793,17 @@ export default function PetroWorkstation({
         </button>
         <button
           type="button"
+          data-testid="petro-calc"
+          disabled={!wellData}
+          title="Create a new curve from an expression over this well's curves"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          onClick={() => setCalcOpen(true)}
+        >
+          <FlaskConical className="w-3.5 h-3.5" /> Calc…
+        </button>
+        <button
+          type="button"
           data-testid="petro-digitize"
           disabled={!wellData || !selected?.is_own}
           title={selected && !selected.is_own ? 'Org-shared wells are read-only' : 'Digitize a curve from a scanned log image'}
@@ -1152,6 +1165,19 @@ export default function PetroWorkstation({
         onSaved={() => select(wellData.wellId)}
         onStatus={setStatus}
         lastNormFit={lastNormFit}
+      />
+    )}
+    {wellData && (
+      <CurveCalculatorDialog
+        open={calcOpen}
+        onOpenChange={setCalcOpen}
+        wellData={wellData}
+        outputs={computed?.outputs}
+        backend={backend}
+        projectId={projectId}
+        canSave={!!selected?.is_own}
+        onSaved={() => select(wellData.wellId)}
+        onStatus={setStatus}
       />
     )}
     <RuleFaciesDialog
