@@ -12,6 +12,7 @@
 import { redeemBridgeForQuote } from "./nextgen-bridge.ts";
 import { redeemPromoForQuote } from "./promo-codes.ts";
 import { sendEmail } from "./email.ts";
+import { subscriptionWindow } from "./billing-term.ts";
 
 // Coerce the quote's jsonb `modules` (strings or objects) into text[] for
 // subscriptions.modules (a NOT NULL text[] column). Mirrors verify-paystack-payment.
@@ -27,6 +28,40 @@ function toModuleSlugs(modules: unknown): string[] {
       return String(m ?? "").trim();
     })
     .filter((s) => s.length > 0);
+}
+
+// HSE follows a Suite purchase (owner rule, Breeze Energy onboarding
+// 2026-09-07): an organisation that holds an active Suite subscription also
+// holds HSE Professional for the same window. The grant is the same row an
+// HSE Professional purchase writes (organization_apps app 'hse'), so
+// HSEContext, the free-tier limits and the AI quota all key off one thing;
+// the Suite subscription row carries 'hse_professional' in its modules so
+// the nightly lapse sweep and the expiry reminders retire it on the same
+// end date. Best-effort: never blocks Suite provisioning.
+// deno-lint-ignore no-explicit-any
+export async function grantHseWithSuite(supabase: any, orgId: string, userLimit: number, logPrefix = "[provision]"): Promise<boolean> {
+  try {
+    const { error } = await supabase.from("organization_apps").upsert({
+      organization_id: orgId,
+      app_id: "hse",
+      module_id: "hse_professional",
+      seats_allocated: userLimit,
+      status: "ACTIVE",
+    }, { onConflict: "organization_id,app_id" });
+    if (error) { console.error(`${logPrefix} HSE grant with Suite failed:`, error.message); return false; }
+    await supabase.from("organizations").update({ hse_status: "ACTIVE" }).eq("id", orgId);
+    return true;
+  } catch (e) {
+    console.error(`${logPrefix} HSE grant with Suite failed:`, (e as Error).message);
+    return false;
+  }
+}
+
+/** subscriptions.modules for a Suite quote: the quote's modules plus the HSE grant that rides with them. */
+export function suiteSubscriptionModules(modules: unknown): string[] {
+  const out = toModuleSlugs(modules);
+  if (!out.includes("hse_professional")) out.push("hse_professional");
+  return out;
 }
 
 export interface ProvisionOpts {
@@ -101,19 +136,15 @@ export async function provisionPaidQuote(supabase: any, opts: ProvisionOpts): Pr
   // 4. Active subscription row + real expiry. Best-effort: never undo the payment.
   try {
     const term = quote.billing_term || "annual";
-    const billingPeriod = quote.billing_period || (/month/i.test(term) ? "monthly" : "annual");
     const userLimit = quote.user_seats || quote.seats || 1;
-    const start = new Date(paidAt);
-    const end = new Date(start);
-    if (billingPeriod === "monthly") end.setMonth(end.getMonth() + 1);
-    else end.setFullYear(end.getFullYear() + 1);
-    const startDate = start.toISOString().slice(0, 10);
-    const endDate = end.toISOString().slice(0, 10);
+    // The term the customer paid for is the term they get (quarterly = 3 months,
+    // not a year): one shared table drives quoting, provisioning and renewals.
+    const { billingPeriod, end, startDate, endDate } = subscriptionWindow(paidAt, term, quote.billing_period);
 
     const subRow = {
       organization_id: orgId,
       quote_id: quoteUuid,
-      modules: toModuleSlugs(quote.modules),
+      modules: suiteSubscriptionModules(quote.modules),
       user_limit: userLimit,
       term,
       billing_period: billingPeriod,
@@ -151,6 +182,9 @@ export async function provisionPaidQuote(supabase: any, opts: ProvisionOpts): Pr
       .update({ expiry_date: end.toISOString() })
       .eq("organization_id", orgId)
       .eq("quote_id", quoteUuid);
+
+    // HSE rides with the Suite subscription for the same window.
+    await grantHseWithSuite(supabase, orgId, userLimit);
   } catch (subErr) {
     console.error("[provision] subscription/expiry sync failed (non-fatal):", (subErr as Error).message);
   }
@@ -222,12 +256,7 @@ async function provisionPaidHseQuote(supabase: any, quote: any, opts: ProvisionO
 
   // 4. Subscription row: its end_date is what the lapse sweep enforces.
   try {
-    const billingPeriod = quote.billing_period || (/month/i.test(quote.billing_term || "") ? "monthly" : "annual");
-    const start = new Date(paidAt);
-    const end = new Date(start);
-    if (billingPeriod === "monthly") end.setMonth(end.getMonth() + 1);
-    else end.setFullYear(end.getFullYear() + 1);
-    const endDate = end.toISOString().slice(0, 10);
+    const { billingPeriod, startDate, endDate } = subscriptionWindow(paidAt, quote.billing_term, quote.billing_period);
 
     const subRow = {
       organization_id: orgId,
@@ -236,7 +265,7 @@ async function provisionPaidHseQuote(supabase: any, quote: any, opts: ProvisionO
       user_limit: userLimit,
       term: quote.billing_term || billingPeriod,
       billing_period: billingPeriod,
-      start_date: start.toISOString().slice(0, 10),
+      start_date: startDate,
       end_date: endDate,
       next_renewal_date: endDate,
       renewal_status: "pending",

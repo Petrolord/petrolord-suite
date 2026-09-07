@@ -121,3 +121,30 @@ individually, or if a second copy of the table reappears.
 - **`apps` (4 rows) is now orphaned.** Nothing reads it since
   `get-active-apps` was repointed at `master_apps`. Dropping it needs a
   check that nothing else touches it first.
+
+## Term expiry and HSE with Suite (2026-09-07, Breeze Energy onboarding)
+
+**Defect fixed.** generate-quote prices a term as N months (monthly 1,
+quarterly 3, annual 12, 2year 24, 3year 36) but never stored
+`quotes.billing_period`, and both provisioning paths (the shared
+`_shared/provision-quote.ts` and the inlined copy in
+verify-paystack-payment) derived the access window as "monthly, else one
+year". A quarterly purchase was therefore granted twelve months on
+`subscriptions.end_date` and `purchased_modules.expiry_date`, and the
+renewal cron advanced non-monthly terms by a year. No live subscription
+was affected (the only one is annual). Now one table,
+`_shared/billing-term.ts` (jest: `__tests__/billing-term.test.ts`, 9
+gates), drives quoting (billing_period stored), provisioning (window =
+payment date plus the term's months, day clamped) and renewals.
+
+**Rule added: HSE follows a Suite purchase.** Every Suite provisioning path
+now also writes the HSE Professional grant (organization_apps app `hse`,
+module `hse_professional`, seats = the quote's seats) and sets
+`organizations.hse_status = 'ACTIVE'`, and the Suite subscription row carries
+`hse_professional` in `modules`, so the nightly lapse sweep
+(20260810230000) and the expiry reminders retire HSE on the same end date
+as the Suite. An HSE Professional quote on its own is unchanged.
+
+Deploy: generate-quote, verify-paystack-payment, paystack-webhook,
+verify-stripe-payment, stripe-webhook, hse-checkout,
+process-subscription-renewals (all import the shared modules).

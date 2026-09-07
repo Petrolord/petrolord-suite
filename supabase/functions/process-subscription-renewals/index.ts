@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "./cors.ts";
+import { addMonths, termMonths } from "../_shared/billing-term.ts";
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
 serve(async (req)=>{
   if (req.method === 'OPTIONS') {
@@ -100,10 +101,8 @@ serve(async (req)=>{
         }
         if (chargeResult.data.status === 'success') {
           // Success Logic
-          const nextRenewal = new Date();
-          // Add billing period logic (e.g. +1 year or +1 month)
-          if (sub.billing_period === 'monthly') nextRenewal.setMonth(nextRenewal.getMonth() + 1);
-          else nextRenewal.setFullYear(nextRenewal.getFullYear() + 1); // Default annual
+          // Next renewal after the term's months (monthly 1, quarterly 3, annual 12, 2year 24, 3year 36).
+          const nextRenewal = addMonths(new Date(), termMonths(sub.billing_period || sub.term));
           await supabase.from('subscriptions').update({
             renewal_date: nextRenewal.toISOString().split('T')[0],
             renewal_status: 'active',
