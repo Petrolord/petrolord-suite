@@ -330,7 +330,7 @@ export default function PetroWorkstation({
 
   // publish the current computed curves to the registry (overwrite-own
   // rule enforced in the backend) + refresh the inventory so the new
-  // VSH/PHIE/SW/PAY rows show as mapped inputs going forward
+  // VSH/PHIT/PHIE/SW/KPERM/PAY rows show as mapped inputs going forward
   const publish = async () => {
     if (!wellData || !computed) return;
     setPublishing(true);

@@ -86,7 +86,7 @@ export default function ExportDialog({
       testid: 'petro-export-las',
       icon: FileType,
       label: 'LAS 2.0',
-      note: 'DEPT plus any extra depth columns, inputs, VSH, PHIE, SW and PAY, with the parameter set in ~Parameter.',
+      note: 'DEPT plus any extra depth columns, inputs, VSH, PHIT, PHIE, SW, BVW, KPERM and PAY, with the parameter set in ~Parameter.',
       build: () => saveAs(
         new Blob([buildLas(wellData, outputs, params, { wellName, projectId, ...depthOpts })], { type: 'text/plain;charset=utf-8;' }),
         `${base}_interpretation.las`,

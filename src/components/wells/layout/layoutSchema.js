@@ -37,7 +37,7 @@ export const RAMP_PRESETS = {
 };
 
 export const INPUT_SOURCES = ['input:GR', 'input:RHOB', 'input:NPHI', 'input:DT', 'input:RT'];
-export const OUTPUT_SOURCES = ['output:PHIE', 'output:VSH', 'output:SW', 'output:PAY', 'output:TEMP', 'output:KPERM', 'output:BVW'];
+export const OUTPUT_SOURCES = ['output:PHIE', 'output:PHIT', 'output:VSH', 'output:SW', 'output:PAY', 'output:TEMP', 'output:KPERM', 'output:BVW'];
 export const THRESHOLD_PARAMS = ['cutPhi', 'cutVsh', 'cutSw', 'grClean', 'grClay'];
 /** Strip (categorical) track sources: crossplot facies, or a registry interval kind (ST1). */
 export const STRIP_SOURCES = [
@@ -83,7 +83,12 @@ export function buildDefaultTemplates() {
         },
         {
           id: 't-phi', title: 'Porosity (v/v)', type: 'curves', width: 1, scale: 'linear', min: 0, max: 0.5,
-          curves: [{ source: 'output:PHIE', label: 'φe', color: '#0891b2' }],
+          // PT9: total porosity as read (dashed) beside the shale-corrected
+          // effective porosity the cutoffs, Sw and k run on
+          curves: [
+            { source: 'output:PHIT', label: 'φt', color: '#64748b', style: 'dash', lineWidth: 0.8 },
+            { source: 'output:PHIE', label: 'φe', color: '#0891b2' },
+          ],
           fills: [{ mode: 'threshold', a: 'output:PHIE', threshold: { param: 'cutPhi' }, side: 'above', color: '#fde047', opacity: 0.25 }],
         },
         {

@@ -22,7 +22,10 @@ const FIELDS = [
   { key: 'grClay', label: 'GR clay (API)' },
   { key: 'vshMethod', label: 'Model', options: ['linear', 'larionov-tertiary', 'larionov-older', 'clavier', 'steiber'] },
   { section: 'Porosity' },
-  { key: 'phiSource', label: 'φe source', options: ['density', 'sonic', 'nd'] },
+  { key: 'phiSource', label: 'φt source', options: ['density', 'sonic', 'nd'] },
+  // PT9: the selected tool's apparent porosity in 100 percent shale;
+  // PHIE = PHIT - Vsh * φ shale feeds Sw, cutoffs, k and BVW
+  { key: 'phiShale', label: 'φ shale (v/v)' },
   { key: 'rhoMa', label: 'ρ matrix (g/cc)' },
   { key: 'rhoFl', label: 'ρ fluid (g/cc)' },
   { key: 'dtMa', label: 'Δt matrix (µs/m)' },

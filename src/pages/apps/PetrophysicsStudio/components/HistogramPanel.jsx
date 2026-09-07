@@ -43,7 +43,7 @@ export default function HistogramPanel({
   const available = useMemo(() => {
     const out = [];
     for (const key of ['GR', 'RHOB', 'NPHI', 'DT', 'RT']) if (curves[key]) out.push(key);
-    for (const key of ['PHIE', 'VSH', 'SW', 'KPERM', 'BVW', 'TEMP']) if (outputs?.[key]) out.push(key);
+    for (const key of ['PHIE', 'PHIT', 'VSH', 'SW', 'KPERM', 'BVW', 'TEMP']) if (outputs?.[key]) out.push(key);
     return out;
   }, [curves, outputs]);
 

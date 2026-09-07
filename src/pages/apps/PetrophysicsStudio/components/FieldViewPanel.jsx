@@ -18,7 +18,7 @@ import { resolveTracks } from '../layout/resolveTracks';
 
 const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
 const MAX_WELLS = 8;
-const FIELD_SOURCES = new Set(['input:GR', 'output:PHIE', 'output:SW', 'output:PAY']);
+const FIELD_SOURCES = new Set(['input:GR', 'output:PHIE', 'output:PHIT', 'output:SW', 'output:PAY']);
 const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? '—' : Number(v).toFixed(d));
 
 export default function FieldViewPanel({
