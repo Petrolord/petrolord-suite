@@ -10,3 +10,9 @@ export const WS_ROLES = Object.freeze([
   { code: 'administrator', name: 'Administrator' },
 ]);
 export const roleName = (code) => (WS_ROLES.find((r) => r.code === code) || { name: code }).name;
+// Rig types (tester note 2026-09-07): floaters return through a marine riser and run a booster pump.
+export const RIG_TYPES = Object.freeze([
+  { code: 'land', name: 'Land rig' }, { code: 'jackup', name: 'Jack-up' }, { code: 'platform', name: 'Platform rig' },
+  { code: 'semisub', name: 'Semi-submersible' }, { code: 'drillship', name: 'Drillship' },
+]);
+export const FLOATER_TYPES = Object.freeze(['semisub', 'drillship']);

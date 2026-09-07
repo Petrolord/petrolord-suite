@@ -10,13 +10,14 @@ import { fmtDepth } from '../services/units';
 import EventBar from './EventBar';
 import { abbreviate, descriptionOf, mergeProfile } from '../services/describe';
 
-export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents, events = [], onStartEvent, onEndEvent, descriptions = [], lag = { available: false }, board = null, onStage, defaults, offsetMin, unit, onChanged, onStatus }) {
+export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents, events = [], onStartEvent, onEndEvent, descriptions = [], lag = { available: false }, board = null, onStage, defaults, offsetMin, unit, floater = false, onChanged, onStatus }) {
   const openEvent = events.filter((e) => e.duration && e.endUtcMs == null).slice(-1)[0] || null;
   const lastDesc = descriptions[descriptions.length - 1] || null;
   const profile = mergeProfile(well.settings && well.settings.abbreviation_profile ? well.settings.abbreviation_profile : null);
   const latest = bitDepths[bitDepths.length - 1] || null;
   const [entry, setEntry] = useState({ value: NaN, unit: defaults.unit, reference: defaults.reference, datum: defaults.datum });
   const [spm, setSpm] = useState('');
+  const [boosterSpm, setBoosterSpm] = useState('');
   const [note, setNote] = useState('');
 
   const recordBit = async () => {
@@ -30,10 +31,12 @@ export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents
   const recordPump = async () => {
     const v = Number(spm);
     if (!Number.isFinite(v) || v < 0) { onStatus?.('Pump rate must be zero or more strokes per minute.'); return; }
+    const b = floater ? Number(boosterSpm || 0) : 0;
+    if (!Number.isFinite(b) || b < 0) { onStatus?.('Booster rate must be zero or more strokes per minute.'); return; }
     try {
-      await backend.addRecord(well.id, { kind: 'observation', subtype: 'pump_rate', payload: { spm: v, note: note || null, source: 'manual' } });
-      onStatus?.(v === 0 ? 'Pumps off recorded.' : `Pump rate ${v} spm recorded.`);
-      setSpm(''); setNote('');
+      await backend.addRecord(well.id, { kind: 'observation', subtype: 'pump_rate', payload: { spm: v, boosterSpm: b, note: note || null, source: 'manual' } });
+      onStatus?.(v === 0 ? 'Pumps off recorded.' : `Pump rate ${v} spm${b > 0 ? ` and booster ${b} spm` : ''} recorded.`);
+      setSpm(''); setBoosterSpm(''); setNote('');
       onChanged?.();
     } catch (e) { onStatus?.(e.message); }
   };
@@ -46,7 +49,7 @@ export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card label="Bit depth" testId="ws-live-bit" value={latest ? fmtDepth(latest.md_calc_m, unit) : 'not recorded'} sub={latest ? `${local(latest.occurred_at)} rig time, entered ${latest.depth_value} ${latest.depth_unit} ${latest.depth_ref} ${latest.depth_datum}` : ''} />
         <Card label="TVD" testId="ws-live-tvd" value={latest && Number.isFinite(latest.tvd_calc_m) ? fmtDepth(latest.tvd_calc_m, unit) : ''} sub={latest ? `${latest.calc_method.replace(/_/g, ' ')}${latest.survey_version ? `, survey ${latest.survey_version}` : ''}` : ''} />
-        <Card label="Pumps" testId="ws-live-spm" value={lastPump ? (lastPump.payload.spm > 0 ? `${lastPump.payload.spm} spm` : 'off') : 'unknown'} sub={lastPump ? `since ${local(lastPump.occurred_at)}${lastPump.payload.note ? `, ${lastPump.payload.note}` : ''}` : ''} />
+        <Card label="Pumps" testId="ws-live-spm" value={lastPump ? (lastPump.payload.spm > 0 ? `${lastPump.payload.spm} spm${lastPump.payload.boosterSpm > 0 ? ` + ${lastPump.payload.boosterSpm} booster` : ''}` : 'off') : 'unknown'} sub={lastPump ? `since ${local(lastPump.occurred_at)}${lastPump.payload.note ? `, ${lastPump.payload.note}` : ''}` : ''} />
         <Card label="Lagged sample depth" testId="ws-live-lagged" value={lag.available && Number.isFinite(lag.laggedMdM) ? fmtDepth(lag.laggedMdM, unit) : (lag.available ? 'not yet at surface' : 'no lag yet')}
           sub={lag.available ? `${Math.round(lag.lagStrokes)} strokes, ${lag.lagTimeMin == null ? 'pumps off' : `${Math.round(lag.lagTimeMin)} min at ${lag.spmNow} spm`}` : lag.note} />
         <Card label="Next sample" testId="ws-live-next-sample" value={board && board.nextDue ? `No ${board.nextDue.sample.sample_no}, ${fmtDepth(board.nextDue.sample.md_calc_m, unit)}` : (board && board.nextScheduled ? `No ${board.nextScheduled.sample.sample_no} at ${fmtDepth(board.nextScheduled.sample.md_calc_m, unit)}` : 'none scheduled')}
@@ -74,6 +77,7 @@ export default function LiveWellView({ backend, well, ctx, bitDepths, pumpEvents
         <h3 className="text-xs font-semibold text-slate-200">Pump rate change</h3>
         <div className="flex items-center gap-2">
           <input className={`${inp} w-24`} type="number" placeholder="spm" value={spm} onChange={(e) => setSpm(e.target.value)} data-testid="ws-pump-spm" />
+          {floater && <input className={`${inp} w-28`} type="number" placeholder="booster spm" title="Booster pump strokes per minute" value={boosterSpm} onChange={(e) => setBoosterSpm(e.target.value)} data-testid="ws-pump-booster" />}
           <input className={`${inp} w-60`} placeholder="note (connection, survey, wiper trip)" value={note} onChange={(e) => setNote(e.target.value)} data-testid="ws-pump-note" />
           <Button size="sm" onClick={recordPump} data-testid="ws-pump-save">Record</Button>
           <Button size="sm" variant="outline" onClick={() => { setSpm('0'); }} data-testid="ws-pump-off">Pumps off</Button>

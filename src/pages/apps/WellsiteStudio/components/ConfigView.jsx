@@ -11,6 +11,7 @@ import { displacementFromField } from '@/lib/wellsite/pumps';
 import { SAMPLE_STAGE_NAMES, WS_ROLES } from '../services/vocab';
 import { validateProfile, PETROLORD_PROFILE } from '@/lib/wellsite/abbreviations';
 import { validateTemplate, DEFAULT_DAILY_TEMPLATE } from '@/lib/wellsite/reports';
+import { RIG_TYPES, FLOATER_TYPES } from '../services/vocab';
 
 const IN = 0.0254;
 const num = (v) => (v === '' || v == null ? NaN : Number(v));
@@ -36,6 +37,11 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
   const [bha, setBha] = useState(() => bhaToRows(rigConfig?.bha));
   const [dp, setDp] = useState(() => ({ od_in: rigConfig?.drillpipe ? (rigConfig.drillpipe.odM / IN).toFixed(3) : '5', id_in: rigConfig?.drillpipe ? (rigConfig.drillpipe.idM / IN).toFixed(3) : '4.276' }));
   const [pump, setPump] = useState(() => ({ type: 'triplex', linerIn: '6', strokeIn: '12', rodIn: '0', efficiency: '0.97', ...(rigConfig?.pump ? Object.fromEntries(Object.entries(rigConfig.pump).map(([k, v]) => [k, String(v)])) : {}) }));
+  // Floating rigs (tester note 2026-09-07): the marine riser above the BOP and the booster pump into its base.
+  const [rigType, setRigType] = useState(() => rigConfig?.rig_type || 'land');
+  const [riser, setRiser] = useState(() => ({ bop_ft: rigConfig?.riser?.to_md_m > 0 ? (rigConfig.riser.to_md_m / 0.3048).toFixed(0) : '', id_in: rigConfig?.riser?.id_m > 0 ? (rigConfig.riser.id_m / IN).toFixed(3) : '19.5' }));
+  const [booster, setBooster] = useState(() => ({ type: 'triplex', linerIn: '5', strokeIn: '12', rodIn: '0', efficiency: '0.97', ...(rigConfig?.booster ? Object.fromEntries(Object.entries(rigConfig.booster).map(([k, v]) => [k, String(v)])) : {}) }));
+  const floater = FLOATER_TYPES.includes(rigType);
   const [settings, setSettings] = useState(() => ({ ...(well.settings || {}) }));
   const [header, setHeader] = useState(() => ({ ...(well.header || {}) }));
   const [profileText, setProfileText] = useState(() => (well.settings && well.settings.abbreviation_profile ? JSON.stringify(well.settings.abbreviation_profile, null, 2) : ''));
@@ -53,6 +59,9 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
     setSections(sectionsToRows(rigConfig.hole_sections)); setBha(bhaToRows(rigConfig.bha));
     if (rigConfig.drillpipe) setDp({ od_in: (rigConfig.drillpipe.odM / IN).toFixed(3), id_in: (rigConfig.drillpipe.idM / IN).toFixed(3) });
     if (rigConfig.pump) setPump(Object.fromEntries(Object.entries(rigConfig.pump).map(([k, v]) => [k, String(v)])));
+    setRigType(rigConfig.rig_type || 'land');
+    if (rigConfig.riser) setRiser({ bop_ft: rigConfig.riser.to_md_m > 0 ? (rigConfig.riser.to_md_m / 0.3048).toFixed(0) : '', id_in: rigConfig.riser.id_m > 0 ? (rigConfig.riser.id_m / IN).toFixed(3) : '19.5' });
+    if (rigConfig.booster) setBooster(Object.fromEntries(Object.entries(rigConfig.booster).map(([k, v]) => [k, String(v)])));
   }, [rigConfig]);
 
   const disp = useMemo(() => {
@@ -60,16 +69,34 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
       return displacementFromField({ type: pump.type, linerIn: num(pump.linerIn), strokeIn: num(pump.strokeIn), rodIn: num(pump.rodIn) || 0, efficiency: num(pump.efficiency) });
     } catch (e) { return { error: e.message }; }
   }, [pump]);
+  const boosterDisp = useMemo(() => {
+    try {
+      return displacementFromField({ type: booster.type, linerIn: num(booster.linerIn), strokeIn: num(booster.strokeIn), rodIn: num(booster.rodIn) || 0, efficiency: num(booster.efficiency) });
+    } catch (e) { return { error: e.message }; }
+  }, [booster]);
 
   const saveRig = async () => {
     try {
       const payload = {
+        rig_type: rigType,
         hole_sections: rowsToSections(sections), bha: rowsToBha(bha),
         drillpipe: { odM: num(dp.od_in) * IN, idM: num(dp.id_in) * IN, label: `${dp.od_in} in drillpipe` },
         pump: { type: pump.type, linerIn: num(pump.linerIn), strokeIn: num(pump.strokeIn), rodIn: num(pump.rodIn) || 0, efficiency: num(pump.efficiency) },
+        riser: null,
+        booster: null,
       };
       for (const s of payload.hole_sections) if (!(s.to_md_m > s.from_md_m) || !((s.cased ? s.casing_id_m : s.hole_id_m) > 0)) throw new Error('Every hole section needs a base below its top and a positive inside diameter.');
       if (disp.error) throw new Error(disp.error);
+      if (floater) {
+        const bopM = num(riser.bop_ft) * 0.3048;
+        const idM = num(riser.id_in) * IN;
+        if (!(bopM > 0) || !(idM > 0)) throw new Error('A floating rig needs the BOP depth below the rotary table and the riser inside diameter.');
+        if (boosterDisp.error) throw new Error(boosterDisp.error);
+        payload.riser = { to_md_m: bopM, id_m: idM };
+        payload.booster = { type: booster.type, linerIn: num(booster.linerIn), strokeIn: num(booster.strokeIn), rodIn: num(booster.rodIn) || 0, efficiency: num(booster.efficiency) };
+        const inside = payload.hole_sections.filter((x) => x.from_md_m < bopM - 1e-6);
+        if (inside.length) throw new Error(`On a floating rig the hole sections start at the BOP (${riser.bop_ft} ft); the riser is entered above. Move the top of the first section to ${riser.bop_ft} ft.`);
+      }
       await backend.addRecord(well.id, { kind: 'observation', subtype: 'rig_config', payload });
       onStatus?.('Rig configuration recorded.');
       onSaved?.();
@@ -116,7 +143,23 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-slate-100">Rig geometry and pump</h2>
         <p className="text-[11px] text-slate-400">Read by the lag engine. Saving records a dated configuration; earlier ones are kept.</p>
-        <div className="text-xs text-slate-300">Hole sections (ft MD, inside diameter in inches; cased sections use the casing ID)</div>
+        <div className="flex items-end gap-3 flex-wrap">
+          <label className="text-xs text-slate-300">Rig type<br />
+            <select className={inp} data-testid="ws-config-rig-type" value={rigType} onChange={(e) => setRigType(e.target.value)}>
+              {RIG_TYPES.map((r) => <option key={r.code} value={r.code}>{r.name}</option>)}
+            </select>
+          </label>
+          {floater && (
+            <>
+              <label className="text-xs text-slate-300">BOP depth below RT (ft)<br /><input className={inp} data-testid="ws-config-riser-bop" value={riser.bop_ft} onChange={(e) => setRiser({ ...riser, bop_ft: e.target.value })} placeholder="air gap + water depth" /></label>
+              <label className="text-xs text-slate-300">Riser ID (in)<br /><input className={inp} data-testid="ws-config-riser-id" value={riser.id_in} onChange={(e) => setRiser({ ...riser, id_in: e.target.value })} /></label>
+            </>
+          )}
+        </div>
+        {floater && (
+          <p className="text-[11px] text-cyan-300/80" data-testid="ws-config-floater-note">Floating rig: returns travel up the marine riser above the BOP, and the booster pump adds flow at the riser base. Enter the hole sections from the BOP down; the riser is the row above them.</p>
+        )}
+        <div className="text-xs text-slate-300">Hole sections (ft MD, inside diameter in inches; cased sections use the casing ID{floater ? '; start at the BOP' : ''})</div>
         <RowGridEditor testIdPrefix="ws-config-section" rows={sections} onChange={setSections} columns={[
           { key: 'from_ft', label: 'From (ft)', type: 'number', width: 90 }, { key: 'to_ft', label: 'To (ft)', type: 'number', width: 90 },
           { key: 'cased', label: 'Cased', type: 'select', options: [{ value: 'no', label: 'open hole' }, { value: 'yes', label: 'cased' }], width: 100 },
@@ -143,6 +186,22 @@ export default function ConfigView({ backend, well, rigConfig, onSaved, onStatus
             {disp.error ? disp.error : `${disp.bblPerStroke.toFixed(4)} bbl/stk (${(disp.m3PerStroke * 1000).toFixed(2)} L/stk)`}
           </div>
         </div>
+        {floater && (
+          <div className="flex items-end gap-3 flex-wrap" data-testid="ws-config-booster">
+            <label className="text-xs text-slate-300">Booster pump<br />
+              <select className={inp} data-testid="ws-config-booster-type" value={booster.type} onChange={(e) => setBooster({ ...booster, type: e.target.value })}>
+                <option value="triplex">triplex</option><option value="duplex">duplex</option>
+              </select>
+            </label>
+            <label className="text-xs text-slate-300">Liner (in)<br /><input className={inp} data-testid="ws-config-booster-liner" value={booster.linerIn} onChange={(e) => setBooster({ ...booster, linerIn: e.target.value })} /></label>
+            <label className="text-xs text-slate-300">Stroke (in)<br /><input className={inp} data-testid="ws-config-booster-stroke" value={booster.strokeIn} onChange={(e) => setBooster({ ...booster, strokeIn: e.target.value })} /></label>
+            {booster.type === 'duplex' && <label className="text-xs text-slate-300">Rod (in)<br /><input className={inp} value={booster.rodIn} onChange={(e) => setBooster({ ...booster, rodIn: e.target.value })} /></label>}
+            <label className="text-xs text-slate-300">Efficiency<br /><input className={inp} data-testid="ws-config-booster-eff" value={booster.efficiency} onChange={(e) => setBooster({ ...booster, efficiency: e.target.value })} /></label>
+            <div className="text-xs text-cyan-300" data-testid="ws-config-booster-out">
+              {boosterDisp.error ? boosterDisp.error : `${boosterDisp.bblPerStroke.toFixed(4)} bbl/stk (${(boosterDisp.m3PerStroke * 1000).toFixed(2)} L/stk) into the riser base`}
+            </div>
+          </div>
+        )}
         <Button size="sm" onClick={saveRig} data-testid="ws-config-save-rig">Record rig configuration</Button>
       </section>
 
