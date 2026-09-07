@@ -16,7 +16,31 @@ import {
 const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-full';
 const miniCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1 py-0.5 text-[11px]';
 const SOURCES = [...INPUT_SOURCES, ...OUTPUT_SOURCES];
-const numOr = (v, fallback) => (Number.isFinite(Number(v)) && v !== '' ? Number(v) : fallback);
+
+// Numeric text box that lets a person type a number the way people type
+// numbers (tester fix 2026-09-07): a lone minus sign, a trailing decimal
+// point or an empty box are kept as text while typing, and the parsed value
+// is committed to the layout only when the text is a complete number. A
+// controlled input that parsed every keystroke threw the "-" and the "."
+// away, so a negative or a decimal range could never be typed.
+function NumText({ value, onCommit, allowEmpty = false, ...rest }) {
+  const shown = value == null || value === '' ? '' : String(value);
+  const [text, setText] = useState(shown);
+  const [focused, setFocused] = useState(false);
+  useEffect(() => { if (!focused) setText(shown); }, [shown, focused]);
+  const change = (e) => {
+    const t = e.target.value;
+    setText(t);
+    const trimmed = t.trim();
+    if (trimmed === '') { if (allowEmpty) onCommit(undefined); return; }
+    if (/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(trimmed) && Number.isFinite(Number(trimmed))) onCommit(Number(trimmed));
+  };
+  return (
+    <input {...rest} inputMode="decimal" value={text} onChange={change}
+      onFocus={() => setFocused(true)}
+      onBlur={() => { setFocused(false); setText(shown); }} />
+  );
+}
 
 /**
  * @param {string[]} [p.logSources] mnemonics of the selected well; each is
@@ -165,8 +189,8 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                 </label>
                 <label className="flex items-center gap-1">
                   <span className="text-slate-500 w-9">Width</span>
-                  <input className={miniCls} style={{ width: '100%' }} value={String(tr.width ?? 1)}
-                    onChange={(e) => editTrack(tr.id, (x) => ({ ...x, width: numOr(e.target.value, x.width) }))} />
+                  <NumText className={miniCls} style={{ width: '100%' }} value={tr.width ?? 1} data-testid="petro-layout-track-width"
+                    onCommit={(v) => editTrack(tr.id, (x) => ({ ...x, width: v > 0 ? v : x.width }))} />
                 </label>
                 {tr.type === 'strip' && (
                   <label className="flex items-center gap-1 col-span-2">
@@ -191,10 +215,10 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                     </label>
                     <div className="flex items-center gap-1">
                       <span className="text-slate-500 w-9">Range</span>
-                      <input className={miniCls} style={{ width: 52 }} value={String(tr.min)}
-                        onChange={(e) => editTrack(tr.id, (x) => ({ ...x, min: numOr(e.target.value, x.min) }))} />
-                      <input className={miniCls} style={{ width: 52 }} value={String(tr.max)}
-                        onChange={(e) => editTrack(tr.id, (x) => ({ ...x, max: numOr(e.target.value, x.max) }))} />
+                      <NumText className={miniCls} style={{ width: 52 }} value={tr.min} title="Track min" data-testid="petro-layout-track-min"
+                        onCommit={(v) => editTrack(tr.id, (x) => ({ ...x, min: v }))} />
+                      <NumText className={miniCls} style={{ width: 52 }} value={tr.max} title="Track max" data-testid="petro-layout-track-max"
+                        onCommit={(v) => editTrack(tr.id, (x) => ({ ...x, max: v }))} />
                     </div>
                   </>
                 )}
@@ -228,15 +252,15 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                         onChange={(e) => editTrack(tr.id, (x) => ({
                           ...x, curves: x.curves.map((y, yi) => (yi === ci ? { ...y, color: e.target.value } : y)),
                         }))} />
-                      <input className={miniCls} style={{ width: 44 }} placeholder="min" value={c.min ?? ''}
-                        title="Curve min (overrides track)"
-                        onChange={(e) => editTrack(tr.id, (x) => ({
-                          ...x, curves: x.curves.map((y, yi) => (yi === ci ? { ...y, min: e.target.value === '' ? undefined : numOr(e.target.value, y.min) } : y)),
+                      <NumText className={miniCls} style={{ width: 44 }} placeholder="min" value={c.min} allowEmpty
+                        title="Curve min (overrides track)" data-testid={`petro-layout-curve-min-${ci}`}
+                        onCommit={(v) => editTrack(tr.id, (x) => ({
+                          ...x, curves: x.curves.map((y, yi) => (yi === ci ? { ...y, min: v } : y)),
                         }))} />
-                      <input className={miniCls} style={{ width: 44 }} placeholder="max" value={c.max ?? ''}
-                        title="Curve max (overrides track)"
-                        onChange={(e) => editTrack(tr.id, (x) => ({
-                          ...x, curves: x.curves.map((y, yi) => (yi === ci ? { ...y, max: e.target.value === '' ? undefined : numOr(e.target.value, y.max) } : y)),
+                      <NumText className={miniCls} style={{ width: 44 }} placeholder="max" value={c.max} allowEmpty
+                        title="Curve max (overrides track)" data-testid={`petro-layout-curve-max-${ci}`}
+                        onCommit={(v) => editTrack(tr.id, (x) => ({
+                          ...x, curves: x.curves.map((y, yi) => (yi === ci ? { ...y, max: v } : y)),
                         }))} />
                       <select className={miniCls} value={c.style || 'solid'}
                         title="Line style"
@@ -315,9 +339,9 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                             <option value="__value">fixed value</option>
                           </select>
                           {f.threshold?.param == null && (
-                            <input className={miniCls} style={{ width: 48 }} value={String(f.threshold?.value ?? 0)}
-                              onChange={(e) => editTrack(tr.id, (x) => ({
-                                ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, threshold: { value: numOr(e.target.value, 0) } } : y)),
+                            <NumText className={miniCls} style={{ width: 48 }} value={f.threshold?.value ?? 0} title="Threshold value"
+                              onCommit={(v) => editTrack(tr.id, (x) => ({
+                                ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, threshold: { value: v } } : y)),
                               }))} />
                           )}
                           <select className={miniCls} value={f.side || 'above'}
@@ -370,9 +394,9 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                             // stops are positional in the editor
                              
                             <span key={si} className="flex items-center gap-0.5">
-                              <input className={miniCls} style={{ width: 44 }} value={String(st.value)} title="Stop value"
+                              <NumText className={miniCls} style={{ width: 44 }} value={st.value} title="Stop value"
                                 data-testid={`petro-layout-ramp-value-${fi}-${si}`}
-                                onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, stops: y.stops.map((z, zi) => (zi === si ? { ...z, value: numOr(e.target.value, z.value) } : z)) } : y)) }))} />
+                                onCommit={(v) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, stops: y.stops.map((z, zi) => (zi === si ? { ...z, value: v } : z)) } : y)) }))} />
                               <input type="color" className="w-6 h-5 rounded border border-slate-700 bg-transparent" value={st.color}
                                 data-testid={`petro-layout-ramp-color-${fi}-${si}`}
                                 onChange={(e) => editTrack(tr.id, (x) => ({ ...x, fills: x.fills.map((y, yi) => (yi === fi ? { ...y, stops: y.stops.map((z, zi) => (zi === si ? { ...z, color: e.target.value } : z)) } : y)) }))} />
