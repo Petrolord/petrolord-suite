@@ -116,7 +116,8 @@
                   "petro_project",
                   "pp_project",
                   "rp_project",
-                  "correlation_section", "strat_project",
+                  "correlation_section",
+                  "strat_project",
                   "saved_project",
                   "po_field",
                   "epe_case",
@@ -125,7 +126,8 @@
                   "wp_site",
                   "seismic_project",
                   "seismic_volume",
-                  "seismic_line"
+                  "seismic_line",
+                  "ws_well"
                 ]
               },
               "id": {

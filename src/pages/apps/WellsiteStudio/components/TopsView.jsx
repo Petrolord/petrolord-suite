@@ -12,7 +12,7 @@ import { versionChain, CONFIDENCES, TOP_STATUSES, canTransition, interpretationP
 import { fmtDepth, depthToDisplay } from '../services/units';
 import { toRigLocal } from '@/lib/wellsite/time';
 
-export default function TopsView({ board, tops, records, prognosis, ctx, defaults, unit, offsetMin, approver, online, canAdmin, onInterpret, onCall, onResolve, onLoadPrognosis, onAddPrognosisTop, onStatus, userName }) {
+export default function TopsView({ board, tops, records, prognosis, ctx, defaults, unit, offsetMin, approver, online, canAdmin, onInterpret, onCall, onResolve, onLoadPrognosis, onAddPrognosisTop, onPublish, onStatus, userName }) {
   const [open, setOpen] = useState(null);
   const [form, setForm] = useState(null); // { kind:'interpret'|'call', key, name }
   const [name, setName] = useState('');
@@ -70,6 +70,7 @@ export default function TopsView({ board, tops, records, prognosis, ctx, default
         </span>
         {canAdmin && <Button size="sm" variant="outline" disabled={!online} onClick={onLoadPrognosis} data-testid="ws-prognosis-load" title={online ? 'Load the prognosis from the registry (a new version)' : 'Needs a connection'}>Load from registry</Button>}
         {board.conflicts.length > 0 && <span className="text-[11px] text-amber-300" data-testid="ws-tops-conflicts">{board.conflicts.length} conflict(s)</span>}
+        {onPublish && <Button size="sm" variant="outline" disabled={!online} onClick={onPublish} data-testid="ws-top-publish" title={online ? 'Publish final calls and current descriptions to the shared well registry (registry owner only)' : 'Needs a connection'}>Publish to registry</Button>}
       </div>
 
       <table className="text-xs text-slate-300 w-full">

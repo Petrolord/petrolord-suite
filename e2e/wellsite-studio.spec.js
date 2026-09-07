@@ -449,3 +449,63 @@ test('WS8: the daily report follows the operator template pasted in Config, ever
   await expect(page.getByTestId(/^ws-signoff-row-/)).toHaveCount(1);
   await expect(page.getByTestId('ws-daily-meta')).toContainText('Recorded version 1, signed 1 time(s).');
 });
+
+// ---- WS9: close-out ----------------------------------------------------------------
+
+test('WS9: publish to the registry writes the final calls and descriptions once and replaces only its own rows on republish', async ({ page }) => {
+  await openStudio(page);
+  await page.getByTestId('ws-nav-describe').click();
+  await typeField(page, 'ws-desc-top-value', '9990');
+  await typeField(page, 'ws-desc-base-value', '10000');
+  await typeField(page, 'ws-desc-comp-0-lithology', 'sst');
+  await typeField(page, 'ws-desc-comp-0-percent', '100');
+  await page.getByTestId('ws-desc-save').click();
+  await expect(page.getByTestId('ws-status')).toContainText('Description saved');
+  await page.getByTestId('ws-nav-tops').click();
+  await page.getByTestId('ws-top-callbtn-top_agbada').click();
+  await typeField(page, 'ws-top-depth-value', '10168');
+  await page.getByTestId('ws-top-status').selectOption('confirmed');
+  await page.getByTestId('ws-top-basis').fill('GR drop and sand');
+  await page.getByTestId('ws-top-submit').click();
+  await page.getByTestId('ws-top-callbtn-top_agbada').click();
+  await page.getByTestId('ws-top-status').selectOption('final');
+  await page.getByTestId('ws-top-basis').fill('Agreed with town');
+  await page.getByTestId('ws-top-submit').click();
+  await expect(page.getByTestId('ws-top-row-top_agbada')).toHaveAttribute('data-status', 'final');
+  await page.getByTestId('ws-top-publish').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Published to the registry: 1 final top(s) (0 replaced), 1 lithology interval(s) (0 replaced); 0 row(s) from other sources untouched.');
+  await page.getByTestId('ws-top-publish').click();
+  await expect(page.getByTestId('ws-status')).toHaveText('Published to the registry: 1 final top(s) (1 replaced), 1 lithology interval(s) (1 replaced); 0 row(s) from other sources untouched.');
+  // the help guide is a protected route (jest renders it in full); the ribbon link points at it
+  await expect(page.getByTestId('ws-help')).toHaveAttribute('href', '/dashboard/apps/geoscience/wellsite-studio/help');
+});
+
+test('WS9: the Reference Well opens and its screens render within budget', async ({ page }) => {
+  test.setTimeout(600000);
+  await page.goto('/dev/wellsite-studio?reset=1&seed=reference');
+  await expect(page.getByTestId('ws-status-bit')).toHaveText('Bit 15000 ft', { timeout: 540000 });
+  const ref = await page.evaluate(() => window.__wsReference);
+  expect(ref.samples).toBeGreaterThanOrEqual(2000);
+  expect(ref.photos).toBe(1500);
+  const t0 = Date.now();
+  await page.getByTestId('ws-nav-samples').click();
+  await expect(page.getByTestId('ws-samples-summary')).toContainText(/20\d\d scheduled/);
+  const samplesMs = Date.now() - t0;
+  const t1 = Date.now();
+  await page.getByTestId('ws-nav-tops').click();
+  await expect(page.getByTestId(/^ws-top-row-/)).toHaveCount(102);
+  const topsMs = Date.now() - t1;
+  const t2 = Date.now();
+  await page.getByTestId('ws-nav-report').click();
+  await expect(page.getByTestId('ws-daily-meta')).toContainText('record(s) in the period');
+  const reportMs = Date.now() - t2;
+  const t3 = Date.now();
+  await page.getByTestId('ws-nav-live').click();
+  await expect(page.getByTestId('ws-live-lagged')).toContainText('ft');
+  const liveMs = Date.now() - t3;
+  test.info().annotations.push({ type: 'timing', description: `seed ${ref.seedMs} ms; samples ${samplesMs} ms, tops ${topsMs} ms, report ${reportMs} ms, live ${liveMs} ms` });
+  expect(samplesMs).toBeLessThan(5000);
+  expect(topsMs).toBeLessThan(3000);
+  expect(reportMs).toBeLessThan(5000);
+  expect(liveMs).toBeLessThan(3000);
+});

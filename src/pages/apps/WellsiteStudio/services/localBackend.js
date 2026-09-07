@@ -14,6 +14,8 @@ import { fromMetres } from '@/lib/wellsite/depth';
 import { makeSyncEngine } from '@/lib/wellsite/sync/engine';
 import { getSyncState, subscribeSyncState, syncHeadline } from '@/lib/wellsite/sync/syncStore';
 import { detectConflicts } from '@/lib/wellsite/sync/conflicts';
+import { publishPlan } from './publish';
+import { mergeProfile } from '@/lib/wellsite/abbreviations';
 import { wellContext, offsetMinOf } from './wellContext';
 import { newId } from '@/lib/wellsite/ids';
 
@@ -339,6 +341,43 @@ export function makeLocalBackend({ transport, db = wellsiteDb(), autoSync = true
     },
     /** Ask the platform to verify a countersignature (online); the client verifies offline through signClient. */
     verifyCountersign: (signoffId) => (transport.verifyCountersign ? transport.verifyCountersign(signoffId) : Promise.resolve({ valid: false, reason: 'no transport' })),
+
+    // ---- registry publish (WS9): explicit, online, owner-only, overwrite-own ----
+    /** What the registry holds for this well now (online). */
+    async registryState(wellId) {
+      const well = await requireWell(wellId);
+      return transport.registryState(well.geo_well_id);
+    },
+    /**
+     * Publish final calls and current descriptions (and chosen photos) to the registry.
+     * @returns {{ plan, result }} result: { tops:{inserted, replaced}, intervals:{inserted, replaced}, photos:{inserted} }
+     */
+    async publishToRegistry(wellId, { photoIds = [] } = {}) {
+      if (!transport.online()) throw new Error('Publishing to the registry needs a connection.');
+      const well = await requireWell(wellId);
+      const u = await currentUser();
+      const state = await transport.registryState(well.geo_well_id);
+      if (!state.ownedByMe) throw new Error('Only the owner of the registry well can publish to it (org sharing is read-only).');
+      const tops = await this.listTops(wellId);
+      const records = await db.records.where('[well_id+kind+occurred_at]').between([wellId, 'observation', ''], [wellId, 'observation', '￿']).toArray();
+      const profile = mergeProfile(well.settings && well.settings.abbreviation_profile ? well.settings.abbreviation_profile : null);
+      const plan = publishPlan({ tops, records, profile, existingTops: state.tops, existingIntervals: state.intervals });
+      const photos = photoIds.length ? (await this.listPhotos(wellId)).filter((p) => photoIds.includes(p.id)) : [];
+      const blobs = [];
+      for (const p of photos) { const b = await db.blobs.get(`${p.id}:working`); if (b && b.blob) blobs.push({ photo: p, blob: b.blob }); }
+      const result = await transport.publishToRegistry(well.geo_well_id, {
+        tops: plan.tops.map((t) => ({ ...t.row, interpreter: t.row.interpreter || u.name || u.email || null })),
+        replaceTopIds: plan.replaceTops.map((t) => t.id),
+        intervals: plan.intervals.map((i) => i.row), replaceIntervalIds: plan.replaceIntervals.map((i) => i.id),
+        photos: blobs,
+      });
+      const pub = { id: newId(), well_id: wellId, kind: 'tops', source_ids: plan.tops.map((t) => t.source.id), target_ids: result.tops.ids || [], published_by: u.id, published_at: new Date().toISOString(), notes: `${plan.tops.length} tops, ${plan.intervals.length} intervals, ${photos.length} photos` };
+      await db.transaction('rw', db.outbox, async () => {
+        await db.outbox.add({ well_id: wellId, store: 'publications', table: 'ws_publications', op: 'insert', entity_id: pub.id, status: 'pending', attempts: 0, next_attempt_at: 0, last_error: null, queued_at: Date.now(), row: pub });
+      });
+      notify();
+      return { plan, result };
+    },
 
     // ---- sync surface (WS6) ----
     /** The well the engine pushes and pulls for; starts the engine on first use. */

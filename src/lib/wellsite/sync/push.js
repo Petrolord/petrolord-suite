@@ -9,7 +9,7 @@ import { classifyError, backoffMs, describeError } from './errors';
 import { blobKey } from '../photos/store';
 
 // dependency order: a stage needs its sample, a sign-off its report
-export const TABLE_ORDER = Object.freeze(['ws_prognosis', 'ws_records', 'ws_samples', 'ws_sample_stages', 'ws_tops', 'ws_photos', 'ws_reports', 'ws_signoffs']);
+export const TABLE_ORDER = Object.freeze(['ws_prognosis', 'ws_records', 'ws_samples', 'ws_sample_stages', 'ws_tops', 'ws_photos', 'ws_reports', 'ws_signoffs', 'ws_publications']);
 export const LOCAL_ONLY = Object.freeze(['sync_state', 'upload_state', 'server_seq']);
 export const MAX_ATTEMPTS = 40;
 
@@ -20,9 +20,10 @@ export function serverRow(row) {
 }
 
 async function markDone(db, entries, serverSeqById) {
-  await db.transaction('rw', db.outbox, ...[...new Set(entries.map((e) => e.store))].map((s) => db[s]), async () => {
+  await db.transaction('rw', db.outbox, ...[...new Set(entries.map((e) => e.store))].map((s) => db[s]).filter(Boolean), async () => {
     for (const e of entries) {
       await db.outbox.update(e.seq, { status: 'done', done_at: Date.now(), last_error: null });
+      if (!db[e.store]) continue;
       const row = await db[e.store].get(e.entity_id);
       if (row) await db[e.store].update(e.entity_id, { sync_state: 'synced', ...(serverSeqById && serverSeqById[e.entity_id] != null ? { server_seq: serverSeqById[e.entity_id] } : {}) });
     }
@@ -35,7 +36,7 @@ async function markRetry(db, entries, err, now) {
     const attempts = (e.attempts || 0) + 1;
     if (kind === 'rejected' || attempts >= MAX_ATTEMPTS) {
       await db.outbox.update(e.seq, { status: kind === 'rejected' ? 'rejected' : 'failed', attempts, last_error: describeError(err), error_kind: kind });
-      await db[e.store].update(e.entity_id, { sync_state: kind === 'rejected' ? 'rejected' : 'failed' }).catch(() => {});
+      if (db[e.store]) await db[e.store].update(e.entity_id, { sync_state: kind === 'rejected' ? 'rejected' : 'failed' }).catch(() => {});
     } else {
       await db.outbox.update(e.seq, { status: 'pending', attempts, next_attempt_at: now + (kind === 'auth' ? 15000 : backoffMs(attempts)), last_error: describeError(err), error_kind: kind });
     }
@@ -90,7 +91,7 @@ export async function drainOutbox({ db, transport, wellId = null, limit = 200, n
     if (!entries.length) continue;
     const rows = [];
     for (const e of entries) {
-      const r = await db[e.store].get(e.entity_id);
+      const r = e.row || (db[e.store] ? await db[e.store].get(e.entity_id) : null);
       if (r) rows.push({ entry: e, row: serverRow(r), local: r });
     }
     if (!rows.length) { await markDone(db, entries); continue; }

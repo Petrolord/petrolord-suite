@@ -19,6 +19,7 @@ export const WELL_APPS = [
   { id: 'petrophysics-studio', label: 'Petrophysics Studio', query: (ids) => `?well=${encodeURIComponent(ids[0])}` },
   { id: 'well-correlation', label: 'Well Correlation', query: (ids) => `?wells=${ids.map(encodeURIComponent).join(',')}` },
   { id: 'stratigraphy-studio', label: 'Stratigraphy Studio', query: (ids) => `?well=${encodeURIComponent(ids[0])}` },
+  { id: 'wellsite-studio', label: 'Wellsite Studio', query: (ids) => `?well=${encodeURIComponent(ids[0])}` },
   { id: 'mapping-surface-studio', label: 'Mapping & Surface Studio', query: (ids) => `?wells=${ids.map(encodeURIComponent).join(',')}` },
   { id: 'rock-physics-studio', label: 'Rock Physics Studio' },
   { id: 'pore-pressure-studio', label: 'Pore Pressure Studio' },
@@ -45,6 +46,7 @@ export const DEV_APP_PATHS = {
   'basinflow-genesis': '/dev/basinflow-genesis',
   'seismolord': '/dev/seismolord-workspace',
   'stratigraphy-studio': '/dev/stratigraphy-studio',
+  'wellsite-studio': '/dev/wellsite-studio',
 };
 
 /** Route of an app, honouring an override map (harness paths). */

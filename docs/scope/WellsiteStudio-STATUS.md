@@ -21,7 +21,57 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 | WS6 offline shell and sync | **COMPLETE 2026-09-07: Suite PR merged (Suite-wide)** | Suite branch `feat/ws6-offline-sync`: installable PWA (vite-plugin-pwa 0.19 on Vite 4, prompt semantics, shell precache, hashed assets cached as fetched, Supabase never cached, real 192/512 icons, update prompt), dead offline files removed, per-user entitlement snapshot with a stale fallback in the auth context, the entitlements hook and ProtectedAppRoute, the sync engine (idempotent push with backoff, auth wait and refused-row isolation, photo row then blobs, pull by cursor, conflict detection), sync pill and drawer with storage and keep-offline, fake server with knobs, 6 sync tests, e2e offline to online round trip with a pulled office row |
 | WS7 shift handover | **COMPLETE 2026-09-07: engines #153 (with the WS8 model) merged, Suite PR merged** | engines #153 (`reports.js`: handover and daily models from records on JSON templates, every fact cites its records, synthetic report day golden); Suite branch `feat/ws7-handover`: the report screen shared by handover and daily (period picker, generated sections read-only with sources on demand, narratives as versioned records that regenerate the report, record this version with the SHA-256 of the canonical model, sign-off row with role and hash, PDF via the brand header and DOCX via the OOXML writer) |
 | WS8 daily report and countersignature | **COMPLETE 2026-09-07: Suite PR merged; `ws-sign` DEPLOYED** | Suite branch `feat/ws8-daily-countersign`: the daily report on the generic template with the operator template pasted in Config (validated, swapped without code), the `ws-sign` edge function (countersign and verify on the pld-sign conventions, same platform key, hash recomputed from the stored model, refused on mismatch, unconfigured never blocks), the countersign outbox op behind the sign-off insert, offline verification against the shipped public keys with plain words for every state |
-| WS9 close-out (help, publish, portability, perf, tile) | not started | |
+| WS9 close-out (help, publish, portability, perf, tile) | **COMPLETE 2026-09-07: Suite PR merged; tile seed DEPLOY-GATED** | Suite branch `feat/ws9-closeout`: help guide (19 sections quoting the live vocabulary, guard test), Open in launcher from Well Data Manager and the harness path, publish to the registry (final calls to `geo_wells_tops`, current descriptions to `geo_wells_intervals` kind lithology source cuttings with the components in properties, chosen photos to `geo_wells_core_images`; overwrite-own contract; owner-only, online), the wellsite `.pld` family (root `ws_well`, photo prefix), the Reference Well generator with the jest and e2e performance gates, the deploy-gated tile seed `20260907230000` |
+
+## Close-out (2026-09-07)
+
+- Tile seed `20260907230000_seed_wellsite_studio_app.sql` (the
+  stratigraphy %ROWTYPE template-copy pattern, Active, icon HardHat).
+  DEPLOY-GATED: applied after the production upload that carries the
+  routes is verified, never before.
+- Help guide `WellsiteHelpGuide.jsx` on the shared HelpGuideLayout at
+  `/dashboard/apps/geoscience/wellsite-studio/help` (19 sections). The
+  guard test quotes the live vocabulary (sample stages, event types,
+  observation types, show qualities, top statuses) so the guide cannot
+  drift, and pins the no-em-dash and no-determination rules.
+- Well Data Manager's Open in menu (`WELL_APPS`) gains Wellsite Studio
+  on `?well=`; the harness path sits in `DEV_APP_PATHS`.
+- Publish to the registry from the Tops view: the plan lists what goes
+  in and what earlier rows of this app are replaced; rows from other
+  sources are counted as untouched. Every publish also queues a
+  `ws_publications` audit row.
+- Portability: the `wellsite` family (root `ws_well`) after the
+  geoscience family; photos travel as a prefix of objects in the wellsite
+  bucket; `ws_well` added to the manifest schema of record.
+- Reference Well (spec section 43): 15,000 ft, 2,000 samples, 10,000
+  observations, 1,500 photograph rows, 500 events, 100 interpretations,
+  50 top versions. jest: the lag readout, the sample board and the daily
+  model plus formation board each measured on fake-indexeddb; e2e
+  (`?seed=reference`) times the Samples, Tops, Report and Live screens in
+  Chromium on staging (recorded in the run's annotations; all inside the
+  budgets set in the spec).
+- Readiness gate (spec section 55), for the owner's simulated shift on
+  staging, in order: New well from a registry well; Tops, Load from
+  registry and read the prognosis version; Config, confirm geometry and
+  pumps; Live, record the bit depth and pump rate, watch the lag panel;
+  Samples, catch the due sample, Describe it (Ctrl+D for the repeat);
+  Shows, record one on the sample; Photos, attach one; Live, start and
+  end a connection; Tops, interpret then call Top Agbada, revise it,
+  read History; Observations, a gas reading and a note; Handover, write
+  the summary, sign, export; Report, export; the sharing pill, Keep
+  offline; disconnect the laptop, record a description and a bit depth,
+  reload the app, reconnect, watch the pill; `?conflict=1` on the harness
+  or a second user's call of the same top, then resolve it as an
+  approver. No notebook, spreadsheet or document should be needed
+  alongside.
+
+## Not in Release 1 (spec section 5), unchanged
+
+Live WITSML or ETP feeds, automatic event detection, automatic lag from
+sensors, d-exponent and pressure-trend surveillance, gas ratios, top
+scoring, casing, coring and TD recommendations, sidewall-core selection,
+AI classification or narratives, lithology and composite log rendering,
+laboratory chain of custody.
 
 ## Decisions taken in auto mode
 
@@ -224,6 +274,8 @@ Recorded per phase below as they are taken, with the reason.
 - WS1: validation team review of the description screen on staging
   (two wellsite geologists, one operations geologist).
 - WS6: install the PWA on a Windows laptop and a tablet against staging
-  and confirm the offline reopen.
-- WS9: simulated shift on staging (spec section 55), production upload,
-  then the deploy-gated tile seed.
+  and confirm the offline reopen; a live push and pull round trip and a
+  countersignature against the real backend need a signed-in session.
+- WS9: the simulated shift on staging (the readiness gate above), the
+  production upload, then the deploy-gated tile seed
+  `20260907230000_seed_wellsite_studio_app.sql`.

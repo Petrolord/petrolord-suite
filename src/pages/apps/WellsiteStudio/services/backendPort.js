@@ -20,6 +20,8 @@ export const PORT = Object.freeze([
   'listTops', 'addTop', 'addTopVersion', 'listPrognosis', 'addPrognosis', 'loadPrognosisSources',
   // reports and sign-off (WS7, WS8)
   'listReports', 'saveReport', 'listSignoffs', 'addSignoff', 'memberRole',
+  // registry publish (WS9)
+  'publishToRegistry', 'registryState',
   // sync surface (WS6 fills in)
   'syncStatus', 'subscribeSync', 'flush', 'setCurrentWell', 'retryRejected', 'listConflicts',
   // storage

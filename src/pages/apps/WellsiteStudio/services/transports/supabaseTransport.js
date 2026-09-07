@@ -4,7 +4,8 @@
 // record sync (push, pull) arrives in WS6 on the same object.
 
 import { supabase } from '@/lib/customSupabaseClient';
-import { listWells as listRegistry, listTops as listRegistryTops, getWell as getRegistryWell } from '@/lib/wellsRegistry';
+import { listWells as listRegistry, listTops as listRegistryTops, getWell as getRegistryWell, saveTop as saveRegistryTop, deleteTop as deleteRegistryTop } from '@/lib/wellsRegistry';
+import { listIntervals as listRegistryIntervals, saveInterval as saveRegistryInterval, deleteInterval as deleteRegistryInterval, listCoreImages, uploadCoreImage } from '@/lib/stratRegistry';
 import { writeStamped, registerStateKind } from '@/lib/stateVersion';
 
 export const WS_WELL_KIND = 'ws-well';
@@ -102,6 +103,30 @@ export function makeSupabaseTransport() {
       const { data, error } = await supabase.functions.invoke('ws-sign', { body: { action: 'verify', signoff_id: signoffId } });
       if (error) throw error;
       return data;
+    },
+    // ---- registry publish (WS9): through the registry services, never direct table calls ----
+    async registryState(geoWellId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const geo = await getRegistryWell(geoWellId);
+      const [tops, intervals, coreImages] = await Promise.all([listRegistryTops(geoWellId), listRegistryIntervals(geoWellId, 'lithology'), listCoreImages(geoWellId).catch(() => [])]);
+      return { ownedByMe: !!(geo && user && geo.user_id === user.id), tops, intervals, coreImages };
+    },
+    async publishToRegistry(geoWellId, { tops, replaceTopIds, intervals, replaceIntervalIds, photos }) {
+      const existingTops = await listRegistryTops(geoWellId);
+      for (const t of existingTops.filter((x) => replaceTopIds.includes(x.id))) await deleteRegistryTop(t);
+      const topIds = [];
+      for (const row of tops) { const saved = await saveRegistryTop(geoWellId, { name: row.name, mdM: row.md_m, interpreter: row.interpreter, surface_type: row.surface_type, confidence: row.confidence, unit_id: row.unit_id, notes: row.notes }); topIds.push(saved.id); }
+      const existingIntervals = await listRegistryIntervals(geoWellId, 'lithology');
+      for (const i of existingIntervals.filter((x) => replaceIntervalIds.includes(x.id))) await deleteRegistryInterval(i);
+      const intervalIds = [];
+      for (const row of intervals) { const saved = await saveRegistryInterval(geoWellId, row); intervalIds.push(saved.id); }
+      const photoIds = [];
+      for (const { photo, blob } of photos) {
+        const file = new File([blob], `${photo.id}.webp`, { type: 'image/webp' });
+        const saved = await uploadCoreImage(geoWellId, file, { top_md_m: photo.md_calc_m, base_md_m: photo.md_calc_m, caption: photo.caption || `Wellsite photo ${photo.id}`, width: photo.variants.working.w, height: photo.variants.working.h });
+        photoIds.push(saved.id);
+      }
+      return { tops: { ids: topIds, replaced: replaceTopIds.length }, intervals: { ids: intervalIds, replaced: replaceIntervalIds.length }, photos: { ids: photoIds } };
     },
     onAuthEvent(cb) {
       const { data } = supabase.auth.onAuthStateChange((event) => cb(event));
