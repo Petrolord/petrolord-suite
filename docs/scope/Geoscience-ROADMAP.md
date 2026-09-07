@@ -326,7 +326,8 @@ time depends on review cadence.
   membership roles, append-only with version chains; registry writes
   only through an explicit Publish under the owner-only rule.
 - Twelfth tile **Wellsite Studio**, seeded deploy-gated at close-out
-  (WS9), Open in launcher from Well Data Manager.
+  (WS9), Open in launcher from Well Data Manager. **PROD LIVE 82e391c0e
+  and tile seed APPLIED 2026-09-07: Geoscience is 12 Active tiles.**
 
 ## 5. Sequencing logic (why this order)
 

@@ -21,14 +21,18 @@ twelfth Geoscience tile. Slug `wellsite-studio`, route
 | WS6 offline shell and sync | **COMPLETE 2026-09-07: Suite PR merged (Suite-wide)** | Suite branch `feat/ws6-offline-sync`: installable PWA (vite-plugin-pwa 0.19 on Vite 4, prompt semantics, shell precache, hashed assets cached as fetched, Supabase never cached, real 192/512 icons, update prompt), dead offline files removed, per-user entitlement snapshot with a stale fallback in the auth context, the entitlements hook and ProtectedAppRoute, the sync engine (idempotent push with backoff, auth wait and refused-row isolation, photo row then blobs, pull by cursor, conflict detection), sync pill and drawer with storage and keep-offline, fake server with knobs, 6 sync tests, e2e offline to online round trip with a pulled office row |
 | WS7 shift handover | **COMPLETE 2026-09-07: engines #153 (with the WS8 model) merged, Suite PR merged** | engines #153 (`reports.js`: handover and daily models from records on JSON templates, every fact cites its records, synthetic report day golden); Suite branch `feat/ws7-handover`: the report screen shared by handover and daily (period picker, generated sections read-only with sources on demand, narratives as versioned records that regenerate the report, record this version with the SHA-256 of the canonical model, sign-off row with role and hash, PDF via the brand header and DOCX via the OOXML writer) |
 | WS8 daily report and countersignature | **COMPLETE 2026-09-07: Suite PR merged; `ws-sign` DEPLOYED** | Suite branch `feat/ws8-daily-countersign`: the daily report on the generic template with the operator template pasted in Config (validated, swapped without code), the `ws-sign` edge function (countersign and verify on the pld-sign conventions, same platform key, hash recomputed from the stored model, refused on mismatch, unconfigured never blocks), the countersign outbox op behind the sign-off insert, offline verification against the shipped public keys with plain words for every state |
-| WS9 close-out (help, publish, portability, perf, tile) | **COMPLETE 2026-09-07: Suite PR merged; tile seed DEPLOY-GATED** | Suite branch `feat/ws9-closeout`: help guide (19 sections quoting the live vocabulary, guard test), Open in launcher from Well Data Manager and the harness path, publish to the registry (final calls to `geo_wells_tops`, current descriptions to `geo_wells_intervals` kind lithology source cuttings with the components in properties, chosen photos to `geo_wells_core_images`; overwrite-own contract; owner-only, online), the wellsite `.pld` family (root `ws_well`, photo prefix), the Reference Well generator with the jest and e2e performance gates, the deploy-gated tile seed `20260907230000` |
+| WS9 close-out (help, publish, portability, perf, tile) | **COMPLETE 2026-09-07: Suite PR merged; PROD LIVE 82e391c0e; tile seed APPLIED 2026-09-07** | Suite branch `feat/ws9-closeout`: help guide (19 sections quoting the live vocabulary, guard test), Open in launcher from Well Data Manager and the harness path, publish to the registry (final calls to `geo_wells_tops`, current descriptions to `geo_wells_intervals` kind lithology source cuttings with the components in properties, chosen photos to `geo_wells_core_images`; overwrite-own contract; owner-only, online), the wellsite `.pld` family (root `ws_well`, photo prefix), the Reference Well generator with the jest and e2e performance gates, the deploy-gated tile seed `20260907230000` |
 
 ## Close-out (2026-09-07)
 
 - Tile seed `20260907230000_seed_wellsite_studio_app.sql` (the
   stratigraphy %ROWTYPE template-copy pattern, Active, icon HardHat).
   DEPLOY-GATED: applied after the production upload that carries the
-  routes is verified, never before.
+  routes is verified, never before. APPLIED 2026-09-07 against the linked
+  project once the 82e391c0e upload was verified live by chunk content
+  (WellsiteStudio, WellsiteHelpGuide and platformBuild chunks, sw.js and
+  manifest.webmanifest serving). Row: Geoscience, Active, display_order
+  57, icon HardHat. Geoscience is now 12 Active tiles.
 - Help guide `WellsiteHelpGuide.jsx` on the shared HelpGuideLayout at
   `/dashboard/apps/geoscience/wellsite-studio/help` (19 sections). The
   guard test quotes the live vocabulary (sample stages, event types,
@@ -276,6 +280,6 @@ Recorded per phase below as they are taken, with the reason.
 - WS6: install the PWA on a Windows laptop and a tablet against staging
   and confirm the offline reopen; a live push and pull round trip and a
   countersignature against the real backend need a signed-in session.
-- WS9: the simulated shift on staging (the readiness gate above), the
-  production upload, then the deploy-gated tile seed
-  `20260907230000_seed_wellsite_studio_app.sql`.
+- WS9: the simulated shift on staging (the readiness gate above). The
+  production upload (82e391c0e) and the deploy-gated tile seed
+  `20260907230000_seed_wellsite_studio_app.sql` are both DONE 2026-09-07.
