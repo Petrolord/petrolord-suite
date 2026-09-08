@@ -111,3 +111,13 @@ in the log.
 - Run error strings no longer demand a definitive design; the C&T
   environment card is titled Trajectory with the source badge; Well Design
   Studio's Save design toast says how to promote a draft.
+
+## Tester fix: hole-section resolver (2026-09-08)
+
+`services/geometrySource.js` + `tdApi.getGeometry(wellboreId, { trajectory })`
+resolve the shared hole sections for every Drilling studio: saved spine row,
+else derived from the latest Casing & Tubing case, else an empty row whose
+`note` names the wellbore, the plan and both places checked. The String &
+Geometry tab shows the note (amber when derived, red when none) and Save
+case persists derived sections. Details and the tester's live data in
+docs/scope/HydraulicsStudio-STATUS.md (same date).

@@ -94,13 +94,13 @@ export default function TDWorkstation({ backend }) {
   useEffect(() => {
     if (!wellboreId) return;
     setRun(null); setWear(null); setCaseId(null); setCaseDraft(null);
-    Promise.all([
-      backend.getDefinitiveTrajectory(wellboreId),
-      backend.getGeometry(wellboreId),
+    backend.getDefinitiveTrajectory(wellboreId).then((traj) => Promise.all([
+      traj,
+      backend.getGeometry(wellboreId, { trajectory: traj }),
       backend.listCases(wellboreId),
-    ]).then(([traj, geom, caseRows]) => {
+    ])).then(([traj, geom, caseRows]) => {
       setTrajectory(traj);
-      setGeometryRow(geom || { wellbore_id: wellboreId, hole_sections: [] });
+      setGeometryRow(geom || { wellbore_id: wellboreId, hole_sections: [], source: 'none' });
       setCases(caseRows);
       if (caseRows.length) setCaseId(caseRows[0].id);
     }).catch(fail);
@@ -251,6 +251,7 @@ export default function TDWorkstation({ backend }) {
         <StringGeometryTab
           caseDraft={caseDraft} onCaseChange={onCaseChange}
           holeSections={geometryRow?.hole_sections || []} onSectionsChange={onSectionsChange}
+          geometrySource={geometryRow?.source} geometryNote={geometryRow?.note}
           depthUnit={depthUnit} tdM={tdM}
         />
       )}

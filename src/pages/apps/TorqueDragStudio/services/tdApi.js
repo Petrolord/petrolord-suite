@@ -7,6 +7,7 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { registerStateKind, openStateRow } from '@/lib/stateVersion';
 import { resolveTrajectory } from '../../well-planning/services/trajectorySource';
+import { resolveHoleSections } from './geometrySource';
 
 // PP0: same kind as wpApi (idempotent registration) so reads here open identically
 const WP_DESIGN_KIND = 'wp-design';
@@ -23,9 +24,32 @@ const many = ({ data, error }) => {
 
 // ---- geometry (one row per wellbore, the module-wide spine) ---------------
 
-export async function getGeometry(wellboreId) {
+// The raw spine row (null when the wellbore has none).
+export async function getGeometryRow(wellboreId) {
   return one(await supabase.from('wp_wellbore_geometry').select('*')
     .eq('wellbore_id', wellboreId).maybeSingle());
+}
+
+// The wellbore's working hole sections + where they came from (tester fix
+// 2026-09-08). This used to return the raw spine row, which only the String
+// & Geometry tab of Torque & Drag Studio writes, so a casing programme built
+// in Casing & Tubing Design Studio was invisible to Hydraulics, Cementing
+// and Well Control. Now: the saved row when it has sections, else sections
+// derived from the latest Casing & Tubing case (open hole to the working
+// trajectory's TD), else an empty row whose `note` names what was looked
+// for and where. Same columns as before plus `source`, `label`, `note`.
+// Pass `trajectory` (from getDefinitiveTrajectory) to skip the extra fetch.
+export async function getGeometry(wellboreId, { trajectory = null } = {}) {
+  const row = await getGeometryRow(wellboreId);
+  if (Array.isArray(row?.hole_sections) && row.hole_sections.length) {
+    return resolveHoleSections({ geometry: row });
+  }
+  const [ctCases, traj] = await Promise.all([
+    supabase.from('wp_ct_cases').select('id, name, strings, updated_at').eq('wellbore_id', wellboreId)
+      .then((r) => many(r)).catch(() => []),
+    trajectory ? Promise.resolve(trajectory) : getDefinitiveTrajectory(wellboreId).catch(() => null),
+  ]);
+  return resolveHoleSections({ geometry: row || { wellbore_id: wellboreId, hole_sections: [] }, ctCases, trajectory: traj, wellbore: traj?.wellbore || null });
 }
 
 export async function saveGeometry(wellboreId, holeSections, userId) {

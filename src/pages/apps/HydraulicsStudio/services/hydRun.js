@@ -16,6 +16,7 @@ import { computeHydraulics } from '../engine/hydraulics';
 import { computeSurgeSwab, sweepTripSpeeds, maxTripSpeed } from '../engine/surgeSwab';
 import { computeHoleCleaning, minFlowRate } from '../engine/holeCleaning';
 import { buildEngineGeometry } from '../../TorqueDragStudio/services/tdRun';
+import { missingHoleSectionsMessage } from '../../TorqueDragStudio/services/geometrySource';
 
 export const HYD_ENGINE_VERSION = 'hydraulics-1.0.0';
 
@@ -54,7 +55,7 @@ function engineArgs({ stations, caseRow, geometryRow }) {
   }
   if (!caseRow.string?.length) throw new Error('The drillstring is empty.');
   const geometry = buildEngineGeometry(geometryRow?.hole_sections, {});
-  if (!geometry.length) throw new Error('No hole sections defined for this wellbore.');
+  if (!geometry.length) throw new Error(missingHoleSectionsMessage(geometryRow));
   const { model } = mudModel(caseRow.mud);
   return {
     stations,

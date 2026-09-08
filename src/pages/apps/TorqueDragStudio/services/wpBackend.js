@@ -14,7 +14,7 @@ export function makeWpBackend({ userId }) {
     listSites: () => listSites(),
     listWellbores: (siteId) => listWellbores(siteId),
     getDefinitiveTrajectory: (wellboreId) => getDefinitiveTrajectory(wellboreId),
-    getGeometry: (wellboreId) => getGeometry(wellboreId),
+    getGeometry: (wellboreId, opts) => getGeometry(wellboreId, opts),
     saveGeometry: (wellboreId, holeSections) => saveGeometry(wellboreId, holeSections, userId),
     listCases: (wellboreId) => listCases(wellboreId),
     saveCase: (row) => saveCase(row, userId),

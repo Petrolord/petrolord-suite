@@ -16,6 +16,7 @@
 
 import { computeTorqueDrag, OPERATIONS } from '../engine/torqueDrag';
 import { computeCasingWear } from '../engine/casingWear';
+import { missingHoleSectionsMessage } from './geometrySource';
 
 export const TD_ENGINE_VERSION = 'torqueDrag-1.0.0';
 
@@ -62,7 +63,7 @@ export function runCase({ stations, caseRow, geometryRow, stepM = 5 }) {
   const string = caseRow.string || [];
   if (!string.length) throw new Error('The drillstring is empty.');
   const geometry = buildEngineGeometry(geometryRow?.hole_sections, caseRow.friction);
-  if (!geometry.length) throw new Error('No hole sections defined for this wellbore.');
+  if (!geometry.length) throw new Error(missingHoleSectionsMessage(geometryRow));
   const opsCfg = caseRow.operations || {};
   const ops = (opsCfg.ops && opsCfg.ops.length ? opsCfg.ops : ['trip_out', 'trip_in', 'rotate_on_bottom'])
     .filter((o) => OPERATIONS.includes(o));
