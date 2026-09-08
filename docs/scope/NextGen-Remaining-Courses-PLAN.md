@@ -201,6 +201,26 @@ repo with goldens and oracles.
 
 Gated on extracting the cash flow engine out of the edge function.
 
+PROGRESS, 2026-09-08. **The gate is open.** EC0 extracted the whole
+Economics module into petrolord-engines (engines PR #157, main `b694d4c`):
+twelve modules verbatim, `cashflow.ts` and `montecarlo.ts` as TypeScript on
+the mbal precedent so the three epe edge functions bundle through one-line
+Suite shims, plus `lib/stats` (the canonical Monte Carlo primitives with
+simple-statistics vendored bit-identically) and `lib/dates`. Nine stdlib
+python oracles emit 774 golden cases and compute every reported summary;
+1382 gates. The oracles found defects that are recorded, not fixed
+(`packages/engines/tools/validation/economics/FINDINGS-*.md`): the screening
+IRR reports its 1000 percent Newton clamp as the answer where the only root
+is negative or beyond the clamp; the portfolio knapsack's capex grid can
+choose a set over the limit or 23 percent short in EMV; FDP `calculateCPM`
+is a passthrough that marks every activity critical; the cash flow engine's
+NPV profile evaluates its applied-rate point at a rate rounded to two
+decimals, reports one root of a multi-root IRR unflagged, and scales the
+sinking-fund abandonment by working interest while the lump sum is not.
+Every one is an owner decision. EC1 authoring began the same day, on the
+Production recipe (wave dir `/root/ec-wip-cashflow`), with `prereq_slug`
+NULL for all six courses per the carried-over answer above.
+
 | wave | slug | course | Suite apps |
 |---|---|---|---|
 | EC1 | `cashflow` | Cash Flow & NPV | Petroleum Economics Studio |
