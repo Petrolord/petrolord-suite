@@ -2,13 +2,23 @@
 // registered with prompt semantics: a new build never replaces the
 // running one under a user mid-shift; it waits until they choose to
 // reload. Rendered once in App.jsx; silent when there is nothing to say.
-import React from 'react';
+// Since 2026-09-08 it also checks for a new build when the tab comes back
+// into view, when the connection returns and every 15 minutes, so the
+// prompt appears before a stale shell trips over a vanished chunk.
+import React, { useEffect, useRef } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { installUpdateChecks } from '@/lib/pwa/updateChecks';
 
 export default function PwaUpdatePrompt() {
+  const stopChecks = useRef(null);
   const { needRefresh: [needRefresh, setNeedRefresh], offlineReady: [offlineReady, setOfflineReady], updateServiceWorker } = useRegisterSW({
+    onRegisteredSW(_swUrl, registration) {
+      if (stopChecks.current) stopChecks.current();
+      stopChecks.current = installUpdateChecks(registration);
+    },
     onRegisterError() { /* no worker (unsupported browser or dev server): the app works as before */ },
   });
+  useEffect(() => () => { if (stopChecks.current) stopChecks.current(); }, []);
   if (!needRefresh && !offlineReady) return null;
   return (
     <div className="fixed bottom-3 right-3 z-[60] rounded border border-slate-700 bg-slate-900 text-slate-100 text-xs shadow-lg px-3 py-2 flex items-center gap-3" data-testid="pwa-prompt" role="status">
