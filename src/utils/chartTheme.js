@@ -115,6 +115,20 @@ export const TOOLTIP_STYLE = {
   boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
 };
 
+// Pinned tooltip (owner directive 2026-09-08, Well Test Analysis first): the
+// info box sits in the top-right corner of the plot and reads the hovered
+// point there instead of chasing the cursor. Recharts merges wrapperStyle
+// last, so overriding its translate / left / top is what pins the box.
+// Spread onto <Tooltip {...PINNED_TOOLTIP_PROPS} />; formatter and
+// labelFormatter can still be added per chart.
+export const PINNED_TOOLTIP_PROPS = {
+  contentStyle: TOOLTIP_STYLE,
+  labelStyle: { color: CHART_COLORS.tooltipText },
+  itemStyle: { color: CHART_COLORS.tooltipText },
+  wrapperStyle: { transform: 'none', left: 'auto', right: 12, top: 8, transition: 'none' },
+  isAnimationActive: false,
+};
+
 // Annotation box style (for in-chart parameter displays)
 export const ANNOTATION_BOX_CLASSNAME =
   'absolute top-2 right-2 bg-white/95 border border-slate-300 rounded px-2 py-1.5 ' +

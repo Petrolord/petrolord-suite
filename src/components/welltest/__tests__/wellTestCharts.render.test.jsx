@@ -80,6 +80,18 @@ const expectTitleAndLegendSeparated = (frame) => {
   }
 };
 
+// Pinned info box (owner directive 2026-09-08): the tooltip wrapper sits in
+// the top-right corner of the plot and never carries Recharts' cursor
+// translate, so it reads the hovered point without moving.
+const expectTooltipPinned = (frame) => {
+  const wrapper = frame.querySelector('.recharts-tooltip-wrapper');
+  expect(wrapper).toBeTruthy();
+  expect(wrapper.style.right).toBe('12px');
+  expect(wrapper.style.top).toBe('8px');
+  expect(['', 'auto']).toContain(wrapper.style.left);
+  expect(wrapper.style.transform).toBe('none');
+};
+
 const expectLogLog = (frame, { withModel }) => {
   const svg = frame.querySelector('svg.recharts-surface');
   // Δp and the Bourdet derivative, one symbol per sample point each
@@ -99,8 +111,14 @@ describe('Well Test Analysis Studio charts', () => {
 
     // Data tab: pressure history (legend + "Shut-in time" title) and rate history
     expect(chartFrames()).toHaveLength(2);
-    chartFrames().forEach((f) => { expectFrameDrawsChart(f); expectTitleAndLegendSeparated(f); });
+    chartFrames().forEach((f) => { expectFrameDrawsChart(f); expectTitleAndLegendSeparated(f); expectTooltipPinned(f); });
     expect(screen.getByText('Shut-in time (hr)')).toBeInTheDocument();
+
+    // Moving over the plot never re-introduces the cursor translate (jsdom has
+    // no layout, so activation itself is not asserted here).
+    const surface = chartFrames()[0].querySelector('svg.recharts-surface');
+    fireEvent.mouseMove(surface, { clientX: 400, clientY: 150 });
+    expectTooltipPinned(chartFrames()[0]);
 
     // Diagnostics: the log-log plot is a LogLogChart wrapper inside the frame
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Diagnostics' }));
@@ -108,19 +126,20 @@ describe('Well Test Analysis Studio charts', () => {
     expect(chartFrames()).toHaveLength(1);
     expectFrameDrawsChart(chartFrames()[0]);
     expectTitleAndLegendSeparated(chartFrames()[0]);
+    expectTooltipPinned(chartFrames()[0]);
     expectLogLog(chartFrames()[0], { withModel: false });
 
     // Match: log-log match with the model overlay, then the history overlay
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Match' }));
     await screen.findByRole('button', { name: /Auto-fit model/i });
     expect(chartFrames()).toHaveLength(2);
-    chartFrames().forEach((f) => { expectFrameDrawsChart(f); expectTitleAndLegendSeparated(f); });
+    chartFrames().forEach((f) => { expectFrameDrawsChart(f); expectTitleAndLegendSeparated(f); expectTooltipPinned(f); });
     expectLogLog(chartFrames()[0], { withModel: true });
 
     // Specialized: Horner and sqrt(t) plots
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Specialized' }));
     await screen.findByText(/Horner plot/i);
     expect(chartFrames()).toHaveLength(2);
-    chartFrames().forEach((f) => { expectFrameDrawsChart(f); expectTitleAndLegendSeparated(f); });
+    chartFrames().forEach((f) => { expectFrameDrawsChart(f); expectTitleAndLegendSeparated(f); expectTooltipPinned(f); });
   });
 });
