@@ -16,6 +16,7 @@ import {
   runVolumes, runKillSheet, runKickTolerance, WC_ENGINE_VERSION, emwOut, emwLabel,
 } from './services/wcRun';
 import { DRILL_PIPE, DRILL_COLLARS, HWDP, gradeYieldPa } from '../TorqueDragStudio/engine/tubulars';
+import GeometryNotice, { geometrySourceOf, geometryStatusText } from '../TorqueDragStudio/components/GeometryNotice';
 
 const TABS = [
   { id: 'volumes', label: 'Well & Volumes' },
@@ -102,14 +103,15 @@ export default function WCWorkstation({ backend }) {
   useEffect(() => {
     if (!wellboreId) return;
     setVolumes(null); setKs(null); setKt(null); setCaseId(null); setCaseDraft(null);
-    Promise.all([
-      backend.getDefinitiveTrajectory(wellboreId),
-      backend.getGeometry(wellboreId),
+    setTrajectory(null); setGeometryRow(null);
+    backend.getDefinitiveTrajectory(wellboreId).then((traj) => Promise.all([
+      traj,
+      backend.getGeometry(wellboreId, { trajectory: traj }),
       backend.listCases(wellboreId),
       backend.listTdCases ? backend.listTdCases(wellboreId).catch(() => []) : [],
-    ]).then(async ([traj, geom, caseRows, tdRows]) => {
+    ])).then(async ([traj, geom, caseRows, tdRows]) => {
       setTrajectory(traj);
-      setGeometryRow(geom || { wellbore_id: wellboreId, hole_sections: [] });
+      setGeometryRow(geom || { wellbore_id: wellboreId, hole_sections: [], source: 'none' });
       setCases(caseRows);
       setTdCases(tdRows || []);
       if (caseRows.length) setCaseId(caseRows[0].id);
@@ -127,6 +129,9 @@ export default function WCWorkstation({ backend }) {
     if (caseId) backend.listRuns(caseId).then(setRuns).catch(fail);
     else setRuns(null);
   }, [backend, caseId, cases, fail]);
+
+  // Re-check the run guard whenever the wellbore data (re)loads.
+  useEffect(() => { setRunError(null); }, [trajectory, geometryRow]);
 
   const wellbore = trajectory?.wellbore || (wellbores || []).find((w) => w.id === wellboreId) || null;
   const depthUnit = wellbore?.depth_unit === 'ft' ? 'ft' : 'm';
@@ -264,6 +269,7 @@ export default function WCWorkstation({ backend }) {
     <div className="flex h-6 items-center gap-4 border-t border-slate-800 bg-slate-900/80 px-3 text-[10px] text-slate-500">
       <span>{WC_ENGINE_VERSION}</span>
       <span data-testid="wc-status-wellbore">{wellbore ? `${wellbore.name} (${depthUnit})` : 'no wellbore'}</span>
+      <span data-testid="wc-status-geometry" data-source={geometrySourceOf(geometryRow)} title={geometryRow?.label || ''}>{geometryStatusText(geometryRow)}</span>
       <span>{caseDraft ? `${caseDraft.name} — mud ${emwOut(caseDraft.mud?.densityKgM3 || 0, depthUnit).toFixed(2)} ${emwLabel(depthUnit)}` : 'no case'}</span>
       <span className="ml-auto">Planning tool (surface BOP, single-bubble); validated vs oracle goldens</span>
     </div>
@@ -274,7 +280,9 @@ export default function WCWorkstation({ backend }) {
       {wellboreId ? 'Create a well control case from the explorer.' : 'Pick a site and wellbore.'}
     </div>
   ) : (
-    <div className="h-full min-h-0 bg-slate-950">
+    <div className="flex h-full min-h-0 flex-col bg-slate-950">
+      <GeometryNotice geometryRow={geometryRow} testPrefix="wc" />
+      <div className="min-h-0 flex-1">
       {tab === 'volumes' && (
         <VolumesTab
           caseDraft={caseDraft} onCaseChange={onCaseChange} depthUnit={depthUnit}
@@ -298,6 +306,7 @@ export default function WCWorkstation({ backend }) {
           kt={kt} onRun={onRunKt} running={running} error={runError}
         />
       )}
+      </div>
     </div>
   );
 

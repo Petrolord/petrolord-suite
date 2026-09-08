@@ -122,3 +122,21 @@ Casing & Tubing case 'BTU'; review on the String & Geometry tab and Save).
 Nothing else is required of the tester. To take control of hole sizes or
 add open hole below the shoe, edit the sections on that tab in Torque &
 Drag Studio and Save.
+
+### Same fix across the other Drilling and Completion apps (2026-09-08)
+
+Checked every app that needs an annulus or casing programme:
+- Read the geometry spine and carried the same bare error: Torque & Drag,
+  Cementing, Well Control. All three now load trajectory-first, hand it to
+  the resolver, clear the run error on data (re)load, show the hole-section
+  count and source in the status bar, and carry the shared
+  `TorqueDragStudio/components/GeometryNotice` banner (amber = derived from
+  Casing & Tubing, red = nothing found, with links). Well Cost & Time and
+  Geomechanics import the same `getGeometry` and get the fallback for free.
+- Wellsite Studio read `wp_wellbore_geometry` directly for the rig config it
+  bridges from the registry well; it now goes through the same resolver.
+- Completion Design, Perforation & Sand Control, Stimulation and Well
+  Integrity & P&A take their casing programme from Casing & Tubing cases
+  (picker + manual sections), not from the spine, so a programme built in
+  Casing & Tubing was already visible there and they never raised this
+  message. No change.

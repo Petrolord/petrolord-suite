@@ -7,6 +7,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { listWells as listRegistry, listTops as listRegistryTops, getWell as getRegistryWell, saveTop as saveRegistryTop, deleteTop as deleteRegistryTop } from '@/lib/wellsRegistry';
 import { listIntervals as listRegistryIntervals, saveInterval as saveRegistryInterval, deleteInterval as deleteRegistryInterval, listCoreImages, uploadCoreImage } from '@/lib/stratRegistry';
 import { writeStamped, registerStateKind } from '@/lib/stateVersion';
+import { getGeometry } from '@/pages/apps/TorqueDragStudio/services/tdApi';
 
 export const WS_WELL_KIND = 'ws-well';
 registerStateKind(WS_WELL_KIND, { current: 1, label: 'wellsite well' });
@@ -61,7 +62,9 @@ export function makeSupabaseTransport() {
       let design = null;
       const { data: wb } = await supabase.from('wp_wellbores').select('id').eq('geo_well_id', geoWellId).limit(1).maybeSingle();
       if (wb) {
-        const { data: geom } = await supabase.from('wp_wellbore_geometry').select('hole_sections').eq('wellbore_id', wb.id).maybeSingle();
+        // Resolved through the shared Drilling lookup (tester fix 2026-09-08):
+        // the saved spine row, else the Casing & Tubing programme.
+        const geom = await getGeometry(wb.id).catch(() => null);
         holeSections = (geom && geom.hole_sections) || [];
         const { data: d } = await supabase.from('wp_designs').select('id, stations, revision').eq('wellbore_id', wb.id).eq('status', 'definitive').limit(1).maybeSingle();
         if (d) { design = { id: d.id, revision: d.revision }; plannedTrajectory = d.stations || null; }
