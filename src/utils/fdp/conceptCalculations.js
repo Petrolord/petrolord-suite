@@ -1,55 +1,7 @@
-/**
- * Concept Calculations Utility
- * Handling economics and technical metrics for development concepts.
- */
-
-export const calculateConceptCost = (concept) => {
-    // Simple aggregation of CAPEX and OPEX
-    const totalCapex = (parseFloat(concept.drillingCapex) || 0) + 
-                       (parseFloat(concept.facilitiesCapex) || 0) + 
-                       (parseFloat(concept.subseaCapex) || 0);
-    
-    const annualOpex = parseFloat(concept.opex) || 0;
-    const lifeOfField = parseFloat(concept.lifeOfField) || 20;
-    const totalOpex = annualOpex * lifeOfField;
-
-    return {
-        totalCapex,
-        totalOpex,
-        totalLifecycleCost: totalCapex + totalOpex
-    };
-};
-
-export const calculateConceptSchedule = (concept) => {
-    // Mock schedule milestones based on facility type
-    const startDate = new Date(concept.startDate || new Date());
-    const firstOilOffset = concept.facilityType === 'FPSO' ? 36 : 24; // Months
-    
-    const firstOilDate = new Date(startDate);
-    firstOilDate.setMonth(startDate.getMonth() + firstOilOffset);
-
-    return {
-        fidDate: startDate.toISOString().split('T')[0],
-        firstOilDate: firstOilDate.toISOString().split('T')[0],
-        durationMonths: firstOilOffset
-    };
-};
-
-export const calculateReservesImpact = (concept, subsurfaceData) => {
-    // Adjust reserves based on recovery mechanism
-    const baseRecoverable = subsurfaceData?.reserves?.p50 || 0;
-    let rfMultiplier = 1.0;
-
-    switch(concept.driveMechanism) {
-        case 'Water Injection': rfMultiplier = 1.15; break;
-        case 'Gas Injection': rfMultiplier = 1.10; break;
-        case 'Natural Depletion': rfMultiplier = 0.85; break;
-        case 'ESP': rfMultiplier = 1.05; break;
-        default: rfMultiplier = 1.0;
-    }
-
-    return {
-        recoverableReserves: baseRecoverable * rfMultiplier,
-        rfMultiplier
-    };
-};
+// FDP conceptCalculations RE-EXPORT SHIM (Economics extraction EC0, 2026-09-08).
+// The canonical module now lives in the vendored @petrolord/engines package
+// (packages/engines/engines/economics/fdp/conceptCalculations.js, synced via git subtree from Petrolord/petrolord-engines) with
+// committed goldens and an independent stdlib oracle. This shim keeps every
+// existing import path working. Never edit the vendored copy from the
+// Suite; change it in the engines repo and subtree-pull.
+export * from '../../../packages/engines/engines/economics/fdp/conceptCalculations.js';
