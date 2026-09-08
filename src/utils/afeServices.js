@@ -20,33 +20,13 @@ import * as XLSX from 'xlsx';
  * @param {number} totalCost cost to allocate
  * @param {{working_interest: number}[]} partners
  */
-export const calculatePartnerCosts = (totalCost, partners = []) => {
-  const result = partners.map(p => ({
-    ...p,
-    shareAmount: totalCost * (Number(p.working_interest) || 0) / 100,
-    billingStatus: 'Pending'
-  }));
-
-  const partnerTotal = partners.reduce((sum, p) => sum + (Number(p.working_interest) || 0), 0);
-  const operatorShare = 100 - partnerTotal;
-  const operatorAmount = totalCost * (operatorShare / 100);
-
-  let note = null;
-  if (operatorShare < 0) {
-    note = `Partner working interests total ${partnerTotal.toFixed(2)} percent, which is more than the whole. The operator share below is negative; correct the interests before billing.`;
-  }
-
-  return {
-    partnerAllocations: result,
-    operatorShare,
-    operatorAmount,
-    partnerTotal,
-    valid: operatorShare >= 0,
-    note
-  };
-};
-
-// --- Reporting Services ---
+// calculatePartnerCosts moved to the vendored @petrolord/engines package
+// (packages/engines/engines/economics/afe.js, Economics extraction EC0,
+// 2026-09-08) with goldens and an oracle; it is re-exported here so every
+// existing import keeps working. The PDF and Excel builders below stay in
+// the Suite because jspdf and xlsx are browser dependencies the engines
+// package does not carry.
+export { calculatePartnerCosts } from '../../packages/engines/engines/economics/afe.js';
 
 export const generateAFESummaryPDF = (afe, costItems, partners) => {
   const doc = new jsPDF();
