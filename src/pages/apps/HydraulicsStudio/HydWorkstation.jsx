@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Home, HelpCircle, Save } from 'lucide-react';
 import Explorer from '../TorqueDragStudio/components/Explorer';
+import GeometryNotice, { geometrySourceOf, geometryStatusText } from '../TorqueDragStudio/components/GeometryNotice';
 import MudRheologyTab from './components/MudRheologyTab';
 import HydraulicsTab from './components/HydraulicsTab';
 import SurgeSwabTab from './components/SurgeSwabTab';
@@ -112,14 +113,19 @@ export default function HydWorkstation({ backend }) {
   useEffect(() => {
     if (!wellboreId) return;
     setHyd(null); setSurge(null); setCleaning(null); setCaseId(null); setCaseDraft(null);
-    Promise.all([
-      backend.getDefinitiveTrajectory(wellboreId),
-      backend.getGeometry(wellboreId),
+    setTrajectory(null); setGeometryRow(null);
+    // Trajectory first: the hole-section resolver needs its TD and plan name
+    // (tester fix 2026-09-08: all four tabs read hole sections through the
+    // ONE shared tdApi lookup, which falls back to the Casing & Tubing
+    // programme and names what it looked for when nothing exists).
+    backend.getDefinitiveTrajectory(wellboreId).then((traj) => Promise.all([
+      traj,
+      backend.getGeometry(wellboreId, { trajectory: traj }),
       backend.listCases(wellboreId),
       backend.listTdCases ? backend.listTdCases(wellboreId).catch(() => []) : [],
-    ]).then(async ([traj, geom, caseRows, tdRows]) => {
+    ])).then(async ([traj, geom, caseRows, tdRows]) => {
       setTrajectory(traj);
-      setGeometryRow(geom || { wellbore_id: wellboreId, hole_sections: [] });
+      setGeometryRow(geom || { wellbore_id: wellboreId, hole_sections: [], source: 'none' });
       setCases(caseRows);
       setTdCases(tdRows || []);
       if (caseRows.length) setCaseId(caseRows[0].id);
@@ -138,10 +144,15 @@ export default function HydWorkstation({ backend }) {
     else setRuns(null);
   }, [backend, caseId, cases, fail]);
 
+  // Re-check the run guard whenever the wellbore data (re)loads: an error
+  // raised against a half-loaded wellbore must not outlive the load.
+  useEffect(() => { setRunError(null); }, [trajectory, geometryRow]);
+
   const wellbore = trajectory?.wellbore || (wellbores || []).find((w) => w.id === wellboreId) || null;
   const depthUnit = wellbore?.depth_unit === 'ft' ? 'ft' : 'm';
   const tdM = trajectory?.stations?.length ? trajectory.stations[trajectory.stations.length - 1].md : 0;
   const limits = limitsAtBit(mudWindow, trajectory?.stations);
+  const geometrySource = geometrySourceOf(geometryRow);
 
   const onCaseChange = (patch) => {
     setCaseDraft((d) => ({ ...d, ...patch }));
@@ -276,6 +287,7 @@ export default function HydWorkstation({ backend }) {
       <span>{HYD_ENGINE_VERSION}</span>
       <span data-testid="hyd-status-wellbore">{wellbore ? `${wellbore.name} (${depthUnit})` : 'no wellbore'}</span>
       <span>{mudWindow ? 'PP/FP window loaded' : 'no PP/FP window'}</span>
+      <span data-testid="hyd-status-geometry" data-source={geometrySource} title={geometryRow?.label || ''}>{geometryStatusText(geometryRow)}</span>
       <span className="ml-auto">RP 13D method; validated vs oracle goldens</span>
     </div>
   );
@@ -285,7 +297,9 @@ export default function HydWorkstation({ backend }) {
       {wellboreId ? 'Create a hydraulics case from the explorer.' : 'Pick a site and wellbore.'}
     </div>
   ) : (
-    <div className="h-full min-h-0 bg-slate-950">
+    <div className="flex h-full min-h-0 flex-col bg-slate-950">
+      {tab !== 'mud' && <GeometryNotice geometryRow={geometryRow} testPrefix="hyd" />}
+      <div className="min-h-0 flex-1">
       {tab === 'mud' && (
         <MudRheologyTab caseDraft={caseDraft} onCaseChange={onCaseChange} depthUnit={depthUnit}
           tdCases={tdCases} onImportString={onImportString} />
@@ -311,6 +325,7 @@ export default function HydWorkstation({ backend }) {
         <HoleCleaningTab caseDraft={caseDraft} onCaseChange={onCaseChange} depthUnit={depthUnit}
           cleaning={cleaning} minQ={minQ} onRun={onRunCleaning} running={running} error={runError} />
       )}
+      </div>
     </div>
   );
 

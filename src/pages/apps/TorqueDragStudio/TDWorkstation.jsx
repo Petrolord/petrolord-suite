@@ -16,6 +16,7 @@ import WearTab from './components/WearTab';
 import SensitivityTab from './components/SensitivityTab';
 import { runCase, runWear, totalStringLengthM, TD_ENGINE_VERSION } from './services/tdRun';
 import { DRILL_PIPE, DRILL_COLLARS, HWDP, gradeYieldPa } from './engine/tubulars';
+import GeometryNotice, { geometrySourceOf, geometryStatusText } from './components/GeometryNotice';
 
 const TABS = [
   { id: 'string', label: 'String & Geometry' },
@@ -94,13 +95,14 @@ export default function TDWorkstation({ backend }) {
   useEffect(() => {
     if (!wellboreId) return;
     setRun(null); setWear(null); setCaseId(null); setCaseDraft(null);
-    Promise.all([
-      backend.getDefinitiveTrajectory(wellboreId),
-      backend.getGeometry(wellboreId),
+    setTrajectory(null); setGeometryRow(null);
+    backend.getDefinitiveTrajectory(wellboreId).then((traj) => Promise.all([
+      traj,
+      backend.getGeometry(wellboreId, { trajectory: traj }),
       backend.listCases(wellboreId),
-    ]).then(([traj, geom, caseRows]) => {
+    ])).then(([traj, geom, caseRows]) => {
       setTrajectory(traj);
-      setGeometryRow(geom || { wellbore_id: wellboreId, hole_sections: [] });
+      setGeometryRow(geom || { wellbore_id: wellboreId, hole_sections: [], source: 'none' });
       setCases(caseRows);
       if (caseRows.length) setCaseId(caseRows[0].id);
     }).catch(fail);
@@ -114,6 +116,9 @@ export default function TDWorkstation({ backend }) {
     if (caseId) backend.listRuns(caseId).then(setRuns).catch(fail);
     else setRuns(null);
   }, [backend, caseId, cases, fail]);
+
+  // Re-check the run guard whenever the wellbore data (re)loads.
+  useEffect(() => { setRunError(null); }, [trajectory, geometryRow]);
 
   const wellbore = trajectory?.wellbore || (wellbores || []).find((w) => w.id === wellboreId) || null;
   const depthUnit = wellbore?.depth_unit === 'ft' ? 'ft' : 'm';
@@ -236,6 +241,7 @@ export default function TDWorkstation({ backend }) {
     <div className="flex h-6 items-center gap-4 border-t border-slate-800 bg-slate-900/80 px-3 text-[10px] text-slate-500">
       <span>{TD_ENGINE_VERSION}</span>
       <span data-testid="td-status-wellbore">{wellbore ? `${wellbore.name} (${depthUnit})` : 'no wellbore'}</span>
+      <span data-testid="td-status-geometry" data-source={geometrySourceOf(geometryRow)} title={geometryRow?.label || ''}>{geometryStatusText(geometryRow)}</span>
       <span>{caseDraft ? `${caseDraft.name} — string ${totalStringLengthM(caseDraft.string).toFixed(0)} m` : 'no case'}</span>
       <span className="ml-auto">Soft-string (Johancsik); validated vs oracle goldens</span>
     </div>
@@ -246,11 +252,14 @@ export default function TDWorkstation({ backend }) {
       {wellboreId ? 'Create a T&D case from the explorer.' : 'Pick a site and wellbore.'}
     </div>
   ) : (
-    <div className="h-full min-h-0 bg-slate-950">
+    <div className="flex h-full min-h-0 flex-col bg-slate-950">
+      {tab !== 'string' && <GeometryNotice geometryRow={geometryRow} testPrefix="td" showTorqueDragLink={false} />}
+      <div className="min-h-0 flex-1">
       {tab === 'string' && (
         <StringGeometryTab
           caseDraft={caseDraft} onCaseChange={onCaseChange}
           holeSections={geometryRow?.hole_sections || []} onSectionsChange={onSectionsChange}
+          geometrySource={geometryRow?.source} geometryNote={geometryRow?.note}
           depthUnit={depthUnit} tdM={tdM}
         />
       )}
@@ -267,6 +276,7 @@ export default function TDWorkstation({ backend }) {
         <SensitivityTab stations={trajectory?.stations || []} caseDraft={caseDraft}
           geometryRow={geometryRow} depthUnit={depthUnit} />
       )}
+      </div>
     </div>
   );
 

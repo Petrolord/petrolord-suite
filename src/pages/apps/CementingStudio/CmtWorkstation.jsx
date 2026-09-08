@@ -19,6 +19,7 @@ import {
 } from './services/cmtRun';
 import { exportPlacementCsv, exportJobReportPdf } from './services/cmtExport';
 import { CASING_QUICK } from '../TorqueDragStudio/engine/tubulars';
+import GeometryNotice, { geometrySourceOf, geometryStatusText } from '../TorqueDragStudio/components/GeometryNotice';
 
 const TABS = [
   { id: 'job', label: 'Job Design' },
@@ -105,13 +106,14 @@ export default function CmtWorkstation({ backend }) {
     if (!wellboreId) return;
     setVols(null); setPlacementResult(null); setChecklist(null); setStandoffResult(null);
     setCaseId(null); setCaseDraft(null);
-    Promise.all([
-      backend.getDefinitiveTrajectory(wellboreId),
-      backend.getGeometry(wellboreId),
+    setTrajectory(null); setGeometryRow(null);
+    backend.getDefinitiveTrajectory(wellboreId).then((traj) => Promise.all([
+      traj,
+      backend.getGeometry(wellboreId, { trajectory: traj }),
       backend.listCases(wellboreId),
-    ]).then(([traj, geom, caseRows]) => {
+    ])).then(([traj, geom, caseRows]) => {
       setTrajectory(traj);
-      setGeometryRow(geom || { wellbore_id: wellboreId, hole_sections: [] });
+      setGeometryRow(geom || { wellbore_id: wellboreId, hole_sections: [], source: 'none' });
       setCases(caseRows);
       if (caseRows.length) setCaseId(caseRows[0].id);
     }).catch(fail);
@@ -125,6 +127,9 @@ export default function CmtWorkstation({ backend }) {
     if (caseId) backend.listRuns(caseId).then(setRuns).catch(fail);
     else setRuns(null);
   }, [backend, caseId, cases, fail]);
+
+  // Re-check the run guard whenever the wellbore data (re)loads.
+  useEffect(() => { setRunError(null); }, [trajectory, geometryRow]);
 
   const wellbore = trajectory?.wellbore || (wellbores || []).find((w) => w.id === wellboreId) || null;
   const depthUnit = wellbore?.depth_unit === 'ft' ? 'ft' : 'm';
@@ -252,6 +257,7 @@ export default function CmtWorkstation({ backend }) {
     <div className="flex h-6 items-center gap-4 border-t border-slate-800 bg-slate-900/80 px-3 text-[10px] text-slate-500">
       <span>{CMT_ENGINE_VERSION}</span>
       <span data-testid="cmt-status-wellbore">{wellbore ? `${wellbore.name} (${depthUnit})` : 'no wellbore'}</span>
+      <span data-testid="cmt-status-geometry" data-source={geometrySourceOf(geometryRow)} title={geometryRow?.label || ''}>{geometryStatusText(geometryRow)}</span>
       <span>{caseDraft ? `${caseDraft.name} — mud ${emwOut(caseDraft.fluids?.mudInHole?.densityKgM3 || 0, depthUnit).toFixed(2)} ${emwLabel(depthUnit)}` : 'no job'}</span>
       <span className="ml-auto">Plug-flow planning model; validated vs oracle goldens</span>
     </div>
@@ -262,7 +268,9 @@ export default function CmtWorkstation({ backend }) {
       {wellboreId ? 'Create a cement job from the explorer.' : 'Pick a site and wellbore.'}
     </div>
   ) : (
-    <div className="h-full min-h-0 bg-slate-950">
+    <div className="flex h-full min-h-0 flex-col bg-slate-950">
+      <GeometryNotice geometryRow={geometryRow} testPrefix="cmt" />
+      <div className="min-h-0 flex-1">
       {tab === 'job' && (
         <JobDesignTab caseDraft={caseDraft} onCaseChange={onCaseChange} depthUnit={depthUnit}
           vols={vols} onCompute={onComputeVolumes} running={running} error={runError} />
@@ -285,6 +293,7 @@ export default function CmtWorkstation({ backend }) {
         <CentralizationTab caseDraft={caseDraft} onCaseChange={onCaseChange} depthUnit={depthUnit}
           standoffResult={standoffResult} onRun={onRunStandoff} running={running} error={runError} />
       )}
+      </div>
     </div>
   );
 

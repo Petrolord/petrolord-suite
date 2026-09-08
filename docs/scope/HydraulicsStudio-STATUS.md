@@ -78,3 +78,65 @@ App: Drilling module, slug `drilling-fluids-hydraulics` (Drilling-ROADMAP.md
   temperature-dependent rheology.
 - D3 (Well Control Studio) is next; it reuses the same geometry spine and
   kill-sheet-grade hydrostatics.
+
+## Tester fix: hole sections resolved from one shared source (2026-09-08)
+
+The Drilling tester reported that the Hydraulics, Surge & Swab and Hole
+Cleaning tabs raised "No hole sections defined for this wellbore" on a
+wellbore whose Mud & Rheology tab loaded fine (Plan A r1 definitive, 220
+stations, TD 6,500 m, drillstring imported from the T&D case). Live data
+for that wellbore ("Lad"): no `wp_wellbore_geometry` row at all, one
+Casing & Tubing case ("BTU", 9-5/8" 47# L-80 0 to 6,500.01 m), one T&D
+case, one Cementing job. Cause: the shared geometry spine is written ONLY
+by the String & Geometry tab of Torque & Drag Studio; a casing programme
+built in Casing & Tubing Design Studio never reached it, and the guard
+named neither what it looked for nor where. (Well Design Studio stores no
+casing at all; the tab query, status filter and load-order hypotheses were
+checked and ruled out.)
+
+Fix (this branch):
+- `TorqueDragStudio/services/geometrySource.js` (pure, jest-covered):
+  `resolveHoleSections` keeps the saved spine row as the plan of record,
+  else derives sections from the latest Casing & Tubing case (innermost
+  string governs each cased interval, API 5CT IDs, conventional hole size
+  per casing OD, open hole through the deepest shoe to the trajectory's
+  TD, clamped to TD), else returns an empty row whose `note` names the
+  wellbore, the plan, and both places checked. `source` is one of
+  `geometry | casing_programme | none`; `label` describes the sections.
+- `tdApi.getGeometry(wellboreId, { trajectory })` now returns the resolved
+  row (same columns plus `source`, `label`, `note`); `getGeometryRow` is
+  the raw read. Every studio that imports it (T&D, Hydraulics, Cementing,
+  Well Control, Well Cost & Time, Geomechanics) gets the fallback.
+- The four run services (tdRun, hydRun, cmtRun, wcRun) throw
+  `missingHoleSectionsMessage(geometryRow)` instead of the bare string.
+- HydWorkstation: loads the trajectory first and hands it to the resolver;
+  clears the run error whenever trajectory or geometry (re)loads; status
+  bar shows the hole-section count and source; a banner on the three
+  engine tabs carries the resolver note with links to Torque & Drag and
+  Casing & Tubing. T&D's String & Geometry tab shows the same note, and
+  Save case persists derived sections as the real spine row.
+
+What the tester sees now on the same wellbore: the three tabs run on the
+derived 9-5/8" cased section 0 to 6,500 m (amber banner: derived from
+Casing & Tubing case 'BTU'; review on the String & Geometry tab and Save).
+Nothing else is required of the tester. To take control of hole sizes or
+add open hole below the shoe, edit the sections on that tab in Torque &
+Drag Studio and Save.
+
+### Same fix across the other Drilling and Completion apps (2026-09-08)
+
+Checked every app that needs an annulus or casing programme:
+- Read the geometry spine and carried the same bare error: Torque & Drag,
+  Cementing, Well Control. All three now load trajectory-first, hand it to
+  the resolver, clear the run error on data (re)load, show the hole-section
+  count and source in the status bar, and carry the shared
+  `TorqueDragStudio/components/GeometryNotice` banner (amber = derived from
+  Casing & Tubing, red = nothing found, with links). Well Cost & Time and
+  Geomechanics import the same `getGeometry` and get the fallback for free.
+- Wellsite Studio read `wp_wellbore_geometry` directly for the rig config it
+  bridges from the registry well; it now goes through the same resolver.
+- Completion Design, Perforation & Sand Control, Stimulation and Well
+  Integrity & P&A take their casing programme from Casing & Tubing cases
+  (picker + manual sections), not from the spine, so a programme built in
+  Casing & Tubing was already visible there and they never raised this
+  message. No change.

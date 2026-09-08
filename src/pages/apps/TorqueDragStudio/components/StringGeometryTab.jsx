@@ -175,7 +175,7 @@ function StringBuilder({ caseDraft, onChange, depthUnit, tdM }) {
 
 // ---- hole sections --------------------------------------------------------
 
-function GeometryEditor({ holeSections, onChangeSections, depthUnit }) {
+function GeometryEditor({ holeSections, onChangeSections, depthUnit, geometrySource, geometryNote }) {
   const set = (i, patch) => onChangeSections(holeSections.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const add = () => {
     const lastTo = holeSections.length ? holeSections[holeSections.length - 1].to_md_m : 0;
@@ -202,6 +202,12 @@ function GeometryEditor({ holeSections, onChangeSections, depthUnit }) {
         <Plus className="mr-1 h-3 w-3" /> Section
       </Button>
     )}>
+      {geometryNote && geometrySource !== 'geometry' && (
+        <p className={`mb-2 text-[11px] ${geometrySource === 'none' ? 'text-red-300' : 'text-amber-300'}`}
+          data-testid="td-geometry-note" data-source={geometrySource}>
+          {geometryNote}
+        </p>
+      )}
       <table className="w-full text-xs text-slate-300">
         <thead>
           <tr className="text-[10px] uppercase text-slate-500">
@@ -331,12 +337,13 @@ function OpsEditor({ caseDraft, onChange, depthUnit }) {
 }
 
 export default function StringGeometryTab({
-  caseDraft, onCaseChange, holeSections, onSectionsChange, depthUnit, tdM,
+  caseDraft, onCaseChange, holeSections, onSectionsChange, depthUnit, tdM, geometrySource, geometryNote,
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-3">
       <StringBuilder caseDraft={caseDraft} onChange={onCaseChange} depthUnit={depthUnit} tdM={tdM} />
-      <GeometryEditor holeSections={holeSections} onChangeSections={onSectionsChange} depthUnit={depthUnit} />
+      <GeometryEditor holeSections={holeSections} onChangeSections={onSectionsChange} depthUnit={depthUnit}
+        geometrySource={geometrySource} geometryNote={geometryNote} />
       <OpsEditor caseDraft={caseDraft} onChange={onCaseChange} depthUnit={depthUnit} />
     </div>
   );

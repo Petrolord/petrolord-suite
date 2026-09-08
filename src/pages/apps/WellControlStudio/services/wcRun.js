@@ -15,6 +15,7 @@ import {
   tvdAt,
 } from '../engine/wellControl';
 import { buildEngineGeometry } from '../../TorqueDragStudio/services/tdRun';
+import { missingHoleSectionsMessage } from '../../TorqueDragStudio/services/geometrySource';
 
 export const WC_ENGINE_VERSION = 'wellControl-1.0.0';
 
@@ -42,7 +43,7 @@ function baseInputs({ stations, caseRow, geometryRow }) {
   }
   if (!caseRow.string?.length) throw new Error('The drillstring is empty.');
   const geometry = buildEngineGeometry(geometryRow?.hole_sections, {});
-  if (!geometry.length) throw new Error('No hole sections defined for this wellbore.');
+  if (!geometry.length) throw new Error(missingHoleSectionsMessage(geometryRow));
   const shoeMd = caseRow.shoe?.mdM;
   if (!(shoeMd > 0)) throw new Error('Set the casing shoe MD.');
   const vols = wellVolumes({

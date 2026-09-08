@@ -17,6 +17,7 @@ import {
   placementChecklist,
 } from '../engine/cementing';
 import { fitModels } from '../engine/rheology';
+import { missingHoleSectionsMessage } from '../../TorqueDragStudio/services/geometrySource';
 
 export const CMT_ENGINE_VERSION = 'cementing-1.0.0';
 
@@ -49,7 +50,7 @@ function baseInputs({ stations, caseRow, geometryRow }) {
     throw new Error('No trajectory on this wellbore: in Well Design Studio solve and save a design (Set definitive makes it the plan of record), or flag actual survey runs as definitive.');
   }
   const holeSections = geometryRow?.hole_sections || [];
-  if (!holeSections.length) throw new Error('No hole sections defined for this wellbore.');
+  if (!holeSections.length) throw new Error(missingHoleSectionsMessage(geometryRow));
   const casing = caseRow.casing || {};
   if (!(casing.odM > 0) || !(casing.idM > 0)) throw new Error('Define the casing being cemented.');
   if (!(casing.shoeMd > 0)) throw new Error('Set the casing shoe MD.');
