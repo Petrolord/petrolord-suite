@@ -298,6 +298,43 @@ waiting worker to take over, reloads once, and guards against a loop. The
 prompt semantics are unchanged: a working shell is never swapped under a
 person mid-shift; only a broken one repairs itself.
 
+### Widened 2026-09-08 (testers still saw the red panel)
+
+Testers coming back to a tab left open across a deploy still met "Something
+went wrong ... Failed to fetch dynamically imported module" (the 1a35b5c98
+upload carried the listener, but users on the e45286a53 shell did not have
+it, and the listener alone left three gaps). Now:
+
+- **Every entry point repairs.** Vite raises `vite:preloadError` only for a
+  chunk that has dependency preloads (Vite 4.5.5 calls the import directly
+  otherwise), so `ErrorBoundary` also recognises the message React.lazy
+  rethrows, and an `unhandledrejection` listener covers dynamic imports made
+  outside React.lazy. `ensureRecovery` shares one in-flight repair between
+  them. The listener no longer calls `preventDefault`, so the real error
+  reaches the boundary instead of a `reading 'default'` TypeError.
+- **Calm panel, not a red one.** While the repair runs the boundary shows
+  "Updating Petrolord: a newer version was published while this page was
+  open" with a spinner and no stack text. Only after the repair gives up does
+  it show "A newer version is available" with a Reload button.
+- **Escalation.** Soft reload first (activate the waiting worker, reload).
+  If the next failure arrives inside 60 s, the reload served the same cached
+  shell, so the second attempt unregisters every service worker and deletes
+  every Cache Storage cache before reloading (what a manual hard refresh
+  does). A third failure inside the window stops and hands over to the
+  panel's Reload, which does the same hard refresh ignoring the guards.
+- **Proactive checks.** `PwaUpdatePrompt` now calls `registration.update()`
+  when the tab becomes visible again, when the connection returns and every
+  15 minutes (`src/lib/pwa/updateChecks.js`), so the "A new version of the
+  Suite is ready" toast appears before a stale shell trips over a missing
+  chunk. Prompt semantics are unchanged.
+- `isStaleChunkError` no longer matches a bare "Failed to fetch" (that is
+  also what an ordinary Supabase network failure says); it matches the
+  Chrome, Firefox and Safari module-import messages. 25 jest gates across
+  `preloadRecovery`, `updateChecks` and `ErrorBoundary`.
+
+Effective from the deploy that carries it onward; users who loaded the
+1a35b5c98 shell before that deploy still get the older single reload.
+
 ## Tester note: floating rigs, marine riser and booster pump (2026-09-07)
 
 The tester noted that lag on a drillship or semi-submersible differs from
