@@ -606,3 +606,16 @@ interpretation. The zone CSV, the PDF report and the zone cards carry
 the probabilistic block; the histogram's percentile readout no longer
 says P10/P50/P90. In Chromium the type well runs 1000 realisations in
 under a second.
+
+## PT10 series close-out (2026-09-09)
+
+Five waves for the third tester pass, each one branch and one PR with
+base main: PT10a #453 (permeability and temperature tracks, state
+version 2), PT10b #454 (depth density crossplot), PT10c #455 (engines
+#158 probabilistic engine, subtree-pulled, plus the Suite percentile
+conventions), PT10d #456 (probabilistic Studio), PT10e (this). Both
+owner decisions of 2026-09-09 are recorded in the ROADMAP: exceedance
+P-labels on outcomes only, and the one-time migration of a stored
+`none`. The help guide states the convention in one sentence with the
+Sw example. Testers: reopen the shared interpretation first and confirm
+the k track before anything else.
