@@ -469,3 +469,263 @@ Petrolord/petrolord-engines first, then the subtree copy.
   zone table so both share one cell renderer. Cases persist in the
   interpretation's `facies` jsonb under `_scenarios`. No Monte Carlo: the
   Suite's sampler stays in ReservoirCalc Pro (CLAUDE.md rule).
+
+## PT10 series (third tester pass, 2026-09-09)
+
+Triage of the 2026-09-09 tester notes: permeability still not showing on
+the log display (and TEMP with it), probabilistic petrophysics with
+P10/P50/P90 and user-varied parameters, and a curve-versus-depth density
+crossplot beside the density-neutron and Pickett plots. Plan of record
+for the program is this section. Each wave is one branch and one PR with
+base `main`; engine work lands in Petrolord/petrolord-engines first, then
+the subtree copy. PT10a and PT10b are independent; PT10d depends on PT10c.
+
+| Wave | Tester note | Engine PR? | One line |
+|---|---|---|---|
+| PT10a Permeability and temperature tracks | k (and TEMP) not showing, even on an added track | no | Stored `permMethod: none` from before PT9a migrates to Timur; an unresolvable track is kept with a note saying why instead of vanishing; a new track takes the picked curve's scale |
+| PT10b Depth density crossplot | curve vs depth density | no | Fifth crossplot: 2D histogram of any curve against MD/TVD/TVDSS, jet colours, mirrored axes, zone filter, second-well outline, PNG |
+| PT10c Probabilistic engine | P10/P50/P90 | yes | `engines/petrophysics/probabilistic.js`: seeded parameter draws through the zoned pipeline, per-sample P-curves, per-zone P10/P50/P90 summaries and a tornado, validated analytically |
+| PT10d Probabilistic Studio | vary the parameters | no | `P10/P50/P90…` dialog with per-parameter distributions, a worker run with progress, zone table, tornado, band layout, CSV, publish |
+| PT10e Close-out | (all) | no | Help guide, STATUS, ROADMAP wave log, prod zip |
+
+### Diagnosis (PT10a), with evidence
+
+The testers' interpretation row in `petro_projects` (one row, created
+2026-09-04, last saved 2026-09-09 12:08 UTC, seven layout templates from
+several testers) stores `permMethod: "none"` and `tempMode: "none"`.
+`none` was the permeability default when that row was first saved; PT9a
+(2026-09-07) changed the code default to Timur, but `PetroWorkstation`
+merges the stored parameter set over the defaults on open, so the stored
+`none` wins and the pipeline computes no KPERM. `resolveTracks` then
+drops the built-in k track because its only curve resolves to nothing,
+and a hand-added track pointing at `output:KPERM` is dropped for the same
+reason. TEMP behaves identically because `tempMode` is `none` (still the
+default; the curve only exists under the linear model). Every other
+curve exists, which is why the testers see everything except k and TEMP.
+
+Two smaller defects compound it: a fresh "New track" is linear 0 to 1,
+so even a computed KPERM (mD, up to thousands) or TEMP (degrees) would
+draw as a line pinned to the right edge; and nothing in the UI says why
+a track is absent.
+
+### PT10a: Permeability and temperature tracks
+
+- **Stored parameter migration.** The `petro-project` state kind moves
+  to version 2 with a `migrations[1]` step: a row stamped at version 1
+  whose `params.permMethod` is `none` is opened with `timur` (the PT9a
+  default), and the status line says so once ("Permeability model was
+  off in this saved interpretation; Timur applied (owner rule:
+  permeability is never off by default). Set it back to none in
+  Parameters if that was deliberate."). Rows saved at version 2 keep an
+  explicit `none`. The in-memory backend follows the same path so the
+  harness can prove it. `tempMode` is not migrated: `none` is the
+  intended default and TEMP is a model output, not a log.
+- **Never drop a track silently.** `resolveTracks` gains
+  `ctx.keepUnresolved` (Petrophysics single-well only; Well Correlation
+  and the Field view keep today's behaviour). A curves track whose every
+  source resolves to nothing is kept with `curves: []` and a `note`
+  from a new `sourceStatus(source, ctx)` helper:
+  `output:KPERM` absent means "k not computed: permeability model is
+  none (Parameters, Permeability)"; `output:TEMP` means "TEMP needs the
+  linear temperature model (Parameters, Temperature)"; `output:X_LOW`
+  or `_HIGH` means "run Low/High… first"; `input:X` means "X is not
+  loaded on this well"; `log:MNEM` means "no curve MNEM on this well".
+  `paintTrackBody` writes the note down the empty body; the header and
+  scale rows still draw; `paintReadouts` and the hit-test tolerate a
+  track with no curves.
+- **Layout panel.** Picking a source on a track that still has the
+  "New track" defaults (linear, 0 to 1, one curve) sets the source's
+  standard scale from one table (`SOURCE_SCALES` in layoutSchema:
+  KPERM log 0.01 to 10000, TEMP 0 to 150, GR 0 to 150, RT log 0.2 to
+  2000, RHOB 1.95 to 2.95, NPHI 0.45 to -0.15, DT 650 to 150, PHIE and
+  PHIT 0 to 0.5, VSH, SW, PAY 0 to 1, BVW 0 to 0.3). A track the user
+  has already scaled is never touched. The source dropdown marks a
+  computed output that is absent on this run as "(not computed)" with
+  the same reason text. The Parameters panel shows a one-line warning
+  under Permeability when the model is `none` (no k track, no k gm in
+  zone summaries).
+- **Gates.** Jest: state migration (v1 `none` opens as `timur`, v2
+  `none` stays, other v1 rows untouched); `resolveTracks` keeps and
+  annotates an empty track only under `keepUnresolved`; `sourceStatus`
+  for each address kind; layout scale-on-pick and its guard. e2e on the
+  harness: a v1 interpretation with `none` opens with the k track and
+  the status line; setting `none` in Parameters shows the note in place
+  of the k track instead of removing it; adding a track and picking
+  `output:TEMP` shows the temperature note, then the linear model draws
+  the curve on a 0 to 150 scale. Help guide: "Why is a track empty?"
+  under The track view.
+
+### PT10b: Curve vs depth density crossplot
+
+Can the existing crossplot do this? No. `Crossplot.jsx` is a point
+scatter (2.4 px dots, one-sided axes, a vertical colourbar, nearest-point
+tooltip, polygon tools). It can put depth on Y and colour by depth, but
+it does not bin, count or normalise, and its axes and colourbar are the
+wrong shape for a density image. The density plot is a new canvas
+component that shares the scatter's scale and tick helpers.
+
+- **Pure math** (`viewer/depthDensity.js`, jest-gated, presentation
+  math like `viewer/stats.js`): `depthDensityGrid({ values, depth,
+  mask, xBins = 100, depthBin, xDomain, depthRange, log })` bins the
+  finite masked samples on X (100 bins default, log space for RT and
+  KPERM as the histogram does) and on depth (a bin of 100 ft or 25 m
+  by default, following the display unit, both editable), counts per
+  cell, and normalises to the maximum cell so the scale is 0 to 1;
+  empty cells are 0 and are not painted. `envelopeOutline(grid)`
+  traces the boundary of the populated cells as segments (an edge is
+  drawn when exactly one of its two cells is populated) for the
+  second-well overlay; the overlay is binned on the SAME edges as the
+  primary so the two shapes compare.
+- **Depth reference.** MD, TVD or TVDSS through `makeDepthAxes`
+  (`valueOf`), so a TVD plot bins on true converted depth rather than
+  relabelled MD; TVD and TVDSS are disabled without a survey; samples
+  the frame cannot place (above the first station) are dropped and
+  counted in the caption. The range boxes take the display unit.
+- **Component** (`components/DepthDensityPlot.jsx`): white chart
+  background (chartTheme), each populated cell filled through the
+  existing `COLOR_MAPS.jet` (dark blue at 0 through cyan, green and
+  yellow to red at 1); X ticks and labels on both top and bottom, Y on
+  both left and right, light grey grid; Y inverted so shallow is at the
+  top; a horizontal colourbar beneath the plot labelled "Data density"
+  with 0 and 1 at its ends; a two-line title, well name over
+  "{curve} vs {MD|TVD|TVDSS} cross-plot"; a tall narrow default (plot
+  column capped near 360 px and centred, height filling the panel; a
+  Wide toggle releases the cap); hover shows the cell's X range, depth
+  range, density and count; ChartLogo watermark. `makeScale` and
+  `ticksFor` move out of `Crossplot.jsx` into `crossplotScales.js` so
+  both plots use one pair.
+- **Panel integration.** A fifth button, "Depth density", in
+  `CrossplotPanel` beside Density-Neutron, Pickett, Buckles and Hingle.
+  Its toolbar: Curve (loaded inputs, computed outputs, raw `log:`
+  curves), Depth reference, Range top and base, X bins, Depth bin,
+  Overlay well (any other well through the curves cache; a computed
+  output on the overlay well runs the current parameter set on that
+  well's curves, the Field view rule; the overlay uses its own depth
+  frame). The shared zone chips apply: the primary well's samples pass
+  `zoneFilter.inFilter` before binning, and the caption names the
+  zones as on every other plot. Colour-by and Select… are hidden on
+  this plot. PNG through `trackPlotPng` with the title and a caption
+  (curve, reference, range, bins, zones, overlay well). The
+  configuration persists as `crossplots.density` (curve, reference,
+  bins, depth bin, overlay well id); no migration.
+- **Gates.** Jest: maximum cell is exactly 1, empty cells 0, depth bin
+  honours the unit, log X excludes non-positive values, an overlay
+  shares the primary's edges, the outline of a known rectangular block
+  has the expected segment count, a zone mask reduces the count. e2e:
+  PHIE against MD renders with the colourbar labels, TVD on the
+  deviated harness well, an overlay well's outline, the zone caption
+  and the PNG download.
+
+### PT10c: Probabilistic engine (engines-first)
+
+Per the CLAUDE.md rule, no new sampler: the engine imports the canonical
+primitives already vendored in `packages/engines/lib/stats/stats.js`
+(`mulberry32`, `triInvCDF`, `createCorrelatedSampler`,
+`fitTriangularToPercentiles`, `quantile`), the same code ReservoirCalc
+Pro's MonteCarloEngine delegates to.
+
+- **Module** `engines/petrophysics/probabilistic.js`:
+  - `UNCERTAIN_PARAMS`: the numeric parameters a user may vary
+    (grClean, grClay, phiShale, rhoMa, rhoFl, dtMa, dtFl, a, m, n, rw,
+    rsh, qv, rwb, swb, bucklesConst, swirrManual, wrC, wrQ, cutPhi,
+    cutVsh, cutSw). Models are fixed for a run.
+  - Spec shape, the ReservoirCalc `Dist` shape so one grammar serves the
+    Suite: `{ key: { type: triangular|uniform|normal|lognormal, min,
+    mode, max | mean, sd } }`, with P10/P50/P90 entry through
+    `fitTriangularToPercentiles`. Optional pairwise correlations
+    (m with n is the obvious one), through `createCorrelatedSampler`.
+  - `drawRealisations(spec, n, seed, correlations)` returns `n`
+    parameter patches; a patch overrides its parameter in every zone,
+    exactly the PT9g scenario rule.
+  - `runProbabilistic(curves, params, zoneParamList, spec, { n = 200,
+    seed = 1, zones, zoneParams, curvesOut, quantiles = [0.1, 0.5,
+    0.9], onProgress })` runs two memory-bounded loops over the same
+    seeded draws: (1) depth chunks of about 2000 samples, all
+    realisations per chunk, per-sample quantiles written into
+    `PHIE_P10`, `PHIE_P50`, `PHIE_P90` (and PHIT, VSH, SW, BVW, KPERM),
+    plus `PAY_PROB` (the fraction of realisations flagging pay); (2)
+    per zone, every realisation through `computeWellZoned` on the
+    zone's window and the canonical `zoneSummary`, giving P10, P50, P90
+    and mean of net, NTG, phi_avg, sw_avg and k_gm_md per zone, and a
+    sensitivity per zone (rank correlation and tornado swings from
+    `lib/stats`). No summary formula is re-derived; `zoneSummary` stays
+    the only place net pay is summarised.
+  - Quantile convention: numeric percentiles of the quantity (P10 <
+    P50 < P90 in value), with linear interpolation, pinned by test.
+- **Validation-first gates** (engines jest, and an oracle case in
+  `tools/validation/petrophysics/oracle.py`):
+  1. Monotone-transform identity: with only Rw uncertain under Archie,
+     the per-sample quantiles equal `swArchie` evaluated at the same
+     empirical quantiles of the Rw draws, to 1e-12, because Sw is
+     monotone in Rw. The same holds for KPERM against bucklesConst.
+  2. Degenerate spec (nothing varies) reproduces `computeWellZoned`
+     byte for byte in P10, P50 and P90, and `PAY_PROB` is exactly the
+     PAY flag.
+  3. Seed determinism: one seed, identical results; another seed,
+     different draws, quantiles within the sampling band.
+  4. Type well: a symmetric spread about the golden parameters brackets
+     the SAND A golden net (P10 <= 18.0 m <= P90) and the P50 sits
+     within a stated tolerance of it; the oracle reproduces the
+     lognormal-Rw case with scipy at N = 20000 within 1 percent.
+  5. Chunking invariance: chunk sizes 500 and 5000 give identical
+     P-curves.
+  6. Every returned curve is finite where the deterministic output is
+     finite and NaN where it is not.
+- **Cost.** 20k samples by 200 draws is a few seconds of pipeline time,
+  so the Suite runs it in a Web Worker (PT10d); the engine is pure and
+  synchronous with an `onProgress` callback, so jest runs it inline.
+
+### PT10d: Probabilistic Studio
+
+- **Dialog** `components/ProbabilisticDialog.jsx`, ribbon `P10/P50/P90…`
+  beside `Low/High…`: a parameter grid (the `ParamGrid` cell renderer)
+  with a Vary checkbox, Distribution, and Min/Mode/Max or P10/P50/P90
+  (or Mean/SD) per parameter; defaults from `defaultUncertainty(params)`
+  whose P10 and P90 are the PT9g low and high patches, so the two
+  features agree by construction; draws (100, 200, 500, 1000) and seed;
+  Run with a progress bar and Cancel (worker
+  `workers/probabilistic.worker.js`, the Well Data Manager LAS worker
+  pattern); results as a zone table (net, NTG, phi, Sw, k with P10,
+  P50, P90 and mean), a tornado per zone for net, and three ways out:
+  Apply to tracks, Export CSV, Publish.
+- **Tracks.** A `P10, P50, P90` user template (`ensureProbabilisticTemplate`,
+  the PT9g pattern): the band between `_P10` and `_P90` around `_P50`
+  for PHIE, SW and KPERM, and a `PAY_PROB` track 0 to 1 with a ramp
+  fill. `OUTPUT_SOURCES` gains the `_P10`, `_P50`, `_P90` and
+  `PAY_PROB` addresses; the PT10a note explains an empty band track
+  ("run P10/P50/P90… first"). The dialog states plainly that P50 is the
+  median of the realisations and not the deterministic mid curve.
+- **Persistence and provenance.** The spec, draws and seed persist in
+  the interpretation's `facies` jsonb under `_uncertainty` (as
+  `_scenarios` does; no migration). Publish writes the P-curves and
+  `PAY_PROB` with `operation: 'probabilistic'`, the spec, `n`, `seed`
+  and `pipeline_version` in provenance. Curves CSV and LAS carry the
+  P-curves when present; the zone CSV and the PDF report gain a
+  probabilistic block; zone cards show a P10/P50/P90 net line when a
+  run exists.
+- **Gates.** Jest: `defaultUncertainty` agrees with `defaultScenarios`
+  at P10/P90; the template builder; CSV columns; the worker message
+  protocol under a fake worker. e2e on the harness: N = 50, the SAND A
+  P50 net within the band the engine test pins, the template active,
+  the CSV downloaded, publish shows the new curves in the explorer.
+
+### Recorded decisions (PT10)
+
+- **Percentile labelling.** P-curves and zone percentiles are numeric
+  percentiles of the quantity (Sw P90 is the high-Sw value). The
+  deterministic PT9g low/mid/high keeps its hydrocarbon sense. Owner to
+  confirm.
+- **Stored `none` migrates to Timur** once, on rows saved before PT9a,
+  under the 2026-09-07 rule that permeability is never off by default;
+  an explicit `none` chosen afterwards persists. Owner to confirm.
+- **Uncertainty is global across zones** for this series, the PT9g
+  rule; per-zone spreads are a later wave if testers ask.
+- **Depth bin default follows the display unit**: 100 ft under ft, 25 m
+  under m, as specified; both editable.
+- **No Monte Carlo duplication.** Sampling and quantiles come from
+  `lib/stats` in the engines package; the PT9g note that the Suite's
+  sampler stays in ReservoirCalc Pro is superseded by importing it.
+
+### Wave log (PT10)
+
+- Planned 2026-09-09; nothing built yet.
