@@ -568,3 +568,22 @@ the curves cache (a computed output runs the current parameters on that
 well), the shared zone chips, PNG, and a `crossplots.density` config that
 persists with the interpretation. Jest gates on the math and the shared
 scales; e2e walk on the harness.
+
+## 2026-09-09: PT10c, probabilistic engine (engines-first)
+
+`engines/petrophysics/probabilistic.js` (engines #158, subtree-pulled):
+seeded parameter draws through the same zoned pipeline, per-sample
+percentile curves (`_Q10/_Q50/_Q90` for PHIE, PHIT, VSH, SW, BVW, KPERM),
+`PAY_PROB`, per-zone outcome cases (net, NTG as P90/P50/P10 under the
+SPE PRMS exceedance meaning) and parameter statistics (10th/50th/90th
+percentile), and a net-pay sensitivity. Every random-number,
+distribution, quantile and sensitivity primitive comes from the
+engines' `lib/stats`, the module ReservoirCalc Pro's Monte Carlo
+delegates to. The oracle gained an exact lognormal quantile, and because
+Sw is monotone in Rw the golden percentile curves and zone net cases are
+exact rather than sampled; the engine at N = 20000 lands within 1
+percent. Suite side: the re-export shim and
+`src/lib/percentileConventions.js`, the one place the Suite's P-label
+words live (owner decision 1), with the two gates the decision asked
+for: no P-label on any parameter output, and P90 <= P50 <= P10 on every
+published outcome case.
