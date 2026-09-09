@@ -42,7 +42,9 @@ export class PackagePlanError extends Error {
 }
 
 const REGISTRY_READS_UP_TO = 1;
-const STRIP_ON_INSERT = new Set(['created_at', 'updated_at']);
+// _migration: the transient open-time note a state-kind migrator may attach
+// (petro-project v2, PT10a); it is for the status line, never a column
+const STRIP_ON_INSERT = new Set(['created_at', 'updated_at', '_migration']);
 const REGISTRY_STRIP = new Set(['schema_version', 'app_build', 'engine_version']);
 
 /** State kind that reads a table (familySpec `kind`), or null for "version 1 in this build". */

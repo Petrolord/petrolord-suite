@@ -8,8 +8,13 @@
 import React, { useState } from 'react';
 import { FolderOpen, ChevronDown } from 'lucide-react';
 
+/**
+ * @param {Array<{at: string, note: string}>} [p.provenance] PT10a: the open
+ *   interpretation's provenance entries (migrations and the like), shown
+ *   newest first under the list so a change stays visible months later
+ */
 export default function InterpretationBar({
-  backend, projectId, projectName, onOpen, onSaveAs, onRenamed, onDeleted, onStatus,
+  backend, projectId, projectName, onOpen, onSaveAs, onRenamed, onDeleted, onStatus, provenance = [],
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [projects, setProjects] = useState([]);
@@ -98,6 +103,18 @@ export default function InterpretationBar({
             ))}
             {!projects.length && <p className="px-2.5 py-2 text-slate-500">No saved interpretations yet.</p>}
           </div>
+          {provenance.length > 0 && (
+            <div className="border-t border-slate-800" data-testid="petro-interp-provenance">
+              <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-slate-500">Provenance</div>
+              <ul className="max-h-32 overflow-auto px-2.5 pb-1.5 space-y-1">
+                {[...provenance].reverse().slice(0, 8).map((e, i) => (
+                  <li key={`${e.at}-${i}`} className="text-[10px] text-slate-400 leading-snug">
+                    <span className="text-slate-500">{String(e.at || '').slice(0, 10)}</span> {e.note || `${e.key}: ${e.from} to ${e.to}`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="border-t border-slate-800 p-1 flex gap-1">
             <button type="button" data-testid="petro-interp-saveas"
               className="flex-1 px-2 py-1 rounded border border-cyan-700/60 text-cyan-300 hover:bg-cyan-500/10"

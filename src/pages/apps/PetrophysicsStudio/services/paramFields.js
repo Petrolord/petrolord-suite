@@ -56,6 +56,12 @@ export const FIELDS = [
     }[d.permMethod]),
     show: (d) => d.permMethod !== 'none',
   },
+  // PT10a: none is a choice the row remembers; say what it costs
+  {
+    hint: () => 'Permeability model is none: no k track and no k gm in the zone summaries. This choice is kept on every later open.',
+    show: (d) => d.permMethod === 'none',
+    testId: 'petro-param-perm-none',
+  },
   { key: 'swirrSource', label: 'Swirr source', options: ['buckles', 'manual'], show: (d) => d.permMethod !== 'none' },
   { key: 'bucklesConst', label: 'Buckles const', show: (d) => d.permMethod !== 'none' && d.swirrSource === 'buckles' },
   { key: 'swirrManual', label: 'Swirr (v/v)', show: (d) => d.permMethod !== 'none' && d.swirrSource === 'manual' },

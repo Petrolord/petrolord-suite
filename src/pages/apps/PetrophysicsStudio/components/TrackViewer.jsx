@@ -540,7 +540,13 @@ const TrackViewer = forwardRef(function TrackViewer({
   };
 
   return (
-    <div className="h-full min-h-0 w-full flex" data-testid="petro-tracks" data-pick-mode={pickMode || ''}>
+    <div
+      className="h-full min-h-0 w-full flex"
+      data-testid="petro-tracks"
+      data-pick-mode={pickMode || ''}
+      data-track-titles={(tracks || []).map((t) => t.title).join('|')}
+      data-track-notes={(tracks || []).filter((t) => t.note).map((t) => `${t.title}: ${t.note}`).join('|')}
+    >
     {showNav && depth.length > 0 && (
       <DepthNavigator
         extent={[dMin, dMax]}

@@ -234,7 +234,7 @@ const PetrophysicsHelpGuide = () => (
           ['Porosity (v/v)', 'PHIE (solid) with PHIT dashed behind it, 0 to 0.5', 'Threshold fill above the φ cutoff on PHIE'],
           ['Vsh (v/v)', 'VSH, 0 to 1, filled to the right', 'none'],
           ['Sw (v/v)', 'SW, 0 to 1', 'none'],
-          ['k (mD)', 'KPERM, 0.01 to 10000 log. Timur by default; the track disappears only if you set the permeability model to none.', 'none'],
+          ['k (mD)', 'KPERM, 0.01 to 10000 log. Timur by default; with the permeability model set to none the track stays, empty, with a note saying so.', 'none'],
           ['Pay', 'PAY flag, filled to the left', 'none'],
           ['Facies', 'Colour strip from the crossplot facies polygons', 'strip'],
         ]}
@@ -242,6 +242,24 @@ const PetrophysicsHelpGuide = () => (
       <Para>
         Every track header shows two rows of scale labels, one per curve, in the curve&apos;s colour.
         Clicking a track header opens that track in the Track layout panel of the dock.
+      </Para>
+      <SubHeading>Why is a track empty?</SubHeading>
+      <Para>
+        A track whose curves this well cannot supply is never dropped from the display. It keeps
+        its header and scale and writes the reason down its body: <Code>k not computed:
+        permeability model is none (Parameters, Permeability)</Code>, <Code>TEMP needs the linear
+        temperature model (Parameters, Temperature)</Code>, <Code>PHIE_LOW not computed: run
+        Low/High… first</Code>, <Code>RT is not loaded on this well</Code>, or <Code>no curve ILD
+        on this well</Code>. The same reason appears beside the source in the Track layout
+        dropdown as <Code>(not computed)</Code>, and the Parameters panel shows a warning under
+        Permeability whenever the model is none.
+      </Para>
+      <Para>
+        Interpretations saved before 2026-09-07 stored the permeability model as none, which was
+        the default then. Opening one now applies Timur once and says so in the status line; the
+        change is listed under Provenance in the interpretation menu with its date. If none was
+        deliberate, set it back in Parameters: that choice is remembered on every later open and
+        no future default change will touch it.
       </Para>
       <SubHeading>The depth navigator</SubHeading>
       <Para>

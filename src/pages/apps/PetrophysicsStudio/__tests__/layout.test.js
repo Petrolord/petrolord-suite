@@ -4,8 +4,9 @@
 
 import {
   buildDefaultLayouts, migrateLayouts, updateTemplate, activeTemplate,
+  applySourceScale, isUntouchedNewTrack, SOURCE_SCALES,
 } from '../layout/layoutSchema';
-import { resolveTracks } from '../layout/resolveTracks';
+import { resolveTracks, sourceStatus } from '../layout/resolveTracks';
 
 const d = Float64Array.from([1, 2, 3]);
 const fullCtx = {
@@ -154,4 +155,87 @@ test('migrateLayouts stamps version 2, keeps a v1 user fork byte-identical and a
   expect(m.templates.map((t) => t.id)).toEqual(['std-triple-combo', 'quicklook', 'lithology-quicklook', 'mine']);
   expect(m.templates.find((t) => t.id === 'mine')).toEqual(fork);
   expect(m.activeTemplateId).toBe('mine');
+});
+
+// ---- PT10a: never drop a track silently; scale on pick ----------------------
+
+describe('PT10a keepUnresolved', () => {
+  const ctx = { ...fullCtx, outputs: { PHIE: d, VSH: d, SW: d, PAY: d }, logs: {} };
+
+  test('without keepUnresolved the k track still drops (Well Correlation, Field view)', () => {
+    const tracks = resolveTracks(activeTemplate(buildDefaultLayouts()), ctx);
+    expect(tracks.find((t) => t.key === 't-kperm')).toBeUndefined();
+  });
+
+  test('with keepUnresolved the k track is kept empty with the reason', () => {
+    const tracks = resolveTracks(activeTemplate(buildDefaultLayouts()), { ...ctx, keepUnresolved: true });
+    const k = tracks.find((t) => t.key === 't-kperm');
+    expect(k).toMatchObject({ title: 'k (mD)', scale: 'log', min: 0.01, max: 10000, curves: [], fills: [] });
+    expect(k.note).toBe('k not computed: permeability model is none (Parameters, Permeability)');
+    // resolved tracks carry no note
+    expect(tracks.find((t) => t.key === 't-gr').note).toBeUndefined();
+    // a resolved-partially track keeps its curves and no note
+    const phi = tracks.find((t) => t.key === 't-phi');
+    expect(phi.curves.map((c) => c.name)).toEqual(['φe']);
+    expect(phi.note).toBeUndefined();
+  });
+
+  test('a track with no curves at all is still dropped, and distinct reasons join', () => {
+    const tpl = {
+      tracks: [
+        { id: 'empty', title: 'Empty', type: 'curves', curves: [] },
+        { id: 'two', title: 'Two', type: 'curves', curves: [{ source: 'output:TEMP' }, { source: 'log:A34H' }] },
+      ],
+    };
+    const tracks = resolveTracks(tpl, { ...ctx, keepUnresolved: true });
+    expect(tracks.map((t) => t.key)).toEqual(['two']);
+    expect(tracks[0].note).toBe('TEMP needs the linear temperature model (Parameters, Temperature); no curve A34H on this well');
+  });
+});
+
+describe('PT10a sourceStatus', () => {
+  const ctx = { curves: { GR: d }, outputs: { PHIE: d }, logs: { A34H: d } };
+  test('resolved addresses are null, absent ones say why per address kind', () => {
+    expect(sourceStatus('input:GR', ctx)).toBeNull();
+    expect(sourceStatus('output:PHIE', ctx)).toBeNull();
+    expect(sourceStatus('log:A34H', ctx)).toBeNull();
+    expect(sourceStatus('log:a34h', ctx)).toBeNull();
+    expect(sourceStatus('output:KPERM', ctx)).toBe('k not computed: permeability model is none (Parameters, Permeability)');
+    expect(sourceStatus('output:TEMP', ctx)).toBe('TEMP needs the linear temperature model (Parameters, Temperature)');
+    expect(sourceStatus('output:PHIE_LOW', ctx)).toBe('PHIE_LOW not computed: run Low/High… first');
+    expect(sourceStatus('output:SW_HIGH', ctx)).toBe('SW_HIGH not computed: run Low/High… first');
+    expect(sourceStatus('output:SW_Q90', ctx)).toBe('SW_Q90 not computed: run Probabilistic… first');
+    expect(sourceStatus('output:PAY_PROB', ctx)).toBe('PAY_PROB not computed: run Probabilistic… first');
+    expect(sourceStatus('output:BVW', ctx)).toBe('BVW not computed on this run');
+    expect(sourceStatus('input:RT', ctx)).toBe('RT is not loaded on this well');
+    expect(sourceStatus('log:ILD', ctx)).toBe('no curve ILD on this well');
+    expect(sourceStatus('GR', ctx)).toBe('no curve address');
+    expect(sourceStatus('weird:GR', ctx)).toBe('unknown address weird:GR');
+  });
+});
+
+describe('PT10a scale on pick', () => {
+  const fresh = { id: 't', title: 'New track', type: 'curves', width: 1, scale: 'linear', min: 0, max: 1, curves: [{ source: 'input:GR', color: '#059669' }], fills: [] };
+
+  test('an untouched new track takes the standard scale of the picked source', () => {
+    expect(isUntouchedNewTrack(fresh)).toBe(true);
+    expect(applySourceScale(fresh, 'output:KPERM')).toMatchObject({ scale: 'log', min: 0.01, max: 10000 });
+    expect(applySourceScale(fresh, 'output:TEMP')).toMatchObject({ scale: 'linear', min: 0, max: 150 });
+    expect(applySourceScale(fresh, 'input:NPHI')).toMatchObject({ min: 0.45, max: -0.15 });
+    for (const [src, std] of Object.entries(SOURCE_SCALES)) expect(applySourceScale(fresh, src)).toMatchObject(std);
+  });
+
+  test('a track the user has scaled, or that carries several curves or a fill, is never touched', () => {
+    const scaled = { ...fresh, min: 0, max: 200 };
+    expect(applySourceScale(scaled, 'output:KPERM')).toBe(scaled);
+    const logScaled = { ...fresh, scale: 'log' };
+    expect(applySourceScale(logScaled, 'output:TEMP')).toBe(logScaled);
+    const two = { ...fresh, curves: [fresh.curves[0], { source: 'input:RT' }] };
+    expect(applySourceScale(two, 'input:RT')).toBe(two);
+    const filled = { ...fresh, fills: [{ mode: 'threshold', a: 'input:GR', threshold: { value: 75 } }] };
+    expect(applySourceScale(filled, 'output:KPERM')).toBe(filled);
+    // unknown sources and strips pass through
+    expect(applySourceScale(fresh, 'log:A34H')).toBe(fresh);
+    expect(applySourceScale({ ...fresh, type: 'strip' }, 'output:KPERM')).toMatchObject({ type: 'strip', max: 1 });
+  });
 });
