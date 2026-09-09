@@ -813,3 +813,7 @@ Pro's MonteCarloEngine delegates to.
   migration (permeability and temperature, provenance, deliberate
   flag, regression fixture), tracks kept with a note, scale on pick,
   help text. Jest + e2e gates green.
+- PT10b built 2026-09-09: `viewer/depthDensity.js`, `crossplotScales.js`
+  shared with the scatter, `DepthDensityPlot.jsx`, the fifth crossplot
+  button with curve / reference / range / bins / overlay well / Wide,
+  `crossplots.density` persisted, help text. Jest + e2e gates green.

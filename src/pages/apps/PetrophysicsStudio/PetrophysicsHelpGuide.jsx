@@ -644,7 +644,23 @@ const PetrophysicsHelpGuide = () => (
         can see where a cloud of points lives in depth without leaving the plot. Selecting and
         facies tagging are separate: selection is a temporary highlight and is not saved.
       </Para>
-    </GuideSection>
+          <SubHeading>Depth density</SubHeading>
+      <Para>
+        The fifth crossplot bins any curve against depth: a two-dimensional histogram of the
+        curve on the X axis (100 bins by default; RT and permeability bin in log space) against
+        MD, TVD or TVDSS in rows of 25 m or 100 ft (following the display unit; both editable),
+        coloured from dark blue where the cell is empty through cyan, green and yellow to red in
+        the fullest cell, so the colourbar reads 0 to 1 as data density. Shallow is at the top,
+        ticks sit on both sides so a tall narrow image reads without hunting, and hovering a cell
+        gives its value range, depth range, density and sample count. Pick the curve (a loaded
+        input, a computed output, or any registry curve by mnemonic), the depth reference (TVD and
+        TVDSS need a survey), a depth range, and optionally an overlay well: its populated region is
+        binned on the same edges and drawn as an outline over your image, so two wells compare on
+        one picture. The zone chips apply to the primary well, and the PNG caption states the
+        curve, reference, range, bins, zones and overlay. <Code>Wide</Code> releases the narrow
+        default column.
+      </Para>
+</GuideSection>
 
     {/* ------------------------------------------------------------------ */}
     <GuideSection id="histograms">

@@ -551,3 +551,20 @@ merged it over the new Timur default on every open. Three fixes:
 Testers: reopen the shared interpretation and confirm the k track is
 there before doing anything else. Owner decisions 1 and 2 (percentile
 labels, the migration) are recorded in the ROADMAP.
+
+## 2026-09-09: PT10b, depth density crossplot
+
+Tester note: a curve-versus-depth density plot beside the density-neutron
+and Pickett plots. The scatter could not bin, so this is a new canvas
+component sharing the scatter's scale and tick helpers (now in
+`crossplotScales.js`). `viewer/depthDensity.js` is the pure math: a 2D
+histogram normalised to its fullest cell, depth bins of 25 m or 100 ft by
+the display unit, log X for RT and KPERM, a depth range, a zone mask, and
+`envelopeOutline` for a second well binned on the same edges. The panel's
+fifth button, "Depth density", offers any input, output or raw registry
+curve against MD, TVD or TVDSS (through `makeDepthAxes`, so TVD is the real
+frame, with unplaced samples counted in the caption), an overlay well through
+the curves cache (a computed output runs the current parameters on that
+well), the shared zone chips, PNG, and a `crossplots.density` config that
+persists with the interpretation. Jest gates on the math and the shared
+scales; e2e walk on the harness.
