@@ -6,6 +6,7 @@
 // summaries, provenance block. Returns the jsPDF doc; the caller saves.
 
 import { jsPDF } from 'jspdf';
+import { EXCEEDANCE_DEFINITION, parameterPercentileLabel } from '@/lib/percentileConventions';
 import { makeDepthFrame } from '../../WellDataManager/engine/checkshots';
 import 'jspdf-autotable';
 import { loadPetrolordLogo, drawBrandHeader } from '@/lib/pdfBrand';
@@ -51,7 +52,7 @@ export function methodLines(params) {
  * @returns {Promise<jsPDF>}
  */
 export async function buildReport({
-  wellName, wellData, params, zones, summaries, projectId, depthUnit = 'm', well = null, columns = ['md'],
+  wellName, wellData, params, zones, summaries, projectId, depthUnit = 'm', well = null, columns = ['md'], probabilistic = null,
 }) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -153,6 +154,38 @@ export async function buildReport({
       theme: 'grid',
     });
     y = doc.lastAutoTable.finalY + 8;
+  }
+
+  // PT10d: the probabilistic block when a run exists. Outcomes carry
+  // P90 / P50 / P10 under the exceedance meaning; parameters read as
+  // percentiles; the definition sentence follows the table.
+  if (probabilistic?.zones?.length) {
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(`Probabilistic zone cases (${probabilistic.draws.n} realisations, seed ${probabilistic.draws.seed})`, margin, y);
+    y += 3;
+    doc.autoTable({
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [['Zone', `Net P90 (${uTxt})`, `Net P50 (${uTxt})`, `Net P10 (${uTxt})`, 'N/G P50',
+        parameterPercentileLabel('phi', 'q10'), parameterPercentileLabel('phi', 'q90'),
+        parameterPercentileLabel('Sw', 'q10'), parameterPercentileLabel('Sw', 'q90'),
+        parameterPercentileLabel('k gm', 'q50')]],
+      body: probabilistic.zones.map((z) => [
+        z.name, num(toU(z.outcomes.net_m.p90), 2), num(toU(z.outcomes.net_m.p50), 2), num(toU(z.outcomes.net_m.p10), 2), num(z.outcomes.ntg.p50),
+        num(z.parameters.phi_avg.q10), num(z.parameters.phi_avg.q90), num(z.parameters.sw_avg.q10), num(z.parameters.sw_avg.q90), num(z.parameters.k_gm_md.q50, 1),
+      ]),
+      styles: { fontSize: 7.5, cellPadding: 1.5 },
+      headStyles: { fillColor: [15, 23, 42] },
+      theme: 'grid',
+    });
+    y = doc.lastAutoTable.finalY + 4;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 70, 90);
+    doc.text(EXCEEDANCE_DEFINITION, margin, y);
+    y += 8;
   }
 
   doc.setFontSize(11);

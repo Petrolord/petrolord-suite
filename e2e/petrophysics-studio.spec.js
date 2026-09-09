@@ -436,7 +436,7 @@ test('PS7: histogram cutoff drag writes parameters; twin-well overlay fits ident
   await page.getByTestId('petro-view-histogram').click();
   const canvas = page.getByTestId('petro-histogram-canvas');
   await expect(canvas).toBeVisible();
-  await expect(page.getByTestId('petro-hist-pcts')).toContainText('P50');
+  await expect(page.getByTestId('petro-hist-pcts')).toContainText('50th percentile'); // PT10d: a curve percentile is never a P-label
 
   // drag the GR clean line from the left edge to 25% across the plot:
   // the type well's GR spans exactly 20..120 API, so the committed
@@ -1176,4 +1176,52 @@ test('PT10b: the depth density crossplot renders PHIE vs MD, TVD on the deviated
   await expect(page.getByTestId('petro-density-tooltip')).toHaveCount(0);
   await page.getByTestId('petro-depth-unit').click();
   await expect(page.getByTestId('petro-density-depthbin')).toHaveValue('100');
+});
+
+test('PT10d: the probabilistic dialog runs in a worker, the SAND A P50 net sits in the golden band, the cases layout draws, CSV and publish work', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  await page.getByTestId('petro-probabilistic').click();
+  await expect(page.getByTestId('petro-prob-dialog')).toBeVisible();
+  // the defaults come from the low/high cases: rw varies with the current value as its median
+  await expect(page.getByTestId('petro-prob-vary-rw')).toBeChecked();
+  await expect(page.getByTestId('petro-prob-rw-q50')).toHaveValue('0.05');
+  await expect(page.getByTestId('petro-prob-vary-cutSw')).not.toBeChecked();
+  // no P-label anywhere on the parameter grid
+  const gridText = await page.getByTestId('petro-prob-row-rw').innerText();
+  expect(gridText).not.toMatch(/\bP(10|50|90)\b/);
+
+  await page.getByTestId('petro-prob-n').selectOption('100');
+  await page.getByTestId('petro-prob-run').click();
+  await expect(page.getByTestId('petro-prob-row-zone-SAND A')).toBeVisible({ timeout: 60000 });
+  await expect(page.getByTestId('petro-prob-state')).toContainText('100 realisations, seed 1');
+  // exceedance order on the outcome, and the P50 within a metre of the golden net
+  const netOfCase = async (k) => parseFloat(await page.getByTestId(`petro-prob-net-SAND A-${k}`).innerText());
+  const p90 = await netOfCase('p90');
+  const p50 = await netOfCase('p50');
+  const p10 = await netOfCase('p10');
+  expect(p90).toBeLessThanOrEqual(p50);
+  expect(p50).toBeLessThanOrEqual(p10);
+  expect(Math.abs(p50 - parseFloat(goldenNet('SAND_A')))).toBeLessThanOrEqual(1.0);
+  await expect(page.getByTestId('petro-prob-tornado-SAND A')).toBeVisible();
+
+  // CSV, then the layout
+  const dl = page.waitForEvent('download');
+  await page.getByTestId('petro-prob-csv').click();
+  expect((await dl).suggestedFilename()).toBe('KETA_TYPE-1_probabilistic.csv');
+  await page.getByTestId('petro-prob-apply').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Low, best, high cases layout is active');
+  await expect(page.getByTestId('petro-layout-template')).toContainText('Low, best, high cases');
+  await expect(page.getByTestId('petro-tracks')).toHaveAttribute('data-track-titles', /Sw cases/);
+  await expect(page.getByTestId('petro-tracks')).not.toHaveAttribute('data-track-notes', /Sw cases/);
+  // the zone card carries the net cases
+  await expect(page.getByTestId('petro-zone-prob-SAND A')).toContainText('P90');
+
+  // publish: 19 curves land in the registry and the explorer lists them
+  await page.getByTestId('petro-probabilistic').click();
+  await page.getByTestId('petro-prob-publish').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Published 19 probabilistic curves');
+  await expect(page.getByTestId('petro-curve-inventory')).toContainText('PHIE_Q50');
 });

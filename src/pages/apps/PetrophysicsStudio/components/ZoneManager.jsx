@@ -21,7 +21,7 @@ const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v) ? '�
  *  @param {?number} [p.tdM] TD for the optional last zone to TD */
 export default function ZoneManager({
   zones, summaries, isOwn, busy, onAdd, onDelete, onPublish, zoneParams = {}, depthUnit = 'm',
-  tops = [], onAddMany, onStartPick, pickActive = false, tdM = null,
+  tops = [], onAddMany, onStartPick, pickActive = false, tdM = null, probZones = null,
 }) {
   const [draft, setDraft] = useState({ name: '', top: '', base: '' });
   const [error, setError] = useState(null);
@@ -129,6 +129,14 @@ export default function ZoneManager({
               </div>
             ) : (
               <div className="mt-1 text-[11px] text-slate-600">no computed curves yet</div>
+            )}
+            {probZones?.[z.id] && (
+              <div className="mt-0.5 text-[11px] text-slate-400" data-testid={`petro-zone-prob-${z.name}`}
+                title="Net pay cases from the probabilistic run. P90 means a 90% probability the actual quantity meets or exceeds this value, per SPE PRMS.">
+                net P90 <b className="text-slate-200">{fmt(toDisplay(probZones[z.id].outcomes.net_m.p90, depthUnit), 1)}</b>
+                {' · '}P50 <b className="text-slate-200">{fmt(toDisplay(probZones[z.id].outcomes.net_m.p50, depthUnit), 1)}</b>
+                {' · '}P10 <b className="text-slate-200">{fmt(toDisplay(probZones[z.id].outcomes.net_m.p10, depthUnit), 1)}</b> {u}
+              </div>
             )}
             {Object.keys(z.properties || {}).length > 0 && (
               <div className="mt-1 text-[10px] text-emerald-400/80">published summary on record</div>

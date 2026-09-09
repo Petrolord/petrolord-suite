@@ -23,7 +23,7 @@ import { buildReport } from '../services/petroReport';
  *  render (PT8) — the same one the toolbar's PNG button downloads */
 export default function ExportDialog({
   open, onOpenChange, wellName, wellData, outputs, params, zones, summaries, projectId, projectName, onStatus,
-  trackPng, well = null, depthUnit = 'm',
+  trackPng, well = null, depthUnit = 'm', probabilistic = null,
 }) {
   const [busy, setBusy] = useState(null); // which deliverable is building
   // depth options (PT2): unit, which depth columns travel, which is DEPT
@@ -77,7 +77,7 @@ export default function ExportDialog({
       label: 'Zone summary CSV',
       note: 'Gross, net, N/G and net-weighted averages per zone at the current parameters.',
       build: () => saveAs(
-        new Blob([zonesCsv(zones, summaries, depthOpts)], { type: 'text/csv;charset=utf-8;' }),
+        new Blob([zonesCsv(zones, summaries, { ...(depthOpts || {}), depthUnit: unit, probabilistic })], { type: 'text/csv;charset=utf-8;' }),
         `${base}_zones.csv`,
       ),
     },
@@ -120,7 +120,7 @@ export default function ExportDialog({
       label: 'PDF summary report',
       note: 'Parameters, methods with citations, zone table and provenance.',
       build: async () => {
-        const doc = await buildReport({ wellName, wellData, params, zones, summaries, projectId, depthUnit: unit, well, columns: depthOpts.columns });
+        const doc = await buildReport({ wellName, wellData, params, zones, summaries, projectId, depthUnit: unit, well, columns: depthOpts.columns, probabilistic });
         doc.save(`${base}_petrophysics_report.pdf`);
       },
     },

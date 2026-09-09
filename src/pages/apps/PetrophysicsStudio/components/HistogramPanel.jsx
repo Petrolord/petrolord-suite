@@ -8,6 +8,7 @@
 // conditioning, and the panel says so).
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { parameterPercentileLabel } from '@/lib/percentileConventions';
 import HistogramChart from './HistogramChart';
 import { histogram, cumulative, maskForWindow, passingFraction } from '../viewer/stats';
 import { percentile, fitNormalization, applyNormalization } from '../engine/normalize';
@@ -165,7 +166,7 @@ export default function HistogramPanel({
         )}
         {pcts.length > 0 && (
           <span className="text-slate-500" data-testid="petro-hist-pcts">
-            {pcts.map((x) => `P${x.p} ${Number(x.value.toPrecision(4))}`).join(' · ')}
+            {pcts.map((x) => `${parameterPercentileLabel(null, x.p)} ${Number(x.value.toPrecision(4))}`).join(' · ')}
           </span>
         )}
 
