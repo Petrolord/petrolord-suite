@@ -587,3 +587,22 @@ percent. Suite side: the re-export shim and
 words live (owner decision 1), with the two gates the decision asked
 for: no P-label on any parameter output, and P90 <= P50 <= P10 on every
 published outcome case.
+
+## 2026-09-09: PT10d, probabilistic Studio
+
+The ribbon's Probabilistic… dialog: tick the parameters to vary, give
+each a distribution (triangular from its 10th/50th/90th percentiles,
+uniform, normal or lognormal; defaults come from the PT9g low and high
+cases so the two features agree by construction), pick draws and a seed,
+and run in a Web Worker with a progress bar and Cancel. Results: a zone
+table whose net pay reads P90 / P50 / P10 under the SPE PRMS exceedance
+meaning and whose porosity, Sw and k read as 10th / 50th / 90th
+percentiles; a net-pay tornado per zone; Apply to tracks (a "Low, best,
+high cases" layout whose band labels say the direction, "Low case Sw
+(high value)", plus a pay probability track); Export CSV; Publish (the
+18 percentile curves and PAY_PROB, with the spec, draws, seed and the
+exceedance sentence in provenance). The run spec persists with the
+interpretation. The zone CSV, the PDF report and the zone cards carry
+the probabilistic block; the histogram's percentile readout no longer
+says P10/P50/P90. In Chromium the type well runs 1000 realisations in
+under a second.

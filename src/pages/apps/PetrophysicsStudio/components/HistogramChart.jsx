@@ -165,7 +165,7 @@ export default function HistogramChart({
       ctx.beginPath(); ctx.moveTo(x, M.t); ctx.lineTo(x, M.t + plotH); ctx.stroke();
       ctx.setLineDash([]);
       ctx.textAlign = 'center';
-      ctx.fillText(`P${pm.p}`, x, M.t + 9);
+      ctx.fillText(`${pm.p}th`, x, M.t + 9); // PT10d: a curve percentile, never a P-label
     }
 
     // threshold lines (drag preview wins over the committed value)

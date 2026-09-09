@@ -10,7 +10,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Trash2, Plus } from 'lucide-react';
 import {
   activeTemplate, updateTemplate, newId, applySourceScale,
-  INPUT_SOURCES, OUTPUT_SOURCES, THRESHOLD_PARAMS, STRIP_SOURCES,
+  INPUT_SOURCES, OUTPUT_SOURCES, PROBABILISTIC_SOURCES, THRESHOLD_PARAMS, STRIP_SOURCES,
 } from './layout/layoutSchema';
 
 const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs w-full';
@@ -246,12 +246,18 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                             return <option key={s} value={s} title={why || undefined}>{s}{why ? ' (not computed)' : ''}</option>;
                           })}
                         </optgroup>
+                        <optgroup label="Probabilistic run (percentiles, pay probability)">
+                          {PROBABILISTIC_SOURCES.map((s) => {
+                            const why = statusOf(s);
+                            return <option key={s} value={s} title={why || undefined}>{s}{why ? ' (not computed)' : ''}</option>;
+                          })}
+                        </optgroup>
                         {rawSources.length > 0 && (
                           <optgroup label="Curves in this well (by mnemonic)">
                             {rawSources.map((s) => <option key={s} value={s}>{s}</option>)}
                           </optgroup>
                         )}
-                        {!SOURCES.includes(c.source) && !rawSources.includes(c.source) && (
+                        {!SOURCES.includes(c.source) && !PROBABILISTIC_SOURCES.includes(c.source) && !rawSources.includes(c.source) && (
                           <option value={c.source}>{c.source} (not in this well)</option>
                         )}
                       </select>

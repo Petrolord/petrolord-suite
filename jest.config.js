@@ -28,6 +28,8 @@ export default {
     'attributeWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/attributeWorkerFactoryMock.js',
     // same story for the 2D line worker (W5)
     'lineWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/lineWorkerFactoryMock.js',
+    // PT10d: the Petrophysics probabilistic worker factory (import.meta)
+    'probabilisticWorkerFactory(\\.js)?$': '<rootDir>/src/__mocks__/probabilisticWorkerFactoryMock.js',
     // the PWA register hook is a Vite virtual module (WS6)
     '^virtual:pwa-register/react$': '<rootDir>/src/__mocks__/pwaRegisterMock.js',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',

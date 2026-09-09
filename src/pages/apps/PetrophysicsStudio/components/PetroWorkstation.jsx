@@ -33,6 +33,9 @@ import ZoneParamTable from './ZoneParamTable';
 import RuleFaciesDialog from './RuleFaciesDialog';
 import CurveCalculatorDialog from './CurveCalculatorDialog';
 import ScenariosDialog from './ScenariosDialog';
+import ProbabilisticDialog from './ProbabilisticDialog';
+import { ensureProbabilisticTemplate, probabilisticPublishLogs, runProbabilisticAsync } from '../services/probabilistic';
+import { createProbabilisticWorker } from '../services/probabilisticWorkerFactory';
 import { runScenarios, scenarioOutputs, ensureScenarioTemplate, SCENARIO_CURVES } from '../services/scenarios';
 import { classifyRules } from '../services/ruleFacies';
 import HistogramPanel from './HistogramPanel';
@@ -88,6 +91,15 @@ export default function PetroWorkstation({
   const [calcOpen, setCalcOpen] = useState(false);            // PT9f
   const [scenarios, setScenarios] = useState(null);           // PT9g: {low: patch, high: patch}
   const [scenariosOpen, setScenariosOpen] = useState(false);
+  // PT10d: the probabilistic run. `uncertainty` ({spec, n, seed}) persists
+  // with the interpretation (facies._uncertainty); the result is transient.
+  const [uncertainty, setUncertainty] = useState(null);
+  const [probOpen, setProbOpen] = useState(false);
+  const [probResult, setProbResult] = useState(null);
+  const [probRunning, setProbRunning] = useState(false);
+  const [probProgress, setProbProgress] = useState(null);
+  const [probMs, setProbMs] = useState(null);
+  const probCancelRef = useRef(null);
   const [zoneParams, setZoneParams] = useState({});     // zoneId -> override patch (PS3)
   const [projectId, setProjectId] = useState('project-dev');
   const [projectName, setProjectName] = useState(null);
@@ -130,10 +142,11 @@ export default function PetroWorkstation({
         setProjectName(project.name || null);
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.facies) {
-          const { _rules, _scenarios, _provenance, ...byWell } = project.facies;
+          const { _rules, _scenarios, _provenance, _uncertainty, ...byWell } = project.facies;
           setFaciesByWell(byWell);
           setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
           setScenarios(_scenarios && (_scenarios.low || _scenarios.high) ? _scenarios : null);
+          setUncertainty(_uncertainty?.spec ? _uncertainty : null);
         }
         setProvenance(provenanceOf(project));
         if (project.zone_params) setZoneParams(project.zone_params);
@@ -277,6 +290,57 @@ export default function PetroWorkstation({
     setScenarios(patches);
     setLayouts((l) => ensureScenarioTemplate(l));
   }, []);
+  // PT10d: the probabilistic twins for the tracks (a result belongs to the
+  // well it was run on; a well change clears it)
+  const probTwins = useMemo(() => (probResult && probResult.wellId === wellData?.wellId ? probResult.curves : {}), [probResult, wellData]);
+  const probZones = useMemo(() => {
+    if (!probResult || probResult.wellId !== wellData?.wellId) return null;
+    const out = {};
+    for (const z of probResult.zones) if (z.id) out[z.id] = z;
+    return out;
+  }, [probResult, wellData]);
+  const runProbabilistic = useCallback(({ spec, engineSpec, n, seed }) => {
+    if (!wellData || !computed) return;
+    setUncertainty({ spec, n, seed });
+    setProbRunning(true);
+    setProbProgress(null);
+    setProbMs(null);
+    const t0 = performance.now();
+    const { promise, cancel } = runProbabilisticAsync(
+      { curves: wellData.curves, params, zoneParamList, spec: engineSpec, opts: { n, seed, zones: zones.map((z) => ({ id: z.id, name: z.name, top_md_m: z.top_md_m, base_md_m: z.base_md_m })) } },
+      { createWorker: createProbabilisticWorker, onProgress: setProbProgress },
+    );
+    probCancelRef.current = cancel;
+    promise.then((res) => {
+      setProbResult({ ...res, wellId: wellData.wellId });
+      setProbMs(performance.now() - t0);
+      setStatus(`Probabilistic run done: ${res.draws.n} realisations, ${res.draws.varKeys.length} parameters varied, ${((performance.now() - t0) / 1000).toFixed(1)} s.`);
+    }).catch((e) => {
+      if (e?.message !== 'cancelled') setStatus(e.message);
+      else setStatus('Probabilistic run cancelled.');
+    }).finally(() => { setProbRunning(false); probCancelRef.current = null; });
+  }, [wellData, computed, params, zoneParamList, zones]);
+  const cancelProbabilistic = useCallback(() => { probCancelRef.current?.(); }, []);
+  const applyProbabilistic = useCallback(() => {
+    setLayouts((l) => ensureProbabilisticTemplate(l));
+    setStatus('The Low, best, high cases layout is active; pay probability is on its own track.');
+  }, []);
+  const publishProbabilistic = async () => {
+    if (!wellData || !probResult || probResult.wellId !== wellData.wellId) return;
+    setPublishing(true);
+    try {
+      const logs = probabilisticPublishLogs(wellData, probResult, params, { projectId, interpretationName: projectName, zoneParams });
+      const saved = await backend.publishCurves(wellData.wellId, logs, projectId);
+      applyProbabilistic();
+      await select(wellData.wellId);
+      setStatus(`Published ${saved.length} probabilistic curves (percentiles and PAY_PROB) to ${selected.name}.`);
+    } catch (e) {
+      setStatus(e.message);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
   const publishScenarios = async (patches) => {
     if (!wellData || !computed) return;
     setPublishing(true);
@@ -392,7 +456,7 @@ export default function PetroWorkstation({
     return resolveTracks(activeTemplate(layouts), {
       curves: wellData.curves,
       logs: wellData.logs,
-      outputs: { ...computed.outputs, ...scenarioTwins },
+      outputs: { ...computed.outputs, ...scenarioTwins, ...probTwins },
       faciesData,
       facies,
       ruleFacies,
@@ -402,13 +466,13 @@ export default function PetroWorkstation({
       depth: wellData.curves?.DEPT || null,
       keepUnresolved: true, // PT10a: an empty track says why instead of vanishing
     });
-  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, params, layouts]);
+  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, probTwins, params, layouts]);
 
   // PT10a: why a curve address resolves to nothing right now (layout panel labels)
   const layoutSourceStatus = useCallback((source) => {
     if (!wellData) return null;
-    return sourceStatus(source, { curves: wellData.curves, logs: wellData.logs, outputs: { ...(computed?.outputs || {}), ...scenarioTwins } });
-  }, [wellData, computed, scenarioTwins]);
+    return sourceStatus(source, { curves: wellData.curves, logs: wellData.logs, outputs: { ...(computed?.outputs || {}), ...scenarioTwins, ...probTwins } });
+  }, [wellData, computed, scenarioTwins, probTwins]);
 
   const addZone = async (z) => {
     const zone = await backend.saveZone(wellData.wellId, z);
@@ -558,6 +622,7 @@ export default function PetroWorkstation({
       ...faciesByWell,
       ...(ruleFacies ? { _rules: ruleFacies } : {}),
       ...(scenarios ? { _scenarios: scenarios } : {}),
+      ...(uncertainty ? { _uncertainty: uncertainty } : {}),
       ...(provenance.length ? { _provenance: provenance } : {}),
     },
     zone_params: zoneParams,
@@ -674,11 +739,13 @@ export default function PetroWorkstation({
     setProjectName(project.name || null);
     setParams({ ...DEFAULT_PARAMS, ...(project.params || {}) });
     {
-      const { _rules, _scenarios, _provenance, ...byWell } = project.facies || {};
+      const { _rules, _scenarios, _provenance, _uncertainty, ...byWell } = project.facies || {};
       setFaciesByWell(byWell);
       setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
       setScenarios(_scenarios && (_scenarios.low || _scenarios.high) ? _scenarios : null);
+      setUncertainty(_uncertainty?.spec ? _uncertainty : null);
     }
+    setProbResult(null);
     setProvenance(provenanceOf(project));
     setZoneParams(project.zone_params || {});
     if (project.crossplots && Object.keys(project.crossplots).length) setCrossplotCfg(project.crossplots);
@@ -876,6 +943,17 @@ export default function PetroWorkstation({
           onClick={() => setScenariosOpen(true)}
         >
           <Layers className="w-3.5 h-3.5" /> Low/High…
+        </button>
+        <button
+          type="button"
+          data-testid="petro-probabilistic"
+          disabled={!wellData || !computed}
+          title="Probabilistic petrophysics: vary parameters with distributions, run seeded realisations, percentile curves and P90/P50/P10 net pay per zone"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          onClick={() => setProbOpen(true)}
+        >
+          <Layers className="w-3.5 h-3.5" /> Probabilistic…
         </button>
         <button
           type="button"
@@ -1222,6 +1300,7 @@ export default function PetroWorkstation({
               pickActive={pickMode === 'zone'}
               tops={wellData.tops}
               tdM={selected?.td_md_m ?? null}
+              probZones={probZones}
               onDelete={deleteZone}
               onPublish={publishZone}
             />
@@ -1279,6 +1358,27 @@ export default function PetroWorkstation({
       />
     )}
     {wellData && (
+      <ProbabilisticDialog
+        open={probOpen}
+        onOpenChange={setProbOpen}
+        params={params}
+        uncertainty={uncertainty}
+        result={probResult && probResult.wellId === wellData.wellId ? probResult : null}
+        running={probRunning}
+        progress={probProgress}
+        runMs={probMs}
+        zones={zones}
+        depthUnit={depthUnit}
+        wellName={selected?.name}
+        canPublish={!!selected?.is_own && !publishing}
+        onRun={runProbabilistic}
+        onCancel={cancelProbabilistic}
+        onApply={applyProbabilistic}
+        onPublish={publishProbabilistic}
+        onStatus={setStatus}
+      />
+    )}
+    {wellData && (
       <CurveCalculatorDialog
         open={calcOpen}
         onOpenChange={setCalcOpen}
@@ -1328,13 +1428,14 @@ export default function PetroWorkstation({
         well={selected}
         depthUnit={depthUnit}
         wellData={wellData}
-        outputs={computed.outputs}
+        outputs={{ ...computed.outputs, ...probTwins }}
         params={params}
         zones={zones}
         summaries={summaries}
         projectId={projectId}
         projectName={projectName}
         trackPng={trackPngBlob}
+        probabilistic={probResult && probResult.wellId === wellData?.wellId ? probResult : null}
         onStatus={setStatus}
       />
     )}

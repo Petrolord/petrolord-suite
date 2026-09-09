@@ -9,6 +9,7 @@
 import { writeLas } from '../../WellDataManager/engine/lasWrite';
 import { makeDepthFrame, M_PER_FT } from '../../WellDataManager/engine/checkshots';
 import { PIPELINE_VERSION } from '../engine/pipeline';
+import { probabilisticCsv } from './probabilistic';
 
 // canonical registry units for the mapped inputs (SI at import) and
 // the published outputs — used when the inventory has no unit string
@@ -22,6 +23,13 @@ const OUTPUT_KEYS = ['VSH', 'PHIT', 'PHIE', 'SW', 'BVW', 'KPERM', 'PAY'];
 const OUTPUT_DESCR = {
   VSH: 'Shale volume', PHIT: 'Total porosity (as read)', PHIE: 'Effective porosity (shale-corrected)',
   SW: 'Water saturation', BVW: 'Bulk volume water', KPERM: 'Permeability (mD)', PAY: 'Net-pay flag (1 = pay)',
+};
+// PT10d: the probabilistic twins ride along when a run exists (numeric
+// percentiles of the quantity, never a P-label; PAY_PROB is an outcome)
+const PROB_KEYS = ['PHIT', 'PHIE', 'VSH', 'SW', 'BVW', 'KPERM'].flatMap((k) => ['Q10', 'Q50', 'Q90'].map((q) => `${k}_${q}`));
+const probDescr = (key) => {
+  const m = /^(\w+)_Q(\d+)$/.exec(key);
+  return m ? `${m[2]}th percentile of ${OUTPUT_DESCR[m[1]] ? OUTPUT_DESCR[m[1]].toLowerCase() : m[1]}` : '';
 };
 
 const num = (v) => (Number.isFinite(v) ? String(Number(v.toPrecision(7))) : '');
@@ -114,6 +122,10 @@ export function exportColumns(wellData, outputs) {
       cols.push({ key, unit: CANONICAL_UNITS[key], descr: OUTPUT_DESCR[key], data: outputs[key] });
     }
   }
+  for (const key of PROB_KEYS) {
+    if (outputs?.[key]) cols.push({ key, unit: CANONICAL_UNITS[key.replace(/_Q\d+$/, '')], descr: probDescr(key), data: outputs[key] });
+  }
+  if (outputs?.PAY_PROB) cols.push({ key: 'PAY_PROB', unit: 'FRAC', descr: 'Pay probability (fraction of realisations flagging pay)', data: outputs.PAY_PROB });
   return cols;
 }
 
@@ -141,6 +153,11 @@ export function curvesCsv(wellData, outputs, opts = null) {
 export function zonesCsv(zones, summaries, opts = null) {
   const rows = zones.filter((z) => summaries[z.id]);
   if (!rows.length) throw new Error('No zone summaries to export — add a zone first.');
+  // PT10d: a probabilistic run appends its block (P90/P50/P10 outcomes,
+  // parameter percentiles, the exceedance sentence) under the deterministic rows
+  const probBlock = opts?.probabilistic?.zones?.length
+    ? `\nprobabilistic (${opts.probabilistic.draws.n} realisations, seed ${opts.probabilistic.draws.seed})\n${probabilisticCsv(opts.probabilistic, opts?.depthUnit === 'ft' ? 'ft' : 'm')}`
+    : '';
   const o = normOpts(opts);
   if (!o) {
     const lines = ['zone,top_m,base_m,gross_m,net_m,ntg,phi_avg,vsh_avg,sw_avg,k_gm_md'];
@@ -153,7 +170,7 @@ export function zonesCsv(zones, summaries, opts = null) {
         num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg), num(s.k_gm_md),
       ].join(','));
     }
-    return `${lines.join('\n')}\n`;
+    return `${lines.join('\n')}\n${probBlock}`;
   }
   const u = unitTxt(o.depthUnit);
   const frame = makeDepthFrame({ deviation: o.well?.deviation, kbM: o.well?.kb_m ?? 0, tdMdM: o.well?.td_md_m });
@@ -175,7 +192,7 @@ export function zonesCsv(zones, summaries, opts = null) {
     cells.push(num(conv(s.gross_m, o.depthUnit)), num(conv(s.net_m, o.depthUnit)), num(s.ntg), num(s.phi_avg), num(s.vsh_avg), num(s.sw_avg), num(s.k_gm_md));
     lines.push(cells.join(','));
   }
-  return `${lines.join('\n')}\n`;
+  return `${lines.join('\n')}\n${probBlock}`;
 }
 
 /** LAS 2.0 text: depth + inputs + computed outputs, with the full

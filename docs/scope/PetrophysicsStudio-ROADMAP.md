@@ -833,3 +833,16 @@ Pro's MonteCarloEngine delegates to.
   PT10d runs it in a worker with progress and reports the measured
   browser time. Vectorising the pipeline is a separate performance wave
   for the owner to call, not done here.
+- PT10d built 2026-09-09: `Probabilistic…` dialog (Vary / Distribution /
+  three values per parameter, draws, seed, worker run with progress and
+  Cancel, zone table with P90/P50/P10 outcomes and 10th/50th/90th
+  parameter percentiles, a net-pay tornado per zone), the "Low, best,
+  high cases" layout with the direction in every band label and a pay
+  probability track, CSV, publish of the 18 percentile curves + PAY_PROB
+  with the run in provenance, `facies._uncertainty` persisted, the
+  probabilistic block in the zone CSV and the PDF, the net cases on the
+  zone cards, the PS7 histogram relabelled ("50th percentile"), and the
+  probabilistic addresses in the layout dropdown. Measured in Chromium
+  on the 201-sample type well: 200 realisations 0.4 s, 1000 in 0.8 s,
+  so the jest-side cost floor noted under PT10c was the babel transform,
+  not the engine. Jest + e2e gates green (33 e2e).

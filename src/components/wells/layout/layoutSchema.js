@@ -38,6 +38,11 @@ export const RAMP_PRESETS = {
 
 export const INPUT_SOURCES = ['input:GR', 'input:RHOB', 'input:NPHI', 'input:DT', 'input:RT'];
 export const OUTPUT_SOURCES = ['output:PHIE', 'output:PHIT', 'output:VSH', 'output:SW', 'output:PAY', 'output:TEMP', 'output:KPERM', 'output:BVW'];
+/** PT10d: the percentile twins a probabilistic run produces (numeric percentiles, never P-labels) and the pay probability. */
+export const PROBABILISTIC_SOURCES = [
+  ...['PHIE', 'PHIT', 'VSH', 'SW', 'BVW', 'KPERM'].flatMap((k) => ['Q10', 'Q50', 'Q90'].map((q) => `output:${k}_${q}`)),
+  'output:PAY_PROB',
+];
 export const THRESHOLD_PARAMS = ['cutPhi', 'cutVsh', 'cutSw', 'grClean', 'grClay'];
 
 /**
