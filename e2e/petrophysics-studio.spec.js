@@ -1129,3 +1129,51 @@ test('PT10a: a pre-PT9a interpretation opens with the k track and the status lin
   await expect(tracks).not.toHaveAttribute('data-track-notes', /TEMP/);
   await expect(tracks).toHaveAttribute('data-track-titles', /New track/);
 });
+
+test('PT10b: the depth density crossplot renders PHIE vs MD, TVD on the deviated well, an overlay outline, the zone caption and the PNG', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+  await page.getByTestId('petro-view-crossplot').click();
+
+  // the fifth button; colour-by and Select… leave the toolbar on this plot
+  await page.getByTestId('petro-plot-density').click();
+  await expect(page.getByTestId('petro-density-canvas')).toBeVisible();
+  await expect(page.getByTestId('petro-colorby')).toHaveCount(0);
+  await expect(page.getByTestId('petro-select-start')).toHaveCount(0);
+  await expect(page.getByTestId('petro-density-curve')).toHaveValue('output:PHIE');
+  const samples = Number(await page.getByTestId('petro-density').getAttribute('data-samples'));
+  expect(samples).toBeGreaterThan(100);
+  await expect(page.getByTestId('petro-density-depthbin')).toHaveValue('25');
+
+  // hover reads a cell
+  const canvas = page.getByTestId('petro-density-canvas');
+  const box = await canvas.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(page.getByTestId('petro-density-tooltip')).toContainText('PHIE (v/v):');
+  await expect(page.getByTestId('petro-density-tooltip')).toContainText('density');
+
+  // TVD on the deviated harness well; the frame is real, so the bin count changes
+  await page.getByTestId('petro-density-ref').selectOption('tvd');
+  await expect(page.getByTestId('petro-density')).toHaveAttribute('data-samples', /\d+/);
+  await page.getByTestId('petro-density-ref').selectOption('md');
+
+  // the overlay well's outline binned on the same edges
+  await page.getByTestId('petro-density-overlay').selectOption({ label: 'AKOMA-2 (org shared)' });
+  await expect(page.getByTestId('petro-density')).toHaveAttribute('data-overlay', /^[1-9]\d*$/);
+
+  // zone filter reduces the samples and travels into the caption; PNG downloads
+  await page.getByTestId('petro-xplot-zone-SAND A').click();
+  await expect.poll(async () => Number(await page.getByTestId('petro-density').getAttribute('data-samples'))).toBeLessThan(samples);
+  const dl = page.waitForEvent('download');
+  await page.getByTestId('petro-crossplot-png').click();
+  expect((await dl).suggestedFilename()).toMatch(/density\.png$/);
+  await expect(page.getByTestId('petro-status')).toContainText('zones: SAND A');
+  await expect(page.getByTestId('petro-status')).toContainText('outline: AKOMA-2');
+
+  // a raw registry curve and a feet depth bin
+  await page.getByTestId('petro-density-curve').selectOption('log:GR');
+  await expect(page.getByTestId('petro-density-tooltip')).toHaveCount(0);
+  await page.getByTestId('petro-depth-unit').click();
+  await expect(page.getByTestId('petro-density-depthbin')).toHaveValue('100');
+});

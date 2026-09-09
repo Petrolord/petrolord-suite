@@ -24,7 +24,29 @@ import {
 } from '../engine/crossplot';
 import { COLOR_MAPS } from '@/utils/colorMaps';
 import { trackPlotPng } from '@/components/wells/plotPng';
+import { makeDepthAxes, toDisplay, fromDisplay, DEPTH_TRACK_TITLE } from '@/components/wells/depthModes';
 import { planZoneFilter } from '../services/zoneFilter';
+import { computeWell } from '../engine/pipeline';
+import { depthDensityGrid, envelopeOutline, defaultDepthBinM } from '../viewer/depthDensity';
+import DepthDensityPlot from './DepthDensityPlot';
+
+// PT10b depth density: the curve addresses it can bin, in the layout
+// vocabulary (input:, output:, log:), and which of them bin in log space
+const DENSITY_INPUTS = ['GR', 'RHOB', 'NPHI', 'DT', 'RT'];
+const DENSITY_OUTPUTS = ['PHIE', 'PHIT', 'VSH', 'SW', 'KPERM', 'BVW', 'TEMP'];
+const LOG_X = new Set(['RT', 'KPERM']);
+const CURVE_UNITS = { GR: 'API', RHOB: 'g/cc', NPHI: 'v/v', DT: 'µs/m', RT: 'ohm·m', PHIE: 'v/v', PHIT: 'v/v', VSH: 'v/v', SW: 'v/v', KPERM: 'mD', BVW: 'v/v', TEMP: '°C' };
+const addrKey = (addr) => String(addr || '').slice(String(addr || '').indexOf(':') + 1);
+const resolveAddr = (addr, curves, outputs, logs) => {
+  if (typeof addr !== 'string') return null;
+  const kind = addr.slice(0, addr.indexOf(':'));
+  const key = addrKey(addr);
+  if (kind === 'input') return curves?.[key] || null;
+  if (kind === 'output') return outputs?.[key] || null;
+  if (kind === 'log') return logs?.[key] || null;
+  return null;
+};
+const DEFAULT_DENSITY = { curve: 'output:PHIE', ref: 'md', xBins: 100, depthBinM: null, overlayId: '', top: '', base: '', wide: false };
 
 const FACIES_COLORS = ['#d97706', '#059669', '#7c3aed', '#dc2626', '#2563eb', '#ca8a04'];
 const ISO_SW = [1, 0.8, 0.6, 0.4, 0.2];
@@ -48,12 +70,22 @@ const mapFn = (t) => {
 
 const inputCls = 'rounded bg-slate-950 border border-slate-700 text-slate-200 px-1.5 py-0.5 text-xs';
 
+/**
+ * PT10b props: `logs` (raw registry curves by mnemonic), `well` (the
+ * selected geo_wells row, for the TVD/TVDSS frame), `depthUnit`, `wells`
+ * + `currentWellId` + `curvesCache` (the overlay well, the histogram's
+ * pattern).
+ */
 export default function CrossplotPanel({
   curves, outputs, params, facies, onFaciesChange, onApplyParams, onStatus,
   selection = null, onSelectionChange, initialConfig = null, onConfigChange,
   zones = [], wellName = 'Well',
+  logs = {}, well = null, depthUnit = 'm', wells = [], currentWellId = null, curvesCache = null,
 }) {
-  const [plot, setPlot] = useState(initialConfig?.plot || 'nd'); // 'nd' | 'pickett' | 'buckles' | 'hingle'
+  const [plot, setPlot] = useState(initialConfig?.plot || 'nd'); // 'nd' | 'pickett' | 'buckles' | 'hingle' | 'density'
+  // PT10b: the depth density configuration (persisted under crossplots.density)
+  const [density, setDensity] = useState({ ...DEFAULT_DENSITY, ...(initialConfig?.density || {}) });
+  const setDens = (patch) => setDensity((d) => ({ ...d, ...patch }));
   const [drawing, setDrawing] = useState(false);
   const [draft, setDraft] = useState([]);            // [[x, y]] in ND space
   const [faciesName, setFaciesName] = useState('');
@@ -71,7 +103,10 @@ export default function CrossplotPanel({
   const [zoneIds, setZoneIds] = useState(initialConfig?.zones || initialConfig?.pickettZones || []);
 
   // persisted crossplot config (petro_projects.crossplots)
-  useEffect(() => { onConfigChange?.({ plot, colorBy, zones: zoneIds }); }, [plot, colorBy, zoneIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const { curve, ref, xBins, depthBinM, overlayId } = density;
+    onConfigChange?.({ plot, colorBy, zones: zoneIds, density: { curve, ref, xBins, depthBinM, overlayId } });
+  }, [plot, colorBy, zoneIds, density.curve, density.ref, density.xBins, density.depthBinM, density.overlayId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // drop ids of zones that no longer exist, so a deleted zone cannot
   // leave the plot filtered to nothing the user can see or clear
@@ -295,6 +330,83 @@ export default function CrossplotPanel({
     onStatus(`Applied m = ${fit.m.toFixed(4)}, Rw = ${(fit.aRw / params.a).toFixed(6)} from the Pickett fit.`);
   };
 
+  // ---- PT10b: curve vs depth density ---------------------------------------
+  const densityCurveOptions = useMemo(() => {
+    const out = [];
+    for (const k of DENSITY_INPUTS) if (curves?.[k]) out.push({ value: `input:${k}`, label: k, group: 'Loaded inputs' });
+    for (const k of DENSITY_OUTPUTS) if (outputs?.[k]) out.push({ value: `output:${k}`, label: k, group: 'Computed outputs' });
+    for (const m of Object.keys(logs || {})) {
+      if (/^(DEPT|DEPTH|MD)(:\d+)?$/i.test(m)) continue;
+      out.push({ value: `log:${m}`, label: m, group: 'Curves in this well' });
+    }
+    return out;
+  }, [curves, outputs, logs]);
+  const densityKey = addrKey(density.curve);
+  const densityLog = LOG_X.has(densityKey);
+  const densityCurveLabel = `${densityKey}${CURVE_UNITS[densityKey] ? ` (${CURVE_UNITS[densityKey]})` : ''}`;
+  const hasSurvey = Array.isArray(well?.deviation) && well.deviation.length >= 2;
+  const densityRef = hasSurvey || density.ref === 'md' ? density.ref : 'md';
+  const depthAxis = useMemo(() => makeDepthAxes([densityRef], { well, unit: depthUnit })[0], [densityRef, well, depthUnit]);
+  const densityBinM = density.depthBinM > 0 ? density.depthBinM : defaultDepthBinM(depthUnit);
+  const densityRange = useMemo(() => {
+    const t = density.top === '' ? NaN : fromDisplay(Number(density.top), depthUnit);
+    const b = density.base === '' ? NaN : fromDisplay(Number(density.base), depthUnit);
+    return Number.isFinite(t) && Number.isFinite(b) && b > t ? [t, b] : null;
+  }, [density.top, density.base, depthUnit]);
+  const densityGrid = useMemo(() => {
+    if (plot !== 'density' || !curves?.DEPT) return null;
+    const values = resolveAddr(density.curve, curves, outputs, logs);
+    if (!values) return null;
+    const refDepth = Float64Array.from(curves.DEPT, (md) => depthAxis.valueOf(md));
+    let mask = null;
+    if (zoneFilter.filtering) {
+      mask = new Uint8Array(curves.DEPT.length);
+      for (let i = 0; i < mask.length; i++) mask[i] = zoneFilter.inFilter(curves.DEPT[i]) ? 1 : 0;
+    }
+    return depthDensityGrid({ values, depth: refDepth, mask, xBins: density.xBins, depthBin: densityBinM, depthRange: densityRange, log: densityLog });
+  }, [plot, curves, outputs, logs, density.curve, density.xBins, densityBinM, densityRange, densityLog, depthAxis, zoneFilter]);
+
+  // overlay well: its curves through the cache; a computed output runs the
+  // current parameter set on that well's curves (the Field view rule); its
+  // own depth frame; binned on the PRIMARY's edges so the shapes compare
+  const [overlayData, setOverlayData] = useState(null); // {id, curves, logs, outputs}
+  useEffect(() => {
+    const id = density.overlayId;
+    if (!id || !curvesCache || plot !== 'density') { setOverlayData(null); return undefined; }
+    let live = true;
+    (async () => {
+      try {
+        const { curves: c, logs: l } = await curvesCache.getCurves(id);
+        const out = computeWell(c, params).outputs;
+        if (live) setOverlayData({ id, curves: c, logs: l, outputs: out });
+      } catch (e) {
+        if (live) { setOverlayData(null); onStatus(e.message); }
+      }
+    })();
+    return () => { live = false; };
+  }, [density.overlayId, curvesCache, plot, params]); // eslint-disable-line react-hooks/exhaustive-deps
+  const overlayWell = wells.find((w) => w.id === density.overlayId) || null;
+  const overlayGrid = useMemo(() => {
+    if (!densityGrid || !densityGrid.xBins || !overlayData || overlayData.id !== density.overlayId || !overlayData.curves?.DEPT) return null;
+    const values = resolveAddr(density.curve, overlayData.curves, overlayData.outputs, overlayData.logs);
+    if (!values) return null;
+    const axis = makeDepthAxes([densityRef], { well: overlayWell, unit: depthUnit })[0];
+    const refDepth = Float64Array.from(overlayData.curves.DEPT, (md) => axis.valueOf(md));
+    return depthDensityGrid({ values, depth: refDepth, log: densityLog, edges: { xEdges: densityGrid.xEdges, depthEdges: densityGrid.depthEdges } });
+  }, [densityGrid, overlayData, density.overlayId, density.curve, densityRef, overlayWell, depthUnit, densityLog]);
+  const overlayOutline = useMemo(() => (overlayGrid ? envelopeOutline(overlayGrid) : []), [overlayGrid]);
+  const densityCaption = () => {
+    const parts = [
+      `${densityKey} vs ${DEPTH_TRACK_TITLE[densityRef]}`,
+      densityRange ? `range ${toDisplay(densityRange[0], depthUnit).toFixed(0)} to ${toDisplay(densityRange[1], depthUnit).toFixed(0)} ${depthUnit}` : 'whole well',
+      `${density.xBins} x-bins · depth bin ${toDisplay(densityBinM, depthUnit).toFixed(depthUnit === 'ft' ? 0 : 1)} ${depthUnit}`,
+      `zones: ${zoneFilter.label}`,
+    ];
+    if (overlayWell) parts.push(`outline: ${overlayWell.name}`);
+    if (densityGrid?.unplaced) parts.push(`${densityGrid.unplaced} samples outside the survey dropped`);
+    return parts.join(' · ');
+  };
+
   const faciesCounts = useMemo(() => {
     if (!ndTags) return {};
     const counts = {};
@@ -305,19 +417,23 @@ export default function CrossplotPanel({
   // PT8: PNG of the plot as shown, through the same composer the track
   // plot and the correlation section use. The caption states the zone
   // filter, so a saved Pickett cannot be mistaken for the whole well.
-  const PLOT_TITLES = { nd: 'Density–Neutron', pickett: 'Pickett', buckles: 'Buckles', hingle: 'Hingle' };
+  const PLOT_TITLES = { nd: 'Density–Neutron', pickett: 'Pickett', buckles: 'Buckles', hingle: 'Hingle', density: 'Depth density' };
   const exportPng = async () => {
     try {
-      const canvas = document.querySelector('[data-testid="petro-crossplot-canvas"]');
+      const canvas = document.querySelector(plot === 'density' ? '[data-testid="petro-density-canvas"]' : '[data-testid="petro-crossplot-canvas"]');
       if (!canvas) { onStatus('Nothing to export: this plot needs its curves first.'); return; }
       const shown = { nd: ndPoints, pickett: pickettPoints, buckles: bucklesPoints, hingle: hinglePoints }[plot] || [];
-      const caption = `${shown.length} points`
+      const caption = plot === 'density'
+        ? `${densityGrid?.n || 0} samples · ${densityCaption()}`
+        : `${shown.length} points`
         + ` · zones: ${zoneFilter.label}`
         + (colorBy !== 'facies' && colorBy !== 'none' ? ` · coloured by ${colorBy}` : '')
         + (!zInfo && zoneFilter.colouring ? ' · coloured by zone' : '');
       const blob = await trackPlotPng({
         canvas,
-        title: `${wellName} · ${PLOT_TITLES[plot]} · Petrophysics Studio`,
+        title: plot === 'density'
+          ? `${wellName} · ${densityKey} vs ${DEPTH_TRACK_TITLE[densityRef]} cross-plot · Petrophysics Studio`
+          : `${wellName} · ${PLOT_TITLES[plot]} · Petrophysics Studio`,
         caption,
       });
       const url = URL.createObjectURL(blob);
@@ -361,7 +477,9 @@ export default function CrossplotPanel({
         {plotBtn('pickett', 'Pickett', 'petro-plot-pickett')}
         {plotBtn('buckles', 'Buckles', 'petro-plot-buckles', !bucklesSamples.length)}
         {plotBtn('hingle', 'Hingle', 'petro-plot-hingle', !hingleSamples.length)}
+        {plotBtn('density', 'Depth density', 'petro-plot-density', !curves?.DEPT)}
 
+        {plot !== 'density' && (
         <label className="ml-2 flex items-center gap-1 text-slate-500">
           Color by
           <select
@@ -376,6 +494,7 @@ export default function CrossplotPanel({
             {zSources.map((s) => <option key={s.key} value={s.key}>{s.key}</option>)}
           </select>
         </label>
+        )}
         <button
           type="button"
           data-testid="petro-crossplot-png"
@@ -395,7 +514,7 @@ export default function CrossplotPanel({
             Reset zoom
           </button>
         )}
-        {selecting ? (
+        {plot === 'density' ? null : selecting ? (
           <>
             <span className="text-slate-500">{selDraft.length} pts</span>
             <button type="button" data-testid="petro-select-apply"
@@ -420,7 +539,7 @@ export default function CrossplotPanel({
             Select…
           </button>
         )}
-        {selection && !selecting && (
+        {selection && !selecting && plot !== 'density' && (
           <button type="button" data-testid="petro-select-clear"
             className="px-2 py-0.5 rounded border border-slate-700 text-slate-400 hover:text-slate-200"
             onClick={() => onSelectionChange?.(null)}
@@ -510,6 +629,51 @@ export default function CrossplotPanel({
                 </button>
               </>
             )}
+          </div>
+        )}
+
+        {plot === 'density' && (
+          <div className="flex items-center gap-1.5 flex-wrap" data-testid="petro-density-toolbar">
+            <select className={inputCls} data-testid="petro-density-curve" value={density.curve} title="Curve to bin"
+              onChange={(e) => setDens({ curve: e.target.value })}>
+              {['Loaded inputs', 'Computed outputs', 'Curves in this well'].map((g) => {
+                const opts = densityCurveOptions.filter((o) => o.group === g);
+                return opts.length ? (
+                  <optgroup key={g} label={g}>{opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>
+                ) : null;
+              })}
+              {!densityCurveOptions.some((o) => o.value === density.curve) && <option value={density.curve}>{densityKey} (not on this well)</option>}
+            </select>
+            <select className={inputCls} data-testid="petro-density-ref" value={densityRef} title={hasSurvey ? 'Depth reference' : 'TVD and TVDSS need a deviation survey on this well'}
+              onChange={(e) => setDens({ ref: e.target.value })}>
+              <option value="md">MD</option>
+              <option value="tvd" disabled={!hasSurvey}>TVD</option>
+              <option value="tvdss" disabled={!hasSurvey}>TVDSS</option>
+            </select>
+            <span className="text-slate-500">Range</span>
+            <input className={`${inputCls} w-16`} data-testid="petro-density-top" placeholder="top" value={density.top} title={`Top (${depthUnit})`}
+              onChange={(e) => setDens({ top: e.target.value })} />
+            <input className={`${inputCls} w-16`} data-testid="petro-density-base" placeholder="base" value={density.base} title={`Base (${depthUnit})`}
+              onChange={(e) => setDens({ base: e.target.value })} />
+            <span className="text-slate-500">{depthUnit}</span>
+            <span className="text-slate-500 ml-1">X bins</span>
+            <input className={`${inputCls} w-12`} data-testid="petro-density-xbins" value={String(density.xBins)}
+              onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v >= 2 && v <= 1000) setDens({ xBins: Math.round(v) }); }} />
+            <span className="text-slate-500 ml-1">Depth bin</span>
+            <input className={`${inputCls} w-14`} data-testid="petro-density-depthbin" title={`Depth bin (${depthUnit})`}
+              value={String(Number(toDisplay(densityBinM, depthUnit).toFixed(depthUnit === 'ft' ? 1 : 2)))}
+              onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v) && v > 0) setDens({ depthBinM: fromDisplay(v, depthUnit) }); }} />
+            <span className="text-slate-500">{depthUnit}</span>
+            <select className={`${inputCls} ml-1`} data-testid="petro-density-overlay" value={density.overlayId} title="Outline a second well's populated region on the same bins"
+              onChange={(e) => setDens({ overlayId: e.target.value })}>
+              <option value="">No overlay well</option>
+              {wells.filter((w) => w.id !== currentWellId).map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+            <button type="button" data-testid="petro-density-wide" aria-pressed={density.wide}
+              className={`px-2 py-0.5 rounded border ${density.wide ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+              onClick={() => setDens({ wide: !density.wide })}>
+              Wide
+            </button>
           </div>
         )}
 
@@ -647,6 +811,31 @@ export default function CrossplotPanel({
           ) : (
             <p className="p-4 text-xs text-slate-500">
               {bucklesSamples.length ? noSamplesMsg : 'Needs computed φe and Sw.'}
+            </p>
+          )
+        )}
+        {plot === 'density' && (
+          densityGrid && densityGrid.xBins ? (
+            <div className="h-full min-h-0 w-full" data-testid="petro-density" data-samples={densityGrid.n} data-unplaced={densityGrid.unplaced} data-overlay={overlayGrid ? overlayGrid.n : ''}>
+              <DepthDensityPlot
+                grid={densityGrid}
+                overlay={overlayGrid}
+                overlayOutline={overlayOutline}
+                overlayName={overlayWell?.name || ''}
+                wellName={wellName}
+                curveLabel={densityCurveLabel}
+                refTitle={depthAxis.title}
+                unit={depthUnit}
+                wide={density.wide}
+              />
+            </div>
+          ) : (
+            <p className="p-4 text-xs text-slate-500" data-testid="petro-density-empty">
+              {!resolveAddr(density.curve, curves, outputs, logs)
+                ? `${densityKey} is not on this well or not computed. Pick another curve.`
+                : densityGrid?.unplaced
+                  ? `No sample the ${DEPTH_TRACK_TITLE[densityRef]} frame can place in this range (${densityGrid.unplaced} above the first survey station).`
+                  : noSamplesMsg}
             </p>
           )
         )}

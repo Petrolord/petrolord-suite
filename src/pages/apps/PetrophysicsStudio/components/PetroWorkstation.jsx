@@ -1103,6 +1103,12 @@ export default function PetroWorkstation({
         onConfigChange={setCrossplotCfg}
         zones={zones}
         wellName={selected?.name}
+        logs={wellData.logs}
+        well={selected}
+        depthUnit={depthUnit}
+        wells={wells || []}
+        currentWellId={selectedId}
+        curvesCache={curvesCache}
       />
     );
     const tracksEl = (
