@@ -520,3 +520,34 @@ Seven waves for the second tester pass, all as stacked PRs with base
 main: PT9a #439, PT9b #440, PT9c #441, PT9d #442, PT9e #443, PT9f #444,
 PT9g (this). Engines #155 and #156 merged and subtree-pulled. Every wave
 carries its jest gates and an e2e walk on the dev harness.
+
+## 2026-09-09: PT10a, permeability and temperature tracks
+
+Third tester pass: "permeability does not display, even on an added
+track". Live data showed why: the testers' shared interpretation, saved
+2026-09-04 before PT9a, stores `permMethod: none`, and the workstation
+merged it over the new Timur default on every open. Three fixes:
+
+- The `petro-project` state kind is at version 2. A version-1 row
+  storing `none` for a model whose code default is not `none` opens
+  with the default (Timur), once, with a status line that says so and
+  how to put it back; the change is recorded in the interpretation's
+  provenance (date, old value, new value; visible under Provenance in
+  the interpretation menu). The step covers the temperature model too,
+  and is a no-op there while its default stays `none`. A `none` chosen
+  in Parameters is stored with `params.deliberateNone`, which the
+  migration skips, so a future default change never guesses. The
+  in-memory backend opens rows through the same step; a regression
+  fixture in the pre-PT9a shape is under `__tests__/fixtures`.
+- A track whose every curve resolves to nothing is kept with a note
+  down its body saying why (Petrophysics single-well only; Well
+  Correlation and the Field view keep dropping it). The layout panel
+  marks such a source "(not computed)"; the Parameters panel warns
+  under Permeability when the model is none.
+- A "New track" takes the picked source's standard scale (KPERM log
+  0.01 to 10000, TEMP 0 to 150, and the rest) unless the user already
+  scaled it.
+
+Testers: reopen the shared interpretation and confirm the k track is
+there before doing anything else. Owner decisions 1 and 2 (percentile
+labels, the migration) are recorded in the ROADMAP.

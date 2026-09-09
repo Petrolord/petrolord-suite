@@ -10,6 +10,12 @@
 // exercises the owner-only zone guards.
 
 import typewell from '../../../../../packages/engines/test-data/petrophysics/typewell.json';
+import { registerStateKind, openStateRow, stampState } from '@/lib/stateVersion';
+import { PETRO_PROJECT_KIND, petroProjectKindSpec, stripTransient } from './projectState';
+
+// PT10a: the same state kind the registry backend registers, so a row
+// seeded in the pre-PT9a shape migrates here exactly as it does in prod
+registerStateKind(PETRO_PROJECT_KIND, petroProjectKindSpec);
 
 const CURVE_UNITS = { DEPT: 'M', GR: 'GAPI', RHOB: 'G/C3', NPHI: 'V/V', DT: 'US/M', RT: 'OHMM' };
 
@@ -322,7 +328,8 @@ export function makeInMemoryBackend() {
     async loadProject() {
       const list = this._readProjects();
       if (!list.length) return null;
-      return [...list].sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))[0];
+      const latest = [...list].sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')))[0];
+      return openStateRow(PETRO_PROJECT_KIND, latest);
     },
 
     async listProjects() {
@@ -334,7 +341,7 @@ export function makeInMemoryBackend() {
     async openProject(id) {
       const p = this._readProjects().find((x) => x.id === id);
       if (!p) throw new Error('Could not open the interpretation: not found.');
-      return p;
+      return openStateRow(PETRO_PROJECT_KIND, p);
     },
 
     async saveProject(patch, projectId = null) {
@@ -342,21 +349,21 @@ export function makeInMemoryBackend() {
       if (projectId) {
         const i = list.findIndex((x) => x.id === projectId);
         if (i < 0) throw new Error('Could not save the interpretation: not found.');
-        list[i] = { ...list[i], ...patch, updated_at: new Date().toISOString() };
+        list[i] = stampState(PETRO_PROJECT_KIND, stripTransient({ ...list[i], ...patch, updated_at: new Date().toISOString() }));
         this._writeProjects(list);
         return list[i];
       }
-      const next = {
+      const next = stampState(PETRO_PROJECT_KIND, stripTransient({
         id: nextId('project'), name: 'Default interpretation', ...patch,
         updated_at: new Date().toISOString(),
-      };
+      }));
       this._writeProjects([...list, next]);
       return next;
     },
 
     async saveProjectAs(name, state) {
       const list = this._readProjects();
-      const next = { id: nextId('project'), name, ...state, updated_at: new Date().toISOString() };
+      const next = stampState(PETRO_PROJECT_KIND, stripTransient({ id: nextId('project'), name, ...state, updated_at: new Date().toISOString() }));
       this._writeProjects([...list, next]);
       return next;
     },

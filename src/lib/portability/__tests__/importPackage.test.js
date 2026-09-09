@@ -63,7 +63,7 @@ function makeSource() {
   const tops = [{ id: uid(300), well_id: WELL, name: 'Top Sand A', md_m: 2010, interpreter: 'oracle' }];
   const grid = Float32Array.from({ length: 6 }, (_, i) => 1000 + i);
   const surface = { id: SURF, user_id: SRC_USER, organization_id: null, name: 'Top Sand A depth', kind: 'depth', origin_x: 0, origin_y: 0, nx: 3, ny: 2, dx: 10, dy: 10, rotation_deg: 0, z_domain: 'depth', z_unit: 'm', null_value: 1e30, crs: 'EPSG:32631', provenance: { isochore: [SURF, uid(900)] }, storage_path: `${SRC_USER}/${SURF}/grid.f32` };
-  const petro = { id: PETRO, user_id: SRC_USER, name: 'Type well interp', well_ids: [WELL], params: { grClean: 20 }, layouts: { version: 1, templates: [] }, facies: { [WELL]: [{ name: 'sand' }] }, zone_params: { [uid(400)]: { grClay: 110 } }, schema_version: 1 };
+  const petro = { id: PETRO, user_id: SRC_USER, name: 'Type well interp', well_ids: [WELL], params: { grClean: 20, permMethod: 'none' }, layouts: { version: 1, templates: [] }, facies: { [WELL]: [{ name: 'sand' }] }, zone_params: { [uid(400)]: { grClay: 110 } }, schema_version: 1 };
   const wells = { [WELL]: well }; const topsMap = { [WELL]: tops }; const zonesMap = { [WELL]: zones };
   const state = { petro_projects: [petro], pp_projects: [], rp_projects: [], geo_correlation_sections: [] };
   const TABLES = { geo_wells: Object.values(wells), geo_wells_logs: logRows, geo_wells_tops: Object.values(topsMap).flat(), geo_wells_zones: Object.values(zonesMap).flat(), geo_surfaces: [surface], geo_culture: [], ...state };
@@ -207,7 +207,10 @@ describe('PP2 import: the type well arrives as an independent copy', () => {
     expect(vsh.provenance.input_log_ids).toEqual([gr.id]);
     expect(vsh.provenance.project_id).toBe(petro.id);
     expect(petro.well_ids).toEqual([well.id]);
-    expect(Object.keys(petro.facies)).toEqual([well.id]);
+    // per-well facies keys are rewritten; the interpretation's own
+    // underscore keys (_rules, _scenarios, _provenance) travel as they are
+    expect(Object.keys(petro.facies).filter((k) => !k.startsWith('_'))).toEqual([well.id]);
+    expect(Array.isArray(petro.facies._provenance)).toBe(true);
     expect(Object.keys(petro.zone_params)).toEqual([zone.id]);
     const surf = sink.store.rows.geo_surfaces[0];
     expect(surf.provenance.isochore).toEqual([surf.id]); // the outside parent was dropped
@@ -220,7 +223,12 @@ describe('PP2 import: the type well arrives as an independent copy', () => {
     expect(vsh.provenance.imported_from).toMatchObject({ package_id: manifest.package_id, source_user_id: SRC_USER, source_organization_name: 'Source Co', original_id: uid(200) });
     expect(vsh.provenance.computed).toBe(true);
     const petro = sink.store.rows.petro_projects[0];
-    expect(petro.schema_version).toBe(1);
+    expect(petro.schema_version).toBe(2); // PT10a moved petro-project to version 2
+    // the v1 row's stored none migrated on import (PT10a), the provenance
+    // entry travelled into the row, and the transient note is not a column
+    expect(petro.params.permMethod).toBe('timur');
+    expect(petro.facies._provenance[0]).toMatchObject({ key: 'permMethod', from: 'none', to: 'timur' });
+    expect(petro).not.toHaveProperty('_migration');
     expect(petro.app_build).toBe('unknown');
     const well = sink.store.rows.geo_wells[0];
     expect(well.schema_version).toBe(1);
@@ -338,8 +346,8 @@ describe('PP2 import: refusals (nothing written)', () => {
       m.tables.petro_projects.schema_version = { min: 1, max: 3 };
       zip.file('manifest.json', JSON.stringify(m));
     });
-    await expect(readPackage(edited)).rejects.toMatchObject({ code: 'newer-state', table: 'petro_projects', found: 3, reads: 1 });
-    await expect(readPackage(edited)).rejects.toThrow(/state version 3; this build reads up to version 1/);
+    await expect(readPackage(edited)).rejects.toMatchObject({ code: 'newer-state', table: 'petro_projects', found: 3, reads: 2 });
+    await expect(readPackage(edited)).rejects.toThrow(/state version 3; this build reads up to version 2/);
   });
 
   test('not a zip, and a zip without a manifest', async () => {

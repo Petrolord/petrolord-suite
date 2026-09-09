@@ -23,6 +23,31 @@ function resolveSource(source, { curves, outputs, logs }) {
   return null;
 }
 
+/**
+ * Why an address resolves to nothing on this workspace (PT10a): the words
+ * the Studio writes down an empty track and beside a source in the layout
+ * panel, so a missing curve is never a silent absence. Null when the
+ * source resolves.
+ * @param {string} source curve address
+ * @param {Object} ctx the resolveTracks context (curves, outputs, logs, params)
+ */
+export function sourceStatus(source, ctx) {
+  if (typeof source !== 'string' || source.indexOf(':') < 0) return 'no curve address';
+  if (resolveSource(source, ctx)) return null;
+  const kind = source.slice(0, source.indexOf(':'));
+  const key = source.slice(source.indexOf(':') + 1);
+  if (kind === 'output') {
+    if (key === 'KPERM') return 'k not computed: permeability model is none (Parameters, Permeability)';
+    if (key === 'TEMP') return 'TEMP needs the linear temperature model (Parameters, Temperature)';
+    if (/_(LOW|HIGH)$/.test(key)) return `${key} not computed: run Low/High… first`;
+    if (/_Q(10|50|90)$/.test(key) || key === 'PAY_PROB') return `${key} not computed: run Probabilistic… first`;
+    return `${key} not computed on this run`;
+  }
+  if (kind === 'input') return `${key} is not loaded on this well`;
+  if (kind === 'log') return `no curve ${key} on this well`;
+  return `unknown address ${source}`;
+}
+
 /** Address for a raw registry curve. */
 export const logSource = (mnemonic) => `log:${mnemonic}`;
 /** Display label for any address. */
@@ -30,9 +55,13 @@ export const sourceLabel = (source) => (typeof source === 'string' ? source.slic
 
 /**
  * @param {Object} template a layoutSchema template
- * @param {Object} ctx {curves, outputs, logs, faciesData, facies, params, intervals, depth}
+ * @param {Object} ctx {curves, outputs, logs, faciesData, facies, params, intervals, depth, keepUnresolved}
  *   logs: raw registry curves keyed by mnemonic (for `log:` addresses)
  *   intervals: registry interval rows of the well (for `intervals:<kind>` strips), depth: its MD vector
+ *   keepUnresolved (PT10a, Petrophysics single-well only): a curves track
+ *   whose every source resolves to nothing is KEPT with `curves: []` and a
+ *   `note` from sourceStatus saying why, instead of vanishing. Well
+ *   Correlation and the Field view leave it off and keep the drop.
  * @returns {Array} the TrackViewer `tracks` prop
  */
 export function resolveTracks(template, ctx) {
@@ -99,7 +128,22 @@ export function resolveTracks(template, ctx) {
         fillTo: c.fillTo,
       });
     }
-    if (!kept.length) continue;
+    if (!kept.length) {
+      if (!ctx.keepUnresolved || !(track.curves || []).length) continue;
+      const notes = Array.from(new Set(track.curves.map((c) => sourceStatus(c.source, ctx)).filter(Boolean)));
+      out.push({
+        key: track.id,
+        title: track.title,
+        scale: track.scale,
+        min: track.min,
+        max: track.max,
+        width: track.width || 1,
+        curves: [],
+        fills: [],
+        note: notes.join('; '),
+      });
+      continue;
+    }
 
     const fills = [];
     for (const f of track.fills || []) {

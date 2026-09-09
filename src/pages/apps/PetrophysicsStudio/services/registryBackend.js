@@ -11,6 +11,7 @@
 import { supabase } from '@/lib/customSupabaseClient';
 import { readScan as readScanViaFunction } from './scanRead';
 import { registerStateKind, openStateRow, writeStamped } from '@/lib/stateVersion';
+import { PETRO_PROJECT_KIND, petroProjectKindSpec } from './projectState';
 import {
   listWells, listLogs, downloadCurve, listTops, saveTop, updateTop, deleteTop,
   listZones, saveZone, updateZone, deleteZone,
@@ -57,12 +58,11 @@ async function readScan(req) {
 // per-zone overrides, facies, layouts). loadProject() still opens the
 // most recent, so upgrade day changes nothing for existing users.
 
-// PP0 state kind: one row = one interpretation. Version 1 is the PS3 shape;
-// the layouts sub-document keeps its own LAYOUTS_VERSION inside layoutSchema
-// (migrateLayouts runs in the workstation on open). A future shape change
-// bumps `current` here and adds migrations[n].
-const PETRO_PROJECT_KIND = 'petro-project';
-registerStateKind(PETRO_PROJECT_KIND, { current: 1, label: 'interpretation' });
+// PP0 state kind: one row = one interpretation. The version, the label and
+// the migrators live in projectState.js so the in-memory backend opens a
+// row through the identical steps (PT10a: version 2, the one-time
+// none -> current-default migration with provenance).
+registerStateKind(PETRO_PROJECT_KIND, petroProjectKindSpec);
 
 async function loadProject() {
   const { data, error } = await supabase.from('petro_projects')

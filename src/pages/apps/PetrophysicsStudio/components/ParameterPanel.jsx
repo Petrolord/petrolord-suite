@@ -103,7 +103,7 @@ export default function ParameterPanel({
         </div>
       ) : f.hint ? (
         visible(f) && f.hint(draft) ? (
-          <p key={`hint-${i}`} className="text-[10px] text-slate-500 leading-snug" data-testid="petro-param-hint">
+          <p key={`hint-${i}`} className={`text-[10px] leading-snug ${f.testId ? 'text-amber-300/90' : 'text-slate-500'}`} data-testid={f.testId || 'petro-param-hint'}>
             {f.hint(draft)}
           </p>
         ) : null

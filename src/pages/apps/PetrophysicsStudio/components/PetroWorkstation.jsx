@@ -49,7 +49,8 @@ import { buildDefaultLayouts, migrateLayouts, activeTemplate, getTopStyles, setT
 import TopsPanel from './TopsPanel';
 import { validateZoneWindow, planZonesAfterTopMove } from '../services/zonePlanner';
 import { nameKey, digitizedCurveName } from '@/lib/curveNames';
-import { resolveTracks } from '../layout/resolveTracks';
+import { resolveTracks, sourceStatus } from '../layout/resolveTracks';
+import { migrationStatusLine, applyDeliberateNone, provenanceOf } from '../services/projectState';
 import { mapLogs } from '../services/curveMap';
 import { depthLabel, DEPTH_TRACK_KEYS, DEPTH_TRACK_TITLE } from '../viewer/depthModes';
 
@@ -81,6 +82,7 @@ export default function PetroWorkstation({
   const [view, setView] = useState('tracks');     // 'tracks' | 'crossplot'
   const [facies, setFacies] = useState([]);       // ND-space polygons for the selected well
   const [faciesByWell, setFaciesByWell] = useState({}); // persisted per-well workspace state
+  const [provenance, setProvenance] = useState([]);       // PT10a: interpretation provenance (facies._provenance)
   const [ruleFacies, setRuleFacies] = useState(null);   // PT9e: cutoff-rule classes (per interpretation)
   const [ruleFaciesOpen, setRuleFaciesOpen] = useState(false);
   const [calcOpen, setCalcOpen] = useState(false);            // PT9f
@@ -128,15 +130,18 @@ export default function PetroWorkstation({
         setProjectName(project.name || null);
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.facies) {
-          const { _rules, _scenarios, ...byWell } = project.facies;
+          const { _rules, _scenarios, _provenance, ...byWell } = project.facies;
           setFaciesByWell(byWell);
           setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
           setScenarios(_scenarios && (_scenarios.low || _scenarios.high) ? _scenarios : null);
         }
+        setProvenance(provenanceOf(project));
         if (project.zone_params) setZoneParams(project.zone_params);
         if (project.crossplots && Object.keys(project.crossplots).length) setCrossplotCfg(project.crossplots);
         setLayouts(migrateLayouts(project.layouts));
-        setStatus(`Restored ${project.name || 'saved project'}.`);
+        // PT10a: a row the state-version migration just changed says so once
+        const migrated = migrationStatusLine(project);
+        setStatus(`Restored ${project.name || 'saved project'}.${migrated ? ` ${migrated}` : ''}`);
       } catch (e) {
         if (live) { setStatus(e.message); setWells((w) => w || []); }
       }
@@ -395,8 +400,15 @@ export default function PetroWorkstation({
       params,
       intervals: wellData.intervals || [],
       depth: wellData.curves?.DEPT || null,
+      keepUnresolved: true, // PT10a: an empty track says why instead of vanishing
     });
   }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, params, layouts]);
+
+  // PT10a: why a curve address resolves to nothing right now (layout panel labels)
+  const layoutSourceStatus = useCallback((source) => {
+    if (!wellData) return null;
+    return sourceStatus(source, { curves: wellData.curves, logs: wellData.logs, outputs: { ...(computed?.outputs || {}), ...scenarioTwins } });
+  }, [wellData, computed, scenarioTwins]);
 
   const addZone = async (z) => {
     const zone = await backend.saveZone(wellData.wellId, z);
@@ -541,7 +553,16 @@ export default function PetroWorkstation({
   };
 
   const workspaceState = () => ({
-    params, facies: { ...faciesByWell, ...(ruleFacies ? { _rules: ruleFacies } : {}), ...(scenarios ? { _scenarios: scenarios } : {}) }, zone_params: zoneParams, layouts, crossplots: crossplotCfg || {},
+    params,
+    facies: {
+      ...faciesByWell,
+      ...(ruleFacies ? { _rules: ruleFacies } : {}),
+      ...(scenarios ? { _scenarios: scenarios } : {}),
+      ...(provenance.length ? { _provenance: provenance } : {}),
+    },
+    zone_params: zoneParams,
+    layouts,
+    crossplots: crossplotCfg || {},
   });
 
   const hasDeviation = Array.isArray(selected?.deviation) && selected.deviation.length >= 2;
@@ -653,11 +674,12 @@ export default function PetroWorkstation({
     setProjectName(project.name || null);
     setParams({ ...DEFAULT_PARAMS, ...(project.params || {}) });
     {
-      const { _rules, _scenarios, ...byWell } = project.facies || {};
+      const { _rules, _scenarios, _provenance, ...byWell } = project.facies || {};
       setFaciesByWell(byWell);
       setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
       setScenarios(_scenarios && (_scenarios.low || _scenarios.high) ? _scenarios : null);
     }
+    setProvenance(provenanceOf(project));
     setZoneParams(project.zone_params || {});
     if (project.crossplots && Object.keys(project.crossplots).length) setCrossplotCfg(project.crossplots);
     setLayouts(migrateLayouts(project.layouts));
@@ -668,7 +690,8 @@ export default function PetroWorkstation({
     try {
       const project = await backend.openProject(id);
       applyProjectRow(project);
-      setStatus(`Opened ${project.name}.`);
+      const migrated = migrationStatusLine(project);
+      setStatus(`Opened ${project.name}.${migrated ? ` ${migrated}` : ''}`);
     } catch (e) {
       setStatus(e.message);
     }
@@ -696,6 +719,7 @@ export default function PetroWorkstation({
         setZoneParams({});
         setFaciesByWell({});
         setFacies([]);
+        setProvenance([]);
       }
     } catch (e) {
       setStatus(e.message);
@@ -796,6 +820,7 @@ export default function PetroWorkstation({
       </div>
       <div className="ml-4 flex items-center gap-1">
         <InterpretationBar
+          provenance={provenance}
           backend={backend}
           projectId={projectId !== 'project-dev' ? projectId : null}
           projectName={projectName}
@@ -1144,7 +1169,7 @@ export default function PetroWorkstation({
         <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
           <ParameterPanel
             params={params}
-            onApply={(p) => { setParams(p); setStatus('Parameters applied.'); }}
+            onApply={(p) => { setParams((prev) => applyDeliberateNone(p, prev)); setStatus('Parameters applied.'); }}
             zones={zones}
             zoneParams={zoneParams}
             onApplyZone={applyZoneParams}
@@ -1156,6 +1181,7 @@ export default function PetroWorkstation({
             onLayoutsChange={setLayouts}
             focusTrack={layoutFocus}
             onStatus={setStatus}
+            sourceStatus={layoutSourceStatus}
           />
           {wellData && (
             <TopsPanel

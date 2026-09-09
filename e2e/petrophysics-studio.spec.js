@@ -1061,3 +1061,71 @@ test('cross-app: a ?well= deep link selects the well; Open in Well Correlation a
   const mapLink = page.locator('[data-testid^="petro-map-top-"]').first();
   await expect(mapLink).toHaveAttribute('href', /\/dev\/mapping-surface-studio\?top=.+/);
 });
+
+test('PT10a: a pre-PT9a interpretation opens with the k track and the status line; none keeps the track with a note; TEMP note, then linear draws', async ({ page }) => {
+  // the testers' live case: an interpretation saved before PT9a with the
+  // permeability model stored as none (state version 1, no stamp)
+  const fixture = JSON.parse(fs.readFileSync(
+    path.join(here, '..', 'src', 'pages', 'apps', 'PetrophysicsStudio', '__tests__', 'fixtures', 'pre-pt9a-interpretation.json'), 'utf8',
+  ));
+  await page.addInitScript((row) => {
+    // seed once; a reload must see what the app saved, not the fixture again
+    if (!window.sessionStorage.getItem('petro.dev.project.v1')) {
+      window.sessionStorage.setItem('petro.dev.project.v1', JSON.stringify([row]));
+    }
+  }, fixture);
+  await page.goto('/dev/petrophysics-studio');
+
+  // the one-time status line names the change and the way back
+  await expect(page.getByTestId('petro-status')).toContainText(
+    'Restored Shared tester interpretation. Permeability model was off in this saved interpretation; Timur applied (owner rule: permeability is never off by default). Set it back to none in Parameters, Permeability if that was deliberate.',
+  );
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+
+  // the k track is back, drawn (no note), and the zone card has k gm
+  const tracks = page.getByTestId('petro-tracks');
+  await expect(tracks).toHaveAttribute('data-track-titles', /k \(mD\)/);
+  await expect(tracks).not.toHaveAttribute('data-track-notes', /k \(mD\)/);
+  await expect(page.getByTestId('petro-param-permMethod')).toHaveValue('timur');
+  const wantK = goldens.EFFECTIVE.ZONES.SAND_A.summary.k_gm_md.toFixed(1);
+  await expect(page.getByTestId('petro-zone-kgm-SAND A')).toContainText(`${wantK} mD`);
+
+  // the provenance entry is visible in the interpretation menu
+  await page.getByTestId('petro-interp').click();
+  await expect(page.getByTestId('petro-interp-provenance')).toContainText('Permeability model was none in this saved interpretation (pre-PT9a); Timur applied');
+  await page.getByTestId('petro-interp').click();
+
+  // reversible: none is honoured, and the track stays with the reason instead of vanishing
+  await page.getByTestId('petro-param-permMethod').selectOption('none');
+  await page.getByTestId('petro-params-apply').click();
+  await expect(tracks).toHaveAttribute('data-track-notes', /k \(mD\): k not computed: permeability model is none \(Parameters, Permeability\)/);
+  await expect(page.getByTestId('petro-param-perm-none')).toContainText('no k track');
+  await expect(page.getByTestId('petro-zone-kgm-SAND A')).toHaveCount(0);
+
+  // saved at version 2 with the deliberate flag: a reload keeps none and does not migrate again
+  await page.getByTestId('petro-save-project').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Saved Shared tester interpretation');
+  await page.reload();
+  await expect(page.getByTestId('petro-status')).toContainText('Restored Shared tester interpretation.');
+  await expect(page.getByTestId('petro-status')).not.toContainText('Timur applied');
+  await expect(page.getByTestId('petro-param-permMethod')).toHaveValue('none');
+
+  // a new track picking output:TEMP takes the 0 to 150 scale and says what TEMP needs
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+  await page.getByTestId('petro-layout-add-track').click();
+  await page.getByTestId('petro-layout-add-curve').click();
+  await page.getByTestId('petro-layout-curve-source-0').selectOption('output:TEMP');
+  await expect(page.getByTestId('petro-layout-track-min')).toHaveValue('0');
+  await expect(page.getByTestId('petro-layout-track-max')).toHaveValue('150');
+  await expect(tracks).toHaveAttribute('data-track-notes', /New track: TEMP needs the linear temperature model \(Parameters, Temperature\)/);
+  // and the dropdown marks it
+  await expect(page.getByTestId('petro-layout-curve-source-0').locator('option[value="output:TEMP"]')).toHaveText('output:TEMP (not computed)');
+
+  // the linear model computes TEMP and the note goes
+  await page.getByTestId('petro-param-tempMode').selectOption('linear');
+  await page.getByTestId('petro-params-apply').click();
+  await expect(tracks).not.toHaveAttribute('data-track-notes', /TEMP/);
+  await expect(tracks).toHaveAttribute('data-track-titles', /New track/);
+});

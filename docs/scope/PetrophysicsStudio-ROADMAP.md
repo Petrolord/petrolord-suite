@@ -808,5 +808,8 @@ Pro's MonteCarloEngine delegates to.
 
 ### Wave log (PT10)
 
-- Planned 2026-09-09; both owner decisions recorded the same day;
-  PT10a started.
+- Planned 2026-09-09; both owner decisions recorded the same day.
+- PT10a built 2026-09-09: state version 2 with the one-time `none`
+  migration (permeability and temperature, provenance, deliberate
+  flag, regression fixture), tracks kept with a note, scale on pick,
+  help text. Jest + e2e gates green.

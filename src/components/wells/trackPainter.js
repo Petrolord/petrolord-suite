@@ -178,6 +178,13 @@ export function paintTrackBody(ctx, {
     return;
   }
 
+  // PT10a: a track kept without curves says why, down its empty body,
+  // instead of drawing nothing (the header and scale rows still draw)
+  if (!track.curves?.length) {
+    if (track.note) paintTrackNote(ctx, { note: track.note, x0, w, plotTop, plotH, palette });
+    return;
+  }
+
   const clampX = (x) => Math.min(x0 + w - 2, Math.max(x0 + 2, x));
 
   // fills under the curve lines (PS1): project each referenced curve
@@ -249,6 +256,19 @@ export function paintTrackBody(ctx, {
     drawCurve(ctx, { track, curve, depth, yOf, i0, i1, x0, trackW: w, plotH });
   });
   ctx.lineWidth = 1;
+}
+
+/** The reason an empty track is empty, rotated down its body in the axis colour. */
+export function paintTrackNote(ctx, { note, x0, w, plotTop, plotH, palette = PALETTES.light }) {
+  ctx.save();
+  ctx.font = '11px sans-serif';
+  ctx.fillStyle = palette.axisText || palette.text;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.translate(x0 + w / 2, plotTop + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText(note, 0, 0, Math.max(20, plotH - 16));
+  ctx.restore();
 }
 
 /**

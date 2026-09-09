@@ -9,7 +9,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Trash2, Plus } from 'lucide-react';
 import {
-  activeTemplate, updateTemplate, newId,
+  activeTemplate, updateTemplate, newId, applySourceScale,
   INPUT_SOURCES, OUTPUT_SOURCES, THRESHOLD_PARAMS, STRIP_SOURCES,
 } from './layout/layoutSchema';
 
@@ -46,8 +46,13 @@ function NumText({ value, onCommit, allowEmpty = false, ...rest }) {
  * @param {string[]} [p.logSources] mnemonics of the selected well; each is
  *   offered as a `log:<MNEMONIC>` curve address so any service-company
  *   curve can go on a track, several of one type together if wanted
+ * @param {(source: string) => string|null} [p.sourceStatus] PT10a: why a
+ *   source resolves to nothing on the current workspace (null when it
+ *   resolves); an absent computed output is marked "(not computed)" in
+ *   the dropdown with that reason as its tooltip
  */
-export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onStatus, logSources = [] }) {
+export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onStatus, logSources = [], sourceStatus = null }) {
+  const statusOf = (s) => (typeof sourceStatus === 'function' ? sourceStatus(s) : null);
   const rawSources = useMemo(() => Array.from(new Set(logSources || []))
     .filter((m) => m && !/^(DEPT|DEPTH|MD)(:\d+)?$/i.test(m))
     .map((m) => `log:${m}`), [logSources]);
@@ -231,12 +236,15 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                     <div key={`${tr.id}-c${ci}`} className="flex items-center gap-1">
                       <select className={miniCls} style={{ flex: 1 }} value={c.source}
                         data-testid={`petro-layout-curve-source-${ci}`}
-                        onChange={(e) => editTrack(tr.id, (x) => ({
+                        onChange={(e) => editTrack(tr.id, (x) => applySourceScale({
                           ...x, curves: x.curves.map((y, yi) => (yi === ci ? { ...y, source: e.target.value, label: e.target.value.slice(e.target.value.indexOf(':') + 1) } : y)),
-                        }))}
+                        }, e.target.value))}
                       >
                         <optgroup label="Pipeline inputs and outputs">
-                          {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                          {SOURCES.map((s) => {
+                            const why = statusOf(s);
+                            return <option key={s} value={s} title={why || undefined}>{s}{why ? ' (not computed)' : ''}</option>;
+                          })}
                         </optgroup>
                         {rawSources.length > 0 && (
                           <optgroup label="Curves in this well (by mnemonic)">
@@ -281,9 +289,9 @@ export default function LayoutPanel({ layouts, onLayoutsChange, focusTrack, onSt
                   ))}
                   <button type="button" data-testid="petro-layout-add-curve"
                     className="flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-700 text-slate-400 hover:bg-slate-800"
-                    onClick={() => editTrack(tr.id, (x) => ({
+                    onClick={() => editTrack(tr.id, (x) => applySourceScale({
                       ...x, curves: [...x.curves, { source: 'input:GR', label: 'GR', color: '#059669' }],
-                    }))}
+                    }, 'input:GR'))}
                   >
                     <Plus className="w-3 h-3" /> Curve
                   </button>

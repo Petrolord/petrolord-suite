@@ -39,6 +39,48 @@ export const RAMP_PRESETS = {
 export const INPUT_SOURCES = ['input:GR', 'input:RHOB', 'input:NPHI', 'input:DT', 'input:RT'];
 export const OUTPUT_SOURCES = ['output:PHIE', 'output:PHIT', 'output:VSH', 'output:SW', 'output:PAY', 'output:TEMP', 'output:KPERM', 'output:BVW'];
 export const THRESHOLD_PARAMS = ['cutPhi', 'cutVsh', 'cutSw', 'grClean', 'grClay'];
+
+/**
+ * Standard display scale per source (PT10a): a fresh "New track" is linear
+ * 0 to 1, so a computed KPERM (mD, up to thousands) or TEMP (degrees) drew
+ * as a line pinned to the right edge. Picking a source on a track that
+ * still has the new-track defaults takes the source's scale from here.
+ */
+export const SOURCE_SCALES = {
+  'output:KPERM': { scale: 'log', min: 0.01, max: 10000 },
+  'output:TEMP': { scale: 'linear', min: 0, max: 150 },
+  'input:GR': { scale: 'linear', min: 0, max: 150 },
+  'input:RT': { scale: 'log', min: 0.2, max: 2000 },
+  'input:RHOB': { scale: 'linear', min: 1.95, max: 2.95 },
+  'input:NPHI': { scale: 'linear', min: 0.45, max: -0.15 },
+  'input:DT': { scale: 'linear', min: 650, max: 150 },
+  'output:PHIE': { scale: 'linear', min: 0, max: 0.5 },
+  'output:PHIT': { scale: 'linear', min: 0, max: 0.5 },
+  'output:VSH': { scale: 'linear', min: 0, max: 1 },
+  'output:SW': { scale: 'linear', min: 0, max: 1 },
+  'output:PAY': { scale: 'linear', min: 0, max: 1 },
+  'output:BVW': { scale: 'linear', min: 0, max: 0.3 },
+};
+
+/** The shape addTrack creates: linear 0 to 1 with at most one curve and nothing else set. */
+export const NEW_TRACK_DEFAULTS = { scale: 'linear', min: 0, max: 1 };
+export function isUntouchedNewTrack(track) {
+  if (!track || track.type === 'strip') return false;
+  const scaleOk = (track.scale || 'linear') === NEW_TRACK_DEFAULTS.scale && track.min === NEW_TRACK_DEFAULTS.min && track.max === NEW_TRACK_DEFAULTS.max;
+  return scaleOk && (track.curves || []).length <= 1 && !(track.fills || []).length;
+}
+
+/**
+ * Give an untouched new track the standard scale of the source just
+ * picked (a curve-level override on the picked curve is cleared so the
+ * track scale applies). A track the user has already scaled, or one that
+ * carries several curves or a fill, is returned unchanged.
+ */
+export function applySourceScale(track, source) {
+  const std = SOURCE_SCALES[source];
+  if (!std || !isUntouchedNewTrack(track)) return track;
+  return { ...track, scale: std.scale, min: std.min, max: std.max };
+}
 /** Strip (categorical) track sources: crossplot facies, or a registry interval kind (ST1). */
 export const STRIP_SOURCES = [
   { value: 'facies', label: 'Crossplot facies (this session)' },
