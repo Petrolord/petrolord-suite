@@ -221,6 +221,35 @@ Every one is an owner decision. EC1 authoring began the same day, on the
 Production recipe (wave dir `/root/ec-wip-cashflow`), with `prereq_slug`
 NULL for all six courses per the carried-over answer above.
 
+PROGRESS, 2026-09-09. **EC1 Cash Flow & NPV is built and seeded live, with
+its go-live held.** NextGen PR #114 merged (main `58c3daeb`): 78 lessons
+across three tiers, 21 banks and 396 questions, three explorer panels plus
+`cashflowLab` behind the route `/dashboard/apps/cashflow`, and five
+migrations. Four of the five are applied to the live project, in ladder
+order, each behind its own rollback-wrapped dry run whose canary the real
+apply matched; the academy now reads thirty-nine courses, 117 active deep
+structures and 15442 questions, with `cashflow` still `coming_soon`. The
+fifth, the go-live, is HELD until a NextGen production upload carries the
+route, and it is guarded: it refuses on a wrong structure, question or
+capstone count, on any graded field that reaches into EC2, EC3 or EC4
+territory, and on eighteen capstone expectations re-asserted against the
+engine's own output. The migration log is NextGen PR #115.
+
+Two findings from the wave are worth carrying forward. Seventeen bank
+questions were **mis-keyed** and no structural gate saw it, because a
+correct-looking distractor set with the wrong key is structurally perfect;
+eleven of them came from one generator pass that treated the first display
+option as the answer. A second-reader KEY-TRUTH audit per tier is now a
+standing wavekit step, and the same audit should run over the banks that
+shipped before it existed. The teaching field is AKATA and the capstone
+field IKPOTO, both under joint venture, PSC and PIA terms, and the JV
+gotcha is worth repeating for EC2: JV rows keep revenue, volumes and costs
+at FIELD level and scale only royalty, tax and net cash flow to the working
+interest share, while PIA scales everything, so government take at a
+working interest below 100 counts the partners' share as take.
+
+EC2 `fiscal` is next, at `path_order` 54.
+
 | wave | slug | course | Suite apps |
 |---|---|---|---|
 | EC1 | `cashflow` | Cash Flow & NPV | Petroleum Economics Studio |
