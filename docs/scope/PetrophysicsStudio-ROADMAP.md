@@ -817,3 +817,19 @@ Pro's MonteCarloEngine delegates to.
   shared with the scatter, `DepthDensityPlot.jsx`, the fifth crossplot
   button with curve / reference / range / bins / overlay well / Wide,
   `crossplots.density` persisted, help text. Jest + e2e gates green.
+- PT10c built 2026-09-09: engines #158 merged and subtree-pulled
+  (`engines/petrophysics/probabilistic.js`, oracle `lognormal_quantile`,
+  PROBABILISTIC golden block, 9 gates incl. the exact lognormal-Rw case
+  at N = 20000 within 1 percent); Suite shim `engine/probabilistic.js`;
+  `src/lib/percentileConventions.js` with the two decision-1 gates.
+  Two notes against the plan text: (1) the quantile is the canonical
+  `lib/stats` definition (simple-statistics `quantileSorted`: the order
+  statistic at ceil(n*p) when n*p is not an integer, the midpoint when
+  it is), pinned by test, rather than linear interpolation, because the
+  no-new-Monte-Carlo rule outranks the plan's wording; (2) the cost
+  floor is the deterministic pipeline itself, about 7 µs per sample per
+  realisation under jest (a chain of small per-sample calls, no single
+  hotspot), so 20k samples by 200 draws is tens of seconds, not "a few";
+  PT10d runs it in a worker with progress and reports the measured
+  browser time. Vectorising the pipeline is a separate performance wave
+  for the owner to call, not done here.
