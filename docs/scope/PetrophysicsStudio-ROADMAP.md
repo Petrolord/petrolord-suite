@@ -484,9 +484,9 @@ the subtree copy. PT10a and PT10b are independent; PT10d depends on PT10c.
 |---|---|---|---|
 | PT10a Permeability and temperature tracks | k (and TEMP) not showing, even on an added track | no | Stored `permMethod: none` from before PT9a migrates to Timur; an unresolvable track is kept with a note saying why instead of vanishing; a new track takes the picked curve's scale |
 | PT10b Depth density crossplot | curve vs depth density | no | Fifth crossplot: 2D histogram of any curve against MD/TVD/TVDSS, jet colours, mirrored axes, zone filter, second-well outline, PNG |
-| PT10c Probabilistic engine | P10/P50/P90 | yes | `engines/petrophysics/probabilistic.js`: seeded parameter draws through the zoned pipeline, per-sample P-curves, per-zone P10/P50/P90 summaries and a tornado, validated analytically |
-| PT10d Probabilistic Studio | vary the parameters | no | `P10/P50/P90…` dialog with per-parameter distributions, a worker run with progress, zone table, tornado, band layout, CSV, publish |
-| PT10e Close-out | (all) | no | Help guide, STATUS, ROADMAP wave log, prod zip |
+| PT10c Probabilistic engine | P10/P50/P90 | yes | `engines/petrophysics/probabilistic.js`: seeded parameter draws through the zoned pipeline, per-sample percentile curves, per-zone summaries (outcomes P90/P50/P10, parameters 10th/50th/90th percentile) and a tornado, validated analytically |
+| PT10d Probabilistic Studio | vary the parameters | no | `Probabilistic…` dialog with per-parameter distributions, a worker run with progress, zone table, tornado, band layout, CSV, publish; labels from the Suite percentile conventions constant |
+| PT10e Close-out | (all) | no | Help guide (the percentile convention in one sentence with the Sw example), STATUS, ROADMAP wave log, prod zip |
 
 ### Diagnosis (PT10a), with evidence
 
@@ -510,16 +510,33 @@ a track is absent.
 
 ### PT10a: Permeability and temperature tracks
 
-- **Stored parameter migration.** The `petro-project` state kind moves
-  to version 2 with a `migrations[1]` step: a row stamped at version 1
-  whose `params.permMethod` is `none` is opened with `timur` (the PT9a
-  default), and the status line says so once ("Permeability model was
-  off in this saved interpretation; Timur applied (owner rule:
-  permeability is never off by default). Set it back to none in
-  Parameters if that was deliberate."). Rows saved at version 2 keep an
-  explicit `none`. The in-memory backend follows the same path so the
-  harness can prove it. `tempMode` is not migrated: `none` is the
-  intended default and TEMP is a model output, not a log.
+- **Stored parameter migration (owner decision 2, 2026-09-09).** The
+  `petro-project` state kind moves to version 2 with a `migrations[1]`
+  step in one module both backends share (`services/projectState.js`).
+  A row stamped at version 1 whose `params.permMethod` is `none` opens
+  with the current code default (Timur, the PT9a default); the same step
+  covers `params.tempMode`, migrating a stored `none` to the current
+  temperature default. That default is still `none` today, so the
+  temperature half is a no-op until the default changes, and the step
+  is written against `DEFAULT_PARAMS` so a future default change needs
+  no new code. The status line says what changed, once, on the open
+  that migrates: "Permeability model was off in this saved
+  interpretation; Timur applied (owner rule: permeability is never off
+  by default). Set it back to none in Parameters if that was
+  deliberate." The step skips any row whose `params.deliberateNone`
+  flags that key (below). Rows saved at version 2 keep whatever they
+  store. The in-memory backend opens and stamps through the same
+  `openStateRow` and `stampState` calls so the harness proves it.
+- **Provenance.** The migration writes an entry into the
+  interpretation's provenance list (`facies._provenance`, the
+  `_rules` and `_scenarios` sibling; no DDL) with the date, the key,
+  the old value and the new value, and the interpretation menu shows
+  the list under "Provenance", so the change is visible months later.
+- **Reversible, and never guessed again.** Setting a model back to
+  `none` in Parameters is honoured on every later open, because
+  applying parameters stamps `params.deliberateNone[key] = true` when a
+  model is set to `none` and clears it when set to anything else. A
+  future default change migrates only rows without that flag.
 - **Never drop a track silently.** `resolveTracks` gains
   `ctx.keepUnresolved` (Petrophysics single-well only; Well Correlation
   and the Field view keep today's behaviour). A curves track whose every
@@ -545,7 +562,11 @@ a track is absent.
   under Permeability when the model is `none` (no k track, no k gm in
   zone summaries).
 - **Gates.** Jest: state migration (v1 `none` opens as `timur`, v2
-  `none` stays, other v1 rows untouched); `resolveTracks` keeps and
+  `none` stays, other v1 rows untouched, a `deliberateNone` row is
+  skipped, the temperature path proven with an injected default); a
+  regression fixture, an interpretation saved in the pre-PT9a shape,
+  opened by the test, asserting that the k track resolves, the status
+  line is present and the provenance entry exists; `resolveTracks` keeps and
   annotates an empty track only under `keepUnresolved`; `sourceStatus`
   for each address kind; layout scale-on-pick and its guard. e2e on the
   harness: a v1 interpretation with `none` opens with the k track and
@@ -631,7 +652,7 @@ Pro's MonteCarloEngine delegates to.
     cutVsh, cutSw). Models are fixed for a run.
   - Spec shape, the ReservoirCalc `Dist` shape so one grammar serves the
     Suite: `{ key: { type: triangular|uniform|normal|lognormal, min,
-    mode, max | mean, sd } }`, with P10/P50/P90 entry through
+    mode, max | mean, sd } }`, with 10th/50th/90th percentile entry through
     `fitTriangularToPercentiles`. Optional pairwise correlations
     (m with n is the obvious one), through `createCorrelatedSampler`.
   - `drawRealisations(spec, n, seed, correlations)` returns `n`
@@ -642,16 +663,25 @@ Pro's MonteCarloEngine delegates to.
     0.9], onProgress })` runs two memory-bounded loops over the same
     seeded draws: (1) depth chunks of about 2000 samples, all
     realisations per chunk, per-sample quantiles written into
-    `PHIE_P10`, `PHIE_P50`, `PHIE_P90` (and PHIT, VSH, SW, BVW, KPERM),
-    plus `PAY_PROB` (the fraction of realisations flagging pay); (2)
+    `PHIE_Q10`, `PHIE_Q50`, `PHIE_Q90` (and PHIT, VSH, SW, BVW, KPERM),
+    plus `PAY_PROB` (the fraction of realisations flagging pay), the
+    curve names as under the naming rule; (2)
     per zone, every realisation through `computeWellZoned` on the
     zone's window and the canonical `zoneSummary`, giving P10, P50, P90
-    and mean of net, NTG, phi_avg, sw_avg and k_gm_md per zone, and a
+    and mean of net, NTG, phi_avg, sw_avg and k_gm_md per zone (labelled
+    under decision 1: outcomes P90/P50/P10, parameters 10th/50th/90th
+    percentile), and a
     sensitivity per zone (rank correlation and tornado swings from
     `lib/stats`). No summary formula is re-derived; `zoneSummary` stays
     the only place net pay is summarised.
-  - Quantile convention: numeric percentiles of the quantity (P10 <
-    P50 < P90 in value), with linear interpolation, pinned by test.
+  - Naming under owner decision 1 (below): per-sample curves are
+    parameter statistics, so their addresses are `PHIE_Q10`, `PHIE_Q50`,
+    `PHIE_Q90` (and PHIT, VSH, SW, BVW, KPERM) described as "10th
+    percentile of PHIE", never `_P10`; per-zone parameter statistics
+    (phi_avg, sw_avg, k_gm_md) are returned as `q10`, `q50`, `q90`;
+    outcomes (net, NTG, `PAY_PROB`) carry `p90`, `p50`, `p10` under the
+    exceedance meaning, so `p90` of net is the 10th percentile of the
+    net draws. Linear interpolation, pinned by test.
 - **Validation-first gates** (engines jest, and an oracle case in
   `tools/validation/petrophysics/oracle.py`):
   1. Monotone-transform identity: with only Rw uncertain under Archie,
@@ -677,24 +707,28 @@ Pro's MonteCarloEngine delegates to.
 
 ### PT10d: Probabilistic Studio
 
-- **Dialog** `components/ProbabilisticDialog.jsx`, ribbon `P10/P50/P90…`
+- **Dialog** `components/ProbabilisticDialog.jsx`, ribbon `Probabilistic…`
   beside `Low/High…`: a parameter grid (the `ParamGrid` cell renderer)
-  with a Vary checkbox, Distribution, and Min/Mode/Max or P10/P50/P90
+  with a Vary checkbox, Distribution, and Min/Mode/Max or 10th/50th/90th percentile
   (or Mean/SD) per parameter; defaults from `defaultUncertainty(params)`
   whose P10 and P90 are the PT9g low and high patches, so the two
   features agree by construction; draws (100, 200, 500, 1000) and seed;
   Run with a progress bar and Cancel (worker
   `workers/probabilistic.worker.js`, the Well Data Manager LAS worker
-  pattern); results as a zone table (net, NTG, phi, Sw, k with P10,
-  P50, P90 and mean), a tornado per zone for net, and three ways out:
-  Apply to tracks, Export CSV, Publish.
-- **Tracks.** A `P10, P50, P90` user template (`ensureProbabilisticTemplate`,
-  the PT9g pattern): the band between `_P10` and `_P90` around `_P50`
-  for PHIE, SW and KPERM, and a `PAY_PROB` track 0 to 1 with a ramp
-  fill. `OUTPUT_SOURCES` gains the `_P10`, `_P50`, `_P90` and
-  `PAY_PROB` addresses; the PT10a note explains an empty band track
-  ("run P10/P50/P90… first"). The dialog states plainly that P50 is the
-  median of the realisations and not the deterministic mid curve.
+  pattern); results as a zone table whose outcome columns (net, NTG) read
+  P90, P50, P10 and whose parameter columns (phi, Sw, k) read "10th
+  percentile of Sw" and so on, every string from the Suite conventions
+  constant; a tornado per zone for net; and three ways out: Apply to
+  tracks, Export CSV, Publish.
+- **Tracks.** A `Low, best, high cases` user template
+  (`ensureProbabilisticTemplate`, the PT9g pattern): the band between
+  the low and high case around the best case for PHIE, SW and KPERM,
+  each header naming the direction ("Low case Sw (high value)"), and a
+  `PAY_PROB` track 0 to 1 with a ramp fill. `OUTPUT_SOURCES` gains the
+  `_Q10`, `_Q50`, `_Q90` and `PAY_PROB` addresses; the PT10a note
+  explains an empty band track ("run Probabilistic… first"). The dialog
+  states plainly that the best case is the median of the realisations
+  and not the deterministic mid curve.
 - **Persistence and provenance.** The spec, draws and seed persist in
   the interpretation's `facies` jsonb under `_uncertainty` (as
   `_scenarios` does; no migration). Publish writes the P-curves and
@@ -704,20 +738,66 @@ Pro's MonteCarloEngine delegates to.
   probabilistic block; zone cards show a P10/P50/P90 net line when a
   run exists.
 - **Gates.** Jest: `defaultUncertainty` agrees with `defaultScenarios`
-  at P10/P90; the template builder; CSV columns; the worker message
-  protocol under a fake worker. e2e on the harness: N = 50, the SAND A
+  at the 10th and 90th percentiles; the template builder; CSV columns;
+  the worker message protocol under a fake worker; the two convention
+  gates of decision 1 (no P-label on any parameter output; P90 <= P50
+  <= P10 on every published outcome case). e2e on the harness: N = 50, the SAND A
   P50 net within the band the engine test pins, the template active,
   the CSV downloaded, publish shows the new curves in the explorer.
 
 ### Recorded decisions (PT10)
 
-- **Percentile labelling.** P-curves and zone percentiles are numeric
-  percentiles of the quantity (Sw P90 is the high-Sw value). The
-  deterministic PT9g low/mid/high keeps its hydrocarbon sense. Owner to
-  confirm.
-- **Stored `none` migrates to Timur** once, on rows saved before PT9a,
-  under the 2026-09-07 rule that permeability is never off by default;
-  an explicit `none` chosen afterwards persists. Owner to confirm.
+- **Decision 1, percentile labels (owner, 2026-09-09; supersedes the
+  numeric-percentile proposal).** Petrolord adopts one meaning of
+  P-labels across the whole Suite: probability of exceedance of a
+  hydrocarbon outcome, as defined by SPE PRMS and the SEC. P90 is the
+  low estimate, P50 the best, P10 the high, always. Parameters never
+  carry P-labels, because the exceedance convention is only unambiguous
+  where more is better, and Sw is where it breaks. In PT10c and PT10d:
+  - Per-sample and per-zone parameter statistics are labelled "10th
+    percentile", "50th percentile", "90th percentile" written out with
+    the parameter named ("90th percentile of Sw"). The strings P10, P50
+    and P90 must not appear on any parameter table, plot legend, CSV
+    header or tooltip.
+  - Outcome-linked cases are labelled "Low case", "Best case", "High
+    case", defined by the hydrocarbon outcome: low-case Sw is the high
+    Sw value, low-case porosity the low porosity value, and the header
+    shows the direction ("Low case Sw (high value)").
+  - Outcomes only (net pay, pay probability, hydrocarbon pore volume,
+    anything published to volumetrics) carry P90, P50 and P10 under
+    the exceedance meaning, and the published provenance records the
+    definition in one sentence: "P90 means a 90% probability the actual
+    quantity meets or exceeds this value, per SPE PRMS."
+  - A suite-level conventions constant
+    (`src/lib/percentileConventions.js`) owns the label strings and the
+    definition sentence; Petrophysics Studio, Volumetrics and any future
+    app import the same words rather than retyping them.
+  - Two jest gates: one fails if a P-label appears on a parameter
+    output; one asserts P90 <= P50 <= P10 on every published outcome
+    case.
+  - Already shipped and now non-compliant: the PS7 histogram statistics
+    label a curve's numeric percentiles P10/P50/P90. PT10d relabels
+    them through the constant ("10th percentile of GR") and the
+    P-label gate covers the histogram panel too.
+  - The PT10e help guide states the convention in one sentence and
+    gives the Sw example, because it will be the first support
+    question.
+  The deterministic PT9g low/mid/high keeps its hydrocarbon sense,
+  which is the same rule.
+- **Decision 2, stored `none` (owner, 2026-09-09).** Pre-PT9a rows
+  storing `none` migrate to Timur once, with the status line. The same
+  one-time step covers the temperature model, migrating to whatever the
+  current temperature default is (today `none`, so a no-op) and saying
+  so in the same status line. The migration is recorded in the
+  interpretation's provenance with the date, the old value and the new
+  value; it is reversible from the UI (set `none` back in Parameters);
+  a deliberate `none` is stored with an explicit flag
+  (`params.deliberateNone`) so a future default change never guesses,
+  and the migration skips flagged rows. A regression fixture opens an
+  interpretation saved in the pre-PT9a shape and asserts the k track,
+  the status line and the provenance entry. After PT10a lands the
+  testers reopen their shared interpretation and confirm the k track
+  before anything else, since they are the live case.
 - **Uncertainty is global across zones** for this series, the PT9g
   rule; per-zone spreads are a later wave if testers ask.
 - **Depth bin default follows the display unit**: 100 ft under ft, 25 m
@@ -728,4 +808,5 @@ Pro's MonteCarloEngine delegates to.
 
 ### Wave log (PT10)
 
-- Planned 2026-09-09; nothing built yet.
+- Planned 2026-09-09; both owner decisions recorded the same day;
+  PT10a started.
