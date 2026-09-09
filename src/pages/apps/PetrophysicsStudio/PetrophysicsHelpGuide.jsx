@@ -836,6 +836,32 @@ const PetrophysicsHelpGuide = () => (
         provenance. The cases save with the interpretation. There is no sampling: each case is one
         ordinary run, so every number can be traced to a column of the grid.
       </Para>
+      <SubHeading>Probabilistic cases</SubHeading>
+      <Para>
+        <Code>Probabilistic…</Code> in the ribbon varies parameters with distributions instead of
+        two hand-picked cases. Tick the parameters to vary (the defaults are the ones the low and high
+        cases move, with those two values as the 10th and 90th percentiles and the current value as
+        the median), choose a distribution for each (triangular from three percentiles, uniform,
+        normal or lognormal), pick the number of realisations and a seed, and run. The run happens in
+        a background worker with a progress bar; the same seed always gives the same answer. Every
+        realisation is the ordinary zoned pipeline with one drawn parameter set, so nothing new is
+        assumed. The results are per-sample curves at the 10th, 50th and 90th percentile of PHIT,
+        PHIE, Vsh, Sw, BVW and k, a pay probability curve (the fraction of realisations that flag a
+        sample as pay), a zone table, and a tornado of what moves net pay. <Code>Apply to tracks</Code>
+        switches to the <Code>Low, best, high cases</Code> layout; <Code>Export CSV</Code> writes the
+        zone table; <Code>Publish</Code> saves the eighteen percentile curves and <Code>PAY_PROB</Code>
+        with the distributions, the draw count and the seed in provenance. The set-up saves with the
+        interpretation.
+      </Para>
+      <Para>
+        One convention for the labels, used across the whole Suite: P90, P50 and P10 name a
+        probability of exceedance of a hydrocarbon outcome, as SPE PRMS defines it, so P90 is the low
+        estimate and P10 the high, and only outcomes such as net pay carry them. A parameter never
+        carries a P-label, because the rule breaks where more is worse: the 90th percentile of Sw is
+        the high, pessimistic water saturation, so it is written <Code>90th percentile of Sw</Code>
+        and, on the band tracks, <Code>Low case Sw (high value)</Code>. The best case is the median of
+        the realisations, not the deterministic mid curve.
+      </Para>
       <SubHeading>Calculator: a new curve from an expression</SubHeading>
       <Para>
         <Code>Calc…</Code> in the ribbon makes a derived curve. Give it a name and a unit, type an
@@ -1002,6 +1028,14 @@ const PetrophysicsHelpGuide = () => (
       <Para>
         The well is shared with you by someone else in your organization and is read-only. You can
         still interpret it, save interpretations and export.
+      </Para>
+      <SubHeading>My low case Sw is the high number</SubHeading>
+      <Para>
+        That is the convention, not a bug. P90 means a 90 percent probability that the actual
+        quantity meets or exceeds the value, so it is the low estimate of an outcome such as net pay.
+        Water saturation works the other way round, which is why parameters carry percentiles instead
+        of P-labels: the low case of Sw is its 90th percentile, the high value, and the track header
+        says so.
       </Para>
       <SubHeading>My zone card says no computed curves yet</SubHeading>
       <Para>

@@ -846,3 +846,6 @@ Pro's MonteCarloEngine delegates to.
   on the 201-sample type well: 200 realisations 0.4 s, 1000 in 0.8 s,
   so the jest-side cost floor noted under PT10c was the babel transform,
   not the engine. Jest + e2e gates green (33 e2e).
+- PT10e close-out 2026-09-09: help guide (Probabilistic cases, the
+  convention in one sentence with the Sw example, the FAQ entry), STATUS
+  close-out, full Suite jest, prod zip recut. Series complete.
