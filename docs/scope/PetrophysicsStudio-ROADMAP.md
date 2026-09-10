@@ -1400,14 +1400,23 @@ than unknowns. Stage one keeps the door open by the table schema, the
    75 °F; every reading has Rw above Rweq, so the plan's open question
    (chart or fit at 75 °F fresh) is answered: the fit. The engine now
    accepts only Rwe 0.02 ohm·m (at 75 °F, Arps to formation T) to 0.1
-   ohm·m at formation T and refuses elsewhere with the reason. HELD FOR
-   THE OWNER: the band itself is bounded by where the fit is known
-   wrong, not proven right (no reading sits inside it; the gate reports
-   PENDING). Readings at 75 °F between Rweq 0.02 and 0.06 (flagged by
-   the owner) plus one column at Rw 0.05 to 0.3 across the seven
-   temperatures would confirm or move it. If the owner prefers, the
-   readings themselves can replace the fit (chart interpolation) once
-   that column exists.
+   ohm·m at formation T and refuses elsewhere with the reason. Later
+   the same day the owner read the 75 °F curve label-anchored between
+   Rweq 0.02 and 0.06 (five points, consistent with the saline set and
+   with the published 75 °F relation to 1 percent): the fit sits +9.3,
+   +5.9, +3.1, -1.6 and -4.2 percent from the chart, where no
+   correction would be 23 to 57 percent low. DECIDED: the fit is
+   accepted inside the band to a DECLARED residual of 10 percent (the
+   same standard the salinity route is held to against Gen-9), the gate
+   holds it to that figure and pins the worst residual, and the Studio
+   states it; the band floor 0.02 is where the residual crosses 10
+   percent. A first trace from the chart's printed example landed on a
+   hot curve (matched the fit at 300 to 500 °F) and was discarded; the
+   example's printed 75 °F is its Rmf temperature. STILL OPEN: only
+   75 °F is read inside the band; the same Rweq 0.02 to 0.06 column at
+   150 and 300 °F would test the fit's temperature handling there. If
+   the owner prefers, the readings can replace the fit (chart
+   interpolation) once that column exists.
 
 ### Wave log (PT11)
 
@@ -1439,6 +1448,12 @@ than unknowns. Stage one keeps the door open by the table schema, the
   in-band acceptance PENDING; gates 3 to 6 rewritten. Suite: the SP
   card names the band and the filtrate-side reason, help guide and
   petroAnalytic mirror updated, audit B5 row amended.
+- In-band 75 °F readings loaded (engines #164, later 2026-09-10): five
+  label-anchored points at Rweq 0.02 to 0.06; the fit is accepted
+  inside the band to a declared 10 percent residual (worst +9.3
+  percent at 0.02), `RWE_TO_RW_DOMAIN.fitResidual`, gate 2 pins it and
+  warns which temperatures are still unread inside the band; SP card
+  and help guide state the residual; audit B5 row amended (decision 6).
 - PT11b + PT11c built 2026-09-10 in one Suite PR (engines #160 merged
   and subtree-pulled). PT11b: the Split view is a `ResizablePanelGroup`
   (60/40 to start, 25 percent minimum either side, double-click resets),

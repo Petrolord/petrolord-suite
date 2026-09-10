@@ -782,9 +782,12 @@ const PetrophysicsHelpGuide = () => (
         to formation temperature by Arps) and 0.1 ohm·m at formation temperature. Thirty-one
         readings off the chart on 2026-09-10 showed the fit 36 to 92 percent low for fresher waters
         and 13 to 24 percent high near NaCl saturation, so outside that band the Studio refuses
-        rather than extrapolates and says which limit was crossed; inside it the correction is
-        upward and modest (about 13 percent at 150 °F and Rwe 0.05, within 2 percent at 0.1). The
-        chart is for NaCl waters. A water fresher than the band is one the SP route cannot resolve
+        rather than extrapolates and says which limit was crossed. Inside the band the fit is an
+        approximation of the chart, not a reproduction: five label-anchored 75 °F readings between
+        Rwe 0.02 and 0.06 put it within 10 percent (+9 percent at 0.02, within 4 percent above 0.04),
+        where the uncorrected Rwe would be 23 to 57 percent low; that 10 percent is the declared
+        residual the engine gate holds it to, the same standard as the salinity route. Only 75 °F
+        has been read inside the band so far. The chart is for NaCl waters. A water fresher than the band is one the SP route cannot resolve
         here; use the Arps or salinity route with a measured Rw instead.
         Each apply from any Rw tool names its method under Rw in the parameter panel and in the
         report, and records who applied it and when in the interpretation&apos;s provenance;
