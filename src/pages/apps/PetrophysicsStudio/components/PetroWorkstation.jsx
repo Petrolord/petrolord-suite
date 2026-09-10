@@ -40,6 +40,9 @@ import { runScenarios, scenarioOutputs, ensureScenarioTemplate, SCENARIO_CURVES 
 import { classifyRules } from '../services/ruleFacies';
 import HistogramPanel from './HistogramPanel';
 import ConditioningDialog from './ConditioningDialog';
+import DepthShiftPanel from './DepthShiftPanel';                       // PT11c
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'; // PT11b
+import { useStudioPrefs, SPLIT_DEFAULT, SPLIT_MIN_PERCENT } from '../services/studioPrefs';
 import FieldViewPanel from './FieldViewPanel';
 import { useWellCurvesCache } from '../hooks/useWellCurvesCache';
 import {
@@ -116,6 +119,9 @@ export default function PetroWorkstation({
   const [rwToolsOpen, setRwToolsOpen] = useState(false);       // PS5 quicklooks
   const curvesCache = useWellCurvesCache(backend);             // PS7 cross-well curves
   const [condOpen, setCondOpen] = useState(false);             // PS8 conditioning
+  // PT11b: per-user display preferences (the Split view divider first)
+  const [prefs, setPref] = useStudioPrefs(backend);
+  const splitTracksRef = useRef(null);
   const [lastNormFit, setLastNormFit] = useState(null);        // PS7 fit -> PS8 apply
   // PS8: explicit input picks — a conditioned curve is never
   // substituted silently; the user selects it per input key
@@ -885,6 +891,16 @@ export default function PetroWorkstation({
         </button>
         <button
           type="button"
+          data-testid="petro-view-shift"
+          className={`px-2 py-1 text-xs rounded border
+            ${view === 'shift' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
+          onClick={() => setView('shift')}
+          title="Stretch and squeeze a curve against a reference through tie points (PT11c)"
+        >
+          Depth shift
+        </button>
+        <button
+          type="button"
           data-testid="petro-view-field"
           className={`px-2 py-1 text-xs rounded border
             ${view === 'field' ? 'border-cyan-500/60 text-cyan-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'}`}
@@ -1009,8 +1025,8 @@ export default function PetroWorkstation({
         <button
           type="button"
           data-testid="petro-export-png-toolbar"
-          disabled={!wellData || view === 'crossplot' || view === 'histogram' || view === 'field'}
-          title={wellData && (view === 'crossplot' || view === 'histogram' || view === 'field')
+          disabled={!wellData || view === 'crossplot' || view === 'histogram' || view === 'field' || view === 'shift'}
+          title={wellData && (view === 'crossplot' || view === 'histogram' || view === 'field' || view === 'shift')
             ? 'Switch to Tracks or Split to export the log display'
             : 'Download the log display as a PNG image'}
           className="flex items-center gap-1 px-2 py-1 text-xs rounded border
@@ -1225,12 +1241,48 @@ export default function PetroWorkstation({
       />
     );
     if (view === 'crossplot') return crossplotEl;
-    if (view === 'split') {
+    if (view === 'shift') {
       return (
-        <div className="h-full min-h-0 flex" data-testid="petro-split">
-          <div className="flex-[3] min-w-0 border-r border-slate-800/60">{tracksEl}</div>
-          <div className="flex-[2] min-w-0">{crossplotEl}</div>
-        </div>
+        <DepthShiftPanel
+          wellData={wellData}
+          backend={backend}
+          projectId={projectId}
+          depthUnit={depthUnit}
+          snapSamples={snapSamples}
+          isOwn={!!selected?.is_own}
+          onSaved={() => select(wellData.wellId)}
+          onStatus={setStatus}
+        />
+      );
+    }
+    if (view === 'split') {
+      // PT11b: a draggable divider, 60/40 to start, 25 percent minimum
+      // either side, double-click resets, position remembered per user
+      const split = Number.isFinite(prefs.splitPercent) ? prefs.splitPercent : SPLIT_DEFAULT;
+      return (
+        <ResizablePanelGroup
+          direction="horizontal"
+          className="h-full min-h-0"
+          data-testid="petro-split"
+          onLayout={(sizes) => {
+            const pct = Math.round(sizes[0] * 10) / 10;
+            if (Number.isFinite(pct) && Math.abs(pct - split) >= 0.1) setPref({ splitPercent: pct });
+          }}
+        >
+          <ResizablePanel ref={splitTracksRef} id="split-tracks" order={1} defaultSize={split} minSize={SPLIT_MIN_PERCENT} className="min-w-0 border-r border-slate-800/60">
+            {tracksEl}
+          </ResizablePanel>
+          <ResizableHandle
+            withHandle
+            className="w-1 bg-slate-800/80 hover:bg-cyan-700/60 transition-colors"
+            data-testid="petro-split-divider"
+            title="Drag to resize; double-click to reset to 60/40"
+            onDoubleClick={() => { splitTracksRef.current?.resize(SPLIT_DEFAULT); setPref({ splitPercent: SPLIT_DEFAULT }); }}
+          />
+          <ResizablePanel id="split-crossplot" order={2} defaultSize={100 - split} minSize={SPLIT_MIN_PERCENT} className="min-w-0">
+            {crossplotEl}
+          </ResizablePanel>
+        </ResizablePanelGroup>
       );
     }
     return tracksEl;

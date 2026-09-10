@@ -17,7 +17,7 @@ import {
 } from '@/components/wells/trackPainter';
 import { surfaceLineStyle, displayLabel, normalizeSurfaceType } from '@/lib/stratigraphy/vocabulary';
 import { useScheme } from '@/lib/stratigraphy/scheme';
-import { hitTrackDragAt, hitZoneEdgeAt } from '@/components/wells/hitTest';
+import { hitTrackDragAt, hitZoneEdgeAt, hitTieAt } from '@/components/wells/hitTest';
 import { topColor } from '@/components/wells/topColors';
 import TopNamePopover from '@/components/wells/TopNamePopover';
 import DepthNavigator from '@/components/wells/DepthNavigator';
@@ -60,6 +60,11 @@ const ZONE_COLORS = ['rgba(14,116,144,0.10)', 'rgba(217,119,6,0.10)', 'rgba(5,15
  * @param {boolean} [p.snapSamples] snap top and zone-edge drags to samples
  * @param {Array<'md'|'tvd'|'tvdss'>} [p.depthTracks] gutter columns
  * @param {Object} [p.well] registry row (deviation + kb_m) for TVD/TVDSS
+ * @param {Array<{refMd: number, targetMd: number}>} [p.ties] PT11c tie points to draw (pickMode 'tie')
+ * @param {{refMd: number}|null} [p.pendingTie] the half-placed tie (reference clicked, target pending)
+ * @param {{ref: number, target: number}} [p.tieTracks] which track index is the reference and which the target
+ * @param {(mdM: number, trackIndex: number) => void} [p.onTiePick] a click in pickMode 'tie'
+ * @param {(index: number, side: 'ref'|'target', mdM: number) => void} [p.onTieMove] a tie mark dragged
  */
 const TrackViewer = forwardRef(function TrackViewer({
   depth, tracks, zones = [], tops = [], depthUnit = 'm', onTrackHeaderClick,
@@ -75,6 +80,8 @@ const TrackViewer = forwardRef(function TrackViewer({
   // PT8: which depth references get their own gutter column, and the well
   // whose survey and KB convert them
   depthTracks = ['md'], well = null,
+  // PT11c: tie points for the Depth shift panel (drawn, picked, dragged)
+  ties = null, pendingTie = null, tieTracks = null, onTiePick, onTieMove,
 }, exportRef) {
   const wrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -94,6 +101,7 @@ const TrackViewer = forwardRef(function TrackViewer({
   const [cursor, setCursor] = useState(null);  // {y, depthM, idx}
   const [zoneDrag, setZoneDrag] = useState(null); // {zone, edge, md}
   const [topDrag, setTopDrag] = useState(null);   // {top, md}
+  const [tieDrag, setTieDrag] = useState(null);   // PT11c: { index, side, md }
   const [pick, setPick] = useState(null);         // zone pick: {top: md}
   const [popover, setPopover] = useState(null);   // {x, y, kind, mdM | topMdM/baseMdM, defaultName}
   const dragRef = useRef(null);
@@ -345,6 +353,47 @@ const TrackViewer = forwardRef(function TrackViewer({
       );
     }
 
+    // PT11c: tie points as marks in their columns joined by a connector,
+    // the half-placed tie, and the mark being dragged
+    if (ties && tieTracks && geom[tieTracks.ref] && geom[tieTracks.target]) {
+      const gr = geom[tieTracks.ref];
+      const gt = geom[tieTracks.target];
+      const inPlot = (yy) => yy >= plotTop && yy <= plotTop + plotH;
+      ctx.font = '10px sans-serif';
+      ties.forEach((t, i) => {
+        const dragging = tieDrag && tieDrag.index === i;
+        const rMd = dragging && tieDrag.side === 'ref' ? tieDrag.md : t.refMd;
+        const tMd = dragging && tieDrag.side === 'target' ? tieDrag.md : t.targetMd;
+        const yr = yOf(rMd);
+        const yt = yOf(tMd);
+        ctx.strokeStyle = dragging ? '#f59e0b' : '#a78bfa';
+        ctx.lineWidth = dragging ? 1.5 : 1;
+        ctx.setLineDash([]);
+        if (inPlot(yr)) { ctx.beginPath(); ctx.moveTo(gr.x0, yr); ctx.lineTo(gr.x0 + gr.w, yr); ctx.stroke(); }
+        if (inPlot(yt)) { ctx.beginPath(); ctx.moveTo(gt.x0, yt); ctx.lineTo(gt.x0 + gt.w, yt); ctx.stroke(); }
+        if (inPlot(yr) || inPlot(yt)) {
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath(); ctx.moveTo(gr.x0 + gr.w, yr); ctx.lineTo(gt.x0, yt); ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        ctx.fillStyle = dragging ? '#f59e0b' : '#c4b5fd';
+        ctx.textAlign = 'left';
+        if (inPlot(yr)) ctx.fillText(`${i + 1}: ${depthLabel(rMd, depthUnit, 2)}`, gr.x0 + 3, yr - 3);
+        if (inPlot(yt)) ctx.fillText(`${i + 1}: ${depthLabel(tMd, depthUnit, 2)}`, gt.x0 + 3, yt - 3);
+      });
+      ctx.lineWidth = 1;
+      if (pendingTie && inPlot(yOf(pendingTie.refMd))) {
+        const yr = yOf(pendingTie.refMd);
+        ctx.strokeStyle = '#0e7490';
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath(); ctx.moveTo(gr.x0, yr); ctx.lineTo(gr.x0 + gr.w, yr); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#0e7490';
+        ctx.textAlign = 'left';
+        ctx.fillText(`reference ${depthLabel(pendingTie.refMd, depthUnit, 2)}`, gr.x0 + 3, yr - 3);
+      }
+    }
+
     // pick previews: a new top at the cursor, or the zone band being picked
     if (pickMode && cursor && cursor.y >= plotTop && cursor.y <= plotTop + plotH) {
       ctx.strokeStyle = '#0e7490';
@@ -361,7 +410,11 @@ const TrackViewer = forwardRef(function TrackViewer({
       ctx.fillStyle = '#0e7490';
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(pickMode === 'zone' ? (pick ? 'click to set the zone base' : 'click to set the zone top') : 'click to place a top', axisW + 4, cursor.y - 4);
+      ctx.fillText(
+        pickMode === 'tie' ? (pendingTie ? 'click the target curve at the matching depth' : 'click the reference curve')
+          : pickMode === 'zone' ? (pick ? 'click to set the zone base' : 'click to set the zone top') : 'click to place a top',
+        axisW + 4, cursor.y - 4,
+      );
     }
 
     // crosshair
@@ -380,7 +433,7 @@ const TrackViewer = forwardRef(function TrackViewer({
         ctx.fillText(Number.isFinite(v) ? v.toFixed(1) : '—', AXIS_COL_W * (i + 1) - 4, cursor.y - 4);
       });
     }
-  }, [tick, size, depth, tracks, geom, cursor, zoneDrag, topDrag, pick, pickMode, yOf, plotTop, plotH, F, depthUnit, depthAxes, axisW, snapSamples]);
+  }, [tick, size, depth, tracks, geom, cursor, zoneDrag, topDrag, pick, pickMode, yOf, plotTop, plotH, F, depthUnit, depthAxes, axisW, snapSamples, ties, pendingTie, tieTracks, tieDrag]);
 
   // Esc leaves a pick mode / closes the name popover
   useEffect(() => {
@@ -412,6 +465,12 @@ const TrackViewer = forwardRef(function TrackViewer({
   // both the top's own line is a handle too (hitTest.hitTrackDragAt)
   const zoneEdgeAt = (y) => (isOwn && onZoneEdge ? hitZoneEdgeAt(y, zones, yOf) : null);
   const grabAt = (x, y) => {
+    // PT11c: in tie mode an existing mark is a drag handle
+    if (pickMode === 'tie') {
+      if (!ties || !onTieMove) return null;
+      const hit = hitTieAt({ x, y }, ties, { yOf, geom, tieTracks, tol: 5 });
+      return hit ? { kind: 'tie', ...hit } : null;
+    }
     if (pickMode || !isOwn) return null;
     return hitTrackDragAt({ x, y }, {
       zones: onZoneEdge ? zones : [],
@@ -441,13 +500,17 @@ const TrackViewer = forwardRef(function TrackViewer({
       setTopDrag((td) => ({ ...td, md: dragMd(y) }));
       return;
     }
+    if (tieDrag) {
+      setTieDrag((td) => ({ ...td, md: dragMd(y) }));
+      return;
+    }
     if (zoneDrag) {
       setZoneDrag((zd) => ({ ...zd, md: dragMd(y) }));
       return;
     }
     if (!dragRef.current) {
       const grab = grabAt(x, y);
-      canvasRef.current.style.cursor = pickMode ? 'copy'
+      canvasRef.current.style.cursor = grab?.kind === 'tie' ? 'grab' : pickMode ? 'copy'
         : grab?.kind === 'top' ? 'grab'
           : grab?.kind === 'zone-edge' ? 'row-resize' : 'crosshair';
     }
@@ -480,6 +543,12 @@ const TrackViewer = forwardRef(function TrackViewer({
     const y = e.clientY - rect.top;
     if (popover) setPopover(null);
     const grab = grabAt(x, y);
+    if (grab?.kind === 'tie') {
+      const t = ties[grab.index];
+      setTieDrag({ index: grab.index, side: grab.side, md: grab.side === 'ref' ? t.refMd : t.targetMd });
+      e.currentTarget.setPointerCapture(e.pointerId);
+      return;
+    }
     if (grab?.kind === 'top') {
       setTopDrag({ top: grab.top, md: grab.top.md_m });
       e.currentTarget.setPointerCapture(e.pointerId);
@@ -512,6 +581,13 @@ const TrackViewer = forwardRef(function TrackViewer({
       onZoneEdge(zone, edge, Number(md.toFixed(2)));
       return;
     }
+    if (tieDrag) {
+      const { index, side, md } = tieDrag;
+      setTieDrag(null);
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      onTieMove(index, side, Number(md.toFixed(2)));
+      return;
+    }
     dragRef.current = null;
     e.currentTarget.releasePointerCapture(e.pointerId);
     // pick modes act on a click (not a pan) inside the plot
@@ -521,6 +597,13 @@ const TrackViewer = forwardRef(function TrackViewer({
       const py = Math.min(Math.max(8, y + 8), Math.max(8, size.h - 110));
       if (pickMode === 'top') {
         setPopover({ x: px, y: py, kind: 'top', mdM, defaultName: '' });
+      } else if (pickMode === 'tie') {
+        // PT11c: the panel decides what the click means from the track it landed in
+        if (onTiePick) {
+          const snapped = snapSamples ? Number(snapToSample(clampMd(dOf(y)), depth).toFixed(2)) : mdM;
+          const trackIndex = geom.findIndex((g) => x >= g.x0 && x <= g.x0 + g.w);
+          onTiePick(snapped, trackIndex);
+        }
       } else if (pickMode === 'zone') {
         if (!pick) { setPick({ top: mdM }); return; }
         const topMdM = Math.min(pick.top, mdM);

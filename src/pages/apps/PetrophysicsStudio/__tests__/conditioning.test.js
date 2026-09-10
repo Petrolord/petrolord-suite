@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   despikeHampel, smoothMean, smoothMedian, depthShiftBlock, badHoleFlag, applyBadHole,
+  depthShiftTiePoints, shiftCurve, tiePointWarp,
 } from '../engine/conditioning';
 
 const DATA_DIR = path.join(__dirname, '..', '..', '..', '..', '..', 'packages', 'engines', 'test-data', 'petrophysics');
@@ -71,4 +72,18 @@ test('depth shift never bridges a null gap and nulls outside the extent', () => 
   expect(Number.isNaN(s[0])).toBe(true); // reads z=-0.5, outside
   expect(Number.isNaN(s[1])).toBe(true); // brackets the NaN
   expect(close(s[3], 35)).toBe(true);    // interpolates 30..40 at 2.5
+});
+
+// PT11c: the tie-point shift through the shim matches the COND golden and
+// the identity / one-tie invariants
+test('PT11c: tie-point shift matches the golden; no ties is the identity; one tie is the block shift', () => {
+  const gr = toF64(typewell.curves.GR);
+  expectCurve(depthShiftTiePoints(depth, gr, C.tiePairs), C.GR_TIE_SHIFTED);
+  expectCurve(shiftCurve(depth, C.tiePairs), C.SHIFT_CURVE);
+  const ident = depthShiftTiePoints(depth, gr, []);
+  expect(ident.every((v, i) => Object.is(v, gr[i]))).toBe(true);
+  const one = depthShiftTiePoints(depth, gr, [[2020, 2018.5]]);
+  const block = depthShiftBlock(depth, gr, 1.5);
+  expect(one.every((v, i) => Object.is(v, block[i]))).toBe(true);
+  expect(tiePointWarp([[2010, 2012], [2012, 2011]]).ok).toBe(false);
 });

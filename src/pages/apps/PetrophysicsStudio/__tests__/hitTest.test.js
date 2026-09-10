@@ -69,3 +69,20 @@ test('snapToSample lands a dragged depth on the nearest logged sample', async ()
   expect(snapToSample(2000.6, new Float64Array(0))).toBeCloseTo(2000.6, 10);
   expect(snapToSample(NaN, depth)).toBeNaN();
 });
+
+// PT11c: tie marks are hit inside their own column only, nearest wins
+import { hitTieAt } from '@/components/wells/hitTest';
+
+test('PT11c: a tie mark is hit in its own column within tolerance', () => {
+  const geom = [{ x0: 56, w: 100 }, { x0: 156, w: 100 }, { x0: 256, w: 60 }];
+  const tieTracks = { ref: 0, target: 1 };
+  const ties = [{ refMd: 2010, targetMd: 2016 }, { refMd: 2030, targetMd: 2029 }];
+  expect(hitTieAt({ x: 100, y: yOf(2010) }, ties, { yOf, geom, tieTracks })).toEqual({ index: 0, side: 'ref' });
+  expect(hitTieAt({ x: 200, y: yOf(2016) + 3 }, ties, { yOf, geom, tieTracks })).toEqual({ index: 0, side: 'target' });
+  // the reference depth is not a handle in the target column
+  expect(hitTieAt({ x: 200, y: yOf(2010) }, ties, { yOf, geom, tieTracks })).toBeNull();
+  // nor anything in the shift column
+  expect(hitTieAt({ x: 280, y: yOf(2030) }, ties, { yOf, geom, tieTracks })).toBeNull();
+  expect(hitTieAt({ x: 100, y: yOf(2020) }, ties, { yOf, geom, tieTracks })).toBeNull();
+  expect(hitTieAt({ x: 100, y: yOf(2030) }, null, { yOf, geom, tieTracks })).toBeNull();
+});

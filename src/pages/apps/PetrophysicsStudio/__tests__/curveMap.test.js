@@ -39,3 +39,10 @@ test('PT7: a digitized KEY_DIG curve is offered as a candidate but never auto-ma
   expect(mapLogs(logs).GR).toBeNull();
   expect(mapLogs(logs).NPHI.id).toBe(3);
 });
+
+test('PT11c: a depth-shifted KEY_DS curve is offered as a candidate but never auto-mapped', () => {
+  const logs = [{ id: 1, mnemonic: 'GR_DS' }, { id: 2, mnemonic: 'GR' }, { id: 3, mnemonic: 'RHOB_DS' }];
+  expect(candidatesFor('GR', logs).map((l) => l.mnemonic)).toEqual(['GR_DS', 'GR']);
+  expect(mapLogs(logs).GR.mnemonic).toBe('GR');
+  expect(mapLogs([{ id: 3, mnemonic: 'RHOB_DS' }]).RHOB).toBeFalsy();
+});

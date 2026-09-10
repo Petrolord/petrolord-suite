@@ -158,6 +158,8 @@ export function makeRegistryBackend() {
     saveProjectAs,
     renameProject,
     deleteProject,
+    /** PT11c: remove one registry curve (the Depth shift panel's Reset to raw on a saved _DS row). */
+    async deleteLog(log) { await deleteLog(log); },
     /** PT11a: the signed-in user id for provenance `by`; null when signed out. */
     async whoAmI() { try { return await currentUserId(); } catch { return null; } },
   };

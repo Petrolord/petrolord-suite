@@ -1413,3 +1413,30 @@ than unknowns. Stage one keeps the door open by the table schema, the
   plan text: the chart's printed temperature range is not yet enforced
   (`tempFMax: null`, stated in the header) because it has not been
   read; the six chart readings remain the acceptance gate.
+- PT11b + PT11c built 2026-09-10 in one Suite PR (engines #160 merged
+  and subtree-pulled). PT11b: the Split view is a `ResizablePanelGroup`
+  (60/40 to start, 25 percent minimum either side, double-click resets),
+  the first nested group inside a WorkspaceShell centre in the Suite;
+  position per user through the new `services/studioPrefs.js`
+  (localStorage keyed by `backend.whoAmI()`, the useReservoirSettings
+  pattern; a `petro_user_prefs` table stays the owner's call for
+  cross-device). PT11c: engine `tiePointWarp` / `depthShiftTiePoints` /
+  `shiftCurve` with one shared resampler; the `Depth shift` view
+  (`DepthShiftPanel.jsx`: reference and target side by side, Place ties
+  by clicking reference then target, drag a mark, typed edits, undo,
+  Reset to raw, Save `<KEY>_DS`), TrackViewer `pickMode: 'tie'` with
+  `hitTieAt`, the shift stored as `provenance.shift` on the `_DS` row
+  (pairs, reference, source, interpolation, beyond, edits with who and
+  when) and re-applied on open with a mismatch check, `_DS` accepted by
+  the explorer picker, `backend.deleteLog` for Reset, and the
+  ConditioningDialog `project_id` fix so re-saved `_CND` rows no longer
+  duplicate. Two notes against the plan text: (1) a read landing exactly
+  on a raw sample is that sample, so the identity warp is byte-exact;
+  this moved one `GR_SHIFTED` golden sample beside a null (engines
+  README); (2) "exact recovery" is pinned as the shifted output equal to
+  the analytically warped synthetic for any warp, plus a grid-aligned
+  inverse round trip, because a general inverse cannot be exact after
+  linear resampling. Gates: engines 8, Suite `depthShift.test.js`
+  (incl. the save-and-reload round trip), `depthShiftPanel.test.jsx`,
+  `studioPrefs.test.js`, hitTest, conditioning and curveMap additions,
+  help guide test, two e2e walks.

@@ -140,6 +140,13 @@ export function makeInMemoryBackend() {
 
   return {
     async whoAmI() { return 'dev'; },
+    async deleteLog(log) {
+      ownWell(log.well_id, 'delete curves on this well');
+      const logs = logsByWell.get(log.well_id) || [];
+      const i = logs.findIndex((l) => l.id === log.id);
+      if (i >= 0) logs.splice(i, 1);
+      curveStore.delete(log.id);
+    },
     async listWells() { return [...wells]; },
     async listLogs(wellId) { return [...(logsByWell.get(wellId) || [])]; },
     async downloadCurve(log) {

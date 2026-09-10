@@ -639,3 +639,36 @@ the method. Engines #159 (oracle written from the paper, nine gates,
 `chart_points.json` waiting for six SP-2 readings that gate acceptance,
 not the build). The help guide's limitation paragraph now says the SP
 route applies the fit on both sides and assumes NaCl waters.
+
+## 2026-09-10: PT11b, resizable Split divider
+
+The Split view's divider drags (react-resizable-panels through the
+shared `resizable.jsx`), 60/40 to start with a 25 percent minimum on
+either side, and double-click resets it. The position is remembered per
+user on this browser through the Studio's first preferences store,
+`services/studioPrefs.js` (one JSON blob per user id, the first key is
+the split). No engine change. Gates: `studioPrefs.test.js` (round trip,
+per-user isolation, corrupt blob) and an e2e walk (drag, reload,
+double-click).
+
+## 2026-09-10: PT11c, stretch and squeeze depth shifting
+
+The new `Depth shift` view puts a reference curve and the curve to move
+side by side on one depth axis with a shift-versus-depth track. Press
+Place ties and click the reference track then the target track at the
+same feature; drag a mark to adjust; edit, delete or add ties in the
+list; undo; Reset to raw. Between ties the shift is linear, beyond the
+outermost ties constant, and resampling is the block shift's bracketing
+linear interpolation with nulls never bridged (engines #160:
+`tiePointWarp`, `depthShiftTiePoints`, `shiftCurve`; crossing ties are
+refused with a sentence). Save writes `<KEY>_DS`, a new registry row
+whose provenance carries the shift as a first-class object (reference,
+source, pairs, interpolation, beyond, and an edit list with who and when
+from `backend.whoAmI`); the raw curve is never written. Reopening the
+view reads the pairs back from the row, re-applies them to the raw
+curve and reports any mismatch with the stored samples (the round-trip
+gate pins zero). The explorer offers `_DS` beside `_CND` and never swaps
+it in by itself. In passing: ConditioningDialog now writes `project_id`
+so a re-saved `_CND` replaces its row instead of duplicating. The help
+guide's limitation paragraph now says depth shifting is per curve,
+block or by tie points, and keeps its closing sentence.
