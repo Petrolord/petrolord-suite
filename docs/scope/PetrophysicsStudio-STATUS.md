@@ -653,9 +653,14 @@ Arps to formation T) to 0.1 ohm·m at formation T, inside 75 to 500 °F,
 and refuses with the reason elsewhere (`rweBand`, `rwToRweProblem`);
 the SP card states the band and refuses on the filtrate side with its
 own sentence. `chart_points.json` carries the readings; gate 2 refuses
-every reading outside the band and reports in-band acceptance PENDING
-because no reading sits inside it yet. Held for the owner: the band
-(ROADMAP recorded decision 6) and the readings that would confirm it.
+every reading outside the band. Later the same day five label-anchored
+75 °F readings inside the band (Rweq 0.02 to 0.06) put the fit within
+10 percent of the chart (+9.3 to -4.2 percent; no correction would be
+23 to 57 percent low), so the fit is accepted there to that declared
+residual (engines #164, `RWE_TO_RW_DOMAIN.fitResidual`, stated in the
+SP card and help guide); gate 2 pins the worst residual and warns that
+the other six temperatures are unread inside the band. Open: the same
+column at 150 and 300 °F (ROADMAP recorded decision 6).
 
 ## 2026-09-10: PT11b, resizable Split divider
 

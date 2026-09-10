@@ -163,8 +163,9 @@ export default function RwToolsDialog({
               and Konen (1977) fit to chart SP-2. The fit is applied only where chart SP-2 allows it: 75 to
               500 °F and Rwe between {spOut?.band ? spOut.band.lo.toPrecision(2) : '0.02'} and 0.1 ohm·m at
               formation temperature (readings off the chart on 2026-09-10 put the fit 36 to 92 percent low
-              for fresher waters and 13 to 24 percent high near NaCl saturation). Inside the band the
-              correction is upward and modest; outside it the Studio refuses. NaCl waters only.
+              for fresher waters and 13 to 24 percent high near NaCl saturation). Inside the band the fit
+              follows the chart to within about 10 percent (75 °F readings: +9 percent at Rwe 0.02, within
+              4 percent above 0.04); outside it the Studio refuses. NaCl waters only.
             </p>
           </div>
 

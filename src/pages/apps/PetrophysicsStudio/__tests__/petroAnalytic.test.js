@@ -56,6 +56,9 @@ describe('analytic scalar cases', () => {
     expect(Number.isNaN(rweToRw(0.005, 150))).toBe(true);
     expect(rweToRwProblem(0.005, 150)).toMatch(/saturation/);
     expect(rweBand(75)).toEqual({ lo: 0.02, hi: 0.1 });
+    // in-band 75 F chart readings (engines #164): the fit within its declared residual, better than no correction
+    expect(Math.abs(rweToRw(0.02, 75) / 0.047 - 1)).toBeLessThan(0.10);
+    expect(Math.abs(rweToRw(0.06, 75) / 0.078 - 1)).toBeLessThan(0.05);
     expect(rweToRwProblem(0.05, 60)).toMatch(/starts at 75/);
     expect(rweToRwProblem(0.05, 501)).toMatch(/stops at 500/);
     expect(rwToRweProblem(1.0, 150)).toMatch(/Rmfe/);
