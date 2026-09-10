@@ -1253,3 +1253,73 @@ test('PT10d: the probabilistic dialog runs in a worker, the SAND A P50 net sits 
   await expect(page.getByTestId('petro-status')).toContainText('Published 19 probabilistic curves');
   await expect(page.getByTestId('petro-curve-inventory')).toContainText('PHIE_Q50');
 });
+
+test('PT11b: the Split divider drags, survives a reload, and double-click resets it', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+  await page.getByTestId('petro-view-split').click();
+  const group = page.getByTestId('petro-split');
+  await expect(group).toBeVisible();
+  const handle = page.getByTestId('petro-split-divider');
+  const widthOf = async () => {
+    const [g, t] = await Promise.all([group.boundingBox(), group.locator('[data-panel]').first().boundingBox()]);
+    return (t.width / g.width) * 100;
+  };
+  expect(Math.abs((await widthOf()) - 60)).toBeLessThan(2);
+  const hb = await handle.boundingBox();
+  const gb = await group.boundingBox();
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hb.x - gb.width * 0.2, hb.y + hb.height / 2, { steps: 8 });
+  await page.mouse.up();
+  const dragged = await widthOf();
+  expect(dragged).toBeLessThan(50);
+  expect(dragged).toBeGreaterThanOrEqual(25);
+  await page.reload();
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+  await page.getByTestId('petro-view-split').click();
+  await expect(group).toBeVisible();
+  expect(Math.abs((await widthOf()) - dragged)).toBeLessThan(1);
+  await handle.dblclick();
+  await expect.poll(widthOf).toBeCloseTo(60, 0);
+});
+
+test('PT11c: Depth shift places ties by clicking, saves GR_DS with the pairs in provenance, and reopens them', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+  await page.getByTestId('petro-view-shift').click();
+  await expect(page.getByTestId('petro-shift-panel')).toBeVisible();
+  await expect(page.getByTestId('petro-shift-src')).toHaveValue('GR');
+  // two ties typed through the list
+  await page.getByTestId('petro-shift-add').click();
+  await page.getByTestId('petro-shift-add').click();
+  const rows = page.getByTestId('petro-shift-pair');
+  await expect(rows).toHaveCount(2);
+  const setCell = async (row, col, value) => {
+    const cell = rows.nth(row).locator('input').nth(col);
+    await cell.fill(String(value));
+    await cell.blur();
+  };
+  await setCell(0, 0, 2020); await setCell(0, 1, 2021);
+  await setCell(1, 0, 2050); await setCell(1, 1, 2052.5);
+  // one by clicking: reference track then target track
+  await page.getByTestId('petro-shift-place').click();
+  const tracks = page.getByTestId('petro-tracks');
+  await expect(tracks).toHaveAttribute('data-pick-mode', 'tie');
+  const canvas = tracks.locator('canvas').first();
+  const cb = await canvas.boundingBox();
+  await canvas.click({ position: { x: 90, y: cb.height * 0.8 } });
+  await expect(page.getByTestId('petro-status')).toContainText('Reference');
+  await canvas.click({ position: { x: cb.width * 0.55, y: cb.height * 0.8 + 6 } });
+  await expect(rows).toHaveCount(3);
+  await page.keyboard.press('Escape');
+  await page.getByTestId('petro-shift-save').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Saved GR_DS with 3 tie points');
+  await expect(page.getByTestId('petro-shift-stored')).toContainText('3 ties');
+  await expect(page.getByTestId('petro-shift-verify')).toContainText('reproduces the saved samples');
+  // the explorer offers GR_DS for GR but never swaps it in by itself
+  await expect(page.getByTestId('petro-curve-inventory')).toContainText('GR_DS');
+});

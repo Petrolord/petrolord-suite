@@ -114,6 +114,9 @@ export default function ConditioningDialog({
         operation: 'conditioning',
         method,
         params: opParams,
+        // PT11c: without project_id publishCurves never replaced a re-saved
+        // _CND row and duplicates accumulated
+        project_id: projectId,
         pipeline_version: PIPELINE_VERSION,
         input_log_ids: wellData.inventory.filter((e) => e.log).map((e) => e.log.id),
       },
@@ -214,7 +217,8 @@ export default function ConditioningDialog({
           </div>
           {op === 'depth-shift' && (
             <p className="text-[10px] text-slate-500">
-              Constant block shift only. Interval stretch and squeeze correlation is out of scope by decision.
+              Constant block shift. For stretch and squeeze through tie points open the Depth shift view
+              from the ribbon; it saves a separate <span className="font-mono">_DS</span> curve.
             </p>
           )}
 

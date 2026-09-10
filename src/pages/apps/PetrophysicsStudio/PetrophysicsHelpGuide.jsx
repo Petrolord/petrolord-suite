@@ -640,8 +640,10 @@ const PetrophysicsHelpGuide = () => (
         <Code>Select…</Code> draws a polygon on any plot and <Code>Apply selection</Code> highlights
         those samples: they turn bright on the plot while the rest dim, and cyan ticks mark their
         depths in the track axis gutter. <Code>Clear selection</Code> removes it. The
-        <Code>Split</Code> view puts Tracks and the crossplot side by side (60/40, fixed) so you
-        can see where a cloud of points lives in depth without leaving the plot. Selecting and
+        <Code>Split</Code> view puts Tracks and the crossplot side by side, 60/40 to start, so you
+        can see where a cloud of points lives in depth without leaving the plot; drag the divider to
+        change it, double-click the divider to reset, and the position is remembered for you on this
+        browser. Selecting and
         facies tagging are separate: selection is a temporary highlight and is not saved.
       </Para>
           <SubHeading>Depth density</SubHeading>
@@ -723,7 +725,21 @@ const PetrophysicsHelpGuide = () => (
         in the explorer. Until you do, the pipeline keeps reading the raw curve. Bad-hole repair
         refuses to run without a CAL or DRHO curve on the well and says so in the preview line.
       </Para>
-    </GuideSection>
+          <SubHeading>Stretch and squeeze</SubHeading>
+      <Para>
+        Open <Code>Depth shift</Code> from the ribbon, pick a reference curve and the curve to move,
+        press <Code>Place ties</Code>, and click a depth on the reference track then the matching depth
+        on the target track to place a tie. Drag a tie mark to adjust it, edit or delete ties in the
+        list, and undo steps back through your edits. Between ties the shift is linear; beyond the
+        outermost ties it is constant. The shift track shows the shift at every depth, positive where
+        the curve moves deeper. Resampling is linear between the two raw samples on either side of the
+        requested depth, the same as the block shift, and a null on either side stays null. Save writes
+        a new curve named with the suffix <Code>DS</Code>; the raw curve is never changed, the ties are
+        stored with the new curve and can be reopened, edited or reset to raw, and every save records
+        who placed which pairs and when. Pick the <Code>DS</Code> curve as the input in the explorer to
+        use it; it is never substituted for you.
+      </Para>
+</GuideSection>
 
     {/* ------------------------------------------------------------------ */}
     <GuideSection id="rwtools">
@@ -1077,12 +1093,11 @@ const PetrophysicsHelpGuide = () => (
       <SubHeading>What the Studio does not do</SubHeading>
       <Para>
         There is no probabilistic multi-mineral solver: porosity comes from one chosen source and
-        lithology is a judgement you make on the Density-Neutron plot. Depth shifting is a block
-        shift, with no stretch and squeeze. The SP route applies the Bateman-Konen fit on both the
-        filtrate and the formation-water side and shows every value in the chain; it assumes NaCl
-        waters, as the chart does. The split divider is fixed. None of this is hidden behind a
-        setting: every capability above is visible in the UI, recorded in provenance, and never a
-        silent default.
+        lithology is a judgement you make on the Density-Neutron plot. Depth shifting is per curve,
+        block or by tie points, not a whole-well warp. The SP route applies the Bateman-Konen fit on
+        both the filtrate and the formation-water side and shows every value in the chain; it assumes
+        NaCl waters, as the chart does. None of this is hidden behind a setting: every capability
+        above is visible in the UI, recorded in provenance, and never a silent default.
       </Para>
     </GuideSection>
 
@@ -1109,6 +1124,7 @@ const PetrophysicsHelpGuide = () => (
           ['k gm', 'Thickness-weighted geometric-mean permeability over pay'],
           ['MD, TVD', 'Measured depth; true vertical depth from the deviation survey'],
           ['KEY_CND', 'A conditioned copy of the input KEY saved by the Condition dialog'],
+          ['KEY_DS', 'A depth-shifted copy of KEY saved by the Depth shift view, with its tie points in provenance'],
           ['Interpretation', 'A named saved state: parameters, zone overrides, layouts, facies and crossplot settings'],
           ['Provenance', 'The record on every published curve of how it was computed'],
         ]}

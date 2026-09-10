@@ -49,6 +49,12 @@ describe('PetrophysicsHelpGuide', () => {
     expect(text).toMatch(/Bateman-Konen fit/i);
     expect(text).toMatch(/shows every value in the chain/i);
     expect(text).toMatch(/never a silent default/i);
+    // PT11b/PT11c: the divider drags and depth shifting is per curve by tie points
+    expect(text).toMatch(/drag the divider/i);
+    expect(text).not.toMatch(/split divider is fixed/i);
+    expect(text).toMatch(/Stretch and squeeze/);
+    expect(text).toMatch(/per curve,\s*block or by tie points/i);
+    expect(text).toMatch(/raw curve is never changed/i);
     // conditioned curves are never substituted silently
     expect(text).toMatch(/never substituted silently/i);
     // the LAS export carries only the four core outputs

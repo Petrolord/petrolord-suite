@@ -52,3 +52,28 @@ export function hitTrackDragAt({ x, y }, { zones = [], tops = [], yOf, tagLeft, 
   const onLine = hitTopAt({ x, y }, tops, yOf, { tagLeft: -Infinity, tol });
   return onLine ? { kind: 'top', top: onLine } : null;
 }
+
+/**
+ * PT11c: the tie-point mark under the pointer in the Depth shift panel.
+ * `ties` are { refMd, targetMd }; `tieTracks` names the reference and
+ * target track indexes; `geom` is trackGeometry. A mark is hit inside its
+ * own column within `tol` px of its depth; the nearest wins.
+ * @returns {{ index: number, side: 'ref'|'target' } | null}
+ */
+export function hitTieAt({ x, y }, ties, { yOf, geom, tieTracks, tol = 5 } = {}) {
+  if (!ties || !geom || !tieTracks) return null;
+  const inCol = (i) => geom[i] && x >= geom[i].x0 && x <= geom[i].x0 + geom[i].w;
+  let best = null;
+  let bestD = Infinity;
+  ties.forEach((t, index) => {
+    if (inCol(tieTracks.ref)) {
+      const d = Math.abs(yOf(t.refMd) - y);
+      if (d <= tol && d < bestD) { best = { index, side: 'ref' }; bestD = d; }
+    }
+    if (inCol(tieTracks.target)) {
+      const d = Math.abs(yOf(t.targetMd) - y);
+      if (d <= tol && d < bestD) { best = { index, side: 'target' }; bestD = d; }
+    }
+  });
+  return best;
+}
