@@ -737,7 +737,7 @@ const PetrophysicsHelpGuide = () => (
       <Table
         headers={['Tool', 'Inputs (defaults)', 'Output']}
         rows={[
-          ['SP quicklook', 'SSP (mV) -100, Rmf (ohm·m) 0.5, Formation T (°C) 65', 'K at that temperature and Rwe, the equivalent water resistivity from the static SP'],
+          ['SP route', 'SSP (mV) -100, Rmf (ohm·m) 0.5 measured at (°C) the surface temperature, Formation T (°C) 65', 'K, Rmf at formation temperature, Rmfe with the rule used, Rwe from the static SP, and Rw from Rwe by the Bateman-Konen (1977) fit; Rw is what Apply uses'],
           ['Arps temperature converter', 'Rw 0.1, at T (°C) 25, to T (°C) 65', 'Rw at the second temperature'],
           ['Rw from salinity', 'NaCl (ppm) 30000, Formation T (°C) 65', 'Rw at that temperature through the Bateman and Konen (1977) fit to the Gen-9 chart, plus the salinity your current Rw implies'],
         ]}
@@ -753,12 +753,20 @@ const PetrophysicsHelpGuide = () => (
         When you know the water analysis, this route and a Pickett fit should agree; if they do
         not, the water leg you fitted is probably not fully water bearing.
       </Para>
-      <Callout tone="warn" title="Rwe is applied as Rw">
-        The SP tool treats the equivalent resistivity Rwe as Rw. The Bateman-Konen correction from
-        Rwe to Rw is deliberately not included until a page-referenced source for its coefficients
-        is on file. For fresh formation waters the difference is small; for very saline waters
-        prefer a Pickett or Hingle fit, or a measured sample.
-      </Callout>
+      <SubHeading>The SP route and the Bateman-Konen fit</SubHeading>
+      <Para>
+        The SP route reads SSP, Rmf with the temperature it was measured at, and formation
+        temperature. It converts Rmf to Rmfe (by 0.85 Rmf when Rmf at 75 °F is above 0.1 ohm·m,
+        otherwise by the Bateman-Konen inverse), reads Rwe from SSP and K, and converts Rwe to Rw
+        with the Bateman-Konen (1977) fit to chart SP-2 before applying it. Every value in the
+        chain is shown and the correction is labelled. It is upward for saline waters, small
+        between about 0.1 and 0.3 ohm·m at formation temperature, and grows again toward very
+        fresh water; where the fit fails, above about 2 ohm·m or below 51 °F, the Studio refuses
+        rather than extrapolates and says which limit was crossed. The chart is for NaCl waters.
+        Each apply from any Rw tool names its method under Rw in the parameter panel and in the
+        report, and records who applied it and when in the interpretation&apos;s provenance;
+        retyping Rw clears the method.
+      </Para>
     </GuideSection>
 
     {/* ------------------------------------------------------------------ */}
@@ -1070,9 +1078,11 @@ const PetrophysicsHelpGuide = () => (
       <Para>
         There is no probabilistic multi-mineral solver: porosity comes from one chosen source and
         lithology is a judgement you make on the Density-Neutron plot. Depth shifting is a block
-        shift, with no stretch and squeeze. Rwe from the SP is applied as Rw without a Bateman-Konen
-        correction. The split divider is fixed. None of these are hidden
-        behind a setting.
+        shift, with no stretch and squeeze. The SP route applies the Bateman-Konen fit on both the
+        filtrate and the formation-water side and shows every value in the chain; it assumes NaCl
+        waters, as the chart does. The split divider is fixed. None of this is hidden behind a
+        setting: every capability above is visible in the UI, recorded in provenance, and never a
+        silent default.
       </Para>
     </GuideSection>
 
@@ -1090,7 +1100,7 @@ const PetrophysicsHelpGuide = () => (
           ['Sw, Swt', 'Water saturation; Swt is total water saturation as returned by dual water'],
           ['Swirr', 'Irreducible water saturation, the input to every permeability correlation'],
           ['BVW', 'Bulk volume water, φe × Sw; constant along a Buckles hyperbola at irreducible conditions'],
-          ['Rw, Rwe, Rwb', 'Formation water resistivity; the equivalent value from the SP; bound-water resistivity in dual water'],
+          ['Rw, Rwe, Rwb', 'Formation water resistivity; the equivalent value from the SP, converted to Rw by the Bateman-Konen fit before use; bound-water resistivity in dual water'],
           ['Rsh', 'Shale resistivity used by Simandoux and Indonesia'],
           ['Qv', 'Cation exchange capacity per unit pore volume, the Waxman-Smits clay term'],
           ['a, m, n', 'Archie tortuosity factor, cementation exponent and saturation exponent'],

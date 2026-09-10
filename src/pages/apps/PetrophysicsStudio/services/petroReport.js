@@ -20,7 +20,7 @@ const PARAM_ROWS = [
   ['Matrix slowness (us/m)', 'dtMa'], ['Fluid slowness (us/m)', 'dtFl'],
   ['Sonic model', 'sonicMethod'], ['N-D combine', 'ndMethod'], ['Porosity source', 'phiSource'],
   ['Sw model', 'swMethod'], ['a', 'a'], ['m', 'm'], ['n', 'n'],
-  ['Rw (ohm.m)', 'rw'], ['Rsh (ohm.m)', 'rsh'],
+  ['Rw (ohm.m)', 'rw'], ['Rw method', 'rwMethod'], ['Rsh (ohm.m)', 'rsh'],
   ['Cutoff phi >=', 'cutPhi'], ['Cutoff Vsh <=', 'cutVsh'], ['Cutoff Sw <=', 'cutSw'],
 ];
 

@@ -45,7 +45,10 @@ describe('PetrophysicsHelpGuide', () => {
     }
     // the recorded deferrals are stated, never hidden
     expect(text).toMatch(/no probabilistic multi-mineral solver/i);
-    expect(text).toMatch(/without a Bateman-Konen correction/i);
+    // PT11a: the SP route applies the fit and shows the chain
+    expect(text).toMatch(/Bateman-Konen fit/i);
+    expect(text).toMatch(/shows every value in the chain/i);
+    expect(text).toMatch(/never a silent default/i);
     // conditioned curves are never substituted silently
     expect(text).toMatch(/never substituted silently/i);
     // the LAS export carries only the four core outputs

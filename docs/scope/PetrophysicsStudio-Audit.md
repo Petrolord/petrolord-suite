@@ -90,7 +90,7 @@ Rwe, Pickett fit), net pay with phi/Vsh/Sw cutoffs.
 | B2 | **No permeability estimation.** No Timur, Coates or Wyllie-Rose style estimator exists in the engines petrophysics domain (grep over `packages/engines/engines/petrophysics/` finds none). Poro-perm is the next number every user asks for after Sw. | `packages/engines/engines/petrophysics/` | M (engines-first: oracle + goldens gate, then UI) |
 | B3 | **No environmental corrections or log conditioning.** No despiking, depth-shift or bad-hole flagging before computation; curves are consumed as imported. | no conditioning module in app or engines | M-L (engines-first) |
 | B4 | **No multi-mineral or probabilistic solver.** Deterministic single-model workflow only. Legitimate as a tier decision, but it should be a recorded decision, not an accident. | app + engines | L (only if the owner wants Techlog-class; otherwise record as out of scope) |
-| B5 | **Bateman-Konen Rwe to Rw conversion absent by documented policy.** The engine treats Rwe as Rw in the SP quicklook and says so; the full conversion awaits a page-referenced source per the validation-first rule. Keep the gate; log it here so it is not mistaken for an oversight. | `packages/engines/engines/petrophysics/rw.js:16-20` | S once literature is in hand |
+| B5 | **Bateman-Konen Rwe to Rw conversion: CLOSED 2026-09-10 (PT11a).** The owner supplied the Bateman & Konen (1977, The Log Analyst 18(5) p. 3-11; Asquith & Krygowski 2004 SP chapter) fit, its inverse and the 0.85 Rmfe rule; the engine applies the whole chain with the fit's limits in the header and refuses beyond them. The equation's own page number is still to be verified against the copy in hand before it is recorded here; six SP-2 chart readings gate acceptance (`chart_points.json`). | `packages/engines/engines/petrophysics/rw.js` | done |
 
 ## Band C: Data and UX
 
@@ -137,8 +137,7 @@ at zero extra cost.
 - **Wave E: Field view (C1).** Multi-well side-by-side depth panel for
   cross-well parameter QC. Effort: M.
 - **Recorded, not proposed:** B4 multi-mineral solver (owner decision
-  whether the product aims at that tier), B5 Bateman-Konen (opens when
-  a page-referenced source is provided, per validation doctrine).
+  whether the product aims at that tier), B5 Bateman-Konen: closed 2026-09-10 (PT11a).
 
 ## Cross-product note
 
