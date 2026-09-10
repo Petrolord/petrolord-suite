@@ -126,6 +126,13 @@ export function exportColumns(wellData, outputs) {
     if (outputs?.[key]) cols.push({ key, unit: CANONICAL_UNITS[key.replace(/_Q\d+$/, '')], descr: probDescr(key), data: outputs[key] });
   }
   if (outputs?.PAY_PROB) cols.push({ key: 'PAY_PROB', unit: 'FRAC', descr: 'Pay probability (fraction of realisations flagging pay)', data: outputs.PAY_PROB });
+  // PT11d: the mineral model's fractions, porosity, residual and flag ride along when a run exists
+  for (const key of Object.keys(outputs || {})) {
+    if (/^V_[A-Z0-9_]+$/.test(key) && !/_CUM$/.test(key)) cols.push({ key, unit: 'V/V', descr: `Mineral fraction ${key.slice(2).toLowerCase()} (mineral model)`, data: outputs[key] });
+  }
+  if (outputs?.PHI_MM) cols.push({ key: 'PHI_MM', unit: 'V/V', descr: 'Porosity solved by the mineral model', data: outputs.PHI_MM });
+  if (outputs?.MM_RES) cols.push({ key: 'MM_RES', unit: 'V/V', descr: 'Mineral model residual: largest excursion of a fraction outside 0 to 1 (0 = accepted)', data: outputs.MM_RES });
+  if (outputs?.MM_FLAG) cols.push({ key: 'MM_FLAG', unit: '', descr: 'Mineral model flag: 0 accepted, 1 singular, 2 out of range, 3 missing input', data: outputs.MM_FLAG });
   return cols;
 }
 

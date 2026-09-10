@@ -24,7 +24,14 @@ export const FIELDS = [
   { key: 'grClay', label: 'GR clay (API)' },
   { key: 'vshMethod', label: 'Model', options: ['linear', 'larionov-tertiary', 'larionov-older', 'clavier', 'steiber'] },
   { section: 'Porosity' },
-  { key: 'phiSource', label: 'φt source', options: ['density', 'sonic', 'nd'] },
+  // PT11d: 'mineral' is an explicit choice (never a default) that takes
+  // PHIT from the mineral model's solved porosity
+  { key: 'phiSource', label: 'φt source', options: ['density', 'sonic', 'nd', 'mineral'] },
+  {
+    hint: (d) => (d.phiSource === 'mineral' ? 'PHIT from the mineral model (Mineral model… on the ribbon); no model run means no PHIT, never a fallback.' : null),
+    show: (d) => d.phiSource === 'mineral',
+    testId: 'petro-param-phi-mineral',
+  },
   // PT9: the selected tool's apparent porosity in 100 percent shale;
   // PHIE = PHIT - Vsh * φ shale feeds Sw, cutoffs, k and BVW
   { key: 'phiShale', label: 'φ shale (v/v)' },

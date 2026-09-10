@@ -36,13 +36,16 @@ export const RAMP_PRESETS = {
   lithology: { label: 'Lithology (clean sand to shale)', stops: [{ value: 15, color: '#f5e6a8' }, { value: 150, color: '#5c3a1e' }] },
 };
 
-export const INPUT_SOURCES = ['input:GR', 'input:RHOB', 'input:NPHI', 'input:DT', 'input:RT'];
+export const INPUT_SOURCES = ['input:GR', 'input:RHOB', 'input:NPHI', 'input:DT', 'input:RT', 'input:PEF'];
 export const OUTPUT_SOURCES = ['output:PHIE', 'output:PHIT', 'output:VSH', 'output:SW', 'output:PAY', 'output:TEMP', 'output:KPERM', 'output:BVW'];
 /** PT10d: the percentile twins a probabilistic run produces (numeric percentiles, never P-labels) and the pay probability. */
 export const PROBABILISTIC_SOURCES = [
   ...['PHIE', 'PHIT', 'VSH', 'SW', 'BVW', 'KPERM'].flatMap((k) => ['Q10', 'Q50', 'Q90'].map((q) => `output:${k}_${q}`)),
   'output:PAY_PROB',
 ];
+/** PT11d: the mineral model's outputs (fractions per mineral key, its porosity, residual and flag); the V_ names depend on the model, so the panel lists them from the run. */
+export const MINERAL_FIXED_SOURCES = ['output:PHI_MM', 'output:MM_RES', 'output:MM_FLAG'];
+export const isMineralSource = (s) => typeof s === 'string' && (/^output:V_[A-Z0-9_]+$/.test(s) || MINERAL_FIXED_SOURCES.includes(s));
 export const THRESHOLD_PARAMS = ['cutPhi', 'cutVsh', 'cutSw', 'grClean', 'grClay'];
 
 /**
@@ -65,6 +68,10 @@ export const SOURCE_SCALES = {
   'output:SW': { scale: 'linear', min: 0, max: 1 },
   'output:PAY': { scale: 'linear', min: 0, max: 1 },
   'output:BVW': { scale: 'linear', min: 0, max: 0.3 },
+  'input:PEF': { scale: 'linear', min: 0, max: 10 },
+  'output:PHI_MM': { scale: 'linear', min: 0, max: 0.5 },
+  'output:MM_RES': { scale: 'linear', min: 0, max: 0.5 },
+  'output:MM_FLAG': { scale: 'linear', min: 0, max: 3 },
 };
 
 /** The shape addTrack creates: linear 0 to 1 with at most one curve and nothing else set. */

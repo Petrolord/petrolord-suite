@@ -41,6 +41,8 @@ import { classifyRules } from '../services/ruleFacies';
 import HistogramPanel from './HistogramPanel';
 import ConditioningDialog from './ConditioningDialog';
 import DepthShiftPanel from './DepthShiftPanel';                       // PT11c
+import MineralModelDialog from './MineralModelDialog';                 // PT11d
+import { runMineralModel, ensureMineralTemplate, mineralPublishLogs, mineralSources, mineralSummaryLine } from '../services/mineralModel';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'; // PT11b
 import { useStudioPrefs, SPLIT_DEFAULT, SPLIT_MIN_PERCENT } from '../services/studioPrefs';
 import FieldViewPanel from './FieldViewPanel';
@@ -102,6 +104,11 @@ export default function PetroWorkstation({
   const [probRunning, setProbRunning] = useState(false);
   const [probProgress, setProbProgress] = useState(null);
   const [probMs, setProbMs] = useState(null);
+  // PT11d: the mineral model (persists with the interpretation as
+  // facies._mineral); the run result is transient and re-run on open
+  const [mineralModel, setMineralModel] = useState(null);
+  const [mineralOpen, setMineralOpen] = useState(false);
+  const [mineralResult, setMineralResult] = useState(null);
   const probCancelRef = useRef(null);
   const [zoneParams, setZoneParams] = useState({});     // zoneId -> override patch (PS3)
   const [projectId, setProjectId] = useState('project-dev');
@@ -148,7 +155,8 @@ export default function PetroWorkstation({
         setProjectName(project.name || null);
         if (project.params) setParams((p) => ({ ...p, ...project.params }));
         if (project.facies) {
-          const { _rules, _scenarios, _provenance, _uncertainty, ...byWell } = project.facies;
+          const { _rules, _scenarios, _provenance, _uncertainty, _mineral, ...byWell } = project.facies;
+          setMineralModel(_mineral?.minerals ? _mineral : null);
           setFaciesByWell(byWell);
           setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
           setScenarios(_scenarios && (_scenarios.low || _scenarios.high) ? _scenarios : null);
@@ -285,15 +293,20 @@ export default function PetroWorkstation({
     return null;
   }, [zones, zoneParams]);
 
+  // PT11d: the mineral model's porosity rides into the pipeline as curves.PHI_MM
+  // (used only under the explicit phiSource 'mineral')
+  const mineralHere = mineralResult && wellData && mineralResult.wellId === wellData.wellId ? mineralResult : null;
   const computed = useMemo(() => {
     if (!wellData) return null;
     try {
-      return computeWellZoned(wellData.curves, params, zoneParamList);
+      const curves = mineralHere ? { ...wellData.curves, PHI_MM: mineralHere.outputs.PHI_MM } : wellData.curves;
+      return computeWellZoned(curves, params, zoneParamList);
     } catch (e) {
       setStatus(e.message);
       return null;
     }
-  }, [wellData, params, zoneParamList]);
+  }, [wellData, params, zoneParamList, mineralHere]);
+  const mineralTwins = useMemo(() => (mineralHere ? mineralHere.outputs : {}), [mineralHere]);
 
   // PT9g: the _LOW / _HIGH twins of the outputs, drawn beside the mid curves
   const scenarioTwins = useMemo(() => {
@@ -348,6 +361,43 @@ export default function PetroWorkstation({
       applyProbabilistic();
       await select(wellData.wellId);
       setStatus(`Published ${saved.length} probabilistic curves (percentiles and PAY_PROB) to ${selected.name}.`);
+    } catch (e) {
+      setStatus(e.message);
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  // PT11d: the mineral model. Run is inline (microseconds per sample), the
+  // model persists with the interpretation, every run is a provenance entry
+  const runMineral = useCallback((model) => {
+    if (!wellData) return;
+    try {
+      const res = runMineralModel(wellData, model);
+      setMineralModel(model);
+      setMineralResult({ ...res, wellId: wellData.wellId });
+      recordProvenance({
+        kind: 'mineral-run', minerals: model.minerals, fluid: model.fluid, counts: res.counts,
+        note: `${mineralSummaryLine(res)} Minerals ${model.minerals.join(', ')}, fluid ρ ${model.fluid.rho}.`,
+      });
+      setStatus(mineralSummaryLine(res));
+    } catch (e) {
+      setStatus(e.message);
+    }
+  }, [wellData, recordProvenance]);
+  const applyMineral = useCallback(() => {
+    if (!mineralHere) return;
+    setLayouts((l) => ensureMineralTemplate(l, mineralHere));
+  }, [mineralHere]);
+  const publishMineral = async () => {
+    if (!wellData || !mineralHere) return;
+    setPublishing(true);
+    try {
+      const logs = mineralPublishLogs(wellData, mineralHere, params, { projectId, interpretationName: projectName });
+      const saved = await backend.publishCurves(wellData.wellId, logs, projectId);
+      applyMineral();
+      await select(wellData.wellId);
+      setStatus(`Published ${saved.length} mineral model curves (${mineralHere.names.join(', ')}, PHI_MM, MM_RES, MM_FLAG) to ${selected.name}.`);
     } catch (e) {
       setStatus(e.message);
     } finally {
@@ -470,7 +520,7 @@ export default function PetroWorkstation({
     return resolveTracks(activeTemplate(layouts), {
       curves: wellData.curves,
       logs: wellData.logs,
-      outputs: { ...computed.outputs, ...scenarioTwins, ...probTwins },
+      outputs: { ...computed.outputs, ...scenarioTwins, ...probTwins, ...mineralTwins },
       faciesData,
       facies,
       ruleFacies,
@@ -480,13 +530,13 @@ export default function PetroWorkstation({
       depth: wellData.curves?.DEPT || null,
       keepUnresolved: true, // PT10a: an empty track says why instead of vanishing
     });
-  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, probTwins, params, layouts]);
+  }, [wellData, computed, faciesData, facies, ruleFacies, ruleFaciesData, scenarioTwins, probTwins, mineralTwins, params, layouts]);
 
   // PT10a: why a curve address resolves to nothing right now (layout panel labels)
   const layoutSourceStatus = useCallback((source) => {
     if (!wellData) return null;
-    return sourceStatus(source, { curves: wellData.curves, logs: wellData.logs, outputs: { ...(computed?.outputs || {}), ...scenarioTwins, ...probTwins } });
-  }, [wellData, computed, scenarioTwins, probTwins]);
+    return sourceStatus(source, { curves: wellData.curves, logs: wellData.logs, outputs: { ...(computed?.outputs || {}), ...scenarioTwins, ...probTwins, ...mineralTwins } });
+  }, [wellData, computed, scenarioTwins, probTwins, mineralTwins]);
 
   const addZone = async (z) => {
     const zone = await backend.saveZone(wellData.wellId, z);
@@ -637,6 +687,7 @@ export default function PetroWorkstation({
       ...(ruleFacies ? { _rules: ruleFacies } : {}),
       ...(scenarios ? { _scenarios: scenarios } : {}),
       ...(uncertainty ? { _uncertainty: uncertainty } : {}),
+      ...(mineralModel ? { _mineral: mineralModel } : {}),
       ...(provenance.length ? { _provenance: provenance } : {}),
     },
     zone_params: zoneParams,
@@ -753,13 +804,16 @@ export default function PetroWorkstation({
     setProjectName(project.name || null);
     setParams({ ...DEFAULT_PARAMS, ...(project.params || {}) });
     {
-      const { _rules, _scenarios, _provenance, _uncertainty, ...byWell } = project.facies || {};
+      const { _rules, _scenarios, _provenance, _uncertainty, _mineral, ...byWell } = project.facies || {};
+      setMineralModel(_mineral?.minerals ? _mineral : null);
+      setMineralResult(null);
       setFaciesByWell(byWell);
       setRuleFacies(Array.isArray(_rules) && _rules.length ? _rules : null);
       setScenarios(_scenarios && (_scenarios.low || _scenarios.high) ? _scenarios : null);
       setUncertainty(_uncertainty?.spec ? _uncertainty : null);
     }
     setProbResult(null);
+    setMineralResult(null);
     setProvenance(provenanceOf(project));
     setZoneParams(project.zone_params || {});
     if (project.crossplots && Object.keys(project.crossplots).length) setCrossplotCfg(project.crossplots);
@@ -978,6 +1032,17 @@ export default function PetroWorkstation({
           onClick={() => setProbOpen(true)}
         >
           <Layers className="w-3.5 h-3.5" /> Probabilistic…
+        </button>
+        <button
+          type="button"
+          data-testid="petro-mineral"
+          disabled={!wellData}
+          title="Mineral model: density, neutron and PEF solved for three mineral fractions and porosity with a fixed fluid; refused where the set is singular or a fraction leaves 0 to 1"
+          className="flex items-center gap-1 px-2 py-1 text-xs rounded border
+            border-slate-700 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+          onClick={() => setMineralOpen(true)}
+        >
+          <Layers className="w-3.5 h-3.5" /> Mineral model…
         </button>
         <button
           type="button"
@@ -1318,6 +1383,10 @@ export default function PetroWorkstation({
                 const next = applyDeliberateNone(p, prev);
                 // PT11a: a retyped Rw no longer carries the tool's method
                 if (prev.rwMethod && prev.rwMethod !== 'entered' && next.rw !== prev.rw && next.rwMethod === prev.rwMethod) return { ...next, rwMethod: 'entered' };
+                // PT11d: moving porosity to or from the mineral model is recorded
+                if (next.phiSource !== prev.phiSource && (next.phiSource === 'mineral' || prev.phiSource === 'mineral')) {
+                  recordProvenance({ kind: 'phi-source', from: prev.phiSource, to: next.phiSource, note: `φt source changed from ${prev.phiSource} to ${next.phiSource}.` });
+                }
                 return next;
               });
               setStatus('Parameters applied.');
@@ -1334,6 +1403,7 @@ export default function PetroWorkstation({
             focusTrack={layoutFocus}
             onStatus={setStatus}
             sourceStatus={layoutSourceStatus}
+            mineralSources={mineralSources(mineralHere)}
           />
           {wellData && (
             <TopsPanel
@@ -1447,6 +1517,22 @@ export default function PetroWorkstation({
       />
     )}
     {wellData && (
+      <MineralModelDialog
+        open={mineralOpen}
+        onOpenChange={setMineralOpen}
+        model={mineralModel}
+        result={mineralHere}
+        wellData={wellData}
+        params={params}
+        canPublish={!!selected?.is_own}
+        publishing={publishing}
+        onRun={runMineral}
+        onApply={applyMineral}
+        onPublish={publishMineral}
+        onStatus={setStatus}
+      />
+    )}
+    {wellData && (
       <CurveCalculatorDialog
         open={calcOpen}
         onOpenChange={setCalcOpen}
@@ -1498,7 +1584,7 @@ export default function PetroWorkstation({
         well={selected}
         depthUnit={depthUnit}
         wellData={wellData}
-        outputs={{ ...computed.outputs, ...probTwins }}
+        outputs={{ ...computed.outputs, ...probTwins, ...mineralTwins }}
         params={params}
         zones={zones}
         summaries={summaries}

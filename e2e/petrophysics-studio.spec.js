@@ -1323,3 +1323,29 @@ test('PT11c: Depth shift places ties by clicking, saves GR_DS with the pairs in 
   // the explorer offers GR_DS for GR but never swaps it in by itself
   await expect(page.getByTestId('petro-curve-inventory')).toContainText('GR_DS');
 });
+
+test('PT11d: the mineral model runs on the type well, refuses the gas zone, applies its layout and publishes six curves', async ({ page }) => {
+  await page.goto('/dev/petrophysics-studio');
+  await page.locator('[data-well-name="KETA TYPE-1"]').click();
+  await expect(page.getByTestId('petro-curve-inventory')).toBeVisible();
+  await page.getByTestId('petro-mineral').click();
+  await expect(page.getByTestId('petro-mineral-dialog')).toBeVisible();
+  await expect(page.getByTestId('petro-mineral-tools')).toContainText('PEF mapped');
+  // the golden model: quartz (nphi 0 by the type well's construction), calcite, clay
+  await page.getByTestId('petro-mineral-quartz-nphi').fill('0');
+  await page.getByTestId('petro-mineral-pick-2').selectOption('clay');
+  await page.getByTestId('petro-mineral-run').click();
+  const summary = page.getByTestId('petro-mineral-summary');
+  await expect(summary).toContainText(`${goldens.MINERAL.MM_FLAG.filter((f) => f === 0).length} accepted`);
+  await expect(summary).toContainText('out of range');
+  await page.getByTestId('petro-mineral-apply').click();
+  await expect(page.getByTestId('petro-tracks')).toHaveAttribute('data-track-titles', /Lithology \(quartz, calcite, clay\)/);
+  await page.getByTestId('petro-mineral').click();
+  await page.getByTestId('petro-mineral-publish').click();
+  await expect(page.getByTestId('petro-status')).toContainText('Published 6 mineral model curves');
+  await expect(page.getByTestId('petro-curve-inventory')).toContainText('V_QUARTZ');
+  // the solved porosity feeds the pipeline only through the explicit source
+  await page.getByTestId('petro-param-phiSource').selectOption('mineral');
+  await page.getByTestId('petro-params-apply').click();
+  await expect(page.getByTestId('petro-param-phi-mineral')).toContainText('PHIT from the mineral model');
+});

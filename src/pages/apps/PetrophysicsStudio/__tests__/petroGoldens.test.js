@@ -117,3 +117,16 @@ describe('Pickett fit vs oracle', () => {
     expect(close(aRw, P.a * P.rw)).toBe(true);
   });
 });
+
+// PT11d: the MINERAL golden through the shim (three minerals plus porosity)
+describe('PT11d mineral solver golden', () => {
+  test('recovers the golden fractions, porosity, residual and flags at 1e-12', () => {
+    const { solveMineralCurves } = require('../engine/mineral');
+    const G = goldens.MINERAL;
+    const curves = { RHOB: Float64Array.from(curve('RHOB')), NPHI: Float64Array.from(curve('NPHI')), PEF: Float64Array.from(curve('PEF')) };
+    const model = { minerals: ['quartz', 'calcite', 'clay'].map((k) => ({ key: k, ...G.minerals[k] })), fluid: G.fluid };
+    const { outputs } = solveMineralCurves(curves, model);
+    expect(Array.from(outputs.MM_FLAG)).toEqual(G.MM_FLAG);
+    for (const k of ['PHI_MM', 'V_QUARTZ', 'V_CALCITE', 'V_CLAY', 'MM_RES']) expectMatches(outputs[k], G[k], k);
+  });
+});
