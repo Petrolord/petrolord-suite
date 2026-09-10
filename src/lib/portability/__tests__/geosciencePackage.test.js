@@ -124,12 +124,12 @@ describe('Geoscience package: the type well round trip', () => {
       expect(await sha256Hex(b)).toBe(info.sha256);
     }
     expect(manifest.tables.geo_wells.rows).toBe(1);
-    expect(manifest.tables.geo_wells_logs.rows).toBe(7);
+    expect(manifest.tables.geo_wells_logs.rows).toBe(8); // PT11d: the type well carries PEF
     expect(manifest.tables.geo_wells_tops.rows).toBe(2);
     expect(manifest.tables.geo_wells_zones.rows).toBe(1);
     expect(manifest.tables.geo_surfaces.rows).toBe(1);
     expect(manifest.tables.geoscience_custom_crs.rows).toBe(1);
-    expect(manifest.blobs).toHaveLength(8);
+    expect(manifest.blobs).toHaveLength(9);
     expect(manifest.open.map((o) => o.kind).sort()).toEqual(['las', 'readme', 'tops_csv', 'zmap', 'zones_csv']);
   });
 
@@ -137,7 +137,7 @@ describe('Geoscience package: the type well round trip', () => {
     const las = await pkg.text('open/wells/keta-type-1.las');
     const parsed = parseLas(las);
     expect(parsed.curves[0].mnemonic).toBe('DEPT');
-    expect(parsed.curves.map((c) => c.mnemonic)).toEqual(['DEPT', 'DT', 'GR', 'NPHI', 'RHOB', 'RT', 'VSH']);
+    expect(parsed.curves.map((c) => c.mnemonic)).toEqual(['DEPT', 'DT', 'GR', 'NPHI', 'PEF', 'RHOB', 'RT', 'VSH']);
     for (const c of parsed.curves) {
       const row = source._logRows.find((l) => l.mnemonic === c.mnemonic);
       const original = source._samples[row.id];
@@ -162,7 +162,7 @@ describe('Geoscience package: the type well round trip', () => {
 
   test('rows are dumped as stored, one JSON object per line', async () => {
     const lines = (await pkg.text('data/geo_wells_logs.jsonl')).trim().split('\n');
-    expect(lines).toHaveLength(7);
+    expect(lines).toHaveLength(8);
     const vsh = lines.map((l) => JSON.parse(l)).find((r) => r.mnemonic === 'VSH');
     expect(vsh.provenance.input_log_ids).toEqual([source._logRows[2].id]);
     const crs = (await pkg.text('data/geoscience_custom_crs.jsonl')).trim();
@@ -203,7 +203,7 @@ describe('Geoscience package: the type well round trip', () => {
     const readme = await pkg.text('README.txt');
     expect(readme).toMatch(/PETROLORD PROJECT PACKAGE/);
     expect(readme).toMatch(/well: KETA TYPE-1/);
-    expect(readme).toMatch(/geo_wells_logs: 7 rows/);
+    expect(readme).toMatch(/geo_wells_logs: 8 rows/);
     expect(readme).toMatch(/Field interp/);
     expect(readme).not.toContain('—');
   });
@@ -216,7 +216,7 @@ describe('Geoscience package: roots and refusals', () => {
     expect(built.manifest.tables.geo_wells.rows).toBe(2);
     expect(built.manifest.tables.petro_projects.rows).toBe(2); // Field interp (root) + Type well interp (now fully inside)
     expect(built.manifest.tables.geo_correlation_sections.rows).toBe(1);
-    expect(source.calls.downloads).toBe(7);
+    expect(source.calls.downloads).toBe(8);
     expect(built.manifest.scope.roots[0]).toEqual({ kind: 'petro_project', id: PETRO_OUT, name: 'Field interp' });
   });
 

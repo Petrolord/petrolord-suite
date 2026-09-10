@@ -153,8 +153,8 @@ describe('PP2 import: the type well arrives as an independent copy', () => {
       const survivors = [...allUuids(rows)].filter((id) => oldIds.has(id));
       expect({ table, survivors }).toEqual({ table, survivors: [] });
     }
-    expect(result.summary.rowsWritten).toBe(1 + 7 + 1 + 1 + 1 + 1);
-    expect(result.summary.blobsWritten).toBe(8);
+    expect(result.summary.rowsWritten).toBe(1 + 8 + 1 + 1 + 1 + 1); // PT11d: the type well carries PEF, 8 log rows
+    expect(result.summary.blobsWritten).toBe(9);
   });
 
   test('blobs land under the importer prefix at the paths the rows point to, byte for byte', () => {
@@ -240,7 +240,7 @@ describe('PP2 import: the type well arrives as an independent copy', () => {
     const job = [...sink.store.jobs.values()][0];
     expect(job.status).toBe('done');
     expect(job.rows_written).toBe(result.summary.rowsWritten);
-    expect(job.blobs_written).toBe(8);
+    expect(job.blobs_written).toBe(9);
     expect(sink.store.items).toHaveLength(result.summary.rowsWritten);
     const item = sink.store.items.find((i) => i.old_id === WELL);
     expect(item.new_id).toBe(sink.store.rows.geo_wells[0].id);
@@ -253,8 +253,8 @@ describe('PP2 import: the type well arrives as an independent copy', () => {
     await importPackage(bytes, sink2);
     expect(sink2.store.rows.geo_wells).toHaveLength(2);
     expect(sink2.store.rows.geo_wells[0].id).not.toBe(sink2.store.rows.geo_wells[1].id);
-    expect(sink2.store.rows.geo_wells_logs).toHaveLength(14);
-    expect(sink2.store.blobs.size).toBe(16);
+    expect(sink2.store.rows.geo_wells_logs).toHaveLength(16); // 7 curves (incl. PEF since PT11d) + VSH per copy
+    expect(sink2.store.blobs.size).toBe(18); // 8 log blobs + 1 surface per copy
     const ids = allUuids(sink2.store.rows.geo_wells_logs);
     expect(ids.has(sink2.store.rows.geo_wells[0].id) && ids.has(sink2.store.rows.geo_wells[1].id)).toBe(true);
   });
@@ -383,7 +383,7 @@ describe('PP2 import: resume after a failure', () => {
     const job = [...sink.store.jobs.values()][0];
     expect(job.status).toBe('failed');
     const writtenBefore = sink.store.rows.geo_wells.length + sink.store.rows.geo_wells_logs.length;
-    expect(writtenBefore).toBe(8);
+    expect(writtenBefore).toBe(9);
 
     // resume: same plan (same new ids), same sink, failure cleared
     const pkg = await readPackage(bytes);
