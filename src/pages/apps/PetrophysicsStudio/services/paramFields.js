@@ -9,6 +9,15 @@
 // field when the current model does not use it); { hint, show } is a
 // formula line.
 
+/** PT11a: how the current Rw was obtained (params.rwMethod); absent means typed. */
+export const RW_METHOD_LABELS = {
+  'sp-bateman-konen': 'SP route with the Bateman-Konen (1977) Rwe to Rw fit',
+  arps: 'Arps temperature conversion',
+  salinity: 'NaCl salinity through the Bateman-Konen Gen-9 fit',
+  pickett: 'Pickett water-line fit',
+  entered: 'typed',
+};
+
 export const FIELDS = [
   { section: 'Vsh (GR)' },
   { key: 'grClean', label: 'GR clean (API)' },
@@ -38,6 +47,12 @@ export const FIELDS = [
   { key: 'm', label: (d) => (d.swMethod === 'waxman-smits' ? 'm* (shaly rock)' : 'm') },
   { key: 'n', label: (d) => (d.swMethod === 'waxman-smits' ? 'n* (shaly rock)' : 'n') },
   { key: 'rw', label: (d) => (d.tempMode === 'linear' ? 'Rw @ ref T (ohm·m)' : 'Rw @ FT (ohm·m)') },
+  // PT11a: never a silent default; the panel says where Rw came from
+  {
+    hint: (d) => (d.rwMethod && RW_METHOD_LABELS[d.rwMethod] ? `Rw from the ${RW_METHOD_LABELS[d.rwMethod]}; retype Rw to replace it.` : null),
+    show: (d) => !!d.rwMethod && d.rwMethod !== 'entered',
+    testId: 'petro-param-rw-method',
+  },
   { key: 'rwRefTempC', label: 'Rw ref T (°C)', show: (d) => d.tempMode === 'linear' || d.swMethod === 'waxman-smits' },
   { key: 'rsh', label: 'Rsh (ohm·m)', show: (d) => ['simandoux', 'indonesia', 'mod-simandoux'].includes(d.swMethod) },
   { key: 'qv', label: 'Qv (meq/cm³)', show: (d) => d.swMethod === 'waxman-smits' },

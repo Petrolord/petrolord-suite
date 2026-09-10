@@ -18,6 +18,10 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const goldens = JSON.parse(fs.readFileSync(
   path.join(here, '..', 'packages', 'engines', 'test-data', 'petrophysics', 'goldens.json'), 'utf8',
 ));
+// PT11a: the type-well SP case (SSP solved so the chain returns Rw = 0.05)
+const analytic = JSON.parse(fs.readFileSync(
+  path.join(here, '..', 'packages', 'engines', 'test-data', 'petrophysics', 'analytic_cases.json'), 'utf8',
+));
 // PT9: the pipeline runs on shale-corrected PHIE, whose goldens live in EFFECTIVE
 const goldenNet = (zone) => goldens.EFFECTIVE.ZONES[zone].summary.net_m.toFixed(1);
 
@@ -396,6 +400,30 @@ test('PS5: Rw tools apply through Arps; Waxman-Smits at Qv=0 reproduces the Arch
   await page.getByTestId('petro-rw-sal-apply').click();
   await expect(page.getByTestId('petro-param-rw')).toHaveValue(String(Number(rwSal.toFixed(6))));
   await expect(page.getByTestId('petro-status')).toContainText('30000 ppm NaCl');
+
+  // PT11a: the SP route runs the whole chain (Rmf -> Rmfe -> Rwe -> Rw by
+  // Bateman-Konen) and applies Rw, never Rwe; the type-well case returns
+  // the construction Rw = 0.05 exactly and names its method
+  const spCase = analytic.sp_chain_typewell;
+  const fToC = (f) => ((f - 32) * 5) / 9;
+  await page.getByTestId('petro-rwtools').click();
+  await page.getByTestId('petro-rw-ssp').fill(String(spCase.in.ssp_mv));
+  await page.getByTestId('petro-rw-rmf').fill(String(spCase.in.rmf));
+  await page.getByTestId('petro-rw-rmf-tempc').fill(String(fToC(spCase.in.rmf_t_f)));
+  await page.getByTestId('petro-rw-tempc').fill(String(fToC(spCase.in.t_f)));
+  await expect(page.getByTestId('petro-rw-sp-rmfe')).toContainText('by 0.85 Rmf');
+  await expect(page.getByTestId('petro-rw-sp-result')).toContainText('Rwe = 0.04245');
+  await expect(page.getByTestId('petro-rw-sp-rw')).toContainText('Rw = 0.05 ');
+  await page.getByTestId('petro-rw-sp-apply').click();
+  await expect(page.getByTestId('petro-param-rw')).toHaveValue('0.05');
+  await expect(page.getByTestId('petro-param-rw-method')).toContainText('Bateman-Konen');
+  // and a value beyond the chart is refused, not extrapolated
+  await page.getByTestId('petro-rwtools').click();
+  await page.getByTestId('petro-rw-ssp').fill('0');
+  await page.getByTestId('petro-rw-rmf').fill('8');
+  await expect(page.getByTestId('petro-rw-sp-problem')).toContainText('beyond the chart');
+  await expect(page.getByTestId('petro-rw-sp-apply')).toBeDisabled();
+  await page.keyboard.press('Escape');
 
   // back to the construction Rw, then Waxman-Smits with Qv = 0 and a
   // manual B: the exact Archie reduction must land the same net pay

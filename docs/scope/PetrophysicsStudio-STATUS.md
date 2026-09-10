@@ -84,9 +84,9 @@ five legacy-route redirects are all live on petrolord.com.
 - Validation: dual implementation vs `tools/validation/petrophysics/`
   (independence rule — the oracle is never written from the legacy or
   engine JS). Numeric contract in test-data/petrophysics/README.md.
-- Bateman-Konen Rwe→Rw is deliberately OUT of v1 (no verifiable open
-  source for the coefficients); the SP chain is the documented
-  quicklook approximation.
+- Bateman-Konen Rwe→Rw was OUT of v1 (no verifiable open source for the
+  coefficients); shipped in PT11a (2026-09-10) once the owner supplied
+  the equation with citations.
 - The legacy `src/utils/petrophysicsCalculations.js` stays untouched
   until its consumers die at G2.6 (PetrophysicsEstimator still uses it).
 
@@ -619,3 +619,23 @@ P-labels on outcomes only, and the one-time migration of a stored
 `none`. The help guide states the convention in one sentence with the
 Sw example. Testers: reopen the shared interpretation first and confirm
 the k track before anything else.
+
+## 2026-09-10: PT11a, Bateman-Konen Rwe to Rw (audit B5 closed)
+
+The SP route in Rw tools is now the whole chain: Rmf with the
+temperature it was measured at, Arps to formation temperature, Rmfe by
+the 0.85 rule (Rmf at 75 °F above 0.1 ohm·m) or the Bateman-Konen
+inverse, Rwe from SSP and K, and Rw from Rwe by the Bateman and Konen
+(1977, The Log Analyst 18(5) p. 3-11) fit to chart SP-2, as the owner
+supplied it on 2026-09-10 with its check point (150 °F, Rwe 0.050 gives
+Rw 0.0564). The value applied is Rw; every intermediate is shown and
+the correction is labelled. Beyond the chart (denominator at or below
+zero, roughly above 2 ohm·m; at or below 50.8 °F) the card refuses
+with the reason and Apply is disabled; nothing is extrapolated. Every
+apply from any Rw tool writes `params.rwMethod` (a hint under Rw in the
+parameter panel, a row in the PDF parameter table) and a provenance
+entry with who and when into the interpretation; retyping Rw clears
+the method. Engines #159 (oracle written from the paper, nine gates,
+`chart_points.json` waiting for six SP-2 readings that gate acceptance,
+not the build). The help guide's limitation paragraph now says the SP
+route applies the fit on both sides and assumes NaCl waters.

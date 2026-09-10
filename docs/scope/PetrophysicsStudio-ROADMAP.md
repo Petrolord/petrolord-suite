@@ -36,7 +36,8 @@ harness stays the demo and e2e surface, STATUS.md updated per wave.
   constrained weighted least squares and per-tool calibration UI are an
   L–XL program with validation costs the oracle doctrine makes very
   large; revisit on adoption signal.
-- Bateman-Konen Rwe→Rw stays gated on a page-referenced source (B5).
+- Bateman-Konen Rwe→Rw: gate B5 CLOSED 2026-09-10 (PT11a) with the
+  owner-supplied equation and citations; see the PT11 series.
 - Canvas fills are implemented natively in the TrackViewer
   (`viewer/fills.js`); the orphaned SVG fill utilities were deleted in
   PS1. `src/utils/trackUtils.js` and `depthTrackUtils.js` remain as
@@ -849,3 +850,566 @@ Pro's MonteCarloEngine delegates to.
 - PT10e close-out 2026-09-09: help guide (Probabilistic cases, the
   convention in one sentence with the Sw example, the FAQ entry), STATUS
   close-out, full Suite jest, prod zip recut. Series complete.
+
+## PT11 series (help-guide gaps, 2026-09-10)
+
+Closes the four items under "What the Studio does not do" in the
+Petrophysics Studio help guide (PetrophysicsHelpGuide.jsx:1069-1076).
+Plan reviewed and approved by the owner 2026-09-10 ("proceed with the
+implementation of the plans"); the review page is
+https://claude.ai/code/artifact/8fbdf46c-1bb0-46c1-b9bf-1dac186d996f.
+Same shape as PT10: one branch and one PR per wave with base `main`;
+engine work lands in Petrolord/petrolord-engines first with jest gates,
+is subtree-pulled into `packages/engines/`, and reaches the Studio
+through the existing two-line `engine/*.js` shims; then the Studio,
+then help guide, STATUS and ROADMAP. Order: PT11a, PT11b, PT11c, PT11d.
+PT11b is a commit inside the PT11c PR because both edit the Split view
+switch in PetroWorkstation.jsx:1220-1227. PT11e (solver stage two) is
+planned here so PT11d does not preclude it, and is NOT scheduled.
+
+| Wave | Gap | Engine PR? | One line | Size |
+|---|---|---|---|---|
+| PT11a Bateman-Konen | Rwe applied as Rw | yes | `rweToRw` / `rwToRwe` / `rmfeFromRmf` from Bateman and Konen 1977 with the limits in the header, NaN outside them; the SP card shows the whole chain and applies Rw; recorded in interpretation provenance and the published params | small (1 to 1.5 days); build now, acceptance waits on six chart readings |
+| PT11b Split divider | divider fixed | no | Draggable divider from the shared `resizable.jsx` primitive, 25 percent minimum pane, double-click reset to 60/40, position per user in a new `studioPrefs` service | small (half a day), rides in the PT11c PR |
+| PT11c Stretch and squeeze | block shift only | yes | `depthShiftTiePoints` piecewise-linear warp, constant beyond the outer ties, refuses crossing ties; the shift function is a first-class object on the `_DS` curve, re-applied on read, every edit recorded with who, when and the pairs; shift panel with side-by-side tracks, click-to-place ties, shift track, undo, reset to raw | medium (3 to 4 days) |
+| PT11d Multi-mineral, stage one | no multi-mineral solver | yes | `engines/petrophysics/mineral.js`: density, neutron and U (from PEF) plus closure solved for three minerals and porosity with a fixed fluid from an editable endpoint table with published defaults; singular and out-of-range samples refused with a flag and a residual; mineral model dialog, solved-lithology track, residual track, publish; explicit `phiSource: mineral` | large (6 to 7 days) |
+| PT11e Multi-mineral, stage two | (planned, not scheduled) | yes | Weighted least squares with per-tool sigma and optional bound constraints over the same endpoint table; starts only after PT11d ships and a customer asks | large |
+
+The one help-guide rule for every wave: the replacement paragraph keeps
+the sentence that nothing is hidden behind a setting, and each new
+capability is visible in the UI, recorded in provenance, and never a
+silent default.
+
+### PT11a: Bateman-Konen Rwe to Rw (and Rmf to Rmfe)
+
+**Source (supplied 2026-09-10; closes audit item B5 / plan Q4).**
+Primary: Bateman, R. M. and Konen, C. E., 1977, "The log analyst and
+the programmable pocket calculator," The Log Analyst, v. 18, no. 5,
+p. 3-11. Secondary: Asquith, G. and Krygowski, D., 2004, Basic Well Log
+Analysis, 2nd edition, AAPG Methods in Exploration 16, the spontaneous
+potential chapter. The engine header cites both; the audit entry
+records the equation's own page number only after it is verified
+against the copy in hand (the article's page range and the book's
+chapter are confident, the equation page is not). The engine work does
+not wait on that verification; recording it in the audit does.
+
+**The equation.** Bateman and Konen's fit to the Schlumberger Rw versus
+Rweq chart (SP-2 in current editions, Gen-9 in older ones), T in degF,
+resistivities in ohm.m, logs base 10:
+
+    A  = 0.131 * 10^(1 / log10(T / 19.9) - 2)
+    B  = 10^(0.0426 / log10(T / 50.8))
+    Rw = (Rwe + A) / (B - 0.5 * Rwe)                 forward
+    Rwe = (Rw * B - A) / (1 + 0.5 * Rw)              inverse, the filtrate side
+
+Preceding step, in scope for completeness: SSP = -K log10(Rmfe / Rwe),
+K = 61 + 0.133 T. The filtrate side takes Rmf at formation temperature
+(Arps) through the inverse to Rmfe, except that when Rmf at 75 degF
+exceeds 0.1 ohm.m the standard convention Rmfe = 0.85 Rmf is used
+instead of the chart.
+
+Check point, verified here: T = 150 degF, Rwe = 0.050 gives A = 0.0181,
+B = 1.232, Rw = 0.0564. The correction is upward at the saline end.
+Mapping the fit shows where it is small: at 150 degF it is within 4
+percent between Rwe 0.1 and 0.3, grows again above 0.5 (+6 percent at
+0.5, +39 percent at 1.0) and is singular at Rwe = 2B (2.46 at 150 degF,
+3.57 at 75 degF); at 75 degF it runs 20 to 26 percent BELOW Rwe between
+0.2 and 0.5. The chart readings arbitrate whether that low-temperature
+band is the chart or the fit; one reading at 75 degF near Rwe 0.3 is
+on the request list for that reason.
+
+**Scope.** The SP route becomes the full chain: Rmf at its measured
+temperature, Arps to formation temperature, Rmfe by the 0.85 rule or
+the inverse, Rwe from SSP and K, Rw by the forward equation. The value
+that reaches Sw is Rw. Every intermediate value is shown. NaCl waters
+only, as the chart assumes; the card says so.
+
+**Engine (engines repo, `engines/petrophysics/rw.js`; the Suite needs
+no new shim, `engine/rw.js` re-exports everything).**
+- `rweToRw(rweOhmm, tempF)`: the forward equation. Header: both
+  citations, the equation, and the limits. Returns NaN (the
+  petrophysics refusal convention, vsh.js:7-11: invalid input is NaN,
+  never a silent default) when the denominator `B - 0.5 Rwe` is zero
+  or negative (the fit is meaningless there, roughly Rwe above 2 ohm.m
+  at formation temperatures), when T is at or below 50.8 degF (the
+  second log goes to zero), when T is outside the temperature range
+  printed on the chart (read and recorded in the header when the chart
+  is read for the golden points), or when Rwe is not positive. No
+  extrapolation, no clamping.
+- `rwToRwe(rwOhmm, tempF)`: the inverse, same limits, NaN when the
+  result is not positive.
+- `rmfeFromRmf(rmf, rmfTempF, tempF)`: Arps to 75 degF for the 0.1
+  test and to `tempF` for the value; returns `{ rmfe, rule: 'x0.85' |
+  'chart-inverse' }` so the card can say which was used. The boundary
+  is pinned: at exactly 0.1 the inverse is used, above it the 0.85 rule.
+- `rwFromSsp(sspMv, rmf, rmfTempF, tempF)`: the whole chain, returning
+  `{ k, rmfAtT, rmfe, rmfeRule, rwe, rw }` from one call. `rweFromSsp`
+  keeps its signature and loses the deferral note.
+- `RWE_TO_RW_DOMAIN` and `rweToRwProblem(rwe, tempF)`, a sentence or
+  null naming the limit crossed (the `entryProblem` pattern in
+  services/probabilistic.js), so the dialog can explain a refusal.
+- Oracle: `rwe_to_rw`, `rw_to_rwe`, `rmfe_from_rmf` in
+  tools/validation/petrophysics/oracle.py written from the paper, never
+  from the JS; `analytic_cases.json` regenerated; new
+  `test-data/petrophysics/chart_points.json` for the owner's SP-2
+  readings with citation and per-point precision, empty until read.
+
+**Validation gates (engines jest `__tests__/petrophysics.rw.test.js`,
+mirrored in the Suite `petroAnalytic.test.js`).**
+1. Check point: `rweToRw(0.050, 150)` = 0.0564 to three significant
+   figures, and A and B individually to the stated values.
+2. Golden set: every point in `chart_points.json` (at least six, read
+   off the chart directly and never off another implementation: both
+   ends, at least two temperatures, and one at 75 degF near Rwe 0.3)
+   bracketed within its stated reading precision. The build does not
+   block on the readings; acceptance does.
+3. Oracle agreement at 1e-12 relative on the analytic cases, forward,
+   inverse and Rmfe.
+4. Inverse round trip: `rwToRwe(rweToRw(x, T), T)` = x to 1e-12 across
+   the domain at three temperatures.
+5. Fresh-water case: at 150 degF and Rwe = 0.30 the correction is under
+   3 percent, pinned as a number; the help text describes the band
+   rather than claiming negligibility everywhere.
+6. Refusal: denominator at or below zero, T at or below 50.8 degF, T
+   outside the chart range, non-positive Rwe, all NaN, and
+   `rweToRwProblem` names the limit.
+7. The 0.85 rule boundary at Rmf(75 degF) = 0.1, both sides pinned.
+8. Type well direction: the generator gains an SP case at the SAND A
+   midpoint (T = 150 degF, Rmf and SSP chosen so the chain returns Rw
+   = 0.05 exactly, which puts the uncorrected Rwe at 0.0425); the
+   corrected Sw reproduces `SW_ARCHIE`, and the uncorrected Rwe gives
+   a lower SAND A Sw because the correction is upward there. The test
+   asserts the direction from the sign of `rw - rwe` in the golden.
+9. Arps ordering pinned: the chain runs at formation temperature, then
+   `rwAtTemp` carries Rw to the reference temperature shown in the
+   parameter panel.
+
+**Studio.**
+- RwToolsDialog.jsx SP card (78-110): inputs SSP, Rmf, Rmf measured at
+  (degC, default the surface temperature parameter), formation T
+  (degC). Shows K, Rmf at formation T, Rmfe with "by 0.85 Rmf" or "by
+  the Bateman-Konen inverse", Rwe, and Rw with "Rw from Rwe by
+  Bateman-Konen (1977)" and the limits in a caption. `Apply as Rw`
+  applies Rw. Outside the limits the card shows the refusal sentence
+  and the button is disabled; there is no uncorrected apply. The
+  callout at 756-758 ("Rwe is applied as Rw") and the glossary entry
+  are rewritten.
+- Provenance: `applyRw` (60-64) records an entry in the
+  interpretation's `facies._provenance` (projectState.js:39-43): `{
+  at, by, kind: 'rw-apply', method: 'sp-bateman-konen' | 'arps' |
+  'salinity', inputs: { ssp, rmf, rmfTempC, tempC }, rmfe, rmfeRule,
+  rwe, rw }`, `by` from `registryBackend.currentUserId()` (`'dev'` in
+  the harness). Params gain `rwMethod`, a read-only string in the
+  parameter panel and the PDF parameter table, so every published
+  curve's `params` says how Rw was obtained. No migration: absent
+  means "entered". InterpretationBar renders the new kind like the
+  migration entries.
+
+**Persistence.** Nothing beyond the above; `rwMethod` is a params key
+and the provenance entry is jsonb in `facies`.
+
+**Help guide.** Rw tools section: "The SP route reads SSP, Rmf with the
+temperature it was measured at, and formation temperature. It converts
+Rmf to Rmfe (by 0.85 Rmf when Rmf at 75 degF is above 0.1 ohm.m,
+otherwise by the Bateman-Konen inverse), reads Rwe from SSP and K, and
+converts Rwe to Rw with the Bateman-Konen (1977) fit to the SP-2 chart
+before applying it. Every value in the chain is shown and the
+correction is labelled. It is upward for saline waters, small between
+about 0.1 and 0.3 ohm.m at formation temperature, and grows again
+toward very fresh water; where the fit fails, above about 2 ohm.m or
+below 51 degF, the Studio refuses rather than extrapolates and says
+which limit was crossed. The chart is for NaCl waters." Limitation
+paragraph after this wave: "There is no probabilistic multi-mineral
+solver: porosity comes from one chosen source and lithology is a
+judgement you make on the Density-Neutron plot. Depth shifting is a
+block shift, with no stretch and squeeze. The SP route applies the
+Bateman-Konen fit on both the filtrate and the formation-water side
+and shows every value in the chain; it assumes NaCl waters, as the
+chart does. The split divider is fixed. None of this is hidden behind
+a setting: every capability above is visible in the UI, recorded in
+provenance, and never a silent default." helpGuide.test.jsx:48 changes
+from `/without a Bateman-Konen correction/` to `/Bateman-Konen fit/`
+plus `/shows every value in the chain/`.
+
+**Docs.** STATUS entry, ROADMAP wave log, Audit B5 closed with both
+citations and the verified page, the deferral paragraph in
+`test-data/petrophysics/README.md` replaced by the equations and limits.
+
+### PT11b: Resizable split divider
+
+**Scope.** The Split view (PetroWorkstation.jsx:1220-1227, tracks
+`flex-[3]` beside the crossplot `flex-[2]`, a static border) becomes a
+draggable pair. No engine change. Rides in the PT11c PR as its own
+commit because PT11c adds a fourth view to the same switch.
+
+**Studio.**
+- Replace the flex pair with `ResizablePanelGroup` / `ResizablePanel` /
+  `ResizableHandle withHandle` from `src/components/ui/resizable.jsx`
+  (react-resizable-panels 2.1.7, already a dependency), the first
+  nested group inside a WorkspaceShell `center` slot in the Suite; the
+  handle takes the shell's classes (WorkspaceShell.jsx:55-87). Default
+  60/40, `minSize` 25 percent on both panes (about 250 px at the
+  shell's 1000 px minimum; the library takes percentages, so the plan
+  states the minimum as a percentage), double-click on the handle
+  resets to 60/40 through the panel's imperative `resize`.
+- Persistence per user: the Studio has no preferences store today
+  (nothing under `hooks/` or `services/` writes localStorage; the outer
+  shell relies on the library's own `autoSaveId`, which is per browser,
+  not per user). New `services/studioPrefs.js`: one JSON blob per user
+  under `petrophysicsstudio.prefs.<userId>.v1` in localStorage, wrapped
+  in try/catch, the `useReservoirSettings` pattern; `splitPercent` is
+  its first key. The group uses `onLayout` to write and `defaultSize`
+  to read, not `autoSaveId`, so the prefs service owns the value and
+  later keys (depth unit is an obvious second) share the file.
+  Decision for the owner: per user on this browser (recommended, no
+  migration) or a `petro_user_prefs` table for cross-device (a
+  migration, staging-first; not in this wave's estimate).
+
+**Gates.** Jest `studioPrefs.test.js`: round trip under a fake
+localStorage, two user ids never see each other's value, a corrupt blob
+falls back to the default. e2e on the harness: drag the handle, reload,
+the split is within one percent of where it was; double-click returns
+60/40. helpGuide.test.jsx gains `/drag the divider/`.
+
+**Help guide.** Crossplots section line 643 becomes: "The Split view
+puts Tracks and the crossplot side by side, 60/40 to start. Drag the
+divider to change it; double-click the divider to reset. The position
+is remembered for you on this browser." The limitation paragraph loses
+"The split divider is fixed."
+
+### PT11c: Stretch and squeeze depth shifting
+
+**Scope.** Tie-point shifting beside the block shift. The user places
+matched depth pairs between a reference curve and the curve being
+shifted; the warp is piecewise linear between ties and a constant
+shift beyond the outermost ones. The raw curve is never rewritten; the
+shift function is stored as a first-class object with the shifted
+curve, re-applied on read, reversible from the UI, and every edit is
+recorded with who, when and the pairs.
+
+**Interpolation, stated.** The track display does not interpolate: it
+plots each sample at its own depth (trackRender.js:34-95). The only
+resampler the Studio has is the block shift's, conditioning.js:74-98:
+linear interpolation between the two raw samples bracketing the
+requested depth, NaN outside the raw extent, and a null on either side
+of the bracket gives NaN so gaps are never bridged. The tie-point shift
+uses exactly that resampler, and the help guide says so.
+
+**Engine (engines repo, `engines/petrophysics/conditioning.js`).**
+- `tiePointWarp(pairs)`: validates `[[refMd, targetMd], ...]` and
+  returns `{ ok: true, warp }` or `{ ok: false, error }` (the structured
+  refusal the production engines use for fits, chokePerformance.js:88).
+  Refused: fewer than one finite pair, duplicate reference depths, or
+  ties that cross (reference and target sequences must both increase
+  strictly when sorted by reference depth). `warp(z)` maps an output
+  depth to the raw depth it reads from: piecewise linear through the
+  pairs, `z + (targetOuter - refOuter)` beyond the outer ties.
+- `depthShiftTiePoints(depth, x, pairs)`: `out[i]` = the block shift's
+  bracketing linear interpolation of `x` at `warp(depth[i])`. Zero
+  pairs is the identity; one pair is a block shift.
+- `shiftCurve(depth, pairs)`: `warp(z) - z` per sample, the
+  shift-versus-depth track.
+- The scope guard at conditioning.js:5-8 is rewritten to describe both
+  shifts. `depthShiftBlock` is unchanged.
+- Oracle: `tie_point_shift` in oracle.py; generator adds a COND golden
+  (`GR_TIE_SHIFTED`, `SHIFT_CURVE`, the pairs) to goldens.json.
+
+**Validation gates (engines jest, new `__tests__/petrophysics.conditioning.test.js`,
+and the Suite `conditioning.test.js` extended).**
+1. Identity: no ties returns the input byte for byte.
+2. One tie equals `depthShiftBlock` byte for byte.
+3. Exact recovery: a piecewise-linear synthetic curve with nodes on
+   the grid, warped through known ties placed on grid nodes, is
+   recovered to 1e-12 by the inverse ties; a smooth synthetic (sine) is
+   recovered within the linear-interpolation bound, computed in the
+   test from the second derivative and the step.
+4. Constant beyond the outer ties: the shift curve is flat outside
+   them and equals the outer pair's difference.
+5. Monotonicity refusal: crossing ties return `{ ok: false }` with a
+   sentence naming the two pairs; duplicate reference depths likewise.
+6. Nulls never bridged, NaN outside the raw extent, the existing block
+   shift invariants re-asserted on the tie path.
+7. Golden: the COND block at 1e-12.
+8. Suite: save and reload round trip through the in-memory backend
+   (publish `GR_DS`, reopen the well, the row's `provenance.shift`
+   pairs equal what was placed, and re-applying them to the raw curve
+   reproduces the stored samples byte for byte).
+
+**Studio.**
+- New view `shift` beside tracks / crossplot / split
+  (`components/DepthShiftPanel.jsx`, ribbon button `Depth shift`). One
+  TrackViewer over the well's depth with three tracks: the reference
+  curve, the target (raw in grey, shifted in colour, both from the
+  `log:` addresses resolveTracks already serves), and a `SHIFT` linear
+  track in metres or feet. Tie points draw as connectors between the
+  first two tracks with the pair's depths on the tag.
+- Click to place: `pickMode = 'tie'` in TrackViewer, the two-click
+  zone pick pattern (TrackViewer.jsx:518-531): first click on the
+  reference track, second on the target track, snapped to the nearest
+  sample when `snapSamples` is on. `hitTieAt` joins `hitTopAt` and
+  `hitZoneEdgeAt` in `src/components/wells/hitTest.js` so a tie can be
+  dragged; Delete removes the hovered tie; a pair list beside the
+  tracks allows typed edits. Every change re-runs
+  `depthShiftTiePoints` live.
+- Undo: a history stack in the panel (the digitizer pattern,
+  DigitizerDialog.jsx:54,205), Ctrl+Z and a button. Reset to raw:
+  clears the ties and, if a `_DS` row exists, deletes it after a
+  confirm that names the row.
+- Save publishes `<KEY>_DS` (a new suffix; `_CND` stays for the other
+  operations so a shift can sit on top of a despiked curve). The
+  explorer picker accepts `_DS` beside `_CND` (curveMap.js:55-60), the
+  pipeline never substitutes it. ConditioningDialog's block-shift card
+  gains a pointer to the panel and loses the out-of-scope disclaimer
+  (215-219).
+- Fix in passing: ConditioningDialog provenance omits `project_id`, so
+  `publishCurves` never replaces a re-saved `_CND` row and duplicates
+  accumulate (registryBackend.js:26-35). Both dialogs set it.
+
+**Persistence and provenance.**
+- The shifted curve is a registry row (`geo_wells_logs`) whose samples
+  are the applied result, because every consumer indexes rows on the
+  shared grid and other apps read rows. The shift function is the
+  source of truth and rides in the row's `provenance`:
+  `{ computed, engine: 'petrophysics-studio', operation:
+  'depth-shift', method: 'tie-points', project_id, input_log_ids:
+  [source, reference], shift: { reference: { mnemonic, logId },
+  source: { mnemonic, logId }, pairs, interpolation:
+  'linear-bracketing', beyond: 'constant', edits: [{ at, by, pairs }]
+  } }`. `by` from `currentUserId()`; every Save appends an edit with
+  the full pair list. The raw row is never written.
+- Apply on read: when the panel opens on a `_DS` curve it reads the
+  pairs back from the row, re-applies them to the raw source, and
+  shows any mismatch with the stored samples (none expected; the
+  round-trip gate pins it). Reversible: edit the ties and save again,
+  or reset.
+- The in-progress ties (unsaved) live in panel state, not the
+  interpretation; the interpretation records nothing new.
+
+**Help guide.** Conditioning section gains "Stretch and squeeze":
+"Open Depth shift from the ribbon, pick a reference curve and the curve
+to move, and click a depth on each to place a tie. Between ties the
+shift is linear; beyond the outermost ties it is constant. The shift
+track shows the shift at every depth. Resampling is linear between the
+two raw samples on either side of the requested depth, the same as the
+block shift, and a null on either side stays null. Save writes a new
+curve named with the suffix DS; the raw curve is never changed, the
+ties are stored with the new curve and can be reopened, edited or
+reset, and every save records who placed which pairs and when. Undo
+steps back through your edits." Limitation paragraph after this wave:
+"There is no probabilistic multi-mineral solver: porosity comes from
+one chosen source and lithology is a judgement you make on the
+Density-Neutron plot. Depth shifting is per curve, block or by tie
+points, not a whole-well warp. The SP route applies the Bateman-Konen fit
+on both the filtrate and the formation-water side and shows every value
+in the chain; it assumes NaCl waters, as the chart does. None of
+this is hidden behind a setting: every capability above is visible in
+the UI, recorded in provenance, and never a silent default."
+
+### PT11d: Multi-mineral solver, stage one (deterministic)
+
+**Scope.** Density, neutron and photoelectric factor solved
+simultaneously for three mineral fractions plus porosity with a fixed
+fluid, as a linear system, from a configurable endpoint table with
+published defaults. Refuse singular systems and fractions outside zero
+to one, report a residual, show a solved-lithology track and a residual
+track, publish the fractions. Nothing about this is a default: the
+model exists only when the user builds one, and porosity comes from it
+only when the user picks it.
+
+**Formulation.** Unknowns v1, v2, v3, phi. Equations: bulk density =
+sum(vi rho_i) + phi rho_f; neutron = sum(vi n_i) + phi n_f; volumetric
+photoelectric absorption U = sum(vi U_i) + phi U_f, with U = Pe times
+electron density exactly as `uMaa` does today (matrix.js:21, rho_e =
+(rho_b + 0.1883)/1.0704), because U is volumetrically linear and Pe is
+not; closure v1 + v2 + v3 + phi = 1. A 4 by 4 system per sample. With
+four equations and four unknowns the fit residual is identically zero,
+so the stage-one residual is defined as the excursion: the largest
+amount by which any fraction leaves zero to one (0 for an accepted
+sample). The tool-space residual that means something arrives with
+stage two's over-determined fit. This definition is a decision to
+record; the alternative (tool-space misfit of the nearest feasible
+solution) costs a projection step and is better done once as stage
+two.
+
+**Engine (engines repo, new `engines/petrophysics/mineral.js`).**
+- `MINERAL_ENDPOINTS`: quartz, calcite, dolomite, anhydrite, halite,
+  and a user-editable clay row, each with `rho`, `nphi` (limestone
+  porosity units, the same assumption as the density-neutron plot),
+  `pe`, and `u` derived; the neutron values for the three main
+  minerals are imported from `ND_LITHOLOGY_LINES` in crossplot.js so
+  one constant owns them; the source (Schlumberger Log Interpretation
+  Charts and Doveton 1994) in the header. Fluid defaults rho 1.0, nphi
+  1.0, U 0.398 (the `uMaa` default). The table schema carries optional
+  `sigma` per tool and optional `dt` and `gr` columns now, unused in
+  stage one, so stage two is additive.
+- `solveMineralSample(tools, model)`: `tools = { rhob, nphi, pef }`,
+  `model = { minerals: [m1, m2, m3], fluid }`. Returns `{ ok, v: [v1,
+  v2, v3], phi, residual, flag, reason }`; `flag` 0 accepted, 1
+  singular (pivot below 1e-12, the `twoMineralSolve` guard), 2 out of
+  range (a fraction or phi outside zero to one beyond 1e-9), 3 missing
+  input. Refused samples carry NaN fractions and the excursion in
+  `residual`; an `unclamped` field keeps the raw solution because a
+  negative volume is information the UI can chart (matrix.js:65-67).
+- Dispatch by mineral count: one mineral calls `phiDensity` directly
+  (so the byte match is by construction and documented); two minerals
+  with density and neutron delegate to `twoMineralSolve`; three use
+  the 4 by 4 path.
+- The solver reuses `solveDense` (Gaussian elimination with partial
+  pivoting) promoted from `engines/earthmodeling/properties.js:13` to
+  `lib/linalg/solveDense.js`, with earthmodeling importing from there;
+  no new solver, and the throw is caught into flag 1.
+- `solveMineralCurves(curves, model)`: per-sample loop writing
+  `V_<MINERAL>` for each of the three, `PHI_MM`, `MM_RES`, `MM_FLAG`
+  as Float64Array, plus counts.
+- `pipeline.js`: `phiSource` gains the explicit value `'mineral'`,
+  which reads `curves.PHI_MM` (computed by the Studio before the run)
+  and lists it under `missing` when absent. The default stays
+  `'density'`; PIPELINE_VERSION 6.
+- Oracle: `three_mineral_solve` in oracle.py with its own elimination
+  (never numpy over the JS path, never the JS); generator adds a PEF
+  curve to `typewell.json` from a forward model in which SAND A and
+  SAND B are quartz with a stated calcite fraction and the shale
+  fraction is the clay endpoint, so `construction.phi_true` and
+  `construction.shale_fraction` become the recovery targets; goldens
+  gain a MINERAL block. Adding a curve to the type well is checked
+  against every test that reads it (pipeline, goldens, publish).
+
+**Validation gates (engines jest, new `__tests__/petrophysics.mineral.test.js`;
+Suite `petroGoldens.test.js` gains the MINERAL block).**
+1. Exact recovery: synthetic three-mineral cases (quartz, calcite,
+   dolomite at known fractions and porosity, forward-modelled through
+   the same endpoints) recovered to 1e-12, including a pure-mineral
+   corner and a zero-porosity case.
+2. Collapse to one: with one mineral the solver output equals
+   `phiDensity` byte for byte over the type well (`PHID` golden).
+3. Collapse to two with density and neutron equals `twoMineralSolve`
+   to 1e-12 (the `two_mineral_ss_dol` analytic case).
+4. Singular: two identical minerals, or a mineral equal to the fluid,
+   returns flag 1 with a reason and NaN, never a number.
+5. Out of range: a point outside the mineral triangle returns flag 2,
+   NaN fractions, the excursion in `residual`, and the `unclamped`
+   solution reconstructs the tools to 1e-12.
+6. Type well: the MINERAL golden (recovered `phi_true` and
+   `shale_fraction` where the forward model holds, flags elsewhere)
+   bracketed at 1e-12; SAND A porosity through `phiSource: 'mineral'`
+   reproduces the `PHID` golden where the model is quartz only.
+7. Pipeline invariant: every other `phiSource` is byte-identical to
+   PIPELINE_VERSION 5 output.
+
+**Studio.**
+- `components/MineralModelDialog.jsx`, ribbon `Mineral model…`:
+  the endpoint table (editable, Reset to published), three mineral
+  picks, fluid fields, the tool requirement line (PEF must be mapped;
+  PEF joins `INPUT_SOURCES` in layoutSchema.js so it can be picked in
+  the explorer and shown as an input track), Run, then a summary:
+  accepted, singular, out-of-range counts and the worst excursion. No
+  worker: a 4 by 4 solve per sample is microseconds, so it runs
+  inline like `computeWell`; the PT10d worker pattern is not needed
+  and the plan says so.
+- `services/mineralModel.js`: `defaultMineralModel`, `runMineralModel`
+  (calls the engine, stores results in workstation state keyed by
+  well id, the `probResult` pattern), `ensureMineralTemplate` (a
+  "Mineral model" layout: a solved-lithology track drawn as cumulative
+  fraction curves v1, v1+v2, v1+v2+v3 with crossover fills between
+  neighbours in the density-neutron lithology colours, so `fills.js`
+  needs no new renderer; a `PHI_MM` track; an `MM_RES` track 0 to 0.5
+  with a threshold fill; the flag counts in the track header note),
+  `mineralPublishLogs` (the `probabilisticPublishLogs` shape:
+  `V_<MINERAL>` x3, `PHI_MM`, `MM_RES`, `MM_FLAG`, provenance
+  `operation: 'mineral-model'`, the endpoint table, fluid, tools,
+  `pipeline_version`, `input_log_ids`), CSV columns.
+- Parameter panel: `phiSource` shows the fourth option `mineral` only
+  after a model has been run for the well, with a read-only line
+  naming the three minerals and the fluid; the status line says
+  "PHIT from the mineral model" whenever it is in force. Zone CSV, PDF
+  report and the interpretation bar carry the model.
+- `MINERAL_SOURCES` join `OUTPUT_SOURCES` in the layout dropdown (the
+  PT10d `PROBABILISTIC_SOURCES` precedent); the PT10a note explains an
+  empty mineral track ("run Mineral model… first").
+
+**Persistence and provenance.** The model (minerals, endpoint
+overrides, fluid) persists in `facies._mineral` beside `_uncertainty`,
+no migration; a `facies._provenance` entry `{ at, by, kind:
+'mineral-run', minerals, fluid, counts }` on every run, and
+`{ kind: 'phi-source', from, to }` when `phiSource` moves to or from
+`mineral`. Published curves carry the full model in provenance.
+
+**Not suited to (help guide and dialog say the same words).** Clay-rich
+and shaly rocks (clay endpoints vary by clay type and the model has no
+bound water; use the Vsh methods and a shale-corrected PHIE), gas-
+bearing intervals (the fluid is fixed, so gas moves density and
+neutron in opposite directions and the sample lands outside the
+triangle), heavy-mineral or pyrite-bearing rocks and barite mud (Pe is
+dominated by them), coal, washed-out hole without conditioning, and
+any rock with more than three minerals present at once.
+
+**Help guide.** New section "Mineral model" (section id `mineral`,
+added to the navigation list the help test enumerates): what the
+solver does, the four equations in words, the endpoint table and
+where its defaults come from, the refusal flags and what the residual
+means in stage one, the list above, and that the published fractions
+carry the whole model. Limitation paragraph after this wave: "The
+mineral model solves three minerals and porosity from density, neutron
+and PEF with a fixed fluid; there is no probabilistic solver yet, so
+tool uncertainties are not weighed and more than three minerals are
+refused. Depth shifting is per curve, block or by tie points, not a
+whole-well warp. The SP route applies the Bateman-Konen fit on both the
+filtrate and the formation-water side and shows every value in the
+chain; it assumes NaCl waters, as the chart does. None of this is
+hidden behind a setting: every capability above is visible in the UI,
+recorded in provenance, and never a silent default."
+
+### PT11e: Multi-mineral solver, stage two (planned, not scheduled)
+
+Starts only after PT11d has shipped and a customer has asked. Weighted
+least squares over the same endpoint table: per-tool sigma from the
+table's `sigma` column (defaults from tool specifications, stated),
+optional extra tools (DT and GR through the `dt` and `gr` columns), up
+to four minerals when the system is over-determined, optional bound
+constraints v in zero to one and closure held exactly. Normal equations
+through `cholesky` in lib/stats (already vendored); bounds through an
+active-set pass, no new Monte Carlo. The residual becomes the weighted
+tool-space misfit, and `MM_RES` changes meaning with a version bump on
+the provenance. Gates: reduces to stage one byte for byte when the
+system is square and every sigma is equal; recovers synthetic cases
+with known noise within the stated sigma; refuses when fewer equations
+than unknowns. Stage one keeps the door open by the table schema, the
+`flag` and `residual` fields, and the `V_<MINERAL>` naming.
+
+### Recorded decisions (PT11)
+
+1. B5 source: supplied 2026-09-10 (Bateman and Konen 1977, The Log
+   Analyst 18(5) p. 3-11; Asquith and Krygowski 2004 SP chapter).
+   Still needed: the equation's page number verified against the copy
+   in hand before it goes in the audit, the temperature range printed
+   on the chart, and six or more SP-2 readings with precision
+   including one at 75 degF near Rwe 0.3. The build does not wait;
+   acceptance does.
+2. Divider persistence: per user on this browser (recommended) or a
+   `petro_user_prefs` table.
+3. Shifted-curve suffix `_DS` and the rule that ties are per curve
+   against one reference.
+4. Stage-one residual as the excursion from zero to one, and
+   `phiSource: 'mineral'` as an explicit fourth option that never
+   becomes a default.
+5. Stage two waits for a customer request.
+
+### Wave log (PT11)
+
+- Planned 2026-09-10; the owner supplied the Bateman-Konen equation,
+  its inverse, the 0.85 Rmfe rule, both citations, the refusal
+  conditions and a check point the same day, and approved the plan.
+- PT11a built 2026-09-10: engines #159 merged and subtree-pulled
+  (`rweToRw`, `rwToRwe`, `rmfeFromRmf`, `rwFromSsp`, `rweToRwProblem`,
+  `RWE_TO_RW_DOMAIN`; oracle from the paper; analytic cases incl. the
+  check point and the type-well SP chain; `chart_points.json` for the
+  SP-2 readings, gate pending until read; nine jest gates). Suite: the
+  Rw tools SP card shows the whole chain and applies Rw, refuses beyond
+  the chart with the reason, every apply names its method
+  (`params.rwMethod`, parameter-panel hint, report row) and records a
+  `facies._provenance` entry with who and when (`backend.whoAmI`);
+  retyping Rw clears the method. Help guide, `rwTools.test.jsx`,
+  `petroAnalytic` mirror, e2e step. Audit B5 closed. Note against the
+  plan text: the chart's printed temperature range is not yet enforced
+  (`tempFMax: null`, stated in the header) because it has not been
+  read; the six chart readings remain the acceptance gate.

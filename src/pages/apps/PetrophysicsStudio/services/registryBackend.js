@@ -158,5 +158,7 @@ export function makeRegistryBackend() {
     saveProjectAs,
     renameProject,
     deleteProject,
+    /** PT11a: the signed-in user id for provenance `by`; null when signed out. */
+    async whoAmI() { try { return await currentUserId(); } catch { return null; } },
   };
 }

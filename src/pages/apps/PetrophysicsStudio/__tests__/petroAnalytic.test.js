@@ -8,7 +8,9 @@ import fs from 'fs';
 import path from 'path';
 import { igr, vshLarionovTertiary, vshLarionovOlder, vshClavier, vshSteiber, vshFromGr } from '../engine/vsh';
 import { phiDensity, phiSonicWyllie, phiSonicRhg, phiNd, phiShaleCorrected, clampDisplay } from '../engine/porosity';
-import { rwArps, spK, rweFromSsp, pickettFit, rwFromSalinity, salinityFromRw } from '../engine/rw';
+import {
+  rwArps, spK, rweFromSsp, pickettFit, rwFromSalinity, salinityFromRw, rweToRw, rwToRwe, rmfeFromRmf, rwFromSsp, rweToRwProblem,
+} from '../engine/rw';
 import { swArchie, swSimandoux, swIndonesia, swCurve } from '../engine/sw';
 import { netPay, sampleThickness } from '../engine/netpay';
 
@@ -41,6 +43,23 @@ describe('analytic scalar cases', () => {
     expect(close(rwArps(0.1, 75, 150), AC.arps_75_to_150.out)).toBe(true);
     expect(close(spK(150), 80.95)).toBe(true);
     expect(close(rweFromSsp(-100, 0.5, 150), AC.sp_quicklook.out)).toBe(true);
+  });
+
+  test('PT11a Bateman-Konen Rwe to Rw, inverse, Rmfe and the type-well chain match the oracle cases', () => {
+    expect(rweToRw(0.05, 150)).toBeCloseTo(0.0564, 4);
+    expect(close(rweToRw(0.05, 150), AC.bk_check_point_150f.out)).toBe(true);
+    expect(close(rweToRw(0.30, 150), AC.bk_fresh_band_150f.out)).toBe(true);
+    expect(close(rweToRw(rwToRwe(0.12, 200), 200), AC.bk_inverse_roundtrip.out)).toBe(true);
+    expect(close(rmfeFromRmf(0.5, 75, 150).rmfe, AC.bk_rmfe_x085.out)).toBe(true);
+    expect(rmfeFromRmf(0.5, 75, 150).rule).toBe('x0.85');
+    expect(close(rmfeFromRmf(0.05, 75, 150).rmfe, AC.bk_rmfe_inverse.out)).toBe(true);
+    const c = AC.sp_chain_typewell;
+    const out = rwFromSsp(c.in.ssp_mv, c.in.rmf, c.in.rmf_t_f, c.in.t_f);
+    expect(close(out.rw, c.rw)).toBe(true);
+    expect(out.rw).toBeGreaterThan(out.rwe); // upward at the saline end
+    expect(Number.isNaN(rweToRw(3, 150))).toBe(true);
+    expect(rweToRwProblem(3, 150)).toMatch(/beyond the chart/);
+    expect(rweToRwProblem(0.05, 40)).toMatch(/50\.8/);
   });
 
   test('Rw from salinity (PT9d) and its inverse match the oracle cases', () => {

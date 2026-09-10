@@ -139,6 +139,7 @@ export function makeInMemoryBackend() {
   const PROJECT_KEY = 'petro.dev.project.v1';
 
   return {
+    async whoAmI() { return 'dev'; },
     async listWells() { return [...wells]; },
     async listLogs(wellId) { return [...(logsByWell.get(wellId) || [])]; },
     async downloadCurve(log) {

@@ -248,6 +248,14 @@ export default function PetroWorkstation({
   }, [selectedId, select]);
 
   // keep the per-well facies map in sync with the live editor
+  // PT11a: interpretation provenance entries (who, when, what) appended by
+  // the tools; persisted in facies._provenance with the interpretation
+  const recordProvenance = useCallback(async (entry) => {
+    let by = null;
+    try { by = backend.whoAmI ? await backend.whoAmI() : null; } catch { by = null; }
+    setProvenance((list) => [...list, { at: new Date().toISOString(), by, ...entry }]);
+  }, [backend]);
+
   const setFaciesForWell = useCallback((next) => {
     setFacies(next);
     if (selectedId) setFaciesByWell((m) => ({ ...m, [selectedId]: next }));
@@ -1253,7 +1261,15 @@ export default function PetroWorkstation({
         <ScrollArea className="h-full min-h-0 bg-slate-900/60 border-l border-slate-800/60">
           <ParameterPanel
             params={params}
-            onApply={(p) => { setParams((prev) => applyDeliberateNone(p, prev)); setStatus('Parameters applied.'); }}
+            onApply={(p) => {
+              setParams((prev) => {
+                const next = applyDeliberateNone(p, prev);
+                // PT11a: a retyped Rw no longer carries the tool's method
+                if (prev.rwMethod && prev.rwMethod !== 'entered' && next.rw !== prev.rw && next.rwMethod === prev.rwMethod) return { ...next, rwMethod: 'entered' };
+                return next;
+              });
+              setStatus('Parameters applied.');
+            }}
             zones={zones}
             zoneParams={zoneParams}
             onApplyZone={applyZoneParams}
@@ -1416,8 +1432,10 @@ export default function PetroWorkstation({
       open={rwToolsOpen}
       onOpenChange={setRwToolsOpen}
       onApplyParams={(patch) => setParams((p) => ({ ...p, ...patch }))}
+      onProvenance={recordProvenance}
       currentRw={params.rw}
       currentRwTempC={params.rwRefTempC}
+      surfaceTempC={params.surfaceTempC}
       onStatus={setStatus}
     />
     {wellData && computed && (
