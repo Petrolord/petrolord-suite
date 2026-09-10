@@ -17,7 +17,7 @@ import { PETRO_PROJECT_KIND, petroProjectKindSpec, stripTransient } from './proj
 // seeded in the pre-PT9a shape migrates here exactly as it does in prod
 registerStateKind(PETRO_PROJECT_KIND, petroProjectKindSpec);
 
-const CURVE_UNITS = { DEPT: 'M', GR: 'GAPI', RHOB: 'G/C3', NPHI: 'V/V', DT: 'US/M', RT: 'OHMM' };
+const CURVE_UNITS = { DEPT: 'M', GR: 'GAPI', RHOB: 'G/C3', NPHI: 'V/V', DT: 'US/M', RT: 'OHMM', PEF: 'B/E' };
 
 let seq = 0;
 const nextId = (p) => { seq += 1; return `${p}-${seq}`; };

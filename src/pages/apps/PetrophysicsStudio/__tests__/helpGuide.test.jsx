@@ -21,7 +21,7 @@ describe('PetrophysicsHelpGuide', () => {
     for (const id of [
       'overview', 'quickstart', 'wells', 'tracks', 'layouts', 'parameters', 'zones',
       'interpretations', 'crossplots', 'histograms', 'conditioning', 'rwtools', 'field',
-      'publish', 'export', 'units', 'validation', 'pitfalls', 'glossary',
+      'mineral', 'publish', 'export', 'units', 'validation', 'pitfalls', 'glossary',
     ]) {
       expect(document.getElementById(`section-${id}`)).not.toBeNull();
     }
@@ -44,7 +44,12 @@ describe('PetrophysicsHelpGuide', () => {
       expect(text).toContain(m);
     }
     // the recorded deferrals are stated, never hidden
-    expect(text).toMatch(/no probabilistic multi-mineral solver/i);
+    // PT11d: the deterministic solver exists; the probabilistic one is the stated gap
+    expect(text).not.toMatch(/no probabilistic multi-mineral solver/i);
+    expect(text).toMatch(/there is no probabilistic solver yet/i);
+    expect(text).toMatch(/refused and flagged, never clamped/i);
+    expect(text).toMatch(/Not suited to/);
+    expect(text).toMatch(/Gas-bearing intervals/);
     // PT11a: the SP route applies the fit and shows the chain
     expect(text).toMatch(/Bateman-Konen fit/i);
     expect(text).toMatch(/shows every value in the chain/i);

@@ -672,3 +672,46 @@ it in by itself. In passing: ConditioningDialog now writes `project_id`
 so a re-saved `_CND` replaces its row instead of duplicating. The help
 guide's limitation paragraph now says depth shifting is per curve,
 block or by tie points, and keeps its closing sentence.
+
+## 2026-09-10: PT11d, multi-mineral solver (stage one)
+
+`Mineral model…` on the ribbon solves density, neutron and PEF together
+for three mineral fractions and porosity with a fixed fluid, one 4 by 4
+linear system per sample with U = Pe × ρe so the photoelectric term
+mixes by volume (engines #161, `engines/petrophysics/mineral.js`, the
+elimination shared from `lib/linalg/solveDense`). The endpoint table
+ships with published defaults (Schlumberger chart-book minerals, Doveton
+1994; neutron endpoints in limestone units shared with the
+density-neutron plot) and is editable per well with Reset to published;
+the model persists with the interpretation and every run is a
+provenance entry. A sample whose fractions leave zero to one is refused
+and flagged with the excursion as the residual, a set the tools cannot
+separate is refused as singular, nothing is clamped. Apply to tracks
+adds the Mineral model layout (stacked lithology, solved porosity beside
+the pipeline porosity, residual); Publish writes `V_<MINERAL>` per
+mineral plus `PHI_MM`, `MM_RES` and `MM_FLAG` with the whole model in
+provenance; the CSV carries them. The solved porosity reaches the
+pipeline only through the explicit φt source `mineral` (PIPELINE_VERSION
+6), with a hint and a provenance entry on the change; with no run there
+is no PHIT, never a fallback. The type well gained a PEF curve from its
+own quartz + clay + fluid construction, so the golden recovers
+`phi_true` and the shale fraction off the gas zone and refuses the gas
+zone. The help guide gains a Mineral model section whose "not suited to"
+list is the dialog's own words, and the limitation paragraph now names
+the probabilistic stage two as the remaining gap.
+
+## PT11 series close-out (2026-09-10)
+
+Four waves for the help guide's four stated gaps, planned and approved
+the same day: PT11a #458 (Bateman-Konen on both sides of the SP chain,
+audit B5 closed, engines #159), PT11b + PT11c #459 (resizable Split
+divider with per-user preferences; tie-point stretch and squeeze with
+the shift as a first-class object on the `_DS` row, engines #160), PT11d
+(this; engines #161). The limitation paragraph keeps its closing
+sentence: none of this is hidden behind a setting, every capability is
+visible in the UI, recorded in provenance, and never a silent default.
+Still owed by the owner: the Bateman-Konen equation page verified in
+the copy in hand, the chart's printed temperature range, six SP-2 chart
+readings for `chart_points.json` (the acceptance gate for PT11a), and
+whether Studio preferences should move to a table for cross-device use.
+Stage two of the solver (PT11e) waits for a customer request.

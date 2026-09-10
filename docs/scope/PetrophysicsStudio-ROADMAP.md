@@ -1440,3 +1440,46 @@ than unknowns. Stage one keeps the door open by the table schema, the
   (incl. the save-and-reload round trip), `depthShiftPanel.test.jsx`,
   `studioPrefs.test.js`, hitTest, conditioning and curveMap additions,
   help guide test, two e2e walks.
+- PT11d built 2026-09-10 (engines #161 merged and subtree-pulled):
+  `engines/petrophysics/mineral.js` (three minerals plus porosity from
+  density, neutron and U with a fixed fluid; `MINERAL_ENDPOINTS` with
+  published defaults, neutron endpoints shared with crossplot.js;
+  per-sample flags singular / out of range / missing, the excursion as
+  the stage-one residual, the unclamped solution kept; one mineral
+  dispatches to `phiDensity`, two to `twoMineralSolve`), `solveDense`
+  promoted to `lib/linalg`, `phiSource: 'mineral'` reading
+  `curves.PHI_MM` (PIPELINE_VERSION 6), the type well gains a PEF curve
+  from its own quartz + clay + fluid construction and a MINERAL golden
+  (recovers phi_true and the shale fraction off the gas zone; the gas
+  zone is refused, the fixed-fluid assumption failing as it should).
+  Suite: `Mineral model…` dialog (endpoint table with Reset to
+  published, three picks, fluid, tool line, Run inline, counts and
+  worst excursion, the not-suited list, Apply to tracks, Publish),
+  `services/mineralModel.js` (model in `facies._mineral`, run result
+  transient, the "Mineral model" layout with a stacked lithology track
+  from cumulative fractions and the existing threshold and crossover
+  fills, publish of `V_<MINERAL>` x3 + PHI_MM + MM_RES + MM_FLAG with
+  the whole model in provenance), `phiSource` gains the explicit
+  `mineral` option with a hint (never a default; no run means no PHIT),
+  a `mineral-run` and a `phi-source` provenance entry, PEF as an input
+  source, mineral addresses in the layout dropdown, CSV columns, help
+  guide section whose not-suited words are the dialog's own constant.
+  Notes against the plan text: (1) the forward model's quartz neutron
+  endpoint is 0.0 because the v1 type well reads NPHI = phi in clean
+  sand, so the MINERAL golden stores its own table rather than the
+  chart-book default; (2) the `mineral` option is always listed rather
+  than appearing after a run, because hiding it would be a setting;
+  the hint and the pipeline's `missing` line say when it has nothing to
+  read. Gates: engines 8; Suite `mineralModel.test.js` (in-memory run
+  on the type well against the golden, template, publish, export
+  columns, phiSource mineral through the pipeline),
+  `mineralModelDialog.test.jsx`, `petroGoldens` MINERAL block, help
+  guide test; e2e walk.
+- Series close-out 2026-09-10: PT11a #458, PT11b + PT11c #459, PT11d
+  (this PR). Every limitation the help guide listed on 2026-09-09 is
+  either delivered or restated as the remaining gap (the probabilistic
+  stage two), with the closing sentence kept. Owed by the owner: the
+  Bateman-Konen equation page verified in the copy in hand, the chart's
+  printed temperature range, six SP-2 readings (`chart_points.json`),
+  and the cross-device preferences decision. PT11e waits for a
+  customer request.

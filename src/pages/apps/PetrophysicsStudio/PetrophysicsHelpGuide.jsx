@@ -13,6 +13,7 @@
 
 import React from 'react';
 import { CURVE_ALIASES } from './services/curveMap';
+import { MINERAL_UNSUITED } from './services/mineralModel';
 import {
   BookOpen, Zap, Database, Layers, LayoutTemplate, Sliders, Rows, Save,
   ScatterChart, BarChart3, Wand2, Droplets, Columns, UploadCloud, FileDown,
@@ -38,6 +39,7 @@ const sections = [
   { id: 'histograms', icon: BarChart3, title: 'Histograms and cutoffs' },
   { id: 'conditioning', icon: Wand2, title: 'Conditioning curves' },
   { id: 'rwtools', icon: Droplets, title: 'Rw quicklook tools' },
+  { id: 'mineral', icon: Layers, title: 'Mineral model' },
   { id: 'field', icon: Columns, title: 'Field view' },
   { id: 'publish', icon: UploadCloud, title: 'Publish, batch, digitize' },
   { id: 'export', icon: FileDown, title: 'Export deliverables' },
@@ -786,6 +788,39 @@ const PetrophysicsHelpGuide = () => (
     </GuideSection>
 
     {/* ------------------------------------------------------------------ */}
+    <GuideSection id="mineral">
+      <SectionHeading icon={Layers}>Mineral model</SectionHeading>
+      <Para>
+        <Code>Mineral model…</Code> on the ribbon solves density, neutron and PEF together for three
+        mineral fractions and porosity with a fixed fluid, one linear system per sample: bulk density,
+        neutron porosity and the volumetric photoelectric index U (Pe times electron density, because U
+        mixes by volume and Pe does not) each equal the volume-weighted sum of their endpoints, and the
+        fractions plus porosity sum to one. Pick three minerals from the endpoint table (quartz, calcite,
+        dolomite, anhydrite, halite and a clay row you edit per well; the published defaults come from
+        the Schlumberger Log Interpretation Charts mineral table and Doveton 1994, neutron endpoints in
+        limestone units), edit any endpoint, set the fluid, and press Run. RHOB, NPHI and PEF must all
+        be mapped.
+      </Para>
+      <Para>
+        A sample is accepted only when every fraction and the porosity sit between zero and one; a
+        sample that leaves that range is refused and flagged, never clamped, and the residual track
+        shows by how much (the excursion). A mineral set the three tools cannot separate is refused as
+        singular. A determined system has no fit residual, so the residual here is that excursion; the
+        tool-space misfit arrives with the planned weighted stage two. Apply to tracks adds the Mineral
+        model layout (a stacked lithology track in the mineral colours, the solved porosity beside your
+        pipeline porosity, and the residual). Publish writes one curve per fraction plus PHI_MM, MM_RES
+        and MM_FLAG to the registry, each carrying the whole endpoint table, the fluid and the counts.
+        The model persists with the interpretation, every run is a provenance entry, and the solved
+        porosity feeds the pipeline only if you pick φt source <Code>mineral</Code> in Parameters (that
+        change is recorded too); with no run there is no PHIT rather than a fallback.
+      </Para>
+      <SubHeading>Not suited to</SubHeading>
+      <ul className="list-disc pl-5 text-sm text-slate-300 space-y-1" data-testid="petro-help-mineral-unsuited">
+        {MINERAL_UNSUITED.map((t) => <li key={t}>{t}</li>)}
+      </ul>
+    </GuideSection>
+
+    {/* ------------------------------------------------------------------ */}
     <GuideSection id="field">
       <SectionHeading icon={Columns}>Field view</SectionHeading>
       <Para>
@@ -1092,9 +1127,10 @@ const PetrophysicsHelpGuide = () => (
       </Para>
       <SubHeading>What the Studio does not do</SubHeading>
       <Para>
-        There is no probabilistic multi-mineral solver: porosity comes from one chosen source and
-        lithology is a judgement you make on the Density-Neutron plot. Depth shifting is per curve,
-        block or by tie points, not a whole-well warp. The SP route applies the Bateman-Konen fit on
+        The mineral model solves three minerals and porosity from density, neutron and PEF with a
+        fixed fluid; there is no probabilistic solver yet, so tool uncertainties are not weighed and
+        more than three minerals are refused. Depth shifting is per curve, block or by tie points, not
+        a whole-well warp. The SP route applies the Bateman-Konen fit on
         both the filtrate and the formation-water side and shows every value in the chain; it assumes
         NaCl waters, as the chart does. None of this is hidden behind a setting: every capability
         above is visible in the UI, recorded in provenance, and never a silent default.
@@ -1125,6 +1161,7 @@ const PetrophysicsHelpGuide = () => (
           ['MD, TVD', 'Measured depth; true vertical depth from the deviation survey'],
           ['KEY_CND', 'A conditioned copy of the input KEY saved by the Condition dialog'],
           ['KEY_DS', 'A depth-shifted copy of KEY saved by the Depth shift view, with its tie points in provenance'],
+          ['V_MINERAL, PHI_MM, MM_RES, MM_FLAG', 'The mineral model\'s fraction per mineral, its solved porosity, the residual (excursion outside zero to one) and the flag (0 accepted, 1 singular, 2 out of range, 3 missing input)'],
           ['Interpretation', 'A named saved state: parameters, zone overrides, layouts, facies and crossplot settings'],
           ['Provenance', 'The record on every published curve of how it was computed'],
         ]}

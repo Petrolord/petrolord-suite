@@ -41,6 +41,7 @@ export function sourceStatus(source, ctx) {
     if (key === 'TEMP') return 'TEMP needs the linear temperature model (Parameters, Temperature)';
     if (/_(LOW|HIGH)$/.test(key)) return `${key} not computed: run Low/High… first`;
     if (/_Q(10|50|90)$/.test(key) || key === 'PAY_PROB') return `${key} not computed: run Probabilistic… first`;
+    if (/^V_[A-Z0-9_]+$/.test(key) || key === 'PHI_MM' || /^MM_/.test(key)) return `${key} not computed: run Mineral model… first`;
     return `${key} not computed on this run`;
   }
   if (kind === 'input') return `${key} is not loaded on this well`;
