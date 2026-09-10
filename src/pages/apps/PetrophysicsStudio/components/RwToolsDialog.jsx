@@ -14,7 +14,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { rwArps, rwFromSsp, rweToRwProblem, rwFromSalinity, salinityFromRw } from '../engine/rw';
+import { rwArps, rwFromSsp, rweToRwProblem, rwToRweProblem, rweBand, rwFromSalinity, salinityFromRw } from '../engine/rw';
 import { RW_METHOD_LABELS } from '../services/paramFields';
 import { cToF } from '../engine/temperature';
 
@@ -55,12 +55,13 @@ export default function RwToolsDialog({
     if (![ssp, rmf, rmfTC, tC].every(Number.isFinite) || rmf <= 0) return null;
     const tF = cToF(tC);
     const chain = rwFromSsp(ssp, rmf, cToF(rmfTC), tF);
-    // why the chain refused, if it did: the filtrate inverse can fail
-    // (very fresh mud) before the Rwe step does
+    // why the chain refused, if it did: the filtrate inverse can land
+    // outside the accepted band before the Rwe step does
     let problem = null;
-    if (!Number.isFinite(chain.rmfe)) problem = rweToRwProblem(chain.rmfAtT, tF) || 'The chart inverse gives no Rmfe for this mud filtrate.';
+    if (!Number.isFinite(chain.rmfe)) problem = rwToRweProblem(chain.rmfAtT, tF) || 'The chart inverse gives no Rmfe for this mud filtrate.';
     else if (!Number.isFinite(chain.rw)) problem = rweToRwProblem(chain.rwe, tF);
-    return { ...chain, tC, rmfTC, problem };
+    const band = rweBand(tF);
+    return { ...chain, tC, rmfTC, problem, band };
   }, [sp]);
 
   const arpsOut = useMemo(() => {
@@ -159,8 +160,11 @@ export default function RwToolsDialog({
             <p className="text-[10px] text-slate-500 leading-snug">
               Rmf goes to formation temperature by Arps, then to Rmfe (0.85 Rmf when Rmf at 75 °F is above
               0.1 ohm·m, otherwise the chart inverse); Rwe comes from SSP and K; Rw from Rwe by the Bateman
-              and Konen (1977) fit to chart SP-2. The correction is upward for saline waters, small between
-              about 0.1 and 0.3 ohm·m, and grows again toward very fresh water; the chart is for NaCl waters.
+              and Konen (1977) fit to chart SP-2. The fit is applied only where chart SP-2 allows it: 75 to
+              500 °F and Rwe between {spOut?.band ? spOut.band.lo.toPrecision(2) : '0.02'} and 0.1 ohm·m at
+              formation temperature (readings off the chart on 2026-09-10 put the fit 36 to 92 percent low
+              for fresher waters and 13 to 24 percent high near NaCl saturation). Inside the band the
+              correction is upward and modest; outside it the Studio refuses. NaCl waters only.
             </p>
           </div>
 

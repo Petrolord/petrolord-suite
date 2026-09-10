@@ -640,6 +640,23 @@ the method. Engines #159 (oracle written from the paper, nine gates,
 not the build). The help guide's limitation paragraph now says the SP
 route applies the fit on both sides and assumes NaCl waters.
 
+## 2026-09-10: chart SP-2 read, Bateman-Konen band narrowed (engines #163)
+
+The owner read 31 points off chart SP-2 (printed range 75 to 500 °F):
+28 on the fresh side (Rw 1.0 to 5.0 ohm·m at all seven temperatures)
+and 3 near NaCl saturation at 75 °F. Every reading has Rw above Rweq.
+The Bateman-Konen fit is 36 to 92 percent low on every fresh reading
+and 13 to 24 percent high on the saline three; only its 75 °F
+saturation asymptote and the owner's 150 °F check point hold. The
+engine therefore accepts the fit only for Rwe 0.02 ohm·m (at 75 °F,
+Arps to formation T) to 0.1 ohm·m at formation T, inside 75 to 500 °F,
+and refuses with the reason elsewhere (`rweBand`, `rwToRweProblem`);
+the SP card states the band and refuses on the filtrate side with its
+own sentence. `chart_points.json` carries the readings; gate 2 refuses
+every reading outside the band and reports in-band acceptance PENDING
+because no reading sits inside it yet. Held for the owner: the band
+(ROADMAP recorded decision 6) and the readings that would confirm it.
+
 ## 2026-09-10: PT11b, resizable Split divider
 
 The Split view's divider drags (react-resizable-panels through the

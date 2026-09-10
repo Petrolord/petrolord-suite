@@ -9,7 +9,7 @@ import path from 'path';
 import { igr, vshLarionovTertiary, vshLarionovOlder, vshClavier, vshSteiber, vshFromGr } from '../engine/vsh';
 import { phiDensity, phiSonicWyllie, phiSonicRhg, phiNd, phiShaleCorrected, clampDisplay } from '../engine/porosity';
 import {
-  rwArps, spK, rweFromSsp, pickettFit, rwFromSalinity, salinityFromRw, rweToRw, rwToRwe, rmfeFromRmf, rwFromSsp, rweToRwProblem,
+  rwArps, spK, rweFromSsp, pickettFit, rwFromSalinity, salinityFromRw, rweToRw, rwToRwe, rmfeFromRmf, rwFromSsp, rweToRwProblem, rwToRweProblem, rweBand,
 } from '../engine/rw';
 import { swArchie, swSimandoux, swIndonesia, swCurve } from '../engine/sw';
 import { netPay, sampleThickness } from '../engine/netpay';
@@ -48,8 +48,18 @@ describe('analytic scalar cases', () => {
   test('PT11a Bateman-Konen Rwe to Rw, inverse, Rmfe and the type-well chain match the oracle cases', () => {
     expect(rweToRw(0.05, 150)).toBeCloseTo(0.0564, 4);
     expect(close(rweToRw(0.05, 150), AC.bk_check_point_150f.out)).toBe(true);
-    expect(close(rweToRw(0.30, 150), AC.bk_fresh_band_150f.out)).toBe(true);
-    expect(close(rweToRw(rwToRwe(0.12, 200), 200), AC.bk_inverse_roundtrip.out)).toBe(true);
+    expect(close(rweToRw(0.10, 150), AC.bk_band_edge_150f.out)).toBe(true);
+    // the chart readings (engines #163) refuse the fresh band the fit used to accept
+    expect(AC.bk_fresh_band_150f.out).toBeNull();
+    expect(Number.isNaN(rweToRw(0.30, 150))).toBe(true);
+    expect(rweToRwProblem(0.30, 150)).toMatch(/beyond the chart band/);
+    expect(Number.isNaN(rweToRw(0.005, 150))).toBe(true);
+    expect(rweToRwProblem(0.005, 150)).toMatch(/saturation/);
+    expect(rweBand(75)).toEqual({ lo: 0.02, hi: 0.1 });
+    expect(rweToRwProblem(0.05, 60)).toMatch(/starts at 75/);
+    expect(rweToRwProblem(0.05, 501)).toMatch(/stops at 500/);
+    expect(rwToRweProblem(1.0, 150)).toMatch(/Rmfe/);
+    expect(close(rweToRw(rwToRwe(0.06, 200), 200), AC.bk_inverse_roundtrip.out)).toBe(true);
     expect(close(rmfeFromRmf(0.5, 75, 150).rmfe, AC.bk_rmfe_x085.out)).toBe(true);
     expect(rmfeFromRmf(0.5, 75, 150).rule).toBe('x0.85');
     expect(close(rmfeFromRmf(0.05, 75, 150).rmfe, AC.bk_rmfe_inverse.out)).toBe(true);

@@ -777,10 +777,15 @@ const PetrophysicsHelpGuide = () => (
         temperature. It converts Rmf to Rmfe (by 0.85 Rmf when Rmf at 75 °F is above 0.1 ohm·m,
         otherwise by the Bateman-Konen inverse), reads Rwe from SSP and K, and converts Rwe to Rw
         with the Bateman-Konen (1977) fit to chart SP-2 before applying it. Every value in the
-        chain is shown and the correction is labelled. It is upward for saline waters, small
-        between about 0.1 and 0.3 ohm·m at formation temperature, and grows again toward very
-        fresh water; where the fit fails, above about 2 ohm·m or below 51 °F, the Studio refuses
-        rather than extrapolates and says which limit was crossed. The chart is for NaCl waters.
+        chain is shown and the correction is labelled. The fit is trusted only where chart SP-2
+        allows it: formation temperature 75 to 500 °F and Rwe between 0.02 ohm·m (at 75 °F, carried
+        to formation temperature by Arps) and 0.1 ohm·m at formation temperature. Thirty-one
+        readings off the chart on 2026-09-10 showed the fit 36 to 92 percent low for fresher waters
+        and 13 to 24 percent high near NaCl saturation, so outside that band the Studio refuses
+        rather than extrapolates and says which limit was crossed; inside it the correction is
+        upward and modest (about 13 percent at 150 °F and Rwe 0.05, within 2 percent at 0.1). The
+        chart is for NaCl waters. A water fresher than the band is one the SP route cannot resolve
+        here; use the Arps or salinity route with a measured Rw instead.
         Each apply from any Rw tool names its method under Rw in the parameter panel and in the
         report, and records who applied it and when in the interpretation&apos;s provenance;
         retyping Rw clears the method.
@@ -1132,7 +1137,8 @@ const PetrophysicsHelpGuide = () => (
         more than three minerals are refused. Depth shifting is per curve, block or by tie points, not
         a whole-well warp. The SP route applies the Bateman-Konen fit on
         both the filtrate and the formation-water side and shows every value in the chain; it assumes
-        NaCl waters, as the chart does. None of this is hidden behind a setting: every capability
+        NaCl waters, as the chart does, and refuses outside the saline band the chart confirms for it
+        (Rwe 0.02 to 0.1 ohm·m, 75 to 500 °F), so very fresh formation waters have no SP route. None of this is hidden behind a setting: every capability
         above is visible in the UI, recorded in provenance, and never a silent default.
       </Para>
     </GuideSection>

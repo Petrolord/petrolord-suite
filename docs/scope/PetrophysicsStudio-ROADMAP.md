@@ -1393,6 +1393,21 @@ than unknowns. Stage one keeps the door open by the table schema, the
    `phiSource: 'mineral'` as an explicit fourth option that never
    becomes a default.
 5. Stage two waits for a customer request.
+6. Chart SP-2 readings (2026-09-10, 31 points, printed range 75 to
+   500 °F) refute the Bateman-Konen fit outside a saline band: 36 to 92
+   percent low on every fresh-side reading (Rw 1.0 to 5.0 ohm·m, all
+   seven temperatures), 13 to 24 percent high near NaCl saturation at
+   75 °F; every reading has Rw above Rweq, so the plan's open question
+   (chart or fit at 75 °F fresh) is answered: the fit. The engine now
+   accepts only Rwe 0.02 ohm·m (at 75 °F, Arps to formation T) to 0.1
+   ohm·m at formation T and refuses elsewhere with the reason. HELD FOR
+   THE OWNER: the band itself is bounded by where the fit is known
+   wrong, not proven right (no reading sits inside it; the gate reports
+   PENDING). Readings at 75 °F between Rweq 0.02 and 0.06 (flagged by
+   the owner) plus one column at Rw 0.05 to 0.3 across the seven
+   temperatures would confirm or move it. If the owner prefers, the
+   readings themselves can replace the fit (chart interpolation) once
+   that column exists.
 
 ### Wave log (PT11)
 
@@ -1413,6 +1428,17 @@ than unknowns. Stage one keeps the door open by the table schema, the
   plan text: the chart's printed temperature range is not yet enforced
   (`tempFMax: null`, stated in the header) because it has not been
   read; the six chart readings remain the acceptance gate.
+- Chart SP-2 read 2026-09-10 (later the same day): 31 readings loaded
+  into `chart_points.json` with precision, calibration check and the
+  printed range 75 to 500 °F, now enforced. The readings refute the fit
+  outside a saline band (recorded decision 6), so engines #163 narrows
+  `rweToRw` / `rwToRwe` to Rwe 0.02 (at 75 °F) to 0.1 ohm·m, adds
+  `rweBand` and `rwToRweProblem`, mirrors the band in the oracle and
+  regenerates the analytic cases (two fresh-band cases are now
+  refusals). Gate 2 refuses every reading outside the band and reports
+  in-band acceptance PENDING; gates 3 to 6 rewritten. Suite: the SP
+  card names the band and the filtrate-side reason, help guide and
+  petroAnalytic mirror updated, audit B5 row amended.
 - PT11b + PT11c built 2026-09-10 in one Suite PR (engines #160 merged
   and subtree-pulled). PT11b: the Split view is a `ResizablePanelGroup`
   (60/40 to start, 25 percent minimum either side, double-click resets),
