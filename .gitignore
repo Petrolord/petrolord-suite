@@ -52,3 +52,7 @@ tools/validation/wells/.venv/
 
 # PP0 platform build stamp written by the prod zip-cut step (vite.config.js platformBuild)
 build-info.json
+
+# Demonstration dataset build output (tools/demo-dataset). Heavy files are
+# release assets, never tracked — same rule as dist/.
+dist-demo/
