@@ -98,7 +98,7 @@ const MBAL_COLORS = {
   gdi: '#0891b2',                        // Cyan-600 — gas (or gas cap) drive
   wdi: '#2563eb',                        // Blue-600 — water drive
   cdi: '#a855f7',                        // Purple-500 — rock+water compressibility drive
-  sdi: '#a855f7',                        // Same as cdi — oil sdi maps to compressibility
+  // (oil results stored before engines #167 carry the same series under `sdi`)
 
   // Annotations and references
   truthLine: '#dc2626',                  // Red-600 — true value reference line
@@ -161,8 +161,10 @@ function buildBaseRows(plotData) {
       ddi: plotData.ddi?.[i] ?? null,
       gdi: plotData.gdi?.[i] ?? null,
       wdi: plotData.wdi?.[i] ?? null,
-      cdi: plotData.cdi?.[i] ?? null,
-      sdi: plotData.sdi?.[i] ?? null,
+      // Rock and connate water expansion. Since engines #167 it is `cdi` on both
+      // fluid systems; oil results stored before that have it under `sdi` with
+      // `cdi` null, so fall back per row rather than per array.
+      cdi: plotData.cdi?.[i] ?? plotData.sdi?.[i] ?? null,
       drive_index_sum: plotData.drive_index_sum?.[i] ?? null,
       point_in_fit: inFit,
       // Split F into two columns so Recharts can render included vs excluded
@@ -299,13 +301,13 @@ const TimestepDetailPanel = ({ row, isGas, onClose }) => {
             <DetailRow label="DDI (depletion)" value={fmt(row.ddi, 3)} unit="—" />
           )}
           {row.gdi != null && (
-            <DetailRow label="GDI (gas)" value={fmt(row.gdi, 3)} unit="—" />
+            <DetailRow label={isGas ? "GDI (gas)" : "GDI (gas cap)"} value={fmt(row.gdi, 3)} unit="—" />
           )}
           {row.wdi != null && (
             <DetailRow label="WDI (water)" value={fmt(row.wdi, 3)} unit="—" />
           )}
           {row.cdi != null && (
-            <DetailRow label="CDI (compress.)" value={fmt(row.cdi, 3)} unit="—" />
+            <DetailRow label="CDI (rock and water)" value={fmt(row.cdi, 3)} unit="—" />
           )}
           {row.drive_index_sum != null && (
             <DetailRow
@@ -1059,7 +1061,7 @@ const DriveIndicesPlot = ({ rows, isGas, caseName }) => {
           // Use the values directly; engine sets unused ones to 0 or null
           DDI: isGas ? null : (r.ddi ?? 0),
           GDI: isGas ? (r.gdi ?? 0) : (r.gdi ?? 0),
-          CDI: isGas ? (r.cdi ?? 0) : (r.sdi ?? r.cdi ?? 0),
+          CDI: r.cdi ?? 0,
           WDI: r.wdi ?? 0,
           sum: r.drive_index_sum ?? 0,
         })),

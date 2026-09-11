@@ -109,6 +109,13 @@ const MbsHelpContent = () => (
       production history for unit or sign errors, then whether the earliest points belong to a different flow regime
       and should be excluded.
     </P>
+    <P>
+      A note on the acronyms, because the textbooks disagree and the studio used to follow the wrong one. Ahmed calls
+      the gas cap drive SDI, for segregation, while Pletcher and most gas work call the rock and connate water
+      expansion ICD, for compressibility. The studio labels each row by what it is: depletion, gas cap, water, and
+      rock and water. That last one is Ahmed's EDI. Results you ran before 11 September 2026 show the same numbers,
+      but the rock and water row was labelled Segregation (SDI) then, which named it after the gas cap by mistake.
+    </P>
 
     <P>
       History match works the other way round: the engine simulates the pressure history your production would have

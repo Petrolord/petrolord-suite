@@ -4,8 +4,9 @@
 > process patterns). This file is the fast-read snapshot.
 > Last updated: 2026-09-11 · **MB PROGRAM COMPLETE (MB1-MB7)**; prior state
 > as of the 2026-05-17 patch series. Newest entries: the oil drive-index
-> denominator fix (engines #165) and the physical-sanity guards (engines #166).
-> Both need a `calculate-mbal` redeploy to reach users.
+> denominator fix (engines #165), the physical-sanity guards (engines #166) and
+> the drive-index rename (engines #167). All three need a `calculate-mbal`
+> redeploy to reach users; the rename needs the front end shipped with it.
 
 ## What MBAL does
 
@@ -520,3 +521,48 @@ dead `solver_method` API that nothing branches on, the `sdi`/`cdi` misnaming
 origin" comment on an ordinary least-squares fit with a free intercept, the
 stale `carter_tracy` provenance string quoting a 2026-05-17 run the engine no
 longer reproduces, and the wrong `radius_ratio` comment.
+
+## 2026-09-11 — one name per drive index, `sdi` removed (engines #167)
+
+**The mislabel.** The oil path published the rock and connate water expansion
+term in a field called `sdi` whose own interface comment read "Segregation
+drive (oil)", while the gas cap sat in `gdi`. `final_cdi` was mirrored from it.
+The studio printed that field as **"Segregation (SDI)"**, so every oil result
+told the user a number was the gas cap's segregation drive when it was the rock
+and water expansion. On Ahmed Example 11-1 those are 0.3465 and 0.0038.
+
+**Root cause is an acronym collision** between the two references this engine
+validates against:
+
+| Quantity | Ahmed (oil) | Pletcher (gas) | Engine field |
+|---|---|---|---|
+| Depletion, oil expansion | DDI | | `ddi` |
+| Gas cap | **SDI** (segregation) | | `gdi` |
+| Rock and connate water expansion | **EDI** | **ICD** | `cdi` |
+| Water drive | WDI | IWD | `wdi` |
+
+**What changed.** One field per quantity: `cdi` on both fluid systems, `gdi` for
+the gas cap only, `sdi` and `final_sdi` removed from the engine. The studio, the
+PDF and the CSV now label the row "Rock and water (EDI)"; the per-point detail
+reads "CDI (rock and water)" and distinguishes "GDI (gas)" from "GDI (gas cap)".
+
+**No migration, and stored results still read correctly.** Values did not
+change, only names, and oil rows have always carried the same number in
+`final_cdi` as in `final_sdi`. The readers prefer `cdi` and fall back to `sdi`.
+The subtle case is `plot_data`: an oil result stored before this has the series
+under `sdi` with a `cdi` array that **exists but is all null**, so a plain
+`plot.cdi ?? plot.sdi` picks the array of nulls. `buildPlotDataCsv` picks
+whichever array has data, and `src/utils/__tests__/mbalReportExport.driveIndexNaming.test.js`
+pins that (the naive version fails its second case).
+
+**The `rb_results.final_sdi` column is now a deprecated mirror.** The edge
+function writes `final_cdi`'s value into it so a browser running an older bundle
+keeps rendering. Nothing in this repo reads it. It can be dropped once no stale
+client remains; that will be a migration, logged in MIGRATIONS.md when it
+happens.
+
+**Gates.** Engine GATE 5: N-1 pins the numerators (`cdi = N·Efw/A`,
+`gdi = N·m·Eg/A`) against Ahmed's printed EDI and SDI so a future rename cannot
+swap the meanings back, N-2 asserts no `sdi` survives on results or rows. GATE 3
+caught the rename the moment the engine changed, which is what re-pointing it at
+the engine in #165 bought.
