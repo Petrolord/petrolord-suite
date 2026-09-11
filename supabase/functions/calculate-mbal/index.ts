@@ -385,8 +385,12 @@ serve(async (req: Request) => {
     ddi: engineResult.per_timestep.map((p: PerTimestepResult) => p.ddi ?? null),
     gdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.gdi ?? null),
     wdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.wdi ?? null),
+    // cdi is the rock and connate water expansion on BOTH fluid systems since
+    // engines #167. `sdi` is a DEPRECATED MIRROR of it, written only so a front
+    // end deployed before this function keeps rendering oil results; nothing in
+    // this repo reads it any more. Safe to drop once no stale client remains.
     cdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.cdi ?? null),
-    sdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.sdi ?? null),
+    sdi: engineResult.per_timestep.map((p: PerTimestepResult) => p.cdi ?? null),
     drive_index_sum: engineResult.per_timestep.map((p: PerTimestepResult) => p.drive_index_sum ?? null),
     // Production cumulatives from input (passed through for plotting)
     cum_oil_stb: production_data.map((p: ProductionDataPoint) => p.cum_oil_stb ?? null),
@@ -443,7 +447,9 @@ serve(async (req: Request) => {
       final_ddi: engineResult.final_ddi ?? null,
       final_gdi: engineResult.final_gdi ?? null,
       final_wdi: engineResult.final_wdi ?? null,
-      final_sdi: engineResult.final_sdi ?? null,
+      // Deprecated mirror, see plot_data above. The rb_results column stays
+      // populated so older rows and this one read the same way.
+      final_sdi: engineResult.final_cdi ?? null,
       final_cdi: engineResult.final_cdi ?? null,
       final_drive_index_sum: engineResult.final_drive_index_sum ?? null,
       drive_mechanism: engineResult.drive_mechanism,

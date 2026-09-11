@@ -1416,7 +1416,7 @@ async function runDepletionOilCase(): Promise<void> {
 
   // ──────────────────────────────────────────────────────────────────────
   // ASSERTION D-3: Combined hydrocarbon + rock/water expansion accounts
-  // for all reservoir energy (DDI + SDI in [0.95, 1.05]).
+  // for all reservoir energy (DDI + CDI in [0.95, 1.05]).
   //
   // Revised 2026-05-17. Original D-3 asserted DDI ≥ 0.85 on the assumption
   // that oil expansion alone dominates in a depletion-drive reservoir.
@@ -1428,9 +1428,9 @@ async function runDepletionOilCase(): Promise<void> {
   // energy (DDI + SDI together) covers ~all of total voidage, with
   // WDI ≈ 0 (D-4) and GDI = 0 (D-5).
   // ──────────────────────────────────────────────────────────────────────
-  console.log('─── Assertion D-3: DDI + SDI account for all reservoir energy ───');
-  const ddi_plus_sdi = (result.final_ddi ?? 0) + (result.final_sdi ?? 0);
-  checkRange('DDI + SDI (combined expansion drive)', ddi_plus_sdi, 0.95, 1.05);
+  console.log('─── Assertion D-3: DDI + CDI account for all reservoir energy ───');
+  const ddi_plus_cdi = (result.final_ddi ?? 0) + (result.final_cdi ?? 0);
+  checkRange('DDI + CDI (combined expansion drive)', ddi_plus_cdi, 0.95, 1.05);
 
   // ──────────────────────────────────────────────────────────────────────
   // ASSERTION D-4: Water drive index ≈ 0 (no aquifer)
@@ -1481,10 +1481,10 @@ async function runDepletionOilCase(): Promise<void> {
   // ──────────────────────────────────────────────────────────────────────
   console.log('─── Drive Index Breakdown at final timestep (informational) ─────');
   console.log(`  DDI: ${(result.final_ddi ?? 0).toFixed(3)}    (depletion drive — oil expansion)`);
-  console.log(`  SDI: ${(result.final_sdi ?? 0).toFixed(3)}    (rock+water compressibility — magnitude depends on cf, cw)`);
+  console.log(`  CDI: ${(result.final_cdi ?? 0).toFixed(3)}    (rock+connate water expansion, Ahmed's EDI — magnitude depends on cf, cw)`);
   console.log(`  GDI: ${(result.final_gdi ?? 0).toFixed(3)}    (gas cap — expected 0 for this case)`);
   console.log(`  WDI: ${(result.final_wdi ?? 0).toFixed(3)}    (water drive — expected ~0 for this case)`);
-  console.log(`  DDI+SDI: ${((result.final_ddi ?? 0) + (result.final_sdi ?? 0)).toFixed(3)}   (combined hydrocarbon-side energy; D-3 target ≥ 0.95)`);
+  console.log(`  DDI+CDI: ${((result.final_ddi ?? 0) + (result.final_cdi ?? 0)).toFixed(3)}   (combined hydrocarbon-side energy; D-3 target ≥ 0.95)`);
   console.log(`  Sum: ${(result.final_drive_index_sum ?? 0).toFixed(3)}`);
   console.log('');
 
@@ -1746,7 +1746,7 @@ async function runGasCapDriveOilCase(): Promise<void> {
   console.log('─── Drive Index Breakdown at final timestep (informational) ─────');
   console.log(`  DDI: ${(result.final_ddi ?? 0).toFixed(3)}    (depletion drive — oil expansion)`);
   console.log(`  GDI: ${(result.final_gdi ?? 0).toFixed(3)}    (gas cap drive — primary for this case)`);
-  console.log(`  SDI: ${(result.final_sdi ?? 0).toFixed(3)}    (rock+water compressibility)`);
+  console.log(`  CDI: ${(result.final_cdi ?? 0).toFixed(3)}    (rock+connate water expansion)`);
   console.log(`  WDI: ${(result.final_wdi ?? 0).toFixed(3)}    (water drive — expected ~0)`);
   console.log(`  Sum: ${(result.final_drive_index_sum ?? 0).toFixed(3)}`);
   console.log('');
@@ -2009,7 +2009,7 @@ async function runCarterTracyOilCase(): Promise<void> {
   console.log('─── Drive Index Breakdown at final timestep (informational) ─────');
   console.log(`  DDI: ${(result.final_ddi ?? 0).toFixed(3)}    (depletion drive — oil expansion)`);
   console.log(`  WDI: ${(result.final_wdi ?? 0).toFixed(3)}    (water drive — primary for this case)`);
-  console.log(`  SDI: ${(result.final_sdi ?? 0).toFixed(3)}    (rock+water compressibility — small)`);
+  console.log(`  CDI: ${(result.final_cdi ?? 0).toFixed(3)}    (rock+connate water expansion — small)`);
   console.log(`  GDI: ${(result.final_gdi ?? 0).toFixed(3)}    (gas cap — expected 0)`);
   console.log(`  Sum: ${(result.final_drive_index_sum ?? 0).toFixed(3)}`);
   console.log('');
@@ -2225,7 +2225,9 @@ async function runFetkovichOilCase(): Promise<void> {
 // re-deriving the formula harness-side. Re-deriving it is exactly what hid the
 // denominator bug behind a green gate for five months: the harness computed
 // the book convention while the runtime divided by gross F. Book labels map:
-// book SDI (gas cap) = engine gdi; book EDI (rock+water expansion) = engine sdi.
+// book SDI (gas cap) = engine gdi; book EDI (rock and connate water expansion)
+// = engine cdi. One field per quantity since engines #167; the oil path used to
+// carry the EDI term in a field called `sdi`, named after the wrong drive.
 async function runCombinationDriveCase(): Promise<void> {
   const fx = requireArmedFixture('CASE 9', 'ahmed-ex-11-1-combination.json');
   if (!fx) return;
@@ -2286,7 +2288,7 @@ async function runCombinationDriveCase(): Promise<void> {
   check('X-4 DDI depletion index', idx.ddi, fx.printed.DDI, 0.01, { format: (n) => n.toFixed(4) });
   check('X-5 SDI gas-cap index', idx.gdi, fx.printed.SDI_gascap, 0.01, { format: (n) => n.toFixed(4) });
   check('X-6 WDI water-drive index', idx.wdi, fx.printed.WDI, 0.02, { format: (n) => n.toFixed(4) });
-  check('X-7 EDI expansion index', idx.sdi, fx.printed.EDI, 0.10, { format: (n) => n.toFixed(4) });
+  check('X-7 EDI expansion index', idx.cdi, fx.printed.EDI, 0.10, { format: (n) => n.toFixed(4) });
   // Exact identity of the convention: indices sum to 1 by construction.
   check('X-8 index sum identity', idx.drive_index_sum, 1.0, 1e-9, {
     format: (n) => n.toFixed(10),

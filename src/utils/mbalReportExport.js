@@ -114,7 +114,7 @@ export const exportMbalPdf = ({ caseData, lastResult, defaultCfg }) => {
       di.push(['Depletion (DDI)', f3(lastResult.final_ddi)]);
       di.push(['Gas cap (GDI)', f3(lastResult.final_gdi)]);
       di.push(['Water drive (WDI)', f3(lastResult.final_wdi)]);
-      di.push(['Segregation (SDI)', f3(lastResult.final_sdi)]);
+      di.push(['Rock and water (EDI)', f3(lastResult.final_cdi ?? lastResult.final_sdi)]);
     }
     table('Drive indices at the final timestep', ['Drive', 'Index'], di);
   }
@@ -182,6 +182,10 @@ export const buildPlotDataCsv = (lastResult) => {
   const plot = lastResult?.plot_data;
   if (!plot?.timestep_index?.length) return null;
   const hm = plot.history_match ?? null;
+  const withData = (primary, fallback) => {
+    const hasData = (arr) => Array.isArray(arr) && arr.some((v) => v != null);
+    return hasData(primary) ? primary : (hasData(fallback) ? fallback : primary);
+  };
   const cols = [
     ['timestep_index', plot.timestep_index],
     ['pressure_psia', plot.pressure],
@@ -198,8 +202,11 @@ export const buildPlotDataCsv = (lastResult) => {
     ['ddi', plot.ddi],
     ['gdi', plot.gdi],
     ['wdi', plot.wdi],
-    ['cdi', plot.cdi],
-    ['sdi', plot.sdi],
+    // cdi carries the rock and connate water expansion for both fluid systems
+    // since engines #167. Oil results stored before it have that array under
+    // `sdi` with `cdi` present but all null, so pick whichever array has data
+    // rather than whichever key exists.
+    ['cdi', withData(plot.cdi, plot.sdi)],
     ['simulated_pressure_psia', hm?.simulated_pressure_psia],
     ['pressure_residual_psi', hm?.residual_psi],
   ].filter(([, arr]) => Array.isArray(arr));
