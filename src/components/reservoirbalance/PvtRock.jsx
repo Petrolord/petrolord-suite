@@ -204,6 +204,20 @@ function visibleLabColumns(showOilProps, showGasProps) {
   });
 }
 
+/**
+ * Parse the gas cap ratio field.
+ *
+ * Blank means "not stated" and must reach the engine as null, not 0: m = 0 is
+ * the undersaturated material balance (the m·Eg term vanishes), so writing a 0
+ * for an empty field would record a decision the user never made and silence
+ * the engine warning that exists to catch exactly that.
+ */
+export function parseGasCapM(raw) {
+  if (raw == null || String(raw).trim() === '') return null;
+  const v = parseFloat(raw);
+  return Number.isFinite(v) && v >= 0 ? v : null;
+}
+
 // Default form state per fluid system
 function defaultFormState(caseData) {
   const isGas = caseData?.fluid_system === 'gas';
@@ -222,6 +236,9 @@ function defaultFormState(caseData) {
     pvt_lab_table: [],
     formation_compressibility_psi: 6e-6,
     water_compressibility_psi: 3e-6,
+    // Blank, not 0: an empty field is "not stated yet" and the engine warns
+    // about it, whereas a pre-filled 0 would look like a decision the user made.
+    gas_cap_ratio_m: '',
   };
 }
 
@@ -336,6 +353,7 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
           pvt_lab_table: hydratedLabRows,
           formation_compressibility_psi: cfg.formation_compressibility_psi ?? 6e-6,
           water_compressibility_psi: cfg.water_compressibility_psi ?? 3e-6,
+          gas_cap_ratio_m: cfg.gas_cap_ratio_m == null ? '' : String(cfg.gas_cap_ratio_m),
         });
       }
       setDirty(false);
@@ -500,6 +518,9 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
       correlations: form.correlations,
       formation_compressibility_psi: parseFloat(form.formation_compressibility_psi),
       water_compressibility_psi: parseFloat(form.water_compressibility_psi),
+      // Only oil-with-gas-cap cases carry m. Blank saves as null rather than 0
+      // so the engine can tell "not stated" from "stated as none".
+      gas_cap_ratio_m: isOilWithGasCap ? parseGasCapM(form.gas_cap_ratio_m) : null,
     });
     setSaving(false);
 
@@ -726,6 +747,40 @@ const PvtRock = ({ caseId, caseData, onConfigChange }) => {
                     onChange={(e) => updateForm('water_compressibility_psi', e.target.value)}
                   />
                 </div>
+
+                {/* Gas cap ratio m. The only field in the studio that writes it
+                    directly; before 2026-09-11 fitting it in a history match was
+                    the only route, so a gas-cap case that skipped the match ran
+                    as an undersaturated one. */}
+                {isOilWithGasCap && (
+                  <div className="pt-3 border-t border-slate-800 space-y-1.5">
+                    <InputGroup
+                      label={<>Gas cap ratio m (gas cap volume / oil volume, res bbl/res bbl)</>}
+                      id="gasCapM"
+                      step="0.01"
+                      min="0"
+                      placeholder="e.g. 0.3"
+                      value={form.gas_cap_ratio_m}
+                      onChange={(e) => updateForm('gas_cap_ratio_m', e.target.value)}
+                    />
+                    <p className="text-[10px] text-slate-500 italic leading-snug">
+                      {parseGasCapM(form.gas_cap_ratio_m) > 0 ? (
+                        <>
+                          Adds the m·E<sub>g</sub> gas cap expansion term to the material balance.
+                          A history match can fit m instead if you would rather solve for it.
+                        </>
+                      ) : (
+                        <>
+                          Leave blank only if you intend to solve for m in a history match.
+                          This case is flagged as having a gas cap, and a run with no m uses
+                          m = 0, which is the undersaturated material balance rather than a
+                          small gas cap: the gas cap drive disappears and the OOIP is the
+                          no-gas-cap answer.
+                        </>
+                      )}
+                    </p>
+                  </div>
+                )}
 
                 {/* Correlation selects */}
                 <div className="space-y-3 pt-3 border-t border-slate-800">
