@@ -89,10 +89,22 @@ because clay conducts. Suppressing it would have meant a shale term that
 no real log has. The episode note states the number a presenter will
 actually read.
 
+## Release assets
+
+Built by the two `zip` commands in `tools/demo-dataset/README.md`:
+
+| Asset | Size | Contents |
+|---|---|---|
+| `ekene-demo-v1-kit.zip` | 5.5 MB | everything except the full SEG-Y — 109 files |
+| `ekene-demo-v1-seismic-full.zip` | 35 MB | `EKENE3D-full.sgy` on its own |
+
+The kit stays small enough to hand to anyone; only the volume needs the
+release.
+
 ## Open
 
-- Cut the `ekene-demo-v1` release on the Petrolord org and attach the two
-  SEG-Y volumes. Everything else is text and travels with the kit.
+- Cut the `ekene-demo-v1` release on the Petrolord org and attach both
+  assets.
 - Add a "data for this episode" block to each of the ten scripts, from
   `dist-demo/ekene-demo-v1/episodes/`. The scripts are currently artifacts
   from the 2026-09-10 session, not files in this repo.

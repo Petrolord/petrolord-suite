@@ -130,9 +130,12 @@ Locked, unchanged, vertical, full log suite:
 | Ekene-5 | 600 | 1900 | 1552 | producer |
 | Ekene-6 | 1900 | 1800 | 1546 | producer |
 
-Added (additive; every TOP_SAND pick below is **sampled from the six-well
-grid**, so adding them as control points is near-idempotent and the
-volumetric shift is asserted and reported by the generator):
+Added (additive; every TOP_SAND pick below except Ekene-7's is **sampled
+from the structural model**, which is exact at all seven locked picks —
+see §4.5. The volumetric shift from adding them is asserted and reported
+by the generator: 171 oil cells and a 19.24 m column against the locked
+six-well 169 and 20.28, the difference being Ekene-7's real blind
+residual, not noise):
 
 | Well | Purpose |
 |---|---|
@@ -168,7 +171,27 @@ The point of generating rather than inventing is that these agree:
   window follows from it.
 - **The gridded TOP_SAND surface** gives ReservoirCalc the NG5 STOIIP.
 
+### 4.5 Two surfaces, deliberately
+
+The gridding engine masks a surface to the hull of its control points.
+That is right for a map — a map should not invent structure where nobody
+drilled — and useless for a seismic cube, which has to carry a reflector
+across the whole survey. It also returns null at Ekene-2, which is a hull
+vertex.
+
+So the kit carries both, and they are not interchangeable:
+
+- the **grid** is the map, and the thing whose volumetrics are locked;
+- a **multiquadric RBF with a linear drift**, exact at all seven locked
+  picks and defined everywhere, is the structural truth the logs and the
+  seismic are generated from.
+
+They agree at the wells, which is what lets the synthetic tie, and differ
+slightly between them, which is what real seismic and well grids do.
+
 ## 5. Waves
+
+All waves BUILT 2026-09-11. See `DemoDataset-STATUS.md`.
 
 | Wave | Scope | Unblocks |
 |---|---|---|
@@ -179,7 +202,8 @@ The point of generating rather than inventing is that these agree:
 | D4 | Pore pressure calibration, well design surveys and targets | Episodes 9, 10 |
 | D5 | Stratigraphy: ages, biozones, lithology log, core photographs | Episodes 7, 8 |
 | D6 | Kit assembly, README, MANIFEST, release | all |
-| D7 | The rest of the Suite: production, MBAL, DCA, economics, drilling, facilities — mostly repackaging `ekene-dynamic` | future episodes |
+| D7 | The rest of the Suite: production, material balance, decline, SCAL, voidage — repackaging `ekene-dynamic` | future episodes |
+| D8 | Drilling, facilities, midstream, HSE, wellsite | when those episodes are written |
 
 ## 6. Gates
 
@@ -199,6 +223,9 @@ The point of generating rather than inventing is that these agree:
 6. **Pore pressure lands on the reservoir.** Eaton with exponent 3 on the
    generated sonic returns 12.02 ppg EMW at the Ekene Sand.
 7. Full jest green.
+
+All twenty gates green 2026-09-11; the numbers they returned are in
+`DemoDataset-STATUS.md`.
 
 ## 7. Distribution
 

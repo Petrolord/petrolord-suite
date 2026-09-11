@@ -7,6 +7,17 @@ npx tsx tools/demo-dataset/generate.mjs      # -> dist-demo/ekene-demo-v1/
 npx jest tools/demo-dataset                  # the gates
 ```
 
+To package for the release (two assets: the kit stays small enough to
+hand to anyone, the full volume travels on its own):
+
+```
+cd dist-demo
+zip -qr ekene-demo-v1-kit.zip ekene-demo-v1 \
+    -x "ekene-demo-v1/04-seismic/EKENE3D-full.sgy"      # 5.5 MB
+zip -qj ekene-demo-v1-seismic-full.zip \
+    ekene-demo-v1/04-seismic/EKENE3D-full.sgy           # 35 MB
+```
+
 Deterministic: reruns are byte-identical. Plan of record:
 `docs/scope/DemoDataset-PLAN.md`.
 
