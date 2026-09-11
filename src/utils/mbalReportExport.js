@@ -85,7 +85,13 @@ export const exportMbalPdf = ({ caseData, lastResult, defaultCfg }) => {
     ['Bubble point (psia)', caseData?.bubble_point_psia ? f1(caseData.bubble_point_psia) : '-'],
     ['Production rows', String(caseData?.production_data?.length ?? 0)],
     ['Aquifer model', defaultCfg?.aquifer_model ?? (caseData?.has_aquifer ? 'pot' : 'none')],
-    ['Solver method', defaultCfg?.solver_method ?? '-'],
+    // What the engine actually ran, not what the config asked for. The engine
+    // never branched on the requested value (engines #168); reports built
+    // before that printed the request as though it were the method.
+    [
+      'Solver method',
+      lastResult?.plot_data?.solver_method_used ?? defaultCfg?.solver_method ?? '-',
+    ],
     ['PVT source', defaultCfg?.pvt_source ?? '-'],
   ]);
 

@@ -5,8 +5,9 @@
 > Last updated: 2026-09-11 · **MB PROGRAM COMPLETE (MB1-MB7)**; prior state
 > as of the 2026-05-17 patch series. Newest entries: the oil drive-index
 > denominator fix (engines #165), the physical-sanity guards (engines #166) and
-> the drive-index rename (engines #167). All three need a `calculate-mbal`
-> redeploy to reach users; the rename needs the front end shipped with it.
+> the drive-index rename (engines #167) and the solver_method/provenance fixes
+> (engines #168). All need a `calculate-mbal` redeploy to reach users; the
+> rename and the solver reporting need the front end shipped with them.
 
 ## What MBAL does
 
@@ -566,3 +567,55 @@ happens.
 swap the meanings back, N-2 asserts no `sdi` survives on results or rows. GATE 3
 caught the rename the moment the engine changed, which is what re-pointing it at
 the engine in #165 bought.
+
+## 2026-09-11 — solver_method becomes an output, provenance is checked (engines #168)
+
+Two findings from the 2026-08-27 read, both the engine stating something it does
+not do.
+
+**1. `solver_method` was a required input nothing branched on.** The regression
+comes from `fluid_system` plus `aquifer_model`. The field read like a choice the
+caller had, and the PDF printed the requested value as though it were what ran.
+Two of its four members were never implemented: a gas case with no aquifer runs
+the same `F = G·Et` regression as everything else, and Ramagost-Farshad
+(`p_over_z_modified`) is a plot overlay in this studio, not a solver. Both are
+gone from the union; the input is optional and ignored; results carry
+`solver_method_used`, and a request that disagrees now warns.
+
+How wrong was the old value in practice: the studio stored
+`isGas ? 'pot_aquifer_plot' : 'havlena_odeh'`, which is wrong for every gas case
+without a pot aquifer, and **this repo's own validation harness passed
+`havlena_odeh` on four pot-aquifer cases**. Nobody noticed, because nothing read
+it. The studio now stores the same derivation the engine makes, the edge
+function stops forwarding the field, and the report prints
+`plot_data.solver_method_used` (a jsonb key, so no migration) falling back to
+the stored config for older runs.
+
+**2. The Carter-Tracy provenance string described code that no longer exists.**
+It quoted a 2026-05-17 run (OOIP 301.0 MMSTB, R² 0.9998, indices summing to
+1.010) while the engine returns 307.2 MMSTB, R² 0.999975, sum 0.997. Both
+Carter-Tracy entries are re-measured on the current engine, the superseded
+figures kept as labelled history, and `tolerance_pct` corrected from 3.53 to
+1.53. The entries now also explain why Carter-Tracy closure is **not** expected
+to be exactly 1: `We` is marched from aquifer parameters while `N` comes from
+the regression, so closure is only as good as the fit, unlike the pot and
+no-aquifer paths where the MBE makes it an identity.
+
+**Gates.** GATE 6 P-1 parses the figures out of the reference string the engine
+returns and compares them against that same run, so the string cannot drift
+again; P-2 permits the old numbers only as labelled history. GATE 7 V-1 checks
+the reported solver against an observable signature of the regression (the pot
+plot puts the in-place volume in the intercept, every other path in the slope)
+across four fluid and aquifer combinations rather than restating the resolver;
+V-2..V-4 cover the mismatch warning, the clean path and a matching request.
+
+**Found while writing GATE 6, not fixed:** `aquifer_params` silently ignores
+unknown keys. Passing `aquifer_encroachment_angle_deg` where the engine reads
+`theta_degrees` produced OOIP = -46.9 MMSTB. The #166 sanity guard caught it
+immediately, which is the guard doing its job, but the silently-ignored key is
+the same class of defect as `solver_method` was and is still open.
+
+**Pre-existing flake, unrelated to this work:**
+`src/contexts/__tests__/gasLiftDesignContext.test.jsx` intermittently fails two
+"explicit runs" cases in large batches. It fails the same way on untouched
+`main` and passes on three consecutive solo runs.

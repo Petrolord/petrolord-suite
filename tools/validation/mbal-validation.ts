@@ -166,7 +166,6 @@ function buildInputs() {
       water: 'mccain',
       gas_viscosity: 'lee_gonzalez_eakin',
     },
-    solver_method: 'pot_aquifer_plot',
     // Pletcher excludes Year 1 from least-squares because it's an early-time outlier.
     // Engine default is to use all points; we replicate Pletcher's choice for the
     // headline validation. (Alternative validation runs may include Year 1.)
@@ -242,7 +241,6 @@ async function main() {
   // Build the input
   const inputs = buildInputs();
   console.log(`Inputs constructed: ${inputs.production_data.length} timesteps`);
-  console.log(`Solver: ${inputs.solver_method}`);
   console.log(`Excluded timesteps: [${inputs.excluded_timesteps.join(', ')}] (Pletcher excludes Year 1 from least-squares)`);
   console.log('');
 
@@ -259,6 +257,9 @@ async function main() {
   const t_ms = Date.now() - t_start;
 
   console.log(`Engine completed in ${t_ms}ms. Version: ${result.engine_version}`);
+  // Printed AFTER the run on purpose: the solver is an engine output derived
+  // from the fluid system and aquifer model, not something the harness picks.
+  console.log(`Solver: ${result.solver_method_used} (derived by the engine)`);
   console.log('');
 
   // ────────────────────────────────────────────────────────────────────────
@@ -624,7 +625,6 @@ async function runOilCase(): Promise<void> {
     gas_specific_gravity: PLETCHER_OIL_RESERVOIR.gas_specific_gravity,
     gas_cap_ratio_m: PLETCHER_OIL_RESERVOIR.gas_cap_ratio_m,
     aquifer_model: 'pot' as const,
-    solver_method: 'havlena_odeh' as const,
     pvt_source: 'lab_table' as const,
     pvt_correlations: {
       pb_rs_bo: 'standing' as const,
@@ -822,7 +822,6 @@ async function runFetkovichGasCase(): Promise<void> {
       aquifer_pi_rb_d_psi: PLETCHER_FETKOVICH_RESERVOIR.aquifer_pi_rb_d_psi,
       aquifer_total_compressibility_psi: PLETCHER_FETKOVICH_RESERVOIR.aquifer_ct,
     },
-    solver_method: 'havlena_odeh' as const,
     pvt_source: 'lab_table' as const,
     pvt_correlations: {
       pb_rs_bo: 'standing' as const,
@@ -989,7 +988,6 @@ function buildOilSubstitutionInputs(overrides: any = {}): any {
     has_aquifer: true,
     has_gas_cap: false,
     aquifer_model: 'pot' as const,
-    solver_method: 'havlena_odeh' as const,
     excluded_timesteps: PLETCHER_OIL_RESERVOIR.excluded_timesteps,
     pvt_source: 'correlated' as const,
     pvt_correlations: {
@@ -1124,7 +1122,6 @@ async function runGasDAKCase(): Promise<void> {
       has_aquifer: true,
       has_gas_cap: false,
       aquifer_model: 'pot' as const,
-      solver_method: 'havlena_odeh' as const,
       excluded_timesteps: [1],  // Pletcher excludes Year 1 (early-time)
       pvt_source: 'correlated' as const,
       pvt_correlations: {
@@ -1378,7 +1375,6 @@ async function runDepletionOilCase(): Promise<void> {
     gas_specific_gravity: TAREK_OIL_RESERVOIR.gas_specific_gravity,
     gas_cap_ratio_m: TAREK_OIL_RESERVOIR.gas_cap_ratio_m,
     aquifer_model: 'none' as const,
-    solver_method: 'havlena_odeh' as const,
     pvt_source: 'lab_table' as const,
     pvt_correlations: {
       pb_rs_bo: 'standing' as const,
@@ -1649,7 +1645,6 @@ async function runGasCapDriveOilCase(): Promise<void> {
     gas_specific_gravity: DAKE_GAS_CAP_RESERVOIR.gas_specific_gravity,
     gas_cap_ratio_m: DAKE_GAS_CAP_RESERVOIR.gas_cap_ratio_m,
     aquifer_model: 'none' as const,
-    solver_method: 'havlena_odeh' as const,
     pvt_source: 'lab_table' as const,
     pvt_correlations: {
       pb_rs_bo: 'standing' as const,
@@ -1902,7 +1897,6 @@ async function runCarterTracyOilCase(): Promise<void> {
       aquifer_total_compressibility_psi: DAKE_CT_RESERVOIR.aquifer_total_compressibility_psi,
     },
 
-    solver_method: 'havlena_odeh' as const,
     pvt_source: 'lab_table' as const,
     pvt_correlations: {
       pb_rs_bo: 'standing' as const,
@@ -2176,7 +2170,6 @@ async function runFetkovichOilCase(): Promise<void> {
       aquifer_pi_rb_d_psi: J_bbl_d_psi,
       aquifer_total_compressibility_psi: g.ct_psi,
     },
-    solver_method: 'havlena_odeh' as const,
     pvt_source: 'lab_table' as const,
     pvt_correlations: {
       pb_rs_bo: 'standing' as const,
@@ -2643,7 +2636,6 @@ async function runHistoryMatchCases(): Promise<void> {
         aquifer_pi_rb_d_psi: PLETCHER_FETKOVICH_RESERVOIR.aquifer_pi_rb_d_psi,
         aquifer_total_compressibility_psi: PLETCHER_FETKOVICH_RESERVOIR.aquifer_ct,
       },
-      solver_method: 'havlena_odeh',
       pvt_source: 'lab_table',
       pvt_correlations: {
         pb_rs_bo: 'standing', oil_viscosity: 'beggs_robinson',
@@ -2712,7 +2704,6 @@ async function runHistoryMatchCases(): Promise<void> {
         theta_degrees: DAKE_CT_RESERVOIR.aquifer_encroachment_angle_deg,
         aquifer_total_compressibility_psi: DAKE_CT_RESERVOIR.aquifer_total_compressibility_psi,
       },
-      solver_method: 'havlena_odeh',
       pvt_source: 'lab_table',
       pvt_correlations: {
         pb_rs_bo: 'standing', oil_viscosity: 'beggs_robinson',
