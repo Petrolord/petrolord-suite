@@ -78,7 +78,20 @@ pre-existing Case 3+ labels stable.)
 - Harness plumbing fixes en route: dates, aquifer params, field names
   (v1-v3), We field (see the `2026-05-17_mbal_validation_dake_ct_*` chain).
 
-## Known paused work — Fetkovich Δp̄ convention
+## Known paused work — Fetkovich Δp̄ convention — **SETTLED 2026-07-18, see MB1**
+
+> **This section is kept for the history of the question and is no longer
+> open.** MB1 answered both halves of it on 2026-07-18 and the answer is
+> recorded further down this file: Ahmed REH 4th ed. Example 10-10 prints its
+> solution on the step midpoint `(p(n-1)+p(n))/2`, so **the engine's existing
+> convention is the published one**, and the same worked example gave
+> oil + Fetkovich its benchmark (tier `benchmark_verified`, 10 percent, printed
+> constants to 0.02 percent and the printed We table to 0.08 percent worst-step)
+> — so the "no benchmark would catch a wrong convention here" concern below is
+> also answered. The text is left as written because the reasoning that
+> *identified* the question is worth keeping; read it as of May 2026, not as a
+> live to-do. Flagged 2026-09-11: this section had outlived its answer by two
+> months and was still being read as open work.
 
 `computeFetkovichWe` (engine ~line 1156) drives influx with
 `p̄_aq[n-1] − p_wf[n]` where `p_wf[n] = (p[n-1] + p[n])/2` — a **midpoint
@@ -391,11 +404,12 @@ unmount), and the parse toast now says "CSV parsed, not saved yet" with an
 explicit pointer to the Save to case button.
 
 **Program ledger closed.** All seven MB phases shipped 2026-07-18. Still
-open outside the program: the Fetkovich Δp̄ convention question (needs a
-sourced worked example; see Known paused work), the deploy-gated tile
+open outside the program: the deploy-gated tile
 migrations (20260718230000 rename + 20260718234500 archive) that ride the
 next production upload, and a possible EPE forecast handoff (idea noted in
-MB6, owner decision needed).
+MB6, owner decision needed). (The Fetkovich Δp̄ convention question was
+listed here too until 2026-09-11; MB1 had already settled it on the day
+this paragraph was written — see the note under Known paused work.)
 
 ## Next priorities (pre-program list, superseded by the MB table above)
 
@@ -523,6 +537,11 @@ origin" comment on an ordinary least-squares fit with a free intercept, the
 stale `carter_tracy` provenance string quoting a 2026-05-17 run the engine no
 longer reproduces, and the wrong `radius_ratio` comment.
 
+> **ALL CLOSED.** `solver_method`, the `sdi`/`cdi` misnaming and the stale
+> Carter-Tracy provenance went in engines #168 / #167 (2026-09-11); the two
+> wrong comments went in engines #170 the same day. Nothing in this list is
+> outstanding.
+
 ## 2026-09-11 — one name per drive index, `sdi` removed (engines #167)
 
 **The mislabel.** The oil path published the rock and connate water expansion
@@ -609,13 +628,108 @@ plot puts the in-place volume in the intercept, every other path in the slope)
 across four fluid and aquifer combinations rather than restating the resolver;
 V-2..V-4 cover the mismatch warning, the clean path and a matching request.
 
-**Found while writing GATE 6, not fixed:** `aquifer_params` silently ignores
-unknown keys. Passing `aquifer_encroachment_angle_deg` where the engine reads
-`theta_degrees` produced OOIP = -46.9 MMSTB. The #166 sanity guard caught it
-immediately, which is the guard doing its job, but the silently-ignored key is
-the same class of defect as `solver_method` was and is still open.
+**Found while writing GATE 6, fixed the same day in engines #170:**
+`aquifer_params` silently ignored unknown keys. Passing
+`aquifer_encroachment_angle_deg` where the engine reads `theta_degrees` produced
+OOIP = -46.9 MMSTB. The #166 sanity guard caught it immediately, which is the
+guard doing its job, but the silently-ignored key was the same class of defect
+as `solver_method` was. See "One name, or a warning" below.
 
 **Pre-existing flake, unrelated to this work:**
 `src/contexts/__tests__/gasLiftDesignContext.test.jsx` intermittently fails two
 "explicit runs" cases in large batches. It fails the same way on untouched
 `main` and passes on three consecutive solo runs.
+
+## 2026-09-11 — one name, or a warning (engines #170, Suite close-out)
+
+The close-out review of the drive-index programme asked what was left. Two of
+the items on the list turned out to be **stale rather than open** (the Fetkovich
+Δp̄ convention and the oil + Fetkovich benchmark, both settled by MB1 on
+2026-07-18 and still written up as pending at the top of this file), and two
+more were found while checking the rest. What actually remained is below.
+
+### The family: an input the caller believes in and the engine ignores
+
+Three separate instances, all fixed the same way — say it out loud.
+
+1. **`aquifer_params` ignored unknown keys.** The engine picks named fields out
+   of the bag and defaults anything absent, so a wrong name was
+   indistinguishable from no value: `aquifer_encroachment_angle_deg` instead of
+   `theta_degrees` left theta at 360 degrees and returned **OOIP = -46.9
+   MMSTB**. Unknown keys now warn, with "did you mean" for the plausible
+   near-misses (unit-less spellings, the literature's `W`, `J`, `reD`). A
+   warning and not a throw: stored cases predate the check and the arithmetic is
+   still valid; what must not happen again is silence.
+
+2. **A declared gas cap with no `gas_cap_ratio_m`** ran as m = 0, which is not a
+   small gas cap but the undersaturated MBE: the m·Eg term vanishes, GDI is 0,
+   and the OOIP is the no-gas-cap answer while every label still reads gas cap.
+   Now warned — and the studio finally has a field that writes m (PVT & Rock,
+   oil-with-gas-cap cases only). Until now, fitting it in a history match was
+   the only way to set it at all, so a gas-cap case that skipped the match was
+   quietly solved as an undersaturated one.
+
+3. **A PVT lab table printed descending was silently discarded.**
+   `interpolateLabTable` brackets on `table[0]` and `table[length-1]`, so a
+   table entered the way lab reports print it put every lookup "outside range":
+   the whole table was dropped, the run fell back to correlations, and the only
+   complaint was one "not sorted ascending" warning per row describing the
+   ordering rather than the loss. Row order carries no information in a
+   pressure-keyed lookup, so the engine sorts it once and says so. Duplicate and
+   non-positive pressures still warn.
+
+### The other two
+
+4. **`tierMatrix.json` was stale.** engines #168 re-measured the Carter-Tracy
+   provenance (OOIP 301.0 → 307.2 MMSTB, tolerance 3.53 → 1.53 percent) and
+   nobody re-ran `tools/validation/gen-tier-matrix-golden.ts`, so the Aquifer
+   tab's pre-run badge still quoted figures the engine no longer produced: the
+   exact defect #168 had just fixed inside the engine, reintroduced one file
+   downstream. The generator existed *because* a hand-maintained mirror drifts —
+   and the generated file drifted anyway, because nothing checked the commit.
+   Regenerated, and `tierMatrix.test.js` now compares every cell against
+   `resolveValidationTier` at test time.
+
+5. **The comments described code that is not there.** Nine "regression through
+   origin" sites: `linearRegression` is ordinary least squares with a **free**
+   intercept, which is the better design, because a fitted intercept away from
+   zero is evidence the model is wrong rather than a definitional zero. Plus
+   `radius_ratio`'s `// ignored — we use infinite-aquifer pD`, when `pD()` does
+   branch on it.
+
+### Gates
+
+GATE 8 A-1..A-5, GATE 9 M-1..M-3, GATE 10 L-1..L-4 in the engines repo.
+
+- A-1 is the original -46.9 MMSTB repro. A-5 parses the `aquifer_params`
+  interface out of the engine source, so adding a field without adding it to
+  `AQUIFER_PARAM_KEYS` fails there rather than turning a real parameter into an
+  "unknown key" warning.
+- GATE 9 generates **one** history from a reservoir that really has m = 0.3 and
+  N = 10 MMSTB, then reads it back with and without the declaration. Generating
+  each case from its own m would return N by construction and prove nothing.
+- L-1b checks the lab table is actually *used*, not merely that two runs agree:
+  without it, L-1 would pass equally well if both runs discarded the table.
+- Negative control: reverting the three engine fixes fails A-1, A-3, M-1, L-1,
+  L-1b and L-2, while every no-false-positive gate still passes. Restoring the
+  stale `tierMatrix.json` fails the new staleness gate on the Carter-Tracy cells
+  and nothing else.
+
+### Schema debt cleared
+
+`20260718220000_backfill_rb_tables_ddl.sql` captures all five `rb_*` tables from
+the live catalog, the last of the pre-repo-history debt after `epe_*`. Proven by
+rebuilding into a scratch schema inside a rolled-back transaction: 5 tables, 94
+columns, 22 constraints, 17 indexes, 5 policies, RLS on all five — exactly the
+live shape, with no live table touched and zero residue. Not applied and no
+apply needed; the live shape already is the file.
+
+### Deliberately left alone
+
+`rb_results.final_sdi` stays as a deprecated mirror of `final_cdi`. The engine
+stopped producing `sdi` in #167 and the edge function keeps writing the mirror so
+a browser still running an older bundle renders. Dropping the column is a
+migration, and it should wait until stale service-worker shells have aged out
+(see the PWA stale-shell recovery work); doing it now would blank the drive-index
+panel for anyone who had not reloaded. The backfill migration records it as
+history rather than pretending it is current.
