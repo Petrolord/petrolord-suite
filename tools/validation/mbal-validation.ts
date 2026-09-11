@@ -43,6 +43,7 @@ import {
   computeFetkovichWe,
   computeCarterTracyWe,
   computeOilPerTimestep,
+  oilDriveIndices,
   runHistoryMatch,
   simulatePressureHistory,
 } from '../../supabase/functions/_shared/mbal-engine.ts';
@@ -457,6 +458,12 @@ async function main() {
   console.log('═══════════════════════════════════════════════════════════════════');
   console.log('');
   await runCombinationDriveCase();
+
+  console.log('═══════════════════════════════════════════════════════════════════');
+  console.log('  CASE 9W — Drive-index closure under heavy water production');
+  console.log('═══════════════════════════════════════════════════════════════════');
+  console.log('');
+  await runWetDriveIndexClosureCase();
 
   console.log('═══════════════════════════════════════════════════════════════════');
   console.log('  CASE 10 — Carter-Tracy McCain default chain (MB1)');
@@ -2211,11 +2218,14 @@ async function runFetkovichOilCase(): Promise<void> {
 // documented as such (no multi-step published pot+gas-cap example found in
 // the accessible references; the tier reference states this scope).
 //
-// Convention note (fixture notes have the details): the book's index
-// denominator A = F - Wp·Bw; the engine divides by F at runtime. The printed
-// indices are asserted here in the book's convention, recomputed from engine
-// terms. Book labels map: book SDI (gas cap) = engine gdi; book EDI
-// (rock+water expansion) = engine sdi.
+// Convention note (fixture notes have the details): the index denominator is
+// the hydrocarbon voidage A = F - Wp·Bw, with water production netted inside
+// WDI. The engine adopted that at runtime on 2026-09-11, so X-4..X-8 now call
+// the engine's own oilDriveIndices() against the printed values instead of
+// re-deriving the formula harness-side. Re-deriving it is exactly what hid the
+// denominator bug behind a green gate for five months: the harness computed
+// the book convention while the runtime divided by gross F. Book labels map:
+// book SDI (gas cap) = engine gdi; book EDI (rock+water expansion) = engine sdi.
 async function runCombinationDriveCase(): Promise<void> {
   const fx = requireArmedFixture('CASE 9', 'ahmed-ex-11-1-combination.json');
   if (!fx) return;
@@ -2267,16 +2277,18 @@ async function runCombinationDriveCase(): Promise<void> {
     0.02,
     { unit: 'bbl', format: (n) => n.toFixed(0) },
   );
-  const DDI = (N * (r.Eo_rb_stb ?? 0)) / A_rb;
-  const SDI_gascap = (N * g.m * (r.Eg_rb_stb ?? 0)) / A_rb;
-  const WDI = (We_backcalc - WpBw) / A_rb;
-  const EDI = N_Efw / A_rb;
-  check('X-4 DDI depletion index', DDI, fx.printed.DDI, 0.01, { format: (n) => n.toFixed(4) });
-  check('X-5 SDI gas-cap index', SDI_gascap, fx.printed.SDI_gascap, 0.01, { format: (n) => n.toFixed(4) });
-  check('X-6 WDI water-drive index', WDI, fx.printed.WDI, 0.02, { format: (n) => n.toFixed(4) });
-  check('X-7 EDI expansion index', EDI, fx.printed.EDI, 0.10, { format: (n) => n.toFixed(4) });
-  // Exact identity of the book convention: indices sum to 1 by construction.
-  check('X-8 index sum identity (book convention)', DDI + SDI_gascap + WDI + EDI, 1.0, 1e-9, {
+  // Ahmed back-calculates We from the MBE, so seed it on the row exactly as the
+  // runtime's aquifer step would, then run the ENGINE'S drive-index function.
+  const idx = oilDriveIndices({ ...r, We_rb: We_backcalc }, N, g.m, g.Wp_stb);
+  check('X-3b index denominator excludes Wp·Bw', idx.A_rb, fx.printed.A_rb, 0.003, {
+    unit: 'rb', format: (n) => (n / 1e6).toFixed(4) + 'e6',
+  });
+  check('X-4 DDI depletion index', idx.ddi, fx.printed.DDI, 0.01, { format: (n) => n.toFixed(4) });
+  check('X-5 SDI gas-cap index', idx.gdi, fx.printed.SDI_gascap, 0.01, { format: (n) => n.toFixed(4) });
+  check('X-6 WDI water-drive index', idx.wdi, fx.printed.WDI, 0.02, { format: (n) => n.toFixed(4) });
+  check('X-7 EDI expansion index', idx.sdi, fx.printed.EDI, 0.10, { format: (n) => n.toFixed(4) });
+  // Exact identity of the convention: indices sum to 1 by construction.
+  check('X-8 index sum identity', idx.drive_index_sum, 1.0, 1e-9, {
     format: (n) => n.toFixed(10),
   });
 
@@ -2343,6 +2355,128 @@ async function runCombinationDriveCase(): Promise<void> {
   const stillWarns = (synResult.warnings ?? []).some((w: string) => w.includes('not yet validated'));
   checkRange('X-12 pot+gas-cap unvalidated warning removed', stillWarns ? 1 : 0, 0, 0);
   console.log(`  info: validation tier reported = ${synResult.validation_tier}`);
+  console.log('');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CASE 9W — Drive-index closure under heavy water production (2026-09-11)
+// ────────────────────────────────────────────────────────────────────────────
+// The regression case for the drive-index denominator defect. No PUBLISHED case
+// in this harness could catch it: Ahmed Ex. 11-1 has Wp·Bw at 2.8% of voidage
+// and Pletcher's oil case about 1%, so dividing by gross F still landed inside
+// the 0.95..1.05 closure band. A mature waterflood puts water at half of
+// voidage, where the old code summed near 0.5, halved every index and raised a
+// spurious "material balance solution issue" warning on a correct answer.
+//
+// The truth here is the MBE identity itself, asserted on the ENGINE'S OUTPUT
+// through computeMaterialBalance: with denominator A = F - Wp·Bw the indices
+// sum to exactly 1 at every timestep, at any water cut.
+async function runWetDriveIndexClosureCase(): Promise<void> {
+  const fx = requireArmedFixture('CASE 9W', 'ahmed-ex-11-1-combination.json');
+  if (!fx) return;
+  const g = fx.given;
+  const N_truth = 1.0e7;
+  const m_truth = 0.25;
+  const W_truth_rb = 5.0e8;
+  const WATER_FRACTION = 0.45;
+  const cwcf = g.cw_psi + g.cf_psi;
+  const pressures = [3000, 2950, 2900, 2850, 2800, 2750, 2700, 2650, 2600];
+  const pvtAt = (p: number) => {
+    const t = (3000 - p) / 200;
+    return {
+      Bo: g.pvt.at_3000.Bo + t * (g.pvt.at_2800.Bo - g.pvt.at_3000.Bo),
+      Rs: g.pvt.at_3000.Rs + t * (g.pvt.at_2800.Rs - g.pvt.at_3000.Rs),
+      Bg: g.pvt.at_3000.Bg_rb_scf + t * (g.pvt.at_2800.Bg_rb_scf - g.pvt.at_3000.Bg_rb_scf),
+    };
+  };
+  const baseInputs = {
+    fluid_system: 'oil',
+    initial_pressure_psia: g.pi_psia,
+    bubble_point_psia: g.pi_psia,
+    reservoir_temperature_f: g.temp_f,
+    initial_water_saturation: g.Swi,
+    formation_compressibility_psi: g.cf_psi,
+    water_compressibility_psi: g.cw_psi,
+    oil_gravity_api: 35,
+    gas_specific_gravity: g.gas_sg,
+    gas_cap_ratio_m: m_truth,
+    aquifer_model: 'pot',
+    production_data: pressures.map((p, i) => {
+      const pvt = pvtAt(p);
+      return {
+        timestep_index: i, pressure_psia: p, cum_oil_stb: 0, cum_gas_scf: 0,
+        cum_water_stb: 0, bo_rb_stb: pvt.Bo, rs_scf_stb: pvt.Rs,
+        bg_rb_scf: pvt.Bg, bw_rb_stb: 1.0,
+      };
+    }),
+  } as any;
+  const { per_timestep: termRows } = computeOilPerTimestep(baseInputs);
+  const Rsi = g.pvt.at_3000.Rs;
+
+  // 9W-A: water far in excess of influx (produced injection or connate water).
+  const wetRows = pressures.map((p, i) => {
+    if (i === 0) return baseInputs.production_data[0];
+    const tr = termRows[i];
+    const F_target = N_truth * tr.Et_rb + cwcf * W_truth_rb * tr.delta_p_psi;
+    const WpBw = WATER_FRACTION * F_target;
+    const pvt = pvtAt(p);
+    const Bt = pvt.Bo + pvt.Bg * (Rsi - pvt.Rs);
+    return {
+      ...baseInputs.production_data[i],
+      cum_oil_stb: (F_target - WpBw) / Bt,
+      cum_gas_scf: ((F_target - WpBw) / Bt) * Rsi,
+      cum_water_stb: WpBw,
+    };
+  });
+  const wet = computeMaterialBalance({ ...baseInputs, production_data: wetRows } as any);
+  console.log('─── Assertions W-1..W-4: closure at 45% water voidage ───────────');
+  const sums = (wet.per_timestep ?? [])
+    .filter((r: any) => r.timestep_index !== 0)
+    .map((r: any) => r.drive_index_sum ?? 0);
+  const worst = sums.reduce((a, b) => (Math.abs(b - 1) > Math.abs(a - 1) ? b : a), 1);
+  check('W-1 worst per-timestep closure', worst, 1.0, 1e-9, { format: (n) => n.toFixed(10) });
+  const lastRow: any = (wet.per_timestep ?? [])[pressures.length - 1];
+  const WpBw_last = (lastRow.bw_rb_stb ?? 1) * (wetRows[pressures.length - 1].cum_water_stb ?? 0);
+  const oldConventionSum = (lastRow.F_rb - WpBw_last) / lastRow.F_rb;
+  checkRange('W-2 old gross-F convention would have read well under 1', oldConventionSum, 0, 0.6);
+  const spurious = (wet.warnings ?? []).some((w: string) => w.includes('Drive index sum'));
+  checkRange('W-3 no spurious closure warning', spurious ? 1 : 0, 0, 0);
+  checkRange('W-4 WDI negative (Wp far exceeds We)', wet.final_wdi ?? 0, -1e9, 0);
+  console.log(`  info: engine closure ${worst.toFixed(10)}, old convention would be ${oldConventionSum.toFixed(4)}`);
+
+  // 9W-B: the physical counterpart. A large aquifer supplies the water and half
+  // the influx is produced, so water is a third of gross voidage AND water
+  // drive is the dominant index (0.50).
+  console.log('─── Assertions W-5..W-8: strong influx-supplied water drive ─────');
+  const Et_final = termRows[pressures.length - 1].Et_rb;
+  const dp_final = termRows[pressures.length - 1].delta_p_psi;
+  const W_big_rb = (2 * N_truth * Et_final) / (cwcf * dp_final);
+  const strongRows = pressures.map((p, i) => {
+    if (i === 0) return baseInputs.production_data[0];
+    const tr = termRows[i];
+    const We = cwcf * W_big_rb * tr.delta_p_psi;
+    const WpBw = 0.5 * We;
+    const A = N_truth * tr.Et_rb + We - WpBw;
+    const pvt = pvtAt(p);
+    const Bt = pvt.Bo + pvt.Bg * (Rsi - pvt.Rs);
+    return {
+      ...baseInputs.production_data[i],
+      cum_oil_stb: A / Bt, cum_gas_scf: (A / Bt) * Rsi, cum_water_stb: WpBw,
+    };
+  });
+  const strong = computeMaterialBalance({ ...baseInputs, production_data: strongRows } as any);
+  const strongSums = (strong.per_timestep ?? [])
+    .filter((r: any) => r.timestep_index !== 0)
+    .map((r: any) => r.drive_index_sum ?? 0);
+  const strongWorst = strongSums.reduce((a, b) => (Math.abs(b - 1) > Math.abs(a - 1) ? b : a), 1);
+  check('W-5 worst per-timestep closure', strongWorst, 1.0, 1e-9, { format: (n) => n.toFixed(10) });
+  check('W-6 N recovered', strong.estimated_ooip_stb ?? 0, N_truth, 1e-6, {
+    unit: 'STB', format: (n) => n.toFixed(0),
+  });
+  check('W-7 aquifer W recovered', strong.aquifer_owip_rb ?? 0, W_big_rb, 1e-5, {
+    unit: 'rb', format: (n) => n.toFixed(0),
+  });
+  check('W-8 WDI dominant at 0.50', strong.final_wdi ?? 0, 0.5, 0.02, { format: (n) => n.toFixed(4) });
   console.log('');
 }
 

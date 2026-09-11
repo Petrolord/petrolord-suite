@@ -2,8 +2,9 @@
 
 > Companion to `docs/scope/ReservoirBalance.md` (full scope, decision log,
 > process patterns). This file is the fast-read snapshot.
-> Last updated: 2026-07-18 · **MB PROGRAM COMPLETE (MB1-MB7)**; prior state
-> as of the 2026-05-17 patch series.
+> Last updated: 2026-09-11 · **MB PROGRAM COMPLETE (MB1-MB7)**; prior state
+> as of the 2026-05-17 patch series. Newest entry: the oil drive-index
+> denominator fix (engines #165), which needs a `calculate-mbal` redeploy.
 
 ## What MBAL does
 
@@ -442,3 +443,42 @@ Guide's own header comment stopped at MB6; MB7 plus the 2026-08-14 and
 Copy rule was already clean in the guide itself. Note ~5 sibling UI
 strings in this tree still carry em dashes (AquiferModel.jsx:87,
 DataHub.jsx:723, PvtRock.jsx:1392, RbDiagnosticPlots.jsx:708-709).
+
+## 2026-09-11 — oil drive indices divided by the wrong voidage (engines #165)
+
+**Defect, live since the drive-index block was written.** The oil path divided
+DDI/SDI/GDI/WDI by gross withdrawal `F` while netting `Wp*Bw` inside WDI's
+numerator, so the indices summed to `(F - Wp*Bw)/F` rather than 1. Every index
+was under-reported by the water fraction of voidage, and past roughly 5 percent
+water by volume the sum left the 0.95..1.05 closure band and the engine raised
+a spurious "Possible material balance solution issue" warning on a correct
+solution. On Ahmed Example 11-1 the old code closed to 0.972; on a mature
+waterflood it approached 0.5.
+
+**Fix.** The denominator is now the hydrocarbon voidage `A = F - Wp*Bw`, the
+published convention (Ahmed REH 4th ed. Example 11-1 prints `A = 1,710,000 rb`
+with `Wp*Bw = 50,000 rb` excluded) and the shape the gas path already used
+(`Gp*Bg`). Closure is now an exact identity of the MBE at every timestep and
+any water cut. The formula lives in one exported function, `oilDriveIndices()`.
+
+**Why five months of green gates missed it.** Both the jest gate and CASE 9 of
+the validation harness re-derived the indices in the book's convention from the
+engine's raw terms. They asserted a gate-side recompute, never the shipped
+arithmetic. Both now call `oilDriveIndices()`. **Any new drive-index gate must
+call the engine's function rather than restate the formula.** No published case
+in the suite could have caught this either: Ahmed Ex. 11-1 has water at 2.8
+percent of voidage and Pletcher's oil case about 1 percent, both inside the
+closure band with the wrong denominator. That is what CASE 9W adds.
+
+**Gates added.** Harness CASE 9W (W-1..W-8) and jest GATE 3W (W-1..W-5): exact
+closure at 45 percent water voidage asserted on `computeMaterialBalance`
+output, the defect magnitude pinned, no spurious warning, negative WDI when Wp
+exceeds We, and a physical strong-waterdrive case (large aquifer, half the
+influx produced) where N and W are recovered and WDI is dominant at 0.50.
+Negative control: reverting only the denominator fails 6 of the 14 jest gates.
+
+**Verified.** Harness: all assertions passed across all twelve cases. Jest:
+mbal 14/14, reservoir-balance suites 67/67, full engines suite 4534/4534.
+
+**Deploy.** This is engine math, so it ships only when
+`supabase functions deploy calculate-mbal` runs. Merging is not deploying.

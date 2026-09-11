@@ -92,8 +92,13 @@ const MbsHelpContent = () => (
     <P>
       The tab has two segments. Regression runs the Havlena-Odeh straight line (or the p over z pot-aquifer plot for
       gas) on the server engine and reports OOIP or OGIP, aquifer size where applicable, the regression quality, and
-      the drive index decomposition (depletion, gas cap, water and compressibility drives, which should sum to about
-      one). Engine warnings surface anything the run had to assume or found suspicious.
+      the drive index decomposition (depletion, gas cap, water and compressibility drives). Those indices are
+      fractions of the hydrocarbon voidage the reservoir had to replace, so water you have produced is netted inside
+      the water drive index rather than counted in the denominator. That makes them sum to one by construction, and a
+      sum that drifts off one points at an inconsistent solution or inconsistent inputs rather than at rounding. A
+      negative water drive index is meaningful too: it says you produced more water than the aquifer supplied, so
+      expansion energy had to make up the difference. Engine warnings surface anything the run had to assume or found
+      suspicious.
     </P>
     <P>
       History match works the other way round: the engine simulates the pressure history your production would have
