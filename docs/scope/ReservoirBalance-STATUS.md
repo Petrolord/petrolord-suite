@@ -3,8 +3,9 @@
 > Companion to `docs/scope/ReservoirBalance.md` (full scope, decision log,
 > process patterns). This file is the fast-read snapshot.
 > Last updated: 2026-09-11 · **MB PROGRAM COMPLETE (MB1-MB7)**; prior state
-> as of the 2026-05-17 patch series. Newest entry: the oil drive-index
-> denominator fix (engines #165), which needs a `calculate-mbal` redeploy.
+> as of the 2026-05-17 patch series. Newest entries: the oil drive-index
+> denominator fix (engines #165) and the physical-sanity guards (engines #166).
+> Both need a `calculate-mbal` redeploy to reach users.
 
 ## What MBAL does
 
@@ -482,3 +483,40 @@ mbal 14/14, reservoir-balance suites 67/67, full engines suite 4534/4534.
 
 **Deploy.** This is engine math, so it ships only when
 `supabase functions deploy calculate-mbal` runs. Merging is not deploying.
+
+## 2026-09-11 — physical-sanity guards on impossible solutions (engines #166)
+
+**Gap.** The oil branch had no sanity guard at all; the gas branch had half of
+one (negative pot W, nothing for negative OGIP). The regression returns
+impossible answers happily, because a line fitted to data that does not obey
+the assumed drive mechanism can have a negative intercept. Found 2026-08-27
+authoring RC2: a forced pot aquifer returned **OOIP = -516,449 STB with an
+empty warnings array** and tier `benchmark_verified`, reading like a good
+answer.
+
+**Fix.** One shared `physicalSanityWarnings()` on both branches: negative or
+zero OOIP/OGIP, and negative pot aquifer W. The text says the result cannot be
+used, says a high R-squared does not rescue it, and names the three usual
+causes (wrong aquifer model, unit or sign errors, early points from another
+flow regime). The help guide now carries the same guidance.
+
+**Deliberately not changed:** `validation_tier`. It describes the provenance of
+the code path, not the plausibility of one result. A negative OOIP on a
+benchmark-verified path is still running benchmark-verified code, and the
+honest signal is the warning.
+
+**Gates (jest GATE 4).** S-1 negative OOIP warns at R-squared 1.0000 (a perfect
+fit to an impossible answer); S-2 a pot aquifer forced onto a depletion tank
+warns on negative W at R-squared 0.03, the realistic misuse; S-3 negative OGIP
+warns on the gas branch; S-4 no false positive on Pletcher or on a sound
+depletion tank read as pot. Negative control: restoring the pre-fix state fails
+S-1..S-3 while S-4 still passes. **Note what R-squared does in S-1 and S-3: fit
+quality is not a sanity check.**
+
+**Still open in this engine** (all found 2026-08-27, none touched here): the
+dead `solver_method` API that nothing branches on, the `sdi`/`cdi` misnaming
+(`sdi` holds rock and connate water expansion, which Ahmed calls EDI, while
+`gdi` holds the gas cap, which Ahmed calls SDI), the wrong "regression through
+origin" comment on an ordinary least-squares fit with a free intercept, the
+stale `carter_tracy` provenance string quoting a 2026-05-17 run the engine no
+longer reproduces, and the wrong `radius_ratio` comment.

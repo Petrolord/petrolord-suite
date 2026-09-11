@@ -101,6 +101,16 @@ const MbsHelpContent = () => (
       suspicious.
     </P>
     <P>
+      Two warnings mean the answer cannot be used at all rather than that it needs care: an oil or gas in place at or
+      below zero, and a negative pot aquifer volume. Both come from a regression line whose intercept landed on the
+      wrong side of zero, and a high regression quality does not rescue either one, because points can sit on a
+      straight line about the wrong model. Check the aquifer model first (a real aquifer analysed as none bends the
+      plot, and a pot aquifer forced onto a depletion tank drives the water volume negative), then the pressure and
+      production history for unit or sign errors, then whether the earliest points belong to a different flow regime
+      and should be excluded.
+    </P>
+
+    <P>
       History match works the other way round: the engine simulates the pressure history your production would have
       produced for a candidate set of tank parameters, then a Levenberg-Marquardt search adjusts the parameters you
       tick until the simulated pressures reproduce the observed ones. Each matched parameter comes back with a 95
