@@ -69,6 +69,13 @@ export function useUserEntitlements() {
     fetchEntitlements();
   }, [fetchEntitlements]);
 
+  // Stable identity, because consumers put this in effect dependency arrays.
+  // Rebuilding it on every render re-ran those effects after every render, and
+  // every pass forced a fresh read and flipped `loading`: the gate in front of
+  // every app route swapped the app for its full-screen spinner over and over,
+  // so the apps flickered and could not be used (2026-09-11).
+  const refetch = useCallback(() => fetchEntitlements(true), [fetchEntitlements]);
+
   // --- Helpers ---
 
   /**
@@ -135,8 +142,8 @@ export function useUserEntitlements() {
     error,
     stale,        // served from the last-known snapshot because the network failed
     stampedAt,    // when that snapshot was verified
-    refetch: () => fetchEntitlements(true),
-    refresh: () => fetchEntitlements(true), // Alias
+    refetch,
+    refresh: refetch, // Alias
     hasAccessToApp,
     checkAccess,
     getAppAccessInfo,
