@@ -724,12 +724,30 @@ columns, 22 constraints, 17 indexes, 5 policies, RLS on all five — exactly the
 live shape, with no live table touched and zero residue. Not applied and no
 apply needed; the live shape already is the file.
 
-### Deliberately left alone
+### Deliberately left alone, and one assumption that was wrong
 
 `rb_results.final_sdi` stays as a deprecated mirror of `final_cdi`. The engine
 stopped producing `sdi` in #167 and the edge function keeps writing the mirror so
 a browser still running an older bundle renders. Dropping the column is a
 migration, and it should wait until stale service-worker shells have aged out
 (see the PWA stale-shell recovery work); doing it now would blank the drive-index
-panel for anyone who had not reloaded. The backfill migration records it as
-history rather than pretending it is current.
+panel for anyone who had not reloaded.
+
+**The close-out record said every oil row carried the same number in both
+columns, so a later drop would be lossless. That is not true.** A live probe on
+2026-09-11 found 16 result rows, of which **one has `final_sdi` set and
+`final_cdi` NULL** (no row disagrees where both are set). A drop today would lose
+a drive index rather than a duplicate, and the studio's per-row
+`plot.cdi ?? plot.sdi` fallback is carrying that row rather than merely guarding
+against it. Retiring the column is therefore two steps, not one:
+
+1. `20260911120000_rb_results_backfill_final_cdi.sql` — copy the value across so
+   the columns genuinely are duplicates. Written, dry-run clean (16/16 rows carry
+   `final_cdi` after, 0 sdi-only, 0 disagreements), **held**: it is a production
+   data write, small and idempotent but still data.
+2. A later migration drops the column and stops the edge function writing it,
+   once stale shells have aged out.
+
+Worth generalising: the mirror was described as redundant on the strength of how
+the writer was *written*, and the one row that predates the writer was the whole
+question. Check the rows.
