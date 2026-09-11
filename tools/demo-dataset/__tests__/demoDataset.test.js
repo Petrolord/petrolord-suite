@@ -231,3 +231,28 @@ describe('the section correlates', () => {
     expect(kit.geo.throwAt(1845)).toBeGreaterThan(30);
   });
 });
+
+describe('the dynamic field is repackaged, not recomputed', () => {
+  const FIX = `${__dirname}/../../../packages/engines/test-data/ekene-dynamic`;
+  // eslint-disable-next-line global-require, import/no-dynamic-require
+  const load = (f) => JSON.parse(require('fs').readFileSync(`${FIX}/${f}`, 'utf8'));
+
+  test('the surveillance rows are daily rates, whatever the suffix says', () => {
+    const flood = load('waterflood.json');
+    const jan = flood.surveillance_rows.filter((r) => r.date === '2023-01-01');
+    const sum = jan.reduce((a, r) => a + r.oil_bbl, 0);
+    expect(sum * 31).toBeCloseTo(flood.ledger_periods[0].Np, 6);
+  });
+
+  test('material balance on the pressure history returns the volumetric STOIIP', () => {
+    const mbal = load('mbal.json');
+    expect(mbal.expected.r_squared).toBe(1);
+    expect(mbal.expected.estimated_ooip_stb).toBeCloseTo(LOCKED.stoiip_stb, 3);
+  });
+
+  test('the capillary plugs are the curve the log saturations came from', () => {
+    const scal = load('scal.json');
+    expect(scal.capillary.design.jTrue).toEqual(LOCKED.jTrue);
+    expect(scal.capillary.lab_pc).toHaveLength(3);
+  });
+});

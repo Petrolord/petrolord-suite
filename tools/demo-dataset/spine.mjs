@@ -37,7 +37,7 @@ export const LOCKED = {
   bw_rb_stb: 1.02,
   // SCAL
   kr: { Swc: 0.35, Sor: 0.25, krwMax: 0.3, kroMax: 0.9, nw: 2.5, no: 2.0 },
-  jTrue: { a: 0.25, b: 1.0, Swirr: 0.25 },
+  jTrue: { type: 'power', a: 0.25, b: 1, Swirr: 0.25 },
   k_md: 250,
   sigma_dyncm: 26,
   thetaDeg: 30,
