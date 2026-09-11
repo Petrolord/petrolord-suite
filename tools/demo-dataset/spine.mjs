@@ -190,13 +190,13 @@ export const PETRO = {
   nphi_shale_excess: 0.30, nphi_gas_factor: 0.65,
   pef_sand: 1.81, pef_shale: 3.10,
   archie: { a: 1, m: 2, n: 2 },
-  r_shale: 2.2,                      // ohm-m, the shale conductivity term
+  r_shale: 3.2,                      // ohm-m, the shale conductivity term
   dt_matrix_us_ft: 55.5,             // sand matrix; also the Eaton matrix value
   dt_mudline_us_ft: 200,
   compaction_c_per_m: 0.00042,       // normal compaction constant
   sxo_oil: 0.75, sxo_gas: 0.45,      // flushed-zone saturations
-  rmf_ohm_m_at_75f: 0.35,
-  bit_sizes: [[0, 600, 17.5], [600, 1250, 12.25], [1250, 2250, 8.5]],
+  rmf_ohm_m_at_75f: 1.2,
+  bit_sizes: [[0, 150, 26], [150, 600, 26], [600, 1250, 17.5], [1250, 1700, 12.25], [1700, 3000, 8.5]],
 };
 
 // Pressure design. The prognosis has to land on the LOCKED Pi, so the target

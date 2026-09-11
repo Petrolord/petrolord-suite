@@ -6,7 +6,9 @@ export default {
     // (babelrc/configFile disabled) so jest transforms ESM regardless.
     // .ts added 2026-08-06 for the vendored TypeScript mbal engine + its
     // acceptance gates (packages/engines/engines/mbal, __tests__/mbal.test.ts).
-    '^.+\\.(js|jsx|ts)$': ['babel-jest', {
+    // .mjs added 2026-09-11 for tools/demo-dataset (node-ESM generator modules
+    // that the gate test imports; the root package.json is CommonJS).
+    '^.+\\.(js|jsx|ts|mjs)$': ['babel-jest', {
       babelrc: false,
       configFile: false,
       presets: [
@@ -39,7 +41,7 @@ export default {
   },
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.js'],
   testMatch: ['**/__tests__/**/*.test.(js|jsx|ts)'],
-  moduleFileExtensions: ['js', 'jsx', 'ts', 'json', 'node'],
+  moduleFileExtensions: ['js', 'jsx', 'ts', 'mjs', 'json', 'node'],
   collectCoverageFrom: [
     'src/**/*.{js,jsx}',
     '!src/main.jsx',
