@@ -12,8 +12,9 @@ const DecisionTreePlot = ({ tree }) => {
   if (!tree) {
     return (
       <div className="bg-white/5 p-4 rounded-lg h-[400px] flex items-center justify-center text-slate-400 text-sm text-center px-8">
-        The tree could not be drawn from these inputs. The values above are unaffected;
-        check that each indicator&apos;s outcome chances sum to 100 percent.
+        The diagram is withheld because the indicator numbers contradict the stated
+        outcome chances. Decision Guidance below explains what they imply and how to
+        make them agree.
       </div>
     );
   }

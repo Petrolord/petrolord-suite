@@ -43,7 +43,7 @@ const helpContent = [
     icon: Link2,
     title: 'Linking payoffs to real valuations',
     content:
-      'A terminal payoff can be linked to a saved Petroleum Economics Studio Monte Carlo run instead of being typed. The tree then sits on a full fiscal probabilistic valuation rather than on a number someone remembered, and when the valuation is updated the tree can be re-solved against it. This is the chain the module is built around: volumes, forecast, fiscal valuation, then decision.',
+      'A terminal payoff can be linked to a saved Petroleum Economics Studio Monte Carlo run instead of being typed. The tree then sits on a full fiscal probabilistic valuation rather than on a number someone remembered. The link stores a copy of the mean and percentiles of that run in the tree at the moment you link it, and the tree is solved on that stored mean. Nothing reads the run again afterwards, so if the valuation is rerun, relink the payoff to the new run and save the tree to bring the new numbers in. This is the chain the module is built around: volumes, forecast, fiscal valuation, then decision.',
   },
   {
     id: 'projects',

@@ -30,28 +30,28 @@ const helpContent = [
     icon: Target,
     title: 'Step 1: State the decision and its outcomes',
     content:
-      'Name the decision (for example, drill an exploration well) and give its cost. Then list the outcomes with a probability and a payoff each. Probabilities across outcomes should sum to 100 percent. Payoffs are gross of the decision cost, which the tool subtracts once. The alternative to acting is always available and pays zero, so a decision worth taking is one whose expected payoff clears its cost.',
+      'Name the decision (for example, drill an exploration well) and give its cost. Then list the outcomes with a probability and a payoff each. Probabilities across outcomes must sum to 100 percent; the app refuses to run otherwise and tells you what they sum to. Payoffs are gross of the decision cost, which the tool subtracts once. The alternative to acting is always available and pays zero, so a decision worth taking is one whose expected payoff clears its cost.',
   },
   {
     id: 'indicators',
     icon: GitMerge,
     title: 'Step 2: Describe what the information could say',
     content:
-      'Name the information source and its cost, then list the indicators it can return, such as a positive or a negative seismic result. Each indicator needs the chance of seeing it, and, for each outcome, the chance of that outcome given you saw it. Those second numbers are posteriors, meaning the updated view of the world after the reading. Reliable information is information whose indicators separate the outcomes sharply; if every indicator leaves you with roughly your starting probabilities, the survey tells you nothing and the tool will say so with a value near zero.',
+      'Name the information source and its cost, then list the indicators it can return, such as a positive or a negative seismic result. Each indicator needs the chance of seeing it, and, for each outcome, the chance of that outcome given you saw it. Those second numbers are posteriors, meaning the updated view of the world after the reading. The indicator chances must sum to 100 percent, and so must the outcome chances under each indicator; the app refuses to run otherwise and names the sum that is off. Reliable information is information whose indicators separate the outcomes sharply; if every indicator leaves you with roughly your starting probabilities, the survey tells you nothing and the tool will say so with a value near zero.',
   },
   {
     id: 'bayes',
     icon: Percent,
     title: 'The consistency check, and why it matters',
     content:
-      'Indicator chances and posteriors are typed in independently of the outcome probabilities above, so nothing forces them to agree. They must: averaging the posteriors over the indicator chances has to reproduce your stated outcome probabilities. When it does not, the app computes what your indicator numbers actually imply and shows both alongside each other in a consistency warning, rather than reporting a value of information built on numbers that contradict each other. The Decision Tree Builder derives these from reliabilities instead, so the two cannot disagree there.',
+      'Indicator chances and posteriors are typed in independently of the outcome probabilities above, so nothing forces them to agree. They must: averaging the posteriors over the indicator chances has to reproduce your stated outcome probabilities. The app allows half a percentage point of difference on each outcome. When the difference is larger, the app still shows EMV without information and EVPI, because those depend only on your stated outcome probabilities. It withholds EMV with information, gross and net value of information, and the decision tree diagram, and the Decision Guidance explains what your indicator numbers imply against what you stated. Adjust the indicator numbers until they agree and run again. The Decision Tree Builder derives these from reliabilities instead, so the two cannot disagree there.',
   },
   {
     id: 'read',
     icon: Scale,
     title: 'Reading the results',
     content:
-      'EMV without information is the best you can do today. EMV with information is the best you can do once the reading is in hand, weighted by how likely each reading is, and after paying for it. Gross value of information is the difference before the cost; net value of information is after it. A positive net value means the information pays for itself on expected value grounds. EVPI, the expected value of perfect information, is what you would pay for a source that always told you the truth, and it is a hard ceiling: no real survey can be worth more than the EVPI, so a quoted price above it is not worth negotiating over.',
+      'EMV without information is the best you can do today. EMV with information is the best you can do once the reading is in hand, weighted by how likely each reading is, and after paying for it. Gross value of information is the difference before the cost; net value of information is after it. A positive net value means the information pays for itself on expected value grounds. EVPI, the expected value of perfect information, is what you would pay for a source that always told you the truth, and for inputs that pass the consistency check it is a ceiling: no real survey can be worth more than the EVPI, so a quoted price above it is not worth negotiating over. Inputs that fail the check can imply a value above the EVPI or below zero, which is one reason the app withholds the value of information for them.',
   },
   {
     id: 'limits',

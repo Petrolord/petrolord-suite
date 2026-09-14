@@ -86,10 +86,16 @@ const ValueOfInformationAnalyzer = () => {
     try {
       const analysisResults = generateVoiData(next);
       setResults(analysisResults);
-      toast({
-        title: 'Analysis Complete!',
-        description: 'Value of Information has been calculated.',
-      });
+      // EC4-0: a withheld value is not a completed analysis.
+      toast(analysisResults.withheld
+        ? {
+          title: 'Value of Information withheld',
+          description: 'The indicator numbers contradict the stated outcome chances. See Decision Guidance.',
+        }
+        : {
+          title: 'Analysis Complete!',
+          description: 'Value of Information has been calculated.',
+        });
     } catch (error) {
       console.error('VOI Error:', error);
       toast({

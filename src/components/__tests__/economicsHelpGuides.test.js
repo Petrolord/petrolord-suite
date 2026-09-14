@@ -46,8 +46,12 @@ const COVERAGE = {
     // The D3 Bayes-consistency check, and the EVPI ceiling.
     /consistency/i,
     /EVPI/,
-    /ceiling|hard ceiling/i,
+    /ceiling/i,
     /risk neutral/i,
+    // EC4-0: what the repaired engine does with bad and contradictory inputs.
+    /refuses to run/i,
+    /withholds EMV with information/i,
+    /for inputs that pass the consistency check/i,
   ],
   'Fiscal Regime Designer': [
     /regime sandbox/i,
@@ -79,12 +83,20 @@ const COVERAGE = {
     /sum to one/i,
     /Monte Carlo run/i,
     /risk neutral/i,
+    // EC4-0: a linked payoff is a stored copy (DecisionTreeBuilder pickMcRun).
+    /stores a copy/i,
+    /relink/i,
   ],
   'Decision Studio': [
     /provenance/i,
     /seed/i,
     /re-optimized|re-optimised/i,
     /screening grade|screening-grade/i,
+    // EC4-0: the true statements that replaced four false ones.
+    /sits highest has the greatest chance of losing money/i,
+    /relinked in the Decision Tree Builder/i,
+    /does not grade an analysis/i,
+    /email address you are signed in with/i,
   ],
 };
 
@@ -99,6 +111,28 @@ const FORBIDDEN = {
   'Fiscal Regime Designer': [
     /source of truth for/i,
     /full Nigerian fiscal math lives here/i,
+  ],
+  // EC4-0 (owner decision 2026-09-14): false claims removed from these three
+  // guides. Pinned here so they cannot come back.
+  'Value of Information Analyzer': [
+    // It did report a VOI built on contradicting numbers, before engines #177.
+    /rather than reporting a value of information built on numbers that contradict each other/i,
+    // EVPI bounds VOI only for Bayes-consistent inputs.
+    /hard ceiling/i,
+  ],
+  'Decision Tree Builder': [
+    // Nothing re-reads a linked run; the payoff is a copy taken at link time.
+    /re-solved against it/i,
+  ],
+  'Decision Studio': [
+    // Every S-curve meets NPV = 0 at the same x; the highest one there is worst.
+    /crosses zero furthest to the right/i,
+    // Linked payoffs inside a tree are exactly such a cached number.
+    /rather than a cached number/i,
+    // No provenance string grades anything as screening grade.
+    /label(l)?ed as such/i,
+    // The brief uses the signed-in email; there is no name field.
+    /and your name/i,
   ],
 };
 
@@ -139,6 +173,23 @@ describe('Economics help guides', () => {
     for (const pattern of patterns) {
       expect(source).not.toMatch(pattern);
     }
+  });
+
+  test('the Decision Studio brief footer makes no screening-grade labelling claim (EC4-0)', () => {
+    // The footer is printed on every exported PDF, so the false claim lived
+    // there as well as in the guide.
+    const model = read('components/decisionstudio/briefModel.js');
+    expect(model).not.toMatch(/label(l)?ed as such/i);
+    expect(model).toMatch(/footer: 'Prepared with Petrolord Decision Studio\. Every figure above carries its source and assumptions in the provenance line beneath its section\.'/);
+  });
+
+  test.each([
+    'components/voianalyzer/ResultsPanel.jsx',
+    'components/voianalyzer/DecisionTreePlot.jsx',
+    'pages/apps/ValueOfInformationAnalyzer.jsx',
+  ])('%s carries no em or en dashes (owner copy rule, EC4-0 surfaces)', (relative) => {
+    const offending = read(relative).split('\n').filter((line) => /[–—]/.test(line));
+    expect(offending).toEqual([]);
   });
 
   test('every economics guide states which fiscal tier it belongs to', () => {
