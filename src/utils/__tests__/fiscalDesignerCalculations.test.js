@@ -197,10 +197,10 @@ describe('solvers', () => {
 describe('deriveInsights', () => {
   const sens = {
     price: {
-      labels: [40, 120],
+      labels: [40, 80, 120],
       data: [
-        { regimeId: 'a', values: [30, 40] },   // +10 points
-        { regimeId: 'b', values: [35, 60] },   // +25 points, the progressive one
+        { regimeId: 'a', values: [30, 35, 40], states: ['share', 'share', 'share'] }, // +10 points
+        { regimeId: 'b', values: [35, 47, 60], states: ['share', 'share', 'share'] }, // +25 points, the progressive one
       ],
     },
     capex: {
@@ -263,11 +263,53 @@ describe('deriveInsights', () => {
 
   it('omits the sweep claims when there is only one regime to compare', () => {
     const one = [summary[0]];
-    const oneSens = { price: { labels: [40, 120], data: [sens.price.data[0]] }, capex: { labels: ['0.8', '1.5'], data: [sens.capex.data[0]] } };
+    const oneSens = { price: { labels: [40, 80, 120], data: [sens.price.data[0]] }, capex: { labels: ['0.8', '1.5'], data: [sens.capex.data[0]] } };
     const out = deriveInsights(one, oneSens);
     expect(out.some((i) => i.key === 'capex')).toBe(false);
     expect(out.some((i) => i.key === 'price')).toBe(false);
     expect(out.some((i) => i.key === 'npv')).toBe(true);
+  });
+
+  // EC2-1 (owner decision 2026-09-14): progressivity is ranked only across
+  // prices where every regime's point is a government share.
+  const withPrice = (labels, a, b) => ({ ...sens, price: { labels, data: [{ regimeId: 'a', ...a }, { regimeId: 'b', ...b }] } });
+  const priceText = (sensitivity) => deriveInsights(summary, sensitivity).find((i) => i.key === 'price').text;
+
+  it('declines to rank on fewer than three comparable prices', () => {
+    const text = priceText(withPrice([40, 120], { values: [30, 40], states: ['share', 'share'] }, { values: [35, 60], states: ['share', 'share'] }));
+    expect(text).toMatch(/^No regime can be ranked across this sweep/);
+    expect(text).not.toMatch(/most progressive/);
+  });
+
+  it('declines to rank when the lead is under one percentage point', () => {
+    const text = priceText(withPrice([40, 80, 120],
+      { values: [30, 35, 40], states: ['share', 'share', 'share'] },
+      { values: [35, 40, 45.5], states: ['share', 'share', 'share'] }));
+    expect(text).toMatch(/within one percentage point/);
+  });
+
+  it('never measures a climb from an exceeds point', () => {
+    // Read from 40, Alpha would climb from 150 to 64. Over 50 to 70 Beta leads.
+    const text = priceText(withPrice([40, 50, 60, 70],
+      { values: [150, 60, 62, 64], states: ['exceeds', 'share', 'share', 'share'] },
+      { values: [40, 45, 55, 66], states: ['share', 'share', 'share', 'share'] }));
+    expect(text).toMatch(/^"Beta" is the most progressive/);
+    expect(text).toMatch(/between 50 and 70 USD per bbl/);
+  });
+
+  it('names the first price at which a regime is economic when it cannot rank', () => {
+    const text = priceText(withPrice([40, 50, 60, 70],
+      { values: [null, null, 120, 90], states: ['undefined', 'undefined', 'exceeds', 'share'] },
+      { values: [null, 80, 70, 65], states: ['undefined', 'share', 'share', 'share'] }));
+    expect(text).toMatch(/The first regime to become economic is "Beta", at 50 USD per bbl\.$/);
+  });
+
+  it('does not call a falling share progressive', () => {
+    const text = priceText(withPrice([40, 80, 120],
+      { values: [60, 55, 50], states: ['share', 'share', 'share'] },
+      { values: [60, 50, 40], states: ['share', 'share', 'share'] }));
+    expect(text).toMatch(/^No regime is progressive/);
+    expect(text).toMatch(/"Alpha" is the least regressive, falling 10\.0 percentage points/);
   });
 
   it('returns nothing at all rather than a conclusion about no regimes', () => {

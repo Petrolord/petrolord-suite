@@ -12,6 +12,11 @@
 // options", and asserted a capex-resilience and price-response ranking out of
 // nothing. Insights now come from `deriveInsights` in the engine, which works
 // them out and omits any claim the numbers cannot support.
+//
+// EC2-1 (2026-09-14): the price chart used to draw the engine's zero fallback
+// as a share. It now lives in PriceShareChart, which draws each point by its
+// state: a line through shares, a pinned open marker above 100 percent, and a
+// shaded band where the project is uneconomic.
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -20,6 +25,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, BarChartHorizontal, BrainCircuit, LineChart as LineIcon, TrendingUp } from 'lucide-react';
 import ChartFrame from '@/components/charts/ChartFrame';
+import PriceShareChart from '@/components/fiscaldesigner/PriceShareChart';
+import { buildPriceShareChart } from '@/components/fiscaldesigner/priceShareChart';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 
 // Validated on the white chart surface: distinguishable in normal vision,
@@ -62,10 +69,7 @@ const ResultsPanel = ({ results }) => {
   const governmentRows = seriesFor('governmentTake');
   const cumulativeRows = seriesFor('cumulativeNCF');
 
-  const priceRows = toRows(
-    sensitivityData?.price?.labels, sensitivityData?.price?.data, summary,
-    (d, i) => d.values[i],
-  );
+  const priceChart = buildPriceShareChart(sensitivityData?.price, summary);
   const capexRows = toRows(
     sensitivityData?.capex?.labels, sensitivityData?.capex?.data, summary,
     (d, i) => d.values[i],
@@ -182,16 +186,7 @@ const ResultsPanel = ({ results }) => {
         <TabsContent value="sensitivities" className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <ChartCard title="Government share vs oil price">
-              <ChartFrame height={280} exportFilename="fiscal-take-vs-price">
-                <LineChart data={priceRows} margin={{ top: 8, right: 24, left: 8, bottom: 28 }}>
-                  <CartesianGrid {...GRID_STYLE} />
-                  <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={tickStyle} label={axisLabel('Oil price ($/bbl)', 'insideBottom', -10)} />
-                  <YAxis stroke={CHART_COLORS.axisLine} tick={tickStyle} unit="%" />
-                  <Tooltip {...TOOLTIP_STYLE} formatter={(v, name) => [`${mm(v)} %`, name]} />
-                  <Legend verticalAlign="top" wrapperStyle={{ fontSize: '12px' }} />
-                  {linesFor()}
-                </LineChart>
-              </ChartFrame>
+              <PriceShareChart model={priceChart} colors={SERIES_COLORS} />
             </ChartCard>
             <ChartCard title="Contractor NPV vs capex overrun">
               <ChartFrame height={280} exportFilename="fiscal-npv-vs-capex">
