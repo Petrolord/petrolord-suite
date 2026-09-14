@@ -230,6 +230,46 @@ NULL for all six courses per the carried-over answer above.
 | EC5 | `portfolio` | Capital Portfolio & Cost Control | Capital Portfolio Studio, AFE Cost Control |
 | EC6 | `fdp` | Field Development Planning | FDP Accelerator, Project Management Pro, Report Autopilot |
 
+PROGRESS, 2026-09-09. **EC1 IS LIVE.** `cashflow` shipped as nextgen PR #114
+(78 lessons, 21 banks and 396 questions, three panels over one `cashflowLab`,
+and five migrations). The course and its three deep seeds were applied in
+ladder order, each behind its own rollback-wrapped dry run, and the go-live
+was applied once the cd383578 production upload was verified to carry the
+route `/dashboard/apps/cashflow`. The Academy catalogue reads 39 available
+and 0 coming_soon. Migration log: nextgen PRs #115 and #118.
+
+EC1's own finding is a process one and it is now a standing step in the wave
+kit. Seventeen bank questions across three banks were MIS-KEYED, eleven of
+them in one file where the writer listed the options in display order and
+passed the first as the correct one, so the true answer was a distractor in
+every question and the explanation underneath supported it. Every structural
+gate was green throughout, because none of them reads the answer. A
+second-reader KEY-TRUTH audit per tier, one agent reading prompt, options,
+explanation, digest and lesson for every question, now runs before
+`gen_migration.py` on every wave.
+
+PROGRESS, 2026-09-13. **EC2 is in build**, wave dir `/root/ec-wip-fiscal`, on
+nextgen branch `feat/ec2-fiscal-course`. `fiscal` takes `path_order` 54 and
+`prereq_slug` NULL. The teaching field is ODIDI and the capstone field is
+URUAN; the digest reproduces byte for byte from its one generator, and the
+leak, collision, brief and prompt gates all report zero.
+
+EC2 found a defect the EC0 oracle did not. **The regime comparison's price
+sweep reports a government share of exactly 0 percent whenever its
+denominator is not positive**, which is every price at which the contractor
+loses more over the life than the government collects. On the published
+`cmp_never_recovers` comparison all six templates plot a flat zero across all
+nine swept prices while collecting between 700.1194 and 1662.7835 million USD
+for the government. The same series has no ceiling in the other direction:
+on the Angola template at three times the default capex one curve reads
+0.0000, then 2223.0766, then 144.0692, then 85.6015 across four consecutive
+price points. One chart line, three meanings, no flag on any of them. The
+oracle agreed with the engine throughout because it implements the same guard
+from the same method statement, which is the shape this programme keeps
+finding: a function that survives its input and says nothing. Written up with
+the owner's three options in the wave's `FINDINGS.md` as EC2-1, and taught in
+the Expert tier rather than fixed.
+
 ## 9. Assurance, path_order 59 onward
 
 **This module needs a scope decision before it gets a roster.** Its
