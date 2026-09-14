@@ -133,3 +133,32 @@ Economics E2 (ProductFloor-STATUS.md) carries the product floor work
 and one finding that belongs to E4: Technical Report Autopilot's
 backend Heroku host no longer exists, so its whole generation path is
 unreachable on an Active tile.
+
+## EC2-1: the government share chart says what each point is (2026-09-14)
+
+Found by the NextGen EC2 course wave. The Designer's price sweep divided
+lifetime government take by government take plus contractor net cash flow
+(revenue less opex less capex) and returned exactly 0 when that profit was
+not positive. On the published `cmp_never_recovers` six regimes sat flat on
+zero across nine prices while the government collected 700 to 1663 million
+USD, and Angola with tripled capex ran to 2223 percent on the same line.
+
+Owner decision (b). The engine (engines PR #171, `fiscalRegime.js`) returns
+every point with a state: `share`, `exceeds` (true value kept) or
+`undefined` (null). The chart (`PriceShareChart.jsx` over the pure model in
+`priceShareChart.js`) draws a line through shares only, pins `exceeds`
+points as open markers at the top with the value in the tooltip and keeps
+them out of the scale, and shades an `undefined` price band labelled
+"project uneconomic at this price". The progressivity insight ranks only
+across prices where every regime is a share, needs three of them and a one
+point lead, and otherwise declines and names the first price at which a
+regime is economic.
+
+Gated by `src/components/fiscaldesigner/__tests__/priceShareChart.test.jsx`
+(never recovers: no line, band, declining verdict; Angola x3: pinned
+markers, scale from shares) and the engine goldens.
+
+Not in this change: the metric names. The chart's rate is government take
+on profit and the summary table's is government share of net revenue (capex
+added back). Both are still labelled as before; the naming and placement
+wave follows EC2's go-live.
