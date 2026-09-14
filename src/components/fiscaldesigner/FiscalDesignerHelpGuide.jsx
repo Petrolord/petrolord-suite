@@ -5,9 +5,12 @@
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
-  BookOpen, Landmark, Percent, Layers, LineChart, Scale, AlertTriangle, GitCompare,
+  BookOpen, Landmark, Percent, Layers, LineChart, Scale, AlertTriangle, GitCompare, Sigma,
 } from 'lucide-react';
 import StudioHelp from '@/components/studio/StudioHelp';
+import {
+  FISCAL_METRICS, GOVERNMENT_CASH_FLOW, metricDefinition,
+} from '@/utils/fiscalConventions';
 
 const helpContent = [
   {
@@ -36,21 +39,28 @@ const helpContent = [
     icon: Percent,
     title: 'The R factor and sliding scales',
     content:
-      'The R factor is cumulative revenue divided by cumulative cost, so it rises as a project pays back. Tiered splits let the government share grow once the contractor has been made whole, which is how most modern production sharing terms manage the front-end risk. Sliding scale royalty works the same way against production rate rather than payback. In both cases the tier that applies is chosen each year from that year s value, so watch how the take profile moves through the field life rather than judging a regime on its headline top rate.',
+      'The R factor is cumulative revenue divided by cumulative cost, so it rises as a project pays back. Tiered splits hand the government a larger portion of profit oil once the contractor has been made whole, which is how most modern production sharing terms manage the front-end risk. Sliding scale royalty works the same way against production rate rather than payback. In both cases the tier that applies is chosen each year from that year s value, so watch how the take profile moves through the field life rather than judging a regime on its headline top rate.',
   },
   {
     id: 'read',
     icon: LineChart,
     title: 'Reading the comparison',
     content:
-      'Summary gives NPV, IRR and take split per regime. Cash Flow shows the annual contractor and government streams so you can see when each side gets paid, which matters as much as the totals. Payout shows how long the contractor carries the project. Sensitivities runs the regimes over capital cost and price multipliers together, so you can find the terms that stay workable when a project comes in over budget into a weak price. On the price chart every point is drawn for what it is. A line runs through prices at which the point is a government share. An open marker pinned to the top of the axis is a share above 100 percent, which happens when profit is small and positive and the government collects more than the project makes; hover for its value, and note it does not set the scale. A shaded band labelled project uneconomic at this price means profit is zero or negative, so no share exists and nothing is plotted. Insights summarizes what the comparison shows, and it ranks price response only across prices at which every regime has a share, needs at least three of them and a lead of at least one percentage point, and otherwise says no regime can be ranked.',
+      `Summary gives NPV, IRR, ${GOVERNMENT_CASH_FLOW.name}, ${FISCAL_METRICS.governmentTake.name} and ${FISCAL_METRICS.governmentShareOfNetRevenue.name} per regime. Cash Flow shows the annual contractor and government streams so you can see when each side gets paid, which matters as much as the totals. Payout shows how long the contractor carries the project. Sensitivities runs the regimes over capital cost and price multipliers together, so you can find the terms that stay workable when a project comes in over budget into a weak price. The price chart plots ${FISCAL_METRICS.governmentTake.name} (undiscounted) at each swept price, and every point is drawn for what it is. A line runs through prices at which it is within 0 to 100 percent. An open marker pinned to the top of the axis is a value above 100 percent, which happens when profit is small and positive and the government collects more than the project makes; hover for its value, and note it does not set the scale. A shaded band labelled project uneconomic at this price means profit is zero or negative, so there is no ${FISCAL_METRICS.governmentTake.name} and nothing is plotted. Insights summarizes what the comparison shows, and it ranks price response only across prices at which every regime's ${FISCAL_METRICS.governmentTake.name} is within 0 to 100 percent, needs at least three of them and a lead of at least one percentage point, and otherwise says no regime can be ranked.`,
+  },
+  {
+    id: 'metrics',
+    icon: Sigma,
+    title: 'Government take and government share of net revenue',
+    content:
+      `Two ratios describe how much of a project the government collects, and this tool names them the way fiscal comparisons and bid rounds do. ${metricDefinition('governmentTake')} It is the headline: the chart plots it, it comes first in the summary, and a plain "government take" means this. ${metricDefinition('governmentShareOfNetRevenue')} It is shown second. Both divide ${GOVERNMENT_CASH_FLOW.name}, which is ${GOVERNMENT_CASH_FLOW.definition.charAt(0).toLowerCase()}${GOVERNMENT_CASH_FLOW.definition.slice(1)} Government take is always the larger of the two when both are ordinary percentages, because it takes capex out of the denominator, and the gap is widest where capex is large against net revenue or where royalty is collected before the project has paid for itself. The summary also shows government take discounted at the project discount rate beneath the undiscounted value; each is labelled with its basis. Neither is a tax rate, since royalty and the government share of profit oil sit in the numerator, which is why neither is called one here.`,
   },
   {
     id: 'ledger',
     icon: Scale,
     title: 'The ledger identity you can check',
     content:
-      'On every regime and in every year, contractor take plus government take equals revenue minus costs. That identity is enforced by tests rather than assumed, and it is the fastest check on any fiscal model: money that is neither paid to the contractor nor collected by the government has been lost by the arithmetic. If you build a regime whose totals do not reconcile, that is worth reporting.',
+      'On every regime and in every year, contractor net cash flow plus government cash flow equals revenue minus costs. That identity is enforced by tests rather than assumed, and it is the fastest check on any fiscal model: money that is neither paid to the contractor nor collected by the government has been lost by the arithmetic. If you build a regime whose totals do not reconcile, that is worth reporting.',
   },
   {
     id: 'conventions',

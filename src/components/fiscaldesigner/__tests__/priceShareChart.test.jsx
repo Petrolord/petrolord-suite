@@ -17,6 +17,7 @@ import { render } from '@testing-library/react';
 import { runFiscalComparison } from '@/utils/fiscalDesignerCalculations';
 import { buildPriceShareChart, describePoint, UNECONOMIC_BAND_LABEL } from '../priceShareChart';
 import PriceShareChart from '../PriceShareChart';
+import { metricDefinition } from '@/utils/fiscalConventions';
 
 jest.mock('recharts', () => {
   const actual = jest.requireActual('recharts');
@@ -60,7 +61,7 @@ describe('never recovers: all six regimes undefined across the sweep', () => {
     }));
     expect(model.pinned).toEqual([]);
     expect(model.bands).toEqual([{ x1: 35, x2: 125, from: 40, to: 120 }]);
-    expect(describePoint(model.rows[0].meta[model.names[0]])).toBe(`no share: ${UNECONOMIC_BAND_LABEL}`);
+    expect(describePoint(model.rows[0].meta[model.names[0]])).toBe(`no government take: ${UNECONOMIC_BAND_LABEL}`);
   });
 
   it('renders no line, the shaded band with its label, and no pinned marker', () => {
@@ -71,6 +72,14 @@ describe('never recovers: all six regimes undefined across the sweep', () => {
     expect(container.querySelectorAll('.fiscal-pinned-marker')).toHaveLength(0);
     // Nothing is drawn at zero: there is no dot on the plot either.
     expect(container.querySelectorAll('.recharts-line-dot')).toHaveLength(0);
+  });
+
+  it('carries the government take definition inside the exported frame', () => {
+    const { container } = render(<PriceShareChart model={model} colors={COLORS} />);
+    const header = container.querySelector('.chart-frame-header');
+    expect(header.textContent).toBe(metricDefinition('governmentTake'));
+    // Inside the captured element, so the PNG export carries it.
+    expect(header.closest('[id^="chart-frame-"]')).toBeTruthy();
   });
 
   it('the insight declines to rank and says no regime is economic', () => {

@@ -56,7 +56,7 @@ const COVERAGE = {
     // E1's two fixes, stated so a reader knows what the model now does.
     /cost oil/i,
     /carries forward/i,
-    /contractor take plus government take equals revenue minus costs/i,
+    /contractor net cash flow plus government cash flow equals revenue minus costs/i,
     // The year-end vs mid-year convention gap, quantified.
     /year end/i,
     /mid year/i,
