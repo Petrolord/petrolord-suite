@@ -96,6 +96,24 @@ describe('no P-label anywhere in the Probabilistic Breakeven Analyzer', () => {
     expect(strings.join(' ')).toMatch(/reserves P-labels for outcomes where more is better/);
   });
 
+  it('a clamped fit: the notes the insight carries use percentile words (engines #176)', () => {
+    // mc_inexact_fit_note clamps both the capex and the opex fit, so the
+    // engine appends both notes to the insight the result screen shows.
+    const clamped = generateBreakevenData({ ...G.monteCarlo.find((c) => c.id === 'mc_inexact_fit_note').inputs, iterations: 200 });
+    expect(clamped.distributionFits.capex.exact).toBe(false);
+    expect(clamped.distributionFits.opex.exact).toBe(false);
+    const notes = Object.values(clamped.distributionFits).map((x) => x.note).filter(Boolean);
+    expect(notes).toHaveLength(2);
+    expect(clamped.insights).toMatch(/too near the 10th percentile/);
+    expect(clamped.insights).toMatch(/too near the 90th percentile/);
+    const { container } = render(<ResultsPanel results={clamped} />);
+    fireEvent.click(screen.getByText('Interpretation'));
+    expect(findPLabels([clamped.insights, ...notes, container.textContent, ...allTitles(container)])).toEqual([]);
+    // Negative control: the wording before engines #176 fails this gate.
+    const old = clamped.insights.replace('too near the 10th percentile', 'too near the P10');
+    expect(findPLabels([old])).toHaveLength(1);
+  });
+
   it('no source file of the app writes a P-label literal', () => {
     const dir = path.join(ROOT, 'src/components/breakevenanalyzer');
     const files = [

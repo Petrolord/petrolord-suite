@@ -430,11 +430,11 @@ describe('fitTriangularToPercentiles', () => {
     // is, and the fit says so instead of pretending.
     const tooLow = fitTriangularToPercentiles(0, 1, 100); // ratio 0.01
     expect(tooLow.exact).toBe(false);
-    expect(tooLow.note).toMatch(/too near the P10/);
+    expect(tooLow.note).toMatch(/too near the 10th percentile/);
 
     const tooHigh = fitTriangularToPercentiles(0, 99, 100); // ratio 0.99
     expect(tooHigh.exact).toBe(false);
-    expect(tooHigh.note).toMatch(/too near the P90/);
+    expect(tooHigh.note).toMatch(/too near the 90th percentile/);
 
     // And just inside each edge the fit is exact again.
     expect(fitTriangularToPercentiles(0, 39, 100).exact).toBe(true);
