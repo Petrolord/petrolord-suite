@@ -10,13 +10,14 @@ import {
 } from 'lucide-react';
 import StudioHelp from '@/components/studio/StudioHelp';
 
-const helpContent = [
+// Exported so the percentile-label gate can read every sentence the guide shows.
+export const BREAKEVEN_HELP_CONTENT = [
   {
     id: 'what',
     icon: BookOpen,
     title: 'What this tool answers',
     content:
-      'The breakeven oil price is the price at which a project just meets your hurdle, which by default is a net present value of zero at your discount rate. A single breakeven number hides how uncertain it is. This tool runs your cost and performance uncertainties through a Monte Carlo simulation and solves the breakeven price for every iteration, so you get a distribution: a P10, a P50, a P90 and the full spread behind them. The question it answers is not only "what price do we need" but "how confident are we in that price".',
+      'The breakeven oil price is the price at which a project just meets your hurdle, which by default is a net present value of zero at your discount rate. A single breakeven number hides how uncertain it is. This tool runs your cost and performance uncertainties through a Monte Carlo simulation and solves the breakeven price for every iteration, so you get a distribution: its 10th, 50th and 90th percentiles and the full spread behind them. The question it answers is not only "what price do we need" but "how confident are we in that price".',
   },
   {
     id: 'projects',
@@ -37,21 +38,21 @@ const helpContent = [
     icon: BarChart2,
     title: 'Step 2: State your uncertainties as percentiles',
     content:
-      'Each probabilistic variable is entered as a P10, P50 and P90. These are percentiles of your belief about the value, not the smallest and largest numbers you can imagine. P10 means a one in ten chance of coming in below that value, so ten percent of outcomes should fall outside each end. The three shipped variables (total CAPEX, annual OPEX and production efficiency) are the ones that move a breakeven price most, and you can add your own.',
+      'Each probabilistic variable is entered as its 10th, 50th and 90th percentile. These are percentiles of your belief about the value, not the smallest and largest numbers you can imagine. The 10th percentile means a one in ten chance of coming in below that value, so ten percent of outcomes should fall outside each end. The Suite reserves P-labels for outcomes where more is better, such as NPV or reserves, so a cost, an efficiency and a breakeven price are always described by their percentiles. The three shipped variables (total CAPEX, annual OPEX and production efficiency) are the ones that move a breakeven price most, and you can add your own.',
   },
   {
     id: 'fitting',
     icon: Dice5,
     title: 'How the percentiles become a distribution',
     content:
-      'The three percentiles are fitted to a triangular distribution whose cumulative curve passes through all three points. That fit matters. A common shortcut is to feed P10, P50 and P90 straight in as the minimum, mode and maximum of a triangular, which quietly declares that nothing can land below your P10 or above your P90 and deletes the outer twenty percent of the distribution, understating every downside. A triangular cannot pass through any three percentiles you like: the median has to sit between roughly 38 and 62 percent of the way from P10 to P90. Outside that band the fit clamps to the most skewed triangular available and says so rather than pretending.',
+      'The three percentiles are fitted to a triangular distribution whose cumulative curve passes through all three points. That fit matters. A common shortcut is to feed the 10th, 50th and 90th percentiles straight in as the minimum, mode and maximum of a triangular, which quietly declares that nothing can land below your 10th percentile or above your 90th and deletes the outer twenty percent of the distribution, understating every downside. A triangular cannot pass through any three percentiles you like: the median has to sit between roughly 38 and 62 percent of the way from the 10th percentile to the 90th. Outside that band the fit clamps to the most skewed triangular available and says so rather than pretending.',
   },
   {
     id: 'seed',
     icon: Dice5,
     title: 'The run seed, and why results reproduce',
     content:
-      'Sampling runs through a seeded generator, so the same inputs and the same seed always give the same answer. That is what lets you put a number in front of a board, be asked about it a week later, and reproduce it exactly. Change the seed to draw a different sample and see how stable your percentiles are. If P50 moves materially when only the seed changes, raise the iteration count.',
+      'Sampling runs through a seeded generator, so the same inputs and the same seed always give the same answer. That is what lets you put a number in front of a board, be asked about it a week later, and reproduce it exactly. Change the seed to draw a different sample and see how stable your percentiles are. If the median moves materially when only the seed changes, raise the iteration count.',
   },
   {
     id: 'engine',
@@ -65,7 +66,7 @@ const helpContent = [
     icon: LineChart,
     title: 'Reading the three charts',
     content:
-      'The S curve gives the chance that the true breakeven price is below any given value, with your P50 marked. A steep curve is a tight answer; a flat one means the breakeven is poorly constrained and the cost estimate needs work before the price does. The histogram shows where iterations landed and whether the distribution is skewed. The tornado shows both ends of each uncertainty measured from the deterministic base case, so a symmetric input looks symmetric. The bar that reaches furthest to the right is the uncertainty that can hurt the project most.',
+      'The S curve gives the chance that the true breakeven price is below any given value, with your median marked. A steep curve is a tight answer; a flat one means the breakeven is poorly constrained and the cost estimate needs work before the price does. The histogram shows where iterations landed and whether the distribution is skewed. The tornado shows both ends of each uncertainty measured from the deterministic base case, so a symmetric input looks symmetric. The bar that reaches furthest to the right is the uncertainty that can hurt the project most.',
   },
   {
     id: 'export',
@@ -85,7 +86,7 @@ const helpContent = [
 
 export const BreakevenHelpContent = () => (
   <Accordion type="single" collapsible className="w-full" defaultValue="what">
-    {helpContent.map((item) => {
+    {BREAKEVEN_HELP_CONTENT.map((item) => {
       const Icon = item.icon;
       return (
         <AccordionItem value={item.id} key={item.id}>

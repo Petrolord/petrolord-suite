@@ -104,7 +104,7 @@ const BreakevenPlots = ({ cdfData, histogramData, tornadoData, kpis }) => {
               {Number.isFinite(kpis?.p50) && (
                 <ReferenceLine
                   x={kpis.p50} stroke="#f59e0b" strokeDasharray="4 3"
-                  label={{ value: `P50 $${money(kpis.p50)}`, fill: '#b45309', fontSize: 11, position: 'top' }}
+                  label={{ value: `median $${money(kpis.p50)}`, fill: '#b45309', fontSize: 11, position: 'top' }}
                 />
               )}
               <Line

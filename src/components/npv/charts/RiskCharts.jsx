@@ -5,14 +5,17 @@ import {
 } from 'recharts';
 import ChartFrame from '@/components/charts/ChartFrame';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
+import { OUTCOME_LABELS } from '@/lib/percentileConventions';
 
 const mm = (v) => (Number.isFinite(v) ? (v / 1e6).toFixed(0) : '-');
 const tick = { fill: CHART_COLORS.axisText, fontSize: CHART_TYPOGRAPHY.axisFontSize };
 
-// Petroleum convention: P90 is the low case and P10 the high one, which is
-// the opposite of the statistical reading. The labels say which is which so
-// the chart cannot be misread by someone used to the other convention.
-export const HistogramChart = ({ data, p10, p50, p90, height = 300 }) => (
+// Suite percentile convention (src/lib/percentileConventions.js): P90 is the
+// low case and P10 the high one. The engine's keys are plain percentiles, so
+// the LOW case is the 10th percentile (risk.p10). This chart takes the three
+// cases by meaning, never by key, so it cannot draw a label at the wrong end
+// again (EC3-0: it used to draw "P90 low" at the 90th percentile).
+export const HistogramChart = ({ data, lowCase, bestCase, highCase, height = 300 }) => (
   <ChartFrame height={height} exportFilename="npv-histogram">
     <BarChart data={data} margin={{ top: 12, right: 24, left: 8, bottom: 28 }}>
       <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -31,9 +34,9 @@ export const HistogramChart = ({ data, p10, p50, p90, height = 300 }) => (
         labelFormatter={(v) => `around $${mm(v)}MM`}
       />
       <Bar dataKey="count" fill="#2563eb" radius={[3, 3, 0, 0]} name="Iterations" />
-      <ReferenceLine x={p90} stroke="#dc2626" strokeDasharray="4 3" label={{ value: 'P90 low', fill: '#b91c1c', fontSize: 10, position: 'top' }} />
-      <ReferenceLine x={p50} stroke="#d97706" strokeDasharray="4 3" label={{ value: 'P50', fill: '#b45309', fontSize: 10, position: 'top' }} />
-      <ReferenceLine x={p10} stroke="#059669" strokeDasharray="4 3" label={{ value: 'P10 high', fill: '#047857', fontSize: 10, position: 'top' }} />
+      <ReferenceLine x={lowCase} stroke="#dc2626" strokeDasharray="4 3" label={{ value: `${OUTCOME_LABELS.p90} low`, fill: '#b91c1c', fontSize: 10, position: 'top' }} />
+      <ReferenceLine x={bestCase} stroke="#d97706" strokeDasharray="4 3" label={{ value: OUTCOME_LABELS.p50, fill: '#b45309', fontSize: 10, position: 'top' }} />
+      <ReferenceLine x={highCase} stroke="#059669" strokeDasharray="4 3" label={{ value: `${OUTCOME_LABELS.p10} high`, fill: '#047857', fontSize: 10, position: 'top' }} />
     </BarChart>
   </ChartFrame>
 );

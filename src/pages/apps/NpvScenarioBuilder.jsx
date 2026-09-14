@@ -9,7 +9,9 @@ import InputPanel from '@/components/npv/InputPanel';
 import ResultsPanel from '@/components/npv/ResultsPanel';
 import EmptyState from '@/components/npv/EmptyState';
 import HelpSystem from '@/components/npv/help/HelpSystem';
-import { calculateEconomics, runMonteCarlo, generateScenarios, runSensitivityAnalysis } from '@/utils/npvCalculations';
+import {
+  calculateEconomics, runMonteCarlo, generateScenarios, runSensitivityAnalysis, DEFAULT_MC_SEED,
+} from '@/utils/npvCalculations';
 import { createSavedProjectsService } from '@/utils/savedProjects';
 import { useSavedProjects, missingTableMessage } from '@/hooks/useSavedProjects';
 import { useStudioNotifications } from '@/components/studio/useStudioNotifications';
@@ -85,9 +87,10 @@ const NpvScenarioBuilder = () => {
             const sensitivity = runSensitivityAnalysis(inputs);
 
             // 4. Probabilistic Risk Analysis (Monte Carlo)
-            // Define default uncertainties
+            // Define default uncertainties. The run is seeded (EC3-0), so the
+            // same inputs always reproduce the same risk cases.
             const uncertainties = { price: 0.2, capex: 0.2, reserves: 0.2 };
-            const riskResults = await runMonteCarlo(inputs, { iterations: 1000, uncertainties });
+            const riskResults = await runMonteCarlo(inputs, { iterations: 1000, uncertainties, seed: DEFAULT_MC_SEED });
 
             setResults({
                 metrics: detResults.metrics,
