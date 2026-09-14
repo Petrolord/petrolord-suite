@@ -1,10 +1,14 @@
 // JV partner management (Economics E4).
 //
-// Partners lived in React state seeded with two invented companies, "Partner
-// A Corp" at 30 percent and "Partner B Ltd" at 15 percent. Every user opening
-// this tab met the same two fictional partners, could generate a billing
-// statement against them, and lost anything they typed on reload. Partners
-// are real data now: they belong to the AFE and persist with it.
+// Partners lived in React state seeded with two invented companies at 30
+// percent and 15 percent. Every user opening this tab met the same two
+// fictional partners, could generate a billing statement against them, and
+// lost anything they typed on reload. Partners are real data now: they belong
+// to the AFE and persist with it.
+//
+// EC5-0 (owner decision 2026-09-14): a negative working interest is refused on
+// add and on edit, and a saved set the engine flags invalid shows its note and
+// cannot be billed until it is corrected.
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,16 +16,27 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Users, PlusCircle, DollarSign, FileText, Trash2, Send } from 'lucide-react';
+import { Users, PlusCircle, DollarSign, FileText, Trash2, Send, Edit } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { calculatePartnerCosts, generateBillingStatement } from '@/utils/afeServices';
 import { supabase } from '@/lib/customSupabaseClient';
 import { AlertTriangle } from 'lucide-react';
 
-const JVPartnerManagement = ({ afe, costItems }) => {
+// The refusal both add and edit use. `others` is the working interest of every
+// other saved partner.
+export const partnerInterestError = (workingInterest, others = 0) => {
+  const wi = Number(workingInterest);
+  if (!Number.isFinite(wi)) return 'Enter a working interest in percent.';
+  if (wi < 0) return 'A working interest cannot be negative. Enter 0 percent or more.';
+  if (others + wi > 100) return 'Total working interest cannot exceed 100%.';
+  return null;
+};
+
+const JVPartnerManagement = ({ afe, costItems, onPartnersChanged }) => {
   const { toast } = useToast();
   const [partners, setPartners] = useState([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [newPartner, setNewPartner] = useState({ name: '', working_interest: 0 });
 
   const loadPartners = useCallback(async () => {
@@ -54,28 +69,44 @@ const JVPartnerManagement = ({ afe, costItems }) => {
     partnerAllocations, operatorShare, operatorAmount, valid, note,
   } = useMemo(() => calculatePartnerCosts(totalActuals, partners), [totalActuals, partners]);
 
-  const handleAddPartner = async () => {
+  const openAdd = () => {
+    setEditingId(null);
+    setNewPartner({ name: '', working_interest: 0 });
+    setIsDialogOpen(true);
+  };
+
+  const openEdit = (partner) => {
+    setEditingId(partner.id);
+    setNewPartner({ name: partner.name || '', working_interest: partner.working_interest ?? 0 });
+    setIsDialogOpen(true);
+  };
+
+  const handleSavePartner = async () => {
     if (!newPartner.name) {
         toast({ variant: 'destructive', title: 'Name the partner', description: 'A partner needs a name.' });
         return;
     }
-    if (operatorShare - Number(newPartner.working_interest) < 0) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Total working interest cannot exceed 100%.' });
+    const others = partners
+      .filter((p) => p.id !== editingId)
+      .reduce((sum, p) => sum + (Number(p.working_interest) || 0), 0);
+    const interestError = partnerInterestError(newPartner.working_interest, others);
+    if (interestError) {
+        toast({ variant: 'destructive', title: 'Check the working interest', description: interestError });
         return;
     }
-    const { error } = await supabase.from('afe_partners').insert({
-        afe_id: afe.id,
-        name: newPartner.name,
-        working_interest: Number(newPartner.working_interest) || 0,
-        partner_type: 'Non-Operator',
-    });
+    const fields = { name: newPartner.name, working_interest: Number(newPartner.working_interest) };
+    const { error } = editingId
+      ? await supabase.from('afe_partners').update(fields).eq('id', editingId)
+      : await supabase.from('afe_partners').insert({ afe_id: afe.id, ...fields, partner_type: 'Non-Operator' });
     if (error) {
-        toast({ variant: 'destructive', title: 'Could not add partner', description: error.message });
+        toast({ variant: 'destructive', title: editingId ? 'Could not update partner' : 'Could not add partner', description: error.message });
         return;
     }
     setIsDialogOpen(false);
+    setEditingId(null);
     setNewPartner({ name: '', working_interest: 0 });
     loadPartners();
+    onPartnersChanged?.();
   };
 
   const handleDelete = async (id) => {
@@ -85,6 +116,7 @@ const JVPartnerManagement = ({ afe, costItems }) => {
           return;
       }
       loadPartners();
+      onPartnersChanged?.();
   };
 
   const handleGenerateBill = (partner, amount) => {
@@ -125,7 +157,7 @@ const JVPartnerManagement = ({ afe, costItems }) => {
       <Card className="bg-slate-900 border-slate-800">
         <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg font-medium text-slate-200">Joint Venture Partners</CardTitle>
-            <Button onClick={() => setIsDialogOpen(true)} size="sm" className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={openAdd} size="sm" className="bg-blue-600 hover:bg-blue-700">
                 <PlusCircle className="w-4 h-4 mr-2" /> Add Partner
             </Button>
         </CardHeader>
@@ -156,8 +188,11 @@ const JVPartnerManagement = ({ afe, costItems }) => {
                             <TableCell className="text-right font-mono text-white">${partner.shareAmount.toLocaleString()}</TableCell>
                             <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
-                                    <Button variant="ghost" size="sm" onClick={() => handleGenerateBill(partner, partner.shareAmount)} title="Generate Bill">
+                                    <Button variant="ghost" size="sm" onClick={() => handleGenerateBill(partner, partner.shareAmount)} disabled={!valid} title={valid ? 'Generate Bill' : 'Correct the working interests before billing'}>
                                         <FileText className="w-4 h-4 text-green-400" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm" onClick={() => openEdit(partner)} title="Edit">
+                                        <Edit className="w-4 h-4 text-blue-400" />
                                     </Button>
                                     <Button variant="ghost" size="sm" onClick={() => handleDelete(partner.id)} title="Remove">
                                         <Trash2 className="w-4 h-4 text-red-400" />
@@ -173,7 +208,7 @@ const JVPartnerManagement = ({ afe, costItems }) => {
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="bg-slate-900 border-slate-700 text-white">
-            <DialogHeader><DialogTitle>Add JV Partner</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editingId ? 'Edit JV Partner' : 'Add JV Partner'}</DialogTitle></DialogHeader>
             <div className="space-y-4">
                 <div>
                     <Label>Partner Name</Label>
@@ -181,11 +216,11 @@ const JVPartnerManagement = ({ afe, costItems }) => {
                 </div>
                 <div>
                     <Label>Working Interest (%)</Label>
-                    <Input type="number" value={newPartner.working_interest} onChange={e => setNewPartner({...newPartner, working_interest: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" />
+                    <Input type="number" min="0" value={newPartner.working_interest} onChange={e => setNewPartner({...newPartner, working_interest: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" />
                 </div>
             </div>
             <DialogFooter>
-                <Button onClick={handleAddPartner} className="bg-blue-600">Add Partner</Button>
+                <Button onClick={handleSavePartner} className="bg-blue-600">{editingId ? 'Save Partner' : 'Add Partner'}</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>

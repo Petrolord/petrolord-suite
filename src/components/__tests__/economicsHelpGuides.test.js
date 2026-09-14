@@ -23,6 +23,7 @@ const GUIDES = {
   'Capital Portfolio Studio': 'components/capitalportfoliostudio/PortfolioHelpGuide.jsx',
   'Decision Tree Builder': 'components/decisiontree/DecisionTreeHelpGuide.jsx',
   'Decision Studio': 'components/decisionstudio/DecisionStudioHelpGuide.jsx',
+  'AFE Cost Control Manager': 'components/afe/AfeHelpGuide.jsx',
 };
 
 // Phrases that pin a shipped behaviour into its guide.
@@ -75,6 +76,14 @@ const COVERAGE = {
     // The independence assumption is the one that most often bites.
     /independent/i,
     /correlated/i,
+    // EC5-0: the risk cards are a seeded Monte Carlo, the grid resolution is
+    // shown, and an overshoot of the limit is flagged.
+    /seeded Monte Carlo/i,
+    /seed/i,
+    /resolution is reported alongside the answer/i,
+    /overshoot the limit by up to half a cell per project/i,
+    /flags it/i,
+    /P90 is the low case/i,
   ],
   'Decision Tree Builder': [
     /rolling back|rolled back|rollback/i,
@@ -97,6 +106,18 @@ const COVERAGE = {
     /relinked in the Decision Tree Builder/i,
     /does not grade an analysis/i,
     /email address you are signed in with/i,
+  ],
+  // EC5-0: the wizard window, the one EAC rule, SPI Not started, partners.
+  'AFE Cost Control Manager': [
+    /its window, a start date and an end date/i,
+    /refuses an end date before the start date/i,
+    /one estimate at completion rule/i,
+    /budget less that forecast/i,
+    /Not started/,
+    /schedule index is shown as unavailable/i,
+    /negative working interest is refused/i,
+    /operator carries 100 percent/i,
+    /Integrations tab connects to nothing/i,
   ],
 };
 
@@ -133,6 +154,21 @@ const FORBIDDEN = {
     /label(l)?ed as such/i,
     // The brief uses the signed-in email; there is no name field.
     /and your name/i,
+  ],
+  // EC5-0: claims the repaired portfolio engine made false.
+  'Capital Portfolio Studio': [
+    /cannot exceed the limit/i,
+    /without exceeding your capital limit/i,
+    /normal approximation/i,
+    /approximated as a normal/i,
+    /normal distribution/i,
+  ],
+  // EC5-0: an entered zero forecast is not used, and SPI is not measured
+  // against the calendar without an as-of date.
+  'AFE Cost Control Manager': [
+    /Where you have entered a forecast for a line, that is used/i,
+    /more work per pound/i,
+    /live link to (PM Pro|the rig|a rig)/i,
   ],
 };
 

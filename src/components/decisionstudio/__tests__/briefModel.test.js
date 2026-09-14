@@ -94,6 +94,33 @@ describe('portfolioSection', () => {
     expect(s.note).toContain('A');
     expect(s.note).toContain('D');
     expect(s.provenance).toContain('1 valued by linked EPE Monte Carlo runs');
+    expect(s.rows).toContainEqual(['Capital deployed', '$450.0M of $450.0M']);
+    expect(s.overLimit).toBe(false);
+  });
+
+  it('states the seeded Monte Carlo behind the loss chance, not a normal approximation', () => {
+    const s = portfolioSection(PORTFOLIO, PROJECTS);
+    expect(s.provenance).toContain('seed 20260829');
+    expect(s.provenance).toContain('10000 iterations');
+    expect(s.provenance).not.toMatch(/normal approximation/i);
+  });
+
+  it('shows that the limit was exceeded on the grid (EC5-0, D3 case 6002 against 6000)', () => {
+    // Before EC5-0 this printed "Capital deployed $6.00B of $6.00B".
+    const s = portfolioSection(
+      { id: 'p3', name: 'Overshoot', capex_limit: 6000 },
+      [
+        { id: 'A', name: 'A', capex: 4000, npv_p50: 500 },
+        { id: 'B', name: 'B', capex: 2002, npv_p50: 300 },
+        { id: 'C', name: 'C', capex: 1995, npv_p50: 280 },
+      ],
+    );
+    expect(s.overLimit).toBe(true);
+    expect(s.rows).not.toContainEqual(['Capital deployed', '$6.00B of $6.00B']);
+    expect(s.rows).toContainEqual(['Capital deployed', '6,002 of 6,000 $MM']);
+    expect(s.rows).toContainEqual(['Over the capital limit by', '2 $MM']);
+    expect(s.note).toMatch(/Capital limit exceeded/);
+    expect(s.note).toMatch(/over by 2 \$MM/);
   });
 });
 

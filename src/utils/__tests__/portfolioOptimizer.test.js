@@ -3,6 +3,7 @@
 
 import {
   projectEmv, projectMoments, portfolioRiskMetrics, optimizePortfolio, successStdDev,
+  PortfolioInputError, DEFAULT_RISK_SEED, DEFAULT_RISK_ITERATIONS,
 } from '../portfolioOptimizer';
 import { normalCDF } from '@/lib/monteCarlo';
 
@@ -48,19 +49,70 @@ describe('projectMoments (success/failure mixture, exact)', () => {
   });
 });
 
-describe('portfolioRiskMetrics (independent normal approximation)', () => {
-  it('sums means and variances and computes P(loss) = Phi(-mean/sd)', () => {
+describe('portfolioRiskMetrics (seeded Monte Carlo, EC5-0)', () => {
+  it('keeps the closed-form mean and spread and reports the Monte Carlo method, seed and iterations', () => {
     const a = { npv_p50: 100, npv_stddev: 20, pos: 0.5, fail_cost: 40 }; // mean 30, var 5100
     const b = { npv_p50: 50, npv_stddev: 10 };                            // mean 50, var 100
     const r = portfolioRiskMetrics([a, b]);
     expect(r.emv).toBeCloseTo(80, 9);
     expect(r.stdDev).toBeCloseTo(Math.sqrt(5200), 9);
-    expect(r.probLoss).toBeCloseTo(normalCDF(-80 / Math.sqrt(5200)), 12);
-    expect(r.p90).toBeLessThan(r.emv);
-    expect(r.p10).toBeGreaterThan(r.emv);
+    expect(r.method).toBe('monte-carlo');
+    expect(r.seed).toBe(DEFAULT_RISK_SEED);
+    expect(r.seed).toBe(20260829);
+    expect(r.iterations).toBe(DEFAULT_RISK_ITERATIONS);
+    expect(r.iterations).toBe(10000);
+    expect(r.p90).toBeLessThanOrEqual(r.p10);
   });
+
+  it('is reproducible for a seed and moves with another seed', () => {
+    const a = { npv_p50: 100, npv_stddev: 20, pos: 0.5, fail_cost: 40 };
+    const one = portfolioRiskMetrics([a], 0, { seed: 7, iterations: 2000 });
+    const again = portfolioRiskMetrics([a], 0, { seed: 7, iterations: 2000 });
+    expect(again.probLoss).toBe(one.probLoss);
+    expect(again.p90).toBe(one.p90);
+    expect(one.seed).toBe(7);
+    expect(one.iterations).toBe(2000);
+  });
+
+  it('gives the single wildcat its true loss chance, not the normal approximation', () => {
+    // pos 0.3, NPV 300, fail cost 50: P(loss) is the failure chance, 0.7.
+    // The normal approximation reported Phi(-55 / 160.39) = 0.366.
+    const wildcat = { npv_p50: 300, pos: 0.3, fail_cost: 50 };
+    const r = portfolioRiskMetrics([wildcat]);
+    expect(r.probLoss).toBeCloseTo(0.7, 1);
+    expect(Math.abs(r.probLoss - normalCDF(-r.emv / r.stdDev))).toBeGreaterThan(0.25);
+    // P90 is the low case and cannot sit below the worst outcome, -50.
+    expect(r.p90).toBe(-50);
+  });
+
   it('a deterministic profitable portfolio has zero loss probability', () => {
     expect(portfolioRiskMetrics([{ npv_p50: 10 }]).probLoss).toBe(0);
+  });
+});
+
+describe('optimizePortfolio input refusal and grid overshoot (EC5-0)', () => {
+  it('refuses a negative capex with a PortfolioInputError', () => {
+    expect(() => optimizePortfolio({ projects: [P('neg', -5, 10)], capexLimit: 100 }))
+      .toThrow(PortfolioInputError);
+  });
+
+  it('flags a funded set whose capex exceeds the limit on the quantized grid (D3 case)', () => {
+    const r = optimizePortfolio({
+      projects: [P('A', 4000, 500), P('B', 2002, 300), P('C', 1995, 280)],
+      capexLimit: 6000,
+    });
+    expect(r.optimalProjects.map((p) => p.name)).toEqual(['A', 'B']);
+    expect(r.totalCapex).toBe(6002);
+    expect(r.capexLimit).toBe(6000);
+    expect(r.overLimit).toBe(true);
+    expect(r.overLimitBy).toBeCloseTo(2, 9);
+    expect(r.resolution).toBeGreaterThan(1);
+  });
+
+  it('does not flag a set inside the limit', () => {
+    const r = optimizePortfolio({ projects: [P('A', 100, 60)], capexLimit: 450 });
+    expect(r.overLimit).toBe(false);
+    expect(r.overLimitBy).toBe(0);
   });
 });
 

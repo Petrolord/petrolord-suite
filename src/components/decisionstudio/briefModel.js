@@ -85,23 +85,43 @@ export function decisionSection(treeProject) {
 
 // Portfolio section: re-optimizes the chosen portfolio from its saved
 // CAPEX limit and the current project inventory at build time.
+// EC5-0 (owner decision 2026-09-14): the quantised grid can fund a set whose
+// real capex exceeds the limit (engine overLimit / overLimitBy), so the capital
+// row says so with the numbers rather than printing "X of X". The loss
+// probability is the engine's seeded Monte Carlo, and the provenance carries
+// its seed and iteration count.
+const fmtMMExact = (mm) => Number(mm).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
 export function portfolioSection(portfolio, projects) {
   if (!portfolio || !projects?.length) return null;
   const result = optimizePortfolio({ projects, capexLimit: portfolio.capex_limit });
   const linked = result.optimalProjects.filter((p) => p.source_type === 'epe_mc').length;
+  // A "$6.00B of $6.00B" rounding would hide a 6002 against 6000 overshoot, so
+  // an exceeded limit prints exact $MM figures and its own row.
+  const capitalRows = result.overLimit
+    ? [
+      ['Capital deployed', `${fmtMMExact(result.totalCapex)} of ${fmtMMExact(result.capexLimit)} $MM`],
+      ['Over the capital limit by', `${fmtMMExact(result.overLimitBy)} $MM`],
+    ]
+    : [['Capital deployed', `${fmtMM(result.totalCapex)} of ${fmtMM(portfolio.capex_limit)}`]];
+  const funded = result.optimalProjects.length
+    ? `Funded: ${result.optimalProjects.map((p) => p.name).join(', ')}.`
+    : 'No project clears the risked-EMV bar under this limit.';
+  const overshoot = result.overLimit
+    ? ` Capital limit exceeded: the funded set's capex is ${fmtMMExact(result.totalCapex)} $MM against a limit of ${fmtMMExact(result.capexLimit)} $MM, over by ${fmtMMExact(result.overLimitBy)} $MM on the quantized grid (resolution ${fmtMMExact(result.resolution)} $MM). Check the set against the real limit.`
+    : '';
   return {
     heading: 'Capital allocation',
     rows: [
       ['Risked portfolio EMV', fmtMM(result.totalEmv)],
       ['Success-case NPV', fmtMM(result.totalNpvSuccess)],
-      ['Capital deployed', `${fmtMM(result.totalCapex)} of ${fmtMM(portfolio.capex_limit)}`],
+      ...capitalRows,
       ['Projects funded', `${result.optimalProjects.length} of ${projects.length}`],
       ['Chance the portfolio loses money', `${(result.risk.probLoss * 100).toFixed(1)}%`],
     ],
-    note: result.optimalProjects.length
-      ? `Funded: ${result.optimalProjects.map((p) => p.name).join(', ')}.`
-      : 'No project clears the risked-EMV bar under this limit.',
-    provenance: `Source: portfolio "${portfolio.name}" ${shortId(portfolio.id)}, optimized at brief time over ${projects.length} projects (${linked} valued by linked EPE Monte Carlo runs, the rest entered manually). Risk assumes independent projects, normal approximation. Values in $MM.`,
+    overLimit: result.overLimit,
+    note: `${funded}${overshoot}`,
+    provenance: `Source: portfolio "${portfolio.name}" ${shortId(portfolio.id)}, optimized at brief time over ${projects.length} projects (${linked} valued by linked EPE Monte Carlo runs, the rest entered manually). Capital grid resolution ${fmtMMExact(result.resolution)} $MM. Risk assumes independent projects; loss chance by seeded Monte Carlo, seed ${result.risk.seed}, ${result.risk.iterations} iterations. Values in $MM.`,
   };
 }
 

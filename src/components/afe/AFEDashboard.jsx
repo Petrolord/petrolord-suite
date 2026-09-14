@@ -2,7 +2,40 @@ import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ComposedChart, Area, PieChart, Pie, Cell } from 'recharts';
 import { DollarSign, TrendingUp, TrendingDown, Activity, AlertCircle, PieChart as PieIcon, CalendarClock, BarChart2 } from 'lucide-react';
-import { calculateMetrics, generateSCurveData } from '@/utils/costControlCalculations';
+import {
+  AfeInputError, calculateMetrics, generateSCurveData, itemForecast,
+} from '@/utils/costControlCalculations';
+
+// EC5-0 (owner decision 2026-09-14). The engine reads the clock only as the
+// default of its asOf argument; the dashboard passes today explicitly, as a
+// local calendar date, so "on the start day" means the user's start day.
+export const todayIsoDate = (now = new Date()) => {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+};
+
+const NEUTRAL_TILE = 'text-slate-400 bg-slate-400';
+
+const hasWindow = (afe) => Boolean(afe?.start_date && afe?.end_date)
+  && !Number.isNaN(Date.parse(afe.start_date)) && !Number.isNaN(Date.parse(afe.end_date));
+
+// The SPI tile. An AFE without dates falls back to time progress 1 in the
+// engine, which is a documented fallback and not a measurement, so SPI is
+// labelled unavailable there. SPI null (no planned value yet, before or on
+// the start day) reads "Not started" with no verdict and no colour.
+export const spiTile = (afe, metrics) => {
+  if (!hasWindow(afe)) {
+    return { value: 'Unavailable', subtext: 'Add start and end dates to measure schedule', colorClass: NEUTRAL_TILE };
+  }
+  if (metrics.spi == null) {
+    return { value: 'Not started', subtext: 'No planned value before the start date', colorClass: NEUTRAL_TILE };
+  }
+  return {
+    value: metrics.spi.toFixed(2),
+    subtext: metrics.spi >= 1 ? 'Ahead of Schedule' : 'Behind Schedule',
+    colorClass: metrics.spi >= 1 ? 'text-green-400 bg-green-400' : 'text-red-400 bg-red-400',
+  };
+};
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
@@ -34,8 +67,21 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
   const currencyFormatter = (value) => 
     new Intl.NumberFormat('en-US', { style: 'currency', currency: afe?.currency || 'USD', notation: 'compact' }).format(value);
 
-  const metrics = useMemo(() => calculateMetrics(afe, costItems, invoices), [afe, costItems, invoices]);
-  const sCurveData = useMemo(() => generateSCurveData(afe, costItems, invoices), [afe, costItems, invoices]);
+  const asOf = todayIsoDate();
+  const { metrics, sCurveData, inputError } = useMemo(() => {
+    try {
+      return {
+        metrics: calculateMetrics(afe, costItems, invoices, asOf),
+        sCurveData: generateSCurveData(afe, costItems, invoices, asOf),
+        inputError: null,
+      };
+    } catch (err) {
+      if (err instanceof AfeInputError || err?.name === 'AfeInputError') {
+        return { metrics: null, sCurveData: [], inputError: err.message };
+      }
+      throw err;
+    }
+  }, [afe, costItems, invoices, asOf]);
 
   // Chart Data: Budget vs Actual by Category
   const categoryData = useMemo(() => {
@@ -45,7 +91,7 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
       if (!cats[cat]) cats[cat] = { name: cat, Budget: 0, Actual: 0, Forecast: 0 };
       cats[cat].Budget += Number(item.budget) || 0;
       cats[cat].Actual += Number(item.actual) || 0;
-      cats[cat].Forecast += Number(item.forecast) || 0;
+      cats[cat].Forecast += itemForecast(item);
     });
     return Object.entries(cats).map(([name, data]) => ({ name, ...data }));
   }, [costItems]);
@@ -55,11 +101,23 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
     return [...costItems]
       .map(item => ({
         ...item,
-        varianceVal: (Number(item.budget)||0) - (Number(item.forecast) || Number(item.actual) || 0)
+        // Budget less the one EAC rule (itemForecast), as on every AFE screen.
+        varianceVal: (Number(item.budget)||0) - itemForecast(item)
       }))
       .sort((a, b) => Math.abs(b.varianceVal) - Math.abs(a.varianceVal))
       .slice(0, 5);
   }, [costItems]);
+
+  if (inputError) {
+    return (
+      <div role="alert" className="flex items-start gap-2 rounded border border-red-800 bg-red-950/40 p-4 text-sm text-red-200">
+        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
+        <span>The dashboard cannot be calculated: {inputError}</span>
+      </div>
+    );
+  }
+
+  const spi = spiTile(afe, metrics);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -103,10 +161,10 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
         />
         <KPICard 
           title="SPI (Schedule Efficiency)" 
-          value={metrics.spi.toFixed(2)} 
-          subtext={metrics.spi >= 1 ? "Ahead of Schedule" : "Behind Schedule"}
+          value={spi.value}
+          subtext={spi.subtext}
           icon={CalendarClock}
-          colorClass={metrics.spi >= 1 ? "text-green-400 bg-green-400" : "text-red-400 bg-red-400"}
+          colorClass={spi.colorClass}
         />
       </div>
 

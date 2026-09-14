@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { FileBarChart, FilePieChart, FileSpreadsheet, Download, Calendar } from 'lucide-react';
 import { generateAFESummaryPDF, exportToExcel } from '@/utils/afeServices';
+import { itemForecast } from '@/utils/costControlCalculations';
+import { useToast } from '@/components/ui/use-toast';
 
 const ReportCard = ({ title, description, icon: Icon, onGenerate, onExcel }) => (
     <Card className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-colors">
@@ -28,13 +30,21 @@ const ReportCard = ({ title, description, icon: Icon, onGenerate, onExcel }) => 
     </Card>
 );
 
-const ReportingEngine = ({ afe, costItems }) => {
-  
+// EC5-0 (owner decision 2026-09-14): the summary PDF bills from the AFE's
+// saved afe_partners rows, loaded by the page and passed in as `partners`.
+// It used to be fed two invented partners at 30 and 10 percent.
+const ReportingEngine = ({ afe, costItems, partners = [], partnersError = null }) => {
+  const { toast } = useToast();
+
   const handleSummaryReport = () => {
-      // Mock partners data if not passed or use default
-      const partners = [{name: 'Partner A', working_interest: 30}, {name: 'Partner B', working_interest: 10}];
+      if (partnersError) {
+          toast({ variant: 'destructive', title: 'Partners not loaded', description: `The summary needs this AFE's saved partners and they could not be loaded: ${partnersError}` });
+          return;
+      }
       generateAFESummaryPDF(afe, costItems, partners);
   };
+
+  const notBuilt = (name) => toast({ title: `${name} is not built yet`, description: 'Use the AFE Executive Summary PDF or the Excel export for now.' });
 
   const handleExcelExport = () => {
       const data = costItems.map(item => ({
@@ -43,7 +53,8 @@ const ReportingEngine = ({ afe, costItems }) => {
           Category: item.category,
           Budget: item.budget,
           Actual: item.actual,
-          Variance: (item.budget - item.actual),
+          'Forecast (EAC)': itemForecast(item),
+          Variance: (Number(item.budget) || 0) - itemForecast(item),
           Vendor: item.vendor
       }));
       exportToExcel(data, `AFE_Cost_Export_${afe.afe_number}`);
@@ -68,20 +79,20 @@ const ReportingEngine = ({ afe, costItems }) => {
                 title="Period Cost Report" 
                 description="Detailed cost breakdown for the current accounting period, suitable for month-end accruals."
                 icon={Calendar}
-                onGenerate={() => alert('Period Cost Report generation started...')}
+                onGenerate={() => notBuilt('The Period Cost Report PDF')}
                 onExcel={() => handleExcelExport()}
             />
             <ReportCard 
                 title="Partner Billing Pack" 
                 description="Consolidated billing statements and backup documentation for all JV partners."
                 icon={FilePieChart}
-                onGenerate={() => alert('Partner Pack generation started...')}
+                onGenerate={() => notBuilt('The Partner Billing Pack')}
             />
             <ReportCard 
                 title="Variance Analysis" 
                 description="Deep dive into line items with >10% variance, including commentary and root cause."
                 icon={FileBarChart}
-                onGenerate={() => alert('Variance Analysis generation started...')}
+                onGenerate={() => notBuilt('The Variance Analysis PDF')}
                 onExcel={() => handleExcelExport()}
             />
         </div>

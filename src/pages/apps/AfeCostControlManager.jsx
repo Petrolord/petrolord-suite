@@ -32,6 +32,9 @@ const AfeCostControlManager = () => {
   const [costItems, setCostItems] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [changes, setChanges] = useState([]);
+  // EC5-0: the AFE's saved partners, so the summary PDF bills from real rows.
+  const [partners, setPartners] = useState([]);
+  const [partnersError, setPartnersError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -63,6 +66,17 @@ const AfeCostControlManager = () => {
     setCostItems(items || []);
     setInvoices(invs || []);
     setChanges(chgs || []);
+    await fetchPartners(afeId);
+  };
+
+  const fetchPartners = async (afeId) => {
+    const { data, error } = await supabase
+      .from('afe_partners')
+      .select('*')
+      .eq('afe_id', afeId)
+      .order('created_at', { ascending: true });
+    setPartners(error ? [] : (data || []));
+    setPartnersError(error ? error.message : null);
   };
 
   useEffect(() => {
@@ -219,11 +233,11 @@ const AfeCostControlManager = () => {
                 </TabsContent>
 
                 <TabsContent value="partners" className="mt-4">
-                  <JVPartnerManagement afe={activeAfe} costItems={costItems} />
+                  <JVPartnerManagement afe={activeAfe} costItems={costItems} onPartnersChanged={() => fetchPartners(activeAfe.id)} />
                 </TabsContent>
 
                 <TabsContent value="reports" className="mt-4">
-                  <ReportingEngine afe={activeAfe} costItems={costItems} />
+                  <ReportingEngine afe={activeAfe} costItems={costItems} partners={partners} partnersError={partnersError} />
                 </TabsContent>
 
                 <TabsContent value="integrations" className="mt-4">

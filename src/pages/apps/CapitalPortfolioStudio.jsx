@@ -16,7 +16,7 @@ import ProjectForm from '@/components/capitalportfoliostudio/ProjectForm';
 import PortfolioForm from '@/components/capitalportfoliostudio/PortfolioForm';
 import OptimizationResults from '@/components/capitalportfoliostudio/OptimizationResults';
 import PortfolioComparison from '@/components/capitalportfoliostudio/PortfolioComparison';
-import { optimizePortfolio, projectEmv } from '@/utils/portfolioOptimizer';
+import { optimizePortfolio, projectEmv, PortfolioInputError } from '@/utils/portfolioOptimizer';
 import PortfolioHelpGuide from '@/components/capitalportfoliostudio/PortfolioHelpGuide';
 
 const CapitalPortfolioStudio = () => {
@@ -159,9 +159,9 @@ const CapitalPortfolioStudio = () => {
   };
 
   // Optimization math lives in src/utils/portfolioOptimizer.js (D4):
-  // risked-EMV knapsack, efficient frontier, and the normal-approximation
-  // portfolio risk summary. totalNpv is kept as an alias of totalEmv for
-  // the comparison view's field names.
+  // risked-EMV knapsack, efficient frontier, and the portfolio risk summary
+  // (seeded Monte Carlo since EC5-0). totalNpv is kept as an alias of
+  // totalEmv for the comparison view's field names.
   const runSingleOptimization = (portfolio, candidateProjects) => {
     const result = optimizePortfolio({
       projects: candidateProjects,
@@ -171,10 +171,28 @@ const CapitalPortfolioStudio = () => {
     return { ...portfolio, ...result, totalNpv: result.totalEmv };
   };
 
+  // EC5-0: the engine refuses a project it cannot optimise (a negative
+  // capex) with a PortfolioInputError. Say so instead of crashing the page.
+  const tryOptimization = (fn) => {
+    try {
+      return fn();
+    } catch (err) {
+      if (err instanceof PortfolioInputError || err?.name === 'PortfolioInputError') {
+        toast({ variant: 'destructive', title: 'Cannot optimize this portfolio', description: err.message });
+        return null;
+      }
+      throw err;
+    }
+  };
+
   const runOptimization = () => {
     if (!activePortfolio) return;
     const candidateProjects = projects.filter(p => selectedProjectIds.has(p.id));
-    const result = runSingleOptimization(activePortfolio, candidateProjects);
+    const result = tryOptimization(() => runSingleOptimization(activePortfolio, candidateProjects));
+    if (!result) {
+      setOptimizationResult(null);
+      return;
+    }
     setOptimizationResult(result);
     toast({
       title: "Optimization Complete!",
@@ -196,7 +214,8 @@ const CapitalPortfolioStudio = () => {
 
   const handleRunComparison = () => {
     const portfoliosToCompare = portfolios.filter(p => comparisonIds.has(p.id));
-    const results = portfoliosToCompare.map(p => runSingleOptimization(p, projects));
+    const results = tryOptimization(() => portfoliosToCompare.map(p => runSingleOptimization(p, projects)));
+    if (!results) return;
     setComparisonData(results);
     setComparisonOpen(true);
   };

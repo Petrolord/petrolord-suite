@@ -10,6 +10,22 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import * as XLSX from 'xlsx';
+import { itemForecast } from '@/utils/costControlCalculations';
+
+// EC5-0 (owner decision 2026-09-14). The edit form used to seed the forecast
+// with the budget, so saving any edit froze the estimate at completion at the
+// budget even on a line already overrunning. The forecast field now holds only
+// a forecast someone entered; blank means the standard rule (itemForecast).
+export const costItemFormValues = (item) => ({
+  code: item.code,
+  category: item.category || 'General',
+  description: item.description,
+  budget: item.budget,
+  forecast: Number(item.forecast) > 0 ? item.forecast : '',
+  wbs_code: item.wbs_code || '',
+  vendor: item.vendor || '',
+  progress: item.progress || 0
+});
 
 const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
   const { toast } = useToast();
@@ -23,7 +39,7 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
     category: 'Drilling',
     description: '',
     budget: 0,
-    forecast: 0,
+    forecast: '',
     wbs_code: '',
     vendor: '',
     progress: 0
@@ -32,16 +48,7 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
   const handleOpenDialog = (item = null) => {
     if (item) {
       setEditingItem(item);
-      setFormData({
-        code: item.code,
-        category: item.category || 'General',
-        description: item.description,
-        budget: item.budget,
-        forecast: item.forecast || item.budget,
-        wbs_code: item.wbs_code || '',
-        vendor: item.vendor || '',
-        progress: item.progress || 0
-      });
+      setFormData(costItemFormValues(item));
     } else {
       setEditingItem(null);
       setFormData({
@@ -49,7 +56,7 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
         category: 'Drilling',
         description: '',
         budget: 0,
-        forecast: 0,
+        forecast: '',
         wbs_code: '',
         vendor: '',
         progress: 0
@@ -60,7 +67,19 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = { ...formData, afe_id: afeId };
+    const progress = Number(formData.progress) || 0;
+    if (progress < 0) {
+      toast({ variant: 'destructive', title: 'Progress cannot be negative', description: 'Progress runs from 0 to 100 percent.' });
+      return;
+    }
+    const forecast = Number(formData.forecast);
+    const payload = {
+      ...formData,
+      progress,
+      // Only an entered forecast above zero is stored; 0 means the standard rule.
+      forecast: forecast > 0 ? forecast : 0,
+      afe_id: afeId,
+    };
     
     let error;
     if (editingItem) {
@@ -146,8 +165,9 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
           </TableHeader>
           <TableBody>
             {filteredItems.map(item => {
-                const forecast = Number(item.forecast) || Number(item.budget);
-                const variance = Number(item.budget) - forecast;
+                // The one EAC rule (engine itemForecast), and variance is budget less it.
+                const forecast = itemForecast(item);
+                const variance = (Number(item.budget) || 0) - forecast;
                 const progress = Number(item.progress) || 0;
                 
                 return (
@@ -226,11 +246,11 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
               </div>
               <div>
                 <Label>Forecast (EAC)</Label>
-                <Input type="number" value={formData.forecast} onChange={e => setFormData({...formData, forecast: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" />
+                <Input type="number" min="0" value={formData.forecast} placeholder="Blank uses the standard rule" onChange={e => setFormData({...formData, forecast: e.target.value})} className="bg-slate-800 border-slate-700" />
               </div>
               <div>
                 <Label>% Progress</Label>
-                <Input type="number" max="100" value={formData.progress} onChange={e => setFormData({...formData, progress: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" />
+                <Input type="number" min="0" max="100" value={formData.progress} onChange={e => setFormData({...formData, progress: parseFloat(e.target.value)})} className="bg-slate-800 border-slate-700" />
               </div>
             </div>
             <div>

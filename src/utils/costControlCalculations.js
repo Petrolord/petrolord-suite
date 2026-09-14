@@ -4,4 +4,13 @@
 // committed goldens and an independent stdlib oracle. This shim keeps every
 // existing import path working. Never edit the vendored copy from the
 // Suite; change it in the engines repo and subtree-pull.
-export { calculateMetrics, generateSCurveData } from '../../packages/engines/engines/economics/afe.js';
+// EC5-0 (owner decision 2026-09-14) adds itemForecast (the ONE estimate at
+// completion rule every AFE screen uses), AfeInputError (thrown on negative
+// progress or an invalid asOf) and calculatePartnerCosts.
+export {
+  AfeInputError,
+  calculateMetrics,
+  calculatePartnerCosts,
+  generateSCurveData,
+  itemForecast,
+} from '../../packages/engines/engines/economics/afe.js';
