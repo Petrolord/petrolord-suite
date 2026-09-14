@@ -6,7 +6,7 @@ export const HELP_CATEGORIES = [
   { id: 'expert-mode', title: 'Expert Mode', icon: Calculator, description: 'Detailed cashflow modeling.' },
   { id: 'scenarios', title: 'Scenario Building', icon: Layers, description: 'Manage Base, High, and Low cases.' },
   { id: 'sensitivity', title: 'Sensitivity Analysis', icon: Activity, description: 'Tornado charts and spider plots.' },
-  { id: 'risk', title: 'Monte Carlo & Risk', icon: Percent, description: 'Probabilistic simulation and P10/P90.' },
+  { id: 'risk', title: 'Monte Carlo & Risk', icon: Percent, description: 'Seeded probabilistic simulation and the low, best and high NPV cases.' },
   { id: 'portfolio', title: 'Portfolio Analysis', icon: Briefcase, description: 'Aggregated views and ranking.' },
   { id: 'integration', title: 'Integration', icon: Globe, description: 'Connecting to other apps.' },
   { id: 'governance', title: 'Governance', icon: Shield, description: 'Approvals and permissions.' },
@@ -107,13 +107,15 @@ export const HELP_ARTICLES = [
     content: `
       <p>Move beyond deterministic cases to probabilistic analysis.</p>
       <h3>How it Works</h3>
-      <p>The system runs 1,000+ iterations, randomly sampling inputs (Price, Reserves, Costs) from defined probability distributions.</p>
+      <p>The system runs 1,000 iterations, sampling price, reserves and capex uniformly within plus or minus 20 percent of the base case.</p>
+      <p>Every run is seeded. The default seed is 20260829 and the seed is shown with the results, so the same inputs and the same seed reproduce the same numbers exactly.</p>
       <h3>Key Metrics</h3>
+      <p>The NPV cases follow the Suite percentile convention: a P-label is the probability that the NPV meets or exceeds the value, per SPE PRMS, and the cases are shown low to high.</p>
       <ul>
-        <li><strong>P90:</strong> 90% probability of exceeding this value (Conservative).</li>
-        <li><strong>P50:</strong> 50% probability (Median).</li>
-        <li><strong>P10:</strong> 10% probability (Upside).</li>
-        <li><strong>EMV:</strong> Expected Monetary Value (Mean of all outcomes).</li>
+        <li><strong>Low case P90:</strong> a 90% probability the NPV meets or exceeds this value. It is the 10th percentile of the simulated NPVs.</li>
+        <li><strong>Best case P50:</strong> the median NPV.</li>
+        <li><strong>High case P10:</strong> a 10% probability the NPV meets or exceeds this value. It is the 90th percentile of the simulated NPVs.</li>
+        <li><strong>EMV:</strong> Expected Monetary Value, the mean of all outcomes.</li>
       </ul>
       <h3>Charts</h3>
       <p>Use the Histogram to see the spread of outcomes and the S-Curve (Cumulative Probability) to determine the likelihood of a positive NPV.</p>

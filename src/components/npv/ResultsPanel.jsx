@@ -14,6 +14,7 @@ import TornadoChart from './charts/TornadoChart';
 import StackedCashflowChart from './charts/StackedCashflowChart';
 import SpiderChart from './charts/SpiderChart';
 import { HistogramChart, SCurveChart } from './charts/RiskCharts';
+import { RiskCaseCards, riskCases } from './riskCases';
 
 const ResultsPanel = ({ results }) => {
   const { metrics, cashflow, sensitivity, risk, scenarios } = results;
@@ -262,26 +263,18 @@ const ResultsPanel = ({ results }) => {
                          <p className="text-xs text-slate-500 uppercase font-semibold">EMV (Expected Value)</p>
                          <p className="text-xl font-bold text-blue-400">{risk ? formatCurrency(risk.emv) : '-'}</p>
                     </Card>
-                    <div className="col-span-3 grid grid-cols-3 gap-4">
-                        <div className="bg-slate-800/50 p-4 rounded border border-slate-700 text-center">
-                            <p className="text-xs text-slate-500">P90 (Conservative)</p>
-                            <p className="text-lg font-bold text-white">{risk ? formatCurrency(risk.p90) : '-'}</p>
-                        </div>
-                        <div className="bg-slate-800/50 p-4 rounded border border-slate-700 text-center">
-                            <p className="text-xs text-slate-500">P50 (Base)</p>
-                            <p className="text-lg font-bold text-white">{risk ? formatCurrency(risk.p50) : '-'}</p>
-                        </div>
-                        <div className="bg-slate-800/50 p-4 rounded border border-slate-700 text-center">
-                            <p className="text-xs text-slate-500">P10 (Optimistic)</p>
-                            <p className="text-lg font-bold text-white">{risk ? formatCurrency(risk.p10) : '-'}</p>
-                        </div>
+                    <div className="col-span-3">
+                        <RiskCaseCards risk={risk} formatValue={formatCurrency} />
                     </div>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                      <Card className="bg-slate-900 border-slate-800">
                         <CardHeader><CardTitle className="text-sm text-slate-300">NPV Distribution</CardTitle></CardHeader>
                         <CardContent>
-                            {risk && <HistogramChart data={risk.histogram} p10={risk.p10} p50={risk.p50} p90={risk.p90} />}
+                            {risk && (() => {
+                              const [low, best, high] = riskCases(risk);
+                              return <HistogramChart data={risk.histogram} lowCase={low.value} bestCase={best.value} highCase={high.value} />;
+                            })()}
                         </CardContent>
                     </Card>
                     <Card className="bg-slate-900 border-slate-800">
