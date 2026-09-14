@@ -26,13 +26,17 @@ import { exportChartAsImage } from '@/utils/declineCurve/dcaExport';
  * set, a small download button in the top-right captures the frame (chart +
  * watermark) as a PNG named `<exportFilename>.png`, via the shared
  * exportChartAsImage helper (html2canvas) the DCA and MBAL plots use.
+ *
+ * Optional `header` (fiscal naming wave 2026-09-14, backward compatible): text
+ * rendered inside the captured frame above the plot, so an exported PNG carries
+ * it. Use it for a metric's definition, which must travel with the image.
  */
 // px; the reserved band below the plot scales with it. 40px is the suite
 // standard watermark size (2026-08-26 owner directive rolling back the
 // 2.5x enlargement of 2026-08-16, which read as oversized).
 const DEFAULT_LOGO_HEIGHT = 40;
 
-const ChartFrame = ({ height = 260, className = '', exportFilename = null, logoHeight = DEFAULT_LOGO_HEIGHT, children }) => {
+const ChartFrame = ({ height = 260, className = '', exportFilename = null, logoHeight = DEFAULT_LOGO_HEIGHT, header = null, children }) => {
   const frameId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const elementId = `chart-frame-${frameId}`;
   return (
@@ -41,6 +45,9 @@ const ChartFrame = ({ height = 260, className = '', exportFilename = null, logoH
       style={{ paddingBottom: logoHeight + 20 }}
       id={exportFilename ? elementId : undefined}
     >
+      {header && (
+        <p className="chart-frame-header px-3 pt-2 pr-10 text-[11px] leading-snug text-slate-600">{header}</p>
+      )}
       <ResponsiveContainer width="100%" height={height}>
         {children}
       </ResponsiveContainer>

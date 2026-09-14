@@ -155,7 +155,7 @@ export const applications = [
         id: 'fiscal-regime-designer',
         slug: 'fiscal-regime-designer',
         name: 'Fiscal Regime Designer',
-        description: 'Design and compare fiscal regimes: royalty, cost recovery, profit split and tax, with government take by term.',
+        description: 'Design and compare fiscal regimes: royalty, cost recovery, profit split and tax, with government take and government share of net revenue side by side.',
         module: 'economics-project-management',
         category: 'economics',
         path: '/dashboard/apps/economics/fiscal-regime-designer',

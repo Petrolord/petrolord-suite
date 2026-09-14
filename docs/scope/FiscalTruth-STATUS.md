@@ -162,3 +162,40 @@ Not in this change: the metric names. The chart's rate is government take
 on profit and the summary table's is government share of net revenue (capex
 added back). Both are still labelled as before; the naming and placement
 wave follows EC2's go-live.
+
+## Naming wave: government take and government share of net revenue (2026-09-14)
+
+Owner decision, the wave after EC2 went live. The Designer's summary showed
+one rate as "Gov Take (%)" that was really government cash flow over revenue
+less opex (capex added back), while the price chart showed government cash
+flow over revenue less opex less capex, and the two had been called "effective
+tax rate" in the engine and the course. Neither is a tax rate: royalty and the
+government's profit oil are in the numerator. No computation changed.
+
+- **Names, defined once.** `packages/engines/engines/economics/fiscalConventions.js`
+  (engines #172), re-exported at `src/utils/fiscalConventions.js`, holds both
+  definitions, the basis label and the label, definition and export header
+  builders. NextGen's fiscal course imports the same file.
+- **Government take is the headline.** The chart plots it (undiscounted); the
+  summary shows it first, in larger type, with the value discounted at the
+  project rate beneath it, labelled with that rate. Summary rows carry
+  `governmentTakePct` / `governmentTakeDiscountedPct` with their states.
+- **Government share of net revenue is second** (`governmentShareOfNetRevenuePct`,
+  null where the legacy `effectiveTaxRate` returned 0). It is shown after the
+  headline, smaller.
+- **Every header and cell carries its definition on hover**, the footnote prints
+  both definitions, and the price chart's PNG export carries the government take
+  definition through a new optional `header` prop on the shared ChartFrame
+  (backward compatible; nothing else passes it).
+- **Money is government cash flow**: the summary column, the annual chart and
+  the single-regime verdict. "Government take" now always means the ratio.
+- **Exports.** The Designer has no CSV or PDF export; its exports are chart PNGs
+  and a JSON of regime definitions with no metric in it. Nothing was built.
+- **Gate.** `src/components/fiscaldesigner/__tests__/fiscalMetricNames.test.jsx`:
+  no unqualified "effective tax rate" in any Designer source, the page, the
+  shim or the engine conventions, nor in the rendered summary text and hover
+  titles on three goldens (qualified = after "minimum", or a quoted old label
+  after "labelled", "called" or "formerly"; negative control inside); headline
+  column first and larger with the shared definitions; every printed
+  "government take" states its basis; no engine verdict names either old term;
+  no Designer file restates a definition by hand.

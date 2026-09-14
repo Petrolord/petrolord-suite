@@ -31,7 +31,7 @@ const EmptyState = () => {
           <div className="bg-white/5 rounded-lg p-4">
             <BarChartHorizontal className="w-8 h-8 text-fuchsia-400 mx-auto mb-2" />
             <h3 className="text-white font-semibold mb-1">3. Compare Results</h3>
-            <p className="text-lime-300 text-sm">Analyze NPV, government take, and cash flows.</p>
+            <p className="text-lime-300 text-sm">Analyze NPV, cash flows and government take (undiscounted) beside government share of net revenue.</p>
           </div>
         </div>
         

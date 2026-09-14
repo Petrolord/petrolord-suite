@@ -1,4 +1,5 @@
-// The government share vs oil price chart, as a model (EC2-1, 2026-09-14).
+// The government take (undiscounted) vs oil price chart, as a model (EC2-1,
+// 2026-09-14; renamed in the naming wave the same day).
 //
 // The engine's price sweep used to return EXACTLY 0 when the project's profit
 // was not positive, and this chart drew that zero on the same line as real
@@ -20,10 +21,14 @@
 //
 // Pure data in, pure data out, so the rules are tested without rendering.
 import { GOVERNMENT_SHARE_STATES } from '@/utils/fiscalDesignerCalculations';
+import { FISCAL_METRIC_KEYS } from '@/utils/fiscalConventions';
 
 const S = GOVERNMENT_SHARE_STATES;
 
 export const UNECONOMIC_BAND_LABEL = 'project uneconomic at this price';
+
+/** The chart's metric, with its basis, from the shared conventions. */
+export const PRICE_CHART_METRIC = { key: FISCAL_METRIC_KEYS.GOVERNMENT_TAKE, discountRatePct: null };
 
 const stateAt = (series, i) => {
   if (Array.isArray(series.states) && series.states[i]) return series.states[i];
@@ -99,7 +104,7 @@ export const buildPriceShareChart = (price, summary) => {
 
 /** The tooltip line for one regime at one price. */
 export const describePoint = ({ state, value }) => {
-  if (state === S.UNDEFINED) return `no share: ${UNECONOMIC_BAND_LABEL}`;
+  if (state === S.UNDEFINED) return `no government take: ${UNECONOMIC_BAND_LABEL}`;
   const pct = `${value.toFixed(1)} %`;
   return state === S.EXCEEDS
     ? `${pct}, above 100 percent: the government collects more than the project makes`

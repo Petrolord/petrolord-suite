@@ -17,6 +17,13 @@
 // as a share. It now lives in PriceShareChart, which draws each point by its
 // state: a line through shares, a pinned open marker above 100 percent, and a
 // shaded band where the project is uneconomic.
+//
+// Naming wave (2026-09-14): the summary carried one rate labelled "Gov Take
+// (%)" that was government share of net revenue, while the chart showed
+// government take. Both names and definitions now come from the shared
+// fiscalConventions module. Government take is the headline and comes first
+// and larger; government share of net revenue is second; every header and
+// cell carries its definition on hover; money is government cash flow.
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -27,6 +34,9 @@ import { Table, BarChartHorizontal, BrainCircuit, LineChart as LineIcon, Trendin
 import ChartFrame from '@/components/charts/ChartFrame';
 import PriceShareChart from '@/components/fiscaldesigner/PriceShareChart';
 import { buildPriceShareChart } from '@/components/fiscaldesigner/priceShareChart';
+import {
+  FISCAL_METRIC_KEYS, GOVERNMENT_CASH_FLOW, basisLabel, metricDefinition, metricLabel,
+} from '@/utils/fiscalConventions';
 import { CHART_COLORS, CHART_TYPOGRAPHY, GRID_STYLE, TOOLTIP_STYLE } from '@/utils/chartTheme';
 
 // Validated on the white chart surface: distinguishable in normal vision,
@@ -40,6 +50,15 @@ const axisLabel = (value, position, offset) => ({
   fontSize: CHART_TYPOGRAPHY.axisFontSize,
 });
 const mm = (v) => (Number.isFinite(v) ? v.toFixed(1) : '-');
+
+const TAKE = FISCAL_METRIC_KEYS.GOVERNMENT_TAKE;
+const SHARE_OF_NR = FISCAL_METRIC_KEYS.GOVERNMENT_SHARE_OF_NET_REVENUE;
+
+/** A take value as printed: its number, flagged above 100, or why there is none. */
+const takeText = (value, state) => {
+  if (state === 'undefined' || !Number.isFinite(value)) return 'none, project uneconomic';
+  return state === 'exceeds' ? `${value.toFixed(1)}%, above 100` : `${value.toFixed(1)}%`;
+};
 
 /** Pivot the per-regime series into the row-per-x shape recharts wants. */
 const toRows = (labels, series, summary, pick) =>
@@ -112,8 +131,9 @@ const ResultsPanel = ({ results }) => {
                   <th className="p-2 text-lime-300">NPV ($MM)</th>
                   <th className="p-2 text-lime-300">IRR (%)</th>
                   <th className="p-2 text-lime-300">Payback (yrs)</th>
-                  <th className="p-2 text-lime-300">Gov Take ($MM)</th>
-                  <th className="p-2 text-lime-300">Gov Take (%)</th>
+                  <th className="p-2 text-lime-300" title={GOVERNMENT_CASH_FLOW.definition}>{GOVERNMENT_CASH_FLOW.title} ($MM)</th>
+                  <th className="p-2 text-lime-300 text-base" data-metric="headline" title={metricDefinition(TAKE)}>{metricLabel(TAKE)}, %</th>
+                  <th className="p-2 text-lime-300/80 text-xs font-normal" data-metric="secondary" title={metricDefinition(SHARE_OF_NR)}>{metricLabel(SHARE_OF_NR)}, %</th>
                 </tr>
               </thead>
               <tbody>
@@ -123,16 +143,29 @@ const ResultsPanel = ({ results }) => {
                     <td className="p-2 font-bold text-green-400">{s.npv.toFixed(1)}</td>
                     <td className="p-2 text-white">{s.irr.toFixed(1)}%</td>
                     <td className="p-2 text-white">{s.paybackPeriod || 'N/A'}</td>
-                    <td className="p-2 text-white">{s.govTake.toFixed(1)}</td>
-                    <td className="p-2 text-white">{s.effectiveTaxRate.toFixed(1)}%</td>
+                    <td className="p-2 text-white" title={GOVERNMENT_CASH_FLOW.definition}>{s.govTake.toFixed(1)}</td>
+                    <td className="p-2 text-white text-lg font-bold" data-metric="headline" title={metricDefinition(TAKE)}>
+                      {takeText(s.governmentTakePct, s.governmentTakeState)}
+                      <span
+                        className="block text-[11px] font-normal text-slate-300"
+                        title={metricDefinition(TAKE, s.discountRatePct)}
+                      >
+                        {basisLabel(s.discountRatePct)}: {takeText(s.governmentTakeDiscountedPct, s.governmentTakeDiscountedState)}
+                      </span>
+                    </td>
+                    <td className="p-2 text-slate-200 text-sm" data-metric="secondary" title={metricDefinition(SHARE_OF_NR)}>
+                      {Number.isFinite(s.governmentShareOfNetRevenuePct) ? `${s.governmentShareOfNetRevenuePct.toFixed(1)}%` : 'none'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <p className="text-[12px] text-slate-300 mt-3">
-              Contractor NPV is discounted at year end, matching Petroleum Economics Studio.
-              Government take is the total of royalty, profit share and tax over the project life.
-            </p>
+            <div className="text-[12px] text-slate-300 mt-3 space-y-1" data-testid="fiscal-metric-definitions">
+              <p>Contractor NPV is discounted at year end, matching Petroleum Economics Studio.</p>
+              <p>{GOVERNMENT_CASH_FLOW.title}: {GOVERNMENT_CASH_FLOW.definition}</p>
+              <p className="text-slate-200">{metricDefinition(TAKE)}</p>
+              <p>{metricDefinition(SHARE_OF_NR)}</p>
+            </div>
           </div>
         </TabsContent>
 
@@ -151,8 +184,8 @@ const ResultsPanel = ({ results }) => {
                 </BarChart>
               </ChartFrame>
             </ChartCard>
-            <ChartCard title="Annual government take">
-              <ChartFrame height={280} exportFilename="fiscal-government-take">
+            <ChartCard title="Annual government cash flow">
+              <ChartFrame height={280} exportFilename="fiscal-government-cash-flow">
                 <BarChart data={governmentRows} margin={{ top: 8, right: 20, left: 8, bottom: 28 }}>
                   <CartesianGrid {...GRID_STYLE} vertical={false} />
                   <XAxis dataKey="label" stroke={CHART_COLORS.axisLine} tick={tickStyle} label={axisLabel('Year', 'insideBottom', -10)} />
@@ -185,7 +218,7 @@ const ResultsPanel = ({ results }) => {
 
         <TabsContent value="sensitivities" className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ChartCard title="Government share vs oil price">
+            <ChartCard title={`${metricLabel(TAKE)} vs oil price`}>
               <PriceShareChart model={priceChart} colors={SERIES_COLORS} />
             </ChartCard>
             <ChartCard title="Contractor NPV vs capex overrun">
