@@ -121,6 +121,6 @@ export function buildBriefModel({ title, recommendation, preparedBy, mcRun, tree
     preparedBy: preparedBy || '',
     generatedAt: new Date().toISOString(),
     sections,
-    footer: 'Prepared with Petrolord Decision Studio. Every figure above carries its source and assumptions; screening-grade analyses are labeled as such in their provenance lines.',
+    footer: 'Prepared with Petrolord Decision Studio. Every figure above carries its source and assumptions in the provenance line beneath its section.',
   };
 }
