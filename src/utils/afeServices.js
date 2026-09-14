@@ -27,10 +27,25 @@ import * as XLSX from 'xlsx';
 // the Suite because jspdf and xlsx are browser dependencies the engines
 // package does not carry.
 export { calculatePartnerCosts } from '../../packages/engines/engines/economics/afe.js';
+// A re-export creates no local binding, so the PDF below imports its own
+// copies. Before EC5-0 it called an unbound calculatePartnerCosts and threw
+// as soon as partners were passed in.
+import { calculatePartnerCosts as splitCosts, itemForecast } from '../../packages/engines/engines/economics/afe.js';
 
-export const generateAFESummaryPDF = (afe, costItems, partners) => {
+/**
+ * AFE executive summary PDF.
+ *
+ * EC5-0 (owner decision 2026-09-14): `partners` are the AFE's saved
+ * afe_partners rows, passed in by the caller (the report used to be fed two
+ * invented partners). With no partners the operator carries 100 percent. If
+ * the engine flags the split invalid, the PDF prints the engine note and
+ * shows no billing split. Variance is budget less the one EAC rule,
+ * itemForecast, as on every other AFE screen.
+ */
+export const generateAFESummaryPDF = (afe, costItems, partners = []) => {
   const doc = new jsPDF();
   const currency = afe.currency || 'USD';
+  const money = (v) => `${Number(v || 0).toLocaleString()} ${currency}`;
 
   // Header
   doc.setFontSize(18);
@@ -41,18 +56,20 @@ export const generateAFESummaryPDF = (afe, costItems, partners) => {
   doc.text(`Status: ${afe.status}`, 14, 42);
 
   // Financial Summary
-  const totalBudget = costItems.reduce((sum, i) => sum + (i.budget || 0), 0);
-  const totalActual = costItems.reduce((sum, i) => sum + (i.actual || 0), 0);
-  const totalVariance = totalBudget - totalActual;
+  const totalBudget = costItems.reduce((sum, i) => sum + (Number(i.budget) || 0), 0);
+  const totalActual = costItems.reduce((sum, i) => sum + (Number(i.actual) || 0), 0);
+  const totalForecast = costItems.reduce((sum, i) => sum + itemForecast(i), 0);
+  const totalVariance = totalBudget - totalForecast;
 
   doc.autoTable({
     startY: 50,
     head: [['Metric', 'Amount']],
     body: [
-      ['Total Approved Budget', `${totalBudget.toLocaleString()} ${currency}`],
-      ['Total Actual Cost', `${totalActual.toLocaleString()} ${currency}`],
-      ['Variance', `${totalVariance.toLocaleString()} ${currency}`],
-      ['% Spent', `${((totalActual / totalBudget) * 100).toFixed(2)}%`]
+      ['Total Approved Budget', money(totalBudget)],
+      ['Total Actual Cost', money(totalActual)],
+      ['Forecast at Completion (EAC)', money(totalForecast)],
+      ['Variance (Budget less EAC)', money(totalVariance)],
+      ['% Spent', totalBudget > 0 ? `${((totalActual / totalBudget) * 100).toFixed(2)}%` : 'n/a']
     ],
     theme: 'striped',
     headStyles: { fillColor: [22, 163, 74] }
@@ -60,43 +77,54 @@ export const generateAFESummaryPDF = (afe, costItems, partners) => {
 
   // Cost Breakdown
   doc.text('Cost Breakdown by Category', 14, doc.lastAutoTable.finalY + 15);
-  
+
   const cats = {};
   costItems.forEach(item => {
     const cat = item.category || 'General';
-    if (!cats[cat]) cats[cat] = { budget: 0, actual: 0 };
-    cats[cat].budget += item.budget || 0;
-    cats[cat].actual += item.actual || 0;
+    if (!cats[cat]) cats[cat] = { budget: 0, actual: 0, forecast: 0 };
+    cats[cat].budget += Number(item.budget) || 0;
+    cats[cat].actual += Number(item.actual) || 0;
+    cats[cat].forecast += itemForecast(item);
   });
 
   const catData = Object.entries(cats).map(([k, v]) => [
-    k, 
-    v.budget.toLocaleString(), 
-    v.actual.toLocaleString(), 
-    (v.budget - v.actual).toLocaleString()
+    k,
+    v.budget.toLocaleString(),
+    v.actual.toLocaleString(),
+    v.forecast.toLocaleString(),
+    (v.budget - v.forecast).toLocaleString()
   ]);
 
   doc.autoTable({
     startY: doc.lastAutoTable.finalY + 20,
-    head: [['Category', 'Budget', 'Actual', 'Variance']],
+    head: [['Category', 'Budget', 'Actual', 'EAC', 'Variance']],
     body: catData,
   });
 
-  // Partner Section
-  if (partners && partners.length > 0) {
-    doc.text('Partner Allocations', 14, doc.lastAutoTable.finalY + 15);
-    const { partnerAllocations, operatorAmount, operatorShare } = calculatePartnerCosts(totalActual, partners);
-    
-    const partnerRows = partnerAllocations.map(p => [
-        p.name, 
-        `${p.working_interest}%`, 
-        `${p.shareAmount.toLocaleString()} ${currency}`
+  // Partner Section: the AFE's saved partners; none means the operator carries it all.
+  const savedPartners = Array.isArray(partners) ? partners : [];
+  const split = splitCosts(totalActual, savedPartners);
+  doc.text('Partner Allocations', 14, doc.lastAutoTable.finalY + 15);
+
+  if (!split.valid) {
+    const lines = doc.splitTextToSize(
+      `${split.note} No billing split is shown until the working interests are corrected.`,
+      180,
+    );
+    doc.text(lines, 14, doc.lastAutoTable.finalY + 22);
+  } else {
+    const partnerRows = split.partnerAllocations.map(p => [
+      p.name,
+      `${p.working_interest}%`,
+      money(p.shareAmount)
     ]);
-    // Add Operator
-    partnerRows.unshift(['Operator (Net)', `${operatorShare.toFixed(2)}%`, `${operatorAmount.toLocaleString()} ${currency}`]);
+    partnerRows.unshift(['Operator (Net)', `${split.operatorShare.toFixed(2)}%`, money(split.operatorAmount)]);
+    if (savedPartners.length === 0) {
+      doc.text('No partners are saved for this AFE, so the operator carries 100 percent.', 14, doc.lastAutoTable.finalY + 21);
+    }
 
     doc.autoTable({
-        startY: doc.lastAutoTable.finalY + 20,
+        startY: doc.lastAutoTable.finalY + (savedPartners.length === 0 ? 26 : 20),
         head: [['Partner', 'Working Interest', 'Share of Cost']],
         body: partnerRows
     });

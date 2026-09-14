@@ -1,4 +1,7 @@
-// AFE Cost Control Manager help guide (Economics E4).
+// AFE Cost Control Manager help guide (Economics E4). Re-verified against
+// the EC5-0 engine and app (owner decision 2026-09-14): the wizard window,
+// the as-of date, the one EAC rule, SPI "Not started", saved partners in the
+// summary PDF and the honest Integrations tab.
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
@@ -19,7 +22,7 @@ const helpContent = [
     icon: FileText,
     title: 'Creating an AFE',
     content:
-      'New AFE opens a short wizard: the AFE number, what it is for, the project it belongs to, its currency and its window. The window matters more than it looks, because the schedule side of the performance indexes is measured against it.',
+      'New AFE opens a short wizard: the AFE number, what it is for, the project it belongs to, its currency, its budget, its class and its window, a start date and an end date. The wizard refuses an end date before the start date. The window matters more than it looks, because the schedule side of the performance indexes and the S curve are measured against it. Without both dates the schedule index is shown as unavailable.',
   },
   {
     id: 'costs',
@@ -33,14 +36,14 @@ const helpContent = [
     icon: Gauge,
     title: 'How the forecast and the indexes are worked out',
     content:
-      'Where you have entered a forecast for a line, that is used. Where you have not, the forecast is the greater of the budget and what is already spent plus committed, because a forecast below money already gone is not a forecast. Earned value is each line\'s budget times its progress. The cost index is earned value over actual cost, so above one means you are getting more work per pound than planned. The schedule index compares earned value against the share of the budget that the elapsed time implies, which is a simplification: it assumes the budget was meant to be spent evenly across the window, so read it as a rough flag rather than a proper planned-value curve.',
+      'Where you have entered a forecast above zero for a line, that is used. Where you have not, the forecast is the greater of the budget and what is already spent plus committed, because a forecast below money already gone is not a forecast. That is the one estimate at completion rule, and the dashboard, the cost breakdown, the top variances and the reports all use it. Leaving the forecast blank when you edit a line keeps the rule in charge. Variance is the budget less that forecast, so a negative variance is an overrun. Earned value is each line\'s budget times its progress, and progress cannot be negative. The cost index is earned value over actual cost, so above one means you are getting more work for the money than planned. The numbers are worked out as of today. The schedule index is earned value over planned value, where planned value is the budget times the share of the window elapsed by today. That is a simplification: it assumes the budget was meant to be spent evenly across the window, so read it as a rough flag rather than a proper planned-value curve. Before or on the start day there is no planned value, so the index reads Not started and gives no verdict.',
   },
   {
     id: 'invoices',
     icon: Receipt,
     title: 'Invoices and the S curve',
     content:
-      'Invoices are the record of what has actually been billed, and they drive the actual line on the S curve, which accumulates them by date against the planned spend. A gap between the two lines is worth reading before it is worth explaining: early it usually means invoicing lag rather than underspend.',
+      'Invoices are the record of what has actually been billed, and they drive the actual line on the S curve, which accumulates them by date against the planned spend from the start date to the end date. A gap between the two lines is worth reading before it is worth explaining: early it usually means invoicing lag rather than underspend.',
   },
   {
     id: 'changes',
@@ -54,14 +57,14 @@ const helpContent = [
     icon: Users,
     title: 'Joint-venture partners and billing',
     content:
-      'Add each non-operating partner with its working interest. Costs are allocated by interest and the operator carries the remainder, so the split always accounts for the whole cost. If the interests you have entered add up to more than 100 percent the app says so and does not quietly hand the operator a negative share, which would bill out more than the cost. Partners belong to the AFE and are saved with it. Before August 2026 they lived in the browser only, and every AFE opened with two invented partner companies already in the list.',
+      'Add each non-operating partner with its working interest. Costs are allocated by interest and the operator carries the remainder, so the split always accounts for the whole cost. A negative working interest is refused when you add or edit a partner. If the interests saved for the AFE add up to more than 100 percent, or one of them is negative, the app shows the reason, does not offer a bill, and the summary PDF prints the same note with no billing split. With no partners saved, the operator carries 100 percent. Partners belong to the AFE and are saved with it. Before August 2026 they lived in the browser only, and every AFE opened with two invented partner companies already in the list.',
   },
   {
     id: 'limits',
     icon: AlertTriangle,
     title: 'Limits',
     content:
-      'This is cost control, not accounting: it does not post to a ledger, reconcile with an ERP or handle tax. There is no live link to a finance system, so invoices and actuals are entered here. The schedule index is the time-based approximation described above. Currency is per AFE with no conversion, so keep one AFE in one currency.',
+      'This is cost control, not accounting: it does not post to a ledger, reconcile with an ERP or handle tax. There is no live link to a finance system, so invoices and actuals are entered here. The Integrations tab connects to nothing yet and says so. The schedule index is the time-based approximation described above. Currency is per AFE with no conversion, so keep one AFE in one currency.',
   },
 ];
 

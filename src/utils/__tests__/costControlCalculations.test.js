@@ -7,12 +7,17 @@
  * against hand-computable cases and against the identities the arithmetic has
  * to satisfy whatever the inputs.
  */
-import { calculateMetrics, generateSCurveData } from '@/utils/costControlCalculations';
+import {
+  AfeInputError, calculateMetrics, generateSCurveData, itemForecast,
+  calculatePartnerCosts as shimPartnerCosts,
+} from '@/utils/costControlCalculations';
 import { calculatePartnerCosts } from '@/utils/afeServices';
 
-// A window that is entirely in the past, so time progress is a clean 1.0 and
-// the schedule index does not move with the calendar.
+// A window that is entirely in the past, so time progress is a clean 1.0.
+// EC5-0: every call passes asOf explicitly, as the app does, so nothing here
+// reads the clock.
 const AFE = { start_date: '2020-01-01', end_date: '2020-12-31', currency: 'USD' };
+const AS_OF = '2026-09-14';
 
 describe('calculateMetrics', () => {
   it('sums budget, commitments and actuals across the cost items', () => {
@@ -20,7 +25,7 @@ describe('calculateMetrics', () => {
       { budget: 100, commitment: 20, actual: 30, progress: 0 },
       { budget: 200, commitment: 50, actual: 40, progress: 0 },
     ];
-    const m = calculateMetrics(AFE, items, []);
+    const m = calculateMetrics(AFE, items, [], AS_OF);
     expect(m.totalBudget).toBe(300);
     expect(m.totalCommitments).toBe(70);
     expect(m.totalActuals).toBe(70);
@@ -28,23 +33,23 @@ describe('calculateMetrics', () => {
 
   it('uses the entered forecast for an item when there is one', () => {
     const items = [{ budget: 100, commitment: 0, actual: 0, forecast: 140, progress: 0 }];
-    expect(calculateMetrics(AFE, items, []).totalForecast).toBe(140);
+    expect(calculateMetrics(AFE, items, [], AS_OF).totalForecast).toBe(140);
   });
 
   it('otherwise forecasts the greater of budget and committed spend', () => {
     // Under budget so far: the budget still stands.
     const under = [{ budget: 100, commitment: 10, actual: 20, progress: 0 }];
-    expect(calculateMetrics(AFE, under, []).totalForecast).toBe(100);
+    expect(calculateMetrics(AFE, under, [], AS_OF).totalForecast).toBe(100);
 
     // Already committed past the budget: the commitment governs, because a
     // forecast below money already spent and committed is not a forecast.
     const over = [{ budget: 100, commitment: 60, actual: 70, progress: 0 }];
-    expect(calculateMetrics(AFE, over, []).totalForecast).toBe(130);
+    expect(calculateMetrics(AFE, over, [], AS_OF).totalForecast).toBe(130);
   });
 
   it('reports variance as budget less forecast, negative when overrunning', () => {
     const items = [{ budget: 100, commitment: 60, actual: 70, progress: 0 }];
-    expect(calculateMetrics(AFE, items, []).variance).toBe(-30);
+    expect(calculateMetrics(AFE, items, [], AS_OF).variance).toBe(-30);
   });
 
   it('earns value in proportion to progress, weighted by budget', () => {
@@ -53,7 +58,7 @@ describe('calculateMetrics', () => {
       { budget: 100, actual: 0, progress: 50 },
       { budget: 300, actual: 0, progress: 20 },
     ];
-    const m = calculateMetrics(AFE, items, []);
+    const m = calculateMetrics(AFE, items, [], AS_OF);
     expect(m.earnedValue).toBeCloseTo(110, 10);
     expect(m.percentComplete).toBeCloseTo(27.5, 10);
   });
@@ -61,18 +66,18 @@ describe('calculateMetrics', () => {
   it('reports CPI as earned value over actual cost', () => {
     // Half of a 200 budget earned for 80 spent: 100 / 80.
     const items = [{ budget: 200, actual: 80, progress: 50 }];
-    expect(calculateMetrics(AFE, items, []).cpi).toBeCloseTo(1.25, 10);
+    expect(calculateMetrics(AFE, items, [], AS_OF).cpi).toBeCloseTo(1.25, 10);
   });
 
   it('reports SPI against elapsed time, which is the documented simplification', () => {
     // The window is fully past, so planned value is the whole budget: a job
     // 50 percent complete at the end of its window has an SPI of 0.5.
     const items = [{ budget: 200, actual: 100, progress: 50 }];
-    expect(calculateMetrics(AFE, items, []).spi).toBeCloseTo(0.5, 10);
+    expect(calculateMetrics(AFE, items, [], AS_OF).spi).toBeCloseTo(0.5, 10);
   });
 
   it('does not divide by zero on an empty or unspent AFE', () => {
-    const empty = calculateMetrics(AFE, [], []);
+    const empty = calculateMetrics(AFE, [], [], AS_OF);
     expect(empty.totalBudget).toBe(0);
     expect(empty.cpi).toBe(1);
     expect(empty.spi).toBe(1);
@@ -82,18 +87,63 @@ describe('calculateMetrics', () => {
 
   it('treats missing numbers as zero rather than producing NaN', () => {
     const items = [{ budget: null, commitment: undefined, actual: '', progress: 'x' }];
-    const m = calculateMetrics(AFE, items, []);
+    const m = calculateMetrics(AFE, items, [], AS_OF);
     Object.values(m).forEach((v) => expect(Number.isFinite(v)).toBe(true));
+  });
+});
+
+describe('EC5-0 AFE contracts', () => {
+  it('itemForecast is the one EAC rule: an entered forecast above zero, else max(budget, actual + commitment)', () => {
+    expect(itemForecast({ budget: 1000, forecast: 1100 })).toBe(1100);
+    expect(itemForecast({ budget: 1000, actual: 1300 })).toBe(1300);
+    expect(itemForecast({ budget: 1000, actual: 200, commitment: 100 })).toBe(1000);
+    expect(itemForecast({ budget: 1000, actual: 1300, forecast: 0 })).toBe(1300);
+  });
+
+  it('reports SPI as null with no planned value on the start day, and a real SPI later', () => {
+    const afe = { start_date: '2026-01-01', end_date: '2026-12-31' };
+    const items = [{ budget: 100, actual: 0, progress: 10 }];
+    const onStart = calculateMetrics(afe, items, [], '2026-01-01');
+    expect(onStart.plannedValue).toBe(0);
+    expect(onStart.spi).toBeNull();
+    const later = calculateMetrics(afe, items, [], '2026-07-02');
+    expect(later.spi).toBeGreaterThan(0);
+    expect(later.timeProgress).toBeGreaterThan(0);
+  });
+
+  it('is reproducible for an explicit asOf', () => {
+    const afe = { start_date: '2026-01-01', end_date: '2026-12-31' };
+    const items = [{ budget: 100, actual: 0, progress: 40 }];
+    expect(calculateMetrics(afe, items, [], '2026-06-01').spi)
+      .toBe(calculateMetrics(afe, items, [], new Date(2026, 5, 1)).spi);
+  });
+
+  it('stops the S-curve at the window end', () => {
+    const points = generateSCurveData(AFE, [{ budget: 1200 }], [], AS_OF);
+    expect(points).toHaveLength(12);
+  });
+
+  it('refuses negative progress and an invalid asOf with an AfeInputError', () => {
+    expect(() => calculateMetrics(AFE, [{ budget: 1, progress: -5 }], [], AS_OF)).toThrow(AfeInputError);
+    expect(() => calculateMetrics(AFE, [], [], 'not a date')).toThrow(AfeInputError);
+  });
+
+  it('flags a negative working interest as invalid, through the shim and afeServices alike', () => {
+    for (const fn of [shimPartnerCosts, calculatePartnerCosts]) {
+      const out = fn(1000, [{ name: 'Oops', working_interest: -10 }]);
+      expect(out.valid).toBe(false);
+      expect(out.note).toMatch(/negative working interest/);
+    }
   });
 });
 
 describe('generateSCurveData', () => {
   it('returns nothing without a start and end date, rather than guessing one', () => {
-    expect(generateSCurveData({}, [{ budget: 100 }], [])).toEqual([]);
+    expect(generateSCurveData({}, [{ budget: 100 }], [], AS_OF)).toEqual([]);
   });
 
   it('spreads the plan across the window and ends at the full budget', () => {
-    const points = generateSCurveData(AFE, [{ budget: 1200 }], []);
+    const points = generateSCurveData(AFE, [{ budget: 1200 }], [], AS_OF);
     expect(points.length).toBeGreaterThan(1);
     expect(points[0].Planned).toBe(0);
     expect(points[points.length - 1].Planned).toBeLessThanOrEqual(1200);
@@ -108,7 +158,7 @@ describe('generateSCurveData', () => {
       { invoice_date: '2020-02-15', amount: 100 },
       { invoice_date: '2020-06-15', amount: 250 },
     ];
-    const points = generateSCurveData(AFE, [{ budget: 1200 }], invoices);
+    const points = generateSCurveData(AFE, [{ budget: 1200 }], invoices, AS_OF);
     const last = points[points.length - 1];
     // Both invoices are inside the window and in the past, so the final
     // actual is their sum.
