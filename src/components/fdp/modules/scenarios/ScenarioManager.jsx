@@ -34,7 +34,7 @@ export const capexMissingText = (fields = []) => {
     return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 };
 
-const ScenarioCard = ({ scenario, concept, onEdit, onDelete, onSelect, isSelected }) => {
+const ScenarioCard = ({ scenario, concept, abandonment, onEdit, onDelete, onSelect, isSelected }) => {
     if (!concept) {
         return (
             <Card className="bg-slate-800 border border-amber-700/50">
@@ -65,11 +65,18 @@ const ScenarioCard = ({ scenario, concept, onEdit, onDelete, onSelect, isSelecte
     let refusal = null;
     let capexStatus = 'complete';
     let capexMissing = [];
+    let abandonmentSource = 'none';
+    let abandonmentMM = 0;
+    let abandonmentYear = null;
     try {
         // Economics E1: post royalty and tax, through the sanctioned engine.
         // EC6-0: on the concept's own capex. EC6-9: and whether that capex
         // is complete, so a partial sum cannot pass for a whole one.
-        ({ metrics, capexStatus, capexMissing = [] } = runScenario(scenario, concept));
+        // EC6-8: the plan's end-of-life cost is charged in the final
+        // production year of this case, or not at all when the plan has none.
+        ({
+            metrics, capexStatus, capexMissing = [], abandonmentSource, abandonmentMM, abandonmentYear,
+        } = runScenario(scenario, concept, abandonment));
     } catch (err) {
         refusal = err.message;
     }
@@ -145,6 +152,12 @@ const ScenarioCard = ({ scenario, concept, onEdit, onDelete, onSelect, isSelecte
                     </div>
                 </div>
 
+                <p className="text-[11px] text-slate-500 mb-3" data-testid="scenario-abandonment">
+                    {abandonmentSource === 'none'
+                        ? 'No end-of-life cost in this case.'
+                        : `End of life $${abandonmentMM.toFixed(1)}MM in year ${abandonmentYear} (${abandonmentSource === 'abex-item' ? "the plan's ABEX cost item" : 'the screening decommissioning estimate'}).`}
+                </p>
+
                 <div className="flex justify-between items-center pt-2 border-t border-slate-700">
                     <div className="text-xs text-slate-500">
                         Oil Price: <span className="text-slate-300">${scenario.oilPrice}/bbl</span>
@@ -163,7 +176,7 @@ const ScenarioCard = ({ scenario, concept, onEdit, onDelete, onSelect, isSelecte
     );
 };
 
-const ScenarioManager = ({ scenarios, concepts, onEdit, onDelete, selectedId, onSelect }) => {
+const ScenarioManager = ({ scenarios, concepts, abandonment, onEdit, onDelete, selectedId, onSelect }) => {
     if (scenarios.length === 0) {
         return (
             <div className="text-center py-12 bg-slate-900/50 border border-dashed border-slate-800 rounded-lg">
@@ -180,6 +193,7 @@ const ScenarioManager = ({ scenarios, concepts, onEdit, onDelete, selectedId, on
                     key={scenario.id} 
                     scenario={scenario} 
                     concept={concepts.find(c => String(c.id) === String(scenario.conceptId))}
+                    abandonment={abandonment}
                     onEdit={onEdit} 
                     onDelete={onDelete}
                     isSelected={selectedId === scenario.id}

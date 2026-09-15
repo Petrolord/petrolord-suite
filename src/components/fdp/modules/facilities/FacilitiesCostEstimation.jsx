@@ -12,7 +12,7 @@ const FacilitiesCostEstimation = ({ facility }) => {
 
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Card className="bg-slate-900 border-slate-800">
                     <div className="p-4">
                         <div className="text-xs text-slate-400 uppercase">Total CAPEX</div>
@@ -25,6 +25,15 @@ const FacilitiesCostEstimation = ({ facility }) => {
                         <div className="text-xs text-slate-400 uppercase">Annual OPEX</div>
                         <div className="text-2xl font-bold text-orange-300">${costs.opex.toFixed(1)}M</div>
                         <div className="text-xs text-slate-500 mt-1">Per year operation</div>
+                    </div>
+                </Card>
+                <Card className="bg-slate-900 border-slate-800">
+                    <div className="p-4">
+                        <div className="text-xs text-slate-400 uppercase">Decommissioning</div>
+                        <div className="text-2xl font-bold text-orange-200" data-testid="decommissioning">
+                            ${costs.decommissioning.toFixed(1)}M
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1">15 percent of the sized capex</div>
                     </div>
                 </Card>
                 <Card className="bg-slate-900 border-slate-800">
@@ -59,6 +68,13 @@ const FacilitiesCostEstimation = ({ facility }) => {
                         The facility list shows the capex you entered; this card shows what the
                         screening estimate makes of the same facility. They are two different
                         numbers and they are meant to be compared.
+                    </p>
+                    {/* EC6-8 (engines #191): this estimate is no longer shown and
+                        left out of the cash flow. */}
+                    <p className="text-xs text-slate-400 mt-3" data-testid="decommissioning-in-economics">
+                        The decommissioning figure is charged in the final production year of the plan's
+                        economics when the plan carries no ABEX cost item. Enter an ABEX cost item to use
+                        your own figure instead.
                     </p>
                 </CardContent>
             </Card>

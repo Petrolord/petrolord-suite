@@ -21,7 +21,9 @@
  * piece is missing instead of showing a number.
  */
 
-import { runFdpCase, runFdpSensitivity, paybackYears, DEFAULT_FISCAL } from '@/utils/fdp/economics';
+import {
+  runFdpCase, runFdpSensitivity, paybackYears, DEFAULT_FISCAL, planAbandonment,
+} from '@/utils/fdp/economics';
 import { conceptProfileKbpd } from '@/utils/fdp/scenarioCalculations';
 import { calculateTotalCAPEX, calculateTotalOPEX } from '@/utils/fdp/costCalculations';
 
@@ -64,6 +66,11 @@ export const planEconomicsInputs = (state) => {
   const capexMM = calculateTotalCAPEX(items);
   const annualOpexMM = calculateTotalOPEX(items);
   const abexCount = items.filter((i) => i.type === 'ABEX').length;
+  // EC6-8 (engines #191): the plan's end-of-life cost, charged in the final
+  // production year. An ABEX cost item is used when the plan carries one,
+  // otherwise the screening decommissioning estimate of the facility the
+  // plan builds, otherwise nothing.
+  const abandonment = planAbandonment(state);
   const concept = selectedConcept(state);
   const scenario = selectedScenario(state);
   const peak = positiveNumber(concept?.peakProduction);
@@ -80,6 +87,7 @@ export const planEconomicsInputs = (state) => {
     capexMM,
     annualOpexMM,
     abexCount,
+    abandonment,
     concept,
     scenario,
     missing,
@@ -117,6 +125,7 @@ export const computePlanEconomics = (state) => {
     productionKbpd,
     pricesUsd: new Array(productionKbpd.length).fill(oilPrice),
     fiscal: inputs.fiscal,
+    abandonment: inputs.abandonment,
   };
 
   const result = runFdpCase(caseInputs);
@@ -131,9 +140,20 @@ export const computePlanEconomics = (state) => {
       years: productionKbpd.length,
       ...inputs.fiscal,
     },
+    abandonment: {
+      ...inputs.abandonment,
+      // The year index the cost falls in (0 is the development year).
+      year: result.abandonmentYear,
+    },
     metrics: {
       npv: result.metrics.npv,
       irr: result.metrics.irr,
+      // EC6-8: charging the abandonment makes the final year negative, so
+      // the flow changes sign twice and the IRR contract reports no single
+      // rate. The status travels with it so the card can say why.
+      irrStatus: result.metrics.irrStatus,
+      irrRoots: result.metrics.irrRoots,
+      irrRootAboveBand: result.metrics.irrRootAboveBand,
       payback: paybackYears(result),
       capex: inputs.capexMM,
       opex: inputs.annualOpexMM,
@@ -145,11 +165,38 @@ export const computePlanEconomics = (state) => {
       tax: row.tax,
       capex: row.capex,
       opex: row.opex,
+      abex: row.abex,
       netCashFlow: row.ncf,
       cumulativeCashFlow: row.cumulativeNCF,
     })),
     sensitivity: runFdpSensitivity(caseInputs),
   };
+};
+
+/**
+ * Why there is no single rate of return, in one clause (EC6-8 makes this the
+ * ordinary case: the final year pays the abandonment, so the cash flow
+ * changes sign twice and more than one rate zeroes the NPV).
+ */
+export const irrReason = (metrics) => {
+  if (Number.isFinite(metrics?.irr)) return null;
+  const roots = Array.isArray(metrics?.irrRoots)
+    ? metrics.irrRoots.filter(Number.isFinite).map((r) => `${r.toFixed(1)}%`)
+    : [];
+  switch (metrics?.irrStatus) {
+  case 'multiple-roots':
+    return roots.length >= 2
+      ? `no single rate of return: the NPV is zero at ${roots.slice(0, -1).join(', ')} and ${roots[roots.length - 1]}, because the final year pays the end-of-life cost`
+      : 'no single rate of return: more than one rate brings the NPV to zero';
+  case 'no-sign-change':
+    return 'no rate of return: the cash flow never changes sign';
+  case 'no-root':
+    return 'no rate of return: no rate from -99 to 1000 percent brings the NPV to zero';
+  case 'above-clamp':
+    return 'the rate of return is above 1000 percent, beyond the band searched';
+  default:
+    return 'no rate of return reported';
+  }
 };
 
 /**

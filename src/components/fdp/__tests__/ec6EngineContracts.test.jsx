@@ -24,27 +24,67 @@ beforeAll(() => {
 });
 
 describe('flow assurance', () => {
+  // EC6-3 (engines #191): the corrosion trigger is the H2S PARTIAL PRESSURE
+  // against the NACE MR0175 threshold of 0.05 psia. 12 ppm at 5000 psia is
+  // 0.06 psia, so this fluid is in sour service.
   it('shows the score and the named hazards, and never the retired level', () => {
     render(<FlowAssuranceAnalysis
       facility={{ type: 'Subsea Tie-back', name: 'FPSO tie-back' }}
-      fluidProps={{ api: 20, h2s: 12 }}
+      fluidProps={{ api: 20, h2s: 12, operatingPressurePsia: 5000 }}
     />);
-    // 3 (tie-back) + 2 (below 25 API) + 4 (H2S) = 9
+    // 3 (tie-back) + 2 (below 25 API) + 4 (sour service) = 9
     expect(screen.getByTestId('flow-assurance-score')).toHaveTextContent('Hazard score 9');
     const breakdown = screen.getByTestId('flow-assurance-breakdown');
     expect(breakdown).toHaveTextContent('Subsea tie-back: 3 points (Hydrates, Wax)');
     expect(breakdown).toHaveTextContent('Oil below 25 API: 2 points (Viscosity)');
-    expect(breakdown).toHaveTextContent('H2S present: 4 points (Corrosion)');
+    expect(breakdown).toHaveTextContent('H2S partial pressure at or above 0.05 psia: 4 points (Corrosion)');
+    expect(screen.getByTestId('corrosion-verdict')).toHaveTextContent('Sour service');
+    expect(screen.getByTestId('corrosion-screen')).toHaveTextContent('0.0600 psia');
     expect(document.body.textContent).not.toMatch(/undefined/);
     expect(document.body.textContent).not.toMatch(/\b(Low|Medium|High) Risk\b/);
+    // Nothing on this screen hardcodes a corrosion verdict.
+    const source = require('fs').readFileSync(
+      require('path').resolve(__dirname, '../modules/facilities/FlowAssuranceAnalysis.jsx'), 'utf8',
+    );
+    expect(source).not.toMatch(/severityOf\('Corrosion'\)/);
   });
 
-  it('negative control: a facility that trips nothing scores zero and says so', () => {
-    render(<FlowAssuranceAnalysis facility={{ type: 'Fixed Platform' }} fluidProps={{ api: 38, h2s: 0 }} />);
+  it('says the pressure is needed rather than scoring corrosion without one', () => {
+    render(<FlowAssuranceAnalysis
+      facility={{ type: 'Subsea Tie-back' }}
+      fluidProps={{ api: 20, h2s: 12 }}
+    />);
+    // Sour service is undecidable without a pressure, so it adds nothing.
+    expect(screen.getByTestId('flow-assurance-score')).toHaveTextContent('Hazard score 5');
+    expect(screen.getByTestId('corrosion-verdict')).toHaveTextContent('Pressure needed');
+    expect(screen.getByTestId('corrosion-screen'))
+      .toHaveTextContent('enter the operating pressure in psia');
+  });
+
+  it('says H2S is not measured rather than reading the fluid as sweet', () => {
+    render(<FlowAssuranceAnalysis facility={{ type: 'Fixed Platform' }} fluidProps={{ api: 38 }} />);
+    expect(screen.getByTestId('corrosion-verdict')).toHaveTextContent('H2S not measured');
+    expect(screen.getByTestId('corrosion-screen')).toHaveTextContent('H2S is not measured');
+  });
+
+  it('negative control: a measured fluid below the threshold scores zero and says so', () => {
+    render(<FlowAssuranceAnalysis
+      facility={{ type: 'Fixed Platform' }}
+      fluidProps={{ api: 38, h2s: 1, operatingPressurePsia: 1000 }}
+    />);
     expect(screen.getByTestId('flow-assurance-score')).toHaveTextContent('Hazard score 0');
     expect(screen.getByTestId('flow-assurance-breakdown'))
       .toHaveTextContent('no screening trigger fired');
+    expect(screen.getByTestId('corrosion-verdict')).toHaveTextContent('Below sour threshold');
     expect(document.body.textContent).not.toMatch(/undefined/);
+  });
+
+  it('refuses an impossible pressure by name instead of screening on it', () => {
+    render(<FlowAssuranceAnalysis
+      facility={{ type: 'Fixed Platform' }}
+      fluidProps={{ api: 38, h2s: 10, operatingPressurePsia: -5 }}
+    />);
+    expect(screen.getByRole('alert')).toHaveTextContent('the operating pressure (psia) must be above zero');
   });
 });
 
