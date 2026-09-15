@@ -167,6 +167,127 @@ the net VOI verdict reads the unrounded value beside a two-decimal card; the
 Decision Tree Builder's node label shows the value before the branch cost;
 non-numeric or blank costs read as 0 and negative costs are accepted.
 
+## EC4-8 and EC4-2 (FIXED 2026-09-15, owner decisions)
+
+These supersede two lines above: the EC4-0 note that "the net VOI verdict
+reads the unrounded value beside a two-decimal card", and the standing
+zero-net wording observation. Both are closed.
+
+### EC4-8. Probability tolerances refused sums on their own edge (FIXED 2026-09-15)
+
+Evidence: three branches typed 0.333333 sum to 0.999999, exactly 1e-6 short
+in the typed decimals, but `Math.abs(0.999999 - 1)` is
+1.0000000000287557e-6 in binary, so `> PROB_TOL` refused a sum that the
+refusal message printed as 0.999999. The same held in the VOI Analyzer at
+percent scale: 33.3333 x 3 = 99.9999 is 1.0000000000331966e-4 short against
+`PCT_TOL` 1e-4.
+
+Fix: every tolerance comparison adds the 1e-12 representation allowance
+`impliedPriors` already used for D1: the chance node rollback, the outcome
+priors (`validateLottery`, so `bestActionEmv`, `evpi` and `evii`), each EVII
+likelihood column, and the VOI Analyzer's percent sums. Accepted
+probabilities are used as typed, never renormalised (the oracle states the
+same). The tolerance itself is unchanged: 0.999998 and 99.9998 are refused.
+
+Goldens (oracle method statement updated: distributions sum to 1 within an
+inclusive 1e-6): accepted `rollback/thirdsTypedToSixPlaces` (EMV 34.999965),
+`evpi/thirdsPriorsSixPlaces`, `evii/likelihoodColumnSixPlaces`,
+`voi/thirdsOutcomeChancesFourPlaces`; refused
+`rollbackRefusals/thirdsTypedToThreePlaces` (0.999),
+`rollbackRefusals/sumShortByTwoMillionths`,
+`eviiRefusals/likelihoodColumnShortByTwoMillionths`,
+`eviiRefusals/priorsShortByTwoMillionths`,
+`voiRefusals/thirdsOutcomeChancesThreePlaces` (99.999),
+`voiRefusals/outcomeChancesShortByTwoTenThousandths`.
+
+Gates: `EC4-8: binary representation allowance on every probability
+tolerance` in `__tests__/economics.decision.test.js`. Its negative controls
+restore the retired `> 1e-6` and `> 1e-4` comparisons and show they refuse
+each accepted golden.
+
+### EC4-2. The net VOI verdict disagreed with its own card (FIXED 2026-09-15)
+
+Evidence, default Analyzer inputs (gross VOI 33):
+
+| survey cost | net VOI (unrounded) | card before | verdict before | card now | verdict now |
+|---|---|---|---|---|---|
+| 32.996 | +0.004 | 0.00 | Since this is positive | 0.00 | neutral |
+| 33.000 | 0 | 0.00 | exactly pays for itself | 0.00 | neutral |
+| 33.004 | -0.004 | -0.00 | not justified | 0.00 | neutral |
+
+Fix: net VOI is rounded once to card precision (2 decimal places, half away
+from zero on the magnitude, with the 1e-12 allowance so an exact half cent
+rounds as its decimals do). That one value feeds the card and the verdict.
+Rounding to 0.00 (|net| < 0.005) is neutral and has its own sentence. Every
+card and every dollar figure in the insight uses the same formatter, which
+normalises negative zero, so "-0.00" is never printed.
+
+Wording changed (the neutral sentence only). Before: `The information
+exactly pays for itself, so the decision is value-neutral on EMV grounds.`
+Now: `Since this rounds to zero, the information costs what it is worth, so
+acquiring it or not is indifferent on EMV grounds.` The positive and negative
+sentences are unchanged.
+
+Goldens: every `voi` case now carries `cards` (the oracle's rounded strings),
+and the gate requires exact string equality. New cases
+`netRoundsToZeroFromAbove` (32.996), `netRoundsToZeroFromBelow` (33.004),
+`netHalfCentAbove` (32.995, 0.01 acquire), `netHalfCentBelow` (33.005, -0.01
+reject), `netClearlyPositive` (32.9), `netClearlyNegative` (33.1);
+`costExactlyValue` keeps its values. No existing golden number moved.
+
+Two card strings moved on the engine (goldens carry the unrounded numbers,
+which did not move):
+
+- `voi/accuracySweep_0p55`, an existing case: the VOI card printed `-0.00`
+  (the exact VOI is 0; binary gave a tiny negative) and the insight repeated
+  it. It now prints `0.00`. The retired rule was already showing -0.00 on a
+  shipped golden.
+- `voi/netHalfCentBelow` (cost 33.005): the EMV with information card was
+  `14.99` from `toFixed(2)` on the binary 14.994999999999997; exact 14.995
+  rounds half away from zero to `15.00`, which it now prints.
+
+Gates: `golden: VOI Analyzer` (card strings, no "-0.00" anywhere, verdict
+sign equal to the card sign) and `EC4-2: one rounded net VOI for the card
+and the verdict`. Its negative controls show the retired unrounded verdict
+says acquire under the 0.00 card at 32.996, and the retired `toFixed(2)` card
+prints -0.00 at 33.004.
+
+### EC4-9. The VOI diagram refused a node the user never typed (FIXED 2026-09-15)
+
+Evidence: after EC4-8, typing every outcome chance, every indicator chance
+and every outcome chance given an indicator as 33.3333 passes each percent
+sum (99.9999, on the edge). The diagram's Bayes inversion then gave each
+"Signal received" branch P(indicator) x (sum of its outcome chances), and
+those summed to 0.999998. The strict chance node check refused with
+`Chance branch probabilities sum to 0.999998, expected 1 (at node "Signal
+received")`, naming a node the user never typed. (With a single edge typed,
+the tree already renormalised the posteriors silently while the cards used
+them as typed, so the two could differ by about 1e-6 relative.)
+
+Fix (owner decision): once every typed percent input has passed validation,
+the indicator chances, and each indicator's outcome chances, are divided by
+their own sums. That one renormalised set feeds the cards and the diagram,
+so the two remain one analysis. The stated outcome chances stay as typed,
+the consistency check reads the typed entries, and a chance node typed
+directly in the Decision Tree Builder keeps the strict refusal (0.999998
+still throws). Sums that are exactly 100 are unchanged, so no existing
+golden value moved.
+
+Goldens (oracle method statement updated the same way): `voi/compoundEdgeAllThirds`
+(the reproduction: useless signal, net VOI card -1.00, reject) against
+`voi/compoundEdgeAllThirdsExact`, and `voi/compoundEdgeInformative` (outcome
+chances given each indicator 66.6666 / 22.2222 / 11.1111 and mirrors, net VOI
+card 7.89, acquire) against `voi/compoundEdgeInformativeExact`. Every
+unrounded quantity agrees with its exact reference within the stated 1e-3
+$MM (largest gap 1.03e-4, from the typed stated chances 0.333333 used as
+typed), and every card string matches.
+
+Gates: `EC4-9: derived branch probabilities are renormalised once typed
+inputs pass`. The negative control restores the pre-EC4-9 derivation (typed
+chances inverted with no renormalisation) and shows it throws at "Signal
+received" on both edge cases and builds on both exact references. A second
+test shows a typed 0.999998 chance node is still refused.
+
 ## Not done
 
 - Literature byte-verification against the worked examples in Newendorp and
@@ -252,3 +373,47 @@ riskMethod cases red.
   accepted silently, pushing the frontier's x axis negative and out of order.
 - D2 (a free project charged one cell) and D4 (grid undershoot) are
   UNCHANGED, and `CHANGED_BY_GRID` still names the same four cases.
+
+## EC5-6 and EC5-7: FIXED 2026-09-15 (owner decisions)
+
+Engine: engines/economics/portfolio.js. Oracle
+tools/validation/economics/oracle_portfolio.py regenerated twice,
+byte-identical. Gate __tests__/economics.portfolio.test.js, 149 tests.
+
+**EC5-6, a blank pos made the project a certain failure (FIXED).** Before:
+`projectEmv` took `p.pos ?? 1` and clamp01 read "n/a" as 1 but an empty
+string as 0, so a blank pos turned a 300 NPV wildcat into EMV minus the fail
+cost; 1.4 and -0.2 were clamped silently. After: a missing or null pos is the
+documented default 1. A pos that is present must be a number, or a numeric
+string, from 0 to 1; otherwise projectEmv, projectMoments,
+portfolioRiskMetrics and optimizePortfolio throw PortfolioInputError naming the
+project (name, else id, else index; "A project with no name or id" when a
+lone project has neither):
+- `Project "<label>" has a blank pos; pos must be a number from 0 to 1`
+- `Project "<label>" has a pos that is not a number (<value>); pos must be a number from 0 to 1`
+- `Project "<label>" has a pos outside 0 to 1 (<n>); pos must be a number from 0 to 1`
+
+Goldens: projectEmv cases posAboveOneClamps, posBelowZeroClamps and
+nonNumericPosIsDefault moved to the new projectEmvRefusals section (10 cases)
+as posAboveOneRefused, posBelowZeroRefused and nonNumericPosRefused; new
+accepted cases posOneBoundary, nullPosIsDefault, numericStringPos; new
+riskMetricsRefusals section (2 cases). Negative controls: the retired reader
+computes a number for every refusal golden (blank pos to 0, "n/a" to 1) and
+agrees with the engine on every accepted golden.
+
+**EC5-7, capex "abc" counted as 0 (FIXED).** Before: the EC5-0 refusal checked
+finite numbers only, so a non-numeric, blank or missing capex was 0 and the
+project was funded for free. After: optimizePortfolio checks every project in
+array order, capex then pos, before computing anything, and refuses any capex
+that is not a finite number of 0 or more:
+- `Project "<label>" has no capex; capex must be 0 or more` (missing or null)
+- `Project "<label>" has a blank capex; capex must be 0 or more`
+- `Project "<label>" has a capex that is not a finite number (<value>); capex must be 0 or more`
+- `Project "<label>" has a negative capex (<n>); capex must be 0 or more` (unchanged)
+
+A string value is shown in double quotes. optimizeRefusals grew from 2 to 11
+cases, and the gate now asserts each exact message. New optimize case
+numericStrings (capex "100" and " 200 ", pos "0.9") shows that numeric strings
+are numbers. Negative control: the retired finite-only check lets every
+non-numeric, blank, missing and infinite capex golden through. D2, D3 and D4
+are unchanged, and CHANGED_BY_GRID still names the same four cases.
