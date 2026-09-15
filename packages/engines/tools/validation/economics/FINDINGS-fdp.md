@@ -501,10 +501,121 @@ the price bar. Volume now carries its own cost, and the gate pins the
 production spread below the price spread.
 
 **Still open after this wave.**
-- `fiscalRegime.calculateIRR` (Fiscal Regime Designer) has the same shape of
-  defect as section 1 in its own bisection: it returns 0 when NPV(0) <= 0 and
-  returns the search bound when the root is beyond it. It was not in the EC6
-  audit's scope and is recorded here for the owner.
-- `getPortfolioMetrics` reads `chanceOfSuccess` with `|| 1.0`, so a stated
-  chance of 0 is read as certainty (pinned as a disagreement in
-  screening_cases.json, FINDINGS-fiscal.md).
+- **FIXED 2026-09-15 (EC2-5).** `fiscalRegime.calculateIRR` (Fiscal Regime
+  Designer) had the same shape of defect as section 1 in its own bisection: it
+  returned 0 when NPV(0) <= 0 and returned the search bound when the root was
+  beyond it. It now uses this section's contract from
+  `engines/economics/irrContract.js` (FINDINGS-fiscal.md, EC2 decisions).
+- **FIXED 2026-09-15 (EC1-10).** `getPortfolioMetrics` read `chanceOfSuccess`
+  with `|| 1.0`, so a stated chance of 0 was read as certainty. It reads
+  `?? 1` and refuses a present chance outside 0 to 1 by project; the
+  disagreement pin in screening_cases.json is gone (FINDINGS-fiscal.md S6).
+
+## EC5-3, EC5-5, EC5-8 and CPI: FIXED 2026-09-15 (owner decisions)
+
+Engine: engines/economics/afe.js. Oracle tools/validation/economics/oracle_afe.py
+regenerated twice, byte-identical: afe_cases.json now holds 20 splits, 33
+metric sets, 11 metric refusals and 26 S-curves (evm, evmRefusals, cpiSpi and
+gantt unchanged). Gate __tests__/economics.afe.test.js, 152 tests. This
+section supersedes the empty-budget guard in "EC5-0 repair" and its sentence
+that progress above 100 is still accepted.
+
+**EC5-3, SPI on an empty or zero-budget AFE (FIXED).** Before: the zero-budget
+guard returned SPI 1 before planned value was considered, so an AFE with
+nothing in it read SPI 1 while a budgeted AFE with zero planned value read
+null. After: `spi` is null with `spiStatus: 'no-budget'` whenever the budget is
+not above 0, and null with `spiStatus: 'no-planned-value'` when there is a
+budget but no planned value yet; a reported SPI has `spiStatus: 'ok'`. Goldens
+renamed from the old behaviour: "suite test: empty AFE", "future window, zero
+budget: the guard gives 1", "asOf before the start, zero budget: the guard
+gives 1" (now "...SPI null, no budget"), and "zero budget with actuals" (SPI 1
+to null). Gates: "EC5-3 and CPI: an undefined ratio is null" and the negative
+control "the retired zero-budget guard (SPI 1) fails the no-budget goldens".
+
+**CPI with nothing spent (FIXED).** Before: CPI was 1 whenever actuals were 0,
+whatever had been earned (110 earned on no spend read 1). After: `cpi` is null
+with `cpiStatus: 'no-spend'` whenever actuals are not above 0, and
+`cpiStatus: 'ok'` otherwise. New golden "value earned with no spend: CPI
+null". Negative control: the retired rule (1 when nothing is spent) disagrees
+on every no-spend golden and agrees wherever CPI is defined.
+
+**EC5-8, progress above 100 percent (FIXED).** Before: negative progress was
+refused, yet 150 percent earned 150 percent of the budget. After:
+calculateMetrics throws AfeInputError for any item whose Number(progress) is
+below 0 or above 100 (infinities included; non-numeric progress is still 0),
+naming the first such item:
+`Cost item "<label>" has progress above 100 percent (<value> percent). Progress runs from 0 to 100 percent.`
+The negative-progress message is unchanged. The golden "progress beyond 100
+percent earns beyond the budget" is now the refusal "progress beyond 100
+percent is refused"; exactly 100 is accepted (new golden). Negative control:
+the retired check (negative only) lets every over-100 golden through.
+
+**EC5-5, the S-curve in other time zones (FIXED).** Before: the window was
+parsed in UTC but months were stepped with local `setMonth`, labelled with
+local `toLocaleDateString`, counted with local `differenceInDays` and cut at a
+local-midnight asOf. A window opening 2027-02-01 drawn in Los Angeles was
+labelled from "Jan 27", and Planned moved wherever a count crossed a clock
+change. After: window dates, invoice dates and asOf are read in UTC (a
+date-only asOf is that day's UTC midnight; a time with no zone is read as UTC
+wall-clock time), the step is `setUTCMonth`, days are whole UTC days, and the
+label is a fixed English short month and two-digit year of the UTC date. UTC
+output is unchanged: every existing S-curve golden kept its points. Gate
+"EC5-5: the S-curve is identical under five TZ values" spawns node under TZ
+UTC, America/Los_Angeles, Africa/Lagos, Asia/Tokyo and Pacific/Kiritimati,
+checks each child's real offset, and requires every S-curve golden plus six
+input-form probes to match the UTC child exactly. Negative control: the
+retired walk, restated in the child, equals the engine in UTC but reads "Jan
+27" in Los Angeles and differs there on more than ten goldens.
+
+## EC6-2, EC6-4 and EC6-9 (FIXED 2026-09-15, owner decisions)
+
+Engines: engines/economics/fdp/facilitiesCalculations.js,
+scheduleCalculations.js, scenarioCalculations.js. The oracle rules were
+rewritten from the method statements below and fdp_cases.json regenerated
+(twice, byte-identical): 22 scenarios (3 new), 20 flow assurance cases each
+carrying the retired band beside it, 14 schedules. Every retired rule has a
+negative control in __tests__/economics.fdp.test.js, and the new gates fail
+against the pre-repair engines.
+
+**EC6-2, the flow assurance band (FIXED 2026-09-15).** Before:
+`calculateFlowAssuranceRisk` banded its hazard score as `level` Low, Medium
+or High (above 2 Medium, above 5 High). Those are the words of the risk
+register's single scale (riskModel.js getRiskLevel: 20 Critical, 12 High,
+6 Medium), which bands probability x impact, a different quantity. A subsea
+tie-back scores 3: Medium on the flow assurance card, Low on the register.
+After: the `level` key is retired and absent. The result is `score`,
+`hazards` (the hazard names in the order they were raised), `contributions`
+(one entry per trigger: `trigger`, `points`, `hazards`; the points sum to the
+score) and the existing `risks` detail unchanged. Consumer to update: the
+Suite's FlowAssuranceAnalysis.jsx reads `analysis.level` for its badge
+colour and text; it should show the score and the named hazards instead.
+Golden: the score 3 tie-back case carries a note; the gate restates the
+retired band for every case (3 reads Medium) against getRiskLevel(3) = Low.
+
+**EC6-4, the empty plan's duration (FIXED 2026-09-15).** Before:
+`calculateProjectDuration([])` returned 0, a zero-day window, while a plan
+whose activities carry no dates returned null. After: an empty or absent plan
+returns null, the same unknown window. Golden renamed "empty schedule: no
+window, so the duration is null"; every schedule case now carries
+`retiredProjectDuration`, and the gate proves the empty plan is the only case
+that moved (retired 0, now null).
+
+**EC6-9, the partial concept capex (FIXED 2026-09-15).** Before:
+`conceptCapexMM` refused only a concept with all of `drillingCapex`,
+`facilitiesCapex` and `subseaCapex` blank. A concept with some blank was
+summed silently and screened on a partial capex that read like a complete
+one: an FPSO concept with its facilities capex omitted screened at 1350.0000
+against 2250.0000. After: the partial sum is kept (a partial concept is
+legitimate in early screening), and the new `conceptCapex` returns
+`capexMM`, `capexStatus` ('complete' or 'partial') and `capexMissing` (the
+blank field names, in the form's order). `runScenario` adds `capexStatus`
+and `capexMissing` beside `cashflow` and `metrics`. A total `capex` is
+complete; typed zeros are entered; an all-blank concept is still refused
+with the same message. `conceptCapexMM` and `scenarioCase` keep their
+signatures. Goldens: "a partial concept: the facilities capex is left blank"
+(1350, partial, facilitiesCapex missing), "the same concept with its
+facilities capex entered is complete" (2250), "a blank string capex field is
+missing", and "only one capex field is entered" renamed to say it is partial
+with two fields named missing. Consumer to update: the Suite's
+ScenarioManager.jsx reads only `metrics` from `runScenario` and should mark a
+partial card.
