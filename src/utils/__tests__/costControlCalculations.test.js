@@ -100,10 +100,19 @@ describe('calculateMetrics', () => {
     const m = calculateMetrics(AFE, items, [], AS_OF);
     const RATIOS = ['cpi', 'spi'];
     const STATUSES = ['cpiStatus', 'spiStatus'];
+    // EC5-1 (engines #194) added the per-line report, which is structure
+    // rather than a metric; every NUMBER the result carries must still be
+    // finite, and the lines are checked on their own numbers below.
     Object.entries(m).forEach(([k, v]) => {
       if (STATUSES.includes(k)) return;
+      if (k === 'lineForecasts') return;
       if (RATIOS.includes(k) && v === null) return;
       expect(Number.isFinite(v)).toBe(true);
+    });
+    m.lineForecasts.forEach((line) => {
+      expect(Number.isFinite(line.forecast)).toBe(true);
+      expect(Number.isFinite(line.committed)).toBe(true);
+      expect(Number.isFinite(line.forecastBelowCommittedBy)).toBe(true);
     });
     // and no NaN hides behind a null: nothing is NaN
     Object.values(m).forEach((v) => expect(typeof v === 'number' && Number.isNaN(v)).toBe(false));
@@ -147,7 +156,10 @@ describe('EC5-0 AFE contracts', () => {
 
   it('stops the S-curve at the window end', () => {
     const points = generateSCurveData(AFE, [{ budget: 1200 }], [], AS_OF);
-    expect(points).toHaveLength(12);
+    // EC5-9b (engines #194): twelve monthly steps plus the closing point at
+    // the window end, where the plan reaches the whole budget.
+    expect(points).toHaveLength(13);
+    expect(points[points.length - 1].windowEnd).toBe(true);
   });
 
   it('refuses negative progress and an invalid asOf with an AfeInputError', () => {
@@ -173,7 +185,9 @@ describe('generateSCurveData', () => {
     const points = generateSCurveData(AFE, [{ budget: 1200 }], [], AS_OF);
     expect(points.length).toBeGreaterThan(1);
     expect(points[0].Planned).toBe(0);
-    expect(points[points.length - 1].Planned).toBeLessThanOrEqual(1200);
+    // EC5-9b: the curve closes ON the window end at the full budget, so an
+    // overrun can no longer draw as an underrun.
+    expect(points[points.length - 1].Planned).toBe(1200);
     // Monotone: a cumulative curve may never go backwards.
     for (let i = 1; i < points.length; i += 1) {
       expect(points[i].Planned).toBeGreaterThanOrEqual(points[i - 1].Planned);

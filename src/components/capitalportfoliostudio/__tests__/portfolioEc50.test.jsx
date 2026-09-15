@@ -80,22 +80,39 @@ describe('risk cards', () => {
   });
 });
 
-describe('grid resolution and overshoot', () => {
-  it('renders the resolution and a visible warning on the D3 case (6002 against 6000)', () => {
+// EC5 (engines #194) retired the quantized grid for any portfolio the exact
+// solver can hold: the D3 case that used to overshoot the limit by 2 now
+// returns the best set that fits, there is no resolution to report, and no
+// screen claims a funded set can exceed the limit.
+describe('the exact solve', () => {
+  it('funds the best set that fits on the D3 case, and shows no grid or overshoot', () => {
     const result = optimizePortfolio({ projects: D3_PROJECTS, capexLimit: 6000 });
-    expect(result.overLimit).toBe(true);
+    expect(result.solveMethod).toBe('exact');
+    expect(result.overLimit).toBe(false);
+    expect(result.totalCapex).toBeLessThanOrEqual(6000);
     render(<OptimizationResults result={result} />);
-    expect(screen.getByTestId('grid-resolution')).toHaveTextContent(`resolution of ${result.resolution} $MM`);
-    const warning = screen.getByTestId('overlimit-warning');
-    expect(warning).toHaveTextContent('6,002 $MM exceeds the limit of 6,000 $MM by 2 $MM');
+    expect(screen.getByTestId('exact-solve')).toHaveTextContent('Solved exactly on the capital figures');
+    expect(screen.queryByTestId('grid-resolution')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('overlimit-warning')).not.toBeInTheDocument();
   });
 
-  it('renders no warning when the set is inside the limit', () => {
+  it('says so too when the whole set fits', () => {
     const result = optimizePortfolio({ projects: D3_PROJECTS, capexLimit: 8000 });
     expect(result.overLimit).toBe(false);
+    expect(result.optimalityGap).toBe(0);
     render(<OptimizationResults result={result} />);
     expect(screen.queryByTestId('overlimit-warning')).not.toBeInTheDocument();
-    expect(screen.getByTestId('grid-resolution')).toBeInTheDocument();
+    expect(screen.getByTestId('exact-solve')).toBeInTheDocument();
+  });
+
+  it('negative control: a grid fallback still reports its resolution and its gap', () => {
+    const result = optimizePortfolio({ projects: D3_PROJECTS, capexLimit: 6000 });
+    render(<OptimizationResults result={{
+      ...result, solveMethod: 'grid-feasible', resolution: 3, optimalityGap: 12,
+    }} />);
+    expect(screen.getByTestId('grid-resolution')).toHaveTextContent('resolution of 3 $MM');
+    expect(screen.getByTestId('grid-resolution')).toHaveTextContent('12 $MM');
+    expect(screen.queryByTestId('exact-solve')).not.toBeInTheDocument();
   });
 });
 

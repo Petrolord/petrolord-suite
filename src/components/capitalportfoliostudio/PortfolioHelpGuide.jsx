@@ -39,7 +39,7 @@ const helpContent = [
     icon: Target,
     title: 'What the optimizer does',
     content:
-      'It solves a zero or one knapsack: each project is either funded in full or not funded. The solution is exact for the quantized problem it is given. Capital amounts are quantized onto a fixed grid so the computation stays bounded whatever units you type the limit in, and the resulting resolution is reported alongside the answer. Read that resolution as the granularity of the result: two portfolios whose totals differ by less than it are not meaningfully different. Because each project\'s capital is rounded to the grid, the funded set\'s real capital can overshoot the limit by up to half a cell per project. When that happens the app flags it and shows the amount over the limit, so check the set against the real limit before committing to it.',
+      'It solves a zero or one knapsack: each project is either funded in full or not funded. The answer is exact, computed on the capital figures you entered, so the funded set is the best combination that fits inside your limit and it can never exceed it. A very large portfolio, one whose projects and limit need more states than the solver holds, falls back to a grid: every candidate is rounded up onto it, which keeps the set inside the limit, and the app then says the grid resolution and bounds how much risked expected value the fallback could have left on the table. Read a reported resolution as the granularity of that fallback answer; with the exact solve there is no grid to report.',
   },
   {
     id: 'frontier',

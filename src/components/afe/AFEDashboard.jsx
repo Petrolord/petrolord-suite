@@ -60,6 +60,23 @@ export const cpiTile = (metrics) => {
   };
 };
 
+/**
+ * EC5-1 and the negative-forecast decision (engines #194). An entered
+ * forecast below the money already spent and committed is kept, because a
+ * re-baseline is legitimate, but it reports a saving on money already gone;
+ * a negative entered forecast is ignored in favour of the standard rule.
+ * Both are counted by the engine, and a count above zero belongs on the tile
+ * that shows the estimate at completion.
+ */
+export const forecastFlagText = (metrics) => {
+  const below = metrics.linesForecastBelowCommitted || 0;
+  const ignored = metrics.linesForecastIgnored || 0;
+  const parts = [];
+  if (below > 0) parts.push(`${below} line${below === 1 ? '' : 's'} forecast below committed`);
+  if (ignored > 0) parts.push(`${ignored} negative forecast${ignored === 1 ? '' : 's'} ignored`);
+  return parts.length ? parts.join(', ') : null;
+};
+
 /** The EAC trend against budget in percent, or null with no budget to divide by. */
 export const eacTrendPct = (metrics) => (metrics.totalBudget > 0
   ? ((metrics.totalForecast - metrics.totalBudget) / metrics.totalBudget * 100).toFixed(1)
@@ -193,7 +210,7 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
         <KPICard 
           title="EAC (Forecast)" 
           value={currencyFormatter(metrics.totalForecast)} 
-          subtext={`Variance: ${currencyFormatter(metrics.variance)}`}
+          subtext={forecastFlagText(metrics) || `Variance: ${currencyFormatter(metrics.variance)}`}
           icon={TrendingUp}
           colorClass="text-cyan-400 bg-cyan-400"
           trend={eacTrendPct(metrics)}

@@ -98,31 +98,31 @@ export function decisionSection(treeProject) {
 
 // Portfolio section: re-optimizes the chosen portfolio from its saved
 // CAPEX limit and the current project inventory at build time.
-// EC5-0 (owner decision 2026-09-14): the quantised grid can fund a set whose
-// real capex exceeds the limit (engine overLimit / overLimitBy), so the capital
-// row says so with the numbers rather than printing "X of X". The loss
-// probability is the engine's seeded Monte Carlo, and the provenance carries
-// its seed and iteration count.
+// EC5 (engines #194): the knapsack is solved exactly on the capital figures,
+// so the funded set cannot exceed the limit and there is no grid resolution
+// to report. A portfolio too large for the exact solver falls back to a grid
+// that rounds every candidate UP, which also keeps the set inside the limit,
+// and the provenance then carries that resolution and the optimality gap.
+// The loss probability is the engine's seeded Monte Carlo, and the provenance
+// carries its seed and iteration count.
 const fmtMMExact = (mm) => Number(mm).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+/** How the knapsack was solved, for the provenance line. */
+const solveNote = (result) => (result.solveMethod === 'grid-feasible'
+  ? `Solved on a capital grid of resolution ${fmtMMExact(result.resolution)} $MM (the portfolio is too large to solve exactly); at most ${fmtMMExact(result.optimalityGap)} $MM of risked EMV could have been left on the table.`
+  : 'Solved exactly on the capital figures, so the funded set is the best that fits inside the limit.');
 
 export function portfolioSection(portfolio, projects) {
   if (!portfolio || !projects?.length) return null;
   const result = optimizePortfolio({ projects, capexLimit: portfolio.capex_limit });
   const linked = result.optimalProjects.filter((p) => p.source_type === 'epe_mc').length;
-  // A "$6.00B of $6.00B" rounding would hide a 6002 against 6000 overshoot, so
-  // an exceeded limit prints exact $MM figures and its own row.
-  const capitalRows = result.overLimit
-    ? [
-      ['Capital deployed', `${fmtMMExact(result.totalCapex)} of ${fmtMMExact(result.capexLimit)} $MM`],
-      ['Over the capital limit by', `${fmtMMExact(result.overLimitBy)} $MM`],
-    ]
-    : [['Capital deployed', `${fmtMM(result.totalCapex)} of ${fmtMM(portfolio.capex_limit)}`]];
+  const capitalRows = [['Capital deployed', `${fmtMM(result.totalCapex)} of ${fmtMM(portfolio.capex_limit)}`]];
   const funded = result.optimalProjects.length
     ? `Funded: ${result.optimalProjects.map((p) => p.name).join(', ')}.`
     : 'No project clears the risked-EMV bar under this limit.';
-  const overshoot = result.overLimit
-    ? ` Capital limit exceeded: the funded set's capex is ${fmtMMExact(result.totalCapex)} $MM against a limit of ${fmtMMExact(result.capexLimit)} $MM, over by ${fmtMMExact(result.overLimitBy)} $MM on the quantized grid (resolution ${fmtMMExact(result.resolution)} $MM). Check the set against the real limit.`
-    : '';
+  // Exact $MM beside the rounded row, because "$6.00B of $6.00B" can hide
+  // real headroom (the D3 case funds 5,995 against a limit of 6,000).
+  const exactCapital = ` Capital deployed exactly: ${fmtMMExact(result.totalCapex)} $MM of ${fmtMMExact(result.capexLimit)} $MM.`;
   return {
     heading: 'Capital allocation',
     rows: [
@@ -133,8 +133,8 @@ export function portfolioSection(portfolio, projects) {
       ['Chance the portfolio loses money', `${(result.risk.probLoss * 100).toFixed(1)}%`],
     ],
     overLimit: result.overLimit,
-    note: `${funded}${overshoot}`,
-    provenance: `Source: portfolio "${portfolio.name}" ${shortId(portfolio.id)}, optimized at brief time over ${projects.length} projects (${linked} valued by linked EPE Monte Carlo runs, the rest entered manually). Capital grid resolution ${fmtMMExact(result.resolution)} $MM. Risk assumes independent projects; loss chance by seeded Monte Carlo, seed ${result.risk.seed}, ${result.risk.iterations} iterations. Values in $MM.`,
+    note: `${funded}${exactCapital}`,
+    provenance: `Source: portfolio "${portfolio.name}" ${shortId(portfolio.id)}, optimized at brief time over ${projects.length} projects (${linked} valued by linked EPE Monte Carlo runs, the rest entered manually). ${solveNote(result)} Risk assumes independent projects; loss chance by seeded Monte Carlo, seed ${result.risk.seed}, ${result.risk.iterations} iterations. Values in $MM.`,
   };
 }
 

@@ -105,8 +105,11 @@ describe('portfolioSection', () => {
     expect(s.provenance).not.toMatch(/normal approximation/i);
   });
 
-  it('shows that the limit was exceeded on the grid (EC5-0, D3 case 6002 against 6000)', () => {
-    // Before EC5-0 this printed "Capital deployed $6.00B of $6.00B".
+  // EC5 (engines #194): the exact solve cannot exceed the limit, so the case
+  // that used to overshoot by 2 now funds the best set that fits, and no
+  // brief claims otherwise. The exact figures still appear, because the
+  // rounded row alone would read "$6.00B of $6.00B" over real headroom.
+  it('funds the best fitting set on the case that used to overshoot (D3)', () => {
     const s = portfolioSection(
       { id: 'p3', name: 'Overshoot', capex_limit: 6000 },
       [
@@ -115,12 +118,20 @@ describe('portfolioSection', () => {
         { id: 'C', name: 'C', capex: 1995, npv_p50: 280 },
       ],
     );
-    expect(s.overLimit).toBe(true);
-    expect(s.rows).not.toContainEqual(['Capital deployed', '$6.00B of $6.00B']);
-    expect(s.rows).toContainEqual(['Capital deployed', '6,002 of 6,000 $MM']);
-    expect(s.rows).toContainEqual(['Over the capital limit by', '2 $MM']);
-    expect(s.note).toMatch(/Capital limit exceeded/);
-    expect(s.note).toMatch(/over by 2 \$MM/);
+    expect(s.overLimit).toBe(false);
+    expect(s.rows).not.toContainEqual(['Over the capital limit by', '2 $MM']);
+    expect(s.note).not.toMatch(/Capital limit exceeded/);
+    expect(s.note).toMatch(/Capital deployed exactly: 5,995 \$MM of 6,000 \$MM\./);
+    expect(s.note).toContain('Funded: A, C.');
+    expect(s.provenance).toMatch(/Solved exactly on the capital figures/);
+    expect(s.provenance).not.toMatch(/grid resolution null/);
+  });
+
+  it('states a grid fallback in the provenance when one is used', () => {
+    // The brief reads the engine's own solveMethod, so a fallback says so
+    // rather than presenting a bounded answer as an exact one.
+    const s = portfolioSection(PORTFOLIO, PROJECTS);
+    expect(s.provenance).toMatch(/Solved exactly on the capital figures/);
   });
 });
 

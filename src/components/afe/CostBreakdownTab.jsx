@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 import * as XLSX from 'xlsx';
-import { AfeInputError, calculateMetrics, itemForecast } from '@/utils/costControlCalculations';
+import { AfeInputError, calculateMetrics, itemForecastCheck } from '@/utils/costControlCalculations';
 
 /**
  * EC5-8 (engines #185). The engine refuses progress below 0 or above 100
@@ -196,8 +196,12 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
           </TableHeader>
           <TableBody>
             {filteredItems.map(item => {
-                // The one EAC rule (engine itemForecast), and variance is budget less it.
-                const forecast = itemForecast(item);
+                // The one EAC rule (engine itemForecastCheck), and variance is
+                // budget less it. EC5-1 (engines #194): the check also says
+                // whether the entered forecast sits below the money already
+                // spent and committed, and whether a negative one was ignored.
+                const check = itemForecastCheck(item);
+                const forecast = check.forecast;
                 const variance = (Number(item.budget) || 0) - forecast;
                 const progress = Number(item.progress) || 0;
                 
@@ -211,7 +215,19 @@ const CostBreakdownTab = ({ afeId, costItems, onRefresh }) => {
                     <TableCell className="text-slate-400 text-sm">{item.vendor || '-'}</TableCell>
                     <TableCell className="text-right text-blue-400 font-mono">{currencyFormatter(item.budget)}</TableCell>
                     <TableCell className="text-right text-slate-300 font-mono">{currencyFormatter(item.actual)}</TableCell>
-                    <TableCell className="text-right text-amber-400 font-mono">{currencyFormatter(forecast)}</TableCell>
+                    <TableCell className="text-right text-amber-400 font-mono">
+                      {currencyFormatter(forecast)}
+                      {check.forecastBelowCommitted && (
+                        <span className="block text-[10px] font-sans text-amber-300" data-testid={`below-committed-${item.id}`}>
+                          {currencyFormatter(check.forecastBelowCommittedBy)} below spent and committed
+                        </span>
+                      )}
+                      {check.forecastIgnored === 'negative' && (
+                        <span className="block text-[10px] font-sans text-red-300" data-testid={`forecast-ignored-${item.id}`}>
+                          negative forecast ignored, standard rule used
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className={`text-right font-mono font-bold ${variance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                       {currencyFormatter(variance)}
                     </TableCell>

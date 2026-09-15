@@ -96,17 +96,23 @@ describe('optimizePortfolio input refusal and grid overshoot (EC5-0)', () => {
       .toThrow(PortfolioInputError);
   });
 
-  it('flags a funded set whose capex exceeds the limit on the quantized grid (D3 case)', () => {
+  // EC5 (engines #194): the knapsack is solved exactly on the capex figures
+  // themselves, so the D3 case that used to overshoot the limit by 2 on the
+  // quantized grid now returns the best set that actually fits.
+  it('funds the best set that fits, on the case that used to overshoot (D3)', () => {
     const r = optimizePortfolio({
       projects: [P('A', 4000, 500), P('B', 2002, 300), P('C', 1995, 280)],
       capexLimit: 6000,
     });
-    expect(r.optimalProjects.map((p) => p.name)).toEqual(['A', 'B']);
-    expect(r.totalCapex).toBe(6002);
-    expect(r.capexLimit).toBe(6000);
-    expect(r.overLimit).toBe(true);
-    expect(r.overLimitBy).toBeCloseTo(2, 9);
-    expect(r.resolution).toBeGreaterThan(1);
+    expect(r.solveMethod).toBe('exact');
+    expect(r.optimalityGap).toBe(0);
+    expect(r.resolution).toBeNull();
+    expect(r.totalCapex).toBeLessThanOrEqual(r.capexLimit);
+    expect(r.overLimit).toBe(false);
+    expect(r.overLimitBy).toBe(0);
+    // A (4000, 500) plus C (1995, 280) is 5995 for 780; A plus B needs 6002.
+    expect(r.optimalProjects.map((p) => p.name)).toEqual(['A', 'C']);
+    expect(r.totalCapex).toBe(5995);
   });
 
   it('does not flag a set inside the limit', () => {
@@ -155,7 +161,12 @@ describe('optimizePortfolio (step-scaled knapsack)', () => {
     const dollarProjects = projects.map((p) => ({ ...p, capex: p.capex * 1e6 }));
     const r = optimizePortfolio({ projects: dollarProjects, capexLimit: 450e6 });
     expect(r.optimalProjects.map((p) => p.name).sort()).toEqual(['A', 'B', 'D']);
-    expect(r.resolution).toBeGreaterThan(1); // quantized, not 4.5e8 cells
+    // EC5 (engines #194): raw dollars no longer force a grid. The exact solve
+    // works on the capex figures, so there is no resolution to report and the
+    // answer carries no optimality gap.
+    expect(r.resolution).toBeNull();
+    expect(r.solveMethod).toBe('exact');
+    expect(r.optimalityGap).toBe(0);
   });
 
   it('produces a monotone frontier ending at the optimum', () => {
