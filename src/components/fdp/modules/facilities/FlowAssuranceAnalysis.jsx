@@ -25,7 +25,7 @@ const CORROSION_VERDICT = {
  * Hydrates High). It reads the plan's own fluid properties now, and the
  * tiles are the hazards the engine actually found.
  */
-const FlowAssuranceAnalysis = ({ facility, fluidProps }) => {
+const FlowAssuranceAnalysis = ({ facility, fluidProps, onFluidChange }) => {
     if (!facility) return <div className="text-slate-500 p-4">Select a facility to view analysis.</div>;
 
     const properties = fluidProps || {};
@@ -116,6 +116,43 @@ const FlowAssuranceAnalysis = ({ facility, fluidProps }) => {
                         ))}
                         {analysis.risks.length === 0 && <p className="text-sm text-slate-500">No significant flow assurance risks detected based on current inputs.</p>}
                     </div>
+
+                    {onFluidChange && (
+                        <div className="grid grid-cols-2 gap-3 mt-4" data-testid="sour-service-inputs">
+                            <div className="space-y-1">
+                                <label className="text-xs text-slate-400" htmlFor="fdp-h2s">H2S (ppm)</label>
+                                <input
+                                    id="fdp-h2s"
+                                    type="number"
+                                    min="0"
+                                    value={properties.h2s ?? ''}
+                                    placeholder="not measured"
+                                    onChange={(e) => onFluidChange({
+                                        ...properties,
+                                        h2s: e.target.value === '' ? undefined : parseFloat(e.target.value),
+                                    })}
+                                    className="w-full h-9 rounded-md border border-slate-700 bg-slate-800 px-3 text-sm text-white"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs text-slate-400" htmlFor="fdp-operating-pressure">
+                                    Operating pressure (psia)
+                                </label>
+                                <input
+                                    id="fdp-operating-pressure"
+                                    type="number"
+                                    min="0"
+                                    value={properties.operatingPressurePsia ?? ''}
+                                    placeholder="not entered"
+                                    onChange={(e) => onFluidChange({
+                                        ...properties,
+                                        operatingPressurePsia: e.target.value === '' ? undefined : parseFloat(e.target.value),
+                                    })}
+                                    className="w-full h-9 rounded-md border border-slate-700 bg-slate-800 px-3 text-sm text-white"
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     <div className="text-xs text-slate-400 mt-4 space-y-2" data-testid="corrosion-screen">
                         <p>

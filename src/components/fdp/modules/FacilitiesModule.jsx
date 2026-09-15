@@ -137,9 +137,15 @@ const FacilitiesModule = () => {
                                     />
                                 </CollapsibleSection>
                                 <CollapsibleSection title="Flow Assurance">
+                                    {/* EC6-3 (engines #191): the corrosion screen needs an
+                                        H2S concentration and an operating pressure, and neither
+                                        had a home in the plan, so the screen could only ever
+                                        report that H2S was not measured. Both are edited here
+                                        and stored with the plan's fluid properties. */}
                                     <FlowAssuranceAnalysis
                                         facility={selectedFacility}
                                         fluidProps={state.subsurface?.fluidProps}
+                                        onFluidChange={(fluidProps) => actions.updateSubsurface({ fluidProps })}
                                     />
                                 </CollapsibleSection>
                             </div>
