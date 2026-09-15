@@ -103,3 +103,27 @@ Engine follow-ups to adopt when the engines repair PR lands: any rename of
 `radiusFromCentreM` (the adapter falls back to edge + D/2), and any
 `skipped`/`complete` flags checkLayout starts returning (the adapter
 currently computes `complete` from its own source errors).
+
+
+## FC1-0 engine integration (2026-09-15, engines #188)
+
+`checkLayout` now reports what it could not judge, and the adapter and the
+panel follow it:
+
+- **Both skip lists survive.** The engine returns `skipped` as
+  `[{ id, reason }]`; the adapter used to overwrite that with its own list
+  of pipe runs and custom icons. The two are merged now. Standard
+  equipment that has no position is passed to the engine without
+  coordinates so the ENGINE skips it ('bad-coordinates') and marks the
+  check incomplete, rather than the adapter dropping it silently.
+- **Completeness is the engine's flag**, with the one thing it cannot
+  see: a radiation setback the adapter could not compute.
+- **`pass` can be null.** When every pair on a layout has no required
+  spacing, nothing was checked, and the panel says so instead of showing
+  a pass.
+- **Two rankings, neither called "worst" alone**: `worstAbsolute` (the
+  largest shortfall in metres) and `worstRelative` (the largest shortfall
+  as a fraction of its own requirement), both shown, and `severity` is
+  now `shortfallFraction` on every violation.
+- `poolFireSetbackM` carries `setbackStatus`, so a radius that lies
+  inside the pool edge says why the edge setback is zero.
