@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import {
   runLayoutCheck, toFeet, RADIATION_LEVELS, SPACING_INPUT_LABELS,
-  DEFAULT_SPACING_INPUTS, spacingInputsToRadiation,
+  DEFAULT_SPACING_INPUTS, spacingInputsToRadiation, describeSkipped, incompleteReasons,
 } from '@/utils/facilities/layoutSpacing';
 
 const fmt = (v, d = 0) => (Number.isFinite(v)
@@ -50,6 +50,21 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
   }), [layers, inputs]);
 
   const incomplete = !result.error && !result.complete;
+  // FC1-0: `pass` is null when nothing was checked, which is not a pass.
+  const nothingChecked = !result.error && result.pass === null;
+  const zeroPairs = result.zeroRequirementPairs || 0;
+  const statusText = nothingChecked
+    ? `Nothing was checked: ${zeroPairs === 1 ? '1 pair on this layout has' : `${zeroPairs} pairs on this layout have`} no required spacing in the table.`
+    : (result.pass
+      ? (incomplete
+        ? `All ${result.checked} checks that ran pass, but the check is incomplete.`
+        : `All ${result.checked} checks pass.`)
+      : `${result.violations?.length} of ${result.checked} checks fail.`);
+  const statusClass = result.pass === false
+    ? 'border-red-700/50 bg-red-950/30 text-red-300'
+    : (nothingChecked || incomplete
+      ? 'border-amber-700/50 bg-amber-950/30 text-amber-300'
+      : 'border-emerald-700/50 bg-emerald-950/30 text-emerald-300');
 
   return (
     <div className="space-y-4">
@@ -103,23 +118,18 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
         </div>
       ) : (
         <>
-          <div className={`rounded-md border px-3 py-2 text-sm flex items-start gap-2 ${
-            !result.pass
-              ? 'border-red-700/50 bg-red-950/30 text-red-300'
-              : (incomplete
-                ? 'border-amber-700/50 bg-amber-950/30 text-amber-300'
-                : 'border-emerald-700/50 bg-emerald-950/30 text-emerald-300')}`}>
+          <div className={`rounded-md border px-3 py-2 text-sm flex items-start gap-2 ${statusClass}`}>
             {result.pass && !incomplete
               ? <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
               : <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />}
-            <div>
-              {result.pass
-                ? (incomplete
-                  ? `All ${result.checked} checks that ran pass, but the check is incomplete.`
-                  : `All ${result.checked} checks pass.`)
-                : `${result.violations.length} of ${result.checked} checks fail.`}
-            </div>
+            <div>{statusText}</div>
           </div>
+
+          {incomplete && incompleteReasons(result).length > 0 && (
+            <p className="text-[11px] text-amber-300/80" data-testid="incomplete-reasons">
+              Check incomplete: {incompleteReasons(result).join('; ')}.
+            </p>
+          )}
 
           {result.sourceErrors.length > 0 && (
             <div className="space-y-1">
@@ -139,7 +149,10 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
                   </span> ({fmt(toFeet(s.setbackM), 0)} ft)
                   {s.kind === 'pool' && (
                     <p className="text-[11px] text-slate-500">
-                      Checked centre to centre. From the pool edge this is {fmt(s.setbackFromEdgeM, 1)} m.
+                      Checked centre to centre. From the pool edge this is {fmt(s.setbackFromEdgeM, 1)} m
+                      {s.detail?.setbackStatus === 'within-pool-edge'
+                        ? ', because the computed radius lies inside the pool edge'
+                        : ''}.
                     </p>
                   )}
                   {s.detail?.note && (
@@ -153,6 +166,20 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
           {result.violations.length > 0 && (
             <div className="space-y-1.5">
               <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Too close</p>
+              <div className="text-[11px] text-slate-400 space-y-0.5" data-testid="worst-rankings">
+                {result.worstAbsolute && (
+                  <p>
+                    Largest shortfall: {result.worstAbsolute.aName} to {result.worstAbsolute.bName},
+                    short {fmt(result.worstAbsolute.shortfallM, 1)} m of {fmt(result.worstAbsolute.requiredM, 1)} m.
+                  </p>
+                )}
+                {result.worstRelative && (
+                  <p>
+                    Largest shortfall against its own requirement: {result.worstRelative.aName} to {result.worstRelative.bName},
+                    {' '}{fmt(result.worstRelative.shortfallFraction * 100, 0)} percent short.
+                  </p>
+                )}
+              </div>
               {result.violations.slice(0, 12).map((v, i) => (
                 // eslint-disable-next-line react/no-array-index-key
                 <div key={i} className="rounded border border-slate-700/60 bg-slate-800/40 px-2 py-1.5">
@@ -161,7 +188,7 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
                   </p>
                   <p className="text-[11px] text-slate-400 tabular-nums">
                     {fmt(v.actualM, 1)} m apart, needs {fmt(v.requiredM, v.kind === 'radiation' ? 1 : 0)} m
-                    <span className="text-red-400"> (short {fmt(v.shortfallM, 1)} m)</span>
+                    <span className="text-red-400"> (short {fmt(v.shortfallM, 1)} m, {fmt(v.shortfallFraction * 100, 0)} percent)</span>
                   </p>
                   <p className="text-[10px] text-slate-600">
                     {v.kind === 'radiation' ? (v.label || 'radiation setback') : 'spacing table'}
@@ -178,9 +205,9 @@ const SpacingPanel = ({ layers, inputs = DEFAULT_SPACING_INPUTS, onChange = () =
 
           {result.skipped.length > 0 && (
             <p className="text-[11px] text-slate-500">
-              {result.skipped.length} item{result.skipped.length === 1 ? '' : 's'} not checked:
-              pipe runs have no single position, and custom icons have no class the table knows,
-              so judging either would invent a rule you never set.
+              Not checked: {describeSkipped(result.skipped)}. Pipe runs have no single position,
+              custom icons have no class the table knows, and an item with no position on the map
+              cannot be measured, so judging any of them would invent a rule you never set.
             </p>
           )}
 

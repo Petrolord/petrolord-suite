@@ -27,12 +27,13 @@ describe('missing stays missing', () => {
   });
 
   test('three-phase retention, viscosity and droplet are required only for three phase', () => {
-    const cleared = { waterRetentionMin: '', dropletMicron: '', muOilCp: '' };
+    const cleared = { waterRetentionMin: '', waterDropletMicron: '', oilDropletMicron: '', muOilCp: '' };
     expect(missingVesselInputs(withProcess(cleared))).toEqual([]);
     const i = withProcess({ ...cleared, oilRetentionMin: '' });
     i.vessel = { ...i.vessel, type: 'horizontal3' };
     expect(missingVesselInputs(i)).toEqual([
-      'Oil retention (min)', 'Water retention (min)', 'Oil visc (cp)', 'Droplet (um)',
+      'Oil retention (min)', 'Water retention (min)', 'Oil visc (cp)',
+      'Water droplet in oil (um)', 'Oil droplet in water (um)',
     ]);
   });
 
@@ -101,7 +102,9 @@ describe('no first-row fallback', () => {
   });
 
   test('negative control: an in-band candidate is selected', () => {
-    const rows = ldSweep({ ...common, mode: 'vertical2', diametersFt: [1, 2, 3, 4, 5, 6], ldMin: 0, ldMax: 100 }).rows;
+    // FC1-0: the engine refuses an ldMin of 0, so the wide band starts just
+    // above it.
+    const rows = ldSweep({ ...common, mode: 'vertical2', diametersFt: [1, 2, 3, 4, 5, 6], ldMin: 0.01, ldMax: 100 }).rows;
     const target = rows[2];
     const sweep = ldSweep({
       ...common, mode: 'vertical2', diametersFt: [1, 2, 3, 4, 5, 6],

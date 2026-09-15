@@ -52,6 +52,14 @@ describe('layers to items', () => {
     // and the skipped ones are reported rather than hidden
     const skipped = skippedLayers(layers);
     expect(skipped.map((l) => l.id).sort()).toEqual(['c', 'd', 'p']);
+    // FC1-0: a placed-equipment layer with no position goes to the engine,
+    // which skips it as 'bad-coordinates' and marks the check incomplete.
+    const r = runLayoutCheck({ layers, radiation: {} });
+    expect(r.skipped.find((sk) => sk.id === 'e')).toEqual({ id: 'e', reason: 'bad-coordinates' });
+    expect(r.skipped.filter((sk) => sk.reason === 'pipe-run').map((sk) => sk.id)).toEqual(['p']);
+    expect(r.skipped.filter((sk) => sk.reason === 'custom-icon').map((sk) => sk.id)).toEqual(['c']);
+    expect(r.skipped.filter((sk) => sk.reason === 'no-spacing-class').map((sk) => sk.id)).toEqual(['d']);
+    expect(r.complete).toBe(false);
   });
 });
 
@@ -65,10 +73,13 @@ describe('the mapper check', () => {
     const layers = [layer('a', 'Wellhead', 0), layer('b', 'Tank', 10)];
     const r = runLayoutCheck({ layers, radiation: {} });
     expect(r.pass).toBe(false);
-    expect(r.worst.requiredM).toBe(30);
-    expect(r.worst.actualM).toBeLessThan(30);
-    expect(r.worst.aName).toContain('Wellhead');
-    expect(r.worst.bName).toContain('Tank');
+    // FC1-0: `worst` is gone; the two rankings are named.
+    expect(r.worst).toBeUndefined();
+    expect(r.worstAbsolute.requiredM).toBe(30);
+    expect(r.worstAbsolute.actualM).toBeLessThan(30);
+    expect(r.worstAbsolute.aName).toContain('Wellhead');
+    expect(r.worstAbsolute.bName).toContain('Tank');
+    expect(r.worstRelative.shortfallFraction).toBeCloseTo(r.worstAbsolute.shortfallFraction, 12);
   });
 
   test('passes a well-spread site', () => {

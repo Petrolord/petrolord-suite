@@ -3,7 +3,16 @@ import React from 'react';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSeparator } from '@/contexts/SeparatorStudioContext';
+import { SWEEP_REASON_TEXT } from '@/contexts/SeparatorStudioContext';
 import { fmt, Stat, ErrorNote, WarnNote, Field, NumberInput, TextInput, ExampleCaseNote } from './fields';
+
+/** The length requirement that set the vessel, in words (FC1-0 names). */
+const CONTROLLING_TEXT = {
+  gas: 'gas',
+  liquid: 'liquid retention',
+  'liquid-retention': 'liquid retention',
+};
+const controllingText = (c) => CONTROLLING_TEXT[c] || c || '--';
 
 export const VesselInputs = () => {
   const { inputs, setSection, internalsOptions, ldBand } = useSeparator();
@@ -82,11 +91,20 @@ export const VesselInputs = () => {
         )}
       </div>
       {threePhase && (
-        <div className="grid grid-cols-3 gap-2">
-          <Field label="Oil visc (cp)"><NumberInput section="process" name="muOilCp" step="0.1" /></Field>
-          <Field label="Water visc"><NumberInput section="process" name="muWaterCp" step="0.1" /></Field>
-          <Field label="Droplet (um)"><NumberInput section="process" name="dropletMicron" /></Field>
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Oil visc (cp)"><NumberInput section="process" name="muOilCp" step="0.1" /></Field>
+            <Field label="Water visc"><NumberInput section="process" name="muWaterCp" step="0.1" /></Field>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Water droplet in oil (um)" hint="The water drops to remove from the oil; 500 micron is customary.">
+              <NumberInput section="process" name="waterDropletMicron" />
+            </Field>
+            <Field label="Oil droplet in water (um)" hint="The oil drops to remove from the water; 200 micron is customary.">
+              <NumberInput section="process" name="oilDropletMicron" />
+            </Field>
+          </div>
+        </>
       )}
     </div>
   );
@@ -114,10 +132,39 @@ const ConditionsCard = () => {
               : `${conditions.kResult.kBase} base${conditions.kResult.derated ? ', derated for pressure' : ''}`} />
           <Stat label="Settling velocity" value={fmt(conditions.vTerminalFtS, 3)} unit="ft/s" />
         </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Stat label="Ppr" value={fmt(conditions.ppr, 3)} hint="pseudo-reduced pressure behind the z-factor" />
+          <Stat label="Tpr" value={fmt(conditions.tpr, 3)} hint="pseudo-reduced temperature behind the z-factor" />
+        </div>
         {conditions.kResult?.warning && <WarnNote>{conditions.kResult.warning}</WarnNote>}
+        {conditions.gasNote && <WarnNote>{conditions.gasNote}</WarnNote>}
       </CardContent>
     </Card>
   );
+};
+
+/**
+ * What one L/D family row is (FC1-0, engines #188). A row that cannot carry
+ * the gas, or whose droplet checks fail, is not feasible and can never be
+ * preferred, whatever its slenderness, so the table says which it is.
+ */
+export const verdictOf = (row, preferred) => {
+  if (row.error) return 'error';
+  if (preferred && preferred.diameterFt === row.diameterFt) return 'PREFERRED';
+  if (!row.feasible) {
+    return (row.reasons || [])
+      .filter((r) => r !== 'ld-out-of-band')
+      .map((r) => SWEEP_REASON_TEXT[r] || r)
+      .join(', ') || 'not feasible';
+  }
+  return row.inRange ? 'in range' : 'outside L/D';
+};
+
+const verdictColour = (row, preferred) => {
+  if (row.error) return 'text-red-400';
+  if (preferred && preferred.diameterFt === row.diameterFt) return 'text-emerald-400';
+  if (!row.feasible) return 'text-red-400';
+  return row.inRange ? 'text-emerald-400' : 'text-amber-400';
 };
 
 const SweepTable = () => {
@@ -142,11 +189,9 @@ const SweepTable = () => {
               <td className="py-1.5 pr-3 tabular-nums text-slate-300">{fmt(r.diameterFt, 1)}</td>
               <td className="py-1.5 pr-3 tabular-nums">{r.error ? '--' : fmt(r.lengthFt, 1)}</td>
               <td className="py-1.5 pr-3 tabular-nums">{r.error ? '--' : fmt(r.ldRatio, 2)}</td>
-              {!vertical && <td className="py-1.5 pr-3 text-slate-400">{r.controlling || '--'}</td>}
-              <td className={`py-1.5 font-semibold ${r.inRange ? 'text-emerald-400' : 'text-amber-400'}`}>
-                {r.error ? 'error' : (r.inRange
-                  ? (sweep.preferred?.diameterFt === r.diameterFt ? 'PREFERRED' : 'in range')
-                  : 'outside L/D')}
+              {!vertical && <td className="py-1.5 pr-3 text-slate-400">{r.error ? '--' : controllingText(r.controlling)}</td>}
+              <td className={`py-1.5 font-semibold ${verdictColour(r, sweep.preferred)}`}>
+                {verdictOf(r, sweep.preferred)}
               </td>
             </tr>
           ))}
@@ -182,25 +227,31 @@ const SelectedCard = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Stat label="Length the gas needs" value={fmt(detail.lengthGasFt, 1)} unit="ft" />
             <Stat label="Length the liquid needs" value={fmt(detail.lengthLiquidFt, 1)} unit="ft" />
-            <Stat label="Controlling" value={detail.controlling} />
+            <Stat label="Controlling" value={controllingText(detail.controlling)} />
           </div>
         )}
         {threePhase && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Stat label="Oil retention needs" value={fmt(detail.lengthOilFt, 1)} unit="ft" />
-              <Stat label="Water retention needs" value={fmt(detail.lengthWaterFt, 1)} unit="ft" />
+              <Stat label="Liquid retention needs" value={fmt(detail.liquidRetentionLengthFt, 1)} unit="ft"
+                hint="oil and water share the length at the proportional interface" />
               <Stat label="Gas needs" value={fmt(detail.lengthGasFt, 1)} unit="ft" />
-              <Stat label="Controlling" value={detail.controlling} accent="text-emerald-400" />
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Stat label="Controlling" value={controllingText(detail.controlling)} accent="text-emerald-400" />
               <Stat label="Interface" value={fmt(detail.waterShare * 100, 0)} unit="% water"
                 hint="of the liquid cross-section" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Stat label="Interface height" value={fmt(detail.interfaceHeightFt, 2)} unit="ft"
+                hint="above the vessel bottom, from the exact segment area" />
+              <Stat label="Water layer" value={fmt(detail.waterLayerFt, 2)} unit="ft" />
+              <Stat label="Oil layer" value={fmt(detail.oilLayerFt, 2)} unit="ft" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Stat label="Water drop fall time" value={fmt(detail.dropChecks?.waterDropFallS, 0)} unit="s"
-                hint={`against ${fmt(detail.dropChecks?.residenceOilS, 0)} s of oil residence`}
+                hint={`a ${fmt(detail.dropChecks?.waterDropletMicron, 0)} micron drop, against ${fmt(detail.dropChecks?.residenceOilS, 0)} s of oil residence in the sized vessel`}
                 accent={detail.dropChecks?.waterCarryover ? 'text-red-400' : 'text-emerald-400'} />
               <Stat label="Oil drop rise time" value={fmt(detail.dropChecks?.oilDropRiseS, 0)} unit="s"
-                hint={`against ${fmt(detail.dropChecks?.residenceWaterS, 0)} s of water residence`}
+                hint={`a ${fmt(detail.dropChecks?.oilDropletMicron, 0)} micron drop, against ${fmt(detail.dropChecks?.residenceWaterS, 0)} s of water residence in the sized vessel`}
                 accent={detail.dropChecks?.oilCarryunder ? 'text-red-400' : 'text-emerald-400'} />
             </div>
           </>
@@ -213,7 +264,8 @@ const SelectedCard = () => {
               hint="settling velocity over actual" />
           </div>
         )}
-        {detail?.warning && <WarnNote>{detail.warning}</WarnNote>}
+        {(detail?.warnings?.length ? detail.warnings : (detail?.warning ? [detail.warning] : []))
+          .map((w) => <WarnNote key={w}>{w}</WarnNote>)}
       </CardContent>
     </Card>
   );

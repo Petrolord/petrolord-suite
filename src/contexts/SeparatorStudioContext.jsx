@@ -15,7 +15,7 @@ import {
   K_BASE, kValue, gasDensityLbFt3, oilDensityLbFt3,
   terminalVelocityFtS, gasActualFt3S,
   verticalTwoPhase, horizontalTwoPhase, horizontalThreePhase, ldSweep,
-  vesselSlugCatcher, fingerSlugCatcher,
+  vesselSlugCatcher, fingerSlugCatcher, SeparatorInputError,
 } from '@/utils/facilities/engine/separatorSizing';
 
 const TABLE = 'saved_separator_projects';
@@ -65,7 +65,11 @@ export const defaultInputs = () => ({
     qOilBpd: '6000', qWaterBpd: '4000',
     oilApi: '35', waterSg: '1.05',
     oilRetentionMin: '3', waterRetentionMin: '5',
-    muOilCp: '2', muWaterCp: '0.7', dropletMicron: '500',
+    muOilCp: '2', muWaterCp: '0.7',
+    // FC1-0 (engines #188) retired the single droplet size: the water drops
+    // to remove from the oil and the oil drops to remove from the water are
+    // named separately. 500 and 200 microns are the engine's own test case.
+    waterDropletMicron: '500', oilDropletMicron: '200',
   },
   slug: {
     mode: 'vessel',
@@ -85,6 +89,15 @@ export const inputsFromPayload = (payload) => {
   SECTIONS.forEach((s) => {
     out[s] = { ...base[s], ...(raw[s] || {}) };
   });
+  // A study saved before FC1-0 holds one `dropletMicron`, which the old
+  // engine applied to BOTH droplet checks. It carries into both named sizes,
+  // so the saved study keeps the meaning it was saved with.
+  const legacy = raw.process && typeof raw.process === 'object' ? raw.process : {};
+  if ('dropletMicron' in legacy) {
+    if (!('waterDropletMicron' in legacy)) out.process.waterDropletMicron = legacy.dropletMicron;
+    if (!('oilDropletMicron' in legacy)) out.process.oilDropletMicron = legacy.dropletMicron;
+    delete out.process.dropletMicron;
+  }
   return out;
 };
 
@@ -136,7 +149,8 @@ export const missingVesselInputs = (inputs) => {
     ['Water retention (min)', threePhase && isBlank(p.waterRetentionMin)],
     ['Oil visc (cp)', threePhase && isBlank(p.muOilCp)],
     ['Water visc', threePhase && isBlank(p.muWaterCp)],
-    ['Droplet (um)', threePhase && isBlank(p.dropletMicron)],
+    ['Water droplet in oil (um)', threePhase && isBlank(p.waterDropletMicron)],
+    ['Oil droplet in water (um)', threePhase && isBlank(p.oilDropletMicron)],
   ];
   return checks.filter(([, missing]) => missing).map(([label]) => label);
 };
@@ -165,15 +179,90 @@ export const missingSlugInputs = (inputs) => {
 export const missingMessage = (labels) => `Missing required inputs: ${labels.join(', ')}.`;
 
 /**
- * The selected vessel is the first candidate inside the L/D band. When
- * none is, nothing is selected: an out-of-band row is never promoted.
+ * The engine's input names, by the label the user sees. A
+ * SeparatorInputError carries the engine name in `.input` (FC1-0).
+ */
+export const ENGINE_INPUT_LABELS = Object.freeze({
+  pPsia: 'Pressure (psig)',
+  pPsig: 'Pressure (psig)',
+  tF: 'Temperature (F)',
+  gasSg: 'Gas gravity',
+  internalsId: 'Mist extractor',
+  kOverride: 'K override (ft/s)',
+  diametersFt: 'Candidate diameters (ft)',
+  ldMin: 'L/D minimum',
+  ldMax: 'L/D maximum',
+  liquidLevelFrac: 'Liquid level (fraction of diameter)',
+  qOilBpd: 'Oil (bpd)',
+  qWaterBpd: 'Water (bpd)',
+  oilRetentionMin: 'Oil retention (min)',
+  waterRetentionMin: 'Water retention (min)',
+  sgOil: 'Oil gravity (API)',
+  sgWater: 'Water SG',
+  muOilCp: 'Oil visc (cp)',
+  muWaterCp: 'Water visc',
+  waterDropletMicron: 'Water droplet in oil (um)',
+  oilDropletMicron: 'Oil droplet in water (um)',
+  waterFracOfLiquid: 'Water share of the liquid',
+  dropletMicron: 'Droplet (um)',
+  slugBbl: 'Slug volume (bbl)',
+  qLiquidBpd: 'Normal liquid (bpd)',
+  holdMin: 'Normal hold (min)',
+  fillFraction: 'Fill fraction',
+  ldRatio: 'L/D ratio',
+  fingerIdIn: 'Finger bore (in)',
+  nFingers: 'Number of fingers',
+});
+
+/**
+ * Run an engine call, turning a SeparatorInputError into `{ error, input,
+ * inputLabel }` that names the field. Anything else is rethrown.
+ */
+export const runRefusable = (fn) => {
+  try {
+    return fn();
+  } catch (err) {
+    if (err instanceof SeparatorInputError || err?.name === 'SeparatorInputError') {
+      const inputLabel = ENGINE_INPUT_LABELS[err.input] || err.input;
+      return { error: `${inputLabel}: ${err.message}`, input: err.input, inputLabel };
+    }
+    throw err;
+  }
+};
+
+/** Why an L/D family row cannot be the selected vessel, in words. */
+export const SWEEP_REASON_TEXT = Object.freeze({
+  'sizing-error': 'sizing refused',
+  'gas-capacity': 'cannot carry the gas',
+  'water-carryover': 'water carryover',
+  'oil-carryunder': 'oil carryunder',
+  'ld-out-of-band': 'outside L/D',
+});
+
+/**
+ * The selected vessel is the engine's preferred row: the smallest FEASIBLE
+ * diameter inside the L/D band (FC1-0, engines #188). When there is none,
+ * nothing is selected and `preferredStatus` says why: 'none-feasible' (no
+ * row can carry the gas or pass the droplet checks) or 'none-in-band'
+ * (feasible rows exist, all outside the band). A row is never promoted.
  */
 export const selectVessel = (sweep) => {
   if (!sweep || sweep.error) return { error: sweep?.error || 'no sweep' };
   if (sweep.preferred) return sweep.preferred;
+  if (sweep.preferredStatus === 'none-feasible') {
+    const reasons = [...new Set((sweep.rows || []).flatMap((r) => r.reasons || []))]
+      .filter((r) => r !== 'ld-out-of-band')
+      .map((r) => SWEEP_REASON_TEXT[r] || r);
+    return {
+      error: `No candidate diameter is feasible (${reasons.join(', ') || 'every row was refused'}), so no vessel is selected. Add larger candidate diameters or revise the process inputs.`,
+      noCandidate: true,
+      preferredStatus: 'none-feasible',
+    };
+  }
   return {
     error: `No candidate in the L/D band (${sweep.ldMin} to ${sweep.ldMax}), so no vessel is selected. Add candidate diameters or revise the band.`,
     noCandidate: true,
+    preferredStatus: sweep.preferredStatus || 'none-in-band',
   };
 };
 
@@ -221,6 +310,7 @@ export const SeparatorStudioProvider = ({ children }) => {
   const conditions = useMemo(() => {
     // Missing stays missing (FC1-0): name the blanks, substitute nothing.
     if (vesselMissing.length) return { error: missingMessage(vesselMissing), missing: vesselMissing };
+    return runRefusable(() => {
     const p = inputs.process;
     const v = inputs.vessel;
     const pPsia = num(p.pPsig) + 14.7;
@@ -238,7 +328,9 @@ export const SeparatorStudioProvider = ({ children }) => {
       : rhoOil;
     const k = kValue({
       internalsId: v.internalsId, pPsig: num(p.pPsig),
-      kOverride: num(v.kOverride, 0),
+      // Blank means no override: undefined, never 0 (FC1-0 refuses a
+      // given K that is not positive).
+      kOverride: isBlank(v.kOverride) ? undefined : num(v.kOverride),
     });
     if (k.error) return k;
     const vt = terminalVelocityFtS({
@@ -250,9 +342,11 @@ export const SeparatorStudioProvider = ({ children }) => {
     });
     return {
       pPsia, z: gas.z, rhoGas: gas.rhoLbFt3, rhoOil, rhoWater, rhoLiquid,
+      ppr: gas.ppr, tpr: gas.tpr, gasNote: gas.note || null,
       qOil, qWater, qLiquid, kResult: k, k: k.k,
       vTerminalFtS: vt.vFtS, qGasActFt3S: qGasAct,
     };
+    });
   }, [inputs.process, inputs.vessel, vesselMissing]);
 
   /** The L/D family across the candidate diameters. */
@@ -262,6 +356,7 @@ export const SeparatorStudioProvider = ({ children }) => {
     const p = inputs.process;
     const diametersFt = parseDiameters(v.diametersFt);
     if (!diametersFt.length) return { error: 'list at least one candidate diameter' };
+    return runRefusable(() => {
     const common = {
       diametersFt,
       ldMin: num(v.ldMin),
@@ -288,13 +383,15 @@ export const SeparatorStudioProvider = ({ children }) => {
         sgWater: num(p.waterSg),
         muOilCp: num(p.muOilCp),
         muWaterCp: num(p.muWaterCp),
-        dropletMicron: num(p.dropletMicron),
+        waterDropletMicron: num(p.waterDropletMicron),
+        oilDropletMicron: num(p.oilDropletMicron),
       });
     }
     return ldSweep({
       ...common, mode: 'horizontal2',
       qLiquidBpd: conditions.qLiquid,
       retentionMin: num(p.oilRetentionMin),
+    });
     });
   }, [conditions, inputs.vessel, inputs.process]);
 
@@ -311,6 +408,7 @@ export const SeparatorStudioProvider = ({ children }) => {
   const slug = useMemo(() => {
     if (slugMissing.length) return { error: missingMessage(slugMissing), missing: slugMissing };
     const s = inputs.slug;
+    return runRefusable(() => {
     if (s.mode === 'finger') {
       return fingerSlugCatcher({
         slugBbl: num(s.slugBbl),
@@ -325,6 +423,7 @@ export const SeparatorStudioProvider = ({ children }) => {
       holdMin: num(s.holdMin),
       fillFraction: num(s.fillFraction),
       ldRatio: num(s.ldRatio),
+    });
     });
   }, [inputs.slug, slugMissing]);
 
