@@ -7,6 +7,7 @@
 // adds nothing to it, so these numbers are testable without jsPDF.
 
 import { rollback } from '@/lib/decisionTree';
+import { firstMoveLabel } from '@/components/decisiontree/firstMoveLabel';
 import { optimizePortfolio } from '@/utils/portfolioOptimizer';
 
 const shortId = (id) => (id ? String(id).slice(0, 8) : 'n/a');
@@ -17,6 +18,13 @@ export const fmtMMUsd = (usd) => {
   const m = Number(usd) / 1e6;
   if (Math.abs(m) >= 1000) return `$${(m / 1000).toFixed(2)}B`;
   return `$${m.toFixed(1)}M`;
+};
+
+// EC4-7: a saved run with no P(NPV > 0) printed "NaN%". A missing or
+// non-finite fraction reads N/A.
+export const fmtPct = (fraction, digits = 1) => {
+  if (fraction == null || !Number.isFinite(Number(fraction))) return 'N/A';
+  return `${(Number(fraction) * 100).toFixed(digits)}%`;
 };
 
 export const fmtMM = (mm) => {
@@ -36,7 +44,7 @@ export function economicsSection(mcRun) {
       ['NPV P50', fmtMMUsd(r.npv.p50)],
       ['NPV P10 (high)', fmtMMUsd(r.npv.p10)],
       ['NPV mean', fmtMMUsd(r.npv.mean)],
-      ['Chance NPV is positive', `${(r.probNpvPositive * 100).toFixed(1)}%`],
+      ['Chance NPV is positive', fmtPct(r.probNpvPositive)],
       ['Deterministic base NPV', fmtMMUsd(r.base?.npv)],
     ],
     note: r.tornado?.length
@@ -69,7 +77,7 @@ export function decisionSection(treeProject) {
   const nextBest = alternatives.length ? Math.max(...alternatives.map((b) => b.branchValue)) : null;
   const rows = [
     ['Optimal EMV', fmtMM(annotated.emv)],
-    ['Recommended first move', best ? best.label : 'Single path'],
+    ['Recommended first move', firstMoveLabel(annotated)],
   ];
   if (nextBest != null) {
     rows.push(['Next best alternative', fmtMM(nextBest)]);

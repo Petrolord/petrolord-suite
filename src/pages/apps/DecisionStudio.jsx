@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { ArrowLeft, Landmark, FileDown, GitMerge, Package, BarChart3, ExternalLink } from 'lucide-react';
-import { buildBriefModel, fmtMMUsd } from '@/components/decisionstudio/briefModel';
+import { buildBriefModel, fmtMMUsd, fmtPct } from '@/components/decisionstudio/briefModel';
 import { downloadBriefPdf } from '@/components/decisionstudio/briefPdf';
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
@@ -190,7 +190,7 @@ const DecisionStudio = () => {
                     <>
                       <span className="text-sky-300">{r.configName || 'EPE run'}</span>
                       <span className="block text-xs text-slate-400">
-                        P50 {fmtMMUsd(r.results?.npv?.p50)} · P(NPV&gt;0) {(r.results?.probNpvPositive * 100).toFixed(0)}% · {new Date(r.created_at).toLocaleDateString()}
+                        P50 {fmtMMUsd(r.results?.npv?.p50)} · P(NPV&gt;0) {fmtPct(r.results?.probNpvPositive, 0)} · {new Date(r.created_at).toLocaleDateString()}
                       </span>
                     </>
                   )}
@@ -264,7 +264,7 @@ const DecisionStudio = () => {
                         ['NPV P50', (r) => fmtMMUsd(r.results?.npv?.p50)],
                         ['NPV P10 (high)', (r) => fmtMMUsd(r.results?.npv?.p10)],
                         ['NPV mean', (r) => fmtMMUsd(r.results?.npv?.mean)],
-                        ['P(NPV positive)', (r) => `${(r.results?.probNpvPositive * 100).toFixed(1)}%`],
+                        ['P(NPV positive)', (r) => fmtPct(r.results?.probNpvPositive)],
                         ['Deterministic base', (r) => fmtMMUsd(r.results?.base?.npv)],
                         ['Iterations / seed', (r) => `${r.results?.iterations} / ${r.results?.seed}`],
                       ].map(([label, fn]) => (
