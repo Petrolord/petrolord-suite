@@ -1,10 +1,13 @@
 // Capital Portfolio Studio help guide (Economics E2).
 //
-// Written against src/utils/portfolioOptimizer.js (D4), so the objective,
-// the quantization and the independence assumption below are the ones the
-// optimizer actually uses. Re-verified against the EC5-0 engine (owner
-// decision 2026-09-14): seeded Monte Carlo risk cards, the grid overshoot
-// flag and the negative capex refusal.
+// Written against src/utils/portfolioOptimizer.js (D4), so the objective and
+// the independence assumption below are the ones the optimizer actually
+// uses. Re-verified against the EC5-0 engine (owner decision 2026-09-14):
+// seeded Monte Carlo risk cards and the negative capex refusal. Engines #194
+// made the knapsack EXACT: there is no quantized grid on an ordinary
+// portfolio, the funded set cannot exceed the limit, and a grid appears only
+// as the fallback for a portfolio too large to solve exactly, which reports
+// its resolution and bounds the risked EMV it may have left on the table.
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
@@ -18,7 +21,7 @@ const helpContent = [
     icon: BookOpen,
     title: 'What this tool answers',
     content:
-      'Given more good projects than capital, which set should you fund. The optimizer picks the combination that maximizes total risked expected value within your capital limit, measured on its capital grid. That is a different question from ranking projects by return, and it gives a different answer: a portfolio built by taking the best return first can leave capital stranded, while the optimizer will take a slightly weaker project that fits the money you have left.',
+      'Given more good projects than capital, which set should you fund. The optimizer picks the combination that maximizes total risked expected value within your capital limit. That is a different question from ranking projects by return, and it gives a different answer: a portfolio built by taking the best return first can leave capital stranded, while the optimizer will take a slightly weaker project that fits the money you have left.',
   },
   {
     id: 'projects',
