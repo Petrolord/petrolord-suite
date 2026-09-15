@@ -43,7 +43,7 @@ const helpContent = [
     icon: Fingerprint,
     title: 'Provenance, and why every number carries it',
     content:
-      'Each section of the brief carries a line naming the saved item it came from, its identifier, when it was created, and for simulation results the seed and the iteration count. That is what lets a reader ask where a number came from and get an answer, and what lets you reproduce it a quarter later. The lines also state the assumptions behind their figures: the NPV basis for economics, that the tree EMV was rolled back at brief time, and for a portfolio how many projects are valued by linked runs and that its risk assumes independent projects under a normal approximation. The brief does not grade an analysis as screening grade or full fiscal; judge that from the source and assumptions each line states.',
+      'Each section of the brief carries a line naming the saved item it came from, its identifier, when it was created, and for simulation results the seed and the iteration count. That is what lets a reader ask where a number came from and get an answer, and what lets you reproduce it a quarter later. The lines also state the assumptions behind their figures: the NPV basis for economics, that the tree EMV was rolled back at brief time, and for a portfolio how many projects are valued by linked runs and that its risk assumes independent projects, with the chance of a loss read from a seeded Monte Carlo (seed 20260829, 10,000 iterations). The brief does not grade an analysis as screening grade or full fiscal; judge that from the source and assumptions each line states.',
   },
   {
     id: 'export',
@@ -57,7 +57,7 @@ const helpContent = [
     icon: AlertTriangle,
     title: 'Assumptions and limits',
     content:
-      'Decision Studio inherits the assumptions of whatever you feed it and states them rather than fixing them. It has nothing to say about anything you did not analyse: a brief built on one economics case shows one economics case. The recommendation line is yours, not the tool s. The right use is to make the reasoning behind a decision auditable, not to have the software make the decision.',
+      'Decision Studio inherits the assumptions of whatever you feed it and states them rather than fixing them. It has nothing to say about anything you did not analyse: a brief built on one economics case shows one economics case. The recommendation line is yours, and the tool does not write it. The right use is to make the reasoning behind a decision auditable, with the decision itself left to you.',
   },
 ];
 

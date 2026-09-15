@@ -1,37 +1,20 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { GanttChartSquare, Ship } from 'lucide-react';
+import { layoutWellCampaign } from './wellCampaign';
 
 /**
- * EC6-0. The rig count was always 1 here whatever the plan said, so a
- * campaign with three rigs was laid out end to end and "Campaign Duration"
- * was three times what it should be. Wells are now handed to the rig that
- * comes free first, and a well with no drilling days is counted as zero
- * rather than silently as 30.
+ * EC6-0 / EC6-5. The layout lives in wellCampaign.js: wells go longest first
+ * to the rig that comes free first, so the campaign length does not depend on
+ * the order of the well table.
  */
 const WellStrategy = ({ wells, rigCount = 1, rigRate }) => {
-    const rigs = new Array(Math.max(1, rigCount)).fill(0);
-    const schedule = [];
+    const { schedule: laidOut, totalDays, rigDays } = layoutWellCampaign(wells, rigCount);
+    const schedule = laidOut.map(item => ({
+        ...item,
+        color: (item.type || '').includes('Producer') ? 'bg-green-600' : 'bg-blue-600'
+    }));
 
-    wells.forEach(well => {
-        const duration = Number(well.days) || 0;
-        let next = 0;
-        for (let r = 1; r < rigs.length; r += 1) {
-            if (rigs[r] < rigs[next]) next = r;
-        }
-        const start = rigs[next];
-        rigs[next] = start + duration;
-        schedule.push({
-            ...well,
-            start,
-            end: start + duration,
-            rig: next + 1,
-            color: (well.type || '').includes('Producer') ? 'bg-green-600' : 'bg-blue-600'
-        });
-    });
-
-    const totalDays = Math.max(...rigs, 0);
-    const rigDays = wells.reduce((sum, w) => sum + (Number(w.days) || 0), 0);
     const span = totalDays || 1; // a zero-day campaign must not divide by zero
     const chartWidthPercent = 100; 
 

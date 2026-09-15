@@ -178,6 +178,10 @@ const FORBIDDEN = {
     /label(l)?ed as such/i,
     // The brief uses the signed-in email; there is no name field.
     /and your name/i,
+    // EC4-7: portfolio loss chance is a seeded Monte Carlo since EC5-0.
+    /normal approximation/i,
+    // EC4-7: typo for "the tool's".
+    /the tool s\b/,
   ],
   // EC5-0: claims the repaired portfolio engine made false.
   'Capital Portfolio Studio': [

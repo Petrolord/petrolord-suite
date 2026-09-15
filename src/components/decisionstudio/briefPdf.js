@@ -1,11 +1,21 @@
-// One-page decision brief PDF (D5). Renders the briefModel.js output with
-// the shared Petrolord banner (src/lib/pdfBrand.js). Layout only; every
-// number and provenance line comes from the model.
+// Decision brief PDF (D5). Renders the briefModel.js output with the shared
+// Petrolord banner (src/lib/pdfBrand.js). Layout only; every number and
+// provenance line comes from the model.
+//
+// EC4-7 (owner decision 2026-09-15): the brief used to stop at the first
+// section that did not fit on page one and say nothing, so a reader could not
+// tell a section was missing. A section that does not fit now starts a new
+// page, and every section in the model is drawn.
 
 import jsPDF from 'jspdf';
 import { drawBrandHeader, loadPetrolordLogo, fitText } from '@/lib/pdfBrand';
 
 const MARGIN = 14;
+const TOP_OF_NEW_PAGE = 20;
+const FOOTER_RESERVE = 22;
+const ROW_H = 5.5;
+const NOTE_LINE_H = 4;
+const PROV_LINE_H = 3.6;
 
 export async function generateBriefPdf(model) {
   const doc = new jsPDF();
@@ -47,8 +57,22 @@ export async function generateBriefPdf(model) {
   }
 
   // Sections
+  const textWidth = pageWidth - 2 * MARGIN;
   for (const section of model.sections) {
-    if (y > pageHeight - 50) break; // one-page brief by design
+    // Measure the section, then start a new page if it would run into the
+    // footer. A section taller than a whole page still starts at the top.
+    doc.setFontSize(8.5);
+    const noteLines = section.note ? doc.splitTextToSize(section.note, textWidth) : [];
+    doc.setFontSize(7.5);
+    const provLines = doc.splitTextToSize(section.provenance, textWidth);
+    const sectionH = 7
+      + Math.ceil(section.rows.length / 2) * ROW_H
+      + (section.note ? noteLines.length * NOTE_LINE_H + 2 : 0)
+      + provLines.length * PROV_LINE_H + 8;
+    if (y + sectionH > pageHeight - FOOTER_RESERVE && y > TOP_OF_NEW_PAGE) {
+      doc.addPage();
+      y = TOP_OF_NEW_PAGE;
+    }
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
@@ -70,25 +94,23 @@ export async function generateBriefPdf(model) {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 23, 42);
       doc.text(String(row[1]), x + colW - 6, y, { align: 'right' });
-      if (col === 1 || i === section.rows.length - 1) y += 5.5;
+      if (col === 1 || i === section.rows.length - 1) y += ROW_H;
     });
 
     if (section.note) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(51, 65, 85);
-      const noteLines = doc.splitTextToSize(section.note, pageWidth - 2 * MARGIN);
       doc.text(noteLines, MARGIN, y + 1);
-      y += noteLines.length * 4 + 2;
+      y += noteLines.length * NOTE_LINE_H + 2;
     }
 
     // Provenance line
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(7.5);
     doc.setTextColor(100, 116, 139);
-    const provLines = doc.splitTextToSize(section.provenance, pageWidth - 2 * MARGIN);
     doc.text(provLines, MARGIN, y + 1);
-    y += provLines.length * 3.6 + 8;
+    y += provLines.length * PROV_LINE_H + 8;
   }
 
   // Footer
