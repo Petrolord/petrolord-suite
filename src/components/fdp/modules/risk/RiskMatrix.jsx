@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RiskIntegrationService } from '@/services/fdp/RiskIntegrationService';
+import { getRiskLevel } from '@/data/fdp/RiskManagementModel';
 
 const RiskMatrix = ({ risks }) => {
     const matrixData = RiskIntegrationService.getMatrixData(risks);
@@ -9,16 +10,21 @@ const RiskMatrix = ({ risks }) => {
     const impacts = ['Negligible', 'Minor', 'Moderate', 'Major', 'Catastrophic'];
     const probabilities = ['Almost Certain', 'Likely', 'Possible', 'Unlikely', 'Rare']; // Rows top to bottom
 
+    // EC6-1: the cells are coloured on the register's scale (20 Critical,
+    // 12 High, 6 Medium). They used to colour on 15, 8 and 4, so the cell
+    // for a score of 12 was orange while the register called the same risk
+    // High and the HSE tab called it Medium.
+    const CELL_COLOUR = {
+        Critical: 'bg-red-600 hover:bg-red-500',
+        High: 'bg-orange-500 hover:bg-orange-400',
+        Medium: 'bg-yellow-500 hover:bg-yellow-400',
+        Low: 'bg-green-500 hover:bg-green-400',
+    };
+
     const getCellColor = (r, c) => {
-        // Standard risk matrix coloring
-        // r is row (0=Almost Certain, 4=Rare)
-        // c is col (0=Negligible, 4=Catastrophic)
-        // Calculation based on score roughly: (5-r) * (c+1)
-        const score = (5-r) * (c+1);
-        if (score >= 15) return 'bg-red-600 hover:bg-red-500';
-        if (score >= 8) return 'bg-orange-500 hover:bg-orange-400';
-        if (score >= 4) return 'bg-yellow-500 hover:bg-yellow-400';
-        return 'bg-green-500 hover:bg-green-400';
+        // r is row (0=Almost Certain, 4=Rare), c is col (0=Negligible)
+        const score = (5 - r) * (c + 1);
+        return CELL_COLOUR[getRiskLevel(score).level];
     };
 
     return (

@@ -30,6 +30,7 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
     ? evmPercent
     : parseFloat(reported);
   const spi = numberOrNull(kpis?.spi);
+  const completionRatio = numberOrNull(kpis?.completionRatio);
   const cpi = numberOrNull(kpis?.cpi);
   const ev = numberOrNull(kpis?.ev);
   const sv = numberOrNull(kpis?.sv);
@@ -37,8 +38,11 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
   const trendIcon = spi === null
     ? <Activity className="w-4 h-4 text-slate-500" />
     : (spi >= 1 ? <ArrowUpRight className="w-4 h-4 text-green-400" /> : <ArrowDownRight className="w-4 h-4 text-red-400" />);
+  // EC6-1: SPI is time-phased now, so it really does say early or late. When
+  // it cannot be computed the card says which of the two reasons applies
+  // rather than inventing a verdict.
   const trendText = spi === null
-    ? 'No cost-loaded tasks'
+    ? (kpis?.costed ? 'No planned dates' : 'No cost-loaded tasks')
     : (spi >= 1 ? 'Ahead/On Schedule' : 'Behind Schedule');
 
   return (
@@ -83,12 +87,11 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
                 <p className="text-xs text-slate-500">
                     SPI: {spi === null ? 'n/a' : spi.toFixed(2)} • Variance: {money(sv)}
                 </p>
-                {spi === null ? null : (
-                    <p className="text-[10px] text-slate-600 mt-1">
-                        Earned value over budget at completion, not time-phased: it measures progress,
-                        not early or late.
-                    </p>
-                )}
+                <p className="text-[10px] text-slate-600 mt-1">
+                    {spi === null
+                        ? (kpis?.spiBasis || 'Nothing to measure a schedule against yet.')
+                        : `Earned value over the budget due by today${completionRatio === null ? '' : `; ${Math.round(completionRatio * 100)}% of the whole budget is earned`}.`}
+                </p>
             </div>
           </div>
 

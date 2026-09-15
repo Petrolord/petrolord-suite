@@ -90,7 +90,7 @@ describe('calculateEconomics PSC carryforward (cross-engine with epe-engine Case
 });
 
 describe('calculateEconomics IRR guard', () => {
-  it('returns 0 when the cash flow never changes sign', () => {
+  it('reports no IRR, and why, when the cash flow never changes sign', () => {
     const { metrics } = calculateEconomics({
       startYear: 2030, projectLife: 2, discountRate: 10, fiscalType: 'TaxRoyalty',
       production: { oil: [1_000_000, 1_000_000], gas: [0, 0] },
@@ -98,7 +98,10 @@ describe('calculateEconomics IRR guard', () => {
       capex: [0, 0], opexFixed: [10, 10], opexVariable: [0, 0], abandonment: [0, 0],
       royaltyRate: 0, taxRate: 0,
     });
-    expect(metrics.irr).toBe(0);
+    // EC6-1: no sign change means no rate returns the money. It used to be
+    // reported as an IRR of 0, which reads as a real answer.
+    expect(metrics.irr).toBeNull();
+    expect(metrics.irrStatus).toBe('no-sign-change');
   });
 
   it('solves a known mid-year IRR', () => {

@@ -10,8 +10,16 @@ export class RiskIntegrationService {
         const consolidated = [];
 
         // 1. General Project Risks (from Risk Module directly)
+        // EC6-1: the Risk module reuses the HSE form, which saves the text as
+        // `mitigation`, while every register screen reads `mitigationStrategy`.
+        // Everything a user typed there showed as "-" and as "No preventative
+        // actions defined". Normalised here, in one place.
         if (fdpState.risks && Array.isArray(fdpState.risks)) {
-            consolidated.push(...fdpState.risks.map(r => ({ ...r, source: 'Risk Register' })));
+            consolidated.push(...fdpState.risks.map(r => ({
+                ...r,
+                mitigationStrategy: r.mitigationStrategy || r.mitigation || '',
+                source: r.source || 'Risk Register',
+            })));
         }
 
         // 2. HSE Risks

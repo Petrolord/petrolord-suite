@@ -24,6 +24,11 @@ const GUIDES = {
   'Decision Tree Builder': 'components/decisiontree/DecisionTreeHelpGuide.jsx',
   'Decision Studio': 'components/decisionstudio/DecisionStudioHelpGuide.jsx',
   'AFE Cost Control Manager': 'components/afe/AfeHelpGuide.jsx',
+  // EC6-1: this app shipped with no guide at all, which is how it came to be
+  // the one place a user could put invented figures into a document without
+  // being told.
+  'Technical Report Autopilot': 'components/reportautopilot/ReportAutopilotHelpGuide.jsx',
+  'FDP Accelerator': 'components/fdp/FdpHelpGuide.jsx',
 };
 
 // Phrases that pin a shipped behaviour into its guide.
@@ -119,6 +124,25 @@ const COVERAGE = {
     /operator carries 100 percent/i,
     /Integrations tab connects to nothing/i,
   ],
+  // EC6-1: the three things a user has to know before sending a generated
+  // report to anyone.
+  'Technical Report Autopilot': [
+    /written by an OpenAI model|written by a language model/i,
+    /Reported figures/,
+    /Check every figure/i,
+    /Max Pages/,
+    /no engineering calculation/i,
+  ],
+  // EC6-1: the FDP guide has to say where the economics come from and what
+  // the critical path is computed from.
+  'FDP Accelerator': [
+    /selected concept/i,
+    /selected scenario/i,
+    /list of what is missing/i,
+    /critical path method/i,
+    /float/i,
+    /Petroleum Economics Studio/i,
+  ],
 };
 
 // Claims that must not appear. These are the module's standing hazards: no
@@ -170,6 +194,16 @@ const FORBIDDEN = {
     /more work per pound/i,
     /live link to (PM Pro|the rig|a rig)/i,
   ],
+  // EC6-1: what this app must never claim.
+  'Technical Report Autopilot': [
+    /GPT-4/,
+    /verified against/i,
+    /reads your data/i,
+  ],
+  'FDP Accelerator': [
+    // The Economics tab no longer runs an illustrative profile silently.
+    /illustrative placeholders, not this project/i,
+  ],
 };
 
 const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
@@ -188,13 +222,19 @@ describe('Economics help guides', () => {
   });
 
   test.each(Object.entries(GUIDES))('%s guide is wired into its app', (name, relative) => {
-    // A guide nobody can open is not help. Every guide must be imported by a
-    // routed page; this catches the file that gets written and never mounted.
+    // A guide nobody can open is not help. Every guide must be imported by
+    // something other than itself; this catches the file that gets written
+    // and never mounted. EC6-1: the walk covers the whole tree, because the
+    // FDP guide is mounted from its studio's top navigation rather than
+    // directly from the routed page.
     const base = path.basename(relative, '.jsx');
-    const pages = fs.readdirSync(path.join(ROOT, 'pages/apps'))
-      .filter((f) => f.endsWith('.jsx'))
-      .map((f) => read(path.join('pages/apps', f)));
-    expect(pages.some((src) => src.includes(base))).toBe(true);
+    const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) return e.name === '__tests__' ? [] : walk(full);
+      return e.name.endsWith('.jsx') && full !== path.join(ROOT, relative) ? [full] : [];
+    });
+    const importers = walk(ROOT).filter((f) => fs.readFileSync(f, 'utf8').includes(base));
+    expect(importers.length).toBeGreaterThan(0);
   });
 
   test.each(Object.entries(COVERAGE))('%s guide documents its shipped surface', (name, patterns) => {
