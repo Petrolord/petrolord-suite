@@ -1,36 +1,20 @@
 import React from 'react';
+import NotTracked from '../NotTracked';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, Users, BarChart3 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 
 // --- KPI DASHBOARD ---
-export const BrownfieldKPIDashboard = () => {
-  const data = [
-      { name: 'Opportunity Value', value: 100, target: 100 },
-      { name: 'Design Maturity', value: 85, target: 90 },
-      { name: 'Construction Readiness', value: 60, target: 75 },
-      { name: 'Shutdown Window Adherence', value: 100, target: 100 },
-      { name: 'Cost Efficiency (CPI)', value: 0.98, target: 1.0 },
-      { name: 'Schedule Efficiency (SPI)', value: 0.95, target: 1.0 },
-  ];
-
-  return (
-    <Card className="bg-slate-900 border-slate-800">
-        <CardHeader><CardTitle className="text-sm text-slate-300 flex items-center gap-2"><BarChart3 className="w-4 h-4"/> Performance KPIs</CardTitle></CardHeader>
-        <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data} layout="vertical" margin={{left: 30, right: 30}}>
-                    <XAxis type="number" domain={[0, 1.2]} stroke="#64748b" fontSize={10} />
-                    <YAxis dataKey="name" type="category" width={140} stroke="#94a3b8" fontSize={10} />
-                    <Tooltip contentStyle={{backgroundColor: '#1e293b', border: 'none', color: '#fff'}} />
-                    <Bar dataKey="value" fill="#f97316" barSize={15} radius={[0, 4, 4, 0]} name="Actual" />
-                    <Bar dataKey="target" fill="#334155" barSize={5} radius={[0, 4, 4, 0]} name="Target" />
-                </BarChart>
-            </ResponsiveContainer>
-        </CardContent>
-    </Card>
-  );
-};
+export const BrownfieldKPIDashboard = () => (
+    /* EC6-0: this chart plotted a fixed set of scores written into the
+       source (Opportunity Value, Design Maturity, Construction Readiness, ...) against their targets, the same bars on every project of
+       this type. The studio records no measurement against these KPIs. */
+    <NotTracked
+        title="Performance KPIs"
+        icon={BarChart3}
+        tracks={['Opportunity Value', 'Design Maturity', 'Construction Readiness', 'Shutdown Window Adherence', 'Cost Efficiency (CPI)', 'Schedule Efficiency (SPI)']}
+    />
+);
 
 // --- RISK MANAGER ---
 export const BrownfieldRiskManager = ({ risks }) => {

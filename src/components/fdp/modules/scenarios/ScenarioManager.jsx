@@ -2,16 +2,93 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit2, Trash2, PlayCircle } from 'lucide-react';
-import { runScenario } from '@/utils/fdp/scenarioCalculations';
+import { Edit2, Trash2, AlertTriangle } from 'lucide-react';
+import { runScenario, conceptCapexMM } from '@/utils/fdp/scenarioCalculations';
 
+/**
+ * EC6-0. Two things were wrong with this card.
+ *
+ * The concept it looked up never matched when the scenario had been saved
+ * with the form's default: the form's initial conceptId is a string and a
+ * pick from the list stores a number, and the lookup used `===`. A card with
+ * no concept rendered nothing at all, silently.
+ *
+ * And the economics behind it ignored the concept's capex, because the
+ * engine read `concept.capex` and the concept form writes drillingCapex,
+ * facilitiesCapex and subseaCapex. Every card in the app was priced at the
+ * $100MM fallback: a $1,900MM concept showed NPV $3,507.6MM and IRR 676.4
+ * percent instead of $1,791.4MM and 30.0 percent. The engine now reads the
+ * fields the form writes and refuses a concept that carries no cost at all,
+ * which this card reports rather than swallowing.
+ */
 const ScenarioCard = ({ scenario, concept, onEdit, onDelete, onSelect, isSelected }) => {
-    if (!concept) return null; // Should not happen if data integrity is maintained
+    if (!concept) {
+        return (
+            <Card className="bg-slate-800 border border-amber-700/50">
+                <CardContent className="p-4 space-y-2">
+                    <div className="flex justify-between items-start">
+                        <h3 className="font-bold text-white">{scenario.name}</h3>
+                        <Badge className="bg-amber-700">No concept</Badge>
+                    </div>
+                    <p className="text-xs text-amber-200/80 flex items-start">
+                        <AlertTriangle className="w-3.5 h-3.5 mr-1.5 mt-0.5 shrink-0" />
+                        This scenario is linked to a concept that is no longer in the plan. Edit it and
+                        pick a concept to see its economics.
+                    </p>
+                    <div className="flex justify-end gap-1 pt-2 border-t border-slate-700">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" onClick={() => onEdit(scenario)}>
+                            <Edit2 className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-400" onClick={() => onDelete(scenario.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
 
-    // Economics E1: post royalty and tax, through the sanctioned engine.
-    const { metrics } = runScenario(scenario, concept);
+    let metrics = null;
+    let refusal = null;
+    try {
+        // Economics E1: post royalty and tax, through the sanctioned engine.
+        // EC6-0: on the concept's own capex.
+        ({ metrics } = runScenario(scenario, concept));
+    } catch (err) {
+        refusal = err.message;
+    }
+
+    if (refusal) {
+        return (
+            <Card className="bg-slate-800 border border-amber-700/50">
+                <CardContent className="p-4 space-y-2">
+                    <div className="flex justify-between items-start">
+                        <h3 className="font-bold text-white">{scenario.name}</h3>
+                        <Badge className="bg-amber-700">Incomplete</Badge>
+                    </div>
+                    <div className="text-xs text-slate-400">
+                        Linked Concept: <span className="text-slate-200">{concept.name}</span>
+                    </div>
+                    <p className="text-xs text-amber-200/80 flex items-start">
+                        <AlertTriangle className="w-3.5 h-3.5 mr-1.5 mt-0.5 shrink-0" />
+                        No economics for this scenario: {refusal}.
+                    </p>
+                    <div className="flex justify-end gap-1 pt-2 border-t border-slate-700">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-white" onClick={() => onEdit(scenario)}>
+                            <Edit2 className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-red-400" onClick={() => onDelete(scenario.id)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
     const npv = metrics.npv;
     const irr = metrics.irr;
+    const capex = conceptCapexMM(concept);
 
     return (
         <Card 
@@ -28,6 +105,7 @@ const ScenarioCard = ({ scenario, concept, onEdit, onDelete, onSelect, isSelecte
                 
                 <div className="text-xs text-slate-400 mb-4">
                     Linked Concept: <span className="text-slate-200">{concept.name}</span>
+                    <span className="text-slate-500"> (CAPEX ${capex.toFixed(0)}MM)</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs mb-4">
@@ -39,8 +117,8 @@ const ScenarioCard = ({ scenario, concept, onEdit, onDelete, onSelect, isSelecte
                     </div>
                     <div className="bg-slate-900 p-2 rounded text-center">
                         <div className="text-slate-500">IRR</div>
-                        <div className={`font-mono font-bold ${irr >= 15 ? 'text-green-400' : 'text-yellow-400'}`}>
-                            {irr.toFixed(1)}%
+                        <div className={`font-mono font-bold ${irr !== null && irr >= 15 ? 'text-green-400' : 'text-yellow-400'}`}>
+                            {irr === null ? 'n/a' : `${irr.toFixed(1)}%`}
                         </div>
                     </div>
                 </div>
@@ -79,7 +157,7 @@ const ScenarioManager = ({ scenarios, concepts, onEdit, onDelete, selectedId, on
                 <ScenarioCard 
                     key={scenario.id} 
                     scenario={scenario} 
-                    concept={concepts.find(c => c.id === scenario.conceptId)}
+                    concept={concepts.find(c => String(c.id) === String(scenario.conceptId))}
                     onEdit={onEdit} 
                     onDelete={onDelete}
                     isSelected={selectedId === scenario.id}

@@ -12,7 +12,11 @@ import { FEEDManagement, FacilitiesManagement, ProcurementManagement, Constructi
 const FieldDevelopmentProjectDashboard = ({ projectData, onDataChange }) => {
   const [activeTab, setActiveTab] = useState('overview');
 
-  const { tasks, risks, resources, deliverables = [], stage } = projectData;
+  const { tasks, rawTasks, risks, resources, deliverables = [], stage , kpis } = projectData;
+  // EC6-0: the stage and gate managers filter on task_category, which the
+  // Gantt reshape used to drop, so every stage read 0 percent and Pending
+  // for ever. They read the rows as they came from the database.
+  const stageTasks = rawTasks || tasks;
 
   return (
     <div className="flex flex-col h-full gap-6">
@@ -29,8 +33,11 @@ const FieldDevelopmentProjectDashboard = ({ projectData, onDataChange }) => {
             </Card>
             <Card className="bg-slate-900 border-slate-800 p-4 flex items-center justify-between">
                 <div>
-                    <p className="text-[10px] text-slate-500 uppercase font-bold">Concept</p>
-                    <p className="text-lg font-mono text-white truncate max-w-[150px]">Fixed Platform</p>
+                    {/* EC6-0: every field development project was labelled a
+                        Fixed Platform. The studio holds no concept for a PM
+                        project, so it shows the asset it does hold. */}
+                    <p className="text-[10px] text-slate-500 uppercase font-bold">Asset</p>
+                    <p className="text-lg font-mono text-white truncate max-w-[150px]">{projectData.asset || 'Unassigned'}</p>
                 </div>
                 <Flag className="w-6 h-6 text-purple-500 opacity-50" />
             </Card>
@@ -39,15 +46,21 @@ const FieldDevelopmentProjectDashboard = ({ projectData, onDataChange }) => {
                     <p className="text-[10px] text-slate-500 uppercase font-bold">Total Budget</p>
                     <p className="text-lg font-mono text-white">${(projectData.baseline_budget / 1000000).toFixed(1)}M</p>
                 </div>
+                {/* EC6-0: this read 0.95 in green on every field development
+                    project, whatever its costs said. */}
                 <div className="text-right">
                     <p className="text-[10px] text-slate-500">CPI</p>
-                    <p className="text-xs text-green-400">0.95</p>
+                    <p className={`text-xs ${typeof kpis?.cpi !== 'number' ? 'text-slate-400' : (kpis.cpi >= 1 ? 'text-green-400' : 'text-red-400')}`}>
+                        {typeof kpis?.cpi === 'number' ? kpis.cpi.toFixed(2) : 'No cost data'}
+                    </p>
                 </div>
             </Card>
             <Card className="bg-slate-900 border-slate-800 p-4 flex items-center justify-between">
                 <div>
-                    <p className="text-[10px] text-slate-500 uppercase font-bold">HSE Incidents</p>
-                    <p className="text-lg font-mono text-green-400">0 LTI</p>
+                    {/* EC6-0: "0 LTI" was a literal on every project; the studio
+                        records no HSE incidents. */}
+                    <p className="text-[10px] text-slate-500 uppercase font-bold">Open high risks</p>
+                    <p className="text-lg font-mono text-red-400">{risks.filter(r => (r.risk_score || 0) > 10).length}</p>
                 </div>
                 <AlertTriangle className="w-6 h-6 text-green-500 opacity-50" />
             </Card>
@@ -75,7 +88,7 @@ const FieldDevelopmentProjectDashboard = ({ projectData, onDataChange }) => {
             <TabsContent value="overview" className="h-full m-0 space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2">
-                        <FieldDevelopmentStageManager tasks={tasks} />
+                        <FieldDevelopmentStageManager tasks={stageTasks} />
                     </div>
                     <div>
                         <FieldDevelopmentKPIDashboard />
@@ -105,8 +118,8 @@ const FieldDevelopmentProjectDashboard = ({ projectData, onDataChange }) => {
             </TabsContent>
 
             <TabsContent value="gates" className="h-full m-0 space-y-6">
-                <FieldDevelopmentGateManager tasks={tasks} />
-                <FieldDevelopmentStageManager tasks={tasks} />
+                <FieldDevelopmentGateManager tasks={stageTasks} />
+                <FieldDevelopmentStageManager tasks={stageTasks} />
             </TabsContent>
 
             <TabsContent value="deliverables" className="h-full m-0">

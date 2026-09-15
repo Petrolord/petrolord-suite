@@ -33,7 +33,14 @@ const OverviewModule = () => {
                     <div className="flex justify-between items-start">
                         <div>
                             <p className="text-xs text-slate-400 font-medium uppercase">Est. NPV</p>
-                            <h3 className="text-2xl font-bold text-green-400 mt-1">{formatCurrency(state.economics.npv, 'USD', true)}</h3>
+                            {/* EC6-0: nothing wrote state.economics, so this tile read $0 in
+                                green on every plan. It now shows the plan's own screening NPV,
+                                and says so plainly when the plan cannot be costed yet. */}
+                            <h3 className={`text-2xl font-bold mt-1 ${state.economics.available === false ? 'text-slate-400 text-base' : (state.economics.npv >= 0 ? 'text-green-400' : 'text-red-400')}`}>
+                                {state.economics.available === false
+                                    ? 'Not costed yet'
+                                    : formatCurrency(state.economics.npv, 'USD', true)}
+                            </h3>
                         </div>
                         <div className="p-2 bg-green-500/10 rounded-lg">
                             <TrendingUp className="w-5 h-5 text-green-500" />

@@ -7,6 +7,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Trash2, Database } from 'lucide-react';
 import { aggregateReserves } from '@/utils/fdp/subsurfaceCalculations';
 
+/**
+ * EC6-0. The totals row used to reduce every row into one set of numbers
+ * whatever fluid it held: the example's 85 MMbbl of oil and 30 Bcf of gas
+ * came out as "Total (P50) 115", and the summary card called that 115 MMbbl
+ * of oil. It also added the P90 column, and a sum of P90s is not the P90 of
+ * the sum. There is now one totals row per fluid, each in its own unit.
+ */
+
 const ReservesTable = ({ reserves = [], onChange }) => {
     const addRow = () => {
         const newRow = { 
@@ -30,7 +38,13 @@ const ReservesTable = ({ reserves = [], onChange }) => {
         onChange(reserves.filter(r => r.id !== id));
     };
 
-    const totals = aggregateReserves(reserves);
+    let totals = null;
+    let totalsError = null;
+    try {
+        totals = aggregateReserves(reserves);
+    } catch (err) {
+        totalsError = err.message;
+    }
 
     return (
         <Card className="bg-slate-900 border-slate-800">
@@ -120,17 +134,30 @@ const ReservesTable = ({ reserves = [], onChange }) => {
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {/* Totals Row */}
-                            <TableRow className="bg-slate-800/30 font-bold border-t-2 border-slate-700">
-                                <TableCell colSpan={2} className="text-right text-slate-400">Total (P50):</TableCell>
-                                <TableCell className="text-right text-slate-400">{totals.p90.toFixed(1)}</TableCell>
-                                <TableCell className="text-right text-blue-400">{totals.p50.toFixed(1)}</TableCell>
-                                <TableCell className="text-right text-slate-400">{totals.p10.toFixed(1)}</TableCell>
-                                <TableCell colSpan={2}></TableCell>
-                            </TableRow>
+                            {/* Totals, one row per fluid */}
+                            {totals && totals.fluids.map((fluid) => {
+                                const t = totals.byFluid[fluid];
+                                return (
+                                    <TableRow key={fluid} className="bg-slate-800/30 font-bold border-t-2 border-slate-700">
+                                        <TableCell colSpan={2} className="text-right text-slate-400">
+                                            Total {fluid} ({t.units}):
+                                        </TableCell>
+                                        <TableCell className="text-right text-slate-400">{t.p90Sum.toFixed(1)}</TableCell>
+                                        <TableCell className="text-right text-blue-400">{t.p50Sum.toFixed(1)}</TableCell>
+                                        <TableCell className="text-right text-slate-400">{t.p10Sum.toFixed(1)}</TableCell>
+                                        <TableCell colSpan={2}></TableCell>
+                                    </TableRow>
+                                );
+                            })}
                         </TableBody>
                     </Table>
                 </div>
+                {totalsError ? (
+                    <p className="text-xs text-amber-300 mt-3">{totalsError}</p>
+                ) : null}
+                {totals && totals.fluids.length ? (
+                    <p className="text-xs text-slate-500 mt-3">{totals.percentileNote}</p>
+                ) : null}
             </CardContent>
         </Card>
     );

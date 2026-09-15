@@ -27,9 +27,11 @@ const CommunityOverview = ({ data }) => {
                 icon={Users} 
                 colorClass="bg-blue-500"
             />
+            {/* EC6-0: this read a literal 12 on every plan. It counts the
+                engagements the plan carries. */}
             <StatCard 
                 title="Engagements" 
-                value="12" // Mock for now or add to schema
+                value={Array.isArray(data?.engagements) ? data.engagements.length : 0}
                 icon={HeartHandshake} 
                 colorClass="bg-purple-500"
             />

@@ -38,6 +38,7 @@ const ProjectManagementPro = () => {
   const [issues, setIssues] = useState([]); 
   const [deliverables, setDeliverables] = useState([]);
   const [evm, setEvm] = useState(null);
+  const [evmError, setEvmError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const fetchProjects = useCallback(async () => {
@@ -88,8 +89,18 @@ const ProjectManagementPro = () => {
     setIssues(issuesData || []); 
     setDeliverables(deliverablesData || []);
       
-    const calculatedEvm = calculateEVM(tasksData || [], projectData.baseline_budget);
-    setEvm(calculatedEvm);
+    // EC6-0: calculateEVM used to take a baselineBudget it never read, and to
+    // return its figures as strings. It takes the tasks and returns numbers,
+    // and it refuses a cost or a percentage it cannot read rather than
+    // counting it as zero, so the refusal is surfaced instead of swallowed.
+    try {
+      setEvm(calculateEVM(tasksData || []));
+      setEvmError(null);
+    } catch (err) {
+      setEvm(null);
+      setEvmError(err.message);
+      toast({ variant: 'destructive', title: 'Earned value not computed', description: err.message });
+    }
 
     setLoading(false);
   }, [toast]);
@@ -127,7 +138,10 @@ const ProjectManagementPro = () => {
   };
 
   const commonProps = {
-      projectData: { ...activeProject, tasks: formatTasksForGantt(tasks, activeProject), kpis: evm, resources, risks, issues, deliverables },
+      // EC6-0: rawTasks reaches every dashboard, not only the default one.
+      // The stage managers filter on task_category, which the Gantt reshape
+      // used to drop, so every stage read 0 percent and Pending for ever.
+      projectData: { ...activeProject, tasks: formatTasksForGantt(tasks, activeProject), rawTasks: tasks, kpis: evm, evmError, resources, risks, issues, deliverables },
       onDataChange: refreshProjectData
   };
 
@@ -143,7 +157,7 @@ const ProjectManagementPro = () => {
           case 'Optimization': return <OptimizationProjectDashboard {...commonProps} />;
           case 'Workover': return <WorkoverProjectDashboard {...commonProps} />;
           case 'R&D': return <RandDProjectDashboard {...commonProps} />;
-          default: return <ProjectDashboard projectData={{ ...activeProject, tasks: formatTasksForGantt(tasks, activeProject), kpis: evm, rawTasks: tasks, resources, risks, issues }} onDataChange={refreshProjectData} />;
+          default: return <ProjectDashboard {...commonProps} />;
       }
   };
 

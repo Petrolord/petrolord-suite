@@ -30,13 +30,16 @@ const PortfolioAnalyticsDashboard = ({ projects }) => {
             const { data: resData } = await supabase.from('pm_resources').select('*').in('project_id', projectIds);
             setResources(resData || []);
 
-            // Mock financial data or fetch from actual_cost table if it exists
-            // For now, using projects metadata
-            setFinancials(projects.map(p => ({ 
-                project_id: p.id, 
-                actual_cost: p.actual_cost || 0, 
-                planned_value: p.planned_value || 0 
-            })));
+            // EC6-0: the portfolio cost charts used to run on a six month series
+            // written into the source and a Math.random variance per project.
+            // The progress updates people file are the only time-phased cost
+            // data the studio holds, so that is what they read.
+            const { data: updateData } = await supabase
+                .from('project_updates')
+                .select('project_id, report_date, planned_value, earned_value, actual_cost')
+                .in('project_id', projectIds)
+                .order('report_date', { ascending: true });
+            setFinancials(updateData || []);
         };
 
         fetchDeepData();

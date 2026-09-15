@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useFDP } from '@/contexts/FDPContext';
 import { Button } from '@/components/ui/button';
 import { Plus, Download, Upload, LayoutList, GanttChart as GanttIcon } from 'lucide-react';
@@ -18,12 +18,16 @@ import { exampleSchedule, EXAMPLE_LABEL } from '@/services/fdp/exampleData';
 import ProjectSchedule from './schedule/ProjectSchedule';
 import GanttChart from './schedule/GanttChart';
 import ScheduleForm from './schedule/ScheduleForm';
+import CriticalPath from './schedule/CriticalPath';
+import { scheduleAnalysis } from '@/utils/fdp/scheduleNetwork';
 
 const ScheduleModule = () => {
     const { state, actions } = useFDP();
     const { activities } = state.schedule;
     const { toast } = useToast();
     
+    const analysis = useMemo(() => scheduleAnalysis(activities), [activities]);
+
     const [view, setView] = useState('gantt'); // gantt, list, form
     const [editingActivity, setEditingActivity] = useState(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -112,6 +116,7 @@ const ScheduleModule = () => {
             {view === 'form' ? (
                 <ScheduleForm 
                     initialData={editingActivity}
+                    activities={activities}
                     onSave={handleSave}
                     onCancel={() => setView('list')}
                 />
@@ -123,9 +128,14 @@ const ScheduleModule = () => {
                         </CollapsibleSection>
                     )}
 
+                    <CollapsibleSection title="Critical Path" defaultOpen>
+                        <CriticalPath analysis={analysis} />
+                    </CollapsibleSection>
+
                     <CollapsibleSection title="Activity List" defaultOpen={view === 'list'}>
                         <ProjectSchedule 
                             activities={activities}
+                            analysis={analysis}
                             onEdit={handleEdit}
                             onDelete={handleDeleteClick}
                         />

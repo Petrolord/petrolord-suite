@@ -5,11 +5,14 @@
 import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable';
 import { formatCurrency, formatNumber } from '@/utils/fdp/formatting';
+import { planReservesP50 } from '@/utils/fdp/fdpCalculations';
+import { computePlanEconomics } from '@/utils/fdp/planEconomics';
 
 export class FDPExportService {
     static async generatePDF(state, meta) {
         const doc = new jsPDF();
         const title = state.meta?.name || "Field Development Plan";
+        const economics = computePlanEconomics(state);
         
         // Cover Page
         doc.setFontSize(24);
@@ -40,10 +43,20 @@ export class FDPExportService {
             startY: 60,
             head: [['Key Metric', 'Value', 'Unit']],
             body: [
-                ['P50 Reserves', formatNumber(state.subsurface?.reserves?.p50), 'MMbbl'],
-                ['Total CAPEX', formatCurrency(state.economics?.capex, 'USD'), 'MM$'],
-                ['NPV @ 10%', formatCurrency(state.economics?.npv, 'USD'), 'MM$'],
-                ['IRR', formatNumber(state.economics?.irr), '%'],
+                // EC6-0: reserves per fluid from the table, and the economics
+                // from the plan's own screening case. This table used to read
+                // `reserves.p50` (never written) and `state.economics` (never
+                // written either), so every exported plan printed P50
+                // undefined, CAPEX $0, NPV $0 and IRR 0.00.
+                ['P50 Reserves (oil)', formatNumber(planReservesP50(state)), 'MMbbl'],
+                ['P50 Reserves (gas)', formatNumber(planReservesP50(state, 'Gas')), 'Bcf'],
+                ['Total CAPEX', formatCurrency(economics.inputs.capexMM, 'USD'), 'MM$'],
+                economics.available
+                    ? [`NPV @ ${economics.basis.discountRate}%`, formatCurrency(economics.metrics.npv, 'USD'), 'MM$']
+                    : ['NPV', `Not available: the plan is missing ${economics.missing.join(', ')}`, ''],
+                economics.available
+                    ? ['IRR', economics.metrics.irr === null ? 'n/a' : formatNumber(economics.metrics.irr), '%']
+                    : ['IRR', 'Not available', ''],
                 ['First Oil', state.fieldData?.dates?.firstOil || 'TBD', 'Date'],
                 ['Well Count', state.wells?.list?.length || 0, 'Wells'],
             ],

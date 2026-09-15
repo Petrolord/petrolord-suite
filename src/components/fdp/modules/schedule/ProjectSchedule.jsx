@@ -5,7 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Edit2, Trash2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-const ProjectSchedule = ({ activities, onEdit, onDelete, onDuplicate }) => {
+const ProjectSchedule = ({ activities, analysis, onEdit, onDelete, onDuplicate }) => {
+    // EC6-0: float and criticality come from the real critical path method.
+    const cpmById = new Map((analysis?.activities || []).map((a) => [a.id, a]));
     if (!activities || activities.length === 0) {
         return (
             <div className="text-center py-8 text-slate-500">
@@ -26,6 +28,7 @@ const ProjectSchedule = ({ activities, onEdit, onDelete, onDuplicate }) => {
                                 <TableHead className="text-slate-300">Start Date</TableHead>
                                 <TableHead className="text-slate-300">End Date</TableHead>
                                 <TableHead className="text-slate-300">Duration</TableHead>
+                                <TableHead className="text-slate-300">Float</TableHead>
                                 <TableHead className="text-slate-300">Progress</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -42,6 +45,17 @@ const ProjectSchedule = ({ activities, onEdit, onDelete, onDuplicate }) => {
                                     <TableCell className="text-slate-300 text-sm">{item.start}</TableCell>
                                     <TableCell className="text-slate-300 text-sm">{item.end}</TableCell>
                                     <TableCell className="text-slate-300">{item.duration}d</TableCell>
+                                    <TableCell>
+                                        {cpmById.has(item.id) ? (
+                                            cpmById.get(item.id).isCritical ? (
+                                                <Badge className="bg-red-700">Critical</Badge>
+                                            ) : (
+                                                <span className="text-xs text-slate-400">{cpmById.get(item.id).float}d</span>
+                                            )
+                                        ) : (
+                                            <span className="text-xs text-slate-600">-</span>
+                                        )}
+                                    </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
                                             <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
