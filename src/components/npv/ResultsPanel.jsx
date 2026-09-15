@@ -20,7 +20,17 @@ const ResultsPanel = ({ results }) => {
   const { metrics, cashflow, sensitivity, risk, scenarios } = results;
 
   const formatCurrency = (val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(val);
-  const formatPct = (val) => `${val.toFixed(1)}%`;
+  // EC6-1: the screening engine reports no internal rate of return when
+  // there is none to report (every period the same sign, several roots, or a
+  // rate above the band it searches), where it used to return the 1000
+  // percent clamp or a flat 0. A missing figure prints as what it is.
+  const formatPct = (val) => (typeof val === 'number' && Number.isFinite(val) ? `${val.toFixed(1)}%` : 'n/a');
+  const IRR_REASON = {
+    'no-sign-change': 'no IRR: the cash flow never changes sign',
+    'no-root': 'no IRR: the value is negative at every rate',
+    'above-clamp': 'the IRR is above 1000 percent, beyond the range this engine searches',
+    'multiple-roots': 'more than one rate zeroes this cash flow, so no single IRR describes it',
+  };
 
   // --- Export Functions ---
   const exportExcel = () => {
@@ -30,7 +40,7 @@ const ResultsPanel = ({ results }) => {
       const summaryData = [
           ['Metric', 'Value'],
           ['NPV @ 10%', metrics.npv],
-          ['IRR', metrics.irr],
+          ['IRR', metrics.irr === null ? (IRR_REASON[metrics.irrStatus] || 'not defined') : metrics.irr],
           ['Payback', metrics.payback],
           ['Max Exposure', metrics.maxExposure],
           ['Total Revenue', metrics.totalRevenue],
@@ -69,7 +79,9 @@ const ResultsPanel = ({ results }) => {
           head: [['Metric', 'Value', 'Unit']],
           body: [
               ['Net Present Value (NPV)', formatCurrency(metrics.npv), '$'],
-              ['Internal Rate of Return (IRR)', metrics.irr.toFixed(1), '%'],
+              ['Internal Rate of Return (IRR)',
+                metrics.irr === null ? (IRR_REASON[metrics.irrStatus] || 'not defined') : metrics.irr.toFixed(1),
+                metrics.irr === null ? '' : '%'],
               ['Payback Period', metrics.payback.toFixed(1), 'Years'],
               ['Total CAPEX', formatCurrency(metrics.totalCapex), '$']
           ],
@@ -94,7 +106,11 @@ const ResultsPanel = ({ results }) => {
 
   const getKPICardColor = (metric, value) => {
       if (metric === 'NPV') return value > 0 ? 'text-green-400' : 'text-red-400';
-      if (metric === 'IRR') return value > 15 ? 'text-green-400' : value > 10 ? 'text-amber-400' : 'text-red-400';
+      // EC6-1: no rate is not a red rate; it is no rate.
+      if (metric === 'IRR') {
+        if (typeof value !== 'number' || !Number.isFinite(value)) return 'text-slate-400';
+        return value > 15 ? 'text-green-400' : value > 10 ? 'text-amber-400' : 'text-red-400';
+      }
       return 'text-white';
   };
 
@@ -134,6 +150,9 @@ const ResultsPanel = ({ results }) => {
                     <Card className="bg-slate-900 border-slate-800 p-4">
                         <p className="text-xs text-slate-500 uppercase font-semibold">Internal Rate of Return</p>
                         <p className={`text-2xl font-bold ${getKPICardColor('IRR', metrics.irr)}`}>{formatPct(metrics.irr)}</p>
+                        {metrics.irr === null && IRR_REASON[metrics.irrStatus] ? (
+                          <p className="text-[11px] text-slate-500 mt-1">{IRR_REASON[metrics.irrStatus]}</p>
+                        ) : null}
                     </Card>
                     <Card className="bg-slate-900 border-slate-800 p-4">
                         <p className="text-xs text-slate-500 uppercase font-semibold">Payback Period</p>
@@ -213,7 +232,7 @@ const ResultsPanel = ({ results }) => {
                                         {[
                                             { label: 'NPV ($MM)', key: 'npv', format: (v) => formatCurrency(v) },
                                             { label: 'IRR (%)', key: 'irr', format: (v) => formatPct(v) },
-                                            { label: 'Payback (Yrs)', key: 'payback', format: (v) => v.toFixed(1) },
+                                            { label: 'Payback (Yrs)', key: 'payback', format: (v) => (typeof v === 'number' ? v.toFixed(1) : 'n/a') },
                                             { label: 'Max Exposure ($MM)', key: 'maxExposure', format: (v) => formatCurrency(Math.abs(v)) }
                                         ].map(m => (
                                             <TableRow key={m.key} className="border-b-slate-800">
@@ -223,7 +242,13 @@ const ResultsPanel = ({ results }) => {
                                                 <TableCell className="text-right font-mono text-slate-400">{m.format(scenarios.High.metrics[m.key])}</TableCell>
                                                 <TableCell className="text-right font-mono">
                                                     {(() => {
-                                                        const diff = scenarios.High.metrics[m.key] - scenarios.Base.metrics[m.key];
+                                                        const high = scenarios.High.metrics[m.key];
+                                                        const base = scenarios.Base.metrics[m.key];
+                                                        // EC6-1: a difference needs two numbers.
+                                                        if (typeof high !== 'number' || typeof base !== 'number') {
+                                                          return <span className="text-slate-500">n/a</span>;
+                                                        }
+                                                        const diff = high - base;
                                                         const color = m.key === 'payback' || m.key === 'maxExposure' ? (diff < 0 ? 'text-green-400' : 'text-red-400') : (diff > 0 ? 'text-green-400' : 'text-red-400');
                                                         return <span className={color}>{diff > 0 ? '+' : ''}{m.key === 'irr' ? diff.toFixed(1)+'%' : m.key === 'payback' ? diff.toFixed(1) : formatCurrency(diff)}</span>;
                                                     })()}

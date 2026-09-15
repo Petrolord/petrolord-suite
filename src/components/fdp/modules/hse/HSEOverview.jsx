@@ -28,10 +28,13 @@ const HSEOverview = ({ data }) => {
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* EC6-1: the register's own bands. This tile banded on 15 and 8
+                with no Critical band at all, so a hazard scored 12 was Medium
+                here and High on the register. */}
             <StatCard 
                 title="High Risks" 
-                value={matrix.high} 
-                subtitle={`${matrix.total} total identified`}
+                value={matrix.critical + matrix.high} 
+                subtitle={`${matrix.critical} critical, ${matrix.total} identified${matrix.unscored ? `, ${matrix.unscored} unscored` : ''}`}
                 icon={AlertTriangle}
                 colorClass="bg-red-500"
             />

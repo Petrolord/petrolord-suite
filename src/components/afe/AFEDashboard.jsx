@@ -121,6 +121,23 @@ const AFEDashboard = ({ afe, costItems, invoices }) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* EC6-1: an invoice with no date used to be placed on the S-curve at
+          the first of January 1970, so it counted in every bucket and
+          inflated the actual spend from day one of the AFE. Those invoices
+          are off the curve now, and the dashboard asks for their dates
+          rather than quietly leaving the money out. */}
+      {metrics.undatedInvoices > 0 ? (
+        <div role="status" className="flex items-start gap-2 rounded border border-amber-800 bg-amber-950/40 p-3 text-sm text-amber-100">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-amber-400" />
+          <span>
+            {metrics.undatedInvoices} invoice{metrics.undatedInvoices === 1 ? ' has' : 's have'} no
+            date, so {metrics.undatedInvoices === 1 ? 'it is' : 'they are'} not on the S-curve.
+            Date {metrics.undatedInvoices === 1 ? 'it' : 'them'} on the Invoices tab to see the
+            spend in the right month.
+          </span>
+        </div>
+      ) : null}
+
       {/* Row 1: Top KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <KPICard 

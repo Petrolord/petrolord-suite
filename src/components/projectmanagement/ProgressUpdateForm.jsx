@@ -138,6 +138,10 @@ const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }
                     <div className={`text-lg font-mono ${typeof kpis?.spi !== 'number' ? 'text-slate-400' : (kpis.spi < 1 ? 'text-red-400' : 'text-green-400')}`}>
                         {typeof kpis?.spi === 'number' ? kpis.spi.toFixed(2) : 'n/a'}
                     </div>
+                    {/* EC6-1: planned value is time-phased to today, so this
+                        index says early or late. When it cannot be computed the
+                        engine says why. */}
+                    <p className="text-[10px] text-slate-600 mt-1">{kpis?.spiBasis || ''}</p>
                 </div>
             </div>
 

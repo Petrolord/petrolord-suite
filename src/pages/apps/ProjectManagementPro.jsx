@@ -22,6 +22,16 @@ import {
 import EmptyState from '@/components/projectmanagement/EmptyState';
 import { calculateEVM, formatTasksForGantt } from '@/utils/projectManagementCalculations';
 
+/** Today as a local calendar date, the as-of date the dashboard measures to. */
+const todayIsoDate = () => {
+  const now = new Date();
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('-');
+};
+
 const ProjectManagementPro = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -93,8 +103,12 @@ const ProjectManagementPro = () => {
     // return its figures as strings. It takes the tasks and returns numbers,
     // and it refuses a cost or a percentage it cannot read rather than
     // counting it as zero, so the refusal is surfaced instead of swallowed.
+    // EC6-1: planned value is time-phased to a stated as-of date. Today is
+    // what a dashboard means, and it is passed rather than read from the
+    // clock inside the engine, so the figure on screen and the figure in a
+    // saved progress update are the same measurement.
     try {
-      setEvm(calculateEVM(tasksData || []));
+      setEvm(calculateEVM(tasksData || [], { asOf: todayIsoDate() }));
       setEvmError(null);
     } catch (err) {
       setEvm(null);
