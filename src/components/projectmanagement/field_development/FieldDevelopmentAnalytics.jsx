@@ -1,36 +1,20 @@
 import React from 'react';
+import NotTracked from '../NotTracked';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, Users, BarChart3 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 
 // --- KPI DASHBOARD ---
-export const FieldDevelopmentKPIDashboard = () => {
-  const data = [
-      { name: 'FEED Completeness', value: 100, target: 100 },
-      { name: 'Engineering Progress', value: 45, target: 50 },
-      { name: 'Procurement Status', value: 30, target: 35 },
-      { name: 'Construction Safety', value: 98, target: 100 },
-      { name: 'Cost Performance (CPI)', value: 95, target: 100 },
-      { name: 'Schedule Adherence (SPI)', value: 92, target: 100 },
-  ];
-
-  return (
-    <Card className="bg-slate-900 border-slate-800">
-        <CardHeader><CardTitle className="text-sm text-slate-300 flex items-center gap-2"><BarChart3 className="w-4 h-4"/> Project KPIs</CardTitle></CardHeader>
-        <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data} layout="vertical" margin={{left: 30, right: 30}}>
-                    <XAxis type="number" domain={[0, 100]} stroke="#64748b" fontSize={10} />
-                    <YAxis dataKey="name" type="category" width={130} stroke="#94a3b8" fontSize={10} />
-                    <Tooltip contentStyle={{backgroundColor: '#1e293b', border: 'none', color: '#fff'}} />
-                    <Bar dataKey="value" fill="#06b6d4" barSize={15} radius={[0, 4, 4, 0]} name="Actual" />
-                    <Bar dataKey="target" fill="#334155" barSize={5} radius={[0, 4, 4, 0]} name="Target" />
-                </BarChart>
-            </ResponsiveContainer>
-        </CardContent>
-    </Card>
-  );
-};
+export const FieldDevelopmentKPIDashboard = () => (
+    /* EC6-0: this chart plotted a fixed set of scores written into the
+       source (FEED Completeness, Engineering Progress, Procurement Status, ...) against their targets, the same bars on every project of
+       this type. The studio records no measurement against these KPIs. */
+    <NotTracked
+        title="Project KPIs"
+        icon={BarChart3}
+        tracks={['FEED Completeness', 'Engineering Progress', 'Procurement Status', 'Construction Safety', 'Cost Performance (CPI)', 'Schedule Adherence (SPI)']}
+    />
+);
 
 // --- RISK MANAGER ---
 export const FieldDevelopmentRiskManager = ({ risks }) => {

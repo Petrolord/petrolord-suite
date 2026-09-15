@@ -13,12 +13,33 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
   };
 
   const currentStatus = latestUpdate?.status || 'Green'; // Default to Green if no updates
-  const percentComplete = latestUpdate?.percent_complete ?? kpis?.percentCompleteRaw ?? 0;
-  
-  // Determine trend based on SPI (Schedule Performance Index)
-  const spi = parseFloat(kpis?.spi || 1);
-  const trendIcon = spi >= 1 ? <ArrowUpRight className="w-4 h-4 text-green-400" /> : <ArrowDownRight className="w-4 h-4 text-red-400" />;
-  const trendText = spi >= 1 ? "Ahead/On Schedule" : "Behind Schedule";
+
+  /**
+   * EC6-0. Earned value came back from the engine as toFixed(2) STRINGS and
+   * this card read them with `|| 1` fallbacks, so "0.00" became 0 and a
+   * project with no task costs at all was reported as "NaN% Complete" and
+   * "Behind Schedule". Earned value itself always printed $0, because the
+   * card read `kpis.ev`, a key the engine never returned. The engine now
+   * returns numbers, and null wherever an index has no denominator, so the
+   * card can say "no cost data" instead of inventing a verdict.
+   */
+  const numberOrNull = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+  const evmPercent = numberOrNull(kpis?.percentComplete);
+  const reported = latestUpdate?.percent_complete;
+  const percentComplete = (reported === null || reported === undefined)
+    ? evmPercent
+    : parseFloat(reported);
+  const spi = numberOrNull(kpis?.spi);
+  const cpi = numberOrNull(kpis?.cpi);
+  const ev = numberOrNull(kpis?.ev);
+  const sv = numberOrNull(kpis?.sv);
+  const money = (v) => (v === null ? 'No cost data' : `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`);
+  const trendIcon = spi === null
+    ? <Activity className="w-4 h-4 text-slate-500" />
+    : (spi >= 1 ? <ArrowUpRight className="w-4 h-4 text-green-400" /> : <ArrowDownRight className="w-4 h-4 text-red-400" />);
+  const trendText = spi === null
+    ? 'No cost-loaded tasks'
+    : (spi >= 1 ? 'Ahead/On Schedule' : 'Behind Schedule');
 
   return (
     <Card className="bg-slate-900 border-slate-800 mb-4 shadow-lg">
@@ -35,11 +56,15 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
             </div>
             <div className="mt-1">
                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold text-white">{Math.round(percentComplete)}%</span>
-                  <span className="text-sm text-slate-500">Complete</span>
+                  <span className="text-3xl font-bold text-white">
+                    {percentComplete === null || Number.isNaN(percentComplete) ? 'Not measured' : `${Math.round(percentComplete)}%`}
+                  </span>
+                  <span className="text-sm text-slate-500">
+                    {percentComplete === null || Number.isNaN(percentComplete) ? '' : 'Complete'}
+                  </span>
                </div>
                <div className="w-full bg-slate-800 h-1.5 mt-2 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500" style={{ width: `${Math.min(percentComplete, 100)}%` }} />
+                  <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500" style={{ width: `${Math.min(percentComplete || 0, 100)}%` }} />
                </div>
             </div>
           </div>
@@ -53,9 +78,17 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
             <div>
                 <div className="flex items-center gap-2 mb-1">
                     {trendIcon}
-                    <span className={`text-lg font-semibold ${spi >= 1 ? 'text-green-400' : 'text-red-400'}`}>{trendText}</span>
+                    <span className={`text-lg font-semibold ${spi === null ? 'text-slate-400' : (spi >= 1 ? 'text-green-400' : 'text-red-400')}`}>{trendText}</span>
                 </div>
-                <p className="text-xs text-slate-500">SPI: {spi} • Variance: {kpis?.sv || '$0'}</p>
+                <p className="text-xs text-slate-500">
+                    SPI: {spi === null ? 'n/a' : spi.toFixed(2)} • Variance: {money(sv)}
+                </p>
+                {spi === null ? null : (
+                    <p className="text-[10px] text-slate-600 mt-1">
+                        Earned value over budget at completion, not time-phased: it measures progress,
+                        not early or late.
+                    </p>
+                )}
             </div>
           </div>
 
@@ -66,11 +99,11 @@ const SnapshotCard = ({ project, latestUpdate, kpis, riskCount }) => {
               <TrendingUp className="w-4 h-4 text-lime-400" />
             </div>
             <div>
-                <div className="text-lg font-semibold text-white">{kpis?.ev || '$0'}</div>
+                <div className="text-lg font-semibold text-white">{money(ev)}</div>
                 <p className="text-xs text-slate-500">Earned Value (EV)</p>
                 <div className="mt-1 text-xs">
-                    <span className={parseFloat(kpis?.cpi) >= 1 ? 'text-green-400' : 'text-red-400'}>
-                        CPI: {kpis?.cpi || '1.0'}
+                    <span className={cpi === null ? 'text-slate-400' : (cpi >= 1 ? 'text-green-400' : 'text-red-400')}>
+                        CPI: {cpi === null ? 'n/a, no actual cost booked' : cpi.toFixed(2)}
                     </span>
                 </div>
             </div>

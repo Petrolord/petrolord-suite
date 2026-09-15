@@ -1,35 +1,20 @@
 import React from 'react';
+import NotTracked from '../NotTracked';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, Users, BarChart3, TrendingUp } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 
 // --- KPI DASHBOARD ---
-export const ExplorationKPIDashboard = ({ kpis }) => {
-  // Mock data if no real KPIs
-  const data = kpis || [
-      { name: 'Seismic Quality', value: 85, target: 90 },
-      { name: 'Model Accuracy', value: 78, target: 85 },
-      { name: 'Schedule Adherence', value: 92, target: 100 },
-      { name: 'Budget Adherence', value: 95, target: 100 },
-  ];
-
-  return (
-    <Card className="bg-slate-900 border-slate-800">
-        <CardHeader><CardTitle className="text-sm text-slate-300 flex items-center gap-2"><BarChart3 className="w-4 h-4"/> Performance KPIs</CardTitle></CardHeader>
-        <CardContent className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data} layout="vertical" margin={{left: 20}}>
-                    <XAxis type="number" domain={[0, 100]} stroke="#64748b" fontSize={10} />
-                    <YAxis dataKey="name" type="category" width={100} stroke="#94a3b8" fontSize={10} />
-                    <Tooltip contentStyle={{backgroundColor: '#1e293b', border: 'none', color: '#fff'}} />
-                    <Bar dataKey="value" fill="#3b82f6" barSize={15} radius={[0, 4, 4, 0]} name="Actual" />
-                    <Bar dataKey="target" fill="#64748b" barSize={5} radius={[0, 4, 4, 0]} name="Target" />
-                </BarChart>
-            </ResponsiveContainer>
-        </CardContent>
-    </Card>
-  );
-};
+export const ExplorationKPIDashboard = () => (
+    /* EC6-0: this chart plotted a fixed set of scores written into the
+       source (Seismic Quality, Model Accuracy, Schedule Adherence, ...) against their targets, the same bars on every project of
+       this type. The studio records no measurement against these KPIs. */
+    <NotTracked
+        title="Performance KPIs"
+        icon={BarChart3}
+        tracks={['Seismic Quality', 'Model Accuracy', 'Schedule Adherence', 'Budget Adherence']}
+    />
+);
 
 // --- RISK MANAGER ---
 export const ExplorationRiskManager = ({ risks }) => {

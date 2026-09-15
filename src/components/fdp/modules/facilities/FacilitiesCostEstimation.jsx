@@ -36,45 +36,33 @@ const FacilitiesCostEstimation = ({ facility }) => {
                 </Card>
             </div>
 
+            {/* EC6-0: this breakdown was three literal bars, 35 / 45 / 20
+                percent, printed for every facility type including onshore
+                plants and subsea tie-backs, against an estimate nobody had
+                split that way. A split the studio does not compute is not
+                shown. */}
             <Card className="bg-slate-900 border-slate-800">
                 <CardHeader>
                     <CardTitle className="text-sm font-medium text-white flex items-center">
                         <DollarSign className="w-4 h-4 mr-2 text-green-500" />
-                        Cost Breakdown
+                        What is in this estimate
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-3">
-                        <div className="space-y-1">
-                            <div className="flex justify-between text-xs text-slate-300">
-                                <span>Hull / Structure</span>
-                                <span>35%</span>
-                            </div>
-                            <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                                <div className="bg-slate-500 h-full" style={{ width: '35%' }} />
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <div className="flex justify-between text-xs text-slate-300">
-                                <span>Topsides / Processing</span>
-                                <span>45%</span>
-                            </div>
-                            <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                                <div className="bg-slate-400 h-full" style={{ width: '45%' }} />
-                            </div>
-                        </div>
-                        <div className="space-y-1">
-                            <div className="flex justify-between text-xs text-slate-300">
-                                <span>Mooring / Installation</span>
-                                <span>20%</span>
-                            </div>
-                            <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                                <div className="bg-slate-600 h-full" style={{ width: '20%' }} />
-                            </div>
-                        </div>
-                    </div>
+                    <p className="text-sm text-slate-300">
+                        A class 5 screening figure from the facility type and its nameplate: a base
+                        cost for the type, scaled by size to the power 0.7 for capex and 0.6 for
+                        opex, with decommissioning at 15 percent of the base. There is no
+                        hull-and-topsides split behind it, so none is drawn.
+                    </p>
+                    <p className="text-xs text-slate-500 mt-3">
+                        The facility list shows the capex you entered; this card shows what the
+                        screening estimate makes of the same facility. They are two different
+                        numbers and they are meant to be compared.
+                    </p>
                 </CardContent>
             </Card>
+
         </div>
     );
 };

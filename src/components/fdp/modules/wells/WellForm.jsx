@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Hammer as Drill, Save, X } from 'lucide-react';
 import { calculateDrillingTime, calculateDrillingCost } from '@/utils/fdp/wellCalculations';
 
-const WellForm = ({ initialData, onSave, onCancel }) => {
+const WellForm = ({ initialData, onSave, onCancel, rigRate = 250000 }) => {
     const [formData, setFormData] = useState({
         id: Date.now(),
         name: '',
@@ -25,10 +25,12 @@ const WellForm = ({ initialData, onSave, onCancel }) => {
     useEffect(() => {
         if (formData.md > 0) {
             const days = calculateDrillingTime(formData.md, formData.trajectory);
-            const cost = calculateDrillingCost(days, 250000); // Assume $250k rig rate for estimation
+            // EC6-0: the plan carries a rig rate (wells.rigRate) and this form
+            // ignored it, pricing every well at a hardcoded $250,000 a day.
+            const cost = calculateDrillingCost(days, rigRate);
             setFormData(prev => ({ ...prev, days, cost }));
         }
-    }, [formData.md, formData.trajectory]);
+    }, [formData.md, formData.trajectory, rigRate]);
 
     useEffect(() => {
         if (initialData) {

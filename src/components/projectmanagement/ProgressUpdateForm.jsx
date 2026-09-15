@@ -23,11 +23,17 @@ const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }
   // Initialize form with calculated KPIs when opened
   useEffect(() => {
     if (open && kpis) {
-      // Convert string "45%" to number 45
-      const rawPercent = parseFloat(kpis.percentComplete?.replace('%', '') || 0);
-      setPercentComplete(rawPercent);
+      // EC6-0: the engine returns numbers now (it used to return strings, and
+      // this called .replace on them). A project with no cost-loaded tasks has
+      // no earned-value percentage at all, so the field starts empty rather
+      // than at a made-up zero.
+      setPercentComplete(typeof kpis.percentComplete === 'number' ? kpis.percentComplete : 0);
     }
   }, [open, kpis]);
+
+  const money = (v) => (typeof v === 'number' && Number.isFinite(v)
+    ? `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+    : 'No cost data');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,11 +49,13 @@ const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }
         narrative,
         blockers,
         decisions_needed: decisions,
-        spi: parseFloat(kpis?.spi || 1.0),
-        cpi: parseFloat(kpis?.cpi || 1.0),
-        earned_value: parseFloat(kpis?.ev?.replace(/[^0-9.-]+/g, "") || 0), // Strip currency
-        planned_value: parseFloat(kpis?.pv?.replace(/[^0-9.-]+/g, "") || 0),
-        actual_cost: parseFloat(kpis?.ac?.replace(/[^0-9.-]+/g, "") || 0)
+        // EC6-0: an index that is not defined is stored as null, not as the
+        // 1.0 this form used to invent and file as a measurement.
+        spi: typeof kpis?.spi === 'number' ? kpis.spi : null,
+        cpi: typeof kpis?.cpi === 'number' ? kpis.cpi : null,
+        earned_value: typeof kpis?.ev === 'number' ? kpis.ev : null,
+        planned_value: typeof kpis?.pv === 'number' ? kpis.pv : null,
+        actual_cost: typeof kpis?.ac === 'number' ? kpis.ac : null
     };
 
     const { error } = await supabase.from('project_updates').insert([payload]);
@@ -119,16 +127,16 @@ const ProgressUpdateForm = ({ open, onOpenChange, project, kpis, onUpdateSaved }
             <div className="grid grid-cols-3 gap-4 bg-slate-950 p-4 rounded-lg border border-slate-800">
                 <div>
                     <Label className="text-xs text-slate-500">Planned Value (PV)</Label>
-                    <div className="text-lg font-mono">{kpis?.pv || '$0'}</div>
+                    <div className="text-lg font-mono">{money(kpis?.pv)}</div>
                 </div>
                  <div>
                     <Label className="text-xs text-slate-500">Earned Value (EV)</Label>
-                    <div className="text-lg font-mono text-blue-400">{kpis?.ev || '$0'}</div>
+                    <div className="text-lg font-mono text-blue-400">{money(kpis?.ev)}</div>
                 </div>
                  <div>
                     <Label className="text-xs text-slate-500">Schedule Index (SPI)</Label>
-                    <div className={`text-lg font-mono ${parseFloat(kpis?.spi) < 1 ? 'text-red-400' : 'text-green-400'}`}>
-                        {kpis?.spi || '1.0'}
+                    <div className={`text-lg font-mono ${typeof kpis?.spi !== 'number' ? 'text-slate-400' : (kpis.spi < 1 ? 'text-red-400' : 'text-green-400')}`}>
+                        {typeof kpis?.spi === 'number' ? kpis.spi.toFixed(2) : 'n/a'}
                     </div>
                 </div>
             </div>
